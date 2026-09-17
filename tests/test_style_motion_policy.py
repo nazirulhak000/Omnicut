@@ -67,6 +67,11 @@ def test_unknown_style_falls_back_to_golden_master_and_catalog_is_json_safe():
         "tech_product_showcase",
         "smooth_showcase",
         "premium_minimal",
+        "flash_deal",
+        "pain_punch",
+        "tech_compare",
+        "smart_hack",
+        "niche_focus",
     }
     assert catalog["clean_tech_review"]["transition_stride"] == 5
     assert catalog["clean_tech_review"]["camera_motion_stride"] == 2

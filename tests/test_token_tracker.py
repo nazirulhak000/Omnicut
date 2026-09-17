@@ -16,8 +16,11 @@ never read or written.
 """
 import datetime
 import json
+import os
+import subprocess
 import sys
 import threading
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -105,6 +108,48 @@ def test_record_event_caps_history_at_1000_events(isolated_analytics):
     # The oldest 5 (t0..t4) must have been dropped; newest (t1004) kept.
     assert events[0]["task"] == "t5"
     assert events[-1]["task"] == "t1004"
+
+
+def test_daily_usage_survives_1000_event_trim_and_legacy_migration(isolated_analytics):
+    """Daily quota usage must include calls no longer present in events.
+
+    The fixture starts as a pre-daily_usage analytics file with exactly 1,000
+    events. The first new write both migrates the retained history and trims
+    one old event; all 1,005 calls must still count toward today's quota.
+    """
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    legacy = TokenTracker._get_default_structure()
+    legacy.pop("daily_usage", None)
+    legacy["events"] = [
+        {
+            "date": today,
+            "total_tokens": 2_000,
+            "input_tokens": 1_000,
+            "output_tokens": 1_000,
+            "thinking_tokens": 0,
+            "cost_saved_thb": 0.5,
+        }
+        for _ in range(1_000)
+    ]
+    isolated_analytics.write_text(json.dumps(legacy), encoding="utf-8")
+    TokenTracker._cache = None
+    TokenTracker._cache_stamp = (0, -1)
+
+    for _ in range(5):
+        TokenTracker.record_event(
+            task="quota", model="claude-sonnet-4-6", provider="test",
+            input_tokens=1_000, output_tokens=1_000,
+        )
+
+    usage = TokenTracker.get_usage_today()
+    assert usage["total_tokens"] == 2_010_000
+    assert usage["calls"] == 1_005
+    assert usage["cost_thb"] == 503.15
+
+    data = json.loads(isolated_analytics.read_text(encoding="utf-8"))
+    assert len(data["events"]) == 1_000
+    assert data["daily_usage"][today]["calls"] == 1_005
+    assert data["daily_usage"][today]["total_tokens"] == 2_010_000
 
 
 def test_record_event_totals_track_sum_of_events(isolated_analytics):
@@ -550,3 +595,47 @@ def test_concurrent_record_event_calls_do_not_lose_updates(isolated_analytics):
     assert data["totals"]["total_calls"] == expected_calls
     assert len(data["events"]) == expected_calls
     assert data["totals"]["total_tokens"] == expected_calls * 2
+
+
+def test_cross_process_record_event_calls_do_not_lose_updates(isolated_analytics):
+    """The JSON read-modify-write must be safe across OS processes too."""
+    child_code = textwrap.dedent(
+        """
+        import sys
+        from pathlib import Path
+        import scripts.token_tracker as tt_module
+        from scripts.token_tracker import TokenTracker
+
+        tt_module.ANALYTICS_FILE = Path(sys.argv[1])
+        TokenTracker._cache = None
+        TokenTracker._cache_stamp = (0, -1)
+        for _ in range(int(sys.argv[2])):
+            TokenTracker.record_event(
+                task="process", model="m", provider="p",
+                input_tokens=1, output_tokens=1,
+            )
+        """
+    )
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT) + os.pathsep + env.get("PYTHONPATH", "")
+    processes = [
+        subprocess.Popen(
+            [sys.executable, "-c", child_code, str(isolated_analytics), "20"],
+            cwd=ROOT,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        for _ in range(2)
+    ]
+    results = [process.communicate(timeout=30) for process in processes]
+
+    for returncode, (stdout, stderr) in zip((p.returncode for p in processes), results):
+        assert returncode == 0, f"child failed: stdout={stdout!r} stderr={stderr!r}"
+
+    data = json.loads(isolated_analytics.read_text(encoding="utf-8"))
+    assert len(data["events"]) == 40
+    assert data["totals"]["total_calls"] == 40
+    assert data["totals"]["total_tokens"] == 80
+    assert data["daily_usage"][datetime.datetime.now().strftime("%Y-%m-%d")]["calls"] == 40

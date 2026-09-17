@@ -7,13 +7,15 @@ export function Toast({
   onClose,
   duration = 3000
 }) {
+  const managedDuration = Number.isFinite(Number(duration)) ? Number(duration) : 3000;
+
   useEffect(() => {
-    if (!message) return;
+    if (!message || managedDuration <= 0) return undefined;
     const timer = setTimeout(() => {
       onClose?.();
-    }, duration);
+    }, managedDuration);
     return () => clearTimeout(timer);
-  }, [message, duration, onClose]);
+  }, [message, managedDuration, onClose]);
 
   if (!message) return null;
 
@@ -44,7 +46,12 @@ export function Toast({
   const Icon = config.icon;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 animate-fadeIn select-none pointer-events-auto">
+    <div
+      role={type === 'error' ? 'alert' : 'status'}
+      aria-live={type === 'error' ? 'assertive' : 'polite'}
+      aria-atomic="true"
+      className="fixed bottom-6 right-6 z-50 animate-fadeIn select-none pointer-events-auto"
+    >
       <div
         className={`flex items-center gap-3 py-3 px-4 rounded-2xl border backdrop-blur-md shadow-xl text-xs sm:text-sm font-semibold max-w-md ${config.style}`}
       >
@@ -52,7 +59,9 @@ export function Toast({
         <span className="flex-1">{message}</span>
         {onClose && (
           <button
+            type="button"
             onClick={onClose}
+            aria-label="ปิดการแจ้งเตือน"
             className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />

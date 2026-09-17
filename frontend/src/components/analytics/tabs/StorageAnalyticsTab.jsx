@@ -9,7 +9,6 @@ import MetricKpiCard from '../components/MetricKpiCard';
 import LoadingSpinner from '../../LoadingSpinner';
 import { ConfirmModal } from '../../ui';
 import DonutChart from '../charts/DonutChart';
-import { RadialGauge } from '../charts/ProgressRing';
 
 export default function StorageAnalyticsTab() {
   const [data, setData] = useState(null);
@@ -53,6 +52,9 @@ export default function StorageAnalyticsTab() {
   const totalFolderBytes = directories.reduce((acc, d) => acc + (d.size_bytes || 0), 0);
   const totalFolderGb = (totalFolderBytes / (1024 ** 3)).toFixed(2);
   const archiveItems = posted_archive_potential.items || [];
+  const archiveCandidateBytes = posted_archive_potential.archive_candidate_bytes ?? posted_archive_potential.total_reclaimable_bytes ?? 0;
+  const archiveCandidateMb = posted_archive_potential.archive_candidate_mb ?? posted_archive_potential.total_reclaimable_mb ?? 0;
+  const archiveCandidateGb = posted_archive_potential.archive_candidate_gb ?? posted_archive_potential.total_reclaimable_gb ?? 0;
 
   const folderChartData = useMemo(() => {
     const COLOR_MAP = {
@@ -223,7 +225,7 @@ export default function StorageAnalyticsTab() {
               </h3>
             </div>
             <p className="text-xs text-slate-300">
-              เมื่อย้ายคลิปที่โพสต์แล้วและโปรเจกต์งานตัดต่อไปสำรอง (Backup) บน External Drive หรือ Cloud จะประหยัดพื้นที่ได้ทันที
+              ตัวเลขนี้เป็นขนาดไฟล์ที่เข้าเกณฑ์สำหรับย้ายไปสำรอง (Backup) บน External Drive หรือ Cloud ไม่ใช่ไฟล์ที่ระบบลบได้ทันที
             </p>
           </div>
 
@@ -262,14 +264,14 @@ export default function StorageAnalyticsTab() {
           </div>
 
           <div className="p-3.5 rounded-2xl bg-black/30 border border-white/[0.06] space-y-1">
-            <span className="text-[11px] font-bold text-slate-400">พื้นที่ที่จะประหยัดได้ทันที</span>
+            <span className="text-[11px] font-bold text-slate-400">ขนาดที่เข้าเกณฑ์ย้ายสำรอง</span>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-bold text-emerald-400">
-                {(posted_archive_potential.total_reclaimable_mb || 0) >= 1024
-                  ? `${posted_archive_potential.total_reclaimable_gb} GB`
-                  : `${posted_archive_potential.total_reclaimable_mb || 0} MB`}
+                {archiveCandidateMb >= 1024
+                  ? `${archiveCandidateGb} GB`
+                  : `${archiveCandidateMb} MB`}
               </span>
-              <span className="text-xs text-emerald-400/80">ได้พื้นที่คอมคืน</span>
+              <span className="text-xs text-emerald-400/80">ต้อง Backup ก่อน reclaim</span>
             </div>
             <p className="text-[10px] text-slate-400">รวมวิดีโอส่งออก + ดราฟต์โปรเจกต์งานตัด</p>
           </div>
@@ -278,11 +280,11 @@ export default function StorageAnalyticsTab() {
             <span className="text-[11px] font-bold text-slate-400">สัดส่วนที่ลดได้จากโปรเจกต์</span>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-bold text-purple-400">
-                {totalFolderBytes ? Math.round(((posted_archive_potential.total_reclaimable_bytes || 0) / totalFolderBytes) * 100) : 0}%
+                {totalFolderBytes ? Math.round((archiveCandidateBytes / totalFolderBytes) * 100) : 0}%
               </span>
               <span className="text-xs text-purple-400/80">ของพื้นที่โปรเจกต์</span>
             </div>
-            <p className="text-[10px] text-slate-400">ลดขนาด 04_Exports และ 03_Projects ทันที</p>
+            <p className="text-[10px] text-slate-400">เป็น archive candidate estimate ไม่ใช่ safe-delete</p>
           </div>
         </div>
 
@@ -293,7 +295,10 @@ export default function StorageAnalyticsTab() {
             วิดีโอส่งออก MP4: <strong className="text-white font-semibold">{posted_archive_potential.posted_exports_mb || 0} MB</strong> ({posted_archive_potential.posted_clips_count || 0} ไฟล์)
           </span>
           <span className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-200">
-            โฟลเดอร์ดราฟต์โปรเจกต์: <strong className="text-white font-semibold">{posted_archive_potential.posted_projects_mb || 0} MB</strong> ({posted_archive_potential.posted_angles_count || 0} โปรเจกต์)
+            โฟลเดอร์ดราฟต์โปรเจกต์: <strong className="text-white font-semibold">{posted_archive_potential.posted_projects_mb || 0} MB</strong> ({posted_archive_potential.posted_projects_count || 0} โปรเจกต์)
+          </span>
+          <span className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-200">
+            วัตถุดิบที่ครบทุกมุมโพสต์: <strong className="text-white font-semibold">{posted_archive_potential.completed_products_raw_mb || 0} MB</strong> ({posted_archive_potential.completed_products_raw_count || 0} โฟลเดอร์)
           </span>
         </div>
 
@@ -327,6 +332,11 @@ export default function StorageAnalyticsTab() {
                             <FileVideo className="w-3 h-3" />
                             <span>วิดีโอ MP4</span>
                           </span>
+                        ) : item.type === 'raw_source' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px] font-bold">
+                            <FolderArchive className="w-3 h-3" />
+                            <span>วัตถุดิบที่เข้าเกณฑ์ Archive</span>
+                          </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[10px] font-bold">
                             <FileCode className="w-3 h-3" />
@@ -355,7 +365,7 @@ export default function StorageAnalyticsTab() {
                 <span>คำแนะนำการย้ายและสำรองข้อมูล (Archive & Backup Strategy)</span>
               </div>
               <p className="text-[11px] text-slate-400">
-                เมื่อย้ายไฟล์ MP4 ใน <code className="text-slate-300">04_Exports/Posted/</code> และโฟลเดอร์ใน <code className="text-slate-300">03_Projects/</code> ไปไว้บน External Drive หรือ Cloud Storage จะได้พื้นที่คอมพิวเตอร์คืนทันที โดยฐานข้อมูลสถิติ ยอดวิว และผลวิเคราะห์ใน OmniCut Pro Studio จะยังคงอยู่ครบ 100% ไม่สูญหาย
+                เมื่อย้ายไฟล์ MP4 ใน <code className="text-slate-300">04_Exports/Posted/</code> และโฟลเดอร์ใน <code className="text-slate-300">03_Projects/</code> ไปไว้บน External Drive หรือ Cloud Storage แล้วตรวจสอบ Backup เรียบร้อย จึงค่อย reclaim พื้นที่ โดยฐานข้อมูลสถิติ ยอดวิว และผลวิเคราะห์ใน OmniCut Pro Studio จะยังคงอยู่ครบ 100% ไม่สูญหาย
               </p>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getActiveTasks, cancelTaskApi, deleteTaskApi, clearCompletedTasksApi, getTiktokMilestones } from '../api';
+import { useToast } from '../hooks/useToast';
 
 const TaskContext = createContext(null);
 
@@ -43,15 +44,39 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
   });
 
   const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false);
-  const [notificationToast, setNotificationToast] = useState(null);
+  const {
+    toast: notificationToast,
+    showToast: enqueueNotification,
+    hideToast: dismissNotification,
+  } = useToast(0);
+  const setNotificationToast = useCallback((nextToast) => {
+    if (!nextToast) {
+      dismissNotification();
+      return;
+    }
+    enqueueNotification(
+      nextToast.message || nextToast.title || 'มีการแจ้งเตือนใหม่',
+      nextToast.type || 'info',
+      0,
+      nextToast,
+    );
+  }, [dismissNotification, enqueueNotification]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [viralMilestones, setViralMilestones] = useState([]);
+  const [taskSyncState, setTaskSyncState] = useState({
+    status: 'unknown',
+    lastSuccessfulAt: null,
+    error: null,
+  });
 
   // Check TikTok viral milestones periodically
   const notifiedMilestonesRef = useRef(new Set());
+  const viralMilestonesInFlightRef = useRef(null);
 
   const fetchViralMilestones = useCallback(async () => {
-    try {
+    if (viralMilestonesInFlightRef.current) return viralMilestonesInFlightRef.current;
+    const request = (async () => {
+      try {
       const res = await getTiktokMilestones(1000);
       if (res && Array.isArray(res.milestones)) {
         setViralMilestones(res.milestones);
@@ -69,12 +94,24 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
           }
         });
       }
-    } catch (e) {
-      // Quiet fail if analytics not populated yet
-    }
-  }, []);
+      } catch (e) {
+        // Analytics can be unavailable independently of task polling. Keep the
+        // last known milestones and retry on the next safe polling window.
+      } finally {
+        viralMilestonesInFlightRef.current = null;
+      }
+    })();
+    viralMilestonesInFlightRef.current = request;
+    return request;
+  }, [setNotificationToast]);
 
-  // Fetch viral milestones on-demand (no background polling)
+  const lastViralMilestoneCheckRef = useRef(0);
+  const maybeFetchViralMilestones = useCallback(() => {
+    const now = Date.now();
+    if (now - lastViralMilestoneCheckRef.current < 30_000) return;
+    lastViralMilestoneCheckRef.current = now;
+    void fetchViralMilestones();
+  }, [fetchViralMilestones]);
 
   // Keep a map of previous statuses to detect transitions (e.g. processing -> completed)
   const prevStatusesRef = useRef({});
@@ -102,8 +139,11 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
   }, [tasks]);
 
   const fetchAndApplyTasks = useCallback(async () => {
-    const res = await getActiveTasks();
-    if (res && Array.isArray(res.tasks)) {
+    try {
+      const res = await getActiveTasks();
+      if (!res || !Array.isArray(res.tasks)) {
+        throw new Error('Invalid task status response');
+      }
       const fetchedTasks = res.tasks;
 
       // Check for state transitions
@@ -142,8 +182,21 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       });
 
       setTasks(fetchedTasks);
+      setTaskSyncState({
+        status: 'healthy',
+        lastSuccessfulAt: Date.now(),
+        error: null,
+      });
+      maybeFetchViralMilestones();
+    } catch (err) {
+      setTaskSyncState(prev => ({
+        status: 'stale',
+        lastSuccessfulAt: prev.lastSuccessfulAt,
+        error: err?.response?.data?.detail || err?.message || 'เชื่อมต่อ backend ไม่สำเร็จ',
+      }));
+      throw err;
     }
-  }, []);
+  }, [maybeFetchViralMilestones]);
 
   // Starts exactly one fresh fetch, tracked via inFlightPollRef.
   const startPoll = useCallback(() => {
@@ -346,6 +399,7 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     toggleActivityDrawer,
     notificationToast,
     setNotificationToast,
+    taskSyncState,
     refreshTrigger,
     pollTasks,
     cancelTask,
@@ -357,7 +411,7 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
   }), [
     tasks, activeTasks, activeCount, completedTasks,
     isActivityDrawerOpen, toggleActivityDrawer,
-    notificationToast, refreshTrigger,
+    notificationToast, taskSyncState, refreshTrigger,
     pollTasks, cancelTask, deleteTask, clearCompleted, jumpToTaskResult,
     viralMilestones, fetchViralMilestones
   ]);

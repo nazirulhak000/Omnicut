@@ -1075,7 +1075,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const { toastMessage, toastType, showToast, hideToast } = useToast();
+  const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
   const [selectedVideos, setSelectedVideos] = useState([]);
   const [copiedCaption, setCopiedCaption] = useState(false);
 
@@ -1464,7 +1464,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
   return (
     <div className="space-y-4 relative animate-fadeIn pb-16">
       {/* Central Toast Notification */}
-      <Toast message={toastMessage} onClose={hideToast} />
+      <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
 
       {/* ── Unified Media Center & Command Bar ── */}
       <div className="rounded-2xl sm:rounded-3xl border border-white/[0.08] bg-[#0B0F19]/90 backdrop-blur-xl p-3 sm:p-5 shadow-2xl relative overflow-hidden space-y-3 sm:space-y-4">
@@ -2338,4 +2338,3 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     </div>
   );
 }
-

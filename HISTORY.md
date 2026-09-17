@@ -8,6 +8,9 @@
 
 ## สารบัญ
 
+| Round HERO-COVER-SHOT-MACRO-PRIORITY-1 | ยกระดับการเลือกช็อตเปิดคลิป/หน้าปก (Shot 1 Hero Priority): เจาะจงเลือกช็อตมาโครระยะประชิดที่มีโลโก้แบรนด์คมชัดระดับโปร แทนช็อตฝ่ามือ + อัปเดตคลิป JBL01 ให้ได้หน้าปกโลโก้ JBL คมชัดตามรูปเรฟ | 2026-09-17 | สำเร็จสมบูรณ์ (backend 39 passed, frontend 246 passed, build 2,008 modules/3.14s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round SMART-VISION-SEMANTIC-MATCHER-FIX-1 | ปรับปรุง Algorithm Smart Vision Matcher: ปิดบั๊กปิงปองสลับฟันปลา (Global Scene Usage Penalty) + แยกแยะบริบทคำว่า 'สาย'/'แม่เหล็ก'/'ปุ่มไมค์'/'เสียงเบส' ไม่ให้ดูดไปหัว Type-C ซ้ำซาก | 2026-09-17 | สำเร็จสมบูรณ์ (backend 38 passed, frontend 246 passed, build 2,008 modules/3.66s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round SUBTITLE-AND-HOOK-RENDER-PARITY-FIX-1 | แก้ปัญหาสีไฮไลต์ซับคลุมทั้งประโยคใน Render + ป้องกันป้าย Hook Header บรรทัดซ้อนทับกัน (Collision) จากการคำนวณ Character Wrap แคบกว่าขอบจอจริง | 2026-09-16 | สำเร็จสมบูรณ์ (backend parity 183 passed, frontend 246 passed, build 2,007 modules/5.00s, FFmpeg frame verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round ANGLE-CARD-DELETE-BUTTON-REALIGN-1 | ย้ายปุ่มลบสคริปต์บนการ์ดมุมมองลงแถบล่าง (Footer) เพื่อให้ Stepper Tracker ชิดขวาเท่ากัน 100% ทุกใบ ไม่ขยับเยื้อง | 2026-09-16 | สำเร็จสมบูรณ์ (frontend 246 passed, build 2,007 modules/6.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round TIKTOK-STATS-MATCH-SCHEDULE-QUEUE-1 | ขยาย Candidate Pool ด้วย Schedule Queue + Caption ยกระดับการจับคู่สถิติ TikTok ให้ตรง 100% อัตโนมัติ | 2026-09-16 | สำเร็จสมบูรณ์ (backend 16 passed, frontend 246 passed, build 2,007 modules/3.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round ONE-CLICK-PROJECT-NAME-CONVENTION-1 | ซิงก์รูปแบบการตั้งชื่อโปรเจกต์ของ 1-Click Draft / Batch Draft ให้เป็นมาตรฐานเดียวกับหน้า NewClipPanel ({product_code}-{angle_name}_{variant}) ป้องกันชื่อหลุดเป็นชื่อสินค้า slugify | 2026-09-16 | สำเร็จสมบูรณ์ (backend 11 passed, frontend 246 passed, build 2,007 modules/3.56s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -38,6 +41,122 @@
 | Round COVER-TIMELINE-PRE-RENDER-1 | สร้างหน้าปกจากเฟรมจริงใน Timeline ก่อน Render | 2026-09-14 | สำเร็จสมบูรณ์ (backend cover 8 passed, frontend 230 passed, build 2,006 modules, detector พบเฉพาะคำเตือนเดิม, browser unavailable, ดำเนินการโดย: Codex (GPT-5)) |
 | Round CALLOUT-RESURRECT-FIX-1 | แก้บั๊ก Text Overlays ถูกปลุกขึ้นมาทับกลางจอ (LOCSmartband) เมื่อลบแล้วใน Editor + ป้องกัน Auto Brand/Model Callout ซ้อนทับ Hook Banner | 2026-09-14 | สำเร็จสมบูรณ์ (backend 8+5+153 passed, frontend 230 passed, build 2005 modules/3.60s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round BG-SUBJECT-ISOLATION-RESUME-1 | Durable per-frame checkpoint, startup recovery, reconnect polling, completed-result rebinding, and duplicate scheduler guard | 2026-09-14 | สำเร็จสมบูรณ์ (backend 45+41 passed, frontend 230 passed, build 2,005 modules, compileall ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
+| Round COVER-MULTI-GEN-HANDHELD-1 | AI Cover History Gallery (เก็บทุกรูปที่เจนไม่ถูกทับ) + ปลดล็อกคำสั่ง Handheld มือถือสินค้าจริง + Auto-enable Brand/Model Title Overlay | 2026-09-14 | สำเร็จสมบูรณ์ (pytest 6 passed, vitest 230 passed, build 2.95s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round COVER-REALTIME-SCRUB-STUDIO-1 | เรียลไทม์ Frame Scrubber ใน Cover Studio + AI Studio Cutout ผสานช็อตสินค้าจริง | 2026-09-14 | สำเร็จสมบูรณ์ (pytest 3 passed, vitest 224 passed, build 3.98s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round HOOK-KINETIC-MOTION-1 | Step-by-Step Cumulative Hook Reveal & High-Impact Animation System (slam, elastic_bounce) | 2026-09-13 | สำเร็จสมบูรณ์ (backend parity 177 passed, behavior render 18 passed, smoke 150 passed, frontend 185 passed, build 3.79s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round THAI-STACKED-MARK-GENERALIZE-1 | ขยายการจัดชั้นสระบน + วรรณยุกต์ไทยจากคู่เดียวเป็น 20 คู่ พร้อม Preview/Render parity | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,135 passed, visual/contract 180 passed, frontend 185 passed, FFmpeg 20-pair pixel matrix + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
+| Round THAI-STACKED-MARK-RENDER-FIX-1 | แก้ `ั` + `่` ซ้อนทับใน Render ให้สูงโปร่งตรง Preview โดยรักษา layout ของ emoji/ข้อความทั้งบรรทัด | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,133 passed, visual/contract 178 passed, frontend 185 passed, build 2,003 modules/4.59s, FFmpeg pixel geometry + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
+| Round TECH-PRODUCT-SHOWCASE-1 | เพิ่ม preset Tech Product Showcase สำหรับคลิปรีวิวสินค้า โดยใช้ motion/palette contract เดียวกับ Preview/Render | 2026-09-13 | สำเร็จสมบูรณ์ในขอบเขต foundation (backend 181 focused passed, frontend 185 passed, build/compile/pip check/diff check passed, FFmpeg 5-style multi-frame render + Browser verified, ดำเนินการโดย: Codex (GPT-5)) |
+| Round TOKEN-LAZY-LOAD-1 | ถอด HISTORY ออกจาก prompt ทุกรอบ (lazy-load อ่านสารบัญ ≤100 บรรทัด) | 2026-09-13 | เสร็จ (work_loop 2.1 / AGENTS 13 / SKILL ข้อ 2-3, ดำเนินการโดย: Muse Spark (Muse Spark)) |
+| Round AGENTS-SLIM-1 | ย่อ AGENTS.md 170→62 บรรทัด (30.9→11.3 KB) กฎ 24 ข้อครบ + link ไฟล์กฎ | 2026-09-13 | เสร็จ (ดำเนินการโดย: Muse Spark (Muse Spark)) |
+| Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
+| Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
+| Round BACKFILL-CLOSED-ROUNDS-20260915 | นำ 38 รอบที่ติ๊กปิดใน TODO แต่ไม่เคยถูกย้ายเข้า HISTORY มาบันทึกย้อนหลัง (COVER-AI*, IOS-PASTE*, SYSTEM-AUDIT-P4/P5/P6*, AI-PRODUCER-VISION-1, ANALYTICS-HEADER-DATA-FIX-1 ฯลฯ) | 2026-09-15 | เสร็จ (ตรวจด้วยสคริปต์: `[x] Round` 110 บรรทัด → ขาดใน HISTORY 38, ดำเนินการโดย: Muse Spark (Muse Spark)) |
+
+## Round HERO-COVER-SHOT-MACRO-PRIORITY-1 — ยกระดับการเลือกช็อตเปิดคลิป/หน้าปก (Shot 1 Hero Priority): เจาะจงเลือกช็อตมาโครระยะประชิดที่มีโลโก้แบรนด์คมชัดระดับโปร แทนช็อตฝ่ามือ + อัปเดตคลิป JBL01 ให้ได้หน้าปกโลโก้ JBL คมชัดตามรูปเรฟ
+
+วันที่: 2026-09-17 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+1. **ช็อตแรก (Shot 1 / Hook) เห็นโลโก้ไม่ชัดเจน:** ในคลิป JBL Tune 310c การจับคู่เดิมเลือกฉากที่ 2 (7.0s - 15.0s) ซึ่งเป็นภาพหูฟังวางในฝ่ามือ ตัวสินค้าอยู่ไกล มืด และโลโก้ไม่คมชัด ทำให้เมื่อนำเฟรมแรกไปใช้สร้างหน้าปก (Cover Studio / Thumbnail) หน้าปกดูไม่พรีเมียมและเห็นเอกลักษณ์ของสินค้าไม่เด่นชัด
+2. **ภาพช็อตที่ดีที่สุด (Hero Shot) ไปหลบอยู่ที่ท้ายคลิป:** ในฟุตเทจดิบ มีช็อตมาโครระยะประชิดที่นิ้วสองข้างจับตัวบอดี้หูฟังหันหน้าตรง โชว์โลโก้ JBL นูนคมกริบและสัญลักษณ์เครื่องหมายตกใจกลางเฟรม (ช่วง 78.5s - 82.0s) ซึ่งเหมาะสมที่สุดในการเป็นทั้งภาพเปิดคลิปดึงดูดสายตา (Hook) และภาพหน้าปก
+3. **ขาดคะแนนส่งเสริมช็อตเปิดคลิป/หน้าปก (Hook / Cover Hero Shot Priority):** ระบบคัดเลือกฉากเดิมให้คะแนนทุกฉากเท่ากันในช็อตแรก ไม่ได้แยกความแตกต่างระหว่างช็อตมาโครคมชัดที่โชว์โลโก้แบรนด์กับช็อตถือสินค้าลอยๆ บนฝ่ามือ
+
+### สิ่งที่ได้ดำเนินการแก้ไข
+- [x] 1. **เพิ่ม Hook / Cover Hero Shot Priority ใน `scripts/gemini_vision_matcher.py` (`match_script_with_catalog`):**
+  - สำหรับ Shot 1 / Beat 1 (`g_idx == 0` หรือ `progress < 0.15`): คัดเลือกช็อตเปิดคลิปที่ทำหน้าที่เป็น Thumbnail/Cover Frame ได้สมบูรณ์แบบ
+  - เพิ่มคะแนนพิเศษ (+4.5) สำหรับช็อตที่เป็น `macro_closeup` หรือ `closeup` พร้อมกับมีคีย์เวิร์ดบ่งบอกความคมชัดของโลโก้/ตัวเครื่อง (`โลโก้`, `logo`, `สกรีนชัดเจน`, `ประณีต`, `ซูมเน้น`, `คมชัด`)
+  - ลดคะแนน (-2.5) สำหรับช็อตที่ถือหูฟังลอยๆ บนฝ่ามือ (`ฝ่ามือ`) ใน Shot 1 เพื่อป้องกันไม่ให้ถูกหยิบมาเป็นภาพหน้าปกที่ตัวสินค้าจมหรือเห็นโลโก้ไม่ชัด
+- [x] 2. **ปรับแต่ง Scene Catalog ใน `02_Assets/.vision_cache.json` สำหรับคลิป JBL Tune 310c (`fd83e0ea65555babfdad21543c4e558b`):**
+  - ปรับช่วงเวลาของ Scene 9 เป็น `78.5s - 82.0s` ซึ่งเป็นช่วงเวลาที่นิ้วทั้งสองข้างจับตัวหูฟังหันหน้าตรง โชว์โลโก้ JBL นูนเด่นและสัญลักษณ์ไอคอนชัดเจนตรงกลางเฟรม พร้อมฉากหลังไม้ด้านบนโล่งสะอาดเหมาะวางข้อความหน้าปก
+  - อัปเดต keywords: `["โลโก้ JBL", "โลโก้", "สกรีนชัดเจน", "บอดี้", "hero"]`
+- [x] 3. **อัปเดตโปรเจกต์ `03_Projects/JBL01-ปัญหาก่อนใช้_1/project.json` ทันที:**
+  - Clip 1: ปรับ `trim_start: 79.5`, `trim_end: 81.6` (duration 2.10s) เพื่อให้เฟรมเปิดคลิป (00:00.0) และหน้าปกใน Studio เป็นภาพมาโครโลโก้ JBL คมชัดตรงตามรูปเรฟของผู้ใช้
+  - Clip 10: ปรับเพื่อไม่ให้ใช้ฟุตเทจซ้ำกับ Clip 1 โดยขยับไปใช้ Scene 10 (`trim_start: 83.0`, `trim_end: 86.517` ช่วง CTA showcase)
+- [x] 4. **เพิ่ม Automated Unit Tests ใน `tests/test_smart_vision_matcher.py`:**
+  - `test_hero_cover_shot_macro_priority`: ยืนยันว่าเมื่อจับคู่ Shot 1 จะเลือกช็อตมาโครโลโก้คมชัดเป็นอันดับ 1 เหนือช็อตฝ่ามือ
+
+### ผลการทดสอบ
+- **Backend Tests:** 39 passed (100% pass ใน `test_smart_vision_matcher.py`, `test_gemini_vision_matcher.py`, `test_gemini_vision_retry.py`)
+- **Frontend Tests:** 246 passed (100% pass ใน `npm test`)
+- **Frontend Production Build:** Vite 2,008 modules built in 3.14s (`npm run build`)
+
+---
+
+## Round SMART-VISION-SEMANTIC-MATCHER-FIX-1 — ปรับปรุง Algorithm Smart Vision Matcher: ปิดบั๊กปิงปองสลับฟันปลา (Global Scene Usage Penalty) + แยกแยะบริบทคำว่า 'สาย'/'แม่เหล็ก'/'ปุ่มไมค์'/'เสียงเบส' ไม่ให้ดูดไปหัว Type-C ซ้ำซาก
+
+วันที่: 2026-09-17 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+1. **บั๊กปิงปองสลับฟันปลา (Ping-pong Oscillation):** ใน `match_script_with_catalog` ฟังก์ชันป้องกันฉากซ้ำจำแค่ช็อตก่อนหน้า (`prev_scene_id`) ทำให้ฉากที่ใช้ในช็อตที่ 1 สามารถวนกลับมาใช้ในช็อตที่ 3 ได้ และช็อตที่ 2 วนกลับมาใช้ในช็อตที่ 4 ได้ ส่งผลให้คลิปตัดสลับแค่ 2 ฉากเดิม (ฉาก 1 ➔ ฉาก 6 ➔ ฉาก 1 ➔ ฉาก 6 ➔ ฉาก 10) ทั้งที่มีฟุตเทจสารบัญฉากอยู่ถึง 10 ฉาก
+2. **Domain Pattern กว้างเกินไป ("สาย" ชน port_connection):** คำว่า "สาย" ไปตกอยู่ในหมวดพอร์ตชาร์จ ทำให้สคริปต์ที่พูดว่า "หูฟังแบบมีสาย", "สายแบนทนทาน ไม่พันกัน" ถูกดูดไปที่ฉากหัวเสียบ Type-C แทนที่จะเป็นฉากฟังก์ชันสายหรือแม่เหล็ก
+3. **ขาดหมวดจับคู่เจาะจงสำหรับฟังก์ชันสำคัญ:** เช่น "แม่เหล็ก", "ไม่พันกัน", "ปุ่มควบคุม/ไมค์", "เสียง/เบส/Hi-Res"
+4. **คำชื่อสินค้า/แบรนด์ดึงคะแนนฉากที่ 1 พุ่งผิดปกติ:** คำว่า "หูฟัง" หรือ "JBL" ในคีย์เวิร์ดฉากที่ 1 ได้คะแนนสูงจนกลบฉากเจาะลึกอื่นๆ
+
+### สิ่งที่ได้ดำเนินการแก้ไข
+- [x] 1. **ปรับปรุง `match_script_with_catalog` ใน `scripts/gemini_vision_matcher.py`:**
+  - เพิ่ม **Global Scene Usage Penalty**: จดจำและหักคะแนนฉากที่เคยถูกใช้ไปแล้วในคลิปนั้น (-6.0 ต่อจำนวนครั้งที่เคยใช้ และ -12.0 สำหรับฉากที่เพิ่งใช้ช็อตติดกัน) พร้อมให้โบนัส +3.5 แก่ฉากที่ยังไม่เคยถูกใช้ เพื่อบังคับให้ระบบกระจายเลือกฉากที่ยังไม่เคยใช้ (Unused Scenes First)
+  - ปรับปรุง **Domain Patterns**:
+    - นำคำว่า "สาย" ออกจาก `port_connection` และเพิ่มคำเฉพาะ: "ยูเอสบี", "ยูเอสบีซี", "ไทป์ซี", "สายชาร์จ", "หัวเสียบ", "หัวชาร์จ"
+    - เพิ่มกลุ่มคำ `anti_tangle_magnet`: ("แม่เหล็ก", "ไม่พันกัน", "ประกบ", "กันสายพัน", "จัดเก็บ", "สายแบน", "เก็บง่าย")
+    - เพิ่มกลุ่มคำ `controls_mic`: ("ปุ่ม", "รีโมท", "เพิ่มเสียง", "ลดเสียง", "ไมค์", "ไมโครโฟน", "คุยสาย", "สนทนา", "รับสาย", "ปรับระดับ")
+    - เพิ่มกลุ่มคำ `sound_driver`: ("เสียง", "เบส", "hi-res", "มิติ", "แบนราบ", "สะใจ", "ใส", "คมชัด", "นุ่มลึก", "ไดร์เวอร์", "pure bass")
+  - ลดน้ำหนัก Generic Product / Brand terms: คำที่เป็นประเภทสินค้าสามัญ ("หูฟัง", "สินค้า", "ตัวเครื่อง", "รุ่นนี้", "jbl") จะได้คะแนนคีย์เวิร์ดต่ำลง (+0.8) เพื่อไม่ให้เบียดบังฟังก์ชันจริง
+- [x] 2. **ทดสอบและยืนยันผลการแมพ:**
+  - เพิ่ม Unit Test `test_anti_ping_pong_and_domain_diversity` ใน `tests/test_smart_vision_matcher.py` (ผ่านครบ 6/6 tests)
+  - ทดสอบทั้ง Vision Suite (`tests/test_smart_vision_matcher.py`, `tests/test_gemini_vision_matcher.py`, `tests/test_gemini_vision_retry.py`): ผ่านครบ **38/38 passed (100%)**
+  - อัปเดตแคชและ `project.json` ของโปรเจกต์ `JBL01-ปัญหาก่อนใช้_1` ส่งผลให้ฉากตัดสลับกระจาย 5 ฉากตรงเนื้อหาแบบ 100%:
+    - ช็อต 1 ➔ Scene 2 (7.0s-15.0s): โชว์หูฟังทั้งสองข้างในฝ่ามือ โลโก้ JBL L / R
+    - ช็อต 2 ➔ Scene 1 (0.0s-7.0s): มือหยิบหูฟังสาย JBL ขึ้นมาจากโต๊ะไม้ โชว์สายหูฟัง
+    - ช็อต 3 ➔ Scene 6 (37.0s-45.0s): โชว์หัวเชื่อมต่อแบบ USB Type-C สกรีนโลโก้ JBL
+    - ช็อต 4 ➔ Scene 8 (56.0s-67.0s): สาธิตระบบแม่เหล็กที่หลังหูฟัง ประกบติดกันเพื่อป้องกันสายพันกัน
+    - ช็อต 5 ➔ Scene 10 (82.0s-93.3s): แสดงภาพรวมหูฟัง JBL ในมือส่งท้าย ปิดการรีวิว
+  - Frontend Tests: `npm test` ผ่าน **246/246 passed (100%)**
+  - Frontend Build: `npm run build` ผ่าน **2,008 modules ใน 3.66s**
+
+---
+
+## Round SMART-VISION-SCENE-INDEXING-1 — ระบบ 2-Step Smart Vision: สแกนสร้างสารบัญฉากคลิปดิบ (Scene Catalog) 1 ครั้ง + แมพสคริปต์ความหมายจริง (Semantic & Dynamic Variety) ไม่หั่นสุ่ม 3.5s
+
+วันที่: 2026-09-16 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### ปัญหาเดิมและข้อจำกัด
+1. **การตัดช็อตแบบสุ่มหั่นเค้ก 3.5 วิ (Rhythmic 3.5s Fallback):** ใน `shot_matching_stage.py` เมื่อไม่มีผล Vision หรือ AI ขัดข้อง โค้ดเดิมใช้สูตรเส้นตรง `target_offset = (g_idx * 3.5)` ส่งผลให้คลิปถูกตัดที่ 0.0s, 3.5s, 7.0s, 10.5s โดยไม่สอดคล้องกับเนื้อหาภาพจริง
+2. **AI Vision มีพฤติกรรม Bias เรียงเวลาคลิปดิบ:** Prompt เดิมบังคับลำดับคิว 1..N ทำให้โมเดล Gemini มักจับคู่ช็อตเรียงลำดับเวลาตั้งแต่ต้นคลิปจนจบ ทั้งที่ผู้ใช้อาจถ่ายฟุตเทจสลับไปมา และเกิดบั๊ก Timestamp หยาบจนช็อตติดกันเริ่มที่เวลาเดียวกันเป๊ะ (เช่น 1.0s ชนกัน)
+3. **ขาดระบบรองรับฟุตเทจหมุนสินค้า (Turntable 360 Spin):** หากคลิปเป็นเพียงการวางสินค้าบนแท่นหมุน AI จะคัตฉากเดิมๆ ซ้ำซาก ขาดความหลากหลายทางสายตา
+4. **ความซ้ำซ้อนและเปลืองโทเคน (Token & Time Inefficiency):** หากผู้ใช้แนบคลิปดิบ 1 คลิปให้กับทั้ง 10 สคริปต์ ระบบเดิมจะส่งคลิปเดิมให้ AI Vision สแกนใหม่ 10 รอบ สิ้นเปลืองทั้งเวลา โควตาโทเคน และเสี่ยงติด Rate Limit
+
+### วิธีการแก้ไขและสิ่งที่ทำ
+1. **ระบบ 2-Step Decoupled Vision Architecture (ใน `gemini_vision_matcher.py`):**
+   - **Step 1 (Index Catalog Once):** เพิ่มฟังก์ชัน `index_raw_video_catalog()` ส่งคลิปให้ Gemini วิเคราะห์สารบัญฉาก (Scene Catalog) เพียง **ครั้งเดียว** ถอดข้อมูลเหตุการณ์ออกมาเป็น JSON ละเอียด (เวลาเริ่ม-จบ, action_type, angle_phase เช่น front/45deg/side/macro_closeup/back, keywords, punch_zoom, และ is_spin_footage)
+   - บันทึกแคชสารบัญฉากลงใน `.vision_cache.json` ใต้คีย์ `"catalogs"` โดยผูกกับ `file_hash` และชื่อคลิป
+   - มีระบบ `_generate_heuristic_catalog()` สำรองกรณีไม่มีเน็ตหรือไม่มี API Key
+   - **Step 2 (Instant Semantic Matching):** พัฒนา `match_script_with_catalog()` จับคู่ท่อนสคริปต์เข้ากับสารบัญฉากทันทีแบบ Offline (0 ms, 0 API calls, 0 Tokens) โดยจับคู่ Keyword Relevance, Action Type ให้สอดคล้องกับ Narrative Arc (hook -> problem -> solution -> cta)
+2. **Dynamic Visual Variety สำหรับคลิป 360 Turntable:**
+   - เมื่อตรวจพบว่าเป็นคลิปหมุนสินค้า (`is_spin_footage = True` หรือหมุนวนมุมเดิม) ระบบจะสลับหมุนมุมมอง (Angle Phase Cycling: `front` ➔ `45deg` ➔ `side` ➔ `macro_closeup` ➔ `back`) พร้อมปรับ Punch Zoom (1.10x ถึง 1.25x) ให้เกิดไดนามิกน่าสนใจ
+   - กฎ **Anti-Duplicate Lock:** ป้องกันการเลือกฉากเดิมซ้ำติดกัน และห้ามช็อตถัดไปเริ่มที่เวลาใกล้กันเกินไป (< 1.8s)
+3. **Smart Fallback Distribution (ใน `shot_matching_stage.py`):**
+   - เพิ่มเมธอด `_compute_smart_fallback_offset()` คำนวณจุดตัดคลิปดิบแบบกระจายทั่วคลิปด้วย Golden Ratio Jitter (phi = 0.6180339887) ร่วมกับ Motion Peaks Snapping และระยะห่างขั้นต่ำ (anti-collision) ปลดระวางสูตร `g_idx * 3.5` ถาวร
+4. **API Endpoints & UI Integration:**
+   - ใน `scripts/api_products.py`: เพิ่ม `GET /api/products/{id}/scene-catalogs` และ `POST /api/products/{id}/index-scenes`
+   - ใน `frontend/src/components/ProductToClip.jsx`: เพิ่มปุ่ม `[⚡ สแกนสารบัญฉาก Vision AI]` บน Batch Action Bar และแสดงสถานะ `สารบัญฉากพร้อม N ฉาก` หรือ `⚠️ ยังไม่ได้สแกนฉาก`
+   - เพิ่ม Badge บน Video Pill ทั้งในมุมมองหลักและใน Accordion (`⚡ N ฉาก` / `⚡ สแกนฉาก`) สามารถกดสแกนรายคลิปหรือสแกนทุกคลิปในครั้งเดียวได้ทันที
+5. **Zero-API Cache Guard ใน `match_script_to_video()`:**
+   - เพิ่มการตรวจสอบ Catalog Cache ตั้งแต่ต้นฟังก์ชัน หากมี Catalog อยู่แล้ว ระบบจะข้ามการเรียก Gemini API ทั้งหมดและแมพสคริปต์ให้เสร็จสิ้นทันทีใน 0.001 วินาที
+
+### ผลการทดสอบและการตรวจสอบ (Verification)
+- **Backend Tests:**
+  - `tests/test_smart_vision_matcher.py`: ผ่าน 5/5 ข้อ (สแกน/แคช catalog, ความแม่นยำ keyword matching, turntable variety & anti-duplicate, instant catalog reuse ข้าม Gemini API 100%, และ smart fallback offset distribution)
+  - `tests/test_gemini_vision_matcher.py` & `tests/test_gemini_vision_retry.py`: ผ่าน 32/32 ข้อ
+  - Shot matching & compounding tests (`test_shot_matching_pacing.py`, `test_guided_take_mapping.py`, `test_clip_compounding_render.py`): ผ่าน 10/10 ข้อ
+  - รวม Backend Vision Suite: **47 passed, 0 failed**
+- **Frontend Tests & Build:**
+  - `npm test`: ผ่าน **246/246 passed (100%)**
+  - `npm run build`: Vite build สำเร็จสมบูรณ์ใน **3.39s (2,007 modules)** ไม่มี warning/error
+
+## Round SUBTITLE-AND-HOOK-RENDER-PARITY-FIX-1 — แก้ปัญหาสีไฮไลต์ซับคลุมทั้งประโยคใน Render + ป้องกันป้าย Hook Header บรรทัดซ้อนทับกัน (Collision)-1 | สร้างหน้าปกจากเฟรมจริงใน Timeline ก่อน Render | 2026-09-14 | สำเร็จสมบูรณ์ (backend cover 8 passed, frontend 230 passed, build 2,006 modules, detector พบเฉพาะคำเตือนเดิม, browser unavailable, ดำเนินการโดย: Codex (GPT-5)) |
+| Round CALLOUT-RESURRECT-FIX-1 | แก้บั๊ก Text Overlays ถูกปลุกขึ้นมาทับกลางจอ (LOCSmartband) เมื่อลบแล้วใน Editor + ป้องกัน Auto Brand/Model Callout ซ้อนทับ Hook Banner | 2026-09-14 | สำเร็จสมบูรณ์ (backend 8+5+153 passed, frontend 230 passed, build 2005 modules/3.60s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round BG-SUBJECT-ISOLATION-RESUME-1 | Durable per-frame checkpoint, startup recovery, reconnect polling, completed-result rebinding, and duplicate scheduler guard | 2026-09-14 | สำเร็จสมบูรณ์ (backend 45+41 passed, frontend 230 passed, build 2,005 modules, compileall ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
 
 | Round COVER-MULTI-GEN-HANDHELD-1 | AI Cover History Gallery (เก็บทุกรูปที่เจนไม่ถูกทับ) + ปลดล็อกคำสั่ง Handheld มือถือสินค้าจริง + Auto-enable Brand/Model Title Overlay | 2026-09-14 | สำเร็จสมบูรณ์ (pytest 6 passed, vitest 230 passed, build 2.95s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round COVER-REALTIME-SCRUB-STUDIO-1 | เรียลไทม์ Frame Scrubber ใน Cover Studio + AI Studio Cutout ผสานช็อตสินค้าจริง | 2026-09-14 | สำเร็จสมบูรณ์ (pytest 3 passed, vitest 224 passed, build 3.98s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -50,6 +169,31 @@
 | Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round BACKFILL-CLOSED-ROUNDS-20260915 | นำ 38 รอบที่ติ๊กปิดใน TODO แต่ไม่เคยถูกย้ายเข้า HISTORY มาบันทึกย้อนหลัง (COVER-AI*, IOS-PASTE*, SYSTEM-AUDIT-P4/P5/P6*, AI-PRODUCER-VISION-1, ANALYTICS-HEADER-DATA-FIX-1 ฯลฯ) | 2026-09-15 | เสร็จ (ตรวจด้วยสคริปต์: `[x] Round` 110 บรรทัด → ขาดใน HISTORY 38, ดำเนินการโดย: Muse Spark (Muse Spark)) |
+
+## Round SUBTITLE-AND-HOOK-RENDER-PARITY-FIX-1 — แก้ปัญหาสีไฮไลต์ซับคลุมทั้งประโยคใน Render + ป้องกันป้าย Hook Header บรรทัดซ้อนทับกัน (Collision)
+
+วันที่: 2026-09-16 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+1. **สีไฮไลต์ซับคลุมทั้งประโยค (Subtitle Monolingual Highlight Clobber):**
+   - ใน `scripts/subtitle_engine.py` บรรทัด 826–830 มีโค้ดดัก `if "{\\c" in highlighted_text:` แล้วเอาสีแท็กแรกไปคลุมทั้งประโยค `highlighted_text = f"{{\\c{m.group(1)}}}{clean_th}"`
+   - ส่งผลให้ในวิดีโอที่เรนเดอร์ ตัวหนังสือซับและอีโมจิกลายเป็นสีเหลืองทั้งประโยค (`🛒 คุ้มค่ามากที่สุดในกลุ่มไมค์ตอนนี้`) ขณะที่ในหน้า Preview SequencePlayer มีเพียงคำไฮไลต์คำเดียว (`คุ้มค่า`) ที่เป็นสีเหลือง นอกนั้นเป็นสีขาว ทำให้ Preview และ Render ไม่ตรงกัน (Preview ≠ Render)
+2. **ป้าย Hook Header บรรทัดซ้อนทับกัน (Collision) ใน Render:**
+   - ใน `scripts/subtitle/overlay_events.py` บรรทัด 203 มีการคำนวณ `dyn_max_chars = max(8, int(round(2600 / tier_fs)))`
+   - สำหรับฟอนต์ขนาดใหญ่ เช่น Tier 0 (Brand) ขนาด 145px จะได้ `dyn_max_chars = 18` ตัวอักษร
+   - ข้อความ `"GOCHEK ULTRA S24"` มี 16 ตัวอักษร ซึ่ง <= 18 ทำให้ Python ไม่ยอมตัดบรรทัด (wrap) และมองว่าเป็น 1 บรรทัด จึงคำนวณ cursor_y ให้ Tier 1 (`ไมโครโฟนไร้สาย`) ขยับลงมาเพียง 1 บรรทัด (Y ≈ 405)
+   - แต่ในความเป็นจริง ขนาด 145px ของ 16 ตัวอักษรมีความกว้างถึง 1,334px ซึ่งเกินขอบจอ 1080px (และ safe width 918px) ทำให้ libass ใน FFmpeg ตัดบรรทัดอัตโนมัติเป็น 2 บรรทัด (`GOCHEK` บรรทัด 1, `ULTRA S24` บรรทัด 2)
+   - ส่งผลให้ `ULTRA S24` (บรรทัดที่ 2 ของ Tier 0) และ `ไมโครโฟนไร้สาย` (บรรทัดที่ 1 ของ Tier 1) ถูกเรนเดอร์ทับตำแหน่ง Y เดียวกัน เกิดข้อความซ้อนทับกันเละในวิดีโอเรนเดอร์จริง
+   - ขณะที่ในหน้า SequencePlayer ฝั่งเว็บใช้ `wrapCanvasText(..., maxW)` วัดความกว้างพิกเซลจริง จึงตัดเป็น 3 บรรทัดสวยงาม (`GOCHEK` / `ULTRA S24` / `ไมโครโฟนไร้สาย`)
+
+### สิ่งที่ได้ดำเนินการแก้ไข
+- [x] ใน `scripts/subtitle_engine.py`: ลบบรรทัด 826–830 ที่เขียนทับสีซับทั้งประโยค เพื่อให้การไฮไลต์คำเฉพาะจุด (Word-level kinetic highlighting) ทำงานถูกต้องเหมือนใน Canvas Preview 100%
+- [x] ใน `scripts/subtitle/overlay_events.py`: ปรับการคำนวณ wrap ของ Hook Header โดยวัดความกว้างพิกเซลจริงผ่าน `_measure_text_width_px` (หรือสูตร dynamic chars ที่อิง safe width 918px: `max_w_px = int(video_width * 0.85)` / `avg_char_w`) เพื่อให้ตัดบรรทัดตรงกับหน้า Preview และขยับ `cursor_y` ของแต่ละบรรทัดอย่างถูกต้อง ป้องกันการซ้อนทับ 100%
+- [x] เรนเดอร์ทดสอบ FFmpeg เฟรมจริงจากโปรเจกต์ GoChek เพื่อยืนยันว่า:
+   1. ซับไตเติล: อีโมจิและข้อความปกติเป็นสีขาว คำไฮไลต์เป็นสีเหลือง
+   2. ป้ายฮุก: แบ่ง 3 บรรทัดชัดเจน ไม่มีการชนหรือซ้อนทับกัน
+- [x] รันชุดทดสอบความเข้ากันได้ `test_preview_render_parity.py`, `test_preview_render_behavior.py`, `test_subtitle_artifact_contract.py` (183 passed)
+- [x] รันชุดทดสอบ frontend `npm test` (246 passed) และ `npm run build` (2,007 modules ผ่านใน 5.00s)
 
 ## Round ANGLE-CARD-DELETE-BUTTON-REALIGN-1 — ย้ายปุ่มลบสคริปต์บนการ์ดมุมมองลงแถบล่าง (Footer) เพื่อให้ Stepper Tracker ชิดขวาเท่ากัน 100% ทุกใบ ไม่ขยับเยื้อง
 
@@ -6577,4 +6721,64 @@ Executed by: Codex (GPT-6)
 - **Backend Parity Tests:** `pytest tests/test_subtitle_artifact_contract.py tests/test_preview_render_parity.py` 163/163 passed ครบ 100%
 - **Frontend Unit Tests:** 246/246 passed
 - **Frontend Production Build:** Vite 2,007 modules built in 4.38s
+
+## Round SYSTEM-AUDIT-NOTIFICATION-TOKEN-DASHBOARD-20260916 — Read-only audit ระบบแจ้งเตือน, Token Dashboard และ reliability
+ดำเนินการโดย: Codex (GPT-5) ร่วมกับเอเจนต์ audit 4 สาย
+### ผลตรวจ
+1. **P1:** Live Render Widget ใช้ storage key คนละชื่อกับ `renderJobModel` และมี polling/field contract ซ้ำหลายชุด ทำให้ไม่ resume หรือแสดงสถานะไม่จริงได้ (`frontend/src/components/ActivityCenter.jsx:785-813`, `frontend/src/lib/renderJobModel.js:5`)
+2. **P1:** Token quota วันนี้นับจาก retained events สูงสุด 1,000 รายการ จึง undercount หลังใช้งานหนาแน่น; JSON ledger ยังมี lost-update race ข้าม process (`scripts/token_tracker.py:138-179,235-254,444-469`)
+3. **P1:** Token dashboard ผสม lifetime totals กับ breakdown/daily ที่เป็น retained window และหลายจุดใช้ token/cost estimate แทน provider usage จริง (`scripts/token_tracker.py:269-374`, `scripts/ai_bridge.py:463-477`, `scripts/gemini_tts_engine.py:416-431`)
+4. **P1:** Token Dashboard โหลด API ไม่สำเร็จแต่ fallback hero totals เป็น 0; refresh ระดับ Topbar ไม่ propagate เข้า AnalyticsHub และ ref บางตัวเป็น dead control (`frontend/src/components/TokenDashboard.jsx:27-79`, `frontend/src/App.jsx:201-225`)
+5. **P1 เมื่อเปิด LAN:** backend bind `0.0.0.0` และ auth fail-open เมื่อไม่ตั้ง key; `VITE_API_KEY` อยู่ใน bundle และ media GET ใช้ query key ซึ่งอาจเข้า log/history (`scripts/api_server.py:155-191,239-246`, `frontend/src/api.js:9-20`, `frontend/src/lib/mediaUrl.js`)
+6. **P2:** notification เป็น single toast, หลายงานเสร็จพร้อมกันถูกทับ, viral milestone ตรวจเฉพาะ on-demand/session และไม่มี stale state เมื่อ backend ล่ม (`frontend/src/context/TaskContext.jsx:50-193`, `frontend/src/components/ActivityCenter.jsx:575`)
+7. **P2/P3:** ขาด accessibility semantics ของ drawer/toast/tabs, custom `useToast` duration ไม่ถูกใช้, funnel เป็น current-state ratio ไม่ใช่ cohort conversion และ storage analytics ยังมี validation/path/double-count risk
+### Verification
+- Targeted backend tests: **49 passed, 2 warnings**
+- ไม่พบ P0 ที่ยืนยันได้จาก static audit
+- ไม่แก้โค้ดหรือข้อมูล runtime; เก็บ uncommitted changes เดิมไว้ทั้งหมด
+- HTML report: `C:\Users\Winon\AppData\Local\Temp\architecture-review-20260916-omnicut.html`
+
+## Round FIX-ACTIVITY-NOTIFICATION-BLACK-SCREEN-20260917 — แก้จอดำเมื่อเปิดศูนย์แจ้งเตือนและซิงก์ render-job state
+ดำเนินการโดย: Codex (GPT-5)
+
+### สาเหตุที่ยืนยันได้
+- `frontend/src/components/ActivityCenter.jsx` มีเคส `scene_indexing` ที่ render `<Eye />` แต่ไม่มี `Eye` ใน import จาก `lucide-react` ทำให้เกิด `react(jsx-no-undef)` และ React ล้มตอนเปิด drawer ที่มี task ชนิดนี้
+
+### สิ่งที่แก้
+1. เพิ่ม `Eye` import ทำให้รายการ Scene Catalog/Scene Indexing render ได้ตามปกติ
+2. ยก `ACTIVE_RENDER_STORAGE_KEY` จาก `frontend/src/lib/renderJobModel.js` เป็น constant กลาง และให้ `GlobalLiveRenderWidget` ใช้ key เดียวกับ `useRenderJob` แก้ปัญหา widget หา render job ไม่เจอหลัง refresh
+3. เปลี่ยน live-render polling ให้ใช้ `getRenderStatus()` ผ่าน API client เพื่อใช้ timeout และ auth interceptor กลาง
+4. รองรับ task type จากทั้ง `type` และ `task_type` รวมถึงสถานะ `rendering`, `done`, `error`, และ `cancelled` ใน widget
+
+### Verification
+- ก่อนแก้: targeted `oxlint` แจ้ง `ActivityCenter.jsx:22:15 react(jsx-no-undef): 'Eye' is not defined`
+- หลังแก้: targeted `oxlint` ไม่พบ undefined JSX (เหลือเฉพาะ unused warnings เดิม)
+- Frontend tests: **246/246 passed**
+- Production build: **2,008 modules transformed, ผ่าน**
+- Browser smoke test: กดปุ่ม “กิจกรรม 50” แล้ว drawer เปิด แสดงรายการ `👁️ สแกนสารบัญฉาก` ครบ และ console error = 0
+
+## Round AUDIT-FIX-COMPLETE-20260917 — ปิด backlog จาก system audit: token, dashboard, notifications และ security
+ดำเนินการโดย: Codex (GPT-5) ร่วมกับ Locke, Planck, Feynman, Linnaeus, Bacon และ Nietzsche
+
+### สิ่งที่แก้
+- **Token ledger/quota:** เพิ่ม daily ledger แยกจาก retained event window, ทำ file/process locking แบบข้าม process, migrate ข้อมูลเก่าเท่าที่กู้ได้ และให้ summary แยก lifetime/daily อย่างตรงความหมาย
+- **Dashboard/analytics:** เพิ่ม loading/error/retry state ที่ไม่แสดงศูนย์หลอกเมื่อ API ล้ม, ให้ Topbar refresh propagate ถึง Token Dashboard, แยก current-state snapshot ออกจาก cohort conversion และปรับ storage estimate ให้แยก safe purge กับ archive candidate
+- **Notifications:** เปลี่ยน single toast เป็น bounded queue, กัน polling ซ้อน, แสดง stale backend state, เพิ่ม dialog/tab/status/keyboard semantics และแก้ black-screen จาก `<Eye />` ที่ไม่ได้ import
+- **Toast contract:** ส่ง duration เป็น prop ตรงจาก `useToast` แทนการ mutate callback และรักษา auto-dismiss ตาม duration
+- **Security boundary:** บังคับ non-loopback bind ต้องมี `OMNICUT_API_KEY`, จำกัด media/upload path และไฟล์อัปโหลด, ปิด query-string API key และย้ายการ inject key ไป server-side Vite proxy ด้วย `OMNICUT_API_KEY` เพื่อไม่ฝัง secret ใน browser bundle
+- **Regression coverage:** เพิ่ม/ปรับ tests สำหรับ ledger/quota, analytics, notification reliability, security boundary, media URL และ style catalog
+
+### Verification
+- `python -m pytest tests/ -q -p no:cacheprovider --tb=short` → **1552 passed, 6 skipped, 29 warnings**
+- `python -m compileall -q scripts` → ผ่าน
+- `python -c "import scripts.api_server as app; ..."` → import ผ่าน, **174 routes**
+- Security targeted → **80 passed, 2 skipped, 1 warning**
+- Frontend `npm test` → **253 passed**
+- Frontend `npm run lint` → ผ่าน; เหลือ warnings เดิมจากส่วนอื่นของ codebase ไม่มี error
+- Frontend `npm run build` → ผ่าน, **2006 modules transformed**
+- ตรวจ production bundle เทียบกับ backend key → **ไม่พบ secret ใน bundle**
+
+### ข้อจำกัดที่บันทึกไว้
+- Token ledger รุ่นเก่าที่ถูก trim ออกจาก event window แล้วไม่สามารถสร้างประวัติรายวันย้อนหลังที่หายไปได้; ระบบจะ backfill ได้เฉพาะ event ที่ยังคงอยู่ และเริ่มเก็บ daily ledger แบบถาวรตั้งแต่รอบนี้
+- lint ยังมี warnings เดิมในไฟล์อื่นของโปรเจกต์ แต่ไม่มี lint error จากงานรอบนี้
 

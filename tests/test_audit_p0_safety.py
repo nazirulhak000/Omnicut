@@ -126,9 +126,17 @@ def do_upload(payload, *, asset=False, filename="same.mp4"):
     return asyncio.run(videos.upload_file(file=file, target_dir="inbox", product_id=None, custom_name=None))
 
 
+def _valid_wav_payload(body=b""):
+    return b"RIFF\x00\x00\x00\x00WAVE" + body
+
+
+def _valid_mp4_payload(body=b""):
+    return b"\x00\x00\x00\x18ftypisom\x00\x00\x02\x00isomiso2" + body
+
+
 @pytest.mark.parametrize("asset", [False, True])
 def test_repeated_same_name_uploads_preserve_every_payload(upload_dirs, asset):
-    payloads = [b"first", b"second", b"third"]
+    payloads = [_valid_wav_payload(b"first"), _valid_wav_payload(b"second"), _valid_wav_payload(b"third")]
     results = [do_upload(p, asset=asset, filename="same.wav") for p in payloads]
     paths = [Path(r["file"]["path"]) for r in results]
     assert len(set(paths)) == len(payloads)
@@ -138,7 +146,7 @@ def test_repeated_same_name_uploads_preserve_every_payload(upload_dirs, asset):
 def test_concurrent_uploads_never_clobber_each_other(upload_dirs):
     barrier = threading.Barrier(8)
     def upload(index):
-        payload = str(index).encode()
+        payload = _valid_mp4_payload(str(index).encode())
         barrier.wait(timeout=5)
         result = do_upload(payload)
         return Path(result["file"]["path"]), payload
@@ -156,7 +164,7 @@ def test_failed_upload_never_publishes_partial_media(upload_dirs, failure):
         async def read(self, size):
             self.calls += 1
             if self.calls == 1:
-                return b"partial"
+                return _valid_mp4_payload()
             raise failure
     original = videos.INBOX_DIR / "same.mp4"
     original.write_bytes(b"original")
@@ -172,7 +180,7 @@ def test_heic_conversion_never_overwrites_existing_jpeg(upload_dirs, monkeypatch
     def convert(command, **kwargs):
         Path(command[-1]).write_bytes(b"converted-jpeg")
     monkeypatch.setattr(videos.subprocess, "run", convert)
-    result = do_upload(b"heic-source", filename="photo.heic")
+    result = do_upload(_valid_mp4_payload(b"heic-source"), filename="photo.heic")
     assert original.read_bytes() == b"original-jpeg"
     assert Path(result["file"]["path"]).read_bytes() == b"converted-jpeg"
     assert len(list(videos.INBOX_DIR.iterdir())) == 2

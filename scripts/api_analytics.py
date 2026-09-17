@@ -12,7 +12,7 @@ import shutil
 import time
 import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set
 from fastapi import APIRouter, HTTPException, Query
 
 from scripts.config import (
@@ -41,7 +41,7 @@ DISK_ALERT_PERCENTAGE = 80.0  # Flag when drive usage crosses this
 def _dir_size(path: Path) -> int:
     """Calculate total byte size of a directory safely."""
     total = 0
-    if not path or not path.exists():
+    if not path or not path.exists() or path.is_symlink() or not path.is_dir():
         return 0
     try:
         for entry in os.scandir(str(path)):
@@ -57,12 +57,46 @@ def _dir_size(path: Path) -> int:
     return total
 
 
+def _safe_direct_child(root: Path, value: object) -> Optional[Path]:
+    """Resolve a trusted direct child without allowing traversal or symlinks."""
+    if value is None:
+        return None
+    raw_value = str(value).strip()
+    if not raw_value or raw_value in {".", ".."}:
+        return None
+
+    candidate = Path(raw_value)
+    if candidate.is_absolute() or len(candidate.parts) != 1:
+        return None
+
+    try:
+        root_resolved = root.resolve()
+        resolved = (root_resolved / candidate).resolve()
+        if resolved.parent != root_resolved or resolved.is_symlink():
+            return None
+        return resolved
+    except (OSError, RuntimeError, ValueError):
+        return None
+
+
+def _parse_iso(value: object) -> Optional[datetime.datetime]:
+    """Parse the ISO timestamps used by ProductStore/PostLog."""
+    if not value:
+        return None
+    try:
+        return datetime.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+
+
 def _age_days_from_iso(iso_str: Optional[str]) -> Optional[int]:
     """Days elapsed since an ISO timestamp; None if missing/unparseable."""
     if not iso_str:
         return None
     try:
-        then = datetime.datetime.fromisoformat(iso_str)
+        then = _parse_iso(iso_str)
+        if then is None:
+            return None
         now = datetime.datetime.now(then.tzinfo) if then.tzinfo else datetime.datetime.now()
         return max(0, (now - then).days)
     except (ValueError, TypeError):
@@ -90,6 +124,10 @@ def get_production_analytics() -> Dict[str, Any]:
         angle_type_counts: Dict[str, int] = {}
         total_angles = 0
         cycle_times_sec = []
+        known_created_at_count = 0
+        posted_with_created_at_count = 0
+        created_to_posted_count = 0
+        created_to_posted_times_sec = []
         recent_productions = []
 
         now = datetime.datetime.now()
@@ -99,6 +137,10 @@ def get_production_analytics() -> Dict[str, Any]:
             for a in angles:
                 total_angles += 1
                 status = a.get("status") or "scripted"
+                # A posted_at timestamp is durable evidence of publication for
+                # legacy records whose status field was not migrated yet.
+                if a.get("posted_at"):
+                    status = "posted"
                 if status in status_counts:
                     status_counts[status] += 1
                 else:
@@ -116,14 +158,25 @@ def get_production_analytics() -> Dict[str, Any]:
                 # Cycle time estimation (from created_at / updated_at to posted_at)
                 created_at_str = a.get("created_at") or p.get("created_at")
                 posted_at_str = a.get("posted_at")
-                if created_at_str and posted_at_str:
+                c_dt = _parse_iso(created_at_str)
+                p_dt = _parse_iso(posted_at_str)
+                if c_dt:
+                    known_created_at_count += 1
+                    if status == "posted":
+                        posted_with_created_at_count += 1
+                if c_dt and p_dt:
                     try:
-                        c_dt = datetime.datetime.fromisoformat(created_at_str)
-                        p_dt = datetime.datetime.fromisoformat(posted_at_str)
+                        if c_dt.tzinfo and not p_dt.tzinfo:
+                            p_dt = p_dt.replace(tzinfo=c_dt.tzinfo)
+                        elif p_dt.tzinfo and not c_dt.tzinfo:
+                            c_dt = c_dt.replace(tzinfo=p_dt.tzinfo)
                         diff = (p_dt - c_dt).total_seconds()
-                        if 0 < diff < 86400 * 30:  # reasonable window (< 30 days)
-                            cycle_times_sec.append(diff)
-                    except Exception:
+                        if diff > 0:
+                            created_to_posted_count += 1
+                            created_to_posted_times_sec.append(diff)
+                            if diff < 86400 * 30:  # reasonable cycle-time window
+                                cycle_times_sec.append(diff)
+                    except (TypeError, ValueError):
                         pass
 
                 # Collect recent items
@@ -157,6 +210,23 @@ def get_production_analytics() -> Dict[str, Any]:
         elif status_counts["rendered"] > 10 and status_counts["posted"] < status_counts["rendered"] / 2:
             bottleneck = "มีคลิปตัดเสร็จรอลงโพสต์จำนวนมาก"
 
+        bottleneck_stage = None
+        if status_counts["scripted"] > 15 and status_counts["in_production"] < 3:
+            bottleneck_stage = "scripted"
+        elif status_counts["in_production"] > 10:
+            bottleneck_stage = "in_production"
+        elif status_counts["rendered"] > 10 and status_counts["posted"] < status_counts["rendered"] / 2:
+            bottleneck_stage = "rendered"
+
+        current_state_percentages = {
+            key: round((count / total_angles * 100), 1) if total_angles else 0.0
+            for key, count in status_counts.items()
+        }
+        observed_created_to_posted_rate = (
+            round((created_to_posted_count / known_created_at_count * 100), 1)
+            if known_created_at_count else None
+        )
+
         return {
             "summary": {
                 "total_products": len(products),
@@ -165,9 +235,22 @@ def get_production_analytics() -> Dict[str, Any]:
                 "in_production": status_counts["in_production"],
                 "rendered": status_counts["rendered"],
                 "posted": status_counts["posted"],
-                "published_percentage": round((status_counts["posted"] / total_angles * 100), 1) if total_angles else 0.0,
+                # Existing dashboard field kept as a current-state snapshot
+                # ratio, not a cohort conversion rate.
+                "published_percentage": current_state_percentages["posted"],
+                "current_state_percentages": current_state_percentages,
                 "avg_cycle_time_minutes": avg_cycle_time_minutes,
-                "bottleneck_note": bottleneck
+                "bottleneck_note": bottleneck,
+                "bottleneck_stage": bottleneck_stage,
+                "lifecycle": {
+                    "cohort_conversion_available": False,
+                    "known_created_at_count": known_created_at_count,
+                    "posted_with_created_at_count": posted_with_created_at_count,
+                    "created_to_posted_observations": created_to_posted_count,
+                    "created_to_posted_observed_rate": observed_created_to_posted_rate,
+                    "created_to_posted_cycle_time_sample_count": len(created_to_posted_times_sec),
+                    "note": "Status transition history is not stored; rates are current-state observations, not cohort conversion.",
+                }
             },
             "angle_types": [
                 {"name": k, "count": v}
@@ -223,7 +306,7 @@ def get_storage_analytics(force_scan: bool = False) -> Dict[str, Any]:
         try:
             if RAW_DIR.exists():
                 for item in RAW_DIR.iterdir():
-                    if item.is_dir():
+                    if item.is_dir() and not item.is_symlink():
                         size = _dir_size(item)
                         heavy_products.append({
                             "name": item.name,
@@ -236,56 +319,104 @@ def get_storage_analytics(force_scan: bool = False) -> Dict[str, Any]:
         except Exception:
             pass
 
-        # Scan posted exports & potential archive reclaimable space
-        posted_dir = EXPORTS_DIR.parent / "Posted"
-        posted_mp4s = list(posted_dir.glob("*.mp4")) if posted_dir.exists() else []
-        posted_exports_bytes = sum(f.stat().st_size for f in posted_mp4s if f.is_file())
+        # Scan posted exports & potential archive candidates. The Posted folder
+        # is resolved below the configured export root; untrusted project names
+        # never participate in filesystem joins.
+        exports_root = EXPORTS_DIR.parent if EXPORTS_DIR.name == "Ready_to_post" else EXPORTS_DIR
+        posted_dir = _safe_direct_child(exports_root, "Posted")
+        posted_mp4s = []
+        if posted_dir and posted_dir.exists() and posted_dir.is_dir() and not posted_dir.is_symlink():
+            try:
+                posted_mp4s = [
+                    item for item in posted_dir.iterdir()
+                    if item.is_file() and not item.is_symlink() and item.suffix.lower() == ".mp4"
+                ]
+            except (OSError, PermissionError):
+                posted_mp4s = []
+        posted_exports_bytes = 0
+        for media_file in posted_mp4s:
+            try:
+                posted_exports_bytes += media_file.stat().st_size
+            except (OSError, PermissionError):
+                continue
 
         products = ProductStore.get_all()
         posted_angles_count = 0
         posted_projects_bytes = 0
-        posted_projects_set = set()
+        posted_projects_set: Set[str] = set()
+        completed_raw_paths: Set[str] = set()
         completed_products_raw_bytes = 0
         posted_items_list = []
 
         for p in products:
             angles = p.get("angles", [])
-            p_posted = [a for a in angles if a.get("status") == "posted"]
+            p_posted = [a for a in angles if a.get("status") == "posted" or a.get("posted_at")]
             posted_angles_count += len(p_posted)
 
-            # If all angles are posted, raw footage could be safely archived
+            # If all angles are posted, raw footage becomes an archive
+            # candidate; external backup is still required before reclaiming.
             if angles and len(p_posted) == len(angles):
                 code = p.get("product_code") or p.get("id")
-                if code and RAW_DIR.exists():
-                    for rdir in RAW_DIR.glob(f"*{code}*"):
-                        if rdir.is_dir():
-                            completed_products_raw_bytes += _dir_size(rdir)
+                if code and RAW_DIR.exists() and RAW_DIR.is_dir() and not RAW_DIR.is_symlink():
+                    try:
+                        for rdir in RAW_DIR.iterdir():
+                            if not rdir.is_dir() or rdir.is_symlink() or str(code).casefold() not in rdir.name.casefold():
+                                continue
+                            raw_key = str(rdir.resolve()).casefold()
+                            if raw_key in completed_raw_paths:
+                                continue
+                            raw_size = _dir_size(rdir)
+                            if raw_size <= 0:
+                                continue
+                            completed_raw_paths.add(raw_key)
+                            completed_products_raw_bytes += raw_size
+                            posted_dates = [a.get("posted_at") for a in p_posted if a.get("posted_at")]
+                            raw_posted_at = max(posted_dates) if posted_dates else None
+                            posted_items_list.append({
+                                "type": "raw_source",
+                                "name": rdir.name,
+                                "product_name": p.get("name") or "สินค้า",
+                                "size_bytes": raw_size,
+                                "size_mb": round(raw_size / (1024 * 1024), 1),
+                                "posted_at": raw_posted_at,
+                                "age_days": _age_days_from_iso(raw_posted_at),
+                                "archive_reason": "all_angles_posted",
+                            })
+                    except (OSError, PermissionError):
+                        pass
 
             for a in p_posted:
                 proj_name = a.get("project_name")
-                if proj_name and proj_name not in posted_projects_set:
-                    posted_projects_set.add(proj_name)
-                    pdir = PROJECTS_DIR / proj_name
-                    if pdir.exists():
-                        psize = _dir_size(pdir)
-                        posted_projects_bytes += psize
-                        posted_at_str = a.get("posted_at")
-                        posted_items_list.append({
-                            "type": "project",
-                            "name": proj_name,
-                            "product_name": p.get("name") or "สินค้า",
-                            "size_bytes": psize,
-                            "size_mb": round(psize / (1024 * 1024), 1),
-                            "posted_at": posted_at_str,
-                            "age_days": _age_days_from_iso(posted_at_str)
-                        })
+                pdir = _safe_direct_child(PROJECTS_DIR, proj_name)
+                if pdir and pdir.exists() and pdir.is_dir() and not pdir.is_symlink():
+                    project_key = str(pdir.resolve()).casefold()
+                    if project_key in posted_projects_set:
+                        continue
+                    psize = _dir_size(pdir)
+                    if psize <= 0:
+                        continue
+                    posted_projects_set.add(project_key)
+                    posted_projects_bytes += psize
+                    posted_at_str = a.get("posted_at")
+                    posted_items_list.append({
+                        "type": "project",
+                        "name": pdir.name,
+                        "product_name": p.get("name") or "สินค้า",
+                        "size_bytes": psize,
+                        "size_mb": round(psize / (1024 * 1024), 1),
+                        "posted_at": posted_at_str,
+                        "age_days": _age_days_from_iso(posted_at_str)
+                    })
 
         for f in posted_mp4s:
-            fsize = f.stat().st_size
-            # Files carry no posted_at of their own -- mtime is set when the
-            # export lands in Posted/, so it's a reasonable proxy for "how
-            # long has this been sitting here since it was posted".
-            mtime_iso = datetime.datetime.fromtimestamp(f.stat().st_mtime).isoformat()
+            try:
+                fstat = f.stat()
+                fsize = fstat.st_size
+                # Files carry no posted_at of their own -- mtime is set when
+                # the export lands in Posted/, so it is a reasonable proxy.
+                mtime_iso = datetime.datetime.fromtimestamp(fstat.st_mtime).isoformat()
+            except (OSError, PermissionError):
+                continue
             posted_items_list.append({
                 "type": "export_mp4",
                 "name": f.name,
@@ -295,7 +426,7 @@ def get_storage_analytics(force_scan: bool = False) -> Dict[str, Any]:
                 "age_days": _age_days_from_iso(mtime_iso)
             })
 
-        total_reclaimable_bytes = posted_exports_bytes + posted_projects_bytes + completed_products_raw_bytes
+        archive_candidate_bytes = posted_exports_bytes + posted_projects_bytes + completed_products_raw_bytes
 
         posted_archive_potential = {
             "posted_clips_count": len(posted_mp4s),
@@ -304,11 +435,21 @@ def get_storage_analytics(force_scan: bool = False) -> Dict[str, Any]:
             "posted_exports_mb": round(posted_exports_bytes / (1024 * 1024), 1),
             "posted_projects_bytes": posted_projects_bytes,
             "posted_projects_mb": round(posted_projects_bytes / (1024 * 1024), 1),
+            "posted_projects_count": len(posted_projects_set),
             "completed_products_raw_bytes": completed_products_raw_bytes,
             "completed_products_raw_mb": round(completed_products_raw_bytes / (1024 * 1024), 1),
-            "total_reclaimable_bytes": total_reclaimable_bytes,
-            "total_reclaimable_mb": round(total_reclaimable_bytes / (1024 * 1024), 1),
-            "total_reclaimable_gb": round(total_reclaimable_bytes / (1024 ** 3), 2),
+            "completed_products_raw_count": len(completed_raw_paths),
+            "archive_candidate_bytes": archive_candidate_bytes,
+            "archive_candidate_mb": round(archive_candidate_bytes / (1024 * 1024), 1),
+            "archive_candidate_gb": round(archive_candidate_bytes / (1024 ** 3), 2),
+            # Legacy reclaim fields now mean only files covered by the safe
+            # purge policy. Archive candidates stay separate because they need
+            # verified external backup before any local deletion.
+            "total_reclaimable_bytes": safe_purge_bytes,
+            "total_reclaimable_mb": round(safe_purge_bytes / (1024 * 1024), 1),
+            "total_reclaimable_gb": round(safe_purge_bytes / (1024 ** 3), 2),
+            "reclaim_estimate_is_safe_delete": True,
+            "reclaim_estimate_note": "Safe purge amount only; archive candidates require external backup first.",
             "items_count": len(posted_items_list),
             "items": sorted(posted_items_list, key=lambda x: x["size_bytes"], reverse=True)
         }

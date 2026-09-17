@@ -6,6 +6,7 @@ This root module configures the FastAPI application, mounts modular routers, and
 
 import os
 import sys
+import ipaddress
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -152,13 +153,56 @@ CORS_ORIGINS = [
     if o.strip()
 ]
 
+
+_LOCAL_BIND_NAMES = {"localhost", "127.0.0.1", "::1", "[::1]"}
+
+
+def _is_loopback_host(host: str | None) -> bool:
+    """Return whether a bind/client host is unambiguously local-only."""
+    normalized = (host or "").strip().lower()
+    if normalized in _LOCAL_BIND_NAMES:
+        return True
+    try:
+        return ipaddress.ip_address(normalized.strip("[]")).is_loopback
+    except ValueError:
+        return False
+
+
+def get_bind_host() -> str:
+    """Resolve and validate the server bind host.
+
+    The default is loopback so the normal single-user setup is not exposed
+    to the LAN.  An explicit non-loopback bind requires the shared API key;
+    this check protects the ``python scripts/api_server.py`` launch path.
+    The middleware below is still the defense-in-depth check for callers that
+    start Uvicorn with its own ``--host`` flag.
+    """
+    host = os.environ.get("OMNICUT_HOST", "127.0.0.1").strip() or "127.0.0.1"
+    if not _is_loopback_host(host) and not is_auth_enforced():
+        raise RuntimeError(
+            "OMNICUT_API_KEY is required when OMNICUT_HOST binds beyond localhost"
+        )
+    return host
+
+
+def _is_local_request(request: Request) -> bool:
+    """Allow the intentionally unauthenticated mode only to local clients.
+
+    ``testclient`` is Starlette's synthetic peer name and is safe to permit
+    here because it cannot be produced by a real TCP client.
+    """
+    if request.client is None:
+        return True
+    return _is_loopback_host(request.client.host) or request.client.host == "testclient"
+
 async def api_key_gate(request: Request, call_next):
     """Single shared-secret check applied to every request.
 
     Behavior:
-    - OMNICUT_API_KEY unset (default local single-user setup): every
-      request passes through untouched. warn_if_permissive() already
-      logged this loudly at startup so it's never a silent hole.
+    - OMNICUT_API_KEY unset (default local single-user setup): requests from
+      loopback pass through, but non-loopback clients are rejected. This
+      keeps localhost development working while making an accidental LAN
+      bind fail closed.
     - OMNICUT_API_KEY set: every request must carry a matching
       `X-API-Key` header (constant-time compare), or it gets 401.
       CORS preflight (OPTIONS) is let through unauthenticated -- browsers
@@ -169,19 +213,39 @@ async def api_key_gate(request: Request, call_next):
       attaches Access-Control-Allow-Origin to a 401 from this gate so the
       frontend/extension see a readable error instead of an opaque CORS
       failure.
-    - GET/HEAD only: also accepts the key as an `?api_key=` query param,
-      falling back to it when the header is absent or wrong. Native
+    - GET/HEAD media requests only: also accepts the key as an
+      `?api_key=` query param, falling back to it when the header is absent
+      or wrong. Native
       <video>/<audio>/<img> tags (used for /api/media/... streaming and
       thumbnails) cannot attach a custom header at all -- the frontend's
-      toMediaUrl() appends the key as a query param for exactly this case.
+      Vite proxy normally injects the header; direct-to-backend deployments
+      can explicitly opt into the legacy query-param path.
       Query params can end up in server access logs and browser history,
       so this fallback is deliberately withheld from every mutating verb.
     """
-    if not is_auth_enforced() or request.method == "OPTIONS":
+    if request.method == "OPTIONS":
         return await call_next(request)
 
+    if not is_auth_enforced():
+        warn_if_permissive()
+        if _is_local_request(request):
+            return await call_next(request)
+        return JSONResponse(
+            status_code=401,
+            content={
+                "detail": (
+                    "OMNICUT_API_KEY is required for non-local access. "
+                    "Bind the API to localhost or configure the shared key."
+                )
+            },
+        )
+
     candidate = request.headers.get(API_KEY_HEADER, "")
-    if not key_matches(candidate) and request.method in ("GET", "HEAD"):
+    if (
+        not key_matches(candidate)
+        and request.method in ("GET", "HEAD")
+        and request.url.path.startswith("/api/media/")
+    ):
         candidate = request.query_params.get("api_key", "")
     if not key_matches(candidate):
         return JSONResponse(
@@ -241,7 +305,7 @@ if __name__ == "__main__":
     should_reload = os.environ.get("FASTAPI_RELOAD", "true").lower() in ("1", "true")
     uvicorn.run(
         "scripts.api_server:app",
-        host="0.0.0.0",
+        host=get_bind_host(),
         port=8000,
         reload=should_reload
     )

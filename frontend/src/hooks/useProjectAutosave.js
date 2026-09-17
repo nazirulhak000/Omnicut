@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { createLatestSaveQueue } from '../lib/projectSaveQueue.js';
 
-const LIFECYCLE_API_KEY = import.meta.env?.VITE_API_KEY;
-
-
-export function lifecycleSaveHeaders(apiKey = LIFECYCLE_API_KEY) {
+// The normal browser path uses the same-origin proxy, which injects auth on
+// the server side. An explicit key remains supported for isolated callers and
+// deterministic tests, but the app no longer sources one from import.meta.env.
+export function lifecycleSaveHeaders(apiKey) {
   return apiKey ? { 'Content-Type': 'application/json', 'X-API-Key': apiKey } : {
     'Content-Type': 'application/json',
   };

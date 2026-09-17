@@ -17,6 +17,13 @@
 
 ## สถานะรวม
 
+- [x] Round AUDIT-FIX-COMPLETE-20260917 — แก้ backlog จาก system audit ให้ครบ: token ledger/quota, dashboard error/refresh, notification reliability/accessibility, toast duration, security boundary และเพิ่ม regression tests โดยแยกเอเจนต์ตาม write scope (วันที่: 2026-09-17; ดำเนินการโดย: Codex (GPT-5) ร่วมกับ Locke, Planck, Feynman, Linnaeus, Bacon และ Nietzsche) — ปิดรอบแล้ว; รายละเอียดอยู่ใน HISTORY.md
+- [x] Round FIX-ACTIVITY-NOTIFICATION-BLACK-SCREEN-20260917 — ทำซ้ำและแก้ปัญหากดตัวแจ้งเตือนแล้วจอดำ พร้อมตรวจความสอดคล้องของ render-job token/storage และเพิ่ม regression verification (วันที่: 2026-09-17; ดำเนินการโดย: Codex (GPT-5)) — ปิดรอบแล้ว; รายละเอียดอยู่ใน HISTORY.md
+- [x] Round HERO-COVER-SHOT-MACRO-PRIORITY-1 — ยกระดับการเลือกช็อตเปิดคลิป/หน้าปก (Shot 1 Hero Priority): เจาะจงเลือกช็อตมาโครระยะประชิดที่มีโลโก้แบรนด์คมชัดระดับโปร แทนช็อตฝ่ามือ + อัปเดตคลิป JBL01 ให้ได้หน้าปกโลโก้ JBL คมชัดตามรูปเรฟ (2026-09-17; backend 39 passed, frontend 246 passed, build 2,008 modules/3.14s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round SMART-VISION-SEMANTIC-MATCHER-FIX-1 — ปรับปรุง Algorithm Smart Vision Matcher: ปิดบั๊กปิงปองสลับฟันปลา (Global Scene Usage Penalty) + แยกแยะบริบทคำว่า 'สาย'/'แม่เหล็ก'/'ปุ่มไมค์'/'เสียงเบส' ไม่ให้ดูดไปหัว Type-C ซ้ำซาก (2026-09-17; backend 38 passed, frontend 246 passed, build 2,008 modules/3.66s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round SYSTEM-AUDIT-NOTIFICATION-TOKEN-DASHBOARD-20260916 — ตรวจเชิงลึกระบบแจ้งเตือน, dashboard token/analytics, state persistence, error handling, security และจุดยิบย่อยที่ไม่สมเหตุผล โดยแยกตรวจหลายเอเจนต์และสรุปหลักฐานแบบ read-only (วันที่: 2026-09-16; ดำเนินการโดย: Codex (GPT-5)) — ปิดรอบแล้ว; แก้โค้ดจริงเป็น backlog แยก
+- [x] Round RAW-VAULT-SCENE-INDEX-AND-VIEWER-1 — แก้ไข 500 Import Error การสแกนฉาก + เพิ่มระบบสแกนคลิปจากหน้า Raw Vault (คลังคลิปดิบ) + สร้าง Scene Catalog Viewer Modal ดูรายละเอียดสารบัญฉาก AI (2026-09-16; backend 161 passed, frontend 246 passed, build 2,008 modules/2.98s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round SMART-VISION-SCENE-INDEXING-1 — ระบบ 2-Step Smart Vision: สแกนสร้างสารบัญฉากคลิปดิบ (Scene Catalog) 1 ครั้ง + แมพสคริปต์ความหมายจริง (Semantic & Dynamic Variety) ไม่หั่นสุ่ม 3.5s (2026-09-16; backend 47 passed, frontend 246 passed, build 2,007 modules/3.39s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round SUBTITLE-AND-HOOK-RENDER-PARITY-FIX-1 — แก้ปัญหาสีไฮไลต์ซับคลุมทั้งประโยคใน Render + ป้องกันป้าย Hook Header บรรทัดซ้อนทับกัน (Collision) จากการคำนวณ Character Wrap แคบกว่าขอบจอจริง (2026-09-16; backend parity 183 passed, frontend 246 passed, build 2,007 modules/5.00s, FFmpeg frame verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round ANGLE-CARD-DELETE-BUTTON-REALIGN-1 — ย้ายปุ่มลบสคริปต์บนการ์ดมุมมองลงแถบล่าง (Footer) เพื่อให้ Stepper Tracker ชิดขวาเท่ากัน 100% ทุกใบ ไม่ขยับเยื้อง (2026-09-16; frontend 246 passed, build 2,007 modules/6.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round TIKTOK-STATS-MATCH-SCHEDULE-QUEUE-1 — ขยาย Candidate Pool ด้วย Schedule Queue + Caption ยกระดับการจับคู่สถิติ TikTok ให้ตรง 100% อัตโนมัติ (2026-09-16; backend 16 passed, frontend 246 passed, build 2,007 modules/3.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
@@ -167,32 +174,33 @@
 
 
 
-## Round SUBTITLE-AND-HOOK-RENDER-PARITY-FIX-1 — แก้ปัญหาสีไฮไลต์ซับคลุมทั้งประโยคใน Render + ป้องกันป้าย Hook Header บรรทัดซ้อนทับกัน (Collision)
+## Round RAW-VAULT-SCENE-INDEX-AND-VIEWER-1 — แก้ไข 500 Import Error การสแกนฉาก + เพิ่มระบบสแกนคลิปจากหน้า Raw Vault (คลังคลิปดิบ) + สร้าง Scene Catalog Viewer Modal ดูรายละเอียดสารบัญฉาก AI
 
-วันที่: 2026-09-16 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: กำลังดำเนินการ
+วันที่: 2026-09-16 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
 
 ### ปัญหาที่พบ
-1. **สีไฮไลต์ซับคลุมทั้งประโยค (Subtitle Monolingual Highlight Clobber):**
-   - ใน `scripts/subtitle_engine.py` บรรทัด 826–830 มีโค้ดดัก `if "{\\c" in highlighted_text:` แล้วเอาสีแท็กแรกไปคลุมทั้งประโยค `highlighted_text = f"{{\\c{m.group(1)}}}{clean_th}"`
-   - ส่งผลให้ในวิดีโอที่เรนเดอร์ ตัวหนังสือซับและอีโมจิกลายเป็นสีเหลืองทั้งประโยค (`🛒 คุ้มค่ามากที่สุดในกลุ่มไมค์ตอนนี้`) ขณะที่ในหน้า Preview SequencePlayer มีเพียงคำไฮไลต์คำเดียว (`คุ้มค่า`) ที่เป็นสีเหลือง นอกนั้นเป็นสีขาว ทำให้ Preview และ Render ไม่ตรงกัน (Preview ≠ Render)
-2. **ป้าย Hook Header บรรทัดซ้อนทับกัน (Collision) ใน Render:**
-   - ใน `scripts/subtitle/overlay_events.py` บรรทัด 203 มีการคำนวณ `dyn_max_chars = max(8, int(round(2600 / tier_fs)))`
-   - สำหรับฟอนต์ขนาดใหญ่ เช่น Tier 0 (Brand) ขนาด 145px จะได้ `dyn_max_chars = 18` ตัวอักษร
-   - ข้อความ `"GOCHEK ULTRA S24"` มี 16 ตัวอักษร ซึ่ง <= 18 ทำให้ Python ไม่ยอมตัดบรรทัด (wrap) และมองว่าเป็น 1 บรรทัด จึงคำนวณ cursor_y ให้ Tier 1 (`ไมโครโฟนไร้สาย`) ขยับลงมาเพียง 1 บรรทัด (Y ≈ 405)
-   - แต่ในความเป็นจริง ขนาด 145px ของ 16 ตัวอักษรมีความกว้างถึง 1,334px ซึ่งเกินขอบจอ 1080px (และ safe width 918px) ทำให้ libass ใน FFmpeg ตัดบรรทัดอัตโนมัติเป็น 2 บรรทัด (`GOCHEK` บรรทัด 1, `ULTRA S24` บรรทัด 2)
-   - ส่งผลให้ `ULTRA S24` (บรรทัดที่ 2 ของ Tier 0) และ `ไมโครโฟนไร้สาย` (บรรทัดที่ 1 ของ Tier 1) ถูกเรนเดอร์ทับตำแหน่ง Y เดียวกัน เกิดข้อความซ้อนทับกันเละในวิดีโอเรนเดอร์จริง
-   - ขณะที่ในหน้า SequencePlayer ฝั่งเว็บใช้ `wrapCanvasText(..., maxW)` วัดความกว้างพิกเซลจริง จึงตัดเป็น 3 บรรทัดสวยงาม (`GOCHEK` / `ULTRA S24` / `ไมโครโฟนไร้สาย`)
+1. **500 Internal Server Error เมื่อกดสแกนฉาก:** ใน `scripts/api_products.py` บรรทัด 722 มีการเรียก `from scripts.video_editor import get_video_duration` แต่ฟังก์ชันดังกล่าวไม่ได้ export ออกมาจากโมดูลโดยตรง (เป็น method `VideoEditor.get_media_info().get("duration")`) ทำให้เกิด `ImportError` และส่งผลให้ API ล้มเหลว 500
+2. **คลังคลิปดิบ (Raw Vault) ขาดความสามารถในการสแกนและตรวจสอบฉาก:** ในหน้า `RawVaultPanel.jsx` มีคลิปดิบในเครื่องอยู่แล้ว 21 คลิป แต่ไม่มีตัวบอกสถานะว่าคลิปไหนสแกนสารบัญฉากแล้วหรือยัง และไม่มีปุ่มกดสั่งสแกนจากหน้านี้ ผู้ใช้ต้องเข้าไปกดในหน้าสินค้าเท่านั้น
+3. **ขาดหน้าต่างแสดงสารบัญฉาก (Scene Catalog Viewer):** ผู้ใช้ต้องการตรวจสอบว่า AI วิเคราะห์แบ่งฉากออกมาอย่างไร มีกี่วินาที แต่ละฉากคือมุมอะไร คีย์เวิร์ดอะไร ซูมเท่าใด แต่ปัจจุบันยังไม่มี UI สำหรับเปิดดูข้อมูลสารบัญฉากที่สแกนแล้ว
 
 ### แผนแก้ไข
-- [x] ใน `scripts/subtitle_engine.py`: ลบบรรทัด 826–830 ที่เขียนทับสีซับทั้งประโยค เพื่อให้การไฮไลต์คำเฉพาะจุด (Word-level kinetic highlighting) ทำงานถูกต้องเหมือนใน Canvas Preview 100%
-- [x] ใน `scripts/subtitle/overlay_events.py`: ปรับการคำนวณ wrap ของ Hook Header โดยวัดความกว้างพิกเซลจริงผ่าน `_measure_text_width_px` (หรือสูตร dynamic chars ที่อิง safe width 918px: `max_w_px = int(video_width * 0.85)` / `avg_char_w`) เพื่อให้ตัดบรรทัดตรงกับหน้า Preview และขยับ `cursor_y` ของแต่ละบรรทัดอย่างถูกต้อง ป้องกันการซ้อนทับ 100%
-- [x] เรนเดอร์ทดสอบ FFmpeg เฟรมจริงจากโปรเจกต์ GoChek เพื่อยืนยันว่า:
-   1. ซับไตเติล: อีโมจิและข้อความปกติเป็นสีขาว คำไฮไลต์เป็นสีเหลือง
-   2. ป้ายฮุก: แบ่ง 3 บรรทัดชัดเจน ไม่มีการชนหรือซ้อนทับกัน
-- [x] รันชุดทดสอบความเข้ากันได้ `test_preview_render_parity.py`, `test_preview_render_behavior.py`, `test_subtitle_artifact_contract.py` (183 passed)
-- [x] รันชุดทดสอบ frontend `npm test` (246 passed) และ `npm run build` (2,007 modules ผ่านใน 5.00s)
+- [x] 1. **แก้ไข Backend Import Error ใน `scripts/api_products.py`:**
+  - เปลี่ยนจาก `from scripts.video_editor import get_video_duration` เป็น `from scripts.video_editor import VideoEditor` และเรียกใช้ `VideoEditor.get_media_info(str(v_full)).get("duration", 60.0)`
+- [x] 2. **เพิ่ม API รองรับ Scene Catalog ใน Raw Vault (`scripts/api_videos.py`):**
+  - เพิ่ม `GET /api/raw-vault/scene-catalogs` เพื่อดึงสถานะและสารบัญฉากของคลิปใน Raw Vault
+  - เพิ่ม `POST /api/raw-vault/index-scenes` เพื่อสั่งสแกนคลิปดิบได้โดยตรงจากหน้า Raw Vault (ทั้งแบบรายคลิปและเลือกหลายคลิป)
+- [x] 3. **สร้าง Scene Catalog Viewer Modal (`SceneCatalogModal.jsx`):**
+  - แสดงภาพรวมของคลิป (ความยาว, จำนวนฉาก, ประเภทการหมุน 360 / หลากหลายแอ็กชัน, คำอธิบายโดย AI)
+  - แสดงลิสต์ฉากอย่างสวยงาม: ช่วงเวลา, action_type, angle_phase, punch_zoom, keywords, รายละเอียดฉาก
+- [x] 4. **เชื่อมโยง UI ใน `ProductToClip.jsx` และ `RawVaultPanel.jsx`:**
+  - ใน `ProductToClip.jsx`: เมื่อคลิกป้าย `⚡ N ฉาก` ให้เปิด `SceneCatalogModal` ดูรายละเอียดได้ทันที
+  - ใน `RawVaultPanel.jsx`: แสดง Badge สถานะบนการ์ดคลิปดิบ (`⚡ N ฉาก` กดดูรายละเอียดได้ / `⚡ สแกนฉาก` กดสั่งสแกนได้ทันที) และเพิ่มปุ่ม Batch Scan บน Filter Bar
+- [x] 5. **Automated Testing & Build Verification:**
+  - ทดสอบผ่าน: `backend smart vision tests: 5 passed`, `backend raw/product tests: 161 passed`, `frontend vitest: 246 passed`, `frontend build: 2,008 modules / 2.98s` ไม่มี error
 
 ---
+
+## Round BATCH-TTS-AUDIO-PREGEN-1 — ระบบ Batch เตรียมเสียงพากย์อัตโนมัติ พร้อมตัวเลือกเสียง (default: Puck) & พักรอ 429 Cooldown อัตโนมัติใน background task
 
 วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
 
@@ -999,5 +1007,6 @@ Plan before code:
   - Backend tests: `pytest tests/test_subtitle_artifact_contract.py tests/test_preview_render_parity.py` 163 passed ครบ 100%
   - Frontend vitest: 246 passed ครบ 100%
   - Frontend production build: Vite 2,007 modules built in 4.38s
+---
 
-
+## Round HERO-COVER-SHOT-MACRO-PRIORITY-1 — ปิดรอบแล้ว ✅ (บล็อกเต็มอยู่ใน HISTORY.md)

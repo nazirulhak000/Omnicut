@@ -1,56 +1,53 @@
-import React, { useState, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Zap, Coins, Cpu, Clock, ArrowUpRight,
-  Sparkles, CheckCircle2, AlertCircle, BarChart3, Layers, Filter,
-  Search, ShieldCheck, Eye, Mic, FileText, ChevronRight,
+  Zap, Coins, Cpu, Clock,
+  Sparkles, CheckCircle2, AlertCircle, BarChart3, Layers,
+  Search, ShieldCheck, Eye, Mic, FileText,
   AlertTriangle, Key, RotateCcw
 } from 'lucide-react';
 import { getTokenSummary, resetTokenAnalytics, clearTokenAlerts } from '../api';
-import { Badge, ConfirmModal, Toast } from './ui';
+import { ConfirmModal, Toast } from './ui';
 import AreaLineChart from './analytics/charts/AreaLineChart';
 import DonutChart from './analytics/charts/DonutChart';
 
-// Title/refresh/reset live in SystemSettings' own command bar now (this
-// panel used to carry a second, duplicate header) -- refresh() and
-// openReset() are exposed via ref so that bar can drive this panel's state
-// without lifting all of it up.
-const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }, ref) {
+const getTokenLoadError = (err) => {
+  const detail = err?.response?.data?.detail;
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (typeof err?.message === 'string' && err.message.trim()) return err.message;
+  return 'ไม่สามารถโหลดข้อมูล Token Analytics ได้';
+};
+
+const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [taskFilter, setTaskFilter] = useState('all');
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
-  const fetchSummary = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+  const fetchSummary = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const data = await getTokenSummary();
+      if (!data || typeof data !== 'object') {
+        throw new Error('Token Analytics returned an empty response');
+      }
       setSummary(data);
     } catch (err) {
       console.error('Failed to load token analytics:', err);
+      setLoadError(getTokenLoadError(err));
       setToastMessage('ไม่สามารถโหลดข้อมูล Token Analytics ได้');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
     fetchSummary();
-  }, [fetchSummary]);
-
-  useEffect(() => {
-    onRefreshingChange?.(refreshing);
-  }, [refreshing, onRefreshingChange]);
-
-  useImperativeHandle(ref, () => ({
-    refresh: () => fetchSummary(true),
-    openReset: () => setShowResetModal(true),
-  }), [fetchSummary]);
+  }, [fetchSummary, refreshKey]);
 
   const handleReset = async () => {
     setResetting(true);
@@ -70,7 +67,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
     try {
       await clearTokenAlerts();
       setToastMessage('ล้างประวัติแจ้งเตือนเรียบร้อยแล้ว');
-      fetchSummary(true);
+      fetchSummary();
     } catch (err) {
       setToastMessage('ไม่สามารถล้างแจ้งเตือนได้: ' + err.message);
     }
@@ -134,6 +131,42 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
     }));
   }, [summary?.tokens_by_task]);
 
+  if (loading && !summary) {
+    return (
+      <div className="space-y-6 animate-fadeIn pb-12" role="status" aria-live="polite">
+        <div className="glass-panel min-h-40 p-6 rounded-2xl border border-white/[0.08] flex items-center justify-center gap-3 text-sm text-slate-300">
+          <RotateCcw className="w-4 h-4 animate-spin text-[#25F4EE]" />
+          กำลังโหลดข้อมูล Token Analytics...
+        </div>
+      </div>
+    );
+  }
+
+  if (!summary && loadError) {
+    return (
+      <div className="space-y-6 animate-fadeIn pb-12">
+        <div className="glass-panel p-6 rounded-2xl border border-rose-500/30 bg-rose-500/[0.06]" role="alert">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0 text-rose-300" />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-bold text-white">โหลด Token Analytics ไม่สำเร็จ</h2>
+              <p className="mt-1 text-xs text-rose-100/80 break-words">{loadError}</p>
+              <button
+                type="button"
+                onClick={fetchSummary}
+                disabled={loading}
+                className="mt-4 inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-rose-300/30 bg-rose-400/10 text-xs font-bold text-rose-100 hover:bg-rose-400/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                ลองใหม่
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const getProviderBadge = (provider) => {
     if (provider === 'antigravity_pro') {
       return (
@@ -153,6 +186,32 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
+      {loadError && (
+        <div className="glass-panel p-4 rounded-2xl border border-amber-500/30 bg-amber-500/[0.06]" role="alert">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-300" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-amber-100">รีเฟรช Token Analytics ไม่สำเร็จ จึงกำลังแสดงข้อมูลครั้งล่าสุด</p>
+              <p className="mt-1 text-[11px] text-amber-100/70 break-words">{loadError}</p>
+              <button
+                type="button"
+                onClick={fetchSummary}
+                disabled={loading}
+                className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-100 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RotateCcw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                ลองใหม่
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {loading && summary && (
+        <div className="text-[11px] text-slate-400 flex items-center gap-2" role="status" aria-live="polite">
+          <RotateCcw className="w-3 h-3 animate-spin text-[#25F4EE]" />
+          กำลังรีเฟรชข้อมูล Token Analytics...
+        </div>
+      )}
       {/* ── AI Key Health & Quota Alerts Center ── */}
       <div className="glass-panel p-5 rounded-2xl border border-white/[0.08] relative overflow-hidden space-y-4 shadow-lg">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
@@ -660,6 +719,6 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
       )}
     </div>
   );
-});
+};
 
 export default TokenDashboard;

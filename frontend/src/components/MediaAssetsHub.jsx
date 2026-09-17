@@ -52,7 +52,7 @@ export default function MediaAssetsHub({ status }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const fileUploadRef = useRef(null);
-  const { toastMessage, showToast, hideToast } = useToast();
+  const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
 
   // ── Fetch Assets ──
   const fetchAssets = useCallback(async () => {
@@ -1634,6 +1634,7 @@ export default function MediaAssetsHub({ status }) {
           message={toastMessage.message}
           type={toastMessage.type}
           onClose={hideToast}
+          duration={toastDuration}
         />
       )}
     </div>

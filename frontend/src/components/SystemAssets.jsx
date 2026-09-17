@@ -25,7 +25,7 @@ export default function SystemAssets({
   const [uploadingAsset, setUploadingAsset] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const { toastMessage, showToast, hideToast } = useToast();
+  const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
   const audioRef = useRef(null);
   const fileUploadRef = useRef(null);
 
@@ -144,7 +144,7 @@ export default function SystemAssets({
   return (
     <div className="space-y-6 relative animate-fadeIn pb-16">
       {/* Central Toast Notification */}
-      <Toast message={toastMessage} onClose={hideToast} />
+      <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
 
       {/* Header Banner */}
       <div className="glass-panel p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">

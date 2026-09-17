@@ -135,7 +135,8 @@ export function formatJobError(err) {
 // render would keep going server-side with zero UI trace of it. localStorage
 // is shared across tabs of the same origin and survives tab close, so both
 // gaps close without changing the key name or JSON shape.
-const JOB_ENTRY_KEY = `${STORAGE_PREFIX}job`;
+export const ACTIVE_RENDER_STORAGE_KEY = `${STORAGE_PREFIX}job`;
+const JOB_ENTRY_KEY = ACTIVE_RENDER_STORAGE_KEY;
 
 function readJobEntry(storage) {
   try {

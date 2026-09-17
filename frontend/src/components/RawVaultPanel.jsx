@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Film, Search, RefreshCw, Upload, Trash2, Edit3, Link2,
-  Play, HardDrive, Check, Box, Layers, CheckSquare, Square
+  Play, HardDrive, Check, Box, Layers, CheckSquare, Square,
+  Sparkles, Eye, Loader2
 } from 'lucide-react';
-import { getRawVault, reassignRawVideo, renameVideo, deleteFile, batchDeleteRawVideos, getProducts } from '../api';
+import {
+  getRawVault, reassignRawVideo, renameVideo, deleteFile, batchDeleteRawVideos, getProducts,
+  getRawVaultSceneCatalogs, indexRawVaultScenes
+} from '../api';
 import { Button, ConfirmModal, Modal, Toast, Badge } from './ui';
 import { useToast } from '../hooks';
+import { useTaskManager } from '../context/TaskContext';
 import MediaPickerModal from './MediaPickerModal';
+import SceneCatalogModal from './SceneCatalogModal';
 
 // Consistent, brand-agnostic badge color per product so the same product
 // always reads as the same color across the flat grid without hardcoding
@@ -20,12 +26,19 @@ function productBadgeVariant(productId) {
 }
 
 export default function RawVaultPanel() {
-  const { toastMessage, toastType, showToast, hideToast } = useToast();
+  const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
+  const { pollTasks, refreshTrigger } = useTaskManager();
   const [loading, setLoading] = useState(true);
   const [vaultData, setVaultData] = useState({ products: [], unassigned: [], total_clips: 0, total_size_mb: 0 });
   const [productList, setProductList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'products', 'unassigned', 'large'
+
+  // Scene Catalogs (Vision AI)
+  const [rawCatalogsMap, setRawCatalogsMap] = useState({});
+  const [isScanningRaw, setIsScanningRaw] = useState(false);
+  const [scanningPaths, setScanningPaths] = useState(new Set());
+  const [inspectingCatalog, setInspectingCatalog] = useState(null);
 
   // Video Preview Player
   const [activePreviewPath, setActivePreviewPath] = useState(null);
@@ -56,12 +69,14 @@ export default function RawVaultPanel() {
   const fetchVault = async () => {
     setLoading(true);
     try {
-      const [vaultRes, prodRes] = await Promise.all([
+      const [vaultRes, prodRes, catRes] = await Promise.all([
         getRawVault(),
-        getProducts()
+        getProducts(),
+        getRawVaultSceneCatalogs().catch(() => null)
       ]);
       if (vaultRes) setVaultData(vaultRes);
       if (prodRes && prodRes.products) setProductList(prodRes.products);
+      if (catRes?.catalogs) setRawCatalogsMap(catRes.catalogs);
     } catch (err) {
       console.error('Failed to load raw vault data:', err);
       showToast('ไม่สามารถโหลดข้อมูลคลังคลิปดิบได้', 'error');
@@ -69,6 +84,60 @@ export default function RawVaultPanel() {
       setLoading(false);
     }
   };
+
+  const handleScanRawVideo = async (videoPath = null, force = false) => {
+    // Add path(s) to active scanning set
+    const targets = videoPath ? [videoPath] : (selectedPaths.length > 0 ? selectedPaths : []);
+    setScanningPaths(prev => {
+      const next = new Set(prev);
+      targets.forEach(p => next.add(p));
+      return next;
+    });
+    setIsScanningRaw(true);
+
+    try {
+      showToast('👁️ สั่งสแกนสารบัญฉากในเบื้องหลังแล้ว ติดตามที่เมนูกิจกรรมได้สดๆ', 'info');
+      const res = await indexRawVaultScenes({
+        video_path: videoPath,
+        video_paths: !videoPath && selectedPaths.length > 0 ? selectedPaths : undefined,
+        force
+      });
+
+      if (res?.task_id) {
+        // Trigger immediate poll so Activity Center shows the new task
+        pollTasks();
+      }
+    } catch (err) {
+      console.error('Failed to scan raw vault scenes:', err);
+      showToast('ไม่สามารถสแกนสารบัญฉากได้: ' + (err.response?.data?.detail || err.message), 'error');
+      setScanningPaths(prev => {
+        const next = new Set(prev);
+        targets.forEach(p => next.delete(p));
+        return next;
+      });
+      setIsScanningRaw(false);
+    }
+  };
+
+  // Re-fetch catalogs and clear loading state whenever background tasks finish
+  useEffect(() => {
+    getRawVaultSceneCatalogs().then(catRes => {
+      if (catRes?.catalogs) {
+        setRawCatalogsMap(catRes.catalogs);
+        // Clear any paths that have finished indexing
+        setScanningPaths(prev => {
+          if (prev.size === 0) return prev;
+          const next = new Set(prev);
+          for (const p of prev) {
+            if (catRes.catalogs[p]?.is_indexed) {
+              next.delete(p);
+            }
+          }
+          return next;
+        });
+      }
+    }).catch(() => {});
+  }, [refreshTrigger]);
 
   useEffect(() => {
     fetchVault();
@@ -140,6 +209,18 @@ export default function RawVaultPanel() {
   useEffect(() => {
     setVisibleVaultCount(VAULT_PAGE_SIZE);
   }, [searchQuery, activeFilter]);
+
+  const totalIndexedCount = useMemo(() => {
+    return Object.values(rawCatalogsMap).filter(c => c?.is_indexed).length;
+  }, [rawCatalogsMap]);
+
+  const unindexedCount = useMemo(() => {
+    return flatVideos.filter(v => {
+      const key = v.rel_path || v.path;
+      const cat = rawCatalogsMap[key] || rawCatalogsMap[v.path] || rawCatalogsMap[v.name];
+      return !cat?.is_indexed;
+    }).length;
+  }, [flatVideos, rawCatalogsMap]);
   const visibleFlatVideos = useMemo(
     () => flatVideos.slice(0, visibleVaultCount),
     [flatVideos, visibleVaultCount]
@@ -388,6 +469,59 @@ export default function RawVaultPanel() {
             {video.rel_path || video.path}
           </p>
 
+          {/* Scene Catalog Status / Scan Button */}
+          {(() => {
+            const vKey = video.rel_path || video.path;
+            const cat = rawCatalogsMap[vKey] || rawCatalogsMap[video.path] || rawCatalogsMap[video.name];
+            const isScanningThis = scanningPaths.has(vKey) || scanningPaths.has(video.path) || scanningPaths.has(video.name);
+
+            if (cat?.is_indexed && cat?.scenes_count > 0) {
+              return (
+                <div className="flex items-center justify-between gap-1.5 py-1 px-2 rounded-lg bg-emerald-500/10 border border-emerald-500/25">
+                  <button
+                    type="button"
+                    onClick={() => setInspectingCatalog({
+                      videoName: video.name,
+                      videoPath: vKey,
+                      catalog: cat
+                    })}
+                    className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
+                    title="คลิกเพื่อดูสารบัญฉากที่ AI สแกนไว้"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>สารบัญ {cat.scenes_count} ฉาก</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleScanRawVideo(vKey, true)}
+                    disabled={isScanningThis}
+                    className="text-[10px] text-emerald-500 hover:text-emerald-300 hover:underline cursor-pointer flex items-center gap-1"
+                    title="สแกนฉากซ้ำใหม่ด้วย Vision AI"
+                  >
+                    <RefreshCw className={`w-2.5 h-2.5 ${isScanningThis ? 'animate-spin' : ''}`} />
+                    <span>สแกนใหม่</span>
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <div className="flex items-center justify-between gap-1.5 py-1 px-2 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                <span className="text-[10px] text-slate-500">ยังไม่สแกนฉาก</span>
+                <button
+                  type="button"
+                  onClick={() => handleScanRawVideo(vKey, false)}
+                  disabled={isScanningThis}
+                  className="px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                  title="เริ่มสแกนสารบัญฉากด้วย Vision AI"
+                >
+                  {isScanningThis ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                  <span>สแกนฉาก</span>
+                </button>
+              </div>
+            );
+          })()}
+
           {/* Bottom Actions Toolbar (Touch-Friendly Ergonomics) */}
           <div className="flex items-center justify-between pt-2.5 border-t border-white/[0.06] gap-2">
             <button
@@ -416,7 +550,7 @@ export default function RawVaultPanel() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300 relative pb-10">
-      <Toast message={toastMessage} onClose={hideToast} />
+      <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
 
       {/* ── Top Header & Storage Summary ── */}
       <div className="rounded-3xl border border-white/[0.08] bg-[#0B0F19]/80 backdrop-blur-xl p-4 sm:p-5 shadow-2xl relative overflow-hidden">
@@ -542,6 +676,17 @@ export default function RawVaultPanel() {
 
             <button
               type="button"
+              onClick={() => handleScanRawVideo(null, false)}
+              disabled={isScanningRaw || loading}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 active:scale-95 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 shadow-sm disabled:opacity-50"
+              title="สแกนสารบัญฉากคลิปดิบทั้งหมดด้วย Vision AI"
+            >
+              {isScanningRaw ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              <span>สแกนฉาก AI {unindexedCount > 0 ? `(${unindexedCount})` : 'ครบแล้ว'}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={fetchVault}
               disabled={loading}
               className="p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-slate-400 hover:text-white border border-white/[0.08] transition-all cursor-pointer ml-1 active:scale-95 flex-shrink-0"
@@ -567,6 +712,16 @@ export default function RawVaultPanel() {
               >
                 ยกเลิก
               </button>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={Sparkles}
+                onClick={() => handleScanRawVideo(null, false)}
+                disabled={isScanningRaw}
+                className="flex-1 sm:flex-initial justify-center text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20"
+              >
+                {isScanningRaw ? 'กำลังสแกน...' : `สแกน ${selectedPaths.length} คลิป`}
+              </Button>
               <Button
                 variant="danger"
                 size="sm"
@@ -775,6 +930,17 @@ export default function RawVaultPanel() {
         onVideoUploaded={() => {
           fetchVault();
         }}
+      />
+
+      {/* ── Scene Catalog Inspector Modal ── */}
+      <SceneCatalogModal
+        isOpen={!!inspectingCatalog}
+        onClose={() => setInspectingCatalog(null)}
+        videoName={inspectingCatalog?.videoName}
+        videoPath={inspectingCatalog?.videoPath}
+        catalog={inspectingCatalog?.catalog}
+        onRescan={(vPath) => handleScanRawVideo(vPath, true)}
+        isScanning={isScanningRaw}
       />
     </div>
   );

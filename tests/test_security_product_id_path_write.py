@@ -32,6 +32,10 @@ from scripts.api_server import app
 from scripts import product_store as ps
 
 
+def _valid_mp4_bytes():
+    return b"\x00\x00\x00\x18ftypisom\x00\x00\x02\x00isomiso2"
+
+
 @pytest.fixture
 def isolated_dirs(tmp_path, monkeypatch):
     """Redirects api_videos' module-level BASE_DIR/RAW_DIR/INBOX_DIR (bound
@@ -125,7 +129,7 @@ def test_upload_with_legit_product_id_still_works(isolated_dirs, client):
     resp = client.post(
         "/api/upload",
         data={"target_dir": "raw", "product_id": "20260907153012_1"},
-        files={"file": ("clip.mp4", b"fake video bytes", "video/mp4")},
+        files={"file": ("clip.mp4", _valid_mp4_bytes(), "video/mp4")},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -139,7 +143,7 @@ def test_upload_without_product_id_still_works(isolated_dirs, client):
     resp = client.post(
         "/api/upload",
         data={"target_dir": "inbox"},
-        files={"file": ("clip.mp4", b"fake video bytes", "video/mp4")},
+        files={"file": ("clip.mp4", _valid_mp4_bytes(), "video/mp4")},
     )
     assert resp.status_code == 200
     inbox = isolated_dirs["inbox"]

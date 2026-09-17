@@ -10,6 +10,7 @@ import json
 import time
 import uuid
 import datetime
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -20,6 +21,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from scripts.config import PROJECTS_DIR
 
 ANALYTICS_FILE = PROJECTS_DIR / ".token_analytics.json"
+ANALYTICS_LOCK_SUFFIX = ".lock"
 
 # Commercial API rates for savings estimation (USD per 1M tokens)
 # Converted to THB at 35 THB/USD
@@ -76,7 +78,11 @@ class TokenTracker:
                 "thinking_tokens": 0,
                 "total_calls": 0,
                 "total_cost_saved_thb": 0.0,
-            }
+            },
+            # Per-day lifetime aggregates. Unlike `events`, this map is not
+            # subject to the 1,000-event rolling window, so today's quota
+            # remains correct after old events are trimmed.
+            "daily_usage": {},
         }
 
     @classmethod
@@ -106,14 +112,14 @@ class TokenTracker:
             return (0, -1)
 
     @classmethod
-    def _load(cls) -> Dict[str, Any]:
+    def _load(cls, force: bool = False) -> Dict[str, Any]:
         # Check if disk file was updated by another process/worker. Any
         # difference (not just "newer") invalidates the cache -- mtime_ns
         # and size are independent signals, not a monotonic ordering, so
         # equality is the only safe "unchanged" test.
         disk_stamp = cls._disk_stamp()
 
-        if cls._cache is not None and disk_stamp == cls._cache_stamp:
+        if not force and cls._cache is not None and disk_stamp == cls._cache_stamp:
             return cls._cache
 
         if ANALYTICS_FILE.exists():
@@ -134,32 +140,58 @@ class TokenTracker:
         return data
 
     @classmethod
-    def _save(cls, data: Dict[str, Any]) -> None:
-        """Write `data` to ANALYTICS_FILE atomically.
+    @contextmanager
+    def _file_lock(cls):
+        """Serialize analytics read-modify-write cycles across processes.
 
-        cls._lock (a threading.Lock, held by every caller of _save()) only
-        serializes writers *within this one process*. It does nothing for a
-        second OS process writing this same file (e.g. a CLI tool or a
-        separate worker script run alongside the API server) -- that
-        process has its own, separate cls._lock. A full fix needs an
-        OS-level file lock (e.g. msvcrt.locking on Windows) held across the
-        whole read-modify-write in record_event()/reset(), which is out of
-        scope for this pass (real cross-platform advisory locking, plus
-        stale-lock cleanup after a crash, is nontrivial to get right).
-        Flagging the gap here rather than risking a half-implemented lock.
-
-        What this DOES fix: the tmp filename used to be the fixed
-        ANALYTICS_FILE.with_suffix(".json.tmp"), so two writers (this
-        process's threads, or a second process) landing here at the same
-        time could interleave writes to that one shared tmp path, or race
-        each other's Path.replace() (a Windows PermissionError). Using a
-        unique per-process/per-thread tmp name instead -- same approach as
-        scripts/db.py's JsonMirror (db.py:329) -- makes that specific
-        corruption/crash impossible even though it doesn't (and can't,
-        without the OS-level lock above) fix the separate lost-update race
-        where a second process's concurrent update to `data` gets silently
-        overwritten.
+        The lock is held on a separate file so the JSON file can continue to
+        be replaced atomically. POSIX uses flock(); Windows uses a one-byte
+        msvcrt lock. Both locks are released automatically by the OS if a
+        process exits unexpectedly, so a stale lock file is harmless.
         """
+        lock_path = ANALYTICS_FILE.with_name(ANALYTICS_FILE.name + ANALYTICS_LOCK_SUFFIX)
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with lock_path.open("a+b") as lock_file:
+            if os.name == "nt":
+                import msvcrt
+
+                # msvcrt.locking() requires a byte to exist at the position
+                # being locked. A concurrent first opener may also create the
+                # file; extra initial bytes are harmless because every writer
+                # contends on byte zero.
+                lock_file.seek(0, os.SEEK_END)
+                if lock_file.tell() == 0:
+                    lock_file.write(b"\0")
+                    lock_file.flush()
+
+                while True:
+                    lock_file.seek(0)
+                    try:
+                        msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                        break
+                    except OSError:
+                        time.sleep(0.05)
+                try:
+                    yield
+                finally:
+                    lock_file.seek(0)
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                try:
+                    import fcntl
+                except ImportError:  # pragma: no cover - unsupported POSIX runtime
+                    yield
+                else:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+                    try:
+                        yield
+                    finally:
+                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+    @classmethod
+    def _save_unlocked(cls, data: Dict[str, Any]) -> None:
+        """Write `data` atomically; caller must hold `_file_lock()`."""
         try:
             ANALYTICS_FILE.parent.mkdir(parents=True, exist_ok=True)
             data["updated_at"] = datetime.datetime.now().isoformat()
@@ -177,6 +209,96 @@ class TokenTracker:
             cls._cache_mtime = cls._cache_stamp[0] / 1e9 if cls._cache_stamp[0] else time.time()
         except Exception as e:
             print(f"⚠️ [TokenTracker] Failed to persist analytics: {e}")
+
+    @classmethod
+    def _save(cls, data: Dict[str, Any]) -> None:
+        """Write `data` atomically, locking when called directly by a reader/test."""
+        with cls._file_lock():
+            cls._save_unlocked(data)
+
+    @staticmethod
+    def _safe_int(value: Any) -> int:
+        try:
+            return max(0, int(value))
+        except (TypeError, ValueError):
+            return 0
+
+    @staticmethod
+    def _safe_float(value: Any) -> float:
+        try:
+            return max(0.0, float(value))
+        except (TypeError, ValueError):
+            return 0.0
+
+    @classmethod
+    def _aggregate_events_by_date(cls, data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        """Build daily usage from retained events for schema migration/fallback."""
+        daily: Dict[str, Dict[str, Any]] = {}
+        events = data.get("events", [])
+        if not isinstance(events, list):
+            return daily
+        for event in events:
+            if not isinstance(event, dict):
+                continue
+            date = event.get("date")
+            if not isinstance(date, str) or not date:
+                continue
+            entry = daily.setdefault(date, {"total_tokens": 0, "cost_thb": 0.0, "calls": 0})
+            entry["total_tokens"] += cls._safe_int(event.get("total_tokens", 0))
+            entry["cost_thb"] = round(
+                entry["cost_thb"] + cls._safe_float(event.get("cost_saved_thb", 0.0)),
+                4,
+            )
+            entry["calls"] += 1
+        return daily
+
+    @classmethod
+    def _ensure_daily_usage(cls, data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        """Normalise the additive daily ledger and backfill missing dates."""
+        daily = data.get("daily_usage")
+        if not isinstance(daily, dict):
+            daily = {}
+            data["daily_usage"] = daily
+
+        for date, entry in list(daily.items()):
+            if not isinstance(entry, dict):
+                daily.pop(date, None)
+                continue
+            daily[date] = {
+                "total_tokens": cls._safe_int(entry.get("total_tokens", entry.get("tokens", 0))),
+                "cost_thb": round(
+                    cls._safe_float(entry.get("cost_thb", entry.get("cost_saved_thb", 0.0))),
+                    4,
+                ),
+                "calls": cls._safe_int(entry.get("calls", 0)),
+            }
+
+        # Existing analytics files have no daily_usage field. Backfill only
+        # dates absent from the new ledger; never add retained events again to
+        # an already-tracked date.
+        for date, entry in cls._aggregate_events_by_date(data).items():
+            daily.setdefault(date, entry)
+        return daily
+
+    @classmethod
+    def _add_daily_usage(
+        cls,
+        data: Dict[str, Any],
+        date: str,
+        total_tokens: int,
+        cost_thb: float,
+    ) -> None:
+        # `_ensure_daily_usage()` is deliberately called before the event is
+        # appended. Calling it again after append would backfill the new
+        # event and then add it a second time on a legacy/empty file.
+        daily = data.get("daily_usage")
+        if not isinstance(daily, dict):
+            daily = {}
+            data["daily_usage"] = daily
+        entry = daily.setdefault(date, {"total_tokens": 0, "cost_thb": 0.0, "calls": 0})
+        entry["total_tokens"] += cls._safe_int(total_tokens)
+        entry["cost_thb"] = round(entry["cost_thb"] + cls._safe_float(cost_thb), 4)
+        entry["calls"] += 1
 
     @classmethod
     def estimate_cost_saved_thb(
@@ -210,60 +332,89 @@ class TokenTracker:
         Record a single AI execution turn. Thread-safe.
         """
         with cls._lock:
-            data = cls._load()
-            now = datetime.datetime.now()
-            total_tokens = input_tokens + output_tokens + thinking_tokens
-            saved_thb = cls.estimate_cost_saved_thb(model, input_tokens, output_tokens, thinking_tokens)
+            # The process lock is not enough when the API server and a worker
+            # process write the same analytics file. Hold the OS lock from
+            # fresh read through atomic replace to prevent lost updates.
+            with cls._file_lock():
+                data = cls._load(force=True)
+                now = datetime.datetime.now()
+                input_tokens = int(input_tokens)
+                output_tokens = int(output_tokens)
+                thinking_tokens = int(thinking_tokens)
+                total_tokens = input_tokens + output_tokens + thinking_tokens
+                saved_thb = cls.estimate_cost_saved_thb(model, input_tokens, output_tokens, thinking_tokens)
 
-            event = {
-                "id": f"evt_{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}",
-                "timestamp": now.isoformat(),
-                "date": now.strftime("%Y-%m-%d"),
-                "task": task,
-                "model": model,
-                "provider": provider,
-                "input_tokens": int(input_tokens),
-                "output_tokens": int(output_tokens),
-                "thinking_tokens": int(thinking_tokens),
-                "total_tokens": int(total_tokens),
-                "latency_seconds": round(float(latency_seconds), 2),
-                "cost_saved_thb": saved_thb,
-                "project_name": project_name or "General Studio Task",
-                "metadata": metadata or {}
-            }
+                event = {
+                    "id": f"evt_{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}",
+                    "timestamp": now.isoformat(),
+                    "date": now.strftime("%Y-%m-%d"),
+                    "task": task,
+                    "model": model,
+                    "provider": provider,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "thinking_tokens": thinking_tokens,
+                    "total_tokens": total_tokens,
+                    "latency_seconds": round(float(latency_seconds), 2),
+                    "cost_saved_thb": saved_thb,
+                    "project_name": project_name or "General Studio Task",
+                    "metadata": metadata or {}
+                }
 
-            # Keep max 1,000 historical events to preserve disk and memory.
-            # Whatever gets trimmed off the front is folded into
-            # trimmed_aggregate so `totals` (lifetime) stays exactly equal to
-            # trimmed_aggregate + sum(events) -- never a number the stored
-            # data can no longer reconstruct or verify.
-            events = data.get("events", [])
-            events.append(event)
-            if len(events) > 1000:
-                dropped = events[:-1000]
-                events = events[-1000:]
-                trimmed = data.setdefault("trimmed_aggregate", {})
-                trimmed["total_tokens"] = trimmed.get("total_tokens", 0) + sum(e.get("total_tokens", 0) for e in dropped)
-                trimmed["input_tokens"] = trimmed.get("input_tokens", 0) + sum(e.get("input_tokens", 0) for e in dropped)
-                trimmed["output_tokens"] = trimmed.get("output_tokens", 0) + sum(e.get("output_tokens", 0) for e in dropped)
-                trimmed["thinking_tokens"] = trimmed.get("thinking_tokens", 0) + sum(e.get("thinking_tokens", 0) for e in dropped)
-                trimmed["total_calls"] = trimmed.get("total_calls", 0) + len(dropped)
-                trimmed["total_cost_saved_thb"] = round(
-                    trimmed.get("total_cost_saved_thb", 0.0) + sum(e.get("cost_saved_thb", 0.0) for e in dropped), 2
-                )
-            data["events"] = events
+                # Backfill a legacy file while all of its retained events are
+                # still present. This must happen before the 1,000-event trim
+                # below, otherwise the first post-migration write could lose
+                # the event that is trimmed during that same write.
+                cls._ensure_daily_usage(data)
 
-            # Accumulate totals (lifetime figure; see trimmed_aggregate above)
-            totals = data.setdefault("totals", {})
-            totals["total_tokens"] = totals.get("total_tokens", 0) + total_tokens
-            totals["input_tokens"] = totals.get("input_tokens", 0) + input_tokens
-            totals["output_tokens"] = totals.get("output_tokens", 0) + output_tokens
-            totals["thinking_tokens"] = totals.get("thinking_tokens", 0) + thinking_tokens
-            totals["total_calls"] = totals.get("total_calls", 0) + 1
-            totals["total_cost_saved_thb"] = round(totals.get("total_cost_saved_thb", 0.0) + saved_thb, 2)
+                # Keep max 1,000 historical events to preserve disk and memory.
+                # Whatever gets trimmed off the front is folded into
+                # trimmed_aggregate so lifetime totals stay auditable.
+                events = data.get("events", [])
+                if not isinstance(events, list):
+                    events = []
+                events.append(event)
+                if len(events) > 1000:
+                    dropped = events[:-1000]
+                    events = events[-1000:]
+                    trimmed = data.setdefault("trimmed_aggregate", {})
+                    trimmed["total_tokens"] = trimmed.get("total_tokens", 0) + sum(
+                        cls._safe_int(e.get("total_tokens", 0)) for e in dropped if isinstance(e, dict)
+                    )
+                    trimmed["input_tokens"] = trimmed.get("input_tokens", 0) + sum(
+                        cls._safe_int(e.get("input_tokens", 0)) for e in dropped if isinstance(e, dict)
+                    )
+                    trimmed["output_tokens"] = trimmed.get("output_tokens", 0) + sum(
+                        cls._safe_int(e.get("output_tokens", 0)) for e in dropped if isinstance(e, dict)
+                    )
+                    trimmed["thinking_tokens"] = trimmed.get("thinking_tokens", 0) + sum(
+                        cls._safe_int(e.get("thinking_tokens", 0)) for e in dropped if isinstance(e, dict)
+                    )
+                    trimmed["total_calls"] = trimmed.get("total_calls", 0) + len(dropped)
+                    trimmed["total_cost_saved_thb"] = round(
+                        trimmed.get("total_cost_saved_thb", 0.0) + sum(
+                            cls._safe_float(e.get("cost_saved_thb", 0.0)) for e in dropped if isinstance(e, dict)
+                        ),
+                        2,
+                    )
+                data["events"] = events
 
-            cls._save(data)
-            return event
+                # Daily usage is a separate, compact lifetime ledger. It is
+                # deliberately updated before the event-window trim so the
+                # quota gate never forgets today's older calls.
+                cls._add_daily_usage(data, event["date"], total_tokens, saved_thb)
+
+                # Accumulate totals (lifetime figure; see trimmed_aggregate above)
+                totals = data.setdefault("totals", {})
+                totals["total_tokens"] = totals.get("total_tokens", 0) + total_tokens
+                totals["input_tokens"] = totals.get("input_tokens", 0) + input_tokens
+                totals["output_tokens"] = totals.get("output_tokens", 0) + output_tokens
+                totals["thinking_tokens"] = totals.get("thinking_tokens", 0) + thinking_tokens
+                totals["total_calls"] = totals.get("total_calls", 0) + 1
+                totals["total_cost_saved_thb"] = round(totals.get("total_cost_saved_thb", 0.0) + saved_thb, 2)
+
+                cls._save_unlocked(data)
+                return event
 
     @classmethod
     def get_summary(cls) -> Dict[str, Any]:
@@ -307,6 +458,23 @@ class TokenTracker:
                     d["tokens"] += tok
                     d["calls"] += 1
                     d["cost_saved_thb"] = round(d["cost_saved_thb"] + thb, 2)
+
+            # Prefer the compact lifetime daily ledger where available. The
+            # event-derived values above remain as a backward-compatible
+            # fallback for old files and hand-seeded test data.
+            stored_daily = data.get("daily_usage")
+            if isinstance(stored_daily, dict):
+                for date, entry in stored_daily.items():
+                    if not isinstance(entry, dict):
+                        continue
+                    daily_stats[date] = {
+                        "tokens": cls._safe_int(entry.get("total_tokens", entry.get("tokens", 0))),
+                        "calls": cls._safe_int(entry.get("calls", 0)),
+                        "cost_saved_thb": round(
+                            cls._safe_float(entry.get("cost_thb", entry.get("cost_saved_thb", 0.0))),
+                            2,
+                        ),
+                    }
 
             avg_latency = round(total_latency / len(events), 2) if events else 0.0
 
@@ -365,6 +533,7 @@ class TokenTracker:
                 # totals["total_tokens"] etc. can be audited/reconstructed as
                 # trimmed_aggregate + sum(events) instead of trusted blindly.
                 "trimmed_aggregate": data.get("trimmed_aggregate", {}),
+                "daily_usage": data.get("daily_usage", {}),
                 "tokens_by_model": tokens_by_model,
                 "calls_by_model": calls_by_model,
                 "tokens_by_task": tokens_by_task,
@@ -389,25 +558,26 @@ class TokenTracker:
     ) -> Dict[str, Any]:
         """Record an alert (e.g. 429 Rate-limit, failover, quota warning)."""
         with cls._lock:
-            data = cls._load()
-            now = datetime.datetime.now()
-            alert = {
-                "id": f"alt_{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}",
-                "timestamp": now.isoformat(),
-                "task": task,
-                "model": model,
-                "key_tag": key_tag,
-                "error_type": error_type,
-                "level": level,
-                "message": message,
-                "metadata": metadata or {}
-            }
-            alerts = data.setdefault("alerts", [])
-            alerts.append(alert)
-            if len(alerts) > 50:
-                data["alerts"] = alerts[-50:]
-            cls._save(data)
-            return alert
+            with cls._file_lock():
+                data = cls._load(force=True)
+                now = datetime.datetime.now()
+                alert = {
+                    "id": f"alt_{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}",
+                    "timestamp": now.isoformat(),
+                    "task": task,
+                    "model": model,
+                    "key_tag": key_tag,
+                    "error_type": error_type,
+                    "level": level,
+                    "message": message,
+                    "metadata": metadata or {}
+                }
+                alerts = data.setdefault("alerts", [])
+                alerts.append(alert)
+                if len(alerts) > 50:
+                    data["alerts"] = alerts[-50:]
+                cls._save_unlocked(data)
+                return alert
 
     @classmethod
     def get_alerts(cls, limit: int = 20) -> List[Dict[str, Any]]:
@@ -421,9 +591,10 @@ class TokenTracker:
     def clear_alerts(cls) -> None:
         """Clear all alerts."""
         with cls._lock:
-            data = cls._load()
-            data["alerts"] = []
-            cls._save(data)
+            with cls._file_lock():
+                data = cls._load(force=True)
+                data["alerts"] = []
+                cls._save_unlocked(data)
 
     @classmethod
     def get_history(cls, limit: int = 50) -> List[Dict[str, Any]]:
@@ -437,8 +608,9 @@ class TokenTracker:
     def reset(cls) -> None:
         """Reset all analytics."""
         with cls._lock:
-            new_data = cls._get_default_structure()
-            cls._save(new_data)
+            with cls._file_lock():
+                new_data = cls._get_default_structure()
+                cls._save_unlocked(new_data)
 
     @classmethod
     def get_usage_today(cls) -> Dict[str, Any]:
@@ -450,21 +622,34 @@ class TokenTracker:
         daily_stats already show.
         """
         with cls._lock:
-            data = cls._load()
-            events = data.get("events", [])
-            today = datetime.datetime.now().strftime("%Y-%m-%d")
-            total_tokens = 0
-            cost_thb = 0.0
-            calls = 0
-            for ev in events:
-                if ev.get("date") != today:
-                    continue
-                total_tokens += ev.get("total_tokens", 0)
-                cost_thb += ev.get("cost_saved_thb", 0.0)
-                calls += 1
-            return {
-                "date": today,
-                "total_tokens": total_tokens,
-                "cost_thb": round(cost_thb, 4),
-                "calls": calls,
-            }
+            # Quota reads must not use a stale cache while another process is
+            # appending an event. The short shared-file critical section also
+            # makes the check observe a complete JSON snapshot.
+            with cls._file_lock():
+                data = cls._load(force=True)
+                today = datetime.datetime.now().strftime("%Y-%m-%d")
+                daily = data.get("daily_usage")
+                entry = daily.get(today) if isinstance(daily, dict) else None
+
+                # Legacy files have no daily_usage. Fall back to their
+                # retained events; once a new event is written, the ledger is
+                # backfilled and remains independent of the 1,000-event cap.
+                if isinstance(entry, dict):
+                    total_tokens = cls._safe_int(entry.get("total_tokens", entry.get("tokens", 0)))
+                    cost_thb = cls._safe_float(entry.get("cost_thb", entry.get("cost_saved_thb", 0.0)))
+                    calls = cls._safe_int(entry.get("calls", 0))
+                else:
+                    usage = cls._aggregate_events_by_date(data).get(
+                        today,
+                        {"total_tokens": 0, "cost_thb": 0.0, "calls": 0},
+                    )
+                    total_tokens = usage["total_tokens"]
+                    cost_thb = usage["cost_thb"]
+                    calls = usage["calls"]
+
+                return {
+                    "date": today,
+                    "total_tokens": total_tokens,
+                    "cost_thb": round(cost_thb, 4),
+                    "calls": calls,
+                }

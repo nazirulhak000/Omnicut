@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import {
-  BarChart3, Clapperboard, Zap, HardDrive, Package,
-  Layers, ChevronRight, Activity, ShieldCheck, Eye
+  Clapperboard, Zap, HardDrive, Package, Eye
 } from 'lucide-react';
 import ProductionAnalyticsTab from './tabs/ProductionAnalyticsTab';
-import TokensAnalyticsTab from './tabs/TokensAnalyticsTab';
+import TokenDashboard from '../TokenDashboard';
 import StorageAnalyticsTab from './tabs/StorageAnalyticsTab';
 import InventoryAnalyticsTab from './tabs/InventoryAnalyticsTab';
 import PerformanceAnalyticsTab from './tabs/PerformanceAnalyticsTab';
 export default function AnalyticsHub({
   initialTab = 'production',
+  refreshKey = 0,
   onNavigateToEditor,
   onNavigateToTracker,
   onNavigateToFlow
@@ -101,7 +101,7 @@ export default function AnalyticsHub({
           />
         )}
         {activeTab === 'tokens' && (
-          <TokensAnalyticsTab />
+          <TokenDashboard refreshKey={refreshKey} />
         )}
         {activeTab === 'storage' && (
           <StorageAnalyticsTab />

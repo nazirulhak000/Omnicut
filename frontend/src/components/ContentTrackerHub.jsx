@@ -910,7 +910,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const [shotListError, setShotListError] = useState(null);
   const [isGeneratingShotList, setIsGeneratingShotList] = useState(false);
   const colRefs = useRef({});
-  const { toastMessage, showToast, hideToast } = useToast();
+  const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
 
   const [groupByProduct, setGroupByProduct] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState({});
@@ -1656,7 +1656,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   return (
     <div className="space-y-3 animate-fadeIn pb-16">
       {/* Central Toast */}
-      <Toast message={toastMessage} onClose={hideToast} />
+      <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
 
       {/* ══════════════════════════════════════════════════════════
           🎯 DEEP-DIVE JOB INSPECTOR MODAL (ติดตามงานจริงเชิงลึก)

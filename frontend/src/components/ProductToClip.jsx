@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Link2, Sparkles, Clapperboard, Loader2, Check, Copy, CopyPlus,
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
-  previewProductSource, previewProductImageMetadataAsync, refreshProductSource, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct, deleteProductAngle,
+  previewProductSource, previewProductImageMetadataAsync, refreshProductSource, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct,
+  getSceneCatalogs, indexSceneCatalogs, deleteProduct, deleteProductAngle,
   uploadFile, resolveTiktokProductId, rerollAngleScript,
   generateShotList, getShotList, getShotListStatus, getTaskStatus,
   generateProductBatch, batchGenerateAudio, startBatchDraft, getBatchRenderStatus
@@ -22,6 +23,7 @@ import ShotListModal from './ShotListModal';
 import HookVariationModal from './HookVariationModal';
 import BatchRenderModal from './BatchRenderModal';
 import HookHeaderModal from './HookHeaderModal';
+import SceneCatalogModal from './SceneCatalogModal';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
@@ -541,6 +543,7 @@ function AngleActiveWorkbench({
   isGeneratingShotList = false, onOpenHookVariants,
   productData, onOpenEditHookHeader, shotListInfo, onDeleteAngle,
   onQuickDraft, draftingAngleId,
+  sceneCatalogsMap = {}, onIndexSceneCatalog, isScanningScenes = false, onOpenSceneCatalog,
 }) {
   const effectiveBrand = angle.hook_brand ?? productData?.hook_brand ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').brand;
   const effectiveModel = angle.hook_model ?? productData?.hook_model ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').model;
@@ -1052,6 +1055,7 @@ function AngleActiveWorkbench({
 
           {selectedVideos.map(path => {
             const fileName = path.split(/[/\\]/).pop();
+            const cat = sceneCatalogsMap[path];
             return (
               <div
                 key={path}
@@ -1065,6 +1069,33 @@ function AngleActiveWorkbench({
               >
                 <Film className={`w-3.5 h-3.5 ${isPosted ? 'text-emerald-400' : isInProduction ? 'text-amber-400' : 'text-[#25F4EE]'}`} />
                 <span className="truncate max-w-[160px]">{fileName}</span>
+                {cat?.is_indexed ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenSceneCatalog && onOpenSceneCatalog(path, fileName, cat);
+                    }}
+                    className="ml-0.5 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 font-bold border border-emerald-500/40 whitespace-nowrap cursor-pointer flex items-center gap-1 transition-all active:scale-95 shadow-xs"
+                    title={`คลิกเพื่อดูสารบัญฉาก ${cat.scenes_count} ฉาก (ตรวจดูมุมมองและจังหวะตัด)`}
+                  >
+                    <span>⚡ {cat.scenes_count} ฉาก</span>
+                    <Eye className="w-3 h-3 text-emerald-400" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onIndexSceneCatalog && onIndexSceneCatalog(path);
+                    }}
+                    disabled={isScanningScenes}
+                    className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer whitespace-nowrap disabled:opacity-50"
+                    title="สแกนสารบัญฉากด้วย Vision AI ทันที"
+                  >
+                    ⚡ สแกนฉาก
+                  </button>
+                )}
                 {isLocked ? (
                   <span className="p-0.5 text-slate-400/70 ml-0.5">
                     <Lock className="w-3 h-3" />
@@ -1256,6 +1287,7 @@ function ScriptAccordionItem({
   isGeneratingShotList = false, onOpenHookVariants,
   productData, onOpenEditHookHeader,
   shotListInfo, onQuickDraft, draftingAngleId,
+  sceneCatalogsMap = {}, onIndexSceneCatalog, isScanningScenes = false, onOpenSceneCatalog,
 }) {
   const effectiveBrand = angle.hook_brand ?? productData?.hook_brand ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').brand;
   const effectiveModel = angle.hook_model ?? productData?.hook_model ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').model;
@@ -1680,6 +1712,7 @@ function ScriptAccordionItem({
               {/* Show Selected Footage Tags */}
               {selectedVideos.map(path => {
                 const fileName = path.split(/[/\\]/).pop();
+                const cat = sceneCatalogsMap[path];
                 return (
                   <div
                     key={path}
@@ -1693,6 +1726,33 @@ function ScriptAccordionItem({
                   >
                     <Film className={`w-3.5 h-3.5 ${isPosted ? 'text-emerald-400' : isInProduction ? 'text-amber-400' : 'text-[#25F4EE]'}`} />
                     <span className="truncate max-w-[130px]">{fileName}</span>
+                    {cat?.is_indexed ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenSceneCatalog && onOpenSceneCatalog(path, fileName, cat);
+                        }}
+                        className="ml-0.5 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 font-bold border border-emerald-500/40 whitespace-nowrap cursor-pointer flex items-center gap-1 transition-all active:scale-95 shadow-xs"
+                        title={`คลิกเพื่อดูสารบัญฉาก ${cat.scenes_count} ฉาก (ตรวจดูมุมมองและจังหวะตัด)`}
+                      >
+                        <span>⚡ {cat.scenes_count} ฉาก</span>
+                        <Eye className="w-3 h-3 text-emerald-400" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onIndexSceneCatalog && onIndexSceneCatalog(path);
+                        }}
+                        disabled={isScanningScenes}
+                        className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer whitespace-nowrap disabled:opacity-50"
+                        title="สแกนสารบัญฉากด้วย Vision AI ทันที"
+                      >
+                        ⚡ สแกนฉาก
+                      </button>
+                    )}
                     {isLocked ? (
                       <span
                         className="p-0.5 text-slate-400/70 ml-0.5"
@@ -1917,8 +1977,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [openAngleIdx, setOpenAngleIdx] = useState(0); // Accordion: which angle is expanded
   const [previewExportAngle, setPreviewExportAngle] = useState(null); // Dialog: preview exported MP4 video
-  const { toastMessage, showToast, hideToast } = useToast();
-  const { refreshTrigger, toggleActivityDrawer, activeTasks } = useTaskManager();
+  const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
+  const { refreshTrigger, toggleActivityDrawer, activeTasks, pollTasks } = useTaskManager();
   const readProducts = (options = {}) => workspaceData?.loadProducts
     ? workspaceData.loadProducts(options)
     : getProducts();
@@ -3302,6 +3362,84 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     prevBatchAudioTaskStatusRef.current = batchAudioTask ? 'running' : null;
   }, [batchAudioTask, productData?.id]);
 
+  // ── Scene Catalog (Vision AI) State & Handlers ──
+  const [sceneCatalogsMap, setSceneCatalogsMap] = useState({});
+  const [isScanningScenes, setIsScanningScenes] = useState(false);
+
+  const refreshSceneCatalogs = useCallback(async () => {
+    if (!productData?.id) return;
+    try {
+      const res = await getSceneCatalogs(productData.id);
+      if (res?.catalogs) {
+        setSceneCatalogsMap(res.catalogs);
+      }
+    } catch (err) {
+      console.warn('Failed to load scene catalogs:', err);
+    }
+  }, [productData?.id]);
+
+  useEffect(() => {
+    refreshSceneCatalogs();
+  }, [refreshSceneCatalogs, productData?.id, angles, refreshTrigger]);
+
+  const allAttachedVideos = useMemo(() => {
+    const list = [];
+    (productData?.default_videos || []).forEach(v => {
+      if (v && !list.includes(v)) list.push(v);
+    });
+    angles.forEach(ang => {
+      (ang.selected_videos || []).forEach(v => {
+        if (v && !list.includes(v)) list.push(v);
+      });
+      if (ang.selected_video && !list.includes(ang.selected_video)) {
+        list.push(ang.selected_video);
+      }
+    });
+    return list;
+  }, [productData?.default_videos, angles]);
+
+  const totalIndexedScenesCount = useMemo(() => {
+    let total = 0;
+    Object.values(sceneCatalogsMap).forEach(cat => {
+      if (cat?.is_indexed) {
+        total += cat.scenes_count || 0;
+      }
+    });
+    return total;
+  }, [sceneCatalogsMap]);
+
+  const unindexedVideosCount = useMemo(() => {
+    return allAttachedVideos.filter(v => !sceneCatalogsMap[v]?.is_indexed).length;
+  }, [allAttachedVideos, sceneCatalogsMap]);
+
+  const [inspectingCatalog, setInspectingCatalog] = useState(null);
+
+  const handleOpenSceneCatalog = (videoPath, videoName, catalog) => {
+    const fileName = videoName || (videoPath ? videoPath.split(/[/\\]/).pop() : 'วิดีโอ');
+    const cat = catalog || (videoPath ? sceneCatalogsMap[videoPath] : null);
+    setInspectingCatalog({
+      videoPath,
+      videoName: fileName,
+      catalog: cat
+    });
+  };
+
+  const handleIndexSceneCatalog = async (videoPath = null, force = false) => {
+    if (!productData?.id) return;
+    setIsScanningScenes(true);
+    try {
+      showToast('👁️ สั่งวิเคราะห์แบ่งสารบัญฉากในเบื้องหลังแล้ว ติดตามที่เมนูกิจกรรมได้สดๆ', 'info');
+      const res = await indexSceneCatalogs(productData.id, { video_path: videoPath, force });
+      if (res?.task_id) {
+        pollTasks();
+      }
+    } catch (err) {
+      console.error('Scan scene catalog failed:', err);
+      showToast('ไม่สามารถสแกนฉากได้: ' + (err.response?.data?.detail || err.message), 'error');
+      setIsScanningScenes(false);
+    }
+  };
+
   const handleBatchGenerateAudio = async () => {
     if (!productData?.id) return;
     setIsStartingBatchAudio(true);
@@ -3471,7 +3609,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   return (
     <div className="space-y-4 relative animate-fadeIn pb-16">
       {/* Central Toast Notification */}
-      <Toast message={toastMessage} onClose={hideToast} />
+      <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
 
       <PageHeader
         icon={Package}
@@ -4177,6 +4315,29 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         ดราฟต์ไทม์ไลน์ {readyDraftCount}/${activeBatchAngles.length} มุม
                       </span>
                     )}
+                    {allAttachedVideos.length > 0 && (
+                      totalIndexedScenesCount > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const firstIndexed = allAttachedVideos.find(v => sceneCatalogsMap[v]?.is_indexed);
+                            if (firstIndexed) {
+                              handleOpenSceneCatalog(firstIndexed, firstIndexed.split(/[/\\]/).pop(), sceneCatalogsMap[firstIndexed]);
+                            }
+                          }}
+                          className="px-2 py-0.5 rounded-full font-semibold border bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/30 flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs"
+                          title={`สแกนสารบัญฉาก Vision AI แล้ว ${totalIndexedScenesCount} ฉาก (คลิกเพื่อดูสารบัญฉาก)`}
+                        >
+                          <Sparkles className="w-3 h-3 text-emerald-400" />
+                          <span>สารบัญฉากพร้อม ({totalIndexedScenesCount} ฉาก)</span>
+                          <Eye className="w-3 h-3 text-emerald-400 ml-0.5" />
+                        </button>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full font-semibold border bg-amber-500/15 text-amber-300 border-amber-500/30 flex items-center gap-1" title="ยังไม่ได้สแกนสารบัญฉากด้วย Vision AI">
+                          <span>⚠️ ยังไม่ได้สแกนฉาก</span>
+                        </span>
+                      )
+                    )}
                   </div>
                 </div>
 
@@ -4282,6 +4443,39 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       <span>ดราฟต์ไทม์ไลน์พร้อมครบทุกมุม</span>
                     </span>
                   ) : null}
+
+                  {/* Scan Scene Catalog Button */}
+                  {allAttachedVideos.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleIndexSceneCatalog()}
+                      disabled={isScanningScenes}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 ${
+                        unindexedVideosCount > 0
+                          ? 'bg-gradient-to-r from-amber-500/25 to-emerald-500/25 hover:from-amber-500/35 hover:to-emerald-500/35 text-emerald-300 border border-emerald-500/50'
+                          : 'bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 border border-white/[0.1]'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      title={unindexedVideosCount > 0
+                        ? `ให้ Vision AI ดูคลิปดิบ 1 ครั้งเพื่อทำสารบัญฉาก (${unindexedVideosCount} คลิป) แล้วนำไปจับคู่กับทุกสคริปต์โดยไม่ต้องดูซ้ำ`
+                        : `สแกนซ้ำเพื่ออัปเดตสารบัญฉากใหม่`}
+                    >
+                      {isScanningScenes ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                          <span>กำลังสแกนสารบัญฉาก...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>
+                            {unindexedVideosCount > 0
+                              ? `สแกนสารบัญฉาก Vision AI (${unindexedVideosCount} คลิป)`
+                              : `สแกนสารบัญฉากซ้ำ`}
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -4397,6 +4591,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       onDeleteAngle={handleDeleteAngleClick}
                       onQuickDraft={handleSingleAngleQuickDraft}
                       draftingAngleId={draftingAngleId}
+                      sceneCatalogsMap={sceneCatalogsMap}
+                      onIndexSceneCatalog={handleIndexSceneCatalog}
+                      isScanningScenes={isScanningScenes}
+                      onOpenSceneCatalog={handleOpenSceneCatalog}
                     />
                   ) : displayedAngles[0] ? (
                     <AngleActiveWorkbench
@@ -4431,6 +4629,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       onDeleteAngle={handleDeleteAngleClick}
                       onQuickDraft={handleSingleAngleQuickDraft}
                       draftingAngleId={draftingAngleId}
+                      sceneCatalogsMap={sceneCatalogsMap}
+                      onIndexSceneCatalog={handleIndexSceneCatalog}
+                      isScanningScenes={isScanningScenes}
+                      onOpenSceneCatalog={handleOpenSceneCatalog}
                     />
                   ) : null}
                 </div>
@@ -4487,6 +4689,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       shotListInfo={shotListStatusMap[ang.angle_id]}
                       onQuickDraft={handleSingleAngleQuickDraft}
                       draftingAngleId={draftingAngleId}
+                      sceneCatalogsMap={sceneCatalogsMap}
+                      onIndexSceneCatalog={handleIndexSceneCatalog}
+                      isScanningScenes={isScanningScenes}
+                      onOpenSceneCatalog={handleOpenSceneCatalog}
                     />
                   ))
                 )}
@@ -5220,6 +5426,21 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           </div>
         </div>
       </Modal>
+
+      {/* ── Scene Catalog Viewer Modal ── */}
+      <SceneCatalogModal
+        isOpen={Boolean(inspectingCatalog)}
+        onClose={() => setInspectingCatalog(null)}
+        catalog={inspectingCatalog?.catalog || (inspectingCatalog?.videoPath ? sceneCatalogsMap[inspectingCatalog.videoPath] : null)}
+        videoName={inspectingCatalog?.videoName}
+        videoPath={inspectingCatalog?.videoPath}
+        onRescan={() => {
+          if (inspectingCatalog?.videoPath) {
+            handleIndexSceneCatalog(inspectingCatalog.videoPath, true);
+          }
+        }}
+        isRescanning={isScanningScenes}
+      />
     </div>
   );
 }

@@ -1,14 +1,53 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Layers, Clapperboard, Video, CheckCircle2, Clock,
-  AlertTriangle, ArrowRight, Play, ExternalLink, RefreshCw
+  Layers, Clapperboard, Video, CheckCircle2,
+  AlertTriangle, ArrowRight, Play, RefreshCw
 } from 'lucide-react';
 import { getProductionAnalytics } from '../../../api';
 import MetricKpiCard from '../components/MetricKpiCard';
 import LoadingSpinner from '../../LoadingSpinner';
-import FunnelPipelineChart from '../charts/FunnelPipelineChart';
 import DonutChart from '../charts/DonutChart';
 import { ProgressRing } from '../charts/ProgressRing';
+
+function PipelineSnapshot({ stages, lifecycle, totalAngles }) {
+  const observedRate = lifecycle?.created_to_posted_observed_rate;
+  const observedCount = lifecycle?.created_to_posted_observations || 0;
+  const knownCreated = lifecycle?.known_created_at_count || 0;
+
+  return (
+    <div className="w-full space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        {stages.map((stage, index) => (
+          <div key={stage.key} className="rounded-xl border border-white/[0.1] bg-zinc-900/50 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-zinc-300">{index + 1}. {stage.label}</span>
+              <span className="text-xs font-bold text-cyan-300">{stage.percentage}%</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-white">{stage.count}</span>
+              <span className="text-xs text-zinc-400">คลิปในสถานะนี้</span>
+            </div>
+            <div className="w-full bg-zinc-800/80 h-1.5 rounded-full overflow-hidden">
+              <div className="h-full rounded-full bg-cyan-400" style={{ width: `${Math.min(100, Math.max(stage.count > 0 ? 6 : 0, stage.percentage))}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-xl bg-zinc-900/40 border border-amber-500/20 p-3 text-xs text-slate-300 space-y-1">
+        <div className="font-bold text-amber-300">Snapshot ของสถานะปัจจุบัน ไม่ใช่ Cohort Conversion Funnel</div>
+        <p className="text-slate-400">
+          แต่ละมุมถูกนับตามสถานะล่าสุดเพียงครั้งเดียว จึงไม่ควรนำเปอร์เซ็นต์ระหว่างขั้นไปตีความเป็นอัตราการส่งต่อ
+        </p>
+        <p className="text-slate-400">
+          Observed created → posted: {observedCount} รายการจากข้อมูล created_at {knownCreated} รายการ
+          {observedRate == null ? '' : ` (${observedRate}%)`}
+          {totalAngles === 0 ? ' — ยังไม่มีข้อมูล' : ''}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateToTracker }) {
   const [data, setData] = useState(null);
@@ -35,6 +74,7 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
 
   const { summary = {}, angle_types = [], recent_productions = [] } = data || {};
   const totalAngles = summary.total_angles || 1;
+  const actualTotalAngles = summary.total_angles || 0;
 
   const pipelineStages = useMemo(() => [
     { key: 'scripted', label: 'สคริปต์พร้อม', count: summary.scripted || 0, percentage: Math.round(((summary.scripted || 0) / totalAngles) * 100) },
@@ -47,7 +87,7 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
     if (!summary.bottleneck_note) return null;
     const isProd = (summary.in_production || 0) > (summary.rendered || 0);
     return {
-      stage: isProd ? 'in_production' : 'scripted',
+      stage: summary.bottleneck_stage || (isProd ? 'in_production' : 'scripted'),
       stage_label: isProd ? 'กำลังตัดต่อ' : 'สคริปต์พร้อม',
       count: Math.max(summary.in_production || 0, summary.scripted || 0),
     };
@@ -135,7 +175,7 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
       </div>
 
       {/* ── Bottleneck Notice (if any) ── */}
-      {summary.bottleneck_note && (
+      {summary.bottleneck_note && bottleneck && (
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 text-amber-200 text-xs">
           <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
           <span className="font-semibold">{summary.bottleneck_note}</span>
@@ -158,10 +198,10 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
           </button>
         </div>
 
-        <FunnelPipelineChart
+        <PipelineSnapshot
           stages={pipelineStages}
-          bottleneck={bottleneck}
-          totalProjects={totalAngles}
+          lifecycle={summary.lifecycle}
+          totalAngles={actualTotalAngles}
         />
       </div>
 

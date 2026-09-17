@@ -179,6 +179,7 @@ export default function App() {
   // 5. Global Keyboard Shortcuts & Modal State
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [globalToast, setGlobalToast] = useState(null);
+  const [analyticsRefreshKey, setAnalyticsRefreshKey] = useState(0);
 
   useKeyboardShortcuts({
     onTabChange: (tab) => {
@@ -212,6 +213,11 @@ export default function App() {
       console.error('Failed to load initial data:', err);
     }
   }, []);
+
+  const handleGlobalRefresh = useCallback(async () => {
+    await refreshData();
+    setAnalyticsRefreshKey((current) => current + 1);
+  }, [refreshData]);
 
   useEffect(() => {
     refreshData();
@@ -433,7 +439,7 @@ export default function App() {
               uiScale={uiScale}
               setUiScale={handleUiScaleChange}
               onOpenShortcuts={() => setShowShortcutsModal(true)}
-              onRefresh={refreshData}
+              onRefresh={handleGlobalRefresh}
               activeProductContext={activeProductContext}
               exportsCount={exportsList.length}
               videosCount={videos.length}
@@ -550,6 +556,7 @@ export default function App() {
                 {activeTab === 'analytics' && (
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลดศูนย์วิเคราะห์และสถิติรวม..." />}>
                     <AnalyticsHub
+                      refreshKey={analyticsRefreshKey}
                       onNavigateToEditor={(projName) => {
                         setInitialProjectNameToLoad(projName || null);
                         setActiveTab('editor');

@@ -13,7 +13,7 @@ export default function ScriptLab({
   initialPriceDeal = 'ลดพิเศษวันนี้เหลือ 149 บาท',
   onApplyScript
 }) {
-  const { toastMessage, toastType, showToast, hideToast } = useToast();
+  const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
   const defaultScripts = [
     {
       angle_id: 'pain_point',
@@ -356,7 +356,7 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
         )}
       </div>
 
-      <Toast message={toastMessage} type={toastType} onClose={hideToast} />
+      <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
     </div>
   );
 }

@@ -6,21 +6,8 @@ const api = axios.create({
   timeout: 60000, // 60 seconds default
 });
 
-// ── Request Interceptor: attach shared-secret API key when configured ──
-// Mirrors scripts/auth.py's OMNICUT_API_KEY gate (checked via X-API-Key).
-// The gate is permissive when the backend has no key configured, so we only
-// send the header when a value is present -- that keeps today's unset-key
-// setup working unchanged. See frontend/.env.example for the env var and
-// the bundle-visibility caveat (this value ships inside the built JS).
-// `import.meta.env` only exists under Vite; the lib tests import modules
-// that reach this file through plain `node --test`, where it is undefined.
-const API_KEY = import.meta.env?.VITE_API_KEY;
-api.interceptors.request.use((config) => {
-  if (API_KEY) {
-    config.headers['X-API-Key'] = API_KEY;
-  }
-  return config;
-});
+// Authentication is injected by the same-origin Vite proxy/server boundary;
+// the browser code never carries the backend shared secret.
 
 // ── Response Error Interceptor for Clean, Actionable Error Messages ──
 api.interceptors.response.use(
@@ -257,6 +244,14 @@ export const updateAngleCover = (productId, angleId, cover) =>
 
 export const updateAngleVideos = (productId, angleId, selectedVideos) => api.post(`/products/${productId}/angles/${angleId}/videos`, { selected_videos: selectedVideos }).then(r => r.data);
 export const setDefaultVideosForProduct = (productId, selectedVideos) => api.post(`/products/${productId}/default-videos`, { selected_videos: selectedVideos }).then(r => r.data);
+export const getSceneCatalogs = (productId, videoPath) =>
+  api.get(`/products/${productId}/scene-catalogs`, { params: videoPath ? { video_path: videoPath } : {} }).then(r => r.data);
+export const indexSceneCatalogs = (productId, payload = {}) =>
+  api.post(`/products/${productId}/index-scenes`, payload, { timeout: 180000 }).then(r => r.data);
+export const getRawVaultSceneCatalogs = (videoPath) =>
+  api.get('/raw-vault/scene-catalogs', { params: videoPath ? { video_path: videoPath } : {} }).then(r => r.data);
+export const indexRawVaultScenes = (payload = {}) =>
+  api.post('/raw-vault/index-scenes', payload, { timeout: 180000 }).then(r => r.data);
 export const generateProductBatch = (productId, payload) => api.post(`/products/${productId}/generate-batch`, payload).then(r => r.data);
 export const addProductAngle = (productId, payload) => api.post(`/products/${productId}/angles`, payload).then(r => r.data);
 export const deleteProductAngle = (productId, angleId) => api.delete(`/products/${productId}/angles/${angleId}`).then(r => r.data);

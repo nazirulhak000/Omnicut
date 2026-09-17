@@ -19,6 +19,8 @@ Isolated / offline per .agents/rules/testing_standard.md: TokenTracker is
 monkeypatched to point at a tmp_path analytics file, no real network/AI
 calls are made anywhere in this file.
 """
+import datetime
+import json
 import sys
 from pathlib import Path
 
@@ -94,6 +96,63 @@ def test_check_budget_blocks_when_over_token_limit(monkeypatch):
 
     assert exc_info.value.category == ErrorCategory.AI_PROVIDER
     assert exc_info.value.code == "AI_QUOTA_EXCEEDED"
+
+
+def test_check_budget_counts_calls_trimmed_from_event_window(monkeypatch):
+    """The daily quota must not reset/undercount after 1,000 retained events."""
+    monkeypatch.setenv("DAILY_TOKEN_LIMIT", "1005")
+    monkeypatch.setenv("DAILY_COST_THB_LIMIT", "0")
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+
+    data = TokenTracker._load()
+    data.pop("daily_usage", None)  # emulate an older analytics JSON file
+    data["events"] = [
+        {"date": today, "total_tokens": 1, "cost_saved_thb": 0.0}
+        for _ in range(1_000)
+    ]
+    import scripts.token_tracker as tt_module
+    tt_module.ANALYTICS_FILE.write_text(json.dumps(data), encoding="utf-8")
+    TokenTracker._cache = None
+    TokenTracker._cache_stamp = (0, -1)
+
+    for _ in range(5):
+        TokenTracker.record_event(
+            task="quota", model="m", provider="p", input_tokens=1, output_tokens=0,
+        )
+
+    with pytest.raises(AppError) as exc_info:
+        quota_module.check_budget(task="quota")
+
+    assert exc_info.value.code == quota_module.QUOTA_ERROR_CODE
+
+
+def test_check_budget_cost_counts_calls_trimmed_from_event_window(monkeypatch):
+    """The cost cap must use the same retained-independent daily ledger."""
+    monkeypatch.setenv("DAILY_TOKEN_LIMIT", "0")
+    monkeypatch.setenv("DAILY_COST_THB_LIMIT", "500.06")
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+
+    data = TokenTracker._load()
+    data.pop("daily_usage", None)
+    data["events"] = [
+        {"date": today, "total_tokens": 0, "cost_saved_thb": 0.5}
+        for _ in range(1_000)
+    ]
+    import scripts.token_tracker as tt_module
+    tt_module.ANALYTICS_FILE.write_text(json.dumps(data), encoding="utf-8")
+    TokenTracker._cache = None
+    TokenTracker._cache_stamp = (0, -1)
+
+    for _ in range(5):
+        TokenTracker.record_event(
+            task="quota", model="gemini-2.5-flash", provider="p",
+            input_tokens=1_000, output_tokens=1_000,
+        )
+
+    with pytest.raises(AppError) as exc_info:
+        quota_module.check_budget(task="quota")
+
+    assert exc_info.value.code == quota_module.QUOTA_ERROR_CODE
 
 
 def test_check_budget_blocks_when_over_cost_limit(monkeypatch):

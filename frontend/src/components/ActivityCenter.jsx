@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import {
   Zap, CheckCircle2, AlertCircle, Clock, X, Trash2, ArrowRight,
-  Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers, ExternalLink, Play, Scissors, ImagePlus, Trophy
+  Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers, ExternalLink, Play, Scissors, ImagePlus, Trophy, Eye
 } from 'lucide-react';
 import { useTaskManager } from '../context/TaskContext';
+import { getRenderStatus } from '../api';
+import { ACTIVE_RENDER_STORAGE_KEY } from '../lib/renderJobModel';
 
 function getTaskIcon(type) {
   switch (type) {
@@ -18,6 +20,8 @@ function getTaskIcon(type) {
       return <Mic className="w-4 h-4 text-amber-400" />;
     case 'image_metadata':
       return <ImagePlus className="w-4 h-4 text-violet-300" />;
+    case 'scene_indexing':
+      return <Eye className="w-4 h-4 text-emerald-400" />;
     default:
       return <Zap className="w-4 h-4 text-[#25F4EE]" />;
   }
@@ -69,8 +73,17 @@ function getStatusBadge(status) {
 }
 
 export function ActivityIndicatorButton({ className = '' }) {
-  const { activeCount, activeTasks, toggleActivityDrawer, tasks, viralMilestones = [] } = useTaskManager();
+  const {
+    activeCount,
+    activeTasks,
+    toggleActivityDrawer,
+    tasks,
+    viralMilestones = [],
+    isActivityDrawerOpen,
+    taskSyncState,
+  } = useTaskManager();
   const hasViral = viralMilestones.some(m => m.views >= 10000);
+  const isStale = taskSyncState?.status === 'stale';
 
   if (activeCount > 0) {
     const primaryTask = activeTasks[0];
@@ -78,7 +91,12 @@ export function ActivityIndicatorButton({ className = '' }) {
 
     return (
       <button
+        type="button"
         onClick={toggleActivityDrawer}
+        aria-haspopup="dialog"
+        aria-expanded={isActivityDrawerOpen}
+        aria-controls="activity-drawer"
+        aria-label={`${activeCount} งานกำลังประมวลผล ${pct}% เปิดศูนย์ติดตามกิจกรรม${isStale ? ' ข้อมูลอาจไม่ใช่ข้อมูลล่าสุด' : ''}`}
         className={`px-2.5 sm:px-3 py-1 rounded-xl bg-gradient-to-r from-[#25F4EE]/15 to-[#FE2C55]/15 hover:from-[#25F4EE]/25 hover:to-[#FE2C55]/25 border border-[#25F4EE]/40 text-[#25F4EE] shadow-lg shadow-[#25F4EE]/10 flex items-center gap-2 cursor-pointer transition-all active:scale-95 group ${className}`}
         title="คลิกเพื่อเปิดศูนย์ติดตามกิจกรรม (Activity Center)"
       >
@@ -89,6 +107,7 @@ export function ActivityIndicatorButton({ className = '' }) {
         <div className="flex items-center gap-1.5 text-xs font-bold font-mono">
           <span className="text-white">{activeCount} งาน</span>
           <span className="text-[#25F4EE]">({pct}%)</span>
+          {isStale && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="ข้อมูลกิจกรรมอาจไม่ใช่ข้อมูลล่าสุด" />}
         </div>
       </button>
     );
@@ -96,7 +115,12 @@ export function ActivityIndicatorButton({ className = '' }) {
 
   return (
     <button
+      type="button"
       onClick={toggleActivityDrawer}
+      aria-haspopup="dialog"
+      aria-expanded={isActivityDrawerOpen}
+      aria-controls="activity-drawer"
+      aria-label={`เปิดศูนย์ติดตามกิจกรรม${isStale ? ' ข้อมูลอาจไม่ใช่ข้อมูลล่าสุด' : ''}`}
       className={`p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${className}`}
       title="ศูนย์ติดตามกิจกรรม (Activity Center)"
     >
@@ -114,6 +138,7 @@ export function ActivityIndicatorButton({ className = '' }) {
           {tasks.length}
         </span>
       )}
+      {isStale && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="ข้อมูลกิจกรรมอาจไม่ใช่ข้อมูลล่าสุด" />}
     </button>
   );
 }
@@ -130,16 +155,36 @@ export function ActivityDrawer() {
     clearCompleted,
     jumpToTaskResult,
     viralMilestones = [],
-    fetchViralMilestones
+    fetchViralMilestones,
+    taskSyncState,
   } = useTaskManager();
 
   const [tabFilter, setTabFilter] = useState('all'); // all | active | completed | viral
+  const drawerRef = React.useRef(null);
 
   React.useEffect(() => {
     if (tabFilter === 'viral' && fetchViralMilestones) {
       fetchViralMilestones();
     }
   }, [tabFilter, fetchViralMilestones]);
+
+  React.useEffect(() => {
+    if (!isActivityDrawerOpen) return undefined;
+    const previouslyFocused = document.activeElement;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setIsActivityDrawerOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    drawerRef.current?.focus();
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus?.();
+    };
+  }, [isActivityDrawerOpen, setIsActivityDrawerOpen]);
 
   if (!isActivityDrawerOpen) return null;
 
@@ -152,15 +197,24 @@ export function ActivityDrawer() {
   });
 
   return (
-    <div className="fixed inset-0 z-[100] w-screen h-[100dvh] max-h-[100dvh] overflow-hidden flex justify-end animate-fadeIn overscroll-none">
+    <div className="fixed inset-0 z-[100] w-screen h-[100dvh] max-h-[100dvh] overflow-hidden flex justify-end animate-fadeIn overscroll-none" role="presentation">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/75 backdrop-blur-md transition-opacity"
+        aria-hidden="true"
         onClick={() => setIsActivityDrawerOpen(false)}
       />
 
       {/* Slide-over Panel */}
-      <aside className="relative w-full max-w-full sm:max-w-md bg-[#080B11]/95 backdrop-blur-2xl border-l border-white/[0.12] shadow-2xl flex flex-col h-[100dvh] max-h-[100dvh] z-10 animate-slideLeft overflow-hidden">
+      <aside
+        ref={drawerRef}
+        id="activity-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="activity-drawer-title"
+        tabIndex={-1}
+        className="relative w-full max-w-full sm:max-w-md bg-[#080B11]/95 backdrop-blur-2xl border-l border-white/[0.12] shadow-2xl flex flex-col h-[100dvh] max-h-[100dvh] z-10 animate-slideLeft overflow-hidden"
+      >
         {/* Header */}
         <div className="p-4 border-b border-white/[0.08] flex items-center justify-between bg-black/40">
           <div className="flex items-center gap-2.5">
@@ -168,7 +222,7 @@ export function ActivityDrawer() {
               <Layers className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-white flex items-center gap-2">
+              <h2 id="activity-drawer-title" className="text-sm font-black text-white flex items-center gap-2">
                 ศูนย์ติดตามกิจกรรม
                 {activeCount > 0 && (
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/30 animate-pulse">
@@ -183,7 +237,9 @@ export function ActivityDrawer() {
           <div className="flex items-center gap-1">
             {tasks.filter(t => t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled').length > 0 && (
               <button
+                type="button"
                 onClick={clearCompleted}
+                aria-label="ล้างรายการงานที่เสร็จแล้ว"
                 className="min-h-[36px] min-w-[36px] flex items-center justify-center p-2 text-slate-400 hover:text-rose-400 hover:bg-white/[0.06] rounded-xl transition-colors cursor-pointer"
                 title="ล้างงานที่เสร็จสิ้นแล้ว"
               >
@@ -191,7 +247,9 @@ export function ActivityDrawer() {
               </button>
             )}
             <button
+              type="button"
               onClick={() => setIsActivityDrawerOpen(false)}
+              aria-label="ปิดศูนย์ติดตามกิจกรรม"
               className="min-h-[36px] min-w-[36px] flex items-center justify-center p-2 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
@@ -199,8 +257,22 @@ export function ActivityDrawer() {
           </div>
         </div>
 
+        {taskSyncState?.status === 'stale' && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mx-3 mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200"
+          >
+            เชื่อมต่อ backend ไม่สำเร็จ ข้อมูลกิจกรรมที่แสดงอาจไม่ใช่ข้อมูลล่าสุด
+          </div>
+        )}
+
         {/* Filter Tabs */}
-        <div className="px-3 sm:px-4 py-2 border-b border-white/[0.06] flex items-center justify-between gap-1 bg-black/20 overflow-x-auto no-scrollbar">
+        <div
+          role="tablist"
+          aria-label="ตัวกรองกิจกรรม"
+          className="px-3 sm:px-4 py-2 border-b border-white/[0.06] flex items-center justify-between gap-1 bg-black/20 overflow-x-auto no-scrollbar"
+        >
           {[
             { id: 'all', label: `ทั้งหมด (${tasks.length})` },
             { id: 'active', label: `กำลังทำ (${activeCount})` },
@@ -209,7 +281,12 @@ export function ActivityDrawer() {
           ].map(tab => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setTabFilter(tab.id)}
+              id={`activity-tab-${tab.id}`}
+              role="tab"
+              aria-selected={tabFilter === tab.id}
+              aria-controls="activity-tabpanel"
               className={`flex-1 min-h-[36px] py-1.5 px-2 rounded-xl text-xs font-bold cursor-pointer transition-all whitespace-nowrap text-center ${
                 tabFilter === tab.id
                   ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
@@ -222,7 +299,13 @@ export function ActivityDrawer() {
         </div>
 
         {/* Task List / Viral Milestones List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div
+          id="activity-tabpanel"
+          role="tabpanel"
+          aria-labelledby={`activity-tab-${tabFilter}`}
+          tabIndex={0}
+          className="flex-1 overflow-y-auto p-4 space-y-3"
+        >
           {tabFilter === 'viral' ? (
             viralMilestones.length === 0 ? (
               <div className="h-48 flex flex-col items-center justify-center text-center p-6 text-slate-500 space-y-2">
@@ -312,7 +395,7 @@ export function ActivityDrawer() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2 min-w-0">
                       <div className="mt-0.5 p-1.5 rounded-lg bg-black/40 border border-white/[0.08] flex-shrink-0">
-                        {getTaskIcon(task.type)}
+                        {getTaskIcon(task.type || task.task_type)}
                       </div>
                       <div className="min-w-0">
                         <h3 className="text-xs font-bold text-white truncate leading-snug">
@@ -370,8 +453,9 @@ export function ActivityDrawer() {
                     <div className="flex items-center gap-1.5">
                       {isRunning && (
                         <button
+                          type="button"
                           onClick={() => cancelTask(task.id)}
-                          className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 text-[11px] font-bold transition-colors cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-rose-500/20 text-white hover:text-rose-100 text-[11px] font-bold transition-colors cursor-pointer"
                         >
                           ยกเลิก
                         </button>
@@ -553,7 +637,9 @@ export function ActivityDrawer() {
 
                       {!isRunning && (
                         <button
+                          type="button"
                           onClick={() => deleteTask(task.id)}
+                          aria-label={`ลบรายการงาน ${task.title || task.id}`}
                           className="p-1 text-slate-500 hover:text-rose-400 rounded-md transition-colors cursor-pointer"
                           title="ลบรายการนี้"
                         >
@@ -580,7 +666,13 @@ export function GlobalTaskNotification() {
   const isSuccess = notificationToast.type === 'success';
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 max-w-sm w-full animate-slideUp">
+    <div
+      role={isSuccess ? 'status' : 'alert'}
+      aria-live={isSuccess ? 'polite' : 'assertive'}
+      aria-atomic="true"
+      aria-label="การแจ้งเตือนงาน"
+      className="fixed bottom-5 right-5 z-50 max-w-sm w-full animate-slideUp"
+    >
       <div className={`p-4 rounded-2xl backdrop-blur-2xl border shadow-2xl space-y-3 ${
         isSuccess
           ? 'bg-[#080B11]/95 border-[#25F4EE]/40 shadow-[#25F4EE]/15 ring-1 ring-[#25F4EE]/30'
@@ -608,7 +700,9 @@ export function GlobalTaskNotification() {
             </h4>
           </div>
           <button
+            type="button"
             onClick={() => setNotificationToast(null)}
+            aria-label="ปิดการแจ้งเตือน"
             className="text-slate-400 hover:text-white p-1 rounded-md cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
@@ -782,8 +876,6 @@ export function GlobalTaskNotification() {
   );
 }
 
-const ACTIVE_RENDER_STORAGE_KEY = 'capcut_active_render_job';
-
 export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavigateToGallery }) {
   const { activeTasks } = useTaskManager();
   const [liveStatus, setLiveStatus] = useState(null);
@@ -795,11 +887,9 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(async () => {
         try {
-          const res = await fetch(`/api/render/status/${jobId}`);
-          if (!res.ok) { clearInterval(timerRef.current); setLiveStatus(null); return; }
-          const data = await res.json();
+          const data = await getRenderStatus(jobId);
           setLiveStatus(data);
-          if (data.status === 'completed' || data.status === 'failed') {
+          if (['completed', 'done', 'failed', 'error', 'cancelled'].includes(data.status)) {
             clearInterval(timerRef.current);
             setTimeout(() => setLiveStatus(null), 4000); // linger 4s after done
           }
@@ -831,13 +921,14 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
 
   // Decide what to show: prefer live render status, fall back to TaskManager
   const renderTask = activeTasks.find(
-    (t) => (t.task_type === 'render_video' || t.task_type === 'render') &&
+    (t) => ((t.type || t.task_type) === 'render_video' || (t.type || t.task_type) === 'render') &&
            (t.status === 'processing' || t.status === 'queued')
   );
 
-  const isLive   = liveStatus && (liveStatus.status === 'processing' || liveStatus.status === 'queued' || liveStatus.status === 'completed');
-  const isDone   = liveStatus?.status === 'completed';
-  const isFailed = liveStatus?.status === 'failed';
+  const liveStatusCode = String(liveStatus?.status || '').toLowerCase();
+  const isLive   = liveStatus && ['processing', 'queued', 'rendering', 'completed', 'done'].includes(liveStatusCode);
+  const isDone   = liveStatusCode === 'completed' || liveStatusCode === 'done';
+  const isFailed = liveStatusCode === 'failed' || liveStatusCode === 'error';
 
   if (!isLive && !renderTask) return null;
   if (currentTab === 'editor' && !isDone && !isFailed) return null;
