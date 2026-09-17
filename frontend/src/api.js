@@ -443,4 +443,11 @@ export const getManualShotMap = (productId, angleId) =>
 export const saveManualShotMap = (productId, angleId, shotMap) =>
   api.patch(`/products/${productId}/angles/${angleId}/manual-shot-map`, { shot_map: shotMap }).then(r => r.data);
 
+export const syncManualShotMap = (productId, sourceAngleId, payload = {}) =>
+  api.post(`/products/${productId}/angles/${sourceAngleId}/sync-manual-shot-map`, payload).then(r => r.data);
+
+export const getUniversalFilmingRecipe = (productId) =>
+  api.get(`/products/${productId}/filming-recipe`).then(r => r.data);
+
 export default api;
+

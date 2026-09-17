@@ -17,6 +17,7 @@
 
 ## สถานะรวม
 
+- [x] Round MASTER-STORYBOARD-SYNC-AND-RECIPE-1 — ระบบสูตรถ่ายทำ 5 ช็อตมาตรฐานระดับสินค้า (Universal Filming Recipe) + ปุ่มซิงก์ช็อตข้ามทุกสคริปต์ (Master Storyboard Sync Engine) พร้อม Smart Role Mapping วรรคไม่เท่ากัน (30s vs 60s) (2026-09-17; backend 9 passed, frontend 255 passed, build 2,008 modules/4.20s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round MANUAL-STORYBOARD-OVERFLOW-FIX-1 — ป้องกันคลิปส่วนเกินห้อยท้ายไทม์ไลน์ 11 วินาทีเมื่อสร้างดราฟต์จาก Storyboard Mapper (Manual Shot Map): สร้าง Clip List ตรงตามวรรคบทพูด (Beats) เป๊ะๆ ไม่แตกเป็น micro-cues 9 ช็อต + Truncate ช็อตส่วนเกิน และซิงก์ Duration/Speed ให้ตรงกับจังหวะวรรคเสียงพากย์ 100% (2026-09-17; backend 5 passed, frontend 255 passed, build 2,007 modules/2.94s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round MANUAL-STORYBOARD-MAPPER-1 — ระบบกำหนดช็อตด้วยตนเองรายวรรคบทพูด (Manual Shot Mapper): Modal เต็มตา 2-panel เลือกฉากจากสารบัญ AI + Trim Scrubber + Hybrid ล็อก/AI auto สำหรับวรรคที่เหลือ (2026-09-17; backend 14 passed, frontend 255 passed, build 2,007 modules/3.96s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round PROJECT-SELECTOR-PAGINATION-AND-SEARCH-1 — เพิ่มการจำกัดการแสดงผล 15 รายการแรก + ปุ่มโหลดเพิ่มทีละ 15 รายการ + ช่องค้นหาด่วน ในเมนูเลือกโปรเจกต์ (ProjectSelector) (2026-09-17; frontend 253 passed, build 2,006 modules/5.25s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
@@ -1061,10 +1062,8 @@ Plan before code:
 
 ---
 
-## Round SCHEDULE-DAILY-DEDUPE-20260917 — กันสินค้าซ้ำและสี Hook ซ้ำตลอดวันที่เลือก
-ดำเนินการโดย: Codex (GPT-5)
-### แผนรอบนี้
-- [ ] 1. Reproduce เคส Loop โพสต์ 19:00 แล้วถูกเสนออีกครั้ง 21:30 หลังมีคลิปอื่นคั่น
-- [ ] 2. เปลี่ยนจาก adjacent-only เป็น per-day product/color constraints จาก queue และ post history
-- [ ] 3. เพิ่ม regression test ว่าสินค้า/สีที่ใช้แล้วในวันเดียวกันถูกกัน แม้ไม่ใช่คลิปก่อนหน้าทันที
-- [ ] 4. ปรับ preview copy, รัน backend/frontend checks และปิดรอบ
+## Round SCHEDULE-DAILY-DEDUPE-20260917 - closed (ดำเนินการโดย: Codex (GPT-5))
+
+---
+
+## Round MASTER-STORYBOARD-SYNC-AND-RECIPE-1 - closed (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))

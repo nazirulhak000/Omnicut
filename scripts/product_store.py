@@ -972,6 +972,39 @@ class ProductStore:
                             return product
             raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
+    @classmethod
+    def batch_update_manual_shot_maps(
+        cls,
+        product_id: str,
+        updates_by_angle: Dict[str, List[Dict[str, Any]]],
+    ) -> Dict[str, Any]:
+        """Atomically updates manual shot maps for multiple angles in one mutation.
+        updates_by_angle: { angle_id: [ {beat_index, video_path, trim_start, trim_end}, ... ] }
+        """
+        normalized_updates = {}
+        for ang_id, shot_map in updates_by_angle.items():
+            normalized = []
+            for entry in shot_map:
+                norm = dict(entry)
+                if norm.get("video_path"):
+                    v = _to_relative(norm["video_path"]) or norm["video_path"]
+                    norm["video_path"] = str(v).replace("\\", "/")
+                normalized.append(norm)
+            normalized_updates[ang_id] = normalized
+
+        with cls._mutate() as products:
+            for product in products:
+                if product["id"] == product_id:
+                    for angle in product.get("angles", []):
+                        ang_id = angle.get("angle_id")
+                        if ang_id in normalized_updates:
+                            angle["manual_shot_map"] = normalized_updates[ang_id]
+                            angle["updated_at"] = cls._now()
+                    product["updated_at"] = cls._now()
+                    return product
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+
+
 
 
     @classmethod

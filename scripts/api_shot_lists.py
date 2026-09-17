@@ -6,9 +6,9 @@ See C:\\Users\\Winon\\.claude\\plans\\cheeky-cooking-quokka.md (Phase A).
 """
 
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, HTTPException
 
 from scripts.task_manager import TaskManager
 from scripts.shot_list_builder import generate_shot_list_for_angle
@@ -486,3 +486,282 @@ def get_manual_shot_map(product_id: str, angle_id: str):
         "has_shot_list": has_shot_list,
         "scene_catalogs": scene_catalogs,
     }
+
+
+def smart_map_storyboard_to_beats(
+    source_map: List[Dict[str, Any]],
+    target_beats_count: int,
+    target_beat_cues: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
+    """Smartly adapt a source manual_shot_map to fit target_beats_count.
+
+    - If target_beats_count == len(source_map):
+      Direct 1:1 mapping with updated beat_index.
+    - If target_beats_count > len(source_map) (e.g. 5 beats -> 8 beats):
+      * Beat 0 gets the source Hook shot (first pinned shot).
+      * Beat target_beats_count - 1 gets the source CTA shot (last pinned shot).
+      * Middle beats (1 to N-2) loop through the middle source shots.
+        Each reused shot gets a slight trim offset (+1.5s to +2.5s) to avoid
+        showing the exact same visual moment repeatedly.
+    - If target_beats_count < len(source_map):
+      Takes Hook, first few features, and CTA.
+    """
+    if not source_map or target_beats_count <= 0:
+        return []
+
+    # Sort source pins by beat_index
+    sorted_pins = sorted(
+        [p for p in source_map if p.get("video_path") and "beat_index" in p],
+        key=lambda x: int(x["beat_index"]),
+    )
+    if not sorted_pins:
+        return []
+
+    src_count = len(sorted_pins)
+
+    # 1:1 match
+    if target_beats_count == src_count:
+        result = []
+        for i, pin in enumerate(sorted_pins):
+            entry = dict(pin)
+            entry["beat_index"] = i
+            result.append(entry)
+        return result
+
+    # When target has only 1 beat
+    if target_beats_count == 1:
+        entry = dict(sorted_pins[0])
+        entry["beat_index"] = 0
+        return [entry]
+
+    # When target has 2 beats
+    if target_beats_count == 2:
+        entry_0 = dict(sorted_pins[0])
+        entry_0["beat_index"] = 0
+        entry_1 = dict(sorted_pins[-1])
+        entry_1["beat_index"] = 1
+        return [entry_0, entry_1]
+
+    # Target beats count > 2:
+    hook_shot = sorted_pins[0]
+    cta_shot = sorted_pins[-1] if len(sorted_pins) > 1 else sorted_pins[0]
+    middle_shots = sorted_pins[1:-1] if len(sorted_pins) > 2 else [sorted_pins[0]]
+
+    result = []
+    # Beat 0 -> Hook
+    first = dict(hook_shot)
+    first["beat_index"] = 0
+    result.append(first)
+
+    # Middle beats: from 1 to target_beats_count - 2
+    middle_count = target_beats_count - 2
+    for m_idx in range(middle_count):
+        target_b_idx = m_idx + 1
+        src_template = middle_shots[m_idx % len(middle_shots)]
+        entry = dict(src_template)
+        entry["beat_index"] = target_b_idx
+
+        # If this middle shot is being looped more than once, shift the trim offset
+        loop_cycle = m_idx // len(middle_shots)
+        if loop_cycle > 0:
+            span = max(0.5, float(entry.get("trim_end", 0.0)) - float(entry.get("trim_start", 0.0)))
+            shift = round(loop_cycle * 2.0, 2)
+            entry["trim_start"] = round(float(entry.get("trim_start", 0.0)) + shift, 3)
+            entry["trim_end"] = round(float(entry.get("trim_start")) + span, 3)
+            entry["is_auto_extended"] = True
+
+        result.append(entry)
+
+    # Last beat -> CTA
+    last = dict(cta_shot)
+    last["beat_index"] = target_beats_count - 1
+    result.append(last)
+
+    return result
+
+
+@router.post("/api/products/{product_id}/angles/{source_angle_id}/sync-manual-shot-map")
+def sync_manual_shot_map(
+    product_id: str,
+    source_angle_id: str,
+    payload: Dict[str, Any] = Body(default_factory=dict),
+) -> Dict[str, Any]:
+    """Sync manual storyboard shot map from source_angle to other target angles
+    under the same product.
+
+    Payload:
+      target_angle_ids: Optional[List[str]] (if None, targets all other angles)
+      overwrite_policy: "overwrite_all" | "skip_existing" (default: "overwrite_all")
+    """
+
+    from scripts.shot_lists_store import ShotListsStore
+
+    product = ProductStore.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
+
+    angles = product.get("angles", [])
+    source_angle = next((a for a in angles if a.get("angle_id") == source_angle_id), None)
+    if not source_angle:
+        raise HTTPException(status_code=404, detail=f"ไม่พบสคริปต์ต้นทาง angle_id '{source_angle_id}'")
+
+    source_map = source_angle.get("manual_shot_map") or []
+    if not source_map:
+        raise HTTPException(status_code=400, detail="สคริปต์ต้นทางยังไม่มีการเลือกช็อต (manual_shot_map ว่างเปล่า)")
+
+    target_ids = payload.get("target_angle_ids")
+    overwrite_policy = payload.get("overwrite_policy", "overwrite_all")
+
+    if target_ids is None:
+        target_ids = [a["angle_id"] for a in angles if a.get("angle_id") and a["angle_id"] != source_angle_id]
+
+    updates_by_angle = {}
+    synced_angles_info = []
+
+    for angle in angles:
+        ang_id = angle.get("angle_id")
+        if not ang_id or ang_id not in target_ids or ang_id == source_angle_id:
+            continue
+
+        existing_map = angle.get("manual_shot_map") or []
+        if existing_map and overwrite_policy == "skip_existing":
+            continue
+
+        # Get target beat cues to determine target_beats_count
+        shot_list = ShotListsStore.get(product_id, ang_id)
+        target_beats = (shot_list or {}).get("beat_cues") or []
+        target_beats_count = len(target_beats) if target_beats else len(angle.get("script_lines", []))
+        if target_beats_count <= 0:
+            target_beats_count = len(source_map)
+
+        adapted_map = smart_map_storyboard_to_beats(
+            source_map=source_map,
+            target_beats_count=target_beats_count,
+            target_beat_cues=target_beats,
+        )
+
+        updates_by_angle[ang_id] = adapted_map
+        synced_angles_info.append({
+            "angle_id": ang_id,
+            "angle_name": angle.get("angle_name", ""),
+            "shots_count": len(adapted_map),
+            "target_beats_count": target_beats_count,
+        })
+
+    if updates_by_angle:
+        ProductStore.batch_update_manual_shot_maps(product_id, updates_by_angle)
+
+    return {
+        "success": True,
+        "source_angle_id": source_angle_id,
+        "synced_count": len(updates_by_angle),
+        "synced_angles": synced_angles_info,
+        "overwrite_policy": overwrite_policy,
+    }
+
+
+@router.get("/api/products/{product_id}/filming-recipe")
+def get_universal_filming_recipe(product_id: str) -> Dict[str, Any]:
+    """Generates the 5-shot universal filming recipe customized for this product.
+
+    Includes shot roles, recommended durations, camera directions, and tips."""
+    product = ProductStore.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
+
+    name = product.get("name") or product.get("title") or "สินค้า"
+    cat = (product.get("category") or "").lower()
+    combined = f"{cat} {name}".lower()
+
+    # Detect category characteristics
+    is_mouse = any(k in combined for k in ("mouse", "เมาส์", "lift", "mx master", "trackball"))
+    is_keyboard = any(k in combined for k in ("keyboard", "คีย์บอร์ด", "mechanical", "keychron"))
+    is_cable = any(k in combined for k in ("cable", "charger", "สายชาร์จ", "ชาร์จ", "หัวชาร์จ", "powerbank", "essager", "ugreen", "baseus"))
+    is_audio = any(k in combined for k in ("headphone", "earphone", "หูฟัง", "ลำโพง", "speaker", "jbl", "bluetooth", "sound"))
+    is_beauty = any(k in combined for k in ("beauty", "skincare", "ลิป", "ครีม", "เซรั่ม", "สำอาง", "ผิว", "โลชั่น", "กันแดด"))
+
+    category_badge = "สินค้าทั่วไป / แก็ดเจ็ต"
+    if is_mouse:
+        category_badge = "เมาส์ไร้สาย / สรีรศาสตร์"
+    elif is_keyboard:
+        category_badge = "คีย์บอร์ด / โต๊ะทำงาน"
+    elif is_cable:
+        category_badge = "สายชาร์จ / หัวชาร์จด่วน"
+    elif is_audio:
+        category_badge = "หูฟัง / ลำโพงบลูทูธ"
+    elif is_beauty:
+        category_badge = "สกินแคร์ / ความงาม"
+
+    shots = [
+        {
+            "shot_number": 1,
+            "role": "hook",
+            "title": "ช็อต 1: Hook Opening (เปิดตัวดึงสายตา)",
+            "duration_hint": "5 - 10 วินาที",
+            "camera_angle": "45° Eye-Level หรือ Top-Down เข้าหาจุดกึ่งกลาง",
+            "action": (
+                f"เลื่อน {name} เข้ามาในเฟรมเร็วๆ หรือวางกระแทกเบาๆ บนแผ่นรองโต๊ะ ให้เห็นรูปทรงสะดุดตาทันทีตั้งแต่ 2 วินาทีแรก"
+                if not is_beauty else
+                f"ถือ {name} ยื่นเข้าหากล้องตรงๆ แล้วเปิดฝาหรือสัมผัสเนื้อครีมทันทีเพื่อดึงดูดสายตา"
+            ),
+            "tips": "ห้ามถ่ายแบบนิ่งสนิท ให้มี Movement (การขยับมือหรือตัวสินค้า) เสมอเพื่อหยุดนิ้วคนดู",
+        },
+        {
+            "shot_number": 2,
+            "role": "showcase",
+            "title": "ช็อต 2: 360° Hero Showcase (หมุนโชว์รอบตัว)",
+            "duration_hint": "5 - 10 วินาที",
+            "camera_angle": "มุมเฉียงด้านข้าง หมุนสินค้าช้าๆ เป็นวงกลม",
+            "action": (
+                f"ใช้มือหมุน {name} ช้าๆ รอบทิศ หรือวางบนแท่นหมุนโชว์ส่วนโค้งเว้า ดีไซน์ และมิติด้านข้าง-หลัง"
+            ),
+            "tips": "จัดไฟส่องขอบ (Rim Light) เล็กน้อยเพื่อให้เห็นเส้นสายของสินค้าคมชัด",
+        },
+        {
+            "shot_number": 3,
+            "role": "macro",
+            "title": "ช็อต 3: Macro Close-up (เจาะลึกรายละเอียด/พอร์ต/ปุ่ม)",
+            "duration_hint": "5 - 8 วินาที",
+            "camera_angle": "ระยะประชิด (Close-up 1-2 นิ้ว) โฟกัสเฉพาะจุด",
+            "action": (
+                f"เจาะถ่ายโลโก้ {name}, พอร์ตชาร์จ Type-C, สวิตช์เปิดปิด หรือปุ่มปรับ DPI ด้านล่าง/ข้างตัวเครื่องให้คมชัดระดับ 4K"
+                if not is_cable else
+                f"โคลสอัพหัวชาร์จทองเหลือง ป้ายบอกวัตต์ W และสายถักไนลอนให้เห็นความหนาแน่นและทนทาน"
+            ),
+            "tips": "ล็อกโฟกัสที่จุดสำคัญ (เช่น โลโก้แบรนด์ หรือหัวพอร์ต) อย่าให้กล้องเบลอหาโฟกัส",
+        },
+        {
+            "shot_number": 4,
+            "role": "action",
+            "title": "ช็อต 4: Real Action / Hands-on (สาธิตใช้งานจริงแก้ปัญหา)",
+            "duration_hint": "10 - 15 วินาที",
+            "camera_angle": "มุมมองบุคคลที่หนึ่ง (POV) หรือมองจากด้านข้างผู้ใช้",
+            "action": (
+                f"วางมือจับ {name} ใช้งานจริงบนโต๊ะ คลิกปุ่มแบบไร้เสียง เลื่อนเมาส์ไปมา หรือเสียบชาร์จใช้งานคู่กับแล็ปท็อป"
+                if not is_cable else
+                f"เสียบสายชาร์จเข้ากับมือถือหรือพาวเวอร์แบงก์ โชว์สถานะไฟชาร์จเร็ววิ่งขึ้นบนหน้าจอ"
+            ),
+            "tips": "ถ่ายทอดความรู้สึกสมูท หรือความสบายมือตอนจับใช้งานจริง",
+        },
+        {
+            "shot_number": 5,
+            "role": "cta",
+            "title": "ช็อต 5: Value / Accessories & CTA (อุปกรณ์ในกล่อง & ปิดท้าย)",
+            "duration_hint": "5 - 10 วินาที",
+            "camera_angle": "Top-Down กว้างเล็กน้อย หรือถือสินค้าพร้อมกล่อง",
+            "action": (
+                f"วาง {name} คู่กับกล่องแพ็กเกจ สายชาร์จ และหัว USB Dongle พร้อมหยิบขึ้นมาโชว์ หรือชี้นิ้วเข้าหาสินค้า"
+            ),
+            "tips": "เป็นช็อตที่ใช้ตอนจบบทพูด 'กดซื้อที่ตะกร้าสีเหลืองได้เลยครับ'",
+        },
+    ]
+
+    return {
+        "product_id": product_id,
+        "product_name": name,
+        "category_badge": category_badge,
+        "total_shots": len(shots),
+        "total_estimated_duration": "30 - 55 วินาที (ถ่ายรวมใน 1 คลิปเดียว)",
+        "shots": shots,
+    }
+

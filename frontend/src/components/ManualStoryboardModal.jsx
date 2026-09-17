@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Film, Sparkles, Clock, Lock, Unlock, Play, Pause, RotateCcw,
   AlertTriangle, ChevronRight, Video, Scissors, CheckCircle2, RotateCw,
-  Eye, RefreshCw, X, Sliders, Check
+  Eye, RefreshCw, X, Sliders, Check, Share2
 } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { toMediaUrl, isSameVideo } from '../lib/mediaUrl';
 import { formatTimecode } from '../lib/timelineMath';
-import { getManualShotMap, saveManualShotMap, getMediaInfo } from '../api';
+import { getManualShotMap, saveManualShotMap, syncManualShotMap, getMediaInfo } from '../api';
 
 const ACTION_MAP = {
   turntable_spin: { label: 'หมุนสินค้า 360', color: 'bg-amber-500/20 text-amber-300 border-amber-500/40' },
@@ -71,6 +71,13 @@ export default function ManualStoryboardModal({
 
   const videoRef = useRef(null);
   const angleId = angle?.angle_id || angle?.id;
+
+  // Sync across all angles state
+  const [syncModalOpen, setSyncModalOpen] = useState(false);
+  const [selectedSyncAngleIds, setSelectedSyncAngleIds] = useState(new Set());
+  const [syncOverwritePolicy, setSyncOverwritePolicy] = useState('overwrite_all');
+  const [syncing, setSyncing] = useState(false);
+
 
   // Load data whenever modal opens
   useEffect(() => {
@@ -358,8 +365,67 @@ export default function ManualStoryboardModal({
     }
   };
 
+  const handleOpenSyncModal = () => {
+    const otherIds = (product?.angles || [])
+      .filter(a => (a.angle_id || a.id) !== angleId)
+      .map(a => a.angle_id || a.id);
+    setSelectedSyncAngleIds(new Set(otherIds));
+    setSyncModalOpen(true);
+  };
+
+  const handleToggleSyncAngleId = (targetId) => {
+    setSelectedSyncAngleIds(prev => {
+      const next = new Set(prev);
+      if (next.has(targetId)) next.delete(targetId);
+      else next.add(targetId);
+      return next;
+    });
+  };
+
+  const handleSelectAllSyncAngles = () => {
+    const otherIds = (product?.angles || [])
+      .filter(a => (a.angle_id || a.id) !== angleId)
+      .map(a => a.angle_id || a.id);
+    setSelectedSyncAngleIds(new Set(otherIds));
+  };
+
+  const handleDeselectAllSyncAngles = () => {
+    setSelectedSyncAngleIds(new Set());
+  };
+
+  const handleConfirmSync = async () => {
+    if (!productId || !angleId || selectedSyncAngleIds.size === 0) return;
+    setSyncing(true);
+    try {
+      // Auto-save current pins first
+      const pinArray = Object.values(shotPins).map((p) => ({
+        beat_index: Number(p.beat_index),
+        video_path: normalizePath(p.video_path),
+        trim_start: Number(p.trim_start),
+        trim_end: Number(p.trim_end),
+      }));
+      await saveManualShotMap(productId, angleId, pinArray);
+
+      const payload = {
+        target_angle_ids: Array.from(selectedSyncAngleIds),
+        overwrite_policy: syncOverwritePolicy,
+      };
+      const res = await syncManualShotMap(productId, angleId, payload);
+      setSyncModalOpen(false);
+      onSaveSuccess?.(pinArray);
+      setSaveToast(`🎉 ปรับใช้ชุดช็อตนี้กับอีก ${res.synced_count} สคริปต์เรียบร้อยแล้ว!`);
+      setTimeout(() => setSaveToast(null), 4000);
+    } catch (err) {
+      console.error('Failed to sync storyboard:', err);
+      setError('ไม่สามารถปรับใช้กับสคริปต์อื่นได้: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const pinnedCount = Object.keys(shotPins).length;
   const totalBeats = beatCues.length;
+
 
   if (!isOpen) return null;
 
@@ -852,6 +918,17 @@ export default function ManualStoryboardModal({
                 ล้างการล็อกทั้งหมด
               </Button>
             )}
+            {pinnedCount > 0 && (
+              <button
+                type="button"
+                onClick={handleOpenSyncModal}
+                className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600/80 to-blue-600/80 hover:brightness-110 border border-cyan-400/40 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/20 cursor-pointer active:scale-95 transition-all"
+                title="คัดลอกและปรับใช้ชุดช็อตนี้กับสคริปต์มุมอื่นๆ ทั้งหมดของสินค้านี้"
+              >
+                <Share2 className="w-3.5 h-3.5 text-cyan-200" />
+                <span>ปรับใช้กับทุกสคริปต์</span>
+              </button>
+            )}
             <Button variant="ghost" onClick={onClose}>
               ปิดหน้าต่าง
             </Button>
@@ -865,6 +942,192 @@ export default function ManualStoryboardModal({
             </Button>
           </div>
         </div>
+
+        {/* ── SYNC ACROSS ALL ANGLES POPUP MODAL ── */}
+        {syncModalOpen && (
+          <div
+            className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150"
+            onClick={() => setSyncModalOpen(false)}
+          >
+            <div
+              className="relative w-full max-w-xl bg-[#0D121D] border border-cyan-500/30 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden flex flex-col max-h-[85vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] bg-[#0E1524]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center justify-center">
+                    <Share2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">ปรับใช้ชุดช็อตกับสคริปต์อื่น</h3>
+                    <p className="text-[11px] text-slate-400">
+                      ต้นทาง: <span className="text-cyan-300 font-semibold">{angle?.angle_name || 'สคริปต์ปัจจุบัน'}</span> ({pinnedCount} ช็อต)
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSyncModalOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 text-xs">
+                {/* Policy Notice */}
+                <div className="p-3 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-slate-300 space-y-1 text-[11px] leading-relaxed">
+                  <div className="font-bold text-cyan-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Smart Role Mapping</span>
+                  </div>
+                  <p>
+                    ระบบจะแมพช็อตเปิดตัว (Hook) และช็อตปิดท้าย (CTA) ให้ตรงบทบาทเสมอ หากสคริปต์ปลายทางยาวกว่า (เช่น 60 วิ มี 8 วรรค) ระบบจะขยายและสลับวนช็อตกลางพร้อมเลื่อนช่วงตัดไม่ให้ภาพซ้ำจุดเดิม
+                  </p>
+                </div>
+
+                {/* Overwrite policy */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                    การจัดการสคริปต์ที่เคยจัดช็อตไว้แล้ว:
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSyncOverwritePolicy('overwrite_all')}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        syncOverwritePolicy === 'overwrite_all'
+                          ? 'bg-cyan-500/15 border-cyan-400 text-white shadow-sm'
+                          : 'bg-black/30 border-white/10 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <div className="font-bold text-xs text-white">เขียนทับทั้งหมด</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">อัปเดตสคริปต์ที่เลือกให้ใช้ชุดช็อตนี้ใหม่ทั้งหมด</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSyncOverwritePolicy('skip_existing')}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        syncOverwritePolicy === 'skip_existing'
+                          ? 'bg-cyan-500/15 border-cyan-400 text-white shadow-sm'
+                          : 'bg-black/30 border-white/10 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <div className="font-bold text-xs text-white">ข้ามสคริปต์ที่มีช็อตแล้ว</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">เฉพาะสคริปต์ที่ยังไม่เคยล็อกช็อตเท่านั้น</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Target Angle Selector */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      เลือกสคริปต์ปลายทาง ({selectedSyncAngleIds.size}/{(product?.angles || []).length - 1}):
+                    </label>
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={handleSelectAllSyncAngles}
+                        className="text-cyan-400 hover:underline cursor-pointer"
+                      >
+                        เลือกทั้งหมด
+                      </button>
+                      <span className="text-slate-600">|</span>
+                      <button
+                        type="button"
+                        onClick={handleDeselectAllSyncAngles}
+                        className="text-slate-400 hover:underline cursor-pointer"
+                      >
+                        ยกเลิก
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                    {(product?.angles || [])
+                      .filter(a => (a.angle_id || a.id) !== angleId)
+                      .map((ang, aIdx) => {
+                        const targetId = ang.angle_id || ang.id;
+                        const isSelected = selectedSyncAngleIds.has(targetId);
+                        const linesCount = (ang.script_lines || []).length;
+                        const existingPinsCount = (ang.manual_shot_map || []).length;
+
+                        return (
+                          <div
+                            key={targetId}
+                            onClick={() => handleToggleSyncAngleId(targetId)}
+                            className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-cyan-950/20 border-cyan-500/40 text-white'
+                                : 'bg-black/20 border-white/[0.06] text-slate-400 hover:border-white/20'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                                  isSelected
+                                    ? 'bg-cyan-500 border-cyan-400 text-black'
+                                    : 'border-white/30 bg-black/40'
+                                }`}
+                              >
+                                {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                              </div>
+                              <span className="font-bold text-xs truncate">
+                                {ang.angle_name || `มุมมองที่ ${aIdx + 1}`}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 flex-shrink-0 text-[11px]">
+                              <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+                                {linesCount} วรรค
+                              </span>
+                              {existingPinsCount > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-semibold">
+                                  มีแล้ว {existingPinsCount} ช็อต
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-3 border-t border-white/[0.08] bg-[#0E1524] flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setSyncModalOpen(false)}
+                  className="py-1.5 px-3 rounded-lg text-slate-400 hover:text-white text-xs font-medium cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmSync}
+                  disabled={syncing || selectedSyncAngleIds.size === 0}
+                  className="py-2 px-5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110 disabled:opacity-50 text-black font-black text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/25 cursor-pointer active:scale-95 transition-all"
+                >
+                  {syncing ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                      <span>กำลังปรับใช้...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      <span>ยืนยันปรับใช้ ({selectedSyncAngleIds.size} สคริปต์)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );

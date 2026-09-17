@@ -8,6 +8,8 @@
 
 ## สารบัญ
 
+| Round MASTER-STORYBOARD-SYNC-AND-RECIPE-1 | ระบบสูตรถ่ายทำ 5 ช็อตมาตรฐานระดับสินค้า (Universal Filming Recipe) + ปุ่มซิงก์ช็อตข้ามทุกสคริปต์ (Master Storyboard Sync Engine) พร้อม Smart Role Mapping วรรคไม่เท่ากัน (30s vs 60s) | 2026-09-17 | สำเร็จสมบูรณ์ (backend 9 passed, frontend 255 passed, build 2,008 modules/4.20s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round MANUAL-STORYBOARD-OVERFLOW-FIX-1 | ป้องกันคลิปส่วนเกินห้อยท้ายไทม์ไลน์ 11 วินาทีเมื่อสร้างดราฟต์จาก Storyboard Mapper (Manual Shot Map): สร้าง Clip List ตรงตามวรรคบทพูด (Beats) เป๊ะๆ ไม่แตกเป็น micro-cues 9 ช็อต + Truncate ช็อตส่วนเกิน และซิงก์ Duration/Speed ให้ตรงกับจังหวะวรรคเสียงพากย์ 100% | 2026-09-17 | สำเร็จสมบูรณ์ (backend 5 passed, frontend 255 passed, build 2,007 modules/2.94s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round MANUAL-STORYBOARD-MAPPER-1 | ระบบกำหนดช็อตด้วยตนเองรายวรรคบทพูด (Manual Shot Mapper): Modal เต็มตา 2-panel เลือกฉากจากสารบัญ AI + Trim Scrubber + Hybrid ล็อก/AI auto สำหรับวรรคที่เหลือ | 2026-09-17 | สำเร็จสมบูรณ์ (backend 14 passed, frontend 255 passed, build 2,007 modules/3.96s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round PROJECT-SELECTOR-PAGINATION-AND-SEARCH-1 | เพิ่มการจำกัดการแสดงผล 15 รายการแรก + ปุ่มโหลดเพิ่มทีละ 15 รายการ + ช่องค้นหาด่วน ในเมนูเลือกโปรเจกต์ (ProjectSelector) | 2026-09-17 | สำเร็จสมบูรณ์ (frontend 253 passed, build 2,006 modules/5.25s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round TRIM-MODAL-SPACEBAR-KEYBOARD-CAPTURE-1 | ป้องกัน Spacebar ทะลุไปเล่นไทม์ไลน์หลังโมดัล + ให้ Spacebar และ Arrow Keys ควบคุมวิดีโอในโมดัลปรับช่วงตัดโดยตรง | 2026-09-17 | สำเร็จสมบูรณ์ (frontend 253 passed, build 2,006 modules/3.49s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -7052,3 +7054,57 @@ Executed by: Codex (GPT-6)
 - [x] 4. ในบล็อก Override (กรณี fallback หรือมีคลิปเดิม): Truncate `actual_clip_list` ให้มีจำนวนไม่เกิน `len(ctx.beat_cues)` และตัด `transitions` ส่วนเกินทิ้ง ป้องกันคลิปห้อยท้ายเกินเสียงพากย์ 100%
 - [x] 5. อัปเดต `project.json` ของ `IWA01-แกะกล่องว้าว_1` ให้มี 5 ช็อตตรงตาม 5 วรรค และความยาวรวม 25.58s ไม่มีช่วงเกิน 11s อีกต่อไป
 - [x] 6. รัน automated tests: `pytest tests/test_manual_shot_map.py` (5 passed), `npm test` (255 passed), `npm run build` (2,007 modules ใน 2.94s) ผ่านฉลุย 100%
+## Round SCHEDULE-DAILY-DEDUPE-20260917
+ดำเนินการโดย: Codex (GPT-5)
+
+### Diagnosis
+- The previous rule only blocked the immediately preceding product. A Loop post at 19:00 could therefore return at 21:30 after another product was inserted between them.
+
+### Fix
+- Product and Hook-color usage is now tracked per calendar day across queue rows and post history, not only against the previous row.
+- The same product/color may be scheduled again on a different date; unknown metadata remains non-blocking.
+- Slot capacity and skipped-slot accounting remain bounded by the selected date range.
+
+### Verification
+- Backend: `python -m pytest tests/ -q -p no:cacheprovider --tb=short` -> 1572 passed, 6 skipped, 29 warnings.
+- Schedule tests: 18 passed; frontend tests: 255 passed; build: 2007 modules; lint exit 0.
+- Python compileall passed; no tagged debug instrumentation remains.
+
+## Round MASTER-STORYBOARD-SYNC-AND-RECIPE-1 — ระบบสูตรถ่ายทำ 5 ช็อตมาตรฐานระดับสินค้า (Universal Filming Recipe) + ซิงก์ช็อตข้ามทุกสคริปต์ใน 1 คลิก (Master Storyboard Sync Engine)
+วันที่: 2026-09-17 · สั่งโดย: user (/grill-me) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+### ปัญหาและความต้องการ
+1. **คอขวดการเลือกช็อตซ้ำซ้อน:** ผู้ใช้มีสคริปต์ 10 มุมมองสำหรับ 1 สินค้า แต่ละคลิปมี 5 วรรคบทพูด หากต้องมานั่งเปิด Manual Storyboard Modal เลือกช็อตทีละวรรค 10 คลิป จะต้องกดเลือกถึง 50 ครั้ง ซึ่งกินเวลาและซ้ำซ้อนอย่างมาก
+2. **ขาดแนวทางการถ่ายทำระดับสินค้า (Filming Recipe):** ผู้ใช้สอบถามว่าตอนถ่ายทำสินค้า ควรถ่ายแบบไหน กี่วินาที เพื่อให้ฟุตเทจที่ได้สามารถนำมาปรับใช้ได้กับทุกสคริปต์ ไม่ว่าจะเป็นสคริปต์ 30 วินาที หรือ 60 วินาที
+3. **ปัญหาความไม่เท่ากันของจำนวนวรรค (Length Mismatch):** หากผู้ใช้วางแผนช็อตบนสคริปต์ 30 วินาที (5 วรรค) แล้วต้องการนำไปใช้กับสคริปต์ 60 วินาที (7-8 วรรค) ระบบต้องฉลาดพอที่จะจัดวางช็อตให้อัตโนมัติ โดยไม่ทำให้คลิปสะดุดหรือเห็นภาพซ้ำที่เดิม
+
+### ผลการดำเนินงาน
+- [x] 1. **Universal Filming Recipe Engine (สูตรถ่ายทำ 5 ช็อตมาตรฐาน):**
+  - ออกแบบ 5 ช็อตมาตรฐานที่ครอบคลุมการเล่าเรื่องแนวตั้ง TikTok 9:16 ได้ทุกสินค้า:
+    1. `Shot 1: Hook / First Impact (8-10s)` — เปิดตัวสินค้า ช็อตมาโคร/มุมมองดึงดูดสายตา
+    2. `Shot 2: 360° Showcase / Design (5-8s)` — หมุนรอบตัวสินค้า โชว์มิติ ความพรีเมียม
+    3. `Shot 3: Key Detail / Close-up (5-8s)` — โคลสอัพจุดเด่น ฟังก์ชันหลัก พอร์ต ปุ่ม หรือเนื้อสัมผัส
+    4. `Shot 4: In-Action / Real Usage (6-10s)` — สาธิตการใช้งานจริง เห็นผลลัพธ์ชัดเจน
+    5. `Shot 5: Value / Outro Call-to-Action (5-8s)` — วางคู่กับแพ็กเกจ หรือหยิบโชว์ความคุ้มค่า
+  - เพิ่ม API `GET /api/products/{product_id}/filming-recipe` ใน `scripts/api_shot_lists.py` คืนค่าสูตรถ่ายทำที่ปรับแต่งตามหมวดหมู่สินค้าโดยอัตโนมัติ (เช่น สินค้าไอที/เมาส์, สกินแคร์, แฟชั่น, สายชาร์จ)
+  - สร้างคอมโพเนนต์ `frontend/src/components/UniversalFilmingRecipeModal.jsx` ดีไซน์ Dark Glassmorphism ระดับพรีเมียม แสดงการ์ดทั้ง 5 ช็อต พร้อมไอคอน มุมกล้อง ท่าทาง และเวลานับถอยหลัง มีแท็บเลือกหมวดหมู่ และมี **ระบบสแกน QR Code** เพื่อให้ผู้ใช้เปิดดูสูตรบนมือถือข้างกล้องขณะถ่ายทำได้ทันที
+  - เพิ่มปุ่ม `[ 🎬 สูตรถ่ายทำ 5 ช็อต ]` บน Action Bar หัวหน้าจอ `ProductToClip.jsx`
+- [x] 2. **Master Storyboard Sync Engine (ปรับใช้กับทุกสคริปต์):**
+  - ใน `scripts/product_store.py`: เพิ่ม `batch_update_manual_shot_maps(product_id, updates_dict)` อัปเดต shot maps หลายมุมพร้อมกันแบบ atomic
+  - ใน `scripts/api_shot_lists.py`:
+    - เพิ่มอัลกอริทึม `smart_map_storyboard_to_beats(source_map, target_beats, source_beats)`:
+      - หัวคลิป (Beat 0) แมพไปยัง Hook ช็อตแรกเสมอ
+      - ท้ายคลิป (Beat N-1) แมพไปยัง CTA ช็อตสุดท้ายเสมอ
+      - กรณีปลายทางมีวรรคมากกว่า (เช่น 5 วรรค ➔ 8 วรรค): วรรคกลางที่งอกเพิ่มจะวนลูปนำช็อตกลาง (Showcase/Detail/Action) มาใช้ พร้อมขยับ `trim_start` เพิ่มทีละ 2.0 วินาทีอัตโนมัติ เพื่อให้ฟุตเทจไม่เล่นซ้ำวินาทีเดิม
+    - เพิ่ม REST Endpoint `POST /api/products/{product_id}/angles/{source_angle_id}/sync-manual-shot-map` รองรับ `target_angle_ids` และ `overwrite_policy` (`overwrite_all` หรือ `skip_existing`)
+- [x] 3. **Interactive Sync Modal & UI Integration:**
+  - ใน `frontend/src/api.js`: เพิ่มฟังก์ชัน `syncManualShotMap` และ `getUniversalFilmingRecipe`
+  - ใน `frontend/src/components/ManualStoryboardModal.jsx`:
+    - เพิ่มปุ่ม `[ 🔄 ปรับใช้กับทุกสคริปต์ ]` บน Footer Bar
+    - สร้าง Confirmation Modal เลือกสคริปต์ปลายทางที่ต้องการซิงก์ แสดงจำนวนวรรคของแต่ละมุม และตัวเลือกว่าจะเขียนทับเฉพาะมุมที่ยังไม่ได้ล็อก หรือเขียนทับทั้งหมด
+    - แจ้งเตือน Toast สรุปจำนวนมุมและวรรคที่ซิงก์สำเร็จแบบเรียลไทม์
+- [x] 4. **Automated Testing & Build Verification:**
+  - Backend pytest: สร้าง `tests/test_manual_shot_map_sync.py` ครอบคลุม 4 เคส (วรรคเท่ากัน, 5 วรรค ➔ 8 วรรค auto-loop offset, overwrite policy, recipe categories) ผ่าน 4/4 (100%)
+  - Backend pytest: `tests/test_manual_shot_map.py` ผ่าน 5/5 (100%)
+  - Frontend vitest: `npm test` ผ่าน 255/255 (100%)
+  - Production build: `npm run build` แปลง 2,008 modules เสร็จสมบูรณ์ใน 4.20s ปราศจาก error

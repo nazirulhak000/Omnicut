@@ -25,6 +25,7 @@ import BatchRenderModal from './BatchRenderModal';
 import HookHeaderModal from './HookHeaderModal';
 import SceneCatalogModal from './SceneCatalogModal';
 import ManualStoryboardModal from './ManualStoryboardModal';
+import UniversalFilmingRecipeModal from './UniversalFilmingRecipeModal';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
@@ -2100,6 +2101,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [shotListError, setShotListError] = useState(null);
   const [shotListStatusMap, setShotListStatusMap] = useState({}); // {angle_id: {has_shot_list, is_stale, voice_engine_type, voice_preset, is_edge_tts}}
   const [storyboardAngle, setStoryboardAngle] = useState(null); // angle opened in ManualStoryboardModal
+  const [filmingRecipeModalOpen, setFilmingRecipeModalOpen] = useState(false);
 
   // Automatically keep shotListStatusMap updated whenever current productData changes
   useEffect(() => {
@@ -4545,6 +4547,17 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       )}
                     </button>
                   )}
+
+                  {/* Universal Filming Recipe Button */}
+                  <button
+                    type="button"
+                    onClick={() => setFilmingRecipeModalOpen(true)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 bg-gradient-to-r from-rose-500/20 to-purple-500/20 hover:from-rose-500/30 hover:to-purple-500/30 text-rose-300 border border-rose-500/40 hover:border-rose-400"
+                    title="เปิดดูสูตรถ่ายทำ 5 ช็อตมาตรฐานสำหรับสินค้านี้ (Hook, 360°, Macro, Action, CTA) พร้อม QR สแกนขึ้นมือถือ"
+                  >
+                    <Clapperboard className="w-3.5 h-3.5 text-rose-400" />
+                    <span>สูตรถ่ายทำ 5 ช็อต</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -5401,6 +5414,15 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           }
         }}
       />
+
+      {/* ── Universal Filming Recipe Modal (สูตรถ่ายทำ 5 ช็อตมาตรฐาน) ── */}
+      <UniversalFilmingRecipeModal
+        isOpen={filmingRecipeModalOpen}
+        onClose={() => setFilmingRecipeModalOpen(false)}
+        productData={productData}
+        showToast={showToast}
+      />
+
 
       {/* ── AI Hook Variation & A/B Modal ── */}
       <HookVariationModal
