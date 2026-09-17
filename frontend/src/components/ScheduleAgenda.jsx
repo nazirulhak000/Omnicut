@@ -3,6 +3,7 @@ import { Archive, Calendar, CalendarDays, ChevronDown, ChevronLeft, ChevronRight
 import { Modal, Badge } from './ui';
 import { commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
 import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
+import { getStylePreset } from '../lib/stylePresetCatalog';
 
 const STATUS_LABELS = {
   planned: 'รอจัดส่ง',
@@ -48,6 +49,8 @@ function coverValue(item, clip) {
 
 function clipToPayload(clip, scheduledAt) {
   const product = clip.parentProduct || {};
+  const stylePreset = clip.style_preset || clip.stylePreset || product.style_preset || product.stylePreset;
+  const hookColor = stylePreset ? (clip.hook_color || clip.hookColor || getStylePreset(stylePreset).hookColor) : null;
   return {
     video_path: clip.video_url,
     scheduled_at: scheduledAt,
@@ -57,6 +60,8 @@ function clipToPayload(clip, scheduledAt) {
     product_name: product.name || clip.product_name || null,
     project_name: clip.project_name || null,
     hook_title: clip.hook_title || null,
+    style_preset: stylePreset || null,
+    hook_color: hookColor || null,
     cover_path: clip.cover_path || null,
     cover_url: clip.cover_url || null,
     caption: clip.tiktok_caption || clip.hook_title || '',
@@ -84,6 +89,8 @@ function queueKey(item) {
 
 function clipToAutofillPayload(clip) {
   const product = clip.parentProduct || {};
+  const stylePreset = clip.style_preset || clip.stylePreset || product.style_preset || product.stylePreset;
+  const hookColor = stylePreset ? (clip.hook_color || clip.hookColor || getStylePreset(stylePreset).hookColor) : null;
   return {
     video_path: clip.video_url,
     export_id: clip.export_id || null,
@@ -92,6 +99,8 @@ function clipToAutofillPayload(clip) {
     product_name: product.name || clip.product_name || null,
     project_name: clip.project_name || null,
     hook_title: clip.hook_title || null,
+    style_preset: stylePreset || null,
+    hook_color: hookColor || null,
     cover_path: clip.cover_path || null,
     cover_url: clip.cover_url || null,
     caption: clip.tiktok_caption || clip.hook_title || '',
@@ -132,6 +141,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [autofillStart, setAutofillStart] = useState(dateOnly());
   const [autofillEnd, setAutofillEnd] = useState(dateOnly());
   const [autofillProduct, setAutofillProduct] = useState('all');
+  const [autofillUseStats, setAutofillUseStats] = useState(true);
   const [autofillLimit, setAutofillLimit] = useState('');
   const [autofillPreview, setAutofillPreview] = useState(null);
   const [autofillBusy, setAutofillBusy] = useState(false);
@@ -432,6 +442,15 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     finally { setTemplateBusy(false); }
   };
 
+  const autofillDateError = autofillStart && autofillEnd && autofillStart > autofillEnd
+    ? 'วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น'
+    : '';
+  const autofillLimitValue = autofillLimit === '' ? null : Number(autofillLimit);
+  const autofillLimitError = autofillLimit !== ''
+    && (!Number.isInteger(autofillLimitValue) || autofillLimitValue < 1 || autofillLimitValue > 10000)
+    ? 'จำนวนคลิปต้องเป็นเลขจำนวนเต็ม 1–10,000'
+    : '';
+
   const resetTemplate = async () => {
     setTemplateBusy(true);
     try {
@@ -455,14 +474,15 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   };
 
   const runAutofillPreview = async () => {
-    if (!autofillStart || !autofillEnd) return;
+    if (!autofillStart || !autofillEnd || autofillDateError || autofillLimitError) return;
     setAutofillBusy(true);
     try {
       const response = await previewScheduleAutofill({
         start_date: autofillStart,
         end_date: autofillEnd,
         product_ids: autofillProduct === 'all' ? [] : [autofillProduct],
-        limit: autofillLimit ? Number(autofillLimit) : null,
+        limit: autofillLimitValue,
+        optimize_by_stats: autofillUseStats,
         seed: Math.floor(Math.random() * 2147483647),
         clips: availableClips.map((clip) => {
           const product = clip.parentProduct || {};
@@ -815,14 +835,17 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
         </div>
       </Modal>
 
-      <Modal isOpen={autofillOpen} onClose={() => setAutofillOpen(false)} title="จัดคิวอัตโนมัติ" subtitle="ดูตัวอย่างก่อนบันทึก · ระบบจะสุ่มสินค้าแบบไม่ซ้ำติดกัน และใช้คลิปที่ยังไม่อยู่ในคิวเท่านั้น" maxWidth="max-w-5xl">
+      <Modal isOpen={autofillOpen} onClose={() => setAutofillOpen(false)} title="จัดคิวอัตโนมัติ" subtitle="ดูตัวอย่างก่อนบันทึก · จัดเฉพาะในช่วงวันที่เลือก · ระบบจะใช้คลิปที่ยังไม่อยู่ในคิวเท่านั้น" maxWidth="max-w-5xl">
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2"><button type="button" onClick={() => chooseAutofillRange('today')} className={`px-3 py-2 rounded-xl text-xs font-bold ${autofillRange === 'today' ? 'bg-cyan-400 text-slate-950' : 'border border-white/[0.1] text-slate-200'}`}>วันนี้</button><button type="button" onClick={() => chooseAutofillRange('week')} className={`px-3 py-2 rounded-xl text-xs font-bold ${autofillRange === 'week' ? 'bg-cyan-400 text-slate-950' : 'border border-white/[0.1] text-slate-200'}`}>สัปดาห์นี้</button><button type="button" onClick={() => chooseAutofillRange('custom')} className={`px-3 py-2 rounded-xl text-xs font-bold ${autofillRange === 'custom' ? 'bg-cyan-400 text-slate-950' : 'border border-white/[0.1] text-slate-200'}`}>กำหนดช่วงเอง</button></div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"><label className="text-xs font-bold text-slate-300">เริ่มวันที่<input type="date" value={autofillStart} onChange={(event) => { setAutofillStart(event.target.value); setAutofillRange('custom'); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label><label className="text-xs font-bold text-slate-300">ถึงวันที่<input type="date" value={autofillEnd} onChange={(event) => { setAutofillEnd(event.target.value); setAutofillRange('custom'); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label><label className="text-xs font-bold text-slate-300">สินค้า<select value={autofillProduct} onChange={(event) => { setAutofillProduct(event.target.value); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white"><option value="all">สินค้าทั้งหมด</option>{productOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label className="text-xs font-bold text-slate-300">จำนวนคลิป (ว่าง = ทั้งหมด)<input type="number" min="1" max="10000" value={autofillLimit} onChange={(event) => { setAutofillLimit(event.target.value); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label></div>
-          <div className="flex items-center justify-between gap-3"><p className="text-[11px] text-slate-500">คิวจะเริ่มหลังเวลาล่าสุดที่มีอยู่ และข้ามช่วงเวลาที่ผ่านไปแล้ว</p><button type="button" disabled={autofillBusy || !availableClips.length} onClick={runAutofillPreview} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black flex items-center gap-1.5 disabled:opacity-50"><Shuffle className="w-4 h-4" />{autofillBusy ? 'กำลังคำนวณ' : 'สร้างตัวอย่างคิว'}</button></div>
-          <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.03] p-3 max-h-96 overflow-y-auto">{!autofillPreview ? <p className="py-12 text-center text-xs text-slate-500">กดสร้างตัวอย่างเพื่อดูวัน เวลา และลำดับคลิปก่อนบันทึก</p> : autofillPreview.items?.length ? <div className="space-y-1">{autofillPreview.items.map((item, index) => <div key={`${item.video_path}-${item.scheduled_at}`} className="flex items-center gap-2 py-2 border-b border-white/[0.06] last:border-0"><span className="w-6 h-6 rounded-full bg-cyan-400/15 text-cyan-100 text-[10px] flex items-center justify-center">{index + 1}</span><span className="text-xs font-mono text-white whitespace-nowrap">{item.scheduled_at.slice(0, 16).replace('T', ' ')}</span><span className="text-xs text-cyan-100 truncate flex-1">{item.product_name || 'ไม่ระบุสินค้า'} · {item.hook_title || item.project_name || item.video_path}</span></div>)}{autofillPreview.reason && <p className="text-xs text-amber-200 mt-3">{autofillPreview.reason}</p>}</div> : <div className="py-10 text-center"><p className="text-sm text-slate-300">ยังจัดคิวไม่ได้</p><p className="text-xs text-slate-500 mt-1">{autofillPreview.reason || 'ไม่มีรายการที่พร้อม'}</p></div>}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"><label className="text-xs font-bold text-slate-300">เริ่มวันที่<input type="date" value={autofillStart} max={autofillEnd || undefined} onChange={(event) => { setAutofillStart(event.target.value); setAutofillRange('custom'); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label><label className="text-xs font-bold text-slate-300">ถึงวันที่<input type="date" value={autofillEnd} min={autofillStart || undefined} onChange={(event) => { setAutofillEnd(event.target.value); setAutofillRange('custom'); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label><label className="text-xs font-bold text-slate-300">สินค้า<select value={autofillProduct} onChange={(event) => { setAutofillProduct(event.target.value); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white"><option value="all">สินค้าทั้งหมด</option>{productOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label className="text-xs font-bold text-slate-300">จำนวนคลิป (ว่าง = ทั้งหมด)<input type="number" min="1" max="10000" value={autofillLimit} onChange={(event) => { setAutofillLimit(event.target.value); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label></div>
+          <label className="flex items-center gap-2 text-xs text-slate-200"><input type="checkbox" checked={autofillUseStats} onChange={(event) => { setAutofillUseStats(event.target.checked); setAutofillPreview(null); }} className="accent-cyan-400" />ใช้สถิติยอดวิว/engagement/ออเดอร์ช่วยเลือกสินค้าและช่วงเวลา <span className="text-slate-500">(มีข้อมูลน้อยจะลดความมั่นใจให้อัตโนมัติ)</span></label>
+          {(autofillDateError || autofillLimitError) && <p role="alert" className="text-xs text-red-200">{autofillDateError || autofillLimitError}</p>}
+          <div className="flex items-center justify-between gap-3"><p className="text-[11px] text-slate-500">จัดเฉพาะช่วงวันที่เลือกเท่านั้น · ข้ามเวลาที่ผ่านไปแล้วและเวลาที่ถูกใช้ไปแล้ว · ถ้าช่องไม่พอ ระบบจะแจ้งจำนวนที่เหลือ</p><button type="button" disabled={autofillBusy || !availableClips.length || Boolean(autofillDateError || autofillLimitError)} onClick={runAutofillPreview} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black flex items-center gap-1.5 disabled:opacity-50"><Shuffle className="w-4 h-4" />{autofillBusy ? 'กำลังคำนวณ' : 'สร้างตัวอย่างคิว'}</button></div>
+          <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.03] p-3 max-h-96 overflow-y-auto">{!autofillPreview ? <p className="py-12 text-center text-xs text-slate-500">กดสร้างตัวอย่างเพื่อดูวัน เวลา ลำดับคลิป และเหตุผลการเลือกก่อนบันทึก</p> : autofillPreview.items?.length ? <div className="space-y-1"><p className="text-[11px] text-cyan-200 pb-2">จัดได้ {autofillPreview.items.length} จาก {autofillPreview.requested_count ?? autofillPreview.items.length} คลิปในช่วง {autofillPreview.range_start} ถึง {autofillPreview.range_end}</p>{autofillPreview.analytics?.available ? <p className="text-[11px] text-slate-400 pb-2">อ้างอิงสถิติ {autofillPreview.analytics.sample_size} คลิป · สินค้าเด่น {autofillPreview.analytics.top_products?.[0]?.product_name || '-'} · ช่วงเวลาเด่น {String(autofillPreview.analytics.top_hours?.[0]?.hour ?? '-').padStart(2, '0')}:00 · ความมั่นใจ {autofillPreview.analytics.confidence}</p> : <p className="text-[11px] text-slate-500 pb-2">ยังไม่มีสถิติที่วัดผลเพียงพอ ระบบจึงไม่ฝืนสรุปว่าสินค้าหรือเวลาใดชนะ</p>}{autofillPreview.items.map((item, index) => <div key={`${item.video_path}-${item.scheduled_at}`} className="flex items-center gap-2 py-2 border-b border-white/[0.06] last:border-0"><span className="w-6 h-6 rounded-full bg-cyan-400/15 text-cyan-100 text-[10px] flex items-center justify-center">{index + 1}</span><span className="w-2.5 h-2.5 rounded-full border border-white/30 flex-shrink-0" style={{ backgroundColor: item.hook_color || 'transparent' }} title={`สี Hook ${item.hook_color || 'ไม่ระบุ'}`} aria-label={`สี Hook ${item.hook_color || 'ไม่ระบุ'}`} /><span className="text-xs font-mono text-white whitespace-nowrap">{item.scheduled_at.slice(0, 16).replace('T', ' ')}</span><span className="text-xs text-cyan-100 truncate flex-1">{item.product_name || 'ไม่ระบุสินค้า'} · {item.hook_title || item.project_name || item.video_path}</span></div>)}{autofillPreview.reason && <p className="text-xs text-amber-200 mt-3">{autofillPreview.reason} · เหลืออีก {autofillPreview.skipped_items || 0} คลิปที่ยังไม่ถูกจัด</p>}</div> : <div className="py-10 text-center"><p className="text-sm text-slate-300">ยังจัดคิวไม่ได้</p><p className="text-xs text-slate-500 mt-1">{autofillPreview.reason || 'ไม่มีรายการที่พร้อม'}</p></div>}</div>
           {autofillPreview?.skipped_invalid?.length > 0 && <p className="text-xs text-red-200">ข้ามไฟล์ที่ตรวจสอบไม่ได้ {autofillPreview.skipped_invalid.length} รายการ</p>}
           {autofillPreview?.skipped_slots > 0 && <p className="text-xs text-amber-200">เว้นช่วงเวลาอีก {autofillPreview.skipped_slots} ช่อง เพราะไม่มีคลิปหรือช่วงเวลาที่ว่าง</p>}
+          {autofillPreview?.skipped_repetition > 0 && <p className="text-xs text-amber-200">เว้นคลิปอีก {autofillPreview.skipped_repetition} รายการ เพราะจะทำให้สินค้าหรือสี Hook ซ้ำติดกัน</p>}
           <div className="flex justify-end gap-2"><button type="button" onClick={() => setAutofillOpen(false)} className="px-3 py-2 rounded-xl text-xs text-slate-300">ยกเลิก</button><button type="button" disabled={!autofillPreview?.items?.length || autofillBusy} onClick={saveAutofill} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50">บันทึกคิวที่แสดง</button></div>
         </div>
       </Modal>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Camera, Clapperboard, Clock, ExternalLink, Film, Loader2, Mic, QrCode, RotateCw, Sparkles } from 'lucide-react';
+import { AlertTriangle, Camera, Clapperboard, Clock, ExternalLink, Film, Loader2, Mic, QrCode, RotateCw, Sparkles, Scissors } from 'lucide-react';
 import { Modal, Badge, SafeQRCode } from './ui';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { createRecordingSession } from '../api';
@@ -36,7 +36,7 @@ function buildFilmingUrl(mobileBaseUrl, sessionId) {
 // per script beat with its exact TTS timing (not an estimate) and a fixed-
 // camera-angle filming direction.
 export default function ShotListModal({
-  isOpen, onClose, productId, mobileBaseUrl, result, onRegenerate, regenerating = false, error = null,
+  isOpen, onClose, productId, mobileBaseUrl, result, onRegenerate, regenerating = false, error = null, onOpenStoryboard,
 }) {
   const [creatingSession, setCreatingSession] = useState(false);
   const [filmingUrl, setFilmingUrl] = useState(null);
@@ -271,15 +271,30 @@ export default function ShotListModal({
               <span className="text-[11px] text-slate-500">
                 สแกน QR เพื่อถ่ายในแอปพร้อมไกด์ทีละช็อต ตรงตามแผนด้านบน
               </span>
-              <button
-                type="button"
-                onClick={handleStartSession}
-                disabled={creatingSession}
-                className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-all"
-              >
-                {creatingSession ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <QrCode className="w-3.5 h-3.5" />}
-                เริ่มเซสชันถ่ายทำ (QR)
-              </button>
+              <div className="flex items-center gap-2">
+                {onOpenStoryboard && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenStoryboard(angle);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                  >
+                    <Scissors className="w-3.5 h-3.5" />
+                    วางแผนช็อตด้วยตนเอง (Storyboard)
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleStartSession}
+                  disabled={creatingSession}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-all"
+                >
+                  {creatingSession ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <QrCode className="w-3.5 h-3.5" />}
+                  เริ่มเซสชันถ่ายทำ (QR)
+                </button>
+              </div>
             </div>
           )}
           {sessionError && (

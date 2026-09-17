@@ -464,6 +464,7 @@ export default function NewClipPanel({
       shot_list_id: (shotListAvailable && form.useShotListMapping)
         ? `${productContext?.id}:${(currentAngle?.angle_id || angles[angleIndex]?.angle_id)}`
         : null,
+      manual_shot_map: (currentAngle?.manual_shot_map || angles[angleIndex]?.manual_shot_map || initialValues?.manualShotMap) || null,
       font_name: form.fontName || 'IBMPlex',
       bilingual_subtitles: form.bilingualSubtitles !== false,
       show_watermark: form.showWatermark !== false,

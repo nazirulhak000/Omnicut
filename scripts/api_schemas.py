@@ -1,4 +1,4 @@
-"""
+﻿"""
 Pydantic Request and Response Schemas for OmniCut Pro Studio API.
 """
 
@@ -46,12 +46,7 @@ class RenderRequest(BaseModel):
     product_id: Optional[str] = None
     angle_id: Optional[str] = None
     color_theme: Optional[Dict[str, Any]] = None
-    # Optional normalized by the pipeline into SpotlightV1.  Keep this loose
-    # at the request boundary so old clients and legacy manifests remain
-    # readable; invalid values become a disabled no-op downstream.
     spotlight: Optional[Dict[str, Any]] = None
-    # Optional subject-isolation sequence contract. Omitted requests remain
-    # on the legacy no-op path; the renderer validates ready artifacts.
     background_isolation: Optional[Dict[str, Any]] = None
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
@@ -79,20 +74,13 @@ class RenderRequest(BaseModel):
     effects: Optional[List[Dict[str, Any]]] = None
     text_overlays: Optional[List[Dict[str, Any]]] = None
     overlays: Optional[List[Dict[str, Any]]] = None
-    # "Map to this shot list" proportional-fallback trigger for a manually
-    # uploaded raw video (no guided-take sidecar) -- see
-    # scripts/stages/shot_matching_stage.py's _build_proportional_clip_list.
     shot_list_id: Optional[str] = None
+    manual_shot_map: Optional[List[Dict[str, Any]]] = None
 
 
 class DeleteFileRequest(BaseModel):
     file_path: str
     export_id: Optional[str] = None
-    # Optional scoping for the angle-status rollback this delete triggers --
-    # when the caller already knows which product/angle this file belongs to
-    # (e.g. ExportGallery has both on the export item), passing them prevents
-    # rollback_by_video_or_project() from having to guess by filename stem
-    # alone, which risks touching an unrelated angle that shares the same stem.
     product_id: Optional[str] = None
     angle_id: Optional[str] = None
 
@@ -121,7 +109,7 @@ class UpdatePostMetricsRequest(BaseModel):
 
 
 class OpenFolderRequest(BaseModel):
-    target: str  # "exports", "inbox", "raw", "assets", "capcut", "root", or custom path
+    target: str
 
 
 class TranscribeRequest(BaseModel):

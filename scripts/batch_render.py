@@ -546,6 +546,7 @@ class BatchRenderManager:
                             export_mp4=options.get("export_mp4", True),
                             product_id=product_id,
                             angle_id=angle_id,
+                            manual_shot_map=angle_data.get("manual_shot_map") or [],
                             progress_callback=make_sub_progress(idx, angle_name)
                         )
 

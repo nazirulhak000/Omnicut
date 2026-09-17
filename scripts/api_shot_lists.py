@@ -17,6 +17,7 @@ from scripts.gemini_tts_engine import GeminiTTSError
 from scripts.quota import is_quota_error
 
 from scripts.product_store import ProductStore
+from scripts import path_utils
 
 router = APIRouter(tags=["Shot Lists"])
 
@@ -339,3 +340,149 @@ def batch_generate_audio(
 
     return {"success": True, "task_id": task["id"], "task": task, "angle_count": len(active_angles)}
 
+
+# ─── Manual Storyboard Mapper endpoints ───────────────────────────────────────
+
+@router.patch("/api/products/{product_id}/angles/{angle_id}/manual-shot-map")
+def save_manual_shot_map(product_id: str, angle_id: str, payload: Dict[str, Any]):
+    """Persists the user's curated shot-map for an angle.
+
+    Body: { "shot_map": [ { "beat_index": 0, "video_path": "...", "trim_start": 1.2, "trim_end": 3.8 }, ... ] }
+    Entries with beat_index but no video_path are treated as "let AI decide" (will be ignored by pipeline).
+    Returns the updated angle record.
+    """
+    product = ProductStore.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="ไม่พบสินค้า")
+
+    shot_map = payload.get("shot_map")
+    if shot_map is None:
+        raise HTTPException(status_code=422, detail="ต้องระบุ shot_map")
+    if not isinstance(shot_map, list):
+        raise HTTPException(status_code=422, detail="shot_map ต้องเป็น list")
+
+    # Validate each entry minimally (beat_index required; video_path may be absent for AI-auto slots)
+    validated = []
+    for entry in shot_map:
+        if not isinstance(entry, dict):
+            continue
+        beat_idx = entry.get("beat_index")
+        if beat_idx is None:
+            continue
+        v_raw = entry.get("video_path")
+        clean_v = None
+        if v_raw:
+            from scripts import path_utils
+            rel_v = path_utils.to_relative(v_raw)
+            clean_v = str(rel_v).replace("\\", "/") if rel_v else str(v_raw).replace("\\", "/")
+        validated.append({
+            "beat_index": int(beat_idx),
+            "video_path": clean_v,
+            "trim_start": float(entry.get("trim_start") or 0.0),
+            "trim_end": float(entry.get("trim_end") or 0.0),
+        })
+
+    try:
+        ProductStore.update_angle_manual_shot_map(product_id, angle_id, validated)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return {"success": True, "product_id": product_id, "angle_id": angle_id, "pinned_count": len(validated)}
+
+
+@router.get("/api/products/{product_id}/angles/{angle_id}/manual-shot-map")
+def get_manual_shot_map(product_id: str, angle_id: str):
+    """Returns the saved manual shot-map for an angle, together with the beat_cues timing
+    (so the frontend can render the storyboard UI from a single request).
+
+    Returns:
+        {
+          "manual_shot_map": [...],   # currently pinned assignments (may be empty)
+          "beat_cues": [...],         # TTS-timed beat cues from the shot list
+          "total_duration": float,
+          "has_shot_list": bool,
+          "scene_catalogs": {video_path: catalog},  # indexed catalogs for selected videos
+        }
+    """
+    product = ProductStore.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="ไม่พบสินค้า")
+
+    angle = next(
+        (a for a in product.get("angles", []) if (a.get("angle_id") or a.get("id")) == angle_id),
+        None,
+    )
+    if not angle:
+        raise HTTPException(status_code=404, detail=f"ไม่พบมุม '{angle_id}'")
+
+    # Pull existing shot list (beat_cues, total_duration) from ShotListsStore
+    shot_list_record = ShotListsStore.get(product_id, angle_id)
+    beat_cues = []
+    total_duration = 0.0
+    has_shot_list = False
+    if shot_list_record:
+        beat_cues = shot_list_record.get("beat_cues") or []
+        total_duration = float(shot_list_record.get("total_duration") or 0.0)
+        has_shot_list = True
+
+    # Collect scene catalogs for all candidate videos of this angle and product
+    try:
+        from scripts.gemini_vision_matcher import GeminiVisionMatcher
+        from scripts.config import BASE_DIR
+        from scripts import path_utils
+        scene_catalogs = {}
+        all_candidate_videos = list(angle.get("selected_videos") or [])
+        if angle.get("selected_video") and angle["selected_video"] not in all_candidate_videos:
+            all_candidate_videos.append(angle["selected_video"])
+        for v_item in product.get("videos") or []:
+            v_p = v_item.get("rel_path") or v_item.get("path")
+            if v_p and v_p not in all_candidate_videos:
+                all_candidate_videos.append(v_p)
+
+        for v_raw in all_candidate_videos:
+            if not v_raw:
+                continue
+            from pathlib import Path as _Path
+            v_full = _Path(v_raw)
+            if not v_full.is_absolute():
+                v_full = BASE_DIR / v_raw
+            catalog = GeminiVisionMatcher.get_cached_catalog(str(v_full))
+            if catalog:
+                rel_p = path_utils.to_relative(v_full)
+                rel_key = str(rel_p).replace("\\", "/") if rel_p else str(v_raw).replace("\\", "/")
+                cat_dict = {
+                    "is_indexed": True,
+                    "scenes_count": len(catalog.get("scenes", [])),
+                    "is_spin_footage": catalog.get("is_spin_footage", False),
+                    "summary": catalog.get("summary", ""),
+                    "scenes": catalog.get("scenes", []),
+                }
+                # Index under all variants so frontend can always find it
+                scene_catalogs[rel_key] = cat_dict
+                scene_catalogs[str(v_raw)] = cat_dict
+                scene_catalogs[str(v_raw).replace("\\", "/")] = cat_dict
+                scene_catalogs[str(v_full)] = cat_dict
+                scene_catalogs[str(v_full).replace("\\", "/")] = cat_dict
+                scene_catalogs[v_full.name] = cat_dict
+    except Exception:
+        scene_catalogs = {}
+
+    # Resolve manual_shot_map video_path entries to normalized relative paths for the frontend
+    raw_map = angle.get("manual_shot_map") or []
+    resolved_map = []
+    for entry in raw_map:
+        e = dict(entry)
+        if e.get("video_path"):
+            rel_p = path_utils.to_relative(e["video_path"])
+            e["video_path"] = str(rel_p).replace("\\", "/") if rel_p else str(e["video_path"]).replace("\\", "/")
+        resolved_map.append(e)
+
+    return {
+        "product_id": product_id,
+        "angle_id": angle_id,
+        "manual_shot_map": resolved_map,
+        "beat_cues": beat_cues,
+        "total_duration": total_duration,
+        "has_shot_list": has_shot_list,
+        "scene_catalogs": scene_catalogs,
+    }

@@ -462,6 +462,11 @@ class PipelineContext:
     # duration ratio.
     guided_take_meta: Optional[Dict[str, Any]] = None
     shot_list_id: Optional[str] = None
+    # User-curated beat→scene assignments from the Manual Storyboard Mapper.
+    # List of {beat_index, video_path, trim_start, trim_end}.
+    # ShotMatchingStage reads this; beats with a pinned entry skip AI Vision
+    # and use the specified clip span directly.
+    manual_shot_map: List[Dict[str, Any]] = field(default_factory=list)
 
     out_mp4: Optional[Path] = None
     result_paths: Dict[str, Any] = field(default_factory=dict)

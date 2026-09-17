@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
   Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
   ShoppingBag, ShieldCheck, Database, Zap, Layers, Eye, EyeOff, CheckCircle2, Tag,
-  Volume2, Mic, AlertTriangle, VolumeX
+  Volume2, Mic, AlertTriangle, VolumeX, Scissors
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
@@ -24,6 +24,7 @@ import HookVariationModal from './HookVariationModal';
 import BatchRenderModal from './BatchRenderModal';
 import HookHeaderModal from './HookHeaderModal';
 import SceneCatalogModal from './SceneCatalogModal';
+import ManualStoryboardModal from './ManualStoryboardModal';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
@@ -544,6 +545,7 @@ function AngleActiveWorkbench({
   productData, onOpenEditHookHeader, shotListInfo, onDeleteAngle,
   onQuickDraft, draftingAngleId,
   sceneCatalogsMap = {}, onIndexSceneCatalog, isScanningScenes = false, onOpenSceneCatalog,
+  onOpenStoryboard,
 }) {
   const effectiveBrand = angle.hook_brand ?? productData?.hook_brand ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').brand;
   const effectiveModel = angle.hook_model ?? productData?.hook_model ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').model;
@@ -863,13 +865,15 @@ function AngleActiveWorkbench({
                   : 'เสียงนำถ่ายพร้อมแล้ว ช็อตตรงตามจังหวะพูดจริง'}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => onGenerateShotList && onGenerateShotList(index)}
-              className="self-end sm:self-auto px-3 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 hover:text-white text-xs font-bold transition-all cursor-pointer flex-shrink-0"
-            >
-              เปิดฟังเสียง / ดูแผนถ่าย
-            </button>
+            <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => onGenerateShotList && onGenerateShotList(index)}
+                className="px-3 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 hover:text-white text-xs font-bold transition-all cursor-pointer flex-shrink-0"
+              >
+                เปิดฟังเสียง / ดูแผนถ่าย
+              </button>
+            </div>
           </div>
         ) : (
           <div className="p-2.5 bg-white/[0.02] border border-white/[0.06] rounded-xl flex items-center justify-between gap-2 text-xs text-slate-400">
@@ -878,14 +882,16 @@ function AngleActiveWorkbench({
               <span>เสียงนำถ่าย: ยังไม่ได้สร้าง (ยังไม่มีไฟล์เสียงและแผนถ่ายของมุมนี้)</span>
             </div>
             {!isLocked && (
-              <button
-                type="button"
-                onClick={() => onGenerateShotList && onGenerateShotList(index)}
-                disabled={isGeneratingShotList}
-                className="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400/30 text-cyan-300 text-xs font-bold transition-all cursor-pointer flex-shrink-0 disabled:opacity-50"
-              >
-                + สร้างเสียงพากย์ & แผนถ่าย
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onGenerateShotList && onGenerateShotList(index)}
+                  disabled={isGeneratingShotList}
+                  className="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400/30 text-cyan-300 text-xs font-bold transition-all cursor-pointer flex-shrink-0 disabled:opacity-50"
+                >
+                  + สร้างเสียงพากย์ & แผนถ่าย
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -1269,6 +1275,23 @@ function AngleActiveWorkbench({
                 )}
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenStoryboard && onOpenStoryboard(angle, index);
+              }}
+              className={`w-full sm:w-auto py-3 sm:py-2.5 px-4 rounded-xl border text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 transition-all ${
+                angle.manual_shot_map?.length > 0
+                  ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40 shadow-xs'
+                  : 'bg-cyan-500/15 hover:bg-cyan-500/25 border-cyan-500/35 text-cyan-300'
+              }`}
+              title="กำหนดช็อตวิดีโอด้วยตนเองรายวรรคบทพูด (Manual Storyboard Mapper)"
+            >
+              <Scissors className="w-4 h-4" />
+              <span>{angle.manual_shot_map?.length > 0 ? `ล็อกช็อต (${angle.manual_shot_map.length} วรรค)` : 'วางแผนช็อตรายวรรค'}</span>
+            </button>
           </div>
         )}
       </div>
@@ -1288,6 +1311,7 @@ function ScriptAccordionItem({
   productData, onOpenEditHookHeader,
   shotListInfo, onQuickDraft, draftingAngleId,
   sceneCatalogsMap = {}, onIndexSceneCatalog, isScanningScenes = false, onOpenSceneCatalog,
+  onOpenStoryboard,
 }) {
   const effectiveBrand = angle.hook_brand ?? productData?.hook_brand ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').brand;
   const effectiveModel = angle.hook_model ?? productData?.hook_model ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').model;
@@ -1940,6 +1964,23 @@ function ScriptAccordionItem({
                     )}
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenStoryboard && onOpenStoryboard(angle, index);
+                  }}
+                  className={`w-full sm:w-auto py-3 sm:py-2.5 px-4 rounded-xl border text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 transition-all ${
+                    angle.manual_shot_map?.length > 0
+                      ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40 shadow-xs'
+                      : 'bg-cyan-500/15 hover:bg-cyan-500/25 border-cyan-500/35 text-cyan-300'
+                  }`}
+                  title="กำหนดช็อตวิดีโอด้วยตนเองรายวรรคบทพูด (Manual Storyboard Mapper)"
+                >
+                  <Scissors className="w-4 h-4" />
+                  <span>{angle.manual_shot_map?.length > 0 ? `ล็อกช็อต (${angle.manual_shot_map.length} วรรค)` : 'วางแผนช็อตรายวรรค'}</span>
+                </button>
               </div>
             )}
           </div>
@@ -2058,6 +2099,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [shotListResult, setShotListResult] = useState(null);
   const [shotListError, setShotListError] = useState(null);
   const [shotListStatusMap, setShotListStatusMap] = useState({}); // {angle_id: {has_shot_list, is_stale, voice_engine_type, voice_preset, is_edge_tts}}
+  const [storyboardAngle, setStoryboardAngle] = useState(null); // angle opened in ManualStoryboardModal
 
   // Automatically keep shotListStatusMap updated whenever current productData changes
   useEffect(() => {
@@ -2610,6 +2652,32 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     runShotListGeneration(shotListAngleIdx, targetAngle, overrides);
   };
 
+  const handleOpenStoryboard = (targetAngle, targetIdx = 0) => {
+    if (!targetAngle) return;
+    setStoryboardAngle(targetAngle);
+  };
+
+  const handleStoryboardSaveSuccess = (pinArray) => {
+    if (!storyboardAngle) return;
+    const targetAngleId = storyboardAngle.angle_id || storyboardAngle.id;
+    setAngles((prev) =>
+      prev.map((a) => {
+        if ((a.angle_id || a.id) === targetAngleId) {
+          return { ...a, manual_shot_map: pinArray };
+        }
+        return a;
+      })
+    );
+    if (productData?.angles) {
+      productData.angles = productData.angles.map((a) => {
+        if ((a.angle_id || a.id) === targetAngleId) {
+          return { ...a, manual_shot_map: pinArray };
+        }
+        return a;
+      });
+    }
+  };
+
   const handleDeleteHistory = (target) => {
     if (!target) return;
     setDeleteTargetProduct(target);
@@ -3153,6 +3221,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       shotListId: `${productData?.id}:${angle.angle_id}`,
       selectedVideo: primaryVideo,
       selectedVideos: chosenVideos,
+      manualShotMap: angle.manual_shot_map || [],
       // No openProjectName here on purpose -- this handler backs both
       // "เลือกมุมนี้ & ส่งตัดต่อ" (first-time send) and "ตัดใหม่" (explicitly
       // re-cut from scratch), so it must always open a fresh project.
@@ -4595,6 +4664,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       onIndexSceneCatalog={handleIndexSceneCatalog}
                       isScanningScenes={isScanningScenes}
                       onOpenSceneCatalog={handleOpenSceneCatalog}
+                      onOpenStoryboard={handleOpenStoryboard}
                     />
                   ) : displayedAngles[0] ? (
                     <AngleActiveWorkbench
@@ -4633,6 +4703,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       onIndexSceneCatalog={handleIndexSceneCatalog}
                       isScanningScenes={isScanningScenes}
                       onOpenSceneCatalog={handleOpenSceneCatalog}
+                      onOpenStoryboard={handleOpenStoryboard}
                     />
                   ) : null}
                 </div>
@@ -4693,6 +4764,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       onIndexSceneCatalog={handleIndexSceneCatalog}
                       isScanningScenes={isScanningScenes}
                       onOpenSceneCatalog={handleOpenSceneCatalog}
+                      onOpenStoryboard={handleOpenStoryboard}
                     />
                   ))
                 )}
@@ -4879,6 +4951,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         onRegenerate={handleRegenerateShotList}
         regenerating={shotListAngleIdx !== null && generatingShotListIdx === shotListAngleIdx}
         error={shotListError}
+        onOpenStoryboard={handleOpenStoryboard}
       />
 
       {/* ── Product Catalog Modal (Searchable Grid for 100+ items) ── */}
@@ -5308,6 +5381,25 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         onRegenerate={handleRegenerateShotList}
         regenerating={generatingShotListIdx !== null}
         error={shotListError}
+        onOpenStoryboard={handleOpenStoryboard}
+      />
+
+      {/* ── Manual Storyboard Mapper Modal (กำหนดช็อตด้วยตนเองรายวรรค) ── */}
+      <ManualStoryboardModal
+        isOpen={Boolean(storyboardAngle)}
+        onClose={() => setStoryboardAngle(null)}
+        productId={productData?.id}
+        product={productData}
+        angle={storyboardAngle}
+        onSaveSuccess={handleStoryboardSaveSuccess}
+        onOpenVoiceGen={() => {
+          if (!storyboardAngle) return;
+          const aid = storyboardAngle.angle_id || storyboardAngle.id;
+          const aIdx = angles.findIndex((a) => (a.angle_id || a.id) === aid);
+          if (aIdx >= 0) {
+            handleGenerateShotList(aIdx);
+          }
+        }}
       />
 
       {/* ── AI Hook Variation & A/B Modal ── */}

@@ -632,6 +632,172 @@ def set_default_videos_endpoint(product_id: str, payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.get("/api/products/{product_id}/scene-catalogs")
+def get_scene_catalogs(product_id: str, video_path: Optional[str] = None):
+    """Checks Scene Catalog status for attached product footage."""
+    from scripts.gemini_vision_matcher import GeminiVisionMatcher
+    prod = ProductStore.get(product_id)
+    if not prod:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    videos_to_check: List[str] = []
+    if video_path:
+        videos_to_check.append(video_path)
+    else:
+        for v in prod.get("default_videos", []):
+            if v and v not in videos_to_check:
+                videos_to_check.append(v)
+        for a in prod.get("angles", []):
+            for v in a.get("selected_videos", []):
+                if v and v not in videos_to_check:
+                    videos_to_check.append(v)
+            if a.get("selected_video") and a.get("selected_video") not in videos_to_check:
+                videos_to_check.append(a.get("selected_video"))
+        for v in prod.get("videos", []):
+            v_p = v.get("path") if isinstance(v, dict) else str(v)
+            if v_p and v_p not in videos_to_check:
+                videos_to_check.append(v_p)
+
+    results = {}
+    for v_rel in videos_to_check:
+        v_full = Path(v_rel)
+        if not v_full.is_absolute():
+            v_full = BASE_DIR / v_rel
+        if not v_full.exists():
+            continue
+        catalog = GeminiVisionMatcher.get_cached_catalog(str(v_full))
+        if catalog:
+            results[v_rel] = {
+                "is_indexed": True,
+                "scenes_count": len(catalog.get("scenes", [])),
+                "is_spin_footage": catalog.get("is_spin_footage", False),
+                "summary": catalog.get("summary", ""),
+                "scenes": catalog.get("scenes", []),
+            }
+        else:
+            results[v_rel] = {
+                "is_indexed": False,
+                "scenes_count": 0,
+                "is_spin_footage": False,
+                "summary": "",
+                "scenes": [],
+            }
+
+    return {"success": True, "catalogs": results}
+
+
+@router.post("/api/products/{product_id}/index-scenes")
+def index_scenes_endpoint(product_id: str, payload: Dict[str, Any]):
+    """Indexes raw video(s) into Scene Catalog using Gemini Vision."""
+    from scripts.gemini_vision_matcher import GeminiVisionMatcher
+    prod = ProductStore.get(product_id)
+    if not prod:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    video_path = payload.get("video_path")
+    force = bool(payload.get("force", False))
+
+    videos_to_index: List[str] = []
+    if video_path:
+        videos_to_index.append(video_path)
+    else:
+        for v in prod.get("default_videos", []):
+            if v and v not in videos_to_index:
+                videos_to_index.append(v)
+        for a in prod.get("angles", []):
+            for v in a.get("selected_videos", []):
+                if v and v not in videos_to_index:
+                    videos_to_index.append(v)
+            if a.get("selected_video") and a.get("selected_video") not in videos_to_index:
+                videos_to_index.append(a.get("selected_video"))
+        for v in prod.get("videos", []):
+            v_p = v.get("path") if isinstance(v, dict) else str(v)
+            if v_p and v_p not in videos_to_index:
+                videos_to_index.append(v_p)
+
+    if not videos_to_index:
+        raise HTTPException(status_code=400, detail="ไม่พบคลิปดิบที่แนบไว้สำหรับสแกน")
+
+    # Create persistent task in TaskManager for Activity Center
+    from scripts.task_manager import TaskManager
+    num_clips = len(videos_to_index)
+    prod_title = prod.get("title") or prod.get("name") or product_id
+    if num_clips == 1:
+        v_name = Path(videos_to_index[0]).name
+        task_title = f"👁️ สแกนสารบัญฉาก: {v_name}"
+    else:
+        task_title = f"👁️ สแกนสารบัญฉาก {num_clips} คลิป ({prod_title})"
+
+    task = TaskManager.create_task(
+        task_type="scene_indexing",
+        title=task_title,
+        payload={
+            "product_id": product_id,
+            "video_path": video_path,
+            "videos_to_index": videos_to_index,
+            "force": force
+        },
+        target_tab="flow",
+        target_id=product_id
+    )
+    task_id = task["id"]
+
+    def _worker():
+        try:
+            TaskManager.update_progress(task_id, 0.05, f"เริ่มสแกนสารบัญฉาก {num_clips} คลิป...")
+            indexed_results = {}
+            from scripts.video_editor import VideoEditor
+            total = len(videos_to_index)
+            for idx, v_rel in enumerate(videos_to_index):
+                v_full = Path(v_rel)
+                if not v_full.is_absolute():
+                    v_full = BASE_DIR / v_rel
+                if not v_full.exists():
+                    continue
+
+                clip_name = v_full.name
+                progress_val = 0.1 + (0.85 * (idx / max(1, total)))
+                TaskManager.update_progress(
+                    task_id,
+                    progress_val,
+                    f"กำลังสแกนคลิป ({idx + 1}/{total}): {clip_name}..."
+                )
+
+                info = VideoEditor.get_media_info(str(v_full))
+                dur = float(info.get("duration") or 60.0)
+                catalog = GeminiVisionMatcher.index_raw_video_catalog(
+                    raw_video_path=str(v_full),
+                    raw_duration=dur,
+                    force=force
+                )
+                if catalog:
+                    indexed_results[v_rel] = {
+                        "is_indexed": True,
+                        "scenes_count": len(catalog.get("scenes", [])),
+                        "is_spin_footage": catalog.get("is_spin_footage", False),
+                        "summary": catalog.get("summary", ""),
+                        "scenes": catalog.get("scenes", []),
+                    }
+
+            total_scenes = sum(c.get("scenes_count", 0) for c in indexed_results.values())
+            TaskManager.complete_task(
+                task_id,
+                result={"indexed": indexed_results, "total_scenes": total_scenes},
+                step_label=f"สแกนสำเร็จ {len(indexed_results)} คลิป รวม {total_scenes} ฉาก"
+            )
+        except Exception as e:
+            TaskManager.fail_task(task_id, str(e), step_label="สแกนสารบัญฉากล้มเหลว")
+
+    TaskManager.run_in_background(_worker)
+
+    return {
+        "success": True,
+        "task_id": task_id,
+        "message": f"เริ่มสแกนสารบัญฉาก {num_clips} คลิปในเบื้องหลังแล้ว",
+        "indexed": {}
+    }
+
+
 @router.post("/api/products/scrape-and-plan")
 def scrape_and_plan(payload: Dict[str, Any]):
     """Scrapes product info or accepts raw text/keywords/images and generates Content Matrix."""

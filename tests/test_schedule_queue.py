@@ -157,13 +157,13 @@ def test_autofill_preview_rotates_products_and_commit_is_atomic(queue_workspace)
     )
     assert preview.status_code == 200
     rows = preview.json()["items"]
-    assert len(rows) == 4
-    assert all(a["product_id"] != b["product_id"] for a, b in zip(rows, rows[1:]))
+    assert len(rows) == 2
+    assert len({row["product_id"] for row in rows}) == 2
     committed = client.post("/api/schedule-queue/auto-fill", json={"items": rows})
     assert committed.status_code == 200
     collision = client.post("/api/schedule-queue/auto-fill", json={"items": rows[:1]})
     assert collision.status_code == 409
-    assert len(client.get("/api/schedule-queue").json()["items"]) == 4
+    assert len(client.get("/api/schedule-queue").json()["items"]) == 2
 
 
 def test_overdue_planned_row_is_annotated_without_changing_status(queue_workspace):
@@ -198,3 +198,233 @@ def test_autofill_starts_after_latest_queue_timestamp_and_skips_past_slots(queue
         "2030-01-07T12:30+07:00",
         "2030-01-07T16:00+07:00",
     ]
+
+
+def test_autofill_never_spills_outside_requested_date_range(queue_workspace):
+    video_a, video_b = queue_workspace
+    extra_videos = []
+    for name in ("c", "d", "e", "f"):
+        path = video_a.parent / f"{name}.mp4"
+        path.write_bytes(name.encode())
+        extra_videos.append(path)
+
+    existing = client.post("/api/schedule-queue", json=payload(video_a, "2030-01-07T09:00:00+07:00"))
+    assert existing.status_code == 200
+    clips = [
+        {"video_path": str(video_b), "product_id": "B", "product_name": "B"},
+        *({"video_path": str(path), "product_id": name, "product_name": name} for path, name in zip(extra_videos, ("C", "D", "E", "F"))),
+    ]
+
+    preview = client.post(
+        "/api/schedule-queue/auto-fill/preview",
+        json={"start_date": "2030-01-07", "end_date": "2030-01-07", "clips": clips, "seed": 4},
+    )
+
+    assert preview.status_code == 200
+    result = preview.json()
+    assert len(result["items"]) == 4
+    assert result["skipped_slots"] == 1
+    assert {row["scheduled_at"][:10] for row in result["items"]} == {"2030-01-07"}
+
+
+def test_autofill_ignores_queue_timestamps_outside_requested_range(queue_workspace):
+    video_a, video_b = queue_workspace
+    future = video_a.parent / "future.mp4"
+    future.write_bytes(b"future")
+    existing = client.post("/api/schedule-queue", json=payload(future, "2030-01-08T21:30:00+07:00"))
+    assert existing.status_code == 200
+
+    preview = client.post(
+        "/api/schedule-queue/auto-fill/preview",
+        json={
+            "start_date": "2030-01-07",
+            "end_date": "2030-01-07",
+            "clips": [{"video_path": str(video_a), "product_id": "A", "product_name": "A"}, {"video_path": str(video_b), "product_id": "B", "product_name": "B"}],
+            "seed": 5,
+        },
+    )
+
+    assert preview.status_code == 200
+    assert len(preview.json()["items"]) == 2
+    assert {row["scheduled_at"][:10] for row in preview.json()["items"]} == {"2030-01-07"}
+
+
+def test_autofill_avoids_adjacent_product_and_hook_color_duplicates(queue_workspace):
+    video_a, video_b = queue_workspace
+    extra_videos = []
+    for name in ("c", "d", "e", "f"):
+        path = video_a.parent / f"{name}.mp4"
+        path.write_bytes(name.encode())
+        extra_videos.append(path)
+
+    previous = client.post(
+        "/api/schedule-queue",
+        json={**payload(video_a, "2030-01-07T09:00:00+07:00"), "product_id": "A", "style_preset": "viral_punch"},
+    ).json()["items"][0]
+    assert client.patch(f"/api/schedule-queue/{previous['id']}", json={"status": "posted"}).status_code == 200
+    clips = [
+        {"video_path": str(video_b), "product_id": "A", "product_name": "A", "style_preset": "clean_tech_review"},
+        {"video_path": str(extra_videos[0]), "product_id": "B", "product_name": "B", "style_preset": "viral_punch"},
+        {"video_path": str(extra_videos[1]), "product_id": "B", "product_name": "B", "style_preset": "clean_tech_review"},
+        {"video_path": str(extra_videos[2]), "product_id": "C", "product_name": "C", "style_preset": "tech_product_showcase"},
+        {"video_path": str(extra_videos[3]), "product_id": "D", "product_name": "D", "style_preset": "flash_deal"},
+    ]
+
+    preview = client.post(
+        "/api/schedule-queue/auto-fill/preview",
+        json={"start_date": "2030-01-07", "end_date": "2030-01-07", "clips": clips, "seed": 12},
+    )
+
+    assert preview.status_code == 200
+    rows = preview.json()["items"]
+    assert len(rows) >= 3
+    assert rows[0]["product_id"] != "A"
+    assert rows[0]["hook_color"] != "#FE2C55"
+    for previous_row, row in zip(rows, rows[1:]):
+        assert previous_row["product_id"] != row["product_id"]
+        assert previous_row["hook_color"] != row["hook_color"]
+
+
+def test_autofill_does_not_repeat_product_after_posted_previous_slot(queue_workspace):
+    video_a, video_b = queue_workspace
+    occupied_videos = []
+    for name, when in (("c", "2030-01-07T09:00:00+07:00"), ("d", "2030-01-07T12:30:00+07:00"), ("e", "2030-01-07T16:00:00+07:00")):
+        video = video_a.parent / f"{name}.mp4"
+        video.write_bytes(name.encode())
+        occupied_videos.append((video, when))
+    for video, when in occupied_videos:
+        row = client.post(
+            "/api/schedule-queue",
+            json={**payload(video, when), "product_id": f"OTHER-{video.stem}", "product_name": "Other product"},
+        ).json()["items"][0]
+        assert client.patch(f"/api/schedule-queue/{row['id']}", json={"status": "posted"}).status_code == 200
+    previous = client.post(
+        "/api/schedule-queue",
+        json={**payload(video_a, "2030-01-07T19:00:00+07:00"), "product_id": "LOOP", "product_name": "LOOP Smartband", "style_preset": "viral_punch"},
+    ).json()["items"][0]
+    assert client.patch(f"/api/schedule-queue/{previous['id']}", json={"status": "posted"}).status_code == 200
+
+    preview = client.post(
+        "/api/schedule-queue/auto-fill/preview",
+        json={
+            "start_date": "2030-01-07",
+            "end_date": "2030-01-07",
+            "clips": [{"video_path": str(video_b), "product_id": "LOOP", "product_name": "LOOP Smartband", "style_preset": "clean_tech_review"}],
+            "limit": 1,
+            "seed": 4,
+        },
+    )
+
+    assert preview.status_code == 200
+    result = preview.json()
+    assert result["items"] == []
+    assert result["skipped_repetition"] == 1
+
+
+def test_autofill_skips_clip_recorded_in_post_history_when_queue_row_is_missing(queue_workspace, monkeypatch):
+    video_a, _ = queue_workspace
+    monkeypatch.setattr(
+        queue_api.PostLog,
+        "list_posts",
+        classmethod(lambda cls, newest_first=True: [{"id": "old-loop", "clip_file": video_a.name, "posted_at": "2026-09-17T19:00:00+07:00", "product_name": "LOOP Smartband"}]),
+    )
+
+    preview = client.post(
+        "/api/schedule-queue/auto-fill/preview",
+        json={"start_date": "2030-01-07", "end_date": "2030-01-07", "clips": [{"video_path": str(video_a), "product_id": "LOOP", "product_name": "LOOP Smartband"}]},
+    )
+
+    assert preview.status_code == 200
+    result = preview.json()
+    assert result["items"] == []
+    assert result["skipped_invalid"][0]["video_path"] == str(video_a)
+
+
+def test_autofill_does_not_treat_unknown_product_metadata_as_duplicate(queue_workspace):
+    video_a, video_b = queue_workspace
+    for name, when in (("c", "2030-01-07T09:00:00+07:00"), ("d", "2030-01-07T12:30:00+07:00"), ("e", "2030-01-07T16:00:00+07:00"), ("f", "2030-01-07T19:00:00+07:00")):
+        video = video_a.parent / f"{name}.mp4"
+        video.write_bytes(name.encode())
+        row_payload = {"video_path": str(video), "scheduled_at": when}
+        if name == "f":
+            row_payload["hook_color"] = "#FFE600"
+        row = client.post("/api/schedule-queue", json=row_payload).json()["items"][0]
+        assert client.patch(f"/api/schedule-queue/{row['id']}", json={"status": "posted"}).status_code == 200
+
+    preview = client.post(
+        "/api/schedule-queue/auto-fill/preview",
+        json={"start_date": "2030-01-07", "end_date": "2030-01-07", "clips": [{"video_path": str(video_b), "hook_color": "#FFE600"}], "limit": 1},
+    )
+
+    assert preview.status_code == 200
+    assert len(preview.json()["items"]) == 1
+
+
+def test_autofill_blocks_product_used_earlier_same_day_even_after_other_product(queue_workspace):
+    video_a, video_b = queue_workspace
+    rows = []
+    for name, when, product_id, product_name in (
+        ("c", "2030-01-07T09:00:00+07:00", "A", "Other A"),
+        ("d", "2030-01-07T12:30:00+07:00", "B", "Other B"),
+        ("e", "2030-01-07T16:00:00+07:00", "C", "Other C"),
+        ("f", "2030-01-07T19:00:00+07:00", "LOOP", "LOOP Smartband"),
+        ("g", "2030-01-07T21:00:00+07:00", "D", "Other D"),
+    ):
+        video = video_a.parent / f"{name}.mp4"
+        video.write_bytes(name.encode())
+        row = client.post(
+            "/api/schedule-queue",
+            json={**payload(video, when), "product_id": product_id, "product_name": product_name, "style_preset": "clean_tech_review"},
+        ).json()["items"][0]
+        rows.append(row)
+    for row in rows:
+        assert client.patch(f"/api/schedule-queue/{row['id']}", json={"status": "posted"}).status_code == 200
+
+    preview = client.post(
+        "/api/schedule-queue/auto-fill/preview",
+        json={
+            "start_date": "2030-01-07",
+            "end_date": "2030-01-07",
+            "clips": [{"video_path": str(video_b), "product_id": "LOOP", "product_name": "LOOP Smartband", "style_preset": "viral_punch"}],
+            "limit": 1,
+        },
+    )
+
+    assert preview.status_code == 200
+    result = preview.json()
+    assert result["items"] == []
+    assert result["skipped_repetition"] == 1
+
+
+def test_autofill_reports_stats_and_prefers_evidence_backed_time(queue_workspace, monkeypatch):
+    video_a, video_b = queue_workspace
+    monkeypatch.setattr(
+        queue_api.PostLog,
+        "list_posts",
+        classmethod(lambda cls, newest_first=True: [
+            {"product_name": "A", "posted_at": "2026-09-10T19:00:00", "metrics": {"views": 1000, "likes": 100}},
+            {"product_name": "A", "posted_at": "2026-09-11T19:00:00", "metrics": {"views": 800, "likes": 80}},
+            {"product_name": "B", "posted_at": "2026-09-10T12:30:00", "metrics": {"views": 100, "likes": 5}},
+        ]),
+    )
+
+    preview = client.post(
+        "/api/schedule-queue/auto-fill/preview",
+        json={
+            "start_date": "2030-01-07",
+            "end_date": "2030-01-07",
+            "optimize_by_stats": True,
+            "clips": [
+                {"video_path": str(video_a), "product_id": "A", "product_name": "A", "style_preset": "clean_tech_review"},
+                {"video_path": str(video_b), "product_id": "B", "product_name": "B", "style_preset": "viral_punch"},
+            ],
+            "seed": 3,
+        },
+    )
+
+    assert preview.status_code == 200
+    result = preview.json()
+    assert result["analytics"]["sample_size"] == 3
+    assert result["analytics"]["top_products"][0]["product_name"] == "A"
+    assert result["analytics"]["top_hours"][0]["hour"] == 19
+    assert any(row["scheduled_at"].startswith("2030-01-07T19:00") for row in result["items"])

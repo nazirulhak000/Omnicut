@@ -12,6 +12,7 @@ import hashlib
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from collections import Counter
 from typing import List, Dict, Any, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -244,16 +245,537 @@ class GeminiVisionMatcher:
         context = cls.prepare_request_context(raw_video_path, cues)
         return context.cached_matches if context else None
 
+    @classmethod
+    def get_cached_catalog(
+        cls, raw_video_path: str, request_context: Optional[VisionRequestContext] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Retrieves cached Scene Catalog for a raw video by file hash if available."""
+        try:
+            if request_context is not None:
+                cache = request_context.cache
+                file_hash = request_context.file_hash
+            else:
+                video_file = Path(raw_video_path).resolve()
+                if not video_file.exists():
+                    return None
+                file_hash = cls._compute_file_hash(video_file)
+                cache = cls._load_cache()
+            catalog = cache.get("catalogs", {}).get(file_hash)
+            if catalog and isinstance(catalog, dict) and catalog.get("scenes"):
+                return catalog
+        except Exception:
+            pass
+        return None
+
+    @classmethod
+    def save_cached_catalog(cls, file_hash: str, catalog: Dict[str, Any]) -> None:
+        """Persists a Scene Catalog to .vision_cache.json under 'catalogs'."""
+        try:
+            cache = cls._load_cache()
+            if "catalogs" not in cache:
+                cache["catalogs"] = {}
+            cache["catalogs"][file_hash] = catalog
+            cls._save_cache(cache)
+        except Exception:
+            pass
+
+    @classmethod
+    def match_script_with_catalog(
+        cls,
+        catalog: Dict[str, Any],
+        cues: List[Dict],
+        raw_duration: float = 60.0,
+        apply_sweet_spot: bool = True,
+    ) -> List[Dict]:
+        """
+        Maps script cues to scenes in an indexed Scene Catalog with zero API calls.
+        Features:
+        - Group cues into logical sentence/thought units (2.0s - 5.0s).
+        - Semantic and keyword relevance scoring (Thai/English product & action terms).
+        - Dynamic visual variety for turntable / 360 spin footage (rotates angle phases and punch zooms).
+        - Anti-duplicate lock: avoids consecutive identical scenes or start times < 2.0s apart.
+        """
+        scenes = catalog.get("scenes") or []
+        if not scenes:
+            return []
+
+        is_spin = bool(catalog.get("is_spin_footage", False))
+        total_cues = len(cues)
+        if total_cues == 0:
+            return []
+
+        # 1. Group consecutive micro-cues into natural sentence/thought units
+        sentence_enders = (".", "!", "?", "ครับ", "ค่ะ", "นะคะ", "นะครับ", "เลยครับ", "เลยค่ะ", "จ้า")
+        groups: List[List[int]] = []
+        cur_group: List[int] = []
+        cur_dur = 0.0
+
+        for idx, cue in enumerate(cues):
+            c_start = float(cue.get("start", 0.0))
+            c_end = float(cue.get("end", c_start + 1.0))
+            dur = max(0.2, c_end - c_start)
+            cur_group.append(idx)
+            cur_dur += dur
+            text = str(cue.get("text", "")).strip()
+
+            is_end = (
+                text.endswith(sentence_enders)
+                or cur_dur >= 4.0
+                or idx == total_cues - 1
+            )
+            if is_end and cur_dur >= 1.8:
+                groups.append(cur_group)
+                cur_group = []
+                cur_dur = 0.0
+
+        if cur_group:
+            if groups and cur_dur < 1.5:
+                groups[-1].extend(cur_group)
+            else:
+                groups.append(cur_group)
+
+        if not groups:
+            groups = [[i] for i in range(total_cues)]
+
+        # 2. Domain keyword matching dictionary
+        domain_patterns = {
+            "unboxing": ("กล่อง", "แกะ", "แพ็กเกจ", "แถม", "ซอง", "อุปกรณ์ในกล่อง", "package", "box"),
+            "port_connection": ("ชาร์จ", "เสียบ", "พอร์ต", "usb", "type-c", "ยูเอสบี", "ยูเอสบีซี", "ไทป์ซี", "ไว", "วัตต์", "watt", "66w", "fast", "สายชาร์จ", "หัวเสียบ", "หัวชาร์จ"),
+            "anti_tangle_magnet": ("แม่เหล็ก", "ไม่พันกัน", "ประกบ", "กันสายพัน", "จัดเก็บ", "สายแบน", "เก็บง่าย", "tangle", "magnet"),
+            "controls_mic": ("ปุ่ม", "รีโมท", "เพิ่มเสียง", "ลดเสียง", "ไมค์", "ไมโครโฟน", "คุยสาย", "สนทนา", "รับสาย", "ปรับระดับ"),
+            "sound_driver": ("เสียง", "เบส", "hi-res", "มิติ", "แบนราบ", "สะใจ", "ใส", "คมชัด", "นุ่มลึก", "ไดร์เวอร์", "pure bass"),
+            "turntable_spin": ("หมุน", "ข้อต่อ", "360", "540", "องศา", "ปรับ", "ทิศทาง", "รอบทิศ", "spin"),
+            "closeup": ("ไฟ", "จอ", "แสดง", "หน้าจอ", "สถานะ", "เตือน", "ไฟกระพริบ", "ชัดๆ", "close", "โลโก้", "งานประกอบ", "บอดี้"),
+            "hands_on": ("ทน", "หัก", "งอ", "จับ", "ถนัด", "มือ", "เกม", "นอน", "ดึง", "เหนียว", "วัสดุ", "น้ำหนัก"),
+            "cta_showcase": ("ราคา", "บาท", "โปร", "คุ้ม", "พิกัด", "ตะกร้า", "สั่ง", "กด", "จิ้ม", "ลด", "พิเศษ", "ด่วน")
+        }
+
+        generic_kws = {"สินค้า", "ตัวเครื่อง", "ของ", "ตัวนี้", "รุ่นนี้", "สาย", "หูฟัง", "jbl"}
+
+        angle_cycle = ["front", "45deg", "side", "macro_closeup", "back"]
+        zoom_cycle = [1.10, 1.20, 1.12, 1.25, 1.15]
+
+        matched_shots: List[Dict] = []
+        prev_scene_id = None
+        prev_start_time = -10.0
+        prev_angle_phase = None
+        prev_action_type = None
+        used_scene_counts: Counter[Any] = Counter()
+        used_start_times: List[float] = []
+
+        for g_idx, group_indices in enumerate(groups):
+            group_cues = [cues[i] for i in group_indices]
+            group_text = " ".join(str(c.get("text", "")).strip() for c in group_cues)
+            group_cue_ids = [i + 1 for i in group_indices]  # 1-based indexing
+
+            needed_dur = float(group_cues[-1].get("end", 0.0)) - float(group_cues[0].get("start", 0.0))
+            needed_dur = max(2.0, min(6.0, needed_dur))
+
+            progress = g_idx / max(1, len(groups) - 1)  # 0.0 = hook/start, 1.0 = CTA/end
+
+            # Score each catalog scene against this group
+            scored_scenes = []
+            for scene in scenes:
+                s_id = scene.get("id", 0)
+                s_type = scene.get("action_type", "overview")
+                s_angle = scene.get("angle_phase", "front")
+                s_desc = scene.get("description", "")
+                s_keywords = scene.get("keywords", [])
+                s_start = float(scene.get("start", 0.0))
+                score = 1.0
+
+                # Priority bonus for scenes not yet used in this video
+                if s_id not in used_scene_counts and len(used_scene_counts) < len(scenes):
+                    score += 3.5
+
+                # Check exact scene keywords against cue text
+                for kw in s_keywords:
+                    kw_clean = str(kw).strip().lower()
+                    if not kw_clean:
+                        continue
+                    if kw_clean in generic_kws:
+                        if kw_clean in group_text.lower():
+                            score += 0.8
+                    else:
+                        if kw_clean in group_text.lower():
+                            score += 5.0
+
+                # Check domain pattern match
+                for pat_type, words in domain_patterns.items():
+                    matched_words = [w for w in words if w in group_text.lower()]
+                    if matched_words:
+                        if pat_type == "anti_tangle_magnet":
+                            if any(w in s_desc.lower() for w in ("แม่เหล็ก", "ประกบ", "พัน", "สายแบน", "จัดเก็บ")):
+                                score += 6.0
+                            elif s_type in ("feature_demo", "hands_on"):
+                                score += 3.0
+                        elif pat_type == "controls_mic":
+                            if any(w in s_desc.lower() for w in ("ปุ่ม", "รีโมท", "ไมค์", "เพิ่มลด")):
+                                score += 6.0
+                            elif s_type in ("feature_demo", "closeup"):
+                                score += 3.0
+                        elif pat_type == "sound_driver":
+                            if any(w in s_desc.lower() for w in ("จุก", "อินเอียร์", "เสียง", "บอดี้", "ลำโพง", "ไดร์เวอร์", "หูฟัง")):
+                                score += 4.5
+                        elif s_type == pat_type:
+                            score += 4.5
+                        elif any(w in s_desc.lower() for w in matched_words):
+                            score += 3.0
+
+                # Narrative stage priors
+                if progress < 0.25:  # Hook / Intro
+                    if s_type in ("overview", "unboxing", "hands_on", "closeup"):
+                        score += 2.5
+
+                # Hook / Cover Hero Priority (Shot 1 / Beat 1)
+                # Video opening and thumbnail cover need the sharpest hero shot with clear branding/logo
+                if g_idx == 0 or progress < 0.15:
+                    if s_angle == "macro_closeup" or s_type == "closeup":
+                        if any(k in s_desc.lower() for k in ("สกรีนชัดเจน", "ประณีต", "ซูมเน้น", "คมชัด", "โลโก้")) or any(k in str(kw).lower() for kw in s_keywords for k in ("สกรีนชัดเจน", "โลโก้", "logo", "hero")):
+                            score += 4.5
+                    if "ฝ่ามือ" in s_desc:
+                        score -= 2.5
+
+                if progress > 0.75:  # CTA / Closer
+                    if s_type in ("cta_showcase", "overview", "turntable_spin"):
+                        score += 3.0
+                elif progress >= 0.25:  # Middle features
+                    if s_type in ("feature_demo", "closeup", "port_connection", "hands_on"):
+                        score += 2.0
+
+                # Turntable angle diversity
+                target_angle = angle_cycle[g_idx % len(angle_cycle)]
+                if is_spin or all(s.get("action_type") == "turntable_spin" for s in scenes):
+                    if s_angle == target_angle:
+                        score += 3.0
+
+                # Visual Contrast & Anti-Jump-Cut:
+                # Avoid consecutive identical angles/action types, encourage complementary visual variety
+                if prev_angle_phase:
+                    # Avoid back-to-back macro close-ups (visual fatigue & jump cut)
+                    if prev_angle_phase == "macro_closeup" and s_angle == "macro_closeup":
+                        score -= 4.0
+                    # Contrast bonus when switching from close-up to broader action/front
+                    elif prev_angle_phase == "macro_closeup" and s_angle in ("front", "45deg", "top") and s_type in ("hands_on", "feature_demo", "overview"):
+                        score += 3.0
+                    # Avoid consecutive identical camera angles when catalog has diverse angles
+                    elif s_angle == prev_angle_phase and len(scenes) >= 3 and not is_spin:
+                        score -= 2.5
+
+                # Anti-duplicate lock:
+                # 1. Heavy penalty for immediately consecutive repeat
+                if len(scenes) > 1 and s_id == prev_scene_id:
+                    score -= 12.0
+
+                # 2. Cumulative penalty for already used scenes across the video
+                if used_scene_counts[s_id] > 0:
+                    score -= 6.0 * used_scene_counts[s_id]
+
+                # 3. Proximity distance penalty
+                if abs(s_start - prev_start_time) < 2.0:
+                    score -= 5.0
+                if any(abs(s_start - pst) < 1.5 for pst in used_start_times):
+                    score -= 3.0
+
+                scored_scenes.append((score, scene))
+
+            scored_scenes.sort(key=lambda x: x[0], reverse=True)
+            best_scene = scored_scenes[0][1]
+
+            orig_start = float(best_scene.get("start", 0.0))
+            orig_end = float(best_scene.get("end", orig_start + needed_dur))
+            scene_len = max(0.1, orig_end - orig_start)
+            excess_dur = scene_len - needed_dur
+
+            sweet_offset = 0.0
+            progression_offset = 0.0
+            s_action = best_scene.get("action_type", "")
+            s_id = best_scene.get("id")
+
+            if apply_sweet_spot and excess_dur >= 1.0:
+                # 1. Scene Sweet-Spot Offset:
+                # Skip initial dead air / camera-shake / autofocus hunt / hand entry at scene start
+                if s_action in ("closeup", "hands_on", "feature_demo", "overview", "cta_showcase"):
+                    sweet_offset = min(1.2, max(0.6, excess_dur * 0.35))
+                elif s_action in ("turntable_spin",):
+                    sweet_offset = min(0.8, max(0.4, excess_dur * 0.25))
+                elif s_action in ("port_connection", "unboxing"):
+                    sweet_offset = min(0.5, max(0.2, excess_dur * 0.15))
+                else:
+                    sweet_offset = min(0.8, max(0.4, excess_dur * 0.25))
+
+                # 2. Continuous Progression for Reused Long Scenes:
+                # When a long scene is used multiple times across the video,
+                # advance into the next segment of the scene so viewers don't see repeated frames.
+                reuse_count = used_scene_counts[s_id]
+                if reuse_count > 0:
+                    remaining_in_scene = excess_dur - sweet_offset
+                    if remaining_in_scene >= needed_dur * 0.8:
+                        progression_offset = min(remaining_in_scene, reuse_count * needed_dur * 0.8)
+
+            s_start = orig_start + sweet_offset + progression_offset
+            # Ensure start timestamp does not push past the scene's usable window
+            max_scene_start = max(orig_start, orig_end - needed_dur)
+            s_start = min(s_start, max_scene_start)
+
+            # Timestamp sanity
+            s_start = max(0.0, min(s_start, max(0.0, raw_duration - needed_dur - 0.2)))
+            s_end = min(raw_duration, max(s_start + 1.8, orig_end))
+
+            # Dynamic punch zoom
+            base_zoom = float(best_scene.get("punch_zoom", 1.15))
+            cyclic_zoom = zoom_cycle[g_idx % len(zoom_cycle)]
+            if progress > 0.8:
+                zoom = max(1.18, min(1.30, base_zoom + 0.05))
+            else:
+                zoom = cyclic_zoom if is_spin else base_zoom
+
+            used_scene_counts[best_scene.get("id")] += 1
+            prev_scene_id = best_scene.get("id")
+            prev_start_time = s_start
+            prev_angle_phase = best_scene.get("angle_phase")
+            prev_action_type = best_scene.get("action_type")
+            used_start_times.append(s_start)
+
+            matched_shots.append({
+                "cue_ids": group_cue_ids,
+                "text": group_text,
+                "scene_id": best_scene.get("id"),
+                "scene_start": round(orig_start, 2),
+                "start_time": round(s_start, 2),
+                "end_time": round(s_end, 2),
+                "visual_reason": f"จับคู่ฉาก {best_scene.get('action_type', 'scene')} ({best_scene.get('angle_phase', 'normal')}): {best_scene.get('description', '')[:45]}",
+                "punch_zoom": round(zoom, 2),
+            })
+
+        return matched_shots
+
+    @classmethod
+    def index_raw_video_catalog(
+        cls,
+        raw_video_path: str,
+        raw_duration: float = 60.0,
+        request_context: Optional[VisionRequestContext] = None,
+        force: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Indexes raw footage once into a structured Scene Catalog using Gemini Vision.
+        Stores result in .vision_cache.json under 'catalogs'.
+        Once indexed, any script can be matched instantly with 0 API calls.
+        """
+        video_file = Path(raw_video_path).resolve()
+        if not video_file.exists():
+            return None
+
+        file_hash = cls._compute_file_hash(video_file)
+        if not force:
+            cached_cat = cls.get_cached_catalog(raw_video_path, request_context=request_context)
+            if cached_cat:
+                return cached_cat
+
+        from scripts.config import get_gemini_api_keys
+        api_keys = get_gemini_api_keys()
+        if not api_keys:
+            return cls._generate_heuristic_catalog(raw_duration)
+
+        from scripts.quota import check_budget
+        check_budget(task="vision_catalog")
+
+        catalog_prompt = f"""คุณเป็น AI ผู้กำกับและตัดต่อวิดีโอมืออาชีพสำหรับ TikTok Shop / Reels (ความยาววิดีโอดิบทั้งหมดประมาณ {raw_duration:.1f} วินาที)
+กรุณาดูวิดีโอคลิปนี้อย่างละเอียด และวิเคราะห์แบ่งคลิปออกเป็น "สารบัญฉาก (Scene Catalog)" อย่างเป็นระบบ เพื่อนำไปจับคู่ตัดต่อกับสคริปต์การตลาด
+
+ให้วิเคราะห์และระบุ:
+1. is_spin_footage (boolean): วิดีโอนี้เป็นคลิปโชว์สินค้าหมุนรอบตัว (360 Turntable / หมุนโชว์ซ้ายขวา) หรือไม่
+2. summary: สรุปภาพรวมของคลิปดิบนี้ (เช่น โชว์สินค้าหมุนรอบตัว, มีจังหวะแกะกล่อง, โชว์เสียบสายชาร์จ ฯลฯ)
+3. scenes: แบ่งช่วงเวลาของคลิปดิบออกเป็นฉากๆ (ความยาวช่วงละประมาณ 2.5 - 8.0 วินาที ให้ครอบคลุมทั้งคลิปตั้งแต่ 0.0s ถึง {raw_duration:.1f}s) โดยในแต่ละฉากให้ระบุ:
+   - id: ลำดับฉาก (ตัวเลข 1, 2, 3...)
+   - start: เวลาเริ่มต้น (วินาที)
+   - end: เวลาสิ้นสุด (วินาที)
+   - action_type: ชนิดของฉาก (เลือกหนึ่งในนี้: "overview", "unboxing", "feature_demo", "hands_on", "closeup", "port_connection", "turntable_spin", "cta_showcase")
+   - angle_phase: มุมกล้องหรือองศาของสินค้า (เช่น "front", "side", "back", "top", "45deg", "macro_closeup")
+   - description: บรรยายภาพที่เห็นอย่างละเอียด (เช่น มือหยิบสินค้าขึ้นมา, เสียบสายชาร์จเข้ามือถือ, หมุนข้อต่อโชว์ 360 องศา, โชว์กล่องและอุปกรณ์ที่แถม, โชว์โลโก้แบรนด์คมชัดระยะประชิด)
+   - keywords: คำสำคัญของภาพในฉากนี้ สำหรับจับคู่กับคำในสคริปต์ (เช่น ["หมุน", "ข้อต่อ", "360"], ["สายชาร์จ", "เสียบ", "พอร์ต Type-C"], ["กล่อง", "แพ็กเกจ", "แกะ"], ["หน้าจอ", "ไฟแสดงผล"], ["โลโก้", "สกรีนชัดเจน", "บอดี้"], ["ราคา", "โปร", "ส่วนลด"])
+   - punch_zoom: แนะนำระยะซูมไดนามิกสำหรับ TikTok (1.05 ถึง 1.30)
+
+ตอบกลับเป็น JSON format เท่านั้น:
+```json
+{{
+  "is_spin_footage": true,
+  "summary": "...",
+  "scenes": [
+    {{
+      "id": 1,
+      "start": 0.0,
+      "end": 6.5,
+      "action_type": "overview",
+      "angle_phase": "front",
+      "description": "...",
+      "keywords": ["..."],
+      "punch_zoom": 1.10
+    }}
+  ]
+}}
+```
+"""
+        models_to_try = [
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-flash-latest",
+            "gemini-2.5-flash",
+        ]
+
+        from google import genai
+        from google.genai import types as genai_types
+        from scripts.ai_bridge import (
+            classify_genai_error,
+            _extract_retry_after_seconds,
+            RATE_LIMIT_DEFAULT_BACKOFF_SECONDS,
+            RATE_LIMIT_MAX_BACKOFF_SECONDS,
+            TRANSIENT_BACKOFF_SECONDS,
+        )
+
+        response = None
+        chosen_model = "gemini-3.6-flash"
+        t_start = time.time()
+
+        for key_idx, cur_key in enumerate(api_keys, 1):
+            key_tag = f"Key #{key_idx} (..{cur_key[-6:]})"
+            try:
+                client = genai.Client(api_key=cur_key)
+                remote_video = (
+                    cls._get_or_upload_context(client, request_context)
+                    if request_context is not None
+                    else cls.get_or_upload_video(client, raw_video_path)
+                )
+            except Exception as upload_err:
+                print(f"   ⚠️ [Catalog Index] Failed upload on {key_tag} ({upload_err})")
+                continue
+
+            if not remote_video:
+                continue
+
+            key_rate_limited = False
+            for model_name in models_to_try:
+                print(f"   👁️ [Catalog Index] Calling {model_name} on {key_tag} to index scenes...")
+                for attempt in range(2):
+                    try:
+                        response = client.models.generate_content(
+                            model=model_name,
+                            contents=[remote_video, catalog_prompt],
+                            config=genai_types.GenerateContentConfig(
+                                http_options=genai_types.HttpOptions(
+                                    timeout=VISION_GENERATE_TIMEOUT_SECONDS * 1000
+                                )
+                            ),
+                        )
+                        if response and response.text:
+                            chosen_model = model_name
+                            break
+                    except Exception as err:
+                        kind = classify_genai_error(err)
+                        if kind == "rate_limit":
+                            key_rate_limited = True
+                            if attempt == 0:
+                                backoff = _extract_retry_after_seconds(err) or RATE_LIMIT_DEFAULT_BACKOFF_SECONDS
+                                backoff = min(backoff, RATE_LIMIT_MAX_BACKOFF_SECONDS)
+                                time.sleep(backoff)
+                                continue
+                            break
+                        if kind == "transient" and attempt == 0:
+                            time.sleep(TRANSIENT_BACKOFF_SECONDS)
+                            continue
+                        break
+
+                if response and response.text:
+                    break
+                if key_rate_limited:
+                    break
+
+            if response and response.text:
+                break
+
+        if not response or not response.text:
+            return cls._generate_heuristic_catalog(raw_duration)
+
+        resp_text = response.text or ""
+        import re
+        m = re.search(r"```json\s*([\s\S]*?)\s*```", resp_text)
+        clean_json = m.group(1).strip() if m else resp_text.strip()
+
+        try:
+            cat_data = json.loads(clean_json)
+            scenes = cat_data.get("scenes")
+            if not isinstance(scenes, list) or len(scenes) == 0:
+                return cls._generate_heuristic_catalog(raw_duration)
+
+            catalog = {
+                "raw_file": str(video_file),
+                "duration": float(raw_duration),
+                "is_spin_footage": bool(cat_data.get("is_spin_footage", False)),
+                "summary": str(cat_data.get("summary", "")),
+                "scenes": scenes,
+                "indexed_at": time.time(),
+                "indexed_by": chosen_model,
+            }
+            cls.save_cached_catalog(file_hash, catalog)
+            print(f"   ✓ [Scene Catalog] Indexed {len(scenes)} scenes for {video_file.name} ({catalog['summary'][:60]})")
+
+            try:
+                from scripts.token_tracker import TokenTracker
+                TokenTracker.record_event(
+                    task="vision_catalog",
+                    model=chosen_model,
+                    provider="gemini_free_tier",
+                    input_tokens=int(raw_duration * 300) + len(catalog_prompt) // 2,
+                    output_tokens=max(100, len(resp_text) // 2),
+                    latency_seconds=time.time() - t_start,
+                    project_name=video_file.stem,
+                    metadata={"scenes_count": len(scenes), "is_spin": catalog["is_spin_footage"]},
+                )
+            except Exception:
+                pass
+
+            return catalog
+        except Exception:
+            return cls._generate_heuristic_catalog(raw_duration)
+
+    @classmethod
+    def _generate_heuristic_catalog(cls, raw_duration: float = 60.0) -> Dict[str, Any]:
+        """Fallback smart heuristic scene catalog if offline or API unavailable."""
+        scene_dur = 5.0
+        num_scenes = max(3, int(raw_duration / scene_dur))
+        scenes = []
+        action_types = ["overview", "unboxing", "feature_demo", "hands_on", "closeup", "port_connection", "turntable_spin", "cta_showcase"]
+        angle_phases = ["front", "45deg", "side", "macro_closeup", "back"]
+
+        for idx in range(num_scenes):
+            s_start = idx * scene_dur
+            s_end = min(raw_duration, (idx + 1) * scene_dur)
+            a_type = action_types[idx % len(action_types)]
+            a_phase = angle_phases[idx % len(angle_phases)]
+            scenes.append({
+                "id": idx + 1,
+                "start": round(s_start, 2),
+                "end": round(s_end, 2),
+                "action_type": a_type,
+                "angle_phase": a_phase,
+                "description": f"ฉากที่ {idx+1}: โชว์สินค้ามุม {a_phase} ({a_type})",
+                "keywords": ["สินค้า", "ตัวเครื่อง", "โชว์", a_phase],
+                "punch_zoom": 1.10 + (0.05 * (idx % 3)),
+            })
+
+        return {
+            "duration": raw_duration,
+            "is_spin_footage": False,
+            "summary": "สารบัญฉากอัตโนมัติแบบแบ่งช่วงเวลาครอบคลุมทั้งคลิป",
+            "scenes": scenes,
+            "indexed_at": time.time(),
+            "indexed_by": "heuristic_fallback",
+        }
+
     @staticmethod
     def _exact_cached_match(cache: Dict, match_cache_key: str) -> Optional[List[Dict]]:
-        """The cached scene map for this exact video AND script, or None.
-
-        The fallbacks below used to scan for any key starting with the file
-        hash, which is the video half of `{file_hash}_{md5(cue text)}` -- so
-        after a script edit they returned the shot list matched against the
-        OLD lines: shots timed to text that is no longer there, and no sign
-        anything was wrong. Rhythmic cuts are the better answer in that case.
-        """
+        """The cached scene map for this exact video AND script, or None."""
         entry = (cache or {}).get("matches", {}).get(match_cache_key)
         return entry if entry else None
 
@@ -280,6 +802,29 @@ class GeminiVisionMatcher:
         if cached_matched:
             print(f"   ⚡ Reusing {len(cached_matched)} AI Vision matched shots from local cache!")
             return cached_matched
+
+        # Check Scene Catalog cache -- if the raw video has been indexed,
+        # map any script to it instantly (0 API calls, 0 quota used).
+        catalog = cls.get_cached_catalog(raw_video_path, request_context=request_context)
+        if catalog and catalog.get("scenes"):
+            matched = cls.match_script_with_catalog(catalog, cues, raw_duration=raw_duration)
+            if matched:
+                print(f"   ⚡ Reusing Scene Catalog ({len(catalog['scenes'])} scenes) — instant semantic matching!")
+                if request_context is not None:
+                    cache = request_context.cache
+                    match_cache_key = request_context.match_cache_key
+                else:
+                    video_file = Path(raw_video_path).resolve()
+                    file_hash = cls._compute_file_hash(video_file)
+                    cache = cls._load_cache()
+                    cues_summary = "|".join([f"{c.get('text', '')}" for c in cues])
+                    match_cache_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
+                if "matches" not in cache:
+                    cache["matches"] = {}
+                if match_cache_key:
+                    cache["matches"][match_cache_key] = matched
+                    cls._save_cache(cache)
+                return matched
 
         from scripts.config import get_gemini_api_keys
         api_keys = get_gemini_api_keys()

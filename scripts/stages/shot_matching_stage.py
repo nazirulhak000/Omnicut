@@ -77,6 +77,58 @@ class ShotMatchingStage:
         shot_scales = LOOK_PRESETS.get(ctx.angle_meta.get("angle_key", "")) if ctx.angle_meta else None
         return shot_scales or [1.25, 1.0, 1.35, 1.05, 1.3, 1.0]
 
+    @staticmethod
+    def _compute_smart_fallback_offset(
+        g_idx: int,
+        total_groups: int,
+        raw_duration: float,
+        c_dur: float,
+        motion_times: Optional[List[float]] = None,
+        motion_scores: Optional[List[float]] = None,
+        previous_offsets: Optional[List[float]] = None,
+    ) -> float:
+        """
+        Calculates non-linear, well-distributed fallback offsets across raw footage.
+        Avoids the rigid (g_idx * 3.5) repetitive crawl by distributing cuts across the
+        full duration of the clip, leveraging motion peaks and enforcing anti-duplicate distance.
+        """
+        max_start = max(0.0, raw_duration - c_dur - 0.5)
+        if max_start <= 0.5:
+            return 0.0
+
+        num_intervals = max(1, total_groups)
+        step = max_start / num_intervals
+
+        # Golden ratio jitter to avoid monotone equidistant steps
+        jitter = (g_idx * 0.618033988749895) % 1.0
+        target_offset = min(max_start, (g_idx * step) + (jitter * min(step * 0.4, 2.0)))
+
+        # Sweet spot for opening shot (g_idx == 0):
+        # Avoid 0.0s recording startup dead air / camera shake
+        if g_idx == 0 and raw_duration >= 8.0 and max_start >= 1.5:
+            target_offset = max(0.8, min(1.5, target_offset + 0.8))
+
+        raw_offset = target_offset
+
+        # Snap to nearest high-motion action peak if available
+        if motion_times and motion_scores:
+            window = max(2.0, step * 0.5)
+            candidates = [
+                (t, s) for t, s in zip(motion_times, motion_scores)
+                if abs(t - target_offset) <= window and t + c_dur <= raw_duration
+            ]
+            if candidates:
+                raw_offset = max(candidates, key=lambda ts: ts[1])[0]
+
+        # Anti-collision check: ensure not too close to the immediately preceding shot
+        if previous_offsets and len(previous_offsets) > 0:
+            last_offset = previous_offsets[-1]
+            if abs(raw_offset - last_offset) < 2.0 and max_start >= 4.0:
+                shifted = (raw_offset + 2.5) % max_start
+                raw_offset = shifted
+
+        return max(0.0, min(max_start, round(raw_offset, 2)))
+
     @classmethod
     def _build_guided_take_clip_list(cls, ctx: PipelineContext, raw_video) -> List[dict]:
         """Exact mapping for a video recorded through the guided-filming flow
@@ -171,6 +223,106 @@ class ShotMatchingStage:
         return clips
 
     @classmethod
+    def _build_manual_storyboard_clip_list(
+        cls,
+        ctx: PipelineContext,
+        raw_video,
+        raw_duration: float,
+    ) -> List[dict]:
+        """Build clip list directly from user's manual storyboard pins mapped
+        to script beat_cues (1 clip per beat).
+
+        For pinned beats: uses the chosen video, trim_start, and trim_end,
+        calculating playback speed to fit the beat duration cleanly.
+        For unpinned beats: falls back to proportional slice of raw_video.
+        Total clips will strictly match len(ctx.beat_cues), preventing any
+        trailing overflow clips beyond the voiceover duration.
+        """
+        import pathlib
+        from scripts import path_utils as _path_utils
+
+        beat_cues = ctx.beat_cues or []
+        if not beat_cues:
+            return []
+
+        pin_by_beat = {
+            int(p["beat_index"]): p
+            for p in (ctx.manual_shot_map or [])
+            if p.get("video_path") and "beat_index" in p
+        }
+
+        effective_shot_scales = cls._effective_shot_scales(ctx)
+        clips = []
+        cursor = 0.0
+        total_planned = sum(
+            max(0.0, float(c.get("end", 0.0)) - float(c.get("start", 0.0))) for c in beat_cues
+        ) or ctx.total_duration or raw_duration
+
+        for i, cue in enumerate(beat_cues):
+            target_duration = max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0)))
+            zoom = round(float(effective_shot_scales[i % len(effective_shot_scales)]), 2)
+
+            if i in pin_by_beat:
+                pin = pin_by_beat[i]
+                raw_p = pin["video_path"]
+                abs_p = _path_utils.to_absolute(raw_p)
+                resolved = str(abs_p) if (abs_p and abs_p.exists()) else raw_p
+
+                trim_start = round(float(pin.get("trim_start") or 0.0), 3)
+                trim_end = round(float(pin.get("trim_end") or 0.0), 3)
+                trim_span = max(0.05, trim_end - trim_start)
+                speed = round(min(4.0, max(0.25, trim_span / target_duration)), 4)
+
+                clip_entry = {
+                    "id": f"clip_{i}",
+                    "source_path": resolved,
+                    "trim_start": trim_start,
+                    "trim_end": trim_end,
+                    "duration": round(target_duration, 3),
+                    "speed": speed,
+                    "zoom": zoom,
+                    "shot_index": i,
+                    "manual_pinned": True,
+                    "transition_in": "cut",
+                }
+                print(
+                    f"   📌 [ManualStoryboard] Beat {i} ({target_duration:.2f}s) → "
+                    f"{pathlib.Path(resolved).name} [{trim_start:.2f}–{trim_end:.2f}s] (spd: {speed:.2f}x)"
+                )
+            else:
+                ratio = (target_duration / total_planned) if total_planned > 0 else (1.0 / len(beat_cues))
+                trim_start = cursor
+                trim_end = min(raw_duration, cursor + ratio * raw_duration)
+                cursor = trim_end
+                trim_span = max(0.05, trim_end - trim_start)
+                speed = round(min(4.0, max(0.25, trim_span / target_duration)), 4)
+
+                clip_entry = {
+                    "id": f"clip_{i}",
+                    "source_path": str(raw_video) if raw_video else "",
+                    "trim_start": round(trim_start, 3),
+                    "trim_end": round(trim_end, 3),
+                    "duration": round(target_duration, 3),
+                    "speed": speed,
+                    "zoom": zoom,
+                    "shot_index": i,
+                    "manual_pinned": False,
+                    "transition_in": "cut",
+                }
+                print(
+                    f"   🤖 [Storyboard-Auto] Beat {i} ({target_duration:.2f}s) → Proportional slice [{trim_start:.2f}–{trim_end:.2f}s]"
+                )
+
+            camera_keyframes = camera_keyframes_for_clip(zoom, target_duration, i, style_preset=ctx.style_preset)
+            if camera_keyframes:
+                clip_entry["keyframes"] = camera_keyframes
+
+            clips.append(clip_entry)
+
+        return clips
+
+
+    @classmethod
     def run(cls, ctx: PipelineContext) -> None:
         raw_video = ctx.raw_video
         total_duration = ctx.total_duration
@@ -221,6 +373,9 @@ class ShotMatchingStage:
         # C:\Users\Winon\.claude\plans\cheeky-cooking-quokka.md (Phase D).
         if not actual_clip_list and raw_video and ctx.guided_take_meta:
             actual_clip_list = cls._build_guided_take_clip_list(ctx, raw_video)
+            is_newly_generated_clips = True
+        elif not actual_clip_list and ctx.manual_shot_map and ctx.beat_cues:
+            actual_clip_list = cls._build_manual_storyboard_clip_list(ctx, raw_video, raw_duration)
             is_newly_generated_clips = True
         elif not actual_clip_list and raw_video and ctx.shot_list_id and ctx.beat_cues:
             actual_clip_list = cls._build_proportional_clip_list(ctx, raw_video, raw_duration)
@@ -542,16 +697,16 @@ class ShotMatchingStage:
                                 )
                                 scale = max_scale if has_emphasis else base_scale
 
-                            target_offset = (g_idx * 3.5) % max(1.0, raw_duration - c_dur - 1.0)
-                            raw_offset = target_offset
-                            if motion_times:
-                                window = 2.0
-                                candidates = [
-                                    (t, s) for t, s in zip(motion_times, motion_scores)
-                                    if abs(t - target_offset) <= window and t + c_dur <= raw_duration
-                                ]
-                                if candidates:
-                                    raw_offset = max(candidates, key=lambda ts: ts[1])[0]
+                            previous_offsets = [s["raw_offset"] for s in shots]
+                            raw_offset = cls._compute_smart_fallback_offset(
+                                g_idx=g_idx,
+                                total_groups=len(groups),
+                                raw_duration=raw_duration,
+                                c_dur=c_dur,
+                                motion_times=motion_times,
+                                motion_scores=motion_scores,
+                                previous_offsets=previous_offsets,
+                            )
 
                         shots.append({
                             "start": v_start,
@@ -695,3 +850,59 @@ class ShotMatchingStage:
         ctx.ai_matched_shots = ai_matched_shots
         ctx.shot_scales = shot_scales
         ctx.is_newly_generated_clips = is_newly_generated_clips
+
+        # ── Manual Storyboard Mapper overrides ─────────────────────────────
+        # If the user pinned specific beat→scene assignments via the Manual
+        # Storyboard UI, enforce storyboard beat mapping.
+        # This guarantees that regardless of which fallback path built the
+        # initial clip list, clips are strictly aligned with beat_cues and
+        # never spill beyond voiceover duration.
+        if actual_clip_list and ctx.manual_shot_map:
+            from scripts import path_utils as _path_utils
+            pin_by_beat = {
+                int(p["beat_index"]): p
+                for p in ctx.manual_shot_map
+                if p.get("video_path") and "beat_index" in p
+            }
+            if pin_by_beat:
+                # Truncate any excess clips beyond beat_cues
+                if ctx.beat_cues and len(actual_clip_list) > len(ctx.beat_cues):
+                    print(
+                        f"   ✂️ [ManualShotMap] Truncating {len(actual_clip_list)} clips to "
+                        f"{len(ctx.beat_cues)} beats to match storyboard."
+                    )
+                    actual_clip_list = actual_clip_list[:len(ctx.beat_cues)]
+
+                for i, clip in enumerate(actual_clip_list):
+                    cue = ctx.beat_cues[i] if (ctx.beat_cues and i < len(ctx.beat_cues)) else None
+                    target_duration = max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0))) if cue else float(clip.get("duration", 2.0))
+
+                    clip["shot_index"] = i
+                    clip["duration"] = round(target_duration, 3)
+
+                    if i not in pin_by_beat:
+                        continue
+
+                    pin = pin_by_beat[i]
+                    raw_p = pin["video_path"]
+                    abs_p = _path_utils.to_absolute(raw_p)
+                    resolved = str(abs_p) if (abs_p and abs_p.exists()) else raw_p
+
+                    trim_start = round(float(pin.get("trim_start") or 0.0), 3)
+                    trim_end = round(float(pin.get("trim_end") or 0.0), 3)
+                    trim_span = max(0.05, trim_end - trim_start)
+
+                    clip["source_path"] = resolved
+                    clip["trim_start"] = trim_start
+                    clip["trim_end"] = trim_end
+                    clip["speed"] = round(min(4.0, max(0.25, trim_span / target_duration)), 4)
+                    clip["manual_pinned"] = True
+                    print(
+                        f"   📌 [ManualShotMap] Beat {i} ({target_duration:.2f}s) → "
+                        f"{resolved} [{trim_start:.2f}–{trim_end:.2f}s] (spd: {clip['speed']:.2f}x)"
+                    )
+
+                if ctx.transitions and len(ctx.transitions) >= len(actual_clip_list):
+                    ctx.transitions = ctx.transitions[:max(0, len(actual_clip_list) - 1)]
+
+                ctx.actual_clip_list = actual_clip_list

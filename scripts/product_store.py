@@ -942,6 +942,39 @@ class ProductStore:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
     @classmethod
+    def update_angle_manual_shot_map(
+        cls,
+        product_id: str,
+        angle_id: str,
+        shot_map: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Persists a user-curated shot map (list of pinned beat→scene assignments)
+        for a specific script angle. Each entry: {beat_index, video_path, trim_start, trim_end}.
+        The pipeline reads this during ShotMatchingStage to skip AI Vision for pinned beats.
+        """
+        # Normalize video_path fields to relative paths so the store stays portable.
+        normalized = []
+        for entry in shot_map:
+            norm = dict(entry)
+            if norm.get("video_path"):
+                v = _to_relative(norm["video_path"]) or norm["video_path"]
+                norm["video_path"] = str(v).replace("\\", "/")
+            normalized.append(norm)
+
+        with cls._mutate() as products:
+            for product in products:
+                if product["id"] == product_id:
+                    for angle in product.get("angles", []):
+                        if angle.get("angle_id") == angle_id:
+                            angle["manual_shot_map"] = normalized
+                            angle["updated_at"] = cls._now()
+                            product["updated_at"] = cls._now()
+                            return product
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
+
+
+
+    @classmethod
     def set_default_videos_for_all_angles(cls, product_id: str, selected_videos: List[str]) -> Dict[str, Any]:
         """Sets default raw footage attachments for all script angles belonging to this product."""
         rel_videos = [_to_relative(v) for v in selected_videos]

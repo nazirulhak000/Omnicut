@@ -211,8 +211,10 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 spotlight=req_data.spotlight,
                 background_isolation=req_data.background_isolation,
                 shot_list_id=req_data.shot_list_id,
+                manual_shot_map=req_data.manual_shot_map or [],
                 progress_callback=on_progress
             )
+
 
         if req_data.product_id and result.get("project_name"):
             try:

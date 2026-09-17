@@ -18,6 +18,7 @@ frontend/dist/
 # System & OS
 .DS_Store
 Thumbs.db
+.vscode/
 
 # Large render cache / temporary artifacts
 00_Inbox/*

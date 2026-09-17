@@ -83,11 +83,15 @@ export function templateForWeek(template, weekStart = null) {
 export function templateSlots(startDate, endDate, templateByWeek = {}, now = new Date(), latestScheduledAt = null) {
   const start = parseDateOnly(startDate);
   const end = parseDateOnly(endDate);
-  const cursorDate = new Date(Math.max(now.getTime(), latestScheduledAt ? new Date(latestScheduledAt).getTime() : 0));
+  const latestMs = latestScheduledAt ? new Date(latestScheduledAt).getTime() : 0;
+  const latestDate = latestMs ? parseDateOnly(toLocalDateTime(new Date(latestMs)).date) : null;
+  const latestWithinRange = latestDate && latestDate >= start && latestDate <= end ? latestMs : 0;
+  const cursorDate = new Date(Math.max(now.getTime(), latestWithinRange));
   const slots = [];
   for (let offset = 0; offset < 366 && slots.length < 10000; offset += 1) {
     const date = new Date(start.getTime());
     date.setUTCDate(date.getUTCDate() + offset);
+    if (date > end) break;
     const dateKey = `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`;
     const week = weekStartForDate(dateKey);
     const template = templateForWeek(templateByWeek[week] || templateByWeek.default, week);
@@ -95,12 +99,11 @@ export function templateSlots(startDate, endDate, templateByWeek = {}, now = new
     if (config?.enabled !== false) {
       config.times.forEach((time) => {
         const iso = buildScheduleIso(dateKey, time);
-        if (new Date(iso).getTime() > cursorDate.getTime() && (!latestScheduledAt || new Date(iso).getTime() > new Date(latestScheduledAt).getTime())) {
+        if (new Date(iso).getTime() > cursorDate.getTime() && (!latestWithinRange || new Date(iso).getTime() > latestWithinRange)) {
           slots.push({ date: dateKey, time, scheduledAt: iso });
         }
       });
     }
-    if (date >= end && slots.length) break;
   }
   return slots;
 }

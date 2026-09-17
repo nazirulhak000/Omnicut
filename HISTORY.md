@@ -8,6 +8,12 @@
 
 ## สารบัญ
 
+| Round MANUAL-STORYBOARD-MAPPER-1 | ระบบกำหนดช็อตด้วยตนเองรายวรรคบทพูด (Manual Shot Mapper): Modal เต็มตา 2-panel เลือกฉากจากสารบัญ AI + Trim Scrubber + Hybrid ล็อก/AI auto สำหรับวรรคที่เหลือ | 2026-09-17 | สำเร็จสมบูรณ์ (backend 14 passed, frontend 255 passed, build 2,007 modules/3.96s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round PROJECT-SELECTOR-PAGINATION-AND-SEARCH-1 | เพิ่มการจำกัดการแสดงผล 15 รายการแรก + ปุ่มโหลดเพิ่มทีละ 15 รายการ + ช่องค้นหาด่วน ในเมนูเลือกโปรเจกต์ (ProjectSelector) | 2026-09-17 | สำเร็จสมบูรณ์ (frontend 253 passed, build 2,006 modules/5.25s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round TRIM-MODAL-SPACEBAR-KEYBOARD-CAPTURE-1 | ป้องกัน Spacebar ทะลุไปเล่นไทม์ไลน์หลังโมดัล + ให้ Spacebar และ Arrow Keys ควบคุมวิดีโอในโมดัลปรับช่วงตัดโดยตรง | 2026-09-17 | สำเร็จสมบูรณ์ (frontend 253 passed, build 2,006 modules/3.49s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round TRIM-ADJUST-SINGLE-TRACK-REDESIGN-1 | ยกเครื่องแถบปรับช่วงตัด (Trim Adjust Scrubber) เป็นเส้นเดียว (Single Track): ใช้งานง่าย สมูท ลื่นไหล ไม่หน่วง เลื่อนไว และขยับละเอียดระดับเสี้ยววินาที | 2026-09-17 | สำเร็จสมบูรณ์ (frontend 253 passed, build 2,006 modules/3.63s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round EDITING-OPTIMIZE-SWEET-SPOT-OFFSET-1 | ระบบ Scene Sweet-Spot Offset & Continuous Progression: ข้ามช่วงเตรียมฉาก/Dead Air/กล้องแกว่งต้นคลิป (0.5s–1.2s) และขยับจุดตัดต่อเมื่อใช้ฉากยาวซ้ำ ไม่เริ่มที่วินาทีเดิม | 2026-09-17 | สำเร็จสมบูรณ์ (backend 62 passed, frontend 253 passed, build 2,006 modules/3.14s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round EDITING-OPTIMIZE-VISUAL-CONTRAST-1 | ระบบ Visual Contrast & Anti-Jump-Cut: หมุนเวียนสลับระยะภาพและมุมมองกล้อง (Macro ➔ Medium/Action ➔ Feature ➔ CTA) ป้องกันช็อตตัดชนมุมเดิมติดกัน | 2026-09-17 | สำเร็จสมบูรณ์ (backend 37 passed, frontend 253 passed, build 2,006 modules/3.48s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round HERO-COVER-SHOT-MACRO-PRIORITY-1 | ยกระดับการเลือกช็อตเปิดคลิป/หน้าปก (Shot 1 Hero Priority): เจาะจงเลือกช็อตมาโครระยะประชิดที่มีโลโก้แบรนด์คมชัดระดับโปร แทนช็อตฝ่ามือ + อัปเดตคลิป JBL01 ให้ได้หน้าปกโลโก้ JBL คมชัดตามรูปเรฟ | 2026-09-17 | สำเร็จสมบูรณ์ (backend 39 passed, frontend 246 passed, build 2,008 modules/3.14s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round SMART-VISION-SEMANTIC-MATCHER-FIX-1 | ปรับปรุง Algorithm Smart Vision Matcher: ปิดบั๊กปิงปองสลับฟันปลา (Global Scene Usage Penalty) + แยกแยะบริบทคำว่า 'สาย'/'แม่เหล็ก'/'ปุ่มไมค์'/'เสียงเบส' ไม่ให้ดูดไปหัว Type-C ซ้ำซาก | 2026-09-17 | สำเร็จสมบูรณ์ (backend 38 passed, frontend 246 passed, build 2,008 modules/3.66s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round SUBTITLE-AND-HOOK-RENDER-PARITY-FIX-1 | แก้ปัญหาสีไฮไลต์ซับคลุมทั้งประโยคใน Render + ป้องกันป้าย Hook Header บรรทัดซ้อนทับกัน (Collision) จากการคำนวณ Character Wrap แคบกว่าขอบจอจริง | 2026-09-16 | สำเร็จสมบูรณ์ (backend parity 183 passed, frontend 246 passed, build 2,007 modules/5.00s, FFmpeg frame verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -52,6 +58,182 @@
 | Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round BACKFILL-CLOSED-ROUNDS-20260915 | นำ 38 รอบที่ติ๊กปิดใน TODO แต่ไม่เคยถูกย้ายเข้า HISTORY มาบันทึกย้อนหลัง (COVER-AI*, IOS-PASTE*, SYSTEM-AUDIT-P4/P5/P6*, AI-PRODUCER-VISION-1, ANALYTICS-HEADER-DATA-FIX-1 ฯลฯ) | 2026-09-15 | เสร็จ (ตรวจด้วยสคริปต์: `[x] Round` 110 บรรทัด → ขาดใน HISTORY 38, ดำเนินการโดย: Muse Spark (Muse Spark)) |
+
+## Round MANUAL-STORYBOARD-MAPPER-1 — ระบบกำหนดช็อตด้วยตนเองรายวรรคบทพูด (Manual Shot Mapper)
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+### บริบทและความต้องการ
+- ผู้ใช้ต้องการฟังก์ชันวางแผนและเลือกช็อตวิดีโอด้วยตนเองรายวรรคบทพูด (Manual Shot Mapper)
+- ระบุช่วงเวลา (Trim start-end) และคลิปที่ต้องการให้แต่ละวรรค เพื่อควบคุมช็อตที่สำคัญได้เองแบบ 100%
+- ให้ระบบ AI คำนวณความยาววินาทีที่แน่นอนของแต่ละวรรคจากเสียงพากย์จริง (TTS Beat Cues)
+- รองรับระบบ Hybrid: ช็อตวรรคที่ผู้ใช้ไม่ได้ล็อก AI จะวิเคราะห์และคัดเลือกฉากที่เหมาะสมจากสารบัญ AI ให้โดยอัตโนมัติ
+
+### ผลการดำเนินงาน
+- [x] 1. **Backend Store & API**:
+  - เพิ่ม `ProductStore.update_angle_manual_shot_map(product_id, angle_id, shot_map)` ใน `scripts/product_store.py` พร้อมแปลงพาธเป็น relative ปลอดภัยและพกพาสะดวก
+  - เพิ่ม REST Endpoints ใน `scripts/api_shot_lists.py`:
+    - `GET /api/products/{product_id}/angles/{angle_id}/manual-shot-map`: คืนค่า `manual_shot_map`, `beat_cues` (เวลาเสียงจริง), `total_duration`, `has_shot_list`, และ `scene_catalogs`
+    - `PATCH /api/products/{product_id}/angles/{angle_id}/manual-shot-map`: บันทึกการกำหนดช็อตรายวรรค
+- [x] 2. **Pipeline Integration**:
+  - เพิ่ม `manual_shot_map` ใน `PipelineContext`, `scripts/pipeline.py`, และ `scripts/api_schemas.py` (`RenderRequest`)
+  - ใน `scripts/stages/shot_matching_stage.py`: เพิ่มขั้นตอน Manual Storyboard Mapper overrides หลังการจัดเตรียมคลิปทุกรูปแบบ โดยแทนที่คลิปที่มี `shot_index` ตรงกับวรรคที่ผู้ใช้ล็อกไว้ (`source_path`, `trim_start`, `trim_end`, `manual_pinned=True`)
+  - ใน `scripts/batch_render.py`: ดึง `manual_shot_map` จากข้อมูลมุมมองและส่งเข้าสู่การเรนเดอร์อัตโนมัติ
+- [x] 3. **Frontend API**:
+  - เพิ่ม `getManualShotMap` และ `saveManualShotMap` ใน `frontend/src/api.js`
+- [x] 4. **Frontend Component & UX**:
+  - สร้าง `frontend/src/components/ManualStoryboardModal.jsx`: โมดัลเต็มตา 2-Panel แบบ Modern Dark Glassmorphism
+    - แผงซ้าย: แสดงรายการวรรคบทพูด (Beats) พร้อมเวลาจริง (เช่น 2.4s), ป้ายบทบาท (Hook/Feature/CTA), และสถานะล็อกช็อต
+    - แผงขวา: แกลเลอรีฉากจาก Vision AI (Scene Catalog) จัดหมวดหมู่ (หมุน 360, โคลสอัพ, จับถือ ฯลฯ) ให้คลิกเลือกใส่ในวรรคที่เลือกได้ทันที
+    - แถบล่าง: ตัวปรับช่วงตัดแบบละเอียด (Trim Scrubber) พร้อมวิดีโอพรีวิว, ตัววัดเปรียบเทียบความยาวกับบทพูดจริง, ปุ่ม Snap พอดีวรรค, และปุ่มล็อกช็อต
+- [x] 5. **Frontend Integration**:
+  - ใน `frontend/src/components/ProductToClip.jsx`: เพิ่มปุ่ม `วางแผนช็อตรายวรรค` ทั้งในแถบเสียงพากย์และแถบแอ็กชันล่าง พร้อมตัวนับ `📌 ล็อกช็อตแล้ว (X วรรค)`
+  - ใน `frontend/src/components/ShotListModal.jsx`: เพิ่มปุ่มลัด `วางแผนช็อตด้วยตนเอง (Storyboard)` ที่แถบล่าง
+  - ใน `frontend/src/components/editor/NewClipPanel.jsx`: ส่ง `manual_shot_map` เข้าสู่ payload การเรนเดอร์
+- [x] 6. **Automated Verification**:
+  - Backend pytest: `tests/test_manual_shot_map.py`, `tests/test_shot_list_enhancements.py`, `tests/test_guided_take_mapping.py` รวม 14 passed
+  - Frontend vitest: 255 passed
+  - Frontend build: Vite 2,007 modules built in 3.96s (0 errors)
+
+---
+
+## Round PROJECT-SELECTOR-PAGINATION-AND-SEARCH-1 — เพิ่มการจำกัดการแสดงผล 15 รายการแรก + ปุ่มโหลดเพิ่มทีละ 15 รายการ + ช่องค้นหาด่วน ในเมนูเลือกโปรเจกต์ (ProjectSelector)
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+### บริบทและฟีดแบ็กจากผู้ใช้
+- เมนูเลือกโปรเจกต์ในแถบหัวของ Editor (`ProjectSelector.jsx`) เดิมแสดงรายการโปรเจกต์ทั้งหมดที่มีในคลังออกมาพร้อมกันทั้งหมด
+- ผู้ใช้ตั้งข้อสังเกตว่า: หากมีโปรเจกต์จำนวนมาก การแสดงพร้อมกันทั้งหมดจะทำให้โหลดช้าและเลื่อนดูยาก
+- ผู้ใช้เสนอแนะ: ให้แสดงเริ่มต้นเพียง 10-20 รายการแรก แล้วมีปุ่มกดโหลดเพิ่มเติม และช่องค้นหาด่วนเหมือนหน้าอื่นๆ
+
+### แผนรอบนี้
+- [x] 1. **ปรับปรุง `frontend/src/components/editor/ProjectSelector.jsx`:**
+  - เพิ่ม state `visibleCount` เริ่มต้นที่ 15 รายการ (รีเซ็ตกลับเป็น 15 เมื่อปิด/เปิด dropdown)
+  - เพิ่มช่องค้นหาด่วน (Search Input พร้อมไอคอนแว่นขยาย Search) ด้านบนของ Dropdown ค้นหาชื่อโปรเจกต์แบบเรียลไทม์
+  - หากรายการที่กรองได้มีมากกว่า `visibleCount`:
+    - แสดงปุ่ม `[ ➕ แสดงเพิ่มอีก 15 รายการ (เหลืออีก X รายการ) ]`
+    - แสดงปุ่ม `[ แสดงทั้งหมด ]`
+  - แสดงตัวนับจำนวนโปรเจกต์ชัดเจน เช่น `แสดง 15 จากทั้งหมด 42 รายการ`
+- [x] 2. **รัน Automated Verification:**
+  - `npm test` ใน `frontend/`
+  - `npm run build` ใน `frontend/`
+### ผลลัพธ์และการทดสอบ
+- ปรับปรุง `frontend/src/components/editor/ProjectSelector.jsx`:
+  - เพิ่ม state `visibleCount` ค่าเริ่มต้น 15 รายการ
+  - เพิ่ม Search Input ด้านบน Dropdown พร้อมไอคอนค้นหา (Search) และปุ่มล้าง (X) ค้นหาชื่อโปรเจกต์และสถานะแบบเรียลไทม์
+  - เพิ่มปุ่ม `โหลดเพิ่มอีก 15 รายการ (เหลืออีก X รายการ)` และปุ่ม `แสดงทั้งหมด (X รายการ)`
+  - เพิ่มตัวนับโปรเจกต์ `แสดง X จาก Y โปรเจกต์`
+  - ตรวจสอบกฎ Rule 8 (UI คลีน ไม่มีไอคอนซ้ำซ้อนนำหน้าปุ่มกริยา) และรีเซ็ตสถานะเมื่อปิด/เปิดเมนู
+- Automated Verification:
+  - Frontend unit tests: 253 passed (0 failed)
+  - Vite production build: 2,006 modules transformed, built in 5.25s
+
+
+---
+
+## Round TRIM-MODAL-SPACEBAR-KEYBOARD-CAPTURE-1 — ป้องกัน Spacebar ทะลุไปเล่นไทม์ไลน์หลังโมดัล + ให้ Spacebar และ Arrow Keys ควบคุมวิดีโอในโมดัลปรับช่วงตัดโดยตรง
+
+วันที่: 2026-09-17 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### บริบทและปัญหาที่พบ
+- เมื่อเปิดหน้าต่างโมดัล "ปรับช่วงตัด" (TrimAdjustModal) แล้วกดปุ่ม Spacebar:
+  - แทนที่วิดีโอในโมดัลจะเล่น/หยุด (Play/Pause) ปรากฏว่าปุ่ม Spacebar ทะลุไปสั่งงาน `useEditorShortcuts` ของหน้าจอ Editor หลัก ทำให้ไทม์ไลน์เบื้องหลังโมดัลเริ่มเล่นแทน
+  - ในโมดัล `TrimAdjustModal` ยังไม่มีคีย์บอร์ดชอร์ตคัตสำหรับ Spacebar และลูกศรซ้าย/ขวา
+
+### การแก้ไขที่ทำจริง
+1. **ป้องกันคีย์ลัดทะลุเข้าไทม์ไลน์หลักใน `frontend/src/hooks/useEditorShortcuts.js`:**
+   - ตรวจสอบ `document.querySelector('[role="dialog"], [aria-modal="true"]')` หากมีโมดัลใดเปิดอยู่ ให้ข้ามการสั่งงานไทม์ไลน์เบื้องหลังทันที (Early return)
+2. **เพิ่ม Event Listener คีย์บอร์ดใน `frontend/src/components/editor/timeline/TrimAdjustModal.jsx`:**
+   - ดักจับ `keydown` บน `window` (แบบ `capture: true`) ขณะโมดัลเปิด:
+     - `Spacebar`: ควบคุมการเล่น/หยุด (Play/Pause) วิดีโอในโมดัลโดยตรง พร้อม `e.preventDefault()` และ `e.stopPropagation()` ไม่ให้คีย์หลุดออกไป
+     - `ArrowLeft`: ถอยหลังทีละ 0.1s (หรือ 1.0s หากกด Shift)
+     - `ArrowRight`: เดินหน้าทีละ 0.1s (หรือ 1.0s หากกด Shift)
+
+### ผลการทดสอบ (Verification)
+- **Frontend Tests:** 253 passed (`npm test` in `frontend/`)
+- **Production Build:** Vite built 2,006 modules in 3.49s (`npm run build`)
+
+---
+
+## Round TRIM-ADJUST-SINGLE-TRACK-REDESIGN-1 — ยกเครื่องแถบปรับช่วงตัด (Trim Adjust Scrubber) เป็นเส้นเดียว (Single Track): ใช้งานง่าย สมูท ลื่นไหล ไม่หน่วง เลื่อนไว และขยับละเอียดระดับเสี้ยววินาที
+
+วันที่: 2026-09-17 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### บริบทและฟีดแบ็กจากผู้ใช้
+1. **ปัญหา 2 แถบเดิม:** หน้าต่างโมดัล "ปรับช่วงตัด" (TrimAdjustModal) เดิมมี 2 แถบซ้อนกัน (แถบบนเป็น Overview แถบล่างเป็น Zoomed Window) ทำให้ผู้ใช้สับสนว่าแถบไหนกำลังทำอะไร และการเลื่อนเกิดอาการกระตุกจากการดึง filmstrip ซ้ำซ้อนตอนขยับ edge-pan
+2. **ปัญหาช็อตสั้นในไฟล์ยาว (ช็อตแคบจนคลิกจับยาก):** เมื่อไฟล์ยาว 103.8s แต่ช็อตที่เลือกยาวเพียง 1.70s กล่องสีเขียวจะกว้างเพียง ~36px ด้ามจับซ้ายและขวาชนกันจนพื้นที่ตรงกลางหายไป ทำให้ไม่สามารถคลิกเลื่อนตำแหน่งช็อตได้
+
+### การแก้ไขที่ทำจริง (Single-Track Smart Trimmer)
+1. **ตัดระบบ 2 แถบทิ้ง รวมเหลือแถบเดียว (Single Track):**
+   - โหลด Filmstrip เพียงครั้งเดียว (`FILMSTRIP_FRAMES = 48`) หมดปัญหา network lag ระหว่างลากตัดต่อ
+   - ปรับการ Seek วิดีโอด้วย `fastSeek` + requestAnimationFrame throttle (35ms) ลื่นไหล 60 FPS
+2. **แก้ปัญหาช็อตแคบด้วย Floating Move Pill ("เลื่อนช็อต"):**
+   - เพิ่มปุ่มจับลอยตัว `[ ⇄ เลื่อนช็อต ]` เหนือกล่องตัด ไม่ว่าช็อตจะสั้นเพียง 0.5s หรือ 1.7s ปุ่มนี้จะมีขนาด 80px ให้คลิกจับลากเลื่อนตำแหน่งได้อย่างแม่นยำ 100% โดยไม่ทับซ้อนกับขอบปรับความยาว
+3. **ระบบ Zoom Focus ("ซูมขยายช็อต"):**
+   - เพิ่มปุ่มสลับมุมมอง `[ 🔍 ซูมขยายช็อต ]` vs `[ 🌐 ทั้งคลิป (1x) ]` ช่วยขยายช่วงเวลาทำงานรอบๆ ช็อตให้กว้างขึ้น 4–5 เท่า ปรับหัวท้ายได้ละเอียดโดยไม่ต้องเพ่ง
+4. **แถบเลื่อนความเร็วสูง (Smooth Position Slider) & Scroll Wheel:**
+   - เพิ่มแถบเลื่อนตำแหน่ง (Slider) ใต้ฟิล์มสตริป สามารถลากสไลด์เพื่อพาวิดีโอวิ่งข้าม 100s ได้ในเสี้ยววินาที
+   - รองรับการหมุนลูกกลิ้งเมาส์ (Mouse Wheel) เหนือแถบตัด เพื่อขยับช็อตไปข้างหน้า/หลังทีละ 0.25s อย่างนุ่มนวล
+   - มีปุ่มขยับละเอียด Quick Nudge: `[-1.0s]`, `[-0.1s]`, `[+0.1s]`, `[+1.0s]` และคลิกจุดใดก็ได้บนแถบเพื่อกระโดดมาทันที
+
+### ผลการทดสอบ (Verification)
+- **Frontend Tests:** 253 passed (`npm test` in `frontend/`)
+- **Production Build:** Vite built 2,006 modules in 3.63s (`npm run build`)
+
+---
+
+## Round EDITING-OPTIMIZE-SWEET-SPOT-OFFSET-1 — ระบบ Scene Sweet-Spot Offset & Continuous Progression: ข้ามช่วงเตรียมฉาก/Dead Air/กล้องแกว่งต้นคลิป (0.5s–1.2s) และขยับจุดตัดต่อเมื่อใช้ฉากยาวซ้ำ ไม่เริ่มที่วินาทีเดิม
+
+วันที่: 2026-09-17 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### บริบทและปัญหาที่พบ
+1. **Dead Air / Setup Frame ต้นคลิป:** เมื่อคลิปดิบมีฉากยาวกว่าความยาวช็อตที่ต้องการ (เช่น ฉากยาว 6-8s แต่ช็อตต้องการแค่ 2.5s) อัลกอริทึมเดิมเลือกตัดที่จุดเริ่มต้นฉากทันที (`s_start = scene.start`) ซึ่งช่วง 0.5s–1.2s แรกของฟุตเทจดิบมักเป็นจังหวะที่มือกำลังเคลื่อนเข้าเฟรม, กล้องกำลังโฟกัส (autofocus hunt), หรือเกิดการสั่นไหวตอนเริ่มกดอัด
+2. **Duplicate In-Point บนฉากยาว:** หากฉากขนาดยาว (เช่น turntable_spin หรือ overview 8–10s) ถูกหยิบมาใช้ซ้ำในช็อตที่ต่างกัน ทั้งสองช็อตจะเริ่มต้นที่วินาทีเดิมซ้ำซ้อน ทำให้คนดูเห็นภาพซ้ำแทนที่จะได้เห็นช่วงเวลาถัดไปของฉากนั้น
+3. **Fallback Offset ต้นคลิป:** ใน `_compute_smart_fallback_offset` ของ `shot_matching_stage.py` เมื่อ `g_idx = 0` จุดตัดจะเริ่มที่ `0.0s` พอดี ซึ่งเสี่ยงติดเฟรมตั้งกล้องต้นไฟล์
+
+### การแก้ไขที่ทำจริง
+1. **เพิ่ม Sweet-Spot Offset ใน `scripts/gemini_vision_matcher.py` (`match_script_with_catalog`):**
+   - คำนวณ `excess_dur = scene_len - needed_dur`
+   - หาก `excess_dur >= 1.0s` กำหนด `sweet_offset` อัตโนมัติตาม `action_type`:
+     - `closeup`, `hands_on`, `feature_demo`, `overview`, `cta_showcase`: `min(1.2, max(0.6, excess_dur * 0.35))` (ข้ามมือกำลังเลื่อนเข้าเฟรม/ปรับโฟกัส)
+     - `turntable_spin`: `min(0.8, max(0.4, excess_dur * 0.25))` (ข้ามแรงกระตุกหมุนตอนเริ่ม)
+     - `port_connection`, `unboxing`: `min(0.5, max(0.2, excess_dur * 0.15))` (รักษาแอ็กชันหลักไว้)
+     - อื่นๆ: `min(0.8, max(0.4, excess_dur * 0.25))`
+2. **ระบบ Continuous Progression สำหรับการใช้ฉากยาวซ้ำ:**
+   - เมื่อฉากเดิมถูกหยิบมาใช้ซ้ำ (`reuse_count = used_scene_counts[scene_id] > 0`) และความยาวฉากเหลือพอ ระบบจะก้าวหน้า In-point ต่อเนื่อง `progression_offset = min(remaining, reuse_count * needed_dur * 0.8)` เพื่อนำเสนอช่วงเวลาใหม่ของฉากนั้น ไม่ฉายซ้ำจุดเดิม
+   - ตรวจสอบ Timestamp Bounds เสมอ: ไม่เกินความยาวฉากจริง และไม่เกิน `raw_duration`
+   - ส่งออก metadata ทั้ง `scene_id`, `scene_start` และ `start_time`
+3. **ปรับปรุง Opening Fallback Offset ใน `scripts/stages/shot_matching_stage.py`:**
+   - ใน `_compute_smart_fallback_offset` เมื่อ `g_idx == 0` และความยาววิดีโอยาวพอ (`raw_duration >= 8.0` และ `max_start >= 1.5`) ขยับจุดเริ่มต้นไปที่ `0.8s–1.5s` หลบ Dead Air ต้นคลิป
+4. **สร้าง Unit Tests ใน `tests/test_sweet_spot_offset.py`:**
+   - ทดสอบ 5/5 passed: ข้าม dead air, รักษา tight scene ไม่ให้โดนตัด, progressive offset เมื่อ reuse ฉากยาว, flag ปิด sweet spot, และ fallback offset ต้นคลิป
+
+### ผลการทดสอบ (Verification)
+- **Backend Tests:** 62 passed (`tests/test_sweet_spot_offset.py`, `tests/test_angle_contrast_pacing.py`, `tests/test_smart_vision_matcher.py`, `tests/test_shot_matching_pacing.py`, `tests/test_gemini_vision_matcher.py`, `tests/test_gemini_vision_retry.py`, `tests/test_batch_render.py`)
+- **Frontend Tests:** 253 passed (`npm test` in `frontend/`)
+- **Production Build:** Vite built 2,006 modules in 3.14s (`npm run build`)
+
+---
+
+## Round EDITING-OPTIMIZE-VISUAL-CONTRAST-1 — ระบบ Visual Contrast & Anti-Jump-Cut: หมุนเวียนสลับระยะภาพและมุมมองกล้อง (Macro ➔ Medium/Action ➔ Feature ➔ CTA) ป้องกันช็อตตัดชนมุมเดิมติดกัน
+
+วันที่: 2026-09-17 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+1. **ปัญหา Jump Cut และความล้าสายตา:** เมื่อตัดต่อด้วยระบบอัตโนมัติ ช็อตที่อยู่ติดกันอาจมีมุมมองและระยะภาพแบบเดียวกันซ้ำซ้อน (เช่น มาโครชนมาโคร หรือมุมข้างชนมุมข้าง) ทำให้คนดูรู้สึกสะดุด (Visual Jarring) และลดทอนความพรีเมียมของวิดีโอ
+2. **ขาดการสร้าง Contrast ระหว่างช็อต:** วิดีโอสั้นระดับมืออาชีพบน TikTok/Reels ต้องมีไดนามิกการสลับระยะภาพ (Shot Scaling & Perspective Rotation) เช่น เปิดด้วย Macro ➔ สลับไป Medium Action ➔ สลับไป Feature Demo ➔ สลับไป CTA เพื่อรักษาการรับรู้และ Retention Rate ของคนดู
+
+### สิ่งที่ได้ดำเนินการแก้ไข
+- [x] 1. **เพิ่ม Angle Contrast & Jump-Cut Prevention ใน `scripts/gemini_vision_matcher.py` (`match_script_with_catalog`):**
+  - ติดตามมุมมองและชนิดของฉากก่อนหน้า (`prev_angle_phase` และ `prev_action_type`)
+  - **ลดคะแนนช็อตมาโครซ้ำซ้อน (-4.0):** หากช็อตก่อนหน้าเป็น `macro_closeup` จะไม่ให้ช็อตถัดไปเป็น `macro_closeup` ซ้ำซ้อน
+  - **มอบโบนัสการสลับระยะ (+3.0):** ให้คะแนนพิเศษแก่ฉากที่มีมุมมองกว้างขึ้น (`front`, `45deg`, `top`) หรือมีแอ็กชันการใช้งานจริง (`hands_on`, `feature_demo`, `overview`) เพื่อให้เกิด Visual Contrast ที่เนียนตา
+  - **ป้องกันมุมมองซ้ำชนกัน (-2.5):** ลดคะแนนฉากที่ใช้มุมกล้องเดิมติดกันเมื่อฟุตเทจมีความหลากหลายของมุมมองให้เลือก
+- [x] 2. **สร้าง Automated Unit Test Suite ใน `tests/test_angle_contrast_pacing.py`:**
+  - `test_visual_contrast_avoids_back_to_back_macro`: ทดสอบยืนยันว่าหลังช็อต Macro จะสลับไปหามุม Action/Front เสมอ
+  - `test_jbl_sequence_angle_progression`: ทดสอบกับข้อมูลแคตาล็อกจริง ยืนยันว่าการร้อยเรียงช็อต 5 ช็อตได้มุมมองที่หลากหลายและไม่มี Jump Cut
+- [x] 3. **รันการทดสอบและ Build ยืนยันความถูกต้อง:**
+  - `pytest tests/test_angle_contrast_pacing.py tests/test_smart_vision_matcher.py tests/test_gemini_vision_matcher.py` ผ่านครบ 37 รายการ
+  - `npm test` vitest ผ่านครบ 253 รายการ
+  - `npm run build` ผ่านสมบูรณ์ (Vite 2,006 modules built in 3.48s)
+
+---
 
 ## Round HERO-COVER-SHOT-MACRO-PRIORITY-1 — ยกระดับการเลือกช็อตเปิดคลิป/หน้าปก (Shot 1 Hero Priority): เจาะจงเลือกช็อตมาโครระยะประชิดที่มีโลโก้แบรนด์คมชัดระดับโปร แทนช็อตฝ่ามือ + อัปเดตคลิป JBL01 ให้ได้หน้าปกโลโก้ JBL คมชัดตามรูปเรฟ
 
@@ -6782,3 +6964,91 @@ Executed by: Codex (GPT-6)
 - Token ledger รุ่นเก่าที่ถูก trim ออกจาก event window แล้วไม่สามารถสร้างประวัติรายวันย้อนหลังที่หายไปได้; ระบบจะ backfill ได้เฉพาะ event ที่ยังคงอยู่ และเริ่มเก็บ daily ledger แบบถาวรตั้งแต่รอบนี้
 - lint ยังมี warnings เดิมในไฟล์อื่นของโปรเจกต์ แต่ไม่มี lint error จากงานรอบนี้
 
+## Round SCHEDULE-RANGE-BOUNDARY-AUDIT-20260917
+ดำเนินการโดย: Codex (GPT-5)
+
+### สิ่งที่แก้
+- แก้ `scripts/api_schedule_queue.py` ไม่ให้ auto-fill spill ออกจาก `start_date`–`end_date`; เลือก “วันนี้” จึงจัดเฉพาะวันนี้จริง
+- ให้คิวที่อยู่นอกช่วงวันที่เลือกไม่ขยับ cursor ของ auto-fill จนทำให้ผลลัพธ์ไหลไปวันอื่น
+- เพิ่ม metadata ใน preview (`requested_count`, `range_start`, `range_end`) เพื่อให้หน้าแสดงขอบเขตและจำนวนที่จัดได้จริง
+- ปรับ `ScheduleAgenda.jsx` ให้ตรวจวันที่ย้อนกลับ/จำนวนคลิปไม่ถูกต้อง, ล็อก min/max ของ date input และแจ้งเมื่อช่องในช่วงที่เลือกไม่พอ
+- ปรับ `scheduleQueue.js` helper ให้รักษาขอบเขตวันที่เช่นเดียวกับ backend
+
+### Regression coverage
+- เพิ่ม backend tests ตรวจไม่ spill และไม่ถูกคิวอนาคตนอกช่วงลาก cursor
+- เพิ่ม frontend tests ตรวจ template slots ไม่ spill และ ignore latest timestamp นอกช่วง
+
+### Verification
+- Backend: `python -m pytest tests/ -q -p no:cacheprovider --tb=short` → **1564 passed, 6 skipped, 29 warnings**
+- Frontend: `npm test` → **255 passed**
+- Frontend lint: ผ่าน มี warnings เดิมจากไฟล์อื่น ไม่มี error
+- Frontend build: **2007 modules transformed, ผ่าน**
+- Python compile: `python -m compileall -q scripts` → ผ่าน
+- Impeccable detector: พบ warnings เดิมประเภท `gray-on-color` ใน `ScheduleAgenda.jsx`; ไม่เกี่ยวกับ logic รอบนี้และไม่ได้เปลี่ยน visual system
+
+## Round SCHEDULE-DIVERSITY-STATS-OPTIMIZATION-20260917
+ดำเนินการโดย: Codex (GPT-5)
+
+### What changed
+- Queue preview carries canonical style_preset and Hook color using the renderer mapping.
+- Auto-fill checks the preceding scheduled item, including posted items, and blocks adjacent duplicate products and Hook colors.
+- Stats optimization summarizes measured views, engagement, orders, commission, product performance, and posting-hour performance with sample-size confidence.
+- Measured hours rank available template slots when enabled; date-range and diversity constraints remain authoritative.
+- Preview explains skipped items and shows analytics, confidence, selection rules, and Hook-color markers.
+
+### Verification
+- Backend: pytest full suite -> 1566 passed, 6 skipped, 29 warnings.
+- Frontend: 255 tests passed; production build 2007 modules; lint passed with existing warnings.
+- Python compileall passed.
+- UI detector: existing gray-on-color findings in ScheduleAgenda.jsx (29), unchanged this round.
+## Round SCHEDULE-POSTED-CLIP-DEDUPE-20260917
+ดำเนินการโดย: Codex (GPT-5)
+
+### Diagnosis
+- Reproduced the 19:00 posted Loop -> 21:00 auto-fill duplicate. The previous-item lookup used the current cursor and could skip a posted row when earlier slots were occupied.
+- Queue/product identity could also vary between product_id and product_name, and post history was not a fallback when a queue row was missing.
+
+### Fix
+- Auto-fill now chooses the row immediately before the first available slot, including posted queue rows.
+- It reads PostLog as fallback, skips exact clip filenames with posted history, and compares product_id/product_name aliases.
+- Added regression tests for the posted previous slot and missing queue row with post history.
+
+### Verification
+- Backend: `python -m pytest tests/ -q -p no:cacheprovider --tb=short` -> 1568 passed, 6 skipped, 29 warnings.
+- Targeted schedule tests: 16 passed.
+- Python compileall passed; no tagged debug instrumentation remains.
+## Round SCHEDULE-UNKNOWN-METADATA-FALLBACK-20260917
+ดำเนินการโดย: Codex (GPT-5)
+
+### Diagnosis
+- The preview rejected all 80 candidates because legacy clips without product metadata were normalized to the same `other` product, while legacy UI payloads also supplied the same default Hook color without a style preset.
+- This made unknown metadata collide with itself instead of remaining unknown.
+
+### Fix
+- Unknown product aliases now remain empty and do not trigger product-duplicate blocking.
+- Hook colors are resolved only when a style preset exists; the UI no longer injects a default color for metadata-less clips.
+- Real product/style metadata remains protected by the duplicate-product and duplicate-Hook rules.
+
+### Verification
+- Backend: `python -m pytest tests/ -q -p no:cacheprovider --tb=short` -> 1569 passed, 6 skipped, 29 warnings.
+- Schedule tests: 17 passed; frontend tests: 255 passed; build: 2007 modules; lint exit 0.
+- Python compileall passed; no tagged debug instrumentation remains.
+---
+
+## Round MANUAL-STORYBOARD-OVERFLOW-FIX-1 — ป้องกันคลิปส่วนเกินห้อยท้ายไทม์ไลน์ 11 วินาทีเมื่อสร้างดราฟต์จาก Storyboard Mapper (Manual Shot Map)
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+### ปัญหาที่พบ (Root Cause Analysis)
+- ผู้ใช้กดสร้างดราฟต์ 1-Click บนโปรเจกต์ `IWA01-แกะกล่องว้าว_1` ซึ่งมีสคริปต์ 5 วรรค (ความยาว 25.58s)
+- ใน `scripts/stages/shot_matching_stage.py` ระบบ AI Rhythmic Cutter หั่นคลิปตาม `micro_cues` (17 คำ) ได้ 9 ช็อต รวม 25.58s
+- จากนั้นบล็อก `Manual Storyboard Override` นำ 5 วรรคที่ผู้ใช้ล็อกไว้ (Trim รวม 25.9s) มาแทนที่เฉพาะช็อต 0..4
+- แต่ช็อต 5..8 (อีก 4 ช็อต รวม 11.13s) ไม่ได้ถูกตัดทิ้ง ทำให้คลิปในไทม์ไลน์มี 9 ช็อต ยาวรวม 36.5s กลายเป็นติ่งเกินมาท้ายคลิปตามภาพที่ผู้ใช้แจ้ง
+- ยิ่งกว่านั้น `clip["duration"]` ของช็อตที่ล็อกไม่ได้ถูกซิงก์ให้ตรงกับความยาวของวรรค (target_duration) และ `speed` ไม่ได้ถูกคำนวณตามช่วง trim
+
+### การแก้ไขที่ดำเนินการ
+- [x] 1. ใน `scripts/stages/shot_matching_stage.py`: เพิ่ม `_build_manual_storyboard_clip_list` เมื่อมี `ctx.manual_shot_map` และ `ctx.beat_cues` โดยสร้างคลิป 1 ช็อต ต่อ 1 วรรคบทพูดพอดีเป๊ะ (`len(ctx.beat_cues)`)
+- [x] 2. สำหรับแต่ละวรรค: หากผู้ใช้ล็อกช็อตไว้ ให้ดึง `trim_start`, `trim_end`, `source_path` พร้อมคำนวณ `speed = (trim_end - trim_start) / target_duration` และตั้ง `duration = target_duration`
+- [x] 3. หากมีวรรคที่ไม่ได้ล็อก (Hybrid AI): ให้ใช้ proportional slice หรือ fallback ที่มีความยาวตรงกับ `target_duration` ของวรรคนั้นพอดี
+- [x] 4. ในบล็อก Override (กรณี fallback หรือมีคลิปเดิม): Truncate `actual_clip_list` ให้มีจำนวนไม่เกิน `len(ctx.beat_cues)` และตัด `transitions` ส่วนเกินทิ้ง ป้องกันคลิปห้อยท้ายเกินเสียงพากย์ 100%
+- [x] 5. อัปเดต `project.json` ของ `IWA01-แกะกล่องว้าว_1` ให้มี 5 ช็อตตรงตาม 5 วรรค และความยาวรวม 25.58s ไม่มีช่วงเกิน 11s อีกต่อไป
+- [x] 6. รัน automated tests: `pytest tests/test_manual_shot_map.py` (5 passed), `npm test` (255 passed), `npm run build` (2,007 modules ใน 2.94s) ผ่านฉลุย 100%

@@ -15,7 +15,9 @@ from pydantic import BaseModel, Field, field_validator
 from scripts.api_tiktok_autopost import PrepareRequest, prepare
 from scripts.config import BASE_DIR, EXPORTS_DIR
 from scripts.export_registry import ExportRegistry, _normalise_path as _export_normalise_path
+from scripts.post_log import PostLog
 from scripts.schedule_store import ScheduleQueueStore, ScheduleTemplateStore, new_id, now_iso
+from scripts.style_motion_policy import resolve_style_motion_policy
 
 POSTED_DIR = EXPORTS_DIR.parent / "Posted"
 PROJECT_TZ = ZoneInfo("Asia/Bangkok")
@@ -46,6 +48,8 @@ class QueueItemPayload(BaseModel):
     product_name: Optional[str] = None
     project_name: Optional[str] = None
     hook_title: Optional[str] = None
+    style_preset: Optional[str] = None
+    hook_color: Optional[str] = None
     cover_path: Optional[str] = None
     cover_url: Optional[str] = None
     caption: str = ""
@@ -62,6 +66,8 @@ class QueueCreateRequest(BaseModel):
     product_name: Optional[str] = None
     project_name: Optional[str] = None
     hook_title: Optional[str] = None
+    style_preset: Optional[str] = None
+    hook_color: Optional[str] = None
     cover_path: Optional[str] = None
     cover_url: Optional[str] = None
     caption: str = ""
@@ -104,6 +110,8 @@ class AutoFillClipPayload(BaseModel):
     product_name: Optional[str] = None
     project_name: Optional[str] = None
     hook_title: Optional[str] = None
+    style_preset: Optional[str] = None
+    hook_color: Optional[str] = None
     cover_path: Optional[str] = None
     cover_url: Optional[str] = None
     caption: str = ""
@@ -120,6 +128,7 @@ class AutoFillRequest(BaseModel):
     product_ids: List[str] = Field(default_factory=list)
     limit: Optional[int] = Field(default=None, ge=1, le=10000)
     seed: Optional[int] = None
+    optimize_by_stats: bool = False
 
 
 class AutoFillCommitRequest(BaseModel):
@@ -153,6 +162,52 @@ def _valid_time(value: str) -> str:
     if int(text[3:]) % 5:
         raise HTTPException(status_code=422, detail="เวลาหลักต้องเป็นรอบละ 5 นาที")
     return text
+
+
+def _normalise_hex_color(value: Any) -> Optional[str]:
+    text = str(value or "").strip()
+    return text.upper() if re.fullmatch(r"#[0-9A-Fa-f]{6}", text) else None
+
+
+def _resolve_hook_color(style_preset: Optional[str] = None, explicit_color: Any = None) -> Optional[str]:
+    """Resolve the renderer's accent token used by the Hook badge.
+
+    The explicit color wins for custom/legacy renders. Otherwise use the same
+    style policy as the video renderer so queue diversity is based on the
+    color the viewer actually sees, not on a frontend-only guess.
+    """
+    if not str(style_preset or "").strip():
+        # A color without its style preset is legacy/ambiguous metadata.
+        return None
+    explicit = _normalise_hex_color(explicit_color)
+    if explicit:
+        return explicit
+    return resolve_style_motion_policy(style_preset).accent_color.upper()
+
+
+def _product_key(value: Any, fallback: Any = None) -> str:
+    return str(value or fallback or "other").strip().casefold() or "other"
+
+
+def _row_visual_key(row: Dict[str, Any]) -> Optional[str]:
+    return _resolve_hook_color(row.get("style_preset"), row.get("hook_color"))
+
+
+def _product_aliases(product_id: Any = None, product_name: Any = None) -> set[str]:
+    aliases = {
+        _product_key(value)
+        for value in (product_id, product_name)
+        if str(value or "").strip()
+    }
+    return aliases
+
+
+def _clip_product_aliases(clip: AutoFillClipPayload) -> set[str]:
+    return _product_aliases(clip.product_id, clip.product_name)
+
+
+def _row_product_aliases(row: Dict[str, Any]) -> set[str]:
+    return _product_aliases(row.get("product_id"), row.get("product_name"))
 
 
 def _normalise_days(days: Dict[str, ScheduleDayPayload] | Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -313,6 +368,8 @@ def _payload_to_record(payload: QueueItemPayload, existing_keys: set, existing_t
         "product_name": payload.product_name,
         "project_name": payload.project_name,
         "hook_title": payload.hook_title,
+        "style_preset": payload.style_preset,
+        "hook_color": _resolve_hook_color(payload.style_preset, payload.hook_color),
         "cover_path": payload.cover_path,
         "cover_url": payload.cover_url,
         "caption": payload.caption,
@@ -342,6 +399,8 @@ def _request_items(req: QueueCreateRequest) -> List[QueueItemPayload]:
         product_name=req.product_name,
         project_name=req.project_name,
         hook_title=req.hook_title,
+        style_preset=req.style_preset,
+        hook_color=req.hook_color,
         cover_path=req.cover_path,
         cover_url=req.cover_url,
         caption=req.caption,
@@ -370,7 +429,7 @@ def _slot_stream(
     template_week_start: Optional[str] = None,
     enabled_days: Optional[List[int]] = None,
 ) -> List[dt.datetime]:
-    """Yield future, enabled template slots, continuing beyond the range."""
+    """Yield future, enabled template slots inside the requested date range."""
     if count <= 0:
         return []
     slots: List[dt.datetime] = []
@@ -381,10 +440,13 @@ def _slot_stream(
     # times instead of moving on to slots that were never used.
     occupied = {str(row.get("scheduled_at")) for row in ScheduleQueueStore._load()}
     day = start
-    last_day = end
-    # Auto-fill may spill after the requested range. A year is ample for the
-    # maximum request and keeps malformed templates from creating an infinite loop.
+    # The selected date range is a hard boundary. Auto-fill is a previewable
+    # planning action, so silently placing the remainder on later dates makes
+    # the user's explicit "today"/custom-range choice unsafe. The 366-day
+    # guard still protects against malformed input/template combinations.
     for _ in range(366):
+        if day > end:
+            break
         template = _template_for_date(day, template_week_start)
         day_config = template["days"].get(str(day.weekday()), {})
         if (enabled_days is None or day.weekday() in enabled_days) and day_config.get("enabled", True):
@@ -396,11 +458,7 @@ def _slot_stream(
                 slots.append(when)
                 if len(slots) >= count:
                     return slots
-        # Once the requested range has been exhausted, continue from the next
-        # enabled day using the same per-week templates.
         day += dt.timedelta(days=1)
-        if day > last_day:
-            last_day = day
     return slots
 
 
@@ -424,6 +482,119 @@ def _existing_queue_keys(records: List[Dict[str, Any]]) -> set[str]:
     return keys
 
 
+def _post_datetime(value: Any) -> Optional[dt.datetime]:
+    try:
+        parsed = dt.datetime.fromisoformat(str(value or "").replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=PROJECT_TZ)
+    return parsed.astimezone(PROJECT_TZ)
+
+
+def _stats_bucket_summary(bucket: Dict[str, Any], label_key: str, label: Any) -> Dict[str, Any]:
+    samples = bucket["samples"]
+    views = bucket["views"]
+    avg_views = views / samples if samples else 0.0
+    engagement = bucket["engagement"] / samples if samples else 0.0
+    avg_orders = bucket["orders"] / samples if samples else 0.0
+    avg_commission = bucket["commission"] / samples if samples else 0.0
+    score = avg_views * (1.0 + engagement / 100.0) + avg_orders * 1000.0 + avg_commission * 0.1
+    return {
+        label_key: label,
+        "samples": samples,
+        "avg_views": round(avg_views),
+        "avg_engagement_rate": round(engagement, 2),
+        "avg_orders": round(avg_orders, 2),
+        "avg_commission_thb": round(avg_commission, 2),
+        "score": round(score, 2),
+    }
+
+
+def _build_performance_analytics(clips: List[AutoFillClipPayload]) -> tuple[Dict[str, Any], Dict[str, float], Dict[int, float]]:
+    """Build explainable product/hour scores from measured local post data."""
+    try:
+        posts = PostLog.list_posts(newest_first=False)
+    except Exception:
+        posts = []
+    product_buckets: Dict[str, Dict[str, Any]] = {}
+    hour_buckets: Dict[int, Dict[str, Any]] = {}
+    measured = 0
+    for post in posts:
+        metrics = post.get("metrics") or {}
+        if not metrics or not _post_datetime(post.get("posted_at")):
+            continue
+        views = max(0, int(metrics.get("views") or 0))
+        likes = max(0, int(metrics.get("likes") or 0))
+        comments = max(0, int(metrics.get("comments") or 0))
+        shares = max(0, int(metrics.get("shares") or 0))
+        orders = max(0, int(metrics.get("orders") or 0))
+        commission = max(0.0, float(metrics.get("commission_thb") or 0.0))
+        engagement = ((likes + comments + shares) / views * 100.0) if views else 0.0
+        contribution = {"samples": 1, "views": views, "engagement": engagement, "orders": orders, "commission": commission}
+        product_name = str(post.get("product_name") or "ไม่ระบุสินค้า").strip()
+        product_buckets.setdefault(_product_key(product_name), {"samples": 0, "views": 0, "engagement": 0.0, "orders": 0, "commission": 0.0})
+        for key, value in contribution.items():
+            product_buckets[_product_key(product_name)][key] += value
+        hour = _post_datetime(post.get("posted_at")).hour
+        hour_buckets.setdefault(hour, {"samples": 0, "views": 0, "engagement": 0.0, "orders": 0, "commission": 0.0})
+        for key, value in contribution.items():
+            hour_buckets[hour][key] += value
+        measured += 1
+
+    products = [_stats_bucket_summary(bucket, "product_name", next((str(post.get("product_name") or "ไม่ระบุสินค้า").strip() for post in posts if _product_key(post.get("product_name")) == key), "ไม่ระบุสินค้า")) for key, bucket in product_buckets.items()]
+    products.sort(key=lambda row: (-row["score"], -row["samples"], row["product_name"]))
+    hours = [_stats_bucket_summary(bucket, "hour", hour) for hour, bucket in hour_buckets.items()]
+    hours.sort(key=lambda row: (-row["score"], -row["samples"], row["hour"]))
+    product_scores: Dict[str, float] = {}
+    for row in products:
+        product_scores[_product_key(row["product_name"])] = row["score"]
+    for clip in clips:
+        name_score = product_scores.get(_product_key(clip.product_name))
+        if name_score is not None and clip.product_id:
+            product_scores[_product_key(clip.product_id)] = name_score
+    hour_scores = {row["hour"]: row["score"] for row in hours}
+    confidence = "high" if measured >= 10 else "medium" if measured >= 5 else "low" if measured else "none"
+    analytics = {
+        "available": bool(measured),
+        "sample_size": measured,
+        "confidence": confidence,
+        "top_products": products[:5],
+        "top_hours": hours[:5],
+        "method": "avg_views + engagement + orders + commission; ใช้เป็นคะแนนช่วยเลือก ไม่ใช่การการันตียอดขาย",
+    }
+    return analytics, product_scores, hour_scores
+
+
+def _previous_queue_row(records: List[Dict[str, Any]], cursor: dt.datetime) -> Optional[Dict[str, Any]]:
+    candidates = []
+    for row in records:
+        scheduled = _queue_timestamp(row.get("scheduled_at", ""))
+        if scheduled and scheduled <= cursor:
+            candidates.append((scheduled, row))
+    return max(candidates, key=lambda item: (item[0], str(item[1].get("id") or "")))[1] if candidates else None
+
+
+def _previous_post_row(posts: List[Dict[str, Any]], cursor: dt.datetime) -> Optional[Dict[str, Any]]:
+    candidates = []
+    for post in posts:
+        posted_at = _post_datetime(post.get("posted_at"))
+        if posted_at and posted_at <= cursor:
+            candidates.append((posted_at, post))
+    if not candidates:
+        return None
+    posted_at, post = max(candidates, key=lambda item: (item[0], str(item[1].get("id") or "")))
+    return {
+        "scheduled_at": scheduled_iso(posted_at),
+        "product_id": post.get("product_id"),
+        "product_name": post.get("product_name"),
+        "angle_id": post.get("angle_key"),
+        "style_preset": post.get("style_preset"),
+        "hook_color": post.get("hook_color"),
+        "id": post.get("id"),
+    }
+
+
 def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
     start = _date_value(req.start_date, field="start_date")
     end = _date_value(req.end_date, field="end_date")
@@ -433,15 +604,28 @@ def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
         raise HTTPException(status_code=422, detail="ช่วง auto-fill ยาวได้ไม่เกิน 366 วัน")
 
     records = ScheduleQueueStore._load()
+    try:
+        history_posts = PostLog.list_posts(newest_first=False)
+    except Exception:
+        history_posts = []
+    posted_clip_names = {
+        Path(str(post.get("clip_file") or "").replace("\\", "/")).name.casefold()
+        for post in history_posts
+        if Path(str(post.get("clip_file") or "").replace("\\", "/")).name.casefold()
+        and Path(str(post.get("clip_file") or "").replace("\\", "/")).name.casefold() not in {"clip.mp4", "video.mp4"}
+    }
     queued_keys = _existing_queue_keys(records)
-    requested_products = {str(value) for value in req.product_ids if str(value).strip()}
+    requested_products = {_product_key(value) for value in req.product_ids if str(value).strip()}
     candidates: List[tuple[str, AutoFillClipPayload]] = []
     skipped_invalid: List[Dict[str, str]] = []
     seen: set[str] = set()
     for clip in req.clips:
         try:
+            resolved_clip = resolve_video(clip.video_path)
+            if resolved_clip.name.casefold() in posted_clip_names:
+                raise HTTPException(status_code=409, detail="คลิปนี้มีประวัติถูกโพสต์แล้ว จึงไม่เสนอซ้ำ")
             key = f"export:{clip.export_id}" if clip.export_id else _eligible_clip_key(clip.video_path)
-            export_record = ExportRegistry.get(clip.export_id) if clip.export_id else ExportRegistry.find_by_path(resolve_video(clip.video_path))
+            export_record = ExportRegistry.get(clip.export_id) if clip.export_id else ExportRegistry.find_by_path(resolved_clip)
             if clip.export_id and export_record is None:
                 raise HTTPException(status_code=409, detail="ไม่พบ export_id ของคลิปที่ส่งมา")
             if export_record:
@@ -455,74 +639,174 @@ def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
             continue
         if key in queued_keys or key in seen:
             continue
-        product_key = str(clip.product_id or clip.product_name or "other")
+        product_key = _product_key(clip.product_id, clip.product_name)
         if requested_products and product_key not in requested_products:
             continue
         seen.add(key)
         candidates.append((product_key, clip))
 
-    rng = random.Random(req.seed)
-    buckets: Dict[str, List[AutoFillClipPayload]] = {}
-    for product_key, clip in candidates:
-        buckets.setdefault(product_key, []).append(clip)
-    product_keys = list(buckets)
-    rng.shuffle(product_keys)
-    for clips in buckets.values():
-        rng.shuffle(clips)
-
-    selected_count = min(req.limit or len(candidates), len(candidates))
-    selected: List[AutoFillClipPayload] = []
-    latest_row = max(
-        (row for row in records if row.get("status") != "posted" and _queue_timestamp(row.get("scheduled_at", ""))),
-        key=lambda row: _queue_timestamp(row.get("scheduled_at", "")) or dt.datetime.min.replace(tzinfo=PROJECT_TZ),
-        default=None,
-    )
-    last_product: Optional[str] = str(latest_row.get("product_id") or latest_row.get("product_name")) if latest_row else None
-    while len(selected) < selected_count:
-        available = [key for key in product_keys if buckets.get(key) and key != last_product]
-        if not available:
-            available = [key for key in product_keys if buckets.get(key)]
-        if not available:
-            break
-        product_key = rng.choice(available)
-        selected.append(buckets[product_key].pop())
-        last_product = product_key
-
     now = dt.datetime.now(PROJECT_TZ).replace(second=0, microsecond=0)
     latest = max(
-        (_queue_timestamp(row.get("scheduled_at", "")) for row in records if row.get("status") != "posted"),
+        (
+            scheduled
+            for row in records
+            if row.get("status") != "posted"
+            for scheduled in [_queue_timestamp(row.get("scheduled_at", ""))]
+            if scheduled and start <= scheduled.date() <= end
+        ),
         default=None,
     )
     cursor = max(now, latest) if latest else now
+    analytics, product_scores, hour_scores = _build_performance_analytics([clip for _, clip in candidates]) if req.optimize_by_stats else ({
+        "available": False,
+        "sample_size": 0,
+        "confidence": "none",
+        "top_products": [],
+        "top_hours": [],
+        "method": "ปิดการใช้สถิติ",
+    }, {}, {})
+
     allowed_days = None
     if req.enabled_days is not None:
         allowed_days = sorted({int(value) for value in req.enabled_days if 0 <= int(value) <= 6})
     if req.template_week_start:
         _week_key(req.template_week_start)
+    selected_count = min(req.limit or len(candidates), len(candidates))
+    slot_count = selected_count
+    if req.optimize_by_stats and hour_scores:
+        # Ask for the full template horizon first, then keep the best measured
+        # hours. Requesting only len(selected) slots would always return the
+        # earliest times and leave the stats ranking nothing to choose from.
+        slot_count = max(selected_count, ((end - start).days + 1) * 24)
     slots = _slot_stream(
         start,
         end,
         cursor,
-        len(selected),
+        slot_count,
         template_week_start=req.template_week_start,
         enabled_days=allowed_days,
     )
+    available_slots = list(slots)
+    if req.optimize_by_stats and hour_scores and len(slots) > selected_count:
+        slots = sorted(
+            sorted(slots, key=lambda value: value),
+            key=lambda value: (-hour_scores.get(value.hour, 0.0), value),
+        )[:selected_count]
+        slots.sort()
+
+    used_products_by_day: Dict[dt.date, set[str]] = {}
+    used_colors_by_day: Dict[dt.date, set[str]] = {}
+    for row in records:
+        when = _queue_timestamp(row.get("scheduled_at", ""))
+        if not when or not (start <= when.date() <= end):
+            continue
+        used_products_by_day.setdefault(when.date(), set()).update(_row_product_aliases(row))
+        color = _row_visual_key(row)
+        if color:
+            used_colors_by_day.setdefault(when.date(), set()).add(color)
+    for post in history_posts:
+        when = _post_datetime(post.get("posted_at"))
+        if not when or not (start <= when.date() <= end):
+            continue
+        used_products_by_day.setdefault(when.date(), set()).update(_product_aliases(post.get("product_id"), post.get("product_name")))
+        color = _resolve_hook_color(post.get("style_preset"), post.get("hook_color"))
+        if color:
+            used_colors_by_day.setdefault(when.date(), set()).add(color)
+
+    # The previous clip is the row immediately before the first genuinely
+    # available slot. This includes posted rows, so a clip posted at 19:00
+    # still blocks the same product/color from being put at 21:00.
+    previous_cursor = available_slots[0] if available_slots else cursor
+    previous_row = _previous_queue_row(records, previous_cursor)
+    history_row = _previous_post_row(history_posts, previous_cursor)
+    if history_row:
+        queue_time = _queue_timestamp(previous_row.get("scheduled_at", "")) if previous_row else None
+        history_time = _queue_timestamp(history_row.get("scheduled_at", ""))
+        if previous_row is None or (history_time and (queue_time is None or history_time > queue_time)):
+            previous_row = history_row
+    rng = random.Random(req.seed)
+    buckets: Dict[str, List[AutoFillClipPayload]] = {}
+    for product_key, clip in candidates:
+        buckets.setdefault(product_key, []).append(clip)
+    product_keys = list(buckets)
+    if req.optimize_by_stats and product_scores:
+        product_keys.sort(key=lambda key: (-product_scores.get(_product_key(key), 0.0), rng.random()))
+    else:
+        rng.shuffle(product_keys)
+    for clips in buckets.values():
+        rng.shuffle(clips)
+
+    selection_target = min(selected_count, len(slots))
+    selected: List[AutoFillClipPayload] = []
+    while len(selected) < selection_target:
+        target_day = slots[len(selected)].date() if len(selected) < len(slots) else None
+
+        def usable(key: str) -> bool:
+            if not buckets.get(key):
+                return False
+            return any(
+                target_day is not None
+                and not used_products_by_day.get(target_day, set()).intersection(_clip_product_aliases(clip))
+                and (
+                    not _resolve_hook_color(clip.style_preset, clip.hook_color)
+                    or _resolve_hook_color(clip.style_preset, clip.hook_color)
+                    not in used_colors_by_day.get(target_day, set())
+                )
+                for clip in buckets[key]
+            )
+
+        available = [key for key in product_keys if usable(key)]
+        if not available:
+            break
+        product_key = available[0] if req.optimize_by_stats and product_scores else rng.choice(available)
+        clip_options = [
+            clip for clip in buckets[product_key]
+            if target_day is not None
+            and not used_products_by_day.get(target_day, set()).intersection(_clip_product_aliases(clip))
+            and (
+                not _resolve_hook_color(clip.style_preset, clip.hook_color)
+                or _resolve_hook_color(clip.style_preset, clip.hook_color)
+                not in used_colors_by_day.get(target_day, set())
+            )
+        ]
+        if not clip_options:
+            buckets[product_key] = []
+            continue
+        clip = rng.choice(clip_options)
+        buckets[product_key].remove(clip)
+        selected.append(clip)
+        used_products_by_day.setdefault(target_day, set()).update(_clip_product_aliases(clip))
+        color = _resolve_hook_color(clip.style_preset, clip.hook_color)
+        if color:
+            used_colors_by_day.setdefault(target_day, set()).add(color)
     items: List[Dict[str, Any]] = []
     for clip, when in zip(selected, slots):
         item = clip.model_dump()
         item["scheduled_at"] = scheduled_iso(when)
+        item["hook_color"] = _resolve_hook_color(item.get("style_preset"), item.get("hook_color"))
         items.append(item)
-    skipped_slots = max(0, len(selected) - len(items))
+    skipped_repetition = max(0, selection_target - len(selected))
+    skipped_slots = max(0, selected_count - len(slots)) + max(0, len(selected) - len(items))
+    skipped_items = max(0, selected_count - len(items))
     reason = None
     if not candidates:
         reason = "ไม่มีคลิปที่พร้อมจัดคิวและยังไม่เคยอยู่ในคิว"
+    elif skipped_repetition:
+        reason = "เหลือคลิปที่ติดเงื่อนไขกันสินค้าซ้ำหรือสี Hook ซ้ำ จึงไม่ฝืนจัดคิวให้ซ้ำกัน"
     elif skipped_slots:
         reason = "ไม่มีช่วงเวลาหลักที่ว่างพอสำหรับคลิปที่เลือก"
     return {
         "items": items,
         "skipped_slots": skipped_slots,
+        "skipped_repetition": skipped_repetition,
+        "skipped_items": skipped_items,
         "skipped_invalid": skipped_invalid,
         "available_count": len(candidates),
+        "requested_count": selected_count,
+        "range_start": start.isoformat(),
+        "range_end": end.isoformat(),
+        "selection_rules": ["ไม่ซ้ำสินค้าเรียงติดกัน", "ไม่ซ้ำสี Hook เรียงติดกัน"],
+        "analytics": analytics,
         "timezone": "Asia/Bangkok",
         "seed": req.seed,
         "reason": reason,

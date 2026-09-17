@@ -437,4 +437,10 @@ export const updateProducerNote = (noteId, patch, baseRevision = null) =>
 export const deleteProducerNote = (noteId) =>
   api.delete(`/producer/notes/${encodeURIComponent(noteId)}`).then(r => r.data);
 
+export const getManualShotMap = (productId, angleId) =>
+  api.get(`/products/${productId}/angles/${angleId}/manual-shot-map`).then(r => r.data);
+
+export const saveManualShotMap = (productId, angleId, shotMap) =>
+  api.patch(`/products/${productId}/angles/${angleId}/manual-shot-map`, { shot_map: shotMap }).then(r => r.data);
+
 export default api;

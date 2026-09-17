@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addDays, buildScheduleIso, groupScheduleItems, mergeScheduleDraft, nextTemplateSlotAfterLatest, templateForWeek, weekStartForDate } from './scheduleQueue.js';
+import { addDays, buildScheduleIso, groupScheduleItems, mergeScheduleDraft, nextTemplateSlotAfterLatest, templateForWeek, templateSlots, weekStartForDate } from './scheduleQueue.js';
 import { scheduleTimeOptions, snapTimeToFiveMinutes } from './scheduleQueue.js';
 
 test('schedule times use five-minute increments', () => {
@@ -59,4 +59,16 @@ test('weekly calendar generates 7 consecutive days starting from Monday', () => 
   assert.equal(days[6], '2026-09-13');
   assert.equal(addDays(monday, -7), '2026-08-31');
   assert.equal(addDays(monday, 7), '2026-09-14');
+});
+
+test('template slots stay inside the selected date range', () => {
+  const template = { default: { days: Object.fromEntries(Array.from({ length: 7 }, (_, index) => [String(index), { enabled: true, times: ['09:00'] }])) } };
+  const slots = templateSlots('2026-09-17', '2026-09-17', template, new Date('2026-09-17T23:00:00+07:00'));
+  assert.deepEqual(slots, []);
+});
+
+test('template slots ignore a latest queue timestamp outside the selected range', () => {
+  const template = { default: { days: Object.fromEntries(Array.from({ length: 7 }, (_, index) => [String(index), { enabled: true, times: ['09:00', '12:30'] }])) } };
+  const slots = templateSlots('2030-01-07', '2030-01-07', template, new Date('2026-09-17T10:00:00+07:00'), '2030-01-08T21:30:00+07:00');
+  assert.deepEqual(slots.map((slot) => slot.date), ['2030-01-07', '2030-01-07']);
 });

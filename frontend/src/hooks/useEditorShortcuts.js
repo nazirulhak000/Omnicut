@@ -32,6 +32,11 @@ export function useEditorShortcuts({
         return;
       }
 
+      // Do not trigger background editor shortcuts if a modal dialog is open
+      if (typeof document !== 'undefined' && document.querySelector('[role="dialog"], [aria-modal="true"]')) {
+        return;
+      }
+
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();
