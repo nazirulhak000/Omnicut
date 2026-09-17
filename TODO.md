@@ -17,6 +17,7 @@
 
 ## สถานะรวม
 
+- [x] Round SCENE-INDEX-TASK-NAV-AND-PATH-DEDUP-1 — แก้ไขการแจ้งเตือนงานสแกนฉาก (index_scenes) นำทางกลับหน้าสินค้า flow อย่างถูกต้อง + ยุบรวมการนับคลิปและฉากไม่ให้เบิ้ล 2 เท่าด้วย Canonical Path Deduplication (2026-09-17; backend 9 passed, frontend 255 passed, build 2,008 modules/4.56s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round MASTER-STORYBOARD-SYNC-AND-RECIPE-1 — ระบบสูตรถ่ายทำ 5 ช็อตมาตรฐานระดับสินค้า (Universal Filming Recipe) + ปุ่มซิงก์ช็อตข้ามทุกสคริปต์ (Master Storyboard Sync Engine) พร้อม Smart Role Mapping วรรคไม่เท่ากัน (30s vs 60s) (2026-09-17; backend 9 passed, frontend 255 passed, build 2,008 modules/4.20s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round MANUAL-STORYBOARD-OVERFLOW-FIX-1 — ป้องกันคลิปส่วนเกินห้อยท้ายไทม์ไลน์ 11 วินาทีเมื่อสร้างดราฟต์จาก Storyboard Mapper (Manual Shot Map): สร้าง Clip List ตรงตามวรรคบทพูด (Beats) เป๊ะๆ ไม่แตกเป็น micro-cues 9 ช็อต + Truncate ช็อตส่วนเกิน และซิงก์ Duration/Speed ให้ตรงกับจังหวะวรรคเสียงพากย์ 100% (2026-09-17; backend 5 passed, frontend 255 passed, build 2,007 modules/2.94s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round MANUAL-STORYBOARD-MAPPER-1 — ระบบกำหนดช็อตด้วยตนเองรายวรรคบทพูด (Manual Shot Mapper): Modal เต็มตา 2-panel เลือกฉากจากสารบัญ AI + Trim Scrubber + Hybrid ล็อก/AI auto สำหรับวรรคที่เหลือ (2026-09-17; backend 14 passed, frontend 255 passed, build 2,007 modules/3.96s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
@@ -1066,4 +1067,11 @@ Plan before code:
 
 ---
 
+## Round SCHEDULE-COMMIT-GUARD-REVENUE-INSIGHTS-20260917 - closed (ดำเนินการโดย: Codex (GPT-5))
+
+---
+
 ## Round MASTER-STORYBOARD-SYNC-AND-RECIPE-1 - closed (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+---
+
+## Round SCENE-INDEX-TASK-NAV-AND-PATH-DEDUP-1 - closed (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))

@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round SCENE-INDEX-TASK-NAV-AND-PATH-DEDUP-1 | แก้ไขการแจ้งเตือนงานสแกนฉาก (index_scenes) นำทางกลับหน้าสินค้า flow อย่างถูกต้อง + ยุบรวมการนับคลิปและฉากไม่ให้เบิ้ล 2 เท่าด้วย Canonical Path Deduplication | 2026-09-17 | สำเร็จสมบูรณ์ (backend 9 passed, frontend 255 passed, build 2,008 modules/4.56s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round MASTER-STORYBOARD-SYNC-AND-RECIPE-1 | ระบบสูตรถ่ายทำ 5 ช็อตมาตรฐานระดับสินค้า (Universal Filming Recipe) + ปุ่มซิงก์ช็อตข้ามทุกสคริปต์ (Master Storyboard Sync Engine) พร้อม Smart Role Mapping วรรคไม่เท่ากัน (30s vs 60s) | 2026-09-17 | สำเร็จสมบูรณ์ (backend 9 passed, frontend 255 passed, build 2,008 modules/4.20s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round MANUAL-STORYBOARD-OVERFLOW-FIX-1 | ป้องกันคลิปส่วนเกินห้อยท้ายไทม์ไลน์ 11 วินาทีเมื่อสร้างดราฟต์จาก Storyboard Mapper (Manual Shot Map): สร้าง Clip List ตรงตามวรรคบทพูด (Beats) เป๊ะๆ ไม่แตกเป็น micro-cues 9 ช็อต + Truncate ช็อตส่วนเกิน และซิงก์ Duration/Speed ให้ตรงกับจังหวะวรรคเสียงพากย์ 100% | 2026-09-17 | สำเร็จสมบูรณ์ (backend 5 passed, frontend 255 passed, build 2,007 modules/2.94s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round MANUAL-STORYBOARD-MAPPER-1 | ระบบกำหนดช็อตด้วยตนเองรายวรรคบทพูด (Manual Shot Mapper): Modal เต็มตา 2-panel เลือกฉากจากสารบัญ AI + Trim Scrubber + Hybrid ล็อก/AI auto สำหรับวรรคที่เหลือ | 2026-09-17 | สำเร็จสมบูรณ์ (backend 14 passed, frontend 255 passed, build 2,007 modules/3.96s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -7108,3 +7109,47 @@ Executed by: Codex (GPT-6)
   - Backend pytest: `tests/test_manual_shot_map.py` ผ่าน 5/5 (100%)
   - Frontend vitest: `npm test` ผ่าน 255/255 (100%)
   - Production build: `npm run build` แปลง 2,008 modules เสร็จสมบูรณ์ใน 4.20s ปราศจาก error
+
+## Round SCHEDULE-COMMIT-GUARD-REVENUE-INSIGHTS-20260917
+ดำเนินการโดย: Codex (GPT-5)
+
+### Diagnosis
+- Preview กันสินค้าและสี Hook ซ้ำรายวันแล้ว แต่ Commit ตรวจเพียงไฟล์/เวลา ทำให้ข้อมูลที่ถูกเพิ่มระหว่างเปิด modal กับกดบันทึกสามารถหลุดเงื่อนไขได้
+- คะแนนเดิมพึ่งยอดวิวรวมมากเกินไป จึงอธิบายประสิทธิภาพเชิงรายได้ได้ไม่ดีพอ
+- Preview นับรายการที่ข้ามแยกอยู่หลาย field แต่ยังไม่มีสรุปที่อ่านได้ในจุดเดียว
+
+### Fix
+- เพิ่ม atomic commit guard สำหรับสินค้าและสี Hook ซ้ำในวันเดียวกัน โดยรวมทั้ง queue เดิม, post history และรายการใหม่ใน batch เดียวกัน; หากชนจะคืน 409 และไม่บันทึกบางส่วน
+- เพิ่ม `cart_click_rate`, `orders_per_1000_views` และ `commission_per_1000_views_thb` พร้อมปรับ score ให้ normalize ตาม reach ก่อนใช้ช่วยเรียงสินค้า/เวลา
+- เพิ่ม `skip_summary` ใน Preview และแสดงสรุปบน ScheduleAgenda; แก้ข้อความให้ชัดว่าเป็นการกันซ้ำทั้งวัน ไม่ใช่เฉพาะคลิปที่อยู่ติดกัน
+- เพิ่ม regression tests สำหรับ race ระหว่าง Preview/Commit, duplicate ภายใน batch, skip summary และ revenue metrics
+
+### Verification
+- Backend full: `1579 passed, 6 skipped, 29 warnings`
+- Schedule tests: `21 passed, 1 warning`
+- Frontend tests: `255 passed`
+- Frontend build: Vite `2,008 modules` ผ่าน
+- Frontend lint: exit 0; มี warnings เดิมจากไฟล์อื่น
+- Python compileall และ `git diff --check` ผ่าน; ไม่พบ debug instrumentation ใหม่
+
+## Round SCENE-INDEX-TASK-NAV-AND-PATH-DEDUP-1 — แก้ไขการแจ้งเตือนงานสแกนฉาก (index_scenes) นำทางกลับหน้าสินค้า flow อย่างถูกต้อง + ยุบรวมการนับคลิปและฉากไม่ให้เบิ้ล 2 เท่าด้วย Canonical Path Deduplication
+วันที่: 2026-09-17 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+### ปัญหาที่พบ
+1. **กดการแจ้งเตือนสแกนฉากแล้วหลุดเข้า Editor ไทม์ไลน์ และขึ้น 'ไม่พบโปรเจกต์':** เมื่องานสแกนสารบัญฉาก (`index_scenes`) เสร็จสมบูรณ์ ใน `ActivityCenter.jsx` ขาดการดักจับ task type นี้ ทำให้หลุดเข้าเงื่อนไข default แสดงปุ่ม "เปิดหน้าไทม์ไลน์ทันที" และส่ง `productId` (`0912f877ec0d45379c92b263228760d5`) ไปที่ Editor ซึ่งไม่ใช่ชื่อโปรเจกต์ ทำให้ Editor แจ้งเตือนว่าไม่พบโปรเจกต์
+2. **นับคลิปและฉากเบิ้ล 2 เท่า (บอกมี 2 คลิป 20 ฉาก ทั้งที่มีคลิปเดียว 10 ฉาก):** ใน `scripts/api_products.py` ฟังก์ชัน `get_scene_catalogs` และ `index_scenes_endpoint` ดึงคลิปจาก `prod.get("videos")` (ซึ่งเก็บเป็น absolute path เช่น `D:\...\Iwachi i6.mov`) และจาก `angle.get("selected_videos")` (ซึ่งเก็บเป็น relative path เช่น `01_Raw/.../Iwachi i6.mov`) โดยเช็คแค่ string equality ทำให้ไฟล์เดียวกันถูกนับเป็น 2 คลิป และฉากถูกนับรวมเป็น 20 ฉาก
+
+### ผลการดำเนินงาน
+- [x] 1. **Canonical Path Deduplication (Backend):**
+  - ใน `scripts/api_products.py`: ปรับปรุงฟังก์ชัน `get_scene_catalogs` และ `index_scenes_endpoint` ด้วย `_collect_canonical_videos` แปลงพาธทุกรูปแบบ (Relative, Absolute, Windows backslash, Unix slash) ให้กลายเป็น resolved canonical path (`Path(v).resolve()`)
+  - ไฟล์วิดีโอเดียวกันจะถูกยุบรวมเหลือ 1 ไฟล์เสมอ ไม่ถูกนับซ้ำอีกต่อไป
+  - คืนค่า `scenes_count` ตรงตามฉากจริง (1 คลิป 10 ฉาก)
+- [x] 2. **Activity Center & Toast Navigation Routing (Frontend):**
+  - ใน `frontend/src/context/TaskContext.jsx`: เพิ่ม `isSceneIndexingTask` เข้าในกลุ่ม `isProductFlowTask` ทำให้เมื่อผู้ใช้กดดูผลลัพธ์ของงานสแกนฉาก ระบบจะพาไปยังหน้าสินค้า (`flow`) พร้อมเลือกสินค้านั้นโดยอัตโนมัติ ไม่หลุดไปยังหน้า Editor ไทม์ไลน์
+  - ใน `frontend/src/components/ActivityCenter.jsx`:
+    - เพิ่มตัวดักจับ `isSceneIndexingTask` บน Toast Notification: เปลี่ยนปุ่มเป็น **`[ กลับหน้าสินค้า & วางแผนช็อต -> ]`**
+    - เพิ่มตัวดักจับ `isSceneIndexingTask` ใน Drawer รายการกิจกรรม: เปลี่ยนปุ่มเป็น **`[ ดูหน้าสินค้า -> ]`**
+- [x] 3. **Automated Testing & Build Verification:**
+  - Backend pytest: `test_manual_shot_map_sync.py` และ `test_manual_shot_map.py` ผ่าน 9/9 (100%)
+  - Frontend vitest: ผ่าน 255/255 (100%)
+  - Production build: ผ่านฉลุย 2,008 modules ใน 4.56s

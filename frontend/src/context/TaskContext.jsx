@@ -336,7 +336,13 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       task.task_type === 'finalize_recording_session'
     );
 
-    const isProductFlowTask = isScrapeTask || isRerollTask || isImageMetadataTask || isShotListTask || isFinalizeRecordingTask;
+    const isSceneIndexingTask = Boolean(
+      task.type === 'scene_indexing' ||
+      task.task_type === 'scene_indexing' ||
+      (typeof task.title === 'string' && task.title.includes('สแกนสารบัญฉาก'))
+    );
+
+    const isProductFlowTask = isScrapeTask || isRerollTask || isImageMetadataTask || isShotListTask || isFinalizeRecordingTask || isSceneIndexingTask;
     const projName = !isProductFlowTask
       ? (task.result?.project_name || (Array.isArray(task.result?.items) ? task.result.items.find(i => i?.project_name)?.project_name : null) || task.payload?.project_name)
       : null;

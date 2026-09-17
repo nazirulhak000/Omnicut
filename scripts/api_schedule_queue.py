@@ -499,14 +499,28 @@ def _stats_bucket_summary(bucket: Dict[str, Any], label_key: str, label: Any) ->
     engagement = bucket["engagement"] / samples if samples else 0.0
     avg_orders = bucket["orders"] / samples if samples else 0.0
     avg_commission = bucket["commission"] / samples if samples else 0.0
-    score = avg_views * (1.0 + engagement / 100.0) + avg_orders * 1000.0 + avg_commission * 0.1
+    cart_click_rate = bucket["cart_clicks"] / views * 100.0 if views else 0.0
+    orders_per_1000_views = bucket["orders"] / views * 1000.0 if views else 0.0
+    commission_per_1000_views = bucket["commission"] / views * 1000.0 if views else 0.0
+    # Normalise conversion and commission by reach so a high-view clip does
+    # not automatically outrank a clip that actually drives more revenue.
+    score = (
+        (avg_views / 1000.0)
+        + (engagement * 10.0)
+        + (cart_click_rate * 5.0)
+        + (orders_per_1000_views * 100.0)
+        + (commission_per_1000_views * 10.0)
+    )
     return {
         label_key: label,
         "samples": samples,
         "avg_views": round(avg_views),
         "avg_engagement_rate": round(engagement, 2),
+        "cart_click_rate": round(cart_click_rate, 2),
         "avg_orders": round(avg_orders, 2),
+        "orders_per_1000_views": round(orders_per_1000_views, 2),
         "avg_commission_thb": round(avg_commission, 2),
+        "commission_per_1000_views_thb": round(commission_per_1000_views, 2),
         "score": round(score, 2),
     }
 
@@ -531,13 +545,14 @@ def _build_performance_analytics(clips: List[AutoFillClipPayload]) -> tuple[Dict
         orders = max(0, int(metrics.get("orders") or 0))
         commission = max(0.0, float(metrics.get("commission_thb") or 0.0))
         engagement = ((likes + comments + shares) / views * 100.0) if views else 0.0
-        contribution = {"samples": 1, "views": views, "engagement": engagement, "orders": orders, "commission": commission}
+        cart_clicks = max(0, int(metrics.get("cart_clicks") or 0))
+        contribution = {"samples": 1, "views": views, "engagement": engagement, "cart_clicks": cart_clicks, "orders": orders, "commission": commission}
         product_name = str(post.get("product_name") or "ไม่ระบุสินค้า").strip()
-        product_buckets.setdefault(_product_key(product_name), {"samples": 0, "views": 0, "engagement": 0.0, "orders": 0, "commission": 0.0})
+        product_buckets.setdefault(_product_key(product_name), {"samples": 0, "views": 0, "engagement": 0.0, "cart_clicks": 0, "orders": 0, "commission": 0.0})
         for key, value in contribution.items():
             product_buckets[_product_key(product_name)][key] += value
         hour = _post_datetime(post.get("posted_at")).hour
-        hour_buckets.setdefault(hour, {"samples": 0, "views": 0, "engagement": 0.0, "orders": 0, "commission": 0.0})
+        hour_buckets.setdefault(hour, {"samples": 0, "views": 0, "engagement": 0.0, "cart_clicks": 0, "orders": 0, "commission": 0.0})
         for key, value in contribution.items():
             hour_buckets[hour][key] += value
         measured += 1
@@ -561,7 +576,7 @@ def _build_performance_analytics(clips: List[AutoFillClipPayload]) -> tuple[Dict
         "confidence": confidence,
         "top_products": products[:5],
         "top_hours": hours[:5],
-        "method": "avg_views + engagement + orders + commission; ใช้เป็นคะแนนช่วยเลือก ไม่ใช่การการันตียอดขาย",
+        "method": "reach + engagement + cart click rate + orders/1,000 views + commission/1,000 views; ใช้เป็นคะแนนช่วยเลือก ไม่ใช่การการันตียอดขาย",
     }
     return analytics, product_scores, hour_scores
 
@@ -595,6 +610,49 @@ def _previous_post_row(posts: List[Dict[str, Any]], cursor: dt.datetime) -> Opti
     }
 
 
+def _daily_constraint_sets(records: List[Dict[str, Any]], posts: List[Dict[str, Any]]) -> tuple[Dict[dt.date, set[str]], Dict[dt.date, set[str]]]:
+    products_by_day: Dict[dt.date, set[str]] = {}
+    colors_by_day: Dict[dt.date, set[str]] = {}
+
+    for row in records:
+        when = _queue_timestamp(row.get("scheduled_at", ""))
+        if not when:
+            continue
+        products_by_day.setdefault(when.date(), set()).update(_row_product_aliases(row))
+        color = _row_visual_key(row)
+        if color:
+            colors_by_day.setdefault(when.date(), set()).add(color)
+
+    for post in posts:
+        when = _post_datetime(post.get("posted_at"))
+        if not when:
+            continue
+        products_by_day.setdefault(when.date(), set()).update(_product_aliases(post.get("product_id"), post.get("product_name")))
+        color = _resolve_hook_color(post.get("style_preset"), post.get("hook_color"))
+        if color:
+            colors_by_day.setdefault(when.date(), set()).add(color)
+
+    return products_by_day, colors_by_day
+
+
+def _validate_autofill_daily_constraints(records: List[Dict[str, Any]], posts: List[Dict[str, Any]], pending: List[Dict[str, Any]]) -> None:
+    products_by_day, colors_by_day = _daily_constraint_sets(records, posts)
+    for item in sorted(pending, key=lambda row: row.get("scheduled_at", "")):
+        when = _queue_timestamp(item.get("scheduled_at", ""))
+        if not when:
+            continue
+        day = when.date()
+        aliases = _row_product_aliases(item)
+        if aliases.intersection(products_by_day.get(day, set())):
+            raise HTTPException(status_code=409, detail="auto-fill บันทึกไม่ได้: สินค้านี้ถูกจัดคิวหรือโพสต์แล้วในวันเดียวกัน")
+        color = _row_visual_key(item)
+        if color and color in colors_by_day.get(day, set()):
+            raise HTTPException(status_code=409, detail="auto-fill บันทึกไม่ได้: สี Hook นี้ถูกใช้แล้วในวันเดียวกัน")
+        products_by_day.setdefault(day, set()).update(aliases)
+        if color:
+            colors_by_day.setdefault(day, set()).add(color)
+
+
 def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
     start = _date_value(req.start_date, field="start_date")
     end = _date_value(req.end_date, field="end_date")
@@ -618,6 +676,8 @@ def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
     requested_products = {_product_key(value) for value in req.product_ids if str(value).strip()}
     candidates: List[tuple[str, AutoFillClipPayload]] = []
     skipped_invalid: List[Dict[str, str]] = []
+    skipped_existing = 0
+    skipped_product_filter = 0
     seen: set[str] = set()
     for clip in req.clips:
         try:
@@ -638,9 +698,11 @@ def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
             skipped_invalid.append({"video_path": clip.video_path, "reason": str(exc.detail)})
             continue
         if key in queued_keys or key in seen:
+            skipped_existing += 1
             continue
         product_key = _product_key(clip.product_id, clip.product_name)
         if requested_products and product_key not in requested_products:
+            skipped_product_filter += 1
             continue
         seen.add(key)
         candidates.append((product_key, clip))
@@ -694,24 +756,9 @@ def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
         )[:selected_count]
         slots.sort()
 
-    used_products_by_day: Dict[dt.date, set[str]] = {}
-    used_colors_by_day: Dict[dt.date, set[str]] = {}
-    for row in records:
-        when = _queue_timestamp(row.get("scheduled_at", ""))
-        if not when or not (start <= when.date() <= end):
-            continue
-        used_products_by_day.setdefault(when.date(), set()).update(_row_product_aliases(row))
-        color = _row_visual_key(row)
-        if color:
-            used_colors_by_day.setdefault(when.date(), set()).add(color)
-    for post in history_posts:
-        when = _post_datetime(post.get("posted_at"))
-        if not when or not (start <= when.date() <= end):
-            continue
-        used_products_by_day.setdefault(when.date(), set()).update(_product_aliases(post.get("product_id"), post.get("product_name")))
-        color = _resolve_hook_color(post.get("style_preset"), post.get("hook_color"))
-        if color:
-            used_colors_by_day.setdefault(when.date(), set()).add(color)
+    used_products_by_day, used_colors_by_day = _daily_constraint_sets(records, history_posts)
+    used_products_by_day = {day: values for day, values in used_products_by_day.items() if start <= day <= end}
+    used_colors_by_day = {day: values for day, values in used_colors_by_day.items() if start <= day <= end}
 
     # The previous clip is the row immediately before the first genuinely
     # available slot. This includes posted rows, so a clip posted at 19:00
@@ -801,11 +848,18 @@ def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
         "skipped_repetition": skipped_repetition,
         "skipped_items": skipped_items,
         "skipped_invalid": skipped_invalid,
+        "skip_summary": {
+            "invalid_or_posted": len(skipped_invalid),
+            "already_queued": skipped_existing,
+            "outside_product_filter": skipped_product_filter,
+            "duplicate_product_or_hook_color": skipped_repetition,
+            "no_available_slot": skipped_slots,
+        },
         "available_count": len(candidates),
         "requested_count": selected_count,
         "range_start": start.isoformat(),
         "range_end": end.isoformat(),
-        "selection_rules": ["ไม่ซ้ำสินค้าเรียงติดกัน", "ไม่ซ้ำสี Hook เรียงติดกัน"],
+        "selection_rules": ["ไม่ซ้ำสินค้าในวันเดียวกัน", "ไม่ซ้ำสี Hook ในวันเดียวกัน"],
         "analytics": analytics,
         "timezone": "Asia/Bangkok",
         "seed": req.seed,
@@ -871,6 +925,14 @@ def commit_auto_fill(req: AutoFillCommitRequest):
         # add (or a second preview) can't double-book that time either.
         existing_times = {str(item.get("scheduled_at")) for item in records}
         created = [_payload_to_record(item, existing_keys, existing_times) for item in req.items]
+        try:
+            history_posts = PostLog.list_posts(newest_first=False)
+        except Exception:
+            history_posts = []
+        # Preview is advisory; the queue may have changed while the modal was
+        # open. Re-check product and Hook-color uniqueness while holding the
+        # same queue mutation lock, so the commit remains all-or-nothing.
+        _validate_autofill_daily_constraints(records, history_posts, created)
         records.extend(created)
     return {"items": sort_records(created), "count": len(created)}
 

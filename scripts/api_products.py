@@ -640,23 +640,45 @@ def get_scene_catalogs(product_id: str, video_path: Optional[str] = None):
     if not prod:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    videos_to_check: List[str] = []
-    if video_path:
-        videos_to_check.append(video_path)
-    else:
-        for v in prod.get("default_videos", []):
-            if v and v not in videos_to_check:
-                videos_to_check.append(v)
-        for a in prod.get("angles", []):
-            for v in a.get("selected_videos", []):
-                if v and v not in videos_to_check:
-                    videos_to_check.append(v)
-            if a.get("selected_video") and a.get("selected_video") not in videos_to_check:
-                videos_to_check.append(a.get("selected_video"))
-        for v in prod.get("videos", []):
-            v_p = v.get("path") if isinstance(v, dict) else str(v)
-            if v_p and v_p not in videos_to_check:
-                videos_to_check.append(v_p)
+    def _collect_canonical_videos(prod_obj, specific_video=None) -> List[str]:
+        raw_candidates = []
+        if specific_video:
+            raw_candidates.append(specific_video)
+        else:
+            for v in prod_obj.get("default_videos", []) or []:
+                if v:
+                    raw_candidates.append(v)
+            for a in prod_obj.get("angles", []) or []:
+                for v in a.get("selected_videos", []) or []:
+                    if v:
+                        raw_candidates.append(v)
+                if a.get("selected_video"):
+                    raw_candidates.append(a.get("selected_video"))
+            for v in prod_obj.get("videos", []) or []:
+                v_p = v.get("path") if isinstance(v, dict) else str(v)
+                if v_p:
+                    raw_candidates.append(v_p)
+
+        canonical_map = {}
+        for v in raw_candidates:
+            try:
+                v_p = Path(v)
+                if not v_p.is_absolute():
+                    v_p = BASE_DIR / v
+                resolved_key = str(v_p.resolve()).lower()
+                if resolved_key not in canonical_map:
+                    canonical_map[resolved_key] = v
+                else:
+                    existing = canonical_map[resolved_key]
+                    # If existing is absolute and new v is relative (e.g. starts with 01_Raw), prefer relative
+                    if Path(existing).is_absolute() and not Path(v).is_absolute():
+                        canonical_map[resolved_key] = v
+            except Exception:
+                if v not in canonical_map.values():
+                    canonical_map[v] = v
+        return list(canonical_map.values())
+
+    videos_to_check = _collect_canonical_videos(prod, video_path)
 
     results = {}
     for v_rel in videos_to_check:
@@ -697,23 +719,42 @@ def index_scenes_endpoint(product_id: str, payload: Dict[str, Any]):
     video_path = payload.get("video_path")
     force = bool(payload.get("force", False))
 
-    videos_to_index: List[str] = []
+    raw_candidates = []
     if video_path:
-        videos_to_index.append(video_path)
+        raw_candidates.append(video_path)
     else:
-        for v in prod.get("default_videos", []):
-            if v and v not in videos_to_index:
-                videos_to_index.append(v)
-        for a in prod.get("angles", []):
-            for v in a.get("selected_videos", []):
-                if v and v not in videos_to_index:
-                    videos_to_index.append(v)
-            if a.get("selected_video") and a.get("selected_video") not in videos_to_index:
-                videos_to_index.append(a.get("selected_video"))
-        for v in prod.get("videos", []):
+        for v in prod.get("default_videos", []) or []:
+            if v:
+                raw_candidates.append(v)
+        for a in prod.get("angles", []) or []:
+            for v in a.get("selected_videos", []) or []:
+                if v:
+                    raw_candidates.append(v)
+            if a.get("selected_video"):
+                raw_candidates.append(a.get("selected_video"))
+        for v in prod.get("videos", []) or []:
             v_p = v.get("path") if isinstance(v, dict) else str(v)
-            if v_p and v_p not in videos_to_index:
-                videos_to_index.append(v_p)
+            if v_p:
+                raw_candidates.append(v_p)
+
+    canonical_map = {}
+    for v in raw_candidates:
+        try:
+            v_p = Path(v)
+            if not v_p.is_absolute():
+                v_p = BASE_DIR / v
+            resolved_key = str(v_p.resolve()).lower()
+            if resolved_key not in canonical_map:
+                canonical_map[resolved_key] = v
+            else:
+                existing = canonical_map[resolved_key]
+                if Path(existing).is_absolute() and not Path(v).is_absolute():
+                    canonical_map[resolved_key] = v
+        except Exception:
+            if v not in canonical_map.values():
+                canonical_map[v] = v
+
+    videos_to_index = list(canonical_map.values())
 
     if not videos_to_index:
         raise HTTPException(status_code=400, detail="ไม่พบคลิปดิบที่แนบไว้สำหรับสแกน")

@@ -396,14 +396,78 @@ def test_autofill_blocks_product_used_earlier_same_day_even_after_other_product(
     assert result["skipped_repetition"] == 1
 
 
+def test_autofill_commit_rechecks_daily_product_constraint(queue_workspace):
+    video_a, video_b = queue_workspace
+    existing = client.post(
+        "/api/schedule-queue",
+        json={**payload(video_a, "2030-01-07T09:00:00+07:00"), "product_id": "LOOP", "product_name": "LOOP Smartband", "style_preset": "viral_punch"},
+    )
+    assert existing.status_code == 200
+
+    commit = client.post(
+        "/api/schedule-queue/auto-fill",
+        json={
+            "items": [{
+                "video_path": str(video_b),
+                "scheduled_at": "2030-01-07T12:30:00+07:00",
+                "product_id": "LOOP",
+                "product_name": "LOOP Smartband",
+                "style_preset": "clean_tech_review",
+            }],
+        },
+    )
+
+    assert commit.status_code == 409
+    listed = client.get("/api/schedule-queue").json()["items"]
+    assert len(listed) == 1
+    assert listed[0]["video_path"].endswith("/a.mp4")
+    assert listed[0]["product_id"] == "LOOP"
+
+
+def test_autofill_commit_rechecks_duplicates_inside_same_batch(queue_workspace):
+    video_a, video_b = queue_workspace
+    commit = client.post(
+        "/api/schedule-queue/auto-fill",
+        json={
+            "items": [
+                {"video_path": str(video_a), "scheduled_at": "2030-01-07T09:00:00+07:00", "product_id": "A", "product_name": "A", "style_preset": "viral_punch"},
+                {"video_path": str(video_b), "scheduled_at": "2030-01-07T12:30:00+07:00", "product_id": "A", "product_name": "A", "style_preset": "clean_tech_review"},
+            ],
+        },
+    )
+
+    assert commit.status_code == 409
+    assert client.get("/api/schedule-queue").json()["items"] == []
+
+
+def test_autofill_preview_reports_skip_summary(queue_workspace):
+    video_a, video_b = queue_workspace
+    existing = client.post("/api/schedule-queue", json=payload(video_a, "2030-01-07T09:00:00+07:00"))
+    assert existing.status_code == 200
+
+    preview = client.post(
+        "/api/schedule-queue/auto-fill/preview",
+        json={
+            "start_date": "2030-01-07",
+            "end_date": "2030-01-07",
+            "clips": [payload(video_a, "2030-01-07T09:00:00+07:00"), payload(video_b, "2030-01-07T12:30:00+07:00")],
+            "limit": 1,
+        },
+    )
+
+    assert preview.status_code == 200
+    summary = preview.json()["skip_summary"]
+    assert summary["already_queued"] == 1
+
+
 def test_autofill_reports_stats_and_prefers_evidence_backed_time(queue_workspace, monkeypatch):
     video_a, video_b = queue_workspace
     monkeypatch.setattr(
         queue_api.PostLog,
         "list_posts",
         classmethod(lambda cls, newest_first=True: [
-            {"product_name": "A", "posted_at": "2026-09-10T19:00:00", "metrics": {"views": 1000, "likes": 100}},
-            {"product_name": "A", "posted_at": "2026-09-11T19:00:00", "metrics": {"views": 800, "likes": 80}},
+            {"product_name": "A", "posted_at": "2026-09-10T19:00:00", "metrics": {"views": 1000, "likes": 100, "cart_clicks": 50, "orders": 10, "commission_thb": 50}},
+            {"product_name": "A", "posted_at": "2026-09-11T19:00:00", "metrics": {"views": 800, "likes": 80, "cart_clicks": 40, "orders": 10, "commission_thb": 50}},
             {"product_name": "B", "posted_at": "2026-09-10T12:30:00", "metrics": {"views": 100, "likes": 5}},
         ]),
     )
@@ -427,4 +491,7 @@ def test_autofill_reports_stats_and_prefers_evidence_backed_time(queue_workspace
     assert result["analytics"]["sample_size"] == 3
     assert result["analytics"]["top_products"][0]["product_name"] == "A"
     assert result["analytics"]["top_hours"][0]["hour"] == 19
+    assert result["analytics"]["top_products"][0]["cart_click_rate"] > 0
+    assert result["analytics"]["top_products"][0]["orders_per_1000_views"] > 0
+    assert result["analytics"]["top_products"][0]["commission_per_1000_views_thb"] > 0
     assert any(row["scheduled_at"].startswith("2030-01-07T19:00") for row in result["items"])

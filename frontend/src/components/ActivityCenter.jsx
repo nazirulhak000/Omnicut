@@ -619,6 +619,27 @@ export function ActivityDrawer() {
                           );
                         }
 
+                        const isSceneIndexingTask = Boolean(
+                          task.type === 'scene_indexing' ||
+                          task.task_type === 'scene_indexing' ||
+                          (typeof task.title === 'string' && task.title.includes('สแกนสารบัญฉาก'))
+                        );
+
+                        if (isSceneIndexingTask) {
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => jumpToTaskResult(task, 'flow')}
+                                className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                                title="เปิดหน้าสินค้าเพื่อดูสารบัญฉากหรือวางแผนช็อต"
+                              >
+                                <span>ดูหน้าสินค้า</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        }
+
                         // For timeline cuts (edit_project / 1-click edit):
                         // Show ONLY "เปิดไทม์ไลน์" (Primary prominent button)
                         return (
@@ -853,6 +874,26 @@ export function GlobalTaskNotification() {
                   className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
                 >
                   <span>เปิดหน้าสคริปต์</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          }
+
+          const isSceneIndexingTask = Boolean(
+            task.type === 'scene_indexing' ||
+            task.task_type === 'scene_indexing' ||
+            (typeof task.title === 'string' && task.title.includes('สแกนสารบัญฉาก'))
+          );
+
+          if (isSceneIndexingTask) {
+            return (
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  onClick={() => jumpToTaskResult(task, 'flow')}
+                  className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                >
+                  <span>กลับหน้าสินค้า & วางแผนช็อต</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
