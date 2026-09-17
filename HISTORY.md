@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round ORPHAN-AND-CROSS-PRODUCT-PROJECT-CLEANUP-1 | ป้องกันและล้างโปรเจกต์ข้ามสินค้า (Cross-Product Leak) & โปรเจกต์ที่ถูกลบออกจากไทม์ไลน์แล้วแต่ยังค้างสถานะ 'กำลังตัดต่อ' และล็อกสคริปต์ | 2026-09-17 | สำเร็จสมบูรณ์ (backend 12 passed, frontend 255 passed, build 2,008 modules/3.47s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SCENE-INDEX-TASK-NAV-AND-PATH-DEDUP-1 | แก้ไขการแจ้งเตือนงานสแกนฉาก (index_scenes) นำทางกลับหน้าสินค้า flow อย่างถูกต้อง + ยุบรวมการนับคลิปและฉากไม่ให้เบิ้ล 2 เท่าด้วย Canonical Path Deduplication | 2026-09-17 | สำเร็จสมบูรณ์ (backend 9 passed, frontend 255 passed, build 2,008 modules/4.56s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round MASTER-STORYBOARD-SYNC-AND-RECIPE-1 | ระบบสูตรถ่ายทำ 5 ช็อตมาตรฐานระดับสินค้า (Universal Filming Recipe) + ปุ่มซิงก์ช็อตข้ามทุกสคริปต์ (Master Storyboard Sync Engine) พร้อม Smart Role Mapping วรรคไม่เท่ากัน (30s vs 60s) | 2026-09-17 | สำเร็จสมบูรณ์ (backend 9 passed, frontend 255 passed, build 2,008 modules/4.20s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round MANUAL-STORYBOARD-OVERFLOW-FIX-1 | ป้องกันคลิปส่วนเกินห้อยท้ายไทม์ไลน์ 11 วินาทีเมื่อสร้างดราฟต์จาก Storyboard Mapper (Manual Shot Map): สร้าง Clip List ตรงตามวรรคบทพูด (Beats) เป๊ะๆ ไม่แตกเป็น micro-cues 9 ช็อต + Truncate ช็อตส่วนเกิน และซิงก์ Duration/Speed ให้ตรงกับจังหวะวรรคเสียงพากย์ 100% | 2026-09-17 | สำเร็จสมบูรณ์ (backend 5 passed, frontend 255 passed, build 2,007 modules/2.94s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
@@ -7153,3 +7154,30 @@ Executed by: Codex (GPT-6)
   - Backend pytest: `test_manual_shot_map_sync.py` และ `test_manual_shot_map.py` ผ่าน 9/9 (100%)
   - Frontend vitest: ผ่าน 255/255 (100%)
   - Production build: ผ่านฉลุย 2,008 modules ใน 4.56s
+
+## Round ORPHAN-AND-CROSS-PRODUCT-PROJECT-CLEANUP-1 — ป้องกันและล้างโปรเจกต์ข้ามสินค้า (Cross-Product Leak) & โปรเจกต์ที่ถูกลบออกจากไทม์ไลน์แล้วแต่ยังค้างสถานะ 'กำลังตัดต่อ' และล็อกสคริปต์
+วันที่: 2026-09-17 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+### ปัญหาที่พบ
+1. **สคริปต์มุม 4 (FOMO) ของสินค้า Iwachi I6 ถูกล็อกค้างเป็น 'กำลังตัดต่อ':** สคริปต์ล็อกเนื้อหา มีปุ่ม 'เปิดทำต่อในไทม์ไลน์' แต่เมื่อผู้ใช้ไปดูในไทม์ไลน์กลับไม่มีโปรเจกต์ของมุมนี้
+2. **ต้นตอใน Backend (`scripts/product_store.py`):**
+   - มุมนี้ถูกผูก `project_name = 'LOG02-เจาะกลุ่ม_1'` ซึ่งเป็นโปรเจกต์ของสินค้าอื่น (Logitech Lift)
+   - ใน `reconcile_existing_projects()` ฟังก์ชันตรวจสอบความมีอยู่ของโปรเจกต์ (`has_proj`) ตรวจแค่ว่าโฟลเดอร์ใน `03_Projects` มีอยู่จริงหรือไม่ แต่ไม่ได้ตรวจสอบ `product_id` ข้างใน `project.json` ว่าเป็นของสินค้านี้จริงหรือไม่ ทำให้โปรเจกต์ของสินค้าอื่นไม่ถูกปลดออก
+   - ยิ่งกว่านั้น หากมุมมีสถานะ `scripted` แต่มี `project_name` ค้างอยู่ ตัว reconcile เดิมจะล้าง `project_name` เฉพาะเมื่อ `status == 'in_production'` เท่านั้น ทำให้ขยะค้างถาวร
+3. **ต้นตอใน Frontend (`ProductToClip.jsx`):**
+   - มีการคำนวณ `isInProduction` จาก `(curStatus === 'in_production' || (!!angle.project_name && !isRendered))` ทำให้แม้มุมจะมีสถานะเป็น `scripted` แต่ถ้ามีสตริง `project_name` ใดๆ ก็ตาม จะถูกบังคับแสดงผลเป็น 'กำลังตัดต่อ' และล็อกเนื้อหาทันที
+
+### ผลการดำเนินงาน
+- [x] 1. **Strict Product Ownership & Orphan Project Cleanup (Backend):**
+  - ใน `scripts/product_store.py` ฟังก์ชัน `reconcile_existing_projects()`:
+    - ตรวจสอบ `has_proj` โดยอ่าน `project.json` ในโฟลเดอร์โปรเจกต์ และยืนยันว่า `product_id` (หรือ `render_params.product_id`) ต้องตรงกับ `product.get("id")` เท่านั้น ป้องกันโปรเจกต์ต่างสินค้ามาสวมสิทธิ์
+    - หาก `not has_proj`: ปลด `angle["project_name"] = None` เสมอ (ครอบคลุมทั้งสถานะ `in_production` และ `scripted`) และหากสถานะเดิมเป็น `in_production` ให้ปรับกลับเป็น `scripted`
+    - ล้าง `cover_path` หากอ้างอิงถึงชื่อโปรเจกต์ที่ไม่ถูกต้อง
+    - ตรวจสอบและกรองอาร์เรย์ `product["projects"]` ให้เหลือเฉพาะโปรเจกต์ที่เป็นของสินค้านั้นจริงและมีอยู่บนดิสก์
+- [x] 2. **Single Source of Truth (SSOT) Alignment (Frontend):**
+  - ใน `frontend/src/components/ProductToClip.jsx`: ปรับการคำนวณ `isInProduction`, `resolvePhaseIndex`, `isLocked`, และ `readyDraftCount` ให้เคารพสถานะจริง `curStatus === 'in_production'` จาก backend ไม่ถูก override เพียงเพราะมีสตริง `project_name` ขยะ
+- [x] 3. **Automated Testing & Build Verification:**
+  - Backend pytest: `test_reconcile_status.py`, `test_reconcile_angle_collision.py`, `test_reconcile_preserves_posted.py`, `test_reconcile_grace_period.py` ผ่านครบ 12/12 (100%)
+  - Reconcile verification: ยืนยันว่ามุม 4 ของ Iwachi ปลด `LOG02` ออกและกลับเป็น `scripted` (`project_name: None`, `status: scripted`)
+  - Frontend vitest: 255/255 passed (100%)
+  - Production build: แปลง 2,008 modules สำเร็จใน 3.47s

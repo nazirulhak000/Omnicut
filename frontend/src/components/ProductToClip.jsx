@@ -230,7 +230,7 @@ const PIPELINE_PHASES = [
 function resolvePhaseIndex(angle) {
   const curStatus = angle.status || 'scripted';
   const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && !!angle.video_url;
-  const isInProduction = curStatus === 'in_production' || (!!angle.project_name && !isRendered);
+  const isInProduction = curStatus === 'in_production';
   if (curStatus === 'posted') return 3;
   if (isRendered) return 2;
   if (isInProduction) return 1;
@@ -308,7 +308,7 @@ function AngleSidebarItem({
 }) {
   const curStatus = angle.status || 'scripted';
   const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && !!angle.video_url;
-  const isInProduction = curStatus === 'in_production' || (!!angle.project_name && !isRendered);
+  const isInProduction = curStatus === 'in_production';
   const isLocked = curStatus === 'posted' || isInProduction;
 
   const phaseIdx = resolvePhaseIndex(angle);
@@ -583,7 +583,7 @@ function AngleActiveWorkbench({
   const curStatus = angle.status || 'scripted';
   const isPosted = curStatus === 'posted' || !!angle.posted_at;
   const isRendered = (curStatus === 'rendered' || isPosted) && !!angle.video_url;
-  const isInProduction = !isPosted && (curStatus === 'in_production' || (!!angle.project_name && !isRendered));
+  const isInProduction = !isPosted && curStatus === 'in_production';
   const isLocked = isPosted || isInProduction;
 
   const handleStartEdit = (e) => {
@@ -1337,7 +1337,7 @@ function ScriptAccordionItem({
   const isPosted = curStatus === 'posted' || !!angle.posted_at;
   // ONLY rendered if an actual video export URL exists or status is posted!
   const isRendered = (curStatus === 'rendered' || isPosted) && (!!angle.video_url);
-  const isInProduction = !isPosted && (curStatus === 'in_production' || (!!angle.project_name && !isRendered));
+  const isInProduction = !isPosted && curStatus === 'in_production';
   const isLocked = isPosted || isInProduction;
 
   const handleStartEdit = (e) => {
@@ -3069,7 +3069,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     if (pickerAngleIndex === -1) {
       setAngles(prev => prev.map(ang => {
         const curStatus = ang.status || 'scripted';
-        const isAngleInProd = curStatus === 'in_production' || (!!ang.project_name && curStatus !== 'rendered' && curStatus !== 'posted');
+        const isAngleInProd = curStatus === 'in_production';
         if (isAngleInProd) {
           // Keep existing timeline clips locked for angles in production
           return ang;
@@ -3131,7 +3131,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     if (!targetAngle) return;
 
     const curStatus = targetAngle.status || 'scripted';
-    const isInProduction = curStatus === 'in_production' || (!!targetAngle.project_name && curStatus !== 'rendered' && curStatus !== 'posted');
+    const isInProduction = curStatus === 'in_production';
     if (isInProduction) {
       showToast('คลิปนี้กำลังถูกใช้งานจริงในไทม์ไลน์ ไม่สามารถตัดออกได้จนกว่าจะตัดออกจากไทม์ไลน์จริง', 'warning');
       return;
@@ -3533,13 +3533,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   // Angles in current batch that already have a project/draft
   const readyDraftCount = useMemo(() => {
-    return activeBatchAngles.filter(ang => ang.project_name || ang.status === 'in_production').length;
+    return activeBatchAngles.filter(ang => (ang.status === 'in_production' || ang.status === 'rendered' || ang.status === 'posted') && ang.project_name).length;
   }, [activeBatchAngles]);
 
   // Angles that have audio ready and are waiting for draft creation
   const readyForDraftAngles = useMemo(() => {
     return activeBatchAngles.filter(ang => {
-      if (ang.project_name || ang.status === 'in_production') return false;
+      if ((ang.status === 'in_production' || ang.status === 'rendered' || ang.status === 'posted') && ang.project_name) return false;
       const status = shotListStatusMap[ang.angle_id];
       return Boolean(status?.has_shot_list && !status?.is_edge_tts);
     });

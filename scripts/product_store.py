@@ -1529,8 +1529,16 @@ class ProductStore:
                 has_proj = False
                 if p_name:
                     p_path = projects_dir / p_name
-                    if p_path.exists() and p_path.is_dir():
-                        has_proj = True
+                    manifest_file = p_path / "project.json"
+                    if p_path.exists() and p_path.is_dir() and manifest_file.exists():
+                        try:
+                            m_data = json.loads(manifest_file.read_text(encoding="utf-8"))
+                            proj_pid = m_data.get("product_id") or m_data.get("render_params", {}).get("product_id")
+                            # Verify that the project belongs to this product!
+                            if not proj_pid or proj_pid == product.get("id"):
+                                has_proj = True
+                        except Exception:
+                            has_proj = False
 
                 has_video = False
                 v_url = angle.get("video_url")
@@ -1594,11 +1602,41 @@ class ProductStore:
                         angle["export_id"] = None
                         changed = True
                 elif angle.get("status") == "in_production" and not has_proj:
-                    # No project folder on disk! Revert strictly to scripted
+                    # No project folder on disk or belongs to another product! Revert strictly to scripted
                     angle["status"] = "scripted"
                     angle["project_name"] = None
                     angle["video_url"] = None
                     angle["export_id"] = None
+                    changed = True
+                elif not has_proj and angle.get("project_name"):
+                    # Dangling, deleted, or cross-product project reference on scripted angle!
+                    angle["project_name"] = None
+                    changed = True
+
+                # Clean up cover paths that reference a non-existent or foreign project
+                if not has_proj and p_name:
+                    for c_key in ("cover_path", "cover_3x4_path", "cover_9x16_path"):
+                        c_val = angle.get(c_key)
+                        if c_val and p_name in c_val:
+                            angle[c_key] = None
+                            changed = True
+
+            # Also ensure product["projects"] only contains existing projects belonging to this product
+            if "projects" in product and isinstance(product["projects"], list):
+                valid_projs = []
+                for p in product["projects"]:
+                    p_dir = projects_dir / p
+                    p_manifest = p_dir / "project.json"
+                    if p_dir.exists() and p_dir.is_dir() and p_manifest.exists():
+                        try:
+                            m_data = json.loads(p_manifest.read_text(encoding="utf-8"))
+                            proj_pid = m_data.get("product_id") or m_data.get("render_params", {}).get("product_id")
+                            if not proj_pid or proj_pid == product.get("id"):
+                                valid_projs.append(p)
+                        except Exception:
+                            pass
+                if len(valid_projs) != len(product["projects"]):
+                    product["projects"] = valid_projs
                     changed = True
 
         return changed
