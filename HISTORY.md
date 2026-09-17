@@ -8,6 +8,55 @@
 
 ## สารบัญ
 
+| Round SCHEDULE-UI-TODAY-FIRST-REDESIGN-20260917 | ปรับหน้า ScheduleAgenda ให้เป็น Today-first: เพิ่มสรุปคิววันนี้และ empty state ที่เริ่มงานได้ทันที, ลด action หลักเหลือ automation/เพิ่มคลิป, รวมคำสั่งรองไว้ในเมนูเพิ่มเติม, ตรวจ browser จริงและ detector | 2026-09-17 | สำเร็จ (frontend tests 255 passed, lint ผ่านพร้อม warnings เดิม, build 2,008 modules, browser smoke verified, detector พบ warnings เดิม, ดำเนินการโดย: Codex (GPT-5)) |
+| Round SCHEDULE-AUTOFILL-LIMIT-CLARITY-20260917 | แก้ความชัดเจนช่องจำนวนคลิปใน modal จัดคิวอัตโนมัติ: แสดงจำนวนที่พร้อมจัดจริงและ placeholder โดยค่าว่างยังหมายถึงทั้งหมด | 2026-09-17 | สำเร็จ (reproduce/browser verified, frontend tests 255 passed, build 2,008 modules, lint ผ่านพร้อม warnings เดิม, detector ไม่มี error ใหม่, ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round SCHEDULE-UI-TODAY-FIRST-REDESIGN-20260917 — ปรับหน้าเมนูจัดคิวแบบ Today-first
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### สิ่งที่เปลี่ยน
+
+- ปรับหัวข้อ ScheduleAgenda ให้โฟกัส “คิววันนี้” และแยกมุมมอง `รายการ` / `สัปดาห์` ให้สั้นและสแกนง่าย
+- เพิ่ม Today summary 4 ค่า: จำนวนคิววันนี้, เวลาโพสต์ถัดไป, คลิปที่พร้อมจัด และสถานะคิววันนี้
+- ลด action ที่แสดงพร้อมกันเหลือ `จัดคิวอัตโนมัติ` และ `เพิ่มคลิป`; ย้ายเพิ่มเป็นชุด, ตั้งค่าเวลารายสัปดาห์, โพสต์แล้ว และรีเฟรชคิวไว้ในเมนูเพิ่มเติม
+- ปรับ empty state ให้บอกสาเหตุและเริ่มจัดคิวอัตโนมัติหรือเพิ่มคลิปได้จากจุดเดียว
+- ตรวจพบว่าตัวกรอง search/product ด้านบนเป็น responsibility ของ `ContentTrackerHub.jsx` จึงไม่ขยาย scope ในรอบ UI นี้
+
+### Verification
+
+- Frontend tests: 255/255 ผ่าน
+- Lint: ผ่าน พร้อม warnings เดิมของ codebase
+- Production build: สำเร็จ 2,008 modules
+- Browser smoke: หน้า Tracker แสดง summary, empty state และเมนูเพิ่มเติมครบ; เปิดเมนูพบ 4 คำสั่งรอง
+- Impeccable detector: ทำงานสำเร็จและพบ warnings `gray-on-color` เดิมในไฟล์ ซึ่งไม่ใช่ regression จาก logic จัดคิว
+
+## Round SCHEDULE-AUTOFILL-LIMIT-CLARITY-20260917 — แสดงจำนวนคลิปในช่อง limit ให้เข้าใจได้ทันที
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### สาเหตุ
+
+- `autofillLimit` เริ่มต้นเป็นค่าว่างโดยตั้งใจ เพราะค่าว่างหมายถึงจัดคลิปทั้งหมด
+- input เดิมไม่มี `placeholder` และไม่มีตัวเลข `availableClips.length` ใกล้ช่อง จึงแสดงเป็นช่องว่างและทำให้เข้าใจว่าเลขหาย
+
+### การแก้ไข
+
+- เพิ่มข้อความ `ว่าง = ทั้งหมด · พร้อมจัด N` ที่หัวช่อง
+- เพิ่ม placeholder `ทั้งหมด (N)` และ `aria-label="จำนวนคลิป"`
+- ไม่เปลี่ยนค่าเริ่มต้น, limit validation, การเลือกจากสถิติ หรือกติกากันซ้ำ
+
+### Verification
+
+- Browser reproduce ก่อนแก้: `value=""`, `placeholder=null`
+- Browser หลังแก้: `value=""`, `placeholder="ทั้งหมด (89)"`, helper แสดง `พร้อมจัด 89`
+- Frontend tests: 255/255 ผ่าน
+- Lint: ผ่าน พร้อม warnings เดิม
+- Production build: สำเร็จ 2,008 modules
+- Impeccable detector: ไม่มี error ใหม่; เหลือ warnings `gray-on-color` เดิมของไฟล์
+
+| Round TEST-DEMO-EXPORTS-CLEANUP-AND-STRICT-RULE-1 | ลบวิดีโอทดสอบ demo ทั้งหมดใน 04_Exports/Ready_to_post/ และ export_registry + บัญญัติกฎเหล็กห้าม AI ทิ้งคลิป demo/ขยะทดสอบในโฟลเดอร์งานจริงลงใน AGENTS.md และ testing_standard.md | 2026-09-17 | สำเร็จสมบูรณ์ (ลบ 4 คลิป demo+webp, unregister 4 IDs, เพิ่ม Don't ข้อ 11 และ Do ข้อ 15 ใน AGENTS.md, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round TIMELINE-TRANSITION-GAP-TAIL-FILL-1 | แก้ปัญหาวิดีโอขาดท้ายไทม์ไลน์ (Gap 0.26s) จาก Lead-in Silence ของเสียงพากย์ และ Transition Overlap Compensation: แบ่งช็อตแบบ Contiguous Timeline + ชดเชย Transition Overlap ตาม Speed จริง + Tail-Fill ช็อตสุดท้ายชนท้ายเสียง 100% | 2026-09-17 | สำเร็จสมบูรณ์ (backend 13 passed, frontend 255 passed, build 2,008 modules/3.65s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round ORPHAN-AND-CROSS-PRODUCT-PROJECT-CLEANUP-1 | ป้องกันและล้างโปรเจกต์ข้ามสินค้า (Cross-Product Leak) & โปรเจกต์ที่ถูกลบออกจากไทม์ไลน์แล้วแต่ยังค้างสถานะ 'กำลังตัดต่อ' และล็อกสคริปต์ | 2026-09-17 | สำเร็จสมบูรณ์ (backend 12 passed, frontend 255 passed, build 2,008 modules/3.47s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SCENE-INDEX-TASK-NAV-AND-PATH-DEDUP-1 | แก้ไขการแจ้งเตือนงานสแกนฉาก (index_scenes) นำทางกลับหน้าสินค้า flow อย่างถูกต้อง + ยุบรวมการนับคลิปและฉากไม่ให้เบิ้ล 2 เท่าด้วย Canonical Path Deduplication | 2026-09-17 | สำเร็จสมบูรณ์ (backend 9 passed, frontend 255 passed, build 2,008 modules/4.56s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round MASTER-STORYBOARD-SYNC-AND-RECIPE-1 | ระบบสูตรถ่ายทำ 5 ช็อตมาตรฐานระดับสินค้า (Universal Filming Recipe) + ปุ่มซิงก์ช็อตข้ามทุกสคริปต์ (Master Storyboard Sync Engine) พร้อม Smart Role Mapping วรรคไม่เท่ากัน (30s vs 60s) | 2026-09-17 | สำเร็จสมบูรณ์ (backend 9 passed, frontend 255 passed, build 2,008 modules/4.20s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
@@ -62,6 +111,77 @@
 | Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round BACKFILL-CLOSED-ROUNDS-20260915 | นำ 38 รอบที่ติ๊กปิดใน TODO แต่ไม่เคยถูกย้ายเข้า HISTORY มาบันทึกย้อนหลัง (COVER-AI*, IOS-PASTE*, SYSTEM-AUDIT-P4/P5/P6*, AI-PRODUCER-VISION-1, ANALYTICS-HEADER-DATA-FIX-1 ฯลฯ) | 2026-09-15 | เสร็จ (ตรวจด้วยสคริปต์: `[x] Round` 110 บรรทัด → ขาดใน HISTORY 38, ดำเนินการโดย: Muse Spark (Muse Spark)) |
+
+## Round TEST-DEMO-EXPORTS-CLEANUP-AND-STRICT-RULE-1 — ลบวิดีโอทดสอบ demo ทั้งหมดใน 04_Exports/Ready_to_post/ และ export_registry + บัญญัติกฎเหล็กห้าม AI ทิ้งคลิป demo/ขยะทดสอบในโฟลเดอร์งานจริงลงใน AGENTS.md และ testing_standard.md
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · วันที่: 2026-09-17 · สถานะ: เสร็จสมบูรณ์
+
+### บริบทและปัญหาที่พบ
+- ผู้ใช้แจ้งว่าพบวิดีโอ Demo และคลิปทดสอบค้างอยู่ในหน้า Export Gallery (คลังคลิปตัดเสร็จ) จำนวน 4 รายการ (`demo_20260917_182939.mp4`, `demo_20260917_190949.mp4`, `demo_20260917_192942.mp4`, `demo_20260917_205740.mp4`) ทำให้ผู้ใช้ต้องคอยมานั่งไล่ลบไฟล์ขยะที่เกิดจากการทดสอบของ AI อยู่ตลอด
+- ตรวจสอบพบว่า Agent ตัวก่อนหน้ารัน manual test render ลงใน `04_Exports/Ready_to_post/` โดยตรง ทำให้ `_Docs/export_registry.json` ลงทะเบียนเป็น "คลิปภายนอก" และสร้างโฟลเดอร์โปรเจกต์ `03_Projects/demo` ทิ้งไว้
+- กฎเดิมใน `testing_standard.md` ข้อ 3 กำหนดห้ามแตะ `01_Raw/`, `02_Assets/`, `03_Projects/` แต่ไม่ได้ระบุ `04_Exports/` อย่างเด็ดขาด และยังไม่มีกฎห้ามทิ้งคลิป demo ไว้ในระบบอย่างชัดเจน
+
+### ผลการดำเนินงาน
+1. **ลบไฟล์วิดีโอและ thumbnail ขยะทดสอบทั้งหมดออกจากดิสก์:**
+   - `04_Exports/Ready_to_post/demo_20260917_182939.mp4` & `.webp`
+   - `04_Exports/Ready_to_post/demo_20260917_190949.mp4` & `.webp`
+   - `04_Exports/Ready_to_post/demo_20260917_192942.mp4` & `.webp`
+   - `04_Exports/Ready_to_post/demo_20260917_205740.mp4` & `.webp`
+2. **ถอนการลงทะเบียน (Unregister) ออกจากระบบ:**
+   - ลบรายการ export id `exp_81e854b6785946bea8d0da36bff87e5a`, `exp_3686f0acc2ef4489adef17069f885f35`, `exp_60ccf19000f24ea09e9a6115b388cc79`, `exp_3532df50c2d54bae820984749cb127c8` ออกจาก `_Docs/export_registry.json` และ SQLite
+   - ลบโฟลเดอร์โปรเจกต์ทดสอบ `03_Projects/demo`
+3. **บัญญัติกฎเหล็กใน `AGENTS.md`:**
+   - **STRICT DON'Ts ข้อ 11:** ❌ ห้ามทิ้งคลิปทดสอบ/Demo/Dummy ค้างใน `04_Exports/` หรือในโปรเจกต์ — งานทดสอบหรือ verify ห้ามเรนเดอร์ลงโฟลเดอร์ผลงานจริง (`04_Exports/` หรือ `04_Exports/Ready_to_post/`) เด็ดขาด ให้ใช้โฟลเดอร์ชั่วคราว (`.tmp/` หรือ `tmp_path`) เท่านั้น หากจำเป็นต้องสร้างไฟล์ทดสอบ ต้องลบทำความสะอาด (Cleanup 100%) ทั้งไฟล์วิดีโอ (.mp4), thumbnail (.webp), โฟลเดอร์โปรเจกต์ และถอดออกจาก `_Docs/export_registry.json` ทันที ห้ามทิ้งขยะทดสอบให้ User ต้องมานั่งไล่ลบเอง
+   - **STRICT DOs ข้อ 15:** ✔️ Test Cleanup 100% (ลบขยะทดสอบทันที) — ทุกไฟล์วิดีโอ/ภาพ/ดราฟต์ที่ถูกสร้างขึ้นเพื่อการทดสอบ (Demo/Test/Probe/Verify) ต้องถูกลบทิ้งอย่างเด็ดขาดหลังทดสอบเสร็จ ทั้งใน `04_Exports/`, `03_Projects/`, `05_Covers_Thumbnails/` และต้องถอดออกจาก `_Docs/export_registry.json` ด้วยเสมอ
+4. **อัปเดตเกณฑ์ใน `.agents/rules/testing_standard.md`:**
+   - ปรับข้อ 3 คุ้มครองโฟลเดอร์ `04_Exports/` (รวม `Ready_to_post/`), `05_Covers_Thumbnails/`, `_Docs/export_registry.json` ห้ามเทสเขียนลงของจริง ให้ใช้ `tmp_path` และ `monkeypatch`
+   - เพิ่มข้อ 6 กำชับการ cleanup 100% ห้ามมีขยะทดสอบตกค้าง
+
+---
+
+## Round TIMELINE-TRANSITION-GAP-TAIL-FILL-1 — แก้ปัญหาวิดีโอขาดท้ายไทม์ไลน์ (Gap 0.26s) จาก Lead-in Silence ของเสียงพากย์ และ Transition Overlap Compensation
+
+**วันที่ดำเนินการ:** 2026-09-17
+**สถานะ:** สำเร็จสมบูรณ์ ✅
+**ดำเนินการโดย:** Antigravity (Gemini 2.5 Pro)
+
+### บริบทและปัญหา (Problem & Root Cause)
+- ผู้ใช้รายงานปัญหาในหน้า Editor (Timeline) ของโปรเจกต์ `IWA01-โปรไฟลุก_1`: *"มันมีบางจุดที่ยังไม่จบสคริปน่ะ ห่างอีกนิดอ่ะ"* พร้อมรูปแคปหน้าจอที่มีกรอบสีแดงครอบท้ายคลิปวิดีโอในไทม์ไลน์ และเวลาบนหัวจอแสดง `00:24.6 / 00:24.9`
+- ตัวเลขการคำนวณจริง:
+  - ความยาวโปรเจกต์และเสียงพากย์ `total_duration = 24.858s` (แสดงเป็น `00:24.9`)
+  - วิดีโอ 5 คลิปในไทม์ไลน์หลังหัก Transition Overlap (4 จุด x 0.35s = 1.40s) จบที่เวลา `24.600s` (แสดงเป็น `00:24.6`)
+  - เกิด Gap ขาดท้าย 0.258s (~0.26 วินาที) ทำให้ภาพวิดีโอตัดจบก่อนเสียงและเพลง ปล่อยจอดำ
+- ต้นตอเชิงลึก:
+  1. **Lead-in Silence**: Beat 0 (`beat_cues[0]`) เสียงพูดเริ่มที่ `0.200s` (`start: 0.200, end: 4.674`) แต่การคำนวณ `target_duration` คิดจาก `cue["end"] - cue["start"]` = `4.674 - 0.200 = 4.474s` ทำให้คลิปแรกสั้นไป 0.200s ตั้งแต่วินาทีแรก และเลื่อนทุกคลิปถัดไปให้จบเร็วขึ้น 0.200s
+  2. **Pause/Gap Between Beats**: หากมีช่วงหยุดหายใจระหว่างประโยค การลบแบบแยกแต่ละช็อตจะทิ้งช่วงว่างเหล่านั้นไป ทำให้เวลารวมของช็อตไม่เต็ม `total_duration`
+  3. **Transition Overlap Speed Discrepancy**: ใน `video_assembly_stage.py` มีการเพิ่ม `overlap` (0.35s) ให้ `trim_end` โดยตรง แต่ `duration = (trim_end - trim_start) / speed` หาก `speed != 1.0` เช่น 1.19x จะทำให้ช็อตยืดไม่ถึง 0.35s บนไทม์ไลน์จริง
+  4. **No Guaranteed Tail-Fill**: ช็อตสุดท้ายไม่มีการบังคับชน `total_duration` หลังหัก transition overlap ทั้งหมด
+
+### ผลการดำเนินงาน (Implementation & Verification)
+1. **Contiguous Timeline Slicing** ใน `scripts/stages/shot_matching_stage.py`:
+   - พัฒนาฟังก์ชัน `calculate_contiguous_beat_durations(beat_cues, total_duration)`:
+     - ช็อต 0 เริ่มต้นที่ `0.000s` เสมอ (กลืน lead-in silence ของเสียงพากย์)
+     - รอยต่อระหว่างช็อต $i$ กับ $i+1$ อยู่ที่ `beat_cues[i+1]["start"]`
+     - ช็อตสุดท้าย ($N-1$) ขยายไปจบที่ `total_duration` เสมอ
+     - ผลรวม `target_duration` ของทุกช็อตเท่ากับ `total_duration` พอดี 100.000%
+   - เชื่อมต่อใช้งานใน `_build_manual_storyboard_clip_list`, `_build_proportional_clip_list`, `_build_guided_take_clip_list`, และ Manual Storyboard override ใน `run()`
+2. **Accurate Overlap & Speed Alignment** ใน `scripts/stages/video_assembly_stage.py`:
+   - คำนวณการยืดฟุตเทจดิบของ `trim_end` ตาม speed จริง: `clip["trim_end"] += overlap * speed` ทำให้เวลาเล่นบนไทม์ไลน์และ FFmpeg เพิ่มขึ้นเท่ากับ `overlap` เป๊ะ
+   - เพิ่ม Tail-Fill Reconciliation สำหรับช็อตสุดท้าย ให้ชน `ctx.total_duration` แบบไร้รอยต่อ
+3. **Hotfix Project Data**:
+   - อัปเดต `03_Projects/IWA01-ء_1/project.json` ปรับทั้ง 5 คลิปตาม contiguous slices และ overlap speed:
+     - ช็อต 0: `dur=5.024s, speed=0.9200, trim=0.0-4.622`
+     - ช็อต 1: `dur=4.776s, speed=1.0619, trim=83.0-88.072`
+     - ช็อต 2: `dur=5.951s, speed=0.9998, trim=36.0-41.95`
+     - ช็อต 3: `dur=6.316s, speed=1.1901, trim=56.0-63.517`
+     - ช็อต 4: `dur=4.191s, speed=0.9306, trim=93.0-96.9`
+     - ผลลัพธ์: ไทม์ไลน์บนหน้าจอรีเฟรชกลายเป็น `00:24.9 / 00:24.9` พอดี 100% ไม่เหลือ Gap
+4. **Automated Tests**:
+   - `tests/test_timeline_gap_tail_fill.py`: 4 passed
+   - `tests/test_manual_shot_map.py` & `tests/test_manual_shot_map_sync.py`: 9 passed
+   - Frontend Vitest: 255 passed
+   - Frontend Vite Build: 2,008 modules built in 3.65s (0 errors)
+
+---
 
 ## Round MANUAL-STORYBOARD-MAPPER-1 — ระบบกำหนดช็อตด้วยตนเองรายวรรคบทพูด (Manual Shot Mapper)
 ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
@@ -7181,3 +7301,204 @@ Executed by: Codex (GPT-6)
   - Reconcile verification: ยืนยันว่ามุม 4 ของ Iwachi ปลด `LOG02` ออกและกลับเป็น `scripted` (`project_name: None`, `status: scripted`)
   - Frontend vitest: 255/255 passed (100%)
   - Production build: แปลง 2,008 modules สำเร็จใน 3.47s
+| Round SCHEDULE-BULK-DELETE-AND-WEEK-COVERAGE-20260917 | เพิ่มเลือกและลบหลายคิวพร้อมกัน, แสดงคิวครอบคลุมถึงวัน/สัปดาห์ล่าสุด, ยืนยันค่าเริ่มต้น 5 ช่วง/วันต่อเนื่อง | 2026-09-17 | สำเร็จ (frontend tests 255 passed, lint ผ่านพร้อม warnings เดิม, build 2,008 modules, browser smoke verified, ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round SCHEDULE-BULK-DELETE-AND-WEEK-COVERAGE-20260917 — ลบหลายคิวและแสดงช่วงสัปดาห์ของคิว
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### สิ่งที่เปลี่ยน
+
+- เพิ่มโหมด `เลือกหลายคิว`, เลือกทั้งหมด และ `ลบที่เลือก` พร้อมยืนยันก่อนลบ
+- จำกัด bulk delete ให้เลือกเฉพาะคิวสถานะ `planned` ซึ่ง backend อนุญาตให้ลบได้; รองรับ partial failure และแจ้งจำนวนสำเร็จ/ล้มเหลว
+- เพิ่มแถบสรุปว่า active queue วางไว้ถึงวันใดและเริ่มต้นในสัปดาห์ใด โดยไม่นับรายการที่โพสต์แล้ว
+- แสดงค่าเริ่มต้น 5 ช่วง/วัน (`09:00`, `12:30`, `16:00`, `19:00`, `21:30`) ในหน้า weekly template และระบุว่าสัปดาห์ที่ไม่มี override จะใช้ค่านี้ต่อเนื่อง
+
+### Verification
+
+- Frontend tests: 255/255 ผ่าน
+- Lint: ผ่าน พร้อม warnings เดิมของ codebase
+- Production build: สำเร็จ 2,008 modules
+- Browser smoke: เห็นแถบ coverage, ปุ่มเลือกหลายคิว และ banner ค่าเริ่มต้น 5 ช่วง/วัน; ไม่แตะการลบ/บันทึกข้อมูลจริง
+- `git diff --check`: ผ่าน (มีเพียงคำเตือน line ending เดิม)
+
+| Round SCHEDULE-CAPACITY-AWARENESS-20260917 | เพิ่มตัวชี้วัดจำนวนคลิปพร้อมจัดคิว, วันโพสต์ที่รองรับได้, วันที่คาดว่าสต็อกจะหมด และสถานะเตือนให้ถ่าย/ตัดต่อเพิ่ม | 2026-09-17 | สำเร็จ (frontend tests ผ่าน, lint ผ่านพร้อม warnings เดิม, build 2,008 modules, browser smoke เห็นตัวเลขจริง, ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round SCHEDULE-CAPACITY-AWARENESS-20260917 — แสดงกำลังการรองรับของคลิปพร้อมจัดคิว
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### สิ่งที่เปลี่ยน
+
+- เพิ่ม `estimateQueueCoverage()` ใน `frontend/src/lib/scheduleQueue.js` เพื่อคำนวณจากช่องว่างจริงของเทมเพลต ไม่ใช้การหารจำนวนคลิปด้วย 5 แบบตายตัว
+- หน้า `ScheduleAgenda` โหลดเทมเพลตสัปดาห์ปัจจุบันแบบอ่านอย่างเดียว, นับเฉพาะคลิปที่พร้อมจัดและยังไม่อยู่ในคิว, แล้วข้ามเวลาที่ผ่านไปหรืออยู่หลังคิวล่าสุด
+- เพิ่มแถบสรุป `คลิปพร้อมจัด`, `รองรับอีกกี่วันโพสต์`, `เทมเพลตกี่คิว/สัปดาห์`, `คาดหมดวันที่ใด` และสัปดาห์ที่เกี่ยวข้อง
+- เพิ่มสถานะช่วยตัดสินใจ: `ควรเร่งถ่ายและตัดต่อเพิ่ม`, `เตรียมถ่าย/ตัดต่อชุดถัดไป`, `ยังมี buffer` และ `ยังไม่มีคลิปพร้อมจัด`
+- เมื่อแก้/บันทึก/คัดลอก/คืนค่าเทมเพลตสัปดาห์ปัจจุบัน ตัวเลข capacity จะอัปเดตตามทันที
+
+### Verification
+
+- Frontend tests: ผ่านทั้งหมด รวม regression test สำหรับการคำนวณวันโพสต์จากช่องว่างจริง
+- Lint: ผ่าน พร้อม warnings เดิมของ codebase
+- Production build: สำเร็จ แปลง 2,008 modules
+- Browser smoke: เห็นค่าจริง `คลิปพร้อมจัด 89 คลิป · รองรับอีก 18 วันโพสต์ · คาดหมด 2026-10-05 · ยังมี buffer`
+- ไม่แก้คิวหรือเทมเพลตจริงอัตโนมัติ และไม่แตะการลบ/บันทึกข้อมูลผ่าน browser smoke
+- ไม่สร้าง `CHANGELOG.md` เพราะโปรเจกต์ยังไม่มีไฟล์ดังกล่าว
+
+| Round PRODUCER-HUB-CAPACITY-AWARENESS-20260917 | แสดงสต็อกคลิปพร้อมโพสต์และวันรองรับบนหน้า Producer Hub พร้อมกรองคลิปที่อยู่ในคิวแล้วไม่ให้ถูกนับซ้ำ | 2026-09-17 | สำเร็จ (frontend tests 256 passed, lint ผ่าน, build 2,008 modules, browser smoke verified, ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round PRODUCER-HUB-CAPACITY-AWARENESS-20260917 — เพิ่ม capacity awareness ในหน้าภาพรวมหลัก
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### สิ่งที่เปลี่ยน
+
+- `ProducerHub` โหลดคิวโพสต์และเทมเพลตสัปดาห์ปัจจุบันเพื่อใช้ข้อมูลชุดเดียวกับหน้า `ScheduleAgenda`
+- เพิ่มแถบสถานะด้านบนของหน้า Producer Hub: คลิปพร้อมโพสต์ที่ยังไม่อยู่ในคิว, จำนวนวันที่รองรับ, วันที่คาดว่าสต็อกจะหมด และจำนวนคิวต่อสัปดาห์
+- เพิ่มปุ่ม `เปิดหน้าคิว` เพื่อไปจัดการต่อได้ทันที
+- กรอง Daily Action Queue ให้ไม่นำคลิปที่จัดคิวไว้แล้วกลับมาเตือนซ้ำ และเปลี่ยนชื่อหมวดเป็น `พร้อมจัดคิว` ให้ตรงความหมาย
+- ใช้สถานะสีตามระดับ buffer: ควรเร่งถ่าย/ตัดต่อ, เตรียมชุดถัดไป หรือยังมี buffer
+
+### Verification
+
+- Frontend tests: 256/256 ผ่าน
+- Lint: ผ่าน
+- Production build: สำเร็จ แปลง 2,008 modules
+- Browser smoke: หน้า Producer Hub แสดง `สต็อกคลิปพร้อมโพสต์ 31 คลิป · รองรับอีก 7 วัน · คาดหมด 2026-09-24` และ Daily Action Queue แสดง `พร้อมจัดคิว (31)` สอดคล้องกัน
+- ตรวจแล้วว่าคิวที่มีอยู่ไม่ทำให้ตัวเลขหน้าแรกนับซ้ำ
+
+| Round SCRIPT-LAB-DISTILLED-WORKSPACE-20260918 | ลดความรกหน้า Product → Clip ด้วย progressive disclosure, readiness workflow และ CTA ตามสถานะงาน | 2026-09-18 | สำเร็จ (frontend tests 256 passed, lint ผ่าน, build 2,008 modules, browser smoke verified, ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round SCRIPT-LAB-DISTILLED-WORKSPACE-20260918 — ปรับ AI Script Lab ให้เป็นพื้นที่ทำงานแบบมีลำดับชั้น
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### สิ่งที่เปลี่ยน
+
+- ย่อส่วนหัวสินค้าให้เหลือเฉพาะ `สินค้าใหม่` และ `เครื่องมือสินค้า`; ย้ายข้อมูล AI, ตั้งค่าป้าย Hook, คลัง, การ์ด, รีเฟรช และลบสินค้าไว้ในแผงรอง
+- เพิ่ม workflow readiness 6 ขั้น: บทพร้อม, คลิปพร้อม, เสียงพร้อม, ฉากพร้อม, ดราฟต์ และโพสต์แล้ว พร้อมตัวเลขจริงต่อสินค้า
+- รวมเครื่องมือระดับล็อตเป็น command bar เดียวที่แสดงปัญหาหรือขั้นตอนถัดไป และย้ายคำสั่งรองไว้ใน `จัดการล็อต`
+- ปรับ desktop เป็นสัดส่วนรายการ/รายละเอียด 4:8 และปรับ mobile จาก carousel เป็นรายการสคริปต์แนวตั้งขนาดกะทัดรัด
+- ทำให้รายการสคริปต์เลือกได้ทั้งแถวและรองรับ keyboard focus; ซ่อนคำสั่งลบ/ดูคลิปออกจากแต่ละแถวเพื่อลดสิ่งรบกวน
+- ย่อคำสั่งรายสคริปต์ให้เหลือ `แก้ไข` และ `เพิ่มเติม`; เมื่อเปลี่ยนสคริปต์แผงคำสั่งรองจะปิดเอง
+- ปรับ CTA ของสคริปต์พร้อมทำงานให้ `สร้างดราฟต์ 1-Click` เป็น primary และ `ตั้งค่าก่อนส่ง` เป็น secondary; ถ้ายังขาดเสียงจะแสดง `เตรียมเสียงและแผนถ่าย`
+
+### Verification
+
+- Frontend tests: 256/256 ผ่าน
+- Lint: ผ่าน (`oxlint --quiet`)
+- Production build: สำเร็จ แปลง 2,008 modules
+- Browser smoke: ตรวจหน้า Product → Clip จริง เห็น readiness 6 ขั้น, contextual batch action และเมนูเพิ่มเติมทำงานโดยไม่ล้น layout
+- ตรวจ accessibility tree: disclosure มี expanded/collapsed semantics, รายการสคริปต์เลือกด้วย keyboard ได้ และ CTA พร้อมดราฟต์แสดงถูกสถานะ
+- ใช้แนวทาง Impeccable ในการลด cognitive load, จำกัด primary action และใช้ progressive disclosure
+
+| Round SCRIPT-WORKBENCH-FLAT-COMPOSITION-20260918 | ยุบรายละเอียดสคริปต์จากหลายการ์ดเป็นโครงสร้างเรียบ 3 ส่วน พร้อมรวม Hook และเสียงไว้ใน summary เดียว | 2026-09-18 | สำเร็จ (frontend tests 256 passed, lint/build/browser smoke ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round SCRIPT-WORKBENCH-FLAT-COMPOSITION-20260918 — ลด card-in-card ในรายละเอียดสคริปต์
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### สิ่งที่เปลี่ยน
+
+- รวมป้าย Hook, พาดหัวเปิดคลิป และสถานะเสียงนำถ่ายจากสามกล่องให้เป็น summary surface เดียวแบบสองแถว
+- แสดงแบรนด์ รุ่น และหมวดเป็น metadata ขนาดเล็กแทนการ์ดย่อย
+- คงคำสั่ง `แก้ป้าย`, `สร้าง Hook ใหม่`, `เปิดเสียงและแผน` และสถานะ Edge-TTS/เสียงเก่าไว้ครบ
+- ยุบข้อความล็อกตามไทม์ไลน์เข้า metadata เพื่อไม่เพิ่ม alert box อีกชั้น
+- เปลี่ยนบทพูดจากกล่องใหญ่ที่มีแถวซ้อนเป็นรายการเรียบ ใช้ spacing และเส้นแบ่งเป็นโครงสร้าง
+- รักษาส่วนคลิปประกอบและ contextual CTA ด้านล่างไว้เป็นช่วงทำงานสุดท้าย
+
+### Verification
+
+- Frontend tests: 256/256 ผ่าน
+- Lint: ผ่าน (`oxlint --quiet`)
+- Production build: สำเร็จ แปลง 2,008 modules
+- Browser smoke: ตรวจหน้าจริงแล้ว เหลือโครงสร้าง Hook/เสียง → บทพูด → คลิปและ CTA โดยไม่มีกรอบย่อยซ้อน
+- Accessibility tree: summary มี label ชัดเจนและ action เดิมยังเข้าถึงได้ครบ
+- ใช้ Impeccable Distill เพื่อลดสี กรอบ และข้อมูลซ้ำ โดยไม่ตัดฟังก์ชันเดิม
+
+| Round SCRIPT-INLINE-EDIT-AND-STORYBOARD-RESTORE-20260918 | ทำ inline editing จริง, อธิบายเสียงระดับล็อต และคืนปุ่มเลือกช็อตรายสคริปต์ | 2026-09-18 | สำเร็จ (frontend tests 256 passed, lint/build/browser smoke ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round SCRIPT-INLINE-EDIT-AND-STORYBOARD-RESTORE-20260918 — แก้ไขบน UI เดิมและคืน Manual Storyboard
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### สิ่งที่เปลี่ยน
+
+- ระบุ dropdown ว่า `เสียงสำหรับสร้างงานทั้งล็อต` พร้อมคำอธิบายว่ามีผลตอนเตรียมเสียง/สร้างดราฟต์ทั้งล็อต และอาจสร้างเสียงใหม่เมื่อ preset ต่างจากเดิม
+- เปลี่ยนโหมดแก้ไขจาก editor card สีดำเป็น Hook input และช่องบทพูดรายท่อนบนตำแหน่งเดิม
+- คง `แทนที่คำ`, `ยกเลิก` และ `บันทึกสคริปต์` ไว้ใน inline editing flow
+- คืนปุ่ม `เลือกช็อตของสคริปต์`; ถ้ามี manual mapping แล้วจะแสดง `แก้ช็อต (N ท่อน)`
+- วางปุ่มเลือกช็อตข้างสถานะคลิปประกอบ เพื่อให้ความสัมพันธ์ระหว่างคลิปกับสคริปต์ชัดเจน
+
+### Diagnosis และ Verification
+
+- ต้นเหตุปุ่มหาย: ปุ่ม Manual Storyboard เดิมถูกใส่ `hidden` ระหว่างลดจำนวน CTA โดยไม่มีทางเข้าทดแทน
+- ต้นเหตุ editor สีดำ: `isEditing` render ฟอร์มอีกชุดที่มีพื้นหลังและกรอบ แทนการแก้รายการเดิม
+- ใช้ browser repro ตรวจ inline fields, ยกเลิกโดยไม่บันทึก และยืนยันปุ่ม `แก้ช็อต (5 ท่อน)` เปิด Manual Storyboard Mapper จริง
+- ตรวจคำอธิบาย dropdown ผ่าน accessibility tree แล้ว
+- Frontend tests: 256/256 ผ่าน
+- Lint: ผ่าน (`oxlint --quiet`)
+- Production build: สำเร็จ แปลง 2,008 modules
+- `git diff --check`: ผ่าน
+
+## Round SCRIPT-HOOK-LONGTEXT-LINE-ADD-LOCK-20260918 — ทำให้ Hook/บทพูดแก้ไขและล็อกตามสถานะจริง
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### สิ่งที่เปลี่ยน
+
+- เปลี่ยนชื่อปุ่มให้แยกชัดเจน: `แก้ Hook + บทพูด`, `แก้ 3 ป้าย` และ `สร้าง Hook ใหม่`
+- ระบุ Hook Header ว่าประกอบด้วย 3 ป้าย: แบรนด์ · รุ่น · หมวด และคงฟอร์มแก้ไขทั้งสามค่าไว้
+- เอา `truncate` ออกจาก Hook ที่แสดงในกล่องหลัก ให้ข้อความยาวตัดบรรทัดและอ่านได้ครบ
+- เพิ่มปุ่ม `เพิ่มบรรทัด` ใน editor แบบแยกช่อง และเพิ่มคำแนะนำให้กด Enter ใน editor แบบ textarea
+- ล็อกเนื้อหาและปุ่มแก้ไขเมื่อสถานะเป็น `กำลังตัดต่อ`, `ตัดต่อเสร็จแล้ว` หรือ `โพสต์แล้ว` พร้อมข้อความล็อกที่ตรงกับสถานะ
+
+### Diagnosis และ Verification
+
+- ต้นเหตุการล็อกไม่ครบ: `isLocked` เดิมรวมเฉพาะ `in_production` และ `posted` ไม่รวม `rendered`
+- ต้นเหตุข้อความสั้น: Hook ใน accordion ใช้ `truncate`
+- ต้นเหตุเพิ่มบรรทัดไม่ชัด: editor แบบรายการไม่มี action append แม้ state รองรับ newline อยู่แล้ว
+- Browser smoke: ตรวจ `แก้ Hook + บทพูด`, `แก้ 3 ป้าย`, เพิ่มบรรทัดจาก 5 เป็น 6 แล้วกดยกเลิกโดยไม่บันทึก และตรวจโหมดแถวยาว
+- Frontend tests: 256/256 ผ่าน
+- Lint: ผ่าน (`oxlint --quiet`)
+- Production build: สำเร็จ แปลง 2,008 modules
+- `git diff --check`: ผ่าน
+
+## Round BATCH-VOICE-CHOICE-AT-ACTION-20260918 — ย้ายตัวเลือกเสียงไปติดกับปุ่มเตรียมเสียง
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### สิ่งที่เปลี่ยน
+
+- ย้าย selector เสียงมาอยู่ในแถบคำสั่งหลัก ก่อนปุ่ม `เตรียมเสียง` เพื่อให้เลือกเสียงในจังหวะที่จะสร้างเสียงจริง
+- แสดง selector เฉพาะเมื่อมีมุมที่ยังขาดเสียง ลดการรบกวนเมื่อทั้งล็อตพร้อมแล้ว
+- ลบ selector ซ้ำออกจากเมนู `จัดการล็อต` ซึ่งเก็บเฉพาะเครื่องมือรอง
+- คงคำอธิบายผ่าน label, `aria-label` และ tooltip ว่าการเปลี่ยน preset อาจสร้างเสียงใหม่ให้ตรงกับเสียงที่เลือก
+
+### Verification
+
+- Frontend tests: 256/256 ผ่าน
+- Lint: ผ่าน (`oxlint --quiet`)
+- Production build: สำเร็จ แปลง 2,008 modules
+- Browser smoke: เปิด `จัดการล็อต` แล้วตรวจ accessibility tree ไม่พบ selector เสียงซ้ำในเมนูรอง
+- `git diff --check`: ผ่าน
+## Round BATCH-RENDER-AUDIO-SEPARATION-20260918
+ดำเนินการโดย: Codex (GPT-5)
+- แยกการเลือก/เจนเสียงออกจาก Batch Render: เพิ่ม `force_regenerate` ให้ปุ่ม “เจนเสียงใหม่ทั้งสคริปต์” และให้ข้ามมุมที่ตัดต่อหรือโพสต์เสร็จตามสัญญาเดิม
+- ส่งเสียงที่เลือกจาก ProductToClip เข้า BatchRenderModal; modal แสดงเสียงแบบอ่านอย่างเดียวและคงไว้เฉพาะตัวเลือกสไตล์วิดีโอ
+- ตรวจสอบแล้ว: frontend tests 256 ผ่าน, lint ผ่านพร้อม warnings เดิม, build ผ่าน 2,008 modules, browser smoke ผ่าน, detector ไม่พบ warning ใหม่จากส่วนที่แก้
+## Round BATCH-VOICE-TOOLS-PLACEMENT-20260918
+ดำเนินการโดย: Codex (GPT-5)
+- ย้ายตัวเลือกเสียงและปุ่ม “เจนเสียงใหม่ทั้งสคริปต์” จากแถวสรุปสถานะด้านบนไปไว้ในแถบเครื่องมือ Batch ด้านล่างร่วมกับคำสั่งอื่น
+- ตรวจแล้ว: frontend tests 256 ผ่าน, lint ผ่านพร้อม warnings เดิม, build ผ่าน 2,008 modules และ browser smoke เห็นตำแหน่งใหม่ถูกต้อง
+## Round BATCH-STATUS-COPY-REMOVE-20260918
+ดำเนินการโดย: Codex (GPT-5)
+- ลบข้อความสถานะ “พร้อมสร้างดราฟต์ X มุม” ที่ซ้ำกับปุ่มสร้างดราฟต์ออกจากแถวคำสั่งด้านบน เหลือปุ่มเป็นตัวสื่อสารหลัก
+- ตรวจแล้ว: frontend tests 256 ผ่าน, lint ผ่านพร้อม warnings เดิม, build ผ่าน 2,008 modules และ browser smoke ไม่พบข้อความซ้ำ
+## Round PRODUCT-CARDS-IN-HEADER-20260918
+ดำเนินการโดย: Codex (GPT-5)
+- เอา product dropdown รายการยาวออกจากหัวหน้า ProductToClip
+- แสดง ProductCard gallery เป็นตัวสลับสินค้าหลักใต้ชื่อสินค้า พร้อม thumbnail, progress และ horizontal scroll
+- ย้าย search/catalog และเครื่องมือที่ใช้ไม่บ่อยไว้ในเมนูเครื่องมือสินค้า
+- ปรับ fallback copy ให้สอดคล้องกับการเลือกสินค้าด้วยการ์ด และลบ state/ปุ่มการ์ดแบบเก่าที่ไม่ใช้งาน
+- ตรวจแล้ว: frontend tests ผ่าน, lint ผ่านพร้อมคำเตือนเดิม, build ผ่าน 2,008 modules

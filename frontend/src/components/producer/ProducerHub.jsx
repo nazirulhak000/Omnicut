@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import {
   getProducts, getExports, getTiktokStatsLatest,
+  getScheduleQueue, getScheduleTemplate,
   uploadRefMedia, aiIdeaToAngle, addProductAngle,
   getProducerNotes, addProducerNote, deleteProducerNote, updateProducerNote
 } from '../../api';
@@ -30,7 +31,28 @@ import {
   calculateWeeklyPacing,
   autoSuggestPlaybookNotes,
   DEFAULT_TARGETS,
+  getClipIdentityAliases,
 } from '../../lib/producerInsights';
+import { dateOnly, estimateQueueCoverage, templateForWeek, weekStartForDate } from '../../lib/scheduleQueue';
+
+function scheduleAliases(item) {
+  return getClipIdentityAliases({
+    ...item,
+    video_url: item?.video_url || item?.video_path,
+    export_path: item?.export_path || item?.video_path,
+  });
+}
+
+function actionClipAliases(item) {
+  return getClipIdentityAliases({
+    ...(item?.angle || {}),
+    angle_id: item?.angle?.angle_id || (item?.type === 'angle_rendered' ? item.id : null),
+    export_id: item?.angle?.export_id || (item?.type === 'export_file' ? item.id : null),
+    export_path: item?.exportPath,
+    video_url: item?.exportPath,
+    project_name: item?.angle?.project_name || item?.projectName,
+  });
+}
 
 export default function ProducerHub({
   onApplyToStudio,
@@ -42,6 +64,8 @@ export default function ProducerHub({
 }) {
   const [products, setProducts] = useState([]);
   const [exportsList, setExportsList] = useState([]);
+  const [scheduleQueue, setScheduleQueue] = useState([]);
+  const [scheduleTemplate, setScheduleTemplate] = useState(null);
   const [tiktokStats, setTiktokStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -128,11 +152,14 @@ export default function ProducerHub({
   const fetchData = useCallback(async () => {
     try {
       setRefreshing(true);
-      const [prodRes, expRes, statsRes, notesRes] = await Promise.allSettled([
+      const currentWeek = weekStartForDate(dateOnly());
+      const [prodRes, expRes, statsRes, notesRes, queueRes, templateRes] = await Promise.allSettled([
         getProducts(),
         getExports(),
         getTiktokStatsLatest(),
         getProducerNotes(),
+        getScheduleQueue(),
+        getScheduleTemplate(currentWeek),
       ]);
 
       const sourceResults = [
@@ -140,6 +167,8 @@ export default function ProducerHub({
         ['ไฟล์ Export', expRes, expRes.status === 'fulfilled' && (Array.isArray(expRes.value) || Array.isArray(expRes.value?.exports))],
         ['สถิติ TikTok', statsRes, statsRes.status === 'fulfilled' && (Array.isArray(statsRes.value) || Array.isArray(statsRes.value?.rows) || Array.isArray(statsRes.value?.posts))],
         ['Playbook', notesRes, notesRes.status === 'fulfilled' && notesRes.value?.success && Array.isArray(notesRes.value?.notes)],
+        ['คิวโพสต์', queueRes, queueRes.status === 'fulfilled' && Array.isArray(queueRes.value?.items)],
+        ['เทมเพลตคิว', templateRes, templateRes.status === 'fulfilled' && !!templateRes.value],
       ];
       setPartialFailures(sourceResults
         .filter(([, result, valid]) => result.status === 'rejected' || !valid)
@@ -166,6 +195,13 @@ export default function ProducerHub({
         setPlaybookNotes(notesRes.value.notes);
         savePlaybookNotes(notesRes.value.notes);
       }
+
+      if (queueRes.status === 'fulfilled') {
+        setScheduleQueue(queueRes.value?.items || []);
+      }
+      if (templateRes.status === 'fulfilled') {
+        setScheduleTemplate(templateRes.value);
+      }
     } catch (err) {
       console.error('Failed to load producer hub data:', err);
     } finally {
@@ -183,9 +219,50 @@ export default function ProducerHub({
     return calculateProductionStats(products, exportsList, targets);
   }, [products, exportsList, targets]);
 
-  const actionQueue = useMemo(() => {
+  const rawActionQueue = useMemo(() => {
     return getDailyActionQueue(products, exportsList);
   }, [products, exportsList]);
+
+  const currentTemplateWeek = useMemo(() => weekStartForDate(dateOnly()), []);
+
+  const scheduledAliases = useMemo(() => new Set(
+    scheduleQueue.flatMap((item) => scheduleAliases(item)),
+  ), [scheduleQueue]);
+
+  const readyToPostClips = useMemo(() => rawActionQueue.readyToPost.filter((item) => {
+    return !actionClipAliases(item).some((alias) => scheduledAliases.has(alias));
+  }), [rawActionQueue.readyToPost, scheduledAliases]);
+
+  const actionQueue = useMemo(() => ({
+    ...rawActionQueue,
+    readyToPost: readyToPostClips,
+    summary: {
+      ...rawActionQueue.summary,
+      total: readyToPostClips.length + rawActionQueue.readyToCut.length + rawActionQueue.needsFootage.length,
+    },
+  }), [rawActionQueue, readyToPostClips]);
+
+  const latestScheduledAt = useMemo(() => scheduleQueue
+    .filter((item) => item.status !== 'posted')
+    .map((item) => new Date(item.scheduled_at || '').getTime())
+    .filter(Number.isFinite)
+    .reduce((latest, timestamp) => Math.max(latest, timestamp), 0), [scheduleQueue]);
+
+  const capacityEstimate = useMemo(() => estimateQueueCoverage({
+    readyCount: readyToPostClips.length,
+    template: templateForWeek(scheduleTemplate, currentTemplateWeek),
+    startDate: dateOnly(),
+    now: new Date(),
+    latestScheduledAt: latestScheduledAt ? new Date(latestScheduledAt).toISOString() : null,
+  }), [currentTemplateWeek, latestScheduledAt, readyToPostClips.length, scheduleTemplate]);
+
+  const capacityStatus = !capacityEstimate.readyCount
+    ? { label: 'ควรเร่งตัดต่อเพิ่ม', className: 'text-rose-200 bg-rose-500/10 border-rose-400/20' }
+    : capacityEstimate.coveredDays <= 2
+      ? { label: 'ควรเร่งถ่ายและตัดต่อเพิ่ม', className: 'text-rose-200 bg-rose-500/10 border-rose-400/20' }
+      : capacityEstimate.coveredDays <= 5
+        ? { label: 'เตรียมชุดถัดไป', className: 'text-amber-200 bg-amber-500/10 border-amber-400/20' }
+        : { label: 'ยังมี buffer', className: 'text-emerald-200 bg-emerald-500/10 border-emerald-400/20' };
 
   const weeklyPacing = useMemo(() => {
     return calculateWeeklyPacing(stats);
@@ -820,6 +897,38 @@ export default function ProducerHub({
           </div>
         </div>
       )}
+
+      <div
+        className={`rounded-2xl border px-4 py-3 shadow-lg ${capacityStatus.className}`}
+        role="status"
+        aria-live="polite"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="mt-0.5 rounded-xl border border-current/20 bg-black/10 p-2">
+              <Film className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-bold text-white">
+                <span>สต็อกคลิปพร้อมโพสต์ {capacityEstimate.readyCount} คลิป</span>
+                <span className="text-white/80">รองรับอีก {capacityEstimate.coveredDays} วัน</span>
+                {capacityEstimate.endDate && <span className="text-white/70">คาดหมด {capacityEstimate.endDate}</span>}
+              </div>
+              <p className="mt-1 text-[11px] text-white/65">
+                อิงเทมเพลตปัจจุบัน {capacityEstimate.weeklyCapacity} คิว/สัปดาห์ · {capacityStatus.label}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onGoToTracker}
+            className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-black/15 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/60"
+          >
+            เปิดหน้าคิว
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
 
       {/* ── 2. Production Quota Gauges (KPI Cards) ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1468,7 +1577,7 @@ export default function ProducerHub({
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              รอโพสต์ ({actionQueue.readyToPost.length})
+              พร้อมจัดคิว ({actionQueue.readyToPost.length})
             </button>
             <button
               onClick={() => setQueueFilter('cut')}

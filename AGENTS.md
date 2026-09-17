@@ -38,6 +38,7 @@
 8. ❌ **ห้ามใส่สัญลักษณ์ซ้ำซ้อนในปุ่ม/UI** (เช่น `<Upload /> + แนบคลิป`) (ดู [.agents/rules/ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md))
 9. ❌ **ห้ามทับศัพท์ชื่อแบรนด์/รุ่น/ศัพท์เทคนิคอังกฤษเป็นไทย** (เช่น ห้าม "บลูทูธ" ให้ใช้ "Bluetooth", "USB-C")
 10. ❌ **ห้ามงานอื่นกระทบฟอนต์/ข้อความโดยไม่สั่ง** — ไม่เปลี่ยน family/ขนาด/weight/outline/ตัดบรรทัด/ตำแหน่ง/safe zone (ดู [.agents/rules/font_text_visual_contract.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/font_text_visual_contract.md))
+11. ❌ **ห้ามทิ้งคลิปทดสอบ/Demo/Dummy ค้างใน `04_Exports/` หรือในโปรเจกต์** — งานทดสอบหรือ verify ห้ามเรนเดอร์ลงโฟลเดอร์ผลงานจริง (`04_Exports/` หรือ `04_Exports/Ready_to_post/`) เด็ดขาด ให้ใช้โฟลเดอร์ชั่วคราว (`.tmp/` หรือ `tmp_path`) เท่านั้น หากจำเป็นต้องสร้างไฟล์ทดสอบ ต้องลบทำความสะอาด (Cleanup 100%) ทั้งไฟล์วิดีโอ (.mp4), thumbnail (.webp), โฟลเดอร์โปรเจกต์ และถอดออกจาก `_Docs/export_registry.json` ทันที ห้ามทิ้งขยะทดสอบให้ User ต้องมานั่งไล่ลบเอง
 
 ---
 
@@ -63,6 +64,7 @@
      - `ดำเนินการโดย: Claude Code (Claude 3.7 Sonnet)`
      - `ดำเนินการโดย: Cursor (Claude 3.5 Sonnet)`
    - **วัตถุประสงค์:** โปร่งใส สืบย้อนได้ว่าโมเดลตัวไหนรับผิดชอบงานนั้น
+15. ✔️ **Test Cleanup 100% (ลบขยะทดสอบทันที)** — ทุกไฟล์วิดีโอ/ภาพ/ดราฟต์ที่ถูกสร้างขึ้นเพื่อการทดสอบ (Demo/Test/Probe/Verify) ต้องถูกลบทิ้งอย่างเด็ดขาดหลังทดสอบเสร็จ ทั้งใน `04_Exports/`, `03_Projects/`, `05_Covers_Thumbnails/` และต้องถอดออกจาก `_Docs/export_registry.json` ด้วยเสมอ
 
 ---
 

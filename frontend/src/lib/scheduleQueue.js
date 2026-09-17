@@ -108,6 +108,34 @@ export function templateSlots(startDate, endDate, templateByWeek = {}, now = new
   return slots;
 }
 
+export function estimateQueueCoverage({ readyCount = 0, template, startDate, now = new Date(), latestScheduledAt = null, horizonDays = 366 } = {}) {
+  const count = Math.max(0, Number(readyCount) || 0);
+  const start = startDate || dateOnly(now);
+  const week = weekStartForDate(start);
+  const normalizedTemplate = templateForWeek(template, week);
+  const slots = templateSlots(
+    start,
+    addDays(start, Math.max(1, Number(horizonDays) || 366) - 1),
+    { default: normalizedTemplate },
+    now,
+    latestScheduledAt,
+  ).slice(0, count);
+  const coveredDates = [...new Set(slots.map((slot) => slot.date))];
+  const weeklyCapacity = Object.values(normalizedTemplate.days)
+    .filter((day) => day.enabled !== false)
+    .reduce((total, day) => total + day.times.length, 0);
+  const lastSlot = slots[slots.length - 1] || null;
+  return {
+    readyCount: count,
+    slotCount: slots.length,
+    coveredDays: coveredDates.length,
+    endDate: lastSlot?.date || '',
+    endWeekStart: lastSlot ? weekStartForDate(lastSlot.date) : '',
+    weeklyCapacity,
+    firstDate: coveredDates[0] || '',
+  };
+}
+
 export function seededRandom(seed = 1) {
   let value = (Number(seed) >>> 0) || 1;
   return () => {

@@ -154,10 +154,10 @@ def test_batch_audio_worker_skips_rendered_and_posted():
             _execute_batch_generate_audio_worker(
                 task["id"],
                 product_id,
-                {"voice_preset": "gemini_puck_male_hype"},
+                {"voice_preset": "gemini_puck_male_hype", "force_regenerate": True},
             )
 
-            # Only ang_pending should be generated!
+            # Even a forced regeneration must leave rendered/posted angles untouched.
             assert mock_gen.call_count == 1
             call_args = mock_gen.call_args[0]
             assert call_args[0] == product_id

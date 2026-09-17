@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, Calendar, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, List, Plus, RefreshCw, Rocket, RotateCcw, Settings2, Shuffle, Trash2 } from 'lucide-react';
+import { Archive, Calendar, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, List, MoreHorizontal, Plus, RefreshCw, Rocket, RotateCcw, Settings2, Shuffle, Trash2 } from 'lucide-react';
 import { Modal, Badge } from './ui';
 import { commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
-import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
+import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, estimateQueueCoverage, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
 import { getStylePreset } from '../lib/stylePresetCatalog';
 
 const STATUS_LABELS = {
@@ -132,9 +132,11 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [viewMode, setViewMode] = useState('list');
   const [calendarWeekStart, setCalendarWeekStart] = useState(() => weekStartForDate(dateOnly()));
   const timeOptions = useMemo(() => scheduleTimeOptions(), []);
+  const currentTemplateWeek = useMemo(() => weekStartForDate(dateOnly()), []);
   const [templateOpen, setTemplateOpen] = useState(false);
-  const [templateWeek, setTemplateWeek] = useState(weekStartForDate(dateOnly()));
-  const [templateDraft, setTemplateDraft] = useState(defaultTemplateDraft(weekStartForDate(dateOnly())));
+  const [templateWeek, setTemplateWeek] = useState(currentTemplateWeek);
+  const [templateDraft, setTemplateDraft] = useState(defaultTemplateDraft(currentTemplateWeek));
+  const [capacityTemplate, setCapacityTemplate] = useState(() => defaultTemplateDraft(currentTemplateWeek));
   const [templateBusy, setTemplateBusy] = useState(false);
   const [autofillOpen, setAutofillOpen] = useState(false);
   const [autofillRange, setAutofillRange] = useState('today');
@@ -150,6 +152,10 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [requeueDraft, setRequeueDraft] = useState({ date: '', time: '' });
   const [requeueLoading, setRequeueLoading] = useState(false);
   const [postedOpen, setPostedOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkRemoving, setBulkRemoving] = useState(false);
   // Posted history never gets pruned server-side -- window it here so
   // opening this modal after a year of daily posts doesn't mount hundreds
   // of rows at once.
@@ -168,6 +174,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     try {
       const response = await getScheduleQueue();
       setQueue(response.items || []);
+      setSelectedIds(new Set());
       scheduleDrafts.current.clear();
       scheduleRequestIds.current.clear();
     } catch (error) {
@@ -178,6 +185,16 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   };
 
   useEffect(() => { loadQueue(); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getScheduleTemplate(currentTemplateWeek)
+      .then((response) => {
+        if (!cancelled) setCapacityTemplate(templateForWeek(response, currentTemplateWeek));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [currentTemplateWeek]);
 
   const queuedKeys = useMemo(() => new Set(queue.map(queueKey)), [queue]);
   const availableClips = useMemo(() => {
@@ -212,6 +229,46 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   );
   const grouped = useMemo(() => groupScheduleItems(activeQueue), [activeQueue]);
   const dates = Object.keys(grouped);
+  const todayKey = dateOnly();
+  const todayQueue = useMemo(
+    () => activeQueue
+      .filter((item) => localParts(item.scheduled_at).date === todayKey)
+      .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)),
+    [activeQueue, todayKey],
+  );
+  const nextToday = todayQueue.find((item) => new Date(item.scheduled_at).getTime() >= Date.now());
+  const overdueTodayCount = todayQueue.filter((item) => item.status === 'planned' && new Date(item.scheduled_at).getTime() < Date.now()).length;
+  const selectableQueue = useMemo(() => activeQueue.filter((item) => item.status === 'planned'), [activeQueue]);
+  const queueEndDate = useMemo(
+    () => activeQueue.reduce((latest, item) => {
+      const date = localParts(item.scheduled_at).date;
+      return date > latest ? date : latest;
+    }, ''),
+    [activeQueue],
+  );
+  const queueEndWeekStart = queueEndDate ? weekStartForDate(queueEndDate) : '';
+  const latestActiveScheduledAt = useMemo(
+    () => activeQueue.reduce((latest, item) => {
+      const timestamp = new Date(item.scheduled_at || '').getTime();
+      return Number.isFinite(timestamp) && timestamp > latest ? timestamp : latest;
+    }, 0),
+    [activeQueue],
+  );
+  const capacityEstimate = useMemo(() => estimateQueueCoverage({
+    readyCount: availableClips.length,
+    template: capacityTemplate,
+    startDate: todayKey,
+    now: new Date(),
+    latestScheduledAt: latestActiveScheduledAt ? new Date(latestActiveScheduledAt).toISOString() : null,
+  }), [availableClips.length, capacityTemplate, latestActiveScheduledAt, todayKey]);
+  const capacityStatus = !capacityEstimate.readyCount
+    ? { label: 'ยังไม่มีคลิปพร้อมจัด', className: 'text-red-200 bg-red-500/10 border-red-400/20' }
+    : capacityEstimate.coveredDays <= 2
+      ? { label: 'ควรเร่งถ่ายและตัดต่อเพิ่ม', className: 'text-red-200 bg-red-500/10 border-red-400/20' }
+      : capacityEstimate.coveredDays <= 5
+        ? { label: 'เตรียมถ่าย/ตัดต่อชุดถัดไป', className: 'text-amber-200 bg-amber-500/10 border-amber-400/20' }
+        : { label: 'ยังมี buffer', className: 'text-emerald-200 bg-emerald-500/10 border-emerald-400/20' };
+  const allSelectableSelected = selectableQueue.length > 0 && selectableQueue.every((item) => selectedIds.has(item.id));
   const calendarDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const d = addDays(calendarWeekStart, i);
@@ -221,11 +278,11 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
         dayName: WEEKDAY_LABELS[i],
         dayNumber: dayDateObj.getUTCDate(),
         monthLabel: new Intl.DateTimeFormat('th-TH', { month: 'short' }).format(dayDateObj),
-        isToday: d === dateOnly(),
+        isToday: d === todayKey,
         items: grouped[d] || [],
       };
     });
-  }, [calendarWeekStart, grouped]);
+  }, [calendarWeekStart, grouped, todayKey]);
 
   const saveSingle = async () => {
     if (!singleDraft.clip || !singleDraft.date || !singleDraft.time) return;
@@ -300,8 +357,54 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     try {
       await removeScheduleQueue(item.id);
       setQueue((prev) => prev.filter((row) => row.id !== item.id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
       showToast?.('นำคลิปออกจากคิวแล้ว ไฟล์ MP4 ยังอยู่ครบ');
     } catch (error) { showToast?.(error.response?.data?.detail || error.message, 'error'); }
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode((prev) => !prev);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelected = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(allSelectableSelected ? new Set() : new Set(selectableQueue.map((item) => item.id)));
+  };
+
+  const removeSelected = async () => {
+    const ids = [...selectedIds].filter((id) => selectableQueue.some((item) => item.id === id));
+    if (!ids.length || bulkRemoving) return;
+    if (!window.confirm(`นำ ${ids.length} คิวออกจากระบบหรือไม่? ไฟล์ MP4 จะไม่ถูกลบ`)) return;
+
+    setBulkRemoving(true);
+    const results = await Promise.allSettled(ids.map((id) => removeScheduleQueue(id)));
+    const removedIds = ids.filter((id, index) => results[index].status === 'fulfilled');
+    const failedCount = ids.length - removedIds.length;
+    setQueue((prev) => prev.filter((row) => !removedIds.includes(row.id)));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      removedIds.forEach((id) => next.delete(id));
+      return next;
+    });
+    if (failedCount) {
+      showToast?.(`ลบสำเร็จ ${removedIds.length} คิว · ลบไม่ได้ ${failedCount} คิว`, 'error');
+    } else {
+      showToast?.(`ลบ ${removedIds.length} คิวแล้ว ไฟล์ MP4 ยังอยู่ครบ`);
+    }
+    setBulkRemoving(false);
   };
 
   const prepareItem = async (item) => {
@@ -373,7 +476,9 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     setTemplateBusy(true);
     try {
       const response = await getScheduleTemplate(week);
-      setTemplateDraft(templateForWeek(response, week));
+      const normalized = templateForWeek(response, week);
+      setTemplateDraft(normalized);
+      if (week === currentTemplateWeek) setCapacityTemplate(normalized);
     } catch (error) {
       setTemplateDraft(defaultTemplateDraft(week));
       showToast?.(errorText(error, 'โหลดเวลารายสัปดาห์ไม่สำเร็จ'), 'error');
@@ -389,7 +494,9 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     setTemplateBusy(true);
     try {
       const response = await saveScheduleTemplate({ week_start: templateWeek, days: templateDraft.days });
-      setTemplateDraft(templateForWeek(response, templateWeek));
+      const normalized = templateForWeek(response, templateWeek);
+      setTemplateDraft(normalized);
+      if (templateWeek === currentTemplateWeek) setCapacityTemplate(normalized);
       showToast?.('บันทึกเวลารายสัปดาห์แล้ว');
     } catch (error) { showToast?.(errorText(error, 'บันทึกเวลาไม่สำเร็จ'), 'error'); }
     finally { setTemplateBusy(false); }
@@ -436,7 +543,9 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     setTemplateBusy(true);
     try {
       const response = await copyScheduleTemplate({ source_week_start: addDays(templateWeek, -7), target_week_start: templateWeek });
-      setTemplateDraft(templateForWeek(response, templateWeek));
+      const normalized = templateForWeek(response, templateWeek);
+      setTemplateDraft(normalized);
+      if (templateWeek === currentTemplateWeek) setCapacityTemplate(normalized);
       showToast?.('คัดลอกเวลาจากสัปดาห์ก่อนแล้ว');
     } catch (error) { showToast?.(errorText(error, 'คัดลอกเวลาไม่สำเร็จ'), 'error'); }
     finally { setTemplateBusy(false); }
@@ -455,7 +564,9 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     setTemplateBusy(true);
     try {
       const response = await resetScheduleTemplate(templateWeek);
-      setTemplateDraft(templateForWeek(response, templateWeek));
+      const normalized = templateForWeek(response, templateWeek);
+      setTemplateDraft(normalized);
+      if (templateWeek === currentTemplateWeek) setCapacityTemplate(normalized);
       showToast?.('คืนค่าเวลาเริ่มต้นแล้ว');
     } catch (error) { showToast?.(errorText(error, 'คืนค่าเวลาไม่สำเร็จ'), 'error'); }
     finally { setTemplateBusy(false); }
@@ -513,17 +624,28 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const openSingle = () => { setSingleDraft({ clip: null, ...nextSlot(queue) }); setSingleOpen(true); };
   const openBulk = () => { setBulkDraft({ ...nextSlot(queue), interval: 5 }); setBulkOpen(true); };
   const openAutofill = () => { chooseAutofillRange('today'); setAutofillOpen(true); };
+  const closeMoreAnd = (action) => { setMoreOpen(false); action(); };
 
   return (
     <div className="space-y-5">
+      <div className="px-4 sm:px-5 py-3 rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.04]">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+          <span className="text-slate-400">คลิปพร้อมจัด <strong className="text-white">{capacityEstimate.readyCount}</strong> คลิป</span>
+          <span className="text-cyan-100">รองรับอีก <strong className="text-white">{capacityEstimate.coveredDays}</strong> วันโพสต์</span>
+          <span className="text-slate-400">เทมเพลต {capacityEstimate.weeklyCapacity} คิว/สัปดาห์</span>
+          {capacityEstimate.endDate && <span className="text-slate-400">คาดหมด {capacityEstimate.endDate} · สัปดาห์เริ่ม {capacityEstimate.endWeekStart}</span>}
+          <span className={`px-2 py-1 rounded-full border ${capacityStatus.className}`}>{capacityStatus.label}</span>
+        </div>
+        <p className="mt-1.5 text-[10px] text-slate-500">อิงเทมเพลตสัปดาห์ปัจจุบันและช่องว่างหลังคิวล่าสุด · คิวที่วางไว้ถึง {queueEndDate || 'ยังไม่มีคิว'}{queueEndDate ? ` · สัปดาห์เริ่ม ${queueEndWeekStart}` : ''}</p>
+      </div>
       <div className="rounded-3xl border border-white/[0.1] bg-[#080B11] shadow-xl overflow-hidden">
         <div className="px-5 py-5 border-b border-white/[0.08] bg-gradient-to-r from-cyan-500/[0.08] to-transparent">
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <div className="p-2.5 rounded-2xl bg-cyan-400/10 text-cyan-300"><CalendarDays className="w-5 h-5" /></div>
               <div>
-                <h2 className="text-base sm:text-lg font-black text-white">คิวโพสต์หลายวัน</h2>
-                <p className="text-xs text-slate-400 mt-1">เรียงตามวันที่และเวลาในเขต Asia/Bangkok · รอบละ 5 นาที · {activeQueue.length} คลิปในคิว</p>
+                <h2 className="text-base sm:text-lg font-black text-white">คิววันนี้</h2>
+                <p className="text-xs text-slate-400 mt-1">ดูคิววันนี้เป็นหลัก · Asia/Bangkok · รอบละ 5 นาที · เปิดสัปดาห์เพื่อดูแผนล่วงหน้า</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -531,10 +653,8 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                 <button
                   type="button"
                   onClick={() => setViewMode('list')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
-                    viewMode === 'list'
-                      ? 'bg-cyan-400 text-slate-950 shadow-sm'
-                      : 'text-slate-400 hover:text-white'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                    viewMode === 'list' ? 'bg-cyan-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   <List className="w-3.5 h-3.5" />
@@ -543,25 +663,62 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                 <button
                   type="button"
                   onClick={() => setViewMode('calendar')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
-                    viewMode === 'calendar'
-                      ? 'bg-cyan-400 text-slate-950 shadow-sm'
-                      : 'text-slate-400 hover:text-white'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                    viewMode === 'calendar' ? 'bg-cyan-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   <Calendar className="w-3.5 h-3.5" />
-                  ปฏิทินสัปดาห์
+                  สัปดาห์
                 </button>
               </div>
-              <button type="button" onClick={openAutofill} className="px-3.5 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black flex items-center gap-1.5 hover:brightness-110"><Shuffle className="w-4 h-4" />จัดคิวอัตโนมัติ</button>
-              <button type="button" onClick={openTemplate} className="px-3.5 py-2 rounded-xl border border-cyan-400/20 bg-cyan-400/[0.05] text-cyan-100 text-xs font-bold flex items-center gap-1.5 hover:bg-cyan-400/[0.12]"><Settings2 className="w-4 h-4" />ตั้งค่าเวลารายสัปดาห์</button>
-              <button type="button" onClick={openSingle} className="px-3.5 py-2 rounded-xl border border-white/[0.12] bg-white/[0.05] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-white/[0.1]"><Plus className="w-4 h-4" />เพิ่มคลิป</button>
-              <button type="button" onClick={openBulk} className="px-3.5 py-2 rounded-xl border border-white/[0.12] bg-white/[0.05] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-white/[0.1]"><Layers className="w-4 h-4" />เพิ่มเป็นชุด</button>
-              {postedQueue.length > 0 && (
-                <button type="button" onClick={() => setPostedOpen(true)} className="px-3.5 py-2 rounded-xl border border-emerald-400/30 bg-emerald-400/[0.08] text-emerald-200 text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-400/[0.15]" title="เปิดดูคลิปที่โพสต์แล้วทั้งหมดในคิวนี้"><Archive className="w-4 h-4" />โพสต์แล้ว ({postedQueue.length})</button>
+              <button type="button" onClick={openAutofill} className="px-3.5 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black flex items-center gap-1.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Shuffle className="w-4 h-4" />จัดคิวอัตโนมัติ</button>
+              <button type="button" onClick={openSingle} className="px-3.5 py-2 rounded-xl border border-white/[0.12] bg-white/[0.05] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Plus className="w-4 h-4" />เพิ่มคลิป</button>
+              <button type="button" onClick={toggleSelectionMode} className="px-3 py-2 rounded-xl border border-white/[0.12] bg-white/[0.03] text-slate-200 text-xs font-bold flex items-center gap-1.5 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
+                <List className="w-4 h-4" />{selectionMode ? 'เสร็จสิ้น' : 'เลือกหลายคิว'}
+              </button>
+              {selectionMode && selectableQueue.length > 0 && (
+                <button type="button" onClick={toggleSelectAll} className="px-3 py-2 rounded-xl border border-cyan-400/25 text-cyan-200 text-xs font-bold hover:bg-cyan-400/[0.08]">
+                  {allSelectableSelected ? 'ล้างการเลือก' : `เลือกคิวที่ลบได้ (${selectableQueue.length})`}
+                </button>
               )}
-              <button type="button" onClick={loadQueue} className="p-2 rounded-xl border border-white/[0.1] text-slate-300 hover:text-white" aria-label="รีเฟรชคิว"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
+              {selectionMode && selectedIds.size > 0 && (
+                <button type="button" disabled={bulkRemoving} onClick={removeSelected} className="px-3 py-2 rounded-xl border border-red-400/30 text-red-200 text-xs font-bold flex items-center gap-1.5 hover:bg-red-500/[0.08] disabled:opacity-50">
+                  <Trash2 className="w-4 h-4" />{bulkRemoving ? 'กำลังลบ...' : `ลบที่เลือก (${selectedIds.size})`}
+                </button>
+              )}
+              <div className="relative">
+                <button type="button" onClick={() => setMoreOpen((open) => !open)} className="p-2 rounded-xl border border-white/[0.1] text-slate-300 hover:text-white hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300" aria-label="เมนูเพิ่มเติม" aria-expanded={moreOpen} aria-haspopup="menu">
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+                {moreOpen && (
+                  <div className="absolute right-0 top-full mt-2 z-30 w-56 rounded-2xl border border-white/[0.12] bg-[#10151e] p-1.5 shadow-2xl" role="menu">
+                    <button type="button" role="menuitem" onClick={() => closeMoreAnd(openBulk)} className="w-full px-3 py-2.5 rounded-xl text-left text-xs font-bold text-slate-200 hover:bg-white/[0.07] flex items-center gap-2"><Layers className="w-4 h-4 text-cyan-300" />เพิ่มเป็นชุด</button>
+                    <button type="button" role="menuitem" onClick={() => closeMoreAnd(openTemplate)} className="w-full px-3 py-2.5 rounded-xl text-left text-xs font-bold text-slate-200 hover:bg-white/[0.07] flex items-center gap-2"><Settings2 className="w-4 h-4 text-cyan-300" />ตั้งค่าเวลารายสัปดาห์</button>
+                    {postedQueue.length > 0 && <button type="button" role="menuitem" onClick={() => closeMoreAnd(() => setPostedOpen(true))} className="w-full px-3 py-2.5 rounded-xl text-left text-xs font-bold text-slate-200 hover:bg-white/[0.07] flex items-center gap-2"><Archive className="w-4 h-4 text-emerald-300" />โพสต์แล้ว ({postedQueue.length})</button>}
+                    <button type="button" role="menuitem" onClick={() => closeMoreAnd(loadQueue)} className="w-full px-3 py-2.5 rounded-xl text-left text-xs font-bold text-slate-200 hover:bg-white/[0.07] flex items-center gap-2"><RefreshCw className={`w-4 h-4 text-slate-400 ${loading ? 'animate-spin' : ''}`} />รีเฟรชคิว</button>
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 border-b border-white/[0.08] bg-black/20">
+          <div className="px-4 sm:px-5 py-3 border-r border-b md:border-b-0 border-white/[0.06]">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">วันนี้</p>
+            <p className="mt-1 text-lg font-black text-white">{todayQueue.length} <span className="text-xs font-bold text-slate-500">คลิป</span></p>
+          </div>
+          <div className="px-4 sm:px-5 py-3 md:border-r border-b md:border-b-0 border-white/[0.06]">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">คิวถัดไป</p>
+            <p className="mt-1 text-lg font-black text-cyan-200">{nextToday ? localParts(nextToday.scheduled_at).time : 'ยังไม่มี'}</p>
+          </div>
+          <div className="px-4 sm:px-5 py-3 border-r border-white/[0.06]">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">พร้อมจัด</p>
+            <p className="mt-1 text-lg font-black text-white">{availableClips.length} <span className="text-xs font-bold text-slate-500">คลิป</span></p>
+          </div>
+          <div className="px-4 sm:px-5 py-3">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">สถานะวันนี้</p>
+            <p className={`mt-1 text-sm font-black ${overdueTodayCount ? 'text-amber-200' : 'text-emerald-200'}`}>{overdueTodayCount ? `เลยกำหนด ${overdueTodayCount} คลิป` : todayQueue.length ? 'ตามแผน' : 'พร้อมเริ่ม'}</p>
           </div>
         </div>
 
@@ -656,9 +813,20 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                               <Clock className="w-3 h-3 text-cyan-400" />
                               {parts.time}
                             </span>
-                            <Badge className={`text-[9px] px-1.5 py-0 ${STATUS_STYLES[item.status] || STATUS_STYLES.planned}`}>
-                              {STATUS_LABELS[item.status] || item.status}
-                            </Badge>
+                            <div className="flex items-center gap-1">
+                              {selectionMode && item.status === 'planned' && (
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(item.id)}
+                                  onChange={() => toggleSelected(item.id)}
+                                  aria-label={`เลือกคิว ${parts.time} ${item.product_name || item.video_path}`}
+                                  className="accent-cyan-400"
+                                />
+                              )}
+                              <Badge className={`text-[9px] px-1.5 py-0 ${STATUS_STYLES[item.status] || STATUS_STYLES.planned}`}>
+                                {STATUS_LABELS[item.status] || item.status}
+                              </Badge>
+                            </div>
                           </div>
 
                           <div className="flex items-start gap-2 mb-2">
@@ -764,7 +932,15 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
             </div>
           </div>
         ) : dates.length === 0 ? (
-          <div className="p-12 text-center"><CalendarDays className="w-8 h-8 mx-auto text-slate-600 mb-3" /><p className="text-sm text-slate-300 font-bold">ยังไม่มีคลิปในคิว</p><p className="text-xs text-slate-500 mt-1">เพิ่มคลิปเดี่ยวหรือเลือกหลายคลิปเพื่อวางแผนล่วงหน้าได้เลย</p></div>
+          <div className="p-10 sm:p-12 text-center">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-cyan-400/[0.08] border border-cyan-400/15 flex items-center justify-center"><CalendarDays className="w-6 h-6 text-cyan-300" /></div>
+            <p className="text-sm text-slate-200 font-black mt-4">วันนี้ยังไม่มีคิว</p>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">เริ่มจากจัดคิวอัตโนมัติเพื่อให้ระบบเลือกคลิปที่ยังไม่ซ้ำ หรือเพิ่มคลิปเองก็ได้</p>
+            <div className="flex flex-wrap justify-center gap-2 mt-5">
+              <button type="button" onClick={openAutofill} className="px-3.5 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Shuffle className="w-3.5 h-3.5 inline-block mr-1.5" />จัดคิวอัตโนมัติ</button>
+              <button type="button" onClick={openSingle} className="px-3.5 py-2 rounded-xl border border-white/[0.12] text-slate-200 text-xs font-bold hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Plus className="w-3.5 h-3.5 inline-block mr-1.5" />เพิ่มคลิป</button>
+            </div>
+          </div>
         ) : (
           <div className="p-4 sm:p-5 space-y-4">
             {dates.map((date) => (
@@ -780,6 +956,15 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                     return (
                       <article key={item.id} draggable onDragStart={() => setDraggedId(item.id)} className="p-3 sm:p-4 flex flex-col lg:flex-row lg:items-center gap-3 hover:bg-white/[0.025] transition-colors">
                         <GripVertical className="hidden lg:block w-4 h-4 text-slate-600 cursor-grab flex-shrink-0" />
+                        {selectionMode && item.status === 'planned' && (
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(item.id)}
+                            onChange={() => toggleSelected(item.id)}
+                            aria-label={`เลือกคิว ${parts.time} ${item.product_name || item.video_path}`}
+                            className="accent-cyan-400"
+                          />
+                        )}
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <button type="button" onClick={() => clip?.video_url && onPreviewVideo?.(clip.video_url, clip)} className="w-14 h-20 rounded-xl overflow-hidden bg-black border border-white/[0.12] flex-shrink-0 relative group">
                             {coverSrc(coverPath) ? <img src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" /> : <video src={`/api/media/${item.video_path}`} muted className="w-full h-full object-cover" />}
@@ -815,6 +1000,10 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
 
       <Modal isOpen={templateOpen} onClose={() => setTemplateOpen(false)} title="ตั้งค่าเวลารายสัปดาห์" subtitle="สัปดาห์จันทร์–อาทิตย์ · เพิ่มช่วงพิเศษแยกเป็นรายวันได้ · ใช้เฉพาะจัดคิวอัตโนมัติ" maxWidth="max-w-4xl">
         <div className="space-y-4">
+          <div className="rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] px-3 py-2.5 text-[11px] text-cyan-100">
+            ค่าเริ่มต้นของระบบ: 5 ช่วง/วัน — 09:00 · 12:30 · 16:00 · 19:00 · 21:30
+            <span className="text-slate-400"> · สัปดาห์ที่ไม่ได้ตั้งค่าเฉพาะจะใช้ชุดนี้ต่อเนื่อง</span>
+          </div>
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <label className="flex-1 text-xs font-bold text-slate-300">สัปดาห์ที่เริ่มวันจันทร์
               <input type="date" value={templateWeek} onChange={async (event) => { const week = weekStartForDate(event.target.value); setTemplateWeek(week); await loadTemplate(week); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" />
@@ -838,7 +1027,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
       <Modal isOpen={autofillOpen} onClose={() => setAutofillOpen(false)} title="จัดคิวอัตโนมัติ" subtitle="ดูตัวอย่างก่อนบันทึก · จัดเฉพาะในช่วงวันที่เลือก · ระบบจะใช้คลิปที่ยังไม่อยู่ในคิวเท่านั้น" maxWidth="max-w-5xl">
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2"><button type="button" onClick={() => chooseAutofillRange('today')} className={`px-3 py-2 rounded-xl text-xs font-bold ${autofillRange === 'today' ? 'bg-cyan-400 text-slate-950' : 'border border-white/[0.1] text-slate-200'}`}>วันนี้</button><button type="button" onClick={() => chooseAutofillRange('week')} className={`px-3 py-2 rounded-xl text-xs font-bold ${autofillRange === 'week' ? 'bg-cyan-400 text-slate-950' : 'border border-white/[0.1] text-slate-200'}`}>สัปดาห์นี้</button><button type="button" onClick={() => chooseAutofillRange('custom')} className={`px-3 py-2 rounded-xl text-xs font-bold ${autofillRange === 'custom' ? 'bg-cyan-400 text-slate-950' : 'border border-white/[0.1] text-slate-200'}`}>กำหนดช่วงเอง</button></div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"><label className="text-xs font-bold text-slate-300">เริ่มวันที่<input type="date" value={autofillStart} max={autofillEnd || undefined} onChange={(event) => { setAutofillStart(event.target.value); setAutofillRange('custom'); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label><label className="text-xs font-bold text-slate-300">ถึงวันที่<input type="date" value={autofillEnd} min={autofillStart || undefined} onChange={(event) => { setAutofillEnd(event.target.value); setAutofillRange('custom'); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label><label className="text-xs font-bold text-slate-300">สินค้า<select value={autofillProduct} onChange={(event) => { setAutofillProduct(event.target.value); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white"><option value="all">สินค้าทั้งหมด</option>{productOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label className="text-xs font-bold text-slate-300">จำนวนคลิป (ว่าง = ทั้งหมด)<input type="number" min="1" max="10000" value={autofillLimit} onChange={(event) => { setAutofillLimit(event.target.value); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"><label className="text-xs font-bold text-slate-300">เริ่มวันที่<input type="date" value={autofillStart} max={autofillEnd || undefined} onChange={(event) => { setAutofillStart(event.target.value); setAutofillRange('custom'); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label><label className="text-xs font-bold text-slate-300">ถึงวันที่<input type="date" value={autofillEnd} min={autofillStart || undefined} onChange={(event) => { setAutofillEnd(event.target.value); setAutofillRange('custom'); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label><label className="text-xs font-bold text-slate-300">สินค้า<select value={autofillProduct} onChange={(event) => { setAutofillProduct(event.target.value); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white"><option value="all">สินค้าทั้งหมด</option>{productOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label className="text-xs font-bold text-slate-300"><span className="flex flex-wrap items-center justify-between gap-1"><span>จำนวนคลิป</span><span className="text-[10px] font-normal text-slate-500">ว่าง = ทั้งหมด · พร้อมจัด {availableClips.length}</span></span><input type="number" min="1" max="10000" value={autofillLimit} placeholder={availableClips.length ? `ทั้งหมด (${availableClips.length})` : 'ทั้งหมด'} aria-label="จำนวนคลิป" onChange={(event) => { setAutofillLimit(event.target.value); setAutofillPreview(null); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white placeholder:text-slate-500" /></label></div>
           <label className="flex items-center gap-2 text-xs text-slate-200"><input type="checkbox" checked={autofillUseStats} onChange={(event) => { setAutofillUseStats(event.target.checked); setAutofillPreview(null); }} className="accent-cyan-400" />ใช้สถิติยอดวิว/engagement/ออเดอร์ช่วยเลือกสินค้าและช่วงเวลา <span className="text-slate-500">(มีข้อมูลน้อยจะลดความมั่นใจให้อัตโนมัติ)</span></label>
           {(autofillDateError || autofillLimitError) && <p role="alert" className="text-xs text-red-200">{autofillDateError || autofillLimitError}</p>}
           <div className="flex items-center justify-between gap-3"><p className="text-[11px] text-slate-500">จัดเฉพาะช่วงวันที่เลือกเท่านั้น · ข้ามเวลาที่ผ่านไปแล้วและเวลาที่ถูกใช้ไปแล้ว · ถ้าช่องไม่พอ ระบบจะแจ้งจำนวนที่เหลือ</p><button type="button" disabled={autofillBusy || !availableClips.length || Boolean(autofillDateError || autofillLimitError)} onClick={runAutofillPreview} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black flex items-center gap-1.5 disabled:opacity-50"><Shuffle className="w-4 h-4" />{autofillBusy ? 'กำลังคำนวณ' : 'สร้างตัวอย่างคิว'}</button></div>

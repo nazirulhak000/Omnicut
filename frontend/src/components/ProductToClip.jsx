@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
   Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
   ShoppingBag, ShieldCheck, Database, Zap, Layers, Eye, EyeOff, CheckCircle2, Tag,
-  Volume2, Mic, AlertTriangle, VolumeX, Scissors
+  Volume2, Mic, AlertTriangle, VolumeX, Scissors, MoreHorizontal
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
@@ -309,7 +309,7 @@ function AngleSidebarItem({
   const curStatus = angle.status || 'scripted';
   const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && !!angle.video_url;
   const isInProduction = curStatus === 'in_production';
-  const isLocked = curStatus === 'posted' || isInProduction;
+  const isLocked = curStatus === 'posted' || isInProduction || isRendered;
 
   const phaseIdx = resolvePhaseIndex(angle);
 
@@ -321,7 +321,16 @@ function AngleSidebarItem({
   return (
     <div
       onClick={onSelect}
-      className={`p-2.5 rounded-xl border transition-all cursor-pointer text-left group relative ${
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-current={isSelected ? 'true' : undefined}
+      className={`p-2.5 rounded-xl border transition-all cursor-pointer text-left group relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
         isSelected
           ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-md shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/30'
           : 'bg-[#080B11] border-white/[0.06] hover:border-white/[0.18] hover:bg-white/[0.02]'
@@ -445,7 +454,7 @@ function AngleSidebarItem({
                     e.stopPropagation();
                     onDeleteAngle(angle, index);
                   }}
-                  className="opacity-0 group-hover:opacity-100 hover:!opacity-100 px-1.5 py-0.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 transition-all cursor-pointer inline-flex items-center gap-1"
+                  className="hidden opacity-0 group-hover:opacity-100 hover:!opacity-100 px-1.5 py-0.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 transition-all cursor-pointer items-center gap-1"
                   title="ลบสคริปต์มุมนี้"
                 >
                   <Trash2 className="w-3 h-3" />
@@ -461,7 +470,7 @@ function AngleSidebarItem({
                   e.stopPropagation();
                   onPreviewExportVideo && onPreviewExportVideo(angle);
                 }}
-                className="p-1 px-1.5 rounded bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/30 flex items-center gap-1 transition-colors"
+                className="hidden p-1 px-1.5 rounded bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/30 items-center gap-1 transition-colors"
                 title="ดูคลิปที่ Export แล้ว"
               >
                 <Play className="w-2.5 h-2.5 fill-cyan-300" />
@@ -486,7 +495,7 @@ function AngleMobilePill({ angle, index, isSelected, onSelect, shotListInfo }) {
     <button
       type="button"
       onClick={onSelect}
-      className={`flex-shrink-0 snap-center px-3 py-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 max-w-[210px] active:scale-95 ${
+      className={`w-full px-3 py-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
         isSelected
           ? 'bg-[#25F4EE]/15 border-[#25F4EE] shadow-md shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/40'
           : 'bg-[#080B11] border-white/[0.08] hover:border-white/[0.2] text-slate-300'
@@ -556,6 +565,7 @@ function AngleActiveWorkbench({
     : (angle.script_text ? angle.script_text.split('\n') : []);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [showMoreTools, setShowMoreTools] = useState(false);
   const [editText, setEditText] = useState('');
   const [editHook, setEditHook] = useState(angle.hook_title || '');
 
@@ -574,6 +584,7 @@ function AngleActiveWorkbench({
     if (angleChanged || scriptChanged || hookChanged) {
       setEditText(scriptText);
       setEditHook(angle.hook_title || '');
+      if (angleChanged) setShowMoreTools(false);
       prevAngleIdRef.current = curAngleId;
       prevScriptTextRef.current = scriptText;
       prevHookRef.current = angle.hook_title || '';
@@ -584,7 +595,7 @@ function AngleActiveWorkbench({
   const isPosted = curStatus === 'posted' || !!angle.posted_at;
   const isRendered = (curStatus === 'rendered' || isPosted) && !!angle.video_url;
   const isInProduction = !isPosted && curStatus === 'in_production';
-  const isLocked = isPosted || isInProduction;
+  const isLocked = isPosted || isInProduction || isRendered;
 
   const handleStartEdit = (e) => {
     if (isLocked) return;
@@ -613,6 +624,10 @@ function AngleActiveWorkbench({
 
     onSaveScript && onSaveScript(index, newLines, editHook.trim());
     setIsEditing(false);
+  };
+
+  const handleAddLine = () => {
+    setEditText((current) => current ? `${current}\n` : '\n');
   };
 
   const statusLabel = isPosted ? 'โพสต์แล้ว'
@@ -655,15 +670,36 @@ function AngleActiveWorkbench({
 
         {/* Action icons */}
         <div className="flex items-center gap-1.5 self-end xs:self-auto flex-shrink-0">
+          {!isEditing && !isLocked && (
+            <button
+              type="button"
+              onClick={handleStartEdit}
+              className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>แก้ Hook + บทพูด</span>
+            </button>
+          )}
           {!isEditing && (
+            <button
+              type="button"
+              onClick={() => setShowMoreTools((open) => !open)}
+              aria-expanded={showMoreTools}
+              className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+            >
+              <MoreHorizontal className="w-3.5 h-3.5" />
+              <span>เพิ่มเติม</span>
+            </button>
+          )}
+          {showMoreTools && !isEditing && (
             <>
               {!isLocked ? (
                 <>
                   <button
                     type="button"
                     onClick={handleStartEdit}
-                    className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
-                    title="แก้ไขบทพูดในกล่องนี้โดยตรง"
+                    className="hidden px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold items-center gap-1 cursor-pointer transition-all"
+                    title="แก้ไข Hook และบทพูดในกล่องนี้โดยตรง"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
                     <span>แก้ไข</span>
@@ -759,24 +795,137 @@ function AngleActiveWorkbench({
         </div>
       </div>
 
+      {/* Consolidated script context: one surface instead of nested status cards. */}
+      <section className="border-y border-white/[0.08] divide-y divide-white/[0.06]" aria-label="ข้อมูล Hook และเสียงนำถ่าย">
+          <div className="py-3 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex items-center gap-2 flex-wrap text-[11px] text-slate-400">
+                <span className="inline-flex items-center gap-1.5 font-bold text-slate-300">
+                  <Tag className="w-3.5 h-3.5 text-[#25F4EE]" />
+                  Hook Header · 3 ป้าย
+                </span>
+                <span>{effectiveBrand || 'ยังไม่มีแบรนด์'}</span>
+                <span className="text-slate-700">/</span>
+                <span>{effectiveModel || 'ยังไม่มีรุ่น'}</span>
+                {effectiveLabel && (
+                  <>
+                    <span className="text-slate-700">/</span>
+                    <span>{effectiveLabel}</span>
+                  </>
+                )}
+                {isLocked && (
+                  <span className="inline-flex items-center gap-1 text-amber-300/80">
+                    <Lock className="w-3 h-3" /> ล็อกตามไทม์ไลน์
+                  </span>
+                )}
+              </div>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editHook}
+                  onChange={(event) => setEditHook(event.target.value)}
+                  placeholder="พิมพ์ Hook พาดหัวเปิดคลิป"
+                  aria-label="แก้ไข Hook พาดหัวเปิดคลิป"
+                  className="w-full max-w-[72ch] bg-transparent border-b border-[#25F4EE]/40 focus:border-[#25F4EE] px-0 py-1 text-sm font-bold text-white focus:outline-none"
+                />
+              ) : (
+                <p className="text-sm font-bold text-white leading-relaxed max-w-[72ch]">
+                  {angle.hook_title ? `“${angle.hook_title}”` : 'ยังไม่มี Hook พาดหัวเปิดคลิป'}
+                </p>
+              )}
+            </div>
+
+            {!isLocked && !isEditing && (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {onOpenEditHookHeader && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenEditHookHeader(index)}
+                    className="px-2 py-1 text-xs font-semibold text-slate-400 hover:text-white rounded-md hover:bg-white/[0.05] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60"
+                    title="แก้ไข 3 ป้าย: แบรนด์ · รุ่น · หมวด"
+                  >
+                    แก้ 3 ป้าย
+                  </button>
+                )}
+                {onOpenHookVariants && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenHookVariants(angle, index)}
+                    className="px-2 py-1 text-xs font-semibold text-[#25F4EE] rounded-md hover:bg-[#25F4EE]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60"
+                  >
+                    สร้าง Hook ใหม่
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 text-xs">
+              {isGeneratingShotList ? (
+                <Loader2 className="w-4 h-4 text-[#25F4EE] animate-spin flex-shrink-0" />
+              ) : shotListInfo?.is_edge_tts ? (
+                <AlertTriangle className="w-4 h-4 text-amber-300 flex-shrink-0" />
+              ) : shotListInfo?.has_shot_list ? (
+                <Mic className="w-4 h-4 text-[#25F4EE] flex-shrink-0" />
+              ) : (
+                <VolumeX className="w-4 h-4 text-slate-500 flex-shrink-0" />
+              )}
+              <span className="font-bold text-slate-200 whitespace-nowrap">เสียงนำถ่าย</span>
+              <span className={`truncate ${
+                shotListInfo?.is_edge_tts
+                  ? 'text-amber-300'
+                  : shotListInfo?.has_shot_list
+                    ? 'text-slate-400'
+                    : 'text-slate-500'
+              }`}>
+                {isGeneratingShotList
+                  ? 'กำลังเตรียมเสียงและแผนถ่าย'
+                  : shotListInfo?.is_edge_tts
+                    ? 'Edge-TTS เดิม ควรอัปเกรดก่อนสร้างดราฟต์'
+                    : shotListInfo?.has_shot_list
+                      ? `${getVoicePresetFullLabel(shotListInfo?.voice_preset)}${shotListInfo?.is_stale ? ' · บทเปลี่ยน ควรสร้างเสียงใหม่' : ' · พร้อมใช้งาน'}`
+                      : 'ยังไม่ได้สร้าง'}
+              </span>
+            </div>
+
+            {(!isLocked || shotListInfo?.has_shot_list) && (
+              <button
+                type="button"
+                onClick={() => onGenerateShotList && onGenerateShotList(index)}
+                disabled={isGeneratingShotList}
+                className="self-end sm:self-auto px-2.5 py-1 rounded-md text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.06] disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60"
+              >
+                {shotListInfo?.is_edge_tts
+                  ? 'อัปเกรดเสียง'
+                  : shotListInfo?.has_shot_list
+                    ? 'เปิดเสียงและแผน'
+                    : 'สร้างเสียงและแผน'}
+              </button>
+            )}
+          </div>
+      </section>
+
       {/* Locked Notice Banner */}
       {isLocked && (
-        <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.08] flex items-center gap-2 text-xs text-slate-400">
+        <div className="hidden p-3 rounded-xl bg-white/[0.02] border border-white/[0.08] items-center gap-2 text-xs text-slate-400">
           <Lock className="w-4 h-4 text-slate-500 flex-shrink-0" />
           <span>
             {isPosted
               ? 'สคริปต์นี้โพสต์ลง TikTok แล้ว ระบบล็อกเนื้อหาและคลิปทั้งหมดเพื่อเก็บเป็นประวัติ'
-              : 'สคริปต์นี้กำลังตัดต่อในไทม์ไลน์ ล็อกเนื้อหาและคลิปเพื่อความสอดคล้องกับไทม์ไลน์'}
+              : isRendered
+                ? 'ตัดต่อเสร็จแล้ว ระบบล็อกเนื้อหาและคลิปเพื่อคงความตรงกันกับวิดีโอที่สร้างไว้'
+                : 'สคริปต์นี้กำลังตัดต่อในไทม์ไลน์ ล็อกเนื้อหาและคลิปเพื่อความสอดคล้องกับไทม์ไลน์'}
           </span>
         </div>
       )}
 
       {/* 2. Hook Header (3-tier Banner) */}
-      <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-2">
+      <div className="hidden p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
             <Tag className="w-3.5 h-3.5 text-[#25F4EE]" />
-            <span>ป้าย Hook Header (3 บรรทัดบนวิดีโอ):</span>
+            <span>Hook Header · 3 ป้ายบนวิดีโอ:</span>
           </div>
           {!isLocked && onOpenEditHookHeader && (
             <button
@@ -786,7 +935,7 @@ function AngleActiveWorkbench({
               title="แก้ไขแบรนด์, รุ่น และหมวดสินค้าสำหรับป้าย Hook"
             >
               <Edit3 className="w-3 h-3" />
-              <span>แก้ไขป้าย Hook</span>
+                    <span>แก้ 3 ป้าย</span>
             </button>
           )}
         </div>
@@ -810,12 +959,12 @@ function AngleActiveWorkbench({
 
       {/* 3. Hook Callout */}
       {angle.hook_title && !isEditing && (
-        <div className="p-3 rounded-xl bg-gradient-to-r from-[#FE2C55]/15 via-black/40 to-[#25F4EE]/10 border border-[#FE2C55]/30 flex items-center justify-between gap-2.5 text-xs sm:text-sm font-bold text-white shadow-sm">
+        <div className="hidden p-3 rounded-xl bg-gradient-to-r from-[#FE2C55]/15 via-black/40 to-[#25F4EE]/10 border border-[#FE2C55]/30 items-center justify-between gap-2.5 text-xs sm:text-sm font-bold text-white shadow-sm">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <span className="text-lg">🎯</span>
             <div className="min-w-0 flex-1 leading-snug">
               <span className="text-xs text-rose-400 font-semibold block">Hook พาดหัวเปิดคลิป:</span>
-              <span className="truncate block">"{angle.hook_title}"</span>
+              <span className="block whitespace-normal break-words">"{angle.hook_title}"</span>
             </div>
           </div>
           {!isLocked && onOpenHookVariants && (
@@ -833,7 +982,7 @@ function AngleActiveWorkbench({
       )}
 
       {/* 4. Voice Track & Shot List Status Banner (Main Screen Visibility) */}
-      <div className="rounded-xl overflow-hidden transition-all">
+      <div className="hidden rounded-xl overflow-hidden transition-all">
         {shotListInfo?.is_edge_tts ? (
           <div className="p-3 bg-gradient-to-r from-amber-950/40 via-amber-900/25 to-amber-950/40 border border-amber-500/35 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-sm">
             <div className="flex items-center gap-2.5">
@@ -900,73 +1049,58 @@ function AngleActiveWorkbench({
 
       {/* 5. Script Lines or Editor */}
       {isEditing ? (
-        <div className="space-y-3 p-3.5 rounded-xl bg-black/60 border border-[#25F4EE]/40 animate-fadeIn">
-          <div className="flex items-center justify-between text-xs text-[#25F4EE] font-bold">
-            <span className="flex items-center gap-1.5">
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>แก้ไขบทพูดพากย์ (1 บรรทัด = 1 ท่อนซับไตเติล):</span>
-            </span>
-            <div className="flex items-center gap-2">
+        <div className="space-y-1.5 animate-fadeIn">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
+            <span className="text-[#25F4EE]">แก้บทพูดบนรายการ · 1 ช่องต่อ 1 ท่อน</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleAddLine}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[#25F4EE] hover:text-white hover:bg-[#25F4EE]/10"
+                title="เพิ่มช่องบทพูดอีก 1 ท่อน"
+              >
+                <Plus className="w-3 h-3" /> เพิ่มบรรทัด
+              </button>
               <button
                 type="button"
                 onClick={() => {
-                  const newLines = editText.split('\n').map(l => l.trim()).filter(Boolean);
-                  if (newLines.length > 0) {
-                    onSaveScript && onSaveScript(index, newLines, editHook.trim());
-                  }
+                  const newLines = editText.split('\n').map((line) => line.trim()).filter(Boolean);
+                  if (newLines.length > 0) onSaveScript && onSaveScript(index, newLines, editHook.trim());
                   onOpenFindReplace && onOpenFindReplace(index);
                 }}
-                className="px-2.5 py-0.5 rounded-md bg-white/[0.08] hover:bg-white/[0.15] text-cyan-300 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
-                title="ค้นหาและแทนที่คำในสคริปต์นี้"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-slate-400 hover:text-white hover:bg-white/[0.05]"
               >
-                <Replace className="w-3 h-3" />
-                <span>แทนที่คำ</span>
+                <Replace className="w-3 h-3" /> แทนที่คำ
               </button>
-              <span className="text-slate-400 text-xs font-mono">
-                {editText.split('\n').filter(l => l.trim()).length} ท่อน
-              </span>
             </div>
           </div>
 
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-300">Hook พาดหัวคลิป:</label>
-              {onOpenHookVariants && (
-                <button
-                  type="button"
-                  onClick={() => onOpenHookVariants(angle, index)}
-                  className="text-cyan-300 hover:text-cyan-200 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
-                >
-                  <Sparkles className="w-3 h-3" />
-                  <span>AI เจน Hook 5 สไตล์</span>
-                </button>
-              )}
-            </div>
-            <input
-              type="text"
-              value={editHook}
-              onChange={(e) => setEditHook(e.target.value)}
-              placeholder="Hook พาดหัวคลิป..."
-              className="w-full bg-[#080B11] border border-white/[0.12] focus:border-[#25F4EE] rounded-lg px-3 py-2 text-xs text-cyan-200 font-bold focus:outline-none"
-            />
+          <div className="divide-y divide-white/[0.05]">
+            {editText.split('\n').map((line, lineIndex, currentLines) => (
+              <div key={lineIndex} className="flex items-start gap-3 py-2 px-1 focus-within:bg-white/[0.02]">
+                <span className="w-5 text-xs font-bold text-[#25F4EE] text-center flex-shrink-0 mt-1.5">{lineIndex + 1}</span>
+                <textarea
+                  value={line}
+                  onChange={(event) => {
+                    const nextLines = [...currentLines];
+                    nextLines[lineIndex] = event.target.value.replace(/\r?\n/g, ' ');
+                    setEditText(nextLines.join('\n'));
+                  }}
+                  rows={1}
+                  aria-label={`แก้ไขบทพูดท่อนที่ ${lineIndex + 1}`}
+                  className="min-h-8 w-full resize-y bg-transparent border-0 border-b border-transparent focus:border-[#25F4EE]/40 px-0 py-1 text-xs sm:text-sm text-white leading-relaxed focus:outline-none"
+                />
+              </div>
+            ))}
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-300">บทพูดพากย์แต่ละท่อน:</label>
-            <textarea
-              value={editText}
-              onChange={(e) => setEditText(e.target.value)}
-              rows={Math.max(6, editText.split('\n').length + 1)}
-              className="w-full bg-[#080B11] border border-white/[0.12] focus:border-[#25F4EE] rounded-lg p-3 text-xs text-white font-mono leading-relaxed focus:outline-none resize-y"
-              placeholder="พิมพ์บทพูดแต่ละท่อน เว้น 1 บรรทัดต่อ 1 ท่อน..."
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-1">
+           <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/[0.06]">
+            <span className="text-[11px] text-slate-500">แก้ Hook ได้ที่บรรทัดด้านบน · เพิ่มท่อนได้ด้วยปุ่มเพิ่มบรรทัด</span>
+            <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="px-3.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-all"
+              className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-all"
             >
               <X className="w-3.5 h-3.5" />
               <span>ยกเลิก</span>
@@ -979,28 +1113,29 @@ function AngleActiveWorkbench({
               <Check className="w-3.5 h-3.5" />
               <span>บันทึกสคริปต์</span>
             </button>
+            </div>
           </div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
-            <span>บทพูดพากย์ ({lines.length} ท่อน):</span>
+            <span>บทพูดพากย์ · {lines.length} ท่อน</span>
             {!isLocked && <span className="text-[11px] text-slate-500 italic">คลิกที่กล่องเพื่อแก้ไข</span>}
           </div>
 
           <div
             onClick={handleStartEdit}
-            className={`p-3.5 rounded-xl border space-y-2.5 max-h-64 overflow-y-auto text-xs sm:text-sm leading-relaxed transition-all group/box ${
+            className={`max-h-64 overflow-y-auto text-xs sm:text-sm leading-relaxed divide-y divide-white/[0.05] transition-colors group/box ${
               isLocked
-                ? 'bg-black/20 border-white/[0.06] text-slate-300 cursor-default'
-                : 'bg-black/40 hover:bg-black/60 border-white/[0.06] hover:border-[#25F4EE]/30 text-slate-200 cursor-pointer'
+                ? 'text-slate-300 cursor-default'
+                : 'text-slate-200 cursor-pointer hover:bg-white/[0.01]'
             }`}
             title={isLocked ? 'ล็อกเนื้อหาแล้ว' : 'คลิกเพื่อแก้ไขสคริปต์'}
           >
             {lines.map((line, lIdx) => (
-              <div key={lIdx} className="flex items-start gap-2.5 p-1.5 rounded-lg hover:bg-white/[0.03] transition-colors">
-                <span className={`w-5 h-5 rounded-md font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                  isLocked ? 'bg-white/[0.03] text-slate-400' : 'bg-white/[0.05] text-[#25F4EE]'
+              <div key={lIdx} className="flex items-start gap-3 py-2.5 px-1 hover:bg-white/[0.02] transition-colors">
+                <span className={`w-5 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  isLocked ? 'text-slate-500' : 'text-[#25F4EE]'
                 }`}>
                   {lIdx + 1}
                 </span>
@@ -1018,11 +1153,31 @@ function AngleActiveWorkbench({
             <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
             <span>คลิปดิบที่แนบกับมุมนี้:</span>
           </span>
-          <span className="text-xs font-mono">
-            {selectedVideos.length > 0
-              ? <span className="text-emerald-400 font-bold">เลือกแล้ว {selectedVideos.length} คลิป</span>
-              : <span className="text-amber-400 font-bold">⚠️ ยังไม่ได้เลือกคลิป</span>}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs">
+              {selectedVideos.length > 0
+                ? <span className="text-emerald-400 font-bold">เลือกแล้ว {selectedVideos.length} คลิป</span>
+                : <span className="text-amber-400 font-bold">ยังไม่ได้เลือกคลิป</span>}
+            </span>
+            {!isLocked && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenStoryboard && onOpenStoryboard(angle, index);
+                }}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
+                  angle.manual_shot_map?.length > 0
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
+                    : 'bg-[#25F4EE]/10 border-[#25F4EE]/30 text-[#25F4EE] hover:bg-[#25F4EE]/20'
+                }`}
+                title="เลือกคลิปหรือช่วงช็อตให้แต่ละท่อนของสคริปต์"
+              >
+                <Scissors className="w-3.5 h-3.5" />
+                <span>{angle.manual_shot_map?.length > 0 ? `แก้ช็อต (${angle.manual_shot_map.length} ท่อน)` : 'เลือกช็อตของสคริปต์'}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
@@ -1243,13 +1398,21 @@ function AngleActiveWorkbench({
           <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-              className="w-full sm:w-auto py-3 sm:py-2.5 px-6 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
-              title="เปิดฟอร์มตรวจสอบสคริปต์ สไตล์ และเริ่มสร้างคลิปเข้าสู่ไทม์ไลน์"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) onSendToStudio(angle, index);
+                else onGenerateShotList && onGenerateShotList(index);
+              }}
+              className={`order-2 w-full sm:w-auto py-3 sm:py-2.5 px-5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all ${
+                shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts
+                  ? 'bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 border border-white/[0.12]'
+                  : 'bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 shadow-lg shadow-[#25F4EE]/15'
+              }`}
             >
-              <Clapperboard className="w-4 h-4 text-white" />
-              <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
-              <ArrowRight className="w-3.5 h-3.5 text-white/80" />
+              {shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts
+                ? <Clapperboard className="w-4 h-4" />
+                : <Mic className="w-4 h-4" />}
+              <span>{shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts ? 'ตั้งค่าก่อนส่ง' : 'เตรียมเสียงและแผนถ่าย'}</span>
             </button>
 
             {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) && (
@@ -1260,7 +1423,7 @@ function AngleActiveWorkbench({
                   onQuickDraft ? onQuickDraft(angle, index) : onSendToStudio(angle, index);
                 }}
                 disabled={draftingAngleId === angle.angle_id}
-                className="w-full sm:w-auto py-3 sm:py-2.5 px-5 rounded-xl bg-gradient-to-r from-emerald-600/90 to-teal-600/90 hover:brightness-110 border border-emerald-400/30 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                className="order-1 w-full sm:w-auto py-3 sm:py-2.5 px-5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 border border-[#25F4EE]/50 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/15 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
                 title="1-Click Quick Draft: สร้างดราฟต์ไทม์ไลน์อัตโนมัติตามสไตล์ของมุมนี้และเปิดเข้าสู่ไทม์ไลน์ทันที"
               >
                 {draftingAngleId === angle.angle_id ? (
@@ -1270,7 +1433,7 @@ function AngleActiveWorkbench({
                   </>
                 ) : (
                   <>
-                    <Zap className="w-4 h-4 text-emerald-300" />
+                    <Zap className="w-4 h-4" />
                     <span>สร้างดราฟต์ 1-Click</span>
                   </>
                 )}
@@ -1283,7 +1446,7 @@ function AngleActiveWorkbench({
                 e.stopPropagation();
                 onOpenStoryboard && onOpenStoryboard(angle, index);
               }}
-              className={`w-full sm:w-auto py-3 sm:py-2.5 px-4 rounded-xl border text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 transition-all ${
+              className={`hidden w-full sm:w-auto py-3 sm:py-2.5 px-4 rounded-xl border text-xs sm:text-sm font-bold items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 transition-all ${
                 angle.manual_shot_map?.length > 0
                   ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40 shadow-xs'
                   : 'bg-cyan-500/15 hover:bg-cyan-500/25 border-cyan-500/35 text-cyan-300'
@@ -1338,7 +1501,7 @@ function ScriptAccordionItem({
   // ONLY rendered if an actual video export URL exists or status is posted!
   const isRendered = (curStatus === 'rendered' || isPosted) && (!!angle.video_url);
   const isInProduction = !isPosted && curStatus === 'in_production';
-  const isLocked = isPosted || isInProduction;
+  const isLocked = isPosted || isInProduction || isRendered;
 
   const handleStartEdit = (e) => {
     if (isLocked) return;
@@ -1365,6 +1528,10 @@ function ScriptAccordionItem({
 
     onSaveScript && onSaveScript(index, newLines, editHook.trim());
     setIsEditing(false);
+  };
+
+  const handleAddLine = () => {
+    setEditText((current) => current ? `${current}\n` : '\n');
   };
 
   const statusLabel = isPosted ? 'โพสต์แล้ว'
@@ -1458,7 +1625,9 @@ function ScriptAccordionItem({
               <span>
                 {isPosted
                   ? 'สคริปต์นี้โพสต์ลง TikTok แล้ว ระบบล็อกเนื้อหาและคลิปทั้งหมดเพื่อเก็บเป็นประวัติ'
-                  : 'สคริปต์นี้กำลังตัดต่อในไทม์ไลน์ ล็อกเนื้อหาและคลิปเพื่อความสอดคล้องกับไทม์ไลน์'}
+                  : isRendered
+                    ? 'ตัดต่อเสร็จแล้ว ระบบล็อกเนื้อหาและคลิปเพื่อคงความตรงกันกับวิดีโอที่สร้างไว้'
+                    : 'สคริปต์นี้กำลังตัดต่อในไทม์ไลน์ ล็อกเนื้อหาและคลิปเพื่อความสอดคล้องกับไทม์ไลน์'}
               </span>
             </div>
           )}
@@ -1468,7 +1637,7 @@ function ScriptAccordionItem({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
                 <Tag className="w-3.5 h-3.5 text-[#25F4EE]" />
-                <span>ป้าย Hook Header (3 บรรทัดบนวิดีโอ):</span>
+                <span>Hook Header · 3 ป้ายบนวิดีโอ:</span>
               </div>
               {!isLocked && onOpenEditHookHeader && (
                 <button
@@ -1478,7 +1647,7 @@ function ScriptAccordionItem({
                   title="แก้ไขแบรนด์, รุ่น และหมวดสินค้าสำหรับป้าย Hook"
                 >
                   <Edit3 className="w-3 h-3" />
-                  <span>แก้ไขป้าย Hook</span>
+                  <span>แก้ 3 ป้าย</span>
                 </button>
               )}
             </div>
@@ -1507,7 +1676,7 @@ function ScriptAccordionItem({
                 ? 'bg-black/30 border-slate-600 text-slate-300'
                 : 'bg-black/50 border-[#25F4EE] text-cyan-200'
             }`}>
-              <span className="truncate flex-1">{angle.hook_title}</span>
+              <span className="flex-1 min-w-0 whitespace-normal break-words leading-relaxed">{angle.hook_title}</span>
               {!isLocked && onOpenHookVariants && (
                 <button
                   type="button"
@@ -1525,14 +1694,24 @@ function ScriptAccordionItem({
           {/* Script Editing Box OR Read-Only Display */}
           {isEditing ? (
             <div className="space-y-2.5 p-3 rounded-xl bg-black/60 border border-[#25F4EE]/40 animate-fadeIn">
-              <div className="flex items-center justify-between text-xs text-[#25F4EE] font-bold">
+               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#25F4EE] font-bold">
                 <span className="flex items-center gap-1.5">
                   <Edit3 className="w-3.5 h-3.5" />
                   <span>แก้ไขบทพูด (1 บรรทัด = 1 ท่อน):</span>
                 </span>
-                <span className="text-slate-400 text-[11px] font-mono">
-                  {editText.split('\n').filter(l => l.trim()).length} ท่อน
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddLine}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[#25F4EE] hover:text-white hover:bg-[#25F4EE]/10"
+                    title="เพิ่มบรรทัดบทพูดอีก 1 ท่อน"
+                  >
+                    <Plus className="w-3 h-3" /> เพิ่มบรรทัด
+                  </button>
+                  <span className="text-slate-400 text-[11px] font-mono">
+                    {editText.split('\n').filter(l => l.trim()).length} ท่อน
+                  </span>
+                </div>
               </div>
 
               {/* Hook Input */}
@@ -1570,7 +1749,7 @@ function ScriptAccordionItem({
                   placeholder="พิมพ์บทพูดแต่ละท่อน เว้น 1 บรรทัดต่อ 1 ท่อน..."
                 />
                 <p className="text-[10px] text-slate-500">
-                  💡 แต่ละบรรทัดจะกลายเป็นซับไตเติล 1 ท่อนตามจังหวะเสียงพากย์อัตโนมัติ
+                  💡 แต่ละบรรทัดจะกลายเป็นซับไตเติล 1 ท่อน · กด Enter เพื่อเพิ่มบรรทัดใหม่ได้
                 </p>
               </div>
 
@@ -1609,10 +1788,10 @@ function ScriptAccordionItem({
                         type="button"
                         onClick={handleStartEdit}
                         className="text-amber-300 hover:text-amber-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs"
-                        title="แก้ไขบทพูดในกล่องนี้โดยตรง"
+                        title="แก้ไข Hook และบทพูดในกล่องนี้โดยตรง"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
-                        <span>แก้ไข</span>
+                        <span>แก้ Hook + บทพูด</span>
                       </button>
                       <button
                         type="button"
@@ -1932,13 +2111,21 @@ function ScriptAccordionItem({
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-                  className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
-                  title="เปิดฟอร์มตรวจสอบสคริปต์ สไตล์ และเริ่มสร้างคลิปเข้าสู่ไทม์ไลน์"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) onSendToStudio(angle, index);
+                    else onGenerateShotList && onGenerateShotList(index);
+                  }}
+                  className={`order-2 py-2 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all ${
+                    shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts
+                      ? 'bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 border border-white/[0.12]'
+                      : 'bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 shadow-lg shadow-[#25F4EE]/15'
+                  }`}
                 >
-                  <Clapperboard className="w-3.5 h-3.5 text-white" />
-                  <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
-                  <ArrowRight className="w-3 h-3 text-white/80" />
+                  {shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts
+                    ? <Clapperboard className="w-3.5 h-3.5" />
+                    : <Mic className="w-3.5 h-3.5" />}
+                  <span>{shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts ? 'ตั้งค่าก่อนส่ง' : 'เตรียมเสียงและแผนถ่าย'}</span>
                 </button>
 
                 {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) && (
@@ -1949,7 +2136,7 @@ function ScriptAccordionItem({
                       onQuickDraft ? onQuickDraft(angle, index) : onSendToStudio(angle, index);
                     }}
                     disabled={draftingAngleId === angle.angle_id}
-                    className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600/90 to-teal-600/90 hover:brightness-110 border border-emerald-400/30 text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                    className="order-1 py-2 px-3.5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] border border-[#25F4EE]/50 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#25F4EE]/15 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
                     title="1-Click Quick Draft: สร้างดราฟต์ไทม์ไลน์อัตโนมัติตามสไตล์ของมุมนี้และเปิดเข้าสู่ไทม์ไลน์ทันที"
                   >
                     {draftingAngleId === angle.angle_id ? (
@@ -1959,7 +2146,7 @@ function ScriptAccordionItem({
                       </>
                     ) : (
                       <>
-                        <Zap className="w-3.5 h-3.5 text-emerald-300" />
+                        <Zap className="w-3.5 h-3.5" />
                         <span>สร้างดราฟต์ 1-Click</span>
                       </>
                     )}
@@ -1972,7 +2159,7 @@ function ScriptAccordionItem({
                     e.stopPropagation();
                     onOpenStoryboard && onOpenStoryboard(angle, index);
                   }}
-                  className={`w-full sm:w-auto py-3 sm:py-2.5 px-4 rounded-xl border text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 transition-all ${
+                  className={`hidden w-full sm:w-auto py-3 sm:py-2.5 px-4 rounded-xl border text-xs sm:text-sm font-bold items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 transition-all ${
                     angle.manual_shot_map?.length > 0
                       ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40 shadow-xs'
                       : 'bg-cyan-500/15 hover:bg-cyan-500/25 border-cyan-500/35 text-cyan-300'
@@ -2049,7 +2236,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [deleteTargetAngle, setDeleteTargetAngle] = useState(null);
   const [isDeletingAngle, setIsDeletingAngle] = useState(false);
   const [viewMode, setViewMode] = useState('split'); // 'split' | 'accordion'
-  const [showProductStrip, setShowProductStrip] = useState(false);
+  const [productToolsOpen, setProductToolsOpen] = useState(false);
 
   // Filtered Products for 100+ items
   const filteredHistory = useMemo(() => {
@@ -3338,6 +3525,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [selectedBatch, setSelectedBatch] = useState('all');
   const [hidePosted, setHidePosted] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
+  const [batchToolsOpen, setBatchToolsOpen] = useState(false);
   const [batchAngleCount, setBatchAngleCount] = useState(10);
   const [batchDuration, setBatchDuration] = useState('60s');
   const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
@@ -3482,6 +3670,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const unindexedVideosCount = useMemo(() => {
     return allAttachedVideos.filter(v => !sceneCatalogsMap[v]?.is_indexed).length;
   }, [allAttachedVideos, sceneCatalogsMap]);
+  const canRegenerateBatchAudio = activeBatchAngles.length > 0;
 
   const [inspectingCatalog, setInspectingCatalog] = useState(null);
 
@@ -3511,13 +3700,14 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
-  const handleBatchGenerateAudio = async () => {
+  const handleBatchGenerateAudio = async ({ forceRegenerate = false } = {}) => {
     if (!productData?.id) return;
     setIsStartingBatchAudio(true);
     try {
       const payload = {
         voice_preset: selectedVoicePreset,
         batch_index: selectedBatch !== 'all' ? selectedBatch : null,
+        force_regenerate: forceRegenerate,
       };
       const res = await batchGenerateAudio(productData.id, payload);
       if (res.task_id) {
@@ -3545,6 +3735,26 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     });
   }, [activeBatchAngles, shotListStatusMap]);
 
+  const attachedAngleCount = useMemo(() => angles.filter((ang) => {
+    const selected = ang.selected_videos || (ang.selected_video ? [ang.selected_video] : []);
+    return selected.length > 0;
+  }).length, [angles]);
+
+  const audioReadyAngleCount = useMemo(() => angles.filter((ang) => {
+    if (isAngleCompleted(ang)) return true;
+    const audioStatus = shotListStatusMap[ang.angle_id];
+    return Boolean(audioStatus?.has_shot_list && !audioStatus?.is_edge_tts);
+  }).length, [angles, shotListStatusMap]);
+
+  const sceneReadyAngleCount = useMemo(() => angles.filter((ang) => {
+    const selected = ang.selected_videos || (ang.selected_video ? [ang.selected_video] : []);
+    return selected.length > 0 && selected.every((videoPath) => sceneCatalogsMap[videoPath]?.is_indexed);
+  }).length, [angles, sceneCatalogsMap]);
+
+  const draftAngleCount = useMemo(() => angles.filter((ang) => (
+    ['in_production', 'rendered', 'posted'].includes(ang.status) && Boolean(ang.project_name)
+  )).length, [angles]);
+
   const [isStartingBatchDraft, setIsStartingBatchDraft] = useState(false);
   const [draftingAngleId, setDraftingAngleId] = useState(null);
 
@@ -3556,6 +3766,15 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       t.status === 'running'
     );
   }, [activeTasks, productData?.id]);
+
+  useEffect(() => {
+    const batchIsReady = angles.length > 0
+      && missingAudioCount === 0
+      && unindexedVideosCount === 0
+      && !batchAudioTask
+      && !batchDraftTask;
+    if (batchIsReady) setBatchToolsOpen(false);
+  }, [angles.length, missingAudioCount, unindexedVideosCount, batchAudioTask, batchDraftTask]);
 
   // Auto-refresh product and tracker when batch draft completes
   const prevBatchDraftTaskStatusRef = useRef(null);
@@ -3692,34 +3911,34 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             </span>
           )
         }
-        title={productData?.title || productData?.name || (historyList.length > 0 ? 'เลือกสินค้าจากรายการด้านล่าง' : 'ยังไม่มีสินค้า — เริ่มวิเคราะห์สินค้าใหม่')}
+        title={productData?.title || productData?.name || (historyList.length > 0 ? 'เลือกสินค้าจากการ์ดสินค้า' : 'ยังไม่มีสินค้า — เริ่มวิเคราะห์สินค้าใหม่')}
         titleClassName="text-lg sm:text-xl md:text-2xl font-black text-white tracking-tight"
-        quickSwitcher={
-          historyList.length > 1 && (
-            <div className="relative flex-shrink-0">
-              <select
-                value={selectedHistoryId || ''}
-                onChange={(e) => {
-                  const found = historyList.find(p => p.id === e.target.value);
-                  if (found) selectProduct(found);
-                }}
-                className="bg-black/50 border border-white/[0.1] hover:border-[#25F4EE]/40 text-slate-200 text-xs font-bold py-1.5 px-2 sm:px-3 rounded-xl focus:outline-none focus:border-[#25F4EE] cursor-pointer max-w-[130px] sm:max-w-[200px] truncate"
-                title="สลับสินค้าด่วน"
-              >
-                {historyList.map(p => (
-                  <option key={p.id} value={p.id} className="bg-[#080B11] text-white">
-                    {p.product_code ? `${p.product_code} · ${p.name}` : p.name} ({p.angles?.length || 0} สคริปต์)
-                  </option>
-                ))}
-              </select>
-            </div>
-          )
-        }
         secondRow={
           <>
-            {/* Row 2: Progress & Action Tools (Responsive on iPhone 15 PM) */}
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-between pt-2 border-t border-white/[0.06]">
-              {/* Progress Pill */}
+            {/* Product cards: primary product switcher in the header. */}
+            {historyList.length > 1 && (
+              <div className="pt-2 border-t border-white/[0.06] animate-fadeIn">
+                <div className="flex items-stretch gap-2.5 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory scroll-smooth pr-4" aria-label="เลือกสินค้า">
+                  {filteredHistory.map((p) => (
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      isSelected={selectedHistoryId === p.id}
+                      onSelect={selectProduct}
+                    />
+                  ))}
+                  {filteredHistory.length === 0 && productSearch && (
+                    <div className="flex items-center justify-center p-4 rounded-xl bg-black/40 border border-white/[0.06] text-xs text-slate-400 gap-2 flex-shrink-0">
+                      <Search className="w-4 h-4 text-slate-500" />
+                      <span>ไม่พบสินค้าที่ตรงกับ "{productSearch}"</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Row 2: daily product controls. Less-used tools stay behind disclosure. */}
+            <div className="flex items-center gap-2 flex-wrap justify-between pt-2 border-t border-white/[0.06]">
               {totalAngles > 0 && (
                 <div className="flex items-center gap-1.5 sm:gap-2 bg-black/40 px-2.5 py-1.5 rounded-xl border border-white/[0.08] flex-shrink-0">
                   <span className="text-[11px] sm:text-xs text-slate-400 font-medium">คืบหน้า</span>
@@ -3730,22 +3949,48 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 </div>
               )}
 
-              {/* Action Tools Group */}
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap flex-1 justify-end">
-                {/* Instant Search Bar */}
-                <div className="relative flex items-center">
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold cursor-pointer shadow-md active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]"
+                  title="วิเคราะห์สินค้าใหม่"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>สินค้าใหม่</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProductToolsOpen((open) => !open)}
+                  aria-expanded={productToolsOpen}
+                  aria-controls="product-secondary-tools"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
+                    productToolsOpen
+                      ? 'bg-white/[0.1] text-white border-white/[0.18]'
+                      : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border-white/[0.08]'
+                  }`}
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                  <span>เครื่องมือสินค้า</span>
+                </button>
+              </div>
+            </div>
+
+            {productToolsOpen && (
+              <div id="product-secondary-tools" className="mt-2 p-2.5 rounded-xl bg-black/30 border border-white/[0.08] flex flex-wrap items-center gap-2 animate-fadeIn">
+                <div className="relative flex items-center flex-1 min-w-[190px] max-w-sm">
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
                   <input
                     type="text"
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     placeholder="ค้นหาสินค้า..."
-                    className="bg-black/40 border border-white/[0.1] focus:border-[#25F4EE] text-slate-200 text-xs pl-8 pr-6 py-1.5 rounded-xl w-[95px] xs:w-[115px] sm:w-[140px] focus:w-[135px] sm:focus:w-[170px] transition-all focus:outline-none placeholder-slate-500"
+                    className="w-full bg-black/40 border border-white/[0.1] focus:border-[#25F4EE] text-slate-200 text-xs pl-8 pr-7 py-1.5 rounded-xl focus:outline-none placeholder-slate-500"
                   />
                   {productSearch && (
                     <button
+                      type="button"
                       onClick={() => setProductSearch('')}
-                      className="absolute right-1.5 text-slate-400 hover:text-white cursor-pointer"
+                      className="absolute right-2 text-slate-400 hover:text-white cursor-pointer"
                       title="ล้างคำค้นหา"
                     >
                       <X className="w-3 h-3" />
@@ -3755,14 +4000,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
                 {productData && (
                   <>
-                    <button
-                      type="button"
-                      onClick={() => setShowMetadataModal(true)}
-                      className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/25 text-xs font-bold cursor-pointer transition-colors"
-                      title="ดู metadata และรูปที่ AI ใช้"
-                    >
-                      <Database className="w-3.5 h-3.5" />
-                      <span className="hidden xs:inline sm:inline">ข้อมูล AI</span>
+                    <button type="button" onClick={() => setShowMetadataModal(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold transition-colors">
+                      <Database className="w-3.5 h-3.5 text-[#25F4EE]" /><span>ข้อมูล AI</span>
                     </button>
                     <button
                       type="button"
@@ -3770,95 +4009,26 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setHookHeaderAngleIdx(openAngleIdx >= 0 ? openAngleIdx : 0);
                         setHookHeaderModalOpen(true);
                       }}
-                      className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/25 text-xs font-bold cursor-pointer transition-colors"
-                      title="ตั้งค่าป้าย Hook Header (แบรนด์, รุ่น, หมวดสินค้า) ของสินค้านี้"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold transition-colors"
                     >
-                      <Tag className="w-3.5 h-3.5" />
-                      <span className="hidden xs:inline sm:inline">ป้าย Hook</span>
+                      <Tag className="w-3.5 h-3.5 text-amber-300" /><span>ตั้งค่าป้าย Hook</span>
                     </button>
                   </>
                 )}
-
-                {/* Catalog Modal Button */}
-                <button
-                  onClick={() => setShowCatalogModal(true)}
-                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-bold cursor-pointer transition-colors"
-                  title="เปิดดูคลังสินค้าทั้งหมดแบบตาราง"
-                >
-                  <LayoutGrid className="w-3.5 h-3.5 text-[#25F4EE]" />
-                  <span className="hidden xs:inline sm:inline">คลัง</span>
+                <button type="button" onClick={() => setShowCatalogModal(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold transition-colors">
+                  <LayoutGrid className="w-3.5 h-3.5 text-[#25F4EE]" /><span>คลังสินค้า</span>
                 </button>
-
-                {/* Toggle Horizontal Card Strip */}
-                <button
-                  onClick={() => setShowProductStrip(!showProductStrip)}
-                  className={`flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
-                    showProductStrip
-                      ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
-                      : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 border-white/[0.08]'
-                  }`}
-                  title={showProductStrip ? "ซ่อนแถบการ์ดสินค้า" : "แสดงแถบการ์ดสินค้าทั้งหมด"}
-                >
-                  {showProductStrip ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  <span className="hidden xs:inline sm:inline">การ์ด</span>
+                <button type="button" onClick={loadHistory} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold transition-colors">
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingHistory ? 'animate-spin' : ''}`} /><span>รีเฟรชข้อมูล</span>
                 </button>
-
-                {/* + Add New Product */}
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-slate-950 text-xs font-bold cursor-pointer shadow-md hover:opacity-95 active:scale-95 transition-all"
-                  title="วิเคราะห์สินค้าใหม่"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span className="hidden xs:inline sm:inline">สินค้าใหม่</span>
-                </button>
-
-                {/* Refresh */}
-                <button
-                  onClick={loadHistory}
-                  className="p-1.5 sm:p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white border border-white/[0.06] cursor-pointer transition-colors"
-                  title="รีเฟรชข้อมูล"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${loadingHistory ? 'animate-spin' : ''}`} />
-                </button>
-
-                {/* Delete current product */}
                 {productData && (
-                  <button
-                    onClick={() => handleDeleteHistory(productData)}
-                    className="p-1.5 sm:p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 cursor-pointer transition-colors"
-                    title="ลบสินค้านี้"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
+                  <button type="button" onClick={() => handleDeleteHistory(productData)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 text-xs font-bold transition-colors ml-auto">
+                    <Trash2 className="w-3.5 h-3.5" /><span>ลบสินค้า</span>
                   </button>
                 )}
               </div>
-            </div>
+            )}
 
-            {/* Optional Horizontal Card Strip (Shown when user expands it or no product selected) */}
-            {(showProductStrip || !productData) && (
-              <div className="pt-2 border-t border-white/[0.06] animate-fadeIn">
-                <div className="flex items-stretch gap-2.5 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory scroll-smooth pr-4">
-                  {filteredHistory.map(p => (
-                    <ProductCard
-                      key={p.id}
-                      product={p}
-                  isSelected={selectedHistoryId === p.id}
-                  onSelect={(prod) => {
-                    selectProduct(prod);
-                  }}
-                />
-              ))}
-
-              {filteredHistory.length === 0 && productSearch && (
-                <div className="flex items-center justify-center p-4 rounded-xl bg-black/40 border border-white/[0.06] text-xs text-slate-400 gap-2 flex-shrink-0">
-                  <Search className="w-4 h-4 text-slate-500" />
-                  <span>ไม่พบสินค้าที่ตรงกับ "{productSearch}"</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
           </>
         }
       />
@@ -4190,7 +4360,172 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         <div className="space-y-4">
           {/* ──── STEP 2: Script Lab & Footage Selection ──── */}
           <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-1">
+            <section aria-label="สถานะเวิร์กโฟลว์" className="rounded-2xl border border-white/[0.08] bg-[#090D15] overflow-hidden">
+              <div className="px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06]">
+                <div>
+                  <h2 className="text-sm font-bold text-white">พื้นที่ทำงานสคริปต์</h2>
+                  <p className="text-[11px] text-slate-500 mt-0.5">เลือกสคริปต์ทางซ้าย แล้วทำขั้นตอนถัดไปทางขวา</p>
+                </div>
+                <span className="text-xs text-slate-400">
+                  โพสต์แล้ว <strong className="text-emerald-300 font-mono">{postedAngles}/{totalAngles}</strong> คลิป
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 divide-x divide-y xl:divide-y-0 divide-white/[0.06]">
+                {[
+                  { label: 'บทพร้อม', value: totalAngles, icon: Sparkles },
+                  { label: 'คลิปพร้อม', value: attachedAngleCount, icon: Film },
+                  { label: 'เสียงพร้อม', value: audioReadyAngleCount, icon: Mic },
+                  { label: 'ฉากพร้อม', value: sceneReadyAngleCount, icon: Eye },
+                  { label: 'ดราฟต์', value: draftAngleCount, icon: Clapperboard },
+                  { label: 'โพสต์แล้ว', value: postedAngles, icon: CheckCircle2 },
+                ].map((step) => {
+                  const StepIcon = step.icon;
+                  const complete = totalAngles > 0 && step.value >= totalAngles;
+                  return (
+                    <div key={step.label} className="px-3 py-2.5 flex items-center gap-2 min-w-0">
+                      <span className={`w-7 h-7 rounded-lg flex items-center justify-center border ${
+                        complete
+                          ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300'
+                          : 'bg-white/[0.03] border-white/[0.08] text-slate-500'
+                      }`}>
+                        <StepIcon className="w-3.5 h-3.5" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-slate-500 truncate">{step.label}</p>
+                        <p className={`text-xs font-bold font-mono ${complete ? 'text-emerald-300' : 'text-slate-200'}`}>
+                          {step.value}/{totalAngles}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-white/[0.08] bg-[#080B11] p-2.5 sm:p-3 space-y-2.5">
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBatch('all')}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border ${selectedBatch === 'all' ? 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/30' : 'text-slate-400 border-transparent hover:text-white'}`}
+                  >
+                    ทุกล็อต ({angles.length})
+                  </button>
+                  {batches.map((batch) => {
+                    const batchCount = angles.filter((angle) => (angle.batch || 1) === batch).length;
+                    return (
+                      <button
+                        key={batch}
+                        type="button"
+                        onClick={() => setSelectedBatch(batch)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border ${selectedBatch === batch ? 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/30' : 'text-slate-400 border-transparent hover:text-white'}`}
+                      >
+                        ล็อต {batch} ({batchCount})
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
+
+                  {batchAudioTask || batchDraftTask ? (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-200 border border-cyan-500/25 text-xs font-bold">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>{batchAudioTask?.step || batchDraftTask?.step || 'กำลังประมวลผล...'}</span>
+                    </div>
+                  ) : missingAudioCount > 0 ? (
+                    <button type="button" onClick={handleBatchGenerateAudio} disabled={isStartingBatchAudio} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
+                      {isStartingBatchAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5" />}
+                      <span>เตรียมเสียง ({missingAudioCount})</span>
+                    </button>
+                  ) : unindexedVideosCount > 0 ? (
+                    <button type="button" onClick={() => handleIndexSceneCatalog()} disabled={isScanningScenes} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
+                      {isScanningScenes ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                      <span>สแกนฉาก ({unindexedVideosCount})</span>
+                    </button>
+                  ) : readyForDraftAngles.length > 0 ? (
+                    <button type="button" onClick={handleBatchCreateDraft} disabled={isStartingBatchDraft} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
+                      {isStartingBatchDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                      <span>สร้างดราฟต์ทุกมุม ({readyForDraftAngles.length})</span>
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 text-xs font-bold">
+                      <Check className="w-3.5 h-3.5" /> พร้อมครบ
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setBatchToolsOpen((open) => !open)}
+                    aria-expanded={batchToolsOpen}
+                    aria-controls="batch-secondary-tools"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                    <span>จัดการล็อต</span>
+                    {batchToolsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {batchToolsOpen && (
+                <div id="batch-secondary-tools" className="pt-2.5 border-t border-white/[0.06] grid gap-3 xl:grid-cols-[auto_1fr] animate-fadeIn">
+                  <div className="flex items-center gap-1 bg-black/30 p-1 rounded-lg border border-white/[0.06] w-fit h-fit">
+                    <button type="button" onClick={() => setViewMode('split')} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold ${viewMode === 'split' ? 'bg-white/[0.1] text-white' : 'text-slate-400'}`}>
+                      <Columns className="w-3.5 h-3.5" /> สตูดิโอ
+                    </button>
+                    <button type="button" onClick={() => setViewMode('accordion')} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold ${viewMode === 'accordion' ? 'bg-white/[0.1] text-white' : 'text-slate-400'}`}>
+                      <List className="w-3.5 h-3.5" /> แถวยาว
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!batchAudioTask && !batchDraftTask && activeBatchAngles.length > 0 && (
+                      <label className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-500/[0.06] border border-cyan-500/20">
+                        <Mic className="w-3.5 h-3.5 shrink-0 text-[#25F4EE]" aria-hidden="true" />
+                        <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap">เสียง</span>
+                        <select
+                          value={selectedVoicePreset}
+                          onChange={(event) => setSelectedVoicePreset(event.target.value)}
+                          disabled={isStartingBatchAudio}
+                          aria-label="เสียงที่จะใช้ก่อนเตรียมเสียง"
+                          title="เลือกเสียงสำหรับเตรียมเสียงหรือเจนเสียงใหม่ทั้งสคริปต์"
+                          className="w-[190px] max-w-full bg-black/40 border border-white/[0.1] rounded-md px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-[#25F4EE] disabled:opacity-50"
+                        >
+                          {GEMINI_VOICE_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                        </select>
+                      </label>
+                    )}
+                    {!batchAudioTask && !batchDraftTask && missingAudioCount === 0 && canRegenerateBatchAudio && (
+                      <button
+                        type="button"
+                        onClick={() => handleBatchGenerateAudio({ forceRegenerate: true })}
+                        disabled={isStartingBatchAudio}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-200 border border-indigo-400/25 text-xs font-bold disabled:opacity-50"
+                        title="สร้างเสียงพากย์ใหม่ให้ทุกสคริปต์ที่ยังไม่ตัดต่อเสร็จ โดยใช้เสียงที่เลือกไว้"
+                      >
+                        {isStartingBatchAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                        <span>เจนเสียงใหม่ทั้งสคริปต์ ({activeBatchAngles.length})</span>
+                      </button>
+                    )}
+                    <button type="button" onClick={() => { setFindReplaceAngleIdx(activeAngleIdx); setFindReplaceOpen(true); }} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Replace className="w-3.5 h-3.5" /> แทนที่คำ</button>
+                    <button type="button" onClick={() => handleOpenMediaPicker(-1)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><FolderOpen className="w-3.5 h-3.5" /> คลิปให้ทุกมุม</button>
+                    <button type="button" onClick={() => setBatchRenderOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Zap className="w-3.5 h-3.5" /> เรนเดอร์หลายมุม</button>
+                    <button type="button" onClick={() => setFilmingRecipeModalOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Clapperboard className="w-3.5 h-3.5" /> สูตรถ่ายทำ</button>
+                    <button type="button" onClick={() => setShowBatchModal(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Plus className="w-3.5 h-3.5" /> เจนล็อตใหม่</button>
+                    {postedAngles > 0 && (
+                      <button type="button" onClick={() => setHidePosted(!hidePosted)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold">
+                        {hidePosted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />} {hidePosted ? 'แสดงที่โพสต์แล้ว' : `ซ่อนที่โพสต์แล้ว (${postedAngles})`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <div className="hidden flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-[#FE2C55]" />
@@ -4269,7 +4604,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             </div>
 
             {/* ── Sub-bar: Batch Selector & Filters & Actions ── */}
-            <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+            <div className="hidden flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-white/[0.02] border border-white/[0.06]">
               <div className="flex items-center gap-1.5 flex-wrap">
                 {/* Batch Selector Pills */}
                 <div className="flex items-center gap-1 bg-black/30 p-1 rounded-xl border border-white/[0.06]">
@@ -4337,7 +4672,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
             {/* ── Batch Audio Preparation Bar (Batch Gemini TTS Pre-generation) ── */}
             {angles.length > 0 && (
-              <div className="p-2.5 sm:p-3 rounded-xl bg-gradient-to-r from-[#0f172a]/95 via-[#1e1b4b]/60 to-[#0f172a]/95 border border-indigo-500/25 shadow-lg backdrop-blur-md flex flex-wrap items-center justify-between gap-3">
+              <div className="hidden p-2.5 sm:p-3 rounded-xl bg-gradient-to-r from-[#0f172a]/95 via-[#1e1b4b]/60 to-[#0f172a]/95 border border-indigo-500/25 shadow-lg backdrop-blur-md flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-200">
                     <Mic className="w-4 h-4 text-indigo-400" />
@@ -4565,11 +4900,11 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             {/* Master-Detail Split View (Default Studio Mode) */}
             {viewMode === 'split' ? (
               <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-4 items-start">
-                {/* MOBILE (< lg): Horizontal Swipeable Angle Carousel for iPhone 15 Pro Max */}
+                {/* MOBILE (< lg): compact script list; selected item opens one detail panel below */}
                 <div className="lg:hidden space-y-1.5">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      แตะสลับมุมขาย ({displayedAngles.length}/{angles.length} มุม):
+                      เลือกสคริปต์ ({displayedAngles.length}/{angles.length} มุม)
                     </span>
                     <span className="text-[11px] font-mono text-[#25F4EE] font-bold">
                       มุมที่ {activeAngleIdx + 1}/{angles.length}
@@ -4589,7 +4924,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       )}
                     </div>
                   ) : (
-                    <div className="flex items-stretch gap-2 overflow-x-auto pb-2 pt-0.5 no-scrollbar snap-x snap-mandatory pr-2 scroll-smooth">
+                    <div className="grid gap-1.5 max-h-56 overflow-y-auto pr-1 no-scrollbar">
                       {displayedAngles.map((ang) => (
                         <AngleMobilePill
                           key={ang.angle_id || ang.originalIndex}
@@ -4604,8 +4939,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   )}
                 </div>
 
-                {/* DESKTOP (lg+): Left Column Vertical Playlist (5 cols) */}
-                <div className="hidden lg:block lg:col-span-5 space-y-2 lg:max-h-[calc(100vh-210px)] lg:overflow-y-auto pr-1 no-scrollbar">
+                {/* DESKTOP (lg+): compact navigation list (4 cols) */}
+                <div className="hidden lg:block lg:col-span-4 space-y-2 lg:max-h-[calc(100vh-210px)] lg:overflow-y-auto pr-1 no-scrollbar">
                   {displayedAngles.length === 0 ? (
                     <div className="p-6 text-center rounded-2xl bg-white/[0.02] border border-white/[0.06] text-slate-400 text-xs space-y-2">
                       <p>ไม่มีสคริปต์ที่ตรงกับตัวกรองปัจจุบัน</p>
@@ -4639,7 +4974,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 </div>
 
                 {/* Right Column (Active Workbench / 7 cols sticky) */}
-                <div className="lg:col-span-7 lg:sticky lg:top-4">
+                <div className="lg:col-span-8 lg:sticky lg:top-4">
                   {angles[activeAngleIdx] ? (
                     <AngleActiveWorkbench
                       angle={angles[activeAngleIdx]}
@@ -5440,6 +5775,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         onClose={() => setBatchRenderOpen(false)}
         product={productData ? { ...productData, angles } : null}
         angles={angles}
+        voicePreset={selectedVoicePreset}
         onBatchCompleted={handleBatchCompleted}
         showToast={showToast}
       />

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addDays, buildScheduleIso, groupScheduleItems, mergeScheduleDraft, nextTemplateSlotAfterLatest, templateForWeek, templateSlots, weekStartForDate } from './scheduleQueue.js';
+import { addDays, buildScheduleIso, estimateQueueCoverage, groupScheduleItems, mergeScheduleDraft, nextTemplateSlotAfterLatest, templateForWeek, templateSlots, weekStartForDate } from './scheduleQueue.js';
 import { scheduleTimeOptions, snapTimeToFiveMinutes } from './scheduleQueue.js';
 
 test('schedule times use five-minute increments', () => {
@@ -71,4 +71,18 @@ test('template slots ignore a latest queue timestamp outside the selected range'
   const template = { default: { days: Object.fromEntries(Array.from({ length: 7 }, (_, index) => [String(index), { enabled: true, times: ['09:00', '12:30'] }])) } };
   const slots = templateSlots('2030-01-07', '2030-01-07', template, new Date('2026-09-17T10:00:00+07:00'), '2030-01-08T21:30:00+07:00');
   assert.deepEqual(slots.map((slot) => slot.date), ['2030-01-07', '2030-01-07']);
+});
+
+test('queue coverage estimates posting days from remaining template slots', () => {
+  const template = { days: Object.fromEntries(Array.from({ length: 7 }, (_, index) => [String(index), { enabled: true, times: ['09:00', '12:30'] }])) };
+  const result = estimateQueueCoverage({
+    readyCount: 3,
+    template,
+    startDate: '2026-09-17',
+    now: new Date('2026-09-17T08:00:00+07:00'),
+    latestScheduledAt: '2026-09-17T09:00:00+07:00',
+  });
+  assert.equal(result.coveredDays, 2);
+  assert.equal(result.endDate, '2026-09-18');
+  assert.equal(result.weeklyCapacity, 14);
 });

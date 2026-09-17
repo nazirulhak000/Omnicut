@@ -17,6 +17,8 @@
 
 ## สถานะรวม
 
+- [x] Round TEST-DEMO-EXPORTS-CLEANUP-AND-STRICT-RULE-1 — ลบวิดีโอทดสอบ demo ทั้งหมดใน 04_Exports/Ready_to_post/ และ export_registry + บัญญัติกฎเหล็กห้าม AI ทิ้งคลิป demo/ขยะทดสอบในโฟลเดอร์งานจริงลงใน AGENTS.md และ testing_standard.md (2026-09-17; ลบ 4 demo files+webp, unregister 4 IDs, AGENTS.md Rule 11 & 15, testing_standard.md Rule 3 & 6, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round TIMELINE-TRANSITION-GAP-TAIL-FILL-1 — แก้ปัญหาวิดีโอขาดท้ายไทม์ไลน์ (Gap 0.26s) จาก Lead-in Silence ของเสียงพากย์ และ Transition Overlap Compensation: แบ่งช็อตแบบ Contiguous Timeline (เริ่ม 0.00s ถึง total_duration) + ชดเชย Transition Overlap ตาม Speed จริง + Tail-Fill ช็อตสุดท้ายชนท้ายเสียง 100% (2026-09-17; backend 13 passed, frontend 255 passed, build 2,008 modules/3.65s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round ORPHAN-AND-CROSS-PRODUCT-PROJECT-CLEANUP-1 — ป้องกันและล้างโปรเจกต์ข้ามสินค้า (Cross-Product Leak) & โปรเจกต์ที่ถูกลบออกจากไทม์ไลน์แล้วแต่ยังค้างสถานะ 'กำลังตัดต่อ' และล็อกสคริปต์ (2026-09-17; backend 12 passed, frontend 255 passed, build 2,008 modules/3.47s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round SCENE-INDEX-TASK-NAV-AND-PATH-DEDUP-1 — แก้ไขการแจ้งเตือนงานสแกนฉาก (index_scenes) นำทางกลับหน้าสินค้า flow อย่างถูกต้อง + ยุบรวมการนับคลิปและฉากไม่ให้เบิ้ล 2 เท่าด้วย Canonical Path Deduplication (2026-09-17; backend 9 passed, frontend 255 passed, build 2,008 modules/4.56s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round MASTER-STORYBOARD-SYNC-AND-RECIPE-1 — ระบบสูตรถ่ายทำ 5 ช็อตมาตรฐานระดับสินค้า (Universal Filming Recipe) + ปุ่มซิงก์ช็อตข้ามทุกสคริปต์ (Master Storyboard Sync Engine) พร้อม Smart Role Mapping วรรคไม่เท่ากัน (30s vs 60s) (2026-09-17; backend 9 passed, frontend 255 passed, build 2,008 modules/4.20s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
@@ -1079,3 +1081,39 @@ Plan before code:
 ---
 
 ## Round ORPHAN-AND-CROSS-PRODUCT-PROJECT-CLEANUP-1 - closed (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+---
+
+## Round TIMELINE-TRANSITION-GAP-TAIL-FILL-1 - closed (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+
+---
+
+## Round SCHEDULE-UI-TODAY-FIRST-REDESIGN-20260917 - closed (ดำเนินการโดย: Codex (GPT-5))
+
+## Round SCHEDULE-AUTOFILL-LIMIT-CLARITY-20260917 - closed (ดำเนินการโดย: Codex (GPT-5))
+
+## Round SCHEDULE-BULK-DELETE-AND-WEEK-COVERAGE-20260917 - ปิดรอบแล้ว ✅ (ดำเนินการโดย: Codex (GPT-5))
+
+## Round SCHEDULE-CAPACITY-AWARENESS-20260917 - ปิดรอบแล้ว ✅ (ดำเนินการโดย: Codex (GPT-5))
+
+## Round PRODUCER-HUB-CAPACITY-AWARENESS-20260917 - ปิดรอบแล้ว ✅ (ดำเนินการโดย: Codex (GPT-5))
+
+## Round SCRIPT-LAB-DISTILLED-WORKSPACE-20260918 - ปิดรอบแล้ว ✅ (ดำเนินการโดย: Codex (GPT-5))
+
+## Round SCRIPT-WORKBENCH-FLAT-COMPOSITION-20260918 - ปิดรอบแล้ว ✅ (ดำเนินการโดย: Codex (GPT-5))
+
+## Round SCRIPT-INLINE-EDIT-AND-STORYBOARD-RESTORE-20260918 - ปิดรอบแล้ว ✅ (ดำเนินการโดย: Codex (GPT-5))
+## Round BATCH-VOICE-CHOICE-AT-ACTION-20260918 - closed (ดำเนินการโดย: Codex (GPT-5))
+## Round SCRIPT-HOOK-LONGTEXT-LINE-ADD-LOCK-20260918 - closed (ดำเนินการโดย: Codex (GPT-5))
+## Round BATCH-RENDER-AUDIO-SEPARATION-20260918 - closed (ดำเนินการโดย: Codex (GPT-5))
+## Round BATCH-VOICE-TOOLS-PLACEMENT-20260918 - closed (ดำเนินการโดย: Codex (GPT-5))
+## Round BATCH-STATUS-COPY-REMOVE-20260918 - closed (ดำเนินการโดย: Codex (GPT-5))
+## Round PRODUCT-CARDS-IN-HEADER-20260918 - closed (ดำเนินการโดย: Codex (GPT-5))
+ดำเนินการโดย: Codex (GPT-5)
+### เป้าหมาย
+- เอา product dropdown/list ออกจากหัวหน้า
+- แสดง ProductCard gallery ในส่วนหัวให้เลือกสินค้าได้ทันที
+- คง search/catalog ไว้ในเครื่องมือรองสำหรับสินค้าจำนวนมาก
+### แผน
+- [x] ย้าย card strip ขึ้นก่อนแถบคำสั่งหลัก
+- [x] เอา quick switcher และปุ่มเปิด/ปิด card strip เดิมออก
+- [x] ตรวจการเลือกสินค้า, responsive และ build

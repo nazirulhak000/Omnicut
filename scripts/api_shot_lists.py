@@ -171,10 +171,11 @@ def _execute_batch_generate_audio_worker(
         if batch_index is not None:
             angles = [a for a in angles if a.get("batch") == batch_index]
 
-        # Filter angles that have script lines AND are not already rendered/posted (unless force_regenerate)
+        # Filter angles that have script lines and are still active. force_regenerate
+        # only bypasses cached audio; it must never touch completed clips.
         valid_angles = []
         for a in angles:
-            if not force_regenerate and (a.get("status") in ("rendered", "posted") or a.get("posted_at")):
+            if a.get("status") in ("rendered", "posted") or a.get("posted_at"):
                 continue
             lines = a.get("tts_lines") or a.get("script_lines") or []
             if any(str(l).strip() for l in lines):
@@ -210,7 +211,7 @@ def _execute_batch_generate_audio_worker(
             short_title = angle_title[:32] + "..." if len(angle_title) > 32 else angle_title
 
             # Skip rendered or posted angles
-            if not force_regenerate and (angle.get("status") in ("rendered", "posted") or angle.get("posted_at")):
+            if angle.get("status") in ("rendered", "posted") or angle.get("posted_at"):
                 skipped_count += 1
                 pct = (idx / total_angles) * 0.95
                 TaskManager.update_progress(
@@ -315,13 +316,10 @@ def batch_generate_audio(
     if batch_idx is not None:
         angles = [a for a in angles if a.get("batch") == batch_idx]
 
-    if not force_regenerate:
-        active_angles = [
-            a for a in angles
-            if a.get("status") not in ("rendered", "posted") and not a.get("posted_at")
-        ]
-    else:
-        active_angles = angles
+    active_angles = [
+        a for a in angles
+        if a.get("status") not in ("rendered", "posted") and not a.get("posted_at")
+    ]
 
     task = TaskManager.create_task(
         task_type="batch_generate_audio",
@@ -764,4 +762,3 @@ def get_universal_filming_recipe(product_id: str) -> Dict[str, Any]:
         "total_estimated_duration": "30 - 55 วินาที (ถ่ายรวมใน 1 คลิปเดียว)",
         "shots": shots,
     }
-

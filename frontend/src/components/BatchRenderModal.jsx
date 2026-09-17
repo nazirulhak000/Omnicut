@@ -16,11 +16,11 @@ export default function BatchRenderModal({
   onClose,
   product,
   angles: propAngles,
+  voicePreset: selectedVoicePreset = 'gemini_puck_male_hype',
   onBatchCompleted,
   showToast,
 }) {
   const [selectedAngleIds, setSelectedAngleIds] = useState(new Set());
-  const [voicePreset, setVoicePreset] = useState('gemini_puck_male_hype');
   const [voiceRate, setVoiceRate] = useState('+15%');
   const [stylePreset, setStylePreset] = useState('clean_tech_review');
   const [starting, setStarting] = useState(false);
@@ -29,6 +29,7 @@ export default function BatchRenderModal({
   const pollTimerRef = useRef(null);
 
   const angles = propAngles || product?.angles || [];
+  const selectedVoiceOption = GEMINI_VOICE_OPTIONS.find(v => v.id === selectedVoicePreset);
 
   // Pre-select angles that are not posted and not already rendered
   useEffect(() => {
@@ -84,14 +85,14 @@ export default function BatchRenderModal({
 
     setStarting(true);
     try {
-      const selectedOpt = GEMINI_VOICE_OPTIONS.find(v => v.id === voicePreset);
+      const selectedOpt = GEMINI_VOICE_OPTIONS.find(v => v.id === selectedVoicePreset);
       const payload = {
         product_id: String(product.id),
         angle_ids: Array.from(selectedAngleIds),
         voice_gender: selectedOpt?.gender || 'male',
         voice_rate: voiceRate,
         voice_mode: 'gemini_tts',
-        voice_preset: voicePreset,
+        voice_preset: selectedVoicePreset,
         ad_tone: 'commercial_hype',
         style_preset: stylePreset,
         font_name: 'IBMPlex',
@@ -353,13 +354,23 @@ export default function BatchRenderModal({
               })}
             </div>
 
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 py-2.5 text-xs">
+              <div className="min-w-0">
+                <p className="font-bold text-cyan-200">เสียงพากย์</p>
+                <p className="mt-0.5 text-slate-400">ใช้เสียงที่เลือกจากแถบเตรียมเสียงด้านหน้าสินค้า</p>
+              </div>
+              <span className="shrink-0 max-w-[48%] truncate rounded-lg bg-black/20 px-2 py-1 font-semibold text-slate-200" title={selectedVoiceOption?.label || selectedVoicePreset}>
+                {selectedVoiceOption?.label || selectedVoicePreset}
+              </span>
+            </div>
+
             {/* Quick Render Options */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
-              <div>
+              <div className="hidden">
                 <label className="block text-xs font-bold text-slate-300 mb-1.5">เสียงพากย์ Gemini TTS</label>
                 <select
-                  value={voicePreset}
-                  onChange={(e) => setVoicePreset(e.target.value)}
+                  value={selectedVoicePreset}
+                  disabled
                   className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-3 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
                 >
                   {GEMINI_VOICE_OPTIONS.map((opt) => (

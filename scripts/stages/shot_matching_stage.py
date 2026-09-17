@@ -130,6 +130,50 @@ class ShotMatchingStage:
         return max(0.0, min(max_start, round(raw_offset, 2)))
 
     @classmethod
+    def calculate_contiguous_beat_durations(
+        cls,
+        beat_cues: List[Dict[str, Any]],
+        total_duration: float,
+    ) -> List[float]:
+        """Calculates contiguous timeline duration slices for each beat cue.
+
+        Guarantees:
+        1. Beat 0 starts at 0.0s (absorbing any initial lead-in silence before speech).
+        2. Intermediate cuts align with subsequent beat start timestamps without gaps.
+        3. The last beat extends exactly to total_duration, preventing any trailing gap.
+        4. sum(durations) == total_duration (down to the millisecond).
+        """
+        if not beat_cues:
+            return []
+        n = len(beat_cues)
+        if n == 1:
+            dur = max(0.1, float(total_duration) if total_duration > 0 else float(beat_cues[0].get("end", 0.0)))
+            return [round(dur, 3)]
+
+        boundaries = [0.0]
+        for i in range(n - 1):
+            next_start = float(beat_cues[i + 1].get("start", beat_cues[i].get("end", 0.0)))
+            prev_end = float(beat_cues[i].get("end", next_start))
+            cut_point = next_start if next_start > boundaries[-1] else max(boundaries[-1] + 0.1, prev_end)
+            boundaries.append(round(cut_point, 3))
+
+        end_time = float(total_duration) if total_duration > 0 else float(beat_cues[-1].get("end", boundaries[-1] + 1.0))
+        final_end = max(boundaries[-1] + 0.1, round(end_time, 3))
+        boundaries.append(final_end)
+
+        durations = []
+        for i in range(n):
+            dur = max(0.1, round(boundaries[i + 1] - boundaries[i], 3))
+            durations.append(dur)
+
+        if total_duration > 0 and durations:
+            gap = round(float(total_duration) - sum(durations), 3)
+            if abs(gap) >= 0.001:
+                durations[-1] = max(0.1, round(durations[-1] + gap, 3))
+
+        return durations
+
+    @classmethod
     def _build_guided_take_clip_list(cls, ctx: PipelineContext, raw_video) -> List[dict]:
         """Exact mapping for a video recorded through the guided-filming flow
         (scripts/recording_sessions.py): each beat's raw footage span
@@ -150,9 +194,10 @@ class ShotMatchingStage:
             )
 
         effective_shot_scales = cls._effective_shot_scales(ctx)
+        durations = cls.calculate_contiguous_beat_durations(beat_cues, ctx.total_duration or 0.0)
         clips = []
         for i, (cue, seg) in enumerate(zip(beat_cues, clip_map)):
-            target_duration = max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0)))
+            target_duration = durations[i] if i < len(durations) else max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0)))
             actual_duration = max(0.1, float(seg.get("actual_duration", target_duration)))
             speed = min(4.0, max(0.25, actual_duration / target_duration))
             zoom = round(float(effective_shot_scales[i % len(effective_shot_scales)]), 2)
@@ -189,16 +234,15 @@ class ShotMatchingStage:
         claim, unlike `_build_guided_take_clip_list` above.
         """
         beat_cues = ctx.beat_cues or []
-        total_planned = sum(
-            max(0.0, float(c.get("end", 0.0)) - float(c.get("start", 0.0))) for c in beat_cues
-        ) or ctx.total_duration or raw_duration
+        durations = cls.calculate_contiguous_beat_durations(beat_cues, ctx.total_duration or 0.0)
+        total_planned = sum(durations) or ctx.total_duration or raw_duration
         global_speed = min(4.0, max(0.25, raw_duration / total_planned)) if total_planned > 0 else 1.0
 
         effective_shot_scales = cls._effective_shot_scales(ctx)
         clips = []
         cursor = 0.0
         for i, cue in enumerate(beat_cues):
-            target_duration = max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0)))
+            target_duration = durations[i] if i < len(durations) else max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0)))
             ratio = (target_duration / total_planned) if total_planned > 0 else (1.0 / len(beat_cues))
             trim_start = cursor
             trim_end = min(raw_duration, cursor + ratio * raw_duration)
@@ -252,14 +296,13 @@ class ShotMatchingStage:
         }
 
         effective_shot_scales = cls._effective_shot_scales(ctx)
+        durations = cls.calculate_contiguous_beat_durations(beat_cues, ctx.total_duration or 0.0)
         clips = []
         cursor = 0.0
-        total_planned = sum(
-            max(0.0, float(c.get("end", 0.0)) - float(c.get("start", 0.0))) for c in beat_cues
-        ) or ctx.total_duration or raw_duration
+        total_planned = sum(durations) or ctx.total_duration or raw_duration
 
         for i, cue in enumerate(beat_cues):
-            target_duration = max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0)))
+            target_duration = durations[i] if i < len(durations) else max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0)))
             zoom = round(float(effective_shot_scales[i % len(effective_shot_scales)]), 2)
 
             if i in pin_by_beat:
@@ -873,9 +916,10 @@ class ShotMatchingStage:
                     )
                     actual_clip_list = actual_clip_list[:len(ctx.beat_cues)]
 
+                durations = cls.calculate_contiguous_beat_durations(ctx.beat_cues or [], ctx.total_duration or 0.0)
                 for i, clip in enumerate(actual_clip_list):
                     cue = ctx.beat_cues[i] if (ctx.beat_cues and i < len(ctx.beat_cues)) else None
-                    target_duration = max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0))) if cue else float(clip.get("duration", 2.0))
+                    target_duration = durations[i] if i < len(durations) else (max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0))) if cue else float(clip.get("duration", 2.0)))
 
                     clip["shot_index"] = i
                     clip["duration"] = round(target_duration, 3)

@@ -6,9 +6,10 @@
 
 1. Test ต้องพิสูจน์พฤติกรรมที่ผู้ใช้หรือโมดูลอื่นพึ่งพา ห้ามเขียน test ที่ทำซ้ำ implementation โดยไม่มี contract เพิ่ม
 2. Test ต้อง deterministic, offline และไม่เรียก Gemini, Marketplace หรือบริการภายนอกจริง
-3. Test ห้ามอ่าน/เขียน `01_Raw/`, `02_Assets/`, `03_Projects/` หรือ `_Docs/post_log.json` ของจริง ให้ใช้ `tmp_path` และ `monkeypatch`
+3. Test ห้ามอ่าน/เขียน `01_Raw/`, `02_Assets/`, `03_Projects/`, `04_Exports/` (รวม `Ready_to_post/`), `05_Covers_Thumbnails/` หรือ `_Docs/post_log.json` / `_Docs/export_registry.json` ของจริง ให้ใช้ `tmp_path` และ `monkeypatch`
 4. ห้ามวางสคริปต์ทดลองที่มี side effect ตอน import เป็น `tests/test_*.py` หากเป็น manual diagnostic ให้เก็บใต้ `tools/` หรือป้องกันด้วย `if __name__ == "__main__"`
 5. Source-text assertion ใช้ได้เฉพาะ contract ที่ต้อง mirror ข้ามภาษาและยังเรียก implementation ร่วมกันไม่ได้ ต้องมี behavioral test คู่กันเมื่อความเสียหายเกิดกับ output จริง
+6. ห้ามทิ้งไฟล์ Demo/Test ค้างในโฟลเดอร์ผลงานเด็ดขาด — ทุกการทดสอบที่สร้างไฟล์ลงดิสก์ (วิดีโอ .mp4, รูปภาพ, thumbnail .webp, draft) ต้อง cleanup ลบทิ้ง 100% ทันทีที่เสร็จ และต้อง unregister ออกจาก `export_registry.json` / ฐานข้อมูลเสมอ ห้ามทิ้งคลิป demo ไว้ในระบบให้ผู้ใช้ต้องตามลบเอง
 
 ## Gate ตามชนิดงาน
 

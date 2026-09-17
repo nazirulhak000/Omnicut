@@ -79,9 +79,34 @@ class VideoAssemblyStage:
                 if clip.get("_overlap_compensated"):
                     continue
                 clip["duration"] = round(float(clip.get("duration") or 0.0) + overlap, 3)
+                speed = float(clip.get("speed") or 1.0)
                 if clip.get("trim_end") is not None:
-                    clip["trim_end"] = round(float(clip["trim_end"]) + overlap, 3)
+                    # In both frontend SequencePlayer and FFmpeg, played duration = (trim_end - trim_start) / speed.
+                    # To increase played duration by overlap, the source footage span must increase by (overlap * speed).
+                    clip["trim_end"] = round(float(clip["trim_end"]) + (overlap * speed), 3)
                 clip["_overlap_compensated"] = True
+
+            # Reconcile final timeline duration with ctx.total_duration to eliminate any micro gap
+            if ctx.total_duration and ctx.total_duration > 0:
+                acc = 0.0
+                for i, c in enumerate(actual_clip_list):
+                    t_in = c.get("transition_in", "cut")
+                    boundary_overlap = float(c.get("transition_duration", 0.35)) if (i > 0 and t_in != "cut") else 0.0
+                    seg_start = acc - boundary_overlap if i > 0 else 0.0
+                    span = max(0.05, float(c.get("trim_end", 0.0)) - float(c.get("trim_start", 0.0)))
+                    spd = float(c.get("speed", 1.0))
+                    dur = span / spd
+                    seg_end = seg_start + dur
+                    acc = seg_end
+
+                tail_gap = round(float(ctx.total_duration) - acc, 3)
+                if abs(tail_gap) >= 0.01:
+                    last_clip = actual_clip_list[-1]
+                    last_dur = max(0.2, float(last_clip.get("duration", 0.0)) + tail_gap)
+                    last_clip["duration"] = round(last_dur, 3)
+                    last_spd = float(last_clip.get("speed", 1.0))
+                    if last_clip.get("trim_end") is not None:
+                        last_clip["trim_end"] = round(float(last_clip["trim_start"]) + (last_dur * last_spd), 3)
 
         # Opt-in LUT styling
         resolved_lut = AssetRegistry.resolve_lut_path(ctx.lut_name) if ctx.lut_name else None
