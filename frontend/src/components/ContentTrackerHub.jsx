@@ -930,6 +930,19 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     }));
   };
 
+  const GROUP_PAGE_SIZE = 20;
+  const [groupVisibleCounts, setGroupVisibleCounts] = useState({});
+  const getGroupVisibleCount = (phaseId, productId) => (
+    groupVisibleCounts[`${phaseId}_${productId}`] || GROUP_PAGE_SIZE
+  );
+  const showMoreGroupCards = (phaseId, productId) => {
+    const key = `${phaseId}_${productId}`;
+    setGroupVisibleCounts((previous) => ({
+      ...previous,
+      [key]: getGroupVisibleCount(phaseId, productId) + GROUP_PAGE_SIZE,
+    }));
+  };
+
   // ── Round TRK-3: Decluttering Board States (Archive & Script Library) ──
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [archiveSearchQuery, setArchiveSearchQuery] = useState('');
@@ -937,6 +950,17 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const [showScriptLibraryModal, setShowScriptLibraryModal] = useState(false);
   const [scriptLibrarySearch, setScriptLibrarySearch] = useState('');
   const [scriptLibraryProductFilter, setScriptLibraryProductFilter] = useState('all');
+  const MODAL_PAGE_SIZE = 40;
+  const [scriptLibraryVisibleCount, setScriptLibraryVisibleCount] = useState(MODAL_PAGE_SIZE);
+  const [archiveVisibleCount, setArchiveVisibleCount] = useState(MODAL_PAGE_SIZE);
+
+  useEffect(() => {
+    setScriptLibraryVisibleCount(MODAL_PAGE_SIZE);
+  }, [scriptLibrarySearch, scriptLibraryProductFilter, showScriptLibraryModal]);
+
+  useEffect(() => {
+    setArchiveVisibleCount(MODAL_PAGE_SIZE);
+  }, [archiveSearchQuery, archiveProductFilter, showArchiveModal]);
 
   // Picked scripts for today's production (persists in localStorage)
   const [pickedScriptIds, setPickedScriptIds] = useState(() => {
@@ -2624,7 +2648,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
 
             return (
               <div className="space-y-2.5">
-                {filtered.map((ang, idx) => {
+                {filtered.slice(0, scriptLibraryVisibleCount).map((ang, idx) => {
                   const aid = ang.angle_id || ang.id;
                   const isPicked = (pickedScriptIds || []).includes(aid);
                   const chosenVideos = (ang.selected_videos && ang.selected_videos.length > 0)
@@ -2690,6 +2714,15 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     </div>
                   );
                 })}
+                {filtered.length > scriptLibraryVisibleCount && (
+                  <button
+                    type="button"
+                    onClick={() => setScriptLibraryVisibleCount((count) => count + MODAL_PAGE_SIZE)}
+                    className="w-full py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    โหลดเพิ่ม ({filtered.length - scriptLibraryVisibleCount} รายการที่เหลือ)
+                  </button>
+                )}
               </div>
             );
           })()}
@@ -2795,7 +2828,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
 
             return (
               <div className="space-y-2.5">
-                {filtered.map((ang, idx) => {
+                {filtered.slice(0, archiveVisibleCount).map((ang, idx) => {
                   const dateStr = ang.posted_at || ang.updated_at || '';
                   const displayDate = dateStr ? new Date(dateStr).toLocaleDateString('th-TH', {
                     day: 'numeric',
@@ -2892,6 +2925,15 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     </div>
                   );
                 })}
+                {filtered.length > archiveVisibleCount && (
+                  <button
+                    type="button"
+                    onClick={() => setArchiveVisibleCount((count) => count + MODAL_PAGE_SIZE)}
+                    className="w-full py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    โหลดเพิ่ม ({filtered.length - archiveVisibleCount} คลิปที่เหลือ)
+                  </button>
+                )}
               </div>
             );
           })()}
@@ -3299,7 +3341,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                             </button>
                             {!isCollapsed && (
                               <div className="p-1.5 space-y-2 bg-black/20">
-                                {grp.angles.map((ang, idx) => (
+                                {grp.angles.slice(0, getGroupVisibleCount(phase.id, pid)).map((ang, idx) => (
                                   <KanbanCard
                                     key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
                                     ang={ang}
@@ -3319,6 +3361,15 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                                     copiedAngleId={copiedAngleId}
                                   />
                                 ))}
+                                {grp.angles.length > getGroupVisibleCount(phase.id, pid) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => showMoreGroupCards(phase.id, pid)}
+                                    className="w-full py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-xs font-bold transition-colors cursor-pointer"
+                                  >
+                                    โหลดเพิ่ม ({grp.angles.length - getGroupVisibleCount(phase.id, pid)} มุมที่เหลือ)
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>

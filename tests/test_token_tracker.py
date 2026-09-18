@@ -532,6 +532,37 @@ def test_get_history_limit_larger_than_available_returns_all(isolated_analytics)
     assert history[0]["task"] == "only"
 
 
+def test_get_history_page_uses_cursor_and_preserves_newest_first_order(isolated_analytics):
+    for i in range(5):
+        TokenTracker.record_event(
+            task=f"t{i}", model="m", provider="p", input_tokens=1, output_tokens=0,
+        )
+
+    first = TokenTracker.get_history_page(limit=2)
+    assert [event["task"] for event in first["events"]] == ["t4", "t3"]
+    assert first["has_more"] is True
+    assert first["total"] == 5
+
+    second = TokenTracker.get_history_page(limit=2, before=first["next_cursor"])
+    assert [event["task"] for event in second["events"]] == ["t2", "t1"]
+    assert second["has_more"] is True
+
+
+def test_get_history_page_filters_before_applying_cursor(isolated_analytics):
+    for task in ("script", "tts", "script", "tts"):
+        TokenTracker.record_event(
+            task=task, model="m", provider="p", input_tokens=1, output_tokens=0,
+        )
+
+    first = TokenTracker.get_history_page(limit=1, task="script")
+    assert [event["task"] for event in first["events"]] == ["script"]
+
+    second = TokenTracker.get_history_page(
+        limit=1, before=first["next_cursor"], task="script",
+    )
+    assert [event["task"] for event in second["events"]] == ["script"]
+
+
 # ---------------------------------------------------------------------------
 # reset()
 # ---------------------------------------------------------------------------

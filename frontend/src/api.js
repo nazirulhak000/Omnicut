@@ -355,7 +355,10 @@ export const clearCompletedTasksApi = () => api.post('/tasks/clear-completed').t
 // 📊 AI TOKEN & ANALYTICS HUB APIS
 // ═══════════════════════════════════════════════════════════════════════
 export const getTokenSummary = () => api.get('/tokens/summary').then(r => r.data);
-export const getTokenHistory = (limit = 50) => api.get('/tokens/history', { params: { limit } }).then(r => r.data);
+export const getTokenHistory = (options = {}) => {
+  const params = typeof options === 'number' ? { limit: options } : options;
+  return api.get('/tokens/history', { params }).then(r => r.data);
+};
 export const resetTokenAnalytics = () => api.post('/tokens/reset').then(r => r.data);
 export const clearTokenAlerts = () => api.post('/tokens/alerts/clear').then(r => r.data);
 
@@ -450,4 +453,3 @@ export const getUniversalFilmingRecipe = (productId) =>
   api.get(`/products/${productId}/filming-recipe`).then(r => r.data);
 
 export default api;
-

@@ -15,6 +15,8 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
   const [error, setError] = useState(null);
   const [filterReadiness, setFilterReadiness] = useState('all'); // 'all' | 'ready' | 'need_footage' | 'need_script'
   const [searchQuery, setSearchQuery] = useState('');
+  const INVENTORY_PAGE_SIZE = 40;
+  const [visibleProductCount, setVisibleProductCount] = useState(INVENTORY_PAGE_SIZE);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -82,7 +84,16 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
     });
   }, [products, filterReadiness, searchQuery]);
 
-  if (loading) {
+  useEffect(() => {
+    setVisibleProductCount(INVENTORY_PAGE_SIZE);
+  }, [filterReadiness, searchQuery]);
+
+  const visibleProducts = useMemo(
+    () => filteredProducts.slice(0, visibleProductCount),
+    [filteredProducts, visibleProductCount]
+  );
+
+  if (loading && !data) {
     return <LoadingSpinner message="กำลังตรวจสอบความสมบูรณ์ของคลังสินค้าและวัตถุดิบ..." />;
   }
 
@@ -167,10 +178,11 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
             </div>
             <button
               onClick={fetchData}
-              className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white transition-all cursor-pointer"
+              disabled={loading}
+              className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               title="รีเฟรชข้อมูล"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
 
@@ -207,6 +219,12 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
             <h3 className="text-sm font-bold text-white">ตารางความสมบูรณ์และสถานะสินค้า (Catalog Health Grid)</h3>
             <p className="text-xs text-slate-400">ตรวจสอบวัตถุดิบและเริ่มตัดต่อคลิปได้ทันที</p>
           </div>
+
+          {loading && (
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-cyan-300" role="status">
+              <RefreshCw className="w-3 h-3 animate-spin" /> กำลังอัปเดตข้อมูลเดิม...
+            </span>
+          )}
 
           <div className="flex items-center gap-2">
             {/* Search Input */}
@@ -253,7 +271,7 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
                   </td>
                 </tr>
               )}
-              {filteredProducts.map((p) => (
+              {visibleProducts.map((p) => (
                 <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
                   <td className="py-3 px-3 font-semibold text-white max-w-[200px] truncate">
                     {p.product_code && (
@@ -314,6 +332,17 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
             </tbody>
           </table>
         </div>
+        {filteredProducts.length > visibleProducts.length && (
+          <div className="flex justify-center pt-1">
+            <button
+              type="button"
+              onClick={() => setVisibleProductCount((count) => count + INVENTORY_PAGE_SIZE)}
+              className="px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-bold text-slate-200 transition-colors cursor-pointer"
+            >
+              โหลดเพิ่ม ({filteredProducts.length - visibleProducts.length} รายการที่เหลือ)
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

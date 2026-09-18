@@ -605,6 +605,61 @@ class TokenTracker:
             return list(reversed(events[-limit:]))
 
     @classmethod
+    def get_history_page(
+        cls,
+        limit: int = 50,
+        before: Optional[str] = None,
+        task: Optional[str] = None,
+        query: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Return a cursor-paginated token history page.
+
+        The cursor is the id of the oldest event returned by the previous
+        page. Filtering happens before cursor lookup so changing a filter
+        cannot accidentally skip matching events.
+        """
+        with cls._lock:
+            data = cls._load()
+            events = list(reversed(data.get("events", [])))
+            normalized_task = task.strip().lower() if task else ""
+            normalized_query = query.strip().lower() if query else ""
+
+            if normalized_task and normalized_task != "all":
+                events = [
+                    event for event in events
+                    if str(event.get("task", "")).lower() == normalized_task
+                ]
+
+            if normalized_query:
+                events = [
+                    event for event in events
+                    if normalized_query in " ".join(
+                        str(event.get(field, ""))
+                        for field in ("task", "model", "project_name")
+                    ).lower()
+                ]
+
+            if before:
+                cursor_index = next(
+                    (index for index, event in enumerate(events)
+                     if str(event.get("id", "")) == before),
+                    None,
+                )
+                if cursor_index is None:
+                    return {"events": [], "has_more": False, "next_cursor": None, "total": len(events)}
+                events = events[cursor_index + 1:]
+
+            page = events[:limit]
+            has_more = len(events) > len(page)
+            next_cursor = str(page[-1].get("id")) if has_more and page else None
+            return {
+                "events": page,
+                "has_more": has_more,
+                "next_cursor": next_cursor,
+                "total": len(events) if not before else None,
+            }
+
+    @classmethod
     def reset(cls) -> None:
         """Reset all analytics."""
         with cls._lock:

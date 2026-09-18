@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Zap, Coins, Cpu, Clock,
   Sparkles, CheckCircle2, AlertCircle, BarChart3, Layers,
   Search, ShieldCheck, Eye, Mic, FileText,
   AlertTriangle, Key, RotateCcw
 } from 'lucide-react';
-import { getTokenSummary, resetTokenAnalytics, clearTokenAlerts } from '../api';
+import { getTokenSummary, getTokenHistory, resetTokenAnalytics, clearTokenAlerts } from '../api';
 import { ConfirmModal, Toast } from './ui';
 import AreaLineChart from './analytics/charts/AreaLineChart';
 import DonutChart from './analytics/charts/DonutChart';
@@ -26,6 +26,15 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+  const [historyEvents, setHistoryEvents] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyTotal, setHistoryTotal] = useState(null);
+  const [historyError, setHistoryError] = useState(null);
+  const historyCursorRef = useRef(null);
+  const historyRequestRef = useRef(0);
+  const HISTORY_PAGE_SIZE = 50;
 
   const fetchSummary = useCallback(async () => {
     setLoading(true);
@@ -45,9 +54,49 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
     }
   }, []);
 
+  const fetchHistory = useCallback(async ({ append = false } = {}) => {
+    const requestId = ++historyRequestRef.current;
+    if (append) {
+      setHistoryLoadingMore(true);
+    } else {
+      setHistoryLoading(true);
+      historyCursorRef.current = null;
+    }
+    setHistoryError(null);
+
+    try {
+      const result = await getTokenHistory({
+        limit: HISTORY_PAGE_SIZE,
+        before: append ? historyCursorRef.current : undefined,
+        task: taskFilter === 'all' ? undefined : taskFilter,
+        q: searchFilter.trim() || undefined,
+      });
+      if (requestId !== historyRequestRef.current) return;
+
+      const events = Array.isArray(result?.events) ? result.events : [];
+      setHistoryEvents((previous) => append ? [...previous, ...events] : events);
+      historyCursorRef.current = result?.next_cursor || null;
+      setHistoryHasMore(Boolean(result?.has_more));
+      setHistoryTotal(typeof result?.total === 'number' ? result.total : null);
+    } catch (err) {
+      if (requestId !== historyRequestRef.current) return;
+      console.error('Failed to load token history:', err);
+      setHistoryError('ไม่สามารถโหลดประวัติ Token เพิ่มได้');
+    } finally {
+      if (requestId === historyRequestRef.current) {
+        setHistoryLoading(false);
+        setHistoryLoadingMore(false);
+      }
+    }
+  }, [searchFilter, taskFilter]);
+
   useEffect(() => {
     fetchSummary();
   }, [fetchSummary, refreshKey]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory, refreshKey]);
 
   const handleReset = async () => {
     setResetting(true);
@@ -56,6 +105,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
       setToastMessage('รีเซ็ตสถิติโทเคนเรียบร้อยแล้ว');
       setShowResetModal(false);
       fetchSummary();
+      fetchHistory();
     } catch (err) {
       setToastMessage('เกิดข้อผิดพลาดในการรีเซ็ต: ' + err.message);
     } finally {
@@ -68,6 +118,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
       await clearTokenAlerts();
       setToastMessage('ล้างประวัติแจ้งเตือนเรียบร้อยแล้ว');
       fetchSummary();
+      fetchHistory();
     } catch (err) {
       setToastMessage('ไม่สามารถล้างแจ้งเตือนได้: ' + err.message);
     }
@@ -83,7 +134,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
     avg_latency_seconds: 0
   };
 
-  const recentEvents = summary?.recent_events || [];
+  const recentEvents = historyEvents;
   const alerts = summary?.alerts || [];
   const keyStatus = summary?.key_status || {};
 
@@ -597,7 +648,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
             <Clock className="w-4 h-4 text-[#25F4EE]" />
             <h3 className="text-sm font-bold text-white">ประวัติการเรียกใช้งาน AI ล่าสุด (Audit Log)</h3>
             <span className="text-xs px-2 py-0.5 rounded-full bg-white/[0.08] text-slate-300">
-              {filteredEvents.length} รายการ
+              {historyTotal ?? filteredEvents.length} รายการ
             </span>
           </div>
 
@@ -644,7 +695,14 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04]">
-              {filteredEvents.length === 0 ? (
+              {historyLoading && filteredEvents.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-10 text-slate-400">
+                    <RotateCcw className="w-4 h-4 animate-spin text-[#25F4EE] inline-block mr-2 align-[-2px]" />
+                    กำลังโหลดประวัติ Token...
+                  </td>
+                </tr>
+              ) : filteredEvents.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-10 text-slate-500">
                     <p className="text-xs">ไม่พบข้อมูลประวัติที่ตรงกับเงื่อนไข</p>
@@ -696,6 +754,22 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-3 border-t border-white/[0.06] bg-white/[0.015]">
+          <p className="text-[11px] text-slate-500" role={historyError ? 'alert' : undefined}>
+            {historyError || (filteredEvents.length > 0 ? `แสดงแล้ว ${filteredEvents.length} รายการ` : 'ประวัติจะโหลดเมื่อมีข้อมูล')}
+          </p>
+          {historyHasMore && (
+            <button
+              type="button"
+              onClick={() => fetchHistory({ append: true })}
+              disabled={historyLoadingMore}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/10 text-xs font-bold text-[#25F4EE] hover:bg-[#25F4EE]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {historyLoadingMore && <RotateCcw className="w-3.5 h-3.5 animate-spin" />}
+              {historyLoadingMore ? 'กำลังโหลดเพิ่ม...' : 'โหลดประวัติเพิ่ม'}
+            </button>
+          )}
         </div>
       </div>
 
