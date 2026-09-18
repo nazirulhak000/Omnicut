@@ -563,6 +563,19 @@ def test_get_history_page_filters_before_applying_cursor(isolated_analytics):
     assert [event["task"] for event in second["events"]] == ["script"]
 
 
+def test_get_history_page_supports_numbered_pages(isolated_analytics):
+    for i in range(5):
+        TokenTracker.record_event(
+            task=f"t{i}", model="m", provider="p", input_tokens=1, output_tokens=0,
+        )
+
+    second = TokenTracker.get_history_page(limit=2, page=2)
+    assert [event["task"] for event in second["events"]] == ["t2", "t1"]
+    assert second["page"] == 2
+    assert second["total"] == 5
+    assert second["total_pages"] == 3
+
+
 # ---------------------------------------------------------------------------
 # reset()
 # ---------------------------------------------------------------------------

@@ -17,6 +17,24 @@ const getTokenLoadError = (err) => {
   return 'ไม่สามารถโหลดข้อมูล Token Analytics ได้';
 };
 
+const formatAuditDateTime = (timestamp) => {
+  if (!timestamp) return { date: '-', time: '-' };
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return { date: '-', time: '-' };
+  return {
+    date: date.toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }),
+    time: date.toLocaleTimeString('th-TH', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }),
+  };
+};
+
 const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,13 +46,12 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
   const [toastMessage, setToastMessage] = useState(null);
   const [historyEvents, setHistoryEvents] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
-  const [historyHasMore, setHistoryHasMore] = useState(false);
   const [historyTotal, setHistoryTotal] = useState(null);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(20);
   const [historyError, setHistoryError] = useState(null);
-  const historyCursorRef = useRef(null);
   const historyRequestRef = useRef(0);
-  const HISTORY_PAGE_SIZE = 50;
 
   const fetchSummary = useCallback(async () => {
     setLoading(true);
@@ -54,41 +71,34 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
     }
   }, []);
 
-  const fetchHistory = useCallback(async ({ append = false } = {}) => {
+  const fetchHistory = useCallback(async () => {
     const requestId = ++historyRequestRef.current;
-    if (append) {
-      setHistoryLoadingMore(true);
-    } else {
-      setHistoryLoading(true);
-      historyCursorRef.current = null;
-    }
+    setHistoryLoading(true);
     setHistoryError(null);
 
     try {
       const result = await getTokenHistory({
-        limit: HISTORY_PAGE_SIZE,
-        before: append ? historyCursorRef.current : undefined,
+        limit: historyPageSize,
+        page: historyPage,
         task: taskFilter === 'all' ? undefined : taskFilter,
         q: searchFilter.trim() || undefined,
       });
       if (requestId !== historyRequestRef.current) return;
 
       const events = Array.isArray(result?.events) ? result.events : [];
-      setHistoryEvents((previous) => append ? [...previous, ...events] : events);
-      historyCursorRef.current = result?.next_cursor || null;
-      setHistoryHasMore(Boolean(result?.has_more));
+      setHistoryEvents(events);
       setHistoryTotal(typeof result?.total === 'number' ? result.total : null);
+      setHistoryTotalPages(Math.max(1, Number(result?.total_pages) || 1));
     } catch (err) {
       if (requestId !== historyRequestRef.current) return;
       console.error('Failed to load token history:', err);
-      setHistoryError('ไม่สามารถโหลดประวัติ Token เพิ่มได้');
+      setHistoryError('ไม่สามารถโหลดประวัติ Token ได้');
     } finally {
       if (requestId === historyRequestRef.current) {
         setHistoryLoading(false);
-        setHistoryLoadingMore(false);
       }
     }
-  }, [searchFilter, taskFilter]);
+  }, [historyPage, historyPageSize, searchFilter, taskFilter]);
 
   useEffect(() => {
     fetchSummary();
@@ -152,6 +162,12 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
       return matchSearch && matchTask;
     });
   }, [recentEvents, searchFilter, taskFilter]);
+
+  const visibleHistoryPages = useMemo(() => {
+    const start = Math.max(1, Math.min(historyPage - 2, historyTotalPages - 4));
+    const end = Math.min(historyTotalPages, start + 4);
+    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+  }, [historyPage, historyTotalPages]);
 
   const getTaskBadge = (task) => {
     switch (task) {
@@ -660,14 +676,20 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
                 type="text"
                 placeholder="ค้นหางาน, โมเดล, สินค้า..."
                 value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
+                onChange={(e) => {
+                  setSearchFilter(e.target.value);
+                  setHistoryPage(1);
+                }}
                 className="pl-8 pr-3 py-1.5 rounded-xl bg-black/40 border border-white/[0.1] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]/50 w-44 sm:w-56"
               />
             </div>
 
             <select
               value={taskFilter}
-              onChange={(e) => setTaskFilter(e.target.value)}
+              onChange={(e) => {
+                setTaskFilter(e.target.value);
+                setHistoryPage(1);
+              }}
               className="py-1.5 px-2.5 rounded-xl bg-black/40 border border-white/[0.1] text-xs text-slate-200 focus:outline-none focus:border-[#25F4EE]/50 cursor-pointer"
             >
               <option value="all">ทุกงาน (All Tasks)</option>
@@ -676,6 +698,24 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
               <option value="tts">พากย์เสียง (TTS)</option>
               <option value="product_enrich">วิเคราะห์จุดขาย</option>
             </select>
+
+            <label className="inline-flex items-center gap-1.5 text-[11px] text-slate-400 whitespace-nowrap">
+              <span>ต่อหน้า</span>
+              <select
+                value={historyPageSize}
+                onChange={(e) => {
+                  setHistoryPageSize(Number(e.target.value));
+                  setHistoryPage(1);
+                }}
+                className="py-1.5 px-2 rounded-xl bg-black/40 border border-white/[0.1] text-xs text-slate-200 focus:outline-none focus:border-[#25F4EE]/50 cursor-pointer"
+                aria-label="จำนวนประวัติต่อหน้า"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+              <span>รายการ</span>
+            </label>
           </div>
         </div>
 
@@ -712,12 +752,13 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
                 filteredEvents.map((ev) => {
                   const badge = getTaskBadge(ev.task);
                   const Icon = badge.icon;
-                  const timeFormatted = ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
+                  const dateTime = formatAuditDateTime(ev.timestamp);
 
                   return (
                     <tr key={ev.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="py-3 px-4 text-[11px] text-slate-400 whitespace-nowrap">
-                        {timeFormatted}
+                        <div>{dateTime.date}</div>
+                        <div className="text-[10px] text-slate-500">{dateTime.time}</div>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold ${badge.color}`}>
@@ -757,19 +798,64 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
         </div>
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-3 border-t border-white/[0.06] bg-white/[0.015]">
           <p className="text-[11px] text-slate-500" role={historyError ? 'alert' : undefined}>
-            {historyError || (filteredEvents.length > 0 ? `แสดงแล้ว ${filteredEvents.length} รายการ` : 'ประวัติจะโหลดเมื่อมีข้อมูล')}
+            {historyError || (filteredEvents.length > 0
+              ? `หน้า ${historyPage} จาก ${historyTotalPages} · แสดง ${filteredEvents.length} จาก ${historyTotal ?? filteredEvents.length} รายการ`
+              : 'ประวัติจะโหลดเมื่อมีข้อมูล')}
           </p>
-          {historyHasMore && (
+          <nav className="flex items-center gap-1" aria-label="หน้าประวัติ Token">
             <button
               type="button"
-              onClick={() => fetchHistory({ append: true })}
-              disabled={historyLoadingMore}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/10 text-xs font-bold text-[#25F4EE] hover:bg-[#25F4EE]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => setHistoryPage(1)}
+              disabled={historyLoading || historyPage <= 1}
+              className="px-2 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="หน้าแรก"
             >
-              {historyLoadingMore && <RotateCcw className="w-3.5 h-3.5 animate-spin" />}
-              {historyLoadingMore ? 'กำลังโหลดเพิ่ม...' : 'โหลดประวัติเพิ่ม'}
+              «
             </button>
-          )}
+            <button
+              type="button"
+              onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}
+              disabled={historyLoading || historyPage <= 1}
+              className="px-2.5 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="หน้าก่อนหน้า"
+            >
+              ‹
+            </button>
+            {visibleHistoryPages.map((page) => (
+              <button
+                key={page}
+                type="button"
+                onClick={() => setHistoryPage(page)}
+                disabled={historyLoading && page === historyPage}
+                aria-current={page === historyPage ? 'page' : undefined}
+                className={`min-w-8 px-2 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
+                  page === historyPage
+                    ? 'border-[#25F4EE]/50 bg-[#25F4EE]/15 text-[#25F4EE]'
+                    : 'border-white/[0.1] text-slate-300 hover:bg-white/[0.08]'
+                } disabled:opacity-50`}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setHistoryPage((page) => Math.min(historyTotalPages, page + 1))}
+              disabled={historyLoading || historyPage >= historyTotalPages}
+              className="px-2.5 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="หน้าถัดไป"
+            >
+              ›
+            </button>
+            <button
+              type="button"
+              onClick={() => setHistoryPage(historyTotalPages)}
+              disabled={historyLoading || historyPage >= historyTotalPages}
+              className="px-2 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="หน้าสุดท้าย"
+            >
+              »
+            </button>
+          </nav>
         </div>
       </div>
 

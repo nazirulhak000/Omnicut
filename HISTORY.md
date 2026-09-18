@@ -7794,3 +7794,24 @@ Executed by: Codex (GPT-6)
 - `npm run lint`: ผ่านโดยมี warnings เดิมในโปรเจกต์
 - Impeccable detector: พบ warnings เดิมด้านสี/รูปแบบนอก scope pagination/loading; ไม่ได้เปลี่ยน visual system
 - ไม่แก้หรือลบไฟล์ raw/assets และไม่สร้าง artifact ใน `04_Exports/`
+
+## Round TOKEN-AUDIT-PAGINATION-20260918 — Token Audit Log pagination
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย:** ให้ Audit Log แสดงข้อมูลเป็นหน้าสั้น ๆ ค่าเริ่มต้น 20 รายการ เลือก 10/20/50 ได้ และแสดงวันที่พร้อมเวลาแทนเวลาอย่างเดียว
+
+### สิ่งที่ทำ
+
+- Backend รองรับ numbered pagination ด้วย `page`, `limit`, `total` และ `total_pages` โดยยังคงรองรับ cursor เดิม
+- TokenDashboard เปลี่ยนจาก load more เป็นหน้าแรก/ก่อนหน้า/เลขหน้า/ถัดไป/หน้าสุดท้าย
+- เพิ่มตัวเลือกจำนวนรายการต่อหน้า 10/20/50 และ reset กลับหน้า 1 เมื่อเปลี่ยน filter หรือจำนวนรายการ
+- Audit Log แสดงวันที่และเวลาครบในคอลัมน์เดียวกัน
+
+### Verification
+
+- Backend targeted: `34 passed` (`tests/test_token_tracker.py`, `tests/test_backend_api_contracts.py`)
+- Frontend: `271 passed`
+- `npm run build`: ผ่าน, 2,013 modules transformed
+- `git diff --check`: ผ่านสำหรับไฟล์รอบนี้
+- Impeccable detector: พบ warning เดิมเรื่อง AI color palette ที่อยู่นอก scope pagination; ไม่ได้เปลี่ยน visual system

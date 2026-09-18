@@ -22,13 +22,14 @@ def get_token_summary():
 @router.get("/history")
 def get_token_history(
     limit: int = Query(50, ge=1, le=100),
+    page: int = Query(1, ge=1, le=10000),
     before: Optional[str] = Query(None, max_length=200),
     task: Optional[str] = Query(None, max_length=80),
     q: Optional[str] = Query(None, max_length=120),
 ):
     """Returns a cursor-paginated token history page."""
     try:
-        return TokenTracker.get_history_page(limit=limit, before=before, task=task, query=q)
+        return TokenTracker.get_history_page(limit=limit, page=page, before=before, task=task, query=q)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch token history: {e}")
 

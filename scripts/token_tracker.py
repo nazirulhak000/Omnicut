@@ -608,6 +608,7 @@ class TokenTracker:
     def get_history_page(
         cls,
         limit: int = 50,
+        page: int = 1,
         before: Optional[str] = None,
         task: Optional[str] = None,
         query: Optional[str] = None,
@@ -639,6 +640,7 @@ class TokenTracker:
                     ).lower()
                 ]
 
+            total = len(events)
             if before:
                 cursor_index = next(
                     (index for index, event in enumerate(events)
@@ -646,17 +648,31 @@ class TokenTracker:
                     None,
                 )
                 if cursor_index is None:
-                    return {"events": [], "has_more": False, "next_cursor": None, "total": len(events)}
+                    return {
+                        "events": [], "page": 1, "page_size": limit,
+                        "total": total, "total_pages": max(1, (total + limit - 1) // limit),
+                        "has_more": False, "next_cursor": None,
+                    }
                 events = events[cursor_index + 1:]
 
-            page = events[:limit]
-            has_more = len(events) > len(page)
-            next_cursor = str(page[-1].get("id")) if has_more and page else None
+                page_events = events[:limit]
+                has_more = len(events) > len(page_events)
+                response_page = 1
+            else:
+                offset = (page - 1) * limit
+                page_events = events[offset:offset + limit]
+                has_more = offset + len(page_events) < total
+                response_page = page
+
+            next_cursor = str(page_events[-1].get("id")) if has_more and page_events else None
             return {
-                "events": page,
+                "events": page_events,
+                "page": response_page,
+                "page_size": limit,
+                "total": total,
+                "total_pages": max(1, (total + limit - 1) // limit),
                 "has_more": has_more,
                 "next_cursor": next_cursor,
-                "total": len(events) if not before else None,
             }
 
     @classmethod
