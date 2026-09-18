@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   Check, Film, Music, Palette, Plus, Search, Sticker, Type, Volume2, Play, Square,
   FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers, Eye, X, Upload, Clock, Trash2, Ban, RotateCcw
