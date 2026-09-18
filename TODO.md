@@ -42,6 +42,18 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 - [x] แก้ ExportGallery ให้ใช้ state ที่มีอยู่จริง
 - [x] รัน targeted test, frontend tests, build และ diff check
 
+## Round PIPELINE-POSTED-QUEUE-TDZ-FIX-20260918 — Pipeline render crash
+
+ดำเนินการโดย: Codex (GPT-5)
+
+**อาการ:** หน้า Tracker ล่มด้วย `ReferenceError: Cannot access 'postedQueue' before initialization`
+
+### Todo
+
+- [x] เพิ่ม regression test ที่ตรวจ declaration/use order ของ `postedQueue`
+- [x] แก้ลำดับ derived state กับ pagination effect ใน `ScheduleAgenda`
+- [x] ตรวจจุด pagination อื่นที่อาจใช้ตัวแปรก่อนประกาศ แล้วรัน test/build/lint
+
 ## Round TEXT-MOTION-SYSTEM-FOUNDATION-20260918 — active (foundation/integration complete; pixel frame diff deferred)
 
 ดำเนินการโดย: Codex (GPT-5)

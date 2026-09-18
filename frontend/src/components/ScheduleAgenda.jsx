@@ -163,6 +163,10 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const POSTED_MODAL_PAGE_SIZE = 20;
   const [postedPage, setPostedPage] = useState(1);
   const [postedPageSize, setPostedPageSize] = useState(POSTED_MODAL_PAGE_SIZE);
+  const postedQueue = useMemo(
+    () => queue.filter((item) => item.status === 'posted').sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at)),
+    [queue],
+  );
   useEffect(() => {
     if (postedOpen) setPostedPage(1);
   }, [postedOpen]);
@@ -229,10 +233,6 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   // collapsed history list instead of showing them (un-removable) alongside
   // clips still waiting to go out.
   const activeQueue = useMemo(() => queue.filter((item) => item.status !== 'posted'), [queue]);
-  const postedQueue = useMemo(
-    () => queue.filter((item) => item.status === 'posted').sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at)),
-    [queue],
-  );
   const grouped = useMemo(() => groupScheduleItems(activeQueue), [activeQueue]);
   const dates = Object.keys(grouped);
   const todayKey = dateOnly();
