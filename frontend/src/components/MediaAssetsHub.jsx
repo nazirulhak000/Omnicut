@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { openFolder, getAllAssets, uploadAsset, deleteFile, starAsset } from '../api';
 import { Modal, Toast, Button, Badge, Input, ConfirmModal, PageHeader } from './ui';
+import PaginationControls from './PaginationControls';
 import { useDebounce, useToast } from '../hooks';
 
 export default function MediaAssetsHub({ status }) {
@@ -323,14 +324,33 @@ export default function MediaAssetsHub({ status }) {
   // grow into the hundreds. Only one tab's list is ever on screen at a time,
   // so one shared window works for all of them -- reset to page 1 whenever
   // the tab or search changes.
-  const ASSET_PAGE_SIZE = 40;
-  const [visibleAssetCount, setVisibleAssetCount] = useState(ASSET_PAGE_SIZE);
+  const [assetPage, setAssetPage] = useState(1);
+  const [assetPageSize, setAssetPageSize] = useState(20);
   useEffect(() => {
-    setVisibleAssetCount(ASSET_PAGE_SIZE);
+    setAssetPage(1);
   }, [activeAssetTab, debouncedSearch]);
   const visibleCurrentItems = useMemo(
-    () => currentItems.slice(0, visibleAssetCount),
-    [currentItems, visibleAssetCount]
+    () => currentItems.slice((assetPage - 1) * assetPageSize, assetPage * assetPageSize),
+    [currentItems, assetPage, assetPageSize]
+  );
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(currentItems.length / assetPageSize));
+    setAssetPage((page) => Math.min(page, totalPages));
+  }, [currentItems.length, assetPageSize]);
+
+  const renderAssetPagination = () => (
+    <PaginationControls
+      page={assetPage}
+      pageSize={assetPageSize}
+      totalItems={currentItems.length}
+      onPageChange={setAssetPage}
+      onPageSizeChange={(size) => {
+        setAssetPageSize(size);
+        setAssetPage(1);
+      }}
+      itemLabel="ไฟล์"
+      disabled={loading}
+    />
   );
 
   // Auto-select first item if none selected in split mode
@@ -966,15 +986,7 @@ export default function MediaAssetsHub({ status }) {
                     </div>
                   );
                 })}
-                {visibleCurrentItems.length < currentItems.length && (
-                  <button
-                    type="button"
-                    onClick={() => setVisibleAssetCount(c => c + ASSET_PAGE_SIZE)}
-                    className="w-full py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-xs font-bold cursor-pointer transition-all"
-                  >
-                    โหลดเพิ่ม ({currentItems.length - visibleCurrentItems.length} เหลืออยู่)
-                  </button>
-                )}
+                {renderAssetPagination()}
               </div>
             )}
           </div>
@@ -1555,17 +1567,7 @@ export default function MediaAssetsHub({ status }) {
             </div>
           )}
 
-          {visibleCurrentItems.length < currentItems.length && (
-            <div className="flex justify-center pt-1">
-              <button
-                type="button"
-                onClick={() => setVisibleAssetCount(c => c + ASSET_PAGE_SIZE)}
-                className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer"
-              >
-                โหลดเพิ่ม ({currentItems.length - visibleCurrentItems.length} ไฟล์ที่เหลือ)
-              </button>
-            </div>
-          )}
+          {renderAssetPagination()}
         </div>
       )}
 

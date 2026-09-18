@@ -6,6 +6,7 @@ import {
 import { getInventoryHealth } from '../../../api';
 import MetricKpiCard from '../components/MetricKpiCard';
 import LoadingSpinner from '../../LoadingSpinner';
+import PaginationControls from '../../PaginationControls';
 import DonutChart from '../charts/DonutChart';
 import { ProgressRing, ConcentricRings } from '../charts/ProgressRing';
 
@@ -15,8 +16,8 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
   const [error, setError] = useState(null);
   const [filterReadiness, setFilterReadiness] = useState('all'); // 'all' | 'ready' | 'need_footage' | 'need_script'
   const [searchQuery, setSearchQuery] = useState('');
-  const INVENTORY_PAGE_SIZE = 40;
-  const [visibleProductCount, setVisibleProductCount] = useState(INVENTORY_PAGE_SIZE);
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [inventoryPageSize, setInventoryPageSize] = useState(20);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -85,13 +86,18 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
   }, [products, filterReadiness, searchQuery]);
 
   useEffect(() => {
-    setVisibleProductCount(INVENTORY_PAGE_SIZE);
+    setInventoryPage(1);
   }, [filterReadiness, searchQuery]);
 
   const visibleProducts = useMemo(
-    () => filteredProducts.slice(0, visibleProductCount),
-    [filteredProducts, visibleProductCount]
+    () => filteredProducts.slice((inventoryPage - 1) * inventoryPageSize, inventoryPage * inventoryPageSize),
+    [filteredProducts, inventoryPage, inventoryPageSize]
   );
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredProducts.length / inventoryPageSize));
+    setInventoryPage((page) => Math.min(page, totalPages));
+  }, [filteredProducts.length, inventoryPageSize]);
 
   if (loading && !data) {
     return <LoadingSpinner message="กำลังตรวจสอบความสมบูรณ์ของคลังสินค้าและวัตถุดิบ..." />;
@@ -332,17 +338,18 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
             </tbody>
           </table>
         </div>
-        {filteredProducts.length > visibleProducts.length && (
-          <div className="flex justify-center pt-1">
-            <button
-              type="button"
-              onClick={() => setVisibleProductCount((count) => count + INVENTORY_PAGE_SIZE)}
-              className="px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-bold text-slate-200 transition-colors cursor-pointer"
-            >
-              โหลดเพิ่ม ({filteredProducts.length - visibleProducts.length} รายการที่เหลือ)
-            </button>
-          </div>
-        )}
+        <PaginationControls
+          page={inventoryPage}
+          pageSize={inventoryPageSize}
+          totalItems={filteredProducts.length}
+          onPageChange={setInventoryPage}
+          onPageSizeChange={(size) => {
+            setInventoryPageSize(size);
+            setInventoryPage(1);
+          }}
+          itemLabel="สินค้า"
+          disabled={loading}
+        />
       </div>
     </div>
   );

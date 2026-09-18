@@ -16,6 +16,7 @@ import { useDebounce, useToast } from '../hooks';
 import RawVaultPanel from './RawVaultPanel';
 import CoverStudioModal from './CoverStudioModal';
 import { getCoverVariant } from '../lib/coverVariant';
+import PaginationControls from './PaginationControls';
 
 // The gallery's own QR used to be a degraded copy of ContentTrackerHub's --
 // missing pid/aid/hook/hashtags and reading `video.caption`, a key
@@ -1468,15 +1469,19 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
   // slow once the library grows past a couple dozen. Render only a window
   // of `filteredExports` and let the user reveal more with a button, same
   // data already fetched -- no extra network round-trip.
-  const GRID_PAGE_SIZE = 24;
-  const [visibleCount, setVisibleCount] = useState(GRID_PAGE_SIZE);
+  const [gridPage, setGridPage] = useState(1);
+  const [gridPageSize, setGridPageSize] = useState(20);
   useEffect(() => {
-    setVisibleCount(GRID_PAGE_SIZE);
+    setGridPage(1);
   }, [debouncedSearch, selectedProductFilter, statusFilter, sortBy]);
   const visibleExports = useMemo(
-    () => filteredExports.slice(0, visibleCount),
-    [filteredExports, visibleCount]
+    () => filteredExports.slice((gridPage - 1) * gridPageSize, gridPage * gridPageSize),
+    [filteredExports, gridPage, gridPageSize]
   );
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredExports.length / gridPageSize));
+    setGridPage((page) => Math.min(page, totalPages));
+  }, [filteredExports.length, gridPageSize]);
 
   // Active Video computed for Split Studio view
   const activeVideo = useMemo(() => {
@@ -1845,17 +1850,18 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                 ))}
               </div>
 
-              {visibleExports.length < filteredExports.length && (
-                <div className="flex justify-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setVisibleCount(c => c + GRID_PAGE_SIZE)}
-                    className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer"
-                  >
-                    โหลดเพิ่ม ({filteredExports.length - visibleExports.length} คลิปที่เหลือ)
-                  </button>
-                </div>
-              )}
+              <PaginationControls
+                page={gridPage}
+                pageSize={gridPageSize}
+                totalItems={filteredExports.length}
+                onPageChange={setGridPage}
+                onPageSizeChange={(size) => {
+                  setGridPageSize(size);
+                  setGridPage(1);
+                }}
+                itemLabel="คลิป"
+                disabled={loading}
+              />
             </div>
           )}
 

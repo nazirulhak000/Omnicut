@@ -3,6 +3,7 @@ import { Check, ChevronDown, CircleDot, FileEdit, Rocket, Search, Trash2, X } fr
 import { getProducts } from '../../api';
 import { filterActiveProjects } from '../../lib/editorEntry';
 import { getRelativeTime, formatFullDateTime } from '../../lib/dateUtils';
+import PaginationControls from '../PaginationControls';
 
 const STATUS_LABEL = {
   scripted: 'ร่างสคริปต์',
@@ -59,7 +60,8 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
   const [open, setOpen] = useState(false);
   const [statusByProject, setStatusByProject] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
-  const [visibleCount, setVisibleCount] = useState(15);
+  const [projectPage, setProjectPage] = useState(1);
+  const [projectPageSize, setProjectPageSize] = useState(20);
   const wrapRef = useRef(null);
   const buttonRef = useRef(null);
   const searchInputRef = useRef(null);
@@ -84,7 +86,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
   useEffect(() => {
     if (!open) {
       setSearchQuery('');
-      setVisibleCount(15);
+      setProjectPage(1);
       return undefined;
     }
     refreshStatuses();
@@ -132,8 +134,13 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
   }, [visible, searchQuery]);
 
   const displayed = useMemo(() => {
-    return filtered.slice(0, visibleCount);
-  }, [filtered, visibleCount]);
+    return filtered.slice((projectPage - 1) * projectPageSize, projectPage * projectPageSize);
+  }, [filtered, projectPage, projectPageSize]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filtered.length / projectPageSize));
+    setProjectPage((page) => Math.min(page, totalPages));
+  }, [filtered.length, projectPageSize]);
 
   const current = projectList.find((p) => p.project_name === projectName);
 
@@ -167,7 +174,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
-                  setVisibleCount(15);
+                  setProjectPage(1);
                 }}
                 placeholder="ค้นหาชื่อโปรเจกต์..."
                 aria-label="ค้นหาโปรเจกต์"
@@ -255,27 +262,17 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
           {/* Footer Pagination / Status Bar */}
           {filtered.length > 0 && (
             <div className="mt-1.5 border-t border-white/10 pt-1.5">
-              {filtered.length > visibleCount && (
-                <div className="mb-1 flex flex-col gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setVisibleCount((prev) => prev + 15)}
-                    className="flex h-7 w-full cursor-pointer items-center justify-center rounded-lg bg-white/5 text-xs font-medium text-slate-300 transition-colors hover:bg-[#D97757]/20 hover:text-[#E89274]"
-                  >
-                    โหลดเพิ่มอีก 15 รายการ (เหลืออีก {filtered.length - visibleCount} รายการ)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setVisibleCount(filtered.length)}
-                    className="flex h-6 w-full cursor-pointer items-center justify-center rounded-lg text-[11px] text-slate-500 transition-colors hover:text-slate-300"
-                  >
-                    แสดงทั้งหมด ({filtered.length} รายการ)
-                  </button>
-                </div>
-              )}
-              <div className="px-1 text-right text-[10px] text-slate-500">
-                แสดง {displayed.length} จาก {filtered.length} โปรเจกต์{searchQuery ? ' (กรองผลลัพธ์)' : ''}
-              </div>
+              <PaginationControls
+                page={projectPage}
+                pageSize={projectPageSize}
+                totalItems={filtered.length}
+                onPageChange={setProjectPage}
+                onPageSizeChange={(size) => {
+                  setProjectPageSize(size);
+                  setProjectPage(1);
+                }}
+                itemLabel="โปรเจกต์"
+              />
             </div>
           )}
         </div>

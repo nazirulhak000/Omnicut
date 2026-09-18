@@ -23,6 +23,7 @@ import { applyCoverResult, getCoverVariant } from '../lib/coverVariant';
 import { withEditorProjectAction } from '../lib/editorEntry';
 import { localParts } from '../lib/scheduleQueue';
 import { getRelativeTime, formatFullDateTime } from '../lib/dateUtils';
+import PaginationControls from './PaginationControls';
 
 // 4 Granular Pipeline Phases (Original Vibrant & Readable Palette)
 const PIPELINE_PHASES = [
@@ -920,27 +921,18 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   // not grouped-by-product or filtered to today) have no cap on how many
   // KanbanCard components mount at once. Window it per-column like the
   // product-group accordions already do, keyed by phase.id.
-  const FLAT_PAGE_SIZE = 20;
-  const [flatVisibleCounts, setFlatVisibleCounts] = useState({});
-  const getFlatVisibleCount = (phaseId) => flatVisibleCounts[phaseId] || FLAT_PAGE_SIZE;
-  const showMoreFlatCards = (phaseId) => {
-    setFlatVisibleCounts(prev => ({
-      ...prev,
-      [phaseId]: getFlatVisibleCount(phaseId) + FLAT_PAGE_SIZE
-    }));
+  const CARD_PAGE_SIZE = 20;
+  const [flatPages, setFlatPages] = useState({});
+  const getFlatPage = (phaseId) => flatPages[phaseId] || 1;
+  const setFlatPage = (phaseId, page) => {
+    setFlatPages((previous) => ({ ...previous, [phaseId]: page }));
   };
 
-  const GROUP_PAGE_SIZE = 20;
-  const [groupVisibleCounts, setGroupVisibleCounts] = useState({});
-  const getGroupVisibleCount = (phaseId, productId) => (
-    groupVisibleCounts[`${phaseId}_${productId}`] || GROUP_PAGE_SIZE
-  );
-  const showMoreGroupCards = (phaseId, productId) => {
+  const [groupPages, setGroupPages] = useState({});
+  const getGroupPage = (phaseId, productId) => groupPages[`${phaseId}_${productId}`] || 1;
+  const setGroupPage = (phaseId, productId, page) => {
     const key = `${phaseId}_${productId}`;
-    setGroupVisibleCounts((previous) => ({
-      ...previous,
-      [key]: getGroupVisibleCount(phaseId, productId) + GROUP_PAGE_SIZE,
-    }));
+    setGroupPages((previous) => ({ ...previous, [key]: page }));
   };
 
   // ── Round TRK-3: Decluttering Board States (Archive & Script Library) ──
@@ -950,16 +942,16 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const [showScriptLibraryModal, setShowScriptLibraryModal] = useState(false);
   const [scriptLibrarySearch, setScriptLibrarySearch] = useState('');
   const [scriptLibraryProductFilter, setScriptLibraryProductFilter] = useState('all');
-  const MODAL_PAGE_SIZE = 40;
-  const [scriptLibraryVisibleCount, setScriptLibraryVisibleCount] = useState(MODAL_PAGE_SIZE);
-  const [archiveVisibleCount, setArchiveVisibleCount] = useState(MODAL_PAGE_SIZE);
+  const MODAL_PAGE_SIZE = 20;
+  const [scriptLibraryPage, setScriptLibraryPage] = useState(1);
+  const [archivePage, setArchivePage] = useState(1);
 
   useEffect(() => {
-    setScriptLibraryVisibleCount(MODAL_PAGE_SIZE);
+    setScriptLibraryPage(1);
   }, [scriptLibrarySearch, scriptLibraryProductFilter, showScriptLibraryModal]);
 
   useEffect(() => {
-    setArchiveVisibleCount(MODAL_PAGE_SIZE);
+    setArchivePage(1);
   }, [archiveSearchQuery, archiveProductFilter, showArchiveModal]);
 
   // Picked scripts for today's production (persists in localStorage)
@@ -1644,15 +1636,20 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   // Table view renders every filtered angle as a full row (mobile card feed
   // + desktop table) with no cap -- window it the same way the kanban flat
   // list is windowed above, resetting to page 1 whenever the filter changes.
-  const TABLE_PAGE_SIZE = 40;
-  const [tableVisibleCount, setTableVisibleCount] = useState(TABLE_PAGE_SIZE);
+  const [tablePage, setTablePage] = useState(1);
   useEffect(() => {
-    setTableVisibleCount(TABLE_PAGE_SIZE);
+    setFlatPages({});
+    setGroupPages({});
+    setTablePage(1);
   }, [debouncedSearch, selectedProductFilter, activePhase]);
   const visibleTableAngles = useMemo(
-    () => filteredAngles.slice(0, tableVisibleCount),
-    [filteredAngles, tableVisibleCount]
+    () => filteredAngles.slice((tablePage - 1) * CARD_PAGE_SIZE, tablePage * CARD_PAGE_SIZE),
+    [filteredAngles, tablePage]
   );
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredAngles.length / CARD_PAGE_SIZE));
+    setTablePage((page) => Math.min(page, totalPages));
+  }, [filteredAngles.length]);
 
   const mobileUrl = typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '';
 
@@ -2648,7 +2645,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
 
             return (
               <div className="space-y-2.5">
-                {filtered.slice(0, scriptLibraryVisibleCount).map((ang, idx) => {
+                {filtered.slice((scriptLibraryPage - 1) * MODAL_PAGE_SIZE, scriptLibraryPage * MODAL_PAGE_SIZE).map((ang, idx) => {
                   const aid = ang.angle_id || ang.id;
                   const isPicked = (pickedScriptIds || []).includes(aid);
                   const chosenVideos = (ang.selected_videos && ang.selected_videos.length > 0)
@@ -2714,15 +2711,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     </div>
                   );
                 })}
-                {filtered.length > scriptLibraryVisibleCount && (
-                  <button
-                    type="button"
-                    onClick={() => setScriptLibraryVisibleCount((count) => count + MODAL_PAGE_SIZE)}
-                    className="w-full py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-xs font-bold transition-colors cursor-pointer"
-                  >
-                    โหลดเพิ่ม ({filtered.length - scriptLibraryVisibleCount} รายการที่เหลือ)
-                  </button>
-                )}
+                <PaginationControls
+                  page={scriptLibraryPage}
+                  pageSize={MODAL_PAGE_SIZE}
+                  totalItems={filtered.length}
+                  onPageChange={setScriptLibraryPage}
+                  itemLabel="รายการ"
+                />
               </div>
             );
           })()}
@@ -2828,7 +2823,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
 
             return (
               <div className="space-y-2.5">
-                {filtered.slice(0, archiveVisibleCount).map((ang, idx) => {
+                {filtered.slice((archivePage - 1) * MODAL_PAGE_SIZE, archivePage * MODAL_PAGE_SIZE).map((ang, idx) => {
                   const dateStr = ang.posted_at || ang.updated_at || '';
                   const displayDate = dateStr ? new Date(dateStr).toLocaleDateString('th-TH', {
                     day: 'numeric',
@@ -2925,15 +2920,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     </div>
                   );
                 })}
-                {filtered.length > archiveVisibleCount && (
-                  <button
-                    type="button"
-                    onClick={() => setArchiveVisibleCount((count) => count + MODAL_PAGE_SIZE)}
-                    className="w-full py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-xs font-bold transition-colors cursor-pointer"
-                  >
-                    โหลดเพิ่ม ({filtered.length - archiveVisibleCount} คลิปที่เหลือ)
-                  </button>
-                )}
+                <PaginationControls
+                  page={archivePage}
+                  pageSize={MODAL_PAGE_SIZE}
+                  totalItems={filtered.length}
+                  onPageChange={setArchivePage}
+                  itemLabel="คลิป"
+                />
               </div>
             );
           })()}
@@ -3341,7 +3334,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                             </button>
                             {!isCollapsed && (
                               <div className="p-1.5 space-y-2 bg-black/20">
-                                {grp.angles.slice(0, getGroupVisibleCount(phase.id, pid)).map((ang, idx) => (
+                                {grp.angles.slice((getGroupPage(phase.id, pid) - 1) * CARD_PAGE_SIZE, getGroupPage(phase.id, pid) * CARD_PAGE_SIZE).map((ang, idx) => (
                                   <KanbanCard
                                     key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
                                     ang={ang}
@@ -3361,15 +3354,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                                     copiedAngleId={copiedAngleId}
                                   />
                                 ))}
-                                {grp.angles.length > getGroupVisibleCount(phase.id, pid) && (
-                                  <button
-                                    type="button"
-                                    onClick={() => showMoreGroupCards(phase.id, pid)}
-                                    className="w-full py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-xs font-bold transition-colors cursor-pointer"
-                                  >
-                                    โหลดเพิ่ม ({grp.angles.length - getGroupVisibleCount(phase.id, pid)} มุมที่เหลือ)
-                                  </button>
-                                )}
+                                <PaginationControls
+                                  page={getGroupPage(phase.id, pid)}
+                                  pageSize={CARD_PAGE_SIZE}
+                                  totalItems={grp.angles.length}
+                                  onPageChange={(page) => setGroupPage(phase.id, pid, page)}
+                                  itemLabel="มุม"
+                                />
                               </div>
                             )}
                           </div>
@@ -3378,7 +3369,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     ) : (
                       /* Flat Cards List */
                       <>
-                        {phaseAngles.slice(0, getFlatVisibleCount(phase.id)).map((ang, idx) => (
+                        {phaseAngles.slice((getFlatPage(phase.id) - 1) * CARD_PAGE_SIZE, getFlatPage(phase.id) * CARD_PAGE_SIZE).map((ang, idx) => (
                           <KanbanCard
                             key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
                             ang={ang}
@@ -3398,15 +3389,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                             copiedAngleId={copiedAngleId}
                           />
                         ))}
-                        {phaseAngles.length > getFlatVisibleCount(phase.id) && (
-                          <button
-                            type="button"
-                            onClick={() => showMoreFlatCards(phase.id)}
-                            className="w-full py-2 px-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
-                          >
-                            <span>โหลดเพิ่ม ({phaseAngles.length - getFlatVisibleCount(phase.id)} เหลืออยู่)</span>
-                          </button>
-                        )}
+                        <PaginationControls
+                          page={getFlatPage(phase.id)}
+                          pageSize={CARD_PAGE_SIZE}
+                          totalItems={phaseAngles.length}
+                          onPageChange={(page) => setFlatPage(phase.id, page)}
+                          itemLabel="รายการ"
+                        />
                       </>
                     )}
 
@@ -3527,17 +3516,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
             </div>
           </div>
 
-          {filteredAngles.length > visibleTableAngles.length && (
-            <div className="flex justify-center pt-1">
-              <button
-                type="button"
-                onClick={() => setTableVisibleCount(c => c + TABLE_PAGE_SIZE)}
-                className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer"
-              >
-                โหลดเพิ่ม ({filteredAngles.length - visibleTableAngles.length} รายการที่เหลือ)
-              </button>
-            </div>
-          )}
+          <PaginationControls
+            page={tablePage}
+            pageSize={CARD_PAGE_SIZE}
+            totalItems={filteredAngles.length}
+            onPageChange={setTablePage}
+            itemLabel="รายการ"
+          />
         </div>
       )}
 

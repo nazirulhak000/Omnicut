@@ -9,6 +9,7 @@ import {
   getRawVaultSceneCatalogs, indexRawVaultScenes
 } from '../api';
 import { Button, ConfirmModal, Modal, Toast, Badge } from './ui';
+import PaginationControls from './PaginationControls';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
 import MediaPickerModal from './MediaPickerModal';
@@ -204,10 +205,10 @@ export default function RawVaultPanel() {
   // doesn't mount hundreds of video cards at once. Aggregate counts above
   // ("ผูกสินค้า (N)", "คลิปอิสระ (N)") stay driven by the full vaultData,
   // only the rendered cards are windowed.
-  const VAULT_PAGE_SIZE = 40;
-  const [visibleVaultCount, setVisibleVaultCount] = useState(VAULT_PAGE_SIZE);
+  const [vaultPage, setVaultPage] = useState(1);
+  const [vaultPageSize, setVaultPageSize] = useState(20);
   useEffect(() => {
-    setVisibleVaultCount(VAULT_PAGE_SIZE);
+    setVaultPage(1);
   }, [searchQuery, activeFilter]);
 
   const totalIndexedCount = useMemo(() => {
@@ -222,9 +223,13 @@ export default function RawVaultPanel() {
     }).length;
   }, [flatVideos, rawCatalogsMap]);
   const visibleFlatVideos = useMemo(
-    () => flatVideos.slice(0, visibleVaultCount),
-    [flatVideos, visibleVaultCount]
+    () => flatVideos.slice((vaultPage - 1) * vaultPageSize, vaultPage * vaultPageSize),
+    [flatVideos, vaultPage, vaultPageSize]
   );
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(flatVideos.length / vaultPageSize));
+    setVaultPage((page) => Math.min(page, totalPages));
+  }, [flatVideos.length, vaultPageSize]);
 
   // Rename Actions
   const handleStartRename = (video) => {
@@ -765,17 +770,18 @@ export default function RawVaultPanel() {
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
             {visibleFlatVideos.map((video) => renderVideoCard(video))}
           </div>
-          {visibleFlatVideos.length < flatVideos.length && (
-            <div className="flex justify-center">
-              <button
-                type="button"
-                onClick={() => setVisibleVaultCount(c => c + VAULT_PAGE_SIZE)}
-                className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer"
-              >
-                โหลดเพิ่ม ({flatVideos.length - visibleFlatVideos.length} คลิปที่เหลือ)
-              </button>
-            </div>
-          )}
+          <PaginationControls
+            page={vaultPage}
+            pageSize={vaultPageSize}
+            totalItems={flatVideos.length}
+            onPageChange={setVaultPage}
+            onPageSizeChange={(size) => {
+              setVaultPageSize(size);
+              setVaultPage(1);
+            }}
+            itemLabel="คลิป"
+            disabled={loading}
+          />
         </div>
       )}
 

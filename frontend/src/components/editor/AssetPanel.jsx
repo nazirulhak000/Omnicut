@@ -4,6 +4,7 @@ import {
   FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers, Eye, X, Upload, Clock, Trash2, Ban, RotateCcw
 } from 'lucide-react';
 import { transcribeMedia, uploadFile } from '../../api';
+import PaginationControls from '../PaginationControls';
 
 const TABS = [
   { id: 'clips', label: 'คลิป', icon: Film },
@@ -719,8 +720,8 @@ export default function AssetPanel({
 }) {
   const [tab, setTab] = useState('clips');
   const [query, setQuery] = useState('');
-  const ASSET_PAGE_SIZE = 40;
-  const [assetVisibleCounts, setAssetVisibleCounts] = useState({});
+  const [assetPages, setAssetPages] = useState({});
+  const [assetPageSizes, setAssetPageSizes] = useState({});
   const [textCategory, setTextCategory] = useState('all');
   const [textSearch, setTextSearch] = useState('');
   const [textSubTab, setTextSubTab] = useState('hook');
@@ -911,38 +912,39 @@ export default function AssetPanel({
   }, [videos, assets, query]);
 
   useEffect(() => {
-    setAssetVisibleCounts({});
+    setAssetPages({});
   }, [query]);
 
-  const getAssetVisibleCount = (assetKey) => assetVisibleCounts[assetKey] || ASSET_PAGE_SIZE;
-  const showMoreAssets = (assetKey) => {
-    setAssetVisibleCounts((previous) => ({
-      ...previous,
-      [assetKey]: getAssetVisibleCount(assetKey) + ASSET_PAGE_SIZE,
-    }));
+  const getAssetPage = (assetKey) => assetPages[assetKey] || 1;
+  const getAssetPageSize = (assetKey) => assetPageSizes[assetKey] || 20;
+  const setAssetPageSize = (assetKey, size) => {
+    setAssetPageSizes((previous) => ({ ...previous, [assetKey]: size }));
+    setAssetPages((previous) => ({ ...previous, [assetKey]: 1 }));
+  };
+  const setAssetPage = (assetKey, page) => {
+    setAssetPages((previous) => ({ ...previous, [assetKey]: page }));
   };
 
   const visibleFiltered = useMemo(() => ({
     ...filtered,
-    videos: filtered.videos.slice(0, getAssetVisibleCount('videos')),
-    music: filtered.music.slice(0, getAssetVisibleCount('music')),
-    sfx: filtered.sfx.slice(0, getAssetVisibleCount('sfx')),
-    stickers: filtered.stickers.slice(0, getAssetVisibleCount('stickers')),
-    effects: filtered.effects.slice(0, getAssetVisibleCount('effects')),
-  }), [filtered, assetVisibleCounts]);
+    videos: filtered.videos.slice((getAssetPage('videos') - 1) * getAssetPageSize('videos'), getAssetPage('videos') * getAssetPageSize('videos')),
+    music: filtered.music.slice((getAssetPage('music') - 1) * getAssetPageSize('music'), getAssetPage('music') * getAssetPageSize('music')),
+    sfx: filtered.sfx.slice((getAssetPage('sfx') - 1) * getAssetPageSize('sfx'), getAssetPage('sfx') * getAssetPageSize('sfx')),
+    stickers: filtered.stickers.slice((getAssetPage('stickers') - 1) * getAssetPageSize('stickers'), getAssetPage('stickers') * getAssetPageSize('stickers')),
+    effects: filtered.effects.slice((getAssetPage('effects') - 1) * getAssetPageSize('effects'), getAssetPage('effects') * getAssetPageSize('effects')),
+  }), [filtered, assetPages, assetPageSizes]);
 
-  const renderAssetLoadMore = (assetKey, label) => {
+  const renderAssetPagination = (assetKey, label) => {
     const total = filtered[assetKey]?.length || 0;
-    const visible = getAssetVisibleCount(assetKey);
-    if (total <= visible) return null;
     return (
-      <button
-        type="button"
-        onClick={() => showMoreAssets(assetKey)}
-        className="w-full py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-xs font-bold transition-colors cursor-pointer"
-      >
-        โหลดเพิ่ม {label} ({total - visible} รายการที่เหลือ)
-      </button>
+      <PaginationControls
+        page={getAssetPage(assetKey)}
+        pageSize={getAssetPageSize(assetKey)}
+        totalItems={total}
+        onPageChange={(page) => setAssetPage(assetKey, page)}
+        onPageSizeChange={(size) => setAssetPageSize(assetKey, size)}
+        itemLabel={label}
+      />
     );
   };
 
@@ -1150,7 +1152,7 @@ export default function AssetPanel({
                 </div>
               );
             })}
-            {renderAssetLoadMore('videos', 'คลิป')}
+            {renderAssetPagination('videos', 'คลิป')}
             {filtered.videos.length === 0 && (
               <p className="px-1 py-4 text-center text-xs text-slate-500">
                 ไม่มีคลิปที่ตรงกับคำค้น — สามารถกดปุ่มแนบคลิปเพิ่มด้านบนได้เลยครับ
@@ -1382,7 +1384,7 @@ export default function AssetPanel({
                 </Row>
               );
             })}
-            {renderAssetLoadMore('music', 'เพลง')}
+            {renderAssetPagination('music', 'เพลง')}
 
             <p className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               เสียงเอฟเฟกต์ {selectedCaption ? '(ใส่ให้ท่อนที่เลือก)' : '(เลือกท่อนคำบรรยายก่อน)'}
@@ -1418,7 +1420,7 @@ export default function AssetPanel({
                 </Row>
               );
             })}
-            {renderAssetLoadMore('sfx', 'SFX')}
+            {renderAssetPagination('sfx', 'SFX')}
           </>
         )}
 
@@ -1932,7 +1934,7 @@ export default function AssetPanel({
                   );
                 })}
               </div>
-              {renderAssetLoadMore('stickers', 'สติกเกอร์')}
+              {renderAssetPagination('stickers', 'สติกเกอร์')}
 
               {/* Action Button When Previewing */}
               {previewSticker && (
@@ -2007,7 +2009,7 @@ export default function AssetPanel({
                 );
               })}
             </div>
-            {renderAssetLoadMore('effects', 'เอฟเฟกต์')}
+            {renderAssetPagination('effects', 'เอฟเฟกต์')}
             <p className="px-1 pt-1.5 text-[11px] leading-relaxed text-slate-500 text-center">
               คลิกที่การ์ดหรือกดปุ่ม + เพื่อเพิ่มลงไทม์ไลน์ (ยาว 3 วินาที) ปรับเวลา/ขนาดได้ในแผง Inspector ทางขวา
             </p>

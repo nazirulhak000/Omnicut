@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { getRawVideos, uploadFile, deleteFile, removeVideoFromProduct, renameVideo } from '../api';
 import { Button, ConfirmModal, Modal } from './ui';
+import PaginationControls from './PaginationControls';
 import { isSameVideo } from '../lib/mediaUrl';
 
 export default function MediaPickerModal({
@@ -119,15 +120,19 @@ export default function MediaPickerModal({
   // opening it with hundreds of clips on disk doesn't mount them all at
   // once. "Select all" below still acts on the full filteredVideos, not
   // just what's currently rendered.
-  const PICKER_PAGE_SIZE = 40;
-  const [visiblePickerCount, setVisiblePickerCount] = useState(PICKER_PAGE_SIZE);
+  const [pickerPage, setPickerPage] = useState(1);
+  const [pickerPageSize, setPickerPageSize] = useState(20);
   useEffect(() => {
-    setVisiblePickerCount(PICKER_PAGE_SIZE);
+    setPickerPage(1);
   }, [searchQuery, activeTab]);
   const visiblePickerVideos = useMemo(
-    () => filteredVideos.slice(0, visiblePickerCount),
-    [filteredVideos, visiblePickerCount]
+    () => filteredVideos.slice((pickerPage - 1) * pickerPageSize, pickerPage * pickerPageSize),
+    [filteredVideos, pickerPage, pickerPageSize]
   );
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredVideos.length / pickerPageSize));
+    setPickerPage((page) => Math.min(page, totalPages));
+  }, [filteredVideos.length, pickerPageSize]);
 
   const toggleSelect = (videoPath) => {
     if (!isMultiSelect) {
@@ -668,17 +673,18 @@ export default function MediaPickerModal({
                 );
               })}
             </div>
-            {visiblePickerVideos.length < filteredVideos.length && (
-              <div className="flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => setVisiblePickerCount(c => c + PICKER_PAGE_SIZE)}
-                  className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer"
-                >
-                  โหลดเพิ่ม ({filteredVideos.length - visiblePickerVideos.length} คลิปที่เหลือ)
-                </button>
-              </div>
-            )}
+            <PaginationControls
+              page={pickerPage}
+              pageSize={pickerPageSize}
+              totalItems={filteredVideos.length}
+              onPageChange={setPickerPage}
+              onPageSizeChange={(size) => {
+                setPickerPageSize(size);
+                setPickerPage(1);
+              }}
+              itemLabel="คลิป"
+              disabled={loading}
+            />
             </div>
           )}
         </div>

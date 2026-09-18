@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Archive, Calendar, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, List, MoreHorizontal, Plus, RefreshCw, Rocket, RotateCcw, Settings2, Shuffle, Trash2 } from 'lucide-react';
 import { Modal, Badge } from './ui';
+import PaginationControls from './PaginationControls';
 import { commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
 import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, estimateQueueCoverage, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
 import { getStylePreset } from '../lib/stylePresetCatalog';
@@ -159,11 +160,16 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   // Posted history never gets pruned server-side -- window it here so
   // opening this modal after a year of daily posts doesn't mount hundreds
   // of rows at once.
-  const POSTED_MODAL_PAGE_SIZE = 50;
-  const [postedVisibleCount, setPostedVisibleCount] = useState(POSTED_MODAL_PAGE_SIZE);
+  const POSTED_MODAL_PAGE_SIZE = 20;
+  const [postedPage, setPostedPage] = useState(1);
+  const [postedPageSize, setPostedPageSize] = useState(POSTED_MODAL_PAGE_SIZE);
   useEffect(() => {
-    if (postedOpen) setPostedVisibleCount(POSTED_MODAL_PAGE_SIZE);
+    if (postedOpen) setPostedPage(1);
   }, [postedOpen]);
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(postedQueue.length / postedPageSize));
+    setPostedPage((page) => Math.min(page, totalPages));
+  }, [postedQueue.length, postedPageSize]);
   const scheduleDrafts = useRef(new Map());
   const scheduleRequestIds = useRef(new Map());
   const requeueRequestId = useRef(0);
@@ -1057,7 +1063,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
             <p className="py-8 text-center text-xs text-slate-500">ยังไม่มีคลิปที่โพสต์แล้วในคิวนี้</p>
           ) : (
             <>
-              {postedQueue.slice(0, postedVisibleCount).map((item) => (
+              {postedQueue.slice((postedPage - 1) * postedPageSize, postedPage * postedPageSize).map((item) => (
                 <div key={item.id} className="flex items-center gap-3 py-2.5 border-b border-white/[0.06] last:border-0">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
@@ -1069,15 +1075,17 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                   <span className="text-[11px] font-mono text-slate-500 whitespace-nowrap">{item.scheduled_at?.slice(0, 16).replace('T', ' ')}</span>
                 </div>
               ))}
-              {postedVisibleCount < postedQueue.length && (
-                <button
-                  type="button"
-                  onClick={() => setPostedVisibleCount(c => c + POSTED_MODAL_PAGE_SIZE)}
-                  className="w-full py-2.5 text-xs font-bold text-cyan-300 hover:text-cyan-200 cursor-pointer"
-                >
-                  โหลดเพิ่ม ({postedQueue.length - postedVisibleCount} รายการที่เหลือ)
-                </button>
-              )}
+              <PaginationControls
+                page={postedPage}
+                pageSize={postedPageSize}
+                totalItems={postedQueue.length}
+                onPageChange={setPostedPage}
+                onPageSizeChange={(size) => {
+                  setPostedPageSize(size);
+                  setPostedPage(1);
+                }}
+                itemLabel="รายการ"
+              />
             </>
           )}
         </div>

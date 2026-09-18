@@ -27,9 +27,8 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 
 ## สถานะรวม
 
-- [x] Round PRODUCT-HIDE-ARCHIVE-VISIBILITY-1 — ฟังก์ชันซ่อนสินค้าที่ยังไม่อยากแสดง/ยังไม่อยากทำ พร้อมปุ่มลัดซ่อนสินค้า 0 มุม และกู้คืนได้ทุกเมื่อ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- ปิดแล้ว: Round PAGINATION-LOADING-20260918 — Phase 1 pagination/loading (ดำเนินการโดย: Codex (GPT-5))
-- ปิดแล้ว: Round TOKEN-AUDIT-PAGINATION-20260918 — Audit Log pagination แบบเปลี่ยนหน้า แสดงวันที่เต็ม และเลือกจำนวนรายการต่อหน้าได้ (ดำเนินการโดย: Codex (GPT-5))
+- [x] Round ANALYTICS-CHARTS-CHRONO-SORT-AND-TOKEN-SUMMARY-UI-1 — ปรับปรุง UI กราฟสถิติ: ลบกล่องวันเรียงยาวแทนที่ด้วย KPI Summary Strip และ Time Filter ใน Token Dashboard + แก้ไขการจัดเรียงลำดับเวลาทางประวัติศาสตร์ของกราฟยอดวิวคลิปให้ถูกต้อง พร้อมโหมดรายคลิป/รวมรายวัน (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+- ปิดแล้ว: Round PAGINATION-PHASE2-20260918 — เปลี่ยนรายการยาวใน Analytics, Media และ history views เป็น pagination แบบเปลี่ยนหน้า (ดำเนินการโดย: Codex (GPT-5))
 
 ## Round TEXT-MOTION-SYSTEM-FOUNDATION-20260918 — active (foundation/integration complete; pixel frame diff deferred)
 
