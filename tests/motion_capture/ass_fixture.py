@@ -1,0 +1,324 @@
+"""ASS/libass fixture seam for Canvas-vs-ASS motion parity work.
+
+This module intentionally owns no production rendering code.  It consumes the
+existing declarative motion catalog and ASS adapter, renders into a caller
+provided temporary directory, and records enough metadata to reproduce the
+frame.  A fixture is not a Canvas parity result until a real Canvas capture is
+provided to :func:`compare_frames`.
+"""
+
+from __future__ import annotations
+
+import argparse
+from dataclasses import asdict, dataclass
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+from typing import Any, Dict, Mapping, Optional, Tuple
+
+from PIL import Image, ImageChops, ImageStat
+
+from scripts.subtitle.motion_ass_adapter import build_ass_motion_segments
+from scripts.subtitle.motion_contract import get_motion_preset
+from scripts.subtitle.translation_service import ass_escape_text
+
+
+FRAME_WIDTH = 1080
+FRAME_HEIGHT = 1920
+FRAME_RATE = 30
+DEFAULT_FONT = "Kanit"
+DEFAULT_TEXT = "\u0e17\u0e14\u0e2a\u0e2d\u0e1a Motion"
+DEFAULT_BACKGROUND = "0x101827"
+DEFAULT_BASE_POSITION = (540, 760)
+
+
+@dataclass(frozen=True)
+class FixtureSpec:
+    preset_id: str
+    role: str
+    phase: str
+    sample_ms: int
+    width: int = FRAME_WIDTH
+    height: int = FRAME_HEIGHT
+    fps: int = FRAME_RATE
+    font_name: str = DEFAULT_FONT
+    text: str = DEFAULT_TEXT
+    background: str = DEFAULT_BACKGROUND
+    base_position: Tuple[int, int] = DEFAULT_BASE_POSITION
+
+
+@dataclass(frozen=True)
+class ComparisonThresholds:
+    """Cross-rasterizer acceptance limits, not exact pixel equality.
+
+    Canvas and libass use different text rasterizers.  Exact RGBA equality is
+    therefore diagnostic only; structural mask geometry is the acceptance
+    gate.  These defaults are deliberately conservative for a 1080x1920
+    overlay and must be calibrated with real Canvas captures before promotion.
+    """
+
+    mask_iou_min: float = 0.90
+    bbox_edge_delta_px_max: int = 6
+    centroid_delta_px_max: float = 6.0
+    mean_abs_error_max: float = 0.22
+
+
+@dataclass(frozen=True)
+class FrameComparison:
+    width: int
+    height: int
+    mean_abs_error: float
+    mask_iou: Optional[float]
+    bbox_edge_delta_px: Optional[int]
+    centroid_delta_px: Optional[float]
+    passed: bool
+    exact_pixel_match: bool
+    reason: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+def _split_preset(identifier: str) -> Tuple[str, str, str]:
+    parts = identifier.strip().split(".")
+    if len(parts) == 3:
+        return parts[0], parts[1], parts[2]
+    raise ValueError("preset_id must use role.phase.preset form, e.g. hook.in.snap")
+
+
+def _safe_output_dir(output_dir: Path) -> Path:
+    resolved = output_dir.resolve()
+    if "04_exports" in {part.casefold() for part in resolved.parts}:
+        raise ValueError("motion fixtures must never be written under 04_Exports")
+    resolved.mkdir(parents=True, exist_ok=True)
+    return resolved
+
+
+def _ffmpeg_path(path: Path) -> str:
+    value = str(path.resolve()).replace("\\", "/")
+    return value.replace(":", r"\:").replace("'", r"\'")
+
+
+def _ass_time(seconds: float) -> str:
+    total_cs = max(0, int(round(seconds * 100)))
+    hours, remainder = divmod(total_cs, 360000)
+    minutes, remainder = divmod(remainder, 6000)
+    secs, centis = divmod(remainder, 100)
+    return f"{hours}:{minutes:02d}:{secs:02d}.{centis:02d}"
+
+
+def _fixture_ass_header(spec: FixtureSpec) -> str:
+    return "\n".join(
+        [
+            "[Script Info]",
+            "; OmniCutMotionFixture: ass-libass-v1",
+            "ScriptType: v4.00+",
+            f"PlayResX: {spec.width}",
+            f"PlayResY: {spec.height}",
+            "WrapStyle: 2",
+            "ScaledBorderAndShadow: yes",
+            "",
+            "[V4+ Styles]",
+            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+            f"Style: Fixture,{spec.font_name},72,&H00FFFFFF,&H00FFFFFF,&H00101010,&H80000000,0,0,0,0,100,100,0,0,1,4,2,5,0,0,0,1",
+            "",
+            "[Events]",
+            "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+        ]
+    )
+
+
+def build_ass_fixture(spec: FixtureSpec) -> Tuple[str, Dict[str, Any]]:
+    contract = get_motion_preset(spec.role, spec.phase, spec.preset_id.split(".")[-1])
+    if contract is None:
+        raise ValueError(f"unknown motion preset: {spec.role}.{spec.phase}.{spec.preset_id}")
+
+    duration_ms = max(1000, int(round(float(contract.get("duration_ms", 0)))) + 200)
+    sample_ms = max(0, min(int(spec.sample_ms), duration_ms - 1))
+    plan = build_ass_motion_segments(
+        contract,
+        start_ms=0,
+        end_ms=duration_ms,
+        base_position=spec.base_position,
+        unsupported="report",
+    )
+    position_tag = "" if (r"\pos(" in plan.ass or r"\move(" in plan.ass) else f"\\pos({spec.base_position[0]},{spec.base_position[1]})"
+    text = ass_escape_text(spec.text)
+    event = (
+        f"Dialogue: 0,{_ass_time(0)},{_ass_time(duration_ms / 1000)},Fixture,,0,0,0,,"
+        f"{{\\an5{position_tag}{plan.ass}}}{text}"
+    )
+    ass_text = _fixture_ass_header(spec) + "\n" + event + "\n"
+    metadata = {
+        "fixture_schema": "ass-libass-motion-v1",
+        "renderer": "ffmpeg/libass",
+        "pixel_diff_status": "not_compared",
+        "canvas_capture_required": True,
+        "spec": {**asdict(spec), "sample_ms": sample_ms},
+        "contract_id": contract["id"],
+        "ass_plan": plan.to_dict(),
+        "comparison": {
+            "mode": "cross-rasterizer-structural",
+            "exact_pixel_match_is_diagnostic_only": True,
+            "thresholds": asdict(ComparisonThresholds()),
+            "caveats": [
+                "Canvas and libass may use different glyph rasterizers and antialiasing.",
+                "Golden acceptance requires a real Canvas frame at the same size and timestamp.",
+                "Unsupported ASS tracks remain visible in ass_plan.unsupported and are not silently approximated.",
+            ],
+        },
+    }
+    return ass_text, metadata
+
+
+def render_ass_fixture(spec: FixtureSpec, output_dir: Path) -> Dict[str, Path]:
+    """Write ASS, one PNG frame, and metadata under a safe temp directory."""
+
+    output_dir = _safe_output_dir(output_dir)
+    ass_text, metadata = build_ass_fixture(spec)
+    stem = spec.preset_id.replace(".", "_")
+    ass_path = output_dir / f"{stem}_{spec.sample_ms:04d}ms.ass"
+    png_path = output_dir / f"{stem}_{spec.sample_ms:04d}ms.png"
+    metadata_path = output_dir / f"{stem}_{spec.sample_ms:04d}ms.json"
+    ass_path.write_text(ass_text, encoding="utf-8", newline="\n")
+
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError("FFmpeg is required to render an ASS fixture")
+    project_root = Path(__file__).resolve().parents[2]
+    fonts_dir = project_root / "02_Assets" / "Fonts"
+    subtitle_filter = f"subtitles='{_ffmpeg_path(ass_path)}':fontsdir='{_ffmpeg_path(fonts_dir)}'"
+    duration_sec = max(1.0, (max(spec.sample_ms, 0) + 100) / 1000)
+    command = [
+        ffmpeg,
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        f"color=c={spec.background}:s={spec.width}x{spec.height}:r={spec.fps}:d={duration_sec:.3f}",
+        "-vf",
+        subtitle_filter,
+        "-ss",
+        f"{max(spec.sample_ms, 0) / 1000:.3f}",
+        "-frames:v",
+        "1",
+        "-pix_fmt",
+        "rgb24",
+        str(png_path),
+    ]
+    completed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if completed.returncode != 0:
+        raise RuntimeError(f"FFmpeg fixture render failed: {completed.stderr.strip()}")
+
+    metadata.update(
+        {
+            "command": command,
+            "ffmpeg_version": _ffmpeg_version(ffmpeg),
+            "artifacts": {
+                "ass": {"path": ass_path.name, "sha256": _sha256(ass_path)},
+                "png": {"path": png_path.name, "sha256": _sha256(png_path)},
+            },
+        }
+    )
+    metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+    return {"ass": ass_path, "png": png_path, "metadata": metadata_path}
+
+
+def _ffmpeg_version(binary: str) -> str:
+    result = subprocess.run([binary, "-version"], capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
+    return result.stdout.splitlines()[0] if result.stdout else "unknown"
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _foreground_mask(image: Image.Image, background: Optional[Tuple[int, int, int]] = None, tolerance: int = 8) -> Image.Image:
+    rgb = image.convert("RGB")
+    bg = background or rgb.getpixel((0, 0))
+    mask = Image.new("L", rgb.size, 0)
+    pixels = rgb.load()
+    output = mask.load()
+    for y in range(rgb.height):
+        for x in range(rgb.width):
+            pixel = pixels[x, y]
+            if max(abs(pixel[index] - bg[index]) for index in range(3)) > tolerance:
+                output[x, y] = 255
+    return mask
+
+
+def _bbox_center(bbox: Optional[Tuple[int, int, int, int]]) -> Optional[Tuple[float, float]]:
+    if bbox is None:
+        return None
+    return ((bbox[0] + bbox[2]) / 2.0, (bbox[1] + bbox[3]) / 2.0)
+
+
+def compare_frames(reference_path: Path, candidate_path: Path, thresholds: ComparisonThresholds = ComparisonThresholds()) -> FrameComparison:
+    """Compare two frames with exact diagnostics plus tolerant geometry gates."""
+
+    with Image.open(reference_path) as reference_image, Image.open(candidate_path) as candidate_image:
+        reference = reference_image.convert("RGB")
+        candidate = candidate_image.convert("RGB")
+        if reference.size != candidate.size:
+            raise ValueError(f"frame sizes differ: {reference.size} != {candidate.size}")
+        diff = ImageChops.difference(reference, candidate)
+        mean_abs_error = sum(ImageStat.Stat(diff).mean) / (3 * 255.0)
+        exact = not diff.getbbox()
+        reference_mask = _foreground_mask(reference)
+        candidate_mask = _foreground_mask(candidate)
+        ref_bbox = reference_mask.getbbox()
+        cand_bbox = candidate_mask.getbbox()
+        if ref_bbox is None or cand_bbox is None:
+            return FrameComparison(reference.width, reference.height, mean_abs_error, None, None, None, exact, exact, "one frame has no foreground mask")
+
+        ref_pixels = reference_mask.load()
+        cand_pixels = candidate_mask.load()
+        intersection = union = 0
+        for y in range(reference.height):
+            for x in range(reference.width):
+                ref_on = ref_pixels[x, y] > 0
+                cand_on = cand_pixels[x, y] > 0
+                intersection += int(ref_on and cand_on)
+                union += int(ref_on or cand_on)
+        mask_iou = intersection / union if union else 1.0
+        edge_delta = max(abs(ref_bbox[index] - cand_bbox[index]) for index in range(4))
+        ref_center = _bbox_center(ref_bbox)
+        cand_center = _bbox_center(cand_bbox)
+        centroid_delta = max(abs(ref_center[index] - cand_center[index]) for index in range(2))
+        passed = (
+            mask_iou >= thresholds.mask_iou_min
+            and edge_delta <= thresholds.bbox_edge_delta_px_max
+            and centroid_delta <= thresholds.centroid_delta_px_max
+            and mean_abs_error <= thresholds.mean_abs_error_max
+        )
+        return FrameComparison(reference.width, reference.height, mean_abs_error, mask_iou, edge_delta, centroid_delta, passed, exact)
+
+
+def _cli() -> int:
+    parser = argparse.ArgumentParser(description="Render a deterministic ASS/libass motion fixture into .tmp")
+    parser.add_argument("--preset", default="hook.in.snap")
+    parser.add_argument("--sample-ms", type=int, default=None)
+    parser.add_argument("--output-dir", type=Path, default=Path(".tmp") / "motion_capture")
+    args = parser.parse_args()
+    role, phase, preset = _split_preset(args.preset)
+    contract = get_motion_preset(role, phase, preset)
+    if contract is None:
+        parser.error(f"unknown preset: {args.preset}")
+    default_sample = max(1, int(round(float(contract.get("duration_ms", 500)) / 2)))
+    spec = FixtureSpec(args.preset, role, phase, args.sample_ms if args.sample_ms is not None else default_sample)
+    paths = render_ass_fixture(spec, args.output_dir)
+    print(json.dumps({key: str(value) for key, value in paths.items()}, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_cli())

@@ -271,7 +271,11 @@ export default function OverlayInspector({
       }
     };
 
+    const LEGACY_HOOK_TEMPLATES = new Set(['tech', 'cute', 'bold_pop', 'plain', 'clean', 'flash_sale', 'neon_cyber', 'minimal_luxury']);
     const combinedTemplates = { ...(customHookTemplates || {}), ...(hookTemplates || {}) };
+    const visibleTemplates = Object.entries(combinedTemplates).filter(([key]) => {
+      return !LEGACY_HOOK_TEMPLATES.has(key) || hookOverlay?.template === key;
+    });
 
     return (
       <div
@@ -325,7 +329,7 @@ export default function OverlayInspector({
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {Object.entries(combinedTemplates).map(([key, tpl]) => {
+                {visibleTemplates.map(([key, tpl]) => {
                   const isSelected = hookOverlay.template === key;
                   const labelParts = (tpl.label_th || tpl.name || key).split(' — ');
                   const titleName = labelParts[0] || key;

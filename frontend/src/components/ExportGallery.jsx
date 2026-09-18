@@ -15,6 +15,7 @@ import { Modal, Toast, Button, Badge, ConfirmModal, SafeQRCode } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import RawVaultPanel from './RawVaultPanel';
 import CoverStudioModal from './CoverStudioModal';
+import { getCoverVariant } from '../lib/coverVariant';
 
 // The gallery's own QR used to be a degraded copy of ContentTrackerHub's --
 // missing pid/aid/hook/hashtags and reading `video.caption`, a key
@@ -123,6 +124,8 @@ const ExportCard = memo(function ExportCard({
   const nameLow = (item.name || '').toLowerCase();
   const isEsseger = nameLow.includes('esseger') || nameLow.includes('สายชาร์จ');
   const isLogitech = nameLow.includes('logitech') || nameLow.includes('wave');
+  const cover = getCoverVariant(item, '9:16');
+  const displayThumb = cover.url || item.thumbnail_url;
 
   return (
     <div
@@ -150,6 +153,13 @@ const ExportCard = memo(function ExportCard({
 
         {/* Product Tag Badge + Status Badge (Top Right) */}
         <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-20 flex items-center gap-1 sm:gap-1.5 flex-wrap justify-end">
+          {cover.url && (
+            <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-amber-500/25 text-amber-200 font-black text-[9px] sm:text-[10px] shadow-sm tracking-wider flex items-center gap-1 border border-amber-400/50 backdrop-blur-md" title="มีรูปปก 9:16 ที่บันทึกไว้">
+              <ImageIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-300" />
+              <span>มีปก</span>
+            </span>
+          )}
+
           {item.is_qc_rejected ? (
             <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-red-600/90 text-white font-black text-[9px] sm:text-[10px] shadow-sm tracking-wider flex items-center gap-1 border border-red-400/50">
               <ShieldAlert className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
@@ -184,9 +194,9 @@ const ExportCard = memo(function ExportCard({
           onClick={() => onOpenDetail(item)}
           className="bg-black aspect-[9/16] w-full flex items-center justify-center relative overflow-hidden cursor-pointer"
         >
-          {item.thumbnail_url ? (
+          {displayThumb ? (
             <img
-              src={item.thumbnail_url}
+              src={displayThumb}
               alt={item.name}
               loading="lazy"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -326,6 +336,9 @@ const ExportCard = memo(function ExportCard({
 // 🎬 EXPORT SIDEBAR ITEM (Left Column Playlist in Split View)
 // ═══════════════════════════════════════════════════════════════════════
 function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck }) {
+  const cover = getCoverVariant(item, '9:16');
+  const displayThumb = cover.url || item.thumbnail_url;
+
   return (
     <div
       onClick={onSelect}
@@ -352,16 +365,21 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
           {isSelected ? <Check className="w-3.5 h-3.5 text-[#25F4EE]" /> : <Square className="w-3 h-3 text-slate-500" />}
         </button>
 
-        {/* Mini 9:16 Thumbnail */}
+        {/* Mini 9:16 Thumbnail / Cover */}
         <div className="w-10 h-16 rounded-lg overflow-hidden bg-black flex-shrink-0 relative border border-white/[0.08]">
-          {item.thumbnail_url ? (
-            <img src={item.thumbnail_url} alt="" className="w-full h-full object-cover" />
+          {displayThumb ? (
+            <img src={displayThumb} alt="" className="w-full h-full object-cover" />
           ) : (
             <video
               src={`/api/media/${item.rel_path || item.path}#t=1.0`}
               className="w-full h-full object-cover"
               muted
             />
+          )}
+          {cover.url && (
+            <span className="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded bg-amber-500/80 text-amber-100 font-bold text-[8px] leading-tight" title="มีรูปปก 9:16">
+              ปก
+            </span>
           )}
         </div>
 
@@ -379,6 +397,10 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
               <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex-shrink-0">
                 เก่า
               </span>
+            ) : item.is_unlinked ? (
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-700 text-slate-300 border border-slate-600 flex-shrink-0">
+                ภายนอก
+              </span>
             ) : item.is_qc_rejected ? (
               <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-red-500/15 text-red-300 border border-red-500/30 flex-shrink-0">
                 QC
@@ -386,15 +408,17 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
             ) : null}
           </div>
 
-          <p className="text-[11px] text-slate-400 truncate font-mono">
-            {item.name}
-          </p>
-
-          <div className="flex items-center gap-2 text-[10px] text-slate-500">
-            <span className="font-mono text-cyan-300">{item.size_mb} MB</span>
-            <span>•</span>
-            <span>{item.modified?.split(' ')?.[0] || 'เพิ่งสร้าง'}</span>
+          <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+            <span>{item.size_mb} MB</span>
+            <span>{formatDateTimeCompact(item.modified_time || item.modified)}</span>
           </div>
+
+          {item.product_name && (
+            <div className="text-[10px] text-slate-400 truncate flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#25F4EE]/60 flex-shrink-0" />
+              <span className="truncate">{item.product_name}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -405,6 +429,9 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
 // 📱 EXPORT MOBILE PILL (Horizontal Swipeable Tab for iPhone 15 PM)
 // ═══════════════════════════════════════════════════════════════════════
 function ExportMobilePill({ item, isActive, onSelect }) {
+  const cover = getCoverVariant(item, '9:16');
+  const displayThumb = cover.url || item.thumbnail_url;
+
   return (
     <button
       type="button"
@@ -415,9 +442,9 @@ function ExportMobilePill({ item, isActive, onSelect }) {
           : 'bg-[#080B11] border-white/[0.08] hover:border-white/[0.2] text-slate-300'
       }`}
     >
-      <div className="w-8 h-12 rounded-md overflow-hidden bg-black flex-shrink-0 border border-white/[0.1]">
-        {item.thumbnail_url ? (
-          <img src={item.thumbnail_url} alt="" className="w-full h-full object-cover" />
+      <div className="w-8 h-12 rounded-md overflow-hidden bg-black flex-shrink-0 border border-white/[0.1] relative">
+        {displayThumb ? (
+          <img src={displayThumb} alt="" className="w-full h-full object-cover" />
         ) : (
           <video src={`/api/media/${item.rel_path || item.path}#t=1.0`} className="w-full h-full object-cover" muted />
         )}
@@ -457,7 +484,8 @@ function ExportActiveWorkbench({
   onGenerateCover,
   onRevealFile,
   onMarkPosted,
-  onPrepareAutopost
+  onPrepareAutopost,
+  onRefresh
 }) {
   const videoRef = useRef(null);
   const [videoDuration, setVideoDuration] = useState(null);
@@ -482,6 +510,10 @@ function ExportActiveWorkbench({
       return false;
     }
   });
+
+  const initialCover = getCoverVariant(video, '9:16');
+  const currentCoverUrl = coverResult?.media_url || initialCover.url;
+  const currentCoverPath = coverResult?.cover_path || video?.cover_path;
 
   // Reset per-video Post Studio state whenever the selected clip changes --
   // otherwise a cover grabbed for the previous video would linger on screen.
@@ -870,13 +902,18 @@ function ExportActiveWorkbench({
               )}
 
               <div className="flex gap-3 items-center">
-                <div className="w-14 aspect-[9/16] rounded-lg overflow-hidden bg-black border border-white/[0.1] flex-shrink-0">
-                  {coverResult ? (
-                    <img src={coverResult.media_url} className="w-full h-full object-cover" alt="ตัวอย่างปก" />
+                <div className="w-14 aspect-[9/16] rounded-lg overflow-hidden bg-black border border-white/[0.1] flex-shrink-0 relative">
+                  {currentCoverUrl ? (
+                    <img src={currentCoverUrl} className="w-full h-full object-cover" alt="ตัวอย่างปก" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-600">
                       <ImageIcon className="w-4 h-4" />
                     </div>
+                  )}
+                  {currentCoverUrl && (
+                    <span className="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded bg-amber-500/80 text-amber-100 font-bold text-[8px] leading-tight">
+                      9:16
+                    </span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
@@ -907,17 +944,30 @@ function ExportActiveWorkbench({
                         disabled={coverBusy}
                         className="px-2.5 py-1 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 text-[#25F4EE] text-[11px] font-bold cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-wait transition-all"
                       >
-                        {coverBusy ? 'กำลังสร้าง...' : coverResult ? 'สร้างใหม่' : 'สร้างปก'}
+                        {coverBusy ? 'กำลังสร้าง...' : currentCoverUrl ? 'สร้างใหม่' : 'สร้างปก'}
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {coverResult && (
-                <p className="text-[10px] text-emerald-300/90 bg-emerald-950/20 px-2.5 py-1.5 rounded-lg border border-emerald-500/20">
-                  บันทึกแล้วที่ {coverResult.cover_path} — ลากไฟล์นี้วางเป็นปกตอนอัพโหลด (ไฟล์ .jpg, TikTok รับ)
-                </p>
+              {currentCoverPath && (
+                <div className="flex items-center justify-between gap-2 text-[10px] text-emerald-300/90 bg-emerald-950/20 px-2.5 py-1.5 rounded-lg border border-emerald-500/20">
+                  <span className="truncate">
+                    บันทึกแล้วที่ {currentCoverPath} — ลากไฟล์นี้วางเป็นปกตอนอัพโหลด (ไฟล์ .jpg, TikTok รับ)
+                  </span>
+                  {currentCoverUrl && (
+                    <a
+                      href={currentCoverUrl}
+                      download={`cover_${video.name || 'video'}.jpg`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#25F4EE] hover:underline flex-shrink-0 font-bold"
+                    >
+                      ดาวน์โหลดปก
+                    </a>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -1044,6 +1094,7 @@ function ExportActiveWorkbench({
         videoItem={video}
         onCoverSaved={(res) => {
           setCoverResult(res);
+          onRefresh?.();
         }}
       />
     </div>
@@ -1773,6 +1824,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                     onRevealFile={handleRevealFile}
                     onMarkPosted={handleMarkPosted}
                     onPrepareAutopost={handlePrepareAutopost}
+                    onRefresh={onRefresh}
                   />
                 </div>
               </div>
@@ -1851,6 +1903,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                   <video
                     key={selectedDetailVideo.export_id || selectedDetailVideo.rel_path || selectedDetailVideo.path}
                     src={`/api/media/${selectedDetailVideo.rel_path || selectedDetailVideo.path}`}
+                    poster={getCoverVariant(selectedDetailVideo, '9:16').url || selectedDetailVideo.thumbnail_url || undefined}
                     controls
                     playsInline
                     preload="metadata"
@@ -1858,6 +1911,46 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                     className="w-full h-full object-contain"
                   />
                 </div>
+
+                {/* 1.1 Saved 9:16 Cover Banner (If available) */}
+                {(() => {
+                  const modalCover = getCoverVariant(selectedDetailVideo, '9:16');
+                  if (!modalCover.url && !selectedDetailVideo.cover_path) return null;
+                  return (
+                    <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-16 rounded-lg overflow-hidden bg-black border border-amber-500/40 flex-shrink-0 relative">
+                          <img src={modalCover.url || selectedDetailVideo.thumbnail_url} alt="ปก 9:16" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                            <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+                            <span>มีรูปปก 9:16 ที่บันทึกไว้</span>
+                            <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-200 text-[10px] border border-amber-500/30">พร้อมใช้</span>
+                          </div>
+                          <div className="text-[11px] text-slate-300 font-mono truncate" title={selectedDetailVideo.cover_path}>
+                            {selectedDetailVideo.cover_path || '05_Covers_Thumbnails/'}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            ขนาด 1080x1920 (.jpg) — ลากไฟล์นี้เป็นหน้าปกตอนอัพโหลด TikTok
+                          </div>
+                        </div>
+                      </div>
+                      {modalCover.url && (
+                        <a
+                          href={modalCover.url}
+                          download={`cover_${selectedDetailVideo.name || 'video'}.jpg`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>โหลดปก</span>
+                        </a>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Version / QC Status Banners */}
                 {selectedDetailVideo.is_previous_version && (

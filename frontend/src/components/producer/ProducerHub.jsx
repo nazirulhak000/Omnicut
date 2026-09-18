@@ -33,19 +33,23 @@ import {
   DEFAULT_TARGETS,
   getClipIdentityAliases,
 } from '../../lib/producerInsights';
-import { dateOnly, estimateQueueCoverage, templateForWeek, weekStartForDate } from '../../lib/scheduleQueue';
+import { dateOnly, estimateQueueCoverage, parseDateOnly, templateForWeek, weekStartForDate } from '../../lib/scheduleQueue';
 
 function scheduleAliases(item) {
+  const prodScope = item?.product_id || item?.productId || item?.product_code || item?.productCode;
   return getClipIdentityAliases({
     ...item,
+    product_id: prodScope,
     video_url: item?.video_url || item?.video_path,
     export_path: item?.export_path || item?.video_path,
   });
 }
 
 function actionClipAliases(item) {
+  const prodScope = item?.productId || item?.product_id || item?.productCode || item?.product_code || item?.angle?.product_id || item?.angle?.productId;
   return getClipIdentityAliases({
     ...(item?.angle || {}),
+    product_id: prodScope,
     angle_id: item?.angle?.angle_id || (item?.type === 'angle_rendered' ? item.id : null),
     export_id: item?.angle?.export_id || (item?.type === 'export_file' ? item.id : null),
     export_path: item?.exportPath,
@@ -214,19 +218,41 @@ export default function ProducerHub({
     fetchData();
   }, [fetchData]);
 
+  const currentTemplateWeek = useMemo(() => weekStartForDate(dateOnly()), []);
+
+  const todayTemplateSlotsCount = useMemo(() => {
+    if (!scheduleTemplate) return DEFAULT_TARGETS.dailyPosts;
+    const todayDate = parseDateOnly(dateOnly());
+    const dayOfWeek = (todayDate.getUTCDay() + 6) % 7;
+    const normTemplate = templateForWeek(scheduleTemplate, currentTemplateWeek);
+    const dayConfig = normTemplate?.days?.[String(dayOfWeek)];
+    if (dayConfig && dayConfig.enabled !== false && Array.isArray(dayConfig.times)) {
+      return dayConfig.times.length;
+    }
+    return DEFAULT_TARGETS.dailyPosts;
+  }, [scheduleTemplate, currentTemplateWeek]);
+
+  const effectiveTargets = useMemo(() => {
+    const isCustomized = targets.dailyPosts && targets.dailyPosts !== DEFAULT_TARGETS.dailyPosts && targets.dailyPosts !== 3;
+    return {
+      ...targets,
+      dailyPosts: isCustomized ? targets.dailyPosts : todayTemplateSlotsCount,
+    };
+  }, [targets, todayTemplateSlotsCount]);
+
   // Calculations
   const stats = useMemo(() => {
-    return calculateProductionStats(products, exportsList, targets);
-  }, [products, exportsList, targets]);
+    return calculateProductionStats(products, exportsList, effectiveTargets);
+  }, [products, exportsList, effectiveTargets]);
 
   const rawActionQueue = useMemo(() => {
     return getDailyActionQueue(products, exportsList);
   }, [products, exportsList]);
 
-  const currentTemplateWeek = useMemo(() => weekStartForDate(dateOnly()), []);
-
   const scheduledAliases = useMemo(() => new Set(
-    scheduleQueue.flatMap((item) => scheduleAliases(item)),
+    scheduleQueue
+      .filter((item) => item.status !== 'posted')
+      .flatMap((item) => scheduleAliases(item)),
   ), [scheduleQueue]);
 
   const readyToPostClips = useMemo(() => rawActionQueue.readyToPost.filter((item) => {
@@ -866,7 +892,7 @@ export default function ProducerHub({
 
             <button
               onClick={() => {
-                setEditingTargets({ ...targets });
+                setEditingTargets({ ...effectiveTargets });
                 setShowTargetsModal(true);
               }}
               className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 text-slate-300 hover:text-white cursor-pointer transition-all"
@@ -916,6 +942,7 @@ export default function ProducerHub({
               </div>
               <p className="mt-1 text-[11px] text-white/65">
                 อิงเทมเพลตปัจจุบัน {capacityEstimate.weeklyCapacity} คิว/สัปดาห์ · {capacityStatus.label}
+                {exportsList.length > 0 && ` · คลังรวม ${exportsList.length} คลิป (โพสต์แล้ว ${exportsList.filter((e) => e.is_posted).length})`}
               </p>
             </div>
           </div>
@@ -1048,7 +1075,7 @@ export default function ProducerHub({
 
           <div className="flex items-center justify-between text-xs text-slate-400">
             <span>{stats.dailyPosts.remaining === 0 ? '🎉 โพสต์ครบแล้ว' : `ยังไม่ได้โพสต์อีก ${stats.dailyPosts.remaining} คลิป`}</span>
-            <span>TikTok Active</span>
+            <span>ตามคิวประจำวัน</span>
           </div>
         </div>
       </div>
@@ -1994,9 +2021,14 @@ export default function ProducerHub({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                  📢 เป้าหมายโพสต์ TikTok รายวัน (คลิป/วัน)
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-300">
+                    📢 เป้าหมายโพสต์ TikTok รายวัน (คลิป/วัน)
+                  </label>
+                  <span className="text-[11px] text-slate-400">
+                    ตามคิวประจำวัน: {todayTemplateSlotsCount} คลิป
+                  </span>
+                </div>
                 <input
                   type="number"
                   min="1"

@@ -64,6 +64,9 @@ def _load_font_family_map() -> Dict[str, str]:
         font_map[preset["id"]] = family
         font_map[preset["font_name"]] = family
 
+
+
+
     for family in family_by_filename.values():
         font_map.setdefault(family, family)
 
@@ -71,6 +74,39 @@ def _load_font_family_map() -> Dict[str, str]:
         font_map[alias] = font_map.get(target, DEFAULT_FONT_FAMILY)
 
     return font_map
+
+
+_FAMILY_FONT_PATH_CACHE: Dict[str, Optional[str]] = {}
+
+
+def _resolve_family_font_path(resolved_font: str) -> Optional[str]:
+    """
+    Finds the most suitable font file path for a given font family.
+    Prioritizes standard Bold (-Bold.ttf / Bold) to match CSS font-weight 700
+    and libass defaults, preventing ExtraBold or Black variants from inflating
+    text advance widths.
+    """
+    if resolved_font in _FAMILY_FONT_PATH_CACHE:
+        return _FAMILY_FONT_PATH_CACHE[resolved_font]
+
+    fonts = [f for f in AssetRegistry.fonts() if f.get("family") == resolved_font]
+    if not fonts:
+        _FAMILY_FONT_PATH_CACHE[resolved_font] = None
+        return None
+
+    chosen = None
+    for kw in ["-bold.", "bold.", "-semibold.", "semibold.", "-regular.", "regular."]:
+        for f in fonts:
+            if kw in f.get("name", "").lower():
+                chosen = f["path"]
+                break
+        if chosen:
+            break
+    if not chosen:
+        chosen = fonts[0]["path"]
+
+    _FAMILY_FONT_PATH_CACHE[resolved_font] = chosen
+    return chosen
 
 
 def _measure_text_width_px(text: str, resolved_font: str, font_size_px: int) -> Optional[int]:
@@ -85,8 +121,7 @@ def _measure_text_width_px(text: str, resolved_font: str, font_size_px: int) -> 
     except ImportError:
         return None
     try:
-        family_to_path = {f["family"]: f["path"] for f in AssetRegistry.fonts()}
-        font_path = family_to_path.get(resolved_font)
+        font_path = _resolve_family_font_path(resolved_font)
         if not font_path:
             return None
         font = ImageFont.truetype(font_path, font_size_px)
@@ -105,8 +140,7 @@ def prefix_advances(text_tokens: List[str], resolved_font: str, font_size_px: in
     except ImportError:
         return None
     try:
-        family_to_path = {f["family"]: f["path"] for f in AssetRegistry.fonts()}
-        font_path = family_to_path.get(resolved_font)
+        font_path = _resolve_family_font_path(resolved_font)
         if not font_path:
             return None
         font = ImageFont.truetype(font_path, font_size_px)
@@ -178,7 +212,7 @@ def ass_glyph_scale(resolved_font: str) -> float:
         return _ASS_GLYPH_SCALE_CACHE[resolved_font]
     scale = 1.0
     try:
-        path = {f["family"]: f["path"] for f in AssetRegistry.fonts()}.get(resolved_font)
+        path = _resolve_family_font_path(resolved_font)
         if path:
             parsed_scale = _sfnt_ass_glyph_scale(Path(path))
             if parsed_scale is not None:
@@ -197,32 +231,14 @@ def has_true_bold_face(resolved_font: str) -> bool:
     Whether asking libass for `resolved_font` at Bold=1 actually lands on a
     genuinely bold outline, rather than triggering synthetic/faux-bold
     emboldening on the one (non-bold) file AssetRegistry has for this family.
-
-    Found while diagnosing the "นั่ง" tone-mark collapse bug (2026-09-08):
-    every ASS style this engine writes hardcodes Bold=1 on the assumption
-    that libass/DirectWrite will resolve it to that family's real bold
-    weight (see the comment above resolved_font's assignment in
-    subtitle_engine.py). That holds for e.g. IBM Plex Sans Thai, which has
-    a separate face whose macStyle bold bit is genuinely set -- but
-    02_Assets/Fonts/NotoSansThai-SemiBold.ttf is internally mislabeled as
-    Regular/weight-400 in its own name table despite the filename, so a
-    Bold=1 request against "Noto Sans Thai" has no real bold face to land
-    on. DirectWrite/libass silently substitutes the same Regular-labeled
-    file anyway and applies synthetic bold to it -- which breaks GPOS
-    mark-to-mark anchor deltas that ั+่ (and only that specific stacked
-    pair, empirically) depends on. Detecting "no genuine bold face" from
-    the registered file's own OS/2 table lets style generation skip Bold=1
-    for exactly the families where it would only do damage.
     """
     if resolved_font in _HAS_TRUE_BOLD_CACHE:
         return _HAS_TRUE_BOLD_CACHE[resolved_font]
-    result = True  # fail open -- assume a real bold face exists rather than
-    # silently thinning out a caption style, matching every other lookup
-    # miss/exception default in this module.
+    result = True
     try:
         from fontTools.ttLib import TTFont
 
-        path = {f["family"]: f["path"] for f in AssetRegistry.fonts()}.get(resolved_font)
+        path = _resolve_family_font_path(resolved_font)
         if path:
             face = TTFont(path, lazy=True)
             os2 = face["OS/2"]

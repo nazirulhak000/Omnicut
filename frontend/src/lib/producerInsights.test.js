@@ -340,3 +340,62 @@ test('detectRefPlatform recognizes social URLs accurately', () => {
   assert.equal(detectRefPlatform('https://example.com/blog'), 'web');
   assert.equal(detectRefPlatform('just some random note'), null);
 });
+
+test('getClipIdentityAliases scopes angle_id with product_id to prevent cross-product collision', () => {
+  const itemA = { product_id: 'prodA', angle_id: 'pain_point' };
+  const itemB = { product_id: 'prodB', angle_id: 'pain_point' };
+
+  const aliasesA = getClipIdentityAliases(itemA);
+  const aliasesB = getClipIdentityAliases(itemB);
+
+  assert.ok(aliasesA.includes('angle:proda_pain_point'));
+  assert.ok(aliasesB.includes('angle:prodb_pain_point'));
+  assert.equal(aliasesA.some((a) => aliasesB.includes(a)), false);
+});
+
+test('calculateProductionStats does not deduplicate identical angle_id across different products', () => {
+  const fixedNow = new Date('2026-09-13T12:00:00.000Z');
+  const products = [
+    {
+      id: 'prodA',
+      angles: [{ angle_id: 'pain_point', status: 'rendered', status_updated_at: '2026-09-13T09:00:00.000Z' }],
+    },
+    {
+      id: 'prodB',
+      angles: [{ angle_id: 'pain_point', status: 'rendered', status_updated_at: '2026-09-13T09:30:00.000Z' }],
+    },
+  ];
+
+  const stats = calculateProductionStats(products, [], { dailyCuts: 5, weeklyCuts: 35, dailyPosts: 3 }, fixedNow);
+  assert.equal(stats.dailyCuts.current, 2);
+  assert.equal(stats.weeklyCuts.current, 2);
+});
+
+test('getDailyActionQueue preserves items across different products sharing the same angle_id', () => {
+  const products = [
+    {
+      id: 'prodA',
+      name: 'Product A',
+      code: 'PROD_A',
+      angles: [{ angle_id: 'pain_point', status: 'rendered', name: 'Pain Point A' }],
+    },
+    {
+      id: 'prodB',
+      name: 'Product B',
+      code: 'PROD_B',
+      angles: [{ angle_id: 'pain_point', status: 'rendered', name: 'Pain Point B' }],
+    },
+  ];
+
+  const queue = getDailyActionQueue(products, []);
+  assert.equal(queue.readyToPost.length, 2);
+  assert.equal(queue.readyToPost[0].productId, 'prodA');
+  assert.equal(queue.readyToPost[1].productId, 'prodB');
+});
+
+test('DEFAULT_TARGETS aligns dailyPosts with the daily schedule queue (5 slots)', () => {
+  assert.equal(DEFAULT_TARGETS.dailyPosts, 5);
+  assert.equal(DEFAULT_TARGETS.dailyCuts, 5);
+  assert.equal(DEFAULT_TARGETS.weeklyCuts, 35);
+});
+

@@ -28,9 +28,14 @@ from scripts.subtitle.motion_effects import (
     HOOK_LOOP_BUILDERS,
     HOOK_OUT_BUILDERS,
     _in_bounce,
+    resolve_hook_in_builder,
     _loop_pulse,
     _loop_none,
     _out_fade,
+)
+from scripts.subtitle.motion_ass_adapter import (
+    build_ass_motion_segments,
+    resolve_motion_contract_id,
 )
 from scripts.subtitle.translation_service import ass_escape_text, wrap_text_for_ass
 
@@ -41,6 +46,102 @@ TEXT_OVERLAY_POSITIONS = {
     "middle": 0.50,
     "bottom": 0.72,
 }
+
+
+def _motion_contract_for_phase(
+    source: Dict[str, Any],
+    role: str,
+    phase: str,
+) -> Optional[Dict[str, Any]]:
+    """Resolve an opt-in contract without disturbing legacy animation fields."""
+
+    animation = source.get("anim") if isinstance(source.get("anim"), dict) else {}
+    containers = [
+        source.get("motion_contracts"),
+        source.get("contracts"),
+        animation.get("motion_contracts"),
+        animation.get("contracts"),
+    ]
+    for container in containers:
+        if not isinstance(container, dict):
+            continue
+        candidate = container.get(phase)
+        if isinstance(candidate, dict):
+            return candidate
+        if isinstance(candidate, str):
+            resolved = resolve_motion_contract_id(candidate, role=role, phase=phase)
+            if resolved is not None:
+                return dict(resolved)
+
+    for holder in (source, animation):
+        candidate = holder.get(f"{phase}_contract")
+        if isinstance(candidate, dict):
+            return candidate
+        candidate_id = holder.get(f"{phase}_contract_id")
+        if candidate_id:
+            resolved = resolve_motion_contract_id(candidate_id, role=role, phase=phase)
+            if resolved is not None:
+                return dict(resolved)
+
+    for holder in (source, animation):
+        candidate = holder.get("motion_contract") or holder.get("contract")
+        if isinstance(candidate, dict):
+            if candidate.get("phase") == phase and candidate.get("role") == role:
+                return candidate
+        candidate_id = holder.get("motion_contract_id") or holder.get("contract_id")
+        if candidate_id:
+            resolved = resolve_motion_contract_id(candidate_id, role=role, phase=phase)
+            if resolved is not None:
+                return dict(resolved)
+    return None
+
+
+def _build_contract_plan(
+    source: Dict[str, Any],
+    role: str,
+    phase: str,
+    *,
+    start_ms: int,
+    end_ms: int,
+    base_scale: float = 100.0,
+    base_position: Optional[Tuple[float, float]] = None,
+):
+    """Build an opt-in plan; unknown/malformed contracts keep legacy export alive."""
+
+    contract = _motion_contract_for_phase(source, role, phase)
+    if contract is None:
+        return None
+    try:
+        plan = build_ass_motion_segments(
+            contract,
+            start_ms=start_ms,
+            end_ms=end_ms,
+            base_scale=base_scale,
+            base_position=base_position,
+            unsupported="report",
+        )
+    except (TypeError, ValueError):
+        # Project files from before the contract migration must remain
+        # renderable.  The legacy builder is the compatibility fallback.
+        return None
+    return plan
+
+
+def _ass_plan_has_position(plan: Any) -> bool:
+    if plan is None:
+        return False
+    tags = plan.ass
+    return "\\pos(" in tags or "\\move(" in tags
+
+
+def _contract_duration_ms(source: Dict[str, Any], role: str, phase: str, fallback: int) -> int:
+    contract = _motion_contract_for_phase(source, role, phase)
+    if not contract:
+        return fallback
+    try:
+        return max(0, int(round(float(contract.get("duration_ms", fallback)))))
+    except (TypeError, ValueError):
+        return fallback
 
 
 def _format_ass_time(seconds: float) -> str:
@@ -202,18 +303,33 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
         scaled_pct = round(scale_pct * master_scale)
         tier_fs = max(16, int(round(hook_fs * scaled_pct / 100)))
         max_w_px = int(video_width * 0.85)
-        text_w = _measure_text_width_px(text, tier_font, tier_fs)
-        if text_w and text_w > max_w_px and len(text) > 0:
-            avg_char_w = max(1.0, text_w / len(text))
-            dyn_max_chars = max(6, int(max_w_px / avg_char_w))
-        else:
-            dyn_max_chars = max(6, int(round(1550 / tier_fs)))
-        wrapped = wrap_text_for_ass(text, max_chars_per_line=dyn_max_chars)
-        lines = wrapped.split("\\N")
-        for line in lines:
+
+        # Mirrors wrapCanvasText(text, ctx, maxW) in SequencePlayer.jsx:
+        # 1. Split manual line breaks (\N or \n) first.
+        # 2. For each line, if advance width <= safe boundary (max_w_px * 1.01),
+        #    do NOT wrap (stay on 1 line, exactly as preview canvas does).
+        # 3. Only wrap lines that genuinely exceed the safe boundary.
+        raw_paras = str(text).replace("\\N", "\n").split("\n")
+        para_lines = []
+        for para in raw_paras:
+            clean = para.strip()
+            if not clean:
+                continue
+            para_w = _measure_text_width_px(clean, tier_font, tier_fs)
+            if para_w is not None and para_w <= int(max_w_px * 1.01):
+                para_lines.append(clean)
+            elif para_w is not None and para_w > max_w_px and len(clean) > 0:
+                avg_char_w = max(1.0, para_w / len(clean))
+                dyn_max_chars = max(6, int(max_w_px / avg_char_w))
+                para_lines.extend(wrap_text_for_ass(clean, max_chars_per_line=dyn_max_chars).split("\\N"))
+            else:
+                dyn_max_chars = max(6, int(round(1550 / tier_fs)))
+                para_lines.extend(wrap_text_for_ass(clean, max_chars_per_line=dyn_max_chars).split("\\N"))
+
+        for line in para_lines:
             tier_lines.append((line, scaled_pct, colour, tier_idx))
-        if tier_idx == 1:
-            model_last_line = lines[-1]
+        if tier_idx == 1 and para_lines:
+            model_last_line = para_lines[-1]
 
     if not tier_lines:
         return []
@@ -254,7 +370,7 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
     # font_size_boosted comment for the full empirical diagnosis).
     HOOK_SCALE_BOOST = 1.0 / ass_glyph_scale(hook_font)
 
-    in_builder = HOOK_IN_BUILDERS.get(motion["in"], _in_bounce)
+    in_builder = resolve_hook_in_builder(motion["in"])
     loop_builder = HOOK_LOOP_BUILDERS.get(motion["loop"], _loop_pulse)
     out_builder = HOOK_OUT_BUILDERS.get(motion["out"], _out_fade)
     is_typewriter = motion["in"] == "typewriter"
@@ -274,10 +390,31 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             t0_ms = tier_idx * step_delay_ms
         else:
             t0_ms = tier_idx * effective_stagger_ms if motion["stagger"] else 0
-        if is_typewriter:
+        contract_in = _build_contract_plan(
+            hook_overlay,
+            "hook",
+            "in",
+            start_ms=t0_ms,
+            end_ms=min(
+                exit_start_ms,
+                t0_ms + _contract_duration_ms(hook_overlay, "hook", "in", 0),
+            ),
+            base_scale=target,
+            base_position=(x_center, cursor_y),
+        )
+        if contract_in is not None:
+            in_tag, entry_end_ms, move_dy_in = (
+                contract_in.ass,
+                contract_in.window_ms["end"],
+                None,
+            )
+            has_contract_position = _ass_plan_has_position(contract_in)
+        elif is_typewriter:
             in_tag, entry_end_ms, move_dy_in = None, t0_ms + 400, None
+            has_contract_position = False
         else:
             in_tag, entry_end_ms, move_dy_in = in_builder(target, t0_ms)
+            has_contract_position = False
         max_entry_end_ms = max(max_entry_end_ms, entry_end_ms)
         tier_font = tier_looks[tier_idx].get("font") or hook_font
         line_records.append({
@@ -286,6 +423,7 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             "tier_font": tier_font,
             "t0_ms": t0_ms, "in_tag": in_tag, "entry_end_ms": entry_end_ms,
             "move_dy_in": move_dy_in, "y": cursor_y,
+            "has_contract_position": has_contract_position,
         })
         if tier_idx == 1:
             model_line_fs = line_fs
@@ -299,14 +437,48 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             reserve = 0.22 if motion["accent"] != "badge" else 0.08
             cursor_y += round(line_fs * reserve)
 
-    loop_tag = loop_builder(max_entry_end_ms, exit_start_ms)
+    contract_out_duration = _contract_duration_ms(
+        hook_overlay,
+        "hook",
+        "out",
+        max(0, exit_end_ms - exit_start_ms),
+    )
+    contract_exit_start_ms = (
+        max(0, exit_end_ms - contract_out_duration)
+        if _motion_contract_for_phase(hook_overlay, "hook", "out") is not None
+        else exit_start_ms
+    )
+    contract_loop = _build_contract_plan(
+        hook_overlay,
+        "hook",
+        "loop",
+        start_ms=max_entry_end_ms,
+        end_ms=contract_exit_start_ms,
+    )
+    loop_tag = contract_loop.ass if contract_loop is not None else loop_builder(max_entry_end_ms, exit_start_ms)
 
     for rec in line_records:
-        out_tag, move_dy_out = out_builder(exit_start_ms, exit_end_ms, rec["target"])
+        contract_out = _build_contract_plan(
+            hook_overlay,
+            "hook",
+            "out",
+            start_ms=contract_exit_start_ms,
+            end_ms=exit_end_ms,
+            base_scale=rec["target"],
+            base_position=(x_center, rec["y"]),
+        )
+        if contract_out is not None:
+            out_tag, move_dy_out = contract_out.ass, None
+            has_contract_out_position = _ass_plan_has_position(contract_out)
+        else:
+            out_tag, move_dy_out = out_builder(exit_start_ms, exit_end_ms, rec["target"])
+            has_contract_out_position = False
 
         if is_typewriter:
             half_w = _hook_line_width_px(rec["line"], hook_font, rec["line_fs"])
-            top, bot = rec["y"] - 5, rec["y"] + rec["line_fs"] + 5
+            # Full vertical clearance (0 to video_height) so typewriter reveals left-to-right
+            # without clipping font ascenders, descenders, or boosted glyph heights.
+            top, bot = 0, video_height
             x_from, x_to = x_center - half_w, x_center + half_w
             in_tag = (
                 f"\\clip({x_from:.0f},{top},{x_from:.0f},{bot})"
@@ -320,7 +492,9 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             if is_cumulative and rec["t0_ms"] > 0 and "\\alpha&HFF&" not in in_tag:
                 in_tag = f"\\alpha&HFF&\\t({rec['t0_ms']},{rec['t0_ms']},\\alpha&H00&)" + in_tag
 
-        if rec["move_dy_in"] is not None:
+        if rec["has_contract_position"] or has_contract_out_position:
+            pos_tag = ""
+        elif rec["move_dy_in"] is not None:
             pos_tag = (
                 f"\\move({x_center},{rec['y'] + rec['move_dy_in']},"
                 f"{x_center},{rec['y']},{rec['t0_ms']},{rec['entry_end_ms']})"
@@ -499,11 +673,27 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
         "slide_up": 300, "blur": 350,
     }
     in_dur = in_dur_map.get(anim_in, 100)
+    contract_in = _build_contract_plan(
+        item,
+        "text",
+        "in",
+        start_ms=0,
+        end_ms=_contract_duration_ms(item, "text", "in", in_dur),
+        base_scale=target_scale,
+        base_position=(x_pos, y_pos),
+    )
+    if contract_in is not None:
+        in_dur = contract_in.window_ms["end"] - contract_in.window_ms["start"]
 
     anim = anim_in
-    if anim == "snap":
+    contract_in_has_position = False
+    if contract_in is not None:
+        anim_tag = contract_in.ass
+        contract_in_has_position = _ass_plan_has_position(contract_in)
+    elif anim == "snap":
         snap_from = int(round(target_scale * 1.25))
         anim_tag = f"\\fscx{snap_from}\\fscy{snap_from}\\t(0,70,\\fscx{target_scale}\\fscy{target_scale})"
+        contract_in_has_position = False
     elif anim == "pop_zoom":
         snap_from = int(round(target_scale * 1.45))
         anim_tag = f"\\fscx{snap_from}\\fscy{snap_from}\\t(0,100,\\fscx{target_scale}\\fscy{target_scale})"
@@ -515,8 +705,10 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
     elif anim == "rise":
         pos_tag = f"\\an5\\move({x_pos},{y_pos + 40},{x_pos},{y_pos},0,200)"
         anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}\\alpha&HFF&\\t(0,200,\\alpha&H00&)"
+        contract_in_has_position = False
     else:  # none or other
         anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}"
+        contract_in_has_position = False
 
     render_fs = int(round(base_fs * scale))
     line_list = [l.strip() for l in txt.split("\n") if l.strip()]
@@ -549,13 +741,47 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
         max_entry_end_ms = (total_words_count - 1) * word_stagger_ms + in_dur
     else:
         max_entry_end_ms = in_dur
-    max_entry_end_ms = min(max_entry_end_ms, exit_start_ms)
+    contract_out_duration = _contract_duration_ms(
+        item,
+        "text",
+        "out",
+        max(0, exit_end_ms - exit_start_ms),
+    )
+    contract_exit_start_ms = (
+        max(0, exit_end_ms - contract_out_duration)
+        if _motion_contract_for_phase(item, "text", "out") is not None
+        else exit_start_ms
+    )
+    max_entry_end_ms = min(max_entry_end_ms, contract_exit_start_ms)
 
     loop_builder = HOOK_LOOP_BUILDERS.get(anim_loop, _loop_none)
-    loop_tag = loop_builder(max_entry_end_ms, exit_start_ms)
+    contract_loop = _build_contract_plan(
+        item,
+        "text",
+        "loop",
+        start_ms=max_entry_end_ms,
+        end_ms=contract_exit_start_ms,
+        base_scale=target_scale,
+        base_position=(x_pos, y_pos),
+    )
+    loop_tag = contract_loop.ass if contract_loop is not None else loop_builder(max_entry_end_ms, exit_start_ms)
 
     out_builder = HOOK_OUT_BUILDERS.get(anim_out, _out_fade)
-    out_tag, move_dy_out = out_builder(exit_start_ms, exit_end_ms, target_scale)
+    contract_out = _build_contract_plan(
+        item,
+        "text",
+        "out",
+        start_ms=contract_exit_start_ms,
+        end_ms=exit_end_ms,
+        base_scale=target_scale,
+        base_position=(x_pos, y_pos),
+    )
+    if contract_out is not None:
+        out_tag, move_dy_out = contract_out.ass, None
+        contract_out_has_position = _ass_plan_has_position(contract_out)
+    else:
+        out_tag, move_dy_out = out_builder(exit_start_ms, exit_end_ms, target_scale)
+        contract_out_has_position = False
 
     # Layer 3: a rounded pill behind the block, when the look has one
     if pill and line_list:
@@ -640,7 +866,21 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
                 else:
                     w_pos = f"\\q2\\an7\\pos({w_x:.1f},{line_y:.1f})"
 
-                if anim_in == "snap":
+                word_contract_in = _build_contract_plan(
+                    item,
+                    "text",
+                    "in",
+                    start_ms=word_t0,
+                    end_ms=word_t0 + in_dur,
+                    base_scale=target_scale,
+                    base_position=(w_x, line_y),
+                )
+                if word_contract_in is not None:
+                    t1 = word_t0 + in_dur
+                    w_anim = word_contract_in.ass
+                    if _ass_plan_has_position(word_contract_in):
+                        w_pos = "\\q2\\an7"
+                elif anim_in == "snap":
                     snap_from = int(round(target_scale * 1.25))
                     dur = 70
                     t1 = word_t0 + dur
@@ -731,7 +971,9 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
                 if sweep:
                     events.append(sweep)
     else:
-        if anim_in == "rise":
+        if contract_in_has_position or contract_out_has_position:
+            pos_tag = "\\an5"
+        elif anim_in == "rise":
             pos_tag = f"\\an5\\move({x_pos},{y_pos + 40},{x_pos},{y_pos},0,200)"
         elif move_dy_out is not None:
             pos_tag = f"\\an5\\move({x_pos},{y_pos},{x_pos},{y_pos + move_dy_out},{exit_start_ms},{exit_end_ms})"

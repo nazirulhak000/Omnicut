@@ -165,7 +165,7 @@ function defaultExtraBeatsForDuration(duration) {
 // ═══════════════════════════════════════════════════════════════════════
 // 📦 PRODUCT CARD (Horizontal Gallery Item)
 // ═══════════════════════════════════════════════════════════════════════
-function ProductCard({ product, isSelected, onSelect }) {
+function ProductCard({ product, isSelected, onSelect, onToggleHide }) {
   const pAngles = product.angles || [];
   const pDone = pAngles.filter(a => a.status === 'posted' || a.status === 'rendered').length;
   const total = pAngles.length || 4;
@@ -179,18 +179,38 @@ function ProductCard({ product, isSelected, onSelect }) {
   return (
     <button
       onClick={() => onSelect(product)}
-      className={`flex-shrink-0 w-[130px] sm:w-[150px] rounded-xl border transition-all cursor-pointer group snap-center p-2.5 space-y-2 text-left ${
+      className={`flex-shrink-0 w-[130px] sm:w-[150px] rounded-xl border transition-all cursor-pointer group snap-center p-2.5 space-y-2 text-left relative ${
         isSelected
           ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-lg shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
           : 'bg-[#0B0F19] border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.03]'
       }`}
     >
       {/* Thumbnail or Placeholder */}
-      <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/60 border border-white/[0.06] flex items-center justify-center">
+      <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/60 border border-white/[0.06] flex items-center justify-center relative">
         {thumbSrc ? (
           <img src={thumbSrc} alt="" className="w-full h-full object-cover" />
         ) : (
           <Package className={`w-7 h-7 ${isSelected ? 'text-[#25F4EE]' : 'text-slate-600'}`} />
+        )}
+
+        {onToggleHide && (
+          <button
+            type="button"
+            onClick={(e) => onToggleHide(product, e)}
+            className={`absolute top-1.5 right-1.5 p-1 rounded-lg backdrop-blur-md border transition-all cursor-pointer z-10 ${
+              product.is_hidden
+                ? 'bg-amber-500/80 border-amber-400 text-slate-950 opacity-100'
+                : 'bg-black/60 hover:bg-rose-500/80 border-white/20 hover:border-rose-400 text-slate-300 hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100'
+            }`}
+            title={product.is_hidden ? 'ยกเลิกการซ่อนสินค้านี้' : 'ซ่อนสินค้านี้'}
+            aria-label={product.is_hidden ? 'ยกเลิกการซ่อนสินค้านี้' : 'ซ่อนสินค้านี้'}
+          >
+            {product.is_hidden ? (
+              <Eye className="w-3.5 h-3.5" />
+            ) : (
+              <EyeOff className="w-3.5 h-3.5" />
+            )}
+          </button>
         )}
       </div>
 
@@ -2238,6 +2258,22 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [viewMode, setViewMode] = useState('split'); // 'split' | 'accordion'
   const [productToolsOpen, setProductToolsOpen] = useState(false);
 
+  const hiddenProductsCount = useMemo(() => {
+    return (historyList || []).filter(p => !!p.is_hidden).length;
+  }, [historyList]);
+
+  const activeProductsCount = useMemo(() => {
+    return (historyList || []).filter(p => !p.is_hidden).length;
+  }, [historyList]);
+
+  const unstartedVisibleProducts = useMemo(() => {
+    return (historyList || []).filter(p => {
+      if (p.is_hidden) return false;
+      const done = (p.angles || []).filter(a => a.status === 'posted' || a.status === 'rendered').length;
+      return done === 0;
+    });
+  }, [historyList]);
+
   // Filtered Products for 100+ items
   const filteredHistory = useMemo(() => {
     let list = historyList || [];
@@ -2249,16 +2285,21 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         (p.price || '').toLowerCase().includes(q)
       );
     }
-    if (productFilter === 'in_progress') {
-      list = list.filter(p => {
-        const done = (p.angles || []).filter(a => a.status === 'posted' || a.status === 'rendered').length;
-        return done < (p.angles?.length || 4);
-      });
-    } else if (productFilter === 'completed') {
-      list = list.filter(p => {
-        const done = (p.angles || []).filter(a => a.status === 'posted' || a.status === 'rendered').length;
-        return done >= (p.angles?.length || 4) && ((p.angles?.length || 0) > 0);
-      });
+    if (productFilter === 'hidden') {
+      list = list.filter(p => !!p.is_hidden);
+    } else {
+      list = list.filter(p => !p.is_hidden);
+      if (productFilter === 'in_progress') {
+        list = list.filter(p => {
+          const done = (p.angles || []).filter(a => a.status === 'posted' || a.status === 'rendered').length;
+          return done < (p.angles?.length || 4);
+        });
+      } else if (productFilter === 'completed') {
+        list = list.filter(p => {
+          const done = (p.angles || []).filter(a => a.status === 'posted' || a.status === 'rendered').length;
+          return done >= (p.angles?.length || 4) && ((p.angles?.length || 0) > 0);
+        });
+      }
     }
     return list;
   }, [historyList, productSearch, productFilter]);
@@ -2510,6 +2551,82 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     const restoredIdx = pendingId ? nextAngles.findIndex(a => a.angle_id === pendingId) : -1;
     setOpenAngleIdx(restoredIdx >= 0 ? restoredIdx : 0);
     setSelectedImages([]);
+  };
+
+  const [batchHiding, setBatchHiding] = useState(false);
+
+  const handleToggleHideProduct = async (prod, e) => {
+    e?.stopPropagation?.();
+    if (!prod?.id) return;
+    const newHidden = !prod.is_hidden;
+    try {
+      const res = await updateProduct(prod.id, { is_hidden: newHidden });
+      if (res.product) {
+        setHistoryList(prev => prev.map(p => p.id === res.product.id ? { ...p, ...res.product } : p));
+        // If the currently selected product was hidden and we're not in the hidden filter,
+        // switch selection to the first available non-hidden product
+        if (newHidden && selectedHistoryId === prod.id && productFilter !== 'hidden') {
+          const remaining = (historyList || []).filter(p => p.id !== prod.id && !p.is_hidden);
+          if (remaining.length > 0) {
+            selectProduct(remaining[0]);
+          }
+        }
+        workspaceData?.invalidateTrackerData?.();
+        showToast(
+          newHidden
+            ? `ซ่อน "${prod.name || prod.title || 'สินค้า'}" เรียบร้อยแล้ว`
+            : `ยกเลิกการซ่อน "${prod.name || prod.title || 'สินค้า'}" เรียบร้อยแล้ว`,
+          'info'
+        );
+      }
+    } catch (err) {
+      console.error('Failed to toggle product hidden status:', err);
+      showToast('ไม่สามารถเปลี่ยนสถานะซ่อนสินค้าได้: ' + (err.response?.data?.detail || err.message), 'error');
+    }
+  };
+
+  const handleBatchHideUnstarted = async () => {
+    if (unstartedVisibleProducts.length === 0) {
+      showToast('ไม่มีสินค้าที่ยังไม่เริ่มทำที่ต้องซ่อนครับ', 'info');
+      return;
+    }
+    setBatchHiding(true);
+    try {
+      await Promise.all(
+        unstartedVisibleProducts.map(p => updateProduct(p.id, { is_hidden: true }))
+      );
+      const updatedIds = new Set(unstartedVisibleProducts.map(p => p.id));
+      setHistoryList(prev => prev.map(p => updatedIds.has(p.id) ? { ...p, is_hidden: true } : p));
+      // If current product was hidden, select a remaining visible product
+      if (selectedHistoryId && updatedIds.has(selectedHistoryId)) {
+        const remaining = (historyList || []).filter(p => !updatedIds.has(p.id) && !p.is_hidden);
+        if (remaining.length > 0) {
+          selectProduct(remaining[0]);
+        }
+      }
+      workspaceData?.invalidateTrackerData?.();
+      showToast(`ซ่อนสินค้าที่ยังไม่ทำ ${unstartedVisibleProducts.length} รายการเรียบร้อยแล้ว`, 'success');
+    } catch (err) {
+      console.error('Failed to batch hide unstarted products:', err);
+      showToast('เกิดข้อผิดพลาดในการซ่อนสินค้า: ' + (err.response?.data?.detail || err.message), 'error');
+    } finally {
+      setBatchHiding(false);
+    }
+  };
+
+  const handleBatchUnhideAll = async () => {
+    const hiddenItems = (historyList || []).filter(p => !!p.is_hidden);
+    if (hiddenItems.length === 0) return;
+    try {
+      await Promise.all(hiddenItems.map(p => updateProduct(p.id, { is_hidden: false })));
+      setHistoryList(prev => prev.map(p => ({ ...p, is_hidden: false })));
+      setProductFilter('all');
+      workspaceData?.invalidateTrackerData?.();
+      showToast(`ยกเลิกการซ่อนสินค้าทั้งหมด ${hiddenItems.length} รายการแล้ว`, 'success');
+    } catch (err) {
+      console.error('Failed to unhide all products:', err);
+      showToast('ไม่สามารถยกเลิกการซ่อนทั้งหมดได้: ' + (err.response?.data?.detail || err.message), 'error');
+    }
   };
 
   const handleAngleStatusChange = async (angleId, nextStatus) => {
@@ -3925,6 +4042,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       product={p}
                       isSelected={selectedHistoryId === p.id}
                       onSelect={selectProduct}
+                      onToggleHide={handleToggleHideProduct}
                     />
                   ))}
                   {filteredHistory.length === 0 && productSearch && (
@@ -3933,7 +4051,38 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       <span>ไม่พบสินค้าที่ตรงกับ "{productSearch}"</span>
                     </div>
                   )}
+                  {filteredHistory.length === 0 && !productSearch && productFilter === 'hidden' && (
+                    <div className="flex items-center justify-center p-4 rounded-xl bg-black/40 border border-white/[0.06] text-xs text-slate-400 gap-2 flex-shrink-0">
+                      <EyeOff className="w-4 h-4 text-slate-500" />
+                      <span>ไม่มีสินค้าที่ถูกซ่อนอยู่</span>
+                    </div>
+                  )}
                 </div>
+
+                {productFilter === 'hidden' && (
+                  <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 mt-2">
+                    <div className="flex items-center gap-2">
+                      <EyeOff className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                      <span>กำลังแสดงเฉพาะสินค้าที่ซ่อนอยู่ ({filteredHistory.length} รายการ)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleBatchUnhideAll}
+                        className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] cursor-pointer"
+                      >
+                        ยกเลิกการซ่อนทั้งหมด
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductFilter('all')}
+                        className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-white font-bold text-[11px] cursor-pointer"
+                      >
+                        กลับไปดูสินค้าปกติ
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -3971,6 +4120,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 >
                   <MoreHorizontal className="w-4 h-4" />
                   <span>เครื่องมือสินค้า</span>
+                  {hiddenProductsCount > 0 && !productToolsOpen && (
+                    <span className="w-2 h-2 rounded-full bg-amber-400" title={`มีสินค้าที่ซ่อนอยู่ ${hiddenProductsCount} รายการ`} />
+                  )}
                 </button>
               </div>
             </div>
@@ -4015,12 +4167,39 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     </button>
                   </>
                 )}
+                {unstartedVisibleProducts.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleBatchHideUnstarted}
+                    disabled={batchHiding}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                    title="ซ่อนสินค้าที่ความคืบหน้า 0/10 มุม ออกจากแถบหลัก"
+                  >
+                    <EyeOff className="w-3.5 h-3.5 text-rose-400" />
+                    <span>ซ่อนสินค้าที่ยังไม่ทำ ({unstartedVisibleProducts.length})</span>
+                  </button>
+                )}
                 <button type="button" onClick={() => setShowCatalogModal(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold transition-colors">
                   <LayoutGrid className="w-3.5 h-3.5 text-[#25F4EE]" /><span>คลังสินค้า</span>
                 </button>
                 <button type="button" onClick={loadHistory} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold transition-colors">
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingHistory ? 'animate-spin' : ''}`} /><span>รีเฟรชข้อมูล</span>
                 </button>
+                {(hiddenProductsCount > 0 || productFilter === 'hidden') && (
+                  <button
+                    type="button"
+                    onClick={() => setProductFilter((f) => (f === 'hidden' ? 'all' : 'hidden'))}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer ${
+                      productFilter === 'hidden'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-slate-200 border-white/[0.08]'
+                    }`}
+                    title={productFilter === 'hidden' ? 'กลับไปแสดงสินค้าหลัก' : `ดูสินค้าที่ซ่อนไว้ (${hiddenProductsCount})`}
+                  >
+                    {productFilter === 'hidden' ? <Eye className="w-3.5 h-3.5 text-amber-400" /> : <EyeOff className="w-3.5 h-3.5 text-slate-400" />}
+                    <span>{productFilter === 'hidden' ? 'ดูสินค้าหลัก' : `ซ่อนอยู่ (${hiddenProductsCount})`}</span>
+                  </button>
+                )}
                 {productData && (
                   <button type="button" onClick={() => handleDeleteHistory(productData)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 text-xs font-bold transition-colors ml-auto">
                     <Trash2 className="w-3.5 h-3.5" /><span>ลบสินค้า</span>
@@ -5338,9 +5517,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             {/* Filter Tabs */}
             <div className="flex items-center gap-1 p-1 bg-black/40 rounded-xl border border-white/[0.08] flex-shrink-0">
               {[
-                { id: 'all', label: `ทั้งหมด (${historyList.length})` },
+                { id: 'all', label: `ทั้งหมด (${activeProductsCount})` },
                 { id: 'in_progress', label: `กำลังทำ` },
                 { id: 'completed', label: `เสร็จแล้ว` },
+                ...(hiddenProductsCount > 0 ? [{ id: 'hidden', label: `ซ่อนอยู่ (${hiddenProductsCount})` }] : []),
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -5395,6 +5575,19 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                             <Check className="w-3 h-3 stroke-[3]" />
                           </div>
                         )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleHideProduct(p, e)}
+                          className={`absolute top-1.5 left-1.5 p-1 rounded-lg backdrop-blur-md border transition-all cursor-pointer z-10 ${
+                            p.is_hidden
+                              ? 'bg-amber-500/80 border-amber-400 text-slate-950 opacity-100'
+                              : 'bg-black/60 hover:bg-rose-500/80 border-white/20 hover:border-rose-400 text-slate-300 hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100'
+                          }`}
+                          title={p.is_hidden ? 'ยกเลิกการซ่อนสินค้านี้' : 'ซ่อนสินค้านี้'}
+                          aria-label={p.is_hidden ? 'ยกเลิกการซ่อนสินค้านี้' : 'ซ่อนสินค้านี้'}
+                        >
+                          {p.is_hidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                        </button>
                       </div>
 
                       {/* Info */}

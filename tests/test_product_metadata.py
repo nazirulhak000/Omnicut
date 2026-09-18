@@ -615,3 +615,31 @@ def test_product_hook_header_sync_to_angles(tmp_path, monkeypatch):
     assert saved["angles"][1]["hook_model"] == "LOOP Smartband"
     assert saved["angles"][1]["hook_label"] == "สายรัดข้อมือ"
 
+
+def test_product_update_is_hidden(tmp_path, monkeypatch):
+    monkeypatch.setattr(ps, "STORE_PATH", tmp_path / "_Docs" / "products.json")
+    product = ps.ProductStore.add(
+        name="Test Hidden Product",
+    )
+
+    client = TestClient(app)
+    response = client.patch(
+        f"/api/products/{product['id']}",
+        json={"is_hidden": True},
+    )
+    assert response.status_code == 200
+    saved = response.json()["product"]
+    assert saved["is_hidden"] is True
+
+    fetched = ps.ProductStore.get(product["id"])
+    assert fetched["is_hidden"] is True
+
+    response2 = client.patch(
+        f"/api/products/{product['id']}",
+        json={"is_hidden": False},
+    )
+    assert response2.status_code == 200
+    saved2 = response2.json()["product"]
+    assert saved2["is_hidden"] is False
+
+

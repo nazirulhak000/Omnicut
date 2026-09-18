@@ -7,7 +7,7 @@
 export const DEFAULT_TARGETS = {
   dailyCuts: 5,
   weeklyCuts: 35,
-  dailyPosts: 3,
+  dailyPosts: 5,
 };
 
 export const TARGETS_STORAGE_KEY = 'omnicut_producer_targets';
@@ -42,8 +42,16 @@ export function getClipIdentityAliases(item = {}) {
     if (normalized) aliases.add(`${prefix}:${normalized}`);
   };
 
+  const prodScope = item.product_id || item.productId || item.product_code || item.productCode || '';
+
   if (item.clip_id) add('clip', item.clip_id);
-  if (item.angle_id) add('angle', item.angle_id);
+  if (item.angle_id) {
+    if (prodScope) {
+      add('angle', `${prodScope}_${item.angle_id}`);
+    } else {
+      add('angle', item.angle_id);
+    }
+  }
   if (item.project_name) add('project', item.project_name);
   if (item.projectName) add('project', item.projectName);
   if (item.export_id) add('export', item.export_id);
@@ -83,10 +91,11 @@ export function loadTargets() {
     const raw = typeof window !== 'undefined' ? localStorage.getItem(TARGETS_STORAGE_KEY) : null;
     if (raw) {
       const parsed = JSON.parse(raw);
+      const dailyPosts = Number(parsed.dailyPosts);
       return {
         dailyCuts: Number(parsed.dailyCuts) || DEFAULT_TARGETS.dailyCuts,
         weeklyCuts: Number(parsed.weeklyCuts) || DEFAULT_TARGETS.weeklyCuts,
-        dailyPosts: Number(parsed.dailyPosts) || DEFAULT_TARGETS.dailyPosts,
+        dailyPosts: dailyPosts && dailyPosts !== 3 ? dailyPosts : DEFAULT_TARGETS.dailyPosts,
       };
     }
   } catch (e) {
@@ -368,6 +377,9 @@ export function calculateProductionStats(products = [], exports = [], targets = 
       const d = extractEntityDate(ang);
       const normalizedAngle = {
         ...ang,
+        product_id: prod.id,
+        productId: prod.id,
+        product_code: prod.product_code,
         angle_id: ang.angle_id || `${prod.id}_${ang.angle_name || ang.hook_title || 'untitled'}`,
       };
       const angleAliases = getClipIdentityAliases(normalizedAngle);
@@ -452,12 +464,20 @@ export function getDailyActionQueue(products = [], exports = []) {
           type: 'angle_rendered',
           id: ang.angle_id,
           productId: prod.id,
+          product_id: prod.id,
           updatedAt: ang.status_updated_at || ang.updated_at || ang.created_at,
           title: ang.hook_title || ang.angle_name || prod.name,
           productName: prod.name,
+          product_name: prod.name,
           productCode: prod.product_code,
+          product_code: prod.product_code,
           parentProduct: prod,
-          angle: ang,
+          angle: {
+            ...ang,
+            product_id: prod.id,
+            productId: prod.id,
+            product_code: prod.product_code,
+          },
           exportPath: ang.export_path || ang.rendered_video,
           caption: ang.tiktok_caption || '',
           hashtags: ang.tiktok_hashtags || '',
@@ -468,31 +488,57 @@ export function getDailyActionQueue(products = [], exports = []) {
 
   // Also include standalone exports that are not posted
   (exports || []).forEach(exp => {
-    if (!exp.is_posted) {
+    if (!exp.is_posted && !exp.is_qc_rejected && !exp.is_previous_version) {
+      const parentProduct = findProductForExport(exp, products);
+      const prodId = parentProduct?.id || exp.product_id || exp.productId;
+      const prodCode = parentProduct?.product_code || exp.product_code || exp.productCode;
+      const expIdentity = {
+        angle_id: exp.angle_id,
+        product_id: prodId,
+        product_code: prodCode,
+        export_id: exp.export_id,
+        export_path: exp.path,
+        path: exp.path,
+        project_name: exp.project_name,
+        name: exp.name,
+      };
       const alreadyInList = readyToPost.some(item => {
         const itemIdentity = {
           ...(item.angle || {}),
+          product_id: item.productId || item.product_id,
+          product_code: item.productCode || item.product_code,
           export_id: item.id,
           export_path: item.exportPath,
+          path: item.exportPath,
+          project_name: item.angle?.project_name || item.projectName,
           name: item.title,
         };
-        return hasKnownClipIdentity(exp, new Set(getClipIdentityAliases(itemIdentity)));
+        return hasKnownClipIdentity(expIdentity, new Set(getClipIdentityAliases(itemIdentity)));
       });
       if (!alreadyInList) {
-        const parentProduct = findProductForExport(exp, products);
         const exportName = exp.name || (exp.path ? exp.path.replace(/\\/g, '/').split('/').pop() : null) || exp.export_id || 'คลิปตัดเสร็จ';
         readyToPost.push({
           type: 'export_file',
           id: exp.export_id || exp.name,
-          productId: parentProduct?.id || exp.product_id || exp.productId,
+          productId: prodId,
+          product_id: prodId,
           title: exportName.toString().replace(/\.mp4$/i, ''),
           productName: parentProduct?.name || exp.product_name || 'คลิปตัดเสร็จ',
-          productCode: parentProduct?.product_code || exp.product_code || exp.productCode,
+          product_name: parentProduct?.name || exp.product_name || 'คลิปตัดเสร็จ',
+          productCode: prodCode,
+          product_code: prodCode,
           parentProduct,
           updatedAt: exp.modified_time || exp.modified || exp.created_at || exp.timestamp,
           exportPath: exp.path,
-          caption: '',
-          hashtags: '',
+          angle: {
+            angle_id: exp.angle_id,
+            product_id: prodId,
+            product_code: prodCode,
+            project_name: exp.project_name,
+            export_id: exp.export_id,
+          },
+          caption: exp.tiktok_caption || '',
+          hashtags: exp.tiktok_hashtags || '',
         });
       }
     }
@@ -718,7 +764,7 @@ export function generateBossGreeting({ stats, actionQueue, now = new Date() }) {
   const { dailyCuts, weeklyCuts, dailyPosts } = stats || {
     dailyCuts: { current: 0, target: 5, remaining: 5 },
     weeklyCuts: { current: 0, target: 35, remaining: 35 },
-    dailyPosts: { current: 0, target: 3, remaining: 3 },
+    dailyPosts: { current: 0, target: 5, remaining: 5 },
   };
 
   const pendingPostsCount = actionQueue?.readyToPost?.length || 0;

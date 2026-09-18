@@ -133,15 +133,17 @@ export default function Toolbar({
               ))}
             </optgroup>
           )}
-          <optgroup label="⚡ แม่แบบมาตรฐาน">
-            <option value="tech" className="bg-[#232220] text-[#EDE9E3]">เทค (Tech)</option>
-            <option value="cute" className="bg-[#232220] text-[#EDE9E3]">คิ้วท์ (Cute)</option>
-            <option value="bold_pop" className="bg-[#232220] text-[#EDE9E3]">ป็อปตัวหนา (Bold Pop)</option>
-            <option value="plain" className="bg-[#232220] text-[#EDE9E3]">เรียบ (Plain)</option>
-            <option value="clean" className="bg-[#232220] text-[#EDE9E3]">คลีน (Clean)</option>
-            <option value="flash_sale" className="bg-[#232220] text-[#EDE9E3]">โปรไฟลุก (Flash Sale)</option>
-            <option value="neon_cyber" className="bg-[#232220] text-[#EDE9E3]">นีออน (Neon)</option>
-            <option value="minimal_luxury" className="bg-[#232220] text-[#EDE9E3]">ลักชัวรี (Luxury)</option>
+          <optgroup label="⚡ แม่แบบมาตรฐาน T1">
+            <option value="b1_viral_red" className="bg-[#232220] text-[#EDE9E3]">T1 (แดง+กระพริบ)</option>
+            <option value="b2_clean_yellow" className="bg-[#232220] text-[#EDE9E3]">T1 (เหลือง+สั่น)</option>
+            <option value="b2_tech_cyan" className="bg-[#232220] text-[#EDE9E3]">T1 (ฟ้า+สั่นเบา)</option>
+            <option value="b1_smooth_mint" className="bg-[#232220] text-[#EDE9E3]">T1 (เขียวมิ้นต์+กวาดแสง)</option>
+            <option value="b2_premium_gold" className="bg-[#232220] text-[#EDE9E3]">T1 (ทอง+สั่นเบา)</option>
+            <option value="b1_deal_orange" className="bg-[#232220] text-[#EDE9E3]">T1 (ส้ม+กระพริบ)</option>
+            <option value="b1_pain_pink" className="bg-[#232220] text-[#EDE9E3]">T1 (ชมพู+สั่น)</option>
+            <option value="b2_compare_blue" className="bg-[#232220] text-[#EDE9E3]">T1 (น้ำเงิน+คลื่น)</option>
+            <option value="b1_hack_lime" className="bg-[#232220] text-[#EDE9E3]">T1 (เขียวมะนาว+กวาดแสง)</option>
+            <option value="b2_niche_purple" className="bg-[#232220] text-[#EDE9E3]">T1 (ม่วง+คลื่น)</option>
           </optgroup>
         </select>
       </div>

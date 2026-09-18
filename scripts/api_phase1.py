@@ -344,6 +344,7 @@ class ProductUpdateRequest(BaseModel):
     hook_model: Optional[str] = None
     hook_label: Optional[str] = None
     apply_to_angles: Optional[bool] = None
+    is_hidden: Optional[bool] = None
 
 
 def _meta_tag(html_text: str, prop: str) -> str:

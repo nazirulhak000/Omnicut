@@ -46,6 +46,22 @@ test('frame scheduling keeps the audio clock, drift correction, and selection-bo
   assert.match(sequencePlayerSource, /selection, overlays, cues, playhead,/);
 });
 
+test('video effect overlays are synchronised to the master timeline before paint', () => {
+  assert.match(sequencePlayerSource, /import \{ reconcileEffectPlayback \} from '\.\.\/lib\/effectPlayback\.js';/);
+  assert.match(sequencePlayerSource, /function syncEffectVideos\(videosMap, timelineTime, effectsList = \[\], isPlaying = true\)/);
+  assert.match(playbackTickSource, /syncEffectVideos\(effectVideosRef\.current, t, effects\);/);
+});
+
+test('Canvas motion contracts are opt-in and preserve the legacy overlay fallback', () => {
+  assert.match(sequencePlayerSource, /import \{ sampleCanvasMotion \} from '\.\.\/lib\/motion\/rendererAdapter\.js';/);
+  assert.match(sequencePlayerSource, /function explicitMotionMetadata\(overlay\)/);
+  assert.match(sequencePlayerSource, /function sampleExplicitOverlayMotion\(overlay, tRel, durationSec\)/);
+  assert.match(sequencePlayerSource, /sampleCanvasMotion\(\s*\{ phases: plan\.contracts \}/s);
+  assert.match(sequencePlayerSource, /Invalid or incomplete opt-in data must never take down the preview/);
+  assert.match(sequencePlayerSource, /const lineInFx = explicitMotion\?\.phase === 'in'/);
+  assert.match(sequencePlayerSource, /\(inPreset\.at\(\(tRel - t0\) \* 1000\) \|\| \{\}\)/);
+});
+
 test('background isolation frame errors have bounded deterministic retry backoff', () => {
   assert.match(
     sequencePlayerSource,

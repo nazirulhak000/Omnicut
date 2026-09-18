@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
+import { computeAreaLineChart, findClosestChartPoint, DEFAULT_CHART_PADDING } from '../../../lib/chartModel';
 
 /**
  * Pure SVG Smooth Curved Area & Line Chart
@@ -13,6 +14,7 @@ export default function AreaLineChart({
   formatValue = (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v?.toLocaleString?.() || v),
   formatSecondary = (v) => (v != null ? `ประหยัด ฿${v}` : null),
   unit = 'tok',
+  valueLabel = 'ปริมาณ',
   lineColor = '#25F4EE',
   gradientFrom = '#25F4EE',
   gradientTo = '#3B82F6',
@@ -26,69 +28,22 @@ export default function AreaLineChart({
     return data;
   }, [data]);
 
-  const padding = { top: 14, right: 20, bottom: 28, left: 42 };
+  const padding = DEFAULT_CHART_PADDING;
   const viewBoxWidth = 800;
   const viewBoxHeight = height;
   const innerWidth = viewBoxWidth - padding.left - padding.right;
   const innerHeight = viewBoxHeight - padding.top - padding.bottom;
 
   const { points, areaPath, linePath, maxVal, minVal, yTicks } = useMemo(() => {
-    if (chartData.length === 0) {
-      return { points: [], areaPath: '', linePath: '', maxVal: 0, minVal: 0, yTicks: [] };
-    }
-
-    const values = chartData.map((d) => Number(d[valueKey]) || 0);
-    const rawMax = Math.max(...values, 10);
-    const rawMin = 0;
-    // Round max up to clean boundary
-    const magnitude = Math.pow(10, Math.floor(Math.log10(rawMax)));
-    const maxVal = Math.ceil(rawMax / magnitude) * magnitude;
-    const minVal = 0;
-
-    const valRange = maxVal - minVal || 1;
-
-    // Generate points
-    const stepX = chartData.length > 1 ? innerWidth / (chartData.length - 1) : innerWidth / 2;
-    const pts = chartData.map((d, i) => {
-      const val = Number(d[valueKey]) || 0;
-      const x = padding.left + (chartData.length > 1 ? i * stepX : innerWidth / 2);
-      const y = padding.top + innerHeight - ((val - minVal) / valRange) * innerHeight;
-      return { x, y, data: d, index: i, value: val };
+    return computeAreaLineChart({
+      data: chartData,
+      valueKey,
+      dateKey,
+      viewBoxWidth,
+      viewBoxHeight,
+      padding,
     });
-
-    if (pts.length === 1) {
-      const singlePt = pts[0];
-      const lp = `M ${padding.left} ${singlePt.y} L ${padding.left + innerWidth} ${singlePt.y}`;
-      const ap = `M ${padding.left} ${singlePt.y} L ${padding.left + innerWidth} ${singlePt.y} L ${padding.left + innerWidth} ${padding.top + innerHeight} L ${padding.left} ${padding.top + innerHeight} Z`;
-      return { points: pts, areaPath: ap, linePath: lp, maxVal, minVal, yTicks: [0, maxVal / 2, maxVal] };
-    }
-
-    // Generate Catmull-Rom or Cubic Bezier path
-    let lp = `M ${pts[0].x} ${pts[0].y}`;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = i > 0 ? pts[i - 1] : pts[i];
-      const p1 = pts[i];
-      const p2 = pts[i + 1];
-      const p3 = i != pts.length - 2 ? pts[i + 2] : p2;
-
-      // Tension factor
-      const cp1x = p1.x + (p2.x - p0.x) / 6;
-      const cp1y = p1.y + (p2.y - p0.y) / 6;
-      const cp2x = p2.x - (p3.x - p1.x) / 6;
-      const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-      lp += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-    }
-
-    // Closed Area path
-    const lastPt = pts[pts.length - 1];
-    const firstPt = pts[0];
-    const ap = `${lp} L ${lastPt.x} ${padding.top + innerHeight} L ${firstPt.x} ${padding.top + innerHeight} Z`;
-
-    const yTicks = [0, Math.round(maxVal / 2), maxVal];
-
-    return { points: pts, areaPath: ap, linePath: lp, maxVal, minVal, yTicks };
-  }, [chartData, innerWidth, innerHeight, padding.left, padding.top, valueKey]);
+  }, [chartData, viewBoxWidth, viewBoxHeight, padding, valueKey, dateKey]);
 
   // Handle pointer tracking
   const handlePointerMove = (e) => {
@@ -98,17 +53,8 @@ export default function AreaLineChart({
     const scaleX = viewBoxWidth / rect.width;
     const svgX = mouseX * scaleX;
 
-    // Find closest point
-    let closestIdx = 0;
-    let minDiff = Infinity;
-    points.forEach((pt, i) => {
-      const diff = Math.abs(pt.x - svgX);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestIdx = i;
-      }
-    });
-    setHoverIndex(closestIdx);
+    const match = findClosestChartPoint(points, svgX);
+    setHoverIndex(match ? match.index : null);
   };
 
   const handlePointerLeave = () => {
@@ -299,7 +245,7 @@ export default function AreaLineChart({
               {activePoint.data[dateKey]}
             </div>
             <div className="flex items-baseline justify-between gap-2">
-              <span className="text-[11px] text-slate-300">ปริมาณ:</span>
+              <span className="text-[11px] text-slate-300">{valueLabel}:</span>
               <span className="text-xs font-bold text-white">
                 {activePoint.value.toLocaleString()} {unit}
               </span>

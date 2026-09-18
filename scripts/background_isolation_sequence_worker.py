@@ -393,8 +393,18 @@ def _publish_atomically(temporary: Path, target: Path) -> None:
 
     created = False
     try:
-        target.mkdir()
-        created = True
+        try:
+            target.mkdir()
+            created = True
+        except FileExistsError:
+            # If target exists without a ready manifest.json, it is an abandoned publication
+            # that failed mid-flight before the manifest was committed. Clean it up and retry.
+            if not (target / "manifest.json").is_file():
+                _cleanup(target)
+                target.mkdir()
+                created = True
+            else:
+                raise
         os.replace(temporary / "frames", target / "frames")
         os.replace(temporary / "manifest.json", target / "manifest.json")
         temporary.rmdir()

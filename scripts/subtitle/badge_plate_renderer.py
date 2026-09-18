@@ -75,7 +75,9 @@ def _hook_lightsweep_event(
     band_w = max(20, int(half_w * 0.7))
     left = x_center - half_w - band_w
     right = x_center + half_w
-    top, bot = y - 5, y + line_fs + 5
+    # Full vertical clearance (0 to 1920) so the horizontal sweep band covers
+    # 100% of the glyph height regardless of font size, boost, ascenders, or descenders.
+    top, bot = 0, 1920
 
     SWEEP_MS = 500
     segs = []

@@ -201,6 +201,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
             valueKey="value"
             dateKey="label"
             unit="views"
+            valueLabel="ยอดวิว"
           />
         </div>
       )}

@@ -36,6 +36,9 @@ import {
 } from '../lib/overlayBoxGeometry.js';
 import { bindWindowPointerLifecycle } from '../lib/pointerDragLifecycle.js';
 import { drawMediaWithAccentRecolor } from '../lib/overlayRecolor.js';
+import { reconcileEffectPlayback } from '../lib/effectPlayback.js';
+import { getMotionPreset, MOTION_PRESETS } from '../lib/motion/motionPresets.js';
+import { sampleCanvasMotion } from '../lib/motion/rendererAdapter.js';
 import {
   resolveBackgroundIsolationConfig,
   resolveBackgroundIsolationPreview,
@@ -1543,9 +1546,8 @@ function drawSticker(ctx, img, t, stkStyle, outBounds = null, accentColor = '#FF
 // so the white blends into whatever's already painted on the canvas at that
 // spot (the actual video frame drawn earlier in renderAt), same trick as the
 // backend's crop+blend+overlay chain in video_editor.py. The <video> element
-// just autoplay-loops on its own free-running clock rather than being seeked
-// to match t exactly -- exact frame alignment only matters for the real
-// export, which ffmpeg does with -itsoffset; this is a rough live preview.
+// is synchronised to the master timeline before each paint, so a frame/effect
+// overlay starts at its configured time and does not drift during playback.
 function drawSingleEffect(ctx, videoEl, t, fx, outBounds = null, accentColor = '#FFE600') {
   if (!videoEl || videoEl.readyState < 2) return;
   const startTime = fx.start ?? 0.5;
@@ -1579,6 +1581,39 @@ function drawSingleEffect(ctx, videoEl, t, fx, outBounds = null, accentColor = '
   ctx.globalCompositeOperation = 'multiply';
   drawMediaWithAccentRecolor(ctx, videoEl, x, y, w, h, fx, accentColor, 'effect', fx.effectId);
   ctx.restore();
+}
+
+function syncEffectVideos(videosMap, timelineTime, effectsList = [], isPlaying = true) {
+  (effectsList || []).forEach((fx) => {
+    if (!fx || fx.hidden) return;
+    const videoEl = videosMap?.get?.(fx.effectId);
+    if (!videoEl || videoEl.readyState < 1) return;
+
+    const decision = reconcileEffectPlayback({
+      timelineTime,
+      effectStart: fx.start ?? 0.5,
+      mediaTime: videoEl.currentTime,
+      mediaDuration: videoEl.duration,
+      paused: videoEl.paused,
+    });
+    if (decision.action === 'idle') {
+      videoEl.pause();
+      videoEl.playbackRate = 1;
+      return;
+    }
+    if (decision.targetTime != null && decision.action !== 'hold' && decision.action !== 'slew') {
+      try { videoEl.currentTime = decision.targetTime; } catch {}
+    }
+    if (!isPlaying) {
+      videoEl.pause();
+      videoEl.playbackRate = 1;
+      return;
+    }
+    videoEl.playbackRate = decision.playbackRate;
+    if (decision.action === 'seek-and-play' || decision.action === 'play' || videoEl.paused) {
+      videoEl.play().catch(() => {});
+    }
+  });
 }
 
 function drawEffects(ctx, videosMap, t, effectsList, outBounds = null, accentColor = '#FFE600') {
@@ -1835,6 +1870,243 @@ const OVERLAY_OUT_TRANSFORMS = {
   none: (t, s, e) => ({ alpha: t >= e - 0.001 ? 0 : 1 }),
 };
 
+// Motion contracts are deliberately opt-in. Existing overlays only carry the
+// legacy `anim` object, so they must continue through the historical Canvas
+// transforms until their data explicitly opts into the contract seam.
+function explicitMotionMetadata(overlay) {
+  const metadata = overlay?.motionMetadata || overlay?.metadata || {};
+  const inline = overlay?.motionContract
+    ?? overlay?.motion_contract
+    ?? metadata.motionContract
+    ?? metadata.motion_contract
+    ?? null;
+  const id = overlay?.motionContractId
+    ?? overlay?.motion_contract_id
+    ?? metadata.motionContractId
+    ?? metadata.motion_contract_id
+    ?? (typeof inline === 'string' ? inline : null);
+  return { inline, id, metadata };
+}
+
+function presetFromMotionContractId(id, role = null, phase = null) {
+  if (typeof id !== 'string' || !id.trim()) return null;
+  const normalized = id.trim();
+  if (MOTION_PRESETS[normalized]) return MOTION_PRESETS[normalized];
+  const parts = normalized.split('.');
+  if (parts.length >= 3) {
+    const role = parts.shift();
+    const phase = parts.shift();
+    return getMotionPreset(role, phase, parts.join('.'));
+  }
+  if (role && phase) return getMotionPreset(role, phase, normalized);
+  return null;
+}
+
+function phaseContractsFromMotionSource(source, fallback = null) {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return {};
+  if (source.tracks && source.phase) return { [source.phase]: source };
+  if (source.phases && typeof source.phases === 'object') return source.phases;
+  const phaseKeys = ['in', 'loop', 'out'];
+  const phases = {};
+  for (const phase of phaseKeys) {
+    if (source[phase] && typeof source[phase] === 'object') phases[phase] = source[phase];
+  }
+  if (Object.keys(phases).length) return phases;
+  if (fallback?.id) {
+    const preset = presetFromMotionContractId(fallback.id, fallback.role, fallback.phase);
+    return preset ? { [preset.phase]: preset } : {};
+  }
+  return {};
+}
+
+function explicitMotionPlan(overlay, durationSec) {
+  const { inline, id, metadata } = explicitMotionMetadata(overlay);
+  const role = metadata.role || (overlay?.kind === 'hook' ? 'hook' : 'text');
+  const phase = metadata.phase || metadata.motionPhase || null;
+  const source = inline && typeof inline === 'object'
+    ? inline
+    : presetFromMotionContractId(id, role, phase);
+  const contracts = phaseContractsFromMotionSource(source, id ? { role, phase, id } : null);
+  const phases = Object.keys(contracts).filter((phase) => ['in', 'loop', 'out'].includes(phase));
+  if (!phases.length) return null;
+
+  const sourceTiming = source?.phase_timing
+    || source?.phaseTiming
+    || source?.metadata?.phase_timing
+    || source?.metadata?.phaseTiming
+    || metadata.phase_timing
+    || metadata.phaseTiming
+    || {};
+  const phaseTiming = {};
+  const duration = Math.max(0.001, Number(durationSec) || 0.001);
+  const phaseDuration = (phase) => Math.max(0, Number(contracts[phase]?.duration_ms || 0) / 1000);
+  const inEnd = sourceTiming.in?.end ?? (contracts.in ? Math.min(1, phaseDuration('in') / duration) : 0);
+  const outStart = sourceTiming.out?.start ?? (contracts.out ? Math.max(0, 1 - phaseDuration('out') / duration) : 1);
+  if (contracts.in) phaseTiming.in = {
+    start: sourceTiming.in?.start ?? 0,
+    end: inEnd,
+  };
+  if (contracts.loop) phaseTiming.loop = {
+    start: sourceTiming.loop?.start ?? inEnd,
+    end: sourceTiming.loop?.end ?? outStart,
+  };
+  if (contracts.out) phaseTiming.out = {
+    start: outStart,
+    end: sourceTiming.out?.end ?? 1,
+  };
+
+  return { contracts, phaseTiming, phases: new Set(Object.keys(phaseTiming)) };
+}
+
+function motionStateToLegacyFx(state = {}) {
+  return {
+    scale: Number.isFinite(state.scale) ? state.scale : 1,
+    alpha: Number.isFinite(state.alpha) ? state.alpha : 1,
+    dy: Number.isFinite(state.dy) ? state.dy : 0,
+    rot: Number.isFinite(state.rotation) ? state.rotation : 0,
+    blur: Number.isFinite(state.blur) ? state.blur : 0,
+    reveal: Number.isFinite(state.reveal) ? state.reveal : 1,
+  };
+}
+
+function sampleExplicitOverlayMotion(overlay, tRel, durationSec) {
+  const plan = explicitMotionPlan(overlay, durationSec);
+  if (!plan) return null;
+  try {
+    const sample = sampleCanvasMotion(
+      { phases: plan.contracts },
+      Math.max(0, Math.min(1, tRel / Math.max(0.001, durationSec))),
+      { phaseTiming: plan.phaseTiming },
+    );
+    if (!plan.phases.has(sample.metadata.phase)) return null;
+    return {
+      phase: sample.metadata.phase,
+      fx: motionStateToLegacyFx(sample.state),
+      phaseTiming: plan.phaseTiming,
+    };
+  } catch {
+    // Invalid or incomplete opt-in data must never take down the preview.
+    // Returning null keeps the exact legacy path for that overlay.
+    return null;
+  }
+}
+
+// Text geometry is static for the lifetime of one overlay edit. Keeping it
+// outside the RAF path avoids repeating wrapCanvasText/measureText, which was
+// a major source of dropped frames when several overlays were visible.
+const OVERLAY_GEOMETRY_CACHE = new WeakMap();
+
+function overlayGeometrySignature(tiers) {
+  return JSON.stringify((tiers || []).map(({ text, look, tierIdx, color }) => [
+    tierIdx,
+    text,
+    look?.font,
+    look?.size_pct,
+    look?.bold,
+    look?.italic,
+    look?.upper,
+    look?.skew,
+    color,
+  ]));
+}
+
+function getOverlayGeometry(ctx, overlay, tiers, baseFontSize, maxW, normY, motion) {
+  const layoutRef = overlay.layout || null;
+  const signature = overlayGeometrySignature(tiers);
+  const cached = OVERLAY_GEOMETRY_CACHE.get(overlay);
+  if (
+    cached
+    && cached.layoutRef === layoutRef
+    && cached.baseFontSize === baseFontSize
+    && cached.maxW === maxW
+    && cached.normY === normY
+    && cached.accent === motion.accent
+    && cached.signature === signature
+  ) {
+    return cached.geometry;
+  }
+
+  ctx.save();
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+
+  const masterScale = ((resolveLook(overlay.look, null).size_pct ?? 100) / 100);
+  const wrapped = [];
+  for (const tier of tiers) {
+    const tierFs = Math.max(10, Math.round(((baseFontSize * (tier.look.size_pct ?? 100)) / 100) * masterScale));
+    ctx.font = overlayFont(tier.look, tierFs);
+    for (const line of wrapCanvasText(tier.text, ctx, maxW)) {
+      wrapped.push({ line, fontSize: tierFs, look: tier.look, color: tier.color, tierIdx: tier.tierIdx });
+    }
+  }
+
+  const comfortable = overlay.comfortable_lines;
+  const shrink = comfortable ? Math.max(0.7, Math.min(1, comfortable / wrapped.length)) : 1;
+  const lineGap = 1.0;
+  let blockH = 0;
+  for (let i = 0; i < wrapped.length; i++) {
+    const w = wrapped[i];
+    w.lineIndex = i;
+    w.settledFs = Math.max(10, Math.round(w.fontSize * shrink));
+    blockH += w.settledFs * lineGap;
+    const isLastModelLine = w.tierIdx === 1
+      && (i + 1 >= wrapped.length || wrapped[i + 1].tierIdx !== 1);
+    w.accentReserve = isLastModelLine && motion.accent !== 'none'
+      ? w.settledFs * (motion.accent === 'badge' ? 0.08 : 0.22)
+      : 0;
+    blockH += w.accentReserve;
+  }
+
+  const blockTop = overlay.anchor === ANCHOR_TOP
+    ? CANVAS_H * normY
+    : CANVAS_H * normY - blockH / 2;
+
+  let cursor = blockTop;
+  let maxLineW = 0;
+  const tierBoxes = new Map();
+  for (const w of wrapped) {
+    w.y = cursor;
+    ctx.font = overlayFont(w.look, w.settledFs);
+    w.width = ctx.measureText(w.line).width;
+    maxLineW = Math.max(maxLineW, w.width);
+    const box = tierBoxes.get(w.tierIdx);
+    if (!box) {
+      tierBoxes.set(w.tierIdx, {
+        tierIdx: w.tierIdx,
+        look: w.look,
+        top: w.y,
+        bottom: w.y + w.settledFs,
+        width: w.width,
+        fs: w.settledFs,
+      });
+    } else {
+      box.bottom = w.y + w.settledFs;
+      box.width = Math.max(box.width, w.width);
+    }
+    cursor += w.settledFs * lineGap + w.accentReserve;
+  }
+
+  const geometry = {
+    wrapped,
+    blockH,
+    blockTop,
+    maxLineW,
+    tierBoxes,
+    modelLine: wrapped.find((w) => w.tierIdx === 1),
+  };
+  ctx.restore();
+  OVERLAY_GEOMETRY_CACHE.set(overlay, {
+    layoutRef,
+    baseFontSize,
+    maxW,
+    normY,
+    accent: motion.accent,
+    signature,
+    geometry,
+  });
+  return geometry;
+}
+
 // The heaviest weight index.html actually loads for each face. The ASS side
 // sets Bold=1 and libass emboldens whatever it finds, so the closest match is
 // the heaviest real weight -- asking for 900 from a face that only ships 400
@@ -1880,9 +2152,12 @@ function drawOverlayScrims(ctx, overlays = [], t, predicate = () => true) {
     const exitStartSec = Math.max(0.12, duration - 0.15);
     const motion = { ...HOOK_ANIM, ...(overlay.anim || {}) };
     const outFn = OVERLAY_OUT_TRANSFORMS[motion.out] || OVERLAY_OUT_TRANSFORMS.fade;
-    const alpha = tRel >= exitStartSec
-      ? ((outFn(tRel, exitStartSec, duration) || {}).alpha ?? 1)
-      : 1;
+    const explicitMotion = sampleExplicitOverlayMotion(overlay, tRel, duration);
+    const alpha = explicitMotion?.phase === 'out'
+      ? explicitMotion.fx.alpha
+      : (tRel >= exitStartSec
+        ? ((outFn(tRel, exitStartSec, duration) || {}).alpha ?? 1)
+        : 1);
     const gradH = Math.round(CANVAS_H * 0.25);
     const grad = ctx.createLinearGradient(0, 0, 0, gradH);
     grad.addColorStop(0, `rgba(0,0,0,${0.75 * alpha})`);
@@ -1987,35 +2262,18 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     }
   }
 
+  const geometry = getOverlayGeometry(ctx, overlay, tiers, baseFontSize, maxW, normY, motion);
+  const { wrapped, blockH, blockTop, maxLineW, tierBoxes, modelLine } = geometry;
+  if (!wrapped.length) return;
+
   ctx.save();
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
-  // Pass 1: wrap each tier at its OWN font size, before anything is measured
-  // against the block as a whole.
-  const masterScale = ((resolveLook(overlay.look, null).size_pct ?? 100) / 100);
-  const wrapped = [];
-  for (const tier of tiers) {
-    const tierFs = Math.max(10, Math.round(((baseFontSize * (tier.look.size_pct ?? 100)) / 100) * masterScale));
-    ctx.font = overlayFont(tier.look, tierFs);
-    for (const line of wrapCanvasText(tier.text, ctx, maxW)) {
-      wrapped.push({ line, fontSize: tierFs, look: tier.look, color: tier.color, tierIdx: tier.tierIdx });
-    }
-  }
-  if (!wrapped.length) {
-    ctx.restore();
-    return;
-  }
-
-  // The banner shrinks past four lines so a long brand that wraps twice does
-  // not crowd the sticker badge; a text overlay is placed by hand and has no
-  // such neighbour, so it says null and keeps its size.
-  const comfortable = overlay.comfortable_lines;
-  const shrink = comfortable ? Math.max(0.7, Math.min(1, comfortable / wrapped.length)) : 1;
-
   const inPreset = OVERLAY_IN_TRANSFORMS[motion.in] || OVERLAY_IN_TRANSFORMS.none;
   const loopFn = OVERLAY_LOOP_TRANSFORMS[motion.loop] || OVERLAY_LOOP_TRANSFORMS.none;
   const outFn = OVERLAY_OUT_TRANSFORMS[motion.out] || OVERLAY_OUT_TRANSFORMS.fade;
+  const explicitMotion = sampleExplicitOverlayMotion(overlay, tRel, duration);
 
   const revealMode = motion.reveal || 'simultaneous';
   const isCumulative = revealMode === 'cumulative' || revealMode === 'tier_step';
@@ -2036,58 +2294,17 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     const t0 = isCumulative ? tierIdx * stepDelaySec : (motion.stagger ? tierIdx * HOOK_STAGGER_STEP : 0);
     maxEntryEndSec = Math.max(maxEntryEndSec, t0 + inPreset.durSec);
   }
-  const exitStartSec = Math.max(0.12, duration - 0.15);
-  const loopFx = loopFn(tRel, maxEntryEndSec, exitStartSec) || {};
-  const outFx = tRel >= exitStartSec ? (outFn(tRel, exitStartSec, duration) || {}) : {};
-
-  // Layout pre-pass: every line's settled size and y, resolved before any ink
-  // lands, so the pills and the accent can be painted underneath and the draw
-  // loop never has to recompute a cursor that might drift from this one.
-  const lineGap = 1.0; // LINE_HEIGHT_FACTOR in subtitle_engine.py, measured off libass
-  let blockH = 0;
-  for (let i = 0; i < wrapped.length; i++) {
-    const w = wrapped[i];
-    w.settledFs = Math.max(10, Math.round(w.fontSize * shrink));
-    blockH += w.settledFs * lineGap;
-    const isLastModelLine = w.tierIdx === 1
-      && (i + 1 >= wrapped.length || wrapped[i + 1].tierIdx !== 1);
-    w.accentReserve = isLastModelLine && motion.accent !== 'none'
-      ? w.settledFs * (motion.accent === 'badge' ? 0.08 : 0.22)
-      : 0;
-    blockH += w.accentReserve;
-  }
-
-  // `y` names the top edge of the block for a banner and its centre for a
-  // text overlay -- the same thing an ASS Alignment says (parity rule 2.8).
-  const blockTop = overlay.anchor === ANCHOR_TOP
-    ? CANVAS_H * normY
-    : CANVAS_H * normY - blockH / 2;
-
-  let cursor = blockTop;
-  let maxLineW = 0;
-  const tierBoxes = new Map();
-  for (const w of wrapped) {
-    w.y = cursor;
-    ctx.font = overlayFont(w.look, w.settledFs);
-    w.width = ctx.measureText(w.line).width;
-    if (w.width > maxLineW) maxLineW = w.width;
-    // A pill wraps a whole tier, not each line: a banner tier is normally one
-    // line so it looks the same as the per-line box it replaces, and a text
-    // overlay's two lines get the single badge they always had.
-    const box = tierBoxes.get(w.tierIdx);
-    if (!box) {
-      tierBoxes.set(w.tierIdx, { tierIdx: w.tierIdx, look: w.look, top: w.y, bottom: w.y + w.settledFs, width: w.width, fs: w.settledFs });
-    } else {
-      box.bottom = w.y + w.settledFs;
-      box.width = Math.max(box.width, w.width);
-    }
-    cursor += w.settledFs * lineGap + w.accentReserve;
-  }
-
-  // Model-tier metrics for the accent shape, straight out of the layout the
-  // canvas can measure -- the ASS side has to walk a cursor for the same
-  // numbers because libass never reports where a wrapped line landed.
-  const modelLine = wrapped.find((w) => w.tierIdx === 1);
+  const explicitEntryEndSec = explicitMotion?.phaseTiming?.in
+    ? explicitMotion.phaseTiming.in.end * duration
+    : null;
+  const exitStartSec = explicitMotion?.phaseTiming?.out
+    ? explicitMotion.phaseTiming.out.start * duration
+    : Math.max(0.12, duration - 0.15);
+  if (explicitEntryEndSec != null) maxEntryEndSec = explicitEntryEndSec;
+  const legacyLoopFx = loopFn(tRel, maxEntryEndSec, exitStartSec) || {};
+  const legacyOutFx = tRel >= exitStartSec ? (outFn(tRel, exitStartSec, duration) || {}) : {};
+  const loopFx = explicitMotion?.phase === 'loop' ? explicitMotion.fx : legacyLoopFx;
+  const outFx = explicitMotion?.phase === 'out' ? explicitMotion.fx : legacyOutFx;
 
   if (outBounds) {
     const padX = Math.round(maxLineW * 0.04) + 8;
@@ -2356,10 +2573,12 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     if (isCumulative && tRel < t0) {
       continue;
     }
-    const inFx = inPreset.at((tRel - t0) * 1000) || {};
+    const lineInFx = explicitMotion?.phase === 'in'
+      ? explicitMotion.fx
+      : (inPreset.at((tRel - t0) * 1000) || {});
 
-    const scale = (inFx.scale ?? 1) * (outFx.scale ?? 1);
-    const dy = (inFx.dy ?? 0) + (outFx.dy ?? 0);
+    const scale = (lineInFx.scale ?? 1) * (outFx.scale ?? 1);
+    const dy = (lineInFx.dy ?? 0) + (outFx.dy ?? 0);
     const rot = (loopFx.rot ?? 0) + (outFx.rot ?? 0);
     const lineY = w.y + dy;
 
@@ -2394,7 +2613,9 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
           const wordTRel = tRel - wordT0;
           if (wordTRel < 0) continue;
 
-          const wordInFx = inPreset.at(wordTRel * 1000) || {};
+          const wordInFx = explicitMotion?.phase === 'in'
+            ? explicitMotion.fx
+            : (inPreset.at(wordTRel * 1000) || {});
           const wordScale = (wordInFx.scale ?? 1) * (outFx.scale ?? 1);
           const wordDy = (wordInFx.dy ?? 0) + (outFx.dy ?? 0);
           const wordAlpha = (wordInFx.alpha ?? 1);
@@ -2443,7 +2664,9 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
         const wordTRel = tRel - wordT0;
         if (wordTRel < 0) continue;
 
-        const wordInFx = inPreset.at(wordTRel * 1000) || {};
+        const wordInFx = explicitMotion?.phase === 'in'
+          ? explicitMotion.fx
+          : (inPreset.at(wordTRel * 1000) || {});
         const wordScale = (wordInFx.scale ?? 1) * (outFx.scale ?? 1);
         const wordDy = (wordInFx.dy ?? 0) + (outFx.dy ?? 0);
         const wordAlpha = (wordInFx.alpha ?? 1);
@@ -2500,8 +2723,8 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     } else {
       const renderFs = Math.max(6, Math.round(w.settledFs * scale));
       ctx.save();
-      ctx.globalAlpha = (inFx.alpha ?? 1) * (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);
-      if (inFx.blur) ctx.filter = `blur(${inFx.blur.toFixed(1)}px)`;
+      ctx.globalAlpha = (lineInFx.alpha ?? 1) * (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);
+      if (lineInFx.blur) ctx.filter = `blur(${lineInFx.blur.toFixed(1)}px)`;
       if (rot) {
         // rotate about the line's own centre, matching \frz around \pos
         ctx.translate(x, lineY + w.settledFs / 2);
@@ -2517,10 +2740,10 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
       ctx.font = overlayFont(w.look, renderFs);
       const drawnW = ctx.measureText(w.line).width;
       const lineX = x - drawnW / 2;
-      if (inFx.reveal != null) {
+      if (lineInFx.reveal != null) {
         // typewriter: same left-to-right clip the ASS \clip animation performs
         ctx.beginPath();
-        ctx.rect(lineX, lineY - 5, drawnW * inFx.reveal, renderFs + 10);
+        ctx.rect(lineX, 0, drawnW * lineInFx.reveal, CANVAS_H);
         ctx.clip();
       }
 
@@ -2590,7 +2813,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
         const bandX = (x - s.halfW - bandW) + phase * (s.halfW * 2);
         ctx.save();
         ctx.beginPath();
-        ctx.rect(bandX, s.y - 5, bandW, s.fs + 10);
+        ctx.rect(bandX, 0, bandW, CANVAS_H);
         ctx.clip();
         ctx.font = overlayFont(s.look, s.fs);
         if (s.look.skew && Math.abs(s.look.skew) > 0.001) {
@@ -3818,6 +4041,7 @@ function SequencePlayer({
     // Same order the render burns in (video_editor.py): the badge, then the
     // scrim over it, then everything libass draws on top.
     drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker, previewAccentColor);
+    syncEffectVideos(effectVideosRef.current, t, effects, isPlaying);
     drawEffects(ctx, effectVideosRef.current, t, effects, bounds, previewAccentColor);
     drawOverlayScrims(ctx, overlaysBehindSubject, t);
     drawOverlays(ctx, overlaysBehindSubject, t, previewAccentColor, bounds);
@@ -3985,6 +4209,7 @@ function SequencePlayer({
         if (framePainted) applyGrade(ctx, canvas);
         drawSpotlight(ctx, previewSpotlight);
         drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker, previewAccentColor);
+        syncEffectVideos(effectVideosRef.current, t, effects);
         drawEffects(ctx, effectVideosRef.current, t, effects, bounds, previewAccentColor);
         drawOverlayScrims(ctx, overlaysBehindSubject, t);
         drawOverlays(ctx, overlaysBehindSubject, t, previewAccentColor, bounds);

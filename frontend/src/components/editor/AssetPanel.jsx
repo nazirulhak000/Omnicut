@@ -719,6 +719,8 @@ export default function AssetPanel({
 }) {
   const [tab, setTab] = useState('clips');
   const [query, setQuery] = useState('');
+  const ASSET_PAGE_SIZE = 40;
+  const [assetVisibleCounts, setAssetVisibleCounts] = useState({});
   const [textCategory, setTextCategory] = useState('all');
   const [textSearch, setTextSearch] = useState('');
   const [textSubTab, setTextSubTab] = useState('hook');
@@ -908,6 +910,42 @@ export default function AssetPanel({
     };
   }, [videos, assets, query]);
 
+  useEffect(() => {
+    setAssetVisibleCounts({});
+  }, [query]);
+
+  const getAssetVisibleCount = (assetKey) => assetVisibleCounts[assetKey] || ASSET_PAGE_SIZE;
+  const showMoreAssets = (assetKey) => {
+    setAssetVisibleCounts((previous) => ({
+      ...previous,
+      [assetKey]: getAssetVisibleCount(assetKey) + ASSET_PAGE_SIZE,
+    }));
+  };
+
+  const visibleFiltered = useMemo(() => ({
+    ...filtered,
+    videos: filtered.videos.slice(0, getAssetVisibleCount('videos')),
+    music: filtered.music.slice(0, getAssetVisibleCount('music')),
+    sfx: filtered.sfx.slice(0, getAssetVisibleCount('sfx')),
+    stickers: filtered.stickers.slice(0, getAssetVisibleCount('stickers')),
+    effects: filtered.effects.slice(0, getAssetVisibleCount('effects')),
+  }), [filtered, assetVisibleCounts]);
+
+  const renderAssetLoadMore = (assetKey, label) => {
+    const total = filtered[assetKey]?.length || 0;
+    const visible = getAssetVisibleCount(assetKey);
+    if (total <= visible) return null;
+    return (
+      <button
+        type="button"
+        onClick={() => showMoreAssets(assetKey)}
+        className="w-full py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-xs font-bold transition-colors cursor-pointer"
+      >
+        โหลดเพิ่ม {label} ({total - visible} รายการที่เหลือ)
+      </button>
+    );
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0C1019]">
       {/* tab rail - responsive tabs fitting all screen widths without overflow */}
@@ -1029,7 +1067,7 @@ export default function AssetPanel({
         {/* TAB 1: CLIPS */}
         {tab === 'clips' && (
           <div className="space-y-1.5">
-            {filtered.videos.map((v) => {
+            {visibleFiltered.videos.map((v) => {
               const usageCount = getClipUsage(v);
               const isUsed = usageCount > 0;
               const dur = v.duration || durations?.[v.path] || durations?.[v.rel_path];
@@ -1112,6 +1150,7 @@ export default function AssetPanel({
                 </div>
               );
             })}
+            {renderAssetLoadMore('videos', 'คลิป')}
             {filtered.videos.length === 0 && (
               <p className="px-1 py-4 text-center text-xs text-slate-500">
                 ไม่มีคลิปที่ตรงกับคำค้น — สามารถกดปุ่มแนบคลิปเพิ่มด้านบนได้เลยครับ
@@ -1315,7 +1354,7 @@ export default function AssetPanel({
               <span className="min-w-0 flex-1 truncate text-sm text-slate-200">เสียงหลักของช่อง</span>
               {!style.bgmName && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
             </Row>
-            {filtered.music.map((m) => {
+            {visibleFiltered.music.map((m) => {
               const isPlayingThis = previewingAudio === `/api/media/${m.file?.rel_path}`;
               return (
                 <Row
@@ -1343,11 +1382,12 @@ export default function AssetPanel({
                 </Row>
               );
             })}
+            {renderAssetLoadMore('music', 'เพลง')}
 
             <p className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               เสียงเอฟเฟกต์ {selectedCaption ? '(ใส่ให้ท่อนที่เลือก)' : '(เลือกท่อนคำบรรยายก่อน)'}
             </p>
-            {filtered.sfx.map((s) => {
+            {visibleFiltered.sfx.map((s) => {
               const rel = s.rel_path || s.file?.rel_path;
               const isPlayingThis = previewingAudio === `/api/media/${rel}`;
               return (
@@ -1378,6 +1418,7 @@ export default function AssetPanel({
                 </Row>
               );
             })}
+            {renderAssetLoadMore('sfx', 'SFX')}
           </>
         )}
 
@@ -1482,7 +1523,9 @@ export default function AssetPanel({
                     <span className="text-[11px] font-bold text-slate-400 px-0.5">แม่แบบมาตรฐาน</span>
                   )}
                   <div className="grid grid-cols-2 gap-2">
-                    {Object.entries(hookTemplates || {}).map(([key, tpl]) => (
+                    {Object.entries(hookTemplates || {})
+                      .filter(([k]) => !['tech', 'cute', 'bold_pop', 'plain', 'clean', 'flash_sale', 'neon_cyber', 'minimal_luxury'].includes(k) || activeHookTemplate === k)
+                      .map(([key, tpl]) => (
                       <button
                         key={key}
                         type="button"
@@ -1821,7 +1864,7 @@ export default function AssetPanel({
 
               {/* 3D Stickers Visual Grid (Click to preview, Plus icon to add to timeline) */}
               <div className="grid grid-cols-3 gap-2.5 pt-1">
-                {filtered.stickers.map((s) => {
+                {visibleFiltered.stickers.map((s) => {
                   const baseName = s.name.replace(/\.(png|webp|jpg)$/i, '');
                   const displayName = STICKER_TITLES[baseName] || baseName;
                   const isInUse = effectiveStickers.some((stk) => stk.badge === s.name || stk.badge === s.id);
@@ -1889,6 +1932,7 @@ export default function AssetPanel({
                   );
                 })}
               </div>
+              {renderAssetLoadMore('stickers', 'สติกเกอร์')}
 
               {/* Action Button When Previewing */}
               {previewSticker && (
@@ -1926,7 +1970,7 @@ export default function AssetPanel({
               </p>
             )}
             <div className="grid grid-cols-3 gap-2.5 pt-1">
-              {filtered.effects.map((fx) => {
+              {visibleFiltered.effects.map((fx) => {
                 const displayName = fx.label_th || fx.label || fx.name;
                 return (
                   <div
@@ -1963,6 +2007,7 @@ export default function AssetPanel({
                 );
               })}
             </div>
+            {renderAssetLoadMore('effects', 'เอฟเฟกต์')}
             <p className="px-1 pt-1.5 text-[11px] leading-relaxed text-slate-500 text-center">
               คลิกที่การ์ดหรือกดปุ่ม + เพื่อเพิ่มลงไทม์ไลน์ (ยาว 3 วินาที) ปรับเวลา/ขนาดได้ในแผง Inspector ทางขวา
             </p>

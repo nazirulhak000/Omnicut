@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>OmniCut motion capture fixture</title>
+    <style>
+      html, body { margin: 0; background: #0b1020; }
+      canvas { display: block; width: 256px; height: 256px; }
+    </style>
+  </head>
+  <body>
+    <canvas id="motion-canvas" width="256" height="256"></canvas>
+    <script type="module">
+      import { sampleCanvasMotion } from "/frontend/src/lib/motion/rendererAdapter.js";
+      import { MOTION_PRESETS } from "/frontend/src/lib/motion/motionPresets.js";
+
+      const canvas = document.querySelector("#motion-canvas");
+      const context = canvas.getContext("2d", { alpha: false });
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, Number(value) || 0));
+      }
+
+      function drawMotionState(state, width, height) {
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.globalAlpha = 1;
+        context.globalCompositeOperation = "source-over";
+        context.fillStyle = "#0b1020";
+        context.fillRect(0, 0, width, height);
+
+        const scale = Number.isFinite(state.scale) ? state.scale : 1;
+        const alpha = clamp(state.alpha, 0, 1);
+        const rotation = (Number(state.rotation) || 0) * Math.PI / 180;
+        const position = state.position || { x: 0, y: 0 };
+        const dx = Number(position.x) || 0;
+        const dy = (Number(position.y) || 0) + (Number(state.dy) || 0);
+        const reveal = clamp(state.reveal, 0, 1);
+
+        context.save();
+        context.translate(width / 2 + dx, height / 2 + dy);
+        context.rotate(rotation);
+        context.scale(scale, scale);
+        context.globalAlpha = alpha;
+        context.fillStyle = "#21d4fd";
+        context.fillRect(-96, -34, 192 * reveal, 14);
+        context.fillStyle = "#ff4d8d";
+        context.fillRect(-96, -8, 150 * reveal, 12);
+        context.fillStyle = "#ffe600";
+        context.fillRect(-96, 16, 104 * reveal, 10);
+        context.restore();
+      }
+
+      function capture(args) {
+        const width = Number(args.width || 256);
+        const height = Number(args.height || 256);
+        canvas.width = width;
+        canvas.height = height;
+        const frames = [];
+
+        for (const presetId of args.preset_ids) {
+          const preset = MOTION_PRESETS[presetId];
+          if (!preset) throw new Error(`Unknown motion preset: ${presetId}`);
+          for (const normalizedTime of args.sample_times) {
+            const sample = sampleCanvasMotion(preset, normalizedTime);
+            drawMotionState(sample.state, width, height);
+            frames.push({
+              preset_id: presetId,
+              normalized_time: normalizedTime,
+              state: sample.state,
+              metadata: sample.metadata,
+              png_base64: canvas.toDataURL("image/png").split(",", 2)[1],
+            });
+          }
+        }
+        return { width, height, frames };
+      }
+
+      window.motionCapture = Object.freeze({ capture });
+    </script>
+  </body>
+</html>

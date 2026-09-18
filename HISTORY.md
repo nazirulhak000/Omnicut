@@ -8,8 +8,262 @@
 
 ## สารบัญ
 
+| Round PRODUCT-HIDE-ARCHIVE-VISIBILITY-1 | ฟังก์ชันซ่อนสินค้าที่ไม่อยากแสดงหรือยังไม่อยากทำ พร้อมปุ่มลัดซ่อนสินค้า 0 มุมมองในคลิกเดียว, กรองดูสินค้าที่ซ่อน และกู้คืนกลับมาได้ทันที รองรับทั้งแถบหัวเรื่องและหน้าต่างคลังสินค้า | 2026-09-18 | สำเร็จสมบูรณ์ (backend 22 passed, frontend 271 passed, build 2,013 modules/4.32s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round PRODUCER-HUB-REALTIME-DATA-AND-ALIAS-COLLISION-FIX-1 | แก้ปัญหาสต็อกคลิปพร้อมโพสต์และการคำนวณสถิติแสดงผลต่ำกว่าความเป็นจริงจาก Angle ID Alias Collision, กรอง Queue ที่โพสต์แล้ว, และปรับเป้าหมายโพสต์รายวันเป็น 5 ให้ตรงตามคิวเทมเพลตประจำวัน (09:00, 12:30, 16:00, 19:00, 21:30) | 2026-09-18 | สำเร็จสมบูรณ์ (frontend 271 passed, build 2,013 modules/4.09s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round PRODUCT-HIDE-ARCHIVE-VISIBILITY-1 — ฟังก์ชันซ่อนสินค้าที่ยังไม่อยากแสดงหรือยังไม่อยากทำ พร้อมปุ่มลัดซ่อนสินค้า 0 มุมมอง และกู้คืนได้ทุกเมื่อ
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ความต้องการและปัญหา
+ผู้ใช้ต้องการฟังก์ชันสำหรับ "ซ่อนสินค้าที่ไม่อยากแสดง หรือยังไม่อยากทำตอนนี้" โดยเฉพาะสินค้าในแถบรายการสินค้าด้านบนที่มี 0/10 มุมมอง (เช่น UGREEN, MUFU, MonsGeek, ฯลฯ) ซึ่งรกสายตาและทำให้เลื่อนหาสินค้าที่กำลังทำอยู่ได้ยาก
+
+### สิ่งที่ทำ
+1. **Backend Schema & Persistence (`scripts/api_phase1.py`)**:
+   - เพิ่มฟิลด์ `is_hidden: Optional[bool] = None` ใน `ProductUpdateRequest` สำหรับ endpoint `PATCH /products/{product_id}`
+   - ข้อมูล `is_hidden` จะถูกบันทึกและอัปเดตลง `ProductStore` (SQLite + `_Docs/products.json`) อย่างถาวร ข้อมูลไม่หายเมื่อรีเฟรชหน้าเว็บ
+2. **Backend Unit Tests (`tests/test_product_metadata.py`)**:
+   - เพิ่ม `test_product_update_is_hidden` ทดสอบการตั้งค่า `is_hidden=True` และเปลี่ยนกลับเป็น `is_hidden=False` ผ่าน API
+3. **Frontend UI & State (`frontend/src/components/ProductToClip.jsx`)**:
+   - **ปุ่มซ่อน/เลิกซ่อนรายตัวบนการ์ดสินค้า (`ProductCard`)**: เพิ่มปุ่มไอคอนรูปตา (`EyeOff` / `Eye`) ที่มุมขวาบนของการ์ดสินค้า (แสดงชัดเจนเมื่อ Hover หรือเมื่อสินค้าถูกซ่อนอยู่) กดเพียง 1 คลิกเพื่อซ่อนหรือยกเลิกการซ่อนทันที
+   - **กรองสินค้าที่ซ่อนออกจากมุมมองปกติ**: `filteredHistory` ไม่นำสินค้าที่ `is_hidden === true` มาแสดงในแถบรายการสินค้าปกติ ป้องกันการรกสายตา
+   - **แท็บดูสินค้าที่ซ่อนอยู่**: เพิ่มปุ่ม `ซ่อนอยู่ (N)` ในแถวควบคุม และแท็บ `ซ่อนอยู่ (N)` ในหน้าต่างคลังสินค้า (Catalog Modal)
+   - **แบนเนอร์แจ้งเตือนสีเหลืองเมื่ออยู่ในโหมดดูสินค้าที่ซ่อน**: แสดงสถานะชัดเจน พร้อมปุ่มลัด "ยกเลิกการซ่อนทั้งหมด"
+   - **ปุ่มลัดซ่อนสินค้าที่ยังไม่เริ่มทำ (0 มุมมอง) ในคลิกเดียว**: เพิ่มคำสั่ง `ซ่อนสินค้าที่ยังไม่ทำ (N)` ในเมนู "เครื่องมือสินค้า" เพื่อให้ผู้ใช้สามารถเคลียร์สินค้าที่ยังไม่มีความคืบหน้าออกไปพร้อมกันได้ทันที
+   - **กู้คืนได้ทุกเมื่อ**: สินค้าที่ซ่อนไว้สามารถกู้คืนกลับมาแสดงผลปกติได้ตลอดเวลา ทั้งแบบรายตัวและแบบยกเลิกการซ่อนทั้งหมด
+   - **Smooth Selection Fallback**: หากสินค้าที่ผู้ใช้เลือกอยู่ถูกสั่งซ่อน ระบบจะสลับไปยังสินค้าตัวแรกที่ยังแสดงอยู่ให้อัตโนมัติ ป้องกันหน้าจอค้างหรือเลือกสินค้าที่ไม่แสดงผล
+
+### Verification
+- Backend Pytest: `tests/test_product_metadata.py` 22 passed (0 failed)
+- Frontend Vitest: 271 passed (0 failed)
+- Frontend Build: `npm run build` ผ่านสมบูรณ์ (2,013 modules transformed ใน 4.32s)
+- Cleanliness: 100% สะอาด ไม่มีการสร้างไฟล์ขยะหรือกระทบโฟลเดอร์ผลงานจริง
+| Round EXPORT-GALLERY-SAVED-COVER-DISPLAY-1 | ดึงรูปปกที่บันทึกไว้ (9:16 Cover จาก 05_Covers_Thumbnails) มาแสดงบนการ์ดวิดีโอใน Export Gallery ทั้ง 3 โหมด (Grid, Split Sidebar, Mobile Pill) แทนการแสดงแค่ .webp เฟรมวิดีโอดิบ + แสดงรูปปกและลิงก์ดาวน์โหลดในหน้าตรวจ QC รายคลิป + รีเฟรชอัตโนมัติเมื่อเซฟปกใหม่ | 2026-09-18 | สำเร็จสมบูรณ์ (frontend 261 passed, build 2,009 modules/9.26s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round AUDIT-OPEN-FINDINGS-REMEDIATION-AND-CHART-MODEL-1 | จัดการปิด Open Findings จาก Audit 2026-09-15: แยก chartModel.js + 5 unit tests สำหรับ AreaLineChart และ PerformanceAnalyticsTab (แก้ B14), กู้คืน Abandoned Target ใน sequence_worker._publish_atomically (แก้ B06), ตรวจสอบ regression suites B01, B02, B05, B07-B13 ครบ 100% | 2026-09-18 | สำเร็จสมบูรณ์ (backend 86 passed, parity 156 passed, recovery 13 passed, frontend 261 passed, build 2,009 modules/3.67s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round STYLE-MOTION-CATALOG-CONTRACT-SYNC-1 | ซิงก์ `tests/test_style_motion_policy.py` กับ catalog 10 สไตล์: ขยาย test จาก 8 เป็น 17 tests ครอบคลุมทุกสไตล์ + behavioral contracts + global integrity guards | 2026-09-18 | สำเร็จสมบูรณ์ (17 passed, focused backend 188 passed, ดำเนินการโดย: Antigravity (Claude Sonnet 4.6)) |
+
+## Round PRODUCER-HUB-REALTIME-DATA-AND-ALIAS-COLLISION-FIX-1 — แก้ปัญหาสต็อกคลิปพร้อมโพสต์และการคำนวณสถิติแสดงผลต่ำกว่าความเป็นจริงจาก Angle ID Alias Collision, กรอง Queue ที่โพสต์แล้ว, และปรับเป้าหมายโพสต์รายวันตามคิวเทมเพลต
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+1. ในหน้าแรก AI Producer Hub (`frontend/src/components/producer/ProducerHub.jsx`) ตัวเลข "สต็อกคลิปพร้อมโพสต์" แสดงเพียง 10 คลิป และคำนวณเวลารองรับได้เพียง 3 วัน ทั้งที่ในโปรแกรมมีไฟล์คลิปที่ตัดเสร็จพร้อมโพสต์ (`04_Exports/Ready_to_post/`) ถึง 85 คลิป (จากทั้งหมด 113 ไฟล์ export และ 24 สินค้า)
+2. **สาเหตุรากเหง้า 1 (Cross-Product Alias Collision)**: ในฟังก์ชัน `getClipIdentityAliases` (`frontend/src/lib/producerInsights.js`) เดิมมีการบันทึก alias ในรูปแบบ `angle:${item.angle_id}` โดยไม่มี `product_id` หรือ scope ของสินค้ากำกับ เนื่องจากสินค้าทุกตัวในระบบทั้ง 24 รายการใช้ชุดชื่อมุมมองมาตรฐาน 10 มุมมองเหมือนกัน (`pain_point`, `unboxing`, `life_hack`, ฯลฯ) ส่งผลให้การ deduplicate รวบคลิปของทุกสินค้าที่มีชื่อ angle เดียวกันเข้าเป็นอันเดียว
+3. **สาเหตุรากเหง้า 2 (Historical Posted Queue Contamination)**: ใน `ProducerHub.jsx` ตัวแปร `scheduledAliases` กวาดไอเทมทั้งหมดใน `scheduleQueue` โดยไม่กรองสถานะ `item.status === 'posted'` ออก รายการคิวที่เคยโพสต์ไปแล้วในอดีต (23 รายการ) จึงสร้าง alias generic `angle:pain_point`, `angle:unboxing` ค้างไว้ เมื่อ `readyToPostClips` นำไปกรองออก จึงทำให้คลิปพร้อมโพสต์ของสินค้าทุกตัวถูกตัดทิ้งเกือบหมด เหลือติดมาเพียง 10 คลิป
+4. **เพดานโควตารายสัปดาห์ผิดปกติ**: ใน `calculateProductionStats` ตัวนับ `countedCutAliases` ถูกล็อกเพดานไว้ที่ 10 คลิปเสมอจากเหตุผลเดียวกัน ทำให้สถิติการผลิตไม่สะท้อนความเป็นจริง
+5. **เป้าหมายโพสต์วันนี้ไม่ตรงกับคิวประจำวัน**: การ์ดเป้าหมายโพสต์แสดง `5 / 3 คลิป` เพราะค่า default เดิมถูกตั้งไว้ที่ 3 คลิป/วัน ทั้งที่ตามเทมเพลตคิวโพสต์ประจำวัน (`schedule_templates.json`) กำหนดไว้ 5 ช่วงเวลาต่อวัน (09:00, 12:30, 16:00, 19:00, 21:30) และสอดคล้องกับเป้าหมายรายสัปดาห์ 35 คลิป (5 คลิป x 7 วัน)
+
+### สิ่งที่ทำ
+1. **ปรับ Scoping ของ Angle Aliases ให้ผูกกับ Product ID อย่างแม่นยำ**:
+   - ปรับปรุง `getClipIdentityAliases` ใน `frontend/src/lib/producerInsights.js`: ดึง `prodScope = item.product_id || item.productId || item.product_code || item.productCode || ''` และบันทึก alias เป็น `angle:${prodScope}_${item.angle_id}` เพื่อแยกแยะมุมมองของแต่ละสินค้าออกจากกันโดยเด็ดขาด
+   - ปรับ `calculateProductionStats` ใน `producerInsights.js`: ส่ง `product_id`, `productId`, `product_code` เข้าสู่ `normalizedAngle`
+   - ปรับ `getDailyActionQueue` ใน `producerInsights.js`: ระบุ `productId`, `productCode`, `parentProduct` ให้ครบถ้วนทั้งในส่วนของ rendered angles และ export files
+2. **ปรับปรุงการคำนวณและ UI ใน ProducerHub.jsx**:
+   - ปรับปรุง `scheduleAliases` และ `actionClipAliases` ใน `ProducerHub.jsx` ให้ส่ง `product_id: prodScope` เพื่อให้ alias จับคู่ถูกต้องเฉพาะภายในสินค้าเดียวกัน
+   - ปรับปรุง `scheduledAliases`: กรองเฉพาะ `item.status !== 'posted'` เพื่อไม่ให้คิวในอดีตที่โพสต์เสร็จแล้วมารบกวนคลิปพร้อมโพสต์ใหม่
+   - ปรับปรุง Capacity Banner: ขยายข้อความ subtitle ให้แสดงสถิติคลังรวมอย่างโปร่งใส เช่น `· คลังรวม {exportsList.length} คลิป (โพสต์แล้ว {exportsList.filter(e => e.is_posted).length})`
+3. **ปรับเป้าหมายโพสต์รายวัน (Daily Posts Target) ให้ซิงก์ตรงกับคิวประจำวัน (5 คลิป/วัน)**:
+   - ปรับ `DEFAULT_TARGETS.dailyPosts` จาก 3 เป็น 5 ใน `producerInsights.js`
+   - ปรับ `loadTargets` ให้ migrate ค่า default เก่าที่เป็น 3 เป็น 5 อัตโนมัติ
+   - ใน `ProducerHub.jsx` คำนวณ `todayTemplateSlotsCount` อิงตามจำนวนช่วงเวลาของเทมเพลตคิววันนี้ และนำไปเป็น `effectiveTargets.dailyPosts` (5 คลิป/วัน)
+   - ปรับข้อความบนการ์ดเป็น `ตามคิวประจำวัน` และแสดงตัวบอกจำนวนคิวใน Targets Modal
+4. **เพิ่ม Automated Unit Tests**:
+   - เพิ่ม 4 unit tests ใน `frontend/src/lib/producerInsights.test.js` ตรวจสอบ:
+     1. `getClipIdentityAliases`: ยืนยันว่า `angle_id` เดียวกันคนละสินค้า จะได้ alias คนละตัว ไม่ชนกัน
+     2. `calculateProductionStats`: ยืนยันว่ามุมมองที่ตัดเสร็จชื่อเดียวกันของคนละสินค้า ไม่ถูกรวบ deduplicate หายไป
+     3. `getDailyActionQueue`: ยืนยันว่าคิวพร้อมโพสต์คงรายการของแต่ละสินค้าไว้ครบถ้วน
+     4. `DEFAULT_TARGETS`: ยืนยัน `dailyPosts: 5`, `dailyCuts: 5`, `weeklyCuts: 35` สอดคล้องกับคิวประจำวัน
+
+### Verification
+- Frontend Unit Tests: 271 passed (0 failed)
+- Frontend Production Build: สำเร็จ 2,013 modules ใน 4.09s
+- Cleanliness: 100% สะอาด ไม่มีการสร้างหรือทิ้งไฟล์ขยะทดสอบ
+
+
+| Round AUDIT-OPEN-FINDINGS-REMEDIATION-AND-CHART-MODEL-1 | จัดการปิด Open Findings จาก Audit 2026-09-15: แยก chartModel.js + 5 unit tests สำหรับ AreaLineChart และ PerformanceAnalyticsTab (แก้ B14), กู้คืน Abandoned Target ใน sequence_worker._publish_atomically (แก้ B06), ตรวจสอบ regression suites B01, B02, B05, B07-B13 ครบ 100% | 2026-09-18 | สำเร็จสมบูรณ์ (backend 86 passed, parity 156 passed, recovery 13 passed, frontend 261 passed, build 2,009 modules/3.67s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round STYLE-MOTION-CATALOG-CONTRACT-SYNC-1 | ซิงก์ `tests/test_style_motion_policy.py` กับ catalog 10 สไตล์: ขยาย test จาก 8 เป็น 17 tests ครอบคลุมทุกสไตล์ + behavioral contracts + global integrity guards | 2026-09-18 | สำเร็จสมบูรณ์ (17 passed, focused backend 188 passed, ดำเนินการโดย: Antigravity (Claude Sonnet 4.6)) |
+
+## Round EXPORT-GALLERY-SAVED-COVER-DISPLAY-1 — ดึงรูปปกที่บันทึกไว้ (9:16 Cover) มาแสดงในการ์ด Export Gallery ทุกมุมมอง
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+1. ในหน้า Export Gallery (`frontend/src/components/ExportGallery.jsx`) การ์ดวิดีโอในมุมมองต่างๆ (Grid Card, Split Sidebar Item, Mobile Pill) และ Video Player ใน Modal ดึงเฉพาะ `item.thumbnail_url` (ซึ่งชี้ไปยัง `.webp` เฟรมที่ตัดตอนเรนเดอร์) ทำให้แม้ผู้ใช้จะใช้ Cover Studio หรือ Cover Engine บันทึกปก 9:16 คมชัดระดับโปรลงใน `05_Covers_Thumbnails/` แล้ว แต่บนการ์ดแกลเลอรีก็ยังแสดงแค่รูปเฟรมวิดีโอดิบ ไม่ได้นำปกจริงมาแสดง
+2. ในแผง Studio QC (Workbench) ด้านขวา เมื่อเปิดคลิปที่มีปกแล้ว กล่องพรีวิวปกแสดงเป็นไอคอนว่างเปล่า และข้อความบอกที่อยู่ไฟล์ไม่แสดงจนกว่าจะกดสร้างปกใหม่ในเซสชันนั้น
+3. เมื่อบันทึกปกใหม่จาก `CoverStudioModal` ไม่มีการเรียก `onRefresh()` เพื่ออัปเดตรายการคลิปในหน้าแกลเลอรี ทำให้รายการและ Badge บนการ์ดยังไม่อัปเดตทันที
+
+### สิ่งที่ทำ
+1. **นำ `getCoverVariant(item, '9:16')` มาใช้ครอบคลุมทุกมุมมองการแสดงผลใน `ExportGallery.jsx`**:
+   - `ExportCard` (Grid View): ตรวจสอบ `cover = getCoverVariant(item, '9:16')`, นำ `displayThumb = cover.url || item.thumbnail_url` มาแสดง และเพิ่ม Badge `มีปก` (สีทอง-เหลือง) บนการ์ด
+   - `ExportSidebarItem` (Split View - Left Playlist): นำ `displayThumb = cover.url || item.thumbnail_url` มาแสดง พร้อมป้าย `ปก` เล็กที่มุมขวาล่าง
+   - `ExportMobilePill` (Mobile View): นำ `displayThumb = cover.url || item.thumbnail_url` มาแสดง พร้อมป้าย `ปก`
+2. **ปรับปรุง `ExportActiveWorkbench` (แผง QC รายคลิป)**:
+   - ตรวจจับปกเดิมที่เคยบันทึกไว้ `initialCover = getCoverVariant(video, '9:16')` และ `video.cover_path`
+   - นำรูปปกเดิมมาพรีวิวในกล่องปก 9:16 ทันที พร้อมป้าย `9:16`
+   - แสดงแถบสถานะ `บันทึกแล้วที่ ...` พร้อมปุ่มคลิก "ดาวน์โหลดปก"
+   - ใน `onCoverSaved` เรียก `onRefresh?.()` เพื่อซิงก์ข้อมูลไฟล์ปกเข้าสู่รายการแกลเลอรีอัตโนมัติ
+3. **ปรับปรุง `Modal` พรีวิววิดีโอขนาดเต็ม**:
+   - ส่ง `poster={getCoverVariant(selectedDetailVideo, '9:16').url || selectedDetailVideo.thumbnail_url}` เข้าแท็ก `<video>`
+   - เพิ่มการ์ดแบนเนอร์ "มีรูปปก 9:16 ที่บันทึกไว้" พร้อมแสดงรูปตัวอย่างปก, path ไฟล์ในเครื่อง และปุ่ม "โหลดปก" แบบ 1 คลิก
+
+### Verification
+- Frontend Unit Tests: 261 passed (0 failed)
+- Frontend Production Build: สำเร็จ 2,009 modules ใน 9.26s
+- Cleanliness: 100% สะอาด ไม่สร้างหรือทิ้งไฟล์ขยะทดสอบ
+
+## Round AUDIT-OPEN-FINDINGS-REMEDIATION-AND-CHART-MODEL-1 — จัดการปิด Open Findings จาก Audit 2026-09-15 และแยก Chart Calculation Model
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ปัญหาและ Scope จาก Audit 2026-09-15
+- **B14 Medium**: `PerformanceAnalyticsTab.jsx` และ `AreaLineChart.jsx` ขาด unit test พิสูจน์ schema mismatch (เดิมเคย default เป็น `tokens`/`date` ทำให้ยอดวิว 637/371/278 แสดงเป็น 0) และ tooltip แสดงคำว่า "ปริมาณ:" แทนคำที่ตรงกับยอดวิว
+- **B06 High**: `scripts/background_isolation_sequence_worker.py:_publish_atomically` ปฏิเสธ target ที่มีอยู่เดิม หาก process ก่อนหน้า crash ขณะเคลื่อนย้ายไฟล์และยังไม่มี `manifest.json` ทำให้การ retry ล้มเหลวด้วย `foreground_sequence_commit_failed`
+- **B01, B02, B05, B07–B13**: ตรวจสอบสถานะการ remediate จากรอบก่อนหน้า ยืนยันว่าโค้ดจริงและ automated test suites มีการป้องกันครบถ้วน ไม่ตกค้าง
+
+### สิ่งที่ทำ
+1. **แยกโมเดลคำนวณกราฟและเขียน Test (แก้ B14)**:
+   - สร้าง `frontend/src/lib/chartModel.js` แยก Pure Calculation Logic (`computeAreaLineChart`, `findClosestChartPoint`, `DEFAULT_CHART_PADDING`) ออกจาก DOM/SVG
+   - สร้าง `frontend/src/lib/chartModel.test.js` เขียน unit tests 5 ข้อด้วย `node:test` ยืนยันการแมพ schema (`valueKey="value"`, `dateKey="label"`), ตรวจสอบ schema mismatch, ทดสอบ single point, empty data, และการคำนวณพิกัดใกล้เคียง
+   - ปรับปรุง `frontend/src/components/analytics/charts/AreaLineChart.jsx` ให้เรียกใช้ `chartModel.js` และเพิ่ม prop `valueLabel`
+   - อัปเดต `frontend/src/components/analytics/tabs/PerformanceAnalyticsTab.jsx` ส่ง `valueLabel="ยอดวิว"`
+2. **กู้คืน Abandoned Publication ใน Sequence Worker (แก้ B06)**:
+   - อัปเดต `scripts/background_isolation_sequence_worker.py:_publish_atomically` ให้ตรวจจับ `FileExistsError` หาก target เดิมไม่มี `manifest.json` (เป็นการพับบลิชที่ค้างจาก crash ก่อนหน้า) ให้ทำความสะอาด partial target แล้วสร้างใหม่เพื่อ publish ได้สำเร็จอย่างปลอดภัย โดยคงการปกป้อง artifact ที่มี `manifest.json` อยู่แล้วตามเดิม
+3. **ตรวจสอบความครอบคลุมของ Findings ทั้งหมด**:
+   - B01: ตรวจสอบ `scripts/db.py` ป้องกัน blank / malformed JSON mirror ไม่ล้าง SQLite ผ่าน `tests/test_audit_p0_safety.py`
+   - B02: ตรวจสอบ `scripts/api_videos.py` ระบบ upload staging ไม่เขียนทับไฟล์ชื่อซ้ำผ่าน `tests/test_audit_p0_safety.py`
+   - B05: ตรวจสอบ `scripts/batch_render.py` dispatcher idle exit boundary ผ่าน `tests/test_audit_p1_recovery.py`
+   - B07: ตรวจสอบ `scripts/api_background_isolation.py` fingerprint deduplication ป้องกัน worker ซ้ำซ้อน
+   - B08: ตรวจสอบ `frontend/src/hooks/useProjectAutosave.js` lifecycle save headers ผ่าน `frontend/src/lib/projectAutosave.test.js`
+   - B09: ตรวจสอบ `frontend/src/lib/renderJobPolling.test.js`
+   - B10: ตรวจสอบ `frontend/src/lib/workspaceData.test.js`
+   - B11: ตรวจสอบ `frontend/src/lib/backgroundIsolationPreview.test.js`
+   - B12: ตรวจสอบ `scripts/media_service.py:_parse_single_byte_range` ผ่าน `tests/test_media_service_ranges.py` (6 passed)
+   - B13: ตรวจสอบ `scripts/project_manifest.py:load` candidates `.bak1`, `.bak2`, `.bak3` ผ่าน `tests/test_audit_p1_recovery.py` (13 passed)
+
+### Verification
+- **Frontend Tests**: 261 passed (เพิ่ม 5 tests จาก `chartModel.test.js`, 0 failed)
+- **Frontend Production Build**: สำเร็จ 2,009 modules ใน 3.67s
+- **Backend Safety Suites**: 86 passed, 1 skipped (0 failed)
+- **Preview Render Parity**: 156 passed (0 failed)
+- **Recovery & Range Suites**: 13 passed (0 failed)
+- **Cleanup**: 100% สะอาด ไม่ทิ้งไฟล์ขยะทดสอบ
+| Round HOOK-TEMPLATES-T1-CLEANUP-AND-UNIFIED-NAMING-1 | ปรับชื่อป้ายฮุก 10 สไตล์การตัดต่อเป็นรหัส T1 มาตรฐานเดียวกัน (T1 แดง+กระพริบ, T1 เหลือง+สั่น, ...) + ซ่อนเทมเพลตยุคเก่าที่ไม่ใช้ 8 ตัวออกจากหน้ารายการ + ล้าง Custom Templates เก่าใน custom_hook_templates.json ให้สะอาดหมดจด | 2026-09-18 | สำเร็จสมบูรณ์ (backend 173 passed, frontend 256 passed, build 2,008 modules/4.19s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round HOOK-STYLE-10-PRESET-STANDARDIZED-SIZING-1 | รวมขนาดฟอนต์ป้ายฮุกทั้ง 10 สไตล์การตัดต่อเป็นขนาดมาตรฐานสมดุลเดียวกัน 100% (Brand 170% / Model 140% / Label 80% ฟอนต์ Kanit) ป้องกันขนาดกระโดดหรือล้นบรรทัดเมื่อสลับสไตล์ โดยคงสีและอนิเมชั่นเฉพาะตัวไว้ | 2026-09-18 | สำเร็จสมบูรณ์ (backend 224 passed, frontend 256 passed, build 2,008 modules/3.89s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round ANIMATION-LIGHTSWEEP-AND-MOTION-AUDIT-FIX-1 | แก้ปัญหา Animation แสงกวาด (lightsweep) ขาดครึ่งฟอนต์จาก \clip แนวตั้งแคบกว่าฟอนต์จริง + ป้องกันบั๊กเดียวกันใน typewriter + ซิงก์ In-builders (pop_zoom, quick_fade, snap, stamp, rise) ให้ตรงกับ Preset | 2026-09-18 | สำเร็จสมบูรณ์ (backend 227 passed, frontend 256 passed, build 2,008 modules/3.45s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round HOOK-HEADER-WRAP-PARITY-FIX-1 | แก้ปัญหาสัดส่วนและบรรทัด Hook Header Preview ≠ Render (พรีวิว 3 บรรทัด เรนเดอร์ 4 บรรทัด): ปรับปรุง Font Metrics เลือกไฟล์ Bold ให้ตรง CSS/libass + ไม่บังคับตัดคำใน overlay_events.py หากข้อความกว้างไม่เกินพื้นที่ปลอดภัย (Safe Width 85%) | 2026-09-18 | สำเร็จสมบูรณ์ (backend 226 passed, frontend 256 passed, build 2,008 modules/3.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round SCHEDULE-UI-TODAY-FIRST-REDESIGN-20260917 | ปรับหน้า ScheduleAgenda ให้เป็น Today-first: เพิ่มสรุปคิววันนี้และ empty state ที่เริ่มงานได้ทันที, ลด action หลักเหลือ automation/เพิ่มคลิป, รวมคำสั่งรองไว้ในเมนูเพิ่มเติม, ตรวจ browser จริงและ detector | 2026-09-17 | สำเร็จ (frontend tests 255 passed, lint ผ่านพร้อม warnings เดิม, build 2,008 modules, browser smoke verified, detector พบ warnings เดิม, ดำเนินการโดย: Codex (GPT-5)) |
 | Round SCHEDULE-AUTOFILL-LIMIT-CLARITY-20260917 | แก้ความชัดเจนช่องจำนวนคลิปใน modal จัดคิวอัตโนมัติ: แสดงจำนวนที่พร้อมจัดจริงและ placeholder โดยค่าว่างยังหมายถึงทั้งหมด | 2026-09-17 | สำเร็จ (reproduce/browser verified, frontend tests 255 passed, build 2,008 modules, lint ผ่านพร้อม warnings เดิม, detector ไม่มี error ใหม่, ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round STYLE-MOTION-CATALOG-CONTRACT-SYNC-1 — ซิงก์ test_style_motion_policy.py กับ catalog 10 สไตล์
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Claude Sonnet 4.6) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+- commit `0a07a34` ขยาย `scripts/style_motion_policy.py` จาก 5 เป็น 10 สไตล์ (`flash_deal`, `pain_punch`, `tech_compare`, `smart_hack`, `niche_focus`) แต่ไม่ได้อัปเดต `tests/test_style_motion_policy.py` ทำให้ test `test_unknown_style_falls_back_to_golden_master_and_catalog_is_json_safe` ตก เพราะ `assert set(catalog) == {...5 สไตล์...}` ไม่ตรงกับ catalog จริง
+
+### สิ่งที่ทำ
+- แก้ `tests/test_style_motion_policy.py`: ขยาย test จาก 8 เป็น **17 tests** ครอบคลุม 10 สไตล์:
+  - ยืนยัน catalog มีเป็น  10 สไตล์เป็ด (guard `test_catalog_has_exactly_10_styles`)
+  - Behavioral contract test สำหรับสไตล์ใหม่  5 ตัวแต่ละตัว (ตรวจค่า stride, family, accent_color ครบ)
+  - `test_all_10_styles_resolve_without_fallback`: ยืนยันทุกสไตล์ resolve ได้ตรง ไม่ตก fallback
+  - `test_all_10_styles_have_valid_accent_and_transition_config`: guard well-formed config ทุกตัว
+- ติ๊ก checkbox ค้างใน Round ONE-CLICK-HOOK-STYLE-PARITY-1 ใน TODO.md
+
+### Verification
+- `tests/test_style_motion_policy.py`: **17 passed** (เพิ่มจาก 8)
+- Focused backend suite: **188 passed** (test_style_motion_policy + test_preview_render_parity + test_hook_styles)
+- ไม่มี regression ใหม่
+
+## Round HOOK-TEMPLATES-T1-CLEANUP-AND-UNIFIED-NAMING-1 — ปรับชื่อป้ายฮุก 10 สไตล์เป็น T1 มาตรฐานเดียวกัน + ซ่อนเทมเพลตเก่าที่ไม่ได้ใช้ + ล้าง custom_hook_templates.json
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### สิ่งที่ทำตามคำขอผู้ใช้
+1. **ปรับชื่อป้ายฮุก 10 สไตล์เป็นรหัสชุดมาตรฐาน `T1` เดียวกัน:**
+   - เปลี่ยน `label_th` ใน `scripts/hook_styles.py` และ `frontend/src/lib/hookStyles.js` จาก B1, B2 สลับไปมา ให้เป็น `T1 (...)` นำหน้าเหมือนกันทั้งหมด เพื่อให้ผู้ใช้ทราบทันทีว่านี่คือชุดมาตรฐานที่คู่กับสไตล์การตัดต่อ
+   - ปรับ `hookBadge` ใน `frontend/src/lib/stylePresetCatalog.js` ให้เป็น `T1 · ...`
+2. **เก็บกวาดเทมเพลตยุคเก่า (Legacy 8 แบบ):**
+   - กรองและซ่อนเทมเพลตเก่าที่ไม่ได้ใช้ (`tech`, `cute`, `bold_pop`, `plain`, `clean`, `flash_sale`, `neon_cyber`, `minimal_luxury`) ออกจากหน้าจอ `OverlayInspector.jsx`, `AssetPanel.jsx`, และ `Toolbar.jsx` เพื่อให้ลิ้นชักป้ายฮุกคลีน สะอาดตา มีเฉพาะ 10 สไตล์หลักและ Custom Templates
+3. **ล้าง Custom Templates เก่าหมดจด:**
+   - คืนค่า `02_Assets/Templates/custom_hook_templates.json` ให้ว่างเปล่า (`templates: {}`) เอาของเก่าที่เคยทดลองเซฟไว้ออกทั้งหมดตามคำขอผู้ใช้
+
+### Verification
+- Backend Parity & Hook Suites: 173 passed (`test_preview_render_parity.py`, `test_hook_styles.py`, `test_hook_templates_custom.py`)
+- Frontend Vitest: 256 passed (`npm test -- --run`)
+- Frontend Production Build: 2,008 modules transformed สำเร็จใน 4.19s (`npm run build`)
+- Test Cleanup: 100% สะอาด ไม่ทิ้งไฟล์ค้างในระบบ
+
+## Round HOOK-STYLE-10-PRESET-STANDARDIZED-SIZING-1 — รวมขนาดฟอนต์ป้ายฮุกทั้ง 10 สไตล์การตัดต่อเป็นขนาดมาตรฐานสมดุลเดียวกัน 100% (Brand 170% / Model 140% / Label 80% ฟอนต์ Kanit)
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+- ใน 10 สไตล์การตัดต่อเดิม แต่ละสไตล์มีขนาด Hook Banner สลับไปมาหลากหลายมาก:
+  - บางตัวเป็นสไตล์ B1 ย่อส่วน (Brand 130% / Model 107% / Label 60%) เช่น `b1_viral_red`, `b1_deal_orange`, `b1_pain_pink`
+  - บางตัวเป็นสไตล์ B1 ขนาดกลาง (Brand 170% / Model 140% / Label 79%) เช่น `b1_smooth_mint`, `b1_hack_lime`
+  - บางตัวเป็นสไตล์ B2 ขนาดใหญ่ (Brand 207% / Model 170% / Label 95%) เช่น `b2_tech_cyan`, `b2_premium_gold`, `b2_compare_blue`, `b2_niche_purple`
+  - บางตัวเป็นสไตล์ B2 ขนาดยักษ์ (Brand 221% / Model 182% / Label 103%) เช่น `b2_clean_yellow`
+- ทำให้เมื่อผู้ใช้สลับสไตล์การตัดต่อ ตัวหนังสือป้ายฮุกจะกระโดดขนาดขึ้นลงถึง 70% ส่งผลให้ต้องคอยปรับขนาดฟอนต์ทีละอัน และทำให้เกิดการตัดบรรทัดล้นผิดเพี้ยน
+
+### การแก้ไข
+- ปรับขนาดของป้ายฮุกทั้ง 10 ตัวใน `scripts/hook_styles.py` และ `frontend/src/lib/hookStyles.js` ให้ใช้ขนาดมาตรฐานสมดุลเดียวกัน 100%:
+  - **Font**: `Kanit` (ทุกตัวใช้เหมือนกัน)
+  - **Brand tier**: `size_pct: 170`, `outline_px: 3.0`, `upper: True`
+  - **Model tier**: `size_pct: 140`, `outline_px: 3.0`, `upper: False`
+  - **Label tier**: `size_pct: 80`, `outline_px: 3.0`, `upper: False`
+- คงสีเฉพาะตัว (Brand Color, Model Color, Label Color, Outline Color) และ แอนิเมชัน (In, Loop, Out เช่น `flicker`, `shake`, `wave`, `lightsweep`) ของแต่ละสไตล์ไว้ตามเดิม
+- สอดคล้องกับสัญญา Parity ระหว่าง Preview และ Render ทุกฟิลด์ 100%
+
+### Verification
+- Backend Parity & Hook Suite: 224 passed (`test_preview_render_parity.py`, `test_hook_styles.py`, `test_overlay_model.py`, `test_batch_render.py`)
+- Frontend Tests: 256 passed (`npm test -- --run`)
+- Frontend Production Build: 2,008 modules transformed สำเร็จใน 3.89s (`npm run build`)
+- Test Cleanup: 100% สะอาด ไม่มีการสร้างไฟล์ขยะค้างในระบบ
+
+## Round ANIMATION-LIGHTSWEEP-AND-MOTION-AUDIT-FIX-1 — แก้ปัญหา Animation แสงกวาด (lightsweep) ขาดครึ่งฟอนต์ & ตรวจสอบ Animation ทุกตัว
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์
+
+### ปัญหาที่พบจากการตรวจสอบแอนิเมชันทั้งหมด (Audit Findings)
+1. **lightsweep (แสงกวาด) ถูก clip แนวตั้งขาดครึ่งฟอนต์:** ใน `scripts/subtitle/badge_plate_renderer.py` มีการกำหนด `top, bot = y - 5, y + line_fs + 5` โดย `line_fs` คำนวณจาก unboosted `hook_fs` (75) ขณะที่ libass เรนเดอร์ด้วยขนาดที่ถูก boost (1.48x) เพื่อกันสระซ้อนชนกัน ทำให้ฟอนต์ใหญ่เช่น `IWACHI I6` ถูกตัด clip ด้านล่างทิ้งไปถึง 35-50% แสงกวาดจึงติดเพียงครึ่งบน
+2. **typewriter (พิมพ์ดีด) มีปัญหา clip แนวตั้งขาดเช่นเดียวกัน:** ใน `scripts/subtitle/overlay_events.py` กำหนด `top, bot = rec["y"] - 5, rec["y"] + rec["line_fs"] + 5` หากใช้กับฟอนต์ใหญ่จะถูกเฉือนครึ่งล่างเช่นกัน
+3. **In-builders ขาดใน `HOOK_IN_BUILDERS`:** ใน `scripts/subtitle/motion_effects.py` ขาด `pop_zoom`, `quick_fade`, `snap`, `stamp`, `rise` ทำให้สไตล์สำเร็จรูปเช่น `neon_cyber` (pop_zoom) และ `minimal_luxury` (quick_fade) ตกไปใช้ `bounce` (450ms) แทนที่จะแสดงผลตรงกับพรีวิว
+4. **Animation ตัวอื่นๆ (pulse, wave, shake, flicker, fade, slide, zoom, glitch, none, accents):** ตรวจสอบแล้วทำงานปกติ ไม่มีบั๊ก clip หรือคำนวณตำแหน่งผิดพลาด
+
+### การแก้ไข
+- ปรับปรุง `scripts/subtitle/badge_plate_renderer.py`: ขยาย `top, bot = 0, 1920` ใน `_hook_lightsweep_event` เพื่อไม่ให้จำกัดความสูงแนวตั้ง แถบแสงกวาดแนวนอนจะคลุมเต็มตัวอักษร 100% ทุกขนาด ไม่ตัดขอบล่าง
+- ปรับปรุง `scripts/subtitle/overlay_events.py`: ปรับ `top, bot = 0, video_height` ใน typewriter clip
+- ปรับปรุง `scripts/subtitle/motion_effects.py`: เพิ่ม `pop_zoom`, `quick_fade`, `snap`, `stamp`, `rise` ลงใน `HOOK_IN_ALIASES` และเชื่อมต่อผ่าน `resolve_hook_in_builder()` โดยคง `HOOK_IN_BUILDERS` ให้ตรงกับ catalog API
+- ปรับปรุง `frontend/src/components/SequencePlayer.jsx`: ปรับ `ctx.rect` ของ lightsweep และ typewriter ให้มีพื้นที่แนวตั้งเต็มจอ (`CANVAS_H`) ป้องกันการตัดขอบสระบน/ล่าง
+- เพิ่ม Regression Test ใน `tests/test_preview_render_parity.py`: ฟังก์ชัน `test_lightsweep_and_motion_preset_parity_contract` ตรวจสอบความถูกต้องของ lightsweep, typewriter, และ in-builder aliases
+
+### Verification
+- Backend Parity & Overlay Suite: 227 passed, 0 failed (`test_preview_render_parity.py`, `test_preview_render_behavior.py`, `test_subtitle_artifact_contract.py`, `test_overlay_model.py`)
+- Backend Smoke Suite: 348 passed, 0 failed (`test_phase1_smoke.py`, `test_overlay_model.py`)
+- Frontend Tests: 256 passed, 0 failed (`npm test`)
+- Frontend Production Build: 2,008 modules transformed สำเร็จใน 3.45s (`npm run build`)
+- Test Cleanup: 100% สะอาด ปลอดภัย ไม่ทิ้งไฟล์ขยะ
+
+
+## Round HOOK-HEADER-WRAP-PARITY-FIX-1 — แก้ปัญหาสัดส่วนและบรรทัด Hook Header Preview ≠ Render (พรีวิว 3 บรรทัด เรนเดอร์ 4 บรรทัด)
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์
+
+### ปัญหาที่พบ
+1. **Pillow วัดความกว้างด้วย ExtraBold แทน Bold:** ใน `scripts/subtitle/font_metrics.py` ดึง path จาก `AssetRegistry.fonts()` โดยไม่จัดลำดับความสำคัญ ทำให้ตระกูล `Kanit` ได้ไฟล์ `Kanit-ExtraBold.ttf` (หนากว่าปกติ) แทนที่จะเป็น `Kanit-Bold.ttf` (Bold 700 ตาม CSS) ส่งผลให้ `"K20 Magnetic SSD 1TB"` ที่ 90px วัดได้ 921px ซึ่งเกิน safe width 918px ไป 3px
+2. **Logic การตัดคำใน `overlay_events.py` บังคับตัดข้อความที่ยังไม่ล้น:** เมื่อ `text_w <= max_w_px` ตกไปเข้ากิ่ง `else:` และคำนวณ `dyn_max_chars = 1550 / tier_fs` แล้วสั่ง wrap ตามจำนวนตัวอักษร ทำให้ข้อความไทยที่มีสระ/วรรณยุกต์ เช่น `"พื้นที่เก็บข้อมูลในโทรศัพท์"` (กว้างจริงแค่ 668px จาก 918px หรือ 72%) โดนบังคับตัดเป็น 2 บรรทัดทั้งที่ยังไม่ล้นจอ
+
+### การแก้ไข
+- ปรับปรุง `scripts/subtitle/font_metrics.py`: เพิ่ม `_resolve_family_font_path(resolved_font)` ให้เลือกลำดับฟอนต์ที่มี `-Bold.` หรือ `Bold.` ก่อนเสมอ เพื่อให้น้ำหนักตรงกับ CSS Bold (700) และการทำงานของ FFmpeg libass
+- ปรับปรุง `scripts/subtitle/overlay_events.py`: ตรวจสอบความกว้างจริงของแต่ละบรรทัดก่อนตัดคำ หากความกว้างไม่เกินพื้นที่ปลอดภัย (`para_w <= int(max_w_px * 1.01)`) จะไม่ส่งเข้า `wrap_text_for_ass` คงสภาพบรรทัดตามที่กำหนดไว้ตรงกันกับ Preview Canvas (`SequencePlayer.jsx:wrapCanvasText`)
+- เพิ่ม Parity Regression Test ใน `tests/test_preview_render_parity.py`: ฟังก์ชัน `test_hook_overlay_wrap_parity_contract` ตรวจสอบข้อความ 3 บรรทัดจริงของ ORICO K20 ว่าต้องได้ 3 บรรทัดทั้งใน Preview logic และ Render ASS logic
+
+### Verification
+- Backend Parity & Overlay Tests: 226 passed, 0 failed (`test_preview_render_parity.py`, `test_preview_render_behavior.py`, `test_subtitle_artifact_contract.py`, `test_overlay_model.py`)
+- Frontend Tests: 256 passed, 0 failed (`npm test`)
+- Frontend Production Build: 2,008 modules transformed สำเร็จใน 3.15s (`npm run build`)
+- Test Cleanup: 100% สะอาด ไม่มีการสร้างไฟล์ค้างใน `04_Exports/` หรือ `_Docs/export_registry.json`
+
 
 ## Round SCHEDULE-UI-TODAY-FIRST-REDESIGN-20260917 — ปรับหน้าเมนูจัดคิวแบบ Today-first
 
@@ -7502,3 +7756,18 @@ Executed by: Codex (GPT-6)
 - ย้าย search/catalog และเครื่องมือที่ใช้ไม่บ่อยไว้ในเมนูเครื่องมือสินค้า
 - ปรับ fallback copy ให้สอดคล้องกับการเลือกสินค้าด้วยการ์ด และลบ state/ปุ่มการ์ดแบบเก่าที่ไม่ใช้งาน
 - ตรวจแล้ว: frontend tests ผ่าน, lint ผ่านพร้อมคำเตือนเดิม, build ผ่าน 2,008 modules
+## Round SMOOTH-OVERLAY-ANIMATION-20260918
+ดำเนินการโดย: Codex (GPT-5)
+- แก้ Effect/Frame Overlay Preview ให้ยึด master timeline แทน clock ของ `<video>` ที่เล่นแยก ทำให้เริ่มตรงเวลาและลด drift ระหว่างเล่น
+- เพิ่ม policy `effectPlayback.js` สำหรับ wrap เวลา, hard seek เมื่อหลุดมาก และ gentle playback-rate slew เมื่อหลุดเล็กน้อย
+- เพิ่ม WeakMap cache สำหรับ geometry ของ Text/Hook Overlay ลดการ wrap ข้อความและ `measureText` ซ้ำทุกเฟรม
+- เพิ่ม regression tests สำหรับ effect timing และ source contract ของ playback loop
+- ตรวจแล้ว: frontend tests 266 ผ่าน, lint ผ่านพร้อม warnings เดิม, build ผ่าน 2,008 modules, Python preview/render parity tests ผ่าน
+
+## Round PLANCK-ASS-ADAPTER-20260918
+ดำเนินการโดย: Agent Planck (Codex/GPT-5)
+- เพิ่ม `scripts/subtitle/motion_ass_adapter.py` เป็น adapter แยกสำหรับแปลง normalized Motion Contract/preset เป็น ASS keyframe segments โดยไม่ผูกกับ pipeline และไม่แก้ `motion_effects.py` หรือ `overlay_events.py`
+- รองรับ scale, alpha, dy, rotation, blur, reveal พร้อม timing clamp, deterministic output, loop window และ out window
+- เพิ่ม typed plan API `build_ass_motion_segments()` พร้อม report/error mode สำหรับ unsupported properties และอธิบายข้อจำกัดของ position/reveal/easing ที่ ASS รองรับไม่ตรงทั้งหมด
+- เพิ่ม `tests/test_motion_ass_adapter.py`
+- ตรวจแล้ว: `pytest -q tests/test_motion_ass_adapter.py` ผ่าน 6 tests

@@ -315,11 +315,11 @@ def test_alpha_values_are_converted_not_copied():
 
 def test_hook_motion_envelope_has_no_double_fading():
     """
-    Hook text lines must derive alpha purely from (inFx.alpha * loopFx.alpha * outFx.alpha)
+    Hook text lines must derive alpha purely from (lineInFx.alpha * loopFx.alpha * outFx.alpha)
     without an unmodeled artificial 300ms exit ramp or 200ms entry ramp that
     distorts parity with the ASS render.
     """
-    assert "ctx.globalAlpha = (inFx.alpha ?? 1) * (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);" in JS_SRC
+    assert "ctx.globalAlpha = (lineInFx.alpha ?? 1) * (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);" in JS_SRC
     assert "ctx.globalAlpha = (outFx.alpha ?? 1) * HOOK_SWEEP_OPACITY;" in JS_SRC
     assert "if (t < 0.2) alpha =" not in JS_SRC
     assert "if (t > hookDuration - 0.3) alpha =" not in JS_SRC
@@ -2345,3 +2345,113 @@ def test_hook_overlay_guarded_against_per_word_layout():
     assert "if (isWordStagger && lineWords && lineWords.length > 0)" in JS_SRC
 
 
+def test_hook_overlay_wrap_parity_contract():
+    """
+    Regression test for HOOK-HEADER-WRAP-PARITY-FIX-1:
+    - Text whose width <= safe boundary (85% of video_width) must NOT be wrapped
+      into multiple lines (e.g. Thai text with combining vowels/tones or model text
+      calibrated to fit on 1 line).
+    - Long text that legitimately exceeds safe boundary (e.g. 145px brand) must wrap
+      cleanly to prevent overlap.
+    """
+    from scripts.subtitle.overlay_events import overlay_events
+    from scripts.subtitle.font_metrics import _measure_text_width_px, _resolve_family_font_path
+
+    # Verify Bold font path resolution
+    kanit_path = _resolve_family_font_path("Kanit")
+    assert kanit_path is not None and "bold" in kanit_path.lower() and "extrabold" not in kanit_path.lower()
+
+    # Model text 'K20 Magnetic SSD 1TB' at 90px must fit in safe width 918px
+    w_k20 = _measure_text_width_px("K20 Magnetic SSD 1TB", "Kanit", 90)
+    assert w_k20 is not None and w_k20 <= 918
+
+    # Category Thai text 'พื้นที่เก็บข้อมูลในโทรศัพท์' at 63px must fit in safe width 918px
+    w_thai = _measure_text_width_px("พื้นที่เก็บข้อมูลในโทรศัพท์", "Kanit", 63)
+    assert w_thai is not None and w_thai <= 918
+
+    # Hook Overlay with 3 tiers fitting safe width must emit exactly 3 unique line positions
+    hook_overlay = {
+        "id": "ovl_hook",
+        "kind": "hook",
+        "start": 0,
+        "end": 5,
+        "base_fs_ratio": 0.065,
+        "look": {"font": "Kanit", "size_pct": 92},
+        "tiers": [
+            {"text": "ORICO", "look": {"size_pct": 170}},
+            {"text": "K20 Magnetic SSD 1TB", "look": {"size_pct": 140}},
+            {"text": "พื้นที่เก็บข้อมูลในโทรศัพท์", "look": {"size_pct": 79}},
+        ],
+        "anim": {"in": "bounce", "loop": "none", "out": "fade", "accent": "none"},
+    }
+    ctx = {
+        "video_width": 1080,
+        "video_height": 1920,
+        "hook_fs": 70,
+        "hook_font": "Kanit",
+        "caption_color": "#FFFFFF",
+        "style_preset": "premium_minimal",
+    }
+    events = overlay_events(hook_overlay, ctx)
+    main_dialogues = [e for e in events if e.startswith("Dialogue: 2,") and "HookHeader," in e]
+    assert len(main_dialogues) == 3, f"Expected exactly 3 main dialogues for 3-tier hook, got {len(main_dialogues)}"
+    assert "ORICO" in main_dialogues[0]
+    assert "K20 Magnetic SSD 1TB" in main_dialogues[1]
+    assert "พื้นที่เก็บข้อมูลในโทรศัพท์" in main_dialogues[2]
+
+
+def test_lightsweep_and_motion_preset_parity_contract():
+    """
+    Parity contract for lightsweep clip height, typewriter clip height,
+    and motion preset in-builders (pop_zoom, quick_fade, etc.).
+    """
+    from scripts.subtitle.overlay_events import overlay_events
+    ctx = {
+        "video_width": 1080,
+        "video_height": 1920,
+        "hook_fs": 75,
+        "hook_font": "Kanit",
+        "caption_color": "#FFFFFF",
+        "style_preset": "neon_cyber",
+    }
+    hook_overlay = {
+        "id": "ovl_hook",
+        "kind": "hook",
+        "start": 0,
+        "end": 5,
+        "tiers": [
+            {"text": "IWACHI I6", "look": {"size_pct": 170}},
+            {"text": "เมาส์ไร้สาย", "look": {"size_pct": 100}},
+        ],
+        "anim": {"in": "pop_zoom", "loop": "lightsweep", "out": "fade", "accent": "none"},
+    }
+    events = overlay_events(hook_overlay, ctx)
+
+    # 1. Lightsweep must emit Dialogue 3 events with full vertical clearance (0 to 1920)
+    sweep_events = [e for e in events if e.startswith("Dialogue: 3,") and "HookHeader," in e]
+    assert len(sweep_events) == 2, f"Expected 2 lightsweep events, got {len(sweep_events)}"
+    for sw in sweep_events:
+        # Every \clip in lightsweep must have top=0 and bot=1920 so large fonts never get truncated
+        clips = re.findall(r"\\clip\((\d+),(\d+),(\d+),(\d+)\)", sw)
+        assert len(clips) > 0, f"No \\clip tags in {sw}"
+        for c in clips:
+            x1, y1, x2, y2 = map(int, c)
+            assert y1 == 0 and y2 == 1920, f"Lightsweep clip vertical bounds must be 0..1920, got {y1}..{y2}"
+
+    # 2. In-builder for pop_zoom must produce pop_zoom tags (1.45x scale over 100ms), not bounce fallback
+    main_dialogues = [e for e in events if e.startswith("Dialogue: 2,") and "HookHeader," in e]
+    assert len(main_dialogues) == 2
+    # pop_zoom scales down from 1.45x (e.g. 170 * 1.45 = 246)
+    assert "\\t(0,100," in main_dialogues[0], "pop_zoom must emit 100ms transition tag"
+
+    # 3. Typewriter clip must also use full vertical clearance (0 to video_height)
+    typewriter_overlay = dict(hook_overlay, anim={"in": "typewriter", "loop": "none", "out": "fade", "accent": "none"})
+    tw_events = overlay_events(typewriter_overlay, ctx)
+    tw_main = [e for e in tw_events if e.startswith("Dialogue: 2,") and "HookHeader," in e]
+    assert len(tw_main) == 2
+    for tw in tw_main:
+        clips = re.findall(r"\\clip\((\d+),(\d+),(\d+),(\d+)\)", tw)
+        assert len(clips) > 0
+        for c in clips:
+            x1, y1, x2, y2 = map(int, c)
+            assert y1 == 0 and y2 == 1920, f"Typewriter clip vertical bounds must be 0..1920, got {y1}..{y2}"

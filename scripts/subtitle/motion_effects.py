@@ -222,6 +222,54 @@ def _in_elastic_bounce(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, O
     return serialize_keyframes(kfs), end_ms, None
 
 
+def _in_pop_zoom(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    target = round(target_scale_pct)
+    entry_from = round(target * 1.45)
+    end_ms = t0_ms + 100
+    tag = (
+        f"\\fscx{entry_from}\\fscy{entry_from}\\alpha&HFF&"
+        f"\\t({t0_ms},{t0_ms + 70},\\alpha&H00&)"
+        f"\\t({t0_ms},{end_ms},\\fscx{target}\\fscy{target})"
+    )
+    return tag, end_ms, None
+
+
+def _in_quick_fade(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    target = round(target_scale_pct)
+    end_ms = t0_ms + 150
+    kfs = [
+        (t0_ms, {"fscx": target, "fscy": target, "alpha": "&HFF&"}, 1.0),
+        (end_ms, {"alpha": "&H00&"}, 1.0),
+    ]
+    return serialize_keyframes(kfs), end_ms, None
+
+
+def _in_snap(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    target = round(target_scale_pct)
+    entry_from = round(target * 1.25)
+    end_ms = t0_ms + 70
+    tag = f"\\fscx{entry_from}\\fscy{entry_from}\\t({t0_ms},{end_ms},\\fscx{target}\\fscy{target})"
+    return tag, end_ms, None
+
+
+def _in_stamp(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    target = round(target_scale_pct)
+    entry_from = round(target * 1.65)
+    end_ms = t0_ms + 80
+    tag = f"\\fscx{entry_from}\\fscy{entry_from}\\t({t0_ms},{end_ms},\\fscx{target}\\fscy{target})"
+    return tag, end_ms, None
+
+
+def _in_rise(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    target = round(target_scale_pct)
+    end_ms = t0_ms + 200
+    kfs = [
+        (t0_ms, {"fscx": target, "fscy": target, "alpha": "&HFF&"}, 1.0),
+        (end_ms, {"alpha": "&H00&"}, 1.0),
+    ]
+    return serialize_keyframes(kfs), end_ms, 40
+
+
 HOOK_IN_BUILDERS = {
     "bounce": _in_bounce, "bounce_soft": _in_bounce_soft,
     "elastic_bounce": _in_elastic_bounce,
@@ -230,6 +278,18 @@ HOOK_IN_BUILDERS = {
     "fade": _in_fade, "zoom": _in_zoom,
     "slide_up": _in_slide_up, "blur": _in_blur, "none": _in_none,
 }
+
+HOOK_IN_ALIASES = {
+    "pop_zoom": _in_pop_zoom,
+    "quick_fade": _in_quick_fade,
+    "snap": _in_snap,
+    "stamp": _in_stamp,
+    "rise": _in_rise,
+}
+
+
+def resolve_hook_in_builder(name: str):
+    return HOOK_IN_BUILDERS.get(name) or HOOK_IN_ALIASES.get(name, _in_bounce)
 
 
 # ---- Loop (hold-period) builders ---------------------------------------

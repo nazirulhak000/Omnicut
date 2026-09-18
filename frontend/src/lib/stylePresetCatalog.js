@@ -23,7 +23,7 @@ const STYLE_PRESETS = [
     status: '#25F4EE',
     neutral: '#FFFFFF',
     hookTemplate: 'b1_viral_red',
-    hookBadge: 'B1 · FLICKER',
+    hookBadge: 'T1 · FLICKER',
     hookColor: '#FE2C55',
     recommended: true,
   },
@@ -41,7 +41,7 @@ const STYLE_PRESETS = [
     status: '#25F4EE',
     neutral: '#FFFFFF',
     hookTemplate: 'b2_clean_yellow',
-    hookBadge: 'B2 · SHAKE',
+    hookBadge: 'T1 · SHAKE',
     hookColor: '#FFE600',
   },
   {
@@ -56,7 +56,7 @@ const STYLE_PRESETS = [
     status: '#25F4EE',
     neutral: '#FFFFFF',
     hookTemplate: 'b2_tech_cyan',
-    hookBadge: 'B2 · WAVE',
+    hookBadge: 'T1 · WAVE',
     hookColor: '#25F4EE',
   },
   {
@@ -71,7 +71,7 @@ const STYLE_PRESETS = [
     status: '#FFE600',
     neutral: '#FFFFFF',
     hookTemplate: 'b1_smooth_mint',
-    hookBadge: 'B1 · LIGHTSWEEP',
+    hookBadge: 'T1 · LIGHTSWEEP',
     hookColor: '#00F2AA',
   },
   {
@@ -86,7 +86,7 @@ const STYLE_PRESETS = [
     status: '#D8C58A',
     neutral: '#FFFFFF',
     hookTemplate: 'b2_premium_gold',
-    hookBadge: 'B2 · WAVE',
+    hookBadge: 'T1 · WAVE',
     hookColor: '#E6C24A',
   },
   {
@@ -101,7 +101,7 @@ const STYLE_PRESETS = [
     status: '#25F4EE',
     neutral: '#FFFFFF',
     hookTemplate: 'b1_deal_orange',
-    hookBadge: 'B1 · FLICKER',
+    hookBadge: 'T1 · FLICKER',
     hookColor: '#FF7A00',
   },
   {
@@ -116,7 +116,7 @@ const STYLE_PRESETS = [
     status: '#25F4EE',
     neutral: '#FFFFFF',
     hookTemplate: 'b1_pain_pink',
-    hookBadge: 'B1 · SHAKE',
+    hookBadge: 'T1 · SHAKE',
     hookColor: '#FF2E93',
   },
   {
@@ -131,7 +131,7 @@ const STYLE_PRESETS = [
     status: '#FFE600',
     neutral: '#FFFFFF',
     hookTemplate: 'b2_compare_blue',
-    hookBadge: 'B2 · WAVE',
+    hookBadge: 'T1 · WAVE',
     hookColor: '#3B82F6',
   },
   {
@@ -146,7 +146,7 @@ const STYLE_PRESETS = [
     status: '#25F4EE',
     neutral: '#FFFFFF',
     hookTemplate: 'b1_hack_lime',
-    hookBadge: 'B1 · LIGHTSWEEP',
+    hookBadge: 'T1 · LIGHTSWEEP',
     hookColor: '#84CC16',
   },
   {
@@ -161,7 +161,7 @@ const STYLE_PRESETS = [
     status: '#25F4EE',
     neutral: '#FFFFFF',
     hookTemplate: 'b2_niche_purple',
-    hookBadge: 'B2 · WAVE',
+    hookBadge: 'T1 · WAVE',
     hookColor: '#A855F7',
   },
 ];
