@@ -28,36 +28,7 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 ## สถานะรวม
 
 - [x] Round PRODUCT-HIDE-ARCHIVE-VISIBILITY-1 — ฟังก์ชันซ่อนสินค้าที่ยังไม่อยากแสดง/ยังไม่อยากทำ พร้อมปุ่มลัดซ่อนสินค้า 0 มุม และกู้คืนได้ทุกเมื่อ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [ ] Round PAGINATION-LOADING-20260918 — Phase 1: token history, editor assets, tracker lists, inventory loading
-
-## Round PAGINATION-LOADING-20260918 — Phase 1 pagination/loading
-
-วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: กำลังทำ
-
-**เป้าหมาย:** ลดการ render รายการขนาดใหญ่และเพิ่ม loading/pagination state ในจุดที่ผู้ใช้เจอข้อมูลล้น โดยไม่เขียนทับงานอื่นใน working tree
-
-### Todo
-
-- [x] Token history: เพิ่มการโหลดประวัติแบบแบ่งชุด พร้อม filter/reset/loading more
-- [ ] AssetPanel: จำกัดรายการ asset ที่ render ต่อ tab และเพิ่มโหลดเพิ่ม (รอแยกรอบเพราะไฟล์มี diff เดิมก่อนเริ่มงาน)
-- [x] ContentTrackerHub: จำกัด Script Library, Posted Archive และ grouped scripted cards
-- [x] Inventory Analytics: เพิ่ม visible window/loading state ให้ product health list
-- [x] เพิ่ม regression tests และตรวจ build/targeted tests
-
-### Gate
-
-- [x] Targeted frontend tests ที่เกี่ยวข้องผ่าน
-- [x] `npm run build` ผ่าน
-- [ ] ตรวจ diff ไม่ทับไฟล์งานเดิม และทำ manual detector กับไฟล์ UI ที่แก้
-
-### Notes
-
-- ไฟล์ที่มีการแก้ไขอยู่ก่อนเริ่มรอบนี้ถูกบันทึกจาก `git status` และจะไม่ถูก revert/เขียนทับ
-- รายละเอียด audit เดิม: `PAGINATION_LOADING_AUDIT_PLAN_2026-09-18.md`
-- Backend targeted: `33 passed` (`tests/test_token_tracker.py`, `tests/test_backend_api_contracts.py`)
-- Frontend: `271 passed`; `npm run build` ผ่าน; `npm run lint` ผ่านแต่มี warnings เดิมหลายจุด
-- Impeccable detector: พบ warnings เดิมด้านสี/รูปแบบในไฟล์ UI; ไม่ได้แก้เพราะอยู่นอก scope pagination/loading
-- AssetPanel ยังไม่ทำในรอบนี้ เพราะมี diff เดิมก่อนเริ่มงานและกฎ work loop ห้ามเขียนทับไฟล์ที่ชนกัน
+- ปิดแล้ว: Round PAGINATION-LOADING-20260918 — Phase 1 pagination/loading (ดำเนินการโดย: Codex (GPT-5))
 
 ## Round TEXT-MOTION-SYSTEM-FOUNDATION-20260918 — active (foundation/integration complete; pixel frame diff deferred)
 

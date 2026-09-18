@@ -7771,3 +7771,26 @@ Executed by: Codex (GPT-6)
 - เพิ่ม typed plan API `build_ass_motion_segments()` พร้อม report/error mode สำหรับ unsupported properties และอธิบายข้อจำกัดของ position/reveal/easing ที่ ASS รองรับไม่ตรงทั้งหมด
 - เพิ่ม `tests/test_motion_ass_adapter.py`
 - ตรวจแล้ว: `pytest -q tests/test_motion_ass_adapter.py` ผ่าน 6 tests
+
+## Round PAGINATION-LOADING-20260918 — Phase 1 pagination/loading
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย:** ลดการ render รายการขนาดใหญ่และเพิ่ม loading/pagination state ในจุดที่ผู้ใช้เจอข้อมูลล้น
+
+### สิ่งที่ทำ
+
+- Token history: เพิ่ม cursor pagination, filter ตาม task/search, loading more, reset เมื่อเปลี่ยน filter และป้องกัน request เก่าทับผลลัพธ์ใหม่
+- ContentTrackerHub: จำกัด Script Library และ Posted Archive ครั้งละ 40 รายการ และ grouped scripted cards ครั้งละ 20 รายการ พร้อมปุ่มโหลดเพิ่ม
+- Inventory Analytics: จำกัด product health rows ครั้งละ 40 รายการ, reset เมื่อเปลี่ยน filter และคงข้อมูลเดิมระหว่าง refresh
+- AssetPanel: จำกัด clips, music, SFX, stickers และ effects ครั้งละ 40 รายการ พร้อมปุ่มโหลดเพิ่มและ reset เมื่อค้นหาใหม่
+- เพิ่ม audit plan ที่ `PAGINATION_LOADING_AUDIT_PLAN_2026-09-18.md`
+
+### Verification
+
+- Backend targeted: `33 passed` (`tests/test_token_tracker.py`, `tests/test_backend_api_contracts.py`)
+- Frontend: `271 passed`
+- `npm run build`: ผ่าน, 2,013 modules transformed
+- `npm run lint`: ผ่านโดยมี warnings เดิมในโปรเจกต์
+- Impeccable detector: พบ warnings เดิมด้านสี/รูปแบบนอก scope pagination/loading; ไม่ได้เปลี่ยน visual system
+- ไม่แก้หรือลบไฟล์ raw/assets และไม่สร้าง artifact ใน `04_Exports/`
