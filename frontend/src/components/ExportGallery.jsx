@@ -1860,7 +1860,6 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                   setGridPage(1);
                 }}
                 itemLabel="คลิป"
-                disabled={loading}
               />
             </div>
           )}

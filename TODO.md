@@ -30,6 +30,18 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 - [x] Round ANALYTICS-CHARTS-CHRONO-SORT-AND-TOKEN-SUMMARY-UI-1 — ปรับปรุง UI กราฟสถิติ: ลบกล่องวันเรียงยาวแทนที่ด้วย KPI Summary Strip และ Time Filter ใน Token Dashboard + แก้ไขการจัดเรียงลำดับเวลาทางประวัติศาสตร์ของกราฟยอดวิวคลิปให้ถูกต้อง พร้อมโหมดรายคลิป/รวมรายวัน (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - ปิดแล้ว: Round PAGINATION-PHASE2-20260918 — เปลี่ยนรายการยาวใน Analytics, Media และ history views เป็น pagination แบบเปลี่ยนหน้า (ดำเนินการโดย: Codex (GPT-5))
 
+## Round EXPORT-GALLERY-PAGINATION-RUNTIME-FIX-20260918 — Export Gallery runtime regression
+
+ดำเนินการโดย: Codex (GPT-5)
+
+**อาการ:** Export Gallery ล่มด้วย `ReferenceError: loading is not defined` หลังเพิ่ม pagination footer
+
+### Todo
+
+- [x] เพิ่ม regression test ที่จับ undefined pagination state
+- [x] แก้ ExportGallery ให้ใช้ state ที่มีอยู่จริง
+- [x] รัน targeted test, frontend tests, build และ diff check
+
 ## Round TEXT-MOTION-SYSTEM-FOUNDATION-20260918 — active (foundation/integration complete; pixel frame diff deferred)
 
 ดำเนินการโดย: Codex (GPT-5)
