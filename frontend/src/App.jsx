@@ -199,10 +199,11 @@ export default function App() {
     }
   });
 
-  const refreshData = useCallback(async ({ includeExports = false, force = false } = {}) => {
+  const refreshData = useCallback(async ({ includeExports = null, force = false } = {}) => {
     try {
+      const shouldIncludeExports = includeExports !== null ? Boolean(includeExports) : (activeTab === 'gallery');
       const shellPromise = workspaceDataRef.current.loadShell({ force });
-      const exportsPromise = includeExports ? workspaceDataRef.current.loadExports({ force }) : null;
+      const exportsPromise = shouldIncludeExports ? workspaceDataRef.current.loadExports({ force }) : null;
 
       const [shell, exportsData] = await Promise.all([
         shellPromise,
@@ -217,12 +218,12 @@ export default function App() {
     } catch (err) {
       console.error('Failed to load initial data:', err);
     }
-  }, []);
+  }, [activeTab]);
 
   const handleGlobalRefresh = useCallback(async () => {
-    await refreshData();
+    await refreshData({ includeExports: activeTab === 'gallery', force: true });
     setAnalyticsRefreshKey((current) => current + 1);
-  }, [refreshData]);
+  }, [activeTab, refreshData]);
 
   useEffect(() => {
     refreshData();
@@ -305,6 +306,12 @@ export default function App() {
   const handleVideoDeleted = (deletedPath) => {
     setVideos((prev) => prev.filter((v) => v.path !== deletedPath && v.rel_path !== deletedPath));
   };
+
+  const handleExportDeleted = useCallback((deletedPaths) => {
+    const list = Array.isArray(deletedPaths) ? deletedPaths : [deletedPaths];
+    setExportsList((prev) => prev.filter((item) => !list.includes(item.path) && !list.includes(item.rel_path)));
+    workspaceDataRef.current?.invalidate('exports');
+  }, []);
 
   const handleApplyScriptFromLab = (data) => {
     if (data.productId && data.angleId) {
@@ -531,7 +538,8 @@ export default function App() {
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลด Export Gallery..." />}>
                     <ExportGallery
                       exportsList={exportsList}
-                      onRefresh={refreshData}
+                      onRefresh={(opts) => refreshData({ includeExports: true, force: true, ...(opts && !opts.nativeEvent && typeof opts === 'object' ? opts : {}) })}
+                      onDeleteExport={handleExportDeleted}
                       initialHighlightVideo={highlightExportVideo}
                       onClearHighlightVideo={() => setHighlightExportVideo(null)}
                       status={status}

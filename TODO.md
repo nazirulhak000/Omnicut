@@ -32,19 +32,7 @@
 | [TIKTOK_GADGET_MEDIA_PLAN.md](file:///d:/Winona/Programmer/Capcut/TIKTOK_GADGET_MEDIA_PLAN.md) | แผนบัญชี TikTok Gadget Media, campaign 21 คลิป และ functional slice แรก (ดำเนินการโดย: Codex (GPT-5)) |
 | [.agents/rules/work_loop.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/work_loop.md) | กติกาว่าหนึ่งรอบทำยังไง ติ๊กยังไง ปิดรอบยังไง |
 
----
 
-## Round COVER-STUDIO-STALE-STATUS-FIX-20260919 — active
-
-ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
-
-**อาการ:** เปิด CoverStudio ใหม่กับสคริปที่ยังไม่มีปก แต่แสดงกล่องสีเขียว "บันทึกภาพปกสำเร็จแล้ว ✅" ค้างจากสคริปก่อนหน้า
-
-**สาเหตุ:** `useEffect` reset ใน `CoverStudioModal.jsx` บรรทัด 122 ไม่ได้ล้าง `successMsg` และ `savedResult` เมื่อ `videoItem` เปลี่ยน
-
-- [x] แก้ useEffect ล้าง `successMsg('')` และ `setSavedResult(null)` ทุกครั้งที่ modal เปิดหรือ videoItem เปลี่ยน
-
----
 
 ## Round CLEAR-OPEN-WORKSTREAMS-20260919 — active
 
@@ -83,6 +71,41 @@
 - Backend กัน `published` หาก script หรือ source rights ยังไม่ผ่าน readiness gate
 - Verification: backend Gadget Media `9 passed`; frontend `284 passed`; production build ผ่าน; lint ผ่านโดยมี warnings เดิมของ repository
 - ดำเนินการโดย: Codex (GPT-5)
+
+### Source collection batch GADGET-NEWS-90D-20260919 — active
+
+ดำเนินการโดย: Codex (GPT-5)
+
+- [x] คัดข่าว Gadget จากแหล่ง Official และสื่อเทคโนโลยีที่เผยแพร่ตั้งแต่ 2026-06-19 เป็นต้นมา
+- [x] ดาวน์โหลด source วิดีโอ/สื่อประกอบลง `.tmp/gadget_news_sources_20260919/` เท่านั้น
+- [x] บันทึก source URL, วันที่เผยแพร่, แบรนด์, ประเภทแหล่งข่าว และ rights basis ลง manifest
+- [x] ตรวจไฟล์ที่ดาวน์โหลดด้วย duration/resolution/codec และทำรายการ source ให้ผู้ใช้ตรวจ ก่อนเริ่มตัดชุดเดียวกัน
+- [ ] ยังไม่โพสต์และยังไม่ย้ายเข้า `01_Raw/` จนกว่าจะตรวจสิทธิ์และยืนยันชุด source
+
+### Parallel review agents GADGET-REVIEW-AGENTS-20260919 — completed
+
+ดำเนินการโดย: Codex (GPT-5) ร่วมกับ sub-agents แบบอ่านอย่างเดียว
+
+- [x] Dalton — ตรวจข้อมูลสินค้า/ข้อเท็จจริงและแหล่งอ้างอิง
+- [x] Heisenberg — ออกแบบ recipe Hook/Script สำหรับรีวิว Gadget
+- [x] Mill — วาง editorial flow และ Shot list ให้ใช้สไตล์เดียวกัน
+- [x] Schrodinger — ตรวจ rights gate และความเสี่ยงการใช้ Official footage
+- [x] รวมผลเป็นแผนรีวิวกลางก่อนเริ่มตัดต่อ — `GADGET_REVIEW_AGENT_REPORT_20260919.md`
+
+### Batch private rough cuts GADGET-REVIEW-ROUGH-CUTS-20260919 — completed
+
+ดำเนินการโดย: Codex (GPT-5) ใช้ video-editing workflow
+
+- [x] สร้างสคริปต์เสียงและ captions ตาม recipe กลาง 30–32 วินาที
+- [x] ตัด source ทั้ง 6 รายการเป็น rough cut ส่วนตัวใน `.tmp/` ด้วยสไตล์เดียวกัน
+- [x] ใส่ป้าย `PRIVATE — RIGHTS HOLD` ใน metadata/ภาพ และไม่ย้ายเข้า `04_Exports/`
+- [x] ตรวจ 1080x1920, 30fps, audio 48kHz, duration และไฟล์เปิดได้ครบทุกคลิป
+- [x] สร้าง preview strip และรายงานผลรวมให้ผู้ใช้
+- [x] ยังไม่โพสต์และยังไม่ทำให้ source ใดผ่าน rights gate โดยอัตโนมัติ
+
+Output: `.tmp/gadget_review_roughcuts_20260919/output/`
+Verification: `.tmp/gadget_review_roughcuts_20260919/batch_verify.json`
+Preview: `.tmp/gadget_review_roughcuts_20260919/preview/gadget_review_roughcuts_preview_strip.jpg`
 
 ### Remix prototype XIAOMI-17-ULTRA-20260919 — active
 

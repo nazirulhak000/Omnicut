@@ -8,11 +8,62 @@
 
 ## สารบัญ
 
+| Round EXPORT-GALLERY-DELETE-SYNC-20260919 | แก้ปัญหาลบคลิปใน Export Gallery แล้วการ์ดไม่หายทันที ต้องกดรีเฟรชเอง (เพิ่ม optimistic deletion + force refresh exports sync) | 2026-09-19 | สำเร็จสมบูรณ์ (frontend 285 passed, build 2,015 modules/4.10s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round COVER-STUDIO-STALE-STATUS-FIX-20260919 | แก้ปัญหาเปิด CoverStudio กับสคริปต์ใหม่แต่แสดงสถานะสีเขียว 'บันทึกภาพปกสำเร็จแล้ว' ค้างจากสคริปต์ก่อนหน้า | 2026-09-19 | สำเร็จสมบูรณ์ (frontend vitest ผ่าน, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round COMPACT-PAGINATION-ALL-NARROW-CONTAINERS-AUDIT-AND-FIX-1 | ตรวจสอบและแก้ไข UI Pagination ในคอนเทนเนอร์แคบทั้งระบบ (AssetPanel 250px, Kanban Columns 300px, ActivityCenter 440px) ให้เป็น compact mode ไม่ล้นขอบและไม่ตกบรรทัด | 2026-09-19 | สำเร็จสมบูรณ์ (frontend vitest 282 passed, build 2,015 modules/4.03s, browser audit ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round PROJECT-SELECTOR-PAGINATION-UI-OVERFLOW-FIX-1 | แก้ไข UI Pagination ใน Dropdown เลือกโปรเจกต์: เพิ่ม compact mode ให้ PaginationControls ยุบเป็น `‹ 1 / 5 ›` ไม่ล้นขอบ และแก้ปัญหาข้อความบีบตกบรรทัดเป็นแนวตั้ง | 2026-09-19 | สำเร็จสมบูรณ์ (frontend vitest 282 passed, build 2,015 modules/3.63s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round BATCH-RENDER-MODAL-STATUS-LABEL-ALIGNMENT-1 | ปรับปรุงข้อความสถานะใน Batch Render Queue ให้ตรงกับบริบทการเรนเดอร์: เปลี่ยน "กำลังตัดต่อ" -> "กำลังเรนเดอร์", "พร้อมตัดต่อ" -> "พร้อมเรนเดอร์", "เลือกที่ยังไม่ได้ตัดต่อทั้งหมด" -> "เลือกที่ยังไม่ได้เรนเดอร์ทั้งหมด", "ตัดต่อแล้ว" -> "เรนเดอร์แล้ว" | 2026-09-19 | สำเร็จสมบูรณ์ (frontend vitest 282 passed, build 2,015 modules/3.48s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round RAW-VIDEO-THAI-FILENAME-VOWEL-TONE-MARK-FIX-1 | แก้ไขปัญหาชื่อคลิปดิบและ asset ตัดสระบนล่างและวรรณยุกต์ไทยทิ้งทั้งหมด (เช่น ปลั๊กไฟ -> ปลกไฟ, พัดลม -> พดลม, ขาตั้ง -> ขาตง) จาก bug การ sanitize ชื่อไฟล์ใน api_videos.py | 2026-09-19 | สำเร็จสมบูรณ์ (pytest 2 passed, security tests 14 passed, frontend vitest 282 passed, build 2,015 modules/3.42s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round PAGINATION-PHASE3-COMPLETE-LONG-LISTS-20260919 | เพิ่ม pagination ให้รายการยาวที่เหลือใน Export Gallery, Performance Analytics, Token Dashboard, Storage Analytics และ Activity Center | 2026-09-19 | สำเร็จสมบูรณ์ (frontend 282 passed, backend 18 passed, build 2,015 modules, lint ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round EXPORT-GALLERY-DELETE-SYNC-20260919 — แก้ปัญหาลบคลิปใน Export Gallery แล้วการ์ดไม่หายทันที ต้องกดรีเฟรชเอง
+
+วันที่: 2026-09-19 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ความต้องการและปัญหา
+ผู้ใช้แจ้งว่า: "gallory เหมือนผมลบแล้วไม่หายให้เลยอ่ะ ต้องกดรีเฟรชเองก่อนถึงจะหายออกจากหน้าอ่ะ"
+จากการตรวจสอบพบว่า:
+1. `ExportGallery` ใช้ `exportsList` จาก props เท่านั้น และไม่มี optimistic removal
+2. เมื่อกดลบวิดีโอ (ทั้งลบเดี่ยวในการ์ด/หน้าต่าง หรือ Batch delete) ฟังก์ชันเรียก `deleteFile` สำเร็จแล้วแต่สั่ง `if (onRefresh) onRefresh()` โดยไม่ได้ส่งพารามิเตอร์
+3. ใน `App.jsx` ฟังก์ชัน `refreshData` มี default `includeExports = false` ทำให้ไม่ดึงข้อมูล exports ใหม่หากไม่ระบุ `includeExports: true`
+4. นอกจากนี้ ปุ่มรีเฟรชบนแถบเครื่องมือของ `ExportGallery` (`<Button onClick={onRefresh} ...>`) ส่ง event เข้าไป ทำให้ `includeExports` ประเมินเป็น falsy ส่งผลให้ปุ่มรีเฟรชภายในคลังไม่โหลด exports เช่นกัน
+
+### การดำเนินการและผลลัพธ์
+1. **ปรับปรุง `frontend/src/App.jsx`**:
+   - ปรับปรุง `refreshData` ให้ตรวจสอบอัตโนมัติว่าหาก `activeTab === 'gallery'` ให้ตั้ง `shouldIncludeExports = true`
+   - เพิ่มฟังก์ชัน `handleExportDeleted` ทำ optimistic update ลบการ์ดคลิปที่ถูกลบออกจาก `exportsList` ใน state ทันที พร้อมเรียก `workspaceDataRef.current?.invalidate('exports')` เพื่อล้างแคช
+   - ส่ง `onDeleteExport={handleExportDeleted}` และส่ง wrapper `onRefresh` ที่ระบุ `{ includeExports: true, force: true }` ไปยัง `<ExportGallery />`
+   - ปรับปรุง `handleGlobalRefresh` ใน topbar ให้รองรับ `includeExports: activeTab === 'gallery'` และ `force: true`
+2. **ปรับปรุง `frontend/src/components/ExportGallery.jsx`**:
+   - รับ prop `onDeleteExport`
+   - ใน `confirmDelete` และ `confirmBatchDelete` ให้เรียก `onDeleteExport?.(...)` ทันทีเพื่อให้การ์ดหายไปจากหน้าจอแบบทันท่วงที (optimistic removal) พร้อมเรียก `onRefresh?.({ includeExports: true, force: true })`
+   - ปรับปรุงปุ่มรีเฟรชในคลังคลิป (`Toolbar`) ให้เรียก `onRefresh?.({ includeExports: true, force: true })`
+   - ปรับปรุง `handleMarkPosted`, `handleConfirmLink` ให้ force-refresh exports list เช่นเดียวกัน
+3. **การทดสอบจริง**:
+   - เพิ่ม contract test `frontend/src/lib/exportGalleryDeleteSyncContract.test.js`
+   - รัน frontend vitest: 285 tests ผ่าน 100% (pass 285, fail 0)
+   - รัน vite build: 2,015 modules transformed สำเร็จใน 4.10s
+
+---
+
+## Round COVER-STUDIO-STALE-STATUS-FIX-20260919 — แก้ปัญหาเปิด CoverStudio กับสคริปต์ใหม่แต่แสดงสถานะสีเขียว 'บันทึกภาพปกสำเร็จแล้ว' ค้างจากสคริปต์ก่อนหน้า
+
+วันที่: 2026-09-19 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ความต้องการและปัญหา
+ผู้ใช้แจ้งว่า: "ผมเปิด สคริปที่ยังไม่ใส่ปก แต่มันบอกใส่ปกแล้ว บันทึกใหม่อีกครั้ง มันไม่ตรงอ่ะ มันควรบอกว่ายังไม่ทำดิ หรือว่ามันช้า รอรีเฟรชหรอ"
+จากการตรวจสอบพบว่าใน `frontend/src/components/CoverStudioModal.jsx` มี state `successMsg` และ `savedResult` ที่ถูกเซ็ตเมื่อมีการบันทึกภาพปกสำเร็จ
+แต่ใน `useEffect` ที่คอยรีเซ็ต state เมื่อเปิด modal ใหม่หรือเปลี่ยน `videoItem` (บรรทัด 122) ไม่ได้สั่ง `setSuccessMsg('')` และ `setSavedResult(null)`
+ส่งผลให้เมื่อเปิดหน้าต่าง Cover Studio กับสคริปต์หรือวิดีโอรายการใหม่ กล่องข้อความสีเขียวแจ้งว่าบันทึกสำเร็จของรายการเก่ายังคงแสดงค้างอยู่
+
+### การดำเนินการและผลลัพธ์
+1. **ปรับปรุง `frontend/src/components/CoverStudioModal.jsx`**:
+   - เพิ่ม `setSuccessMsg('')` และ `setSavedResult(null)` ใน `useEffect` reset block ที่ทำงานเมื่อ `isOpen` หรือ `videoItem` เปลี่ยนแปลง
+2. **การทดสอบจริง**:
+   - รัน frontend vitest: 282 passed
+   - รัน build: 2,015 modules transformed สำเร็จ
+
+---
 
 ## Round COMPACT-PAGINATION-ALL-NARROW-CONTAINERS-AUDIT-AND-FIX-1 — ป้องกันและแก้ไข UI Pagination เพี้ยนในคอนเทนเนอร์แคบทั้งระบบ (AssetPanel, Kanban Columns, ActivityCenter)
 

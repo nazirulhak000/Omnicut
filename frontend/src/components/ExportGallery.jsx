@@ -1103,7 +1103,7 @@ function ExportActiveWorkbench({
   );
 }
 
-export default function ExportGallery({ exportsList, onRefresh, initialHighlightVideo, onClearHighlightVideo, status }) {
+export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, initialHighlightVideo, onClearHighlightVideo, status }) {
   const [activeMediaTab, setActiveMediaTab] = useState('exports');
   const [viewMode, setViewMode] = useState(() => {
     try {
@@ -1231,7 +1231,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
       if (selectedDetailVideo?.path === linkingVideo.path) {
         setSelectedDetailVideo(null);
       }
-      if (onRefresh) onRefresh();
+      if (onRefresh) onRefresh({ includeExports: true, force: true });
     } catch (err) {
       showToast('ผูกคลิปไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
     } finally {
@@ -1324,7 +1324,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     try {
       await markPosted(video.rel_path || video.path, video.product_id || null, video.angle_id || null, video.export_id || null);
       showToast(`มาร์ค "${video.hook_title || video.name}" ว่าโพสต์แล้ว — ย้ายไฟล์ไป Posted/ แล้ว`);
-      if (onRefresh) onRefresh();
+      if (onRefresh) onRefresh({ includeExports: true, force: true });
     } catch (err) {
       showToast('มาร์คว่าโพสต์แล้วไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
     }
@@ -1363,17 +1363,23 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     try {
       await deleteFile(deleteTarget.path, deleteTarget.product_id, deleteTarget.angle_id, deleteTarget.export_id || null);
       showToast(`ลบไฟล์ ${deleteTarget.name} เรียบร้อยแล้ว`);
+      const deletedPaths = [deleteTarget.path, deleteTarget.rel_path].filter(Boolean);
+      onDeleteExport?.(deletedPaths);
       setDeleteTarget(null);
-      if (selectedDetailVideo?.path === deleteTarget.path) setSelectedDetailVideo(null);
-      if (activeVideoPath === deleteTarget.path) setActiveVideoPath(null);
-      setSelectedVideos(prev => prev.filter(p => p !== deleteTarget.path));
-      if (onRefresh) onRefresh();
+      if (selectedDetailVideo && deletedPaths.some(p => p === selectedDetailVideo.path || p === selectedDetailVideo.rel_path)) {
+        setSelectedDetailVideo(null);
+      }
+      if (activeVideoPath && deletedPaths.includes(activeVideoPath)) {
+        setActiveVideoPath(null);
+      }
+      setSelectedVideos(prev => prev.filter(p => !deletedPaths.includes(p)));
+      if (onRefresh) onRefresh({ includeExports: true, force: true });
     } catch (err) {
       showToast('ไม่สามารถลบไฟล์ได้: ' + (err.response?.data?.detail || err.message), 'error');
     } finally {
       setDeleting(false);
     }
-  }, [deleteTarget, selectedDetailVideo, activeVideoPath, onRefresh, showToast]);
+  }, [deleteTarget, selectedDetailVideo, activeVideoPath, onDeleteExport, onRefresh, showToast]);
 
   const confirmBatchDelete = useCallback(async () => {
     if (selectedVideos.length === 0) return;
@@ -1401,16 +1407,17 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
         }
       }
       showToast(`ลบวิดีโอ ${deletablePaths.length} คลิปเรียบร้อยแล้ว`);
+      onDeleteExport?.(deletablePaths);
       setSelectedVideos([]);
       setShowBatchDeleteModal(false);
       setActiveVideoPath(null);
-      if (onRefresh) onRefresh();
+      if (onRefresh) onRefresh({ includeExports: true, force: true });
     } catch (err) {
       showToast('เกิดข้อผิดพลาดในการลบไฟล์: ' + err.message, 'error');
     } finally {
       setDeleting(false);
     }
-  }, [selectedVideos, exportsList, onRefresh, showToast]);
+  }, [selectedVideos, exportsList, onDeleteExport, onRefresh, showToast]);
 
   const handleBatchDelete = useCallback(() => {
     if (selectedVideos.length === 0) return;
@@ -1633,7 +1640,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
               {/* Actions */}
               <div className="flex items-center gap-1.5">
                 <Button
-                  onClick={onRefresh}
+                  onClick={() => onRefresh?.({ includeExports: true, force: true })}
                   variant="secondary"
                   size="sm"
                   icon={RefreshCw}
