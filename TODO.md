@@ -46,10 +46,10 @@
 
 แผนอ้างอิง: [TIKTOK_GADGET_MEDIA_PLAN.md](file:///d:/Winona/Programmer/Capcut/TIKTOK_GADGET_MEDIA_PLAN.md)
 
-- [ ] สำรวจโมเดล project/campaign/script/export ที่มีอยู่ และระบุจุดต่อขยายที่ไม่กระทบบัญชีรีวิวปักตะกร้า
-- [ ] เพิ่ม domain model และ persistence สำหรับ `gadget_media` campaign 21 คลิป
+- [x] สำรวจโมเดล project/campaign/script/export ที่มีอยู่ และเลือก domain/API แยก `gadget_media` โดยไม่แตะ `ProductStore` หรือ workflow ปักตะกร้าเดิม
+- [x] เพิ่ม domain model และ atomic persistence สำหรับ `gadget_media` campaign 21 คลิป พร้อม targeted tests `10 passed`
 - [ ] เพิ่ม UI สร้าง campaign และจัดการ content slots 21 รายการ
-- [ ] เพิ่ม source provenance และ rights gate ก่อน render/export
+- [x] เพิ่ม source provenance และ readiness gate ใน domain/API; integration กับ render/export ยังเป็นงานถัดไป
 - [ ] เพิ่ม script templates สำหรับ `ดูคลิปนี้ก่อนซื้อ`, `แปลสเปกเป็นภาษาคน` และ `ของจริงกับคำโฆษณา`
 - [ ] เพิ่มฟิลด์ analytics: views, completion rate, comments, follows และ follows per 1,000 views
 - [ ] รัน deterministic tests, frontend tests, build และตรวจ cleanup ใน `.tmp/`
