@@ -372,6 +372,9 @@ export const getTiktokPending = () => api.get('/tiktok-stats/pending').then(r =>
 export const getTiktokClipCandidates = () => api.get('/tiktok-stats/clip-candidates').then(r => r.data);
 export const attachTiktokPending = (payload) => api.post('/tiktok-stats/attach', payload).then(r => r.data);
 export const ignoreTiktokPending = (pendingId) => api.post('/tiktok-stats/pending/ignore', { pending_id: pendingId }).then(r => r.data);
+export const ignoreAllTiktokPending = () => api.post('/tiktok-stats/pending/ignore-all').then(r => r.data);
+export const getTiktokIgnored = () => api.get('/tiktok-stats/ignored').then(r => r.data);
+export const restoreTiktokIgnored = (ignoredId) => api.post('/tiktok-stats/ignored/restore', { ignored_id: ignoredId }).then(r => r.data);
 
 export const fetchOverlayLayout = (payload) => api.post('/editor/overlay/layout', payload).then(r => r.data);
 

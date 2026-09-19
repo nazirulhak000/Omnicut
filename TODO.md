@@ -27,8 +27,12 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 
 ## สถานะรวม
 
+- [x] Round EXPORT-PREVIEW-FRESH-SYNC-AND-MATCH-FIX-1 — แก้บั๊กพรีวิวคลิปที่เพิ่งเรนเดอร์เสร็จเปิดคลิปเก่าก่อนหน้า (เช่น เมาส์ แทนที่จะเป็น ปลั๊กไฟ) จาก cache 2s ใน loadExports + fallback exportsList[0] ที่ชิงเปิดและเคลียร์ target ก่อนข้อมูลใหม่มาถึง (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+- [x] Round TIKTOK-PENDING-PERSISTENT-IGNORE-LIST-1 — ระบบจำรายการที่กดข้าม (Persistent Ignore List) สำหรับ TikTok Pending Rows ป้องกันไม่ให้คลิปที่เคยข้ามถูกดึงกลับมาใหม่เมื่อซิงก์ TikTok Studio ซ้ำ พร้อมฟังก์ชันข้ามทั้งหมดในคลิกเดียว และกู้คืนรายการที่ข้าม (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round ANALYTICS-CHARTS-CHRONO-SORT-AND-TOKEN-SUMMARY-UI-1 — ปรับปรุง UI กราฟสถิติ: ลบกล่องวันเรียงยาวแทนที่ด้วย KPI Summary Strip และ Time Filter ใน Token Dashboard + แก้ไขการจัดเรียงลำดับเวลาทางประวัติศาสตร์ของกราฟยอดวิวคลิปให้ถูกต้อง พร้อมโหมดรายคลิป/รวมรายวัน (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - ปิดแล้ว: Round PAGINATION-PHASE2-20260918 — เปลี่ยนรายการยาวใน Analytics, Media และ history views เป็น pagination แบบเปลี่ยนหน้า (ดำเนินการโดย: Codex (GPT-5))
+
+- [x] Round PAGINATION-PHASE3-COMPLETE-LONG-LISTS-20260919 — เก็บรายการยาวที่ยังเหลือให้ครบ (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
 
 ## Round EXPORT-GALLERY-PAGINATION-RUNTIME-FIX-20260918 — Export Gallery runtime regression
 

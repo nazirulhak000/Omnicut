@@ -1,5 +1,10 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { computeAreaLineChart, findClosestChartPoint, DEFAULT_CHART_PADDING } from '../../../lib/chartModel';
+import {
+  computeAreaLineChart,
+  findClosestChartPoint,
+  computeXAxisTicks,
+  DEFAULT_CHART_PADDING,
+} from '../../../lib/chartModel';
 
 /**
  * Pure SVG Smooth Curved Area & Line Chart
@@ -18,6 +23,7 @@ export default function AreaLineChart({
   lineColor = '#25F4EE',
   gradientFrom = '#25F4EE',
   gradientTo = '#3B82F6',
+  customTooltip = null,
 }) {
   const [hoverIndex, setHoverIndex] = useState(null);
   const containerRef = useRef(null);
@@ -45,6 +51,11 @@ export default function AreaLineChart({
     });
   }, [chartData, viewBoxWidth, viewBoxHeight, padding, valueKey, dateKey]);
 
+  // Compute non-colliding tick indices
+  const tickIndices = useMemo(() => {
+    return new Set(computeXAxisTicks(points, { maxTicks: 7, dateKey }));
+  }, [points, dateKey]);
+
   // Handle pointer tracking
   const handlePointerMove = (e) => {
     if (!containerRef.current || points.length === 0) return;
@@ -70,6 +81,12 @@ export default function AreaLineChart({
   }
 
   const activePoint = hoverIndex !== null && points[hoverIndex] ? points[hoverIndex] : null;
+
+  // Clamped tooltip coordinates
+  const leftPct = activePoint ? (activePoint.x / viewBoxWidth) * 100 : 50;
+  const topPct = activePoint ? (activePoint.y / viewBoxHeight) * 100 : 50;
+  const xTransform = leftPct < 18 ? 'translate-x-0' : leftPct > 82 ? '-translate-x-full' : '-translate-x-1/2';
+  const yTransform = topPct < 32 ? 'translate-y-3' : '-translate-y-full mb-3';
 
   return (
     <div className="relative w-full select-none" onPointerLeave={handlePointerLeave}>
@@ -154,16 +171,9 @@ export default function AreaLineChart({
 
         {/* ── X Axis Dates ── */}
         {points.map((pt, idx) => {
-          // Show label if reasonable spacing
-          const showLabel =
-            points.length <= 8 ||
-            idx === 0 ||
-            idx === points.length - 1 ||
-            idx % Math.ceil(points.length / 7) === 0;
+          if (!tickIndices.has(idx)) return null;
 
-          if (!showLabel) return null;
-
-          const dateStr = String(pt.data[dateKey] || '');
+          const dateStr = String(pt.data[dateKey] || pt.label || '');
           const shortDate = dateStr.length > 5 ? dateStr.slice(5) : dateStr;
 
           return (
@@ -234,35 +244,77 @@ export default function AreaLineChart({
       {/* ── Glassmorphic Hover Floating Tooltip Card ── */}
       {activePoint && (
         <div
-          className="absolute z-20 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-3"
+          className={`absolute z-20 pointer-events-none transform ${xTransform} ${yTransform}`}
           style={{
-            left: `${(activePoint.x / viewBoxWidth) * 100}%`,
-            top: `${(activePoint.y / viewBoxHeight) * 100}%`,
+            left: `${leftPct}%`,
+            top: `${topPct}%`,
           }}
         >
-          <div className="px-3 py-2 rounded-xl bg-[#080B11]/95 border border-[#25F4EE]/40 shadow-xl shadow-black/80 backdrop-blur-md text-left min-w-[130px] space-y-1 animate-fadeIn">
-            <div className="text-[10px] text-slate-400 border-b border-white/[0.08] pb-1">
-              {activePoint.data[dateKey]}
-            </div>
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-[11px] text-slate-300">{valueLabel}:</span>
-              <span className="text-xs font-bold text-white">
-                {activePoint.value.toLocaleString()} {unit}
-              </span>
-            </div>
-            {activePoint.data[secondaryKey] != null && (
-              <div className="text-[10px] font-semibold text-emerald-400">
-                {formatSecondary(activePoint.data[secondaryKey])}
+          {customTooltip ? (
+            customTooltip(activePoint)
+          ) : (
+            <div className="px-3.5 py-2.5 rounded-xl bg-[#080B11]/95 border border-[#25F4EE]/40 shadow-xl shadow-black/80 backdrop-blur-md text-left min-w-[140px] max-w-[260px] space-y-1.5 animate-fadeIn">
+              <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400 border-b border-white/[0.08] pb-1">
+                <span className="font-mono">{activePoint.data[dateKey] || activePoint.label}</span>
+                {activePoint.data.time && (
+                  <span className="text-cyan-400 font-mono">{activePoint.data.time}</span>
+                )}
               </div>
-            )}
-            {activePoint.data.calls != null && (
-              <div className="text-[10px] text-slate-400">
-                เรียกใช้งาน {activePoint.data.calls} ครั้ง
+
+              {activePoint.data.product && (
+                <div className="text-xs font-bold text-white truncate">
+                  {activePoint.data.product}
+                </div>
+              )}
+              {activePoint.data.angle && (
+                <div className="text-[10px] text-slate-400 truncate">
+                  {activePoint.data.angle}
+                </div>
+              )}
+
+              <div className="flex items-baseline justify-between gap-2 pt-0.5">
+                <span className="text-[11px] text-slate-300 font-medium">{valueLabel}:</span>
+                <span className="text-xs font-bold text-white">
+                  {activePoint.value.toLocaleString()} {unit}
+                </span>
               </div>
-            )}
-          </div>
+
+              {activePoint.data.count != null && activePoint.data.count > 1 && (
+                <div className="text-[10px] text-cyan-300">
+                  รวม {activePoint.data.count} คลิป (เฉลี่ย {Math.round(activePoint.value / activePoint.data.count).toLocaleString()} {unit}/คลิป)
+                </div>
+              )}
+
+              {activePoint.data.engagement != null && activePoint.data.engagement > 0 && (
+                <div className="text-[10px] text-amber-300 font-medium">
+                  Engagement {activePoint.data.engagement}%
+                </div>
+              )}
+
+              {activePoint.data[secondaryKey] != null && (
+                <div className="text-[10px] font-semibold text-emerald-400">
+                  {formatSecondary(activePoint.data[secondaryKey])}
+                </div>
+              )}
+
+              {activePoint.data.calls != null && (
+                <div className="text-[10px] text-slate-400">
+                  เรียกใช้งาน {activePoint.data.calls} ครั้ง
+                </div>
+              )}
+
+              {(activePoint.data.likes != null || activePoint.data.comments != null) && (
+                <div className="text-[10px] text-slate-400 flex items-center gap-2 pt-0.5 border-t border-white/[0.06]">
+                  {activePoint.data.likes != null && <span>❤️ {activePoint.data.likes}</span>}
+                  {activePoint.data.comments != null && <span>💬 {activePoint.data.comments}</span>}
+                  {activePoint.data.shares != null && <span>🔗 {activePoint.data.shares}</span>}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+

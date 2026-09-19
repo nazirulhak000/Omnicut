@@ -5,12 +5,15 @@ import {
 } from 'lucide-react';
 import {
   getTiktokStatsLatest, getTiktokPending, getTiktokClipCandidates,
-  attachTiktokPending, ignoreTiktokPending
+  attachTiktokPending, ignoreTiktokPending, ignoreAllTiktokPending,
+  getTiktokIgnored, restoreTiktokIgnored
 } from '../../../api';
 import { buildCandidateOptions, buildAttachPayload, metricSummary } from '../../../lib/manualMatch';
 import MetricKpiCard from '../components/MetricKpiCard';
 import LoadingSpinner from '../../LoadingSpinner';
 import AreaLineChart from '../charts/AreaLineChart';
+import PaginationControls from '../../PaginationControls';
+import { sortChronological, aggregateDailyTrends } from '../../../lib/chartModel';
 
 const fmt = (n) => {
   const v = Number(n) || 0;
@@ -40,27 +43,53 @@ export default function PerformanceAnalyticsTab() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // ── Manual matching state (แถวที่ยังไม่ได้จับคู่) ──
+  // ── Manual matching state (แถวที่ยังไม่ได้จับคู่ + รายการที่ข้ามไว้) ──
   const [pendingRows, setPendingRows] = useState([]);
   const [candidateOptions, setCandidateOptions] = useState([]);
   const [chosenKeys, setChosenKeys] = useState({});
   const [matchBusy, setMatchBusy] = useState(false);
+  const [ignoredRows, setIgnoredRows] = useState([]);
+  const [showIgnored, setShowIgnored] = useState(false);
+  const [pendingPage, setPendingPage] = useState(1);
+  const [pendingPageSize, setPendingPageSize] = useState(10);
+  const [ignoredPage, setIgnoredPage] = useState(1);
+  const [ignoredPageSize, setIgnoredPageSize] = useState(10);
 
   const loadPending = useCallback(async () => {
     try {
-      const [pend, cands] = await Promise.all([
+      const [pend, cands, ign] = await Promise.all([
         getTiktokPending(),
         getTiktokClipCandidates(),
+        getTiktokIgnored(),
       ]);
       setPendingRows(Array.isArray(pend?.rows) ? pend.rows : []);
       setCandidateOptions(buildCandidateOptions(cands?.candidates));
+      setIgnoredRows(Array.isArray(ign?.rows) ? ign.rows : []);
     } catch {
       setPendingRows([]);
       setCandidateOptions([]);
+      setIgnoredRows([]);
     }
   }, []);
 
   useEffect(() => { loadPending(); }, [loadPending]);
+
+  const visiblePendingRows = useMemo(
+    () => pendingRows.slice((pendingPage - 1) * pendingPageSize, pendingPage * pendingPageSize),
+    [pendingRows, pendingPage, pendingPageSize]
+  );
+  const visibleIgnoredRows = useMemo(
+    () => ignoredRows.slice((ignoredPage - 1) * ignoredPageSize, ignoredPage * ignoredPageSize),
+    [ignoredRows, ignoredPage, ignoredPageSize]
+  );
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(pendingRows.length / pendingPageSize));
+    setPendingPage((page) => Math.min(page, totalPages));
+  }, [pendingRows.length, pendingPageSize]);
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(ignoredRows.length / ignoredPageSize));
+    setIgnoredPage((page) => Math.min(page, totalPages));
+  }, [ignoredRows.length, ignoredPageSize]);
 
   const handleAttach = useCallback(async (row) => {
     const option = candidateOptions.find((o) => o.key === chosenKeys[row.id]);
@@ -80,11 +109,32 @@ export default function PerformanceAnalyticsTab() {
     setMatchBusy(true);
     try {
       await ignoreTiktokPending(row.id);
-      setPendingRows((prev) => prev.filter((r) => r.id !== row.id));
+      await loadPending();
     } finally {
       setMatchBusy(false);
     }
-  }, []);
+  }, [loadPending]);
+
+  const handleIgnoreAll = useCallback(async () => {
+    if (pendingRows.length === 0) return;
+    setMatchBusy(true);
+    try {
+      await ignoreAllTiktokPending();
+      await loadPending();
+    } finally {
+      setMatchBusy(false);
+    }
+  }, [pendingRows.length, loadPending]);
+
+  const handleRestore = useCallback(async (item) => {
+    setMatchBusy(true);
+    try {
+      await restoreTiktokIgnored(item.id);
+      await loadPending();
+    } finally {
+      setMatchBusy(false);
+    }
+  }, [loadPending]);
 
   const posts = useMemo(() => (Array.isArray(data?.posts) ? data.posts : []), [data]);
   const summary = data?.summary || {};
@@ -115,12 +165,19 @@ export default function PerformanceAnalyticsTab() {
   // PostLog is never pruned server-side -- window the table so a year of
   // daily posts doesn't mount hundreds of rows at once. KPI cards above
   // (totalViews, avgEngagement, etc.) still read the full richPosts.
-  const PERF_TABLE_PAGE_SIZE = 50;
-  const [perfVisibleCount, setPerfVisibleCount] = useState(PERF_TABLE_PAGE_SIZE);
+  const [perfPage, setPerfPage] = useState(1);
+  const [perfPageSize, setPerfPageSize] = useState(20);
   useEffect(() => {
-    setPerfVisibleCount(PERF_TABLE_PAGE_SIZE);
+    setPerfPage(1);
   }, [data]);
-  const visibleSorted = useMemo(() => sorted.slice(0, perfVisibleCount), [sorted, perfVisibleCount]);
+  const visibleSorted = useMemo(
+    () => sorted.slice((perfPage - 1) * perfPageSize, perfPage * perfPageSize),
+    [sorted, perfPage, perfPageSize]
+  );
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(sorted.length / perfPageSize));
+    setPerfPage((page) => Math.min(page, totalPages));
+  }, [sorted.length, perfPageSize]);
   const winner = sorted[0] || null;
   const loser = sorted.length > 1 ? sorted[sorted.length - 1] : null;
 
@@ -129,9 +186,59 @@ export default function PerformanceAnalyticsTab() {
     ? Math.round((richPosts.reduce((s, p) => s + p.engagement, 0) / richPosts.length) * 10) / 10
     : 0;
 
-  const trendData = useMemo(() => richPosts
-    .map((p) => ({ label: (p.posted_at || '').slice(0, 10) || '—', value: p.views }))
-    .reverse(), [richPosts]);
+  const [trendMode, setTrendMode] = useState('clips'); // 'clips' | 'daily'
+
+  // 1. Sort posts strictly chronological (oldest -> newest)
+  const chronoPosts = useMemo(() => {
+    return sortChronological(
+      richPosts.filter((p) => p.posted_at),
+      'posted_at'
+    );
+  }, [richPosts]);
+
+  // 2. Trend data for per-clip mode (each point is one clip on the timeline)
+  const perClipTrendData = useMemo(() => {
+    return chronoPosts.map((p) => {
+      const d = new Date(p.posted_at);
+      const timeStr = !isNaN(d.getTime())
+        ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+        : '';
+      return {
+        label: (p.posted_at || '').slice(0, 10),
+        rawDate: p.posted_at,
+        time: timeStr,
+        product: p.product,
+        angle: p.angle,
+        value: p.views,
+        likes: p.likes,
+        comments: p.comments,
+        shares: p.shares,
+        engagement: p.engagement,
+      };
+    });
+  }, [chronoPosts]);
+
+  // 3. Trend data for daily aggregated mode (sums multiple clips posted on same date)
+  const dailyAggregatedTrendData = useMemo(() => {
+    return aggregateDailyTrends(chronoPosts, {
+      dateKey: 'posted_at',
+      valueKey: 'views',
+      metricsKeys: ['likes', 'comments', 'shares'],
+    }).map((d) => ({
+      ...d,
+      label: d.date,
+      value: d.value,
+      count: d.count,
+      likes: d.metrics?.likes || 0,
+      comments: d.metrics?.comments || 0,
+      shares: d.metrics?.shares || 0,
+      engagement: d.value > 0
+        ? Math.round((((d.metrics?.likes || 0) + (d.metrics?.comments || 0) + (d.metrics?.shares || 0)) / d.value) * 1000) / 10
+        : 0,
+    }));
+  }, [chronoPosts]);
+
+  const activeTrendData = trendMode === 'daily' ? dailyAggregatedTrendData : perClipTrendData;
 if (loading) return <LoadingSpinner message="กำลังประมวลผลสถิติผลงาน TikTok..." />;
 
   if (error || !data) {
@@ -189,19 +296,60 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
         />
       </div>
       {/* ── Trend Chart ── */}
-      {trendData.length > 1 && (
-        <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg">
-          <div className="flex items-center gap-2.5 mb-3">
-            <BarChart3 className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-black text-white">ยอดวิวต่อคลิป (เรียงตามวันที่โพสต์)</h3>
+      {activeTrendData.length > 1 && (
+        <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-cyan-400" />
+                <h3 className="text-sm font-black text-white">
+                  {trendMode === 'daily' ? 'ยอดวิวรวมรายวัน (Daily Views Trend)' : 'ยอดวิวต่อคลิป (เรียงตามลำดับเวลาที่โพสต์)'}
+                </h3>
+              </div>
+              <p className="text-xs text-slate-400">
+                {trendMode === 'daily'
+                  ? `สรุปแนวโน้มยอดวิวรวมแต่ละวัน (${dailyAggregatedTrendData.length} วันที่มีการโพสต์)`
+                  : `เรียงคลิปตามไทม์ไลน์เวลาที่โพสต์จริง (${perClipTrendData.length} คลิปจากอดีตถึงปัจจุบัน)`}
+              </p>
+            </div>
+
+            {/* View Mode Switcher */}
+            <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/[0.08] self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setTrendMode('clips')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  trendMode === 'clips'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                }`}
+              >
+                แยกรายคลิป ({perClipTrendData.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTrendMode('daily')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  trendMode === 'daily'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                }`}
+              >
+                รวมรายวัน ({dailyAggregatedTrendData.length})
+              </button>
+            </div>
           </div>
+
           <AreaLineChart
-            data={trendData}
-            height={130}
+            data={activeTrendData}
+            height={140}
             valueKey="value"
             dateKey="label"
             unit="views"
             valueLabel="ยอดวิว"
+            lineColor="#25F4EE"
+            gradientFrom="#25F4EE"
+            gradientTo="#3B82F6"
           />
         </div>
       )}
@@ -247,15 +395,39 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
       {/* ── Manual matching (แถวที่ยังไม่ได้จับคู่) ── */}
       {pendingRows.length > 0 && (
         <div className="bg-[#0B0F19] border border-amber-500/25 rounded-2xl p-4 sm:p-5 shadow-lg">
-          <div className="flex items-center gap-2.5 mb-3">
-            <Link2 className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-black text-white">แถวที่ยังไม่ได้จับคู่ ({pendingRows.length})</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2.5">
+              <Link2 className="w-4 h-4 text-amber-400" />
+              <h3 className="text-sm font-black text-white">แถวที่ยังไม่ได้จับคู่ ({pendingRows.length})</h3>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {ignoredRows.length > 0 && (
+                <button
+                  onClick={() => setShowIgnored((v) => !v)}
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                    showIgnored
+                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                      : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.1] text-slate-300'
+                  }`}
+                >
+                  {showIgnored ? 'ซ่อนรายการที่ข้าม' : `ดูรายการที่ข้ามไว้ (${ignoredRows.length})`}
+                </button>
+              )}
+              <button
+                onClick={handleIgnoreAll}
+                disabled={matchBusy || pendingRows.length === 0}
+                title="บันทึกว่าไม่ใช่คลิปเราทั้งหมด และจะไม่ถูกดึงกลับมาอีกเมื่อซิงก์ใหม่"
+                className="px-2.5 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-xs font-bold text-rose-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                ข้ามทั้งหมด ({pendingRows.length})
+              </button>
+            </div>
           </div>
           <p className="text-[11px] text-slate-400 mb-3">
-            แถวเหล่านี้มาจาก TikTok Studio แต่ระบบจับคู่กับคลิปในคลังไม่ได้อัตโนมัติ เลือกคลิปที่ตรงกันแล้วกดจับคู่ได้เลย
+            แถวเหล่านี้มาจาก TikTok Studio แต่ระบบจับคู่กับคลิปในคลังไม่ได้อัตโนมัติ เลือกคลิปที่ตรงกันแล้วกดจับคู่ได้เลย (หากกดข้าม ระบบจะบันทึกจำไว้ถาวรและไม่ดึงกลับมาอีก)
           </p>
           <div className="space-y-2">
-            {pendingRows.map((row) => (
+            {visiblePendingRows.map((row) => (
               <div key={row.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] flex flex-col lg:flex-row lg:items-center gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-bold text-slate-200 truncate">{row.title || row.video_id || 'แถวไม่มีชื่อ'}</div>
@@ -284,7 +456,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                   <button
                     onClick={() => handleIgnore(row)}
                     disabled={matchBusy}
-                    title="คลิปนี้ไม่ใช่ของเรา ตัดออกจากรายการ"
+                    title="คลิปนี้ไม่ใช่ของเรา ตัดออกจากรายการถาวร"
                     className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-[11px] font-bold text-slate-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <span>ข้ามรายการ</span>
@@ -293,6 +465,119 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
               </div>
             ))}
           </div>
+          <PaginationControls
+            page={pendingPage}
+            pageSize={pendingPageSize}
+            totalItems={pendingRows.length}
+            onPageChange={setPendingPage}
+            onPageSizeChange={(size) => {
+              setPendingPageSize(size);
+              setPendingPage(1);
+            }}
+            itemLabel="แถวรอจับคู่"
+            disabled={matchBusy}
+          />
+
+          {/* Expanded ignored list */}
+          {showIgnored && ignoredRows.length > 0 && (
+            <div className="p-3.5 rounded-xl bg-amber-500/[0.04] border border-amber-500/20 space-y-2 mt-4">
+              <div className="flex items-center justify-between text-[11px] text-amber-300 font-bold">
+                <span>รายการที่ข้ามไว้ถาวร ({ignoredRows.length} รายการ — จะไม่กลับมาเมื่อซิงก์ใหม่)</span>
+              </div>
+              <div className="space-y-1.5 pr-1">
+                {visibleIgnoredRows.map((item) => (
+                  <div key={item.id} className="p-2.5 rounded-lg bg-black/40 border border-white/[0.05] flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs text-slate-300 truncate">{item.title || item.video_id || 'แถวไม่มีชื่อ'}</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        {metricSummary(item)}{item.posted_text ? ` · ${item.posted_text}` : ''}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleRestore(item)}
+                      disabled={matchBusy}
+                      title="นำกลับเข้ามารอจับคู่ใหม่"
+                      className="px-2.5 py-1 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-[11px] font-bold text-amber-300 transition-all cursor-pointer whitespace-nowrap"
+                    >
+                      นำกลับมาจับคู่
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <PaginationControls
+                page={ignoredPage}
+                pageSize={ignoredPageSize}
+                totalItems={ignoredRows.length}
+                onPageChange={setIgnoredPage}
+                onPageSizeChange={(size) => {
+                  setIgnoredPageSize(size);
+                  setIgnoredPage(1);
+                }}
+                itemLabel="รายการที่ข้าม"
+                disabled={matchBusy}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── If all pending rows resolved, but user has persistent ignored rows ── */}
+      {pendingRows.length === 0 && ignoredRows.length > 0 && (
+        <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 shadow-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="text-xs text-slate-400">
+              ไม่มีคลิปค้างรอจับคู่ (มีรายการที่ข้ามไว้ถาวร <span className="text-amber-400 font-bold">{ignoredRows.length}</span> รายการ ซึ่งจะไม่ถูกดึงกลับมาซ้ำ)
+            </div>
+            <button
+              onClick={() => setShowIgnored((v) => !v)}
+              className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                showIgnored
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                  : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.1] text-slate-300'
+              }`}
+            >
+              {showIgnored ? 'ซ่อนรายการที่ข้าม' : `ดูรายการที่ข้ามไว้ (${ignoredRows.length})`}
+            </button>
+          </div>
+          {showIgnored && (
+            <div className="p-3.5 rounded-xl bg-amber-500/[0.04] border border-amber-500/20 space-y-2 mt-3">
+              <div className="flex items-center justify-between text-[11px] text-amber-300 font-bold">
+                <span>รายการที่ข้ามไว้ถาวร ({ignoredRows.length} รายการ — จะไม่กลับมาเมื่อซิงก์ใหม่)</span>
+              </div>
+              <div className="space-y-1.5 pr-1">
+                {visibleIgnoredRows.map((item) => (
+                  <div key={item.id} className="p-2.5 rounded-lg bg-black/40 border border-white/[0.05] flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs text-slate-300 truncate">{item.title || item.video_id || 'แถวไม่มีชื่อ'}</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        {metricSummary(item)}{item.posted_text ? ` · ${item.posted_text}` : ''}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleRestore(item)}
+                      disabled={matchBusy}
+                      title="นำกลับเข้ามารอจับคู่ใหม่"
+                      className="px-2.5 py-1 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-[11px] font-bold text-amber-300 transition-all cursor-pointer whitespace-nowrap"
+                    >
+                      นำกลับมาจับคู่
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <PaginationControls
+                page={ignoredPage}
+                pageSize={ignoredPageSize}
+                totalItems={ignoredRows.length}
+                onPageChange={setIgnoredPage}
+                onPageSizeChange={(size) => {
+                  setIgnoredPageSize(size);
+                  setIgnoredPage(1);
+                }}
+                itemLabel="รายการที่ข้าม"
+                disabled={matchBusy}
+              />
+            </div>
+          )}
         </div>
       )}
       {/* ── Clips Table (เหมือนตาราง TikTok Studio + คอลัมน์โปรแกรมเรา) ── */}
@@ -369,17 +654,18 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                 ))}
               </tbody>
             </table>
-            {perfVisibleCount < sorted.length && (
-              <div className="flex justify-center pt-3">
-                <button
-                  type="button"
-                  onClick={() => setPerfVisibleCount(c => c + PERF_TABLE_PAGE_SIZE)}
-                  className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer"
-                >
-                  โหลดเพิ่ม ({sorted.length - perfVisibleCount} คลิปที่เหลือ)
-                </button>
-              </div>
-            )}
+            <PaginationControls
+              page={perfPage}
+              pageSize={perfPageSize}
+              totalItems={sorted.length}
+              onPageChange={setPerfPage}
+              onPageSizeChange={(size) => {
+                setPerfPageSize(size);
+                setPerfPage(1);
+              }}
+              itemLabel="คลิป"
+              disabled={loading}
+            />
           </div>
         )}
       </div>

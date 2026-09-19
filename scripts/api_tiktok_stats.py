@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 from scripts.post_log import PostLog
 from scripts.product_store import ProductStore
-from scripts.tiktok_pending import TikTokPending
+from scripts.tiktok_pending import TikTokPending, TikTokIgnored
 
 router = APIRouter(prefix="/api/tiktok-stats", tags=["tiktok-stats"])
 
@@ -208,11 +208,19 @@ class IgnoreRequest(BaseModel):
     pending_id: str
 
 
+class RestoreRequest(BaseModel):
+    ignored_id: str
+
+
 @router.get("/pending")
 def list_pending() -> Dict[str, Any]:
     """Studio rows auto-matching could not place -- for manual matching."""
     rows = TikTokPending.list_rows()
-    return {"rows": rows, "count": len(rows)}
+    return {
+        "rows": rows,
+        "count": len(rows),
+        "ignored_count": len(TikTokIgnored.list_rows()),
+    }
 
 
 @router.get("/clip-candidates")
@@ -245,13 +253,50 @@ def attach_pending(payload: AttachRequest) -> Dict[str, Any]:
 
 @router.post("/pending/ignore")
 def ignore_pending(payload: IgnoreRequest) -> Dict[str, Any]:
-    """Row is not one of ours (someone else's clip / irrelevant) -- drop it."""
+    """Row is not one of ours (someone else's clip / irrelevant) -- drop it and permanently record as ignored."""
     try:
-        TikTokPending.get(payload.pending_id)
+        ignored_entry = TikTokPending.ignore(payload.pending_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    TikTokPending.remove(payload.pending_id)
-    return {"ignored": True, "remaining": len(TikTokPending.list_rows())}
+    return {
+        "ignored": True,
+        "item": ignored_entry,
+        "remaining": len(TikTokPending.list_rows()),
+        "ignored_count": len(TikTokIgnored.list_rows()),
+    }
+
+
+@router.post("/pending/ignore-all")
+def ignore_all_pending() -> Dict[str, Any]:
+    """Batch-ignore all remaining pending rows."""
+    count = TikTokPending.ignore_all()
+    return {
+        "ignored_count": count,
+        "remaining": 0,
+        "total_ignored": len(TikTokIgnored.list_rows()),
+    }
+
+
+@router.get("/ignored")
+def list_ignored() -> Dict[str, Any]:
+    """List rows that the user skipped/ignored from pending."""
+    rows = TikTokIgnored.list_rows()
+    return {"rows": rows, "count": len(rows)}
+
+
+@router.post("/ignored/restore")
+def restore_ignored(payload: RestoreRequest) -> Dict[str, Any]:
+    """Move a previously ignored row back into pending."""
+    try:
+        restored = TikTokPending.restore(payload.ignored_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return {
+        "restored": True,
+        "item": restored,
+        "remaining": len(TikTokPending.list_rows()),
+        "ignored_count": len(TikTokIgnored.list_rows()),
+    }
 
 
 @router.get("/milestones")

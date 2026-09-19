@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from scripts import post_log as post_log_module
+from scripts import tiktok_pending as pending_module
 from scripts.api_server import app
 
 
@@ -18,6 +19,17 @@ def isolated_log(tmp_path, monkeypatch):
     monkeypatch.setattr(post_log_module, "LOG_PATH", target)
     monkeypatch.setattr(post_log_module._TABLE, "_json_path_fn", lambda: target)
     monkeypatch.setattr(post_log_module._TABLE, "_db_path_fn", lambda: tmp_path / "store.db")
+
+    pending_target = tmp_path / "tiktok_pending.json"
+    monkeypatch.setattr(pending_module, "PENDING_PATH", pending_target)
+    monkeypatch.setattr(pending_module._TABLE, "_json_path_fn", lambda: pending_target)
+    monkeypatch.setattr(pending_module._TABLE, "_db_path_fn", lambda: tmp_path / "store.db")
+
+    ignored_target = tmp_path / "tiktok_ignored.json"
+    monkeypatch.setattr(pending_module, "IGNORED_PATH", ignored_target)
+    monkeypatch.setattr(pending_module._IGNORED_TABLE, "_json_path_fn", lambda: ignored_target)
+    monkeypatch.setattr(pending_module._IGNORED_TABLE, "_db_path_fn", lambda: tmp_path / "store.db")
+
     return target
 
 
@@ -457,5 +469,94 @@ def test_import_picks_highest_scoring_candidate_over_earlier_candidates(isolated
     # Must be BASIKE, NOT generic earlier candidate!
     assert posts[0]["product_name"] == "BASIKE พัดลมระบายความร้อน"
     assert posts[0]["clip_file"] == "BAS01-ปัญหาก่อนใช้_1_20260915_105152.mp4"
+
+
+def test_ignored_pending_clip_persists_and_is_excluded_from_future_imports(isolated_log, client, monkeypatch):
+    """When a user ignores an unmatched pending row, it must not reappear on future syncs."""
+    from scripts import api_tiktok_stats
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [])
+
+    unmatched_row = {
+        "title": "คลิปสินค้าคนอื่นที่ไม่เกี่ยวเลย 123",
+        "posted_text": "20 ส.ค. 10:00 AM",
+        "views": 88,
+        "likes": 5,
+        "video_id": "vid_unrelated_123",
+    }
+
+    # 1. Initial import -- unmatched row ends up in pending
+    resp = client.post("/api/tiktok-stats/import", json={"rows": [unmatched_row]})
+    assert resp.status_code == 200
+    assert resp.json()["pending_count"] == 1
+
+    pending_list = client.get("/api/tiktok-stats/pending").json()
+    assert pending_list["count"] == 1
+    assert pending_list["ignored_count"] == 0
+    pending_id = pending_list["rows"][0]["id"]
+
+    # 2. User clicks "ข้ามรายการ" (Ignore)
+    ignore_resp = client.post("/api/tiktok-stats/pending/ignore", json={"pending_id": pending_id})
+    assert ignore_resp.status_code == 200
+    assert ignore_resp.json()["ignored"] is True
+    assert ignore_resp.json()["remaining"] == 0
+    assert ignore_resp.json()["ignored_count"] == 1
+
+    # Verify pending is empty, ignored has 1 item
+    pending_after = client.get("/api/tiktok-stats/pending").json()
+    assert pending_after["count"] == 0
+    assert pending_after["ignored_count"] == 1
+
+    ignored_list = client.get("/api/tiktok-stats/ignored").json()
+    assert ignored_list["count"] == 1
+    assert ignored_list["rows"][0]["video_id"] == "vid_unrelated_123"
+
+    # 3. User syncs again from TikTok Studio with the same video
+    re_import_resp = client.post("/api/tiktok-stats/import", json={"rows": [unmatched_row]})
+    assert re_import_resp.status_code == 200
+    # Crucial assertion: pending_count MUST remain 0!
+    assert re_import_resp.json()["pending_count"] == 0
+    pending_recheck = client.get("/api/tiktok-stats/pending").json()
+    assert pending_recheck["count"] == 0
+
+
+def test_batch_ignore_all_and_restore(isolated_log, client, monkeypatch):
+    """Test batch-ignoring all pending rows and restoring a row back to pending."""
+    from scripts import api_tiktok_stats
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [])
+
+    row1 = {"title": "คลิปไม่เกี่ยว 1", "views": 10, "video_id": "vid_ignore_1"}
+    row2 = {"title": "คลิปไม่เกี่ยว 2", "views": 20, "video_id": "vid_ignore_2"}
+
+    # 1. Import 2 unmatched rows
+    resp = client.post("/api/tiktok-stats/import", json={"rows": [row1, row2]})
+    assert resp.status_code == 200
+    assert resp.json()["pending_count"] == 2
+
+    # 2. Batch ignore all
+    batch_resp = client.post("/api/tiktok-stats/pending/ignore-all")
+    assert batch_resp.status_code == 200
+    assert batch_resp.json()["ignored_count"] == 2
+    assert batch_resp.json()["remaining"] == 0
+    assert batch_resp.json()["total_ignored"] == 2
+
+    # 3. Verify future sync doesn't bring them back
+    sync_resp = client.post("/api/tiktok-stats/import", json={"rows": [row1, row2]})
+    assert sync_resp.status_code == 200
+    assert sync_resp.json()["pending_count"] == 0
+
+    # 4. Restore row 1
+    ignored_items = client.get("/api/tiktok-stats/ignored").json()["rows"]
+    target_item = next(item for item in ignored_items if item["video_id"] == "vid_ignore_1")
+    restore_resp = client.post("/api/tiktok-stats/ignored/restore", json={"ignored_id": target_item["id"]})
+    assert restore_resp.status_code == 200
+    assert restore_resp.json()["restored"] is True
+    assert restore_resp.json()["remaining"] == 1
+    assert restore_resp.json()["ignored_count"] == 1
+
+    # 5. Check pending list now contains the restored item
+    pending_now = client.get("/api/tiktok-stats/pending").json()
+    assert pending_now["count"] == 1
+    assert pending_now["rows"][0]["video_id"] == "vid_ignore_1"
+
 
 

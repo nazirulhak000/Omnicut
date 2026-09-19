@@ -9,6 +9,7 @@ import MetricKpiCard from '../components/MetricKpiCard';
 import LoadingSpinner from '../../LoadingSpinner';
 import { ConfirmModal } from '../../ui';
 import DonutChart from '../charts/DonutChart';
+import PaginationControls from '../../PaginationControls';
 
 export default function StorageAnalyticsTab() {
   const [data, setData] = useState(null);
@@ -17,6 +18,8 @@ export default function StorageAnalyticsTab() {
   const [purging, setPurging] = useState(false);
   const [showPurgeModal, setShowPurgeModal] = useState(false);
   const [showArchiveDetail, setShowArchiveDetail] = useState(false);
+  const [archivePage, setArchivePage] = useState(1);
+  const [archivePageSize, setArchivePageSize] = useState(10);
   const [purgeResult, setPurgeResult] = useState(null);
   const [error, setError] = useState(null);
 
@@ -52,6 +55,17 @@ export default function StorageAnalyticsTab() {
   const totalFolderBytes = directories.reduce((acc, d) => acc + (d.size_bytes || 0), 0);
   const totalFolderGb = (totalFolderBytes / (1024 ** 3)).toFixed(2);
   const archiveItems = posted_archive_potential.items || [];
+  const visibleArchiveItems = useMemo(
+    () => archiveItems.slice((archivePage - 1) * archivePageSize, archivePage * archivePageSize),
+    [archiveItems, archivePage, archivePageSize]
+  );
+  useEffect(() => {
+    setArchivePage(1);
+  }, [data]);
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(archiveItems.length / archivePageSize));
+    setArchivePage((page) => Math.min(page, totalPages));
+  }, [archiveItems.length, archivePageSize]);
   const archiveCandidateBytes = posted_archive_potential.archive_candidate_bytes ?? posted_archive_potential.total_reclaimable_bytes ?? 0;
   const archiveCandidateMb = posted_archive_potential.archive_candidate_mb ?? posted_archive_potential.total_reclaimable_mb ?? 0;
   const archiveCandidateGb = posted_archive_potential.archive_candidate_gb ?? posted_archive_potential.total_reclaimable_gb ?? 0;
@@ -314,7 +328,7 @@ export default function StorageAnalyticsTab() {
               </div>
             </div>
 
-            <div className="max-h-[320px] overflow-y-auto rounded-2xl border border-white/[0.08] bg-black/40">
+            <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-black/40">
               <table className="w-full text-left text-xs">
                 <thead className="sticky top-0 bg-[#0B0F19] border-b border-white/[0.08] text-slate-400 font-semibold z-10">
                   <tr>
@@ -324,7 +338,7 @@ export default function StorageAnalyticsTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.04]">
-                  {archiveItems.map((item, idx) => (
+                  {visibleArchiveItems.map((item, idx) => (
                     <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
                       <td className="py-2 px-3 whitespace-nowrap">
                         {item.type === 'export_mp4' ? (
@@ -357,6 +371,18 @@ export default function StorageAnalyticsTab() {
                   ))}
                 </tbody>
               </table>
+              <PaginationControls
+                page={archivePage}
+                pageSize={archivePageSize}
+                totalItems={archiveItems.length}
+                onPageChange={setArchivePage}
+                onPageSizeChange={(size) => {
+                  setArchivePageSize(size);
+                  setArchivePage(1);
+                }}
+                itemLabel="รายการ Archive"
+                disabled={scanning}
+              />
             </div>
 
             <div className="p-3 rounded-xl bg-cyan-500/[0.06] border border-cyan-500/20 text-xs text-slate-300 space-y-1">

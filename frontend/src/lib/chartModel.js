@@ -97,3 +97,111 @@ export function findClosestChartPoint(points, svgX) {
   }
   return { index: closestIdx, point: points[closestIdx] };
 }
+
+/**
+ * Sorts array of objects chronologically ascending based on date field or date getter.
+ * Treats missing/invalid dates consistently.
+ */
+export function sortChronological(items, dateKey = 'posted_at') {
+  if (!Array.isArray(items)) return [];
+  return [...items].sort((a, b) => {
+    const rawA = typeof dateKey === 'function' ? dateKey(a) : a?.[dateKey];
+    const rawB = typeof dateKey === 'function' ? dateKey(b) : b?.[dateKey];
+    const timeA = rawA ? new Date(rawA).getTime() : 0;
+    const timeB = rawB ? new Date(rawB).getTime() : 0;
+    return (isNaN(timeA) ? 0 : timeA) - (isNaN(timeB) ? 0 : timeB);
+  });
+}
+
+/**
+ * Aggregates item metrics by YYYY-MM-DD calendar day.
+ * Returns chronologically sorted array of daily aggregates.
+ */
+export function aggregateDailyTrends(items, {
+  dateKey = 'posted_at',
+  valueKey = 'views',
+  metricsKeys = ['likes', 'comments', 'shares'],
+} = {}) {
+  if (!Array.isArray(items) || items.length === 0) return [];
+  const map = new Map();
+
+  for (const item of items) {
+    if (!item) continue;
+    const rawDate = typeof dateKey === 'function' ? dateKey(item) : item[dateKey];
+    if (!rawDate) continue;
+    const dayKey = String(rawDate).slice(0, 10);
+    if (!dayKey || dayKey.length < 8) continue;
+
+    if (!map.has(dayKey)) {
+      map.set(dayKey, {
+        date: dayKey,
+        label: dayKey,
+        value: 0,
+        count: 0,
+        items: [],
+        metrics: {},
+      });
+      for (const k of metricsKeys) {
+        map.get(dayKey).metrics[k] = 0;
+      }
+    }
+
+    const entry = map.get(dayKey);
+    const val = Number(item[valueKey]) || 0;
+    entry.value += val;
+    entry.count += 1;
+    entry.items.push(item);
+
+    for (const k of metricsKeys) {
+      entry.metrics[k] += Number(item[k]) || 0;
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => {
+    return new Date(a.date).getTime() - new Date(b.date).getTime();
+  });
+}
+
+/**
+ * Computes non-colliding tick indices for the X axis, ensuring no adjacent
+ * tick labels are identical and spacing is balanced.
+ */
+export function computeXAxisTicks(points, { maxTicks = 7, dateKey = 'label' } = {}) {
+  if (!Array.isArray(points) || points.length === 0) return [];
+  if (points.length <= maxTicks) {
+    const result = [];
+    let lastLabel = null;
+    for (let i = 0; i < points.length; i++) {
+      const label = String(points[i]?.data?.[dateKey] || points[i]?.label || '');
+      const short = label.length > 5 ? label.slice(5) : label;
+      if (short !== lastLabel || i === points.length - 1) {
+        result.push(i);
+        lastLabel = short;
+      }
+    }
+    return result;
+  }
+
+  const step = (points.length - 1) / (maxTicks - 1);
+  const picked = new Set();
+  picked.add(0);
+  for (let i = 1; i < maxTicks - 1; i++) {
+    picked.add(Math.round(i * step));
+  }
+  picked.add(points.length - 1);
+
+  const sortedIndices = Array.from(picked).sort((a, b) => a - b);
+  const filtered = [];
+  let lastShort = null;
+  for (const idx of sortedIndices) {
+    const pt = points[idx];
+    const label = String(pt?.data?.[dateKey] || pt?.label || '');
+    const short = label.length > 5 ? label.slice(5) : label;
+    if (short !== lastShort || idx === points.length - 1) {
+      filtered.push(idx);
+      lastShort = short;
+    }
+  }
+  return filtered;
+}
+

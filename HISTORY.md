@@ -8,7 +8,143 @@
 
 ## สารบัญ
 
+| Round PAGINATION-PHASE3-COMPLETE-LONG-LISTS-20260919 | เพิ่ม pagination ให้รายการยาวที่เหลือใน Export Gallery, Performance Analytics, Token Dashboard, Storage Analytics และ Activity Center | 2026-09-19 | สำเร็จสมบูรณ์ (frontend 282 passed, backend 18 passed, build 2,015 modules, lint ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
+| Round EXPORT-PREVIEW-FRESH-SYNC-AND-MATCH-FIX-1 | แก้บั๊กพรีวิวคลิปที่เพิ่งเรนเดอร์เสร็จเปิดคลิปเก่าก่อนหน้า (เช่น เมาส์ แทนที่จะเป็น ปลั๊กไฟ) จาก cache 2s ใน loadExports + fallback exportsList[0] ที่ชิงเปิดและเคลียร์ target ก่อนข้อมูลใหม่มาถึง | 2026-09-19 | สำเร็จสมบูรณ์ (unit tests 5 passed, frontend vitest 281 passed, build 2,015 modules/3.75s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round TIKTOK-PENDING-PERSISTENT-IGNORE-LIST-1 | ระบบจำรายการที่กดข้าม (Persistent Ignore List) สำหรับ TikTok Pending Rows ป้องกันไม่ให้คลิปที่เคยข้ามถูกดึงกลับมาใหม่เมื่อซิงก์ TikTok Studio ซ้ำ พร้อมฟังก์ชันข้ามทั้งหมดในคลิกเดียว และกู้คืนรายการที่ข้าม | 2026-09-19 | สำเร็จสมบูรณ์ (backend pytest 18 passed, frontend 276 passed, build 2,014 modules/3.13s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round ANALYTICS-CHARTS-CHRONO-SORT-AND-TOKEN-SUMMARY-UI-1 | ปรับปรุง UI กราฟสถิติ: ลบกล่องวันเรียงยาวแทนที่ด้วย KPI Summary Strip 4 การ์ด และ Time Filter ใน Token Dashboard + แก้ไขการจัดเรียงลำดับเวลาทางประวัติศาสตร์ของกราฟยอดวิวคลิปให้ถูกต้อง Monotonic Ascending พร้อมโหมดแยกรายคลิป/รวมรายวัน และ Tooltip ป้องกันตกขอบ | 2026-09-18 | สำเร็จสมบูรณ์ (chart model 8 passed, frontend 274 passed, build 2,014 modules/3.41s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round PRODUCT-HIDE-ARCHIVE-VISIBILITY-1 | ฟังก์ชันซ่อนสินค้าที่ไม่อยากแสดงหรือยังไม่อยากทำ พร้อมปุ่มลัดซ่อนสินค้า 0 มุมมองในคลิกเดียว, กรองดูสินค้าที่ซ่อน และกู้คืนกลับมาได้ทันที รองรับทั้งแถบหัวเรื่องและหน้าต่างคลังสินค้า | 2026-09-18 | สำเร็จสมบูรณ์ (backend 22 passed, frontend 271 passed, build 2,013 modules/4.32s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round PAGINATION-PHASE3-COMPLETE-LONG-LISTS-20260919 — เก็บรายการยาวที่ยังเหลือให้ครบ
+
+วันที่: 2026-09-19 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### สิ่งที่ทำ
+
+- Export Gallery: เพิ่ม pagination ให้โหมด Split ทั้ง Mobile carousel และ Desktop playlist ค่าเริ่มต้น 10 รายการ เลือกได้ 10/20/50 และไม่ mount คลิปทั้งคลังพร้อมกัน
+- Performance Analytics: เพิ่ม pagination ให้ Pending Rows และ Persistent Ignored Rows ทั้งสองสถานะของ UI
+- Token Dashboard: เพิ่ม pagination ให้ Daily Breakdown โดย KPI และกราฟยังคำนวณจากข้อมูลเต็มช่วงเวลาตาม filter
+- Storage Analytics: เพิ่ม pagination ให้ Archive Items และนำ internal long-scroll ออก
+- Activity Center: เพิ่ม pagination ให้รายการงานและ Viral Milestones ค่าเริ่มต้น 10 รายการ
+- เพิ่ม source contract test กันการย้อนกลับไป render raw arrays ในรายการยาว
+
+### Verification
+
+- Frontend tests: 282 passed
+- Frontend production build: 2,015 modules transformed สำเร็จ
+- Frontend lint: ผ่าน มี warning เดิมใน `EditorShell.jsx` แต่ไม่มี error
+- Backend targeted tests: 18 passed
+- ไม่มีการแก้หรือ stage ไฟล์ concurrent ที่อยู่นอกขอบเขตรอบนี้
+
+## Round EXPORT-PREVIEW-FRESH-SYNC-AND-MATCH-FIX-1 — แก้บั๊กพรีวิวคลิปที่เพิ่งเรนเดอร์เสร็จเปิดคลิปเก่าก่อนหน้า
+
+วันที่: 2026-09-19 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ความต้องการและปัญหา
+ผู้ใช้แจ้งว่า: เมื่อเรนเดอร์วิดีโอเสร็จ จะมีการแจ้งเตือน (Toast Notification) ที่มุมล่างขวาแสดงข้อความ "งานเสร็จสมบูรณ์! เรนเดอร์วิดีโอเสร็จสมบูรณ์ 100%! [▶ พรีวิวคลิปที่เสร็จทันที]" แต่พอกดเข้าไป ระบบกลับเปิดพรีวิวคลิปของงานก่อนหน้า (เช่น เพิ่งเรนเดอร์ปลั๊กไฟ TOSHINO แต่กล่องพรีวิวเด้งคลิปเมาส์ไร้สาย IWACHI i6 ขึ้นมาแทน) ดูเหมือนไม่รีเฟรชหรือช้า ก่อนที่คลิปปลั๊กไฟจะโหลดขึ้นมาในคลัง
+
+**สาเหตุรากเหง้า (Root Causes):**
+1. **Cache 2,000ms ใน `workspaceDataCoordinator.loadExports`**: เมื่อคลิกปุ่มนำทางไปหน้าคลัง `gallery` โค้ดใน `App.jsx` เรียก `refreshData({ includeExports: true })` โดยไม่ระบุ `force: true` ส่งผลให้ตัวแคชส่งรายการไฟล์เดิม (ที่ยังไม่มีคลิปใหม่) คืนกลับมา และในขณะเดียวกันโค้ด `setActiveTab('gallery')` สลับแท็บทันทีแบบ synchronous ทำให้ `ExportGallery` ถูกเรนเดอร์ขึ้นมาพร้อมกับชุดข้อมูล `exportsList` ตัวเก่าก่อนที่ข้อมูลสดจะมาถึง
+2. **Sequential Await ใน `refreshData`**: `App.jsx` เดิมรัน `await loadShell` ก่อน แล้วค่อย `await loadExports` ทำให้ดีเลย์เครือข่ายเพิ่มขึ้นสองเท่า
+3. **Flawed Fallback `exportsList[0]` ใน `ExportGallery.jsx`**: ใน `useEffect` ของ `ExportGallery`:
+   ```javascript
+   } else if (exportsList.length > 0) {
+     setActiveVideoPath(exportsList[0].path);
+     setSelectedDetailVideo(exportsList[0]);
+     onClearHighlightVideo?.();
+   }
+   ```
+   เมื่อเปรียบเทียบ `initialHighlightVideo` กับ `exportsList` ตัวเก่าแล้วยังไม่เจอ โค้ดกลับชิงหยิบ `exportsList[0]` (ซึ่งคือคลิปเมาส์เก่าตัวบนสุด) มาเปิดเป็นโมดอลพรีวิวทันที และสั่งเคลียร์ `onClearHighlightVideo()` ทิ้ง! พอเสี้ยววินาทีถัดมาที่ข้อมูลคลิปใหม่ (ปลั๊กไฟ) ถูกโหลดเข้ามา เป้าหมาย highlight ก็ถูกเคลียร์ทิ้งไปแล้ว และโมดอลคลิปเมาส์ก็เปิดค้างอยู่บนหน้าจอผู้ใช้เรียบร้อยแล้ว
+
+### สิ่งที่ทำ
+1. **สร้างโมดูลจับคู่คลิปแม่นยำ (`frontend/src/lib/exportMatching.js` + `exportMatching.test.js`)**:
+   - รองรับการตรวจสอบอย่างละเอียด ทั้ง `export_id`, `videoPath`/`rel_path`/`path`, `projectName`, `productId` + `angleId` (จับคู่กับ `is_latest`), และ normalized basename
+   - เขียน unit test ครอบคลุม 5 กรณี (null inputs, export_id, videoPath/stem, product/angle latest, และป้องกันการ match ข้ามสินค้าปลั๊กไฟ-เมาส์) ผ่าน 100%
+2. **ปรับปรุง `frontend/src/App.jsx`**:
+   - **Parallel Fetching**: ปรับปรุง `refreshData` ให้ดึง `loadShell` และ `loadExports` พร้อมกันแบบ `Promise.all` ลดเวลา latency ลงครึ่งหนึ่ง
+   - **Bypass Cache ด้วย `force: true`**: เมื่อมีการคลิก jump จาก Task Notification ไปยัง Gallery ให้ส่ง `refreshData({ includeExports: true, force: true })` เสมอ เพื่อบังคับล้างแคช 2s และดึงไฟล์ล่าสุดจาก backend ทันที
+   - **Rich Target Descriptor**: ส่ง Object ระบุเป้าหมายครบทั้ง `exportId`, `videoPath`, `projectName`, `productId`, `angleId` ทำให้ match ได้ตรงตัว 100%
+3. **ปรับปรุง `frontend/src/components/ExportGallery.jsx`**:
+   - **ลบ Blind Fallback `exportsList[0]` ออกอย่างเด็ดขาด**: ไม่มีการชิงเปิดคลิปตัวแรกที่ไม่เกี่ยวข้องกันอีกต่อไป
+   - **Reactive Await & Retry**: หาก `initialHighlightVideo` ยังไม่ปรากฏใน `exportsList` ระบบจะไม่เคลียร์ target แต่จะเรียก `onRefresh({ includeExports: true, force: true })` เพื่อดึงไฟล์สด และรอจนกว่าคลิปที่เพิ่งเสร็จจะปรากฏใน `exportsList` แล้วจึงเปิดโมดอลพรีวิวคลิปที่ถูกต้องนั้น
+   - มี timeout 4.5s แจ้งเตือนข้อความสถานะกรณีไฟล์ถูกยกเลิก โดยไม่เปิดคลิปมั่วมาหลอกตา
+
+### Verification
+- Export Matching Unit Tests: 5 passed (0 failed)
+- Frontend Vitest Suite: 281 passed (0 failed)
+- Frontend Production Build: 2,015 modules transformed ใน 3.75s สำเร็จ 100%
+- Test Cleanup: 100% สะอาด ไม่มีการสร้างไฟล์ขยะตกค้าง
+
+## Round TIKTOK-PENDING-PERSISTENT-IGNORE-LIST-1 — ระบบจำรายการที่กดข้ามสำหรับ TikTok Pending Rows ป้องกันการดึงซ้ำ
+
+วันที่: 2026-09-19 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ความต้องการและปัญหา
+ผู้ใช้แจ้งว่าในตาราง **"แถวที่ยังไม่ได้จับคู่"** (TikTok Pending Rows) ของแท็บผลงาน TikTok Studio มีหลายรายการ (เช่น 11 รายการ) ที่ผู้ใช้เคยกด "ข้ามรายการ" (Ignore) ไปแล้ว แต่พอมีการดึงหรือซิงก์ข้อมูลสถิติใหม่จาก TikTok Studio รายการเดิมที่เคยกดข้ามไปกลับโผล่เข้ามาใหม่ซ้ำๆ
+**สาเหตุ**: โค้ดเดิมของ `TikTokPending.remove(row_id)` เป็นเพียงการลบแถวออกจากไฟล์ชั่วคราว `_Docs/tiktok_pending.json` โดยไม่มีการบันทึกประวัติว่าคลิปใดถูกตั้งใจข้าม เมื่อมีการเรียก `POST /api/tiktok-stats/import` ในครั้งถัดไป `replace_from_sync` จะทำการล้างและเพิ่มรายการที่จับคู่ไม่ได้ทั้งหมดกลับเข้ามาใหม่ ส่งผลให้คลิปที่เคยข้ามถูกดึงกลับมาแสดงผลซ้ำเสมอ
+
+### สิ่งที่ทำ
+1. **Backend Persistent Storage & Model (`scripts/tiktok_pending.py`)**:
+   - สร้างคลาส `TikTokIgnored` จัดเก็บข้อมูลลงฐานข้อมูล SQLite `store.db` (ตาราง `tiktok_ignored`) ควบคู่กับเอกสาร JSON `_Docs/tiktok_ignored.json`
+   - จัดเก็บอัตลักษณ์ของคลิป (`identity`) ทั้งจาก `video_id` และชื่อคลิป (`title`) พร้อมสถิติวิดีโอและวันที่ถูกข้าม
+   - ปรับปรุง `TikTokPending.replace_from_sync` ให้ตรวจสอบ `TikTokIgnored.is_ignored(row)` เสมอ หากคลิปใดเคยถูกข้ามไว้แล้ว จะถูกคัดกรองทิ้ง ไม่ถูกนำกลับมาใส่ในแถวรอจับคู่อีกอย่างเด็ดขาด
+   - เพิ่มเมธอด `TikTokPending.ignore(row_id)` (ย้ายจาก pending เข้า ignored list), `TikTokPending.ignore_all()` (ข้ามแถวค้างทั้งหมดในครั้งเดียว), และ `TikTokPending.restore(ignored_id)` (กู้คืนคลิปที่เคยข้ามกลับมารอจับคู่)
+2. **Backend API Endpoints (`scripts/api_tiktok_stats.py`)**:
+   - `GET /api/tiktok-stats/pending`: ส่งคืน `rows`, `count`, และ `ignored_count`
+   - `POST /api/tiktok-stats/pending/ignore`: บันทึกคลิปลงใน `TikTokIgnored` อย่างถาวรและลบออกจาก pending
+   - `POST /api/tiktok-stats/pending/ignore-all`: ข้ามคลิปที่เหลือทั้งหมดในครั้งเดียว
+   - `GET /api/tiktok-stats/ignored`: เรียกดูรายการคลิปที่ถูกข้ามไว้ทั้งหมด
+   - `POST /api/tiktok-stats/ignored/restore`: นำคลิปที่เคยข้ามกลับมารอจับคู่ใหม่
+3. **Frontend API & UI (`frontend/src/api.js`, `PerformanceAnalyticsTab.jsx`)**:
+   - เพิ่มฟังก์ชัน API: `ignoreAllTiktokPending`, `getTiktokIgnored`, `restoreTiktokIgnored`, `attachTiktokPending`
+   - **ปุ่ม "ข้ามทั้งหมด (N)"**: รองรับการกดข้ามคลิปค้างทั้งหมดในคลิกเดียว โดยไม่ให้ดึงกลับมาอีก
+   - **ปุ่ม "ดูรายการที่ข้ามไว้ (N)" / ลิ้นชักแสดงรายการที่ข้าม**: แสดงคลิปที่ถูกข้ามไว้ถาวร พร้อมปุ่ม **"นำกลับมาจับคู่"** (Restore) สำหรับกรณีที่ผู้ใช้กดข้ามผิดและต้องการนำกลับมาจับคู่กับคลิปในคลัง
+   - แสดงกล่องสรุปสถานะเมื่อไม่มีคลิปรอจับคู่แต่มีคลิปที่ข้ามไว้ เพื่อให้ผู้ใช้สามารถตรวจสอบหรือกู้คืนได้ตลอดเวลา
+   - ปฏิบัติตาม UI Clean Standard อย่างเคร่งครัด (ปุ่มขึ้นต้นด้วยกริยา ไม่มีไอคอนซ้ำซ้อน)
+4. **Automated Unit & Integration Tests (`tests/test_tiktok_stats_import.py`)**:
+   - ขยาย `isolated_log` fixture ให้แยกตาราง `tiktok_pending` และ `tiktok_ignored` เข้า `tmp_path` ป้องกันการแตะต้องข้อมูลจริงตามกฎเหล็ก
+   - เพิ่ม `test_ignored_pending_clip_persists_and_is_excluded_from_future_imports`: ทดสอบว่าคลิปที่ถูกข้ามจะไม่กลับมาปรากฏใน pending อีกแม้จะมีการ import ข้อมูลซ้ำ
+   - เพิ่ม `test_batch_ignore_all_and_restore`: ทดสอบการข้ามทั้งหมดแบบ batch และการกู้คืน (restore) กลับมารอจับคู่
+
+### Verification
+- Backend Pytest Suite: `tests/test_tiktok_stats_import.py` ผ่าน 18/18 tests (100%)
+- Frontend Vitest Suite: ผ่าน 276/276 tests (100%)
+- Frontend Production Build: 2,014 modules transformed ใน 3.13s สำเร็จ 100%
+- Test Cleanup: 100% สะอาด ไม่มีการสร้างไฟล์ขยะตกค้าง
+
+## Round ANALYTICS-CHARTS-CHRONO-SORT-AND-TOKEN-SUMMARY-UI-1 — ปรับปรุง UI กราฟสถิติ, ลบกล่องวันเรียงยาว, และจัดเรียงลำดับเวลากราฟยอดวิวคลิปให้ถูกต้อง
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ความต้องการและปัญหา
+1. **ปัญหา UI กล่องวันล้นจอใน Token Dashboard**: ใต้กราฟ Token Activity เดิมมีการเรนเดอร์กล่องสี่เหลี่ยมสำหรับทุกวัน (`summary.daily_stats.map`) หากใช้งานสะสม 100 วัน ระบบจะแสดงกล่องเรียงกัน 100 กล่อง ซึ่งกินพื้นที่หน้าจอ รกสายตา และไม่สะดวกในการดูภาพรวม
+2. **ปัญหากราฟยอดวิวคลิปเรียงลำดับเวลามั่ว**: ในแท็บ Performance Analytics กราฟ "ยอดวิวต่อคลิป (เรียงตามวันที่โพสต์)" เดิมใช้เพียง `.reverse()` บนชุดข้อมูลดิบ โดยไม่มีการจัดเรียงตามวันที่โพสต์ (`posted_at`) ส่งผลให้วันที่บนแกน X กระโดดสลับไปมาข้ามเดือนข้ามวัน (`09-15` -> `09-16` -> `09-17` -> `09-08` -> `09-10` -> `08-05` -> `09-05`) และเกิดชื่อวันซ้ำซ้อนกัน
+
+### สิ่งที่ทำ
+1. **ปรับปรุง Token Dashboard (`frontend/src/components/TokenDashboard.jsx`)**:
+   - **ลบ Grid กล่องวันเดิมทั้งหมด**: ไม่แสดงกล่องขนาดยาวที่ขยายตัวอย่างไร้ขีดจำกัด
+   - **เพิ่ม KPI Summary Strip พรีเมียม 4 การ์ด**:
+     - 🌟 **วันใช้งานสูงสุด (Peak Day)**: วันที่ + ปริมาณโทเคน + จำนวนครั้งที่เรียก
+     - 📊 **เฉลี่ยต่อวัน (Daily Average)**: ค่าเฉลี่ยโทเคนที่ใช้ต่อวัน ในช่วงเวลาที่เลือก
+     - 💰 **ประหยัดสะสม (Total Saved)**: ยอดเงินบาทที่ประหยัดได้รวม
+     - ⏱️ **บันทึกล่าสุด (Latest Activity)**: ปริมาณโทเคนและยอดประหยัดของวันล่าสุด
+   - **เพิ่ม Time Range Filter สำหรับกราฟ**: ตัวเลือกระยะเวลา `7 วัน`, `14 วัน` (ค่าเริ่มต้น), `30 วัน`, และ `ทั้งหมด` เพื่อให้ผู้ใช้คุมการแสดงผลของกราฟได้ตามต้องการ
+   - **เพิ่ม Collapsible Table Drawer**: ปุ่มพับเก็บได้ "ดูรายละเอียดตารางรายวัน (N วัน)" สำหรับผู้ใช้ที่ต้องการดูตารางรายวันแบบละเอียดย้อนหลัง โดยเป็นตาราง scrollable table กะทัดรัด ไม่เกะกะหน้าจอ
+2. **แก้ไขการจัดเรียงเวลากราฟใน Performance Analytics (`frontend/src/components/analytics/tabs/PerformanceAnalyticsTab.jsx`)**:
+   - **จัดเรียงตามลำดับเวลาจริง Monotonic Ascending (เก่าสุด -> ล่าสุด)**: ใช้ `sortChronological` จัดเรียงโพสต์ตาม `posted_at` timestamp อย่างเคร่งครัด จาก `2026-08-05` สู่ `2026-09-18` แก้ปัญหาเส้นกราฟกระโดดข้ามวันข้ามเดือน 100%
+   - **เพิ่มโหมดสลับมุมมองกราฟ (View Mode Switcher)**:
+     - **"แยกรายคลิป" (Per Clip)**: แต่ละจุดบนกราฟแทนคลิป 1 คลิป เรียงตามเวลาที่โพสต์จริง พร้อม Tooltip แสดงชื่อสินค้า, มุมมอง, ยอดวิว, ถูกใจ, คอมเมนต์, แชร์ และ Engagement Rate (%)
+     - **"รวมรายวัน" (Daily Total)**: รวบรวมยอดวิวของคลิปทั้งหมดที่โพสต์ในวันเดียวกันเป็น 1 จุด ทำให้ได้กราฟเส้นแนวโน้มยอดวิวรายวันแบบ 1 วัน = 1 จุด เรียบเนียน ไร้วันซ้ำ
+3. **ปรับปรุง AreaLineChart & Chart Model (`AreaLineChart.jsx`, `chartModel.js`)**:
+   - **Deduplicated X-Axis Ticks**: ฟังก์ชัน `computeXAxisTicks` ช่วยคัดกรองไม่ให้แกน X แสดงป้ายวันที่ซ้ำกันติดๆ กัน
+   - **Boundary Clamping Tooltip**: ปรับการคำนวณตำแหน่ง Tooltip เมื่อจุดอยู่ชิดขอบซ้าย/ขวา/บน ไม่ให้การ์ด Tooltip หลุดออกนอกกรอบ
+4. **Automated Unit Tests**:
+   - เพิ่ม unit tests ใน `frontend/src/lib/chartModel.test.js` สำหรับ `sortChronological`, `aggregateDailyTrends`, และ `computeXAxisTicks` ครบถ้วน
+
+### Verification
+- Chart Model Unit Tests: 8 passed (0 failed)
+- Frontend Vitest Suite: 274 passed (0 failed)
+- Frontend Production Build: 2,014 modules transformed ใน 3.41s ผ่าน 100%
+- Cleanliness: 100% สะอาด ไม่มีการสร้างไฟล์ขยะ
 | Round PRODUCER-HUB-REALTIME-DATA-AND-ALIAS-COLLISION-FIX-1 | แก้ปัญหาสต็อกคลิปพร้อมโพสต์และการคำนวณสถิติแสดงผลต่ำกว่าความเป็นจริงจาก Angle ID Alias Collision, กรอง Queue ที่โพสต์แล้ว, และปรับเป้าหมายโพสต์รายวันเป็น 5 ให้ตรงตามคิวเทมเพลตประจำวัน (09:00, 12:30, 16:00, 19:00, 21:30) | 2026-09-18 | สำเร็จสมบูรณ์ (frontend 271 passed, build 2,013 modules/4.09s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 
 ## Round PRODUCT-HIDE-ARCHIVE-VISIBILITY-1 — ฟังก์ชันซ่อนสินค้าที่ยังไม่อยากแสดงหรือยังไม่อยากทำ พร้อมปุ่มลัดซ่อนสินค้า 0 มุมมอง และกู้คืนได้ทุกเมื่อ
@@ -7815,3 +7951,64 @@ Executed by: Codex (GPT-6)
 - `npm run build`: ผ่าน, 2,013 modules transformed
 - `git diff --check`: ผ่านสำหรับไฟล์รอบนี้
 - Impeccable detector: พบ warning เดิมเรื่อง AI color palette ที่อยู่นอก scope pagination; ไม่ได้เปลี่ยน visual system
+
+## Round PIPELINE-POSTED-QUEUE-TDZ-FIX-20260918 — Pipeline render crash
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**สาเหตุ:** `ScheduleAgenda.jsx` อ้าง `postedQueue.length` ใน pagination effect dependency ก่อน `postedQueue` ถูก initialize ทำให้หน้า Tracker ล่มด้วย `Cannot access 'postedQueue' before initialization`
+
+### สิ่งที่ทำ
+
+- ย้าย `postedQueue` derived state ให้อยู่ก่อน effect ที่ใช้ pagination
+- เพิ่ม `scheduleAgendaOrderContract.test.js` เป็น regression guard สำหรับ declaration/use order
+- ตรวจ call site ของ `PaginationControls` และ pagination effects ที่เกี่ยวข้องทั้งหมด ไม่พบ reference แบบเดียวกันเพิ่มเติม
+
+### Verification
+
+- Frontend: `276 passed`
+- `npm run build`: ผ่าน
+- `npm run lint`: ผ่าน โดยมี warnings เดิมของโปรเจกต์
+- Regression test: ก่อนแก้ล้ม, หลังแก้ผ่าน
+
+## Round EXPORT-GALLERY-PAGINATION-RUNTIME-FIX-20260918 — Export Gallery runtime regression
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**สาเหตุ:** `ExportGallery.jsx` ส่ง `disabled={loading}` ให้ `PaginationControls` ทั้งที่ component ไม่มีตัวแปร `loading` ทำให้เกิด `ReferenceError` ตอน render หน้า Export Gallery
+
+### สิ่งที่ทำ
+
+- ลบ reference ที่ไม่ได้ประกาศออกจาก pagination footer
+- เพิ่ม `paginationContract.test.js` เพื่อป้องกันการอ้าง undefined loading state ซ้ำ
+
+### Verification
+
+- Frontend: `275 passed`
+- `npm run build`: ผ่าน
+- `npm run lint`: ผ่าน โดยมี warnings เดิมของโปรเจกต์
+- `git diff --check`: ผ่านสำหรับไฟล์รอบนี้
+
+## Round PAGINATION-PHASE2-20260918 — Analytics, Media และ history pagination
+
+วันที่: 2026-09-18 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย:** ลดหน้าที่ยาวและ DOM ที่ใหญ่ในจุดรายการที่ยังใช้ `โหลดเพิ่ม` โดยให้ผู้ใช้เห็นทีละ 10/20/50 รายการและเปลี่ยนหน้าได้
+
+### สิ่งที่ทำ
+
+- เพิ่ม `PaginationControls` กลางสำหรับหน้าแรก/ก่อนหน้า/เลขหน้า/ถัดไป/หน้าสุดท้าย พร้อมตัวเลือกจำนวนรายการต่อหน้า
+- เปลี่ยน Inventory และ Performance Analytics เป็น pagination ค่าเริ่มต้น 20 รายการ
+- เปลี่ยน AssetPanel, Media Assets, Raw Vault, Media Picker และ Export Gallery เป็น pagination แยกตามรายการหรือหมวด
+- เปลี่ยน Content Tracker, Project Selector, Schedule history และ System Settings duplicate groups เป็น pagination
+- คงข้อมูลเดิมระหว่าง refresh ในจุดที่มี loading state และปิดปุ่ม pagination ระหว่างโหลด
+- ตรวจ API แล้วพบว่า assets/videos/raw-vault/exports/products และ history บางชุดยังส่งข้อมูลทั้งหมดมาให้ client; บันทึกเป็น follow-up สำหรับ server-side `page/limit/search` แยกจากรอบ UI นี้
+
+### Verification
+
+- Frontend: `274 passed`
+- `npm run build`: ผ่าน, 2,014 modules transformed
+- `npm run lint`: ผ่านโดยมี warnings เดิมในโปรเจกต์
+- `git diff --check`: ผ่านสำหรับไฟล์รอบนี้
+- `โหลดเพิ่ม` ที่เหลือใน frontend เป็นเพียงข้อความนำทางไปเปิดคลังสคริปต์ ไม่ใช่การขยายรายการ
+- Impeccable detector: พบ warnings เดิมด้านสี/รูปแบบใน incumbent UI; ไม่ได้เปลี่ยน visual system

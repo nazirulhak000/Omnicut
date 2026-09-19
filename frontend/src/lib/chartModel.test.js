@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { computeAreaLineChart, findClosestChartPoint } from './chartModel.js';
+import {
+  computeAreaLineChart,
+  findClosestChartPoint,
+  sortChronological,
+  aggregateDailyTrends,
+  computeXAxisTicks,
+} from './chartModel.js';
 
 test('empty or non-array data returns empty chart geometry without crashing', () => {
   assert.deepEqual(computeAreaLineChart({ data: [] }), {
@@ -110,3 +116,57 @@ test('findClosestChartPoint correctly tracks nearest point by svgX', () => {
   assert.equal(findClosestChartPoint(points, 750)?.index, 2);
   assert.equal(findClosestChartPoint([], 100), null);
 });
+
+test('sortChronological correctly sorts posts monotonic ascending by posted_at', () => {
+  const disordered = [
+    { posted_at: '2026-09-17T19:00:00', views: 700 },
+    { posted_at: '2026-08-05T12:00:00', views: 600 },
+    { posted_at: '2026-09-15T10:00:00', views: 800 },
+    { posted_at: '2026-09-08T09:00:00', views: 250 },
+  ];
+
+  const sorted = sortChronological(disordered, 'posted_at');
+  assert.equal(sorted[0].posted_at, '2026-08-05T12:00:00');
+  assert.equal(sorted[1].posted_at, '2026-09-08T09:00:00');
+  assert.equal(sorted[2].posted_at, '2026-09-15T10:00:00');
+  assert.equal(sorted[3].posted_at, '2026-09-17T19:00:00');
+});
+
+test('aggregateDailyTrends groups multiple clips on same day and sums views', () => {
+  const clips = [
+    { posted_at: '2026-09-15T10:00:00', views: 500, likes: 20 },
+    { posted_at: '2026-09-15T19:00:00', views: 300, likes: 10 },
+    { posted_at: '2026-09-16T12:00:00', views: 250, likes: 5 },
+  ];
+
+  const daily = aggregateDailyTrends(clips, {
+    dateKey: 'posted_at',
+    valueKey: 'views',
+    metricsKeys: ['likes'],
+  });
+
+  assert.equal(daily.length, 2);
+  assert.equal(daily[0].date, '2026-09-15');
+  assert.equal(daily[0].value, 800);
+  assert.equal(daily[0].count, 2);
+  assert.equal(daily[0].metrics.likes, 30);
+  assert.equal(daily[1].date, '2026-09-16');
+  assert.equal(daily[1].value, 250);
+  assert.equal(daily[1].count, 1);
+});
+
+test('computeXAxisTicks avoids duplicate identical adjacent tick labels', () => {
+  const points = [
+    { index: 0, label: '2026-09-15' },
+    { index: 1, label: '2026-09-15' },
+    { index: 2, label: '2026-09-15' },
+    { index: 3, label: '2026-09-16' },
+  ];
+
+  const ticks = computeXAxisTicks(points, { maxTicks: 4, dateKey: 'label' });
+  // Should only pick distinct dates and not repeat '09-15' consecutively
+  assert.ok(ticks.includes(0));
+  assert.ok(ticks.includes(3));
+  assert.ok(ticks.length < points.length);
+});
+

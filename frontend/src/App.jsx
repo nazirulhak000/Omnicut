@@ -201,14 +201,19 @@ export default function App() {
 
   const refreshData = useCallback(async ({ includeExports = false, force = false } = {}) => {
     try {
-      const shell = await workspaceDataRef.current.loadShell({ force });
+      const shellPromise = workspaceDataRef.current.loadShell({ force });
+      const exportsPromise = includeExports ? workspaceDataRef.current.loadExports({ force }) : null;
+
+      const [shell, exportsData] = await Promise.all([
+        shellPromise,
+        exportsPromise,
+      ]);
+
       setStatus(shell.status);
-      setVideos(shell.videos.videos || []);
-      if (includeExports) {
-        const exportsData = await workspaceDataRef.current.loadExports({ force });
+      setVideos(shell.videos?.videos || []);
+      if (exportsData) {
         setExportsList(exportsData.exports || []);
       }
-
     } catch (err) {
       console.error('Failed to load initial data:', err);
     }
@@ -317,10 +322,7 @@ export default function App() {
       setActiveProductContext({
         id: data.productId || 'custom',
         title: data.productName || 'สินค้า',
-        name: data.productName || 'สินค้า',
-        description: data.keyFeatures || '',
-        price_note: data.priceDeal || '',
-        images: data.selectedVideo ? [{ rel_path: data.selectedVideo, name: 'media' }] : [],
+                images: data.selectedVideo ? [{ rel_path: data.selectedVideo, name: 'media' }] : [],
         angles: [{
           angle_name: 'บทที่เพิ่งเลือก',
           product_name: data.productName || 'สินค้า',
@@ -337,7 +339,6 @@ export default function App() {
 
     setActiveTab('editor');
   };
-
 
   const handleRenderSuccess = async (result) => {
     if (activeAngleContext?.productId && activeAngleContext?.angleId) {
@@ -362,11 +363,16 @@ export default function App() {
       pendingFlowImageMetadataRef.current = isImageMetadataTask ? extra?.taskResult || null : null;
       if (isImageMetadataTask) setFlowTaskNavigationVersion(prev => prev + 1);
     } else if (tab === 'gallery') {
-      const target = extra?.targetId || extra?.taskResult?.project_name || extra?.taskResult?.final_video_path || extra?.taskResult?.mp4 || extra?.task?.payload?.project_name;
-      if (target) {
-        setHighlightExportVideo(target);
-      }
-      refreshData({ includeExports: true });
+      const targetDescriptor = {
+        exportId: extra?.taskResult?.export_id || extra?.task?.result?.export_id,
+        videoPath: extra?.taskResult?.mp4_video || extra?.taskResult?.final_video_path || extra?.taskResult?.output_video || extra?.taskResult?.video_path || extra?.taskResult?.mp4,
+        projectName: extra?.projectName || extra?.taskResult?.project_name || extra?.task?.payload?.project_name || extra?.targetId,
+        productId: extra?.taskResult?.product_id || extra?.task?.payload?.product_id,
+        angleId: extra?.angleId || extra?.taskResult?.angle_id || extra?.task?.payload?.angle_id,
+        targetStr: extra?.targetId || extra?.taskResult?.project_name || extra?.taskResult?.final_video_path || extra?.taskResult?.mp4_video || extra?.task?.payload?.project_name || '',
+      };
+      setHighlightExportVideo(targetDescriptor);
+      refreshData({ includeExports: true, force: true });
     } else if (tab === 'editor') {
       const projName = extra?.projectName || extra?.targetId || extra?.taskResult?.project_name || extra?.task?.payload?.project_name || extra?.task?.target_id;
       setInitialProjectNameToLoad(projName || null);
@@ -377,16 +383,6 @@ export default function App() {
     }
     setActiveTab(tab);
   };
-
-  if (isQuickPostMode) {
-    return (
-      <div className={`h-screen w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
-        <Suspense fallback={<LoadingSpinner message="กำลังเปิดตัวช่วยโพสต์ Quick Post..." />}>
-          <MobileQuickPostPage onExit={() => { window.location.href = window.location.pathname; }} />
-        </Suspense>
-      </div>
-    );
-  }
 
   if (filmingSessionId) {
     return (

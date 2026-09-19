@@ -3,12 +3,14 @@ import {
   Zap, Coins, Cpu, Clock,
   Sparkles, CheckCircle2, AlertCircle, BarChart3, Layers,
   Search, ShieldCheck, Eye, Mic, FileText,
-  AlertTriangle, Key, RotateCcw
+  AlertTriangle, Key, RotateCcw,
+  Flame, Activity, PiggyBank, Calendar, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { getTokenSummary, getTokenHistory, resetTokenAnalytics, clearTokenAlerts } from '../api';
 import { ConfirmModal, Toast } from './ui';
 import AreaLineChart from './analytics/charts/AreaLineChart';
 import DonutChart from './analytics/charts/DonutChart';
+import PaginationControls from './PaginationControls';
 
 const getTokenLoadError = (err) => {
   const detail = err?.response?.data?.detail;
@@ -52,6 +54,55 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
   const [historyPageSize, setHistoryPageSize] = useState(20);
   const [historyError, setHistoryError] = useState(null);
   const historyRequestRef = useRef(0);
+
+  // Time range filter & breakdown state for Daily Activity Chart
+  const [tokenDaysFilter, setTokenDaysFilter] = useState('14');
+  const [showDailyBreakdown, setShowDailyBreakdown] = useState(false);
+  const [dailyPage, setDailyPage] = useState(1);
+  const [dailyPageSize, setDailyPageSize] = useState(10);
+
+  const filteredDailyStats = useMemo(() => {
+    const stats = summary?.daily_stats || [];
+    if (tokenDaysFilter === 'all') return stats;
+    const days = parseInt(tokenDaysFilter, 10) || 14;
+    return stats.slice(-days);
+  }, [summary?.daily_stats, tokenDaysFilter]);
+
+  const peakDay = useMemo(() => {
+    if (!filteredDailyStats.length) return null;
+    return [...filteredDailyStats].sort((a, b) => (Number(b.tokens) || 0) - (Number(a.tokens) || 0))[0];
+  }, [filteredDailyStats]);
+
+  const dailyAvgTokens = useMemo(() => {
+    if (!filteredDailyStats.length) return 0;
+    const sum = filteredDailyStats.reduce((acc, d) => acc + (Number(d.tokens) || 0), 0);
+    return Math.round(sum / filteredDailyStats.length);
+  }, [filteredDailyStats]);
+
+  const totalSavedInPeriod = useMemo(() => {
+    const sum = filteredDailyStats.reduce((acc, d) => acc + (Number(d.cost_saved_thb) || 0), 0);
+    return sum.toFixed(2);
+  }, [filteredDailyStats]);
+
+  const latestDay = useMemo(() => {
+    return filteredDailyStats[filteredDailyStats.length - 1] || null;
+  }, [filteredDailyStats]);
+
+  const dailyBreakdownRows = useMemo(
+    () => [...filteredDailyStats].reverse(),
+    [filteredDailyStats]
+  );
+  const visibleDailyBreakdownRows = useMemo(
+    () => dailyBreakdownRows.slice((dailyPage - 1) * dailyPageSize, dailyPage * dailyPageSize),
+    [dailyBreakdownRows, dailyPage, dailyPageSize]
+  );
+  useEffect(() => {
+    setDailyPage(1);
+  }, [tokenDaysFilter]);
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(dailyBreakdownRows.length / dailyPageSize));
+    setDailyPage((page) => Math.min(page, totalPages));
+  }, [dailyBreakdownRows.length, dailyPageSize]);
 
   const fetchSummary = useCallback(async () => {
     setLoading(true);
@@ -607,7 +658,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
       {/* ── Daily Activity Chart ── */}
       {summary?.daily_stats && summary.daily_stats.length > 0 && (
         <div className="glass-panel p-5 sm:p-6 rounded-2xl border border-white/[0.08] space-y-4 shadow-xl">
-          <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-cyan-400" />
@@ -615,16 +666,36 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
               </div>
               <p className="text-xs text-slate-400">กราฟแนวโน้มปริมาณโทเคนและมูลค่าที่ประหยัดได้ในแต่ละวัน</p>
             </div>
-            <span className="text-xs font-semibold text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-lg">
-              {summary.daily_stats.length} วันล่าสุด
-            </span>
+
+            {/* Time Filter Controls */}
+            <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/[0.08] self-start sm:self-auto">
+              {[
+                { id: '7', label: '7 วัน' },
+                { id: '14', label: '14 วัน' },
+                { id: '30', label: '30 วัน' },
+                { id: 'all', label: `ทั้งหมด (${summary.daily_stats.length} วัน)` },
+              ].map((btn) => (
+                <button
+                  key={btn.id}
+                  type="button"
+                  onClick={() => setTokenDaysFilter(btn.id)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                    tokenDaysFilter === btn.id
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                  }`}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Pure SVG Area & Line Chart */}
           <div className="pt-1">
             <AreaLineChart
-              data={summary.daily_stats}
-              height={130}
+              data={filteredDailyStats}
+              height={140}
               valueKey="tokens"
               dateKey="date"
               secondaryKey="cost_saved_thb"
@@ -634,24 +705,138 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5 pt-2">
-            {summary.daily_stats.map((day) => (
-              <div
-                key={day.date}
-                className="p-3 rounded-xl bg-black/40 border border-white/[0.06] flex flex-col justify-between space-y-2 hover:border-[#25F4EE]/30 transition-colors"
-              >
-                <span className="text-[11px] text-slate-400">{day.date}</span>
-                <div>
-                  <div className="text-base font-bold text-white">
-                    {day.tokens > 1000 ? `${(day.tokens / 1000).toFixed(1)}k` : day.tokens}
-                  </div>
-                  <div className="text-[10px] text-emerald-400 font-semibold">
-                    ฿{day.cost_saved_thb} ประหยัด
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-500">{day.calls} ครั้ง</span>
+          {/* ── High-Level Performance KPI Strip (Replaces the clunky 100-box grid) ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+            {/* Peak Day */}
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] hover:border-amber-500/30 transition-all flex flex-col justify-between space-y-1.5">
+              <div className="flex items-center justify-between text-slate-400 text-xs">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Flame className="w-3.5 h-3.5 text-amber-400" />
+                  วันใช้งานสูงสุด
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">{peakDay?.date || '-'}</span>
               </div>
-            ))}
+              <div className="text-lg font-black text-white">
+                {peakDay ? (peakDay.tokens >= 1000 ? `${(peakDay.tokens / 1000).toFixed(1)}k` : peakDay.tokens) : 0}{' '}
+                <span className="text-xs font-normal text-slate-400">โทเคน</span>
+              </div>
+              <div className="text-[11px] text-amber-300/90 font-medium">
+                เรียกใช้งาน {peakDay?.calls || 0} ครั้ง
+              </div>
+            </div>
+
+            {/* Daily Average */}
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] hover:border-cyan-500/30 transition-all flex flex-col justify-between space-y-1.5">
+              <div className="flex items-center justify-between text-slate-400 text-xs">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                  เฉลี่ยต่อวัน
+                </span>
+                <span className="text-[10px] text-cyan-400/80 font-medium">{filteredDailyStats.length} วัน</span>
+              </div>
+              <div className="text-lg font-black text-white">
+                {dailyAvgTokens >= 1000 ? `${(dailyAvgTokens / 1000).toFixed(1)}k` : dailyAvgTokens}{' '}
+                <span className="text-xs font-normal text-slate-400">โทเคน/วัน</span>
+              </div>
+              <div className="text-[11px] text-slate-400">
+                ปริมาณเฉลี่ยในช่วงเวลา
+              </div>
+            </div>
+
+            {/* Total Saved */}
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] hover:border-emerald-500/30 transition-all flex flex-col justify-between space-y-1.5">
+              <div className="flex items-center justify-between text-slate-400 text-xs">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <PiggyBank className="w-3.5 h-3.5 text-emerald-400" />
+                  ประหยัดสะสม
+                </span>
+                <span className="text-[10px] text-emerald-400/80 font-medium">THB</span>
+              </div>
+              <div className="text-lg font-black text-emerald-400">
+                ฿{totalSavedInPeriod}
+              </div>
+              <div className="text-[11px] text-slate-400">
+                ประหยัดจาก Local Cache & Prompts
+              </div>
+            </div>
+
+            {/* Latest Activity */}
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] hover:border-blue-500/30 transition-all flex flex-col justify-between space-y-1.5">
+              <div className="flex items-center justify-between text-slate-400 text-xs">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                  บันทึกล่าสุด
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">{latestDay?.date || '-'}</span>
+              </div>
+              <div className="text-lg font-black text-white">
+                {latestDay ? (latestDay.tokens >= 1000 ? `${(latestDay.tokens / 1000).toFixed(1)}k` : latestDay.tokens) : 0}{' '}
+                <span className="text-xs font-normal text-slate-400">โทเคน</span>
+              </div>
+              <div className="text-[11px] text-emerald-400 font-medium">
+                ฿{latestDay?.cost_saved_thb || 0} ประหยัด ({latestDay?.calls || 0} ครั้ง)
+              </div>
+            </div>
+          </div>
+
+          {/* ── Optional Collapsible Detailed Breakdown Table ── */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setShowDailyBreakdown((prev) => !prev)}
+              className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] text-xs text-slate-300 font-medium transition-all cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <FileText className="w-3.5 h-3.5 text-slate-400" />
+                <span>ดูรายละเอียดตารางรายวัน ({filteredDailyStats.length} วัน)</span>
+              </span>
+              <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                <span>{showDailyBreakdown ? 'ซ่อนตาราง' : 'แสดงตาราง'}</span>
+                {showDailyBreakdown ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </span>
+            </button>
+
+            {showDailyBreakdown && (
+              <div className="mt-2.5 rounded-xl border border-white/[0.06] bg-black/40 overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-white/[0.04] text-slate-400 font-semibold border-b border-white/[0.06] sticky top-0 backdrop-blur-md">
+                    <tr>
+                      <th className="py-2 px-3">วันที่</th>
+                      <th className="py-2 px-3">ปริมาณโทเคน</th>
+                      <th className="py-2 px-3">มูลค่าประหยัด</th>
+                      <th className="py-2 px-3 text-right">จำนวนครั้ง</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04] text-slate-300">
+                    {visibleDailyBreakdownRows.map((day) => (
+                      <tr key={day.date} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-2 px-3 font-mono text-white">{day.date}</td>
+                        <td className="py-2 px-3 font-bold text-white">
+                          {Number(day.tokens).toLocaleString()}
+                        </td>
+                        <td className="py-2 px-3 text-emerald-400 font-medium">
+                          ฿{day.cost_saved_thb}
+                        </td>
+                        <td className="py-2 px-3 text-right text-slate-400">
+                          {day.calls} ครั้ง
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <PaginationControls
+                  page={dailyPage}
+                  pageSize={dailyPageSize}
+                  totalItems={dailyBreakdownRows.length}
+                  onPageChange={setDailyPage}
+                  onPageSizeChange={(size) => {
+                    setDailyPageSize(size);
+                    setDailyPage(1);
+                  }}
+                  itemLabel="วัน"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -17,6 +17,7 @@ import RawVaultPanel from './RawVaultPanel';
 import CoverStudioModal from './CoverStudioModal';
 import { getCoverVariant } from '../lib/coverVariant';
 import PaginationControls from './PaginationControls';
+import { matchExportVideo } from '../lib/exportMatching';
 
 // The gallery's own QR used to be a degraded copy of ContentTrackerHub's --
 // missing pid/aid/hook/hashtags and reading `video.caption`, a key
@@ -1239,30 +1240,50 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
   }, [linkingVideo, selectedLinkProductId, selectedLinkAngleId, selectedDetailVideo, onRefresh, showToast]);
 
   // Auto-open video detail modal if user navigated from a completed render task
+  const highlightTimeoutRef = useRef(null);
+
   useEffect(() => {
-    if (!initialHighlightVideo || !exportsList || exportsList.length === 0) return;
-    const targetStr = String(initialHighlightVideo).toLowerCase().trim();
-    const matched = exportsList.find((item) => {
-      const name = (item.name || '').toLowerCase();
-      const path = (item.path || '').toLowerCase();
-      const relPath = (item.rel_path || '').toLowerCase();
-      const prodId = (item.product_id || '').toLowerCase();
-      return name.includes(targetStr) || targetStr.includes(name) ||
-             path.includes(targetStr) || relPath.includes(targetStr) ||
-             (prodId && targetStr.includes(prodId));
-    });
+    if (!initialHighlightVideo) return;
+
+    // If exportsList is empty or not yet loaded, trigger a forced refresh from backend
+    if (!exportsList || exportsList.length === 0) {
+      onRefresh?.({ includeExports: true, force: true });
+      return;
+    }
+
+    const matched = exportsList.find((item) => matchExportVideo(item, initialHighlightVideo));
 
     if (matched) {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+        highlightTimeoutRef.current = null;
+      }
       setActiveVideoPath(matched.path);
       setSelectedDetailVideo(matched);
       onClearHighlightVideo?.();
-    } else if (exportsList.length > 0) {
-      // Fallback: pick the latest rendered video if name slightly varied
-      setActiveVideoPath(exportsList[0].path);
-      setSelectedDetailVideo(exportsList[0]);
-      onClearHighlightVideo?.();
+    } else {
+      // The video has not arrived in exportsList yet (cached or in-flight).
+      // Force refresh the exports catalog immediately.
+      onRefresh?.({ includeExports: true, force: true });
+
+      // Safety timeout: wait up to 4.5s for the fresh exportsList before giving up,
+      // but NEVER open an unrelated video (e.g. mouse when plug was rendered)!
+      if (!highlightTimeoutRef.current) {
+        highlightTimeoutRef.current = setTimeout(() => {
+          showToast('กำลังจัดเตรียมไฟล์คลิป หรือกำลังประมวลผล กรุณากดรีเฟรชอีกครั้ง', 'info');
+          onClearHighlightVideo?.();
+          highlightTimeoutRef.current = null;
+        }, 4500);
+      }
     }
-  }, [initialHighlightVideo, exportsList, onClearHighlightVideo]);
+
+    return () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+        highlightTimeoutRef.current = null;
+      }
+    };
+  }, [initialHighlightVideo, exportsList, onClearHighlightVideo, onRefresh, showToast]);
 
   const handleOpenExportsFolder = useCallback(() => {
     openFolder('exports');
@@ -1464,24 +1485,33 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     return list;
   }, [exportsList, debouncedSearch, selectedProductFilter, statusFilter, sortBy]);
 
-  // Grid view renders hundreds of clips as heavy DOM cards (thumbnail/video +
-  // hover preview + action buttons) -- mounting all of them at once gets
-  // slow once the library grows past a couple dozen. Render only a window
-  // of `filteredExports` and let the user reveal more with a button, same
-  // data already fetched -- no extra network round-trip.
+  // Heavy gallery surfaces render only a page of `filteredExports` at a time.
+  // This keeps card thumbnails, hover previews, and the split playlist bounded
+  // without another network round-trip.
   const [gridPage, setGridPage] = useState(1);
   const [gridPageSize, setGridPageSize] = useState(20);
+  const [splitPage, setSplitPage] = useState(1);
+  const [splitPageSize, setSplitPageSize] = useState(10);
   useEffect(() => {
     setGridPage(1);
+    setSplitPage(1);
   }, [debouncedSearch, selectedProductFilter, statusFilter, sortBy]);
   const visibleExports = useMemo(
     () => filteredExports.slice((gridPage - 1) * gridPageSize, gridPage * gridPageSize),
     [filteredExports, gridPage, gridPageSize]
   );
+  const visibleSplitExports = useMemo(
+    () => filteredExports.slice((splitPage - 1) * splitPageSize, splitPage * splitPageSize),
+    [filteredExports, splitPage, splitPageSize]
+  );
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(filteredExports.length / gridPageSize));
     setGridPage((page) => Math.min(page, totalPages));
   }, [filteredExports.length, gridPageSize]);
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredExports.length / splitPageSize));
+    setSplitPage((page) => Math.min(page, totalPages));
+  }, [filteredExports.length, splitPageSize]);
 
   // Active Video computed for Split Studio view
   const activeVideo = useMemo(() => {
@@ -1776,7 +1806,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                   <span className="text-[11px] text-slate-500">ปัดซ้าย-ขวาเพื่อเลือก</span>
                 </div>
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1 px-1 snap-x snap-mandatory no-scrollbar -mx-2 px-2">
-                  {filteredExports.map(item => (
+                  {visibleSplitExports.map(item => (
                     <ExportMobilePill
                     key={item.export_id || item.path}
                       item={item}
@@ -1801,8 +1831,8 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                     </span>
                   </div>
 
-                  <div className="space-y-2 max-h-[calc(100vh-230px)] overflow-y-auto pr-1 no-scrollbar">
-                    {filteredExports.map(item => (
+                  <div className="space-y-2 pr-1">
+                    {visibleSplitExports.map(item => (
                       <ExportSidebarItem
                         key={item.export_id || item.path}
                         item={item}
@@ -1833,6 +1863,18 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                   />
                 </div>
               </div>
+
+              <PaginationControls
+                page={splitPage}
+                pageSize={splitPageSize}
+                totalItems={filteredExports.length}
+                onPageChange={setSplitPage}
+                onPageSizeChange={(size) => {
+                  setSplitPageSize(size);
+                  setSplitPage(1);
+                }}
+                itemLabel="คลิป"
+              />
             </div>
           ) : (
             /* Grid View: 9:16 Card Showcase */

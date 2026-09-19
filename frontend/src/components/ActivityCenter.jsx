@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Zap, CheckCircle2, AlertCircle, Clock, X, Trash2, ArrowRight,
   Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers, ExternalLink, Play, Scissors, ImagePlus, Trophy, Eye
@@ -6,6 +6,7 @@ import {
 import { useTaskManager } from '../context/TaskContext';
 import { getRenderStatus } from '../api';
 import { ACTIVE_RENDER_STORAGE_KEY } from '../lib/renderJobModel';
+import PaginationControls from './PaginationControls';
 
 function getTaskIcon(type) {
   switch (type) {
@@ -160,6 +161,10 @@ export function ActivityDrawer() {
   } = useTaskManager();
 
   const [tabFilter, setTabFilter] = useState('all'); // all | active | completed | viral
+  const [taskPage, setTaskPage] = useState(1);
+  const [taskPageSize, setTaskPageSize] = useState(10);
+  const [viralPage, setViralPage] = useState(1);
+  const [viralPageSize, setViralPageSize] = useState(10);
   const drawerRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -186,8 +191,6 @@ export function ActivityDrawer() {
     };
   }, [isActivityDrawerOpen, setIsActivityDrawerOpen]);
 
-  if (!isActivityDrawerOpen) return null;
-
   const viralCount = viralMilestones.length;
 
   const filteredTasks = tasks.filter(t => {
@@ -195,6 +198,28 @@ export function ActivityDrawer() {
     if (tabFilter === 'completed') return t.status === 'completed';
     return true;
   });
+  const visibleFilteredTasks = useMemo(
+    () => filteredTasks.slice((taskPage - 1) * taskPageSize, taskPage * taskPageSize),
+    [filteredTasks, taskPage, taskPageSize]
+  );
+  const visibleViralMilestones = useMemo(
+    () => viralMilestones.slice((viralPage - 1) * viralPageSize, viralPage * viralPageSize),
+    [viralMilestones, viralPage, viralPageSize]
+  );
+  React.useEffect(() => {
+    setTaskPage(1);
+    setViralPage(1);
+  }, [tabFilter]);
+  React.useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredTasks.length / taskPageSize));
+    setTaskPage((page) => Math.min(page, totalPages));
+  }, [filteredTasks.length, taskPageSize]);
+  React.useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(viralMilestones.length / viralPageSize));
+    setViralPage((page) => Math.min(page, totalPages));
+  }, [viralMilestones.length, viralPageSize]);
+
+  if (!isActivityDrawerOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] w-screen h-[100dvh] max-h-[100dvh] overflow-hidden flex justify-end animate-fadeIn overscroll-none" role="presentation">
@@ -314,7 +339,8 @@ export function ActivityDrawer() {
                 <p className="text-[11px] text-slate-600">เมื่อซิงก์ข้อมูลจาก TikTok Studio แล้ว คลิปยอดวิวสูงจะโผล่ที่นี่ทันที</p>
               </div>
             ) : (
-              viralMilestones.map(m => (
+              <>
+                {visibleViralMilestones.map(m => (
                 <div
                   key={m.post_id}
                   className="p-3.5 rounded-xl border border-amber-500/30 bg-gradient-to-br from-[#0B0F19] to-amber-950/20 shadow-lg space-y-2.5"
@@ -367,7 +393,19 @@ export function ActivityDrawer() {
                     </div>
                   )}
                 </div>
-              ))
+                ))}
+                <PaginationControls
+                  page={viralPage}
+                  pageSize={viralPageSize}
+                  totalItems={viralMilestones.length}
+                  onPageChange={setViralPage}
+                  onPageSizeChange={(size) => {
+                    setViralPageSize(size);
+                    setViralPage(1);
+                  }}
+                  itemLabel="คลิปปัง"
+                />
+              </>
             )
           ) : filteredTasks.length === 0 ? (
             <div className="h-48 flex flex-col items-center justify-center text-center p-6 text-slate-500 space-y-2">
@@ -375,7 +413,8 @@ export function ActivityDrawer() {
               <p className="text-xs">ไม่มีรายการกิจกรรมในหมวดนี้</p>
             </div>
           ) : (
-            filteredTasks.map(task => {
+            <>
+            {visibleFilteredTasks.map(task => {
               const isRunning = task.status === 'processing' || task.status === 'queued';
               const isDone = task.status === 'completed';
               const pct = Math.round((task.progress || 0) * 100);
@@ -671,7 +710,19 @@ export function ActivityDrawer() {
                   </div>
                 </div>
               );
-            })
+            })}
+            <PaginationControls
+              page={taskPage}
+              pageSize={taskPageSize}
+              totalItems={filteredTasks.length}
+              onPageChange={setTaskPage}
+              onPageSizeChange={(size) => {
+                setTaskPageSize(size);
+                setTaskPage(1);
+              }}
+              itemLabel="งาน"
+            />
+            </>
           )}
         </div>
       </aside>

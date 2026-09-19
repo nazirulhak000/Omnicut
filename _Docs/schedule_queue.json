@@ -518,5 +518,29 @@
     "updated_at": "2026-09-17T18:21:47+00:00",
     "extension_prepared_at": "2026-09-18T01:19:55.818178",
     "posted_at": "2026-09-17T18:21:47+00:00"
+  },
+  {
+    "id": "2c28b605ad2846bba35066eeac18186e",
+    "video_path": "04_Exports/Posted/TOS02-ปัญหาก่อนใช้_1_20260919_080627.mp4",
+    "video_key": "04_exports/tos02-ปัญหาก่อนใช้_1_20260919_080627.mp4",
+    "export_id": "exp_d1435b5f9ed34aabac98f12a0c68a57e",
+    "scheduled_at": "2026-09-19T08:25+07:00",
+    "status": "posted",
+    "product_id": "c3c8f81d146b46de8047d27a34e00fbf",
+    "angle_id": "pain_point",
+    "product_name": "Toshino ปลั๊กไฟ  (2300W)",
+    "project_name": "TOS02-ปัญหาก่อนใช้_1",
+    "hook_title": "⚠️ เกือบไฟไหม้บ้าน! เพราะปลั๊กราคาถูก เปลี่ยนชีวิตด้วยตัวนี้ด่วน",
+    "style_preset": null,
+    "hook_color": null,
+    "cover_path": "05_Covers_Thumbnails/TOS02-ปัญหาก่อนใช้_1_cover.jpg",
+    "cover_url": "/api/media/05_Covers_Thumbnails/TOS02-%E0%B8%9B%E0%B8%B1%E0%B8%8D%E0%B8%AB%E0%B8%B2%E0%B8%81%E0%B9%88%E0%B8%AD%E0%B8%99%E0%B9%83%E0%B8%8A%E0%B9%89_1_cover.jpg",
+    "caption": "อย่าเอาบ้านทั้งหลังไปเสี่ยงกับปลั๊กพ่วงราคาถูก! เปลี่ยนมาใช้ Toshino รุ่น SO ปลอดภัย มี มอก. แท้ พิกัดในตะกร้าเหลืองเลยครับ 👇",
+    "hashtags": "#toshino #ปลั๊กพ่วงมอก #ความปลอดภัยในบ้าน #ของดีบอกต่อ #พิกัดในตะกร้า",
+    "tiktok_product_id": "1729587543658761174",
+    "created_at": "2026-09-19T01:09:34+00:00",
+    "updated_at": "2026-09-19T01:12:48+00:00",
+    "extension_prepared_at": "2026-09-19T08:09:45.112269",
+    "posted_at": "2026-09-19T01:12:48+00:00"
   }
 ]
