@@ -345,6 +345,20 @@ def list_raw_videos(product_id: Optional[str] = None):
     }
 
 
+def _sanitize_media_filename(name: str) -> str:
+    """
+    Sanitize a filename for raw clips, assets, and renames.
+    Keeps alphanumeric characters, safe punctuation (._- ()[]), and ALL Thai characters
+    (consonants, vowels, tone marks, and special marks in range U+0E00 to U+0E7F).
+    """
+    if not name:
+        return ""
+    return "".join(
+        c for c in name
+        if c.isalnum() or c in "._- ()[]" or ("\u0E00" <= c <= "\u0E7F")
+    ).strip()
+
+
 @router.post("/api/videos/rename")
 def rename_video_file(payload: RenameVideoPayload):
     """Safely renames a video file on disk and updates any ProductStore references."""
@@ -358,7 +372,7 @@ def rename_video_file(payload: RenameVideoPayload):
         raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์คลิปต้นฉบับ: {Path(video_path).name}")
 
     orig_suffix = v_path.suffix
-    clean_new_name = "".join(c for c in new_name if c.isalnum() or c in "._- \u0E00-\u0E7F").strip()
+    clean_new_name = _sanitize_media_filename(new_name)
     if not clean_new_name:
         raise HTTPException(status_code=400, detail="ชื่อใหม่มีตัวอักษรที่ไม่ถูกต้อง")
 
@@ -445,10 +459,10 @@ async def upload_file(
         raise HTTPException(status_code=400, detail="ไม่รองรับนามสกุลไฟล์นี้สำหรับ raw upload")
 
     if custom_name and custom_name.strip():
-        clean_custom = "".join(c for c in custom_name.strip() if c.isalnum() or c in "._- \u0E00-\u0E7F").strip()
+        clean_custom = _sanitize_media_filename(custom_name)
         safe_filename = f"{clean_custom}{orig_suffix}" if clean_custom else f"video_{int(time.time())}{orig_suffix}"
     else:
-        safe_filename = "".join(c for c in orig_filename if c.isalnum() or c in "._- \u0E00-\u0E7F")
+        safe_filename = _sanitize_media_filename(orig_filename)
         if not safe_filename:
             safe_filename = f"video_{int(time.time())}{orig_suffix}"
 
@@ -965,7 +979,7 @@ async def upload_asset(file: UploadFile = File(...), asset_type: str = Form("sfx
 
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    safe_filename = "".join(c for c in orig_filename if c.isalnum() or c in "._- ฀-๿")
+    safe_filename = _sanitize_media_filename(orig_filename)
     if not safe_filename or not safe_filename.lower().endswith(orig_suffix):
         safe_filename = f"asset_{int(time.time())}{orig_suffix}"
 

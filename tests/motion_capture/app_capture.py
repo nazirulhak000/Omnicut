@@ -107,6 +107,7 @@ def _capture_frame_data(page: Any, selector: str, frame_index: int) -> dict[str,
     try:
         return page.evaluate(
             """({ selector, frameIndex }) => {
+                const hook = window.motionCapture;
                 const result = window.motionCapture.capture({ frameIndex });
                 const canvas = document.querySelector(selector);
                 if (!(canvas instanceof HTMLCanvasElement)) {
@@ -116,6 +117,15 @@ def _capture_frame_data(page: Any, selector: str, frame_index: int) -> dict[str,
                 const { dataUrl, ...motionMetadata } = result;
                 return {
                     ...motionMetadata,
+                    hook_metadata: {
+                        schemaVersion: hook.schemaVersion ?? null,
+                        renderer: hook.renderer ?? null,
+                        width: hook.width ?? null,
+                        height: hook.height ?? null,
+                        fps: hook.fps ?? null,
+                        durationSeconds: hook.durationSeconds ?? null,
+                        presetIds: hook.presetIds ?? null,
+                    },
                     data_url: dataUrl,
                     width: canvas.width,
                     height: canvas.height,

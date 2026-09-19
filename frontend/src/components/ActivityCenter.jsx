@@ -399,11 +399,8 @@ export function ActivityDrawer() {
                   pageSize={viralPageSize}
                   totalItems={viralMilestones.length}
                   onPageChange={setViralPage}
-                  onPageSizeChange={(size) => {
-                    setViralPageSize(size);
-                    setViralPage(1);
-                  }}
                   itemLabel="คลิปปัง"
+                  compact={true}
                 />
               </>
             )
@@ -716,11 +713,8 @@ export function ActivityDrawer() {
               pageSize={taskPageSize}
               totalItems={filteredTasks.length}
               onPageChange={setTaskPage}
-              onPageSizeChange={(size) => {
-                setTaskPageSize(size);
-                setTaskPage(1);
-              }}
               itemLabel="งาน"
+              compact={true}
             />
             </>
           )}
@@ -1030,13 +1024,13 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
     : Math.round((renderTask?.progress || 0) * 100);
 
   const label = isLive
-    ? (liveStatus.step_label || liveStatus.message || 'กำลังตัดต่อ...')
+    ? (liveStatus.step_label || liveStatus.message || 'กำลังเรนเดอร์...')
     : (renderTask?.step_label || 'กำลังประมวลผล...');
 
   const title = liveStatus?.title
     || renderTask?.payload?.project_name
     || renderTask?.title
-    || 'กำลังตัดต่อวิดีโอ';
+    || 'กำลังเรนเดอร์วิดีโอ';
 
   const barColor = isDone
     ? 'from-emerald-500 to-emerald-400'

@@ -45,8 +45,13 @@ class FixtureSpec:
     fps: int = FRAME_RATE
     font_name: str = DEFAULT_FONT
     text: str = DEFAULT_TEXT
+    render_text: Optional[str] = None
     background: str = DEFAULT_BACKGROUND
     base_position: Tuple[int, int] = DEFAULT_BASE_POSITION
+    motion_window_ms: Optional[int] = None
+    font_size: int = 72
+    bold: bool = False
+    outline_px: int = 4
 
 
 @dataclass(frozen=True)
@@ -122,7 +127,7 @@ def _fixture_ass_header(spec: FixtureSpec) -> str:
             "",
             "[V4+ Styles]",
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-            f"Style: Fixture,{spec.font_name},72,&H00FFFFFF,&H00FFFFFF,&H00101010,&H80000000,0,0,0,0,100,100,0,0,1,4,2,5,0,0,0,1",
+            f"Style: Fixture,{spec.font_name},{spec.font_size},&H00FFFFFF,&H00FFFFFF,&H00101010,&H80000000,{int(spec.bold)},0,0,0,100,100,0,0,1,{spec.outline_px},2,5,0,0,0,1",
             "",
             "[Events]",
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -135,7 +140,11 @@ def build_ass_fixture(spec: FixtureSpec) -> Tuple[str, Dict[str, Any]]:
     if contract is None:
         raise ValueError(f"unknown motion preset: {spec.role}.{spec.phase}.{spec.preset_id}")
 
-    duration_ms = max(1000, int(round(float(contract.get("duration_ms", 0)))) + 200)
+    duration_ms = (
+        max(1, int(spec.motion_window_ms))
+        if spec.motion_window_ms is not None
+        else max(1000, int(round(float(contract.get("duration_ms", 0)))) + 200)
+    )
     sample_ms = max(0, min(int(spec.sample_ms), duration_ms - 1))
     plan = build_ass_motion_segments(
         contract,
@@ -145,7 +154,8 @@ def build_ass_fixture(spec: FixtureSpec) -> Tuple[str, Dict[str, Any]]:
         unsupported="report",
     )
     position_tag = "" if (r"\pos(" in plan.ass or r"\move(" in plan.ass) else f"\\pos({spec.base_position[0]},{spec.base_position[1]})"
-    text = ass_escape_text(spec.text)
+    text = ass_escape_text(spec.render_text if spec.render_text is not None else spec.text)
+    text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", r"\N")
     event = (
         f"Dialogue: 0,{_ass_time(0)},{_ass_time(duration_ms / 1000)},Fixture,,0,0,0,,"
         f"{{\\an5{position_tag}{plan.ass}}}{text}"

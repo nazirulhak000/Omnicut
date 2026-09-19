@@ -15,15 +15,51 @@ export default function PaginationControls({
   pageSizeOptions = [10, 20, 50],
   itemLabel = 'รายการ',
   disabled = false,
+  compact = false,
 }) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const pages = useMemo(() => buildPageWindow(page, totalPages), [page, totalPages]);
   const firstItem = totalItems === 0 ? 0 : ((page - 1) * pageSize) + 1;
   const lastItem = Math.min(page * pageSize, totalItems);
 
+  if (compact) {
+    return (
+      <div className="flex items-center justify-between gap-2 pt-1.5 text-xs">
+        <div className="text-[11px] text-slate-400 font-medium whitespace-nowrap min-w-0 truncate">
+          {totalItems === 0 ? `ไม่พบ${itemLabel}` : `${firstItem}-${lastItem} จาก ${totalItems} ${itemLabel}`}
+        </div>
+        <nav className="flex items-center gap-1 shrink-0" aria-label={`หน้า${itemLabel}`}>
+          <button
+            type="button"
+            onClick={() => onPageChange(Math.max(1, page - 1))}
+            disabled={disabled || page <= 1}
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            aria-label="หน้าก่อนหน้า"
+            title="หน้าก่อนหน้า"
+          >
+            ‹
+          </button>
+          <span className="px-1.5 text-[11px] font-mono text-slate-300 font-semibold whitespace-nowrap select-none">
+            {page} / {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+            disabled={disabled || page >= totalPages}
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            aria-label="หน้าถัดไป"
+            title="หน้าถัดไป"
+          >
+            ›
+          </button>
+        </nav>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-white/[0.06]">
-      <div className="flex items-center gap-2 text-[11px] text-slate-500">
+      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 whitespace-nowrap shrink-0">
         <span>{totalItems === 0 ? `ไม่พบ${itemLabel}` : `แสดง ${firstItem}-${lastItem} จาก ${totalItems} ${itemLabel}`}</span>
         {onPageSizeChange && (
           <label className="inline-flex items-center gap-1.5 whitespace-nowrap">
@@ -41,7 +77,7 @@ export default function PaginationControls({
         )}
       </div>
 
-      <nav className="flex items-center gap-1" aria-label={`หน้า${itemLabel}`}>
+      <nav className="flex flex-wrap items-center gap-1 shrink-0" aria-label={`หน้า${itemLabel}`}>
         <button
           type="button"
           onClick={() => onPageChange(1)}
@@ -89,7 +125,7 @@ export default function PaginationControls({
           type="button"
           onClick={() => onPageChange(totalPages)}
           disabled={disabled || page >= totalPages}
-          className="px-2 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-2.5 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label="หน้าสุดท้าย"
         >
           »

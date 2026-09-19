@@ -1,3 +1,7 @@
+﻿# 📋 OmniCut Pro Studio — Todo กลาง
+
+สมุดบันทึกรอบงานที่ **ยังไม่เสร็จ** ของโปรเจกต์นี้ — ทุกงานต้องผ่านไฟล์นี้ก่อนแตะโค้ด
+
 # 📋 OmniCut Pro Studio — Todo กลาง
 
 สมุดบันทึกรอบงานที่ **ยังไม่เสร็จ** ของโปรเจกต์นี้ — ทุกงานต้องผ่านไฟล์นี้ก่อนแตะโค้ด
@@ -11,9 +15,44 @@
 | [SYSTEM_AUDIT_FIX_PLAN.md](file:///d:/Winona/Programmer/Capcut/SYSTEM_AUDIT_FIX_PLAN.md) | แผนแก้ตาม audit ข้างบน แบ่ง 10 stream ขนาน + phase สำหรับยิง agent พร้อมกัน |
 | [SYSTEM_AUDIT_2026-09-15.md](file:///d:/Winona/Programmer/Capcut/SYSTEM_AUDIT_2026-09-15.md) | Audit ปัจจุบัน 17 ส่วน พร้อม baseline และลำดับแก้ไข |
 | [PRO_EDITOR_STYLE_PLAN.md](file:///d:/Winona/Programmer/Capcut/PRO_EDITOR_STYLE_PLAN.md) | แผนยกระดับคุณภาพการตัดต่ออัตโนมัติด้วย Editorial Style Preset กลาง |
+| [TIKTOK_GADGET_MEDIA_PLAN.md](file:///d:/Winona/Programmer/Capcut/TIKTOK_GADGET_MEDIA_PLAN.md) | แผนบัญชี TikTok Gadget Media, campaign 21 คลิป และ functional slice แรก (ดำเนินการโดย: Codex (GPT-5)) |
 | [.agents/rules/work_loop.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/work_loop.md) | กติกาว่าหนึ่งรอบทำยังไง ติ๊กยังไง ปิดรอบยังไง |
 
 ---
+
+## Round CLEAR-OPEN-WORKSTREAMS-20260919 — active
+
+ดำเนินการโดย: Codex (GPT-5)
+
+เป้าหมาย: แยกเอเจนต์เคลียร์งานที่ยังเปิดจริง โดยรักษา dirty worktree เดิมและไม่แก้ `TODO.md`/`HISTORY.md` จากเอเจนต์ย่อย
+
+- [ ] Agent Motion: สร้าง frame pair จริงแล้ว แต่ P1-F parity gate ยังไม่ผ่าน (`mask IoU 0.1813699217`, `bbox edge delta 22px`); ดู `MOTION-PARITY-P1-F-REPORT-20260919.md`
+- [x] Agent Backend: แก้ Full pytest failures 4 จุด; targeted regression `11 passed`, expanded regression `60 passed, 1 warning`
+- [x] Agent Audit: ยืนยัน P1-E/P1-A/ASS adapter/Producer Hub เป็นงานปิดแล้วแต่ TODO ซ้ำ
+- [x] Codex integration: motion/preview suite `169 passed, 3 skipped`; frontend test/build/lint ผ่าน; `git diff --check` ผ่าน
+- [ ] Closeout: รอแก้ parity blocker และยืนยัน Full pytest ทั้งชุดก่อนปิดรอบ
+
+### Notes
+
+- Dirty worktree ก่อนเริ่ม: `HISTORY.md`, `TODO.md`, `frontend/src/components/ActivityCenter.jsx`, `frontend/src/components/BatchRenderModal.jsx`, `scripts/api_videos.py` และ `tests/test_raw_video_thai_names.py`
+- เอเจนต์ย่อยห้ามเขียนทับไฟล์ dirty worktree และห้ามสร้าง artifact ทดสอบนอก `.tmp/`
+- Full pytest ถูกจำกัดเวลา 300 วินาทีโดยไม่มี failure summary; ยังไม่ถือว่าผ่านทั้งชุด
+
+---
+
+## Round TIKTOK-GADGET-MEDIA-FUNCTIONAL-20260919 — active
+
+ดำเนินการโดย: Codex (GPT-5)
+
+แผนอ้างอิง: [TIKTOK_GADGET_MEDIA_PLAN.md](file:///d:/Winona/Programmer/Capcut/TIKTOK_GADGET_MEDIA_PLAN.md)
+
+- [ ] สำรวจโมเดล project/campaign/script/export ที่มีอยู่ และระบุจุดต่อขยายที่ไม่กระทบบัญชีรีวิวปักตะกร้า
+- [ ] เพิ่ม domain model และ persistence สำหรับ `gadget_media` campaign 21 คลิป
+- [ ] เพิ่ม UI สร้าง campaign และจัดการ content slots 21 รายการ
+- [ ] เพิ่ม source provenance และ rights gate ก่อน render/export
+- [ ] เพิ่ม script templates สำหรับ `ดูคลิปนี้ก่อนซื้อ`, `แปลสเปกเป็นภาษาคน` และ `ของจริงกับคำโฆษณา`
+- [ ] เพิ่มฟิลด์ analytics: views, completion rate, comments, follows และ follows per 1,000 views
+- [ ] รัน deterministic tests, frontend tests, build และตรวจ cleanup ใน `.tmp/`
 
 ### Subtask P1-E-LIVE-CAPTURE-20260918 - app-level capture seam
 
@@ -21,12 +60,19 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 
 ดำเนินการโดย: Codex (GPT-5)
 
-- [ ] เพิ่ม CLI/Playwright capture ที่รับ URL และ selector ของ Canvas จาก SequencePlayer จริง
-- [ ] บันทึก PNG/metadata เฉพาะใน `.tmp/` และ skip อย่างโปร่งใสเมื่อ URL/selector/runtime ใช้งานไม่ได้
-- [ ] เพิ่ม targeted tests ใน `tests/motion_capture/` โดยไม่แก้ production renderer
+- [x] เพิ่ม CLI/Playwright capture ที่รับ URL และ selector ของ Canvas จาก SequencePlayer จริง
+- [x] บันทึก PNG/metadata เฉพาะใน `.tmp/` และ skip อย่างโปร่งใสเมื่อ URL/selector/runtime ใช้งานไม่ได้
+- [x] เพิ่ม targeted tests ใน `tests/motion_capture/` โดยไม่แก้ production renderer
 
 ## สถานะรวม
 
+- [ ] Round TIKTOK-GADGET-MEDIA-FUNCTIONAL-20260919 — บัญชี Gadget Media แยกจาก workflow ปักตะกร้า พร้อม campaign 21 คลิปและ rights gate (ดำเนินการโดย: Codex (GPT-5))
+
+- [x] Round COMPACT-PAGINATION-ALL-NARROW-CONTAINERS-AUDIT-AND-FIX-1 — ตรวจสอบและแก้ไข UI Pagination ในคอนเทนเนอร์แคบทั้งระบบ (AssetPanel 250px, Kanban Columns 300px, ActivityCenter 440px) ให้เป็น compact mode ไม่ล้นขอบและไม่ตกบรรทัด (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+- [x] Round PROJECT-SELECTOR-PAGINATION-UI-OVERFLOW-FIX-1 — แก้ไข UI Pagination ใน Dropdown เลือกโปรเจกต์: เพิ่ม compact mode ให้ PaginationControls ยุบเป็น `‹ 1 / 5 ›` ไม่ล้นขอบ และแก้ปัญหาข้อความบีบตกบรรทัดเป็นแนวตั้ง (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+- [x] Round BATCH-RENDER-MODAL-STATUS-LABEL-ALIGNMENT-1 — ปรับปรุงข้อความสถานะใน Batch Render Queue ให้ตรงกับบริบทการเรนเดอร์: เปลี่ยน "กำลังตัดต่อ" -> "กำลังเรนเดอร์", "พร้อมตัดต่อ" -> "พร้อมเรนเดอร์", "เลือกที่ยังไม่ได้ตัดต่อทั้งหมด" -> "เลือกที่ยังไม่ได้เรนเดอร์ทั้งหมด", "ตัดต่อแล้ว" -> "เรนเดอร์แล้ว" (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+
+- [x] Round RAW-VIDEO-THAI-FILENAME-VOWEL-TONE-MARK-FIX-1 — แก้ไขปัญหาชื่อคลิปดิบตัดสระและวรรณยุกต์ไทยทิ้ง (เช่น ปลั๊กไฟ -> ปลกไฟ, พัดลม -> พดลม) จาก bug การ sanitize ชื่อไฟล์ใน api_videos.py ที่ใช้ string membership แทนที่จะตรวจช่วง Unicode ภาษาไทย (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round EXPORT-PREVIEW-FRESH-SYNC-AND-MATCH-FIX-1 — แก้บั๊กพรีวิวคลิปที่เพิ่งเรนเดอร์เสร็จเปิดคลิปเก่าก่อนหน้า (เช่น เมาส์ แทนที่จะเป็น ปลั๊กไฟ) จาก cache 2s ใน loadExports + fallback exportsList[0] ที่ชิงเปิดและเคลียร์ target ก่อนข้อมูลใหม่มาถึง (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round TIKTOK-PENDING-PERSISTENT-IGNORE-LIST-1 — ระบบจำรายการที่กดข้าม (Persistent Ignore List) สำหรับ TikTok Pending Rows ป้องกันไม่ให้คลิปที่เคยข้ามถูกดึงกลับมาใหม่เมื่อซิงก์ TikTok Studio ซ้ำ พร้อมฟังก์ชันข้ามทั้งหมดในคลิกเดียว และกู้คืนรายการที่ข้าม (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round ANALYTICS-CHARTS-CHRONO-SORT-AND-TOKEN-SUMMARY-UI-1 — ปรับปรุง UI กราฟสถิติ: ลบกล่องวันเรียงยาวแทนที่ด้วย KPI Summary Strip และ Time Filter ใน Token Dashboard + แก้ไขการจัดเรียงลำดับเวลาทางประวัติศาสตร์ของกราฟยอดวิวคลิปให้ถูกต้อง พร้อมโหมดรายคลิป/รวมรายวัน (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
@@ -66,11 +112,11 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 
 ดำเนินการโดย: Codex (GPT-5)
 
-- [ ] เพิ่ม deterministic ASS/FFmpeg fixture seam ใต้ `tests/motion_capture/` เท่านั้น
-- [ ] สร้าง metadata + PNG frame สำหรับ preset ที่เลือก โดยใช้ temporary directory และไม่แตะ `04_Exports/`
-- [ ] กำหนด metric/threshold สำหรับ Canvas-vs-ASS พร้อมระบุข้อจำกัดเรื่อง rasterizer/font/alpha อย่างชัดเจน
-- [ ] ทำ golden seam test ที่ skip อย่างโปร่งใสเมื่อไม่มี ASS renderer หรือ golden frame และห้ามรายงานผ่านแทน pixel diff จริง
-- [ ] รัน targeted tests และตรวจ diff scope/cleanup
+- [x] เพิ่ม deterministic ASS/FFmpeg fixture seam ใต้ `tests/motion_capture/` เท่านั้น
+- [x] สร้าง metadata + PNG frame สำหรับ preset ที่เลือก โดยใช้ temporary directory และไม่แตะ `04_Exports/`
+- [x] กำหนด metric/threshold สำหรับ Canvas-vs-ASS พร้อมระบุข้อจำกัดเรื่อง rasterizer/font/alpha อย่างชัดเจน
+- [x] ทำ golden seam test ที่ skip อย่างโปร่งใสเมื่อไม่มี ASS renderer หรือ golden frame และห้ามรายงานผ่านแทน pixel diff จริง
+- [x] รัน targeted tests และตรวจ diff scope/cleanup
 
 ### Subtask P1-C-ASS-PIXEL-FIXTURE-20260918 — complete
 
@@ -94,7 +140,7 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 ดำเนินการโดย: Codex (GPT-5)
 
 - [x] P1-E: ตรวจเส้นทางรันแอปและ fixture data เพื่อจับ Canvas จาก `SequencePlayer` จริงด้วย Playwright โดยไม่แก้ renderer หลัก
-- [ ] P1-F: ผูก timestamp/preset/text เดียวกันกับ ASS fixture แล้วสร้างผลเทียบเชิงภาพจาก frame pair ใน `.tmp/` เท่านั้น
+- P1-F ถูกยกยอดเป็นงาน canonical ในรอบ `CLEAR-OPEN-WORKSTREAMS-20260919`: ผูก timestamp/preset/text และสร้าง frame pair จริงแล้ว แต่ metric ไม่ผ่าน จึงคง `pixel_parity_claim: false` ตาม `MOTION-PARITY-P1-F-REPORT-20260919.md`
 - [x] P1-G: เพิ่ม regression gate ที่ skip อย่างโปร่งใสเมื่อ route/data/runtime ใช้งานไม่ได้ และห้ามรายงาน pixel parity จาก synthetic fixture
 - [x] P1-H: บันทึกผล live capture, ข้อจำกัด และคำตัดสิน parity ใน readiness report พร้อมปิด/ยกยอดรอบอย่างถูกต้อง
 
@@ -106,16 +152,16 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 - [x] Report: `TEXT_MOTION_LIVE_CAPTURE_REPORT_20260918.md`
 
 - [x] P1-A: build deterministic browser Canvas frame-capture harness in `tests/motion_capture/`; real browser capture works, but app-level SequencePlayer cross-renderer parity remains deferred
-- [ ] P1-A scope guard: only add harness/fixture/test files; do not edit `SequencePlayer.jsx`, `overlay_events.py`, or `motion_effects.py`
-- [ ] P1-A evidence: distinguish real browser capture from fallback seam and record blocker if a browser runtime is unavailable
+- [x] P1-A scope guard: only add harness/fixture/test files; do not edit `SequencePlayer.jsx`, `overlay_events.py`, or `motion_effects.py`
+- [x] P1-A evidence: distinguish real browser capture from fallback seam and record blocker if a browser runtime is unavailable
 
 - [x] P1-A: build a deterministic browser Canvas frame-capture harness in `tests/motion_capture/`; capture output stays in `.tmp/` and never writes to `04_Exports/`
 - [x] P1-A evidence: local Playwright Chromium capture succeeded with mode `browser_canvas`; fallback mode also invokes `sampleCanvasMotion` through Node and is explicitly marked non-parity
 - [x] P1-A tests: 6 passed; repeat capture was byte-deterministic; ASS plans are included as structural references only
-- [ ] P1-A blocker: no claim of Canvas-vs-ASS/FFmpeg pixel parity until a checked-in Canvas golden frame and real cross-renderer comparison are available
+- [x] P1-A blocker: no claim of Canvas-vs-ASS/FFmpeg pixel parity until a checked-in Canvas golden frame and real cross-renderer comparison are available; P1-F report records the measured blocker
 - [x] P1-B: classify the 4 full-pytest failures; all are outside this motion round and unchanged by motion files
 - [x] P1-C: run ASS/FFmpeg fixture + motion pixel/parity gates for the isolated seam; full Canvas capture remains a separate golden-frame blocker
-- [ ] P1-D: close or carry forward the round with evidence in `HISTORY.md` after the app-level pixel gate decision
+- [x] P1-D: carry forward the round with evidence in `MOTION-PARITY-P1-F-REPORT-20260919.md` after the app-level pixel gate decision
 
 ดำเนินการโดย: Codex (GPT-5)
 
@@ -126,8 +172,8 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 - [x] Performance guard แยกเป็น utility/test และ reduced-motion policy
 - [x] Python motion gates: 35 passed, 1 skipped; preview/render parity: 176 passed
 - [x] Frontend tests: 267 passed; motion suite: 27 passed; build passed; lint passed with existing warnings
-- [ ] Real Canvas-vs-ASS pixel frame diff ยังไม่พร้อม จึงคงเป็นงานต่อยอด P1 และยังไม่ประกาศ catalog เป็น renderer-bound ทั้งหมด
-- [ ] Full pytest มี 4 failures ที่อยู่นอก motion scope และสัมพันธ์กับ dirty worktree เดิม: clip compounding, guided-take mapping 2 cases และ restart recovery
+- Follow-up เปิดอยู่: Real Canvas-vs-ASS pixel frame diff มี frame pair จริงแล้ว แต่ยังไม่ผ่าน metric จึงยังไม่ประกาศ catalog เป็น renderer-bound ทั้งหมด; ติดตามในรอบ `CLEAR-OPEN-WORKSTREAMS-20260919`
+- [x] Full pytest failures เดิม 4 จุดถูกแก้และ targeted regression ผ่าน; full pytest ทั้งชุดยัง timeout จึงต้องยืนยัน gate แยกต่างหาก
 - [x] Backend opt-in integration: `overlay_events.py` resolves contract phases and falls back to legacy builders
 - [x] Parity verification report: `TEXT_MOTION_PARITY_VERIFICATION_20260918.md`
 
@@ -246,21 +292,21 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 
 #### Todo
 
-- [ ] สร้าง `scripts/subtitle/motion_ass_adapter.py` เฉพาะไฟล์ใหม่: รองรับ scale, alpha, dy, rotation, blur และรายงาน reveal/position ที่ ASS ทำไม่ได้โดยไม่มี geometry context
-- [ ] สร้าง `tests/test_motion_ass_adapter.py` ครอบคลุม deterministic output, timing clamp, loop/out, conversion เป็น ASS tags และ unsupported-property report
-- [ ] ห้ามผูก Adapter เข้ากับ `motion_effects.py` หรือ `overlay_events.py`
+- [x] สร้าง `scripts/subtitle/motion_ass_adapter.py` เฉพาะไฟล์ใหม่: รองรับ scale, alpha, dy, rotation, blur และรายงาน reveal/position ที่ ASS ทำไม่ได้โดยไม่มี geometry context
+- [x] สร้าง `tests/test_motion_ass_adapter.py` ครอบคลุม deterministic output, timing clamp, loop/out, conversion เป็น ASS tags และ unsupported-property report
+- [x] ห้ามผูก Adapter เข้ากับ `motion_effects.py` หรือ `overlay_events.py`
 
 #### Gate
 
-- [ ] รันเฉพาะ `pytest tests/test_motion_ass_adapter.py -q`
-- [ ] ตรวจ `git diff --check` เฉพาะสองไฟล์ใหม่
+- [x] รันเฉพาะ `pytest tests/test_motion_ass_adapter.py -q`
+- [x] ตรวจ `git diff --check` เฉพาะสองไฟล์ใหม่
 
 #### Notes
 
 - ไฟล์ใน working tree ก่อนเริ่มมี diff จากรอบอื่น โดยเฉพาะ `motion_effects.py`, `overlay_events.py`, `TODO.md` และไฟล์ motion contract; ห้ามเขียนทับ
 - Adapter รอบนี้เป็น seam ที่ทดสอบได้ก่อน ยังไม่เปลี่ยน Preview/Export behavior จริง
 
-- [ ] Round PRODUCER-HUB-REALTIME-DATA-AND-ALIAS-COLLISION-FIX-1 — แก้ไขบั๊ก cross-product alias collision ของ angle_id ใน producerInsights.js ที่ทำให้สต็อกคลิปพร้อมโพสต์ 85 คลิปหลุดเหลือ 10 คลิป และโควตาสัปดาห์ตันที่ 10/35 + ปรับปรุงแบนเนอร์ Capacity, Greeting และตัวชี้วัดหน้าแรก AI Producer Hub ให้ตรงฐานข้อมูลจริง 100% (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round PRODUCER-HUB-REALTIME-DATA-AND-ALIAS-COLLISION-FIX-1 — แก้ไขบั๊ก cross-product alias collision ของ angle_id ที่ producerInsights.js และปรับปรุงตัวชี้วัด AI Producer Hub ตามฐานข้อมูลจริง (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash); หลักฐานปิดใน HISTORY.md)
 - [x] Round EXPORT-GALLERY-SAVED-COVER-DISPLAY-1 — ดึงรูปปกที่บันทึกไว้ (9:16 Cover จาก 05_Covers_Thumbnails) มาแสดงบนการ์ดวิดีโอใน Export Gallery ทั้ง 3 โหมด (Grid, Split Sidebar, Mobile Pill) แทนการแสดงแค่ .webp เฟรมวิดีโอดิบ + แสดงรูปปกและลิงก์ดาวน์โหลดในหน้าตรวจ QC รายคลิป + รีเฟรชอัตโนมัติเมื่อเซฟปกใหม่ (2026-09-18; frontend 261 passed, build 2,009 modules/9.26s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round AUDIT-OPEN-FINDINGS-REMEDIATION-AND-CHART-MODEL-1 — จัดการปิด Open Findings จาก Audit 2026-09-15: แยก chartModel.js + 5 unit tests สำหรับ AreaLineChart และ PerformanceAnalyticsTab (แก้ B14), กู้คืน Abandoned Target ใน sequence_worker._publish_atomically (แก้ B06), ตรวจสอบ regression suites B01, B02, B05, B07-B13 ครบ 100% (2026-09-18; backend 86 passed, parity 156 passed, recovery 13 passed, frontend 261 passed, build 2,009 modules/3.67s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round STYLE-MOTION-CATALOG-CONTRACT-SYNC-1 — ซิงก์ `tests/test_style_motion_policy.py` กับ catalog 10 สไตล์ (ของเดิมตก 1 test เพราะ commit `0a07a34` ขยาย `scripts/style_motion_policy.py` เป็น 10 สไตล์แต่ไม่ได้อัปเดต test ที่ยังยืนยัน 5 สไตล์); ขยาย test เป็น 17 tests ครอบคลุม 10 สไตล์ + behavioral contract ต่อสไตล์ + global integrity guards (2026-09-18; 17 passed, focused backend 188 passed, ดำเนินการโดย: Antigravity (Claude Sonnet 4.6))
@@ -1383,3 +1429,4 @@ Plan before code:
 - [x] รัน tests/build และ cleanup ไฟล์ทดสอบทั้งหมด
 
 ## Round PRODUCER-HUB-REALTIME-DATA-AND-ALIAS-COLLISION-FIX-1 - ปิดรอบแล้ว ✅ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+

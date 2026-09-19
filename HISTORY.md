@@ -8,7 +8,143 @@
 
 ## สารบัญ
 
+| Round COMPACT-PAGINATION-ALL-NARROW-CONTAINERS-AUDIT-AND-FIX-1 | ตรวจสอบและแก้ไข UI Pagination ในคอนเทนเนอร์แคบทั้งระบบ (AssetPanel 250px, Kanban Columns 300px, ActivityCenter 440px) ให้เป็น compact mode ไม่ล้นขอบและไม่ตกบรรทัด | 2026-09-19 | สำเร็จสมบูรณ์ (frontend vitest 282 passed, build 2,015 modules/4.03s, browser audit ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round PROJECT-SELECTOR-PAGINATION-UI-OVERFLOW-FIX-1 | แก้ไข UI Pagination ใน Dropdown เลือกโปรเจกต์: เพิ่ม compact mode ให้ PaginationControls ยุบเป็น `‹ 1 / 5 ›` ไม่ล้นขอบ และแก้ปัญหาข้อความบีบตกบรรทัดเป็นแนวตั้ง | 2026-09-19 | สำเร็จสมบูรณ์ (frontend vitest 282 passed, build 2,015 modules/3.63s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round BATCH-RENDER-MODAL-STATUS-LABEL-ALIGNMENT-1 | ปรับปรุงข้อความสถานะใน Batch Render Queue ให้ตรงกับบริบทการเรนเดอร์: เปลี่ยน "กำลังตัดต่อ" -> "กำลังเรนเดอร์", "พร้อมตัดต่อ" -> "พร้อมเรนเดอร์", "เลือกที่ยังไม่ได้ตัดต่อทั้งหมด" -> "เลือกที่ยังไม่ได้เรนเดอร์ทั้งหมด", "ตัดต่อแล้ว" -> "เรนเดอร์แล้ว" | 2026-09-19 | สำเร็จสมบูรณ์ (frontend vitest 282 passed, build 2,015 modules/3.48s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round RAW-VIDEO-THAI-FILENAME-VOWEL-TONE-MARK-FIX-1 | แก้ไขปัญหาชื่อคลิปดิบและ asset ตัดสระบนล่างและวรรณยุกต์ไทยทิ้งทั้งหมด (เช่น ปลั๊กไฟ -> ปลกไฟ, พัดลม -> พดลม, ขาตั้ง -> ขาตง) จาก bug การ sanitize ชื่อไฟล์ใน api_videos.py | 2026-09-19 | สำเร็จสมบูรณ์ (pytest 2 passed, security tests 14 passed, frontend vitest 282 passed, build 2,015 modules/3.42s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round PAGINATION-PHASE3-COMPLETE-LONG-LISTS-20260919 | เพิ่ม pagination ให้รายการยาวที่เหลือใน Export Gallery, Performance Analytics, Token Dashboard, Storage Analytics และ Activity Center | 2026-09-19 | สำเร็จสมบูรณ์ (frontend 282 passed, backend 18 passed, build 2,015 modules, lint ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round COMPACT-PAGINATION-ALL-NARROW-CONTAINERS-AUDIT-AND-FIX-1 — ป้องกันและแก้ไข UI Pagination เพี้ยนในคอนเทนเนอร์แคบทั้งระบบ (AssetPanel, Kanban Columns, ActivityCenter)
+
+วันที่: 2026-09-19 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ความต้องการและปัญหา
+ผู้ใช้แจ้งว่า: "มีจุดไหนที่เพี้ยนแบบนี้อีกไหมรับ" และสั่งให้ "เปิดเช็คจริง และลองดูหน่อยครับ ถ้าเพี้ยนแก้ครับ"
+จากการสแกนและทดสอบระบบจริง พบว่ามีจุดที่คอนเทนเนอร์มีความกว้างจำกัด (250px - 440px) ซึ่งหากมีรายการเกิน 1 หน้าจะเกิดปัญหาปุ่ม Pagination ล้นทะลุขอบ และข้อความถูกบีบตกบรรทัดเป็นแนวตั้งเหมือนกับ Dropdown ได้แก่:
+1. `editor/AssetPanel.jsx`: แถบซ้ายคลังสื่อกว้างเพียง 250px (วิดีโอ, เพลง, SFX, สติกเกอร์, เอฟเฟกต์)
+2. `ContentTrackerHub.jsx`: คอลัมน์ Kanban แต่ละเสากว้างเพียง 280-320px (group & flat list)
+3. `ActivityCenter.jsx`: แถบสไลด์กิจกรรมขวากว้าง 440px (viral milestones & background tasks)
+
+### การดำเนินการและผลลัพธ์
+1. **ปรับปรุง `frontend/src/components/editor/AssetPanel.jsx`**:
+   - ในฟังก์ชัน `renderAssetPagination` ให้ส่ง `compact={true}` เข้า `PaginationControls`
+   - ป้องกันปุ่มตัวเลขล้นทะลุ Left Sidebar ที่กว้าง 250px ออกมาทับไทม์ไลน์
+2. **ปรับปรุง `frontend/src/components/ContentTrackerHub.jsx`**:
+   - ปรับ Pagination ทั้ง 2 จุดใน Kanban Columns (ทั้งแบบ Group ตามสินค้า และ Flat Cards) ให้ส่ง `compact={true}`
+   - แสดงผลกระชับพอดีกับเสาคอลัมน์ Kanban (280-320px) ไม่ล้นขอบคอลัมน์
+3. **ปรับปรุง `frontend/src/components/ActivityCenter.jsx`**:
+   - ปรับ Pagination ทั้ง 2 จุดใน Activity Drawer (Viral Milestones และ Background Tasks) ให้ส่ง `compact={true}`
+   - ประหยัดพื้นที่ด้านล่างของ Drawer (440px) ทำให้ข้อความไม่ตกบรรทัด
+4. **การทดสอบจริง**:
+   - ตรวจสอบผ่าน Browser Automation (Visual Verification): ProjectSelector แสดงผล 104 โปรเจกต์ในโหมด Compact (`1-20 จาก 104 โปรเจกต์ ‹ 1 / 6 ›`) สวยงาม สมบูรณ์ ไม่ล้น
+   - รัน frontend vitest: 282 tests ผ่าน 100% (pass 282, fail 0)
+   - รัน vite build: สำเร็จ 100% (2,015 modules transformed ใน 4.03s)
+
+---
+
+## Round PROJECT-SELECTOR-PAGINATION-UI-OVERFLOW-FIX-1 — แก้ไข UI Pagination ใน Dropdown เลือกโปรเจกต์บีบอักษรตกบรรทัดและล้นขอบ
+
+วันที่: 2026-09-19 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ความต้องการและปัญหา
+ผู้ใช้แจ้งว่า: ใน Dropdown รายชื่อโปรเจกต์สำหรับเลือกโปรเจกต์ในหน้าตัดต่อ (ProjectSelector) ส่วน Pagination แสดงผลเพี้ยน:
+1. ข้อความสถิติ "แสดง 1-20 จาก 96 โปรเจกต์" ถูกบีบพื้นที่จนคำแตกตกบรรทัดเป็นแนวตั้ง ("แสดง / 1-20 / จาก / 96 / โปร / เจกต์")
+2. แถบปุ่ม Pagination ตัวเต็ม (`« ‹ 1 2 3 4 5 › »`) และตัวเลือกต่อหน้า กว้างเกินความกว้างของคอนเทนเนอร์ Dropdown ทำให้ปุ่มเลื่อนหน้าล้นทะลุขอบขวาออกไป
+
+### การดำเนินการและผลลัพธ์
+1. **ปรับปรุง `frontend/src/components/PaginationControls.jsx`**:
+   - เพิ่ม prop `compact={false}` สำหรับรองรับคอนเทนเนอร์ที่มีความกว้างจำกัด (เช่น Dropdown, Sidebar, Panel)
+   - ในโหมด compact:
+     - ยุบชุดปุ่มตัวเลขยาว `« ‹ 1 2 3 4 5 › »` เหลือปุ่มเลื่อนกะทัดรัด `‹  หน้า 1 / 5  ›`
+     - ซ่อนตัวเลือกต่อหน้าที่ไม่จำเป็นสำหรับ Dropdown
+     - แสดงข้อความนับรายการ `X-Y จาก Z รายการ` แบบบรรทัดเดียว ไม่ตัดคำตกบรรทัด
+   - ในโหมดปกติ (`compact={false}`):
+     - ป้องกัน text wrapping ด้วย `whitespace-nowrap`
+     - เพิ่ม `flex-wrap` ให้ทั้งสองฝั่งรองรับ responsive ได้นุ่มนวล
+2. **ปรับปรุง `frontend/src/components/editor/ProjectSelector.jsx`**:
+   - ใช้งาน `<PaginationControls compact={true} itemLabel="โปรเจกต์" />`
+   - ปรับ padding ขอบล่างของ Dropdown ให้พอดี สมดุล ไม่ล้นขอบ
+3. **การทดสอบ**:
+   - รัน frontend test (vitest): 282 tests ผ่าน 100% (pass 282, fail 0)
+   - รัน vite build: สำเร็จ 100% (2,015 modules transformed ใน 3.63s)
+
+---
+
+## Round BATCH-RENDER-MODAL-STATUS-LABEL-ALIGNMENT-1 — ปรับปรุงข้อความสถานะใน Batch Render Queue ให้ตรงกับบริบทการเรนเดอร์
+
+วันที่: 2026-09-19 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ความต้องการและปัญหา
+ผู้ใช้แจ้งว่า: เมื่อกดเรนเดอร์จาก Batch Render Queue แล้ว ในหน้าระบบแสดงข้อความว่า "กำลังตัดต่อ" (ทั้งบนแถบของมุมที่ 1 และข้อความบอกว่ากำลังตัดต่อมุมไหน) รวมถึงมีคำว่า "พร้อมตัดต่อ" และ "เลือกที่ยังไม่ได้ตัดต่อทั้งหมด" ทำให้ผู้ใช้เข้าใจผิดว่าระบบยังไม่ได้เริ่มเรนเดอร์ หรือเข้าใจว่าจะให้เขาไปนั่งตัดต่อเอง
+
+### การดำเนินการและผลลัพธ์
+1. **ปรับปรุง `frontend/src/components/BatchRenderModal.jsx`**:
+   - บรรทัดแสดงมุมมองที่กำลังประมวลผล: เปลี่ยน `กำลังตัดต่อ:` -> `กำลังเรนเดอร์:`
+   - แถบสถานะรายมุม (`in_production`): เปลี่ยน `<Loader2 ... /> กำลังตัดต่อ` -> `<Loader2 ... /> กำลังเรนเดอร์`
+   - ปุ่มเลือกมุม: เปลี่ยน `เลือกที่ยังไม่ได้ตัดต่อทั้งหมด` -> `เลือกที่ยังไม่ได้เรนเดอร์ทั้งหมด`
+   - ป้ายมุมที่เรนเดอร์แล้ว: เปลี่ยน `ตัดต่อแล้ว` -> `เรนเดอร์แล้ว`
+   - ข้อความสรุปมุมที่เลือก: เปลี่ยน `พร้อมตัดต่อ:` -> `พร้อมเรนเดอร์:`
+2. **ปรับปรุง `frontend/src/components/ActivityCenter.jsx`**:
+   - ปรับ fallback label จาก `กำลังตัดต่อ...` -> `กำลังเรนเดอร์...`
+   - ปรับ fallback title จาก `กำลังตัดต่อวิดีโอ` -> `กำลังเรนเดอร์วิดีโอ`
+3. **การทดสอบ**:
+   - รัน frontend vitest: 282 tests ผ่าน 100% (pass 282, fail 0)
+   - รัน frontend vite build: สำเร็จ 100% (2,015 modules transformed ใน 3.48s)
+
+---
+
+## Round RAW-VIDEO-THAI-FILENAME-VOWEL-TONE-MARK-FIX-1 — แก้ไขปัญหาชื่อคลิปดิบตัดสระและวรรณยุกต์ไทยทิ้ง
+
+วันที่: 2026-09-19 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ความต้องการและปัญหา
+ผู้ใช้แจ้งว่า: เมื่อนำเข้า (Import/Upload) คลิปดิบเข้ามาในระบบ ชื่อคลิปกลับถูกหักวรรณยุกต์และสระบนล่างออกหมด เช่น:
+- "ปลั๊กไฟ TOSHINO มี 2345..." กลายเป็น "ปลกไฟ TOSHINO ม 2345..." (ั, ้, ี หายหมด)
+- "Toshino ปลั๊กไฟ 2300w.mov" กลายเป็น "Toshino ปลกไฟ 2300w.mov"
+- "พัดลม hatari.mov" กลายเป็น "พดลม hatari.mov"
+- "Teleson ขาตั้ง.mov" กลายเป็น "Teleson ขาตง.mov"
+- "Easseger 100w สายชาร์จ...." กลายเป็น "สายชารจ" (การันต์ ์ หาย)
+- "Orphan พัดลมมือถือ.mov" กลายเป็น "พดลมมอถอ.mov" (ั, ื หาย)
+
+### สาเหตุรากเหง้า (Root Cause)
+ใน `scripts/api_videos.py` (ในฟังก์ชัน `rename_video_file`, `upload_file`, และ `upload_asset`) มีโค้ด sanitize ชื่อไฟล์:
+```python
+clean_new_name = "".join(c for c in new_name if c.isalnum() or c in "._- \u0E00-\u0E7F").strip()
+clean_custom = "".join(c for c in custom_name.strip() if c.isalnum() or c in "._- \u0E00-\u0E7F").strip()
+safe_filename = "".join(c for c in orig_filename if c.isalnum() or c in "._- \u0E00-\u0E7F")
+```
+1. ผู้เขียนเดิมเข้าใจผิดคิดว่า `c in "._- \u0E00-\u0E7F"` คือการตรวจช่วง Unicode แบบ regex range แต่ในภาษา Python คำสั่ง `in` กับ string คือการเช็กความเป็นสมาชิกในข้อความ 7 ตัวอักษร ได้แก่ `.` `_` `-` ` ` `\u0E00` `-` `\u0E7F`
+2. วรรณยุกต์ไทย (่, ้, ๊, ๋) และสระบน/ล่าง (ั, ิ, ี, ึ, ื, ุ, ู) รวมถึงไม้ไต่คู้ (็) และการันต์ (์) ในระบบ Unicode จัดอยู่ในหมวด Non-spacing Combining Mark (`Mn`) ซึ่งคำสั่ง `c.isalnum()` ใน Python จะคืนค่า `False` เสมอ
+3. ผลคือพยัญชนะไทยปกติ (ก-ฮ) และสระหน้า/หลัง (เ, แ, โ, ใ, ไ, า) จะรอดเพราะ `c.isalnum() == True` แต่วรรณยุกต์และสระบนล่างทั้งหมดไม่เข้าเงื่อนไขใดๆ จึงถูกกรองทิ้ง 100%
+
+### สิ่งที่ทำ
+1. **สร้างฟังก์ชัน `_sanitize_media_filename` ใน `scripts/api_videos.py`**:
+   ```python
+   def _sanitize_media_filename(name: str) -> str:
+       if not name:
+           return ""
+       return "".join(
+           c for c in name
+           if c.isalnum() or c in "._- ()[]" or ("\u0E00" <= c <= "\u0E7F")
+       ).strip()
+   ```
+   - ใช้การตรวจสอบช่วง Unicode `'\u0E00' <= c <= '\u0E7F'` ที่ครอบคลุมอักษรไทยทุกตัว 100% ทั้งพยัญชนะ สระ และวรรณยุกต์
+   - รองรับวงเล็บ `()` และ `[]` ที่มักพบบ่อยในชื่อคลิปวิดีโอ
+2. **นำไปใช้ใน 3 จุดสำคัญ**:
+   - `rename_video_file`: เปลี่ยนชื่อคลิปดิบ
+   - `upload_file`: อัปโหลดคลิปดิบ (ทั้งชื่อเดิมและ custom_name)
+   - `upload_asset`: อัปโหลดไฟล์ asset (SFX, BGM, Stickers, Fonts)
+3. **สร้างชุดทดสอบ `tests/test_raw_video_thai_names.py`**:
+   - ทดสอบชื่อภาษาไทยทุกกรณีตามที่ผู้ใช้พบ
+   - ตรวจสอบว่าอักขระอันตราย (`: < > * ? " | / \`) ยังคงถูกกรองออกอย่างปลอดภัย
+
+### Verification
+- `pytest tests/test_raw_video_thai_names.py`: 2 passed (100%)
+- `pytest tests/test_security_product_id_path_write.py tests/test_backend_api_contracts.py`: 14 passed (100%)
+- `npm test -- --run`: 282 passed (100%)
+- `npm run build`: 2,015 modules transformed สำเร็จใน 3.42s (0 errors)
+
+## Round PAGINATION-PHASE3-COMPLETE-LONG-LISTS-20260919 — เก็บรายการยาวที่ยังเหลือให้ครบ
 | Round EXPORT-PREVIEW-FRESH-SYNC-AND-MATCH-FIX-1 | แก้บั๊กพรีวิวคลิปที่เพิ่งเรนเดอร์เสร็จเปิดคลิปเก่าก่อนหน้า (เช่น เมาส์ แทนที่จะเป็น ปลั๊กไฟ) จาก cache 2s ใน loadExports + fallback exportsList[0] ที่ชิงเปิดและเคลียร์ target ก่อนข้อมูลใหม่มาถึง | 2026-09-19 | สำเร็จสมบูรณ์ (unit tests 5 passed, frontend vitest 281 passed, build 2,015 modules/3.75s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round TIKTOK-PENDING-PERSISTENT-IGNORE-LIST-1 | ระบบจำรายการที่กดข้าม (Persistent Ignore List) สำหรับ TikTok Pending Rows ป้องกันไม่ให้คลิปที่เคยข้ามถูกดึงกลับมาใหม่เมื่อซิงก์ TikTok Studio ซ้ำ พร้อมฟังก์ชันข้ามทั้งหมดในคลิกเดียว และกู้คืนรายการที่ข้าม | 2026-09-19 | สำเร็จสมบูรณ์ (backend pytest 18 passed, frontend 276 passed, build 2,014 modules/3.13s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round ANALYTICS-CHARTS-CHRONO-SORT-AND-TOKEN-SUMMARY-UI-1 | ปรับปรุง UI กราฟสถิติ: ลบกล่องวันเรียงยาวแทนที่ด้วย KPI Summary Strip 4 การ์ด และ Time Filter ใน Token Dashboard + แก้ไขการจัดเรียงลำดับเวลาทางประวัติศาสตร์ของกราฟยอดวิวคลิปให้ถูกต้อง Monotonic Ascending พร้อมโหมดแยกรายคลิป/รวมรายวัน และ Tooltip ป้องกันตกขอบ | 2026-09-18 | สำเร็จสมบูรณ์ (chart model 8 passed, frontend 274 passed, build 2,014 modules/3.41s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |

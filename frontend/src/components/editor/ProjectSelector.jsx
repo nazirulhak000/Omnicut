@@ -261,17 +261,14 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
 
           {/* Footer Pagination / Status Bar */}
           {filtered.length > 0 && (
-            <div className="mt-1.5 border-t border-white/10 pt-1.5">
+            <div className="mt-1.5 border-t border-white/10 pt-1.5 px-1.5">
               <PaginationControls
                 page={projectPage}
                 pageSize={projectPageSize}
                 totalItems={filtered.length}
                 onPageChange={setProjectPage}
-                onPageSizeChange={(size) => {
-                  setProjectPageSize(size);
-                  setProjectPage(1);
-                }}
                 itemLabel="โปรเจกต์"
+                compact={true}
               />
             </div>
           )}

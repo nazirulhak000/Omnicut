@@ -90,8 +90,23 @@ class VideoAssemblyStage:
             if ctx.total_duration and ctx.total_duration > 0:
                 acc = 0.0
                 for i, c in enumerate(actual_clip_list):
-                    t_in = c.get("transition_in", "cut")
-                    boundary_overlap = float(c.get("transition_duration", 0.35)) if (i > 0 and t_in != "cut") else 0.0
+                    boundary_overlap = 0.0
+                    if i > 0:
+                        # Generated clips normally carry transition metadata,
+                        # but callers may provide a clip list plus the
+                        # transition list separately.  In that shape the
+                        # missing per-clip metadata must not make the
+                        # timeline look longer than it is and trigger a
+                        # compensating shrink of the final clip.
+                        t_in = c.get("transition_in")
+                        if t_in is not None:
+                            if t_in != "cut":
+                                boundary_overlap = float(c.get("transition_duration", 0.35))
+                        elif i - 1 < len(transitions):
+                            boundary = transitions[i - 1]
+                            boundary_type = boundary.get("type", "cut") if isinstance(boundary, dict) else str(boundary)
+                            if boundary_type != "cut" and isinstance(boundary, dict):
+                                boundary_overlap = float(boundary.get("duration") or 0.0)
                     seg_start = acc - boundary_overlap if i > 0 else 0.0
                     span = max(0.05, float(c.get("trim_end", 0.0)) - float(c.get("trim_start", 0.0)))
                     spd = float(c.get("speed", 1.0))

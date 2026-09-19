@@ -3360,6 +3360,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                                   totalItems={grp.angles.length}
                                   onPageChange={(page) => setGroupPage(phase.id, pid, page)}
                                   itemLabel="มุม"
+                                  compact={true}
                                 />
                               </div>
                             )}
@@ -3395,6 +3396,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                           totalItems={phaseAngles.length}
                           onPageChange={(page) => setFlatPage(phase.id, page)}
                           itemLabel="รายการ"
+                          compact={true}
                         />
                       </>
                     )}

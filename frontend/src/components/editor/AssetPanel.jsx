@@ -942,8 +942,8 @@ export default function AssetPanel({
         pageSize={getAssetPageSize(assetKey)}
         totalItems={total}
         onPageChange={(page) => setAssetPage(assetKey, page)}
-        onPageSizeChange={(size) => setAssetPageSize(assetKey, size)}
         itemLabel={label}
+        compact={true}
       />
     );
   };

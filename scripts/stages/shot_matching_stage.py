@@ -173,6 +173,22 @@ class ShotMatchingStage:
 
         return durations
 
+    @staticmethod
+    def _beat_slot_durations(beat_cues):
+        """Return each cue's actual voice-track slot without extending it.
+
+        Guided takes and proportional mappings use the beat boundaries as
+        their timing contract.  They must not reuse the contiguous timeline
+        helper above, whose separate purpose is to absorb lead-in/trailing
+        gaps into a render that fills ``total_duration``.
+        """
+        slots = []
+        for cue in beat_cues or []:
+            start = float(cue.get("start", 0.0))
+            end = float(cue.get("end", start))
+            slots.append(max(0.1, round(end - start, 3)))
+        return slots
+
     @classmethod
     def _build_guided_take_clip_list(cls, ctx: PipelineContext, raw_video) -> List[dict]:
         """Exact mapping for a video recorded through the guided-filming flow
@@ -194,7 +210,7 @@ class ShotMatchingStage:
             )
 
         effective_shot_scales = cls._effective_shot_scales(ctx)
-        durations = cls.calculate_contiguous_beat_durations(beat_cues, ctx.total_duration or 0.0)
+        durations = cls._beat_slot_durations(beat_cues)
         clips = []
         for i, (cue, seg) in enumerate(zip(beat_cues, clip_map)):
             target_duration = durations[i] if i < len(durations) else max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0)))
@@ -234,8 +250,8 @@ class ShotMatchingStage:
         claim, unlike `_build_guided_take_clip_list` above.
         """
         beat_cues = ctx.beat_cues or []
-        durations = cls.calculate_contiguous_beat_durations(beat_cues, ctx.total_duration or 0.0)
-        total_planned = sum(durations) or ctx.total_duration or raw_duration
+        durations = cls._beat_slot_durations(beat_cues)
+        total_planned = sum(durations) or raw_duration
         global_speed = min(4.0, max(0.25, raw_duration / total_planned)) if total_planned > 0 else 1.0
 
         effective_shot_scales = cls._effective_shot_scales(ctx)

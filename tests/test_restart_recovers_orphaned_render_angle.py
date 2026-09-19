@@ -237,9 +237,14 @@ def test_restart_does_not_touch_unrelated_task_types(isolated_store, projects_di
     # folder backs it (unrelated pre-existing behavior) -- give it one so
     # this test isolates only the task-type filtering under test here.
     project_name = "widget_scrape_test_project"
-    (projects_dir / project_name).mkdir(parents=True, exist_ok=True)
+    project_dir = projects_dir / project_name
+    project_dir.mkdir(parents=True, exist_ok=True)
 
     product = ProductStore.add(name="Widget", url="https://x.test/w-scrape")
+    (project_dir / "project.json").write_text(
+        json.dumps({"product_id": product["id"], "angle_id": "unboxing"}),
+        encoding="utf-8",
+    )
     ProductStore.update(product["id"], angles=[{
         "angle_id": "unboxing",
         "hook_title": "แกะกล่องว้าว",

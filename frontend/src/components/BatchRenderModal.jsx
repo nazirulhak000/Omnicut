@@ -200,7 +200,7 @@ export default function BatchRenderModal({
               </div>
               {activeBatch.current_angle_name && isRunning && (
                 <p className="text-[11px] text-cyan-300 truncate">
-                  กำลังตัดต่อ: {activeBatch.current_angle_name}
+                  กำลังเรนเดอร์: {activeBatch.current_angle_name}
                 </p>
               )}
             </div>
@@ -223,7 +223,7 @@ export default function BatchRenderModal({
                       </span>
                     ) : item.status === 'in_production' ? (
                       <span className="inline-flex items-center gap-1 text-[11px] text-amber-300 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                        <Loader2 className="w-3 h-3 animate-spin" /> กำลังตัดต่อ
+                        <Loader2 className="w-3 h-3 animate-spin" /> กำลังเรนเดอร์
                       </span>
                     ) : item.status === 'failed' ? (
                       <span className="inline-flex items-center gap-1 text-[11px] text-red-400 font-bold bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20" title={item.error || ''}>
@@ -275,7 +275,7 @@ export default function BatchRenderModal({
                   onClick={selectAllUnrendered}
                   className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
                 >
-                  เลือกที่ยังไม่ได้ตัดต่อทั้งหมด
+                  เลือกที่ยังไม่ได้เรนเดอร์ทั้งหมด
                 </button>
                 <span className="text-slate-600">|</span>
                 <button
@@ -323,7 +323,7 @@ export default function BatchRenderModal({
                           </span>
                           {ang.status === 'rendered' && (
                             <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                              ตัดต่อแล้ว
+                              เรนเดอร์แล้ว
                             </span>
                           )}
                           {ang.status === 'posted' && (
@@ -413,7 +413,7 @@ export default function BatchRenderModal({
             {/* Bottom Actions */}
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
               <span className="text-xs text-slate-400">
-                พร้อมตัดต่อ: <strong className="text-cyan-300">{selectedAngleIds.size}</strong> มุมมอง
+                พร้อมเรนเดอร์: <strong className="text-cyan-300">{selectedAngleIds.size}</strong> มุมมอง
               </span>
               <div className="flex items-center gap-2">
                 <Button
