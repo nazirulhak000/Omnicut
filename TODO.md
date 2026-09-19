@@ -1,4 +1,18 @@
-﻿# 📋 OmniCut Pro Studio — Todo กลาง
+# 📋 OmniCut Pro Studio — Todo กลาง
+
+สมุดบันทึกรอบงานที่ **ยังไม่เสร็จ** ของโปรเจกต์นี้ — ทุกงานต้องผ่านไฟล์นี้ก่อนแตะโค้ด
+
+# 📋 OmniCut Pro Studio — Todo กลาง
+
+สมุดบันทึกรอบงานที่ **ยังไม่เสร็จ** ของโปรเจกต์นี้ — ทุกงานต้องผ่านไฟล์นี้ก่อนแตะโค้ด
+
+| ไฟล์ | ใช้ทำอะไร |
+| :--- | :--- |
+| **TODO.md** (ไฟล์นี้) | งานที่ยังไม่เสร็จ + Backlog — เขียนแผนลงที่นี่ก่อนลงมือ |
+| [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md) | รอบที่ปิดแล้ว ย้ายบล็อกเต็มไปเก็บไว้ที่นั่น ห้ามแก้ย้อนหลัง |
+| [TEMPLATE_MOTION_PLAN.md](file:///d:/Winona/Programmer/Capcut/TEMPLATE_MOTION_PLAN.md) | แผนยาวของงาน motion ข้อความ (Round 3–7) — เหตุผลและตัวเลขที่วัดมา |
+| [SYSTEM_AUDIT_2026-09-09.md](file:///d:/Winona/Programmer/Capcut/SYSTEM_AUDIT_2026-09-09.md) | รายงาน DB/Infra/System audit เต็ม (4-agent, read-only) |
+# 📋 OmniCut Pro Studio — Todo กลาง
 
 สมุดบันทึกรอบงานที่ **ยังไม่เสร็จ** ของโปรเจกต์นี้ — ทุกงานต้องผ่านไฟล์นี้ก่อนแตะโค้ด
 
@@ -20,11 +34,19 @@
 
 ---
 
+## Round COVER-STUDIO-STALE-STATUS-FIX-20260919 — active
+
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+**อาการ:** เปิด CoverStudio ใหม่กับสคริปที่ยังไม่มีปก แต่แสดงกล่องสีเขียว "บันทึกภาพปกสำเร็จแล้ว ✅" ค้างจากสคริปก่อนหน้า
+
+**สาเหตุ:** `useEffect` reset ใน `CoverStudioModal.jsx` บรรทัด 122 ไม่ได้ล้าง `successMsg` และ `savedResult` เมื่อ `videoItem` เปลี่ยน
+
+- [x] แก้ useEffect ล้าง `successMsg('')` และ `setSavedResult(null)` ทุกครั้งที่ modal เปิดหรือ videoItem เปลี่ยน
+
+---
+
 ## Round CLEAR-OPEN-WORKSTREAMS-20260919 — active
-
-ดำเนินการโดย: Codex (GPT-5)
-
-เป้าหมาย: แยกเอเจนต์เคลียร์งานที่ยังเปิดจริง โดยรักษา dirty worktree เดิมและไม่แก้ `TODO.md`/`HISTORY.md` จากเอเจนต์ย่อย
 
 - [ ] Agent Motion: สร้าง frame pair จริงแล้ว แต่ P1-F parity gate ยังไม่ผ่าน (`mask IoU 0.1813699217`, `bbox edge delta 22px`); ดู `MOTION-PARITY-P1-F-REPORT-20260919.md`
 - [x] Agent Backend: แก้ Full pytest failures 4 จุด; targeted regression `11 passed`, expanded regression `60 passed, 1 warning`
@@ -48,11 +70,30 @@
 
 - [x] สำรวจโมเดล project/campaign/script/export ที่มีอยู่ และเลือก domain/API แยก `gadget_media` โดยไม่แตะ `ProductStore` หรือ workflow ปักตะกร้าเดิม
 - [x] เพิ่ม domain model และ atomic persistence สำหรับ `gadget_media` campaign 21 คลิป พร้อม targeted tests `10 passed`
-- [ ] เพิ่ม UI สร้าง campaign และจัดการ content slots 21 รายการ
+- [x] เพิ่ม UI สร้าง campaign และจัดการ content slots 21 รายการ พร้อมแก้ Hook/Script/Status และเพิ่ม source provenance form
 - [x] เพิ่ม source provenance และ readiness gate ใน domain/API; integration กับ render/export ยังเป็นงานถัดไป
 - [ ] เพิ่ม script templates สำหรับ `ดูคลิปนี้ก่อนซื้อ`, `แปลสเปกเป็นภาษาคน` และ `ของจริงกับคำโฆษณา`
 - [ ] เพิ่มฟิลด์ analytics: views, completion rate, comments, follows และ follows per 1,000 views
-- [ ] รัน deterministic tests, frontend tests, build และตรวจ cleanup ใน `.tmp/`
+- [x] รัน deterministic tests, frontend tests, build/lint และ `git diff --check`; ไม่มี test artifact ถูกสร้างนอก `.tmp/`
+
+### Functional slice result 2026-09-19
+
+- `GadgetMediaHub` ถูกเพิ่มเป็นเมนูแยกและ lazy-loaded โดยไม่ผูกกับ ProductStore หรือ workflow ปักตะกร้า
+- สร้าง Campaign 21 slots, แก้ Hook/Script/Status, เพิ่ม source URL/rights basis/usage note และดู readiness ต่อ slotได้
+- Backend กัน `published` หาก script หรือ source rights ยังไม่ผ่าน readiness gate
+- Verification: backend Gadget Media `9 passed`; frontend `284 passed`; production build ผ่าน; lint ผ่านโดยมี warnings เดิมของ repository
+- ดำเนินการโดย: Codex (GPT-5)
+
+### Remix prototype XIAOMI-17-ULTRA-20260919 — active
+
+ดำเนินการโดย: Codex (GPT-5)
+
+- [x] ดาวน์โหลด source จาก Xiaomi Official YouTube ลง `.tmp/` เพื่อทำต้นแบบส่วนตัว
+- [x] ตัดช่วงที่จำเป็นและทำ voice-led commentary remix แบบ 9:16 1080x1920 30fps
+- [x] ตรวจ duration/resolution/audio และเก็บ source URL + rights basis ไว้คู่กับ draft
+- [ ] ไม่โพสต์หรือส่งต่อภายนอกจนกว่าจะตรวจสิทธิ์กับ Xiaomi หรือผู้ใช้ยืนยันการใช้งานตามกฎหมายท้องถิ่น
+
+Draft output: `.tmp/remix_xiaomi_20260919/xiaomi17ultra_official_remix_draft.mp4` (29.23s, 1080x1920, 30fps, AAC 48kHz)
 
 ### Subtask P1-E-LIVE-CAPTURE-20260918 - app-level capture seam
 

@@ -124,6 +124,9 @@ export default function CoverStudioModal({
     if (!isOpen || !videoItem) return undefined;
     setLoading(true);
     setError(null);
+    // ล้าง status การบันทึกปกจากสคริปก่อนหน้าทุกครั้งที่เปิด modal ใหม่
+    setSuccessMsg('');
+    setSavedResult(null);
     setActiveSourceType(timelineSnapshotDataUrl ? 'timeline' : 'exported');
     setCustomImage(timelineSnapshotDataUrl || null);
     setCustomImageFile(null);
