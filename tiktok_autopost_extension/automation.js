@@ -334,8 +334,11 @@ globalThis.OmniAutomation = (() => {
 
     await new Promise(r => setTimeout(r, 1000));
 
-    // 4. Click "บันทึก" / "ยืนยัน" / "Save" / "Confirm" button
-    const saved = await evaluate(send, `(() => {
+    // 4. Click "บันทึก" / "ยืนยัน" / "Save" / "Confirm" with retry.
+    // TikTok sometimes renders the button before its handler is ready. One
+    // click followed by a modal wait was flaky, so each retry both verifies
+    // the modal closed and falls back to a native CDP click at the last point.
+    const saveButtonExpression = `(() => {
       const isVisible = (el) => {
         if (!el) return false;
         const rect = el.getBoundingClientRect();
@@ -343,9 +346,6 @@ globalThis.OmniAutomation = (() => {
       };
       const roots = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], [class*="CoverEditor__root"], [class*="cover-editor-container"], [class*="cover-modal"], [class*="CoverModal"]'))
         .filter(isVisible);
-      // TikTok renders the header (including Save) as a sibling of
-      // CoverEditor__root under cover-editor-container, so prefer that
-      // outer container when it exists.
       const root = roots.find(el => String(el.className || '').includes('cover-editor-container')) || roots.at(-1) || document;
       const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
       const saveBtn = buttons.reverse().find(b => {
@@ -353,18 +353,14 @@ globalThis.OmniAutomation = (() => {
         const t = (b.innerText || b.textContent || '').trim();
         return t === 'บันทึก' || t === 'ยืนยัน' || t === 'Save' || t === 'Confirm' || t === 'เสร็จสิ้น';
       });
-      if (saveBtn) {
-        saveBtn.click();
-        return true;
-      }
-      return false;
-    })()`);
+      if (!saveBtn) return {success: false};
+      const rect = saveBtn.getBoundingClientRect();
+      saveBtn.scrollIntoView({behavior:'instant', block:'center'});
+      saveBtn.click();
+      return {success: true, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2};
+    })()`;
 
-    if (!saved) {
-      throw new Error('ไม่พบปุ่ม "บันทึก" ในหน้าต่างแก้ไขปก');
-    }
-
-    await wait(send, `(() => {
+    const coverModalClosedExpression = `(() => {
       const visible = el => {
         if (!el) return false;
         if (el.checkVisibility && !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) return false;
@@ -372,8 +368,44 @@ globalThis.OmniAutomation = (() => {
         return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
       };
       return !Array.from(document.querySelectorAll('[class*="CoverEditor__root"], [class*="cover-editor-container"], [class*="cover-modal"], [class*="CoverModal"]')).some(visible);
-    })()`, 'บันทึกปกแล้ว แต่หน้าต่าง Cover Studio ยังไม่ปิด', 8000);
-    return {success:true};
+    })()`;
+
+    let lastPoint = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await wait(send, `(() => {
+        const isVisible = el => {
+          if (!el) return false;
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+        };
+        return Array.from(document.querySelectorAll('[role="dialog"] button, [aria-modal="true"] button, button, div[role="button"]'))
+          .some(b => isVisible(b) && !b.disabled && ['บันทึก','ยืนยัน','Save','Confirm','เสร็จสิ้น'].includes((b.innerText || b.textContent || '').trim()));
+      })()`, 'รอปุ่มบันทึกปกพร้อมใช้งานไม่ทัน', 8000);
+
+      if (attempt > 0 && lastPoint) {
+        try {
+          await send('Input.dispatchMouseEvent', {type:'mouseMoved', x:lastPoint.x, y:lastPoint.y});
+          await send('Input.dispatchMouseEvent', {type:'mousePressed', x:lastPoint.x, y:lastPoint.y, button:'left', clickCount:1});
+          await send('Input.dispatchMouseEvent', {type:'mouseReleased', x:lastPoint.x, y:lastPoint.y, button:'left', clickCount:1});
+          await wait(send, coverModalClosedExpression, 'บันทึกปกแล้ว แต่หน้าต่าง Cover Studio ยังไม่ปิด', 1500);
+          return {success:true};
+        } catch (e) {}
+      }
+
+      const saveResult = await evaluate(send, saveButtonExpression);
+      if (saveResult === true || saveResult?.success) {
+        lastPoint = saveResult === true ? null : saveResult;
+        try {
+          await wait(send, coverModalClosedExpression, 'บันทึกปกแล้ว แต่หน้าต่าง Cover Studio ยังไม่ปิด', 3500);
+          return {success:true};
+        } catch (e) {
+          // Keep the point and retry after TikTok finishes the first render.
+        }
+      }
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    throw new Error('กดบันทึกปกแล้ว แต่ TikTok ยังไม่ปิดหน้าต่าง Cover Studio หลังลองซ้ำ 3 ครั้ง');
   }
 
   return {evaluate, wait, page, buttonQuery, clickButton, uploadCover, waitForUploadStatusBadge};

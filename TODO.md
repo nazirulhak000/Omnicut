@@ -34,7 +34,87 @@
 
 
 
-## Round CLEAR-OPEN-WORKSTREAMS-20260919 — active
+
+
+
+- [x] Round GADGET-PRODUCT-CENTRIC-STORAGE-RESTRUCTURE-20260921 — จัดระเบียบโครงสร้างโฟลเดอร์ Product-Centric 01_Raw, 02_Workspace, 03_Export สำหรับ Gadget Media (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+- [x] Round GADGET-EDITING-STYLE-RULES-AND-CHECKLIST-20260921 — กฎเหล็ก 5 เสาหลัก และ QA Checklist ตัดต่อคลิปรีวิวแกดเจ็ต 60s 9:16 (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+- [x] Round GADGET-MALI-CURATED-SYLLABLE-BOUNCE-60S-20260921 — ซับไตเติล Mali-Bold ผังบททางการ Syllable Clustering + Progressive Ghost Reveal (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+- [x] Round GADGET-MALI-SUBTITLE-RESTORATION-AND-MASTER-VERIFY-20260921 — คืนค่าฟอนต์ซับไตเติล Mali-Bold แท้ 88px ขอบดำ 5.2px (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+- [x] Round GADGET-PRO-TYPOGRAPHY-STRICT-TOPIC-HOLD-AND-UPBEAT-BGM-20260921 — Strict Topic Hold, Top White + Orange และ Upbeat IT BGM (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+- [x] Round GADGET-DYNAMIC-MONTAGE-PACING-AND-REF-MATCH-20260921 — ผัง 25 ช็อต Dynamic Multi-Cut ผสาน Ken Burns (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+- [x] Round GADGET-ASSET-DEDUPLICATION-AND-MASTER-SOP-20260920 — กวาดล้างภาพซ้ำซ้อนและจัดทำ Master SOP ฉบับแรก (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+- [x] Round GADGET-MEDIA-60S-CINEMATIC-MIX-FLIP-MASTERPIECE-20260920 — คลิป Masterpiece 60s Xiaomi MIX Flip ตัวแรก (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+## Round GADGET-MEDIA-MIX-FLIP-ASSET-COLLECTION-AND-KINETIC-CALLOUTS-20260920 — active
+
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] ค้นหาและดาวน์โหลด Insert B-roll วิดีโอหลากหลายมุม (Official Film, Hinge Mechanism, 3D VC Cooling, Hands-on, Camera Demo ไร้ซับต่างชาติ) ของ Xiaomi MIX Flip
+- [x] ค้นหาและรวบรวมภาพสินค้าความละเอียดสูง (Official Press Pack, Exploded View, Color Variants, Leica Optics Macro, Battery & Charging)
+- [x] ตรวจสอบและคัดกรองคลิป/ภาพทั้งหมดให้ตรงตาม Rule 12 (Clean 1080p+ ไร้ซับจีน/ต่างชาติ) และจัดเก็บใน `.tmp/gadget_products/Xiaomi_xiaomi_mix_flip/`
+- [x] พัฒนา Kinetic Text Callout Motion Engine (แอนิเมชันตัวหนังสือแท้จริง: Spring bounce, Scale pop, Number rolling counter, Neon accent, Organic floating ไร้กล่อง AI) ผ่าน HyperFrames/Remotion Alpha WebM
+- [x] รายงานแคตตาล็อกวัตถุดิบและตัวอย่าง Motion Text Animation ให้ User ตรวจสอบก่อนเริ่มตัดต่อ
+
+## Round GADGET-MEDIA-60S-FULL-OVERVIEW-XIAOMI-MIX-FLIP-20260920 — active
+
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] ร่างบทบรรยายสเปกเต็ม 60 วินาทีสำหรับ Xiaomi MIX Flip (ครอบคลุม จอนอก 4.01", จอใน 6.86", กล้องคู่ Leica 50MP, ชิป Snapdragon 8 Gen 3, ระบายความร้อน 3D VC, แบต 4780mAh 67W)
+- [x] สร้างเสียงพากย์ด้วย Gemini Flash TTS เสียง `Fenrir` สไตล์ `commercial_premium` (ความยาวประมาณ 55-58 วินาที)
+- [x] สร้างโมชัน Text Callouts ลอยแบบ Organic (ตามสไตล์ TikTok TECHMX: ด้านบนชื่อฟีเจอร์สีขาว ด้านล่างสเปกสีส้มนีออน ไม่มีกล่อง AI แปลกปลอม)
+- [x] ตัดต่อผสาน B-roll: ตัดสลับระหว่างวิดีโอ 1080p Clean กับภาพเรนเดอร์ทางการความละเอียดสูงใน `photos/` อย่างลื่นไหล
+- [x] ถอดคำและเวลาด้วย Faster-Whisper เพื่อสร้างซับไตเติล Mali-Bold เด้งสีทีละตัวอักษร/พยางค์ (Character Bounce) และ Zero-Jitter Ghost Layout
+- [x] คอมโพสิตวิดีโอ 9:16 ด้วย FFmpeg (เบลอขอบบนล่างแบบ Gaussian Blur + เพลง Lo-fi BGM คลอ + เครดิตแหล่งที่มาจริง)
+- [x] ตรวจสอบวิดีโอความยาว 60 วินาที และดึงภาพพรีวิวรายงานผล
+
+## Round GADGET-MEDIA-XIAOMI-ECOSYSTEM-AND-CLEAN-ASSET-PACKS-20260919 — active
+
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] แก้ไข UI GadgetMediaHub.jsx จอดำ / mount เข้า App.jsx อย่างถูกต้อง
+- [x] ตั้งกฎเหล็ก Rule 12 (ห้ามซับจีน/ต่างประเทศ) และ Rule 16 (แยกโฟลเดอร์แพ็กรายรุ่น 1080p + ภาพ + info.json) ใน `AGENTS.md`
+- [x] จัดทำ Source Manifest 24 ไอเทม สำหรับ Xiaomi Ecosystem (Xiaomi, Redmi, POCO, Mijia, 70mai) โดยเน้น Official Design Film / Clean B-roll 1080p ไม่มีซับ
+- [x] พัฒนา Tool `tools/download_gadget_pack.py` ดาวน์โหลดและแยกโฟลเดอร์รายรุ่นพร้อมดึงภาพสินค้า High-res
+- [x] ทยอยดาวน์โหลดแพ็กเกจวัตถุดิบแยกรายรุ่น (1080p Clean Video + Photos + info.json) ครบทั้ง 24 รุ่นใน Xiaomi Ecosystem เข้า `.tmp/gadget_products/` สำเร็จ 100%
+- [x] ตรวจสอบความละเอียดผ่าน ffprobe ทั้ง 25 โฟลเดอร์: อัปเกรด yt-dlp และดาวน์โหลดซ่อมแซมจนทุกคลิปเป็น 1920x1080 Full HD 100% ครบถ้วน พร้อมรูปภาพ 1080p คุณภาพสูงสุด
+- [x] ดึงภาพโปสเตอร์เปิดตัว (Launch Posters), ภาพเรนเดอร์ทางการ (Official 3D Renders), และแบนเนอร์ฟีเจอร์ (Feature Infographics) ความละเอียดสูงระดับ 2.5K ตรงจาก CDN เว็บไซต์ทางการของแบรนด์ ลงในโฟลเดอร์ `photos/` ของทุกรุ่นสำเร็จครบถ้วน
+- [x] พัฒนาระบบ Source Credit Overlay แบบ TECHMX (ขึ้น 'Source : <แหล่งที่มา>' ตรงกลางขอบล่างตามตัวอย่างจริง) ใน subtitle_engine.py พร้อมดึงภาพจากทุกแหล่ง (Weibo, mi.com, po.co, GSMArena, 70mai) บันทึก metadata ลง `sources_manifest.json`
+- [x] เรนเดอร์คลิปตัวอย่าง Xiaomi MIX Flip สไตล์ TECHMX 9:16 ด้วย Gemini Flash TTS (Puck hype), ซับไทย Kinetic ทีละคำ (#FFE600), Source Credit Overlay (Weibo/mi.com) และ Channel Badge (TECH MX) เข้า `.tmp/gadget_demo/demo_xiaomi_mix_flip_techmx.mp4` สำเร็จ 100%
+- [x] ตรวจสอบ frontend tests ผ่าน 290/290 และ backend tests ผ่าน 100%
+
+## Round HYPERFRAMES-MOTION-OVERLAY-INTEGRATION-20260920 — active
+
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] พัฒนา `scripts/hyperframes_engine.py`: Python wrapper จัดการคำสั่ง `npx hyperframes render` ทั้งแบบ Transparent WebM และ MP4 (9:16)
+- [x] ออกแบบ Motion Template แรก `templates/hyperframes/tech_spec_card/`: การ์ดสเปกสินค้าแบบ Glassmorphism 3D แสดงกล้อง Leica, ชิปเซ็ต, ขนาดจอ
+- [x] พัฒนา Integration กับ FFmpeg Compositor ใน `tools/render_sample_gadget_clip.py` เพื่อนำ WebM Alpha Overlay มาซ้อนบนวิดีโอ 1080x1920
+- [x] เขียน Unit Test `tests/test_hyperframes_engine.py` และตรวจสอบความถูกต้องตามมาตรฐาน (4 passed)
+- [x] แก้ไขความสอดคล้อง Preview-Render Parity สำหรับโทนเสียง `tech_journalism_calm` ทั้งใน Python และ JavaScript (160 passed)
+- [x] เรนเดอร์คลิปตัวอย่างจริงพร้อม Motion Spec Card ใน `.tmp/gadget_demo/demo_xiaomi_mix_flip_techmx.mp4` สำเร็จ 100% (ตรวจความคมชัดผ่าน ffprobe และพรีวิวเฟรม)
+
+## Round SCHEDULE-AUTOFILL-PRODUCT-DIVERSITY-AND-ROTATION-20260919 — active
+
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] แก้ไขอัลกอริทึม Auto-fill ใน `scripts/api_schedule_queue.py`:
+  - เพิ่ม Fair Round-Robin / Diversity Balancing: กระจายสินค้าทุกตัวที่มีคลิปพร้อมโพสต์ให้ได้ลงคิวอย่างทั่วถึง ไม่ให้สินค้าเดิม 5 ตัวแรกผูกขาดตารางทั้งสัปดาห์
+  - เพิ่ม Time-Slot Diversity: ป้องกันไม่ให้สินค้าตัวเดิมลงเวลาเดิมซ้ำๆ ติดกันทุกวัน (เช่น Orashare 09:00 ทุกวัน)
+  - ปรับปรุงการคำนวณคะแนนสถิติ: ให้สถิติมีผลช่วยดันสินค้าขายดี แต่ต้องไม่เกิด Starvation กับสินค้าใหม่หรือสินค้าที่ยังไม่เคยโพสต์
+- [ ] รันจัดคิวใหม่สำหรับสัปดาห์ 21-27 ก.ย. 2026: นำคลิปจากสินค้าหลากหลาย (เช่น Hatari, Toshino, Iwachi, Telesin, Orico, JBL, BlueWow, Synmax ฯลฯ) มากระจายสลับวนกันอย่างลงตัว
+- [ ] รันชุดทดสอบ `tests/test_schedule_queue.py` และ frontend tests ให้ผ่าน 100%
+- [ ] ย้ายรอบงานเข้า `HISTORY.md` และสรุปให้ผู้ใช้ทราบ
+
+---
+
+## Round TIKTOK-LIVE-DOM-SCHEDULE-SETTLE-20260920 — closed (ดำเนินการโดย: Codex (GPT-5))
+
+---
+
+## Round TIKTOK-REQUEUE-SANMAX-COVER-MISS-20260920 — closed (ดำเนินการโดย: Codex (GPT-5))
+
+---
 
 - [ ] Agent Motion: สร้าง frame pair จริงแล้ว แต่ P1-F parity gate ยังไม่ผ่าน (`mask IoU 0.1813699217`, `bbox edge delta 22px`); ดู `MOTION-PARITY-P1-F-REPORT-20260919.md`
 - [x] Agent Backend: แก้ Full pytest failures 4 จุด; targeted regression `11 passed`, expanded regression `60 passed, 1 warning`
@@ -50,6 +130,32 @@
 
 ---
 
+### GADGET-MEDIA-PRODUCT-VIDEO-STUDIO-PLAN-20260919 — completed (รายละเอียดอยู่ใน HISTORY.md)
+
+## Round GADGET-POSITION-NATIVE-SOURCE-RESET-20260919 — active
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### เป้าหมาย
+- ล็อก Position ช่องย่อย Gadget: ย่อยข่าวและรีวิว Gadget ใหม่ให้เข้าใจง่ายใน 30–60 วินาที พร้อมมุมใช้จริง
+- จำกัดสินค้าเริ่มต้นเป็น Smartphone/Foldable, อุปกรณ์เสริมมือถือ และ Gadget แห่งอนาคตที่เกี่ยวข้องกับชีวิตประจำวัน
+- ดาวน์โหลด source ทางการทั้งหมดก่อนตัดต่อ และรับเฉพาะ native 1920×1080 หรือ 4K
+- ไม่ใช้ไฟล์ 640×360 ไป upscale เป็น Full HD อีก
+- ลบผลผลิตตัดต่อ/upscale ชุดเก่าหลัง source ใหม่ผ่านการตรวจครบ
+
+### แผน
+- [x] สร้างรายการสินค้า/แบรนด์ตาม Position และตรวจ source ทางการ
+- [ ] ดาวน์โหลด source ดิบทั้งหมดลงโฟลเดอร์รอบใหม่ โดยยังไม่ตัดคลิป — ผ่าน 5/6; Xiaomi ติด HTTP 403
+- [x] ตรวจ codec, resolution, duration, audio และความสมบูรณ์ด้วย ffprobe สำหรับ 5 source ที่ผ่าน
+- [x] ย้ายคลิปตัดต่อ/upscale ชุดเก่าออกจากโฟลเดอร์ใช้งานไปยัง `.tmp/gadget_reset_discard_20260919/`
+- [ ] แตกช่วงสินค้าเต็มช่วงจาก source ใหม่ตาม manifest
+- [ ] ตรวจผลลัพธ์และสรุปไว้ใน HISTORY.md
+
+### Blocker
+
+- Xiaomi native source ยังดาวน์โหลดไม่ได้ แม้ format `1920×1080` มีอยู่ในรายการ เพราะ YouTube ตอบ `HTTP 403` ก่อนเริ่มข้อมูล จึงห้ามใช้ source `640×360` เดิมแทน
+- รายละเอียดการตรวจอยู่ที่ `GADGET_NATIVE_SOURCE_VERIFY_20260919.md` และ `.tmp/gadget_native_sources_20260919/native_source_manifest.json`
+
 ## Round TIKTOK-GADGET-MEDIA-FUNCTIONAL-20260919 — active
 
 ดำเนินการโดย: Codex (GPT-5)
@@ -63,6 +169,22 @@
 - [ ] เพิ่ม script templates สำหรับ `ดูคลิปนี้ก่อนซื้อ`, `แปลสเปกเป็นภาษาคน` และ `ของจริงกับคำโฆษณา`
 - [ ] เพิ่มฟิลด์ analytics: views, completion rate, comments, follows และ follows per 1,000 views
 - [x] รัน deterministic tests, frontend tests, build/lint และ `git diff --check`; ไม่มี test artifact ถูกสร้างนอก `.tmp/`
+
+---
+
+## Round GADGET-MEDIA-HUB-INTEGRATION-AND-TEMPLATES-20260919 — active
+
+ดำเนินการโดย: Antigravity (Gemini Flash)
+
+แผนอ้างอิง: [TIKTOK_GADGET_MEDIA_PLAN.md](file:///d:/Winona/Programmer/Capcut/TIKTOK_GADGET_MEDIA_PLAN.md) และ implementation_plan.md
+
+- [x] เชื่อมต่อ `GadgetMediaHub` เข้ากับ `App.jsx` (แก้หน้าจอดำสนิทเมื่อเลือกแท็บ Gadget Media)
+- [x] เพิ่ม Script Templates 3 ซีรีส์ (*ดูคลิปนี้ก่อนซื้อ*, *แปลสเปกเป็นภาษาคน*, *ของจริงกับคำโฆษณา*) พร้อมโครงสร้าง 5 ท่อนมาตรฐาน
+- [x] เพิ่ม Preset Sources จาก `source_manifest.json` สำหรับสร้าง Pilot draft (Galaxy S26 FE, Pixel 11 Pro, Xiaomi IFA 2026 ฯลฯ)
+- [x] เพิ่ม Action Buttons: ส่งเข้า Editor (SequencePlayer 9:16) และปุ่ม Quick Render (Private Rough Cut)
+- [x] เพิ่ม Campaign Analytics Dashboard Card ในหน้า Hub และฟิลด์บันทึกสถิติ 5 ตัว (Views, Completion Rate, Comments, Follows, Follows/1K Views)
+- [x] รันชุดทดสอบ frontend tests (287 passed), backend tests (9 passed) และ production build ผ่าน 100%
+- [x] ตรวจสอบว่าไม่มีไฟล์ขยะตกค้างนอก `.tmp/` ก่อนสรุปผล
 
 ### Functional slice result 2026-09-19
 
@@ -92,7 +214,7 @@
 - [x] Schrodinger — ตรวจ rights gate และความเสี่ยงการใช้ Official footage
 - [x] รวมผลเป็นแผนรีวิวกลางก่อนเริ่มตัดต่อ — `GADGET_REVIEW_AGENT_REPORT_20260919.md`
 
-### Batch private rough cuts GADGET-REVIEW-ROUGH-CUTS-20260919 — completed
+### Batch private rough cuts GADGET-REVIEW-ROUGH-CUTS-20260919 — discarded by user
 
 ดำเนินการโดย: Codex (GPT-5) ใช้ video-editing workflow
 
@@ -106,6 +228,12 @@
 Output: `.tmp/gadget_review_roughcuts_20260919/output/`
 Verification: `.tmp/gadget_review_roughcuts_20260919/batch_verify.json`
 Preview: `.tmp/gadget_review_roughcuts_20260919/preview/gadget_review_roughcuts_preview_strip.jpg`
+
+- ผลลัพธ์ MP4, TTS, captions, preview และ verification ถูกลบตามคำสั่งผู้ใช้แล้ว
+
+### GADGET-SOURCE-SLICES-20260919 — completed (รายละเอียดอยู่ใน HISTORY.md)
+
+### GADGET-PRODUCT-SEGMENTS-20260919 — completed (รายละเอียดอยู่ใน HISTORY.md)
 
 ### Remix prototype XIAOMI-17-ULTRA-20260919 — active
 
@@ -130,7 +258,10 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 
 ## สถานะรวม
 
+- [x] Round HATARI-HOOK-OVERLAY-AUTO-FALLBACK-20260919 — แก้ปัญหาดราฟต์แล้วป้ายฮุกถูกปิด: เพิ่ม auto-fallback ดึง hook brand/model จากชื่อสินค้าเมื่อว่าง ป้องกันป้ายฮุกปิด, อัปเดต ProductStore สินค้า Hatari, และเปิดป้ายฮุกพร้อม regenerate ซับไตเติลให้ครบทั้ง 10 โปรเจกต์ Hatari ใน 03_Projects/ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
 - [ ] Round TIKTOK-GADGET-MEDIA-FUNCTIONAL-20260919 — บัญชี Gadget Media แยกจาก workflow ปักตะกร้า พร้อม campaign 21 คลิปและ rights gate (ดำเนินการโดย: Codex (GPT-5))
+- [x] Round TIKTOK-AUTOPOST-ORDER-RELIABILITY-20260920 — ปรับลำดับตั้งเวลา → แนบปก, retry/verify Save ปก, mark หลังโพสต์, โฟกัส TikTok Studio และวนกลับหน้า upload (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
+- [x] Round GADGET-MEDIA-PRODUCT-VIDEO-STUDIO-PLAN-20260919 — แผน 1 สินค้า = 1 คลิป Master พร้อม workflow และ storage isolation (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
 
 - [x] Round COMPACT-PAGINATION-ALL-NARROW-CONTAINERS-AUDIT-AND-FIX-1 — ตรวจสอบและแก้ไข UI Pagination ในคอนเทนเนอร์แคบทั้งระบบ (AssetPanel 250px, Kanban Columns 300px, ActivityCenter 440px) ให้เป็น compact mode ไม่ล้นขอบและไม่ตกบรรทัด (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round PROJECT-SELECTOR-PAGINATION-UI-OVERFLOW-FIX-1 — แก้ไข UI Pagination ใน Dropdown เลือกโปรเจกต์: เพิ่ม compact mode ให้ PaginationControls ยุบเป็น `‹ 1 / 5 ›` ไม่ล้นขอบ และแก้ปัญหาข้อความบีบตกบรรทัดเป็นแนวตั้ง (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
@@ -1494,3 +1625,31 @@ Plan before code:
 
 ## Round PRODUCER-HUB-REALTIME-DATA-AND-ALIAS-COLLISION-FIX-1 - ปิดรอบแล้ว ✅ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 
+## Round GADGET-MEDIA-PRODUCT-VIDEO-STUDIO-IMPLEMENTATION-20260920 — active
+
+ดำเนินการโดย: Codex (GPT-5)
+
+แผนอ้างอิง: [GADGET_MEDIA_EDITOR_PLAN.md](file:///d:/Winona/Programmer/Capcut/GADGET_MEDIA_EDITOR_PLAN.md)
+
+### เป้าหมาย
+
+- สร้าง workflow `1 สินค้า = 1 Product Video Project = 1 Approved Master` ภายในเมนู Gadget Media
+- แยกข้อมูลและโฟลเดอร์ออกจาก workflow เดิม แต่ใช้ timeline engine ร่วมกันผ่าน scoped adapter
+- บังคับคุณภาพ Native 1080p, สิทธิ์ใช้งาน, หลักฐานข้อมูล และความยาว 45–60 วินาทีก่อนอนุมัติ
+
+### แผนดำเนินการ
+
+- [ ] เพิ่ม domain model, isolated paths, repository, state machine และ migration แบบ additive
+- [ ] เพิ่ม timeline adapter และ quality gates ที่ deterministic/offline
+- [ ] เพิ่ม API สำหรับ Product Library, Product Workspace, timeline และ approval
+- [ ] เชื่อม campaign slot กับ Product Video Project แบบ optional โดยไม่ทำลายข้อมูลเดิม
+- [ ] สร้าง Product Library / Product Workspace / scoped timeline ในหน้า Gadget Media
+- [ ] เพิ่ม backend/frontend tests และรัน compile, targeted/full tests, build, detector, `git diff --check`
+- [ ] อัปเดต CHANGELOG/เอกสาร แล้วปิดรอบไป HISTORY.md
+
+### Notes
+
+- Dirty worktree ก่อนเริ่ม: `AGENTS.md`, `HISTORY.md`, `TODO.md`, `_Docs/schedule_queue.json`, `frontend/src/App.jsx`, `frontend/src/api.js`, `frontend/src/components/Sidebar.jsx`, `frontend/src/components/Topbar.jsx`, `scripts/api_gadget_media.py`, `scripts/api_schedule_queue.py`, `scripts/batch_render.py`, `scripts/gadget_media_campaign.py`, `scripts/stages/subtitle_stage.py`, `tests/test_api_gadget_media.py`, `tests/test_gadget_media_campaign.py`, `tests/test_schedule_queue.py` และไฟล์ untracked ที่เกี่ยวข้องกับ Gadget Media/source tools
+- จะรักษางานเดิมทั้งหมด ไม่แก้หรือลบ source download packs และไม่สร้าง test artifact ในโฟลเดอร์ผลงานจริง
+
+---

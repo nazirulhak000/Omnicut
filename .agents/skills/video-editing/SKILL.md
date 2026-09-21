@@ -303,9 +303,15 @@ identify the 5 most engaging 30-second clips for social media."
 4. **Remotion for repeatability.** If you'll do it more than once, make it a Remotion component.
 5. **Generate selectively.** Only use AI generation for assets that don't exist, not for everything.
 6. **Taste is the last layer.** AI clears repetitive work. You make the final creative calls.
+7. **Strict Zero-Duplicate Asset Sourcing.** Always verify SHA-256 checksum or file size before saving. Never keep duplicate images/videos under different names. Preserve memory and disk space.
+8. **Strict Single-Product Scope.** Download ONLY assets directly belonging to the specified target product model. Never download or store unrelated models, accessories, or other brands.
+9. **Follow Project Master SOP.** For vertical gadget review videos (9:16), strictly adhere to `_Docs/GADGET_VIDEO_PRODUCTION_SOP.md`. Any future visual style adjustments must be synchronized into that SOP.
 
-## Related Skills
+## Related Skills & References
 
+- `_Docs/GADGET_VIDEO_PRODUCTION_SOP.md` — Master Standard Operating Procedure for Vertical Gadget Video Production
+- `.agents/rules/asset_sourcing_and_deduplication.md` — Mandatory Asset Sourcing & Deduplication Rules
 - `fal-ai-media` — AI image, video, and audio generation
 - `videodb` — Server-side video processing, indexing, and streaming
 - `content-engine` — Platform-native content distribution
+

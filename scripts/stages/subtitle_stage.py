@@ -85,7 +85,19 @@ class SubtitleStage:
             ass_path = ctx.out_path("subtitles", ".ass")
 
             effective_hook_brand = ctx.hook_brand
-            banner_combined_len = len(" ".join(filter(None, [effective_hook_brand, ctx.hook_model, ctx.hook_label])))
+            effective_hook_model = ctx.hook_model
+            effective_hook_label = ctx.hook_label
+            if (
+                not (effective_hook_brand or "").strip()
+                and not (effective_hook_model or "").strip()
+                and not (effective_hook_label or "").strip()
+            ):
+                guessed_b, guessed_m = guess_brand_model(ctx.product_name)
+                if guessed_b or guessed_m:
+                    effective_hook_brand = guessed_b or None
+                    effective_hook_model = guessed_m or None
+
+            banner_combined_len = len(" ".join(filter(None, [effective_hook_brand, effective_hook_model, effective_hook_label])))
             if ctx.hook_duration is not None and abs(float(ctx.hook_duration) - 3.0) > 0.01:
                 effective_hook_duration = float(ctx.hook_duration)
             else:
@@ -103,8 +115,8 @@ class SubtitleStage:
                 effective_overlays = migrate_to_overlays({
                     **(ctx.manifest or {}),
                     "hook_brand": effective_hook_brand,
-                    "hook_model": ctx.hook_model,
-                    "hook_label": ctx.hook_label,
+                    "hook_model": effective_hook_model,
+                    "hook_label": effective_hook_label,
                     "hook_duration": effective_hook_duration,
                     "hook_motion": ctx.hook_motion,
                     "hook_colors": ctx.hook_colors,
@@ -136,8 +148,8 @@ class SubtitleStage:
                 font_name=ctx.font_name,
                 overlays=effective_overlays,
                 hook_brand=effective_hook_brand,
-                hook_model=ctx.hook_model,
-                hook_label=ctx.hook_label,
+                hook_model=effective_hook_model,
+                hook_label=effective_hook_label,
                 hook_duration=effective_hook_duration,
                 hook_motion=ctx.hook_motion,
                 hook_colors=ctx.hook_colors,
@@ -153,6 +165,9 @@ class SubtitleStage:
             # Sync micro_cues back
             ctx.cues = micro_cues
             ctx.micro_cues = micro_cues
+            ctx.hook_brand = effective_hook_brand
+            ctx.hook_model = effective_hook_model
+            ctx.hook_label = effective_hook_label
             print(f"   Subtitles created: {ass_path} ({len(micro_cues)} micro-bursts)")
         else:
             if not ctx.manifest:

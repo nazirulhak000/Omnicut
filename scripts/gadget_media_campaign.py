@@ -91,6 +91,7 @@ class SourceRef:
             "usage_note": self.usage_note,
             "rights_reviewed": self.rights_reviewed,
             "captured_at": self.captured_at,
+            "publishable": self.publishable,
         }
 
     @classmethod
@@ -147,6 +148,7 @@ class ContentSlot:
     target_audience: str = DEFAULT_TARGET_AUDIENCE
     status: str = "planned"
     script: str = ""
+    product_project_id: Optional[str] = None
     source_refs: List[SourceRef] = field(default_factory=list)
     metrics: ContentMetrics = field(default_factory=ContentMetrics)
     created_at: str = field(default_factory=_now)
@@ -193,6 +195,7 @@ class ContentSlot:
             "target_audience": self.target_audience,
             "status": self.status,
             "script": self.script,
+            "product_project_id": self.product_project_id,
             "source_refs": [source.to_dict() for source in self.source_refs],
             "metrics": self.metrics.to_dict(),
             "created_at": self.created_at,
@@ -211,6 +214,7 @@ class ContentSlot:
             target_audience=str(data.get("target_audience") or DEFAULT_TARGET_AUDIENCE),
             status=str(data.get("status") or "planned"),
             script=str(data.get("script") or ""),
+            product_project_id=str(data.get("product_project_id") or "") or None,
             source_refs=[SourceRef.from_dict(item) for item in (data.get("source_refs") or [])],
             metrics=ContentMetrics.from_dict(data.get("metrics")),
             created_at=str(data.get("created_at") or _now()),
@@ -260,6 +264,51 @@ class GadgetMediaCampaign:
             "ready_slots": len(self.slots) - len(blockers),
             "blocked_slots": len(blockers),
             "blockers": blockers,
+        }
+
+    def analytics_summary(self) -> Dict[str, Any]:
+        self.validate()
+        total_views = sum(slot.metrics.views for slot in self.slots)
+        total_comments = sum(slot.metrics.comments for slot in self.slots)
+        total_follows = sum(slot.metrics.follows for slot in self.slots)
+        slots_with_views = [s for s in self.slots if s.metrics.views > 0]
+        avg_completion = (
+            round(sum(s.metrics.completion_rate for s in slots_with_views) / len(slots_with_views), 1)
+            if slots_with_views else 0.0
+        )
+        overall_f_per_1k = (
+            round((total_follows / total_views) * 1000, 2)
+            if total_views > 0 else 0.0
+        )
+        series_breakdown: Dict[str, Any] = {}
+        for s_key in SERIES:
+            s_slots = [s for s in self.slots if s.series == s_key]
+            s_views = sum(s.metrics.views for s in s_slots)
+            s_follows = sum(s.metrics.follows for s in s_slots)
+            s_comments = sum(s.metrics.comments for s in s_slots)
+            s_with_views = [s for s in s_slots if s.metrics.views > 0]
+            s_avg_completion = (
+                round(sum(s.metrics.completion_rate for s in s_with_views) / len(s_with_views), 1)
+                if s_with_views else 0.0
+            )
+            s_f_per_1k = round((s_follows / s_views) * 1000, 2) if s_views > 0 else 0.0
+            series_breakdown[s_key] = {
+                "total_slots": len(s_slots),
+                "published_slots": len([s for s in s_slots if s.status == "published"]),
+                "views": s_views,
+                "follows": s_follows,
+                "comments": s_comments,
+                "avg_completion_rate": s_avg_completion,
+                "follows_per_1000_views": s_f_per_1k,
+            }
+        return {
+            "campaign_id": self.campaign_id,
+            "total_views": total_views,
+            "total_comments": total_comments,
+            "total_follows": total_follows,
+            "avg_completion_rate": avg_completion,
+            "follows_per_1000_views": overall_f_per_1k,
+            "series": series_breakdown,
         }
 
     def to_dict(self) -> Dict[str, Any]:
@@ -379,7 +428,7 @@ class CampaignStore:
         slot = next((item for item in campaign.slots if item.slot_id == slot_id), None)
         if slot is None:
             raise KeyError(slot_id)
-        allowed = {"series", "hook", "target_audience", "status", "script", "source_refs", "metrics"}
+        allowed = {"series", "hook", "target_audience", "status", "script", "source_refs", "metrics", "product_project_id"}
         unknown = set(changes) - allowed
         if unknown:
             raise CampaignValidationError(f"unsupported slot fields: {', '.join(sorted(unknown))}")
@@ -387,6 +436,11 @@ class CampaignStore:
         updated.update(changes)
         updated["updated_at"] = _now()
         replacement = ContentSlot.from_dict(updated)
+        if replacement.status == "published" and not replacement.ready_to_publish:
+            raise CampaignValidationError(
+                "slot cannot be published until readiness checks pass: "
+                + "; ".join(replacement.publish_readiness_errors())
+            )
         campaign.slots[campaign.slots.index(slot)] = replacement
         campaign.updated_at = _now()
         self.save(campaign)

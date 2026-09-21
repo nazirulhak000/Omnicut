@@ -1,0 +1,412 @@
+[
+  {
+    "campaign_id": "gadget-media-ebbb8c0304",
+    "name": "Gadget Media — 30 วัน 21 คลิป",
+    "campaign_type": "gadget_media",
+    "account_role": "gadget_media",
+    "goal": "สร้างผู้ติดตามแบบ organic จากคอนเทนต์ Gadget ที่เข้าใจง่าย",
+    "slots": [
+      {
+        "slot_id": "gadget-01",
+        "series": "watch_before_buy",
+        "hook": "คลิปนี้ดูเหมือนคุ้ม แต่มีจุดหนึ่งที่ต้องระวัง",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.154809+00:00",
+        "updated_at": "2026-09-19T16:09:34.154839+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-02",
+        "series": "watch_before_buy",
+        "hook": "คลิปนี้ดูเหมือนคุ้ม แต่มีจุดหนึ่งที่ต้องระวัง",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155174+00:00",
+        "updated_at": "2026-09-19T16:09:34.155186+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-03",
+        "series": "watch_before_buy",
+        "hook": "คลิปนี้ดูเหมือนคุ้ม แต่มีจุดหนึ่งที่ต้องระวัง",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155612+00:00",
+        "updated_at": "2026-09-19T16:09:34.155623+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-04",
+        "series": "watch_before_buy",
+        "hook": "คลิปนี้ดูเหมือนคุ้ม แต่มีจุดหนึ่งที่ต้องระวัง",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155638+00:00",
+        "updated_at": "2026-09-19T16:09:34.155643+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-05",
+        "series": "watch_before_buy",
+        "hook": "คลิปนี้ดูเหมือนคุ้ม แต่มีจุดหนึ่งที่ต้องระวัง",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155652+00:00",
+        "updated_at": "2026-09-19T16:09:34.155657+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-06",
+        "series": "watch_before_buy",
+        "hook": "คลิปนี้ดูเหมือนคุ้ม แต่มีจุดหนึ่งที่ต้องระวัง",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155666+00:00",
+        "updated_at": "2026-09-19T16:09:34.155670+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-07",
+        "series": "watch_before_buy",
+        "hook": "คลิปนี้ดูเหมือนคุ้ม แต่มีจุดหนึ่งที่ต้องระวัง",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155680+00:00",
+        "updated_at": "2026-09-19T16:09:34.155687+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-08",
+        "series": "watch_before_buy",
+        "hook": "คลิปนี้ดูเหมือนคุ้ม แต่มีจุดหนึ่งที่ต้องระวัง",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155698+00:00",
+        "updated_at": "2026-09-19T16:09:34.155702+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-09",
+        "series": "watch_before_buy",
+        "hook": "คลิปนี้ดูเหมือนคุ้ม แต่มีจุดหนึ่งที่ต้องระวัง",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155709+00:00",
+        "updated_at": "2026-09-19T16:09:34.155713+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-10",
+        "series": "spec_in_plain_language",
+        "hook": "สเปกคำนี้แปลเป็นการใช้งานจริงว่าอะไร",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155721+00:00",
+        "updated_at": "2026-09-19T16:09:34.155725+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-11",
+        "series": "spec_in_plain_language",
+        "hook": "สเปกคำนี้แปลเป็นการใช้งานจริงว่าอะไร",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155732+00:00",
+        "updated_at": "2026-09-19T16:09:34.155736+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-12",
+        "series": "spec_in_plain_language",
+        "hook": "สเปกคำนี้แปลเป็นการใช้งานจริงว่าอะไร",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155744+00:00",
+        "updated_at": "2026-09-19T16:09:34.155748+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-13",
+        "series": "spec_in_plain_language",
+        "hook": "สเปกคำนี้แปลเป็นการใช้งานจริงว่าอะไร",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155756+00:00",
+        "updated_at": "2026-09-19T16:09:34.155760+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-14",
+        "series": "spec_in_plain_language",
+        "hook": "สเปกคำนี้แปลเป็นการใช้งานจริงว่าอะไร",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.155985+00:00",
+        "updated_at": "2026-09-19T16:09:34.156025+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-15",
+        "series": "spec_in_plain_language",
+        "hook": "สเปกคำนี้แปลเป็นการใช้งานจริงว่าอะไร",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.156045+00:00",
+        "updated_at": "2026-09-19T16:09:34.156053+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-16",
+        "series": "real_vs_marketing",
+        "hook": "ของจริงทำได้ตามคำโฆษณาหรือไม่",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.156064+00:00",
+        "updated_at": "2026-09-19T16:09:34.156070+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-17",
+        "series": "real_vs_marketing",
+        "hook": "ของจริงทำได้ตามคำโฆษณาหรือไม่",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.156080+00:00",
+        "updated_at": "2026-09-19T16:09:34.156085+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-18",
+        "series": "real_vs_marketing",
+        "hook": "ของจริงทำได้ตามคำโฆษณาหรือไม่",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.156093+00:00",
+        "updated_at": "2026-09-19T16:09:34.156100+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-19",
+        "series": "real_vs_marketing",
+        "hook": "ของจริงทำได้ตามคำโฆษณาหรือไม่",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.156110+00:00",
+        "updated_at": "2026-09-19T16:09:34.156116+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-20",
+        "series": "real_vs_marketing",
+        "hook": "ของจริงทำได้ตามคำโฆษณาหรือไม่",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.156123+00:00",
+        "updated_at": "2026-09-19T16:09:34.156126+00:00",
+        "ready_to_publish": false
+      },
+      {
+        "slot_id": "gadget-21",
+        "series": "real_vs_marketing",
+        "hook": "ของจริงทำได้ตามคำโฆษณาหรือไม่",
+        "target_audience": "คนใช้มือถือทั่วไปที่อยากซื้อ Gadget คุ้มและเข้าใจง่าย",
+        "status": "planned",
+        "script": "",
+        "source_refs": [],
+        "metrics": {
+          "views": 0,
+          "completion_rate": 0.0,
+          "comments": 0,
+          "follows": 0,
+          "follows_per_1000_views": 0.0
+        },
+        "created_at": "2026-09-19T16:09:34.156136+00:00",
+        "updated_at": "2026-09-19T16:09:34.156140+00:00",
+        "ready_to_publish": false
+      }
+    ],
+    "created_at": "2026-09-19T16:09:34.158487+00:00",
+    "updated_at": "2026-09-19T16:09:34.158503+00:00"
+  }
+]

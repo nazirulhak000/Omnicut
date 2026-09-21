@@ -1,6 +1,6 @@
 # OmniCut Pro Studio Architecture
 
-เอกสารนี้อธิบายโครงสร้างสถาปัตยกรรมที่ใช้งานจริง ณ วันที่ 2026-09-15 (ปรับปรุงล่าสุด) หากสถานะงานหรือผลทดสอบต่างจากเอกสารนี้ ให้ยึด [TODO.md](TODO.md) และโค้ดปัจจุบันเป็นหลัก
+เอกสารนี้อธิบายโครงสร้างสถาปัตยกรรมที่ใช้งานจริง ณ วันที่ 2026-09-20 (ปรับปรุงล่าสุด) หากสถานะงานหรือผลทดสอบต่างจากเอกสารนี้ ให้ยึด [TODO.md](TODO.md) และโค้ดปัจจุบันเป็นหลัก
 
 ## ภาพรวมระบบ
 
@@ -15,6 +15,10 @@ flowchart LR
     MEDIA --> EXPORT[04_Exports/Ready_to_post]
     MANIFEST --> EDITOR[Editor load, autosave, reroll]
     API --> ANALYTICS[Analytics & Operations Hub]
+    UI --> GADGET[Gadget Media Product Studio]
+    GADGET --> GMAPI[Product Project API]
+    GMAPI --> GMSTORE[03_Projects/GadgetMedia]
+    GMAPI --> GMEXPORT[04_Exports/Ready_to_post/GadgetMedia]
 ```
 
 ค่ามาตรฐานของไฟล์โพสต์จริงคือ 1080x1920 (9:16), H.264, AAC, 30 FPS และ `+faststart` ส่วน Draft ใช้ 720x1280 เพื่อทดสอบเร็วขึ้น
@@ -33,9 +37,11 @@ flowchart LR
 7. **7. ตั้งค่าระบบ (`SystemSettings.jsx`):** ตรวจสอบ System Health, AI Providers, เสียงพากย์ Edge-TTS/Gemini, และการเชื่อมต่อมือถือผ่าน QR Code
 8. **8. คู่มือใช้งาน (`UserGuide.jsx`):** Interactive Knowledge Base สำหรับผู้ใช้ (Sticky TOC, เช็กลิสต์ติ๊กได้พร้อมความจำ localStorage, การ์ดเมนู 0-7, โฟลว์ 7 ขั้นกดเปิดเมนูได้, Quick Action ปุ่มลัดแก้ปัญหา, FAQ ค้นหาได้)
 
-## Backend (FastAPI 23 Routers)
+เมนูเพิ่มเติม **Gadget Media (`GadgetMediaHub.jsx`)** แยกเป็น `Product Studio` สำหรับ workflow `1 สินค้า = 1 Product Video Project = 1 Approved Master` และ `Campaign และ Analytics` สำหรับวางแผน/ติดตามผล โดย Product Workspace มี Brief, Sources, Evidence, Story, Cut และ Review อยู่ในเมนูเดียว ไม่ส่งงานไป Global Editor
 
-Entry point คือ `scripts/api_server.py` ทำหน้าที่สร้าง FastAPI app, ตรวจสอบ API Key security, ตั้ง CORS, และ mount router โดเมนต่างๆ รวม 170 routes (ตรวจสอบจริงผ่าน `len(app.routes)` = 170 โดยเป็น HTTP API route 166 รายการ ที่เหลือเป็น docs/openapi):
+## Backend (FastAPI 25 Routers)
+
+Entry point คือ `scripts/api_server.py` ทำหน้าที่สร้าง FastAPI app, ตรวจสอบ API Key security, ตั้ง CORS, และ mount router โดเมนต่างๆ รวม 201 routes (ตรวจสอบจริงผ่าน `len(app.routes)` = 201):
 
 | ลำดับ | โมดูล Router | หน้าที่หลัก |
 | :--- | :--- | :--- |
@@ -62,6 +68,8 @@ Entry point คือ `scripts/api_server.py` ทำหน้าที่สร�
 | 21 | `scripts/api_batch_render.py` | เรนเดอร์หลายคลิปพร้อมกันผ่าน `BatchRenderManager` |
 | 22 | `scripts/api_producer.py` | AI Producer Hub — notes, missions และ vision insights |
 | 23 | `scripts/api_background_isolation.py` | ตัดพื้นหลัง/แยกตัวแบบ async พร้อมกู้งานค้างตอน startup |
+| 24 | `scripts/api_gadget_media.py` | Campaign, Content Slot, rights readiness และ analytics ของ Gadget Media |
+| 25 | `scripts/api_gadget_media_projects.py` | Product Library/Workspace, source probe, scoped timeline, Gemini TTS, quality gate, render และ Approved Master |
 
 การเปลี่ยน route, method, request หรือ response ต้องตรวจสอบความเข้ากันได้กับ `frontend/src/api.js` เสมอ
 
@@ -136,6 +144,8 @@ Subtitle modules ปัจจุบัน:
 - `05_Covers_Thumbnails/` เก็บปกคลิป 3:4 และ 9:16 ที่สร้างจาก Cover Studio
 - `06_Archive/` พื้นที่จัดเก็บไฟล์เก่าสำรอง
 - `_Docs/post_log.json` และ `_Docs/products.json` เป็น runtime data ของระบบ
+- Gadget Media แยก ownership เป็น `01_Raw/GadgetMedia/`, `03_Projects/GadgetMedia/`, `04_Exports/Ready_to_post/GadgetMedia/`, `05_Covers_Thumbnails/GadgetMedia/` และ `_Docs/gadget_media/`
+- `scripts/gadget_media_timeline_adapter.py` แปลง Story/EDL เป็น Timeline Document v2 ที่มี `workspace_scope=gadget_media`; ใช้ math/preview/render engine ร่วม แต่ไม่ใช้ manifest หรือ status ของ Global Editor
 
 ## สถานะการทดสอบปัจจุบัน (Verification Gates) — วัดจริง 2026-09-15
 
@@ -144,4 +154,3 @@ Subtitle modules ปัจจุบัน:
 - **Python Pytest Suite:** 1,520 tests collected (`pytest tests/`) — ผลรันเต็ม 2026-09-15: 1,514 passed, 5 skipped, **1 failed ที่ค้างมาก่อนแล้ว** (`tests/test_style_motion_policy.py` ยังยืนยัน catalog 5 สไตล์ ขณะที่ `scripts/style_motion_policy.py` มี 10 สไตล์แล้ว — ติดตามที่ Round `STYLE-MOTION-CATALOG-CONTRACT-SYNC-1` ใน [TODO.md](TODO.md))
 - **Frontend Suite:** 246 tests passed, 0 failures (`npm test` → `node --test src/lib/*.test.js`)
 - **Vite Production Build:** ผ่านเรียบร้อย 2,007 modules transformed
-

@@ -785,8 +785,16 @@ def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
 
     selection_target = min(selected_count, len(slots))
     selected: List[AutoFillClipPayload] = []
-    while len(selected) < selection_target:
-        target_day = slots[len(selected)].date() if len(selected) < len(slots) else None
+    scheduled_assignments: List[tuple[AutoFillClipPayload, dt.datetime]] = []
+    product_usage_count: Dict[str, int] = {}
+    product_time_slots: Dict[str, set[str]] = {}
+    product_last_day: Dict[str, dt.date] = {}
+
+    slot_idx = 0
+    while slot_idx < len(slots) and len(scheduled_assignments) < selection_target:
+        current_slot = slots[slot_idx]
+        target_day = current_slot.date()
+        target_time = current_slot.strftime("%H:%M")
 
         def usable(key: str) -> bool:
             if not buckets.get(key):
@@ -804,8 +812,26 @@ def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
 
         available = [key for key in product_keys if usable(key)]
         if not available:
-            break
-        product_key = available[0] if req.optimize_by_stats and product_scores else rng.choice(available)
+            slot_idx += 1
+            continue
+
+        # Priority criteria:
+        # 1. usage count (lowest first) -> enforces fair round-robin across all products so few products don't monopolize
+        # 2. time-slot penalty -> avoid placing the same product at the same time slot (e.g. not 09:00 every day)
+        # 3. adjacent day penalty -> avoid scheduling the same product on consecutive days when other products are available
+        # 4. stats score (highest first) -> among products with equal usage, favor higher performers
+        def key_priority(k: str):
+            usage = product_usage_count.get(k, 0)
+            time_penalty = 1 if target_time in product_time_slots.get(k, set()) else 0
+            adj_day_penalty = 1 if (target_day and product_last_day.get(k) == target_day - dt.timedelta(days=1)) else 0
+            if req.optimize_by_stats and product_scores:
+                score = product_scores.get(_product_key(k), 0.0)
+                return (usage, time_penalty, adj_day_penalty, -score, rng.random())
+            else:
+                return (usage, time_penalty, adj_day_penalty, rng.random())
+
+        available.sort(key=key_priority)
+        product_key = available[0]
         clip_options = [
             clip for clip in buckets[product_key]
             if target_day is not None
@@ -822,17 +848,24 @@ def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
         clip = rng.choice(clip_options)
         buckets[product_key].remove(clip)
         selected.append(clip)
+        scheduled_assignments.append((clip, current_slot))
         used_products_by_day.setdefault(target_day, set()).update(_clip_product_aliases(clip))
         color = _resolve_hook_color(clip.style_preset, clip.hook_color)
         if color:
             used_colors_by_day.setdefault(target_day, set()).add(color)
+        product_usage_count[product_key] = product_usage_count.get(product_key, 0) + 1
+        if target_time:
+            product_time_slots.setdefault(product_key, set()).add(target_time)
+        if target_day:
+            product_last_day[product_key] = target_day
+        slot_idx += 1
     items: List[Dict[str, Any]] = []
-    for clip, when in zip(selected, slots):
+    for clip, when in scheduled_assignments:
         item = clip.model_dump()
         item["scheduled_at"] = scheduled_iso(when)
         item["hook_color"] = _resolve_hook_color(item.get("style_preset"), item.get("hook_color"))
         items.append(item)
-    skipped_repetition = max(0, selection_target - len(selected))
+    skipped_repetition = max(0, selection_target - len(items))
     skipped_slots = max(0, selected_count - len(slots)) + max(0, len(selected) - len(items))
     skipped_items = max(0, selected_count - len(items))
     reason = None

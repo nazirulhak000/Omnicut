@@ -68,6 +68,7 @@ from scripts.api_batch_render import router as batch_render_router
 from scripts.batch_render import BatchRenderManager
 from scripts.api_producer import router as producer_router
 from scripts.api_gadget_media import router as gadget_media_router
+from scripts.api_gadget_media_projects import router as gadget_media_projects_router
 from scripts.api_background_isolation import (
     recover_background_isolation_tasks,
     router as background_isolation_router,
@@ -297,6 +298,7 @@ app.include_router(hooks_router)
 app.include_router(batch_render_router)
 app.include_router(producer_router)
 app.include_router(gadget_media_router)
+app.include_router(gadget_media_projects_router)
 app.include_router(background_isolation_router)
 
 # ----------------------------------------------------------------------

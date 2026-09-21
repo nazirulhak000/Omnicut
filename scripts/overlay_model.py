@@ -172,6 +172,7 @@ AD_TONE_TO_TEMPLATE: Dict[str, str] = {
     "commercial_hype": "bold_pop",
     "commercial_aesthetic": "plain",
     "commercial_premium": "clean",
+    "tech_journalism_calm": "tech",
 }
 
 STYLE_PRESET_TO_TEMPLATE: Dict[str, str] = {

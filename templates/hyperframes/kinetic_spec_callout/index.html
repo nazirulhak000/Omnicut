@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: transparent;
+        font-family: 'Prompt', -apple-system, sans-serif;
+      }
+      #root {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        background: transparent;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      
+      /* Pure floating kinetic container - ZERO card box, ZERO background rectangle */
+      .kinetic-callout {
+        position: absolute;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        pointer-events: none;
+      }
+
+      /* Position variants */
+      .pos-top {
+        top: 280px;
+      }
+      .pos-bottom {
+        bottom: 480px;
+      }
+
+      .feature-title {
+        font-size: 58px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #FFFFFF;
+        text-shadow: 0 4px 20px rgba(0, 0, 0, 0.95), 0 0 40px rgba(0, 0, 0, 0.8);
+        -webkit-text-stroke: 2px #000000;
+        transform-origin: center center;
+        opacity: 0;
+        transform: scale(0.5) translateY(40px);
+      }
+
+      /* Sleek expanding laser accent line */
+      .laser-beam {
+        height: 4px;
+        width: 0px;
+        background: linear-gradient(90deg, transparent, #FF6600, #FFCC00, #FF6600, transparent);
+        box-shadow: 0 0 16px #FF6600, 0 0 32px #FFAA00;
+        border-radius: 2px;
+        margin: 12px 0 16px 0;
+        opacity: 0;
+      }
+
+      .spec-metric {
+        font-size: 72px;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        color: #FF7700;
+        text-shadow: 0 4px 24px rgba(0, 0, 0, 0.95), 0 0 20px rgba(255, 102, 0, 0.4);
+        -webkit-text-stroke: 2.5px #000000;
+        transform-origin: center center;
+        opacity: 0;
+        transform: scale(0.4);
+      }
+
+      .spec-metric.cyan {
+        color: #00E5FF;
+        text-shadow: 0 4px 24px rgba(0, 0, 0, 0.95), 0 0 20px rgba(0, 229, 255, 0.4);
+      }
+
+      .spec-metric.green {
+        color: #00FF66;
+        text-shadow: 0 4px 24px rgba(0, 0, 0, 0.95), 0 0 20px rgba(0, 255, 102, 0.4);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="kinetic_callout" data-duration="5.0">
+      <!-- Floating Top Callout -->
+      <div class="kinetic-callout pos-top" id="topCallout">
+        <div class="feature-title" id="featureTitle">OUTER DISPLAY</div>
+        <div class="laser-beam" id="laserBeam"></div>
+        <div class="spec-metric" id="specMetric">4.01" 1.5K 120Hz</div>
+      </div>
+    </div>
+
+    <script>
+      // GSAP Spring & Kinetic Physics
+      const tl = gsap.timeline({ delay: 0.1 });
+
+      // 1. Title entrance: spring pop with overshoot
+      tl.to("#featureTitle", {
+        opacity: 1,
+        scale: 1,
+        y: 0,
+        duration: 0.5,
+        ease: "back.out(2.2)"
+      });
+
+      // 2. Laser beam shoot out from center
+      tl.to("#laserBeam", {
+        opacity: 1,
+        width: 480,
+        duration: 0.35,
+        ease: "power3.out"
+      }, "-=0.25");
+
+      // 3. Metric punch: explosive scale-pop + glow settle
+      tl.to("#specMetric", {
+        opacity: 1,
+        scale: 1.18,
+        duration: 0.3,
+        ease: "power2.out"
+      }, "-=0.2");
+
+      tl.to("#specMetric", {
+        scale: 1.0,
+        duration: 0.25,
+        ease: "elastic.out(1.2, 0.4)"
+      });
+
+      // Subtle breathing hover for remaining duration
+      tl.to("#topCallout", {
+        y: "-=10",
+        duration: 1.5,
+        yoyo: true,
+        repeat: 2,
+        ease: "sine.inOut"
+      });
+    </script>
+  </body>
+</html>

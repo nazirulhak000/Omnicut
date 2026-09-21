@@ -71,6 +71,23 @@ async function fetchPendingJob() {
   return res.json();
 }
 
+async function markPendingJobPosted(job) {
+  const apiKey = await getStoredApiKey();
+  const res = await authedFetch(BACKEND + '/api/exports/mark-posted', apiKey, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      file_path: job.video_path,
+      export_id: job.export_id || null,
+      product_id: job.product_id || null,
+      angle_id: job.angle_id || null,
+    }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || 'auto mark failed (HTTP ' + res.status + ')');
+  return body;
+}
+
 async function clearPendingJob() {
   try {
     const apiKey = await getStoredApiKey();
@@ -99,6 +116,35 @@ async function refreshPendingCover(coverPath) {
   }
 }
 
+function isUploadTab(tab) {
+  try {
+    const url = new URL(tab?.url || 'about:blank');
+    return url.hostname === 'www.tiktok.com' && url.pathname.includes('upload');
+  } catch (e) {
+    return false;
+  }
+}
+
+async function focusTikTokTab(tab) {
+  if (!tab?.id) return tab;
+  try { await chrome.tabs.update(tab.id, {active: true}); } catch (e) {}
+  try {
+    if (tab.windowId !== undefined && chrome.windows?.update) {
+      await chrome.windows.update(tab.windowId, {focused: true});
+    }
+  } catch (e) {}
+  return tab;
+}
+
+async function openUploadPage(tab) {
+  if (!tab?.id) return tab;
+  if (!isUploadTab(tab)) {
+    try {
+      tab = await chrome.tabs.update(tab.id, {url: 'https://www.tiktok.com/tiktokstudio/upload', active: true});
+    } catch (e) {}
+  }
+  return focusTikTokTab(tab);
+}
 async function findUploadTab() {
   if (pinnedUploadTabId !== null) {
     const tab = await chrome.tabs.get(pinnedUploadTabId);
@@ -106,16 +152,15 @@ async function findUploadTab() {
     if (url.hostname !== 'www.tiktok.com' || !url.pathname.includes('upload')) {
       throw new Error('แท็บที่เริ่มงานออกจากหน้าอัปโหลดแล้ว กรุณาเปิดหน้าอัปโหลดใหม่');
     }
-    return tab;
+    return focusTikTokTab(tab);
   }
   try {
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (
       activeTab?.url &&
-      activeTab.url.includes('tiktok.com') &&
-      (activeTab.url.includes('upload') || activeTab.url.includes('creator') || activeTab.url.includes('studio'))
+      isUploadTab(activeTab)
     ) {
-      return activeTab;
+      return focusTikTokTab(activeTab);
     }
   } catch (e) {
     // fallback
@@ -130,7 +175,8 @@ async function findUploadTab() {
   for (const pattern of patterns) {
     try {
       const tabs = await chrome.tabs.query({ url: pattern });
-      if (tabs && tabs.length > 0) return tabs[0];
+      const uploadTab = tabs?.find(isUploadTab);
+      if (uploadTab) return focusTikTokTab(uploadTab);
     } catch (e) {}
   }
 
@@ -1111,6 +1157,27 @@ function normalizeScheduleTime(rawTime) {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
+async function waitForScheduleValues(sendEval, requestedDate, requestedTime, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  let shown = [];
+  do {
+    const values = await sendEval(`(() => {
+      const visible = el => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && (!el.checkVisibility || el.checkVisibility({checkOpacity:true, checkVisibilityCSS:true}));
+      };
+      return Array.from(document.querySelectorAll('input.TUXTextInputCore-input, input[type="date"], input[type="time"]'))
+        .filter(visible).map(el => String(el.value || '').trim());
+    })()`);
+    shown = values?.result?.value || [];
+    const settled = (!requestedDate || shown.includes(requestedDate))
+      && (!requestedTime || shown.includes(requestedTime));
+    if (settled) return {success: true, shown};
+    await sleep(150);
+  } while (Date.now() < deadline);
+  return {success: false, shown};
+}
+
 async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
   const requestedDate = String(date || '').trim();
   const rawTime = String(time || '').trim();
@@ -1204,16 +1271,13 @@ async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
     return {success: false, reason: err.message};
   }
 
-  const values = await sendEval(`(() => {
-    const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-    return Array.from(document.querySelectorAll('input.TUXTextInputCore-input, input[type="date"], input[type="time"]'))
-      .filter(visible).map(el => String(el.value || '').trim());
-  })()`);
-  const shown = values?.result?.value || [];
-  const success = (!requestedDate || shown.includes(requestedDate)) && (!requestedTime || shown.includes(requestedTime));
-  return success
+  // The time picker animates through intermediate values after an option is
+  // clicked (live DOM: 19:25 -> 19:20 -> 19:00). Do not open Cover Studio
+  // until both controls have settled on the exact requested values.
+  const settled = await waitForScheduleValues(sendEval, requestedDate, requestedTime);
+  return settled.success
     ? {success: true, changed: true, requestedDate, requestedTime}
-    : {success: false, changed: true, reason: 'schedule_value_not_confirmed'};
+    : {success: false, changed: true, reason: 'schedule_value_not_confirmed', shown: settled.shown};
 }
 
 async function setScheduleDateTimeLegacy(send, { date = '', time = '' } = {}) {
@@ -1590,6 +1654,7 @@ async function runScheduleModeOnly({ date = '', time = '' } = {}) {
 }
 
 async function runClickPostOnly() {
+  const job = await fetchPendingJob();
   const tab = await findUploadTab();
   const send = cdp(tab.id);
 
@@ -1598,16 +1663,35 @@ async function runClickPostOnly() {
     await send('DOM.enable');
     await send('Runtime.enable');
     // clickPostButton now throws unless it finds real evidence the post
-    // went through (URL navigated away, compose form gone, or tab closed) --
-    // reaching this line means it's actually confirmed, so `posted:true` is
-    // no longer a guess.
+    // went through (URL navigated away, compose form gone, or tab closed).
     await clickPostButton(send, tab.id);
-    return { success: true, clicked: true, posted: true };
   } finally {
     try {
       await chrome.debugger.detach({ tabId: tab.id });
     } catch (e) {}
   }
+
+  // TikTok accepted the post. Mark the exact pending export immediately so
+  // the user does not need a second manual action in the side panel.
+  try {
+    await markPendingJobPosted(job);
+    await clearPendingJob();
+  } catch (err) {
+    // Do not report a false mark: the post is real, but the local archive
+    // still needs one retry from the panel if the backend was unavailable.
+    await focusTikTokTab(tab);
+    return {
+      success: true,
+      clicked: true,
+      posted: true,
+      marked: false,
+      markError: err.message || String(err),
+    };
+  }
+
+  // Keep TikTok in front and leave the same tab ready for the next clip.
+  await openUploadPage(tab);
+  return { success: true, clicked: true, posted: true, marked: true };
 }
 
 async function runTypeCaptionOnly({ caption, hashtags }) {
@@ -1665,21 +1749,28 @@ async function runPrepareDetails(message) {
     if (![caption, hashtags].some(value => value.trim())) throw new Error('กรุณากรอกคำอธิบายหรือแฮชแท็ก');
     await runTypeCaptionOnly({caption, hashtags});
     completed.push('caption');
+
     step = 'product';
     const productId = message.productId || job.tiktok_product_id;
     if (!productId) throw new Error('กรุณากรอก ID สินค้า');
     const product = await runAttachProductOnly({productId, cartName: message.cartName || ''});
     if (!product.success) throw new Error(product.reason);
     completed.push('product');
-    step = 'cover';
-    await runUploadCoverOnly({coverPath: message.coverPath});
-    completed.push('cover');
+
+    // TikTok must be in schedule mode before the cover editor is opened.
+    // The cover editor can trigger a form re-render, which used to discard
+    // the schedule selection when cover was uploaded first.
     if (message.scheduleMode) {
       step = 'schedule';
       const schedule = await runScheduleModeOnly({date: message.scheduleDate, time: message.scheduleTime});
       if (!schedule.success) throw new Error(schedule.reason);
       completed.push('schedule');
     }
+
+    step = 'cover';
+    await runUploadCoverOnly({coverPath: message.coverPath});
+    completed.push('cover');
+
     return {success:true, completed};
   } catch (err) {
     return {success:false, completed, step, error:err.message};

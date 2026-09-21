@@ -22,7 +22,7 @@
 
 ---
 
-## 📁 2. โครงสร้างโฟลเดอร์ — ห้ามวางไฟล์นอกที่กำหนด: `00_Inbox/` ดิบ / `01_Raw/` วัตถุดิบ (`YYYYMMDD_ชื่อสินค้า-ประเด็น/`) / `02_Assets/` ของใช้ซ้ำ (Fonts/Music/SFX/Stickers/LUTs) / `03_Projects/` สคริปต์+ดราฟต์ / `04_Exports/` คลิปเสร็จ / `05_Covers_Thumbnails/` ปก 9:16 / `06_Archive/` เก็บเก่า (ถูก gitignore) / `scripts/` backend / `tools/` utility / `frontend/` UI / `_Docs/` PRD·prompt·รายงานปฏิบัติการ / `.tmp/` ของชั่วคราวจากเทส (ถูก gitignore) / `.agents/rules/` กฎเฉพาะทาง — **ไฟล์แผน/รายงานของรอบงาน (`*_PLAN.md`, `*_REPORT_*`, `*_AUDIT_*`, `*_VERIFY_*`) อยู่ที่รากโปรเจกต์ ห้ามย้าย**
+## 📁 2. โครงสร้างโฟลเดอร์ — ห้ามวางไฟล์นอกที่กำหนด: `00_Inbox/` ดิบ / `01_Raw/` วัตถุดิบ (`YYYYMMDD_ชื่อสินค้า-ประเด็น/`) / `02_Assets/` ของใช้ซ้ำ (Fonts/Music/SFX/Stickers/LUTs) / `03_Projects/` สคริปต์+ดราฟต์ / `04_Exports/` คลิปเสร็จ / `05_Covers_Thumbnails/` ปก 9:16 / `06_Archive/` เก็บเก่า (ถูก gitignore) / `scripts/` backend / `tools/` utility / `frontend/` UI / `_Docs/` PRD·prompt·คู่มือ SOP (รวมโฟลเดอร์ย่อย `_Docs/Plans/` เก็บแผนงาน และ `_Docs/Reports/` เก็บรายงานผล/Audit ห้ามวางเกลื่อนกลาดที่รากโปรเจกต์) / `.tmp/` ของชั่วคราวจากเทส (ถูก gitignore) / `.agents/rules/` กฎเฉพาะทาง — **ที่รากโปรเจกต์คงไว้เฉพาะไฟล์ระบบหลัก 5 ไฟล์เท่านั้น (`README.md`, `TODO.md`, `HISTORY.md`, `ARCHITECTURE.md`, `AGENTS.md`)**
 
 ---
 
@@ -39,6 +39,8 @@
 9. ❌ **ห้ามทับศัพท์ชื่อแบรนด์/รุ่น/ศัพท์เทคนิคอังกฤษเป็นไทย** (เช่น ห้าม "บลูทูธ" ให้ใช้ "Bluetooth", "USB-C")
 10. ❌ **ห้ามงานอื่นกระทบฟอนต์/ข้อความโดยไม่สั่ง** — ไม่เปลี่ยน family/ขนาด/weight/outline/ตัดบรรทัด/ตำแหน่ง/safe zone (ดู [.agents/rules/font_text_visual_contract.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/font_text_visual_contract.md))
 11. ❌ **ห้ามทิ้งคลิปทดสอบ/Demo/Dummy ค้างใน `04_Exports/` หรือในโปรเจกต์** — งานทดสอบหรือ verify ห้ามเรนเดอร์ลงโฟลเดอร์ผลงานจริง (`04_Exports/` หรือ `04_Exports/Ready_to_post/`) เด็ดขาด ให้ใช้โฟลเดอร์ชั่วคราว (`.tmp/` หรือ `tmp_path`) เท่านั้น หากจำเป็นต้องสร้างไฟล์ทดสอบ ต้องลบทำความสะอาด (Cleanup 100%) ทั้งไฟล์วิดีโอ (.mp4), thumbnail (.webp), โฟลเดอร์โปรเจกต์ และถอดออกจาก `_Docs/export_registry.json` ทันที ห้ามทิ้งขยะทดสอบให้ User ต้องมานั่งไล่ลบเอง
+12. ❌ **ห้ามใช้คลิปที่มีซับไตเติลจีนหรือภาษาต่างชาติฝังเด็ดขาด (Hardcoded Foreign Subtitles)** — ห้ามนำคลิปที่มีซับภาษาจีนหรือภาษาอื่นฝังในเนื้อวิดีโอมาตัดต่อเด็ดขาด เพื่อป้องกันคลิปดูไม่เป็นมืออาชีพและถูก TikTok ลดการมองเห็น ต้องใช้เฉพาะ Clean B-roll / Official Design Film หรือคลิปที่ภาพสะอาดไร้ซับเท่านั้น
+13. ❌ **ห้ามดาวน์โหลดวัตถุดิบซ้ำซ้อน และห้ามโหลดวัตถุดิบผิดรุ่น/ข้ามรุ่นเด็ดขาด (Strict Zero-Duplicate & Scope Guard)** — ตรวจสอบ SHA-256 Checksum หรือ File size ทุกครั้งก่อนบันทึก ห้ามเซฟภาพหรือคลิปซ้ำซ้อนเปลืองเมมโมรี่ และห้ามโหลดสินค้าอื่นรุ่นอื่นใน Ecosystem หรือต่างแบรนด์เข้ามาปนเด็ดขาด โฟกัสเฉพาะรุ่นเป้าหมาย 100% (ดู [.agents/rules/asset_sourcing_and_deduplication.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/asset_sourcing_and_deduplication.md))
 
 ---
 
@@ -48,7 +50,7 @@
 2. ✔️ **Naming Convention** — Raw: `YYYYMMDD_ชื่อสินค้า-ประเด็น` / Export: `YYYYMMDD_ชื่อสินค้า_hook_vN.mp4` / Draft ตรงชื่อโฟลเดอร์
 3. ✔️ **ซับไทย Micro-Burst/Kinetic** — burst 2–4 คำ, ไฮไลต์ `#FFE600`, safe zone ล่าง 420px (ดู [.agents/rules/subtitle_kinetic_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/subtitle_kinetic_rules.md))
 4. ✔️ **สติกเกอร์** — เฉพาะ Universal Badges 6 แบบ, พื้นขาว `#FFFFFF` + ขอบ die-cut (ดู [.agents/rules/sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md))
-5. ✔️ **TTS/Audio** — Edge-TTS ไทย `+15%`, ระดับเสียง Voice 1.0 / SFX 0.28 / BGM 0.12 ที่ `scripts/config.py`
+5. ✔️ **TTS/Audio** — Gemini Flash TTS เสียงมาตรฐาน: `Fenrir` (ชายสตรอง คมเข้ม) + สไตล์ `commercial_premium` (โฆษณาพรีเมียม), Edge-TTS ไทย `+15%`, ระดับเสียง Voice 1.0 / SFX 0.28 / BGM 0.12 ที่ `scripts/config.py`
 6. ✔️ **Subprocess (FFmpeg/Rembg)** — รันผ่าน subprocess + error handling + log ไทย
 7. ✔️ **J-Cut** — เสียงช็อตถัดไปมาก่อนภาพ 150–250ms (ดู [.agents/rules/j_cut_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/j_cut_rules.md))
 8. ✔️ **UI คลีน + สถานะตามจริง** — ปุ่มขึ้นต้นกริยาไม่มีสัญลักษณ์นำ, สถานะ `in_production`/`rendered` ตามของจริงเท่านั้น (ดู [.agents/rules/ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md))
@@ -65,6 +67,14 @@
      - `ดำเนินการโดย: Cursor (Claude 3.5 Sonnet)`
    - **วัตถุประสงค์:** โปร่งใส สืบย้อนได้ว่าโมเดลตัวไหนรับผิดชอบงานนั้น
 15. ✔️ **Test Cleanup 100% (ลบขยะทดสอบทันที)** — ทุกไฟล์วิดีโอ/ภาพ/ดราฟต์ที่ถูกสร้างขึ้นเพื่อการทดสอบ (Demo/Test/Probe/Verify) ต้องถูกลบทิ้งอย่างเด็ดขาดหลังทดสอบเสร็จ ทั้งใน `04_Exports/`, `03_Projects/`, `05_Covers_Thumbnails/` และต้องถอดออกจาก `_Docs/export_registry.json` ด้วยเสมอ
+16. ✔️ **คลังวัตถุดิบแยกรายรุ่นสินค้า (Organized Product Assets)** — จัดระเบียบวัตถุดิบแยกโฟลเดอร์ตามรุ่นสินค้า ประกอบด้วยคลิป Clean 1080p ไร้ซับต่างชาติ, ภาพสินค้า High-Res, และข้อมูลสเปก/Hook พร้อมใช้งาน
+17. ✔️ **สไตล์ซับและเลย์เอาต์คลิปรีวิวแกดเจ็ตระดับโปร (Supersub & Clean Presentation Standard)**:
+   - **ซับไตเติล**: ฟอนต์ `Mali-Bold` ขนาด 88px ขอบดำ Outline 5.2px MarginV 380, ใช้บทสคริปต์ทางการ 100% ห้ามใช้ผลลัพธ์ดิบจาก Whisper, รวมกลุ่มพยางค์ภาษาไทยสมบูรณ์ (Syllable Clustering) สระและวรรณยุกต์ไม่ฉีกขาด, เทคนิค Progressive Ghost Reveal คำข้างหน้าซ่อนโปร่งใส ค่อยๆ เด้งทีละพยางค์ขยาย 114% สีเขียวนีออน (`#66FF00`), คำที่พูดแล้วเป็นสีขาวบริสุทธิ์ (`#FFFFFF`), จัดแสดงบรรทัดเดียวสั้นกระชับ (ดู [.agents/rules/gadget_editing_style_checklist.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/gadget_editing_style_checklist.md))
+   - **กล่องสเปก (Callouts)**: หัวข้อบนสีขาว (`Prompt-Bold` 76px MarginV 250) + สเปกล่างสีส้มไฟนีออน (`Prompt-Black` 94px `#FF6622` MarginV 530) ไม่มีเส้นขีดเขียว
+   - **การค้างภาพ (Strict Topic Hold)**: ภาพต้องตรงกับสิ่งที่เสียงพากย์กำลังพูดตลอดทั้งประโยค ไม่ตัดสลับหนีฟีเจอร์ก่อนพูดจบ
+   - **ดนตรีและมิกซ์เสียง**: เพลงไอทีสนุกสนานคึกคัก (`tiktok_upbeat_bgm.wav` 0.14) + เสียงพากย์ Fenrir (1.0)
+   - **ความคลีน**: ลายน้ำ/เครดิตระบุเฉพาะแหล่งที่มาจริง (Source Attribution ที่ MarginV 36) ห้ามใส่โลโก้หรือป้ายแปลกปลอม (เช่น TECH MX)
+18. ✔️ **ปฏิบัติตามคู่มือปฏิบัติงานมาตรฐานและเช็กลิสต์ (Master Gadget SOP & Checklist Compliance)**: ทุกขั้นตอนการผลิตคลิปวิดีโอรีวิวแกดเจ็ต 60 วินาที ต้องยึดถือและปฏิบัติตาม **[_Docs/GADGET_VIDEO_PRODUCTION_SOP.md](file:///d:/Winona/Programmer/Capcut/_Docs/GADGET_VIDEO_PRODUCTION_SOP.md)** และตรวจผ่าน **[.agents/rules/gadget_editing_style_checklist.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/gadget_editing_style_checklist.md)** ก่อนส่งมอบงานทุกครั้ง หากมีการปรับปรุงสไตล์การตัดต่อ, ฟอนต์ หรือมิกซ์เสียง ต้องอัปเดตลงใน SOP และ Checklist เสมอ
 
 ---
 

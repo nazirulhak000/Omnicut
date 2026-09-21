@@ -139,6 +139,7 @@ export const AD_TONE_TO_TEMPLATE = {
   commercial_hype: 'bold_pop',
   commercial_aesthetic: 'plain',
   commercial_premium: 'clean',
+  tech_journalism_calm: 'tech',
 };
 
 export const STYLE_PRESET_TO_TEMPLATE = {

@@ -395,7 +395,13 @@ async function prepareClip(item) {
     renderActiveClipBanner();
     markPostedBtn.disabled = false;
     showTab('checklist');
-    setStatus('เตรียมคลิปแล้ว ทำทีละขั้นด้านล่างได้เลย', 'success');
+    try {
+      await openTikTokUploadTab();
+    } catch (openError) {
+      setStatus('เตรียมคลิปแล้ว แต่เปิดหน้าอัปโหลดไม่สำเร็จ: ' + openError.message, 'error');
+      return;
+    }
+    setStatus('เตรียมคลิปแล้ว และเปิดหน้าอัปโหลดให้แล้ว ทำต่อได้เลย', 'success');
   } catch (err) {
     setStatus('เตรียมคลิปไม่สำเร็จ: ' + err.message, 'error');
   } finally {
@@ -485,9 +491,20 @@ wireStep('btn4', 'chk4', 'ขั้น 4 (สลับเป็นกำหน�
     return `ขั้น 4 สำเร็จ -- เปลี่ยนเป็นกำหนดเวลา ${when} แล้ว${adjusted} กดขั้น 5 เมื่อต้องการโพสต์`;
   });
 
-wireStep('btn5', 'chk5', 'ขั้น 5 (กด Post/กำหนดเวลา)',
+wireStep('btn5', 'chk5', 'ขั้น 6 (กด Post/กำหนดเวลา)',
   () => ({ action: 'click-post-only' }),
-  'ขั้น 5 สำเร็จ -- กด Post/กำหนดเวลาให้แล้ว');
+  response => {
+    if (response.marked) {
+      const postedTitle = activeClip?.hook_title || activeClip?.name || 'คลิป';
+      activeClip = null;
+      resetChecklist();
+      renderActiveClipBanner();
+      loadExports();
+      showTab('list');
+      return postedTitle + ' โพสต์และมาร์คเป็นโพสต์แล้วอัตโนมัติ พร้อมเตรียมหน้าอัปโหลดสำหรับคลิปถัดไป';
+    }
+    return 'โพสต์ขึ้น TikTok แล้ว แต่ยังมาร์คใน OmniCut ไม่สำเร็จ: ' + (response.markError || 'ลองกดมาร์คอีกครั้ง');
+  });
 
 wireStep('btn6', 'chk6', 'แนบภาพปก',
   () => {
@@ -782,27 +799,32 @@ async function findExistingTikTokTab() {
 
 async function openTikTokUploadTab() {
   if (typeof chrome !== 'undefined' && chrome.tabs) {
-    try {
-      const tab = await findExistingTikTokTab();
-      if (tab && tab.id) {
-        await chrome.tabs.update(tab.id, { active: true });
-        if (tab.windowId && chrome.windows) {
-          await chrome.windows.update(tab.windowId, { focused: true });
-        }
-        setStatus('สลับไปยังแท็บ TikTok Studio เรียบร้อยแล้ว', 'success');
-        return;
+    const tab = await findExistingTikTokTab();
+    if (tab && tab.id) {
+      let target = tab;
+      if (!String(tab.url || '').includes('/upload')) {
+        target = await chrome.tabs.update(tab.id, {
+          url: TIKTOK_UPLOAD_URL,
+          active: true,
+        });
+      } else {
+        target = await chrome.tabs.update(tab.id, {active: true});
       }
-      chrome.tabs.create({ url: TIKTOK_UPLOAD_URL }, () => {
-        setStatus('เปิดแท็บ TikTok Studio แล้ว กรุณารอหน้าเว็บโหลดครบ', 'success');
-      });
-    } catch (err) {
-      chrome.tabs.create({ url: TIKTOK_UPLOAD_URL }, () => {
-        setStatus('เปิดแท็บ TikTok Studio แล้ว กรุณารอหน้าเว็บโหลดครบ', 'success');
-      });
+      if (target.windowId && chrome.windows) {
+        await chrome.windows.update(target.windowId, {focused: true});
+      }
+      setStatus('เปิดหน้าอัปโหลด TikTok Studio ให้แล้ว', 'success');
+      return target;
     }
-  } else {
-    window.open(TIKTOK_UPLOAD_URL, '_blank');
+    const created = await chrome.tabs.create({url: TIKTOK_UPLOAD_URL, active: true});
+    if (created?.windowId && chrome.windows) {
+      await chrome.windows.update(created.windowId, {focused: true});
+    }
+    setStatus('เปิดหน้าอัปโหลด TikTok Studio ให้แล้ว', 'success');
+    return created;
   }
+  window.open(TIKTOK_UPLOAD_URL, '_blank');
+  return null;
 }
 
 document.getElementById('headerOpenTikTokBtn')?.addEventListener('click', openTikTokUploadTab);

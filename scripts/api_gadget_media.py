@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict
 
+from scripts.config import BASE_DIR
 from scripts.gadget_media_campaign import (
     CAMPAIGNS_FILE,
     CampaignStore,
@@ -14,6 +17,7 @@ from scripts.gadget_media_campaign import (
     create_starter_campaign,
 )
 
+PRESET_SOURCES_FILE = BASE_DIR / ".tmp" / "gadget_news_sources_20260919" / "source_manifest.json"
 
 router = APIRouter(prefix="/api/gadget-media", tags=["Gadget Media"])
 
@@ -34,6 +38,7 @@ class SlotPatch(BaseModel):
     script: Optional[str] = None
     source_refs: Optional[List[Dict[str, Any]]] = None
     metrics: Optional[Dict[str, Any]] = None
+    product_project_id: Optional[str] = None
 
 
 def _store() -> CampaignStore:
@@ -81,6 +86,23 @@ def get_campaign(campaign_id: str):
 def get_campaign_readiness(campaign_id: str):
     campaign = _campaign_or_404(campaign_id)
     return campaign.readiness_summary()
+
+
+@router.get("/campaigns/{campaign_id}/analytics")
+def get_campaign_analytics(campaign_id: str):
+    campaign = _campaign_or_404(campaign_id)
+    return campaign.analytics_summary()
+
+
+@router.get("/preset-sources")
+def get_preset_sources():
+    if not PRESET_SOURCES_FILE.exists():
+        return {"sources": []}
+    try:
+        data = json.loads(PRESET_SOURCES_FILE.read_text(encoding="utf-8"))
+        return {"sources": data.get("sources", [])}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการอ่าน preset sources: {exc}")
 
 
 @router.patch("/campaigns/{campaign_id}/slots/{slot_id}")

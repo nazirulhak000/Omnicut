@@ -490,6 +490,9 @@ class SubtitleEngine:
         overlays: Optional[List[Dict[str, Any]]] = None,
         style_preset: Optional[str] = None,
         show_watermark: bool = True,
+        source_credit: Optional[str] = None,
+        source_credits: Optional[List[Dict[str, Any]]] = None,
+        channel_badge: Optional[str] = None,
     ) -> Tuple[str, List[Dict]]:
         """
         Generate TikTok style ASS subtitle file with rapid-fire micro-bursts, 
@@ -687,6 +690,8 @@ Style: SpecBar,{resolved_font},{int(round((font_size - 12) * TEXT_SCALE_BOOST))}
 Style: TextOverlayMain,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
 Style: TextOverlayPill,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
 Style: Watermark,{caption_font},{watermark_fs_boosted},{WATERMARK_COLOR},&H000000FF,&H00FFFFFF,&H00000000,0,0,0,0,100,100,0,0,1,{watermark_outline},0,5,0,0,0,1
+Style: SourceCredit,{resolved_font},26,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,1.5,1,2,0,0,32,1
+Style: ChannelBadge,{resolved_font},26,&H00FFFFFF,&H000000FF,&H00000000,&H000055FF,1,0,0,0,100,100,0,0,3,8,0,9,30,30,50,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -702,6 +707,30 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             events.append(
                 f"Dialogue: 0,{cls._format_ass_time(0)},{cls._format_ass_time(10800)},Watermark,,0,0,0,,"
                 f"{{\\an5\\pos({wm_x},{wm_y})\\frz-90\\alpha{WATERMARK_ALPHA}}}{ass_escape_text(WATERMARK_TEXT)}"
+            )
+
+        # 0.5. Source Credit overlay (e.g. "Source : Weibo OPPO", "Source : Weibo Xiaomi", "Source : mi.com")
+        if source_credits:
+            for sc in source_credits:
+                sc_start = sc.get("start", 0.0)
+                sc_end = sc.get("end", 10800.0)
+                sc_text = sc.get("text", "")
+                if sc_text:
+                    events.append(
+                        f"Dialogue: 0,{cls._format_ass_time(sc_start)},{cls._format_ass_time(sc_end)},SourceCredit,,0,0,0,,"
+                        f"{{\\an2\\pos({int(video_width / 2)},{int(video_height - 35)})\\alpha&H15&}}{ass_escape_text(sc_text)}"
+                    )
+        elif source_credit:
+            events.append(
+                f"Dialogue: 0,{cls._format_ass_time(0)},{cls._format_ass_time(10800)},SourceCredit,,0,0,0,,"
+                f"{{\\an2\\pos({int(video_width / 2)},{int(video_height - 35)})\\alpha&H15&}}{ass_escape_text(source_credit)}"
+            )
+
+        # 0.6. Channel watermark badge in top right (e.g. "TECH MX" style)
+        if channel_badge:
+            events.append(
+                f"Dialogue: 0,{cls._format_ass_time(0)},{cls._format_ass_time(10800)},ChannelBadge,,0,0,0,,"
+                f"{{\\an9\\pos({int(video_width - 40)},55)}}{ass_escape_text(channel_badge)}"
             )
 
         # 1. Top Hook Banner -- 3-tier product-poster composition (brand

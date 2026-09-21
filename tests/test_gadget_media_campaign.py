@@ -103,3 +103,11 @@ def test_slot_update_preserves_other_slots_and_recalculates_readiness(tmp_path):
     assert updated.status == "scripted"
     assert store.get("campaign-5").slots[1].slot_id == "gadget-02"
     assert store.get("campaign-5").slots[0].ready_to_publish is False
+
+
+def test_store_blocks_publishing_until_source_and_script_readiness_pass(tmp_path):
+    store = CampaignStore(tmp_path / "campaigns.json")
+    store.create(create_starter_campaign(campaign_id="campaign-6"))
+
+    with pytest.raises(CampaignValidationError, match="cannot be published"):
+        store.update_slot("campaign-6", "gadget-01", {"status": "published"})

@@ -78,6 +78,10 @@ AD_TONE_PRESETS = {
     "commercial_expert": {
         "name": "🎙️ ผู้เชี่ยวชาญ คมชัด น่าเชื่อถือ (Tech & Pro Authority)",
         "prompt": "Scene: Tech Broadcast Studio.\nSample Context: Confident, crisp, authoritative reviewer. Clear articulation, professional, and convincing."
+    },
+    "tech_journalism_calm": {
+        "name": "🎙️ ผู้ประกาศข่าวนวัตกรรม นุ่มนวล น่าเชื่อถือ (Calm Tech Journalism)",
+        "prompt": "Scene: High-End Tech Documentary & Studio.\nSample Context: Warm, calm, smooth, soothing, and deeply trustworthy tech journalist. Natural tempo, articulate, objective, elegant, and credible. No shouting, no hype, no sales pitch."
     }
 }
 

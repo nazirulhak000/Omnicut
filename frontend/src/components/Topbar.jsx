@@ -1,11 +1,18 @@
 import React, { memo } from 'react';
 import {
   Rocket, Layers, Scissors, FolderDown, Palette, Settings,
-  Keyboard, Wifi, WifiOff, RefreshCw, Package, BarChart3, BookOpen, Bot
+  Keyboard, Wifi, WifiOff, RefreshCw, Package, BarChart3, BookOpen, Bot, Cpu
 } from 'lucide-react';
 import { ActivityIndicatorButton } from './ActivityCenter';
 
 const TAB_CONFIG = {
+  gadget: {
+    icon: Cpu,
+    title: 'Gadget Media',
+    badge: 'Gadget Media · 30 วัน',
+    badgeColor: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
+    description: 'แคมเปญ 21 คลิปสำหรับสร้างผู้ติดตามแบบ organic',
+  },
   producer: {
     icon: Bot,
     title: 'ผู้ช่วยโปรดิวเซอร์',

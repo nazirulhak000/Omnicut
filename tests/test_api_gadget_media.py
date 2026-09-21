@@ -32,3 +32,23 @@ def test_gadget_media_campaign_api_creates_and_updates_21_slots(tmp_path, monkey
     assert readiness.status_code == 200
     assert readiness.json()["total_slots"] == 21
     assert readiness.json()["blocked_slots"] == 21
+
+    blocked_publish = client.patch(
+        "/api/gadget-media/campaigns/api-campaign/slots/gadget-01",
+        json={"status": "published"},
+    )
+    assert blocked_publish.status_code == 400
+    assert "cannot be published" in blocked_publish.json()["detail"]
+
+    # Test analytics endpoint
+    analytics_resp = client.get("/api/gadget-media/campaigns/api-campaign/analytics")
+    assert analytics_resp.status_code == 200
+    analytics_data = analytics_resp.json()
+    assert "total_views" in analytics_data
+    assert "series" in analytics_data
+    assert "watch_before_buy" in analytics_data["series"]
+
+    # Test preset sources endpoint
+    preset_resp = client.get("/api/gadget-media/preset-sources")
+    assert preset_resp.status_code == 200
+    assert "sources" in preset_resp.json()

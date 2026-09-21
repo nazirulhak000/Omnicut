@@ -495,3 +495,46 @@ def test_autofill_reports_stats_and_prefers_evidence_backed_time(queue_workspace
     assert result["analytics"]["top_products"][0]["orders_per_1000_views"] > 0
     assert result["analytics"]["top_products"][0]["commission_per_1000_views_thb"] > 0
     assert any(row["scheduled_at"].startswith("2030-01-07T19:00") for row in result["items"])
+
+
+def test_autofill_distributes_multiple_products_fairly_across_days_and_slots(queue_workspace):
+    video_a, _ = queue_workspace
+    clips = []
+    presets = ["clean_tech_review", "viral_punch", "tech_compare", "tech_product_showcase", "flash_deal", "pain_punch"]
+    # Create 6 products, each having 3 clips (18 clips total)
+    for p_idx, p_name in enumerate(["ProdA", "ProdB", "ProdC", "ProdD", "ProdE", "ProdF"]):
+        for c_idx in range(3):
+            vpath = video_a.parent / f"{p_name}_{c_idx}.mp4"
+            vpath.write_bytes(f"{p_name}_{c_idx}".encode())
+            clips.append({
+                "video_path": str(vpath),
+                "product_id": f"id_{p_name}",
+                "product_name": p_name,
+                "style_preset": presets[p_idx],
+            })
+
+    # Request auto-fill for 3 days (Monday to Wednesday), with default template having slots per day
+    preview = client.post(
+        "/api/schedule-queue/auto-fill/preview",
+        json={
+            "start_date": "2030-01-07",
+            "end_date": "2030-01-09",
+            "clips": clips,
+            "seed": 42,
+        },
+    )
+
+    assert preview.status_code == 200
+    items = preview.json()["items"]
+    assert len(items) >= 12  # At least 4-5 slots per day
+
+    # Check product diversity: ALL 6 products should be scheduled!
+    scheduled_products = {it["product_name"] for it in items}
+    assert scheduled_products == {"ProdA", "ProdB", "ProdC", "ProdD", "ProdE", "ProdF"}
+
+    # Check time slot rotation: no single product should be scheduled at 09:00 on all 3 days
+    slot_0900_products = [it["product_name"] for it in items if "09:00" in it["scheduled_at"]]
+    if len(slot_0900_products) >= 2:
+        # Should not be identical product for all days at 09:00
+        assert len(set(slot_0900_products)) > 1
+

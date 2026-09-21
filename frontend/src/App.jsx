@@ -9,6 +9,7 @@ import { useKeyboardShortcuts } from './hooks';
 import { getSystemStatus, getRawVideos, getExports, getScheduleQueue, updateAngleStatus, getProducts } from './api';
 
 // ── Lazy-loaded view chunks for Code Splitting ──
+const GadgetMediaHub = lazy(() => import('./components/GadgetMediaHub'));
 const ProducerHub = lazy(() => import('./components/producer/ProducerHub'));
 const ProductToClip = lazy(() => import('./components/ProductToClip'));
 const ContentTrackerHub = lazy(() => import('./components/ContentTrackerHub'));
@@ -471,6 +472,18 @@ export default function App() {
             ) : (
             <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 lg:px-6 py-5 pb-20 md:pb-8 w-full min-w-0">
               <div className="mx-auto w-full min-w-0 max-w-[2200px] animate-fadeIn space-y-5">
+                {/* SECTION: Gadget Media */}
+                {activeTab === 'gadget' && (
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลด Gadget Media..." />}>
+                    <GadgetMediaHub
+                      onApplyToStudio={handleApplyScriptFromLab}
+                      onGoToEditor={(payload) => handleNavigateTab('editor', payload)}
+                      onGoToGallery={(payload) => handleNavigateTab('gallery', payload)}
+                      status={status}
+                    />
+                  </Suspense>
+                )}
+
                 {/* SECTION: ผู้ช่วยโปรดิวเซอร์ (Menu 0) */}
                 {activeTab === 'producer' && (
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลดผู้ช่วยโปรดิวเซอร์..." />}>

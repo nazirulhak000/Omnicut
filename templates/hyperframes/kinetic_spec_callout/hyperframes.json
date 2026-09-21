@@ -1,0 +1,9 @@
+{
+  "$schema": "https://hyperframes.dev/schema/composition.json",
+  "fps": 30,
+  "duration": 5.0,
+  "resolution": {
+    "width": 1080,
+    "height": 1920
+  }
+}

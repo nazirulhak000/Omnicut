@@ -25,7 +25,7 @@ from scripts.batch_queue_store import BatchQueueStore
 from scripts import render_jobs
 from scripts.render_jobs import RenderCancelled
 from scripts.pipeline import TikTokAutoCutterPipeline
-from scripts.overlay_model import template_for_style_preset, template_for_ad_tone
+from scripts.overlay_model import template_for_style_preset, template_for_ad_tone, guess_brand_model
 from scripts.api_render import check_disk_space
 
 logger = logging.getLogger("batch_render")
@@ -505,18 +505,24 @@ class BatchRenderManager:
                     break
                 try:
                     with render_jobs.render_slot(sub_job_id):
+                        effective_product_name = angle_data.get("product_name") or product_title
+                        brand_guess, model_guess = guess_brand_model(effective_product_name)
+                        hook_brand = angle_data.get("hook_brand") or latest_prod.get("hook_brand") or brand_guess or None
+                        hook_model = angle_data.get("hook_model") or latest_prod.get("hook_model") or model_guess or None
+                        hook_label = angle_data.get("hook_label") or latest_prod.get("hook_label") or ""
+
                         result = TikTokAutoCutterPipeline.run(
                             cancel_event=render_jobs.get_cancel_event(sub_job_id),
-                            product_name=angle_data.get("product_name") or product_title,
+                            product_name=effective_product_name,
                             raw_video_path=str(raw_video_path),
                             project_name=proj_name,
                             key_features=angle_data.get("key_features") or latest_prod.get("description", ""),
                             pain_point=angle_data.get("pain_point", ""),
                             price_deal=angle_data.get("price_deal") or latest_prod.get("price_note", ""),
                             custom_script=custom_script,
-                            hook_brand=angle_data.get("hook_brand"),
-                            hook_model=angle_data.get("hook_model"),
-                            hook_label=angle_data.get("hook_label"),
+                            hook_brand=hook_brand,
+                            hook_model=hook_model,
+                            hook_label=hook_label,
                             voice=options.get("voice_gender", "male"),
                             voice_rate=options.get("voice_rate", "+15%"),
                             voice_engine_type="edge_tts" if options.get("voice_mode") == "edge_tts" else "gemini_tts",

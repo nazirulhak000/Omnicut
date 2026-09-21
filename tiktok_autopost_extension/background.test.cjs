@@ -65,7 +65,7 @@ test('preparation completes in order and never calls publication', async () => {
   ctx.runClickPostOnly = async () => { throw new Error('must not post'); };
   const result = await ctx.runPrepareDetails({scheduleMode:true});
   assert.equal(result.success, true);
-  assert.deepEqual(called, ['caption', 'product', 'cover', 'schedule']);
+  assert.deepEqual(called, ['caption', 'product', 'schedule', 'cover']);
 });
 
 test('preparation waits for the real upload to finish before doing anything else', async () => {
@@ -85,7 +85,7 @@ test('preparation waits for the real upload to finish before doing anything else
   ctx.runScheduleModeOnly = async () => { called.push('schedule'); return {success:true}; };
   const result = await ctx.runPrepareDetails({scheduleMode:true});
   assert.equal(result.success, true);
-  assert.deepEqual(called, ['wait-for-upload', 'caption', 'product', 'cover', 'schedule']);
+  assert.deepEqual(called, ['wait-for-upload', 'caption', 'product', 'schedule', 'cover']);
 });
 
 test('preparation stops immediately if the upload never finishes, before touching caption/product/cover', async () => {
@@ -254,6 +254,27 @@ test('schedule time follows TikTok five-minute increments', () => {
   assert.equal(ctx.normalizeScheduleTime('24:00'), '');
 });
 
+test('schedule waits for TikTok time-picker animation to settle on the exact value', async () => {
+  const ctx = worker();
+  const snapshots = [
+    ['2026-09-26', '19:20'],
+    ['2026-09-26', '19:10'],
+    ['2026-09-26', '19:00'],
+  ];
+  let attempts = 0;
+  const sendEval = async () => {
+    const value = snapshots[Math.min(attempts, snapshots.length - 1)];
+    attempts += 1;
+    return {result: {value}};
+  };
+
+  const result = await ctx.waitForScheduleValues(sendEval, '2026-09-26', '19:00', 1000);
+
+  assert.equal(result.success, true);
+  assert.equal(attempts, 3);
+  assert.deepEqual(Array.from(result.shown), ['2026-09-26', '19:00']);
+});
+
 test('background.js does not contain invalid numeric ID selectors like #1 or #2', () => {
   const code = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
   const invalidIdMatch = code.match(/querySelector(?:All)?\s*\(\s*['"`][^'"`]*#[0-9]/);
@@ -288,6 +309,10 @@ test('live DOM contracts for the reported TikTok screens stay in the worker', ()
   assert.match(code, /ขั้น 5: เตรียมไฟล์ปกไม่สำเร็จ/);
   assert.match(code, /ขั้น 5: เปิด\/อัปโหลด\/บันทึกปกไม่สำเร็จ/);
   assert.match(automation, /หน้าต่าง Cover Studio ยังไม่ปิด/);
+  assert.match(automation, /attempt < 3/);
+  assert.match(code, /\/api\/exports\/mark-posted/);
+  assert.match(code, /marked: true/);
+  assert.match(panel, /await openTikTokUploadTab\(\)/);
   assert.match(panel, /scheduleDateInput/);
   assert.match(panel, /scheduleTimeInput/);
   assert.match(panel, /product_name: item\.product_name/);
@@ -367,3 +392,31 @@ test('extension UI exposes single consolidated TikTok upload opener and complies
   assert.doesNotMatch(popupHtml, /<button[^>]*>[^<]*[\u{1F300}-\u{1F9FF}][^<]*<\/button>/u);
 });
 
+
+test('confirmed post marks the exact pending export automatically', async () => {
+  const ctx = worker();
+  const calls = [];
+  ctx.chrome.debugger = {attach: async () => {}, detach: async () => {}};
+  ctx.fetchPendingJob = async () => ({
+    video_path: '04_Exports/Ready_to_post/demo.mp4',
+    export_id: 'exp-1',
+    product_id: 'product-1',
+    angle_id: 'angle-1',
+  });
+  ctx.findUploadTab = async () => ({id: 7, windowId: 3, url: 'https://www.tiktok.com/tiktokstudio/upload'});
+  ctx.cdp = () => async () => {};
+  ctx.clickPostButton = async () => {};
+  ctx.markPendingJobPosted = async (job) => { calls.push(['mark', job]); return {success:true}; };
+  ctx.clearPendingJob = async () => { calls.push(['clear']); };
+  ctx.openUploadPage = async (tab) => { calls.push(['upload-page', tab.id]); return tab; };
+
+  const result = await ctx.runClickPostOnly();
+
+  assert.equal(result.success, true);
+  assert.equal(result.clicked, true);
+  assert.equal(result.posted, true);
+  assert.equal(result.marked, true);
+  assert.equal(calls[0][0], 'mark');
+  assert.equal(calls[0][1].export_id, 'exp-1');
+  assert.deepEqual(calls.slice(1), [['clear'], ['upload-page', 7]]);
+});

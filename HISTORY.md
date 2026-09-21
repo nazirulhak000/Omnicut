@@ -7,7 +7,20 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round GADGET-PRODUCT-CENTRIC-STORAGE-RESTRUCTURE-20260921 | จัดระเบียบโครงสร้างโฟลเดอร์ Product-Centric 01_Raw, 02_Workspace, 03_Export สำหรับ Gadget Media ล้างไฟล์รกร้าง 84 ไฟล์ | 2026-09-21 | สำเร็จสมบูรณ์ (Master Video ไฟล์เดียวใน 03_Export, clean 100%, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round GADGET-EDITING-STYLE-RULES-AND-CHECKLIST-20260921 | สรุปกฎเหล็ก 5 เสาหลัก และ QA Checklist ตัดต่อคลิปรีวิวแกดเจ็ต 60s 9:16 ลงกฎและ SOP v1.1-1.2 | 2026-09-21 | สำเร็จสมบูรณ์ (กฎข้อ 17-18 ใน AGENTS.md, SOP v1.2, Checklist 11 ข้อ, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round GADGET-MALI-CURATED-SYLLABLE-BOUNCE-60S-20260921 | ซับไตเติล Mali-Bold ผังบททางการ Syllable Clustering + Progressive Ghost Reveal เด้งสีเขียวนีออน #66FF00 114% | 2026-09-21 | สำเร็จสมบูรณ์ (เรนเดอร์ 60s Master 15.08MB, สกัด 8 คีย์เฟรม, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round GADGET-MALI-SUBTITLE-RESTORATION-AND-MASTER-VERIFY-20260921 | คืนค่าฟอนต์ซับไตเติล Mali-Bold แท้ 88px ขอบดำ 5.2px และ Parity Test | 2026-09-21 | สำเร็จสมบูรณ์ (คีย์เฟรมตรวจสอบ Mali ผ่าน 100%, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round GADGET-PRO-TYPOGRAPHY-STRICT-TOPIC-HOLD-AND-UPBEAT-BGM-20260921 | กฎล็อกภาพค้างจบประโยค (Strict Topic Hold), กล่อง Callout Top White + Orange และเพลง Upbeat IT BGM (0.14) | 2026-09-21 | สำเร็จสมบูรณ์ (เรนเดอร์ 60.00s สมบูรณ์, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round GADGET-DYNAMIC-MONTAGE-PACING-AND-REF-MATCH-20260921 | ผัง 25 ช็อต Dynamic Multi-Cut ผสาน Ken Burns Slow Zoom แก้ปัญหาแช่ภาพนิ่งนานเกิน 5 วินาที | 2026-09-21 | สำเร็จสมบูรณ์ (เรนเดอร์ 25 ช็อต 100% ตรงประเด็น, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round GADGET-ASSET-DEDUPLICATION-AND-MASTER-SOP-20260920 | คัดกรองและลบภาพซ้ำซ้อนด้วย SHA-256 Checksum, จัดระเบียบรายรุ่น และจัดทำ Master SOP ฉบับแรก | 2026-09-20 | สำเร็จสมบูรณ์ (กวาดล้าง 234MB, SOP v1.0, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round GADGET-MEDIA-60S-CINEMATIC-MIX-FLIP-MASTERPIECE-20260920 | สร้างคลิป Masterpiece แรก 60 วินาที Xiaomi MIX Flip ผสาน Kinetic Callouts และ B-roll Clean 1080p | 2026-09-20 | สำเร็จสมบูรณ์ (คลิป 1080x1920 30fps 60s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round TIKTOK-REQUEUE-SANMAX-COVER-MISS-20260920 | ย้อนคลิป SANMAX เตือนภัยจาก posted กลับ rendered พร้อมคืนไฟล์ โปรเจกต์ และปกเพื่อโพสต์ใหม่ | 2026-09-20 | สำเร็จสมบูรณ์ (คิวพร้อม Extension, MP4/WEBP/ปกครบ, clip-state tests 4 passed, ดำเนินการโดย: Codex (GPT-5)) |
+| Round TIKTOK-LIVE-DOM-SCHEDULE-SETTLE-20260920 | ทดสอบ DOM จริงของ TikTok, ยืนยันลำดับตั้งเวลา→ปก, เพิ่ม polling รอ time picker นิ่งก่อนแนบปก | 2026-09-20 | สำเร็จสมบูรณ์ (live DOM ผ่านโดยไม่กดโพสต์, extension tests 34 passed, ดำเนินการโดย: Codex (GPT-5)) |
+| Round TIKTOK-AUTOPOST-ORDER-RELIABILITY-20260920 | แก้ลำดับตั้งเวลา-แนบปก, เพิ่ม retry/verify Save, auto-mark หลังโพสต์, focus/upload continuation | 2026-09-20 | สำเร็จสมบูรณ์ (extension tests 33 passed, 0 failed, syntax checks ผ่าน, git diff --check ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
 
+| Round GADGET-MEDIA-PRODUCT-VIDEO-STUDIO-PLAN-20260919 | วางแผน Product Video Studio แบบ 1 สินค้า = 1 Approved Master, Timeline แบบ scoped adapter และ storage isolation | 2026-09-19 | สำเร็จสมบูรณ์ (planning contract 28 matches, 19 plan sections, ดำเนินการโดย: Codex (GPT-5)) |
+| Round HATARI-HOOK-OVERLAY-AUTO-FALLBACK-20260919 | แก้ปัญหาดราฟต์แล้วป้ายฮุกถูกปิด: เพิ่ม auto-fallback ดึง hook brand/model จากชื่อสินค้าเมื่อว่าง ป้องกันป้ายฮุกปิด, อัปเดต ProductStore สินค้า Hatari, และเปิดป้ายฮุกพร้อม regenerate ซับไตเติลให้ครบทั้ง 10 โปรเจกต์ Hatari ใน 03_Projects/ | 2026-09-19 | สำเร็จสมบูรณ์ (pytest 62 passed, frontend 285 passed, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round EXPORT-GALLERY-DELETE-SYNC-20260919 | แก้ปัญหาลบคลิปใน Export Gallery แล้วการ์ดไม่หายทันที ต้องกดรีเฟรชเอง (เพิ่ม optimistic deletion + force refresh exports sync) | 2026-09-19 | สำเร็จสมบูรณ์ (frontend 285 passed, build 2,015 modules/4.10s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round COVER-STUDIO-STALE-STATUS-FIX-20260919 | แก้ปัญหาเปิด CoverStudio กับสคริปต์ใหม่แต่แสดงสถานะสีเขียว 'บันทึกภาพปกสำเร็จแล้ว' ค้างจากสคริปต์ก่อนหน้า | 2026-09-19 | สำเร็จสมบูรณ์ (frontend vitest ผ่าน, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round COMPACT-PAGINATION-ALL-NARROW-CONTAINERS-AUDIT-AND-FIX-1 | ตรวจสอบและแก้ไข UI Pagination ในคอนเทนเนอร์แคบทั้งระบบ (AssetPanel 250px, Kanban Columns 300px, ActivityCenter 440px) ให้เป็น compact mode ไม่ล้นขอบและไม่ตกบรรทัด | 2026-09-19 | สำเร็จสมบูรณ์ (frontend vitest 282 passed, build 2,015 modules/4.03s, browser audit ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -15,6 +28,126 @@
 | Round BATCH-RENDER-MODAL-STATUS-LABEL-ALIGNMENT-1 | ปรับปรุงข้อความสถานะใน Batch Render Queue ให้ตรงกับบริบทการเรนเดอร์: เปลี่ยน "กำลังตัดต่อ" -> "กำลังเรนเดอร์", "พร้อมตัดต่อ" -> "พร้อมเรนเดอร์", "เลือกที่ยังไม่ได้ตัดต่อทั้งหมด" -> "เลือกที่ยังไม่ได้เรนเดอร์ทั้งหมด", "ตัดต่อแล้ว" -> "เรนเดอร์แล้ว" | 2026-09-19 | สำเร็จสมบูรณ์ (frontend vitest 282 passed, build 2,015 modules/3.48s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round RAW-VIDEO-THAI-FILENAME-VOWEL-TONE-MARK-FIX-1 | แก้ไขปัญหาชื่อคลิปดิบและ asset ตัดสระบนล่างและวรรณยุกต์ไทยทิ้งทั้งหมด (เช่น ปลั๊กไฟ -> ปลกไฟ, พัดลม -> พดลม, ขาตั้ง -> ขาตง) จาก bug การ sanitize ชื่อไฟล์ใน api_videos.py | 2026-09-19 | สำเร็จสมบูรณ์ (pytest 2 passed, security tests 14 passed, frontend vitest 282 passed, build 2,015 modules/3.42s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round PAGINATION-PHASE3-COMPLETE-LONG-LISTS-20260919 | เพิ่ม pagination ให้รายการยาวที่เหลือใน Export Gallery, Performance Analytics, Token Dashboard, Storage Analytics และ Activity Center | 2026-09-19 | สำเร็จสมบูรณ์ (frontend 282 passed, backend 18 passed, build 2,015 modules, lint ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round GADGET-PRODUCT-CENTRIC-STORAGE-RESTRUCTURE-20260921 — จัดระเบียบโครงสร้างโฟลเดอร์ Product-Centric 01_Raw, 02_Workspace, 03_Export
+
+วันที่: 2026-09-21 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- ออกแบบและสร้างโครงสร้างโฟลเดอร์แบบ Product-Centric: `.tmp/Products/<ProductName>/` แบ่งเป็น `01_Raw/` (videos, photos, metadata), `02_Workspace/` (audio, subtitles, temp_cuts, qa_frames, draft_versions), และ `03_Export/` (เฉพาะไฟล์ Master ตัวจบไฟล์เดียว)
+- ย้ายและจัดระเบียบไฟล์ 84 ไฟล์ใน `.tmp/03_Outputs/Master_Clips_and_Previews/` และ `.tmp/01_Products/Xiaomi_Models/Xiaomi_xiaomi_mix_flip/` เข้าสู่โครงสร้างใหม่ `.tmp/Products/Xiaomi_MIX_Flip/`
+- ลบและทำความสะอาดโฟลเดอร์รกร้างเดิม (`.tmp/03_Outputs/Master_Clips_and_Previews/` และ `.tmp/03_Outputs/`) ให้เกลี้ยงเกลา 100%
+- อัปเดตสคริปต์ `tools/build_60s_mali_burst_ass.py` และเครื่องมือที่เกี่ยวข้องให้ชี้ไปยัง path มาตรฐานใหม่
+- วิดีโอตัวจบ `Xiaomi_MIX_Flip_60s_Master.mp4` อยู่เดี่ยวๆ ใน `03_Export/` สะอาด คลีนตา ไร้สิ่งรบกวน
+
+## Round GADGET-EDITING-STYLE-RULES-AND-CHECKLIST-20260921 — กฎเหล็ก 5 เสาหลัก และ QA Checklist ตัดต่อคลิปรีวิวแกดเจ็ต 60s 9:16
+
+วันที่: 2026-09-21 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- จัดทำเอกสารกฎเหล็ก 5 เสาหลักและเช็กลิสต์มาตรฐานการตัดต่อวิดีโอแกดเจ็ต 60 วินาทีที่ [.agents/rules/gadget_editing_style_checklist.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/gadget_editing_style_checklist.md)
+- อัปเดตคู่มือปฏิบัติงานมาตรฐานฉบับสมบูรณ์ (Master SOP) [_Docs/GADGET_VIDEO_PRODUCTION_SOP.md](file:///d:/Winona/Programmer/Capcut/_Docs/GADGET_VIDEO_PRODUCTION_SOP.md) สู่เวอร์ชัน 1.1 ครอบคลุมทั้ง Mali-Bold Syllable Bounce, Top White + Bottom Vibrant Orange Callouts, Strict Topic Hold และ Upbeat IT BGM
+- อัปเดตระเบียบปฏิบัติ `AGENTS.md` (ข้อ 17 และข้อ 18) ให้ทุกโมเดลและเอเจนต์ยึดถือเช็กลิสต์นี้เป็นมาตรฐานบังคับ
+- ตรวจสอบความถูกต้องของสคริปต์แม่แบบและคีย์เฟรมอ้างอิง พร้อมจัดทำลิงก์พรีวิวให้ตรวจสอบได้ทันที
+
+## Round GADGET-MALI-CURATED-SYLLABLE-BOUNCE-60S-20260921 — ซับไตเติล Mali-Bold ผังบททางการ Syllable Clustering + Progressive Ghost Reveal
+
+วันที่: 2026-09-21 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- สร้างผัง 31 วลีสคริปต์ทางการ (Curated Thai Script) แก้ปัญหาคำเพี้ยนจาก Whisper ทั้งหมด (Xiaomi MIX Flip, 4.01 นิ้ว, 1.5K 120Hz, 3,000 nits, Leica Summilux, Snapdragon 8 Gen 3, 3D Dual-Vapor Chamber, 4,780 mAh 67W)
+- จัดกลุ่มคำเป็นพยางค์สมบูรณ์ (Syllable Clustering) สระ/วรรณยุกต์ไม่ฉีกขาด พร้อมเว้นวรรคช่องไฟธรรมชาติ สไตล์เดียวกับ `character_bounce.mp4` 100%
+- ใช้ระบบ Progressive Ghost Reveal (คำข้างหน้าโปร่งใส 100% ค่อยๆ เด้งโผล่จากซ้ายไปขวา ตัวอักษรไม่กระโดด)
+- ใช้ฟอนต์ `Mali-Bold` (ขนาด 88px, Outline 5.2px, เด้งสีเขียวนีออน `#66FF00` 114%)
+- แยกวลี 3D Dual-Vapor Chamber เป็นแถวเดียว สวยงาม ไม่มีการตกบรรทัด
+- เรนเดอร์วิดีโอ 60 วินาทีตัวใหม่เสร็จสมบูรณ์ (`demo_xiaomi_mix_flip_cinematic_60s.mp4` 15.08 MB) พร้อมสกัด 8 คีย์เฟรมตรวจสอบและอัปเดต Artifact พรีวิวเรียบร้อย
+
+## Round GADGET-MALI-SUBTITLE-RESTORATION-AND-MASTER-VERIFY-20260921 — คืนค่าฟอนต์ซับไตเติล Mali-Bold แท้ 88px ขอบดำ 5.2px
+
+วันที่: 2026-09-21 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- ปรับฟอนต์ซับไตเติลกลับมาเป็น `Mali` แท้ 100% (Mali-Bold ขนาด 88px, ขอบดำ Outline 5.2px) ตามความต้องการของผู้ใช้และกฎข้อ 17
+- รักษาระบบ Character Bounce สีเขียวนีออน (`#00FF66`) เด้งทีละพยางค์ตามจังหวะเสียงพากย์ Fenrir
+- รักษากล่องสเปก Callout Top White (`Prompt-Bold`) + Bottom Vibrant Neon Orange (`Prompt-Black #FF6622`) และเพลง Upbeat IT BGM
+- เรนเดอร์วิดีโอมาสเตอร์ 60 วินาทีใหม่เสร็จสมบูรณ์ (`demo_xiaomi_mix_flip_cinematic_60s.mp4` 15.58 MB)
+- สกัดคีย์เฟรมตรวจสอบยืนยันฟอนต์ Mali ที่วินาทีที่ 10 (`10s_outer_display_mali.jpg`) และวินาทีที่ 44 (`44s_3d_vc_mali.jpg`) พร้อมอัปเดตหน้า Preview ให้กดดูได้ทันที
+
+## Round GADGET-PRO-TYPOGRAPHY-STRICT-TOPIC-HOLD-AND-UPBEAT-BGM-20260921 — Strict Topic Hold, Top White + Orange และ Upbeat IT BGM
+
+วันที่: 2026-09-21 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- ปรับฟอนต์ซับไตเติลและเลย์เอาต์ Callout เป็นสไตล์ Top White + Bottom Vibrant Orange (#FF6622) ไร้เส้นเขียวบาง
+- แก้ไขปัญหาเลื่อนภาพก่อนพูดจบ (Strict Topic Hold): ภาพช็อต 3D VC อยู่ครบประโยคระบายความร้อน (42.4s–48.6s) และหน้าจอด้านในกางสุดอยู่ครบประโยคหน้าจอ (18.1s–28.2s)
+- เปลี่ยนเพลง BGM ใหม่เป็น `tiktok_upbeat_bgm.wav` สนุกสนาน ทันสมัย เหมาะกับช่อง IT รีวิวแกดเจ็ต
+- เรนเดอร์คลิปมาสเตอร์ใหม่ 60.00s และสกัดคีย์เฟรมตรวจสอบความคมชัดและความตรงประเด็น 100% เรียบร้อย
+
+## Round GADGET-DYNAMIC-MONTAGE-PACING-AND-REF-MATCH-20260921 — ผัง 25 ช็อต Dynamic Multi-Cut ผสาน Ken Burns
+
+วันที่: 2026-09-21 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- วางแผนผัง 25 ช็อต (Dynamic Multi-Cut 1.5s–2.5s) ร้อยเรียง 60 วินาที แก้ไขปัญหาค้างภาพนิ่งนานเกิน 5 วินาที
+- แก้ไขความตรงกันของภาพและเสียง 100% (วินาทีที่ 18–28 กางจอ OLED 6.86 นิ้วจริง, วินาทีที่ 24 กราฟิก 3,000 nits, วินาทีที่ 42 ระบบระบายความร้อน 3D VC)
+- ใส่เอฟเฟกต์ Ken Burns Motion (Cinematic Slow Zoom 1.0 -> 1.10) ในทุกภาพนิ่ง ป้องกันภาพแข็งทื่อ เพิ่มความสนุกสนานและไดนามิก
+- รันคอมโพสิตเรนเดอร์เวอร์ชันใหม่ 25 ช็อต พร้อมเบิร์นซับไตเติล Mali-Bold Character Bounce และ Kinetic Callouts (17.35 MB, 60.00s)
+- สกัดและตรวจสอบคีย์เฟรมทุกช่วงเพื่อยืนยัน Parity และอัปเดตคู่มือ SOP Phase 5 เรียบร้อย
+
+## Round GADGET-ASSET-DEDUPLICATION-AND-MASTER-SOP-20260920 — กวาดล้างภาพซ้ำซ้อนและจัดทำ Master SOP ฉบับแรก
+
+วันที่: 2026-09-20 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- ลบและกวาดล้างภาพซ้ำซ้อนในโฟลเดอร์ Mix Flip ด้วย SHA-256 Checksum (ลบไป 8 ภาพซ้ำ) พร้อมลบภาพหลุดข้ามรุ่น (TCL) ทิ้งทันที
+- กวาดล้างโฟลเดอร์สินค้าอื่น 23 รุ่นที่ไม่เกี่ยวข้องออกจาก `.tmp/gadget_products/` คืนพื้นที่ดิสก์กว่า 234.45 MB
+- สร้างกฎเหล็ก Rule 13 ใน `AGENTS.md` และสร้างข้อกำหนด [.agents/rules/asset_sourcing_and_deduplication.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/asset_sourcing_and_deduplication.md) ห้ามโหลดซ้ำซ้อนและห้ามโหลดข้ามรุ่นเด็ดขาด
+- อัปเดตทักษะ `.agents/skills/video-editing/SKILL.md` บรรจุหลักการ Zero-Duplicate และ Strict Single-Product Scope
+- จัดทำคู่มือปฏิบัติงานมาตรฐานฉบับสมบูรณ์ (Master SOP) ที่ [_Docs/GADGET_VIDEO_PRODUCTION_SOP.md](file:///d:/Winona/Programmer/Capcut/_Docs/GADGET_VIDEO_PRODUCTION_SOP.md) ครอบคลุม Phase 0 ถึง Phase 6
+
+## Round GADGET-MEDIA-60S-CINEMATIC-MIX-FLIP-MASTERPIECE-20260920 — คลิป Masterpiece 60s Xiaomi MIX Flip ตัวแรก
+
+วันที่: 2026-09-20 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- สร้างชุด Kinetic Text Callouts (Typography Spring Pop + Expanding Laser Beam + Scale Punch) ไร้กล่อง AI ครบ 5 จุดเด่น (Outer Display, Inner LTPO OLED, Leica Summilux, Snapdragon 8 Gen 3 & 3D VC, Surge Battery 4780mAh)
+- ร้อยเรียงไทม์ไลน์ 60 วินาทีแบบ Dynamic Multi-Cut ผสาน 5 วิดีโอคลิป + 5 ภาพทางการระดับโปร สลับภาพมุมมองคมชัดตรงตามบทพากย์
+- แมปซับไตเติล Mali-Bold แบบ Character Bounce เด้งสีตามเสียงพากย์ Fenrir (Neon Green #00FF66 -> Pure White #FFFFFF) 100%
+- คอมโพสิตวิดีโอ 9:16 สัดส่วนคงเดิม 100% ไม่ยืด ไม่ซูมจนหลุดขอบ + Gaussian Blur บน-ล่าง + Lo-Fi BGM (Voice 1.0, BGM 0.12)
+- ตรวจสอบความถูกต้อง สกัดภาพ 10 คีย์เฟรม พรีวิวคมชัดสมบูรณ์แบบที่ `.tmp/gadget_demo/demo_xiaomi_mix_flip_cinematic_60s.mp4` (12.55 MB, 60.00s)
+
+## Round HATARI-HOOK-OVERLAY-AUTO-FALLBACK-20260919 — แก้ปัญหาดราฟต์แล้วป้ายฮุกถูกปิด และเปิดป้ายฮุกให้โปรเจกต์ Hatari ทั้งหมด
+
+วันที่: 2026-09-19 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### ความต้องการและปัญหา
+ผู้ใช้สอบถามและแจ้งปัญหาพร้อมภาพหน้าจอ:
+1. "งาน hatari ในปิดป้ายฮุคทั้งหมดหรอ เปิดให้หน่อยครับ ทั้งหมดที่มีใน ไทมไลน์ที่ปิดอยู่อ่ะครับ"
+2. "ทำไหม draft แล้วป้ายฮุค ถูกปิดไว้อ่ะ" พร้อมแนบภาพหน้าจอ Editor ไทม์ไลน์ของโปรเจกต์ `HAT01-ปัญหาก่อนใช้_1` ที่แทร็ก `ป้ายฮุก` มีไอคอนลูกตาปิด `EyeOff` และตัวบล็อกป้ายฮุกแสดงจาง 40%
+
+### Root Cause Analysis (สาเหตุที่เกิดขึ้น)
+1. **ในหน้า UI (`ProductToClip.jsx`)**: มี logic fallback `guessBrandModel(product_name)` ทำให้เมื่อเปิดดูสินค้า ผู้ใช้เห็นบนจอว่าแบรนด์คือ "Hatari" และรุ่นคือ "พัดลมตั้งโต๊ะ 16 นิ้ว"
+2. **ในฐานข้อมูล `omnicut.db` / `ProductStore`**: ข้อมูลสินค้า Hatari (`code: HAT01`) ทั้ง 10 angles ไม่มีค่า `hook_brand` และ `hook_model` (เป็น `None`)
+3. **เมื่อสั่งสร้างดราฟต์ (`scripts/batch_render.py`)**: backend อ่านค่า `angle_data.get("hook_brand")` ซึ่งเป็น `None` โดยไม่มี fallback จากชื่อสินค้า
+4. **ใน `scripts/stages/subtitle_stage.py`**: เมื่อ `ctx.hook_brand` และ `ctx.hook_model` เป็น `None` ฟังก์ชัน `migrate_to_overlays` เรียก `hook_overlay_from_legacy(brand="", model="", label="")` ซึ่งคืนค่า `None` ส่งผลให้ `effective_overlays = []`
+5. **ใน `project.json`**: ถูกบันทึกด้วย `"overlays": []` (ไม่มี hook overlay)
+6. **ในไทม์ไลน์ Editor**: เมื่อ Editor ตรวจไม่พบ `hookOverlay` จึงตีความว่าป้ายฮุกปิดอยู่ (`hidden: true`) ทำให้แทร็กแสดงไอคอนตาปิดสีส้มและบล็อกจาง 40%
+
+### การดำเนินการและผลลัพธ์
+1. **แก้ไข Backend Auto-Fallback ป้องกันปัญหาถาวร**:
+   - `scripts/batch_render.py`: เพิ่ม fallback `brand_guess, model_guess = guess_brand_model(effective_product_name)` หากมุมมองไม่มี `hook_brand`/`hook_model` ให้ดึงจากข้อมูลสินค้า หรือคาดเดาจากชื่อสินค้าอัตโนมัติ
+   - `scripts/stages/subtitle_stage.py`: เพิ่ม fallback ใน stage ซับไตเติล หาก `hook_brand`, `hook_model`, `hook_label` ว่างทั้งหมด ให้ดึงผ่าน `guess_brand_model(ctx.product_name)` อัตโนมัติ พร้อมส่งต่อไปยัง `SubtitleEngine.generate_ass` และบันทึกลง `ctx.hook_brand`, `ctx.hook_model`
+2. **อัปเดตข้อมูลสินค้า Hatari ใน ProductStore**:
+   - บันทึก `hook_brand="Hatari"`, `hook_model="พัดลมตั้งโต๊ะ 16 นิ้ว"` ให้กับสินค้า `HAT01` และทุก 10 angles ใน `ProductStore` (`omnicut.db` และ `products.json`)
+3. **เปิดป้ายฮุกให้กับทั้ง 10 โปรเจกต์ Hatari ใน `03_Projects/`**:
+   - อัปเดต `project.json` ของ `HAT01-*` ทั้ง 10 โปรเจกต์ โดยใส่ Hook Overlay (`hidden: false`, brand: "Hatari", model: "พัดลมตั้งโต๊ะ 16 นิ้ว") พร้อม template ตรงตาม style preset ของแต่ละมุมมอง:
+     - `HAT01-คำนวณคุ้มค่า_1`: template `b2_premium_gold`
+     - `HAT01-ทริกลึก_1`: template `b1_hack_lime`
+     - `HAT01-ปัญหาก่อนใช้_1`: template `b1_pain_pink`
+     - `HAT01-รีวิวสเปก_1`: template `b2_clean_yellow`
+     - `HAT01-รีวิวใช้จริง_1`: template `b1_smooth_mint`
+     - `HAT01-เจาะกลุ่ม_1`: template `b2_niche_purple`
+     - `HAT01-เตือนภัย_1`: template `b1_viral_red`
+     - `HAT01-เทียบของเดิม_1`: template `b2_compare_blue`
+     - `HAT01-แกะกล่องว้าว_1`: template `b2_tech_cyan`
+     - `HAT01-โปรไฟลุก_1`: template `b1_deal_orange`
+   - Regenerate `subtitles.ass` ใหม่ทุกโปรเจกต์ ป้ายฮุกแสดงในพรีวิวและพร้อมเรนเดอร์ทันที
+4. **การทดสอบจริง**:
+   - Backend targeted pytest (`tests/test_overlay_model.py`, `tests/test_batch_render.py`, `tests/test_subtitle_artifact_contract.py`): ผ่าน 62/62 tests (100%)
+   - Frontend unit tests (`npm test`): ผ่าน 285/285 tests (100%)
+   - ตรวจสอบ `project.json` และ `subtitles.ass` ของทุกโปรเจกต์ Hatari พบ Hook Header ครบถ้วนสถานะ `hidden: false`
 
 ## Round EXPORT-GALLERY-DELETE-SYNC-20260919 — แก้ปัญหาลบคลิปใน Export Gallery แล้วการ์ดไม่หายทันที ต้องกดรีเฟรชเอง
 
@@ -8199,3 +8332,145 @@ Executed by: Codex (GPT-6)
 - `git diff --check`: ผ่านสำหรับไฟล์รอบนี้
 - `โหลดเพิ่ม` ที่เหลือใน frontend เป็นเพียงข้อความนำทางไปเปิดคลังสคริปต์ ไม่ใช่การขยายรายการ
 - Impeccable detector: พบ warnings เดิมด้านสี/รูปแบบใน incumbent UI; ไม่ได้เปลี่ยน visual system
+## Round GADGET-SOURCE-SLICES-20260919 — source-only slices
+
+วันที่: 2026-09-19 | สั่งโดย: user | ดำเนินการโดย: Codex (GPT-5) | สถานะ: เสร็จสมบูรณ์
+
+- แตก source เป็น 33 คลิปจาก Samsung 6, Motorola 4, Anker 6, Google Pixel 3, Google event 7 และ Xiaomi 7
+- เก็บเฉพาะภาพจาก source โดยไม่มี audio, TTS, subtitles, music หรือ graphics และคง resolution/fps ของ source
+- สร้าง manifest/EDL พร้อม source URL, in/out, สินค้า และหัวข้อ
+- Verification ผ่านทั้งหมด: 33/33 ไฟล์, failed 0, audio stream 0, subtitle stream 0
+- ไฟล์งานอยู่ใน `.tmp/gadget_source_slices_20260919/` และยังไม่ย้ายเข้า `01_Raw/` หรือโพสต์จริง
+- Google event ช่วงท้ายที่อ่านไม่ได้ถูกเลื่อน late candidates ไปที่ 3900s และ 4050s; ให้ตรวจภาพใน CapCut ก่อนใช้จริง
+
+Output: `.tmp/gadget_source_slices_20260919/clips/`
+Manifest: `.tmp/gadget_source_slices_20260919/clip_manifest.json`
+CSV/EDL: `.tmp/gadget_source_slices_20260919/clip_manifest.csv`
+Verification: `.tmp/gadget_source_slices_20260919/slice_verify.json`
+## Round GADGET-PRODUCT-SEGMENTS-20260919 — full product segments with audio
+
+วันที่: 2026-09-19 | สั่งโดย: user | ดำเนินการโดย: Codex (GPT-5) | สถานะ: เสร็จสมบูรณ์
+
+- แก้จากชุดเดิมที่เป็นช็อต 5–12 วินาที เป็น 12 คลิปแบบ full source/product section: Samsung 1, Motorola 1, Anker 1, Google 6 และ Xiaomi 3
+- Output รวมประมาณ 94.8 นาที อยู่ใน `1920x1080` พร้อม audio ต้นฉบับทุกคลิป
+- ไม่มี TTS, captions, music หรือ graphics; audio ถูกเก็บเป็น AAC เพื่อเปิดใน CapCut และปิดเสียงเองได้
+- Verification ผ่านทั้งหมด: 12/12 ไฟล์, failed 0, resolution ผิด 0, ไม่มี audio 0, subtitle stream 0
+- Xiaomi source เดิมมี timestamp/duration metadata เพี้ยนและข้อมูลภาพใช้ได้จริงเพียงช่วงแรกประมาณ 21 นาที จึงตัดเฉพาะ 3 ช่วงที่ตรวจภาพได้จริง ไม่สร้างไฟล์จากช่วงเสีย
+- `source_quality` ใน manifest ระบุชัดเจน: Motorola/Pixel เป็น native 1080 download; source อื่นเป็น 1920x1080 upscale จากไฟล์เดิม 640x360 เนื่องจาก native stream ถูก YouTube ปฏิเสธระหว่างดาวน์โหลด
+
+Output: `.tmp/gadget_product_segments_20260919/clips_1080_audio/`
+Manifest: `.tmp/gadget_product_segments_20260919/product_segment_manifest.json`
+CSV/EDL: `.tmp/gadget_product_segments_20260919/product_segment_manifest.csv`
+Verification: `.tmp/gadget_product_segments_20260919/product_segment_verify.json`
+
+---
+
+## Round GADGET-MEDIA-PRODUCT-VIDEO-STUDIO-PLAN-20260919 — completed
+
+วันที่: 2026-09-19 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** วางแผนเมนู Gadget Media ให้รองรับ workflow `1 สินค้า = 1 โปรเจกต์ = 1 คลิป Master` ความยาว 45–60 วินาที โดยใช้ Timeline engine เดิมผ่าน adapter แต่แยกข้อมูล สถานะ และ namespace โฟลเดอร์จาก workflow เดิม
+
+### Todo
+
+- [x] บันทึก product truth ที่ผู้ใช้ยืนยันลง `PRODUCT.md`
+- [x] สร้าง `GADGET_MEDIA_EDITOR_PLAN.md` ครอบคลุม UX, editing pipeline, domain model, folder contract, Timeline adapter และ quality gates
+- [x] ระบุ phase implementation และ acceptance criteria ที่แยกงาน Gadget Media จากระบบเดิมอย่างตรวจสอบได้
+
+### Gate
+
+- [x] ตรวจพบ planning contract 28 จุด ครอบคลุม `1 product = 1 master clip`, 45–60 วินาที, native source, rights และ Purchase Intent แบบไม่ผูก Affiliate
+- [x] ตรวจ Folder contract ครบภายใต้ namespace `GadgetMedia/` และแผนกำหนดให้ resolve path ผ่าน `scripts/config.py` กับ `pathlib.Path`
+- [x] `git diff --check -- PRODUCT.md GADGET_MEDIA_EDITOR_PLAN.md TODO.md HISTORY.md` ผ่านด้วย exit code 0
+
+### Notes
+
+- `PRODUCT.md` มี 10 sections รวม 70 บรรทัด บันทึก product truth และข้อจำกัดที่ผู้ใช้ยืนยัน
+- `GADGET_MEDIA_EDITOR_PLAN.md` มี 19 sections รวม 492 บรรทัด ครอบคลุม Product model, State machine, Folder contract, Timeline adapter, UI workflow, Official-quality recipe, Quality Gate, API/Frontend plan, Migration, 6 implementation phases, Tests และ Acceptance Criteria
+- รอบนี้เป็น planning-only ไม่แก้ frontend/backend/timeline implementation
+- Dirty worktree เดิมมีงาน Gadget Media และงานระบบจากเอเจนต์อื่นอยู่แล้ว จึงไม่แก้ทับไฟล์ implementation เหล่านั้น
+- การใช้ `impeccable` ทำให้แผนยึด Surface mode แบบ Operate และคง visual system เดิม ส่วน `video-editing` ทำให้ workflow แยก Organization, EDL, deterministic cuts, Timeline polish และ Final approval อย่างชัดเจน
+
+
+---
+
+## Round TIKTOK-AUTOPOST-ORDER-RELIABILITY-20260920 — complete
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### เป้าหมาย
+
+- บังคับลำดับจริงเป็นรออัปโหลดเสร็จ → กรอกข้อมูล/แนบสินค้า → ตั้งเวลา → แนบและบันทึกปก → โพสต์
+- ทำให้การบันทึกปก retry และตรวจยืนยันผล ลดปัญหา TikTok รับไฟล์ไม่ทันหรือปุ่ม Save ไม่ทำงาน
+- เมื่อโพสต์สำเร็จให้ mark export อัตโนมัติ และเตรียมแท็บ upload สำหรับคลิปถัดไป
+- ทำให้แท็บ TikTok Studio ถูกโฟกัส/นำขึ้นหน้าต่างเมื่อเริ่ม workflow และหลังจบโพสต์
+
+### แผนดำเนินการ
+
+- [x] สร้าง regression tests สำหรับลำดับ schedule/cover, cover-save retry, post-success mark และ upload continuation
+- [x] แก้ extension worker/automation ให้ใช้ลำดับและ retry/verification ตามแผน
+- [x] เชื่อม post-success กับ API mark-posted และเปิดหน้า upload ต่อเนื่องโดยไม่สร้างงานซ้ำ
+- [x] รัน targeted tests, frontend/backend ที่เกี่ยวข้อง, build และ git diff --check
+
+### Notes
+
+- Dirty worktree ก่อนเริ่ม: มีการแก้ไขจากงาน Gadget Media และไฟล์ระบบเดิมหลายรายการ จะไม่ย้อนหรือลบทับ
+- Gate: node syntax checks 3 files ผ่าน; extension tests 33 passed, 0 failed; git diff --check ผ่าน
+
+---
+
+## Round TIKTOK-LIVE-DOM-SCHEDULE-SETTLE-20260920 — complete
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### เป้าหมาย
+
+- ยืนยัน element จริงของ TikTok Studio สำหรับลำดับ ตั้งเวลา → ปก → บันทึก
+- ป้องกัน time picker รายงานค่าระหว่างเลื่อนก่อนค่าจริงนิ่ง
+- ยืนยันว่าปุ่มบันทึกปกปิด modal สำเร็จ โดยไม่กดโพสต์จริง
+
+### ผลทดสอบกับ TikTok Studio จริง
+
+- เปิด upload draft ของ SANMAX ที่ค้างอยู่ พบว่าปกถูกแนบแล้วแต่โหมดเวลาเดิมยังเป็น `ตอนนี้` ตรงกับอาการที่ผู้ใช้รายงาน
+- ยืนยัน schedule radio จริงเป็น `input[type="radio"][value="schedule"]` และช่องเวลา/วันที่เป็น `input.TUXTextInputCore-input`
+- ตั้งวันที่ `2026-09-26` ผ่าน `[class*="calendar-wrapper"] span.day.valid` สำเร็จ
+- พบ time picker มี animation หลังเลือก `00`: accessibility tree เห็นค่าระหว่างทาง `19:20` ก่อน DOM นิ่งที่ `19:00`
+- เปิด Cover Studio พบ modal จริงเป็น `[role="dialog"]`, `.cover-editor-container`, `.CoverEditor__root`; ปุ่ม `บันทึก` enabled และ modal ปิดสำเร็จหลังรอ processing ประมาณ 1–2 วินาที
+- หลังบันทึกปก ค่า schedule ยังคงเป็น `2026-09-26 19:00`; ไม่ได้กดปุ่ม `ตั้งเวลา`/โพสต์จริง
+
+### การแก้ไข
+
+- เพิ่ม `waitForScheduleValues()` ให้ poll วันที่/เวลาที่มองเห็นจนตรงค่าที่ขอจริง ก่อน workflow ไปขั้นแนบปก
+- คืนค่า `schedule_value_not_confirmed` พร้อมค่าล่าสุดที่เห็นเมื่อหมดเวลา เพื่อวิเคราะห์ได้ตรงจุด
+- เพิ่ม regression test จำลองลำดับค่าระหว่าง animation `19:20 → 19:10 → 19:00`
+
+### Gate
+
+- `node --check tiktok_autopost_extension/background.js` ผ่าน
+- Extension tests ผ่าน `34 passed, 0 failed`
+- `git diff --check` ผ่าน (มีเพียงคำเตือน line-ending LF/CRLF)
+
+---
+
+## Round TIKTOK-REQUEUE-SANMAX-COVER-MISS-20260920 — complete
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### เป้าหมาย
+
+- ย้อนเฉพาะคลิป `EAR01-เตือนภัย_1` ตามภาพ จากสถานะโพสต์แล้วกลับมาพร้อมลงใหม่
+- คงเวลาเดิม `2026-09-26 19:00` และ `export_id=exp_2ea32894854f4620a2c79896002c27fd`
+
+### ผลลัพธ์
+
+- ย้าย MP4 และ WEBP จาก `04_Exports/Posted/` กลับ `04_Exports/Ready_to_post/`
+- คืนโปรเจกต์ `EAR01-เตือนภัย_1` จาก `06_Archive/Projects/` กลับ `03_Projects/` เพื่อไม่ให้ reconcile ล้างข้อมูลปก
+- Export Registry เปลี่ยน `posted → rendered` และล้าง `posted_at`
+- Product angle `stop_scroll` เปลี่ยน `posted → rendered` พร้อมคืน `project_name`, `video_url`, `cover_path`, `cover_3x4_path` และ `cover_9x16_path`
+- Schedule Queue เปลี่ยน `posted → planned`, ล้าง `posted_at` และคงเวลา `2026-09-26T19:00+07:00`; จากนั้นหน้าที่เปิดอยู่เตรียมคลิปอีกครั้ง จึงอยู่สถานะสุดท้าย `ready_for_extension` ซึ่งพร้อมอัปโหลดใหม่
+
+### Gate
+
+- ยืนยัน MP4 `19,374,772` bytes และ WEBP `38,004` bytes อยู่ใน `Ready_to_post/`; ไม่มีสำเนาใน `Posted/`
+- ปก 9:16 และ 3:4 อยู่ครบ
+- Extension clip-state tests ผ่าน `4 passed, 0 failed`

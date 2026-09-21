@@ -166,6 +166,41 @@ export const resetScheduleTemplate = (weekStart) => api.delete(`/schedule-queue/
 export const previewScheduleAutofill = (payload) => api.post('/schedule-queue/auto-fill/preview', payload).then(r => r.data);
 export const commitScheduleAutofill = (payload) => api.post('/schedule-queue/auto-fill', payload).then(r => r.data);
 
+// Non-commerce Gadget Media campaign workflow.
+export const listGadgetMediaCampaigns = () => api.get('/gadget-media/campaigns').then(r => r.data);
+export const createGadgetMediaCampaign = (payload = {}) => api.post('/gadget-media/campaigns', payload).then(r => r.data);
+export const getGadgetMediaCampaignReadiness = (campaignId) =>
+  api.get(`/gadget-media/campaigns/${encodeURIComponent(campaignId)}/readiness`).then(r => r.data);
+export const getGadgetMediaCampaignAnalytics = (campaignId) =>
+  api.get(`/gadget-media/campaigns/${encodeURIComponent(campaignId)}/analytics`).then(r => r.data);
+export const getGadgetMediaPresetSources = () => api.get('/gadget-media/preset-sources').then(r => r.data);
+export const updateGadgetMediaSlot = (campaignId, slotId, payload) =>
+  api.patch(`/gadget-media/campaigns/${encodeURIComponent(campaignId)}/slots/${encodeURIComponent(slotId)}`, payload).then(r => r.data);
+export const listGadgetMediaProjects = () => api.get('/gadget-media/projects').then(r => r.data);
+export const createGadgetMediaProject = (payload) => api.post('/gadget-media/projects', payload).then(r => r.data);
+export const getGadgetMediaProject = (projectId) =>
+  api.get(`/gadget-media/projects/${encodeURIComponent(projectId)}`).then(r => r.data);
+export const updateGadgetMediaProject = (projectId, payload) =>
+  api.patch(`/gadget-media/projects/${encodeURIComponent(projectId)}`, payload).then(r => r.data);
+export const probeGadgetMediaSource = (projectId, payload) =>
+  api.post(`/gadget-media/projects/${encodeURIComponent(projectId)}/sources/probe`, payload).then(r => r.data);
+export const buildGadgetMediaTimeline = (projectId) =>
+  api.post(`/gadget-media/projects/${encodeURIComponent(projectId)}/timeline/build`).then(r => r.data);
+export const getGadgetMediaTimeline = (projectId) =>
+  api.get(`/gadget-media/projects/${encodeURIComponent(projectId)}/timeline`).then(r => r.data);
+export const saveGadgetMediaTimeline = (projectId, timeline) =>
+  api.put(`/gadget-media/projects/${encodeURIComponent(projectId)}/timeline`, { timeline }).then(r => r.data);
+export const validateGadgetMediaProject = (projectId) =>
+  api.post(`/gadget-media/projects/${encodeURIComponent(projectId)}/quality/validate`).then(r => r.data);
+export const generateGadgetMediaNarration = (projectId, payload = {}) =>
+  api.post(`/gadget-media/projects/${encodeURIComponent(projectId)}/audio/generate`, payload).then(r => r.data);
+export const renderGadgetMediaProject = (projectId, payload = { export_preset: 'post' }) =>
+  api.post(`/gadget-media/projects/${encodeURIComponent(projectId)}/renders`, payload).then(r => r.data);
+export const approveGadgetMediaRender = (projectId, artifactId) =>
+  api.post(`/gadget-media/projects/${encodeURIComponent(projectId)}/renders/${encodeURIComponent(artifactId)}/approve`).then(r => r.data);
+export const createGadgetMediaProjectFromSlot = (campaignId, slotId, payload) =>
+  api.post(`/gadget-media/campaigns/${encodeURIComponent(campaignId)}/slots/${encodeURIComponent(slotId)}/project`, payload).then(r => r.data);
+
 export const transcribeMedia = (data) => api.post('/sub-srt/transcribe', data, { timeout: 180000 }).then(r => r.data);
 
 // Uploads with extended 5-minute timeout for large HD/4K videos
