@@ -1,0 +1,74 @@
+[
+  {
+    "id_name": "bgm_lakey_inspired_the_process",
+    "title": "LAKEY INSPIRED - The Process",
+    "query": "ytsearch1:LAKEY INSPIRED The Process audio",
+    "genre": "Modern Tech Chillhop / Rhodes Groove",
+    "mood": "คูล มั่นใจ จังหวะบีทเดินหน้าชัดเจน เหมาะกับโทรศัพท์รุ่นท็อปและฟังก์ชันสุดล้ำ",
+    "highlight": "บีทกลองกระชับ คอร์ดเปียโน Rhodes ทันสมัย เท่มากๆ",
+    "duration_str": "3:43",
+    "duration_seconds": 223.488,
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_lakey_inspired_the_process.mp3",
+    "file_name": "bgm_lakey_inspired_the_process.mp3"
+  },
+  {
+    "id_name": "bgm_lakey_inspired_monroe",
+    "title": "LAKEY INSPIRED - Monroe",
+    "query": "ytsearch1:LAKEY INSPIRED Monroe audio",
+    "genre": "Sleek Tech Beat / Modern Hip-Hop",
+    "mood": "พรีเมียม สไตลิช โมเดิร์น ลื่นไหล ชวนให้ดูคลิปจนจบ",
+    "highlight": "เบสเดินสวย เมโลดี้คลีน ให้ความรู้สึกสมาร์ทโฟนดีไซน์หรูหรา",
+    "duration_str": "4:23",
+    "duration_seconds": 263.140146,
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_lakey_inspired_monroe.mp3",
+    "file_name": "bgm_lakey_inspired_monroe.mp3"
+  },
+  {
+    "id_name": "bgm_lakey_inspired_warm_nights",
+    "title": "LAKEY INSPIRED - Warm Nights",
+    "query": "ytsearch1:LAKEY INSPIRED Warm Nights audio",
+    "genre": "Upbeat Melodic Chillhop",
+    "mood": "สนุก สดใส อารมณ์ดี บีทสนุกสนานกระตุ้นความตื่นเต้น",
+    "highlight": "เมโลดี้สดชื่น มีลูกเล่น เหมาะกับแกดเจ็ตที่เน้นความสนุกและกล้อง",
+    "duration_str": "2:53",
+    "duration_seconds": 173.302146,
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_lakey_inspired_warm_nights.mp3",
+    "file_name": "bgm_lakey_inspired_warm_nights.mp3"
+  },
+  {
+    "id_name": "bgm_lakey_inspired_overjoyed",
+    "title": "LAKEY INSPIRED - Overjoyed",
+    "query": "ytsearch1:LAKEY INSPIRED Overjoyed audio",
+    "genre": "Bouncy Piano Chillhop",
+    "mood": "มีชีวิตชีวา จังหวะเด้งสนุก สบายหู ฟังสบายไม่เครียด",
+    "highlight": "เสียงเปียโนใส กรูฟบีทบ๊อบบี้ โยกตามจังหวะได้ดีมาก",
+    "duration_str": "2:40",
+    "duration_seconds": 160.754396,
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_lakey_inspired_overjoyed.mp3",
+    "file_name": "bgm_lakey_inspired_overjoyed.mp3"
+  },
+  {
+    "id_name": "bgm_lakey_inspired_in_my_clouds",
+    "title": "LAKEY INSPIRED - In My Clouds",
+    "query": "ytsearch1:LAKEY INSPIRED In My Clouds audio",
+    "genre": "Futuristic Chillhop / Electronic Nu-Beat",
+    "mood": "ล้ำสมัย สเปซไฮเทค นวัตกรรมใหม่ โทนโมเดิร์นแกดเจ็ตแท้ๆ",
+    "highlight": "ซาวด์ลอยมีมิติ บีทหนักแน่น เสริมความคมชัดของภาพวิดีโอ",
+    "duration_str": "2:24",
+    "duration_seconds": 144.256,
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_lakey_inspired_in_my_clouds.mp3",
+    "file_name": "bgm_lakey_inspired_in_my_clouds.mp3"
+  },
+  {
+    "id_name": "bgm_kronicle_2_hours_well_spent",
+    "title": "Kronicle - 2 Hours Well Spent",
+    "query": "ytsearch1:Kronicle 2 Hours Well Spent audio",
+    "genre": "Classic Tech Vlog Boom-Bap",
+    "mood": "คลาสสิกรีวิวไอที ฟังสบายขั้นสุด สไตล์ MKBHD และช่องรีวิวต่างประเทศ",
+    "highlight": "เสียงกลองและคอร์ดอะคูสติกผสานไฟฟ้า นุ่มนวล ไม่ขัดหู",
+    "duration_str": "2:00",
+    "duration_seconds": 120.012354,
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_kronicle_2_hours_well_spent.mp3",
+    "file_name": "bgm_kronicle_2_hours_well_spent.mp3"
+  }
+]

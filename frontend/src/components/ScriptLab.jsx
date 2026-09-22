@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Lightbulb, Copy, Check, Sparkles, Send, RefreshCw, Wand2, Edit3, Clock, Hash, MessageSquareText, Clapperboard, ArrowRight
+  Lightbulb, Copy, Check, Sparkles, Send, RefreshCw, Wand2, Edit3, Clock, Hash, MessageSquareText, Clapperboard, ArrowRight,
+  Flame, Zap, Target, TrendingUp
 } from 'lucide-react';
-import { generateAiScripts } from '../api';
+import { generateAiScripts, generateHookVariantsAI } from '../api';
 import { Input, Textarea, Button, Badge, Toast } from './ui';
 import { useToast } from '../hooks';
 
@@ -14,6 +15,8 @@ export default function ScriptLab({
   onApplyScript
 }) {
   const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
+  const [hookVariants, setHookVariants] = useState([]);
+  const [hookLoading, setHookLoading] = useState(false);
   const defaultScripts = [
     {
       angle_id: 'pain_point',
@@ -136,6 +139,42 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
     }
   };
 
+  const handleGenerateHookVariants = async () => {
+    if (!productName.trim()) {
+      showToast('กรุณากรอกชื่อสินค้าก่อนวิเคราะห์ Hook ครับ!', 'warning');
+      return;
+    }
+    setHookLoading(true);
+    try {
+      const featuresList = keyFeatures.split(/[,，\n]/).map(s => s.trim()).filter(Boolean);
+      const res = await generateHookVariantsAI(productName, featuresList);
+      if (res && res.variants && res.variants.length > 0) {
+        setHookVariants(res.variants);
+        showToast('วิเคราะห์และจัดอันดับ Hook ด้วย TypeSafe AI เรียบร้อย!');
+      }
+    } catch (err) {
+      console.error('Error generating hook variants:', err);
+      showToast('เกิดข้อผิดพลาดในการวิเคราะห์ Hook: ' + (err.friendlyMessage || err.message), 'error');
+    } finally {
+      setHookLoading(false);
+    }
+  };
+
+  const handleApplyHookVariant = (variant) => {
+    setScripts(prev => {
+      const updated = [...prev];
+      if (updated[activeAngleTab]) {
+        updated[activeAngleTab] = {
+          ...updated[activeAngleTab],
+          hook_title: variant.hook_text,
+          badge: variant.angle_title,
+        };
+      }
+      return updated;
+    });
+    showToast(`นำ Hook "${variant.angle_title}" ไปใส่ในสคริปต์เรียบร้อยแล้ว`);
+  };
+
   const handleCopyScript = (text, idx) => {
     navigator.clipboard.writeText(text);
     setCopiedIdx(idx);
@@ -174,11 +213,11 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
               AI Script Lab (ห้องแล็บแต่งสคริปต์ไวรัล TikTok)
             </h2>
             <Badge variant="cyan" size="sm">
-              Gemini 2.5 Engine
+              Gemini + TypeSafe AI
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 max-w-3xl leading-relaxed">
-            ให้ AI แต่งสคริปต์วิดีโอรีวิวป้ายยา 4 มุมมองจิตวิทยาการขาย (Hook ➔ Pain Point ➔ Feature ➔ Benefit ➔ CTA) พร้อมกดส่งตรงเข้า Studio เพื่อตัดต่อทันที
+            ให้ AI แต่งสคริปต์วิดีโอรีวิวป้ายยา 4 มุมมอง พร้อมวิเคราะห์คะแนนตรึงคนดู (3s Retention Score) ด้วย TypeSafe System One ก่อนส่งตรงเข้า Studio ตัดต่อทันที
           </p>
         </div>
       </div>
@@ -229,17 +268,95 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
           />
         </div>
 
-        {/* Action Button */}
-        <Button
-          onClick={handleGenerate}
-          loading={loading}
-          icon={Sparkles}
-          size="lg"
-          className="w-full"
-        >
-          {loading ? 'AI กำลังแต่งสคริปต์ 4 มุมมอง...' : 'แต่งสคริปต์ 4 มุมมองด้วย AI'}
-        </Button>
+        {/* Action Buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <Button
+            onClick={handleGenerate}
+            loading={loading}
+            icon={Sparkles}
+            size="lg"
+            className="w-full"
+          >
+            {loading ? 'AI กำลังแต่งสคริปต์ 4 มุมมอง...' : 'แต่งสคริปต์ 4 มุมมองด้วย AI'}
+          </Button>
+
+          <button
+            type="button"
+            onClick={handleGenerateHookVariants}
+            disabled={hookLoading}
+            className="obsidian-hero-btn px-4 py-3 flex items-center justify-center gap-2 cursor-pointer text-sm font-bold disabled:opacity-50"
+          >
+            <Zap className="w-4 h-4 text-cyan-950" />
+            <span>{hookLoading ? 'TypeSafe กำลังวิเคราะห์ Hook...' : 'วิเคราะห์ & จัดอันดับ Hook (TypeSafe AI)'}</span>
+          </button>
+        </div>
       </div>
+
+      {/* TypeSafe AI Hook Intelligence Section */}
+      {hookVariants.length > 0 && (
+        <div className="obsidian-card p-5 space-y-4 animate-fadeIn border border-cyan-500/30">
+          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+            <div className="flex items-center gap-2">
+              <Flame className="w-5 h-5 text-amber-400" />
+              <span className="font-bold text-white text-sm md:text-base">
+                TypeSafe AI Hook Ranking (จัดอันดับอัตราการตรึงคนดู 3 วินาทีแรก)
+              </span>
+            </div>
+            <span className="text-xs text-cyan-400 font-mono">System One Jev Scored</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            {hookVariants.map((v, i) => (
+              <div
+                key={i}
+                className="bg-slate-900/80 border border-white/[0.08] rounded-xl p-4 flex flex-col justify-between space-y-3 hover:border-cyan-500/40 transition-all"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="text-[11px] font-bold px-2 py-0.5 rounded-md text-slate-900"
+                      style={{ backgroundColor: v.badge_color || '#FFE600' }}
+                    >
+                      อันดับ #{i + 1} {v.angle_title}
+                    </span>
+                    <span className="text-[11px] text-emerald-400 font-mono font-bold">
+                      คะแนน {Math.round(v.rating_score * 100)}%
+                    </span>
+                  </div>
+
+                  <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed">
+                    "{v.hook_text}"
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-white/[0.06]">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <span>3s Retention Prob:</span>
+                    <span className="font-mono text-cyan-300 font-bold">
+                      {Math.round((v.retention_probability || 0.8) * 100)}%
+                    </span>
+                  </div>
+                  <div className="retention-meter-track">
+                    <div
+                      className="retention-meter-fill"
+                      style={{ width: `${Math.round((v.retention_probability || 0.8) * 100)}%` }}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleApplyHookVariant(v)}
+                    className="w-full mt-2 py-1.5 px-2.5 rounded-lg text-xs font-bold bg-white/[0.06] hover:bg-cyan-500/20 text-cyan-300 hover:text-white border border-white/[0.08] hover:border-cyan-500/40 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>ใช้ Hook นี้ในสคริปต์</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Generated Scripts Section */}
       <div className="space-y-4">

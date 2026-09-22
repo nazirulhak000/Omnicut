@@ -209,7 +209,7 @@
   /* ---- Segmented Switch (Sliding Tabs) ---------------------------------- */
   .segmented-switch {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 4px;
     background: rgba(11, 16, 28, 0.85);
     border: 1px solid var(--border-card);
@@ -979,19 +979,60 @@
     transition: all 0.2s var(--ease-spring);
   }
   .card:hover {
-    border-color: rgba(34, 211, 238, 0.35);
-    box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.6), 0 0 16px rgba(34, 211, 238, 0.1);
+    border-color: rgba(34, 211, 238, 0.4);
+    box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.65), 0 0 20px rgba(34, 211, 238, 0.14);
     transform: translateY(-2px);
   }
-  .card img {
-    width: 58px;
-    height: 88px;
-    object-fit: cover;
-    border-radius: var(--radius-md);
-    background: #000;
-    border: 1px solid rgba(148, 163, 184, 0.2);
+  .card-thumb-wrap {
+    position: relative;
+    width: 62px;
+    height: 94px;
     flex-shrink: 0;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    cursor: pointer;
+    background: #000;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+  .card-thumb-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.25s var(--ease-spring);
+  }
+  .thumb-play-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(4, 7, 15, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s var(--ease-spring);
+  }
+  .thumb-play-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(135deg, #22d3ee, #06b6d4);
+    color: #031b24;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+    transform: scale(0.85);
+    transition: transform 0.2s var(--ease-spring);
+  }
+  .card-thumb-wrap:hover img {
+    transform: scale(1.08);
+  }
+  .card-thumb-wrap:hover .thumb-play-overlay {
+    opacity: 1;
+  }
+  .card-thumb-wrap:hover .thumb-play-icon {
+    transform: scale(1.05);
   }
   .card-body {
     flex: 1;
@@ -1002,19 +1043,22 @@
   .card-product {
     font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     color: var(--cyan-bright);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 2px;
+    margin-bottom: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
   .card-hook {
     font-size: 12.5px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--text-pure);
-    line-height: 1.35;
+    line-height: 1.38;
     margin: 0 0 6px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -1028,72 +1072,309 @@
     display: flex;
     align-items: center;
     gap: 5px;
+    flex-wrap: wrap;
+  }
+  .card-meta svg {
+    color: var(--cyan);
+    flex-shrink: 0;
   }
   .card-status {
     width: fit-content;
     max-width: 100%;
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 700;
     line-height: 1.3;
-    padding: 3px 6px;
-    border-radius: var(--radius-sm);
+    padding: 2px 7px;
+    border-radius: var(--radius-pill);
     margin-bottom: 5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .card-status.scheduled {
     color: var(--cyan-bright);
-    background: rgba(34, 211, 238, 0.1);
-    border: 1px solid rgba(34, 211, 238, 0.25);
+    background: rgba(34, 211, 238, 0.12);
+    border: 1px solid rgba(34, 211, 238, 0.3);
   }
   .card-status.unscheduled {
     color: #fcd34d;
-    background: rgba(245, 158, 11, 0.1);
-    border: 1px solid rgba(245, 158, 11, 0.28);
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
   }
-  .card-body button {
+  .card-status.ready_for_extension {
+    color: var(--emerald-bright);
+    background: var(--emerald-wash);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+  .card-body button.btn-primary {
     margin-top: auto;
     align-self: flex-start;
-    padding: 6px 12px;
+    padding: 6px 14px;
     font-size: 11.5px;
+    font-weight: 700;
     border-radius: var(--radius-pill);
-    background: linear-gradient(135deg, #22d3ee, #0891b2);
+    background: linear-gradient(135deg, #22d3ee 0%, #0891b2 100%);
     color: #021a24;
     border: none;
-    box-shadow: 0 2px 8px rgba(34, 211, 238, 0.3);
+    box-shadow: 0 3px 12px rgba(34, 211, 238, 0.35);
     cursor: pointer;
-    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.18s var(--ease-spring);
   }
-  .card-body button:hover:not(:disabled) {
-    background: linear-gradient(135deg, #67e8f9, #22d3ee);
+  .card-body button.btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #67e8f9 0%, #22d3ee 100%);
     box-shadow: var(--cyan-glow);
-    transform: translateY(-1px);
+    transform: translateY(-1.5px);
+  }
+  .card-body button.btn-primary:active {
+    transform: translateY(0);
   }
 
-
-
-  .btn-refresh-full {
-    width: 100%;
-    margin-bottom: 14px;
-    padding: 9px;
-    font-size: 12px;
-    font-weight: 600;
-    background: rgba(22, 32, 53, 0.7);
+  /* ---- Search & Filter Bar ---------------------------------------------- */
+  .search-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .search-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(11, 16, 28, 0.85);
     border: 1px solid var(--border-card);
     border-radius: var(--radius-pill);
+    padding: 6px 12px;
+    transition: all 0.2s var(--ease-spring);
+  }
+  .search-box:focus-within {
+    border-color: var(--cyan);
+    box-shadow: 0 0 14px rgba(34, 211, 238, 0.25);
+    background: rgba(15, 23, 42, 0.95);
+  }
+  .search-box svg {
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+  .search-box input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 11.5px;
     color: var(--text-primary);
-    cursor: pointer;
+    font-family: inherit;
+    min-width: 0;
+  }
+  .search-box input::placeholder {
+    color: var(--text-tertiary);
+  }
+  .clip-count-badge {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--cyan-bright);
+    background: var(--cyan-wash);
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    border-radius: var(--radius-pill);
+    padding: 1px 6px;
+    flex-shrink: 0;
+  }
+  .btn-icon-refresh {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-pill);
+    background: rgba(22, 32, 53, 0.7);
+    border: 1px solid var(--border-card);
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 7px;
-    transition: all 0.18s;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.25s var(--ease-spring);
   }
-  .btn-refresh-full:hover:not(:disabled) {
-    background: rgba(34, 211, 238, 0.1);
+  .btn-icon-refresh:hover:not(:disabled) {
+    background: var(--cyan-wash);
     border-color: var(--cyan);
     color: var(--cyan-bright);
+    transform: rotate(180deg);
+  }
+
+  /* ---- API Key Setting Row ---------------------------------------------- */
+  #apiKeySettingsRow {
+    display: none;
+    gap: 8px;
+    padding: 9px 14px;
+    background: rgba(11, 16, 28, 0.95);
+    border-bottom: 1px solid var(--border-card);
+    align-items: center;
+  }
+  #apiKeySettingsRow.is-open {
+    display: flex;
+    animation: api-slide 0.22s var(--ease-spring);
+  }
+  @keyframes api-slide {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  #apiKeyInput {
+    flex: 1;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-card);
+    background: rgba(0, 0, 0, 0.4);
+    color: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  #apiKeyInput:focus {
+    border-color: var(--cyan);
+  }
+
+  /* ---- Caption Counter & Copy Actions ----------------------------------- */
+  .caption-counter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+    font-size: 10px;
+  }
+  .caption-count-badge {
+    color: var(--text-tertiary);
+    font-family: 'Cascadia Code', Consolas, monospace;
+    font-size: 10px;
+  }
+  .caption-count-badge.warning {
+    color: #f59e0b;
+    font-weight: 700;
+  }
+  .caption-count-badge.danger {
+    color: var(--rose-bright);
+    font-weight: 700;
+  }
+  .input-with-action {
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+  .input-with-action input {
+    padding-right: 32px !important;
+  }
+  .btn-input-mini {
+    position: absolute;
+    right: 4px;
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color 0.15s;
+  }
+  .btn-input-mini:hover {
+    color: var(--cyan-bright);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* ---- Video Preview Modal ---------------------------------------------- */
+  .preview-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+  }
+  .preview-modal[hidden] {
+    display: none;
+  }
+  .preview-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(3, 5, 10, 0.85);
+    backdrop-filter: blur(8px);
+  }
+  .preview-dialog {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 24px rgba(34, 211, 238, 0.15);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: modal-pop 0.25s var(--ease-spring);
+  }
+  @keyframes modal-pop {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .preview-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-pure);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .preview-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    line-height: 1;
+    transition: all 0.15s;
+  }
+  .preview-close-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .preview-video-container {
+    width: 100%;
+    height: 380px;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .preview-video-container video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .preview-footer {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border-subtle);
+    display: flex;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .preview-footer button {
+    flex: 1;
   }
 
   .empty, .error {
@@ -1252,13 +1533,10 @@
     </div>
   </header>
 
-  <!-- API Key settings row -- hidden by default, toggled by apiKeySettingsBtn.
-       Native <img>/<video> tags and this panel's own fetch() calls to
-       :8000 need OMNICUT_API_KEY once the backend has one configured (see
-       auth_key.js); this is where the user pastes it in, once. -->
-  <div id="apiKeySettingsRow" hidden style="display:flex;gap:6px;padding:8px 12px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.06);align-items:center">
-    <input type="password" id="apiKeyInput" placeholder="OMNICUT_API_KEY (ว่างไว้ถ้า backend ไม่ได้ตั้งรหัส)" style="flex:1;font-size:11px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.2);color:inherit" />
-    <button id="apiKeySaveBtn" type="button" class="btn-header-tiktok" style="padding:5px 10px">บันทึก</button>
+  <!-- API Key settings row -- toggled by apiKeySettingsBtn -->
+  <div id="apiKeySettingsRow">
+    <input type="password" id="apiKeyInput" placeholder="OMNICUT_API_KEY (ว่างไว้ถ้า backend ไม่ได้ตั้งรหัส)" />
+    <button id="apiKeySaveBtn" type="button" class="btn-header-tiktok">บันทึก</button>
   </div>
 
   <!-- Segmented Switch -->
@@ -1279,10 +1557,16 @@
 
   <!-- Tab 1: Clip List -->
   <div id="panelList" class="tab-panel active">
-    <button id="refreshBtn" type="button" class="btn-refresh-full" title="รีเฟรชรายการคลิป">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
-      <span>รีเฟรชรายการคลิป</span>
-    </button>
+    <div class="search-filter-bar">
+      <div class="search-box">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="clipSearchInput" placeholder="ค้นหาคลิปหรือสินค้า..." autocomplete="off" />
+        <span id="clipCountBadge" class="clip-count-badge">0</span>
+      </div>
+      <button id="refreshBtn" type="button" class="btn-icon-refresh" title="รีเฟรชรายการคลิป">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+      </button>
+    </div>
     <div id="list"></div>
   </div>
 
@@ -1325,6 +1609,10 @@
           </span>
         </div>
         <textarea id="captionInput" rows="2" placeholder="คำอธิบายคลิปรีวิว..."></textarea>
+        <div class="caption-counter-row">
+          <span id="captionCharCount" class="caption-count-badge">0 / 2,200</span>
+          <span id="captionPolicyBadge" class="caption-count-badge" style="color:var(--emerald-bright)">TikTok Safe ✓</span>
+        </div>
       </div>
 
       <div class="field-group">
@@ -1350,7 +1638,12 @@
               ID สินค้า
             </span>
           </div>
-          <input type="text" id="productIdInput" placeholder="1737088044..." style="font-family: 'Cascadia Code', Consolas, monospace;" />
+          <div class="input-with-action">
+            <input type="text" id="productIdInput" placeholder="1737088044..." style="font-family: 'Cascadia Code', Consolas, monospace;" />
+            <button id="copyProductIdBtn" type="button" class="btn-input-mini" title="คัดลอก ID สินค้า">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            </button>
+          </div>
         </div>
         <div>
           <div class="field-label-row">
@@ -1390,7 +1683,7 @@
 
       <button id="prepareDetailsBtn" type="button" class="hero-post-btn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        ทำต่อหลังอัปโหลด (Auto-Fill & Attach)
+        ดำเนินการอัตโนมัติ (ขั้น 1 ถึง 5)
       </button>
 
       <label class="switch-row">
@@ -1539,6 +1832,23 @@
   </div>
 
   <div id="status"></div>
+
+  <!-- Video Preview Modal -->
+  <div id="videoPreviewModal" class="preview-modal" hidden>
+    <div class="preview-backdrop" id="previewBackdrop"></div>
+    <div class="preview-dialog">
+      <div class="preview-header">
+        <span class="preview-title" id="previewModalTitle">พรีวิววิดีโอ 9:16</span>
+        <button type="button" class="preview-close-btn" id="previewCloseBtn" title="ปิด">✕</button>
+      </div>
+      <div class="preview-video-container">
+        <video id="previewVideoPlayer" controls playsinline></video>
+      </div>
+      <div class="preview-footer">
+        <button type="button" class="btn-primary" id="previewSelectBtn">เลือกคลิปนี้สำหรับโพสต์</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Confirm Modal -->
   <div id="confirmOverlay">

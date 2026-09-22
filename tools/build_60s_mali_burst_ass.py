@@ -476,9 +476,11 @@ ass_lines = [
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
     # Subtitle font: Mali, size 88, White primary, Black outline 5.2, MarginV 380
     "Style: Default,Mali,88,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,5.2,0,2,20,20,380,1",
-    # Callouts: Prompt Top White + Prompt-Black Vibrant Orange
-    "Style: CalloutTop,Prompt,76,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,1,0,1,4.5,2.0,8,40,40,250,1",
-    "Style: CalloutBottom,Prompt-Black,94,&H002266FF,&H002266FF,&H00000000,&H90000000,-1,0,0,0,100,100,1,0,1,5.5,2.5,2,40,40,530,1",
+    # Callout Tech Badge Styles: Cohesive Keynote Spec Pill Badge (Top-Center)
+    # Header: Sleek category pill at y=170
+    "Style: CalloutHeader,Prompt,44,&H0066FF00,&H0066FF00,&H00000000,&H80000000,-1,0,0,0,100,100,3,0,1,3.5,0,8,40,40,170,1",
+    # Metric: Bold spec value at y=230
+    "Style: CalloutMetric,Prompt-Black,72,&H00FFFFFF,&H00FFFFFF,&H00000000,&H90000000,-1,0,0,0,100,100,1,0,1,5.0,2.5,8,40,40,230,1",
     # Watermark
     "Style: Watermark,Prompt,24,&H70FFFFFF,&H70FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,1,0,1,2.0,0,2,20,20,36,1",
     "",
@@ -523,8 +525,8 @@ for c in callouts_def:
     et = c["end"]
     top_t = c["top"]
     bot_t = c["bottom"]
-    ass_lines.append(f"Dialogue: 1,{st},{et},CalloutTop,,0,0,0,,{{\\fad(200,200)}}{top_t}")
-    ass_lines.append(f"Dialogue: 1,{st},{et},CalloutBottom,,0,0,0,,{{\\fad(200,200)}}{bot_t}")
+    ass_lines.append(f"Dialogue: 1,{st},{et},CalloutHeader,,0,0,0,,{{\\fad(200,200)}}—  {top_t}  —")
+    ass_lines.append(f"Dialogue: 1,{st},{et},CalloutMetric,,0,0,0,,{{\\fad(200,200)}}{bot_t}")
 
 # C. Build Progressive Ghost Reveal Subtitles
 for b_idx, burst in enumerate(BURSTS_60S):
@@ -566,28 +568,42 @@ ass_path.parent.mkdir(parents=True, exist_ok=True)
 ass_path.write_text("\n".join(ass_lines), encoding="utf-8")
 print(f"Generated 60s Mali burst ASS with {len(ass_lines)} lines: {ass_path}")
 
+import sys
+bgm_arg = sys.argv[1] if len(sys.argv) > 1 else "bgm_joakim_karud_rock_angel.mp3"
+if not bgm_arg.endswith((".mp3", ".wav")):
+    bgm_arg += ".mp3"
+bgm_file = PROJECT_ROOT / "02_Assets" / "Music" / bgm_arg
+if not bgm_file.exists():
+    bgm_file = PROJECT_ROOT / "02_Assets" / "Music" / "tiktok_upbeat_bgm.wav"
+
+print(f"Using BGM track: {bgm_file.name}")
+
 # Composite final video
-raw_montage = TMP_SEGS / "pro_montage_15shots_raw.mp4"
+raw_montage = TMP_WORKSPACE / "temp_cuts" / "dynamic_montage_25cuts_raw.mp4"
+if not raw_montage.exists():
+    raw_montage = TMP_SEGS / "pro_montage_15shots_raw.mp4"
 voice_wav = TMP_WORKSPACE / "audio" / "voice_mix_flip_60s_sync.wav"
-bgm_wav = PROJECT_ROOT / "02_Assets" / "Music" / "tiktok_upbeat_bgm.wav"
+sfx_wav = TMP_WORKSPACE / "audio" / "sfx_master_60s.wav"
 master_output = TMP_EXPORT / "Xiaomi_MIX_Flip_60s_Master.mp4"
 
 ass_escaped = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
 fonts_escaped = str(FONTS_DIR.resolve()).replace("\\", "/").replace(":", "\\:")
 
-print("Rendering Master Video with Curated Syllable Mali Subtitles & Upbeat BGM...")
+print(f"Rendering Master Video with Curated Syllable Mali Subtitles, SFX & {bgm_file.name}...")
 final_cmd = (
     f'ffmpeg -y '
     f'-i "{raw_montage}" '
     f'-i "{voice_wav}" '
-    f'-i "{bgm_wav}" '
+    f'-i "{bgm_file}" '
+    f'-i "{sfx_wav}" '
     f'-filter_complex "'
     f'[0:v]subtitles=\'{ass_escaped}\':fontsdir=\'{fonts_escaped}\'[v];'
     f'[1:a]volume=1.0[v_voice];'
-    f'[2:a]volume=0.14,aloop=loop=-1:size=2e+09[v_bgm];'
-    f'[v_voice][v_bgm]amix=inputs=2:duration=first:dropout_transition=2[a]" '
+    f'[2:a]volume=0.065,aloop=loop=-1:size=2e+09[v_bgm];'
+    f'[3:a]volume=0.85[v_sfx];'
+    f'[v_voice][v_bgm][v_sfx]amix=inputs=3:duration=first:dropout_transition=2[a]" '
     f'-map "[v]" -map "[a]" -t 60.0 '
-    f'-c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p '
+    f'-c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p '
     f'-c:a aac -b:a 192k "{master_output}"'
 )
 
@@ -595,20 +611,25 @@ subprocess.run(final_cmd, shell=True, check=True)
 print(f"Master Video rendered: {master_output} ({master_output.stat().st_size / 1024 / 1024:.2f} MB)")
 
 # Copy to artifact dir
-dst_video = ART_DIR / "demo_xiaomi_mix_flip_cinematic_60s.mp4"
+dst_video = ART_DIR / "Xiaomi_MIX_Flip_60s_Master.mp4"
 shutil.copy2(master_output, dst_video)
 print(f"Copied to Artifact dir: {dst_video}")
 
-# Extract verification keyframes
+# Extract comprehensive verification keyframes
 keyframe_points = [
-    ("00:00:01.200", "01s_intro_xiaomi_mix_flip.jpg"),
-    ("00:00:03.500", "03s_smartphone_jopup.jpg"),
-    ("00:00:08.500", "08s_outer_display_401inch.jpg"),
-    ("00:00:10.500", "10s_komchad_15k.jpg"),
-    ("00:00:23.500", "23s_3000nits_bright.jpg"),
-    ("00:00:32.800", "32s_leica_dual_optics.jpg"),
-    ("00:00:41.200", "41s_snapdragon_8gen3.jpg"),
-    ("00:00:44.200", "44s_3d_vapor_chamber.jpg")
+    ("00:00:01.200", "01s_intro_fliptastic_hero.jpg"),
+    ("00:00:03.500", "03s_luxury_dark_studio_hero.jpg"),
+    ("00:00:08.500", "08s_outer_display_spec_badge.jpg"),
+    ("00:00:10.500", "10s_animated_pet_widgets.jpg"),
+    ("00:00:19.500", "19s_unfolding_inner_oled.jpg"),
+    ("00:00:24.000", "24s_fullbleed_galaxy_3000nits.jpg"),
+    ("00:00:29.000", "29s_leica_summilux_macro.jpg"),
+    ("00:00:33.500", "33s_1080p_broll_lens_flare.jpg"),
+    ("00:00:35.500", "35s_fullbleed_leica_sunset_sample.jpg"),
+    ("00:00:40.000", "40s_1080p_broll_snapdragon_chip.jpg"),
+    ("00:00:42.500", "42s_1080p_broll_vc_cooling_circuit.jpg"),
+    ("00:00:49.500", "49s_1080p_broll_battery_charging_hud.jpg"),
+    ("00:00:58.000", "58s_outro_folding_lifestyle.jpg")
 ]
 
 for ts, name in keyframe_points:

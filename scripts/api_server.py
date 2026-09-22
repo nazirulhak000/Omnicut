@@ -73,6 +73,7 @@ from scripts.api_background_isolation import (
     recover_background_isolation_tasks,
     router as background_isolation_router,
 )
+from scripts.api_typesafe_studio import router as typesafe_studio_router
 
 
 def recover_startup_work() -> dict[str, int]:
@@ -300,6 +301,7 @@ app.include_router(producer_router)
 app.include_router(gadget_media_router)
 app.include_router(gadget_media_projects_router)
 app.include_router(background_isolation_router)
+app.include_router(typesafe_studio_router)
 
 # ----------------------------------------------------------------------
 # Run Server directly if executed

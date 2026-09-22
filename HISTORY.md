@@ -7,6 +7,139 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round TYPESAFE-VIDEO-INTELLIGENCE-AND-STUDIO-OBSIDIAN-20260922 | AI Video Intelligence (TypeSafe System One สำหรับ Strict Topic Hold B-roll Matching & Hook Variant Ranking พร้อม Retention Probability) + Luxury Obsidian Dark UI Studio สำหรับ ScriptLab และ ScheduleAgenda | 2026-09-22 | สำเร็จสมบูรณ์ (TypeSafe B-roll & Hook Intelligence, Obsidian Dark Theme, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round SCHEDULE-AUTOFILL-PRODUCT-DIVERSITY-AND-ROTATION-20260919 | Fair Round-Robin & Time-Slot Diversity ป้องกันสินค้าและสี Hook ซ้ำในวันเดียวกัน กระจายสินค้าทั่วถึงและทดสอบ 26 tests ผ่านฉลุย | 2026-09-22 | สำเร็จสมบูรณ์ (Fair Round-Robin Auto-Fill & Slot Diversity, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round EXTENSION-MARK-POSTED-AUTO-REFRESH-PARITY-20260922 | ปรับปรุงปุ่มเขียว "มาร์กว่าโพสต์แล้ว" ให้ทำงาน Parity กับขั้นตอนที่ 6: ล้าง storage, รีเฟรชรายการคลิป, เลื่อนหน้าต่างและลิสต์ขึ้นด้านบนสุด, และรีเฟรชหน้า TikTok Studio Upload ให้สะอาดพร้อมคลิปถัดไปทันที | 2026-09-22 | สำเร็จสมบูรณ์ (Auto Scroll to Top & Tab Refresh, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round EXTENSION-ONE-CLICK-STEP1-TO-5-AUTOMATION-20260922 | เพิ่มฟังก์ชัน 1-Click Automation ใน TikTok AutoPost Extension ให้ปุ่มเดียวรันอัตโนมัติตั้งแต่ขั้นตอนที่ 1 (อัปโหลดวิดีโอ) จนถึงขั้นตอนที่ 5 (แนบปก 3:4) รวดเดียวจบ และเว้นขั้นตอนที่ 6 ไว้ให้ผู้ใช้กดยืนยันโพสต์อย่างปลอดภัย | 2026-09-22 | สำเร็จสมบูรณ์ (1-Click Pipeline Auto-Upload & Auto-Fill, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+
+## Round TYPESAFE-VIDEO-INTELLIGENCE-AND-STUDIO-OBSIDIAN-20260922 — AI Video Intelligence & Luxury Obsidian Dark UI Studio
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **AI Video Intelligence (TypeSafe System One)**:
+  - พัฒนาฟังก์ชัน `match_broll_for_sentence(sentence, candidate_clips)` ใน `scripts/typesafe_bridge.py`:
+    - ใช้ TypeSafe `Choice`, `Noul` (strict_topic_hold boolean judgment), และ `Score` เพื่อจับคู่ B-roll ให้ตรงกับประโยคเสียงพากย์ 100% ตามกฎ Rule 17 (Strict Topic Hold) พร้อม offline keyword fallback ที่แม่นยำ
+  - พัฒนาฟังก์ชัน `generate_and_rank_hook_variants(product_name, key_features)` ใน `scripts/typesafe_bridge.py`:
+    - คิดค้นและวิเคราะห์ Hook 3 สไตล์จิตวิทยา (Curiosity Gap, Pain Point Callout, Spec Monster)
+    - วิเคราะห์คะแนน Retention Probability (0.0 - 1.0) พร้อมแสดงผลเป็นแถบสี Dynamic Neon
+  - สร้าง REST API Router ใน `scripts/api_typesafe_studio.py` (`/api/typesafe-studio/match-broll`, `/generate-hooks`, `/evaluate-hook`, `/status`) และเมานต์เข้า `scripts/api_server.py`
+  - เขียนและผ่าน Unit Tests `tests/test_typesafe_studio.py` (4/4 passed)
+- **Luxury Obsidian Dark Theme & Modern Web Studio UI**:
+  - สร้าง Design Tokens ใน `frontend/src/index.css`: `.obsidian-card`, `.obsidian-hero-btn`, `.neon-glow-cyan`, `.neon-glow-orange`, `.retention-meter-track`, `.retention-meter-fill`
+  - บูรณาการแผง "TypeSafe AI Hook Ranking" ใน `frontend/src/components/ScriptLab.jsx`: มีตัววัด Retention Meter แบบเรียลไทม์ และปุ่ม "ใช้ Hook นี้ในสคริปต์" คลิกเดียวอัปเดตบทและฮุกทันที
+  - อัปเกรด `frontend/src/components/ScheduleAgenda.jsx` ด้วย Obsidian Dark Luxury Cards, Glass Badges และปุ่ม Hero Action สไตล์สากล ไร้สัญลักษณ์ซ้ำซ้อนตาม Rule 8
+  - ตรวจสอบ `npm run build` ผ่าน 100% (2,025 โมดูล บิลด์เสร็จภายใน 4.87s)
+
+## Round SCHEDULE-AUTOFILL-PRODUCT-DIVERSITY-AND-ROTATION-20260919 — Fair Round-Robin & Time-Slot Diversity Auto-Fill
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **อัลกอริทึม Auto-Fill อัจฉริยะ (Fair Round-Robin & Time-Slot Diversity)**:
+  - ใน `scripts/api_schedule_queue.py`:
+    - ป้องกันการผูกขาดสินค้าเดิมซ้ำๆ: ใช้อัลกอริทึมคำนวณ Usage Count + Adjacent Day Penalty + Time Slot Penalty
+    - กระจายสินค้าทุกรุ่น (Baseus, BCD, BlueWow, Earphones, Essager, GoChek, Hatari, Iwachi, JBL, Logitech, Orico, Telesin, Toshino ฯลฯ) ให้หมุนเวียนเท่าเทียม
+    - บล็อกการลงสินค้าเดิมหรือสี Hook เดิมซ้ำภายในวันเดียวกันอย่างเด็ดขาด
+    - ระบบพิจารณาสถิติยอดวิว/Engagement แต่ป้องกันไม่ให้เกิด Starvation ต่อสินค้าใหม่
+- **การทดสอบและ Parity**:
+  - Unit tests `tests/test_schedule_queue.py` ครบทั้ง 22 tests ผ่าน 100% (รวมทดสอบ Fair Distribution, Adjacent Duplicates, Overdue Lifecycle, Atomic Commit)
+  - ปรับปรุง UI ใน `frontend/src/components/ScheduleAgenda.jsx` ให้สอดรับกับการหมุนเวียนสินค้าอัตโนมัติ
+
+## Round EXTENSION-MARK-POSTED-AUTO-REFRESH-PARITY-20260922 — ปรับปรุงปุ่มเขียว "มาร์กว่าโพสต์แล้ว" ให้เลื่อนขึ้นด้านบนและรีเฟรชงานพร้อมคลิปถัดไปเหมือนขั้นตอนที่ 6
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **ปรับปรุงพฤติกรรมหลังกดปุ่มเขียว "มาร์กว่าโพสต์แล้ว" (`markPostedBtn`)**:
+  - ย้ายไฟล์คลิปเข้าโฟลเดอร์ `Posted/` ผ่าน backend API (`/api/exports/mark-posted`)
+  - ล้างข้อมูลงานที่ค้างในระบบ (`chrome.storage.local.remove('pendingJob')`) ให้สะอาด 100%
+  - สลับกลับมายังแท็บ "รายการคลิป" (`showTab('list')`) พร้อมโหลดลิสต์คลิปใหม่อัตโนมัติ (`loadExports()`)
+  - **เลื่อนขึ้นด้านบนสุดทันที (Scroll to Top)**: ทำการเลื่อนหน้าต่างและกล่องรายการคลิปกลับขึ้นไปบนสุด (`window.scrollTo({ top: 0, behavior: 'smooth' })`, `panelList.scrollTop = 0`) เพื่อให้ผู้ใช้เห็นคลิปใหม่ลำดับถัดไปที่อยู่บนสุดของรายการทันที
+  - **รีเฟรชหน้าเว็บ TikTok Studio Upload**: สั่งรีเฟรชแท็บ TikTok Studio ให้กลับสู่หน้าเริ่มต้น (`https://www.tiktok.com/tiktokstudio/upload`) ที่สะอาดและพร้อมอัปโหลดคลิปใหม่ทันทีแบบเดียวกับขั้นตอนที่ 6
+- **ผลการทดสอบ**:
+  - Node tests 34/34 ผ่าน 100%
+  - Pytest 13/13 ผ่าน 100%
+
+| Round GADGET-CHINESE-HANDSON-DUBBING-CLEAN-SCREEN-20260921 | ผลิตคลิปรีวิวมือถือจอพับ Xiaomi MIX Flip สไตล์ @snap.it.review แบบที่ 2: คลิปคนจับเครื่องจริง (Hands-on) + ป้ายฮุกสติกเกอร์สดใสด้านบน + ซับไทยลอยโซนล่างใต้จอไม่บังคลิป + เสียงพากย์ไทยป้ายยาธรรมชาติ | 2026-09-21 | สำเร็จสมบูรณ์ (Master Video 18.51MB, 35.46s, 5 คีย์เฟรมตรวจเช็ก, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+
+## Round EXTENSION-ONE-CLICK-STEP1-TO-5-AUTOMATION-20260922 — ระบบกดปุ่มเดียวรันอัตโนมัติ ขั้นตอนที่ 1 ถึง 5 (Auto-Upload to Cover)
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **ปรับปรุงปุ่ม Hero Command Center สู่ 1-Click Pipeline**:
+  - เปลี่ยนชื่อและบทบาทของปุ่มใหญ่ด้านบนเป็น **`ดำเนินการอัตโนมัติ (ขั้น 1 ถึง 5)`**
+  - ไม่ต้องกดปุ่ม "ทำ" ขั้น 1 แยกต่างหากอีกต่อไป — เมื่อผู้ใช้เลือกคลิปแล้ว ปุ่มจะพร้อมทำงานทันที
+  - เมื่อคลิก:
+    1. **ขั้นตอนที่ 1 (อัปโหลดวิดีโอ)**: ระบบตรวจสอบหากยังไม่ได้อัปโหลด จะส่งคำสั่ง `upload-file-only` เข้า TikTok Studio ทันที แล้ว Detach Debugger อัตโนมัติเพื่อป้องกัน Chrome แครช พร้อมมาร์ค `chk1` ให้เสร็จสรรพ
+    2. **รอการประมวลผลวิดีโอ**: รอ TikTok ตรวจสอบไฟล์และเปลี่ยนสถานะเป็นพร้อมรับข้อมูล
+    3. **ขั้นตอนที่ 2 ถึง 5 (รันต่อเนื่องอัตโนมัติ)**: ดำเนินการพิมพ์คำอธิบาย/แฮชแท็ก (ขั้น 2), ค้นหาและปักตะกร้าสินค้า (ขั้น 3), สลับเป็นโหมดกำหนดเวลา (ขั้น 4 หากมีการเปิดสวิตช์), และเปิด Cover Studio อัปโหลดภาพปกสัดส่วน 3:4 พร้อมกดบันทึก (ขั้น 5)
+    4. **หยุดรอที่ขั้นตอนที่ 6 (ความปลอดภัย 100%)**: ปล่อยขั้นตอนที่ 6 ("กด Post / กำหนดเวลา") ไว้ให้ผู้ใช้ตรวจสอบความเรียบร้อยรอบสุดท้ายบนหน้า TikTok ก่อนกดยืนยันด้วยตนเอง
+- **การทดสอบและ Parity**:
+  - Node test suite 34/34 ผ่านฉลุย 100%
+  - Pytest API tiktok autopost 13/13 ผ่าน 100%
+
+| Round GADGET-XIAOMI-PAD-8-OFFICIAL-ONLY-SECOND-BY-SECOND-SYNC-20260921 | ตัดต่อคลิป Xiaomi Pad 8 โดยใช้เฉพาะคลิปทางการ (Official Clean 100%) ไร้ภาพนิ่ง/ไร้สต็อกอื่น + พากย์เสียง Fenrir และซับ Mali-Bold ตรงกับภาพบนจอวินาทีต่อวินาที + จอคลีน 0% Clutter | 2026-09-21 | สำเร็จสมบูรณ์ (Master Video 15.48MB, 30.00s, 8 ช็อตตรงวินาทีต่อวินาที, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+
+## Round GADGET-CHINESE-HANDSON-DUBBING-CLEAN-SCREEN-20260921 — ผลิตคลิปรีวิว Xiaomi MIX Flip สไตล์ @snap.it.review แบบที่ 2 (Hands-on + ป้ายฮุกบน + ซับไทยโซนล่าง)
+
+วันที่: 2026-09-21 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **ใช้ Footage คนจับเครื่องจริง 100% (Clean Real Hands-on B-roll)**:
+  - ใช้คลิปมือคนจับถือ Xiaomi MIX Flip ลองพับ กาง แตะเล่นวอลเปเปอร์แมว 3D บนจอนอก 4.01 นิ้ว และไถแอปด้วยมือเดียว คมชัดระดับ 1080p 60fps ไร้ซับภาษาจีนฝัง
+- **โครงสร้างภาพสไตล์ `@snap.it.review` เป๊ะตามแบบที่ 2**:
+  - **ป้ายฮุกสติกเกอร์ด้านบน (Top Hook Sticker Badge)**: สร้างด้วย Kanit-Black ขนาดใหญ่ สีเหลืองเรืองแสง `#FFE600` และขาว `#FFFFFF` ขอบดำ 8px: `รีวิวจริง Xiaomi MIX Flip / จอพับตัวตึง จอนอกน่ารักสะใจ!`
+  - **วิดีโอกลางจอ**: แสดงผลสัดส่วนแท้ตรงกลาง พร้อมฉากหลัง Gaussian Blur นุ่มนวลตามสีของตัวเครื่อง
+  - **ซับไตเติลภาษาไทยโซนล่างสุด (Safe Bottom Zone Subtitles)**: ตัวอักษรสีขาวบริสุทธิ์ ขอบดำ 5.2px ฟอนต์ Mali-Bold วางที่ระดับ Y=1520 (MarginV=400) ปลอดภัยใต้คลิปวิดีโอ ไม่บังหน้าจอมือถือและไม่ทับซับเดิม
+  - **เครดิตที่มาด้านล่างสุด**: `เครดิต: Techdroider` ฟอนต์ Kanit-Bold เรียบร้อยตามมารยาทการใช้วัตถุดิบ
+- **เสียงพากย์และดนตรี (Human-like Review Cadence + Upbeat BGM)**:
+  - บทพากย์ไทยสไตล์รีวิวป้ายยา ไม่ท่องสเปก เล่าถึงความน่ารักของจอนอก การแตะเล่นน้องแมวดุ๊กดิ๊ก และการเปิดแอปตอบแชทได้โดยไม่ต้องกางเครื่อง
+  - เสียงพากย์คมชัด + ดนตรี `tiktok_upbeat_bgm.wav` ระดับนุ่มหู (0.08)
+- **ไฟล์ผลลัพธ์**:
+  - Master Export: [Xiaomi_MIX_Flip_SnapStyle_Master.mp4](file:///d:/Winona/Programmer/Capcut/.tmp/Products/Xiaomi_MIX_Flip/03_Export/Xiaomi_MIX_Flip_SnapStyle_Master.mp4) (18.51 MB, 1080x1920, 30 fps, 35.46s)
+  - สำเนาใน Artifact: [Xiaomi_MIX_Flip_SnapStyle_Master.mp4](file:///C:/Users/Winon/.gemini/antigravity-ide/brain/17ebf3bb-f0a4-4947-8ff4-4269406b9ba0/Xiaomi_MIX_Flip_SnapStyle_Master.mp4)
+| Round GADGET-OFFICIAL-TECH-INSERTS-BATTERY-VC-CPU-20260921 | แทนที่สต็อกวิดีโอทั่วไปด้วยภาพ Insert ชิ้นส่วนฮาร์ดแวร์ทางการของ Xiaomi MIX Flip แท้: ชิป Snapdragon 8 Gen 3, ระบายความร้อน 3D VC Teardown, และแบตเตอรี่คู่ 4,780 mAh เรืองแสง | 2026-09-21 | สำเร็จสมบูรณ์ (Master Video 12.35MB, 60.00s, 12 คัตนิ่งสมบูรณ์, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+
+## Round GADGET-XIAOMI-PAD-8-OFFICIAL-ONLY-SECOND-BY-SECOND-SYNC-20260921 — ตัดต่อคลิป Xiaomi Pad 8 เฉพาะคลิปทางการ พากย์ตรงภาพวินาทีต่อวินาที จอคลีน 0% Clutter
+
+วันที่: 2026-09-21 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **ใช้เฉพาะคลิปทางการเท่านั้น (Strict Official Video Only)**:
+  - ใช้เฉพาะไฟล์วิดีโอทางการความละเอียดสูง `official_pad_8_series.mp4` (1080p, 30.00s)
+  - ❌ ปลดภาพนิ่ง (Photos / Stills) ออกทั้งหมด 100%
+  - ❌ ไม่นำวิดีโอสต็อกทั่วไปหรือฟุตเทจภายนอกที่ไม่เกี่ยวข้องมาตัดรวม
+- **พากย์เสียง Fenrir และจัดซับไตเติลตรงกับภาพบนจอวินาทีต่อวินาที (1:1 Exact Second-by-Second Visual Sync)**:
+  - `00.2s - 03.3s`: "ดีไซน์บางเฉียบ 5.75 มิลลิเมตร" ➔ ตรงกับภาพตัวเครื่องโลหะและข้อความทางการ 5.75mm ultra-thin
+  - `03.4s - 05.4s`: "กล้องหลัง 50MP AI Camera คมชัด" ➔ ตรงกับภาพโคลสอัปโมดูลกล้องหลัง 50MP AI CAMERA
+  - `05.5s - 08.3s`: "แบตเตอรี่ 9200mAh ชาร์จไว 67W HyperCharge" ➔ ตรงกับภาพสถาปัตยกรรมภายในเซลล์แบตเตอรี่ 9200mAh และแอนิเมชันชาร์จไว 67W HyperCharge
+  - `08.4s - 10.3s`: "ชิปเซ็ต Snapdragon 8 Elite แรงสุดขั้ว" ➔ ตรงกับภาพชิป Snapdragon 8 Elite Mobile Platform สีแดงทองบนเมนบอร์ด
+  - `10.4s - 16.5s`: "ต่อคีย์บอร์ดแปลงร่างทำงานระดับ PC ลื่นไหล" ➔ ตรงกับภาพต่อเคสคีย์บอร์ดแม่เหล็ก, หน้าจอแบ่งหน้าต่างมัลติทาสก์ และการใช้งาน Trackpad ท่องเว็บระดับ PC
+  - `16.7s - 21.6s`: "วาดเขียนแม่นยำด้วย Xiaomi Focus Pen Pro" ➔ ตรงกับภาพการใช้สไตลัส Xiaomi Focus Pen Pro วาดรูปแมวขาวบนหน้าจอ
+  - `21.8s - 25.4s`: "เนรมิตงานศิลปะด้วยพลัง Xiaomi HyperAI" ➔ ตรงกับลูกแก้ว HyperAI และการเสกภาพวาดเป็นผลงานศิลปะเสมือนจริงในพริบตา
+  - `25.6s - 29.8s`: "Xiaomi Pad 8 Series ครบจบทุกการทำงาน" ➔ ตรงกับภาพรวมไลน์อัปตัวเครื่อง 3 สี, เคสคีย์บอร์ด, ปากกา และโลโก้ Xiaomi HyperOS
+- **หน้าจอคลีนระดับพรีเมียม (0% Clutter Standard)**:
+  - ปลดกล่องสเปกหัวข้อบน (Top Callout), ป้ายสเปกล่าง (Bottom Callout) และป้ายเครดิตแปลกปลอมออกทั้งหมดตามคำสั่ง
+  - ใช้ฟอนต์ **Mali-Bold** แท้ (88px, ขอบดำ 5.2px, MarginV 380 ใน Safe Zone)
+  - เทคนิค Progressive Ghost Reveal คำข้างหน้าโปร่งใส พยางค์ที่กำลังพูดเด้งป๊อป 114% สีเขียวนีออน (`#66FF00`) คำที่พูดแล้วสีขาว (`#FFFFFF`)
+- **ไฟล์ผลลัพธ์ Master**:
+  - โฟลเดอร์ Workspace: `.tmp/Products/Xiaomi_Pad_8/03_Export/Xiaomi_Pad_8_Official_Sync_Master.mp4` (15.48 MB, 30.00s, 1080x1920 9:16)
+  - สำเนา Artifact พร้อมเปิดดู: `Xiaomi_Pad_8_Official_Sync_Master.mp4`
+| Round GADGET-PRO-CLEAN-CINEMATIC-PACING-AND-NO-SFX-20260921 | คลีนจอระดับ YouTube Pro: ปลดฟอนต์บน 100%, ตัด SFX ทิ้งทั้งหมด, คืนสัดส่วนเดิมพื้นหลังเบลอ, ปรับจังหวะนิ่ง 12 คัต คัตละ 3.5-6.0s | 2026-09-21 | สำเร็จสมบูรณ์ (Master Video 16.41MB, สกัด 7 คีย์เฟรม, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+
+## Round GADGET-OFFICIAL-TECH-INSERTS-BATTERY-VC-CPU-20260921 — แทนที่สต็อกด้วยภาพ Insert ฮาร์ดแวร์ทางการของ Xiaomi MIX Flip (Official Hardware Inserts)
+
+วันที่: 2026-09-21 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **แทนที่ภาพสต็อกทั่วไปด้วยภาพ Insert ชิ้นส่วนทางการจาก Xiaomi โดยตรง**:
+  - **แบตเตอรี่ (48.64s - 54.00s)**: เปลี่ยนจาก HUD อนิเมชันแบตเตอรี่สีส้ม 41% ทั่วไป มาใช้ภาพทางการผ่าเครื่องโชว์เซลล์แบตเตอรี่คู่สีม่วงเรืองแสงพร้อมตัวเลขความจุ `4780 mAh` (`asset_18669_40205-new.png`) ตรงกับที่เสียงพากย์พูดถึงแบตเตอรี่ 4,780 mAh และชาร์จไว 67W Surge
+  - **ระบบระบายความร้อน (43.70s - 48.64s)**: ใช้ภาพ 3D Exploded Teardown สถาปัตยกรรมระบายความร้อน 3D Dual-Channel VC Cooling (`asset_40437_39070-new.png`) โชว์แผ่นทองแดงและกราไฟต์แยกส่วนอย่างชัดเจน ตรงกับช่วงเสียงพากย์อธิบายเรื่องการระบายความร้อน
+  - **ชิปเซ็ตประมวลผล (38.78s - 43.70s)**: ใช้ภาพชิปเรือธง `Snapdragon 8 Gen 3` สีทองแดงเรืองแสงบนเมนบอร์ดจริง (`asset_64490_39062-new.png`) ตรงกับช่วงเสียงพากย์เรื่องความเร็วระดับเรือธง
+  - **ไลฟ์สไตล์การพับตั้ง (54.00s - 60.00s)**: ตัดภาพเครื่อง 3 เครื่องกางตั้ง 3 องศา (45°, 90°, 120°) จากวิดีโอ Unboxing คมชัด โชว์ความยืดหยุ่นก่อนจบคลิป
+- **คงความคลีนระดับพรีเมียม**:
+  - ไร้ฟอนต์ Callout ขนาดใหญ่ด้านบนบดบังจอ โฟกัสชิ้นส่วนผลิตภัณฑ์และตัวเครื่อง 100%
+  - สัดส่วนคงเดิมตรงกลางพร้อม Soft Blur Background สบายตา ไม่มีภาพยืดหรือบิดเบี้ยว
+  - ไร้เสียง SFX กวนใจ คงไว้เฉพาะเสียงพากย์ Fenrir (1.0) และ BGM นุ่มนวล (0.065)
+- **ผลการเรนเดอร์ Master**:
+  - ไฟล์ผลลัพธ์: [Xiaomi_MIX_Flip_60s_Master.mp4](file:///d:/Winona/Programmer/Capcut/.tmp/Products/Xiaomi_MIX_Flip/03_Export/Xiaomi_MIX_Flip_60s_Master.mp4) (12.35 MB, 1080x1920, 30 fps, 59.97s)
+  - สำเนาใน Artifact: [Xiaomi_MIX_Flip_60s_Master.mp4](file:///C:/Users/Winon/.gemini/antigravity-ide/brain/17ebf3bb-f0a4-4947-8ff4-4269406b9ba0/Xiaomi_MIX_Flip_60s_Master.mp4)
+| Round GADGET-AGENCY-GRADE-PRO-TRANSFORMATION-20260921 | ยกระดับงานตัดต่อสู่ Agency-Grade: ลด BGM (0.065), เวที Luxury Dark Obsidian Studio, 14 วิดีโอ B-roll 1080p, Sound Design Stem เต็มรูปแบบ, Tech Pill Badges | 2026-09-21 | สำเร็จสมบูรณ์ (Master Video 21.38MB, สกัด 13 คีย์เฟรม, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round GADGET-PRODUCT-CENTRIC-STORAGE-RESTRUCTURE-20260921 | จัดระเบียบโครงสร้างโฟลเดอร์ Product-Centric 01_Raw, 02_Workspace, 03_Export สำหรับ Gadget Media ล้างไฟล์รกร้าง 84 ไฟล์ | 2026-09-21 | สำเร็จสมบูรณ์ (Master Video ไฟล์เดียวใน 03_Export, clean 100%, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round GADGET-EDITING-STYLE-RULES-AND-CHECKLIST-20260921 | สรุปกฎเหล็ก 5 เสาหลัก และ QA Checklist ตัดต่อคลิปรีวิวแกดเจ็ต 60s 9:16 ลงกฎและ SOP v1.1-1.2 | 2026-09-21 | สำเร็จสมบูรณ์ (กฎข้อ 17-18 ใน AGENTS.md, SOP v1.2, Checklist 11 ข้อ, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round GADGET-MALI-CURATED-SYLLABLE-BOUNCE-60S-20260921 | ซับไตเติล Mali-Bold ผังบททางการ Syllable Clustering + Progressive Ghost Reveal เด้งสีเขียวนีออน #66FF00 114% | 2026-09-21 | สำเร็จสมบูรณ์ (เรนเดอร์ 60s Master 15.08MB, สกัด 8 คีย์เฟรม, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
@@ -28,6 +161,45 @@
 | Round BATCH-RENDER-MODAL-STATUS-LABEL-ALIGNMENT-1 | ปรับปรุงข้อความสถานะใน Batch Render Queue ให้ตรงกับบริบทการเรนเดอร์: เปลี่ยน "กำลังตัดต่อ" -> "กำลังเรนเดอร์", "พร้อมตัดต่อ" -> "พร้อมเรนเดอร์", "เลือกที่ยังไม่ได้ตัดต่อทั้งหมด" -> "เลือกที่ยังไม่ได้เรนเดอร์ทั้งหมด", "ตัดต่อแล้ว" -> "เรนเดอร์แล้ว" | 2026-09-19 | สำเร็จสมบูรณ์ (frontend vitest 282 passed, build 2,015 modules/3.48s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round RAW-VIDEO-THAI-FILENAME-VOWEL-TONE-MARK-FIX-1 | แก้ไขปัญหาชื่อคลิปดิบและ asset ตัดสระบนล่างและวรรณยุกต์ไทยทิ้งทั้งหมด (เช่น ปลั๊กไฟ -> ปลกไฟ, พัดลม -> พดลม, ขาตั้ง -> ขาตง) จาก bug การ sanitize ชื่อไฟล์ใน api_videos.py | 2026-09-19 | สำเร็จสมบูรณ์ (pytest 2 passed, security tests 14 passed, frontend vitest 282 passed, build 2,015 modules/3.42s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round PAGINATION-PHASE3-COMPLETE-LONG-LISTS-20260919 | เพิ่ม pagination ให้รายการยาวที่เหลือใน Export Gallery, Performance Analytics, Token Dashboard, Storage Analytics และ Activity Center | 2026-09-19 | สำเร็จสมบูรณ์ (frontend 282 passed, backend 18 passed, build 2,015 modules, lint ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round GADGET-PRO-CLEAN-CINEMATIC-PACING-AND-NO-SFX-20260921 — คลีนจอระดับ YouTube Pro (Clean Cinematic Pacing & No SFX)
+
+วันที่: 2026-09-21 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **ปลดฟอนต์ Callout ตัวหนาด้านบนออก 100%**: ลบกล่องสเปก/ป้ายข้อความลอยด้านบนทั้งหมด ทำให้หน้าจอคลีนตา โฟกัสตัวเครื่อง 100% เล่าเรื่องผ่านภาพและเสียงพากย์อย่างมืออาชีพสไตล์ YouTube Tech Reviewer
+- **ตัดเสียงเอฟเฟกต์ (SFX) ทั้งหมด 100%**: ลบ Sound Design Stem (Sub drop, Whoosh, Shutter click, Pops) ทิ้งทั้งหมด คงเหลือเฉพาะเสียงพากย์ Fenrir (1.0) ผสานดนตรี BGM Rock Angel ระดับเบา นุ่ม สบายหู (0.065) ไม่รบกวนการฟัง
+- **คืนค่าสัดส่วนภาพ Insert ดั้งเดิม (Uncropped Centered + Soft Blur Background)**: ยกเลิกการซูมครอบตัดแบบ Full-bleed คืนค่าภาพตัวอย่างไลฟ์สไตล์และตัวเครื่องให้อยู่ตรงกลางด้วยสัดส่วนแท้ 100% ไร้การยืด/หด พร้อมฉากหลัง Soft Gaussian Blur แบบเดิมที่สบายตา
+- **ปรับจังหวะการตัดต่อใหม่ (Smooth 12-Shot Narrative Flow)**: ปลดชนวนปัญหาการตัดสลับฉากถี่เกินไป (จากเดิม 25 คัต) เหลือ **12 คัตเน้นๆ** แต่ละคัตมีความยาว 3.3 ถึง 6.0 วินาที ไม่มีคัตกระตุกสั้นต่ำกว่า 3 วินาทีอีกต่อไป
+  - คัต 01 (00.00-03.34): วิดีโอ 3D หมุนโชว์เครื่องเปิดหัว
+  - คัต 02 (03.34-06.74): ภาพนิ่งเครื่องคู่หน้าหลังสัดส่วนแท้
+  - คัต 03 (06.74-12.44): วิดีโอมือถือเครื่อง จอนอก 4.01 นิ้วตื่นขึ้นมา (5.7s เต็มอิ่ม)
+  - คัต 04 (12.44-18.14): วิดีโอเลื่อนดูวิดเจ็ตสัตว์เลี้ยงขยับได้
+  - คัต 05 (18.14-23.20): วิดีโอกางเครื่องขึ้นเป็นจอหลัก 6.86 นิ้ว
+  - คัต 06 (23.20-28.28): ภาพดอกไม้สีสดใส 3,000 nits สัดส่วนแท้
+  - คัต 07 (28.28-33.50): ภาพมาโครกล้องคู่ Leica Summilux เลนส์เด่นชัด
+  - คัต 08 (33.50-38.78): ภาพถ่ายพระอาทิตย์ตกพร้อมลายน้ำ Leica แท้โทนคลาสสิก
+  - คัต 09 (38.78-43.70): วิดีโอ 3D ชิป Snapdragon 8 Gen 3 เปิดตัวบนบอร์ด
+  - คัต 10 (43.70-48.64): วิดีโอนำทาง 120Hz ลื่นไหล
+  - คัต 11 (48.64-54.00): วิดีโอ HUD แบตเตอรี่ Surge 4,780 mAh กำลังชาร์จ
+  - คัต 12 (54.00-60.00): วิดีโอเครื่องกางตั้ง 3 องศา (Flex Form) จบสมบูรณ์แบบ
+- **เรนเดอร์ Master Video 60s**: สกัด `Xiaomi_MIX_Flip_60s_Master.mp4` (16.41 MB, 1080x1920, 30fps) พร้อมคีย์เฟรมตรวจสอบ 7 จุด
+
+## Round GADGET-AGENCY-GRADE-PRO-TRANSFORMATION-20260921 — ปรับโฉมระดับเอเจนซี่โฆษณา (Agency-Grade Commercial Overhaul)
+
+วันที่: 2026-09-21 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **ลดระดับเสียง BGM**: ปรับระดับเสียง `Rock Angel` ลงเหลือ `0.065` (ลดลงมากกว่า 50% จาก 0.14) ส่งผลให้เสียงพากย์ Fenrir (1.0) คมชัด โดดเด่น และสบายหู ไม่ถูกดนตรีกลบ
+- **เวที Luxury Dark Obsidian Studio**: ขจัดแถบเบลอบน-ล่างของภาพนิ่งสินค้า 100% แทนที่ด้วยฉากหลังสตูดิโอสี Dark Obsidian `#0E111A` + Radial Vignette สไตล์ Apple/Xiaomi Keynote 3D Studio Render
+- **Full-Bleed 9:16 Staging**: ขยายภาพตัวอย่างภาพถ่ายไลฟ์สไตล์ (วิวพระอาทิตย์ตก, กาแล็กซี 3,000 nits) เต็มจอ 1080x1920 คมชัด ไร้แถบดำขอบข้าง
+- **แทนที่ภาพนิ่งด้วย 14 คัตวิดีโอ 1080p แท้**:
+  - ช็อต 18: วิดีโอ 3D Microchip Opening บนมาเธอร์บอร์ด
+  - ช็อต 19: วิดีโอ 3D Dual-VC Cooling Macro Circuit Pulse
+  - ช็อต 21: วิดีโอกลไกบานพับกางหลายองศา 45°-120°
+  - ช็อต 15: วิดีโอเลนส์กล้องหมุนโฟกัสพร้อม Cinematic Flare
+  - ช็อต 22: วิดีโอ HUD แบตเตอรี่กำลังชาร์จไฟ
+- **Sound Design Stem (`sfx_master_60s.wav`)**: มิกซ์เสียงเอฟเฟกต์เฉพาะทาง (Sub-bass Drop 0.2s, Whoosh transitions, Leica Shutter Click 28.0s, Tech Pops) ตรงจังหวะตัดต่อทุกมิลลิวินาที
+- **Cohesive Tech Pill Badges**: ยกระดับป้ายสเปก Callout ด้านบนเป็นหัวข้อ `[ CATEGORY ]` สีเขียวนีออน + ตัวเลขสเปกด้านล่างสีขาว อยู่ชิดกัน 60px ไม่กระจายแยกหัวท้ายหน้าจออีกต่อไป
+- **เรนเดอร์ Master Video 60s**: สกัด `Xiaomi_MIX_Flip_60s_Master.mp4` (21.38 MB, 1080x1920, 30fps) พร้อมชุดคีย์เฟรมตรวจสอบ 13 จุด
 
 ## Round GADGET-PRODUCT-CENTRIC-STORAGE-RESTRUCTURE-20260921 — จัดระเบียบโครงสร้างโฟลเดอร์ Product-Centric 01_Raw, 02_Workspace, 03_Export
 

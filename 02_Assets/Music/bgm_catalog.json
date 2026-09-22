@@ -1,0 +1,80 @@
+[
+  {
+    "id_name": "bgm_lakey_inspired_chill_day",
+    "title": "LAKEY INSPIRED - Chill Day",
+    "query": "ytsearch1:LAKEY INSPIRED Chill Day",
+    "genre": "Chillhop / Modern Rhodes",
+    "mood": "ฟังสบาย คูล ทันสมัย กรูฟชัด ไม่น่าเบื่อ (Signature Tech Vlog)",
+    "best_for": "รีวิวสเปกทั่วไป, แกะกล่อง, บรรยายฟีเจอร์",
+    "energy": "⭐⭐⭐⭐ (ปานกลาง-คึกคัก)",
+    "duration_str": "3:05",
+    "duration_seconds": 185.984,
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_lakey_inspired_chill_day.mp3",
+    "file_name": "bgm_lakey_inspired_chill_day.mp3"
+  },
+  {
+    "id_name": "bgm_joakim_karud_dreams",
+    "title": "Joakim Karud - Dreams",
+    "query": "ytsearch1:Joakim Karud Dreams audio",
+    "genre": "Jazzy Hip-Hop / Swing Groove",
+    "mood": "สนุกสนาน มีสไตล์ สดใส ฉลาด น่าติดตาม (สไตล์ Casey / MKBHD)",
+    "best_for": "คลิปไฮป์, สรุปจุดเด่นเร็วๆ, Hands-on ตัวเครื่อง",
+    "energy": "⭐⭐⭐⭐⭐ (สนุก มีจังหวะชัด)",
+    "duration_str": "3:10",
+    "duration_seconds": 190.090167,
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_joakim_karud_dreams.mp3",
+    "file_name": "bgm_joakim_karud_dreams.mp3"
+  },
+  {
+    "id_name": "bgm_mbb_feel_good",
+    "title": "MBB - Feel Good",
+    "query": "ytsearch1:MBB Feel Good audio",
+    "genre": "Tropical Pop / Upbeat Melodic",
+    "mood": "สดใส สนุกสนาน พลังบวก ฟังสบาย เพลิดเพลิน",
+    "best_for": "แกดเจ็ต Lifestyle, อุปกรณ์เสริม, ฟีเจอร์กล้องและสีสัน",
+    "energy": "⭐⭐⭐⭐ (สดใส มีชีวิตชีวา)",
+    "duration_str": "2:34",
+    "duration_seconds": 154.624,
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_mbb_feel_good.mp3",
+    "file_name": "bgm_mbb_feel_good.mp3"
+  },
+  {
+    "id_name": "bgm_ikson_anywhere",
+    "title": "Ikson - Anywhere",
+    "query": "ytsearch1:Ikson Anywhere audio",
+    "genre": "Modern Vlog Beat / Electro Melodic",
+    "mood": "ล้ำสมัย จังหวะขับเคลื่อน มีแรงส่ง ไฮเทค",
+    "best_for": "การประมวลผล ชิปเซ็ตความเร็วสูง เกมมิ่ง และระบบระบายความร้อน",
+    "energy": "⭐⭐⭐⭐⭐ (กระฉับกระเฉง โมเดิร์น)",
+    "duration_str": "2:59",
+    "duration_seconds": 179.838563,
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_ikson_anywhere.mp3",
+    "file_name": "bgm_ikson_anywhere.mp3"
+  },
+  {
+    "id_name": "bgm_liqwyd_glow",
+    "title": "LiQWYD - Glow",
+    "query": "ytsearch1:LiQWYD Glow audio",
+    "genre": "Chill House / Futuristic Synth",
+    "mood": "พรีเมียม สวยหรู สเปซไฮเทค นุ่มนวลแต่ทันสมัย",
+    "best_for": "สมาร์ทโฟนระดับเรือธง, จอพับ, ดีไซน์ลักชูรี และระบบเลนส์ระดับโปร",
+    "energy": "⭐⭐⭐ (นุ่มหรู ฟังสบายขั้นสุด)",
+    "duration_str": "3:11",
+    "duration_seconds": 191.129042,
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_liqwyd_glow.mp3",
+    "file_name": "bgm_liqwyd_glow.mp3"
+  },
+  {
+    "id_name": "bgm_lakey_inspired_better_days",
+    "title": "LAKEY INSPIRED - Better Days",
+    "query": "ytsearch1:LAKEY INSPIRED Better Days audio",
+    "genre": "Warm Soul Hop / Smooth Beat",
+    "mood": "อบอุ่น ผ่อนคลาย จังหวะโยกตามเบาๆ ไม่กลบเสียงพากย์ 100%",
+    "best_for": "คลิปแนะนำการใช้งานจริง, สรุปราคาและความคุ้มค่า",
+    "energy": "⭐⭐⭐ (สบายตา สบายหู)",
+    "duration_str": "3:27",
+    "duration_seconds": 207.249708,
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_lakey_inspired_better_days.mp3",
+    "file_name": "bgm_lakey_inspired_better_days.mp3"
+  }
+]

@@ -737,11 +737,11 @@
   },
   {
     "id": "eca86c4a7fae4010843fa865b948fadd",
-    "video_path": "04_Exports/Ready_to_post/ESS02-คำนวณคุ้มค่า_1_20260916_201446.mp4",
-    "video_key": "export:exp_f23f66c31f5546e1bfb52e750f6a689c",
+    "video_path": "04_Exports/Posted/ESS02-คำนวณคุ้มค่า_1_20260916_201446.mp4",
+    "video_key": "04_exports/ess02-คำนวณคุ้มค่า_1_20260916_201446.mp4",
     "export_id": "exp_f23f66c31f5546e1bfb52e750f6a689c",
     "scheduled_at": "2026-10-03T21:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "9505b042d58640f5aa58015bb86be097",
     "angle_id": "math_value",
     "product_name": "ที่ชาร์จเร็ว, Essager, PD 30W",
@@ -755,9 +755,9 @@
     "hashtags": "#คำนวณความคุ้มค่า #หัวชาร์จราคาประหยัด #ประหยัดเงิน #ของดีบอกต่อ #Essager",
     "tiktok_product_id": "1731216936089584763",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:38:51+00:00",
+    "extension_prepared_at": "2026-09-22T11:38:01.810704",
+    "posted_at": "2026-09-22T04:38:51+00:00"
   },
   {
     "id": "3ca7fd31e1544e73ad95521fcea14651",
@@ -785,11 +785,11 @@
   },
   {
     "id": "e598a504e700439a82ad051ff717591c",
-    "video_path": "04_Exports/Ready_to_post/LOG02-เทียบของเดิม_1_20260915_014733.mp4",
-    "video_key": "export:exp_1ff8e81de01e48e6b82f92ba9f787e60",
+    "video_path": "04_Exports/Posted/LOG02-เทียบของเดิม_1_20260915_014733.mp4",
+    "video_key": "04_exports/log02-เทียบของเดิม_1_20260915_014733.mp4",
     "export_id": "exp_1ff8e81de01e48e6b82f92ba9f787e60",
     "scheduled_at": "2026-10-09T21:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "e8c50275ed5d4748a046603377e8a216",
     "angle_id": "comparison",
     "product_name": "Logitech Lift",
@@ -803,17 +803,17 @@
     "hashtags": "#เปรียบเทียบเมาส์ #สุขภาพดี #ไอทีน่ารู้ #จัดโต๊ะทำงาน #สาระน่ารู้",
     "tiktok_product_id": "1730572809818376899",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T06:43:37+00:00",
+    "extension_prepared_at": "2026-09-22T13:43:03.019840",
+    "posted_at": "2026-09-22T06:43:37+00:00"
   },
   {
     "id": "f88eddf8602a42b988c7ef6d639defe8",
-    "video_path": "04_Exports/Ready_to_post/JBL01-รีวิวสเปก_1_20260917_131013.mp4",
-    "video_key": "export:exp_12a3b1d9065042b38f75c2d93978a04e",
+    "video_path": "04_Exports/Posted/JBL01-รีวิวสเปก_1_20260917_131013.mp4",
+    "video_key": "04_exports/jbl01-รีวิวสเปก_1_20260917_131013.mp4",
     "export_id": "exp_12a3b1d9065042b38f75c2d93978a04e",
     "scheduled_at": "2026-10-10T12:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "38d7670c472e4777af722a923d96644f",
     "angle_id": "spec_review",
     "product_name": "JBL Tune 310C USB-C In-Ear หูฟังอินเอียร์",
@@ -827,17 +827,17 @@
     "hashtags": "#รีวิวหูฟัง #สเปกเทพ #หูฟังเสียงดี #JBL #พิกัดในตะกร้า",
     "tiktok_product_id": "1730484314663914071",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T06:45:37+00:00",
+    "extension_prepared_at": "2026-09-22T13:44:28.075368",
+    "posted_at": "2026-09-22T06:45:37+00:00"
   },
   {
     "id": "5dbc6653b2a2429fbdeb71e2d6ae271c",
-    "video_path": "04_Exports/Ready_to_post/ORA01-ทริกลึก_1_20260915_152937.mp4",
-    "video_key": "export:exp_1df269f92cd9466fbb5bd1ae1270b4ad",
+    "video_path": "04_Exports/Posted/ORA01-ทริกลึก_1_20260915_152937.mp4",
+    "video_key": "04_exports/ora01-ทริกลึก_1_20260915_152937.mp4",
     "export_id": "exp_1df269f92cd9466fbb5bd1ae1270b4ad",
     "scheduled_at": "2026-10-09T19:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "8d2e86320e124f1a887009fbf5aee86b",
     "angle_id": "life_hack",
     "product_name": "Orashare พัดลมมือถือ",
@@ -851,9 +851,9 @@
     "hashtags": "#รู้งี้ซื้อนานแล้ว #พัดลมพกพา #Orashare #ไอเทมดับร้อน #รีวิวของดี #พิกัดในตะกร้า",
     "tiktok_product_id": "1730171555388033552",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T06:42:57+00:00",
+    "extension_prepared_at": "2026-09-22T13:41:56.927363",
+    "posted_at": "2026-09-22T06:42:57+00:00"
   },
   {
     "id": "a0dedd544f9b4270b620b3a623cef917",
@@ -1097,11 +1097,11 @@
   },
   {
     "id": "035fc187cf3c4d508402a5328cd74ff9",
-    "video_path": "04_Exports/Ready_to_post/BCD01-เทียบของเดิม_1_20260914_224041.mp4",
-    "video_key": "export:exp_d357423243e5446fa7fe5a67e1254b08",
+    "video_path": "04_Exports/Posted/BCD01-เทียบของเดิม_1_20260914_224041.mp4",
+    "video_key": "04_exports/bcd01-เทียบของเดิม_1_20260914_224041.mp4",
     "export_id": "exp_d357423243e5446fa7fe5a67e1254b08",
     "scheduled_at": "2026-10-08T12:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "02a82b8dbfbf4cdf97bb59643f9d295b",
     "angle_id": "comparison",
     "product_name": "LOOP Smartband สายรัดข้อมืออัจฉริยะ",
@@ -1115,9 +1115,9 @@
     "hashtags": "#เปรียบเทียบสินค้า #รีวิวไอที #BCDLOOP #สายรัดข้อมือสุขภาพ #ป้ายยา",
     "tiktok_product_id": "1734748998207636716",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T05:23:34+00:00",
+    "extension_prepared_at": "2026-09-22T12:21:52.019434",
+    "posted_at": "2026-09-22T05:23:34+00:00"
   },
   {
     "id": "5c040b2a4c9149f18ad8d45db82fc1a5",
@@ -1241,11 +1241,11 @@
   },
   {
     "id": "0d7ccb8ec9e04e469a6a252fefd835b2",
-    "video_path": "04_Exports/Ready_to_post/JBL01-แกะกล่องว้าว_1_20260917_134525.mp4",
-    "video_key": "export:exp_d7c8dd90889b4e7da92148048cf9617c",
+    "video_path": "04_Exports/Posted/JBL01-แกะกล่องว้าว_1_20260917_134525.mp4",
+    "video_key": "04_exports/jbl01-แกะกล่องว้าว_1_20260917_134525.mp4",
     "export_id": "exp_d7c8dd90889b4e7da92148048cf9617c",
     "scheduled_at": "2026-10-03T09:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "38d7670c472e4777af722a923d96644f",
     "angle_id": "unboxing",
     "product_name": "JBL Tune 310C USB-C In-Ear หูฟังอินเอียร์",
@@ -1259,9 +1259,9 @@
     "hashtags": "#แกะกล่อง #unboxing #หูฟังJBL #ของดีบอกต่อ #พิกัดในตะกร้า",
     "tiktok_product_id": "1730484314663914071",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:36:14+00:00",
+    "extension_prepared_at": "2026-09-22T11:35:01.123331",
+    "posted_at": "2026-09-22T04:36:14+00:00"
   },
   {
     "id": "446732bf80ad40b4ad6ceaf9f484eccb",
@@ -1313,11 +1313,11 @@
   },
   {
     "id": "4dbf3ec731f9461197a7a1da0d626da4",
-    "video_path": "04_Exports/Ready_to_post/EAR01-คำนวณคุ้มค่า_1_20260919_155538.mp4",
-    "video_key": "export:exp_b66fbf5e0b534bfb803960a448e689c4",
+    "video_path": "04_Exports/Posted/EAR01-คำนวณคุ้มค่า_1_20260919_155538.mp4",
+    "video_key": "04_exports/ear01-คำนวณคุ้มค่า_1_20260919_155538.mp4",
     "export_id": "exp_b66fbf5e0b534bfb803960a448e689c4",
     "scheduled_at": "2026-10-04T21:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "5082eeff0635403a9c7f9f51d44f7404",
     "angle_id": "math_value",
     "product_name": "หูฟัง Earphone Synmax",
@@ -1331,9 +1331,9 @@
     "hashtags": "#คำนวณความคุ้มค่า #หูฟังคุ้มๆ #ฉลาดเลือก #SANMAX #ประหยัดงบ",
     "tiktok_product_id": "1735873040241100167",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:42:49+00:00",
+    "extension_prepared_at": "2026-09-22T11:41:54.008554",
+    "posted_at": "2026-09-22T04:42:49+00:00"
   },
   {
     "id": "5e5e03cd2cd0402585be8adb53859397",
@@ -1409,11 +1409,11 @@
   },
   {
     "id": "3972a60ce5c045978af265c54badf24e",
-    "video_path": "04_Exports/Ready_to_post/ORA01-รีวิวใช้จริง_1_20260915_153057.mp4",
-    "video_key": "export:exp_a8e5e6580ead4d9bbb2fa63ab61b88bb",
+    "video_path": "04_Exports/Posted/ORA01-รีวิวใช้จริง_1_20260915_153057.mp4",
+    "video_key": "04_exports/ora01-รีวิวใช้จริง_1_20260915_153057.mp4",
     "export_id": "exp_a8e5e6580ead4d9bbb2fa63ab61b88bb",
     "scheduled_at": "2026-10-06T21:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "8d2e86320e124f1a887009fbf5aee86b",
     "angle_id": "longterm_review",
     "product_name": "Orashare พัดลมมือถือ",
@@ -1427,9 +1427,9 @@
     "hashtags": "#รีวิวจากผู้ใช้จริง #พัดลมพกพา #Orashare #ของดีบอกต่อ #ทนทานใช้งานยาวนาน #พิกัดในตะกร้า",
     "tiktok_product_id": "1730171555388033552",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:55:38+00:00",
+    "extension_prepared_at": "2026-09-22T11:54:50.887832",
+    "posted_at": "2026-09-22T04:55:38+00:00"
   },
   {
     "id": "1b3eedad969e4ad38e0d06ca6557a2f8",
@@ -1553,11 +1553,11 @@
   },
   {
     "id": "4c007e45d6554d5da254ab9d738af092",
-    "video_path": "04_Exports/Ready_to_post/BLU01-เตือนภัย_1_20260915_140552.mp4",
-    "video_key": "export:exp_1936f37d013746359d24ad1cc1c79dd0",
+    "video_path": "04_Exports/Posted/BLU01-เตือนภัย_1_20260915_140552.mp4",
+    "video_key": "04_exports/blu01-เตือนภัย_1_20260915_140552.mp4",
     "export_id": "exp_1936f37d013746359d24ad1cc1c79dd0",
     "scheduled_at": "2026-10-02T21:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "b29140664441426ca00294388013fee8",
     "angle_id": "stop_scroll",
     "product_name": "พัดลมระบายความร้อนโทรศัพท์ BlueWow",
@@ -1571,17 +1571,17 @@
     "hashtags": "#นายหน้าtiktok #รีวิวของดี #ของมันต้องมี #tiktokป้ายยา #พิกัดในตะกร้า",
     "tiktok_product_id": "1730029570641267012",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:33:11+00:00",
+    "extension_prepared_at": "2026-09-22T11:32:31.596673",
+    "posted_at": "2026-09-22T04:33:11+00:00"
   },
   {
     "id": "de381c5a00e744b9999062862e0c482b",
-    "video_path": "04_Exports/Ready_to_post/BLU01-รีวิวใช้จริง_1_20260915_150025.mp4",
-    "video_key": "export:exp_6c489538ada04e3a8ae549e9ee6870ff",
+    "video_path": "04_Exports/Posted/BLU01-รีวิวใช้จริง_1_20260915_150025.mp4",
+    "video_key": "04_exports/blu01-รีวิวใช้จริง_1_20260915_150025.mp4",
     "export_id": "exp_6c489538ada04e3a8ae549e9ee6870ff",
     "scheduled_at": "2026-10-06T19:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "b29140664441426ca00294388013fee8",
     "angle_id": "longterm_review",
     "product_name": "พัดลมระบายความร้อนโทรศัพท์ BlueWow",
@@ -1595,17 +1595,17 @@
     "hashtags": "#นายหน้าtiktok #รีวิวของดี #ของมันต้องมี #tiktokป้ายยา #พิกัดในตะกร้า",
     "tiktok_product_id": "1730029570641267012",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:54:31+00:00",
+    "extension_prepared_at": "2026-09-22T11:48:47.443068",
+    "posted_at": "2026-09-22T04:54:31+00:00"
   },
   {
     "id": "30975ab0bd7f4e86848353b4e7de8ae1",
-    "video_path": "04_Exports/Ready_to_post/BAS01-โปรไฟลุก_1_20260915_121005.mp4",
-    "video_key": "export:exp_3bf989256be74a50b51fbe82780b5dee",
+    "video_path": "04_Exports/Posted/BAS01-โปรไฟลุก_1_20260915_121005.mp4",
+    "video_key": "04_exports/bas01-โปรไฟลุก_1_20260915_121005.mp4",
     "export_id": "exp_3bf989256be74a50b51fbe82780b5dee",
     "scheduled_at": "2026-10-10T19:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "1dc35c158d2c4d00b78d26c91e76f7c5",
     "angle_id": "fomo_deal",
     "product_name": "BASIKE พัดลมระบายความร้อน",
@@ -1619,17 +1619,17 @@
     "hashtags": "#ลดราคา #ดีลเด็ด #พัดลมโน๊ตบุ๊ค #ช้อปด่วน #พิกัดในตะกร้า",
     "tiktok_product_id": "1730351146108750027",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T06:46:26+00:00",
+    "extension_prepared_at": "2026-09-22T13:45:46.475415",
+    "posted_at": "2026-09-22T06:46:26+00:00"
   },
   {
     "id": "c89bd553f32048e6a59de0a63e135d58",
-    "video_path": "04_Exports/Ready_to_post/TOS02-รีวิวใช้จริง_1_20260919_135717.mp4",
-    "video_key": "export:exp_f596e10b5ac842f8b45b75971b4f3a14",
+    "video_path": "04_Exports/Posted/TOS02-รีวิวใช้จริง_1_20260919_135717.mp4",
+    "video_key": "04_exports/tos02-รีวิวใช้จริง_1_20260919_135717.mp4",
     "export_id": "exp_f596e10b5ac842f8b45b75971b4f3a14",
     "scheduled_at": "2026-10-05T12:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "c3c8f81d146b46de8047d27a34e00fbf",
     "angle_id": "longterm_review",
     "product_name": "Toshino ปลั๊กไฟ  (2300W)",
@@ -1643,17 +1643,17 @@
     "hashtags": "#รีวิวจากผู้ใช้จริง #toshino #ปลั๊กพ่วง #ของแท้100 #รีวิวของใช้ในบ้าน",
     "tiktok_product_id": "1729587543658761174",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:44:41+00:00",
+    "extension_prepared_at": "2026-09-22T11:43:58.742281",
+    "posted_at": "2026-09-22T04:44:41+00:00"
   },
   {
     "id": "7a68921ff2d44c4db78f8d9de8833bb2",
-    "video_path": "04_Exports/Ready_to_post/ORA01-เจาะกลุ่ม_1_20260915_151740.mp4",
-    "video_key": "export:exp_2909e5ed016c43aab54f406f2207950f",
+    "video_path": "04_Exports/Posted/ORA01-เจาะกลุ่ม_1_20260915_151740.mp4",
+    "video_key": "04_exports/ora01-เจาะกลุ่ม_1_20260915_151740.mp4",
     "export_id": "exp_2909e5ed016c43aab54f406f2207950f",
     "scheduled_at": "2026-10-02T19:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "8d2e86320e124f1a887009fbf5aee86b",
     "angle_id": "niche_target",
     "product_name": "Orashare พัดลมมือถือ",
@@ -1667,9 +1667,9 @@
     "hashtags": "#วัยรุ่นสายลุย #ของดีนักเรียน #พัดลมพกพา #Orashare #แคมปิ้ง #พิกัดในตะกร้า",
     "tiktok_product_id": "1730171555388033552",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:32:12+00:00",
+    "extension_prepared_at": "2026-09-22T11:31:04.848766",
+    "posted_at": "2026-09-22T04:32:12+00:00"
   },
   {
     "id": "2d9842b26e4e485bb1d06a36e13cd87a",
@@ -1721,11 +1721,11 @@
   },
   {
     "id": "6e22a17f2fd94a5e9aac71694f93ed1f",
-    "video_path": "04_Exports/Ready_to_post/ESS02-รีวิวสเปก_1_20260916_200658.mp4",
-    "video_key": "export:exp_4be5f9f888ad4634acd35791f593f148",
+    "video_path": "04_Exports/Posted/ESS02-รีวิวสเปก_1_20260916_200658.mp4",
+    "video_key": "04_exports/ess02-รีวิวสเปก_1_20260916_200658.mp4",
     "export_id": "exp_4be5f9f888ad4634acd35791f593f148",
     "scheduled_at": "2026-10-08T09:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "9505b042d58640f5aa58015bb86be097",
     "angle_id": "spec_review",
     "product_name": "ที่ชาร์จเร็ว, Essager, PD 30W",
@@ -1739,9 +1739,9 @@
     "hashtags": "#หัวชาร์จไอโฟน #ที่ชาร์จเร็ว #รีวิวไอที #EssagerPD30W #ถนอมแบตเตอรี่",
     "tiktok_product_id": "1731216936089584763",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T05:08:36+00:00",
+    "extension_prepared_at": "2026-09-22T12:07:48.785254",
+    "posted_at": "2026-09-22T05:08:36+00:00"
   },
   {
     "id": "11490f6601044b389c3b7a80665c223e",
@@ -1793,11 +1793,11 @@
   },
   {
     "id": "41ce5b453e6847abacee79be9bf87675",
-    "video_path": "04_Exports/Ready_to_post/BAS01-ทริกลึก_1_20260915_130808.mp4",
-    "video_key": "export:exp_0f53c59d4bc64bad93a6f46819ba8142",
+    "video_path": "04_Exports/Posted/BAS01-ทริกลึก_1_20260915_130808.mp4",
+    "video_key": "04_exports/bas01-ทริกลึก_1_20260915_130808.mp4",
     "export_id": "exp_0f53c59d4bc64bad93a6f46819ba8142",
     "scheduled_at": "2026-10-06T09:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "1dc35c158d2c4d00b78d26c91e76f7c5",
     "angle_id": "life_hack",
     "product_name": "BASIKE พัดลมระบายความร้อน",
@@ -1811,17 +1811,17 @@
     "hashtags": "#เคล็ดลับไอที #พัดลมโน๊ตบุ๊ค #ถนอมคอมพิวเตอร์ #ไอทีน่ารู้ #ตะกร้าเหลือง",
     "tiktok_product_id": "1730351146108750027",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:47:44+00:00",
+    "extension_prepared_at": "2026-09-22T11:46:22.515378",
+    "posted_at": "2026-09-22T04:47:44+00:00"
   },
   {
     "id": "900a89cde1c34e84aed026e36a1b063d",
-    "video_path": "04_Exports/Ready_to_post/TOS02-ทริกลึก_1_20260919_135442.mp4",
-    "video_key": "export:exp_3110628f181d4b258d59d955fe57ee11",
+    "video_path": "04_Exports/Posted/TOS02-ทริกลึก_1_20260919_135442.mp4",
+    "video_key": "04_exports/tos02-ทริกลึก_1_20260919_135442.mp4",
     "export_id": "exp_3110628f181d4b258d59d955fe57ee11",
     "scheduled_at": "2026-10-07T21:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "c3c8f81d146b46de8047d27a34e00fbf",
     "angle_id": "life_hack",
     "product_name": "Toshino ปลั๊กไฟ  (2300W)",
@@ -1835,9 +1835,9 @@
     "hashtags": "#จัดโต๊ะคอม #toshino #lifehacks #แต่งห้องทำงาน #จัดระเบียบโต๊ะคอม",
     "tiktok_product_id": "1729587543658761174",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T05:02:46+00:00",
+    "extension_prepared_at": "2026-09-22T12:02:01.636269",
+    "posted_at": "2026-09-22T05:02:46+00:00"
   },
   {
     "id": "afc8d8053b814240bff72e866d65972f",
@@ -2273,11 +2273,11 @@
   },
   {
     "id": "b8cd929314334e61b1fd9f903cb5c3b0",
-    "video_path": "04_Exports/Ready_to_post/EAR01-รีวิวใช้จริง_1_20260919_155448.mp4",
-    "video_key": "export:exp_b37895a16b2941a2b243740eebf2376a",
+    "video_path": "04_Exports/Posted/EAR01-รีวิวใช้จริง_1_20260919_155448.mp4",
+    "video_key": "04_exports/ear01-รีวิวใช้จริง_1_20260919_155448.mp4",
     "export_id": "exp_b37895a16b2941a2b243740eebf2376a",
     "scheduled_at": "2026-10-08T19:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "5082eeff0635403a9c7f9f51d44f7404",
     "angle_id": "longterm_review",
     "product_name": "หูฟัง Earphone Synmax",
@@ -2291,9 +2291,9 @@
     "hashtags": "#รีวิวจากผู้ใช้จริง #หูฟังทนๆ #ของดีคุ้มราคา #แชร์ประสบการณ์ #SANMAX",
     "tiktok_product_id": "1735873040241100167",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T05:24:32+00:00",
+    "extension_prepared_at": "2026-09-22T12:23:45.813408",
+    "posted_at": "2026-09-22T05:24:32+00:00"
   },
   {
     "id": "434ba12a1f414447977eec1b78f65358",
@@ -2345,11 +2345,11 @@
   },
   {
     "id": "24afc1bcef6e4f23baa9eda3e7025806",
-    "video_path": "04_Exports/Ready_to_post/IWA01-แกะกล่องว้าว_1_20260917_225139.mp4",
-    "video_key": "export:exp_05d43999a48a48168da240fbb3fb90f2",
+    "video_path": "04_Exports/Posted/IWA01-แกะกล่องว้าว_1_20260917_225139.mp4",
+    "video_key": "04_exports/iwa01-แกะกล่องว้าว_1_20260917_225139.mp4",
     "export_id": "exp_05d43999a48a48168da240fbb3fb90f2",
     "scheduled_at": "2026-10-04T09:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "0912f877ec0d45379c92b263228760d5",
     "angle_id": "unboxing",
     "product_name": "เมาส์ไร้สาย IWACHI i6",
@@ -2363,17 +2363,17 @@
     "hashtags": "#แกะกล่อง #แต่งโต๊ะคอม #เมาส์มินิมอล #ไอเทมแต่งห้อง #IWACHI #ของมันต้องมี",
     "tiktok_product_id": "1729698397651307285",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:39:46+00:00",
+    "extension_prepared_at": "2026-09-22T11:38:56.495917",
+    "posted_at": "2026-09-22T04:39:46+00:00"
   },
   {
     "id": "14319cd5a7b04f3c9b9c289b45e2e7c6",
-    "video_path": "04_Exports/Ready_to_post/BLU01-เจาะกลุ่ม_1_20260915_141545.mp4",
-    "video_key": "export:exp_40f00c83c8c244d5aa1fe491a15f8cb3",
+    "video_path": "04_Exports/Posted/BLU01-เจาะกลุ่ม_1_20260915_141545.mp4",
+    "video_key": "04_exports/blu01-เจาะกลุ่ม_1_20260915_141545.mp4",
     "export_id": "exp_40f00c83c8c244d5aa1fe491a15f8cb3",
     "scheduled_at": "2026-10-10T09:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "b29140664441426ca00294388013fee8",
     "angle_id": "niche_target",
     "product_name": "พัดลมระบายความร้อนโทรศัพท์ BlueWow",
@@ -2387,9 +2387,9 @@
     "hashtags": "#พัดลมระบายความร้อนมือถือ #BlueWow #พัดลมระบายความร้อน #รีวิวเกมเกอร์ #ของดีบอกต่อ",
     "tiktok_product_id": "1730029570641267012",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T06:44:22+00:00",
+    "extension_prepared_at": "2026-09-22T13:43:42.849037",
+    "posted_at": "2026-09-22T06:44:22+00:00"
   },
   {
     "id": "4df97037f9d444f58082abfc7f482527",
@@ -2513,11 +2513,11 @@
   },
   {
     "id": "7511593c71f046a58ee808eb730fa350",
-    "video_path": "04_Exports/Ready_to_post/BAS01-รีวิวสเปก_1_20260915_111737.mp4",
-    "video_key": "export:exp_e46eed10b8e4455491754c792222443a",
+    "video_path": "04_Exports/Posted/BAS01-รีวิวสเปก_1_20260915_111737.mp4",
+    "video_key": "04_exports/bas01-รีวิวสเปก_1_20260915_111737.mp4",
     "export_id": "exp_e46eed10b8e4455491754c792222443a",
     "scheduled_at": "2026-10-03T12:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "1dc35c158d2c4d00b78d26c91e76f7c5",
     "angle_id": "spec_review",
     "product_name": "BASIKE พัดลมระบายความร้อน",
@@ -2531,9 +2531,9 @@
     "hashtags": "#แท่นวางโน๊ตบุ๊ค #พัดลมระบายความร้อนโน๊ตบุ๊ค #รีวิวไอที #ของมันต้องมี #TikTokป้ายยา",
     "tiktok_product_id": "1730351146108750027",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:37:07+00:00",
+    "extension_prepared_at": "2026-09-22T11:36:21.483031",
+    "posted_at": "2026-09-22T04:37:07+00:00"
   },
   {
     "id": "2f58404a7a284f4d8972fdb9c8444260",
@@ -2565,7 +2565,7 @@
     "video_key": "export:exp_bbb13f090a254903aa74c5f9b4df619e",
     "export_id": "exp_bbb13f090a254903aa74c5f9b4df619e",
     "scheduled_at": "2026-10-10T21:30+07:00",
-    "status": "planned",
+    "status": "ready_for_extension",
     "product_id": "9505b042d58640f5aa58015bb86be097",
     "angle_id": "life_hack",
     "product_name": "ที่ชาร์จเร็ว, Essager, PD 30W",
@@ -2579,8 +2579,8 @@
     "hashtags": "#ทริคดีๆ #ไอโฟน15 #ไอโฟน16 #ชาร์จเร็ว #Essager #ความรู้ไอที",
     "tiktok_product_id": "1731216936089584763",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
+    "updated_at": "2026-09-22T13:46:32.208066",
+    "extension_prepared_at": "2026-09-22T13:46:32.208050",
     "posted_at": null
   },
   {
@@ -2753,11 +2753,11 @@
   },
   {
     "id": "7f30294613634bed9887acb6b043d537",
-    "video_path": "04_Exports/Ready_to_post/JBL01-คำนวณคุ้มค่า_1_20260917_134344.mp4",
-    "video_key": "export:exp_5d7c6b88232b4f0789ece7ea378663b4",
+    "video_path": "04_Exports/Posted/JBL01-คำนวณคุ้มค่า_1_20260917_134344.mp4",
+    "video_key": "04_exports/jbl01-คำนวณคุ้มค่า_1_20260917_134344.mp4",
     "export_id": "exp_5d7c6b88232b4f0789ece7ea378663b4",
     "scheduled_at": "2026-10-07T12:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "38d7670c472e4777af722a923d96644f",
     "angle_id": "math_value",
     "product_name": "JBL Tune 310C USB-C In-Ear หูฟังอินเอียร์",
@@ -2771,9 +2771,9 @@
     "hashtags": "#คำนวณความคุ้มค่า #หูฟังประหยัด #ของดีราคาถูก #JBL #พิกัดในตะกร้า",
     "tiktok_product_id": "1730484314663914071",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T05:01:13+00:00",
+    "extension_prepared_at": "2026-09-22T12:00:27.060944",
+    "posted_at": "2026-09-22T05:01:13+00:00"
   },
   {
     "id": "59370985d3f1414ca5efcc053cac245b",
@@ -2825,11 +2825,11 @@
   },
   {
     "id": "1fe1136c2c07427596119611b5035346",
-    "video_path": "04_Exports/Ready_to_post/TOS01-ปัญหาก่อนใช้_1_20260919_080734.mp4",
-    "video_key": "export:exp_013e486ab14040cb9086dd6e009c0d78",
+    "video_path": "04_Exports/Posted/TOS01-ปัญหาก่อนใช้_1_20260919_080734.mp4",
+    "video_key": "04_exports/tos01-ปัญหาก่อนใช้_1_20260919_080734.mp4",
     "export_id": "exp_013e486ab14040cb9086dd6e009c0d78",
     "scheduled_at": "2026-10-05T09:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "8cee5445661b4474b887c507529f2324",
     "angle_id": "pain_point",
     "product_name": "ปลั๊กไฟ TOSHINO มี 2/3/4/5/6",
@@ -2843,17 +2843,17 @@
     "hashtags": "#ปลั๊กไฟมอก #Toshino #ปลั๊กไฟtoshino #ความปลอดภัยในบ้าน #ของดีบอกต่อ #พิกัดในตะกร้า",
     "tiktok_product_id": "1729563976425769618",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:43:54+00:00",
+    "extension_prepared_at": "2026-09-22T11:42:53.515549",
+    "posted_at": "2026-09-22T04:43:54+00:00"
   },
   {
     "id": "34a3dc82d4d64785b8fe51e31d061f5e",
-    "video_path": "04_Exports/Ready_to_post/BCD01-คำนวณคุ้มค่า_1_20260916_131510.mp4",
-    "video_key": "export:exp_e0d1b7f0effe4a9db24e5310c7b69b6e",
+    "video_path": "04_Exports/Posted/BCD01-คำนวณคุ้มค่า_1_20260916_131510.mp4",
+    "video_key": "04_exports/bcd01-คำนวณคุ้มค่า_1_20260916_131510.mp4",
     "export_id": "exp_e0d1b7f0effe4a9db24e5310c7b69b6e",
     "scheduled_at": "2026-10-04T19:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "02a82b8dbfbf4cdf97bb59643f9d295b",
     "angle_id": "math_value",
     "product_name": "LOOP Smartband สายรัดข้อมืออัจฉริยะ",
@@ -2867,17 +2867,17 @@
     "hashtags": "#ความคุ้มค่า #ตรวจสุขภาพ24ชั่วโมง #ของดีราคาถูก #คุ้มเงิน #ชี้เป้าสินค้าไอที",
     "tiktok_product_id": "1734748998207636716",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:41:46+00:00",
+    "extension_prepared_at": "2026-09-22T11:41:02.458680",
+    "posted_at": "2026-09-22T04:41:46+00:00"
   },
   {
     "id": "ba238381d9554c2ba160f4dcfa0d9b39",
-    "video_path": "04_Exports/Ready_to_post/LOG02-ปัญหาก่อนใช้_1_20260914_210938.mp4",
-    "video_key": "export:exp_16d46e8dea6f41fdbe3895b85685f083",
+    "video_path": "04_Exports/Posted/LOG02-ปัญหาก่อนใช้_1_20260914_210938.mp4",
+    "video_key": "04_exports/log02-ปัญหาก่อนใช้_1_20260914_210938.mp4",
     "export_id": "exp_16d46e8dea6f41fdbe3895b85685f083",
     "scheduled_at": "2026-10-03T19:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "e8c50275ed5d4748a046603377e8a216",
     "angle_id": "pain_point",
     "product_name": "Logitech Lift",
@@ -2891,9 +2891,9 @@
     "hashtags": "#เมาส์เพื่อสุขภาพ #LogitechLift #ออฟฟิศซินโดรม #รีวิวไอที #ของดีบอกต่อ",
     "tiktok_product_id": "1730572809818376899",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:37:57+00:00",
+    "extension_prepared_at": "2026-09-22T11:37:12.465053",
+    "posted_at": "2026-09-22T04:37:57+00:00"
   },
   {
     "id": "69a0e38174ab4f06996342b575db1c15",
@@ -2921,11 +2921,11 @@
   },
   {
     "id": "57e33989c1bf415c90bc73a2a1e93ee7",
-    "video_path": "04_Exports/Ready_to_post/GOC01-เตือนภัย_1_20260916_152651.mp4",
-    "video_key": "export:exp_60f31f8142aa4844ba91470f11f21b0c",
+    "video_path": "04_Exports/Posted/GOC01-เตือนภัย_1_20260916_152651.mp4",
+    "video_key": "04_exports/goc01-เตือนภัย_1_20260916_152651.mp4",
     "export_id": "exp_60f31f8142aa4844ba91470f11f21b0c",
     "scheduled_at": "2026-10-02T12:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "7d2fa34272ef4404a5784a9c6e627fb0",
     "angle_id": "stop_scroll",
     "product_name": "GoChek รุ่น GC-ULTRA S24",
@@ -2939,9 +2939,9 @@
     "hashtags": "#เตือนภัยไอที #ของแท้ต้องแบรนด์นี้ #ไมค์อัดเสียงคุณภาพ #ช้อปกันวันหยุด #รีวิวของดี",
     "tiktok_product_id": "1731628390379587684",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:31:00+00:00",
+    "extension_prepared_at": "2026-09-22T11:30:19.435224",
+    "posted_at": "2026-09-22T04:31:00+00:00"
   },
   {
     "id": "c89b7aed0e9540d9bfb30ac405de26e5",
@@ -3185,11 +3185,11 @@
   },
   {
     "id": "57e4a077d3014cad8a122437452c8899",
-    "video_path": "04_Exports/Ready_to_post/TOS01-คำนวณคุ้มค่า_1_20260919_145529.mp4",
-    "video_key": "export:exp_25a2096b9d6b4051a6ef4a471cf5a598",
+    "video_path": "04_Exports/Posted/TOS01-คำนวณคุ้มค่า_1_20260919_145529.mp4",
+    "video_key": "04_exports/tos01-คำนวณคุ้มค่า_1_20260919_145529.mp4",
     "export_id": "exp_25a2096b9d6b4051a6ef4a471cf5a598",
     "scheduled_at": "2026-10-09T12:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "8cee5445661b4474b887c507529f2324",
     "angle_id": "math_value",
     "product_name": "ปลั๊กไฟ TOSHINO มี 2/3/4/5/6",
@@ -3203,9 +3203,9 @@
     "hashtags": "#คำนวณความคุ้มค่า #ปลั๊กไฟมอก #Toshino #ประหยัดเงิน #ของดีต้องมี #พิกัดในตะกร้า",
     "tiktok_product_id": "1729563976425769618",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T06:41:50+00:00",
+    "extension_prepared_at": "2026-09-22T13:41:05.006325",
+    "posted_at": "2026-09-22T06:41:50+00:00"
   },
   {
     "id": "b50a030c33dd4203bafcb7c48bc7db0b",
@@ -3305,11 +3305,11 @@
   },
   {
     "id": "1f5bf09c20e94efa9c248b86f53e20cc",
-    "video_path": "04_Exports/Ready_to_post/ORI01-เจาะกลุ่ม_1_20260917_182248.mp4",
-    "video_key": "export:exp_6c594d12c5e241d4bd37fb2548c3af99",
+    "video_path": "04_Exports/Posted/ORI01-เจาะกลุ่ม_1_20260917_182248.mp4",
+    "video_key": "04_exports/ori01-เจาะกลุ่ม_1_20260917_182248.mp4",
     "export_id": "exp_6c594d12c5e241d4bd37fb2548c3af99",
     "scheduled_at": "2026-10-07T19:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "bd746c48b7dd4eada670a3fbf9e48b7b",
     "angle_id": "niche_target",
     "product_name": "ORICO K20 SSD",
@@ -3323,9 +3323,9 @@
     "hashtags": "#วล็อกเกอร์ #ครีเอเตอร์ #สายเที่ยว #ถ่ายวิดีโอ #อุปกรณ์ถ่ายภาพ #ORICO",
     "tiktok_product_id": "1737156847767160359",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T05:01:57+00:00",
+    "extension_prepared_at": "2026-09-22T12:01:17.658002",
+    "posted_at": "2026-09-22T05:01:57+00:00"
   },
   {
     "id": "b56439d321134896a70119210bd6a8f4",
@@ -3425,11 +3425,11 @@
   },
   {
     "id": "b02373d8ae56409184601bf3a91ad9ef",
-    "video_path": "04_Exports/Ready_to_post/TEL01-โปรไฟลุก_1_20260919_171323.mp4",
-    "video_key": "export:exp_c99db4a0ddda468c844a1344edf6b2ca",
+    "video_path": "04_Exports/Posted/TEL01-โปรไฟลุก_1_20260919_171323.mp4",
+    "video_key": "04_exports/tel01-โปรไฟลุก_1_20260919_171323.mp4",
     "export_id": "exp_c99db4a0ddda468c844a1344edf6b2ca",
     "scheduled_at": "2026-10-05T21:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "58bbe6f1ff6d41018ce26f4369f6e9ed",
     "angle_id": "fomo_deal",
     "product_name": "อุปกรณ์ยึดคอแม่เหล็ก TELESIN",
@@ -3443,17 +3443,17 @@
     "hashtags": "#ลดราคา #โปรโมชั่น #TELESIN #ที่คล้องคอแม่เหล็ก #พิกัดในตะกร้า",
     "tiktok_product_id": "1734198953849750650",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:46:19+00:00",
+    "extension_prepared_at": "2026-09-22T11:45:39.186962",
+    "posted_at": "2026-09-22T04:46:19+00:00"
   },
   {
     "id": "af998cedbba0497d857ff882fa1336e1",
-    "video_path": "04_Exports/Ready_to_post/HAT01-เทียบของเดิม_1_20260919_204718.mp4",
-    "video_key": "export:exp_73532e052ff7462aa92eaee956a4970e",
+    "video_path": "04_Exports/Posted/HAT01-เทียบของเดิม_1_20260919_204718.mp4",
+    "video_key": "04_exports/hat01-เทียบของเดิม_1_20260919_204718.mp4",
     "export_id": "exp_73532e052ff7462aa92eaee956a4970e",
     "scheduled_at": "2026-10-08T21:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "c6eca50968f04431849b6464aacb6f89",
     "angle_id": "comparison",
     "product_name": "Hatari พัดลมตั้งโต๊ะ 16 นิ้ว",
@@ -3467,17 +3467,17 @@
     "hashtags": "#พัดลมแบรนด์แท้ #เปรียบเทียบพัดลม #พัดลมปลอดภัย #Hatari #พิกัดในตะกร้า",
     "tiktok_product_id": "1730405090572077252",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T06:39:08+00:00",
+    "extension_prepared_at": "2026-09-22T13:38:08.530964",
+    "posted_at": "2026-09-22T06:39:08+00:00"
   },
   {
     "id": "f316ff0edf7f409d846a30af8252e83c",
-    "video_path": "04_Exports/Ready_to_post/TEL01-รีวิวสเปก_1_20260919_171132.mp4",
-    "video_key": "export:exp_b2875c6ba30443a2b6375e1100da01df",
+    "video_path": "04_Exports/Posted/TEL01-รีวิวสเปก_1_20260919_171132.mp4",
+    "video_key": "04_exports/tel01-รีวิวสเปก_1_20260919_171132.mp4",
     "export_id": "exp_b2875c6ba30443a2b6375e1100da01df",
     "scheduled_at": "2026-10-09T09:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "58bbe6f1ff6d41018ce26f4369f6e9ed",
     "angle_id": "spec_review",
     "product_name": "อุปกรณ์ยึดคอแม่เหล็ก TELESIN",
@@ -3491,9 +3491,9 @@
     "hashtags": "#ที่คล้องคอแม่เหล็ก #TELESIN #รีวิวไอที #กล้องPOV #ของดีบอกต่อ #พิกัดในตะกร้า",
     "tiktok_product_id": "1734198953849750650",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T06:40:39+00:00",
+    "extension_prepared_at": "2026-09-22T13:39:40.178858",
+    "posted_at": "2026-09-22T06:40:39+00:00"
   },
   {
     "id": "e1e2eea816d043ca80f5d0a06fec3774",
@@ -3521,11 +3521,11 @@
   },
   {
     "id": "c32ab37080b8401abeb6915764a11da0",
-    "video_path": "04_Exports/Ready_to_post/IWA01-เจาะกลุ่ม_1_20260917_224925.mp4",
-    "video_key": "export:exp_de20cd2afba94d63a602082fa1edf9c2",
+    "video_path": "04_Exports/Posted/IWA01-เจาะกลุ่ม_1_20260917_224925.mp4",
+    "video_key": "04_exports/iwa01-เจาะกลุ่ม_1_20260917_224925.mp4",
     "export_id": "exp_de20cd2afba94d63a602082fa1edf9c2",
     "scheduled_at": "2026-10-06T12:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "0912f877ec0d45379c92b263228760d5",
     "angle_id": "niche_target",
     "product_name": "เมาส์ไร้สาย IWACHI i6",
@@ -3539,9 +3539,9 @@
     "hashtags": "#ไอเทมชาวออฟฟิศ #เมาส์เงียบ #รีวิวชีวิตทำงาน #จัดโต๊ะคอม #ทำงานดึก #IWACHIi6",
     "tiktok_product_id": "1729698397651307285",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:48:39+00:00",
+    "extension_prepared_at": "2026-09-22T11:47:49.132328",
+    "posted_at": "2026-09-22T04:48:39+00:00"
   },
   {
     "id": "4108b6060ac74823bdcaaf608229e9dc",
@@ -3593,11 +3593,11 @@
   },
   {
     "id": "61ad871475904ccd8e5efe39ab9f3616",
-    "video_path": "04_Exports/Ready_to_post/ORI01-เทียบของเดิม_1_20260917_181906.mp4",
-    "video_key": "export:exp_b5085e1b24e04a68b9117f10beea1eb7",
+    "video_path": "04_Exports/Posted/ORI01-เทียบของเดิม_1_20260917_181906.mp4",
+    "video_key": "04_exports/ori01-เทียบของเดิม_1_20260917_181906.mp4",
     "export_id": "exp_b5085e1b24e04a68b9117f10beea1eb7",
     "scheduled_at": "2026-10-04T12:30+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "bd746c48b7dd4eada670a3fbf9e48b7b",
     "angle_id": "comparison",
     "product_name": "ORICO K20 SSD",
@@ -3611,9 +3611,9 @@
     "hashtags": "#เทียบชัดๆ #ORICOK20 #MagSafeSSD #อุปกรณ์มือถือ #ชีวิตดีขึ้น #ป้ายยาไอที",
     "tiktok_product_id": "1737156847767160359",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:40:56+00:00",
+    "extension_prepared_at": "2026-09-22T11:39:51.247447",
+    "posted_at": "2026-09-22T04:40:56+00:00"
   },
   {
     "id": "107b0d055c144830b7272f4d67525b05",
@@ -3665,11 +3665,11 @@
   },
   {
     "id": "33ff4e867d464d718786aba0cc632875",
-    "video_path": "04_Exports/Ready_to_post/HAT01-ปัญหาก่อนใช้_1_20260919_204229.mp4",
-    "video_key": "export:exp_37edcd0cf2ac4d3d9b677be04baa0eb8",
+    "video_path": "04_Exports/Posted/HAT01-ปัญหาก่อนใช้_1_20260919_204229.mp4",
+    "video_key": "04_exports/hat01-ปัญหาก่อนใช้_1_20260919_204229.mp4",
     "export_id": "exp_37edcd0cf2ac4d3d9b677be04baa0eb8",
     "scheduled_at": "2026-10-05T19:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "c6eca50968f04431849b6464aacb6f89",
     "angle_id": "pain_point",
     "product_name": "Hatari พัดลมตั้งโต๊ะ 16 นิ้ว",
@@ -3683,17 +3683,17 @@
     "hashtags": "#พัดลมhatari #พัดลมตั้งโต๊ะ #HatariT16M1 #รีวิวของดี #พิกัดในตะกร้า",
     "tiktok_product_id": "1730405090572077252",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T04:45:35+00:00",
+    "extension_prepared_at": "2026-09-22T11:44:45.705975",
+    "posted_at": "2026-09-22T04:45:35+00:00"
   },
   {
     "id": "79add2e04dc94828815155ad164c045b",
-    "video_path": "04_Exports/Ready_to_post/LOG02-ทริกลึก_1_20260915_015159.mp4",
-    "video_key": "export:exp_c104ff3f26e84474b0afde2f974abad5",
+    "video_path": "04_Exports/Posted/LOG02-ทริกลึก_1_20260915_015159.mp4",
+    "video_key": "04_exports/log02-ทริกลึก_1_20260915_015159.mp4",
     "export_id": "exp_c104ff3f26e84474b0afde2f974abad5",
     "scheduled_at": "2026-10-07T09:00+07:00",
-    "status": "planned",
+    "status": "posted",
     "product_id": "e8c50275ed5d4748a046603377e8a216",
     "angle_id": "life_hack",
     "product_name": "Logitech Lift",
@@ -3707,8 +3707,8 @@
     "hashtags": "#ทริคการทำงาน #มนุษย์ออฟฟิศ #LogitechOptions #ไอทีน่ารู้ #เคล็ดลับดีๆ",
     "tiktok_product_id": "1730572809818376899",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-22T05:00:06+00:00",
+    "extension_prepared_at": "2026-09-22T11:56:21.268704",
+    "posted_at": "2026-09-22T05:00:06+00:00"
   }
 ]

@@ -1,0 +1,61 @@
+{
+  "title": "OmniCut Pro Studio - Central Tech Stock B-Roll Library",
+  "total_clips": 9,
+  "quality": "Clean Native 1080p HD, Watermark-Free, Commercial Royalty-Free",
+  "clips": [
+    {
+      "category": "01_Battery_Charging",
+      "filename": "broll_battery_charging_hud.mp4",
+      "size_kb": 65,
+      "path": "02_Assets\\Stock_Footage\\01_Battery_Charging\\broll_battery_charging_hud.mp4"
+    },
+    {
+      "category": "01_Battery_Charging",
+      "filename": "broll_electric_energy_surge.mp4",
+      "size_kb": 3499,
+      "path": "02_Assets\\Stock_Footage\\01_Battery_Charging\\broll_electric_energy_surge.mp4"
+    },
+    {
+      "category": "02_Chipset_Performance",
+      "filename": "broll_macro_processor_circuit.mp4",
+      "size_kb": 1609,
+      "path": "02_Assets\\Stock_Footage\\02_Chipset_Performance\\broll_macro_processor_circuit.mp4"
+    },
+    {
+      "category": "02_Chipset_Performance",
+      "filename": "broll_microchip_futuristic_3d.mp4",
+      "size_kb": 1900,
+      "path": "02_Assets\\Stock_Footage\\02_Chipset_Performance\\broll_microchip_futuristic_3d.mp4"
+    },
+    {
+      "category": "03_Camera_Optics",
+      "filename": "broll_camera_lens_focus_flare.mp4",
+      "size_kb": 2064,
+      "path": "02_Assets\\Stock_Footage\\03_Camera_Optics\\broll_camera_lens_focus_flare.mp4"
+    },
+    {
+      "category": "03_Camera_Optics",
+      "filename": "broll_camera_lens_zoom_reflection.mp4",
+      "size_kb": 1522,
+      "path": "02_Assets\\Stock_Footage\\03_Camera_Optics\\broll_camera_lens_zoom_reflection.mp4"
+    },
+    {
+      "category": "04_Display_Touch",
+      "filename": "broll_phone_scrolling_smooth.mp4",
+      "size_kb": 1383,
+      "path": "02_Assets\\Stock_Footage\\04_Display_Touch\\broll_phone_scrolling_smooth.mp4"
+    },
+    {
+      "category": "04_Display_Touch",
+      "filename": "broll_screen_touch_lifestyle.mp4",
+      "size_kb": 581,
+      "path": "02_Assets\\Stock_Footage\\04_Display_Touch\\broll_screen_touch_lifestyle.mp4"
+    },
+    {
+      "category": "05_Tech_Backgrounds",
+      "filename": "broll_tech_cyber_lines_loop.mp4",
+      "size_kb": 3288,
+      "path": "02_Assets\\Stock_Footage\\05_Tech_Backgrounds\\broll_tech_cyber_lines_loop.mp4"
+    }
+  ]
+}

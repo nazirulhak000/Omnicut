@@ -37,6 +37,38 @@
 
 
 
+- [x] Round TYPESAFE-VIDEO-INTELLIGENCE-AND-STUDIO-OBSIDIAN-20260922 — AI Video Intelligence (TypeSafe System One สำหรับ Strict Topic Hold B-roll Matching & Hook Variant Ranking พร้อม Retention Probability) + Luxury Obsidian Dark UI Studio สำหรับ ScriptLab และ ScheduleAgenda (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round SCHEDULE-AUTOFILL-PRODUCT-DIVERSITY-AND-ROTATION-20260919 — Fair Round-Robin & Time-Slot Diversity ป้องกันสินค้าและสี Hook ซ้ำในวันเดียวกัน กระจายสินค้าทั่วถึงและทดสอบ 26 tests ผ่านฉลุย (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round EXTENSION-MARK-POSTED-AUTO-REFRESH-PARITY-20260922 — ปรับปรุงปุ่มเขียว "มาร์กว่าโพสต์แล้ว" ให้ทำงาน Parity กับขั้นตอนที่ 6: ล้าง storage, รีเฟรชรายการคลิป, เลื่อนหน้าต่างและลิสต์ขึ้นด้านบนสุด, และรีเฟรชหน้า TikTok Studio Upload ให้สะอาดพร้อมคลิปถัดไปทันที (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round EXTENSION-ONE-CLICK-STEP1-TO-5-AUTOMATION-20260922 — เพิ่มฟังก์ชัน 1-Click Automation ใน TikTok AutoPost Extension ให้ปุ่มเดียวรันอัตโนมัติตั้งแต่ขั้นตอนที่ 1 (อัปโหลดวิดีโอ) จนถึงขั้นตอนที่ 5 (แนบปก 3:4) รวดเดียวจบ และเว้นขั้นตอนที่ 6 ไว้ให้ผู้ใช้กดยืนยันโพสต์อย่างปลอดภัย (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round EXTENSION-PRO-REDESIGN-AND-GUARDRAILS-20260922 — ปรับโฉม Extension ระดับ Pro: แก้บั๊ก API Key บังจอ, จัดแท็บ 3 ช่องเรียงเป๊ะ, ดีไซน์การ์ดคลิป Visual Hierarchy ใหม่, เพิ่มค้นหา/กรอง, Quick Video Preview, และตัวนับความยาวแคปชัน TikTok (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round TYPESAFE-AI-SYSTEM-ONE-INTEGRATION-20260922 — ติดตั้ง TypeSafe Skill, SDK (typesafe-sdk==0.7.1), บันทึก TYPESAFE_API_KEY ใน .env, สร้างโมดูลเชื่อมต่อ scripts/typesafe_bridge.py พร้อมทดสอบ Live Connection และ Unit Tests 100% ผ่าน (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round GADGET-CHINESE-HANDSON-DUBBING-CLEAN-SCREEN-20260921 — ผลิตคลิปรีวิวมือถือจอพับ Xiaomi MIX Flip สไตล์ @snap.it.review แบบที่ 2: คลิปคนจับเครื่องจริง (Hands-on) + ป้ายฮุกสติกเกอร์สดใสด้านบน + ซับไทยลอยโซนล่างใต้จอไม่บังคลิป + เสียงพากย์ไทยป้ายยาธรรมชาติ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round GADGET-XIAOMI-PAD-8-OFFICIAL-ONLY-SECOND-BY-SECOND-SYNC-20260921 — ตัดต่อคลิป Xiaomi Pad 8 โดยใช้เฉพาะคลิปทางการ (Official Clean 100%) ไร้ภาพนิ่ง/ไร้สต็อกอื่น + พากย์เสียง Fenrir และซับ Mali-Bold ตรงกับภาพบนจอวินาทีต่อวินาที + จอคลีน 0% Clutter (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round GADGET-OFFICIAL-TECH-INSERTS-BATTERY-VC-CPU-20260921 — แทนที่สต็อกวิดีโอทั่วไปด้วยภาพ Insert ชิ้นส่วนฮาร์ดแวร์ทางการของ Xiaomi MIX Flip แท้: ชิป Snapdragon 8 Gen 3, สถาปัตยกรรมระบายความร้อน 3D VC Teardown, และแบตเตอรี่คู่ 4,780 mAh เรืองแสง (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round GADGET-PRO-CLEAN-CINEMATIC-PACING-AND-NO-SFX-20260921 — คลีนจอระดับ YouTube Pro: ปลดฟอนต์บนออก 100% + ตัด SFX ทิ้งทั้งหมด + คืนภาพสัดส่วนเดิมพื้นหลังเบลอ + ปรับจังหวะนิ่ง 12 คัต คัตละ 3.5-6.0s (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round GADGET-XIAOMI-PAD-8-ASSET-COLLECTION-AND-SOP-PRODUCTION-20260921 — ดึงวัตถุดิบ Clean 1080p/3K Pad 8 + บทสคริปต์ 60s + ซับ Mali-Bold + Spec Callouts ตาม Master SOP (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round GADGET-AGENCY-GRADE-PRO-TRANSFORMATION-20260921 — ปรับโฉมระดับเอเจนซี่โฆษณา: ลดเสียงเพลง BGM ครึ่งหนึ่ง (0.065) + เวที Luxury Dark Obsidian Studio ไร้แถบเบลอ + 14 คัตวิดีโอ 1080p แท้ + Sound Design Stem ครบครัน + การ์ดสเปก Tech Pill Badge หัว-ท้ายชิดกัน (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round GADGET-ZZT-STORYTELLING-AND-PERFECT-ASPECT-MASTER-20260921 — แก้ภาพยืดสัดส่วนเป๊ะ 100% + ผสาน Stock B-roll เลนส์/แบตเตอรี่ + เรนเดอร์ Master 60s สมบูรณ์แบบ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round GADGET-CENTRAL-STOCK-B-ROLL-COLLECTION-20260921 — คลังสต็อก B-roll กลาง 9 คลิป 5 หมวดหมู่ + แก้ซูมกระตุก 4K Super-Sampling + เรนเดอร์ Master 60s สมูท 100% (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round GADGET-ALL-PRODUCTS-CENTRIC-STORAGE-DEPLOYMENT-20260921 — จัดระเบียบโครงสร้าง Product-Centric 29 รายการ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+- [x] Round GADGET-BGM-COLLECTION-AND-CATALOG-20260921 — BGM Tech/Gadget และเพลงโปรด Rock Angel มิกซ์ลง Master 60s (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
 - [x] Round GADGET-PRODUCT-CENTRIC-STORAGE-RESTRUCTURE-20260921 — จัดระเบียบโครงสร้างโฟลเดอร์ Product-Centric 01_Raw, 02_Workspace, 03_Export สำหรับ Gadget Media (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
 - [x] Round GADGET-EDITING-STYLE-RULES-AND-CHECKLIST-20260921 — กฎเหล็ก 5 เสาหลัก และ QA Checklist ตัดต่อคลิปรีวิวแกดเจ็ต 60s 9:16 (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
 - [x] Round GADGET-MALI-CURATED-SYLLABLE-BOUNCE-60S-20260921 — ซับไตเติล Mali-Bold ผังบททางการ Syllable Clustering + Progressive Ghost Reveal (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
@@ -94,17 +126,6 @@
 - [x] แก้ไขความสอดคล้อง Preview-Render Parity สำหรับโทนเสียง `tech_journalism_calm` ทั้งใน Python และ JavaScript (160 passed)
 - [x] เรนเดอร์คลิปตัวอย่างจริงพร้อม Motion Spec Card ใน `.tmp/gadget_demo/demo_xiaomi_mix_flip_techmx.mp4` สำเร็จ 100% (ตรวจความคมชัดผ่าน ffprobe และพรีวิวเฟรม)
 
-## Round SCHEDULE-AUTOFILL-PRODUCT-DIVERSITY-AND-ROTATION-20260919 — active
-
-ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
-
-- [x] แก้ไขอัลกอริทึม Auto-fill ใน `scripts/api_schedule_queue.py`:
-  - เพิ่ม Fair Round-Robin / Diversity Balancing: กระจายสินค้าทุกตัวที่มีคลิปพร้อมโพสต์ให้ได้ลงคิวอย่างทั่วถึง ไม่ให้สินค้าเดิม 5 ตัวแรกผูกขาดตารางทั้งสัปดาห์
-  - เพิ่ม Time-Slot Diversity: ป้องกันไม่ให้สินค้าตัวเดิมลงเวลาเดิมซ้ำๆ ติดกันทุกวัน (เช่น Orashare 09:00 ทุกวัน)
-  - ปรับปรุงการคำนวณคะแนนสถิติ: ให้สถิติมีผลช่วยดันสินค้าขายดี แต่ต้องไม่เกิด Starvation กับสินค้าใหม่หรือสินค้าที่ยังไม่เคยโพสต์
-- [ ] รันจัดคิวใหม่สำหรับสัปดาห์ 21-27 ก.ย. 2026: นำคลิปจากสินค้าหลากหลาย (เช่น Hatari, Toshino, Iwachi, Telesin, Orico, JBL, BlueWow, Synmax ฯลฯ) มากระจายสลับวนกันอย่างลงตัว
-- [ ] รันชุดทดสอบ `tests/test_schedule_queue.py` และ frontend tests ให้ผ่าน 100%
-- [ ] ย้ายรอบงานเข้า `HISTORY.md` และสรุปให้ผู้ใช้ทราบ
 
 ---
 

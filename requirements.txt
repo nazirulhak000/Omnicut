@@ -27,12 +27,12 @@ playwright==1.58.0        # rendered product pages; uses local Chrome session, n
 edge-tts==7.2.8            # default TTS engine
 gTTS==2.5.4                # fallback when edge-tts is unreachable
 google-genai==2.20.0       # Gemini Flash TTS (scripts/gemini_tts_engine.py) + AI bridge
+typesafe-sdk==0.7.1        # TypeSafe AI System One decision model (Jev)
 
 # --- Thai text / subtitles ---
 pythainlp==5.3.7           # word segmentation for subtitle bursts
 deep-translator==1.11.4    # bilingual subtitle translation
 fonttools==4.63.0          # embedded font family metadata for the asset registry
-
 # --- Audio / image processing ---
 soundfile==0.14.0
 numpy==2.4.6

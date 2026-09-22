@@ -68,6 +68,12 @@ def get_gemini_api_keys() -> List[str]:
             keys.append(val)
     return keys
 
+
+def get_typesafe_api_key() -> str:
+    """Returns the configured TypeSafe API key from environment or .env."""
+    return os.environ.get("TYPESAFE_API_KEY", "").strip()
+
+
 INBOX_DIR = BASE_DIR / "00_Inbox"
 RAW_DIR = BASE_DIR / "01_Raw"
 ASSETS_DIR = BASE_DIR / "02_Assets"

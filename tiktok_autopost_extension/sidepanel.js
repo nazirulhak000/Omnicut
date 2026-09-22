@@ -30,14 +30,20 @@ const apiKeySettingsBtn = document.getElementById('apiKeySettingsBtn');
 const apiKeySettingsRow = document.getElementById('apiKeySettingsRow');
 const apiKeyInput = document.getElementById('apiKeyInput');
 const apiKeySaveBtn = document.getElementById('apiKeySaveBtn');
+
 apiKeySettingsBtn?.addEventListener('click', async () => {
-  apiKeySettingsRow.hidden = !apiKeySettingsRow.hidden;
-  if (!apiKeySettingsRow.hidden) apiKeyInput.value = await getStoredApiKey();
+  apiKeySettingsRow?.classList.toggle('is-open');
+  if (apiKeySettingsRow?.classList.contains('is-open')) {
+    apiKeyInput.value = await getStoredApiKey();
+  }
 });
+
 apiKeySaveBtn?.addEventListener('click', async () => {
-  await setStoredApiKey(apiKeyInput.value.trim());
-  apiKey = apiKeyInput.value.trim();
-  apiKeySettingsRow.hidden = true;
+  const val = apiKeyInput.value.trim();
+  await setStoredApiKey(val);
+  apiKey = val;
+  apiKeySettingsRow?.classList.remove('is-open');
+  setStatus('บันทึก API Key เรียบร้อยแล้ว', 'success');
 });
 
 const listEl = document.getElementById('list');
@@ -52,6 +58,77 @@ const scheduleDateInput = document.getElementById('scheduleDateInput');
 const scheduleTimeInput = document.getElementById('scheduleTimeInput');
 const markPostedBtn = document.getElementById('markPostedBtn');
 const copyAllBtn = document.getElementById('copyAllBtn');
+
+const clipSearchInput = document.getElementById('clipSearchInput');
+const clipCountBadge = document.getElementById('clipCountBadge');
+const captionCharCount = document.getElementById('captionCharCount');
+const copyProductIdBtn = document.getElementById('copyProductIdBtn');
+
+const videoPreviewModal = document.getElementById('videoPreviewModal');
+const previewBackdrop = document.getElementById('previewBackdrop');
+const previewModalTitle = document.getElementById('previewModalTitle');
+const previewCloseBtn = document.getElementById('previewCloseBtn');
+const previewVideoPlayer = document.getElementById('previewVideoPlayer');
+const previewSelectBtn = document.getElementById('previewSelectBtn');
+
+let allClips = [];
+
+function updateCaptionCounter() {
+  if (!captionCharCount || !captionInput) return;
+  const len = captionInput.value.length;
+  captionCharCount.textContent = `${len.toLocaleString()} / 2,200`;
+  captionCharCount.classList.remove('warning', 'danger');
+  if (len > 2200) {
+    captionCharCount.classList.add('danger');
+  } else if (len > 1800) {
+    captionCharCount.classList.add('warning');
+  }
+}
+
+captionInput?.addEventListener('input', updateCaptionCounter);
+
+copyProductIdBtn?.addEventListener('click', async () => {
+  const pid = productIdInput?.value?.trim();
+  if (!pid) {
+    setStatus('ไม่มี ID สินค้าให้คัดลอก', 'error');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(pid);
+    setStatus('คัดลอก ID สินค้าแล้ว: ' + pid, 'success');
+  } catch (err) {
+    setStatus('คัดลอกไม่สำเร็จ: ' + err.message, 'error');
+  }
+});
+
+function openVideoPreview(item) {
+  if (!videoPreviewModal || !previewVideoPlayer) return;
+  const vidPath = item.video_url || (item.rel_path ? `/api/media/${item.rel_path}` : '');
+  if (!vidPath) {
+    setStatus('ไม่พบที่อยู่วิดีโอสำหรับพรีวิว', 'error');
+    return;
+  }
+  previewModalTitle.textContent = item.hook_title || item.product_name || item.name;
+  previewVideoPlayer.src = withApiKeyParam(`${BACKEND}${vidPath}`, apiKey);
+  previewVideoPlayer.currentTime = 0;
+  previewVideoPlayer.play().catch(() => {});
+  videoPreviewModal.hidden = false;
+  previewSelectBtn.onclick = () => {
+    closeVideoPreview();
+    handlePrepareClick(item);
+  };
+}
+
+function closeVideoPreview() {
+  if (!videoPreviewModal || !previewVideoPlayer) return;
+  previewVideoPlayer.pause();
+  previewVideoPlayer.removeAttribute('src');
+  previewVideoPlayer.load();
+  videoPreviewModal.hidden = true;
+}
+
+previewCloseBtn?.addEventListener('click', closeVideoPreview);
+previewBackdrop?.addEventListener('click', closeVideoPreview);
 
 const tabBtnList = document.getElementById('tabBtnList');
 const tabBtnChecklist = document.getElementById('tabBtnChecklist');
@@ -165,6 +242,12 @@ function showTab(name) {
   panelList.classList.toggle('active', isList);
   panelChecklist.classList.toggle('active', isChecklist);
   panelTools.classList.toggle('active', isTools);
+  if (isList) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    if (panelList) panelList.scrollTop = 0;
+  }
 }
 tabBtnList.addEventListener('click', () => showTab('list'));
 tabBtnChecklist.addEventListener('click', () => showTab('checklist'));
@@ -231,6 +314,7 @@ function renderActiveClipBanner() {
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;margin-bottom:2px"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M3 7.5h4"/><path d="M3 12h18"/><path d="M3 16.5h4"/><path d="M17 3v18"/><path d="M17 7.5h4"/><path d="M17 16.5h4"/></svg>
       <span>ยังไม่ได้เลือกคลิป — ไปที่แท็บ "รายการคลิป" แล้วกด "เตรียมคลิปนี้" ก่อน</span>
     `;
+    syncPrepareDetailsBtnState();
     return;
   }
   activeClipBanner.className = '';
@@ -242,6 +326,7 @@ function renderActiveClipBanner() {
     <span class="active-title">${escapeHtml(activeClip.hook_title || activeClip.name)}</span>
     ${timeLabel}
   `;
+  syncPrepareDetailsBtnState();
 }
 
 function queueScheduleParts(iso) {
@@ -298,17 +383,36 @@ async function loadExports() {
     // The queue API was added after the extension; an older backend can still
     // serve the original ready-export list.
   }
-  // Build the final list: scheduled queue items first (they already have
-  // a date/time the user committed to), then any rendered exports that are
-  // NOT already represented in the queue.  The old "scheduled.length ?
-  // scheduled : exports" OR-logic hid newly-rendered clips whenever any
-  // older schedule entry was still in ready_for_extension state -- BUG-EXT-1.
-  const ready = buildExtensionClipList(items, scheduled).map((item) => ({
+  // Build the final list: scheduled queue items first, then unqueued exports.
+  allClips = buildExtensionClipList(items, scheduled).map((item) => ({
     ...item,
     ...(item.is_scheduled ? {} : { is_scheduled: false }),
   }));
+
+  filterAndRenderClips();
+}
+
+function filterAndRenderClips() {
+  const query = clipSearchInput ? clipSearchInput.value.trim().toLowerCase() : '';
+  const filtered = query
+    ? allClips.filter((c) =>
+        (c.product_name || '').toLowerCase().includes(query) ||
+        (c.hook_title || '').toLowerCase().includes(query) ||
+        (c.name || '').toLowerCase().includes(query)
+      )
+    : allClips;
+
+  if (clipCountBadge) {
+    clipCountBadge.textContent = String(filtered.length);
+  }
+  renderClipCards(filtered);
+}
+
+clipSearchInput?.addEventListener('input', filterAndRenderClips);
+
+function renderClipCards(ready) {
   if (ready.length === 0) {
-    listEl.innerHTML = '<div class="empty">ยังไม่มีคลิปที่ตัดต่อเสร็จรอโพสต์ตอนนี้</div>';
+    listEl.innerHTML = '<div class="empty">ไม่พบคลิปที่ตรงกับการค้นหา</div>';
     return;
   }
 
@@ -316,19 +420,45 @@ async function loadExports() {
   for (const item of ready) {
     const card = document.createElement('div');
     card.className = 'card';
+    if (activeClip && (activeClip.export_id === item.export_id || activeClip.name === item.name)) {
+      card.style.borderColor = 'rgba(34, 211, 238, 0.6)';
+    }
+
+    const thumbWrap = document.createElement('div');
+    thumbWrap.className = 'card-thumb-wrap';
+    thumbWrap.title = 'คลิกเพื่อพรีวิววิดีโอ 9:16';
 
     const thumb = document.createElement('img');
     thumb.src = item.thumbnail_url ? withApiKeyParam(`${BACKEND}${item.thumbnail_url}`, apiKey) : '';
     thumb.alt = '';
+    thumbWrap.appendChild(thumb);
+
+    const playOverlay = document.createElement('div');
+    playOverlay.className = 'thumb-play-overlay';
+    playOverlay.innerHTML = `
+      <div class="thumb-play-icon">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+      </div>
+    `;
+    thumbWrap.appendChild(playOverlay);
+    thumbWrap.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openVideoPreview(item);
+    });
 
     const body = document.createElement('div');
     body.className = 'card-body';
     const lifecycle = getExtensionStatus(item);
     body.innerHTML = `
-      <div class="card-product">${escapeHtml(item.product_name || 'ไม่ทราบสินค้า')}</div>
+      <div class="card-product">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8 8a2 2 0 0 0 2.828 0l7.172-7.172a2 2 0 0 0 0-2.828z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+        ${escapeHtml(item.product_name || 'ไม่ทราบสินค้า')}
+      </div>
       <div class="card-hook">${escapeHtml(item.hook_title || item.name)}</div>
       <div class="card-status ${lifecycle.kind}">${escapeHtml(lifecycle.label)}</div>
-      <div class="card-meta">${item.schedule_date ? `กำหนด ${escapeHtml(item.schedule_date)} ${escapeHtml(item.schedule_time || '')}` : `${escapeHtml(item.size_mb || '')} MB · ${escapeHtml(item.modified_time || '')}`}</div>
+      <div class="card-meta">
+        ${item.schedule_date ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>กำหนด ${escapeHtml(item.schedule_date)} ${escapeHtml(item.schedule_time || '')}` : `${escapeHtml(item.size_mb || '')} MB · ${escapeHtml(item.modified_time || '')}`}
+      </div>
     `;
 
     const btn = document.createElement('button');
@@ -338,7 +468,7 @@ async function loadExports() {
     btn.addEventListener('click', () => handlePrepareClick(item));
     body.appendChild(btn);
 
-    card.appendChild(thumb);
+    card.appendChild(thumbWrap);
     card.appendChild(body);
     listEl.appendChild(card);
   }
@@ -388,6 +518,7 @@ async function prepareClip(item) {
     if (item.schedule_time) scheduleTimeInput.value = item.schedule_time;
     syncScheduleConstraints();
     captionInput.value = item.tiktok_caption || '';
+    updateCaptionCounter();
     hashtagsInput.value = item.tiktok_hashtags || '';
     productIdInput.value = item.tiktok_product_id || '';
     cartNameInput.value = item.product_name || '';
@@ -514,23 +645,37 @@ wireStep('btn6', 'chk6', 'แนบภาพปก',
   'ส่งภาพปกและบันทึกแล้ว ตรวจภาพตัวอย่างบน TikTok ก่อนโพสต์');
 
 const prepareDetailsBtn = document.getElementById('prepareDetailsBtn');
-const prepareDetailsBtnReadyLabel = prepareDetailsBtn.innerHTML;
 
-// Greyed out (see .hero-post-btn:disabled) until step 1 is done -- clicking
-// it before the clip is uploaded has nothing to fill in on the TikTok page
-// yet, so this heads that off instead of letting it run and fail partway.
-// Note: step 1 turning green only means the file was handed to TikTok's
-// page (see runUploadFileOnly in background.js) -- it does not wait for
-// TikTok to finish actually receiving/processing it, since holding the
-// debugger attached that long is exactly what caused the tab-crash issue
-// noted elsewhere in background.js. So this button becomes clickable as
-// soon as step 1 is done, which is not necessarily the same moment as the
-// upload reaching 100% in TikTok's own UI.
+// 1-Click Automation: Executes Step 1 through Step 5 sequentially.
+// - If Step 1 (upload) is not done, it uploads the video file first, marks Step 1,
+//   and automatically proceeds to Steps 2-5 (caption, product, schedule, cover).
+// - If Step 1 was already completed, it runs Steps 2-5 directly.
+// - Enabled whenever an active clip is selected.
 function syncPrepareDetailsBtnState() {
+  if (!activeClip) {
+    prepareDetailsBtn.disabled = true;
+    prepareDetailsBtn.title = 'กรุณาเลือกคลิปจากแท็บ "รายการคลิป" ก่อน';
+    prepareDetailsBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      เลือกคลิปก่อนเริ่มงาน
+    `;
+    return;
+  }
+  prepareDetailsBtn.disabled = false;
   const uploaded = document.getElementById('chk1')?.checked;
-  prepareDetailsBtn.disabled = !uploaded;
-  prepareDetailsBtn.title = uploaded ? '' : 'อัปโหลดก่อน';
-  prepareDetailsBtn.innerHTML = uploaded ? prepareDetailsBtnReadyLabel : 'อัปโหลดก่อน';
+  if (!uploaded) {
+    prepareDetailsBtn.title = 'คลิกเดียวรันอัตโนมัติตั้งแต่ขั้น 1 (อัปโหลด) จนถึงขั้น 5 (แนบภาพปก)';
+    prepareDetailsBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      ดำเนินการอัตโนมัติ (ขั้น 1 ถึง 5)
+    `;
+  } else {
+    prepareDetailsBtn.title = 'ทำต่อขั้นตอนที่ 2 ถึง 5 (พิมพ์คำอธิบาย, ปักตะกร้า, สลับตั้งเวลา, แนบภาพปก)';
+    prepareDetailsBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      ทำต่อขั้นตอน 2 ถึง 5 (Auto-Fill & Cover)
+    `;
+  }
 }
 document.getElementById('chk1')?.addEventListener('change', syncPrepareDetailsBtnState);
 syncPrepareDetailsBtnState();
@@ -551,38 +696,86 @@ syncPrepareScheduleCheckboxState();
 
 prepareDetailsBtn.addEventListener('click', async () => {
   if (busy) return;
-  if (!document.getElementById('chk1')?.checked) {
-    setStatus('อัปโหลดก่อน', 'error');
+  if (!activeClip) {
+    setStatus('ยังไม่ได้เลือกคลิป — ไปที่แท็บ "รายการคลิป" แล้วกด "เตรียมคลิปนี้" ก่อน', 'error');
     return;
   }
-  if (!activeClip?.cover_path || !productIdInput.value.trim()) {
-    setStatus('ต้องเตรียมคลิปที่มีปก และกรอก ID สินค้าก่อน', 'error');
+  if (!activeClip?.cover_path) {
+    setStatus('ยังไม่มีภาพปกสำหรับคลิปนี้ กรุณาบันทึกภาพปกก่อนดำเนินการ', 'error');
+    return;
+  }
+  if (!productIdInput.value.trim()) {
+    setStatus('กรุณากรอก ID สินค้าสำหรับปักตะกร้าก่อนดำเนินการ', 'error');
     return;
   }
   const scheduleMode = document.getElementById('prepareSchedule').checked;
   setBusy(true);
-  [2, 3, 6, ...(scheduleMode ? [4] : [])].forEach(n => {
-    const checkbox = document.getElementById(`chk${n}`);
-    checkbox.checked = false;
-    checkbox.closest('.step-row')?.classList.remove('completed');
-  });
-  setStatus('กำลังกรอกข้อมูล ปักตะกร้า และแนบปก โปรดรอผลก่อนแก้ไขหน้า TikTok');
+
   try {
-    const response = await chrome.runtime.sendMessage({
-      action:'prepare-details', caption:captionInput.value.trim(),
-      hashtags:hashtagsInput.value.trim(), productId:productIdInput.value.trim(), scheduleMode,
-      cartName:cartNameInput.value.trim(), scheduleDate:scheduleDateInput.value, scheduleTime:scheduleTimeInput.value,
-      coverPath: activeClip.cover_path,
+    const chk1 = document.getElementById('chk1');
+    // ขั้น 1: หากยังไม่ได้อัปโหลดวิดีโอ ให้ส่งคำสั่งอัปโหลดไฟล์ก่อน
+    if (!chk1?.checked) {
+      setStatus('ขั้นที่ 1/5: กำลังอัปโหลดไฟล์วิดีโอเข้าสู่ TikTok Studio...');
+      const uploadResp = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ action: 'upload-file-only' }, (res) => {
+          if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+          if (!res) return reject(new Error('ไม่ได้รับคำตอบจาก Extension ในขั้นอัปโหลด'));
+          resolve(res);
+        });
+      });
+
+      if (!uploadResp?.success) {
+        throw new Error(`ขั้น 1 ไม่สำเร็จ: ${uploadResp?.error || uploadResp?.reason || 'อัปโหลดไฟล์ไม่สำเร็จ'}`);
+      }
+
+      chk1.checked = true;
+      chk1.closest('.step-row')?.classList.add('completed');
+      updatePipelineProgress();
+      setStatus('ขั้นที่ 1 สำเร็จ: ตั้งไฟล์วิดีโอแล้ว กำลังส่งต่อประมวลผลขั้น 2 ถึง 5 อัตโนมัติ...');
+      // ให้เวลาหน้า TikTok DOM อัปเดตสถานะไฟล์เข้าฟอร์ม
+      await new Promise(r => setTimeout(r, 1200));
+    }
+
+    // ขั้น 2 - 5: เตรียมสถานะก่อนเริ่ม
+    [2, 3, 6, ...(scheduleMode ? [4] : [])].forEach(n => {
+      const checkbox = document.getElementById(`chk${n}`);
+      if (checkbox) {
+        checkbox.checked = false;
+        checkbox.closest('.step-row')?.classList.remove('completed');
+      }
     });
-    const checks = {caption:2, product:3, cover:6, schedule:4};
+
+    setStatus('กำลังประมวลผลอัตโนมัติ: พิมพ์คำอธิบาย, ปักตะกร้า, ตั้งเวลา และแนบปก (ขั้น 2 ถึง 5)...');
+    const response = await new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({
+        action: 'prepare-details',
+        caption: captionInput.value.trim(),
+        hashtags: hashtagsInput.value.trim(),
+        productId: productIdInput.value.trim(),
+        scheduleMode,
+        cartName: cartNameInput.value.trim(),
+        scheduleDate: scheduleDateInput.value,
+        scheduleTime: scheduleTimeInput.value,
+        coverPath: activeClip.cover_path,
+      }, (res) => {
+        if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+        if (!res) return reject(new Error('ไม่ได้รับคำตอบจาก Extension ในการเตรียมรายละเอียด'));
+        resolve(res);
+      });
+    });
+
+    const checks = { caption: 2, product: 3, cover: 6, schedule: 4 };
     for (const step of response?.completed || []) {
       const checkbox = document.getElementById(`chk${checks[step]}`);
-      checkbox.checked = true;
-      checkbox.closest('.step-row')?.classList.add('completed');
+      if (checkbox) {
+        checkbox.checked = true;
+        checkbox.closest('.step-row')?.classList.add('completed');
+      }
     }
     updatePipelineProgress();
+
     if (!response?.success) throw new Error(response?.error || 'ไม่ได้รับผลการทำงาน');
-    setStatus('เตรียมครบแล้ว ตรวจข้อมูลบน TikTok และกดโพสต์ได้เลย', 'success');
+    setStatus('ดำเนินการครบขั้น 1 ถึง 5 เรียบร้อยแล้ว! ตรวจทานข้อมูลบนหน้า TikTok แล้วกดปุ่มโพสต์ (ขั้น 6) เพื่อเผยแพร่', 'success');
   } catch (err) {
     setStatus(`หยุดการทำงาน: ${err.message} — ขั้นที่ผ่านแล้วมีเครื่องหมายถูก สามารถทำขั้นที่ค้างแยกได้`, 'error');
   } finally {
@@ -623,7 +816,8 @@ markPostedBtn.addEventListener('click', async () => {
     return;
   }
   markPostedBtn.disabled = true;
-  setStatus(`กำลังมาร์ค "${activeClip.hook_title || activeClip.name}" ว่าโพสต์แล้ว...`);
+  const postedTitle = activeClip.hook_title || activeClip.name || 'คลิป';
+  setStatus(`กำลังมาร์ค "${postedTitle}" ว่าโพสต์แล้ว...`);
   try {
     const res = await authedFetch(`${BACKEND}/api/exports/mark-posted`, apiKey, {
       method: 'POST',
@@ -639,12 +833,30 @@ markPostedBtn.addEventListener('click', async () => {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.detail || `HTTP ${res.status}`);
     }
-    setStatus(`มาร์ค "${activeClip.hook_title || activeClip.name}" ว่าโพสต์แล้ว -- ย้ายไฟล์ไป Posted/ แล้ว`, 'success');
+
+    // ล้าง pendingJob จาก Chrome storage ให้สะอาดเหมือนขั้นตอนที่ 6
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      try { await chrome.storage.local.remove('pendingJob'); } catch (e) {}
+    }
+
     activeClip = null;
     resetChecklist();
     renderActiveClipBanner();
     await loadExports();
     showTab('list');
+
+    // เลื่อนหน้าต่างและลิสต์ขึ้นด้านบนสุดเหมือนขั้นตอนที่ 6
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    if (panelList) panelList.scrollTop = 0;
+
+    // รีเฟรชหน้าอัปโหลด TikTok Studio เตรียมพร้อมสำหรับคลิปถัดไป เหมือนขั้นตอนที่ 6
+    try {
+      await openTikTokUploadTab(true);
+    } catch (tabErr) {}
+
+    setStatus(postedTitle + ' มาร์คว่าโพสต์แล้วอัตโนมัติ พร้อมเตรียมหน้าอัปโหลดสำหรับคลิปถัดไป', 'success');
   } catch (err) {
     setStatus('มาร์คไม่สำเร็จ: ' + err.message, 'error');
   } finally {
@@ -797,12 +1009,12 @@ async function findExistingTikTokTab() {
   return null;
 }
 
-async function openTikTokUploadTab() {
+async function openTikTokUploadTab(forceReload = false) {
   if (typeof chrome !== 'undefined' && chrome.tabs) {
     const tab = await findExistingTikTokTab();
     if (tab && tab.id) {
       let target = tab;
-      if (!String(tab.url || '').includes('/upload')) {
+      if (forceReload || !String(tab.url || '').includes('/upload')) {
         target = await chrome.tabs.update(tab.id, {
           url: TIKTOK_UPLOAD_URL,
           active: true,

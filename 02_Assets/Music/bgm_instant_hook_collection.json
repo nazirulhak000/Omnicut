@@ -1,0 +1,47 @@
+[
+  {
+    "id_name": "bgm_lakey_inspired_me_2",
+    "title": "LAKEY INSPIRED - Me 2 (feat. Julian Avila)",
+    "query": "ytsearch1:LAKEY INSPIRED Me 2 audio",
+    "hook_start": "0:01 (เข้าบีททันทีใน 1 วิแรก)",
+    "vibe": "กรูฟสนุกสนาน โยกหัวทันที คอร์ด Rhodes + กีตาร์โมเดิร์น สไตล์รีวิวแกดเจ็ตตัวท็อป",
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_lakey_inspired_me_2.mp3",
+    "file_name": "bgm_lakey_inspired_me_2.mp3"
+  },
+  {
+    "id_name": "bgm_lakey_inspired_blue_boi",
+    "title": "LAKEY INSPIRED - Blue Boi",
+    "query": "ytsearch1:LAKEY INSPIRED Blue Boi audio",
+    "hook_start": "0:01 (คอร์ดเปียโนและบีทตบเข้าตั้งแต่ต้น)",
+    "vibe": "ทันสมัย ชิลล์แต่กระปรี้กระเปร่า มีลูกเล่น ดึงดูดความสนใจตั้งแต่เฟรมแรก",
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_lakey_inspired_blue_boi.mp3",
+    "file_name": "bgm_lakey_inspired_blue_boi.mp3"
+  },
+  {
+    "id_name": "bgm_lakey_inspired_days_like_these",
+    "title": "LAKEY INSPIRED - Days Like These",
+    "query": "ytsearch1:LAKEY INSPIRED Days Like These audio",
+    "hook_start": "0:00 (บีทและเมโลดี้หลักขึ้นทันทีตั้งแต่วินาทีที่ 0)",
+    "vibe": "จังหวะเดินเร็ว สดใส มีพลังส่ง พาสายตาและอารมณ์คนดูไหลไปกับคลิป",
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_lakey_inspired_days_like_these.mp3",
+    "file_name": "bgm_lakey_inspired_days_like_these.mp3"
+  },
+  {
+    "id_name": "bgm_joakim_karud_rock_angel",
+    "title": "Joakim Karud - Rock Angel",
+    "query": "ytsearch1:Joakim Karud Rock Angel audio",
+    "hook_start": "0:00 (แซกโซโฟนและกลองสวิงระเบิดตั้งแต่เสี้ยววินาทีแรก)",
+    "vibe": "เท่ มีเสน่ห์ ไฮป์ สนุกสนาน คลาสสิก เหมาะกับงานเปิดตัวสินค้าและแกดเจ็ตเท่ๆ",
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_joakim_karud_rock_angel.mp3",
+    "file_name": "bgm_joakim_karud_rock_angel.mp3"
+  },
+  {
+    "id_name": "bgm_dj_quads_punch",
+    "title": "DJ Quads - Punch",
+    "query": "ytsearch1:DJ Quads Punch audio",
+    "hook_start": "0:01 (บีท Hip-Hop หมัดเด็ดเข้าตั้งแต่ต้น)",
+    "vibe": "หมัดหนัก กระชับ แน่น โมเดิร์นไอที vlog ระดับโลก",
+    "file_path": "D:\\Winona\\Programmer\\Capcut\\02_Assets\\Music\\bgm_dj_quads_punch.mp3",
+    "file_name": "bgm_dj_quads_punch.mp3"
+  }
+]

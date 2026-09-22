@@ -490,4 +490,17 @@ export const syncManualShotMap = (productId, sourceAngleId, payload = {}) =>
 export const getUniversalFilmingRecipe = (productId) =>
   api.get(`/products/${productId}/filming-recipe`).then(r => r.data);
 
+// ── TypeSafe Studio API (System One / Jev Integration) ──
+export const getTypeSafeStatus = () =>
+  api.get('/typesafe-studio/status').then(r => r.data);
+
+export const matchBrollWithAI = (sentence, candidateClips) =>
+  api.post('/typesafe-studio/match-broll', { sentence, candidate_clips: candidateClips }).then(r => r.data);
+
+export const generateHookVariantsAI = (productName, keyFeatures = null) =>
+  api.post('/typesafe-studio/generate-hooks', { product_name: productName, key_features: keyFeatures }).then(r => r.data);
+
+export const evaluateHookAI = (hookText) =>
+  api.post('/typesafe-studio/evaluate-hook', { hook_text: hookText }).then(r => r.data);
+
 export default api;
