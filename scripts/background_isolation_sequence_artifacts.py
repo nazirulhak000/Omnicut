@@ -67,8 +67,11 @@ _MANIFEST_KEYS = frozenset(
         "height",
         "rotation",
         "frame_pattern",
+        "source_start",
+        "source_duration",
     }
 )
+_LEGACY_MANIFEST_KEYS = _MANIFEST_KEYS - {"source_start", "source_duration"}
 _SIGNATURE_KEYS = frozenset(
     {
         "source_fingerprint",
@@ -84,6 +87,8 @@ _SIGNATURE_KEYS = frozenset(
         "height",
         "rotation",
         "frame_pattern",
+        "source_start",
+        "source_duration",
     }
 )
 
@@ -209,6 +214,17 @@ def _validate_fps(value: Any) -> float:
     return candidate
 
 
+def _validate_source_seconds(value: Any, label: str, *, allow_none: bool = False) -> float | None:
+    if value is None and allow_none:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise SequenceArtifactStoreError(f"invalid sequence {label}")
+    candidate = float(value)
+    if not math.isfinite(candidate) or candidate < 0 or (label == "source duration" and candidate == 0):
+        raise SequenceArtifactStoreError(f"invalid sequence {label}")
+    return candidate
+
+
 def _normalise_timebase(value: Any) -> str:
     if isinstance(value, tuple) and len(value) == 2:
         value = f"{value[0]}/{value[1]}"
@@ -250,8 +266,10 @@ def build_sequence_artifact_id(
     width: Any = 1080,
     height: Any = 1920,
     rotation: Any = 0,
+    source_start: Any = 0.0,
+    source_duration: Any = None,
 ) -> str:
-    """Build an ID from source/settings, deliberately excluding clip index."""
+    """Build an ID from source/settings/window, deliberately excluding clip index."""
 
     fingerprint = _validate_source_fingerprint(source_fingerprint)
     identity = {
@@ -266,6 +284,10 @@ def build_sequence_artifact_id(
         "width": _validate_positive_int(width, "width"),
         "height": _validate_positive_int(height, "height"),
         "rotation": _validate_rotation(rotation),
+        "source_start": _validate_source_seconds(source_start, "source start"),
+        "source_duration": _validate_source_seconds(
+            source_duration, "source duration", allow_none=True
+        ),
     }
     digest = hashlib.sha256(
         json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -295,6 +317,8 @@ def build_sequence_manifest(
     height: int = 0,
     rotation: int = 0,
     frame_pattern: str = FRAME_PATTERN,
+    source_start: float = 0.0,
+    source_duration: float | None = None,
     status: str = "missing",
 ) -> dict[str, Any]:
     """Build a canonical manifest without touching the filesystem."""
@@ -318,12 +342,16 @@ def build_sequence_manifest(
         "height": _validate_positive_int(height, "height", allow_zero=True),
         "rotation": _validate_rotation(rotation),
         "frame_pattern": _validate_frame_pattern(frame_pattern),
+        "source_start": _validate_source_seconds(source_start, "source start"),
+        "source_duration": _validate_source_seconds(
+            source_duration, "source duration", allow_none=True
+        ),
     }
     return manifest
 
 
 def _validate_manifest(value: Any, expected_id: str) -> dict[str, Any] | None:
-    if not isinstance(value, Mapping) or set(value) != _MANIFEST_KEYS:
+    if not isinstance(value, Mapping) or set(value) not in {_MANIFEST_KEYS, _LEGACY_MANIFEST_KEYS}:
         return None
     try:
         candidate = build_sequence_manifest(
@@ -341,6 +369,8 @@ def _validate_manifest(value: Any, expected_id: str) -> dict[str, Any] | None:
             height=value["height"],
             rotation=value["rotation"],
             frame_pattern=value["frame_pattern"],
+            source_start=value.get("source_start", 0.0),
+            source_duration=value.get("source_duration"),
             status=value["status"],
         )
     except SequenceArtifactStoreError:
@@ -538,6 +568,16 @@ def is_sequence_current(
         elif key in {"fps"}:
             try:
                 value = _validate_fps(value)
+            except SequenceArtifactStoreError:
+                return False
+        elif key == "source_start":
+            try:
+                value = _validate_source_seconds(value, "source start")
+            except SequenceArtifactStoreError:
+                return False
+        elif key == "source_duration":
+            try:
+                value = _validate_source_seconds(value, "source duration", allow_none=True)
             except SequenceArtifactStoreError:
                 return False
         if manifest[key] != value:

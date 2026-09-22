@@ -1,4 +1,4 @@
-"""Read-only API for published background-isolation frame sequences.
+"""Processing and read API for background-isolation frame sequences.
 
 The router deliberately owns no processing lifecycle.  A sequence worker
 publishes a validated manifest and derived PNG frames first; this module only
@@ -11,7 +11,11 @@ from __future__ import annotations
 
 import re
 import hashlib
+import importlib.util
 import json
+import math
+import os
+import shutil
 import threading
 import uuid
 from pathlib import Path
@@ -70,6 +74,91 @@ _BACKGROUND_TASKS_RUNNING: set[str] = set()
 _BACKGROUND_TASK_CANCEL_EVENTS: dict[str, threading.Event] = {}
 
 
+def _background_isolation_preflight(
+    req: BackgroundIsolationProcessRequest,
+    source: Path,
+) -> dict[str, Any]:
+    """Return actionable runtime/capacity checks without starting a worker."""
+
+    modules = {
+        name: importlib.util.find_spec(name) is not None
+        for name in ("rembg", "onnxruntime", "PIL")
+    }
+    model_home = Path(os.environ.get("U2NET_HOME") or (Path.home() / ".u2net"))
+    model_path = model_home / f"{req.config.get('model', 'u2net')}.onnx"
+    frame_count = math.ceil((req.duration or 0) * req.fps - 1e-9) if req.duration else None
+    # Extraction keeps RGB source frames and RGBA foreground frames. PNG
+    # compression varies wildly, so use a conservative raw-pixel estimate.
+    estimated_cache_bytes = (
+        frame_count * req.width * req.height * 7 if frame_count is not None else None
+    )
+    disk_target = Path(PROJECTS_DIR).resolve(strict=False)
+    while not disk_target.exists() and disk_target != disk_target.parent:
+        disk_target = disk_target.parent
+    free_disk_bytes = shutil.disk_usage(disk_target).free
+    required_disk_bytes = max(256 * 1024 * 1024, int((estimated_cache_bytes or 0) * 1.25))
+    required_memory_bytes = (
+        384 * 1024 * 1024 if req.config.get("model") == "u2netp" else 768 * 1024 * 1024
+    )
+    available_memory_bytes = None
+    if importlib.util.find_spec("psutil") is not None:
+        try:
+            psutil = importlib.import_module("psutil")
+            available_memory_bytes = int(psutil.virtual_memory().available)
+        except Exception:
+            available_memory_bytes = None
+    issues: list[dict[str, str]] = []
+    for module, available in modules.items():
+        if not available:
+            issues.append({
+                "severity": "error",
+                "code": f"{module.lower()}_missing",
+                "message": f"ไม่พบ runtime {module} ใน environment ของ backend",
+            })
+    if not model_path.is_file():
+        issues.append({
+            "severity": "warning",
+            "code": "model_not_cached",
+            "message": f"ยังไม่พบโมเดล {model_path.name} ในเครื่อง งานแรกอาจต้องดาวน์โหลดโมเดล",
+        })
+    if req.duration is None:
+        issues.append({
+            "severity": "warning",
+            "code": "duration_unknown",
+            "message": "ไม่ทราบความยาวช่วงวิดีโอ จึงยังประเมินจำนวนเฟรมและพื้นที่ไม่ได้",
+        })
+    elif free_disk_bytes < required_disk_bytes:
+        issues.append({
+            "severity": "error",
+            "code": "disk_space_low",
+            "message": "พื้นที่ cache ไม่พอสำหรับเฟรม Cutout ช่วงนี้",
+        })
+    if available_memory_bytes is not None and available_memory_bytes < required_memory_bytes:
+        issues.append({
+            "severity": "error",
+            "code": "memory_low",
+            "message": "RAM ว่างไม่พอสำหรับโมเดล Cutout ที่เลือก กรุณาปิดโปรแกรมอื่นหรือใช้โมเดล u2netp",
+        })
+
+    return {
+        "ok": not any(issue["severity"] == "error" for issue in issues),
+        "source_path": str(source),
+        "start": req.start,
+        "duration": req.duration,
+        "fps": req.fps,
+        "frame_count": frame_count,
+        "estimated_cache_bytes": estimated_cache_bytes,
+        "free_disk_bytes": free_disk_bytes,
+        "required_disk_bytes": required_disk_bytes,
+        "available_memory_bytes": available_memory_bytes,
+        "required_memory_bytes": required_memory_bytes,
+        "model": req.config.get("model", "u2net"),
+        "model_cached": model_path.is_file(),
+        "runtime": modules,
+        "issues": issues,
+    }
+
+
 def request_background_isolation_cancel(task_id: str) -> bool:
     """Signal a running isolation worker to stop at its next safe checkpoint."""
 
@@ -116,6 +205,7 @@ def _request_identity(source: Path, normalized: dict[str, Any], req: BackgroundI
         "source": str(source), "config": normalized, "fps": req.fps,
         "timebase": req.timebase, "width": req.width, "height": req.height,
         "rotation": req.rotation, "project_name": req.project_name,
+        "start": req.start, "duration": req.duration,
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
@@ -125,17 +215,15 @@ def _source_sequence_id(
     source_fingerprint: str,
     normalized: dict[str, Any],
     *,
+    start: float = 0.0,
+    duration: float | None = None,
     fps: float,
     timebase: str,
     width: int,
     height: int,
     rotation: int,
 ) -> str:
-    """Build one cache identity for one source/settings tuple.
-
-    Trim windows are deliberately excluded.  A sequence is indexed in source
-    time, so every timeline clip can reuse the same full-source cutout.
-    """
+    """Build one cache identity for one source/settings/window tuple."""
 
     return build_sequence_artifact_id(
         source_fingerprint,
@@ -143,12 +231,14 @@ def _source_sequence_id(
         engine=normalized["engine"],
         model=normalized["model"],
         quality=normalized["quality"],
-        worker_version="source-sequence-v1",
+        worker_version="source-sequence-v2",
         fps=fps,
         timebase=timebase,
         width=width,
         height=height,
         rotation=rotation,
+        source_start=start,
+        source_duration=duration,
     )
 
 
@@ -175,6 +265,8 @@ def _run_background_isolation_task(
         source_id = _source_sequence_id(
             source_fingerprint,
             normalized,
+            start=req.start,
+            duration=req.duration,
             fps=req.fps,
             timebase=timebase,
             width=req.width,
@@ -190,11 +282,11 @@ def _run_background_isolation_task(
                 TaskManager.update_progress(task_id, min(0.99, 0.45 * float(value) if stage == "processing" else 0.45 + 0.55 * float(value)), f"Background isolation: {stage}")
 
         TaskManager.update_progress(task_id, 0.05, "กำลังเตรียมเฟรมวิดีโอสำหรับตัดพื้นหลัง")
-        # The published sequence must cover source time zero through EOF.
-        # Individual timeline trim windows are mapped to frames by the
-        # Preview/Render consumers and must not create separate inference jobs.
+        # Extract only the source window used by this timeline job.  The
+        # absolute window origin is persisted in the manifest so Preview and
+        # Render can map source time to artifact-local frame indices exactly.
         extracted = extract_background_isolation_sequence(
-            source, cache_root, source_id, start=0.0, duration=None,
+            source, cache_root, source_id, start=req.start, duration=req.duration,
             fps=req.fps, timebase=timebase, width=req.width, height=req.height,
             cancel_event=cancel_event,
             progress_callback=progress,
@@ -205,9 +297,10 @@ def _run_background_isolation_task(
             source_id, source_fingerprint=source_fingerprint,
             algorithm="background-isolation-source-v1", engine=normalized["engine"],
             model=normalized["model"], quality=normalized["quality"],
-            worker_version="source-sequence-v1", frame_count=extracted["frame_count"],
+            worker_version="source-sequence-v2", frame_count=extracted["frame_count"],
             fps=req.fps, timebase=timebase, width=req.width, height=req.height,
-            rotation=req.rotation, status="ready",
+            rotation=req.rotation, source_start=extracted["start"],
+            source_duration=extracted["duration"], status="ready",
         )
         write_sequence_manifest(cache_root, source_id, source_manifest)
         TaskManager.update_progress(task_id, 0.48, "กำลังแยกสินค้าออกจากพื้นหลังด้วย rembg")
@@ -225,6 +318,8 @@ def _run_background_isolation_task(
             "artifact": {
                 "schema_version": 1, "id": result["artifact_id"], "status": "ready",
                 "source_fingerprint": sequence["source_fingerprint"],
+                "source_start": sequence["source_start"],
+                "source_duration": sequence["source_duration"],
             },
             "sequence": sequence,
         }
@@ -288,6 +383,23 @@ def recover_background_isolation_tasks() -> int:
         if _schedule_background_isolation_task(task["id"], req):
             resumed += 1
     return resumed
+
+
+@router.post("/preflight")
+def preflight_background_isolation(req: BackgroundIsolationProcessRequest) -> dict[str, Any]:
+    """Validate local runtime/model/capacity before queueing expensive work."""
+
+    source = _source_for_processing(req.source_path)
+    if req.rotation not in (0, 90, 180, 270):
+        raise HTTPException(status_code=422, detail="rotation must be 0, 90, 180, or 270")
+    normalized = normalize_background_isolation(req.config)
+    if not normalized["enabled"]:
+        raise HTTPException(
+            status_code=422,
+            detail=f"background isolation config is disabled or invalid: {normalized.get('reason', 'invalid_config')}",
+        )
+    canonical = req.model_copy(update={"config": normalized})
+    return _background_isolation_preflight(canonical, source)
 
 
 @router.post("/process")
@@ -456,5 +568,6 @@ def get_background_isolation_frame(artifact_id: str, frame_index: str) -> FileRe
 __all__ = [
     "get_background_isolation_frame",
     "get_background_isolation_manifest",
+    "preflight_background_isolation",
     "router",
 ]

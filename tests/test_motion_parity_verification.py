@@ -163,5 +163,13 @@ def test_thai_text_safety_fixture_contains_combining_marks_and_declares_safe_zon
         assert entry["thai_safety"]["preserve_combining_marks"] is True
 
 
-def test_catalog_metadata_does_not_claim_renderer_binding_before_integration():
-    assert all(preset["metadata"]["renderer_bound"] is False for preset in MOTION_PRESETS.values())
+def test_catalog_metadata_declares_contract_binding_and_the_one_geometry_fallback():
+    fallback_ids = {
+        identifier
+        for identifier, preset in MOTION_PRESETS.items()
+        if not preset["metadata"]["renderer_bound"]
+    }
+    assert fallback_ids == {"hook.in.typewriter"}
+    assert MOTION_PRESETS["hook.in.typewriter"]["metadata"]["unsupported_tracks"] == ["reveal"]
+    for identifier, preset in MOTION_PRESETS.items():
+        assert preset["metadata"]["parity_level"] in {"exact", "bounded", "legacy_fallback"}, identifier

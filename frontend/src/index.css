@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+/* Preview and FFmpeg must shape the exact same physical font files.  These
+   URLs are served read-only from 02_Assets by the API (and by Vite's local
+   development middleware), so the editor no longer depends on a changing
+   Google Fonts build or a network fallback for render-critical text. */
+@font-face { font-family: 'IBM Plex Sans Thai'; src: url('/api/media/02_Assets/Fonts/IBMPlexSansThai-Medium.ttf') format('truetype'); font-weight: 400 500; font-display: block; }
+@font-face { font-family: 'IBM Plex Sans Thai'; src: url('/api/media/02_Assets/Fonts/IBMPlexSansThai-SemiBold.ttf') format('truetype'); font-weight: 600; font-display: block; }
+@font-face { font-family: 'IBM Plex Sans Thai'; src: url('/api/media/02_Assets/Fonts/IBMPlexSansThai-Bold.ttf') format('truetype'); font-weight: 700 900; font-display: block; }
+@font-face { font-family: 'Kanit'; src: url('/api/media/02_Assets/Fonts/Kanit-Bold.ttf') format('truetype'); font-weight: 500 700; font-display: block; }
+@font-face { font-family: 'Kanit'; src: url('/api/media/02_Assets/Fonts/Kanit-Black.ttf') format('truetype'); font-weight: 800 900; font-display: block; }
+@font-face { font-family: 'Prompt'; src: url('/api/media/02_Assets/Fonts/Prompt-Bold.ttf') format('truetype'); font-weight: 400 700; font-display: block; }
+@font-face { font-family: 'Prompt'; src: url('/api/media/02_Assets/Fonts/Prompt-Black.ttf') format('truetype'); font-weight: 800 900; font-display: block; }
+@font-face { font-family: 'Chakra Petch'; src: url('/api/media/02_Assets/Fonts/ChakraPetch-Bold.ttf') format('truetype'); font-weight: 700; font-display: block; }
+@font-face { font-family: 'Anuphan'; src: url('/api/media/02_Assets/Fonts/Anuphan-Bold.ttf') format('truetype'); font-weight: 400 700; font-display: block; }
+@font-face { font-family: 'Bai Jamjuree'; src: url('/api/media/02_Assets/Fonts/BaiJamjuree-Bold.ttf') format('truetype'); font-weight: 500 700; font-display: block; }
+@font-face { font-family: 'Chonburi'; src: url('/api/media/02_Assets/Fonts/Chonburi-Regular.ttf') format('truetype'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'Itim'; src: url('/api/media/02_Assets/Fonts/Itim-Regular.ttf') format('truetype'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'Krub'; src: url('/api/media/02_Assets/Fonts/Krub-Bold.ttf') format('truetype'); font-weight: 400 700; font-display: block; }
+@font-face { font-family: 'Mali'; src: url('/api/media/02_Assets/Fonts/Mali-Bold.ttf') format('truetype'); font-weight: 500 700; font-display: block; }
+@font-face { font-family: 'Mitr'; src: url('/api/media/02_Assets/Fonts/Mitr-Bold.ttf') format('truetype'); font-weight: 400 700; font-display: block; }
+@font-face { font-family: 'Noto Sans Thai'; src: url('/api/media/02_Assets/Fonts/NotoSansThai-SemiBold.ttf') format('truetype'); font-weight: 400 700; font-display: block; }
+@font-face { font-family: 'Pridi'; src: url('/api/media/02_Assets/Fonts/Pridi-Bold.ttf') format('truetype'); font-weight: 500 700; font-display: block; }
+@font-face { font-family: 'Sarabun'; src: url('/api/media/02_Assets/Fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 400 700; font-display: block; }
+
 :root {
   /* Every type size in the app is a rem, so this one number scales the whole
      interface. It used to exist while 214 sizes were hardcoded in px, which

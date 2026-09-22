@@ -198,7 +198,17 @@ function SpotlightControls({ spotlight, onChange }) {
   );
 }
 
-function BackgroundIsolationControls({ backgroundIsolation, statusOverride = null, onChange, onPrepare, preparing = false }) {
+function BackgroundIsolationControls({
+  backgroundIsolation,
+  statusOverride = null,
+  onChange,
+  onPrepare,
+  onCancel,
+  preparing = false,
+  plan = null,
+  progress = null,
+  error = '',
+}) {
   const enabled = backgroundIsolation?.enabled === true;
   const status = statusOverride?.state || backgroundIsolation?.artifact?.status || 'missing';
   const statusLabel = statusOverride?.label || status;
@@ -221,15 +231,45 @@ function BackgroundIsolationControls({ backgroundIsolation, statusOverride = nul
   return (
     <section className="rounded-2xl border border-violet-400/20 bg-violet-400/[0.04] p-3 space-y-2" aria-label="Background Isolation">
       {onPrepare && enabled && (
-        <button
-          type="button"
-          onClick={onPrepare}
-          disabled={preparing}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-300/30 bg-violet-400/10 px-2 py-1.5 text-[10px] font-bold text-violet-200 transition hover:bg-violet-400/20 disabled:cursor-wait disabled:opacity-60"
-        >
-          {preparing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Layers className="h-3 w-3" />}
-          {preparing ? 'กำลังตัดพื้นหลังจากคลิปใน Timeline' : 'เตรียม cutout จากคลิปใน Timeline'}
-        </button>
+        <div className="space-y-1.5">
+          <p className="rounded-lg bg-black/20 px-2 py-1.5 text-[10px] leading-relaxed text-slate-400">
+            {plan?.ready
+              ? `จะประมวลผล ${plan.jobCount} ช่วง รวม ${plan.totalDuration.toFixed(1)} วินาที ประมาณ ${plan.frameCount.toLocaleString()} เฟรม`
+              : `ยังคำนวณช่วงวิดีโอไม่ได้${plan?.unresolvedCount ? ` ${plan.unresolvedCount} ช่วง` : ''}`}
+          </p>
+          {plan?.conflictCount > 0 && (
+            <p role="alert" className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1.5 text-[10px] text-amber-200">
+              พบ {plan.conflictCount} คลิปที่เปิดพื้นหลังเบลอ กรุณาปิดพื้นหลังเบลอก่อนใช้ Cutout
+            </p>
+          )}
+          {preparing ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full rounded-lg border border-rose-300/30 bg-rose-400/10 px-2 py-1.5 text-[10px] font-bold text-rose-200 transition hover:bg-rose-400/20"
+            >
+              ยกเลิกการเตรียม Cutout
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onPrepare}
+              disabled={!plan?.ready || plan?.conflictCount > 0}
+              className="w-full rounded-lg border border-violet-300/30 bg-violet-400/10 px-2 py-1.5 text-[10px] font-bold text-violet-200 transition hover:bg-violet-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {error || status === 'quality_failed' ? 'ลองเตรียม Cutout อีกครั้ง' : 'เตรียม Cutout จาก Timeline'}
+            </button>
+          )}
+          {preparing && (
+            <div aria-live="polite" className="space-y-1">
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full bg-violet-400 transition-all" style={{ width: `${Math.round((progress?.progress || 0) * 100)}%` }} />
+              </div>
+              <p className="text-[10px] text-violet-200">{progress?.label || 'กำลังเริ่มงานตัดพื้นหลัง'}</p>
+            </div>
+          )}
+          {error && !preparing && <p role="alert" className="text-[10px] text-rose-300">{error}</p>}
+        </div>
       )}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2 min-w-0">
@@ -247,7 +287,8 @@ function BackgroundIsolationControls({ backgroundIsolation, statusOverride = nul
       {enabled && (
         <div className="border-t border-white/[0.08] pt-2 text-[10px] leading-relaxed text-slate-400">
           สถานะ artifact: <span className={status === 'ready' ? 'text-emerald-300' : 'text-amber-300'}>{statusLabel}</span>
-          {status !== 'ready' && <p className="mt-1 text-slate-500">ต้องประมวลผล sequence ให้เสร็จก่อน Render จึงจะใช้ cutout ได้ หาก artifact ไม่พร้อม ระบบจะกลับไปใช้ภาพเดิมอัตโนมัติ</p>}
+          {status !== 'ready' && <p className="mt-1 text-slate-500">ต้องเตรียม artifact ให้พร้อมทุกคลิปก่อน Render ระบบจะบล็อกการส่งออกแทนการ fallback เงียบ</p>}
+          {status === 'ready' && <p className="mt-1 text-slate-500">ตรวจขอบมือ สินค้าโปร่งใส และ motion blur ใน Preview ก่อน Render เพราะความนิ่งของ mask ขึ้นกับภาพต้นฉบับและโมเดล</p>}
         </div>
       )}
     </section>
@@ -980,9 +1021,13 @@ export default function AssetPanel({
   spotlight = null,
   backgroundIsolation = null,
   backgroundIsolationStatus = null,
+  backgroundIsolationPlan = null,
+  backgroundIsolationProgress = null,
+  backgroundIsolationError = '',
   onSpotlightChange = null,
   onBackgroundIsolationChange = null,
   onPrepareBackgroundIsolation = null,
+  onCancelBackgroundIsolation = null,
   backgroundIsolationPreparing = false,
   onAddEffect = null,
   playhead = 0,
@@ -1487,7 +1532,11 @@ export default function AssetPanel({
             statusOverride={backgroundIsolationStatus}
             onChange={onBackgroundIsolationChange}
             onPrepare={onPrepareBackgroundIsolation}
+            onCancel={onCancelBackgroundIsolation}
             preparing={backgroundIsolationPreparing}
+            plan={backgroundIsolationPlan}
+            progress={backgroundIsolationProgress}
+            error={backgroundIsolationError}
           />
         )}
 

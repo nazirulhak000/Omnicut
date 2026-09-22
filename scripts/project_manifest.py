@@ -335,13 +335,15 @@ class ProjectManifest:
             manifest = cls.load(child.name)
             if not manifest:
                 continue
+            mp4_entry = (manifest.get("artifacts") or {}).get("mp4_video")
+            mp4_path = mp4_entry.get("path") if isinstance(mp4_entry, dict) else None
             projects.append({
                 "project_name": manifest.get("project_name", child.name),
                 "product_name": (manifest.get("product") or {}).get("name", ""),
                 "angle_title": (manifest.get("angle") or {}).get("title", ""),
                 "duration": manifest.get("total_duration"),
                 "updated_at": manifest.get("updated_at", ""),
-                "mp4_video": (manifest.get("artifacts") or {}).get("mp4_video", {}).get("path"),
+                "mp4_video": mp4_path,
                 # so the UI can say how much deleting one frees
                 "size_mb": cls.folder_size_mb(child),
             })

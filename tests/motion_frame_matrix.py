@@ -14,9 +14,10 @@ TODO / limitations
   ``renderer_bound``).  Word-stagger and Thai-safety metadata below are
   explicit matrix requirements until they become authoritative catalog
   fields.
-* This does not capture Canvas frames or compare Canvas pixels with FFmpeg /
-  ASS output.  A future browser capture harness must consume this matrix and
-  add frame-diff assertions at the same sample times.
+* The self-hosted browser harness now proves one real SequencePlayer-vs-ASS
+  reference pair and captures explicit timeline frame indices.  Full catalog
+  coverage at every ``FRAME_SAMPLE_TIMES`` point remains Phase 3 work; the
+  matrix must not overstate that reference-pair evidence as all-preset parity.
 * Phase windows are a deterministic QA schedule built from catalog maxima;
   they are not a replacement for the live overlay timeline resolver.
 """
@@ -25,9 +26,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from itertools import combinations
+from pathlib import Path
 from typing import Any, Dict, Iterable, Mapping, Sequence, Tuple
-
-import pytest
 
 from scripts.subtitle.motion_contract import (
     MOTION_PRESETS,
@@ -260,10 +260,10 @@ def test_hold_matrix_entries_are_repeat_safe_or_explicitly_empty():
             assert entry["timing"]["cycle_duration_ms"] > 0
 
 
-def test_matrix_declares_canvas_capture_limitation_until_harness_exists():
+def test_matrix_declares_live_harness_scope_without_overclaiming_catalog_parity():
     limitation = MOTION_FRAME_MATRIX[0]["thai_safety"]
     assert limitation["preserve_combining_marks"] is True
-    pytest.skip(
-        "TODO: capture Canvas Preview frames and compare them with ASS/FFmpeg "
-        "at FRAME_SAMPLE_TIMES; this matrix currently validates contract data only."
-    )
+    repo_root = Path(__file__).resolve().parents[1]
+    assert (repo_root / "tests" / "motion_capture" / "vite_fixture.py").exists()
+    assert (repo_root / "tests" / "motion_capture" / "run_live_gate.py").exists()
+    assert FRAME_SAMPLE_TIMES == (0.0, 0.25, 0.5, 0.75, 1.0)

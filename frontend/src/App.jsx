@@ -316,7 +316,11 @@ export default function App() {
 
   const handleApplyScriptFromLab = (data) => {
     if (data.productId && data.angleId) {
-      setActiveAngleContext({ productId: data.productId, angleId: data.angleId });
+      setActiveAngleContext({
+        productId: data.productId,
+        angleId: data.angleId,
+        batch: data.batch || (data.fullProduct?.angles?.[data.angleIndex]?.batch) || 1,
+      });
     }
 
     setInitialProjectNameToLoad(editorProjectIntentFromPayload(data));
@@ -353,7 +357,20 @@ export default function App() {
       try {
         const videoRelPath = result.final_video_path || result.video_path || result.output_path || '';
         const projectName = result.project_name || '';
-        await updateAngleStatus(activeAngleContext.productId, activeAngleContext.angleId, 'rendered', videoRelPath, projectName);
+        const batch = activeAngleContext.batch || null;
+        await updateAngleStatus(
+          activeAngleContext.productId,
+          activeAngleContext.angleId,
+          'rendered',
+          videoRelPath,
+          projectName,
+          null,
+          false,
+          false,
+          null,
+          false,
+          batch
+        );
         workspaceDataRef.current.invalidateTrackerData();
       } catch (err) {
         console.error('Failed to auto-update angle status on render:', err);
@@ -596,7 +613,7 @@ export default function App() {
                       setUiFont={handleUiFontChange}
                       uiScale={uiScale}
                       setUiScale={handleUiScaleChange}
-                      initialSubTab="appearance"
+                      initialSubTab={activeTab === 'dashboard' ? 'engine' : 'appearance'}
                     />
                   </Suspense>
                 )}

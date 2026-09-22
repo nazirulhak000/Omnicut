@@ -118,6 +118,12 @@ const OUT_PRESETS = {
 };
 
 function asContract(id, role, phase, definition) {
+  const trackNames = Object.keys(definition.tracks);
+  const unsupportedTracks = trackNames.filter((name) => name === 'position' || name === 'reveal');
+  const rendererBound = unsupportedTracks.length === 0;
+  const parityLevel = rendererBound
+    ? (trackNames.includes('blur') || definition.metadata?.secondary_pass ? 'bounded' : 'exact')
+    : 'legacy_fallback';
   const contract = {
     version: MOTION_CONTRACT_VERSION,
     id,
@@ -129,7 +135,9 @@ function asContract(id, role, phase, definition) {
     tracks: definition.tracks,
     metadata: {
       source: 'existing_visual_default',
-      renderer_bound: false,
+      renderer_bound: rendererBound,
+      parity_level: parityLevel,
+      unsupported_tracks: unsupportedTracks,
       ...(definition.metadata || {}),
     },
   };

@@ -351,6 +351,29 @@ def test_synthesize_project_name_without_product_code():
     assert name.startswith("bcd_loop_smartband_แกะกล่องว้าว_1")
 
 
+def test_synthesize_project_name_with_batch_and_angle_slug_suffix():
+    from scripts.batch_render import synthesize_project_name
+    # Batch 2 angle with pain_point_b2 should strip _b2, find ปัญหาก่อนใช้, and start at version 2
+    name = synthesize_project_name(
+        product_code="BCD01",
+        product_title="BCD Loop Smartband",
+        angle_id="pain_point_b2",
+        batch=2,
+        existing_dirs=[]
+    )
+    assert name == "BCD01-ปัญหาก่อนใช้_2"
+
+    # If _2 already exists in existing_dirs, it should increment to _3
+    name_bump = synthesize_project_name(
+        product_code="BCD01",
+        product_title="BCD Loop Smartband",
+        angle_id="pain_point_b2",
+        batch=2,
+        existing_dirs=["BCD01-ปัญหาก่อนใช้_2"]
+    )
+    assert name_bump == "BCD01-ปัญหาก่อนใช้_3"
+
+
 def test_batch_render_uses_standard_project_name_convention(tmp_path):
     """Batch worker must synthesize project_name adhering to {product_code}-{angle_name}_{variant} when not provided."""
     dummy_video = tmp_path / "vid.mp4"

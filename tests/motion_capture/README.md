@@ -37,15 +37,33 @@ python -m tests.motion_capture.app_capture `
 
 `frontend/motion_capture.html` mounts the real `SequencePlayer` component and
 exposes `window.motionCapture.capture({ frameIndex })`, so captures from this
-fixture use a deterministic 30 FPS frame index. For the full app, pass
+fixture use a deterministic 30 FPS frame index. The pytest suite owns a Vite
+server on a free loopback port, waits for HTTPS readiness, captures explicit
+frame indices, records browser console/page/request failures, and closes the
+server after the test session. No `MOTION_CAPTURE_APP_URL` environment variable
+is required for the fixture gate.
+
+Run the self-contained evidence suite:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/motion_capture -q -p no:cacheprovider
+```
+
+Run the strict live parity gate:
+
+```powershell
+.\.venv\Scripts\python.exe -m tests.motion_capture.run_live_gate
+```
+
+The strict command exits `0` only when the real Canvas-vs-FFmpeg pair passes.
+It currently exits `1` with the measured Motion Text layout blocker instead of
+skipping or making a false parity claim. Its temporary images and Vite logs are
+cleaned after the result is printed.
+
+For the full app, pass
 `--active-tab editor` and use the preview selector below after supplying a
 project query string:
 
 ```css
 div[class*="rounded-2xl"][class*="shadow-2xl"] canvas
 ```
-
-For the opt-in pytest gate, set `MOTION_CAPTURE_APP_URL` and
-`MOTION_CAPTURE_APP_CANVAS_SELECTOR`. If the app is not running, the selector
-is absent, or Playwright/Chromium cannot launch, the test skips with the exact
-reason instead of claiming that the live capture passed.

@@ -155,14 +155,15 @@ def prefix_advances(text_tokens: List[str], resolved_font: str, font_size_px: in
 
 
 _ASS_GLYPH_SCALE_CACHE: Dict[str, float] = {}
+_ASS_VERTICAL_METRICS_CACHE: Dict[str, Optional[Tuple[int, int, int]]] = {}
 
 
-def _sfnt_ass_glyph_scale(path: Path) -> Optional[float]:
-    """Read the two ASS sizing metrics directly from a TTF/OTF file.
+def _sfnt_ass_vertical_metrics(path: Path) -> Optional[Tuple[int, int, int]]:
+    """Read units-per-em and the Windows ascent/descent from a TTF/OTF.
 
-    This intentionally uses the standard library instead of fontTools.  The
-    scale is part of the render contract, so an optional package disappearing
-    must not silently turn a 50px em intent into a 50px libass line box.
+    This intentionally uses the standard library instead of fontTools because
+    these values are part of the render contract and cannot depend on an
+    optional package being installed.
     """
     try:
         data = path.read_bytes()
@@ -198,9 +199,18 @@ def _sfnt_ass_glyph_scale(path: Path) -> Optional[float]:
         line_box = win_ascent + win_descent
         if not units_per_em or not line_box:
             return None
-        return units_per_em / line_box
+        return units_per_em, win_ascent, win_descent
     except (OSError, KeyError, struct.error, TypeError, ValueError):
         return None
+
+
+def _sfnt_ass_glyph_scale(path: Path) -> Optional[float]:
+    metrics = _sfnt_ass_vertical_metrics(path)
+    if metrics is None:
+        return None
+    units_per_em, win_ascent, win_descent = metrics
+    line_box = win_ascent + win_descent
+    return units_per_em / line_box
 
 
 def ass_glyph_scale(resolved_font: str) -> float:
@@ -221,6 +231,43 @@ def ass_glyph_scale(resolved_font: str) -> float:
         scale = 1.0
     _ASS_GLYPH_SCALE_CACHE[resolved_font] = scale
     return scale
+
+
+def ass_top_anchor_offset(resolved_font: str, em_size_px: float) -> int:
+    """Return the render-pixel correction for ASS top-aligned overlay text.
+
+    Canvas ``textBaseline='top'`` anchors the em square.  libass Alignment 8
+    anchors its taller Windows line box.  The production style boosts ASS
+    Fontsize so the glyph em is the requested size; without subtracting the
+    extra ascent, a hook drifts downward even when both sides store the same
+    normalized ``y`` coordinate.
+    """
+
+    try:
+        requested = max(0.0, float(em_size_px))
+    except (TypeError, ValueError):
+        return 0
+    if requested <= 0:
+        return 0
+    if resolved_font not in _ASS_VERTICAL_METRICS_CACHE:
+        metrics = None
+        try:
+            path = _resolve_family_font_path(resolved_font)
+            if path:
+                metrics = _sfnt_ass_vertical_metrics(Path(path))
+        except Exception:
+            metrics = None
+        _ASS_VERTICAL_METRICS_CACHE[resolved_font] = metrics
+    metrics = _ASS_VERTICAL_METRICS_CACHE[resolved_font]
+    if metrics is None:
+        return 0
+    units_per_em, win_ascent, win_descent = metrics
+    line_box = win_ascent + win_descent
+    if units_per_em <= 0 or line_box <= 0:
+        return 0
+    boosted = round(requested * line_box / units_per_em)
+    extra_line_box = max(0.0, boosted - requested)
+    return int(round(extra_line_box * win_ascent / line_box))
 
 
 _HAS_TRUE_BOLD_CACHE: Dict[str, bool] = {}

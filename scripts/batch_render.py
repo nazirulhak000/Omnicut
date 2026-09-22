@@ -64,6 +64,7 @@ def synthesize_project_name(
     angle_id: str = "",
     angle_name: str = "",
     existing_dirs: Optional[List[str]] = None,
+    batch: Optional[int] = None,
 ) -> str:
     """
     Builds a collision-free project name matching the system standard:
@@ -72,7 +73,10 @@ def synthesize_project_name(
     """
     import re
     code_part = (product_code or "").strip().upper()
-    angle_slug = ANGLE_SLUG_MAP.get((angle_id or "").strip().lower())
+    clean_aid = (angle_id or "").strip().lower()
+    base_aid = re.sub(r'_b\d+$', '', clean_aid)
+
+    angle_slug = ANGLE_SLUG_MAP.get(clean_aid) or ANGLE_SLUG_MAP.get(base_aid)
     if not angle_slug:
         raw = angle_name or angle_id or "มุม1"
         cleaned = re.sub(r'[\uFE00-\uFE0F]', '', raw)
@@ -90,7 +94,12 @@ def synthesize_project_name(
         short_prod = "_".join(words_p[:3]).lower() if words_p else "video"
         base = f"{short_prod}_{angle_slug}"
 
-    version = 1
+    if batch is None:
+        m = re.search(r'_b(\d+)$', clean_aid)
+        if m:
+            batch = int(m.group(1))
+
+    version = max(1, int(batch) if batch is not None else 1)
     while True:
         candidate = f"{base}_{version}"
         if existing_dirs is not None:
@@ -455,6 +464,7 @@ class BatchRenderManager:
                 continue
 
             # Resolve project_name for this angle following standard convention
+            current_batch = angle_data.get("batch") or item.get("batch") or options.get("batch_index") or 1
             proj_name = angle_data.get("project_name")
             if not proj_name:
                 angle_pnames = options.get("angle_project_names") or {}
@@ -463,12 +473,37 @@ class BatchRenderManager:
                 elif len(items) == 1 and options.get("project_name"):
                     proj_name = options.get("project_name")
 
-            if not proj_name:
+            # Collision & Batch Isolation Guard:
+            # Verify proj_name does not belong to another angle/batch or collide with existing project folders
+            is_colliding = False
+            if proj_name:
+                from scripts.product_store import _extract_batch_from_name
+                proj_batch = _extract_batch_from_name(proj_name)
+                if proj_batch is not None and current_batch is not None and proj_batch != current_batch:
+                    is_colliding = True
+                else:
+                    for o in latest_prod.get("angles", []):
+                        if o is not angle_data and o.get("project_name") == proj_name:
+                            is_colliding = True
+                            break
+
+            if not proj_name or is_colliding:
+                existing_product_projs = set(latest_prod.get("projects", []))
+                for o in latest_prod.get("angles", []):
+                    if o.get("project_name") and o is not angle_data:
+                        existing_product_projs.add(o["project_name"])
+                if PROJECTS_DIR.exists():
+                    for d in PROJECTS_DIR.iterdir():
+                        if d.is_dir():
+                            existing_product_projs.add(d.name)
+
                 proj_name = synthesize_project_name(
                     product_code=latest_prod.get("product_code", ""),
                     product_title=angle_data.get("product_name") or product_title,
                     angle_id=angle_id,
                     angle_name=angle_data.get("angle_name", ""),
+                    batch=current_batch,
+                    existing_dirs=list(existing_product_projs),
                 )
 
             angle_data["project_name"] = proj_name

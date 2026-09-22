@@ -90,6 +90,29 @@ def test_sequence_id_is_deterministic_and_excludes_clip_index():
     assert first != build_sequence_artifact_id("sha256:source-002")
 
 
+def test_sequence_id_and_manifest_capture_the_source_window():
+    first = build_sequence_artifact_id(
+        SOURCE_FINGERPRINT,
+        source_start=1.0,
+        source_duration=2.0,
+    )
+    second = build_sequence_artifact_id(
+        SOURCE_FINGERPRINT,
+        source_start=8.0,
+        source_duration=2.0,
+    )
+    manifest = build_sequence_manifest(
+        first,
+        source_fingerprint=SOURCE_FINGERPRINT,
+        source_start=1.0,
+        source_duration=2.0,
+    )
+
+    assert first != second
+    assert manifest["source_start"] == 1.0
+    assert manifest["source_duration"] == 2.0
+
+
 def test_manifest_round_trips_atomically_with_complete_metadata(tmp_path, monkeypatch):
     replacements: list[tuple[Path, Path]] = []
     real_replace = os.replace
@@ -121,6 +144,8 @@ def test_manifest_round_trips_atomically_with_complete_metadata(tmp_path, monkey
         "height",
         "rotation",
         "frame_pattern",
+        "source_start",
+        "source_duration",
     }
     assert replacements[-1][0].parent == replacements[-1][1].parent
     assert replacements[-1][1] == paths.manifest

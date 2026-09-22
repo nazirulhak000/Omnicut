@@ -154,6 +154,25 @@ def test_dy_uses_base_position_and_reports_reveal_without_geometry_context():
     )
 
 
+def test_canvas_pixel_tracks_scale_to_export_resolution_and_power_easing_is_preserved():
+    contract = motion_contract(
+        tracks={
+            **track("dy", [(0, 60, "linear"), (1, 0, {"name": "power", "exponent": 0.6})], unit="canvas_px"),
+            **track("blur", [(0, 12, "linear"), (1, 0, {"name": "power", "exponent": 2.2})], unit="canvas_px"),
+        }
+    )
+
+    plan = build_ass_motion_segments(
+        contract,
+        base_position=(540, 960),
+        canvas_px_scale=2,
+    )
+
+    assert plan.initial_tags == r"\pos(540,1080)\blur24"
+    assert plan.segments[0].ass_tags == r"\move(540,1080,540,960,0,100)"
+    assert plan.segments[1].ass_tags == r"\t(0,100,2.2,\blur0)"
+
+
 def test_position_is_reported_or_can_fail_explicitly_without_silent_fallback():
     contract = motion_contract(
         tracks={

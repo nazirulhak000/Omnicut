@@ -235,12 +235,17 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
     }
   };
 
+  // Keep Jev visible in the model inventory even before its first metered call.
+  const modelUsage = useMemo(() => ({
+    ...(summary?.tokens_by_model || {}),
+    'Jev (TypeSafe)': Number(summary?.tokens_by_model?.['Jev (TypeSafe)'] || 0),
+  }), [summary?.tokens_by_model]);
   const modelChartData = useMemo(() => {
-    return Object.entries(summary?.tokens_by_model || {}).map(([modelName, tokens]) => ({
+    return Object.entries(modelUsage).map(([modelName, tokens]) => ({
       label: modelName,
       value: tokens,
     }));
-  }, [summary?.tokens_by_model]);
+  }, [modelUsage]);
 
   const taskChartData = useMemo(() => {
     return Object.entries(summary?.tokens_by_task || {}).map(([taskKey, tokens]) => ({
@@ -534,7 +539,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
               <Cpu className="w-4 h-4 text-[#25F4EE]" />
               <h3 className="text-sm font-bold text-white">สัดส่วนการใช้งานตามโมเดล (Models)</h3>
             </div>
-            <span className="text-xs text-slate-400">{Object.keys(summary?.tokens_by_model || {}).length} โมเดล</span>
+            <span className="text-xs text-slate-400">{Object.keys(modelUsage).length} โมเดล</span>
           </div>
 
           {modelChartData.length === 0 ? (
@@ -553,18 +558,23 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
                 />
               </div>
               <div className="flex-1 w-full space-y-2.5">
-                {Object.entries(summary.tokens_by_model).map(([modelName, tokens]) => {
+                {Object.entries(modelUsage).map(([modelName, tokens]) => {
                   const total = totals.total_tokens || 1;
                   const percent = Math.round((tokens / total) * 100);
                   const calls = summary?.calls_by_model?.[modelName] || 0;
-                  const isPro = modelName.includes('3.8') || modelName.includes('pro') || modelName.includes('claude');
+                  const isJev = modelName === 'Jev (TypeSafe)';
+                  const isPro = !isJev && (modelName.includes('3.8') || modelName.includes('pro') || modelName.includes('claude'));
 
                   return (
                     <div key={modelName} className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-slate-200">{modelName}</span>
-                          {isPro ? (
+                          {isJev ? (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                              DECISION
+                            </span>
+                          ) : isPro ? (
                             <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#FE2C55]/20 text-[#25F4EE] border border-[#25F4EE]/30">
                               PRO
                             </span>

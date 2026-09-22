@@ -19,6 +19,7 @@ from scripts.subtitle.font_metrics import (
     _measure_text_width_px,
     _hook_line_width_px,
     ass_glyph_scale,
+    ass_top_anchor_offset,
     repair_thai_stacked_marks,
     THAI_STACKED_MARK_RAISE_EM,
 )
@@ -105,6 +106,7 @@ def _build_contract_plan(
     end_ms: int,
     base_scale: float = 100.0,
     base_position: Optional[Tuple[float, float]] = None,
+    canvas_px_scale: float = 1.0,
 ):
     """Build an opt-in plan; unknown/malformed contracts keep legacy export alive."""
 
@@ -118,13 +120,17 @@ def _build_contract_plan(
             end_ms=end_ms,
             base_scale=base_scale,
             base_position=base_position,
+            canvas_px_scale=canvas_px_scale,
             unsupported="report",
         )
     except (TypeError, ValueError):
         # Project files from before the contract migration must remain
         # renderable.  The legacy builder is the compatibility fallback.
         return None
-    return plan
+    # Geometry-dependent tracks such as reveal must use the existing
+    # overlay-aware builder. Omitting an unsupported track would silently
+    # turn a selected animation into no animation in the export.
+    return None if plan.unsupported else plan
 
 
 def _ass_plan_has_position(plan: Any) -> bool:
@@ -242,6 +248,7 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
     caption_color = ctx.get("caption_color", "#0000E6FF")
     palette = style_visual_palette(ctx.get("style_preset"))
     accent_color = ctx.get("accent_color") or palette["accent_color"]
+    canvas_px_scale = max(0.01, float(video_width) / 540.0)
 
     hook_start = float(hook_overlay.get("start") or 0.0)
     hook_end = float(hook_overlay.get("end") or (hook_start + 3.0))
@@ -359,6 +366,10 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             cursor_y = int(round(video_height * float(hook_overlay["y"])))
         except (TypeError, ValueError):
             cursor_y = 260
+    # Canvas anchors a top-aligned hook at the em square while libass \an8
+    # anchors the taller Windows line box.  The ASS style intentionally boosts
+    # Fontsize to restore the em size, so remove only the added ascent here.
+    cursor_y -= ass_top_anchor_offset(hook_font, hook_fs)
 
     # HookHeader/HookHeaderShadow/HookHeaderPill's Style Fontsize (set in
     # subtitle_engine.py's header) already carries this boost, so every
@@ -401,6 +412,7 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             ),
             base_scale=target,
             base_position=(x_center, cursor_y),
+            canvas_px_scale=canvas_px_scale,
         )
         if contract_in is not None:
             in_tag, entry_end_ms, move_dy_in = (
@@ -415,6 +427,8 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
         else:
             in_tag, entry_end_ms, move_dy_in = in_builder(target, t0_ms)
             has_contract_position = False
+            if move_dy_in is not None:
+                move_dy_in = int(round(move_dy_in * canvas_px_scale))
         max_entry_end_ms = max(max_entry_end_ms, entry_end_ms)
         tier_font = tier_looks[tier_idx].get("font") or hook_font
         line_records.append({
@@ -454,6 +468,7 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
         "loop",
         start_ms=max_entry_end_ms,
         end_ms=contract_exit_start_ms,
+        canvas_px_scale=canvas_px_scale,
     )
     loop_tag = contract_loop.ass if contract_loop is not None else loop_builder(max_entry_end_ms, exit_start_ms)
 
@@ -466,6 +481,7 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             end_ms=exit_end_ms,
             base_scale=rec["target"],
             base_position=(x_center, rec["y"]),
+            canvas_px_scale=canvas_px_scale,
         )
         if contract_out is not None:
             out_tag, move_dy_out = contract_out.ass, None
@@ -473,6 +489,8 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
         else:
             out_tag, move_dy_out = out_builder(exit_start_ms, exit_end_ms, rec["target"])
             has_contract_out_position = False
+            if move_dy_out is not None:
+                move_dy_out = int(round(move_dy_out * canvas_px_scale))
 
         if is_typewriter:
             half_w = _hook_line_width_px(rec["line"], hook_font, rec["line_fs"])
@@ -589,6 +607,7 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
     caption_color = ctx.get("caption_color", "#0000E6FF")
     palette = style_visual_palette(ctx.get("style_preset"))
     accent_color = ctx.get("accent_color") or palette["accent_color"]
+    canvas_px_scale = max(0.01, float(video_width) / 540.0)
 
     look = resolve_look(item.get("look"), ((item.get("tiers") or [{}])[0] or {}).get("look"))
     txt = str(((item.get("tiers") or [{}])[0] or {}).get("text") or item.get("text") or "").strip()
@@ -681,6 +700,7 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
         end_ms=_contract_duration_ms(item, "text", "in", in_dur),
         base_scale=target_scale,
         base_position=(x_pos, y_pos),
+        canvas_px_scale=canvas_px_scale,
     )
     if contract_in is not None:
         in_dur = contract_in.window_ms["end"] - contract_in.window_ms["start"]
@@ -703,7 +723,8 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
     elif anim == "quick_fade":
         anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}\\alpha&HFF&\\t(0,150,\\alpha&H00&)"
     elif anim == "rise":
-        pos_tag = f"\\an5\\move({x_pos},{y_pos + 40},{x_pos},{y_pos},0,200)"
+        rise_dy = int(round(40 * canvas_px_scale))
+        pos_tag = f"\\an5\\move({x_pos},{y_pos + rise_dy},{x_pos},{y_pos},0,200)"
         anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}\\alpha&HFF&\\t(0,200,\\alpha&H00&)"
         contract_in_has_position = False
     else:  # none or other
@@ -763,6 +784,7 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
         end_ms=contract_exit_start_ms,
         base_scale=target_scale,
         base_position=(x_pos, y_pos),
+        canvas_px_scale=canvas_px_scale,
     )
     loop_tag = contract_loop.ass if contract_loop is not None else loop_builder(max_entry_end_ms, exit_start_ms)
 
@@ -775,6 +797,7 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
         end_ms=exit_end_ms,
         base_scale=target_scale,
         base_position=(x_pos, y_pos),
+        canvas_px_scale=canvas_px_scale,
     )
     if contract_out is not None:
         out_tag, move_dy_out = contract_out.ass, None
@@ -782,6 +805,8 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
     else:
         out_tag, move_dy_out = out_builder(exit_start_ms, exit_end_ms, target_scale)
         contract_out_has_position = False
+        if move_dy_out is not None:
+            move_dy_out = int(round(move_dy_out * canvas_px_scale))
 
     # Layer 3: a rounded pill behind the block, when the look has one
     if pill and line_list:
@@ -874,6 +899,7 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
                     end_ms=word_t0 + in_dur,
                     base_scale=target_scale,
                     base_position=(w_x, line_y),
+                    canvas_px_scale=canvas_px_scale,
                 )
                 if word_contract_in is not None:
                     t1 = word_t0 + in_dur

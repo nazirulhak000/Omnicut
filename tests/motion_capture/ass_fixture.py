@@ -18,11 +18,12 @@ import shutil
 import subprocess
 from typing import Any, Dict, Mapping, Optional, Tuple
 
-from PIL import Image, ImageChops, ImageStat
+from PIL import Image, ImageChops, ImageFilter, ImageOps, ImageStat
 
 from scripts.subtitle.motion_ass_adapter import build_ass_motion_segments
 from scripts.subtitle.motion_contract import get_motion_preset
 from scripts.subtitle.translation_service import ass_escape_text
+from scripts.subtitle_engine import SubtitleEngine
 
 
 FRAME_WIDTH = 1080
@@ -65,9 +66,10 @@ class ComparisonThresholds:
     """
 
     mask_iou_min: float = 0.90
+    mask_tolerance_px: int = 7
     bbox_edge_delta_px_max: int = 6
-    centroid_delta_px_max: float = 6.0
-    mean_abs_error_max: float = 0.22
+    centroid_delta_px_max: float = 4.0
+    mean_abs_error_max: float = 0.08
 
 
 @dataclass(frozen=True)
@@ -75,6 +77,7 @@ class FrameComparison:
     width: int
     height: int
     mean_abs_error: float
+    raw_mask_iou: Optional[float]
     mask_iou: Optional[float]
     bbox_edge_delta_px: Optional[int]
     centroid_delta_px: Optional[float]
@@ -239,6 +242,98 @@ def render_ass_fixture(spec: FixtureSpec, output_dir: Path) -> Dict[str, Path]:
     return {"ass": ass_path, "png": png_path, "metadata": metadata_path}
 
 
+def render_production_overlay_fixture(
+    overlay: Mapping[str, Any],
+    *,
+    sample_ms: int,
+    width: int,
+    height: int,
+    fps: int,
+    background: str,
+    output_dir: Path,
+) -> Dict[str, Path]:
+    """Render a real editor overlay through the production ASS writer.
+
+    ``SequencePlayer`` owns a half-resolution 540x960 canvas while exports are
+    1080x1920.  Rendering ASS directly at canvas size changes both libass font
+    metrics and outline thickness, so this fixture renders at export scale and
+    downsamples the completed frame exactly once for the comparison.
+    """
+
+    output_dir = _safe_output_dir(output_dir)
+    render_width = int(width) * 2
+    render_height = int(height) * 2
+    ass_path = output_dir / "production_overlay.ass"
+    png_path = output_dir / f"production_overlay_{int(sample_ms):04d}ms.png"
+    metadata_path = output_dir / f"production_overlay_{int(sample_ms):04d}ms.json"
+    font_name = str((overlay.get("look") or {}).get("font") or DEFAULT_FONT)
+    SubtitleEngine.generate_ass(
+        [],
+        str(ass_path),
+        font_name=font_name,
+        overlays=[dict(overlay)],
+        bilingual=False,
+        video_width=render_width,
+        video_height=render_height,
+        show_watermark=False,
+    )
+
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError("FFmpeg is required to render a production overlay fixture")
+    project_root = Path(__file__).resolve().parents[2]
+    fonts_dir = project_root / "02_Assets" / "Fonts"
+    subtitle_filter = f"subtitles='{_ffmpeg_path(ass_path)}':fontsdir='{_ffmpeg_path(fonts_dir)}'"
+    scale_filter = f"scale={int(width)}:{int(height)}:flags=lanczos"
+    duration_sec = max(1.0, (max(int(sample_ms), 0) + 100) / 1000)
+    command = [
+        ffmpeg,
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        f"color=c={background}:s={render_width}x{render_height}:r={int(fps)}:d={duration_sec:.3f}",
+        "-vf",
+        f"{subtitle_filter},{scale_filter}",
+        "-ss",
+        f"{max(int(sample_ms), 0) / 1000:.3f}",
+        "-frames:v",
+        "1",
+        "-pix_fmt",
+        "rgb24",
+        str(png_path),
+    ]
+    completed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if completed.returncode != 0:
+        raise RuntimeError(f"Production overlay fixture render failed: {completed.stderr.strip()}")
+
+    metadata = {
+        "fixture_schema": "production-overlay-motion-v1",
+        "renderer": "subtitle_engine/overlay_events + ffmpeg/libass",
+        "sample_ms": int(sample_ms),
+        "canvas_size": [int(width), int(height)],
+        "render_size": [render_width, render_height],
+        "fps": int(fps),
+        "background": background,
+        "overlay": dict(overlay),
+        "command": command,
+        "ffmpeg_version": _ffmpeg_version(ffmpeg),
+        "artifacts": {
+            "ass": {"path": ass_path.name, "sha256": _sha256(ass_path)},
+            "png": {"path": png_path.name, "sha256": _sha256(png_path)},
+        },
+    }
+    metadata_path.write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    return {"ass": ass_path, "png": png_path, "metadata": metadata_path}
+
+
 def _ffmpeg_version(binary: str) -> str:
     result = subprocess.run([binary, "-version"], capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
     return result.stdout.splitlines()[0] if result.stdout else "unknown"
@@ -272,6 +367,26 @@ def _bbox_center(bbox: Optional[Tuple[int, int, int, int]]) -> Optional[Tuple[fl
     return ((bbox[0] + bbox[2]) / 2.0, (bbox[1] + bbox[3]) / 2.0)
 
 
+def _mask_iou(reference_mask: Image.Image, candidate_mask: Image.Image) -> float:
+    reference_pixels = reference_mask.load()
+    candidate_pixels = candidate_mask.load()
+    intersection = union = 0
+    for y in range(reference_mask.height):
+        for x in range(reference_mask.width):
+            reference_on = reference_pixels[x, y] > 0
+            candidate_on = candidate_pixels[x, y] > 0
+            intersection += int(reference_on and candidate_on)
+            union += int(reference_on or candidate_on)
+    return intersection / union if union else 1.0
+
+
+def _tolerant_mask(mask: Image.Image, tolerance_px: int) -> Image.Image:
+    radius = max(0, int(tolerance_px))
+    if radius == 0:
+        return mask
+    return mask.filter(ImageFilter.MaxFilter(radius * 2 + 1))
+
+
 def compare_frames(reference_path: Path, candidate_path: Path, thresholds: ComparisonThresholds = ComparisonThresholds()) -> FrameComparison:
     """Compare two frames with exact diagnostics plus tolerant geometry gates."""
 
@@ -288,18 +403,24 @@ def compare_frames(reference_path: Path, candidate_path: Path, thresholds: Compa
         ref_bbox = reference_mask.getbbox()
         cand_bbox = candidate_mask.getbbox()
         if ref_bbox is None or cand_bbox is None:
-            return FrameComparison(reference.width, reference.height, mean_abs_error, None, None, None, exact, exact, "one frame has no foreground mask")
+            return FrameComparison(
+                width=reference.width,
+                height=reference.height,
+                mean_abs_error=mean_abs_error,
+                raw_mask_iou=None,
+                mask_iou=None,
+                bbox_edge_delta_px=None,
+                centroid_delta_px=None,
+                passed=exact,
+                exact_pixel_match=exact,
+                reason="one frame has no foreground mask",
+            )
 
-        ref_pixels = reference_mask.load()
-        cand_pixels = candidate_mask.load()
-        intersection = union = 0
-        for y in range(reference.height):
-            for x in range(reference.width):
-                ref_on = ref_pixels[x, y] > 0
-                cand_on = cand_pixels[x, y] > 0
-                intersection += int(ref_on and cand_on)
-                union += int(ref_on or cand_on)
-        mask_iou = intersection / union if union else 1.0
+        raw_mask_iou = _mask_iou(reference_mask, candidate_mask)
+        mask_iou = _mask_iou(
+            _tolerant_mask(reference_mask, thresholds.mask_tolerance_px),
+            _tolerant_mask(candidate_mask, thresholds.mask_tolerance_px),
+        )
         edge_delta = max(abs(ref_bbox[index] - cand_bbox[index]) for index in range(4))
         ref_center = _bbox_center(ref_bbox)
         cand_center = _bbox_center(cand_bbox)
@@ -310,7 +431,52 @@ def compare_frames(reference_path: Path, candidate_path: Path, thresholds: Compa
             and centroid_delta <= thresholds.centroid_delta_px_max
             and mean_abs_error <= thresholds.mean_abs_error_max
         )
-        return FrameComparison(reference.width, reference.height, mean_abs_error, mask_iou, edge_delta, centroid_delta, passed, exact)
+        return FrameComparison(
+            width=reference.width,
+            height=reference.height,
+            mean_abs_error=mean_abs_error,
+            raw_mask_iou=raw_mask_iou,
+            mask_iou=mask_iou,
+            bbox_edge_delta_px=edge_delta,
+            centroid_delta_px=centroid_delta,
+            passed=passed,
+            exact_pixel_match=exact,
+        )
+
+
+def write_frame_diff_artifacts(
+    reference_path: Path,
+    candidate_path: Path,
+    output_dir: Path,
+) -> Dict[str, Dict[str, Any]]:
+    """Write inspectable diff images for one comparison under a safe directory."""
+
+    output_dir = _safe_output_dir(output_dir)
+    with Image.open(reference_path) as reference_image, Image.open(candidate_path) as candidate_image:
+        reference = reference_image.convert("RGB")
+        candidate = candidate_image.convert("RGB")
+        if reference.size != candidate.size:
+            raise ValueError(f"frame sizes differ: {reference.size} != {candidate.size}")
+        absolute_diff = ImageChops.difference(reference, candidate)
+        luminance = ImageOps.grayscale(absolute_diff)
+        amplified = luminance.point(lambda value: min(255, value * 4))
+        heatmap = ImageOps.colorize(amplified, black="#000000", mid="#FF5500", white="#FFFFFF")
+        artifacts = {
+            "absolute_diff": ("absolute_diff.png", absolute_diff),
+            "heatmap": ("heatmap.png", heatmap),
+            "reference_mask": ("reference_mask.png", _foreground_mask(reference)),
+            "candidate_mask": ("candidate_mask.png", _foreground_mask(candidate)),
+        }
+        result: Dict[str, Dict[str, Any]] = {}
+        for key, (filename, image) in artifacts.items():
+            path = output_dir / filename
+            image.save(path, format="PNG", optimize=False)
+            result[key] = {
+                "path": filename,
+                "sha256": _sha256(path),
+                "size": list(image.size),
+            }
+        return result
 
 
 def _cli() -> int:

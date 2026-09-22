@@ -38,10 +38,38 @@ const RATIONAL_PATTERN = /^(\d+)\/(\d+)$/;
 const FRAME_PATTERN_PATTERN = /^(?:(frames)\/)?frame_%06d\.png$/;
 const EPSILON = 1e-9;
 
-/** Group timeline clips by the source sequence they can share. */
-export function groupBackgroundIsolationClips(clips = []) {
-  const groups = [];
-  const bySource = new Map();
+function finiteNonNegative(value) {
+  const candidate = Number(value);
+  return Number.isFinite(candidate) && candidate >= 0 ? candidate : null;
+}
+
+function clipSourceWindow(clip, sourceDurations = {}) {
+  const start = finiteNonNegative(clip?.trim_start) ?? 0;
+  const candidates = [
+    clip?.trim_end,
+    clip?.source_duration,
+    clip?.sourceDuration,
+    clip?.id != null ? sourceDurations?.[clip.id] : null,
+  ];
+  const end = candidates
+    .map(finiteNonNegative)
+    .find((candidate) => candidate != null && candidate > start + EPSILON);
+  return {
+    start,
+    end: end ?? null,
+    duration: end == null ? null : end - start,
+    unresolved: end == null,
+  };
+}
+
+/**
+ * Group clips into the smallest reusable source windows.
+ *
+ * Overlapping windows share one job. Disjoint windows remain separate so a
+ * short edit never runs rembg across unused minutes between two trims.
+ */
+export function groupBackgroundIsolationClips(clips = [], { sourceDurations = {} } = {}) {
+  const buckets = new Map();
   for (const clip of Array.isArray(clips) ? clips : []) {
     if (!clip?.source_path) continue;
     const rotation = [0, 90, 180, 270].includes(Number(clip.rotation))
@@ -49,15 +77,97 @@ export function groupBackgroundIsolationClips(clips = []) {
       : 0;
     const sourcePath = String(clip.source_path);
     const key = `${sourcePath.toLowerCase()}\u0000${rotation}`;
-    let group = bySource.get(key);
-    if (!group) {
-      group = { sourcePath, rotation, clips: [] };
-      bySource.set(key, group);
-      groups.push(group);
-    }
-    group.clips.push(clip);
+    if (!buckets.has(key)) buckets.set(key, { sourcePath, rotation, windows: [] });
+    buckets.get(key).windows.push({ clip, ...clipSourceWindow(clip, sourceDurations) });
   }
+
+  const groups = [];
+  buckets.forEach(({ sourcePath, rotation, windows }) => {
+    const sorted = windows.sort((a, b) => a.start - b.start || (a.end ?? Infinity) - (b.end ?? Infinity));
+    for (const window of sorted) {
+      const previous = groups.at(-1);
+      const canMerge = previous
+        && previous.sourcePath.toLowerCase() === sourcePath.toLowerCase()
+        && previous.rotation === rotation
+        && !previous.unresolved
+        && !window.unresolved
+        && window.start <= previous.end + EPSILON;
+      if (canMerge) {
+        previous.end = Math.max(previous.end, window.end);
+        previous.duration = previous.end - previous.start;
+        previous.clips.push(window.clip);
+        continue;
+      }
+      groups.push({
+        sourcePath,
+        rotation,
+        start: window.start,
+        end: window.end,
+        duration: window.duration,
+        unresolved: window.unresolved,
+        clips: [window.clip],
+      });
+    }
+  });
   return groups;
+}
+
+/** Match a persisted task window back to the clips it actually covers. */
+export function backgroundIsolationWindowContainsClip(window, clip, { sourceDurations = {} } = {}) {
+  if (!window || !clip?.source_path) return false;
+  const rotation = [0, 90, 180, 270].includes(Number(clip.rotation)) ? Number(clip.rotation) : 0;
+  const windowRotation = [0, 90, 180, 270].includes(Number(window.rotation)) ? Number(window.rotation) : 0;
+  if (
+    String(clip.source_path).toLowerCase() !== String(window.sourcePath ?? window.source_path ?? '').toLowerCase()
+    || rotation !== windowRotation
+  ) return false;
+
+  const clipWindow = clipSourceWindow(clip, sourceDurations);
+  const start = finiteNonNegative(window.start) ?? 0;
+  const duration = window.duration == null ? null : finiteNonNegative(window.duration);
+  if (clipWindow.unresolved || duration === 0) return false;
+  const end = duration == null ? Infinity : start + duration;
+  return clipWindow.start >= start - EPSILON && clipWindow.end <= end + EPSILON;
+}
+
+/** Build a deterministic preflight summary before any expensive work starts. */
+export function summarizeBackgroundIsolationPlan(groups = [], { fps = 30 } = {}) {
+  const safeFps = Number.isFinite(Number(fps)) && Number(fps) > 0 ? Number(fps) : 30;
+  const list = Array.isArray(groups) ? groups : [];
+  const unresolvedCount = list.filter((group) => group?.unresolved || group?.duration == null).length;
+  const totalDuration = list.reduce((sum, group) => {
+    const duration = Number(group?.duration);
+    return sum + (Number.isFinite(duration) && duration > 0 ? duration : 0);
+  }, 0);
+  const frameCount = list.reduce((sum, group) => {
+    const duration = Number(group?.duration);
+    return sum + (Number.isFinite(duration) && duration > 0 ? Math.ceil(duration * safeFps - EPSILON) : 0);
+  }, 0);
+  return {
+    jobCount: list.length,
+    clipCount: list.reduce((sum, group) => sum + (Array.isArray(group?.clips) ? group.clips.length : 0), 0),
+    unresolvedCount,
+    totalDuration,
+    frameCount,
+    fps: safeFps,
+    ready: list.length > 0 && unresolvedCount === 0 && frameCount > 0,
+  };
+}
+
+export function backgroundIsolationPrefetchTimes({
+  sourceTime,
+  fps,
+  count = 3,
+  sourceStart = 0,
+  sourceDuration = null,
+} = {}) {
+  const start = parseNonNegativeTime(sourceTime);
+  const ratio = parsePositiveRational(fps, 'fps');
+  const frameStep = ratio.denominator / ratio.numerator;
+  const limit = sourceDuration == null ? Infinity : sourceStart + sourceDuration;
+  const total = Math.max(1, Math.min(8, Math.floor(Number(count) || 1)));
+  return Array.from({ length: total }, (_, index) => start + index * frameStep)
+    .filter((time) => time <= limit + EPSILON);
 }
 
 /** Return only completed isolation tasks that belong to the active project. */
@@ -461,6 +571,8 @@ export function resolveBackgroundIsolationPreview({
 
   let framePattern;
   let frameIndex;
+  let sourceStart;
+  let sourceDuration;
   let baseUrl = artifactBaseUrl;
   try {
     if (manifest.schema_version !== SEQUENCE_SCHEMA_VERSION) throw new TypeError('schema');
@@ -481,8 +593,20 @@ export function resolveBackgroundIsolationPreview({
     parseRotation(manifest.rotation);
     parsePositiveInteger(manifest.width, 'width');
     parsePositiveInteger(manifest.height, 'height');
+    sourceStart = parseNonNegativeTime(manifest.source_start ?? 0);
+    sourceDuration = manifest.source_duration == null
+      ? null
+      : parseNonNegativeTime(manifest.source_duration);
+    if (sourceDuration === 0) throw new TypeError('source duration');
+    const absoluteSourceTime = parseNonNegativeTime(sourceTime);
+    if (
+      absoluteSourceTime < sourceStart - EPSILON
+      || (sourceDuration != null && absoluteSourceTime > sourceStart + sourceDuration + EPSILON)
+    ) {
+      return fallbackResult(normalized, 'source_time_outside_artifact', 'error');
+    }
     frameIndex = mapSourceTimeToFrameIndex({
-      sourceTime,
+      sourceTime: Math.max(0, absoluteSourceTime - sourceStart),
       fps: manifest.fps,
       timebase: manifest.timebase,
       frameCount: manifest.frame_count,
@@ -518,6 +642,8 @@ export function resolveBackgroundIsolationPreview({
     timebase: manifest.timebase,
     width: manifest.width,
     height: manifest.height,
+    sourceStart,
+    sourceDuration,
   };
 }
 

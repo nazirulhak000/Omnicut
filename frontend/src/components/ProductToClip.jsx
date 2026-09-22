@@ -2278,6 +2278,18 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [previewExportAngle, setPreviewExportAngle] = useState(null); // Dialog: preview exported MP4 video
   const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
   const { refreshTrigger, toggleActivityDrawer, activeTasks, pollTasks } = useTaskManager();
+
+  // Collect all known project names across this product to avoid collisions across batches
+  const knownProjects = useMemo(() => {
+    const list = [];
+    (productData?.projects || []).forEach((p) => {
+      if (p) list.push(typeof p === 'string' ? p : p.project_name);
+    });
+    (productData?.angles || []).forEach((a) => {
+      if (a?.project_name) list.push(a.project_name);
+    });
+    return list;
+  }, [productData]);
   const readProducts = (options = {}) => workspaceData?.loadProducts
     ? workspaceData.loadProducts(options)
     : getProducts();
@@ -2906,15 +2918,18 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   const handleHookApplied = (updatedAngle) => {
     if (!updatedAngle) return;
-    setAngles(prev => prev.map(a => a.angle_id === updatedAngle.angle_id ? { ...a, ...updatedAngle } : a));
+    const isTarget = (a) =>
+      ((a.angle_id && a.angle_id === updatedAngle.angle_id) || (a.id && a.id === updatedAngle.id)) &&
+      (a.batch || 1) === (updatedAngle.batch || 1);
+    setAngles(prev => prev.map(a => isTarget(a) ? { ...a, ...updatedAngle } : a));
     if (productData?.id) {
       setProductData(prev => prev ? {
         ...prev,
-        angles: (prev.angles || []).map(a => a.angle_id === updatedAngle.angle_id ? { ...a, ...updatedAngle } : a)
+        angles: (prev.angles || []).map(a => isTarget(a) ? { ...a, ...updatedAngle } : a)
       } : prev);
       setHistoryList(prev => prev.map(p => p.id === productData.id ? {
         ...p,
-        angles: (p.angles || []).map(a => a.angle_id === updatedAngle.angle_id ? { ...a, ...updatedAngle } : a)
+        angles: (p.angles || []).map(a => isTarget(a) ? { ...a, ...updatedAngle } : a)
       } : p));
     }
   };
@@ -3558,9 +3573,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       ? angle.selected_videos
       : (angle.selected_video ? [angle.selected_video] : []);
 
+    const targetBatch = angle.batch || 1;
     const resolvedIndex = typeof angleIdx === 'number' && angleIdx >= 0
       ? angleIdx
-      : angles.findIndex(a => (a.angle_id && a.angle_id === angle.angle_id) || a.hook_title === angle.hook_title);
+      : angles.findIndex(a => 
+          ((a.angle_id && a.angle_id === angle.angle_id) || a.hook_title === angle.hook_title) &&
+          (a.batch || 1) === targetBatch
+        );
 
     if (chosenVideos.length === 0) {
       showToast('⚠️ กรุณาเลือกคลิปวิดีโอสำหรับมุมนี้ก่อนส่งตัดต่อ', 'warning');
@@ -3581,6 +3600,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     onApplyToStudio({
       productId: productData?.id,
       angleId: angle.angle_id,
+      batch: targetBatch,
       productName: angle.product_name || productData?.title || customKeyword || 'สินค้า',
       // The banner's three tiers come from the angle (the script AI splits
       // the product name) and fall back to a whitespace split. They used to
@@ -3627,9 +3647,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   };
 
   const handleOpenInTimeline = (angle, index) => {
+    const targetBatch = angle.batch || 1;
     const resolvedIndex = typeof index === 'number'
       ? index
-      : angles.findIndex(a => (a.angle_id && a.angle_id === angle.angle_id) || a.hook_title === angle.hook_title);
+      : angles.findIndex(a => 
+          ((a.angle_id && a.angle_id === angle.angle_id) || a.hook_title === angle.hook_title) &&
+          (a.batch || 1) === targetBatch
+        );
 
     const chosenVideos = (angle.selected_videos && angle.selected_videos.length > 0)
       ? angle.selected_videos
@@ -3992,13 +4016,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     try {
       const angleProjectNames = {};
       readyForDraftAngles.forEach((a, idx) => {
-        angleProjectNames[a.angle_id] = buildProjectName({
+        const aBatch = a.batch || (selectedBatch !== 'all' ? selectedBatch : 1);
+        const pName = buildProjectName({
           productName: productData.name,
           angle: a,
           angleIndex: idx,
-          existingProjects: workspaceData?.projects || [],
+          existingProjects: [...knownProjects, ...Object.values(angleProjectNames)],
           productCode: productData.product_code || '',
+          batch: aBatch,
         });
+        angleProjectNames[a.angle_id] = pName;
       });
       const effectiveBatch = selectedBatch !== 'all' ? selectedBatch : null;
       const payload = {
@@ -4032,8 +4059,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         productName: productData.name,
         angle,
         angleIndex: index,
-        existingProjects: workspaceData?.projects || [],
+        existingProjects: knownProjects,
         productCode: productData.product_code || '',
+        batch: angleBatch,
       });
       const payload = {
         product_id: productData.id,
@@ -5184,7 +5212,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     <div className="grid gap-1.5 max-h-56 overflow-y-auto pr-1 no-scrollbar">
                       {displayedAngles.map((ang) => (
                         <AngleMobilePill
-                          key={ang.angle_id || ang.originalIndex}
+                          key={`${ang.angle_id || ang.id || 'ang'}_b${ang.batch || 1}_${ang.originalIndex}`}
                           angle={ang}
                           index={ang.originalIndex}
                           isSelected={activeAngleIdx === ang.originalIndex}
@@ -5214,7 +5242,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   ) : (
                     displayedAngles.map((ang) => (
                       <AngleSidebarItem
-                        key={ang.angle_id || ang.originalIndex}
+                        key={`${ang.angle_id || ang.id || 'ang'}_b${ang.batch || 1}_${ang.originalIndex}`}
                         angle={ang}
                         index={ang.originalIndex}
                         isSelected={activeAngleIdx === ang.originalIndex}
@@ -5229,8 +5257,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                           productName: productData?.name || '',
                           angle: ang,
                           angleIndex: ang.originalIndex,
-                          existingProjects: workspaceData?.projects || [],
+                          existingProjects: knownProjects,
                           productCode: productData?.product_code || '',
+                          batch: ang.batch,
                         })}
                       />
                     ))
@@ -5281,8 +5310,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         productName: productData?.name || '',
                         angle: angles[activeAngleIdx],
                         angleIndex: activeAngleIdx,
-                        existingProjects: workspaceData?.projects || [],
+                        existingProjects: knownProjects,
                         productCode: productData?.product_code || '',
+                        batch: angles[activeAngleIdx]?.batch,
                       })}
                     />
                   ) : displayedAngles[0] ? (
@@ -5327,8 +5357,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         productName: productData?.name || '',
                         angle: angles[displayedAngles[0]?.originalIndex],
                         angleIndex: displayedAngles[0]?.originalIndex ?? 0,
-                        existingProjects: workspaceData?.projects || [],
+                        existingProjects: knownProjects,
                         productCode: productData?.product_code || '',
+                        batch: angles[displayedAngles[0]?.originalIndex]?.batch,
                       })}
                     />
                   ) : null}
@@ -5353,7 +5384,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 ) : (
                   displayedAngles.map((ang) => (
                     <ScriptAccordionItem
-                      key={ang.angle_id || ang.originalIndex}
+                      key={`${ang.angle_id || ang.id || 'ang'}_b${ang.batch || 1}_${ang.originalIndex}`}
                       angle={ang}
                       index={ang.originalIndex}
                       isOpen={openAngleIdx === ang.originalIndex}

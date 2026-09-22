@@ -768,7 +768,9 @@ export default function OverlayInspector({
                         className="flex-1 min-w-0 rounded-lg border border-white/[0.1] bg-black/60 px-2 py-1 text-xs font-semibold text-white shadow-inner focus:border-[#E6C24A] focus:outline-none cursor-pointer"
                       >
                         {Object.entries(options).map(([id, meta]) => (
-                          <option key={id} value={id}>{meta.label_th}</option>
+                          <option key={id} value={id} disabled={meta.enabled === false}>
+                            {meta.label_th}{meta.contract_renderer_bound === false ? ' · Renderer เดิม' : ''}
+                          </option>
                         ))}
                       </select>
                     </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, CircleDot, FileEdit, Rocket, Search, Trash2, X } from 'lucide-react';
 import { getProducts } from '../../api';
-import { filterActiveProjects } from '../../lib/editorEntry';
+import { filterActiveProjects, filterProjectsByTab, countProjectsByTab } from '../../lib/editorEntry';
 import { getRelativeTime, formatFullDateTime } from '../../lib/dateUtils';
 import PaginationControls from '../PaginationControls';
 
@@ -60,6 +60,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
   const [open, setOpen] = useState(false);
   const [statusByProject, setStatusByProject] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterTab, setFilterTab] = useState('active'); // 'active' | 'rendered' | 'all'
   const [projectPage, setProjectPage] = useState(1);
   const [projectPageSize, setProjectPageSize] = useState(20);
   const wrapRef = useRef(null);
@@ -83,6 +84,18 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
 
   useEffect(() => { refreshStatuses(); }, []);
 
+  const decorated = useMemo(
+    () => projectList.map((p) => ({ ...p, status: statusByProject[p.project_name] })),
+    [projectList, statusByProject]
+  );
+  // Zero-Risk Studio Lockout: Exclude posted projects completely from editor dropdown
+  const visible = useMemo(
+    () => filterActiveProjects(decorated, statusByProject),
+    [decorated, statusByProject]
+  );
+
+  const counts = useMemo(() => countProjectsByTab(visible), [visible]);
+
   useEffect(() => {
     if (!open) {
       setSearchQuery('');
@@ -90,6 +103,8 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
       return undefined;
     }
     refreshStatuses();
+    // Always default to 'active' ('กำลังตัดต่อ') to keep editor dropdown clean and focused
+    setFilterTab('active');
     const timer = setTimeout(() => {
       searchInputRef.current?.focus();
     }, 50);
@@ -112,26 +127,32 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const decorated = useMemo(
-    () => projectList.map((p) => ({ ...p, status: statusByProject[p.project_name] })),
-    [projectList, statusByProject]
-  );
-  // Zero-Risk Studio Lockout: Exclude posted projects completely from editor dropdown
-  const visible = useMemo(
-    () => filterActiveProjects(decorated, statusByProject),
-    [decorated, statusByProject]
+  const tabFiltered = useMemo(
+    () => filterProjectsByTab(visible, filterTab),
+    [visible, filterTab]
   );
 
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return visible;
+    if (!searchQuery.trim()) return tabFiltered;
+    const q = searchQuery.trim().toLowerCase();
+    return tabFiltered.filter((p) => {
+      const nameMatch = p.project_name?.toLowerCase().includes(q);
+      const statusLabel = STATUS_LABEL[p.status] || p.status || '';
+      const statusMatch = statusLabel.toLowerCase().includes(q);
+      return nameMatch || statusMatch;
+    });
+  }, [tabFiltered, searchQuery]);
+
+  const searchMatchesInAll = useMemo(() => {
+    if (!searchQuery.trim() || filterTab === 'all') return 0;
     const q = searchQuery.trim().toLowerCase();
     return visible.filter((p) => {
       const nameMatch = p.project_name?.toLowerCase().includes(q);
       const statusLabel = STATUS_LABEL[p.status] || p.status || '';
       const statusMatch = statusLabel.toLowerCase().includes(q);
       return nameMatch || statusMatch;
-    });
-  }, [visible, searchQuery]);
+    }).length;
+  }, [visible, searchQuery, filterTab]);
 
   const displayed = useMemo(() => {
     return filtered.slice((projectPage - 1) * projectPageSize, projectPage * projectPageSize);
@@ -197,16 +218,130 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
             </div>
           </div>
 
+          {/* Status Filter Tabs */}
+          <div className="mb-1.5 flex items-center gap-1 px-0.5 border-b border-white/[0.08] pb-1.5 flex-shrink-0" role="tablist" aria-label="กรองสถานะโปรเจกต์">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={filterTab === 'active'}
+              onClick={() => { setFilterTab('active'); setProjectPage(1); }}
+              className={`flex-1 flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                filterTab === 'active'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] border border-transparent'
+              }`}
+              title="แสดงเฉพาะงานที่กำลังตัดต่อ / ร่างสคริปต์"
+            >
+              <CircleDot className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">กำลังตัดต่อ</span>
+              <span className={`text-[10px] font-mono px-1 rounded-full ${
+                filterTab === 'active' ? 'bg-amber-500/30 text-amber-200' : 'bg-white/[0.08] text-slate-400'
+              }`}>
+                {counts.active}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={filterTab === 'rendered'}
+              onClick={() => { setFilterTab('rendered'); setProjectPage(1); }}
+              className={`flex-1 flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                filterTab === 'rendered'
+                  ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] border border-transparent'
+              }`}
+              title="แสดงงานที่เรนเดอร์ตัดต่อเสร็จแล้ว"
+            >
+              <Check className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">ตัดเสร็จแล้ว</span>
+              <span className={`text-[10px] font-mono px-1 rounded-full ${
+                filterTab === 'rendered' ? 'bg-sky-500/30 text-sky-200' : 'bg-white/[0.08] text-slate-400'
+              }`}>
+                {counts.rendered}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={filterTab === 'all'}
+              onClick={() => { setFilterTab('all'); setProjectPage(1); }}
+              className={`flex-none flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                filterTab === 'all'
+                  ? 'bg-white/[0.15] text-white border border-white/30 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] border border-transparent'
+              }`}
+              title="แสดงโปรเจกต์ทั้งหมด"
+            >
+              <span>ทั้งหมด</span>
+              <span className={`text-[10px] font-mono px-1 rounded-full ${
+                filterTab === 'all' ? 'bg-white/20 text-white' : 'bg-white/[0.08] text-slate-400'
+              }`}>
+                {counts.all}
+              </span>
+            </button>
+          </div>
+
           {/* Scrollable Project Items */}
           <div className="flex-1 space-y-1 overflow-y-auto pr-0.5 max-h-80">
             {visible.length === 0 && (
-              <p className="px-2.5 py-3 text-center text-sm text-slate-500">ไม่มีโปรเจกต์ที่กำลังตัดต่อ</p>
+              <p className="px-2.5 py-6 text-center text-sm text-slate-500">ไม่มีโปรเจกต์ในระบบ</p>
             )}
 
-            {visible.length > 0 && displayed.length === 0 && (
-              <p className="px-2.5 py-4 text-center text-xs text-slate-400">
-                ไม่พบโปรเจกต์ที่ตรงกับ &ldquo;{searchQuery}&rdquo;
-              </p>
+            {visible.length > 0 && tabFiltered.length === 0 && !searchQuery && (
+              filterTab === 'active' ? (
+                <div className="px-3 py-6 text-center text-xs">
+                  <CircleDot className="w-6 h-6 mx-auto mb-2 text-slate-500 opacity-60" />
+                  <p className="text-slate-300 font-bold mb-1">ไม่มีงานที่กำลังตัดต่อ</p>
+                  <p className="text-slate-500 mb-3 text-[11px]">งานทั้งหมดถูกเรนเดอร์เสร็จแล้ว ({counts.rendered} โปรเจกต์)</p>
+                  {counts.rendered > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => { setFilterTab('rendered'); setProjectPage(1); }}
+                      className="px-3 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 font-bold text-xs cursor-pointer transition-colors inline-flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>ดูงานที่ตัดเสร็จแล้ว</span>
+                    </button>
+                  )}
+                </div>
+              ) : filterTab === 'rendered' ? (
+                <div className="px-3 py-6 text-center text-xs">
+                  <Check className="w-6 h-6 mx-auto mb-2 text-slate-500 opacity-60" />
+                  <p className="text-slate-300 font-bold mb-1">ยังไม่มีงานที่ตัดเสร็จแล้ว</p>
+                  <p className="text-slate-500 mb-3 text-[11px]">มีงานกำลังตัดต่ออยู่ {counts.active} โปรเจกต์</p>
+                  {counts.active > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => { setFilterTab('active'); setProjectPage(1); }}
+                      className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs cursor-pointer transition-colors inline-flex items-center gap-1.5"
+                    >
+                      <CircleDot className="w-3.5 h-3.5" />
+                      <span>ดูงานกำลังตัดต่อ</span>
+                    </button>
+                  )}
+                </div>
+              ) : null
+            )}
+
+            {visible.length > 0 && displayed.length === 0 && searchQuery && (
+              <div className="px-3 py-6 text-center text-xs">
+                <p className="text-slate-300 font-semibold mb-1">
+                  ไม่พบโปรเจกต์ที่ตรงกับ &ldquo;{searchQuery}&rdquo;
+                </p>
+                {searchMatchesInAll > 0 && filterTab !== 'all' ? (
+                  <button
+                    type="button"
+                    onClick={() => { setFilterTab('all'); setProjectPage(1); }}
+                    className="mt-2 px-3 py-1.5 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/35 text-[#25F4EE] font-bold text-xs cursor-pointer transition-colors inline-flex items-center gap-1"
+                  >
+                    <span>ค้นหาใน &ldquo;ทั้งหมด&rdquo; ({searchMatchesInAll} รายการ)</span>
+                  </button>
+                ) : (
+                  <p className="text-slate-500 text-[11px] mt-1">ลองเปลี่ยนคำค้นหา หรือตรวจการสะกดคำ</p>
+                )}
+              </div>
             )}
 
             {displayed.map((p) => {

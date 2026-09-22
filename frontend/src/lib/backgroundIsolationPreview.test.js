@@ -5,12 +5,15 @@ import {
   LEGACY_FRAME_PATTERN,
   SEQUENCE_FRAME_PATTERN,
   buildBackgroundIsolationFrameUrl,
+  backgroundIsolationWindowContainsClip,
+  backgroundIsolationPrefetchTimes,
   completedBackgroundIsolationTasks,
   groupBackgroundIsolationClips,
   mapSourceTimeToFrameIndex,
   resolveBackgroundIsolationConfig,
   resolveBackgroundIsolationPreview,
   splitBackgroundIsolationOverlays,
+  summarizeBackgroundIsolationPlan,
   summarizeBackgroundIsolationStatus,
 } from './backgroundIsolationPreview.js';
 
@@ -124,18 +127,92 @@ test('project failure marker prevents stale ready clips from masking a failed pr
   assert.equal(result.totalCount, 1);
 });
 
-test('groups multiple trim windows from one source into one isolation job', () => {
+test('splits disjoint trim windows while merging overlapping windows from one source', () => {
   const source = 'D:/clips/esseger.mov';
   const groups = groupBackgroundIsolationClips([
     { source_path: source, trim_start: 0, trim_end: 2 },
-    { source_path: source, trim_start: 4, trim_end: 6 },
+    { source_path: source, trim_start: 1.5, trim_end: 4 },
     { source_path: source.toUpperCase(), trim_start: 8, trim_end: 10 },
     { source_path: source, rotation: 90, trim_start: 12, trim_end: 14 },
   ]);
 
-  assert.equal(groups.length, 2);
-  assert.equal(groups[0].clips.length, 3);
-  assert.equal(groups[1].rotation, 90);
+  assert.equal(groups.length, 3);
+  assert.deepEqual(
+    groups.map(({ rotation, start, duration, clips }) => ({ rotation, start, duration, clips: clips.length })),
+    [
+      { rotation: 0, start: 0, duration: 4, clips: 2 },
+      { rotation: 0, start: 8, duration: 2, clips: 1 },
+      { rotation: 90, start: 12, duration: 2, clips: 1 },
+    ],
+  );
+});
+
+test('uses loaded source duration for an open-ended clip and reports unresolved windows', () => {
+  const source = 'D:/clips/product.mov';
+  const resolved = groupBackgroundIsolationClips(
+    [{ id: 'clip-1', source_path: source, trim_start: 3, trim_end: null }],
+    { sourceDurations: { 'clip-1': 8.5 } },
+  );
+  const unresolved = groupBackgroundIsolationClips([
+    { id: 'clip-2', source_path: source, trim_start: 3, trim_end: null },
+  ]);
+
+  assert.equal(resolved[0].start, 3);
+  assert.equal(resolved[0].duration, 5.5);
+  assert.equal(resolved[0].unresolved, false);
+  assert.equal(unresolved[0].duration, null);
+  assert.equal(unresolved[0].unresolved, true);
+});
+
+test('task window binds only clips covered by that source range', () => {
+  const clip = { id: 'clip-1', source_path: 'D:/clips/product.mov', trim_start: 8, trim_end: 10 };
+  assert.equal(backgroundIsolationWindowContainsClip({
+    source_path: clip.source_path,
+    rotation: 0,
+    start: 8,
+    duration: 2,
+  }, clip), true);
+  assert.equal(backgroundIsolationWindowContainsClip({
+    source_path: clip.source_path,
+    rotation: 0,
+    start: 0,
+    duration: 2,
+  }, clip), false);
+});
+
+test('preflight summary reports exact jobs, seconds, frames, and unresolved windows', () => {
+  const plan = summarizeBackgroundIsolationPlan([
+    { duration: 2, clips: [{}, {}], unresolved: false },
+    { duration: 1.5, clips: [{}], unresolved: false },
+  ], { fps: 30 });
+  const blocked = summarizeBackgroundIsolationPlan([
+    { duration: null, clips: [{}], unresolved: true },
+  ]);
+
+  assert.deepEqual(plan, {
+    jobCount: 2,
+    clipCount: 3,
+    unresolvedCount: 0,
+    totalDuration: 3.5,
+    frameCount: 105,
+    fps: 30,
+    ready: true,
+  });
+  assert.equal(blocked.ready, false);
+  assert.equal(blocked.unresolvedCount, 1);
+});
+
+test('prefetch times follow rational FPS and stop at the artifact boundary', () => {
+  assert.deepEqual(
+    backgroundIsolationPrefetchTimes({
+      sourceTime: 9.95,
+      fps: '30/1',
+      count: 4,
+      sourceStart: 8,
+      sourceDuration: 2,
+    }).map((value) => Number(value.toFixed(6))),
+    [9.95, 9.983333],
+  );
 });
 
 function readyConfig(overrides = {}) {
@@ -169,6 +246,8 @@ function readyManifest(overrides = {}) {
     height: 1920,
     rotation: 0,
     frame_pattern: SEQUENCE_FRAME_PATTERN,
+    source_start: 0,
+    source_duration: null,
     ...overrides,
   };
 }
@@ -254,6 +333,33 @@ test('ready sequence maps source-local time to a zero-based frame and carries ro
   assert.equal(result.frameUrl, `${BASE_URL}/${ARTIFACT_ID}/frames/frame_000001.png`);
   assert.equal(result.rotation, 90);
   assert.equal(result.framePattern, SEQUENCE_FRAME_PATTERN);
+});
+
+test('windowed sequence subtracts source_start before selecting a frame', () => {
+  const result = resolveBackgroundIsolationPreview({
+    config: readyConfig(),
+    manifest: readyManifest({ source_start: 8, source_duration: 2, frame_count: 60 }),
+    artifactBaseUrl: BASE_URL,
+    sourceTime: 8 + (3 / 30),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.frameIndex, 3);
+  assert.equal(result.sourceStart, 8);
+  assert.equal(result.sourceDuration, 2);
+});
+
+test('windowed sequence fails closed when a clip asks for source time outside its artifact', () => {
+  for (const sourceTime of [7.99, 10.01]) {
+    const result = resolveBackgroundIsolationPreview({
+      config: readyConfig(),
+      manifest: readyManifest({ source_start: 8, source_duration: 2, frame_count: 60 }),
+      artifactBaseUrl: BASE_URL,
+      sourceTime,
+    });
+    assert.equal(result.useArtifact, false);
+    assert.equal(result.reason, 'source_time_outside_artifact');
+  }
 });
 
 test('frame boundaries are stable and source time beyond duration clamps to the last frame', () => {

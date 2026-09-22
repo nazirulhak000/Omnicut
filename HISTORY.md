@@ -7,8 +7,115 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round UNIQUE-COMPOUND-ANGLE-ID-ISOLATION-20260922 | แก้ปัญหาโครงสร้าง angle_id ชนกันหรือเขียนทับข้ามล็อต ด้วย Compound Unique ID (pain_point_b2), อุดช่องโหว่ Fallback/State ใน Backend, API, ShotListsStore และ React Virtual DOM | 2026-09-22 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round EDITOR-PARITY-PHASE-2-BACKGROUND-CUTOUT-20260922 | ทำ Background Cutout แบบ Timeline-windowed พร้อม cache identity, preflight, progress/cancel/retry, strict Render gate และ live u2net parity probe | 2026-09-22 | สำเร็จ (ดำเนินการโดย: Codex (GPT-5)) |
+| Round PROJECT-SELECTOR-SMART-FILTER-TABS-20260922 | เพิ่ม Smart Filter Tabs ในเมนู Dropdown เลือกโปรเจกต์ของ Editor (`[ กำลังตัดต่อ ]`, `[ ตัดเสร็จแล้ว ]`, `[ ทั้งหมด ]`) โดยค่าเริ่มต้นเปิดมาที่ "กำลังตัดต่อ" ทันที เพื่อไม่ให้งานที่เรนเดอร์เสร็จแล้วหลายสิบชิ้นมาทำให้หน้าจอดูรกและยุ่งยาก | 2026-09-22 | สำเร็จสมบูรณ์ (Editor Project Selector Smart Filter Tabs, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round FIX-BATCH2-DRAFT-PROJECT-NAME-COLLISION-AND-OPEN-TIMELINE-20260922 | แก้ปัญหาการสร้างดราฟต์ข้ามล็อตทับชื่อโปรเจกต์เดิม (_1) ทำให้เปิดไทม์ไลน์แล้วเข้าโปรเจกต์เก่า และมุมล็อต 2 ถูกเตะกลับเป็นสถานะ scripted: ป้องกันการชนชื่อข้ามล็อต (Batch-Aware Project Synthesis & Collision Guard) และกู้คืนโฟลเดอร์ BLU01-ปัญหาก่อนใช้_2 พร้อมสถานะ in_production | 2026-09-22 | สำเร็จสมบูรณ์ (Batch-Aware Draft Naming & Timeline Collision Guard, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round HOOK-CARD-PREVIEW-MOTION-AND-TEXT-PARITY-20260922 | ปรับปรุงแอนิเมชันและการแสดงผลในการ์ดแม่แบบข้อความ ให้ตรงกับหน้าจอ Preview เสมือนจริง 100% (SequencePlayer Parity: Shake/Wave Rotation [-3°..3°], Flicker Alpha Steps, Lightsweep Specular, Per-Line Center Rotation, and Active Hook Text Integration) | 2026-09-22 | สำเร็จสมบูรณ์ (Hook Card Preview Motion & Text Parity, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SCRIPT-CARD-TIMELINE-PROJECT-VISIBILITY-AND-BATCH2-FALLBACK-FIX-20260922 | แสดงชื่อโปรเจกต์เฉพาะเมื่อสคริปต์เข้าไทม์ไลน์แล้วจริง (ไม่แสดงป้ายโฟลเดอร์หลอกตาในสถานะ scripted) และตัด fallback ข้ามล็อตของแผนถ่าย เพื่อไม่ให้ขึ้น "แผนถ่ายเก่า (บทเปลี่ยน)" ผิดพลาดในล็อต 2 | 2026-09-22 | สำเร็จสมบูรณ์ (Timeline Visibility & Batch 2 Fallback Fix, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round UNIQUE-COMPOUND-ANGLE-ID-ISOLATION-20260922 — completed
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**ผลลัพธ์:** แก้ไขปัญหาโครงสร้างการระบุตัวตนของมุมมองวิดีโอ (`angle_id`) ที่เกิดการชนกัน (Collision) หรือเขียนทับข้ามล็อต (Batch Cross-Contamination) อย่างถาวร ด้วยหลักการ Compound Unique Primary Key (`pain_point_b2`) และอุดช่องโหว่ Fallback/State ใน Backend, API, ShotListsStore และ React Virtual DOM
+
+- **Database Migration**: สร้างและรัน `scripts/migrate_compound_angle_ids.py` สแกนและอัปเดตมุมมองในฐานข้อมูลทั้งหมดให้เป็น Compound Unique ID (`_b{batch}`) โดยอัตโนมัติ พร้อมซิงค์ `project.json` และ `ShotListsStore` ครบ 100% ตรวจสอบสินค้า 24 รายการในระบบมี duplicate angle_id = 0
+- **Backend Store Hardening**:
+  - `ProductStore.append_angles`: รับประกันว่ามุมในล็อตใหม่ (`batch > 1`) จะได้รับ suffix `_b{assigned_batch}` และ random salt เสมอ ป้องกันการสร้าง ID ซ้ำ
+  - `ProductStore._mutate` (line 473): แก้ไข shot list invalidation ให้ scope ตาม key `(aid, batch)` ป้องกันการลบแผนถ่ายผิดล็อตเมื่อบทเปลี่ยน
+  - `ProductStore.update_angle_status`, `replace_angle_content`, `update_angle_cover`, `update_angle_videos`, `update_angle_voice`, `update_angle_manual_shot_map`: ดึง `effective_batch` จาก compound ID อัตโนมัติหากไม่ได้ส่ง `batch` มา ปิดช่องโหว่ fallback ที่เคยคว้า Batch 1 ไปอัปเดตแทน
+  - `ProductStore.remove_angle`: เปลี่ยนจากการลบทุกมุมที่ตรงกับ `angle_id` มาเป็นการลบเฉพาะ Object Instance เดียวกัน (`a is not target`) ป้องกันการลบมุมข้ามล็อต
+  - `ProductStore._reconcile_into`: รับประกัน `variant_angle` มี ID ไม่ซ้ำ
+- **Shot List Isolation**:
+  - `ShotListsStore.get`, `upsert`, `delete`: ดึง `effective_batch` จาก compound ID ป้องกันการหยิบแผนถ่ายหรือลบแผนถ่ายข้ามล็อต
+  - `scripts/shot_list_builder.py`: อุดช่องโหว่ `batch_suffix` ซ้ำซ้อน (`_b2_b2`) และใช้ `_find_angle` ที่รับรู้ compound ID
+- **Backend API**:
+  - `scripts/api_products.py`: ใน `generate_product_batch` ส่งคืน `new_angles` จากข้อมูลที่ถูกบันทึกจริง (Compound Unique IDs) กลับไปให้ Frontend
+  - `scripts/api_shot_lists.py`: แยกแยะ batch จาก compound ID ทั้งตอนสร้างและอ่านแผนถ่าย
+- **Frontend State & Virtual DOM**:
+  - `ProductToClip.jsx`: อัปเดต `handleHookApplied`, `handleApplyToStudio`, `handleOpenInTimeline` ให้เปรียบเทียบทั้ง `angle_id` และ `batch`
+  - React Virtual DOM: เปลี่ยน `key` ในรายการมุมมองเป็น `${ang.angle_id || ang.id}_b${ang.batch || 1}_${ang.originalIndex}` ป้องกัน React Render ข้ามล็อต
+  - `App.jsx`: จำ `batch` ใน `activeAngleContext` และส่ง `batch` ไปพร้อมกับการเรียก `updateAngleStatus` เมื่อเรนเดอร์เสร็จ
+- **Verification**: รัน unit test `test_multi_batch_angle_isolation.py` (11/11 passed), frontend unit tests (301/301 passed) สมบูรณ์ 100%
+
+## Round EDITOR-PARITY-PHASE-2-BACKGROUND-CUTOUT-20260922 — completed
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จแล้ว
+
+**ผลลัพธ์:** Background Cutout ใช้เฉพาะ source-time windows ที่ Timeline ใช้จริง แยก cache identity ตาม source/window/model/output contract และบันทึก `source_start/source_duration` เพื่อให้ Preview กับ Render เลือก artifact-local frame ตรงกัน
+
+- เพิ่ม preflight ตรวจ rembg, onnxruntime, Pillow, model cache, disk และ RAM พร้อม estimate จำนวนช่วง/วินาที/เฟรม
+- เพิ่ม progress, cancel, retry, reload rebinding, bounded frame prefetch และ conflict UI สำหรับ `bg_blur`/`fit_mode=blur`
+- Render block เมื่อ Cutout ยังไม่พร้อมหรือ artifact ผิด แทน silent fallback เป็นภาพต้นฉบับ
+- cache key/invalidation รวม source fingerprint, trim window, rotation, model, quality, dimensions, fps และ timebase
+- source media เป็น read-only; cancel/error ไม่มี published partial artifact และ private checkpoint ใช้ retry ได้
+- live `u2net` probe กับวิดีโอจริง: alpha `0..255`, Preview-vs-FFmpeg NMAE `0.0`, max delta `0`, source hash ไม่เปลี่ยน, cleanup 100%
+- Verification: Background Isolation backend `178 passed, 4 skipped`; frontend `301 passed`; frontend build, compileall, coverage validator และ `git diff --check` ผ่าน
+- คง readiness เป็น `APPROXIMATION` อย่างโปร่งใส เพราะ rembg mask รายเฟรมอาจมี temporal edge flicker กับมือ วัตถุโปร่งใส และ motion blur; UI แจ้งให้ตรวจ Preview ก่อน Render
+
+---
+
+## Round PROJECT-SELECTOR-SMART-FILTER-TABS-20260922 — เพิ่ม Smart Filter Tabs ในเมนู Dropdown เลือกโปรเจกต์ของ Editor
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **สาเหตุและความต้องการ**:
+  1. ในหน้าตัดต่อ (Editor) Dropdown เลือกโปรเจกต์แสดงโปรเจกต์ทั้งหมดปนกันถึง 48 รายการ (3 หน้า pagination) โดยส่วนใหญ่เป็นงานที่ "ตัดเสร็จแล้ว" (Rendered) มาตั้งแต่หลายวันก่อน ทำให้รายการยาว รกตา และผู้ใช้ค้นหาโปรเจกต์ที่กำลังตัดต่ออยู่จริงได้ยาก
+  2. ผู้ใช้เสนอว่าควรซ่อนหรือแยกงานที่ตัดเสร็จแล้ว เพื่อให้หน้ารายการสะอาดตาและใช้งานง่ายขึ้น
+- **การแก้ไขและปรับปรุง**:
+  - `frontend/src/lib/editorEntry.js`:
+    - เพิ่มฟังก์ชัน `filterProjectsByTab(projects, tab)` กรองรายการตามแท็บ (`active` = ตัด `rendered` ออก, `rendered` = เอาเฉพาะ `rendered`, `all` = ทั้งหมด)
+    - เพิ่มฟังก์ชัน `countProjectsByTab(projects)` นับจำนวนโปรเจกต์ในแต่ละหมวดหมู่แบบแม่นยำ
+  - `frontend/src/lib/editorEntry.test.js`:
+    - เพิ่ม Unit Test ตรวจสอบ `filterProjectsByTab` และ `countProjectsByTab` ผ่าน 100% (8/8 tests pass)
+  - `frontend/src/components/editor/ProjectSelector.jsx`:
+    - เพิ่มแถบ **Smart Filter Tabs** 3 แท็บใต้ช่องค้นหา:
+      - `[ กำลังตัดต่อ (${counts.active}) ]`: แสดงเฉพาะงานที่กำลังทำ (ร่างสคริปต์ / กำลังตัดต่อ) — **ตั้งเป็นค่าเริ่มต้นทันทีเมื่อเปิดเมนู**
+      - `[ ตัดเสร็จแล้ว (${counts.rendered}) ]`: สำหรับกดเปิดดูเฉพาะงานที่เรนเดอร์เสร็จแล้วเมื่อต้องการ
+      - `[ ทั้งหมด (${counts.all}) ]`: แสดงทุกโปรเจกต์ในระบบ
+    - ปรับปรุงการค้นหา (Smart Search Fallback): หากผู้ใช้พิมพ์ค้นหาในแท็บหนึ่งแล้วไม่พบ แต่มีผลการค้นหาในแท็บอื่น ระบบจะแสดงปุ่มแนะนำ `ค้นหาใน "ทั้งหมด" (N รายการ)` ให้คลิกสลับได้ทันทีในคลิกเดียว
+    - จัด Empty State ชัดเจน: เมื่อไม่มีงานในแท็บที่เลือก จะแสดงปุ่มสลับไปยังอีกแท็บให้ทันทีอย่างสะดวก
+- **การทดสอบและผลลัพธ์ (Verification)**:
+  - `node --test frontend/src/lib/editorEntry.test.js`: ผ่าน 8/8 tests
+  - `npm run build`: สำเร็จสมบูรณ์ (2,025 modules transformed, 4.50s)
+  - UI ตรวจสอบความถูกต้อง: ค่าเริ่มต้นเปิดมาสะอาดตา กรองเหลืองานที่กำลังทำอยู่ทันที และสามารถคลิกสลับดูงานที่ตัดเสร็จแล้วหรือทั้งหมดได้ตลอดเวลา
+
+## Round FIX-BATCH2-DRAFT-PROJECT-NAME-COLLISION-AND-OPEN-TIMELINE-20260922 — แก้ปัญหาการสร้างดราฟต์ข้ามล็อตทับชื่อโปรเจกต์เดิม (_1) และเปิดไทม์ไลน์เข้าผิดโฟลเดอร์
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **สาเหตุของปัญหา**:
+  1. ในหน้า `ProductToClip.jsx` ฟังก์ชันสร้างดราฟต์ (`handleBatchCreateDraft` และ `handleSingleAngleQuickDraft`) ดึงรายชื่อโปรเจกต์ที่มีอยู่เดิมจาก `workspaceData?.projects || []` ซึ่งในความเป็นจริง `workspaceData` ไม่มีฟิลด์ `.projects` ทำให้ `existingProjects` ที่ส่งเข้า `buildProjectName` เป็น `[]` (อาร์เรย์ว่าง) เสมอ
+  2. ฟังก์ชัน `buildProjectName` ใน `projectName.js` ไม่ได้รับพารามิเตอร์ `batch` และเริ่มต้นค้นหาตัวแปรจาก `_1` เสมอ ประกอบกับ `cleanAngleSlug` ไม่ได้ตัดต่อท้าย `_b\d+$` (เช่น `pain_point_b2` ทำให้ค้นหาใน `ANGLE_SLUG_MAP` ไม่เจอ แล้วตกเป็นคำว่า `ปัญหาก่อนใช้`) เมื่อไม่มีชื่อชนในลิสต์ จึงสังเคราะห์ชื่อออกมาเป็น `BLU01-ปัญหาก่อนใช้_1` สำหรับล็อต 2 ซึ่งไปซ้ำกับชื่อโปรเจกต์ของล็อต 1
+  3. ในฝั่ง Backend `scripts/batch_render.py` (`BatchRenderManager.run_batch_worker`) เชื่อถือค่า `project_name` ที่ frontend ส่งมา โดยไม่มีการตรวจสอบว่าโปรเจกต์นั้นถูกจองโดยมุมอื่นหรือเป็นของคนละล็อต จึงนำสคริปต์ของมุมล็อต 2 เข้าไปประกอบดราฟต์เขียนทับไฟล์ในโฟลเดอร์ `03_Projects/BLU01-ปัญหาก่อนใช้_1/` ของล็อต 1
+  4. เมื่อเอนจิน `ProductStore.reconcile_existing_projects()` ทำงาน จะมีกฎ Batch Suffix Isolation ตรวจสอบว่าโปรเจกต์ที่ลงท้ายด้วย `_1` เป็นของล็อต 1 แต่มุมที่กำลังประมวลผลคือ Angle 11 (ล็อต 2) จึงตัดการเชื่อมโยงและดีดสถานะ Angle 11 กลับไปเป็น `scripted` (และ `project_name = None`)
+  5. ผลลัพธ์: ผู้ใช้เห็น Task ในศูนย์กิจกรรมขึ้นว่าสร้างดราฟต์เสร็จ แต่เมื่อกดปุ่ม "เปิดไทม์ไลน์" ลิงก์จะเปิด `?project=BLU01-ปัญหาก่อนใช้_1` (ซึ่งเป็นของเก่าล็อต 1) ขณะที่การ์ดสคริปต์ในล็อต 2 ยังคงค้างเป็นสถานะ `scripted` (ยังไม่ได้เข้าไทม์ไลน์)
+- **การแก้ไขและปรับปรุง**:
+  - `frontend/src/lib/projectName.js`:
+    - ปรับปรุง `cleanAngleSlug`: ตัด suffix `_b\d+$` ออกก่อนค้นหาใน `ANGLE_SLUG_MAP` (ทำให้ `pain_point_b2` แมปเข้า `ปัญหาก่อนใช้` ได้ถูกต้อง 100%)
+    - ปรับปรุง `buildProjectName`: เพิ่มพารามิเตอร์ `batch` และตรวจจับ batch อัตโนมัติจาก `angle.batch` หรือ suffix `_b\d+$` หากเป็นล็อต 2 ขึ้นไป จะบังคับเริ่มต้นนับเวอร์ชันตามหมายเลขล็อตทันที (ล็อต 2 เริ่มต้นตรวจหาที่ `_2`) และ normalize ค่า `existingProjects` ให้รองรับทั้ง string array และ object list (`{ project_name }`, `{ name }`)
+  - `frontend/src/components/ProductToClip.jsx`:
+    - สร้าง `knownProjects` useMemo รวบรวมชื่อโปรเจกต์ทั้งหมดที่มีอยู่จริง ทั้งจาก `productData.projects` และ `productData.angles` (รวมโปรเจกต์ที่ผูกกับมุมล็อต 1 ทุกมุม) ส่งเข้า `buildProjectName`
+    - ปรับปรุง `handleBatchCreateDraft` และ `handleSingleAngleQuickDraft` ให้ส่ง `batch: angleBatch` และ `existingProjects: knownProjects`
+    - ปรับปรุง `AngleSidebarItem` และ `AngleActiveWorkbench` ส่ง `batch: ang.batch`
+  - `scripts/batch_render.py`:
+    - ปรับปรุง `synthesize_project_name`: เพิ่มพารามิเตอร์ `batch`, ตัด suffix `_b\d+$` ของ `angle_id` และเริ่มต้นนับ version จากหมายเลขล็อต
+    - เพิ่ม **Collision & Batch Isolation Guard** ใน `run_batch_worker`: หากชื่อโปรเจกต์ที่ส่งเข้ามามี batch ไม่ตรงกับล็อตปัจจุบัน หรือชื่อนั้นถูกจองโดยมุมอื่นไปแล้ว จะสังเคราะห์ชื่อใหม่ที่ไม่ชน (`synthesize_project_name`) โดยเช็คทั้งโปรเจกต์ใน ProductStore และโฟลเดอร์จริงบนดิสก์ใน `03_Projects/`
+  - `scripts/product_store.py`:
+    - ปรับปรุงการเข้าถึง `p_data.get("artifacts", {}).get("mp4_video", {}).get("path")` ใน `reconcile_existing_projects` ให้ปลอดภัยต่อค่า `None`
+  - **การกู้คืนข้อมูล (Disk & DB Repair)**:
+    - แยกดราฟต์ของ Angle 11 (ล็อต 2) ไปสร้างเป็นโฟลเดอร์ `03_Projects/BLU01-ปัญหาก่อนใช้_2/` พร้อม `project.json` สำหรับ Angle 11 อย่างสมบูรณ์
+    - กู้คืนสคริปต์และวิดีโอต้นฉบับของ Angle 1 (ล็อต 1) ใน `03_Projects/BLU01-ปัญหาก่อนใช้_1/project.json`
+    - อัปเดต `ProductStore` ให้ Angle 11 มี `project_name: "BLU01-ปัญหาก่อนใช้_2"`, สถานะ `in_production`
+- **การทดสอบและผลลัพธ์ (Verification)**:
+  - `node --test frontend/src/lib/projectName.test.js`: ผ่าน 5/5 tests
+  - `npm test`: ผ่าน 292/292 tests
+  - `npm run build`: สำเร็จ (2025 modules transformed, 4.20s)
+  - `pytest tests/test_batch_render.py`: ผ่าน 12/12 tests
+  - `pytest tests/test_multi_batch_angle_isolation.py`: ผ่าน 6/6 tests
+  - `pytest tests/test_product_batch_angles.py tests/test_bug3_tiktok_product_id_and_conflict_clear.py`: ผ่าน 5/5 tests
+  - ตรวจสอบสถานะจริงผ่าน `ProductStore`: Angle 0 (ล็อต 1) = `rendered`, `BLU01-ปัญหาก่อนใช้_1`, มี video_url / Angle 10 (ล็อต 2) = `in_production`, `BLU01-ปัญหาก่อนใช้_2` แยกขาดจากกัน 100%
 
 ## Round HOOK-CARD-PREVIEW-MOTION-AND-TEXT-PARITY-20260922 — ปรับปรุงแอนิเมชันและการแสดงผลในการ์ดแม่แบบข้อความ ให้ตรงกับหน้าจอ Preview เสมือนจริง 100%
 

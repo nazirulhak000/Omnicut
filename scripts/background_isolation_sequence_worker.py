@@ -73,8 +73,11 @@ _MANIFEST_KEYS = frozenset(
         "height",
         "rotation",
         "frame_pattern",
+        "source_start",
+        "source_duration",
     }
 )
+_LEGACY_MANIFEST_KEYS = _MANIFEST_KEYS - {"source_start", "source_duration"}
 
 ProgressCallback = Callable[[Mapping[str, Any]], None]
 
@@ -170,7 +173,7 @@ def _load_manifest(
         except (OSError, UnicodeError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise ValueError("sequence manifest is not valid JSON") from exc
 
-    if not isinstance(value, Mapping) or set(value) != _MANIFEST_KEYS:
+    if not isinstance(value, Mapping) or set(value) not in {_MANIFEST_KEYS, _LEGACY_MANIFEST_KEYS}:
         raise ValueError("sequence manifest has an invalid schema")
     try:
         canonical = build_sequence_manifest(
@@ -188,6 +191,8 @@ def _load_manifest(
             height=value["height"],
             rotation=value["rotation"],
             frame_pattern=value["frame_pattern"],
+            source_start=value.get("source_start", 0.0),
+            source_duration=value.get("source_duration"),
             status=value["status"],
         )
     except (KeyError, SequenceArtifactStoreError) as exc:
@@ -257,6 +262,8 @@ def _derived_artifact_id(
         width=source_manifest["width"],
         height=source_manifest["height"],
         rotation=source_manifest["rotation"],
+        source_start=source_manifest["source_start"],
+        source_duration=source_manifest["source_duration"],
     )
 
 
@@ -284,6 +291,8 @@ def _derived_manifest(
         height=source_manifest["height"],
         rotation=source_manifest["rotation"],
         frame_pattern=FRAME_PATTERN,
+        source_start=source_manifest["source_start"],
+        source_duration=source_manifest["source_duration"],
         status=status,
     )
 

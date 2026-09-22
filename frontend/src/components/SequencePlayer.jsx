@@ -40,6 +40,7 @@ import { reconcileEffectPlayback } from '../lib/effectPlayback.js';
 import { getMotionPreset, MOTION_PRESETS } from '../lib/motion/motionPresets.js';
 import { sampleCanvasMotion } from '../lib/motion/rendererAdapter.js';
 import {
+  backgroundIsolationPrefetchTimes,
   resolveBackgroundIsolationConfig,
   resolveBackgroundIsolationPreview,
   splitBackgroundIsolationOverlays,
@@ -1645,6 +1646,11 @@ const DEFAULT_HOOK_STEP_DELAY_MS = 350;
 const HOOK_STAGGER_STEP = 0.15; // seconds; mirrors STAGGER_STEP_MS
 const HOOK_DIM_OPACITY = 1 - 0x25 / 255; // mirrors ASS \alpha&H25&
 const HOOK_SWEEP_OPACITY = 1 - 0x20 / 255; // mirrors ASS \alpha&H20&
+
+function hookStaggerStepSec(motion = {}) {
+  const factor = motion.speed === 'fast' ? 0.6 : motion.speed === 'smooth' ? 1.5 : 1;
+  return Math.max(0.05, HOOK_STAGGER_STEP * factor);
+}
 // The pill's padding, matching HookHeaderPill's Outline=12 in the ASS styles.
 const HOOK_PILL_PAD = 12;
 
@@ -2279,6 +2285,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
   const revealMode = motion.reveal || 'simultaneous';
   const isCumulative = revealMode === 'cumulative' || revealMode === 'tier_step';
   const stepDelaySec = (motion.step_delay_ms || DEFAULT_HOOK_STEP_DELAY_MS) / 1000;
+  const staggerStepSec = hookStaggerStepSec(motion);
 
   // The loop phase cannot start until every tier's own entry has settled.
   let maxEntryEndSec = 0;
@@ -2292,7 +2299,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     }
   }
   for (const { tierIdx } of wrapped) {
-    const t0 = isCumulative ? tierIdx * stepDelaySec : (motion.stagger ? tierIdx * HOOK_STAGGER_STEP : 0);
+    const t0 = isCumulative ? tierIdx * stepDelaySec : (motion.stagger ? tierIdx * staggerStepSec : 0);
     maxEntryEndSec = Math.max(maxEntryEndSec, t0 + inPreset.durSec);
   }
   const explicitEntryEndSec = explicitMotion?.phaseTiming?.in
@@ -2331,7 +2338,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
   for (const box of tierBoxes.values()) {
     const pill = box.look.pill;
     if (!pill) continue;
-    const boxT0 = isCumulative ? box.tierIdx * stepDelaySec : (motion.stagger ? box.tierIdx * HOOK_STAGGER_STEP : 0);
+    const boxT0 = isCumulative ? box.tierIdx * stepDelaySec : (motion.stagger ? box.tierIdx * staggerStepSec : 0);
     if (isCumulative && tRel < boxT0) continue;
     const padX = Math.round(box.fs * (pill.pad_x_em ?? PILL_PAD_X_EM));
     const padY = Math.round(box.fs * (pill.pad_y_em ?? PILL_PAD_Y_EM));
@@ -2358,7 +2365,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
   // envelope but not the loop -- matching the backend, which never threads
   // loop keyframes into the accent events.
   if (motion.accent !== 'none' && modelLine) {
-    const revealStart = isCumulative ? 1 * stepDelaySec : (motion.stagger ? HOOK_STAGGER_STEP * 2 : 0);
+    const revealStart = isCumulative ? 1 * stepDelaySec : (motion.stagger ? staggerStepSec * 2 : 0);
     const revealFrac = tRel <= revealStart ? 0 : Math.min(1, (tRel - revealStart) / 0.3);
     const modelFontSize = modelLine.settledFs;
     const accentColor = overlay.look?.accent_color || modelLine.look?.accent_color || modelLine.color;
@@ -2570,7 +2577,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     // currently-animating scale -- an ASS \t transform (and this mirror of it)
     // animates glyph rendering, not layout reflow, so other lines must not
     // jitter as this one animates.
-    const t0 = isCumulative ? w.tierIdx * stepDelaySec : (motion.stagger ? w.tierIdx * HOOK_STAGGER_STEP : 0);
+    const t0 = isCumulative ? w.tierIdx * stepDelaySec : (motion.stagger ? w.tierIdx * staggerStepSec : 0);
     if (isCumulative && tRel < t0) {
       continue;
     }
@@ -3008,7 +3015,7 @@ function SequencePlayer({
     return () => { cancelled = true; };
   }, [backgroundIsolationArtifactIds.join('|')]);
 
-  const loadedBackgroundIsolationFrame = useCallback((clip, sourceTime) => {
+  const loadedBackgroundIsolationFrame = useCallback(function loadBackgroundIsolationFrame(clip, sourceTime, prefetch = true) {
     // The legacy blurred-canvas path has different geometry and filter order
     // from subject isolation.  Keep Preview on the same fail-closed branch as
     // the renderer for these clips.
@@ -3081,6 +3088,17 @@ function SequencePlayer({
       }).catch(markError);
     };
     requestFrame();
+    if (prefetch) {
+      backgroundIsolationPrefetchTimes({
+        sourceTime: Math.max(0, Number(sourceTime) || 0),
+        fps: resolution.fps,
+        count: 4,
+        sourceStart: resolution.sourceStart,
+        sourceDuration: resolution.sourceDuration,
+      }).slice(1).forEach((nextSourceTime) => {
+        loadBackgroundIsolationFrame(clip, nextSourceTime, false);
+      });
+    }
     return null;
   }, [backgroundIsolation, backgroundIsolationManifests]);
 

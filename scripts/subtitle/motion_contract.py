@@ -241,6 +241,16 @@ def _track(keyframes: Sequence[Mapping[str, Any]], unit: str, **extra: Any) -> D
 
 
 def _contract(identifier: str, role: str, phase: str, duration_ms: float, tracks: Mapping[str, Any], **extra: Any) -> Dict[str, Any]:
+    metadata = dict(extra.pop("metadata", {}))
+    unsupported_tracks = [name for name in tracks if name in {"position", "reveal"}]
+    renderer_bound = not unsupported_tracks
+    parity_level = (
+        "legacy_fallback"
+        if unsupported_tracks
+        else "bounded"
+        if "blur" in tracks or metadata.get("secondary_pass")
+        else "exact"
+    )
     contract = {
         "version": MOTION_CONTRACT_VERSION,
         "id": identifier,
@@ -250,7 +260,13 @@ def _contract(identifier: str, role: str, phase: str, duration_ms: float, tracks
         "duration_ms": duration_ms,
         "repeat": bool(extra.pop("repeat", False)),
         "tracks": dict(tracks),
-        "metadata": {"source": "existing_visual_default", "renderer_bound": False, **extra.pop("metadata", {})},
+        "metadata": {
+            "source": "existing_visual_default",
+            "renderer_bound": renderer_bound,
+            "parity_level": parity_level,
+            "unsupported_tracks": unsupported_tracks,
+            **metadata,
+        },
         **extra,
     }
     validate_motion_contract(contract)

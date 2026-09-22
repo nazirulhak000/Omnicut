@@ -61,6 +61,7 @@ _FALLBACK_REASONS = frozenset(
         "artifact_cancelled",
         "artifact_not_ready",
         "artifact_mismatch",
+        "source_time_outside_artifact",
     }
 )
 
@@ -179,6 +180,17 @@ def _positive_int(value: Any, label: str) -> int:
     return value
 
 
+def _source_seconds(value: Any, label: str, *, allow_none: bool = False) -> float | None:
+    if value is None and allow_none:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise CompositorValidationError(f"invalid {label}")
+    candidate = float(value)
+    if not math.isfinite(candidate) or candidate < 0 or (label == "source duration" and candidate == 0):
+        raise CompositorValidationError(f"invalid {label}")
+    return candidate
+
+
 def _text(value: Any, label: str) -> str:
     if not isinstance(value, str) or not value.strip() or len(value.strip()) > 256:
         raise CompositorValidationError(f"invalid {label}")
@@ -246,6 +258,10 @@ def _manifest(value: Any) -> dict[str, Any]:
         "height": height,
         "rotation": rotation,
         "frame_pattern": SEQUENCE_FRAME_PATTERN,
+        "source_start": _source_seconds(value.get("source_start", 0.0), "source start"),
+        "source_duration": _source_seconds(
+            value.get("source_duration"), "source duration", allow_none=True
+        ),
     }
     for key in ("source_fingerprint", "algorithm", "engine", "model", "quality", "worker_version"):
         result[key] = _text(value.get(key), key.replace("_", " "))
@@ -441,12 +457,39 @@ def build_compositing_plan(
 
     sequence = normalized["sequence"]
     try:
+        source_value = Fraction(str(source_time))
+        if source_time_unit == "ticks":
+            source_value *= _positive_ratio(sequence["timebase"], "timebase")
+        elif source_time_unit != "seconds":
+            raise CompositorValidationError("invalid source time unit")
+        source_start = Fraction(str(sequence["source_start"]))
+        local_source_time = source_value - source_start
+        source_duration = sequence["source_duration"]
+        epsilon = Fraction(1, 10**9)
+        if local_source_time < -epsilon or (
+            source_duration is not None
+            and local_source_time > Fraction(str(source_duration)) + epsilon
+        ):
+            return {
+                "schema_version": COMPOSITOR_SCHEMA_VERSION,
+                "enabled": False,
+                "action": "fallback",
+                "fallback": normalized["fallback"],
+                "reason": "source_time_outside_artifact",
+                "stage_order": ["legacy_source", "legacy_effects", "legacy_overlays"],
+                "config": _disabled(
+                    "source_time_outside_artifact",
+                    fallback=normalized["fallback"],
+                    requested_enabled=True,
+                    artifact=normalized["artifact"],
+                ),
+            }
         frame_index = map_source_time_to_frame_index(
-            source_time,
+            max(Fraction(0), local_source_time),
             fps=sequence["fps_ratio"],
             timebase=sequence["timebase"],
             frame_count=sequence["frame_count"],
-            source_time_unit=source_time_unit,
+            source_time_unit="seconds",
         )
         fragment = build_alpha_composite_filter_fragment(
             source_stream=source_stream,
@@ -487,6 +530,8 @@ def build_compositing_plan(
         "action": "composite",
         "fallback": None,
         "artifact_id": sequence["artifact_id"],
+        "source_start": sequence["source_start"],
+        "source_duration": sequence["source_duration"],
         "frame_index": frame_index,
         "frame_path": frame_path,
         "filter_fragment": fragment,

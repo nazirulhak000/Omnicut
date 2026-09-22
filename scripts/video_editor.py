@@ -1196,11 +1196,26 @@ class VideoEditor:
                 # not guess at a second geometry for the RGBA sequence: an
                 # isolation artifact is therefore fail-closed for this one
                 # clip and the proven legacy blur graph remains untouched.
+                effective_background_isolation = resolve_background_isolation_config(
+                    clip, background_isolation
+                )
+                isolation_requested = (
+                    isinstance(effective_background_isolation, Mapping)
+                    and effective_background_isolation.get("enabled") is True
+                )
+                if isolation_requested and use_bg_blur:
+                    raise ValueError(
+                        f"Background Cutout conflict on clip {idx + 1}: disable bg_blur/fit_mode=blur before rendering"
+                    )
                 bg_info = None if use_bg_blur else _read_ready_background_sequence(
-                    resolve_background_isolation_config(clip, background_isolation),
+                    effective_background_isolation,
                     trim_start,
                     source_span,
                 )
+                if isolation_requested and bg_info is None:
+                    raise ValueError(
+                        f"Background Cutout is not ready for clip {idx + 1}; prepare a complete artifact before rendering"
+                    )
                 if bg_info:
                     clip_trim = f"trim=duration={source_span}"
                     fg_input_idx = len(clip_list) + 1 + len(foreground_inputs)

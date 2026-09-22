@@ -270,3 +270,92 @@ def test_update_angle_cover_batch_isolation(tmp_path, monkeypatch):
     assert "cover2" in b2.get("cover_3x4_path")
 
 
+def test_append_angles_guarantees_compound_unique_ids():
+    product = ProductStore.add(
+        name="Compound ID Product",
+        angles=[
+            {"angle_id": "pain_point", "angle_name": "Batch 1 Pain Point", "batch": 1},
+            {"angle_id": "spec_review", "angle_name": "Batch 1 Spec Review", "batch": 1},
+        ],
+    )
+    product_id = product["id"]
+
+    # Append Batch 2 with conflicting raw angle_ids
+    updated_p = ProductStore.append_angles(
+        product_id=product_id,
+        new_angles=[
+            {"angle_id": "pain_point", "angle_name": "Batch 2 Pain Point"},
+            {"angle_id": "spec_review", "angle_name": "Batch 2 Spec Review"},
+            {"angle_id": "unboxing", "angle_name": "Batch 2 Unboxing"},
+        ],
+        batch_index=2,
+    )
+
+    angles = updated_p.get("angles", [])
+    assert len(angles) == 5
+
+    b1_aids = [a["angle_id"] for a in angles if a.get("batch") == 1]
+    b2_aids = [a["angle_id"] for a in angles if a.get("batch") == 2]
+
+    assert b1_aids == ["pain_point", "spec_review"]
+    assert b2_aids == ["pain_point_b2", "spec_review_b2", "unboxing_b2"]
+    # Guarantee 100% uniqueness across the entire product
+    all_aids = [a["angle_id"] for a in angles]
+    assert len(all_aids) == len(set(all_aids))
+
+
+def test_compound_id_lookups_without_explicit_batch_param():
+    product = ProductStore.add(
+        name="Compound Lookup Product",
+        angles=[
+            {"angle_id": "pain_point", "status": "scripted", "batch": 1},
+            {"angle_id": "pain_point_b2", "status": "scripted", "batch": 2},
+        ],
+    )
+    product_id = product["id"]
+
+    # 1. Update status using compound ID without passing batch
+    ProductStore.update_angle_status(
+        product_id=product_id,
+        angle_id="pain_point_b2",
+        status="rendered",
+        project_name="PROD-pain_point_2",
+    )
+    p_check = ProductStore.get(product_id)
+    b1 = next(a for a in p_check["angles"] if a.get("batch") == 1)
+    b2 = next(a for a in p_check["angles"] if a.get("batch") == 2)
+    assert b1["status"] == "scripted"
+    assert b2["status"] == "rendered"
+
+    # 2. Update videos using compound ID without passing batch
+    ProductStore.update_angle_videos(
+        product_id=product_id,
+        angle_id="pain_point_b2",
+        selected_videos=["raw/test_b2.mp4"],
+    )
+    p_check = ProductStore.get(product_id)
+    b1 = next(a for a in p_check["angles"] if a.get("batch") == 1)
+    b2 = next(a for a in p_check["angles"] if a.get("batch") == 2)
+    assert b1.get("selected_videos") == [] or b1.get("selected_videos") is None
+    assert b2["selected_videos"] == ["raw/test_b2.mp4"]
+
+    # 3. Shot list upsert and get using compound ID without passing batch
+    ShotListsStore.upsert({
+        "product_id": product_id,
+        "angle_id": "pain_point_b2",
+        "custom_script": "Batch 2 unique script",
+    })
+    rec = ShotListsStore.get(product_id, "pain_point_b2")
+    assert rec is not None
+    assert rec["custom_script"] == "Batch 2 unique script"
+    assert rec["batch"] == 2
+
+    # 4. Remove angle using compound ID without passing batch
+    ProductStore.remove_angle(product_id, "pain_point_b2")
+    p_final = ProductStore.get(product_id)
+    assert len(p_final["angles"]) == 1
+    assert p_final["angles"][0]["angle_id"] == "pain_point"
+    assert p_final["angles"][0]["batch"] == 1
+
+
+

@@ -192,9 +192,16 @@ def build_shot_list(beat_cues: List[Dict[str, Any]], product_name: str, category
 
 
 def _find_angle(product: Dict[str, Any], angle_id: str, batch: Optional[int] = None) -> Optional[Dict[str, Any]]:
-    if batch is not None:
+    effective_batch = batch
+    if effective_batch is None:
+        import re
+        m = re.search(r"_b(\d+)$", str(angle_id))
+        if m:
+            effective_batch = int(m.group(1))
+
+    if effective_batch is not None:
         for a in product.get("angles", []):
-            if (a.get("angle_id") or a.get("id")) == angle_id and (a.get("batch") or 1) == batch:
+            if (a.get("angle_id") or a.get("id")) == angle_id and (a.get("batch") or 1) == effective_batch:
                 return a
     return next(
         (a for a in product.get("angles", []) if (a.get("angle_id") or a.get("id")) == angle_id),
@@ -230,7 +237,7 @@ def generate_shot_list_for_angle(
     custom_script = "\n".join(lines)
 
     product_name = product.get("name") or product_id
-    batch_suffix = f"_b{assigned_batch}" if assigned_batch > 1 else ""
+    batch_suffix = f"_b{assigned_batch}" if assigned_batch > 1 and not str(angle_id).endswith(f"_b{assigned_batch}") else ""
     project_dir = PROJECTS_DIR / "_ShotLists" / f"{product_id}_{angle_id}{batch_suffix}"
     project_dir.mkdir(parents=True, exist_ok=True)
 

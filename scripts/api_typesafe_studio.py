@@ -60,6 +60,8 @@ def get_typesafe_status() -> Dict[str, Any]:
     return {
         "available": is_typesafe_available(),
         "provider": "TypeSafe System One (Jev)",
+        "model": "Jev",
+        "role": "Decision / Ranking / Verification",
         "features": [
             "strict_topic_hold",
             "hook_retention_scoring",

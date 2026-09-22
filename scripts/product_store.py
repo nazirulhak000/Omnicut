@@ -470,14 +470,19 @@ class ProductStore:
                     if "angles" in fields and isinstance(fields["angles"], list):
                         try:
                             from scripts.shot_lists_store import ShotListsStore
-                            old_angles = {a.get("angle_id") or a.get("id"): a for a in product.get("angles", [])}
+                            old_angles = {
+                                (a.get("angle_id") or a.get("id"), a.get("batch") or 1): a
+                                for a in product.get("angles", [])
+                            }
                             for new_a in fields["angles"]:
                                 aid = new_a.get("angle_id") or new_a.get("id")
-                                if aid and aid in old_angles:
-                                    old_script = old_angles[aid].get("script_lines") or []
+                                a_batch = new_a.get("batch") or 1
+                                key = (aid, a_batch)
+                                if aid and key in old_angles:
+                                    old_script = old_angles[key].get("script_lines") or []
                                     new_script = new_a.get("script_lines") or []
                                     if old_script != new_script:
-                                        ShotListsStore.delete(product_id, aid)
+                                        ShotListsStore.delete(product_id, aid, batch=a_batch)
                         except Exception:
                             pass
 
@@ -587,10 +592,16 @@ class ProductStore:
                         raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
                     target_angle = None
-                    # 1. Exact batch match if specified
-                    if batch is not None:
+                    effective_batch = batch
+                    if effective_batch is None:
+                        match_b = re.search(r"_b(\d+)$", str(angle_id))
+                        if match_b:
+                            effective_batch = int(match_b.group(1))
+
+                    # 1. Exact batch match if specified or extracted from compound angle_id
+                    if effective_batch is not None:
                         for a in matching_angles:
-                            if (a.get("batch") or 1) == batch:
+                            if (a.get("batch") or 1) == effective_batch:
                                 target_angle = a
                                 break
 
@@ -746,13 +757,19 @@ class ProductStore:
                 if product["id"] == product_id:
                     angles = product.get("angles", [])
                     matched_angle = None
+                    effective_batch = batch
+                    if effective_batch is None:
+                        match_b = re.search(r"_b(\d+)$", str(angle_id))
+                        if match_b:
+                            effective_batch = int(match_b.group(1))
+
                     for angle in angles:
                         current_aid = angle.get("angle_id") or angle.get("id")
                         if current_aid == angle_id:
-                            if batch is not None and (angle.get("batch") or 1) == batch:
+                            if effective_batch is not None and (angle.get("batch") or 1) == effective_batch:
                                 matched_angle = angle
                                 break
-                            elif batch is None and matched_angle is None:
+                            elif effective_batch is None and matched_angle is None:
                                 matched_angle = angle
                     if matched_angle is not None:
                         for key in CONTENT_KEYS:
@@ -767,7 +784,8 @@ class ProductStore:
 
         try:
             from scripts.shot_lists_store import ShotListsStore
-            ShotListsStore.delete(product_id, angle_id, batch=batch)
+            del_batch = effective_batch if effective_batch is not None else (matched_angle.get("batch") if matched_angle else None)
+            ShotListsStore.delete(product_id, angle_id, batch=del_batch)
         except Exception:
             pass
         return updated_product
@@ -808,10 +826,10 @@ class ProductStore:
                         aid = angle_copy.get("angle_id") or angle_copy.get("id")
                         if not aid:
                             aid = f"ang_{uuid.uuid4().hex[:8]}"
-                        elif aid in existing_aids:
+                        if assigned_batch > 1 and not str(aid).endswith(f"_b{assigned_batch}"):
                             aid = f"{aid}_b{assigned_batch}"
-                            if aid in existing_aids:
-                                aid = f"{aid}_{uuid.uuid4().hex[:4]}"
+                        if aid in existing_aids:
+                            aid = f"{aid}_{uuid.uuid4().hex[:4]}"
                         existing_aids.add(aid)
                         angle_copy["angle_id"] = aid
                         angle_copy["batch"] = assigned_batch
@@ -881,6 +899,12 @@ class ProductStore:
         def is_3x4(path: Optional[str]) -> bool:
             return bool(path and Path(path).name.casefold().endswith("_cover_3x4.jpg"))
 
+        effective_batch = batch
+        if effective_batch is None:
+            match_b = re.search(r"_b(\d+)$", str(angle_id))
+            if match_b:
+                effective_batch = int(match_b.group(1))
+
         with cls._mutate() as products:
             for product in products:
                 if product.get("id") != product_id:
@@ -889,7 +913,7 @@ class ProductStore:
                     current_aid = angle.get("angle_id") or angle.get("id")
                     if current_aid != angle_id:
                         continue
-                    if batch is not None and (angle.get("batch") or 1) != batch:
+                    if effective_batch is not None and (angle.get("batch") or 1) != effective_batch:
                         continue
 
                     for key, value in normalized.items():
@@ -1063,6 +1087,12 @@ class ProductStore:
     ) -> Dict[str, Any]:
         """Persists selected raw footage attachments for a specific script angle in a product."""
         rel_videos = [_to_relative(v) for v in selected_videos]
+        effective_batch = batch
+        if effective_batch is None:
+            match_b = re.search(r"_b(\d+)$", str(angle_id))
+            if match_b:
+                effective_batch = int(match_b.group(1))
+
         with cls._mutate() as products:
             for product in products:
                 if product["id"] == product_id:
@@ -1070,10 +1100,10 @@ class ProductStore:
                     matched_angle = None
                     for angle in angles:
                         if (angle.get("angle_id") or angle.get("id")) == angle_id:
-                            if batch is not None and (angle.get("batch") or 1) == batch:
+                            if effective_batch is not None and (angle.get("batch") or 1) == effective_batch:
                                 matched_angle = angle
                                 break
-                            elif batch is None and matched_angle is None:
+                            elif effective_batch is None and matched_angle is None:
                                 matched_angle = angle
                     if matched_angle is not None:
                         matched_angle["selected_videos"] = rel_videos
@@ -1094,16 +1124,22 @@ class ProductStore:
         batch: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Persists voice configuration for a specific script angle in a product."""
+        effective_batch = batch
+        if effective_batch is None:
+            match_b = re.search(r"_b(\d+)$", str(angle_id))
+            if match_b:
+                effective_batch = int(match_b.group(1))
+
         with cls._mutate() as products:
             for product in products:
                 if product["id"] == product_id:
                     matched_angle = None
                     for angle in product.get("angles", []):
                         if (angle.get("angle_id") or angle.get("id")) == angle_id:
-                            if batch is not None and (angle.get("batch") or 1) == batch:
+                            if effective_batch is not None and (angle.get("batch") or 1) == effective_batch:
                                 matched_angle = angle
                                 break
-                            elif batch is None and matched_angle is None:
+                            elif effective_batch is None and matched_angle is None:
                                 matched_angle = angle
                     if matched_angle is not None:
                         if voice_preset is not None:
@@ -1138,16 +1174,22 @@ class ProductStore:
                 norm["video_path"] = str(v).replace("\\", "/")
             normalized.append(norm)
 
+        effective_batch = batch
+        if effective_batch is None:
+            match_b = re.search(r"_b(\d+)$", str(angle_id))
+            if match_b:
+                effective_batch = int(match_b.group(1))
+
         with cls._mutate() as products:
             for product in products:
                 if product["id"] == product_id:
                     matched_angle = None
                     for angle in product.get("angles", []):
-                        if angle.get("angle_id") == angle_id:
-                            if batch is not None and angle.get("batch") == batch:
+                        if (angle.get("angle_id") or angle.get("id")) == angle_id:
+                            if effective_batch is not None and (angle.get("batch") or 1) == effective_batch:
                                 matched_angle = angle
                                 break
-                            elif batch is None and matched_angle is None:
+                            elif effective_batch is None and matched_angle is None:
                                 matched_angle = angle
 
                     if matched_angle is not None:
@@ -1307,12 +1349,18 @@ class ProductStore:
         if not product:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
+        effective_batch = batch
+        if effective_batch is None:
+            match_b = re.search(r"_b(\d+)$", str(angle_id))
+            if match_b:
+                effective_batch = int(match_b.group(1))
+
         angles = product.get("angles") or []
         target = next(
             (
                 a for a in angles
                 if (a.get("angle_id") or a.get("id")) == angle_id
-                and (batch is None or (a.get("batch") or 1) == batch)
+                and (effective_batch is None or (a.get("batch") or 1) == effective_batch)
             ),
             None,
         )
@@ -1322,16 +1370,11 @@ class ProductStore:
         if target.get("status") == "posted" or target.get("posted_at"):
             raise ValueError(f"ไม่อนุญาตให้ลบมุม '{target.get('angle_name') or angle_id}' เนื่องจากถูกโพสต์ลง TikTok แล้ว (ต้องเก็บไว้เป็นหลักฐาน)")
 
-        remaining = [
-            a for a in angles
-            if not (
-                (a.get("angle_id") or a.get("id")) == angle_id
-                and (batch is None or (a.get("batch") or 1) == batch)
-            )
-        ]
+        remaining = [a for a in angles if a is not target]
         try:
             from scripts.shot_lists_store import ShotListsStore
-            ShotListsStore.delete(product_id, angle_id, batch=batch)
+            del_b = effective_batch or target.get("batch")
+            ShotListsStore.delete(product_id, angle_id, batch=del_b)
         except Exception:
             pass
 
@@ -1534,7 +1577,8 @@ class ProductStore:
             # writers put in project.json.
             mp4_path = None
             mp4_export_id = None
-            art_mp4 = p_data.get("artifacts", {}).get("mp4_video", {}).get("path")
+            art_mp4_obj = (p_data.get("artifacts") or {}).get("mp4_video")
+            art_mp4 = art_mp4_obj.get("path") if isinstance(art_mp4_obj, dict) else None
             if art_mp4 and _to_absolute(art_mp4).exists():
                 mp4_path = _to_relative(art_mp4)
             else:
@@ -1605,7 +1649,11 @@ class ProductStore:
                         if base_angle:
                             variant_angle = dict(base_angle)
                             suffix = p_folder.name.rsplit('_', 1)[-1] if '_' in p_folder.name else 'var'
-                            variant_angle["angle_id"] = f"{p_aid}_{suffix}"
+                            cand_aid = f"{p_aid}_{suffix}"
+                            existing_aids = {a.get("angle_id") for a in product.get("angles", [])}
+                            if cand_aid in existing_aids:
+                                cand_aid = f"{cand_aid}_{uuid.uuid4().hex[:4]}"
+                            variant_angle["angle_id"] = cand_aid
                             variant_angle["project_name"] = p_folder.name
                             variant_angle["status"] = "in_production"
                             variant_angle["video_url"] = None

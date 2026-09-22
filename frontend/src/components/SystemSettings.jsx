@@ -12,6 +12,7 @@ import {
   deleteSystemBackup,
   scanAssetDuplicates,
   cleanAssetDuplicates,
+  getTypeSafeStatus,
 } from '../api';
 import { PageHeader } from './ui';
 import PaginationControls from './PaginationControls';
@@ -58,6 +59,8 @@ export default function SystemSettings({
   const [dedupPageSize, setDedupPageSize] = useState(20);
   const [cleanLoading, setCleanLoading] = useState(false);
   const [cleanMessage, setCleanMessage] = useState(null);
+  const [typeSafeStatus, setTypeSafeStatus] = useState(null);
+  const [typeSafeLoading, setTypeSafeLoading] = useState(false);
 
   const fetchBackups = async () => {
     try {
@@ -71,6 +74,13 @@ export default function SystemSettings({
   useEffect(() => {
     if (activeTab === 'maintenance') {
       fetchBackups();
+    }
+    if (activeTab === 'engine') {
+      setTypeSafeLoading(true);
+      getTypeSafeStatus()
+        .then(setTypeSafeStatus)
+        .catch(() => setTypeSafeStatus({ available: false, provider: 'TypeSafe System One (Jev)' }))
+        .finally(() => setTypeSafeLoading(false));
     }
   }, [activeTab]);
 
@@ -389,7 +399,27 @@ export default function SystemSettings({
                 </div>
               </div>
 
-              {/* Box 2: Google AI Studio Vision */}
+                {/* Box 2: TypeSafe System One / Jev */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0F19] border border-violet-500/20 space-y-3 relative overflow-hidden shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Cpu className="w-5 h-5 text-violet-400" />
+                    <h4 className="font-bold text-white text-xs sm:text-sm">Jev Decision Layer</h4>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold border ${typeSafeStatus?.available ? 'bg-violet-500/10 text-violet-300 border-violet-500/30' : 'bg-slate-500/10 text-slate-400 border-slate-500/30'}`}>
+                    {typeSafeLoading ? 'กำลังตรวจสอบ' : typeSafeStatus?.available ? 'พร้อมใช้งาน' : 'ยังไม่พร้อม'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  <b>Jev (TypeSafe System One)</b> ช่วยตัดสินใจเชิงโครงสร้างให้โปรแกรม เช่น เลือก Hook, จับคู่ B-roll และตรวจ Strict Topic Hold
+                </p>
+                <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] text-[11px] font-mono text-slate-400 space-y-1">
+                  <div>• Model: {typeSafeStatus?.model || 'Jev'}</div>
+                  <div>• Provider: TypeSafe System One</div>
+                  <div>• Role: Decision / Ranking / Verification</div>
+                </div>
+              </div>
+            {/* Box 2: Google AI Studio Vision */}
               <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0F19] border border-emerald-500/20 space-y-3 relative overflow-hidden shadow-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">

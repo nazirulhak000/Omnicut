@@ -73,6 +73,11 @@ def create_shot_list(
             batch = int(batch)
         except (ValueError, TypeError):
             batch = None
+    if batch is None:
+        import re
+        m = re.search(r"_b(\d+)$", str(angle_id))
+        if m:
+            batch = int(m.group(1))
 
     task_title = f"สร้างแผนถ่าย: {angle_id}" + (f" (Batch {batch})" if batch else "")
     task = TaskManager.create_task(
@@ -93,8 +98,15 @@ def create_shot_list(
 
 @router.get("/api/products/{product_id}/angles/{angle_id}/shot-list")
 def get_shot_list(product_id: str, angle_id: str, batch: Optional[int] = None):
-    record = ShotListsStore.get(product_id, angle_id, batch=batch)
-    if not record and batch in (None, 1):
+    effective_batch = batch
+    if effective_batch is None:
+        import re
+        m = re.search(r"_b(\d+)$", str(angle_id))
+        if m:
+            effective_batch = int(m.group(1))
+
+    record = ShotListsStore.get(product_id, angle_id, batch=effective_batch)
+    if not record and effective_batch in (None, 1):
         record = ShotListsStore.get(product_id, angle_id)
     if not record:
         raise HTTPException(status_code=404, detail="ยังไม่มีแผนถ่ายสำหรับมุมนี้")

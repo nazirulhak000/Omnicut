@@ -689,10 +689,10 @@ def test_hook_motion_legacy_boolean_dict_falls_back_to_the_default_preset(tmp_pa
         ("elastic_bounce", lambda: f"\\fscx{round(_brand_pct() * 1.28)}"),  # elastic overshoot
         ("fade", "\\alpha&HFF&\\t(0,250,\\alpha&H00&)"),
         ("zoom", lambda: f"\\fscx{round(_brand_pct() * 1.8)}"),      # zoom-in start
-        ("slide_up", "\\move(540,320,540,260,0,300)"),
+        ("slide_up", "\\move(540,341,540,221,0,300)"),
         ("blur", "\\blur12"),
         ("typewriter", "\\clip("),
-        ("none", lambda: f"\\pos(540,260)\\fscx{_brand_pct()}\\fscy{_brand_pct()}\\t(2850"),
+        ("none", lambda: f"\\pos(540,221)\\fscx{_brand_pct()}\\fscy{_brand_pct()}\\t(2850"),
     ],
 )
 def test_each_in_preset_emits_its_own_technique(tmp_path, preset, marker):
@@ -746,7 +746,7 @@ def test_lightsweep_adds_an_overlay_event_per_line_not_a_tag(tmp_path):
     "preset, marker",
     [
         ("fade", "\\t(2850,3000,\\alpha&HFF&)"),
-        ("slide", "\\move(540,260,540,320,2850,3000)"),
+        ("slide", "\\move(540,221,540,341,2850,3000)"),
         ("zoom", lambda: f"\\fscx{round(_brand_pct() * 1.4)}"),      # grow-out
         ("glitch", "\\t(2850,2890,\\frz-3)"),
         ("none", "\\t(2999,3000,\\alpha&HFF&)"),

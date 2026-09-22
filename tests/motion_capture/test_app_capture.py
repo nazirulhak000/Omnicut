@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from urllib.parse import quote
 
@@ -41,6 +40,7 @@ def test_app_capture_reads_real_canvas_pixels_from_url():
         assert manifest["mode"] == "app_canvas"
         assert manifest["pixel_parity_claim"] is False
         assert manifest["canvas"]["width"] == 32
+        assert manifest["runtime"]["clean"] is True
         assert (output / "frame_0000.png").read_bytes().startswith(b"\x89PNG")
         assert (output / "manifest.json").exists()
     finally:
@@ -73,33 +73,81 @@ def test_app_capture_reports_missing_canvas_as_unavailable():
         tmp.cleanup()
 
 
-@pytest.mark.skipif(
-    not os.getenv("MOTION_CAPTURE_APP_URL"),
-    reason=(
-        "live app capture is opt-in: set MOTION_CAPTURE_APP_URL and "
-        "MOTION_CAPTURE_APP_CANVAS_SELECTOR to capture the real SequencePlayer canvas"
-    ),
-)
-def test_live_sequence_player_canvas_capture():
-    """Run only when a user-supplied local app session is available."""
-
-    tmp = temp_app_capture_dir("motion-live-sequence-player-")
-    selector = os.getenv("MOTION_CAPTURE_APP_CANVAS_SELECTOR", "canvas")
+def test_capture_uses_explicit_deterministic_frame_indices():
+    html = """
+    <!doctype html>
+    <canvas id="sequence-player-canvas" width="32" height="24"></canvas>
+    <script>
+      const canvas = document.querySelector('#sequence-player-canvas');
+      const ctx = canvas.getContext('2d');
+      window.motionCapture = {
+        capture: ({ frameIndex }) => {
+          ctx.fillStyle = `rgb(${frameIndex}, 0, 0)`;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          return { frameIndex, timestampMs: Math.round(frameIndex * 1000 / 30), dataUrl: canvas.toDataURL('image/png') };
+        },
+      };
+    </script>
+    """
+    tmp = temp_app_capture_dir("motion-explicit-frames-")
     try:
-        try:
-            manifest = capture_app_canvas(
+        manifest = capture_app_canvas(
+            AppCaptureConfig(
+                url=f"data:text/html,{quote(html)}",
+                selector="#sequence-player-canvas",
+                output_dir=Path(tmp.name) / "capture",
+                frame_indices=(0, 6, 30),
+            )
+        )
+        assert manifest["frame_indices"] == [0, 6, 30]
+        assert [frame["frameIndex"] for frame in manifest["frames"]] == [0, 6, 30]
+        assert [frame["timestampMs"] for frame in manifest["frames"]] == [0, 200, 1000]
+        assert (Path(tmp.name) / "capture" / "frame_0030.png").exists()
+    finally:
+        tmp.cleanup()
+
+
+def test_browser_runtime_error_is_not_silently_accepted():
+    html = """
+    <!doctype html>
+    <canvas id="sequence-player-canvas" width="32" height="24"></canvas>
+    <script>console.error('intentional parity harness error')</script>
+    """
+    tmp = temp_app_capture_dir("motion-runtime-error-")
+    output = Path(tmp.name) / "capture"
+    try:
+        with pytest.raises(AppCaptureUnavailable, match="browser runtime errors"):
+            capture_app_canvas(
                 AppCaptureConfig(
-                    url=os.environ["MOTION_CAPTURE_APP_URL"],
-                    selector=selector,
-                    ready_selector=os.getenv("MOTION_CAPTURE_APP_READY_SELECTOR"),
-                    output_dir=Path(tmp.name) / "capture",
-                    frame_count=int(os.getenv("MOTION_CAPTURE_APP_FRAMES", "1")),
+                    url=f"data:text/html,{quote(html)}",
+                    selector="#sequence-player-canvas",
+                    output_dir=output,
                 )
             )
-        except AppCaptureUnavailable as exc:
-            pytest.skip(f"live app capture unavailable: {exc}")
+        assert (output / "manifest.json").exists()
+    finally:
+        tmp.cleanup()
+
+
+def test_self_hosted_sequence_player_canvas_capture(motion_fixture_url: str):
+    """Open the real Vite fixture without user-supplied environment variables."""
+
+    tmp = temp_app_capture_dir("motion-live-sequence-player-")
+    try:
+        manifest = capture_app_canvas(
+            AppCaptureConfig(
+                url=motion_fixture_url,
+                selector="[data-testid='motion-capture-sequence-player'] canvas",
+                ready_selector="[data-testid='motion-capture-sequence-player']",
+                output_dir=Path(tmp.name) / "capture",
+                frame_indices=(0, 6, 30, 59),
+                timeout_ms=20_000,
+            )
+        )
         assert manifest["mode"] == "app_canvas"
         assert manifest["pixel_parity_claim"] is False
-        assert manifest["frames"]
+        assert manifest["frame_indices"] == [0, 6, 30, 59]
+        assert [frame["frameIndex"] for frame in manifest["frames"]] == [0, 6, 30, 59]
+        assert manifest["runtime"]["clean"] is True
     finally:
         tmp.cleanup()

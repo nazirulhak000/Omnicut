@@ -104,7 +104,13 @@ def _scale_value(value: Any, scale_base: float) -> int:
     return int(round(_number(value, "scale") * scale_base))
 
 
-def _tag_for_value(track: str, value: Any, *, scale_base: float) -> str:
+def _tag_for_value(
+    track: str,
+    value: Any,
+    *,
+    scale_base: float,
+    canvas_px_scale: float,
+) -> str:
     if track == "scale":
         scale = _scale_value(value, scale_base)
         return f"\\fscx{scale}\\fscy{scale}"
@@ -113,12 +119,15 @@ def _tag_for_value(track: str, value: Any, *, scale_base: float) -> str:
     if track == "rotation":
         return f"\\frz{_number(value, 'rotation'):g}"
     if track == "blur":
-        return f"\\blur{_number(value, 'blur'):g}"
+        return f"\\blur{_number(value, 'blur') * canvas_px_scale:g}"
     raise MotionAssAdapterError(f"track {track} has no direct ASS value tag")
 
 
 def _easing_acceleration(easing: Any) -> Optional[float]:
     name = easing if isinstance(easing, str) else (easing or {}).get("name", "linear")
+    if name == "power" and isinstance(easing, Mapping):
+        exponent = _number(easing.get("exponent", 1), "power exponent")
+        return exponent if exponent > 0 else None
     return _ASS_ACCELERATION.get(name)
 
 
@@ -136,6 +145,7 @@ def _keyframe_segments(
     start_ms: int,
     end_ms: int,
     scale_base: float,
+    canvas_px_scale: float,
 ) -> Iterable[AssMotionSegment]:
     points = list(track["keyframes"])
     duration = end_ms - start_ms
@@ -160,7 +170,12 @@ def _keyframe_segments(
                     segment_start,
                     segment_end,
                     right.get("easing", "linear"),
-                    _tag_for_value(track_name, right["value"], scale_base=scale_base),
+                    _tag_for_value(
+                        track_name,
+                        right["value"],
+                        scale_base=scale_base,
+                        canvas_px_scale=canvas_px_scale,
+                    ),
                 )
             ),
         )
@@ -174,6 +189,7 @@ def _repeat_segments(
     end_ms: int,
     cycle_duration_ms: int,
     scale_base: float,
+    canvas_px_scale: float,
 ) -> Iterable[AssMotionSegment]:
     cursor = start_ms
     while cursor < end_ms:
@@ -197,7 +213,12 @@ def _repeat_segments(
                             cursor,
                             cycle_end,
                             last.get("easing", "linear"),
-                            _tag_for_value(track_name, last["value"], scale_base=scale_base),
+                            _tag_for_value(
+                                track_name,
+                                last["value"],
+                                scale_base=scale_base,
+                                canvas_px_scale=canvas_px_scale,
+                            ),
                         )
                     ),
                 )
@@ -208,6 +229,7 @@ def _repeat_segments(
             start_ms=cursor,
             end_ms=cycle_end,
             scale_base=scale_base,
+            canvas_px_scale=canvas_px_scale,
         )
         if cycle_end <= cursor:
             break
@@ -226,6 +248,7 @@ def build_ass_motion_segments(
     base_scale: Any = 100.0,
     scale_base: Any = None,
     base_position: Optional[Tuple[Any, Any]] = None,
+    canvas_px_scale: Any = 1.0,
     unsupported: str = "report",
 ) -> AssMotionPlan:
     """Build ASS tags for one contract inside a bounded millisecond window.
@@ -254,6 +277,9 @@ def build_ass_motion_segments(
     scale_base_value = _number(resolved_scale_base, "scale base")
     if scale_base_value <= 0:
         raise MotionAssAdapterError("scale base must be greater than zero")
+    canvas_px_scale_value = _number(canvas_px_scale, "canvas px scale")
+    if canvas_px_scale_value <= 0:
+        raise MotionAssAdapterError("canvas px scale must be greater than zero")
 
     initial_parts = []
     segments = []
@@ -264,7 +290,12 @@ def build_ass_motion_segments(
         points = list(track["keyframes"])
         first_value = points[0]["value"]
         if track_name in {"scale", "alpha", "rotation", "blur"}:
-            initial_parts.append(_tag_for_value(track_name, first_value, scale_base=scale_base_value))
+            initial_parts.append(_tag_for_value(
+                track_name,
+                first_value,
+                scale_base=scale_base_value,
+                canvas_px_scale=canvas_px_scale_value,
+            ))
             if window_end > window_start:
                 if track.get("repeat") or contract.get("repeat") and track.get("cycle_duration_ms"):
                     cycle = int(round(_number(track.get("cycle_duration_ms") or contract.get("duration_ms"), "cycle duration")))
@@ -276,6 +307,7 @@ def build_ass_motion_segments(
                         end_ms=window_end,
                         cycle_duration_ms=cycle,
                         scale_base=scale_base_value,
+                        canvas_px_scale=canvas_px_scale_value,
                     ))
                 else:
                     segments.extend(_keyframe_segments(
@@ -284,13 +316,14 @@ def build_ass_motion_segments(
                         start_ms=window_start,
                         end_ms=window_end,
                         scale_base=scale_base_value,
+                        canvas_px_scale=canvas_px_scale_value,
                     ))
             continue
 
         if track_name == "dy" and base_position is not None:
             x = _number(base_position[0], "base x")
             y = _number(base_position[1], "base y")
-            initial_y = y + _number(first_value, "dy")
+            initial_y = y + _number(first_value, "dy") * canvas_px_scale_value
             initial_parts.append(f"\\pos({x:g},{initial_y:g})")
             if window_end > window_start:
                 for segment in _keyframe_segments(
@@ -299,9 +332,10 @@ def build_ass_motion_segments(
                     start_ms=window_start,
                     end_ms=window_end,
                     scale_base=scale_base_value,
+                    canvas_px_scale=canvas_px_scale_value,
                 ):
-                    from_y = y + _number(segment.from_value, "dy")
-                    to_y = y + _number(segment.to_value, "dy")
+                    from_y = y + _number(segment.from_value, "dy") * canvas_px_scale_value
+                    to_y = y + _number(segment.to_value, "dy") * canvas_px_scale_value
                     move = f"\\move({x:g},{from_y:g},{x:g},{to_y:g},{segment.start_ms},{segment.end_ms})"
                     segments.append(AssMotionSegment(
                         track=segment.track,

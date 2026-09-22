@@ -34,3 +34,26 @@ test('buildProjectName increments version on collision with a code-based base', 
   });
   assert.equal(name, 'ESG01-ปัญหาก่อนใช้_3');
 });
+
+test('buildProjectName starts at _2 when angle.batch is 2', () => {
+  const name = buildProjectName({
+    productName: 'พัดลมระบายความร้อนโทรศัพท์ BlueWow',
+    angle: { angle_id: 'pain_point', batch: 2 },
+    angleIndex: 10,
+    existingProjects: ['BLU01-ปัญหาก่อนใช้_1'],
+    productCode: 'BLU01',
+  });
+  assert.equal(name, 'BLU01-ปัญหาก่อนใช้_2');
+});
+
+test('buildProjectName recognizes _b2 suffix on angle_id to resolve slug and start at _2', () => {
+  const name = buildProjectName({
+    productName: 'พัดลมระบายความร้อนโทรศัพท์ BlueWow',
+    angle: { angle_id: 'pain_point_b2' },
+    angleIndex: 10,
+    existingProjects: ['BLU01-ปัญหาก่อนใช้_1'],
+    productCode: 'BLU01',
+  });
+  assert.equal(name, 'BLU01-ปัญหาก่อนใช้_2');
+});
+

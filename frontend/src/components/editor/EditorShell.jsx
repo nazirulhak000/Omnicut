@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Columns3,
 } from 'lucide-react';
 import {
-  deleteProject, getAllAssets, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, getTaskStatus, startBackgroundIsolation, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
+  deleteProject, getAllAssets, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, getTaskStatus, preflightBackgroundIsolation, startBackgroundIsolation, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
   getHookTemplates, saveCustomHookTemplate, deleteCustomHookTemplate,
 } from '../../api';
 import {
@@ -22,7 +22,7 @@ import { useEditorSelection } from '../../hooks/useEditorSelection';
 import { useEditorCommands } from '../../hooks/useEditorCommands';
 import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
 import { toMediaUrl } from '../../lib/mediaUrl';
-import { editorStateToSavePayload, manifestToEditorState } from '../../lib/editorProjectState';
+import { editorStateToSavePayload, manifestToEditorState, serializeRenderFeatures } from '../../lib/editorProjectState';
 import {
   normalizeStylePreset,
   stylePresetFromManifest,
@@ -31,8 +31,10 @@ import {
 import { removeItemById, updateItemById } from '../../lib/collectionOperations.js';
 import { getOverlayRecolorMetadata } from '../../lib/overlayRecolor.js';
 import {
+  backgroundIsolationWindowContainsClip,
   completedBackgroundIsolationTasks,
   groupBackgroundIsolationClips,
+  summarizeBackgroundIsolationPlan,
   summarizeBackgroundIsolationStatus,
 } from '../../lib/backgroundIsolationPreview.js';
 import { resolveEditorProjectName } from '../../lib/editorEntry.js';
@@ -199,7 +201,7 @@ export default function EditorShell({
   // default lives. Keeping a copy here is what let the timeline claim one
   // track while the file played another.
   const [assets, setAssets] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [], effects: [], default_bgm: null });
-  const { tasks = [], pollTasks } = useTaskManager();
+  const { tasks = [], pollTasks, cancelTask } = useTaskManager();
   const readProducts = useCallback((options = {}) => workspaceData?.loadProducts
     ? workspaceData.loadProducts(options)
     : getProducts(), [workspaceData]);
@@ -211,6 +213,28 @@ export default function EditorShell({
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [applyToAllCaptions, setApplyToAllCaptions] = useState(true);
   const [backgroundIsolationPreparing, setBackgroundIsolationPreparing] = useState(false);
+  const [backgroundIsolationTaskIds, setBackgroundIsolationTaskIds] = useState([]);
+  const [backgroundIsolationError, setBackgroundIsolationError] = useState('');
+
+  const backgroundIsolationGroups = useMemo(() => groupBackgroundIsolationClips(
+    (clipList || []).filter((clip) => clip?.source_path),
+    { sourceDurations: durations },
+  ), [clipList, durations]);
+  const backgroundIsolationPlan = useMemo(
+    () => ({
+      ...summarizeBackgroundIsolationPlan(backgroundIsolationGroups, { fps: 30 }),
+      conflictCount: (clipList || []).filter((clip) => clip?.bg_blur || clip?.fit_mode === 'blur').length,
+    }),
+    [backgroundIsolationGroups, clipList],
+  );
+  const backgroundIsolationProgress = useMemo(() => {
+    const active = backgroundIsolationTaskIds
+      .map((id) => tasks.find((task) => task.id === id))
+      .filter(Boolean);
+    if (!active.length) return null;
+    const progress = active.reduce((sum, task) => sum + (Number(task.progress) || 0), 0) / active.length;
+    return { progress, label: active.at(-1)?.step_label || 'กำลังตัดพื้นหลังสินค้า' };
+  }, [backgroundIsolationTaskIds, tasks]);
 
   // Isolation artifacts belong to individual timeline clips. Keep this
   // summary aligned with the preview resolver so explicit project disable and
@@ -1240,33 +1264,43 @@ export default function EditorShell({
     const updates = completed.map((task) => ({
       sourcePath: String(task.payload.source_path).toLowerCase(),
       rotation: [0, 90, 180, 270].includes(Number(task.payload.rotation)) ? Number(task.payload.rotation) : 0,
+      start: Number(task.payload.start) || 0,
+      duration: task.payload.duration == null ? null : Number(task.payload.duration),
       config: task.result,
     }));
-    const needsBinding = clipList.some((clip) => updates.some((update) => {
-      const rotation = [0, 90, 180, 270].includes(Number(clip.rotation)) ? Number(clip.rotation) : 0;
-      return String(clip.source_path || '').toLowerCase() === update.sourcePath
-        && rotation === update.rotation
+    const matchingUpdate = (clip) => updates
+      .filter((update) => backgroundIsolationWindowContainsClip(update, clip, { sourceDurations: durations }))
+      .sort((left, right) => (left.duration ?? Infinity) - (right.duration ?? Infinity))[0];
+    const needsBinding = clipList.some((clip) => {
+      const update = matchingUpdate(clip);
+      return update
         && clip.background_isolation?.artifact?.id !== update.config.artifact.id;
-    }));
+    });
     if (!needsBinding) return;
 
     setSilent((prev) => ({
       ...prev,
       clipList: (prev.clipList || []).map((clip) => {
-        const rotation = [0, 90, 180, 270].includes(Number(clip.rotation)) ? Number(clip.rotation) : 0;
-        const update = updates.find((candidate) => (
-          String(clip.source_path || '').toLowerCase() === candidate.sourcePath
-          && rotation === candidate.rotation
-        ));
+        const update = matchingUpdate(clip);
         return update ? { ...clip, background_isolation: update.config } : clip;
       }),
     }));
-  }, [clipList, projectName, setSilent, tasks]);
+  }, [clipList, durations, projectName, setSilent, tasks]);
 
   const prepareBackgroundIsolation = useCallback(async () => {
     const sourceClips = (clipList || []).filter((clip) => clip?.source_path);
     if (!sourceClips.length) {
       showToast('ยังไม่มีคลิปใน Timeline สำหรับตัดพื้นหลัง');
+      return;
+    }
+    const unique = backgroundIsolationGroups;
+    const unresolved = unique.filter((group) => group.unresolved);
+    if (unresolved.length) {
+      showToast(`ยังอ่านความยาวคลิปไม่ครบ ${unresolved.length} ช่วง กรุณารอ Preview โหลดแล้วลองอีกครั้ง`);
+      return;
+    }
+    if (backgroundIsolationPlan.conflictCount > 0) {
+      showToast(`กรุณาปิดพื้นหลังเบลอ ${backgroundIsolationPlan.conflictCount} คลิปก่อนเตรียม Cutout`);
       return;
     }
     const baseConfig = {
@@ -1294,29 +1328,36 @@ export default function EditorShell({
       enabled: true,
       artifact: { ...(baseConfig.artifact || {}), id: null, status: 'processing' },
     });
+    setBackgroundIsolationError('');
+    setBackgroundIsolationTaskIds([]);
     setBackgroundIsolationPreparing(true);
-    // The sequence is source-time indexed, so trim windows from the same
-    // source can share one full-source extraction and one rembg pass.  The
-    // renderer maps each clip's trim_start to the shared sequence later.
-    const unique = groupBackgroundIsolationClips(sourceClips).map((group) => ({
-      ...group,
-      clip: group.clips[0],
-      start: 0,
-      duration: null,
-    }));
     try {
       for (const item of unique) {
-        const response = await startBackgroundIsolation({
+        const request = {
           source_path: item.sourcePath,
           config: baseConfig,
-          start: 0,
+          start: item.start,
+          duration: item.duration,
           fps: 30,
           width: 1080,
           height: 1920,
           rotation: item.rotation,
           project_name: projectName,
-        });
+        };
+        const preflight = await preflightBackgroundIsolation(request);
+        if (!preflight?.ok) {
+          const issue = preflight?.issues?.find((candidate) => candidate.severity === 'error');
+          throw new Error(issue?.message || 'เครื่องยังไม่พร้อมประมวลผล Cutout');
+        }
+        const response = await startBackgroundIsolation(request);
+        setBackgroundIsolationTaskIds((current) => [...new Set([...current, response.task_id])]);
+        pollTasks?.();
         const task = await waitForBackgroundIsolationTask(response.task_id, getTaskStatus);
+        if (task?.status === 'cancelled') {
+          const cancelled = new Error('ยกเลิกการเตรียม Cutout แล้ว');
+          cancelled.cancelled = true;
+          throw cancelled;
+        }
         if (task?.status !== 'completed' || !task.result?.artifact?.id) {
           throw new Error(task?.error || 'background isolation task did not complete');
         }
@@ -1324,12 +1365,8 @@ export default function EditorShell({
         set((prev) => ({
           ...prev,
           clipList: (prev.clipList || []).map((clip) => {
-            const clipRotation = [0, 90, 180, 270].includes(Number(clip.rotation))
-              ? Number(clip.rotation)
-              : 0;
-            const sameSource = String(clip.source_path || '').toLowerCase() === item.sourcePath.toLowerCase()
-              && clipRotation === item.rotation;
-            return sameSource ? { ...clip, background_isolation: completedConfig } : clip;
+            const covered = backgroundIsolationWindowContainsClip(item, clip, { sourceDurations: durations });
+            return covered ? { ...clip, background_isolation: completedConfig } : clip;
           }),
         }));
       }
@@ -1337,15 +1374,26 @@ export default function EditorShell({
       // own extracted sequence.  Keep the project-level marker honest: it is
       // only a default/fallback config and has no single artifact id.
       patchBackgroundIsolation({ ...baseConfig, enabled: true, artifact: { ...(baseConfig.artifact || {}), id: null, status: 'missing' } });
-      showToast(`เตรียม cutout สำเร็จ ${sourceClips.length} คลิป จาก ${unique.length} แหล่งวิดีโอ`);
+      showToast(`เตรียม cutout สำเร็จ ${sourceClips.length} คลิป จาก ${unique.length} ช่วงวิดีโอ`);
     } catch (error) {
-      patchBackgroundIsolation({ ...baseConfig, enabled: true, artifact: { ...(baseConfig.artifact || {}), id: null, status: 'error' } });
-      showToast(error?.friendlyMessage || error?.message || 'เตรียม cutout ไม่สำเร็จ');
+      const message = error?.friendlyMessage || error?.message || 'เตรียม cutout ไม่สำเร็จ';
+      const status = error?.cancelled ? 'cancelled' : 'error';
+      patchBackgroundIsolation({ ...baseConfig, enabled: true, artifact: { ...(baseConfig.artifact || {}), id: null, status } });
+      setBackgroundIsolationError(message);
+      showToast(message);
     } finally {
       setBackgroundIsolationPreparing(false);
+      setBackgroundIsolationTaskIds([]);
       pollTasks?.();
     }
-  }, [backgroundIsolation, clipList, getTaskStatus, patchBackgroundIsolation, projectName, pollTasks, set, showToast, startBackgroundIsolation]);
+  }, [backgroundIsolation, backgroundIsolationGroups, backgroundIsolationPlan.conflictCount, clipList, getTaskStatus, patchBackgroundIsolation, projectName, pollTasks, set, showToast, startBackgroundIsolation]);
+
+  const cancelBackgroundIsolation = useCallback(async () => {
+    const ids = [...backgroundIsolationTaskIds];
+    await Promise.all(ids.map((taskId) => cancelTask?.(taskId)));
+    setBackgroundIsolationError('ยกเลิกการเตรียม Cutout แล้ว');
+    pollTasks?.();
+  }, [backgroundIsolationTaskIds, cancelTask, pollTasks]);
 
   const patchStylePreset = useCallback((presetId) => {
     const normalized = normalizeStylePreset(presetId);
@@ -1455,6 +1503,14 @@ export default function EditorShell({
       setApplyError('คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม');
       return;
     }
+    if (backgroundIsolation?.enabled === true && backgroundIsolationPlan.conflictCount > 0) {
+      setApplyError(`ปิดพื้นหลังเบลอ ${backgroundIsolationPlan.conflictCount} คลิปก่อน Render ด้วย Cutout`);
+      return;
+    }
+    if (backgroundIsolation?.enabled === true && backgroundIsolationStatus.state !== 'ready') {
+      setApplyError('Cutout ยังไม่พร้อมครบทุกคลิป กรุณากดเตรียม Cutout ให้สถานะพร้อมก่อน Render');
+      return;
+    }
 
     // Re-check posted status and the persisted cover fresh (not just the
     // isProjectPosted/coverStatus props) before letting a render start. The
@@ -1544,9 +1600,12 @@ export default function EditorShell({
         caption_scale: style.captionScale ?? 1,
         sticker_position: style.stickerPosition || 'top_right',
         sticker_scale: style.stickerScale ?? 1,
-        stickers: (stickers && stickers.length > 0) ? stickers : undefined,
-        effects: (effects && effects.length > 0) ? effects : undefined,
-        background_isolation: backgroundIsolation || undefined,
+        ...serializeRenderFeatures({
+          stickers,
+          effects,
+          spotlight,
+          backgroundIsolation,
+        }),
       });
       startJob(res.job_id);
       pollTasks?.();
@@ -2271,6 +2330,10 @@ export default function EditorShell({
                       onBackgroundIsolationChange={patchBackgroundIsolation}
                       onPrepareBackgroundIsolation={prepareBackgroundIsolation}
                       backgroundIsolationPreparing={backgroundIsolationPreparing}
+                      backgroundIsolationPlan={backgroundIsolationPlan}
+                      backgroundIsolationProgress={backgroundIsolationProgress}
+                      backgroundIsolationError={backgroundIsolationError}
+                      onCancelBackgroundIsolation={cancelBackgroundIsolation}
                       onAddEffect={handleAddEffect}
                       playhead={playhead}
                       totalDuration={totalDuration}
@@ -2420,6 +2483,10 @@ export default function EditorShell({
                         onBackgroundIsolationChange={patchBackgroundIsolation}
                         onPrepareBackgroundIsolation={prepareBackgroundIsolation}
                         backgroundIsolationPreparing={backgroundIsolationPreparing}
+                        backgroundIsolationPlan={backgroundIsolationPlan}
+                        backgroundIsolationProgress={backgroundIsolationProgress}
+                        backgroundIsolationError={backgroundIsolationError}
+                        onCancelBackgroundIsolation={cancelBackgroundIsolation}
                         onAddEffect={handleAddEffect}
                         playhead={playhead}
                         totalDuration={totalDuration}

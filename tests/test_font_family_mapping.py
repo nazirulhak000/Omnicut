@@ -18,7 +18,11 @@ Two bugs found while diagnosing "วรรณยุกต์ไทยชั้�
    picking Noto in the UI rendered in IBM Plex instead, with no error or
    indication. This is the bug these tests guard against.
 """
-from scripts.subtitle.font_metrics import _load_font_family_map, DEFAULT_FONT_FAMILY
+from scripts.subtitle.font_metrics import (
+    DEFAULT_FONT_FAMILY,
+    _load_font_family_map,
+    ass_top_anchor_offset,
+)
 
 
 def test_notosansthai_ui_id_resolves_to_noto_family():
@@ -34,3 +38,10 @@ def test_ibmplex_ui_id_still_resolves_correctly():
 def test_unknown_font_id_falls_back_to_default_not_silently_wrong():
     font_map = _load_font_family_map()
     assert font_map.get("something_never_registered", DEFAULT_FONT_FAMILY) == DEFAULT_FONT_FAMILY
+
+
+def test_ass_top_anchor_offset_compensates_the_boosted_ibm_line_box():
+    # 70 render px is the 1080-wide hook em. IBM Plex's 1650-unit Windows
+    # line box needs about 31 px of added ascent when its 1000-unit em is
+    # restored; keep this deterministic without optional fontTools.
+    assert ass_top_anchor_offset("IBM Plex Sans Thai", 70) == 31

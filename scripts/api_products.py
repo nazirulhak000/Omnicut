@@ -1354,9 +1354,10 @@ def _execute_generate_batch_worker(
         TaskManager.update_progress(task_id, 0.95, f"กำลังบันทึกสคริปต์ {batch_label} ลงสินค้า")
         updated_product = ProductStore.append_angles(product_id, new_angles, batch_index=next_batch)
 
+        persisted_new_angles = [a for a in updated_product.get("angles", []) if (a.get("batch") or 1) == next_batch]
         result_data = {
             "product": updated_product,
-            "new_angles": new_angles,
+            "new_angles": persisted_new_angles if persisted_new_angles else new_angles,
             "batch_index": next_batch,
         }
 

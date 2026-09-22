@@ -46,6 +46,8 @@ BASE_MANIFEST = {
     "height": 1920,
     "rotation": 0,
     "frame_pattern": SEQUENCE_FRAME_PATTERN,
+    "source_start": 0.0,
+    "source_duration": None,
 }
 
 
@@ -232,6 +234,30 @@ def test_plan_exposes_frame_and_ordering_for_preview_render_parity():
     assert plan["alpha_applied_before"] == ["transition", "concat"]
     assert plan["operations"][0]["stage"] == "source_trim"
     assert plan["operations"][2]["stage"] == "alpha_composite"
+
+
+def test_windowed_plan_maps_absolute_source_time_to_artifact_local_frame():
+    windowed = manifest(
+        source_start=8.0,
+        source_duration=2.0,
+        frame_count=60,
+    )
+
+    plan = build_compositing_plan(BASE_CONFIG, windowed, 8 + (3 / 30))
+
+    assert plan["enabled"] is True
+    assert plan["frame_index"] == 3
+    assert plan["source_start"] == 8.0
+
+
+@pytest.mark.parametrize("source_time", [7.99, 10.01])
+def test_windowed_plan_fails_closed_outside_artifact(source_time):
+    windowed = manifest(source_start=8.0, source_duration=2.0, frame_count=60)
+
+    plan = build_compositing_plan(BASE_CONFIG, windowed, source_time)
+
+    assert plan["enabled"] is False
+    assert plan["reason"] == "source_time_outside_artifact"
 
 
 def test_filter_fragment_has_alpha_merge_before_subject_overlay():

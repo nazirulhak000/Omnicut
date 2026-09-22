@@ -349,6 +349,18 @@ export function serializeStyle(style = {}) {
   };
 }
 
+export function serializeRenderFeatures({ stickers, effects, spotlight, backgroundIsolation } = {}) {
+  const payload = {};
+  if (Array.isArray(stickers) && stickers.length > 0) payload.stickers = cloneValue(stickers);
+  if (Array.isArray(effects) && effects.length > 0) payload.effects = cloneValue(effects);
+  if (spotlight !== null && spotlight !== undefined) payload.spotlight = cloneValue(spotlight);
+  const normalizedBackgroundIsolation = normalizeBackgroundIsolation(backgroundIsolation);
+  if (normalizedBackgroundIsolation !== null) {
+    payload.background_isolation = normalizedBackgroundIsolation;
+  }
+  return payload;
+}
+
 export function editorStateToSavePayload({ clipList, cuesList, microCuesList, style, overlays, trackMix, stickers, effects, spotlight, backgroundIsolation } = {}) {
   const cues = serializeCues(cuesList);
   // Fall back to `cues` when the caller hasn't been updated to pass microCuesList yet,

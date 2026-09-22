@@ -20,14 +20,15 @@ from PIL import Image
 from .app_capture import AppCaptureConfig, capture_app_canvas
 from .ass_fixture import (
     ComparisonThresholds,
-    FixtureSpec,
     compare_frames,
-    render_ass_fixture,
+    render_production_overlay_fixture,
+    write_frame_diff_artifacts,
 )
-from .capture import REPO_ROOT, temp_capture_dir
+from .capture import REPO_ROOT
+from scripts.subtitle.motion_contract import get_motion_preset
 
 
-PAIR_SCHEMA_VERSION = 1
+PAIR_SCHEMA_VERSION = 2
 LIVE_FIXTURE_PATH = REPO_ROOT / "frontend" / "src" / "motionCaptureFixture.jsx"
 LIVE_TEXT_LAYERS: Tuple[str, str] = (
     "Motion capture fixture",
@@ -50,13 +51,16 @@ class FramePairSpec:
     timestamp_ms: int = 200
     fps: int = 30
     phase_window_ms: Tuple[int, int] = (0, 500)
-    text: str = PAIR_TEXT
-    ass_render_text: str = "Motion capture fixture\nSequencePlayer\nCanvas"
+    text_layers: Tuple[str, ...] = LIVE_TEXT_LAYERS
     background: str = "0x000000"
     font_name: str = "IBM Plex Sans Thai"
-    font_size: int = 40
     bold: bool = True
     outline_px: int = 3
+    anchor: str = "top"
+    x: float = 0.5
+    y: float = 260.0 / 1920.0
+    base_fs_ratio: float = 0.065
+    comfortable_lines: int = 4
 
 
 def _sha256(path: Path) -> str:
@@ -100,11 +104,71 @@ def _validate_spec(spec: FramePairSpec) -> None:
         raise ValueError("phase_window_ms must be an increasing non-negative range")
     if not window_start <= spec.timestamp_ms < window_end:
         raise ValueError("timestamp_ms must be inside phase_window_ms")
-    if spec.text != PAIR_TEXT:
-        raise ValueError("pair text must match the existing motion capture fixture")
-    if spec.ass_render_text.replace("\n", " ") != PAIR_TEXT.replace("\n", " "):
-        raise ValueError("ASS render text must contain the same logical text as the Canvas fixture")
+    if not 1 <= len(spec.text_layers) <= 3 or any(not str(line).strip() for line in spec.text_layers):
+        raise ValueError("text_layers must contain one to three non-empty lines")
     _background_rgb(spec.background)
+
+
+def _production_overlay(spec: FramePairSpec) -> dict[str, Any]:
+    preset_ids = {
+        "in": spec.preset_id if spec.phase == "in" else "hook.in.bounce",
+        "loop": spec.preset_id if spec.phase == "loop" else "hook.loop.pulse",
+        "out": spec.preset_id if spec.phase == "out" else "hook.out.fade",
+    }
+    contracts: dict[str, Mapping[str, Any]] = {}
+    for phase, identifier in preset_ids.items():
+        role, contract_phase, preset = identifier.split(".", 2)
+        contract = get_motion_preset(role, contract_phase, preset)
+        if contract is None:
+            raise FramePairUnavailable(f"unknown production motion preset: {identifier}")
+        contracts[phase] = contract
+    return {
+        "id": "motion-capture-overlay",
+        "kind": "hook",
+        "start": 0,
+        "end": 2,
+        "position": "top",
+        "anchor": spec.anchor,
+        "x": spec.x,
+        "y": spec.y,
+        "base_fs_ratio": spec.base_fs_ratio,
+        "comfortable_lines": spec.comfortable_lines,
+        "layer": 4,
+        "look": {
+            "font": spec.font_name,
+            "color": "#FFFFFF",
+            "accent_color": "#25F4EE",
+            "outline_color": "#000000",
+            "outline_px": spec.outline_px,
+            "shadow": {"color": "#000000", "blur": 8, "dx": 0, "dy": 4},
+            "bold": spec.bold,
+        },
+        "tiers": [
+            {"text": text, "look": {"color": "#FFFFFF" if index == 0 else "#25F4EE"}}
+            for index, text in enumerate(spec.text_layers)
+        ],
+        "anim": {"in": preset_ids["in"].split(".", 2)[2], "loop": preset_ids["loop"].split(".", 2)[2], "out": preset_ids["out"].split(".", 2)[2], "accent": "none", "stagger": False},
+        "motion_contracts": contracts,
+        "scrim": False,
+        "hidden": False,
+    }
+
+
+def _expected_live_overlay_contract(spec: FramePairSpec) -> dict[str, Any]:
+    return {
+        "anchor": spec.anchor,
+        "x": spec.x,
+        "y": spec.y,
+        "baseFsRatio": spec.base_fs_ratio,
+        "comfortableLines": spec.comfortable_lines,
+        "font": spec.font_name,
+        "outlinePx": spec.outline_px,
+        "bold": spec.bold,
+        "tiers": [
+            {"text": text, "color": "#FFFFFF" if index == 0 else "#25F4EE"}
+            for index, text in enumerate(spec.text_layers)
+        ],
+    }
 
 
 def _phase_query_key(phase: str) -> str:
@@ -115,7 +179,7 @@ def _source_text_evidence() -> dict[str, Any]:
     if not LIVE_FIXTURE_PATH.exists():
         return {"status": "missing", "path": str(LIVE_FIXTURE_PATH)}
     source = LIVE_FIXTURE_PATH.read_text(encoding="utf-8")
-    found = {text: f"text: '{text}'" in source for text in LIVE_TEXT_LAYERS}
+    found = {text: f"'{text}'" in source for text in LIVE_TEXT_LAYERS}
     return {
         "status": "matched" if all(found.values()) else "mismatch",
         "path": str(LIVE_FIXTURE_PATH.relative_to(REPO_ROOT)),
@@ -178,83 +242,95 @@ def compare_live_frame_pair(
         raise FramePairUnavailable(
             f"URL query {query_key!r} must select {spec.preset_id!r} for the pair"
         )
+    query_lines = tuple(query.get("line", []))
+    if query_lines and query_lines != spec.text_layers:
+        raise FramePairUnavailable("URL line parameters must match the frame-pair text layers")
+    if not query_lines and spec.text_layers != LIVE_TEXT_LAYERS:
+        raise FramePairUnavailable("non-default frame-pair text requires repeated URL line parameters")
     source_evidence = _source_text_evidence()
-    if source_evidence["status"] != "matched":
+    if spec.text_layers == LIVE_TEXT_LAYERS and source_evidence["status"] != "matched":
         raise FramePairUnavailable("live fixture text source no longer matches the pair text")
 
-    with temp_capture_dir("motion-frame-pair-") as temp_root:
-        output_dir = Path(temp_root)
-        live_dir = output_dir / "live"
-        manifest = capture_app_canvas(
-            AppCaptureConfig(
-                **{
-                    **asdict(config),
-                    "output_dir": live_dir,
-                    "frame_count": spec.frame_index + 1,
-                }
-            )
+    output_dir = config.output_dir.resolve()
+    allowed_root = (REPO_ROOT / ".tmp").resolve()
+    if not output_dir.is_relative_to(allowed_root):
+        raise ValueError(f"frame pair output must be under {allowed_root}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    live_dir = output_dir / "live"
+    manifest = capture_app_canvas(
+        AppCaptureConfig(
+            **{
+                **asdict(config),
+                "output_dir": live_dir,
+                "frame_count": 1,
+                "frame_indices": (spec.frame_index,),
+            }
         )
-        live_frame = _resolve_live_frame(manifest, spec)
-        live_path = live_dir / str(live_frame["path"])
-        canvas_path = output_dir / "canvas_composited.png"
-        canvas_artifact = _composite_canvas_frame(live_path, canvas_path, spec.background)
+    )
+    live_frame = _resolve_live_frame(manifest, spec)
+    live_path = live_dir / str(live_frame["path"])
+    canvas_path = output_dir / "canvas_composited.png"
+    canvas_artifact = _composite_canvas_frame(live_path, canvas_path, spec.background)
 
-        window_start, window_end = spec.phase_window_ms
-        ass_spec = FixtureSpec(
-            preset_id=spec.preset_id,
-            role=spec.preset_id.split(".", 2)[0],
-            phase=spec.phase,
+    production_overlay = _production_overlay(spec)
+    ass_paths = render_production_overlay_fixture(
+            production_overlay,
             sample_ms=spec.timestamp_ms,
             width=int(live_frame["width"]),
             height=int(live_frame["height"]),
             fps=spec.fps,
-            font_name=spec.font_name,
-            text=spec.text,
-            render_text=spec.ass_render_text,
             background=spec.background,
-            base_position=(int(live_frame["width"]) // 2, int(live_frame["height"]) // 2),
-            motion_window_ms=window_end - window_start,
-            font_size=spec.font_size,
-            bold=spec.bold,
-            outline_px=spec.outline_px,
-        )
-        ass_paths = render_ass_fixture(ass_spec, output_dir / "ass")
-        ass_metadata = json.loads(ass_paths["metadata"].read_text(encoding="utf-8"))
-        ass_image = ass_paths["png"]
-        comparison = compare_frames(canvas_path, ass_image, ComparisonThresholds())
+            output_dir=output_dir / "ass",
+    )
+    ass_metadata = json.loads(ass_paths["metadata"].read_text(encoding="utf-8"))
+    ass_image = ass_paths["png"]
+    comparison = compare_frames(canvas_path, ass_image, ComparisonThresholds())
+    diff_artifacts = write_frame_diff_artifacts(canvas_path, ass_image, output_dir / "diff")
 
-        identity = {
+    identity = {
             "timestamp_ms": {
                 "canvas": live_frame.get("timestampMs"),
-                "ass": ass_metadata["spec"]["sample_ms"],
-                "match": live_frame.get("timestampMs") == ass_metadata["spec"]["sample_ms"],
+                "ass": ass_metadata["sample_ms"],
+                "match": live_frame.get("timestampMs") == ass_metadata["sample_ms"],
             },
             "preset_id": {
                 "canvas": (live_frame.get("hook_metadata") or {}).get("presetIds", {}).get(spec.phase),
-                "ass": ass_metadata["contract_id"],
+                "ass": production_overlay["motion_contracts"][spec.phase]["id"],
                 "match": (live_frame.get("hook_metadata") or {}).get("presetIds", {}).get(spec.phase)
-                == ass_metadata["contract_id"],
+                == production_overlay["motion_contracts"][spec.phase]["id"],
             },
             "text": {
-                "canvas_source": list(LIVE_TEXT_LAYERS),
-                "ass": spec.text.split("\n"),
-                "match": source_evidence["status"] == "matched" and spec.text == PAIR_TEXT,
+                "canvas_source": [
+                    item.get("text")
+                    for item in ((live_frame.get("hook_metadata") or {}).get("overlayContract") or {}).get("tiers", [])
+                ],
+                "ass": list(spec.text_layers),
+                "match": [
+                    item.get("text")
+                    for item in ((live_frame.get("hook_metadata") or {}).get("overlayContract") or {}).get("tiers", [])
+                ] == list(spec.text_layers),
             },
             "dimensions": {
                 "canvas": [live_frame.get("width"), live_frame.get("height")],
-                "ass": [ass_metadata["spec"]["width"], ass_metadata["spec"]["height"]],
+                "ass": ass_metadata["canvas_size"],
                 "match": [live_frame.get("width"), live_frame.get("height")]
-                == [ass_metadata["spec"]["width"], ass_metadata["spec"]["height"]],
+                == ass_metadata["canvas_size"],
             },
-        }
-        identity["all_match"] = all(item["match"] for item in identity.values())
-        blockers = []
-        if not comparison.passed:
-            blockers.append(
-                "real Canvas and FFmpeg/libass frames were paired, but the recorded "
-                "cross-rasterizer thresholds did not pass"
-            )
-        result = {
+            "layout_contract": {
+                "canvas": (live_frame.get("hook_metadata") or {}).get("overlayContract"),
+                "ass": _expected_live_overlay_contract(spec),
+                "match": (live_frame.get("hook_metadata") or {}).get("overlayContract")
+                == _expected_live_overlay_contract(spec),
+            },
+    }
+    identity["all_match"] = all(item["match"] for item in identity.values())
+    blockers = []
+    if not comparison.passed:
+        blockers.append(
+            "real Canvas and FFmpeg/libass frames were paired, but the recorded "
+            "cross-rasterizer thresholds did not pass"
+        )
+    result = {
             "schema_version": PAIR_SCHEMA_VERSION,
             "status": (
                 "passed"
@@ -269,6 +345,8 @@ def compare_live_frame_pair(
             "pair_identity": identity,
             "source_text_evidence": source_evidence,
             "comparison": comparison.to_dict(),
+            "diff_artifacts": diff_artifacts,
+            "runtime": manifest["runtime"],
             "live_capture": {
                 "url": config.url,
                 "selector": config.selector,
@@ -276,23 +354,24 @@ def compare_live_frame_pair(
                 "manifest_schema_version": manifest.get("schema_version"),
             },
             "ass_fixture": {
-                "spec": asdict(ass_spec),
+                "spec": ass_metadata,
                 "artifacts": {key: {"path": str(value.name), "sha256": _sha256(value)} for key, value in ass_paths.items()},
             },
             "canvas_artifact": canvas_artifact,
             "thresholds": asdict(ComparisonThresholds()),
             "notes": [
                 "Canvas pixels came from SequencePlayer via HTMLCanvasElement.toDataURL().",
-                "ASS pixels came from the existing motion contract and FFmpeg/libass fixture.",
+                "ASS pixels came from SubtitleEngine, overlay_events, and FFmpeg/libass at export resolution.",
+                "The export frame was downsampled once to the fixed SequencePlayer canvas dimensions.",
                 "The Canvas alpha channel was composited over the same black fixture background before comparison.",
                 "Exact RGBA equality is diagnostic only; the acceptance gate uses the recorded structural metrics.",
             ],
-        }
-        (output_dir / "pair_result.json").write_text(
-            json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-        return result
+    }
+    (output_dir / "pair_result.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return result
 
 
 def default_pair_config(url: str, output_dir: Path) -> AppCaptureConfig:
@@ -303,5 +382,6 @@ def default_pair_config(url: str, output_dir: Path) -> AppCaptureConfig:
         selector="[data-testid='motion-capture-sequence-player'] canvas",
         ready_selector="[data-testid='motion-capture-sequence-player']",
         output_dir=output_dir,
-        frame_count=FramePairSpec().frame_index + 1,
+        frame_count=1,
+        frame_indices=(FramePairSpec().frame_index,),
     )

@@ -66,8 +66,16 @@ export const ANGLE_SLUG_MAP = {
  * @returns {string}
  */
 export function cleanAngleSlug(angle, fallbackIndex = 0) {
-  if (angle && typeof angle === 'object' && angle.angle_id && ANGLE_SLUG_MAP[angle.angle_id]) {
-    return ANGLE_SLUG_MAP[angle.angle_id];
+  const aid = (angle && typeof angle === 'object' && angle.angle_id)
+    ? String(angle.angle_id).toLowerCase().trim()
+    : (typeof angle === 'string' ? angle.toLowerCase().trim() : '');
+  const baseAid = aid.replace(/_b\d+$/, '');
+
+  if (aid && ANGLE_SLUG_MAP[aid]) {
+    return ANGLE_SLUG_MAP[aid];
+  }
+  if (baseAid && ANGLE_SLUG_MAP[baseAid]) {
+    return ANGLE_SLUG_MAP[baseAid];
   }
 
   let raw = '';
@@ -122,6 +130,7 @@ export function cleanAngleSlug(angle, fallbackIndex = 0) {
  * @param {number} [params.angleIndex=0]
  * @param {Array<string|object>} [params.existingProjects=[]]
  * @param {string} [params.productCode='']
+ * @param {number} [params.batch=null]
  * @returns {string}
  */
 export function buildProjectName({
@@ -130,31 +139,35 @@ export function buildProjectName({
   angleIndex = 0,
   existingProjects = [],
   productCode = '',
+  batch = null,
 }) {
   const angleSlug = cleanAngleSlug(angle, angleIndex);
   const codePart = (productCode || '').trim().toUpperCase();
   const base = codePart ? `${codePart}-${angleSlug}` : `${extractShortProductName(productName)}_${angleSlug}`;
 
-  // Case-sensitive, matching the on-disk project folder project_manifest.py
-  // actually creates (PROJECTS_DIR / project_name, no case-folding). A
-  // case-insensitive check here could either wrongly flag two distinct
-  // folders as a collision, or (on a case-sensitive deployment filesystem,
-  // e.g. Linux) miss that "Name_1" and "name_1" really are two different
-  // folders that coexist on disk -- inconsistent behavior depending on which
-  // OS the check runs against vs. where files actually land. This generator
-  // always emits a consistent casing itself, so case-sensitivity here only
-  // matters against pre-existing/legacy or hand-renamed entries.
+  let angleBatch = batch;
+  if (angleBatch == null && typeof angle === 'object' && angle) {
+    if (angle.batch != null) {
+      angleBatch = angle.batch;
+    } else if (angle.angle_id) {
+      const match = String(angle.angle_id).match(/_b(\d+)$/);
+      if (match) angleBatch = parseInt(match[1], 10);
+    }
+  }
+
   const existingSet = new Set(
-    (existingProjects || []).map((p) => {
-      if (typeof p === 'string') return p;
-      if (p && p.project_name) return p.project_name;
-      return '';
+    (existingProjects || []).flatMap((p) => {
+      if (!p) return [];
+      if (typeof p === 'string') return [p.trim()];
+      if (p.project_name) return [String(p.project_name).trim()];
+      if (p.name) return [String(p.name).trim()];
+      return [];
     })
   );
 
-  // Auto-increment version: _1, _2, _3...
-  let version = 1;
-  while (version < 100) {
+  // Auto-increment version: starts at angleBatch (e.g. _1 for batch 1, _2 for batch 2)
+  let version = Math.max(1, Number(angleBatch) || 1);
+  while (version < 1000) {
     const candidate = `${base}_${version}`;
     if (!existingSet.has(candidate)) {
       return candidate;

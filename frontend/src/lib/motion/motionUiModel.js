@@ -155,6 +155,13 @@ function buildPresetViewModel(contract, uiPhase, { selectedId = null } = {}) {
     durationMs: contract.duration_ms,
     durationLabel,
     repeat: Boolean(contract.repeat),
+    rendererBound: Boolean(contract.metadata?.renderer_bound),
+    parityLevel: contract.metadata?.parity_level || 'unknown',
+    unsupportedTracks: Object.freeze([...(contract.metadata?.unsupported_tracks || [])]),
+    enabled: Boolean(contract.metadata?.renderer_bound),
+    disabledReason: contract.metadata?.renderer_bound
+      ? null
+      : 'Renderer กลางยังต้องใช้ตัวเรนเดอร์เดิมสำหรับ preset นี้',
     recommendedRole: contract.role,
     recommendedRoleLabel: roleLabel,
     capabilities: buildCapabilities(),

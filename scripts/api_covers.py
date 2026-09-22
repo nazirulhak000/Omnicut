@@ -313,7 +313,8 @@ def find_raw_sources_for_video(video_path: Path) -> List[Dict[str, Any]]:
                 try:
                     data = json.loads(pj.read_text(encoding="utf-8"))
                     p_name = data.get("project_name", p.name).lower()
-                    mp4_path = data.get("artifacts", {}).get("mp4_video", {}).get("path", "")
+                    mp4_entry = (data.get("artifacts") or {}).get("mp4_video")
+                    mp4_path = mp4_entry.get("path", "") if isinstance(mp4_entry, dict) else ""
                     if (mp4_path and Path(mp4_path).name.lower() == video_path.name.lower()) or v_stem.startswith(p_name) or p_name in v_stem:
                         best_matches.append(data)
                     elif any(len(w) > 4 and w in v_stem for w in p_name.split("_") if w not in ("ปัญหาก่อนใช้", "รีวิวสเปก")):

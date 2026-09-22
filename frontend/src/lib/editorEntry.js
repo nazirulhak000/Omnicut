@@ -40,3 +40,30 @@ export function filterActiveProjects(projects = [], statusByProject = {}) {
   });
 }
 
+export function filterProjectsByTab(projects = [], tab = 'all') {
+  if (tab === 'active' || tab === 'in_production') {
+    return (projects || []).filter((p) => p.status !== 'rendered');
+  }
+  if (tab === 'rendered') {
+    return (projects || []).filter((p) => p.status === 'rendered');
+  }
+  return projects || [];
+}
+
+export function countProjectsByTab(projects = []) {
+  let active = 0;
+  let rendered = 0;
+  for (const p of projects || []) {
+    if (p.status === 'rendered') {
+      rendered++;
+    } else {
+      active++;
+    }
+  }
+  return {
+    active,
+    rendered,
+    all: (projects || []).length,
+  };
+}
+

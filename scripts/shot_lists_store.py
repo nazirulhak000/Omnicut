@@ -40,19 +40,23 @@ class ShotListsStore:
 
     @classmethod
     def get(cls, product_id: str, angle_id: str, batch: Optional[int] = None) -> Optional[Dict[str, Any]]:
-        # If batch is provided, look ONLY for batch-specific rows.
-        # Do NOT fall through to the legacy (no-batch) row — that would cause
-        # batch 2 angles to incorrectly inherit batch 1's shot list and show
-        # a false "stale" warning when batch 2 hasn't generated one yet.
-        if batch is not None:
-            batch_row_id = f"{product_id}:{angle_id}:b{batch}"
+        # If batch is provided or extractable from compound angle_id (_bN), look ONLY for batch-specific rows.
+        effective_batch = batch
+        if effective_batch is None:
+            import re
+            m = re.search(r"_b(\d+)$", str(angle_id))
+            if m:
+                effective_batch = int(m.group(1))
+
+        if effective_batch is not None:
+            batch_row_id = f"{product_id}:{angle_id}:b{effective_batch}"
             for record in _TABLE.load():
                 if record.get("id") == batch_row_id:
                     return record
                 if (
                     record.get("product_id") == product_id
                     and record.get("angle_id") == angle_id
-                    and record.get("batch") == batch
+                    and record.get("batch") == effective_batch
                 ):
                     return record
             # batch specified but no matching row found → no shot list for this batch
@@ -69,9 +73,14 @@ class ShotListsStore:
     def upsert(cls, record: Dict[str, Any], batch: Optional[int] = None) -> Dict[str, Any]:
         record = dict(record)
         b = batch if batch is not None else record.get("batch")
+        if b is None and record.get("angle_id"):
+            import re
+            m = re.search(r"_b(\d+)$", str(record.get("angle_id")))
+            if m:
+                b = int(m.group(1))
         if b is not None:
             record["batch"] = b
-            record.setdefault("id", f"{record['product_id']}:{record['angle_id']}:b{b}")
+            record["id"] = f"{record['product_id']}:{record['angle_id']}:b{b}"
         else:
             record.setdefault("id", f"{record['product_id']}:{record['angle_id']}")
         now = cls._now()
@@ -90,15 +99,22 @@ class ShotListsStore:
     @classmethod
     def delete(cls, product_id: str, angle_id: str, batch: Optional[int] = None) -> bool:
         """Deletes shot list record for a product angle."""
+        effective_batch = batch
+        if effective_batch is None:
+            import re
+            m = re.search(r"_b(\d+)$", str(angle_id))
+            if m:
+                effective_batch = int(m.group(1))
+
         row_id = f"{product_id}:{angle_id}"
-        batch_row_id = f"{product_id}:{angle_id}:b{batch}" if batch is not None else None
+        batch_row_id = f"{product_id}:{angle_id}:b{effective_batch}" if effective_batch is not None else None
         found = False
         with _TABLE.mutate() as records:
-            if batch is not None:
+            if effective_batch is not None:
                 filtered = [
                     r for r in records
                     if r.get("id") != batch_row_id
-                    and not (r.get("product_id") == product_id and r.get("angle_id") == angle_id and r.get("batch") == batch)
+                    and not (r.get("product_id") == product_id and r.get("angle_id") == angle_id and r.get("batch") == effective_batch)
                 ]
             else:
                 filtered = [

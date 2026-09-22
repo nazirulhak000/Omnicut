@@ -7,6 +7,8 @@ import {
   resolveEditorProjectName,
   withEditorProjectAction,
   filterActiveProjects,
+  filterProjectsByTab,
+  countProjectsByTab,
 } from './editorEntry.js';
 
 test('send-to-edit payload opens a fresh One Click project even when stale project fallbacks exist', () => {
@@ -96,4 +98,53 @@ test('filterActiveProjects accounts for statusByProject map correctly', () => {
   const active = filterActiveProjects(projects, statusByProject);
   assert.equal(active.length, 1);
   assert.equal(active[0].project_name, 'PROJ-2');
+});
+
+test('filterProjectsByTab filters active, rendered, and all tabs correctly', () => {
+  const projects = [
+    { project_name: 'PROJ-ACTIVE-1', status: 'in_production' },
+    { project_name: 'PROJ-ACTIVE-2', status: 'scripted' },
+    { project_name: 'PROJ-ACTIVE-3' }, // no status = draft/active
+    { project_name: 'PROJ-RENDERED-1', status: 'rendered' },
+    { project_name: 'PROJ-RENDERED-2', status: 'rendered' },
+  ];
+
+  // active tab: excludes rendered
+  const active = filterProjectsByTab(projects, 'active');
+  assert.equal(active.length, 3);
+  assert.deepEqual(active.map(p => p.project_name), [
+    'PROJ-ACTIVE-1',
+    'PROJ-ACTIVE-2',
+    'PROJ-ACTIVE-3',
+  ]);
+
+  // rendered tab: only rendered
+  const rendered = filterProjectsByTab(projects, 'rendered');
+  assert.equal(rendered.length, 2);
+  assert.deepEqual(rendered.map(p => p.project_name), [
+    'PROJ-RENDERED-1',
+    'PROJ-RENDERED-2',
+  ]);
+
+  // all tab: returns all projects
+  const all = filterProjectsByTab(projects, 'all');
+  assert.equal(all.length, 5);
+});
+
+test('countProjectsByTab counts active, rendered, and all projects accurately', () => {
+  const projects = [
+    { project_name: 'P1', status: 'in_production' },
+    { project_name: 'P2', status: 'scripted' },
+    { project_name: 'P3' },
+    { project_name: 'P4', status: 'rendered' },
+    { project_name: 'P5', status: 'rendered' },
+    { project_name: 'P6', status: 'rendered' },
+  ];
+
+  const counts = countProjectsByTab(projects);
+  assert.deepEqual(counts, {
+    active: 3,
+    rendered: 3,
+    all: 6,
+  });
 });

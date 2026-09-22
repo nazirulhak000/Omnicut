@@ -95,6 +95,8 @@ export const startBatchDraft = (payload) => api.post('/render/batch', { ...paylo
 export const getBatchRenderStatus = (batchId) => api.get(`/render/batch/${batchId}`).then(r => r.data);
 export const startBackgroundIsolation = (payload) =>
   api.post('/background-isolation/process', payload, { timeout: 120000 }).then(r => r.data);
+export const preflightBackgroundIsolation = (payload) =>
+  api.post('/background-isolation/preflight', payload, { timeout: 30000 }).then(r => r.data);
 export const cancelBatchRender = (batchId) => api.post(`/render/batch/${batchId}/cancel`).then(r => r.data);
 export const openFolder = (target) => api.post('/open-folder', { target }).then(r => r.data);
 
@@ -342,8 +344,13 @@ export const rerollAngleScript = (productId, angleId, payload = {}) =>
 // TTS voice timing (not a text-length estimate), so footage can later be
 // mapped onto the script without AI vision matching. Async like
 // reroll-script above (task_id polled via TaskContext's refreshTrigger).
-export const generateShotList = (productId, angleId, voiceOverrides = {}) =>
-  api.post(`/products/${productId}/angles/${angleId}/shot-list`, voiceOverrides).then(r => r.data);
+export const generateShotList = (productId, angleId, voiceOverrides = {}, batch = null) => {
+  const payload = { ...voiceOverrides };
+  if (batch !== null && batch !== undefined) {
+    payload.batch = batch;
+  }
+  return api.post(`/products/${productId}/angles/${angleId}/shot-list`, payload).then(r => r.data);
+};
 
 export const getShotList = (productId, angleId, batch = null) =>
   api.get(`/products/${productId}/angles/${angleId}/shot-list`, { params: batch ? { batch } : {} }).then(r => r.data);
@@ -520,4 +527,3 @@ export const matchRawFolderWithAI = (rawFolder, sentences) =>
   }).then(r => r.data);
 
 export default api;
-

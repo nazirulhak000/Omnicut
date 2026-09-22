@@ -160,7 +160,13 @@ def get_hook_motion_presets():
     the list, so a preset added in hook_motion_presets.py + a builder in
     subtitle_engine.py shows up in the UI without a frontend change.
     """
-    return {"catalog": hook_motion_catalog(), "default": DEFAULT_HOOK_MOTION}
+    from scripts.hook_motion_presets import hook_motion_capability_summary
+
+    return {
+        "catalog": hook_motion_catalog(),
+        "default": DEFAULT_HOOK_MOTION,
+        "capability_audit": hook_motion_capability_summary(),
+    }
 
 
 # ----------------------------------------------------------------------

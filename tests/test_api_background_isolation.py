@@ -240,11 +240,48 @@ def test_process_rejects_invalid_rotation(monkeypatch, tmp_path):
     assert response.status_code == 422
 
 
-def test_source_sequence_identity_is_shared_across_trim_windows():
+def test_preflight_validates_source_and_returns_actionable_capacity_result(monkeypatch, tmp_path):
+    client, _cache_root = _client(monkeypatch, tmp_path)
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"fixture")
+    captured = {}
+
+    def fake_preflight(req, resolved_source):
+        captured["request"] = req
+        captured["source"] = resolved_source
+        return {
+            "ok": True,
+            "frame_count": 60,
+            "estimated_cache_bytes": 123,
+            "issues": [],
+        }
+
+    monkeypatch.setattr(api, "_background_isolation_preflight", fake_preflight)
+    response = client.post(
+        "/api/background-isolation/preflight",
+        json={
+            "source_path": str(source),
+            "config": {"enabled": True, "model": "u2net"},
+            "start": 8.0,
+            "duration": 2.0,
+            "fps": 30,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["frame_count"] == 60
+    assert captured["source"] == source.resolve()
+    assert captured["request"].config["enabled"] is True
+    assert captured["request"].config["model"] == "u2net"
+
+
+def test_source_sequence_identity_changes_across_trim_windows():
     normalized = api.normalize_background_isolation({"enabled": True})
     first = api._source_sequence_id(
         "sha256:source",
         normalized,
+        start=1.0,
+        duration=2.0,
         fps=30.0,
         timebase="1/30",
         width=1080,
@@ -254,6 +291,8 @@ def test_source_sequence_identity_is_shared_across_trim_windows():
     second = api._source_sequence_id(
         "sha256:source",
         normalized,
+        start=8.0,
+        duration=2.0,
         fps=30.0,
         timebase="1/30",
         width=1080,
@@ -261,8 +300,91 @@ def test_source_sequence_identity_is_shared_across_trim_windows():
         rotation=0,
     )
 
-    assert first == second
+    assert first != second
     assert first.startswith("bgseq1-")
+
+
+def test_request_identity_includes_trim_window(tmp_path):
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"fixture")
+    normalized = api.normalize_background_isolation({"enabled": True})
+
+    first = api._request_identity(
+        source,
+        normalized,
+        api.BackgroundIsolationProcessRequest(source_path=str(source), start=1.0, duration=2.0),
+    )
+    second = api._request_identity(
+        source,
+        normalized,
+        api.BackgroundIsolationProcessRequest(source_path=str(source), start=8.0, duration=2.0),
+    )
+
+    assert first != second
+
+
+def test_worker_threads_requested_window_into_extraction_and_published_manifest(monkeypatch, tmp_path):
+    project_root = tmp_path / "03_Projects"
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"fixture")
+    output = tmp_path / "derived"
+    output.mkdir()
+    captured = {}
+
+    monkeypatch.setattr(api, "PROJECTS_DIR", project_root)
+    monkeypatch.setattr(api.TaskManager, "update_progress", lambda *args, **kwargs: None)
+    monkeypatch.setattr(api.TaskManager, "fail_task", lambda *args, **kwargs: pytest.fail(str(args)))
+    monkeypatch.setattr(api.TaskManager, "complete_task", lambda task_id, result, **kwargs: captured.update(result=result))
+    monkeypatch.setattr(api, "write_sequence_manifest", lambda *args, **kwargs: None)
+
+    def fake_extract(*args, **kwargs):
+        captured["extract"] = kwargs
+        return {
+            "status": "ready",
+            "sequence_dir": str(tmp_path / "source-sequence"),
+            "frame_count": 60,
+            "start": kwargs["start"],
+            "duration": kwargs["duration"],
+        }
+
+    def fake_process(_source, _cache, _config, source_manifest, **_kwargs):
+        captured["source_manifest"] = source_manifest
+        artifact_id = "bgseq1-0123456789abcdef"
+        manifest = build_sequence_manifest(
+            artifact_id,
+            source_fingerprint=source_manifest["source_fingerprint"],
+            frame_count=60,
+            fps=30,
+            timebase="1/30",
+            width=1080,
+            height=1920,
+            source_start=source_manifest["source_start"],
+            source_duration=source_manifest["source_duration"],
+            status="ready",
+        )
+        (output / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        return {"status": "ready", "artifact_id": artifact_id, "output_directory": str(output)}
+
+    monkeypatch.setattr(api, "extract_background_isolation_sequence", fake_extract)
+    monkeypatch.setattr(api, "process_background_isolation_sequence", fake_process)
+
+    api._run_background_isolation_task(
+        "task-window",
+        api.BackgroundIsolationProcessRequest(
+            source_path=str(source),
+            config={"enabled": True},
+            start=8.0,
+            duration=2.0,
+        ),
+        threading.Event(),
+    )
+
+    assert captured["extract"]["start"] == 8.0
+    assert captured["extract"]["duration"] == 2.0
+    assert captured["source_manifest"]["source_start"] == 8.0
+    assert captured["source_manifest"]["source_duration"] == 2.0
+    assert captured["result"]["artifact"]["source_start"] == 8.0
+    assert captured["result"]["sequence"]["source_duration"] == 2.0
 
 
 def test_background_task_scheduler_deduplicates_recovery_launches(monkeypatch):

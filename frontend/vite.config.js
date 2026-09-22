@@ -2,6 +2,37 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import basicSsl from '@vitejs/plugin-basic-ssl'
+import fs from 'node:fs'
+import path from 'node:path'
+
+function localFontAssets() {
+  const routePrefix = '/api/media/02_Assets/Fonts/'
+  const fontsRoot = path.resolve(process.cwd(), '..', '02_Assets', 'Fonts')
+  return {
+    name: 'omnicut-local-font-assets',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const pathname = new URL(req.url || '/', 'http://127.0.0.1').pathname
+        if (!pathname.startsWith(routePrefix)) return next()
+        const filename = decodeURIComponent(pathname.slice(routePrefix.length))
+        if (!filename || path.basename(filename) !== filename || !/\.(ttf|otf)$/i.test(filename)) {
+          res.statusCode = 400
+          res.end('Invalid font path')
+          return
+        }
+        const target = path.resolve(fontsRoot, filename)
+        if (path.dirname(target) !== fontsRoot || !fs.existsSync(target)) {
+          res.statusCode = 404
+          res.end('Font not found')
+          return
+        }
+        res.setHeader('Content-Type', filename.toLowerCase().endsWith('.otf') ? 'font/otf' : 'font/ttf')
+        res.setHeader('Cache-Control', 'public, max-age=3600')
+        fs.createReadStream(target).pipe(res)
+      })
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -14,6 +45,7 @@ export default defineConfig(({ mode }) => {
   return {
   envDir: '..',
   plugins: [
+    localFontAssets(),
     react(),
     tailwindcss(),
     // Self-signed HTTPS for dev server -- MobileFilmingPage.jsx's

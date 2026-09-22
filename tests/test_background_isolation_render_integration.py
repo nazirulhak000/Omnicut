@@ -50,7 +50,18 @@ def _stub_editor(monkeypatch, *, duration=4.0):
     return calls
 
 
-def _make_sequence(monkeypatch, tmp_path, *, frame_count=8, fps=2, width=64, height=64, rotation=90):
+def _make_sequence(
+    monkeypatch,
+    tmp_path,
+    *,
+    frame_count=8,
+    fps=2,
+    width=64,
+    height=64,
+    rotation=90,
+    source_start=0.0,
+    source_duration=None,
+):
     projects_dir = tmp_path / "03_Projects"
     monkeypatch.setattr(video_editor, "PROJECTS_DIR", projects_dir)
 
@@ -76,6 +87,8 @@ def _make_sequence(monkeypatch, tmp_path, *, frame_count=8, fps=2, width=64, hei
         width=width,
         height=height,
         rotation=rotation,
+        source_start=source_start,
+        source_duration=source_duration,
         status="ready",
     )
     sequence_dir = projects_dir / ".cache" / "background-isolation-foreground-sequences" / artifact_id
@@ -155,37 +168,32 @@ def test_disabled_background_keeps_legacy_graph_and_source_untouched(monkeypatch
 @pytest.mark.parametrize(
     "override",
     [
-        {"enabled": False},
         {"enabled": True, "artifact": {"status": "missing", "sequence_id": "bgseq1-0123456789abcdef"}},
         {"enabled": True, "artifact": {"status": "processing", "sequence_id": "bgseq1-0123456789abcdef"}},
         {"enabled": True, "artifact": {"status": "stale", "sequence_id": "bgseq1-0123456789abcdef"}},
         {"enabled": True, "artifact": {"status": "error", "sequence_id": "bgseq1-0123456789abcdef"}},
     ],
 )
-def test_invalid_or_not_ready_background_falls_back_without_background_nodes(monkeypatch, tmp_path, override):
-    command, _ = _assemble(
-        monkeypatch,
-        tmp_path,
-        clip_list=[{"source_path": str(tmp_path / "source.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
-        background_isolation=override,
-    )
-    graph = _filter(command)
-    assert "alphamerge" not in graph
-    assert "bg_subject" not in graph
-    assert "-framerate" not in command
+def test_requested_but_not_ready_background_blocks_render(monkeypatch, tmp_path, override):
+    with pytest.raises(ValueError, match="Background Cutout is not ready"):
+        _assemble(
+            monkeypatch,
+            tmp_path,
+            clip_list=[{"source_path": str(tmp_path / "source.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
+            background_isolation=override,
+        )
 
 
 def test_arbitrary_foreground_path_is_rejected_even_with_ready_metadata(monkeypatch, tmp_path):
     config, _, _ = _make_sequence(monkeypatch, tmp_path)
     config["frames_path"] = str(tmp_path / "outside" / "frames")
-    command, _ = _assemble(
-        monkeypatch,
-        tmp_path,
-        clip_list=[{"source_path": str(tmp_path / "source.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
-        background_isolation=config,
-    )
-    assert "alphamerge" not in _filter(command)
-    assert "-framerate" not in command
+    with pytest.raises(ValueError, match="Background Cutout is not ready"):
+        _assemble(
+            monkeypatch,
+            tmp_path,
+            clip_list=[{"source_path": str(tmp_path / "source.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
+            background_isolation=config,
+        )
 
 
 def test_ready_rgba_sequence_is_composited_per_clip_before_concat(monkeypatch, tmp_path):
@@ -222,17 +230,56 @@ def test_ready_rgba_sequence_is_composited_per_clip_before_concat(monkeypatch, t
     assert sources[0].read_bytes() == b"source-must-not-be-mutated\x00"
 
 
-def test_non_rgba_frame_fails_closed(monkeypatch, tmp_path):
-    config, _, sequence_dir = _make_sequence(monkeypatch, tmp_path)
-    Image.new("RGB", (64, 64), (255, 0, 0)).save(sequence_dir / "frames" / "frame_000003.png")
+def test_windowed_rgba_sequence_starts_from_artifact_local_frame_zero(monkeypatch, tmp_path):
+    config, _, _ = _make_sequence(
+        monkeypatch,
+        tmp_path,
+        frame_count=4,
+        fps=2,
+        source_start=8.0,
+        source_duration=2.0,
+    )
     command, _ = _assemble(
         monkeypatch,
         tmp_path,
-        clip_list=[{"source_path": str(tmp_path / "source.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
+        clip_list=[{
+            "source_path": str(tmp_path / "source.mp4"),
+            "trim_start": 8.0,
+            "trim_end": 10.0,
+        }],
         background_isolation=config,
     )
-    assert "alphamerge" not in _filter(command)
-    assert "-framerate" not in command
+
+    assert command[command.index("-start_number") + 1] == "0"
+    assert "alphamerge" in _filter(command)
+
+
+def test_non_rgba_frame_fails_closed(monkeypatch, tmp_path):
+    config, _, sequence_dir = _make_sequence(monkeypatch, tmp_path)
+    Image.new("RGB", (64, 64), (255, 0, 0)).save(sequence_dir / "frames" / "frame_000003.png")
+    with pytest.raises(ValueError, match="Background Cutout is not ready"):
+        _assemble(
+            monkeypatch,
+            tmp_path,
+            clip_list=[{"source_path": str(tmp_path / "source.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
+            background_isolation=config,
+        )
+
+
+def test_blurred_background_conflict_blocks_cutout_render(monkeypatch, tmp_path):
+    config, _, _ = _make_sequence(monkeypatch, tmp_path)
+    with pytest.raises(ValueError, match="Background Cutout conflict"):
+        _assemble(
+            monkeypatch,
+            tmp_path,
+            clip_list=[{
+                "source_path": str(tmp_path / "source.mp4"),
+                "trim_start": 0.0,
+                "trim_end": 2.0,
+                "bg_blur": True,
+            }],
+            background_isolation=config,
+        )
 
 
 def test_each_ready_clip_gets_own_sequence_input_and_transition_stays_above_composite(monkeypatch, tmp_path):

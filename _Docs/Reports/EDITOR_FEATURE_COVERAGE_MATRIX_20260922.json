@@ -1,0 +1,357 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-22",
+  "owner": "Codex (GPT-5)",
+  "status_definitions": {
+    "PASS": "Consumer chain and automated evidence exist; no known release blocker is recorded.",
+    "APPROXIMATION": "Consumer chain exists but Preview intentionally differs within a documented policy.",
+    "BLOCKED": "A known defect or contract conflict prevents a readiness claim.",
+    "UNTESTED": "Consumer chain exists but a production-path visual or behavioral gate is still missing."
+  },
+  "features": [
+    {
+      "id": "project_lifecycle",
+      "label": "Project create/open/save/autosave/reload",
+      "renderability": "orchestration",
+      "readiness": "PASS",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["useProjectLoader", "useProjectAutosave"]}],
+        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["manifestToEditorState", "editorStateToSavePayload"]}],
+        "persistence": [{"path": "frontend/src/hooks/useProjectAutosave.js", "tokens": ["saveNow", "setBaseline"]}],
+        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["updateProjectState", "projectSavePayload"]}]
+      },
+      "automated_evidence": [{"path": "frontend/src/lib/projectSaveQueue.test.js", "tokens": ["in-flight save", "failed latest save"]}],
+      "blockers": []
+    },
+    {
+      "id": "timeline_editing",
+      "label": "Timeline add/delete/reorder/split/trim/snap",
+      "renderability": "rendered",
+      "readiness": "UNTESTED",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/Timeline.jsx", "tokens": ["useTimelineKeyboard", "useTimelineDrag"]}],
+        "state": [{"path": "frontend/src/lib/timelineMath.js", "tokens": ["buildSegments", "splitClipAt"]}],
+        "persistence": [{"path": "frontend/src/lib/timelineSchema.js", "tokens": ["serializeTimelineV2ToManifest"]}],
+        "render_payload": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeClips", "serializeTransitions"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["getDrawPlan", "localTimeAt"]}],
+        "render": [{"path": "scripts/video_editor.py", "tokens": ["clip_list", "normalize_transitions"]}]
+      },
+      "automated_evidence": [{"path": "frontend/src/lib/timelineMath.test.js", "tokens": ["buildSegments", "splitClipAt"]}],
+      "blockers": ["ยังไม่มี live browser-vs-render matrix ครบ boundary/overlap หลัง Save/Reload"]
+    },
+    {
+      "id": "clip_timing",
+      "label": "Clip trim/speed/freeze tail",
+      "renderability": "rendered",
+      "readiness": "UNTESTED",
+      "clip_fields": ["trim_start", "trim_end", "speed", "freeze_tail"],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["trim_start", "trim_end", "freeze_tail"]}],
+        "state": [{"path": "frontend/src/lib/timelineMath.js", "tokens": ["clipDuration", "localTimeAt"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeClips"]}],
+        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["clip_list: savePayload.clip_list"]}],
+        "preview": [{"path": "frontend/src/lib/timelineMath.js", "tokens": ["freeze_tail", "speed"]}],
+        "render": [{"path": "scripts/video_editor.py", "tokens": ["trim_start", "freeze_tail", "setpts=PTS/"]}]
+      },
+      "automated_evidence": [{"path": "tests/test_preview_render_behavior.py", "tokens": ["test_keyframe_camera_motion_changes_real_render_frames_and_stays_in_bounds"]}],
+      "blockers": ["ยังไม่มี production Canvas frame pair ที่ trim/speed/freeze boundary หลายจุด"]
+    },
+    {
+      "id": "clip_transform",
+      "label": "Zoom/pan/rotation/mirror/keyframes",
+      "renderability": "rendered",
+      "readiness": "UNTESTED",
+      "clip_fields": ["zoom", "pan_x", "pan_y", "rotation", "mirror"],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["clampZoom", "clampPan", "clampRotation"]}],
+        "state": [{"path": "frontend/src/lib/timelineMath.js", "tokens": ["resolveClipTransforms", "keyframes"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["keyframes: Array.isArray", "serializeClips"]}],
+        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["clip_list: savePayload.clip_list"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["resolveClipTransforms", "ctx.rotate"]}],
+        "render": [{"path": "scripts/video_editor.py", "tokens": ["resolve_clip_transforms", "dynamic_camera_filter"]}]
+      },
+      "automated_evidence": [{"path": "tests/test_camera_motion_parity.py", "tokens": ["test_live_camera_limits_match_between_python_and_canvas_contracts"]}],
+      "blockers": ["contract tests ผ่าน แต่ยังไม่มี live Canvas-vs-render pixel gate สำหรับ rotation/mirror/keyframes"]
+    },
+    {
+      "id": "clip_framing",
+      "label": "Fit/fill/blur background",
+      "renderability": "rendered",
+      "readiness": "UNTESTED",
+      "clip_fields": ["bg_blur", "fit_mode"],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["bg_blur", "fit_mode"]}],
+        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["...clip", "serializeClips"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeClips"]}],
+        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["clip_list: savePayload.clip_list"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["useBgBlur", "fit_mode === 'blur'"]}],
+        "render": [{"path": "scripts/video_editor.py", "tokens": ["use_bg_blur", "boxblur=25:5"]}]
+      },
+      "automated_evidence": [{"path": "tests/test_preview_render_parity.py", "tokens": ["test_one_pass_framing_is_skipped_where_it_would_change_the_picture", "boxblur"]}],
+      "blockers": ["ยังไม่มี real-frame crop/blur geometry comparison หลัง rotation และ zoom"]
+    },
+    {
+      "id": "clip_color",
+      "label": "Brightness/contrast/saturation",
+      "renderability": "rendered",
+      "readiness": "APPROXIMATION",
+      "clip_fields": ["brightness", "contrast", "saturation"],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["COLOR_FIELDS", "brightness"]}],
+        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["...clip", "serializeClips"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeClips"]}],
+        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["clip_list: savePayload.clip_list"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["clipFilter", "brightness("]}],
+        "render": [{"path": "scripts/video_editor.py", "tokens": ["EQ_LIMITS", "eq="]}]
+      },
+      "automated_evidence": [{"path": "tests/test_color_finishing.py", "tokens": ["build_eq_filter", "resolve_color_finish"]}],
+      "approximation_reason": "FFmpeg brightness เป็น additive offset แต่ Canvas CSS brightness เป็น multiplier",
+      "ui_disclosure_policy": "Inspector ต้องระบุว่า Preview สีเป็นค่าประมาณ และไฟล์ Render เป็นผลลัพธ์อ้างอิง",
+      "blockers": []
+    },
+    {
+      "id": "transitions",
+      "label": "Cut/fade/wipe/slide/circle/dissolve",
+      "renderability": "rendered",
+      "readiness": "APPROXIMATION",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["TRANSITIONS", "transition_duration"]}],
+        "state": [{"path": "frontend/src/lib/timelineMath.js", "tokens": ["transitionOverlap", "buildSegments"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeTransitions"]}],
+        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["transitions: savePayload.transitions"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["slideOffsets", "circleWeightAt"]}],
+        "render": [{"path": "scripts/video_editor.py", "tokens": ["xfade=transition=", "normalize_transitions"]}]
+      },
+      "automated_evidence": [{"path": "tests/test_preview_render_parity.py", "tokens": ["dissolve", "fadeblack"]}],
+      "approximation_reason": "Dissolve ใช้ noise คนละ PRNG และ fadeblack/fadewhite easing ต่างเล็กน้อย",
+      "ui_disclosure_policy": "Transition ที่ไม่ pixel-identical ต้องผ่าน geometry/proportion thresholds และแสดงเป็น Preview โดยประมาณ",
+      "blockers": []
+    },
+    {
+      "id": "captions",
+      "label": "Thai/English/bilingual captions",
+      "renderability": "rendered",
+      "readiness": "UNTESTED",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/inspector/CaptionInspector.jsx", "tokens": ["onCaptionChange", "translation"]}],
+        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["cuesList", "serializeCues"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["micro_cues", "caption_scale"]}],
+        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["caption_position", "caption_scale"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["drawCaption", "thaiLineH"]}],
+        "render": [{"path": "scripts/subtitle_engine.py", "tokens": ["generate_ass", "TikTokWhite"]}]
+      },
+      "automated_evidence": [{"path": "tests/test_preview_render_behavior.py", "tokens": ["test_per_word_vs_monolithic_render_parity"]}],
+      "blockers": ["ยังไม่มี live browser-vs-libass golden matrix สำหรับ Thai marks, emoji fallback และ 1–3 บรรทัด"]
+    },
+    {
+      "id": "motion_text",
+      "label": "Hook/text overlay motion presets",
+      "renderability": "rendered",
+      "readiness": "BLOCKED",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/inspector/OverlayInspector.jsx", "tokens": ["onHookMotionChange", "stagger"]}],
+        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeOverlays"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["overlays: serializeOverlays"]}],
+        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["overlays,"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["sampleCanvasMotion", "motionContract"]}],
+        "render": [{"path": "scripts/subtitle/overlay_events.py", "tokens": ["motion_contract", "build_ass_motion_segments"]}]
+      },
+      "automated_evidence": [{"path": "tests/motion_capture/test_frame_pair.py", "tokens": ["test_self_hosted_live_pair_passes_the_production_motion_layout_gate"]}],
+      "blockers": ["live pair: mask IoU 0.1813699 < 0.90 และ bbox edge delta 22 px > 6 px", "production preset metadata ยัง renderer_bound=false"]
+    },
+    {
+      "id": "stickers",
+      "label": "Sticker timing/position/scale/opacity",
+      "renderability": "rendered",
+      "readiness": "UNTESTED",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/inspector/StickerInspector.jsx", "tokens": ["onUpdateSticker", "scale"]}],
+        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["stickers"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["stickers: Array.isArray"]}],
+        "render_payload": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeRenderFeatures", "payload.stickers"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["drawStickers"]}],
+        "render": [{"path": "scripts/video_editor.py", "tokens": ["effective_stickers"]}]
+      },
+      "automated_evidence": [{"path": "tests/test_preview_render_behavior.py", "tokens": ["test_baked_decorative_sticker_and_effect_recolor_across_multiple_frames"]}],
+      "blockers": ["ยังไม่มี live alpha/z-order frame pair สำหรับ drag/scale/timing"]
+    },
+    {
+      "id": "effects",
+      "label": "Effect preset/intensity/timing",
+      "renderability": "rendered",
+      "readiness": "UNTESTED",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/inspector/EffectInspector.jsx", "tokens": ["onUpdateEffect", "scale"]}],
+        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["effects"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["effects: Array.isArray"]}],
+        "render_payload": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeRenderFeatures", "payload.effects"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["drawEffects", "syncEffectVideos"]}],
+        "render": [{"path": "scripts/video_editor.py", "tokens": ["effective_effects"]}]
+      },
+      "automated_evidence": [{"path": "frontend/src/lib/effectPlayback.test.js", "tokens": ["effect timeline wraps", "hard-seeks"]}],
+      "blockers": ["ยังไม่มี live video-effect decode/loop frame pair เทียบ FFmpeg overlay"]
+    },
+    {
+      "id": "spotlight",
+      "label": "Spotlight focus/dim/feather/layer",
+      "renderability": "rendered",
+      "readiness": "UNTESTED",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/AssetPanel.jsx", "tokens": ["SpotlightControls", "dim_opacity"]}],
+        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["spotlight"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["spotlight: spotlight"]}],
+        "render_payload": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeRenderFeatures", "payload.spotlight"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["drawSpotlight", "normalizeSpotlightPreview"]}],
+        "render": [{"path": "scripts/video_editor.py", "tokens": ["_append_spotlight_filter"]}]
+      },
+      "automated_evidence": [{"path": "frontend/src/lib/editorProjectState.test.js", "tokens": ["render feature payload carries Spotlight"]}],
+      "blockers": ["render payload defect แก้แล้วใน Phase 1 แต่ยังไม่มี live mask/feather/z-order frame pair"]
+    },
+    {
+      "id": "background_isolation",
+      "label": "Background Cutout prepare/cache/preview/render",
+      "renderability": "rendered",
+      "readiness": "APPROXIMATION",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/AssetPanel.jsx", "tokens": ["BackgroundIsolationControls", "onPrepare"]}],
+        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["normalizeBackgroundIsolation"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["background_isolation"]}],
+        "render_payload": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["payload.background_isolation"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["loadedBackgroundIsolationFrame", "resolveBackgroundIsolationPreview"]}],
+        "render": [{"path": "scripts/video_editor.py", "tokens": ["_read_ready_background_sequence", "resolve_background_isolation_config"]}]
+      },
+      "automated_evidence": [
+        {"path": "frontend/src/lib/backgroundIsolationPreview.test.js", "tokens": ["windowed sequence subtracts source_start", "prefetch times follow rational FPS"]},
+        {"path": "tests/test_background_isolation_render_integration.py", "tokens": ["test_windowed_rgba_sequence_starts_from_artifact_local_frame_zero", "test_requested_but_not_ready_background_blocks_render"]},
+        {"path": "tests/background_isolation_live_probe.py", "tokens": ["preview_render_nmae", "source_unchanged"]}
+      ],
+      "approximation_reason": "Preview และ Render ใช้ artifact/window/frame mapping เดียวกัน แต่ rembg ประมวลผล mask รายเฟรม จึงยังอาจมี edge flicker ในมือ วัตถุโปร่งใส และ motion blur บางชนิด",
+      "ui_disclosure_policy": "เมื่อ artifact พร้อม ให้แจ้งผู้ใช้ตรวจขอบมือ สินค้าโปร่งใส และ motion blur ใน Preview ก่อน Render",
+      "blockers": []
+    },
+    {
+      "id": "lut_color_grade",
+      "label": "LUT selection/intensity/order",
+      "renderability": "rendered",
+      "readiness": "APPROXIMATION",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/AssetPanel.jsx", "tokens": ["lutIntensity", "assets?.luts"]}],
+        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["lutName", "lutIntensity"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["lut_name", "lut_intensity"]}],
+        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["lut_name: style.lutName", "lut_intensity"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["applyGrade", "lutRendererRef"]}],
+        "render": [{"path": "scripts/video_editor.py", "tokens": ["lut3d=", "normalize_lut_intensity"]}]
+      },
+      "automated_evidence": [{"path": "tests/test_preview_render_parity.py", "tokens": ["lut3d", "applyGrade"]}],
+      "approximation_reason": "Preview ต้อง fallback ไม่เกรดเมื่อ browser ไม่มี WebGL2",
+      "ui_disclosure_policy": "แสดงคำเตือน Preview LUT unavailable เมื่อ WebGL2 ใช้ไม่ได้ และห้ามแสดงภาพดำ",
+      "blockers": []
+    },
+    {
+      "id": "clip_audio",
+      "label": "Per-clip original audio volume",
+      "renderability": "rendered",
+      "readiness": "APPROXIMATION",
+      "clip_fields": ["volume"],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["clampVolume", "Original Audio"]}],
+        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["...clip", "serializeClips"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeClips"]}],
+        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["clip_list: savePayload.clip_list"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["wireClipAudio", "clip.volume"]}],
+        "render": [{"path": "scripts/video_editor.py", "tokens": ["volume={vol}", "adelay="]}]
+      },
+      "automated_evidence": [{"path": "tests/test_preview_render_parity.py", "tokens": ["test_clip_audio_is_placed_where_the_clip_sits_not_end_to_end", "adelay="]}],
+      "approximation_reason": "Preview playbackRate อาจเปลี่ยน pitch แต่ FFmpeg atempo รักษา pitch",
+      "ui_disclosure_policy": "แสดงว่า pitch ระหว่าง Preview อาจต่างเล็กน้อยเมื่อระบบชดเชย drift",
+      "blockers": []
+    },
+    {
+      "id": "audio_mix",
+      "label": "Voice/BGM/SFX/fade/ducking/loudness",
+      "renderability": "rendered",
+      "readiness": "APPROXIMATION",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/AssetPanel.jsx", "tokens": ["bgmVolume"]}],
+        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["bgmVolume", "bgmDucking"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["bgm_volume", "bgm_ducking"]}],
+        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["bgm_volume", "bgm_ducking"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["AUDIO_MIX", "applyBgmEnvelope"]}],
+        "render": [{"path": "scripts/sfx_manager.py", "tokens": ["sidechaincompress", "loudnorm"]}]
+      },
+      "automated_evidence": [{"path": "tests/test_preview_render_parity.py", "tokens": ["test_ducking_uses_the_measured_reduction_not_a_feel_value", "BGM_DUCK_GAIN"]}],
+      "approximation_reason": "Browser ไม่มี FFmpeg two-pass loudnorm/sidechaincompress และ playbackRate ต่างจาก atempo",
+      "ui_disclosure_policy": "Mixer ต้องติดป้าย Preview โดยประมาณสำหรับ loudness/ducking และ Render เป็นค่าจริง",
+      "blockers": []
+    },
+    {
+      "id": "track_mute_solo",
+      "label": "Track mute/solo playback policy",
+      "renderability": "playback_only",
+      "readiness": "BLOCKED",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/Timeline.jsx", "tokens": ["trackMix", "solo"]}],
+        "state": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["trackMix"]}],
+        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["track_mix", "audio_mutes"]}],
+        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["trackMix"]}]
+      },
+      "automated_evidence": [{"path": "frontend/src/lib/editorProjectState.test.js", "tokens": ["audio controls"]}],
+      "blockers": ["กฎ preview_render_parity ระบุ mute/solo เป็น playback-only แต่ EditorShell ส่ง audio_mutes และปรับ bgm_volume เข้า Render; ต้องตัดสิน contract ให้เป็นหนึ่งเดียว"]
+    },
+    {
+      "id": "export_job_control",
+      "label": "Render/export progress/cancel/retry/output",
+      "renderability": "orchestration",
+      "readiness": "PASS",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/RenderButton.jsx", "tokens": ["progress", "busy"]}],
+        "state": [{"path": "frontend/src/hooks/useRenderJob.js", "tokens": ["startJob", "stopJob"]}],
+        "persistence": [{"path": "frontend/src/lib/renderJobModel.js", "tokens": ["saveActiveJob", "getActiveJob"]}],
+        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["startReroll", "export_preset"]}]
+      },
+      "automated_evidence": [{"path": "frontend/src/lib/renderJobController.test.js", "tokens": ["one active job per tab", "stale project guard"]}],
+      "blockers": []
+    },
+    {
+      "id": "reliability_recovery",
+      "label": "Missing media/network/restart/concurrent edit recovery",
+      "renderability": "orchestration",
+      "readiness": "UNTESTED",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["formatErrorText", "applyError"]}],
+        "state": [{"path": "frontend/src/hooks/useProjectAutosave.js", "tokens": ["retry"]}],
+        "persistence": [{"path": "frontend/src/lib/projectSaveQueue.js", "tokens": ["pending", "onError"]}],
+        "render_payload": [{"path": "frontend/src/hooks/useRenderJob.js", "tokens": ["poll"]}]
+      },
+      "automated_evidence": [{"path": "frontend/src/lib/projectSaveQueue.test.js", "tokens": ["failed latest save", "explicit retry"]}],
+      "blockers": ["ยังไม่มี end-to-end fault injection สำหรับ disk full, worker death และ app restart ระหว่าง Render"]
+    },
+    {
+      "id": "editor_ux_controls",
+      "label": "Disabled state/errors/keyboard/accessibility",
+      "renderability": "editor_only",
+      "readiness": "UNTESTED",
+      "clip_fields": [],
+      "consumers": {
+        "ui": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["useEditorShortcuts", "useEditorSelection"]}],
+        "state": [{"path": "frontend/src/lib/selectionResolver.js", "tokens": ["resolveSelectedItem"]}]
+      },
+      "automated_evidence": [{"path": "frontend/src/lib/selectionResolver.test.js", "tokens": ["wrong selection type"]}],
+      "blockers": ["ยังไม่มี keyboard/focus/accessibility browser test ครบทุก Inspector และ dialog"]
+    }
+  ]
+}

@@ -65,11 +65,20 @@ def test_every_category_has_a_none_fallback(category, table):
 def test_hook_motion_catalog_shape_matches_the_pickers():
     catalog = hook_motion_catalog()
     assert set(catalog.keys()) == {"in", "reveal", "loop", "out", "accent"}
-    assert catalog["in"] is HOOK_IN_PRESETS
-    assert catalog["reveal"] is HOOK_REVEAL_PRESETS
-    assert catalog["loop"] is HOOK_LOOP_PRESETS
-    assert catalog["out"] is HOOK_OUT_PRESETS
-    assert catalog["accent"] is HOOK_ACCENT_PRESETS
+    for category, source in ALL_CATEGORY_TABLES.items():
+        assert set(catalog[category]) == set(source)
+        for preset_id, item in catalog[category].items():
+            assert item["label_th"] == source[preset_id]["label_th"]
+            assert item["preview_bound"] is True
+            assert item["render_bound"] is True
+            assert item["enabled"] is True
+
+
+def test_typewriter_is_explicitly_tagged_as_legacy_geometry_fallback():
+    item = hook_motion_catalog()["in"]["typewriter"]
+    assert item["contract_renderer_bound"] is False
+    assert item["binding"] == "legacy_overlay_renderer"
+    assert item["unsupported_tracks"] == ["reveal"]
 
 
 def test_hook_motion_catalog_is_json_serializable():

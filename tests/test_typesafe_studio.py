@@ -16,6 +16,8 @@ def test_typesafe_status(client, monkeypatch):
     assert res.status_code == 200
     data = res.json()
     assert "available" in data
+    assert data["model"] == "Jev"
+    assert data["role"] == "Decision / Ranking / Verification"
     assert "features" in data
     assert "strict_topic_hold" in data["features"]
 

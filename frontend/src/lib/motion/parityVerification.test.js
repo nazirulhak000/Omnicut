@@ -95,13 +95,22 @@ test('reduced motion is explicit for every preset and never claims normal motion
   }
 });
 
-test('UI metadata does not advertise unsupported speed or intensity capabilities', () => {
+test('UI metadata exposes renderer binding without advertising unsupported controls', () => {
   for (const role of ['hook', 'text', 'caption']) {
     for (const phase of ['in', 'hold', 'out']) {
       for (const preset of getMotionUiPresets(role, phase)) {
         const contract = MOTION_PRESETS[preset.contractId];
         assert.ok(contract, `${role}.${phase}.${preset.id}`);
-        assert.equal(contract.metadata.renderer_bound, false, preset.contractId);
+        assert.equal(preset.rendererBound, contract.metadata.renderer_bound, preset.contractId);
+        assert.equal(preset.enabled, contract.metadata.renderer_bound, preset.contractId);
+        assert.equal(preset.parityLevel, contract.metadata.parity_level, preset.contractId);
+        if (preset.contractId === 'hook.in.typewriter') {
+          assert.equal(contract.metadata.renderer_bound, false, preset.contractId);
+          assert.deepEqual(contract.metadata.unsupported_tracks, ['reveal']);
+        } else {
+          assert.equal(contract.metadata.renderer_bound, true, preset.contractId);
+          assert.deepEqual(contract.metadata.unsupported_tracks, []);
+        }
         assert.equal(preset.capabilities.speed.supported, false, preset.contractId);
         assert.equal(preset.capabilities.intensity.supported, false, preset.contractId);
         assert.equal(preset.repeat, Boolean(contract.repeat), preset.contractId);

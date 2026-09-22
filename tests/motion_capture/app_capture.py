@@ -21,7 +21,7 @@ from typing import Any, Mapping
 from .capture import REPO_ROOT
 
 
-APP_CAPTURE_SCHEMA_VERSION = 1
+APP_CAPTURE_SCHEMA_VERSION = 2
 
 
 class AppCaptureUnavailable(RuntimeError):
@@ -34,11 +34,13 @@ class AppCaptureConfig:
     selector: str
     output_dir: Path
     frame_count: int = 1
+    frame_indices: tuple[int, ...] | None = None
     interval_ms: int = 0
     ready_selector: str | None = None
     timeout_ms: int = 10_000
     headless: bool = True
     local_storage: Mapping[str, str] | None = None
+    fail_on_runtime_errors: bool = True
 
 
 def _validate_output_dir(output_dir: Path) -> Path:
@@ -57,12 +59,25 @@ def _validate_config(config: AppCaptureConfig) -> AppCaptureConfig:
         raise ValueError("selector must not be empty")
     if config.frame_count < 1:
         raise ValueError("frame_count must be at least 1")
+    frame_indices = None
+    if config.frame_indices is not None:
+        frame_indices = tuple(int(value) for value in config.frame_indices)
+        if not frame_indices:
+            raise ValueError("frame_indices must not be empty")
+        if any(value < 0 for value in frame_indices):
+            raise ValueError("frame_indices must be non-negative")
+        if len(frame_indices) != len(set(frame_indices)):
+            raise ValueError("frame_indices must not contain duplicates")
     if config.interval_ms < 0:
         raise ValueError("interval_ms must be non-negative")
     if config.timeout_ms < 1:
         raise ValueError("timeout_ms must be positive")
     return AppCaptureConfig(
-        **{**config.__dict__, "output_dir": _validate_output_dir(config.output_dir)}
+        **{
+            **config.__dict__,
+            "output_dir": _validate_output_dir(config.output_dir),
+            "frame_indices": frame_indices,
+        }
     )
 
 
@@ -125,6 +140,7 @@ def _capture_frame_data(page: Any, selector: str, frame_index: int) -> dict[str,
                         fps: hook.fps ?? null,
                         durationSeconds: hook.durationSeconds ?? null,
                         presetIds: hook.presetIds ?? null,
+                        overlayContract: hook.overlayContract ?? null,
                     },
                     data_url: dataUrl,
                     width: canvas.width,
@@ -156,6 +172,13 @@ def capture_app_canvas(config: AppCaptureConfig) -> dict[str, Any]:
         raise AppCaptureUnavailable(f"Playwright is unavailable: {exc}") from exc
 
     frames: list[dict[str, Any]] = []
+    runtime: dict[str, Any] = {
+        "browser": "chromium",
+        "browser_version": None,
+        "console": [],
+        "page_errors": [],
+        "request_failures": [],
+    }
     try:
         with sync_playwright() as playwright:
             try:
@@ -164,6 +187,7 @@ def capture_app_canvas(config: AppCaptureConfig) -> dict[str, Any]:
                 raise AppCaptureUnavailable(f"Chromium could not launch: {exc}") from exc
             context = None
             try:
+                runtime["browser_version"] = browser.version
                 context = browser.new_context(
                     ignore_https_errors=True,
                     device_scale_factor=1,
@@ -177,6 +201,27 @@ def capture_app_canvas(config: AppCaptureConfig) -> dict[str, Any]:
                         "localStorage.setItem(key, value);"
                     )
                 page = context.new_page()
+                page.on(
+                    "console",
+                    lambda message: runtime["console"].append(
+                        {
+                            "type": message.type,
+                            "text": message.text,
+                            "location": message.location,
+                        }
+                    ),
+                )
+                page.on("pageerror", lambda error: runtime["page_errors"].append(str(error)))
+                page.on(
+                    "requestfailed",
+                    lambda request: runtime["request_failures"].append(
+                        {
+                            "method": request.method,
+                            "url": request.url,
+                            "failure": request.failure,
+                        }
+                    ),
+                )
                 # App shells can keep polling APIs, so waiting for network idle
                 # would make a valid Canvas capture hang unnecessarily.
                 page.goto(config.url, wait_until="domcontentloaded", timeout=config.timeout_ms)
@@ -185,17 +230,18 @@ def capture_app_canvas(config: AppCaptureConfig) -> dict[str, Any]:
                 page.wait_for_selector(config.selector, state="attached", timeout=config.timeout_ms)
 
                 canvas_info: dict[str, Any] | None = None
-                for index in range(config.frame_count):
-                    if index and config.interval_ms:
+                requested_frames = config.frame_indices or tuple(range(config.frame_count))
+                for order, frame_index in enumerate(requested_frames):
+                    if order and config.interval_ms:
                         page.wait_for_timeout(config.interval_ms)
-                    captured = _capture_frame_data(page, config.selector, index)
+                    captured = _capture_frame_data(page, config.selector, frame_index)
                     png = _decode_data_url(captured.pop("data_url"))
-                    filename = f"frame_{index:04d}.png"
+                    filename = f"frame_{frame_index:04d}.png"
                     (config.output_dir / filename).write_bytes(png)
                     canvas_info = captured
                     frames.append(
                         {
-                            "index": index,
+                            "index": frame_index,
                             "path": filename,
                             "sha256": hashlib.sha256(png).hexdigest(),
                             **captured,
@@ -210,6 +256,12 @@ def capture_app_canvas(config: AppCaptureConfig) -> dict[str, Any]:
     except Exception as exc:
         raise AppCaptureUnavailable(f"live app navigation/capture failed: {exc}") from exc
 
+    console_errors = [message for message in runtime["console"] if message["type"] == "error"]
+    runtime["console_errors"] = console_errors
+    runtime["clean"] = not (
+        console_errors or runtime["page_errors"] or runtime["request_failures"]
+    )
+    requested_frames = list(config.frame_indices or tuple(range(config.frame_count)))
     manifest = {
         "schema_version": APP_CAPTURE_SCHEMA_VERSION,
         "status": "captured",
@@ -219,9 +271,11 @@ def capture_app_canvas(config: AppCaptureConfig) -> dict[str, Any]:
         "selector": config.selector,
         "ready_selector": config.ready_selector,
         "frame_count": len(frames),
+        "frame_indices": requested_frames,
         "interval_ms": config.interval_ms,
         "canvas": canvas_info,
         "frames": frames,
+        "runtime": runtime,
         "notes": [
             "Pixels came from the live app canvas via HTMLCanvasElement.toDataURL().",
             "This manifest does not claim Canvas-vs-ASS/FFmpeg parity.",
@@ -231,6 +285,10 @@ def capture_app_canvas(config: AppCaptureConfig) -> dict[str, Any]:
     (config.output_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
     )
+    if config.fail_on_runtime_errors and not runtime["clean"]:
+        raise AppCaptureUnavailable(
+            "browser runtime errors were captured; inspect manifest.json runtime diagnostics"
+        )
     return manifest
 
 

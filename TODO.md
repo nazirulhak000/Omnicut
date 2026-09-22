@@ -1,5 +1,131 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
+- [x] Round UNIQUE-COMPOUND-ANGLE-ID-ISOLATION-20260922 — แก้ปัญหาโครงสร้าง angle_id ชนกันหรือเขียนทับข้ามล็อต ด้วย Compound Unique ID (pain_point_b2), อุดช่องโหว่ Fallback/State ใน Backend, API, ShotListsStore และ React Virtual DOM (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+- [x] Round PROJECT-SELECTOR-SMART-FILTER-TABS-20260922 — เพิ่ม Smart Filter Tabs ในเมนู Dropdown เลือกโปรเจกต์ของ Editor ([ กำลังตัดต่อ ], [ ตัดเสร็จแล้ว ], [ ทั้งหมด ]) โดยค่าเริ่มต้นเปิดมาที่ "กำลังตัดต่อ" ทันที เพื่อไม่ให้งานที่เรนเดอร์เสร็จแล้วหลายสิบชิ้นมาทำให้หน้าจอดูรกและยุ่งยาก (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+
+## Round EDITOR-PARITY-PHASE-3-MOTION-TEXT-20260922 — active
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: กำลังทำ
+
+**เป้าหมาย:** ทำ Motion Text ที่เปิดให้ใช้ใน Editor ให้ Preview/Render อ่าน layout และ motion contract เดียวกัน ผ่าน strict live frame-pair gate และไม่เปิด preset ที่ renderer ยังทำไม่ได้
+
+### Todo
+
+- [ ] จำลอง live mismatch ปัจจุบันและแยก layout drift ออกจาก motion drift
+- [ ] ทำ canonical text layout/anchor/scale contract ร่วมระหว่าง Canvas และ ASS/FFmpeg
+- [ ] แก้ identity/start/middle/end frame pair ให้ผ่าน IoU/bbox/centroid/NMAE thresholds
+- [ ] audit preset capabilities และปิด/ติดป้าย preset ที่ `renderer_bound=false`
+- [ ] เพิ่ม golden matrix ภาษาไทย วรรณยุกต์ อังกฤษ ตัวเลข emoji และ 1–3 บรรทัด
+- [ ] ทดสอบ in/hold/out, seek กลาง, seek ย้อน และ loop แบบ deterministic
+- [ ] รัน strict live gate, backend/frontend full tests, build, cleanup และ diff check
+
+### Gate
+
+- [ ] production preset ทุกตัวมี Preview + Render binding และ deterministic seek contract
+- [ ] strict live pair ผ่าน mask IoU `≥0.90`, bbox delta `≤6px`, centroid `≤4px`, NMAE `≤0.08`
+- [ ] font metrics/line breaks/baseline ไม่ drift หลัง Save/Reload
+- [ ] test artifacts อยู่ใต้ `.tmp` และ cleanup 100%
+
+---
+
+- [x] Round EDITOR-PARITY-PHASE-2-BACKGROUND-CUTOUT-20260922 — ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-5))
+
+## Round EDITOR-PARITY-PHASE-1-COVERAGE-MATRIX-20260922 — completed
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** สร้าง State/Renderer Coverage Matrix แบบ machine-readable ให้ทุก control ที่มีผลต่อผลงานถูกติดตามครบ `UI → canonical state → persistence → Preview → Render → evidence` และทำ CI gate จับ field ที่ถูกแสดงแต่ถูก ignore ระหว่างทาง
+
+### Todo
+
+- [x] สำรวจ canonical editor fields และ consumer จริงใน frontend/backend
+- [x] จัดหมวด exact parity, bounded visual parity, documented approximation และ editor-only
+- [x] สร้าง coverage registry ระบุ owner/path/status/evidence ของทุก feature family
+- [x] เพิ่ม validator ที่ fail เมื่อ renderable field ขาด persistence/Preview/Render consumer หรือมีสถานะไม่รู้จัก
+- [x] เพิ่ม regression tests สำหรับ complete, missing-consumer, approximation-without-note และ editor-only cases
+- [x] สร้าง coverage report สรุป PASS/APPROXIMATION/BLOCKED/UNTESTED โดยไม่อ้างเกินหลักฐาน
+- [x] รัน targeted/full gates และตรวจ cleanup/diff
+
+### Gate
+
+- [x] ทุก field ใน canonical render clip schema อยู่ใน registry
+- [x] ทุก feature family ใน Master Plan มีสถานะและหลักฐาน
+- [x] `PASS` ต้องมี Preview + persistence + Render + automated evidence ครบ
+- [x] `APPROXIMATION` ต้องมีเหตุผลและ UI disclosure policy
+- [x] `BLOCKED/UNTESTED` ต้องไม่ถูกนับเป็นพร้อมใช้งาน
+- [x] validator deterministic/offline และไม่แก้ production media
+
+### Notes
+
+- Phase นี้สร้าง coverage contract และ gate ไม่เปลี่ยนค่าฟอนต์/ข้อความ/ภาพ
+- ไฟล์ production ที่ค้างจาก agent อื่นยังคงห้ามเขียนทับ
+- แก้ Spotlight render transport โดยเพิ่ม `serializeRenderFeatures()` และ regression; ก่อนแก้ Spotlight ถูก Save/Preview แต่ไม่ถูกส่งใน `startReroll()`
+- ผลตรวจ: coverage validator ผ่าน (`20` features); backend parity/spotlight `201 passed`; frontend `293 passed`; build และ compileall ผ่าน
+
+---
+
+## Round EDITOR-PARITY-PHASE-0-SELF-HOSTED-HARNESS-20260922 — completed
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** ทำ Phase 0 จาก Master Plan ให้มี feedback loop ที่เปิด frontend fixture เอง จับ Canvas ของ `SequencePlayer` ตามเฟรมแบบ deterministic เปรียบเทียบกับ FFmpeg/libass และรายงานความต่างจริงโดยไม่ต้องตั้ง environment variable ด้วยมือ
+
+### Todo
+
+- [x] เก็บ baseline ว่า live app capture/frame-pair ถูก skip ในการรันปกติ (`4 passed, 2 skipped`)
+- [x] เพิ่ม test-side Vite server lifecycle ที่เลือกพอร์ตว่าง รอ readiness และปิด process ทุกกรณี
+- [x] เพิ่ม runtime diagnostics จาก browser console/page error/request failure ลง capture manifest
+- [x] รองรับ explicit frame indices/timestamps เพื่อจับ start/middle/end โดยไม่พึ่ง wall clock
+- [x] สร้าง visual diff/heatmap และ JSON metrics ใต้ `.tmp/` พร้อม cleanup 100%
+- [x] เปลี่ยน live capture smoke ให้ self-contained และเก็บ known Motion Text mismatch เป็นหลักฐานแบบไม่อ้างว่า parity ผ่าน
+- [x] รัน targeted backend tests, frontend tests/build และ `git diff --check`
+
+### Gate
+
+- [x] test เปิด fixture จริงเองและจับ `SequencePlayer` Canvas ได้โดยไม่มี `MOTION_CAPTURE_APP_URL`
+- [x] จงใจเทียบเฟรมต่างกันแล้ว comparator ต้องรายงาน fail พร้อม artifact
+- [x] Browser/runtime error ทำให้ gate fail ไม่ถูกกลืนเป็น skip
+- [x] process และ artifact ชั่วคราวถูก cleanup ทุกครั้ง
+- [x] ไม่ได้แก้ font/text Golden Master หรือ renderer formula ใน Phase 0
+
+### Notes
+
+- Phase นี้สร้างเครื่องมือวัด ไม่แก้ Motion Text/BG Cutout implementation
+- รักษาไฟล์ค้างของ agent อื่นทั้งหมด และจำกัดการแก้ที่ `tests/motion_capture/`, fixture/test scripts, `TODO.md` และเอกสารแผนเท่านั้น
+- ผล regression: motion/preview/render backend `247 passed`; frontend `292 passed`; frontend build ผ่าน
+- strict live gate ตั้งใจคืน exit `1`: pair identity ตรงและ runtime สะอาด แต่ mask IoU `0.1813699 < 0.90`, bbox delta `22 > 6`; defect ถูกส่งต่อ Phase 3
+
+---
+
+## Round EDITOR-FULL-FUNCTION-PREVIEW-RENDER-PARITY-MASTER-AUDIT-20260922 — active
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: กำลังทำ
+
+**เป้าหมาย:** ตรวจหน้าตัดต่อทุกฟังก์ชันแบบ end-to-end และจัดทำแผน/Prompt หลักที่พิสูจน์ว่า UI, Preview, Save/Reload และ Render ให้ผลตรงกัน โดยเน้น Background Removal และ Motion Text
+
+### Todo
+
+- [x] ทำ feature inventory ของ Editor ครบทุกหมวด พร้อมระบุ Preview path, persistence path, render path และ test seam
+- [x] ตรวจ Background Removal ตั้งแต่ปุ่ม UI → task/API → artifact → timeline → preview → render → recovery
+- [x] ตรวจ Motion Text ตั้งแต่ preset/inspector → motion contract → Canvas → ASS/FFmpeg/HyperFrames → frame comparison
+- [x] จัดระดับช่องว่าง P0/P1/P2 และเรียง implementation phases ที่ปิดความเสี่ยงก่อนเพิ่มฟีเจอร์
+- [x] เขียน Master Audit Plan + reusable audit prompt ใน `_Docs/Plans/EDITOR_PREVIEW_RENDER_PARITY_MASTER_PLAN_20260922.md`
+
+### Gate
+
+- [x] ทุกฟังก์ชันใน inventory มี owner/path/gate ชัดเจน ไม่มีคำว่า “ตรวจให้ครบ” ที่วัดผลไม่ได้
+- [x] Prompt บังคับใช้ deterministic fixture, save/reload, start/middle/end frames, pixel/geometry/audio thresholds และ cleanup 100%
+- [x] `git diff --check -- TODO.md _Docs/Plans/EDITOR_PREVIEW_RENDER_PARITY_MASTER_PLAN_20260922.md` ผ่าน
+
+### Notes
+
+- รอบนี้ไม่แก้ implementation เพื่อหลีกเลี่ยงการชนกับไฟล์ค้างของรอบอื่นใน working tree
+- ไฟล์ค้างที่เกี่ยวข้องและห้ามเขียนทับ: `frontend/src/App.jsx`, `frontend/src/components/ProductToClip.jsx`, `frontend/src/components/SystemSettings.jsx`, `frontend/src/components/TokenDashboard.jsx`, `frontend/src/lib/projectName.js`, `scripts/batch_render.py`, `scripts/product_store.py`, `scripts/project_manifest.py` และ tests ที่เกี่ยวข้อง
+- หลักฐานทดสอบ baseline: backend `309 passed, 2 skipped`; frontend `80 passed`; live browser frame capture ยังถูก skip และจึงยังไม่ถือว่า parity ผ่าน
+- รายงานเดิมพบ Motion Text live pair: mask IoU `0.1814` (เกณฑ์ `≥0.90`) และ bbox edge delta `22 px` (เกณฑ์ `≤6 px`)
+
+---
+
 สมุดบันทึกรอบงานที่ **ยังไม่เสร็จ** ของโปรเจกต์นี้ — ทุกงานต้องผ่านไฟล์นี้ก่อนแตะโค้ด
 
 | ไฟล์ | ใช้ทำอะไร |
@@ -13,6 +139,20 @@
 | [PRO_EDITOR_STYLE_PLAN.md](file:///d:/Winona/Programmer/Capcut/PRO_EDITOR_STYLE_PLAN.md) | แผนยกระดับคุณภาพการตัดต่ออัตโนมัติด้วย Editorial Style Preset กลาง |
 | [TIKTOK_GADGET_MEDIA_PLAN.md](file:///d:/Winona/Programmer/Capcut/TIKTOK_GADGET_MEDIA_PLAN.md) | แผนบัญชี TikTok Gadget Media, campaign 21 คลิป และ functional slice แรก (ดำเนินการโดย: Codex (GPT-5)) |
 | [.agents/rules/work_loop.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/work_loop.md) | กติกาว่าหนึ่งรอบทำยังไง ติ๊กยังไง ปิดรอบยังไง |
+## Round JEV-MODEL-DASHBOARD-AND-GADGET-MEDIA-PAUSE-20260922 — active
+
+ดำเนินการโดย: Codex (GPT-5)
+
+- [x] พักโครงการ Gadget Media ไว้ก่อน โดยไม่ลบโค้ด ข้อมูล หรือวัตถุดิบ และไม่ดึงเข้าลำดับงานรอบถัดไป
+- [x] อธิบายความหมายของ Motion Preview–Render Parity ให้ผู้ใช้เข้าใจ
+- [x] เพิ่มการแสดงโมเดล JEV (TypeSafe System One) ในหน้า Dashboard/System Settings โดยอ่านสถานะจาก API จริง
+- [ ] เพิ่ม regression test สำหรับข้อมูลโมเดล JEV และตรวจสอบ frontend build/test
+
+---
+
+- [x] Round FIX-BATCH2-DRAFT-PROJECT-NAME-COLLISION-AND-OPEN-TIMELINE-20260922 — แก้ปัญหาการสร้างดราฟต์ข้ามล็อตทับชื่อโปรเจกต์เดิม (_1) ทำให้เปิดไทม์ไลน์แล้วเข้าโปรเจกต์เก่า และทำให้มุมในล็อต 2 ถูกเตะกลับเป็นสถานะ scripted: ป้องกันการชนชื่อข้ามล็อต (Batch-Aware Project Synthesis & Collision Guard) และกู้คืนโฟลเดอร์ BLU01-ปัญหาก่อนใช้_2 พร้อมสถานะ in_production (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+---
 
 - [x] Round HOOK-CARD-PREVIEW-MOTION-AND-TEXT-PARITY-20260922 — ปรับปรุงแอนิเมชันและการแสดงผลในการ์ดแม่แบบข้อความ ให้ตรงกับหน้าจอ Preview เสมือนจริง 100% (SequencePlayer Parity: Shake/Wave Rotation [-3°..3°], Flicker Alpha Steps, Lightsweep Specular, Per-Line Center Rotation, and Active Hook Text Integration) (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
 
@@ -106,7 +246,7 @@
 - [x] Round GADGET-ASSET-DEDUPLICATION-AND-MASTER-SOP-20260920 — กวาดล้างภาพซ้ำซ้อนและจัดทำ Master SOP ฉบับแรก (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
 - [x] Round GADGET-MEDIA-60S-CINEMATIC-MIX-FLIP-MASTERPIECE-20260920 — คลิป Masterpiece 60s Xiaomi MIX Flip ตัวแรก (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
 
-## Round GADGET-MEDIA-MIX-FLIP-ASSET-COLLECTION-AND-KINETIC-CALLOUTS-20260920 — active
+## Round GADGET-MEDIA-MIX-FLIP-ASSET-COLLECTION-AND-KINETIC-CALLOUTS-20260920 — paused (พักตามคำสั่งผู้ใช้)
 
 ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
@@ -116,7 +256,7 @@
 - [x] พัฒนา Kinetic Text Callout Motion Engine (แอนิเมชันตัวหนังสือแท้จริง: Spring bounce, Scale pop, Number rolling counter, Neon accent, Organic floating ไร้กล่อง AI) ผ่าน HyperFrames/Remotion Alpha WebM
 - [x] รายงานแคตตาล็อกวัตถุดิบและตัวอย่าง Motion Text Animation ให้ User ตรวจสอบก่อนเริ่มตัดต่อ
 
-## Round GADGET-MEDIA-60S-FULL-OVERVIEW-XIAOMI-MIX-FLIP-20260920 — active
+## Round GADGET-MEDIA-60S-FULL-OVERVIEW-XIAOMI-MIX-FLIP-20260920 — paused (พักตามคำสั่งผู้ใช้)
 
 ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
@@ -128,7 +268,7 @@
 - [x] คอมโพสิตวิดีโอ 9:16 ด้วย FFmpeg (เบลอขอบบนล่างแบบ Gaussian Blur + เพลง Lo-fi BGM คลอ + เครดิตแหล่งที่มาจริง)
 - [x] ตรวจสอบวิดีโอความยาว 60 วินาที และดึงภาพพรีวิวรายงานผล
 
-## Round GADGET-MEDIA-XIAOMI-ECOSYSTEM-AND-CLEAN-ASSET-PACKS-20260919 — active
+## Round GADGET-MEDIA-XIAOMI-ECOSYSTEM-AND-CLEAN-ASSET-PACKS-20260919 — paused (พักตามคำสั่งผู้ใช้)
 
 ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
@@ -181,7 +321,7 @@
 
 ### GADGET-MEDIA-PRODUCT-VIDEO-STUDIO-PLAN-20260919 — completed (รายละเอียดอยู่ใน HISTORY.md)
 
-## Round GADGET-POSITION-NATIVE-SOURCE-RESET-20260919 — active
+## Round GADGET-POSITION-NATIVE-SOURCE-RESET-20260919 — paused (พักตามคำสั่งผู้ใช้)
 
 ดำเนินการโดย: Codex (GPT-5)
 
@@ -205,7 +345,7 @@
 - Xiaomi native source ยังดาวน์โหลดไม่ได้ แม้ format `1920×1080` มีอยู่ในรายการ เพราะ YouTube ตอบ `HTTP 403` ก่อนเริ่มข้อมูล จึงห้ามใช้ source `640×360` เดิมแทน
 - รายละเอียดการตรวจอยู่ที่ `GADGET_NATIVE_SOURCE_VERIFY_20260919.md` และ `.tmp/gadget_native_sources_20260919/native_source_manifest.json`
 
-## Round TIKTOK-GADGET-MEDIA-FUNCTIONAL-20260919 — active
+## Round TIKTOK-GADGET-MEDIA-FUNCTIONAL-20260919 — paused (พักตามคำสั่งผู้ใช้)
 
 ดำเนินการโดย: Codex (GPT-5)
 
@@ -221,7 +361,7 @@
 
 ---
 
-## Round GADGET-MEDIA-HUB-INTEGRATION-AND-TEMPLATES-20260919 — active
+## Round GADGET-MEDIA-HUB-INTEGRATION-AND-TEMPLATES-20260919 — paused (พักตามคำสั่งผู้ใช้)
 
 ดำเนินการโดย: Antigravity (Gemini Flash)
 
@@ -243,7 +383,7 @@
 - Verification: backend Gadget Media `9 passed`; frontend `284 passed`; production build ผ่าน; lint ผ่านโดยมี warnings เดิมของ repository
 - ดำเนินการโดย: Codex (GPT-5)
 
-### Source collection batch GADGET-NEWS-90D-20260919 — active
+### Source collection batch GADGET-NEWS-90D-20260919 — paused (พักตามคำสั่งผู้ใช้)
 
 ดำเนินการโดย: Codex (GPT-5)
 
@@ -1674,7 +1814,7 @@ Plan before code:
 
 ## Round PRODUCER-HUB-REALTIME-DATA-AND-ALIAS-COLLISION-FIX-1 - ปิดรอบแล้ว ✅ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 
-## Round GADGET-MEDIA-PRODUCT-VIDEO-STUDIO-IMPLEMENTATION-20260920 — active
+## Round GADGET-MEDIA-PRODUCT-VIDEO-STUDIO-IMPLEMENTATION-20260920 — paused (พักตามคำสั่งผู้ใช้)
 
 ดำเนินการโดย: Codex (GPT-5)
 

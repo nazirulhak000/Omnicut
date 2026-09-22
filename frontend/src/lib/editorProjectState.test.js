@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   editorStateToSavePayload,
   manifestToEditorState,
+  serializeRenderFeatures,
   serializeClips,
   serializeOverlays,
   serializeTransitions,
@@ -182,6 +183,32 @@ test('SpotlightV1 round-trips through editor state and save payload', () => {
 
   assert.deepEqual(loaded.spotlight, spotlight);
   assert.deepEqual(payload.spotlight, spotlight);
+});
+
+
+test('render feature payload carries Spotlight and Background Isolation to the backend', () => {
+  const spotlight = {
+    schema_version: 1,
+    enabled: true,
+    focus: { x: 0.5, y: 0.5, width: 0.4, height: 0.3 },
+  };
+  const backgroundIsolation = {
+    schema_version: 1,
+    enabled: true,
+    mode: 'cutout',
+  };
+
+  const payload = serializeRenderFeatures({
+    stickers: [{ id: 'sticker-1' }],
+    effects: [{ id: 'effect-1' }],
+    spotlight,
+    backgroundIsolation,
+  });
+
+  assert.deepEqual(payload.spotlight, spotlight);
+  assert.deepEqual(payload.background_isolation, backgroundIsolation);
+  assert.deepEqual(payload.stickers, [{ id: 'sticker-1' }]);
+  assert.deepEqual(payload.effects, [{ id: 'effect-1' }]);
 });
 
 
