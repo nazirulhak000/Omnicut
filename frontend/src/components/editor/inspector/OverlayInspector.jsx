@@ -70,15 +70,43 @@ function hookCardLook(tpl, tierKey) {
   };
 }
 
-function getMotionPreviewClass(motion) {
-  const loop = motion?.loop;
-  const animIn = motion?.in;
-  if (loop === 'flicker') return 'group-hover:anim-preview-flicker';
-  if (loop === 'shake' || animIn === 'pop') return 'group-hover:anim-preview-shake';
-  if (loop === 'wave') return 'group-hover:anim-preview-wave';
-  if (loop === 'pulse' || animIn === 'bounce') return 'group-hover:anim-preview-pulse';
+function getMotionPreviewClass(motionOrAnim) {
+  if (!motionOrAnim) return 'group-hover:scale-105';
+
+  if (typeof motionOrAnim === 'string') {
+    const a = motionOrAnim.trim().toLowerCase();
+    if (a === 'flicker') return 'group-hover:anim-preview-flicker';
+    if (a === 'shake') return 'group-hover:anim-preview-shake';
+    if (a === 'wave') return 'group-hover:anim-preview-wave';
+    if (a === 'pulse') return 'group-hover:anim-preview-pulse';
+    if (a === 'pop_zoom') return 'group-hover:anim-preview-pop_zoom';
+    if (a === 'pop') return 'group-hover:anim-preview-pop';
+    if (a === 'stamp') return 'group-hover:anim-preview-stamp';
+    if (a === 'slide' || a === 'slide_up') return 'group-hover:anim-preview-slide';
+    if (a === 'zoom') return 'group-hover:anim-preview-zoom';
+    if (a === 'rise') return 'group-hover:anim-preview-rise';
+    if (a === 'fade' || a === 'quick_fade') return 'group-hover:anim-preview-fade';
+    if (a === 'lightsweep') return 'group-hover:anim-preview-lightsweep';
+    return 'group-hover:scale-105';
+  }
+
+  const loop = (motionOrAnim.loop || '').trim().toLowerCase();
+  const animIn = (motionOrAnim.in || '').trim().toLowerCase();
+
+  if (loop === 'flicker' || animIn === 'flicker') return 'group-hover:anim-preview-flicker';
+  if (loop === 'shake' || animIn === 'shake') return 'group-hover:anim-preview-shake';
+  if (loop === 'wave' || animIn === 'wave') return 'group-hover:anim-preview-wave';
+  if (loop === 'lightsweep' || animIn === 'lightsweep') return 'group-hover:anim-preview-lightsweep';
+  if (loop === 'pulse') return 'group-hover:anim-preview-pulse';
   if (animIn === 'pop_zoom') return 'group-hover:anim-preview-pop_zoom';
-  if (loop === 'lightsweep') return 'group-hover:anim-preview-lightsweep';
+  if (animIn === 'pop') return 'group-hover:anim-preview-pop';
+  if (animIn === 'stamp') return 'group-hover:anim-preview-stamp';
+  if (animIn === 'bounce' || animIn === 'bounce_soft') return 'group-hover:anim-preview-pulse';
+  if (animIn === 'slide_up' || animIn === 'slide') return 'group-hover:anim-preview-slide';
+  if (animIn === 'zoom') return 'group-hover:anim-preview-zoom';
+  if (animIn === 'rise') return 'group-hover:anim-preview-rise';
+  if (animIn === 'fade' || animIn === 'quick_fade') return 'group-hover:anim-preview-fade';
+
   return 'group-hover:scale-105';
 }
 
@@ -112,6 +140,19 @@ export default function OverlayInspector({
   const [newTemplateName, setNewTemplateName] = useState('');
   const [isSavingCustom, setIsSavingCustom] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Hook cards text: uses project's active hook text for real 1:1 preview parity, falling back to HOOK_CARD_SAMPLE
+  const hookCardSampleText = useMemo(() => {
+    if (Array.isArray(hookOverlay?.tiers)) {
+      const t0 = hookOverlay.tiers[0]?.text?.trim();
+      const t1 = hookOverlay.tiers[1]?.text?.trim();
+      const t2 = hookOverlay.tiers[2]?.text?.trim();
+      if (t0 || t1 || t2) {
+        return [t0 || 'BRAND', t1 || 'รุ่นเด่น', t2 || 'คำโปรย'];
+      }
+    }
+    return HOOK_CARD_SAMPLE;
+  }, [hookOverlay]);
 
   const hookHeaderCardRef = useRef(null);
   const hookBrandInputRef = useRef(null);
@@ -390,15 +431,25 @@ export default function OverlayInspector({
                       {/* Mini Live Preview Box with Micro-Motion on Hover */}
                       <div className="relative flex h-16 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1">
                         <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
-                        <div className={`w-full flex flex-col items-center justify-center gap-0.5 relative z-10 transition-transform duration-200 ${motionClass}`}>
+                        {(tpl.motion?.loop === 'lightsweep' || tpl.motion?.in === 'lightsweep') && (
+                          <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-lg">
+                            <div className="w-2/3 h-full opacity-0 group-hover:opacity-100 animate-sheen-sweep bg-gradient-to-r from-transparent via-white/25 to-transparent -skew-x-25 transition-opacity" />
+                          </div>
+                        )}
+                        <div className="w-full flex flex-col items-center justify-center gap-0.5 relative z-10">
                           {TIER_KEYS.map((tierKey, i) => (
-                            <TextLookPreview
+                            <div
                               key={tierKey}
-                              look={hookCardLook(tpl, tierKey)}
-                              text={HOOK_CARD_SAMPLE[i]}
-                              baseFsRatio={HOOK_FS_RATIO}
-                              scale={0.16}
-                            />
+                              className={`inline-block ${motionClass}`}
+                              style={{ transformOrigin: 'center center' }}
+                            >
+                              <TextLookPreview
+                                look={hookCardLook(tpl, tierKey)}
+                                text={hookCardSampleText[i]}
+                                baseFsRatio={HOOK_FS_RATIO}
+                                scale={0.16}
+                              />
+                            </div>
                           ))}
                         </div>
                       </div>

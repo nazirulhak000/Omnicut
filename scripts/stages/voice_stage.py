@@ -345,8 +345,18 @@ class VoiceStage:
                                 or (ctx.voice_engine_type == recorded_engine)
                                 or (preset_matches and bool(recorded_preset))
                             )
-                            if preset_matches and engine_matches:
+                            # Also ensure the script text has not changed. If user provided a new or modified script,
+                            # we must synthesize new audio rather than reusing old speech.
+                            current_script_raw = ctx.custom_script or script_data.get("full_text") or ""
+                            recorded_script_raw = rec.get("custom_script") or " ".join(c.get("text", "") for c in rec.get("cues", []))
+                            norm_current = "".join(current_script_raw.split())
+                            norm_recorded = "".join(recorded_script_raw.split())
+                            script_matches = not norm_current or not norm_recorded or (norm_current == norm_recorded)
+
+                            if preset_matches and engine_matches and script_matches:
                                 shot_list_record = rec
+                            elif not script_matches:
+                                print(f"[VoiceStage] Script text changed ({len(norm_current)} chars vs {len(norm_recorded)} chars in shot list) -- will synthesize new voiceover.")
                             else:
                                 print(f"[VoiceStage] Voice preset requested ({ctx.voice_preset}) differs from shot list ({recorded_preset}) -- will synthesize newly chosen voice.")
                 except Exception as e:

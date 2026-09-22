@@ -119,6 +119,33 @@ def _find_mp4_by_glob(folder_name: str, *scan_dirs: Path) -> Optional[str]:
     return None
 
 
+def _extract_batch_from_name(name: Optional[str]) -> Optional[int]:
+    """Extracts numeric batch index from a project name or export filename.
+    Examples:
+        BLU01-ปัญหาก่อนใช้_1 -> 1
+        BLU01-ปัญหาก่อนใช้_2 -> 2
+        04_Exports/Ready_to_post/BLU01-ปัญหาก่อนใช้_1_20260914_211453.mp4 -> 1
+    """
+    if not name:
+        return None
+    stem = Path(str(name)).stem
+    parts = stem.split("_")
+    # Strip timestamp suffixes like _20260914_211453 or _20260914
+    if len(parts) >= 3 and parts[-1].isdigit() and len(parts[-1]) >= 6 and parts[-2].isdigit() and len(parts[-2]) >= 8:
+        stem = "_".join(parts[:-2])
+        parts = stem.split("_")
+    elif len(parts) >= 2 and parts[-1].isdigit() and len(parts[-1]) >= 8:
+        stem = "_".join(parts[:-1])
+        parts = stem.split("_")
+
+    if parts and parts[-1].isdigit():
+        try:
+            return int(parts[-1])
+        except ValueError:
+            pass
+    return None
+
+
 def _export_registry_find_by_path(export_records: List[Dict[str, Any]], raw_path: object) -> Optional[Dict[str, Any]]:
     """`ExportRegistry.find_by_path()`, but over a pre-fetched snapshot
     instead of a live call. See `_preferred_registered_export` for why."""
@@ -132,20 +159,32 @@ def _export_registry_latest_for_angle(
     export_records: List[Dict[str, Any]],
     product_id: Optional[str],
     angle_id: Optional[str],
+    project_name: Optional[str] = None,
+    batch: Optional[int] = None,
 ) -> Optional[Dict[str, Any]]:
     """`ExportRegistry.latest_for_angle()`, but over a pre-fetched snapshot
     instead of a live call. See `_preferred_registered_export` for why."""
     if not product_id or not angle_id:
         return None
+    target_batch = batch
+    if target_batch is None and project_name:
+        target_batch = _extract_batch_from_name(project_name)
     candidates = []
     for row in export_records:
         if str(row.get("product_id") or "") != str(product_id):
             continue
         if str(row.get("angle_id") or "") != str(angle_id):
             continue
+        row_proj = row.get("project_name")
+        if project_name and row_proj and row_proj != project_name:
+            continue
         raw_path = row.get("path")
         if not raw_path:
             continue
+        if target_batch is not None:
+            r_batch = row.get("batch") or _extract_batch_from_name(row_proj) or _extract_batch_from_name(raw_path)
+            if r_batch is not None and r_batch != target_batch:
+                continue
         path = Path(str(raw_path))
         if not path.is_absolute():
             path = BASE_DIR / path
@@ -179,6 +218,8 @@ def _preferred_registered_export(
     product_id: Optional[str],
     angle_id: Optional[str],
     candidate_path: Optional[str],
+    project_name: Optional[str] = None,
+    batch: Optional[int] = None,
 ) -> tuple[Optional[str], Optional[str]]:
     """Return the path/ID pair that owns this angle's current export.
 
@@ -194,7 +235,9 @@ def _preferred_registered_export(
     transaction.
     """
     try:
-        record = _export_registry_latest_for_angle(export_records, product_id, angle_id)
+        record = _export_registry_latest_for_angle(
+            export_records, product_id, angle_id, project_name=project_name, batch=batch
+        )
         if record:
             path = _to_absolute(record.get("path"))
             if path and path.exists():
@@ -479,6 +522,7 @@ class ProductStore:
         clear_conflict_note: bool = False,
         export_id: Optional[str] = None,
         mark_qc_passed: bool = False,
+        batch: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Updates the lifecycle status of a specific script angle in a product.
 
@@ -502,6 +546,10 @@ class ProductStore:
                          actually changes (a new render is unreviewed by
                          definition) or a qc_note is freshly set (a
                          rejection un-approves it).
+        batch          – optional batch index (e.g. 1, 2). When multiple angles
+                         share the same template angle_id (e.g. 'pain_point')
+                         across different batches, `batch` isolates the exact
+                         angle being updated so other batches are never modified.
         """
         # Validated *before* entering _mutate() on purpose: ExportRegistry
         # shares this store's own store.db file, and on the same thread
@@ -529,91 +577,155 @@ class ProductStore:
             for product in products:
                 if product["id"] == product_id:
                     angles = product.get("angles", [])
-                    for angle in angles:
-                        current_aid = angle.get("angle_id") or angle.get("id")
+                    matching_angles = []
+                    for idx, a in enumerate(angles):
+                        current_aid = a.get("angle_id") or a.get("id")
                         if current_aid == angle_id:
-                            # Strict guard: An angle that has been posted is permanently sealed as proof/archive.
-                            # Never allow demoting status away from 'posted' under any circumstances.
-                            if (angle.get("status") == "posted" or angle.get("posted_at")) and status != "posted":
-                                return product
-                            angle["status"] = status
-                            # Dedicated "when did the status itself last
-                            # change" stamp -- angle["updated_at"] below is
-                            # touched by unrelated angle writes too (cover
-                            # uploads, video attach), so it can't be used to
-                            # tell a just-set status apart from a stale one.
-                            # reconcile_existing_projects()'s grace-period
-                            # guard reads this to avoid reverting a status
-                            # this method JUST committed, on the strength of
-                            # a single, non-retried disk check that happened
-                            # to miss the file a moment later.
-                            angle["status_updated_at"] = cls._now()
-                            if video_url is not None:
-                                new_video_url = _to_relative(video_url) if video_url else None
-                                if new_video_url != angle.get("video_url"):
-                                    # A different rendered file is unreviewed by
-                                    # definition, regardless of what the angle's
-                                    # qc_reviewed flag said about the old one.
-                                    angle["qc_reviewed"] = False
-                                    # Round BUG-4: whatever upstream caller
-                                    # resolved product_id/angle_id for this
-                                    # write, enforce "at most one angle owns a
-                                    # given rendered file" as an invariant
-                                    # right here -- reconcile_existing_projects()
-                                    # only catches this on its own next pass,
-                                    # which left a stale duplicate claim
-                                    # visible (same clip/thumbnail under two
-                                    # different products' cards, no warning)
-                                    # for however long until that pass ran.
-                                    # Posted angles are permanently sealed
-                                    # proof (see the guard above) and are
-                                    # never touched here even if they
-                                    # collide -- that would mean a deeper bug
-                                    # than this check is meant to paper over.
-                                    if new_video_url:
-                                        for other_product in products:
-                                            for other_angle in other_product.get("angles", []):
-                                                if other_angle is angle:
-                                                    continue
-                                                if other_angle.get("video_url") != new_video_url:
-                                                    continue
-                                                if other_angle.get("status") == "posted" or other_angle.get("posted_at"):
-                                                    continue
-                                                other_angle["project_name"] = None
-                                                other_angle["video_url"] = None
-                                                other_angle["export_id"] = None
-                                                other_angle["status"] = "scripted"
-                                                other_angle["qc_reviewed"] = False
-                                                other_angle["data_conflict_note"] = (
-                                                    f"ปลดออกจาก '{project_name or new_video_url}' อัตโนมัติ "
-                                                    f"— ชนกับ angle อื่นที่เพิ่งผูกคลิปนี้ ({cls._now()})"
-                                                )
-                                                other_angle["updated_at"] = cls._now()
-                                angle["video_url"] = new_video_url
-                            if export_id is not None:
-                                angle["export_id"] = export_id
-                            if project_name is not None:
-                                angle["project_name"] = project_name if project_name else None
-                            # QC note handling
-                            if qc_note is not None:
-                                angle["qc_note"] = qc_note.strip() or None
-                                if angle["qc_note"]:
-                                    angle["qc_reviewed"] = False
-                            elif clear_qc_note:
-                                angle["qc_note"] = None
-                            if mark_qc_passed:
-                                angle["qc_reviewed"] = True
-                            if clear_conflict_note:
-                                angle["data_conflict_note"] = None
-                            if status == "posted" and not angle.get("posted_at"):
-                                angle["posted_at"] = cls._now()
-                            angle["updated_at"] = cls._now()
-                            product["updated_at"] = cls._now()
-                            return product
+                            matching_angles.append(a)
+
+                    if not matching_angles:
+                        raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
+
+                    target_angle = None
+                    # 1. Exact batch match if specified
+                    if batch is not None:
+                        for a in matching_angles:
+                            if (a.get("batch") or 1) == batch:
+                                target_angle = a
+                                break
+
+                    # 2. Project name match if specified
+                    if target_angle is None and project_name:
+                        for a in matching_angles:
+                            if a.get("project_name") == project_name:
+                                target_angle = a
+                                break
+                        if target_angle is None:
+                            proj_batch = _extract_batch_from_name(project_name)
+                            if proj_batch is not None:
+                                for a in matching_angles:
+                                    if (a.get("batch") or 1) == proj_batch:
+                                        target_angle = a
+                                        break
+
+                    # 3. Fallback: match first angle that has not been posted
+                    if target_angle is None:
+                        for a in matching_angles:
+                            if a.get("status") != "posted" and not a.get("posted_at"):
+                                target_angle = a
+                                break
+
+                    # 4. Final fallback: first angle
+                    if target_angle is None:
+                        target_angle = matching_angles[0]
+
+                    angle = target_angle
+
+                    # Strict guard: An angle that has been posted is permanently sealed as proof/archive.
+                    # Never allow demoting status away from 'posted' under any circumstances.
+                    if (angle.get("status") == "posted" or angle.get("posted_at")) and status != "posted":
+                        return product
+                    angle["status"] = status
+                    # Dedicated "when did the status itself last
+                    # change" stamp -- angle["updated_at"] below is
+                    # touched by unrelated angle writes too (cover
+                    # uploads, video attach), so it can't be used to
+                    # tell a just-set status apart from a stale one.
+                    # reconcile_existing_projects()'s grace-period
+                    # guard reads this to avoid reverting a status
+                    # this method JUST committed, on the strength of
+                    # a single, non-retried disk check that happened
+                    # to miss the file a moment later.
+                    angle["status_updated_at"] = cls._now()
+                    if video_url is not None:
+                        new_video_url = _to_relative(video_url) if video_url else None
+                        if new_video_url != angle.get("video_url"):
+                            # A different rendered file is unreviewed by
+                            # definition, regardless of what the angle's
+                            # qc_reviewed flag said about the old one.
+                            angle["qc_reviewed"] = False
+                            # Round BUG-4: whatever upstream caller
+                            # resolved product_id/angle_id for this
+                            # write, enforce "at most one angle owns a
+                            # given rendered file" as an invariant
+                            # right here -- reconcile_existing_projects()
+                            # only catches this on its own next pass,
+                            # which left a stale duplicate claim
+                            # visible (same clip/thumbnail under two
+                            # different products' cards, no warning)
+                            # for however long until that pass ran.
+                            # Posted angles are permanently sealed
+                            # proof (see the guard above) and are
+                            # never touched here even if they
+                            # collide -- that would mean a deeper bug
+                            # than this check is meant to paper over.
+                            if new_video_url:
+                                for other_product in products:
+                                    for other_angle in other_product.get("angles", []):
+                                        if other_angle is angle:
+                                            continue
+                                        if other_angle.get("video_url") != new_video_url:
+                                            continue
+                                        if other_angle.get("status") == "posted" or other_angle.get("posted_at"):
+                                            continue
+                                        other_angle["project_name"] = None
+                                        other_angle["video_url"] = None
+                                        other_angle["export_id"] = None
+                                        other_angle["status"] = "scripted"
+                                        other_angle["qc_reviewed"] = False
+                                        other_angle["data_conflict_note"] = (
+                                            f"ปลดออกจาก '{project_name or new_video_url}' อัตโนมัติ "
+                                            f"— ชนกับ angle อื่นที่เพิ่งผูกคลิปนี้ ({cls._now()})"
+                                        )
+                                        other_angle["updated_at"] = cls._now()
+                        angle["video_url"] = new_video_url
+                    if export_id is not None:
+                        angle["export_id"] = export_id
+                    if project_name is not None:
+                        new_pname = project_name if project_name else None
+                        if new_pname and new_pname != angle.get("project_name"):
+                            # Also unbind other angles in this product that claimed this same project_name!
+                            for other_angle in angles:
+                                if other_angle is angle:
+                                    continue
+                                if other_angle.get("project_name") == new_pname:
+                                    if other_angle.get("status") != "posted" and not other_angle.get("posted_at"):
+                                        other_angle["project_name"] = None
+                                        other_angle["video_url"] = None
+                                        other_angle["export_id"] = None
+                                        other_angle["status"] = "scripted"
+                                        other_angle["qc_reviewed"] = False
+                                        other_angle["data_conflict_note"] = (
+                                            f"ปลดออกจาก '{new_pname}' อัตโนมัติ — ชนกับ angle อื่นในล็อตเดียวกัน ({cls._now()})"
+                                        )
+                                        other_angle["updated_at"] = cls._now()
+                        angle["project_name"] = new_pname
+                    # QC note handling
+                    if qc_note is not None:
+                        angle["qc_note"] = qc_note.strip() or None
+                        if angle["qc_note"]:
+                            angle["qc_reviewed"] = False
+                    elif clear_qc_note:
+                        angle["qc_note"] = None
+                    if mark_qc_passed:
+                        angle["qc_reviewed"] = True
+                    if clear_conflict_note:
+                        angle["data_conflict_note"] = None
+                    if status == "posted" and not angle.get("posted_at"):
+                        angle["posted_at"] = cls._now()
+                    angle["updated_at"] = cls._now()
+                    product["updated_at"] = cls._now()
+                    return product
             raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
     @classmethod
-    def replace_angle_content(cls, product_id: str, angle_id: str, new_content: Dict[str, Any]) -> Dict[str, Any]:
+    def replace_angle_content(
+        cls,
+        product_id: str,
+        angle_id: str,
+        new_content: Dict[str, Any],
+        batch: Optional[int] = None,
+    ) -> Dict[str, Any]:
         """Overwrites an angle's script content (a rerolled script from the AI)
         while preserving everything about where the angle currently stands:
         angle_id, status, project_name, video_url, selected_videos/selected_video,
@@ -628,25 +740,37 @@ class ProductStore:
             "tts_lines", "tiktok_caption", "tiktok_hashtags",
             "duration", "extra_beats",
         )
+        updated_product = None
         with cls._mutate() as products:
             for product in products:
                 if product["id"] == product_id:
                     angles = product.get("angles", [])
+                    matched_angle = None
                     for angle in angles:
                         current_aid = angle.get("angle_id") or angle.get("id")
                         if current_aid == angle_id:
-                            for key in CONTENT_KEYS:
-                                if key in new_content:
-                                    angle[key] = new_content[key]
-                            angle["updated_at"] = cls._now()
-                            product["updated_at"] = cls._now()
-                            try:
-                                from scripts.shot_lists_store import ShotListsStore
-                                ShotListsStore.delete(product_id, angle_id)
-                            except Exception:
-                                pass
-                            return product
+                            if batch is not None and (angle.get("batch") or 1) == batch:
+                                matched_angle = angle
+                                break
+                            elif batch is None and matched_angle is None:
+                                matched_angle = angle
+                    if matched_angle is not None:
+                        for key in CONTENT_KEYS:
+                            if key in new_content:
+                                matched_angle[key] = new_content[key]
+                        matched_angle["updated_at"] = cls._now()
+                        product["updated_at"] = cls._now()
+                        updated_product = product
+                        break
+        if updated_product is None:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
+
+        try:
+            from scripts.shot_lists_store import ShotListsStore
+            ShotListsStore.delete(product_id, angle_id, batch=batch)
+        except Exception:
+            pass
+        return updated_product
 
     @classmethod
     def append_angles(
@@ -678,11 +802,17 @@ class ProductStore:
 
                     assigned_batch = batch_index if batch_index is not None else (max_batch + 1 if existing else 1)
                     now = cls._now()
+                    existing_aids = {a.get("angle_id") for a in existing if a.get("angle_id")}
                     for angle in new_angles:
                         angle_copy = dict(angle)
                         aid = angle_copy.get("angle_id") or angle_copy.get("id")
                         if not aid:
                             aid = f"ang_{uuid.uuid4().hex[:8]}"
+                        elif aid in existing_aids:
+                            aid = f"{aid}_b{assigned_batch}"
+                            if aid in existing_aids:
+                                aid = f"{aid}_{uuid.uuid4().hex[:4]}"
+                        existing_aids.add(aid)
                         angle_copy["angle_id"] = aid
                         angle_copy["batch"] = assigned_batch
                         angle_copy["status"] = angle_copy.get("status") or "scripted"
@@ -714,6 +844,7 @@ class ProductStore:
         cover_path: Optional[str] = None,
         cover_3x4_path: Optional[str] = None,
         cover_9x16_path: Optional[str] = None,
+        batch: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Persist generated cover variants on the angle that owns them.
 
@@ -757,6 +888,8 @@ class ProductStore:
                 for angle in product.get("angles", []):
                     current_aid = angle.get("angle_id") or angle.get("id")
                     if current_aid != angle_id:
+                        continue
+                    if batch is not None and (angle.get("batch") or 1) != batch:
                         continue
 
                     for key, value in normalized.items():
@@ -843,18 +976,40 @@ class ProductStore:
             rolled_back.append(angle.get("angle_id", ""))
 
         with cls._mutate() as products:
-            # Scoped path: caller knows exactly which angle it means. No stem
-            # matching at all -- the identifier is only used to decide
-            # in_production vs scripted above, not to locate the angle.
+            # Scoped path: caller knows product_id and angle_id.
+            # When multiple batches share angle_id, identify the exact angle using identifier/batch.
             if product_id and angle_id:
+                target_batch = _extract_batch_from_name(identifier)
                 for product in products:
                     if product.get("id") != product_id:
                         continue
+                    candidates = []
                     for angle in product.get("angles", []):
                         current_aid = angle.get("angle_id") or angle.get("id")
                         if current_aid == angle_id:
-                            _roll(product, angle)
-                            return rolled_back
+                            candidates.append(angle)
+
+                    if candidates:
+                        chosen = None
+                        # 1. Match angle directly referencing identifier
+                        for a in candidates:
+                            cur_p = (a.get("project_name") or "").lower()
+                            cur_v = (a.get("video_url") or "").lower()
+                            if cur_p in (raw_id_low, target_token) or (cur_v and target_token in cur_v):
+                                chosen = a
+                                break
+                        # 2. Match target_batch extracted from identifier
+                        if chosen is None and target_batch is not None:
+                            for a in candidates:
+                                if (a.get("batch") or 1) == target_batch:
+                                    chosen = a
+                                    break
+                        # 3. Fallback to first candidate
+                        if chosen is None:
+                            chosen = candidates[0]
+
+                        _roll(product, chosen)
+                        return rolled_back
                 return rolled_back
 
             # Legacy path: only the filename/project_name is known. Stop after
@@ -899,20 +1054,33 @@ class ProductStore:
             return rolled_back
 
     @classmethod
-    def update_angle_videos(cls, product_id: str, angle_id: str, selected_videos: List[str]) -> Dict[str, Any]:
+    def update_angle_videos(
+        cls,
+        product_id: str,
+        angle_id: str,
+        selected_videos: List[str],
+        batch: Optional[int] = None,
+    ) -> Dict[str, Any]:
         """Persists selected raw footage attachments for a specific script angle in a product."""
         rel_videos = [_to_relative(v) for v in selected_videos]
         with cls._mutate() as products:
             for product in products:
                 if product["id"] == product_id:
                     angles = product.get("angles", [])
+                    matched_angle = None
                     for angle in angles:
-                        if angle.get("angle_id") == angle_id:
-                            angle["selected_videos"] = rel_videos
-                            angle["selected_video"] = rel_videos[0] if rel_videos else None
-                            angle["updated_at"] = cls._now()
-                            product["updated_at"] = cls._now()
-                            return product
+                        if (angle.get("angle_id") or angle.get("id")) == angle_id:
+                            if batch is not None and (angle.get("batch") or 1) == batch:
+                                matched_angle = angle
+                                break
+                            elif batch is None and matched_angle is None:
+                                matched_angle = angle
+                    if matched_angle is not None:
+                        matched_angle["selected_videos"] = rel_videos
+                        matched_angle["selected_video"] = rel_videos[0] if rel_videos else None
+                        matched_angle["updated_at"] = cls._now()
+                        product["updated_at"] = cls._now()
+                        return product
             raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
     @classmethod
@@ -923,22 +1091,30 @@ class ProductStore:
         voice_preset: Optional[str] = None,
         voice_engine_type: Optional[str] = None,
         ad_tone: Optional[str] = None,
+        batch: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Persists voice configuration for a specific script angle in a product."""
         with cls._mutate() as products:
             for product in products:
                 if product["id"] == product_id:
+                    matched_angle = None
                     for angle in product.get("angles", []):
-                        if angle.get("angle_id") == angle_id:
-                            if voice_preset is not None:
-                                angle["voice_preset"] = voice_preset
-                            if voice_engine_type is not None:
-                                angle["voice_engine_type"] = voice_engine_type
-                            if ad_tone is not None:
-                                angle["ad_tone"] = ad_tone
-                            angle["updated_at"] = cls._now()
-                            product["updated_at"] = cls._now()
-                            return product
+                        if (angle.get("angle_id") or angle.get("id")) == angle_id:
+                            if batch is not None and (angle.get("batch") or 1) == batch:
+                                matched_angle = angle
+                                break
+                            elif batch is None and matched_angle is None:
+                                matched_angle = angle
+                    if matched_angle is not None:
+                        if voice_preset is not None:
+                            matched_angle["voice_preset"] = voice_preset
+                        if voice_engine_type is not None:
+                            matched_angle["voice_engine_type"] = voice_engine_type
+                        if ad_tone is not None:
+                            matched_angle["ad_tone"] = ad_tone
+                        matched_angle["updated_at"] = cls._now()
+                        product["updated_at"] = cls._now()
+                        return product
             raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
     @classmethod
@@ -947,6 +1123,7 @@ class ProductStore:
         product_id: str,
         angle_id: str,
         shot_map: List[Dict[str, Any]],
+        batch: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Persists a user-curated shot map (list of pinned beat→scene assignments)
         for a specific script angle. Each entry: {beat_index, video_path, trim_start, trim_end}.
@@ -964,12 +1141,20 @@ class ProductStore:
         with cls._mutate() as products:
             for product in products:
                 if product["id"] == product_id:
+                    matched_angle = None
                     for angle in product.get("angles", []):
                         if angle.get("angle_id") == angle_id:
-                            angle["manual_shot_map"] = normalized
-                            angle["updated_at"] = cls._now()
-                            product["updated_at"] = cls._now()
-                            return product
+                            if batch is not None and angle.get("batch") == batch:
+                                matched_angle = angle
+                                break
+                            elif batch is None and matched_angle is None:
+                                matched_angle = angle
+
+                    if matched_angle is not None:
+                        matched_angle["manual_shot_map"] = normalized
+                        matched_angle["updated_at"] = cls._now()
+                        product["updated_at"] = cls._now()
+                        return product
             raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
     @classmethod
@@ -979,7 +1164,7 @@ class ProductStore:
         updates_by_angle: Dict[str, List[Dict[str, Any]]],
     ) -> Dict[str, Any]:
         """Atomically updates manual shot maps for multiple angles in one mutation.
-        updates_by_angle: { angle_id: [ {beat_index, video_path, trim_start, trim_end}, ... ] }
+        updates_by_angle: { angle_id or angle_id_b{batch}: [ {beat_index, video_path, trim_start, trim_end}, ... ] }
         """
         normalized_updates = {}
         for ang_id, shot_map in updates_by_angle.items():
@@ -997,7 +1182,12 @@ class ProductStore:
                 if product["id"] == product_id:
                     for angle in product.get("angles", []):
                         ang_id = angle.get("angle_id")
-                        if ang_id in normalized_updates:
+                        ang_batch = angle.get("batch") or 1
+                        batch_key = f"{ang_id}_b{ang_batch}"
+                        if batch_key in normalized_updates:
+                            angle["manual_shot_map"] = normalized_updates[batch_key]
+                            angle["updated_at"] = cls._now()
+                        elif ang_id in normalized_updates:
                             angle["manual_shot_map"] = normalized_updates[ang_id]
                             angle["updated_at"] = cls._now()
                     product["updated_at"] = cls._now()
@@ -1105,7 +1295,7 @@ class ProductStore:
         return product.get("videos", [])
 
     @classmethod
-    def remove_angle(cls, product_id: str, angle_id: str) -> Dict[str, Any]:
+    def remove_angle(cls, product_id: str, angle_id: str, batch: Optional[int] = None) -> Dict[str, Any]:
         """
         Drop one angle (its hook, script and caption) from a product.
 
@@ -1118,17 +1308,30 @@ class ProductStore:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
         angles = product.get("angles") or []
-        target = next((a for a in angles if (a.get("angle_id") or a.get("id")) == angle_id), None)
+        target = next(
+            (
+                a for a in angles
+                if (a.get("angle_id") or a.get("id")) == angle_id
+                and (batch is None or (a.get("batch") or 1) == batch)
+            ),
+            None,
+        )
         if not target:
             raise ValueError(f"ไม่พบมุม '{angle_id}' ในสินค้านี้")
 
         if target.get("status") == "posted" or target.get("posted_at"):
             raise ValueError(f"ไม่อนุญาตให้ลบมุม '{target.get('angle_name') or angle_id}' เนื่องจากถูกโพสต์ลง TikTok แล้ว (ต้องเก็บไว้เป็นหลักฐาน)")
 
-        remaining = [a for a in angles if (a.get("angle_id") or a.get("id")) != angle_id]
+        remaining = [
+            a for a in angles
+            if not (
+                (a.get("angle_id") or a.get("id")) == angle_id
+                and (batch is None or (a.get("batch") or 1) == batch)
+            )
+        ]
         try:
             from scripts.shot_lists_store import ShotListsStore
-            ShotListsStore.delete(product_id, angle_id)
+            ShotListsStore.delete(product_id, angle_id, batch=batch)
         except Exception:
             pass
 
@@ -1158,21 +1361,34 @@ class ProductStore:
         collision-prone name.
         """
         products = cls._load()
-        # 1. Exact product_id and angle_id if provided
+        proj_batch = _extract_batch_from_name(project_name)
+
+        # 1. Direct match on angle.project_name
+        for product in products:
+            if product_id and product.get("id") != product_id:
+                continue
+            for angle in product.get("angles") or []:
+                if angle.get("project_name") == project_name:
+                    return product, angle
+
+        # 2. Match by product_id and angle_id (respecting batch)
         if product_id:
             for product in products:
                 if product.get("id") == product_id:
                     if angle_id:
+                        # If project_name has a batch suffix, prefer the angle with matching batch
+                        if proj_batch is not None:
+                            for angle in product.get("angles") or []:
+                                if (angle.get("angle_id") or angle.get("id")) == angle_id and (angle.get("batch") or 1) == proj_batch:
+                                    return product, angle
+                        # Otherwise, find the first angle that doesn't claim a different existing project on disk
+                        projects_dir = BASE_DIR / "03_Projects"
                         for angle in product.get("angles") or []:
                             if (angle.get("angle_id") or angle.get("id")) == angle_id:
-                                return product, angle
+                                cur_p = angle.get("project_name")
+                                if not cur_p or cur_p == project_name or not (projects_dir / str(cur_p)).exists():
+                                    return product, angle
                     return product, None
-
-        # 2. Direct match on angle.project_name
-        for product in products:
-            for angle in product.get("angles") or []:
-                if angle.get("project_name") == project_name:
-                    return product, angle
 
         # 3. Match in product.projects list (still id-based: project_name is
         # the same stable folder-name key recorded in product.projects, not
@@ -1343,8 +1559,10 @@ class ProductStore:
             # win it per folder per pass; every other angle claiming the
             # same folder is a data conflict and gets unlinked back to
             # scripted instead of silently mirroring the winner's clip.
+            exact_name_match = None
             authoritative_match = None  # (product, angle) via condition #1
             self_ref_matches = []       # [(product, angle), ...] via condition #2
+            folder_batch = _extract_batch_from_name(p_folder.name)
 
             for product in products:
                 # If project explicitly specified a product_id, it MUST match product["id"]
@@ -1353,28 +1571,69 @@ class ProductStore:
 
                 for angle in product.get("angles", []):
                     current_aid = angle.get("angle_id") or angle.get("id")
+                    angle_batch = angle.get("batch") or 1
 
                     # 1. Exact Product ID + Angle ID match from project manifest
                     if p_pid and p_aid and product.get("id") == p_pid and current_aid == p_aid:
-                        if authoritative_match is None:
+                        batch_matches = (folder_batch is None) or (folder_batch == angle_batch)
+                        if angle.get("project_name") == p_folder.name:
+                            if batch_matches or exact_name_match is None:
+                                exact_name_match = (product, angle)
+                        elif batch_matches and authoritative_match is None and not (
+                            angle.get("project_name")
+                            and angle.get("project_name") != p_folder.name
+                            and (projects_dir / str(angle.get("project_name"))).exists()
+                        ):
                             authoritative_match = (product, angle)
                     # 2. Already explicitly linked by project_name on this angle
                     elif angle.get("project_name") and angle.get("project_name") == p_folder.name:
                         self_ref_matches.append((product, angle))
 
-            winner = authoritative_match or (self_ref_matches[0] if self_ref_matches else None)
-            losers = self_ref_matches if authoritative_match else self_ref_matches[1:]
+            winner = exact_name_match or authoritative_match or (self_ref_matches[0] if self_ref_matches else None)
 
-            for _loser_product, loser_angle in losers:
-                loser_angle["project_name"] = None
-                loser_angle["video_url"] = None
-                loser_angle["export_id"] = None
-                loser_angle["status"] = "scripted"
-                loser_angle["data_conflict_note"] = (
-                    f"ปลดออกจาก '{p_folder.name}' อัตโนมัติ — ชนกับ angle อื่นที่ผูกกับคลิปนี้ถูกต้องกว่า ({cls._now()})"
-                )
-                loser_angle["updated_at"] = cls._now()
-                changed = True
+            if not winner and p_pid and p_aid:
+                for product in products:
+                    if product.get("id") == p_pid:
+                        base_angle = next(
+                            (
+                                a for a in product.get("angles", [])
+                                if (a.get("angle_id") or a.get("id")) == p_aid
+                                and (folder_batch is None or (a.get("batch") or 1) == folder_batch)
+                            ),
+                            None,
+                        )
+                        if base_angle:
+                            variant_angle = dict(base_angle)
+                            suffix = p_folder.name.rsplit('_', 1)[-1] if '_' in p_folder.name else 'var'
+                            variant_angle["angle_id"] = f"{p_aid}_{suffix}"
+                            variant_angle["project_name"] = p_folder.name
+                            variant_angle["status"] = "in_production"
+                            variant_angle["video_url"] = None
+                            variant_angle["export_id"] = None
+                            variant_angle["qc_reviewed"] = False
+                            variant_angle["updated_at"] = cls._now()
+                            product["angles"].append(variant_angle)
+                            winner = (product, variant_angle)
+                            changed = True
+                        break
+
+            # Any OTHER angle that also claimed this p_folder.name is a conflict and must be unlinked!
+            for product in products:
+                if p_pid and product.get("id") and p_pid != product.get("id"):
+                    continue
+                for angle in product.get("angles", []):
+                    if winner and angle is winner[1]:
+                        continue
+                    if angle.get("project_name") == p_folder.name:
+                        angle["project_name"] = None
+                        angle["video_url"] = None
+                        angle["export_id"] = None
+                        angle["status"] = "scripted"
+                        angle["data_conflict_note"] = (
+                            f"ปลดออกจาก '{p_folder.name}' อัตโนมัติ — ชนกับ angle อื่นที่ผูกกับคลิปนี้ถูกต้องกว่า ({cls._now()})"
+                        )
+                        angle["updated_at"] = cls._now()
+                        changed = True
 
             if winner:
                 product, angle = winner
@@ -1387,6 +1646,8 @@ class ProductStore:
                     product.get("id"),
                     angle.get("angle_id") or angle.get("id"),
                     mp4_path,
+                    project_name=p_folder.name,
+                    batch=angle.get("batch"),
                 )
 
                 # Ensure project is linked
@@ -1514,8 +1775,58 @@ class ProductStore:
                     p_list.append(p_folder.name)
                     changed = True
 
-        # Strict state validation: Clean up any angle whose project or video does not actually exist on disk
+        # Strict state validation: Clean up any angle whose project or video does not actually exist on disk,
+        # or where non-posted angles claim duplicate project_names or video_urls across the product
         for product in products:
+            # Resolve duplicate project_name claims and alien batch claims within the same product
+            seen_projs: Dict[str, Any] = {}
+            for angle in product.get("angles", []):
+                if angle.get("status") == "posted" or angle.get("posted_at"):
+                    continue
+                p_name = angle.get("project_name")
+                if not p_name:
+                    continue
+                p_batch = _extract_batch_from_name(p_name)
+                a_batch = angle.get("batch") or 1
+
+                if p_name in seen_projs:
+                    prev_angle = seen_projs[p_name]
+                    prev_batch = prev_angle.get("batch") or 1
+                    if p_batch is not None and a_batch == p_batch and prev_batch != p_batch:
+                        # Current angle matches project batch; demote previous claimant
+                        prev_angle["project_name"] = None
+                        prev_angle["video_url"] = None
+                        prev_angle["export_id"] = None
+                        prev_angle["status"] = "scripted"
+                        prev_angle["updated_at"] = cls._now()
+                        seen_projs[p_name] = angle
+                        changed = True
+                    else:
+                        # Current angle loses
+                        angle["project_name"] = None
+                        angle["video_url"] = None
+                        angle["export_id"] = None
+                        angle["status"] = "scripted"
+                        angle["updated_at"] = cls._now()
+                        changed = True
+                else:
+                    # Check if p_name has a batch suffix that clearly belongs to another angle in this product
+                    if p_batch is not None and a_batch != p_batch:
+                        cur_aid = angle.get("angle_id") or angle.get("id")
+                        has_other_match = any(
+                            (o.get("batch") or 1) == p_batch and (o.get("angle_id") or o.get("id")) == cur_aid
+                            for o in product.get("angles", []) if o is not angle
+                        )
+                        if has_other_match:
+                            angle["project_name"] = None
+                            angle["video_url"] = None
+                            angle["export_id"] = None
+                            angle["status"] = "scripted"
+                            angle["updated_at"] = cls._now()
+                            changed = True
+                            continue
+                    seen_projs[p_name] = angle
+
             for angle in product.get("angles", []):
                 # An angle that has been posted is permanently sealed as proof/archive.
                 # Never revert or demote posted angles under any circumstances.

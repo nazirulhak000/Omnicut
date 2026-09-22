@@ -16,6 +16,8 @@ from scripts.typesafe_bridge import (
     generate_and_rank_hook_variants,
     is_typesafe_available,
     match_broll_for_sentence,
+    match_script_sequence_broll,
+    scan_and_match_raw_folder,
 )
 
 logger = logging.getLogger("api_typesafe_studio")
@@ -41,13 +43,30 @@ class EvaluateHookRequest(BaseModel):
     hook_text: str = Field(..., description="Hook sentence to evaluate")
 
 
+class MatchSequenceRequest(BaseModel):
+    sentences: List[str] = Field(..., description="List of script sentences")
+    candidate_clips: List[Dict[str, Any]] = Field(..., description="List of candidate clips")
+    ensure_diversity: bool = Field(default=True, description="Avoid repeating same clip immediately")
+
+
+class MatchRawFolderRequest(BaseModel):
+    raw_folder: str = Field(..., description="Relative or absolute path to raw footage directory")
+    sentences: List[str] = Field(..., description="List of script sentences")
+
+
 @router.get("/status")
 def get_typesafe_status() -> Dict[str, Any]:
     """Check availability of TypeSafe AI integration."""
     return {
         "available": is_typesafe_available(),
         "provider": "TypeSafe System One (Jev)",
-        "features": ["strict_topic_hold", "hook_retention_scoring", "broll_matching"],
+        "features": [
+            "strict_topic_hold",
+            "hook_retention_scoring",
+            "broll_matching",
+            "sequence_broll_matching",
+            "raw_folder_scan_matching",
+        ],
     }
 
 
@@ -60,6 +79,37 @@ def api_match_broll(req: MatchBrollRequest) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="Candidate clips list cannot be empty")
 
     result = match_broll_for_sentence(req.sentence, req.candidate_clips)
+    return result
+
+
+@router.post("/match-sequence")
+def api_match_sequence(req: MatchSequenceRequest) -> Dict[str, Any]:
+    """Match candidate B-roll clips for each sentence in a script sequence with Strict Topic Hold."""
+    if not req.sentences:
+        raise HTTPException(status_code=400, detail="Sentences list cannot be empty")
+    if not req.candidate_clips:
+        raise HTTPException(status_code=400, detail="Candidate clips list cannot be empty")
+
+    sequence = match_script_sequence_broll(
+        req.sentences, req.candidate_clips, ensure_diversity=req.ensure_diversity
+    )
+    return {
+        "total_sentences": len(req.sentences),
+        "sequence": sequence,
+    }
+
+
+@router.post("/match-raw-folder")
+def api_match_raw_folder(req: MatchRawFolderRequest) -> Dict[str, Any]:
+    """Scan raw footage folder and match candidate clips against script sentences."""
+    if not req.raw_folder.strip():
+        raise HTTPException(status_code=400, detail="raw_folder cannot be empty")
+    if not req.sentences:
+        raise HTTPException(status_code=400, detail="sentences cannot be empty")
+
+    result = scan_and_match_raw_folder(req.raw_folder, req.sentences)
+    if "error" in result and not result.get("sequence"):
+        raise HTTPException(status_code=404, detail=result["error"])
     return result
 
 
@@ -84,3 +134,4 @@ def api_evaluate_hook(req: EvaluateHookRequest) -> Dict[str, Any]:
 
     result = evaluate_hook_retention(req.hook_text)
     return result
+

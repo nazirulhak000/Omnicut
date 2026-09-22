@@ -25,11 +25,15 @@ _VOICE_OVERRIDE_KEYS = ("voice", "voice_rate", "voice_engine_type", "voice_prese
 
 
 def _execute_generate_shot_list_worker(
-    task_id: str, product_id: str, angle_id: str, voice_overrides: Dict[str, Any],
+    task_id: str,
+    product_id: str,
+    angle_id: str,
+    voice_overrides: Dict[str, Any],
+    batch: Optional[int] = None,
 ) -> None:
     try:
         TaskManager.update_progress(task_id, 0.20, "กำลังเตรียมสคริปต์และสังเคราะห์เสียงพากย์จริง")
-        result = generate_shot_list_for_angle(product_id, angle_id, voice_overrides)
+        result = generate_shot_list_for_angle(product_id, angle_id, voice_overrides, batch=batch)
         TaskManager.update_progress(task_id, 0.90, "กำลังบันทึกแผนถ่าย")
         TaskManager.complete_task(
             task_id,
@@ -63,26 +67,35 @@ def create_shot_list(
     voice_overrides = {
         key: payload.get(key) for key in _VOICE_OVERRIDE_KEYS if payload.get(key) is not None
     }
+    batch = payload.get("batch") or payload.get("batch_index")
+    if batch is not None:
+        try:
+            batch = int(batch)
+        except (ValueError, TypeError):
+            batch = None
 
+    task_title = f"สร้างแผนถ่าย: {angle_id}" + (f" (Batch {batch})" if batch else "")
     task = TaskManager.create_task(
         task_type="generate_shot_list",
-        title=f"สร้างแผนถ่าย: {angle_id}",
-        payload={"product_id": product_id, "angle_id": angle_id, **voice_overrides},
+        title=task_title,
+        payload={"product_id": product_id, "angle_id": angle_id, "batch": batch, **voice_overrides},
         target_tab="flow",
         target_id=product_id,
     )
 
     background_tasks.add_task(
         _execute_generate_shot_list_worker,
-        task["id"], product_id, angle_id, voice_overrides,
+        task["id"], product_id, angle_id, voice_overrides, batch,
     )
 
     return {"success": True, "task_id": task["id"], "task": task}
 
 
 @router.get("/api/products/{product_id}/angles/{angle_id}/shot-list")
-def get_shot_list(product_id: str, angle_id: str):
-    record = ShotListsStore.get(product_id, angle_id)
+def get_shot_list(product_id: str, angle_id: str, batch: Optional[int] = None):
+    record = ShotListsStore.get(product_id, angle_id, batch=batch)
+    if not record and batch in (None, 1):
+        record = ShotListsStore.get(product_id, angle_id)
     if not record:
         raise HTTPException(status_code=404, detail="ยังไม่มีแผนถ่ายสำหรับมุมนี้")
 
@@ -91,9 +104,18 @@ def get_shot_list(product_id: str, angle_id: str):
     product = ProductStore.get(product_id)
     if product:
         angle = next(
-            (a for a in product.get("angles", []) if (a.get("angle_id") or a.get("id")) == angle_id),
+            (
+                a for a in product.get("angles", [])
+                if (a.get("angle_id") or a.get("id")) == angle_id
+                and (batch is None or a.get("batch") == batch)
+            ),
             None,
         )
+        if not angle and batch is not None:
+            angle = next(
+                (a for a in product.get("angles", []) if (a.get("angle_id") or a.get("id")) == angle_id),
+                None,
+            )
         if angle:
             lines = angle.get("tts_lines") or angle.get("script_lines") or []
             current_script = "\n".join(str(l).strip() for l in lines if str(l).strip())
@@ -120,7 +142,10 @@ def get_shot_list_status(product_id: str):
         angle_id = angle.get("angle_id") or angle.get("id")
         if not angle_id:
             continue
-        record = ShotListsStore.get(product_id, angle_id)
+        batch = angle.get("batch") or 1
+        record = ShotListsStore.get(product_id, angle_id, batch=batch)
+        if not record and batch == 1:
+            record = ShotListsStore.get(product_id, angle_id)
         if record:
             lines = angle.get("tts_lines") or angle.get("script_lines") or []
             current_script = "\n".join(str(l).strip() for l in lines if str(l).strip())
@@ -130,7 +155,7 @@ def get_shot_list_status(product_id: str):
             engine = vp.get("voice_engine_type") or ("gemini_tts" if vp.get("voice_preset") else "edge_tts")
             preset = vp.get("voice_preset")
             is_edge = (engine == "edge_tts" or not preset)
-            result[angle_id] = {
+            item_status = {
                 "has_shot_list": True,
                 "is_stale": is_stale,
                 "voice_engine_type": engine,
@@ -138,13 +163,23 @@ def get_shot_list_status(product_id: str):
                 "is_edge_tts": is_edge,
             }
         else:
-            result[angle_id] = {
+            item_status = {
                 "has_shot_list": False,
                 "is_stale": False,
                 "voice_engine_type": None,
                 "voice_preset": None,
                 "is_edge_tts": False,
             }
+
+        # Always write the batch-specific key so the frontend can look up by
+        # `angle_id_b{batch}` without any cross-batch contamination.
+        result[f"{angle_id}_b{batch}"] = item_status
+        # Only expose the plain `angle_id` legacy key for batch 1 (or angles
+        # that have no batch).  Batch 2+ must NOT overwrite the batch-1 entry
+        # because the frontend falls back to this plain key and would then
+        # show batch-1's shot-list status on batch-2 items.
+        if batch <= 1:
+            result[angle_id] = item_status
 
     return {"product_id": product_id, "status": result}
 
@@ -207,6 +242,7 @@ def _execute_batch_generate_audio_worker(
 
         for idx, angle in enumerate(valid_angles, 1):
             angle_id = angle.get("angle_id") or angle.get("id")
+            angle_batch = angle.get("batch") or 1
             angle_title = angle.get("hook_title") or angle.get("angle_name") or f"มุมที่ {idx}"
             short_title = angle_title[:32] + "..." if len(angle_title) > 32 else angle_title
 
@@ -221,7 +257,9 @@ def _execute_batch_generate_audio_worker(
 
             # Check if voice audio is already cached and valid
             if not force_regenerate:
-                rec = ShotListsStore.get(product_id, angle_id)
+                rec = ShotListsStore.get(product_id, angle_id, batch=angle_batch)
+                if not rec and angle_batch == 1:
+                    rec = ShotListsStore.get(product_id, angle_id)
                 if rec and rec.get("voice_audio_path"):
                     audio_p = Path(rec["voice_audio_path"])
                     if audio_p.exists() and audio_p.stat().st_size > 0:
@@ -250,7 +288,7 @@ def _execute_batch_generate_audio_worker(
                     task_id, pct, f"🎙️ ({idx}/{total_angles}) กำลังสังเคราะห์เสียง: {short_title}"
                 )
                 try:
-                    generate_shot_list_for_angle(product_id, angle_id, voice_overrides)
+                    generate_shot_list_for_angle(product_id, angle_id, voice_overrides, batch=angle_batch)
                     angle_success = True
                     generated_count += 1
                     break
@@ -380,8 +418,15 @@ def save_manual_shot_map(product_id: str, angle_id: str, payload: Dict[str, Any]
             "trim_end": float(entry.get("trim_end") or 0.0),
         })
 
+    batch = payload.get("batch") or payload.get("batch_index")
+    if batch is not None:
+        try:
+            batch = int(batch)
+        except (ValueError, TypeError):
+            batch = None
+
     try:
-        ProductStore.update_angle_manual_shot_map(product_id, angle_id, validated)
+        ProductStore.update_angle_manual_shot_map(product_id, angle_id, validated, batch=batch)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -389,7 +434,7 @@ def save_manual_shot_map(product_id: str, angle_id: str, payload: Dict[str, Any]
 
 
 @router.get("/api/products/{product_id}/angles/{angle_id}/manual-shot-map")
-def get_manual_shot_map(product_id: str, angle_id: str):
+def get_manual_shot_map(product_id: str, angle_id: str, batch: Optional[int] = None):
     """Returns the saved manual shot-map for an angle, together with the beat_cues timing
     (so the frontend can render the storyboard UI from a single request).
 
@@ -407,14 +452,25 @@ def get_manual_shot_map(product_id: str, angle_id: str):
         raise HTTPException(status_code=404, detail="ไม่พบสินค้า")
 
     angle = next(
-        (a for a in product.get("angles", []) if (a.get("angle_id") or a.get("id")) == angle_id),
+        (
+            a for a in product.get("angles", [])
+            if (a.get("angle_id") or a.get("id")) == angle_id
+            and (batch is None or a.get("batch") == batch)
+        ),
         None,
     )
+    if not angle and batch is not None:
+        angle = next(
+            (a for a in product.get("angles", []) if (a.get("angle_id") or a.get("id")) == angle_id),
+            None,
+        )
     if not angle:
         raise HTTPException(status_code=404, detail=f"ไม่พบมุม '{angle_id}'")
 
     # Pull existing shot list (beat_cues, total_duration) from ShotListsStore
-    shot_list_record = ShotListsStore.get(product_id, angle_id)
+    shot_list_record = ShotListsStore.get(product_id, angle_id, batch=batch)
+    if not shot_list_record and batch in (None, 1):
+        shot_list_record = ShotListsStore.get(product_id, angle_id)
     beat_cues = []
     total_duration = 0.0
     has_shot_list = False
@@ -599,7 +655,23 @@ def sync_manual_shot_map(
         raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
 
     angles = product.get("angles", [])
-    source_angle = next((a for a in angles if a.get("angle_id") == source_angle_id), None)
+    source_batch = payload.get("batch") or payload.get("source_batch")
+    if source_batch is not None:
+        try:
+            source_batch = int(source_batch)
+        except (ValueError, TypeError):
+            source_batch = None
+
+    source_angle = next(
+        (
+            a for a in angles
+            if a.get("angle_id") == source_angle_id and (source_batch is None or a.get("batch") == source_batch)
+        ),
+        None,
+    )
+    if not source_angle and source_batch is not None:
+        source_angle = next((a for a in angles if a.get("angle_id") == source_angle_id), None)
+
     if not source_angle:
         raise HTTPException(status_code=404, detail=f"ไม่พบสคริปต์ต้นทาง angle_id '{source_angle_id}'")
 
@@ -618,7 +690,8 @@ def sync_manual_shot_map(
 
     for angle in angles:
         ang_id = angle.get("angle_id")
-        if not ang_id or ang_id not in target_ids or ang_id == source_angle_id:
+        ang_batch = angle.get("batch") or 1
+        if not ang_id or ang_id not in target_ids or (ang_id == source_angle_id and ang_batch == (source_angle.get("batch") or 1)):
             continue
 
         existing_map = angle.get("manual_shot_map") or []
@@ -626,7 +699,9 @@ def sync_manual_shot_map(
             continue
 
         # Get target beat cues to determine target_beats_count
-        shot_list = ShotListsStore.get(product_id, ang_id)
+        shot_list = ShotListsStore.get(product_id, ang_id, batch=ang_batch)
+        if not shot_list and ang_batch == 1:
+            shot_list = ShotListsStore.get(product_id, ang_id)
         target_beats = (shot_list or {}).get("beat_cues") or []
         target_beats_count = len(target_beats) if target_beats else len(angle.get("script_lines", []))
         if target_beats_count <= 0:
@@ -638,9 +713,10 @@ def sync_manual_shot_map(
             target_beat_cues=target_beats,
         )
 
-        updates_by_angle[ang_id] = adapted_map
+        updates_by_angle[f"{ang_id}_b{ang_batch}"] = adapted_map
         synced_angles_info.append({
             "angle_id": ang_id,
+            "batch": ang_batch,
             "angle_name": angle.get("angle_name", ""),
             "shots_count": len(adapted_map),
             "target_beats_count": target_beats_count,

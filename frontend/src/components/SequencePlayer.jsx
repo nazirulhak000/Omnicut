@@ -1261,7 +1261,8 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   let enLines = [];
   const enFontSize = Math.round(fontSize * 0.68);
   const enLineH = fontSize;
-  if (cue.translation && !cue.translation.includes('Error 500')) {
+  const showBilingual = style.bilingualSubtitles !== false && cue.bilingual !== false;
+  if (showBilingual && cue.translation && !cue.translation.includes('Error 500')) {
     ctx.font = `700 ${enFontSize}px ${fontFam}`;
     enLines = wrapCanvasText(cue.translation, ctx, CANVAS_W * 0.86);
   }

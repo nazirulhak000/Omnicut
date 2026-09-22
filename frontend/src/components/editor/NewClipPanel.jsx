@@ -204,7 +204,10 @@ export default function NewClipPanel({
 
   const hasShotListAudio = shotListAvailable && !!shotListRecord?.voice_audio_path;
   const shotListVoicePreset = shotListRecord?.voice_params?.voice_preset;
-  const isVoiceReused = hasShotListAudio && (!shotListVoicePreset || shotListVoicePreset === form.voicePreset);
+  const shotListScriptNorm = (shotListRecord?.custom_script || shotListRecord?.script_text || '').replace(/\s+/g, '');
+  const formScriptNorm = (form.customScript || '').replace(/\s+/g, '');
+  const scriptMatchesShotList = !formScriptNorm || !shotListScriptNorm || formScriptNorm === shotListScriptNorm;
+  const isVoiceReused = hasShotListAudio && (!shotListVoicePreset || shotListVoicePreset === form.voicePreset) && scriptMatchesShotList;
 
   useEffect(() => {
     const next = angleToForm(angles[angleIndex], productContext || {});
@@ -1044,7 +1047,7 @@ export default function NewClipPanel({
           if (paths && paths.length > 0) {
             patch({ selectedVideo: paths[0], selectedVideos: paths });
             if (productContext?.id && angles[angleIndex]?.angle_id) {
-              updateAngleVideos(productContext.id, angles[angleIndex].angle_id, paths).catch(() => {});
+              updateAngleVideos(productContext.id, angles[angleIndex].angle_id, paths, angles[angleIndex]?.batch || 1).catch(() => {});
             }
           }
         }}

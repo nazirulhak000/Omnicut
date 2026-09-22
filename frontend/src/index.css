@@ -142,6 +142,28 @@
   transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ── Pro Asset Panel & Video Cards ── */
+.asset-card-obsidian {
+  background: rgba(12, 16, 25, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.asset-card-obsidian:hover {
+  background: rgba(18, 24, 38, 0.95);
+  border-color: rgba(37, 244, 238, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 15px rgba(37, 244, 238, 0.06);
+}
+
+.asset-card-active {
+  background: rgba(37, 244, 238, 0.06) !important;
+  border-color: rgba(37, 244, 238, 0.5) !important;
+  box-shadow: 0 0 20px rgba(37, 244, 238, 0.12);
+}
+
 /* ── Form Controls & Inputs ── */
 .claude-input {
   background-color: #080B11;
@@ -245,48 +267,178 @@
 }
 
 /* ── Template Gallery Motion Micro-Animations ── */
+/* ── Template Gallery Motion Micro-Animations (Exact Parity with SequencePlayer.jsx & motionPresets.js) ── */
+
+/* 1. Pulse: Opacity pulse cycle 0.7s (SequencePlayer HOOK_DIM_OPACITY) */
 @keyframes templatePulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
 }
 
+/* 2. Wave: Pure rotation [-3deg -> +3deg -> 0deg] cycle 1.2s linear (SequencePlayer rot [-3, 3, 0] at 0.4s) */
 @keyframes templateWave {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25% { transform: translateY(-2px) rotate(-1.5deg); }
-  75% { transform: translateY(2px) rotate(1.5deg); }
+  0% { transform: rotate(0deg); }
+  33.33% { transform: rotate(-3deg); }
+  66.67% { transform: rotate(3deg); }
+  100% { transform: rotate(0deg); }
 }
 
+/* 3. Shake: Rapid angular tilt [-3deg -> +3deg -> -2deg -> +2deg -> 0deg] cycle 0.45s linear (SequencePlayer rot [-3, 3, -2, 2, 0] at 0.09s) */
 @keyframes templateShake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-2.5px) rotate(-1deg); }
-  40% { transform: translateX(2.5px) rotate(1deg); }
-  60% { transform: translateX(-1.5px) rotate(-0.5deg); }
-  80% { transform: translateX(1.5px) rotate(0.5deg); }
+  0% { transform: rotate(0deg); }
+  20% { transform: rotate(-3deg); }
+  40% { transform: rotate(3deg); }
+  60% { transform: rotate(-2deg); }
+  80% { transform: rotate(2deg); }
+  100% { transform: rotate(0deg); }
 }
 
+/* 4. Flicker: Subtle irregular alpha steps cycle 0.76s linear (SequencePlayer _loop_flicker pattern) */
 @keyframes templateFlicker {
-  0%, 100% { opacity: 1; filter: brightness(1.2) drop-shadow(0 0 8px rgba(254,44,85,0.7)); }
-  25% { opacity: 0.85; filter: brightness(0.95); }
-  50% { opacity: 1; filter: brightness(1.35) drop-shadow(0 0 12px rgba(254,44,85,0.9)); }
-  75% { opacity: 0.9; filter: brightness(1); }
+  0% { opacity: 1; }
+  10.53% { opacity: 0.812; }
+  30.26% { opacity: 1; }
+  38.16% { opacity: 0.729; }
+  64.47% { opacity: 1; }
+  76.32% { opacity: 0.875; }
+  100% { opacity: 1; }
 }
 
+/* 5. Lightsweep: Specular white bloom cycle 0.5s linear (SequencePlayer 500ms cycle) */
 @keyframes templateLightsweep {
+  0%, 100% { filter: brightness(1); }
+  40% { filter: brightness(1.7) drop-shadow(0 0 8px rgba(255, 255, 255, 0.9)); }
+}
+
+/* 6. Sheen sweep band: Sweeps across the card every 0.5s linear (SequencePlayer 500ms cycle) */
+@keyframes templateSheenSweep {
   0% { transform: translateX(-150%) skewX(-20deg); }
-  50%, 100% { transform: translateX(250%) skewX(-20deg); }
+  100% { transform: translateX(250%) skewX(-20deg); }
 }
 
 @keyframes templatePopZoom {
   0%, 100% { transform: scale(1); }
-  40% { transform: scale(1.08); filter: drop-shadow(0 0 8px rgba(37,244,238,0.75)); }
+  40% { transform: scale(1.12); filter: drop-shadow(0 0 10px rgba(37,244,238,0.75)); }
 }
 
-.anim-preview-pulse { animation: templatePulse 1.8s infinite ease-in-out; }
-.anim-preview-wave { animation: templateWave 2.2s infinite ease-in-out; }
-.anim-preview-shake { animation: templateShake 1.2s infinite ease-in-out; }
-.anim-preview-flicker { animation: templateFlicker 1.4s infinite ease-in-out; }
-.anim-preview-lightsweep { animation: templateLightsweep 2.5s infinite ease-in-out; }
-.anim-preview-pop_zoom { animation: templatePopZoom 1.6s infinite ease-in-out; }
+@keyframes templatePop {
+  0%, 100% { transform: scale(1); }
+  35% { transform: scale(1.15); filter: drop-shadow(0 0 8px rgba(37,244,238,0.7)); }
+  65% { transform: scale(0.96); }
+  85% { transform: scale(1.04); }
+}
+
+@keyframes templateStamp {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.3) rotate(-3deg); opacity: 0.7; }
+  50% { transform: scale(0.92) rotate(1deg); filter: drop-shadow(0 4px 12px rgba(254,44,85,0.8)); opacity: 1; }
+  75% { transform: scale(1.05) rotate(0deg); }
+}
+
+@keyframes templateSlide {
+  0%, 100% { transform: translateX(0); opacity: 1; }
+  30% { transform: translateX(-6px); opacity: 0.4; }
+  45% { transform: translateX(6px); opacity: 0.6; }
+  65% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes templateZoom {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); filter: drop-shadow(0 0 10px rgba(255,230,0,0.7)); }
+}
+
+@keyframes templateRise {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); filter: drop-shadow(0 6px 10px rgba(0,245,155,0.6)); }
+}
+
+@keyframes templateFade {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; filter: brightness(1.4); }
+}
+
+/* Standalone and Group-Hover Selectors for Immediate Preview Playback with Exact Timing */
+.anim-preview-pulse,
+.group:hover .anim-preview-pulse,
+.group:hover .group-hover\:anim-preview-pulse {
+  animation: templatePulse 0.7s infinite ease-in-out;
+}
+
+.anim-preview-wave,
+.group:hover .anim-preview-wave,
+.group:hover .group-hover\:anim-preview-wave {
+  animation: templateWave 1.2s infinite linear;
+  transform-origin: center center;
+}
+
+.anim-preview-shake,
+.group:hover .anim-preview-shake,
+.group:hover .group-hover\:anim-preview-shake {
+  animation: templateShake 0.45s infinite linear;
+  transform-origin: center center;
+}
+
+.anim-preview-flicker,
+.group:hover .anim-preview-flicker,
+.group:hover .group-hover\:anim-preview-flicker {
+  animation: templateFlicker 0.76s infinite linear;
+}
+
+.anim-preview-lightsweep,
+.group:hover .anim-preview-lightsweep,
+.group:hover .group-hover\:anim-preview-lightsweep {
+  animation: templateLightsweep 0.5s infinite linear;
+}
+
+.anim-preview-pop_zoom,
+.group:hover .anim-preview-pop_zoom,
+.group:hover .group-hover\:anim-preview-pop_zoom {
+  animation: templatePopZoom 0.9s infinite ease-in-out;
+  transform-origin: center center;
+}
+
+.anim-preview-pop,
+.group:hover .anim-preview-pop,
+.group:hover .group-hover\:anim-preview-pop {
+  animation: templatePop 0.8s infinite cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center center;
+}
+
+.anim-preview-stamp,
+.group:hover .anim-preview-stamp,
+.group:hover .group-hover\:anim-preview-stamp {
+  animation: templateStamp 0.85s infinite cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center center;
+}
+
+.anim-preview-slide,
+.group:hover .anim-preview-slide,
+.group:hover .group-hover\:anim-preview-slide {
+  animation: templateSlide 0.9s infinite ease-in-out;
+}
+
+.anim-preview-zoom,
+.group:hover .anim-preview-zoom,
+.group:hover .group-hover\:anim-preview-zoom {
+  animation: templateZoom 1.0s infinite ease-in-out;
+  transform-origin: center center;
+}
+
+.anim-preview-rise,
+.group:hover .anim-preview-rise,
+.group:hover .group-hover\:anim-preview-rise {
+  animation: templateRise 1.1s infinite ease-in-out;
+}
+
+.anim-preview-fade,
+.group:hover .anim-preview-fade,
+.group:hover .group-hover\:anim-preview-fade {
+  animation: templateFade 1.0s infinite ease-in-out;
+}
+
+.group:hover .animate-sheen-sweep {
+  animation: templateSheenSweep 0.5s infinite linear;
+}
 
 /* ── Safe area for mobile bottom bar ── */
 .safe-bottom {

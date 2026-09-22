@@ -210,7 +210,10 @@ class BatchRenderManager:
             raise ValueError(f"ไม่พบข้อมูลสินค้า id '{product_id}'")
 
         options = options or {}
+        batch_index = options.get("batch_index")
         all_angles = product.get("angles", [])
+        if batch_index is not None:
+            all_angles = [a for a in all_angles if (a.get("batch") or 1) == batch_index]
         if not all_angles:
             raise ValueError("สินค้านี้ยังไม่มีมุมมอง (Angles) สำหรับเรนเดอร์")
 
@@ -251,6 +254,7 @@ class BatchRenderManager:
             items.append({
                 "angle_id": aid,
                 "angle_name": aname,
+                "batch": a.get("batch") or batch_index or 1,
                 "status": "queued",  # queued, in_production, rendered, failed, skipped
                 "job_id": None,
                 "project_name": a.get("project_name") or "",
@@ -389,10 +393,17 @@ class BatchRenderManager:
                 latest_prod = ProductStore.get(product_id)
                 angle_data = None
                 if latest_prod:
-                    for a in latest_prod.get("angles", []):
-                        if str(a.get("angle_id") or a.get("id")) == angle_id:
-                            angle_data = a
-                            break
+                    item_batch = item.get("batch") or options.get("batch_index")
+                    if item_batch is not None:
+                        for a in latest_prod.get("angles", []):
+                            if (a.get("batch") or 1) == item_batch and str(a.get("angle_id") or a.get("id")) == angle_id:
+                                angle_data = a
+                                break
+                    if not angle_data:
+                        for a in latest_prod.get("angles", []):
+                            if str(a.get("angle_id") or a.get("id")) == angle_id:
+                                angle_data = a
+                                break
             except Exception as e:
                 logger.error("Failed to read product %s angle %s: %s", product_id, angle_id, e)
                 angle_data = None
@@ -469,7 +480,8 @@ class BatchRenderManager:
                     product_id,
                     angle_id,
                     "in_production",
-                    project_name=proj_name
+                    project_name=proj_name,
+                    batch=angle_data.get("batch") if angle_data else item.get("batch"),
                 )
             except Exception:
                 pass
@@ -574,13 +586,15 @@ class BatchRenderManager:
                     # Mark rendered or in_production in store
                     is_draft = not options.get("export_mp4", True)
                     is_rendered = bool(not is_draft and mp4_val)
+                    item_b = angle_data.get("batch") if angle_data else item.get("batch")
                     ProductStore.update_angle_status(
                         product_id,
                         angle_id,
                         "rendered" if is_rendered else "in_production",
                         video_url=str(mp4_val) if is_rendered else None,
                         project_name=proj_name,
-                        export_id=result.get("export_id") if is_rendered else None
+                        export_id=result.get("export_id") if is_rendered else None,
+                        batch=item_b,
                     )
 
                     render_jobs.complete_job(sub_job_id, result)
@@ -596,7 +610,10 @@ class BatchRenderManager:
                     render_jobs.cancel_job(sub_job_id)
                     item["status"] = "cancelled"
                     try:
-                        ProductStore.update_angle_status(product_id, angle_id, "scripted", project_name="")
+                        item_b = angle_data.get("batch") if angle_data else item.get("batch")
+                        ProductStore.update_angle_status(
+                            product_id, angle_id, "scripted", project_name="", batch=item_b
+                        )
                     except Exception:
                         pass
                     break

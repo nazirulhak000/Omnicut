@@ -531,10 +531,10 @@ def remove_video_from_product(product_id: str, video_path: str):
 
 
 @router.delete("/api/products/{product_id}/angles/{angle_id}")
-def delete_product_angle(product_id: str, angle_id: str):
+def delete_product_angle(product_id: str, angle_id: str, batch: Optional[int] = None):
     """Deletes an angle/script from a product."""
     try:
-        res = ProductStore.remove_angle(product_id, angle_id)
+        res = ProductStore.remove_angle(product_id, angle_id, batch=batch)
         return {"success": True, **res}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -561,6 +561,13 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
     clear_qc_note = bool(payload.get("clear_qc_note", False))
     clear_conflict_note = bool(payload.get("clear_conflict_note", False))
     mark_qc_passed = bool(payload.get("mark_qc_passed", False))
+    batch = payload.get("batch") or payload.get("batch_index")
+    if batch is not None:
+        try:
+            batch = int(batch)
+        except (ValueError, TypeError):
+            batch = None
+
     if not status:
         raise HTTPException(status_code=400, detail="Missing status")
     if status == "posted" and not export_id:
@@ -580,6 +587,7 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
             clear_qc_note=clear_qc_note,
             clear_conflict_note=clear_conflict_note,
             mark_qc_passed=mark_qc_passed,
+            batch=batch,
         )
         return {"success": True, "product": updated}
     except ValueError as err:
@@ -591,6 +599,12 @@ def update_product_angle_cover(product_id: str, angle_id: str, payload: Dict[str
     """Persists generated 9:16/3:4 cover paths for one product angle."""
     if not any(payload.get(key) for key in ("cover_path", "cover_3x4_path", "cover_9x16_path")):
         raise HTTPException(status_code=400, detail="ต้องระบุไฟล์ปกอย่างน้อยหนึ่งไฟล์")
+    batch = payload.get("batch") or payload.get("batch_index")
+    if batch is not None:
+        try:
+            batch = int(batch)
+        except (ValueError, TypeError):
+            batch = None
     try:
         updated = ProductStore.update_angle_cover(
             product_id,
@@ -598,6 +612,7 @@ def update_product_angle_cover(product_id: str, angle_id: str, payload: Dict[str
             cover_path=payload.get("cover_path"),
             cover_3x4_path=payload.get("cover_3x4_path"),
             cover_9x16_path=payload.get("cover_9x16_path"),
+            batch=batch,
         )
         return {"success": True, "product": updated}
     except LookupError as err:
@@ -609,9 +624,15 @@ def update_product_angle_cover(product_id: str, angle_id: str, payload: Dict[str
 @router.post("/api/products/{product_id}/angles/{angle_id}/videos")
 def update_angle_videos_endpoint(product_id: str, angle_id: str, payload: Dict[str, Any]):
     """Persists selected raw footage attachments for a specific script angle."""
+    batch = payload.get("batch") or payload.get("batch_index")
+    if batch is not None:
+        try:
+            batch = int(batch)
+        except (ValueError, TypeError):
+            batch = None
     try:
         selected_videos = payload.get("selected_videos", [])
-        updated = ProductStore.update_angle_videos(product_id, angle_id, selected_videos)
+        updated = ProductStore.update_angle_videos(product_id, angle_id, selected_videos, batch=batch)
         return {"success": True, "product": updated}
     except ValueError as err:
         raise HTTPException(status_code=404, detail=str(err))
@@ -1175,7 +1196,8 @@ def _execute_reroll_script_worker(
         new_angle["extra_beats"] = extra_beats or []
 
         TaskManager.update_progress(task_id, 0.95, "กำลังบันทึกสคริปต์ใหม่")
-        updated_product = ProductStore.replace_angle_content(product_id, angle_id, new_angle)
+        batch = angle_snapshot.get("batch")
+        updated_product = ProductStore.replace_angle_content(product_id, angle_id, new_angle, batch=batch)
         # new_angle is the AI's raw output -- it has no idea about this
         # angle's status/project_name/video_url (replace_angle_content
         # deliberately never sends those to the AI, and preserves whatever
@@ -1185,7 +1207,11 @@ def _execute_reroll_script_worker(
         # (lifecycle fields included) rather than a partial AI-only object
         # that looks like the reroll wiped them.
         saved_angle = next(
-            (a for a in updated_product.get("angles", []) if (a.get("angle_id") or a.get("id")) == angle_id),
+            (
+                a for a in updated_product.get("angles", [])
+                if (a.get("angle_id") or a.get("id")) == angle_id
+                and (batch is None or (a.get("batch") or 1) == batch)
+            ),
             new_angle,
         )
 
@@ -1226,11 +1252,22 @@ def reroll_angle_script(product_id: str, angle_id: str, payload: Dict[str, Any],
         # the actual extra beats in the generated script.
         extra_beats = list(EXTRA_BEAT_BLOCKS.keys())[:DURATION_SPECS[duration]["default_extra_beats"]]
 
+    batch = payload.get("batch") or payload.get("batch_index")
+    if batch is not None:
+        try:
+            batch = int(batch)
+        except (ValueError, TypeError):
+            batch = None
+
     product = ProductStore.get(product_id)
     if not product:
         raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
     angle_snapshot = next(
-        (a for a in product.get("angles", []) if (a.get("angle_id") or a.get("id")) == angle_id),
+        (
+            a for a in product.get("angles", [])
+            if (a.get("angle_id") or a.get("id")) == angle_id
+            and (batch is None or (a.get("batch") or 1) == batch)
+        ),
         None,
     )
     if not angle_snapshot:
@@ -1245,7 +1282,7 @@ def reroll_angle_script(product_id: str, angle_id: str, payload: Dict[str, Any],
     task = TaskManager.create_task(
         task_type="reroll_script",
         title=task_title,
-        payload={"product_id": product_id, "angle_id": angle_id, "duration": duration, "extra_beats": extra_beats},
+        payload={"product_id": product_id, "angle_id": angle_id, "duration": duration, "extra_beats": extra_beats, "batch": batch},
         target_tab="flow",
         target_id=product_id,
     )

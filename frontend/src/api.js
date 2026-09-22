@@ -262,22 +262,24 @@ export const refreshProductSource = (id, data = {}) =>
   api.post(`/products/${id}/refresh-source`, data, { timeout: 120000 }).then(r => r.data);
 export const resolveTiktokProductId = (urlOrId) =>
   api.post('/products/resolve-tiktok-id', { url_or_id: urlOrId }).then(r => r.data);
-export const updateAngleStatus = (productId, angleId, status, videoUrl = null, projectName = null, qcNote = null, clearQcNote = false, clearConflictNote = false, exportId = null, markQcPassed = false) =>
+export const updateAngleStatus = (productId, angleId, status, videoUrl = null, projectName = null, qcNote = null, clearQcNote = false, clearConflictNote = false, exportId = null, markQcPassed = false, batch = null) =>
   api.patch(`/products/${productId}/angles/${angleId}`, {
     status,
     video_url: videoUrl,
     project_name: projectName,
     export_id: exportId || null,
+    ...(batch !== null ? { batch } : {}),
     ...(qcNote !== null ? { qc_note: qcNote } : {}),
     ...(clearQcNote ? { clear_qc_note: true } : {}),
     ...(clearConflictNote ? { clear_conflict_note: true } : {}),
     ...(markQcPassed ? { mark_qc_passed: true } : {}),
   }).then(r => r.data);
 
-export const updateAngleCover = (productId, angleId, cover) =>
-  api.patch(`/products/${productId}/angles/${angleId}/cover`, cover).then(r => r.data);
+export const updateAngleCover = (productId, angleId, cover, batch = null) =>
+  api.patch(`/products/${productId}/angles/${angleId}/cover`, { ...cover, ...(batch !== null ? { batch } : {}) }).then(r => r.data);
 
-export const updateAngleVideos = (productId, angleId, selectedVideos) => api.post(`/products/${productId}/angles/${angleId}/videos`, { selected_videos: selectedVideos }).then(r => r.data);
+export const updateAngleVideos = (productId, angleId, selectedVideos, batch = null) =>
+  api.post(`/products/${productId}/angles/${angleId}/videos`, { selected_videos: selectedVideos, ...(batch !== null ? { batch } : {}) }).then(r => r.data);
 export const setDefaultVideosForProduct = (productId, selectedVideos) => api.post(`/products/${productId}/default-videos`, { selected_videos: selectedVideos }).then(r => r.data);
 export const getSceneCatalogs = (productId, videoPath) =>
   api.get(`/products/${productId}/scene-catalogs`, { params: videoPath ? { video_path: videoPath } : {} }).then(r => r.data);
@@ -289,7 +291,8 @@ export const indexRawVaultScenes = (payload = {}) =>
   api.post('/raw-vault/index-scenes', payload, { timeout: 180000 }).then(r => r.data);
 export const generateProductBatch = (productId, payload) => api.post(`/products/${productId}/generate-batch`, payload).then(r => r.data);
 export const addProductAngle = (productId, payload) => api.post(`/products/${productId}/angles`, payload).then(r => r.data);
-export const deleteProductAngle = (productId, angleId) => api.delete(`/products/${productId}/angles/${angleId}`).then(r => r.data);
+export const deleteProductAngle = (productId, angleId, batch = null) =>
+  api.delete(`/products/${productId}/angles/${angleId}`, { params: batch !== null ? { batch } : {} }).then(r => r.data);
 export const deleteProduct = (id) => api.delete(`/products/${id}`).then(r => r.data);
 
 export const getProjects = () => api.get('/projects').then(r => r.data);
@@ -342,8 +345,8 @@ export const rerollAngleScript = (productId, angleId, payload = {}) =>
 export const generateShotList = (productId, angleId, voiceOverrides = {}) =>
   api.post(`/products/${productId}/angles/${angleId}/shot-list`, voiceOverrides).then(r => r.data);
 
-export const getShotList = (productId, angleId) =>
-  api.get(`/products/${productId}/angles/${angleId}/shot-list`).then(r => r.data);
+export const getShotList = (productId, angleId, batch = null) =>
+  api.get(`/products/${productId}/angles/${angleId}/shot-list`, { params: batch ? { batch } : {} }).then(r => r.data);
 
 export const getShotListStatus = (productId) =>
   api.get(`/products/${productId}/shot-list-status`).then(r => r.data);
@@ -478,11 +481,11 @@ export const updateProducerNote = (noteId, patch, baseRevision = null) =>
 export const deleteProducerNote = (noteId) =>
   api.delete(`/producer/notes/${encodeURIComponent(noteId)}`).then(r => r.data);
 
-export const getManualShotMap = (productId, angleId) =>
-  api.get(`/products/${productId}/angles/${angleId}/manual-shot-map`).then(r => r.data);
+export const getManualShotMap = (productId, angleId, batch = null) =>
+  api.get(`/products/${productId}/angles/${angleId}/manual-shot-map`, { params: batch ? { batch } : {} }).then(r => r.data);
 
-export const saveManualShotMap = (productId, angleId, shotMap) =>
-  api.patch(`/products/${productId}/angles/${angleId}/manual-shot-map`, { shot_map: shotMap }).then(r => r.data);
+export const saveManualShotMap = (productId, angleId, shotMap, batch = null) =>
+  api.patch(`/products/${productId}/angles/${angleId}/manual-shot-map`, { shot_map: shotMap, batch }).then(r => r.data);
 
 export const syncManualShotMap = (productId, sourceAngleId, payload = {}) =>
   api.post(`/products/${productId}/angles/${sourceAngleId}/sync-manual-shot-map`, payload).then(r => r.data);
@@ -503,4 +506,18 @@ export const generateHookVariantsAI = (productName, keyFeatures = null) =>
 export const evaluateHookAI = (hookText) =>
   api.post('/typesafe-studio/evaluate-hook', { hook_text: hookText }).then(r => r.data);
 
+export const matchBrollSequenceWithAI = (sentences, candidateClips, ensureDiversity = true) =>
+  api.post('/typesafe-studio/match-sequence', {
+    sentences,
+    candidate_clips: candidateClips,
+    ensure_diversity: ensureDiversity,
+  }).then(r => r.data);
+
+export const matchRawFolderWithAI = (rawFolder, sentences) =>
+  api.post('/typesafe-studio/match-raw-folder', {
+    raw_folder: rawFolder,
+    sentences,
+  }).then(r => r.data);
+
 export default api;
+

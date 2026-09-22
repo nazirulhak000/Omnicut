@@ -61,3 +61,60 @@ def test_match_broll_fallback(client, monkeypatch):
     data = res.json()
     assert "matched_clip_id" in data
     assert "strict_topic_hold" in data
+
+
+def test_match_sequence(client):
+    payload = {
+        "sentences": [
+            "จอนอกขนาดใหญ่ 4.01 นิ้ว ใช้งานได้เต็มตา",
+            "กล้องคู่พัฒนาร่วมกับ Leica ถ่ายภาพคมชัดระดับสตูดิโอ",
+            "สถาปัตยกรรมระบายความร้อน 3D VC Teardown เย็นเฉียบ",
+        ],
+        "candidate_clips": [
+            {"id": "clip_screen", "name": "screen.mp4", "description": "หน้าจอด้านนอก 4.01 นิ้ว"},
+            {"id": "clip_camera", "name": "camera.mp4", "description": "กล้อง Leica 50MP สวยคม"},
+            {"id": "clip_vc", "name": "vc.mp4", "description": "ระบบระบายความร้อน 3D VC เย็นเฉียบ"},
+        ],
+        "ensure_diversity": True,
+    }
+    res = client.post("/api/typesafe-studio/match-sequence", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total_sentences"] == 3
+    seq = data["sequence"]
+    assert len(seq) == 3
+    for item in seq:
+        assert "matched_clip_id" in item
+        assert "strict_topic_hold" in item
+        assert "relevance_score" in item
+
+
+def test_match_raw_folder_invalid(client):
+    payload = {
+        "raw_folder": "01_Raw/non_existent_folder_xyz_123",
+        "sentences": ["ทดสอบระบบ"],
+    }
+    res = client.post("/api/typesafe-studio/match-raw-folder", json=payload)
+    assert res.status_code == 404
+
+
+def test_ai_generate_includes_typesafe_scoring(client, monkeypatch):
+    # Ensure offline test doesn't spend network latency on live Gemini
+    monkeypatch.setattr("scripts.config.get_gemini_api_keys", lambda: [])
+    payload = {
+        "product_name": "Baseus Power Bank 65W",
+        "key_features": "ชาร์จเร็ว พกพาสะดวก",
+        "pain_point": "แบตหมดไว",
+        "price_deal": "ลดพิเศษ 990 บาท",
+    }
+    res = client.post("/api/script/ai-generate", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert "angles" in data
+    assert len(data["angles"]) > 0
+    first_angle = data["angles"][0]
+    assert "retention_probability" in first_angle
+    assert "rating_score" in first_angle
+
+
+

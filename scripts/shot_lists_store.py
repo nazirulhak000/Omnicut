@@ -39,17 +39,41 @@ class ShotListsStore:
         return datetime.datetime.utcnow().isoformat() + "Z"
 
     @classmethod
-    def get(cls, product_id: str, angle_id: str) -> Optional[Dict[str, Any]]:
+    def get(cls, product_id: str, angle_id: str, batch: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        # If batch is provided, look ONLY for batch-specific rows.
+        # Do NOT fall through to the legacy (no-batch) row — that would cause
+        # batch 2 angles to incorrectly inherit batch 1's shot list and show
+        # a false "stale" warning when batch 2 hasn't generated one yet.
+        if batch is not None:
+            batch_row_id = f"{product_id}:{angle_id}:b{batch}"
+            for record in _TABLE.load():
+                if record.get("id") == batch_row_id:
+                    return record
+                if (
+                    record.get("product_id") == product_id
+                    and record.get("angle_id") == angle_id
+                    and record.get("batch") == batch
+                ):
+                    return record
+            # batch specified but no matching row found → no shot list for this batch
+            return None
+        # No batch specified: return the legacy (no-batch) row if it exists
         row_id = f"{product_id}:{angle_id}"
         for record in _TABLE.load():
             if record.get("id") == row_id:
                 return record
         return None
 
+
     @classmethod
-    def upsert(cls, record: Dict[str, Any]) -> Dict[str, Any]:
+    def upsert(cls, record: Dict[str, Any], batch: Optional[int] = None) -> Dict[str, Any]:
         record = dict(record)
-        record.setdefault("id", f"{record['product_id']}:{record['angle_id']}")
+        b = batch if batch is not None else record.get("batch")
+        if b is not None:
+            record["batch"] = b
+            record.setdefault("id", f"{record['product_id']}:{record['angle_id']}:b{b}")
+        else:
+            record.setdefault("id", f"{record['product_id']}:{record['angle_id']}")
         now = cls._now()
         record.setdefault("created_at", now)
         record["updated_at"] = now
@@ -64,12 +88,24 @@ class ShotListsStore:
         return record
 
     @classmethod
-    def delete(cls, product_id: str, angle_id: str) -> bool:
+    def delete(cls, product_id: str, angle_id: str, batch: Optional[int] = None) -> bool:
         """Deletes shot list record for a product angle."""
         row_id = f"{product_id}:{angle_id}"
+        batch_row_id = f"{product_id}:{angle_id}:b{batch}" if batch is not None else None
         found = False
         with _TABLE.mutate() as records:
-            filtered = [r for r in records if r.get("id") != row_id]
+            if batch is not None:
+                filtered = [
+                    r for r in records
+                    if r.get("id") != batch_row_id
+                    and not (r.get("product_id") == product_id and r.get("angle_id") == angle_id and r.get("batch") == batch)
+                ]
+            else:
+                filtered = [
+                    r for r in records
+                    if r.get("id") != row_id
+                    and not (r.get("product_id") == product_id and r.get("angle_id") == angle_id and r.get("batch") is None)
+                ]
             if len(filtered) != len(records):
                 found = True
                 records.clear()
@@ -77,9 +113,9 @@ class ShotListsStore:
         return found
 
     @classmethod
-    def is_stale(cls, product_id: str, angle_id: str, current_script: str) -> bool:
+    def is_stale(cls, product_id: str, angle_id: str, current_script: str, batch: Optional[int] = None) -> bool:
         """Checks whether the cached shot list matches the angle's current script."""
-        record = cls.get(product_id, angle_id)
+        record = cls.get(product_id, angle_id, batch=batch)
         if not record:
             return False
         cached_script = record.get("custom_script", "").strip()

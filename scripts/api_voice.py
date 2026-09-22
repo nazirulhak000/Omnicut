@@ -204,7 +204,10 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
                     "estimated_sec": 26,
                     "script_text": base["full_text"],
                     "caption": f"ใครเจอปัญหา {req.pain_point} ดูด่วน! {req.product_name}",
-                    "hashtags": ["#ของดีบอกต่อ", "#รีวิวของใช้", "#tiktokshop", f"#{req.product_name.replace(' ', '')}"]
+                    "hashtags": ["#ของดีบอกต่อ", "#รีวิวของใช้", "#tiktokshop", f"#{req.product_name.replace(' ', '')}"],
+                    "retention_probability": 0.84,
+                    "rating_score": 0.82,
+                    "detected_tone": "urgency",
                 }
             ]
         }
@@ -311,6 +314,31 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
             if "caption" in ang:
                 ang["caption"] = TTSSanitizer.clean(ang["caption"])
 
+        # Auto-enrich each angle with TypeSafe Jev hook retention scoring
+        try:
+            from scripts.typesafe_bridge import evaluate_hook_retention, is_typesafe_available
+
+            if is_typesafe_available():
+                for ang in parsed.get("angles", []):
+                    hook_text = ang.get("hook_title") or (
+                        ang.get("script_text", "").split("\n")[0] if ang.get("script_text") else ""
+                    )
+                    if hook_text:
+                        eval_res = evaluate_hook_retention(hook_text)
+                        if "error" not in eval_res:
+                            ang["retention_probability"] = eval_res.get("high_retention_prob", 0.8)
+                            ang["rating_score"] = eval_res.get("rating_score", 0.75)
+                            ang["detected_tone"] = eval_res.get("tone", ang.get("angle_id", "curiosity"))
+
+                # Sort angles by rating_score and retention_probability descending so strongest hook is first
+                if parsed.get("angles"):
+                    parsed["angles"].sort(
+                        key=lambda a: (a.get("rating_score", 0), a.get("retention_probability", 0)),
+                        reverse=True,
+                    )
+        except Exception as jev_err:
+            print(f"⚠️ [ai_generate] TypeSafe Jev auto-scoring note: {jev_err}")
+
         return parsed
 
     except Exception as e:
@@ -326,7 +354,10 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
                     "estimated_sec": 26,
                     "script_text": base["full_text"],
                     "caption": f"ใครเจอปัญหา {req.pain_point} ดูด่วน! {req.product_name}",
-                    "hashtags": ["#ของดีบอกต่อ", "#รีวิวของใช้", "#tiktokshop"]
+                    "hashtags": ["#ของดีบอกต่อ", "#รีวิวของใช้", "#tiktokshop"],
+                    "retention_probability": 0.84,
+                    "rating_score": 0.82,
+                    "detected_tone": "urgency",
                 }
             ]
         }

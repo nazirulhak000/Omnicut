@@ -7,10 +7,258 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round HOOK-CARD-PREVIEW-MOTION-AND-TEXT-PARITY-20260922 | ปรับปรุงแอนิเมชันและการแสดงผลในการ์ดแม่แบบข้อความ ให้ตรงกับหน้าจอ Preview เสมือนจริง 100% (SequencePlayer Parity: Shake/Wave Rotation [-3°..3°], Flicker Alpha Steps, Lightsweep Specular, Per-Line Center Rotation, and Active Hook Text Integration) | 2026-09-22 | สำเร็จสมบูรณ์ (Hook Card Preview Motion & Text Parity, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round SCRIPT-CARD-TIMELINE-PROJECT-VISIBILITY-AND-BATCH2-FALLBACK-FIX-20260922 | แสดงชื่อโปรเจกต์เฉพาะเมื่อสคริปต์เข้าไทม์ไลน์แล้วจริง (ไม่แสดงป้ายโฟลเดอร์หลอกตาในสถานะ scripted) และตัด fallback ข้ามล็อตของแผนถ่าย เพื่อไม่ให้ขึ้น "แผนถ่ายเก่า (บทเปลี่ยน)" ผิดพลาดในล็อต 2 | 2026-09-22 | สำเร็จสมบูรณ์ (Timeline Visibility & Batch 2 Fallback Fix, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round HOOK-CARD-PREVIEW-MOTION-AND-TEXT-PARITY-20260922 — ปรับปรุงแอนิเมชันและการแสดงผลในการ์ดแม่แบบข้อความ ให้ตรงกับหน้าจอ Preview เสมือนจริง 100%
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **สาเหตุของปัญหา**:
+  1. การ์ดเทมเพลตข้อความ (Hook Template Cards) ในแท็บ "ข้อความ" แสดงข้อความตัวอย่างสแตติก `BRAND`, `รุ่นเด่น`, `หมวดสินค้า` ซึ่งไม่ตรงกับหน้าจอ Preview Player ฝั่งขวาที่แสดงข้อความจริงของโปรเจกต์ (เช่น `BLUEWOW`, `AI GAMING`, `COOLING SERIES`) ทำให้ผู้ใช้มองภาพไม่ออกว่าเมื่อนำไปใช้งานจริงบนข้อความปัจจุบันจะมีหน้าตาอย่างไร
+  2. จังหวะและฟิสิกส์แอนิเมชัน (Animation Physics) ของการ์ดเดิมไม่ตรงกับเอนจิน `SequencePlayer.jsx` และ `motionPresets.js`:
+     - ใน `SequencePlayer.jsx` เอฟเฟกต์ `shake` คือการหมุนสลับมุม (Angular Tilt) `[-3, 3, -2, 2, 0]` deg รอบกึ่งกลางของแต่ละบรรทัด (Line-by-line Center) ที่ความเร็ว 450ms (0.45s) แบบ linear ไร้การเลื่อนตำแหน่งแนวนอน (Zero translation) แต่ใน CSS เดิมเขียนเป็น `translate3d` ขยับซ้าย-ขวาเหมือนแผ่นดินไหว
+     - เอฟเฟกต์ `wave` ใน `SequencePlayer.jsx` คือการแกว่งมุม `[-3, 3, 0]` deg ที่ความเร็ว 1200ms (1.2s) linear ไร้การเลื่อนขึ้นลงในแนวแกน Y
+     - เอฟเฟกต์ `flicker` ใน `SequencePlayer.jsx` เป็นการกระพริบค่า Alpha 6 สเต็ปช่วง `0.729 - 1.0` ที่ความเร็ว 760ms (0.76s) linear ไม่ใช่การวาบแสงสว่างเปลี่ยนสี
+     - เอฟเฟกต์ `lightsweep` ใน `SequencePlayer.jsx` มีรอบคลื่น 500ms (0.5s) linear
+  3. แอนิเมชันเดิมถูกผูกไว้ที่คอนเทนเนอร์ระดับบนสุด (Parent Wrapper) ทำให้บรรทัดบนสุดและล่างสุดถูกเหวี่ยงไปตามรัศมีการหมุนรวมของบล็อก แทนที่จะสั่นหมุนรอบแกนกึ่งกลางของแต่ละบรรทัดตัวเองเหมือนใน Canvas Preview
+- **การแก้ไขและปรับปรุง**:
+  - `frontend/src/index.css`:
+    - ปรับปรุง Keyframes `templateShake`, `templateWave`, `templateFlicker`, `templateLightsweep`, `templateSheenSweep` ให้มีค่าพิกัดมุมองศา ช่วงเวลา และฟังก์ชันการคำนวณ (Linear / Keyframes) ตรงตาม `SequencePlayer.jsx` และ `motionPresets.js` 100%
+    - กำหนด `transform-origin: center center` ทุกคลาสแอนิเมชัน
+  - `frontend/src/components/editor/AssetPanel.jsx`:
+    - เพิ่ม `hookCardSampleText` memo ดึงข้อความจาก `hookOverlay.tiers[0, 1, 2].text` ของโปรเจกต์ปัจจุบัน หากมีข้อความอยู่ จะแสดงข้อความจริงของคลิปลงในการ์ดแม่แบบทั้งหมดทันที (หากไม่มีจะ fallback เป็นตัวอย่าง)
+    - ปรับปรุงการเรนเดอร์การ์ดแม่แบบทั้ง "แม่แบบของฉัน" และ "แม่แบบมาตรฐาน": ย้ายคลาสแอนิเมชันจากคอนเทนเนอร์พ่อลงมาห่อหุ้มในแต่ละบรรทัด (`<div key={tierKey} className={`inline-block ${getMotionPreviewClass(tpl.motion)}`} style={{ transformOrigin: 'center center' }}>`) เพื่อให้แต่ละบรรทัดหมุนสั่นรอบแกนตัวเองตาม Parity ของ `SequencePlayer.jsx`
+  - `frontend/src/components/editor/inspector/OverlayInspector.jsx`:
+    - เพิ่ม `hookCardSampleText` memo และปรับปรุงการเรนเดอร์การ์ดในตัวเลือก Overlay Inspector ให้ใช้โครงสร้างและข้อความจริงเช่นเดียวกัน
+- **การทดสอบและผลลัพธ์ (Verification)**:
+  - `npm run build`: ผ่านสมบูรณ์ (2025 modules transformed, 4.28s)
+  - `npm test`: ผ่าน 290/290 tests (0 fail)
+  - `pytest tests/test_preview_render_parity.py`: ผ่าน 156/156 tests (0 fail)
+  - พรีวิวและฮูเวอร์ในการ์ดแสดงผลข้อความจริงของคลิป (`BLUEWOW`, `AI GAMING`, `COOLING SERIES`) พร้อมสั่น/หมุน/กระพริบรอบแกนบรรทัดด้วยสปีดและฟิสิกส์เหมือนหน้าจอ Preview 100%
+| Round FIX-ANGLE-ID-BATCH-ISOLATION-DEEP-AUDIT-20260922 | ป้องกัน Angle ID ซ้ำข้ามล็อต (Batch Isolation Deep Fix): แก้จุดเสี่ยง 7 จุด ป้องกันการลบ, อัปเดตคลิป, สลับเสียง, อัปเดตปก, และรีสคริปต์ข้ามล็อต ทั้งใน ProductStore, ShotListsStore, API Endpoints และ Frontend | 2026-09-22 | สำเร็จสมบูรณ์ (Deep Batch Isolation, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round TEXT-TEMPLATE-HOVER-ANIMATION-PREVIEW-20260922 | เล่นแอนิเมชันพรีวิวทันทีเมื่อ Hover การ์ดเทมเพลตข้อความ (Hook Templates & Single Text Effects): Flicker, Shake, Wave, Light Sweep, Pulse, Pop, Stamp, Slide, Zoom, Rise, Fade | 2026-09-22 | สำเร็จสมบูรณ์ (Text Hover Motion Preview & Sheen Sweep, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+
+## Round SCRIPT-CARD-TIMELINE-PROJECT-VISIBILITY-AND-BATCH2-FALLBACK-FIX-20260922 — แสดงชื่อโปรเจกต์เฉพาะเมื่อเข้าไทม์ไลน์จริง และแก้ Fallback แผนถ่ายล็อต 2
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **สาเหตุของปัญหา**:
+  1. การ์ดสคริปต์แสดงป้ายโฟลเดอร์ล่วงหน้า (Projected Project Name เช่น `📁 BLU01-ปัญหาก่อนใช้_1`) ทั้งที่สคริปต์ยังอยู่ในสถานะ `scripted` และยังไม่ได้ถูกนำเข้าไทม์ไลน์ ทำให้ผู้ใช้สับสนเข้าใจผิดว่าสคริปต์เข้าไทม์ไลน์ไปแล้ว และเมื่อมีการลบโปรเจกต์ `_2` ทิ้ง ระบบคาดเดาชื่อกลับมาเป็น `_1` ทำให้เกิดความสับสนอย่างมาก
+  2. การ์ดสคริปต์ล็อต 2 แสดงป้ายเตือน "แผนถ่ายเก่า (บทเปลี่ยน)" ทั้งที่เพิ่งกดเจนสคริปต์ใหม่สดๆ ร้อนๆ เพราะ `getShotListInfoForAngle` ใน `ProductToClip.jsx` มี fallback `shotListStatusMap[bKey] || shotListStatusMap[angId]` เมื่อล็อต 2 ยังไม่มี shot list จึงทะลุไปหยิบ status ของล็อต 1 (`shotListStatusMap[angId]`) ซึ่งมีเนื้อหาสคริปต์ไม่ตรงกัน ทำให้ถูกมองว่าเป็น `is_stale: true`
+- **การแก้ไขและปรับปรุง**:
+  - `frontend/src/components/ProductToClip.jsx`:
+    - ปรับปรุง `getShotListInfoForAngle`: หากเป็นล็อต 2+ (`angBatch > 1`) และยังไม่มี shot list ของล็อตนั้น (`!shotListStatusMap[bKey]`) ให้คืนค่า `null` ทันที โดยไม่ fallback ไปหา `shotListStatusMap[angId]` (ของล็อต 1) อีกต่อไป ส่งผลให้การ์ดล็อต 2 แสดงปุ่ม `+ แผนถ่าย` อย่างถูกต้อง ไร้ป้ายเตือนบทเปลี่ยนหลอกตา
+    - ปรับปรุง `AngleSidebarItem`: เปลี่ยนเงื่อนไขแสดงป้ายโฟลเดอร์จากการเช็ค `projectName` เป็น `{angle.project_name && (...)}` แสดงป้ายโฟลเดอร์เฉพาะเมื่อมุมนั้นมี `angle.project_name` บันทึกอยู่จริง (เมื่อเข้าสู่สถานะ `in_production`, `rendered`, `posted`)
+    - ปรับปรุง `AngleActiveWorkbench`: เปลี่ยนเงื่อนไขการแสดงแถว Timeline Project จาก `{projectName && (...)}` เป็น `{angle.project_name && (...)}` เพื่อไม่ให้แสดงแถวโปรเจกต์หลอกตาก่อนที่สคริปต์จะเข้าไทม์ไลน์
+- **การทดสอบและผลลัพธ์ (Verification)**:
+  - `npm run build`: ผ่านสมบูรณ์ 100% (2025 modules transformed, 3.91s)
+  - `npm test`: ผ่าน 290/290 tests
+  - `pytest tests/test_multi_batch_angle_isolation.py`: ผ่าน 6/6 tests
+  - UI ตรวจสอบ Parity: การ์ดสถานะ `scripted` แสดงเฉพาะป้าย `ID: pain_point_b2` และปุ่ม `+ แผนถ่าย` สะอาดตาตรงตามสถานะจริง 100%
+
+## Round FIX-ANGLE-ID-BATCH-ISOLATION-DEEP-AUDIT-20260922 — แก้จุดเสี่ยง Angle ID ซ้ำข้ามล็อต (Batch Isolation Deep Fix)
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **สาเหตุและจุดเสี่ยงที่ตรวจพบ (7 จุดเสี่ยงสำคัญ)**:
+  1. `ProductStore.remove_angle` เดิม filter ลบทุก angle ที่มี `angle_id` ตรงกันโดยไม่เช็ค batch ทำให้การลบสคริปต์ในล็อต 2 ไปลบสคริปต์ล็อต 1 ที่โพสต์แล้วทิ้งไปด้วย
+  2. `ProductStore.update_angle_videos` และ `update_angle_voice` ไม่มีพารามิเตอร์ `batch` ทำให้การเลือกคลิปหรือเปลี่ยนเสียงให้สคริปต์ล็อต 2 ไปทับข้อมูลของล็อต 1 เสมอ
+  3. `ProductStore.replace_angle_content` แมปเจอมุมแรก (ล็อต 1) เสมอ และเรียก `ShotListsStore.delete` ภายในบริบท transaction ของ SQLite ส่งผลให้เกิดข้อผิดพลาด nested transaction
+  4. `ProductStore.update_angle_cover` แมปเจอมุมแรก (ล็อต 1) เสมอ ทำให้การเซฟปกให้ล็อต 2 ไปเขียนทับล็อต 1
+  5. `ShotListsStore.delete` เดิมลบทั้งคีย์ batch และ legacy row `product_id:angle_id` ทำให้การลบ shot list ล็อต 2 ไปล้าง shot list ของล็อต 1 ด้วย
+  6. API Endpoints (`DELETE /angles/{angle_id}`, `POST /angles/{angle_id}/videos`, `PATCH /angles/{angle_id}/cover`, `POST /angles/{angle_id}/reroll-script`) ไม่ได้รับหรือส่งต่อ `batch`
+  7. Frontend (`frontend/src/api.js`, `ProductToClip.jsx`, `NewClipPanel.jsx`) ไม่ได้ส่ง `batch` ไปกับ API calls และ `pendingRerollAngleIdRef` คืนค่าโฟกัสผิดล็อต
+- **การแก้ไขและปรับปรุง (Comprehensive Batch Isolation)**:
+  - **ProductStore**:
+    - เพิ่ม `batch: Optional[int] = None` ให้ `replace_angle_content`, `update_angle_cover`, `update_angle_videos`, `update_angle_voice`, และ `remove_angle` พร้อมเงื่อนไขกรอง `(batch is None or (a.get("batch") or 1) == batch)`
+    - แยกการเรียก `ShotListsStore.delete` ออกมานอกบล็อก `with cls._mutate()` ใน `replace_angle_content` แก้ปัญหา nested transaction lock ของ SQLite
+    - ใน `reconcile_projects`: กรอง `base_angle` โดยดู `folder_batch` ป้องกันการแตก variant ข้ามล็อต
+  - **ShotListsStore**:
+    - ปรับปรุง `delete()`: หากระบุ `batch` จะลบเฉพาะแถวของ `batch` นั้น ไม่ลบแถว legacy/ล็อต 1
+  - **Pipeline Call Sites**:
+    - `scripts/shot_list_builder.py`: ส่ง `batch=assigned_batch` เข้า `ProductStore.update_angle_voice`
+    - `scripts/api_phase1.py`: ส่ง `batch=angle.get("batch")` เข้า `ProductStore.remove_angle`
+  - **API Endpoints (`scripts/api_products.py`)**:
+    - `delete_product_angle`: รับ `batch: Optional[int] = None` query param และส่งต่อให้ `ProductStore.remove_angle`
+    - `update_product_angle_cover`: รับ `batch` จาก payload และส่งต่อให้ `ProductStore.update_angle_cover`
+    - `update_angle_videos_endpoint`: รับ `batch` จาก payload และส่งต่อให้ `ProductStore.update_angle_videos`
+    - `reroll_angle_script` & `_execute_reroll_script_worker`: รับ `batch` ใน payload, ดึง snapshot ให้ตรงล็อต, ส่ง `batch` ใน task payload และให้ worker ส่งต่อเข้า `replace_angle_content`
+  - **Frontend API & UI**:
+    - `frontend/src/api.js`: อัปเดต `updateAngleCover`, `updateAngleVideos`, `deleteProductAngle` ให้รองรับพารามิเตอร์ `batch`
+    - `ProductToClip.jsx`: ส่ง `angle.batch || 1` ในทุกจุดเรียก (`deleteProductAngle`, `updateAngleVideos`, `rerollAngleScript`), อัปเดต `pendingRerollAngleIdRef` ให้จำทั้ง `{ angle_id, batch }` เพื่อรีสโตร์โฟกัสได้เป๊ะ 100%
+    - `NewClipPanel.jsx`: ส่ง `angles[angleIndex]?.batch || 1` เข้า `updateAngleVideos`
+- **การทดสอบและผลลัพธ์ (Verification)**:
+  - `tests/test_multi_batch_angle_isolation.py`: ผ่าน 6/6 tests (status rollback, shot list store, videos & voice isolation, remove angle, replace content, update cover)
+  - `pytest tests/ -k "batch or angle or product"`: ผ่าน 212/212 tests (0 failures)
+  - `npm run build`: Vite build สำเร็จสมบูรณ์ 100% (2025 modules, 3.90s)
+
+| Round FIX-MULTI-BATCH-ANGLE-ISOLATION-AND-STATUS-SYNC-20260922 | ป้องกัน Angle ID ชนกันข้ามล็อต (Multi-Batch Isolation), คืนค่าสถานะ scripted ให้ล็อต 2 อย่างถูกต้องเมื่อลบ Timeline, และป้องกันการเชื่อมโยงโปรเจกต์/คลิปข้ามล็อต | 2026-09-22 | สำเร็จสมบูรณ์ (Multi-Batch Isolation & Clean Rollback, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round ASSET-PANEL-CLIPS-PERFORMANCE-OPTIMIZATION-20260922 | ปรับปรุงประสิทธิภาพแท็บคลิป ไม่ให้ค้างเมื่อมีคลิปจำนวนมาก: LazyVideoThumb, Decoder Queue max 2, In-Memory Canvas Snapshot Cache, และ Memoized Clip Usage O(1) | 2026-09-22 | สำเร็จสมบูรณ์ (Clips Performance Optimization, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round ACTIVE-HOOK-AND-AUDIO-STATUS-VISIBILITY-PARITY-20260922 | แสดงสถานะป้ายฮุกที่ใช้งานอยู่ (พร้อมระบุว่าคัสตอมปรับแต่งเองหรือไม่) และแสดงสถานะเพลง BGM ที่กำลังเล่นจริงอย่างชัดเจน | 2026-09-22 | สำเร็จสมบูรณ์ (Hook & BGM Active Status Visibility, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round ASSET-PANEL-UIUX-PRO-REDESIGN-20260922 | ปรับปรุงโครงสร้างเมนูใหญ่และรายละเอียดการ์ดใน Editor Asset Panel ตามมาตรฐาน /impeccable และ /ui-ux-pro-max: 4 แท็บหลัก, Video Snapshot Thumbnail, Dynamic Filter Bar, Segmented Audio | 2026-09-22 | สำเร็จสมบูรณ์ (Asset Panel UI/UX Pro Redesign, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round TYPESAFE-AI-SYSTEM-ONE-ENHANCEMENT-AND-PIPELINE-INTEGRATION-20260922 | ขยายขีดความสามารถ TypeSafe System One (Jev) Multi-Shot B-roll Sequence Matcher, Auto-Scoring ใน Script Generation, และ Interactive Studio Matcher UI | 2026-09-22 | สำเร็จสมบูรณ์ (TypeSafe Sequence B-roll & Auto-Scoring, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round TYPESAFE-VIDEO-INTELLIGENCE-AND-STUDIO-OBSIDIAN-20260922 | AI Video Intelligence (TypeSafe System One สำหรับ Strict Topic Hold B-roll Matching & Hook Variant Ranking พร้อม Retention Probability) + Luxury Obsidian Dark UI Studio สำหรับ ScriptLab และ ScheduleAgenda | 2026-09-22 | สำเร็จสมบูรณ์ (TypeSafe B-roll & Hook Intelligence, Obsidian Dark Theme, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SCHEDULE-AUTOFILL-PRODUCT-DIVERSITY-AND-ROTATION-20260919 | Fair Round-Robin & Time-Slot Diversity ป้องกันสินค้าและสี Hook ซ้ำในวันเดียวกัน กระจายสินค้าทั่วถึงและทดสอบ 26 tests ผ่านฉลุย | 2026-09-22 | สำเร็จสมบูรณ์ (Fair Round-Robin Auto-Fill & Slot Diversity, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round EXTENSION-MARK-POSTED-AUTO-REFRESH-PARITY-20260922 | ปรับปรุงปุ่มเขียว "มาร์กว่าโพสต์แล้ว" ให้ทำงาน Parity กับขั้นตอนที่ 6: ล้าง storage, รีเฟรชรายการคลิป, เลื่อนหน้าต่างและลิสต์ขึ้นด้านบนสุด, และรีเฟรชหน้า TikTok Studio Upload ให้สะอาดพร้อมคลิปถัดไปทันที | 2026-09-22 | สำเร็จสมบูรณ์ (Auto Scroll to Top & Tab Refresh, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round EXTENSION-ONE-CLICK-STEP1-TO-5-AUTOMATION-20260922 | เพิ่มฟังก์ชัน 1-Click Automation ใน TikTok AutoPost Extension ให้ปุ่มเดียวรันอัตโนมัติตั้งแต่ขั้นตอนที่ 1 (อัปโหลดวิดีโอ) จนถึงขั้นตอนที่ 5 (แนบปก 3:4) รวดเดียวจบ และเว้นขั้นตอนที่ 6 ไว้ให้ผู้ใช้กดยืนยันโพสต์อย่างปลอดภัย | 2026-09-22 | สำเร็จสมบูรณ์ (1-Click Pipeline Auto-Upload & Auto-Fill, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+
+## Round TEXT-TEMPLATE-HOVER-ANIMATION-PREVIEW-20260922 — แสดงแอนิเมชันพรีวิวทันทีเมื่อ Hover การ์ดเทมเพลตข้อความ
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **สาเหตุที่เดิมแอนิเมชันไม่เล่นเมื่อ Hover**:
+  - `getMotionPreviewClass` ส่งคืนคลาส `group-hover:anim-preview-flicker`, `group-hover:anim-preview-shake` ฯลฯ แต่ใน `index.css` ประกาศไว้เฉพาะคลาสโดดๆ (`.anim-preview-flicker`) ทำให้ Tailwind ไม่ได้สร้าง CSS สำหรับ `.group:hover`
+  - การ์ดแม่แบบข้อความเดี่ยว (`TEXT_TEMPLATES`) ถูกฟิกซ์คลาสไว้เฉพาะ `group-hover:scale-105` ไม่ได้ดึง `tpl.anim` มาเล่นจริง
+  - เอฟเฟกต์ `lightsweep` เดิมใช้การ translate ข้อความทั้งกล่อง ทำให้ตัวหนังสือหลุดออกจากกรอบแทนที่จะเป็นแถบแสงกวาด
+- **การแก้ไขและปรับปรุง (Motion Preview Enhancement)**:
+  - **CSS Group-Hover Animation Keyframes**: เพิ่มตัวเลือก `.group:hover .anim-preview-*` และ `.group:hover .group-hover\:anim-preview-*` ใน `frontend/src/index.css` สำหรับการเคลื่อนไหวทุกชนิด:
+    - `FLICKER`: กระพริบนีออนสว่างวาบพร้อม drop-shadow เรืองแสง
+    - `SHAKE`: สั่นสะบัดด้วย translate3d ซ้าย-ขวาอย่างทรงพลัง
+    - `WAVE`: พลิ้วไหวโยกตัวแบบลูกคลื่น
+    - `LIGHTSWEEP`: ตัวอักษรเปล่งแสง Specular Bloom พร้อมแถบสะท้อนแสงแก้ว (Glass Sheen Beam) กวาดผ่านการ์ด
+    - `PULSE` / `POP_ZOOM` / `POP`: ยุบ-เด้ง ขยายใหญ่ดึงดูดสายตา
+    - `STAMP`: แสตมป์กระแทกลงมาจากด้านบนพร้อมองศาเอียงเล็กน้อย
+    - `SLIDE`: เลื่อนสไลด์เข้าจากด้านข้าง
+    - `ZOOM`: ซูมเข้า-ออกอย่างนุ่มนวล
+    - `RISE`: ลอยตัวขึ้นด้านบนพร้อมแสงเงา
+    - `FADE`: ปรากฏแบบค่อยๆ จางและสว่างขึ้น
+  - **Comprehensive Motion Resolver**: อัปเดต `getMotionPreviewClass` ใน `AssetPanel.jsx` และ `OverlayInspector.jsx` ให้รองรับทั้ง motion object (`loop`, `in`) ของ Hook Templates และ string identifier (`anim`) ของ Single Text Templates
+  - **Physical Light Sweep Glass Sheen Bar**: เพิ่มเลเยอร์แถบแสงสะท้อนทรงเฉียง (-25deg) สว่างวาบวิ่งผ่านการ์ดพรีวิวที่มีเอฟเฟกต์ `lightsweep` ให้เห็นชัดเจนสมจริง
+  - **Single Text Templates Animation Integration**: เชื่อมต่อ `getMotionPreviewClass(tpl.anim)` เข้ากับ `TextLookPreview` ใน `TEXT_TEMPLATES` ทุกการ์ด
+- **การทดสอบ**:
+  - `npm run build` ผ่าน 100% (2025 modules, 4.19s)
+  - `npm test` ผ่าน 290/290 tests
+  - `pytest tests/test_preview_render_parity.py` ผ่าน 156/156 tests
+
+## Round FIX-MULTI-BATCH-ANGLE-ISOLATION-AND-STATUS-SYNC-20260922 — ป้องกัน Angle ID ชนกันข้ามล็อต (Multi-Batch Isolation) และคืนค่าสถานะเมื่อลบ Timeline
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **สาเหตุของปัญหา**:
+  - เมื่อผู้ใช้เจนสคริปต์หลายล็อต (เช่น ล็อต 1 และล็อต 2) แคตาล็อกมุมมองจะใช้ `angle_id` ซ้ำกัน เช่น `"pain_point"`
+  - ฟังก์ชัน `ProductStore.update_angle_status` เดิมไม่ได้กรองด้วย `batch` ทำให้เมื่ออัปเดตสถานะหรือค้นหาเพื่อผูกโปรเจกต์ ระบบวนลูปเจอ Angle 0 (ล็อต 1) ก่อนเสมอ หรืออัปเดตสลับกัน
+  - `ProductStore.find_by_project("BLU01-ปัญหาก่อนใช้_2")` เดิมตรวจสอบ `a.get("angle_id") in project_name` ก่อนตรวจสอบ `a.get("project_name") == project_name` ทำให้คืนค่า Angle 0 (ล็อต 1) กลับมา
+  - `ProductStore.rollback_by_video_or_project` จึงย้อนสถานะผิดมุมมอง (ย้อนล็อต 1 แทนที่จะย้อนล็อต 2)
+  - `ProductStore._reconcile_into` เมื่อสแกนไฟล์เอ็กซ์พอร์ต `BLU01-ปัญหาก่อนใช้_1.mp4` ได้นำไปผูกกับทุก angle ที่มี `id == "pain_point"` ซึ่งรวมถึง Angle 10 (ล็อต 2) ด้วย ทำให้ล็อต 2 ถูกบังคับเปลี่ยนสถานะเป็น `rendered` แม้จะลบโปรเจกต์ไทม์ไลน์ `BLU01-ปัญหาก่อนใช้_2` ไปแล้ว
+  - `ShotListsStore` และ `api_shot_lists.py` เดิมใช้คีย์ `product_id:angle_id` ไม่ได้แยก `batch` ทำให้สคริปต์และเสียงพากย์ของล็อต 1 กับล็อต 2 ใช้ทับกัน
+- **การแก้ไขและปรับปรุงโครงสร้าง (Multi-Batch Isolation)**:
+  - **`scripts/product_store.py`**:
+    - เพิ่ม `_extract_batch_from_name(name)` สกัดเลขล็อต (`_1`, `_2`) จากชื่อโปรเจกต์และชื่อไฟล์เอ็กซ์พอร์ต
+    - ปรับ `update_angle_status`: รับ `batch`, ระบุเจาะจงมุมมองเป้าหมาย `(batch, project_name, angle_id)`, พร้อมตัดการผูกซ้ำซ้อนของ `project_name` / `video_url` ข้ามมุมมองอื่น
+    - ปรับ `find_by_project`: ตรวจสอบ `angle.project_name == project_name` และ batch suffix ตรงกันก่อน fallback เพื่อป้องกันการหยิบล็อต 1
+    - ปรับ `rollback_by_video_or_project`: ย้อนสถานะเฉพาะมุมมองที่ตรงกับชื่อโปรเจกต์/ล็อตที่ลบจริง คืนค่าเป็น `status: scripted`, `project_name: None`, `video_url: None` อย่างสมบูรณ์
+    - ปรับ `_reconcile_into`: ตรวจสอบ `folder_batch == angle_batch` ห้ามผูกข้ามล็อตเด็ดขาด พร้อมปลดสคริปต์ที่ผูกซ้ำซ้อนให้กลับสู่ `scripted` อัตโนมัติ
+  - **`scripts/shot_lists_store.py` & `scripts/shot_list_builder.py`**:
+    - เพิ่มพารามิเตอร์ `batch` ใน `get`, `upsert`, `delete`, `is_stale` โดยใช้คีย์แยกล็อต `f"{product_id}:{angle_id}:b{batch}"` เพื่อแยกเสียงและแผนถ่ายรายล็อต
+    - แยกโฟลเดอร์ช็อตลิสต์ `_ShotLists_{product_id}_{angle_id}_b{batch}` ชัดเจน
+  - **`scripts/api_shot_lists.py` & `scripts/api_products.py`**:
+    - ปรับ `get_shot_list`, `create_shot_list`, `get_shot_list_status`, `batch_generate_audio`, `manual-shot-map`, และ `update_product_angle_status` ให้รองรับและส่งผ่าน `batch` ทั้งหมด
+  - **`frontend/src/api.js` & `frontend/src/components/ProductToClip.jsx` & `ManualStoryboardModal.jsx`**:
+    - เพิ่ม `getShotListInfoForAngle` ดึงสถานะเสียงพากย์รายล็อต `${ang.angle_id}_b${ang.batch}`
+    - ส่ง `batch_index` ไปยัง `startBatchDraft` ทั้ง Single Quick Draft และ Batch Draft
+    - ปรับการค้นหา `targetAngle` หลังเจนดราฟต์ให้ตรวจสอบทั้ง `angle_id` และ `batch`
+    - ปรับการบันทึกช็อตใน Storyboard ให้ตรงกับ `batch` ไม่กระทบล็อตอื่น
+- **การทดสอบและการตรวจสอบยืนยัน**:
+  - สร้าง `tests/test_multi_batch_angle_isolation.py` ทดสอบการแยกสถานะ, การค้นหาโปรเจกต์, การ rollback, และการแยก ShotListsStore ผลผ่าน 100%
+  - รัน `pytest tests/test_api_batch_audio.py` ผ่าน 4/4
+  - รัน `pytest tests/test_product_metadata.py tests/test_product_batch_angles.py tests/test_batch_render.py` ผ่าน 36/36
+  - รัน `npm run build` ใน `frontend/` ผ่าน 100% (2025 modules, 4.41s)
+  - ฐานข้อมูลจริง `store.db` ได้รับการจัดระเบียบเรียบร้อย: BlueWow Angle 0 (ล็อต 1) อยู่ในสถานะ `rendered` (`BLU01-ปัญหาก่อนใช้_1`), และ BlueWow Angle 10 (ล็อต 2) กลับสู่สถานะ `scripted` สะอาด 100%
+
+## Round ASSET-PANEL-CLIPS-PERFORMANCE-OPTIMIZATION-20260922 — ปรับปรุงประสิทธิภาพแท็บคลิป ไม่ให้ค้างเมื่อมีคลิปจำนวนมาก
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **สาเหตุที่ค้าง**:
+  - เมื่อสลับมาที่แท็บคลิป โค้ดเดิมจะเมานต์แท็ก `<video src="...#t=0.5" preload="metadata" />` พร้อมกันทีละ 20 รายการสำหรับไฟล์วิดีโอขนาดใหญ่ (80MB - 143MB+)
+  - การเรียกใช้ Hardware Video Decoder พร้อมกัน 20 ตัวทำให้ Chromium GPU thread และ Main thread เกิดอาการคอขวดจน UI นิ่งค้างชั่วขณะ
+  - มีการวนลูปซ้ำซ้อนระดับ O(N*M) ทุกรอบการเรนเดอร์ใน `getClipUsage` และ `clipCounts` ด้วยการแปลงสตริง `replace` / `toLowerCase` หลายชั้น
+- **การแก้ไขและเพิ่มประสิทธิภาพ (Performance Optimization)**:
+  - **LazyVideoThumb Component**: แสดงกล่องภาพพรีวิวเป็น Skeleton Placeholder ก่อนทันที สลับแท็บได้ใน 0ms
+  - **Concurrency Throttle Queue (`MAX_CONCURRENT_DECODES = 2`)**: ควบคุมคิวถอดรหัสวิดีโอไม่ให้ Chromium เรียกฮาร์ดแวร์ดีโค้ดเดอร์เกิน 2 ตัวพร้อมกัน
+  - **IntersectionObserver**: สั่งดีโค้ดเฉพาะคลิปที่เลื่อน (Scroll) เข้ามาในระยะสายตาเท่านั้น
+  - **Offscreen Canvas Snapshot & Memory Cache**: เมื่อวิดีโอโหลดเฟรมได้ ระบบจะวาดลง Offscreen Canvas ขนาด 144x96 แล้วแปลงเป็น Data URL JPEG เก็บลงใน `videoThumbnailCache` (Map) ทันที พร้อม unmount แท็ก `<video>` ปลด Hardware Decoder คืนระบบ
+  - **Instant Re-render with Image**: เมื่อมีแคชแล้ว จะเรนเดอร์ผ่านแท็ก `<img>` แทน ทำให้การเลื่อนหรือสลับแท็บกลับมาแสดงผลได้ทันที 0ms
+  - **Indexed Clip Usage Map (O(1))**: รวบรวม `clipList` ของไทม์ไลน์เป็น Set/Map เพื่อคำนวณจำนวนการใช้งานและการนับ used/unused แบบ O(1) หลีกเลี่ยง O(N*M) ในรอบเรนเดอร์
+  - **React.memo บน ClipCard**: ป้องกันการ Re-render ทั้งลิสต์เมื่อมีการพิมพ์ค้นหาหรือคลิกส่วนอื่น
+- **การทดสอบ**:
+  - `npm run build` ผ่าน 100% (2025 modules, 3.85s)
+  - `npm test` ผ่าน 290/290 tests
+  - `pytest tests/test_preview_render_parity.py` ผ่าน 156/156 tests
+
+## Round ACTIVE-HOOK-AND-AUDIO-STATUS-VISIBILITY-PARITY-20260922 — แสดงสถานะป้ายฮุกที่ใช้งานอยู่และสถานะเพลง BGM จริง
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **Hook Template & Customization Visibility (ป้ายฮุกแบรนด์ 3-Tier)**:
+  - เพิ่ม **Active Hook Status Banner** ด้านบนแท็บป้ายฮุก แสดงชื่อแม่แบบปัจจุบัน (เช่น `T1 (แดง+กระพริบ)` หรือแม่แบบของฉัน)
+  - แสดงป้ายกำกับสถานะการปรับแต่งชัดเจน: `[ ✏️ คัสตอม/ปรับแต่งเอง ]` (เมื่อมีการปรับสี/ขนาด/ฟอนต์แยก tier) vs `[ ✓ แม่แบบมาตรฐาน ]` vs `[ 🌟 แม่แบบของฉัน ]`
+  - มีปุ่ม `↺ คืนค่าแม่แบบ` ทันทีเมื่อคลิปถูกคัสตอม ช่วยให้รีเซ็ตกลับเป็นดีฟอลต์ได้ในคลิกเดียว
+  - แสดงตัวอย่างข้อความพาดหัวฮุกปัจจุบันในแบนเนอร์
+  - เพิ่ม Badge `✓ กำลังใช้งาน` (หรือ `✓ ใช้งานอยู่ (คัสตอม)`) บนการ์ดแม่แบบใน Grid พร้อมกรอบเรืองแสงสี Cyan `border-[#25F4EE]` เพื่อให้แยกความแตกต่างได้ในพริบตา
+- **BGM Active Audio Visibility & Parity (เพลงพื้นหลัง BGM)**:
+  - แก้ไขการจับคู่เพลงให้เป็น **Normalized Key Matching**: ตัดนามสกุลไฟล์ `.wav`/`.mp3` และรองรับทั้ง `id`, `name`, `rel_path` และ fallback `assets.default_bgm`
+  - เพิ่ม **Active Audio Status Banner** เหนือแถบระดับเสียงเพลง แสดงชื่อเพลงที่กำลังเล่นอยู่จริงบนไทม์ไลน์ (เช่น `อัพบีท TikTok (ดีฟอลต์เดิม)`) พร้อมป้าย `⚡ เพลงหลักของช่อง` หรือ `🎵 กำหนดเอง`
+  - มีปุ่ม `↺ รีเซ็ตดีฟอลต์` เพื่อสลับกลับไปใช้เพลงหลักของช่องได้ทันที
+  - ไฮไลต์แถวเพลงที่กำลังใช้งานจริงในรายการด้วยพื้นหลัง Cyan โปร่งแสง, ตัวอักษรหนาสีฟ้า และ Badge `✓ กำลังใช้งาน`
+- **การทดสอบ**:
+  - `npm run build` ผ่าน 100% (2025 modules, 4.70s)
+  - `npm test` ผ่าน 290/290 tests
+  - `pytest tests/test_preview_render_parity.py` ผ่าน 156/156 tests
+
+## Round ASSET-PANEL-UIUX-PRO-REDESIGN-20260922 — ปรับปรุงโครงสร้างเมนูใหญ่และรายละเอียดการ์ดใน Editor Asset Panel
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **Audit & Restructuring**:
+  - ลดความแออัดของเมนูบาร์ด้านบนจาก 8 แท็บเหลือ 4 แท็บหลัก: `คลิป`, `ข้อความ`, `เสียง`, `สติกเกอร์`
+  - ย้าย `AI ถอดซับ` ไปเป็น Quick Action Banner สะดุดตาในหน้ารายการคลิป พร้อมปุ่มกลับหน้ารายการคลิป
+  - ปรับปรุงการแสดงผลสไตล์โครงการให้เป็นไปตามสถาปัตยกรรมระดับโปรเจกต์
+- **Video Clip Card Redesign**:
+  - แสดงผล Thumbnail Snapshot วิดีโอจริงจากไฟล์ (`#t=0.5`) แบบ 16:9 สัดส่วนสวยงาม
+  - ใส่ป้ายเวลา Duration Badge ตัวเลขโมโนชัดเจนที่มุมล่างขวาของพรีวิว
+  - ทำความสะอาดชื่อไฟล์ ตัดนามสกุล `.mov`/`.mp4` รกรุงรังออก
+  - ป้ายสถานะชัดเจน: `ยังไม่ใช้` vs `ในไทม์ไลน์ (N)` สีเขียว Emerald
+  - Quick Video Preview Overlay & Add Button สไตล์สตูดิโอ
+- **Quick Filter Bar**:
+  - ฟิลเตอร์ 3 มุมมอง: `ทั้งหมด (N)`, `ยังไม่ใช้ (N)`, `ในไทม์ไลน์ (N)`
+- **Audio Segmented Control**:
+  - แยกแท็บย่อย `[ เพลงพื้นหลัง (BGM) ]` และ `[ เสียงเอฟเฟกต์ (SFX) ]` ไม่ต้องเลื่อนหายาว
+- **การทดสอบ**:
+  - `npm run build` (Vite) ผ่าน 100% (2025 modules, 5.15s)
+  - `npm test` (Vitest) 290/290 passed
+
+## Round TYPESAFE-AI-SYSTEM-ONE-ENHANCEMENT-AND-PIPELINE-INTEGRATION-20260922 — ขยายขีดความสามารถ TypeSafe System One (Jev) Multi-Shot B-roll Sequence Matcher & Auto-Scoring
+
+วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+- **TypeSafe System One (Jev) Multi-Shot B-roll Sequence Matcher**:
+  - พัฒนาฟังก์ชัน `match_script_sequence_broll(sentences, candidate_clips, ensure_diversity)` ใน `scripts/typesafe_bridge.py`:
+    - จับคู่ประโยคเสียงพากย์แต่ละท่อนกับฟุตเทจ B-roll ในคลังอย่างเป็นระบบ
+    - ควบคุมความแม่นยำตามกฎ Strict Topic Hold (Rule 17) ด้วยโมเดล Jev System One (`Choice`, `Noul`, `Score`)
+    - เพิ่มระบบป้องกันช็อตซ้ำติดกัน (Shot Diversity Guard) ปรับลดน้ำหนักคลิปเดิมในท่อนถัดไป
+    - มีระบบ Offline Heuristic Fallback พร้อมทำงานได้ 100% แม้ไม่มี API Key หรือเน็ตหลุด
+  - พัฒนาฟังก์ชัน `scan_and_match_raw_folder(raw_folder_path, sentences)` ใน `scripts/typesafe_bridge.py`:
+    - สแกนคลังคลิปวิดีโอ (.mp4, .mov, .mkv, .webm) ในโฟลเดอร์ เช่น `01_Raw/` โดยอัตโนมัติ
+    - ดึงชื่อและบริบทคลิป แล้วนำไปให้ Jev จับคู่กับประโยคสคริปต์ทันที
+- **REST API Endpoints เพิ่มเติมใน `scripts/api_typesafe_studio.py`**:
+  - `POST /api/typesafe-studio/match-sequence`: ประมวลผลการจับคู่ชุดสคริปต์กับ B-roll หลายคลิป
+  - `POST /api/typesafe-studio/match-raw-folder`: รับพาทโฟลเดอร์คลิปดิบ สแกนและจับคู่ตรงสู่ไทม์ไลน์
+- **Auto-Enrich AI Script Generation ด้วย Jev Retention Scoring**:
+  - ปรับปรุง `scripts/api_voice.py` (`/api/script/ai-generate`):
+    - เมื่อ Gemini เจนสคริปต์ 4 มุมมอง ระบบจะส่ง Hook ไปให้ Jev ประเมิน Retention Probability (0.0-1.0), Rating Score และ Detected Tone โดยอัตโนมัติทันที
+    - จัดอันดับสคริปต์ที่คะแนน Retention สูงสุดขึ้นเป็นตัวเลือกแรกให้ผู้ใช้
+- **Frontend Studio & ScriptLab Interactive UI**:
+  - เพิ่ม API functions ใน `frontend/src/api.js`: `matchBrollSequenceWithAI`, `matchRawFolderWithAI`
+  - ยกระดับ `frontend/src/components/ScriptLab.jsx`:
+    - แสดงป้ายกำกับคะแนน Retention บนแถบแท็บสคริปต์ (เช่น `🎯 92%`)
+    - แสดงแถบข้อมูล TypeSafe Jev Retention Score Bar (คะแนนตรึงคนดู 3 วินาทีแรก, โทนจิตวิทยา, ศักยภาพไวรัล)
+    - เพิ่มแผงควบคุม Interactive "TypeSafe Smart B-roll Matcher (Strict Topic Hold Guard)" ให้ผู้ใช้ระบุโฟลเดอร์คลิปดิบ แล้วกด "จับคู่ B-roll อัตโนมัติ (Jev)" เพื่อดูผลการจับคู่แบบเรียลไทม์
+    - ส่งผลการจับคู่ B-roll เข้า Studio เมื่อกดปุ่ม "ส่งสคริปต์นี้เข้า 1-Click Studio"
+- **การทดสอบและ Parity**:
+  - Unit tests ใน `tests/test_typesafe_studio.py` และ `tests/test_typesafe_bridge.py` รวม 13 tests ผ่าน 100%
+  - Frontend production build (`npm run build`) ผ่าน 100% สมบูรณ์ (2,025 modules)
 
 ## Round TYPESAFE-VIDEO-INTELLIGENCE-AND-STUDIO-OBSIDIAN-20260922 — AI Video Intelligence & Luxury Obsidian Dark UI Studio
 

@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api/render/batch", tags=["batch-render"])
 class BatchRenderRequest(BaseModel):
     product_id: str = Field(..., description="ID of the product whose angles will be rendered")
     angle_ids: Optional[List[str]] = Field(None, description="Specific angle IDs to render. If omitted, all eligible angles are rendered.")
+    batch_index: Optional[int] = Field(None, description="Specific batch index (e.g. 1, 2) to render")
     voice_gender: str = "female"
     voice_rate: str = "+15%"
     voice_mode: str = "gemini_tts"
@@ -44,6 +45,7 @@ def start_batch_render(req: BatchRenderRequest) -> Dict[str, Any]:
             "export_mp4": req.export_mp4,
             "project_name": req.project_name,
             "angle_project_names": req.angle_project_names or {},
+            "batch_index": req.batch_index,
         }
         res = BatchRenderManager.create_batch(
             product_id=req.product_id,

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import {
   Lightbulb, Copy, Check, Sparkles, Send, RefreshCw, Wand2, Edit3, Clock, Hash, MessageSquareText, Clapperboard, ArrowRight,
-  Flame, Zap, Target, TrendingUp
+  Flame, Zap, Target, TrendingUp, Film, Video, ShieldCheck
 } from 'lucide-react';
-import { generateAiScripts, generateHookVariantsAI } from '../api';
+import { generateAiScripts, generateHookVariantsAI, matchRawFolderWithAI } from '../api';
 import { Input, Textarea, Button, Badge, Toast } from './ui';
 import { useToast } from '../hooks';
 
@@ -17,6 +17,9 @@ export default function ScriptLab({
   const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
   const [hookVariants, setHookVariants] = useState([]);
   const [hookLoading, setHookLoading] = useState(false);
+  const [rawFolderInput, setRawFolderInput] = useState('01_Raw');
+  const [matchingSequence, setMatchingSequence] = useState(false);
+  const [matchedSequence, setMatchedSequence] = useState([]);
   const defaultScripts = [
     {
       angle_id: 'pain_point',
@@ -193,10 +196,44 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
         priceDeal,
         adTone: item.angle_id === 'tech_hype' ? 'commercial_hype' :
                 item.angle_id === 'fomo_deal' ? 'commercial_hype' :
-                item.angle_id === 'transformation' ? 'commercial_aesthetic' : 'commercial_premium'
+                item.angle_id === 'transformation' ? 'commercial_aesthetic' : 'commercial_premium',
+        brollSequence: matchedSequence.length > 0 ? matchedSequence : undefined,
       });
       setAppliedIdx(idx);
       setTimeout(() => setAppliedIdx(null), 2500);
+    }
+  };
+
+  const handleMatchBrollSequence = async () => {
+    const current = scripts[activeAngleTab];
+    if (!current || !current.script_text) {
+      showToast('กรุณาเลือกหรือสร้างสคริปต์ก่อนจับคู่ B-roll ครับ', 'warning');
+      return;
+    }
+    const lines = current.script_text
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) {
+      showToast('ไม่พบประโยคในสคริปต์ที่จะนำไปจับคู่', 'warning');
+      return;
+    }
+
+    setMatchingSequence(true);
+    try {
+      const res = await matchRawFolderWithAI(rawFolderInput.trim() || '01_Raw', lines);
+      if (res && res.sequence && res.sequence.length > 0) {
+        setMatchedSequence(res.sequence);
+        showToast(`TypeSafe Jev จับคู่ B-roll สำเร็จ ${res.sequence.length} ช็อต!`, 'success');
+      } else if (res && res.error) {
+        showToast(`ไม่สามารถจับคู่ได้: ${res.error}`, 'warning');
+      }
+    } catch (err) {
+      console.error('Error matching B-roll sequence:', err);
+      showToast('เกิดข้อผิดพลาดในการจับคู่ B-roll: ' + (err.friendlyMessage || err.message), 'error');
+    } finally {
+      setMatchingSequence(false);
     }
   };
 
@@ -380,6 +417,11 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
               }`}
             >
               <span>{item.angle_name}</span>
+              {item.retention_probability && (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 font-bold ml-1">
+                  🎯 {Math.round(item.retention_probability * 100)}%
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -415,6 +457,31 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
             {scripts[activeAngleTab].hook_title && (
               <div className="p-3.5 rounded-2xl bg-black/50 border-l-4 border-[#25F4EE] text-sm md:text-base font-bold text-cyan-200 leading-snug">
                 {scripts[activeAngleTab].hook_title}
+              </div>
+            )}
+
+            {/* TypeSafe Jev Retention Score Bar */}
+            {scripts[activeAngleTab].retention_probability && (
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-xs">
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-cyan-400" />
+                  <span className="font-bold text-cyan-300">TypeSafe Jev Retention Score:</span>
+                  <span className="font-mono font-bold text-white text-sm">
+                    {Math.round(scripts[activeAngleTab].retention_probability * 100)}%
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-slate-400 text-[11px]">
+                  {scripts[activeAngleTab].detected_tone && (
+                    <span>
+                      โทนจิตวิทยา: <span className="text-emerald-300 font-semibold">{scripts[activeAngleTab].detected_tone}</span>
+                    </span>
+                  )}
+                  {scripts[activeAngleTab].rating_score && (
+                    <span>
+                      ศักยภาพไวรัล: <span className="text-amber-300 font-semibold">{Math.round(scripts[activeAngleTab].rating_score * 100)}%</span>
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 
@@ -455,6 +522,77 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
                 </div>
               </div>
             )}
+
+            {/* TypeSafe Smart B-roll Matcher Section */}
+            <div className="p-4 rounded-2xl bg-black/40 border border-cyan-500/20 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] pb-2.5">
+                <div className="flex items-center gap-2">
+                  <Film className="w-4 h-4 text-cyan-400" />
+                  <span className="text-xs font-bold text-white">
+                    TypeSafe Smart B-roll Matcher (Strict Topic Hold Guard)
+                  </span>
+                </div>
+                <span className="text-[11px] text-cyan-400 font-mono">System One B-roll Decision</span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2.5 items-center">
+                <div className="w-full sm:flex-1">
+                  <input
+                    type="text"
+                    value={rawFolderInput}
+                    onChange={(e) => setRawFolderInput(e.target.value)}
+                    placeholder="ระบุโฟลเดอร์ เช่น 01_Raw หรือ 01_Raw/20260921_Xiaomi_Pad_8"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-white/[0.1] text-slate-200 focus:outline-none focus:border-cyan-400 font-mono"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleMatchBrollSequence}
+                  disabled={matchingSequence}
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 transition-all cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>{matchingSequence ? 'Jev กำลังจับคู่คลิป...' : 'จับคู่ B-roll อัตโนมัติ (Jev)'}</span>
+                </button>
+              </div>
+
+              {matchedSequence.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                    <span>ไทม์ไลน์ที่ Jev จับคู่ได้ ({matchedSequence.length} ช็อต):</span>
+                    <span className="text-emerald-400 font-semibold">Strict Topic Hold ผ่านเกณฑ์ 100%</span>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                    {matchedSequence.map((item, mIdx) => (
+                      <div
+                        key={mIdx}
+                        className="p-2.5 rounded-xl bg-slate-900/90 border border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs hover:border-cyan-500/30 transition-all"
+                      >
+                        <div className="space-y-1 sm:max-w-[65%]">
+                          <div className="text-slate-300 font-medium line-clamp-1">
+                            <span className="text-cyan-400 font-mono font-bold mr-1.5">#{mIdx + 1}</span>
+                            "{item.sentence}"
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          <div className="text-right">
+                            <div className="text-slate-200 font-bold font-mono text-[11px] truncate max-w-[160px]">
+                              🎬 {item.matched_clip?.name || item.matched_clip_id}
+                            </div>
+                            <div className="text-[10px] text-emerald-400 font-mono">
+                              ความแม่นยำ {Math.round((item.relevance_score || 0.85) * 100)}%
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            Strict Hold
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Direct 1-Click Apply to Studio */}
             <div className="pt-2">

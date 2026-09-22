@@ -1,20 +1,16 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import {
   Check, Film, Music, Palette, Plus, Search, Sticker, Type, Volume2, Play, Square,
-  FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers, Eye, X, Upload, Clock, Trash2, Ban, RotateCcw
+  FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers, Eye, X, Upload, Clock, Trash2, Ban, RotateCcw, ChevronLeft
 } from 'lucide-react';
 import { transcribeMedia, uploadFile } from '../../api';
 import PaginationControls from '../PaginationControls';
 
 const TABS = [
   { id: 'clips', label: 'คลิป', icon: Film },
-  { id: 'srt', label: 'AI ถอดซับ', icon: FileText },
-  { id: 'audio', label: 'เสียง', icon: Music },
   { id: 'text', label: 'ข้อความ', icon: Type },
+  { id: 'audio', label: 'เสียง', icon: Music },
   { id: 'sticker', label: 'สติกเกอร์', icon: Sticker },
-  { id: 'effect', label: 'เอฟเฟกต์', icon: Sparkles },
-  { id: 'filter', label: 'ฟิลเตอร์', icon: Palette },
-  { id: 'style', label: 'สไตล์', icon: Sparkles },
 ];
 
 // Drag payload type shared with Timeline's drop target.
@@ -25,8 +21,13 @@ import { toMediaUrl } from '../../lib/mediaUrl';
 import { normalizeStylePreset } from '../../lib/stylePresetCatalog.js';
 import TextLookPreview from './TextLookPreview';
 import StylePresetPicker from './StylePresetPicker';
-import { HOOK_FS_RATIO, HOOK_SHADOW, overlayFromTextTemplate } from '../../lib/overlayModel';
+import { HOOK_FS_RATIO, HOOK_SHADOW, overlayFromTextTemplate, overriddenTierFields } from '../../lib/overlayModel';
 import { TIER_KEYS } from '../../lib/hookStyles';
+
+const normalizeBgmKey = (str) => {
+  if (!str || typeof str !== 'string') return '';
+  return str.trim().toLowerCase().replace(/\.(wav|mp3|m4a|aac|ogg|flac)$/i, '');
+};
 
 const LEGACY_SFX_ALIASES = {
   whoosh: 'sfx_whoosh_fast',
@@ -60,15 +61,43 @@ function hookCardLook(tpl, tierKey) {
   };
 }
 
-function getMotionPreviewClass(motion) {
-  const loop = motion?.loop;
-  const animIn = motion?.in;
-  if (loop === 'flicker') return 'group-hover:anim-preview-flicker';
-  if (loop === 'shake' || animIn === 'pop') return 'group-hover:anim-preview-shake';
-  if (loop === 'wave') return 'group-hover:anim-preview-wave';
-  if (loop === 'pulse' || animIn === 'bounce') return 'group-hover:anim-preview-pulse';
+export function getMotionPreviewClass(motionOrAnim) {
+  if (!motionOrAnim) return 'group-hover:scale-105';
+
+  if (typeof motionOrAnim === 'string') {
+    const a = motionOrAnim.trim().toLowerCase();
+    if (a === 'flicker') return 'group-hover:anim-preview-flicker';
+    if (a === 'shake') return 'group-hover:anim-preview-shake';
+    if (a === 'wave') return 'group-hover:anim-preview-wave';
+    if (a === 'pulse') return 'group-hover:anim-preview-pulse';
+    if (a === 'pop_zoom') return 'group-hover:anim-preview-pop_zoom';
+    if (a === 'pop') return 'group-hover:anim-preview-pop';
+    if (a === 'stamp') return 'group-hover:anim-preview-stamp';
+    if (a === 'slide' || a === 'slide_up') return 'group-hover:anim-preview-slide';
+    if (a === 'zoom') return 'group-hover:anim-preview-zoom';
+    if (a === 'rise') return 'group-hover:anim-preview-rise';
+    if (a === 'fade' || a === 'quick_fade') return 'group-hover:anim-preview-fade';
+    if (a === 'lightsweep') return 'group-hover:anim-preview-lightsweep';
+    return 'group-hover:scale-105';
+  }
+
+  const loop = (motionOrAnim.loop || '').trim().toLowerCase();
+  const animIn = (motionOrAnim.in || '').trim().toLowerCase();
+
+  if (loop === 'flicker' || animIn === 'flicker') return 'group-hover:anim-preview-flicker';
+  if (loop === 'shake' || animIn === 'shake') return 'group-hover:anim-preview-shake';
+  if (loop === 'wave' || animIn === 'wave') return 'group-hover:anim-preview-wave';
+  if (loop === 'lightsweep' || animIn === 'lightsweep') return 'group-hover:anim-preview-lightsweep';
+  if (loop === 'pulse') return 'group-hover:anim-preview-pulse';
   if (animIn === 'pop_zoom') return 'group-hover:anim-preview-pop_zoom';
-  if (loop === 'lightsweep') return 'group-hover:anim-preview-lightsweep';
+  if (animIn === 'pop') return 'group-hover:anim-preview-pop';
+  if (animIn === 'stamp') return 'group-hover:anim-preview-stamp';
+  if (animIn === 'bounce' || animIn === 'bounce_soft') return 'group-hover:anim-preview-pulse';
+  if (animIn === 'slide_up' || animIn === 'slide') return 'group-hover:anim-preview-slide';
+  if (animIn === 'zoom') return 'group-hover:anim-preview-zoom';
+  if (animIn === 'rise') return 'group-hover:anim-preview-rise';
+  if (animIn === 'fade' || animIn === 'quick_fade') return 'group-hover:anim-preview-fade';
+
   return 'group-hover:scale-105';
 }
 
@@ -621,6 +650,245 @@ function parseSrtToCues(srtText) {
   return cues;
 }
 
+// ── Video Thumbnail Cache & Concurrency Control ─────────────────────────
+const videoThumbnailCache = new Map();
+const MAX_CONCURRENT_DECODES = 2;
+let activeDecodeCount = 0;
+const decodeQueue = [];
+
+function processDecodeQueue() {
+  while (activeDecodeCount < MAX_CONCURRENT_DECODES && decodeQueue.length > 0) {
+    const nextTask = decodeQueue.shift();
+    if (nextTask) {
+      activeDecodeCount++;
+      let finished = false;
+      const done = () => {
+        if (!finished) {
+          finished = true;
+          activeDecodeCount = Math.max(0, activeDecodeCount - 1);
+          processDecodeQueue();
+        }
+      };
+      try {
+        nextTask(done);
+      } catch (_) {
+        done();
+      }
+    }
+  }
+}
+
+function requestVideoDecode(task) {
+  decodeQueue.push(task);
+  processDecodeQueue();
+}
+
+const LazyVideoThumb = React.memo(function LazyVideoThumb({ mediaPath, name, durStr, onPreview }) {
+  const mediaKey = mediaPath || '';
+  const cachedThumb = videoThumbnailCache.get(mediaKey);
+  const [thumbSrc, setThumbSrc] = useState(cachedThumb || null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const [isDecoding, setIsDecoding] = useState(false);
+  const containerRef = useRef(null);
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (thumbSrc || !mediaKey) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    if (typeof IntersectionObserver === 'undefined') {
+      setShouldLoad(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '160px' }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [mediaKey, thumbSrc]);
+
+  useEffect(() => {
+    if (!shouldLoad || thumbSrc || !mediaKey) return;
+
+    let isMounted = true;
+    let releaseDecoder = null;
+
+    requestVideoDecode((done) => {
+      if (!isMounted) {
+        done();
+        return;
+      }
+      releaseDecoder = done;
+      setIsDecoding(true);
+    });
+
+    return () => {
+      isMounted = false;
+      if (releaseDecoder) {
+        releaseDecoder();
+        releaseDecoder = null;
+      }
+    };
+  }, [shouldLoad, thumbSrc, mediaKey]);
+
+  const handleSeekedOrLoaded = useCallback(() => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth || !v.videoHeight) return;
+
+    try {
+      const canvas = document.createElement('canvas');
+      const w = 144;
+      const h = 96;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(v, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+        if (dataUrl && dataUrl.length > 100) {
+          videoThumbnailCache.set(mediaKey, dataUrl);
+          setThumbSrc(dataUrl);
+        }
+      }
+    } catch (_) {
+      // Cross-origin fallback
+    } finally {
+      setIsDecoding(false);
+    }
+  }, [mediaKey]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative w-18 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-[#121620] border border-white/[0.08] cursor-pointer group/thumb select-none"
+      onClick={onPreview}
+      title="กดเพื่อเปิดดูพรีวิวคลิป"
+    >
+      {thumbSrc ? (
+        <img
+          src={thumbSrc}
+          alt={name || ''}
+          loading="lazy"
+          className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-200 pointer-events-none"
+        />
+      ) : isDecoding ? (
+        <video
+          ref={videoRef}
+          src={`/api/media/${mediaKey}#t=0.5`}
+          preload="metadata"
+          muted
+          playsInline
+          onLoadedData={handleSeekedOrLoaded}
+          onSeeked={handleSeekedOrLoaded}
+          onError={() => setIsDecoding(false)}
+          className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-200 pointer-events-none"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#121722] to-[#0A0D14]">
+          <Film className="w-4 h-4 text-slate-600/70" />
+        </div>
+      )}
+
+      {/* Play Hover Overlay */}
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity">
+        <Play className="w-4 h-4 text-[#25F4EE] fill-[#25F4EE]" />
+      </div>
+
+      {durStr && (
+        <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-black/80 backdrop-blur-xs text-[9px] font-mono text-slate-200 font-semibold leading-tight pointer-events-none">
+          {durStr}
+        </span>
+      )}
+    </div>
+  );
+});
+
+const ClipCard = React.memo(function ClipCard({
+  video,
+  usageCount,
+  duration,
+  durStr,
+  onPreview,
+  onAdd,
+}) {
+  const isUsed = usageCount > 0;
+  const cleanName = (video.name || '').replace(/\.(mp4|mov|webm|mkv|m4v)$/i, '');
+  const mediaKey = video.rel_path || video.path;
+
+  return (
+    <div
+      className={`group relative flex items-center justify-between gap-2 rounded-xl border p-2 text-left transition-all ${
+        isUsed
+          ? 'border-[#25F4EE]/35 bg-[#25F4EE]/[0.04] hover:border-[#25F4EE]/60'
+          : 'border-white/[0.08] bg-black/40 hover:border-white/[0.2] hover:bg-white/[0.04]'
+      }`}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData(
+          CLIP_DRAG_TYPE,
+          JSON.stringify({ path: video.path, name: video.name, duration: duration || video.duration })
+        );
+      }}
+    >
+      {/* Left: Lazy Thumbnail with Duration Badge & Hover Play Overlay */}
+      <LazyVideoThumb
+        mediaPath={mediaKey}
+        name={video.name}
+        durStr={durStr}
+        onPreview={() => onPreview(video)}
+      />
+
+      {/* Middle: Clean Filename, Size, and Usage Badge */}
+      <div
+        className="min-w-0 flex-1 cursor-pointer"
+        onClick={() => onAdd(video)}
+        title="คลิกเพื่อต่อท้ายไทม์ไลน์ หรือลากไปวางตรงตำแหน่งที่ต้องการ"
+      >
+        <p className="truncate text-xs font-semibold text-slate-200 group-hover:text-white" title={video.name}>
+          {cleanName}
+        </p>
+        <div className="flex items-center gap-1.5 mt-1">
+          {video.size_mb ? (
+            <span className="text-[10.5px] text-slate-500 font-mono">{video.size_mb} MB</span>
+          ) : null}
+          {isUsed ? (
+            <span className="px-1.5 py-0.2 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[9.5px] font-bold">
+              ในไทม์ไลน์ {usageCount > 1 ? `(${usageCount})` : ''}
+            </span>
+          ) : (
+            <span className="px-1.5 py-0.2 rounded-md bg-white/[0.05] text-slate-400 text-[9.5px]">
+              ยังไม่ใช้
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Right: Quick Add Button */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onAdd(video);
+        }}
+        className="h-7 w-7 rounded-lg bg-white/[0.06] hover:bg-[#25F4EE] hover:text-slate-950 text-slate-400 flex items-center justify-center transition-all cursor-pointer flex-shrink-0 active:scale-95"
+        title="เพิ่มลงในไทม์ไลน์"
+      >
+        <Plus className="h-4 w-4" />
+      </button>
+    </div>
+  );
+});
+
 function Row({ active, onClick, children, title, draggable, onDragStart, onDragEnd }) {
   return (
     <button
@@ -691,6 +959,8 @@ export default function AssetPanel({
   customHookTemplates = {},
   onDeleteCustomHookTemplate = null,
   activeHookTemplate = null,
+  hookOverlay = null,
+  onResetHookTemplate = null,
   onApplyHookTemplate = null,
   onStyleChange,
   onAssignSfx,
@@ -722,10 +992,167 @@ export default function AssetPanel({
   const [query, setQuery] = useState('');
   const [assetPages, setAssetPages] = useState({});
   const [assetPageSizes, setAssetPageSizes] = useState({});
+  const [clipFilter, setClipFilter] = useState('all'); // 'all' | 'unused' | 'used'
+  const [audioSubTab, setAudioSubTab] = useState('bgm'); // 'bgm' | 'sfx'
   const [textCategory, setTextCategory] = useState('all');
   const [textSearch, setTextSearch] = useState('');
   const [textSubTab, setTextSubTab] = useState('hook');
   const activeStylePreset = normalizeStylePreset(stylePreset || style?.style_preset);
+
+  // Fast O(1) clip usage lookup index and count of used vs unused clips
+  const { clipUsageMap, clipCounts } = useMemo(() => {
+    const usageCounts = new Map();
+    const sourceCounts = new Map();
+    const basenameCounts = new Map();
+
+    (clipList || []).forEach((c) => {
+      const cPath = (c.source_path || '').replace(/\\/g, '/').toLowerCase();
+      if (cPath) {
+        sourceCounts.set(cPath, (sourceCounts.get(cPath) || 0) + 1);
+        const slashIdx = cPath.lastIndexOf('/');
+        const bName = slashIdx >= 0 ? cPath.substring(slashIdx + 1) : cPath;
+        if (bName) {
+          basenameCounts.set(bName, (basenameCounts.get(bName) || 0) + 1);
+        }
+      }
+    });
+
+    let used = 0;
+    let unused = 0;
+
+    (videos || []).forEach((v) => {
+      const vPath = (v.path || '').replace(/\\/g, '/').toLowerCase();
+      const vRel = (v.rel_path || '').replace(/\\/g, '/').toLowerCase();
+      const vName = (v.name || '').toLowerCase();
+
+      let count = 0;
+      if (vPath && sourceCounts.has(vPath)) {
+        count = sourceCounts.get(vPath);
+      } else if (vRel && sourceCounts.has(vRel)) {
+        count = sourceCounts.get(vRel);
+      } else if (vName && basenameCounts.has(vName)) {
+        count = basenameCounts.get(vName);
+      }
+
+      if (v.path) usageCounts.set(v.path, count);
+      if (v.rel_path) usageCounts.set(v.rel_path, count);
+      if (v.name) usageCounts.set(v.name, count);
+
+      if (count > 0) used++;
+      else unused++;
+    });
+
+    return {
+      clipUsageMap: usageCounts,
+      clipCounts: { all: (videos || []).length, used, unused },
+    };
+  }, [videos, clipList]);
+
+  const getClipUsage = useCallback((video) => {
+    if (!video) return 0;
+    if (video.path && clipUsageMap.has(video.path)) return clipUsageMap.get(video.path);
+    if (video.rel_path && clipUsageMap.has(video.rel_path)) return clipUsageMap.get(video.rel_path);
+    if (video.name && clipUsageMap.has(video.name)) return clipUsageMap.get(video.name);
+    return 0;
+  }, [clipUsageMap]);
+
+  // Active BGM determination and parity matching
+  const activeBgmInfo = useMemo(() => {
+    const musicList = assets?.music || [];
+    const defaultBgm = assets?.default_bgm || 'tiktok_upbeat_bgm.wav';
+    const defaultClean = normalizeBgmKey(defaultBgm);
+
+    const isExplicit = !!style?.bgmName;
+    const currentKey = isExplicit ? normalizeBgmKey(style.bgmName) : defaultClean;
+
+    const matched = musicList.find((m) => {
+      const mId = normalizeBgmKey(m.id);
+      const mName = normalizeBgmKey(m.name);
+      const mRel = normalizeBgmKey(m.file?.rel_path || m.rel_path);
+      return mId === currentKey || mName === currentKey || mRel === currentKey;
+    });
+
+    const defaultMatched = musicList.find((m) => {
+      const mId = normalizeBgmKey(m.id);
+      const mName = normalizeBgmKey(m.name);
+      const mRel = normalizeBgmKey(m.file?.rel_path || m.rel_path);
+      return mId === defaultClean || mName === defaultClean || mRel === defaultClean;
+    });
+
+    const label = matched?.label_th || matched?.name || (isExplicit ? style.bgmName : (defaultMatched?.label_th || defaultMatched?.name || 'อัพบีท TikTok (ดีฟอลต์เดิม)'));
+    const defaultLabel = defaultMatched?.label_th || defaultMatched?.name || 'อัพบีท TikTok (ดีฟอลต์เดิม)';
+
+    return {
+      isExplicit,
+      activeKey: currentKey,
+      label,
+      defaultLabel,
+      matchedId: matched?.id || null,
+      volumePct: Math.round((style?.bgmVolume ?? 0.12) * 100),
+      ducking: !!style?.bgmDucking,
+    };
+  }, [style?.bgmName, style?.bgmVolume, style?.bgmDucking, assets?.music, assets?.default_bgm]);
+
+  const isTrackActive = (m) => {
+    if (!m) return false;
+    const mId = normalizeBgmKey(m.id);
+    const mName = normalizeBgmKey(m.name);
+    const mRel = normalizeBgmKey(m.file?.rel_path || m.rel_path);
+    return mId === activeBgmInfo.activeKey || mName === activeBgmInfo.activeKey || mRel === activeBgmInfo.activeKey;
+  };
+
+  // Active Hook template and customization info
+  const hookCustomizationInfo = useMemo(() => {
+    if (!hookOverlay) {
+      return {
+        exists: false,
+        hidden: false,
+        isModified: false,
+        isCustomTemplate: false,
+        templateKey: null,
+        templateName: 'ยังไม่มีป้ายฮุกในคลิป',
+        summaryText: '',
+      };
+    }
+    const tKey = hookOverlay.template || activeHookTemplate || 'b1_viral_red';
+    const isCustomTemplate = !!(customHookTemplates && customHookTemplates[tKey]);
+    const tpl = isCustomTemplate ? customHookTemplates[tKey] : (hookTemplates && hookTemplates[tKey]);
+    const tplName = tpl?.label_th || tpl?.name || tKey;
+
+    let isModified = false;
+    try {
+      const overrides = overriddenTierFields(hookOverlay);
+      isModified = overrides.some((fields) => fields && fields.length > 0);
+    } catch {
+      isModified = false;
+    }
+
+    const tierTexts = (hookOverlay.tiers || []).map((t) => t.text).filter(Boolean);
+    const summaryText = tierTexts.join(' • ') || '';
+
+    return {
+      exists: true,
+      hidden: !!hookOverlay.hidden,
+      isModified,
+      isCustomTemplate,
+      templateKey: tKey,
+      templateName: tplName,
+      summaryText,
+    };
+  }, [hookOverlay, activeHookTemplate, hookTemplates, customHookTemplates]);
+
+  // Hook cards text: uses project's active hook text for real 1:1 preview parity, falling back to HOOK_CARD_SAMPLE
+  const hookCardSampleText = useMemo(() => {
+    if (Array.isArray(hookOverlay?.tiers)) {
+      const t0 = hookOverlay.tiers[0]?.text?.trim();
+      const t1 = hookOverlay.tiers[1]?.text?.trim();
+      const t2 = hookOverlay.tiers[2]?.text?.trim();
+      if (t0 || t1 || t2) {
+        return [t0 || 'BRAND', t1 || 'รุ่นเด่น', t2 || 'หมวดสินค้า'];
+      }
+    }
+    return HOOK_CARD_SAMPLE;
+  }, [hookOverlay]);
 
   // Live Preview SFX when clicking a text template
   const playSfxPreview = (sfxKey) => {
@@ -751,16 +1178,6 @@ export default function AssetPanel({
   const [uploadError, setUploadError] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Helper to calculate how many times a video is mapped / used on the timeline
-  const getClipUsage = (video) => {
-    if (!clipList || clipList.length === 0) return 0;
-    const vPath = (video.path || '').replace(/\\/g, '/').toLowerCase();
-    const vName = (video.name || '').toLowerCase();
-    return clipList.filter((c) => {
-      const cPath = (c.source_path || '').replace(/\\/g, '/').toLowerCase();
-      return cPath === vPath || (vName && cPath.endsWith('/' + vName)) || (vName && cPath.endsWith(vName));
-    }).length;
-  };
 
   // Helper to format seconds into M:SS
   const formatDuration = (sec) => {
@@ -875,7 +1292,15 @@ export default function AssetPanel({
     const q = query.trim().toLowerCase();
     const match = (item) => !q || `${item.label || ''} ${item.label_th || ''} ${item.name || ''}`.toLowerCase().includes(q);
     return {
-      videos: (videos || []).filter((v) => !q || v.name.toLowerCase().includes(q)),
+      videos: (videos || [])
+        .filter((v) => {
+          if (clipFilter === 'all') return true;
+          const usage = getClipUsage(v);
+          if (clipFilter === 'unused') return usage === 0;
+          if (clipFilter === 'used') return usage > 0;
+          return true;
+        })
+        .filter((v) => !q || v.name.toLowerCase().includes(q)),
       // Only starred SFX show by default -- rendering all 1800+ as plain
       // rows (no virtualization) froze the panel. Typing a search still
       // searches the full library, not just starred ones.
@@ -909,11 +1334,11 @@ export default function AssetPanel({
         })
         .filter((f) => !q || `${f.name} ${f.id}`.toLowerCase().includes(q)),
     };
-  }, [videos, assets, query]);
+  }, [videos, assets, query, clipFilter, clipList]);
 
   useEffect(() => {
     setAssetPages({});
-  }, [query]);
+  }, [query, clipFilter]);
 
   const getAssetPage = (assetKey) => assetPages[assetKey] || 1;
   const getAssetPageSize = (assetKey) => assetPageSizes[assetKey] || 20;
@@ -950,10 +1375,10 @@ export default function AssetPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0C1019]">
-      {/* tab rail - responsive tabs fitting all screen widths without overflow */}
-      <div className="grid grid-cols-4 sm:grid-cols-8 border-b border-white/[0.08] bg-black/30 p-1 gap-1 flex-shrink-0">
+      {/* tab rail - clean 4 core studio tabs */}
+      <div className="grid grid-cols-4 border-b border-white/[0.08] bg-black/40 p-1.5 gap-1.5 flex-shrink-0">
         {TABS.map(({ id, label, icon: Icon }) => {
-          const isActive = tab === id;
+          const isActive = tab === id || (id === 'clips' && tab === 'srt');
           return (
             <button
               key={id}
@@ -961,14 +1386,14 @@ export default function AssetPanel({
               onClick={() => setTab(id)}
               title={label}
               aria-pressed={isActive}
-              className={`flex flex-col items-center justify-center py-2 px-0.5 rounded-lg transition-all focus:outline-none cursor-pointer ${
+              className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all focus:outline-none cursor-pointer ${
                 isActive
-                  ? 'bg-gradient-to-b from-[#25F4EE]/15 to-blue-500/10 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                  ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/40 shadow-[0_0_12px_rgba(37,244,238,0.15)] font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent'
               }`}
             >
-              <Icon className="h-3.5 w-3.5 flex-shrink-0 mb-0.5" strokeWidth={isActive ? 2.2 : 1.7} />
-              <span className="text-[10px] font-medium tracking-tight truncate w-full text-center leading-tight">
+              <Icon className="h-4 w-4 flex-shrink-0 mb-1" strokeWidth={isActive ? 2.2 : 1.8} />
+              <span className="text-[11px] tracking-tight truncate w-full text-center leading-tight">
                 {label}
               </span>
             </button>
@@ -976,24 +1401,24 @@ export default function AssetPanel({
         })}
       </div>
 
-      {/* Search & Direct Upload bar (hide in SRT tab) */}
+      {/* Search & Direct Upload bar (hide in SRT subview) */}
       {tab !== 'srt' && (
-        <div className="flex-shrink-0 p-2 space-y-1.5 border-b border-white/[0.04]">
+        <div className="flex-shrink-0 p-2.5 space-y-2 border-b border-white/[0.06] bg-black/20">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
             <input
               value={tab === 'text' ? textSearch : query}
               onChange={(e) => (tab === 'text' ? setTextSearch(e.target.value) : setQuery(e.target.value))}
-              placeholder={tab === 'text' ? 'ค้นหาเทมเพลตข้อความ...' : 'ค้นหา...'}
-              className="w-full py-1.5 pl-8 pr-7 rounded-xl bg-black/50 border border-white/[0.08] text-white text-xs focus:outline-none focus:border-[#25F4EE]"
+              placeholder={tab === 'text' ? 'ค้นหาเทมเพลตข้อความ...' : tab === 'audio' ? 'ค้นหาเพลง หรือ SFX...' : 'ค้นหาคลิป...'}
+              className="w-full py-1.5 pl-8 pr-7 rounded-xl bg-black/50 border border-white/[0.08] text-white text-xs focus:outline-none focus:border-[#25F4EE] placeholder:text-slate-500 transition-colors"
             />
             {Boolean(tab === 'text' ? textSearch : query) && (
               <button
                 type="button"
                 onClick={() => (tab === 'text' ? setTextSearch('') : setQuery(''))}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
               >
-                <X className="h-3 w-3" />
+                <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
@@ -1011,16 +1436,16 @@ export default function AssetPanel({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="w-full py-1.5 px-2.5 rounded-xl border border-dashed border-white/[0.12] hover:border-[#25F4EE]/50 hover:bg-[#25F4EE]/5 text-slate-300 hover:text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                className="w-full py-2 px-3 rounded-xl border border-dashed border-[#25F4EE]/30 hover:border-[#25F4EE] hover:bg-[#25F4EE]/5 text-slate-200 hover:text-[#25F4EE] text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 group"
               >
                 {uploading ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#25F4EE]" />
+                    <Loader2 className="w-4 h-4 animate-spin text-[#25F4EE]" />
                     <span>กำลังอัปโหลด ({uploadProgress}%)...</span>
                   </>
                 ) : (
                   <>
-                    <Upload className="w-3.5 h-3.5 text-[#25F4EE]" />
+                    <Upload className="w-4 h-4 text-[#25F4EE] group-hover:scale-110 transition-transform" />
                     <span>แนบคลิปเพิ่มเข้าโปรเจกต์</span>
                   </>
                 )}
@@ -1034,7 +1459,7 @@ export default function AssetPanel({
       )}
 
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
-        {/* TAB 8: PROJECT STYLE */}
+        {/* TAB 8: PROJECT STYLE (Compatibility) */}
         {tab === 'style' && (
           <div className="space-y-2">
             <StylePresetPicker
@@ -1068,119 +1493,112 @@ export default function AssetPanel({
 
         {/* TAB 1: CLIPS */}
         {tab === 'clips' && (
-          <div className="space-y-1.5">
-            {visibleFiltered.videos.map((v) => {
-              const usageCount = getClipUsage(v);
-              const isUsed = usageCount > 0;
-              const dur = v.duration || durations?.[v.path] || durations?.[v.rel_path];
-              const durStr = formatDuration(dur);
-
-              return (
-                <div
-                  key={v.path}
-                  className={`group flex items-center justify-between gap-1.5 rounded-xl border p-2 text-left transition-all ${
-                    isUsed
-                      ? 'border-[#25F4EE]/40 bg-[#25F4EE]/[0.05] hover:border-[#25F4EE]'
-                      : 'border-white/[0.08] bg-black/40 hover:border-white/[0.2] hover:bg-white/[0.05]'
-                  }`}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.effectAllowed = 'copy';
-                    e.dataTransfer.setData(
-                      CLIP_DRAG_TYPE,
-                      JSON.stringify({ path: v.path, name: v.name, duration: dur || v.duration })
-                    );
-                  }}
-                >
-                  {/* Left: Preview trigger & Metadata */}
-                  <div
-                    className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer"
-                    onClick={() => onAddClip(v)}
-                    title="คลิกเพื่อต่อท้ายไทม์ไลน์ หรือลากไปวางตรงจุดที่ต้องการ"
-                  >
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPreviewVideo(v);
-                      }}
-                      title="เปิดดูพรีวิวคลิป"
-                      className="h-7 w-7 rounded-lg bg-white/[0.06] hover:bg-[#25F4EE]/20 hover:text-[#25F4EE] text-slate-400 flex items-center justify-center transition-colors cursor-pointer flex-shrink-0"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                    </button>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-xs font-semibold text-slate-200 group-hover:text-white" title={v.name}>
-                          {v.name}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {durStr && (
-                          <span className="text-[10px] font-mono text-slate-400 flex items-center gap-0.5">
-                            <Clock className="w-2.5 h-2.5 text-slate-500" />
-                            {durStr}
-                          </span>
-                        )}
-                        {v.size_mb ? (
-                          <span className="text-[10px] text-slate-500">{v.size_mb} MB</span>
-                        ) : null}
-                        {isUsed ? (
-                          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[9.5px] font-bold">
-                            ในไทม์ไลน์ {usageCount > 1 ? `(${usageCount})` : ''}
-                          </span>
-                        ) : (
-                          <span className="text-[9.5px] text-slate-500">
-                            ยังไม่ใช้
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Quick Add Button */}
-                  <button
-                    type="button"
-                    onClick={() => onAddClip(v)}
-                    title="เพิ่มลงในไทม์ไลน์"
-                    className="h-7 w-7 rounded-lg bg-white/[0.06] hover:bg-[#25F4EE] hover:text-slate-950 text-slate-400 flex items-center justify-center transition-all cursor-pointer flex-shrink-0"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
+          <div className="space-y-2.5">
+            {/* Quick Action: AI Auto-SRT banner */}
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-[#25F4EE]/10 via-blue-500/10 to-transparent border border-[#25F4EE]/20 hover:border-[#25F4EE]/40 transition-all">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-1.5 rounded-lg bg-[#25F4EE]/15 text-[#25F4EE] flex-shrink-0">
+                  <Sparkles className="w-4 h-4" />
                 </div>
-              );
-            })}
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>AI Auto-SRT</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#25F4EE]/20 text-[#25F4EE] font-mono font-semibold">WHISPER</span>
+                  </div>
+                  <p className="text-[10.5px] text-slate-400 truncate">ถอดเสียงคำบรรยายอัตโนมัติลงไทม์ไลน์</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTab('srt')}
+                className="py-1 px-2.5 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 text-xs font-bold transition-all cursor-pointer flex-shrink-0 active:scale-95 shadow-sm shadow-[#25F4EE]/20"
+              >
+                เปิดใช้งาน
+              </button>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1.5">
+              {[
+                { id: 'all', label: `ทั้งหมด (${clipCounts.all})` },
+                { id: 'unused', label: `ยังไม่ใช้ (${clipCounts.unused})` },
+                { id: 'used', label: `ในไทม์ไลน์ (${clipCounts.used})` },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setClipFilter(f.id)}
+                  className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer text-center ${
+                    clipFilter === f.id
+                      ? 'bg-white/[0.12] text-white border border-white/[0.2] shadow-sm'
+                      : 'bg-black/30 text-slate-400 border border-transparent hover:text-slate-200 hover:bg-white/[0.05]'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Clip Cards List */}
+            <div className="space-y-1.5">
+              {visibleFiltered.videos.map((v) => {
+                const usageCount = getClipUsage(v);
+                const dur = v.duration || durations?.[v.path] || durations?.[v.rel_path];
+                const durStr = formatDuration(dur);
+                return (
+                  <ClipCard
+                    key={v.path || v.rel_path || v.name}
+                    video={v}
+                    usageCount={usageCount}
+                    duration={dur}
+                    durStr={durStr}
+                    onPreview={setPreviewVideo}
+                    onAdd={onAddClip}
+                  />
+                );
+              })}
+            </div>
+
             {renderAssetPagination('videos', 'คลิป')}
             {filtered.videos.length === 0 && (
-              <p className="px-1 py-4 text-center text-xs text-slate-500">
-                ไม่มีคลิปที่ตรงกับคำค้น — สามารถกดปุ่มแนบคลิปเพิ่มด้านบนได้เลยครับ
+              <p className="px-1 py-6 text-center text-xs text-slate-500">
+                ไม่มีคลิปที่ตรงกับเงื่อนไข — สามารถกดปุ่มแนบคลิปเพิ่มด้านบนได้เลยครับ
               </p>
             )}
           </div>
         )}
 
-        {/* TAB 2: AI AUTO-SRT SUBTITLES (Consolidated) */}
+        {/* TAB 2: AI AUTO-SRT SUBTITLES (Consolidated subview) */}
         {tab === 'srt' && (
           <div className="space-y-3 text-left">
+            <div className="flex items-center gap-2 pb-1 border-b border-white/[0.08]">
+              <button
+                type="button"
+                onClick={() => setTab('clips')}
+                className="py-1 px-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>กลับไปหน้ารายการคลิป</span>
+              </button>
+            </div>
+
             <div className="p-2.5 rounded-xl bg-gradient-to-r from-[#25F4EE]/10 to-blue-500/10 border border-[#25F4EE]/20 space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-bold text-[#25F4EE]">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>AI Auto-SRT (ถอดซับแม่นยำ)</span>
               </div>
-              <p className="text-sm text-slate-300 leading-tight">
+              <p className="text-xs text-slate-300 leading-tight">
                 ถอดเสียงอัตโนมัติด้วย Whisper + PyThaiNLP แล้วนำเข้าเป็นท่อนคำบรรยายบนไทม์ไลน์ทันที
               </p>
             </div>
 
             {/* Select Media */}
             <div className="space-y-1">
-              <label className="text-sm font-bold text-slate-300">เลือกคลิปหรือเสียง:</label>
+              <label className="text-xs font-bold text-slate-300">เลือกคลิปหรือเสียง:</label>
               <select
                 value={selectedMediaForSrt}
                 onChange={(e) => setSelectedMediaForSrt(e.target.value)}
-                className="w-full py-1.5 px-2 rounded-xl bg-black/60 border border-white/[0.1] text-white text-sm focus:outline-none focus:border-[#25F4EE]"
+                className="w-full py-1.5 px-2 rounded-xl bg-black/60 border border-white/[0.1] text-white text-xs focus:outline-none focus:border-[#25F4EE]"
               >
                 {videos.map((v) => (
                   <option key={v.path} value={v.path} className="bg-[#080B11]">
@@ -1192,11 +1610,11 @@ export default function AssetPanel({
 
             {/* Subtitle Mode */}
             <div className="space-y-1">
-              <label className="text-sm font-bold text-slate-300">รูปแบบภาษา:</label>
+              <label className="text-xs font-bold text-slate-300">รูปแบบภาษา:</label>
               <select
                 value={srtMode}
                 onChange={(e) => setSrtMode(e.target.value)}
-                className="w-full py-1.5 px-2 rounded-xl bg-black/60 border border-white/[0.1] text-white text-sm focus:outline-none focus:border-[#25F4EE]"
+                className="w-full py-1.5 px-2 rounded-xl bg-black/60 border border-white/[0.1] text-white text-xs focus:outline-none focus:border-[#25F4EE]"
               >
                 <option value="bilingual" className="bg-[#080B11]">2 ภาษา (ไทย + แปลอังกฤษ)</option>
                 <option value="mono" className="bg-[#080B11]">ภาษาไทยล้วน</option>
@@ -1206,7 +1624,7 @@ export default function AssetPanel({
 
             {/* Subtitle Density */}
             <div className="space-y-1">
-              <label className="text-sm font-bold text-slate-300">ความยาวประโยค:</label>
+              <label className="text-xs font-bold text-slate-300">ความยาวประโยค:</label>
               <div className="grid grid-cols-3 gap-1">
                 {[
                   { count: 4, label: '4 คำ' },
@@ -1217,7 +1635,7 @@ export default function AssetPanel({
                     key={d.count}
                     type="button"
                     onClick={() => setSrtDensity(d.count)}
-                    className={`py-1 rounded-lg text-sm font-bold border transition-colors ${
+                    className={`py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
                       srtDensity === d.count
                         ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                         : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
@@ -1250,7 +1668,7 @@ export default function AssetPanel({
             </button>
 
             {transcribeError && (
-              <p className="text-sm text-rose-400 bg-rose-500/10 p-2 rounded-xl border border-rose-500/20">
+              <p className="text-xs text-rose-400 bg-rose-500/10 p-2 rounded-xl border border-rose-500/20">
                 {transcribeError}
               </p>
             )}
@@ -1258,18 +1676,18 @@ export default function AssetPanel({
             {/* Transcribe Results & Import Button */}
             {transcribeResult && (
               <div className="p-2.5 rounded-xl bg-black/60 border border-[#25F4EE]/30 space-y-2 animate-fadeIn">
-                <div className="flex items-center justify-between text-sm font-bold text-[#25F4EE]">
+                <div className="flex items-center justify-between text-xs font-bold text-[#25F4EE]">
                   <span>ถอดเสียงสำเร็จ</span>
                   <button
                     type="button"
                     onClick={handleCopySrt}
-                    className="text-sm text-slate-300 hover:text-white flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-slate-300 hover:text-white flex items-center gap-1 cursor-pointer"
                   >
                     {copiedSrt ? <><Check className="w-3 h-3 text-emerald-400" /> คัดลอกแล้ว</> : <><Copy className="w-3 h-3" /> คัดลอก .SRT</>}
                   </button>
                 </div>
 
-                <div className="max-h-28 overflow-y-auto p-1.5 rounded-lg bg-black/40 border border-white/[0.04] text-sm font-mono text-slate-300 space-y-1 select-all">
+                <div className="max-h-28 overflow-y-auto p-1.5 rounded-lg bg-black/40 border border-white/[0.04] text-xs font-mono text-slate-300 space-y-1 select-all">
                   {transcribeResult.content || 'ไม่มีข้อความ'}
                 </div>
 
@@ -1277,14 +1695,14 @@ export default function AssetPanel({
                 <button
                   type="button"
                   onClick={handleImportToTimeline}
-                  className="w-full py-1.5 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all"
+                  className="w-full py-1.5 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all"
                 >
                   <Layers className="w-3.5 h-3.5" />
                   <span>นำเข้าสู่ไทม์ไลน์ (Import to Timeline)</span>
                 </button>
 
                 {importedSuccess && (
-                  <p className="text-sm text-emerald-400 text-center font-bold">
+                  <p className="text-xs text-emerald-400 text-center font-bold">
                     ✓ นำเข้าคำบรรยายลงไทม์ไลน์เรียบร้อยแล้ว
                   </p>
                 )}
@@ -1293,135 +1711,229 @@ export default function AssetPanel({
           </div>
         )}
 
-        {/* TAB 3: AUDIO */}
+        {/* TAB 3: AUDIO (Segmented BGM & SFX) */}
         {tab === 'audio' && (
-          <>
-            <p className="px-1 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              เพลงประกอบ (ทั้งคลิป)
-            </p>
-
-            <div className="mb-2 space-y-2 rounded-xl border border-white/[0.08] bg-black/40 p-2.5">
-              <label className="block">
-                <span className="mb-1 flex justify-between text-xs text-slate-300">
-                  <span>ระดับเสียงเพลง (BGM)</span>
-                  <span className="font-mono text-[#25F4EE] font-bold">{Math.round((style.bgmVolume ?? 0.12) * 100)}%</span>
-                </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={style.bgmVolume ?? 0.12}
-                  onChange={(e) => onStyleChange({ bgmVolume: parseFloat(e.target.value) })}
-                  className="w-full accent-[#25F4EE]"
-                />
-              </label>
-
-              <div className="grid grid-cols-4 gap-1">
-                {[0.08, 0.15, 0.25, 0.40].map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => onStyleChange({ bgmVolume: v })}
-                    className={`py-1 rounded-lg text-[10px] font-mono font-bold border transition-all cursor-pointer ${
-                      Math.abs((style.bgmVolume ?? 0.12) - v) < 0.03
-                        ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
-                        : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {Math.round(v * 100)}%
-                  </button>
-                ))}
-              </div>
-
+          <div className="space-y-2.5">
+            {/* Segmented Switcher */}
+            <div className="grid grid-cols-2 gap-1 p-1 bg-black/40 rounded-xl border border-white/[0.08]">
               <button
                 type="button"
-                onClick={() => onStyleChange({ bgmDucking: !style.bgmDucking })}
-                aria-pressed={!!style.bgmDucking}
-                className={`w-full rounded-lg border py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                  style.bgmDucking
-                    ? 'border-[#25F4EE] bg-[#25F4EE]/20 text-[#25F4EE]'
-                    : 'border-white/[0.08] bg-black/40 text-slate-300 hover:text-white'
+                onClick={() => setAudioSubTab('bgm')}
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  audioSubTab === 'bgm'
+                    ? 'bg-[#25F4EE] text-slate-950 shadow'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
-                {style.bgmDucking ? '✓ ลดเสียงเพลงอัตโนมัติขณะพูด (Auto-Duck)' : 'ลดเสียงเพลงอัตโนมัติขณะพูด (Auto-Duck)'}
+                เพลงพื้นหลัง (BGM)
               </button>
-              <p className="text-[11px] leading-relaxed text-slate-500">
-                เปิดแล้วเพลงจะเบาลง ~12 dB ระหว่างมีเสียงพูด และค่อยๆ ดังกลับตอนเว้นวรรค
-              </p>
+              <button
+                type="button"
+                onClick={() => setAudioSubTab('sfx')}
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  audioSubTab === 'sfx'
+                    ? 'bg-[#25F4EE] text-slate-950 shadow'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
+                }`}
+              >
+                เสียงเอฟเฟกต์ (SFX)
+              </button>
             </div>
 
-            <Row active={!style.bgmName} onClick={() => onStyleChange({ bgmName: null })}>
-              <Music className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-              <span className="min-w-0 flex-1 truncate text-sm text-slate-200">เสียงหลักของช่อง</span>
-              {!style.bgmName && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
-            </Row>
-            {visibleFiltered.music.map((m) => {
-              const isPlayingThis = previewingAudio === `/api/media/${m.file?.rel_path}`;
-              return (
-                <Row
-                  key={m.id}
-                  active={style.bgmName === m.id}
-                  onClick={() => onStyleChange({ bgmName: m.id })}
-                  title={m.name}
-                >
-                  {m.file ? (
-                    <button
-                      type="button"
-                      onClick={(e) => toggleAudioPreview(e, m.file.rel_path)}
-                      className={`p-1 rounded-md transition-colors cursor-pointer mr-1 ${
-                        isPlayingThis ? 'bg-[#25F4EE] text-black animate-pulse' : 'bg-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.15]'
-                      }`}
-                      title={isPlayingThis ? 'หยุดฟัง' : 'ลองฟังเสียง'}
-                    >
-                      {isPlayingThis ? <Square className="h-3 w-3 fill-current" /> : <Play className="h-3 w-3 fill-current" />}
-                    </button>
-                  ) : (
-                    <Music className="h-3.5 w-3.5 flex-shrink-0 text-slate-400 mr-1" />
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{m.label_th || m.name}</span>
-                  {style.bgmName === m.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
-                </Row>
-              );
-            })}
-            {renderAssetPagination('music', 'เพลง')}
+            {audioSubTab === 'bgm' && (
+              <div className="space-y-2">
+                {/* ACTIVE AUDIO STATUS BANNER */}
+                <div className="rounded-xl border border-white/[0.1] bg-gradient-to-r from-[#141A22] via-[#101720] to-[#0D1219] p-3 shadow-md space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="p-2 rounded-lg bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 flex-shrink-0 shadow-inner">
+                        <Music className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[10px] text-slate-400 font-medium">เพลงพื้นหลังที่กำลังใช้งาน (BGM)</div>
+                        <div className="text-xs font-bold text-white truncate flex items-center gap-1.5">
+                          <span className="text-[#25F4EE] truncate">{activeBgmInfo.label}</span>
+                          {activeBgmInfo.isExplicit ? (
+                            <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex-shrink-0">
+                              🎵 กำหนดเอง
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 flex-shrink-0">
+                              ⚡ เพลงหลักของช่อง
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
-            <p className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              เสียงเอฟเฟกต์ {selectedCaption ? '(ใส่ให้ท่อนที่เลือก)' : '(เลือกท่อนคำบรรยายก่อน)'}
-            </p>
-            {visibleFiltered.sfx.map((s) => {
-              const rel = s.rel_path || s.file?.rel_path;
-              const isPlayingThis = previewingAudio === `/api/media/${rel}`;
-              return (
-                <Row
-                  key={s.id}
-                  active={selectedCaption?.sfx === s.id}
-                  onClick={() => selectedCaption && onAssignSfx(s.id)}
-                  title={selectedCaption ? `ใส่ ${s.name}` : 'เลือกท่อนคำบรรยายบนไทม์ไลน์ก่อน'}
-                >
-                  {rel ? (
-                    <button
-                      type="button"
-                      onClick={(e) => toggleAudioPreview(e, rel)}
-                      className={`p-1 rounded-md transition-colors cursor-pointer mr-1 ${
-                        isPlayingThis ? 'bg-[#25F4EE] text-black animate-pulse' : 'bg-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.15]'
-                      }`}
-                      title={isPlayingThis ? 'หยุดฟัง' : 'ลองฟังเสียง'}
+                    {activeBgmInfo.isExplicit && (
+                      <button
+                        type="button"
+                        onClick={() => onStyleChange({ bgmName: null })}
+                        title="รีเซ็ตกลับไปใช้เพลงหลักของช่อง"
+                        className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white border border-white/[0.08] transition-all cursor-pointer flex-shrink-0"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>รีเซ็ตดีฟอลต์</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-xl border border-white/[0.08] bg-black/40 p-2.5">
+                  <label className="block">
+                    <span className="mb-1 flex justify-between text-xs text-slate-300">
+                      <span>ระดับเสียงเพลง (BGM)</span>
+                      <span className="font-mono text-[#25F4EE] font-bold">{Math.round((style.bgmVolume ?? 0.12) * 100)}%</span>
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={style.bgmVolume ?? 0.12}
+                      onChange={(e) => onStyleChange({ bgmVolume: parseFloat(e.target.value) })}
+                      className="w-full accent-[#25F4EE]"
+                    />
+                  </label>
+
+                  <div className="grid grid-cols-4 gap-1">
+                    {[0.08, 0.15, 0.25, 0.40].map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => onStyleChange({ bgmVolume: v })}
+                        className={`py-1 rounded-lg text-[10px] font-mono font-bold border transition-all cursor-pointer ${
+                          Math.abs((style.bgmVolume ?? 0.12) - v) < 0.03
+                            ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                            : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {Math.round(v * 100)}%
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => onStyleChange({ bgmDucking: !style.bgmDucking })}
+                    aria-pressed={!!style.bgmDucking}
+                    className={`w-full rounded-lg border py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                      style.bgmDucking
+                        ? 'border-[#25F4EE] bg-[#25F4EE]/20 text-[#25F4EE]'
+                        : 'border-white/[0.08] bg-black/40 text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    {style.bgmDucking ? '✓ ลดเสียงเพลงอัตโนมัติขณะพูด (Auto-Duck)' : 'ลดเสียงเพลงอัตโนมัติขณะพูด (Auto-Duck)'}
+                  </button>
+                  <p className="text-[11px] leading-relaxed text-slate-500">
+                    เปิดแล้วเพลงจะเบาลง ~12 dB ระหว่างมีเสียงพูด และค่อยๆ ดังกลับตอนเว้นวรรค
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Row
+                    active={!activeBgmInfo.isExplicit}
+                    onClick={() => onStyleChange({ bgmName: null })}
+                    title={`เพลงหลักของช่อง (ดีฟอลต์: ${activeBgmInfo.defaultLabel})`}
+                  >
+                    <Music className={`h-3.5 w-3.5 flex-shrink-0 mr-1 ${!activeBgmInfo.isExplicit ? 'text-[#25F4EE]' : 'text-slate-400'}`} />
+                    <div className="min-w-0 flex-1 truncate flex flex-col">
+                      <span className={`text-xs truncate ${!activeBgmInfo.isExplicit ? 'text-[#25F4EE] font-bold' : 'text-slate-200'}`}>
+                        เสียงหลักของช่อง
+                      </span>
+                      <span className="text-[10px] text-slate-500 truncate">
+                        ค่าเริ่มต้น: {activeBgmInfo.defaultLabel}
+                      </span>
+                    </div>
+                    {!activeBgmInfo.isExplicit && (
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#25F4EE] text-slate-950 shadow-sm shadow-[#25F4EE]/25 flex-shrink-0">
+                        <Check className="h-3 w-3 stroke-[3]" />
+                        กำลังใช้งาน
+                      </span>
+                    )}
+                  </Row>
+                  {visibleFiltered.music.map((m) => {
+                    const isPlayingThis = previewingAudio === `/api/media/${m.file?.rel_path}`;
+                    const isActive = isTrackActive(m);
+                    return (
+                      <Row
+                        key={m.id}
+                        active={isActive}
+                        onClick={() => onStyleChange({ bgmName: m.id })}
+                        title={m.name}
+                      >
+                        {m.file ? (
+                          <button
+                            type="button"
+                            onClick={(e) => toggleAudioPreview(e, m.file.rel_path)}
+                            className={`p-1 rounded-md transition-colors cursor-pointer mr-1 ${
+                              isPlayingThis ? 'bg-[#25F4EE] text-black animate-pulse' : 'bg-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.15]'
+                            }`}
+                            title={isPlayingThis ? 'หยุดฟัง' : 'ลองฟังเสียง'}
+                          >
+                            {isPlayingThis ? <Square className="h-3 w-3 fill-current" /> : <Play className="h-3 w-3 fill-current" />}
+                          </button>
+                        ) : (
+                          <Music className={`h-3.5 w-3.5 flex-shrink-0 mr-1 ${isActive ? 'text-[#25F4EE]' : 'text-slate-400'}`} />
+                        )}
+                        <span className={`min-w-0 flex-1 truncate text-xs ${isActive ? 'text-[#25F4EE] font-bold' : 'text-slate-200'}`}>
+                          {m.label_th || m.name}
+                        </span>
+                        {isActive && (
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#25F4EE] text-slate-950 shadow-sm shadow-[#25F4EE]/25 flex-shrink-0">
+                            <Check className="h-3 w-3 stroke-[3]" />
+                            กำลังใช้งาน
+                          </span>
+                        )}
+                      </Row>
+                    );
+                  })}
+                  {renderAssetPagination('music', 'เพลง')}
+                </div>
+              </div>
+            )}
+
+            {audioSubTab === 'sfx' && (
+              <div className="space-y-1">
+                <p className="px-1 py-1 text-xs font-semibold text-slate-400">
+                  {selectedCaption ? 'ใส่เสียงเอฟเฟกต์ให้ท่อนที่เลือก:' : 'เลือกท่อนคำบรรยายบนไทม์ไลน์ก่อนใส่ SFX:'}
+                </p>
+                {visibleFiltered.sfx.map((s) => {
+                  const rel = s.rel_path || s.file?.rel_path;
+                  const isPlayingThis = previewingAudio === `/api/media/${rel}`;
+                  return (
+                    <Row
+                      key={s.id}
+                      active={selectedCaption?.sfx === s.id}
+                      onClick={() => selectedCaption && onAssignSfx(s.id)}
+                      title={selectedCaption ? `ใส่ ${s.name}` : 'เลือกท่อนคำบรรยายบนไทม์ไลน์ก่อน'}
                     >
-                      {isPlayingThis ? <Square className="h-3 w-3 fill-current" /> : <Play className="h-3 w-3 fill-current" />}
-                    </button>
-                  ) : (
-                    <Volume2 className={`h-3.5 w-3.5 flex-shrink-0 mr-1 ${selectedCaption ? 'text-slate-400' : 'text-slate-600'}`} />
-                  )}
-                  <span className={`min-w-0 flex-1 truncate text-sm ${selectedCaption ? 'text-slate-200' : 'text-slate-500'}`}>
-                    {s.label_th || s.name}
-                  </span>
-                  {selectedCaption?.sfx === s.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
-                </Row>
-              );
-            })}
-            {renderAssetPagination('sfx', 'SFX')}
-          </>
+                      {rel ? (
+                        <button
+                          type="button"
+                          onClick={(e) => toggleAudioPreview(e, rel)}
+                          className={`p-1 rounded-md transition-colors cursor-pointer mr-1 ${
+                            isPlayingThis ? 'bg-[#25F4EE] text-black animate-pulse' : 'bg-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.15]'
+                          }`}
+                          title={isPlayingThis ? 'หยุดฟัง' : 'ลองฟังเสียง'}
+                        >
+                          {isPlayingThis ? <Square className="h-3 w-3 fill-current" /> : <Play className="h-3 w-3 fill-current" />}
+                        </button>
+                      ) : (
+                        <Volume2 className={`h-3.5 w-3.5 flex-shrink-0 mr-1 ${selectedCaption ? 'text-slate-400' : 'text-slate-600'}`} />
+                      )}
+                      <span className={`min-w-0 flex-1 truncate text-xs ${selectedCaption ? 'text-slate-200' : 'text-slate-500'}`}>
+                        {s.label_th || s.name}
+                      </span>
+                      {selectedCaption?.sfx === s.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
+                    </Row>
+                  );
+                })}
+                {renderAssetPagination('sfx', 'SFX')}
+              </div>
+            )}
+          </div>
         )}
 
         {/* TAB 4: TEXT / TEMPLATES & FONTS */}
@@ -1456,6 +1968,69 @@ export default function AssetPanel({
             {/* SUB-TAB 1: 3-TIER HOOK TEMPLATES */}
             {textSubTab === 'hook' && (
               <div className="flex flex-col gap-3">
+                {/* ACTIVE HOOK STATUS BANNER */}
+                <div className="rounded-xl border border-white/[0.1] bg-gradient-to-r from-[#18181B] via-[#1F1F24] to-[#121214] p-3 shadow-md space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`p-2 rounded-lg flex-shrink-0 shadow-inner ${
+                        hookCustomizationInfo.isModified
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          : hookCustomizationInfo.exists
+                            ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40'
+                            : 'bg-white/[0.05] text-slate-400 border border-white/[0.08]'
+                      }`}>
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[10px] text-slate-400 font-medium">ป้ายฮุกที่ใช้อยู่ในคลิปนี้</div>
+                        <div className="text-xs font-bold text-white truncate flex items-center gap-1.5 flex-wrap">
+                          <span className={hookCustomizationInfo.exists ? 'text-white' : 'text-slate-400'}>
+                            {hookCustomizationInfo.templateName}
+                          </span>
+                          {hookCustomizationInfo.isModified ? (
+                            <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 flex-shrink-0">
+                              ✏️ คัสตอม/ปรับแต่งเอง
+                            </span>
+                          ) : hookCustomizationInfo.isCustomTemplate ? (
+                            <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 flex-shrink-0">
+                              🌟 แม่แบบของฉัน
+                            </span>
+                          ) : hookCustomizationInfo.exists ? (
+                            <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex-shrink-0">
+                              ✓ แม่แบบมาตรฐาน
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700 flex-shrink-0">
+                              ยังไม่ได้เพิ่ม
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {hookCustomizationInfo.isModified && onResetHookTemplate && (
+                      <button
+                        type="button"
+                        onClick={onResetHookTemplate}
+                        title="คืนค่าสีและสไตล์กลับสู่แม่แบบเดิม"
+                        className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all cursor-pointer flex-shrink-0"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>คืนค่าแม่แบบ</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {hookCustomizationInfo.summaryText && (
+                    <div className="flex items-center justify-between text-[11px] px-2.5 py-1 rounded-lg bg-black/40 border border-white/[0.04] text-slate-300">
+                      <span className="text-slate-400 text-[10px] flex-shrink-0">พาดหัว:</span>
+                      <span className="font-medium truncate ml-2 text-right text-slate-200" title={hookCustomizationInfo.summaryText}>
+                        {hookCustomizationInfo.summaryText}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 {/* Custom Hook Templates */}
                 {Object.keys(customHookTemplates || {}).length > 0 && (
                   <div className="flex flex-col gap-1.5">
@@ -1466,55 +2041,74 @@ export default function AssetPanel({
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(customHookTemplates).map(([key, tpl]) => (
-                        <div
-                          key={key}
-                          data-text-template-card="true"
-                          onClick={() => onApplyHookTemplate?.(key)}
-                          title={tpl.label_th}
-                          className={`group relative flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer ${
-                            activeHookTemplate === key
-                              ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-lg shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/50'
-                              : 'border-[#25F4EE]/30 bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#25F4EE]'
-                          }`}
-                        >
-                          <div className="relative flex h-20 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1.5">
-                            <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
-                            <div className={`w-full flex flex-col items-center justify-center gap-0.5 relative z-10 transition-transform duration-200 ${getMotionPreviewClass(tpl.motion)}`}>
-                              {TIER_KEYS.map((tierKey, i) => (
-                                <TextLookPreview
-                                  key={tierKey}
-                                  look={hookCardLook(tpl, tierKey)}
-                                  text={HOOK_CARD_SAMPLE[i]}
-                                  baseFsRatio={HOOK_FS_RATIO}
-                                  scale={0.19}
-                                />
-                              ))}
+                      {Object.entries(customHookTemplates).map(([key, tpl]) => {
+                        const isActive = activeHookTemplate === key;
+                        return (
+                          <div
+                            key={key}
+                            data-text-template-card="true"
+                            onClick={() => onApplyHookTemplate?.(key)}
+                            title={tpl.label_th}
+                            className={`group relative flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer ${
+                              isActive
+                                ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-lg shadow-[#25F4EE]/25 ring-2 ring-[#25F4EE]/60'
+                                : 'border-[#25F4EE]/30 bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#25F4EE]'
+                            }`}
+                          >
+                            <div className="relative flex h-20 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1.5">
+                              <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+                              {(tpl.motion?.loop === 'lightsweep' || tpl.motion?.in === 'lightsweep') && (
+                                <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-lg">
+                                  <div className="w-2/3 h-full opacity-0 group-hover:opacity-100 animate-sheen-sweep bg-gradient-to-r from-transparent via-white/25 to-transparent -skew-x-25 transition-opacity" />
+                                </div>
+                              )}
+                              <div className="w-full flex flex-col items-center justify-center gap-0.5 relative z-10">
+                                {TIER_KEYS.map((tierKey, i) => (
+                                  <div
+                                    key={tierKey}
+                                    className={`inline-block ${getMotionPreviewClass(tpl.motion)}`}
+                                    style={{ transformOrigin: 'center center' }}
+                                  >
+                                    <TextLookPreview
+                                      look={hookCardLook(tpl, tierKey)}
+                                      text={hookCardSampleText[i]}
+                                      baseFsRatio={HOOK_FS_RATIO}
+                                      scale={0.19}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                              {isActive && (
+                                <div className="absolute top-1 left-1 z-20 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#25F4EE] text-slate-950 text-[9px] font-black shadow-md shadow-black/50">
+                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                  <span>{hookCustomizationInfo.isModified ? 'ใช้งานอยู่ (คัสตอม)' : 'กำลังใช้งาน'}</span>
+                                </div>
+                              )}
+                              {!isActive && onDeleteCustomHookTemplate && (
+                                <button
+                                  type="button"
+                                  title="ลบสไตล์นี้"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`ต้องการลบแม่แบบ "${tpl.label_th}" หรือไม่?`)) {
+                                      onDeleteCustomHookTemplate(key);
+                                    }
+                                  }}
+                                  className="absolute top-1 left-1 p-1 rounded bg-black/80 text-rose-400 hover:text-rose-200 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                              <span className="absolute top-1 right-1 px-1 py-0.2 text-[8px] font-mono font-bold rounded bg-black/70 text-[#25F4EE] border border-[#25F4EE]/30">
+                                {(tpl.motion?.loop || tpl.motion?.in || '').toUpperCase()}
+                              </span>
                             </div>
-                            {onDeleteCustomHookTemplate && (
-                              <button
-                                type="button"
-                                title="ลบสไตล์นี้"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (window.confirm(`ต้องการลบแม่แบบ "${tpl.label_th}" หรือไม่?`)) {
-                                    onDeleteCustomHookTemplate(key);
-                                  }
-                                }}
-                                className="absolute top-1 left-1 p-1 rounded bg-black/80 text-rose-400 hover:text-rose-200 opacity-0 group-hover:opacity-100 transition-opacity z-20"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            )}
-                            <span className="absolute top-1 right-1 px-1 py-0.2 text-[8px] font-mono font-bold rounded bg-black/70 text-[#25F4EE] border border-[#25F4EE]/30">
-                              {(tpl.motion?.loop || tpl.motion?.in || '').toUpperCase()}
+                            <span className={`truncate text-[10px] font-semibold ${isActive ? 'text-[#25F4EE]' : 'text-slate-200 group-hover:text-[#25F4EE]'}`}>
+                              {tpl.label_th}
                             </span>
                           </div>
-                          <span className="truncate text-[10px] font-semibold text-slate-200 group-hover:text-[#25F4EE]">
-                            {tpl.label_th}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1527,41 +2121,61 @@ export default function AssetPanel({
                   <div className="grid grid-cols-2 gap-2">
                     {Object.entries(hookTemplates || {})
                       .filter(([k]) => !['tech', 'cute', 'bold_pop', 'plain', 'clean', 'flash_sale', 'neon_cyber', 'minimal_luxury'].includes(k) || activeHookTemplate === k)
-                      .map(([key, tpl]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        data-text-template-card="true"
-                        onClick={() => onApplyHookTemplate?.(key)}
-                        title={tpl.label_th}
-                        className={`group flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer ${
-                          activeHookTemplate === key
-                            ? 'border-[#E6C24A] bg-[#E6C24A]/10 shadow-lg shadow-[#E6C24A]/20 ring-1 ring-[#E6C24A]/50'
-                            : 'border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#E6C24A]/60'
-                        }`}
-                      >
-                        <div className="relative flex h-20 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1.5">
-                          <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
-                          <div className={`w-full flex flex-col items-center justify-center gap-0.5 relative z-10 transition-transform duration-200 ${getMotionPreviewClass(tpl.motion)}`}>
-                            {TIER_KEYS.map((tierKey, i) => (
-                              <TextLookPreview
-                                key={tierKey}
-                                look={hookCardLook(tpl, tierKey)}
-                                text={HOOK_CARD_SAMPLE[i]}
-                                baseFsRatio={HOOK_FS_RATIO}
-                                scale={0.19}
-                              />
-                            ))}
-                          </div>
-                          <span className="absolute top-1 right-1 px-1 py-0.2 text-[8px] font-mono font-bold rounded bg-black/70 text-[#E6C24A] border border-[#E6C24A]/30">
-                            {(tpl.motion?.loop || tpl.motion?.in || '').toUpperCase()}
-                          </span>
-                        </div>
-                        <span className="truncate text-[10px] font-semibold text-slate-300">
-                          {tpl.label_th}
-                        </span>
-                      </button>
-                    ))}
+                      .map(([key, tpl]) => {
+                        const isActive = activeHookTemplate === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            data-text-template-card="true"
+                            onClick={() => onApplyHookTemplate?.(key)}
+                            title={tpl.label_th}
+                            className={`group relative flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer ${
+                              isActive
+                                ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-lg shadow-[#25F4EE]/25 ring-2 ring-[#25F4EE]/60'
+                                : 'border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#25F4EE]/40'
+                            }`}
+                          >
+                            <div className="relative flex h-20 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1.5">
+                              <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+                              {(tpl.motion?.loop === 'lightsweep' || tpl.motion?.in === 'lightsweep') && (
+                                <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-lg">
+                                  <div className="w-2/3 h-full opacity-0 group-hover:opacity-100 animate-sheen-sweep bg-gradient-to-r from-transparent via-white/25 to-transparent -skew-x-25 transition-opacity" />
+                                </div>
+                              )}
+                              <div className="w-full flex flex-col items-center justify-center gap-0.5 relative z-10">
+                                {TIER_KEYS.map((tierKey, i) => (
+                                  <div
+                                    key={tierKey}
+                                    className={`inline-block ${getMotionPreviewClass(tpl.motion)}`}
+                                    style={{ transformOrigin: 'center center' }}
+                                  >
+                                    <TextLookPreview
+                                      key={tierKey}
+                                      look={hookCardLook(tpl, tierKey)}
+                                      text={hookCardSampleText[i]}
+                                      baseFsRatio={HOOK_FS_RATIO}
+                                      scale={0.19}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                              {isActive && (
+                                <div className="absolute top-1 left-1 z-20 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#25F4EE] text-slate-950 text-[9px] font-black shadow-md shadow-black/50">
+                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                  <span>{hookCustomizationInfo.isModified ? 'ใช้งานอยู่ (คัสตอม)' : 'กำลังใช้งาน'}</span>
+                                </div>
+                              )}
+                              <span className="absolute top-1 right-1 px-1 py-0.2 text-[8px] font-mono font-bold rounded bg-black/70 text-[#E6C24A] border border-[#E6C24A]/30">
+                                {(tpl.motion?.loop || tpl.motion?.in || '').toUpperCase()}
+                              </span>
+                            </div>
+                            <span className={`truncate text-[10px] font-semibold ${isActive ? 'text-[#25F4EE]' : 'text-slate-300'}`}>
+                              {tpl.label_th}
+                            </span>
+                          </button>
+                        );
+                      })}
                   </div>
                 </div>
               </div>
@@ -1653,11 +2267,16 @@ export default function AssetPanel({
                     {/* Visual Style Preview Card (CSS typography preview) */}
                     <div className="w-full h-20 rounded-lg bg-black/60 border border-white/[0.04] flex flex-col items-center justify-center p-1.5 overflow-hidden text-center select-none relative group-hover:bg-black/40 transition-colors">
                       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:8px_8px]" />
+                      {tpl.anim === 'lightsweep' && (
+                        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-lg">
+                          <div className="w-2/3 h-full opacity-0 group-hover:opacity-100 animate-sheen-sweep bg-gradient-to-r from-transparent via-white/25 to-transparent -skew-x-25 transition-opacity" />
+                        </div>
+                      )}
                       <TextLookPreview
                         look={templateLook(tpl)}
                         text={tpl.text}
                         scale={0.34}
-                        className="relative z-10 max-w-full px-1 transition-transform duration-200 group-hover:scale-105"
+                        className={`relative z-10 max-w-full px-1 transition-transform duration-200 ${getMotionPreviewClass(tpl.anim)}`}
                       />
                       {isPreviewing && (
                         <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-[#25F4EE] text-[9px] font-bold text-black shadow animate-pulse">

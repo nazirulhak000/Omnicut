@@ -191,7 +191,11 @@ def build_shot_list(beat_cues: List[Dict[str, Any]], product_name: str, category
     return shot_list
 
 
-def _find_angle(product: Dict[str, Any], angle_id: str) -> Optional[Dict[str, Any]]:
+def _find_angle(product: Dict[str, Any], angle_id: str, batch: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    if batch is not None:
+        for a in product.get("angles", []):
+            if (a.get("angle_id") or a.get("id")) == angle_id and (a.get("batch") or 1) == batch:
+                return a
     return next(
         (a for a in product.get("angles", []) if (a.get("angle_id") or a.get("id")) == angle_id),
         None,
@@ -202,6 +206,7 @@ def generate_shot_list_for_angle(
     product_id: str,
     angle_id: str,
     voice_overrides: Optional[Dict[str, Any]] = None,
+    batch: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Orchestrates: look up the angle's script -> run ScriptStage+VoiceStage
     on a scratch context (no raw video, no SubtitleStage) -> build the shot
@@ -213,9 +218,10 @@ def generate_shot_list_for_angle(
     product = ProductStore.get(product_id)
     if not product:
         raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
-    angle = _find_angle(product, angle_id)
+    angle = _find_angle(product, angle_id, batch=batch)
     if not angle:
         raise ValueError(f"ไม่พบมุม '{angle_id}' ในสินค้านี้")
+    assigned_batch = angle.get("batch") or batch or 1
 
     lines = angle.get("tts_lines") or angle.get("script_lines") or []
     lines = [str(line).strip() for line in lines if str(line).strip()]
@@ -224,7 +230,8 @@ def generate_shot_list_for_angle(
     custom_script = "\n".join(lines)
 
     product_name = product.get("name") or product_id
-    project_dir = PROJECTS_DIR / "_ShotLists" / f"{product_id}_{angle_id}"
+    batch_suffix = f"_b{assigned_batch}" if assigned_batch > 1 else ""
+    project_dir = PROJECTS_DIR / "_ShotLists" / f"{product_id}_{angle_id}{batch_suffix}"
     project_dir.mkdir(parents=True, exist_ok=True)
 
     voice_engine_type = voice_overrides.get("voice_engine_type") or angle.get("voice_engine_type") or "gemini_tts"
@@ -235,7 +242,7 @@ def generate_shot_list_for_angle(
     ctx = PipelineContext(
         product_name=product_name,
         raw_video_path="",
-        project_name=f"_ShotLists_{product_id}_{angle_id}",
+        project_name=f"_ShotLists_{product_id}_{angle_id}{batch_suffix}",
         custom_script=custom_script,
         script_overlays=None,
         voice=voice_overrides.get("voice") or DEFAULT_VOICE,
@@ -261,9 +268,10 @@ def generate_shot_list_for_angle(
     shot_list = build_shot_list(ctx.beat_cues, product_name, category=category)
 
     record = {
-        "id": f"{product_id}:{angle_id}",
+        "id": f"{product_id}:{angle_id}{batch_suffix}",
         "product_id": product_id,
         "angle_id": angle_id,
+        "batch": assigned_batch,
         "product_name": product_name,
         "shot_list": shot_list,
         "voice_audio_path": str(ctx.voice_audio_path),
@@ -273,7 +281,7 @@ def generate_shot_list_for_angle(
         "voice_params": {key: getattr(ctx, key) for key in _VOICE_OVERRIDE_KEYS},
         "total_duration": ctx.total_duration,
     }
-    ShotListsStore.upsert(record)
+    ShotListsStore.upsert(record, batch=assigned_batch)
 
     try:
         ProductStore.update_angle_voice(
@@ -282,6 +290,7 @@ def generate_shot_list_for_angle(
             voice_preset=voice_preset,
             voice_engine_type=voice_engine_type,
             ad_tone=ad_tone,
+            batch=assigned_batch,
         )
     except Exception as update_err:
         print(f"[ShotList] Note: Could not update angle with voice settings: {update_err}")

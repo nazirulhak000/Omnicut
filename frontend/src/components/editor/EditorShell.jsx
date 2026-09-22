@@ -422,6 +422,11 @@ export default function EditorShell({
     setSelection({ type: 'hook', id: hookOverlay.id });
   }, [hookOverlay, handleAddOverlay, handleReplaceOverlay, projectProductName, productContext]);
 
+  const handleResetHookTemplate = useCallback(() => {
+    if (!hookOverlay) return;
+    handleReplaceOverlay(hookOverlay.id, withHookTemplateReset(hookOverlay));
+  }, [hookOverlay, handleReplaceOverlay]);
+
   /** A template card dropped on the timeline, starting where it was let go. */
   const handleDropTextTemplate = useCallback((tpl, atSeconds) => {
     if (!tpl) return;
@@ -2278,7 +2283,9 @@ export default function EditorShell({
                       customHookTemplates={customHookTemplates}
                       onDeleteCustomHookTemplate={handleDeleteCustomHookTemplate}
                       activeHookTemplate={hookOverlay?.template || null}
+                      hookOverlay={hookOverlay}
                       onApplyHookTemplate={handleApplyHookTemplate}
+                      onResetHookTemplate={handleResetHookTemplate}
                       previewTextTemplate={previewTextTemplate}
                       activeTextTemplateId={selection?.type === 'text_overlay' ? overlays.find((o) => o.id === selection.id)?.template_id : null}
                       onStyleChange={patchStyle}
@@ -2425,7 +2432,9 @@ export default function EditorShell({
                         customHookTemplates={customHookTemplates}
                         onDeleteCustomHookTemplate={handleDeleteCustomHookTemplate}
                         activeHookTemplate={hookOverlay?.template || null}
+                        hookOverlay={hookOverlay}
                         onApplyHookTemplate={handleApplyHookTemplate}
+                        onResetHookTemplate={handleResetHookTemplate}
                         previewTextTemplate={previewTextTemplate}
                         activeTextTemplateId={selection?.type === 'text_overlay' ? overlays.find((o) => o.id === selection.id)?.template_id : null}
                         onStyleChange={patchStyle}

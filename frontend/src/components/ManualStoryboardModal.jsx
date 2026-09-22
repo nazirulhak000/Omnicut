@@ -88,7 +88,7 @@ export default function ManualStoryboardModal({
     setError(null);
     setSaveToast(null);
 
-    getManualShotMap(productId, angleId)
+    getManualShotMap(productId, angleId, angle?.batch || 1)
       .then((res) => {
         if (cancelled) return;
         setBeatCues(res.beat_cues || []);
@@ -353,7 +353,7 @@ export default function ManualStoryboardModal({
         trim_end: Number(p.trim_end),
       }));
 
-      await saveManualShotMap(productId, angleId, pinArray);
+      await saveManualShotMap(productId, angleId, pinArray, angle?.batch || 1);
       setSaveToast(`บันทึกแผนช็อตเรียบร้อยแล้ว (${pinArray.length} วรรค)`);
       setTimeout(() => setSaveToast(null), 3500);
 
@@ -366,8 +366,9 @@ export default function ManualStoryboardModal({
   };
 
   const handleOpenSyncModal = () => {
+    const currentBatch = angle?.batch || 1;
     const otherIds = (product?.angles || [])
-      .filter(a => (a.angle_id || a.id) !== angleId)
+      .filter(a => (a.angle_id || a.id) !== angleId || (a.batch || 1) !== currentBatch)
       .map(a => a.angle_id || a.id);
     setSelectedSyncAngleIds(new Set(otherIds));
     setSyncModalOpen(true);
@@ -383,8 +384,9 @@ export default function ManualStoryboardModal({
   };
 
   const handleSelectAllSyncAngles = () => {
+    const currentBatch = angle?.batch || 1;
     const otherIds = (product?.angles || [])
-      .filter(a => (a.angle_id || a.id) !== angleId)
+      .filter(a => (a.angle_id || a.id) !== angleId || (a.batch || 1) !== currentBatch)
       .map(a => a.angle_id || a.id);
     setSelectedSyncAngleIds(new Set(otherIds));
   };
@@ -404,11 +406,12 @@ export default function ManualStoryboardModal({
         trim_start: Number(p.trim_start),
         trim_end: Number(p.trim_end),
       }));
-      await saveManualShotMap(productId, angleId, pinArray);
+      await saveManualShotMap(productId, angleId, pinArray, angle?.batch || 1);
 
       const payload = {
         target_angle_ids: Array.from(selectedSyncAngleIds),
         overwrite_policy: syncOverwritePolicy,
+        batch: angle?.batch || 1,
       };
       const res = await syncManualShotMap(productId, angleId, payload);
       setSyncModalOpen(false);

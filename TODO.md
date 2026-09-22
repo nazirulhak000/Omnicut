@@ -2,24 +2,6 @@
 
 สมุดบันทึกรอบงานที่ **ยังไม่เสร็จ** ของโปรเจกต์นี้ — ทุกงานต้องผ่านไฟล์นี้ก่อนแตะโค้ด
 
-# 📋 OmniCut Pro Studio — Todo กลาง
-
-สมุดบันทึกรอบงานที่ **ยังไม่เสร็จ** ของโปรเจกต์นี้ — ทุกงานต้องผ่านไฟล์นี้ก่อนแตะโค้ด
-
-| ไฟล์ | ใช้ทำอะไร |
-| :--- | :--- |
-| **TODO.md** (ไฟล์นี้) | งานที่ยังไม่เสร็จ + Backlog — เขียนแผนลงที่นี่ก่อนลงมือ |
-| [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md) | รอบที่ปิดแล้ว ย้ายบล็อกเต็มไปเก็บไว้ที่นั่น ห้ามแก้ย้อนหลัง |
-| [TEMPLATE_MOTION_PLAN.md](file:///d:/Winona/Programmer/Capcut/TEMPLATE_MOTION_PLAN.md) | แผนยาวของงาน motion ข้อความ (Round 3–7) — เหตุผลและตัวเลขที่วัดมา |
-| [SYSTEM_AUDIT_2026-09-09.md](file:///d:/Winona/Programmer/Capcut/SYSTEM_AUDIT_2026-09-09.md) | รายงาน DB/Infra/System audit เต็ม (4-agent, read-only) |
-# 📋 OmniCut Pro Studio — Todo กลาง
-
-สมุดบันทึกรอบงานที่ **ยังไม่เสร็จ** ของโปรเจกต์นี้ — ทุกงานต้องผ่านไฟล์นี้ก่อนแตะโค้ด
-
-# 📋 OmniCut Pro Studio — Todo กลาง
-
-สมุดบันทึกรอบงานที่ **ยังไม่เสร็จ** ของโปรเจกต์นี้ — ทุกงานต้องผ่านไฟล์นี้ก่อนแตะโค้ด
-
 | ไฟล์ | ใช้ทำอะไร |
 | :--- | :--- |
 | **TODO.md** (ไฟล์นี้) | งานที่ยังไม่เสร็จ + Backlog — เขียนแผนลงที่นี่ก่อนลงมือ |
@@ -32,9 +14,55 @@
 | [TIKTOK_GADGET_MEDIA_PLAN.md](file:///d:/Winona/Programmer/Capcut/TIKTOK_GADGET_MEDIA_PLAN.md) | แผนบัญชี TikTok Gadget Media, campaign 21 คลิป และ functional slice แรก (ดำเนินการโดย: Codex (GPT-5)) |
 | [.agents/rules/work_loop.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/work_loop.md) | กติกาว่าหนึ่งรอบทำยังไง ติ๊กยังไง ปิดรอบยังไง |
 
+- [x] Round HOOK-CARD-PREVIEW-MOTION-AND-TEXT-PARITY-20260922 — ปรับปรุงแอนิเมชันและการแสดงผลในการ์ดแม่แบบข้อความ ให้ตรงกับหน้าจอ Preview เสมือนจริง 100% (SequencePlayer Parity: Shake/Wave Rotation [-3°..3°], Flicker Alpha Steps, Lightsweep Specular, Per-Line Center Rotation, and Active Hook Text Integration) (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+---
+
+- [x] Round SCRIPT-CARD-TIMELINE-PROJECT-VISIBILITY-AND-BATCH2-FALLBACK-FIX-20260922 — แสดงชื่อโปรเจกต์เฉพาะเมื่อสคริปต์เข้าไทม์ไลน์แล้วจริง (ไม่แสดงป้ายโฟลเดอร์หลอกตาในสถานะ scripted) และตัด fallback ข้ามล็อตของแผนถ่าย เพื่อไม่ให้ขึ้น "แผนถ่ายเก่า (บทเปลี่ยน)" ผิดพลาดในล็อต 2 (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+
+---
+
+- [x] Round FIX-ANGLE-ID-BATCH-ISOLATION-DEEP-AUDIT-20260922 — แก้จุดเสี่ยง Angle ID ซ้ำข้ามล็อต (Batch Isolation Deep Fix): ป้องกันการลบ, อัปเดตคลิป, สลับเสียง, อัปเดตปก, และรีสคริปต์ข้ามล็อต ทั้งใน ProductStore, ShotListsStore, API Endpoints และ Frontend (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+
+---
+
+- [x] Round FIX-SHOTLIST-BATCH-ISOLATION-CROSSCONTAMINATION-20260922 — แก้บั๊ก Shot List batch 2 แสดง "แผนถ่ายเก่า (บทเปลี่ยน)" ผิดๆ เพราะ ShotListsStore.get() fall through ไปดึง shot list batch 1 แทน: (1) แก้ store ให้ return None ทันทีเมื่อ batch ระบุแล้วไม่มี row ของ batch นั้น (2) แก้ status endpoint ให้ batch 2+ ไม่ overwrite legacy key ที่ frontend fallback มาหา (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+  - [x] 1. แก้ `scripts/shot_lists_store.py` — `get()` ห้าม fall through legacy row เมื่อระบุ batch
+  - [x] 2. แก้ `scripts/api_shot_lists.py` — `get_shot_list_status()` ไม่ overwrite `result[angle_id]` สำหรับ batch 2+
+
+---
+
+- [x] Round SCRIPT-LAB-ANGLEID-AND-PROJECTNAME-VISIBILITY-20260922 — เพิ่ม angle_id Badge + ชื่อโปรเจกต์ที่จะได้ (Projected Project Name) ให้มองเห็นในหน้าสคริปต์ ทั้ง Sidebar Item และ Active Workbench Header (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+---
+
+- [x] Round TEXT-TEMPLATE-HOVER-ANIMATION-PREVIEW-20260922 — แสดงแอนิเมชันพรีวิวทันทีเมื่อ Hover การ์ดเทมเพลตข้อความ (Hook & Single Text Effects) (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+---
+
+- [x] Round ASSET-PANEL-CLIPS-PERFORMANCE-OPTIMIZATION-20260922 — ปรับปรุงประสิทธิภาพแท็บคลิป ไม่ให้ค้างเมื่อมีคลิปจำนวนมาก (Lazy Thumbnail Queue, In-Memory Canvas Snapshot Cache, Memoized Clip Usage O(1)) (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+---
+
+- [x] Round FIX-MULTI-BATCH-ANGLE-ISOLATION-AND-STATUS-SYNC-20260922 — ป้องกัน Angle ID ชนกันข้ามล็อต (Multi-Batch Isolation), คืนค่าสถานะ scripted ให้ล็อต 2 อย่างถูกต้องเมื่อลบ Timeline, และป้องกันการเชื่อมโยงโปรเจกต์/คลิปข้ามล็อต (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+---
 
 
+- [x] Round FIX-VOICE-REUSE-GUARD-AND-BILINGUAL-STATUS-PARITY-20260922 — แก้บั๊ก Voice Reuse เมื่อผู้ใช้เปลี่ยนสคริปต์ใหม่, แก้ Preview ซับสองภาษาให้ตรงกับตัวเลือกปิดภาษาอังกฤษ, และแก้การดึงสถานะ Rendered ข้ามเวอร์ชันใน ProductStore (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+  - [x] 1. แก้ `scripts/stages/voice_stage.py`: ตรวจสอบความตรงกันของข้อความสคริปต์ก่อน reuse เสียงจาก Shot List หากสคริปต์เปลี่ยนห้าม reuse เด็ดขาด
+  - [x] 2. แก้ `frontend/src/components/editor/NewClipPanel.jsx`: ตรวจสอบ customScript เพื่อไม่แสดง "พร้อมใช้ (ไม่เจนซ้ำ)" เมื่อบทเปลี่ยน
+  - [x] 3. แก้ `scripts/subtitle_engine.py`, `frontend/src/lib/editorProjectState.js`, `frontend/src/components/SequencePlayer.jsx`: ซ่อนและเคลียร์ซับอังกฤษเมื่อ bilingual_subtitles เป็น false
+  - [x] 4. แก้ `scripts/product_store.py`: ป้องกัน reconcile ผูก export เก่าข้ามโปรเจกต์เวอร์ชันใหม่ คืนค่าสถานะให้ BLU01-ปัญหาก่อนใช้_1 และตั้ง BLU01-ปัญหาก่อนใช้_2 เป็น in_production
+  - [x] 5. เจนสคริปต์และเสียงใหม่ให้กับ `BLU01-ปัญหาก่อนใช้_2` พร้อมตรวจสอบผลลัพธ์บนไทม์ไลน์ 100%
 
+---
+
+- [x] Round TYPESAFE-AI-SYSTEM-ONE-ENHANCEMENT-AND-PIPELINE-INTEGRATION-20260922 — ขยายขีดความสามารถ TypeSafe System One (Jev) Multi-Shot B-roll Sequence Matcher, Auto-Scoring ใน Script Generation, และ Interactive Studio Matcher UI (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
+
+---
+
+- [x] Round ASSET-PANEL-UIUX-PRO-REDESIGN-20260922 — ปรับปรุงโครงสร้างเมนูใหญ่และรายละเอียดการ์ดใน Editor Asset Panel ตามมาตรฐาน /impeccable และ /ui-ux-pro-max: 4 แท็บหลัก, Video Snapshot Thumbnail, Dynamic Filter Bar, Segmented Audio (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
 
 
 - [x] Round TYPESAFE-VIDEO-INTELLIGENCE-AND-STUDIO-OBSIDIAN-20260922 — AI Video Intelligence (TypeSafe System One สำหรับ Strict Topic Hold B-roll Matching & Hook Variant Ranking พร้อม Retention Probability) + Luxury Obsidian Dark UI Studio สำหรับ ScriptLab และ ScheduleAgenda (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅

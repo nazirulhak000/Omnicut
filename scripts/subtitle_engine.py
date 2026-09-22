@@ -835,6 +835,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     en_wrapped = cls.wrap_en_for_ass(ass_escape_text(candidate_en), max_chars_per_line=dyn_en_chars)
                 else:
                     cue["translation"] = ""
+            else:
+                cue["translation"] = ""
 
             # The English line sits at 68% of the Thai one; \fscx/\fscy stay
             # at the plain percent now that Fontsize carries the boost (see

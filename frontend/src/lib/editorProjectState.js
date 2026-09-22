@@ -183,6 +183,7 @@ export function manifestToEditorState(data, options = {}) {
     stickerNormX: firstPresent(manifest.sticker_norm_x, params.sticker_norm_x, savedStyle.sticker_norm_x, savedStyle.stickerNormX, null),
     stickerNormY: firstPresent(manifest.sticker_norm_y, params.sticker_norm_y, savedStyle.sticker_norm_y, savedStyle.stickerNormY, null),
     showWatermark: firstPresent(manifest.show_watermark, params.show_watermark, savedStyle.show_watermark, savedStyle.showWatermark, true),
+    bilingualSubtitles: firstPresent(manifest.bilingual_subtitles, params.bilingual_subtitles, savedStyle.bilingual_subtitles, savedStyle.bilingualSubtitles, true),
   };
 
   const storedMix = firstPresent(manifest.track_mix, params.track_mix, EMPTY_TRACK_MIX) || EMPTY_TRACK_MIX;

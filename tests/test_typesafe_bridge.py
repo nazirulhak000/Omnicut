@@ -37,3 +37,25 @@ def test_mock_judge_noul():
         prob = tb.judge_noul("Is this a good hook?", {"hook": "Check this out!"})
         assert prob == 0.88
         mock_client.system_one.assert_called_once()
+
+
+def test_match_script_sequence_broll_fallback(monkeypatch):
+    monkeypatch.setenv("TYPESAFE_API_KEY", "")
+    tb._client = None
+    sentences = ["กล้องสวยระดับสตูดิโอ", "ระบายความร้อน 3D VC เย็นเฉียบ"]
+    clips = [
+        {"id": "c1", "name": "camera_leica.mp4", "description": "กล้องคู่ Leica คมชัด"},
+        {"id": "c2", "name": "vc_cooling.mp4", "description": "ระบบระบายความร้อน 3D VC"},
+    ]
+    seq = tb.match_script_sequence_broll(sentences, clips, ensure_diversity=True)
+    assert len(seq) == 2
+    assert seq[0]["matched_clip_id"] == "c1"
+    assert seq[1]["matched_clip_id"] == "c2"
+    assert seq[0]["strict_topic_hold"] is True
+
+
+def test_scan_and_match_raw_folder_nonexistent():
+    res = tb.scan_and_match_raw_folder("01_Raw/invalid_folder_path_999", ["สวัสดีครับ"])
+    assert "error" in res
+    assert res["total_clips"] == 0
+

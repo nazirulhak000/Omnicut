@@ -325,6 +325,7 @@ function AngleSidebarItem({
   onOpenShotList,
   isGeneratingShotList = false,
   onDeleteAngle,
+  projectName,
 }) {
   const curStatus = angle.status || 'scripted';
   const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && !!angle.video_url;
@@ -455,6 +456,30 @@ function AngleSidebarItem({
             </p>
           )}
 
+          {/* Row 3b: angle_id + projected project name */}
+          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+            {/* angle_id chip — ยืนยันว่า ID ไม่ซ้ำ */}
+            {angle.angle_id && (
+              <span
+                className="inline-flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-[#25F4EE]/10 text-[#25F4EE]/80 border border-[#25F4EE]/20"
+                title={`angle_id = ${angle.angle_id} (batch ${angle.batch || 1})`}
+              >
+                <Tag className="w-2 h-2 flex-shrink-0" />
+                {angle.angle_id}{angle.batch && angle.batch > 1 ? `_b${angle.batch}` : ''}
+              </span>
+            )}
+            {/* timeline project name — แสดงเฉพาะเมื่อสคริปต์เข้าไทม์ไลน์แล้วจริง */}
+            {angle.project_name && (
+              <span
+                className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 truncate max-w-[140px]"
+                title={`โปรเจกต์ในไทม์ไลน์: ${angle.project_name}`}
+              >
+                <FolderOpen className="w-2 h-2 flex-shrink-0" />
+                {angle.project_name}
+              </span>
+            )}
+          </div>
+
           {/* Row 4: Footer — footage tag + delete button + preview button */}
           <div className="flex items-center justify-between pt-0.5 text-[10px]">
             <div className="flex items-center gap-2.5">
@@ -576,6 +601,7 @@ function AngleActiveWorkbench({
   onQuickDraft, draftingAngleId,
   sceneCatalogsMap = {}, onIndexSceneCatalog, isScanningScenes = false, onOpenSceneCatalog,
   onOpenStoryboard,
+  projectName,
 }) {
   const effectiveBrand = angle.hook_brand ?? productData?.hook_brand ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').brand;
   const effectiveModel = angle.hook_model ?? productData?.hook_model ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').model;
@@ -686,7 +712,31 @@ function AngleActiveWorkbench({
           <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColor}`}>
             {statusLabel}
           </span>
+          {/* angle_id chip — ยืนยันว่า ID ไม่ซ้ำ */}
+          {angle.angle_id && (
+            <span
+              className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#25F4EE]/10 text-[#25F4EE]/70 border border-[#25F4EE]/20 flex-shrink-0"
+              title={`angle_id ที่ไม่ซ้ำกัน: ${angle.angle_id} (batch ${angle.batch || 1})`}
+            >
+              <Tag className="w-2.5 h-2.5" />
+              {angle.angle_id}{angle.batch && angle.batch > 1 ? `_b${angle.batch}` : ''}
+            </span>
+          )}
         </div>
+
+        {/* Project name in timeline — แสดงเฉพาะเมื่อมีโปรเจกต์ในไทม์ไลน์แล้วจริง */}
+        {angle.project_name && (
+          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+            <span className="text-[10px] text-slate-500">โปรเจกต์ในไทม์ไลน์:</span>
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 font-mono"
+              title={`โปรเจกต์ CapCut: ${angle.project_name}`}
+            >
+              <FolderOpen className="w-3 h-3" />
+              {angle.project_name}
+            </span>
+          </div>
+        )}
 
         {/* Action icons */}
         <div className="flex items-center gap-1.5 self-end xs:self-auto flex-shrink-0">
@@ -2339,6 +2389,17 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         .catch(() => setShotListStatusMap({}));
     }
   }, [productData?.id]);
+
+  const getShotListInfoForAngle = useCallback((ang) => {
+    if (!ang) return null;
+    const angId = ang.angle_id || ang.id;
+    if (!angId) return null;
+    const bKey = `${angId}_b${ang.batch || 1}`;
+    if (shotListStatusMap[bKey]) return shotListStatusMap[bKey];
+    if (!ang.batch || ang.batch === 1) return shotListStatusMap[angId] || null;
+    return null;
+  }, [shotListStatusMap]);
+
   const [hookModalAngle, setHookModalAngle] = useState(null);
 
   // Batch Render Modal State
@@ -2548,7 +2609,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     // authoritative freshly-loaded list.
     const pendingId = pendingRerollAngleIdRef.current;
     pendingRerollAngleIdRef.current = null;
-    const restoredIdx = pendingId ? nextAngles.findIndex(a => a.angle_id === pendingId) : -1;
+    let restoredIdx = -1;
+    if (pendingId) {
+      if (typeof pendingId === 'object' && pendingId.angle_id) {
+        restoredIdx = nextAngles.findIndex(
+          a => a.angle_id === pendingId.angle_id && (a.batch || 1) === (pendingId.batch || 1)
+        );
+      } else {
+        restoredIdx = nextAngles.findIndex(a => a.angle_id === pendingId);
+      }
+    }
     setOpenAngleIdx(restoredIdx >= 0 ? restoredIdx : 0);
     setSelectedImages([]);
   };
@@ -2629,11 +2699,11 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
-  const handleAngleStatusChange = async (angleId, nextStatus) => {
+  const handleAngleStatusChange = async (angleId, nextStatus, batch = null) => {
     if (!productData?.id) return;
     try {
-      await updateAngleStatus(productData.id, angleId, nextStatus);
-      setAngles(prev => prev.map(a => a.angle_id === angleId ? { ...a, status: nextStatus } : a));
+      await updateAngleStatus(productData.id, angleId, nextStatus, null, null, null, false, false, null, false, batch);
+      setAngles(prev => prev.map(a => (a.angle_id === angleId && (batch === null || (a.batch || 1) === batch)) ? { ...a, status: nextStatus } : a));
       workspaceData?.invalidateTrackerData?.();
       const res = await readProducts({ force: true });
       if (res.products) setHistoryList(res.products);
@@ -2811,14 +2881,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     const targetAngle = angles[rerollModalAngleIdx];
     if (!targetAngle?.angle_id) return;
 
+    const targetBatch = targetAngle.batch || 1;
     setRerollingScript(true);
     try {
       const res = await rerollAngleScript(productData.id, targetAngle.angle_id, {
         duration: rerollDuration,
         extra_beats: rerollExtraBeats,
+        batch: targetBatch,
       });
       if (res.success && res.task_id) {
-        pendingRerollAngleIdRef.current = targetAngle.angle_id;
+        pendingRerollAngleIdRef.current = { angle_id: targetAngle.angle_id, batch: targetBatch };
         setRerollModalAngleIdx(null);
         showToast(`🚀 กำลังรีสคริปต์มุม "${targetAngle.angle_name || ''}" ด้วย AI ในเบื้องหลัง...`);
       } else {
@@ -2882,6 +2954,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         voice_preset: targetAngle.voice_preset || 'gemini_puck_male_hype',
         voice_rate: '+15%',
         ad_tone: resolveAdTone(targetAngle.ad_tone),
+        batch: targetAngle.batch || 1,
         ...voiceOverrides,
       };
       const res = await generateShotList(productData.id, targetAngle.angle_id, overrides);
@@ -2941,7 +3014,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
     setGeneratingShotListIdx(angleIdx);
     try {
-      const existing = await getShotList(productData.id, targetAngle.angle_id);
+      const existing = await getShotList(productData.id, targetAngle.angle_id, targetAngle.batch || 1);
       setShotListResult({ angle: targetAngle, ...existing });
       setShotListAngleIdx(angleIdx);
       setGeneratingShotListIdx(null);
@@ -2966,9 +3039,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const handleStoryboardSaveSuccess = (pinArray) => {
     if (!storyboardAngle) return;
     const targetAngleId = storyboardAngle.angle_id || storyboardAngle.id;
+    const targetBatch = storyboardAngle.batch || 1;
     setAngles((prev) =>
       prev.map((a) => {
-        if ((a.angle_id || a.id) === targetAngleId) {
+        if ((a.angle_id || a.id) === targetAngleId && (a.batch || 1) === targetBatch) {
           return { ...a, manual_shot_map: pinArray };
         }
         return a;
@@ -2976,7 +3050,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     );
     if (productData?.angles) {
       productData.angles = productData.angles.map((a) => {
-        if ((a.angle_id || a.id) === targetAngleId) {
+        if ((a.angle_id || a.id) === targetAngleId && (a.batch || 1) === targetBatch) {
           return { ...a, manual_shot_map: pinArray };
         }
         return a;
@@ -3034,7 +3108,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
     setIsDeletingAngle(true);
     try {
-      await deleteProductAngle(productData.id, angleId);
+      await deleteProductAngle(productData.id, angleId, angle.batch || 1);
       showToast(`ลบสคริปต์ "${angle.angle_name || 'มุมนี้'}" เรียบร้อยแล้ว`);
       workspaceData?.invalidateTrackerData?.();
       const res = await readProducts({ force: true });
@@ -3420,7 +3494,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     // Backend Persistence
     if (productData?.id && targetAngle.angle_id) {
       try {
-        const res = await updateAngleVideos(productData.id, targetAngle.angle_id, selectedPaths);
+        const res = await updateAngleVideos(productData.id, targetAngle.angle_id, selectedPaths, targetAngle.batch || 1);
         if (res.product) {
           setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
         }
@@ -3460,7 +3534,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     // Backend Persistence
     if (productData?.id && targetAngle.angle_id) {
       try {
-        const res = await updateAngleVideos(productData.id, targetAngle.angle_id, newVideos);
+        const res = await updateAngleVideos(productData.id, targetAngle.angle_id, newVideos, targetAngle.batch || 1);
         if (res.product) {
           setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
         }
@@ -3722,10 +3796,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   const missingAudioCount = useMemo(() => {
     return activeBatchAngles.filter(ang => {
-      const status = shotListStatusMap[ang.angle_id];
+      const status = getShotListInfoForAngle(ang);
       return !status?.has_shot_list || Boolean(status?.is_edge_tts);
     }).length;
-  }, [activeBatchAngles, shotListStatusMap]);
+  }, [activeBatchAngles, getShotListInfoForAngle]);
 
   const readyAudioCount = activeBatchAngles.length - missingAudioCount;
 
@@ -3847,10 +3921,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const readyForDraftAngles = useMemo(() => {
     return activeBatchAngles.filter(ang => {
       if ((ang.status === 'in_production' || ang.status === 'rendered' || ang.status === 'posted') && ang.project_name) return false;
-      const status = shotListStatusMap[ang.angle_id];
+      const status = getShotListInfoForAngle(ang);
       return Boolean(status?.has_shot_list && !status?.is_edge_tts);
     });
-  }, [activeBatchAngles, shotListStatusMap]);
+  }, [activeBatchAngles, getShotListInfoForAngle]);
 
   const attachedAngleCount = useMemo(() => angles.filter((ang) => {
     const selected = ang.selected_videos || (ang.selected_video ? [ang.selected_video] : []);
@@ -3859,9 +3933,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   const audioReadyAngleCount = useMemo(() => angles.filter((ang) => {
     if (isAngleCompleted(ang)) return true;
-    const audioStatus = shotListStatusMap[ang.angle_id];
+    const audioStatus = getShotListInfoForAngle(ang);
     return Boolean(audioStatus?.has_shot_list && !audioStatus?.is_edge_tts);
-  }).length, [angles, shotListStatusMap]);
+  }).length, [angles, getShotListInfoForAngle]);
 
   const sceneReadyAngleCount = useMemo(() => angles.filter((ang) => {
     const selected = ang.selected_videos || (ang.selected_video ? [ang.selected_video] : []);
@@ -3926,12 +4000,14 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           productCode: productData.product_code || '',
         });
       });
+      const effectiveBatch = selectedBatch !== 'all' ? selectedBatch : null;
       const payload = {
         product_id: productData.id,
         angle_ids: readyForDraftAngles.map(a => a.angle_id),
         voice_preset: selectedVoicePreset,
         angle_project_names: angleProjectNames,
         export_mp4: false,
+        batch_index: effectiveBatch,
       };
       const res = await startBatchDraft(payload);
       if (res.batch_id) {
@@ -3950,6 +4026,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     setDraftingAngleId(angle.angle_id);
     try {
       const angleId = angle.angle_id || angle.id;
+      const angleBatch = angle.batch || (selectedBatch !== 'all' ? selectedBatch : 1);
       const recommendedStyle = angleId ? getRecommendedStyleForAngle(angleId) : undefined;
       const angleProjectName = buildProjectName({
         productName: productData.name,
@@ -3966,6 +4043,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         project_name: angleProjectName,
         angle_project_names: { [angle.angle_id]: angleProjectName },
         export_mp4: false,
+        batch_index: angleBatch,
       };
       const res = await startBatchDraft(payload);
       let draftProjectName = null;
@@ -3992,7 +4070,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       let targetAngle = angle;
       if (updatedProd) {
         selectProduct(updatedProd);
-        targetAngle = (updatedProd.angles || []).find(a => a.angle_id === angle.angle_id) || angle;
+        targetAngle = (updatedProd.angles || []).find(a => a.angle_id === angle.angle_id && (a.batch || 1) === angleBatch) || angle;
         workspaceData?.invalidateTrackerData?.();
       }
       if (draftProjectName) {
@@ -5111,7 +5189,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                           index={ang.originalIndex}
                           isSelected={activeAngleIdx === ang.originalIndex}
                           onSelect={() => setOpenAngleIdx(ang.originalIndex)}
-                          shotListInfo={shotListStatusMap[ang.angle_id]}
+                          shotListInfo={getShotListInfoForAngle(ang)}
                         />
                       ))}
                     </div>
@@ -5142,11 +5220,18 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         isSelected={activeAngleIdx === ang.originalIndex}
                         onSelect={() => setOpenAngleIdx(ang.originalIndex)}
                         onPreviewExportVideo={(a) => setPreviewExportAngle(a)}
-                        shotListInfo={shotListStatusMap[ang.angle_id]}
+                        shotListInfo={getShotListInfoForAngle(ang)}
                         onGenerateShotList={handleGenerateShotList}
                         onOpenShotList={handleGenerateShotList}
                         isGeneratingShotList={generatingShotListIdx === ang.originalIndex}
                         onDeleteAngle={handleDeleteAngleClick}
+                        projectName={buildProjectName({
+                          productName: productData?.name || '',
+                          angle: ang,
+                          angleIndex: ang.originalIndex,
+                          existingProjects: workspaceData?.projects || [],
+                          productCode: productData?.product_code || '',
+                        })}
                       />
                     ))
                   )}
@@ -5183,7 +5268,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setHookHeaderAngleIdx(idx);
                         setHookHeaderModalOpen(true);
                       }}
-                      shotListInfo={shotListStatusMap[angles[activeAngleIdx]?.angle_id]}
+                      shotListInfo={getShotListInfoForAngle(angles[activeAngleIdx])}
                       onDeleteAngle={handleDeleteAngleClick}
                       onQuickDraft={handleSingleAngleQuickDraft}
                       draftingAngleId={draftingAngleId}
@@ -5192,6 +5277,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       isScanningScenes={isScanningScenes}
                       onOpenSceneCatalog={handleOpenSceneCatalog}
                       onOpenStoryboard={handleOpenStoryboard}
+                      projectName={buildProjectName({
+                        productName: productData?.name || '',
+                        angle: angles[activeAngleIdx],
+                        angleIndex: activeAngleIdx,
+                        existingProjects: workspaceData?.projects || [],
+                        productCode: productData?.product_code || '',
+                      })}
                     />
                   ) : displayedAngles[0] ? (
                     <AngleActiveWorkbench
@@ -5222,7 +5314,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setHookHeaderAngleIdx(idx);
                         setHookHeaderModalOpen(true);
                       }}
-                      shotListInfo={shotListStatusMap[angles[displayedAngles[0].originalIndex]?.angle_id]}
+                      shotListInfo={getShotListInfoForAngle(angles[displayedAngles[0]?.originalIndex])}
                       onDeleteAngle={handleDeleteAngleClick}
                       onQuickDraft={handleSingleAngleQuickDraft}
                       draftingAngleId={draftingAngleId}
@@ -5231,6 +5323,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       isScanningScenes={isScanningScenes}
                       onOpenSceneCatalog={handleOpenSceneCatalog}
                       onOpenStoryboard={handleOpenStoryboard}
+                      projectName={buildProjectName({
+                        productName: productData?.name || '',
+                        angle: angles[displayedAngles[0]?.originalIndex],
+                        angleIndex: displayedAngles[0]?.originalIndex ?? 0,
+                        existingProjects: workspaceData?.projects || [],
+                        productCode: productData?.product_code || '',
+                      })}
                     />
                   ) : null}
                 </div>
@@ -5284,7 +5383,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setHookHeaderAngleIdx(idx);
                         setHookHeaderModalOpen(true);
                       }}
-                      shotListInfo={shotListStatusMap[ang.angle_id]}
+                      shotListInfo={getShotListInfoForAngle(ang)}
                       onQuickDraft={handleSingleAngleQuickDraft}
                       draftingAngleId={draftingAngleId}
                       sceneCatalogsMap={sceneCatalogsMap}
@@ -5936,7 +6035,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         onOpenVoiceGen={() => {
           if (!storyboardAngle) return;
           const aid = storyboardAngle.angle_id || storyboardAngle.id;
-          const aIdx = angles.findIndex((a) => (a.angle_id || a.id) === aid);
+          const aBatch = storyboardAngle.batch || 1;
+          const aIdx = angles.findIndex((a) => (a.angle_id || a.id) === aid && (a.batch || 1) === aBatch);
           if (aIdx >= 0) {
             handleGenerateShotList(aIdx);
           }

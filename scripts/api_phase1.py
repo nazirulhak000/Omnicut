@@ -653,7 +653,7 @@ def delete_project(project_name: str, scope: str = "project"):
                     status_code=400,
                     detail="ไม่อนุญาตให้ลบมุมที่โพสต์แล้ว เนื่องจากต้องเก็บไว้เป็นหลักฐาน (สามารถเลือกลบเฉพาะโปรเจกต์ตัดต่อเพื่อคืนพื้นที่ดิสก์ได้)",
                 )
-            extra = ProductStore.remove_angle(product["id"], angle["angle_id"])
+            extra = ProductStore.remove_angle(product["id"], angle["angle_id"], batch=angle.get("batch"))
         else:
             posted_angles = [a for a in product.get("angles", []) if a.get("status") == "posted" or a.get("posted_at")]
             if posted_angles:

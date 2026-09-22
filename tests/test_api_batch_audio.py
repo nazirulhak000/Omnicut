@@ -85,7 +85,7 @@ def test_batch_audio_worker_handles_rate_limit_retry(sample_product):
 
     calls = []
 
-    def mock_gen(p_id, a_id, overrides):
+    def mock_gen(p_id, a_id, overrides, *args, **kwargs):
         calls.append(a_id)
         if len(calls) == 1:
             # First call on ang_1 hits 429 rate limit
