@@ -33,7 +33,13 @@ def test_mock_judge_noul():
     mock_response.nouls = {"q": MagicMock(noul=0.88)}
     mock_client.system_one.return_value = mock_response
 
-    with patch.object(tb, "get_typesafe_client", return_value=mock_client):
+    mock_noul_cls = MagicMock()
+    mock_sdk = MagicMock()
+    mock_sdk.Noul = mock_noul_cls
+
+    import sys
+    with patch.object(tb, "get_typesafe_client", return_value=mock_client), \
+         patch.dict(sys.modules, {"typesafe_sdk": mock_sdk}):
         prob = tb.judge_noul("Is this a good hook?", {"hook": "Check this out!"})
         assert prob == 0.88
         mock_client.system_one.assert_called_once()

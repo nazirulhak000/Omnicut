@@ -3,13 +3,14 @@ import {
   BookOpen, Rocket, Layers, Scissors, FolderDown, Palette, BarChart3, Settings,
   PlayCircle, CheckCircle2, AlertTriangle, ChevronDown, ArrowRight, Clock,
   FolderOpen, Sparkles, FileText, Music, MessageSquareText,
-  MonitorPlay, CircleHelp, Search, Circle, Bot,
+  MonitorPlay, CircleHelp, Search, Circle, Bot, Cpu,
 } from 'lucide-react';
 import { PageHeader } from './ui';
 
 // ── เมนูที่ 8: คู่มือใช้งานในโปรแกรม ──
-// อธิบายโฟลว์หลัก + วิธีใช้ละเอียดทุกเมนู 0-7 ในหน้าเดียว เน้นอ่านง่าย
+// อธิบายโฟลว์หลัก + วิธีใช้ละเอียดเมนูเสริม Gadget Media และทุกเมนู 0-7 ในหน้าเดียว เน้นอ่านง่าย
 const MENU_GUIDE = [
+  { id: 'gadget', no: 'G', badge: 'เมนูเสริม', icon: Cpu, color: 'text-cyan-300', chip: 'bg-cyan-500/10 text-cyan-200 border-cyan-500/30' },
   { id: 'producer', no: '0', icon: Bot, color: 'text-amber-300', chip: 'bg-amber-500/10 text-amber-300 border-amber-500/30' },
   { id: 'flow', no: '1', icon: Rocket, color: 'text-rose-400', chip: 'bg-rose-500/10 text-rose-300 border-rose-500/30' },
   { id: 'tracker', no: '2', icon: Layers, color: 'text-cyan-300', chip: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30' },
@@ -32,7 +33,7 @@ const FLOW_STEPS = [
 
 const TOC = [
   { href: 'ug-flow', label: 'โฟลว์หลัก 7 ขั้น' },
-  { href: 'ug-menus', label: 'วิธีใช้เมนู 0-7' },
+  { href: 'ug-menus', label: 'วิธีใช้เมนู 0-7 + Gadget' },
   { href: 'ug-quickstart', label: 'คลิปแรกใน 10 นาที' },
   { href: 'ug-status', label: 'สถานะคลิป 4 เฟส' },
   { href: 'ug-folders', label: 'โฟลเดอร์ 00-06' },
@@ -46,16 +47,19 @@ const FAQS = [
   { q: 'เสียงพากย์ไม่ออกต้องทำอย่างไร?', a: 'ค่าเริ่มต้นของระบบคือ Gemini TTS (เสียง Puck) ซึ่งต้องต่อเน็ตและตั้ง API Key ให้ครบ ลองกดฟังตัวอย่างเสียงก่อน ถ้าขึ้น Error ลิมิตหรือ quota ระบบจะไม่สลับไป Edge-TTS ให้เอง ให้รอคูลดาวน์แล้วลองใหม่ หรือเลือก Edge-TTS เองในหน้าตัดต่อ พร้อมตรวจระดับเสียง Voice = 1.0 ที่เมนู 3' },
   { q: 'เมนู 0 ผู้ช่วยโปรดิวเซอร์ใช้ทำอะไร?', a: 'เป็นศูนย์บัญชาการรายวัน ดู Daily Mission ว่าควรทำคลิปไหนต่อ ใช้ Pacing Calculator ดูว่าต้องทำอีกกี่คลิปถึงทันเป้า เก็บไอเดียและเรฟลง Idea Vault แล้วกดเพิ่มลง Playbook ได้ในคลิกเดียว ส่งภาพเรฟให้ Gemini Vision วิเคราะห์เป็นสคริปต์ และจด Producer Notes ที่ปักหมุด/แก้ไขได้ โดยซิงก์กับ Quick Ref หน้าโรงถ่าย' },
   { q: 'สไตล์การตัดต่อกับป้ายฮุกเลือกอย่างไร?', a: 'ที่เมนู 1 มีสไตล์การตัดต่อ 10 แบบ (Viral Punch, Clean Tech Review, Tech Product Showcase, Smooth Showcase, Premium Minimal, Flash Deal, Pain Punch, Tech Comparison, Smart Hack, Niche Focus) โดยแต่ละสไตล์ผูกกับป้ายฮุกสีและอนิเมชันแบบ 1 ต่อ 1 เลือกสไตล์แล้วระบบตั้งป้ายฮุกให้อัตโนมัติ พร้อมโชว์ว่าสินค้านี้เคยใช้สไตล์ไหนไปแล้ว' },
+  { q: 'Gadget Media ต่างจากโฟลว์ สินค้า → คลิป อย่างไร?', a: 'Gadget Media เป็นเส้นทางงานแยกสำหรับทำวิดีโอสินค้าแกดเจ็ตแบบเจาะลึก 1 สินค้า 1 โปรเจกต์ โดยเดิน 6 ขั้น Brief → Sources → Evidence → Story → Cut → Review และมีไทม์ไลน์กับ Render ของตัวเอง (ไม่ไหลไปปนกับ Global Editor) ส่วนเมนู 1 สินค้า → คลิป เหมาะกับงานรีวิวสั้นที่ใช้ Content Matrix หลายมุมและส่งเข้า Editor รวม' },
+  { q: 'TypeSafe AI ใช้ทำอะไร?', a: 'TypeSafe System One (Jev) ช่วยจัดอันดับ Hook ตามคะแนนตรึงคนดู 3 วินาทีแรก (Retention Score) ในหน้า Script Lab และจับคู่ B-roll ให้ตรงกับสิ่งที่เสียงพากย์พูดตลอดทั้งประโยค (Strict Topic Hold) โดยไม่ให้ภาพสลับหนีก่อนพูดจบ ดูสถานะการเชื่อมต่อได้ที่เมนู 7 ตั้งค่าระบบ' },
   { q: 'ซับขึ้นสระลอยหรือวรรณยุกต์ซ้อน?', a: 'ระบบตัดคำด้วย pythainlp และล็อก Safe Zone ล่าง 420px ไว้แล้ว ถ้ายังเพี้ยนให้ย่อ Burst เหลือ 2-3 คำต่อบรรทัด อย่าใส่จุดไข่ปลา ... ในบทพูดเพราะจะหลุดขึ้นจอ' },
   { q: 'เรนเดอร์นานหรือค้าง?', a: 'ไฟล์ Draft ใช้ 720p ทดสอบก่อน ไฟล์จริงค่อยเรนเดอร์ 1080x1920 ปิดโปรแกรมตัดต่ออื่นเพื่อคืนแรม ตรวจพื้นที่ดิสก์ในเมนู 6 แท็บ Storage ถ้าแคช CapCut บวมให้กด Safe Purge' },
   { q: 'คลิปอยู่เฟสไหนดูที่ไหน?', a: 'ดูที่เมนู 2 แทร็กเกอร์ 4 เฟส: scripted (มีไอเดีย) → in_production (มีโปรเจกต์ในไทม์ไลน์) → rendered (มี MP4 ใน 04_Exports) → posted (โพสต์ขึ้น TikTok แล้ว) สถานะเปลี่ยนตามงานจริงเท่านั้น' },
   { q: 'เอาคลิปเข้ามือถืออย่างไร?', a: 'เปิดเมนู 4 Export Gallery กดปุ่มแชร์เข้ามือถือแล้วสแกน QR ด้วยมือถือวง Wi-Fi เดียวกัน หรือกดปุ่มสแกน QR มือถือในแถบเมนูล่าง' },
 ];
 const MENU_DETAIL = [
+  { id: 'gadget', title: 'Gadget Media', sub: 'Product Studio 6 ขั้น + Campaign และ Analytics', points: ['Product Studio ทำงานทีละสินค้า: 1 สินค้า = 1 โปรเจกต์วิดีโอ = 1 มาสเตอร์ที่อนุมัติแล้ว', 'เดินครบ 6 ขั้น Brief (สินค้าและคนดู) → Sources (ไฟล์และสิทธิ์) → Evidence (Claim และหลักฐาน) → Story (เรื่องเล่า 45-60 วิ) → Cut (EDL และ Timeline) → Review (ตรวจ Render อนุมัติ) ขั้นถัดไปจะปลดล็อกเมื่อบันทึกขั้นก่อนหน้าเสร็จ', 'Sources บังคับระบุที่มาและสิทธิ์ของไฟล์ (ถ่ายเอง / แบรนด์อนุญาต / แหล่งอ้างอิง) ก่อนนำมาตัดต่อ', 'Evidence ผูก Claim กับหลักฐาน เพื่อไม่ให้พูดเกินจริงและตรวจย้อนได้', 'Quality Inspector ตรวจไฟล์ Render ก่อนกดอนุมัติเป็น Approved Master', 'แท็บ Campaign และ Analytics วางแผนสล็อตคอนเทนต์ ติดตามความพร้อม และดูผลของแต่ละแคมเปญ'], tip: 'งาน Gadget Media มีไทม์ไลน์และ Render แยกในตัว ไม่ไหลไปปนกับ Global Editor (เมนู 3)' },
   { id: 'producer', title: 'ผู้ช่วยโปรดิวเซอร์', sub: 'ศูนย์บัญชาการรายวัน ไอเดีย เรฟ และโน้ต', points: ['เปิดมาเจอ Daily Mission กับ Spotlight งานที่ควรทำต่อทันที', 'Pacing Calculator บอกว่าต้องทำอีกกี่คลิปถึงทันเป้าที่ตั้งไว้', 'Idea & Ref Vault เก็บไอเดียกับภาพเรฟเร็ว แล้วกดเพิ่มลง Playbook ได้ในคลิกเดียว', 'ส่งภาพเรฟให้ Gemini Vision วิเคราะห์มุมกล้องและอารมณ์ภาพ แล้วสังเคราะห์เป็นสคริปต์ 9:16', 'Producer Notes จด เติม tag ปักหมุด และแก้ไขได้ ซิงก์กับ Quick Ref หน้าโรงถ่าย'], tip: 'เปิดเมนูนี้ก่อนเริ่มงานทุกวัน จะรู้ทันทีว่าควรทำคลิปไหนต่อ' },
   { id: 'flow', title: 'สินค้า → คลิป', sub: 'ดึงสินค้า สร้างมุมขายและ Hook ไวรัล', points: ['วางลิงก์สินค้า ระบบดึงชื่อ จุดขาย ราคา โปรโมชันอัตโนมัติ', 'AI แตกมุมขายหลายมุม เลือกมุมแล้วกดสร้างสคริปต์ Hook 3 วินาที + บทรีวิว + CTA', 'เลือกสไตล์การตัดต่อ 10 แบบ ระบบผูกป้ายฮุกสีและอนิเมชันให้อัตโนมัติ พร้อมโชว์สไตล์ที่เคยใช้แล้ว', 'กดฟังเสียงพากย์ตัวอย่าง เสียงเริ่มต้นคือ Gemini TTS (Puck) หรือจะเลือก Edge-TTS Premwadee/Niwat ก็ได้', 'สร้างแผนถ่าย (Shot List) ดูมุมกล้องตามบททีละซีน', 'ปุ่มส่งตัดต่อ เปิดโปรเจกต์ใหม่ในเมนู 3 ทันที'], tip: 'ชื่อแบรนด์และรุ่นคงภาษาอังกฤษเสมอ เช่น Logitech Wave Keys, Bluetooth, USB-C' },
   { id: 'tracker', title: 'แทร็กเกอร์ 4 เฟส', sub: 'ติดตามสถานะคลิปตั้งแต่สคริปต์จนโพสต์', points: ['การ์ดแต่ละใบคือหนึ่งมุมขายของสินค้า เห็นเฟสปัจจุบันชัดเจน', 'กดดูสคริปต์ แผนถ่าย หรือส่งต่อเข้า Editor ได้จากการ์ด', 'คิวโพสต์หลายวันตั้งค่าได้ตั้งแต่ 09:00 / 12:30 / 16:00 / 19:00 / 21:30 และเพิ่มช่วงพิเศษรายวันได้', 'พอกดโพสต์สำเร็จการ์ดย้ายไปเฟส posted เอง'], tip: 'สถานะเปลี่ยนตามงานจริงเท่านั้น ไม่มีปุ่มลัดข้ามเฟส' },
-  { id: 'editor', title: 'ตัดต่อ & สร้างคลิป', sub: 'ไทม์ไลน์หลายแทร็ก พรีวิวตรงไฟล์จริง', points: ['เลเยอร์วิดีโอ ซับ สติกเกอร์ เสียง แยกแทร็ก ลาก trim split ได้', 'ซับ Micro-Burst 2-4 คำ ไฮไลต์คำขายอัตโนมัติ อยู่ใน Safe Zone', 'ป้าย Hook พาดหัวค่าเริ่มต้น 5 วินาที ปรับเวลาได้ 1-8 วิ', 'ปุ่ม Reroll เปลี่ยนเฉพาะเสียง ซับ BGM หรือวิดีโอโดยไม่เริ่มใหม่', 'ลายน้ำช่อง (@rizanntry) ติดถาวรทั้งในพรีวิวและไฟล์เรนเดอร์ ปิดไม่ได้', 'กดเรนเดอร์ ไฟล์จริง 1080x1920 30FPS ไปเมนู 4 อัตโนมัติ'], tip: 'ภาพพรีวิวกับไฟล์เรนเดอร์ใช้ค่าชุดเดียวกัน เห็นอย่างไรได้ไฟล์อย่างนั้น' },
+  { id: 'editor', title: 'ตัดต่อ & สร้างคลิป', sub: 'ไทม์ไลน์หลายแทร็ก พรีวิวตรงไฟล์จริง', points: ['เลเยอร์วิดีโอ ซับ สติกเกอร์ เสียง แยกแทร็ก ลาก trim split ได้', 'ซับ Micro-Burst 2-4 คำ ไฮไลต์คำขายอัตโนมัติ อยู่ใน Safe Zone และมีซับสองภาษาที่ตรงกับพรีวิว', 'ป้าย Hook พาดหัวค่าเริ่มต้น 5 วินาที ปรับเวลาได้ 1-8 วิ', 'ตัวเลือกโปรเจกต์มีแท็บกรองอัจฉริยะ [ กำลังตัดต่อ ] / [ ตัดเสร็จแล้ว ] / [ ทั้งหมด ] เปิดมาเริ่มที่ กำลังตัดต่อ', 'Asset Panel โหลดภาพตัวอย่างเป็นคิว ไม่ค้างเมื่อมีคลิปเยอะ และพรีวิวอนิเมชันทันทีเมื่อ hover การ์ดเทมเพลตข้อความ', 'ตัดพื้นหลังหรือแยกตัวสินค้า (Background Isolation) ได้จากในตัว Editor แล้วปรับใน Inspector', 'ปุ่ม Reroll เปลี่ยนเฉพาะเสียง ซับ BGM หรือวิดีโอโดยไม่เริ่มใหม่', 'ลายน้ำช่อง (@rizanntry) ติดถาวรทั้งในพรีวิวและไฟล์เรนเดอร์ ปิดไม่ได้', 'กดเรนเดอร์ ไฟล์จริง 1080x1920 30FPS ไปเมนู 4 อัตโนมัติ'], tip: 'ภาพพรีวิวกับไฟล์เรนเดอร์ใช้ค่าชุดเดียวกัน เห็นอย่างไรได้ไฟล์อย่างนั้น' },
   { id: 'gallery', title: 'Export Gallery', sub: 'คลังคลิปพร้อมโพสต์และส่งเข้ามือถือ', points: ['คลิปเรนเดอร์เสร็จรวมที่นี่ พร้อมปก 9:16 และแคปชัน', 'กดแชร์เข้ามือถือสแกน QR ดาวน์โหลดไฟล์ MP4', 'กดทำเครื่องหมายโพสต์แล้ว คลิปย้ายไปโฟลเดอร์ Posted', 'เปิดด้วย CapCut PC ต่อเมื่อต้องการแต่งเพิ่ม'], tip: 'ตั้งชื่อไฟล์ YYYYMMDD_ชื่อสินค้า_hookสั้น_vN.mp4 หาไฟล์ง่าย' },
   { id: 'assets', title: 'Media Assets Hub', sub: 'คลังเสียง ฟอนต์ สติกเกอร์ส่วนกลาง', points: ['BGM เพลงประกอบ SFX Whoosh Ding Pop กดฟังก่อนใช้', 'ฟอนต์ไทยมาตรฐาน Kanit Prompt IBM Plex Sans Thai', 'ป้ายรีวิว 3D 6 แบบ PROS CONS WARNING PRO TIP SCORE VERDICT', 'อัปโหลดไฟล์ใหม่หรือลบไฟล์ขยะได้จากหน้านี้'], tip: 'ไฟล์ใน 01_Raw และ 02_Assets คือต้นฉบับ ห้ามลบโดยไม่ยืนยัน' },
   { id: 'analytics', title: 'สถิติ & วิเคราะห์รวม', sub: 'การผลิต ผลงาน TikTok โทเคน พื้นที่ สุขภาพสินค้า', points: ['แท็บ Production ดู Funnel 4 เฟส จุดคอขวด เวลาเฉลี่ย', 'แท็บ Performance ดูผลงาน TikTok ที่ดึงมา แถวไหนไม่เจอคู่กดจับคู่ manual และแจ้งเตือนคลิปปัง 10k+', 'แท็บ Tokens ดูการใช้ AI แยก In/Out/Think รายวัน พร้อมแจ้งเตือนลิมิต/quota', 'แท็บ Storage ดูขนาดโฟลเดอร์ 01-06 และปุ่ม Safe Purge ล้างแคช', 'แท็บ Inventory ดูสินค้าตัวไหนขาดรูป ขาดคลิป พร้อมทำคลิป'], tip: 'Safe Purge ล้างเฉพาะแคช ไม่แตะไฟล์ต้นฉบับ' },
@@ -124,7 +128,6 @@ export default function UserGuide({ onNavigate }) {
     return FAQS.map((f, i) => ({ ...f, idx: i })).filter((f) => (f.q + ' ' + f.a).includes(q));
   }, [faqQuery]);
   const visibleFaqIdx = useMemo(() => new Set(filteredFaqs.map((f) => f.idx)), [filteredFaqs]);
-  const openVisibleCount = openFaq.filter((i) => visibleFaqIdx.has(i)).length;
   return (
     <div className="space-y-4 sm:space-y-5 animate-fadeIn pb-24 md:pb-12 max-w-[2200px] mx-auto">
       <PageHeader
@@ -158,6 +161,7 @@ export default function UserGuide({ onNavigate }) {
             </div> ); })}
         </div>
         <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-amber-500/[0.07] border border-amber-500/25"><AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" /><p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">จำง่าย เริ่มวันดูเมนู 0 สินค้าเข้าเมนู 1 งานค้างดูเมนู 2 ตัดต่อเรนเดอร์ที่เมนู 3 คลิปเสร็จรวมที่เมนู 4 ของส่วนกลางอยู่เมนู 5 ตัวเลขรวมอยู่เมนู 6 มีปัญหามาเมนู 7 ตั้งค่า</p></div>
+        <div className="mt-2 flex items-start gap-2 p-3 rounded-xl bg-cyan-500/[0.07] border border-cyan-500/25"><Cpu className="w-4 h-4 text-cyan-300 flex-shrink-0 mt-0.5" /><p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">งาน Gadget Media ไม่ได้ใช้โฟลว์นี้ ให้เข้าเมนู <span className="font-bold text-cyan-200">Gadget Media</span> แล้วทำตาม 6 ขั้น Brief → Sources → Evidence → Story → Cut → Review โดย 1 สินค้าได้ 1 มาสเตอร์ที่อนุมัติแล้ว</p></div>
       </section>
       <section id="ug-menus" className="scroll-mt-20">
         <h2 className="text-sm sm:text-base font-black text-white px-1">วิธีใช้ละเอียดทุกเมนู กดชื่อเมนูเพื่อกระโดดไปใช้งานจริง</h2>
@@ -166,7 +170,7 @@ export default function UserGuide({ onNavigate }) {
           <article key={m.id} className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 shadow-lg min-w-0">
             <button onClick={() => go(m.id)} className="w-full flex items-center gap-2.5 text-left cursor-pointer group">
               <div className="w-9 h-9 rounded-xl bg-white/[0.05] border border-white/[0.1] flex items-center justify-center flex-shrink-0"><Icon className={`w-5 h-5 ${meta.color}`} /></div>
-              <div className="flex-1 min-w-0"><div className="flex items-center gap-2 flex-wrap"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta.chip}`}>เมนู {meta.no}</span><span className="text-sm font-black text-white group-hover:text-[#25F4EE]">{m.title}</span></div><p className="text-[11px] text-slate-400 mt-0.5">{m.sub}</p></div>
+              <div className="flex-1 min-w-0"><div className="flex items-center gap-2 flex-wrap"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta.chip}`}>{meta.badge || `เมนู ${meta.no}`}</span><span className="text-sm font-black text-white group-hover:text-[#25F4EE]">{m.title}</span></div><p className="text-[11px] text-slate-400 mt-0.5">{m.sub}</p></div>
               <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-[#25F4EE]">เปิดเมนู<ArrowRight className="w-3.5 h-3.5" /></span>
             </button>
             <ul className="mt-3 space-y-1.5">
@@ -182,7 +186,7 @@ export default function UserGuide({ onNavigate }) {
       <section id="ug-quickstart" className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg scroll-mt-20">
         <div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-500/20 to-[#25F4EE]/20 border border-white/[0.1] flex items-center justify-center"><Clock className="w-4 h-4 text-rose-400" /></div><h2 className="text-sm sm:text-base font-black text-white">คลิปแรกใน 10 นาที ทำตาม 5 ข้อนี้</h2></div>
         <ol className="grid grid-cols-1 lg:grid-cols-2 gap-2 mt-3 items-start">
-          {[['นาที 0-2 ใส่สินค้า', 'เปิดเมนู 1 วางลิงก์สินค้า กดดึงข้อมูล ตรวจชื่อ ราคา จุดขายให้ครบ'], ['นาที 2-4 สร้างสคริปต์', 'เลือกมุมขาย 1 มุม กดสร้างสคริปต์ อ่าน Hook 3 วิแรกว่าหยุดนิ้วคนดูได้ไหม'], ['นาที 4-6 ฟังเสียง', 'กดฟังเสียงพากย์ตัวอย่าง ถ้าโอเคกดส่งตัดต่อ ระบบสร้างโปรเจกต์ในเมนู 3 ให้'], ['นาที 6-8 ตรวจพรีวิว', 'ในเมนู 3 กดเล่นพรีวิว ดูซับ ป้าย Hook และ Safe Zone ว่าไม่โดนปุ่ม TikTok บัง'], ['นาที 8-10 เรนเดอร์', 'กดเรนเดอร์ รอไฟล์ 1080x1920 เสร็จที่เมนู 4 แล้วแชร์ QR เข้ามือถือโพสต์ได้เลย']].map(([t, d], i) => (
+          {[['นาที 0-2 ใส่สินค้า', 'เปิดเมนู 1 วางลิงก์สินค้า กดดึงข้อมูล ตรวจชื่อ ราคา จุดขายให้ครบ'], ['นาที 2-4 สร้างสคริปต์', 'เลือกมุมขาย 1 มุม กดสร้างสคริปต์ อ่าน Hook 3 วิแรกว่าหยุดนิ้วคนดูได้ไหม และกดจัดอันดับ Hook ด้วย TypeSafe AI เพื่อดูคะแนนตรึงคนดู'], ['นาที 4-6 ฟังเสียง', 'กดฟังเสียงพากย์ตัวอย่าง ถ้าโอเคกดส่งตัดต่อ ระบบสร้างโปรเจกต์ในเมนู 3 ให้'], ['นาที 6-8 ตรวจพรีวิว', 'ในเมนู 3 กดเล่นพรีวิว ดูซับ ป้าย Hook และ Safe Zone ว่าไม่โดนปุ่ม TikTok บัง'], ['นาที 8-10 เรนเดอร์', 'กดเรนเดอร์ รอไฟล์ 1080x1920 เสร็จที่เมนู 4 แล้วแชร์ QR เข้ามือถือโพสต์ได้เลย']].map(([t, d], i) => (
             <li key={i} className="flex items-start gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-white/[0.06]"><span className="w-6 h-6 rounded-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-[11px] font-black flex items-center justify-center flex-shrink-0 font-mono">{i + 1}</span><div className="min-w-0"><div className="text-xs font-bold text-white">{t}</div><div className="text-[11px] text-slate-400 leading-relaxed mt-0.5">{d}</div></div></li>))}
         </ol>
       </section>
@@ -196,7 +200,7 @@ export default function UserGuide({ onNavigate }) {
       <section id="ug-folders" className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 shadow-lg scroll-mt-20">
         <div className="flex items-center gap-2.5"><FolderOpen className="w-4 h-4 text-amber-400" /><h2 className="text-sm sm:text-base font-black text-white">โฟลเดอร์ 00-06 ไฟล์อยู่ไหน</h2></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1.5 mt-2.5 items-start">
-          {[['00_Inbox', 'พักไฟล์ดิบจากมือถือ ยังไม่จัดหมวด'], ['01_Raw', 'ฟุตเทจต้นฉบับแยกตามวันและสินค้า ห้ามลบ'], ['02_Assets', 'เพลง ฟอนต์ SFX สติกเกอร์ส่วนกลาง ห้ามลบ'], ['03_Projects', 'ไฟล์โปรเจกต์และสคริปต์ของแต่ละคลิป'], ['04_Exports', 'คลิปเรนเดอร์เสร็จ Ready_to_post และ Posted'], ['05_Covers', 'ปกคลิป 9:16'], ['06_Archive', 'เก็บสำรองหลังโพสต์ครบ 30 วัน'], ['CapCut Drafts', 'เปิดต่อใน CapCut PC เปิดจากเมนู 7']].map(([n, d]) => (
+          {[['00_Inbox', 'พักไฟล์ดิบจากมือถือ ยังไม่จัดหมวด'], ['01_Raw', 'ฟุตเทจต้นฉบับแยกตามวันและสินค้า ห้ามลบ'], ['02_Assets', 'เพลง ฟอนต์ SFX สติกเกอร์ส่วนกลาง ห้ามลบ'], ['03_Projects', 'ไฟล์โปรเจกต์และสคริปต์ของแต่ละคลิป'], ['04_Exports', 'คลิปเรนเดอร์เสร็จ Ready_to_post และ Posted'], ['05_Covers', 'ปกคลิป 9:16'], ['06_Archive', 'เก็บสำรองหลังโพสต์ครบ 30 วัน'], ['GadgetMedia/', 'โฟลเดอร์ย่อยของงานแกดเจ็ตใน 01_Raw / 03_Projects / 04_Exports และ _Docs/gadget_media'], ['CapCut Drafts', 'เปิดต่อใน CapCut PC เปิดจากเมนู 7']].map(([n, d]) => (
           <div key={n} className="flex items-start gap-2 p-2 rounded-xl bg-white/[0.03] border border-white/[0.06] min-w-0"><span className="text-[11px] font-bold font-mono text-[#25F4EE] whitespace-nowrap">{n}</span><span className="text-[11px] text-slate-300 leading-snug">{d}</span></div>))}
         </div>
       </section>

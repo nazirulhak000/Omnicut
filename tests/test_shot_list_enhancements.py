@@ -178,13 +178,15 @@ def test_shot_list_builder_gemini_defaults(tmp_path):
         assert record["beat_cues"] == cues
         assert record["voice_params"]["voice_engine_type"] == "gemini_tts"
 
-        # Check angle voice persistence
+        # Check angle voice persistence — batch is always forwarded since the
+        # batch-tracking feature was added (shot_list_builder.py line 300).
         mock_update_voice.assert_called_once_with(
             "prod_gemini_1",
             "ang_1",
             voice_preset="gemini_puck_male_hype",
             voice_engine_type="gemini_tts",
             ad_tone="commercial_hype",
+            batch=1,
         )
 
 
