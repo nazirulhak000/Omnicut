@@ -306,3 +306,34 @@ export function formatTimecode(seconds) {
 export function frameStep(direction = 1) {
   return direction / FPS;
 }
+
+/**
+ * Resolves a human-friendly label for a snapped time position.
+ */
+export function resolveSnapCandidateLabel(snappedTime, { playhead, segments = [], cues = [], audioDuration = 0, tolerance = 0.05 } = {}) {
+  if (typeof snappedTime !== 'number' || !Number.isFinite(snappedTime)) return 'จุดแม่เหล็ก (Snap)';
+  if (Math.abs(snappedTime - 0) <= tolerance) return 'จุดเริ่มต้น (0:00)';
+  if (typeof playhead === 'number' && Math.abs(snappedTime - playhead) <= tolerance) return 'หัวอ่าน (Playhead)';
+  if (typeof audioDuration === 'number' && audioDuration > 0 && Math.abs(snappedTime - audioDuration) <= tolerance) return 'จุดจบเสียงพากย์ (Audio End)';
+
+  for (let i = 0; i < segments.length - 1; i++) {
+    if (Math.abs(snappedTime - segments[i].segEnd) <= tolerance && Math.abs(snappedTime - segments[i + 1].segStart) <= tolerance) {
+      return `รอยต่อคลิป #${i + 1} ↔ #${i + 2}`;
+    }
+  }
+
+  for (let i = 0; i < segments.length; i++) {
+    const s = segments[i];
+    if (Math.abs(snappedTime - s.segStart) <= tolerance) return `หัวคลิป #${i + 1}`;
+    if (Math.abs(snappedTime - s.segEnd) <= tolerance) return `ท้ายคลิป #${i + 1}`;
+  }
+
+  for (let i = 0; i < cues.length; i++) {
+    const c = cues[i];
+    if (typeof c.start === 'number' && Math.abs(snappedTime - c.start) <= tolerance) return `หัวซับ #${i + 1}`;
+    if (typeof c.end === 'number' && Math.abs(snappedTime - c.end) <= tolerance) return `ท้ายซับ #${i + 1}`;
+  }
+
+  return 'จุดตัด (Snap)';
+}
+

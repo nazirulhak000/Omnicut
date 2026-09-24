@@ -14,6 +14,7 @@ import {
   resizeTrimWindow,
   snapTime,
   snapCandidates,
+  resolveSnapCandidateLabel,
   formatTimecode,
   MIN_CLIP_DURATION,
   FADE_DURATION,
@@ -329,3 +330,24 @@ test('indexFromX and timeFromEvent correctly map pixel coordinates to timeline i
   // clamped to maxDuration
   assert.equal(timeFromEvent(800, laneRect, pxPerSec, 5), 5.0);
 });
+
+test('resolveSnapCandidateLabel identifies candidate origins accurately', () => {
+  const segments = [
+    { segStart: 0, segEnd: 3.5 },
+    { segStart: 3.5, segEnd: 8.0 },
+  ];
+  const cues = [
+    { start: 0.5, end: 2.0 },
+    { start: 2.2, end: 4.1 },
+  ];
+
+  assert.equal(resolveSnapCandidateLabel(0, { playhead: 5 }), 'จุดเริ่มต้น (0:00)');
+  assert.equal(resolveSnapCandidateLabel(5.0, { playhead: 5.0, segments }), 'หัวอ่าน (Playhead)');
+  assert.equal(resolveSnapCandidateLabel(12.5, { playhead: 5.0, audioDuration: 12.5 }), 'จุดจบเสียงพากย์ (Audio End)');
+  assert.equal(resolveSnapCandidateLabel(3.5, { playhead: 1.0, segments }), 'รอยต่อคลิป #1 ↔ #2');
+  assert.equal(resolveSnapCandidateLabel(8.0, { playhead: 1.0, segments }), 'ท้ายคลิป #2');
+  assert.equal(resolveSnapCandidateLabel(0.5, { playhead: 1.0, segments, cues }), 'หัวซับ #1');
+  assert.equal(resolveSnapCandidateLabel(4.1, { playhead: 1.0, segments, cues }), 'ท้ายซับ #2');
+  assert.equal(resolveSnapCandidateLabel(99.9, { playhead: 1.0 }), 'จุดตัด (Snap)');
+});
+

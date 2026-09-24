@@ -246,6 +246,7 @@ export default function EditorShell({
   }), [backgroundIsolation, backgroundIsolationPreparing, clipList]);
 
   // Mobile Mode Switcher: 'timeline' | 'assets' | 'inspector'
+  const [cutoutPreviewMode, setCutoutPreviewMode] = useState('composite');
   const [mobileTab, setMobileTab] = useState('timeline');
 
   // Phones start with the audio group folded: four stem lanes are a desk-sized
@@ -2066,6 +2067,8 @@ export default function EditorShell({
                   spotlight={spotlight}
                   backgroundIsolation={backgroundIsolation}
                   backgroundIsolationStatus={backgroundIsolationStatus}
+                  cutoutPreviewMode={cutoutPreviewMode}
+                  onCutoutPreviewModeChange={setCutoutPreviewMode}
                   onSpotlightChange={patchSpotlight}
                   onSpotlightChangeLive={patchSpotlightLive}
                   onBeginDrag={beginDrag}
@@ -2344,6 +2347,8 @@ export default function EditorShell({
                       spotlight={spotlight}
                       backgroundIsolation={backgroundIsolation}
                       backgroundIsolationStatus={backgroundIsolationStatus}
+                      cutoutMode={cutoutPreviewMode}
+                      onCutoutModeChange={setCutoutPreviewMode}
                       onSpotlightChange={patchSpotlight}
                       onBackgroundIsolationChange={patchBackgroundIsolation}
                       onPrepareBackgroundIsolation={prepareBackgroundIsolation}
@@ -2497,6 +2502,8 @@ export default function EditorShell({
                         spotlight={spotlight}
                         backgroundIsolation={backgroundIsolation}
                         backgroundIsolationStatus={backgroundIsolationStatus}
+                        cutoutMode={cutoutPreviewMode}
+                        onCutoutModeChange={setCutoutPreviewMode}
                         onSpotlightChange={patchSpotlight}
                         onBackgroundIsolationChange={patchBackgroundIsolation}
                         onPrepareBackgroundIsolation={prepareBackgroundIsolation}
@@ -2594,6 +2601,8 @@ export default function EditorShell({
                     spotlight={spotlight}
                     backgroundIsolation={backgroundIsolation}
                     backgroundIsolationStatus={backgroundIsolationStatus}
+                    cutoutPreviewMode={cutoutPreviewMode}
+                    onCutoutPreviewModeChange={setCutoutPreviewMode}
                     onSpotlightChange={patchSpotlight}
                     onSpotlightChangeLive={patchSpotlightLive}
                     onBeginDrag={beginDrag}

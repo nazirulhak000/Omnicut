@@ -209,6 +209,8 @@ function BackgroundIsolationControls({
   plan = null,
   progress = null,
   error = '',
+  cutoutMode = 'composite',
+  onCutoutModeChange = null,
 }) {
   const enabled = backgroundIsolation?.enabled === true;
   const status = statusOverride?.state || backgroundIsolation?.artifact?.status || 'missing';
@@ -286,10 +288,38 @@ function BackgroundIsolationControls({
         </label>
       </div>
       {enabled && (
-        <div className="border-t border-white/[0.08] pt-2 text-[10px] leading-relaxed text-slate-400">
-          สถานะ artifact: <span className={status === 'ready' ? 'text-emerald-300' : 'text-amber-300'}>{statusLabel}</span>
+        <div className="border-t border-white/[0.08] pt-2 space-y-2 text-[10px] leading-relaxed text-slate-400">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-slate-400 font-medium">โหมดตรวจเช็ก Cutout:</span>
+            <div className="flex items-center gap-1 rounded bg-black/40 p-0.5 border border-white/10">
+              <button
+                type="button"
+                onClick={() => onCutoutModeChange?.('composite')}
+                className={`px-1.5 py-0.5 rounded text-[9px] font-semibold transition cursor-pointer ${cutoutMode === 'composite' ? 'bg-violet-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                ปกติ
+              </button>
+              <button
+                type="button"
+                onClick={() => onCutoutModeChange?.('checkerboard')}
+                className={`px-1.5 py-0.5 rounded text-[9px] font-semibold transition cursor-pointer ${cutoutMode === 'checkerboard' ? 'bg-violet-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                ตารางหมากรุก
+              </button>
+              <button
+                type="button"
+                onClick={() => onCutoutModeChange?.('matte')}
+                className={`px-1.5 py-0.5 rounded text-[9px] font-semibold transition cursor-pointer ${cutoutMode === 'matte' ? 'bg-violet-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                มาสก์ขาวดำ
+              </button>
+            </div>
+          </div>
+          <div>
+            สถานะ artifact: <span className={status === 'ready' ? 'text-emerald-300' : 'text-amber-300'}>{statusLabel}</span>
           {status !== 'ready' && <p className="mt-1 text-slate-500">ต้องเตรียม artifact ให้พร้อมทุกคลิปก่อน Render ระบบจะบล็อกการส่งออกแทนการ fallback เงียบ</p>}
           {status === 'ready' && <p className="mt-1 text-slate-500">ตรวจขอบมือ สินค้าโปร่งใส และ motion blur ใน Preview ก่อน Render เพราะความนิ่งของ mask ขึ้นกับภาพต้นฉบับและโมเดล</p>}
+          </div>
         </div>
       )}
     </section>
@@ -1022,6 +1052,8 @@ export default function AssetPanel({
   spotlight = null,
   backgroundIsolation = null,
   backgroundIsolationStatus = null,
+  cutoutMode = 'composite',
+  onCutoutModeChange = null,
   backgroundIsolationPlan = null,
   backgroundIsolationProgress = null,
   backgroundIsolationError = '',

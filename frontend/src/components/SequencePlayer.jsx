@@ -502,11 +502,11 @@ function circleWeightAt(kind, p, dNorm) {
 }
 
 /** Draws one clip's frame with its grade, at `alpha`. */
-function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0, isolatedImage = null) {
+function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0, isolatedImage = null, cutoutMode = 'composite') {
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.filter = clipFilter(clip);
   const painted = isolatedImage
-    ? drawIsolatedFrame(ctx, isolatedImage, clip, motionTime)
+    ? drawIsolatedFrame(ctx, isolatedImage, clip, motionTime, { includeBackground: true, cutoutMode })
     : drawVideoFrame(ctx, video, clip, motionTime);
   ctx.globalAlpha = 1;
   ctx.filter = 'none';
@@ -519,7 +519,7 @@ function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0, isolatedImage
  * radial alpha ramp for the circles, a solid bridge colour for fadeblack and
  * fadewhite, and a plain crossfade only for `fade` itself.
  */
-function paintEntry(ctx, entry, video, offscreen, isolatedImage = null) {
+function paintEntry(ctx, entry, video, offscreen, isolatedImage = null, cutoutMode = 'composite') {
   const { seg, transition: kind, progress: p, role, alpha } = entry;
   const clip = seg.clip;
 
@@ -529,13 +529,13 @@ function paintEntry(ctx, entry, video, offscreen, isolatedImage = null) {
     const [dx, dy] = role === 'out' ? slide[0] : slide[1];
     ctx.save();
     ctx.translate(dx, dy);
-    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime, isolatedImage);
+    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime, isolatedImage, cutoutMode);
     ctx.restore();
     return painted;
   }
 
   if (role !== 'in') {
-    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime, isolatedImage);
+    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime, isolatedImage, cutoutMode);
     // The outgoing side of a bridge fade also lays down the colour it dips
     // through, so the incoming side only has to blend over it.
     if (painted && role === 'out' && (kind === 'fadeblack' || kind === 'fadewhite')) {
@@ -558,7 +558,7 @@ function paintEntry(ctx, entry, video, offscreen, isolatedImage = null) {
     oc.setTransform(1, 0, 0, 1, 0, 0);
     oc.globalCompositeOperation = 'source-over';
     oc.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    if (!drawClipInto(oc, video, clip, 1, entry.motionTime, isolatedImage)) return false;
+    if (!drawClipInto(oc, video, clip, 1, entry.motionTime, isolatedImage, cutoutMode)) return false;
     oc.globalCompositeOperation = 'destination-in';
     oc.drawImage(dissolveMaskFor(p), 0, 0);
     oc.globalCompositeOperation = 'source-over';
@@ -575,7 +575,7 @@ function paintEntry(ctx, entry, video, offscreen, isolatedImage = null) {
     oc.setTransform(1, 0, 0, 1, 0, 0);
     oc.globalCompositeOperation = 'source-over';
     oc.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    if (!drawClipInto(oc, video, clip, 1, entry.motionTime, isolatedImage)) return false;
+    if (!drawClipInto(oc, video, clip, 1, entry.motionTime, isolatedImage, cutoutMode)) return false;
     const cx = CANVAS_W / 2;
     const cy = CANVAS_H / 2;
     const z = Math.hypot(cx, cy);
@@ -597,14 +597,14 @@ function paintEntry(ctx, entry, video, offscreen, isolatedImage = null) {
   ctx.beginPath();
   if (clipIncomingRegion(ctx, kind, p)) {
     ctx.clip();
-    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime, isolatedImage);
+    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime, isolatedImage, cutoutMode);
     ctx.restore();
     return painted;
   }
   ctx.restore();
 
   const blend = (kind === 'fadeblack' || kind === 'fadewhite') ? bridgeWeights(p).wB : alpha;
-  return drawClipInto(ctx, video, clip, blend, entry.motionTime, isolatedImage);
+  return drawClipInto(ctx, video, clip, blend, entry.motionTime, isolatedImage, cutoutMode);
 }
 
 function drawVideoFrame(ctx, video, clip, motionTime = 0) {
@@ -699,7 +699,32 @@ function drawVideoFrame(ctx, video, clip, motionTime = 0) {
 /** Draw a ready RGBA cutout over the same deterministic mood background used
  * by the FFmpeg renderer. The cutout is a full source frame, so crop/zoom,
  * mirror, and rotation must follow the ordinary video path exactly. */
-function drawIsolatedFrame(ctx, image, clip, motionTime = 0, { includeBackground = true } = {}) {
+let matteScratchCanvas = null;
+function getMatteScratch() {
+  if (!matteScratchCanvas && typeof document !== 'undefined') {
+    matteScratchCanvas = document.createElement('canvas');
+    matteScratchCanvas.width = CANVAS_W;
+    matteScratchCanvas.height = CANVAS_H;
+  }
+  return matteScratchCanvas;
+}
+
+function drawCheckerboardPattern(ctx, width, height, size = 36) {
+  ctx.save();
+  ctx.fillStyle = '#16161c';
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = '#262632';
+  for (let y = 0; y < height; y += size) {
+    for (let x = 0; x < width; x += size) {
+      if ((Math.floor(x / size) + Math.floor(y / size)) % 2 === 0) {
+        ctx.fillRect(x, y, size, size);
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function drawIsolatedFrame(ctx, image, clip, motionTime = 0, { includeBackground = true, cutoutMode = 'composite' } = {}) {
   if (!image || !image.naturalWidth || !image.naturalHeight || !image.complete) return false;
   const camera = resolveClipTransforms(clip, motionTime);
   const rotation = Number(clip?.rotation || 0) % 360;
@@ -726,30 +751,55 @@ function drawIsolatedFrame(ctx, image, clip, motionTime = 0, { includeBackground
 
   const frameFilter = ctx.filter;
   ctx.filter = 'none';
-  if (includeBackground) {
+  if (cutoutMode === 'checkerboard') {
+    drawCheckerboardPattern(ctx, CANVAS_W, CANVAS_H, 36);
+  } else if (cutoutMode === 'matte') {
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  } else if (includeBackground) {
     ctx.fillStyle = BACKGROUND_ISOLATION_BG;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
   }
   ctx.filter = frameFilter;
+
   const mirror = !!clip?.mirror;
-  if (mirror || rotation !== 0) {
-    ctx.save();
-    ctx.translate(CANVAS_W / 2, CANVAS_H / 2);
-    if (mirror) ctx.scale(-1, 1);
-    if (rotation !== 0) ctx.rotate((rotation * Math.PI) / 180);
-    if (rotation === 90) {
-      ctx.drawImage(image, Math.max(0, sy), Math.max(0, sourceHeight - (sx + sw)), Math.min(sourceWidth, sh), Math.min(sourceHeight, sw), -CANVAS_H / 2, -CANVAS_W / 2, CANVAS_H, CANVAS_W);
-    } else if (rotation === 270) {
-      ctx.drawImage(image, Math.max(0, sourceWidth - (sy + sh)), Math.max(0, sx), Math.min(sourceWidth, sh), Math.min(sourceHeight, sw), -CANVAS_H / 2, -CANVAS_W / 2, CANVAS_H, CANVAS_W);
-    } else if (rotation === 180) {
-      ctx.drawImage(image, sourceWidth - (sx + sw), sourceHeight - (sy + sh), sw, sh, -CANVAS_W / 2, -CANVAS_H / 2, CANVAS_W, CANVAS_H);
-    } else {
-      ctx.drawImage(image, sx, sy, sw, sh, -CANVAS_W / 2, -CANVAS_H / 2, CANVAS_W, CANVAS_H);
-    }
-    ctx.restore();
-  } else {
-    ctx.drawImage(image, sx, sy, sw, sh, 0, 0, CANVAS_W, CANVAS_H);
+  const isMatte = cutoutMode === 'matte';
+  const targetCanvas = isMatte ? getMatteScratch() : null;
+  const drawCtx = targetCanvas ? targetCanvas.getContext('2d') : ctx;
+
+  if (targetCanvas) {
+    drawCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
   }
+
+  if (mirror || rotation !== 0) {
+    drawCtx.save();
+    drawCtx.translate(CANVAS_W / 2, CANVAS_H / 2);
+    if (mirror) drawCtx.scale(-1, 1);
+    if (rotation !== 0) drawCtx.rotate((rotation * Math.PI) / 180);
+    if (rotation === 90) {
+      drawCtx.drawImage(image, Math.max(0, sy), Math.max(0, sourceHeight - (sx + sw)), Math.min(sourceWidth, sh), Math.min(sourceHeight, sw), -CANVAS_H / 2, -CANVAS_W / 2, CANVAS_H, CANVAS_W);
+    } else if (rotation === 270) {
+      drawCtx.drawImage(image, Math.max(0, sourceWidth - (sy + sh)), Math.max(0, sx), Math.min(sourceWidth, sh), Math.min(sourceHeight, sw), -CANVAS_H / 2, -CANVAS_W / 2, CANVAS_H, CANVAS_W);
+    } else if (rotation === 180) {
+      drawCtx.drawImage(image, sourceWidth - (sx + sw), sourceHeight - (sy + sh), sw, sh, -CANVAS_W / 2, -CANVAS_H / 2, CANVAS_W, CANVAS_H);
+    } else {
+      drawCtx.drawImage(image, sx, sy, sw, sh, -CANVAS_W / 2, -CANVAS_H / 2, CANVAS_W, CANVAS_H);
+    }
+    drawCtx.restore();
+  } else {
+    drawCtx.drawImage(image, sx, sy, sw, sh, 0, 0, CANVAS_W, CANVAS_H);
+  }
+
+  if (isMatte && targetCanvas) {
+    drawCtx.save();
+    drawCtx.globalCompositeOperation = 'source-in';
+    drawCtx.fillStyle = '#FFFFFF';
+    drawCtx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    drawCtx.restore();
+
+    ctx.drawImage(targetCanvas, 0, 0);
+  }
+
   return true;
 }
 
@@ -2898,6 +2948,8 @@ function SequencePlayer({
   spotlight = undefined,
   backgroundIsolation = null,
   backgroundIsolationStatus = null,
+  cutoutPreviewMode = null,
+  onCutoutPreviewModeChange = null,
   stylePreset = DEFAULT_STYLE_PRESET,
   trackMix = null,
   compact = false,
@@ -3012,6 +3064,12 @@ function SequencePlayer({
     return offscreenRef.current;
   };
 
+  const [internalCutoutMode, setInternalCutoutMode] = useState('composite');
+  const activeCutoutMode = cutoutPreviewMode || internalCutoutMode;
+  const setCutoutMode = (mode) => {
+    setInternalCutoutMode(mode);
+    onCutoutPreviewModeChange?.(mode);
+  };
   const [durations, setDurations] = useState({});
   const [metadataReady, setMetadataReady] = useState(false);
   const [failedClipSources, setFailedClipSources] = useState({});
@@ -4085,7 +4143,7 @@ function SequencePlayer({
       const video = videoElsRef.current[entry.seg.clip.id];
       if (video) {
         const isolatedImage = loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
-        paintEntry(ctx, entry, video, getOffscreen(), isolatedImage);
+        paintEntry(ctx, entry, video, getOffscreen(), isolatedImage, activeCutoutMode);
       }
     });
     ctx.globalAlpha = 1;
@@ -4108,7 +4166,7 @@ function SequencePlayer({
     plan.forEach((entry) => {
       const isolatedImage = loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
       if (isolatedImage) {
-        drawIsolatedFrame(ctx, isolatedImage, entry.seg.clip, entry.motionTime, { includeBackground: false });
+        drawIsolatedFrame(ctx, isolatedImage, entry.seg.clip, entry.motionTime, { includeBackground: false, cutoutMode: activeCutoutMode });
       }
     });
     drawOverlayScrims(ctx, overlaysInFront, t);
@@ -4243,7 +4301,7 @@ function SequencePlayer({
               ctx.filter = clipFilter(prevSeg.clip);
               const prevImage = loadedBackgroundIsolationFrame(prevSeg.clip, localTimeAt(prevSeg, t));
               if (prevImage) {
-                drawIsolatedFrame(ctx, prevImage, prevSeg.clip, motionTimeAt(prevSeg, t));
+                drawIsolatedFrame(ctx, prevImage, prevSeg.clip, motionTimeAt(prevSeg, t), { includeBackground: true, cutoutMode: activeCutoutMode });
               } else {
                 drawVideoFrame(ctx, prevV, prevSeg.clip);
               }
@@ -4254,7 +4312,7 @@ function SequencePlayer({
 
           const isolatedImage = loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
           if (video.readyState >= 2 || isolatedImage) {
-            paintEntry(ctx, entry, video, getOffscreen(), isolatedImage);
+            paintEntry(ctx, entry, video, getOffscreen(), isolatedImage, activeCutoutMode);
             framePainted = true;
             prevActiveClipIdRef.current = seg.clip.id;
           }
@@ -4494,6 +4552,40 @@ function SequencePlayer({
           {metadataReady && clips.length > 0 && (
             <>
               <BackgroundIsolationStatusBadge status={currentBackgroundIsolationStatus} />
+
+              {/* Cutout Mask Inspection Mode Switcher */}
+              {currentBackgroundIsolationStatus !== 'off' && (
+                <div className="absolute right-2 top-2 z-30 flex items-center gap-1 rounded-lg border border-violet-400/30 bg-black/85 p-1 text-[10px] font-semibold backdrop-blur-md shadow-lg pointer-events-auto">
+                  <span className="px-1 text-violet-300 font-bold flex items-center gap-1">
+                    <Layers className="h-3 w-3" />
+                    <span className="hidden sm:inline">Cutout:</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCutoutMode('composite')}
+                    title="แสดงคลิปแยกพื้นหลังปกติ"
+                    className={`rounded px-1.5 py-0.5 transition cursor-pointer ${activeCutoutMode === 'composite' ? 'bg-violet-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    ปกติ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCutoutMode('checkerboard')}
+                    title="แสดงพื้นหลังตารางหมากรุก เพื่อตรวจเช็กความโปร่งใสและขอบไดคัท"
+                    className={`rounded px-1.5 py-0.5 transition cursor-pointer ${activeCutoutMode === 'checkerboard' ? 'bg-violet-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    หมากรุก
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCutoutMode('matte')}
+                    title="แสดงมาสก์ขาวดำ (Alpha Matte) เพื่อตรวจเช็กรอยรั่วและรูโหว่"
+                    className={`rounded px-1.5 py-0.5 transition cursor-pointer ${activeCutoutMode === 'matte' ? 'bg-violet-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    มาสก์
+                  </button>
+                </div>
+              )}
 
               {/* Smart Snap Guides (Center Guidelines) */}
               {snapGuide.x !== null && (

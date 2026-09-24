@@ -309,6 +309,28 @@ export default function Timeline({
     };
   }, [transitionMenuClipId]);
   const [contextMenu, setContextMenu] = useState(null);
+  const [activeSnapGuide, setActiveSnapGuide] = useState(null);
+  const [rippleFeedback, setRippleFeedback] = useState(null);
+  const rippleTimerRef = useRef(null);
+
+  const handleSnapGuide = (guide) => {
+    setActiveSnapGuide(guide);
+  };
+
+  const handleRippleTriggered = ({ count, type = 'caption' }) => {
+    if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current);
+    setRippleFeedback({
+      active: true,
+      text: `🧲 Magnetic Ripple: จัดเรียง ${count} ${type === 'caption' ? 'ซับไตเติล' : 'คลิป'} ต่อเนื่องไร้ช่องว่าง`,
+    });
+    rippleTimerRef.current = setTimeout(() => {
+      setRippleFeedback(null);
+    }, 1800);
+  };
+
+  useEffect(() => () => {
+    if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current);
+  }, []);
   const hasTextOverlays = Boolean(textOverlays && textOverlays.length > 0);
   const effectiveStickers = useMemo(() => {
     if (Array.isArray(stickers) && stickers.length > 0) return stickers;
@@ -554,6 +576,9 @@ export default function Timeline({
     shiftTextOverlay,
     onUpdateOverlay,
     reorder,
+    playhead,
+    onSnapGuide: handleSnapGuide,
+    onRippleTriggered: handleRippleTriggered,
   });
 
   // Dropping a clip from the media bin. The insert position is whichever
@@ -877,6 +902,11 @@ export default function Timeline({
                     onBodyDragEnd={onBodyDragEnd}
                     snapCandidates={snapPoints}
                     snapFunction={snapFunction}
+                    playhead={playhead}
+                    segments={segments}
+                    cues={cues}
+                    audioDuration={audioDuration}
+                    onSnapGuide={handleSnapGuide}
                   />
                 ))}
 
@@ -1356,6 +1386,24 @@ export default function Timeline({
                   style={{ left: audioDuration * pxPerSec }}
                   title="ความยาวเสียงพากย์ — เรนเดอร์จะตัดที่เส้นนี้"
                 />
+              )}
+
+              {/* Magnetic Snap Guide Line & Tooltip */}
+              {activeSnapGuide && Number.isFinite(activeSnapGuide.time) && (
+                <div
+                  className="pointer-events-none absolute bottom-0 z-40 flex flex-col items-center"
+                  style={{
+                    left: `${activeSnapGuide.time * pxPerSec}px`,
+                    top: `${-RULER_H - TRACK_TOP}px`,
+                    transform: 'translateX(-50%)',
+                  }}
+                >
+                  <div className="sticky top-0 z-50 mb-0.5 flex items-center gap-1 rounded bg-[#FFE600] px-1.5 py-0.5 text-[10px] font-bold text-black shadow-[0_2px_8px_rgba(0,0,0,0.8)] whitespace-nowrap">
+                    <span>🧲 {activeSnapGuide.label}</span>
+                    <span className="font-mono font-semibold opacity-85">({formatTimecode(activeSnapGuide.time)})</span>
+                  </div>
+                  <div className="w-[2px] flex-1 bg-[#FFE600] shadow-[0_0_10px_#FFE600,0_0_20px_rgba(255,230,0,0.7)]" />
+                </div>
               )}
 
               {/* playhead */}

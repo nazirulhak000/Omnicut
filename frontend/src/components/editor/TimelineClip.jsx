@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { FlipHorizontal2, Gauge, RotateCw, Volume2 } from 'lucide-react';
-import { MIN_CLIP_DURATION } from '../../lib/timelineMath';
+import { MIN_CLIP_DURATION, resolveSnapCandidateLabel } from '../../lib/timelineMath';
 
 const CLIP_RADIUS = 6;
 
@@ -26,6 +26,11 @@ export default function TimelineClip({
   onBodyDragEnd,
   snapCandidates = [],
   snapFunction = (t) => t,
+  playhead,
+  segments = [],
+  cues = [],
+  audioDuration = 0,
+  onSnapGuide,
 }) {
   const dragRef = useRef(null);
   const bodyRef = useRef(null);
@@ -112,6 +117,17 @@ export default function TimelineClip({
     const snappedEnd = snapFunction(virtualEnd, snapCandidates);
     const snappedDur = snappedEnd - seg.segStart;
     if (snappedDur < MIN_CLIP_DURATION) return rawNext; // snap would collapse the clip -- ignore it
+    if (Math.abs(snappedEnd - virtualEnd) > 0.001) {
+      const label = resolveSnapCandidateLabel(snappedEnd, {
+        playhead,
+        segments,
+        cues,
+        audioDuration,
+      });
+      onSnapGuide?.({ time: snappedEnd, label });
+    } else {
+      onSnapGuide?.(null);
+    }
     return sourceOtherBound + (rawNext > sourceOtherBound ? 1 : -1) * snappedDur * speed;
   };
 
@@ -205,10 +221,18 @@ export default function TimelineClip({
           : null),
       }}
     >
-      <div className="absolute inset-x-0 top-0 flex items-center gap-1 px-1.5 py-0.5 pointer-events-none">
+      <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-1 px-1.5 py-0.5 pointer-events-none">
         <span className="text-xs font-medium text-[#EDE9E3] truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
           {fileName}
         </span>
+        {clip.background_isolation?.enabled && (
+          <span
+            className="flex-shrink-0 flex items-center gap-0.5 rounded bg-violet-600/90 border border-violet-400/40 px-1 py-0.5 text-[9px] font-bold text-violet-100 shadow-sm"
+            title="แยกพื้นหลังสินค้า (Cutout Active)"
+          >
+            ✂️ Cutout
+          </span>
+        )}
       </div>
 
       {(speed !== 1 || clip.mirror || clip.rotation || (clip.volume || 0) > 0) && (
