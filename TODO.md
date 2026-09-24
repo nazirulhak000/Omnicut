@@ -1,6 +1,6 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
-- [ ] Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 — เพิ่มระบบ Magnetic Snap & Visual Guide พร้อม Ripple Feedback บน Timeline, เพิ่มโหมดตรวจเช็ก Cutout Mask ใน Player/Inspector, และจัดระเบียบ Git Working Tree (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 — เพิ่มระบบ Magnetic Snap & Visual Guide พร้อม Ripple Feedback บน Timeline, เพิ่มโหมดตรวจเช็ก Cutout Mask ใน Player/Inspector, และจัดระเบียบ Git Working Tree (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round CLEANUP-DEMO-TEST-EXPORTS-PROJECTS-20260924 — ลบทำความสะอาดคลิปทดสอบ demo_*.mp4 และไฟล์ดัมมี่ตกค้างใน 04_Exports/Ready_to_post, 03_Projects/demo, spotlight-test และ export_registry.json ตามกฎเหล็กข้อ 11 และ 15 (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round AUDIT-BACKGROUND-ISOLATION-CUTOUT-SPOTLIGHT-20260923 — ตรวจสอบระบบจัดการพื้นหลังทั้งหมด (Background Isolation, rembg Cutout, Blur Background, Product Spotlight) เชิงลึกทุกมิติ ทั้ง UI, Logic, rembg Worker, Preview & Render Parity และ Automated Tests (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round RESTORE-STYLE-TAB-SCROLLABLE-BG-CUT-20260923 — เปิดแท็บสไตล์ (Style) ใน Asset Panel สำหรับเปิดใช้งาน/เตรียม Cutout ตัดพื้นหลังสินค้า โดยทำแท็บแบบเลื่อนได้ในแนวนอน (Horizontal Scroll) ไม่บีบกล่องเดิม (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
@@ -9,36 +9,6 @@
 - [ ] Round DOCS-MANUAL-CURRENCY-REFRESH-20260923 — อัปเดตคู่มือให้ตรงระบบจริงหลังรอบ 9/19-9/23: เพิ่ม Gadget Media (Product Studio 6 ขั้น) + TypeSafe AI ในคู่มือโปรแกรม/README/ARCHITECTURE พร้อมตัวเลขใหม่ (26 routers / 208 routes / 10 เมนู / pytest 1,723 collected / frontend 301) (ดำเนินการโดย: Cline (Cline Agent))
 - [x] Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 — ปิดงาน Motion Text/Preview–Render Parity ให้ตรวจซ้ำได้จริง (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
 - [x] Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 — ปิด parity ของ Caption/Sticker/Effect/Spotlight แบบ vertical slice (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
-
-
-## Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 — ยกระดับ Timeline Magnetic Snap, Ripple Feedback, Cutout Mask Preview และเคลียร์ Git Working Tree
-
-วันที่: 2026-09-24 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: กำลังทำ
-
-**เป้าหมาย:** 
-1. เพิ่มระบบ **Timeline Magnetic Snap & Visual Guide** พร้อม **Ripple Feedback** ที่ทำงานจริงเมื่อลากคลิป, Trim, หรือปรับแต่งซับ/ป้ายฮุก
-2. เพิ่ม **โหมดตรวจเช็ก Cutout Mask (Checkerboard & Matte View)** ใน SequencePlayer และ AssetPanel พร้อมป้าย Cutout บน Timeline Clip
-3. จัดการความสะอาดของ Git Working Tree โดย commit รวบยอดงาน Parity Phase 3-4 เดิม และงานพัฒนาใหม่อย่างเป็นระเบียบ
-
-### Todo
-
-- [ ] เคลียร์บันทึก git commit สำหรับชุดงานเดิมของ Phase 3-4 Parity & Lifecycle Recovery ให้ working tree สะอาด
-- [ ] พัฒนาระบบ **Magnetic Snapping & Visual Guide Lines** ใน `Timeline.jsx` และ `useTimelineDrag.js` โดยเชื่อม `snapCandidates` และ `snapFunction` ที่มีอยู่แล้วเข้ากับการแสดงผลเส้นไกด์เรืองแสงสีทอง/ฟ้า พร้อม Badge ระบุจุดดูด (Playhead / ขอบคลิป / Audio Cue)
-- [ ] เพิ่ม **Ripple Feedback Indicator** เมื่อเกิดการดูดเรียงคลิปหรือซับแบบแม่เหล็กไม่ให้เกิดช่องว่าง
-- [ ] เพิ่ม **Cutout Badge** บน `TimelineClip.jsx` สำหรับคลิปที่มี Background Isolation
-- [ ] เพิ่ม **Cutout Mask Preview Mode** ใน `SequencePlayer.jsx` (Composite / Checkerboard / Matte Alpha) และปุ่มสลับโหมดในหน้าตัดต่อ
-- [ ] รันการทดสอบ frontend (`npm test` & `npm run build`) และ backend (`pytest`) ยืนยันความสมบูรณ์ 100%
-
-### Gate
-
-- [ ] `npm test` ผ่านครบ 311+ ข้อ
-- [ ] `npm run build` ผ่านสมบูรณ์
-- [ ] ไม่กระทบ Preview-Render Parity ของระบบเดิม
-- [ ] Git Working Tree สะอาดและเป็นระเบียบ
-
-
-
-
 
 
 ## Round DOCS-MANUAL-CURRENCY-REFRESH-20260923 — อัปเดตคู่มือโปรแกรมให้ตรงระบบจริง (Gadget Media + TypeSafe AI + ตัวเลขใหม่)

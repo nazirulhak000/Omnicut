@@ -7,12 +7,46 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 | เพิ่มระบบ Magnetic Snap & Visual Guide พร้อม Ripple Feedback บน Timeline, เพิ่มโหมดตรวจเช็ก Cutout Mask ใน Player/Inspector, และจัดระเบียบ Git Working Tree | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round CLEANUP-DEMO-TEST-EXPORTS-PROJECTS-20260924 | ลบทำความสะอาดคลิปทดสอบ demo_*.mp4 และไฟล์ดัมมี่ตกค้างใน 04_Exports/Ready_to_post, 03_Projects/demo, spotlight-test และ export_registry.json ตามกฎเหล็กข้อ 11 และ 15 | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round AUDIT-BACKGROUND-ISOLATION-CUTOUT-SPOTLIGHT-20260923 | ตรวจสอบระบบจัดการพื้นหลังทั้งหมด (Background Isolation, rembg Cutout, Blur Background, Product Spotlight) เชิงลึกทุกมิติ ทั้ง UI, Logic, rembg Worker, Preview & Render Parity และ Automated Tests | 2026-09-23 | สำเร็จสมบูรณ์ (Complete Background Cutout & Spotlight System Audit, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round RESTORE-STYLE-TAB-SCROLLABLE-BG-CUT-20260923 | เปิดแท็บสไตล์ (Style) ใน Asset Panel สำหรับเปิดใช้งาน/เตรียม Cutout ตัดพื้นหลังสินค้า โดยทำแท็บแบบเลื่อนได้ในแนวนอน (Horizontal Scroll) ไม่บีบกล่องเดิม | 2026-09-23 | สำเร็จสมบูรณ์ (Asset Panel Scrollable Tabs & Style Cutout Restore, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 | ปิด defect และหลักฐานของ Motion Text ให้ live Preview/FFmpeg Render ผ่าน strict parity gate | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
 | Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 | ปิด parity ของ Caption/Sticker/Effect/Spotlight แบบ vertical slice | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
 | Round EDITOR-PARITY-PHASE-3-MOTION-TEXT-20260922 | ทำ Motion Text ให้ Preview/Render ใช้ layout และ motion contract เดียวกัน | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 — ยกระดับ Timeline Magnetic Snap, Ripple Feedback, Cutout Mask Preview และเคลียร์ Git Working Tree
+
+วันที่: 2026-09-24 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** 
+1. เพิ่มระบบ **Timeline Magnetic Snap & Visual Guide** พร้อม **Ripple Feedback** ที่ทำงานจริงเมื่อลากคลิป, Trim, หรือปรับแต่งซับ/ป้ายฮุก
+2. เพิ่ม **โหมดตรวจเช็ก Cutout Mask (Checkerboard & Matte View)** ใน SequencePlayer และ AssetPanel พร้อมป้าย Cutout บน Timeline Clip
+3. จัดการความสะอาดของ Git Working Tree โดย commit รวบยอดงาน Parity Phase 3-4 เดิม และงานพัฒนาใหม่อย่างเป็นระเบียบ
+
+### สิ่งที่ทำไป
+
+1. **Baseline & Git Working Tree Cleanliness**:
+   - รวบยอดงานเดิม Phase 3 & 4 Parity และ Recovery (49 ไฟล์ที่แก้ไขและ 15 untracked files) บันทึก commit เป็นระเบียบ: `8ae8c9e` (`feat(editor-parity): phase 3 & 4 motion text, overlay vertical slices, and render recovery gates`) ทำให้ working tree สะอาดหมดจด
+2. **Timeline Magnetic Snap Visual Guide & Ripple Feedback**:
+   - ใน `frontend/src/lib/timelineMath.js`: เพิ่มฟังก์ชัน `resolveSnapCandidateLabel` สำหรับระบุประเภทจุดแม่เหล็กอัตโนมัติ (จุดเริ่มต้น 0:00, หัวอ่าน Playhead, จุดจบเสียงพากย์ Audio End, รอยต่อคลิป/หัวคลิป/ท้ายคลิป, หัวซับ/ท้ายซับ) พร้อม Unit Tests ใน `timelineMath.test.js`
+   - ใน `frontend/src/hooks/useTimelineDrag.js`: เชื่อมต่อระบบ Snapping จากทุกการลาก/Trim (Caption, Text, Hook, Sticker, Effect) เข้ากับ callback `onSnapGuide` และตรวจจับการขยับซับต่อเนื่องส่ง `onRippleTriggered`
+   - ใน `frontend/src/components/editor/TimelineClip.jsx`: เชื่อม edge trim snap เข้ากับ `onSnapGuide` และเพิ่ม Badge `✂️ Cutout` บนคลิปที่มีการเปิดใช้งาน Background Isolation
+   - ใน `frontend/src/components/editor/Timeline.jsx`: แสดง **Vertical Glowing Snap Guide Line** เรืองแสงสีทองพาดผ่านทุกแทร็กไทม์ไลน์ (`bg-[#FFE600] shadow-[0_0_10px_#FFE600]`) พร้อม Tooltip Badge แสดงจุดดูดและ timecode (`🧲 {label} ({time})`), และแสดง **Floating Ripple Feedback Pill** เมื่อเกิดการดูดเรียงคลิปหรือซับต่อเนื่องไร้ช่องว่าง
+3. **Background Cutout Mask Preview Inspection**:
+   - ใน `frontend/src/components/SequencePlayer.jsx`:
+     - เพิ่มโหมดตรวจเช็ก Cutout: `composite` (ปกติ), `checkerboard` (ตารางหมากรุกตรวจเช็กความโปร่งใส/ขอบไดคัท), `matte` (มาสก์ขาวดำ Alpha Matte ตรวจเช็กรอยรั่ว/รูโหว่ของโมเดล)
+     - สร้าง Offscreen Scratch Canvas แยกและจัดการ compositing `source-in` สำหรับวาดมาสก์สีขาวล้วนบนพื้นหลังดำสนิทอย่างสมบูรณ์
+     - เพิ่มปุ่ม Cutout Mode Switcher บน Player เมื่อมีคลิปที่ใช้ Background Isolation
+   - ใน `frontend/src/components/editor/AssetPanel.jsx`: เพิ่มตัวเลือกสลับโหมดพรีวิว Cutout (`ปกติ` | `ตารางหมากรุก` | `มาสก์ขาวดำ`) ในส่วนควบคุม Background Isolation
+   - ใน `frontend/src/components/editor/EditorShell.jsx`: เชื่อมโยง state `cutoutPreviewMode` ร่วมกันระหว่าง SequencePlayer และ AssetPanel แบบ two-way reactive
+4. **Gates & Verification**:
+   - `npm test`: ผ่านครบ 312 ข้อ (312/312 pass, 0 fail)
+   - `npm run build`: Vite build ผ่าน 100% ไม่มี error
+   - `pytest tests/test_preview_render_parity.py -q`: ผ่านครบ 157 ข้อ (100%)
+   - `pytest tests/test_background_isolation.py -q`: ผ่านครบ 7 ข้อ (100%)
+   - Git Commit: `596c173` (`feat(editor): timeline magnetic snap visual guide, ripple feedback, and cutout mask preview inspection`)
+
 
 ## Round CLEANUP-DEMO-TEST-EXPORTS-PROJECTS-20260924 — ลบทำความสะอาดคลิปทดสอบและไฟล์ดัมมี่ตกค้าง 100%
 
