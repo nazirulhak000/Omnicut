@@ -3082,7 +3082,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     if (!deleteTargetProduct?.id) return;
     setIsDeletingProduct(true);
     try {
-      await deleteProduct(deleteTargetProduct.id);
+      await deleteProduct(deleteTargetProduct.id, true);
       showToast('ลบสินค้าและสคริปต์ทั้งหมดเรียบร้อยแล้ว');
       workspaceData?.invalidateTrackerData?.();
       const res = await readProducts({ force: true });
@@ -3096,7 +3096,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       }
       setDeleteTargetProduct(null);
     } catch (err) {
-      showToast('ลบไม่สำเร็จ: ' + err.message, 'error');
+      const msg = err.response?.data?.detail || err.friendlyMessage || err.message;
+      showToast('ลบไม่สำเร็จ: ' + msg, 'error');
     } finally {
       setIsDeletingProduct(false);
     }
@@ -6016,7 +6017,11 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         onClose={() => setDeleteTargetProduct(null)}
         onConfirm={confirmDeleteProduct}
         title="ลบสินค้าและสคริปต์ทั้งหมดถาวร?"
-        description="ข้อมูลสินค้า สเปก และสคริปต์มุมมองขายทั้งหมดจะถูกลบออกจากระบบ"
+        description={
+          deleteTargetProduct?.angles?.some((a) => a.status === 'posted' || a.posted_at)
+            ? "⚠️ สินค้านี้มีมุมหรือสคริปต์ที่บันทึกว่าโพสต์แล้ว การลบถาวรจะบังคับล้างข้อมูลสินค้า สเปก และประวัติทั้งหมดออกจากระบบ"
+            : "ข้อมูลสินค้า สเปก และสคริปต์มุมมองขายทั้งหมดจะถูกลบออกจากระบบ"
+        }
         itemName={deleteTargetProduct?.title || deleteTargetProduct?.name}
         dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้"
         confirmText="ลบข้อมูลถาวร"

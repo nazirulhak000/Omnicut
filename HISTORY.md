@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round FIX-PRODUCT-DELETE-FORCE-SUPPORT-20260924 | แก้ไขปัญหาระบบลบสินค้าติดล็อกมุมที่โพสต์แล้ว เพิ่มตัวเลือก Force Delete ใน Backend API และ ProductToClip UI พร้อมล้างสินค้าทดสอบ debug | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round DOCS-MANUAL-CURRENCY-REFRESH-20260924 | อัปเดตคู่มือโปรแกรมและตัวเลขระบบจริง (Gadget Media, TypeSafe AI, คีย์ลัด N/M, Center Crosshair Guides, pytest.ini) | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 | เพิ่มระบบ Magnetic Snap & Visual Guide พร้อม Ripple Feedback บน Timeline, เพิ่มโหมดตรวจเช็ก Cutout Mask ใน Player/Inspector, และจัดระเบียบ Git Working Tree | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round CLEANUP-DEMO-TEST-EXPORTS-PROJECTS-20260924 | ลบทำความสะอาดคลิปทดสอบ demo_*.mp4 และไฟล์ดัมมี่ตกค้างใน 04_Exports/Ready_to_post, 03_Projects/demo, spotlight-test และ export_registry.json ตามกฎเหล็กข้อ 11 และ 15 | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -15,6 +16,34 @@
 | Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 | ปิด defect และหลักฐานของ Motion Text ให้ live Preview/FFmpeg Render ผ่าน strict parity gate | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
 | Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 | ปิด parity ของ Caption/Sticker/Effect/Spotlight แบบ vertical slice | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
 | Round EDITOR-PARITY-PHASE-3-MOTION-TEXT-20260922 | ทำ Motion Text ให้ Preview/Render ใช้ layout และ motion contract เดียวกัน | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round FIX-PRODUCT-DELETE-FORCE-SUPPORT-20260924 — แก้ไขปัญหาระบบลบสินค้าติดล็อกมุมที่โพสต์แล้ว & เพิ่ม Force Delete Support
+
+วันที่: 2026-09-24 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+1. แก้ไขปัญหาระบบลบสินค้าไม่ออกในหน้า "สินค้า → คลิป" เนื่องจากมีมุมสคริปต์ที่ติดสถานะ `posted` (ระบบเดิมบล็อกแบบ hardcoded ไร้ทางออก)
+2. เพิ่มพารามิเตอร์ `force: bool = False` ใน `ProductStore.delete(product_id, force=False)` (`scripts/product_store.py`) และ API Endpoint `DELETE /api/products/{product_id}?force=true` (`scripts/api_phase1.py`)
+3. ปรับปรุง Frontend API และ ConfirmModal ใน `ProductToClip.jsx` ให้ส่ง `force: true` เมื่อผู้ใช้กดยืนยันปุ่มแดง "ลบข้อมูลถาวร" พร้อมแสดงข้อความเตือนเมื่อตรวจพบมุมที่บันทึกว่าโพสต์แล้ว
+4. ลบสินค้าทดสอบ `debug` (รหัส `DEB01`, ID: `935cf4ea0fa0473dbb08d40db3675ccc`) ออกจากระบบอย่างสมบูรณ์แบบตามกฎเหล็กข้อ 11 และ 15
+5. เพิ่ม Unit Tests ใน `tests/test_product_delete_force.py` เพื่อครอบคลุมทั้งกรณีบล็อกปกติ และการบังคับลบด้วย `force=True`
+
+### สิ่งที่ทำไป
+
+1. **Backend ProductStore (`scripts/product_store.py`)**:
+   - เพิ่มพารามิเตอร์ `force: bool = False` ใน `ProductStore.delete(product_id, force=False)` โดยหาก `posted_angles` มีอยู่และ `not force` จะแจ้งเตือนตามปกติ แต่หากระบุ `force=True` จะอนุญาตให้ลบสินค้าและสคริปต์ทั้งหมดออกจากคลังได้
+2. **Backend API Endpoint (`scripts/api_phase1.py`)**:
+   - เพิ่ม query param `force: bool = False` ใน `@router.delete("/products/{product_id}")` และส่งต่อไปยัง `ProductStore.delete(product_id, force=force)`
+3. **Frontend API & UI (`frontend/src/api.js` & `ProductToClip.jsx`)**:
+   - ใน `api.js`: ปรับ `deleteProduct(id, force = false)` ให้ส่ง params `{ force }`
+   - ใน `ProductToClip.jsx`: ปรับแต่ง ConfirmModal ให้แจ้งเตือนว่า "⚠️ สินค้านี้มีมุมหรือสคริปต์ที่บันทึกว่าโพสต์แล้ว การลบถาวรจะบังคับล้างข้อมูลสินค้า สเปก และประวัติทั้งหมดออกจากระบบ" และเมื่อกดยืนยันจะเรียก `deleteProduct(id, true)` เพื่อบังคับลบอย่างปลอดภัย
+4. **Cleanup Dummy Test Product**:
+   - ลบสินค้าทดสอบ `debug` (ID: `935cf4ea0fa0473dbb08d40db3675ccc`) ออกจากคลังสินค้าและฐานข้อมูลเรียบร้อย 100%
+5. **Testing & Verification**:
+   - เพิ่ม Unit Test `tests/test_product_delete_force.py` ผ่าน 2/2 tests
+   - `python -m compileall -q scripts`: ผ่าน 100%
+   - `npm test`: ผ่าน 312/312 tests (0 failure)
+   - `npm run build`: Vite build สำเร็จ 2,026 modules
 
 ## Round DOCS-MANUAL-CURRENCY-REFRESH-20260924 — อัปเดตคู่มือโปรแกรมให้ตรงระบบจริง (Gadget Media + TypeSafe AI + คีย์ลัด N/M + Center Crosshair + ตัวเลขใหม่)
 

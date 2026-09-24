@@ -489,11 +489,11 @@ def update_product(product_id: str, req: ProductUpdateRequest):
 
 
 @router.delete("/products/{product_id}")
-def delete_product(product_id: str):
+def delete_product(product_id: str, force: bool = False):
     try:
-        ProductStore.delete(product_id)
+        ProductStore.delete(product_id, force=force)
     except ValueError as err:
-        raise HTTPException(status_code=404, detail=str(err))
+        raise HTTPException(status_code=400, detail=str(err))
     return {"success": True}
 
 

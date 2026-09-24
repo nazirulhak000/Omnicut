@@ -1451,7 +1451,7 @@ class ProductStore:
         return None, None
 
     @classmethod
-    def delete(cls, product_id: str) -> None:
+    def delete(cls, product_id: str, force: bool = False) -> None:
         with cls._mutate() as products:
             target = next((p for p in products if p["id"] == product_id), None)
             if not target:
@@ -1460,9 +1460,9 @@ class ProductStore:
                 a for a in target.get("angles", [])
                 if a.get("status") == "posted" or a.get("posted_at")
             ]
-            if posted_angles:
+            if posted_angles and not force:
                 raise ValueError(
-                    f"ไม่อนุญาตให้ลบสินค้า '{target.get('name')}' เนื่องจากมีคลิปที่โพสต์ลง TikTok แล้ว {len(posted_angles)} มุม (ต้องเก็บไว้เป็นหลักฐาน)"
+                    f"ไม่อนุญาตให้ลบสินค้า '{target.get('name')}' เนื่องจากมีคลิปที่โพสต์ลง TikTok แล้ว {len(posted_angles)} มุม (ต้องเก็บไว้เป็นหลักฐาน หรือระบุ force=True เพื่อยืนยันบังคับลบ)"
                 )
             remaining = [p for p in products if p["id"] != product_id]
             products[:] = remaining

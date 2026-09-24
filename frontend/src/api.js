@@ -295,7 +295,7 @@ export const generateProductBatch = (productId, payload) => api.post(`/products/
 export const addProductAngle = (productId, payload) => api.post(`/products/${productId}/angles`, payload).then(r => r.data);
 export const deleteProductAngle = (productId, angleId, batch = null) =>
   api.delete(`/products/${productId}/angles/${angleId}`, { params: batch !== null ? { batch } : {} }).then(r => r.data);
-export const deleteProduct = (id) => api.delete(`/products/${id}`).then(r => r.data);
+export const deleteProduct = (id, force = false) => api.delete(`/products/${id}`, { params: { force } }).then(r => r.data);
 
 export const getProjects = () => api.get('/projects').then(r => r.data);
 export const getProject = (name) => api.get(`/projects/${encodeURIComponent(name)}`).then(r => r.data);

@@ -6,7 +6,9 @@
 - [x] Round RESTORE-STYLE-TAB-SCROLLABLE-BG-CUT-20260923 — เปิดแท็บสไตล์ (Style) ใน Asset Panel สำหรับเปิดใช้งาน/เตรียม Cutout ตัดพื้นหลังสินค้า โดยทำแท็บแบบเลื่อนได้ในแนวนอน (Horizontal Scroll) ไม่บีบกล่องเดิม (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round UNIQUE-COMPOUND-ANGLE-ID-ISOLATION-20260922 — แก้ปัญหาโครงสร้าง angle_id ชนกันหรือเขียนทับข้ามล็อต ด้วย Compound Unique ID (pain_point_b2), อุดช่องโหว่ Fallback/State ใน Backend, API, ShotListsStore และ React Virtual DOM (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
 - [x] Round PROJECT-SELECTOR-SMART-FILTER-TABS-20260922 — เพิ่ม Smart Filter Tabs ในเมนู Dropdown เลือกโปรเจกต์ของ Editor ([ กำลังตัดต่อ ], [ ตัดเสร็จแล้ว ], [ ทั้งหมด ]) โดยค่าเริ่มต้นเปิดมาที่ "กำลังตัดต่อ" ทันที เพื่อไม่ให้งานที่เรนเดอร์เสร็จแล้วหลายสิบชิ้นมาทำให้หน้าจอดูรกและยุ่งยาก (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+- [x] Round FIX-PRODUCT-DELETE-FORCE-SUPPORT-20260924 — แก้ไขปัญหาระบบลบสินค้าติดล็อกมุมที่โพสต์แล้ว เพิ่มตัวเลือก Force Delete ใน Backend API และ ProductToClip UI พร้อมล้างสินค้าทดสอบ debug (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round DOCS-MANUAL-CURRENCY-REFRESH-20260924 — อัปเดตคู่มือให้ตรงระบบจริง (Gadget Media + TypeSafe AI + คีย์ลัด N/M + Center Crosshair + 26 routers / 208 routes / 1,807 pytest / 312 frontend) (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+
 - [x] Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 — ปิดงาน Motion Text/Preview–Render Parity ให้ตรวจซ้ำได้จริง (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
 - [x] Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 — ปิด parity ของ Caption/Sticker/Effect/Spotlight แบบ vertical slice (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
 
