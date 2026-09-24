@@ -19,6 +19,8 @@ export default function ShortcutsModal({ isOpen, onClose }) {
       category: 'ไทม์ไลน์และการตัดต่อ',
       shortcuts: [
         { key: 'S / Ctrl+B', desc: 'ตัดแบ่งคลิปตรงหัวอ่าน' },
+        { key: 'N', desc: 'เปิด / ปิด แม่เหล็กดูดคลิป (Magnetic Snap)' },
+        { key: 'M', desc: 'สลับโหมดพรีวิว Cutout (ปกติ / หมากรุก / มาสก์)' },
         { key: 'Ctrl + Scroll', desc: 'ซูมไทม์ไลน์เข้า / ออก' },
         { key: '+ / -', desc: 'ปรับระดับการซูมไทม์ไลน์' },
         { key: 'J / K / L', desc: 'ถอยหลัง 1s / เล่น-หยุด / เดินหน้า 1s' },

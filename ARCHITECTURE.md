@@ -1,6 +1,6 @@
 # OmniCut Pro Studio Architecture
 
-เอกสารนี้อธิบายโครงสร้างสถาปัตยกรรมที่ใช้งานจริง ณ วันที่ 2026-09-23 (ปรับปรุงล่าสุด) หากสถานะงานหรือผลทดสอบต่างจากเอกสารนี้ ให้ยึด [TODO.md](TODO.md) และโค้ดปัจจุบันเป็นหลัก
+เอกสารนี้อธิบายโครงสร้างสถาปัตยกรรมที่ใช้งานจริง ณ วันที่ 2026-09-24 (ปรับปรุงล่าสุด) หากสถานะงานหรือผลทดสอบต่างจากเอกสารนี้ ให้ยึด [TODO.md](TODO.md) และโค้ดปัจจุบันเป็นหลัก
 
 ## ภาพรวมระบบ
 
@@ -82,7 +82,7 @@ Entry point คือ `scripts/api_server.py` ทำหน้าที่สร�
 
 1. `SourceResolutionStage` ตรวจและเตรียมวิดีโอ/รูปต้นทางจาก `01_Raw/`
 2. `ScriptStage` สร้างหรือใช้สคริปต์ที่กำหนด พร้อมระบบทำความสะอาดคำห้าม/วรรณยุกต์
-3. `VoiceStage` สร้างเสียงพากย์ (ค่าเริ่มต้น Gemini TTS + preset Puck, เลือก Edge-TTS +15% ได้เอง) และ timing alignment
+3. `VoiceStage` สร้างเสียงพากย์ (ค่าเริ่มต้น Gemini Flash TTS + preset Fenrir ชายสตรองพรีเมียม, เลือก Edge-TTS +15% ได้เอง) และ timing alignment
 4. `SubtitleStage` สร้าง cues, overlays, kinetic highlight และไฟล์ ASS
 5. `AudioMixStage` รวม Voice, BGM, SFX และ clip audio ตามระดับสัดส่วนมาตรฐาน
 6. `ShotMatchingStage` จับคู่ภาพกับบทด้วย AI เมื่อเปิดใช้
@@ -112,7 +112,9 @@ Manual Save และ Autosave ต้องเรียก serializer เดี�
 
 `frontend/src/lib/timelineSchema.js` กำหนด Timeline Document v2 พร้อม in-memory migration จาก manifest รุ่นเก่า โดยยังไม่เขียนทับไฟล์เก่าจนผู้ใช้บันทึก
 
-- `timelineMath.js` จัดการเวลา, trim, split, transition, snap และ ripple math
+- `timelineMath.js` จัดการเวลา, trim, split, transition, magnetic snap และ ripple math
+- `useEditorShortcuts.js` ควบคุมคีย์ลัดด่วน (Spacebar, S ตัดคลิป, N สลับ Snap, M สลับโหมด Cutout Mask, J/K/L, Ctrl+Z/Y, Ctrl+S)
+- `SequencePlayer.jsx` เรนเดอร์ Canvas 2D พร้อม Smart Center Crosshair Guides (`🎯 กึ่งกลางจอ 50%`) และ Cutout Mask Inspection 3 โหมด (ปกติ / หมากรุก / ขาวดำ)
 - `timelineTrackModel.js` จัดการ track layout และ audio/video/overlay track state
 - `keyframeModel.js` และ `scripts/keyframe_engine.py` ต้องรักษาสูตร interpolation ให้ตรงกัน
 - `Timeline.jsx` ประกอบ ruler, lanes, playhead และ context menu จาก component ย่อยใน `editor/timeline/`
@@ -148,10 +150,10 @@ Subtitle modules ปัจจุบัน:
 - Gadget Media แยก ownership เป็น `01_Raw/GadgetMedia/`, `03_Projects/GadgetMedia/`, `04_Exports/Ready_to_post/GadgetMedia/`, `05_Covers_Thumbnails/GadgetMedia/` และ `_Docs/gadget_media/`
 - `scripts/gadget_media_timeline_adapter.py` แปลง Story/EDL เป็น Timeline Document v2 ที่มี `workspace_scope=gadget_media`; ใช้ math/preview/render engine ร่วม แต่ไม่ใช้ manifest หรือ status ของ Global Editor
 
-## สถานะการทดสอบปัจจุบัน (Verification Gates) — วัดจริง 2026-09-23
+## สถานะการทดสอบปัจจุบัน (Verification Gates) — วัดจริง 2026-09-24
 
 - **Python Scripts Compilation:** ผ่าน 100% (`python -m compileall -q scripts`)
 - **FastAPI Endpoints:** 208 routes รวม 26 modular domain routers
-- **Python Pytest Suite:** 1,723 tests collected (`pytest tests/`)
-- **Frontend Suite:** 301 tests passed, 0 failures (`npm test` → `node --test src/lib/*.test.js`)
-- **Vite Production Build:** ผ่านเรียบร้อย 2,025 modules transformed
+- **Python Pytest Suite:** 1,807 tests collected (`pytest tests/` มี testpaths = tests ไม่กวาดชน tools/)
+- **Frontend Suite:** 312 tests passed, 0 failures (`npm test` → `node --test src/lib/*.test.js`)
+- **Vite Production Build:** ผ่านเรียบร้อย 2,026 modules transformed

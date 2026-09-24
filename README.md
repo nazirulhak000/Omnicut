@@ -19,8 +19,8 @@
 - 🧠 **TypeSafe AI (System One / Jev):** จัดอันดับ Hook ด้วยคะแนนตรึงคนดู 3 วินาทีแรก (Retention Score) ในหน้า Script Lab และจับคู่ B-roll แบบ Strict Topic Hold ให้ภาพตรงกับสิ่งที่เสียงพากย์กำลังพูด
 - 🛍️ **Product Scraper & Store:** สกัดข้อมูลสินค้า จุดขาย ราคา โปรโมชั่นจาก Marketplace / URL เพื่อนำมาเขียน Hook & CTA
 - ✍️ **AI Script Generator:** สร้างบทพูดรีวิว/ขายสินค้าที่กระชับ ตรงกลุ่มเป้าหมาย มี Hook 3 วินาทีแรก และ CTA ปิดท้าย
-- 🎙️ **Multi-Engine TTS (ค่าเริ่มต้นคือ Gemini TTS):**
-  - **Gemini Flash TTS (default):** พากย์เสียงไทยมีอารมณ์ จังหวะธรรมชาติ (เสียงเริ่มต้น Puck ชายพลังสูง) รองรับ Multi-Key Failover หลายคีย์อัตโนมัติ
+- 🎙️ **Multi-Engine TTS (ค่าเริ่มต้นคือ Gemini Flash TTS):**
+  - **Gemini Flash TTS (default):** พากย์เสียงไทยคมชัด เป็นธรรมชาติ สไตล์ commercial_premium (เสียงเริ่มต้น `Fenrir` ชายสตรอง คมเข้ม) รองรับ Multi-Key Failover หลายคีย์อัตโนมัติ
   - **Edge-TTS:** ใช้เมื่อผู้ใช้เลือกเองเท่านั้น (`th-TH-PremwadeeNeural`, `th-TH-NiwatNeural`) สปีด +15% สำหรับสไตล์ TikTok
   - **gTTS:** ระบบสำรองสำหรับโหมดออฟไลน์
   - ⚠️ โหมด Gemini TTS จะ **ไม่สลับไป Edge-TTS แบบเงียบๆ** หากเจนไม่ผ่าน แต่แจ้ง Error ให้ผู้ใช้ทราบโดยตรง
@@ -28,7 +28,7 @@
 - 🎨 **Universal 3D Badges & Sticker Sheet:** ระบบสร้างป้ายรีวิว 6 แบบมาตรฐาน (Pros, Cons, Warning, Pro Tip, Score, Verdict) ขอบ Die-cut ใช้งานซ้ำได้ทุกคลิป
 - 🎵 **Smart SFX & BGM Ducking:** จัดการเสียงเอฟเฟกต์ (Whoosh, Pop, Ding) และปรับระดับเพลงพื้นหลังอัตโนมัติขณะมีเสียงพูด
 - 🖥️ **Web UI Control Center:** แดชบอร์ด React + Vite ควบคุมทุกขั้นตอนและพรีวิวงานได้แบบเรียลไทม์
-- 🎞️ **Flexible Timeline Editor:** รองรับหลาย Video/Overlay/Audio tracks, trim, split, duplicate, transition, ripple, snap, mute/solo/visibility และ undo/redo
+- 🎞️ **Flexible Timeline Editor:** รองรับหลาย Video/Overlay/Audio tracks, trim, split, duplicate, transition, ripple feedback, magnetic snap (คีย์ลัด `N`), cutout mask inspection 3 โหมด (คีย์ลัด `M`), center crosshair smart guides (`🎯 กึ่งกลางจอ 50%`), mute/solo/visibility และ undo/redo
 - 💾 **Safe Project State:** Manifest migration, autosave แบบ latest-write-wins, flush ก่อนสลับโปรเจกต์ และ atomic save
 - 🔁 **Partial Reroll:** เปลี่ยน Hook, Subtitle, BGM, Voice หรือ Video โดย reuse artifact ของ stage ก่อนหน้า
 - 🎚️ **Preview = Render Contracts:** Canvas preview และ ASS/libass renderer ใช้ model/constant ที่ mirror กัน พร้อม source, behavior และ FFmpeg regression tests
@@ -195,7 +195,7 @@ npm test
 npm run build
 ```
 
-ผลตรวจล่าสุด 2026-09-23 (รันด้วย `.venv`): FastAPI 208 routes จาก 26 routers, Frontend 301 tests ผ่าน, Vite build ผ่าน 2,025 modules และ pytest ยังมี **2 test ที่ตกค้างจากรอบก่อน** (`test_shot_list_enhancements.py::test_shot_list_builder_gemini_defaults` คาดหวัง call แบบไม่มี `batch=1`, และ `test_export_registry_bulk.py::test_path_index_refreshes_after_external_json_mirror_edit` ที่ตกเฉพาะเมื่อรันทั้งชุด — รันเดี่ยวผ่าน 3/3) — ⚠️ ถ้ารัน pytest ด้วย Python ระบบ จะตกเพิ่ม 2 เคสของ TypeSafe เพราะไม่มี `typesafe_sdk` อ่านชนิด test และข้อห้ามที่ [.agents/rules/testing_standard.md](.agents/rules/testing_standard.md)
+ผลตรวจล่าสุด 2026-09-24 (รันด้วย `.venv`): FastAPI 208 routes จาก 26 routers, Pytest suite รวบรวม 1,807 tests, Frontend 312 tests ผ่านครบ 100%, Vite build ผ่าน 2,026 modules และ pytest กำหนด testpaths = tests ป้องกันกวาดสคริปต์ใน tools/ — ⚠️ ถ้ารัน pytest ด้วย Python ระบบ จะตกเพิ่ม 2 เคสของ TypeSafe เพราะไม่มี `typesafe_sdk` ควบคุมสภาพแวดล้อมตาม [.agents/rules/testing_standard.md](.agents/rules/testing_standard.md)
 
 ---
 

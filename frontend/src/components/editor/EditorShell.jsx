@@ -906,6 +906,27 @@ export default function EditorShell({
     patchClip,
     zen,
     setZen,
+    onToggleSnap: () => {
+      setSnapEnabled((v) => {
+        const next = !v;
+        showToast(next ? '🧲 แม่เหล็กดูด Timeline: เปิด' : 'แม่เหล็กดูด Timeline: ปิด');
+        return next;
+      });
+    },
+    onCycleCutoutMode: () => {
+      setCutoutPreviewMode((curr) => {
+        const order = ['composite', 'checkerboard', 'matte'];
+        const nextIdx = (order.indexOf(curr) + 1) % order.length;
+        const next = order[nextIdx];
+        const titles = {
+          composite: 'ปกติ (Composite)',
+          checkerboard: 'ตารางหมากรุก (Checkerboard)',
+          matte: 'มาสก์ขาวดำ (Alpha Matte)',
+        };
+        showToast(`✂️ โหมดตรวจเช็ก Cutout: ${titles[next]}`);
+        return next;
+      });
+    },
   });
 
   const pxPerSec = ZOOM_LEVELS[zoomIndex];

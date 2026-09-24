@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round DOCS-MANUAL-CURRENCY-REFRESH-20260924 | อัปเดตคู่มือโปรแกรมและตัวเลขระบบจริง (Gadget Media, TypeSafe AI, คีย์ลัด N/M, Center Crosshair Guides, pytest.ini) | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 | เพิ่มระบบ Magnetic Snap & Visual Guide พร้อม Ripple Feedback บน Timeline, เพิ่มโหมดตรวจเช็ก Cutout Mask ใน Player/Inspector, และจัดระเบียบ Git Working Tree | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round CLEANUP-DEMO-TEST-EXPORTS-PROJECTS-20260924 | ลบทำความสะอาดคลิปทดสอบ demo_*.mp4 และไฟล์ดัมมี่ตกค้างใน 04_Exports/Ready_to_post, 03_Projects/demo, spotlight-test และ export_registry.json ตามกฎเหล็กข้อ 11 และ 15 | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round AUDIT-BACKGROUND-ISOLATION-CUTOUT-SPOTLIGHT-20260923 | ตรวจสอบระบบจัดการพื้นหลังทั้งหมด (Background Isolation, rembg Cutout, Blur Background, Product Spotlight) เชิงลึกทุกมิติ ทั้ง UI, Logic, rembg Worker, Preview & Render Parity และ Automated Tests | 2026-09-23 | สำเร็จสมบูรณ์ (Complete Background Cutout & Spotlight System Audit, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -14,6 +15,37 @@
 | Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 | ปิด defect และหลักฐานของ Motion Text ให้ live Preview/FFmpeg Render ผ่าน strict parity gate | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
 | Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 | ปิด parity ของ Caption/Sticker/Effect/Spotlight แบบ vertical slice | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
 | Round EDITOR-PARITY-PHASE-3-MOTION-TEXT-20260922 | ทำ Motion Text ให้ Preview/Render ใช้ layout และ motion contract เดียวกัน | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round DOCS-MANUAL-CURRENCY-REFRESH-20260924 — อัปเดตคู่มือโปรแกรมให้ตรงระบบจริง (Gadget Media + TypeSafe AI + คีย์ลัด N/M + Center Crosshair + ตัวเลขใหม่)
+
+วันที่: 2026-09-24 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+1. อัปเดตคู่มือที่ผู้ใช้เปิดอ่านจริง (`UserGuide.jsx`), หน้าต่างคีย์ลัด (`ShortcutsModal.jsx`) และเอกสารระบบ (`README.md`, `ARCHITECTURE.md`) ให้ตรงกับระบบจริงทุกจุด: Gadget Media 6 ขั้น, TypeSafe AI (System One / Jev), คีย์ลัดด่วน `N` (Toggle Snap) และ `M` (Cycle Cutout Mode), และ Smart Center Crosshair Guides บน Canvas
+2. อัปเดตตัวเลขระบบจริง (26 routers / 208 routes / 10 เมนู / 1,807 pytest tests / 312 frontend tests / 2,026 build modules) และแก้เสียงมาตรฐานเป็น Gemini Flash TTS `Fenrir`
+3. แก้ปัญหา `pytest.ini` โดยใส่ `testpaths = tests` และ `python_files = test_*.py` ไม่ให้ pytest กวาดสคริปต์สำรวจใน `tools/`
+
+### สิ่งที่ทำไป
+
+1. **Pytest Discovery Guard (`pytest.ini`)**:
+   - เพิ่ม `testpaths = tests` และ `python_files = test_*.py` ทำให้ `pytest` ค้นหาเฉพาะในโฟลเดอร์ `tests/` ไม่ชนสคริปต์ใน `tools/`
+2. **Editor Shortcuts (`N` & `M`)**:
+   - ใน `frontend/src/hooks/useEditorShortcuts.js`: เพิ่มการดักจับปุ่ม `N` (เปิด/ปิด Snap) และ `M` (สลับโหมด Cutout Mask)
+   - ใน `frontend/src/components/editor/EditorShell.jsx`: เชื่อม `onToggleSnap` (พร้อม Toast แจ้งสถานะ) และ `onCycleCutoutMode` (วนลูป 3 โหมด: composite -> checkerboard -> matte)
+   - ใน `frontend/src/components/ShortcutsModal.jsx`: บันทึกคีย์ลัด `N` และ `M` ในหมวดการตัดต่อ
+3. **Canvas Smart Center Crosshair Guides (`SequencePlayer.jsx`)**:
+   - เพิ่มเส้นไกด์สีฟ้า Crosshair กึ่งกลาง Canvas 50% แนวนอน/แนวตั้ง พร้อมแสดง Badge `🎯 กึ่งกลางจอ (Center 50%)`, `กึ่งกลางแนวนอน 50%`, `กึ่งกลางแนวตั้ง 50%` เมื่อลากจัดวาง Text, Sticker, หรือ Hook
+4. **User Guide & Documentation Currency (`UserGuide.jsx`, `README.md`, `ARCHITECTURE.md`)**:
+   - ใน `UserGuide.jsx`: อัปเดตเสียงพากย์มาตรฐานเป็น Gemini Flash TTS `Fenrir` (ชายสตรอง คมเข้ม สไตล์ commercial_premium), เพิ่ม FAQ คีย์ลัดด่วนใน Editor (`N`, `M`), FAQ Smart Center Guides, และอัปเดตรายละเอียดเมนู Editor
+   - ใน `README.md`: อัปเดตเสียงเริ่มต้นเป็น `Fenrir`, เพิ่มฟีเจอร์ Magnetic Snap (`N`), Cutout Mode (`M`), Center Guides (`🎯 กึ่งกลางจอ 50%`), และอัปเดต Verification status 2026-09-24 (26 routers / 208 routes / 1,807 pytest / 312 frontend)
+   - ใน `ARCHITECTURE.md`: ปรับวันที่ 2026-09-24, อัปเดตเสียง `Fenrir`, เพิ่มโมเดลคีย์ลัดและ Center Guides ในสถาปัตยกรรม Editor, และอัปเดตสถานะเกท
+5. **Verification Gates**:
+   - `python -m compileall -q scripts`: ผ่าน 100%
+   - `python -c "import scripts.api_server as app; print(len(app.app.routes))"`: 208 routes
+   - `pytest tests/ --collect-only`: 1,807 tests
+   - `pytest tests/test_preview_render_parity.py -q`: 157 passed (100%)
+   - `frontend npm test`: 312 passed, 0 failures (100%)
+   - `frontend npm run build`: 2,026 modules transformed สำเร็จ
 
 ## Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 — ยกระดับ Timeline Magnetic Snap, Ripple Feedback, Cutout Mask Preview และเคลียร์ Git Working Tree
 

@@ -4601,6 +4601,23 @@ function SequencePlayer({
                 />
               )}
 
+              {/* Center Crosshair Badges */}
+              {snapGuide.x === 0.5 && snapGuide.y === 0.5 && (
+                <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-25 flex items-center gap-1 rounded-full border border-[#25F4EE] bg-black/90 px-2 py-0.5 text-[9px] font-bold text-[#25F4EE] shadow-[0_0_12px_rgba(37,244,238,0.5)] whitespace-nowrap">
+                  <span>🎯 กึ่งกลางจอ (Center 50%)</span>
+                </div>
+              )}
+              {snapGuide.x === 0.5 && snapGuide.y !== 0.5 && (
+                <div className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 z-25 rounded border border-[#25F4EE]/70 bg-black/85 px-1.5 py-0.5 text-[9px] font-bold text-[#25F4EE] shadow-md whitespace-nowrap">
+                  <span>กึ่งกลางแนวนอน 50%</span>
+                </div>
+              )}
+              {snapGuide.y === 0.5 && snapGuide.x !== 0.5 && (
+                <div className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 z-25 rounded border border-[#25F4EE]/70 bg-black/85 px-1.5 py-0.5 text-[9px] font-bold text-[#25F4EE] shadow-md whitespace-nowrap">
+                  <span>กึ่งกลางแนวตั้ง 50%</span>
+                </div>
+              )}
+
               {/* TikTok Safe Zone Overlay (Safe 9:16 Area) */}
               {showSafeZone && (
                 <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">

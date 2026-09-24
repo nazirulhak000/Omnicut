@@ -6,36 +6,9 @@
 - [x] Round RESTORE-STYLE-TAB-SCROLLABLE-BG-CUT-20260923 — เปิดแท็บสไตล์ (Style) ใน Asset Panel สำหรับเปิดใช้งาน/เตรียม Cutout ตัดพื้นหลังสินค้า โดยทำแท็บแบบเลื่อนได้ในแนวนอน (Horizontal Scroll) ไม่บีบกล่องเดิม (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round UNIQUE-COMPOUND-ANGLE-ID-ISOLATION-20260922 — แก้ปัญหาโครงสร้าง angle_id ชนกันหรือเขียนทับข้ามล็อต ด้วย Compound Unique ID (pain_point_b2), อุดช่องโหว่ Fallback/State ใน Backend, API, ShotListsStore และ React Virtual DOM (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
 - [x] Round PROJECT-SELECTOR-SMART-FILTER-TABS-20260922 — เพิ่ม Smart Filter Tabs ในเมนู Dropdown เลือกโปรเจกต์ของ Editor ([ กำลังตัดต่อ ], [ ตัดเสร็จแล้ว ], [ ทั้งหมด ]) โดยค่าเริ่มต้นเปิดมาที่ "กำลังตัดต่อ" ทันที เพื่อไม่ให้งานที่เรนเดอร์เสร็จแล้วหลายสิบชิ้นมาทำให้หน้าจอดูรกและยุ่งยาก (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [ ] Round DOCS-MANUAL-CURRENCY-REFRESH-20260923 — อัปเดตคู่มือให้ตรงระบบจริงหลังรอบ 9/19-9/23: เพิ่ม Gadget Media (Product Studio 6 ขั้น) + TypeSafe AI ในคู่มือโปรแกรม/README/ARCHITECTURE พร้อมตัวเลขใหม่ (26 routers / 208 routes / 10 เมนู / pytest 1,723 collected / frontend 301) (ดำเนินการโดย: Cline (Cline Agent))
+- [x] Round DOCS-MANUAL-CURRENCY-REFRESH-20260924 — อัปเดตคู่มือให้ตรงระบบจริง (Gadget Media + TypeSafe AI + คีย์ลัด N/M + Center Crosshair + 26 routers / 208 routes / 1,807 pytest / 312 frontend) (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 — ปิดงาน Motion Text/Preview–Render Parity ให้ตรวจซ้ำได้จริง (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
 - [x] Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 — ปิด parity ของ Caption/Sticker/Effect/Spotlight แบบ vertical slice (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
-
-
-## Round DOCS-MANUAL-CURRENCY-REFRESH-20260923 — อัปเดตคู่มือโปรแกรมให้ตรงระบบจริง (Gadget Media + TypeSafe AI + ตัวเลขใหม่)
-
-วันที่: 2026-09-23 · สั่งโดย: user · ดำเนินการโดย: Cline (Cline Agent) · สถานะ: กำลังทำ
-
-**เป้าหมาย:** คู่มือที่ผู้ใช้เปิดอ่านจริง (เมนู 8 คู่มือใช้งาน → `UserGuide.jsx`) และเอกสารราก (`README.md`, `ARCHITECTURE.md`) ต้องรู้จัก Gadget Media (Product Studio 6 ขั้น + Campaign/Analytics), TypeSafe AI และตัวเลขระบบปัจจุบัน ไม่ให้ผู้ใช้หาเมนูที่ไม่มี/พลาดเมนูที่มีอยู่จริง
-
-### Todo
-
-- [ ] วัดของจริงก่อนแก้: รายการเมนู Sidebar (10 รายการ: Gadget Media + 0-8), router ที่ mount, `len(app.routes)`, pytest collected, frontend tests, build modules
-- [ ] `frontend/src/components/UserGuide.jsx`: เพิ่มการ์ด **Gadget Media** ใน `MENU_GUIDE` + `MENU_DETAIL` (6 ขั้น Brief→Sources→Evidence→Story→Cut→Review), ปรับหัวข้อ section เมนู, เพิ่มหมายเหตุเส้นทาง Gadget Media ในโฟลว์หลัก, เพิ่ม FAQ (Gadget Media / TypeSafe AI)
-- [ ] `README.md`: เพิ่มฟีเจอร์ Gadget Media Product Studio + TypeSafe AI, ปรับตารางเมนูเป็น 10 รายการ, เติมโฟลเดอร์ `03_Projects/GadgetMedia` และ `04_Exports/Ready_to_post/GadgetMedia`, อัปเดตตัวเลข gate
-- [ ] `ARCHITECTURE.md`: เลื่อนวันที่เป็น 2026-09-23, mermaid 9→10 modules และ 23→26 routers, หัวข้อเมนูเป็น 10 รายการ, routes 201→208, เพิ่มแถว router 26 (`api_typesafe_studio.py`), แก้ stage 3 ที่ยังบอก Edge-TTS เป็นค่าเริ่มต้น, อัปเดตตะแกรงทดสอบ
-
-### Gate
-
-- [ ] `npm test` ผ่านครบ · `npm run build` ผ่าน
-- [ ] `python -m pytest tests/ -q` เทียบ baseline (ต้องไม่มี failure ใหม่ — รอบนี้ไม่แตะไฟล์ Python)
-- [ ] `npx oxlint src/components/UserGuide.jsx` ไม่มี error ใหม่
-- [ ] `git diff --stat` ยืนยันแตะเฉพาะไฟล์เอกสาร + `UserGuide.jsx`
-
-### Notes
-
-- รอบนี้ไม่แตะ logic การผลิต (ไม่มีไฟล์ Python) ความเสี่ยงต่อ Preview/Render parity เป็นศูนย์
-- ตัวเลข baseline ที่วัดได้ 2026-09-23: 10 เมนูใน Sidebar, 26 `include_router`, `len(app.routes)` = 208 (APIRoute 204), Gadget Media stages = brief/sources/evidence/story/cut/review
-
 
 - [x] Round EDITOR-PARITY-PHASE-2-BACKGROUND-CUTOUT-20260922 — ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-5))
 

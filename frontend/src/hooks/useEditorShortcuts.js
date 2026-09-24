@@ -20,6 +20,8 @@ export function useEditorShortcuts({
   patchClip,
   zen,
   setZen,
+  onToggleSnap,
+  onCycleCutoutMode,
 } = {}) {
   const keyHandlerRef = useRef(null);
 
@@ -113,6 +115,14 @@ export function useEditorShortcuts({
               transition_in: selectedSeg.clip.transition_in && selectedSeg.clip.transition_in !== 'cut' ? 'cut' : 'fade',
             });
           }
+          break;
+        case 'n': case 'N':
+          e.preventDefault();
+          onToggleSnap?.();
+          break;
+        case 'm': case 'M':
+          e.preventDefault();
+          onCycleCutoutMode?.();
           break;
         default:
           break;
