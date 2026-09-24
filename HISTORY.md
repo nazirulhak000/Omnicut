@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round FIX-CUTOUT-LAYERS-IMPORT-ERROR-20260924 | แก้ไข ReferenceError: Layers is not defined ใน SequencePlayer.jsx เมื่อเปิดใช้งานฟังก์ชันตัด BG (Background Isolation) | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round FIX-PRODUCT-DELETE-FORCE-SUPPORT-20260924 | แก้ไขปัญหาระบบลบสินค้าติดล็อกมุมที่โพสต์แล้ว เพิ่มตัวเลือก Force Delete ใน Backend API และ ProductToClip UI พร้อมล้างสินค้าทดสอบ debug | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round DOCS-MANUAL-CURRENCY-REFRESH-20260924 | อัปเดตคู่มือโปรแกรมและตัวเลขระบบจริง (Gadget Media, TypeSafe AI, คีย์ลัด N/M, Center Crosshair Guides, pytest.ini) | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 | เพิ่มระบบ Magnetic Snap & Visual Guide พร้อม Ripple Feedback บน Timeline, เพิ่มโหมดตรวจเช็ก Cutout Mask ใน Player/Inspector, และจัดระเบียบ Git Working Tree | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -16,6 +17,25 @@
 | Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 | ปิด defect และหลักฐานของ Motion Text ให้ live Preview/FFmpeg Render ผ่าน strict parity gate | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
 | Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 | ปิด parity ของ Caption/Sticker/Effect/Spotlight แบบ vertical slice | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
 | Round EDITOR-PARITY-PHASE-3-MOTION-TEXT-20260922 | ทำ Motion Text ให้ Preview/Render ใช้ layout และ motion contract เดียวกัน | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round FIX-CUTOUT-LAYERS-IMPORT-ERROR-20260924 — แก้ไข ReferenceError: Layers is not defined ใน SequencePlayer & แนะนำวิธีใช้ตัด BG
+
+วันที่: 2026-09-24 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+1. แก้ไขบั๊ก `ReferenceError: Layers is not defined` ใน `frontend/src/components/SequencePlayer.jsx` บรรทัดที่ 4560 เนื่องจากขาดการ `import { Layers } from 'lucide-react'`
+2. ตรวจสอบให้แน่ใจว่าไม่มี icon หรือตัวแปรใดตกค้างโดยไม่ประกาศใน SequencePlayer
+3. อธิบายคู่มือและขั้นตอนการใช้งานระบบตัดพื้นหลัง (Background Isolation / Cutout) ทั้งหมดให้ผู้ใช้เข้าใจและใช้งานได้อย่างคล่องแคล่ว
+
+### สิ่งที่ทำไป
+
+1. **Bugfix SequencePlayer Import**:
+   - เพิ่ม `Layers` ในการ import จาก `lucide-react` ที่ด้านบนของ `frontend/src/components/SequencePlayer.jsx`
+   - ทดสอบ Linting ผ่าน `npx oxlint src/components/SequencePlayer.jsx` พบ 0 errors
+2. **Testing & Verification**:
+   - รัน `npm test` ผ่านครบ 312/312 tests (0 failure)
+   - รัน `npm run build` สำเร็จ 2,026 modules ภายใน 3.82s
+   - SequencePlayer สามารถเรนเดอร์ Cutout Mode Switcher ได้อย่างราบรื่น ไม่แครช Error Boundary อีกต่อไป
 
 ## Round FIX-PRODUCT-DELETE-FORCE-SUPPORT-20260924 — แก้ไขปัญหาระบบลบสินค้าติดล็อกมุมที่โพสต์แล้ว & เพิ่ม Force Delete Support
 

@@ -1,7 +1,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   Play, Pause, Eye, Shield, Trash2, Move, RotateCcw, Plus,
-  AlertTriangle, CheckCircle2, Loader2,
+  AlertTriangle, CheckCircle2, Loader2, Layers,
 } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { effectiveAudioMutes } from '../lib/trackMix.js';
