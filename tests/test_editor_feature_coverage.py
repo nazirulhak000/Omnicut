@@ -51,9 +51,11 @@ def test_approximation_without_reason_or_disclosure_fails_the_gate():
     feature = next(item for item in broken["features"] if item["id"] == "clip_color")
     feature.pop("approximation_reason")
     feature.pop("ui_disclosure_policy")
+    feature.pop("ui_disclosure_evidence")
     errors = validate_matrix(broken, check_sources=False)
     assert any("clip_color approximation_reason is required" in error for error in errors)
     assert any("clip_color ui_disclosure_policy is required" in error for error in errors)
+    assert any("clip_color ui_disclosure_evidence is required" in error for error in errors)
 
 
 def test_editor_only_feature_does_not_require_preview_or_render_consumers():
@@ -64,9 +66,17 @@ def test_editor_only_feature_does_not_require_preview_or_render_consumers():
 
 
 def test_blocked_and_untested_features_are_not_counted_as_ready():
-    counts = readiness_counts(load_matrix())
+    matrix = load_matrix()
+    counts = readiness_counts(matrix)
     ready = counts["PASS"] + counts["APPROXIMATION"]
     not_ready = counts["BLOCKED"] + counts["UNTESTED"]
     assert ready + not_ready == sum(counts.values())
-    assert counts["BLOCKED"] > 0
-    assert counts["UNTESTED"] > 0
+    assert not_ready == sum(
+        feature["readiness"] in {"BLOCKED", "UNTESTED"}
+        for feature in matrix["features"]
+    )
+    assert all(
+        feature["blockers"]
+        for feature in matrix["features"]
+        if feature["readiness"] in {"BLOCKED", "UNTESTED"}
+    )

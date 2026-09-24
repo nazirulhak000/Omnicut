@@ -275,7 +275,7 @@ class TaskManager:
                     )
                     continue
 
-                ProductStore.update_angle_status(product_id, angle_id, "scripted")
+                ProductStore.update_angle_status(product_id, angle_id, "scripted", project_name="")
                 print(
                     f"[TaskManager] restart recovery: reverted product={product_id!r} "
                     f"angle={angle_id!r} from 'in_production' to 'scripted' -- its render "

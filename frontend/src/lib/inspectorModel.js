@@ -3,6 +3,7 @@ import {
   PILL_PAD_X_EM,
   PILL_PAD_Y_EM,
 } from './overlayModel.js';
+import { MIN_CLIP_DURATION } from './timelineMath.js';
 
 /** Format seconds to mm:ss.tenths (e.g. 01:23.4) */
 export function formatShortTime(sec) {
@@ -33,6 +34,19 @@ export function clampVolume(volume) {
 /** Clip playback speed clamped between 0.5 and 2.0 */
 export function clampSpeed(speed) {
   return clampValue(speed, 0.5, 2.0, 1.0);
+}
+
+/** Keep a numeric trim edit inside a playable source window. */
+export function clampTrimStart(value, clip = {}, sourceDuration = 0) {
+  const end = clip.trim_end ?? (sourceDuration > 0 ? sourceDuration : Infinity);
+  return clampValue(value, 0, Math.max(0, end - MIN_CLIP_DURATION), 0);
+}
+
+export function clampTrimEnd(value, clip = {}, sourceDuration = 0) {
+  if (value === '' || value === null) return null;
+  const min = (Number(clip.trim_start) || 0) + MIN_CLIP_DURATION;
+  const max = sourceDuration > 0 ? Math.max(min, sourceDuration) : Infinity;
+  return clampValue(value, min, max, min);
 }
 
 /** Rotation clamped to standard degrees [0, 360) */

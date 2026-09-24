@@ -22,6 +22,7 @@ from scripts.subtitle.font_metrics import (
     DEFAULT_FONT_FAMILY,
     _load_font_family_map,
     ass_top_anchor_offset,
+    thai_overlay_line_offset,
 )
 
 
@@ -45,3 +46,11 @@ def test_ass_top_anchor_offset_compensates_the_boosted_ibm_line_box():
     # line box needs about 31 px of added ascent when its 1000-unit em is
     # restored; keep this deterministic without optional fontTools.
     assert ass_top_anchor_offset("IBM Plex Sans Thai", 70) == 31
+
+
+def test_thai_motion_line_offset_is_narrowly_scoped_to_problematic_marks():
+    assert thai_overlay_line_offset("เร็วขึ้น", 70) == -12
+    assert thai_overlay_line_offset("บรรทัดหนึ่ง", 70) == -12
+    # The common นั่ง pair is handled by the detached-mark repair and must
+    # not receive a second whole-line correction.
+    assert thai_overlay_line_offset("นั่งนิ่งจริงครับ", 70) == 0

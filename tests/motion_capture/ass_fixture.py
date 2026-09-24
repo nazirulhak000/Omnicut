@@ -334,6 +334,113 @@ def render_production_overlay_fixture(
     return {"ass": ass_path, "png": png_path, "metadata": metadata_path}
 
 
+def render_caption_fixture(
+    cues: list[dict[str, Any]],
+    *,
+    sample_ms: int,
+    width: int,
+    height: int,
+    fps: int,
+    background: str,
+    output_dir: Path,
+    font_name: str = "IBM Plex Sans Thai",
+    caption_position: str = "bottom",
+) -> Dict[str, Path]:
+    """Render production captions at export scale, then match Canvas size."""
+
+    output_dir = _safe_output_dir(output_dir)
+    render_width = int(width) * 2
+    render_height = int(height) * 2
+    ass_path = output_dir / "production_caption.ass"
+    png_path = output_dir / f"production_caption_{int(sample_ms):04d}ms.png"
+    metadata_path = output_dir / f"production_caption_{int(sample_ms):04d}ms.json"
+    source_cues = [dict(cue) for cue in cues]
+    expanded_cues: list[dict[str, Any]] = []
+    for cue in source_cues:
+        lines = str(cue.get("text") or "").replace("\\N", "\n").splitlines()
+        if len(lines) <= 1:
+            expanded_cues.append({**cue, "auto_emoji": False})
+            continue
+        canvas_font_size = max(14, round(int(width) * 0.0463))
+        anchor_y = int(height) * (1 - 420 / 1920)
+        block_top = anchor_y - len(lines) * canvas_font_size
+        for index, line in enumerate(lines):
+            line_center = block_top + (index + 0.5) * canvas_font_size
+            expanded_cues.append({
+                **cue,
+                "text": line,
+                "y": line_center / int(height),
+                "auto_emoji": False,
+            })
+    SubtitleEngine.generate_ass(
+        expanded_cues,
+        str(ass_path),
+        font_name=font_name,
+        bilingual=False,
+        video_width=render_width,
+        video_height=render_height,
+        caption_position=caption_position,
+        show_watermark=False,
+    )
+
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError("FFmpeg is required to render a production caption fixture")
+    project_root = Path(__file__).resolve().parents[2]
+    fonts_dir = project_root / "02_Assets" / "Fonts"
+    subtitle_filter = f"subtitles='{_ffmpeg_path(ass_path)}':fontsdir='{_ffmpeg_path(fonts_dir)}'"
+    scale_filter = f"scale={int(width)}:{int(height)}:flags=lanczos"
+    duration_sec = max(1.0, (max(int(sample_ms), 0) + 100) / 1000)
+    command = [
+        ffmpeg,
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        f"color=c={background}:s={render_width}x{render_height}:r={int(fps)}:d={duration_sec:.3f}",
+        "-vf",
+        f"{subtitle_filter},{scale_filter}",
+        "-ss",
+        f"{max(int(sample_ms), 0) / 1000:.3f}",
+        "-frames:v",
+        "1",
+        "-pix_fmt",
+        "rgb24",
+        str(png_path),
+    ]
+    completed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if completed.returncode != 0:
+        raise RuntimeError(f"Production caption fixture render failed: {completed.stderr.strip()}")
+
+    metadata = {
+        "fixture_schema": "production-caption-v1",
+        "renderer": "SubtitleEngine + FFmpeg/libass",
+        "sample_ms": int(sample_ms),
+        "canvas_size": [int(width), int(height)],
+        "render_size": [render_width, render_height],
+        "fps": int(fps),
+        "background": background,
+        "font_name": font_name,
+        "caption_position": caption_position,
+        "cues": source_cues,
+        "command": command,
+        "ffmpeg_version": _ffmpeg_version(ffmpeg),
+        "artifacts": {
+            "ass": {"path": ass_path.name, "sha256": _sha256(ass_path)},
+            "png": {"path": png_path.name, "sha256": _sha256(png_path)},
+        },
+    }
+    metadata_path.write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    return {"ass": ass_path, "png": png_path, "metadata": metadata_path}
+
+
 def _ffmpeg_version(binary: str) -> str:
     result = subprocess.run([binary, "-version"], capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
     return result.stdout.splitlines()[0] if result.stdout else "unknown"
@@ -350,15 +457,11 @@ def _sha256(path: Path) -> str:
 def _foreground_mask(image: Image.Image, background: Optional[Tuple[int, int, int]] = None, tolerance: int = 8) -> Image.Image:
     rgb = image.convert("RGB")
     bg = background or rgb.getpixel((0, 0))
-    mask = Image.new("L", rgb.size, 0)
-    pixels = rgb.load()
-    output = mask.load()
-    for y in range(rgb.height):
-        for x in range(rgb.width):
-            pixel = pixels[x, y]
-            if max(abs(pixel[index] - bg[index]) for index in range(3)) > tolerance:
-                output[x, y] = 255
-    return mask
+    difference = ImageChops.difference(rgb, Image.new("RGB", rgb.size, bg))
+    red, green, blue = difference.split()
+    strongest_channel = ImageChops.lighter(ImageChops.lighter(red, green), blue)
+    threshold = max(0, min(255, int(tolerance)))
+    return strongest_channel.point(lambda value: 255 if value > threshold else 0)
 
 
 def _bbox_center(bbox: Optional[Tuple[int, int, int, int]]) -> Optional[Tuple[float, float]]:
@@ -368,15 +471,8 @@ def _bbox_center(bbox: Optional[Tuple[int, int, int, int]]) -> Optional[Tuple[fl
 
 
 def _mask_iou(reference_mask: Image.Image, candidate_mask: Image.Image) -> float:
-    reference_pixels = reference_mask.load()
-    candidate_pixels = candidate_mask.load()
-    intersection = union = 0
-    for y in range(reference_mask.height):
-        for x in range(reference_mask.width):
-            reference_on = reference_pixels[x, y] > 0
-            candidate_on = candidate_pixels[x, y] > 0
-            intersection += int(reference_on and candidate_on)
-            union += int(reference_on or candidate_on)
+    intersection = ImageChops.darker(reference_mask, candidate_mask).histogram()[255]
+    union = ImageChops.lighter(reference_mask, candidate_mask).histogram()[255]
     return intersection / union if union else 1.0
 
 

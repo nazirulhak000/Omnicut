@@ -12,6 +12,13 @@
 
 export function toMediaUrl(rawPath) {
   if (!rawPath) return '';
+  // Vite's /@fs/ URLs are used by the self-hosted parity fixture to serve a
+  // deterministic temporary source file. Keep them absolute; routing them
+  // through the production /api/media endpoint would turn the Vite path into
+  // a different filesystem request.
+  if (rawPath.startsWith('/@fs/') || rawPath.startsWith('data:') || rawPath.startsWith('blob:')) {
+    return rawPath;
+  }
   if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) return rawPath;
   if (rawPath.startsWith('/api/media/')) return rawPath;
   const normalized = rawPath.replace(/\\/g, '/');

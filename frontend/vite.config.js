@@ -57,6 +57,12 @@ export default defineConfig(({ mode }) => {
   server: {
     host: true,
     port: 5173,
+    // The live Preview-vs-Render parity fixture serves a deterministic source
+    // and real overlay assets through Vite's /@fs route. Keep the allow-list
+    // scoped to this project root; production media still uses /api/media.
+    fs: {
+      allow: [path.resolve(process.cwd(), '..')],
+    },
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',

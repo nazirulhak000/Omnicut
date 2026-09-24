@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from PIL import Image, ImageDraw
+import pytest
 
 from tests.motion_capture.ass_fixture import (
     ComparisonThresholds,
@@ -12,10 +14,41 @@ from tests.motion_capture.ass_fixture import (
     write_frame_diff_artifacts,
 )
 from tests.motion_capture.frame_pair import (
+    CaptionPairSpec,
+    FramePairSpec,
+    compare_live_caption_pair,
     compare_live_frame_pair,
     default_pair_config,
 )
 from tests.motion_capture.capture import temp_capture_dir
+
+
+def _fixture_url_for_spec(base_url: str, spec: FramePairSpec) -> str:
+    parts = urlsplit(base_url)
+    phase_key = "loop" if spec.phase == "loop" else spec.phase
+    query = [
+        (key, value)
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+        if key not in {phase_key, "line"}
+    ]
+    query.append((phase_key, spec.preset_id))
+    query.extend(("line", line) for line in spec.text_layers)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
+def _assert_live_pair_passes(result: dict) -> None:
+    assert result["pair_identity"]["all_match"] is True
+    comparison = result["comparison"]
+    assert result["status"] == "passed", (
+        f"mask_iou={comparison['mask_iou']}, "
+        f"raw_mask_iou={comparison['raw_mask_iou']}, "
+        f"bbox_edge_delta_px={comparison['bbox_edge_delta_px']}, "
+        f"centroid_delta_px={comparison['centroid_delta_px']}, "
+        f"mean_abs_error={comparison['mean_abs_error']}"
+    )
+    assert result["pixel_parity_claim"] is True
+    assert result["comparison"]["passed"] is True
+    assert result["runtime"]["clean"] is True
 
 
 def test_compare_frames_emits_metrics_for_a_real_png_pair():
@@ -81,3 +114,114 @@ def test_self_hosted_live_pair_passes_the_production_motion_layout_gate(motion_f
             (output_dir / "diff" / artifact["path"]).exists()
             for artifact in result["diff_artifacts"].values()
         )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "นั่งนิ่งจริงครับ",
+        "Motion Preview",
+        "ยอดขาย 1,125 ชิ้น",
+        "บรรทัดหนึ่ง\nLINE TWO\nราคา 9,990 บาท",
+    ],
+    ids=["thai", "english", "numbers", "three_lines"],
+)
+def test_live_caption_pair_passes_production_caption_gate(motion_fixture_url: str, text: str):
+    spec = CaptionPairSpec(text=text)
+    parts = urlsplit(motion_fixture_url)
+    url = urlunsplit((
+        parts.scheme,
+        parts.netloc,
+        parts.path,
+        urlencode({"mode": "caption", "caption": spec.text}),
+        parts.fragment,
+    ))
+    with temp_capture_dir("caption-live-pair-") as temp_root:
+        result = compare_live_caption_pair(
+            default_pair_config(url, Path(temp_root) / "pair"),
+            spec,
+        )
+
+        assert result["pair_identity"]["all_match"] is True
+        assert result["status"] == "passed", (
+            f"mask_iou={result['comparison']['mask_iou']}, "
+            f"bbox_edge_delta_px={result['comparison']['bbox_edge_delta_px']}, "
+            f"centroid_delta_px={result['comparison']['centroid_delta_px']}, "
+            f"mean_abs_error={result['comparison']['mean_abs_error']}"
+        )
+        assert result["pixel_parity_claim"] is True
+        assert result["runtime"]["clean"] is True
+
+
+@pytest.mark.parametrize(
+    ("case_name", "text_layers"),
+    [
+        ("thai_marks", ("ทดสอบวรรณยุกต์ไทย", "นั่งนิ่งจริงครับ")),
+        ("english", ("Motion Preview", "Render Parity")),
+        ("numbers_emoji", ("ยอดขาย 1,125 ชิ้น", "เร็วขึ้น 2× 🚀")),
+        ("three_lines", ("บรรทัดหนึ่ง", "LINE TWO", "ราคา 9,990 บาท")),
+    ],
+    ids=lambda value: value if isinstance(value, str) else None,
+)
+def test_live_language_and_line_count_matrix_passes_strict_gate(
+    motion_fixture_url: str,
+    case_name: str,
+    text_layers: tuple[str, ...],
+):
+    spec = FramePairSpec(
+        preset_id="hook.loop.none",
+        phase="loop",
+        frame_index=18,
+        timestamp_ms=600,
+        phase_window_ms=(450, 1850),
+        text_layers=text_layers,
+    )
+    with temp_capture_dir(f"motion-language-{case_name}-") as temp_root:
+        url = _fixture_url_for_spec(motion_fixture_url, spec)
+        result = compare_live_frame_pair(
+            default_pair_config(url, Path(temp_root) / "pair"),
+            spec,
+        )
+
+        _assert_live_pair_passes(result)
+
+
+@pytest.mark.parametrize(
+    ("case_name", "preset_id", "phase", "frame_index", "timestamp_ms", "phase_window_ms"),
+    [
+        ("in_start", "hook.in.bounce", "in", 3, 100, (0, 450)),
+        ("in_middle", "hook.in.bounce", "in", 7, 233, (0, 450)),
+        ("in_end", "hook.in.bounce", "in", 12, 400, (0, 450)),
+        ("hold_start", "hook.loop.pulse", "loop", 15, 500, (450, 1850)),
+        ("hold_middle", "hook.loop.pulse", "loop", 34, 1133, (450, 1850)),
+        ("hold_end", "hook.loop.pulse", "loop", 54, 1800, (450, 1850)),
+        ("out_start", "hook.out.fade", "out", 56, 1867, (1850, 2000)),
+        ("out_middle", "hook.out.fade", "out", 58, 1933, (1850, 2000)),
+        ("out_end", "hook.out.fade", "out", 59, 1967, (1850, 2000)),
+    ],
+    ids=lambda value: value if isinstance(value, str) else None,
+)
+def test_live_in_hold_out_start_middle_end_frames_pass_strict_gate(
+    motion_fixture_url: str,
+    case_name: str,
+    preset_id: str,
+    phase: str,
+    frame_index: int,
+    timestamp_ms: int,
+    phase_window_ms: tuple[int, int],
+):
+    spec = FramePairSpec(
+        preset_id=preset_id,
+        phase=phase,
+        frame_index=frame_index,
+        timestamp_ms=timestamp_ms,
+        phase_window_ms=phase_window_ms,
+    )
+    with temp_capture_dir(f"motion-phase-{case_name}-") as temp_root:
+        url = _fixture_url_for_spec(motion_fixture_url, spec)
+        result = compare_live_frame_pair(
+            default_pair_config(url, Path(temp_root) / "pair"),
+            spec,
+        )
+
+        _assert_live_pair_passes(result)

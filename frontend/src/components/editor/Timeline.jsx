@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { TransitionIcon } from '../../lib/transitionIcons';
 import {
   Eye, EyeOff, Film, MessageSquare, Music, Plus, Scissors, Smile, Sparkles, Type, Volume2, VolumeX, Waves, X
@@ -290,6 +291,23 @@ export default function Timeline({
   const stemCanvasRefs = useRef({});
   const [stemPeaks, setStemPeaks] = useState({});
   const [transitionMenuClipId, setTransitionMenuClipId] = useState(null);
+  const [transitionMenuPosition, setTransitionMenuPosition] = useState(null);
+  const transitionTriggerRef = useRef(null);
+  const closeTransitionMenu = () => {
+    setTransitionMenuClipId(null);
+    transitionTriggerRef.current?.focus();
+  };
+  useEffect(() => {
+    if (!transitionMenuClipId) return undefined;
+    const dismiss = () => setTransitionMenuClipId(null);
+    const scroller = scrollRef.current;
+    window.addEventListener('resize', dismiss);
+    scroller?.addEventListener('scroll', dismiss);
+    return () => {
+      window.removeEventListener('resize', dismiss);
+      scroller?.removeEventListener('scroll', dismiss);
+    };
+  }, [transitionMenuClipId]);
   const [contextMenu, setContextMenu] = useState(null);
   const hasTextOverlays = Boolean(textOverlays && textOverlays.length > 0);
   const effectiveStickers = useMemo(() => {
@@ -824,6 +842,7 @@ export default function Timeline({
             >
               {/* video track */}
               <div
+                data-testid="timeline-video-track"
                 className="relative rounded bg-[#181716]"
                 style={rowStyle('video')}
                 onDragOver={onDragOverTrack}
@@ -881,8 +900,22 @@ export default function Timeline({
                         onClick={(e) => {
                           e.stopPropagation();
                           setContextMenu(null);
+                          if (!isOpen) {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const popupWidth = 224;
+                            const popupHeight = 270;
+                            const above = rect.top - popupHeight - 8;
+                            const below = rect.bottom + 8;
+                            setTransitionMenuPosition({
+                              left: Math.max(8, Math.min(rect.left - popupWidth / 2, window.innerWidth - popupWidth - 8)),
+                              top: above >= 8 ? above : Math.max(8, Math.min(below, window.innerHeight - popupHeight - 8)),
+                            });
+                            transitionTriggerRef.current = e.currentTarget;
+                          }
                           setTransitionMenuClipId(isOpen ? null : seg.clip.id);
                         }}
+                        aria-haspopup="dialog"
+                        aria-expanded={isOpen}
                         title={isFade
                           ? `${currentTransition} ${seg.overlap.toFixed(1)} วิ — คลิกเพื่อเปลี่ยนทรานซิชัน`
                           : 'ตัดตรง — คลิกเพื่อเลือกรอยต่อทรานซิชัน'}
@@ -896,13 +929,14 @@ export default function Timeline({
                       </button>
 
                       {/* Quick Transition Popover */}
-                      {isOpen && (
+                      {isOpen && transitionMenuPosition && typeof document !== 'undefined' && createPortal(
                         <div
                           data-transition-popover=""
+                          role="dialog"
+                          aria-label="ตั้งค่ารอยต่อคลิป"
                           onClick={(e) => e.stopPropagation()}
-                          className={`pointer-events-auto absolute bottom-full mb-2 z-50 w-56 rounded-xl border border-[#4A4742] bg-[#1C1B19]/95 p-2.5 shadow-2xl backdrop-blur-md text-xs text-[#EDE9E3] animate-in fade-in zoom-in-95 duration-150 ${
-                            leftPx < 120 ? 'left-0' : '-translate-x-1/2'
-                          }`}
+                          className="pointer-events-auto fixed z-[100] w-56 rounded-xl border border-[#4A4742] bg-[#1C1B19]/95 p-2.5 shadow-2xl backdrop-blur-md text-xs text-[#EDE9E3] animate-in fade-in zoom-in-95 duration-150"
+                          style={{ ...transitionMenuPosition, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }}
                         >
                           <div className="flex items-center justify-between pb-1.5 border-b border-[#363430]">
                             <span className="font-semibold text-white flex items-center gap-1.5">
@@ -910,7 +944,7 @@ export default function Timeline({
                             </span>
                             <button
                               type="button"
-                              onClick={() => setTransitionMenuClipId(null)}
+                              onClick={closeTransitionMenu}
                               className="p-0.5 text-slate-400 hover:text-white rounded"
                             >
                               <X className="h-3.5 w-3.5" />
@@ -922,7 +956,7 @@ export default function Timeline({
                               type="button"
                               onClick={() => {
                                 onClipChange?.(seg.clip.id, { transition_in: 'cut' });
-                                setTransitionMenuClipId(null);
+                                closeTransitionMenu();
                               }}
                               className={`w-full py-1.5 px-2 rounded-lg text-left font-medium transition-colors flex items-center justify-between ${
                                 currentTransition === 'cut'
@@ -946,7 +980,7 @@ export default function Timeline({
                                         transition_in: t.id,
                                         transition_duration: currentDuration,
                                       });
-                                      setTransitionMenuClipId(null);
+                                      closeTransitionMenu();
                                     }}
                                     className={`flex items-center gap-1.5 py-1 px-2 rounded-lg text-left font-medium truncate transition-colors ${
                                       active
@@ -990,7 +1024,8 @@ export default function Timeline({
                               ))}
                             </div>
                           </div>
-                        </div>
+                        </div>,
+                        document.body
                       )}
                     </div>
                   );

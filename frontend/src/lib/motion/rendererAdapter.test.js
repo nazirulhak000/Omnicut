@@ -76,6 +76,22 @@ test('selects in, repeating loop, and out phases on a normalized timeline', () =
   assert.equal(out.state.alpha, 0.5);
 });
 
+test('repeating tracks use real phase elapsed time when the hold window spans multiple cycles', () => {
+  const pulse = getMotionPreset('hook', 'loop', 'pulse');
+  const options = {
+    phaseTiming: { start: 0.225, end: 0.925 },
+    timelineDurationMs: 2000,
+  };
+
+  const firstCycle = sampleCanvasMotion(pulse, 0.3, options); // 150 ms into hold
+  const secondCycle = sampleCanvasMotion(pulse, 0.65, options); // 850 ms into hold
+
+  assert.equal(firstCycle.metadata.loopIteration, 0);
+  assert.equal(secondCycle.metadata.loopIteration, 1);
+  assert.ok(Math.abs(firstCycle.metadata.loopProgress - secondCycle.metadata.loopProgress) < 1e-9);
+  assert.ok(Math.abs(firstCycle.state.alpha - secondCycle.state.alpha) < 1e-9);
+});
+
 test('outWindow overrides the default out phase window', () => {
   const plan = {
     in: contract('in', 'in', { scale: scaleTrack(0, 1) }),

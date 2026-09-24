@@ -66,6 +66,16 @@ _BACKGROUND_SEQUENCE_NAMESPACE = "background-isolation-foreground-sequences"
 _BACKGROUND_SEQUENCE_ID_RE = re.compile(r"^bgseq1-[0-9a-f]{16}$")
 _BACKGROUND_FRAME_RE = re.compile(r"^frame_([0-9]{6})\.png$")
 _BACKGROUND_ISOLATION_KEY = "background_" + "isolation"
+# Canvas blur(12px) is applied on a 540x960 transparent draw surface before
+# compositing over black. At render resolution, a black pad plus sigma 20
+# reproduces both its soft edges and the blurred frame interior.
+_BACKGROUND_BLUR_PAD = 72
+_BACKGROUND_BLUR_FILTER = (
+    f"pad={VIDEO_WIDTH + 2 * _BACKGROUND_BLUR_PAD}:{VIDEO_HEIGHT + 2 * _BACKGROUND_BLUR_PAD}:"
+    f"{_BACKGROUND_BLUR_PAD}:{_BACKGROUND_BLUR_PAD}:color=black,"
+    "gblur=sigma=20,"
+    f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{_BACKGROUND_BLUR_PAD}:{_BACKGROUND_BLUR_PAD}"
+)
 
 
 def _write_subject_ass_layers(ass_subtitle_path: str) -> tuple[Path, Path]:
@@ -541,7 +551,14 @@ def sticker_geometry(
         factor = min(3.5, max(0.3, float(scale or 1.0)))
     except (TypeError, ValueError):
         factor = 1.0
-    width = int(round(STICKER_BASE_WIDTH * factor))
+    # SequencePlayer paints the canonical sticker geometry on a 540x960
+    # Canvas. FFmpeg may render at 720x1280 or 1080x1920, so scale both the
+    # asset and the safe-zone offsets into the export raster before the final
+    # frame is downsampled. Keeping the old fixed 160px width made Preview
+    # stickers visibly smaller in every rendered export.
+    canvas_scale_x = float(canvas_w) / 540.0
+    canvas_scale_y = float(canvas_h) / 960.0
+    width = int(round(STICKER_BASE_WIDTH * canvas_scale_x * factor))
     width = width if width % 2 == 0 else width + 1
     if norm_x is not None and norm_y is not None:
         px_x = int(round(canvas_w * float(norm_x) - width / 2))
@@ -550,7 +567,18 @@ def sticker_geometry(
         x = str(px_x)
         y = f"({target_center_y}-h/2)"
     else:
-        x, y = STICKER_POSITIONS.get(position, STICKER_POSITIONS["top_right"])
+        edge_x = int(round(40 * canvas_scale_x))
+        top_y = int(round(140 * canvas_scale_y))
+        bottom_margin = int(round(420 * canvas_scale_y))
+        positions = {
+            "top_right": (f"(W-w-{edge_x})", str(top_y)),
+            "top_left": (str(edge_x), str(top_y)),
+            "top_center": ("(W-w)/2", str(top_y)),
+            "bottom_right": (f"(W-w-{edge_x})", f"(H-h-{bottom_margin})"),
+            "bottom_left": (str(edge_x), f"(H-h-{bottom_margin})"),
+            "bottom_center": ("(W-w)/2", f"(H-h-{bottom_margin})"),
+        }
+        x, y = positions.get(position, positions["top_right"])
     return width, x, y
 
 # What "export quality" means, end to end. Draft trades resolution and encode
@@ -920,13 +948,17 @@ def dynamic_camera_filter(clip: Dict[str, Any], fallback_zoom: float, *, input_i
         f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
         f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:(iw-{VIDEO_WIDTH})/2:(ih-{VIDEO_HEIGHT})/2,"
     )
+    scaled_w = f"ceil({VIDEO_WIDTH}*({zoom})/2)*2"
+    scaled_h = f"ceil({VIDEO_HEIGHT}*({zoom})/2)*2"
+    # crop's iw/ih are negotiated when the graph starts and may stay at the
+    # first frame's size even though scale=eval=frame changes its output.
+    # Drive the crop origin from the same per-frame zoom expression instead.
     return (
         f"{prefix}"
-        f"scale=ceil({VIDEO_WIDTH}*({zoom})/2)*2:"
-        f"ceil({VIDEO_HEIGHT}*({zoom})/2)*2:eval=frame,"
+        f"scale={scaled_w}:{scaled_h}:eval=frame,"
         f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:"
-        f"((iw-{VIDEO_WIDTH})/2)*(1+({pan_x})):"
-        f"((ih-{VIDEO_HEIGHT})/2)*(1+({pan_y})),setsar=1"
+        f"(({scaled_w}-{VIDEO_WIDTH})/2)*(1+({pan_x})):"
+        f"(({scaled_h}-{VIDEO_HEIGHT})/2)*(1+({pan_y})),setsar=1"
     )
 
 
@@ -1080,6 +1112,10 @@ class VideoEditor:
         # caller supplies one; the original alternating pattern is the
         # default for everything else -- this is a strict superset of the
         # old behavior, zero risk to a caller that passes nothing.
+        # A manual Editor clip without an explicit zoom is 1.0 in the
+        # SequencePlayer.  Only a caller that supplies shot_scales opts into
+        # the automatic punch-zoom fallback for clip_list rendering.
+        manual_default_scale = 1.0 if not shot_scales else None
         shot_scales = shot_scales or [1.25, 1.0, 1.35, 1.05, 1.3, 1.0]
 
         # Keep the final delivery cadence at the project standard (30 FPS).
@@ -1174,7 +1210,7 @@ class VideoEditor:
                 # alternating punch-zoom pattern, which is what the 1-Click
                 # path relies on and the editor's user cannot see coming.
                 scale, crop_x, crop_y, scaled_w, scaled_h = frame_geometry(
-                    clip, shot_scales[idx % len(shot_scales)]
+                    clip, manual_default_scale if manual_default_scale is not None else shot_scales[idx % len(shot_scales)]
                 )
                 # Record what was actually used. Leaving the fallback implicit
                 # is what made the preview disagree with the render: the clip
@@ -1310,7 +1346,7 @@ class VideoEditor:
                         f"[{idx}:v]trim=duration={source_span},setpts=PTS-STARTPTS,"
                         f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}setsar=1,fps={FPS}[{pre_node}];"
                         f"[{pre_node}]split=2[{bg_node}][{fg_node}];"
-                        f"[{bg_node}]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},boxblur=25:5[{bg_node}2];"
+                        f"[{bg_node}]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},{_BACKGROUND_BLUR_FILTER}[{bg_node}2];"
                         f"[{fg_node}]scale={VIDEO_WIDTH}:-1:force_original_aspect_ratio=decrease[{fg_node}2];"
                         f"[{bg_node}2][{fg_node}2]overlay=(W-w)/2:(H-h)/2,setsar=1[{base_node}];"
                         f"[{base_node}]"
@@ -1424,7 +1460,7 @@ class VideoEditor:
             if auto_blur_landscape and is_landscape:
                 filter_complex.append(
                     f"[0:v]split=2[raw_bg][raw_fg];"
-                    f"[raw_bg]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},boxblur=25:5[raw_bg_blur];"
+                    f"[raw_bg]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},{_BACKGROUND_BLUR_FILTER}[raw_bg_blur];"
                     f"[raw_fg]scale={VIDEO_WIDTH}:-1:force_original_aspect_ratio=decrease[raw_fg_fit];"
                     f"[raw_bg_blur][raw_fg_fit]overlay=(W-w)/2:(H-h)/2,setsar=1,fps={FPS}[base_v];"
                 )
@@ -1656,8 +1692,11 @@ class VideoEditor:
                 stk_info.get("scale", 1.0),
                 norm_x=stk_info.get("norm_x"),
                 norm_y=stk_info.get("norm_y"),
-                canvas_w=profile["width"],
-                canvas_h=profile["height"],
+                # The filter graph is still at the canonical 1080x1920
+                # working raster here; the draft/post profile scale is the
+                # final graph node after all overlays have been composited.
+                canvas_w=VIDEO_WIDTH,
+                canvas_h=VIDEO_HEIGHT,
             )
             # The stickers are appended right after the mixed audio and preceding stickers
             st_idx = audio_input_idx + 1 + len(foreground_inputs) + s_idx
@@ -1749,7 +1788,10 @@ class VideoEditor:
             fx_size = int(round(EFFECT_BASE_SIZE * factor))
             fx_size = fx_size if fx_size % 2 == 0 else fx_size + 1
 
-            canvas_w, canvas_h = profile["width"], profile["height"]
+            # Effects are composited before the final draft/post downscale,
+            # just like stickers. Using the output profile dimensions here
+            # made draft exports half-sized and shifted relative to Canvas.
+            canvas_w, canvas_h = VIDEO_WIDTH, VIDEO_HEIGHT
             # At max scale (3.5x) this is 1260px -- bigger than the "draft"
             # preset's 720-wide canvas (and right at the edge of "post"'s
             # 1080), which made `crop=` below request a region wider than the

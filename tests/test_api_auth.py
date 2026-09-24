@@ -48,6 +48,21 @@ def test_unconfigured_key_allows_requests_through():
     assert res.status_code != 401
 
 
+def test_tts_env_loader_preserves_explicit_api_key_setting(tmp_path, monkeypatch):
+    """Importing the voice API must not reactivate auth from a local .env."""
+    from scripts.gemini_tts_engine import _load_env_file
+
+    env_file = tmp_path / ".env"
+    env_file.write_text("OMNICUT_API_KEY=from-file\nTEST_TTS_ENV_LOADER=from-file\n", encoding="utf-8")
+    monkeypatch.setenv("OMNICUT_API_KEY", "")
+    monkeypatch.delenv("TEST_TTS_ENV_LOADER", raising=False)
+
+    _load_env_file(env_file)
+
+    assert auth_module.get_configured_api_key() == ""
+    assert __import__("os").environ["TEST_TTS_ENV_LOADER"] == "from-file"
+
+
 def test_unconfigured_key_logs_a_warning_once(monkeypatch, caplog):
     """The permissive default must be loud, not silent."""
     import logging

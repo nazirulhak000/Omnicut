@@ -21,11 +21,16 @@ from typing import Any, Mapping
 from .capture import REPO_ROOT
 
 
-APP_CAPTURE_SCHEMA_VERSION = 2
+APP_CAPTURE_SCHEMA_VERSION = 3
 
 
 class AppCaptureUnavailable(RuntimeError):
     """Raised when a live app canvas cannot be captured safely."""
+
+
+def _is_expected_media_seek_abort(resource_type: str, failure: str | None) -> bool:
+    """Chromium cancels stale media range requests when a new seek wins."""
+    return resource_type == "media" and failure == "net::ERR_ABORTED"
 
 
 @dataclass(frozen=True)
@@ -121,9 +126,9 @@ def _capture_frame_data(page: Any, selector: str, frame_index: int) -> dict[str,
         return _capture_canvas_data(page, selector)
     try:
         return page.evaluate(
-            """({ selector, frameIndex }) => {
+            """async ({ selector, frameIndex }) => {
                 const hook = window.motionCapture;
-                const result = window.motionCapture.capture({ frameIndex });
+                const result = await window.motionCapture.capture({ frameIndex });
                 const canvas = document.querySelector(selector);
                 if (!(canvas instanceof HTMLCanvasElement)) {
                     throw new Error(`selector resolved to ${canvas?.tagName || 'no element'}, not CANVAS`);
@@ -139,8 +144,14 @@ def _capture_frame_data(page: Any, selector: str, frame_index: int) -> dict[str,
                         height: hook.height ?? null,
                         fps: hook.fps ?? null,
                         durationSeconds: hook.durationSeconds ?? null,
+                        mode: hook.mode ?? null,
                         presetIds: hook.presetIds ?? null,
-                        overlayContract: hook.overlayContract ?? null,
+                        fontReady: hook.fontReady ?? null,
+                        fontSample: hook.fontSample ?? null,
+                            captionContract: hook.captionContract ?? null,
+                            overlayContract: hook.overlayContract ?? null,
+                            overlayFeatureContract: hook.overlayFeatureContract ?? null,
+                            clipContracts: hook.clipContracts ?? null,
                     },
                     data_url: dataUrl,
                     width: canvas.width,
@@ -178,6 +189,7 @@ def capture_app_canvas(config: AppCaptureConfig) -> dict[str, Any]:
         "console": [],
         "page_errors": [],
         "request_failures": [],
+        "expected_media_cancellations": [],
     }
     try:
         with sync_playwright() as playwright:
@@ -212,16 +224,21 @@ def capture_app_canvas(config: AppCaptureConfig) -> dict[str, Any]:
                     ),
                 )
                 page.on("pageerror", lambda error: runtime["page_errors"].append(str(error)))
-                page.on(
-                    "requestfailed",
-                    lambda request: runtime["request_failures"].append(
-                        {
-                            "method": request.method,
-                            "url": request.url,
-                            "failure": request.failure,
-                        }
-                    ),
-                )
+                def record_request_failure(request: Any) -> None:
+                    failure = {
+                        "method": request.method,
+                        "url": request.url,
+                        "failure": request.failure,
+                        "resource_type": request.resource_type,
+                    }
+                    target = (
+                        "expected_media_cancellations"
+                        if _is_expected_media_seek_abort(request.resource_type, request.failure)
+                        else "request_failures"
+                    )
+                    runtime[target].append(failure)
+
+                page.on("requestfailed", record_request_failure)
                 # App shells can keep polling APIs, so waiting for network idle
                 # would make a valid Canvas capture hang unnecessarily.
                 page.goto(config.url, wait_until="domcontentloaded", timeout=config.timeout_ms)

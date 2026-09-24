@@ -7,6 +7,8 @@ import {
   clampScale,
   clampVolume,
   clampSpeed,
+  clampTrimStart,
+  clampTrimEnd,
   clampRotation,
   clampFreezeTail,
   clampZoom,
@@ -47,6 +49,14 @@ test('clampSpeed clamps speed between 0.5 and 2.0', () => {
   assert.equal(clampSpeed(1.5), 1.5);
   assert.equal(clampSpeed(0.2), 0.5);
   assert.equal(clampSpeed(5.0), 2.0);
+});
+
+test('numeric trim edits cannot invert a clip or run beyond known source duration', () => {
+  assert.equal(clampTrimStart(99, { trim_start: 0, trim_end: 3 }, 4), 2.8);
+  assert.equal(clampTrimStart(-2, { trim_end: 3 }, 4), 0);
+  assert.equal(clampTrimEnd(0.1, { trim_start: 1 }, 4), 1.2);
+  assert.equal(clampTrimEnd(99, { trim_start: 1 }, 4), 4);
+  assert.equal(clampTrimEnd('', { trim_start: 1 }, 4), null);
 });
 
 test('clampRotation wraps angles correctly to [0, 360)', () => {

@@ -11,6 +11,7 @@ const TABS = [
   { id: 'text', label: 'ข้อความ', icon: Type },
   { id: 'audio', label: 'เสียง', icon: Music },
   { id: 'sticker', label: 'สติกเกอร์', icon: Sticker },
+  { id: 'style', label: 'สไตล์', icon: Sparkles },
 ];
 
 // Drag payload type shared with Timeline's drop target.
@@ -1420,8 +1421,15 @@ export default function AssetPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0C1019]">
-      {/* tab rail - clean 4 core studio tabs */}
-      <div className="grid grid-cols-4 border-b border-white/[0.08] bg-black/40 p-1.5 gap-1.5 flex-shrink-0">
+      {/* tab rail - horizontally scrollable without squeezing existing boxes */}
+      <div
+        className="flex items-center overflow-x-auto no-scrollbar border-b border-white/[0.08] bg-black/40 p-1.5 gap-1.5 flex-shrink-0 scroll-smooth"
+        onWheel={(e) => {
+          if (e.deltaY !== 0) {
+            e.currentTarget.scrollLeft += e.deltaY;
+          }
+        }}
+      >
         {TABS.map(({ id, label, icon: Icon }) => {
           const isActive = tab === id || (id === 'clips' && tab === 'srt');
           return (
@@ -1431,7 +1439,7 @@ export default function AssetPanel({
               onClick={() => setTab(id)}
               title={label}
               aria-pressed={isActive}
-              className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all focus:outline-none cursor-pointer ${
+              className={`flex flex-col items-center justify-center py-2 px-2.5 min-w-[68px] flex-1 flex-shrink-0 rounded-xl transition-all focus:outline-none cursor-pointer ${
                 isActive
                   ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/40 shadow-[0_0_12px_rgba(37,244,238,0.15)] font-semibold'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent'
@@ -1446,8 +1454,8 @@ export default function AssetPanel({
         })}
       </div>
 
-      {/* Search & Direct Upload bar (hide in SRT subview) */}
-      {tab !== 'srt' && (
+      {/* Search & Direct Upload bar (hide in SRT and Style subviews) */}
+      {tab !== 'srt' && tab !== 'style' && (
         <div className="flex-shrink-0 p-2.5 space-y-2 border-b border-white/[0.06] bg-black/20">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
@@ -1877,6 +1885,9 @@ export default function AssetPanel({
                   </button>
                   <p className="text-[11px] leading-relaxed text-slate-500">
                     เปิดแล้วเพลงจะเบาลง ~12 dB ระหว่างมีเสียงพูด และค่อยๆ ดังกลับตอนเว้นวรรค
+                  </p>
+                  <p className="text-[11px] leading-relaxed text-amber-200/80">
+                    Preview ของระดับเสียงและ Auto-Duck เป็นค่าประมาณ; Render ใช้การมิกซ์เสียงจริง
                   </p>
                 </div>
 
@@ -2722,7 +2733,7 @@ export default function AssetPanel({
                   className="w-full accent-[#D97757]"
                 />
                 <span className="block pt-1 text-xs leading-relaxed text-slate-500">
-                  พรีวิวไม่แสดงฟิลเตอร์ — เห็นผลจริงหลังกด Apply
+                  Preview LUT ต้องใช้ WebGL2; หากอุปกรณ์ไม่รองรับจะเห็นภาพไม่เกรด โดย Render เป็นผลลัพธ์อ้างอิง
                 </span>
               </label>
             )}

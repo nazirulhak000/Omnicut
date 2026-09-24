@@ -5,6 +5,7 @@ import {
   PRODUCT_CALLOUT_ROLE,
 } from './productCallout.js';
 import { FADE_DURATION } from './timelineMath.js';
+import { effectiveAudioMutes } from './trackMix.js';
 
 export const EMPTY_TRACK_MIX = Object.freeze({ mute: {}, solo: {} });
 
@@ -153,6 +154,8 @@ export function manifestToEditorState(data, options = {}) {
     text: cue.text || '',
     translation: cue.translation || '',
     sfx: cue.sfx || null,
+    bilingual: cue.bilingual !== false,
+    fontName: cue.fontName || null,
     scale: cue.scale !== null && cue.scale !== undefined ? Number(cue.scale) : null,
     x: cue.x !== null && cue.x !== undefined ? Number(cue.x) : null,
     y: cue.y !== null && cue.y !== undefined ? Number(cue.y) : null,
@@ -186,11 +189,14 @@ export function manifestToEditorState(data, options = {}) {
     bilingualSubtitles: firstPresent(manifest.bilingual_subtitles, params.bilingual_subtitles, savedStyle.bilingual_subtitles, savedStyle.bilingualSubtitles, true),
   };
 
+  const hasStoredMix = manifest.track_mix != null || params.track_mix != null;
   const storedMix = firstPresent(manifest.track_mix, params.track_mix, EMPTY_TRACK_MIX) || EMPTY_TRACK_MIX;
-  const storedMutes = firstPresent(manifest.audio_mutes, params.audio_mutes, storedMix.mute, {}) || {};
+  const storedMutes = firstPresent(manifest.audio_mutes, params.audio_mutes, {}) || {};
   const trackMix = {
     ...storedMix,
-    mute: { ...(storedMix.mute || {}), ...storedMutes },
+    // audio_mutes is the effective exported result of mute + solo. It must
+    // not turn every non-soloed track into an explicit Mute after reload.
+    mute: { ...(hasStoredMix ? storedMix.mute : storedMutes) },
     solo: { ...(storedMix.solo || {}) },
   };
 
@@ -378,7 +384,7 @@ export function editorStateToSavePayload({ clipList, cuesList, microCuesList, st
     spotlight: spotlight ?? null,
     overlays: serializeOverlays(overlays),
     track_mix: mix,
-    audio_mutes: mix.mute || {},
+    audio_mutes: effectiveAudioMutes(mix),
   };
   const normalizedBackgroundIsolation = normalizeBackgroundIsolation(backgroundIsolation);
   if (normalizedBackgroundIsolation !== null) {

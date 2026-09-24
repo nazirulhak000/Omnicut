@@ -43,14 +43,18 @@ class GeminiTTSError(AppError, RuntimeError):
         sugg = f" — {self.suggestion_th}" if self.suggestion_th else ""
         return f"[{self.category.value.upper()}:{self.code}] {self.message_th}{sugg} (Details: {self.details})"
 
-# Load .env if present
-env_file = PROJECT_ROOT / ".env"
-if env_file.exists():
+def _load_env_file(env_file: Path) -> None:
+    """Fill missing settings without overriding explicit process configuration."""
+    if not env_file.exists():
+        return
     for line in env_file.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
             k, v = line.split("=", 1)
-            os.environ[k.strip()] = v.strip()
+            os.environ.setdefault(k.strip(), v.strip())
+
+
+_load_env_file(PROJECT_ROOT / ".env")
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 

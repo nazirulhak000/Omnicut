@@ -149,7 +149,10 @@ function sampleContractState(contract, progress, options) {
     let trackTime = progress;
     if (isLoop && hasRepeatingTrack(contract, track)) {
       const cycleDuration = Number(track.cycle_duration_ms || contract.duration_ms || 0);
-      const elapsedMs = progress * Number(contract.duration_ms || cycleDuration || 1);
+      const explicitElapsedMs = Number(options.phaseElapsedMs);
+      const elapsedMs = Number.isFinite(explicitElapsedMs) && explicitElapsedMs >= 0
+        ? explicitElapsedMs
+        : progress * Number(contract.duration_ms || cycleDuration || 1);
       const cycleMs = cycleDuration > 0 ? cycleDuration : 1;
       trackTime = ((elapsedMs % cycleMs) + cycleMs) % cycleMs / cycleMs;
       loopProgress = trackTime;
@@ -186,7 +189,14 @@ export function sampleCanvasMotion(input, normalizedTimeline = 0, options = {}) 
   const window = windows[phase];
   const rawProgress = phaseProgress(window, normalizedTime);
   const reduced = applyReducedMotion(contract, rawProgress, options);
-  const sampled = sampleContractState(contract, reduced.progress, options);
+  const timelineDurationMs = Number(options.timelineDurationMs);
+  const phaseElapsedMs = Number.isFinite(timelineDurationMs) && timelineDurationMs > 0
+    ? Math.max(0, (normalizedTime - window.start) * timelineDurationMs)
+    : undefined;
+  const sampled = sampleContractState(contract, reduced.progress, {
+    ...options,
+    phaseElapsedMs,
+  });
 
   return {
     state: sampled.state,

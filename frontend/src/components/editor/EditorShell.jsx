@@ -23,6 +23,7 @@ import { useEditorCommands } from '../../hooks/useEditorCommands';
 import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
 import { toMediaUrl } from '../../lib/mediaUrl';
 import { editorStateToSavePayload, manifestToEditorState, serializeRenderFeatures } from '../../lib/editorProjectState';
+import { AUDIO_TRACKS, effectiveAudioMutes } from '../../lib/trackMix.js';
 import {
   normalizeStylePreset,
   stylePresetFromManifest,
@@ -131,7 +132,6 @@ const TIMELINE_MAX_H = 560;
 // for the preview, which is not a usable editor.
 const LAYOUT_BREAKPOINT = 1024;
 // The stems the preview mixes, in the order the timeline lanes show them.
-const AUDIO_TRACKS = ['voice', 'bgm', 'sfx', 'clip'];
 // The Toolbar row inside the phone's timeline tab.
 const MOBILE_TOOLBAR_H = 44;
 // The timeline/assets/inspector tab strip above it.
@@ -257,8 +257,17 @@ export default function EditorShell({
 
   const [zen, setZen] = useState(false);
   const [confirmGap, setConfirmGap] = useState(0);
+  const pendingRenderBaseline = useRef(null);
 
-  const handleRenderComplete = useCallback((rawResult, _id, targetProject) => {
+  const handleRenderComplete = useCallback((rawResult, id, targetProject) => {
+    const pending = pendingRenderBaseline.current;
+    if (pending?.jobId === id && pending.projectName === targetProject) {
+      loadedAudioStyle.current = pending.audioStyle;
+      loadedAudioMutes.current = pending.audioMutes;
+      loadedCaptionStyle.current = pending.captionStyle;
+      cuesDirty.current = false;
+      pendingRenderBaseline.current = null;
+    }
     if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
       try {
         const vPath = rawResult?.mp4 || rawResult?.final_video_path || rawResult?.video_path || '';
@@ -268,7 +277,11 @@ export default function EditorShell({
     }
   }, [productContext, angleIndex, workspaceData]);
 
-  const handleRenderError = useCallback((_errorMsg, _id, _targetProject) => {
+  const handleRenderError = useCallback((_errorMsg, id, targetProject) => {
+    if (pendingRenderBaseline.current?.jobId === id
+      && pendingRenderBaseline.current?.projectName === targetProject) {
+      pendingRenderBaseline.current = null;
+    }
     if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
       try {
         updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'scripted')
@@ -354,8 +367,7 @@ export default function EditorShell({
   // angle, or still checking); true/false once a fresh fetch resolves it.
   const [coverStatus, setCoverStatus] = useState(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
-  // Per-stem mute/solo for the preview. Mutes persist and reach the renderer;
-  // solo remains a monitoring control and does not mute the exported mix.
+  // Per-stem mute/solo affects Preview and Export through one audibility rule.
   // Lives in the undo history alongside the other editable state so
   // Ctrl+Z/Ctrl+Y can take a mute/solo toggle back.
   const handleTrackMix = useCallback((track, kind) => {
@@ -556,6 +568,7 @@ export default function EditorShell({
   // "bgm" re-roll when any of it changed, or the render happily reuses the
   // old mixed_audio.wav and the new track is silently ignored.
   const loadedAudioStyle = useRef({ bgmName: null, bgmVolume: 0.12, bgmDucking: false });
+  const loadedAudioMutes = useRef({});
   // Caption look is baked into the .ass, which the "video" part reuses -- so a
   // caption style change has to ask for the subtitles part instead.
   const loadedCaptionStyle = useRef({ captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1 });
@@ -629,6 +642,8 @@ export default function EditorShell({
       bgmVolume: loadedEditorState.style.bgmVolume,
       bgmDucking: loadedEditorState.style.bgmDucking,
     };
+    loadedAudioMutes.current = manifest?.audio_mutes || effectiveAudioMutes(loadedEditorState.trackMix);
+    pendingRenderBaseline.current = null;
     reset({
       clipList: loadedEditorState.clipList,
       cuesList: loadedEditorState.cuesList,
@@ -1548,9 +1563,12 @@ export default function EditorShell({
     setCoverGateChecking(false);
 
     const base = loadedAudioStyle.current;
+    const audioMutes = effectiveAudioMutes(trackMix);
+    const baselineMutes = loadedAudioMutes.current;
     const audioDirty = (style.bgmName ?? null) !== (base.bgmName ?? null)
       || (style.bgmVolume ?? 0.12) !== (base.bgmVolume ?? 0.12)
-      || !!style.bgmDucking !== !!base.bgmDucking;
+      || !!style.bgmDucking !== !!base.bgmDucking
+      || AUDIO_TRACKS.some((track) => !!audioMutes[track] !== !!baselineMutes[track]);
 
     const capBase = loadedCaptionStyle.current;
     const captionDirty = (style.captionPosition || 'bottom') !== capBase.captionPosition
@@ -1570,9 +1588,7 @@ export default function EditorShell({
       } catch (e) {}
     }
     try {
-      await updateProjectState(projectName, projectSavePayload).catch(() => {});
-      const audioMutes = trackMix.mute || {};
-
+      await updateProjectState(projectName, projectSavePayload);
       const res = await startReroll({
         project_name: projectName,
         part: audioDirty ? 'bgm' : 'subtitles',
@@ -1587,10 +1603,7 @@ export default function EditorShell({
         // "" is meaningful here: it clears the badge stored on the project.
         sticker_badge: style.stickerBadge ?? '',
         lut_intensity: style.lutIntensity ?? 1,
-        // Track mute is a render setting as well as a preview control. BGM is
-        // already an independent mixer input, so preserve the user's mute in
-        // the rerender payload instead of silently restoring it.
-        bgm_volume: audioMutes.bgm ? 0 : (style.bgmVolume ?? 0.12),
+        bgm_volume: style.bgmVolume ?? 0.12,
         bgm_ducking: !!style.bgmDucking,
         audio_mutes: audioMutes,
         export_preset: exportPreset,
@@ -1607,20 +1620,25 @@ export default function EditorShell({
           backgroundIsolation,
         }),
       });
+      pendingRenderBaseline.current = {
+        jobId: res.job_id,
+        projectName,
+        audioStyle: {
+          bgmName: style.bgmName ?? null,
+          bgmVolume: style.bgmVolume ?? 0.12,
+          bgmDucking: !!style.bgmDucking,
+        },
+        audioMutes,
+        captionStyle: {
+          captionPosition: style.captionPosition || 'bottom',
+          captionColor: style.captionColor || '#FFFFFF',
+          captionScale: style.captionScale ?? 1,
+        },
+      };
       startJob(res.job_id);
       pollTasks?.();
-      cuesDirty.current = false;
-      loadedAudioStyle.current = {
-        bgmName: style.bgmName ?? null,
-        bgmVolume: style.bgmVolume ?? 0.12,
-        bgmDucking: !!style.bgmDucking,
-      };
-      loadedCaptionStyle.current = {
-        captionPosition: style.captionPosition || 'bottom',
-        captionColor: style.captionColor || '#FFFFFF',
-        captionScale: style.captionScale ?? 1,
-      };
     } catch (err) {
+      pendingRenderBaseline.current = null;
       stopJob();
       setApplyError(formatErrorText(err));
     }

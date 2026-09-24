@@ -7,7 +7,154 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLEANUP-DEMO-TEST-EXPORTS-PROJECTS-20260924 | ลบทำความสะอาดคลิปทดสอบ demo_*.mp4 และไฟล์ดัมมี่ตกค้างใน 04_Exports/Ready_to_post, 03_Projects/demo, spotlight-test และ export_registry.json ตามกฎเหล็กข้อ 11 และ 15 | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round AUDIT-BACKGROUND-ISOLATION-CUTOUT-SPOTLIGHT-20260923 | ตรวจสอบระบบจัดการพื้นหลังทั้งหมด (Background Isolation, rembg Cutout, Blur Background, Product Spotlight) เชิงลึกทุกมิติ ทั้ง UI, Logic, rembg Worker, Preview & Render Parity และ Automated Tests | 2026-09-23 | สำเร็จสมบูรณ์ (Complete Background Cutout & Spotlight System Audit, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round RESTORE-STYLE-TAB-SCROLLABLE-BG-CUT-20260923 | เปิดแท็บสไตล์ (Style) ใน Asset Panel สำหรับเปิดใช้งาน/เตรียม Cutout ตัดพื้นหลังสินค้า โดยทำแท็บแบบเลื่อนได้ในแนวนอน (Horizontal Scroll) ไม่บีบกล่องเดิม | 2026-09-23 | สำเร็จสมบูรณ์ (Asset Panel Scrollable Tabs & Style Cutout Restore, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 | ปิด defect และหลักฐานของ Motion Text ให้ live Preview/FFmpeg Render ผ่าน strict parity gate | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
+| Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 | ปิด parity ของ Caption/Sticker/Effect/Spotlight แบบ vertical slice | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
+| Round EDITOR-PARITY-PHASE-3-MOTION-TEXT-20260922 | ทำ Motion Text ให้ Preview/Render ใช้ layout และ motion contract เดียวกัน | 2026-09-23 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Codex (GPT-5)) |
+
+## Round CLEANUP-DEMO-TEST-EXPORTS-PROJECTS-20260924 — ลบทำความสะอาดคลิปทดสอบและไฟล์ดัมมี่ตกค้าง 100%
+
+วันที่: 2026-09-24 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** ลบไฟล์คลิปวิดีโอทดสอบ `demo_*.mp4` (15 ไฟล์) และ thumbnail `demo_*.webp` (15 ไฟล์) ที่ตกค้างใน `04_Exports/Ready_to_post/`, โฟลเดอร์โปรเจกต์ทดสอบ `03_Projects/demo`, `03_Projects/spotlight-test`, `03_Projects/test_audio.wav` และถอดรายการที่เกี่ยวข้องออกจาก `_Docs/export_registry.json` ทั้งหมดตามกฎเหล็กข้อ 11 และ 15
+
+### สิ่งที่ทำไป
+
+1. **สแกนและยืนยันไฟล์ทดสอบตกค้าง**:
+   - `04_Exports/Ready_to_post/`: พบวิดีโอ demo 15 ไฟล์ (`demo_20260923_*.mp4`) และภาพปก thumbnail 15 ไฟล์ (`demo_20260923_*.webp`) รวม 30 ไฟล์
+   - `03_Projects/`: พบโฟลเดอร์โปรเจกต์ทดสอบ `demo/` (มีไฟล์ดัมมี่ 5 ไฟล์), `spotlight-test/` (จาก pytest มีไฟล์ 5 ไฟล์), และไฟล์ `test_audio.wav`
+   - `_Docs/export_registry.json`: พบ entry สำหรับ `demo` 15 รายการ
+2. **ลบไฟล์ทดสอบ 100%**:
+   - ลบไฟล์วิดีโอและ thumbnail ทั้งหมด 30 ไฟล์ใน `04_Exports/Ready_to_post/`
+   - ลบโฟลเดอร์ `03_Projects/demo/` และ `03_Projects/spotlight-test/` รวมทั้ง `03_Projects/test_audio.wav`
+   - อัปเดต `_Docs/export_registry.json` ตัด 15 entries ที่เป็น demo ออก เหลือเฉพาะรายการจริง 438 รายการ
+3. **ตรวจสอบความสมบูรณ์ผ่าน Live Backend & Frontend**:
+   - ตรวจสอบผ่าน `scripts.api_exports.list_exports()` และ Live API endpoint (`/api/exports`) ยืนยันผลลัพธ์:
+     - ยอดคลิปทั้งหมดใน Export Gallery: ลดจาก 178 คลิป เหลือ 163 คลิปของจริง
+     - ยอดคลิปภายนอก (unlinked): ลดจาก 15 เหลือ 0 รายการ
+     - จำนวนคลิป demo/test ในระบบ: 0 รายการ (Clean 100%)
+
+
+
+## Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 — completed
+
+วันที่: 2026-09-23 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** ปิด vertical slice ของ Caption, Sticker, Effect และ Spotlight ตั้งแต่ UI/state → Save/Reload → Preview Canvas → production Render โดยใช้ live frame-pair evidence และไม่ประกาศฟังก์ชันที่ยังไม่มีหลักฐาน
+
+### ผลลัพธ์
+
+- เพิ่ม live capture fixture ที่รองรับ caption, sticker, effect และ spotlight พร้อม deterministic asset decode/seek สำหรับ source จริง
+- เพิ่ม production frame-pair tests: Caption `4/4`, Sticker `1/1`, Effect `2/2`, Spotlight `1/1`; ตรวจ timing, geometry, alpha/mask และ runtime diagnostics
+- เพิ่ม Save/Reload regression ให้ Sticker, Effect และ Spotlight คงเวลา ตำแหน่ง ขนาด recolor และ layer contract
+- แก้ Sticker/Effect render geometry ให้คำนวณบน working raster `1080x1920` เดียวกับ Preview ก่อน final downscale; แก้ drift ที่เกิดจากการใช้ draft profile dimensions ระหว่าง composite
+- เพิ่ม `/@fs/` support เฉพาะ Vite parity fixture โดย production media URL ยังคงใช้ `/api/media`
+- อัปเดต feature coverage matrix/report: PASS `7`, APPROXIMATION `6`, BLOCKED `1`, UNTESTED `6`
+
+### หลักฐานและ Gate
+
+- [x] `pytest tests/motion_capture/test_frame_pair.py -q -p no:cacheprovider` — `20 passed`
+- [x] `pytest tests/motion_capture/test_app_capture.py tests/motion_capture/test_overlay_frame_pair.py -q -p no:cacheprovider` — `11 passed`
+- [x] targeted overlay/backend suite — `351 passed`
+- [x] coverage validator — `20 features`, `PASS 7 / APPROXIMATION 6 / BLOCKED 1 / UNTESTED 6`
+- [x] backend full — `1,740 passed, 7 skipped, 34 warnings`
+- [x] frontend — `304 passed`
+- [x] `npm run build` ผ่าน และ `git diff --check` ผ่าน
+- [x] ล้าง debug artifacts ที่สร้างในรอบนี้จาก `.tmp` และไม่แตะ `04_Exports/`
+
+### ขอบเขตที่ยังไม่ใช่ PASS
+
+รอบนี้ปิดเฉพาะ Caption/Sticker/Effect/Spotlight vertical slice ไม่ได้แปลว่า Editor ทั้งระบบเสร็จแล้ว ฟีเจอร์ที่ยังต้องทำ live gate ได้แก่ Timeline boundary/overlap, clip trim/speed/freeze, transform/keyframes, framing/blur, reliability/recovery และ Editor UX/accessibility; color, transitions, Background Isolation, LUT, audio และ mute/solo ยังคงมีสถานะตาม coverage matrix
+
+## Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 — completed
+
+วันที่: 2026-09-23 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** ปิด defect และหลักฐานที่ยังค้างของ Motion Text ให้ live Preview/FFmpeg Render ผ่านเกณฑ์เดียวกันแบบ deterministic ก่อนเลื่อนงานไป Phase 4
+
+### ผลลัพธ์
+
+- แก้ Thai stacked/standalone mark ที่ทำให้ Canvas กับ ASS/libass วาง glyph ไม่ตรงกัน โดยแยกการซ่อม mark ใน Preview และใช้ optical line offset แบบ narrow scope เฉพาะ `ึ`/`็` ใน Render ไม่เปลี่ยน font family, font size, line spacing หรือ canonical text
+- ปรับการวาดตัวเลข/emoji ใน Preview ให้กล่อง glyph สอดคล้องกับการ rasterize ของฝั่ง Render
+- เพิ่ม font readiness contract ใน live fixture และให้ frame-pair gate fail closed หากฟอนต์ render-critical ยังไม่พร้อม
+- เพิ่ม regression ครบภาษาไทยวรรณยุกต์, อังกฤษ, ตัวเลข/emoji, 1–3 บรรทัด, in/hold/out, seek และ loop
+
+### หลักฐานและ Gate
+
+- [x] live frame-pair matrix `16/16` ผ่าน mask IoU `≥0.90`, bbox delta `≤6px`, centroid `≤4px`, NMAE `≤0.08`
+- [x] live app capture `7/7` ผ่าน พร้อมตรวจ browser/runtime diagnostics
+- [x] forward/backward seek และ loop ที่ phase เท่ากัน deterministic
+- [x] Save/Reload คง font metrics, line breaks, baseline และ motion contract
+- [x] backend targeted parity `181 passed`
+- [x] backend full `1,731 passed, 7 skipped, 34 warnings`
+- [x] frontend `302 passed`
+- [x] `npm run build` ผ่าน และ `git diff --check` ผ่าน
+- [x] ล้าง debug artifacts รอบนี้ออกจาก `.tmp` และไม่แตะ `04_Exports/`
+
+### ไฟล์หลัก
+
+- `frontend/src/components/SequencePlayer.jsx`
+- `frontend/src/motionCaptureFixture.jsx`
+- `scripts/subtitle/font_metrics.py`
+- `scripts/subtitle/overlay_events.py`
+- `tests/motion_capture/app_capture.py`
+- `tests/motion_capture/frame_pair.py`
+- `tests/test_font_family_mapping.py`
+
+## Round EDITOR-PARITY-PHASE-3-MOTION-TEXT-20260922 — completed
+
+วันที่: 2026-09-22 ถึง 2026-09-23 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** ทำ Motion Text ที่เปิดให้ใช้ใน Editor ให้ Preview/Render อ่าน layout และ motion contract เดียวกัน ผ่าน strict live frame-pair gate และไม่เปิด preset ที่ renderer ยังทำไม่ได้
+
+### Todo ที่ปิดแล้ว
+
+- [x] จำลอง live mismatch และแยก layout drift ออกจาก motion drift
+- [x] ใช้ canonical text layout/anchor/scale contract ร่วมระหว่าง Canvas และ ASS/FFmpeg
+- [x] แก้ identity/start/middle/end frame pair ให้ผ่าน IoU/bbox/centroid/NMAE thresholds
+- [x] audit preset capabilities และ regression ทุก catalog preset ที่ renderer รองรับ
+- [x] เพิ่ม golden matrix ภาษาไทย วรรณยุกต์ อังกฤษ ตัวเลข emoji และ 1–3 บรรทัด
+- [x] ทดสอบ in/hold/out, seek กลาง, seek ย้อน และ loop แบบ deterministic
+- [x] รัน strict live gate, backend/frontend full tests, build, cleanup และ diff check
+
+### Gate
+
+- [x] production preset ที่เปิดใช้งานมี Preview + Render binding และ deterministic seek contract
+- [x] strict live pair ผ่าน mask IoU `≥0.90`, bbox delta `≤6px`, centroid `≤4px`, NMAE `≤0.08`
+- [x] font metrics/line breaks/baseline ไม่ drift หลัง Save/Reload
+- [x] test artifacts อยู่ใต้ `.tmp` และ cleanup 100%
+
+## Round AUDIT-BACKGROUND-ISOLATION-CUTOUT-SPOTLIGHT-20260923 — completed
+
+วันที่: 2026-09-23 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**ผลลัพธ์:** ตรวจสอบระบบจัดการพื้นหลังทั้งหมดครบทั้ง 7 หมวดตาม Checklist ละเอียดยิบ:
+1. **UI Control**: แท็บ [สไตล์] เลื่อนได้แบบ horizontal scroll min-width 68px, กล่องม่วงตัดพื้นหลังสินค้ามี toggle ที่ผูกกับ undo/redo, ปุ่มเตรียม Cutout และปุ่มยกเลิกพร้อม progress bar ทำงานสมบูรณ์
+2. **Conflict Guard**: ตรวจจับความขัดแย้งระหว่าง Cutout กับ Background Blur (bg_blur/fit_mode) ทั้งฝั่ง Frontend (ปิดปุ่มเตรียม + แจ้งเตือน + บล็อกการ Render) และฝั่ง Backend (`scripts/video_editor.py` raise ValueError)
+3. **Timeline Windowing & rembg Task**: `groupBackgroundIsolationClips` คำนวณตัดเฉพาะช่วง trimmed sub-windows, API cancellation event ทำงานแบบ atomic cleanup ไม่ทิ้งไฟล์ค้าง
+4. **Canvas Composite & Badges**: `SequencePlayer.jsx` มีป้ายสถานะ Badge 6 ระดับ (off, missing, processing, ready, partial, quality_failed), Composite ภาพ Foreground ซ้อน Mood Background ตรงตาม keyframe/transition
+5. **Product Spotlight**: รองรับ 3 รูปทรง ปรับ 6 Sliders และลากจุดโฟกัสบนพรีวิว Canvas ได้แบบ Interactive
+6. **Strict Render Gate & FFmpeg**: Fail-closed gate บล็อกการเรนเดอร์หาก artifact ไม่ครบ (Zero silent fallback), FFmpeg ประกอบ complex filter ทับภาพ RGBA foreground บนพื้นหลัง mood ได้ 100% parity
+7. **Automated Tests**: Pytest BG suite ผ่าน 178 passed (0 failed), Frontend tests ผ่าน 302/302 passed (0 failed), `npm run build` ผ่าน 100%
+
+
 | Round UNIQUE-COMPOUND-ANGLE-ID-ISOLATION-20260922 | แก้ปัญหาโครงสร้าง angle_id ชนกันหรือเขียนทับข้ามล็อต ด้วย Compound Unique ID (pain_point_b2), อุดช่องโหว่ Fallback/State ใน Backend, API, ShotListsStore และ React Virtual DOM | 2026-09-22 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+
+## Round RESTORE-STYLE-TAB-SCROLLABLE-BG-CUT-20260923 — completed
+
+วันที่: 2026-09-23 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**ผลลัพธ์:** นำแท็บ `สไตล์` (Style) กลับมาแสดงใน Asset Panel ของหน้า Editor เพื่อให้สามารถเข้าถึงกล่องควบคุม "ตัดพื้นหลังสินค้า" (Background Isolation) และ Product Spotlight ได้ทันทีจากหน้าไทม์ไลน์ โดยออกแบบแถบแท็บด้านบนให้เลื่อนได้ในแนวนอน (Horizontal Scroll) ไม่บีบอัดกล่องเดิม ตามความต้องการของผู้ใช้ ("ให้เลื่อนกล่อง ไม่ใช่บีบกล่องเดิม")
+
+- **Tab Rail Scrollability**: ปรับ container ของแท็บจาก `grid grid-cols-4` เป็น `flex items-center overflow-x-auto no-scrollbar scroll-smooth` พร้อมกำหนด `min-w-[68px] flex-1 flex-shrink-0` ทำให้แต่ละกล่องคงขนาดกว้างสบายตาเหมือนเดิม 100% ไม่ถูกบีบอัดให้เล็กลง
+- **Mouse Wheel Scroll Integration**: เพิ่ม `onWheel` listener สำหรับเลื่อนแถบแท็บซ้าย-ขวาได้อย่างลื่นไหลด้วยลูกกลิ้งเมาส์บน Desktop
+- **Style Tab & Background Cutout Access**: นำ `{ id: 'style', label: 'สไตล์', icon: Sparkles }` กลับเข้าสู่ `TABS` ทำให้เปิดการตั้งค่าตัดพื้นหลังสินค้า (Background Isolation ติ๊กเปิดใช้ + ปุ่มเตรียม Cutout จาก Timeline), Product Spotlight, และ Style Preset ได้ทันที
+- **Clean Subview Experience**: ปรับแถบค้นหาและอัปโหลดคลิปให้ซ่อนเมื่อเปิดแท็บ `style` (`tab !== 'srt' && tab !== 'style'`) เพื่อประหยัดพื้นที่แนวตั้งและไม่รกตา
+- **Verification**: รัน `npm test` (302 passed, 0 failed) และ `npm run build` (vite v8.2.2 build 2025 modules สำเร็จใน 4.69s)
+
+
 | Round EDITOR-PARITY-PHASE-2-BACKGROUND-CUTOUT-20260922 | ทำ Background Cutout แบบ Timeline-windowed พร้อม cache identity, preflight, progress/cancel/retry, strict Render gate และ live u2net parity probe | 2026-09-22 | สำเร็จ (ดำเนินการโดย: Codex (GPT-5)) |
 | Round PROJECT-SELECTOR-SMART-FILTER-TABS-20260922 | เพิ่ม Smart Filter Tabs ในเมนู Dropdown เลือกโปรเจกต์ของ Editor (`[ กำลังตัดต่อ ]`, `[ ตัดเสร็จแล้ว ]`, `[ ทั้งหมด ]`) โดยค่าเริ่มต้นเปิดมาที่ "กำลังตัดต่อ" ทันที เพื่อไม่ให้งานที่เรนเดอร์เสร็จแล้วหลายสิบชิ้นมาทำให้หน้าจอดูรกและยุ่งยาก | 2026-09-22 | สำเร็จสมบูรณ์ (Editor Project Selector Smart Filter Tabs, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round FIX-BATCH2-DRAFT-PROJECT-NAME-COLLISION-AND-OPEN-TIMELINE-20260922 | แก้ปัญหาการสร้างดราฟต์ข้ามล็อตทับชื่อโปรเจกต์เดิม (_1) ทำให้เปิดไทม์ไลน์แล้วเข้าโปรเจกต์เก่า และมุมล็อต 2 ถูกเตะกลับเป็นสถานะ scripted: ป้องกันการชนชื่อข้ามล็อต (Batch-Aware Project Synthesis & Collision Guard) และกู้คืนโฟลเดอร์ BLU01-ปัญหาก่อนใช้_2 พร้อมสถานะ in_production | 2026-09-22 | สำเร็จสมบูรณ์ (Batch-Aware Draft Naming & Timeline Collision Guard, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |

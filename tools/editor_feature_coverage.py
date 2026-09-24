@@ -94,6 +94,18 @@ def validate_matrix(matrix: Mapping[str, Any], *, check_sources: bool = True) ->
                 errors.append(f"{feature_id} approximation_reason is required")
             if not str(feature.get("ui_disclosure_policy") or "").strip():
                 errors.append(f"{feature_id} ui_disclosure_policy is required")
+            disclosure = feature.get("ui_disclosure_evidence")
+            if not isinstance(disclosure, list) or not disclosure:
+                errors.append(f"{feature_id} ui_disclosure_evidence is required")
+            elif check_sources:
+                for evidence_index, record in enumerate(disclosure):
+                    if not isinstance(record, Mapping):
+                        errors.append(f"{feature_id}:ui_disclosure_evidence[{evidence_index}] must be an object")
+                    else:
+                        errors.extend(_validate_source_reference(
+                            record, feature_id=feature_id,
+                            location=f"ui_disclosure_evidence[{evidence_index}]",
+                        ))
 
         clip_fields = feature.get("clip_fields")
         if not isinstance(clip_fields, list):

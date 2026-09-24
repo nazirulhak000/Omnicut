@@ -1,32 +1,71 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
+- [ ] Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 — เพิ่มระบบ Magnetic Snap & Visual Guide พร้อม Ripple Feedback บน Timeline, เพิ่มโหมดตรวจเช็ก Cutout Mask ใน Player/Inspector, และจัดระเบียบ Git Working Tree (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round CLEANUP-DEMO-TEST-EXPORTS-PROJECTS-20260924 — ลบทำความสะอาดคลิปทดสอบ demo_*.mp4 และไฟล์ดัมมี่ตกค้างใน 04_Exports/Ready_to_post, 03_Projects/demo, spotlight-test และ export_registry.json ตามกฎเหล็กข้อ 11 และ 15 (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+- [x] Round AUDIT-BACKGROUND-ISOLATION-CUTOUT-SPOTLIGHT-20260923 — ตรวจสอบระบบจัดการพื้นหลังทั้งหมด (Background Isolation, rembg Cutout, Blur Background, Product Spotlight) เชิงลึกทุกมิติ ทั้ง UI, Logic, rembg Worker, Preview & Render Parity และ Automated Tests (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+- [x] Round RESTORE-STYLE-TAB-SCROLLABLE-BG-CUT-20260923 — เปิดแท็บสไตล์ (Style) ใน Asset Panel สำหรับเปิดใช้งาน/เตรียม Cutout ตัดพื้นหลังสินค้า โดยทำแท็บแบบเลื่อนได้ในแนวนอน (Horizontal Scroll) ไม่บีบกล่องเดิม (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round UNIQUE-COMPOUND-ANGLE-ID-ISOLATION-20260922 — แก้ปัญหาโครงสร้าง angle_id ชนกันหรือเขียนทับข้ามล็อต ด้วย Compound Unique ID (pain_point_b2), อุดช่องโหว่ Fallback/State ใน Backend, API, ShotListsStore และ React Virtual DOM (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
 - [x] Round PROJECT-SELECTOR-SMART-FILTER-TABS-20260922 — เพิ่ม Smart Filter Tabs ในเมนู Dropdown เลือกโปรเจกต์ของ Editor ([ กำลังตัดต่อ ], [ ตัดเสร็จแล้ว ], [ ทั้งหมด ]) โดยค่าเริ่มต้นเปิดมาที่ "กำลังตัดต่อ" ทันที เพื่อไม่ให้งานที่เรนเดอร์เสร็จแล้วหลายสิบชิ้นมาทำให้หน้าจอดูรกและยุ่งยาก (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+- [ ] Round DOCS-MANUAL-CURRENCY-REFRESH-20260923 — อัปเดตคู่มือให้ตรงระบบจริงหลังรอบ 9/19-9/23: เพิ่ม Gadget Media (Product Studio 6 ขั้น) + TypeSafe AI ในคู่มือโปรแกรม/README/ARCHITECTURE พร้อมตัวเลขใหม่ (26 routers / 208 routes / 10 เมนู / pytest 1,723 collected / frontend 301) (ดำเนินการโดย: Cline (Cline Agent))
+- [x] Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 — ปิดงาน Motion Text/Preview–Render Parity ให้ตรวจซ้ำได้จริง (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
+- [x] Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 — ปิด parity ของ Caption/Sticker/Effect/Spotlight แบบ vertical slice (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
 
-## Round EDITOR-PARITY-PHASE-3-MOTION-TEXT-20260922 — active
 
-วันที่: 2026-09-22 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: กำลังทำ
+## Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 — ยกระดับ Timeline Magnetic Snap, Ripple Feedback, Cutout Mask Preview และเคลียร์ Git Working Tree
 
-**เป้าหมาย:** ทำ Motion Text ที่เปิดให้ใช้ใน Editor ให้ Preview/Render อ่าน layout และ motion contract เดียวกัน ผ่าน strict live frame-pair gate และไม่เปิด preset ที่ renderer ยังทำไม่ได้
+วันที่: 2026-09-24 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: กำลังทำ
+
+**เป้าหมาย:** 
+1. เพิ่มระบบ **Timeline Magnetic Snap & Visual Guide** พร้อม **Ripple Feedback** ที่ทำงานจริงเมื่อลากคลิป, Trim, หรือปรับแต่งซับ/ป้ายฮุก
+2. เพิ่ม **โหมดตรวจเช็ก Cutout Mask (Checkerboard & Matte View)** ใน SequencePlayer และ AssetPanel พร้อมป้าย Cutout บน Timeline Clip
+3. จัดการความสะอาดของ Git Working Tree โดย commit รวบยอดงาน Parity Phase 3-4 เดิม และงานพัฒนาใหม่อย่างเป็นระเบียบ
 
 ### Todo
 
-- [ ] จำลอง live mismatch ปัจจุบันและแยก layout drift ออกจาก motion drift
-- [ ] ทำ canonical text layout/anchor/scale contract ร่วมระหว่าง Canvas และ ASS/FFmpeg
-- [ ] แก้ identity/start/middle/end frame pair ให้ผ่าน IoU/bbox/centroid/NMAE thresholds
-- [ ] audit preset capabilities และปิด/ติดป้าย preset ที่ `renderer_bound=false`
-- [ ] เพิ่ม golden matrix ภาษาไทย วรรณยุกต์ อังกฤษ ตัวเลข emoji และ 1–3 บรรทัด
-- [ ] ทดสอบ in/hold/out, seek กลาง, seek ย้อน และ loop แบบ deterministic
-- [ ] รัน strict live gate, backend/frontend full tests, build, cleanup และ diff check
+- [ ] เคลียร์บันทึก git commit สำหรับชุดงานเดิมของ Phase 3-4 Parity & Lifecycle Recovery ให้ working tree สะอาด
+- [ ] พัฒนาระบบ **Magnetic Snapping & Visual Guide Lines** ใน `Timeline.jsx` และ `useTimelineDrag.js` โดยเชื่อม `snapCandidates` และ `snapFunction` ที่มีอยู่แล้วเข้ากับการแสดงผลเส้นไกด์เรืองแสงสีทอง/ฟ้า พร้อม Badge ระบุจุดดูด (Playhead / ขอบคลิป / Audio Cue)
+- [ ] เพิ่ม **Ripple Feedback Indicator** เมื่อเกิดการดูดเรียงคลิปหรือซับแบบแม่เหล็กไม่ให้เกิดช่องว่าง
+- [ ] เพิ่ม **Cutout Badge** บน `TimelineClip.jsx` สำหรับคลิปที่มี Background Isolation
+- [ ] เพิ่ม **Cutout Mask Preview Mode** ใน `SequencePlayer.jsx` (Composite / Checkerboard / Matte Alpha) และปุ่มสลับโหมดในหน้าตัดต่อ
+- [ ] รันการทดสอบ frontend (`npm test` & `npm run build`) และ backend (`pytest`) ยืนยันความสมบูรณ์ 100%
 
 ### Gate
 
-- [ ] production preset ทุกตัวมี Preview + Render binding และ deterministic seek contract
-- [ ] strict live pair ผ่าน mask IoU `≥0.90`, bbox delta `≤6px`, centroid `≤4px`, NMAE `≤0.08`
-- [ ] font metrics/line breaks/baseline ไม่ drift หลัง Save/Reload
-- [ ] test artifacts อยู่ใต้ `.tmp` และ cleanup 100%
+- [ ] `npm test` ผ่านครบ 311+ ข้อ
+- [ ] `npm run build` ผ่านสมบูรณ์
+- [ ] ไม่กระทบ Preview-Render Parity ของระบบเดิม
+- [ ] Git Working Tree สะอาดและเป็นระเบียบ
 
----
+
+
+
+
+
+## Round DOCS-MANUAL-CURRENCY-REFRESH-20260923 — อัปเดตคู่มือโปรแกรมให้ตรงระบบจริง (Gadget Media + TypeSafe AI + ตัวเลขใหม่)
+
+วันที่: 2026-09-23 · สั่งโดย: user · ดำเนินการโดย: Cline (Cline Agent) · สถานะ: กำลังทำ
+
+**เป้าหมาย:** คู่มือที่ผู้ใช้เปิดอ่านจริง (เมนู 8 คู่มือใช้งาน → `UserGuide.jsx`) และเอกสารราก (`README.md`, `ARCHITECTURE.md`) ต้องรู้จัก Gadget Media (Product Studio 6 ขั้น + Campaign/Analytics), TypeSafe AI และตัวเลขระบบปัจจุบัน ไม่ให้ผู้ใช้หาเมนูที่ไม่มี/พลาดเมนูที่มีอยู่จริง
+
+### Todo
+
+- [ ] วัดของจริงก่อนแก้: รายการเมนู Sidebar (10 รายการ: Gadget Media + 0-8), router ที่ mount, `len(app.routes)`, pytest collected, frontend tests, build modules
+- [ ] `frontend/src/components/UserGuide.jsx`: เพิ่มการ์ด **Gadget Media** ใน `MENU_GUIDE` + `MENU_DETAIL` (6 ขั้น Brief→Sources→Evidence→Story→Cut→Review), ปรับหัวข้อ section เมนู, เพิ่มหมายเหตุเส้นทาง Gadget Media ในโฟลว์หลัก, เพิ่ม FAQ (Gadget Media / TypeSafe AI)
+- [ ] `README.md`: เพิ่มฟีเจอร์ Gadget Media Product Studio + TypeSafe AI, ปรับตารางเมนูเป็น 10 รายการ, เติมโฟลเดอร์ `03_Projects/GadgetMedia` และ `04_Exports/Ready_to_post/GadgetMedia`, อัปเดตตัวเลข gate
+- [ ] `ARCHITECTURE.md`: เลื่อนวันที่เป็น 2026-09-23, mermaid 9→10 modules และ 23→26 routers, หัวข้อเมนูเป็น 10 รายการ, routes 201→208, เพิ่มแถว router 26 (`api_typesafe_studio.py`), แก้ stage 3 ที่ยังบอก Edge-TTS เป็นค่าเริ่มต้น, อัปเดตตะแกรงทดสอบ
+
+### Gate
+
+- [ ] `npm test` ผ่านครบ · `npm run build` ผ่าน
+- [ ] `python -m pytest tests/ -q` เทียบ baseline (ต้องไม่มี failure ใหม่ — รอบนี้ไม่แตะไฟล์ Python)
+- [ ] `npx oxlint src/components/UserGuide.jsx` ไม่มี error ใหม่
+- [ ] `git diff --stat` ยืนยันแตะเฉพาะไฟล์เอกสาร + `UserGuide.jsx`
+
+### Notes
+
+- รอบนี้ไม่แตะ logic การผลิต (ไม่มีไฟล์ Python) ความเสี่ยงต่อ Preview/Render parity เป็นศูนย์
+- ตัวเลข baseline ที่วัดได้ 2026-09-23: 10 เมนูใน Sidebar, 26 `include_router`, `len(app.routes)` = 208 (APIRoute 204), Gadget Media stages = brief/sources/evidence/story/cut/review
+
 
 - [x] Round EDITOR-PARITY-PHASE-2-BACKGROUND-CUTOUT-20260922 — ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-5))
 
@@ -94,6 +133,58 @@
 - รักษาไฟล์ค้างของ agent อื่นทั้งหมด และจำกัดการแก้ที่ `tests/motion_capture/`, fixture/test scripts, `TODO.md` และเอกสารแผนเท่านั้น
 - ผล regression: motion/preview/render backend `247 passed`; frontend `292 passed`; frontend build ผ่าน
 - strict live gate ตั้งใจคืน exit `1`: pair identity ตรงและ runtime สะอาด แต่ mask IoU `0.1813699 < 0.90`, bbox delta `22 > 6`; defect ถูกส่งต่อ Phase 3
+
+---
+
+## Round EDITOR-PARITY-PHASE-4-CONTINUATION-AND-PHASE-5-RELEASE-GATE-20260923 — active
+
+วันที่: 2026-09-23 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6), ต่อโดย Codex (GPT-5) · สถานะ: กำลังทำ
+
+**เป้าหมาย:** ปิด Editor parity ที่ยังค้างจาก Master Plan: แก้ live-capture regression, ทำ parity vertical slices ของ timeline/clip timing/transform/framing, ตรวจ recovery และ UX/accessibility, จัดการ approximation/track mute contract และผ่าน performance/failure release gate โดยรายงานสถานะตามหลักฐานจริง
+
+### Todo
+
+- [x] แก้และรันซ้ำ motion-capture regression ที่รอ HTML fallback เป็น media; baseline ไม่รอ HTML decode และ overlay รอเฉพาะ source clip จริง — focused motion/caption/app-capture/overlay gate `7 passed`
+- [x] ทำ live Preview-vs-Render slices สำหรับ timeline boundary/overlap หลัง Save/Reload และ clip trim/speed/freeze ที่ start/middle/end (EditorShell เพิ่ม/ผ่า/เลือก fade + reorder/Undo/Redo → Save/Reload → Canvas/Render 18 เฟรมผ่าน; speed/freeze live pair ผ่านแยก)
+- [x] ทำ live Preview-vs-Render slices สำหรับ zoom/pan/rotation/mirror/keyframes และ fill/blur หลัง transform (Production Canvas/FFmpeg pairs ผ่าน; UI ไม่มี fit แบบแยก)
+- [ ] ตรวจทุก interaction ของ slice ที่แก้: selection, numeric edit/drag, undo/redo, save/reload, boundary, empty/error media (Chromium Inspector/Timeline add/split/reorder/delete/drag snap/Undo-Redo + Save/Reload, missing-media alert และ EditorShell trim flow ผ่าน; ยังไม่ครบทุก interaction ใน shell เดียว)
+- [ ] ปิดหรือจัดประเภทพร้อม UI disclosure สำหรับ color, transitions, Background Isolation, LUT, clip audio และ audio mix; ให้ Preview/Render ใช้ contract เดียวกันเท่าที่ทำได้และบันทึก residual ที่วัดได้
+- [x] ทำให้ track mute/solo ตรงกันระหว่าง playback, save และ exported Render; อัปเดตกฎและ regression tests ให้สอดคล้อง
+- [x] เพิ่ม fault-injection/recovery gates สำหรับ source/API failure, disk-full, worker death, render cancel และ app restart (worker/API/manifest tests + FFmpeg error → persisted task → restart/status + kill process จริง → project state recovery ผ่าน)
+- [x] วัด Editor ที่ 1/10/50/100 clips: Timeline mount/selection/heap + Preview เปิด media จริง/seek ไปคลิปท้าย/playback/dropped frames/heap + FFmpeg Render จบและ duration ตรง ครบทั้งสี่ขนาด (fixture ใช้ source เดียวซ้ำ; ยังต้องทดสอบสื่อจริงหลากหลายก่อนอ้าง production-wide performance)
+- [ ] ปิด coverage matrix/report และ Master Plan ด้วยหลักฐานและสถานะที่ validator ผ่าน
+- [ ] รอบต่อเนื่อง Codex (GPT-5): ไล่ UX ทุก Inspector/dialog ด้วย browser keyboard/accessible-name/disabled/error matrix; แก้เฉพาะ defect ที่ repro ได้ แล้วรัน production EditorShell gate
+- [ ] รอบต่อเนื่อง Codex (GPT-5): แยกสาเหตุ backend full-suite ค้างด้วย test-order/repro และ faulthandler; หากเป็น flake ให้เพิ่ม regression โดยไม่ลด gate
+- [ ] รอบต่อเนื่อง Codex (GPT-5): ตรวจหลักฐาน BG Cutout และ 6 approximation เทียบกับเกณฑ์ Phase 2/4; ปิดเฉพาะข้อที่มี live Preview/Render evidence ไม่สร้างคำรับรองเกินจริง
+
+### Gate
+
+- [ ] ทุก live visual pair ใช้ production Preview + production Render และเทียบค่าตาม `.agents/rules/preview_render_parity.md`; ทดสอบ boundary และ Save/Reload
+- [ ] ไม่เหลือ `UNTESTED` หรือ `BLOCKED`; `APPROXIMATION` ทุกข้อมีค่าคลาดเคลื่อน/เหตุผล/ข้อความ UI ที่ตรวจได้
+- [ ] Coverage validator, targeted suites, motion capture, full backend, frontend tests, build และ `git diff --check` ผ่าน
+- [ ] artifacts จากเทสอยู่ใน `.tmp/`/temp และ cleanup ครบ; ไม่แตะ `04_Exports/` หรือข้อมูลผู้ใช้จริง
+
+### Notes
+
+- แผนต่อรอบ 2026-09-23 โดย Codex (GPT-5): ขยาย `test_editor_shell_browser.py` ให้ใช้ AssetPanel เพิ่มคลิป, Timeline ผ่าคลิป/เลือก transition ผ่าน UI แล้ว Save/Reload + เทียบ Canvas/FFmpeg จริง; ถ้า repro mismatch ให้แก้ที่ contract ต้นเหตุ จากนั้นตรวจ recovery/UX/performance เฉพาะที่มี gate วัดได้ โดยคงงาน Gadget Media พักไว้ และไม่เขียนทับไฟล์ของ Cline/Antigravity
+- แผนต่อจากคำสั่งล่าสุด 2026-09-23 โดย Codex (GPT-5): ให้ความสำคัญกับ UX matrix ที่ยัง UNTESTED และ full-suite hang; ตรวจ BG/approximation ตามหลักฐานที่มีโดยไม่แตะ Gadget Media หรือสื่อจริงของผู้ใช้; ใช้ targeted feedback loop ก่อน full gate เพื่อไม่รอชุดยาวโดยไร้สัญญาณ
+- งานใหม่ที่พบและทำในรอบนี้: restart recovery อาจเปลี่ยน status เป็น scripted แต่ทิ้ง `project_name` ที่เรนเดอร์ค้างไว้; เพิ่ม regression ใน `test_restart_recovers_orphaned_render_angle.py` และแก้ `TaskManager` เฉพาะเมื่อ repro fail เพื่อให้ pointer คืนสภาพเหมือน failure path ปกติ
+- ผลล่าสุด: coverage `PASS 13 / APPROXIMATION 6 / BLOCKED 0 / UNTESTED 1`; Timeline UI, Render recovery และ synthetic real-media performance 1/10/50/100 clips ผ่านแล้ว ที่เหลือ Editor UX/accessibility browser matrix และ approximation ทั้ง 6 หมวดยังห้ามอ้างว่า Preview=Render ทุกกรณี
+- Live clip pair ผ่าน timing/transform/framing/cut/fade; full motion suite `54 passed` (coverage assertion ที่รันระหว่างแก้ matrix ยืนยันใหม่ผ่าน); เพิ่ม fill/rotated-blur อีก `2 passed`
+- Full backend รอบล่าสุด `1,776 passed, 7 skipped, 34 warnings`; frontend ล่าสุด `311 passed`, build และ coverage validator ผ่าน; targeted Chromium หลัง collection ผ่าน
+- แก้ dynamic zoom crop, blur parity, mute/solo Export, API auth ที่ถูก `.env` เขียนทับ, fail-closed Export save และ atomic-save cleanup เมื่อ ENOSPC; เพิ่มข้อความ UI สำหรับ approximations ทั้ง 6 พร้อม source-evidence validator
+- Chromium browser component gate `4 passed`: Inspector keyboard/numeric/Save-Reload และ Timeline add/split/reorder/delete/drag snap/Save-Reload; ยังไม่ใช่ EditorShell end-to-end
+- Performance fixture 1/10/50/100 clips: mount `464/452/434/553 ms`, selection `61/71/88/114 ms`, heap `27.6/27.6/29.4/33.1 MB`; real-media Preview seek ไปคลิปท้าย `35/50/675/1998 ms`, dropped frames `0/0/0/0`, Render `0.51/1.25/3.39/7.04 s` พร้อม ffprobe duration ตรง; source เดียวซ้ำใน temp ไม่ใช่ benchmark สื่อหลากหลาย
+- Gate รอบนี้: browser controls/EditorShell/performance/coverage `28 passed`, frontend `311 passed`, build ผ่าน, targeted backend render/recovery/reroll/schedule `66 passed`; backend full run ถูกขัดจังหวะที่ประมาณ 75% ก่อนสรุปผล จึงห้ามอ้าง full suite ผ่านรอบนี้
+- Recovery เพิ่ม: disk probe fail-closed 507, worker missing source/cancel, poll transient retry vs 401/404, manifest ENOSPC cleanup; targeted backend/JS ผ่าน
+- Inspector numeric trim clamp กันหน้าต่างย้อน/เกิน source; unit และ Chromium edit out-of-range ผ่าน
+- Preview missing-source แสดง `role=alert` พร้อมชื่อไฟล์/คำแนะนำ; Chromium browser control gate ล่าสุด `5 passed`
+- Full motion-capture run เดิมล้ม 20 tests เพราะ fixture รอ decode URL fallback `motion_capture.html`; สาเหตุยืนยันแล้วและแก้โดยผูกการรอ decode/seek กับ explicit `clip=`; focused regression gate `7 passed`
+- Phase 4 Overlay Vertical Slice เดิมปิดแล้ว; รอบนี้ต่อ Phase 4 ส่วนที่เหลือและ Phase 5 เท่านั้น ไม่รวม Gadget Media ซึ่งพักตามคำสั่งผู้ใช้
+- EditorShell full flow ใหม่: Trim เข้า 0.5s → Save/Reload → Preview Canvas เทียบ FFmpeg กรณี 1 คลิป 3 เฟรม + fade overlap 2 คลิป 5 เฟรม (`8/8`) ผ่าน; พบ manual clip ที่ไม่มี zoom เรนเดอร์ fallback 1.25 แต่ Preview 1.0 (bbox drift 24px) จึงแก้ให้ manual default 1.0 โดยไม่เปลี่ยน explicit shot scales; targeted backend regression `168 passed, 5 warnings`
+- Recovery เพิ่ม gate worker FFmpeg error → task persist → จำลอง restart → status ยัง `failed`; ชุด failure/cleanup/task-manager `40/40` ผ่าน ยังไม่อ้างว่าปิด actual process crash / project state restore
+- ต่อรอบนี้: AssetPanel add + Timeline split + transition fade เลือกผ่าน UI จริง → Save/Reload → Preview/FFmpeg ผ่าน 4 browser scenarios/18 เฟรม; popover เดิมถูก Preview ทับจนคลิกไม่ได้ แก้ด้วย portal + viewport clamp/focus/ARIA; Chromium รวม `15 passed`, frontend `311 passed`, build และ design detector ผ่าน
+- Recovery process-kill จริง: child เข้า `execute_render_job` แล้วถูก terminate; TaskManager restart ให้ task `failed` และ ProductStore angle `scripted` โดยล้าง pointer ของ partial project; ก่อนแก้ repro fail, หลังแก้ targeted recovery `19 passed`
 
 ---
 

@@ -2,7 +2,11 @@
 
 วันที่: 2026-09-22  
 ดำเนินการโดย: Codex (GPT-5)  
-สถานะ: แผนตรวจและแผนพัฒนา ยังไม่ใช่คำยืนยันว่าฟังก์ชันทั้งหมดผ่านแล้ว
+สถานะ: Phase 4 overlay + clip visual + Timeline vertical slices และ Render recovery ผ่านแล้ว; Master ยัง active เพราะ UX และ performance ยังไม่ผ่านครบ
+
+อัปเดต 2026-09-23 โดย Codex (GPT-5): coverage `PASS 13 / APPROXIMATION 6 / BLOCKED 0 / UNTESTED 1`; backend full รอบล่าสุด `1,776 passed, 7 skipped`, frontend `311 passed`, build/validator ผ่าน รายละเอียดและหลักฐานล่าสุดอยู่ใน `_Docs/Reports/EDITOR_FEATURE_COVERAGE_REPORT_20260922.md` ห้ามใช้ readiness เก่าด้านล่างเป็นสถานะปัจจุบัน
+
+อัปเดตต่อ: EditorShell เพิ่มคลิป/ผ่าคลิป/เลือก fade ผ่าน UI + reorder/Undo/Redo → Save/Reload → Preview Canvas เทียบ FFmpeg ผ่าน `18/18` เฟรม; Timeline `PASS`; Render worker process-kill → restart → task/project recovery ผ่าน; UX ยัง `UNTESTED`
 
 ## สถานะการดำเนินงาน
 
@@ -172,7 +176,7 @@ readiness ปัจจุบันหลัง Phase 2: `PASS 2`, `APPROXIMATION
 
 **Gate:** คลิป 10 วินาทีเริ่มเห็น preview ได้ตาม performance budget ที่กำหนด, cancel/retry/reload ได้, Render เทียบ mask กับ Preview ผ่านทุก sample frame และไม่มี original-frame flash
 
-### Phase 3 — Motion Text ให้มีนิยามเดียว (P0)
+### Phase 3 — Motion Text ให้มีนิยามเดียว (P0) — เสร็จแล้ว 2026-09-23
 
 1. กำหนด canonical motion schema: transform, opacity, blur, color, clipping, per-line/per-token phase และ easing
 2. ให้ Canvas sampler และ ASS/FFmpeg adapter อ่าน schema เดียว ห้ามนิยามสูตรซ้ำ
@@ -185,6 +189,8 @@ readiness ปัจจุบันหลัง Phase 2: `PASS 2`, `APPROXIMATION
 
 **Gate:** preset ที่เปิดให้ผู้ใช้ทุกตัวผ่าน live Canvas-vs-render frame pair; ไม่มี `renderer_bound: false` ใน preset production
 
+ผลตรวจจริง: live frame-pair `16/16` ผ่าน mask IoU/bbox/centroid/NMAE, app capture `7/7`, Save/Reload และ preset contract ผ่าน regression; backend เต็ม `1,731 passed, 7 skipped`, frontend `302 passed`, build ผ่าน จึงเลื่อนงานที่ยังขาด live vertical slice ไป Phase 4 ตาม coverage matrix
+
 ### Phase 4 — ตรวจ Editor ทุกฟังก์ชันแบบ Vertical Slice (P1)
 
 ทำทีละหมวด ไม่ทำ Preview ทั้งหมดก่อนแล้วค่อยตาม Render:
@@ -196,6 +202,10 @@ readiness ปัจจุบันหลัง Phase 2: `PASS 2`, `APPROXIMATION
 5. Transition
 6. Audio
 7. Save/reload/undo/redo/recovery
+
+**Progress 2026-09-23 — overlay vertical slice ปิดแล้ว:** Caption, Sticker, Effect และ Spotlight ผ่าน live Canvas-vs-production evidence พร้อม Save/Reload regression แล้ว โดยผล coverage matrix ปัจจุบันคือ `PASS 7`, `APPROXIMATION 6`, `BLOCKED 1`, `UNTESTED 6` รายละเอียดอยู่ที่ `_Docs/Reports/EDITOR_FEATURE_COVERAGE_REPORT_20260922.md` และรอบงานถูกย้ายเข้า `HISTORY.md`
+
+**ยังไม่ปิด:** timeline boundary/overlap, clip trim/speed/freeze, transform/keyframes, framing/blur, reliability/recovery และ Editor UX/accessibility; color, transitions, Background Isolation, LUT, audio และ mute/solo ยังคงต้องจัดการตามสถานะใน matrix
 8. Export/cancel/retry/error
 
 ต่อหนึ่ง slice ต้องปิด UI → state → Preview → save/reload → Render → comparison ในรอบเดียว

@@ -78,3 +78,44 @@ test('useRenderJob hook is exported and exposes required API contract for NewCli
   const { useRenderJob } = await import('../hooks/useRenderJob.js');
   assert.equal(typeof useRenderJob, 'function', 'useRenderJob should be a hook function');
 });
+
+test('render poll stops on auth loss or restarted-server 404 without retrying forever', async () => {
+  const { createRenderJobPollController } = await import('../hooks/useRenderJob.js');
+  for (const status of [401, 404]) {
+    const errors = [];
+    const scheduled = [];
+    const controller = createRenderJobPollController({
+      fetchStatus: async () => { throw { response: { status } }; },
+      onError: (error, jobId, project) => errors.push([error.response.status, jobId, project]),
+      setTimeoutFn: (callback) => { scheduled.push(callback); return scheduled.length; },
+    });
+    controller.start('job-failed', 'project-a');
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(errors, [[status, 'job-failed', 'project-a']]);
+    assert.equal(scheduled.length, 0);
+  }
+});
+
+test('render poll retries transient network failure and then accepts completion', async () => {
+  const { createRenderJobPollController } = await import('../hooks/useRenderJob.js');
+  const scheduled = [];
+  const responses = [];
+  let attempts = 0;
+  const controller = createRenderJobPollController({
+    fetchStatus: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error('temporary network loss');
+      return { status: 'completed', progress: 1, result: {} };
+    },
+    onResponse: (status) => responses.push(status.status),
+    onError: () => { throw new Error('transient failure must be retried'); },
+    setTimeoutFn: (callback) => { scheduled.push(callback); return scheduled.length; },
+  });
+  controller.start('job-retry', 'project-a');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(scheduled.length, 1);
+  scheduled.shift()();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(responses, ['completed']);
+  assert.equal(scheduled.length, 0);
+});

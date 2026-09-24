@@ -6,6 +6,8 @@ import {
   clampFreezeTail,
   clampRotation,
   clampSpeed,
+  clampTrimStart,
+  clampTrimEnd,
   clampVolume,
   clampZoom,
   clampPan,
@@ -32,7 +34,7 @@ function NumberInput(props) {
 export default function ClipInspector({ selectedSeg, onClipChange }) {
   if (!selectedSeg?.clip) return null;
 
-  const { clip, index, dur } = selectedSeg;
+  const { clip, index, dur, srcDur } = selectedSeg;
   const zoom = clip.zoom ?? 1;
   const panning = zoom > 1.001;
   const bgBlur = !!clip.bg_blur || clip.fit_mode === 'blur';
@@ -58,22 +60,22 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
           <div>
             <span className="block text-xs text-slate-400 mb-1">Trim เข้า (วิ)</span>
             <NumberInput
+              aria-label="Trim เข้า (วิ)"
               step="0.1"
               min="0"
               value={clip.trim_start ?? 0}
-              onChange={(e) => onClipChange?.({ trim_start: Math.max(0, parseFloat(e.target.value) || 0) })}
+              onChange={(e) => onClipChange?.({ trim_start: clampTrimStart(e.target.value, clip, srcDur) })}
             />
           </div>
           <div>
             <span className="block text-xs text-slate-400 mb-1">Trim ออก (วิ)</span>
             <NumberInput
+              aria-label="Trim ออก (วิ)"
               step="0.1"
               min="0"
               placeholder="สุดคลิป"
               value={clip.trim_end ?? ''}
-              onChange={(e) => onClipChange?.({
-                trim_end: e.target.value === '' ? null : parseFloat(e.target.value),
-              })}
+              onChange={(e) => onClipChange?.({ trim_end: clampTrimEnd(e.target.value, clip, srcDur) })}
             />
           </div>
         </div>
@@ -88,6 +90,7 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
                 <button
                   key={s}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => onClipChange?.({ speed: s === 1 ? undefined : clampSpeed(s) })}
                   className={`py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
                     active
@@ -126,6 +129,7 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
                 <button
                   key={deg}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => onClipChange?.({ rotation: deg === 0 ? undefined : clampRotation(deg) })}
                   className={`py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
                     active
@@ -143,6 +147,7 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
         {/* Mirror Toggle */}
         <button
           type="button"
+          aria-pressed={!!clip.mirror}
           onClick={() => onClipChange?.({ mirror: !clip.mirror })}
           className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
             clip.mirror
@@ -167,6 +172,7 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
             <button
               type="button"
               onClick={() => onClipChange?.({ volume: (clip.volume || 0) > 0 ? 0 : 1.0 })}
+              aria-label={(clip.volume || 0) > 0 ? 'ปิดเสียงคลิปต้นฉบับ' : 'เปิดเสียงคลิปต้นฉบับ'}
               className="text-xs font-mono font-bold text-[#25F4EE] hover:underline cursor-pointer"
             >
               {Math.round((clip.volume || 0) * 100)}%
@@ -174,6 +180,7 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
           </div>
           <input
             type="range"
+            aria-label="ระดับเสียงคลิปต้นฉบับ"
             min={0}
             max={1}
             step={0.05}
@@ -181,6 +188,11 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
             onChange={(e) => onClipChange?.({ volume: clampVolume(parseFloat(e.target.value)) })}
             className="w-full accent-[#25F4EE]"
           />
+          {clip.volume > 0 && (clip.speed || 1) !== 1 && (
+            <p className="text-[11px] leading-relaxed text-amber-200/80">
+              Preview อาจได้ยิน pitch ต่างจาก Render เมื่อเปลี่ยนความเร็วคลิป
+            </p>
+          )}
         </div>
 
         {/* Framing: Zoom, Pan X/Y, Blur background, Freeze tail */}
@@ -199,6 +211,7 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              aria-pressed={bgBlur}
               onClick={() => onClipChange?.({ bg_blur: bgBlur ? undefined : true, fit_mode: bgBlur ? undefined : 'blur' })}
               className={`flex-1 rounded-xl border px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
                 bgBlur
@@ -299,6 +312,11 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
               </label>
             );
           })}
+          {colorTouched && (
+            <p className="text-[11px] leading-relaxed text-amber-200/80">
+              สีใน Preview เป็นค่าประมาณ โดยเฉพาะความสว่าง; Render เป็นผลลัพธ์อ้างอิง
+            </p>
+          )}
         </div>
 
         {/* Boundary Transition with Previous Clip */}
@@ -313,6 +331,7 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
                   <button
                     key={t.id}
                     type="button"
+                    aria-pressed={kind === t.id}
                     onClick={() => onClipChange?.({
                       transition_in: t.id,
                       transition_duration: durTrans,
@@ -328,6 +347,11 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
                   </button>
                 ))}
               </div>
+              {['dissolve', 'fadeblack', 'fadewhite'].includes(kind) && (
+                <p className="text-[11px] leading-relaxed text-amber-200/80">
+                  Preview ของ Transition นี้เป็นค่าประมาณ; ตรวจรอยต่อใน Render อีกครั้ง
+                </p>
+              )}
             </div>
           );
         })()}

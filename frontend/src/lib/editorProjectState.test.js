@@ -84,8 +84,63 @@ test('one save serializer carries overlays, keyframes, and audio controls', () =
   assert.deepEqual(first.clip_list[0].keyframes, input.clipList[0].keyframes);
   assert.deepEqual(first.overlays, input.overlays);
   assert.deepEqual(first.track_mix, input.trackMix);
-  assert.deepEqual(first.audio_mutes, { bgm: true });
+  assert.deepEqual(first.audio_mutes, { bgm: true, sfx: true, clip: true });
   assert.equal(first.cues[0]._uid, undefined);
+});
+
+test('solo and clip edits survive save/reload without turning derived mutes into user mutes', () => {
+  const clip = {
+    id: 'camera-clip', source_path: 'camera.mp4', trim_start: 0.5, trim_end: 2.5,
+    speed: 1.5, freeze_tail: 0.4, zoom: 1.3, pan_x: 0.2, pan_y: -0.1,
+    rotation: 90, mirror: true, fit_mode: 'blur', volume: 0.6,
+    keyframes: [{ time: 0, zoom: 1.1 }, { time: 1, zoom: 1.5 }],
+  };
+  const input = { clipList: [clip], trackMix: { mute: { bgm: true }, solo: { voice: true } } };
+  const saved = editorStateToSavePayload(input);
+  const loaded = manifestToEditorState(saved);
+
+  for (const field of [
+    'trim_start', 'trim_end', 'speed', 'freeze_tail', 'zoom', 'pan_x', 'pan_y',
+    'rotation', 'mirror', 'fit_mode', 'volume',
+  ]) {
+    assert.equal(loaded.clipList[0][field], clip[field], field);
+  }
+  assert.deepEqual(loaded.clipList[0].keyframes, clip.keyframes);
+  assert.deepEqual(saved.audio_mutes, { bgm: true, sfx: true, clip: true });
+  assert.deepEqual(loaded.trackMix.mute, { bgm: true });
+  assert.deepEqual(loaded.trackMix.solo, { voice: true });
+});
+
+
+test('caption line breaks, timing, and style survive save and reload', () => {
+  const input = {
+    cuesList: [{
+      _uid: 'caption-parity-cue',
+      start: 0,
+      end: 2,
+      text: 'บรรทัดหนึ่ง\nLINE TWO\nราคา 9,990 บาท',
+      bilingual: false,
+      position: 'bottom',
+      fontName: 'IBM Plex Sans Thai',
+    }],
+    style: {
+      fontName: 'IBMPlex',
+      captionPosition: 'bottom',
+      captionScale: 1,
+      captionColor: '#FFFFFF',
+    },
+  };
+
+  const saved = editorStateToSavePayload(input);
+  const reloaded = manifestToEditorState(saved);
+
+  assert.equal(saved.cues[0]._uid, undefined);
+  assert.equal(reloaded.cuesList[0].text, input.cuesList[0].text);
+  assert.equal(reloaded.cuesList[0].start, 0);
+  assert.equal(reloaded.cuesList[0].end, 2);
+  assert.equal(reloaded.cuesList[0].position, 'bottom');
+  assert.equal(reloaded.cuesList[0].fontName, 'IBM Plex Sans Thai');
+  assert.equal(reloaded.style.captionPosition, 'bottom');
 });
 
 
@@ -129,6 +184,63 @@ test('overlay persistence keeps unknown metadata and legacy overlay shape safe',
   assert.deepEqual(overlays, [legacy, unknown]);
   assert.notEqual(overlays[0], legacy);
   assert.notEqual(overlays[1], unknown);
+});
+
+
+test('motion text font metrics, line layout, and contracts survive save and reload', () => {
+  const motionOverlay = {
+    id: 'hook-motion-parity',
+    kind: 'hook',
+    anchor: 'top',
+    x: 0.5,
+    y: 260 / 1920,
+    base_fs_ratio: 0.065,
+    comfortable_lines: 4,
+    look: {
+      font: 'IBM Plex Sans Thai',
+      bold: true,
+      outline_px: 3,
+      shadow: { color: '#000000', blur: 8, dx: 0, dy: 4 },
+    },
+    tiers: [
+      { text: 'นั่งนิ่งจริงครับ', look: { color: '#FFFFFF' } },
+      { text: 'Motion 1,125 🚀', look: { color: '#25F4EE' } },
+      { text: 'บรรทัดสาม', look: { color: '#FFFFFF' } },
+    ],
+    layout: {
+      lines: [
+        { text: 'นั่งนิ่งจริงครับ', words: [{ text: 'นั่งนิ่งจริงครับ', x: 0.34, w: 0.32 }] },
+        { text: 'Motion 1,125 🚀', words: [{ text: 'Motion 1,125 🚀', x: 0.35, w: 0.30 }] },
+        { text: 'บรรทัดสาม', words: [{ text: 'บรรทัดสาม', x: 0.41, w: 0.18 }] },
+      ],
+    },
+    anim: { in: 'bounce', loop: 'pulse', out: 'fade', speed: 'smooth', stagger: true },
+    motionContract: {
+      phases: {
+        in: { id: 'hook.in.bounce', role: 'hook', phase: 'in', duration_ms: 450 },
+        loop: { id: 'hook.loop.pulse', role: 'hook', phase: 'loop', duration_ms: 700 },
+        out: { id: 'hook.out.fade', role: 'hook', phase: 'out', duration_ms: 150 },
+      },
+    },
+    motionMetadata: { role: 'hook', schema_version: 1 },
+  };
+
+  const loaded = manifestToEditorState({ overlays: [motionOverlay] });
+  const payload = editorStateToSavePayload({ overlays: loaded.overlays });
+  const reloaded = manifestToEditorState({ overlays: payload.overlays });
+  const saved = reloaded.overlays[0];
+
+  assert.equal(saved.anchor, motionOverlay.anchor);
+  assert.equal(saved.x, motionOverlay.x);
+  assert.equal(saved.y, motionOverlay.y);
+  assert.equal(saved.base_fs_ratio, motionOverlay.base_fs_ratio);
+  assert.equal(saved.comfortable_lines, motionOverlay.comfortable_lines);
+  assert.deepEqual(saved.look, motionOverlay.look);
+  assert.deepEqual(saved.tiers, motionOverlay.tiers);
+  assert.deepEqual(saved.layout, motionOverlay.layout);
+  assert.deepEqual(saved.anim, motionOverlay.anim);
+  assert.deepEqual(saved.motionContract, motionOverlay.motionContract);
+  assert.deepEqual(saved.motionMetadata, motionOverlay.motionMetadata);
 });
 
 
@@ -209,6 +321,52 @@ test('render feature payload carries Spotlight and Background Isolation to the b
   assert.deepEqual(payload.background_isolation, backgroundIsolation);
   assert.deepEqual(payload.stickers, [{ id: 'sticker-1' }]);
   assert.deepEqual(payload.effects, [{ id: 'effect-1' }]);
+});
+
+
+test('sticker, effect, and spotlight timing and geometry survive save and reload', () => {
+  const input = {
+    stickers: [{
+      id: 'sticker-parity',
+      badge: 'arrow_pointer_cyan_3d.png',
+      start: 0.5,
+      end: 2.75,
+      normX: 0.72,
+      normY: 0.22,
+      scale: 1.15,
+      hidden: false,
+      recolor: 'accent',
+      recolorSourceHue: 180,
+    }],
+    effects: [{
+      id: 'effect-parity',
+      effectId: 'fx_checkmark_01',
+      start: 1.25,
+      end: 3.5,
+      normX: 0.52,
+      normY: 0.34,
+      scale: 0.9,
+      hidden: false,
+      recolor: 'accent',
+      recolorSourceHue: 205,
+    }],
+    spotlight: {
+      schema_version: 1,
+      enabled: true,
+      shape: 'ellipse',
+      focus: { x: 0.5, y: 0.45, width: 0.52, height: 0.34 },
+      dim_opacity: 0.42,
+      feather: 0.02,
+      corner_radius: 0.08,
+    },
+  };
+
+  const saved = editorStateToSavePayload(input);
+  const reloaded = manifestToEditorState(saved);
+
+  assert.deepEqual(reloaded.stickers, input.stickers);
+  assert.deepEqual(reloaded.effects, input.effects);
+  assert.deepEqual(reloaded.spotlight, input.spotlight);
 });
 
 

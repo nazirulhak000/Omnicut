@@ -1159,8 +1159,8 @@ def test_preview_plays_a_clips_own_audio_at_its_own_volume():
 
 
 def test_per_track_mute_and_solo_reach_the_gain_nodes():
-    """Soloing one stem must silence the others, and solo has to beat mute."""
-    assert "soloedTracks.length ? soloedTracks.includes(track) : !trackMix?.mute?.[track]" in JS_SRC
+    """Preview and Export derive the same audible buses from mute and solo."""
+    assert "effectiveAudioMutes(trackMix)" in JS_SRC
     base = re.search(r"const trackBase = \{(.*?)\};", JS_SRC, re.S)
     assert base, "the per-track levels moved"
     for track in ("voice", "bgm", "sfx", "clip"):
@@ -1169,10 +1169,9 @@ def test_per_track_mute_and_solo_reach_the_gain_nodes():
     shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
     assert "if (kind === 'mute' && turningOn) next.solo[k] = false;" in shell
     assert "if (kind === 'solo' && turningOn) next.mute[k] = false;" in shell
-    # Playback-only: soloing to check a level must never change what renders.
-    payload_keys = re.findall(r"trackMix", shell)
-    assert payload_keys, "trackMix state missing"
-    assert "trackMix" not in re.sub(r"\s+", " ", shell[shell.index("bgm_ducking: !!style.bgmDucking"):][:2000])
+    assert "const audioMutes = effectiveAudioMutes(trackMix);" in shell
+    assert "audio_mutes: audioMutes" in shell
+    assert "!!audioMutes[track] !== !!baselineMutes[track]" in shell
 
 
 def test_timeline_draws_one_lane_per_stem_from_the_stems_own_file():
@@ -1352,10 +1351,24 @@ def test_the_folded_row_mutes_the_group_it_is_labelled_for():
     assert "STEMS.every((s) => trackMix?.solo?.[s.key])" in TIMELINE_SRC
     # EditorShell resolves 'all' to every stem.
     assert "const targets = track === 'all' ? AUDIO_TRACKS : [track];" in SHELL_SRC
-    assert re.search(r"const AUDIO_TRACKS = \['voice', 'bgm', 'sfx', 'clip'\];", SHELL_SRC)
+    assert "AUDIO_TRACKS" in SHELL_SRC
+    assert "export const AUDIO_TRACKS = Object.freeze(['voice', 'bgm', 'sfx', 'clip']);" in (
+        ROOT / "frontend" / "src" / "lib" / "trackMix.js"
+    ).read_text(encoding="utf-8")
     # A third chip does not fit beside a name on a phone, and the row's own M
     # already mutes all four once folded.
     assert "{i === 0 && !dense && !audioCollapsed && (" in TIMELINE_SRC
+
+
+def test_render_baseline_only_commits_after_success_and_save_failure_stops_export():
+    assert "await updateProjectState(projectName, projectSavePayload);" in SHELL_SRC
+    assert "await updateProjectState(projectName, projectSavePayload).catch(() => {})" not in SHELL_SRC
+    completion = SHELL_SRC.split("const handleRenderComplete = useCallback(", 1)[1].split(
+        "const handleRenderError = useCallback(", 1
+    )[0]
+    assert "loadedAudioMutes.current = pending.audioMutes;" in completion
+    assert "loadedCaptionStyle.current = pending.captionStyle;" in completion
+    assert "pendingRenderBaseline.current = null;" in completion
 
 
 # ------------------------------------------------------------- mute holds
@@ -1383,15 +1396,18 @@ def test_muting_a_track_survives_graph_creation_and_the_tick():
     runner = """
 import { readFileSync } from 'node:fs';
 const src = readFileSync(process.argv[2], 'utf8');
+const trackMixSrc = readFileSync(process.argv[3], 'utf8');
 const grab = (re, what) => { const m = src.match(re); if (!m) throw new Error('missing ' + what); return m[0]; };
 const code = `
 ${grab(/const AUDIO_MIX = \\{[\\s\\S]*?\\n\\};/, 'AUDIO_MIX')}
+${trackMixSrc.match(/export const AUDIO_TRACKS[^;]*;/)[0].replace('export ', '')}
+${trackMixSrc.match(/export function effectiveAudioMutes[\\s\\S]*?\\n}/)[0].replace('export ', '')}
 export function scope({ trackMix, bgmVolume, cues, totalDuration }) {
   const mk = () => ({ gain: { value: 0, cancelScheduledValues() {}, setTargetAtTime(v) { this.value = v; } } });
   const ctx = { currentTime: 0, state: 'running' };
   const audioCtxRef = { current: ctx };
   const audioNodesRef = { current: { bgm: mk(), voice: mk(), sfx: mk(), clip: mk() } };
-  ${grab(/const soloedTracks = [\\s\\S]*?const trackLevel = \\(track\\) => \\([\\s\\S]*?\\);/, 'trackLevel')}
+  ${grab(/const effectiveMutes = [\\s\\S]*?const trackLevel = \\(track\\) => \\([\\s\\S]*?\\);/, 'trackLevel')}
   const audioLiveRef = { current: { bgmVolume, cues, totalDuration, bgmDucking: false, bgmAudible: trackAudible('bgm') } };
   ${grab(/const applyBgmEnvelope = \\(t\\) => \\{[\\s\\S]*?\\n  \\};/, 'applyBgmEnvelope')}
   return { trackLevel, applyBgmEnvelope, bgm: audioNodesRef.current.bgm };
@@ -1417,7 +1433,10 @@ console.log(JSON.stringify(out));
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "mute.mjs"
         path.write_text(runner, encoding="utf-8")
-        res = subprocess.run(["node", str(path), str(player)], capture_output=True, text=True)
+        res = subprocess.run(
+            ["node", str(path), str(player), str(ROOT / "frontend" / "src" / "lib" / "trackMix.js")],
+            capture_output=True, text=True,
+        )
         assert res.returncode == 0, res.stderr
         got = json.loads(res.stdout)
 
@@ -1613,7 +1632,7 @@ def test_one_pass_framing_is_skipped_where_it_would_change_the_picture():
     source, so both keep the two-stage chain.
     """
     assert "if not rot_filter and not mirror_filter:" in VIDEO_EDITOR_SRC
-    blur_branch = VIDEO_EDITOR_SRC[VIDEO_EDITOR_SRC.index("boxblur"):]
+    blur_branch = VIDEO_EDITOR_SRC[VIDEO_EDITOR_SRC.index("elif use_bg_blur:"):]
     assert "framing_filters" not in blur_branch.split("else:")[0]
 
 

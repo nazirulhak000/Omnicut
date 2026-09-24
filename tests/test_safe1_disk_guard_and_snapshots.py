@@ -55,6 +55,13 @@ def test_check_disk_space_simulated_sufficient_disk():
         assert res["free_gb"] == 50.0
 
 
+def test_disk_probe_failure_blocks_render_instead_of_failing_open():
+    with patch("shutil.disk_usage", side_effect=OSError("disk probe unavailable")):
+        res = check_disk_space()
+    assert res["is_sufficient"] is False
+    assert "disk probe unavailable" in res["error"]
+
+
 def test_get_render_disk_check_endpoint(client):
     """Verifies GET /api/render/disk-check returns valid response."""
     resp = client.get("/api/render/disk-check")
@@ -80,6 +87,20 @@ def test_trigger_render_blocks_when_disk_space_low(client):
         detail = resp.json().get("detail", "")
         assert "พื้นที่ว่างบนดิสก์เหลือน้อยเกินไป" in detail
         assert "1.5 GB" in detail
+
+
+def test_trigger_render_blocks_when_disk_probe_fails(client):
+    with patch("shutil.disk_usage", side_effect=OSError("disk probe unavailable")):
+        resp = client.post("/api/render", json={
+            "raw_video_path": "nonexistent.mp4",
+            "product_name": "Test Product",
+            "project_name": "test_proj_disk_probe",
+            "key_features": "offline",
+            "pain_point": "offline",
+            "price_deal": "offline",
+        })
+    assert resp.status_code == 507
+    assert "ตรวจสอบพื้นที่ว่าง" in resp.json()["detail"]
 
 
 # --------------------------------------------------------------------------

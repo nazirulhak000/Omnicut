@@ -21,7 +21,9 @@ tmp_path/monkeypatch) and tests/test_task_manager.py (task_manager's own
 TASKS_FILE/_tasks/_initialized reset).
 """
 import json
+import multiprocessing
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -33,8 +35,38 @@ if str(ROOT) not in sys.path:
 import scripts.task_manager as tm_module
 from scripts.task_manager import TaskManager, TaskStatus
 
-from scripts import product_store, project_manifest
+from scripts import api_render, product_store, project_manifest, render_jobs
+from scripts.api_schemas import RenderRequest
 from scripts.product_store import ProductStore
+
+
+def _run_interrupted_render(root_str, product_id, project_name, job_id, ready):
+    """Child process: enter the real render worker, then wait to be killed."""
+    root = Path(root_str)
+    product_store.STORE_PATH = root / "_Docs" / "products.json"
+    product_store.BASE_DIR = root
+    project_manifest.PROJECTS_DIR = root / "03_Projects"
+    tm_module.TASKS_FILE = root / "task_registry.json"
+    TaskManager._tasks = {}
+    TaskManager._initialized = False
+    api_render.check_disk_space = lambda *_args: {"is_sufficient": True}
+
+    def block_pipeline(**kwargs):
+        kwargs["progress_callback"]("worker entered render pipeline", 0.3)
+        ready.set()
+        time.sleep(120)
+
+    api_render.TikTokAutoCutterPipeline.run = staticmethod(block_pipeline)
+    TaskManager.create_task(
+        task_type="render_video", title="Interrupted render", task_id=job_id,
+        payload={"product_id": product_id, "angle_id": "unboxing", "project_name": project_name},
+    )
+    render_jobs.create_job(job_id)
+    api_render.execute_render_job(job_id, RenderRequest(
+        product_name="Widget", raw_video_path=str(root / "source.mp4"),
+        project_name=project_name, product_id=product_id, angle_id="unboxing",
+        key_features="offline", pain_point="offline", price_deal="offline",
+    ))
 
 
 @pytest.fixture
@@ -88,6 +120,13 @@ def test_restart_reverts_orphaned_render_task_angle_to_scripted(
     # actually create (payload only carries project_name, not
     # product_id/angle_id directly -- see those call sites).
     project_name = "widget_restart_test_1"
+    # A killed renderer may leave a partial project directory behind.  The
+    # normal ProductStore reconcile path must not hide a stale pointer here.
+    partial_project = projects_dir / project_name
+    partial_project.mkdir()
+    (partial_project / "project.json").write_text(json.dumps({
+        "product_id": product["id"], "angle_id": "unboxing", "artifacts": {},
+    }), encoding="utf-8")
     stale_registry = {
         "stale_render_job": {
             "id": "stale_render_job",
@@ -118,6 +157,60 @@ def test_restart_reverts_orphaned_render_task_angle_to_scripted(
     angle = next(a for a in updated["angles"] if a["angle_id"] == "unboxing")
     assert angle["status"] != "in_production"
     assert angle["status"] == "scripted"
+    assert not angle.get("project_name"), "restart recovery must clear the abandoned render pointer"
+    refreshed = ProductStore.get(product["id"])
+    refreshed_angle = next(a for a in refreshed["angles"] if a["angle_id"] == "unboxing")
+    assert refreshed_angle["status"] == "scripted"
+    assert not refreshed_angle.get("project_name"), "reconcile must not relink the aborted project"
+
+
+def test_killed_render_worker_recovers_task_and_project_state(
+    isolated_store, projects_dir, isolated_registry, tmp_path, monkeypatch,
+):
+    product = ProductStore.add(name="Widget", url="https://x.test/w-killed-render")
+    ProductStore.update(product["id"], angles=[{
+        "angle_id": "unboxing", "hook_title": "unboxing", "status": "scripted", "script_lines": ["a"],
+    }])
+    project_name = "widget_killed_render"
+    partial_project = projects_dir / project_name
+    partial_project.mkdir()
+    (partial_project / "project.json").write_text(json.dumps({
+        "product_id": product["id"], "angle_id": "unboxing", "artifacts": {},
+    }), encoding="utf-8")
+    job_id = "killed-render-job"
+    context = multiprocessing.get_context("spawn")
+    ready = context.Event()
+    worker = context.Process(
+        target=_run_interrupted_render,
+        args=(str(tmp_path), product["id"], project_name, job_id, ready),
+    )
+    try:
+        worker.start()
+        assert ready.wait(20), f"render worker did not enter pipeline (exit={worker.exitcode})"
+        active_angle = ProductStore._load()[0]["angles"][0]
+        assert active_angle["status"] == "in_production"
+        assert active_angle["project_name"] == project_name
+        # Progress persistence is throttled, so a hard kill may leave the
+        # on-disk snapshot queued even while the worker was processing.
+        assert json.loads(isolated_registry.read_text(encoding="utf-8"))[job_id]["status"] in {"queued", "processing"}
+
+        worker.terminate()
+        worker.join(10)
+        assert worker.exitcode is not None and worker.exitcode != 0
+
+        monkeypatch.setattr(render_jobs, "ACTIVE_JOBS", {})
+        TaskManager._tasks = {}
+        TaskManager._initialized = False
+        TaskManager.initialize()
+        assert TaskManager.get_task(job_id)["status"] == TaskStatus.FAILED
+        assert api_render.get_render_status(job_id)["status"] == "failed"
+        recovered_angle = ProductStore.get(product["id"])["angles"][0]
+        assert recovered_angle["status"] == "scripted"
+        assert not recovered_angle.get("project_name")
+    finally:
+        if worker.is_alive():
+            worker.terminate()
+            worker.join(10)
 
 
 def test_restart_resolves_product_and_angle_id_directly_from_payload(

@@ -52,7 +52,8 @@ def check_disk_space(path: Optional[Path] = None, min_bytes: int = MIN_FREE_DISK
             "free_gb": None,
             "total_gb": None,
             "min_required_gb": round(min_bytes / (1024 ** 3), 1),
-            "is_sufficient": True,
+            # An unknown free-space value cannot authorize a heavy render.
+            "is_sufficient": False,
             "error": str(e)
         }
 
@@ -138,6 +139,10 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
         # Guard: Re-verify disk space at execution time before heavy processing
         disk = check_disk_space(EXPORTS_DIR)
         if not disk.get("is_sufficient", True):
+            if disk.get("error"):
+                raise RuntimeError(
+                    f"ตรวจสอบพื้นที่ว่างก่อน Render ไม่สำเร็จ ({disk['error']}) จึงหยุดเพื่อป้องกันไฟล์เสียหาย"
+                )
             free_gb = disk.get("free_gb", 0)
             min_gb = disk.get("min_required_gb", 3.0)
             raise RuntimeError(
@@ -346,6 +351,11 @@ def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
     # Guard: Disk space check before queuing heavy render (minimum 3.0 GB required)
     disk = check_disk_space(EXPORTS_DIR)
     if not disk.get("is_sufficient", True):
+        if disk.get("error"):
+            raise HTTPException(
+                status_code=507,
+                detail="ตรวจสอบพื้นที่ว่างก่อน Render ไม่สำเร็จ จึงหยุดเพื่อป้องกันไฟล์เสียหาย",
+            )
         free_gb = disk.get("free_gb", 0)
         min_gb = disk.get("min_required_gb", 3.0)
         raise HTTPException(

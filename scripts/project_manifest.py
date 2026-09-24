@@ -224,7 +224,16 @@ class ProjectManifest:
         bak2 = path.with_suffix(".json.bak2")
         bak3 = path.with_suffix(".json.bak3")
         tmp = path.with_suffix(f".{uuid.uuid4().hex[:8]}.tmp")
-        tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        try:
+            tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            # A full disk can leave a partly written JSON temp file. Never
+            # leave it beside the last good manifest or mask the write error.
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise
 
         if path.exists():
             try:

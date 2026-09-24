@@ -1,12 +1,12 @@
 # OmniCut Pro Studio Architecture
 
-เอกสารนี้อธิบายโครงสร้างสถาปัตยกรรมที่ใช้งานจริง ณ วันที่ 2026-09-20 (ปรับปรุงล่าสุด) หากสถานะงานหรือผลทดสอบต่างจากเอกสารนี้ ให้ยึด [TODO.md](TODO.md) และโค้ดปัจจุบันเป็นหลัก
+เอกสารนี้อธิบายโครงสร้างสถาปัตยกรรมที่ใช้งานจริง ณ วันที่ 2026-09-23 (ปรับปรุงล่าสุด) หากสถานะงานหรือผลทดสอบต่างจากเอกสารนี้ ให้ยึด [TODO.md](TODO.md) และโค้ดปัจจุบันเป็นหลัก
 
 ## ภาพรวมระบบ
 
 ```mermaid
 flowchart LR
-    UI[React/Vite 9-Module UI] --> API[FastAPI 23 modular routers]
+    UI[React/Vite 10-Module UI] --> API[FastAPI 26 modular routers]
     API --> JOB[Task and render jobs]
     JOB --> PIPE[TikTokAutoCutterPipeline]
     PIPE --> STAGES[Modular pipeline stages]
@@ -23,9 +23,9 @@ flowchart LR
 
 ค่ามาตรฐานของไฟล์โพสต์จริงคือ 1080x1920 (9:16), H.264, AAC, 30 FPS และ `+faststart` ส่วน Draft ใช้ 720x1280 เพื่อทดสอบเร็วขึ้น
 
-## เมนูและการนำทางฝั่ง Frontend (9 โมดูลหลัก)
+## เมนูและการนำทางฝั่ง Frontend (10 รายการ: Gadget Media + เมนู 0-8)
 
-ระบบจัดหมวดหมู่การทำงานเป็น 9 เมนูหลักใน `frontend/src/components/Sidebar.jsx` (id `producer` ถึง `guide`):
+ระบบจัดหมวดหมู่การทำงานเป็น 10 รายการใน `frontend/src/components/Sidebar.jsx` — เมนูเสริม `gadget` (Gadget Media) อยู่บนสุด ตามด้วยเมนูตัวเลข id `producer` ถึง `guide`:
 
 0. **0. ผู้ช่วยโปรดิวเซอร์ (`producer/ProducerHub.jsx` + `producer/QuickRefPage.jsx`):** ศูนย์บัญชาการรายวัน — Daily Mission, Spotlight Next Mission, Pacing Calculator, 1-Click Playbook Add, คลังไอเดียและเรฟ (Idea & Ref Vault พร้อม Visual Insights จาก Gemini Vision) และ Producer Notes ที่ปักหมุด/แก้ไขได้ (ซิงก์ผ่าน `scripts/api_producer.py`)
 1. **1. สินค้า → คลิป (`ProductToClip.jsx`):** วิเคราะห์สินค้าด้วย AI (ลิงก์/สเปก/รูป) สร้าง Content Matrix 4-10 สคริปต์ พร้อมระบุ TikTok Product ID / ลิงก์ปักตะกร้า และสไตล์การตัดต่อ 10 แบบที่ผูกกับ Hook Style 1-to-1
@@ -37,11 +37,11 @@ flowchart LR
 7. **7. ตั้งค่าระบบ (`SystemSettings.jsx`):** ตรวจสอบ System Health, AI Providers, เสียงพากย์ Edge-TTS/Gemini, และการเชื่อมต่อมือถือผ่าน QR Code
 8. **8. คู่มือใช้งาน (`UserGuide.jsx`):** Interactive Knowledge Base สำหรับผู้ใช้ (Sticky TOC, เช็กลิสต์ติ๊กได้พร้อมความจำ localStorage, การ์ดเมนู 0-7, โฟลว์ 7 ขั้นกดเปิดเมนูได้, Quick Action ปุ่มลัดแก้ปัญหา, FAQ ค้นหาได้)
 
-เมนูเพิ่มเติม **Gadget Media (`GadgetMediaHub.jsx`)** แยกเป็น `Product Studio` สำหรับ workflow `1 สินค้า = 1 Product Video Project = 1 Approved Master` และ `Campaign และ Analytics` สำหรับวางแผน/ติดตามผล โดย Product Workspace มี Brief, Sources, Evidence, Story, Cut และ Review อยู่ในเมนูเดียว ไม่ส่งงานไป Global Editor
+เมนูเสริม **Gadget Media (`GadgetMediaHub.jsx` + `gadget-media/GadgetMediaStudio.jsx`)** อยู่บนสุดของ Sidebar แยกเป็น `Product Studio` สำหรับ workflow `1 สินค้า = 1 Product Video Project = 1 Approved Master` (เดิน 6 ขั้น `Brief → Sources → Evidence → Story → Cut → Review` ผ่าน `StageRail` + `ProductWorkspace` + `QualityInspector`) และ `Campaign และ Analytics` สำหรับวางแผน/ติดตามผล โดย Product Workspace มี Brief, Sources, Evidence, Story, Cut และ Review อยู่ในเมนูเดียว มีไทม์ไลน์ผ่าน `gadget-media/timeline/GadgetMediaTimelineHost.jsx` และไม่ส่งงานไป Global Editor (storage แยกที่ `*/GadgetMedia/`)
 
-## Backend (FastAPI 25 Routers)
+## Backend (FastAPI 26 Routers)
 
-Entry point คือ `scripts/api_server.py` ทำหน้าที่สร้าง FastAPI app, ตรวจสอบ API Key security, ตั้ง CORS, และ mount router โดเมนต่างๆ รวม 201 routes (ตรวจสอบจริงผ่าน `len(app.routes)` = 201):
+Entry point คือ `scripts/api_server.py` ทำหน้าที่สร้าง FastAPI app, ตรวจสอบ API Key security, ตั้ง CORS, และ mount router โดเมนต่างๆ รวม 208 routes (ตรวจสอบจริงผ่าน `len(app.routes)` = 208 โดยเป็น HTTP API route 204 รายการ ที่เหลือเป็น docs/openapi):
 
 | ลำดับ | โมดูล Router | หน้าที่หลัก |
 | :--- | :--- | :--- |
@@ -70,6 +70,7 @@ Entry point คือ `scripts/api_server.py` ทำหน้าที่สร�
 | 23 | `scripts/api_background_isolation.py` | ตัดพื้นหลัง/แยกตัวแบบ async พร้อมกู้งานค้างตอน startup |
 | 24 | `scripts/api_gadget_media.py` | Campaign, Content Slot, rights readiness และ analytics ของ Gadget Media |
 | 25 | `scripts/api_gadget_media_projects.py` | Product Library/Workspace, source probe, scoped timeline, Gemini TTS, quality gate, render และ Approved Master |
+| 26 | `scripts/api_typesafe_studio.py` | TypeSafe System One (Jev) — Hook ranking/Retention Score และ Smart B-roll matcher |
 
 การเปลี่ยน route, method, request หรือ response ต้องตรวจสอบความเข้ากันได้กับ `frontend/src/api.js` เสมอ
 
@@ -81,7 +82,7 @@ Entry point คือ `scripts/api_server.py` ทำหน้าที่สร�
 
 1. `SourceResolutionStage` ตรวจและเตรียมวิดีโอ/รูปต้นทางจาก `01_Raw/`
 2. `ScriptStage` สร้างหรือใช้สคริปต์ที่กำหนด พร้อมระบบทำความสะอาดคำห้าม/วรรณยุกต์
-3. `VoiceStage` สร้างเสียงพากย์ Edge-TTS (+15%) และ timing alignment
+3. `VoiceStage` สร้างเสียงพากย์ (ค่าเริ่มต้น Gemini TTS + preset Puck, เลือก Edge-TTS +15% ได้เอง) และ timing alignment
 4. `SubtitleStage` สร้าง cues, overlays, kinetic highlight และไฟล์ ASS
 5. `AudioMixStage` รวม Voice, BGM, SFX และ clip audio ตามระดับสัดส่วนมาตรฐาน
 6. `ShotMatchingStage` จับคู่ภาพกับบทด้วย AI เมื่อเปิดใช้
@@ -147,10 +148,10 @@ Subtitle modules ปัจจุบัน:
 - Gadget Media แยก ownership เป็น `01_Raw/GadgetMedia/`, `03_Projects/GadgetMedia/`, `04_Exports/Ready_to_post/GadgetMedia/`, `05_Covers_Thumbnails/GadgetMedia/` และ `_Docs/gadget_media/`
 - `scripts/gadget_media_timeline_adapter.py` แปลง Story/EDL เป็น Timeline Document v2 ที่มี `workspace_scope=gadget_media`; ใช้ math/preview/render engine ร่วม แต่ไม่ใช้ manifest หรือ status ของ Global Editor
 
-## สถานะการทดสอบปัจจุบัน (Verification Gates) — วัดจริง 2026-09-15
+## สถานะการทดสอบปัจจุบัน (Verification Gates) — วัดจริง 2026-09-23
 
 - **Python Scripts Compilation:** ผ่าน 100% (`python -m compileall -q scripts`)
-- **FastAPI Endpoints:** 170 routes รวม 23 modular domain routers
-- **Python Pytest Suite:** 1,520 tests collected (`pytest tests/`) — ผลรันเต็ม 2026-09-15: 1,514 passed, 5 skipped, **1 failed ที่ค้างมาก่อนแล้ว** (`tests/test_style_motion_policy.py` ยังยืนยัน catalog 5 สไตล์ ขณะที่ `scripts/style_motion_policy.py` มี 10 สไตล์แล้ว — ติดตามที่ Round `STYLE-MOTION-CATALOG-CONTRACT-SYNC-1` ใน [TODO.md](TODO.md))
-- **Frontend Suite:** 246 tests passed, 0 failures (`npm test` → `node --test src/lib/*.test.js`)
-- **Vite Production Build:** ผ่านเรียบร้อย 2,007 modules transformed
+- **FastAPI Endpoints:** 208 routes รวม 26 modular domain routers
+- **Python Pytest Suite:** 1,723 tests collected (`pytest tests/`)
+- **Frontend Suite:** 301 tests passed, 0 failures (`npm test` → `node --test src/lib/*.test.js`)
+- **Vite Production Build:** ผ่านเรียบร้อย 2,025 modules transformed

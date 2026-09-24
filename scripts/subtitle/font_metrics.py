@@ -321,7 +321,29 @@ THAI_TONE_MARKS = "\u0e48\u0e49\u0e4a\u0e4b"
 THAI_STACKED_MARK_RE = re.compile(
     f"([{re.escape(THAI_UPPER_VOWELS)}])([{re.escape(THAI_TONE_MARKS)}])"
 )
+# Browser Canvas and libass agree on the body advance, but their ink boxes for
+# Thai above marks do not share the same optical top.  Hook/motion overlays
+# use this bounded line-level correction so the two rasterizers land on the
+# same visual baseline without changing the stored text or font size.
+# IBM Plex's ``ึ`` + tone and standalone ``็`` are the combinations whose
+# browser/libass ink-top delta exceeds the cross-rasterizer tolerance.  The
+# common ``ั``/``ิ`` pairs (for example ``นั่ง``) already match after the
+# detached-mark repair and must not receive this line-level shift.
+THAI_OVERLAY_MARK_CHARS = "\u0e36\u0e47"
+THAI_OVERLAY_MARK_RE = re.compile(f"[{re.escape(THAI_OVERLAY_MARK_CHARS)}]")
 THAI_STACKED_MARK_RAISE_EM = 0.13
+
+
+def thai_overlay_line_offset(text: str, line_fs: float) -> int:
+    """Return the render-pixel y correction for a Thai motion line."""
+
+    if not THAI_OVERLAY_MARK_RE.search(str(text or "")):
+        return 0
+    try:
+        size = max(0.0, float(line_fs))
+    except (TypeError, ValueError):
+        return 0
+    return -int(round(size * 0.17))
 
 
 def repair_thai_stacked_marks(ass_text: str) -> Tuple[str, List[Tuple[str, str, str]]]:

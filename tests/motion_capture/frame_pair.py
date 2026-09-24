@@ -21,6 +21,7 @@ from .app_capture import AppCaptureConfig, capture_app_canvas
 from .ass_fixture import (
     ComparisonThresholds,
     compare_frames,
+    render_caption_fixture,
     render_production_overlay_fixture,
     write_frame_diff_artifacts,
 )
@@ -61,6 +62,20 @@ class FramePairSpec:
     y: float = 260.0 / 1920.0
     base_fs_ratio: float = 0.065
     comfortable_lines: int = 4
+
+
+@dataclass(frozen=True)
+class CaptionPairSpec:
+    """Shared input contract for the live Caption fixture and ASS renderer."""
+
+    text: str = "นั่งนิ่งจริงครับ"
+    frame_index: int = 18
+    timestamp_ms: int = 600
+    fps: int = 30
+    duration_ms: int = 2000
+    background: str = "0x000000"
+    font_name: str = "IBM Plex Sans Thai"
+    caption_position: str = "bottom"
 
 
 def _sha256(path: Path) -> str:
@@ -200,12 +215,39 @@ def _resolve_live_frame(manifest: Mapping[str, Any], spec: FramePairSpec) -> Map
             f"live timestamp is {frame.get('timestampMs')!r} ms, expected {spec.timestamp_ms} ms"
         )
     hook = frame.get("hook_metadata") or {}
+    if hook.get("fontReady") is not True:
+        raise FramePairUnavailable("live fixture did not confirm the render-critical font was ready")
     preset_ids = hook.get("presetIds") or {}
     if preset_ids.get(spec.phase) != spec.preset_id:
         raise FramePairUnavailable(
             f"live preset for phase {spec.phase!r} is {preset_ids.get(spec.phase)!r}, "
             f"expected {spec.preset_id!r}"
         )
+    return frame
+
+
+def _resolve_live_caption_frame(manifest: Mapping[str, Any], spec: CaptionPairSpec) -> Mapping[str, Any]:
+    if manifest.get("mode") != "app_canvas":
+        raise FramePairUnavailable("caption capture did not use app_canvas mode")
+    frame = next((item for item in manifest.get("frames", []) if item.get("index") == spec.frame_index), None)
+    if frame is None:
+        raise FramePairUnavailable(f"caption capture did not return frame index {spec.frame_index}")
+    if frame.get("frameIndex") != spec.frame_index or frame.get("timestampMs") != spec.timestamp_ms:
+        raise FramePairUnavailable("caption capture returned a non-deterministic frame identity")
+    hook = frame.get("hook_metadata") or {}
+    if hook.get("mode") != "caption":
+        raise FramePairUnavailable("live fixture did not confirm caption mode")
+    if hook.get("fontReady") is not True:
+        raise FramePairUnavailable("caption fixture did not confirm the render-critical font was ready")
+    contract = hook.get("captionContract") or {}
+    expected = {
+        "text": spec.text,
+        "position": spec.caption_position,
+        "font": spec.font_name,
+        "bilingual": False,
+    }
+    if contract != expected:
+        raise FramePairUnavailable(f"caption contract mismatch: {contract!r} != {expected!r}")
     return frame
 
 
@@ -366,6 +408,111 @@ def compare_live_frame_pair(
                 "The Canvas alpha channel was composited over the same black fixture background before comparison.",
                 "Exact RGBA equality is diagnostic only; the acceptance gate uses the recorded structural metrics.",
             ],
+    }
+    (output_dir / "pair_result.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return result
+
+
+def compare_live_caption_pair(
+    config: AppCaptureConfig,
+    spec: CaptionPairSpec = CaptionPairSpec(),
+) -> dict[str, Any]:
+    """Capture one real caption frame and compare it with production ASS/libass."""
+
+    if not spec.text.strip():
+        raise ValueError("caption text must not be empty")
+    if spec.frame_index < 0 or spec.timestamp_ms < 0:
+        raise ValueError("caption frame identity must be non-negative")
+    if round(spec.frame_index * 1000 / spec.fps) != spec.timestamp_ms:
+        raise ValueError("caption frame_index/timestamp mismatch")
+    if spec.timestamp_ms >= spec.duration_ms:
+        raise ValueError("caption sample must be inside the caption duration")
+    parsed = urlparse(config.url)
+    if not parsed.path.endswith("/motion_capture.html"):
+        raise FramePairUnavailable("caption pairing requires the motion capture fixture")
+    query = parse_qs(parsed.query)
+    if query.get("mode", [None])[0] != "caption":
+        raise FramePairUnavailable("caption pairing requires mode=caption")
+    if query.get("caption", [spec.text])[0] != spec.text:
+        raise FramePairUnavailable("caption query must match the pair text")
+
+    output_dir = config.output_dir.resolve()
+    allowed_root = (REPO_ROOT / ".tmp").resolve()
+    if not output_dir.is_relative_to(allowed_root):
+        raise ValueError(f"caption pair output must be under {allowed_root}")
+    live_dir = output_dir / "live"
+    manifest = capture_app_canvas(
+        AppCaptureConfig(
+            **{
+                **asdict(config),
+                "output_dir": live_dir,
+                "frame_count": 1,
+                "frame_indices": (spec.frame_index,),
+            }
+        )
+    )
+    live_frame = _resolve_live_caption_frame(manifest, spec)
+    live_path = live_dir / str(live_frame["path"])
+    canvas_path = output_dir / "canvas_composited.png"
+    canvas_artifact = _composite_canvas_frame(live_path, canvas_path, spec.background)
+    cues = [{
+        "id": "caption-capture-cue",
+        "start": 0,
+        "end": spec.duration_ms / 1000,
+        "text": spec.text,
+        "bilingual": False,
+        "position": spec.caption_position,
+    }]
+    ass_paths = render_caption_fixture(
+        cues,
+        sample_ms=spec.timestamp_ms,
+        width=int(live_frame["width"]),
+        height=int(live_frame["height"]),
+        fps=spec.fps,
+        background=spec.background,
+        output_dir=output_dir / "ass",
+        font_name=spec.font_name,
+        caption_position=spec.caption_position,
+    )
+    ass_metadata = json.loads(ass_paths["metadata"].read_text(encoding="utf-8"))
+    comparison = compare_frames(canvas_path, ass_paths["png"], ComparisonThresholds())
+    diff_artifacts = write_frame_diff_artifacts(canvas_path, ass_paths["png"], output_dir / "diff")
+    contract = (live_frame.get("hook_metadata") or {}).get("captionContract")
+    identity = {
+        "timestamp_ms": {
+            "canvas": live_frame.get("timestampMs"),
+            "ass": ass_metadata["sample_ms"],
+            "match": live_frame.get("timestampMs") == ass_metadata["sample_ms"],
+        },
+        "caption_contract": {
+            "canvas": contract,
+            "ass": {"text": spec.text, "position": spec.caption_position, "font": spec.font_name, "bilingual": False},
+            "match": contract == {"text": spec.text, "position": spec.caption_position, "font": spec.font_name, "bilingual": False},
+        },
+        "dimensions": {
+            "canvas": [live_frame.get("width"), live_frame.get("height")],
+            "ass": ass_metadata["canvas_size"],
+            "match": [live_frame.get("width"), live_frame.get("height")] == ass_metadata["canvas_size"],
+        },
+    }
+    identity["all_match"] = all(item["match"] for item in identity.values())
+    result = {
+        "schema_version": PAIR_SCHEMA_VERSION,
+        "status": "passed" if identity["all_match"] and comparison.passed else "blocked" if identity["all_match"] else "invalid_pair",
+        "mode": "real_canvas_vs_ffmpeg_libass_caption",
+        "pixel_parity_claim": bool(identity["all_match"] and comparison.passed),
+        "blockers": [] if comparison.passed else ["caption Canvas and FFmpeg/libass thresholds did not pass"],
+        "pair_identity": identity,
+        "comparison": comparison.to_dict(),
+        "diff_artifacts": diff_artifacts,
+        "runtime": manifest["runtime"],
+        "live_capture": {"url": config.url, "selector": config.selector, "frame": dict(live_frame)},
+        "ass_fixture": {"spec": ass_metadata, "artifacts": {key: {"path": str(value.name), "sha256": _sha256(value)} for key, value in ass_paths.items()}},
+        "canvas_artifact": canvas_artifact,
+        "thresholds": asdict(ComparisonThresholds()),
     }
     (output_dir / "pair_result.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",

@@ -344,7 +344,8 @@ render: `lut3d` → sticker overlay → subtitle burn
 
 ---
 
-## 10. Mute/Solo ต่อแทร็ก = เฉพาะการเล่น ห้ามหลุดไป payload
+## 10. Mute/Solo ต่อแทร็ก = Preview และ Render ต้องได้ยินชุดเดียวกัน
 
-`trackMix` อยู่ใน state ของ EditorShell และส่งเข้า player/Timeline เท่านั้น
-solo เพลงเพื่อฟังระดับเสียง **ต้องไม่เปลี่ยนไฟล์ที่เรนเดอร์ออกมา**
+`trackMix` เก็บสถานะ Mute/Solo ที่ผู้ใช้ตั้งไว้ และ `effectiveAudioMutes` คำนวณแทร็กที่เงียบจริง เมื่อมี Solo ให้ปิดเสียงทุกแทร็กที่ไม่ได้ Solo ทั้งใน Preview และ Render
+ต้องส่งผลลัพธ์นี้ใน `audio_mutes` เพื่อมิกซ์ Voice/BGM/SFX ใหม่ และปิดเสียงต้นฉบับของคลิปในขั้น Video Assembly โดยไม่แก้ค่าระดับเสียงที่บันทึกไว้บนคลิป
+การเปลี่ยน Mute/Solo ต้องทำให้รอบ Export มิกซ์เสียงใหม่ ห้ามนำไฟล์มิกซ์เก่ากลับมาใช้จนเสียง Preview กับ Render ต่างกัน

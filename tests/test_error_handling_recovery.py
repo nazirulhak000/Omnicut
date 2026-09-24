@@ -5,6 +5,7 @@ and task manager server restart recovery.
 """
 
 import json
+import errno
 import pytest
 from pathlib import Path
 
@@ -85,6 +86,27 @@ def test_manifest_atomic_save_and_backup_recovery(tmp_path, monkeypatch):
     recovered = ProjectManifest.load(project_name)
     assert recovered is not None
     assert "title" in recovered
+
+
+def test_manifest_disk_full_keeps_last_good_save_and_cleans_partial_temp(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.project_manifest.PROJECTS_DIR", tmp_path)
+    ProjectManifest.save("disk-full-probe", title="last good")
+    project_dir = ProjectManifest.dir_for("disk-full-probe")
+    original_write_text = Path.write_text
+
+    def fail_temp_write(path, data, *args, **kwargs):
+        if path.parent == project_dir and path.suffix == ".tmp":
+            original_write_text(path, data[:20], *args, **kwargs)
+            raise OSError(errno.ENOSPC, "No space left on device")
+        return original_write_text(path, data, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", fail_temp_write)
+    with pytest.raises(OSError) as error:
+        ProjectManifest.save("disk-full-probe", title="lost write")
+
+    assert error.value.errno == errno.ENOSPC
+    assert ProjectManifest.load("disk-full-probe")["title"] == "last good"
+    assert not list(project_dir.glob("*.tmp"))
 
 
 def test_task_manager_server_restart_recovery(tmp_path, monkeypatch):

@@ -10,9 +10,22 @@ import pytest
 from tests.motion_capture.app_capture import (
     AppCaptureConfig,
     AppCaptureUnavailable,
+    _is_expected_media_seek_abort,
     capture_app_canvas,
     temp_app_capture_dir,
 )
+
+
+@pytest.mark.parametrize(
+    ("resource_type", "failure", "expected"),
+    [
+        ("media", "net::ERR_ABORTED", True),
+        ("fetch", "net::ERR_ABORTED", False),
+        ("media", "net::ERR_CONNECTION_RESET", False),
+    ],
+)
+def test_only_cancelled_stale_media_seeks_are_nonfatal(resource_type, failure, expected):
+    assert _is_expected_media_seek_abort(resource_type, failure) is expected
 
 
 def test_app_capture_reads_real_canvas_pixels_from_url():
@@ -149,5 +162,38 @@ def test_self_hosted_sequence_player_canvas_capture(motion_fixture_url: str):
         assert manifest["frame_indices"] == [0, 6, 30, 59]
         assert [frame["frameIndex"] for frame in manifest["frames"]] == [0, 6, 30, 59]
         assert manifest["runtime"]["clean"] is True
+    finally:
+        tmp.cleanup()
+
+
+def test_sequence_player_seek_order_and_loop_frames_are_deterministic(motion_fixture_url: str):
+    """Forward, backward, and cycle-equivalent seeks must return the same pixels."""
+
+    tmp = temp_app_capture_dir("motion-live-seek-determinism-")
+    try:
+        manifests = []
+        for name, frame_indices in (
+            ("forward", (6, 18, 30, 39)),
+            ("backward", (39, 30, 18, 6)),
+        ):
+            manifests.append(capture_app_canvas(
+                AppCaptureConfig(
+                    url=motion_fixture_url,
+                    selector="[data-testid='motion-capture-sequence-player'] canvas",
+                    ready_selector="[data-testid='motion-capture-sequence-player']",
+                    output_dir=Path(tmp.name) / name,
+                    frame_indices=frame_indices,
+                    timeout_ms=20_000,
+                )
+            ))
+
+        forward, backward = manifests
+        forward_hashes = {frame["frameIndex"]: frame["sha256"] for frame in forward["frames"]}
+        backward_hashes = {frame["frameIndex"]: frame["sha256"] for frame in backward["frames"]}
+
+        assert forward["runtime"]["clean"] is True
+        assert backward["runtime"]["clean"] is True
+        assert forward_hashes == backward_hashes
+        assert forward_hashes[18] == forward_hashes[39], "pulse loop must repeat exactly after 700 ms"
     finally:
         tmp.cleanup()

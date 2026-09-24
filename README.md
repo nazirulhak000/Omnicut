@@ -15,6 +15,8 @@
 ## 🚀 ฟีเจอร์หลัก (Core Features)
 
 - 🧑‍💼 **AI Producer Hub (เมนู 0):** ศูนย์บัญชาการรายวัน — Daily Mission, Spotlight Next Mission, Pacing Calculator, คลังไอเดียและเรฟ (Idea & Ref Vault พร้อม Visual Insights จาก Gemini Vision), Producer Notes ที่ปักหมุด/แก้ไขได้ และ Quick Ref สำหรับหน้าโรงถ่าย
+- 🧲 **Gadget Media Product Studio (เมนูเสริม):** เส้นทางงานวิดีโอแกดเจ็ตแบบ **1 สินค้า = 1 Product Video Project = 1 Approved Master** เดินครบ 6 ขั้น `Brief → Sources → Evidence → Story → Cut → Review` มี Source rights readiness, Quality Inspector ก่อนอนุมัติ, ไทม์ไลน์/Render ของตัวเอง (ไม่ไหลไป Global Editor) และแท็บ Campaign & Analytics สำหรับวางแผนสล็อตและติดตามผล
+- 🧠 **TypeSafe AI (System One / Jev):** จัดอันดับ Hook ด้วยคะแนนตรึงคนดู 3 วินาทีแรก (Retention Score) ในหน้า Script Lab และจับคู่ B-roll แบบ Strict Topic Hold ให้ภาพตรงกับสิ่งที่เสียงพากย์กำลังพูด
 - 🛍️ **Product Scraper & Store:** สกัดข้อมูลสินค้า จุดขาย ราคา โปรโมชั่นจาก Marketplace / URL เพื่อนำมาเขียน Hook & CTA
 - ✍️ **AI Script Generator:** สร้างบทพูดรีวิว/ขายสินค้าที่กระชับ ตรงกลุ่มเป้าหมาย มี Hook 3 วินาทีแรก และ CTA ปิดท้าย
 - 🎙️ **Multi-Engine TTS (ค่าเริ่มต้นคือ Gemini TTS):**
@@ -35,16 +37,19 @@
 - 📊 **Analytics Hub 5 แท็บ:** Production, Performance (ผลงาน TikTok + คลิปปัง), Tokens, Storage (พร้อม Safe Cache Cleaner) และ Inventory
 - 📈 **TikTok Stats Sync:** ดึงสถิติจาก TikTok Studio พร้อมจับคู่โพสต์แบบ manual และ milestone แจ้งเตือนคลิปปัง 10k+
 - 🗂️ **Batch Render & Backup:** เรนเดอร์หลายคลิปพร้อมกัน, One-click Backup/Restore และตัวสแกนไฟล์สื่อซ้ำ
+- 📅 **Schedule Diversity:** จัดคิวโพสต์อัตโนมัติแบบ fair round-robin กระจายสินค้าและช่วงเวลา ไม่ให้สินค้าหรือสี Hook ซ้ำในวันเดียวกัน
+- 🧩 **Editor Parity Hardening:** แท็บกรองโปรเจกต์อัจฉริยะ (กำลังตัดต่อ / ตัดเสร็จแล้ว / ทั้งหมด), Asset Panel โหลดภาพตัวอย่างเป็นคิว, พรีวิวอนิเมชันเมื่อ hover การ์ดเทมเพลตข้อความ และ Background Cutout ที่ผ่าน Preview/Render parity gate
 - 🧵 **Background Isolation:** ตัดพื้นหลัง/แยกตัวแบบ async พร้อมกู้งานค้างอัตโนมัติเมื่อรีสตาร์ตระบบ
 
 ---
 
-## 🧭 เมนูหลัก 9 โมดูล (Navigation)
+## 🧭 เมนูหลัก 9 โมดูล + Gadget Media (Navigation)
 
-ระบบจัดเป็น 9 เมนูใน Sidebar (`frontend/src/components/Sidebar.jsx`) — รายละเอียดเชิงลึกอยู่ที่ [ARCHITECTURE.md](ARCHITECTURE.md):
+ระบบมี **10 รายการ** ใน Sidebar (`frontend/src/components/Sidebar.jsx`) = เมนูเสริม **Gadget Media** + เมนูตัวเลข 0-8 — รายละเอียดเชิงลึกอยู่ที่ [ARCHITECTURE.md](ARCHITECTURE.md):
 
 | เมนู | ชื่อ | หน้าที่สั้นๆ |
 | :--- | :--- | :--- |
+| Gadget Media | Gadget Media Product Studio | Product Library/Workspace 6 ขั้น (`Brief → Sources → Evidence → Story → Cut → Review`) + Campaign & Analytics — มี timeline/render แยกของตัวเอง |
 | 0 | ผู้ช่วยโปรดิวเซอร์ | Daily Mission, คลังไอเดีย/เรฟ, Producer Notes, Quick Ref |
 | 1 | สินค้า → คลิป | สแกนสินค้า + AI สร้าง Content Matrix 4-10 สคริปต์ พร้อมเวลาเสียงพากย์ |
 | 2 | แทร็กเกอร์ 4 เฟส | ติดตามสถานะงาน 4 ขั้น + แผนถ่าย (Shot List) + หน้าถ่ายผ่านมือถือ |
@@ -62,18 +67,18 @@
 ```text
 Capcut/
 ├── 00_Inbox/               # พักไฟล์ดิบ ไอเดีย และไฟล์วิดีโอที่ sync จากมือถือ
-├── 01_Raw/                 # วัตถุดิบต้นฉบับ แยกตาม YYYYMMDD_ชื่อสินค้า-ประเด็น/
-├── 02_Assets/              # Media Assets ส่วนกลาง
+├── 01_Raw/                 # วัตถุดิบต้นฉบับ แยกตาม YYYYMMDD_ชื่อสินค้า-ประเด็น/ (มี GadgetMedia/ สำหรับงานแกดเจ็ต)
+├── 02_Assets/              # Media Assets ส่วนกลาง (มี GadgetMedia/ สำหรับ asset pack ของงานแกดเจ็ต)
 │   ├── Fonts/              # ฟอนต์มาตรฐาน (Kanit, Prompt, etc.)
 │   ├── Music/              # เพลงประกอบ BGM (ปลอดลิขสิทธิ์ / Trending)
 │   ├── SFX/                # เสียงเอฟเฟกต์ (Whoosh, Ding, Click)
 │   ├── Stickers_Memes/     # สติกเกอร์และป้าย Badge PNG โปร่งใส
 │   └── LUTs_ColorPresets/  # ค่าพรีเซ็ตสี
-├── 03_Projects/            # ไฟล์สคริปต์ ดราฟต์ และบันทึกงานแต่ละโปรเจกต์
-├── 04_Exports/             # วิดีโอที่ตัดต่อเสร็จพร้อมเผยแพร่
+├── 03_Projects/            # ไฟล์สคริปต์ ดราฟต์ และบันทึกงานแต่ละโปรเจกต์ (GadgetMedia/ = Product Video Projects 1 สินค้า/โปรเจกต์)
+├── 04_Exports/             # วิดีโอที่ตัดต่อเสร็จพร้อมเผยแพร่ (GadgetMedia/ = Approved Master ของงานแกดเจ็ต)
 │   ├── Ready_to_post/      # คลิปที่เรนเดอร์เสร็จ รอการโพสต์
 │   └── Posted/             # คลิปที่โพสต์ลงช่องทางแล้ว
-├── 05_Covers_Thumbnails/   # รูปหน้าปกคลิปและ Thumbnail สัดส่วน 9:16
+├── 05_Covers_Thumbnails/   # รูปหน้าปกคลิปและ Thumbnail สัดส่วน 9:16 (มี GadgetMedia/)
 ├── 06_Archive/             # สำรองข้อมูลไฟล์ Raw และโปรเจกต์เก่าเกิน 30 วัน
 ├── frontend/               # เว็บแอปพลิเคชัน React + Vite UI
 ├── scripts/                # FastAPI routers, pipeline stages, TTS, subtitle และ renderer
@@ -181,15 +186,16 @@ npm run dev
 ## 🧪 การตรวจระบบ
 
 ```powershell
-python -m compileall -q scripts
-python -c "import scripts.api_server as app; print(len(app.app.routes))"
-python -m pytest tests/ -q -p no:cacheprovider --tb=short
+# รันด้วย venv ของโปรเจกต์เสมอ (.venv มี typesafe-sdk==0.7.1 ที่ Python ระบบอาจไม่มี)
+.venv\Scripts\python.exe -m compileall -q scripts
+.venv\Scripts\python.exe -c "import scripts.api_server as app; print(len(app.app.routes))"
+.venv\Scripts\python.exe -m pytest tests/ -q -p no:cacheprovider --tb=short
 Set-Location frontend
 npm test
 npm run build
 ```
 
-ผลตรวจล่าสุด 2026-09-15: Python pytest 1,514 passed / 5 skipped / 1 failed ที่ค้างมาก่อนแล้ว (`tests/test_style_motion_policy.py` — catalog 10 สไตล์แต่ test ยังยืนยัน 5), Frontend 246 tests ผ่าน, FastAPI 170 routes จาก 23 routers และ Vite build ผ่าน (2,007 modules) — อ่านชนิด test และข้อห้ามที่ [.agents/rules/testing_standard.md](.agents/rules/testing_standard.md)
+ผลตรวจล่าสุด 2026-09-23 (รันด้วย `.venv`): FastAPI 208 routes จาก 26 routers, Frontend 301 tests ผ่าน, Vite build ผ่าน 2,025 modules และ pytest ยังมี **2 test ที่ตกค้างจากรอบก่อน** (`test_shot_list_enhancements.py::test_shot_list_builder_gemini_defaults` คาดหวัง call แบบไม่มี `batch=1`, และ `test_export_registry_bulk.py::test_path_index_refreshes_after_external_json_mirror_edit` ที่ตกเฉพาะเมื่อรันทั้งชุด — รันเดี่ยวผ่าน 3/3) — ⚠️ ถ้ารัน pytest ด้วย Python ระบบ จะตกเพิ่ม 2 เคสของ TypeSafe เพราะไม่มี `typesafe_sdk` อ่านชนิด test และข้อห้ามที่ [.agents/rules/testing_standard.md](.agents/rules/testing_standard.md)
 
 ---
 

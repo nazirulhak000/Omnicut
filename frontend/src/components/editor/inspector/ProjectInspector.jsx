@@ -70,7 +70,7 @@ export default function ProjectInspector({
             <Music className="w-3.5 h-3.5 text-[#25F4EE]" />
             <span>มิกเซอร์เสียง 4 แทร็ก (Track Mix)</span>
           </span>
-          <span className="text-[10px] text-slate-500">M = Mute / S = Solo</span>
+          <span className="text-[10px] text-slate-500">M/S มีผลกับ Preview และ Export</span>
         </div>
 
         <div className="space-y-1.5">

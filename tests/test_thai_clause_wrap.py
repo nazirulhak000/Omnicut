@@ -136,3 +136,25 @@ def test_tokenizer_exception_falls_back_without_crashing(monkeypatch):
     original_chars = ONE_SPACE_LONG_THAI.replace(" ", "")
     joined_chars = "".join(lines).replace(" ", "")
     assert joined_chars == original_chars
+
+
+def test_generate_micro_cues_preserves_explicit_editor_line_breaks(monkeypatch):
+    """Newlines are layout, not separate timed bursts, in an editor cue."""
+    from scripts.translator import SubtitleTranslator
+
+    monkeypatch.setattr(
+        SubtitleTranslator,
+        "translate_batch",
+        staticmethod(lambda texts: [""] * len(texts)),
+    )
+    cues = SubtitleEngine.generate_micro_cues([{
+        "start": 0.0,
+        "end": 2.0,
+        "text": "บรรทัดหนึ่ง\nLINE TWO\nราคา 9,990 บาท",
+        "auto_emoji": False,
+    }])
+
+    assert len(cues) == 1
+    assert cues[0]["text"] == "บรรทัดหนึ่ง\nLINE TWO\nราคา 9,990 บาท"
+    assert cues[0]["start"] == 0.0
+    assert cues[0]["end"] == 2.0

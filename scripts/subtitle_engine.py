@@ -122,7 +122,11 @@ WATERMARK_ALPHA = "&HA0&"       # \alpha override -- faded watermark (~37% opaqu
 # Where the caption block sits: (ASS alignment, vertical margin).
 # 2 = bottom centre, 5 = middle centre, 8 = top centre.
 CAPTION_POSITIONS = {
-    "bottom": (2, 420),
+    # Canvas anchors the caption block from its line-box centre. libass's
+    # bottom alignment leaves the IBM Plex Thai ink a few pixels higher at
+    # export scale, so the render margin is optically reduced by 10px while
+    # the public safe-zone contract remains 420px.
+    "bottom": (2, 410),
     "middle": (5, 0),
     "top": (8, 260),
 }
@@ -316,7 +320,11 @@ class SubtitleEngine:
             if not text:
                 continue
 
-            clauses = cls.split_into_smart_clauses(text)
+            # An explicit newline is an editor-authored line break, not a
+            # sentence boundary. Keep the whole cue together so Canvas and
+            # ASS show all requested lines at the same timestamp; the ASS
+            # wrapper below converts each paragraph to `\\N`.
+            clauses = [text] if "\n" in text or "\r" in text else cls.split_into_smart_clauses(text)
             real_boundaries = cls._clause_boundaries_from_word_timings(
                 clauses, c.get("word_timings") or []
             )
@@ -345,7 +353,7 @@ class SubtitleEngine:
                 # Assign Emojis selectively (only if not already present)
                 emoji = ""
                 has_emoji = any(cl.startswith(em) for em in ["⚠️", "🔌", "⚡", "❌", "🛒", "🌿", "💧", "🧪", "✨"])
-                if not has_emoji:
+                if c.get("auto_emoji", True) and not has_emoji:
                     if any(k in cl for k in ["อย่าเพิ่ง", "หยุด", "เตือน", "ห้าม", "ระวัง"]):
                         emoji = "⚠️ "
                     elif any(k in cl for k in ["สารสกัด", "สมุนไพร", "ธรรมชาติ", "ออร์แกนิก"]):
@@ -364,7 +372,13 @@ class SubtitleEngine:
                         emoji = "🛒 "
 
                 raw_c = f"{emoji}{cl}".strip() if emoji else cl.strip()
-                cue_text = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', raw_c)).strip()
+                if "\n" in raw_c or "\r" in raw_c:
+                    cue_text = "\n".join(
+                        re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', line)).strip()
+                        for line in re.split(r'\r\n?|\n', raw_c)
+                    ).strip()
+                else:
+                    cue_text = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', raw_c)).strip()
                 trans = (c.get("translation") or "").strip()
                 if len(clauses) == 1:
                     cue_trans = trans
@@ -383,7 +397,12 @@ class SubtitleEngine:
                     "end": round(cl_end, 3),
                     "text": cue_text,
                     "translation": cue_trans,
-                    "sfx": sfx
+                    "sfx": sfx,
+                    **{
+                        key: c[key]
+                        for key in ("x", "y", "position", "scale", "auto_emoji")
+                        if key in c
+                    },
                 })
                 cue_id += 1
                 current_t = cl_end
@@ -857,6 +876,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 en_sub = ""
 
             style = "TikTokMinimalPill" if is_pill_mode else "TikTokWhite"
+            # A Canvas caption uses the em-sized font for line advance.  The
+            # boosted ASS style above is necessary for a single line's glyph
+            # ink, but its line box becomes too tall when explicit `\\N` lines
+            # are present.  Reapply the same optical glyph boost from the
+            # unboosted font size so libass keeps Canvas's 1.0 line-height.
+            multi_line_metric_tag = ""
+            if "\\N" in text and not en_sub:
+                boost_pct = int(round(TEXT_SCALE_BOOST * 100))
+                multi_line_metric_tag = f"{{\\fs{font_size}\\fscx{boost_pct}\\fscy{boost_pct}}}"
 
             pos_override = ""
             if "x" in cue or "y" in cue:
@@ -875,7 +903,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 # shadow follows the same entrance and is not visible alone
                 # on the first frame.
                 shadow_text, shadow_marks = repair_caption_text(text + en_sub_shadow)
-                shadow_entry = f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{shadow_pos}{shadow_tag}{caption_anim}{shadow_text}"
+                shadow_entry = f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{shadow_pos}{shadow_tag}{multi_line_metric_tag}{caption_anim}{shadow_text}"
                 events.append(shadow_entry)
                 for mark_parts in shadow_marks:
                     events.append(
@@ -887,7 +915,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # Layer 1: Crisp Foreground Text with dynamic kinetic highlights
             main_pos = f"{{{pos_override}}}" if pos_override else ""
             main_text, main_marks = repair_caption_text(highlighted_text + en_sub)
-            line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{main_pos}{caption_anim}{main_text}"
+            line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{main_pos}{multi_line_metric_tag}{caption_anim}{main_text}"
             events.append(line_entry)
             for mark_parts in main_marks:
                 events.append(

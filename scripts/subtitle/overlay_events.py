@@ -21,6 +21,7 @@ from scripts.subtitle.font_metrics import (
     ass_glyph_scale,
     ass_top_anchor_offset,
     repair_thai_stacked_marks,
+    thai_overlay_line_offset,
     THAI_STACKED_MARK_RAISE_EM,
 )
 from scripts.subtitle.motion_effects import (
@@ -436,7 +437,12 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             "tier": tier_key_by_idx[tier_idx], "tier_idx": tier_idx,
             "tier_font": tier_font,
             "t0_ms": t0_ms, "in_tag": in_tag, "entry_end_ms": entry_end_ms,
-            "move_dy_in": move_dy_in, "y": cursor_y,
+            "move_dy_in": move_dy_in,
+            # Canvas keeps one em-sized line box while libass positions the
+            # Thai mark ink higher inside that box.  Apply the measured
+            # optical correction to the ASS line position only; line spacing,
+            # font metrics and the canonical text remain unchanged.
+            "y": cursor_y + thai_overlay_line_offset(line, line_fs),
             "has_contract_position": has_contract_position,
         })
         if tier_idx == 1:

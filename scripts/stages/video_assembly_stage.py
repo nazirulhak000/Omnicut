@@ -148,6 +148,12 @@ class VideoAssemblyStage:
 
             # Use pipeline module reference so unittest.mock.patch('scripts.pipeline.VideoEditor.assemble_tiktok_video') works
             import scripts.pipeline as pipeline_mod
+            # The clip bus is mixed inside VideoEditor, after the voice/BGM/SFX
+            # stage. Preserve the saved slider values and mute only the copy
+            # passed to this render.
+            render_clip_list = actual_clip_list
+            if actual_clip_list and (ctx.audio_mutes or {}).get("clip"):
+                render_clip_list = [{**clip, "volume": 0.0} for clip in actual_clip_list]
             assemble_kwargs = dict(
                 raw_video_paths=[str(ctx.raw_video)] if ctx.raw_video else [],
                 total_duration=ctx.total_duration,
@@ -160,7 +166,7 @@ class VideoAssemblyStage:
                 lut_path=lut_path,
                 lut_intensity=ctx.lut_intensity,
                 shot_scales=ctx.shot_scales,
-                clip_list=actual_clip_list,
+                clip_list=render_clip_list,
                 transitions=transitions,
                 export_preset=ctx.export_preset,
                 sticker_position=ctx.sticker_position,

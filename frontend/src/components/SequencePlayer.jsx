@@ -4,6 +4,7 @@ import {
   AlertTriangle, CheckCircle2, Loader2,
 } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
+import { effectiveAudioMutes } from '../lib/trackMix.js';
 import api from '../api';
 import { createLutRenderer, loadCube } from '../lib/lut3d';
 import {
@@ -635,7 +636,7 @@ function drawVideoFrame(ctx, video, clip, motionTime = 0) {
   }
 
   // Blurred-pillarbox framing: the renderer splits the clip, covers the frame
-  // with a boxblur(25:5) copy, lays the whole (contain-fit) frame over it, and
+  // with a soft-edged Gaussian copy, lays the whole (contain-fit) frame over it, and
   // only then applies the zoom crop. Drawing just the cover-fit crop here hid
   // that entirely -- the preview cropped the sides off a shot the render was
   // showing whole.
@@ -651,7 +652,7 @@ function drawVideoFrame(ctx, video, clip, motionTime = 0) {
     ctx.translate(-(CANVAS_W / 2) - (panX * (CANVAS_W * (zoomK - 1))) / (2 * zoomK),
                   -(CANVAS_H / 2) - (panY * (CANVAS_H * (zoomK - 1))) / (2 * zoomK));
     if (mirrorFlag(clip)) { ctx.translate(CANVAS_W, 0); ctx.scale(-1, 1); }
-    // background: cover-fit, blurred (boxblur 25 at 1080w ~= 12px at 540w)
+    // background: cover-fit, blurred on the 540px Canvas before compositing
     let bx, by, bw, bh;
     if (vRatio > cRatio) { bh = vh; bw = vh * cRatio; by = 0; bx = (vw - bw) / 2; }
     else { bw = vw; bh = vw / cRatio; bx = 0; by = (vh - bh) / 2; }
@@ -1105,6 +1106,12 @@ function parseKineticSegments(text, defaultColor = '#FFFFFF', colorHint = null, 
 // text colour. Drawing emoji runs through a desaturating filter is what
 // keeps the preview honest about what the render will actually look like.
 const EMOJI_RUN_RE = /(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic})*\s*)/gu;
+// Chromium paints emoji from a colour font whose ink box is smaller than the
+// monochrome fallback glyph that libass selects.  Keep the text advance fixed
+// but scale the emoji ink from the same top anchor as ASS \\fscx/\\fscy.  This
+// is a geometry correction, not a colour approximation: the grayscale filter
+// below still makes the browser glyph monochrome.
+const EMOJI_INK_SCALE = 1.33;
 
 // Thai-safe caption entrance, mirroring `caption_anim` in subtitle_engine.py.
 // Fade changes visibility only; scaling a shaped Thai run can collapse the
@@ -1113,6 +1120,14 @@ const CAPTION_FADE_MS = 70;
 const THAI_UPPER_VOWELS = '\u0E31\u0E34\u0E35\u0E36\u0E37';
 const THAI_TONE_MARKS = '\u0E48\u0E49\u0E4A\u0E4B';
 const THAI_STACKED_MARK_RE = new RegExp(`([${THAI_UPPER_VOWELS}])([${THAI_TONE_MARKS}])`, 'g');
+const THAI_OVERLAY_STANDALONE_MARKS = '\u0E47\u0E4C\u0E4D\u0E48\u0E49\u0E4A\u0E4B';
+// Overlay text needs one repair for both stacked upper-vowel/tone pairs and
+// standalone above marks such as mai taikhuu (็).  The browser and libass
+// disagree on the optical top of these marks even when the body glyphs match.
+const THAI_OVERLAY_MARK_RE = new RegExp(
+  `([${THAI_UPPER_VOWELS}])([${THAI_TONE_MARKS}])|([^\\s])([${THAI_OVERLAY_STANDALONE_MARKS}])`,
+  'g',
+);
 const THAI_STACKED_MARK_RAISE_EM = 0.13;
 
 function drawTextWithMonoEmoji(ctx, text, x, y) {
@@ -1129,7 +1144,10 @@ function drawTextWithMonoEmoji(ctx, text, x, y) {
     if (isEmoji) {
       ctx.save();
       ctx.filter = 'grayscale(1) brightness(2.2)';
-      ctx.fillText(part, cursor, y);
+      const advance = ctx.measureText(part).width;
+      ctx.translate(cursor + advance / 2, y);
+      ctx.scale(EMOJI_INK_SCALE, EMOJI_INK_SCALE);
+      ctx.fillText(part, -advance / 2, 0);
       ctx.restore();
     } else {
       ctx.fillText(part, cursor, y);
@@ -1180,27 +1198,29 @@ function drawProductCalloutText(ctx, text, x, y, fontSize, drawText, repairThaiM
     drawText(text, x, y);
     return;
   }
-  const matches = [...String(text).matchAll(THAI_STACKED_MARK_RE)];
+  const source = String(text);
+  const matches = [...source.matchAll(THAI_OVERLAY_MARK_RE)];
   if (matches.length === 0) {
     drawText(text, x, y);
     return;
   }
 
-  const body = String(text).replace(THAI_STACKED_MARK_RE, '$1');
+  const body = source.replace(THAI_OVERLAY_MARK_RE, (_match, upper, _stackedTone, base) => upper || base);
   drawText(body, x, y);
   for (const match of matches) {
-    const pairAt = match.index;
+    const pairAt = match.index + (match[1] ? 0 : 1);
     if (pairAt < 1) continue;
     const baseAt = pairAt - 1;
-    const prefix = String(text).slice(0, baseAt).replace(THAI_STACKED_MARK_RE, '$1');
-    const base = String(text)[baseAt];
+    const prefix = source.slice(0, baseAt).replace(THAI_OVERLAY_MARK_RE, (_match, upper, _stackedTone, base) => upper || base);
+    const base = source[baseAt];
+    const mark = match[2] || match[4];
     const toneX = x + ctx.measureText(prefix).width + ctx.measureText(base).width;
     const oldLineWidth = ctx.lineWidth;
     // ASS companion events use a one-pixel render outline. This is the
     // half-resolution Canvas equivalent, preventing a narrow tone from
     // becoming a dark block above the callout.
     ctx.lineWidth = Math.max(1, Math.round(fontSize * 2 * 0.02));
-    drawText(match[2], toneX, y - Math.max(4, Math.round(fontSize * THAI_STACKED_MARK_RAISE_EM)));
+    drawText(mark, toneX, y - Math.max(4, Math.round(fontSize * THAI_STACKED_MARK_RAISE_EM)));
     ctx.lineWidth = oldLineWidth;
   }
 }
@@ -1983,7 +2003,10 @@ function sampleExplicitOverlayMotion(overlay, tRel, durationSec) {
     const sample = sampleCanvasMotion(
       { phases: plan.contracts },
       Math.max(0, Math.min(1, tRel / Math.max(0.001, durationSec))),
-      { phaseTiming: plan.phaseTiming },
+      {
+        phaseTiming: plan.phaseTiming,
+        timelineDurationMs: durationSec * 1000,
+      },
     );
     if (!plan.phases.has(sample.metadata.phase)) return null;
     return {
@@ -2216,7 +2239,10 @@ function drawOverlays(ctx, overlays = [], t, accentColor = '#FFE600', outBounds 
 
 function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
   const renderProfile = overlayRenderProfile(overlay);
-  const repairThaiMarks = overlay.role === 'product_callout';
+  // Motion overlays use the same detached stacked-mark repair as product
+  // callouts.  Browser shaping can lift a Thai upper-vowel/tone pair farther
+  // above the em box than libass, especially on mixed Thai/Latin lines.
+  const repairThaiMarks = overlay.role === 'product_callout' || Boolean(overlay.motionContract);
   const motion = { ...renderProfile.defaultAnim, ...(overlay.anim || {}) };
   const duration = Math.max(0.001, overlay.end - overlay.start);
   // Every animation clock is relative to the overlay's own start. The banner
@@ -2729,7 +2755,12 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
       }
       ctx.restore();
     } else {
-      const renderFs = Math.max(6, Math.round(w.settledFs * scale));
+      // ASS animates \fscx/\fscy on one already-shaped glyph run. Rebuilding
+      // the Canvas font at a rounded size reshapes and re-hints the text on
+      // every frame, which makes intermediate bounce/zoom frames several
+      // pixels wider than the rendered result. Keep the settled font and
+      // scale around the same top-centre anchor used by ASS \an8\pos.
+      const renderFs = w.settledFs;
       ctx.save();
       ctx.globalAlpha = (lineInFx.alpha ?? 1) * (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);
       if (lineInFx.blur) ctx.filter = `blur(${lineInFx.blur.toFixed(1)}px)`;
@@ -2744,6 +2775,11 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
         ctx.translate(x, lineCy);
         ctx.transform(1, 0, w.look.skew, 1, 0, 0);
         ctx.translate(-x, -lineCy);
+      }
+      if (Math.abs(scale - 1) > 0.001) {
+        ctx.translate(x, lineY);
+        ctx.scale(scale, scale);
+        ctx.translate(-x, -lineY);
       }
       ctx.font = overlayFont(w.look, renderFs);
       const drawnW = ctx.measureText(w.line).width;
@@ -2978,6 +3014,7 @@ function SequencePlayer({
 
   const [durations, setDurations] = useState({});
   const [metadataReady, setMetadataReady] = useState(false);
+  const [failedClipSources, setFailedClipSources] = useState({});
   const [isPlaying, setIsPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
   const playheadRef = useRef(0);
@@ -3612,6 +3649,9 @@ function SequencePlayer({
   }, [segments]);
 
   const totalDuration = totalDurationOf(segments);
+  const failedActiveClip = planAt(segments, playhead).find(({ seg }) => (
+    failedClipSources[`${seg.clip.id}:${seg.clip.source_path}`]
+  ))?.seg.clip;
 
   const getDrawPlan = (t) => planAt(segments, t);
 
@@ -3686,10 +3726,8 @@ function SequencePlayer({
   // can change mid-playback has to come through a ref -- otherwise a volume
   // slider move or a freshly dropped SFX is invisible to it, and its stale
   // copy of the level fights the gain-setting effect right back down.
-  const soloedTracks = Object.keys(trackMix?.solo || {}).filter((k) => trackMix.solo[k]);
-  const trackAudible = (track) => (
-    soloedTracks.length ? soloedTracks.includes(track) : !trackMix?.mute?.[track]
-  );
+  const effectiveMutes = effectiveAudioMutes(trackMix);
+  const trackAudible = (track) => !effectiveMutes[track];
   const trackBase = { voice: AUDIO_MIX.VOICE_GAIN, bgm: bgmVolume, sfx: AUDIO_MIX.SFX_GAIN, clip: AUDIO_MIX.CLIP_GAIN };
   /** Level a bus should sit at right now, mute and solo included. */
   const trackLevel = (track) => (trackAudible(track) ? trackBase[track] : 0);
@@ -3966,7 +4004,7 @@ function SequencePlayer({
   // Per-track mute/solo. With the stems separate there is finally something to
   // solo: checking whether the BGM is fighting the voice, or whether an SFX
   // landed where it was meant to, no longer means guessing from the mix.
-  const trackKey = `${JSON.stringify(trackMix?.mute || {})}|${[...soloedTracks].sort().join(',')}`;
+  const trackKey = JSON.stringify(effectiveMutes);
   useEffect(() => {
     const nodes = audioNodesRef.current;
     const ctx = audioCtxRef.current;
@@ -4399,7 +4437,19 @@ function SequencePlayer({
             // in and the preview now plays through the clip-audio bus.
             muted={!(Number(c.volume) > 0)}
             playsInline
-            onLoadedData={() => { if (!isPlaying) renderAt(playheadRef.current); }}
+            onLoadedData={() => {
+              setFailedClipSources((previous) => {
+                const key = `${c.id}:${c.source_path}`;
+                if (!previous[key]) return previous;
+                const next = { ...previous };
+                delete next[key];
+                return next;
+              });
+              if (!isPlaying) renderAt(playheadRef.current);
+            }}
+            onError={() => setFailedClipSources((previous) => ({
+              ...previous, [`${c.id}:${c.source_path}`]: true,
+            }))}
             onSeeked={() => { if (!isPlaying) renderAt(playheadRef.current); }}
           />
         ))}
@@ -4425,6 +4475,15 @@ function SequencePlayer({
           {!metadataReady && clips.length > 0 && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-xs font-bold text-[#9C968F] backdrop-blur-sm">
               กำลังโหลดวิดีโอ...
+            </div>
+          )}
+          {failedActiveClip && (
+            <div role="alert" className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/85 px-6 text-center text-xs font-bold text-rose-200">
+              <span>ไม่พบวิดีโอสำหรับคลิปนี้</span>
+              <span className="mt-1 break-all font-normal text-rose-100/80">
+                {(failedActiveClip.source_path || '').split(/[\\/]/).pop()}
+              </span>
+              <span className="mt-2 font-normal text-slate-300">ตรวจสอบไฟล์ต้นฉบับแล้วลองโหลดโปรเจกต์ใหม่</span>
             </div>
           )}
           {clips.length === 0 && (
@@ -4612,6 +4671,7 @@ function SequencePlayer({
                 <button
                   type="button"
                   onClick={togglePlay}
+                  aria-label={isPlaying ? 'หยุดพรีวิวชั่วคราว' : 'เล่นพรีวิว'}
                   className="group absolute inset-0 flex cursor-pointer items-center justify-center bg-black/0 transition-colors hover:bg-black/20"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-lg transition-all group-hover:bg-[#25F4EE] group-hover:text-black group-hover:opacity-100">
@@ -4698,6 +4758,7 @@ function SequencePlayer({
               type="range" min={0} max={totalDuration || 0} step={0.01}
               value={playhead}
               onChange={handleScrubInput}
+              aria-label="เลื่อนตำแหน่งเล่นวิดีโอ"
               className="flex-1 accent-[#D97757]"
             />
           </div>

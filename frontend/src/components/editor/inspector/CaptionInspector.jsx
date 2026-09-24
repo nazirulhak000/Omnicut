@@ -231,6 +231,7 @@ export default function CaptionInspector({
       {/* Textarea Content Box */}
       <div className="space-y-1.5">
         <textarea
+          aria-label="ข้อความคำบรรยาย"
           rows={2}
           value={selectedCaption.text || ''}
           onChange={(e) => onCaptionChange?.(selectedCaption._uid, { text: e.target.value })}
@@ -242,6 +243,7 @@ export default function CaptionInspector({
             <span className="text-[11px] text-slate-400 font-medium">คำแปลภาษาอังกฤษ (English Subtitle):</span>
             <input
               type="text"
+              aria-label="คำแปลภาษาอังกฤษ"
               value={currentTranslation || ''}
               onChange={(e) => onCaptionChange?.(selectedCaption._uid, { translation: e.target.value })}
               placeholder="English translation..."
@@ -257,6 +259,7 @@ export default function CaptionInspector({
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-slate-400 font-medium w-14 flex-shrink-0">ฟอนต์:</span>
           <select
+            aria-label="ฟอนต์คำบรรยาย"
             value={currentFont}
             onChange={(e) => handleFontChange(e.target.value)}
             className="flex-1 min-w-0 py-1.5 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-semibold text-white focus:outline-none focus:border-[#25F4EE] cursor-pointer"
@@ -276,6 +279,7 @@ export default function CaptionInspector({
             <div className="flex items-center gap-1">
               <input
                 type="number"
+                aria-label="ขนาดตัวอักษรคำบรรยาย (เปอร์เซ็นต์)"
                 min={50}
                 max={220}
                 step={5}
@@ -304,6 +308,7 @@ export default function CaptionInspector({
           </div>
           <input
             type="range"
+            aria-label="ปรับขนาดตัวอักษรคำบรรยาย"
             min="0.5"
             max="1.8"
             step="0.05"
@@ -321,6 +326,7 @@ export default function CaptionInspector({
               <button
                 type="button"
                 onClick={() => setTextPattern((p) => ({ ...p, bold: !p.bold }))}
+                aria-pressed={textPattern.bold}
                 className={`flex-1 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                   textPattern.bold
                     ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
@@ -333,6 +339,7 @@ export default function CaptionInspector({
               <button
                 type="button"
                 onClick={() => setTextPattern((p) => ({ ...p, italic: !p.italic }))}
+                aria-pressed={textPattern.italic}
                 className={`flex-1 py-1 rounded-lg text-xs font-bold italic border transition-all cursor-pointer ${
                   textPattern.italic
                     ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
@@ -345,6 +352,7 @@ export default function CaptionInspector({
               <button
                 type="button"
                 onClick={() => setTextPattern((p) => ({ ...p, underline: !p.underline }))}
+                aria-pressed={textPattern.underline}
                 className={`flex-1 py-1 rounded-lg text-xs font-bold underline border transition-all cursor-pointer ${
                   textPattern.underline
                     ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
@@ -369,6 +377,7 @@ export default function CaptionInspector({
                   key={id}
                   type="button"
                   onClick={() => setTextAlign(id)}
+                  aria-pressed={textAlign === id}
                   className={`flex-1 py-1 rounded-lg text-xs font-bold border transition-all flex items-center justify-center cursor-pointer ${
                     textAlign === id
                       ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
@@ -415,6 +424,7 @@ export default function CaptionInspector({
             <div className="flex items-center gap-1.5">
               <input
                 type="color"
+                aria-label="สีตัวอักษรคำบรรยาย"
                 value={currentColor.startsWith('#') ? currentColor : '#FFFFFF'}
                 onChange={(e) => handleColorChange(e.target.value)}
                 className="h-6 w-6 rounded border border-white/20 bg-transparent cursor-pointer p-0"

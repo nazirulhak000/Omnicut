@@ -1566,10 +1566,10 @@ def test_sticker_geometry_corners_and_clamped_size():
     from scripts.video_editor import sticker_geometry
 
     w, x, y = sticker_geometry("top_right", 1.0)
-    assert (w, x, y) == (160, "(W-w-40)", "140")
-    assert sticker_geometry("bottom_left", 1.0)[1:] == ("40", "(H-h-420)")
-    assert sticker_geometry("junk", 1.0)[1:] == ("(W-w-40)", "140"), "unknown corner falls back"
-    assert sticker_geometry("top_left", 99)[0] == 560, "scale clamped to 3.5x"
+    assert (w, x, y) == (320, "(W-w-80)", "280")
+    assert sticker_geometry("bottom_left", 1.0)[1:] == ("80", "(H-h-840)")
+    assert sticker_geometry("junk", 1.0)[1:] == ("(W-w-80)", "280"), "unknown corner falls back"
+    assert sticker_geometry("top_left", 99)[0] == 1120, "scale clamped to 3.5x"
     assert sticker_geometry("top_left", 1.0)[0] % 2 == 0, "even width or libx264 complains"
 
 
@@ -1582,8 +1582,8 @@ def test_sticker_position_reaches_the_overlay(monkeypatch, tmp_path):
         sticker_path=str(badge), sticker_position="bottom_left", sticker_scale=1.5,
     )
     filter_arg = cmd[cmd.index("-filter_complex") + 1]
-    assert "scale=240:-1" in filter_arg
-    assert "overlay=x=40:y=(H-h-420)" in filter_arg
+    assert "scale=480:-1" in filter_arg
+    assert "overlay=x=80:y=(H-h-840)" in filter_arg
 
 
 def test_normalize_transitions_shapes():
