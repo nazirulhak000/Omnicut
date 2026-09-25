@@ -14,6 +14,7 @@
 - [x] Round AUTO-RENDER-ON-CUTOUT-BYPASS-20260925 — ปรับปรุงปุ่มปิด Cutout ใน applyError ให้ทริกเกอร์เรนเดอร์อัตโนมัติทันทีพร้อมส่ง forceDisableCutout เข้า handleApply (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round FIX-CUTOUT-SUBFRAME-TAIL-DISCRETIZATION-20260925 — แก้ไขบั๊ก floating-point ceil discretization 1 เฟรมที่ส่วนท้ายของคลิปใน _read_ready_background_sequence (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round MASTER-PLAN-CUTOUT-COMPRESSED-VIDEO-PIPELINE-20260925 — วางแผนแม่บทแบบละเอียด ยกระดับระบบตัดพื้นหลังสู่ Single Compressed Alpha Video (ตามแนวทาง CapCut) พร้อม 1-Click Cache Purge & Auto-Cleanup ลดพื้นที่ 73-98% (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+- [x] Round MASTER-PLAN-CAPCUT-PREMIERE-TECH-INTEGRATION-20260925 — จัดทำแผนแม่บทแบบละเอียดในการนำ 7 สุดยอดเทคโนโลยีจาก CapCut และ Premiere Pro มาประยุกต์ใช้ใน OmniCut Pro Studio (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 
 
 - [x] Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 — ปิดงาน Motion Text/Preview–Render Parity ให้ตรวจซ้ำได้จริง (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅

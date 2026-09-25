@@ -7,7 +7,35 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round MASTER-PLAN-CAPCUT-PREMIERE-TECH-INTEGRATION-20260925 | จัดทำแผนแม่บทแบบละเอียดในการนำ 7 สุดยอดเทคโนโลยีจาก CapCut และ Premiere Pro มาประยุกต์ใช้ใน OmniCut Pro Studio | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round MASTER-PLAN-CUTOUT-COMPRESSED-VIDEO-PIPELINE-20260925 | วางแผนแม่บทแบบละเอียด ยกระดับระบบตัดพื้นหลังสู่ Single Compressed Alpha Video (ตามแนวทาง CapCut) พร้อม 1-Click Cache Purge & Auto-Cleanup ลดพื้นที่ 73-98% | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round MASTER-PLAN-CAPCUT-PREMIERE-TECH-INTEGRATION-20260925 — จัดทำแผนแม่บทแบบละเอียดในการนำ 7 สุดยอดเทคโนโลยีจาก CapCut และ Premiere Pro มาประยุกต์ใช้ใน OmniCut Pro Studio
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** จัดทำแผนแม่บทเชิงสถาปัตยกรรมและวิศวกรรมการผลิตวิดีโอ (Master Engineering Roadmap) ฉบับสมบูรณ์ ในการนำเทคโนโลยีระดับแนวหน้าของ CapCut PC และ Adobe Premiere Pro มาบูรณาการเข้ากับ OmniCut Pro Studio ครอบคลุมทั้งระบบเสียง, ความเร็วการตัดต่อ, จังหวะดนตรี, การตัดต่อจากข้อความ, AI Slow-mo, และ Auto-Reframe
+
+### สิ่งที่ทำไป
+
+1. **Comparative Architecture Analysis**:
+   - วิเคราะห์เปรียบเทียบสถาปัตยกรรมระดับลึกระหว่าง CapCut PC, Adobe Premiere Pro, และ OmniCut Pro Studio ใน 7 มิติหลัก
+2. **Master Roadmap & Implementation Plan (`_Docs/Plans/CAPCUT_PREMIERE_TECH_INTEGRATION_PLAN.md`)**:
+   - **Phase 1: Professional Sound & Rhythm Engine**:
+     - Dynamic Sidechain Ducking ผ่าน FFmpeg `sidechaincompress` (Attack 80ms, Release 350ms, Ratio 5:1, Threshold -24dB) และ Web Audio Compressor บน Preview
+     - Audio Beat & Transient Marker Snapping ผ่าน Spectral Flux Onset Detection พร้อมแสดงจุดมาร์กเกอร์สีเหลืองเรืองแสง `#FFE600` บน Timeline
+   - **Phase 2: Ultra-Performance Editing Engine**:
+     - On-Demand 540p Editing Proxy Pipeline ลดขนาดไฟล์วิดีโอจาก 500 MB เหลือ 5 MB ตัดต่อลื่นไหล 60 FPS บนเว็บ พร้อมสลับไฟล์ Master อัตโนมัติเมื่อกด Render
+   - **Phase 3: Text-Based Dead Air & Silence Stripper**:
+     - Smart Silence Stripper (วิเคราะห์ช่วงเงียบเกิน 0.35s ที่ระดับต่ำกว่า -32dB) ตัดทิ้งและทำ Ripple Delete อัตโนมัติใน 1-คลิก เพื่อเร่ง Pacing สไตล์ TikTok
+   - **Phase 4: Advanced AI Visual Enhancements**:
+     - Saliency Auto-Reframe (แปลง 16:9 แนวนอน สู่ 9:16 แนวตั้ง โดย Pan ตามสินค้าไม่หลุดขอบ)
+     - Optical Flow & AI Frame Interpolation (สโลว์โมชัน 0.3x ลื่น 60 FPS ด้วย `minterpolate` หรือ RIFE)
+     - Universal Tech Tone & Global Color Match
+3. **Parity & Standards Compliance**:
+   - กำหนดเกณฑ์ Preview = Render Parity ของทุกฟีเจอร์อย่างเคร่งครัด
+   - วางแผนผังการพัฒนาแบบ 4-Stage Roadmap พร้อมระยะเวลาและผลลัพธ์ที่วัดผลได้
+
 | Round FIX-CUTOUT-SUBFRAME-TAIL-DISCRETIZATION-20260925 | แก้ไขบั๊ก floating-point ceil discretization 1 เฟรมที่ส่วนท้ายของคลิปใน _read_ready_background_sequence | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 
 ## Round MASTER-PLAN-CUTOUT-COMPRESSED-VIDEO-PIPELINE-20260925 — วางแผนแม่บทแบบละเอียด ยกระดับระบบตัดพื้นหลังสู่ Single Compressed Alpha Video (ตามแนวทาง CapCut) พร้อม 1-Click Cache Purge & Auto-Cleanup ลดพื้นที่ 73-98%
