@@ -1,5 +1,6 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
+- [x] Round HOTFIX-PRESERVE-CUTOUT-STATE-AND-SERVER-RELOAD-20260925 — ป้องกันไม่ให้การบายพาสเรนเดอร์ไปล้างสถานะ Cutout ถาวรใน Editor, คืนค่า Cutout พร้อมคลีนพิกัด Cues ใน BLU01-ปัญหาก่อนใช้_2 และรีสตาร์ท Backend Server เพื่อโหลดโค้ดใหม่ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round FIX-CUE-NONE-COORDINATES-FLOAT-ERROR-20260925 — แก้ไขข้อผิดพลาด float() argument must be a string or a real number, not 'NoneType' ใน scripts/subtitle_engine.py เมื่อ cue มีพิกัด x หรือ y เป็น None (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round QUICK-ENABLE-CUTOUT-FROM-PLAYER-20260925 — เพิ่มปุ่ม 1-คลิกเปิดใช้งานระบบตัดพื้นหลัง (Cutout) บน SequencePlayer เมื่อสถานะเป็น off พร้อมเปิดคืนค่า Cutout ใน BLU01-ปัญหาก่อนใช้_2 (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round FIX-CUTOUT-PLAYBACK-LAYER-ORDERING-20260925 — แก้ไขปัญหาภาพพื้นหลังดิบโผล่และข้อความลอยมาอยู่ข้างหน้าระหว่างกดเล่นวิดีโอ (Playback) โดยเพิ่ม Persistent Last Known Cutout Frame และ Aggressive Lookahead Prefetch บน SequencePlayer (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅

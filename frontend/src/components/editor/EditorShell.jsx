@@ -1551,9 +1551,8 @@ export default function EditorShell({
 
   const handleApply = async (forceDisableCutout = false) => {
     if (forceDisableCutout) {
-      patchBackgroundIsolation({ ...(backgroundIsolation || {}), schema_version: 1, enabled: false });
       setApplyError(null);
-      showToast('กำลังปิด Cutout และเริ่มเรนเดอร์...');
+      showToast('เริ่มเรนเดอร์แบบไม่ใช้ Cutout ชั่วคราว...');
     }
     if (!projectName) { setApplyError('เลือกโปรเจกต์ก่อน'); return; }
     if (!clipList.length) { setApplyError('เพิ่มคลิปในไทม์ไลน์ก่อน'); return; }
@@ -2063,7 +2062,7 @@ export default function EditorShell({
                   }}
                   className="flex-shrink-0 rounded-lg bg-rose-500/25 px-2.5 py-1 text-xs font-bold text-rose-100 hover:bg-rose-500/40 border border-rose-400/40 cursor-pointer transition shadow-sm"
                 >
-                  ปิด Cutout แล้วเรนเดอร์ทันที
+                  เรนเดอร์แบบไม่ใช้ Cutout
                 </button>
               )}
               <button

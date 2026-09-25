@@ -7,7 +7,31 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round HOTFIX-PRESERVE-CUTOUT-STATE-AND-SERVER-RELOAD-20260925 | ป้องกันไม่ให้การบายพาสเรนเดอร์ไปล้างสถานะ Cutout ถาวรใน Editor, คืนค่า Cutout พร้อมคลีนพิกัด Cues ใน BLU01-ปัญหาก่อนใช้_2 และรีสตาร์ท Backend Server เพื่อโหลดโค้ดใหม่ | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round FIX-CUE-NONE-COORDINATES-FLOAT-ERROR-20260925 | แก้ไขข้อผิดพลาด float() argument must be a string or a real number, not 'NoneType' ใน scripts/subtitle_engine.py เมื่อ cue มีพิกัด x หรือ y เป็น None | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round HOTFIX-PRESERVE-CUTOUT-STATE-AND-SERVER-RELOAD-20260925 — ป้องกันไม่ให้การบายพาสเรนเดอร์ไปล้างสถานะ Cutout ถาวรใน Editor, คืนค่า Cutout พร้อมคลีนพิกัด Cues ใน BLU01-ปัญหาก่อนใช้_2 และรีสตาร์ท Backend Server เพื่อโหลดโค้ดใหม่
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** แก้ไขปัญหาที่ผู้ใช้รายงานว่า "กดเรนเดอร์ มันปิด cutout แล้วก็ error เลยอ่ะ มันยังไม่เวิร์คเลยอ่ะ"
+
+### สาเหตุของปัญหา (Root Cause Analysis)
+1. **Outdated Backend Memory State**: กระบวนการ Python Backend Server (PID 17004) รันค้างข้ามคืนตั้งแต่ 24 ก.ย. 20:55 น. โดย `FASTAPI_RELOAD=false` ทำให้เมื่อมีการแก้ไขบั๊ก `scripts/subtitle_engine.py` ในดิสก์ โค้ดในหน่วยความจำของเซิร์ฟเวอร์ยังเป็นเวอร์ชันเก่าอยู่ จึงยังคงโยนข้อผิดพลาดเดิมซ้ำๆ เมื่อผู้ใช้กดเรนเดอร์
+2. **Permanent Cutout State Clashing**: ใน `EditorShell.jsx` บล็อกการทำงานของปุ่มบายพาสเรนเดอร์ไปเรียก `patchBackgroundIsolation(enabled: false)` ซึ่งไปสั่งบันทึกปิด Cutout ใน Editor อย่างถาวร ทำให้ทุกครั้งที่กดเรนเดอร์ผ่านปุ่มดังกล่าว สถานะ Cutout ในโปรเจกต์จะถูกปิดตัวลงทันที
+
+### สิ่งที่ได้แก้ไข
+1. **Preserve Editor Cutout State (`frontend/src/components/editor/EditorShell.jsx`)**:
+   - ปรับปรุง `handleApply` ไม่ให้เรียก `patchBackgroundIsolation` เมื่อสั่งบายพาสเรนเดอร์ เพื่อรักษาสถานะ Cutout ใน Editor ไว้ตามเดิม
+   - ปรับปรุงข้อความปุ่มในแบนเนอร์เป็น `"เรนเดอร์แบบไม่ใช้ Cutout"` ให้ชัดเจนและตรงไปตรงมา
+2. **Restart Backend Server**:
+   - สั่งยุติกระบวนการ Python ตัวเก่า และสตาร์ท FastAPI Server ตัวใหม่บนพอร์ต 8000 ให้โหลดโค้ด Safe Float & None Guard เวอร์ชันล่าสุดเข้าหน่วยความจำเรียบร้อย
+3. **Data & Probe Cleanup**:
+   - ปรับค่า `background_isolation.enabled = True` คืนให้โปรเจกต์ `BLU01-ปัญหาก่อนใช้_2`
+   - คลีนพิกัด `x: null, y: null` ออกจากรายการ Cues ใน `project.json`
+   - ลบไฟล์วิดีโอทดสอบและภาพหน้าปกทดสอบออกจาก `04_Exports/Ready_to_post/` พร้อมถอดออกจาก `_Docs/export_registry.json` ตามกฎเหล็กข้อ 11 และ 15 แบบ 100%
+
+---
 | Round QUICK-ENABLE-CUTOUT-FROM-PLAYER-20260925 | เพิ่มปุ่ม 1-คลิกเปิดใช้งานระบบตัดพื้นหลัง (Cutout) บน SequencePlayer เมื่อสถานะเป็น off พร้อมเปิดคืนค่า Cutout ใน BLU01-ปัญหาก่อนใช้_2 | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 
 ## Round FIX-CUE-NONE-COORDINATES-FLOAT-ERROR-20260925 — แก้ไขข้อผิดพลาด float() argument must be a string or a real number, not 'NoneType' ใน scripts/subtitle_engine.py เมื่อ cue มีพิกัด x หรือ y เป็น None
