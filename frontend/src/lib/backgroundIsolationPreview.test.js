@@ -15,6 +15,8 @@ import {
   splitBackgroundIsolationOverlays,
   summarizeBackgroundIsolationPlan,
   summarizeBackgroundIsolationStatus,
+  findBackgroundIsolationConflicts,
+  clearBackgroundIsolationConflicts,
 } from './backgroundIsolationPreview.js';
 
 const ARTIFACT_ID = 'bgseq1-0123456789abcdef';
@@ -506,4 +508,40 @@ test('sequence_id is accepted for the separate sequence artifact contract', () =
   });
   assert.equal(result.ok, true);
   assert.equal(result.artifactId, ARTIFACT_ID);
+});
+
+test('findBackgroundIsolationConflicts correctly identifies clips with bg_blur or blur fit_mode', () => {
+  const clips = [
+    { id: 'c1', bg_blur: true, label: 'Intro' },
+    { id: 'c2', fit_mode: 'contain', label: 'Feature' },
+    { id: 'c3', fit_mode: 'blur', label: 'Demo' },
+    { id: 'c4', label: 'Outro' },
+  ];
+
+  const conflicts = findBackgroundIsolationConflicts(clips);
+  assert.equal(conflicts.length, 2);
+  assert.deepEqual(conflicts.map((c) => c.idx), [0, 2]);
+  assert.deepEqual(conflicts.map((c) => c.clip.id), ['c1', 'c3']);
+
+  assert.deepEqual(findBackgroundIsolationConflicts([]), []);
+  assert.deepEqual(findBackgroundIsolationConflicts(null), []);
+});
+
+test('clearBackgroundIsolationConflicts immutably removes bg_blur and blur fit_mode without mutating original clips', () => {
+  const clips = [
+    { id: 'c1', bg_blur: true, fit_mode: 'blur', speed: 1.2 },
+    { id: 'c2', fit_mode: 'cover', speed: 1.0 },
+  ];
+
+  const cleared = clearBackgroundIsolationConflicts(clips);
+  assert.equal(cleared.length, 2);
+  assert.equal(cleared[0].bg_blur, undefined);
+  assert.equal(cleared[0].fit_mode, undefined);
+  assert.equal(cleared[0].speed, 1.2);
+  assert.equal(cleared[1].fit_mode, 'cover');
+
+  // Verify immutability
+  assert.equal(clips[0].bg_blur, true);
+  assert.equal(clips[0].fit_mode, 'blur');
+  assert.deepEqual(clearBackgroundIsolationConflicts([]), []);
 });

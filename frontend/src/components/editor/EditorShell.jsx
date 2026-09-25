@@ -33,7 +33,9 @@ import { removeItemById, updateItemById } from '../../lib/collectionOperations.j
 import { getOverlayRecolorMetadata } from '../../lib/overlayRecolor.js';
 import {
   backgroundIsolationWindowContainsClip,
+  clearBackgroundIsolationConflicts,
   completedBackgroundIsolationTasks,
+  findBackgroundIsolationConflicts,
   groupBackgroundIsolationClips,
   summarizeBackgroundIsolationPlan,
   summarizeBackgroundIsolationStatus,
@@ -220,13 +222,14 @@ export default function EditorShell({
     (clipList || []).filter((clip) => clip?.source_path),
     { sourceDurations: durations },
   ), [clipList, durations]);
-  const backgroundIsolationPlan = useMemo(
-    () => ({
+  const backgroundIsolationPlan = useMemo(() => {
+    const conflictClips = findBackgroundIsolationConflicts(clipList);
+    return {
       ...summarizeBackgroundIsolationPlan(backgroundIsolationGroups, { fps: 30 }),
-      conflictCount: (clipList || []).filter((clip) => clip?.bg_blur || clip?.fit_mode === 'blur').length,
-    }),
-    [backgroundIsolationGroups, clipList],
-  );
+      conflictCount: conflictClips.length,
+      conflictClips,
+    };
+  }, [backgroundIsolationGroups, clipList]);
   const backgroundIsolationProgress = useMemo(() => {
     const active = backgroundIsolationTaskIds
       .map((id) => tasks.find((task) => task.id === id))
@@ -1432,6 +1435,19 @@ export default function EditorShell({
     pollTasks?.();
   }, [backgroundIsolationTaskIds, cancelTask, pollTasks]);
 
+  const handleClearAllBgBlur = useCallback(() => {
+    set((prev) => ({
+      ...prev,
+      clipList: clearBackgroundIsolationConflicts(prev.clipList),
+    }));
+    showToast('ปิดพื้นหลังเบลอทุกคลิปเรียบร้อยแล้ว');
+  }, [set, showToast]);
+
+  const handleSelectClipById = useCallback((clipId) => {
+    handleSelect({ type: 'clip', id: clipId });
+    showToast('เลือกคลิปบน Timeline เรียบร้อยแล้ว');
+  }, [handleSelect, showToast]);
+
   const patchStylePreset = useCallback((presetId) => {
     const normalized = normalizeStylePreset(presetId);
     patchStyle({ style_preset: normalized });
@@ -2378,6 +2394,8 @@ export default function EditorShell({
                       backgroundIsolationProgress={backgroundIsolationProgress}
                       backgroundIsolationError={backgroundIsolationError}
                       onCancelBackgroundIsolation={cancelBackgroundIsolation}
+                      onClearAllBgBlur={handleClearAllBgBlur}
+                      onSelectClip={handleSelectClipById}
                       onAddEffect={handleAddEffect}
                       playhead={playhead}
                       totalDuration={totalDuration}
@@ -2533,6 +2551,8 @@ export default function EditorShell({
                         backgroundIsolationProgress={backgroundIsolationProgress}
                         backgroundIsolationError={backgroundIsolationError}
                         onCancelBackgroundIsolation={cancelBackgroundIsolation}
+                        onClearAllBgBlur={handleClearAllBgBlur}
+                        onSelectClip={handleSelectClipById}
                         onAddEffect={handleAddEffect}
                         playhead={playhead}
                         totalDuration={totalDuration}

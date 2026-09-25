@@ -154,6 +154,28 @@ export function summarizeBackgroundIsolationPlan(groups = [], { fps = 30 } = {})
   };
 }
 
+/** Find clips that conflict with background isolation (e.g. background blur enabled). */
+export function findBackgroundIsolationConflicts(clipList = []) {
+  if (!Array.isArray(clipList)) return [];
+  return clipList
+    .map((clip, idx) => ({ clip, idx }))
+    .filter(({ clip }) => Boolean(clip?.bg_blur || clip?.fit_mode === 'blur'));
+}
+
+/** Clear conflicting background blur properties from clip list immutably. */
+export function clearBackgroundIsolationConflicts(clipList = []) {
+  if (!Array.isArray(clipList)) return [];
+  return clipList.map((clip) => {
+    if (!clip?.bg_blur && clip?.fit_mode !== 'blur') return clip;
+    const next = { ...clip };
+    delete next.bg_blur;
+    if (next.fit_mode === 'blur') {
+      delete next.fit_mode;
+    }
+    return next;
+  });
+}
+
 export function backgroundIsolationPrefetchTimes({
   sourceTime,
   fps,

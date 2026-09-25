@@ -211,6 +211,8 @@ function BackgroundIsolationControls({
   error = '',
   cutoutMode = 'composite',
   onCutoutModeChange = null,
+  onClearAllBgBlur = null,
+  onSelectClip = null,
 }) {
   const enabled = backgroundIsolation?.enabled === true;
   const status = statusOverride?.state || backgroundIsolation?.artifact?.status || 'missing';
@@ -241,9 +243,42 @@ function BackgroundIsolationControls({
               : `ยังคำนวณช่วงวิดีโอไม่ได้${plan?.unresolvedCount ? ` ${plan.unresolvedCount} ช่วง` : ''}`}
           </p>
           {plan?.conflictCount > 0 && (
-            <p role="alert" className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1.5 text-[10px] text-amber-200">
-              พบ {plan.conflictCount} คลิปที่เปิดพื้นหลังเบลอ กรุณาปิดพื้นหลังเบลอก่อนใช้ Cutout
-            </p>
+            <div role="alert" className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-2.5 text-[11px] text-amber-200 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-amber-300">
+                  พบ {plan.conflictCount} คลิปที่เปิดพื้นหลังเบลอ
+                </span>
+                {onClearAllBgBlur && (
+                  <button
+                    type="button"
+                    onClick={onClearAllBgBlur}
+                    className="rounded-lg bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-200 hover:bg-amber-400/30 transition border border-amber-400/30 cursor-pointer"
+                  >
+                    ปิดพื้นหลังเบลอทั้งหมด
+                  </button>
+                )}
+              </div>
+              <p className="text-[10px] text-amber-200/80 leading-relaxed">
+                กรุณาปิดพื้นหลังเบลอก่อนใช้ Cutout เนื่องจากระบบจะตัดวัตถุและวางบนพื้นหลังธีมแทน
+              </p>
+              {plan?.conflictClips?.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[10px] text-amber-300/80">คลิปที่เปิดอยู่:</span>
+                  {plan.conflictClips.map(({ clip, idx }) => (
+                    <button
+                      key={clip?.id || idx}
+                      type="button"
+                      onClick={() => onSelectClip?.(clip?.id)}
+                      className="inline-flex items-center gap-1 rounded-md bg-black/40 px-2 py-0.5 text-[10px] font-medium text-amber-200 hover:bg-amber-400/20 hover:text-white border border-amber-400/20 cursor-pointer transition"
+                      title="คลิกเพื่อเลือกคลิปนี้บน Timeline"
+                    >
+                      <span>ช็อต #{idx + 1}</span>
+                      {clip?.label ? <span className="text-slate-400 truncate max-w-[80px]">({clip.label})</span> : null}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
           {preparing ? (
             <button
@@ -1062,6 +1097,8 @@ export default function AssetPanel({
   onPrepareBackgroundIsolation = null,
   onCancelBackgroundIsolation = null,
   backgroundIsolationPreparing = false,
+  onClearAllBgBlur = null,
+  onSelectClip = null,
   onAddEffect = null,
   playhead = 0,
   totalDuration = 0,
@@ -1577,6 +1614,10 @@ export default function AssetPanel({
             plan={backgroundIsolationPlan}
             progress={backgroundIsolationProgress}
             error={backgroundIsolationError}
+            cutoutMode={cutoutMode}
+            onCutoutModeChange={onCutoutModeChange}
+            onClearAllBgBlur={onClearAllBgBlur}
+            onSelectClip={onSelectClip}
           />
         )}
 

@@ -7,7 +7,36 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CUTOUT-CONFLICT-CLIP-NAV-AND-AUTO-RESOLVE-20260925 | เพิ่มระบบระบุคลิปที่ขัดแย้งกับ Cutout พร้อมปุ่มนำทางคลิกเลือกคลิปบน Timeline และปุ่ม 1-คลิกปิดพื้นหลังเบลอทั้งหมด | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round FIX-CUTOUT-LAYERS-IMPORT-ERROR-20260924 | แก้ไข ReferenceError: Layers is not defined ใน SequencePlayer.jsx เมื่อเปิดใช้งานฟังก์ชันตัด BG (Background Isolation) | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round CUTOUT-CONFLICT-CLIP-NAV-AND-AUTO-RESOLVE-20260925 — เพิ่มระบบระบุคลิปที่ขัดแย้งกับ Cutout พร้อมปุ่มนำทางคลิกเลือกคลิปบน Timeline และปุ่ม 1-คลิกปิดพื้นหลังเบลอทั้งหมด
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** แก้ปัญหา UX ของระบบ Background Isolation (Cutout) ที่ขึ้นแจ้งเตือน "พบ N คลิปที่เปิดพื้นหลังเบลอ กรุณาปิดพื้นหลังเบลอก่อนใช้ Cutout" แต่ผู้ใช้ไม่ทราบว่าคลิปไหนเปิดอยู่ และต้องไล่หาทีละคลิป โดยเพิ่มข้อมูลระบุคลิปที่ขัดแย้ง (conflictClips), ปุ่มกดกระโดดไปเลือกคลิปบน Timeline ทันที, ปุ่ม 1-คลิก "ปิดพื้นหลังเบลอทั้งหมด", และ Badge "Blur BG" บนคลิปใน Timeline เพื่อให้มองเห็นได้ทันทีด้วยตาเปล่า
+
+### สิ่งที่ทำไป
+
+1. **Conflict Resolution Logic & Helpers (`backgroundIsolationPreview.js` & tests)**:
+   - เพิ่มฟังก์ชัน `findBackgroundIsolationConflicts(clipList)` สำหรับหาคลิปทั้งหมดที่เปิด `bg_blur` หรือ `fit_mode === 'blur'` อย่างแม่นยำ
+   - เพิ่มฟังก์ชัน `clearBackgroundIsolationConflicts(clipList)` สำหรับเคลียร์ค่าเบลอออกอย่าง immutable
+   - เพิ่ม Automated Unit Tests ใน `backgroundIsolationPreview.test.js` ครอบคลุมทั้งกรณีพบความขัดแย้ง, กรณีว่าง, และ immutability test
+2. **EditorShell & State Integration (`EditorShell.jsx`)**:
+   - ปรับการคำนวณ `backgroundIsolationPlan` ให้ส่ง `conflictClips` ออกมาด้วย
+   - เพิ่ม `handleClearAllBgBlur` สำหรับล้างการเบลอทุกคลิปใน Timeline ทันที 1 คลิก พร้อมแจ้งเตือน toast
+   - เพิ่ม `handleSelectClipById` นำทางเลือกคลิปบน Timeline
+   - ส่ง props ให้ `AssetPanel` ทั้ง Desktop และ Mobile view
+3. **AssetPanel & Visual Guidance (`AssetPanel.jsx`)**:
+   - ปรับปรุงกล่องแจ้งเตือนสีเหลืองของ BackgroundIsolationControls:
+     - แสดงปุ่ม **"ปิดพื้นหลังเบลอทั้งหมด"** (1 คลิก) ช่วยแก้ปัญหาทันทีโดยไม่ต้องไล่หาทีละคลิป
+     - แสดงรายชื่อช็อตที่มีปัญหา เช่น `ช็อต #1`, `ช็อต #2` พร้อมปุ่มกดกระโดดไปเลือกคลิปนั้นบน Timeline ทันที
+     - ส่ง `cutoutMode` และ `onCutoutModeChange` เข้า BackgroundIsolationControls ให้เชื่อมกับ Player และ Inspector อย่างสมบูรณ์
+4. **Timeline Visual Badge (`TimelineClip.jsx`)**:
+   - เพิ่ม Badge สีฟ้า `#25F4EE` ระบุข้อความ `Blur BG` บนตัวคลิปใน Timeline ทันทีหากคลิปนั้นเปิดพื้นหลังเบลออยู่ เพื่อให้ผู้ใช้มองเห็นตำแหน่งคลิปด้วยตาเปล่าทันที
+5. **Testing & Verification**:
+   - รัน `npm test` ผ่านครบ 314/314 tests (เพิ่ม 2 tests ใหม่)
+   - รัน `npm run build` สำเร็จ 2,026 modules ใน 6.19s
 | Round FIX-PRODUCT-DELETE-FORCE-SUPPORT-20260924 | แก้ไขปัญหาระบบลบสินค้าติดล็อกมุมที่โพสต์แล้ว เพิ่มตัวเลือก Force Delete ใน Backend API และ ProductToClip UI พร้อมล้างสินค้าทดสอบ debug | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round DOCS-MANUAL-CURRENCY-REFRESH-20260924 | อัปเดตคู่มือโปรแกรมและตัวเลขระบบจริง (Gadget Media, TypeSafe AI, คีย์ลัด N/M, Center Crosshair Guides, pytest.ini) | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 | เพิ่มระบบ Magnetic Snap & Visual Guide พร้อม Ripple Feedback บน Timeline, เพิ่มโหมดตรวจเช็ก Cutout Mask ใน Player/Inspector, และจัดระเบียบ Git Working Tree | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |

@@ -233,6 +233,14 @@ export default function TimelineClip({
             ✂️ Cutout
           </span>
         )}
+        {(clip.bg_blur || clip.fit_mode === 'blur') && (
+          <span
+            className="flex-shrink-0 flex items-center gap-0.5 rounded bg-[#25F4EE]/20 border border-[#25F4EE]/40 px-1 py-0.5 text-[9px] font-bold text-[#25F4EE] shadow-sm"
+            title="เปิดพื้นหลังเบลอ (ขัดแย้งกับ Cutout)"
+          >
+            Blur BG
+          </span>
+        )}
       </div>
 
       {(speed !== 1 || clip.mirror || clip.rotation || (clip.volume || 0) > 0) && (
