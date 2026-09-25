@@ -1568,8 +1568,8 @@ export default function EditorShell({
       setApplyError(`ปิดพื้นหลังเบลอ ${backgroundIsolationPlan.conflictCount} คลิปก่อน Render ด้วย Cutout`);
       return;
     }
-    if (!forceDisableCutout && effectiveBgIsolation?.enabled === true && backgroundIsolationStatus.state !== 'ready') {
-      setApplyError('Cutout ยังไม่พร้อมครบทุกคลิป กรุณากดเตรียม Cutout ให้สถานะพร้อมก่อน Render');
+    if (!forceDisableCutout && effectiveBgIsolation?.enabled === true && backgroundIsolationStatus.state !== 'ready' && backgroundIsolationStatus.state !== 'partial') {
+      setApplyError('Cutout ยังไม่พร้อม กรุณากดเตรียม Cutout ให้สถานะพร้อมก่อน Render');
       return;
     }
 
