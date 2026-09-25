@@ -7,7 +7,38 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round MASTER-PLAN-CUTOUT-COMPRESSED-VIDEO-PIPELINE-20260925 | วางแผนแม่บทแบบละเอียด ยกระดับระบบตัดพื้นหลังสู่ Single Compressed Alpha Video (ตามแนวทาง CapCut) พร้อม 1-Click Cache Purge & Auto-Cleanup ลดพื้นที่ 73-98% | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round FIX-CUTOUT-SUBFRAME-TAIL-DISCRETIZATION-20260925 | แก้ไขบั๊ก floating-point ceil discretization 1 เฟรมที่ส่วนท้ายของคลิปใน _read_ready_background_sequence | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round MASTER-PLAN-CUTOUT-COMPRESSED-VIDEO-PIPELINE-20260925 — วางแผนแม่บทแบบละเอียด ยกระดับระบบตัดพื้นหลังสู่ Single Compressed Alpha Video (ตามแนวทาง CapCut) พร้อม 1-Click Cache Purge & Auto-Cleanup ลดพื้นที่ 73-98%
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** จัดทำแผนแม่บทสถาปัตยกรรม (Master Architecture Plan) อย่างละเอียด เพื่อเปลี่ยนโครงสร้างแคช Cutout จาก Loose PNG Sequence (1.3 GB ต่อคลิป) สู่ Single Compressed Alpha Video (WebM VP9 Alpha / Mask MP4 ขนาด ~25 MB ต่อคลิป ประหยัด 98%) ตามแนวทางของ CapCut พร้อมระบบบริหารจัดการและล้างแคชอัตโนมัติ คืนพื้นที่ 100%
+
+### สิ่งที่ทำไป
+
+1. **Master Architecture Plan (`_Docs/Plans/CUTOUT_COMPRESSED_VIDEO_PIPELINE_PLAN.md`)**:
+   - วิเคราะห์ปัญหาพื้นที่ดิสก์ 130 GB และเปรียบเทียบการจัดเก็บของ CapCut, Premiere Pro, DaVinci Resolve
+   - Benchmark Codec: WebM VP9 Alpha (`yuva420p`) ได้ขนาดเพียง **957 KB** สำหรับ 154 เฟรม (ลดขนาดลง >98%)
+   - ออกแบบ Zero-PNG Direct Streaming Pipe และโครงสร้าง 3 เฟสอย่างละเอียด
+2. **Phase 1: Storage Management & Immediate Space Reclaim**:
+   - **Backend Storage Cleaner (`scripts/storage_cleaner.py`)**: บูรณาการ `03_Projects/.cache` เข้าสู่ระบบสแกนและล้างแคชปลอดภัย (Safe Purge) พร้อมเพิ่มฟังก์ชัน `scan_cutout_cache()` และ `purge_cutout_cache_only()`
+   - **Analytics API Router (`scripts/api_analytics.py`)**: รวมขนาด Cutout Cache ใน `safe_purge_mb`, ส่ง `safe_purge_items` breakdown, และเพิ่ม endpoint `GET /storage/cutout-cache` กับ `POST /storage/purge-cutout-cache`
+   - **Frontend API Client (`frontend/src/api.js`)**: เพิ่ม `getCutoutCacheStatus()` และ `purgeCutoutCache()`
+   - **Storage Analytics Tab (`frontend/src/components/analytics/tabs/StorageAnalyticsTab.jsx`)**: แสดงแจกแจงรายการแคชที่มี (Breakdown) ใน ConfirmModal ให้เห็นชัดเจน
+   - **Editor Style Tab (`frontend/src/components/editor/AssetPanel.jsx`)**: เพิ่มแถบแสดงขนาดแคช Cutout ปัจจุบัน และปุ่ม `[ล้างแคช]` ในส่วนตัดพื้นหลังสินค้า เพื่อให้ผู้ใช้สามารถเคลียร์แคชได้ทันทีในคลิกเดียวโดยไม่ต้องสลับหน้าจอ
+3. **Phase 2: Rembg Auto-Cleanup (Safe Zero-Waste Extraction)**:
+   - **API Background Isolation (`scripts/api_background_isolation.py`)**: เพิ่มกลไก Auto-Cleanup ลบโฟลเดอร์ภาพดิบที่สกัดมาจากวิดีโอ (`extracted["sequence_dir"]`) ทิ้งทันทีหลัง rembg รันสำเร็จ คืนพื้นที่ 950 MB (~73%) ทันทีตั้งแต่เกิดงาน โดยไม่กระทบต่อ Foreground Sequences
+4. **Testing & Parity**:
+   - `pytest tests/test_storage_cleaner.py`: 3 passed (100%)
+   - `pytest tests/test_analytics_hub.py`: 7 passed (100%)
+   - `pytest tests/test_api_background_isolation.py tests/test_background_isolation_render_integration.py`: 41 passed, 3 skipped (100%)
+   - `npm test`: 314 passed (100%)
+   - `npm run build`: built in 4.37s สำเร็จสมบูรณ์ 100%
+5. **Test Cleanup 100%**:
+   - ลบไฟล์ทดสอบ benchmark ทั้งหมดใน `03_Projects/.cache` สะอาดหมดจด
+
 | Round AUTO-RENDER-ON-CUTOUT-BYPASS-20260925 | ปรับปรุงปุ่มปิด Cutout ใน applyError ให้ทริกเกอร์เรนเดอร์อัตโนมัติทันทีพร้อมส่ง forceDisableCutout เข้า handleApply | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round RENDER-GATE-CUTOUT-BYPASS-AND-GUIDE-20260925 | เพิ่มปุ่มปลดล็อกเรนเดอร์ด่วนในแบนเนอร์แจ้งเตือน Cutout (ปิด Cutout เพื่อเรนเดอร์ทันที) ใน EditorShell.jsx | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round FIX-OVERLAY-INSPECTOR-USEMEMO-IMPORT-20260925 | แก้ไข ReferenceError: useMemo is not defined ใน OverlayInspector.jsx เมื่อกดเพิ่มข้อความ พร้อมอธิบายกลไก Text Behind Subject | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |

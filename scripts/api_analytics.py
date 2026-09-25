@@ -22,8 +22,12 @@ from scripts.config import (
 )
 from scripts.product_store import ProductStore
 from scripts.token_tracker import TokenTracker
-from scripts.export_registry import ExportRegistry
-from scripts.storage_cleaner import scan_safe_reclaimable_cache, execute_safe_purge
+from scripts.storage_cleaner import (
+    scan_safe_reclaimable_cache,
+    execute_safe_purge,
+    scan_cutout_cache,
+    purge_cutout_cache_only,
+)
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics Hub"])
 
@@ -501,6 +505,7 @@ def get_storage_analytics(force_scan: bool = False) -> Dict[str, Any]:
             "capcut_draft_gb": round(capcut_draft_size / (1024**3), 2),
             "safe_purge_bytes": safe_purge_bytes,
             "safe_purge_mb": round(safe_purge_bytes / (1024 * 1024), 1),
+            "safe_purge_items": reclaimable_scan.get("items", []),
             "heavy_products": heavy_products,
             "posted_archive_potential": posted_archive_potential,
             "archive_recommendation": archive_recommendation,
@@ -530,6 +535,32 @@ def purge_safe_cache() -> Dict[str, Any]:
         return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to purge safe cache: {e}")
+
+
+@router.get("/storage/cutout-cache")
+def get_cutout_cache_stats() -> Dict[str, Any]:
+    """
+    Returns current status and size of the Background Isolation Cutout Cache.
+    """
+    try:
+        return scan_cutout_cache()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to scan cutout cache: {e}")
+
+
+@router.post("/storage/purge-cutout-cache")
+def purge_cutout_cache() -> Dict[str, Any]:
+    """
+    Safely clears only the Background Isolation Cutout Cache in 03_Projects/.cache.
+    STRICT DON'T: Never touches 01_Raw or 02_Assets.
+    """
+    try:
+        res = purge_cutout_cache_only()
+        _STORAGE_CACHE["data"] = None
+        _STORAGE_CACHE["timestamp"] = 0.0
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to purge cutout cache: {e}")
 
 
 @router.get("/inventory")

@@ -410,6 +410,9 @@ export const clearTokenAlerts = () => api.post('/tokens/alerts/clear').then(r =>
 export const getProductionAnalytics = () => api.get('/analytics/production').then(r => r.data);
 export const getStorageAnalytics = (forceScan = false) => api.get('/analytics/storage', { params: forceScan ? { force_scan: true } : {} }).then(r => r.data);
 export const purgeSafeStorageCache = () => api.post('/analytics/storage/purge-safe-cache').then(r => r.data);
+export const getCutoutCacheStatus = () => api.get('/analytics/storage/cutout-cache').then(r => r.data);
+export const purgeCutoutCache = () => api.post('/analytics/storage/purge-cutout-cache').then(r => r.data);
+
 export const getInventoryHealth = () => api.get('/analytics/inventory').then(r => r.data);
 export const getTiktokStatsLatest = () => api.get('/tiktok-stats/latest').then(r => r.data);
 export const getTiktokMilestones = (threshold = 1000) => api.get('/tiktok-stats/milestones', { params: { threshold } }).then(r => r.data);

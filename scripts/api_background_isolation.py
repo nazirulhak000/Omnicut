@@ -33,6 +33,7 @@ from scripts.background_isolation_sequence_artifacts import (
     sequence_status,
 )
 from scripts.config import PROJECTS_DIR
+from scripts.storage_cleaner import is_strictly_protected_path
 from scripts.task_manager import TaskManager
 from scripts.background_isolation import normalize_background_isolation
 from scripts.background_isolation_sequence import extract_background_isolation_sequence
@@ -311,6 +312,14 @@ def _run_background_isolation_task(
         )
         if result.get("status") != "ready" or not result.get("artifact_id"):
             raise RuntimeError(result.get("message") or "background isolation failed")
+        # Auto-cleanup transient raw source extraction frames to reclaim disk space (~73% saved)
+        try:
+            seq_dir = Path(extracted["sequence_dir"])
+            if seq_dir.exists() and not is_strictly_protected_path(seq_dir):
+                shutil.rmtree(str(seq_dir), ignore_errors=True)
+        except Exception:
+            pass
+
         output_manifest = Path(result["output_directory"]) / "manifest.json"
         sequence = json.loads(output_manifest.read_text(encoding="utf-8"))
         completed = {

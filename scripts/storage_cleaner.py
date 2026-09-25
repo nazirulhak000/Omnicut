@@ -140,6 +140,31 @@ def scan_safe_reclaimable_cache() -> Dict[str, Any]:
         })
         total_bytes += capcut_cache_bytes
 
+    # 4. Background Isolation Cutout Cache (03_Projects/.cache)
+    cutout_cache_dir = PROJECTS_DIR / ".cache"
+    cutout_cache_bytes = 0
+    cutout_cache_count = 0
+    if cutout_cache_dir.exists() and not is_strictly_protected_path(cutout_cache_dir):
+        try:
+            for f in cutout_cache_dir.rglob("*"):
+                if f.is_file():
+                    cutout_cache_bytes += f.stat().st_size
+                    cutout_cache_count += 1
+        except Exception:
+            pass
+
+    if cutout_cache_bytes > 0:
+        items.append({
+            "id": "cutout_cache",
+            "label": "แคชการตัดพื้นหลังสินค้า (Cutout Frame Cache)",
+            "description": "ไฟล์เฟรมภาพแยกสำหรับตัดพื้นหลังสินค้าใน 03_Projects/.cache",
+            "path": str(cutout_cache_dir),
+            "bytes": cutout_cache_bytes,
+            "mb": round(cutout_cache_bytes / (1024 * 1024), 2),
+            "count": cutout_cache_count,
+        })
+        total_bytes += cutout_cache_bytes
+
     return {
         "items": items,
         "total_bytes": total_bytes,
@@ -200,6 +225,23 @@ def execute_safe_purge() -> Dict[str, Any]:
         except Exception as e:
             errors.append(f"CapCut cache: {e}")
 
+    # 4. Clean Background Isolation Cutout Cache (03_Projects/.cache)
+    cutout_cache_dir = PROJECTS_DIR / ".cache"
+    if cutout_cache_dir.exists() and not is_strictly_protected_path(cutout_cache_dir):
+        try:
+            for item in list(cutout_cache_dir.iterdir()):
+                if not is_strictly_protected_path(item):
+                    sz = _dir_size(item) if item.is_dir() else item.stat().st_size
+                    cnt = sum(1 for _ in item.rglob("*") if _.is_file()) if item.is_dir() else 1
+                    if item.is_dir():
+                        shutil.rmtree(str(item), ignore_errors=True)
+                    else:
+                        item.unlink(missing_ok=True)
+                    purged_bytes += sz
+                    purged_files += cnt
+        except Exception as e:
+            errors.append(f"Cutout cache: {e}")
+
     return {
         "success": True,
         "purged_files": purged_files,
@@ -208,3 +250,62 @@ def execute_safe_purge() -> Dict[str, Any]:
         "message": f"ล้างไฟล์แคชและขยะชั่วคราวสำเร็จ {purged_files} ไฟล์ ({round(purged_bytes / (1024 * 1024), 2)} MB)",
         "errors": errors,
     }
+
+
+def scan_cutout_cache() -> Dict[str, Any]:
+    """
+    Scans only the Background Isolation Cutout Cache in 03_Projects/.cache.
+    Returns bytes, mb, and file count.
+    """
+    cutout_cache_dir = PROJECTS_DIR / ".cache"
+    cutout_cache_bytes = 0
+    cutout_cache_count = 0
+    if cutout_cache_dir.exists() and not is_strictly_protected_path(cutout_cache_dir):
+        try:
+            for f in cutout_cache_dir.rglob("*"):
+                if f.is_file():
+                    cutout_cache_bytes += f.stat().st_size
+                    cutout_cache_count += 1
+        except Exception:
+            pass
+    return {
+        "bytes": cutout_cache_bytes,
+        "mb": round(cutout_cache_bytes / (1024 * 1024), 2),
+        "count": cutout_cache_count,
+    }
+
+
+def purge_cutout_cache_only() -> Dict[str, Any]:
+    """
+    Safely clears only the Background Isolation Cutout Cache in 03_Projects/.cache.
+    STRICT DON'T: Never touches 01_Raw, 02_Assets, or project state files.
+    """
+    cutout_cache_dir = PROJECTS_DIR / ".cache"
+    purged_bytes = 0
+    purged_files = 0
+    errors = []
+
+    if cutout_cache_dir.exists() and not is_strictly_protected_path(cutout_cache_dir):
+        try:
+            for item in list(cutout_cache_dir.iterdir()):
+                if not is_strictly_protected_path(item):
+                    sz = _dir_size(item) if item.is_dir() else item.stat().st_size
+                    cnt = sum(1 for _ in item.rglob("*") if _.is_file()) if item.is_dir() else 1
+                    if item.is_dir():
+                        shutil.rmtree(str(item), ignore_errors=True)
+                    else:
+                        item.unlink(missing_ok=True)
+                    purged_bytes += sz
+                    purged_files += cnt
+        except Exception as e:
+            errors.append(f"Cutout cache: {e}")
+
+    return {
+        "success": len(errors) == 0,
+        "purged_files": purged_files,
+        "purged_bytes": purged_bytes,
+        "purged_mb": round(purged_bytes / (1024 * 1024), 2),
+        "message": f"ล้างแคชตัดพื้นหลังสินค้าสำเร็จ {purged_files} ไฟล์ ({round(purged_bytes / (1024 * 1024), 2)} MB)",
+        "errors": errors,
+    }
+

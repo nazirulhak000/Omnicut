@@ -48,6 +48,7 @@ export default function StorageAnalyticsTab() {
     directories = [],
     capcut_draft_gb = 0,
     safe_purge_mb = 0,
+    safe_purge_items = [],
     heavy_products = [],
     posted_archive_potential = {},
     archive_recommendation = {}
@@ -531,7 +532,7 @@ export default function StorageAnalyticsTab() {
       <ConfirmModal
         isOpen={showPurgeModal}
         title="ยืนยันการล้างไฟล์แคชชั่วคราว"
-        message={`ระบบจะล้างเฉพาะไฟล์ชั่วคราว เช่น พรีวิวเสียง และแคช CapCut ที่สร้างขึ้นใหม่ได้ รวมประมาณ ${safe_purge_mb} MB\n\nการกระทำนี้ปลอดภัย 100% และจะไม่แตะต้องไฟล์วัตถุดิบต้นฉบับใน 01_Raw และ 02_Assets เด็ดขาด`}
+        message={`ระบบจะล้างเฉพาะไฟล์ชั่วคราวที่สร้างขึ้นใหม่ได้ รวมประมาณ ${safe_purge_mb} MB${safe_purge_items && safe_purge_items.length > 0 ? `:\n\n` + safe_purge_items.map(item => `• ${item.label}: ${item.mb} MB (${item.count} ไฟล์)`).join('\n') : ''}\n\nการกระทำนี้ปลอดภัย 100% และจะไม่แตะต้องไฟล์วัตถุดิบต้นฉบับใน 01_Raw และ 02_Assets เด็ดขาด`}
         confirmLabel={purging ? 'กำลังล้าง...' : 'ยืนยันล้างไฟล์แคช'}
         cancelLabel="ยกเลิก"
         onConfirm={handlePurge}

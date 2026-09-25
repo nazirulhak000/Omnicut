@@ -13,22 +13,7 @@
 - [x] Round RENDER-GATE-CUTOUT-BYPASS-AND-GUIDE-20260925 — เพิ่มปุ่มปลดล็อกเรนเดอร์ด่วนในแบนเนอร์แจ้งเตือน Cutout (ปิด Cutout เพื่อเรนเดอร์ทันที) ใน EditorShell.jsx (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round AUTO-RENDER-ON-CUTOUT-BYPASS-20260925 — ปรับปรุงปุ่มปิด Cutout ใน applyError ให้ทริกเกอร์เรนเดอร์อัตโนมัติทันทีพร้อมส่ง forceDisableCutout เข้า handleApply (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round FIX-CUTOUT-SUBFRAME-TAIL-DISCRETIZATION-20260925 — แก้ไขบั๊ก floating-point ceil discretization 1 เฟรมที่ส่วนท้ายของคลิปใน _read_ready_background_sequence (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [ ] Round MASTER-PLAN-CUTOUT-COMPRESSED-VIDEO-PIPELINE-20260925 — วางแผนแม่บทแบบละเอียด ยกระดับระบบตัดพื้นหลังสู่ Single Compressed Alpha Video (ตามแนวทาง CapCut) ลดพื้นที่ 98% (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
-
-## Round MASTER-PLAN-CUTOUT-COMPRESSED-VIDEO-PIPELINE-20260925 — in_progress
-
-วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: กำลังดำเนินการ
-
-**เป้าหมาย:** จัดทำแผนแม่บทสถาปัตยกรรม (Master Architecture Plan) อย่างละเอียด เพื่อเปลี่ยนโครงสร้างแคช Cutout จาก Loose PNG Sequence (1.3 GB ต่อคลิป) สู่ Single Compressed Alpha Video (WebM VP9 Alpha / Mask MP4 ขนาด ~25 MB ต่อคลิป ประหยัด 98%) ตามแนวทางของ CapCut พร้อมระบบบริหารจัดการและล้างแคชอัตโนมัติ
-
-### Todo
-
-- [x] วิเคราะห์ปัญหาพื้นที่ 130 GB และ Benchmark เปรียบเทียบกับ CapCut / Premiere / Resolve
-- [x] เปรียบเทียบ Video Codec ระหว่าง WebM VP9 Alpha (yuva420p) vs H.264 Greyscale Matte
-- [x] ออกแบบ Zero-PNG Direct Streaming Pipe (ตัดการเขียนไฟล์ PNG ลงดิสก์ 100%)
-- [x] เขียนแผนแม่บทฉบับสมบูรณ์ลงใน `_Docs/Plans/CUTOUT_COMPRESSED_VIDEO_PIPELINE_PLAN.md`
-- [ ] นำเสนอแผนแม่บท สรุปสถาปัตยกรรม และขั้นตอนการดำเนินงานต่อผู้ใช้
-
+- [x] Round MASTER-PLAN-CUTOUT-COMPRESSED-VIDEO-PIPELINE-20260925 — วางแผนแม่บทแบบละเอียด ยกระดับระบบตัดพื้นหลังสู่ Single Compressed Alpha Video (ตามแนวทาง CapCut) พร้อม 1-Click Cache Purge & Auto-Cleanup ลดพื้นที่ 73-98% (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 
 
 - [x] Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 — ปิดงาน Motion Text/Preview–Render Parity ให้ตรวจซ้ำได้จริง (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅

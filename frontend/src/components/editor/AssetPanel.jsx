@@ -3,7 +3,7 @@ import {
   Check, Film, Music, Palette, Plus, Search, Sticker, Type, Volume2, Play, Square,
   FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers, Eye, X, Upload, Clock, Trash2, Ban, RotateCcw, ChevronLeft
 } from 'lucide-react';
-import { transcribeMedia, uploadFile } from '../../api';
+import { transcribeMedia, uploadFile, getCutoutCacheStatus, purgeCutoutCache } from '../../api';
 import PaginationControls from '../PaginationControls';
 
 const TABS = [
@@ -217,6 +217,36 @@ function BackgroundIsolationControls({
   const enabled = backgroundIsolation?.enabled === true;
   const status = statusOverride?.state || backgroundIsolation?.artifact?.status || 'missing';
   const statusLabel = statusOverride?.label || status;
+
+  const [cacheStats, setCacheStats] = useState(null);
+  const [purgingCache, setPurgingCache] = useState(false);
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
+
+  const fetchCacheStats = useCallback(async () => {
+    try {
+      const stats = await getCutoutCacheStatus();
+      setCacheStats(stats);
+    } catch {
+      // non-fatal
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCacheStats();
+  }, [fetchCacheStats, status, preparing]);
+
+  const handlePurgeCutout = async () => {
+    try {
+      setPurgingCache(true);
+      await purgeCutoutCache();
+      await fetchCacheStats();
+      setShowPurgeConfirm(false);
+    } catch (e) {
+      console.error('Failed to purge cutout cache', e);
+    } finally {
+      setPurgingCache(false);
+    }
+  };
   const toggle = (nextEnabled) => {
     if (!nextEnabled) {
       onChange?.({ ...(backgroundIsolation || {}), schema_version: 1, enabled: false });
@@ -355,6 +385,44 @@ function BackgroundIsolationControls({
           {status !== 'ready' && <p className="mt-1 text-slate-500">ต้องเตรียม artifact ให้พร้อมทุกคลิปก่อน Render ระบบจะบล็อกการส่งออกแทนการ fallback เงียบ</p>}
           {status === 'ready' && <p className="mt-1 text-slate-500">ตรวจขอบมือ สินค้าโปร่งใส และ motion blur ใน Preview ก่อน Render เพราะความนิ่งของ mask ขึ้นกับภาพต้นฉบับและโมเดล</p>}
           </div>
+          {cacheStats && cacheStats.mb > 0 && (
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.06]">
+              <div className="flex items-center gap-1.5 text-slate-400">
+                <span>พื้นที่แคช Cutout:</span>
+                <span className="font-semibold text-amber-300">{cacheStats.mb} MB</span>
+                <span className="text-[9px] text-slate-500">({cacheStats.count} ไฟล์)</span>
+              </div>
+              {showPurgeConfirm ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handlePurgeCutout}
+                    disabled={purgingCache}
+                    className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/30 text-[9px] font-bold cursor-pointer transition disabled:opacity-50"
+                  >
+                    {purgingCache ? 'กำลังล้าง...' : 'ยืนยันลบ'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPurgeConfirm(false)}
+                    className="px-1.5 py-0.5 rounded bg-white/5 text-slate-400 hover:text-white text-[9px] cursor-pointer"
+                  >
+                    ยกเลิก
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowPurgeConfirm(true)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-[9px] font-medium cursor-pointer transition"
+                  title="ล้างแคชเฟรมรูปภาพชั่วคราวเพื่อคืนพื้นที่ดิสก์"
+                >
+                  <Trash2 className="w-2.5 h-2.5 text-slate-400" />
+                  <span>ล้างแคช</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </section>

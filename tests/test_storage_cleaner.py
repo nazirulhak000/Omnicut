@@ -60,6 +60,10 @@ def test_scan_and_purge_safe_reclaimable_cache(tmp_path, monkeypatch):
     temp_preview_wav = fake_projects / "preview_tts_test.wav"
     temp_preview_wav.write_bytes(b"TEMP_AUDIO_WAV_BYTES_67890")
 
+    cutout_cache_dir = fake_projects / ".cache" / "bgseq_test" / "frames"
+    cutout_cache_dir.mkdir(parents=True)
+    (cutout_cache_dir / "frame_000000.png").write_bytes(b"CUTOUT_FRAME_TRANSIENT_PNG")
+
     cloud_cache_dir = fake_capcut / ".cloud_cache_draft_1"
     cloud_cache_dir.mkdir()
     (cloud_cache_dir / "temp.dat").write_bytes(b"CAPCUT_TRANSIENT_CACHE")
@@ -73,17 +77,19 @@ def test_scan_and_purge_safe_reclaimable_cache(tmp_path, monkeypatch):
 
     # Scan
     scan_res = scan_safe_reclaimable_cache()
-    assert scan_res["items_count"] >= 2
+    assert scan_res["items_count"] >= 3
+    assert any(item["id"] == "cutout_cache" for item in scan_res["items"])
     assert scan_res["total_bytes"] > 0
 
     # Purge
     purge_res = execute_safe_purge()
     assert purge_res["success"] is True
-    assert purge_res["purged_files"] >= 2
+    assert purge_res["purged_files"] >= 3
 
     # Verify transient files removed
     assert not proxy_file.exists()
     assert not temp_preview_wav.exists()
+    assert not (fake_projects / ".cache" / "bgseq_test").exists()
     assert not cloud_cache_dir.exists()
 
     # STRICT RULE 1 VERIFICATION: Protected files MUST STILL EXIST UNTOUCHED
@@ -91,3 +97,31 @@ def test_scan_and_purge_safe_reclaimable_cache(tmp_path, monkeypatch):
     assert raw_file.read_bytes() == b"ORIGINAL_RAW_FOOTAGE_DO_NOT_DELETE"
     assert asset_file.exists()
     assert asset_file.read_bytes() == b"ORIGINAL_FONT_DO_NOT_DELETE"
+
+
+def test_scan_and_purge_cutout_cache_only(tmp_path, monkeypatch):
+    fake_projects = tmp_path / "03_Projects"
+    fake_projects.mkdir()
+    cutout_cache = fake_projects / ".cache" / "bgseq_only" / "frames"
+    cutout_cache.mkdir(parents=True)
+    frame_file = cutout_cache / "frame_000001.png"
+    frame_file.write_bytes(b"CUTOUT_TARGET_FRAME")
+
+    monkeypatch.setattr("scripts.storage_cleaner.PROJECTS_DIR", fake_projects)
+
+    from scripts.storage_cleaner import scan_cutout_cache, purge_cutout_cache_only
+
+    scan_res = scan_cutout_cache()
+    assert scan_res["bytes"] == len(b"CUTOUT_TARGET_FRAME")
+    assert scan_res["count"] == 1
+
+    purge_res = purge_cutout_cache_only()
+    assert purge_res["success"] is True
+    assert purge_res["purged_files"] == 1
+    assert not frame_file.exists()
+
+    # Re-scan should be 0
+    rescan = scan_cutout_cache()
+    assert rescan["bytes"] == 0
+    assert rescan["count"] == 0
+

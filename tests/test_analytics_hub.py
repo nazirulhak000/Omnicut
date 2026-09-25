@@ -74,6 +74,25 @@ def test_safe_purge_storage_cache_endpoint():
     assert "purged_bytes" in data
 
 
+def test_cutout_cache_endpoints():
+    # Test GET
+    get_resp = client.get("/api/analytics/storage/cutout-cache")
+    assert get_resp.status_code == 200
+    get_data = get_resp.json()
+    assert "bytes" in get_data
+    assert "mb" in get_data
+    assert "count" in get_data
+
+    # Test POST purge
+    purge_resp = client.post("/api/analytics/storage/purge-cutout-cache")
+    assert purge_resp.status_code == 200
+    purge_data = purge_resp.json()
+    assert purge_data["success"] is True
+    assert "purged_files" in purge_data
+    assert "purged_bytes" in purge_data
+
+
+
 def test_production_analytics_exposes_snapshot_not_cohort_conversion(monkeypatch):
     products = [{
         "id": "product-1",
