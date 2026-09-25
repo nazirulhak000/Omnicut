@@ -11,8 +11,7 @@
 - [x] Round CUTOUT-CONFLICT-CLIP-NAV-AND-AUTO-RESOLVE-20260925 — เพิ่มระบบระบุคลิปที่ขัดแย้งกับ Cutout พร้อมปุ่มนำทางคลิกเลือกคลิปบน Timeline และปุ่ม 1-คลิกปิดพื้นหลังเบลอทั้งหมด (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round FIX-OVERLAY-INSPECTOR-USEMEMO-IMPORT-20260925 — แก้ไข ReferenceError: useMemo is not defined ใน OverlayInspector.jsx เมื่อกดเพิ่มข้อความ พร้อมอธิบายกลไก Text Behind Subject & การใช้งาน Cutout (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round RENDER-GATE-CUTOUT-BYPASS-AND-GUIDE-20260925 — เพิ่มปุ่มปลดล็อกเรนเดอร์ด่วนในแบนเนอร์แจ้งเตือน Cutout (ปิด Cutout เพื่อเรนเดอร์ทันที) ใน EditorShell.jsx (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-
-
+- [x] Round AUTO-RENDER-ON-CUTOUT-BYPASS-20260925 — ปรับปรุงปุ่มปิด Cutout ใน applyError ให้ทริกเกอร์เรนเดอร์อัตโนมัติทันทีพร้อมส่ง forceDisableCutout เข้า handleApply (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 
 - [x] Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 — ปิดงาน Motion Text/Preview–Render Parity ให้ตรวจซ้ำได้จริง (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
 - [x] Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 — ปิด parity ของ Caption/Sticker/Effect/Spotlight แบบ vertical slice (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅

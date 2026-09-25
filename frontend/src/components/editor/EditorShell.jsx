@@ -1549,18 +1549,27 @@ export default function EditorShell({
     return () => { cancelled = true; };
   }, [projectName, findMatchingAngle]);
 
-  const handleApply = async () => {
+  const handleApply = async (forceDisableCutout = false) => {
+    if (forceDisableCutout) {
+      patchBackgroundIsolation({ ...(backgroundIsolation || {}), schema_version: 1, enabled: false });
+      setApplyError(null);
+      showToast('กำลังปิด Cutout และเริ่มเรนเดอร์...');
+    }
     if (!projectName) { setApplyError('เลือกโปรเจกต์ก่อน'); return; }
     if (!clipList.length) { setApplyError('เพิ่มคลิปในไทม์ไลน์ก่อน'); return; }
     if (isProjectPosted) {
       setApplyError('คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม');
       return;
     }
-    if (backgroundIsolation?.enabled === true && backgroundIsolationPlan.conflictCount > 0) {
+    const effectiveBgIsolation = forceDisableCutout
+      ? { ...(backgroundIsolation || {}), schema_version: 1, enabled: false }
+      : backgroundIsolation;
+
+    if (!forceDisableCutout && effectiveBgIsolation?.enabled === true && backgroundIsolationPlan.conflictCount > 0) {
       setApplyError(`ปิดพื้นหลังเบลอ ${backgroundIsolationPlan.conflictCount} คลิปก่อน Render ด้วย Cutout`);
       return;
     }
-    if (backgroundIsolation?.enabled === true && backgroundIsolationStatus.state !== 'ready') {
+    if (!forceDisableCutout && effectiveBgIsolation?.enabled === true && backgroundIsolationStatus.state !== 'ready') {
       setApplyError('Cutout ยังไม่พร้อมครบทุกคลิป กรุณากดเตรียม Cutout ให้สถานะพร้อมก่อน Render');
       return;
     }
@@ -1625,8 +1634,26 @@ export default function EditorShell({
           .then(() => workspaceData?.invalidateTrackerData?.()).catch(() => {});
       } catch (e) {}
     }
+    const effectiveSavePayload = forceDisableCutout
+      ? withStylePresetPayload(
+          editorStateToSavePayload({
+            clipList,
+            cuesList,
+            style,
+            overlays,
+            stickers,
+            effects,
+            spotlight,
+            backgroundIsolation: effectiveBgIsolation,
+            trackMix,
+            microCuesList,
+          }),
+          activeStylePreset,
+        )
+      : projectSavePayload;
+
     try {
-      await updateProjectState(projectName, projectSavePayload);
+      await updateProjectState(projectName, effectiveSavePayload);
       const res = await startReroll({
         project_name: projectName,
         part: audioDirty ? 'bgm' : 'subtitles',
@@ -1655,7 +1682,7 @@ export default function EditorShell({
           stickers,
           effects,
           spotlight,
-          backgroundIsolation,
+          backgroundIsolation: effectiveBgIsolation,
         }),
       });
       pendingRenderBaseline.current = {
@@ -2046,13 +2073,11 @@ export default function EditorShell({
             <div className="flex flex-shrink-0 items-center gap-2 border-b border-rose-500/30 bg-rose-950/40 px-3 py-1.5 text-sm text-rose-200">
               <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
               <span className="min-w-0 flex-1">{applyError}</span>
-              {applyError.includes('Cutout') && (
+              {(applyError.includes('Cutout') || applyError.includes('Background Cutout')) && (
                 <button
                   type="button"
                   onClick={() => {
-                    patchBackgroundIsolation({ ...(backgroundIsolation || {}), schema_version: 1, enabled: false });
-                    setApplyError(null);
-                    showToast('ปิดโหมด Cutout แล้ว สามารถกดปุ่มเรนเดอร์ได้ทันที');
+                    handleApply(true);
                   }}
                   className="flex-shrink-0 rounded-lg bg-rose-500/25 px-2.5 py-1 text-xs font-bold text-rose-100 hover:bg-rose-500/40 border border-rose-400/40 cursor-pointer transition shadow-sm"
                 >

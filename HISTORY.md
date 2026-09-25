@@ -7,8 +7,27 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round AUTO-RENDER-ON-CUTOUT-BYPASS-20260925 | ปรับปรุงปุ่มปิด Cutout ใน applyError ให้ทริกเกอร์เรนเดอร์อัตโนมัติทันทีพร้อมส่ง forceDisableCutout เข้า handleApply | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round RENDER-GATE-CUTOUT-BYPASS-AND-GUIDE-20260925 | เพิ่มปุ่มปลดล็อกเรนเดอร์ด่วนในแบนเนอร์แจ้งเตือน Cutout (ปิด Cutout เพื่อเรนเดอร์ทันที) ใน EditorShell.jsx | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round FIX-OVERLAY-INSPECTOR-USEMEMO-IMPORT-20260925 | แก้ไข ReferenceError: useMemo is not defined ใน OverlayInspector.jsx เมื่อกดเพิ่มข้อความ พร้อมอธิบายกลไก Text Behind Subject | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round AUTO-RENDER-ON-CUTOUT-BYPASS-20260925 — ปรับปรุงปุ่มปิด Cutout ใน applyError ให้ทริกเกอร์เรนเดอร์อัตโนมัติทันทีพร้อมส่ง forceDisableCutout เข้า handleApply
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** แก้ไขให้ปุ่ม "ปิด Cutout แล้วเรนเดอร์ทันที" บนแถบสีแดงเริ่มขั้นตอน Render ทันทีแบบ 1-คลิก โดยส่ง `forceDisableCutout = true` เข้าสู่ `handleApply` เพื่อข้ามข้อผิดพลาด Cutout ไม่พร้อม และส่ง `background_isolation: { enabled: false }` ให้ backend เรนเดอร์วิดีโอทันทีโดยไม่ต้องไปหาแท็บสไตล์หรือกดซ้ำ
+
+### สิ่งที่ทำไป
+
+1. **Auto-Render on Cutout Bypass (`EditorShell.jsx`)**:
+   - ปรับฟังก์ชัน `handleApply(forceDisableCutout = false)` ให้รับแฟล็ก `forceDisableCutout`
+   - เมื่อส่งแฟล็กนี้ จะคำนวณ `effectiveBgIsolation = { enabled: false }`, อัปเดต `patchBackgroundIsolation`, และข้ามการเช็กสถานะ Cutout
+   - ประกอบ `effectiveSavePayload` และส่ง `backgroundIsolation: effectiveBgIsolation` ไปยัง `updateProjectState` และ `startReroll` ทำให้ backend ไม่เจอดัก `Background Cutout is not ready`
+   - ผูก `onClick` ของปุ่ม `[ปิด Cutout แล้วเรนเดอร์ทันที]` บนแบนเนอร์แจ้งเตือนให้เรียก `handleApply(true)` ทันทีในคลิกเดียว
+2. **Testing & Verification**:
+   - รัน `npm test` ผ่านครบ 314/314 tests
+   - รัน `npm run build` สำเร็จ 2,026 modules ใน 4.84s
+
 
 ## Round RENDER-GATE-CUTOUT-BYPASS-AND-GUIDE-20260925 — เพิ่มปุ่มปลดล็อกเรนเดอร์ด่วนในแบนเนอร์แจ้งเตือน Cutout (ปิด Cutout เพื่อเรนเดอร์ทันที) ใน EditorShell.jsx
 
