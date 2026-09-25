@@ -1,6 +1,7 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
-- [x] Round TIMELINE-SNAP-RIPPLE-CUTOUT-MASK-CLEANUP-20260924 — เพิ่มระบบ Magnetic Snap & Visual Guide พร้อม Ripple Feedback บน Timeline, เพิ่มโหมดตรวจเช็ก Cutout Mask ใน Player/Inspector, และจัดระเบียบ Git Working Tree (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+- [x] Round FIX-CUTOUT-PLAYBACK-LAYER-ORDERING-20260925 — แก้ไขปัญหาภาพพื้นหลังดิบโผล่และข้อความลอยมาอยู่ข้างหน้าระหว่างกดเล่นวิดีโอ (Playback) โดยเพิ่ม Persistent Last Known Cutout Frame และ Aggressive Lookahead Prefetch บน SequencePlayer (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+- [x] Round MASTER-PLAN-CAPCUT-PREMIERE-TECH-INTEGRATION-20260925 — จัดทำแผนแม่บทแบบละเอียดในการนำ 7 สุดยอดเทคโนโลยีจาก CapCut และ Premiere Pro มาประยุกต์ใช้ใน OmniCut Pro Studio (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round CLEANUP-DEMO-TEST-EXPORTS-PROJECTS-20260924 — ลบทำความสะอาดคลิปทดสอบ demo_*.mp4 และไฟล์ดัมมี่ตกค้างใน 04_Exports/Ready_to_post, 03_Projects/demo, spotlight-test และ export_registry.json ตามกฎเหล็กข้อ 11 และ 15 (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round AUDIT-BACKGROUND-ISOLATION-CUTOUT-SPOTLIGHT-20260923 — ตรวจสอบระบบจัดการพื้นหลังทั้งหมด (Background Isolation, rembg Cutout, Blur Background, Product Spotlight) เชิงลึกทุกมิติ ทั้ง UI, Logic, rembg Worker, Preview & Render Parity และ Automated Tests (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round RESTORE-STYLE-TAB-SCROLLABLE-BG-CUT-20260923 — เปิดแท็บสไตล์ (Style) ใน Asset Panel สำหรับเปิดใช้งาน/เตรียม Cutout ตัดพื้นหลังสินค้า โดยทำแท็บแบบเลื่อนได้ในแนวนอน (Horizontal Scroll) ไม่บีบกล่องเดิม (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅

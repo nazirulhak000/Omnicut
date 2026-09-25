@@ -7,8 +7,43 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round FIX-CUTOUT-PLAYBACK-LAYER-ORDERING-20260925 | แก้ไขปัญหาภาพพื้นหลังดิบโผล่และข้อความลอยมาอยู่ข้างหน้าระหว่างกดเล่นวิดีโอ (Playback) โดยเพิ่ม Persistent Last Known Cutout Frame และ Aggressive Lookahead Prefetch บน SequencePlayer | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round MASTER-PLAN-CAPCUT-PREMIERE-TECH-INTEGRATION-20260925 | จัดทำแผนแม่บทแบบละเอียดในการนำ 7 สุดยอดเทคโนโลยีจาก CapCut และ Premiere Pro มาประยุกต์ใช้ใน OmniCut Pro Studio | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round MASTER-PLAN-CUTOUT-COMPRESSED-VIDEO-PIPELINE-20260925 | วางแผนแม่บทแบบละเอียด ยกระดับระบบตัดพื้นหลังสู่ Single Compressed Alpha Video (ตามแนวทาง CapCut) พร้อม 1-Click Cache Purge & Auto-Cleanup ลดพื้นที่ 73-98% | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round FIX-CUTOUT-PLAYBACK-LAYER-ORDERING-20260925 — แก้ไขปัญหาภาพพื้นหลังดิบโผล่และข้อความลอยมาอยู่ข้างหน้าระหว่างกดเล่นวิดีโอ (Playback) โดยเพิ่ม Persistent Last Known Cutout Frame และ Aggressive Lookahead Prefetch บน SequencePlayer
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** แก้ไขอาการบั๊กที่เกิดขึ้นเมื่อกด Playback วิดีโอในหน้าตัดต่อ โดยพบว่าขณะกดหยุด (Pause) ข้อความพาดหัวไตเติลจะอยู่ด้านหลังสินค้า (Text Behind Subject) อย่างถูกต้อง แต่พอกดเล่น (Play) พื้นหลังดั้งเดิมของวิดีโอกลับมาปรากฏ และข้อความพาดหัวเด้งหลุดมาอยู่ด้านหน้าสุดของภาพ
+
+### สาเหตุของปัญหา (Root Cause Analysis)
+1. **Network Image Load Latency ใน Canvas Render Loop**:
+   - เมื่อกด Playback วิดีโอที่อัตรา 30 FPS เมธอด `loadedBackgroundIsolationFrame()` พยายามดึงภาพ PNG 1080x1920 แยกเฟรมผ่านเครือข่าย/HTTP ทีละใบ
+   - ในขณะที่หัวอ่านเคลื่อนที่อย่างรวดเร็ว เฟรมใหม่ที่เพิ่งถูกขอมายังโหลดผ่าน HTTP ไม่ทัน (`status !== 'ready'`) ทำให้ฟังก์ชันคืนค่า `null`
+2. **Layer Ordering Fallback Leak**:
+   - ใน `drawClipInto()` ของ `SequencePlayer.jsx` หาก `isolatedImage === null` ระบบจะตกไปเรียก `drawVideoFrame()` ซึ่งเป็นการวาด **วิดีโอต้นฉบับที่มีพื้นหลังเดิม** ขึ้นมาแสดง
+   - หลังจากนั้น `drawOverlays()` จะวาดข้อความไตเติลทับลงไปบนวิดีโอ
+   - และใน Foreground Pass ลำดับถัดมา (`plan.forEach`) เมื่อ `isolatedImage === null` ระบบจึงข้ามการวาดตัวสินค้าทับข้อความ ทำให้ข้อความหลุดลอยมาอยู่ข้างหน้าสุด และพื้นหลังเดิมของวิดีโอโผล่ออกมาเต็มจอ
+   - เมื่อกด Pause หัวอ่านหยุดนิ่ง เบราว์เซอร์มีเวลาโหลดรูป PNG สำเร็จ `isolatedImage` จึงกลับมาพร้อม ทำให้ตอนหยุดทำงานได้ถูกต้อง แต่ตอนเล่นพัง
+
+### สิ่งที่ได้แก้ไขและปรับปรุง
+1. **Persistent Last Known Frame Fallback (`frontend/src/components/SequencePlayer.jsx`)**:
+   - เพิ่ม `lastKnownIsolatedFramesRef = useRef(new Map())` เพื่อจำเฟรม Cutout ล่าสุดที่โหลดสำเร็จแยกตาม `clip.id`
+   - ใน `loadedBackgroundIsolationFrame`: หากเฟรมปัจจุบันยังโหลดผ่าน HTTP ไม่เสร็จ ให้ส่ง `lastKnownFrames.get(clip.id)` ออกมาแสดงผลแทนทันที เพื่อไม่ให้เกิดช่องว่าง `null` ซึ่งสายตามนุษย์แทบไม่เห็นความต่างในระดับ 1-2 เฟรม แต่ช่วยรักษา Layer แซนด์วิช 3 ชั้นให้คงอยู่อย่างต่อเนื่อง 100%
+2. **Aggressive Lookahead Prefetching**:
+   - เพิ่มจำนวนเฟรมที่ Prefetch ล่วงหน้าเป็น `isPlaying ? 8 : 4` เพื่อให้มีรูปภาพ Cutout อยู่ใน Memory Buffer เสมอก่อนที่หัวอ่านจะเคลื่อนไปถึง
+3. **Synchronize Cutout Mode Parameter**:
+   - แก้ไขการเรียก `drawIsolatedFrame` ใน `tick()` ให้ส่ง `{ includeBackground: false, cutoutMode: activeCutoutMode }` ตรงกันกับใน `renderAt()`
+4. **Cache Lifecycle Management**:
+   - ทำความสะอาด `lastKnownIsolatedFramesRef.current.clear()` เมื่อคอมโพเนนต์ถูก Unmount หรือเปลี่ยนโปรเจกต์
+
+### ผลการทดสอบ (Verification)
+- **Frontend Unit & Component Tests**: รัน `npm test` ผ่านครบ 314 passed ทั้งหมด 100% (รวมถึง `sequencePlayerFrameScheduling.test.js`)
+- **Production Build**: รัน `npm run build` ผ่านสมบูรณ์ ไร้ข้อผิดพลาด
+- **Backend Tests**: รัน `pytest tests/test_background_isolation_render_integration.py tests/test_api_background_isolation.py` ผ่านครบ 41 passed (3 skipped)
+
+---
 
 ## Round MASTER-PLAN-CAPCUT-PREMIERE-TECH-INTEGRATION-20260925 — จัดทำแผนแม่บทแบบละเอียดในการนำ 7 สุดยอดเทคโนโลยีจาก CapCut และ Premiere Pro มาประยุกต์ใช้ใน OmniCut Pro Studio
 

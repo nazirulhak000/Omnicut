@@ -3079,6 +3079,7 @@ function SequencePlayer({
   const lastPlayheadUiUpdateRef = useRef(null);
   const prevActiveClipIdRef = useRef(null);
   const backgroundIsolationImagesRef = useRef(new Map());
+  const lastKnownIsolatedFramesRef = useRef(new Map());
   const [backgroundIsolationManifests, setBackgroundIsolationManifests] = useState({});
   const [backgroundIsolationTick, setBackgroundIsolationTick] = useState(0);
 
@@ -3126,8 +3127,15 @@ function SequencePlayer({
     });
     if (!resolution.useArtifact || !resolution.frameUrl) return null;
     const cache = backgroundIsolationImagesRef.current;
+    const lastKnownFrames = lastKnownIsolatedFramesRef.current;
     const cached = cache.get(resolution.frameUrl);
-    if (cached) return cached.status === 'ready' ? cached.image : null;
+    if (cached) {
+      if (cached.status === 'ready') {
+        if (clip?.id != null) lastKnownFrames.set(clip.id, cached.image);
+        return cached.image;
+      }
+      return (clip?.id != null ? lastKnownFrames.get(clip.id) : null) || null;
+    }
 
     evictBackgroundIsolationFrameCache(cache, resolution.frameUrl);
 
@@ -3176,6 +3184,7 @@ function SequencePlayer({
           if (cache.get(resolution.frameUrl) !== entry) return;
           entry.status = 'ready';
           entry.retryCount = 0;
+          if (clip?.id != null) lastKnownFrames.set(clip.id, entry.image);
           setBackgroundIsolationTick((value) => value + 1);
         };
         entry.image.onerror = markError;
@@ -3187,15 +3196,15 @@ function SequencePlayer({
       backgroundIsolationPrefetchTimes({
         sourceTime: Math.max(0, Number(sourceTime) || 0),
         fps: resolution.fps,
-        count: 4,
+        count: isPlaying ? 8 : 4,
         sourceStart: resolution.sourceStart,
         sourceDuration: resolution.sourceDuration,
       }).slice(1).forEach((nextSourceTime) => {
         loadBackgroundIsolationFrame(clip, nextSourceTime, false);
       });
     }
-    return null;
-  }, [backgroundIsolation, backgroundIsolationManifests]);
+    return (clip?.id != null ? lastKnownFrames.get(clip.id) : null) || null;
+  }, [backgroundIsolation, backgroundIsolationManifests, isPlaying]);
 
   useEffect(() => () => {
     backgroundIsolationImagesRef.current.forEach((entry) => {
@@ -3203,6 +3212,7 @@ function SequencePlayer({
       if (entry?.objectUrl) URL.revokeObjectURL(entry.objectUrl);
     });
     backgroundIsolationImagesRef.current.clear();
+    lastKnownIsolatedFramesRef.current.clear();
   }, []);
 
   const publishPlayhead = (t, force = false, now = performance.now()) => {
@@ -4331,7 +4341,7 @@ function SequencePlayer({
         plan.forEach((entry) => {
           const isolatedImage = loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
           if (isolatedImage) {
-            drawIsolatedFrame(ctx, isolatedImage, entry.seg.clip, entry.motionTime, { includeBackground: false });
+            drawIsolatedFrame(ctx, isolatedImage, entry.seg.clip, entry.motionTime, { includeBackground: false, cutoutMode: activeCutoutMode });
           }
         });
         drawOverlayScrims(ctx, overlaysInFront, t);
