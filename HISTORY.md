@@ -7,7 +7,29 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round QUICK-ENABLE-CUTOUT-FROM-PLAYER-20260925 | เพิ่มปุ่ม 1-คลิกเปิดใช้งานระบบตัดพื้นหลัง (Cutout) บน SequencePlayer เมื่อสถานะเป็น off พร้อมเปิดคืนค่า Cutout ใน BLU01-ปัญหาก่อนใช้_2 | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round FIX-CUTOUT-PLAYBACK-LAYER-ORDERING-20260925 | แก้ไขปัญหาภาพพื้นหลังดิบโผล่และข้อความลอยมาอยู่ข้างหน้าระหว่างกดเล่นวิดีโอ (Playback) โดยเพิ่ม Persistent Last Known Cutout Frame และ Aggressive Lookahead Prefetch บน SequencePlayer | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round QUICK-ENABLE-CUTOUT-FROM-PLAYER-20260925 — เพิ่มปุ่ม 1-คลิกเปิดใช้งานระบบตัดพื้นหลัง (Cutout) บน SequencePlayer เมื่อสถานะเป็น off พร้อมเปิดคืนค่า Cutout ใน BLU01-ปัญหาก่อนใช้_2
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** แก้ไขปัญหาที่ผู้ใช้สงสัยว่าทำไมเปิดหน้าจอขึ้นมาแล้วไม่เห็นผลของการตัดพื้นหลังและข้อความไม่ได้ซ่อนหลังสินค้า โดยพบว่าสถานะของโปรเจกต์แสดง Badge `⊘ Cutout ปิดอยู่` (Preview ใช้ภาพต้นฉบับ) เนื่องจาก `background_isolation.enabled` ของโปรเจกต์ถูกปิดอยู่ พร้อมเพิ่มปุ่ม 1-คลิกเปิดใช้งาน Cutout บน Player ให้ใช้งานได้ทันที
+
+### สิ่งที่ทำไป
+1. **Root Cause Analysis**:
+   - ตรวจสอบ `project.json` ของ `03_Projects/BLU01-ปัญหาก่อนใช้_2/` พบว่าคลิปทั้ง 5 ชิ้นมี Cutout Artifacts พร้อมสมบูรณ์ 100% (`status: 'ready'`)
+   - แต่ที่ระดับ Project โกลบอลถูกตั้งเป็น `background_isolation.enabled = False` (เกิดจากการกดปิดหรือ Bypass ก่อนหน้า) ทำให้ Player สลับไปใช้โหมดภาพต้นฉบับ
+2. **Direct Player Quick-Enable Action**:
+   - ปรับปรุง `frontend/src/components/editor/EditorShell.jsx` ให้ส่ง prop `onToggleBackgroundIsolation` เข้าสู่ `SequencePlayer` ทั้งโหมด Desktop และ Mobile
+   - ปรับปรุง `frontend/src/components/SequencePlayer.jsx` ให้แสดงปุ่ม **`[✨ เปิดใช้ Cutout]`** สไตล์ม่วงนีออนหรูหราที่มุมขวาบนของ Player เมื่อสถานะ Cutout ปิดอยู่ เพื่อให้ผู้ใช้สามารถคลิกเปิดใช้งานได้ทันทีใน 1 วินาที โดยไม่ต้องสลับไปหาแท็บสไตล์
+3. **Project State Restoration**:
+   - ปรับค่า `background_isolation.enabled = True` ใน `03_Projects/BLU01-ปัญหาก่อนใช้_2/project.json` เพื่อให้พร้อมใช้งานทันทีเมื่อโหลดใหม่
+4. **Verification**:
+   - `npm test`: 314 passed 100%
+   - `npm run build`: built in 4.72s ผ่านสมบูรณ์
+
+---
 | Round MASTER-PLAN-CAPCUT-PREMIERE-TECH-INTEGRATION-20260925 | จัดทำแผนแม่บทแบบละเอียดในการนำ 7 สุดยอดเทคโนโลยีจาก CapCut และ Premiere Pro มาประยุกต์ใช้ใน OmniCut Pro Studio | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round MASTER-PLAN-CUTOUT-COMPRESSED-VIDEO-PIPELINE-20260925 | วางแผนแม่บทแบบละเอียด ยกระดับระบบตัดพื้นหลังสู่ Single Compressed Alpha Video (ตามแนวทาง CapCut) พร้อม 1-Click Cache Purge & Auto-Cleanup ลดพื้นที่ 73-98% | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 

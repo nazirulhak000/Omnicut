@@ -1,5 +1,6 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
+- [x] Round QUICK-ENABLE-CUTOUT-FROM-PLAYER-20260925 — เพิ่มปุ่ม 1-คลิกเปิดใช้งานระบบตัดพื้นหลัง (Cutout) บน SequencePlayer เมื่อสถานะเป็น off พร้อมเปิดคืนค่า Cutout ใน BLU01-ปัญหาก่อนใช้_2 (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round FIX-CUTOUT-PLAYBACK-LAYER-ORDERING-20260925 — แก้ไขปัญหาภาพพื้นหลังดิบโผล่และข้อความลอยมาอยู่ข้างหน้าระหว่างกดเล่นวิดีโอ (Playback) โดยเพิ่ม Persistent Last Known Cutout Frame และ Aggressive Lookahead Prefetch บน SequencePlayer (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round MASTER-PLAN-CAPCUT-PREMIERE-TECH-INTEGRATION-20260925 — จัดทำแผนแม่บทแบบละเอียดในการนำ 7 สุดยอดเทคโนโลยีจาก CapCut และ Premiere Pro มาประยุกต์ใช้ใน OmniCut Pro Studio (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round CLEANUP-DEMO-TEST-EXPORTS-PROJECTS-20260924 — ลบทำความสะอาดคลิปทดสอบ demo_*.mp4 และไฟล์ดัมมี่ตกค้างใน 04_Exports/Ready_to_post, 03_Projects/demo, spotlight-test และ export_registry.json ตามกฎเหล็กข้อ 11 และ 15 (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅

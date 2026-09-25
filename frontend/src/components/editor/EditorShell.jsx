@@ -2142,6 +2142,11 @@ export default function EditorShell({
                   spotlight={spotlight}
                   backgroundIsolation={backgroundIsolation}
                   backgroundIsolationStatus={backgroundIsolationStatus}
+                  onToggleBackgroundIsolation={(nextEnabled) => patchBackgroundIsolation({
+                    ...(backgroundIsolation || {}),
+                    schema_version: 1,
+                    enabled: typeof nextEnabled === 'boolean' ? nextEnabled : !(backgroundIsolation?.enabled === true),
+                  })}
                   cutoutPreviewMode={cutoutPreviewMode}
                   onCutoutPreviewModeChange={setCutoutPreviewMode}
                   onSpotlightChange={patchSpotlight}
@@ -2680,6 +2685,11 @@ export default function EditorShell({
                     spotlight={spotlight}
                     backgroundIsolation={backgroundIsolation}
                     backgroundIsolationStatus={backgroundIsolationStatus}
+                    onToggleBackgroundIsolation={(nextEnabled) => patchBackgroundIsolation({
+                      ...(backgroundIsolation || {}),
+                      schema_version: 1,
+                      enabled: typeof nextEnabled === 'boolean' ? nextEnabled : !(backgroundIsolation?.enabled === true),
+                    })}
                     cutoutPreviewMode={cutoutPreviewMode}
                     onCutoutPreviewModeChange={setCutoutPreviewMode}
                     onSpotlightChange={patchSpotlight}

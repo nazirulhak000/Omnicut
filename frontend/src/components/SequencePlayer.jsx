@@ -2950,6 +2950,7 @@ function SequencePlayer({
   backgroundIsolationStatus = null,
   cutoutPreviewMode = null,
   onCutoutPreviewModeChange = null,
+  onToggleBackgroundIsolation = null,
   stylePreset = DEFAULT_STYLE_PRESET,
   trackMix = null,
   compact = false,
@@ -4564,7 +4565,7 @@ function SequencePlayer({
               <BackgroundIsolationStatusBadge status={currentBackgroundIsolationStatus} />
 
               {/* Cutout Mask Inspection Mode Switcher */}
-              {currentBackgroundIsolationStatus !== 'off' && (
+              {currentBackgroundIsolationStatus !== 'off' ? (
                 <div className="absolute right-2 top-2 z-30 flex items-center gap-1 rounded-lg border border-violet-400/30 bg-black/85 p-1 text-[10px] font-semibold backdrop-blur-md shadow-lg pointer-events-auto">
                   <span className="px-1 text-violet-300 font-bold flex items-center gap-1">
                     <Layers className="h-3 w-3" />
@@ -4595,7 +4596,17 @@ function SequencePlayer({
                     มาสก์
                   </button>
                 </div>
-              )}
+              ) : onToggleBackgroundIsolation ? (
+                <button
+                  type="button"
+                  onClick={() => onToggleBackgroundIsolation(true)}
+                  title="คลิกเพื่อเปิดใช้งานระบบตัดพื้นหลัง (Cutout)"
+                  className="absolute right-2 top-2 z-30 flex items-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-950/85 px-2.5 py-1 text-[11px] font-bold text-violet-100 backdrop-blur-md shadow-lg transition hover:bg-violet-900/90 cursor-pointer pointer-events-auto"
+                >
+                  <Layers className="h-3.5 w-3.5 text-violet-300" />
+                  เปิดใช้ Cutout
+                </button>
+              ) : null}
 
               {/* Smart Snap Guides (Center Guidelines) */}
               {snapGuide.x !== null && (
