@@ -9,6 +9,8 @@
 - [x] Round FIX-CUTOUT-LAYERS-IMPORT-ERROR-20260924 — แก้ไข ReferenceError: Layers is not defined ใน SequencePlayer.jsx เมื่อเปิดใช้งานฟังก์ชันตัด BG (Background Isolation) และแนะนำวิธีการใช้งานระบบตัด BG อย่างละเอียด (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round FIX-PRODUCT-DELETE-FORCE-SUPPORT-20260924 — แก้ไขปัญหาระบบลบสินค้าติดล็อกมุมที่โพสต์แล้ว เพิ่มตัวเลือก Force Delete ใน Backend API และ ProductToClip UI พร้อมล้างสินค้าทดสอบ debug (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
 - [x] Round CUTOUT-CONFLICT-CLIP-NAV-AND-AUTO-RESOLVE-20260925 — เพิ่มระบบระบุคลิปที่ขัดแย้งกับ Cutout พร้อมปุ่มนำทางคลิกเลือกคลิปบน Timeline และปุ่ม 1-คลิกปิดพื้นหลังเบลอทั้งหมด (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+- [x] Round FIX-OVERLAY-INSPECTOR-USEMEMO-IMPORT-20260925 — แก้ไข ReferenceError: useMemo is not defined ใน OverlayInspector.jsx เมื่อกดเพิ่มข้อความ พร้อมอธิบายกลไก Text Behind Subject & การใช้งาน Cutout (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+
 
 - [x] Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 — ปิดงาน Motion Text/Preview–Render Parity ให้ตรวจซ้ำได้จริง (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
 - [x] Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 — ปิด parity ของ Caption/Sticker/Effect/Spotlight แบบ vertical slice (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅

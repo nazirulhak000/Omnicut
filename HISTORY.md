@@ -7,7 +7,24 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round FIX-OVERLAY-INSPECTOR-USEMEMO-IMPORT-20260925 | แก้ไข ReferenceError: useMemo is not defined ใน OverlayInspector.jsx เมื่อกดเพิ่มข้อความ พร้อมอธิบายกลไก Text Behind Subject | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round CUTOUT-CONFLICT-CLIP-NAV-AND-AUTO-RESOLVE-20260925 | เพิ่มระบบระบุคลิปที่ขัดแย้งกับ Cutout พร้อมปุ่มนำทางคลิกเลือกคลิปบน Timeline และปุ่ม 1-คลิกปิดพื้นหลังเบลอทั้งหมด | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round FIX-OVERLAY-INSPECTOR-USEMEMO-IMPORT-20260925 — แก้ไข ReferenceError: useMemo is not defined ใน OverlayInspector.jsx เมื่อกดเพิ่มข้อความ พร้อมอธิบายกลไก Text Behind Subject
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** แก้ไขบั๊ก `ReferenceError: useMemo is not defined` ใน `OverlayInspector.jsx` เมื่อกดเพิ่มข้อความหรือเลือกแก้ไข Text Overlay, รันการทดสอบและ build ตรวจสอบความถูกต้อง, และอธิบายตอบคำถามผู้ใช้เกี่ยวกับกลไก Text Behind Subject (ฟอนต์อยู่หลังสินค้าแต่ฉากหลังเดิมยังคงอยู่) และคำแนะนำการใช้ Cutout รายช่วง/ทั้งคลิป
+
+### สิ่งที่ทำไป
+
+1. **Bugfix React Import**:
+   - เพิ่ม `useMemo` ในการ import จาก `'react'` ที่บรรทัด 1 ของ `frontend/src/components/editor/inspector/OverlayInspector.jsx` ซึ่งถูกเรียกใช้ในการคำนวณ `hookCardSampleText` ที่บรรทัด 145
+2. **Testing & Verification**:
+   - รัน `npm test` ผ่านครบ 314/314 tests
+   - รัน `npm run build` สำเร็จ 2,026 modules ใน 4.01s ไม่เกิด error
+3. **Workflow & Knowledge Clarification**:
+   - ชี้แจงกลไก Text Behind Subject: วิดีโอพื้นหลังเดิมยังคงแสดงและเคลื่อนไหวตามปกติ 100% โดยระบบนำสินค้าที่เจาะทะลุมาซ้อนทับด้านหน้าตัวอักษร Hook เพื่อสร้างมิติ 3D Layer
 | Round FIX-CUTOUT-LAYERS-IMPORT-ERROR-20260924 | แก้ไข ReferenceError: Layers is not defined ใน SequencePlayer.jsx เมื่อเปิดใช้งานฟังก์ชันตัด BG (Background Isolation) | 2026-09-24 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 
 ## Round CUTOUT-CONFLICT-CLIP-NAV-AND-AUTO-RESOLVE-20260925 — เพิ่มระบบระบุคลิปที่ขัดแย้งกับ Cutout พร้อมปุ่มนำทางคลิกเลือกคลิปบน Timeline และปุ่ม 1-คลิกปิดพื้นหลังเบลอทั้งหมด
