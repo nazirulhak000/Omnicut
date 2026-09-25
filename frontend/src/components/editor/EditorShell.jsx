@@ -1634,26 +1634,8 @@ export default function EditorShell({
           .then(() => workspaceData?.invalidateTrackerData?.()).catch(() => {});
       } catch (e) {}
     }
-    const effectiveSavePayload = forceDisableCutout
-      ? withStylePresetPayload(
-          editorStateToSavePayload({
-            clipList,
-            cuesList,
-            style,
-            overlays,
-            stickers,
-            effects,
-            spotlight,
-            backgroundIsolation: effectiveBgIsolation,
-            trackMix,
-            microCuesList,
-          }),
-          activeStylePreset,
-        )
-      : projectSavePayload;
-
     try {
-      await updateProjectState(projectName, effectiveSavePayload);
+      await updateProjectState(projectName, projectSavePayload);
       const res = await startReroll({
         project_name: projectName,
         part: audioDirty ? 'bgm' : 'subtitles',

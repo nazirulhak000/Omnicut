@@ -401,7 +401,7 @@ class SubtitleEngine:
                     **{
                         key: c[key]
                         for key in ("x", "y", "position", "scale", "auto_emoji")
-                        if key in c
+                        if key in c and c[key] is not None
                     },
                 })
                 cue_id += 1
@@ -887,9 +887,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 multi_line_metric_tag = f"{{\\fs{font_size}\\fscx{boost_pct}\\fscy{boost_pct}}}"
 
             pos_override = ""
-            if "x" in cue or "y" in cue:
-                norm_x = float(cue.get("x", 0.50))
-                norm_y = float(cue.get("y", 0.78125))
+            if cue.get("x") is not None or cue.get("y") is not None:
+                norm_x = float(cue.get("x") if cue.get("x") is not None else 0.50)
+                norm_y = float(cue.get("y") if cue.get("y") is not None else 0.78125)
                 px_x = int(round(video_width * norm_x))
                 px_y = int(round(video_height * norm_y))
                 pos_override = f"\\an5\\pos({px_x},{px_y})"

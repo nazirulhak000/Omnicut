@@ -7,7 +7,39 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round FIX-CUE-NONE-COORDINATES-FLOAT-ERROR-20260925 | แก้ไขข้อผิดพลาด float() argument must be a string or a real number, not 'NoneType' ใน scripts/subtitle_engine.py เมื่อ cue มีพิกัด x หรือ y เป็น None | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round QUICK-ENABLE-CUTOUT-FROM-PLAYER-20260925 | เพิ่มปุ่ม 1-คลิกเปิดใช้งานระบบตัดพื้นหลัง (Cutout) บน SequencePlayer เมื่อสถานะเป็น off พร้อมเปิดคืนค่า Cutout ใน BLU01-ปัญหาก่อนใช้_2 | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round FIX-CUE-NONE-COORDINATES-FLOAT-ERROR-20260925 — แก้ไขข้อผิดพลาด float() argument must be a string or a real number, not 'NoneType' ใน scripts/subtitle_engine.py เมื่อ cue มีพิกัด x หรือ y เป็น None
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** แก้ไขข้อผิดพลาดที่เกิดขึ้นขณะกดเรนเดอร์ (Render) ซึ่งส่งผลให้เกิดแบนเนอร์สีแดง `เกิดข้อผิดพลาดในการประมวลผล: float() argument must be a string or a real number, not 'NoneType'` บนหน้าจอ Editor
+
+### สาเหตุของปัญหา (Root Cause Analysis)
+- ใน `scripts/subtitle_engine.py` ขั้นตอนการสร้างซับไตเติล ASS มีโค้ดตรวจสอบ:
+  ```python
+  if "x" in cue or "y" in cue:
+      norm_x = float(cue.get("x", 0.50))
+      norm_y = float(cue.get("y", 0.78125))
+  ```
+- เมื่อโปรเจกต์มีการบันทึก cue ที่มีพิกัดเริ่มต้นเป็น `None` (เช่น `"x": None, "y": None`) เงื่อนไข `"x" in cue` เป็นจริง แต่ `cue.get("x", 0.50)` จะคืนค่า `None` (เนื่องจากคีย์มีอยู่จริงในพจนานุกรม) ส่งผลให้การแปลง `float(None)` เกิด `TypeError: float() argument must be a string or a real number, not 'NoneType'` ทันที
+- นอกจากนี้ ในขั้นตอนแตกคำเป็น `micro_cues` มีการก็อปปี้คีย์ `x`, `y` ที่มีค่าเป็น `None` กระจายลงไปยังทุกซับไตเติล
+
+### สิ่งที่ได้แก้ไข
+1. **Safe Float & None Guard (`scripts/subtitle_engine.py`)**:
+   - ปรับปรุงการตรวจสอบตำแหน่งใน `generate_ass()` ให้ตรวจสอบ `if cue.get("x") is not None or cue.get("y") is not None:`
+   - แปลงค่าด้วยความปลอดภัย `float(cue.get("x") if cue.get("x") is not None else 0.50)`
+   - ในขั้นตอนสร้าง `micro_cues` กรองเฉพาะคีย์ที่มีค่าและ `c[key] is not None` เท่านั้น
+2. **Editor Parity Compliance (`frontend/src/components/editor/EditorShell.jsx`)**:
+   - ปรับปรุงการบันทึกโปรเจกต์ให้สอดคล้องกับ Parity Test Assertion
+3. **Verification**:
+   - รันการเรนเดอร์ตรงผ่าน `scripts/pipeline.py` บนโปรเจกต์ `BLU01-ปัญหาก่อนใช้_2` สำเร็จ 100% จนได้ไฟล์ MP4 สมบูรณ์
+   - รัน Pytest ทั้ง 172 รายการผ่านครบถ้วน
+   - รัน Frontend Unit Tests 314 รายการผ่านครบ 100%
+   - รัน `npm run build` ผ่านสมบูรณ์
+
+---
 | Round FIX-CUTOUT-PLAYBACK-LAYER-ORDERING-20260925 | แก้ไขปัญหาภาพพื้นหลังดิบโผล่และข้อความลอยมาอยู่ข้างหน้าระหว่างกดเล่นวิดีโอ (Playback) โดยเพิ่ม Persistent Last Known Cutout Frame และ Aggressive Lookahead Prefetch บน SequencePlayer | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 
 ## Round QUICK-ENABLE-CUTOUT-FROM-PLAYER-20260925 — เพิ่มปุ่ม 1-คลิกเปิดใช้งานระบบตัดพื้นหลัง (Cutout) บน SequencePlayer เมื่อสถานะเป็น off พร้อมเปิดคืนค่า Cutout ใน BLU01-ปัญหาก่อนใช้_2
