@@ -7,7 +7,23 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round RENDER-GATE-CUTOUT-BYPASS-AND-GUIDE-20260925 | เพิ่มปุ่มปลดล็อกเรนเดอร์ด่วนในแบนเนอร์แจ้งเตือน Cutout (ปิด Cutout เพื่อเรนเดอร์ทันที) ใน EditorShell.jsx | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round FIX-OVERLAY-INSPECTOR-USEMEMO-IMPORT-20260925 | แก้ไข ReferenceError: useMemo is not defined ใน OverlayInspector.jsx เมื่อกดเพิ่มข้อความ พร้อมอธิบายกลไก Text Behind Subject | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round RENDER-GATE-CUTOUT-BYPASS-AND-GUIDE-20260925 — เพิ่มปุ่มปลดล็อกเรนเดอร์ด่วนในแบนเนอร์แจ้งเตือน Cutout (ปิด Cutout เพื่อเรนเดอร์ทันที) ใน EditorShell.jsx
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** แก้ปัญหาผู้ใช้กดเรนเดอร์ไม่ได้เนื่องจากติดแบนเนอร์แจ้งเตือน "Cutout ยังไม่พร้อมครบทุกคลิป กรุณากดเตรียม Cutout ให้สถานะพร้อมก่อน Render" โดยเพิ่มปุ่ม Quick Action ในแบนเนอร์สีแดงให้ผู้ใช้กด "ปิด Cutout แล้วเรนเดอร์ทันที" ได้ในคลิกเดียว พร้อมอธิบายวิธีแก้ปัญหาทั้ง 2 แนวทาง
+
+### สิ่งที่ทำไป
+
+1. **Quick Action in applyError Banner (`EditorShell.jsx`)**:
+   - เพิ่มปุ่ม `[ปิด Cutout แล้วเรนเดอร์ทันที]` ภายในแบนเนอร์แจ้งเตือน `applyError` สีแดงด้านบน เมื่อข้อความเตือนเกี่ยวข้องกับ Cutout
+   - เมื่อกดปุ่ม ระบบจะปิดสวิตช์ `background_isolation` อัตโนมัติ, ล้าง error ทิ้ง, แจ้งเตือน toast, และเปิดทางให้กดเรนเดอร์ได้ทันทีโดยไม่ต้องสลับไปหาแท็บสไตล์
+2. **Testing & Verification**:
+   - รัน `npm test` ผ่านครบ 314/314 tests
+   - รัน `npm run build` สำเร็จ 2,026 modules ใน 4.54s
 | Round CUTOUT-CONFLICT-CLIP-NAV-AND-AUTO-RESOLVE-20260925 | เพิ่มระบบระบุคลิปที่ขัดแย้งกับ Cutout พร้อมปุ่มนำทางคลิกเลือกคลิปบน Timeline และปุ่ม 1-คลิกปิดพื้นหลังเบลอทั้งหมด | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 
 ## Round FIX-OVERLAY-INSPECTOR-USEMEMO-IMPORT-20260925 — แก้ไข ReferenceError: useMemo is not defined ใน OverlayInspector.jsx เมื่อกดเพิ่มข้อความ พร้อมอธิบายกลไก Text Behind Subject

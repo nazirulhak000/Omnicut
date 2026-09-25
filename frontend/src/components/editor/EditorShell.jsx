@@ -2043,9 +2043,22 @@ export default function EditorShell({
               Shared placement is also the only version that can't drift
               between the two trees again. */}
           {applyError && (
-            <div className="flex flex-shrink-0 items-center gap-1.5 border-b border-rose-500/30 bg-rose-950/40 px-3 py-1.5 text-sm text-rose-200">
+            <div className="flex flex-shrink-0 items-center gap-2 border-b border-rose-500/30 bg-rose-950/40 px-3 py-1.5 text-sm text-rose-200">
               <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
               <span className="min-w-0 flex-1">{applyError}</span>
+              {applyError.includes('Cutout') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    patchBackgroundIsolation({ ...(backgroundIsolation || {}), schema_version: 1, enabled: false });
+                    setApplyError(null);
+                    showToast('ปิดโหมด Cutout แล้ว สามารถกดปุ่มเรนเดอร์ได้ทันที');
+                  }}
+                  className="flex-shrink-0 rounded-lg bg-rose-500/25 px-2.5 py-1 text-xs font-bold text-rose-100 hover:bg-rose-500/40 border border-rose-400/40 cursor-pointer transition shadow-sm"
+                >
+                  ปิด Cutout แล้วเรนเดอร์ทันที
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setApplyError(null)}
