@@ -344,3 +344,34 @@ def test_project_disable_overrides_ready_per_clip_artifact(monkeypatch, tmp_path
     assert "bg_subject" not in graph
     assert "background-isolation-foreground-sequences" not in command
     assert "-framerate" not in command
+
+
+def test_subframe_tail_discretization_tolerance(monkeypatch, tmp_path):
+    # A clip spanning 5.642s at 30 fps needs ceil(169.26) = 170 frames.
+    # If the artifact contains 169 frames (the exact integral frames to the tail of the source),
+    # the 1-frame difference is due to math.ceil() rounding of fractional sub-frames and should succeed.
+    config, artifact_id, _ = _make_sequence(
+        monkeypatch,
+        tmp_path,
+        frame_count=169,
+        fps=30,
+        source_start=0.0,
+        source_duration=5.642,
+    )
+    command, _ = _assemble(
+        monkeypatch,
+        tmp_path,
+        clip_list=[
+            {
+                "source_path": str(tmp_path / "source.mp4"),
+                "trim_start": 0.0,
+                "trim_end": 5.642,
+                "background_isolation": config,
+            }
+        ],
+        background_isolation={"enabled": True},
+    )
+
+    graph = _filter(command)
+    assert artifact_id in " ".join(command)
+    assert "alphamerge" in graph

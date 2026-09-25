@@ -7,9 +7,27 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round FIX-CUTOUT-SUBFRAME-TAIL-DISCRETIZATION-20260925 | แก้ไขบั๊ก floating-point ceil discretization 1 เฟรมที่ส่วนท้ายของคลิปใน _read_ready_background_sequence | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round AUTO-RENDER-ON-CUTOUT-BYPASS-20260925 | ปรับปรุงปุ่มปิด Cutout ใน applyError ให้ทริกเกอร์เรนเดอร์อัตโนมัติทันทีพร้อมส่ง forceDisableCutout เข้า handleApply | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round RENDER-GATE-CUTOUT-BYPASS-AND-GUIDE-20260925 | เพิ่มปุ่มปลดล็อกเรนเดอร์ด่วนในแบนเนอร์แจ้งเตือน Cutout (ปิด Cutout เพื่อเรนเดอร์ทันที) ใน EditorShell.jsx | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round FIX-OVERLAY-INSPECTOR-USEMEMO-IMPORT-20260925 | แก้ไข ReferenceError: useMemo is not defined ใน OverlayInspector.jsx เมื่อกดเพิ่มข้อความ พร้อมอธิบายกลไก Text Behind Subject | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round FIX-CUTOUT-SUBFRAME-TAIL-DISCRETIZATION-20260925 — แก้ไขบั๊ก floating-point ceil discretization 1 เฟรมที่ส่วนท้ายของคลิปใน _read_ready_background_sequence
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** แก้ปัญหา `_read_ready_background_sequence` ใน `scripts/video_editor.py` บล็อกการเรนเดอร์ Cutout อย่างไม่ถูกต้อง ทั้งที่ผู้ใช้เตรียม Cutout ไว้ครบทุกคลิปแล้ว เนื่องจาก `math.ceil(span * fps - 1e-9)` ปัดเศษเสี้ยวเฟรมขึ้น 1 เฟรม ทำให้ `start_frame + needed_frames > frame_count` เกินไปเพียง 1 เฟรม (0.008 วินาที) ที่ส่วนท้ายของคลิป
+
+### สิ่งที่ทำไป
+
+1. **Subframe Tail Boundary Discretization Tolerance (`scripts/video_editor.py`)**:
+   - ใน `_read_ready_background_sequence`: อนุญาต 1-frame boundary tolerance เมื่อ `math.ceil()` ปัดเศษเสี้ยวเฟรม (เช่น 0.26 เฟรม) โดยตรวจสอบว่าจำนวนเฟรมเต็ม (`math.floor(span * fps)`) ยังคงอยู่ภายใน `frame_count`
+   - ป้องกันไม่ให้ `start_frame >= frame_count`
+2. **Testing & Verification**:
+   - เพิ่ม unit test `test_subframe_tail_discretization_tolerance` ใน `tests/test_background_isolation_render_integration.py`
+   - รัน `pytest` ผ่านครบ 102/102 tests (1 skipped)
+   - ตรวจสอบกับโปรเจกต์ `BLU01-ปัญหาก่อนใช้_2` คลิปทั้ง 5 ท่อนได้ผลลัพธ์ `ready=True` ครบ 100%
+
 
 ## Round AUTO-RENDER-ON-CUTOUT-BYPASS-20260925 — ปรับปรุงปุ่มปิด Cutout ใน applyError ให้ทริกเกอร์เรนเดอร์อัตโนมัติทันทีพร้อมส่ง forceDisableCutout เข้า handleApply
 

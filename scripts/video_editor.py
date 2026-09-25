@@ -198,11 +198,19 @@ def _read_ready_background_sequence(
     if not plan.get("enabled") or plan.get("artifact_id") != artifact_id:
         return None
     start_frame = plan.get("frame_index")
-    if isinstance(start_frame, bool) or not isinstance(start_frame, int) or start_frame < 0:
+    if (
+        isinstance(start_frame, bool)
+        or not isinstance(start_frame, int)
+        or start_frame < 0
+        or start_frame >= frame_count
+    ):
         return None
     needed_frames = max(1, math.ceil(span * fps - 1e-9))
     if start_frame + needed_frames > frame_count:
-        return None
+        # Allow 1-frame boundary tolerance when math.ceil() rounds up fractional
+        # sub-frames at the clip tail, provided the integral frame span fits.
+        if start_frame + math.floor(span * fps) > frame_count:
+            return None
 
     expected_names = {f"frame_{index:06d}.png" for index in range(frame_count)}
     try:
