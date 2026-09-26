@@ -524,11 +524,17 @@ function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0, isolatedImage
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.filter = clipFilter(clip);
   const isolatedVideo = isolatedImage instanceof HTMLVideoElement;
-  if (video && cutoutMode === 'composite' && !isolatedVideo) {
+  // Composite mode keeps the original footage as the base layer so the
+  // sandwich reads [footage] -> [hook text] -> [cut-out subject]. This used
+  // to skip the footage for a video cutout and fill solid #0B1220 instead,
+  // which flattened the background and lost the layer the text sits on --
+  // the preview half of the same regression as the render's drawbox fill
+  // (see RESTORE-ORIGINAL-FOOTAGE-BG-FOR-CUTOUT-SANDWICH-20260925).
+  if (video && cutoutMode === 'composite') {
     drawVideoFrame(ctx, video, clip, motionTime);
   }
   const painted = isolatedImage
-    ? drawIsolatedFrame(ctx, isolatedImage, clip, motionTime, { includeBackground: isolatedVideo || cutoutMode !== 'composite', cutoutMode })
+    ? drawIsolatedFrame(ctx, isolatedImage, clip, motionTime, { includeBackground: cutoutMode !== 'composite', cutoutMode })
     : (video ? drawVideoFrame(ctx, video, clip, motionTime) : false);
   ctx.globalAlpha = 1;
   ctx.filter = 'none';

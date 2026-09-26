@@ -298,6 +298,13 @@ def test_video_cutout_render_uses_alpha_decoder_and_artifact_local_seek(monkeypa
     assert "frame_%06d.png" not in " ".join(command)
     assert "alphamerge" in _filter(command)
     assert "alphaextract[bg_fg_alpha_0]" in _filter(command)
+    # The footage stays visible behind the hook text. Round
+    # RESTORE-ORIGINAL-FOOTAGE-BG-FOR-CUTOUT-SANDWICH-20260925 removed this
+    # fill from the PNG path and asserted it there, but the video path added
+    # later reintroduced it -- the assertion never covered this branch, so the
+    # background silently went solid again. Both paths are now guarded.
+    assert "drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill" not in _filter(command)
+    assert "0x0B1220" not in _filter(command), "cutout must not flatten the background"
 
 
 def test_blurred_background_conflict_blocks_cutout_render(monkeypatch, tmp_path):

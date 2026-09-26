@@ -16,6 +16,10 @@ import {
  * Each start advances a generation, so a response belonging to an older job
  * cannot publish state or stop the timer for the newer job in the same tab.
  */
+// How long a resumed job may go without answering before its stored id is
+// treated as stale. A live job replies on the first poll (1s).
+const RESUME_STATUS_TIMEOUT_MS = 8000;
+
 export function createRenderJobPollController({
   fetchStatus,
   isActive = () => true,
@@ -278,11 +282,39 @@ export function useRenderJob({
     );
 
     if (isForCurrentProject) {
+      // activeProjectRef drives the poller's isActive() check. On a fresh
+      // mount it can still hold the previous project, in which case the poll
+      // silently never starts while the UI already shows "rendering" at the
+      // 10% placeholder -- a permanent phantom progress bar. Set it before
+      // starting so the first poll is always accepted.
+      activeProjectRef.current = projectName;
       setJobId(storedJobId);
       setIsRendering(true);
       setStartTime(Date.now());
       setJobStatus({ progress: 0.1, message: 'กำลังตรวจสอบสถานะการเรนเดอร์...' });
       pollJob(storedJobId, projectName);
+
+      // A resumed job that never answers must not hang the UI forever: if no
+      // status has arrived by the time this fires, drop the stale entry and
+      // let the user render again. A live job answers within a second.
+      const staleGuard = setTimeout(() => {
+        if (!isMountedRef.current) return;
+        setJobStatus((current) => {
+          const unanswered = !current || current.progress === 0.1;
+          if (!unanswered) return current;
+          clearActiveJob(projectName);
+          setIsRendering(false);
+          setJobId(null);
+          setStartTime(null);
+          setApplyError('ไม่พบงานเรนเดอร์ที่ค้างอยู่ (เซิร์ฟเวอร์อาจรีสตาร์ท) กรุณาเรนเดอร์ใหม่');
+          return null;
+        });
+      }, RESUME_STATUS_TIMEOUT_MS);
+
+      return () => {
+        clearTimeout(staleGuard);
+        clearTimer();
+      };
     } else {
       setJobId(null);
       setIsRendering(false);

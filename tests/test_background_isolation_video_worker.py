@@ -16,8 +16,18 @@ from scripts import api_background_isolation as isolation_api
 
 
 class _Segmenter:
+    """Masks the right half opaque and tints it, so the cut-out subject is
+    distinguishable from the footage behind it.
+
+    The tint matters: the composite keeps the original footage as the base
+    layer, so a subject carrying the source's own colour would be invisible
+    against it and a pixel assertion could not tell the two apart.
+    """
+
     def remove(self, rgb, session=None):
         rgba = rgb.convert("RGBA")
+        subject = Image.new("RGBA", rgb.size, (255, 0, 0, 255))
+        rgba.paste(subject, (rgb.width // 2, 0))
         alpha = Image.new("L", rgb.size, 0)
         alpha.paste(255, (rgb.width // 2, 0, rgb.width, rgb.height))
         rgba.putalpha(alpha)
@@ -176,7 +186,12 @@ def test_mask_video_composites_in_real_ffmpeg_export(tmp_path, monkeypatch):
     assert len(frame) == 720 * 1280 * 3
     left = frame[(640 * 720 + 100) * 3:(640 * 720 + 100) * 3 + 3]
     right = frame[(640 * 720 + 600) * 3:(640 * 720 + 600) * 3 + 3]
-    assert right[2] > left[2] + 70
+    # Left half: the mask is transparent, so the blue source footage shows
+    # through -- it must NOT be painted over (that regression flattened the
+    # background to solid #0B1220 and lost the layer the hook text sits on).
+    assert left[2] > left[0] + 70, f"footage should remain visible behind the mask: {left}"
+    # Right half: the red cut-out subject is composited over it.
+    assert right[0] > right[2] + 70, f"subject should be composited on top: {right}"
 
 
 def test_manifest_records_measured_encode_performance(tmp_path):

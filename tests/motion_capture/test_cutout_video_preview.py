@@ -19,10 +19,13 @@ def test_transparent_video_cutout_appears_in_real_sequence_player(tmp_path, moti
     cutout = tmp_path / "cutout.webm"
     subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
-         "-i", "color=c=red:s=64x64:r=30:d=8", "-c:v", "libx264", str(source)],
+         "-i", "color=c=blue:s=64x64:r=30:d=8", "-c:v", "libx264", str(source)],
         check=True, capture_output=True,
     )
-    # The alpha split runs vertically in the player crop.
+    # The alpha split runs vertically in the player crop. The subject below is
+    # RED over this BLUE footage: composite mode keeps the footage as the base
+    # layer, so a same-coloured subject would be indistinguishable from the
+    # background and the assertions could not tell the two layers apart.
     foreground = b"".join(
         bytes([255, 0, 0, 0] * 32 + [255, 0, 0, 255] * 32)
         for _ in range(64)
@@ -89,7 +92,11 @@ def test_transparent_video_cutout_appears_in_real_sequence_player(tmp_path, moti
               const ctx = canvas.getContext('2d');
               const left = ctx.getImageData(100, 480, 1, 1).data;
               const right = ctx.getImageData(440, 480, 1, 1).data;
-              return right[0] > left[0] + 80 && left[0] < 60;
+              // Right: the red cut-out subject. Left: the blue source
+              // footage, which composite mode must keep visible rather than
+              // painting over -- that fill was the regression that lost the
+              // layer the hook text sits on.
+              return right[0] > left[0] + 80 && left[2] > left[0] + 60;
             }"""
             try:
                 page.wait_for_function(condition, timeout=8000)

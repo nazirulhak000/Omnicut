@@ -1420,13 +1420,15 @@ class VideoEditor:
                         f"[{transformed_node}]{subject_for_base}overlay",
                         1,
                     )
-                    if "video_path" in bg_info:
-                        source_split = f"[bg_source_{idx}]"
-                        source_transform = source_transform.replace(
-                            f"[{transformed_node}];",
-                            f"{source_split};{source_split}drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill[{transformed_node}];",
-                            1,
-                        )
+                    # NOTE: do not paint over the base layer here. Round
+                    # RESTORE-ORIGINAL-FOOTAGE-BG-FOR-CUTOUT-SANDWICH-20260925
+                    # removed a drawbox fill from the PNG-sequence path so the
+                    # sandwich reads [original footage] -> [hook text] ->
+                    # [cut-out subject] -> [subtitles]. The video-cutout path
+                    # added later reintroduced the same fill and flattened the
+                    # background back to solid #0B1220. The footage stays as
+                    # the base layer; the cut-out subject is composited over
+                    # the text above it.
                     filter_complex.append(
                         source_transform
                         + foreground_transform

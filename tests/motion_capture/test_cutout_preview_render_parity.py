@@ -54,12 +54,14 @@ def _build_cutout(tmp_path):
 
     subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
-         "-i", f"color=c=red:s={CUTOUT_W}x{CUTOUT_H}:r={FPS}:d={DURATION}",
+         "-i", f"color=c=blue:s={CUTOUT_W}x{CUTOUT_H}:r={FPS}:d={DURATION}",
          "-c:v", "libx264", str(source)],
         check=True, capture_output=True,
     )
-    # Left half fully transparent, right half fully opaque -- the same split
-    # the existing preview gate uses, so both tests describe one fixture.
+    # Left half fully transparent, right half an opaque RED subject over the
+    # BLUE footage above. Composite mode keeps the footage as the base layer,
+    # so a same-coloured subject would be invisible against it and neither
+    # engine's pixels could be told apart.
     frame = b"".join(
         bytes([255, 0, 0, 0] * (CUTOUT_W // 2) + [255, 0, 0, 255] * (CUTOUT_W // 2))
         for _ in range(CUTOUT_H)
@@ -273,6 +275,14 @@ def test_preview_and_render_agree_on_cutout_compositing(tmp_path, motion_fixture
     assert preview_right[0] > preview_left[0] + 70, (
         f"preview lost the cutout structure: left={preview_left} right={preview_right}")
 
+    # 1b. Both keep the footage visible where the mask is transparent. A fill
+    #     over the base layer would make the left half match the subject and
+    #     destroy the layer the hook text sits on.
+    assert render_left[2] > render_left[0] + 50, (
+        f"render painted over the footage: {render_left}")
+    assert preview_left[2] > preview_left[0] + 50, (
+        f"preview painted over the footage: {preview_left}")
+
     # 2. The two engines agree on WHICH side is the subject. This is the
     #    parity claim -- a compositing-order regression in either engine
     #    inverts one side and is caught here even though the absolute colours
@@ -281,7 +291,7 @@ def test_preview_and_render_agree_on_cutout_compositing(tmp_path, motion_fixture
         f"preview and render disagree on subject side: "
         f"render={render_left}/{render_right} preview={preview_left}/{preview_right}")
 
-    # 3. Both keep the transparent half genuinely dark -- neither may paint
-    #    the subject across the whole frame.
+    # 3. Neither engine may paint the subject across the whole frame: the
+    #    masked half must stay footage-coloured, not subject-coloured.
     assert render_left[0] < 120, f"render leaked subject into the masked half: {render_left}"
     assert preview_left[0] < 120, f"preview leaked subject into the masked half: {preview_left}"

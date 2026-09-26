@@ -13,6 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -967,6 +968,43 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
     }
 
 
+def _guard_stale_cutout_payload(params: Dict[str, Any], manifest: Dict[str, Any]) -> None:
+    """Refuse a render whose cutout state is older than the saved project.
+
+    Raises ValueError when the project has prepared cutout artifacts but the
+    incoming payload would render without them. Rendering anyway produces a
+    video with the hook text over the product instead of behind it, which
+    looks like a bug in the feature rather than a stale browser tab.
+    """
+    payload_cfg = params.get("background_isolation")
+    saved_cfg = manifest.get("background_isolation")
+    if not isinstance(saved_cfg, Mapping) or saved_cfg.get("enabled") is not True:
+        return
+
+    payload_enabled = isinstance(payload_cfg, Mapping) and payload_cfg.get("enabled") is True
+    if payload_enabled:
+        return
+
+    # Only complain when the saved project actually has something to use --
+    # a project that merely has the switch on is not yet renderable with it.
+    saved_clips = manifest.get("clip_list") or []
+    ready = sum(
+        1 for clip in saved_clips
+        if isinstance(clip, Mapping)
+        and isinstance(clip.get("background_isolation"), Mapping)
+        and isinstance(clip["background_isolation"].get("artifact"), Mapping)
+        and clip["background_isolation"]["artifact"].get("status") == "ready"
+    )
+    if ready == 0:
+        return
+
+    raise ValueError(
+        f"สถานะ Cutout ในหน้าต่างนี้เก่ากว่าที่บันทึกไว้ ({ready} คลิปพร้อมใช้แล้ว) "
+        "กรุณารีเฟรชหน้าตัดต่อแล้วเรนเดอร์ใหม่ "
+        "(ถ้าตั้งใจเรนเดอร์แบบไม่ใช้ Cutout ให้ปิดสวิตช์ Cutout ในโปรเจกต์ก่อน)"
+    )
+
+
 def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[str, Any]) -> None:
     from scripts.pipeline import TikTokAutoCutterPipeline
 
@@ -997,6 +1035,15 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             raw_video = manifest["clip_list"][0].get("source_path")
         if not raw_video:
             raw_video = str(BASE_DIR / "01_Raw")
+
+        # A render must not quietly produce the wrong picture. The editor sends
+        # the cutout config it held when the button was pressed; if that tab
+        # was showing a stale state (artifact still preparing, or prepared in
+        # another tab), the payload can say "cutout off" while the project on
+        # disk has every clip ready. The old behaviour was to render the plain
+        # graph and finish successfully, so the user only discovered the text
+        # sitting over the product by watching the export.
+        _guard_stale_cutout_payload(params, manifest)
 
         # Resolve product_id and angle_id for accurate lifecycle synchronization
         product_id = params.get("product_id") or (manifest.get("product") or {}).get("id")
