@@ -1409,6 +1409,14 @@ export default function EditorShell({
     });
   }, [setSilent]);
 
+  // What the PLAYER draws. Never what any editor control reads: this copy is
+  // deliberately disabled while the user is previewing without the cutout,
+  // and writing it back would disable the feature for real.
+  const previewBackgroundIsolation = useMemo(
+    () => (isCutoutHidden ? { ...(backgroundIsolation || {}), enabled: false } : backgroundIsolation),
+    [isCutoutHidden, backgroundIsolation],
+  );
+
   const patchBackgroundIsolation = useCallback((next) => {
     cutoutContextRef.current.generation += 1;
     set((prev) => ({ ...prev, backgroundIsolation: next || null }));
@@ -1646,7 +1654,7 @@ export default function EditorShell({
       } else if (!matchAngle.video_url) {
         await new Promise((resolve) => requestAnimationFrame(resolve));
         const player = isMobileView ? mobilePlayerRef.current : desktopPlayerRef.current;
-        const snapshot = player?.captureFrame?.();
+        const snapshot = await player?.captureCoverFrame?.();
         if (!snapshot) {
           setApplyError('ยังจับภาพจาก Timeline ไม่ได้ กรุณารอให้ Preview โหลดเสร็จแล้วลองอีกครั้ง');
         } else {
@@ -2327,7 +2335,14 @@ export default function EditorShell({
                   stickers={stickers}
                   effects={effects}
                   spotlight={spotlight}
-                  backgroundIsolation={isCutoutHidden ? { ...(backgroundIsolation || {}), enabled: false } : backgroundIsolation}
+                  // A view-only mask for the player. It must not be handed to
+                  // any control that writes state back: AssetPanel spreads its
+                  // backgroundIsolation prop straight into onChange, so giving
+                  // it this {enabled: false} copy let the preview-only "hide
+                  // cutout" toggle persist that false into the saved project
+                  // and the render payload -- the export then came out with
+                  // the hook text over the product.
+                  backgroundIsolation={previewBackgroundIsolation}
                   backgroundIsolationStatus={backgroundIsolationStatus}
                   onToggleBackgroundIsolation={(nextEnabled) => patchBackgroundIsolation({
                     ...(backgroundIsolation || {}),
@@ -2878,7 +2893,8 @@ export default function EditorShell({
                     stickers={stickers}
                     effects={effects}
                     spotlight={spotlight}
-                    backgroundIsolation={isCutoutHidden ? { ...(backgroundIsolation || {}), enabled: false } : backgroundIsolation}
+                    // View-only mask -- see the note on the desktop tree.
+                    backgroundIsolation={previewBackgroundIsolation}
                     backgroundIsolationStatus={backgroundIsolationStatus}
                     onToggleBackgroundIsolation={(nextEnabled) => patchBackgroundIsolation({
                       ...(backgroundIsolation || {}),
