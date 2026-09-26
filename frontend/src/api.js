@@ -71,6 +71,13 @@ export const getBgmBeats = (bgmName) =>
 export const getMediaSilences = (mediaPath, options = {}) =>
   api.get('/audio/silences', { params: { media_path: mediaPath, ...options } }).then(r => r.data);
 
+// Playback URL for one clip: the 540p editing proxy when it exists, otherwise
+// the master while the proxy encodes in the background. Never blocks -- the
+// master is always a valid answer, so a failed or slow encode costs
+// smoothness, not the ability to edit.
+export const getClipProxy = (sourcePath, { build = true } = {}) =>
+  api.get('/proxy/for-clip', { params: { source_path: sourcePath, build } }).then(r => r.data);
+
 export const generateScript = (data) => api.post('/script/generate', {
   ...data,
   product_name: sanitizeText(data.product_name),

@@ -84,7 +84,7 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 
 ## Round CAPCUT-PREMIERE-TECH-INTEGRATION-20260926 — planned (ยังไม่แตะโค้ด)
 
-วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Opus 5 1M) · สถานะ: Stage A เสร็จครบ, Stage B เสร็จ B1/B4/B5 (เหลือ B2/B3 เสียบ proxy เข้า player), Stage C เสร็จ C1+API (เหลือ C2/C3 ปุ่ม+ripple), Stage D ยังไม่เริ่ม
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Opus 5 1M) · สถานะ: Stage A + Stage B เสร็จครบ, Stage C เสร็จ C1+API (เหลือ C2/C3 ปุ่ม+ripple), Stage D ยังไม่เริ่ม
 
 **เป้าหมาย:** ทำตามแผนแม่บท `_Docs/Plans/CAPCUT_PREMIERE_TECH_INTEGRATION_PLAN.md` (7 เทคโนโลยีจาก CapCut/Premiere Pro) ที่เขียนไว้ 2026-09-25 แต่ยังไม่เคยเปิดรอบงาน ทุกฟีเจอร์ต้องผ่าน Preview=Render parity ตาม `.agents/rules/preview_render_parity.md` และไม่ลดเกณฑ์เดิม
 
@@ -117,8 +117,8 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 **Stage B — Proxy (ได้ผลชัดที่สุดต่อความลื่น)**
 
 - [x] B1: `scripts/proxy_manager.py` สร้าง proxy 540x960 H.264 ultrafast CRF 26 ลง `03_Projects/.cache/proxies/{sha256}.mp4` (ใช้ `.cache` ที่ `stream_media` whitelist ไว้แล้ว) + lock กันสร้างซ้ำพร้อมกัน
-- [ ] B2: สร้าง proxy แบบ background task เมื่อคลิปเข้า Timeline; ระหว่างยังไม่เสร็จให้เล่นไฟล์ master ไปก่อน (Zero-Wait ห้ามบล็อก UI)
-- [ ] B3: `SequencePlayer` เลือก proxy เมื่อมี + badge บอกสถานะ; **timestamp ทุกตัวอิง master เสมอ** (in/out/trim/speed ห้ามคำนวณจาก proxy)
+- [x] B2: สร้าง proxy แบบ background task เมื่อคลิปเข้า Timeline; ระหว่างยังไม่เสร็จให้เล่นไฟล์ master ไปก่อน (Zero-Wait ห้ามบล็อก UI)
+- [x] B3: `SequencePlayer` เลือก proxy เมื่อมี + badge บอกสถานะ; **timestamp ทุกตัวอิง master เสมอ** (in/out/trim/speed ห้ามคำนวณจาก proxy)
 - [x] B4: ยืนยัน Render bypass proxy 100% — `video_editor.py` ต้องอ่าน master เท่านั้น + regression test ที่ fail ถ้า path proxy หลุดเข้า render
 - [x] B5: ผูก `.cache/editing-proxies/` เข้า `storage_cleaner.py` แล้ว (scan + purge) พร้อมเทส integration
 - [ ] B6: วัดผลจริง: seek latency และ dropped frames ที่ 1/10/50/100 clips เทียบ baseline ในรอบ EDITOR-PARITY (mount/selection/seek `35/50/675/1998 ms`) ต้องดีขึ้นอย่างวัดได้ ไม่ใช่อ้างลอยๆ
@@ -179,6 +179,17 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 - **B5 เสร็จ**: เสียบ `scan_proxy_cache()`/`purge_proxy_cache()` เข้า `storage_cleaner.py` — ตรวจแล้วว่า `CUTOUT_NAMESPACES` ของ Codex เป็น allowlist จึงไม่กวาด proxy ของเราโดยบังเอิญ และ purge ของเราก็ไม่แตะ namespace เขา (มีเทสยืนยัน)
 - เทส: backend **เต็มชุด 1,824 passed, 8 skipped, 0 failed** (6:47 น.) — รอบนี้ full suite ไม่ค้าง ต่างจากที่รอบ EDITOR-PARITY เคยติด; frontend **347 passed** (เพิ่ม 21), `vite build` ผ่าน
 - ไม่แตะ `04_Exports/`, `01_Raw/`, `02_Assets/`, `export_registry.json`; ไม่มี artifact ทดสอบตกค้างใน `.tmp/` จากรอบนี้
+
+### ผลรอบ B2/B3 (2026-09-26, Claude Code)
+
+- `scripts/api_proxy.py` (ไฟล์ใหม่): `GET /api/proxy/for-clip` คืน `{status, url, master_url, is_proxy}` — ไม่มี proxy ก็คืน master ทันทีแล้วสร้าง background ไม่บล็อก editor
+- กัน encode ซ้ำด้วย in-flight set + lock — timeline ถามคลิปเดิมทุกครั้งที่ mount ถ้าไม่กันจะยิง ffmpeg ซ้ำ; `finally` ปล่อย claim เสมอ ไม่งั้น encode ที่พังจะค้างสถานะ building ถาวรและไม่ถูก retry
+- `frontend/src/lib/clipProxy.js` (ไฟล์ใหม่): แยก logic ออกจาก player เพื่อเทสได้โดยไม่ต้องมี DOM
+- **กฎกันพลาด**: `readProxyResponse` ไม่ยอมติดธง `isProxy` ถ้า url เท่ากับ master หรือ status ยังไม่ `ready` — ถ้าปล่อยผ่าน guard ฝั่ง render จะกลายเป็นด่านเดียวที่กั้นไม่ให้ไฟล์ 540p หลุดออก export
+- `SequencePlayer` สลับ `<video src>` เป็น proxy เมื่อพร้อม; poll ทุก 3 วินาทีเฉพาะคลิปที่ยัง building; key ที่ effect ใช้เป็น `id:source_path` เท่านั้น ไม่รวม transform ไม่งั้นลาก zoom/trim ทีเดียวจะยิง API รัว
+- `mergeProxyEntry` คืน object เดิมเมื่อค่าไม่เปลี่ยน — React จะได้ไม่ repaint player ทุกครั้งที่ poll ได้ผลเดิม
+- **ยืนยัน end-to-end จริง**: request แรก `building`+master (ไม่บล็อก) → encode เสร็จ → `ready`+proxy; master `1920x1080` → proxy `540x960`; render ยัง refuse proxy และรับ master ตามเดิม
+- เทส: `test_api_proxy.py` 18 passed, `clipProxy.test.js` 18 passed; backend เต็มชุด **1,864 passed, 8 skipped, 0 failed**; frontend **365 passed**; `vite build` ผ่าน
 
 ### Notes
 

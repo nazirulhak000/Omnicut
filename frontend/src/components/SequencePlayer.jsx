@@ -4,6 +4,10 @@ import {
   AlertTriangle, CheckCircle2, Loader2, Layers,
 } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
+import {
+  PROXY_POLL_MS, buildingClipIds, mergeProxyEntry, playbackUrlFor, readProxyResponse, shouldPoll,
+} from '../lib/clipProxy.js';
+import { getClipProxy } from '../api';
 import { effectiveAudioMutes } from '../lib/trackMix.js';
 import api from '../api';
 import { createLutRenderer, loadCube } from '../lib/lut3d';
@@ -3091,6 +3095,16 @@ function SequencePlayer({
   const [durations, setDurations] = useState({});
   const [metadataReady, setMetadataReady] = useState(false);
   const [failedClipSources, setFailedClipSources] = useState({});
+
+  // Resolved playback source per clip id: the 540p editing proxy where one
+  // exists, the master otherwise. Starts empty so the first paint plays real
+  // footage instead of waiting on a lookup.
+  const [clipSources, setClipSources] = useState({});
+  // Mirror of clipSources for the resolver to read without becoming a
+  // dependency -- listing the state itself would restart the effect on every
+  // resolved clip and re-poll the whole timeline.
+  const clipSourcesRef = useRef(clipSources);
+  useEffect(() => { clipSourcesRef.current = clipSources; }, [clipSources]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
   const playheadRef = useRef(0);
@@ -3291,6 +3305,55 @@ function SequencePlayer({
   const spotlightKey = JSON.stringify(previewSpotlight);
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}:${stickerStyle.endTime}:${stickerStyle.normX}:${stickerStyle.normY}`;
   const stickersKey = (stickers || []).map(s => `${s.id}:${s.badge}:${s.start}:${s.end}:${s.scale}:${s.normX}:${s.normY}:${s.hidden}`).join('|');
+  // Which clips to resolve, keyed by source path alone: a trim or a colour
+  // tweak does not change which file plays, and re-running the lookup on
+  // every transform edit would poll the API through a drag.
+  const clipSourceKey = clips.map((c) => `${c.id}:${c.source_path}`).join('|');
+
+  // Resolve each clip to a proxy where one exists. Clips still encoding are
+  // re-checked on a timer; everything else is terminal after one lookup. A
+  // failed lookup leaves the clip on its master, which always plays.
+  useEffect(() => {
+    if (!clips.length) { setClipSources({}); return undefined; }
+    let cancelled = false;
+    let timer = null;
+
+    const resolve = async () => {
+      const pending = clips.filter((c) => {
+        if (!c?.source_path) return false;
+        const entry = clipSourcesRef.current[c.id];
+        return !entry || shouldPoll(entry);
+      });
+      if (!pending.length) return;
+
+      await Promise.all(pending.map(async (c) => {
+        const master = toMediaUrl(c.source_path);
+        try {
+          const data = await getClipProxy(c.source_path);
+          if (cancelled) return;
+          const entry = readProxyResponse(data, master);
+          setClipSources((prev) => mergeProxyEntry(prev, c.id, entry));
+        } catch {
+          // The master is a valid answer, so a lookup failure is recorded as
+          // "no proxy" rather than retried forever.
+          if (!cancelled) {
+            setClipSources((prev) => mergeProxyEntry(prev, c.id, {
+              url: master, isProxy: false, status: 'master',
+            }));
+          }
+        }
+      }));
+
+      if (!cancelled && buildingClipIds(clipSourcesRef.current).length) {
+        timer = setTimeout(resolve, PROXY_POLL_MS);
+      }
+    };
+
+    resolve();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clipSourceKey]);
+
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}:${JSON.stringify(c.keyframes || [])}`).join('|');
 
 
@@ -4581,7 +4644,10 @@ function SequencePlayer({
                 delete videoElsRef.current[c.id];
               }
             }}
-            src={toMediaUrl(c.source_path)}
+            // Proxy when one is ready, master otherwise. Only the picture
+            // source changes: every timing value still comes from the clip's
+            // own trim/speed against the master.
+            src={playbackUrlFor(c, clipSources, toMediaUrl)}
             preload="auto"
             // These elements exist to decode frames, so they stay muted --
             // except where the clip has its own volume, which the render mixes
