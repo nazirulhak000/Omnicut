@@ -1,39 +1,54 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
-## Round JEV-DECISION-LAYER-RULE-20260926 — in progress
+## Round A11Y-ARIA-LABEL-AND-ROUND-CLOSE-20260926 — in progress
 
-วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Cline (Claude) · สถานะ: อนุมัติแล้ว กำลังสร้างกฎ + ตัวช่วย CLI ให้ทุกแชทเรียก Jev ได้
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Cline (Claude) · สถานะ: อนุมัติแล้ว (เลือกทำ 2 อย่าง: แก้ aria-label + ปิดรอบเข้า HISTORY)
 
-**เป้าหมาย:** ทำให้ AI ทุกตัว (Cline / Codex / Claude Code / Antigravity / Cursor) ที่ทำงานในโปรเจกต์นี้ เรียกใช้ **Jev (TypeSafe System One)** เป็นผู้ตรวจร่วมตัดสินใจได้ ผ่านกฎกลาง 1 ไฟล์ + CLI 1 ตัว โดยไม่ต้องเขียน one-off script ใหม่ทุก session
+**เป้าหมาย:** 1) แก้ accessible name ที่ขาดใน Inspector 3 จุด เพื่อให้ `test_editor_controls_browser.py` ผ่าน และปลดล็อก gate ของ 2 รอบ Cutout · 2) ปิดรอบ `JEV-DECISION-LAYER-RULE-20260926` และ `FIX-CUTOUT-MASTER-SWITCH-AND-EXPLAIN-PIPELINE-20260925` เข้า `HISTORY.md`
 
-**ปัญหาที่พบจริง (2026-09-26):** `scripts/typesafe_bridge.py` (476 บรรทัด) + `scripts/api_typesafe_studio.py` (139 บรรทัด) ใช้งานได้จริงและมี `TYPESAFE_API_KEY` + `typesafe-sdk 0.7.1` ติดตั้งใน `.venv` แล้ว แต่**ไม่มีเอกสารบอกเอเจนต์ว่าเรียกใช้ตอนไหนอย่างไร** และไม่มี CLI สำหรับถามคำถามทั่วไป (นอกจาก 5 endpoint ที่ผูกกับงานคลิปโดยเฉพาะ) ทำให้ session ใหม่ทุกครั้งต้องเดาเองว่าเรียกยังไง
+**หลักฐานจากการรันจริง (ก่อนแก้):**
+```
+pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
+→ 3 failed, 6 passed
+  ✗ [sticker] <input min="30" max="300" class="w-full accent-[#25F4EE] cursor-pointer" type="range" value="100">
+  ✗ [effect]  <input min="30" max="300" class="w-full accent-fuchsia-400 cursor-pointer" type="range" value="100">
+  ✗ [cues]    <input placeholder="ค้นหาข้อความ..." ...>
+  ✓ [text_overlay] ผ่านแล้ว
+```
+หมายเหตุ: `TODO.md` รอบ CUTOUT-TEMPORAL-Q1 บันทึกไว้แค่ `text_overlay` จุดเดียว — จริง ๆ ยังเหลือ 3 จุด
+
+**รากเหตุ:** `sticker` กับ `effect` ใช้ component เดียวกันคือ `OverlayScaleControl.jsx` (บรรทัด 21–32) ที่ `<input type="range">` ไม่มี accessible name และ prop ไม่มีช่องให้ส่งชื่อ · `cues` คือช่องค้นหาใน `CuesTranscriptInspector.jsx:157`
 
 ### Todo
+- [x] สำรวจสถานะ: `git status` สะอาด, HEAD `6ff8c85`, เหลือรอบเปิด 5 รอบ
+- [x] ถาม Jev จัดลำดับงานถัดไป (`tools/jev_advisor.py fanout`) → `aria_label_fix` confidence **1.00**
+- [x] ยืนยัน blocker ด้วยการรันเทสจริง และหาต้นเหตุครบทุกจุด
+- [x] เพิ่ม `ariaLabel` prop + `aria-label` ใน `OverlayScaleControl.jsx` (ค่าเริ่มต้นมีค่า ไม่พังผู้เรียกเดิม)
+- [x] ส่งชื่อเฉพาะจุดจาก `StickerInspector.jsx` และ `EffectInspector.jsx`
+- [x] เพิ่ม `aria-label` ช่องค้นหาใน `CuesTranscriptInspector.jsx`
+- [x] รัน `pytest tests/motion_capture/test_editor_controls_browser.py -k accessible` → **9 passed, 0 failed** (จาก 3 failed)
+- [x] รันเทสทั้งไฟล์ → **14 passed** · `npm test` → **365 pass, 0 fail** · `npm run build` สำเร็จ
+- [x] ย้ายบล็อก `JEV-DECISION-LAYER-RULE-20260926` + `FIX-CUTOUT-MASTER-SWITCH-AND-EXPLAIN-PIPELINE-20260925` จาก `TODO.md` ไป `HISTORY.md` พร้อมเพิ่มแถวสารบัญ
+- [x] `git diff --check` + commit
 
-- [x] สำรวจสถานะจริง: SDK 0.7.1 · key 108 ตัวอักษร · ยืนยัน live call แล้ว (4 question/1 call = 526.6 ms)
-- [x] เขียน `.agents/rules/jev_decision_layer.md` — กฎว่าเมื่อไหร่ต้องถาม Jev · 3 primitive · เกณฑ์ confidence · ข้อห้าม (Jev อ่านข้อความอย่างเดียว)
-- [x] เขียน `tools/jev_advisor.py` — CLI เดียวจบ: `choice` / `noul` / `score` / `fanout` (หลายคำถาม 1 call) + verdict `proceed|escalate` + exit code
-- [x] เขียน `tests/test_jev_advisor.py` — offline deterministic, monkeypatch client, ไม่ยิงเครือข่าย ไม่แตะ `01_Raw`–`05_Covers_Thumbnails`
-- [x] เพิ่มลิงก์กฎใน `AGENTS.md` หัวข้อกฎเฉพาะทาง ให้เอเจนต์ใหม่เจอทันที (ข้อ 19 ในส่วน "ต้องทำเสมอ")
-- [x] Gate: `compileall tools scripts` ผ่าน + `pytest tests/test_jev_advisor.py` **22 passed** + live smoke ผ่าน CLI จริง แล้วลบไฟล์ชั่วคราว 100%
-
-**ผล live smoke ผ่าน CLI กลาง (2026-09-26):** `fanout` 3 คำถาม → 456.0 ms, `verdict: escalate` (exit 1)
-`close_first = storage` conf **0.70** (ต่ำกว่า 0.80 → ต้องถามผู้ใช้) · `safe_to_commit = 0.17` conf **null** · `missing_verify = 0.82` conf **null**
-→ ยืนยันว่า gate ทำงานจริง: Noul ของ SDK 0.7.1 ไม่คืน `confidence` เลย จึงถูกบังคับ escalate ทุกครั้งตามกฎ
-
-**เทสที่จับ bug จริงระหว่างทาง:** โหมดคำถามเดี่ยวเดิมใช้ key ว่า `only_this` ทำให้ผลลัพธ์อ่านไม่ออก → เพิ่ม flag `--name` (ค่าเริ่มต้นตามชนิดคำถาม) + เทส `test_main_defaults_question_name_to_its_kind`
+### ผลวัดจริง
+- ก่อนแก้: `3 failed, 6 passed` → หลังแก้: `9 passed, 0 failed`
+- เปิดเผยจุดที่ 4 ที่ซ่อนอยู่: ช่องพิมพ์บทพูดรายท่อน (`CuesTranscriptInspector.jsx`) เผยหลังแก้ช่องค้นหา
+- `sticker` + `effect` แก้จบใน component เดียว (`OverlayScaleControl.jsx`) เพราะทั้งคู่ใช้ตัวเดียวกัน
 
 ### Decisions
-
-- วางเครื่องมือที่ `tools/` ไม่ใช่ `scripts/` เพราะเป็น dev utility สำหรับเอเจนต์ ไม่ใช่ backend ของแอป และเพื่อไม่ชนกับงาน cutout ที่กำลังแก้ `scripts/` อยู่
-- ไม่แก้ `scripts/typesafe_bridge.py` เพื่อไม่ให้ชน working tree ของรอบ CUTOUT / CAPCUT-PREMIERE
-- `fanout` เป็นโหมดหลัก เพราะ 1 call ตอบทุกคำถาม → ประหยัดโทเคนตามธรรมชาติของ System One
+- **เพิ่มเฉพาะ attribute เท่านั้น** — ไม่แตะ className, ฟอนต์, ตำแหน่ง, ขนาด, สี (กฎข้อ 10 และคำสั่งเดิมใน `TODO.md` รอบ CUTOUT)
+- ใช้ **prop แทนการ hardcode** เพื่อให้แต่ละ context ได้ชื่อที่ตรงความหมาย และค่าเริ่มต้นกัน component พังเมื่อมีผู้เรียกใชมากกว่านี้
+- แก้ 2 ไฟล์ แทน 3 เพราะ `sticker` + `effect` ชี้มาที่ component เดียวกัน
 
 ### Notes
+- ตัวเลขก่อนแก้: `3 failed, 6 passed` → ต้องเป็น `8 passed` จึงถือว่าผ่าน
+- การแก้รอบนี้ทำให้ full pytest ของ 2 รอบ Cutout เดินต่อได้ แต่ **ยังไม่ปิดรอบเหล่านั้น** — ยังต้องผ่าน full suite + visual gate ของตัวเอง
+- ไฟล์ชั่วคราวจากการตรวจ (`.tmp/a11y_raw.txt`) ต้องลบเมื่อปิดรอบ (กฎข้อ 15)
 
-- working tree มีงานค้างของหลายเอเจนต์อยู่ก่อนแล้ว (27 ไฟล์แก้ + 30 ไฟล์ใหม่, cutout / beat_sync / proxy / silence / project_revision / editor parity) — รอบนี้แตะเฉพาะไฟล์ใหม่ + `TODO.md` + `AGENTS.md` เท่านั้น ไม่เขียนทับของเดิม
-- ข้อจำกัดที่ต้องเขียนลงกฎ: SDK 0.7.1 คืน `choice.distribution` เป็น `{}` และ `noul.confidence` เป็น `null` → CLI ต้อง degrade อย่างปลอดภัย ไม่ตั้งชื่อ field ทับของเดิม
-- Jev รับได้เฉพาะข้อความ จึงใช้ตรวจ diff/สคริปต์/เอกสารได้ แต่ตรวจเฟรมวิดีโอ ซับจริง ฟอนต์จริง ไม่ได้ (ต้องใช้ FFmpeg probe + Gemini vision ตามเดิม)
+---
+
+## Round JEV-DECISION-LAYER-RULE-20260926 — ปิดรอบแล้ว ✅ (ดำเนินการโดย: Cline (Claude) · 2026-09-26)
 
 ---
 
@@ -206,20 +221,7 @@
 
 ---
 
-## Round FIX-CUTOUT-MASTER-SWITCH-AND-EXPLAIN-PIPELINE-20260925 — in progress
-
-วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: กำลังดำเนินการ
-
-**เป้าหมาย:**
-1. ตอบคำถามเรื่องไฟล์แคช Cutout 552 ไฟล์: ชี้แจงว่าระบบ Single Compressed Alpha Video (WebM VP9) ออกแบบไว้ในแผนแม่บท `_Docs/Plans/CUTOUT_COMPRESSED_VIDEO_PIPELINE_PLAN.md` แต่การทำงานจริงยังอยู่บน Rembg Loose PNG Sequence จึงมีไฟล์ PNG 552 ไฟล์ และระบบมีปุ่ม [ล้างแคช] ให้กดเคลียร์ได้ทันที
-2. แก้ไขปัญหาเรนเดอร์แล้วตัวหนังสือยังทับสินค้า: ตรวจพบ Master Switch ใน `03_Projects/BLU01-ปัญหาก่อนใช้_2/project.json` ถูกบันทึกเป็น `enabled: false` ส่งผลให้ข้ามขั้นตอนแยกเลเยอร์ตัวหนังสือมุดหลังสินค้า พร้อมทั้งเพิ่ม fallback keys `background_isolation` และ `spotlight` ใน `scripts/api_phase1.py`
-
-### Todo
-- [x] เขียนแผนลง TODO.md ก่อนแตะโค้ด
-- [x] อัปเดต `scripts/api_phase1.py` ให้ fallback keys ใน `_execute_reroll` มี `background_isolation` และ `spotlight`
-- [x] อัปเดต `03_Projects/BLU01-ปัญหาก่อนใช้_2/project.json` คืนค่า `background_isolation.enabled = true`
-- [x] รัน automated regression tests เพื่อยืนยันความถูกต้อง
-- [x] ตอบผู้ใช้เป็นภาษาไทยอย่างชัดเจน กระชับ ตรงประเด็น
+## Round FIX-CUTOUT-MASTER-SWITCH-AND-EXPLAIN-PIPELINE-20260925 — ปิดรอบแล้ว ✅ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · ปิดโดย Cline (Claude) 2026-09-26)
 
 
 ## Round EDITOR-PARITY-PHASE-1-COVERAGE-MATRIX-20260922 — completed

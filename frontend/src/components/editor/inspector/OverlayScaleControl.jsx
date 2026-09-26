@@ -8,6 +8,7 @@ export default function OverlayScaleControl({
   accentClass = 'text-[#25F4EE]',
   rangeClass = 'accent-[#25F4EE]',
   resetHoverClass = 'hover:text-[#25F4EE]',
+  ariaLabel = 'ขนาด (Scale)',
 }) {
   return (
     <div className="space-y-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
@@ -20,6 +21,7 @@ export default function OverlayScaleControl({
       </div>
       <input
         type="range"
+        aria-label={ariaLabel}
         min="30"
         max="300"
         step="5"

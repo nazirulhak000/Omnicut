@@ -60,6 +60,7 @@ export default function EffectInspector({
 
       <OverlayScaleControl
         scalePct={scalePct}
+        ariaLabel="ขนาดเอฟเฟกต์"
         accentClass="text-fuchsia-400"
         rangeClass="accent-fuchsia-400"
         resetHoverClass="hover:text-fuchsia-400"

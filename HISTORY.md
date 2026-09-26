@@ -11,6 +11,9 @@
 | Round DIAGNOSE-AND-FIX-TEXT-BEHIND-SUBJECT-RENDER-EVIDENCE-20260925 | สืบสวนเชิงลึก Root cause ตัวหนังสือทับสินค้าในการเรนเดอร์ 15:07 น. พบ Master Switch ใน project.json ถูกปิด แก้ไขเปิด Master Switch และจับเฟรมภาพพิสูจน์จริงว่าตัวหนังสืออยู่ด้านหลังสินค้า 100% | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round SANDWICH-LAYERS-TIMELINE-AND-CUTOUT-RESTORATION-20260925 | แยก Track/Layer บน Timeline เป็นระบบแซนด์วิช [BG, TEXT, CUTOUT, CAPTION] ให้เห็นจะๆ พร้อมอุดรูรั่วคลิปท้ายที่ขาด Sequence และจัดลำดับ Preview & Render Parity ตัวหนังสืออยู่หลังสินค้าจริง | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round HOTFIX-PRESERVE-CUTOUT-STATE-AND-SERVER-RELOAD-20260925 | ป้องกันไม่ให้การบายพาสเรนเดอร์ไปล้างสถานะ Cutout ถาวรใน Editor, คืนค่า Cutout พร้อมคลีนพิกัด Cues ใน BLU01-ปัญหาก่อนใช้_2 และรีสตาร์ท Backend Server เพื่อโหลดโค้ดใหม่ | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round FIX-CUTOUT-MASTER-SWITCH-AND-EXPLAIN-PIPELINE-20260925 | ชี้แจงว่าทำไมยังมีไฟล์ PNG 552 ไฟล์ (แผนแม่บทออกแบบ WebM VP9 แต่รันจริงยังเป็น Rembg PNG Sequence) พร้อมแก้ Master Switch ใน project.json ที่ถูกบันทึกเป็น `enabled: false` จนตัวหนังสือซ้อนทับสินค้าตอนเรนเดอร์ และเพิ่ม fallback keys `background_isolation` / `spotlight` ใน `api_phase1.py` | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round JEV-DECISION-LAYER-RULE-20260926 | ทำให้ AI ทุกตัวในโปรเจกต์ใช้ Jev (TypeSafe System One) ตัดสินใจร่วมกันได้ ผ่านกฎกลาง `.agents/rules/jev_decision_layer.md` + CLI `tools/jev_advisor.py` (noul/choice/score/fanout) พร้อม confidence gate `proceed|escalate` และเทส offline 22 ตัว | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Cline (Claude)) |
+| Round A11Y-ARIA-LABEL-AND-ROUND-CLOSE-20260926 | เพิ่ม accessible name ที่ขาดใน Inspector 4 จุด (OverlayScaleControl + ช่องค้นหา + ช่องพิมพ์บทพูด) ทำให้ `test_editor_controls_browser.py` ผ่าน 9/9 และปลดล็อก gate ของ 2 รอบ Cutout พร้อมปิดรอบค้าง 2 รอบเข้า HISTORY | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Cline (Claude)) |
 
 ## Round RESTORE-ORIGINAL-FOOTAGE-BG-FOR-CUTOUT-SANDWICH-20260925 — คืนค่าพื้นหลังเดิมของฟุตเทจวิดีโอ (Original Footage Video) ในโหมด Cutout เพื่อทำแซนด์วิช 3 ชั้นสมบูรณ์ [พื้นหลังเดิม -> ฟอนต์ -> สินค้า -> ซับไตเติล] ทั้งใน Render และ Preview
 
@@ -9629,4 +9632,95 @@ Verification: `.tmp/gadget_product_segments_20260919/product_segment_verify.json
 
 - ยืนยัน MP4 `19,374,772` bytes และ WEBP `38,004` bytes อยู่ใน `Ready_to_post/`; ไม่มีสำเนาใน `Posted/`
 - ปก 9:16 และ 3:4 อยู่ครบ
+
+## Round FIX-CUTOUT-MASTER-SWITCH-AND-EXPLAIN-PIPELINE-20260925 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์ (ปิดรอบโดย Cline (Claude) เมื่อ 2026-09-26)
+
+**เป้าหมาย:**
+1. ตอบคำถามเรื่องไฟล์แคช Cutout 552 ไฟล์: ชี้แจงว่าระบบ Single Compressed Alpha Video (WebM VP9) ออกแบบไว้ในแผนแม่บท `_Docs/Plans/CUTOUT_COMPRESSED_VIDEO_PIPELINE_PLAN.md` แต่การทำงานจริงยังอยู่บน Rembg Loose PNG Sequence จึงมีไฟล์ PNG 552 ไฟล์ และระบบมีปุ่ม [ล้างแคช] ให้กดเคลียร์ได้ทันที
+2. แก้ไขปัญหาเรนเดอร์แล้วตัวหนังสือยังทับสินค้า: ตรวจพบ Master Switch ใน `03_Projects/BLU01-ปัญหาก่อนใช้_2/project.json` ถูกบันทึกเป็น `enabled: false` ส่งผลให้ข้ามขั้นตอนแยกเลเยอร์ตัวหนังสือมุดหลังสินค้า พร้อมทั้งเพิ่ม fallback keys `background_isolation` และ `spotlight` ใน `scripts/api_phase1.py`
+
+### Todo
+- [x] เขียนแผนลง TODO.md ก่อนแตะโค้ด
+- [x] อัปเดต `scripts/api_phase1.py` ให้ fallback keys ใน `_execute_reroll` มี `background_isolation` และ `spotlight`
+- [x] อัปเดต `03_Projects/BLU01-ปัญหาก่อนใช้_2/project.json` คืนค่า `background_isolation.enabled = true`
+- [x] รัน automated regression tests เพื่อยืนยันความถูกต้อง
+- [x] ตอบผู้ใช้เป็นภาษาไทยอย่างชัดเจน กระชับ ตรงประเด็น
+
+---
+
+## Round JEV-DECISION-LAYER-RULE-20260926 — ให้ AI ทุกตัวใช้ Jev ตัดสินใจร่วมกัน
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Cline (Claude) · สถานะ: สำเร็จสมบูรณ์
+
+**เป้าหมาย:** ทำให้ AI ทุกตัว (Cline / Codex / Claude Code / Antigravity / Cursor) ที่ทำงานในโปรเจกต์นี้ เรียกใช้ **Jev (TypeSafe System One)** เป็นผู้ตรวจร่วมตัดสินใจได้ ผ่านกฎกลาง 1 ไฟล์ + CLI 1 ตัว โดยไม่ต้องเขียน one-off script ใหม่ทุก session
+
+**ปัญหาที่พบจริง:** `scripts/typesafe_bridge.py` (476 บรรทัด) + `scripts/api_typesafe_studio.py` (139 บรรทัด) ใช้งานได้จริงและมี `TYPESAFE_API_KEY` + `typesafe-sdk 0.7.1` ติดตั้งใน `.venv` แล้ว แต่**ไม่มีเอกสารบอกเอเจนต์ว่าเรียกใช้ตอนไหนอย่างไร** และไม่มี CLI สำหรับถามคำถามทั่วไป (นอกจาก 5 endpoint ที่ผูกกับงานคลิปโดยเฉพาะ) ทำให้ session ใหม่ทุกครั้งต้องเดาเองว่าเรียกยังไง
+
+### สิ่งที่สร้าง
+1. **`.agents/rules/jev_decision_layer.md`** (148 บรรทัด) — กฎกลาง: 3 primitive (`choice` / `score` / `noul`) · 6 จุดบังคับที่ต้องถาม · เกณฑ์ confidence → `proceed` / `escalate` · ข้อห้าม (Jev อ่านข้อความอย่างเดียว)
+2. **`tools/jev_advisor.py`** (314 บรรทัด) — CLI เดียวจบ `noul` / `choice` / `score` / `fanout` · คืน JSON พร้อม `verdict` · exit code `0` ทำต่อ / `1` escalate / `2` ใช้ไม่ได้ · `--check` เช็คความพร้อมโดยไม่ยิงเครือข่าย
+3. **`tests/test_jev_advisor.py`** (282 บรรทัด) — 22 เทส offline deterministic, fake client, ไม่ยิงเครือข่าย ไม่แตะ `01_Raw`–`05_Covers_Thumbnails`
+4. **`AGENTS.md` ข้อ 19** — ผูกกฎเข้าส่วน "ต้องทำเสมอ" ให้เอเจนต์ใหม่เจอทันที
+
+### ตัวเลขที่วัดได้
+- `pytest tests/test_jev_advisor.py` → **22 passed** · รวมชุดเดิมเป็น **35 passed**
+- live smoke ผ่าน CLI จริง: `fanout` 3 คำถาม → **456.0 ms**, `verdict: escalate` (exit 1)
+
+---
+
+## Round A11Y-ARIA-LABEL-AND-ROUND-CLOSE-20260926 — แก้ accessible name และปลดล็อก gate ของ 2 รอบ Cutout
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Cline (Claude) · สถานะ: สำเร็จสมบูรณ์
+
+**เป้าหมาย:** แก้ accessible name ที่ขาดใน Inspector เพื่อให้ `tests/motion_capture/test_editor_controls_browser.py` ผ่าน และปลดล็อก gate ของ 2 รอบ Cutout · พร้อมปิดรอบค้าง 2 รอบเข้า `HISTORY.md`
+
+**วิธีเลือกงาน:** ถาม Jev ผ่าน `tools/jev_advisor.py fanout` (กฎที่เพิ่งสร้างเอง) → `next_task = aria_label_fix` confidence **1.00** · อีก 2 คำถาม confidence ต่ำจึง escalate ไปถามผู้ใช้ก่อนลงมือ
+
+### หลักฐานก่อนแก้
+```
+pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
+→ 3 failed, 6 passed
+  ✗ [sticker] <input min="30" max="300" class="w-full accent-[#25F4EE] cursor-pointer" type="range" value="100">
+  ✗ [effect]  <input min="30" max="300" class="w-full accent-fuchsia-400 cursor-pointer" type="range" value="100">
+  ✗ [cues]    <input placeholder="ค้นหาข้อความ..." ...>
+  ✓ [text_overlay] ผ่านแล้ว
+```
+> `TODO.md` รอบ CUTOUT-TEMPORAL-Q1 บันทึกไว้แค่ `text_overlay` จุดเดียว — ตรวจจริงแล้วเหลือ **3 จุด** และซ่อนอีก 1 จุดที่เผยหลังแก้จุดแรก
+
+### สิ่งที่แก้ (เพิ่ม attribute เท่านั้น ไม่แตะภาพ/ฟอนต์/ตำแหน่ง ตามกฎข้อ 10)
+1. `frontend/src/components/editor/inspector/OverlayScaleControl.jsx` — เพิ่ม prop `ariaLabel` (ค่าเริ่มต้น `'ขนาด (Scale)'`) และ `aria-label={ariaLabel}` บน `<input type="range">` → **แก้ทีเดียวปลดทั้ง sticker และ effect** เพราะทั้งคู่ใช้ component นี้
+2. `frontend/src/components/editor/inspector/StickerInspector.jsx` — ส่ง `ariaLabel="ขนาดสติกเกอร์"`
+3. `frontend/src/components/editor/inspector/EffectInspector.jsx` — ส่ง `ariaLabel="ขนาดเอฟเฟกต์"`
+4. `frontend/src/components/editor/inspector/CuesTranscriptInspector.jsx` — `aria-label="ค้นหาข้อความในบทพูด"` บนช่องค้นหา และ `aria-label={`ข้อความบทพูดท่อนที่ ${idx + 1}`}` บนช่องพิมพ์บทพูด (จุดที่ซ่อนอยู่)
+
+### ตัวเลขหลังแก้
+- `pytest ... -k accessible` → **9 passed, 0 failed** (จาก 3 failed)
+- `pytest tests/motion_capture/test_editor_controls_browser.py` (ทั้งไฟล์) → **14 passed**
+- `npm test` → **365 pass, 0 fail**
+- `npm run build` → สำเร็จ
+
+### Decisions
+- ใช้ **prop แทนการ hardcode** เพื่อให้แต่ละ context ได้ชื่อตรงความหมาย และค่าเริ่มต้นกัน component พังเมื่อมีผู้เรียกใช้มากกว่านี้
+- แก้ 3 ไฟล์ แทน 4 เพราะ `sticker` + `effect` ชี้มาที่ component เดียวกัน
+
+### Notes
+- **ยังไม่ปิดรอบ CUTOUT-TEMPORAL-QUALITY / CUTOUT-VIDEO-PIPELINE-REPLAN** — การแก้รอบนี้แค่ปลด blocker ให้เดินต่อได้ ยังต้องผ่าน full pytest suite และ visual gate ของแต่ละรอบเอง
+- เทสเป็น Chromium browser test จริง รันผ่าน Playwright
+
+- ยืนยันว่า gate ทำงานจริง — `noul` ของ SDK 0.7.1 **ไม่คืน `confidence` เลย** จึงถูกบังคับ escalate ทุกครั้งตามกฎ
+
+### Decisions
+- วางเครื่องมือที่ `tools/` ไม่ใช่ `scripts/` เพราะเป็น dev utility สำหรับเอเจนต์ ไม่ใช่ backend ของแอป และเพื่อไม่ชนกับงาน cutout ที่กำลังแก้ `scripts/` อยู่
+- ไม่แก้ `scripts/typesafe_bridge.py` เพื่อไม่ให้ชน working tree ของรอบ CUTOUT / CAPCUT-PREMIERE
+- `fanout` เป็นโหมดหลัก เพราะ 1 call ตอบทุกคำถาม → ประหยัดโทเคนตามธรรมชาติของ System One
+
+### Notes
+- **เทสจับ bug จริงระหว่างทาง:** โหมดคำถามเดี่ยวเดิมใช้ key ว่า `only_this` ทำให้ผลลัพธ์อ่านไม่ออก → เพิ่ม flag `--name` (ค่าเริ่มต้นตามชนิดคำถาม) + เทส `test_main_defaults_question_name_to_its_kind`
+- ข้อจำกัดที่ต้องเขียนลงกฎ: SDK 0.7.1 คืน `choice.distribution` เป็น `{}` และ `noul.confidence` เป็น `null` → CLI ต้อง degrade อย่างปลอดภัย
+- Jev รับได้เฉพาะข้อความ จึงใช้ตรวจ diff/สคริปต์/เอกสารได้ แต่ตรวจเฟรมวิดีโอ ซับจริง ฟอนต์จริง ไม่ได้ (ต้องใช้ FFmpeg probe + Gemini vision ตามเดิม)
+- Jev เป็นผู้ตรวจ ไม่ใช่ผู้ตัดสิน และเปลี่ยนโมเดลที่ผู้ใช้กำลังคุยไม่ได้ — ผู้ใช้ต้องเปลี่ยนเองใน dropdown
+- ไฟล์ทั้ง 3 ถูก commit ไปพร้อม commit `211d5c1` ของ session อื่น (commit message ไม่เกี่ยวกับงานนี้) ส่วนเอกสารถูกแยกเป็น `6ff8c85 docs(agents): add rule 19 for the Jev decision layer`
+
 - Extension clip-state tests ผ่าน `4 passed, 0 failed`

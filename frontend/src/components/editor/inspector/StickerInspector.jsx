@@ -64,6 +64,7 @@ export default function StickerInspector({
 
       <OverlayScaleControl
         scalePct={scalePct}
+        ariaLabel="ขนาดสติกเกอร์"
         onChange={(value) => onUpdateSticker?.(sticker.id, { scale: value })}
         onReset={() => onUpdateSticker?.(sticker.id, { scale: 1.0 })}
       />

@@ -156,6 +156,7 @@ export default function CuesTranscriptInspector({
           <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
+            aria-label="ค้นหาข้อความในบทพูด"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="ค้นหาข้อความ..."
@@ -347,6 +348,7 @@ export default function CuesTranscriptInspector({
                     onSeek?.(cue.start);
                   }}
                   onKeyDown={(e) => handleKeyDown(e, cue, idx)}
+                  aria-label={`ข้อความบทพูดท่อนที่ ${idx + 1}`}
                   placeholder="พิมพ์ข้อความ (Enter เพื่อแยกท่อน, Backspace เพื่อรวมท่อน)..."
                   className="w-full py-1 px-2 rounded-lg bg-black/40 border border-transparent focus:border-[#25F4EE] focus:bg-black/80 text-white text-xs placeholder-slate-600 focus:outline-none transition-colors cursor-text"
                 />
