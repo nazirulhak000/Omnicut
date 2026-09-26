@@ -120,3 +120,27 @@ def test_malformed_manifests_are_tolerated(manifest):
 
 def test_malformed_payload_is_tolerated():
     _guard_stale_cutout_payload({"background_isolation": "yes"}, _manifest(enabled=False))
+
+
+def test_guard_runs_after_the_failure_handler_is_defined():
+    """The guard must raise somewhere the except block can actually handle.
+
+    It was first placed near the top of _execute_reroll, before the local
+    _restore_pre_reroll_snapshot was defined. Raising there made the except
+    block itself die with UnboundLocalError, so fail_task never ran: the job
+    sat at "queued" forever and the user saw a render that simply never
+    started, with no error anywhere. This pins the ordering.
+    """
+    import inspect
+
+    from scripts import api_phase1
+
+    source = inspect.getsource(api_phase1._execute_reroll)
+    guard_at = source.index("_guard_stale_cutout_payload(params, manifest)")
+    helper_at = source.index("def _restore_pre_reroll_snapshot()")
+
+    assert helper_at < guard_at, (
+        "_guard_stale_cutout_payload must be called after "
+        "_restore_pre_reroll_snapshot is defined, or the except block that "
+        "reports the failure cannot run"
+    )

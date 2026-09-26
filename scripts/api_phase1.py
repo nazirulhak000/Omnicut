@@ -1036,15 +1036,6 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
         if not raw_video:
             raw_video = str(BASE_DIR / "01_Raw")
 
-        # A render must not quietly produce the wrong picture. The editor sends
-        # the cutout config it held when the button was pressed; if that tab
-        # was showing a stale state (artifact still preparing, or prepared in
-        # another tab), the payload can say "cutout off" while the project on
-        # disk has every clip ready. The old behaviour was to render the plain
-        # graph and finish successfully, so the user only discovered the text
-        # sitting over the product by watching the export.
-        _guard_stale_cutout_payload(params, manifest)
-
         # Resolve product_id and angle_id for accurate lifecycle synchronization
         product_id = params.get("product_id") or (manifest.get("product") or {}).get("id")
         angle_id = params.get("angle_id") or (manifest.get("angle") or {}).get("id") or (manifest.get("angle") or {}).get("angle_id")
@@ -1146,6 +1137,20 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                     )
             except Exception:
                 pass
+
+        # A render must not quietly produce the wrong picture. The editor sends
+        # the cutout config it held when the button was pressed; if that tab
+        # was showing a stale state (artifact still preparing, or prepared in
+        # another tab), the payload can say "cutout off" while the project on
+        # disk has every clip ready, and the export silently comes out with
+        # the hook text over the product.
+        #
+        # This runs here rather than earlier in the function on purpose: the
+        # except block calls _restore_pre_reroll_snapshot, which is defined
+        # just above. Raising before that definition made the handler itself
+        # fail with UnboundLocalError, so fail_task never ran and the job sat
+        # at "queued" forever with no error shown to anyone.
+        _guard_stale_cutout_payload(params, manifest)
 
         base_progress = render_jobs.progress_reporter(job_id)
 
