@@ -433,7 +433,46 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 - [x] Phase 1: สร้าง video worker แบบ streaming, alpha validation และปรับ mask ตามเวลาเบื้องต้น
 - [x] Phase 2: เชื่อม API และ Preview ให้ใช้ video artifact
 - [x] Phase 3: เชื่อม Render, Save/Reload และ legacy migration
-- [ ] Phase 4: ผ่าน Preview/Render visual gate, วัดผลจริง และ cleanup 100%
+- [x] Phase 4: ผ่าน Preview/Render visual gate, วัดผลจริง และ cleanup 100% — รายงาน `_Docs/Reports/CUTOUT_PHASE4_EDGE_STABILITY_20260926.md` + เทส `tests/motion_capture/test_cutout_preview_render_parity.py` (ดำเนินการโดย: Claude Code (Claude Opus 5 1M))
+
+### สถานะ flake ที่เหลือ — `test_cutout_video_preview[1.3155]` (2026-09-26, Claude Code)
+
+ยืนยันตรงกับที่ Cline จัดไว้ว่าเป็น **flake ไม่ใช่ regression**:
+
+| การรัน | ผล |
+| :--- | :--- |
+| รันเดี่ยว 3 รอบติด | ผ่าน 3/3 (6.1s / 4.5s / 6.5s) |
+| รันคู่กับเทส parity ตัวใหม่ | ผ่านทั้งคู่ (6 passed) |
+| รัน `tests/motion_capture` ทั้งไดเรกทอรี | fail 1 ครั้ง แล้วรันซ้ำผ่าน |
+| full suite | fail 1 ครั้ง (1,982 passed) |
+
+- **ไม่ได้เกิดจากเทส parity ตัวใหม่** — รันคู่กันตรงๆ แล้วผ่านทั้งคู่ และเทสใหม่ไม่เคย fail เลยสักรอบ
+- จุดที่ fail คือ `assert playback["visible"] >= 54` ([test_cutout_video_preview.py:111](tests/motion_capture/test_cutout_video_preview.py#L111)) — นับเฟรมที่มองเห็นวัตถุได้ 60 เฟรม ต้องได้ ≥54
+- ขึ้นกับโหลดเครื่อง: fail เฉพาะตอนรันรวมกับเทสอื่นที่เปิด Chromium หลายตัวพร้อมกัน
+- **ไม่แก้ในรอบนี้** เป็นเทสของ Codex และ Cline บันทึกไว้แล้ว การลด threshold คือการลด gate ซึ่งต้องให้เจ้าของตัดสิน ทางเลือกที่ดีกว่าคือทำให้เทสทนโหลด (เช่น รอ frame แรกให้ถึงก่อนเริ่มนับ) ไม่ใช่ลดเกณฑ์
+
+### ผลรอบ Phase 4 (2026-09-26, Claude Code)
+
+**วัดขอบสั่นจริง — พบว่าโหมด default แทบไม่ช่วยอะไร**
+
+รัน `tools/benchmark_cutout_quality.py` (Codex เขียนไว้ แต่ไม่เคยถูกรัน) บนฟุตเทจจริง BLU01 สองช่วง ช่วงละ 60 เฟรม ที่ 960x540:
+
+| window | `off` (raw) | `legacy` (default) | `motion` (opt-in) |
+| :--- | ---: | ---: | ---: |
+| 22.0–24.0s | 0.0657 | 0.0661 (**−0.7%**) | 0.0522 (**+20.5%**) |
+| 45.0–47.0s | 0.1000 | 0.1003 (**−0.3%**) | 0.0874 (**+12.7%**) |
+
+- **โหมดที่ผู้ใช้ได้จริง (`legacy`) ไม่ได้ลดขอบสั่นเลย** แย่กว่าไม่ทำเล็กน้อย แต่ยังกิน compute
+- **โหมดที่ลดได้จริง 12.7–20.5% (`motion`) เป็น opt-in ที่ปิดไว้** ([worker:165](scripts/background_isolation_video_worker.py#L165), [AssetPanel.jsx:275](frontend/src/components/editor/AssetPanel.jsx#L275))
+- **สาเหตุอยู่ในคอมเมนต์ของโค้ดเอง**: legacy เกลี่ยเฉพาะพิกเซลที่ต่างจากเฟรมก่อน `< 24` แต่ขอบที่เคลื่อนไหว (ต้นตอของการสั่น) ต่างมากกว่านั้นเสมอ จึงถูกข้ามทั้งหมด — ไม่ใช่บั๊ก โค้ดทำตามที่เขียนไว้เป๊ะ แต่เอฟเฟกต์ไปไม่ถึงจุดที่สั่น
+- **ยังไม่เปลี่ยน default** เพราะ (1) ยังไม่ได้วัดว่า motion เพิ่มเวลา encode เท่าไร (2) วัดสองช่วงจากคลิปเดียว (3) IoU ของ motion ต่ำกว่าเล็กน้อย ควรให้คนดูภาพยืนยันว่าไม่กินขอบวัตถุก่อนบังคับใช้ — เป็นการตัดสินใจของเจ้าของโปรเจกต์
+
+**ปิดช่องว่าง Preview-vs-Render parity**
+
+- ก่อนหน้านี้**ไม่มี gate เทียบสองฝั่งเลย**: `test_cutout_video_preview.py` เป็น preview ล้วน · `test_background_isolation_render_integration.py` stub `subprocess.run` ไว้ ffmpeg ไม่เคยรันจริง (ตรวจเองที่ [บรรทัด 38-42](tests/test_background_isolation_render_integration.py#L38-L42)) · `test_mask_video_composites_in_real_ffmpeg_export` เรนเดอร์จริงแต่เทียบกับค่าที่ hardcode ไม่ได้เทียบกับ Preview
+- เพิ่ม `tests/motion_capture/test_cutout_preview_render_parity.py`: ป้อน **artifact เดียวกัน** เข้าทั้ง production Preview (Chromium Canvas) และ production Render (ffmpeg จริง) แล้วสุ่มพิกเซลจุดเดียวกันมาเทียบ
+- **ยืนยันว่าเทสจับของจริงด้วย mutation test**: สลับ alpha ซ้าย-ขวาแล้วเทส fail ที่ assert ด้วยค่าพิกเซลจริง (`assert 9 > 325`) ไม่ใช่ fail เพราะ timeout
+- ระหว่างทางแก้จุดที่ readiness wait ล็อกไว้ว่าฝั่งขวาต้องเป็นวัตถุ ทำให้ parity break กลายเป็น timeout แทนที่จะเป็น parity failure — แก้ให้ไม่ผูกกับด้านใดด้านหนึ่ง
 
 ### ผลรอบ Phase 0 + cleanup (2026-09-26, Claude Code)
 
