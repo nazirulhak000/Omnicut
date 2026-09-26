@@ -1256,7 +1256,7 @@ def test_every_track_label_starts_at_the_same_x():
     assert 'style={{ width: slotWidth }}' in TRACK_LABEL_SRC
     assert 'slotWidth = 26' in TRACK_LABEL_SRC, 'the slot needs a default for rows that pass none'
     # Every caller hands the same width in, so no row can indent differently.
-    assert TIMELINE_SRC.count('slotWidth={dense ? 14 : 26}') == 7
+    assert TIMELINE_SRC.count('slotWidth={dense ? 14 : 26}') == 8
 
 
 def test_a_silent_track_says_so_without_relying_on_colour():
@@ -1309,7 +1309,7 @@ def test_the_gutter_gives_up_width_on_a_phone():
     assert "style={{ width: width ?? GUTTER }}" in TRACK_LABEL_SRC
     assert "dot={dense ? undefined : { colour, hollow: silent }}" in TIMELINE_SRC
     # ...and the leading slot narrows with it, so the names stay flush.
-    assert TIMELINE_SRC.count("slotWidth={dense ? 14 : 26}") == 7
+    assert TIMELINE_SRC.count("slotWidth={dense ? 14 : 26}") == 8
     assert "dense={isMobileView}" in SHELL_SRC
 
 

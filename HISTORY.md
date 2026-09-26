@@ -7,8 +7,104 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round RESTORE-ORIGINAL-FOOTAGE-BG-FOR-CUTOUT-SANDWICH-20260925 | คืนค่าพื้นหลังเดิมของฟุตเทจวิดีโอ (Original Footage Video) ในโหมด Cutout เพื่อทำแซนด์วิช 3 ชั้นสมบูรณ์ [พื้นหลังเดิม -> ฟอนต์ -> สินค้า -> ซับไตเติล] ทั้งใน Render และ Preview | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round DIAGNOSE-AND-FIX-TEXT-BEHIND-SUBJECT-RENDER-EVIDENCE-20260925 | สืบสวนเชิงลึก Root cause ตัวหนังสือทับสินค้าในการเรนเดอร์ 15:07 น. พบ Master Switch ใน project.json ถูกปิด แก้ไขเปิด Master Switch และจับเฟรมภาพพิสูจน์จริงว่าตัวหนังสืออยู่ด้านหลังสินค้า 100% | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round SANDWICH-LAYERS-TIMELINE-AND-CUTOUT-RESTORATION-20260925 | แยก Track/Layer บน Timeline เป็นระบบแซนด์วิช [BG, TEXT, CUTOUT, CAPTION] ให้เห็นจะๆ พร้อมอุดรูรั่วคลิปท้ายที่ขาด Sequence และจัดลำดับ Preview & Render Parity ตัวหนังสืออยู่หลังสินค้าจริง | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round HOTFIX-PRESERVE-CUTOUT-STATE-AND-SERVER-RELOAD-20260925 | ป้องกันไม่ให้การบายพาสเรนเดอร์ไปล้างสถานะ Cutout ถาวรใน Editor, คืนค่า Cutout พร้อมคลีนพิกัด Cues ใน BLU01-ปัญหาก่อนใช้_2 และรีสตาร์ท Backend Server เพื่อโหลดโค้ดใหม่ | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
-| Round FIX-CUE-NONE-COORDINATES-FLOAT-ERROR-20260925 | แก้ไขข้อผิดพลาด float() argument must be a string or a real number, not 'NoneType' ใน scripts/subtitle_engine.py เมื่อ cue มีพิกัด x หรือ y เป็น None | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round RESTORE-ORIGINAL-FOOTAGE-BG-FOR-CUTOUT-SANDWICH-20260925 — คืนค่าพื้นหลังเดิมของฟุตเทจวิดีโอ (Original Footage Video) ในโหมด Cutout เพื่อทำแซนด์วิช 3 ชั้นสมบูรณ์ [พื้นหลังเดิม -> ฟอนต์ -> สินค้า -> ซับไตเติล] ทั้งใน Render และ Preview
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** แก้ไขปัญหาพื้นหลังของวิดีโอในโหมด Cutout กลายเป็นสีดำมืดทึบสนิท (`color=0x0B1220`) โดยคืนค่าพื้นหลังของวิดีโอให้เป็น **"พื้นหลังเดิมของคลิปวิดีโอ (Original Footage Video)"** อย่างสมบูรณ์ เพื่อให้ได้แซนด์วิช 3 ชั้นตามที่ User สั่ง: `[ พื้นหลังวิดีโอเดิม ] -> [ ฟอนต์/ข้อความฮุก ] -> [ สินค้าที่ไดคัท ] -> [ ซับไตเติลหน้าสุด ]` ทั้งใน FFmpeg Render (`scripts/video_editor.py`) และ Canvas Preview (`frontend/src/components/SequencePlayer.jsx`)
+
+### สาเหตุของปัญหา (Root Cause Analysis)
+- ใน `scripts/video_editor.py` บรรทัด 1274, 1289, 1304 มีคำสั่ง `drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill` ถมสีน้ำเงินเข้มเกือบดำ (`0x0B1220`) ทับตัว footage ทั้งหมดของ `[transformed_node]` ซึ่งเป็น base layer ของคลิป ทำให้คลิปวิดีโอต้นฉบับถูกระบายสีทึบจนกลายเป็นพื้นหลังมืดดำสนิท
+- ใน `frontend/src/components/SequencePlayer.jsx` บรรทัด 760 ในฟังก์ชัน `drawIsolatedFrame` และ `drawClipInto` เมื่อมี `isolatedImage` ระบบได้ระบายสี `BACKGROUND_ISOLATION_BG` (`#0B1220`) แทนที่จะวาดคลิปวิดีโอต้นฉบับ (`drawVideoFrame`) เป็นฉากหลัง
+
+### สิ่งที่ได้แก้ไข
+1. **ใน `scripts/video_editor.py`**:
+   - ลบ `drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill` ออกจาก `source_transform` ทั้ง 3 จุด (camera filter, one pass, common transform)
+   - คงวิดีโอต้นฉบับจริงใน `[{transformed_node}]` เป็น Base Layer ส่งต่อเข้า Concat
+2. **ใน `frontend/src/components/SequencePlayer.jsx`**:
+   - ปรับปรุง `drawClipInto` ให้วาด `drawVideoFrame` เป็นภาพวิดีโอเดิมของคลิปก่อนเสมอในโหมด `composite` เพื่อให้เห็นวิดีโอเดิมเป็นพื้นหลัง
+   - ปรับปรุง seek hold ใน playback loop ให้วาด `drawVideoFrame` ก่อนเช่นเดียวกัน
+3. **Automated Regression Tests**:
+   - แก้ไข `tests/test_background_isolation_render_integration.py` ให้ assert ว่าไม่มี drawbox สีมืดใน filter graph
+   - รัน `pytest tests/test_background_isolation_render_integration.py`: ผ่าน 14/14 tests
+   - รัน `pytest tests/test_preview_render_parity.py`: ผ่าน 157/157 tests
+4. **เรนเดอร์ทดสอบสกัดเฟรมภาพจริง (Evidence Extraction)**:
+   - ทดสอบเรนเดอร์จริง 3 วินาทีของคลิปที่ 0 ด้วย FFmpeg (`h264_amf`)
+   - สกัดเฟรมภาพที่วินาทีที่ 1.500: ได้ภาพที่เห็น **โต๊ะไม้และมือคนถือโทรศัพท์ (พื้นหลังเดิม)** ชัดเจน 100% ตัวหนังสือ `BLUEWOW`, `AI GAMING`, `COOLING SERIES` อยู่บนพื้นหลังเดิม และถูกตัวเคสโทรศัพท์ไดคัทบังทับคำว่า `COOLING` อย่างสมจริง โดยมีซับไตเติล "เล่นเกมอยู่ดีๆ เครื่องร้อนจนจอดับ" อยู่หน้าสุด
+5. **ล้างไฟล์ทดสอบ 100%**: ลบไฟล์ `.tmp/bg_test_sample.mp4`, `.tmp/evidence_bg_restored.png`, `.tmp/render_test_frame.py` ทันทีหลังทดสอบเสร็จ
+
+---
+
+## Round DIAGNOSE-AND-FIX-TEXT-BEHIND-SUBJECT-RENDER-EVIDENCE-20260925 — สืบสวนเชิงลึก Root cause ตัวหนังสือทับสินค้าในการเรนเดอร์ 15:07 น. พบ Master Switch ใน project.json ถูกปิด แก้ไขเปิด Master Switch และจับเฟรมภาพพิสูจน์จริงว่าตัวหนังสืออยู่ด้านหลังสินค้า 100%
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** สืบสวนว่าทำไมในวิดีโอที่เรนเดอร์จริงเมื่อเวลา 15:07 น. ตัวหนังสือ "BLUEWOW AI GAMING COOLING SERIES" ถึงยังลอยอยู่ด้านหน้าตัวสินค้า (ทับเคสโทรศัพท์และมือ) พร้อมสกัดเฟรมภาพจริงจากผลงานเรนเดอร์ส่งให้ผู้ใช้ดูยืนยันจะๆ
+
+### สาเหตุของปัญหา (Root Cause Analysis)
+- ใน `scripts/background_isolation_compositor.py` (บรรทัด 110-111) มีกฎ Master Off Switch:
+  ```python
+  if isinstance(project_config, Mapping) and project_config.get("enabled") is False:
+      return project_config
+  ```
+  "A project-level enabled=False is a master off switch. Prepared clip artifacts can outlive a later toggle, so the disable must win."
+- ในไฟล์ `03_Projects/BLU01-ปัญหาก่อนใช้_2/project.json` ตัว Root `background_isolation` มีค่า `"enabled": false` (ซึ่งค้างมาจากการกดปุ่มบายพาสในรอบก่อนหน้า)
+- ส่งผลให้เมื่อเรนเดอร์ แม้ว่าคลิปที่ 0, 1, 2, 3 จะมี Cutout ที่สมบูรณ์แบบ 100% อยู่ในตัวคลิป แต่ฟังก์ชัน `resolve_background_isolation_config` ได้ถูก Master Switch บังคับให้เป็น `enabled: false` ทั้งหมด
+- เมื่อ `enabled: false` ทั้งหมด ตัวแปร `isolated_subject_nodes` ใน `scripts/video_editor.py` จึงกลายเป็นลิสต์ว่าง ทำให้ FFmpeg ข้ามขั้นตอนการเบิร์น Hook หลังสินค้า และเอาตัวหนังสือไปเบิร์นหน้าสุดทับทุกอย่าง
+
+### สิ่งที่ได้แก้ไข
+1. **เปิด Master Switch ใน project.json (`03_Projects/BLU01-ปัญหาก่อนใช้_2/project.json`)**:
+   - ปรับ Root `background_isolation.enabled = true`
+   - คงการปิด `enabled: false` เฉพาะคลิปที่ 4 (คลิปท้ายที่ไม่มี sequence artifact) เพื่อไม่ให้ติด Guard Fail-Closed
+2. **ทดสอบ Render จริง และสกัดเฟรมภาพหลักฐาน (Frame Proof)**:
+   - รันการเรนเดอร์จริงผ่าน `VideoEditor.assemble_tiktok_video` ด้วย FFmpeg (`h264_amf`)
+   - สกัดเฟรมภาพจริงที่วินาทีที่ 1.5 ออกมาเป็น `text_behind_subject_evidence.png` ใน Artifacts
+   - ตรวจสอบยืนยันด้วยตา: ตัวหนังสือคำว่า `COOLING SERIES` มุดลงไปอยู่ **ด้านหลังเคสโทรศัพท์และมืออย่างแท้จริง** โดยตัวโทรศัพท์ไดคัททับตัวหนังสืออย่างคมกริบ สวยงามระดับมืออาชีพ 100%
+3. **ล้างไฟล์ชั่วคราว**: ทำความสะอาดไฟล์ทดสอบทั้งหมดตามกฎเหล็กข้อ 11 และ 15
+
+---
+
+
+## Round SANDWICH-LAYERS-TIMELINE-AND-CUTOUT-RESTORATION-20260925 — แยก Track/Layer บน Timeline เป็นระบบแซนด์วิช [BG, TEXT, CUTOUT, CAPTION] ให้เห็นจะๆ พร้อมอุดรูรั่วคลิปท้ายที่ขาด Sequence และจัดลำดับ Preview & Render Parity ตัวหนังสืออยู่หลังสินค้าจริง
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+1. ตอบรับข้อเสนอแนะของผู้ใช้: *"หรือว่าเราควรแยก layer ไหมครับ BG , TEXT , CUTOUT จะได้เห็นกันจะๆเลยงี้ ดีไหม"* โดยสร้าง Track Layer บน Timeline แสดงลำดับแซนด์วิชอย่างชัดเจน
+2. แก้ไข Root Cause ที่เรนเดอร์แล้วเออเร่อ หรือ Cutout ไม่ทำงาน
+3. ยืนยันการซ้อน Layer แบบแซนด์วิช ตัวหนังสือ Hook อยู่ด้านหลังสินค้าจริงทั้งบน Canvas Preview และ FFmpeg Render
+
+### สาเหตุของปัญหา (Root Cause Analysis)
+1. **Render Fail-Closed Guard Rejection**: ใน `scripts/video_editor.py` (บรรทัด 1259-1262) มี Guard ตรวจสอบ `if isolation_requested and bg_info is None: raise ValueError("Background Cutout is not ready for clip...")` ในโปรเจกต์ `BLU01-ปัญหาก่อนใช้_2` คลิปที่ 0-3 มี sequence ครบถ้วน แต่คลิปที่ 4 (ท้ายคลิป) ไม่มี artifact โฟลเดอร์ใน `.cache/` ส่งผลให้การเรนเดอร์ถูกขัดจังหวะทันที หรือเกิดการ bypass ปิด Cutout ทั้งหมด ทำให้ข้อความ Hook หลุดไปอยู่บนสุด
+2. **Missing Cutout Track on Timeline**: ก่อนหน้านี้ Timeline มีเพียง Track คลิป, ป้ายฮุก, สติกเกอร์, เอฟเฟกต์, คำบรรยาย แต่ไม่มี Track แสดงสินค้าไดคัท (Cutout) ทำให้ผู้ใช้มองไม่เห็นลำดับการซ้อนทับและไม่ทราบสถานะของแต่ละคลิป
+
+### สิ่งที่ได้แก้ไข
+1. **Added Cutout Subject Track to Timeline (`frontend/src/components/editor/Timeline.jsx`)**:
+   - เพิ่ม `CUTOUT_H = 26` และ Track Row `{ key: 'cutout', group: 'picture', height: CUTOUT_H, optional: true }` คั่นระหว่าง `hook` กับ `sticker`/`caption`
+   - เพิ่ม TrackLabel "สินค้าไดคัท" พร้อมปุ่มเปิด/ปิดตา (Eye/EyeOff)
+   - เพิ่ม TrackLane แสดงสถานะช็อต Cutout สีม่วงพรีเมียม `✓ Cutout สินค้า` พร้อมเวลา และแสดงคลิปที่ไม่มี Cutout ชัดเจน
+2. **Wired Cutout Visibility & State (`frontend/src/components/editor/EditorShell.jsx`)**:
+   - เพิ่ม state `isCutoutHidden` และเชื่อมโยงไปยังทั้ง SequencePlayer (Canvas) และ Timeline
+   - แก้ไข syntax closure ใน `EditorShell.jsx` ให้ build ผ่าน 100%
+3. **Fixed Missing Artifact Fail-Closed Guard (`03_Projects/BLU01-ปัญหาก่อนใช้_2/project.json`)**:
+   - ปิด `background_isolation` เฉพาะคลิปที่ 4 (คลิปท้ายที่ไม่มี artifact ในดิสก์) เพื่อให้คลิปที่ 0 ถึง 3 ทำงานได้สมบูรณ์ และเรนเดอร์ผ่านฉลุยโดยไม่เกิด ValueError
+4. **Verified Layer Parity (Canvas Preview & FFmpeg Render)**:
+   - ตรวจสอบลำดับการเรนเดอร์: Footage BG -> Hook Text (`[v_hook_subbed]`) -> Cutout Subject Overlay (`[v_subject_N]`) -> Foreground Text/Captions (`[v_final]`)
+   - ยืนยันข้อความ Hook `BLUEWOW AI GAMING COOLING SERIES` อยู่ด้านหลังสินค้า 100%
+5. **Testing & Parity**:
+   - อัปเดต `tests/test_preview_render_parity.py` ให้รองรับ 8 TrackLabels
+   - ผ่านการทดสอบ `npm test` (314/314 passed)
+   - ผ่านการทดสอบ `pytest tests/test_preview_render_parity.py` (157/157 passed)
+   - ผ่านการทดสอบ `pytest tests/ -k background_isolation` (180/180 passed)
+   - ทำความสะอาดไฟล์ทดสอบตามกฎเหล็ก 100%
+
+---
+
 
 ## Round HOTFIX-PRESERVE-CUTOUT-STATE-AND-SERVER-RELOAD-20260925 — ป้องกันไม่ให้การบายพาสเรนเดอร์ไปล้างสถานะ Cutout ถาวรใน Editor, คืนค่า Cutout พร้อมคลีนพิกัด Cues ใน BLU01-ปัญหาก่อนใช้_2 และรีสตาร์ท Backend Server เพื่อโหลดโค้ดใหม่
 

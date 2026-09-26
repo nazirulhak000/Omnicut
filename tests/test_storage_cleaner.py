@@ -60,7 +60,7 @@ def test_scan_and_purge_safe_reclaimable_cache(tmp_path, monkeypatch):
     temp_preview_wav = fake_projects / "preview_tts_test.wav"
     temp_preview_wav.write_bytes(b"TEMP_AUDIO_WAV_BYTES_67890")
 
-    cutout_cache_dir = fake_projects / ".cache" / "bgseq_test" / "frames"
+    cutout_cache_dir = fake_projects / ".cache" / "background-isolation-videos" / "frames"
     cutout_cache_dir.mkdir(parents=True)
     (cutout_cache_dir / "frame_000000.png").write_bytes(b"CUTOUT_FRAME_TRANSIENT_PNG")
 
@@ -89,7 +89,7 @@ def test_scan_and_purge_safe_reclaimable_cache(tmp_path, monkeypatch):
     # Verify transient files removed
     assert not proxy_file.exists()
     assert not temp_preview_wav.exists()
-    assert not (fake_projects / ".cache" / "bgseq_test").exists()
+    assert not (fake_projects / ".cache" / "background-isolation-videos").exists()
     assert not cloud_cache_dir.exists()
 
     # STRICT RULE 1 VERIFICATION: Protected files MUST STILL EXIST UNTOUCHED
@@ -102,10 +102,15 @@ def test_scan_and_purge_safe_reclaimable_cache(tmp_path, monkeypatch):
 def test_scan_and_purge_cutout_cache_only(tmp_path, monkeypatch):
     fake_projects = tmp_path / "03_Projects"
     fake_projects.mkdir()
-    cutout_cache = fake_projects / ".cache" / "bgseq_only" / "frames"
+    cutout_cache = fake_projects / ".cache" / "background-isolation-videos" / "frames"
     cutout_cache.mkdir(parents=True)
     frame_file = cutout_cache / "frame_000001.png"
     frame_file.write_bytes(b"CUTOUT_TARGET_FRAME")
+    source_proxy = fake_projects / ".cache" / "proxies" / "rgb.mp4"
+    source_proxy.parent.mkdir()
+    source_proxy.write_bytes(b"PRESERVE_RGB_PROXY")
+    unknown = fake_projects / ".cache" / "other-cache.json"
+    unknown.write_text("keep")
 
     monkeypatch.setattr("scripts.storage_cleaner.PROJECTS_DIR", fake_projects)
 
@@ -119,9 +124,10 @@ def test_scan_and_purge_cutout_cache_only(tmp_path, monkeypatch):
     assert purge_res["success"] is True
     assert purge_res["purged_files"] == 1
     assert not frame_file.exists()
+    assert source_proxy.read_bytes() == b"PRESERVE_RGB_PROXY"
+    assert unknown.read_text() == "keep"
 
     # Re-scan should be 0
     rescan = scan_cutout_cache()
     assert rescan["bytes"] == 0
     assert rescan["count"] == 0
-
