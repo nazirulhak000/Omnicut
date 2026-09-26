@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Copy, FlipHorizontal2, Gauge, Magnet, Maximize2, Music2, Redo2, RotateCcw, Scissors, Shield, Sparkles, Trash2, Undo2, ZoomIn, ZoomOut, Type,
+  AudioLines, Copy, FlipHorizontal2, Gauge, Magnet, Maximize2, Music2, Redo2, RotateCcw, Scissors, Shield, Sparkles, Trash2, Undo2, ZoomIn, ZoomOut, Type,
 } from 'lucide-react';
 import { formatTimecode } from '../../lib/timelineMath';
 
@@ -63,6 +63,9 @@ export default function Toolbar({
   onToggleBeatSnap,
   beatGridAvailable = false,
   beatBpm = null,
+  onScanSilences,
+  canScanSilences = false,
+  silenceScanning = false,
 }) {
   const speed = selectedClip?.speed || 1;
   const nextSpeed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length] || 1;
@@ -166,6 +169,22 @@ export default function Toolbar({
           onClick={onToggleSnap}
           active={snapEnabled}
         />
+        {/* Dead-air trimming. Disabled without a voiceover rather than hidden,
+            so the capability is discoverable and the tooltip can say what it
+            needs. The label names the action, not the finding: pressing it
+            only proposes a cut, which is then confirmed. */}
+        {onScanSilences && (
+          <ToolButton
+            icon={AudioLines}
+            label="ตัดช่วงเงียบ"
+            hint={canScanSilences
+              ? 'ตรวจหาช่วงเงียบในเสียงพากย์แล้วเสนอการตัด (ยืนยันก่อนตัดจริง)'
+              : 'ต้องมีเสียงพากย์ในโปรเจกต์ก่อน'}
+            onClick={onScanSilences}
+            disabled={!canScanSilences || silenceScanning}
+            active={silenceScanning}
+          />
+        )}
         {/* Only offered once a beat grid exists: a control that cannot do
             anything is worse than no control. The hint carries the measured
             tempo so the user can tell the analysis found real music. */}

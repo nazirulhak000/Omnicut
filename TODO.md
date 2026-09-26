@@ -84,7 +84,7 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 
 ## Round CAPCUT-PREMIERE-TECH-INTEGRATION-20260926 — planned (ยังไม่แตะโค้ด)
 
-วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Opus 5 1M) · สถานะ: Stage A + Stage B เสร็จครบ, Stage C เสร็จ C1+API (เหลือ C2/C3 ปุ่ม+ripple), Stage D ยังไม่เริ่ม
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Opus 5 1M) · สถานะ: Stage A + B + C เสร็จครบ, Stage D ยังไม่เริ่ม
 
 **เป้าหมาย:** ทำตามแผนแม่บท `_Docs/Plans/CAPCUT_PREMIERE_TECH_INTEGRATION_PLAN.md` (7 เทคโนโลยีจาก CapCut/Premiere Pro) ที่เขียนไว้ 2026-09-25 แต่ยังไม่เคยเปิดรอบงาน ทุกฟีเจอร์ต้องผ่าน Preview=Render parity ตาม `.agents/rules/preview_render_parity.md` และไม่ลดเกณฑ์เดิม
 
@@ -126,9 +126,9 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 **Stage C — Silence Stripper**
 
 - [x] C1: `scripts/silence_detect.py` ใช้ ffmpeg `silencedetect` threshold `-32dB` ระยะขั้นต่ำ `0.35s` คืนช่วงเงียบเป็น JSON
-- [~] C2 (บางส่วน): API `GET /api/audio/silences` เสร็จ (read-only คืน preview diff ไม่ตัดจริง) — ปุ่ม UI รอ Codex; API + ปุ่ม "ตัดช่วงเงียบอัตโนมัติ" (ขึ้นต้นด้วยกริยา ไม่มีสัญลักษณ์นำ ตาม `ui_clean_standard.md`) — เป็น **preview diff ก่อน แล้วให้ยืนยัน** ไม่ตัดทันที
-- [ ] C3: Ripple delete เก็บ natural pause `0.10s` + ต้อง Undo ได้ 1 ครั้งกลับสภาพเดิมครบ
-- [ ] C4: เทส: ช่วงเงียบหัว/กลาง/ท้ายคลิป, คลิปเงียบทั้งเส้น, คลิปไม่มีเสียง, Undo/Redo, Save/Reload
+- [x] C2: API `GET /api/audio/silences` + ปุ่ม "ตัดช่วงเงียบ" (ขึ้นต้นด้วยกริยา ไม่มีสัญลักษณ์นำ ตาม `ui_clean_standard.md`) — เป็น **preview diff ก่อน แล้วให้ยืนยัน** ไม่ตัดทันที
+- [x] C3: Ripple delete เก็บ natural pause `0.10s` + ต้อง Undo ได้ 1 ครั้งกลับสภาพเดิมครบ
+- [x] C4: เทส: ช่วงเงียบหัว/กลาง/ท้ายคลิป, คลิปเงียบทั้งเส้น, คลิปไม่มีเสียง, Undo/Redo, Save/Reload
 
 **Stage D — AI Visual (แพงสุด ทำท้ายสุด ทีละข้อ)**
 
@@ -190,6 +190,16 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 - `mergeProxyEntry` คืน object เดิมเมื่อค่าไม่เปลี่ยน — React จะได้ไม่ repaint player ทุกครั้งที่ poll ได้ผลเดิม
 - **ยืนยัน end-to-end จริง**: request แรก `building`+master (ไม่บล็อก) → encode เสร็จ → `ready`+proxy; master `1920x1080` → proxy `540x960`; render ยัง refuse proxy และรับ master ตามเดิม
 - เทส: `test_api_proxy.py` 18 passed, `clipProxy.test.js` 18 passed; backend เต็มชุด **1,864 passed, 8 skipped, 0 failed**; frontend **365 passed**; `vite build` ผ่าน
+
+### ผลรอบ C2/C3/C4 (2026-09-26, Claude Code)
+
+- `frontend/src/lib/silenceRipple.js` (ไฟล์ใหม่): แยก **plan → confirm → apply** ไม่ตัดทันที เพราะ ripple delete ขยับคลิปหลังจุดตัดทั้งหมด ไม่ควรทำโดยผู้ใช้ไม่ทันเห็น
+- **เลือก trim ไม่ใช่ split**: ช่วงเงียบกลางคลิปจะหดคลิปจากหัว/ท้าย ไม่ผ่าคลิป เพราะการผ่าจะทำให้ค่า per-clip (zoom, volume, keyframes) กระจายไปอยู่หลายชิ้น
+- คิด `speed` ด้วยตอนแปลงเวลา timeline → source (2x = 1 วินาทีบนไทม์ไลน์ตรงกับ source 2 วินาที) ถ้าไม่แปลงจะตัดผิดตำแหน่งในคลิปที่เร่งความเร็ว
+- **กันเคสอันตราย**: ถ้าตัดแล้วไม่เหลือคลิป → `blocked` ไม่ทำให้ไทม์ไลน์ว่าง; คลิปที่เหลือสั้นกว่า `MIN_CLIP_DURATION` → ลบทิ้งแทนที่จะทิ้งเศษ; คลิปแรกที่เหลือถูกบังคับเป็น `transition_in: cut` เพราะ fade เข้าจากความว่างไม่ได้
+- UI: ปุ่ม "ตัดช่วงเงียบ" ใน Toolbar (disabled + บอกเหตุผลเมื่อไม่มีเสียงพากย์ ไม่ซ่อน) → dialog บอกจำนวนคลิปที่กระทบและเวลาที่สั้นลงจริง → ยืนยันแล้วค่อยตัด
+- ใช้ `set()` ครั้งเดียว = **Ctrl+Z ครั้งเดียวกลับสภาพเดิม** ยืนยันแล้วด้วยการรัน history model จริง: ตัด `a,b,c` → `a,c` → undo → `a,b,c` เทียบ JSON ตรงกับต้นฉบับทุกไบต์
+- เทส: `silenceRipple.test.js` 27 passed (ครอบคลุมหัว/กลาง/ท้าย, ข้ามหลายคลิป, speed, ตัดหมด, ไม่มี span, ไทม์ไลน์ว่าง, ไม่ mutate input); frontend รวม **392 passed**; backend **1,864 passed, 8 skipped**; `vite build` ผ่าน
 
 ### Notes
 

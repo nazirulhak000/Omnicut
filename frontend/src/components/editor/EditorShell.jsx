@@ -7,11 +7,14 @@ import {
 } from 'lucide-react';
 import {
   deleteProject, getAllAssets, getBackgroundIsolationManifest, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, getTaskStatus, preflightBackgroundIsolation, startBackgroundIsolation, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
-  getHookTemplates, saveCustomHookTemplate, deleteCustomHookTemplate, getBgmBeats,
+  getHookTemplates, saveCustomHookTemplate, deleteCustomHookTemplate, getBgmBeats, getMediaSilences,
 } from '../../api';
 import {
   EMPTY_BEAT_GRID, beatSnapPoints as beatSnapPointsOf, hasBeats, normalizeBeatGrid,
 } from '../../lib/beatGrid.js';
+import {
+  describePlan, planChangesAnything, planSilenceRipple,
+} from '../../lib/silenceRipple.js';
 import {
   FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
   totalDuration as totalDurationOf,
@@ -356,6 +359,15 @@ export default function EditorShell({
   const [copiedPath, setCopiedPath] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
   const [voiceUrl, setVoiceUrl] = useState(null);
+  // The raw project-relative path behind voiceUrl. Silence detection runs on
+  // the file, so it needs the path the backend can open, not the media URL
+  // the browser plays.
+  const [voiceAudioPath, setVoiceAudioPath] = useState(null);
+  // Proposed silence cut awaiting confirmation: { plan, description }. A
+  // ripple delete moves every later clip, so it is shown before it is done.
+  const [silencePlan, setSilencePlan] = useState(null);
+  const [silenceScanning, setSilenceScanning] = useState(false);
+  const [silenceError, setSilenceError] = useState('');
   // Read off the manifest so the banner can dress itself the way the script's
   // own narration tone asks for, and name the product without being told.
   const [projectAdTone, setProjectAdTone] = useState(null);
@@ -676,6 +688,7 @@ export default function EditorShell({
     setProjectProductName(loaded.productName);
     setAudioUrl(loaded.mixedAudioPath ? toMediaUrl(loaded.mixedAudioPath) : null);
     setVoiceUrl(loaded.voiceAudioPath ? toMediaUrl(loaded.voiceAudioPath) : null);
+    setVoiceAudioPath(loaded.voiceAudioPath || null);
     loadedCaptionStyle.current = {
       captionPosition: loadedEditorState.style.captionPosition,
       captionColor: loadedEditorState.style.captionColor,
@@ -979,6 +992,49 @@ export default function EditorShell({
     (selectedSeg.clip.pan_x !== undefined && selectedSeg.clip.pan_x !== 0) ||
     (selectedSeg.clip.pan_y !== undefined && selectedSeg.clip.pan_y !== 0)
   );
+  // Scan the voiceover for dead air and propose a ripple cut. Nothing is
+  // applied here: the plan is shown first, because a ripple delete moves every
+  // clip after it and is not something to spring on someone.
+  const handleScanSilences = useCallback(async () => {
+    if (!voiceAudioPath) {
+      setSilenceError('ยังไม่มีไฟล์เสียงพากย์ในโปรเจกต์นี้');
+      return;
+    }
+    setSilenceScanning(true);
+    setSilenceError('');
+    setSilencePlan(null);
+    try {
+      const data = await getMediaSilences(voiceAudioPath);
+      const plan = planSilenceRipple(clipList, data?.silences || [], durations);
+      if (plan.blocked) {
+        setSilenceError(plan.blocked);
+      } else if (!planChangesAnything(plan)) {
+        setSilenceError('ไม่พบช่วงเงียบที่ตัดได้');
+      } else {
+        setSilencePlan({ plan, description: describePlan(plan) });
+      }
+    } catch (err) {
+      setSilenceError(err?.friendlyMessage || err?.message || 'ตรวจช่วงเงียบไม่สำเร็จ');
+    } finally {
+      setSilenceScanning(false);
+    }
+  }, [voiceAudioPath, clipList, durations]);
+
+  // Apply the confirmed plan as one state change, so a single Ctrl+Z puts the
+  // timeline back exactly as it was.
+  const handleApplySilencePlan = useCallback(() => {
+    const plan = silencePlan?.plan;
+    if (!plan || plan.blocked) return;
+    set((prev) => ({ ...prev, clipList: plan.clips }));
+    setSilencePlan(null);
+    setSelection(null);
+  }, [silencePlan, set]);
+
+  const handleCancelSilencePlan = useCallback(() => {
+    setSilencePlan(null);
+    setSilenceError('');
+  }, []);
+
   const handleResetClipTransform = useCallback(() => {
     if (!selectedSeg?.clip) return;
     patchClip(selectedSeg.clip.id, { zoom: 1, pan_x: 0, pan_y: 0 });
@@ -1971,6 +2027,77 @@ export default function EditorShell({
         </div>
       )}
 
+      {/* Confirm before a ripple cut. The plan is already computed, so this
+          shows exactly what will happen -- how many clips, and how much
+          shorter the result is -- rather than asking the user to trust a
+          number they cannot check. Applying is one undo step. */}
+      {silencePlan && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 w-screen h-[100dvh] bg-black/80 backdrop-blur-md animate-fadeIn"
+          onClick={handleCancelSilencePlan}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="ยืนยันการตัดช่วงเงียบ"
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md space-y-4 rounded-2xl sm:rounded-3xl border border-white/[0.14] bg-[#0F1420]/95 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl"
+          >
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300">
+                <Scissors className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-white">ตัดช่วงเงียบออก?</h2>
+                <p className="pt-0.5 text-sm text-slate-400">คลิปหลังจุดที่ตัดจะเลื่อนมาชิดกันทั้งหมด</p>
+              </div>
+            </div>
+
+            <p className="rounded-xl bg-white/[0.04] px-3 py-2.5 text-sm text-slate-200">
+              {silencePlan.description}
+            </p>
+
+            <p className="text-xs text-slate-500">กด Ctrl+Z ย้อนกลับได้ทันทีถ้าไม่ถูกใจ</p>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleCancelSilencePlan}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757]"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleApplySilencePlan}
+                className="rounded-lg bg-[#D97757] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#C56646] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757]"
+              >
+                ตัดเลย
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Why a scan found nothing, or could not run. Dismissible and quiet --
+          this is not an error the user caused. */}
+      {silenceError && !silencePlan && (
+        <div
+          className="fixed bottom-4 left-1/2 z-[100] -translate-x-1/2 rounded-xl border border-white/[0.14] bg-[#0F1420]/95 px-4 py-2.5 text-sm text-slate-200 shadow-2xl backdrop-blur-xl"
+          role="status"
+        >
+          <span>{silenceError}</span>
+          <button
+            type="button"
+            onClick={() => setSilenceError('')}
+            aria-label="ปิดข้อความ"
+            className="ml-3 text-slate-400 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757]"
+          >
+            <X className="inline h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {pendingDelete && (() => {
         const meta = projectList.find((p) => p.project_name === pendingDelete);
         return (
@@ -2391,6 +2518,9 @@ export default function EditorShell({
                   onToggleBeatSnap={() => setBeatSnapEnabled((v) => !v)}
                   beatGridAvailable={hasBeats(beatGrid)}
                   beatBpm={beatGrid?.bpm ?? null}
+                  onScanSilences={handleScanSilences}
+                  canScanSilences={!!voiceAudioPath && clipList.length > 0}
+                  silenceScanning={silenceScanning}
                 />
                 <div className="min-h-0 flex-1">
                   <Timeline
@@ -3018,6 +3148,9 @@ export default function EditorShell({
                   onToggleBeatSnap={() => setBeatSnapEnabled((v) => !v)}
                   beatGridAvailable={hasBeats(beatGrid)}
                   beatBpm={beatGrid?.bpm ?? null}
+                  onScanSilences={handleScanSilences}
+                  canScanSilences={!!voiceAudioPath && clipList.length > 0}
+                  silenceScanning={silenceScanning}
                 />
                 <div className="min-h-0 flex-1">
                   <Timeline
