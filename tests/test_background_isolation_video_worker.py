@@ -263,3 +263,85 @@ def test_explicit_temporal_mode_still_wins(tmp_path):
                  / video_worker.VIDEO_NAMESPACE / result["artifact_id"])
     manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["temporal_mode"] == "legacy"
+
+
+def _tiny_source(tmp_path):
+    source = tmp_path / "source.mp4"
+    subprocess.run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+         "-i", "color=c=blue:s=16x16:r=2:d=1", "-c:v", "libx264", str(source)],
+        check=True, capture_output=True,
+    )
+    return source
+
+
+def _prepare(source, cache_root, fingerprint):
+    return video_worker.process_background_isolation_video(
+        source, cache_root, {"enabled": True}, source_fingerprint=fingerprint,
+        start=0.0, duration=1.0, fps=2, timebase="1/2", width=16, height=16,
+        rotation=0, rembg_worker=_Worker(),
+    )
+
+
+def test_debris_without_master_or_manifest_is_reclaimed(tmp_path):
+    """A half-written artifact directory must not wedge the feature.
+
+    Only a fully staged directory is ever renamed into place, so a target
+    holding neither cutout.webm nor manifest.json is always debris from an
+    interrupted run. Refusing it made "prepare cutout" fail identically
+    forever with nothing the user could do about it -- which is exactly what
+    happened in this project when a test purged the cache mid-build.
+    """
+    source = _tiny_source(tmp_path)
+    cache_root = tmp_path / "03_Projects" / ".cache"
+    fingerprint = "sha256:" + "f" * 64
+
+    first = _prepare(source, cache_root, fingerprint)
+    directory = cache_root / video_worker.VIDEO_NAMESPACE / first["artifact_id"]
+
+    # Reproduce the debris seen in the field: the master and manifest are
+    # gone, only a derived file remains. (This fixture is below the preview
+    # downscale threshold, so build_alpha_preview writes none -- the stray
+    # file is created here to match what a real interrupted build leaves.)
+    (directory / "cutout.webm").unlink()
+    (directory / "manifest.json").unlink()
+    (directory / "preview.webm").write_bytes(b"orphaned derived file")
+    assert [p.name for p in directory.iterdir()] == ["preview.webm"]
+
+    again = _prepare(source, cache_root, fingerprint)
+
+    assert again["status"] == "ready"
+    assert again["cache_hit"] is False, "debris should force a real rebuild"
+    assert (directory / "cutout.webm").is_file()
+    assert (directory / "manifest.json").is_file()
+
+
+def test_empty_artifact_directory_is_reclaimed(tmp_path):
+    source = _tiny_source(tmp_path)
+    cache_root = tmp_path / "03_Projects" / ".cache"
+    fingerprint = "sha256:" + "1" * 64
+
+    first = _prepare(source, cache_root, fingerprint)
+    directory = cache_root / video_worker.VIDEO_NAMESPACE / first["artifact_id"]
+    shutil.rmtree(directory)
+    directory.mkdir(parents=True)
+
+    assert _prepare(source, cache_root, fingerprint)["status"] == "ready"
+
+
+def test_artifact_with_a_manifest_is_still_refused(tmp_path):
+    """The other half of the contract: anything carrying a manifest may be a
+    real artifact whose checksum drifted, so it is never deleted silently."""
+    source = _tiny_source(tmp_path)
+    cache_root = tmp_path / "03_Projects" / ".cache"
+    fingerprint = "sha256:" + "2" * 64
+
+    first = _prepare(source, cache_root, fingerprint)
+    directory = cache_root / video_worker.VIDEO_NAMESPACE / first["artifact_id"]
+    # Master gone, manifest kept -- ambiguous, so it must not be reclaimed.
+    (directory / "cutout.webm").unlink()
+
+    with pytest.raises(RuntimeError, match="refusing to overwrite"):
+        _prepare(source, cache_root, fingerprint)
+
+    assert (directory / "manifest.json").is_file(), "refused artifact must survive"

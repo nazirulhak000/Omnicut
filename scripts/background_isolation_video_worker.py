@@ -149,7 +149,28 @@ def process_background_isolation_video(
                         "cache_hit": True}
             raise RuntimeError("cutout video cache checksum mismatch; rebuild this artifact")
     if target.exists():
-        raise RuntimeError("incomplete video artifact exists; refusing to overwrite it")
+        # A directory with neither a master nor a manifest cannot be a usable
+        # artifact or one being written: the worker only publishes by renaming
+        # a fully staged directory into place (os.replace below), so a
+        # half-populated target is always debris from an interrupted or
+        # externally-deleted run. Refusing it left the user stuck -- "prepare
+        # cutout" failed identically every time with no way to clear it -- so
+        # the debris is reclaimed here instead.
+        #
+        # Anything that still has a manifest is left alone and still raises:
+        # that may be a real artifact whose checksum simply drifted, and
+        # deleting it could destroy work.
+        reclaimable = (
+            target.is_dir()
+            and not target.is_symlink()
+            and not manifest_path.exists()
+            and not (target / VIDEO_NAME).exists()
+        )
+        if not reclaimable:
+            raise RuntimeError("incomplete video artifact exists; refusing to overwrite it")
+        leftovers = sorted(item.name for item in target.iterdir())
+        print(f"   ♻️ ลบซาก Cutout ที่ค้างไว้ ({artifact_id}): {', '.join(leftovers) or 'ว่าง'}")
+        shutil.rmtree(target)
     namespace.mkdir(parents=True, exist_ok=True)
     staged = Path(tempfile.mkdtemp(prefix=f".{artifact_id}.", dir=namespace))
     decoder = encoder = None
