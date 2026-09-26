@@ -6,6 +6,7 @@ import {
   PROXY_MASTER,
   PROXY_READY,
   buildingClipIds,
+  isProxyableSource,
   mergeProxyEntry,
   playbackUrlFor,
   readProxyResponse,
@@ -167,4 +168,55 @@ test('buildingClipIds lists only the clips still encoding', () => {
 test('buildingClipIds is empty for an empty or missing map', () => {
   assert.deepEqual(buildingClipIds({}), []);
   assert.deepEqual(buildingClipIds(null), []);
+});
+
+
+// ---------------------------------------------------------------------------
+// isProxyableSource
+// ---------------------------------------------------------------------------
+
+test('isProxyableSource accepts project-relative media files', () => {
+  for (const path of [
+    '01_Raw/clip.mp4', '01_Raw/a.MOV', '02_Assets/b.webm',
+    '01_Raw/c.mkv', '01_Raw/d.m4v', '01_Raw/e.avi',
+  ]) {
+    assert.equal(isProxyableSource(path), true, path);
+  }
+});
+
+test('isProxyableSource rejects a served page or asset URL', () => {
+  // The motion-capture fixture hands SequencePlayer its own page URL. Asking
+  // the backend to proxy that produces a 403, and the browser logs the
+  // rejection to the console whether or not the JS catches it -- which fails
+  // every capture-based parity test in the suite.
+  assert.equal(isProxyableSource('https://127.0.0.1:5173/motion_capture.html'), false);
+  assert.equal(isProxyableSource('http://localhost:5173/clip.mp4'), false);
+});
+
+test('isProxyableSource rejects in-memory sources', () => {
+  // A blob or data URI has no master on disk to build a proxy from.
+  assert.equal(isProxyableSource('blob:http://localhost/abc-123'), false);
+  assert.equal(isProxyableSource('data:video/mp4;base64,AAAA'), false);
+});
+
+test('isProxyableSource rejects the Vite filesystem escape hatch', () => {
+  assert.equal(isProxyableSource('/@fs/D:/tmp/fixture.mp4'), false);
+});
+
+test('isProxyableSource rejects non-video files', () => {
+  for (const path of ['notes.txt', '02_Assets/song.wav', 'cover.png', 'a.json']) {
+    assert.equal(isProxyableSource(path), false, path);
+  }
+});
+
+test('isProxyableSource rejects empty and non-string input', () => {
+  for (const bad of ['', '   ', null, undefined, 42, {}]) {
+    assert.equal(isProxyableSource(bad), false);
+  }
+});
+
+test('isProxyableSource ignores a query string or fragment', () => {
+  assert.equal(isProxyableSource('01_Raw/clip.mp4?v=2'), true);
+  assert.equal(isProxyableSource('01_Raw/clip.mp4#t=3'), true);
+  assert.equal(isProxyableSource('01_Raw/page.html?x=.mp4'), false);
 });

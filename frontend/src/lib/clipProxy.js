@@ -20,6 +20,32 @@ export const PROXY_READY = 'ready';
 export const PROXY_BUILDING = 'building';
 export const PROXY_MASTER = 'master';
 
+/** Extensions the proxy encoder can actually read. */
+const PROXYABLE_EXTENSIONS = /\.(mp4|mov|m4v|webm|mkv|avi|hevc)$/i;
+
+/**
+ * Whether a clip's source is worth asking the proxy API about.
+ *
+ * A timeline is not always fed real files. Test fixtures and previews hand
+ * SequencePlayer a page URL, a blob or a data URI, and asking the backend to
+ * proxy one of those is a request that can only fail -- which is not free:
+ * the browser logs the rejection to the console whether or not the JS catches
+ * it, and the motion-capture parity gate fails any run with console errors.
+ * So the check is here, before the request, not in a catch after it.
+ */
+export function isProxyableSource(sourcePath) {
+  if (typeof sourcePath !== 'string') return false;
+  const path = sourcePath.trim();
+  if (!path) return false;
+  // Anything the browser is already holding in memory has no master on disk.
+  if (/^(blob:|data:)/i.test(path)) return false;
+  // An absolute http(s) URL is a served page or asset, not a project file.
+  if (/^https?:\/\//i.test(path)) return false;
+  // Vite's dev-server filesystem escape hatch, used by the parity fixture.
+  if (path.startsWith('/@fs/')) return false;
+  return PROXYABLE_EXTENSIONS.test(path.split(/[?#]/)[0]);
+}
+
 /**
  * How long to wait before asking again about a proxy that was still encoding.
  * Long enough that a timeline full of clips does not hammer the API, short

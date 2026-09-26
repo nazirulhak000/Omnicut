@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
 import {
-  PROXY_POLL_MS, buildingClipIds, mergeProxyEntry, playbackUrlFor, readProxyResponse, shouldPoll,
+  PROXY_POLL_MS, buildingClipIds, isProxyableSource, mergeProxyEntry, playbackUrlFor,
+  readProxyResponse, shouldPoll,
 } from '../lib/clipProxy.js';
 import { getClipProxy } from '../api';
 import { effectiveAudioMutes } from '../lib/trackMix.js';
@@ -3326,7 +3327,11 @@ function SequencePlayer({
 
     const resolve = async () => {
       const pending = clips.filter((c) => {
-        if (!c?.source_path) return false;
+        // Sources the proxy encoder cannot read (fixture URLs, blobs, data
+        // URIs) are skipped outright rather than asked about and rejected:
+        // the browser logs a failed request to the console regardless of
+        // catching, and the parity gate fails on any console error.
+        if (!isProxyableSource(c?.source_path)) return false;
         const entry = clipSourcesRef.current[c.id];
         return !entry || shouldPoll(entry);
       });
