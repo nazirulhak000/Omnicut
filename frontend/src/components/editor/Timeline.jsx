@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import TimelineClip from './TimelineClip';
 import TimelineRuler from './timeline/TimelineRuler';
+import { beatsWithinSpan } from '../../lib/beatGrid.js';
 import TimelinePlayhead from './timeline/TimelinePlayhead';
 import TimelineContextMenu from './timeline/TimelineContextMenu';
 import { EffectTrackLabel, EffectTrackLane } from './timeline/EffectTrack';
@@ -37,6 +38,7 @@ export const HOOK_MAX_DURATION = 8.0;
 
 const VIDEO_H = 64;
 const HOOK_H = 28;
+const CUTOUT_H = 26;
 const STICKER_H = 28;
 const EFFECT_H = 28;
 const CAPTION_H = 28;
@@ -52,6 +54,11 @@ const TRACK_TOP = 6;
 // One lane per stem now that the preview plays them separately: a single
 // merged "audio" lane could only ever show the mix, which most projects no
 // longer have, and gave nothing to mute or solo.
+// Beat markers reuse the project's highlight yellow (the same #FFE600 the
+// kinetic captions use) so "the app is pointing at this moment" reads the
+// same way everywhere.
+const BEAT_MARKER_COLOUR = '#FFE600';
+
 const STEMS = [
   { key: 'voice', label: 'พากย์', colour: '#8FBF9F', ring: '#33463A', bg: '#242A26' },
   { key: 'bgm', label: 'เพลง', colour: '#9FB4D8', ring: '#33405A', bg: '#232833' },
@@ -68,6 +75,7 @@ const STEMS = [
 const TRACK_ROWS = [
   { key: 'video', group: 'picture', height: VIDEO_H },
   { key: 'hook', group: 'overlay', height: HOOK_H },
+  { key: 'cutout', group: 'picture', height: CUTOUT_H, optional: true },
   { key: 'sticker', group: 'overlay', height: STICKER_H, optional: true },
   { key: 'effect', group: 'overlay', height: EFFECT_H, optional: true },
   { key: 'caption', group: 'overlay', height: CAPTION_H },
@@ -149,6 +157,10 @@ export default function Timeline({
   audioDuration,
   cues,
   bgmLabel,
+  // { bpm, major: number[], minor: number[] } or null when the track has not
+  // been analyzed. Defaulted so a caller that never passes it renders no
+  // markers rather than throwing.
+  beatGrid = null,
   stemUrls = {},
   trackMix = null,
   onTrackMix,
@@ -214,6 +226,9 @@ export default function Timeline({
   effectAssets = [],
   onSelectEffect,
   onUpdateEffect,
+  backgroundIsolation = null,
+  isCutoutHidden = false,
+  onToggleCutout,
 }) {
   // The banner and the text overlays are one array; the two lanes are a view
   // of it, so a trim on either takes the same clamp and the same handler.
@@ -223,6 +238,7 @@ export default function Timeline({
   const textOverlays = (overlays || []).filter((o) => o.kind === 'text');
   const showHookHeader = !!hookOverlay && !hookOverlay.hidden;
   const isTextOverlayHidden = textOverlays.length > 0 && textOverlays.every((o) => o.hidden);
+  const hasCutout = (backgroundIsolation?.enabled === true) || (segments || []).some((s) => s.clip?.background_isolation?.enabled === true);
   const onSelectTextOverlay = (id) => onSelectOverlay?.(id, 'text');
   const onSelectHook = () => (hookOverlay ? onSelectOverlay?.(hookOverlay.id, 'hook') : null);
   const onToggleHookHeader = () => onEnsureHookOverlay?.();
@@ -411,10 +427,10 @@ export default function Timeline({
   const rows = useMemo(
     () => layoutRows({
       heights: { text: textTrackHeight, sticker: stickerTrackHeight, effect: effectTrackHeight },
-      present: { text: hasTextOverlays, sticker: hasSticker, effect: hasEffects },
+      present: { text: hasTextOverlays, sticker: hasSticker, effect: hasEffects, cutout: hasCutout },
       collapsed: { audio: audioCollapsed },
     }),
-    [textTrackHeight, stickerTrackHeight, effectTrackHeight, hasTextOverlays, hasSticker, hasEffects, audioCollapsed],
+    [textTrackHeight, stickerTrackHeight, effectTrackHeight, hasTextOverlays, hasSticker, hasEffects, hasCutout, audioCollapsed],
   );
   const visibleStems = audioCollapsed ? STEMS.slice(0, 1) : STEMS;
   const rowStyleOf = useMemo(() => {
@@ -622,6 +638,16 @@ export default function Timeline({
   };
 
   const contentWidth = Math.max(audioDuration || 0, totalDuration, 1) * pxPerSec + 240;
+
+  // Beats clamped to the music lane's own span. A BGM file is usually longer
+  // than the sequence and is looped by the renderer, so drawing every beat in
+  // the source would paint markers far past the end of the lane. Guarded
+  // against a non-finite or negative timestamp too: one bad value from
+  // analysis would otherwise place a marker at a nonsense offset.
+  const beatMarkers = useMemo(
+    () => beatsWithinSpan(beatGrid, Math.max(audioDuration || 0, totalDuration || 0)),
+    [beatGrid, audioDuration, totalDuration],
+  );
   const step = tickStep(pxPerSec);
   const ticks = useMemo(() => {
     const span = Math.max(totalDuration, audioDuration || 0);
@@ -693,6 +719,31 @@ export default function Timeline({
                   ป้ายฮุก
                 </TrackLabel>
               </div>
+              {hasCutout && (
+                <div style={rowStyle('cutout')} className="flex items-center transition-all duration-150">
+                  <TrackLabel
+                    width={gutterW}
+                    slotWidth={dense ? 14 : 26}
+                    icon={Scissors}
+                    action={
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onToggleCutout?.(); }}
+                        title={isCutoutHidden ? 'คลิกเพื่อแสดงสินค้าไดคัทบนพรีวิว' : 'คลิกเพื่อซ่อนสินค้าไดคัทบนพรีวิว'}
+                        className={`p-1 rounded transition-colors ${
+                          isCutoutHidden
+                            ? 'text-amber-400 hover:bg-amber-400/20'
+                            : 'text-[#C084FC] hover:bg-[#C084FC]/20'
+                        }`}
+                      >
+                        {isCutoutHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      </button>
+                    }
+                  >
+                    สินค้าไดคัท
+                  </TrackLabel>
+                </div>
+              )}
               {hasSticker && (
                 <div style={rowStyle('sticker')} className="flex items-center transition-all duration-150">
                   <TrackLabel
@@ -1114,6 +1165,52 @@ export default function Timeline({
                 })()}
               </div>
 
+              {/* cutout track */}
+              {hasCutout && (
+                <div
+                  data-testid="timeline-cutout-track"
+                  className="relative rounded bg-[#181716] transition-all duration-150"
+                  style={rowStyle('cutout')}
+                >
+                  {segments.map((seg) => {
+                    const clipIso = seg.clip?.background_isolation;
+                    const isIsoOn = clipIso?.enabled === true;
+                    const isReady = clipIso?.artifact?.status === 'ready';
+                    const w = Math.max(16, seg.dur * pxPerSec);
+                    return (
+                      <div
+                        key={`cutout-${seg.clip.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          selectClip(seg.clip.id);
+                        }}
+                        title={`Cutout สินค้า: ช็อต #${seg.index + 1} (${isIsoOn ? (isReady ? 'พร้อมใช้งาน' : 'กำลังเตรียม') : 'ปิดใช้งาน'})`}
+                        className={`group absolute top-0.5 h-[calc(100%-4px)] rounded text-xs select-none flex items-center px-2 gap-1.5 transition-all cursor-pointer ${
+                          isCutoutHidden
+                            ? 'opacity-30 bg-[#282724] text-[#9C968F] ring-1 ring-white/10'
+                            : isIsoOn && isReady
+                              ? 'bg-[#2E1065]/80 text-[#C084FC] border border-[#7C3AED]/60 shadow-[0_0_8px_rgba(124,58,237,0.25)] hover:border-[#A855F7]'
+                              : isIsoOn
+                                ? 'bg-[#3A2208]/80 text-[#FDBA74] border border-[#EA580C]/50'
+                                : 'bg-[#1C1917]/50 text-[#78716C] border border-white/5 opacity-50 hover:opacity-80'
+                        }`}
+                        style={{ left: seg.segStart * pxPerSec, width: w }}
+                      >
+                        <Scissors className={`h-3 w-3 flex-shrink-0 ${isIsoOn && isReady ? 'text-[#C084FC]' : 'text-slate-500'}`} />
+                        <span className="truncate font-semibold text-[10.5px]">
+                          {isIsoOn && isReady ? 'Cutout สินค้า' : isIsoOn ? '⏳ รอ Cutout' : 'ไม่มี Cutout'}
+                        </span>
+                        {isIsoOn && isReady && (
+                          <span className="ml-auto text-[9.5px] font-mono text-[#C084FC]/70 flex-shrink-0">
+                            ✓ {seg.dur.toFixed(1)}s
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* sticker track */}
               {hasSticker && (
                 <div
@@ -1331,6 +1428,42 @@ export default function Timeline({
                         )}
                       </div>
                     )}
+
+                    {/* Beat markers on the music lane. Major beats (bar
+                        downbeats) are the strong scene-change points and are
+                        drawn taller and brighter than the subdivisions, so a
+                        glance separates "cut here" from "accent here".
+                        pointer-events-none throughout: these are a reading
+                        aid for the drag snapping, never a click target that
+                        could swallow a scrub. */}
+                    {key === 'bgm' && beatMarkers.major.map((t) => (
+                      <div
+                        key={`beat-major-${t}`}
+                        className="pointer-events-none absolute w-px"
+                        style={{
+                          left: t * pxPerSec,
+                          top: 2,
+                          bottom: 2,
+                          background: BEAT_MARKER_COLOUR,
+                          opacity: 0.9,
+                        }}
+                        title={`จังหวะหลัก ${t.toFixed(2)}s`}
+                      />
+                    ))}
+                    {key === 'bgm' && beatMarkers.minor.map((t) => (
+                      <div
+                        key={`beat-minor-${t}`}
+                        className="pointer-events-none absolute w-px"
+                        style={{
+                          left: t * pxPerSec,
+                          top: '38%',
+                          bottom: 2,
+                          background: BEAT_MARKER_COLOUR,
+                          opacity: 0.4,
+                        }}
+                        title={`จังหวะย่อย ${t.toFixed(2)}s`}
+                      />
+                    ))}
 
                     {/* clip lane: a block wherever a clip contributes its own audio.
                         Clip volume defaults to 0, so this lane is empty for most

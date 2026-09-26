@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { rememberProjectRevision, withProjectRevision } from './lib/projectRevision.js';
 import { sanitizeText, sanitizeScript } from './lib/sanitize.js';
 
 const api = axios.create({
@@ -58,6 +59,18 @@ export const linkExportToAngle = (videoPath, productId, angleId, exportId = null
   }).then(r => r.data);
 export const getSfxList = () => api.get('/sfx').then(r => r.data);
 
+// Beat grid for a BGM track: the same beats scripts/pipeline.py snaps
+// generated cuts to, so a hand-placed cut lands on the same music. Analysis
+// is optional server-side (librosa may be absent), so an empty grid means
+// "no snap targets", not a failure -- callers render no markers and carry on.
+export const getBgmBeats = (bgmName) =>
+  api.get('/audio/beats', { params: { bgm_name: bgmName } }).then(r => r.data);
+
+// Dead-air spans for one media file, plus the ranges a ripple delete would
+// keep. Read-only: nothing is cut until the user confirms the preview.
+export const getMediaSilences = (mediaPath, options = {}) =>
+  api.get('/audio/silences', { params: { media_path: mediaPath, ...options } }).then(r => r.data);
+
 export const generateScript = (data) => api.post('/script/generate', {
   ...data,
   product_name: sanitizeText(data.product_name),
@@ -95,6 +108,8 @@ export const startBatchDraft = (payload) => api.post('/render/batch', { ...paylo
 export const getBatchRenderStatus = (batchId) => api.get(`/render/batch/${batchId}`).then(r => r.data);
 export const startBackgroundIsolation = (payload) =>
   api.post('/background-isolation/process', payload, { timeout: 120000 }).then(r => r.data);
+export const getBackgroundIsolationManifest = (artifactId) =>
+  api.get(`/background-isolation/sequences/${encodeURIComponent(artifactId)}/manifest`).then(r => r.data);
 export const preflightBackgroundIsolation = (payload) =>
   api.post('/background-isolation/preflight', payload, { timeout: 30000 }).then(r => r.data);
 export const cancelBatchRender = (batchId) => api.post(`/render/batch/${batchId}/cancel`).then(r => r.data);
@@ -304,7 +319,10 @@ export const deleteProject = (name, scope = 'project') =>
   api.delete(`/projects/${encodeURIComponent(name)}`, { params: { scope } }).then(r => r.data);
 export const updateProjectCues = (name, data) => api.patch(`/projects/${encodeURIComponent(name)}/cues`, data).then(r => r.data);
 export const updateProjectClips = (name, data) => api.patch(`/projects/${encodeURIComponent(name)}/clips`, data).then(r => r.data);
-export const updateProjectState = (name, data) => api.patch(`/projects/${encodeURIComponent(name)}/state`, data).then(r => r.data);
+export const updateProjectState = (name, data) => api.patch(`/projects/${encodeURIComponent(name)}/state`, withProjectRevision(name, data)).then(r => {
+  rememberProjectRevision(name, r.data?._editor_revision);
+  return r.data;
+});
 
 export const startReroll = (data) => api.post('/reroll', data, { timeout: 120000 }).then(r => r.data);
 

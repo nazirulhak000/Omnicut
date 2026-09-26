@@ -1,30 +1,226 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
-- [x] Round HOTFIX-PRESERVE-CUTOUT-STATE-AND-SERVER-RELOAD-20260925 — ป้องกันไม่ให้การบายพาสเรนเดอร์ไปล้างสถานะ Cutout ถาวรใน Editor, คืนค่า Cutout พร้อมคลีนพิกัด Cues ใน BLU01-ปัญหาก่อนใช้_2 และรีสตาร์ท Backend Server เพื่อโหลดโค้ดใหม่ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round FIX-CUE-NONE-COORDINATES-FLOAT-ERROR-20260925 — แก้ไขข้อผิดพลาด float() argument must be a string or a real number, not 'NoneType' ใน scripts/subtitle_engine.py เมื่อ cue มีพิกัด x หรือ y เป็น None (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round QUICK-ENABLE-CUTOUT-FROM-PLAYER-20260925 — เพิ่มปุ่ม 1-คลิกเปิดใช้งานระบบตัดพื้นหลัง (Cutout) บน SequencePlayer เมื่อสถานะเป็น off พร้อมเปิดคืนค่า Cutout ใน BLU01-ปัญหาก่อนใช้_2 (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round FIX-CUTOUT-PLAYBACK-LAYER-ORDERING-20260925 — แก้ไขปัญหาภาพพื้นหลังดิบโผล่และข้อความลอยมาอยู่ข้างหน้าระหว่างกดเล่นวิดีโอ (Playback) โดยเพิ่ม Persistent Last Known Cutout Frame และ Aggressive Lookahead Prefetch บน SequencePlayer (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round MASTER-PLAN-CAPCUT-PREMIERE-TECH-INTEGRATION-20260925 — จัดทำแผนแม่บทแบบละเอียดในการนำ 7 สุดยอดเทคโนโลยีจาก CapCut และ Premiere Pro มาประยุกต์ใช้ใน OmniCut Pro Studio (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round CLEANUP-DEMO-TEST-EXPORTS-PROJECTS-20260924 — ลบทำความสะอาดคลิปทดสอบ demo_*.mp4 และไฟล์ดัมมี่ตกค้างใน 04_Exports/Ready_to_post, 03_Projects/demo, spotlight-test และ export_registry.json ตามกฎเหล็กข้อ 11 และ 15 (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round AUDIT-BACKGROUND-ISOLATION-CUTOUT-SPOTLIGHT-20260923 — ตรวจสอบระบบจัดการพื้นหลังทั้งหมด (Background Isolation, rembg Cutout, Blur Background, Product Spotlight) เชิงลึกทุกมิติ ทั้ง UI, Logic, rembg Worker, Preview & Render Parity และ Automated Tests (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round RESTORE-STYLE-TAB-SCROLLABLE-BG-CUT-20260923 — เปิดแท็บสไตล์ (Style) ใน Asset Panel สำหรับเปิดใช้งาน/เตรียม Cutout ตัดพื้นหลังสินค้า โดยทำแท็บแบบเลื่อนได้ในแนวนอน (Horizontal Scroll) ไม่บีบกล่องเดิม (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round UNIQUE-COMPOUND-ANGLE-ID-ISOLATION-20260922 — แก้ปัญหาโครงสร้าง angle_id ชนกันหรือเขียนทับข้ามล็อต ด้วย Compound Unique ID (pain_point_b2), อุดช่องโหว่ Fallback/State ใน Backend, API, ShotListsStore และ React Virtual DOM (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
-- [x] Round PROJECT-SELECTOR-SMART-FILTER-TABS-20260922 — เพิ่ม Smart Filter Tabs ในเมนู Dropdown เลือกโปรเจกต์ของ Editor ([ กำลังตัดต่อ ], [ ตัดเสร็จแล้ว ], [ ทั้งหมด ]) โดยค่าเริ่มต้นเปิดมาที่ "กำลังตัดต่อ" ทันที เพื่อไม่ให้งานที่เรนเดอร์เสร็จแล้วหลายสิบชิ้นมาทำให้หน้าจอดูรกและยุ่งยาก (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round FIX-CUTOUT-LAYERS-IMPORT-ERROR-20260924 — แก้ไข ReferenceError: Layers is not defined ใน SequencePlayer.jsx เมื่อเปิดใช้งานฟังก์ชันตัด BG (Background Isolation) และแนะนำวิธีการใช้งานระบบตัด BG อย่างละเอียด (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round FIX-PRODUCT-DELETE-FORCE-SUPPORT-20260924 — แก้ไขปัญหาระบบลบสินค้าติดล็อกมุมที่โพสต์แล้ว เพิ่มตัวเลือก Force Delete ใน Backend API และ ProductToClip UI พร้อมล้างสินค้าทดสอบ debug (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round CUTOUT-CONFLICT-CLIP-NAV-AND-AUTO-RESOLVE-20260925 — เพิ่มระบบระบุคลิปที่ขัดแย้งกับ Cutout พร้อมปุ่มนำทางคลิกเลือกคลิปบน Timeline และปุ่ม 1-คลิกปิดพื้นหลังเบลอทั้งหมด (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round FIX-OVERLAY-INSPECTOR-USEMEMO-IMPORT-20260925 — แก้ไข ReferenceError: useMemo is not defined ใน OverlayInspector.jsx เมื่อกดเพิ่มข้อความ พร้อมอธิบายกลไก Text Behind Subject & การใช้งาน Cutout (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round RENDER-GATE-CUTOUT-BYPASS-AND-GUIDE-20260925 — เพิ่มปุ่มปลดล็อกเรนเดอร์ด่วนในแบนเนอร์แจ้งเตือน Cutout (ปิด Cutout เพื่อเรนเดอร์ทันที) ใน EditorShell.jsx (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round AUTO-RENDER-ON-CUTOUT-BYPASS-20260925 — ปรับปรุงปุ่มปิด Cutout ใน applyError ให้ทริกเกอร์เรนเดอร์อัตโนมัติทันทีพร้อมส่ง forceDisableCutout เข้า handleApply (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round FIX-CUTOUT-SUBFRAME-TAIL-DISCRETIZATION-20260925 — แก้ไขบั๊ก floating-point ceil discretization 1 เฟรมที่ส่วนท้ายของคลิปใน _read_ready_background_sequence (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round MASTER-PLAN-CUTOUT-COMPRESSED-VIDEO-PIPELINE-20260925 — วางแผนแม่บทแบบละเอียด ยกระดับระบบตัดพื้นหลังสู่ Single Compressed Alpha Video (ตามแนวทาง CapCut) พร้อม 1-Click Cache Purge & Auto-Cleanup ลดพื้นที่ 73-98% (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
-- [x] Round MASTER-PLAN-CAPCUT-PREMIERE-TECH-INTEGRATION-20260925 — จัดทำแผนแม่บทแบบละเอียดในการนำ 7 สุดยอดเทคโนโลยีจาก CapCut และ Premiere Pro มาประยุกต์ใช้ใน OmniCut Pro Studio (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) - ปิดรอบแล้ว ✅
+## Round JEV-DECISION-LAYER-RULE-20260926 — in progress
 
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Cline (Claude) · สถานะ: อนุมัติแล้ว กำลังสร้างกฎ + ตัวช่วย CLI ให้ทุกแชทเรียก Jev ได้
 
-- [x] Round EDITOR-PARITY-PHASE-3-CLOSEOUT-20260923 — ปิดงาน Motion Text/Preview–Render Parity ให้ตรวจซ้ำได้จริง (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
-- [x] Round EDITOR-PARITY-PHASE-4-OVERLAY-VERTICAL-SLICE-20260923 — ปิด parity ของ Caption/Sticker/Effect/Spotlight แบบ vertical slice (ดำเนินการโดย: Codex (GPT-5)) - ปิดรอบแล้ว ✅
+**เป้าหมาย:** ทำให้ AI ทุกตัว (Cline / Codex / Claude Code / Antigravity / Cursor) ที่ทำงานในโปรเจกต์นี้ เรียกใช้ **Jev (TypeSafe System One)** เป็นผู้ตรวจร่วมตัดสินใจได้ ผ่านกฎกลาง 1 ไฟล์ + CLI 1 ตัว โดยไม่ต้องเขียน one-off script ใหม่ทุก session
 
-- [x] Round EDITOR-PARITY-PHASE-2-BACKGROUND-CUTOUT-20260922 — ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-5))
+**ปัญหาที่พบจริง (2026-09-26):** `scripts/typesafe_bridge.py` (476 บรรทัด) + `scripts/api_typesafe_studio.py` (139 บรรทัด) ใช้งานได้จริงและมี `TYPESAFE_API_KEY` + `typesafe-sdk 0.7.1` ติดตั้งใน `.venv` แล้ว แต่**ไม่มีเอกสารบอกเอเจนต์ว่าเรียกใช้ตอนไหนอย่างไร** และไม่มี CLI สำหรับถามคำถามทั่วไป (นอกจาก 5 endpoint ที่ผูกกับงานคลิปโดยเฉพาะ) ทำให้ session ใหม่ทุกครั้งต้องเดาเองว่าเรียกยังไง
+
+### Todo
+
+- [x] สำรวจสถานะจริง: SDK 0.7.1 · key 108 ตัวอักษร · ยืนยัน live call แล้ว (4 question/1 call = 526.6 ms)
+- [x] เขียน `.agents/rules/jev_decision_layer.md` — กฎว่าเมื่อไหร่ต้องถาม Jev · 3 primitive · เกณฑ์ confidence · ข้อห้าม (Jev อ่านข้อความอย่างเดียว)
+- [x] เขียน `tools/jev_advisor.py` — CLI เดียวจบ: `choice` / `noul` / `score` / `fanout` (หลายคำถาม 1 call) + verdict `proceed|escalate` + exit code
+- [x] เขียน `tests/test_jev_advisor.py` — offline deterministic, monkeypatch client, ไม่ยิงเครือข่าย ไม่แตะ `01_Raw`–`05_Covers_Thumbnails`
+- [x] เพิ่มลิงก์กฎใน `AGENTS.md` หัวข้อกฎเฉพาะทาง ให้เอเจนต์ใหม่เจอทันที (ข้อ 19 ในส่วน "ต้องทำเสมอ")
+- [x] Gate: `compileall tools scripts` ผ่าน + `pytest tests/test_jev_advisor.py` **22 passed** + live smoke ผ่าน CLI จริง แล้วลบไฟล์ชั่วคราว 100%
+
+**ผล live smoke ผ่าน CLI กลาง (2026-09-26):** `fanout` 3 คำถาม → 456.0 ms, `verdict: escalate` (exit 1)
+`close_first = storage` conf **0.70** (ต่ำกว่า 0.80 → ต้องถามผู้ใช้) · `safe_to_commit = 0.17` conf **null** · `missing_verify = 0.82` conf **null**
+→ ยืนยันว่า gate ทำงานจริง: Noul ของ SDK 0.7.1 ไม่คืน `confidence` เลย จึงถูกบังคับ escalate ทุกครั้งตามกฎ
+
+**เทสที่จับ bug จริงระหว่างทาง:** โหมดคำถามเดี่ยวเดิมใช้ key ว่า `only_this` ทำให้ผลลัพธ์อ่านไม่ออก → เพิ่ม flag `--name` (ค่าเริ่มต้นตามชนิดคำถาม) + เทส `test_main_defaults_question_name_to_its_kind`
+
+### Decisions
+
+- วางเครื่องมือที่ `tools/` ไม่ใช่ `scripts/` เพราะเป็น dev utility สำหรับเอเจนต์ ไม่ใช่ backend ของแอป และเพื่อไม่ชนกับงาน cutout ที่กำลังแก้ `scripts/` อยู่
+- ไม่แก้ `scripts/typesafe_bridge.py` เพื่อไม่ให้ชน working tree ของรอบ CUTOUT / CAPCUT-PREMIERE
+- `fanout` เป็นโหมดหลัก เพราะ 1 call ตอบทุกคำถาม → ประหยัดโทเคนตามธรรมชาติของ System One
+
+### Notes
+
+- working tree มีงานค้างของหลายเอเจนต์อยู่ก่อนแล้ว (27 ไฟล์แก้ + 30 ไฟล์ใหม่, cutout / beat_sync / proxy / silence / project_revision / editor parity) — รอบนี้แตะเฉพาะไฟล์ใหม่ + `TODO.md` + `AGENTS.md` เท่านั้น ไม่เขียนทับของเดิม
+- ข้อจำกัดที่ต้องเขียนลงกฎ: SDK 0.7.1 คืน `choice.distribution` เป็น `{}` และ `noul.confidence` เป็น `null` → CLI ต้อง degrade อย่างปลอดภัย ไม่ตั้งชื่อ field ทับของเดิม
+- Jev รับได้เฉพาะข้อความ จึงใช้ตรวจ diff/สคริปต์/เอกสารได้ แต่ตรวจเฟรมวิดีโอ ซับจริง ฟอนต์จริง ไม่ได้ (ต้องใช้ FFmpeg probe + Gemini vision ตามเดิม)
+
+---
+
+## Round CUTOUT-TEMPORAL-QUALITY-PLAN-20260926 — in progress · Codex (GPT-6)
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: ผู้ใช้อนุมัติลงมือ; กำลังสร้าง regression และปรับระบบตามผลวัด
+
+**เป้าหมาย:** Cutout เลือกวัตถุได้ถูกต้อง ขอบนิ่งเมื่อเคลื่อนที่ และ Preview เล่น/seek ลื่นบนเครื่องผู้ใช้ โดยพิสูจน์ผลกับ BLU01 และเทียบ CapCut ด้วยคลิปเดียวกันเมื่อมีตัวอย่างอ้างอิง
+
+**แผน:** `_Docs/Plans/CUTOUT_TEMPORAL_QUALITY_PLAN_20260926.md` — ดำเนินการโดย: Codex (GPT-6)
+
+- [x] ตรวจ worker/Preview ปัจจุบัน ฮาร์ดแวร์ และเอกสารโมเดลต้นทางเพื่อจัดทำแผน
+- [ ] Q0: เก็บ baseline ภาพ/เวลา/หน่วยความจำและชุดคำตอบวัตถุที่ต้องเก็บ
+- [ ] Q1: แก้ clock/playbackRate/seek และสร้าง alpha preview proxy จาก master เดียวกัน
+- [ ] Q2: ทดลอง mask ที่ชดเชยการเคลื่อนไหวและ reset เมื่อเปลี่ยนฉาก
+- [ ] Q3: พิสูจน์ video object tracking บน runtime แยก แล้วเลือก engine จากผลจริง
+- [ ] Q4: เพิ่มเลือกวัตถุ/แก้ขอบเป็นจุด พร้อมติดตามการแก้ไปในช่วงวิดีโอ
+- [ ] Q5: ผ่าน quality/performance/parity gate และย้ายโปรเจกต์ด้วย revision guard
+
+**Implementation checkpoint — Codex (GPT-6):** เริ่มจาก regression ของ speed/seek ใน Chromium, แยก playback controller, เพิ่ม proxy ที่มาจาก alpha master พร้อม checksum/frame-count validation, และทดลอง temporal flow แบบมี scene reset. วัดผลก่อนเปลี่ยน default; เก็บ Q3/Q4 เป็นงานเปิดจนมีผลใช้งานจริง. working tree เดิมมีงานหลายเอเจนต์ตาม git status จึงแก้เฉพาะส่วน Cutout และรักษางานเดิม. Gate: Node behavior + real Chromium, worker/FFmpeg/API/render tests, full suite/build/diff check ก่อนปิดรอบ.
+
+- [x] Reproduce Chromium: speed 0.5/1.3155/2 เล่น Cutout 1x (3 fail) → controller ใหม่ 5 browser cases ผ่าน รวม sustained playback; Node clock/seek/freeze 8 ผ่าน
+- [x] Proxy จาก alpha master + Range206 + PTS/frame-count/alpha + Render อ่าน master: FFmpeg tests 3 ผ่าน
+- [x] Temporal candidate แบบ opt-in: stationary jitter/translation/hole/scene-cut/reset 3 tests ผ่าน; ยังไม่รับรองคลิปจริง
+- [x] จำกัด purge เฉพาะ namespace Cutout; project optimistic revision ตรวจ stale save (2 tests ผ่าน)
+- [ ] แก้ gate เดิม: Text Overlay Inspector มี input ไม่มี accessible name — เพิ่มเฉพาะ aria-label, ไม่เปลี่ยนภาพ/ฟอนต์
+- [ ] Real CPU spike: isolated Python 3.12 / torch 2.5.1 CPU / SAM2.1 tiny pinned commit; ทดสอบ 60 frames และเก็บผลก่อนตัดสินใช้จริง
+- [ ] Full test suite กำลังรัน; ไม่ปิดรอบ/ย้าย HISTORY จน gate และคุณภาพจริงผ่าน
+
+**Notes:** พบ AMD Ryzen 7 7735HS / AMD Radeon Graphics / RAM ที่ระบบรายงานประมาณ 13.69 GiB; `.venv` Python 3.14.2, ONNX Runtime 1.30.0 มี CPU/Azure providers, ยังไม่มี torch/sam2. คำว่า “สมูท” แยกวัดขอบวัตถุและ playback. การเปลี่ยน PNG เป็น WebM รอบก่อนยังไม่พิสูจน์ความนิ่งข้ามเฟรมหรือความลื่นเทียบ CapCut. ประสานขอบเขต proxy กับรอบ CAPCUT-PREMIERE ของ Claude; working tree มีงานหลายเอเจนต์ค้างอยู่ รอบนี้เพิ่มเอกสารแผนเท่านั้น.
+
+---
+
+## Round CAPCUT-PREMIERE-TECH-INTEGRATION-20260926 — planned (ยังไม่แตะโค้ด)
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Opus 5 1M) · สถานะ: Stage A เสร็จครบ, Stage B เสร็จ B1/B4/B5 (เหลือ B2/B3 เสียบ proxy เข้า player), Stage C เสร็จ C1+API (เหลือ C2/C3 ปุ่ม+ripple), Stage D ยังไม่เริ่ม
+
+**เป้าหมาย:** ทำตามแผนแม่บท `_Docs/Plans/CAPCUT_PREMIERE_TECH_INTEGRATION_PLAN.md` (7 เทคโนโลยีจาก CapCut/Premiere Pro) ที่เขียนไว้ 2026-09-25 แต่ยังไม่เคยเปิดรอบงาน ทุกฟีเจอร์ต้องผ่าน Preview=Render parity ตาม `.agents/rules/preview_render_parity.md` และไม่ลดเกณฑ์เดิม
+
+**แผนอ้างอิง:** [_Docs/Plans/CAPCUT_PREMIERE_TECH_INTEGRATION_PLAN.md](file:///d:/Winona/Programmer/Capcut/_Docs/Plans/CAPCUT_PREMIERE_TECH_INTEGRATION_PLAN.md)
+
+### สถานะจริงที่สำรวจจากโค้ดก่อนวางแผน (2026-09-26)
+
+| # | ฟีเจอร์ | สถานะจริง | หลักฐาน |
+| :-- | :--- | :--- | :--- |
+| 1 | Dynamic Sidechain Ducking | ✅ ทำแล้ว (approximation ที่ documented) | Render: `sfx_manager.py:358-370` `sidechaincompress` / Preview: `SequencePlayer.jsx` `applyBgmEnvelope` + `AUDIO_MIX.BGM_DUCK_GAIN=0.2065` |
+| 2 | Beat Detection + Snap | 🟡 ครึ่งเดียว | `scripts/beat_sync.py` `get_beat_times()` มี+cache แล้ว ใช้ใน `pipeline.py`/`shot_matching_stage.py` แต่ **ไม่มี API, ไม่มี BPM/major-minor, ไม่มี marker บน Timeline, ไม่เข้า snap** |
+| 3 | 540p Editing Proxy | ❌ ยังไม่ทำ | ไม่มีโค้ด proxy ใดๆ; `api_videos.py:1300 stream_media` สตรีมไฟล์ดิบตรง |
+| 4 | Smart Silence Stripper | ❌ ยังไม่ทำ | ไม่มี `silencedetect` ในโค้ด |
+| 5 | Saliency Auto-Reframe | ❌ ยังไม่ทำ | ไม่มี saliency/detector ใดๆ |
+| 6 | Optical Flow Slow-mo | ❌ ยังไม่ทำ | ไม่มี `minterpolate` |
+| 7 | Universal Color Match | ❌ ยังไม่ทำ | ไม่มี `colorbalance`/`curves` anchor matching |
+
+**แก้ไขความเข้าใจผิดจากแผนแม่บท:** แผนระบุว่า ducking ยังไม่ทำ แต่ของจริงทำแล้วทั้งสองฝั่ง จึงตัด Phase 1.1 ออกจากงานสร้างใหม่ เหลือเพียงงานยืนยันตัวเลข
+
+### Todo
+
+**Stage A — ปิดช่องว่างที่ถูกกว่าและเสี่ยงน้อยที่สุดก่อน**
+
+- [ ] A1: ยืนยัน ducking parity ที่มีอยู่ด้วยการวัดจริง — วัด dB reduction ของ render mix เทียบ `BGM_DUCK_GAIN` แล้วบันทึกค่าคลาดเคลื่อนลง `tests/test_preview_render_parity.py` (ไม่เขียนฟีเจอร์ใหม่ ถ้าเกินเกณฑ์จึงค่อยเปิดงานแก้)
+- [x] A2: ขยาย `scripts/beat_sync.py` ให้คืน `bpm`, `major_beats`, `minor_beats` โดยคง `get_beat_times()` เดิมไว้ไม่แตะ caller เดิม และคง graceful-degrade เมื่อไม่มี librosa; bump cache key กัน cache เก่าปน
+- [x] A3: เพิ่ม `GET /api/audio/beats?bgm_name=...` คืน `{bpm, major_beats, minor_beats}` + guard ชื่อไฟล์กัน path traversal (ยึดรูปแบบ `_allowed_media_path` ใน `api_videos.py`)
+- [x] A4: Timeline แสดง beat marker `#FFE600` บนแถบ BGM + ป้อน beats เข้า `snapCandidates(segments, playhead, extra)` ที่ `EditorShell.jsx:2375,3000` (seam มีอยู่แล้ว ไม่ต้องรื้อ) + toggle เปิด/ปิด
+- [x] A5: เทส A2–A4 ครบ — unit ของ beat parsing, API contract, `timelineMath` snap กับ beat, Chromium marker visible/snap ทำงาน
+
+**Stage B — Proxy (ได้ผลชัดที่สุดต่อความลื่น)**
+
+- [x] B1: `scripts/proxy_manager.py` สร้าง proxy 540x960 H.264 ultrafast CRF 26 ลง `03_Projects/.cache/proxies/{sha256}.mp4` (ใช้ `.cache` ที่ `stream_media` whitelist ไว้แล้ว) + lock กันสร้างซ้ำพร้อมกัน
+- [ ] B2: สร้าง proxy แบบ background task เมื่อคลิปเข้า Timeline; ระหว่างยังไม่เสร็จให้เล่นไฟล์ master ไปก่อน (Zero-Wait ห้ามบล็อก UI)
+- [ ] B3: `SequencePlayer` เลือก proxy เมื่อมี + badge บอกสถานะ; **timestamp ทุกตัวอิง master เสมอ** (in/out/trim/speed ห้ามคำนวณจาก proxy)
+- [x] B4: ยืนยัน Render bypass proxy 100% — `video_editor.py` ต้องอ่าน master เท่านั้น + regression test ที่ fail ถ้า path proxy หลุดเข้า render
+- [x] B5: ผูก `.cache/editing-proxies/` เข้า `storage_cleaner.py` แล้ว (scan + purge) พร้อมเทส integration
+- [ ] B6: วัดผลจริง: seek latency และ dropped frames ที่ 1/10/50/100 clips เทียบ baseline ในรอบ EDITOR-PARITY (mount/selection/seek `35/50/675/1998 ms`) ต้องดีขึ้นอย่างวัดได้ ไม่ใช่อ้างลอยๆ
+
+**Stage C — Silence Stripper**
+
+- [x] C1: `scripts/silence_detect.py` ใช้ ffmpeg `silencedetect` threshold `-32dB` ระยะขั้นต่ำ `0.35s` คืนช่วงเงียบเป็น JSON
+- [~] C2 (บางส่วน): API `GET /api/audio/silences` เสร็จ (read-only คืน preview diff ไม่ตัดจริง) — ปุ่ม UI รอ Codex; API + ปุ่ม "ตัดช่วงเงียบอัตโนมัติ" (ขึ้นต้นด้วยกริยา ไม่มีสัญลักษณ์นำ ตาม `ui_clean_standard.md`) — เป็น **preview diff ก่อน แล้วให้ยืนยัน** ไม่ตัดทันที
+- [ ] C3: Ripple delete เก็บ natural pause `0.10s` + ต้อง Undo ได้ 1 ครั้งกลับสภาพเดิมครบ
+- [ ] C4: เทส: ช่วงเงียบหัว/กลาง/ท้ายคลิป, คลิปเงียบทั้งเส้น, คลิปไม่มีเสียง, Undo/Redo, Save/Reload
+
+**Stage D — AI Visual (แพงสุด ทำท้ายสุด ทีละข้อ)**
+
+- [ ] D1: Optical Flow slow-mo ด้วย `minterpolate` เฉพาะตอน speed < 0.7x + วัดเวลาเรนเดอร์ที่เพิ่มขึ้น และ fallback กลับ duplicate frame เมื่อเกิน budget
+- [ ] D2: Universal Color Match: สกัด histogram จาก anchor clip แล้วปรับด้วย `colorbalance`/`curves` + preview ต้องแสดงผลเดียวกัน (ถ้าทำ preview ไม่ได้ ต้องขึ้น UI disclosure ตามกฎ approximation)
+- [ ] D3: Saliency Auto-Reframe — **ต้องประเมิน dependency ก่อนเขียนโค้ด** (YOLOv8-nano/MediaPipe ขัดกฎห้ามติดตั้ง global package และเพิ่มน้ำหนักติดตั้ง) เสนอทางเลือกให้ผู้ใช้เลือกก่อน
+
+### Gate (ทุก stage ต้องผ่านก่อนติ๊ก)
+
+- [ ] แก้ฝั่งเดียวไม่ได้ — ฟีเจอร์ที่เห็น/ได้ยินในผลงาน ต้องแก้ทั้ง Preview และ Render ในคอมมิตเดียว
+- [ ] ค่าคงที่ทุกตัวเทียบเป็นตัวเลขได้ และมี assertion ใน `tests/test_preview_render_parity.py`
+- [ ] Approximation ทุกข้อมีค่าคลาดเคลื่อนที่วัดได้ + เหตุผล + ข้อความ UI แจ้งผู้ใช้
+- [ ] targeted suites + frontend `npm test` + `npm run build` + `git diff --check` ผ่าน
+- [ ] artifact ทดสอบอยู่ใน `.tmp/` เท่านั้น cleanup 100% ห้ามแตะ `04_Exports/`, `01_Raw/`, `02_Assets/`
+
+### ผลรอบ Stage A backend (2026-09-26, Claude Code)
+
+- `scripts/beat_sync.py`: เพิ่ม `get_beat_grid()` คืน `{bpm, major_beats, minor_beats}` แยก cache ด้วย `BEAT_GRID_CACHE_VERSION = "v2"` และ `_estimate_bpm()` ใช้ median gap (ทนบีตตกหล่น) — `get_beat_times()` เดิมไม่ถูกแตะ caller เดิมใน `pipeline.py`/`shot_matching_stage.py` ทำงานเหมือนเดิม
+- `scripts/api_audio_beats.py` (ไฟล์ใหม่): `GET /api/audio/beats?bgm_name=...` คืน `{bpm, major_beats, minor_beats, available}` — `available` แยก "เพลงไม่มีบีต" ออกจาก "request ล้มเหลว"
+- Path guard: ปฏิเสธ separator/`..`/absolute/URL-encoded ด้วย 400 และตรวจ containment **ซ้ำหลัง `resolve()`** กัน symlink ที่ชี้ออกนอก `MUSIC_DIR` (ยึดรูปแบบ `_allowed_media_path` ใน `api_videos.py`)
+- ลงทะเบียน router ใน `scripts/api_server.py` — routes 211 → 213, `/api/audio/beats` ไม่ชนเส้นทางเดิม
+- เทส: `tests/test_beat_sync.py` 27 passed (เพิ่ม 12 เคส), `tests/test_api_audio_beats.py` 18 passed 1 skipped (ไฟล์ใหม่); รวมกับ `test_phase1_smoke.py` = `196 passed, 1 skipped`; `compileall` ผ่าน
+- เคส symlink ถูก skip บน Windows (สร้าง symlink ต้องสิทธิ์ admin) จึงพิสูจน์ guard แยกด้วยการเรียก `_resolve_bgm()` ตรงแล้ว: separator → 400, resolve หลุดออกนอก → 404 ทั้งสองทางผ่าน
+- ไฟล์ที่แตะรอบนี้ 5 ไฟล์ ไม่ทับกับงาน Cutout ของ Codex แม้แต่ไฟล์เดียว
+
+### ผลรอบ Stage B/C backend (2026-09-26, Claude Code)
+
+- `scripts/proxy_manager.py` (ไฟล์ใหม่): proxy 540x960 H.264 ultrafast CRF 26 ลง `03_Projects/.cache/editing-proxies/{sha256}.mp4` — ใช้ namespace แยกจาก cutout cache ของ Codex ที่อยู่ใน `.cache` เดียวกัน
+- เขียนแบบ stage ลง temp แล้ว `os.replace` (atomic) — encode ที่พังหรือถูก kill จะไม่ทิ้งไฟล์ครึ่งๆ ที่รอบหน้าเข้าใจผิดว่าเป็น proxy เสร็จแล้ว และสอง worker ชนกันก็ได้ไฟล์สมบูรณ์ทั้งคู่
+- **พบและแก้บั๊กจริงระหว่างเทส**: `force_original_aspect_ratio=decrease` ทำให้ได้ SAR `1216:1215` (DAR `76:135`) ไม่ใช่ `9:16` — player ที่เคารพ SAR จะวาด proxy สัดส่วนเพี้ยนจาก master ผู้ใช้จะจัดเฟรมผิด แก้ด้วย `setsar=1` ยืนยันแล้วได้ SAR `1:1` / DAR `9:16`
+- **วัดจริง** (1080p30 10s ใน `.tmp/` ลบทิ้งแล้ว): master `11.98 MB` → proxy `1.30 MB` = **ลด 89.2%** (ไม่ใช่ 95% ตามที่แผนแม่บทอ้าง), encode `1.42s` = `0.14x realtime`
+- `is_proxy_path()` เป็น guard ให้ฝั่ง render เรียกเช็คได้ + เทสยืนยันว่า `video_editor.py` ไม่อ้างถึง `proxy_manager` หรือ namespace เลย (B4 ระดับที่ทำได้โดยไม่แตะไฟล์ Codex)
+- `scripts/silence_detect.py` (ไฟล์ใหม่): `silencedetect` `-32dB` / `0.35s`, เว้น natural pause `0.10s` สองข้าง, `build_keep_ranges()` คืนช่วงที่เหลือหลัง ripple — **ตรวจอย่างเดียว ไม่ตัดจริง**
+- `GET /api/audio/silences` คืน `keep_ranges` + `fully_silent` ให้ UI พรีวิวก่อนยืนยัน; ไฟล์ decode ไม่ได้คืน 422 ไม่ใช่ "ไม่มีช่วงเงียบ" (ไม่งั้นผู้ใช้เข้าใจผิดว่าคลิปกระชับแล้ว); ใช้ `_allowed_media_path` ของ `api_videos.py` ซ้ำ ไม่ตั้งกฎ containment ใหม่
+- เทสรวมรอบนี้: `test_proxy_manager.py` 23 passed, `test_silence_detect.py` 25 passed, `test_api_audio_beats.py` 27 passed 1 skipped, `test_beat_sync.py` 27 passed = **102 passed, 1 skipped**
+- Regression ผู้ใช้เดิมของ `beat_sync`: `-k "pipeline or shot_match or phase1_smoke or sfx or audio_finishing"` = **211 passed** ไม่มีอะไรพัง
+- routes 211 → 214 (`/api/audio/beats`, `/api/audio/silences`)
+
+### ผลรอบ A4 + B4 + B5 (2026-09-26, Claude Code — หลัง Codex หยุด)
+
+- ตรวจก่อนแตะไฟล์ Codex: เทส cutout/background_isolation/project_revision `193 passed, 4 skipped` และ frontend baseline `326 passed` — งานเขาอยู่ในสภาพเขียว ต่อยอดได้
+- **A4 เสร็จ**: `frontend/src/lib/beatGrid.js` (ไฟล์ใหม่) เป็นตัวกลางให้ marker กับ snap ใช้ logic เดียวกัน — ถ้าแยกกันเขียนจะเกิดกรณี "มีขีดแต่ไม่ดูด" หรือ "ดูดแต่ไม่มีขีด" ซึ่งทำให้ผู้ใช้เลิกเชื่อไกด์
+- Timeline วาด beat marker `#FFE600` บนแถบเพลง: จังหวะหลักสูงเต็มทึบ 0.9 / จังหวะย่อยครึ่งแถบจาง 0.4, `pointer-events-none` ไม่บังการ scrub
+- beats ถูก clamp ตามความยาวไทม์ไลน์ — ไฟล์เพลงมักยาวกว่าลำดับคลิป (renderer loop เอง) ถ้าไม่ clamp จะมีขีดโผล่เลยขอบและมี snap target ที่มองไม่เห็น
+- ปุ่ม "ดูดจังหวะ" ใน Toolbar โผล่เฉพาะตอนมี beat จริง (`hasBeats`) + hint บอก BPM ที่วัดได้; disabled เมื่อปิดดูดขอบหลัก
+- **พบและแก้บั๊กจริงจากเทส**: `normalizeBeatGrid` เดิม `.map(Number)` ก่อนกรอง ทำให้ `null`/`''`/`false` กลายเป็น `0` = **beat ผีที่วินาที 0** ซึ่งแยกไม่ออกจากจังหวะจริง แก้เป็นกรอง `typeof t === 'number'` ก่อน แล้วเพิ่มเทสล็อกเคสนี้ไว้
+- **B4 เสร็จ**: guard จริงใน `video_editor.py` ที่จุด resolve `source_path` ของทุกคลิป — proxy หลุดเข้ามาจะ `raise ValueError` ทันที ไม่ปล่อยให้เรนเดอร์ออกมา 540p แล้วดูเหมือน encode พัง; เทสยิงผ่าน `assemble_tiktok_video()` จริงและยืนยันว่าไม่มีไฟล์ output หลงเหลือ
+- **B5 เสร็จ**: เสียบ `scan_proxy_cache()`/`purge_proxy_cache()` เข้า `storage_cleaner.py` — ตรวจแล้วว่า `CUTOUT_NAMESPACES` ของ Codex เป็น allowlist จึงไม่กวาด proxy ของเราโดยบังเอิญ และ purge ของเราก็ไม่แตะ namespace เขา (มีเทสยืนยัน)
+- เทส: backend **เต็มชุด 1,824 passed, 8 skipped, 0 failed** (6:47 น.) — รอบนี้ full suite ไม่ค้าง ต่างจากที่รอบ EDITOR-PARITY เคยติด; frontend **347 passed** (เพิ่ม 21), `vite build` ผ่าน
+- ไม่แตะ `04_Exports/`, `01_Raw/`, `02_Assets/`, `export_registry.json`; ไม่มี artifact ทดสอบตกค้างใน `.tmp/` จากรอบนี้
+
+### Notes
+
+- ลำดับ A → B → C → D ต่างจาก roadmap ในแผนแม่บท (แผนให้ Phase 1 ก่อน) เพราะสำรวจแล้วพบว่า ducking ทำเสร็จแล้ว และ beat มีฐานอยู่แล้วครึ่งทาง จึงเก็บของถูกก่อน
+- ห้ามทำ stage ข้ามกัน — แต่ละ stage ปิด gate แล้วค่อยขึ้นตัวถัดไป เพื่อให้ rollback ได้ทีละชั้น
+- งานที่เหลือทั้งหมด (B2/B3 proxy เข้า player, C2/C3 ปุ่มตัดช่วงเงียบ + ripple, D1-D3) ไม่ติด blocker เรื่องไฟล์ชนแล้ว เพราะ Codex หยุดทำงาน — ตัดสินใจทำต่อได้ตามลำดับ
+- Working tree ตอนเริ่มวางแผนยังมีงาน Cutout ของ Codex (GPT-6) ค้างอยู่ 16 modified + 7 untracked ยังไม่ commit; ต้องรอ commit หรือยืนยันจากผู้ใช้ก่อนแตะ `SequencePlayer.jsx`, `EditorShell.jsx`, `Timeline.jsx`, `video_editor.py`, `api_phase1.py`, `tests/test_preview_render_parity.py` ที่ซ้อนกัน
+- Stage B/D มีผลต่อเวลาเรนเดอร์และพื้นที่ดิสก์ ต้องวัดตัวเลขจริงก่อนอ้างผล ห้ามใช้ตัวเลขจากแผนแม่บท (95% size reduction, 3-8 MB/clip) เป็นคำรับรอง เพราะยังไม่ผ่านการวัดกับระบบจริง
+
+---
+
+## Round CUTOUT-VIDEO-PIPELINE-REPLAN-20260926 — implementation integrated / final QA pending
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: เชื่อมระบบและย้าย BLU01 แล้ว รอเกณฑ์ QA เต็ม
+
+**เป้าหมาย:** เปลี่ยน Cutout จาก PNG sequence เป็นวิดีโอ mask ที่ Preview และ Render ใช้ตรงกัน พร้อมแก้ความต่อเนื่องของขอบวัตถุและพิสูจน์ผลกับคลิปจริง
+
+**แผนและหลักฐาน:** `_Docs/Plans/CUTOUT_VIDEO_PIPELINE_REPLAN_20260926.md` (ดำเนินการโดย: Codex (GPT-6))
+
+### Todo
+- [x] ตรวจแผน Gemini และเส้นทาง worker → API → Preview → Render ในโค้ดปัจจุบัน
+- [x] กำหนด architecture, migration, baseline และ acceptance gate ที่ต้องพิสูจน์จากวิดีโอจริง
+- [ ] Phase 0: วัด baseline และพิสูจน์ codec/seek/alpha บนเครื่องจริง
+- [x] Phase 1: สร้าง video worker แบบ streaming, alpha validation และปรับ mask ตามเวลาเบื้องต้น
+- [x] Phase 2: เชื่อม API และ Preview ให้ใช้ video artifact
+- [x] Phase 3: เชื่อม Render, Save/Reload และ legacy migration
+- [ ] Phase 4: ผ่าน Preview/Render visual gate, วัดผลจริง และ cleanup 100%
+
+### Notes
+- งานใหม่สร้าง `cutout.webm` แบบ VP9 alpha หนึ่งไฟล์ต่อ source window; ตัวอ่าน PNG เดิมยังใช้กับโปรเจกต์เก่าได้
+- BLU01 ย้าย 5 clips เป็น 4 video artifacts รวม 848 เฟรม ขนาด WebM 8,284,446 bytes (7.90 MiB); ตรวจ SHA-256, manifest schema 2 และ project reference ผ่าน; backup `project.json` 2 รุ่นอยู่ที่ `06_Archive/cutout_project_backups/` และ source ไม่ถูกแก้
+- เรนเดอร์คลิป BLU01 จริง 0.5 วินาทีลง `.tmp/` สำเร็จ ดูเฟรม 0.2/0.4 วินาทีแล้วเห็นสินค้าขยับบน mood background; Chromium Preview จาก WebM จริงผ่านทั้ง 4 ช่วง; ลบ probe ภาพ/วิดีโอ/สคริปต์ทั้งหมดแล้ว
+- ระหว่างตรวจ editor ที่เปิดค้างบันทึกค่า PNG เก่าทับโปรเจกต์และ cache ถูกล้าง; หลังผู้ใช้ปิดหน้าแล้วสร้าง Cutout ใหม่สำเร็จ และเพิ่ม UI ตรวจ manifest จริงทุก 15 วินาทีเพื่อไม่ให้สถานะ `ready` ลวงเมื่อ cache หาย
+- Focused backend 47 passed, 3 skipped, 1 known warning; Chromium Cutout tests 2 passed; frontend `npm test` 316 passed; `npm run build`, compileall, API import (211 routes), `git diff --check` ผ่าน
+- Full backend โดยไม่รวม module accessibility ที่ไม่เกี่ยวกับ Cutout: 1797 passed, 7 skipped, 34 warnings (9m50s). Full pytest ครั้งแรกติด `test_editor_controls_browser.py::test_inspector_panel_visible_controls_have_accessible_names[text_overlay]` เพราะ Text Overlay Inspector ไม่มี accessible name
+- Gate ยังเปิด: วัดความนิ่งของขอบ mask ในช็อตเร็วและเทียบ Preview/Render timestamp เดียวกันพร้อมเลเยอร์ข้อความของ BLU01; full suite ต้องผ่านก่อนปิดรอบ
+- รายงานผล: `_Docs/Reports/CUTOUT_VIDEO_PIPELINE_20260926.md` (ดำเนินการโดย: Codex (GPT-6))
+- พบ working tree มีงานค้างใน `HISTORY.md`, `TODO.md`, `SequencePlayer.jsx`, `EditorShell.jsx`, `Timeline.jsx`, `api_phase1.py`, `video_editor.py` และ tests ที่เกี่ยวข้อง; ไม่เขียนทับไฟล์โค้ดเหล่านั้น
+- `CUTOUT_COMPRESSED_VIDEO_PIPELINE_PLAN.md` เป็นแนวคิดเดิม; ตัวเลขพื้นที่/ความเร็วและคำรับรอง WebM alpha ยังไม่ผ่านการวัดกับระบบจริง
+
+---
+
+## Round FIX-CUTOUT-MASTER-SWITCH-AND-EXPLAIN-PIPELINE-20260925 — in progress
+
+วันที่: 2026-09-25 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: กำลังดำเนินการ
+
+**เป้าหมาย:**
+1. ตอบคำถามเรื่องไฟล์แคช Cutout 552 ไฟล์: ชี้แจงว่าระบบ Single Compressed Alpha Video (WebM VP9) ออกแบบไว้ในแผนแม่บท `_Docs/Plans/CUTOUT_COMPRESSED_VIDEO_PIPELINE_PLAN.md` แต่การทำงานจริงยังอยู่บน Rembg Loose PNG Sequence จึงมีไฟล์ PNG 552 ไฟล์ และระบบมีปุ่ม [ล้างแคช] ให้กดเคลียร์ได้ทันที
+2. แก้ไขปัญหาเรนเดอร์แล้วตัวหนังสือยังทับสินค้า: ตรวจพบ Master Switch ใน `03_Projects/BLU01-ปัญหาก่อนใช้_2/project.json` ถูกบันทึกเป็น `enabled: false` ส่งผลให้ข้ามขั้นตอนแยกเลเยอร์ตัวหนังสือมุดหลังสินค้า พร้อมทั้งเพิ่ม fallback keys `background_isolation` และ `spotlight` ใน `scripts/api_phase1.py`
+
+### Todo
+- [x] เขียนแผนลง TODO.md ก่อนแตะโค้ด
+- [x] อัปเดต `scripts/api_phase1.py` ให้ fallback keys ใน `_execute_reroll` มี `background_isolation` และ `spotlight`
+- [x] อัปเดต `03_Projects/BLU01-ปัญหาก่อนใช้_2/project.json` คืนค่า `background_isolation.enabled = true`
+- [x] รัน automated regression tests เพื่อยืนยันความถูกต้อง
+- [x] ตอบผู้ใช้เป็นภาษาไทยอย่างชัดเจน กระชับ ตรงประเด็น
+
 
 ## Round EDITOR-PARITY-PHASE-1-COVERAGE-MATRIX-20260922 — completed
 
@@ -494,6 +690,8 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 - [x] เพิ่ม targeted tests ใน `tests/motion_capture/` โดยไม่แก้ production renderer
 
 ## สถานะรวม
+
+- [ ] Round CUTOUT-TEMPORAL-QUALITY-PLAN-20260926 — แผนขอบนิ่ง/Preview ลื่น/ติดตามวัตถุพร้อม quality gates; ยังไม่เริ่ม implementation (ดำเนินการโดย: Codex (GPT-6))
 
 - [x] Round HATARI-HOOK-OVERLAY-AUTO-FALLBACK-20260919 — แก้ปัญหาดราฟต์แล้วป้ายฮุกถูกปิด: เพิ่ม auto-fallback ดึง hook brand/model จากชื่อสินค้าเมื่อว่าง ป้องกันป้ายฮุกปิด, อัปเดต ProductStore สินค้า Hatari, และเปิดป้ายฮุกพร้อม regenerate ซับไตเติลให้ครบทั้ง 10 โปรเจกต์ Hatari ใน 03_Projects/ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) - ปิดรอบแล้ว ✅
 - [ ] Round TIKTOK-GADGET-MEDIA-FUNCTIONAL-20260919 — บัญชี Gadget Media แยกจาก workflow ปักตะกร้า พร้อม campaign 21 คลิปและ rights gate (ดำเนินการโดย: Codex (GPT-5))

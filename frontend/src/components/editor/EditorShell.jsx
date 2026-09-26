@@ -6,15 +6,19 @@ import {
   ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Columns3,
 } from 'lucide-react';
 import {
-  deleteProject, getAllAssets, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, getTaskStatus, preflightBackgroundIsolation, startBackgroundIsolation, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
-  getHookTemplates, saveCustomHookTemplate, deleteCustomHookTemplate,
+  deleteProject, getAllAssets, getBackgroundIsolationManifest, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, getTaskStatus, preflightBackgroundIsolation, startBackgroundIsolation, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
+  getHookTemplates, saveCustomHookTemplate, deleteCustomHookTemplate, getBgmBeats,
 } from '../../api';
+import {
+  EMPTY_BEAT_GRID, beatSnapPoints as beatSnapPointsOf, hasBeats, normalizeBeatGrid,
+} from '../../lib/beatGrid.js';
 import {
   FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
   totalDuration as totalDurationOf,
 } from '../../lib/timelineMath';
 import { useEditorHistory } from '../../hooks/useEditorHistory';
 import { useProjectAutosave } from '../../hooks/useProjectAutosave';
+import { rememberProjectRevision } from '../../lib/projectRevision.js';
 import { useProjectLoader } from '../../hooks/useProjectLoader';
 import { useRenderJob } from '../../hooks/useRenderJob';
 import { usePanelLayout } from '../../hooks/usePanelLayout';
@@ -37,6 +41,7 @@ import {
   completedBackgroundIsolationTasks,
   findBackgroundIsolationConflicts,
   groupBackgroundIsolationClips,
+  resolveBackgroundIsolationConfig,
   summarizeBackgroundIsolationPlan,
   summarizeBackgroundIsolationStatus,
 } from '../../lib/backgroundIsolationPreview.js';
@@ -213,10 +218,19 @@ export default function EditorShell({
   const [playhead, setPlayhead] = useState(0);
   const [zoomIndex, setZoomIndex] = useState(2);
   const [snapEnabled, setSnapEnabled] = useState(true);
+  // Beat grid for the current BGM. `null` means "not analyzed yet"; an empty
+  // grid means "analyzed, no beats" -- the two must stay distinguishable or
+  // the UI cannot tell "loading" from "this track has no beats".
+  const [beatGrid, setBeatGrid] = useState(null);
+  const [beatSnapEnabled, setBeatSnapEnabled] = useState(true);
   const [applyToAllCaptions, setApplyToAllCaptions] = useState(true);
   const [backgroundIsolationPreparing, setBackgroundIsolationPreparing] = useState(false);
   const [backgroundIsolationTaskIds, setBackgroundIsolationTaskIds] = useState([]);
   const [backgroundIsolationError, setBackgroundIsolationError] = useState('');
+  const cutoutContextRef = useRef({ projectName, generation: 0 });
+  if (cutoutContextRef.current.projectName !== projectName) {
+    cutoutContextRef.current = { projectName, generation: cutoutContextRef.current.generation + 1 };
+  }
 
   const backgroundIsolationGroups = useMemo(() => groupBackgroundIsolationClips(
     (clipList || []).filter((clip) => clip?.source_path),
@@ -242,11 +256,35 @@ export default function EditorShell({
   // Isolation artifacts belong to individual timeline clips. Keep this
   // summary aligned with the preview resolver so explicit project disable and
   // failed/stale artifacts cannot look ready in the editor chrome.
+  const cutoutArtifactIds = useMemo(() => [...new Set((clipList || []).map((clip) => {
+    const artifact = resolveBackgroundIsolationConfig(clip, backgroundIsolation)?.artifact;
+    return artifact?.id || artifact?.sequence_id;
+  }).filter(Boolean))], [backgroundIsolation, clipList]);
+  const [cutoutArtifactAvailability, setCutoutArtifactAvailability] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    const verify = async () => {
+      const results = await Promise.all(cutoutArtifactIds.map(async (id) => {
+        try {
+          const manifest = await getBackgroundIsolationManifest(id);
+          return [id, manifest?.artifact_id === id && manifest?.status === 'ready'];
+        } catch {
+          return [id, false];
+        }
+      }));
+      if (!cancelled) setCutoutArtifactAvailability(Object.fromEntries(results));
+    };
+    setCutoutArtifactAvailability({});
+    verify();
+    const timer = window.setInterval(verify, 15000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [cutoutArtifactIds.join('|')]);
   const backgroundIsolationStatus = useMemo(() => summarizeBackgroundIsolationStatus({
     clips: clipList,
     projectConfig: backgroundIsolation,
     preparing: backgroundIsolationPreparing,
-  }), [backgroundIsolation, backgroundIsolationPreparing, clipList]);
+    artifactAvailability: cutoutArtifactAvailability,
+  }), [backgroundIsolation, backgroundIsolationPreparing, clipList, cutoutArtifactAvailability]);
 
   // Mobile Mode Switcher: 'timeline' | 'assets' | 'inspector'
   const [cutoutPreviewMode, setCutoutPreviewMode] = useState('composite');
@@ -392,6 +430,7 @@ export default function EditorShell({
     });
   }, [set]);
   const [isCaptionHidden, setIsCaptionHidden] = useState(false);
+  const [isCutoutHidden, setIsCutoutHidden] = useState(false);
 
   // The banner and the text overlays are one array now, and it lives inside
   // the undo history. The banner used to sit outside it as seven loose
@@ -613,6 +652,7 @@ export default function EditorShell({
   }), []);
 
   const applyLoadedProject = useCallback((name, loaded, manifest) => {
+    rememberProjectRevision(name, manifest?._editor_revision);
     const loadedStylePreset = stylePresetFromManifest(manifest, loaded.style);
     const loadedEditorState = {
       ...loaded,
@@ -943,6 +983,29 @@ export default function EditorShell({
     if (!selectedSeg?.clip) return;
     patchClip(selectedSeg.clip.id, { zoom: 1, pan_x: 0, pan_y: 0 });
   }, [selectedSeg?.clip, patchClip]);
+
+  // Beat grid follows whichever BGM the project is using. Analysis is cached
+  // server-side, so re-selecting a track is cheap. A failure is not surfaced
+  // as an error: beats are an editing aid, and losing them must not block
+  // the timeline -- the markers simply do not appear.
+  useEffect(() => {
+    const bgmName = style?.bgmName;
+    if (!bgmName) { setBeatGrid(null); return; }
+    let cancelled = false;
+    setBeatGrid(null);
+    getBgmBeats(bgmName)
+      .then((data) => { if (!cancelled) setBeatGrid(normalizeBeatGrid(data)); })
+      .catch(() => { if (!cancelled) setBeatGrid({ ...EMPTY_BEAT_GRID }); });
+    return () => { cancelled = true; };
+  }, [style?.bgmName]);
+
+  // Only beats inside the sequence can be snap targets: a marker past the end
+  // of the timeline is unreachable, and feeding it to snapCandidates would
+  // let a drag jump to a point the user cannot see.
+  const beatSnapPoints = useMemo(() => {
+    if (!snapEnabled || !beatSnapEnabled) return [];
+    return beatSnapPointsOf(beatGrid, Math.max(totalDuration || 0, audioDuration || 0));
+  }, [snapEnabled, beatSnapEnabled, beatGrid, totalDuration, audioDuration]);
 
   // Snapping candidates for subtitles when magnetic snap is active
   const cueSnapPoints = useMemo(() => {
@@ -1291,6 +1354,7 @@ export default function EditorShell({
   }, [setSilent]);
 
   const patchBackgroundIsolation = useCallback((next) => {
+    cutoutContextRef.current.generation += 1;
     set((prev) => ({ ...prev, backgroundIsolation: next || null }));
   }, [set]);
 
@@ -1298,7 +1362,9 @@ export default function EditorShell({
   // already finished. Rebind a completed task's artifact to the matching
   // timeline clips so the user does not need to run cutout again manually.
   useEffect(() => {
-    const completed = completedBackgroundIsolationTasks(tasks, projectName);
+    if (backgroundIsolationPreparing) return;
+    if (!backgroundIsolation?.request_id) return;
+    const completed = completedBackgroundIsolationTasks(tasks, projectName, backgroundIsolation.request_id);
     if (!completed.length || !clipList?.length) return;
 
     const updates = completed.map((task) => ({
@@ -1308,7 +1374,7 @@ export default function EditorShell({
       duration: task.payload.duration == null ? null : Number(task.payload.duration),
       config: task.result,
     }));
-    const matchingUpdate = (clip) => updates
+    const matchingUpdate = (clip) => clip.background_isolation?.artifact?.status === 'ready' ? null : updates
       .filter((update) => backgroundIsolationWindowContainsClip(update, clip, { sourceDurations: durations }))
       .sort((left, right) => (left.duration ?? Infinity) - (right.duration ?? Infinity))[0];
     const needsBinding = clipList.some((clip) => {
@@ -1325,7 +1391,7 @@ export default function EditorShell({
         return update ? { ...clip, background_isolation: update.config } : clip;
       }),
     }));
-  }, [clipList, durations, projectName, setSilent, tasks]);
+  }, [clipList, durations, projectName, setSilent, tasks, backgroundIsolation?.request_id, backgroundIsolationPreparing]);
 
   const prepareBackgroundIsolation = useCallback(async () => {
     const sourceClips = (clipList || []).filter((clip) => clip?.source_path);
@@ -1362,17 +1428,23 @@ export default function EditorShell({
       model: backgroundIsolation?.model === 'u2netp'
         ? 'u2net'
         : (backgroundIsolation?.model || 'u2net'),
+      request_id: crypto.randomUUID(),
+      artifact: { schema_version: 1, id: null, status: 'missing' },
     };
     patchBackgroundIsolation({
       ...baseConfig,
       enabled: true,
       artifact: { ...(baseConfig.artifact || {}), id: null, status: 'processing' },
     });
+    const jobContext = { ...cutoutContextRef.current };
+    const isCurrentJob = () => cutoutContextRef.current.projectName === jobContext.projectName
+      && cutoutContextRef.current.generation === jobContext.generation;
     setBackgroundIsolationError('');
     setBackgroundIsolationTaskIds([]);
     setBackgroundIsolationPreparing(true);
     try {
       for (const item of unique) {
+        if (!isCurrentJob()) return;
         const request = {
           source_path: item.sourcePath,
           config: baseConfig,
@@ -1385,14 +1457,17 @@ export default function EditorShell({
           project_name: projectName,
         };
         const preflight = await preflightBackgroundIsolation(request);
+        if (!isCurrentJob()) return;
         if (!preflight?.ok) {
           const issue = preflight?.issues?.find((candidate) => candidate.severity === 'error');
           throw new Error(issue?.message || 'เครื่องยังไม่พร้อมประมวลผล Cutout');
         }
         const response = await startBackgroundIsolation(request);
+        if (!isCurrentJob()) return;
         setBackgroundIsolationTaskIds((current) => [...new Set([...current, response.task_id])]);
         pollTasks?.();
         const task = await waitForBackgroundIsolationTask(response.task_id, getTaskStatus);
+        if (!isCurrentJob()) return;
         if (task?.status === 'cancelled') {
           const cancelled = new Error('ยกเลิกการเตรียม Cutout แล้ว');
           cancelled.cancelled = true;
@@ -1402,10 +1477,13 @@ export default function EditorShell({
           throw new Error(task?.error || 'background isolation task did not complete');
         }
         const completedConfig = task.result;
-        set((prev) => ({
+        set((prev) => prev.backgroundIsolation?.request_id !== baseConfig.request_id ? prev : ({
           ...prev,
           clipList: (prev.clipList || []).map((clip) => {
-            const covered = backgroundIsolationWindowContainsClip(item, clip, { sourceDurations: durations });
+            const before = item.clips.find((candidate) => candidate.id === clip.id);
+            const covered = before
+              && JSON.stringify(before.background_isolation) === JSON.stringify(clip.background_isolation)
+              && backgroundIsolationWindowContainsClip(item, clip, { sourceDurations: durations });
             return covered ? { ...clip, background_isolation: completedConfig } : clip;
           }),
         }));
@@ -1416,13 +1494,14 @@ export default function EditorShell({
       patchBackgroundIsolation({ ...baseConfig, enabled: true, artifact: { ...(baseConfig.artifact || {}), id: null, status: 'missing' } });
       showToast(`เตรียม cutout สำเร็จ ${sourceClips.length} คลิป จาก ${unique.length} ช่วงวิดีโอ`);
     } catch (error) {
+      if (!isCurrentJob()) return;
       const message = error?.friendlyMessage || error?.message || 'เตรียม cutout ไม่สำเร็จ';
       const status = error?.cancelled ? 'cancelled' : 'error';
       patchBackgroundIsolation({ ...baseConfig, enabled: true, artifact: { ...(baseConfig.artifact || {}), id: null, status } });
       setBackgroundIsolationError(message);
       showToast(message);
     } finally {
-      setBackgroundIsolationPreparing(false);
+      if (cutoutContextRef.current.projectName === jobContext.projectName) setBackgroundIsolationPreparing(false);
       setBackgroundIsolationTaskIds([]);
       pollTasks?.();
     }
@@ -2121,7 +2200,7 @@ export default function EditorShell({
                   stickers={stickers}
                   effects={effects}
                   spotlight={spotlight}
-                  backgroundIsolation={backgroundIsolation}
+                  backgroundIsolation={isCutoutHidden ? { ...(backgroundIsolation || {}), enabled: false } : backgroundIsolation}
                   backgroundIsolationStatus={backgroundIsolationStatus}
                   onToggleBackgroundIsolation={(nextEnabled) => patchBackgroundIsolation({
                     ...(backgroundIsolation || {}),
@@ -2308,6 +2387,10 @@ export default function EditorShell({
                   onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
                   snapEnabled={snapEnabled}
                   onToggleSnap={() => setSnapEnabled((v) => !v)}
+                  beatSnapEnabled={beatSnapEnabled}
+                  onToggleBeatSnap={() => setBeatSnapEnabled((v) => !v)}
+                  beatGridAvailable={hasBeats(beatGrid)}
+                  beatBpm={beatGrid?.bpm ?? null}
                 />
                 <div className="min-h-0 flex-1">
                   <Timeline
@@ -2316,6 +2399,7 @@ export default function EditorShell({
                     audioDuration={audioDuration}
                     cues={cuesList}
                     bgmLabel={bgmLabel}
+                    beatGrid={beatSnapEnabled ? beatGrid : null}
                     pxPerSec={pxPerSec}
                     playhead={playhead}
                     selection={selection}
@@ -2346,7 +2430,7 @@ export default function EditorShell({
                     onEndDrag={endDrag}
                     onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
                     viewportRef={timelineViewportRef}
-                    snapCandidates={snapEnabled ? snapCandidates(segments, playhead, [...(audioDuration > 0 ? [audioDuration] : []), ...cueSnapPoints]) : []}
+                    snapCandidates={snapEnabled ? snapCandidates(segments, playhead, [...(audioDuration > 0 ? [audioDuration] : []), ...cueSnapPoints, ...beatSnapPoints]) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
                     snapEnabled={snapEnabled}
                     onCuesChange={handleUpdateCuesList}
@@ -2664,7 +2748,7 @@ export default function EditorShell({
                     stickers={stickers}
                     effects={effects}
                     spotlight={spotlight}
-                    backgroundIsolation={backgroundIsolation}
+                    backgroundIsolation={isCutoutHidden ? { ...(backgroundIsolation || {}), enabled: false } : backgroundIsolation}
                     backgroundIsolationStatus={backgroundIsolationStatus}
                     onToggleBackgroundIsolation={(nextEnabled) => patchBackgroundIsolation({
                       ...(backgroundIsolation || {}),
@@ -2930,6 +3014,10 @@ export default function EditorShell({
                   onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
                   snapEnabled={snapEnabled}
                   onToggleSnap={() => setSnapEnabled((v) => !v)}
+                  beatSnapEnabled={beatSnapEnabled}
+                  onToggleBeatSnap={() => setBeatSnapEnabled((v) => !v)}
+                  beatGridAvailable={hasBeats(beatGrid)}
+                  beatBpm={beatGrid?.bpm ?? null}
                 />
                 <div className="min-h-0 flex-1">
                   <Timeline
@@ -2938,6 +3026,7 @@ export default function EditorShell({
                     audioDuration={audioDuration}
                     cues={cuesList}
                     bgmLabel={bgmLabel}
+                    beatGrid={beatSnapEnabled ? beatGrid : null}
                     pxPerSec={pxPerSec}
                     playhead={playhead}
                     selection={selection}
@@ -2959,6 +3048,9 @@ export default function EditorShell({
                     onToggleMuteAudio={() => setIsAudioMuted((v) => !v)}
                     isCaptionHidden={isCaptionHidden}
                     onToggleHideCaption={() => setIsCaptionHidden((v) => !v)}
+                    backgroundIsolation={backgroundIsolation}
+                    isCutoutHidden={isCutoutHidden}
+                    onToggleCutout={() => setIsCutoutHidden((v) => !v)}
                     onSplit={splitAtPlayhead}
                     onDuplicate={duplicateSelected}
                     onDelete={deleteSelected}
@@ -2968,7 +3060,7 @@ export default function EditorShell({
                     onEndDrag={endDrag}
                     onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
                     viewportRef={timelineViewportRef}
-                    snapCandidates={snapEnabled ? snapCandidates(segments, playhead, [...(audioDuration > 0 ? [audioDuration] : []), ...cueSnapPoints]) : []}
+                    snapCandidates={snapEnabled ? snapCandidates(segments, playhead, [...(audioDuration > 0 ? [audioDuration] : []), ...cueSnapPoints, ...beatSnapPoints]) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
                     snapEnabled={snapEnabled}
                     onCuesChange={handleUpdateCuesList}

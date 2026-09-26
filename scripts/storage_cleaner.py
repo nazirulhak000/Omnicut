@@ -5,6 +5,8 @@ Provides automated scanning and cleanup for safe, reclaimable transient files:
 2. Temporary audio/video render previews (preview_*.wav, temp_*.mp4)
 3. CapCut draft cloud cache (.cloud_cache*, cache_*)
 4. Test / scratch directories that are non-critical
+5. Editing proxies (03_Projects/.cache/editing-proxies) -- 540p stand-ins
+   rebuilt on demand from masters that are never touched here
 
 STRICT RULE 1 GUARANTEE:
 Never deletes or alters files in 01_Raw or 02_Assets under any condition.
@@ -22,6 +24,7 @@ from scripts.config import (
     RAW_DIR,
     ASSETS_DIR,
 )
+from scripts.proxy_manager import purge_proxy_cache, scan_proxy_cache
 
 SAFE_CACHE_TARGETS = [
     # Transient producer vision thumbnails
@@ -29,6 +32,19 @@ SAFE_CACHE_TARGETS = [
     # Temporary test scratch directory
     BASE_DIR / "temp_scratch",
 ]
+
+CUTOUT_NAMESPACES = ("background-isolation", "background-isolation-sequences",
+                     "background-isolation-foreground-sequences", "background-isolation-videos")
+
+
+def _cutout_cache_roots() -> list[Path]:
+    root = PROJECTS_DIR / ".cache"
+    if root.is_symlink() or root.is_junction() or not root.is_dir():
+        return []
+    resolved = root.resolve()
+    return [path for name in CUTOUT_NAMESPACES if (path := root / name).is_dir()
+            and not path.is_symlink() and not path.is_junction()
+            and path.resolve().parent == resolved and not is_strictly_protected_path(path)]
 
 
 def _dir_size(p: Path) -> int:
@@ -142,28 +158,35 @@ def scan_safe_reclaimable_cache() -> Dict[str, Any]:
 
     # 4. Background Isolation Cutout Cache (03_Projects/.cache)
     cutout_cache_dir = PROJECTS_DIR / ".cache"
-    cutout_cache_bytes = 0
-    cutout_cache_count = 0
-    if cutout_cache_dir.exists() and not is_strictly_protected_path(cutout_cache_dir):
-        try:
-            for f in cutout_cache_dir.rglob("*"):
-                if f.is_file():
-                    cutout_cache_bytes += f.stat().st_size
-                    cutout_cache_count += 1
-        except Exception:
-            pass
+    cutout_summary = scan_cutout_cache()
+    cutout_cache_bytes = cutout_summary["bytes"]
+    cutout_cache_count = cutout_summary["count"]
 
     if cutout_cache_bytes > 0:
         items.append({
             "id": "cutout_cache",
-            "label": "แคชการตัดพื้นหลังสินค้า (Cutout Frame Cache)",
-            "description": "ไฟล์เฟรมภาพแยกสำหรับตัดพื้นหลังสินค้าใน 03_Projects/.cache",
+            "label": "แคชการตัดพื้นหลังสินค้า (Cutout)",
+            "description": "วิดีโอ Cutout, Preview และเฟรมรุ่นเก่า เฉพาะโฟลเดอร์ Cutout",
             "path": str(cutout_cache_dir),
             "bytes": cutout_cache_bytes,
             "mb": round(cutout_cache_bytes / (1024 * 1024), 2),
             "count": cutout_cache_count,
         })
         total_bytes += cutout_cache_bytes
+
+    # 5. Editing Proxy Cache (03_Projects/.cache/editing-proxies)
+    proxy_summary = scan_proxy_cache()
+    if proxy_summary["bytes"] > 0:
+        items.append({
+            "id": "editing_proxies",
+            "label": "แคชไฟล์พรีวิวย่อ (Editing Proxy)",
+            "description": "ไฟล์วิดีโอย่อ 540p สำหรับเล่นบนไทม์ไลน์ สร้างใหม่ได้เสมอจากไฟล์ต้นฉบับ",
+            "path": proxy_summary["path"],
+            "bytes": proxy_summary["bytes"],
+            "mb": round(proxy_summary["bytes"] / (1024 * 1024), 2),
+            "count": proxy_summary["count"],
+        })
+        total_bytes += proxy_summary["bytes"]
 
     return {
         "items": items,
@@ -226,21 +249,19 @@ def execute_safe_purge() -> Dict[str, Any]:
             errors.append(f"CapCut cache: {e}")
 
     # 4. Clean Background Isolation Cutout Cache (03_Projects/.cache)
-    cutout_cache_dir = PROJECTS_DIR / ".cache"
-    if cutout_cache_dir.exists() and not is_strictly_protected_path(cutout_cache_dir):
-        try:
-            for item in list(cutout_cache_dir.iterdir()):
-                if not is_strictly_protected_path(item):
-                    sz = _dir_size(item) if item.is_dir() else item.stat().st_size
-                    cnt = sum(1 for _ in item.rglob("*") if _.is_file()) if item.is_dir() else 1
-                    if item.is_dir():
-                        shutil.rmtree(str(item), ignore_errors=True)
-                    else:
-                        item.unlink(missing_ok=True)
-                    purged_bytes += sz
-                    purged_files += cnt
-        except Exception as e:
-            errors.append(f"Cutout cache: {e}")
+    cutout_result = purge_cutout_cache_only()
+    purged_bytes += cutout_result["purged_bytes"]
+    purged_files += cutout_result["purged_files"]
+    errors.extend(cutout_result["errors"])
+
+    # 5. Clean editing proxies. Only this namespace is removed -- the shared
+    # 03_Projects/.cache parent holds the cutout caches too.
+    try:
+        proxy_result = purge_proxy_cache()
+        purged_bytes += proxy_result["freed_bytes"]
+        purged_files += proxy_result["removed_count"]
+    except Exception as e:
+        errors.append(f"Editing proxies: {e}")
 
     return {
         "success": True,
@@ -257,13 +278,12 @@ def scan_cutout_cache() -> Dict[str, Any]:
     Scans only the Background Isolation Cutout Cache in 03_Projects/.cache.
     Returns bytes, mb, and file count.
     """
-    cutout_cache_dir = PROJECTS_DIR / ".cache"
     cutout_cache_bytes = 0
     cutout_cache_count = 0
-    if cutout_cache_dir.exists() and not is_strictly_protected_path(cutout_cache_dir):
+    for cutout_cache_dir in _cutout_cache_roots():
         try:
             for f in cutout_cache_dir.rglob("*"):
-                if f.is_file():
+                if f.is_file() and not f.is_symlink():
                     cutout_cache_bytes += f.stat().st_size
                     cutout_cache_count += 1
         except Exception:
@@ -280,23 +300,22 @@ def purge_cutout_cache_only() -> Dict[str, Any]:
     Safely clears only the Background Isolation Cutout Cache in 03_Projects/.cache.
     STRICT DON'T: Never touches 01_Raw, 02_Assets, or project state files.
     """
-    cutout_cache_dir = PROJECTS_DIR / ".cache"
     purged_bytes = 0
     purged_files = 0
     errors = []
 
-    if cutout_cache_dir.exists() and not is_strictly_protected_path(cutout_cache_dir):
+    for item in _cutout_cache_roots():
         try:
-            for item in list(cutout_cache_dir.iterdir()):
-                if not is_strictly_protected_path(item):
-                    sz = _dir_size(item) if item.is_dir() else item.stat().st_size
-                    cnt = sum(1 for _ in item.rglob("*") if _.is_file()) if item.is_dir() else 1
-                    if item.is_dir():
-                        shutil.rmtree(str(item), ignore_errors=True)
-                    else:
-                        item.unlink(missing_ok=True)
-                    purged_bytes += sz
-                    purged_files += cnt
+            # Reject links inside the namespace as well: Windows junctions can
+            # point at another project even when the top-level path is safe.
+            members = list(item.rglob("*"))
+            if any(path.is_symlink() or path.is_junction() for path in members):
+                raise ValueError(f"unsafe link in {item.name}")
+            sz = _dir_size(item)
+            cnt = sum(path.is_file() for path in members)
+            shutil.rmtree(item)
+            purged_bytes += sz
+            purged_files += cnt
         except Exception as e:
             errors.append(f"Cutout cache: {e}")
 
@@ -308,4 +327,3 @@ def purge_cutout_cache_only() -> Dict[str, Any]:
         "message": f"ล้างแคชตัดพื้นหลังสินค้าสำเร็จ {purged_files} ไฟล์ ({round(purged_bytes / (1024 * 1024), 2)} MB)",
         "errors": errors,
     }
-

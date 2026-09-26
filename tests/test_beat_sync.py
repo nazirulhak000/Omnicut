@@ -194,6 +194,145 @@ def test_get_beat_times_cache_file_written_under_tmp_path(tmp_path, _isolate_cac
 
 
 # ---------------------------------------------------------------------------
+# get_beat_grid
+# ---------------------------------------------------------------------------
+
+def test_get_beat_grid_empty_for_none_and_missing(tmp_path):
+    """The grid must degrade exactly like get_beat_times does: a shape with
+    empty lists, never an exception -- the timeline renders 'no markers' from
+    this, so an error here would break the editor over a missing BGM file."""
+    for target in (None, tmp_path / "missing.wav"):
+        grid = BeatSync.get_beat_grid(target)
+        assert grid == {"bpm": None, "major_beats": [], "minor_beats": []}
+
+
+def test_get_beat_grid_empty_on_corrupt_bytes(tmp_path):
+    bogus = tmp_path / "corrupt.wav"
+    bogus.write_bytes(b"RIFF fake wav not real audio data at all")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        grid = BeatSync.get_beat_grid(bogus)
+    assert grid == {"bpm": None, "major_beats": [], "minor_beats": []}
+
+
+def test_get_beat_grid_partitions_every_detected_beat(tmp_path):
+    """major + minor must together be exactly the beats get_beat_times
+    returned, with nothing invented and nothing dropped -- a beat present in
+    the pipeline's cut placement but absent from the timeline's snap targets
+    would make the two disagree about the same music."""
+    wav = _write_wav(tmp_path / "clicks.wav", _click_track(6.0, interval_s=0.5))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        beats = BeatSync.get_beat_times(wav)
+        grid = BeatSync.get_beat_grid(wav)
+
+    assert beats, "fixture must produce beats for this test to mean anything"
+    combined = sorted(grid["major_beats"] + grid["minor_beats"])
+    assert combined == sorted(beats)
+    # No beat is counted in both halves.
+    assert not set(grid["major_beats"]) & set(grid["minor_beats"])
+
+
+def test_get_beat_grid_major_beats_are_every_fourth(tmp_path):
+    wav = _write_wav(tmp_path / "clicks.wav", _click_track(6.0, interval_s=0.5))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        beats = BeatSync.get_beat_times(wav)
+        grid = BeatSync.get_beat_grid(wav)
+    expected_major = [b for i, b in enumerate(beats) if i % beat_sync_mod.BEATS_PER_BAR == 0]
+    assert grid["major_beats"] == expected_major
+
+
+def test_get_beat_grid_bpm_matches_click_interval(tmp_path):
+    """A 0.5s click interval is 120 BPM. Beat tracking is not exact, but a
+    BPM far from that would mean the number shown in the UI is fiction."""
+    wav = _write_wav(tmp_path / "clicks.wav", _click_track(8.0, interval_s=0.5))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        grid = BeatSync.get_beat_grid(wav)
+    bpm = grid["bpm"]
+    assert bpm is not None and math.isfinite(bpm)
+    assert 100.0 <= bpm <= 140.0, f"bpm {bpm} implausible for a 120 BPM click track"
+
+
+def test_get_beat_grid_is_cached_separately_from_beat_times(tmp_path, monkeypatch):
+    """Second grid call must not re-run beat tracking: the timeline may ask
+    for the same track on every mount."""
+    wav = _write_wav(tmp_path / "clicks.wav", _click_track(3.0, interval_s=0.5))
+
+    import librosa
+    calls = {"n": 0}
+    orig = librosa.beat.beat_track
+
+    def counting(*args, **kwargs):
+        calls["n"] += 1
+        return orig(*args, **kwargs)
+
+    monkeypatch.setattr(librosa.beat, "beat_track", counting)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        first = BeatSync.get_beat_grid(wav)
+        second = BeatSync.get_beat_grid(wav)
+
+    assert calls["n"] == 1, "grid should be served from cache on the second call"
+    assert first == second
+
+
+def test_get_beat_grid_ignores_legacy_v1_cache_entry(tmp_path, _isolate_cache):
+    """An old cache written by get_beat_times (a bare list under an unversioned
+    key) must never be read back as a grid dict -- that would raise or produce
+    a nonsense shape. The versioned key makes the two coexist."""
+    wav = _write_wav(tmp_path / "clicks.wav", _click_track(3.0, interval_s=0.5))
+    legacy_key = f"{wav.name}:{wav.stat().st_size}"
+    _isolate_cache.write_text(json.dumps({legacy_key: [0.1, 0.6, 1.1]}), encoding="utf-8")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        grid = BeatSync.get_beat_grid(wav)
+
+    assert isinstance(grid["major_beats"], list)
+    assert isinstance(grid["minor_beats"], list)
+    # The legacy list was for get_beat_times and is still honored there.
+    assert BeatSync.get_beat_times(wav) == [0.1, 0.6, 1.1]
+
+
+def test_get_beat_grid_no_beats_is_not_cached(tmp_path, _isolate_cache):
+    """A track that yielded nothing because librosa was missing must be
+    retried later, not remembered as permanently beatless."""
+    wav = _write_wav(tmp_path / "silence.wav", _silence(2.0))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        grid = BeatSync.get_beat_grid(wav)
+    assert grid["major_beats"] == [] and grid["minor_beats"] == []
+    cache = json.loads(_isolate_cache.read_text(encoding="utf-8")) if _isolate_cache.exists() else {}
+    grid_keys = [k for k in cache if k.startswith(beat_sync_mod.BEAT_GRID_CACHE_VERSION)]
+    assert grid_keys == [], "an empty grid must not be cached"
+
+
+# ---------------------------------------------------------------------------
+# _estimate_bpm
+# ---------------------------------------------------------------------------
+
+def test_estimate_bpm_none_for_fewer_than_two_beats():
+    assert BeatSync._estimate_bpm([]) is None
+    assert BeatSync._estimate_bpm([1.0]) is None
+
+
+def test_estimate_bpm_uses_median_gap_not_mean():
+    """One doubled gap (a dropped beat) must not drag the reported tempo:
+    gaps of 0.5 x4 and one 2.0 have mean 0.8 (75 BPM) but median 0.5
+    (120 BPM). The median is the honest reading of this track."""
+    beats = [0.0, 0.5, 1.0, 1.5, 2.0, 4.0]
+    assert BeatSync._estimate_bpm(beats) == pytest.approx(120.0)
+
+
+def test_estimate_bpm_none_on_degenerate_gaps():
+    """Identical timestamps give a zero median gap; returning 60/0 would be
+    an infinity flowing into the API response."""
+    assert BeatSync._estimate_bpm([1.0, 1.0, 1.0]) is None
+
+
+# ---------------------------------------------------------------------------
 # get_rms_energy
 # ---------------------------------------------------------------------------
 

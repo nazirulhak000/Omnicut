@@ -7,6 +7,7 @@ import re
 import sys
 import threading
 from collections.abc import Mapping
+from fractions import Fraction
 from pathlib import Path
 
 from PIL import Image
@@ -38,15 +39,18 @@ from scripts.overlay_recolor import (
     resolve_overlay_recolor,
 )
 from scripts.spotlight_effect import build_ffmpeg_filter
+from scripts.proxy_manager import is_proxy_path
 from scripts.render_jobs import RenderCancelled
 from scripts.media_probe_cache import MediaProbeCache
 from scripts.style_motion_policy import STYLE_MOTION_POLICIES
 from scripts.background_isolation_compositor import (
+    build_alpha_composite_filter_fragment,
     build_compositing_plan,
     normalize_compositor_config,
     resolve_background_isolation_config,
     split_ass_layers_for_subject,
 )
+from scripts.background_isolation_video_worker import VIDEO_NAMESPACE, VIDEO_NAME, VIDEO_SCHEMA_VERSION
 
 # ffmpeg child processes spawned for the final render, tracked so a hard
 # external kill of this backend (task manager, a dev-server reload, an
@@ -110,6 +114,52 @@ def _path_is_under(path: Path, root: Path) -> bool:
         return False
 
 
+def _read_ready_background_video(
+    config: Mapping[str, Any], artifact_id: str, trim_start: float, source_span: float,
+) -> Optional[Dict[str, Any]]:
+    root = Path(PROJECTS_DIR).resolve(strict=False) / ".cache" / VIDEO_NAMESPACE
+    directory = root / artifact_id
+    manifest_path = directory / "manifest.json"
+    video_path = directory / VIDEO_NAME
+    if any(path.is_symlink() for path in (root, directory, manifest_path, video_path)):
+        return None
+    if not manifest_path.is_file() or not video_path.is_file():
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if (manifest.get("schema_version") != VIDEO_SCHEMA_VERSION
+                or manifest.get("artifact_id") != artifact_id
+                or manifest.get("status") != "ready"
+                or manifest.get("video_file") != VIDEO_NAME
+                or manifest.get("codec") != "vp9-alpha"):
+            return None
+        fingerprint = config.get("artifact", {}).get("source_fingerprint")
+        if fingerprint and fingerprint != manifest.get("source_fingerprint"):
+            return None
+        fps = Fraction(str(manifest["fps"]))
+        frame_count = int(manifest["frame_count"])
+        width = int(manifest["width"])
+        height = int(manifest["height"])
+        source_start = float(manifest["source_start"])
+        source_duration = float(manifest["source_duration"])
+        local_start = float(trim_start) - source_start
+        if (fps <= 0 or frame_count <= 0 or width <= 0 or height <= 0
+                or local_start < -1e-6 or source_span <= 0
+                or local_start + source_span > source_duration + 1 / float(fps) + 1e-6):
+            return None
+        if video_path.stat().st_size == 0:
+            return None
+    except (OSError, KeyError, TypeError, ValueError, ZeroDivisionError):
+        return None
+    return {
+        "artifact_id": artifact_id, "video_path": video_path,
+        "video_start": max(0.0, local_start), "fps_ratio": str(manifest["fps"]),
+        "frame_count": frame_count, "width": width, "height": height,
+        "manifest": manifest,
+        "plan": {"filter_fragment": build_alpha_composite_filter_fragment()},
+    }
+
+
 def _read_ready_background_sequence(
     config: Any,
     trim_start: float,
@@ -132,6 +182,10 @@ def _read_ready_background_sequence(
         or not _BACKGROUND_SEQUENCE_ID_RE.fullmatch(artifact_id)
     ):
         return None
+
+    video_info = _read_ready_background_video(config, artifact_id, trim_start, source_span)
+    if video_info is not None:
+        return video_info
 
     root = _background_sequence_root()
     artifact_dir = (root / artifact_id).resolve(strict=False)
@@ -1162,6 +1216,15 @@ class VideoEditor:
             # as omitting clip_list entirely.)
             for idx, clip in enumerate(clip_list):
                 source_path = Path(clip["source_path"]).resolve()
+                # Editing proxies are 540p stand-ins for timeline playback
+                # only. One reaching here would export at preview resolution
+                # and look like a bad encode rather than a wiring mistake, so
+                # this fails closed instead of degrading quietly.
+                if is_proxy_path(source_path):
+                    raise ValueError(
+                        f"ห้ามเรนเดอร์จากไฟล์พรีวิวย่อ (proxy): {source_path} "
+                        "— ต้องใช้ไฟล์ต้นฉบับเท่านั้น"
+                    )
                 video_input_paths.append(str(source_path))
 
                 media_info = media_probe.get(source_path)
@@ -1271,7 +1334,7 @@ class VideoEditor:
                         source_transform = (
                             f"[{idx}:v]trim=start=0:duration={source_span},setpts=PTS-STARTPTS,"
                             f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}"
-                            f"fps={FPS},{camera_filter},drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill[{transformed_node}];"
+                            f"fps={FPS},{camera_filter}[{transformed_node}];"
                         )
                         foreground_transform = (
                             f"[{fg_input_idx}:v]{clip_trim},setpts=PTS-STARTPTS,"
@@ -1285,8 +1348,7 @@ class VideoEditor:
                         if one_pass:
                             source_transform = (
                                 f"[{idx}:v]{clip_trim},setpts=PTS-STARTPTS,"
-                                f"{speed_filter}{eq_filter}{freeze_filter}fps={FPS},{one_pass},"
-                                f"drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill[{transformed_node}];"
+                                f"{speed_filter}{eq_filter}{freeze_filter}fps={FPS},{one_pass}[{transformed_node}];"
                             )
                             foreground_transform = (
                                 f"[{fg_input_idx}:v]{clip_trim},setpts=PTS-STARTPTS,"
@@ -1301,7 +1363,7 @@ class VideoEditor:
                             )
                             source_transform = (
                                 f"[{idx}:v]{clip_trim},setpts=PTS-STARTPTS,"
-                                f"{common_transform},drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill[{transformed_node}];"
+                                f"{common_transform}[{transformed_node}];"
                             )
                             foreground_transform = (
                                 f"[{fg_input_idx}:v]{clip_trim},setpts=PTS-STARTPTS,"
@@ -1335,6 +1397,13 @@ class VideoEditor:
                         f"[{transformed_node}]{subject_for_base}overlay",
                         1,
                     )
+                    if "video_path" in bg_info:
+                        source_split = f"[bg_source_{idx}]"
+                        source_transform = source_transform.replace(
+                            f"[{transformed_node}];",
+                            f"{source_split};{source_split}drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill[{transformed_node}];",
+                            1,
+                        )
                     filter_complex.append(
                         source_transform
                         + foreground_transform
@@ -1614,11 +1683,17 @@ class VideoEditor:
         # legacy audio index remains unchanged.  Each input is derived from a
         # validated artifact id and is cadence-controlled by its manifest.
         for bg_info in foreground_inputs:
-            cmd_inputs.extend([
-                "-framerate", bg_info["fps_ratio"],
-                "-start_number", str(bg_info["frame_index"]),
-                "-i", f"{bg_info['frame_pattern']}",
-            ])
+            if "video_path" in bg_info:
+                cmd_inputs.extend([
+                    "-c:v", "libvpx-vp9", "-ss", str(bg_info["video_start"]),
+                    "-i", str(bg_info["video_path"]),
+                ])
+            else:
+                cmd_inputs.extend([
+                    "-framerate", bg_info["fps_ratio"],
+                    "-start_number", str(bg_info["frame_index"]),
+                    "-i", f"{bg_info['frame_pattern']}",
+                ])
 
         # Optional 3D LUT color grade -- applied before the sticker overlay and
         # subtitle burn so a brand-colored badge and caption colors are never

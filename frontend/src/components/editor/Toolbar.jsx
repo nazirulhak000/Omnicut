@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Copy, FlipHorizontal2, Gauge, Magnet, Maximize2, Redo2, RotateCcw, Scissors, Shield, Sparkles, Trash2, Undo2, ZoomIn, ZoomOut, Type,
+  Copy, FlipHorizontal2, Gauge, Magnet, Maximize2, Music2, Redo2, RotateCcw, Scissors, Shield, Sparkles, Trash2, Undo2, ZoomIn, ZoomOut, Type,
 } from 'lucide-react';
 import { formatTimecode } from '../../lib/timelineMath';
 
@@ -59,6 +59,10 @@ export default function Toolbar({
   onZoomToFit,
   snapEnabled,
   onToggleSnap,
+  beatSnapEnabled = false,
+  onToggleBeatSnap,
+  beatGridAvailable = false,
+  beatBpm = null,
 }) {
   const speed = selectedClip?.speed || 1;
   const nextSpeed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length] || 1;
@@ -162,6 +166,19 @@ export default function Toolbar({
           onClick={onToggleSnap}
           active={snapEnabled}
         />
+        {/* Only offered once a beat grid exists: a control that cannot do
+            anything is worse than no control. The hint carries the measured
+            tempo so the user can tell the analysis found real music. */}
+        {beatGridAvailable && (
+          <ToolButton
+            icon={Music2}
+            label="ดูดจังหวะ"
+            hint={beatBpm ? `ดูดขอบคลิปเข้าจังหวะเพลง (${Math.round(beatBpm)} BPM)` : 'ดูดขอบคลิปเข้าจังหวะเพลง'}
+            onClick={onToggleBeatSnap}
+            active={beatSnapEnabled && snapEnabled}
+            disabled={!snapEnabled}
+          />
+        )}
         <span className="mx-1 h-4 w-px bg-[#363430]" />
         <ToolButton icon={ZoomOut} label="" onClick={() => onZoom(-1)} disabled={zoomIndex <= 0} />
         <span className="w-10 text-center font-mono text-sm text-[#9C968F]">
