@@ -178,6 +178,22 @@ def _id_of(record: Dict[str, Any]) -> str:
     return str(rid)
 
 
+def _mirror_token(json_path: Path) -> int:
+    """A change token for a JSON mirror: mtime combined with size.
+
+    mtime alone misses an edit that lands inside the same filesystem
+    timestamp tick, which on Windows is coarse enough to hit in practice --
+    rewriting a record's path to another of a different length was reported
+    as an intermittent "stale index" failure. Folding the size in catches
+    those; the pair is compared for equality rather than ordering, since a
+    newer file can be smaller.
+    """
+    stat = json_path.stat()
+    # Kept inside SQLite's signed 64-bit INTEGER: shifting mtime_ns left
+    # overflows it outright, so the two are mixed and masked instead.
+    return ((stat.st_mtime_ns * 1_000_003) ^ (stat.st_size * 2_654_435_761)) & 0x7FFF_FFFF_FFFF_FFFF
+
+
 class DocumentTable:
     """A JSON-document table: full-list load/save, keyed by each record's 'id'.
 
@@ -242,7 +258,7 @@ class DocumentTable:
             return
 
         try:
-            mtime_ns = json_path.stat().st_mtime_ns
+            mtime_ns = _mirror_token(json_path)
         except OSError:
             return
 
@@ -253,7 +269,10 @@ class DocumentTable:
                 "SELECT last_imported_mtime_ns FROM _json_mirror_state WHERE source_path = ?",
                 (source_key,),
             ).fetchone()
-            return row is not None and row[0] >= as_of_mtime_ns
+            # Equality, not >=: the token mixes in file size, so a newer file
+            # can legitimately produce a numerically smaller token. A stored
+            # token only means "this exact version was imported".
+            return row is not None and row[0] == as_of_mtime_ns
 
         with _setup_lock:
             if _already_imported(mtime_ns):
@@ -267,7 +286,7 @@ class DocumentTable:
             # the file and the marker could have moved while this call was
             # waiting to acquire it above.
             try:
-                fresh_mtime_ns = json_path.stat().st_mtime_ns
+                fresh_mtime_ns = _mirror_token(json_path)
             except OSError:
                 conn.execute("COMMIT")
                 return
@@ -399,7 +418,7 @@ class DocumentTable:
             # filesystems with coarse mtime resolution) and re-import it
             # over itself.
             try:
-                mtime_ns = json_path.stat().st_mtime_ns
+                mtime_ns = _mirror_token(json_path)
                 source_key = str(json_path.resolve())
                 _retry_on_locked(lambda: conn.execute(
                     "INSERT INTO _json_mirror_state (source_path, table_name, last_imported_mtime_ns) "

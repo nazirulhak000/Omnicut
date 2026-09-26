@@ -99,3 +99,42 @@ def test_path_index_refreshes_after_external_json_mirror_edit(monkeypatch, tmp_p
     index = export_registry.ExportRegistry.path_index()
     assert index.get(source_key) is None
     assert index[replacement_key] == record["id"]
+
+
+def test_mirror_token_notices_a_same_tick_edit(tmp_path):
+    """The JSON-to-SQLite import must not miss an edit inside one mtime tick.
+
+    Windows timestamp granularity is coarse enough that a test -- or a tool
+    -- rewriting the mirror immediately after a write lands in the same tick.
+    The import used to compare mtime alone, so it skipped the re-import and
+    served stale rows; this surfaced as an intermittent "path index is
+    stale" failure that passed on most runs. Folding size into the token
+    makes that edit visible.
+    """
+    from scripts.db import _mirror_token
+
+    mirror = tmp_path / "mirror.json"
+    mirror.write_text(json.dumps([{"id": "a", "path": "x/aaa.mp4"}]), encoding="utf-8")
+    before = _mirror_token(mirror)
+    before_mtime = mirror.stat().st_mtime_ns
+
+    mirror.write_text(json.dumps([{"id": "a", "path": "x/bbbbbbbbbb.mp4"}]), encoding="utf-8")
+    after = _mirror_token(mirror)
+
+    if mirror.stat().st_mtime_ns == before_mtime:
+        # The case that actually broke: mtime could not tell these apart.
+        assert after != before, "same-tick edit must still change the token"
+    assert after != before
+
+    # Must fit SQLite's signed 64-bit INTEGER column -- a shifted token
+    # overflowed it and broke every read outright.
+    assert -(2 ** 63) < after < 2 ** 63
+
+
+def test_mirror_token_is_stable_for_an_untouched_file(tmp_path):
+    """A token that changed on every call would force a re-import per read."""
+    from scripts.db import _mirror_token
+
+    mirror = tmp_path / "mirror.json"
+    mirror.write_text(json.dumps([{"id": "a"}]), encoding="utf-8")
+    assert _mirror_token(mirror) == _mirror_token(mirror)

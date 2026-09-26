@@ -8,7 +8,6 @@ identity used to decide whether two versions are the same export.
 
 from __future__ import annotations
 
-import hashlib
 import datetime as dt
 import threading
 import uuid
@@ -60,25 +59,22 @@ class ExportRegistry:
 
     _path_index_lock = threading.Lock()
     _path_index: Optional[Dict[str, str]] = None
-    _path_index_signature: Optional[tuple[int, int, str]] = None
+    _path_index_signature: Optional[tuple[int, int]] = None
 
     @classmethod
-    def _registry_signature(cls) -> tuple[int, int, str]:
-        """Return a change token for external JSON mirror edits.
+    def _registry_signature(cls) -> tuple[int, int]:
+        """Return a cheap change token for external JSON mirror edits.
 
-        mtime and size alone miss an edit that lands within the same
-        filesystem timestamp tick and keeps the byte count -- swapping one
-        path for another of equal length does exactly that, and the stale
-        index then answers schedule lookups with the old export id. Hashing
-        the bytes closes that window; the registry is small and this only
-        runs when the index is consulted.
+        Only guards this class's in-memory path index. The deeper staleness
+        window -- a mirror edit landing inside one filesystem timestamp tick
+        -- belongs to the JSON-to-SQLite import and is handled by
+        db._mirror_token, so this does not need to read the file.
         """
         try:
             stat = REGISTRY_PATH.stat()
-            digest = hashlib.blake2b(REGISTRY_PATH.read_bytes(), digest_size=16).hexdigest()
-            return stat.st_mtime_ns, stat.st_size, digest
+            return stat.st_mtime_ns, stat.st_size
         except OSError:
-            return (0, 0, "")
+            return (0, 0)
 
     @classmethod
     def _load(cls) -> List[Dict[str, Any]]:
