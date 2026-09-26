@@ -37,6 +37,21 @@ CONSOLE ERROR:
 | `tests/motion_capture/test_overlay_frame_pair.py` | 4 |
 | `tests/motion_capture/test_app_capture.py` | 2 |
 
+### ผลทดสอบซ้ำเพื่อจำแนก "flake" กับ "พังจริง" (2026-09-26)
+
+| เทส | รันซ้ำ | ผล | สรุป |
+| :--- | :--- | :--- | :--- |
+| `test_app_capture.py` | 2 รอบ | 2 failed / 8 passed **ทั้งสองรอบ** | ❌ **deterministic** — เป็น regression จริงจาก proxy ไม่ใช่ flake |
+| `test_cutout_video_preview.py` | 3 รอบ | fail, fail, **ผ่าน** | ⚠️ **flake** — เกณฑ์ `visible >= 54` ได้ 50/60 เฟรมใน headless Chromium |
+| `test_export_registry_bulk.py` | 3 รอบ | ผ่าน 3/3 (0.22–0.25s) | ⚠️ **order/state-dependent** — พังเฉพาะตอนรันเต็ม แยกเป็นไฟล์เดียวแล้วผ่าน |
+| `test_export_registry_bulk.py` + `test_backend_api_contracts.py` | 1 รอบ | 5 passed | ยังไม่ reproduce เจตนาการรบกวนใน full suite |
+
+**กลไกที่น่าสงสัยของ `test_export_registry_bulk.py`** (อ่านจาก `scripts/export_registry.py:62-99`)
+- cache อยู่ที่ class attribute `ExportRegistry._path_index` + `_path_index_signature` ซึ่ง **ใช้ร่วมกันทุกเทส**
+- signature = `(st_mtime_ns, st_size)` ของ **module-global** `REGISTRY_PATH` ซึ่งเทส monkeypatch เป็น `tmp_path`
+- มี `cls._path_index_lock` คุมการ rebuild → ถ้ามีเทสอื่นหรือ thread จาก API server เรียก `path_index()` ในช่วงระหว่างที่เทสแก้ JSON เอง ดัชนีจะถูกเติมคืนจาก registry อื่น → assertion `index.get(source_key) is None` พัง
+- ข้อเสนอ: เพิ่ม `autouse` fixture ที่ reset `_path_index` / `_path_index_signature` ก่อน–หลังทุกเทสในไฟล์นี้
+
 ### ทางเลือกแก้ (ยังไม่เลือก — เป็นงานของเจ้าของฟีเจอร์ proxy)
 1. **ไม่ยิง proxy เมื่อไม่มี backend** — ให้ `getClipProxy` ข้ามเมื่อ `import.meta.env` ไม่ใช่ dev server จริง หรือเมื่อ `source_path` ไม่ใช่ไฟล์สื่อที่เล่นได้
 2. **เพิ่ม allowlist ใน `app_capture.py`** — ให้ `/api/proxy` 403 อยู่ในกลุ่ม `expected_media_cancellations` เหมือนที่มีอยู่แล้ว (ตรงกับเจตนาของเทส แต่ทำให้ parity gate ไม่จับปัญหาจริงของ proxy)
