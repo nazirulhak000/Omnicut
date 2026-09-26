@@ -75,6 +75,13 @@
    - **ดนตรีและมิกซ์เสียง**: เพลงไอทีสนุกสนานคึกคัก (`tiktok_upbeat_bgm.wav` 0.14) + เสียงพากย์ Fenrir (1.0)
    - **ความคลีน**: ลายน้ำ/เครดิตระบุเฉพาะแหล่งที่มาจริง (Source Attribution ที่ MarginV 36) ห้ามใส่โลโก้หรือป้ายแปลกปลอม (เช่น TECH MX)
 18. ✔️ **ปฏิบัติตามคู่มือปฏิบัติงานมาตรฐานและเช็กลิสต์ (Master Gadget SOP & Checklist Compliance)**: ทุกขั้นตอนการผลิตคลิปวิดีโอรีวิวแกดเจ็ต 60 วินาที ต้องยึดถือและปฏิบัติตาม **[_Docs/GADGET_VIDEO_PRODUCTION_SOP.md](file:///d:/Winona/Programmer/Capcut/_Docs/GADGET_VIDEO_PRODUCTION_SOP.md)** และตรวจผ่าน **[.agents/rules/gadget_editing_style_checklist.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/gadget_editing_style_checklist.md)** ก่อนส่งมอบงานทุกครั้ง หากมีการปรับปรุงสไตล์การตัดต่อ, ฟอนต์ หรือมิกซ์เสียง ต้องอัปเดตลงใน SOP และ Checklist เสมอ
+19. ✔️ **ใช้ Jev (TypeSafe System One) ตัดสินใจร่วมกับ AI ทุกตัว** — ทุก session/ทุก agent ที่ทำงานในโปรเจกต์นี้ ใช้ `tools/jev_advisor.py` เป็นผู้ตรวจร่วมตัดสินใจตาม **[.agents/rules/jev_decision_layer.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/jev_decision_layer.md)**
+   - เรียกผ่าน `tools/jev_advisor.py` เท่านั้น — **ห้ามเขียน one-off script ใหม่ใน `.tmp/`**
+   - 6 จุดบังคับ: ก่อนเริ่มงานใหม่ · เจอทางเลือก 3–7 อัน · ก่อน commit · ก่อนรัน FFmpeg · เขียนสคริปต์/เอกสารเสร็จ · เทียบก่อน-หลัง
+   - **Confidence gate:** `>= 0.80` ทำต่อได้ (รายงานตัวเลขให้ผู้ใช้เห็น) · `< 0.80` หรือ `null` = **หยุดถามผู้ใช้ ห้ามตัดสินใจแทนเงียบ ๆ**
+   - Jev อ่านได้**แค่ข้อความ** — ห้ามใช้ตรวจเฟรมวิดีโอ ซับจริง ฟอนต์เรนเดอร์ (ใช้ FFmpeg probe / Gemini vision ตามกฎเดิม)
+   - คำตอบ Jev **ไม่ใช่สิทธิ์อนุมัติ** — ไม่พบปัญหา ≠ อนุญาตให้ละเมิดกฎข้อ 1–18 · ห้ามอ้างผล Jev เป็น "หลักฐาน"
+   - Jev ล่ม/ไม่มี key → degrade เงียบ ๆ ทำงานต่อ ห้ามบล็อกงาน
 
 ---
 
