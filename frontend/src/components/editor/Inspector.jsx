@@ -22,12 +22,13 @@ import { resolveSelectedItem } from '../../lib/selectionResolver.js';
 /**
  * Render clip fields exposed to Inspector/ClipInspector:
  * bg_blur, brightness, contrast, fit_mode, freeze_tail, mirror,
- * pan_x, pan_y, rotation, saturation, speed, trim_end, trim_start, volume, zoom
+ * pan_x, pan_y, rotation, saturation, smooth_slowmo, speed, trim_end,
+ * trim_start, volume, zoom
  */
 export const RENDER_CLIP_FIELDS = [
   'bg_blur', 'brightness', 'contrast', 'fit_mode', 'freeze_tail', 'mirror',
-  'pan_x', 'pan_y', 'rotation', 'saturation', 'speed', 'trim_end', 'trim_start',
-  'volume', 'zoom',
+  'pan_x', 'pan_y', 'rotation', 'saturation', 'smooth_slowmo', 'speed',
+  'trim_end', 'trim_start', 'volume', 'zoom',
 ];
 
 export default function Inspector({

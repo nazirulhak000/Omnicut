@@ -103,6 +103,27 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
               );
             })}
           </div>
+          {/* Only offered where it changes anything: above 0.7x the stepping
+              is not visible enough to be worth the render time. The note is
+              the UI disclosure required for this approximation -- Preview
+              plays the browser's own interpolation, not the rendered frames,
+              so the two are close but not identical. */}
+          {(clip.speed || 1) < 0.7 && (
+            <label className="mt-2 flex items-start gap-2 text-xs text-slate-400">
+              <input
+                type="checkbox"
+                checked={!!clip.smooth_slowmo}
+                onChange={(e) => onClipChange?.({ smooth_slowmo: e.target.checked || undefined })}
+                className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 accent-[#25F4EE]"
+              />
+              <span>
+                สโลว์โมชันนุ่มขึ้น (สร้างเฟรมเพิ่ม)
+                <span className="block text-[11px] text-slate-500">
+                  ค่า Preview เป็นค่าประมาณ ผลจริงดูที่ Render · ใช้เวลาเรนเดอร์นานขึ้นหลายเท่า
+                </span>
+              </span>
+            </label>
+          )}
         </div>
 
         {/* Rotate 0 / 90 / 180 / 270 */}

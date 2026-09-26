@@ -15,6 +15,7 @@ layout change and a real output change can be diagnosed independently.
 """
 
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -723,6 +724,38 @@ def test_ducking_uses_the_measured_reduction_not_a_feel_value():
     assert abs(_js_audio_mix("BGM_DUCK_GAIN") - 10 ** (-measured_db / 20)) < 0.002
     assert _js_audio_mix("BGM_DUCK_ATTACK") * 1000 == _grab(SFX_SRC, r"attack=(\d+)")
     assert _js_audio_mix("BGM_DUCK_RELEASE") * 1000 == _grab(SFX_SRC, r"release=(\d+)")
+
+
+def test_ducking_depth_is_documented_as_an_approximation():
+    """
+    The preview's 13.7 dB is a fixed gain over the cue spans; the render's
+    sidechaincompress reacts to the voice's actual level, so the two cannot
+    match exactly.
+
+    Measured on 2026-09-26 with a validated method (a control applying a known
+    0.2065 gain read back as exactly 13.70 dB): the render pulls the music
+    down 8.3 dB against a speech-like key and 10.4 dB against a steady one,
+    versus the preview's flat 13.7 dB -- a residual of roughly 3.3 to 5.4 dB,
+    with the preview always ducking harder.
+
+    This test pins the fact that the gap is known and bounded rather than
+    asserting the two are equal, which they are not. If the filter's
+    threshold/ratio change, re-measure and update both the figure in
+    sfx_manager.py and the range here.
+    """
+    measured_db = _grab(SFX_SRC, r"pull the music down ([\d.]+) dB")
+    preview_db = -20 * math.log10(_js_audio_mix("BGM_DUCK_GAIN"))
+
+    # Preview and render are configured from the same figure...
+    assert abs(preview_db - measured_db) < 0.2
+    # ...but the render's real depth is lower, because a compressor only
+    # reaches its full ratio while the key is loud. Keep the documented
+    # residual within the range that was actually measured.
+    RENDER_DEPTH_RANGE_DB = (8.3, 10.4)
+    residual_low = preview_db - RENDER_DEPTH_RANGE_DB[1]
+    residual_high = preview_db - RENDER_DEPTH_RANGE_DB[0]
+    assert 3.0 <= residual_low <= 4.0, f"residual floor drifted: {residual_low:.2f} dB"
+    assert 5.0 <= residual_high <= 6.0, f"residual ceiling drifted: {residual_high:.2f} dB"
 
 
 def test_bgm_loops_and_is_speed_matched_on_both_sides():

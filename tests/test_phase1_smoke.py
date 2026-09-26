@@ -1753,6 +1753,78 @@ def test_clip_speed_shrinks_its_slot_and_emits_setpts(monkeypatch, tmp_path):
     assert "offset=3.5999999999999996" in filter_arg or "offset=3.6" in filter_arg
 
 
+def test_smooth_slowmo_interpolates_frames_when_slowed(monkeypatch, tmp_path):
+    """Below 0.7x, setpts alone shows each source frame for longer and the
+    motion visibly steps. minterpolate synthesizes the missing frames."""
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 4.0,
+         "speed": 0.4, "smooth_slowmo": True},
+    ]
+    cmd = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+
+    assert "minterpolate=" in filter_arg
+    assert "mi_mode=mci" in filter_arg
+    # Retime first, then fill the gaps the retime opened: interpolating before
+    # setpts would generate frames for the original timing and discard them.
+    assert filter_arg.index("setpts=PTS/0.4") < filter_arg.index("minterpolate=")
+
+
+def test_smooth_slowmo_is_off_by_default(monkeypatch, tmp_path):
+    """minterpolate costs several times the render, so a slowed clip must not
+    pay for it unless it was asked for."""
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 4.0, "speed": 0.4},
+    ]
+    cmd = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+
+    assert "setpts=PTS/0.4" in filter_arg
+    assert "minterpolate=" not in filter_arg
+
+
+def test_smooth_slowmo_ignored_above_the_judder_threshold(monkeypatch, tmp_path):
+    """At 0.9x the duplication is not visible enough to justify the cost, so
+    the flag is honored as a no-op rather than spending the render time."""
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 4.0,
+         "speed": 0.9, "smooth_slowmo": True},
+    ]
+    cmd = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "minterpolate=" not in filter_arg
+
+
+def test_smooth_slowmo_ignored_when_speeding_up(monkeypatch, tmp_path):
+    """Speeding up discards frames; there is nothing to interpolate."""
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 4.0,
+         "speed": 2.0, "smooth_slowmo": True},
+    ]
+    cmd = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "minterpolate=" not in filter_arg
+
+
+def test_smooth_slowmo_does_not_change_the_clip_slot_length(monkeypatch, tmp_path):
+    """Interpolation adds frames, not time. If it changed the slot, every
+    xfade offset after this clip would land in the wrong place."""
+    base = {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 4.0, "speed": 0.5}
+    plain = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[],
+        clip_list=[dict(base), {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
+        transitions=["fade"],
+    )
+    smooth = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[],
+        clip_list=[dict(base, smooth_slowmo=True), {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
+        transitions=["fade"],
+    )
+    import re
+    offset_of = lambda cmd: re.findall(r"offset=[\d.]+", cmd[cmd.index("-filter_complex") + 1])
+    assert offset_of(plain) == offset_of(smooth)
+
+
 def test_clip_mirror_flips_only_the_marked_clip(monkeypatch, tmp_path):
     clip_list = [
         {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0, "mirror": True},

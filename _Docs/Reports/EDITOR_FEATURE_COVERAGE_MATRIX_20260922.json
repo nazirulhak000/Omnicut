@@ -16,12 +16,52 @@
       "readiness": "PASS",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["useProjectLoader", "useProjectAutosave"]}],
-        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["manifestToEditorState", "editorStateToSavePayload"]}],
-        "persistence": [{"path": "frontend/src/hooks/useProjectAutosave.js", "tokens": ["saveNow", "setBaseline"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["updateProjectState", "projectSavePayload"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "useProjectLoader",
+              "useProjectAutosave"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "manifestToEditorState",
+              "editorStateToSavePayload"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/hooks/useProjectAutosave.js",
+            "tokens": [
+              "saveNow",
+              "setBaseline"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "updateProjectState",
+              "projectSavePayload"
+            ]
+          }
+        ]
       },
-      "automated_evidence": [{"path": "frontend/src/lib/projectSaveQueue.test.js", "tokens": ["in-flight save", "failed latest save"]}],
+      "automated_evidence": [
+        {
+          "path": "frontend/src/lib/projectSaveQueue.test.js",
+          "tokens": [
+            "in-flight save",
+            "failed latest save"
+          ]
+        }
+      ],
       "blockers": []
     },
     {
@@ -31,18 +71,93 @@
       "readiness": "PASS",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/Timeline.jsx", "tokens": ["useTimelineKeyboard", "useTimelineDrag"]}],
-        "state": [{"path": "frontend/src/lib/timelineMath.js", "tokens": ["buildSegments", "splitClipAt"]}],
-        "persistence": [{"path": "frontend/src/lib/timelineSchema.js", "tokens": ["serializeTimelineV2ToManifest"]}],
-        "render_payload": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeClips", "serializeTransitions"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["getDrawPlan", "localTimeAt"]}],
-        "render": [{"path": "scripts/video_editor.py", "tokens": ["clip_list", "normalize_transitions"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/Timeline.jsx",
+            "tokens": [
+              "useTimelineKeyboard",
+              "useTimelineDrag"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/timelineMath.js",
+            "tokens": [
+              "buildSegments",
+              "splitClipAt"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/timelineSchema.js",
+            "tokens": [
+              "serializeTimelineV2ToManifest"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "serializeClips",
+              "serializeTransitions"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "getDrawPlan",
+              "localTimeAt"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "clip_list",
+              "normalize_transitions"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "frontend/src/lib/timelineMath.test.js", "tokens": ["buildSegments", "splitClipAt"]},
-        {"path": "tests/motion_capture/test_clip_frame_pair.py", "tokens": ["test_live_timeline_cut_boundary_selects_the_matching_clip", "test_live_timeline_fade_overlap_matches_render"]},
-        {"path": "tests/motion_capture/test_editor_controls_browser.py", "tokens": ["test_timeline_keyboard_reorder_context_split_and_save_reload_in_real_browser", "test_timeline_trim_drag_snaps_to_boundary_in_real_browser", "test_timeline_drop_adds_clip_and_persists_after_reload"]},
-        {"path": "tests/motion_capture/test_editor_shell_browser.py", "tokens": ["test_editor_shell_save_reload_preview_matches_render", "fade-boundary-compact", "split-boundary", "audit second clip", "ผ่าคลิปตรงหัวอ่าน"]}
+        {
+          "path": "frontend/src/lib/timelineMath.test.js",
+          "tokens": [
+            "buildSegments",
+            "splitClipAt"
+          ]
+        },
+        {
+          "path": "tests/motion_capture/test_clip_frame_pair.py",
+          "tokens": [
+            "test_live_timeline_cut_boundary_selects_the_matching_clip",
+            "test_live_timeline_fade_overlap_matches_render"
+          ]
+        },
+        {
+          "path": "tests/motion_capture/test_editor_controls_browser.py",
+          "tokens": [
+            "test_timeline_keyboard_reorder_context_split_and_save_reload_in_real_browser",
+            "test_timeline_trim_drag_snaps_to_boundary_in_real_browser",
+            "test_timeline_drop_adds_clip_and_persists_after_reload"
+          ]
+        },
+        {
+          "path": "tests/motion_capture/test_editor_shell_browser.py",
+          "tokens": [
+            "test_editor_shell_save_reload_preview_matches_render",
+            "fade-boundary-compact",
+            "split-boundary",
+            "audit second clip",
+            "ผ่าคลิปตรงหัวอ่าน"
+          ]
+        }
       ],
       "blockers": []
     },
@@ -51,18 +166,83 @@
       "label": "Clip trim/speed/freeze tail",
       "renderability": "rendered",
       "readiness": "PASS",
-      "clip_fields": ["trim_start", "trim_end", "speed", "freeze_tail"],
+      "clip_fields": [
+        "trim_start",
+        "trim_end",
+        "speed",
+        "freeze_tail"
+      ],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["trim_start", "trim_end", "freeze_tail"]}],
-        "state": [{"path": "frontend/src/lib/timelineMath.js", "tokens": ["clipDuration", "localTimeAt"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeClips"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["clip_list: savePayload.clip_list"]}],
-        "preview": [{"path": "frontend/src/lib/timelineMath.js", "tokens": ["freeze_tail", "speed"]}],
-        "render": [{"path": "scripts/video_editor.py", "tokens": ["trim_start", "freeze_tail", "setpts=PTS/"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/inspector/ClipInspector.jsx",
+            "tokens": [
+              "trim_start",
+              "trim_end",
+              "freeze_tail"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/timelineMath.js",
+            "tokens": [
+              "clipDuration",
+              "localTimeAt"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "serializeClips"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "clip_list: savePayload.clip_list"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/lib/timelineMath.js",
+            "tokens": [
+              "freeze_tail",
+              "speed"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "trim_start",
+              "freeze_tail",
+              "setpts=PTS/"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "tests/motion_capture/test_clip_frame_pair.py", "tokens": ["test_live_clip_trim_speed_and_freeze_tail_match_render", "sample_times=(0.2, 0.7, 1.2, 1.4)"]},
-        {"path": "frontend/src/lib/editorProjectState.test.js", "tokens": ["solo and clip edits survive save/reload", "freeze_tail"]}
+        {
+          "path": "tests/motion_capture/test_clip_frame_pair.py",
+          "tokens": [
+            "test_live_clip_trim_speed_and_freeze_tail_match_render",
+            "sample_times=(0.2, 0.7, 1.2, 1.4)"
+          ]
+        },
+        {
+          "path": "frontend/src/lib/editorProjectState.test.js",
+          "tokens": [
+            "solo and clip edits survive save/reload",
+            "freeze_tail"
+          ]
+        }
       ],
       "blockers": []
     },
@@ -71,18 +251,84 @@
       "label": "Zoom/pan/rotation/mirror/keyframes",
       "renderability": "rendered",
       "readiness": "PASS",
-      "clip_fields": ["zoom", "pan_x", "pan_y", "rotation", "mirror"],
+      "clip_fields": [
+        "zoom",
+        "pan_x",
+        "pan_y",
+        "rotation",
+        "mirror"
+      ],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["clampZoom", "clampPan", "clampRotation"]}],
-        "state": [{"path": "frontend/src/lib/timelineMath.js", "tokens": ["resolveClipTransforms", "keyframes"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["keyframes: Array.isArray", "serializeClips"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["clip_list: savePayload.clip_list"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["resolveClipTransforms", "ctx.rotate"]}],
-        "render": [{"path": "scripts/video_editor.py", "tokens": ["resolve_clip_transforms", "dynamic_camera_filter"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/inspector/ClipInspector.jsx",
+            "tokens": [
+              "clampZoom",
+              "clampPan",
+              "clampRotation"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/timelineMath.js",
+            "tokens": [
+              "resolveClipTransforms",
+              "keyframes"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "keyframes: Array.isArray",
+              "serializeClips"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "clip_list: savePayload.clip_list"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "resolveClipTransforms",
+              "ctx.rotate"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "resolve_clip_transforms",
+              "dynamic_camera_filter"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "tests/motion_capture/test_clip_frame_pair.py", "tokens": ["test_live_zoom_pan_mirror_and_camera_keyframes_match_render", "test_live_rotation_and_mirror_match_render"]},
-        {"path": "frontend/src/lib/editorProjectState.test.js", "tokens": ["solo and clip edits survive save/reload", "keyframes"]}
+        {
+          "path": "tests/motion_capture/test_clip_frame_pair.py",
+          "tokens": [
+            "test_live_zoom_pan_mirror_and_camera_keyframes_match_render",
+            "test_live_rotation_and_mirror_match_render"
+          ]
+        },
+        {
+          "path": "frontend/src/lib/editorProjectState.test.js",
+          "tokens": [
+            "solo and clip edits survive save/reload",
+            "keyframes"
+          ]
+        }
       ],
       "blockers": []
     },
@@ -91,18 +337,80 @@
       "label": "Fill/blur background",
       "renderability": "rendered",
       "readiness": "PASS",
-      "clip_fields": ["bg_blur", "fit_mode"],
+      "clip_fields": [
+        "bg_blur",
+        "fit_mode"
+      ],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["bg_blur", "fit_mode"]}],
-        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["...clip", "serializeClips"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeClips"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["clip_list: savePayload.clip_list"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["useBgBlur", "fit_mode === 'blur'"]}],
-        "render": [{"path": "scripts/video_editor.py", "tokens": ["use_bg_blur", "_BACKGROUND_BLUR_FILTER"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/inspector/ClipInspector.jsx",
+            "tokens": [
+              "bg_blur",
+              "fit_mode"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "...clip",
+              "serializeClips"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "serializeClips"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "clip_list: savePayload.clip_list"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "useBgBlur",
+              "fit_mode === 'blur'"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "use_bg_blur",
+              "_BACKGROUND_BLUR_FILTER"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "tests/motion_capture/test_clip_frame_pair.py", "tokens": ["test_live_fit_blur_framing_matches_render", "test_live_fill_framing_matches_render_for_landscape_source", "test_live_blur_framing_with_rotation_matches_render"]},
-        {"path": "frontend/src/lib/editorProjectState.test.js", "tokens": ["solo and clip edits survive save/reload", "fit_mode"]}
+        {
+          "path": "tests/motion_capture/test_clip_frame_pair.py",
+          "tokens": [
+            "test_live_fit_blur_framing_matches_render",
+            "test_live_fill_framing_matches_render_for_landscape_source",
+            "test_live_blur_framing_with_rotation_matches_render"
+          ]
+        },
+        {
+          "path": "frontend/src/lib/editorProjectState.test.js",
+          "tokens": [
+            "solo and clip edits survive save/reload",
+            "fit_mode"
+          ]
+        }
       ],
       "blockers": []
     },
@@ -111,19 +419,84 @@
       "label": "Brightness/contrast/saturation",
       "renderability": "rendered",
       "readiness": "APPROXIMATION",
-      "clip_fields": ["brightness", "contrast", "saturation"],
+      "clip_fields": [
+        "brightness",
+        "contrast",
+        "saturation"
+      ],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["COLOR_FIELDS", "brightness"]}],
-        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["...clip", "serializeClips"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeClips"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["clip_list: savePayload.clip_list"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["clipFilter", "brightness("]}],
-        "render": [{"path": "scripts/video_editor.py", "tokens": ["EQ_LIMITS", "eq="]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/inspector/ClipInspector.jsx",
+            "tokens": [
+              "COLOR_FIELDS",
+              "brightness"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "...clip",
+              "serializeClips"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "serializeClips"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "clip_list: savePayload.clip_list"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "clipFilter",
+              "brightness("
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "EQ_LIMITS",
+              "eq="
+            ]
+          }
+        ]
       },
-      "automated_evidence": [{"path": "tests/test_color_finishing.py", "tokens": ["build_eq_filter", "resolve_color_finish"]}],
+      "automated_evidence": [
+        {
+          "path": "tests/test_color_finishing.py",
+          "tokens": [
+            "build_eq_filter",
+            "resolve_color_finish"
+          ]
+        }
+      ],
       "approximation_reason": "FFmpeg brightness เป็น additive offset แต่ Canvas CSS brightness เป็น multiplier",
       "ui_disclosure_policy": "Inspector ต้องระบุว่า Preview สีเป็นค่าประมาณ และไฟล์ Render เป็นผลลัพธ์อ้างอิง",
-      "ui_disclosure_evidence": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["สีใน Preview เป็นค่าประมาณ"]}],
+      "ui_disclosure_evidence": [
+        {
+          "path": "frontend/src/components/editor/inspector/ClipInspector.jsx",
+          "tokens": [
+            "สีใน Preview เป็นค่าประมาณ"
+          ]
+        }
+      ],
       "blockers": []
     },
     {
@@ -133,17 +506,78 @@
       "readiness": "APPROXIMATION",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["TRANSITIONS", "transition_duration"]}],
-        "state": [{"path": "frontend/src/lib/timelineMath.js", "tokens": ["transitionOverlap", "buildSegments"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeTransitions"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["transitions: savePayload.transitions"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["slideOffsets", "circleWeightAt"]}],
-        "render": [{"path": "scripts/video_editor.py", "tokens": ["xfade=transition=", "normalize_transitions"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/inspector/ClipInspector.jsx",
+            "tokens": [
+              "TRANSITIONS",
+              "transition_duration"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/timelineMath.js",
+            "tokens": [
+              "transitionOverlap",
+              "buildSegments"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "serializeTransitions"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "transitions: savePayload.transitions"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "slideOffsets",
+              "circleWeightAt"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "xfade=transition=",
+              "normalize_transitions"
+            ]
+          }
+        ]
       },
-      "automated_evidence": [{"path": "tests/test_preview_render_parity.py", "tokens": ["dissolve", "fadeblack"]}],
+      "automated_evidence": [
+        {
+          "path": "tests/test_preview_render_parity.py",
+          "tokens": [
+            "dissolve",
+            "fadeblack"
+          ]
+        }
+      ],
       "approximation_reason": "Dissolve ใช้ noise คนละ PRNG และ fadeblack/fadewhite easing ต่างเล็กน้อย",
       "ui_disclosure_policy": "Transition ที่ไม่ pixel-identical ต้องผ่าน geometry/proportion thresholds และแสดงเป็น Preview โดยประมาณ",
-      "ui_disclosure_evidence": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["Preview ของ Transition นี้เป็นค่าประมาณ"]}],
+      "ui_disclosure_evidence": [
+        {
+          "path": "frontend/src/components/editor/inspector/ClipInspector.jsx",
+          "tokens": [
+            "Preview ของ Transition นี้เป็นค่าประมาณ"
+          ]
+        }
+      ],
       "blockers": []
     },
     {
@@ -153,17 +587,80 @@
       "readiness": "PASS",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/inspector/CaptionInspector.jsx", "tokens": ["onCaptionChange", "translation"]}],
-        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["cuesList", "serializeCues"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["micro_cues", "caption_scale"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["caption_position", "caption_scale"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["drawCaption", "thaiLineH"]}],
-        "render": [{"path": "scripts/subtitle_engine.py", "tokens": ["generate_ass", "TikTokWhite"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/inspector/CaptionInspector.jsx",
+            "tokens": [
+              "onCaptionChange",
+              "translation"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "cuesList",
+              "serializeCues"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "micro_cues",
+              "caption_scale"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "caption_position",
+              "caption_scale"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "drawCaption",
+              "thaiLineH"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/subtitle_engine.py",
+            "tokens": [
+              "generate_ass",
+              "TikTokWhite"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "tests/motion_capture/test_frame_pair.py", "tokens": ["test_live_caption_pair_passes_production_caption_gate"]},
-        {"path": "tests/test_thai_clause_wrap.py", "tokens": ["test_generate_micro_cues_preserves_explicit_editor_line_breaks"]},
-        {"path": "frontend/src/lib/editorProjectState.test.js", "tokens": ["caption line breaks, timing, and style survive save and reload"]}
+        {
+          "path": "tests/motion_capture/test_frame_pair.py",
+          "tokens": [
+            "test_live_caption_pair_passes_production_caption_gate"
+          ]
+        },
+        {
+          "path": "tests/test_thai_clause_wrap.py",
+          "tokens": [
+            "test_generate_micro_cues_preserves_explicit_editor_line_breaks"
+          ]
+        },
+        {
+          "path": "frontend/src/lib/editorProjectState.test.js",
+          "tokens": [
+            "caption line breaks, timing, and style survive save and reload"
+          ]
+        }
       ],
       "blockers": []
     },
@@ -174,18 +671,84 @@
       "readiness": "PASS",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/inspector/OverlayInspector.jsx", "tokens": ["onHookMotionChange", "stagger"]}],
-        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeOverlays"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["overlays: serializeOverlays"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["overlays,"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["sampleCanvasMotion", "motionContract"]}],
-        "render": [{"path": "scripts/subtitle/overlay_events.py", "tokens": ["motion_contract", "build_ass_motion_segments"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/inspector/OverlayInspector.jsx",
+            "tokens": [
+              "onHookMotionChange",
+              "stagger"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "serializeOverlays"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "overlays: serializeOverlays"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "overlays,"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "sampleCanvasMotion",
+              "motionContract"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/subtitle/overlay_events.py",
+            "tokens": [
+              "motion_contract",
+              "build_ass_motion_segments"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "tests/motion_capture/test_frame_pair.py", "tokens": ["test_self_hosted_live_pair_passes_the_production_motion_layout_gate", "test_live_language_and_line_count_matrix_passes_strict_gate"]},
-        {"path": "tests/motion_capture/test_app_capture.py", "tokens": ["test_app_capture_reads_real_canvas_pixels_from_url"]},
-        {"path": "tests/test_font_family_mapping.py", "tokens": ["test_thai_motion_line_offset_is_narrowly_scoped_to_problematic_marks"]},
-        {"path": "frontend/src/lib/editorProjectState.test.js", "tokens": ["motion text font metrics, line layout, and contracts survive save and reload"]}
+        {
+          "path": "tests/motion_capture/test_frame_pair.py",
+          "tokens": [
+            "test_self_hosted_live_pair_passes_the_production_motion_layout_gate",
+            "test_live_language_and_line_count_matrix_passes_strict_gate"
+          ]
+        },
+        {
+          "path": "tests/motion_capture/test_app_capture.py",
+          "tokens": [
+            "test_app_capture_reads_real_canvas_pixels_from_url"
+          ]
+        },
+        {
+          "path": "tests/test_font_family_mapping.py",
+          "tokens": [
+            "test_thai_motion_line_offset_is_narrowly_scoped_to_problematic_marks"
+          ]
+        },
+        {
+          "path": "frontend/src/lib/editorProjectState.test.js",
+          "tokens": [
+            "motion text font metrics, line layout, and contracts survive save and reload"
+          ]
+        }
       ],
       "blockers": []
     },
@@ -196,17 +759,76 @@
       "readiness": "PASS",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/inspector/StickerInspector.jsx", "tokens": ["onUpdateSticker", "scale"]}],
-        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["stickers"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["stickers: Array.isArray"]}],
-        "render_payload": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeRenderFeatures", "payload.stickers"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["drawStickers"]}],
-        "render": [{"path": "scripts/video_editor.py", "tokens": ["effective_stickers"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/inspector/StickerInspector.jsx",
+            "tokens": [
+              "onUpdateSticker",
+              "scale"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "stickers"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "stickers: Array.isArray"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "serializeRenderFeatures",
+              "payload.stickers"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "drawStickers"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "effective_stickers"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "tests/test_preview_render_behavior.py", "tokens": ["test_baked_decorative_sticker_and_effect_recolor_across_multiple_frames"]},
-        {"path": "tests/motion_capture/test_overlay_frame_pair.py", "tokens": ["test_live_sticker_pair_matches_production_render"]},
-        {"path": "frontend/src/lib/editorProjectState.test.js", "tokens": ["sticker, effect, and spotlight timing and geometry survive save and reload"]}
+        {
+          "path": "tests/test_preview_render_behavior.py",
+          "tokens": [
+            "test_baked_decorative_sticker_and_effect_recolor_across_multiple_frames"
+          ]
+        },
+        {
+          "path": "tests/motion_capture/test_overlay_frame_pair.py",
+          "tokens": [
+            "test_live_sticker_pair_matches_production_render"
+          ]
+        },
+        {
+          "path": "frontend/src/lib/editorProjectState.test.js",
+          "tokens": [
+            "sticker, effect, and spotlight timing and geometry survive save and reload"
+          ]
+        }
       ],
       "blockers": []
     },
@@ -217,17 +839,78 @@
       "readiness": "PASS",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/inspector/EffectInspector.jsx", "tokens": ["onUpdateEffect", "scale"]}],
-        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["effects"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["effects: Array.isArray"]}],
-        "render_payload": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeRenderFeatures", "payload.effects"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["drawEffects", "syncEffectVideos"]}],
-        "render": [{"path": "scripts/video_editor.py", "tokens": ["effective_effects"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/inspector/EffectInspector.jsx",
+            "tokens": [
+              "onUpdateEffect",
+              "scale"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "effects"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "effects: Array.isArray"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "serializeRenderFeatures",
+              "payload.effects"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "drawEffects",
+              "syncEffectVideos"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "effective_effects"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "frontend/src/lib/effectPlayback.test.js", "tokens": ["effect timeline wraps", "hard-seeks"]},
-        {"path": "tests/motion_capture/test_overlay_frame_pair.py", "tokens": ["test_live_effect_pair_matches_production_render"]},
-        {"path": "frontend/src/lib/editorProjectState.test.js", "tokens": ["sticker, effect, and spotlight timing and geometry survive save and reload"]}
+        {
+          "path": "frontend/src/lib/effectPlayback.test.js",
+          "tokens": [
+            "effect timeline wraps",
+            "hard-seeks"
+          ]
+        },
+        {
+          "path": "tests/motion_capture/test_overlay_frame_pair.py",
+          "tokens": [
+            "test_live_effect_pair_matches_production_render"
+          ]
+        },
+        {
+          "path": "frontend/src/lib/editorProjectState.test.js",
+          "tokens": [
+            "sticker, effect, and spotlight timing and geometry survive save and reload"
+          ]
+        }
       ],
       "blockers": []
     },
@@ -238,16 +921,73 @@
       "readiness": "PASS",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/AssetPanel.jsx", "tokens": ["SpotlightControls", "dim_opacity"]}],
-        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["spotlight"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["spotlight: spotlight"]}],
-        "render_payload": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeRenderFeatures", "payload.spotlight"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["drawSpotlight", "normalizeSpotlightPreview"]}],
-        "render": [{"path": "scripts/video_editor.py", "tokens": ["_append_spotlight_filter"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/AssetPanel.jsx",
+            "tokens": [
+              "SpotlightControls",
+              "dim_opacity"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "spotlight"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "spotlight: spotlight"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "serializeRenderFeatures",
+              "payload.spotlight"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "drawSpotlight",
+              "normalizeSpotlightPreview"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "_append_spotlight_filter"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "frontend/src/lib/editorProjectState.test.js", "tokens": ["render feature payload carries Spotlight", "SpotlightV1 round-trips through editor state and save payload", "sticker, effect, and spotlight timing and geometry survive save and reload"]},
-        {"path": "tests/motion_capture/test_overlay_frame_pair.py", "tokens": ["test_live_spotlight_pair_matches_production_render"]}
+        {
+          "path": "frontend/src/lib/editorProjectState.test.js",
+          "tokens": [
+            "render feature payload carries Spotlight",
+            "SpotlightV1 round-trips through editor state and save payload",
+            "sticker, effect, and spotlight timing and geometry survive save and reload"
+          ]
+        },
+        {
+          "path": "tests/motion_capture/test_overlay_frame_pair.py",
+          "tokens": [
+            "test_live_spotlight_pair_matches_production_render"
+          ]
+        }
       ],
       "blockers": []
     },
@@ -258,21 +998,91 @@
       "readiness": "APPROXIMATION",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/AssetPanel.jsx", "tokens": ["BackgroundIsolationControls", "onPrepare"]}],
-        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["normalizeBackgroundIsolation"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["background_isolation"]}],
-        "render_payload": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["payload.background_isolation"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["loadedBackgroundIsolationFrame", "resolveBackgroundIsolationPreview"]}],
-        "render": [{"path": "scripts/video_editor.py", "tokens": ["_read_ready_background_sequence", "resolve_background_isolation_config"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/AssetPanel.jsx",
+            "tokens": [
+              "BackgroundIsolationControls",
+              "onPrepare"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "normalizeBackgroundIsolation"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "background_isolation"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "payload.background_isolation"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "loadedBackgroundIsolationFrame",
+              "resolveBackgroundIsolationPreview"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "_read_ready_background_sequence",
+              "resolve_background_isolation_config"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "frontend/src/lib/backgroundIsolationPreview.test.js", "tokens": ["windowed sequence subtracts source_start", "prefetch times follow rational FPS"]},
-        {"path": "tests/test_background_isolation_render_integration.py", "tokens": ["test_windowed_rgba_sequence_starts_from_artifact_local_frame_zero", "test_requested_but_not_ready_background_blocks_render"]},
-        {"path": "tests/background_isolation_live_probe.py", "tokens": ["preview_render_nmae", "source_unchanged"]}
+        {
+          "path": "frontend/src/lib/backgroundIsolationPreview.test.js",
+          "tokens": [
+            "windowed sequence subtracts source_start",
+            "prefetch times follow rational FPS"
+          ]
+        },
+        {
+          "path": "tests/test_background_isolation_render_integration.py",
+          "tokens": [
+            "test_windowed_rgba_sequence_starts_from_artifact_local_frame_zero",
+            "test_requested_but_not_ready_background_blocks_render"
+          ]
+        },
+        {
+          "path": "tests/background_isolation_live_probe.py",
+          "tokens": [
+            "preview_render_nmae",
+            "source_unchanged"
+          ]
+        }
       ],
       "approximation_reason": "Preview และ Render ใช้ artifact/window/frame mapping เดียวกัน แต่ rembg ประมวลผล mask รายเฟรม จึงยังอาจมี edge flicker ในมือ วัตถุโปร่งใส และ motion blur บางชนิด",
       "ui_disclosure_policy": "เมื่อ artifact พร้อม ให้แจ้งผู้ใช้ตรวจขอบมือ สินค้าโปร่งใส และ motion blur ใน Preview ก่อน Render",
-      "ui_disclosure_evidence": [{"path": "frontend/src/components/editor/AssetPanel.jsx", "tokens": ["ตรวจขอบมือ สินค้าโปร่งใส และ motion blur"]}],
+      "ui_disclosure_evidence": [
+        {
+          "path": "frontend/src/components/editor/AssetPanel.jsx",
+          "tokens": [
+            "ตรวจขอบมือ สินค้าโปร่งใส และ motion blur"
+          ]
+        }
+      ],
       "blockers": []
     },
     {
@@ -282,17 +1092,80 @@
       "readiness": "APPROXIMATION",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/AssetPanel.jsx", "tokens": ["lutIntensity", "assets?.luts"]}],
-        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["lutName", "lutIntensity"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["lut_name", "lut_intensity"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["lut_name: style.lutName", "lut_intensity"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["applyGrade", "lutRendererRef"]}],
-        "render": [{"path": "scripts/video_editor.py", "tokens": ["lut3d=", "normalize_lut_intensity"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/AssetPanel.jsx",
+            "tokens": [
+              "lutIntensity",
+              "assets?.luts"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "lutName",
+              "lutIntensity"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "lut_name",
+              "lut_intensity"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "lut_name: style.lutName",
+              "lut_intensity"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "applyGrade",
+              "lutRendererRef"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "lut3d=",
+              "normalize_lut_intensity"
+            ]
+          }
+        ]
       },
-      "automated_evidence": [{"path": "tests/test_preview_render_parity.py", "tokens": ["lut3d", "applyGrade"]}],
+      "automated_evidence": [
+        {
+          "path": "tests/test_preview_render_parity.py",
+          "tokens": [
+            "lut3d",
+            "applyGrade"
+          ]
+        }
+      ],
       "approximation_reason": "Preview ต้อง fallback ไม่เกรดเมื่อ browser ไม่มี WebGL2",
       "ui_disclosure_policy": "แสดงคำเตือน Preview LUT unavailable เมื่อ WebGL2 ใช้ไม่ได้ และห้ามแสดงภาพดำ",
-      "ui_disclosure_evidence": [{"path": "frontend/src/components/editor/AssetPanel.jsx", "tokens": ["Preview LUT ต้องใช้ WebGL2"]}],
+      "ui_disclosure_evidence": [
+        {
+          "path": "frontend/src/components/editor/AssetPanel.jsx",
+          "tokens": [
+            "Preview LUT ต้องใช้ WebGL2"
+          ]
+        }
+      ],
       "blockers": []
     },
     {
@@ -300,19 +1173,82 @@
       "label": "Per-clip original audio volume",
       "renderability": "rendered",
       "readiness": "APPROXIMATION",
-      "clip_fields": ["volume"],
+      "clip_fields": [
+        "volume"
+      ],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["clampVolume", "Original Audio"]}],
-        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["...clip", "serializeClips"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["serializeClips"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["clip_list: savePayload.clip_list"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["wireClipAudio", "clip.volume"]}],
-        "render": [{"path": "scripts/video_editor.py", "tokens": ["volume={vol}", "adelay="]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/inspector/ClipInspector.jsx",
+            "tokens": [
+              "clampVolume",
+              "Original Audio"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "...clip",
+              "serializeClips"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "serializeClips"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "clip_list: savePayload.clip_list"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "wireClipAudio",
+              "clip.volume"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "volume={vol}",
+              "adelay="
+            ]
+          }
+        ]
       },
-      "automated_evidence": [{"path": "tests/test_preview_render_parity.py", "tokens": ["test_clip_audio_is_placed_where_the_clip_sits_not_end_to_end", "adelay="]}],
+      "automated_evidence": [
+        {
+          "path": "tests/test_preview_render_parity.py",
+          "tokens": [
+            "test_clip_audio_is_placed_where_the_clip_sits_not_end_to_end",
+            "adelay="
+          ]
+        }
+      ],
       "approximation_reason": "Preview playbackRate อาจเปลี่ยน pitch แต่ FFmpeg atempo รักษา pitch",
       "ui_disclosure_policy": "แสดงว่า pitch ระหว่าง Preview อาจต่างเล็กน้อยเมื่อระบบชดเชย drift",
-      "ui_disclosure_evidence": [{"path": "frontend/src/components/editor/inspector/ClipInspector.jsx", "tokens": ["Preview อาจได้ยิน pitch ต่างจาก Render"]}],
+      "ui_disclosure_evidence": [
+        {
+          "path": "frontend/src/components/editor/inspector/ClipInspector.jsx",
+          "tokens": [
+            "Preview อาจได้ยิน pitch ต่างจาก Render"
+          ]
+        }
+      ],
       "blockers": []
     },
     {
@@ -322,17 +1258,79 @@
       "readiness": "APPROXIMATION",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/AssetPanel.jsx", "tokens": ["bgmVolume"]}],
-        "state": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["bgmVolume", "bgmDucking"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["bgm_volume", "bgm_ducking"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["bgm_volume", "bgm_ducking"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["AUDIO_MIX", "applyBgmEnvelope"]}],
-        "render": [{"path": "scripts/sfx_manager.py", "tokens": ["sidechaincompress", "loudnorm"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/AssetPanel.jsx",
+            "tokens": [
+              "bgmVolume"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "bgmVolume",
+              "bgmDucking"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "bgm_volume",
+              "bgm_ducking"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "bgm_volume",
+              "bgm_ducking"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "AUDIO_MIX",
+              "applyBgmEnvelope"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/sfx_manager.py",
+            "tokens": [
+              "sidechaincompress",
+              "loudnorm"
+            ]
+          }
+        ]
       },
-      "automated_evidence": [{"path": "tests/test_preview_render_parity.py", "tokens": ["test_ducking_uses_the_measured_reduction_not_a_feel_value", "BGM_DUCK_GAIN"]}],
+      "automated_evidence": [
+        {
+          "path": "tests/test_preview_render_parity.py",
+          "tokens": [
+            "test_ducking_uses_the_measured_reduction_not_a_feel_value",
+            "BGM_DUCK_GAIN"
+          ]
+        }
+      ],
       "approximation_reason": "Browser ไม่มี FFmpeg two-pass loudnorm/sidechaincompress และ playbackRate ต่างจาก atempo",
       "ui_disclosure_policy": "Mixer ต้องติดป้าย Preview โดยประมาณสำหรับ loudness/ducking และ Render เป็นค่าจริง",
-      "ui_disclosure_evidence": [{"path": "frontend/src/components/editor/AssetPanel.jsx", "tokens": ["Preview ของระดับเสียงและ Auto-Duck เป็นค่าประมาณ"]}],
+      "ui_disclosure_evidence": [
+        {
+          "path": "frontend/src/components/editor/AssetPanel.jsx",
+          "tokens": [
+            "Preview ของระดับเสียงและ Auto-Duck เป็นค่าประมาณ"
+          ]
+        }
+      ],
       "blockers": []
     },
     {
@@ -342,17 +1340,80 @@
       "readiness": "PASS",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/Timeline.jsx", "tokens": ["trackMix", "solo"]}],
-        "state": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["trackMix"]}],
-        "persistence": [{"path": "frontend/src/lib/editorProjectState.js", "tokens": ["track_mix", "effectiveAudioMutes"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["effectiveAudioMutes", "audio_mutes"]}],
-        "preview": [{"path": "frontend/src/components/SequencePlayer.jsx", "tokens": ["effectiveAudioMutes"]}],
-        "render": [{"path": "scripts/stages/video_assembly_stage.py", "tokens": ["audio_mutes", "volume"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/Timeline.jsx",
+            "tokens": [
+              "trackMix",
+              "solo"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "trackMix"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "track_mix",
+              "effectiveAudioMutes"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "effectiveAudioMutes",
+              "audio_mutes"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "effectiveAudioMutes"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/stages/video_assembly_stage.py",
+            "tokens": [
+              "audio_mutes",
+              "volume"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "frontend/src/lib/trackMix.test.js", "tokens": ["effectiveAudioMutes", "solo"]},
-        {"path": "frontend/src/lib/editorProjectState.test.js", "tokens": ["solo and clip edits survive save/reload", "audio_mutes"]},
-        {"path": "tests/test_track_mix_export.py", "tokens": ["test_clip_track_mute_reaches_render_but_preserves_saved_clip_volume"]}
+        {
+          "path": "frontend/src/lib/trackMix.test.js",
+          "tokens": [
+            "effectiveAudioMutes",
+            "solo"
+          ]
+        },
+        {
+          "path": "frontend/src/lib/editorProjectState.test.js",
+          "tokens": [
+            "solo and clip edits survive save/reload",
+            "audio_mutes"
+          ]
+        },
+        {
+          "path": "tests/test_track_mix_export.py",
+          "tokens": [
+            "test_clip_track_mute_reaches_render_but_preserves_saved_clip_volume"
+          ]
+        }
       ],
       "blockers": []
     },
@@ -363,12 +1424,52 @@
       "readiness": "PASS",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/RenderButton.jsx", "tokens": ["progress", "busy"]}],
-        "state": [{"path": "frontend/src/hooks/useRenderJob.js", "tokens": ["startJob", "stopJob"]}],
-        "persistence": [{"path": "frontend/src/lib/renderJobModel.js", "tokens": ["saveActiveJob", "getActiveJob"]}],
-        "render_payload": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["startReroll", "export_preset"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/RenderButton.jsx",
+            "tokens": [
+              "progress",
+              "busy"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/hooks/useRenderJob.js",
+            "tokens": [
+              "startJob",
+              "stopJob"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/renderJobModel.js",
+            "tokens": [
+              "saveActiveJob",
+              "getActiveJob"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "startReroll",
+              "export_preset"
+            ]
+          }
+        ]
       },
-      "automated_evidence": [{"path": "frontend/src/lib/renderJobController.test.js", "tokens": ["one active job per tab", "stale project guard"]}],
+      "automated_evidence": [
+        {
+          "path": "frontend/src/lib/renderJobController.test.js",
+          "tokens": [
+            "one active job per tab",
+            "stale project guard"
+          ]
+        }
+      ],
       "blockers": []
     },
     {
@@ -378,20 +1479,95 @@
       "readiness": "PASS",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["formatErrorText", "applyError"]}],
-        "state": [{"path": "frontend/src/hooks/useProjectAutosave.js", "tokens": ["retry"]}],
-        "persistence": [{"path": "frontend/src/lib/projectSaveQueue.js", "tokens": ["pending", "onError"]}],
-        "render_payload": [{"path": "frontend/src/hooks/useRenderJob.js", "tokens": ["poll"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "formatErrorText",
+              "applyError"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/hooks/useProjectAutosave.js",
+            "tokens": [
+              "retry"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/projectSaveQueue.js",
+            "tokens": [
+              "pending",
+              "onError"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/hooks/useRenderJob.js",
+            "tokens": [
+              "poll"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "frontend/src/lib/projectSaveQueue.test.js", "tokens": ["failed latest save", "explicit retry"]},
-        {"path": "frontend/src/lib/renderJobController.test.js", "tokens": ["render poll retries transient network failure", "restarted-server 404"]},
-        {"path": "tests/test_error_handling_recovery.py", "tokens": ["test_manifest_disk_full_keeps_last_good_save_and_cleans_partial_temp", "test_task_manager_server_restart_recovery"]},
-        {"path": "tests/test_render_failure_lifecycle.py", "tokens": ["test_render_worker_reports_missing_media_and_cancel_as_distinct_terminal_states", "test_ffmpeg_failure_remains_failed_after_registry_restart"]},
-        {"path": "tests/test_render_timeout_cleanup.py", "tokens": ["test_popen_ffmpeg_error_returncode_also_cleans_up"]},
-        {"path": "tests/test_restart_recovers_orphaned_render_angle.py", "tokens": ["test_killed_render_worker_recovers_task_and_project_state", "test_restart_reverts_orphaned_render_task_angle_to_scripted"]},
-        {"path": "tests/motion_capture/test_editor_controls_browser.py", "tokens": ["test_missing_media_shows_actionable_preview_error"]},
-        {"path": "tests/test_safe1_disk_guard_and_snapshots.py", "tokens": ["test_trigger_render_blocks_when_disk_probe_fails"]}
+        {
+          "path": "frontend/src/lib/projectSaveQueue.test.js",
+          "tokens": [
+            "failed latest save",
+            "explicit retry"
+          ]
+        },
+        {
+          "path": "frontend/src/lib/renderJobController.test.js",
+          "tokens": [
+            "render poll retries transient network failure",
+            "restarted-server 404"
+          ]
+        },
+        {
+          "path": "tests/test_error_handling_recovery.py",
+          "tokens": [
+            "test_manifest_disk_full_keeps_last_good_save_and_cleans_partial_temp",
+            "test_task_manager_server_restart_recovery"
+          ]
+        },
+        {
+          "path": "tests/test_render_failure_lifecycle.py",
+          "tokens": [
+            "test_render_worker_reports_missing_media_and_cancel_as_distinct_terminal_states",
+            "test_ffmpeg_failure_remains_failed_after_registry_restart"
+          ]
+        },
+        {
+          "path": "tests/test_render_timeout_cleanup.py",
+          "tokens": [
+            "test_popen_ffmpeg_error_returncode_also_cleans_up"
+          ]
+        },
+        {
+          "path": "tests/test_restart_recovers_orphaned_render_angle.py",
+          "tokens": [
+            "test_killed_render_worker_recovers_task_and_project_state",
+            "test_restart_reverts_orphaned_render_task_angle_to_scripted"
+          ]
+        },
+        {
+          "path": "tests/motion_capture/test_editor_controls_browser.py",
+          "tokens": [
+            "test_missing_media_shows_actionable_preview_error"
+          ]
+        },
+        {
+          "path": "tests/test_safe1_disk_guard_and_snapshots.py",
+          "tokens": [
+            "test_trigger_render_blocks_when_disk_probe_fails"
+          ]
+        }
       ],
       "blockers": []
     },
@@ -402,14 +1578,122 @@
       "readiness": "UNTESTED",
       "clip_fields": [],
       "consumers": {
-        "ui": [{"path": "frontend/src/components/editor/EditorShell.jsx", "tokens": ["useEditorShortcuts", "useEditorSelection"]}],
-        "state": [{"path": "frontend/src/lib/selectionResolver.js", "tokens": ["resolveSelectedItem"]}]
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "useEditorShortcuts",
+              "useEditorSelection"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/selectionResolver.js",
+            "tokens": [
+              "resolveSelectedItem"
+            ]
+          }
+        ]
       },
       "automated_evidence": [
-        {"path": "frontend/src/lib/selectionResolver.test.js", "tokens": ["wrong selection type"]},
-        {"path": "tests/motion_capture/test_editor_controls_browser.py", "tokens": ["test_clip_inspector_keyboard_edit_and_save_reload_in_real_browser", "test_timeline_keyboard_reorder_context_split_and_save_reload_in_real_browser"]}
+        {
+          "path": "frontend/src/lib/selectionResolver.test.js",
+          "tokens": [
+            "wrong selection type"
+          ]
+        },
+        {
+          "path": "tests/motion_capture/test_editor_controls_browser.py",
+          "tokens": [
+            "test_clip_inspector_keyboard_edit_and_save_reload_in_real_browser",
+            "test_timeline_keyboard_reorder_context_split_and_save_reload_in_real_browser"
+          ]
+        }
       ],
-      "blockers": ["Chromium gate ของ ClipInspector/Timeline ผ่าน แต่ยังไม่มี keyboard/focus/screen-reader browser matrix ครบทุก Inspector และ dialog"]
+      "blockers": [
+        "Chromium gate ของ ClipInspector/Timeline ผ่าน แต่ยังไม่มี keyboard/focus/screen-reader browser matrix ครบทุก Inspector และ dialog"
+      ]
+    },
+    {
+      "id": "clip_smooth_slowmo",
+      "label": "Smooth slow-motion (frame interpolation)",
+      "renderability": "rendered",
+      "readiness": "APPROXIMATION",
+      "clip_fields": [
+        "smooth_slowmo"
+      ],
+      "consumers": {
+        "ui": [
+          {
+            "path": "frontend/src/components/editor/inspector/ClipInspector.jsx",
+            "tokens": [
+              "smooth_slowmo"
+            ]
+          }
+        ],
+        "state": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "...clip"
+            ]
+          }
+        ],
+        "persistence": [
+          {
+            "path": "frontend/src/lib/editorProjectState.js",
+            "tokens": [
+              "serializeClips"
+            ]
+          }
+        ],
+        "render_payload": [
+          {
+            "path": "frontend/src/components/editor/EditorShell.jsx",
+            "tokens": [
+              "clip_list: savePayload.clip_list"
+            ]
+          }
+        ],
+        "preview": [
+          {
+            "path": "frontend/src/components/SequencePlayer.jsx",
+            "tokens": [
+              "playbackRate"
+            ]
+          }
+        ],
+        "render": [
+          {
+            "path": "scripts/video_editor.py",
+            "tokens": [
+              "minterpolate=",
+              "smooth_slowmo"
+            ]
+          }
+        ]
+      },
+      "automated_evidence": [
+        {
+          "path": "tests/test_phase1_smoke.py",
+          "tokens": [
+            "test_smooth_slowmo_interpolates_frames_when_slowed",
+            "test_smooth_slowmo_is_off_by_default"
+          ]
+        }
+      ],
+      "approximation_reason": "Render สร้างเฟรมใหม่ด้วย minterpolate ส่วน Preview เล่นผ่าน <video> ที่เบราว์เซอร์ทำ interpolation ของตัวเอง จึงนุ่มไม่เท่ากันทุกเฟรม (วัด 2026-09-26: เฟรมที่ค้างซ้ำลดจาก 4% เหลือ 1% แต่เรนเดอร์นานขึ้น ~6 เท่า)",
+      "ui_disclosure_policy": "Inspector ต้องระบุว่า Preview เป็นค่าประมาณ ผลจริงดูที่ Render และเตือนว่าใช้เวลาเรนเดอร์นานขึ้น",
+      "ui_disclosure_evidence": [
+        {
+          "path": "frontend/src/components/editor/inspector/ClipInspector.jsx",
+          "tokens": [
+            "ค่า Preview เป็นค่าประมาณ ผลจริงดูที่ Render"
+          ]
+        }
+      ],
+      "blockers": []
     }
   ]
 }

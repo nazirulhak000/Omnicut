@@ -152,7 +152,7 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 
 ## Round CAPCUT-PREMIERE-TECH-INTEGRATION-20260926 — planned (ยังไม่แตะโค้ด)
 
-วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Opus 5 1M) · สถานะ: Stage A + B + C เสร็จครบ, Stage D ยังไม่เริ่ม
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Opus 5 1M) · สถานะ: Stage A + B + C เสร็จครบ · Stage D เสร็จ D1/D2 · D3 หยุดตามคำสั่งผู้ใช้ (ต้องลง dependency ใหม่)
 
 **เป้าหมาย:** ทำตามแผนแม่บท `_Docs/Plans/CAPCUT_PREMIERE_TECH_INTEGRATION_PLAN.md` (7 เทคโนโลยีจาก CapCut/Premiere Pro) ที่เขียนไว้ 2026-09-25 แต่ยังไม่เคยเปิดรอบงาน ทุกฟีเจอร์ต้องผ่าน Preview=Render parity ตาม `.agents/rules/preview_render_parity.md` และไม่ลดเกณฑ์เดิม
 
@@ -176,7 +176,7 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 
 **Stage A — ปิดช่องว่างที่ถูกกว่าและเสี่ยงน้อยที่สุดก่อน**
 
-- [ ] A1: ยืนยัน ducking parity ที่มีอยู่ด้วยการวัดจริง — วัด dB reduction ของ render mix เทียบ `BGM_DUCK_GAIN` แล้วบันทึกค่าคลาดเคลื่อนลง `tests/test_preview_render_parity.py` (ไม่เขียนฟีเจอร์ใหม่ ถ้าเกินเกณฑ์จึงค่อยเปิดงานแก้)
+- [x] A1: ยืนยัน ducking parity ที่มีอยู่ด้วยการวัดจริง — วัด dB reduction ของ render mix เทียบ `BGM_DUCK_GAIN` แล้วบันทึกค่าคลาดเคลื่อนลง `tests/test_preview_render_parity.py` (ไม่เขียนฟีเจอร์ใหม่ ถ้าเกินเกณฑ์จึงค่อยเปิดงานแก้)
 - [x] A2: ขยาย `scripts/beat_sync.py` ให้คืน `bpm`, `major_beats`, `minor_beats` โดยคง `get_beat_times()` เดิมไว้ไม่แตะ caller เดิม และคง graceful-degrade เมื่อไม่มี librosa; bump cache key กัน cache เก่าปน
 - [x] A3: เพิ่ม `GET /api/audio/beats?bgm_name=...` คืน `{bpm, major_beats, minor_beats}` + guard ชื่อไฟล์กัน path traversal (ยึดรูปแบบ `_allowed_media_path` ใน `api_videos.py`)
 - [x] A4: Timeline แสดง beat marker `#FFE600` บนแถบ BGM + ป้อน beats เข้า `snapCandidates(segments, playhead, extra)` ที่ `EditorShell.jsx:2375,3000` (seam มีอยู่แล้ว ไม่ต้องรื้อ) + toggle เปิด/ปิด
@@ -200,9 +200,9 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 
 **Stage D — AI Visual (แพงสุด ทำท้ายสุด ทีละข้อ)**
 
-- [ ] D1: Optical Flow slow-mo ด้วย `minterpolate` เฉพาะตอน speed < 0.7x + วัดเวลาเรนเดอร์ที่เพิ่มขึ้น และ fallback กลับ duplicate frame เมื่อเกิน budget
-- [ ] D2: Universal Color Match: สกัด histogram จาก anchor clip แล้วปรับด้วย `colorbalance`/`curves` + preview ต้องแสดงผลเดียวกัน (ถ้าทำ preview ไม่ได้ ต้องขึ้น UI disclosure ตามกฎ approximation)
-- [ ] D3: Saliency Auto-Reframe — **ต้องประเมิน dependency ก่อนเขียนโค้ด** (YOLOv8-nano/MediaPipe ขัดกฎห้ามติดตั้ง global package และเพิ่มน้ำหนักติดตั้ง) เสนอทางเลือกให้ผู้ใช้เลือกก่อน
+- [x] D1: Optical Flow slow-mo ด้วย `minterpolate` เฉพาะตอน speed < 0.7x + วัดเวลาเรนเดอร์ที่เพิ่มขึ้น และ fallback กลับ duplicate frame เมื่อเกิน budget
+- [x] D2: Universal Color Match: สกัด histogram จาก anchor clip แล้วปรับด้วย `colorbalance`/`curves` + preview ต้องแสดงผลเดียวกัน (ถ้าทำ preview ไม่ได้ ต้องขึ้น UI disclosure ตามกฎ approximation)
+- [~] D3 (หยุดตามคำสั่งผู้ใช้ 2026-09-26): Saliency Auto-Reframe — **ต้องประเมิน dependency ก่อนเขียนโค้ด** (YOLOv8-nano/MediaPipe ขัดกฎห้ามติดตั้ง global package และเพิ่มน้ำหนักติดตั้ง) เสนอทางเลือกให้ผู้ใช้เลือกก่อน
 
 ### Gate (ทุก stage ต้องผ่านก่อนติ๊ก)
 
@@ -268,6 +268,32 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 - UI: ปุ่ม "ตัดช่วงเงียบ" ใน Toolbar (disabled + บอกเหตุผลเมื่อไม่มีเสียงพากย์ ไม่ซ่อน) → dialog บอกจำนวนคลิปที่กระทบและเวลาที่สั้นลงจริง → ยืนยันแล้วค่อยตัด
 - ใช้ `set()` ครั้งเดียว = **Ctrl+Z ครั้งเดียวกลับสภาพเดิม** ยืนยันแล้วด้วยการรัน history model จริง: ตัด `a,b,c` → `a,c` → undo → `a,b,c` เทียบ JSON ตรงกับต้นฉบับทุกไบต์
 - เทส: `silenceRipple.test.js` 27 passed (ครอบคลุมหัว/กลาง/ท้าย, ข้ามหลายคลิป, speed, ตัดหมด, ไม่มี span, ไทม์ไลน์ว่าง, ไม่ mutate input); frontend รวม **392 passed**; backend **1,864 passed, 8 skipped**; `vite build` ผ่าน
+
+### ผลรอบ A1 + D1 + D2 (2026-09-26, Claude Code)
+
+**A1 — วัด ducking parity จริง (พบว่าคำอ้างเดิมไม่ตรง)**
+- เดิมโค้ดทั้งสองฝั่งอ้างเลข `13.7 dB` เหมือนกัน และเทสเดิมเช็กแค่ว่า "สองฝั่งอ้างเลขเดียวกัน" ไม่เคยพิสูจน์ว่าเลขนั้นจริง
+- วัดจริงแล้ว: **render ลดเสียงเพลง 8.3 dB** (key แบบเสียงพูด) ถึง **10.4 dB** (key โทนคงที่) ส่วน **preview ลดคงที่ 13.7 dB** → **preview ดักเสียงแรงกว่า render ประมาณ 3.3–5.4 dB**
+- สาเหตุ: compressor จะถึง ratio เต็มเฉพาะตอน key ดังจริง ส่วน preview ใส่ gain คงที่ทับ cue span จึงไม่มีทางตรงกันเป๊ะ
+- **ระหว่างทางเจอว่าวิธีวัดของตัวเองผิดก่อน** — ใช้ `-ss/-to` กับ `volumedetect` ซึ่งไม่ตัดช่วงจริง (control ที่ใส่ gain 0.2065 ที่รู้ค่าแล้วอ่านได้ 2.60 dB แทนที่จะเป็น 13.7) แก้เป็น `atrim` ใน filter chain แล้ว control อ่านได้ `13.70 dB` เป๊ะ จึงเชื่อผลได้
+- บันทึกเป็น approximation ที่วัดได้: เทส `test_ducking_depth_is_documented_as_an_approximation` ล็อกช่วง residual ไว้ และคอมเมนต์ใน `SequencePlayer.jsx` ระบุตัวเลขจริงแทนคำอ้างเดิม
+
+**D1 — Optical Flow slow-mo**
+- `smooth_slowmo` ต่อคลิป → ใส่ `minterpolate=mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1` หลัง `setpts` (ลำดับสำคัญ: retime ก่อน แล้วค่อยเติมเฟรมที่ retime เปิดช่องไว้)
+- เปิดเฉพาะเมื่อ speed < 0.7x และเป็น opt-in — **วัดแล้วเรนเดอร์นานขึ้น ~6 เท่า** ไม่ควรจ่ายโดยไม่ได้ขอ
+- วัดผลจริง (source 15fps สโลว์ 0.4x): เฟรมค้างซ้ำ **4% → 1%** ดีขึ้นจริงแต่ไม่ดรามาติกบนฟุตเทจสังเคราะห์
+- ลงทะเบียนใน coverage matrix เป็น APPROXIMATION พร้อม UI disclosure (Preview ใช้ interpolation ของเบราว์เซอร์เอง ไม่ใช่เฟรมที่ render สร้าง) — validator ผ่าน `ok: true`
+
+**D2 — Universal Color Match**
+- `scripts/color_match.py` (ไฟล์ใหม่): วัด luma/tonal-range/saturation ด้วย `signalstats` แล้วเสนอค่า brightness/contrast/saturation เทียบคลิปอ้างอิง — ใช้ contract `eq` เดิมของ `resolve_color_finish` ไม่เพิ่ม filter ใหม่ในกราฟ
+- **พิสูจน์ว่าแก้ได้จริง**: คลิปที่เพี้ยน luma ห่างจาก anchor `0.2705` → หลังแก้เหลือ `0.0038`; saturation `0.2708` → `0.0230`
+- **เจอบั๊ก 2 ตัวตอนเทส**: (1) path ที่มี drive letter `D:` ทำ lavfi พัง เพราะ `:` เป็นตัวคั่น option — escape ไม่พอ ต้องใช้ relative path (2) ใช้ `YDIF` วัด contrast ผิด เพราะมันคือความต่างระหว่างเฟรม (= 0 บนภาพนิ่ง) ไม่ใช่ช่วงโทน เปลี่ยนเป็น `YHIGH - YLOW`
+- กันเคส: คลิปแบนเกือบสนิทไม่ผลิต ratio มหาศาล, ค่าที่เสนอ clamp อยู่ใน `EQ_LIMITS`, ต่างน้อยเกินตาเห็นไม่เสนอแก้, วัดคลิปอ้างอิงไม่ได้ก็รายงานแทนที่จะเงียบ
+
+**D3 — หยุดตามคำสั่งผู้ใช้** ต้องลง YOLOv8-nano/MediaPipe ซึ่งขัดกฎข้อ 5 และเพิ่มขนาดติดตั้ง ~2 GB
+
+- เทสรอบนี้: `test_color_match.py` 24 passed, smooth_slowmo 5 tests, ducking 2 tests; backend เต็มชุด **1,895 passed, 8 skipped, 0 failed**; frontend **392 passed**; `vite build` + coverage validator ผ่าน
+- **เจอ guard ของโปรเจกต์ทำงานจริง**: full suite จับได้ว่า `smooth_slowmo` ยังไม่อยู่ใน `RENDER_CLIP_FIELDS` ของ `Inspector.jsx` (field ที่มีผลต่อภาพแต่ผู้ใช้มองไม่เห็น) แก้แล้วผ่าน
 
 ### Notes
 

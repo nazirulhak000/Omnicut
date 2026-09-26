@@ -41,6 +41,10 @@ from scripts.overlay_recolor import (
 from scripts.spotlight_effect import build_ffmpeg_filter
 from scripts.proxy_manager import is_proxy_path
 from scripts.render_jobs import RenderCancelled
+
+# Above this speed, duplicated frames are not visible enough to be worth
+# minterpolate's cost, so the smooth-slowmo flag is ignored.
+SMOOTH_SLOWMO_MAX_SPEED = 0.7
 from scripts.media_probe_cache import MediaProbeCache
 from scripts.style_motion_policy import STYLE_MOTION_POLICIES
 from scripts.background_isolation_compositor import (
@@ -1152,11 +1156,14 @@ class VideoEditor:
         cut points re-cropped from it" (the 1-Click Studio default below) to "N
         real source files concatenated in the given order". Each entry is
         `{"source_path": str, "trim_start": float = 0.0, "trim_end": float | None,
-        "speed": float = 1.0, "mirror": bool = False}` (`trim_end` omitted/None
+        "speed": float = 1.0, "mirror": bool = False,
+        "smooth_slowmo": bool = False}` (`trim_end` omitted/None
         trims to that source's own end; `speed` is clamped to 0.25-4x and
         shortens/lengthens the clip's slot on the timeline accordingly;
-        `mirror` flips it horizontally). Omitting `clip_list` entirely keeps
-        every existing caller's behavior unchanged.
+        `mirror` flips it horizontally; `smooth_slowmo` fills in synthesized
+        frames when the clip is slowed below 0.7x, so the motion does not step
+        -- it costs real render time, so it is off unless asked for). Omitting
+        `clip_list` entirely keeps every existing caller's behavior unchanged.
 
         `transitions` (clip_list only) is a list of `len(clip_list) - 1` entries,
         one per boundary between consecutive clips. Each entry is either the
@@ -1256,7 +1263,23 @@ class VideoEditor:
                     if freeze_tail > 0.01 else ""
                 )
                 duration += freeze_tail
+                # Slowing a clip with setpts alone just shows each source
+                # frame for longer, so below ~0.7x the motion visibly steps.
+                # minterpolate synthesizes the missing frames instead. It is
+                # expensive (motion estimation per frame pair), so it is opt-in
+                # per clip and only where the judder would actually show.
+                smooth_slowmo = bool(clip.get("smooth_slowmo"))
+                interpolate_filter = ""
+                if smooth_slowmo and speed < SMOOTH_SLOWMO_MAX_SPEED:
+                    interpolate_filter = (
+                        f"minterpolate=fps={FPS}:mi_mode=mci:mc_mode=aobmc:"
+                        f"me_mode=bidir:vsbmc=1,"
+                    )
                 speed_filter = "" if abs(speed - 1.0) < 1e-3 else f"setpts=PTS/{speed},"
+                # Order matters: retime first, then fill in the gaps the
+                # retime opened. Interpolating before setpts would generate
+                # frames for the original timing and throw them away.
+                speed_filter = f"{speed_filter}{interpolate_filter}"
 
                 # Rotation: 90, 180, 270 degrees
                 rotation = int(clip.get("rotation") or 0) % 360

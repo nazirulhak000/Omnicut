@@ -318,6 +318,12 @@ const AUDIO_MIX = {
   // Its threshold/ratio were picked by measuring 13.7 dB of reduction while
   // the voice speaks, so the preview applies that same 13.7 dB as a plain gain
   // envelope over the cue spans: 10^(-13.7/20).
+  //
+  // Known approximation, measured 2026-09-26: a compressor only reaches its
+  // full ratio while the key signal is loud, so the render's real depth is
+  // 8.3 dB against speech-like audio and 10.4 dB against a steady tone. The
+  // preview therefore ducks the music 3.3-5.4 dB harder than the export. See
+  // test_ducking_depth_is_documented_as_an_approximation.
   BGM_DUCK_GAIN: 0.2065,
   BGM_DUCK_ATTACK: 0.020,       // attack=20   -- sfx_manager.py:157
   BGM_DUCK_RELEASE: 0.300,      // release=300 -- sfx_manager.py:157
