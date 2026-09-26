@@ -1,5 +1,89 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
+## Round SAM2-CPU-FEASIBILITY-SPIKE-20260926 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Cline (Claude) · สถานะ: วัดครบแล้ว ปิดคำถาม Q3
+
+**รายงาน:** `_Docs/Reports/SAM2_CPU_FEASIBILITY_20260926.md` พร้อม contact sheet (ดำเนินการโดย: Cline (Claude))
+
+**เป้าหมาย:** พิสูจน์ด้วยตัวเลขจริงว่าเครื่องนี้รัน **SAM 2.1 video object tracking บน CPU** ได้หรือไม่ เพื่อปิดคำถาม Q3 ในรอบ CUTOUT-TEMPORAL-QUALITY และตัดสินใจ Q4 ต่อ — ไม่ต้องเดา ไม่ต้องเขียนโค้ด production ก่อน
+
+**ทำไมต้องวัดก่อน:** ถ้าเครื่องรันไม่ไหว้ engine ที่เลือกจะผิด และ Q4 (เลือกวัตถุ/แก้ขอบเป็นจุด) จะเป็นการเขียนทั้งระบบบนฐานที่ใช้ไม่ได้
+
+### ✅ คำตอบ: คุณภาพผ่าน · ความเร็วไม่ผ่านสำหรับงานสด · RAM ไม่ใช่ข้อจำกัด
+
+| ตัวเลข | ค่าที่วัดได้ |
+| :--- | :-- |
+| Engine | `sam2.1_hiera_tiny` · CPU · 4 threads |
+| Checkpoint SHA-256 | `7402e0d864fa82708a20fbd15bc84245c2f26dff0eb43a4b5b93452deb34be69` |
+| 60 เฟรม (2.0 วินาทีของวิดีโอ) | **715.61 s** = ช้ากว่าเวลาจริง **358 เท่า** |
+| เวลาต่อเฟรม p50 / p95 | **11.47 s** / **15.59 s** |
+| Peak RSS | **929.47 MiB** (RAM ว่างตอนเริ่มมีแค่ 2.36 GiB → ไม่มี OOM) |
+| coverage ของ mask | 4.91% – 12.49% (แคบ ไม่ขยาย ไม่หาย) |
+| Startup | 6.11 s |
+
+**คำฉายเป็นคลิปจริง 30 fps:** 5 วิ = 28.7 นาที · 10 วิ = 57.4 นาที · **15 วิ = 86.0 นาที** · 60 วิ = 5.7 ชั่วโมง
+
+**คุณภาพ (ตรวจ contact sheet 6 เฟรม: 0/11/23/35/47/59):** ติดตามสินค้าทรงกลมตลอด 60 เฟรม ขอบคมไม่หลุด · แยกมือออกได้ · ติดตามปากกาสีดำที่เคลื่อนที่ข้ามสินค้าได้ · mask ต่อเนื่องไม่กระพริบ
+
+### สภาพเครื่อง (วัดแล้ว 2026-09-26)
+| รายการ | ค่า |
+| :--- | :-- |
+| CPU | AMD Ryzen 7 7735HS with Radeon Graphics |
+| RAM รวม | 13.69 GiB |
+| **RAM ว่างตอนเริ่ม** | **1.96 GiB** ⚠️ |
+| Runtime venv | `tools/cutout_runtime/.venv` → Python 3.12.13 |
+| torch | 2.5.1+cpu (threads 8 ตั้งใน probe เป็น 4) |
+| sam2 | import OK · pinned `2b90b9f5ceec907a1c18123530e92e794ad901a4` |
+| Checkpoint | `03_Projects/.cache/cutout-models/sam2.1_hiera_tiny.pt` (148.8 MB) |
+
+> ⚠️ RAM ว่าง 1.96 GiB เป็นความเสี่ยง OOM ที่ต้องวัดจริง ไม่ใช่ข้อสมมติ
+
+### อินพุตที่เตรียมไว้แล้ว (ไม่ต้องสร้างซ้ำ)
+| รายการ | ที่อยู่ | สถานะ |
+| :--- | :--- | :-- |
+| Harness | `tools/benchmark_cutout_tracker.py` (128 บรรทัด) | ✅ มีอยู่แล้ว |
+| เฟรมจริง | `.tmp/cutout_tracker_probe/00001.jpg … 00060.jpg` | ✅ 60 เฟรม |
+| Prompts | `.tmp/cutout_tracker_probe/prompts.json` | ✅ 2 objects |
+| Config | `sam2/configs/sam2.1/sam2.1_hiera_t.yaml` | ✅ มีในแพ็กเกจ |
+
+**โจทย์ 2 objects ในเฟรม (คลิปสินค้าแนวตั้ง 9:16):**
+| object | สิ่งที่ต้องติดตาม | จุดบวก | จุดลบ |
+| :-- | :--- | :--- | :-- |
+| 1 | สินค้าทรงกลมใบมือ (ป้าย HERO) | `(0.43, 0.49)` | `(0.46, 0.70)`, `(0.77, 0.60)` |
+| 2 | ปากกา/รีโมทสีดำมุมขวาบน | `(0.75, 0.39)` | `(0.69, 0.53)` |
+
+### Todo
+- [x] ยืนยัน runtime venv + torch + sam2 + checkpoint ครบ
+- [x] ยืนยันเฟรม 60 เฟรม + prompts.json พร้อม
+- [x] บันทึก RAM ว่างก่อนรัน = 2.36 GiB (เทียบกับ peak ได้)
+- [x] รัน `tools/benchmark_cutout_tracker.py` ด้วย venv แยก → **11m56s**
+- [x] อ่านตัวเลขจริงจาก `report.json` + ตรวจ contact sheet ด้วยตา
+- [x] ตัดสินว่า viable ไหม พร้อมฉายเป็นเวลาจริง
+- [x] เขียนรายงานลง `_Docs/Reports/` พร้อม copy contact sheet เป็นหลักฐานถาวร
+- [x] อัปเดตสถานะ Q3 ในรอบ CUTOUT-TEMPORAL-QUALITY-PLAN-20260926
+- [x] cleanup: ลบ PID/log ชั่วคราว · เฟรมใน `.tmp/` เก็บไว้เพื่อรันซ้ำ (regenerate ได้)
+
+### Decisions
+- **ไม่เขียน harness ใหม่** — ใช้ `tools/benchmark_cutout_tracker.py` ที่มีอยู่แล้ว ตามกฎ Zero-Duplicate
+- **รันด้วย venv แยกเสมอ** (`tools/cutout_runtime/.venv/Scripts/python.exe`) — ห้ามติดตั้ง torch ลง `.venv` หลัก (กฎข้อ 5)
+- ใช้ **checkpoint ใน `03_Projects/.cache/cutout-models/`** ที่มีอยู่ — ห้ามดาวน์โหลดซ้ำ (กฎข้อ 13)
+- probe เป็น read-only ต่อโปรเจกต์: อ่านเฟรม + checkpoint, เขียนผลลง `.tmp/` เท่านั้น
+- **คัดลอก contact sheet ไป `_Docs/Reports/`** เป็นหลักฐานถาวร เพราะ work_loop อนุญาตให้ลบ `.tmp/` ได้เมื่อปิดรอบ
+
+### ผลต่อ Q4
+- Q4 (เลือกวัตถุ/แก้ขอบเป็นจุด) **เดินหน้าได้** แต่ต้องออกแบบเป็น **worker แบบ offline** ที่รายงาน progress ได้ เหมือน `background_isolation_video_worker.py`
+- **ห้าม** คิดว่าจะทำแบบ interactive ที่ผู้ใช้คลิกแก้ขอบแล้วเห็นผลทันที — 86 นาทีต่อคลิป 15 วินาที
+- ถ้าต้องเร็วขึ้น: ลด `image_size` · ยิงทุก 3 เฟรมแล้ว interpolate · เพิ่ม threads 4 → 8
+
+### Notes
+- mask ที่ได้เป็น **binary segmentation ไม่ใช่ alpha matting** (ตามที่ probe ระบุไว้เอง) ต้องมีขั้น refine ต่อ เช่น `scripts/cutout_temporal.py`
+- ต่างจาก baseline เดิมในรอบ CUTOUT ที่ระบุว่าเครื่อง "ยังไม่มี torch/sam2" — **ตอนนี้ runtime + checkpoint มีครบแล้ว** เพราะมีคนเตรียมไว้ก่อนหน้านี้ จึงไม่ต้องรอสร้าง
+- RAM ว่างตอนเริ่มจริง ๆ คือ 2.36 GiB (ไม่ใช่ 1.96 ตามที่บันทึกไว้ตอนแรก) และ **ไม่ OOM** เพราะใช้จริงไม่ถึง 0.93 GiB → ข้อสรุปเดิมที่กลัวว่าจะเป็นคำตอบเชิงลบ **ไม่เกิดขึ้น**
+- รอบนี้ไม่ใช่การรันเทส แต่เป็นการวัด feasibility ด้วยตัวเลขจริง เพื่อปิดคำถามที่ค้างอยู่
+
+---
+
 ## Round PROXY-CONSOLE-ERROR-REGRESSION-20260926 — reported, awaiting owner
 
 วันที่: 2026-09-26 · สั่งโดย: user (รัน full test suite) · พบโดย: Cline (Claude) · สถานะ: รายงานแล้ว ยังไม่แก้ (เป็นของเจ้าของฟีเจอร์ proxy)
@@ -132,7 +216,7 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 - [ ] Q0: เก็บ baseline ภาพ/เวลา/หน่วยความจำและชุดคำตอบวัตถุที่ต้องเก็บ
 - [ ] Q1: แก้ clock/playbackRate/seek และสร้าง alpha preview proxy จาก master เดียวกัน
 - [ ] Q2: ทดลอง mask ที่ชดเชยการเคลื่อนไหวและ reset เมื่อเปลี่ยนฉาก
-- [ ] Q3: พิสูจน์ video object tracking บน runtime แยก แล้วเลือก engine จากผลจริง
+- [x] Q3: พิสูจน์ video object tracking บน runtime แยก แล้วเลือก engine จากผลจริง — **ปิดแล้ว 2026-09-26**: `sam2.1_hiera_tiny` บน CPU คุณภาพผ่าน (ติดตามสินค้า+ปากกา 60 เฟรม ขอบคม แยกมือได้) แต่ **11.47 s/เฟรม p50** = คลิป 15 วิ = 86 นาที, peak RSS 929 MiB (ไม่ OOM) → ใช้ได้เฉพาะ **offline worker** ห้ามคิดว่า interactive ได้ · รายงาน: `_Docs/Reports/SAM2_CPU_FEASIBILITY_20260926.md` (ดำเนินการโดย: Cline (Claude))
 - [ ] Q4: เพิ่มเลือกวัตถุ/แก้ขอบเป็นจุด พร้อมติดตามการแก้ไปในช่วงวิดีโอ
 - [ ] Q5: ผ่าน quality/performance/parity gate และย้ายโปรเจกต์ด้วย revision guard
 
