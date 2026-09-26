@@ -253,6 +253,7 @@ function BackgroundIsolationControls({
       return;
     }
     onChange?.({
+      ...(backgroundIsolation || {}),
       schema_version: 1,
       enabled: true,
       mode: 'cutout',
@@ -267,6 +268,16 @@ function BackgroundIsolationControls({
     <section className="rounded-2xl border border-violet-400/20 bg-violet-400/[0.04] p-3 space-y-2" aria-label="Background Isolation">
       {onPrepare && enabled && (
         <div className="space-y-1.5">
+          <label className="flex items-center justify-between gap-2 text-[11px] text-slate-300">
+            ลดขอบสั่นขณะเคลื่อนที่ (ทดลอง)
+            <input type="checkbox" disabled={preparing}
+              aria-label="ลดขอบสั่นขณะเคลื่อนที่"
+              checked={backgroundIsolation?.temporal_mode === 'motion'}
+              onChange={(event) => onChange?.({ ...backgroundIsolation,
+                temporal_mode: event.target.checked ? 'motion' : 'legacy' })}
+              className="h-3.5 w-3.5 accent-violet-400" />
+          </label>
+          <p className="text-[10px] text-slate-400">กดเตรียม Cutout เพื่อใช้ค่าที่เปลี่ยน แล้วตรวจขอบและส่วนของสินค้าที่ต้องการเก็บ</p>
           <p className="rounded-lg bg-black/20 px-2 py-1.5 text-[10px] leading-relaxed text-slate-400">
             {plan?.ready
               ? `จะประมวลผล ${plan.jobCount} ช่วง รวม ${plan.totalDuration.toFixed(1)} วินาที ประมาณ ${plan.frameCount.toLocaleString()} เฟรม`

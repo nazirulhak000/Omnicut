@@ -335,38 +335,17 @@ def test_worker_threads_requested_window_into_extraction_and_published_manifest(
     monkeypatch.setattr(api.TaskManager, "update_progress", lambda *args, **kwargs: None)
     monkeypatch.setattr(api.TaskManager, "fail_task", lambda *args, **kwargs: pytest.fail(str(args)))
     monkeypatch.setattr(api.TaskManager, "complete_task", lambda task_id, result, **kwargs: captured.update(result=result))
-    monkeypatch.setattr(api, "write_sequence_manifest", lambda *args, **kwargs: None)
-
-    def fake_extract(*args, **kwargs):
-        captured["extract"] = kwargs
-        return {
-            "status": "ready",
-            "sequence_dir": str(tmp_path / "source-sequence"),
-            "frame_count": 60,
-            "start": kwargs["start"],
-            "duration": kwargs["duration"],
-        }
-
-    def fake_process(_source, _cache, _config, source_manifest, **_kwargs):
-        captured["source_manifest"] = source_manifest
+    def fake_process(_source, _cache, _config, **kwargs):
+        captured["video_request"] = kwargs
         artifact_id = "bgseq1-0123456789abcdef"
-        manifest = build_sequence_manifest(
-            artifact_id,
-            source_fingerprint=source_manifest["source_fingerprint"],
-            frame_count=60,
-            fps=30,
-            timebase="1/30",
-            width=1080,
-            height=1920,
-            source_start=source_manifest["source_start"],
-            source_duration=source_manifest["source_duration"],
-            status="ready",
-        )
+        manifest = {"schema_version": 2, "artifact_id": artifact_id,
+                    "source_fingerprint": kwargs["source_fingerprint"],
+                    "source_start": kwargs["start"], "source_duration": kwargs["duration"],
+                    "status": "ready"}
         (output / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         return {"status": "ready", "artifact_id": artifact_id, "output_directory": str(output)}
 
-    monkeypatch.setattr(api, "extract_background_isolation_sequence", fake_extract)
-    monkeypatch.setattr(api, "process_background_isolation_sequence", fake_process)
+    monkeypatch.setattr(api, "process_background_isolation_video", fake_process)
 
     api._run_background_isolation_task(
         "task-window",
@@ -379,10 +358,9 @@ def test_worker_threads_requested_window_into_extraction_and_published_manifest(
         threading.Event(),
     )
 
-    assert captured["extract"]["start"] == 8.0
-    assert captured["extract"]["duration"] == 2.0
-    assert captured["source_manifest"]["source_start"] == 8.0
-    assert captured["source_manifest"]["source_duration"] == 2.0
+    assert captured["video_request"]["start"] == 8.0
+    assert captured["video_request"]["duration"] == 2.0
+    assert captured["video_request"]["fps"] == 30
     assert captured["result"]["artifact"]["source_start"] == 8.0
     assert captured["result"]["sequence"]["source_duration"] == 2.0
 

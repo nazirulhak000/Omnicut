@@ -21,6 +21,7 @@ so the normalization lives here rather than at each caller.
 
 import gc
 import json
+import hashlib
 import shutil
 import datetime
 import threading
@@ -34,6 +35,13 @@ from scripts import path_utils
 
 MANIFEST_NAME = "project.json"
 MANIFEST_VERSION = 1
+
+
+def project_revision(manifest: Dict[str, Any]) -> str:
+    """Content revision also detects external migrations without a shared lock."""
+    stable = {key: value for key, value in manifest.items() if key != "_editor_revision"}
+    return hashlib.sha256(json.dumps(stable, sort_keys=True, ensure_ascii=False,
+                                     separators=(",", ":")).encode("utf-8")).hexdigest()
 
 # Ordered stages of the pipeline. Re-rolling from a stage reruns it and
 # everything after it; everything before is reused from disk.

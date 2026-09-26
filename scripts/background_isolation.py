@@ -147,6 +147,13 @@ def normalize_background_isolation(value: Any) -> dict[str, Any]:
     if artifact is None:
         return _no_op("invalid_artifact")
 
+    temporal_mode = value.get("temporal_mode")
+    if temporal_mode is not None and temporal_mode not in ("legacy", "motion", "off"):
+        return _no_op("invalid_temporal_mode")
+    request_id = value.get("request_id")
+    if request_id is not None and (not isinstance(request_id, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,80}", request_id)):
+        return _no_op("invalid_request_id")
+
     return {
         "schema_version": SCHEMA_VERSION,
         "enabled": True,
@@ -156,6 +163,8 @@ def normalize_background_isolation(value: Any) -> dict[str, Any]:
         "quality": quality,
         "fallback": fallback,
         "artifact": artifact,
+        **({"temporal_mode": temporal_mode} if temporal_mode is not None else {}),
+        **({"request_id": request_id} if request_id is not None else {}),
     }
 
 

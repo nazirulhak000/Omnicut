@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { createLatestSaveQueue } from '../lib/projectSaveQueue.js';
+import { withProjectRevision } from '../lib/projectRevision.js';
 
 // The normal browser path uses the same-origin proxy, which injects auth on
 // the server side. An explicit key remains supported for isolated callers and
@@ -97,7 +98,10 @@ export function createProjectAutosaveController({
       (error) => {
         if (!retriedFlushes.has(attempt)) {
           retriedFlushes.add(attempt);
-          if (queue.hasPending()) scheduleRetry();
+          if (error?.response?.status === 409) {
+            clearRetryTimer();
+            onStatusChange('error');
+          } else if (queue.hasPending()) scheduleRetry();
           else retryCount = 0;
         }
         throw error;
@@ -276,7 +280,7 @@ export function useProjectAutosave({
       fetch(`/api/projects/${encodeURIComponent(job.projectName)}/state`, {
         method: 'PATCH',
         headers: lifecycleSaveHeaders(),
-        body: JSON.stringify(job.payload),
+        body: JSON.stringify(withProjectRevision(job.projectName, job.payload)),
         keepalive: true,
       }).catch(() => {});
     };

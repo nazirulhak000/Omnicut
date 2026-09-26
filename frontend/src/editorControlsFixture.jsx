@@ -16,6 +16,11 @@ const initialClip = {
 };
 const requestedClipCount = Math.min(100, Math.max(1, Number(new URLSearchParams(window.location.search).get('clipCount')) || 2));
 const mediaClipSource = new URLSearchParams(window.location.search).get('mediaClip');
+const cutoutArtifactId = new URLSearchParams(window.location.search).get('cutoutArtifact');
+const cutoutFixtureConfig = cutoutArtifactId ? {
+  enabled: true, mode: 'cutout', engine: 'rembg', model: 'u2net',
+  quality: 'balanced', artifact: { id: cutoutArtifactId, status: 'ready' },
+} : null;
 const initialTimelineClips = requestedClipCount === 2
   ? [
     { id: 'left', source_path: 'left.mp4', trim_start: 0, trim_end: 2, speed: 1 },
@@ -137,9 +142,11 @@ function EditorControlsFixture() {
             id: `media-clip-${index}`,
             source_path: mediaClipSource,
             trim_start: 0,
-            trim_end: 2,
-            speed: 1,
-          }))} />
+            trim_end: Number(new URLSearchParams(window.location.search).get('mediaDuration')) || 2,
+            speed: Number(new URLSearchParams(window.location.search).get('mediaSpeed')) || 1,
+            ...(cutoutFixtureConfig ? { background_isolation: cutoutFixtureConfig } : {}),
+          }))} backgroundIsolation={cutoutFixtureConfig}
+            backgroundIsolationStatus={cutoutFixtureConfig ? { state: 'ready' } : null} />
         </div>
       )}
     </main>

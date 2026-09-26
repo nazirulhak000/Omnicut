@@ -27,7 +27,7 @@ from scripts.post_log import METRIC_FIELDS, PostLog
 from scripts.product_store import STATUSES, ProductStore
 from scripts.product_scraper import _build_safe_image_opener, _validate_public_http_url
 from scripts.config import BASE_DIR, COVERS_DIR, STICKERS_DIR
-from scripts.project_manifest import REROLL_STAGE, ProjectManifest
+from scripts.project_manifest import REROLL_STAGE, ProjectManifest, project_revision
 from scripts import render_jobs
 from scripts.render_jobs import RenderCancelled
 from scripts.task_manager import TaskManager
@@ -724,6 +724,7 @@ def get_project(project_name: str):
     manifest = ProjectManifest.load(project_name)
     if not manifest:
         raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
+    manifest["_editor_revision"] = project_revision(manifest)
     try:
         _, product, angle = _project_origin(project_name)
         if angle:
@@ -825,6 +826,7 @@ def update_project_clips(project_name: str, req: UpdateClipsRequest):
 
 
 class UpdateProjectStateRequest(BaseModel):
+    base_revision: Optional[str] = None
     cues: Optional[List[Dict[str, Any]]] = None
     micro_cues: Optional[List[Dict[str, Any]]] = None
     clip_list: Optional[List[Dict[str, Any]]] = None
@@ -873,6 +875,8 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
     def _mutate(current: Dict[str, Any]) -> Dict[str, Any]:
         if not current:
             raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
+        if req.base_revision is not None and req.base_revision != project_revision(current):
+            raise HTTPException(status_code=409, detail="โปรเจกต์ถูกแก้ไขจากอีกหน้าหรืองานเบื้องหลัง กรุณาเปิดโปรเจกต์ใหม่ก่อนบันทึก เพื่อไม่ให้ทับข้อมูลล่าสุด")
 
         fields: Dict[str, Any] = {}
         render_params = dict(current.get("render_params") or {})
@@ -954,6 +958,7 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
     updated = ProjectManifest.save_merge(project_name, _mutate)
     return {
         "success": True,
+        "_editor_revision": project_revision(updated),
         "cues": updated.get("cues"),
         "micro_cues": updated.get("micro_cues"),
         "clip_list": updated.get("clip_list"),
@@ -980,7 +985,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             "bgm_ducking", "lut_name", "lut_intensity", "caption_position", "caption_color",
             "audio_mutes",
             "caption_scale", "sticker_position", "sticker_scale", "clip_list", "transitions",
-            "text_overlays", "stickers", "effects"
+            "text_overlays", "stickers", "effects", "spotlight", "background_isolation"
         ]:
             if k not in params and k in manifest and manifest[k] is not None:
                 params[k] = manifest[k]

@@ -950,6 +950,7 @@ export default function OverlayInspector({
       <div className="space-y-1.5">
         <textarea
           ref={textAreaRef}
+          aria-label="ข้อความเสริม"
           rows={2}
           value={currentText}
           onChange={(e) => onReplaceOverlay?.(selectedTextOverlay.id, withTierText(selectedTextOverlay, 0, e.target.value))}
@@ -967,6 +968,7 @@ export default function OverlayInspector({
             step="0.1"
             min="0"
             value={selectedTextOverlay.start ?? 0}
+            aria-label="เวลาเริ่มข้อความเสริม (วินาที)"
             onChange={(e) => onUpdateOverlay?.(selectedTextOverlay.id, { start: Math.max(0, parseFloat(e.target.value) || 0) })}
             className="w-full px-2.5 py-1 rounded-lg bg-black/60 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]"
           />
@@ -978,6 +980,7 @@ export default function OverlayInspector({
             step="0.1"
             min="0.1"
             value={selectedTextOverlay.end ?? 2.5}
+            aria-label="เวลาสิ้นสุดข้อความเสริม (วินาที)"
             onChange={(e) => onUpdateOverlay?.(selectedTextOverlay.id, { end: Math.max((selectedTextOverlay.start || 0) + 0.1, parseFloat(e.target.value) || 0.1) })}
             className="w-full px-2.5 py-1 rounded-lg bg-black/60 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]"
           />
@@ -991,6 +994,7 @@ export default function OverlayInspector({
           <span className="text-xs text-slate-400 font-medium w-14 flex-shrink-0">ฟอนต์:</span>
           <select
             value={currentFont}
+            aria-label="ฟอนต์ข้อความเสริม"
             onChange={(e) => patchOverlayLook({ font: e.target.value })}
             className="flex-1 min-w-0 py-1.5 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-semibold text-white focus:outline-none focus:border-[#25F4EE] cursor-pointer"
           >
@@ -1013,6 +1017,7 @@ export default function OverlayInspector({
                 max={220}
                 step={5}
                 value={Math.round(currentScale * 100)}
+                aria-label="ขนาดข้อความเสริม (เปอร์เซ็นต์)"
                 onChange={(e) => {
                   const clamped = clampScale((parseInt(e.target.value, 10) || 100) / 100);
                   patchOverlayLook({ size_pct: Math.round(clamped * 100) });
@@ -1044,6 +1049,7 @@ export default function OverlayInspector({
             max="1.8"
             step="0.05"
             value={currentScale}
+            aria-label="ปรับขนาดข้อความเสริม"
             onChange={(e) => patchOverlayLook({ size_pct: Math.round(parseFloat(e.target.value) * 100) })}
             className="w-full accent-[#25F4EE] cursor-pointer"
           />
@@ -1157,6 +1163,7 @@ export default function OverlayInspector({
               <input
                 type="color"
                 value={currentColor.startsWith('#') ? currentColor : '#FFFFFF'}
+                aria-label="สีข้อความเสริม"
                 onChange={(e) => patchOverlayLook({ color: e.target.value })}
                 className="h-6 w-6 rounded border border-white/20 bg-transparent cursor-pointer p-0"
               />
@@ -1377,6 +1384,7 @@ export default function OverlayInspector({
           <div className="grid grid-cols-2 gap-1.5">
             <select
               value={selectedTextOverlay.sfx || 'none'}
+              aria-label="เสียงประกอบข้อความเสริม"
               onChange={(e) => {
                 const val = e.target.value === 'none' ? null : e.target.value;
                 onUpdateOverlay?.(selectedTextOverlay.id, { sfx: val });

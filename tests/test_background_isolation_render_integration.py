@@ -222,7 +222,7 @@ def test_ready_rgba_sequence_is_composited_per_clip_before_concat(monkeypatch, t
     assert graph.count("transpose=1") == 2
     assert "alphamerge" in graph
     assert "split=2[bg_subject_base_0][bg_subject_overlay_0]" in graph
-    assert "drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill" in graph
+    assert "drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill" not in graph
     assert graph.index("clip_0_transformed") < graph.index("alphamerge") < graph.index("concat")
     assert graph.index("concat") < graph.index("_subject_hook.ass")
     assert graph.index("_subject_hook.ass") < graph.index("bg_subject_at_0")
@@ -264,6 +264,40 @@ def test_non_rgba_frame_fails_closed(monkeypatch, tmp_path):
             clip_list=[{"source_path": str(tmp_path / "source.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
             background_isolation=config,
         )
+
+
+def test_video_cutout_render_uses_alpha_decoder_and_artifact_local_seek(monkeypatch, tmp_path):
+    import json
+
+    project_root = tmp_path / "03_Projects"
+    monkeypatch.setattr(video_editor, "PROJECTS_DIR", project_root)
+    artifact_id = "bgseq1-0123456789abcdef"
+    directory = project_root / ".cache" / "background-isolation-videos" / artifact_id
+    directory.mkdir(parents=True)
+    video = directory / "cutout.webm"
+    video.write_bytes(b"nonempty-test-container")
+    manifest = {
+        "schema_version": 2, "artifact_id": artifact_id, "status": "ready",
+        "video_file": "cutout.webm", "codec": "vp9-alpha",
+        "source_fingerprint": "fixture", "source_start": 8.0,
+        "source_duration": 4.0, "fps": "30/1", "frame_count": 120,
+        "width": 64, "height": 64,
+    }
+    (directory / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    config = {"enabled": True, "artifact": {"id": artifact_id, "status": "ready",
+                                            "source_fingerprint": "fixture"}}
+    command, _ = _assemble(
+        monkeypatch, tmp_path,
+        clip_list=[{"source_path": str(tmp_path / "source.mp4"),
+                    "trim_start": 9.0, "trim_end": 11.0}],
+        background_isolation=config,
+    )
+    assert str(video) in command
+    video_index = command.index(str(video))
+    assert command[video_index - 5:video_index] == ["-c:v", "libvpx-vp9", "-ss", "1.0", "-i"]
+    assert "frame_%06d.png" not in " ".join(command)
+    assert "alphamerge" in _filter(command)
+    assert "alphaextract[bg_fg_alpha_0]" in _filter(command)
 
 
 def test_blurred_background_conflict_blocks_cutout_render(monkeypatch, tmp_path):

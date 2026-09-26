@@ -78,6 +78,8 @@ Entry point คือ `scripts/api_server.py` ทำหน้าที่สร�
 
 `scripts/pipeline.py` เป็น orchestrator ภายนอก ส่วน state ระหว่าง stage อยู่ใน `scripts/pipeline_context.py`
 
+Cutout รุ่นใหม่ใช้ `scripts/background_isolation_video_worker.py` ถอดเฉพาะช่วงต้นฉบับผ่าน FFmpeg pipe แล้วส่งผล rembg เข้า `cutout.webm` (VP9 alpha) พร้อม manifest รุ่น 2 ใน `03_Projects/.cache/background-isolation-videos/`. `api_background_isolation.py` ให้ข้อมูล manifest และวิดีโอแบบ Range; `SequencePlayer.jsx` วาดเฟรมวิดีโอโปร่งใสบน Canvas หลัง `requestVideoFrameCallback`; `video_editor.py` ถอดด้วย `libvpx-vp9` เพื่อรักษา alpha ระหว่าง Render. Artifact PNG รุ่นเดิมยังอ่านได้เฉพาะโปรเจกต์เก่า.
+
 ลำดับหลัก (8 Stages):
 
 1. `SourceResolutionStage` ตรวจและเตรียมวิดีโอ/รูปต้นทางจาก `01_Raw/`

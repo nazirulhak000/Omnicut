@@ -193,10 +193,11 @@ export function backgroundIsolationPrefetchTimes({
 }
 
 /** Return only completed isolation tasks that belong to the active project. */
-export function completedBackgroundIsolationTasks(tasks = [], projectName = '') {
+export function completedBackgroundIsolationTasks(tasks = [], projectName = '', requestId = null) {
   return (Array.isArray(tasks) ? tasks : []).filter((task) => {
     if (task?.type !== 'background_isolation' || task.status !== 'completed') return false;
     if (!task.result?.artifact?.id || !task.payload?.source_path) return false;
+    if (requestId != null && task.payload?.config?.request_id !== requestId) return false;
     return !task.payload.project_name || task.payload.project_name === projectName;
   });
 }
@@ -410,6 +411,7 @@ export function summarizeBackgroundIsolationStatus({
   clips = [],
   projectConfig = null,
   preparing = false,
+  artifactAvailability = null,
 } = {}) {
   if (projectConfig?.enabled === false) {
     return { state: 'off', label: 'Cutout ปิดอยู่', readyCount: 0, totalCount: 0 };
@@ -420,7 +422,14 @@ export function summarizeBackgroundIsolationStatus({
     return { state: 'missing', label: 'Cutout ยังไม่มีคลิป', readyCount: 0, totalCount: 0 };
   }
 
-  const statuses = sourceClips.map((clip) => clipBackgroundIsolationStatus(clip, projectConfig));
+  const statuses = sourceClips.map((clip) => {
+    const status = clipBackgroundIsolationStatus(clip, projectConfig);
+    if (status !== 'ready' || artifactAvailability == null) return status;
+    const artifact = resolveBackgroundIsolationConfig(clip, projectConfig)?.artifact;
+    const id = artifact?.id || artifact?.sequence_id;
+    if (!id || artifactAvailability[id] === false) return 'quality_failed';
+    return artifactAvailability[id] === true ? 'ready' : 'processing';
+  });
   if (statuses.every((status) => status === 'off')) {
     return { state: 'off', label: 'Cutout ปิดอยู่', readyCount: 0, totalCount: 0 };
   }
@@ -428,6 +437,11 @@ export function summarizeBackgroundIsolationStatus({
   const failedCount = statuses.filter((status) => status === 'quality_failed').length;
   const processingCount = statuses.filter((status) => status === 'processing').length;
   const totalCount = sourceClips.length;
+  const missingCacheCount = artifactAvailability == null ? 0 : sourceClips.filter((clip) => {
+    if (clipBackgroundIsolationStatus(clip, projectConfig) !== 'ready') return false;
+    const artifact = resolveBackgroundIsolationConfig(clip, projectConfig)?.artifact;
+    return artifactAvailability[artifact?.id || artifact?.sequence_id] === false;
+  }).length;
   // During a reload, old per-clip configs can still say `ready` while the
   // project-level job is being resumed or has just failed. Keep the marker
   // authoritative for the aggregate state, while retaining readyCount for
@@ -449,9 +463,11 @@ export function summarizeBackgroundIsolationStatus({
   if (projectFailed || failedCount > 0) {
     return {
       state: 'quality_failed',
-      label: failedCount === totalCount
-        ? 'Cutout คุณภาพไม่ผ่าน'
-        : `Cutout คุณภาพไม่ผ่านบางส่วน (${readyCount}/${totalCount})`,
+      label: missingCacheCount > 0
+        ? 'ไฟล์ Cutout หาย กรุณาเตรียมใหม่'
+        : failedCount === totalCount
+          ? 'Cutout คุณภาพไม่ผ่าน'
+          : `Cutout คุณภาพไม่ผ่านบางส่วน (${readyCount}/${totalCount})`,
       readyCount,
       totalCount,
     };
@@ -472,7 +488,7 @@ export function backgroundIsolationStatusMeta(status = 'off') {
     processing: { label: 'กำลังเตรียม Cutout', detail: 'Preview ใช้ภาพต้นฉบับชั่วคราว' },
     ready: { label: 'Cutout พร้อมใช้', detail: 'Preview ใช้ artifact ที่ตรวจสอบแล้ว' },
     partial: { label: 'Cutout พร้อมบางส่วน', detail: 'บางคลิปยังใช้ภาพต้นฉบับ' },
-    quality_failed: { label: 'Cutout คุณภาพไม่ผ่าน', detail: 'Preview ใช้ภาพต้นฉบับเพื่อความปลอดภัย' },
+    quality_failed: { label: 'Cutout ใช้งานไม่ได้', detail: 'ตรวจไฟล์ Cutout และเตรียมใหม่ก่อน Render' },
   };
   return meta[BACKGROUND_ISOLATION_UI_STATES.includes(status) ? status : 'missing'];
 }
@@ -597,6 +613,48 @@ export function resolveBackgroundIsolationPreview({
   let sourceDuration;
   let baseUrl = artifactBaseUrl;
   try {
+    if (manifest.schema_version === 2) {
+      if (manifest.status !== 'ready' || manifest.artifact_id !== normalized.artifactId
+          || !SEQUENCE_ARTIFACT_ID_PATTERN.test(manifest.artifact_id)
+          || manifest.video_file !== 'cutout.webm' || manifest.codec !== 'vp9-alpha'
+          || typeof manifest.source_fingerprint !== 'string' || !manifest.source_fingerprint.trim()
+          || manifest.quality !== normalized.quality) throw new TypeError('video artifact');
+      parsePositiveInteger(manifest.frame_count, 'frame count');
+      parsePositiveInteger(manifest.width, 'width');
+      parsePositiveInteger(manifest.height, 'height');
+      const videoFps = parsePositiveRational(manifest.fps, 'fps');
+      parseRotation(manifest.rotation);
+      sourceStart = parseNonNegativeTime(manifest.source_start);
+      sourceDuration = parseNonNegativeTime(manifest.source_duration);
+      const absoluteSourceTime = parseNonNegativeTime(sourceTime);
+      if (sourceDuration <= 0 || absoluteSourceTime < sourceStart - EPSILON
+          || absoluteSourceTime > sourceStart + sourceDuration + EPSILON) {
+        return fallbackResult(normalized, 'source_time_outside_artifact', 'error');
+      }
+      const videoTime = Math.min(
+        Math.max(0, absoluteSourceTime - sourceStart),
+        Math.max(0, (manifest.frame_count - 1) * videoFps.denominator / videoFps.numerator),
+      );
+      const videoBase = String(artifactBaseUrl || '').replace(/\/sequences\/?$/, '/videos');
+      if (!videoBase.startsWith('/api/background-isolation/videos')) throw new TypeError('video URL');
+      const proxy = manifest.preview;
+      const useProxy = proxy?.video_file === 'preview.webm' && proxy.codec === 'vp9-alpha'
+        && proxy.derived_from === 'cutout.webm' && proxy.frame_mapping === 'identity'
+        && typeof manifest.sha256 === 'string' && /^[0-9a-f]{64}$/.test(manifest.sha256)
+        && proxy.master_sha256 === manifest.sha256
+        && proxy.frame_count === manifest.frame_count && proxy.fps === manifest.fps
+        && Number.isInteger(proxy.width) && proxy.width > 0 && proxy.width <= manifest.width
+        && Number.isInteger(proxy.height) && proxy.height > 0 && proxy.height <= manifest.height
+        && Math.abs(proxy.width / proxy.height - manifest.width / manifest.height) < 0.005;
+      return {
+        ok: true, kind: 'artifact', useArtifact: true, fallback: null,
+        reason: null, status: 'ready', artifactId: manifest.artifact_id,
+        videoUrl: `${videoBase}/${manifest.artifact_id}/${useProxy ? 'preview.webm' : 'cutout.webm'}`, videoTime,
+        masterVideoUrl: `${videoBase}/${manifest.artifact_id}/cutout.webm`, usesProxy: useProxy,
+        rotation: manifest.rotation, fps: manifest.fps, width: manifest.width,
+        height: manifest.height, sourceStart, sourceDuration,
+      };
+    }
     if (manifest.schema_version !== SEQUENCE_SCHEMA_VERSION) throw new TypeError('schema');
     if (manifest.status !== 'ready') {
       const status = SEQUENCE_STATUSES.includes(manifest.status) ? manifest.status : 'error';

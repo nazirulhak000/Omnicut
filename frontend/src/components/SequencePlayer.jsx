@@ -38,6 +38,7 @@ import {
 import { bindWindowPointerLifecycle } from '../lib/pointerDragLifecycle.js';
 import { drawMediaWithAccentRecolor } from '../lib/overlayRecolor.js';
 import { reconcileEffectPlayback } from '../lib/effectPlayback.js';
+import { createCutoutVideoPlayback } from '../lib/cutoutVideoPlayback.js';
 import { getMotionPreset, MOTION_PRESETS } from '../lib/motion/motionPresets.js';
 import { sampleCanvasMotion } from '../lib/motion/rendererAdapter.js';
 import {
@@ -50,6 +51,7 @@ import {
 
 const CANVAS_W = 540;
 const CANVAS_H = 960;
+const CUTOUT_PENDING = Object.freeze({ pendingCutout: true });
 const BACKGROUND_ISOLATION_BG = '#0B1220';
 const BACKGROUND_FRAME_RETRY_DELAYS_MS = Object.freeze([250, 1000, 4000]);
 const BACKGROUND_FRAME_CACHE_LIMIT = 120;
@@ -503,11 +505,20 @@ function circleWeightAt(kind, p, dNorm) {
 
 /** Draws one clip's frame with its grade, at `alpha`. */
 function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0, isolatedImage = null, cutoutMode = 'composite') {
+  if (isolatedImage?.pendingCutout) {
+    ctx.fillStyle = BACKGROUND_ISOLATION_BG;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    return true;
+  }
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.filter = clipFilter(clip);
+  const isolatedVideo = isolatedImage instanceof HTMLVideoElement;
+  if (video && cutoutMode === 'composite' && !isolatedVideo) {
+    drawVideoFrame(ctx, video, clip, motionTime);
+  }
   const painted = isolatedImage
-    ? drawIsolatedFrame(ctx, isolatedImage, clip, motionTime, { includeBackground: true, cutoutMode })
-    : drawVideoFrame(ctx, video, clip, motionTime);
+    ? drawIsolatedFrame(ctx, isolatedImage, clip, motionTime, { includeBackground: isolatedVideo || cutoutMode !== 'composite', cutoutMode })
+    : (video ? drawVideoFrame(ctx, video, clip, motionTime) : false);
   ctx.globalAlpha = 1;
   ctx.filter = 'none';
   return painted;
@@ -725,12 +736,13 @@ function drawCheckerboardPattern(ctx, width, height, size = 36) {
 }
 
 function drawIsolatedFrame(ctx, image, clip, motionTime = 0, { includeBackground = true, cutoutMode = 'composite' } = {}) {
-  if (!image || !image.naturalWidth || !image.naturalHeight || !image.complete) return false;
+  const sourceWidth = image?.videoWidth || image?.naturalWidth || image?.width || 0;
+  const sourceHeight = image?.videoHeight || image?.naturalHeight || image?.height || 0;
+  if (!sourceWidth || !sourceHeight || (image instanceof HTMLVideoElement && image.readyState < 2)
+      || (image instanceof HTMLImageElement && !image.complete)) return false;
   const camera = resolveClipTransforms(clip, motionTime);
   const rotation = Number(clip?.rotation || 0) % 360;
   const isRotated90or270 = rotation === 90 || rotation === 270;
-  const sourceWidth = image.naturalWidth;
-  const sourceHeight = image.naturalHeight;
   const vw = isRotated90or270 ? sourceHeight : sourceWidth;
   const vh = isRotated90or270 ? sourceWidth : sourceHeight;
   const vRatio = vw / vh;
@@ -808,6 +820,11 @@ function backgroundArtifactId(config) {
   const artifact = config.artifact;
   if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) return null;
   return artifact.sequence_id || artifact.sequenceId || artifact.id || null;
+}
+
+function cutoutVideoKey(clip, url) {
+  const clipIdentity = clip?.id ?? `${clip?.source_path}:${clip?.trim_start}:${clip?.trim_end}`;
+  return `${clipIdentity}:${url}`;
 }
 
 function BackgroundIsolationStatusBadge({ status = 'off' }) {
@@ -3080,6 +3097,7 @@ function SequencePlayer({
   const lastPlayheadUiUpdateRef = useRef(null);
   const prevActiveClipIdRef = useRef(null);
   const backgroundIsolationImagesRef = useRef(new Map());
+  const backgroundIsolationVideosRef = useRef(new Map());
   const lastKnownIsolatedFramesRef = useRef(new Map());
   const [backgroundIsolationManifests, setBackgroundIsolationManifests] = useState({});
   const [backgroundIsolationTick, setBackgroundIsolationTick] = useState(0);
@@ -3112,7 +3130,7 @@ function SequencePlayer({
     return () => { cancelled = true; };
   }, [backgroundIsolationArtifactIds.join('|')]);
 
-  const loadedBackgroundIsolationFrame = useCallback(function loadBackgroundIsolationFrame(clip, sourceTime, prefetch = true) {
+  const loadedBackgroundIsolationFrame = useCallback(function loadBackgroundIsolationFrame(clip, sourceTime, prefetch = true, playVideo = isPlaying) {
     // The legacy blurred-canvas path has different geometry and filter order
     // from subject isolation.  Keep Preview on the same fail-closed branch as
     // the renderer for these clips.
@@ -3126,6 +3144,39 @@ function SequencePlayer({
       artifactBaseUrl: '/api/background-isolation/sequences',
       sourceTime: Math.max(0, Number(sourceTime) || 0),
     });
+    // A saved "ready" ID can outlive its cache after a manual clear or a stale
+    // editor save. Never paint the original background while that ID is absent.
+    if (config?.enabled === true && config?.artifact?.status === 'ready' && !resolution.useArtifact) {
+      return CUTOUT_PENDING;
+    }
+    if (resolution.useArtifact && resolution.videoUrl) {
+      const videos = backgroundIsolationVideosRef.current;
+      const videoKey = cutoutVideoKey(clip, resolution.videoUrl);
+      let video = videos.get(videoKey);
+      if (!video) {
+        // Bound decoder memory: current/outgoing/incoming plus one lookahead.
+        while (videos.size >= 4) {
+          const oldestKey = videos.keys().next().value;
+          videos.get(oldestKey)._cutoutPlayback.dispose();
+          videos.delete(oldestKey);
+        }
+        video = document.createElement('video');
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = 'auto';
+        video.src = resolution.videoUrl;
+        video._cutoutPlayback = createCutoutVideoPlayback(video, () => setBackgroundIsolationTick((value) => value + 1));
+      }
+      videos.delete(videoKey);
+      videos.set(videoKey, video);
+      if (video.error) return CUTOUT_PENDING;
+      const [numerator, denominator = 1] = String(resolution.fps).split('/').map(Number);
+      const frozen = Number.isFinite(Number(clip?.trim_end)) && sourceTime >= Number(clip.trim_end) - 0.001;
+      return video._cutoutPlayback.sync({ time: resolution.videoTime,
+        isPlaying: playVideo && !frozen, rate: Number(clip?.speed) || 1,
+        frameRate: numerator / denominator,
+      }) ? video : CUTOUT_PENDING;
+    }
     if (!resolution.useArtifact || !resolution.frameUrl) return null;
     const cache = backgroundIsolationImagesRef.current;
     const lastKnownFrames = lastKnownIsolatedFramesRef.current;
@@ -3208,6 +3259,10 @@ function SequencePlayer({
   }, [backgroundIsolation, backgroundIsolationManifests, isPlaying]);
 
   useEffect(() => () => {
+    backgroundIsolationVideosRef.current.forEach((video) => {
+      video._cutoutPlayback.dispose();
+    });
+    backgroundIsolationVideosRef.current.clear();
     backgroundIsolationImagesRef.current.forEach((entry) => {
       if (entry?.retryTimer != null) clearTimeout(entry.retryTimer);
       if (entry?.objectUrl) URL.revokeObjectURL(entry.objectUrl);
@@ -3215,6 +3270,10 @@ function SequencePlayer({
     backgroundIsolationImagesRef.current.clear();
     lastKnownIsolatedFramesRef.current.clear();
   }, []);
+
+  useEffect(() => {
+    if (!isPlaying) backgroundIsolationVideosRef.current.forEach((video) => video._cutoutPlayback.deactivate());
+  }, [isPlaying]);
 
   const publishPlayhead = (t, force = false, now = performance.now()) => {
     playheadRef.current = t;
@@ -3741,12 +3800,20 @@ function SequencePlayer({
     if (!hasManifestResponse) return 'processing';
 
     const manifest = backgroundIsolationManifests[artifactId];
+    if (manifest == null) return 'quality_failed';
     const resolution = resolveBackgroundIsolationPreview({
       config,
       manifest,
       artifactBaseUrl: '/api/background-isolation/sequences',
       sourceTime: Math.max(0, Number(currentEntry?.localTime) || 0),
     });
+    if (resolution.useArtifact && resolution.videoUrl) {
+      const video = backgroundIsolationVideosRef.current.get(cutoutVideoKey(currentEntry?.seg.clip, resolution.videoUrl));
+      if (video?.error) return 'quality_failed';
+      return video?.readyState >= 2 && !video.seeking
+        && video._cutoutPresentedTime != null
+        && Math.abs(video._cutoutPresentedTime - resolution.videoTime) <= 0.065 ? 'ready' : 'processing';
+    }
     if (resolution.useArtifact && resolution.frameUrl) {
       const frame = backgroundIsolationImagesRef.current.get(resolution.frameUrl);
       if (!frame || frame.status === 'loading') return 'processing';
@@ -4251,6 +4318,7 @@ function SequencePlayer({
             nextV.currentTime = nextStart;
           }
         }
+        loadedBackgroundIsolationFrame(upcomingSeg.clip, nextStart, false, false);
       }
 
       // 2. Play active clips & compensate drift smoothly via playbackRate (slew rate)
@@ -4258,27 +4326,34 @@ function SequencePlayer({
       plan.forEach(({ seg, localTime }) => {
         const v = videoElsRef.current[seg.clip.id];
         if (!v) return;
+        const baseRate = Number(seg.clip.speed) || 1;
+        if (Number.isFinite(Number(seg.clip.trim_end)) && localTime >= Number(seg.clip.trim_end) - 0.001) {
+          v.pause();
+          const lastFrame = Math.max(Number(seg.clip.trim_start) || 0, Number(seg.clip.trim_end) - 1 / 30);
+          if (!v.seeking && Math.abs(v.currentTime - lastFrame) > RESYNC.START) v.currentTime = lastFrame;
+          return;
+        }
         if (v.paused) {
           // If already near localTime from pre-roll, start immediately without seek!
           if (Math.abs(v.currentTime - localTime) > RESYNC.START) {
             v.currentTime = localTime;
           }
-          v.playbackRate = 1.0;
+          v.playbackRate = baseRate;
           v.play().catch(() => {});
         } else {
           const drift = v.currentTime - localTime;
-          if (Math.abs(drift) > RESYNC.VIDEO_HARD) {
+          if (Math.abs(drift) > RESYNC.VIDEO_HARD && !v.seeking) {
             // Large drift (after scrub or tab resume) -> hard seek
             v.currentTime = localTime;
-            v.playbackRate = 1.0;
+            v.playbackRate = baseRate;
           } else if (drift < -RESYNC.VIDEO_SLEW) {
             // Video is slightly trailing behind -> accelerate 6% to catch up smoothly
-            v.playbackRate = 1.06;
+            v.playbackRate = baseRate * 1.06;
           } else if (drift > RESYNC.VIDEO_SLEW) {
             // Video is slightly ahead -> slow down 6% to let master clock catch up
-            v.playbackRate = 0.94;
+            v.playbackRate = baseRate * 0.94;
           } else {
-            if (v.playbackRate !== 1.0) v.playbackRate = 1.0;
+            if (v.playbackRate !== baseRate) v.playbackRate = baseRate;
           }
         }
       });
@@ -4289,6 +4364,10 @@ function SequencePlayer({
           v.playbackRate = 1.0;
           v.pause();
         }
+      });
+      const activeCutoutKeys = new Set(plan.map(({ seg }) => String(seg.clip.id)));
+      backgroundIsolationVideosRef.current.forEach((video, key) => {
+        if (![...activeCutoutKeys].some((id) => key.startsWith(`${id}:`))) video._cutoutPlayback.deactivate();
       });
 
       // 4. Glitch-Protected Double-Buffered Rendering
@@ -4312,7 +4391,10 @@ function SequencePlayer({
               ctx.filter = clipFilter(prevSeg.clip);
               const prevImage = loadedBackgroundIsolationFrame(prevSeg.clip, localTimeAt(prevSeg, t));
               if (prevImage) {
-                drawIsolatedFrame(ctx, prevImage, prevSeg.clip, motionTimeAt(prevSeg, t), { includeBackground: true, cutoutMode: activeCutoutMode });
+                if (prevV && activeCutoutMode === 'composite') {
+                  drawVideoFrame(ctx, prevV, prevSeg.clip);
+                }
+                drawIsolatedFrame(ctx, prevImage, prevSeg.clip, motionTimeAt(prevSeg, t), { includeBackground: activeCutoutMode !== 'composite', cutoutMode: activeCutoutMode });
               } else {
                 drawVideoFrame(ctx, prevV, prevSeg.clip);
               }

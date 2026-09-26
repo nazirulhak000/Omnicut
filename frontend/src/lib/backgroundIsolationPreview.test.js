@@ -42,6 +42,9 @@ test('completed isolation task projection ignores another project and malformed 
   ];
 
   assert.deepEqual(completedBackgroundIsolationTasks(tasks, 'active'), [tasks[0]]);
+  assert.deepEqual(completedBackgroundIsolationTasks(tasks, 'active', 'new-job'), []);
+  tasks[0].payload.config = { request_id: 'new-job' };
+  assert.deepEqual(completedBackgroundIsolationTasks(tasks, 'active', 'new-job'), [tasks[0]]);
 });
 
 test('explicit project disable overrides a ready clip artifact', () => {
@@ -96,6 +99,23 @@ test('status summary reports processing before ready and ready only after every 
   assert.equal(summarizeBackgroundIsolationStatus({
     clips: clips.map((clip) => ({ ...clip, background_isolation: { ...clip.background_isolation, artifact: { ...clip.background_isolation.artifact, status: 'ready' } } })),
     projectConfig: { enabled: true },
+  }).state, 'ready');
+});
+
+test('ready metadata is not reported ready after its artifact disappears', () => {
+  const clips = [{
+    source_path: 'D:/clips/product.mp4',
+    background_isolation: { enabled: true, artifact: { id: ARTIFACT_ID, status: 'ready' } },
+  }];
+  const base = { clips, projectConfig: { enabled: true } };
+  assert.equal(summarizeBackgroundIsolationStatus({ ...base, artifactAvailability: {} }).state, 'processing');
+  const missing = summarizeBackgroundIsolationStatus({
+    ...base, artifactAvailability: { [ARTIFACT_ID]: false },
+  });
+  assert.equal(missing.state, 'quality_failed');
+  assert.equal(missing.label, 'ไฟล์ Cutout หาย กรุณาเตรียมใหม่');
+  assert.equal(summarizeBackgroundIsolationStatus({
+    ...base, artifactAvailability: { [ARTIFACT_ID]: true },
   }).state, 'ready');
 });
 
@@ -253,6 +273,40 @@ function readyManifest(overrides = {}) {
     ...overrides,
   };
 }
+
+test('video artifact maps absolute source time to a seekable cutout video', () => {
+  const manifest = readyManifest({
+    schema_version: 2, video_file: 'cutout.webm', codec: 'vp9-alpha',
+    fps: '30/1', frame_count: 60, source_start: 8, source_duration: 2,
+  });
+  const resolved = resolveBackgroundIsolationPreview({
+    config: readyConfig(), manifest, artifactBaseUrl: BASE_URL, sourceTime: 9,
+  });
+  assert.equal(resolved.videoUrl, `/api/background-isolation/videos/${ARTIFACT_ID}/cutout.webm`);
+  assert.equal(resolved.videoTime, 1);
+  assert.equal(resolved.frameUrl, undefined);
+  const outside = resolveBackgroundIsolationPreview({
+    config: readyConfig(), manifest, artifactBaseUrl: BASE_URL, sourceTime: 11,
+  });
+  assert.equal(outside.useArtifact, false);
+  assert.equal(outside.reason, 'source_time_outside_artifact');
+});
+
+test('preview uses only a proxy tied to the same master, frames, fps and geometry', () => {
+  const sha = 'a'.repeat(64);
+  const proxy = { video_file: 'preview.webm', codec: 'vp9-alpha', derived_from: 'cutout.webm',
+    master_sha256: sha, frame_mapping: 'identity', frame_count: 60, fps: '30/1', width: 540, height: 960 };
+  const manifest = readyManifest({ schema_version: 2, video_file: 'cutout.webm', codec: 'vp9-alpha',
+    fps: '30/1', frame_count: 60, source_start: 8, source_duration: 2, sha256: sha, preview: proxy });
+  const resolve = (preview) => resolveBackgroundIsolationPreview({ config: readyConfig(),
+    manifest: { ...manifest, preview }, artifactBaseUrl: BASE_URL, sourceTime: 9 });
+  assert.match(resolve(proxy).videoUrl, /preview.webm$/);
+  assert.equal(resolve(proxy).videoTime, 1);
+  for (const invalid of [{ master_sha256: 'b'.repeat(64) }, { frame_count: 59 }, { fps: '24/1' },
+    { width: 960 }, { video_file: '../evil.webm' }]) {
+    assert.match(resolve({ ...proxy, ...invalid }).videoUrl, /cutout.webm$/);
+  }
+});
 
 test('missing field preserves legacy behavior without producing an artifact URL', () => {
   assert.deepEqual(

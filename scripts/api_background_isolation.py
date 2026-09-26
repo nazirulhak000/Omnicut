@@ -1,10 +1,8 @@
-"""Processing and read API for background-isolation frame sequences.
+"""Processing and read API for video cutouts and legacy frame sequences.
 
-The router deliberately owns no processing lifecycle.  A sequence worker
-publishes a validated manifest and derived PNG frames first; this module only
-serves a complete, ready sequence from the canonical project cache.  The
-application mounts the router, so the normal application middleware (including
-the API-key gate) remains the single authentication boundary.
+The task worker publishes a validated transparent video before this router
+serves its manifest and media. Published PNG sequences remain readable for
+existing projects. Application middleware retains the authentication boundary.
 """
 
 from __future__ import annotations
@@ -36,11 +34,11 @@ from scripts.config import PROJECTS_DIR
 from scripts.storage_cleaner import is_strictly_protected_path
 from scripts.task_manager import TaskManager
 from scripts.background_isolation import normalize_background_isolation
-from scripts.background_isolation_sequence import extract_background_isolation_sequence
-from scripts.background_isolation_sequence_artifacts import build_sequence_artifact_id, build_sequence_manifest, write_sequence_manifest
-from scripts.background_isolation_sequence_worker import (
-    DERIVED_CACHE_NAMESPACE,
-    process_background_isolation_sequence,
+from scripts.background_isolation_sequence_artifacts import build_sequence_artifact_id
+from scripts.background_isolation_sequence_worker import DERIVED_CACHE_NAMESPACE
+from scripts.background_isolation_video_worker import (
+    VIDEO_NAMESPACE, VIDEO_NAME, VIDEO_SCHEMA_VERSION,
+    process_background_isolation_video,
 )
 
 
@@ -56,7 +54,7 @@ _BACKGROUND_SOURCE_ROOT_NAMES = ("", "00_Inbox", "01_Raw", "02_Assets", "03_Proj
 
 
 class BackgroundIsolationProcessRequest(BaseModel):
-    """Request to build a ready RGBA sequence in the project cache."""
+    """Request to build a ready transparent video in the project cache."""
 
     source_path: str
     config: dict[str, Any] = Field(default_factory=dict)
@@ -88,16 +86,17 @@ def _background_isolation_preflight(
     model_home = Path(os.environ.get("U2NET_HOME") or (Path.home() / ".u2net"))
     model_path = model_home / f"{req.config.get('model', 'u2net')}.onnx"
     frame_count = math.ceil((req.duration or 0) * req.fps - 1e-9) if req.duration else None
-    # Extraction keeps RGB source frames and RGBA foreground frames. PNG
-    # compression varies wildly, so use a conservative raw-pixel estimate.
+    # The new worker streams pixels through RAM and stages one alpha video.
+    # Keep a conservative compressed-video allowance without reserving disk
+    # for two full-resolution PNG sequences.
     estimated_cache_bytes = (
-        frame_count * req.width * req.height * 7 if frame_count is not None else None
+        frame_count * req.width * req.height // 4 if frame_count is not None else None
     )
     disk_target = Path(PROJECTS_DIR).resolve(strict=False)
     while not disk_target.exists() and disk_target != disk_target.parent:
         disk_target = disk_target.parent
     free_disk_bytes = shutil.disk_usage(disk_target).free
-    required_disk_bytes = max(256 * 1024 * 1024, int((estimated_cache_bytes or 0) * 1.25))
+    required_disk_bytes = max(128 * 1024 * 1024, int((estimated_cache_bytes or 0) * 2))
     required_memory_bytes = (
         384 * 1024 * 1024 if req.config.get("model") == "u2netp" else 768 * 1024 * 1024
     )
@@ -132,7 +131,7 @@ def _background_isolation_preflight(
         issues.append({
             "severity": "error",
             "code": "disk_space_low",
-            "message": "พื้นที่ cache ไม่พอสำหรับเฟรม Cutout ช่วงนี้",
+            "message": "พื้นที่ cache ไม่พอสำหรับวิดีโอ Cutout ช่วงนี้",
         })
     if available_memory_bytes is not None and available_memory_bytes < required_memory_bytes:
         issues.append({
@@ -263,17 +262,6 @@ def _run_background_isolation_task(
             timebase = f"1/{int(req.fps)}"
         else:
             timebase = "1001/30000"
-        source_id = _source_sequence_id(
-            source_fingerprint,
-            normalized,
-            start=req.start,
-            duration=req.duration,
-            fps=req.fps,
-            timebase=timebase,
-            width=req.width,
-            height=req.height,
-            rotation=req.rotation,
-        )
         cache_root = Path(PROJECTS_DIR).resolve() / ".cache"
 
         def progress(event: dict[str, Any]) -> None:
@@ -282,44 +270,16 @@ def _run_background_isolation_task(
             if isinstance(value, (int, float)):
                 TaskManager.update_progress(task_id, min(0.99, 0.45 * float(value) if stage == "processing" else 0.45 + 0.55 * float(value)), f"Background isolation: {stage}")
 
-        TaskManager.update_progress(task_id, 0.05, "กำลังเตรียมเฟรมวิดีโอสำหรับตัดพื้นหลัง")
-        # Extract only the source window used by this timeline job.  The
-        # absolute window origin is persisted in the manifest so Preview and
-        # Render can map source time to artifact-local frame indices exactly.
-        extracted = extract_background_isolation_sequence(
-            source, cache_root, source_id, start=req.start, duration=req.duration,
-            fps=req.fps, timebase=timebase, width=req.width, height=req.height,
-            cancel_event=cancel_event,
-            progress_callback=progress,
-        )
-        if extracted.get("status") != "ready":
-            raise RuntimeError(extracted.get("message") or "source frame extraction failed")
-        source_manifest = build_sequence_manifest(
-            source_id, source_fingerprint=source_fingerprint,
-            algorithm="background-isolation-source-v1", engine=normalized["engine"],
-            model=normalized["model"], quality=normalized["quality"],
-            worker_version="source-sequence-v2", frame_count=extracted["frame_count"],
-            fps=req.fps, timebase=timebase, width=req.width, height=req.height,
-            rotation=req.rotation, source_start=extracted["start"],
-            source_duration=extracted["duration"], status="ready",
-        )
-        write_sequence_manifest(cache_root, source_id, source_manifest)
-        TaskManager.update_progress(task_id, 0.48, "กำลังแยกสินค้าออกจากพื้นหลังด้วย rembg")
-        result = process_background_isolation_sequence(
-            extracted["sequence_dir"], cache_root, {
-                **normalized, "artifact": {"id": None, "status": "missing"},
-            }, source_manifest, cancel_event=cancel_event, progress_callback=progress,
+        TaskManager.update_progress(task_id, 0.05, "กำลังตัดพื้นหลังวิดีโอ")
+        result = process_background_isolation_video(
+            source, cache_root, normalized,
+            source_fingerprint=source_fingerprint, start=req.start,
+            duration=req.duration, fps=req.fps, timebase=timebase,
+            width=req.width, height=req.height, rotation=req.rotation,
+            cancel_event=cancel_event, progress_callback=progress,
         )
         if result.get("status") != "ready" or not result.get("artifact_id"):
             raise RuntimeError(result.get("message") or "background isolation failed")
-        # Auto-cleanup transient raw source extraction frames to reclaim disk space (~73% saved)
-        try:
-            seq_dir = Path(extracted["sequence_dir"])
-            if seq_dir.exists() and not is_strictly_protected_path(seq_dir):
-                shutil.rmtree(str(seq_dir), ignore_errors=True)
-        except Exception:
-            pass
-
         output_manifest = Path(result["output_directory"]) / "manifest.json"
         sequence = json.loads(output_manifest.read_text(encoding="utf-8"))
         completed = {
@@ -558,10 +518,65 @@ def _validated_png_frame(artifact_id: str, frame_index: int, frame_count: int) -
 
 @router.get("/sequences/{artifact_id}/manifest")
 def get_background_isolation_manifest(artifact_id: str) -> dict[str, Any]:
-    """Return a published ready manifest for one opaque sequence ID."""
-
+    """Return a published video or legacy sequence manifest by artifact ID."""
+    video = _ready_video(artifact_id)
+    if video is not None:
+        manifest = dict(video[1])
+        proxy_path = video[0].with_name("preview.webm")
+        preview = manifest.get("preview") or {}
+        if (proxy_path.is_symlink() or not proxy_path.is_file()
+                or proxy_path.stat().st_size != preview.get("size_bytes")):
+            manifest.pop("preview", None)
+        return manifest
     _sequence_dir, manifest = _ready_sequence(artifact_id)
     return manifest
+
+
+def _ready_video(artifact_id: str) -> tuple[Path, dict[str, Any]] | None:
+    if not isinstance(artifact_id, str) or not re.fullmatch(r"bgseq1-[0-9a-f]{16}", artifact_id):
+        raise _invalid_artifact_id()
+    root = _canonical_cache_root()
+    namespace = root / VIDEO_NAMESPACE
+    directory = namespace / artifact_id
+    video = directory / VIDEO_NAME
+    manifest_path = directory / "manifest.json"
+    if any(path.is_symlink() for path in (namespace, directory, video, manifest_path)):
+        raise HTTPException(status_code=404, detail="background isolation video not found")
+    if not manifest_path.is_file() or not video.is_file():
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raise HTTPException(status_code=404, detail="background isolation video not found")
+    if (manifest.get("schema_version") != VIDEO_SCHEMA_VERSION
+            or manifest.get("artifact_id") != artifact_id
+            or manifest.get("status") != "ready"
+            or manifest.get("video_file") != VIDEO_NAME):
+        raise HTTPException(status_code=404, detail="background isolation video not found")
+    return video, manifest
+
+
+@router.get("/videos/{artifact_id}/cutout.webm")
+def get_background_isolation_video(artifact_id: str) -> FileResponse:
+    ready = _ready_video(artifact_id)
+    if ready is None:
+        raise HTTPException(status_code=404, detail="background isolation video not found")
+    return FileResponse(ready[0], media_type="video/webm", headers={"Cache-Control": "private, max-age=31536000, immutable"})
+
+
+@router.get("/videos/{artifact_id}/preview.webm")
+def get_background_isolation_video_preview(artifact_id: str) -> FileResponse:
+    ready = _ready_video(artifact_id)
+    if ready is None:
+        raise HTTPException(status_code=404, detail="background isolation preview not found")
+    preview = ready[1].get("preview") or {}
+    path = ready[0].with_name("preview.webm")
+    if (preview.get("video_file") != "preview.webm" or preview.get("derived_from") != VIDEO_NAME
+            or preview.get("master_sha256") != ready[1].get("sha256")
+            or path.is_symlink() or not path.is_file()
+            or path.stat().st_size != preview.get("size_bytes")):
+        raise HTTPException(status_code=404, detail="background isolation preview not found")
+    return FileResponse(path, media_type="video/webm", headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
 
 @router.get("/sequences/{artifact_id}/frames/{frame_index}")
