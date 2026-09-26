@@ -1,5 +1,58 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
+## Round PROXY-CONSOLE-ERROR-REGRESSION-20260926 — reported, awaiting owner
+
+วันที่: 2026-09-26 · สั่งโดย: user (รัน full test suite) · พบโดย: Cline (Claude) · สถานะ: รายงานแล้ว ยังไม่แก้ (เป็นของเจ้าของฟีเจอร์ proxy)
+
+**เป้าหมาย:** ปลดล็อก full pytest suite ที่ถูก commit `449ec9a` ทำให้พัง 40 เทส
+
+### ตัวเลขจริงจากการรันเต็ม 2 รอบ
+
+| รอบ | เวลา | ผล |
+| :-- | :-- | :-- |
+| รอบ 1 (ก่อน commit proxy) | 9m53s | **42 failed**, 1908 passed, 8 skipped |
+| รอบ 2 (หลัง commit `449ec9a` + `c6ccd6b`) | 10m12s | **41 failed**, 1909 passed, 8 skipped |
+
+รอบ 2 มีน้อยกว่า 1 เทส เพราะ `tests/test_export_registry_bulk.py::test_path_index_refreshes_after_external_json_mirror_edit` ผ่านแล้ว (เป็น flake จากลำดับเทส) · งานของ Cline (`d937e45`) ไม่มีส่วนทำให้เทสใดพัง
+
+### หลักฐานรากเหตุ (ดึงจาก `manifest.json` runtime diagnostics ของ `app_capture.py`)
+
+```
+console_errors=1  page_errors=0  request_failures=0
+CONSOLE ERROR:
+  "Failed to load resource: the server responded with a status of 403 ()"
+  url: https://127.0.0.1:55956/api/proxy/for-clip
+        ?source_path=https%3A%2F%2F127.0.0.1%3A55956%2Fmotion_capture.html&build=true
+```
+
+**กลไก:** `tests/motion_capture/app_capture.py:306` ตั้ง `fail_on_runtime_errors=True` และเช็ค `runtime["clean"]` = ไม่มี console error / page error / request failure → เทส capture Chromium ต่อ **Vite fixture** ซึ่งไม่มี FastAPI backend การเรียก `/api/proxy/for-clip` จึงได้ **403** และ Chromium บันทึกเป็น console error เอง (ข้อความนี้เป็นของระบบ browser จึงกดทิ้งจาก JS ไม่ได้) → ทุกเทสที่ใช้ `capture_app_canvas` ล้มพร้อมกัน
+
+> สังเกตเพิ่ม: `source_path` ที่ส่งไปคือ **URL ของหน้า fixture เอง** (`motion_capture.html`) ไม่ใช่ไฟล์สื่อ — แปลว่า proxy ถูกเรียกกับ source ที่เล่นไม่ได้อยู่แล้ว
+
+### เทสที่พัง (40 จาก 41 = สาเหตุเดียวกัน)
+| ไฟล์ | จำนวน |
+| :--- | :--- |
+| `tests/motion_capture/test_frame_pair.py` | 18 |
+| `tests/motion_capture/test_clip_frame_pair.py` | 16 |
+| `tests/motion_capture/test_overlay_frame_pair.py` | 4 |
+| `tests/motion_capture/test_app_capture.py` | 2 |
+
+### ทางเลือกแก้ (ยังไม่เลือก — เป็นงานของเจ้าของฟีเจอร์ proxy)
+1. **ไม่ยิง proxy เมื่อไม่มี backend** — ให้ `getClipProxy` ข้ามเมื่อ `import.meta.env` ไม่ใช่ dev server จริง หรือเมื่อ `source_path` ไม่ใช่ไฟล์สื่อที่เล่นได้
+2. **เพิ่ม allowlist ใน `app_capture.py`** — ให้ `/api/proxy` 403 อยู่ในกลุ่ม `expected_media_cancellations` เหมือนที่มีอยู่แล้ว (ตรงกับเจตนาของเทส แต่ทำให้ parity gate ไม่จับปัญหาจริงของ proxy)
+3. **ให้ fixture ปิด proxy** — เพิ่ม flag ใน `motionCaptureFixture.jsx` เพื่อบังคับเส้นทาง master เหมือนก่อนมีฟีเจอร์
+
+### เทสที่เหลืออีก 1 อัน (คนละเรื่อง)
+- `tests/motion_capture/test_cutout_video_preview.py` → `{'seeks': 0, 'visible': 50}` · เกณฑ์คือ `visible >= 54` ได้ 50/60 เฟรม → เป็นเกณฑ์ขอบเขตของ headless Chromium ควรประเมินว่าจะลด threshold หรือเพิ่มความทนทาน
+
+### Notes
+- การรันเต็มใช้เวลา ~10 นาที ต่อรอบ · คำสั่ง: `python -m pytest tests/ -q -p no:cacheprovider --tb=line -rf`
+- working tree สะอาดตอนรัน · commit ล่าสุด `c6ccd6b`
+- ไฟล์ debug ที่ใช้หาสาเหตุถูกลบแล้ว 100% (`.tmp/keep_manifest.py`, `.tmp/capture_keep/`, `.tmp/diag.txt`, log ทั้งหมด)
+- `.tmp/cutout_playback_pytest` และ `.tmp/cutout_quality_pytest` เป็นของเอเจนต์อื่น ไม่ได้ลบ
+
+---
+
 ## Round A11Y-ARIA-LABEL-AND-ROUND-CLOSE-20260926 — in progress
 
 วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Cline (Claude) · สถานะ: อนุมัติแล้ว (เลือกทำ 2 อย่าง: แก้ aria-label + ปิดรอบเข้า HISTORY)
