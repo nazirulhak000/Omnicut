@@ -177,3 +177,40 @@ def test_mask_video_composites_in_real_ffmpeg_export(tmp_path, monkeypatch):
     left = frame[(640 * 720 + 100) * 3:(640 * 720 + 100) * 3 + 3]
     right = frame[(640 * 720 + 600) * 3:(640 * 720 + 600) * 3 + 3]
     assert right[2] > left[2] + 70
+
+
+def test_manifest_records_measured_encode_performance(tmp_path):
+    """Phase 0 baseline: the worker must record what the encode actually cost.
+
+    The round's own report had to disclaim its only size figure as read off a
+    screenshot rather than measured. Writing the numbers into the manifest at
+    encode time means a later run can be compared against this one instead of
+    against a recollection.
+    """
+    source = tmp_path / "source.mp4"
+    subprocess.run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+         "-i", "color=c=blue:s=16x16:r=2:d=1", "-c:v", "libx264", str(source)],
+        check=True, capture_output=True,
+    )
+    result = video_worker.process_background_isolation_video(
+        source, tmp_path / "03_Projects" / ".cache", {"enabled": True},
+        source_fingerprint="sha256:" + "b" * 64,
+        start=0.0, duration=1.0, fps=2, timebase="1/2", width=16, height=16,
+        rotation=0, rembg_worker=_Worker(),
+    )
+    directory = (tmp_path / "03_Projects" / ".cache"
+                 / video_worker.VIDEO_NAMESPACE / result["artifact_id"])
+    perf = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))["performance"]
+
+    # Measured, not asserted: a zero or missing duration would mean the clock
+    # was never started and the "baseline" would be fiction.
+    assert perf["encode_seconds"] > 0
+    assert perf["frame_count"] == 2
+    assert perf["source_seconds"] == 1.0
+    assert perf["seconds_per_frame"] > 0
+    assert perf["realtime_factor"] > 0
+    # Output size is recorded so a codec change shows up as a size regression.
+    assert perf["output_bytes"] == (directory / "cutout.webm").stat().st_size
+    assert perf["bytes_per_frame"] == round(perf["output_bytes"] / 2)
+    assert (perf["width"], perf["height"]) == (16, 16)

@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Callable
@@ -153,6 +154,10 @@ def process_background_isolation_video(
     staged = Path(tempfile.mkdtemp(prefix=f".{artifact_id}.", dir=namespace))
     decoder = encoder = None
     frame_count = 0
+    # Phase 0 baseline: the round has to report real throughput rather than
+    # asserting it, so the encode loop is timed and the numbers go into the
+    # manifest where a later run can be compared against this one.
+    encode_started_at = time.perf_counter()
     fps_ratio = Fraction(str(fps)).limit_denominator(1001000)
     fps_text = f"{fps_ratio.numerator}/{fps_ratio.denominator}"
     frame_size = width * height * 3
@@ -237,6 +242,7 @@ def process_background_isolation_video(
             if duration is not None and abs(frame_count - round(duration * float(fps_ratio))) > 1:
                 raise RuntimeError("cutout source ended before the requested video window")
         video_path = staged / VIDEO_NAME
+        encode_seconds = time.perf_counter() - encode_started_at
         _verify_video(video_path, width=width, height=height, frame_count=frame_count)
         if cancel_event is not None and cancel_event.is_set():
             raise RuntimeError("background isolation cancelled")
@@ -258,6 +264,20 @@ def process_background_isolation_video(
         manifest["temporal_mode"] = temporal_mode
         manifest["quality_report"] = {"media_verified": True, "subject_review": "required",
                                       "temporal": refiner.stats if refiner else {"mode": temporal_mode}}
+        # Measured, not estimated. source_seconds is the span actually covered
+        # by the frames produced, so realtime_factor stays meaningful even when
+        # the requested duration was clipped by the end of the source.
+        source_seconds = frame_count / float(fps_ratio) if fps_ratio else 0.0
+        manifest["performance"] = {
+            "encode_seconds": round(encode_seconds, 3),
+            "frame_count": frame_count,
+            "source_seconds": round(source_seconds, 3),
+            "seconds_per_frame": round(encode_seconds / frame_count, 4) if frame_count else None,
+            "realtime_factor": round(encode_seconds / source_seconds, 2) if source_seconds else None,
+            "width": width, "height": height,
+            "output_bytes": video_path.stat().st_size,
+            "bytes_per_frame": round(video_path.stat().st_size / frame_count) if frame_count else None,
+        }
         if preview:
             manifest["preview"] = {**preview, "master_sha256": checksum, "fps": fps_text}
         (staged / "manifest.json").write_text(json.dumps(manifest, sort_keys=True), encoding="utf-8")

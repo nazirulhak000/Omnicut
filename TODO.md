@@ -429,11 +429,35 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 ### Todo
 - [x] ตรวจแผน Gemini และเส้นทาง worker → API → Preview → Render ในโค้ดปัจจุบัน
 - [x] กำหนด architecture, migration, baseline และ acceptance gate ที่ต้องพิสูจน์จากวิดีโอจริง
-- [ ] Phase 0: วัด baseline และพิสูจน์ codec/seek/alpha บนเครื่องจริง
+- [x] Phase 0: วัด baseline และพิสูจน์ codec/seek/alpha บนเครื่องจริง — รายงาน `_Docs/Reports/CUTOUT_PHASE0_BASELINE_20260926.md` (ดำเนินการโดย: Claude Code (Claude Opus 5 1M))
 - [x] Phase 1: สร้าง video worker แบบ streaming, alpha validation และปรับ mask ตามเวลาเบื้องต้น
 - [x] Phase 2: เชื่อม API และ Preview ให้ใช้ video artifact
 - [x] Phase 3: เชื่อม Render, Save/Reload และ legacy migration
 - [ ] Phase 4: ผ่าน Preview/Render visual gate, วัดผลจริง และ cleanup 100%
+
+### ผลรอบ Phase 0 + cleanup (2026-09-26, Claude Code)
+
+**ตรวจก่อนทำ — ยิง audit 6 ด้าน + adversarial verify (12 agents)** เพราะรายงานเดิมอาจล้าสมัย ผลคือ:
+- **รายงานเดิมผิดจริง 1 จุด**: ที่เขียนว่า "ยังไม่ได้ทำ scene cut reset" — ของจริง**ทำแล้วและมีเทสคุม** อยู่ที่ `scripts/cutout_temporal.py:31-45` (ตรวจ hard cut ด้วย histogram Bhattacharyya + mean appearance diff) เทสอยู่ที่ `tests/test_cutout_temporal.py` (`resets == 4`) — ที่สับสนเพราะ reset อยู่ในโหมด `motion` ซึ่งเป็น opt-in ส่วน default คือ `legacy` ที่ไม่มี reset
+- **artifact ของ Codex หายหมด**: `.cache` เหลือแต่ `cutout-models` (149 MB), `.webm` = 0 ไฟล์, BLU01 `project.json` ชี้ `{"status":"missing","id":null}` — source media ยังครบ สร้างใหม่ได้
+
+**Phase 0 — วัดจริงแล้ว**
+- ก่อนหน้านี้ worker **ไม่มีการจับเวลาเลย** (`grep perf_counter` = 0 บรรทัด) จึงพิสูจน์ความเร็วไม่ได้ เพิ่ม `manifest["performance"]` เขียนค่าที่วัดจากนาฬิกาจริงทุกครั้งที่ encode + เทสล็อกไว้
+- วัดบนฟุตเทจจริง BLU01 window 22.000–26.720s (1920x1080 30fps, 142 เฟรม): **encode 89.4 วินาที = 18.89x realtime**, 0.63 วินาที/เฟรม, ผลลัพธ์ 1.25 MiB (9,206 bytes/เฟรม)
+- แปลว่าคลิป 1 นาที 1080p30 ใช้เวลาแยกพื้นหลัง **~19 นาที** ต้องรัน background เท่านั้น
+- **เจอกับดักสำคัญ**: probe alpha โดยไม่ระบุ decoder ได้ `min=255 max=255` เหมือน alpha หาย แต่ใส่ `-c:v libvpx-vp9` แล้วได้ `min=0 max=255` ถูกต้อง → ffmpeg เลือก decoder ที่ทิ้ง alpha เงียบๆ **ยืนยันว่าที่ `_verify_video()` บังคับ decoder ไว้เป็นสิ่งจำเป็น ถอดออกไม่ได้**
+- Seek: วัดได้ p50 309ms / p95 344ms **แต่ไม่ถือว่า fail gate 200ms** เพราะแยกแล้วพบว่า 242ms คือ ffmpeg start process ต้นทุน seek จริง ~22ms ส่วน gate หมายถึง seek ในเบราว์เซอร์ที่เปิดไฟล์ค้างไว้ — เทียบกันไม่ได้
+
+**Cleanup — ลบขยะทดสอบตามกฎข้อ 11/15 (ผู้ใช้อนุมัติ)**
+- ลบ `demo_2026*` **26 ไฟล์** (13 mp4 + 13 webp, ~8 MB) ออกจาก `04_Exports/Ready_to_post/` — ตรวจแล้วทุกไฟล์เป็น `project_name:"demo"`, `product_id:null`, ไม่เคยโพสต์
+- ล้าง `export_registry.json` **491 → 173 entries** (ลบ 318: demo 13 + orphan `TEST_look_preset_*` 152 + `TEST_mix_on_demand_*` 149 + pytest/.tmp paths 4) ทั้งหมดเป็น entry ที่ไฟล์หายไปแล้วและเป็นของทดสอบ
+- **entry ที่โพสต์แล้ว 116 รายการอยู่ครบ** ไม่แตะ · หลังล้างเหลือ entry ที่ชี้ไฟล์หาย = **0**
+- เขียน guard ในสคริปต์ว่า entry ที่ไฟล์หายแต่ **ไม่ใช่** ของทดสอบจะถูกเก็บไว้และรายงาน (ผลจริง: 0 รายการ ไม่มีผลงานจริงถูกลบ)
+
+**งานที่ยังค้างจริง (ยืนยันด้วย audit)**
+- Preview-vs-Render cutout parity gate **ยังไม่มี** — `test_cutout_video_preview.py` เป็น preview อย่างเดียว ไม่เคยเรียก ffmpeg; `test_background_isolation_render_integration.py` stub `subprocess.run` ไว้ ffmpeg จึงไม่เคยรันจริง
+- วัด mask edge stability ในช็อตเร็ว — `tools/benchmark_cutout_quality.py` **รันได้เลย ไม่ต้องรอ .webm** (มันกิน JPG แล้วรัน rembg เอง) แต่ยังไม่เคยออกรายงาน
+- Seek p50/p95 ในเบราว์เซอร์จริง, VFR source, `rotation != 0` — ไม่มีเทสครอบคลุม
 
 ### Notes
 - งานใหม่สร้าง `cutout.webm` แบบ VP9 alpha หนึ่งไฟล์ต่อ source window; ตัวอ่าน PNG เดิมยังใช้กับโปรเจกต์เก่าได้
