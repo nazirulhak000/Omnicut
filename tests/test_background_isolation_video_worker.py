@@ -214,3 +214,52 @@ def test_manifest_records_measured_encode_performance(tmp_path):
     assert perf["output_bytes"] == (directory / "cutout.webm").stat().st_size
     assert perf["bytes_per_frame"] == round(perf["output_bytes"] / 2)
     assert (perf["width"], perf["height"]) == (16, 16)
+
+
+def test_default_temporal_mode_is_motion(tmp_path):
+    """A project that never chose a temporal mode must get the one that works.
+
+    Measured 2026-09-26 across two real BLU01 windows: the previous default
+    ("legacy") scored -0.7% and -0.3% against raw rembg -- no better than
+    doing nothing -- because it only blends pixels differing by less than 24
+    from the previous frame, so moving edges keep their raw mask. "motion"
+    scored +20.5% and +12.7%. See
+    _Docs/Reports/CUTOUT_PHASE4_EDGE_STABILITY_20260926.md.
+    """
+    source = tmp_path / "source.mp4"
+    subprocess.run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+         "-i", "color=c=blue:s=16x16:r=2:d=1", "-c:v", "libx264", str(source)],
+        check=True, capture_output=True,
+    )
+    result = video_worker.process_background_isolation_video(
+        source, tmp_path / "03_Projects" / ".cache", {"enabled": True},
+        source_fingerprint="sha256:" + "d" * 64,
+        start=0.0, duration=1.0, fps=2, timebase="1/2", width=16, height=16,
+        rotation=0, rembg_worker=_Worker(),
+    )
+    directory = (tmp_path / "03_Projects" / ".cache"
+                 / video_worker.VIDEO_NAMESPACE / result["artifact_id"])
+    manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["temporal_mode"] == "motion"
+
+
+def test_explicit_temporal_mode_still_wins(tmp_path):
+    """Changing the default must not override a project that chose for itself."""
+    source = tmp_path / "source.mp4"
+    subprocess.run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+         "-i", "color=c=blue:s=16x16:r=2:d=1", "-c:v", "libx264", str(source)],
+        check=True, capture_output=True,
+    )
+    result = video_worker.process_background_isolation_video(
+        source, tmp_path / "03_Projects" / ".cache",
+        {"enabled": True, "temporal_mode": "legacy"},
+        source_fingerprint="sha256:" + "e" * 64,
+        start=0.0, duration=1.0, fps=2, timebase="1/2", width=16, height=16,
+        rotation=0, rembg_worker=_Worker(),
+    )
+    directory = (tmp_path / "03_Projects" / ".cache"
+                 / video_worker.VIDEO_NAMESPACE / result["artifact_id"])
+    manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["temporal_mode"] == "legacy"

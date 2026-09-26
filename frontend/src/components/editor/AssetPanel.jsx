@@ -269,10 +269,14 @@ function BackgroundIsolationControls({
       {onPrepare && enabled && (
         <div className="space-y-1.5">
           <label className="flex items-center justify-between gap-2 text-[11px] text-slate-300">
-            ลดขอบสั่นขณะเคลื่อนที่ (ทดลอง)
+            ลดขอบสั่นขณะเคลื่อนที่
             <input type="checkbox" disabled={preparing}
               aria-label="ลดขอบสั่นขณะเคลื่อนที่"
-              checked={backgroundIsolation?.temporal_mode === 'motion'}
+              /* Default on: measured 12.7-20.5% less edge jitter than the
+                 previous default, which measured no better than doing
+                 nothing. Undefined means "not chosen yet", so it follows
+                 the backend default rather than reading as off. */
+              checked={(backgroundIsolation?.temporal_mode ?? 'motion') === 'motion'}
               onChange={(event) => onChange?.({ ...backgroundIsolation,
                 temporal_mode: event.target.checked ? 'motion' : 'legacy' })}
               className="h-3.5 w-3.5 accent-violet-400" />

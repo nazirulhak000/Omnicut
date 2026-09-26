@@ -10,6 +10,8 @@ import pytest
 from fastapi.testclient import TestClient
 from scripts.api_server import app
 import scripts.api_analytics as analytics
+import scripts.proxy_manager as proxy_manager
+import scripts.storage_cleaner as storage_cleaner
 
 client = TestClient(app)
 
@@ -65,7 +67,34 @@ def test_inventory_health_endpoint():
     assert "products" in data
 
 
-def test_safe_purge_storage_cache_endpoint():
+@pytest.fixture
+def isolated_cache_tree(tmp_path, monkeypatch):
+    """Point every purge target at tmp_path.
+
+    These endpoints delete real files. Without this the test wipes the
+    developer's own 03_Projects/.cache -- including in-progress cutout
+    artifacts -- every time the suite runs, which is how a previous session
+    lost its artifacts mid-render.
+    """
+    projects = tmp_path / "03_Projects"
+    cache = projects / ".cache" / "background-isolation-videos" / "frames"
+    cache.mkdir(parents=True)
+    (cache / "frame_000000.png").write_bytes(b"CUTOUT_CACHE_FIXTURE")
+
+    vision = tmp_path / ".vision_proxies"
+    vision.mkdir()
+    (vision / "proxy.jpg").write_bytes(b"VISION_PROXY_FIXTURE")
+
+    monkeypatch.setattr(storage_cleaner, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(storage_cleaner, "PROJECTS_DIR", projects)
+    monkeypatch.setattr(storage_cleaner, "CAPCUT_DRAFT_DIR", tmp_path / "capcut_drafts")
+    monkeypatch.setattr(storage_cleaner, "RAW_DIR", tmp_path / "01_Raw")
+    monkeypatch.setattr(storage_cleaner, "ASSETS_DIR", tmp_path / "02_Assets")
+    monkeypatch.setattr(proxy_manager, "PROJECTS_DIR", projects)
+    return tmp_path
+
+
+def test_safe_purge_storage_cache_endpoint(isolated_cache_tree):
     resp = client.post("/api/analytics/storage/purge-safe-cache")
     assert resp.status_code == 200
     data = resp.json()
@@ -74,7 +103,21 @@ def test_safe_purge_storage_cache_endpoint():
     assert "purged_bytes" in data
 
 
-def test_cutout_cache_endpoints():
+def test_safe_purge_never_touches_source_media(isolated_cache_tree):
+    """Rule 1: 01_Raw and 02_Assets must survive any purge."""
+    raw = isolated_cache_tree / "01_Raw" / "keep.mp4"
+    assets = isolated_cache_tree / "02_Assets" / "keep.wav"
+    for path in (raw, assets):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"SOURCE_MEDIA")
+
+    assert client.post("/api/analytics/storage/purge-safe-cache").status_code == 200
+
+    assert raw.is_file(), "purge deleted source footage"
+    assert assets.is_file(), "purge deleted a shared asset"
+
+
+def test_cutout_cache_endpoints(isolated_cache_tree):
     # Test GET
     get_resp = client.get("/api/analytics/storage/cutout-cache")
     assert get_resp.status_code == 200

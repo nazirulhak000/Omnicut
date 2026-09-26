@@ -162,7 +162,14 @@ def process_background_isolation_video(
     fps_text = f"{fps_ratio.numerator}/{fps_ratio.denominator}"
     frame_size = width * height * 3
     worker = rembg_worker or BackgroundIsolationWorker()
-    temporal_mode = normalized.get("temporal_mode", "legacy")
+    # Default measured 2026-09-26 (_Docs/Reports/CUTOUT_PHASE4_EDGE_STABILITY_20260926.md):
+    # "legacy" only blends pixels differing by less than 24 from the previous
+    # frame, so moving edges -- where the jitter actually is -- keep their raw
+    # mask, and it measured -0.7% / -0.3% against raw rembg. "motion" tracks
+    # those edges with optical flow and measured +20.5% / +12.7%. An explicit
+    # temporal_mode in the project still wins; this only changes what a
+    # project that never set one gets.
+    temporal_mode = normalized.get("temporal_mode", "motion")
     refiner = None
     if temporal_mode == "motion":
         from scripts.cutout_temporal import TemporalAlphaRefiner
