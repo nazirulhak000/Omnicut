@@ -1,6 +1,25 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
+## Round HANDOFF-20260926-JEV-A11Y-SAM2 — in progress
+
+วันที่: 2026-09-26 · สั่งโดย: user (ส่งต่องานให้ session ถัดไป) · ดำเนินการโดย: Cline (Claude) · สถานะ: ส่งมอบแล้ว
+
+**เอกสารส่งต่อ:** `_Docs/Plans/HANDOFF_20260926_JEV_A11Y_SAM2.md` (ดำเนินการโดย: Cline (Claude)) — copy ไว้ที่ `%TEMP%\HANDOFF_20260926_JEV_A11Y_SAM2.md` ด้วย
+
+> **หมายเหตุ:** skill `handoff` กำหนดให้เขียนไว้นอกโปรเจกต์ แต่ `AGENTS.md` ข้อ 0 ของโปรเจกต์ห้ามทำ (เจ้าของโปรเจกต์มองไม่เห็นแผนที่อยู่นอกโปรเจกต์) → เขียนไว้ใน `_Docs/Plans/` เป็นหลัก แล้ว copy ไป temp เพื่อให้ session ถัดไปหาเจอได้เร็ว
+
+**สรุปสิ่งที่ส่งต่อ:**
+- งานเสร็จ 5 รายการ (กฎ Jev + CLI, accessible name 4 จุด, ปิดรอบ 2 รอบ, full test suite, ปิด Q3 ด้วยตัวเลขจริง) — อ้างอิงทาง commit + path ไม่ซ้ำเนื้อหา
+- งานค้าง 3 เรื่องเรียงลำดับ: 40 เทสพังจาก proxy (deterministic) → Q4 offline worker → เทสเหลือ 2 อัน (flake + order-dependent)
+- สถานะ working tree ที่ต้องห้ามเขียนทับ (เอเจนต์อื่นกำลังแก้ `SequencePlayer.jsx`, `clipProxy.js`)
+- กับดัก PowerShell 2 จุดที่เจอจริง (`git commit -m` หลายบรรทัด, `Set-Content -NoNewline` ทำ `HISTORY.md` เสีย)
+- รายการ skill ที่แนะนำให้เรียก
+
+---
+
 ## Round SAM2-CPU-FEASIBILITY-SPIKE-20260926 — ปิดรอบแล้ว ✅
+
+
 
 วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Cline (Claude) · สถานะ: วัดครบแล้ว ปิดคำถาม Q3
 
@@ -84,9 +103,9 @@
 
 ---
 
-## Round PROXY-CONSOLE-ERROR-REGRESSION-20260926 — reported, awaiting owner
+## Round PROXY-CONSOLE-ERROR-REGRESSION-20260926 — แก้แล้ว ✅
 
-วันที่: 2026-09-26 · สั่งโดย: user (รัน full test suite) · พบโดย: Cline (Claude) · สถานะ: รายงานแล้ว ยังไม่แก้ (เป็นของเจ้าของฟีเจอร์ proxy)
+วันที่: 2026-09-26 · สั่งโดย: user (รัน full test suite) · พบโดย: Cline (Claude) · แก้โดย: Claude Code (Claude Opus 5 1M) · สถานะ: แก้ตามทางเลือกที่ 1 และยืนยันผลแล้ว
 
 **เป้าหมาย:** ปลดล็อก full pytest suite ที่ถูก commit `449ec9a` ทำให้พัง 40 เทส
 
@@ -143,6 +162,16 @@ CONSOLE ERROR:
 
 ### เทสที่เหลืออีก 1 อัน (คนละเรื่อง)
 - `tests/motion_capture/test_cutout_video_preview.py` → `{'seeks': 0, 'visible': 50}` · เกณฑ์คือ `visible >= 54` ได้ 50/60 เฟรม → เป็นเกณฑ์ขอบเขตของ headless Chromium ควรประเมินว่าจะลด threshold หรือเพิ่มความทนทาน
+
+### ผลการแก้ (2026-09-26, Claude Code — เจ้าของฟีเจอร์ proxy)
+
+- **ยืนยันว่าเป็น regression ของผมเอง** จาก commit `449ec9a` ตามที่ Cline วิเคราะห์ไว้ — การวิเคราะห์ถูกต้องทุกจุด รวมถึงข้อสังเกตว่า `source_path` ที่ส่งไปคือ URL ของหน้า fixture เอง ไม่ใช่ไฟล์สื่อ
+- **เลือกทางที่ 1** (ไม่ยิง proxy เมื่อ source เล่นไม่ได้) — ทางที่ 2 คือซ่อนปัญหาไว้ใน allowlist ทำให้ parity gate ไม่จับ console error จริงของ proxy อีกต่อไป; ทางที่ 3 แก้ที่ fixture ไม่ใช่ที่ต้นเหตุ
+- เพิ่ม `isProxyableSource()` ใน `frontend/src/lib/clipProxy.js`: ปฏิเสธ `blob:`/`data:` (ไม่มี master บนดิสก์), absolute `http(s)://` (เป็นหน้าเว็บ/asset ไม่ใช่ไฟล์โปรเจกต์), `/@fs/` (ทางลัดของ Vite ที่ fixture ใช้) และไฟล์ที่ไม่ใช่วิดีโอ
+- **เช็กก่อนยิง ไม่ใช่ catch ทีหลัง** — browser log console error เองเมื่อ request ถูกปฏิเสธ ไม่ว่า JS จะ catch หรือไม่ จึงต้องกันที่ต้นทาง
+- ผลจริง: `test_app_capture.py` จาก `2 failed / 8 passed` → **10 passed**; `tests/motion_capture` ทั้งหมดจาก **41 failed / 45 passed** → **86 passed, 0 failed** (9m44s)
+- เทส `test_cutout_video_preview.py` ที่ Cline จัดว่า flake และ `test_export_registry_bulk.py` ที่ order-dependent **ผ่านทั้งคู่ในรอบนี้** — ยังไม่สรุปว่าหายขาด เพราะ Cline วัดแล้วว่าไม่เสถียร ควรเฝ้าดูอีกหลายรอบก่อนปิด
+- เพิ่มเทส 7 เคสใน `clipProxy.test.js` ล็อกพฤติกรรมนี้ (frontend รวม 25 เคสในไฟล์นี้)
 
 ### Notes
 - การรันเต็มใช้เวลา ~10 นาที ต่อรอบ · คำสั่ง: `python -m pytest tests/ -q -p no:cacheprovider --tb=line -rf`
