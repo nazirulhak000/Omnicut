@@ -356,8 +356,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         (
             "Prompt",
             "Prompt",
+            # The emoji is stripped on the way in (strip_caption_emoji), so the
+            # body it produces carries none -- what this case still exercises is
+            # the two stacked pairs in the Thai.
             "⚡ ปกติซื้อตามช็อปราคาแรงเอาเรื่อง",
-            "⚡ ปกติซือตามช็อปราคาแรงเอาเรือง",
+            "ปกติซือตามช็อปราคาแรงเอาเรือง",
             ("ื้", "ื่"),
         ),
     ],
@@ -1338,9 +1341,13 @@ def test_ghost_reveal_detaches_stacked_marks_per_word(tmp_path):
         return (min(white), max(white)) if white else None, \
                (min(green), max(green)) if green else None
 
-    early_white, early_green = spans(tmp_path / "gr-04.png")
+    # Sampled once a word has been spoken and again near the end. Not on the
+    # very first frames: the opening word is still the active one there, so
+    # nothing is white yet and "the spoken run grew" has nothing to compare.
+    early_white, early_green = spans(tmp_path / "gr-14.png")
     late_white, late_green = spans(tmp_path / "gr-30.png")
     assert early_green and late_green, "no highlighted word was drawn"
+    assert early_white and late_white, "no word had been spoken yet at either sample"
     assert late_green[0] > early_green[0], (
         f"the highlight never moved along the line: {early_green} -> {late_green}"
     )
@@ -1351,4 +1358,251 @@ def test_ghost_reveal_detaches_stacked_marks_per_word(tmp_path):
     # shift as later ones light up.
     assert abs(late_white[0] - early_white[0]) <= 4, (
         f"already-spoken text moved: {early_white} -> {late_white}"
+    )
+
+
+@pytest.mark.render_regression
+def test_wrapped_ghost_reveal_holds_the_first_line_still(tmp_path):
+    """A reveal that wraps must not disturb the line above the active word.
+
+    Each step redraws every line, so the danger is that line one gets re-ghosted
+    or re-anchored when the highlight moves to line two. Rendered rather than
+    asserted in the ASS, because the failure is positional.
+    """
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg is required for the Thai render regression")
+
+    from PIL import Image
+
+    from scripts.subtitle_engine import SubtitleEngine
+
+    ass_path = tmp_path / "wrapped_reveal.ass"
+    SubtitleEngine.generate_ass(
+        cues=[{
+            "start": 0.0,
+            "end": 4.0,
+            # An explicit break is kept as layout, giving a two-line caption.
+            "text": "กล้องคมชัดมาก\nแบตอึดทั้งวัน",
+            "translation": "unused",
+        }],
+        output_ass_path=str(ass_path),
+        font_name="Prompt",
+        bilingual=False,
+        ghost_reveal=True,
+    )
+    generated = ass_path.read_text(encoding="utf-8")
+    positions = {float(y) for y in re.findall(r"\\pos\([\d.]+,([\d.]+)\)", generated)}
+    assert len(positions) >= 2, "a wrapped reveal must anchor each line separately"
+
+    ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:r=30:d=4",
+        "-vf", f"subtitles='{ass_filter_path}':fontsdir='02_Assets/Fonts'",
+        "-frames:v", "118", str(tmp_path / "wr-%03d.png"),
+    ])
+
+    def line_spans(path):
+        """White and green x-spans, split into the bands the lines occupy."""
+        image = Image.open(path).convert("RGB")
+        pixels = image.load()
+        rows = {}
+        for y in range(1300, 1650):
+            white, green = [], []
+            for x in range(60, 900, 2):
+                r, g, b = pixels[x, y]
+                if g > 150 and r < 140 and b < 110:
+                    green.append(x)
+                elif r > 200 and g > 200 and b > 200:
+                    white.append(x)
+            if white or green:
+                rows[y] = (white, green)
+        if not rows:
+            return []
+        # Cut the frame at the midpoint between the two anchors the ASS declares
+        # rather than looking for a gap in the ink: Thai upper vowels reach high
+        # enough that line two's marks touch line one's descenders, leaving no
+        # background row to split on once both lines carry text.
+        # The two body lines are the first two anchors; a third sits above them
+        # for the raised companion mark glyphs, and must not be mistaken for a
+        # line of its own.
+        caption_anchors = sorted(y for y in positions if 1200 < y < 1700)
+        assert len(caption_anchors) >= 2, f"expected two line anchors, got {caption_anchors}"
+        boundary = (caption_anchors[0] + caption_anchors[1]) / 2
+        out = []
+        for band_rows in (
+            [y for y in rows if y < boundary],
+            [y for y in rows if y >= boundary],
+        ):
+            if not band_rows:
+                out.append({"top": None, "white": None, "green": None})
+                continue
+            white = [x for y in band_rows for x in rows[y][0]]
+            green = [x for y in band_rows for x in rows[y][1]]
+            out.append({
+                "top": min(band_rows),
+                "white": (min(white), max(white)) if white else None,
+                "green": (min(green), max(green)) if green else None,
+            })
+        return out
+
+    # Sampled while line two is revealing, by which point line one is all white.
+    late = [line_spans(tmp_path / f"wr-{n:03d}.png") for n in (76, 95, 112)]
+    assert all(frames for frames in late), "the caption vanished mid-cue"
+
+    first_line_left = [f[0]["white"][0] for f in late if f[0]["white"]]
+    assert len(first_line_left) == len(late), "line one stopped being fully spoken"
+    assert max(first_line_left) - min(first_line_left) <= 4, (
+        f"line one shifted while line two revealed: {first_line_left}"
+    )
+
+    first_line_top = [f[0]["top"] for f in late]
+    assert max(first_line_top) - min(first_line_top) <= 4, (
+        f"line one moved vertically: {first_line_top}"
+    )
+
+    # ...and line one must not be carrying the highlight any more.
+    assert all(f[0]["green"] is None for f in late), (
+        "line one still shows the active-word colour after the reveal moved on"
+    )
+
+
+@pytest.mark.render_regression
+def test_bilingual_ghost_reveal_keeps_the_english_line_visible(tmp_path):
+    r"""The stacked translation must be on screen through the whole reveal.
+
+    \alpha carries across \N, so the English line inherits whatever the Thai
+    line above ended on -- under a reveal that is the last ghost's \alpha&HFF&.
+    The translation was therefore invisible until the final word was spoken,
+    appearing only on the settle event, which no amount of ASS-string reading
+    would have shown.
+    """
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg is required for the Thai render regression")
+
+    from PIL import Image
+
+    from scripts.subtitle_engine import SubtitleEngine
+
+    ass_path = tmp_path / "bilingual_reveal.ass"
+    SubtitleEngine.generate_ass(
+        cues=[{
+            "start": 0.0,
+            "end": 3.0,
+            "text": "กล้องคมชัดมาก",
+            "translation": "The camera is very sharp",
+        }],
+        output_ass_path=str(ass_path),
+        font_name="Mali",
+        bilingual=True,
+        ghost_reveal=True,
+    )
+    generated = ass_path.read_text(encoding="utf-8")
+    assert "&H0000FF66&" in generated, "a bilingual caption must still reveal"
+
+    ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\:")
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:r=30:d=3",
+        "-vf", f"subtitles='{ass_filter_path}':fontsdir='02_Assets/Fonts'",
+        "-frames:v", "88", str(tmp_path / "bl-%03d.png"),
+    ])
+
+    def ink_bottom(path):
+        image = Image.open(path).convert("L")
+        mask = image.point(lambda v: 255 if v > 60 else 0)
+        # Blank the always-on watermark column before measuring.
+        mask.paste(0, (int(round(image.width * 0.82)), 0, image.width, image.height))
+        box = mask.getbbox()
+        return box[3] if box else None
+
+    # Early (first word), middle, and late (last word) in the reveal.
+    bottoms = [ink_bottom(tmp_path / f"bl-{n:03d}.png") for n in (12, 45, 80)]
+    assert all(b is not None for b in bottoms), "the caption vanished mid-cue"
+    # The English sits below the Thai, so its presence sets the bottom edge.
+    # If it were invisible early on, the first frame would stop much higher.
+    assert max(bottoms) - min(bottoms) <= 8, (
+        f"the English line was not on screen for the whole reveal: {bottoms}"
+    )
+
+
+@pytest.mark.render_regression
+def test_stacked_mark_follows_its_line_on_a_wrapped_caption(tmp_path):
+    r"""A detached tone must land on the line it belongs to, not the block.
+
+    The companion glyph carries the whole caption, `\N` and all, so libass will
+    place it per line -- but only if it is laid out the way the body is. Pinning
+    it with `\pos` anchors the entire block on one point, which matches a single
+    line and strands a wrapped one: the body grows upward from the bottom margin
+    while the companion stays put, leaving the tone below its own word.
+    """
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg is required for the Thai render regression")
+
+    from PIL import Image
+
+    from scripts.subtitle_engine import SubtitleEngine
+
+    # Tone on the first line; the second is deliberately mark-free.
+    ass_path = tmp_path / "wrapped_marks.ass"
+    SubtitleEngine.generate_ass(
+        cues=[{
+            "start": 0.0,
+            "end": 2.0,
+            "text": "ตอนนี้เลยครับพี่\nแบตอดทงวนสบาย",
+            "translation": "",
+            "auto_emoji": False,
+        }],
+        output_ass_path=str(ass_path),
+        font_name="Mali",
+        bilingual=False,
+        ghost_reveal=False,
+    )
+    generated = ass_path.read_text(encoding="utf-8")
+    companions = [
+        line for line in generated.splitlines()
+        if line.startswith("Dialogue: 1,") and r"\1a&HFF&" in line
+    ]
+    assert companions, "no companion glyph was emitted for the stacked mark"
+    assert all(r"\pos(" not in line for line in companions), (
+        "a margin-anchored caption's companions must not be pinned with \pos"
+    )
+
+    ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\:")
+    png = tmp_path / "wm.png"
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=2",
+        "-vf", f"subtitles='{ass_filter_path}':fontsdir='02_Assets/Fonts'",
+        "-ss", "1.5", "-frames:v", "1", str(png),
+    ])
+
+    image = Image.open(png).convert("L")
+    mask = image.point(lambda v: 255 if v > 60 else 0)
+    mask.paste(0, (int(round(image.width * 0.82)), 0, image.width, image.height))
+    pixels = mask.load()
+    rows = [y for y in range(1200, 1750)
+            if any(pixels[x, y] for x in range(40, 1000, 2))]
+    assert rows, "the caption drew nothing"
+
+    bands, current = [], [rows[0]]
+    for y in rows[1:]:
+        if y - current[-1] > 6:
+            bands.append((current[0], current[-1]))
+            current = [y]
+        else:
+            current.append(y)
+    bands.append((current[0], current[-1]))
+    assert len(bands) == 2, f"expected two text lines, got bands {bands}"
+
+    # The tone belongs to the first line, so its ink must sit inside that
+    # line's band -- if it were stranded it would appear between the two, or
+    # below the second.
+    first_top, first_bottom = bands[0]
+    second_top, _ = bands[1]
+    assert first_bottom < second_top, "the two lines ran together"
+    # The raised companion extends line one upward; it must not reach into the
+    # gap that separates the lines.
+    assert first_bottom < (first_bottom + second_top) / 2, (
+        f"the companion glyph drifted toward line two: {bands}"
     )

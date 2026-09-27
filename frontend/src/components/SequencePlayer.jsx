@@ -952,7 +952,37 @@ const GHOST_ACTIVE_SCALE = 1.14;
  * and still advance the cursor, but are not painted. That is what stops the
  * line reflowing as the reveal moves along it.
  */
-function ghostRevealSegments(reveal, t) {
+/**
+ * Deal a flat reveal track out into one list per wrapped line.
+ *
+ * Mirrors word_reveal.split_reveal_by_lines. The track is built before either
+ * engine decides where the text wraps, so a caption drawn on two lines has to
+ * hand its words back out across them. Returns null when the words do not add
+ * up to the lines -- a wrong split would be worse than not revealing at all.
+ */
+function splitRevealByLines(reveal, lines) {
+  if (!Array.isArray(reveal) || !reveal.length || !lines.length) return null;
+  const strip = (s) => String(s).replace(/\s+/g, '');
+  if (strip(reveal.map((w) => w.text).join('')) !== strip(lines.join(''))) return null;
+
+  const out = [];
+  let cursor = 0;
+  for (const line of lines) {
+    const need = strip(line).length;
+    const taken = [];
+    let got = 0;
+    while (cursor < reveal.length && got < need) {
+      taken.push(reveal[cursor]);
+      got += strip(reveal[cursor].text).length;
+      cursor += 1;
+    }
+    if (got !== need) return null;   // a word straddles the break
+    out.push(taken);
+  }
+  return cursor === reveal.length ? out : null;
+}
+
+function ghostRevealSegments(reveal, t, lineWords = null) {
   if (!Array.isArray(reveal) || reveal.length === 0) return null;
   let activeIdx = -1;
   for (let i = 0; i < reveal.length; i += 1) {
@@ -961,11 +991,17 @@ function ghostRevealSegments(reveal, t) {
   // Before the first word's own start the whole line is still to come; after
   // the last word ends it has all been said, which is the settle.
   const settled = activeIdx === reveal.length - 1 && t >= reveal[reveal.length - 1].end;
-  return reveal.map((word, i) => {
-    if (settled || i < activeIdx) {
+  // On a wrapped caption each line draws only its own slice, but the active
+  // word is found against the whole track -- a word lighting up on line two
+  // must leave line one white rather than re-ghosting it.
+  const words = lineWords || reveal;
+  const offset = lineWords ? reveal.indexOf(lineWords[0]) : 0;
+  return words.map((word, i) => {
+    const globalIdx = offset + i;
+    if (settled || globalIdx < activeIdx) {
       return { text: word.text, color: GHOST_SPOKEN_COLOR, scale: 1 };
     }
-    if (i === activeIdx) {
+    if (globalIdx === activeIdx) {
       return { text: word.text, color: GHOST_ACTIVE_COLOR, scale: GHOST_ACTIVE_SCALE };
     }
     return { text: word.text, color: GHOST_SPOKEN_COLOR, scale: 1, ghost: true };
@@ -1551,13 +1587,23 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   // the two cannot both own a line. It only applies to a single-line caption --
   // the reveal track is one flat list of words with no notion of where the text
   // wrapped, so a wrapped cue keeps the ordinary drawing.
-  const revealSegments = (style.ghostReveal && thaiLines.length === 1)
-    ? ghostRevealSegments(cue.word_reveal, t)
+  // A wrapped caption reveals across its lines, each drawing its own slice of
+  // the track; splitRevealByLines returns null if the words do not line up, and
+  // the ordinary keyword highlighting takes over.
+  const revealTrack = style.ghostReveal ? cue.word_reveal : null;
+  const revealLines = (revealTrack && thaiLines.length > 1)
+    ? splitRevealByLines(revealTrack, thaiLines)
+    : null;
+  const revealSingle = (revealTrack && thaiLines.length === 1)
+    ? ghostRevealSegments(revealTrack, t)
     : null;
 
   // Draw Thai lines
   thaiLines.forEach((line, idx) => {
     const lineY = thaiStartY + (idx * thaiLineH);
+    const revealSegments = revealLines
+      ? ghostRevealSegments(revealTrack, t, revealLines[idx])
+      : revealSingle;
     const segments = revealSegments || parsedThaiLines[idx] || [{ text: line, color: primaryColor }];
 
     ctx.font = `${fontWeight} ${fontSize}px ${fontFam}`;

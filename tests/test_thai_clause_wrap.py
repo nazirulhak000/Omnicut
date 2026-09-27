@@ -158,3 +158,81 @@ def test_generate_micro_cues_preserves_explicit_editor_line_breaks(monkeypatch):
     assert cues[0]["text"] == "บรรทัดหนึ่ง\nLINE TWO\nราคา 9,990 บาท"
     assert cues[0]["start"] == 0.0
     assert cues[0]["end"] == 2.0
+
+
+# ---------------------------------------------------------------------------
+# Clause width follows the rendered line width
+#
+# The splitter used to cut at a fixed 34 characters while the ASS writer wrapped
+# at 3100/font_size -- ~62 at the default size, ~26 when the user scales the
+# caption up. At the default that mismatch only cost a needless split; scaled
+# up it produced clauses too long for their own line, which the writer then
+# broke onto a second one. A two-line caption cannot reveal word by word, so
+# this is also what keeps Progressive Ghost Reveal applicable.
+# ---------------------------------------------------------------------------
+
+LONG_THAI_NO_SPACES = (
+    "ชิปเซ็ตSnapdragon8Gen3ประมวลผลเร็วกว่าเดิมสามสิบเปอร์เซ็นต์เล่นเกมลื่นไม่มีสะดุด"
+)
+
+
+def _micro_cue_texts(scale, monkeypatch, text=LONG_THAI_NO_SPACES):
+    import tempfile
+    from pathlib import Path
+
+    from scripts.translator import SubtitleTranslator
+
+    monkeypatch.setattr(
+        SubtitleTranslator,
+        "translate_batch",
+        staticmethod(lambda texts: [""] * len(texts)),
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        _, cues = SubtitleEngine.generate_ass(
+            [{"id": 1, "start": 0.0, "end": 4.0, "text": text, "translation": ""}],
+            str(Path(tmp) / "t.ass"),
+            bilingual=False,
+            caption_scale=scale,
+            ghost_reveal=False,
+        )
+    return [c["text"] for c in cues]
+
+
+def test_max_line_chars_shrinks_as_the_font_grows():
+    assert SubtitleEngine._max_line_chars(50) > SubtitleEngine._max_line_chars(120)
+    # ...and never below the floor that keeps a burst readable at any size.
+    assert SubtitleEngine._max_line_chars(999) == 24
+
+
+def test_a_scaled_up_caption_still_fits_one_line(monkeypatch):
+    """At 2.4x the line holds ~26 characters; no clause may exceed it."""
+    texts = _micro_cue_texts(2.4, monkeypatch)
+    assert texts
+    for text in texts:
+        assert "\n" not in text, f"clause wrapped onto a second line: {text!r}"
+
+
+def test_default_scale_keeps_the_micro_burst_ceiling(monkeypatch):
+    """
+    A default-size line fits ~62 characters, but bursts must not grow to fill
+    it -- subtitle_kinetic_rules.md asks for 2-4 words per burst, and letting
+    clauses double in length turns rapid-fire pacing back into paragraphs.
+    """
+    from scripts.subtitle_engine import MICRO_BURST_MAX_CHARS
+
+    texts = _micro_cue_texts(1.0, monkeypatch)
+    assert texts
+    # +2 for the emoji prefix generate_micro_cues may prepend.
+    for text in texts:
+        assert len(text) <= MICRO_BURST_MAX_CHARS + 4, f"burst grew too long: {text!r}"
+
+
+def test_scaling_the_caption_only_ever_splits_further(monkeypatch):
+    """A narrower line may add cuts; it must never merge clauses back together."""
+    default_cues = _micro_cue_texts(1.0, monkeypatch)
+    scaled_cues = _micro_cue_texts(2.4, monkeypatch)
+    assert len(scaled_cues) >= len(default_cues)
+    # No text is lost either way.
+    assert "".join(scaled_cues).replace(" ", "").endswith(
+        LONG_THAI_NO_SPACES[-12:].replace(" ", "")
+    )

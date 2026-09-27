@@ -182,6 +182,53 @@ def build_word_reveal(
     return reveal
 
 
+def split_reveal_by_lines(
+    reveal: Sequence[Dict], lines: Sequence[str]
+) -> Optional[List[List[Dict]]]:
+    """
+    Deal a flat reveal track out into one list per rendered line.
+
+    The reveal is built from the cue's text before the ASS writer decides where
+    that text wraps, so a multi-line caption needs its words handed back out
+    across the lines they actually landed on. Both sides tokenize with
+    pythainlp's newmm, so the words concatenate back to the same string and can
+    be matched by walking characters.
+
+    Returns `None` when the words do not add up to the lines -- an emoji prefix
+    or a repair that changed the text would make a character walk land
+    mid-word, and a wrong split is worse than falling back to a plain caption.
+    """
+    if not reveal or not lines:
+        return None
+
+    joined_words = "".join(w["text"] for w in reveal)
+    joined_lines = "".join(str(line) for line in lines)
+    if joined_words.replace(" ", "") != joined_lines.replace(" ", ""):
+        return None
+
+    out: List[List[Dict]] = []
+    words = list(reveal)
+    cursor = 0
+    for line in lines:
+        need = len(str(line).replace(" ", ""))
+        taken: List[Dict] = []
+        got = 0
+        while cursor < len(words) and got < need:
+            word = words[cursor]
+            taken.append(word)
+            got += len(word["text"].replace(" ", ""))
+            cursor += 1
+        if got != need:
+            # A word straddles the line break, so this line cannot be rendered
+            # from whole words. Let the caller fall back.
+            return None
+        out.append(taken)
+
+    if cursor != len(words):
+        return None
+    return out
+
+
 def reveal_is_usable(reveal: Sequence[Dict]) -> bool:
     """
     Whether a reveal track is worth rendering word-by-word.

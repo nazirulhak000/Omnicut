@@ -55,6 +55,34 @@ export const FONT_OPTIONS = [
   { id: 'Mali', name: 'Mali (มะลิ - กลมเป็นมิตร แนวรีวิวแกดเจ็ต)' },
 ];
 
+/**
+ * A labelled on/off switch.
+ *
+ * The knob is laid out by the flex row rather than pushed across with a fixed
+ * translate: the track's padding then bounds it on both sides, so it cannot
+ * overhang the way a hand-computed offset did once rounding and the ring came
+ * into it.
+ */
+function CaptionToggle({ label, ariaLabel, checked, onToggle }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-xs text-slate-400 font-medium">{label}:</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={ariaLabel}
+        onClick={onToggle}
+        className={`flex w-11 shrink-0 items-center rounded-full p-0.5 transition-colors focus:outline-none focus:ring-2 focus:ring-[#25F4EE] ${
+          checked ? 'justify-end bg-[#25F4EE]' : 'justify-start bg-white/[0.12]'
+        }`}
+      >
+        <span className="block h-5 w-5 rounded-full bg-white shadow" />
+      </button>
+    </div>
+  );
+}
+
 export default function CaptionInspector({
   selectedCaption,
   style = {},
@@ -274,25 +302,20 @@ export default function CaptionInspector({
         </div>
 
         {/* Progressive Ghost Reveal -- SOP Phase 3 */}
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-slate-400 font-medium">เด้งสีทีละคำ:</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={!!style.ghostReveal}
-            aria-label="เด้งสีคำบรรยายทีละคำตามเสียงพูด"
-            onClick={() => onStyleChange?.({ ghostReveal: !style.ghostReveal })}
-            className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#25F4EE] ${
-              style.ghostReveal ? 'bg-[#25F4EE]' : 'bg-white/[0.12]'
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                style.ghostReveal ? 'translate-x-[22px]' : 'translate-x-0.5'
-              }`}
-            />
-          </button>
-        </div>
+        <CaptionToggle
+          label="เด้งสีทีละคำ"
+          ariaLabel="เด้งสีคำบรรยายทีละคำตามเสียงพูด"
+          checked={!!style.ghostReveal}
+          onToggle={() => onStyleChange?.({ ghostReveal: !style.ghostReveal })}
+        />
+
+        {/* Stacked English subtitle */}
+        <CaptionToggle
+          label="ซับอังกฤษ"
+          ariaLabel="แสดงคำแปลภาษาอังกฤษใต้คำบรรยาย"
+          checked={style.bilingualSubtitles !== false}
+          onToggle={() => onStyleChange?.({ bilingualSubtitles: style.bilingualSubtitles === false })}
+        />
 
         {/* Font size slider & number input */}
         <div className="space-y-1.5">

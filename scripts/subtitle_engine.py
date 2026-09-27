@@ -88,8 +88,55 @@ from scripts.subtitle import (
 from scripts.subtitle.ghost_reveal_ass import (
     anchor_tags,
     build_ghost_reveal_events,
+    build_multiline_reveal_events,
 )
-from scripts.subtitle.word_reveal import build_word_reveal, reveal_is_usable
+from scripts.subtitle.word_reveal import (
+    build_word_reveal,
+    reveal_is_usable,
+    split_reveal_by_lines,
+)
+
+# Longest a micro-burst clause may be, in characters. This is the clause
+# splitter's own historical default, kept here so the caller that now bounds it
+# by the rendered line width cannot silently widen it: a line at the default
+# font size fits ~62 characters, and filling that would turn rapid-fire bursts
+# back into subtitle paragraphs.
+#
+# Note this is above the 16-24 that subtitle_kinetic_rules.md asks for. That
+# gap predates the per-size bound added here and is left alone deliberately --
+# narrowing it changes the pacing of every caption in every clip, which is a
+# decision for the project owner, not a side effect of this change.
+MICRO_BURST_MAX_CHARS = 34
+
+# Emoji and pictographs, plus the variation selector and zero-width joiner that
+# bind them into sequences. Captions are stripped of these: libass renders them
+# through a fallback face (Segoe UI Emoji on Windows) whose advance width PIL
+# cannot measure, so any layout computed ahead of the render -- the ghost
+# reveal's anchor, the detached-tone companions -- lands off by the difference.
+# Measured on a real render: a caption's anchor was 16px out with one emoji in
+# the line, which put a tone mark over the wrong glyph. The SOP's caption spec
+# does not call for emoji in the first place.
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F000-\U0001FAFF"   # pictographs, symbols, transport, supplemental
+    "←-⇿"           # arrows
+    "⌀-⏿"           # technical (⌚, ⏰)
+    "①-➿"           # enclosed alphanumerics, dingbats (❌, ✨)
+    "⬀-⯿"           # extra symbols (⭐)
+    "︀-️"           # variation selectors
+    "‍"                  # zero-width joiner
+    "]+"
+)
+
+
+def strip_caption_emoji(text: str) -> str:
+    """Remove emoji from caption text and tidy the space they leave behind."""
+    if not text:
+        return text
+    cleaned = _EMOJI_RE.sub("", str(text))
+    # Collapse the gap an emoji leaves, without touching line breaks.
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    return "\n".join(line.strip() for line in cleaned.split("\n")).strip()
 
 SUBTITLE_RENDER_CONTRACT_VERSION = "v8"
 SUBTITLE_RENDER_CONTRACT_MARKER = (
@@ -306,13 +353,35 @@ class SubtitleEngine:
 
         return list(zip(boundary_times[:-1], boundary_times[1:]))
 
+    @staticmethod
+    def _max_line_chars(font_size: int) -> int:
+        """
+        How many characters fit on one caption line at `font_size`.
+
+        Calibrated against SequencePlayer.jsx's `maxLineW = CANVAS_W * 0.86`, so
+        the clause splitter and the ASS line wrapper agree on where a line ends.
+        Both must read it from here: when they disagreed, the splitter produced
+        clauses the wrapper then broke onto a second line.
+        """
+        return max(24, int(round(3100 / max(20, font_size))))
+
     @classmethod
-    def generate_micro_cues(cls, cues: List[Dict]) -> List[Dict]:
+    def generate_micro_cues(
+        cls, cues: List[Dict], max_line_len: Optional[int] = None
+    ) -> List[Dict]:
         """
         Converts sentence-level cues into smart clause cues, translating each into English.
         Uses real per-word timestamps (`cue["word_timings"]`, from edge-tts's streaming API
         in voice_engine.py) when available; falls back to proportional character-count
         splitting of the parent cue's duration otherwise -- same as before this existed.
+
+        `max_line_len` is how many characters fit on one rendered line. It has to
+        come from the caller because it depends on the caption's font size, which
+        the user can scale: at the default size a line holds ~62 characters, but
+        at 2.4x only ~26. Splitting at a fixed 34 regardless meant a scaled-up
+        caption produced clauses too long for their own line, and the ASS writer
+        then wrapped them onto a second one. Left unset, the clause splitter's
+        own default applies and behaviour is exactly as before.
         """
         micro_cues = []
         cue_id = 1
@@ -321,7 +390,10 @@ class SubtitleEngine:
             start = c["start"]
             end = c["end"]
             total_dur = max(0.4, end - start)
-            text = c["text"].strip()
+            # Strip before splitting, not after: an emoji standing on its own
+            # becomes its own clause, which then strips down to an empty cue
+            # that renders as a blank caption holding the screen.
+            text = strip_caption_emoji(c["text"])
             if not text:
                 continue
 
@@ -329,7 +401,12 @@ class SubtitleEngine:
             # sentence boundary. Keep the whole cue together so Canvas and
             # ASS show all requested lines at the same timestamp; the ASS
             # wrapper below converts each paragraph to `\\N`.
-            clauses = [text] if "\n" in text or "\r" in text else cls.split_into_smart_clauses(text)
+            if "\n" in text or "\r" in text:
+                clauses = [text]
+            elif max_line_len:
+                clauses = cls.split_into_smart_clauses(text, max_line_len=max_line_len)
+            else:
+                clauses = cls.split_into_smart_clauses(text)
             real_boundaries = cls._clause_boundaries_from_word_timings(
                 clauses, c.get("word_timings") or []
             )
@@ -355,28 +432,14 @@ class SubtitleEngine:
                 if idx == 0 and c.get("sfx"):
                     sfx = c["sfx"]
 
-                # Assign Emojis selectively (only if not already present)
-                emoji = ""
-                has_emoji = any(cl.startswith(em) for em in ["⚠️", "🔌", "⚡", "❌", "🛒", "🌿", "💧", "🧪", "✨"])
-                if c.get("auto_emoji", True) and not has_emoji:
-                    if any(k in cl for k in ["อย่าเพิ่ง", "หยุด", "เตือน", "ห้าม", "ระวัง"]):
-                        emoji = "⚠️ "
-                    elif any(k in cl for k in ["สารสกัด", "สมุนไพร", "ธรรมชาติ", "ออร์แกนิก"]):
-                        emoji = "🌿 "
-                    elif any(k in cl for k in ["สรรพคุณ", "ผิวใส", "หน้าเด็ก", "ชุ่มชื้น", "กู้ผิว", "เซรั่ม", "คอลลาเจน", "เนียนนุ่ม"]):
-                        emoji = "💧 "
-                    elif any(k in cl for k in ["ส่วนผสม", "วิจัย", "ทดสอบ", "อย.", "รับรอง", "หมอ"]):
-                        emoji = "🧪 "
-                    elif any(k in cl for k in ["จุดเด่น", "ฟังก์ชัน", "ไฮไลต์", "พรีเมียม", "แม่เหล็ก"]):
-                        emoji = "✨ "
-                    elif any(k in cl for k in ["ชาร์จไว", "เร็ว", "แรง", "สปีด", "fast"]):
-                        emoji = "⚡ "
-                    elif any(k in cl for k in ["ปัญหา", "พัง", "เบื่อ", "แย่", "ยาก", "สิว", "ฝ้า", "ปวด"]):
-                        emoji = "❌ "
-                    elif any(k in cl for k in ["พิกัด", "ตะกร้า", "ราคา", "โปร", "สั่งซื้อ", "กดเลย", "ช้อป", "คุ้ม"]):
-                        emoji = "🛒 "
-
-                raw_c = f"{emoji}{cl}".strip() if emoji else cl.strip()
+                # Emoji are deliberately absent from captions: libass draws
+                # them through a fallback face whose width PIL cannot measure,
+                # so every layout computed before the render -- the ghost
+                # reveal's anchor, the detached-tone companions -- lands off by
+                # the difference (measured at 16px for one emoji, enough to put
+                # a tone mark over the wrong glyph). strip_caption_emoji also
+                # clears any the script itself carried in.
+                raw_c = strip_caption_emoji(cl)
                 if "\n" in raw_c or "\r" in raw_c:
                     cue_text = "\n".join(
                         re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', line)).strip()
@@ -395,6 +458,13 @@ class SubtitleEngine:
                         cue_trans = trans
                     else:
                         cue_trans = ""
+
+                if not cue_text:
+                    # Nothing left to show -- a clause that was only an emoji,
+                    # or only punctuation. Emitting it would hold a blank
+                    # caption on screen for its whole span.
+                    current_t = cl_end
+                    continue
 
                 micro_cues.append({
                     "id": cue_id,
@@ -535,7 +605,25 @@ class SubtitleEngine:
         out_path = Path(output_ass_path).resolve()
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
-        micro_cues = cls.generate_micro_cues(cues)
+        # A clause must fit the line it will be rendered on. That width depends
+        # on the caption's font size, which the user can scale up past the point
+        # where the splitter's own default still fits -- so it is derived here,
+        # from the same two arguments the `font_size` below is derived from.
+        # The splitter keeps its own ceiling as the upper bound: a line at the
+        # default size holds ~62 characters, and letting clauses grow to fill it
+        # would undo the micro-burst pacing (subtitle_kinetic_rules.md asks for
+        # 2-4 words). Only a scaled-up caption, whose line is narrower than that
+        # ceiling, is bounded by the line width instead.
+        try:
+            _caption_scale = min(2.5, max(0.4, float(caption_scale or 1.0)))
+        except (TypeError, ValueError):
+            _caption_scale = 1.0
+        _caption_fs = max(20, int(round(int(round(video_width * 0.0463)) * _caption_scale)))
+        micro_cues = cls.generate_micro_cues(
+            cues,
+            max_line_len=min(MICRO_BURST_MAX_CHARS, cls._max_line_chars(_caption_fs)),
+        )
+
 
         # Real embedded family name for whichever font the UI selected --
         # every style below sets Bold=<resolved_bold>, requesting that
@@ -674,19 +762,38 @@ class SubtitleEngine:
         hidden_mark_components = r"{\1a&HFF&\3a&HFF&\4a&HFF&}"
 
         def caption_mark_position(*, shadow: bool) -> str:
-            """Anchor a full-layout companion line, raised from its body."""
+            """Anchor a full-layout companion line, raised from its body.
+
+            The companion carries the whole caption, `\\N` and all, so it has to
+            be laid out the way the body is -- by margin, growing away from the
+            same edge. Pinning it with `\\pos` anchors the entire block on one
+            point instead, which matches a single line but leaves a wrapped
+            caption's marks stranded: the body grows upward from the bottom
+            margin while the pinned companion stays put, so the tone ends up
+            below the line it belongs to (measured: body at 1309-1374 and
+            1442-1480, companion pinned at 1496).
+            """
             if pos_override:
                 return f"\\an5\\pos({px_x},{px_y - tone_raise})"
 
-            anchor_x = int(round(video_width / 2 + (shadow_dx if shadow else 0)))
             active_margin = shadow_margin_v if shadow else margin_v
             if alignment == 2:
-                anchor_y = video_height - active_margin
+                # Bottom-anchored: a larger margin lifts the block.
+                raised = active_margin + tone_raise
             elif alignment == 8:
-                anchor_y = active_margin
+                # Top-anchored: a smaller margin lifts it.
+                raised = max(0, active_margin - tone_raise)
             else:
+                # Centre-anchored captions have no margin to push against, so
+                # the companion is pinned -- a centred block is measured from
+                # its own middle and does not drift the way an edge-anchored
+                # one does.
+                anchor_x = int(round(video_width / 2 + (shadow_dx if shadow else 0)))
                 anchor_y = int(round(video_height / 2 + (shadow_dy if shadow else 0)))
-            return f"\\an{alignment}\\pos({anchor_x},{anchor_y - tone_raise})"
+                return f"\\an{alignment}\\pos({anchor_x},{anchor_y - tone_raise})"
+            margin_l = shadow_margin_l if shadow else 60
+            margin_r = shadow_margin_r if shadow else 60
+            return f"\\an{alignment}\\marginv{raised}\\marginl{margin_l}\\marginr{margin_r}"
 
         def caption_mark_overlay(parts: Tuple[str, str, str], *, shadow: bool) -> str:
             """Expose one detached tone while all layout-preserving text stays hidden."""
@@ -832,21 +939,26 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             start_t = cls._format_ass_time(cue["start"])
             end_t = cls._format_ass_time(cue["end"])
             # Exact line wrap calibration matching SequencePlayer.jsx maxLineW = 464px (86% of 1080w = 928px)
-            dyn_max_chars = max(24, int(round(3100 / max(20, font_size))))
+            dyn_max_chars = cls._max_line_chars(font_size)
             # cue["text"] is caption text the AI script/translator produced from
             # scraper- and user-controlled product data -- a literal `{`/`}`
             # or `\` in it must render as a literal character, never open an
             # ASS override block (see ass_escape_text). Escaped BEFORE
             # wrapping/highlighting so those only ever see plain text and add
             # their own well-formed \N / {\c...} sequences on top.
-            text = cls.wrap_text_for_ass(ass_escape_text(cue["text"].strip()), max_chars_per_line=dyn_max_chars)
+            # Strip emoji here as well as in generate_micro_cues: a cue can
+            # reach the writer without passing through it -- an older manifest,
+            # or a re-roll feeding its own micro_cues back in -- and a single
+            # emoji is enough to move the reveal's anchor off the text.
+            cue_source_text = strip_caption_emoji(cue["text"])
+            text = cls.wrap_text_for_ass(ass_escape_text(cue_source_text), max_chars_per_line=dyn_max_chars)
             if not text:
                 continue
             # Sync wrapped (but NOT escaped) text back into cue object for
             # 100% editor preview parity -- this dict is also what a re-roll
             # feeds back into generate_ass() as ctx.cues, so storing the
             # escaped form here would double-escape on every subsequent run.
-            cue["text"] = cls.wrap_text_for_ass(cue["text"].strip(), max_chars_per_line=dyn_max_chars)
+            cue["text"] = cls.wrap_text_for_ass(cue_source_text, max_chars_per_line=dyn_max_chars)
 
             # Thai-safe entrance: fade in over 70ms without geometric scaling.
             # Scaling a shaped Thai run with \fscx/\fscy after libass has
@@ -885,7 +997,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     primary_en="&H00EAEAEA&",
                     custom_keywords=proj_keywords
                 )
-                en_sub = f"\\N{{\\fscx{en_pct}\\fscy{en_pct}\\c&H00EAEAEA&}}{en_highlighted}"
+                # \alpha carries across \N, so the English line has to clear it
+                # explicitly: under a ghost reveal the Thai line above ends on
+                # whichever tag its last unspoken word set, and without the
+                # reset the whole translation inherited \alpha&HFF& and stayed
+                # invisible until the final word was spoken.
+                en_sub = f"\\N{{\\alpha&H00&\\fscx{en_pct}\\fscy{en_pct}\\c&H00EAEAEA&}}{en_highlighted}"
             else:
                 highlighted_text = cls.apply_kinetic_highlighting(text, primary_color_ass=primary, custom_keywords=proj_keywords)
                 en_sub = ""
@@ -910,6 +1027,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 pos_override = f"\\an5\\pos({px_x},{px_y})"
 
             # Layer 0: Natural Soft Feathered Shadow (Gaussian Blur matching Canvas preview)
+            #
+            # Recorded here and only appended once it is known whether the
+            # reveal took over: the shadow draws the caption whole from the
+            # cue's first frame, so under a reveal it would show the words that
+            # have not been spoken yet as a soft grey pre-echo -- invisible
+            # enough to miss on one line, obvious as a floating tone mark above
+            # a second one.
+            shadow_events: List[str] = []
             if not is_pill_mode:
                 en_sub_shadow = f"\\N{{\\fscx{en_pct}\\fscy{en_pct}}}{en_wrapped}" if en_wrapped else ""
                 shadow_tag = f"{{\\blur{shadow_blur}\\alpha&H38&}}"
@@ -917,11 +1042,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 # Keep the fade after the shadow's static alpha tag so the
                 # shadow follows the same entrance and is not visible alone
                 # on the first frame.
-                shadow_text, shadow_marks = repair_caption_text(text + en_sub_shadow)
+                # Repair the Thai only. A companion mark overlay redraws the
+                # whole string it was given and hides everything but its one
+                # tone -- but the English line carries its own \fscx/\c tags,
+                # which reset that hiding, so an English line inside the
+                # repaired text got painted a second time, 14px above the real
+                # one. The translation is appended after the repair instead, so
+                # it exists once, in the body, and never in an overlay.
+                shadow_text, shadow_marks = repair_caption_text(text)
+                shadow_text += en_sub_shadow
                 shadow_entry = f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{shadow_pos}{shadow_tag}{multi_line_metric_tag}{caption_anim}{shadow_text}"
-                events.append(shadow_entry)
+                shadow_events.append(shadow_entry)
                 for mark_parts in shadow_marks:
-                    events.append(
+                    shadow_events.append(
                         f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,"
                         f"{{{caption_mark_position(shadow=True)}}}"
                         f"{caption_mark_overlay(mark_parts, shadow=True)}"
@@ -929,7 +1062,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             # Layer 1: Crisp Foreground Text with dynamic kinetic highlights
             main_pos = f"{{{pos_override}}}" if pos_override else ""
-            main_text, main_marks = repair_caption_text(highlighted_text + en_sub)
+            # Same split as the shadow above: the English line must not reach
+            # the mark overlay, which would draw it a second time.
+            main_text, main_marks = repair_caption_text(highlighted_text)
+            main_text += en_sub
 
             # Progressive Ghost Reveal (SOP Phase 3) replaces the single
             # foreground event with one per word. It needs a plain line to
@@ -941,16 +1077,21 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             if (
                 ghost_reveal
                 and not is_pill_mode
-                and not pos_override
-                and "\\N" not in text
-                and not en_sub
             ):
                 # Prefer the track generate_micro_cues already attached, so the
                 # ASS and the preview reveal on identical boundaries. Recomputing
                 # is only for cues that came from somewhere else (a hand-built
                 # list in a test, or an older manifest).
-                reveal = cue.get("word_reveal") or build_word_reveal(
-                    text,
+                # A stored track is only usable if it describes the text about
+                # to be drawn. An older manifest's track still carries the
+                # emoji that have since been stripped, so its words would no
+                # longer add up to the line -- recompute instead.
+                stored_reveal = cue.get("word_reveal") or []
+                stored_matches = "".join(
+                    w.get("text", "") for w in stored_reveal
+                ).replace(" ", "") == cue_source_text.replace(" ", "").replace("\n", "")
+                reveal = stored_reveal if stored_matches else build_word_reveal(
+                    cue_source_text,
                     float(cue["start"]),
                     float(cue["end"]),
                     cue.get("word_timings"),
@@ -963,7 +1104,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     # reveal path would reintroduce the collision this codebase
                     # has fixed once already.
                     repaired_reveal = []
-                    reveal_marks: List[Tuple[float, Tuple[str, str, str]]] = []
                     for word in reveal:
                         # The reveal track is built from the cue's raw text, so
                         # each word still has to be escaped before it reaches
@@ -972,12 +1112,31 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         # Without this a caption containing a literal override
                         # block reaches libass as markup and can recolour or
                         # reposition itself.
-                        w_body, w_marks = repair_caption_text(
-                            ass_escape_text(word["text"])
-                        )
+                        w_body, _ = repair_caption_text(ass_escape_text(word["text"]))
                         repaired_reveal.append({**word, "text": w_body})
-                        for parts in w_marks:
-                            reveal_marks.append((word["start"], parts))
+
+                    # The companions, though, are built from the WHOLE line at
+                    # once. Each one carries the entire caption and hides all of
+                    # it but its own tone, which is what holds the tone over the
+                    # right glyph -- a companion built from one word has nothing
+                    # in front of it, so libass draws its tone at the start of
+                    # the line instead of above the word it belongs to.
+                    _, line_marks = repair_caption_text(
+                        ass_escape_text(cue_source_text.replace("\n", ""))
+                    )
+                    # A companion appears with the word that owns its tone, so a
+                    # mark is timed to the word whose text contains it.
+                    reveal_marks: List[Tuple[float, Tuple[str, str, str]]] = []
+                    for parts in line_marks:
+                        prefix_len = len(parts[0])
+                        consumed = 0
+                        owner_start = float(reveal[0]["start"])
+                        for word in reveal:
+                            consumed += len(ass_escape_text(word["text"]))
+                            if consumed > prefix_len:
+                                owner_start = float(word["start"])
+                                break
+                        reveal_marks.append((owner_start, parts))
 
                     # libass centres a line on the ink it actually paints, and a
                     # ghosted word paints none -- so the reveal has to carry its
@@ -998,7 +1157,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     # wrong edge: \an4 centres on its y, so using it for a
                     # bottom caption sat the text ~40px low and a top one ~36px
                     # high against the plain caption's position.
-                    if alignment == 2:
+                    if pos_override:
+                        # The editor writes x/y onto every cue as soon as the
+                        # caption is positioned once, so a positioned caption is
+                        # the normal case, not an exception -- refusing to
+                        # reveal on it left the feature off in real projects.
+                        # \an5 centres on the point, so the reveal centres too
+                        # and keeps its own left anchor from the line's width.
+                        reveal_y = float(px_y)
+                        reveal_align = 4
+                    elif alignment == 2:
                         reveal_y = video_height - margin_v
                         reveal_align = 1
                     elif alignment == 8:
@@ -1007,44 +1175,186 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     else:
                         reveal_y = video_height / 2.0
                         reveal_align = 4
-                    anchor = anchor_tags(
-                        "".join(w["text"] for w in repaired_reveal),
-                        caption_font,
-                        font_size_boosted,
-                        centre_x=video_width / 2.0,
-                        baseline_y=reveal_y,
-                        video_w=video_width,
-                        vertical_align=reveal_align,
+                    reveal_x = float(px_x) if pos_override else video_width / 2.0
+
+                    def _anchor_for(line_text: str, y: float) -> str:
+                        return anchor_tags(
+                            line_text,
+                            caption_font,
+                            font_size_boosted,
+                            centre_x=reveal_x,
+                            baseline_y=y,
+                            video_w=video_width,
+                            vertical_align=reveal_align,
+                        )
+
+                    # Deal the words out across lines using the UNrepaired
+                    # track: repair_caption_text pulls tone marks out of the
+                    # body, so a repaired word no longer matches the wrapped
+                    # line character for character and every split would be
+                    # rejected. The repaired words are then re-split the same
+                    # way, which is safe because repair is per word.
+                    wrapped_lines = [ln for ln in text.split("\\N") if ln.strip()]
+                    raw_lines = (
+                        split_reveal_by_lines(
+                            [{**w, "text": ass_escape_text(w["text"])} for w in reveal],
+                            wrapped_lines,
+                        )
+                        if len(wrapped_lines) > 1
+                        else None
                     )
-                    reveal_events = build_ghost_reveal_events(
-                        repaired_reveal,
-                        float(cue["end"]),
-                        style=style,
-                        layer=1,
-                        prefix_tags=anchor,
-                    )
-                    # A companion glyph appears with its own word and then stays
-                    # for the rest of the cue, matching the body text underneath
-                    # it -- which also stays once revealed.
-                    for m_start, parts in reveal_marks:
+                    reveal_lines = None
+                    if raw_lines:
+                        reveal_lines, cursor = [], 0
+                        for line in raw_lines:
+                            reveal_lines.append(repaired_reveal[cursor:cursor + len(line)])
+                            cursor += len(line)
+
+                    if reveal_lines:
+                        # A wrapped caption reveals across its lines. Each line
+                        # gets its own anchor, stepping by the caption's line
+                        # advance -- LINE_HEIGHT_FACTOR is 1.0 (parity rule 2.7),
+                        # so one font size per line. The block is positioned the
+                        # same way the plain caption's is: bottom alignment grows
+                        # upward from the margin, top downward, middle centred.
+                        count = len(reveal_lines)
+                        step = font_size
+                        if alignment == 2:
+                            first_y = reveal_y - (count - 1) * step
+                        elif alignment == 8:
+                            first_y = reveal_y
+                        else:
+                            first_y = reveal_y - ((count - 1) * step) / 2.0
+                        anchors = [
+                            _anchor_for("".join(w["text"] for w in line), first_y + i * step)
+                            for i, line in enumerate(reveal_lines)
+                        ]
+                        reveal_events = build_multiline_reveal_events(
+                            reveal_lines,
+                            float(cue["end"]),
+                            anchors,
+                            style=style,
+                            layer=1,
+                        )
+                        # Companion glyphs for the stacked marks. caption_mark_
+                        # position() anchors on the caption block as a whole,
+                        # which is only right for a single line -- here each
+                        # line already has its own anchor, so the glyph reuses
+                        # it, raised by the same tone_raise. It is re-derived
+                        # per line because the overlay draws the whole line and
+                        # hides everything but the tone, to keep the layout.
+                        for li, line in enumerate(reveal_lines):
+                            line_y = first_y + li * step
+                            for word in line:
+                                _, w_marks = repair_caption_text(
+                                    ass_escape_text(word["text"])
+                                )
+                                for parts in w_marks:
+                                    mark_anchor = anchor_tags(
+                                        "".join(w["text"] for w in line),
+                                        caption_font,
+                                        font_size_boosted,
+                                        centre_x=reveal_x,
+                                        baseline_y=line_y - tone_raise,
+                                        video_w=video_width,
+                                        vertical_align=reveal_align,
+                                    )
+                                    reveal_events.append(
+                                        f"Dialogue: 1,{cls._format_ass_time(word['start'])},"
+                                        f"{cls._format_ass_time(float(cue['end']))},"
+                                        f"{style},,0,0,0,,{mark_anchor}"
+                                        f"{caption_mark_overlay(parts, shadow=False)}"
+                                    )
+                    else:
+                        body_anchor_text = "".join(w["text"] for w in repaired_reveal)
+                        anchor = _anchor_for(body_anchor_text, reveal_y)
+                        reveal_events = build_ghost_reveal_events(
+                            repaired_reveal,
+                            float(cue["end"]),
+                            style=style,
+                            layer=1,
+                            prefix_tags=anchor,
+                        )
+                        # A companion glyph appears with its own word and then
+                        # stays for the rest of the cue, matching the body text
+                        # underneath it -- which also stays once revealed.
+                        #
+                        # It has to hang off the reveal's own anchor, not
+                        # caption_mark_position(): that places a mark against
+                        # the plain caption's layout, which the reveal has
+                        # already replaced with a left-anchored \pos of its own.
+                        # Mixing the two put the tone under the wrong glyph.
+                        # Measured from the same string the body anchors on:
+                        # the companion now carries the whole line too, so both
+                        # start at the same x and the tone lands over its glyph.
+                        mark_anchor = anchor_tags(
+                            body_anchor_text,
+                            caption_font,
+                            font_size_boosted,
+                            centre_x=reveal_x,
+                            baseline_y=reveal_y - tone_raise,
+                            video_w=video_width,
+                            vertical_align=reveal_align,
+                        )
+                        for m_start, parts in reveal_marks:
+                            reveal_events.append(
+                                f"Dialogue: 1,{cls._format_ass_time(m_start)},{cls._format_ass_time(float(cue['end']))},"
+                                f"{style},,0,0,0,,{mark_anchor}"
+                                f"{caption_mark_overlay(parts, shadow=False)}"
+                            )
+
+                    # The English line gets its own event, centred normally.
+                    # It cannot ride along inside the reveal's: those are
+                    # anchored from their left edge (the ghosts paint no ink for
+                    # libass to centre on), so an English line appended to them
+                    # inherited that left anchor and sat off-centre under a Thai
+                    # line that is itself centred -- the block looked lopsided.
+                    # Nothing in the English is revealed, so it needs no anchor
+                    # of its own and is simply centred like a plain caption.
+                    if reveal_events and en_sub:
+                        # \an5 measures from each line's own middle, so the step
+                        # is half the Thai line plus half the English one. Both
+                        # halves are taken from the BOOSTED size, which is what
+                        # libass actually renders -- Thai faces run line boxes
+                        # far taller than their em, so stepping by the em number
+                        # left the two lines 6px apart, close enough to read as
+                        # collided. The last term is the gap between them.
+                        en_y = reveal_y + font_size_boosted * (
+                            0.5 + (en_pct / 100.0) * 0.5 + 0.12
+                        )
+                        en_pos = (
+                            f"{{\\an5\\pos({int(round(reveal_x))},{int(round(en_y))})}}"
+                            if pos_override
+                            else f"{{\\an{alignment}}}"
+                        )
+                        # en_sub leads with the \N that stacked it under the
+                        # Thai; as its own event it starts at its own position.
+                        en_body = en_sub[2:] if en_sub.startswith("\\N") else en_sub
                         reveal_events.append(
-                            f"Dialogue: 1,{cls._format_ass_time(m_start)},{cls._format_ass_time(float(cue['end']))},"
-                            f"{style},,0,0,0,,"
-                            f"{{{caption_mark_position(shadow=False)}}}"
-                            f"{caption_mark_overlay(parts, shadow=False)}"
+                            f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,"
+                            f"{en_pos}{caption_anim}{en_body}"
                         )
 
             if reveal_events:
+                # The reveal's own events carry the outline; the whole-caption
+                # shadow is dropped rather than left pre-echoing the unspoken
+                # words. Giving each revealed word its own shadow would need a
+                # second full set of events per step, for a blur the reveal's
+                # outline already covers.
                 events.extend(reveal_events)
             else:
+                events.extend(shadow_events)
                 line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{main_pos}{multi_line_metric_tag}{caption_anim}{main_text}"
                 events.append(line_entry)
-            for mark_parts in main_marks:
-                events.append(
-                    f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,"
-                    f"{{{caption_mark_position(shadow=False)}}}"
-                    f"{caption_mark_overlay(mark_parts, shadow=False)}"
-                )
+                # The reveal emits its own companion glyphs, timed to the word
+                # each one belongs to; these whole-caption ones would duplicate
+                # them and show every mark from the cue's first frame.
+                for mark_parts in main_marks:
+                    events.append(
+                        f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,"
+                        f"{{{caption_mark_position(shadow=False)}}}"
+                        f"{caption_mark_overlay(mark_parts, shadow=False)}"
+                    )
 
         # 3. Spec-Bar Overlays (IT vertical: the number goes on screen, not
         # just in the voiceover). These read from the original sentence-level

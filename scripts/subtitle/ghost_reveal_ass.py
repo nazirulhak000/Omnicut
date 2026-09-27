@@ -120,12 +120,83 @@ def anchor_tags(
     return f"{{\\an{vertical_align}\\pos({left_x:.1f},{baseline_y:.1f})}}"
 
 
+def build_multiline_reveal_events(
+    lines: Sequence[Sequence[Dict]],
+    cue_end: float,
+    anchors: Sequence[str],
+    style: str = "TikTokWhite",
+    layer: int = 1,
+    suffix: str = "",
+) -> List[str]:
+    """
+    A reveal spread over several rendered lines, one anchor per line.
+
+    Every line is redrawn at each step, because a word lighting up on line two
+    must leave line one exactly as it was -- already white, not re-ghosted. So
+    each step emits one event per line, with only the line owning the active
+    word showing it green; earlier lines are fully spoken and later ones fully
+    ghosted.
+
+    `lines` is the reveal track dealt out by `word_reveal.split_reveal_by_lines`,
+    and `anchors` the `\\pos` tags that place each line -- their y values must
+    step by the caption's line height, or the lines will overlap.
+    """
+    if not lines or len(lines) != len(anchors):
+        return []
+
+    flat = [(li, wi, w) for li, line in enumerate(lines) for wi, w in enumerate(line)]
+    if not flat:
+        return []
+
+    events: List[str] = []
+    for li, wi, word in flat:
+        start, end = float(word["start"]), float(word["end"])
+        if end <= start:
+            continue
+        for other_li, other_line in enumerate(lines):
+            if not other_line:
+                continue
+            words = [w["text"] for w in other_line]
+            if other_li < li:
+                text = build_settle_line(words)          # already said
+            elif other_li == li:
+                text = build_reveal_line(words, wi)      # holds the active word
+            else:
+                text = _ghost_line(words)                # still to come
+            # The English line stacks under the caption as a whole, so it hangs
+            # off the last Thai line only -- repeating it under each one would
+            # print it once per line.
+            tail = suffix if other_li == len(lines) - 1 else ""
+            events.append(
+                f"Dialogue: {layer},{_ass_time(start)},{_ass_time(end)},{style},,0,0,0,,"
+                f"{anchors[other_li]}{text}{tail}"
+            )
+
+    last_end = float(flat[-1][2]["end"])
+    if cue_end > last_end:
+        for li, line in enumerate(lines):
+            if not line:
+                continue
+            events.append(
+                f"Dialogue: {layer},{_ass_time(last_end)},{_ass_time(cue_end)},{style},,0,0,0,,"
+                f"{anchors[li]}{build_settle_line([w['text'] for w in line])}"
+                f"{suffix if li == len(lines) - 1 else ''}"
+            )
+    return events
+
+
+def _ghost_line(words: Sequence[str]) -> str:
+    """A line that has not been reached yet -- drawn, so it holds its width."""
+    return f"{_state_tags('ghost')}{''.join(words)}"
+
+
 def build_ghost_reveal_events(
     reveal: Sequence[Dict],
     cue_end: float,
     style: str = "TikTokWhite",
     layer: int = 1,
     prefix_tags: str = "",
+    suffix: str = "",
 ) -> List[str]:
     """
     Dialogue lines rendering `reveal` as a progressive ghost reveal.
@@ -137,6 +208,10 @@ def build_ghost_reveal_events(
 
     `prefix_tags` leads every event's text. Pass `anchor_tags(...)` here: without
     a `\\pos` anchor the line slides sideways as its ghosts stop painting ink.
+
+    `suffix` is appended unchanged to every event -- the stacked English line,
+    which has no per-word timing of its own and so rides along whole under each
+    step of the Thai reveal.
     """
     if not reveal:
         return []
@@ -152,14 +227,15 @@ def build_ghost_reveal_events(
             continue
         text = build_reveal_line(words, i)
         events.append(
-            f"Dialogue: {layer},{_ass_time(start)},{_ass_time(end)},{style},,0,0,0,,{prefix_tags}{text}"
+            f"Dialogue: {layer},{_ass_time(start)},{_ass_time(end)},{style},,0,0,0,,"
+            f"{prefix_tags}{text}{suffix}"
         )
 
     last_end = float(reveal[-1]["end"])
     if cue_end > last_end:
         events.append(
             f"Dialogue: {layer},{_ass_time(last_end)},{_ass_time(cue_end)},{style},,0,0,0,,"
-            f"{prefix_tags}{build_settle_line(words)}"
+            f"{prefix_tags}{build_settle_line(words)}{suffix}"
         )
 
     return events

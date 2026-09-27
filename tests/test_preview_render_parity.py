@@ -2632,7 +2632,8 @@ def test_preview_reveals_on_the_same_word_boundaries_as_the_render():
     the cue and both sides read it.
     """
     assert '"word_reveal": build_word_reveal(' in PY_SRC
-    assert "ghostRevealSegments(cue.word_reveal, t)" in JS_SRC
+    assert "cue.word_reveal" in JS_SRC
+    assert "ghostRevealSegments(" in JS_SRC
     assert "Intl.Segmenter" not in JS_SRC.split("function ghostRevealSegments")[1].split("\n}")[0]
 
 
@@ -2690,3 +2691,164 @@ def test_reveal_anchor_is_measured_at_the_rendered_font_size():
     assert "font_size_boosted" in call, (
         "the reveal anchor must be measured at the boosted Fontsize, not the em size"
     )
+
+
+def test_multiline_reveal_is_mirrored_on_both_sides():
+    """
+    A wrapped caption reveals across its lines in both engines, and both deal
+    the flat track out the same way -- the split has to agree or the two would
+    light different words on different lines.
+    """
+    assert "def split_reveal_by_lines(" in PY_SRC
+    assert "function splitRevealByLines(" in JS_SRC
+    # Both reject a word straddling the break rather than guessing.
+    assert "straddles the line break" in PY_SRC
+    assert "straddles the break" in JS_SRC
+    # And both drive the per-line slice off the whole track, so a word lighting
+    # up on line two leaves line one white instead of re-ghosting it.
+    assert "build_multiline_reveal_events(" in PY_SRC
+    assert "ghostRevealSegments(revealTrack, t, revealLines[idx])" in JS_SRC
+
+
+def test_multiline_reveal_lines_step_by_one_font_size():
+    """
+    Parity rule 2.7: line advance is exactly 1.0 x font size. The reveal places
+    each line itself rather than letting libass stack them, so it has to use the
+    same step the Canvas does.
+    """
+    assert "step = font_size" in PY_SRC
+    assert "const thaiLineH = fontSize;" in JS_SRC
+
+
+def test_reveal_drops_the_whole_caption_shadow():
+    """
+    The soft shadow draws the caption whole from the cue's first frame, so under
+    a reveal it pre-echoes words that have not been spoken -- visible as a grey
+    tone mark floating above a second line before its text appears.
+    """
+    assert "shadow_events: List[str] = []" in PY_SRC
+    block = PY_SRC.split("if reveal_events:")[1].split("else:")[0]
+    assert "shadow_events" not in block, "the reveal path must not emit the whole-caption shadow"
+
+
+def test_english_line_resets_alpha_under_a_reveal():
+    r"""
+    ASS override state carries across \N, so the English line inherits whatever
+    the Thai line above it ended on. Under a ghost reveal that is the last
+    unspoken word's \alpha&HFF&, which made the whole translation invisible
+    until the final word was spoken -- it only appeared on the settle event.
+    """
+    assert r"\\N{{\\alpha&H00&" in PY_SRC, (
+        "the English line must clear the reveal's ghost alpha"
+    )
+
+
+def test_a_bilingual_caption_still_reveals():
+    """
+    The reveal used to bail out entirely when a translation was present, so
+    every bilingual project -- which is the default -- silently got a plain
+    caption however the flag was set.
+    """
+    gate = PY_SRC.split("reveal_events: List[str] = []")[1].split("):")[0]
+    assert "en_sub" not in gate, (
+        "a stacked English line must not disable the Thai reveal"
+    )
+
+
+def test_emoji_are_stripped_from_captions():
+    """
+    libass draws emoji through a fallback face whose advance PIL cannot measure,
+    so any layout computed before the render -- the reveal's anchor, the
+    detached-tone companions -- lands off by the difference (16px, measured,
+    enough to put a tone over the wrong glyph).
+    """
+    assert "def strip_caption_emoji(" in PY_SRC
+    # Applied where cues are built AND where they are written, since a cue can
+    # reach the writer without passing through generate_micro_cues.
+    assert PY_SRC.count("strip_caption_emoji(") >= 3
+    # The old keyword-driven auto-emoji table must be gone, not just bypassed.
+    assert 'emoji = "⚠️ "' not in PY_SRC
+
+
+def test_an_emptied_clause_is_not_emitted():
+    """A clause that was only an emoji would otherwise hold a blank caption."""
+    assert "if not cue_text:" in PY_SRC
+
+
+def test_reveal_companions_are_built_from_the_whole_line():
+    """
+    A companion carries the entire caption and hides all but its own tone --
+    that is what holds the tone over the right glyph. Building one per word
+    leaves it with nothing in front, so libass drew the tone at the start of the
+    line instead of above the word it belongs to.
+    """
+    block = PY_SRC.split("reveal_events: List[str] = []")[1].split("if reveal_events:")[0]
+    assert "_, line_marks = repair_caption_text(" in block, (
+        "the reveal must repair the whole line for its companions"
+    )
+    assert "w_body, _ = repair_caption_text(ass_escape_text(word[\"text\"]))" in block, (
+        "the body still repairs per word, since each word is drawn separately"
+    )
+
+
+def test_the_english_line_is_centred_independently_of_the_reveal():
+    """
+    The reveal's events are anchored from their left edge -- its ghosts paint no
+    ink for libass to centre on. An English line appended to them inherited that
+    left anchor and sat off-centre under a Thai line that is itself centred, so
+    the block read as lopsided. Nothing in the English is revealed, so it gets
+    its own normally-centred event instead.
+    """
+    block = PY_SRC.split("reveal_events: List[str] = []")[1].split("if reveal_events:")[0]
+    assert "suffix=en_sub" not in block, (
+        "the English line must not ride inside the left-anchored reveal events"
+    )
+    assert "if reveal_events and en_sub:" in PY_SRC
+    # A positioned cue centres it on the same point; otherwise the style's own
+    # alignment already centres it.
+    assert "an5" in PY_SRC.split("if reveal_events and en_sub:")[1][:600]
+
+
+def test_both_caption_toggles_reach_the_render_request():
+    """
+    A toggle that only changes the preview is worse than no toggle: the editor
+    shows one thing and the export does another. bilingual_subtitles was pinned
+    to `true` in the render request and ghost_reveal was not sent at all.
+    """
+    shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    assert "bilingual_subtitles: true," not in shell, (
+        "bilingual_subtitles must come from the project's own style"
+    )
+    assert "bilingual_subtitles: style.bilingualSubtitles !== false," in shell
+    assert "ghost_reveal: !!style.ghostReveal," in shell
+
+
+def test_both_caption_toggles_survive_a_reload():
+    """A toggle read on load but never written back resets on reopen."""
+    state = (ROOT / "frontend" / "src" / "lib" / "editorProjectState.js").read_text(encoding="utf-8")
+    serialise = state.split("export function serializeStyle(")[1].split("\n}")[0]
+    for key in ("ghost_reveal", "ghostReveal", "bilingual_subtitles", "bilingualSubtitles"):
+        assert key in serialise, f"serializeStyle drops {key}"
+
+
+def test_both_caption_toggles_are_in_the_inspector():
+    picker = (
+        ROOT / "frontend" / "src" / "components" / "editor" / "inspector" / "CaptionInspector.jsx"
+    ).read_text(encoding="utf-8")
+    assert "ghostReveal: !style.ghostReveal" in picker
+    assert "bilingualSubtitles: style.bilingualSubtitles === false" in picker
+    # Both go through the shared switch, which carries the role and the label.
+    assert picker.count("<CaptionToggle") == 2
+    assert 'role="switch"' in picker
+    assert picker.count("ariaLabel=") == 2
+
+
+def test_the_english_line_clears_the_thai_one_under_a_reveal():
+    """
+    \an5 measures each line from its own middle, so the step between them is
+    half of each -- taken from the BOOSTED size libass actually renders, since
+    Thai faces run line boxes far taller than their em. Stepping by the em
+    number left 6px between the two, which reads as a collision.
+    """
+    assert "en_y = reveal_y + font_size_boosted * (" in PY_SRC
+    assert "en_pct / 100.0" in PY_SRC

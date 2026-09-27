@@ -217,3 +217,104 @@ class TestEndToEnd:
         reveal = build_word_reveal("เชื่อมต่อได้", 0.0, 2.0)
         for r in reveal:
             assert not r["text"].startswith(("่", "้", "ิ", "ื"))
+
+
+class TestBilingualSuffix:
+    """
+    The English line has no per-word timing, so it rides along whole under each
+    step of the Thai reveal rather than blocking the reveal entirely.
+    """
+
+    def test_suffix_rides_on_every_event(self):
+        reveal = _reveal([("ก", 0.0, 0.5), ("ข", 0.5, 1.0)])
+        events = build_ghost_reveal_events(reveal, 2.0, suffix=r"\NEN LINE")
+        assert len(events) == 3          # two words + settle
+        assert all("EN LINE" in ev for ev in events)
+
+    def test_suffix_comes_after_the_thai_line(self):
+        reveal = _reveal([("กล้อง", 0.0, 1.0)])
+        ev = build_ghost_reveal_events(reveal, 1.0, suffix=r"\NEN")[0]
+        assert ev.index("กล้อง") < ev.index("EN")
+
+    def test_no_suffix_leaves_events_unchanged(self):
+        reveal = _reveal([("ก", 0.0, 0.5), ("ข", 0.5, 1.0)])
+        assert build_ghost_reveal_events(reveal, 1.0) == \
+               build_ghost_reveal_events(reveal, 1.0, suffix="")
+
+    def test_multiline_puts_the_suffix_under_the_last_line_only(self):
+        from scripts.subtitle.ghost_reveal_ass import build_multiline_reveal_events
+
+        lines = [
+            _reveal([("ก", 0.0, 0.5)]),
+            _reveal([("ข", 0.5, 1.0)]),
+        ]
+        events = build_multiline_reveal_events(
+            lines, 1.0, [r"{\pos(0,100)}", r"{\pos(0,200)}"], suffix=r"\NEN"
+        )
+        # One per line per step; the English must appear once per step, not twice.
+        for ev in events:
+            assert ev.count("EN") <= 1
+        per_step = {}
+        for ev in events:
+            key = (ev.split(",")[1], ev.split(",")[2])
+            per_step.setdefault(key, []).append(ev)
+        for step_events in per_step.values():
+            assert sum("EN" in ev for ev in step_events) == 1
+
+
+class TestBilingualOff:
+    """Turning the English line off must actually remove it from the render."""
+
+    def _ass(self, tmp_path, bilingual, ghost):
+        from scripts.subtitle_engine import SubtitleEngine
+
+        out = tmp_path / f"b{int(bilingual)}g{int(ghost)}.ass"
+        SubtitleEngine.generate_ass(
+            [{"id": 1, "start": 0.0, "end": 2.0,
+              "text": "เครื่องนี้ช่วยลดอุณหภูมิ",
+              "translation": "this cooler drops the temperature"}],
+            str(out), font_name="IBMPlex",
+            bilingual=bilingual, ghost_reveal=ghost,
+        )
+        return out.read_text(encoding="utf-8")
+
+    def test_off_removes_the_english_under_a_reveal(self, tmp_path):
+        assert "cooler drops" not in self._ass(tmp_path, False, True)
+
+    def test_off_removes_the_english_without_a_reveal(self, tmp_path):
+        assert "cooler drops" not in self._ass(tmp_path, False, False)
+
+    def test_on_keeps_it_in_both_modes(self, tmp_path):
+        assert "cooler drops" in self._ass(tmp_path, True, True)
+        assert "cooler drops" in self._ass(tmp_path, True, False)
+
+    def test_off_also_drops_the_english_style_tag(self, tmp_path):
+        """The 68% scale run belongs to the English line and must go with it."""
+        assert "\fscx68" not in self._ass(tmp_path, False, True)
+
+
+class TestRevealFlagOff:
+    def test_off_leaves_a_plain_caption(self, tmp_path):
+        from scripts.subtitle_engine import SubtitleEngine
+
+        out = tmp_path / "off.ass"
+        SubtitleEngine.generate_ass(
+            [{"id": 1, "start": 0.0, "end": 2.0,
+              "text": "เครื่องนี้ช่วยลดอุณหภูมิ", "translation": ""}],
+            str(out), font_name="IBMPlex", bilingual=False, ghost_reveal=False,
+        )
+        generated = out.read_text(encoding="utf-8")
+        assert ACTIVE_COLOUR not in generated, "a reveal was drawn with the flag off"
+        # GHOST_ALPHA alone is not a reveal marker -- the plain caption's 70ms
+        # entrance starts from the same \alpha&HFF&, and each stacked mark adds
+        # a companion event. What must be absent is the reveal's own signature:
+        # a word held at 114% while another is ghosted in the same event.
+        assert f"\\fscx{ACTIVE_SCALE_PCT}" not in generated
+        body_events = [
+            line for line in generated.splitlines()
+            if line.startswith("Dialogue: 1,") and ",TikTokWhite,," in line
+            and "\\1a&HFF&" not in line          # exclude mark companions
+        ]
+        assert len(body_events) == 1, (
+            f"a plain caption is one event per cue, got {len(body_events)}"
+        )

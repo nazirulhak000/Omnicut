@@ -135,3 +135,58 @@ class TestUsability:
 
     def test_empty_track_is_not(self):
         assert not reveal_is_usable([])
+
+
+class TestSplitByLines:
+    """A wrapped caption has to hand its words back out across its lines."""
+
+    def _track(self, *words):
+        out, t = [], 0.0
+        for w in words:
+            out.append({"text": w, "start": t, "end": t + 0.5})
+            t += 0.5
+        return out
+
+    def test_splits_on_the_line_boundary(self):
+        from scripts.subtitle.word_reveal import split_reveal_by_lines
+
+        track = self._track("กล้อง", "คมชัด", "แบต", "อึด")
+        lines = split_reveal_by_lines(track, ["กล้องคมชัด", "แบตอึด"])
+        assert lines is not None
+        assert [w["text"] for w in lines[0]] == ["กล้อง", "คมชัด"]
+        assert [w["text"] for w in lines[1]] == ["แบต", "อึด"]
+
+    def test_keeps_every_word_and_its_timing(self):
+        from scripts.subtitle.word_reveal import split_reveal_by_lines
+
+        track = self._track("กล้อง", "คมชัด", "แบต", "อึด")
+        lines = split_reveal_by_lines(track, ["กล้องคมชัด", "แบตอึด"])
+        flat = [w for line in lines for w in line]
+        assert flat == track
+
+    def test_rejects_a_word_straddling_the_break(self):
+        # The wrapper would have to cut inside "คมชัด" to make these lines, and
+        # a reveal cannot light half a word -- better to fall back.
+        from scripts.subtitle.word_reveal import split_reveal_by_lines
+
+        track = self._track("กล้อง", "คมชัด")
+        assert split_reveal_by_lines(track, ["กล้องคม", "ชัด"]) is None
+
+    def test_rejects_text_that_does_not_match(self):
+        from scripts.subtitle.word_reveal import split_reveal_by_lines
+
+        track = self._track("กล้อง", "คมชัด")
+        assert split_reveal_by_lines(track, ["อย่างอื่น", "ไปเลย"]) is None
+
+    def test_single_line_round_trips(self):
+        from scripts.subtitle.word_reveal import split_reveal_by_lines
+
+        track = self._track("กล้อง", "คมชัด")
+        lines = split_reveal_by_lines(track, ["กล้องคมชัด"])
+        assert lines == [track]
+
+    def test_empty_inputs(self):
+        from scripts.subtitle.word_reveal import split_reveal_by_lines
+
+        assert split_reveal_by_lines([], ["ก"]) is None
+        assert split_reveal_by_lines(self._track("ก"), []) is None

@@ -1842,7 +1842,11 @@ export default function EditorShell({
         clip_list: serializeRenderClips(clipList, effectiveBgIsolation?.scope_mode),
         transitions: savePayload.transitions,
         overlays,
-        bilingual_subtitles: true,
+        // Both of these were missing from the render request: bilingual was
+        // pinned to true and ghost_reveal was never sent at all, so their
+        // toggles changed the preview and then the export ignored them.
+        bilingual_subtitles: style.bilingualSubtitles !== false,
+        ghost_reveal: !!style.ghostReveal,
         show_watermark: style.showWatermark !== false,
         font_name: style.fontName,
         bgm_name: style.bgmName,

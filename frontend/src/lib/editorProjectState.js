@@ -372,6 +372,10 @@ export function serializeStyle(style = {}) {
     showWatermark: style.showWatermark !== false,
     ghost_reveal: !!style.ghostReveal,
     ghostReveal: !!style.ghostReveal,
+    // Read back on load since the beginning, but never written -- so turning
+    // the English line off held only until the project was reopened.
+    bilingual_subtitles: style.bilingualSubtitles !== false,
+    bilingualSubtitles: style.bilingualSubtitles !== false,
   };
 }
 
