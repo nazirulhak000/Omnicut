@@ -511,8 +511,12 @@ def test_editor_preserves_every_field_the_renderer_reads():
     # and the save path must not re-strip them
     for serialise in re.findall(r"clipList\.map\(\(\{([^}]*)\}\)", clip_src):
         dropped = {f.strip() for f in serialise.split(",") if f.strip() and "..." not in f}
-        leaked = dropped & _render_clip_fields()
+        # Editor ids are transient: save strips them, while scoped Cutout
+        # sends them only with the render request to bind active clips.
+        leaked = dropped & (_render_clip_fields() - {"id"})
         assert not leaked, f"save path drops fields the renderer reads: {leaked}"
+    assert "serializeRenderClips(clipList, effectiveBgIsolation?.scope_mode)" in EDITOR_SRC
+    assert "id: clipList[index]?.id" in PROJECT_STATE_SRC
 
 
 @pytest.mark.parametrize("field", sorted(_render_clip_fields()))
@@ -2507,3 +2511,182 @@ def test_lightsweep_and_motion_preset_parity_contract():
         for c in clips:
             x1, y1, x2, y2 = map(int, c)
             assert y1 == 0 and y2 == 1920, f"Typewriter clip vertical bounds must be 0..1920, got {y1}..{y2}"
+
+
+# ---------------------------------------------------------------------------
+# Progressive Ghost Reveal (SOP Phase 3)
+#
+# The reveal currently renders in ASS only; the Canvas preview does not mirror
+# it yet, which is why `ghostReveal` ships defaulting to false. These assertions
+# pin the render-side contract so the numbers cannot drift before the preview
+# catches up, and pin the default itself so the flag cannot be flipped on while
+# preview and render still disagree.
+# ---------------------------------------------------------------------------
+
+def test_ghost_reveal_colours_match_the_sop():
+    """SOP Phase 3: spoken #FFFFFF, active #66FF00. ASS stores &HBBGGRR."""
+    assert re.search(r'SPOKEN_HEX = "#FFFFFF"', PY_SRC)
+    assert re.search(r'ACTIVE_HEX = "#66FF00"', PY_SRC)
+
+
+def test_ghost_reveal_active_scale_is_114_percent():
+    assert _grab(PY_SRC, r"\nACTIVE_SCALE_PCT = (\d+)\n", int) == 114
+
+
+def test_ghost_reveal_ghost_is_fully_transparent():
+    """A partly-transparent ghost would show the unspoken words as a grey hint."""
+    assert re.search(r'GHOST_ALPHA = "&HFF&"', PY_SRC)
+
+
+def test_ghost_reveal_default_is_the_same_on_both_sides():
+    """
+    The reveal is on by default, which is only safe because the preview draws it
+    too. What must never happen is the two defaulting differently: a project
+    with no stored preference would then export something the editor never
+    showed. Flip both together or neither.
+    """
+    editor_state = (ROOT / "frontend" / "src" / "lib" / "editorProjectState.js").read_text(encoding="utf-8")
+    js_default = _grab(
+        editor_state, r"ghostReveal: firstPresent\([^)]*,\s*(true|false)\)", str
+    )
+    py_default = _grab(PY_SRC, r"ghost_reveal: bool = (True|False)", str)
+    assert js_default == py_default.lower(), (
+        f"preview defaults ghostReveal to {js_default} but the ASS generator "
+        f"defaults to {py_default} -- an untouched project would export "
+        "something the editor never drew"
+    )
+
+    # ...and every entry point that reads it out of a params dict has to agree
+    # with them, or the default depends on which way the render was started.
+    for src_name, pattern in (
+        ("api_phase1.py", r'ghost_reveal=bool\(params\.get\("ghost_reveal", (True|False)\)\)'),
+        ("batch_render.py", r'ghost_reveal=bool\(options\.get\("ghost_reveal", (True|False)\)\)'),
+    ):
+        entry_default = _grab((ROOT / "scripts" / src_name).read_text(encoding="utf-8"), pattern, str)
+        assert entry_default == py_default, f"{src_name} disagrees: {entry_default}"
+
+
+def test_ghost_reveal_is_anchored_not_centred():
+    """
+    libass centres a line on the ink it paints, and a ghosted word paints none,
+    so an unanchored reveal drifts sideways as it advances -- 212px, measured.
+    The anchor is what holds it still; losing it silently reintroduces the jitter.
+    """
+    assert "def anchor_tags(" in PY_SRC
+    # The f-string writes each ASS backslash doubled, so match it as written.
+    assert r"\\an{vertical_align}\\pos(" in PY_SRC, (
+        r"anchor_tags must emit both an alignment and an explicit \pos"
+    )
+
+
+def test_mali_is_mapped_in_both_renderers():
+    """
+    A face in the picker but missing from the Canvas map silently draws Kanit in
+    preview while the render uses the real face -- the bug the IBM Plex comment
+    in SequencePlayer.jsx documents. Mali is the SOP Phase 3 caption face.
+    """
+    picker = (
+        ROOT / "frontend" / "src" / "components" / "editor" / "inspector" / "CaptionInspector.jsx"
+    ).read_text(encoding="utf-8")
+    assert "id: 'Mali'" in picker
+    assert "fontFamName === 'Mali'" in JS_SRC
+    assert "'Mali', sans-serif" in JS_SRC
+
+
+def test_every_picker_font_reaches_the_canvas():
+    """Any id the picker offers must be branched on in drawCaption."""
+    picker = (
+        ROOT / "frontend" / "src" / "components" / "editor" / "inspector" / "CaptionInspector.jsx"
+    ).read_text(encoding="utf-8")
+    block = re.search(r"FONT_OPTIONS = \[(.*?)\];", picker, re.S)
+    assert block, "FONT_OPTIONS moved -- this probe can no longer see the picker"
+    ids = set(re.findall(r"\{ id: '([^']+)'", block.group(1)))
+    assert ids, "no font ids parsed out of FONT_OPTIONS"
+    # Kanit is the fallback branch, so it needs no explicit comparison.
+    for font_id in ids - {"Kanit"}:
+        assert f"fontFamName === '{font_id}'" in JS_SRC, (
+            f"font '{font_id}' is offered in the picker but never mapped in "
+            "SequencePlayer.drawCaption -- preview would silently draw Kanit"
+        )
+
+
+def test_ghost_reveal_constants_are_mirrored_in_the_preview():
+    """
+    Canvas and libass each hold their own copy of the three reveal numbers, so
+    they have to be asserted equal here -- the whole reason this file exists.
+    """
+    assert "const GHOST_SPOKEN_COLOR = '#FFFFFF';" in JS_SRC
+    assert "const GHOST_ACTIVE_COLOR = '#66FF00';" in JS_SRC
+    # 1.14 * 100 is not exactly 114 in binary floating point.
+    assert abs(
+        _grab(JS_SRC, r"const GHOST_ACTIVE_SCALE = ([\d.]+);") * 100
+        - _grab(PY_SRC, r"\nACTIVE_SCALE_PCT = (\d+)\n")
+    ) < 1e-9
+
+
+def test_preview_reveals_on_the_same_word_boundaries_as_the_render():
+    """
+    The browser has only Intl.Segmenter, which does not break Thai where
+    pythainlp's newmm does. If the preview tokenized for itself the two engines
+    would light different words, so python attaches one `word_reveal` track to
+    the cue and both sides read it.
+    """
+    assert '"word_reveal": build_word_reveal(' in PY_SRC
+    assert "ghostRevealSegments(cue.word_reveal, t)" in JS_SRC
+    assert "Intl.Segmenter" not in JS_SRC.split("function ghostRevealSegments")[1].split("\n}")[0]
+
+
+def test_unspoken_words_are_measured_but_not_painted():
+    """
+    The ghost holds the line's width. Skipping the measurement (rather than just
+    the paint) would let the line reflow under the reveal -- the same 212px
+    drift the ASS side had before it was anchored.
+    """
+    assert "if (seg.ghost) return;" in JS_SRC
+    ghost_block = JS_SRC.split("const drawSeg =")[1].split("let curX")[0]
+    assert "segmentWidths" not in ghost_block, (
+        "widths must be measured for every segment, ghost included"
+    )
+
+
+def test_cue_fields_survive_the_editor_round_trip():
+    """
+    The cue list used to enumerate its fields, so anything the renderer wrote
+    onto a cue and the editor had no opinion about was dropped on load and then
+    autosaved away -- exactly how word_reveal would vanish. Same failure the
+    clip list had.
+    """
+    assert re.search(
+        r"rawCues\.map\(\(cue, index\) => \(\{\s*(?://[^\n]*\n\s*)*\.\.\.cue,",
+        PROJECT_STATE_SRC,
+    ), "cue load must spread the stored cue"
+
+
+def test_the_preview_is_told_about_both_caption_flags():
+    """
+    captionStyle is built field by field, so a flag missing there never reaches
+    drawCaption however well it is plumbed everywhere else -- bilingualSubtitles
+    was in that state, and the preview drew the English line regardless.
+    """
+    shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    for flag in ("bilingualSubtitles", "ghostReveal"):
+        assert shell.count(f"{flag}: style.{flag},") == 2, (
+            f"both preview call sites must pass {flag}"
+        )
+    # ...and a change to either must invalidate the cached caption layer.
+    assert "captionStyle.ghostReveal" in JS_SRC
+    assert "captionStyle.bilingualSubtitles" in JS_SRC
+
+
+def test_reveal_anchor_is_measured_at_the_rendered_font_size():
+    """
+    layout_line() re-applies ass_glyph_scale internally, so it must be handed
+    the same Fontsize the ASS style carries -- the boosted one. Passing the
+    plain em number measured the line at about half its rendered width and put
+    the anchor ~100px left of the text (measured against the Canvas probe:
+    102.8px before, 2.8px after, the residual being the 5.2 outline).
+    """
+    call = _grab(PY_SRC, r"anchor = anchor_tags\((.*?)\)\n", str)
+    assert "font_size_boosted" in call, (
+        "the reveal anchor must be measured at the boosted Fontsize, not the em size"
+    )

@@ -5,6 +5,7 @@
  * URL, import rembg, or mutate a cache.  The caller supplies either a base
  * URL or a pure lookup function and decides how to render the returned URL.
  */
+import { buildSegments } from './timelineMath.js';
 
 export const BACKGROUND_ISOLATION_SCHEMA_VERSION = 1;
 export const SEQUENCE_SCHEMA_VERSION = 1;
@@ -130,21 +131,34 @@ export function backgroundIsolationWindowContainsClip(window, clip, { sourceDura
   return clipWindow.start >= start - EPSILON && clipWindow.end <= end + EPSILON;
 }
 
+/** A scoped alpha video must still span the clip trim used by the renderer. */
+export function scopedArtifactCoversClip(config, clip, { sourceDurations = {} } = {}) {
+  if (config?.scope_mode !== 'behind_text_windows') return true;
+  const sourceWindow = clipSourceWindow(clip, sourceDurations);
+  const start = finiteNonNegative(config?.artifact?.source_start);
+  const duration = finiteNonNegative(config?.artifact?.source_duration);
+  return !sourceWindow.unresolved && config?.artifact?.source_start != null
+    && config?.artifact?.source_duration != null && start != null && duration != null && duration > 0
+    && sourceWindow.start >= start - EPSILON
+    && sourceWindow.end <= start + duration + 1 / 30 + EPSILON;
+}
+
 /** Build a deterministic preflight summary before any expensive work starts. */
 export function summarizeBackgroundIsolationPlan(groups = [], { fps = 30 } = {}) {
   const safeFps = Number.isFinite(Number(fps)) && Number(fps) > 0 ? Number(fps) : 30;
   const list = Array.isArray(groups) ? groups : [];
   const unresolvedCount = list.filter((group) => group?.unresolved || group?.duration == null).length;
   const totalDuration = list.reduce((sum, group) => {
-    const duration = Number(group?.duration);
+    const duration = Number(group?.processedDuration ?? group?.duration);
     return sum + (Number.isFinite(duration) && duration > 0 ? duration : 0);
   }, 0);
   const frameCount = list.reduce((sum, group) => {
-    const duration = Number(group?.duration);
+    const duration = Number(group?.processedDuration ?? group?.duration);
     return sum + (Number.isFinite(duration) && duration > 0 ? Math.ceil(duration * safeFps - EPSILON) : 0);
   }, 0);
   return {
     jobCount: list.length,
+    windowCount: list.reduce((sum, group) => sum + (group?.active_intervals?.length || 1), 0),
     clipCount: list.reduce((sum, group) => sum + (Array.isArray(group?.clips) ? group.clips.length : 0), 0),
     unresolvedCount,
     totalDuration,
@@ -152,6 +166,75 @@ export function summarizeBackgroundIsolationPlan(groups = [], { fps = 30 } = {})
     fps: safeFps,
     ready: list.length > 0 && unresolvedCount === 0 && frameCount > 0,
   };
+}
+
+/** AI work is the union of source frames visible behind text, not the full clip. */
+export function groupScopedBackgroundIsolationClips(clips = [], overlays = [], { sourceDurations = {}, fps = 30 } = {}) {
+  const safeFps = Number.isFinite(Number(fps)) && Number(fps) > 0 ? Number(fps) : 30;
+  const segments = buildSegments(clips, sourceDurations);
+  const behind = (overlays || []).filter((overlay) => !overlay?.hidden
+    && subjectLayerForOverlay(overlay) === 'behind'
+    && ((Array.isArray(overlay.tiers) && overlay.tiers.some((tier) => String(tier?.text || '').trim()))
+      || String(overlay.text || '').trim())
+    && Number(overlay.end) > Number(overlay.start));
+  // Plan each timeline clip independently. A source frame reused by another
+  // clip must not gain an alpha subject outside that clip's own behind-text
+  // window. Identical plans can still share one artifact below.
+  const groups = (Array.isArray(clips) ? clips : []).flatMap((clip) =>
+    groupBackgroundIsolationClips([clip], { sourceDurations }));
+  const planned = groups.map((group) => {
+    const intervals = [];
+    for (const clip of group.clips) {
+      const seg = segments.find((candidate) => candidate.clip === clip);
+      if (!seg || group.unresolved) continue;
+      const speed = Math.max(0.25, Math.min(4, Number(clip.speed) || 1));
+      const clipStart = Number(clip.trim_start) || 0;
+      const clipEnd = Number(clip.trim_end ?? seg.srcDur);
+      for (const overlay of behind) {
+        const from = Math.max(seg.segStart, Number(overlay.start));
+        const to = Math.min(seg.segEnd, Number(overlay.end));
+        if (to <= from) continue;
+        const playedEnd = seg.segStart + Math.max(0, (clipEnd - clipStart) / speed);
+        if (from < playedEnd) {
+          const a = Math.min(clipEnd, clipStart + (from - seg.segStart) * speed);
+          const b = Math.min(clipEnd, clipStart + (Math.min(to, playedEnd) - seg.segStart) * speed);
+          if (b > a) intervals.push({ start: a, end: b });
+        }
+        // A freeze tail repeats the last decoded source frame.
+        if (to > playedEnd && from < seg.segEnd && clipEnd > clipStart) {
+          intervals.push({ start: Math.max(clipStart, clipEnd - 1 / safeFps), end: clipEnd });
+        }
+      }
+    }
+    // The worker samples at group.start + frameIndex / fps. Round outward on
+    // that same grid so both preflight counts and artifact coverage agree.
+    const aligned = intervals.map(({ start, end }) => ({
+      start: group.start + Math.max(0, Math.floor((start - group.start) * safeFps + EPSILON)) / safeFps,
+      end: Math.min(group.end, group.start + Math.ceil((end - group.start) * safeFps - EPSILON) / safeFps),
+    })).filter(({ start, end }) => end > start);
+    aligned.sort((a, b) => a.start - b.start || a.end - b.end);
+    const merged = [];
+    for (const interval of aligned) {
+      const last = merged.at(-1);
+      if (last && interval.start <= last.end + 1e-9) last.end = Math.max(last.end, interval.end);
+      else merged.push({ ...interval });
+    }
+    return { ...group, active_intervals: merged,
+      processedDuration: merged.reduce((sum, interval) => sum + interval.end - interval.start, 0) };
+  }).filter((group) => group.active_intervals.length || (group.unresolved
+    && group.clips.some((clip) => {
+      const seg = segments.find((candidate) => candidate.clip === clip);
+      return seg && behind.some((overlay) => Number(overlay.end) > seg.segStart);
+    })));
+  const reusable = new Map();
+  for (const group of planned) {
+    const key = JSON.stringify([group.sourcePath.toLowerCase(), group.rotation,
+      group.start, group.end, group.active_intervals, group.unresolved]);
+    const existing = reusable.get(key);
+    if (existing) existing.clips.push(...group.clips);
+    else reusable.set(key, { ...group, clips: [...group.clips] });
+  }
+  return [...reusable.values()];
 }
 
 /** Find clips that conflict with background isolation (e.g. background blur enabled). */
@@ -374,12 +457,29 @@ export function resolveBackgroundIsolationConfig(clip, projectConfig) {
     && projectConfig.enabled === false) {
     return projectConfig;
   }
+  if (projectConfig?.scope_mode === 'behind_text_windows') {
+    if (Array.isArray(projectConfig.active_clip_ids) && !projectConfig.active_clip_ids.includes(clip?.id)) {
+      return { ...projectConfig, enabled: false };
+    }
+    const scoped = clip?.background_isolation ?? clip?.backgroundIsolation;
+    const settingsChanged = ['engine', 'model', 'quality', 'temporal_mode'].some((key) =>
+      projectConfig[key] != null && scoped?.[key] !== projectConfig[key]);
+    if (scoped?.scope_mode === 'behind_text_windows'
+      && (settingsChanged || (projectConfig.active_intervals_by_clip
+        && JSON.stringify(scoped.active_intervals) !== JSON.stringify(projectConfig.active_intervals_by_clip[clip?.id])))) {
+      return { ...projectConfig, artifact: { schema_version: 1, id: null, status: 'stale' } };
+    }
+    return scoped?.scope_mode === 'behind_text_windows'
+      ? scoped : { ...projectConfig, artifact: { schema_version: 1, id: null, status: 'missing' } };
+  }
   if (clip && typeof clip === 'object' && !Array.isArray(clip)) {
     if (clip.background_isolation !== undefined && clip.background_isolation !== null) {
-      return clip.background_isolation;
+      return clip.background_isolation.scope_mode === 'behind_text_windows'
+        ? (clip.background_isolation.legacy_background_isolation ?? projectConfig) : clip.background_isolation;
     }
     if (clip.backgroundIsolation !== undefined && clip.backgroundIsolation !== null) {
-      return clip.backgroundIsolation;
+      return clip.backgroundIsolation.scope_mode === 'behind_text_windows'
+        ? (clip.backgroundIsolation.legacy_background_isolation ?? projectConfig) : clip.backgroundIsolation;
     }
   }
   return projectConfig;
@@ -614,6 +714,11 @@ export function resolveBackgroundIsolationPreview({
   let baseUrl = artifactBaseUrl;
   try {
     if (manifest.schema_version === 2) {
+      if (config?.scope_mode === 'behind_text_windows'
+        && JSON.stringify(manifest.active_intervals) !== JSON.stringify(
+          (config.active_intervals || []).map((interval) => [interval.start, interval.end]))) {
+        throw new TypeError('scoped interval mismatch');
+      }
       if (manifest.status !== 'ready' || manifest.artifact_id !== normalized.artifactId
           || !SEQUENCE_ARTIFACT_ID_PATTERN.test(manifest.artifact_id)
           || manifest.video_file !== 'cutout.webm' || manifest.codec !== 'vp9-alpha'
@@ -738,10 +843,17 @@ export function splitBackgroundIsolationOverlays(overlays = []) {
   const behindSubject = [];
   const foreground = [];
   list.forEach((overlay) => {
-    const isHook = overlay?.kind === 'hook' || overlay?.type === 'hook_header';
-    (isHook ? behindSubject : foreground).push(overlay);
+    (subjectLayerForOverlay(overlay) === 'behind' ? behindSubject : foreground).push(overlay);
   });
   return { behindSubject, foreground };
+}
+
+/** Missing fields keep the exact layering of saved projects. */
+export function subjectLayerForOverlay(overlay) {
+  if (overlay?.subject_layer === 'front' || overlay?.subject_layer === 'behind') {
+    return overlay.subject_layer;
+  }
+  return overlay?.kind === 'hook' || overlay?.type === 'hook_header' ? 'behind' : 'front';
 }
 
 export default resolveBackgroundIsolationPreview;

@@ -61,7 +61,7 @@ def test_focus_shape_and_feather_use_backend_coordinate_contract():
 
 
 def test_spotlight_is_footage_pass_before_stickers_subtitles_and_overlays():
-    render_at = JS_SRC.split("const renderAt = (t) =>", 1)[1].split("useEffect(() =>", 1)[0]
+    render_at = JS_SRC.split("const renderAt = (t, cover = null) =>", 1)[1].split("useEffect(() =>", 1)[0]
     assert render_at.index("drawSpotlight(ctx, previewSpotlight);") < render_at.index("drawStickers(")
     assert render_at.index("drawStickers(") < render_at.index("drawEffects(")
     assert render_at.index("drawEffects(") < render_at.index("drawCaption(")

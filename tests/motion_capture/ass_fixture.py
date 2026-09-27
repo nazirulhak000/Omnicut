@@ -377,6 +377,14 @@ def render_caption_fixture(
         str(ass_path),
         font_name=font_name,
         bilingual=False,
+        # This fixture compares the ASS against a Canvas frame captured ahead of
+        # time, from a browser session that knows nothing about Progressive
+        # Ghost Reveal. Leaving the reveal on would compare a half-revealed line
+        # against a fully-drawn one -- a fixture mismatch, not a parity failure.
+        # The reveal's own preview/render parity is covered by
+        # test_ghost_reveal_detaches_stacked_marks_per_word and the constants in
+        # test_preview_render_parity.py.
+        ghost_reveal=False,
         video_width=render_width,
         video_height=render_height,
         caption_position=caption_position,

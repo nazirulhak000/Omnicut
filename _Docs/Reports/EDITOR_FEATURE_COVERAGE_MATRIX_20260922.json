@@ -204,7 +204,7 @@
           {
             "path": "frontend/src/components/editor/EditorShell.jsx",
             "tokens": [
-              "clip_list: savePayload.clip_list"
+              "clip_list: serializeRenderClips(clipList, effectiveBgIsolation?.scope_mode)"
             ]
           }
         ],
@@ -291,7 +291,7 @@
           {
             "path": "frontend/src/components/editor/EditorShell.jsx",
             "tokens": [
-              "clip_list: savePayload.clip_list"
+              "clip_list: serializeRenderClips(clipList, effectiveBgIsolation?.scope_mode)"
             ]
           }
         ],
@@ -372,7 +372,7 @@
           {
             "path": "frontend/src/components/editor/EditorShell.jsx",
             "tokens": [
-              "clip_list: savePayload.clip_list"
+              "clip_list: serializeRenderClips(clipList, effectiveBgIsolation?.scope_mode)"
             ]
           }
         ],
@@ -455,7 +455,7 @@
           {
             "path": "frontend/src/components/editor/EditorShell.jsx",
             "tokens": [
-              "clip_list: savePayload.clip_list"
+              "clip_list: serializeRenderClips(clipList, effectiveBgIsolation?.scope_mode)"
             ]
           }
         ],
@@ -1207,7 +1207,7 @@
           {
             "path": "frontend/src/components/editor/EditorShell.jsx",
             "tokens": [
-              "clip_list: savePayload.clip_list"
+              "clip_list: serializeRenderClips(clipList, effectiveBgIsolation?.scope_mode)"
             ]
           }
         ],
@@ -1652,7 +1652,7 @@
           {
             "path": "frontend/src/components/editor/EditorShell.jsx",
             "tokens": [
-              "clip_list: savePayload.clip_list"
+              "clip_list: serializeRenderClips(clipList, effectiveBgIsolation?.scope_mode)"
             ]
           }
         ],

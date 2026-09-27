@@ -155,6 +155,7 @@ class SubtitleStage:
                 hook_colors=ctx.hook_colors,
                 hook_style=ctx.hook_style,
                 bilingual=ctx.bilingual_subtitles,
+                ghost_reveal=getattr(ctx, "ghost_reveal", True),
                 caption_position=ctx.caption_position,
                 caption_color=ctx.caption_color,
                 caption_scale=ctx.caption_scale,

@@ -103,7 +103,7 @@ test('the preview mask exists and is derived from the hide toggle', () => {
   );
   assert.match(
     SHELL,
-    /isCutoutHidden \? \{ \.\.\.\(backgroundIsolation \|\| \{\}\), enabled: false \}/,
+    /isCutoutHidden \? \{ \.\.\.\(config \|\| \{\}\), enabled: false \}/,
     'the mask should still disable the cutout for the player while hidden',
   );
 });

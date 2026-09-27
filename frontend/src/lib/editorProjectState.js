@@ -149,6 +149,11 @@ export function manifestToEditorState(data, options = {}) {
 
   const rawCues = firstNonEmptyArray(manifest.cues, manifest.micro_cues);
   const cuesList = rawCues.map((cue, index) => ({
+    // Spread first, so anything the renderer writes onto a cue and the editor
+    // has no opinion about -- word_reveal, for one -- survives the round trip
+    // instead of being silently dropped and then autosaved away. Same failure
+    // the clip list had; see test_editor_preserves_every_field_the_renderer_reads.
+    ...cue,
     start: Number(cue.start) || 0,
     end: Number(cue.end) || 0,
     text: cue.text || '',
@@ -187,6 +192,11 @@ export function manifestToEditorState(data, options = {}) {
     stickerNormY: firstPresent(manifest.sticker_norm_y, params.sticker_norm_y, savedStyle.sticker_norm_y, savedStyle.stickerNormY, null),
     showWatermark: firstPresent(manifest.show_watermark, params.show_watermark, savedStyle.show_watermark, savedStyle.showWatermark, true),
     bilingualSubtitles: firstPresent(manifest.bilingual_subtitles, params.bilingual_subtitles, savedStyle.bilingual_subtitles, savedStyle.bilingualSubtitles, true),
+    // Progressive Ghost Reveal (SOP Phase 3): words light up as they are spoken.
+    // On by default -- the Canvas preview draws the same reveal from the same
+    // word_reveal track the ASS writer uses, verified to land within the
+    // outline's width of each other, so preview and export agree.
+    ghostReveal: firstPresent(manifest.ghost_reveal, params.ghost_reveal, savedStyle.ghost_reveal, savedStyle.ghostReveal, true),
   };
 
   const hasStoredMix = manifest.track_mix != null || params.track_mix != null;
@@ -301,6 +311,14 @@ export function serializeClips(clipList = []) {
   return clipList.map(({ id, transition_in, transition_duration, ...clip }) => clip);
 }
 
+/** Local ids are needed only by a scoped Cutout render request, not saved manifests. */
+export function serializeRenderClips(clipList = [], scopeMode = null) {
+  const serialized = serializeClips(clipList);
+  return scopeMode === 'behind_text_windows'
+    ? serialized.map((clip, index) => ({ ...clip, id: clipList[index]?.id }))
+    : serialized;
+}
+
 export function serializeTransitions(clipList = []) {
   const boundaries = clipList.slice(1).map((clip) => ({
     type: clip.transition_in || 'cut',
@@ -352,6 +370,8 @@ export function serializeStyle(style = {}) {
     fontName: style.fontName || 'IBMPlex',
     show_watermark: style.showWatermark !== false,
     showWatermark: style.showWatermark !== false,
+    ghost_reveal: !!style.ghostReveal,
+    ghostReveal: !!style.ghostReveal,
   };
 }
 

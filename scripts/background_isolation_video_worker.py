@@ -33,12 +33,20 @@ _ID = re.compile(r"^bgseq1-[0-9a-f]{16}$")
 
 def video_artifact_id(fingerprint: str, config: dict[str, Any], *, start: float,
                       duration: float | None, fps: float, timebase: str,
-                      width: int, height: int, rotation: int) -> str:
+                      width: int, height: int, rotation: int,
+                      active_intervals: list[tuple[float, float]] | None = None) -> str:
     normalized = normalize_background_isolation(config)
+    # Preserve existing unscoped cache IDs. Sparse artifacts are a new
+    # namespace, so their default identity follows the worker's real default.
+    default_temporal = "motion" if active_intervals is not None else "legacy"
+    version = f"{WORKER_VERSION}-{normalized.get('temporal_mode', default_temporal)}"
+    if active_intervals is not None:
+        encoded = json.dumps(active_intervals, separators=(",", ":"))
+        version += "-sparse-" + hashlib.sha256(encoded.encode()).hexdigest()[:12]
     return build_sequence_artifact_id(
         fingerprint, algorithm="background-isolation-video-v2",
         engine=normalized["engine"], model=normalized["model"],
-        quality=normalized["quality"], worker_version=f"{WORKER_VERSION}-{normalized.get('temporal_mode', 'legacy')}",
+        quality=normalized["quality"], worker_version=version,
         fps=fps, timebase=timebase, width=width, height=height,
         rotation=rotation, source_start=start, source_duration=duration,
     )
@@ -105,6 +113,7 @@ def process_background_isolation_video(
     fps: float, timebase: str, width: int, height: int, rotation: int,
     cancel_event: Any = None, progress_callback: Callable[[dict[str, Any]], None] | None = None,
     rembg_worker: BackgroundIsolationWorker | None = None,
+    active_intervals: list[tuple[float, float]] | None = None,
 ) -> dict[str, Any]:
     """Build a complete transparent video without publishing individual PNGs."""
     from PIL import Image, ImageChops
@@ -112,6 +121,14 @@ def process_background_isolation_video(
     normalized = normalize_background_isolation(config)
     if not normalized["enabled"]:
         raise ValueError("background isolation is disabled")
+    if active_intervals is not None:
+        if not active_intervals or duration is None:
+            raise ValueError("sparse Cutout requires intervals and a finite source duration")
+        previous_end = start
+        for begin, end in active_intervals:
+            if not (start <= begin < end <= start + duration + 1e-6) or begin < previous_end - 1e-6:
+                raise ValueError("invalid or overlapping Cutout intervals")
+            previous_end = end
     source = Path(source).resolve(strict=True)
     raw_cache_root = Path(cache_root)
     if raw_cache_root.is_symlink():
@@ -120,7 +137,8 @@ def process_background_isolation_video(
     namespace = cache_root / VIDEO_NAMESPACE
     artifact_id = video_artifact_id(source_fingerprint, normalized, start=start,
                                     duration=duration, fps=fps, timebase=timebase,
-                                    width=width, height=height, rotation=rotation)
+                                    width=width, height=height, rotation=rotation,
+                                    active_intervals=active_intervals)
     if not _ID.fullmatch(artifact_id) or any(p.is_symlink() for p in (cache_root, namespace)):
         raise ValueError("unsafe video artifact path")
     target = namespace / artifact_id
@@ -175,6 +193,7 @@ def process_background_isolation_video(
     staged = Path(tempfile.mkdtemp(prefix=f".{artifact_id}.", dir=namespace))
     decoder = encoder = None
     frame_count = 0
+    isolated_frame_count = 0
     # Phase 0 baseline: the round has to report real throughput rather than
     # asserting it, so the encode loop is timed and the numbers go into the
     # manifest where a later run can be compared against this one.
@@ -182,6 +201,7 @@ def process_background_isolation_video(
     fps_ratio = Fraction(str(fps)).limit_denominator(1001000)
     fps_text = f"{fps_ratio.numerator}/{fps_ratio.denominator}"
     frame_size = width * height * 3
+    transparent_frame = bytes(width * height * 4) if active_intervals is not None else None
     worker = rembg_worker or BackgroundIsolationWorker()
     # Default measured 2026-09-26 (_Docs/Reports/CUTOUT_PHASE4_EDGE_STABILITY_20260926.md):
     # "legacy" only blends pixels differing by less than 24 from the previous
@@ -224,32 +244,40 @@ def process_background_isolation_video(
                     break
                 if len(raw) != frame_size:
                     raise RuntimeError("source decoder returned a partial frame")
-                rgb = Image.frombytes("RGB", (width, height), raw)
-                result = rembg.remove(rgb, session=session) if session is not None else rembg.remove(rgb)
-                if isinstance(result, (bytes, bytearray)):
-                    with Image.open(io.BytesIO(result)) as decoded:
-                        rgba = decoded.convert("RGBA")
+                source_time = start + frame_count / float(fps_ratio)
+                active = active_intervals is None or any(
+                    begin - 1e-6 <= source_time < end - 1e-6 for begin, end in active_intervals
+                )
+                if active:
+                    rgb = Image.frombytes("RGB", (width, height), raw)
+                    result = rembg.remove(rgb, session=session) if session is not None else rembg.remove(rgb)
+                    if isinstance(result, (bytes, bytearray)):
+                        with Image.open(io.BytesIO(result)) as decoded:
+                            rgba = decoded.convert("RGBA")
+                    else:
+                        rgba = result.convert("RGBA")
+                    _validate_alpha_quality(rgba, expected_size=(width, height),
+                                            quality=normalized["quality"])
+                    alpha = rgba.getchannel("A")
+                    if refiner is not None:
+                        import numpy as np
+                        alpha = Image.fromarray(refiner.refine(np.asarray(rgb), np.asarray(alpha),
+                            pts=source_time, fps=float(fps_ratio)))
+                        rgba.putalpha(alpha)
+                    elif previous_alpha is not None and temporal_mode == "legacy":
+                        difference = ImageChops.difference(previous_alpha, alpha)
+                        stable = difference.point(lambda value: 255 if value < 24 else 0)
+                        smoothed = Image.blend(previous_alpha, alpha, 0.65)
+                        alpha.paste(smoothed, mask=stable)
+                        rgba.putalpha(alpha)
+                    previous_alpha = alpha
+                    frame_bytes = rgba.tobytes()
+                    isolated_frame_count += 1
                 else:
-                    rgba = result.convert("RGBA")
-                _validate_alpha_quality(rgba, expected_size=(width, height),
-                                        quality=normalized["quality"])
-                alpha = rgba.getchannel("A")
-                if refiner is not None:
-                    import numpy as np
-                    alpha = Image.fromarray(refiner.refine(np.asarray(rgb), np.asarray(alpha),
-                        pts=start + frame_count / float(fps_ratio), fps=float(fps_ratio)))
-                    rgba.putalpha(alpha)
-                elif previous_alpha is not None and temporal_mode == "legacy":
-                    # Smooth small per-pixel fluctuations only; moving edges
-                    # with larger differences retain their current mask.
-                    difference = ImageChops.difference(previous_alpha, alpha)
-                    stable = difference.point(lambda value: 255 if value < 24 else 0)
-                    smoothed = Image.blend(previous_alpha, alpha, 0.65)
-                    alpha.paste(smoothed, mask=stable)
-                    rgba.putalpha(alpha)
-                previous_alpha = alpha
+                    previous_alpha = None
+                    frame_bytes = transparent_frame
                 try:
-                    encoder.stdin.write(rgba.tobytes())
+                    encoder.stdin.write(frame_bytes)
                 except OSError as exc:
                     encoder_log.seek(0)
                     details = encoder_log.read(2048).decode(errors="replace")
@@ -290,6 +318,9 @@ def process_background_isolation_video(
                     "model": normalized["model"], "quality": normalized["quality"],
                     "worker_version": WORKER_VERSION, "sha256": checksum}
         manifest["temporal_mode"] = temporal_mode
+        if active_intervals is not None:
+            manifest["active_intervals"] = active_intervals
+            manifest["isolated_frame_count"] = isolated_frame_count
         manifest["quality_report"] = {"media_verified": True, "subject_review": "required",
                                       "temporal": refiner.stats if refiner else {"mode": temporal_mode}}
         # Measured, not estimated. source_seconds is the span actually covered

@@ -52,6 +52,7 @@ export const FONT_OPTIONS = [
   { id: 'IBMPlex', name: 'IBM Plex Sans Thai (โมเดิร์น คมชัด)' },
   { id: 'Prompt', name: 'Prompt (พร้อมท์ - เรียบหรู ทันสมัย)' },
   { id: 'NotoSansThai', name: 'Noto Sans Thai (มาตรฐานทางการ)' },
+  { id: 'Mali', name: 'Mali (มะลิ - กลมเป็นมิตร แนวรีวิวแกดเจ็ต)' },
 ];
 
 export default function CaptionInspector({
@@ -270,6 +271,27 @@ export default function CaptionInspector({
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Progressive Ghost Reveal -- SOP Phase 3 */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-slate-400 font-medium">เด้งสีทีละคำ:</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!style.ghostReveal}
+            aria-label="เด้งสีคำบรรยายทีละคำตามเสียงพูด"
+            onClick={() => onStyleChange?.({ ghostReveal: !style.ghostReveal })}
+            className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#25F4EE] ${
+              style.ghostReveal ? 'bg-[#25F4EE]' : 'bg-white/[0.12]'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                style.ghostReveal ? 'translate-x-[22px]' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
         </div>
 
         {/* Font size slider & number input */}

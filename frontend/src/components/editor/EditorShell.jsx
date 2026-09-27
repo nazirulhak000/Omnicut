@@ -29,7 +29,7 @@ import { useEditorSelection } from '../../hooks/useEditorSelection';
 import { useEditorCommands } from '../../hooks/useEditorCommands';
 import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
 import { toMediaUrl } from '../../lib/mediaUrl';
-import { editorStateToSavePayload, manifestToEditorState, serializeRenderFeatures } from '../../lib/editorProjectState';
+import { editorStateToSavePayload, manifestToEditorState, serializeRenderClips, serializeRenderFeatures } from '../../lib/editorProjectState';
 import { AUDIO_TRACKS, effectiveAudioMutes } from '../../lib/trackMix.js';
 import {
   normalizeStylePreset,
@@ -44,8 +44,10 @@ import {
   completedBackgroundIsolationTasks,
   findBackgroundIsolationConflicts,
   groupBackgroundIsolationClips,
+  groupScopedBackgroundIsolationClips,
   resolveBackgroundIsolationConfig,
   summarizeBackgroundIsolationPlan,
+  scopedArtifactCoversClip,
   summarizeBackgroundIsolationStatus,
 } from '../../lib/backgroundIsolationPreview.js';
 import { resolveEditorProjectName } from '../../lib/editorEntry.js';
@@ -235,18 +237,23 @@ export default function EditorShell({
     cutoutContextRef.current = { projectName, generation: cutoutContextRef.current.generation + 1 };
   }
 
-  const backgroundIsolationGroups = useMemo(() => groupBackgroundIsolationClips(
-    (clipList || []).filter((clip) => clip?.source_path),
-    { sourceDurations: durations },
-  ), [clipList, durations]);
+  const backgroundIsolationGroups = useMemo(() => {
+    const sourceClips = (clipList || []).filter((clip) => clip?.source_path);
+    return backgroundIsolation?.scope_mode === 'behind_text_windows'
+      ? groupScopedBackgroundIsolationClips(clipList || [], overlays, { sourceDurations: durations })
+      : groupBackgroundIsolationClips(sourceClips, { sourceDurations: durations });
+  }, [clipList, durations, overlays, backgroundIsolation?.scope_mode]);
   const backgroundIsolationPlan = useMemo(() => {
-    const conflictClips = findBackgroundIsolationConflicts(clipList);
+    const relevantClips = backgroundIsolation?.scope_mode === 'behind_text_windows'
+      ? backgroundIsolationGroups.flatMap((group) => group.clips)
+      : clipList;
+    const conflictClips = findBackgroundIsolationConflicts(relevantClips);
     return {
       ...summarizeBackgroundIsolationPlan(backgroundIsolationGroups, { fps: 30 }),
       conflictCount: conflictClips.length,
       conflictClips,
     };
-  }, [backgroundIsolationGroups, clipList]);
+  }, [backgroundIsolationGroups, clipList, backgroundIsolation?.scope_mode]);
   const backgroundIsolationProgress = useMemo(() => {
     const active = backgroundIsolationTaskIds
       .map((id) => tasks.find((task) => task.id === id))
@@ -259,10 +266,16 @@ export default function EditorShell({
   // Isolation artifacts belong to individual timeline clips. Keep this
   // summary aligned with the preview resolver so explicit project disable and
   // failed/stale artifacts cannot look ready in the editor chrome.
-  const cutoutArtifactIds = useMemo(() => [...new Set((clipList || []).map((clip) => {
+  const activeCutoutClips = useMemo(() => backgroundIsolation?.scope_mode === 'behind_text_windows'
+    ? [...new Map(backgroundIsolationGroups.flatMap((group) => group.clips).map((clip) => [clip.id, clip])).values()]
+    : clipList, [backgroundIsolation?.scope_mode, backgroundIsolationGroups, clipList]);
+  const scopedCutoutClipIntervals = useMemo(() => Object.fromEntries(
+    backgroundIsolationGroups.flatMap((group) => group.clips.map((clip) => [clip.id, group.active_intervals])),
+  ), [backgroundIsolationGroups]);
+  const cutoutArtifactIds = useMemo(() => [...new Set((activeCutoutClips || []).map((clip) => {
     const artifact = resolveBackgroundIsolationConfig(clip, backgroundIsolation)?.artifact;
     return artifact?.id || artifact?.sequence_id;
-  }).filter(Boolean))], [backgroundIsolation, clipList]);
+  }).filter(Boolean))], [backgroundIsolation, activeCutoutClips]);
   const [cutoutArtifactAvailability, setCutoutArtifactAvailability] = useState({});
   useEffect(() => {
     let cancelled = false;
@@ -282,12 +295,26 @@ export default function EditorShell({
     const timer = window.setInterval(verify, 15000);
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [cutoutArtifactIds.join('|')]);
-  const backgroundIsolationStatus = useMemo(() => summarizeBackgroundIsolationStatus({
-    clips: clipList,
-    projectConfig: backgroundIsolation,
-    preparing: backgroundIsolationPreparing,
-    artifactAvailability: cutoutArtifactAvailability,
-  }), [backgroundIsolation, backgroundIsolationPreparing, clipList, cutoutArtifactAvailability]);
+  const backgroundIsolationStatus = useMemo(() => {
+    if (backgroundIsolation?.scope_mode === 'behind_text_windows' && !backgroundIsolationGroups.length) {
+      return { state: 'off', label: 'ไม่มีข้อความหลังสินค้าที่ต้องใช้ Cutout', readyCount: 0, totalCount: 0 };
+    }
+    const status = summarizeBackgroundIsolationStatus({
+      clips: activeCutoutClips,
+      projectConfig: backgroundIsolation,
+      preparing: backgroundIsolationPreparing,
+      artifactAvailability: cutoutArtifactAvailability,
+    });
+    if (backgroundIsolation?.scope_mode !== 'behind_text_windows') return status;
+    if (status.state === 'off') return { ...status, state: 'missing', label: 'Cutout เฉพาะข้อความยังไม่พร้อม' };
+    if (status.state !== 'ready') return status;
+    const stale = backgroundIsolationGroups.some((group) => group.clips.some((clip) => {
+      const config = resolveBackgroundIsolationConfig(clip, backgroundIsolation);
+      return JSON.stringify(config?.active_intervals) !== JSON.stringify(group.active_intervals)
+        || !scopedArtifactCoversClip(config, clip, { sourceDurations: durations });
+    }));
+    return stale ? { ...status, state: 'missing', label: 'ช่วง Cutout เปลี่ยนแล้ว กรุณาเตรียมใหม่' } : status;
+  }, [backgroundIsolation, backgroundIsolationPreparing, activeCutoutClips, cutoutArtifactAvailability, backgroundIsolationGroups, durations]);
 
   // Mobile Mode Switcher: 'timeline' | 'assets' | 'inspector'
   const [cutoutPreviewMode, setCutoutPreviewMode] = useState('composite');
@@ -1413,8 +1440,14 @@ export default function EditorShell({
   // deliberately disabled while the user is previewing without the cutout,
   // and writing it back would disable the feature for real.
   const previewBackgroundIsolation = useMemo(
-    () => (isCutoutHidden ? { ...(backgroundIsolation || {}), enabled: false } : backgroundIsolation),
-    [isCutoutHidden, backgroundIsolation],
+    () => {
+      const config = backgroundIsolation?.scope_mode === 'behind_text_windows'
+        ? { ...backgroundIsolation, active_clip_ids: activeCutoutClips.map((clip) => clip.id),
+          active_intervals_by_clip: scopedCutoutClipIntervals }
+        : backgroundIsolation;
+      return isCutoutHidden ? { ...(config || {}), enabled: false } : config;
+    },
+    [isCutoutHidden, backgroundIsolation, activeCutoutClips, scopedCutoutClipIntervals],
   );
 
   const patchBackgroundIsolation = useCallback((next) => {
@@ -1464,6 +1497,10 @@ export default function EditorShell({
       return;
     }
     const unique = backgroundIsolationGroups;
+    if (backgroundIsolation?.scope_mode === 'behind_text_windows' && !unique.length) {
+      showToast('ไม่มีข้อความหลังสินค้าที่ต้องเตรียม Cutout');
+      return;
+    }
     const unresolved = unique.filter((group) => group.unresolved);
     if (unresolved.length) {
       showToast(`ยังอ่านความยาวคลิปไม่ครบ ${unresolved.length} ช่วง กรุณารอ Preview โหลดแล้วลองอีกครั้ง`);
@@ -1514,6 +1551,8 @@ export default function EditorShell({
           config: baseConfig,
           start: item.start,
           duration: item.duration,
+          active_intervals: backgroundIsolation?.scope_mode === 'behind_text_windows'
+            ? item.active_intervals.map(({ start, end }) => [start, end]) : null,
           fps: 30,
           width: 1080,
           height: 1920,
@@ -1540,7 +1579,9 @@ export default function EditorShell({
         if (task?.status !== 'completed' || !task.result?.artifact?.id) {
           throw new Error(task?.error || 'background isolation task did not complete');
         }
-        const completedConfig = task.result;
+        const completedConfig = { ...task.result,
+          scope_mode: backgroundIsolation?.scope_mode || 'legacy_clip',
+          active_intervals: item.active_intervals };
         set((prev) => prev.backgroundIsolation?.request_id !== baseConfig.request_id ? prev : ({
           ...prev,
           clipList: (prev.clipList || []).map((clip) => {
@@ -1548,7 +1589,15 @@ export default function EditorShell({
             const covered = before
               && JSON.stringify(before.background_isolation) === JSON.stringify(clip.background_isolation)
               && backgroundIsolationWindowContainsClip(item, clip, { sourceDurations: durations });
-            return covered ? { ...clip, background_isolation: completedConfig } : clip;
+            if (!covered) return clip;
+            const previous = clip.background_isolation;
+            const legacy = previous?.scope_mode === 'behind_text_windows'
+              ? previous.legacy_background_isolation : previous;
+            return { ...clip, background_isolation: {
+              ...completedConfig,
+              ...(backgroundIsolation?.scope_mode === 'behind_text_windows' && legacy
+                ? { legacy_background_isolation: legacy } : {}),
+            } };
           }),
         }));
       }
@@ -1705,13 +1754,19 @@ export default function EditorShell({
     }
     const effectiveBgIsolation = forceDisableCutout
       ? { ...(backgroundIsolation || {}), schema_version: 1, enabled: false }
-      : backgroundIsolation;
+      : backgroundIsolation?.scope_mode === 'behind_text_windows'
+        ? { ...backgroundIsolation, active_clip_ids: activeCutoutClips.map((clip) => clip.id),
+          active_intervals_by_clip: scopedCutoutClipIntervals }
+        : backgroundIsolation;
 
     if (!forceDisableCutout && effectiveBgIsolation?.enabled === true && backgroundIsolationPlan.conflictCount > 0) {
       setApplyError(`ปิดพื้นหลังเบลอ ${backgroundIsolationPlan.conflictCount} คลิปก่อน Render ด้วย Cutout`);
       return;
     }
-    if (!forceDisableCutout && effectiveBgIsolation?.enabled === true && backgroundIsolationStatus.state !== 'ready' && backgroundIsolationStatus.state !== 'partial') {
+    if (!forceDisableCutout && effectiveBgIsolation?.enabled === true
+      && !(effectiveBgIsolation.scope_mode === 'behind_text_windows' && backgroundIsolationGroups.length === 0)
+      && backgroundIsolationStatus.state !== 'ready'
+      && !(effectiveBgIsolation.scope_mode !== 'behind_text_windows' && backgroundIsolationStatus.state === 'partial')) {
       setApplyError('Cutout ยังไม่พร้อม กรุณากดเตรียม Cutout ให้สถานะพร้อมก่อน Render');
       return;
     }
@@ -1781,7 +1836,10 @@ export default function EditorShell({
       const res = await startReroll({
         project_name: projectName,
         part: audioDirty ? 'bgm' : 'subtitles',
-        clip_list: savePayload.clip_list,
+        // Scoped Cutout references the current editor clip ids. Persistence
+        // still strips these local ids; the render request needs them only
+        // for this run so the backend can resolve each active clip.
+        clip_list: serializeRenderClips(clipList, effectiveBgIsolation?.scope_mode),
         transitions: savePayload.transitions,
         overlays,
         bilingual_subtitles: true,
@@ -2319,6 +2377,11 @@ export default function EditorShell({
                     captionColor: style.captionColor,
                     captionScale: style.captionScale,
                     fontName: style.fontName,
+                    // Both of these change what the caption looks like, so the
+                    // preview has to be told: without them it drew the English
+                    // line whatever the project said, and could not reveal at all.
+                    bilingualSubtitles: style.bilingualSubtitles,
+                    ghostReveal: style.ghostReveal,
                     hidden: isCaptionHidden,
                   }}
                   isMuted={isAudioMuted}
@@ -2540,6 +2603,9 @@ export default function EditorShell({
                 <div className="min-h-0 flex-1">
                   <Timeline
                     segments={segments}
+                    backgroundIsolation={backgroundIsolation}
+                    cutoutIntervals={scopedCutoutClipIntervals}
+                    cutoutArtifactAvailability={cutoutArtifactAvailability}
                     totalDuration={totalDuration}
                     audioDuration={audioDuration}
                     cues={cuesList}
@@ -2877,6 +2943,11 @@ export default function EditorShell({
                       captionColor: style.captionColor,
                       captionScale: style.captionScale,
                       fontName: style.fontName,
+                      // Both of these change what the caption looks like, so the
+                      // preview has to be told: without them it drew the English
+                      // line whatever the project said, and could not reveal at all.
+                      bilingualSubtitles: style.bilingualSubtitles,
+                      ghostReveal: style.ghostReveal,
                       hidden: isCaptionHidden,
                     }}
                     isMuted={isAudioMuted}
@@ -3171,6 +3242,9 @@ export default function EditorShell({
                 <div className="min-h-0 flex-1">
                   <Timeline
                     segments={segments}
+                    backgroundIsolation={backgroundIsolation}
+                    cutoutIntervals={scopedCutoutClipIntervals}
+                    cutoutArtifactAvailability={cutoutArtifactAvailability}
                     totalDuration={totalDuration}
                     audioDuration={audioDuration}
                     cues={cuesList}

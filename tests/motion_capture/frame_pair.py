@@ -59,7 +59,7 @@ class FramePairSpec:
     outline_px: int = 3
     anchor: str = "top"
     x: float = 0.5
-    y: float = 260.0 / 1920.0
+    y: float = 180.0 / 1920.0
     base_fs_ratio: float = 0.065
     comfortable_lines: int = 4
 

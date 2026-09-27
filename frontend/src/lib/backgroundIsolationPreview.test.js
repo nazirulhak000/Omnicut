@@ -9,10 +9,13 @@ import {
   backgroundIsolationPrefetchTimes,
   completedBackgroundIsolationTasks,
   groupBackgroundIsolationClips,
+  groupScopedBackgroundIsolationClips,
   mapSourceTimeToFrameIndex,
   resolveBackgroundIsolationConfig,
+  scopedArtifactCoversClip,
   resolveBackgroundIsolationPreview,
   splitBackgroundIsolationOverlays,
+  subjectLayerForOverlay,
   summarizeBackgroundIsolationPlan,
   summarizeBackgroundIsolationStatus,
   findBackgroundIsolationConflicts,
@@ -21,6 +24,131 @@ import {
 
 const ARTIFACT_ID = 'bgseq1-0123456789abcdef';
 const BASE_URL = '/api/background-isolation/sequences';
+
+test('explicit depth overrides legacy Hook while ordinary text stays in front', () => {
+  assert.equal(subjectLayerForOverlay({ kind: 'hook' }), 'behind');
+  assert.equal(subjectLayerForOverlay({ kind: 'hook', subject_layer: 'front' }), 'front');
+  assert.equal(subjectLayerForOverlay({ kind: 'text', subject_layer: 'behind' }), 'behind');
+  assert.equal(subjectLayerForOverlay({ kind: 'text' }), 'front');
+});
+
+test('scoped plan skips unused source seconds and reuses overlapping text windows', () => {
+  const clips = [{ id: 'a', source_path: 'source.mp4', trim_start: 0, trim_end: 60, speed: 1 }];
+  const overlays = [
+    { kind: 'hook', start: 0, end: 5, tiers: [{ text: 'HOOK' }] },
+    { kind: 'text', subject_layer: 'behind', start: 20, end: 23, tiers: [{ text: 'SPEC' }] },
+    { kind: 'text', subject_layer: 'behind', start: 22, end: 23, tiers: [{ text: 'MORE' }] },
+    { kind: 'text', start: 30, end: 34, tiers: [{ text: 'FRONT' }] },
+  ];
+  const groups = groupScopedBackgroundIsolationClips(clips, overlays);
+  assert.deepEqual(groups[0].active_intervals, [{ start: 0, end: 5 }, { start: 20, end: 23 }]);
+  assert.equal(summarizeBackgroundIsolationPlan(groups).frameCount, 240);
+  assert.equal(summarizeBackgroundIsolationPlan(groups).windowCount, 2);
+  assert.equal(groups[0].duration, 60); // full-length sparse container, eight seconds of AI work
+});
+
+test('scoped plan maps speed and freeze tail to source frames', () => {
+  const sped = groupScopedBackgroundIsolationClips(
+    [{ id: 'sped', source_path: 'a.mp4', trim_start: 5, trim_end: 25, speed: 2 }],
+    [{ kind: 'text', subject_layer: 'behind', start: 1, end: 2, tiers: [{ text: 'SPEC' }] }],
+  );
+  assert.deepEqual(sped[0].active_intervals, [{ start: 7, end: 9 }]);
+  const slowed = groupScopedBackgroundIsolationClips(
+    [{ id: 'slowed', source_path: 'a.mp4', trim_start: 5, trim_end: 15, speed: 0.5 }],
+    [{ kind: 'text', subject_layer: 'behind', start: 2, end: 4, tiers: [{ text: 'SPEC' }] }],
+  );
+  assert.deepEqual(slowed[0].active_intervals, [{ start: 6, end: 7 }]);
+  const frozen = groupScopedBackgroundIsolationClips(
+    [{ id: 'frozen', source_path: 'a.mp4', trim_start: 0, trim_end: 2, freeze_tail: 1 }],
+    [{ kind: 'hook', start: 2.2, end: 2.7, tiers: [{ text: 'HOOK' }] }],
+  );
+  assert.equal(frozen[0].active_intervals.length, 1);
+  assert.equal(Math.round(frozen[0].active_intervals[0].start * 30), 59);
+  assert.equal(frozen[0].active_intervals[0].end, 2);
+});
+
+test('scoped plan keeps unknown source length unresolved and ignores hidden text', () => {
+  const clip = { id: 'unknown', source_path: 'a.mp4' };
+  const hidden = { kind: 'hook', hidden: true, start: 0, end: 2, tiers: [{ text: 'HOOK' }] };
+  assert.deepEqual(groupScopedBackgroundIsolationClips([clip], [hidden]), []);
+  const groups = groupScopedBackgroundIsolationClips([clip], [{ ...hidden, hidden: false }]);
+  assert.equal(groups[0].unresolved, true);
+  assert.equal(summarizeBackgroundIsolationPlan(groups).ready, false);
+});
+
+test('scoped plan covers both clips during a transition and aligns fractional boundaries', () => {
+  const clips = [
+    { id: 'first', source_path: 'same.mp4', trim_start: 0, trim_end: 2 },
+    { id: 'second', source_path: 'same.mp4', trim_start: 2, trim_end: 4,
+      transition_in: 'dissolve', transition_duration: 0.5 },
+  ];
+  const groups = groupScopedBackgroundIsolationClips(clips, [
+    { kind: 'text', subject_layer: 'behind', start: 1.75, end: 1.9,
+      tiers: [{ text: 'SPEC' }] },
+  ]);
+  assert.equal(groups.length, 2);
+  assert.equal(groups[0].active_intervals.length, 1);
+  assert.equal(groups[1].active_intervals.length, 1);
+  assert.equal(summarizeBackgroundIsolationPlan(groups).frameCount, 10);
+  assert.deepEqual(groups.flatMap((group) => group.clips.map((clip) => clip.id)), ['first', 'second']);
+});
+
+test('reused source frames remain scoped to each timeline clip', () => {
+  const clips = [
+    { id: 'first', source_path: 'same.mp4', trim_start: 0, trim_end: 2 },
+    { id: 'second', source_path: 'same.mp4', trim_start: 0, trim_end: 2 },
+  ];
+  const groups = groupScopedBackgroundIsolationClips(clips, [
+    { kind: 'text', subject_layer: 'behind', start: 0, end: 1, tiers: [{ text: 'FIRST' }] },
+    { kind: 'text', subject_layer: 'behind', start: 2.5, end: 3, tiers: [{ text: 'SECOND' }] },
+  ]);
+  assert.equal(groups.length, 2);
+  assert.deepEqual(groups.map((group) => group.active_intervals), [
+    [{ start: 0, end: 1 }], [{ start: 0.5, end: 1 }],
+  ]);
+  assert.deepEqual(groups.map((group) => group.clips[0].id), ['first', 'second']);
+});
+
+test('identical source and active windows share one scoped artifact job', () => {
+  const clips = [
+    { id: 'first', source_path: 'same.mp4', trim_start: 0, trim_end: 2 },
+    { id: 'second', source_path: 'same.mp4', trim_start: 0, trim_end: 2 },
+  ];
+  const groups = groupScopedBackgroundIsolationClips(clips, [
+    { kind: 'text', subject_layer: 'behind', start: 0, end: 1, tiers: [{ text: 'FIRST' }] },
+    { kind: 'text', subject_layer: 'behind', start: 2, end: 3, tiers: [{ text: 'SECOND' }] },
+  ]);
+  assert.equal(groups.length, 1);
+  assert.deepEqual(groups[0].clips.map((clip) => clip.id), ['first', 'second']);
+  assert.equal(summarizeBackgroundIsolationPlan(groups).frameCount, 30);
+});
+
+test('scoped config uses only the active clips and invalidates moved text windows', () => {
+  const intervals = [{ start: 0, end: 5 }];
+  const clip = { id: 'a', background_isolation: {
+    enabled: true, scope_mode: 'behind_text_windows', active_intervals: intervals,
+    artifact: { id: ARTIFACT_ID, status: 'ready' },
+  } };
+  const project = { enabled: true, scope_mode: 'behind_text_windows',
+    active_clip_ids: ['a'], active_intervals_by_clip: { a: intervals } };
+  assert.equal(resolveBackgroundIsolationConfig(clip, project).artifact.id, ARTIFACT_ID);
+  assert.equal(resolveBackgroundIsolationConfig({ ...clip, id: 'b' }, project).enabled, false);
+  assert.equal(resolveBackgroundIsolationConfig(clip, { ...project,
+    active_intervals_by_clip: { a: [{ start: 1, end: 5 }] } }).artifact.status, 'stale');
+  assert.equal(resolveBackgroundIsolationConfig(clip, { enabled: true }).artifact, undefined);
+  const withLegacy = { ...clip, background_isolation: { ...clip.background_isolation,
+    legacy_background_isolation: { enabled: true, artifact: { id: 'legacy', status: 'ready' } } } };
+  assert.equal(resolveBackgroundIsolationConfig(withLegacy, { enabled: true }).artifact.id, 'legacy');
+  assert.equal(resolveBackgroundIsolationConfig(clip, { ...project, model: 'isnet-general-use' }).artifact.status, 'stale');
+});
+
+test('scoped artifact becomes unready when a clip grows past its alpha video', () => {
+  const config = { scope_mode: 'behind_text_windows', artifact: {
+    source_start: 0, source_duration: 60 } };
+  assert.equal(scopedArtifactCoversClip(config, { trim_start: 0, trim_end: 60 }), true);
+  assert.equal(scopedArtifactCoversClip(config, { trim_start: 0, trim_end: 65 }), false);
+  assert.equal(scopedArtifactCoversClip(config, { trim_start: 10, trim_end: 50 }), true);
+});
 
 test('splits Hook overlays behind the isolated Subject while keeping captions foregrounded', () => {
   const result = splitBackgroundIsolationOverlays([
@@ -213,6 +341,7 @@ test('preflight summary reports exact jobs, seconds, frames, and unresolved wind
 
   assert.deepEqual(plan, {
     jobCount: 2,
+    windowCount: 2,
     clipCount: 3,
     unresolvedCount: 0,
     totalDuration: 3.5,
@@ -290,6 +419,19 @@ test('video artifact maps absolute source time to a seekable cutout video', () =
   });
   assert.equal(outside.useArtifact, false);
   assert.equal(outside.reason, 'source_time_outside_artifact');
+});
+
+test('scoped preview rejects a video whose active intervals differ from the clip', () => {
+  const config = readyConfig({ scope_mode: 'behind_text_windows',
+    active_intervals: [{ start: 8, end: 9 }] });
+  const manifest = readyManifest({ schema_version: 2, video_file: 'cutout.webm',
+    codec: 'vp9-alpha', frame_count: 60, source_start: 8, source_duration: 2,
+    active_intervals: [[8, 9]] });
+  assert.equal(resolveBackgroundIsolationPreview({ config, manifest,
+    artifactBaseUrl: BASE_URL, sourceTime: 8.5 }).useArtifact, true);
+  const moved = { ...manifest, active_intervals: [[9, 10]] };
+  assert.equal(resolveBackgroundIsolationPreview({ config, manifest: moved,
+    artifactBaseUrl: BASE_URL, sourceTime: 8.5 }).useArtifact, false);
 });
 
 test('preview uses only a proxy tied to the same master, frames, fps and geometry', () => {

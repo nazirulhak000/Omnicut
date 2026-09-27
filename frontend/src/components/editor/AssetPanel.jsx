@@ -269,6 +269,20 @@ function BackgroundIsolationControls({
       {onPrepare && enabled && (
         <div className="space-y-1.5">
           <label className="flex items-center justify-between gap-2 text-[11px] text-slate-300">
+            ช่วงที่ประมวลผล Cutout
+            <select
+              aria-label="ช่วงที่ประมวลผล Cutout"
+              value={backgroundIsolation?.scope_mode === 'behind_text_windows' ? 'behind_text_windows' : 'legacy_clip'}
+              disabled={preparing}
+              onChange={(event) => onChange?.({ ...backgroundIsolation, scope_mode: event.target.value,
+                artifact: { schema_version: 1, id: null, status: 'missing' } })}
+              className="rounded-lg border border-violet-400/30 bg-[#111827] px-2 py-1 text-[11px] text-white"
+            >
+              <option value="legacy_clip">ทั้งช่วงคลิป (แบบเดิม)</option>
+              <option value="behind_text_windows">เฉพาะข้อความหลังสินค้า</option>
+            </select>
+          </label>
+          <label className="flex items-center justify-between gap-2 text-[11px] text-slate-300">
             ลดขอบสั่นขณะเคลื่อนที่
             <input type="checkbox" disabled={preparing}
               aria-label="ลดขอบสั่นขณะเคลื่อนที่"
@@ -284,8 +298,10 @@ function BackgroundIsolationControls({
           <p className="text-[10px] text-slate-400">กดเตรียม Cutout เพื่อใช้ค่าที่เปลี่ยน แล้วตรวจขอบและส่วนของสินค้าที่ต้องการเก็บ</p>
           <p className="rounded-lg bg-black/20 px-2 py-1.5 text-[10px] leading-relaxed text-slate-400">
             {plan?.ready
-              ? `จะประมวลผล ${plan.jobCount} ช่วง รวม ${plan.totalDuration.toFixed(1)} วินาที ประมาณ ${plan.frameCount.toLocaleString()} เฟรม`
-              : `ยังคำนวณช่วงวิดีโอไม่ได้${plan?.unresolvedCount ? ` ${plan.unresolvedCount} ช่วง` : ''}`}
+              ? `จะประมวลผล ${plan.windowCount} ช่วง (${plan.jobCount} งาน) รวม ${plan.totalDuration.toFixed(1)} วินาที ประมาณ ${plan.frameCount.toLocaleString()} เฟรม`
+              : backgroundIsolation?.scope_mode === 'behind_text_windows' && plan?.jobCount === 0
+                ? 'ไม่มีข้อความหลังสินค้าที่ต้องเตรียม Cutout'
+                : `ยังคำนวณช่วงวิดีโอไม่ได้${plan?.unresolvedCount ? ` ${plan.unresolvedCount} ช่วง` : ''}`}
           </p>
           {plan?.conflictCount > 0 && (
             <div role="alert" className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-2.5 text-[11px] text-amber-200 space-y-2">

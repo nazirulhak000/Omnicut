@@ -85,6 +85,11 @@ from scripts.subtitle import (
     _salient_word_th,
     _force_highlight,
 )
+from scripts.subtitle.ghost_reveal_ass import (
+    anchor_tags,
+    build_ghost_reveal_events,
+)
+from scripts.subtitle.word_reveal import build_word_reveal, reveal_is_usable
 
 SUBTITLE_RENDER_CONTRACT_VERSION = "v8"
 SUBTITLE_RENDER_CONTRACT_MARKER = (
@@ -398,6 +403,15 @@ class SubtitleEngine:
                     "text": cue_text,
                     "translation": cue_trans,
                     "sfx": sfx,
+                    # Per-word timing for Progressive Ghost Reveal, computed
+                    # once here so the ASS writer and the Canvas preview reveal
+                    # on exactly the same word boundaries. Letting each side
+                    # tokenize for itself would not work: python segments Thai
+                    # with pythainlp's newmm and the browser has only
+                    # Intl.Segmenter, which breaks words differently.
+                    "word_reveal": build_word_reveal(
+                        cue_text, cl_start, cl_end, c.get("word_timings")
+                    ),
                     **{
                         key: c[key]
                         for key in ("x", "y", "position", "scale", "auto_emoji")
@@ -500,6 +514,7 @@ class SubtitleEngine:
         hook_colors: Optional[Dict[str, str]] = None,
         hook_style: Optional[Dict[str, object]] = None,
         bilingual: bool = True,
+        ghost_reveal: bool = True,
         video_width: int = VIDEO_WIDTH,
         video_height: int = VIDEO_HEIGHT,
         caption_position: str = "bottom",
@@ -915,8 +930,115 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # Layer 1: Crisp Foreground Text with dynamic kinetic highlights
             main_pos = f"{{{pos_override}}}" if pos_override else ""
             main_text, main_marks = repair_caption_text(highlighted_text + en_sub)
-            line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{main_pos}{multi_line_metric_tag}{caption_anim}{main_text}"
-            events.append(line_entry)
+
+            # Progressive Ghost Reveal (SOP Phase 3) replaces the single
+            # foreground event with one per word. It needs a plain line to
+            # measure and colour itself, so it only runs where the ordinary
+            # caption would have been drawn whole: a multi-line cue, a pill, or
+            # an editor-positioned cue each have their own layout contract that
+            # a word-by-word rebuild would quietly break.
+            reveal_events: List[str] = []
+            if (
+                ghost_reveal
+                and not is_pill_mode
+                and not pos_override
+                and "\\N" not in text
+                and not en_sub
+            ):
+                # Prefer the track generate_micro_cues already attached, so the
+                # ASS and the preview reveal on identical boundaries. Recomputing
+                # is only for cues that came from somewhere else (a hand-built
+                # list in a test, or an older manifest).
+                reveal = cue.get("word_reveal") or build_word_reveal(
+                    text,
+                    float(cue["start"]),
+                    float(cue["end"]),
+                    cue.get("word_timings"),
+                )
+                if reveal_is_usable(reveal):
+                    # Stacked Thai marks have to be detached here too. Several
+                    # faces collapse an upper vowel against its tone, so the
+                    # whole engine strips the tone out of the body and redraws
+                    # it as a raised companion glyph -- skipping that on the
+                    # reveal path would reintroduce the collision this codebase
+                    # has fixed once already.
+                    repaired_reveal = []
+                    reveal_marks: List[Tuple[float, Tuple[str, str, str]]] = []
+                    for word in reveal:
+                        # The reveal track is built from the cue's raw text, so
+                        # each word still has to be escaped before it reaches
+                        # the ASS -- exactly as the whole-line path does at
+                        # `text = wrap_text_for_ass(ass_escape_text(...))`.
+                        # Without this a caption containing a literal override
+                        # block reaches libass as markup and can recolour or
+                        # reposition itself.
+                        w_body, w_marks = repair_caption_text(
+                            ass_escape_text(word["text"])
+                        )
+                        repaired_reveal.append({**word, "text": w_body})
+                        for parts in w_marks:
+                            reveal_marks.append((word["start"], parts))
+
+                    # libass centres a line on the ink it actually paints, and a
+                    # ghosted word paints none -- so the reveal has to carry its
+                    # own anchor or it slides sideways as it advances.
+                    # layout_line() re-applies ass_glyph_scale internally, so it
+                    # wants the same Fontsize the style carries -- the boosted
+                    # one. Handing it the plain em number measures the line at
+                    # roughly half its rendered width, which put the anchor
+                    # ~100px left of where the text actually lands.
+                    # Where the line sits vertically depends on the caption's
+                    # alignment, exactly as caption_mark_position works it out:
+                    # bottom measures its margin up from the floor, top down
+                    # from the ceiling, and middle ignores the margin entirely.
+                    # Deriving it as `height - margin_v` regardless put a
+                    # middle-positioned caption at y=1920, off the bottom edge.
+                    # The anchor's own alignment has to be the left-column
+                    # equivalent of the style's, or the line hangs from the
+                    # wrong edge: \an4 centres on its y, so using it for a
+                    # bottom caption sat the text ~40px low and a top one ~36px
+                    # high against the plain caption's position.
+                    if alignment == 2:
+                        reveal_y = video_height - margin_v
+                        reveal_align = 1
+                    elif alignment == 8:
+                        reveal_y = margin_v
+                        reveal_align = 7
+                    else:
+                        reveal_y = video_height / 2.0
+                        reveal_align = 4
+                    anchor = anchor_tags(
+                        "".join(w["text"] for w in repaired_reveal),
+                        caption_font,
+                        font_size_boosted,
+                        centre_x=video_width / 2.0,
+                        baseline_y=reveal_y,
+                        video_w=video_width,
+                        vertical_align=reveal_align,
+                    )
+                    reveal_events = build_ghost_reveal_events(
+                        repaired_reveal,
+                        float(cue["end"]),
+                        style=style,
+                        layer=1,
+                        prefix_tags=anchor,
+                    )
+                    # A companion glyph appears with its own word and then stays
+                    # for the rest of the cue, matching the body text underneath
+                    # it -- which also stays once revealed.
+                    for m_start, parts in reveal_marks:
+                        reveal_events.append(
+                            f"Dialogue: 1,{cls._format_ass_time(m_start)},{cls._format_ass_time(float(cue['end']))},"
+                            f"{style},,0,0,0,,"
+                            f"{{{caption_mark_position(shadow=False)}}}"
+                            f"{caption_mark_overlay(parts, shadow=False)}"
+                        )
+
+            if reveal_events:
+                events.extend(reveal_events)
+            else:
+                line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{main_pos}{multi_line_metric_tag}{caption_anim}{main_text}"
+                events.append(line_entry)
             for mark_parts in main_marks:
                 events.append(
                     f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,"

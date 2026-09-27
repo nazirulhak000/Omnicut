@@ -237,7 +237,18 @@ def overlay_events(overlay: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]:
         "text": _text_overlay_events,
     }
     handler = handlers.get(overlay_kind(overlay))
-    return handler(overlay, ctx) if handler else []
+    if not handler:
+        return []
+    from scripts.background_isolation_compositor import subject_layer_for_overlay
+    marker = "OCBEHIND" if subject_layer_for_overlay(overlay) == "behind" else "OCFRONT"
+    tagged = []
+    for event in handler(overlay, ctx):
+        fields = event.split(",", 9)
+        if event.startswith("Dialogue:") and len(fields) == 10:
+            fields[4] = marker
+            event = ",".join(fields)
+        tagged.append(event)
+    return tagged
 
 
 def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]:

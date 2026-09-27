@@ -595,6 +595,7 @@ class BatchRenderManager:
                             },
                             font_name=options.get("font_name", "IBMPlex"),
                             bilingual_subtitles=options.get("bilingual_subtitles", True),
+                            ghost_reveal=bool(options.get("ghost_reveal", True)),
                             use_ai_vision=options.get("use_ai_vision", True),
                             export_mp4=options.get("export_mp4", True),
                             product_id=product_id,

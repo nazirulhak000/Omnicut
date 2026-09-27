@@ -60,12 +60,25 @@ class BackgroundIsolationProcessRequest(BaseModel):
     config: dict[str, Any] = Field(default_factory=dict)
     start: float = Field(default=0.0, ge=0.0)
     duration: float | None = Field(default=None, gt=0.0)
+    active_intervals: list[tuple[float, float]] | None = None
     fps: float = Field(default=30.0, gt=0.0, le=120.0)
     timebase: str | None = None
     width: int = Field(default=1080, gt=0, le=4096)
     height: int = Field(default=1920, gt=0, le=4096)
     rotation: int = Field(default=0)
     project_name: str | None = None
+
+
+def _validate_active_intervals(req: BackgroundIsolationProcessRequest) -> None:
+    if req.active_intervals is None:
+        return
+    if not req.active_intervals or req.duration is None:
+        raise HTTPException(status_code=422, detail="scoped Cutout needs intervals and duration")
+    previous = req.start
+    for begin, end in req.active_intervals:
+        if not (req.start <= begin < end <= req.start + req.duration + 1e-6) or begin < previous - 1e-6:
+            raise HTTPException(status_code=422, detail="invalid Cutout interval")
+        previous = end
 
 
 _BACKGROUND_TASK_LOCK = threading.Lock()
@@ -86,11 +99,16 @@ def _background_isolation_preflight(
     model_home = Path(os.environ.get("U2NET_HOME") or (Path.home() / ".u2net"))
     model_path = model_home / f"{req.config.get('model', 'u2net')}.onnx"
     frame_count = math.ceil((req.duration or 0) * req.fps - 1e-9) if req.duration else None
+    isolated_frame_count = (sum(math.ceil((end - begin) * req.fps - 1e-9)
+                                for begin, end in req.active_intervals)
+                            if req.active_intervals is not None else frame_count)
     # The new worker streams pixels through RAM and stages one alpha video.
     # Keep a conservative compressed-video allowance without reserving disk
     # for two full-resolution PNG sequences.
     estimated_cache_bytes = (
-        frame_count * req.width * req.height // 4 if frame_count is not None else None
+        ((isolated_frame_count or 0) * req.width * req.height // 4
+         + (frame_count - (isolated_frame_count or 0)) * req.width * req.height // 128)
+        if frame_count is not None else None
     )
     disk_target = Path(PROJECTS_DIR).resolve(strict=False)
     while not disk_target.exists() and disk_target != disk_target.parent:
@@ -147,6 +165,7 @@ def _background_isolation_preflight(
         "duration": req.duration,
         "fps": req.fps,
         "frame_count": frame_count,
+        "isolated_frame_count": isolated_frame_count,
         "estimated_cache_bytes": estimated_cache_bytes,
         "free_disk_bytes": free_disk_bytes,
         "required_disk_bytes": required_disk_bytes,
@@ -206,6 +225,7 @@ def _request_identity(source: Path, normalized: dict[str, Any], req: BackgroundI
         "timebase": req.timebase, "width": req.width, "height": req.height,
         "rotation": req.rotation, "project_name": req.project_name,
         "start": req.start, "duration": req.duration,
+        "active_intervals": req.active_intervals,
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
@@ -277,6 +297,7 @@ def _run_background_isolation_task(
             duration=req.duration, fps=req.fps, timebase=timebase,
             width=req.width, height=req.height, rotation=req.rotation,
             cancel_event=cancel_event, progress_callback=progress,
+            active_intervals=req.active_intervals,
         )
         if result.get("status") != "ready" or not result.get("artifact_id"):
             raise RuntimeError(result.get("message") or "background isolation failed")
@@ -359,6 +380,7 @@ def preflight_background_isolation(req: BackgroundIsolationProcessRequest) -> di
     """Validate local runtime/model/capacity before queueing expensive work."""
 
     source = _source_for_processing(req.source_path)
+    _validate_active_intervals(req)
     if req.rotation not in (0, 90, 180, 270):
         raise HTTPException(status_code=422, detail="rotation must be 0, 90, 180, or 270")
     normalized = normalize_background_isolation(req.config)
@@ -376,6 +398,7 @@ def process_background_isolation(req: BackgroundIsolationProcessRequest, backgro
     """Queue extraction + rembg segmentation and return a pollable task id."""
 
     source = _source_for_processing(req.source_path)
+    _validate_active_intervals(req)
     if req.rotation not in (0, 90, 180, 270):
         raise HTTPException(status_code=422, detail="rotation must be 0, 90, 180, or 270")
     normalized = normalize_background_isolation(req.config)

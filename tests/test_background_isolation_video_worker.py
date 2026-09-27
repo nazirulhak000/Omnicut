@@ -39,6 +39,72 @@ class _Worker:
         return _Segmenter(), None
 
 
+def test_sparse_cutout_runs_ai_only_on_selected_frames_and_keeps_alpha_gaps(tmp_path, monkeypatch):
+    source = tmp_path / "source.mp4"
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+                    "-i", "color=c=blue:s=16x16:r=4:d=1", "-c:v", "libx264", str(source)],
+                   check=True, capture_output=True)
+
+    class CountingSegmenter(_Segmenter):
+        calls = 0
+
+        def remove(self, rgb, session=None):
+            self.calls += 1
+            return super().remove(rgb, session=session)
+
+    class CountingWorker:
+        def __init__(self):
+            self.segmenter = CountingSegmenter()
+
+        def _get_session(self, model):
+            return self.segmenter, None
+
+    worker = CountingWorker()
+    result = video_worker.process_background_isolation_video(
+        source, tmp_path / ".cache", {"enabled": True}, source_fingerprint="sparse-fixture",
+        start=0, duration=1, fps=4, timebase="1/4", width=16, height=16,
+        rotation=0, rembg_worker=worker,
+        active_intervals=[(0.25, 0.5), (0.75, 1.0)],
+    )
+    directory = tmp_path / ".cache" / video_worker.VIDEO_NAMESPACE / result["artifact_id"]
+    manifest = json.loads((directory / "manifest.json").read_text())
+    assert result["frame_count"] == 4
+    assert worker.segmenter.calls == manifest["isolated_frame_count"] == 2
+    assert manifest["active_intervals"] == [[0.25, 0.5], [0.75, 1.0]]
+    decoded = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-c:v", "libvpx-vp9",
+                              "-i", str(directory / "cutout.webm"), "-f", "rawvideo", "-pix_fmt", "rgba", "pipe:1"],
+                             check=True, capture_output=True).stdout
+    frame_bytes = 16 * 16 * 4
+    opaque = [max(decoded[i * frame_bytes + 3:(i + 1) * frame_bytes:4]) > 0 for i in range(4)]
+    assert opaque == [False, True, False, True]
+    monkeypatch.setattr(video_editor, "PROJECTS_DIR", tmp_path)
+    config = {"enabled": True, "scope_mode": "behind_text_windows",
+              "artifact": {"id": result["artifact_id"], "status": "ready"},
+              "active_intervals": [{"start": 0.25, "end": 0.5}, {"start": 0.75, "end": 1.0}]}
+    assert video_editor._read_ready_background_sequence(config, 0, 1) is not None
+    moved = {**config, "active_intervals": [{"start": 0, "end": 0.5}]}
+    assert video_editor._read_ready_background_sequence(moved, 0, 1) is None
+    stale = {**config, "artifact": {"id": result["artifact_id"], "status": "stale"}}
+    assert video_editor._read_ready_background_sequence(stale, 0, 1) is None
+
+
+def test_sparse_cache_id_tracks_intervals_and_actual_temporal_mode():
+    args = dict(fingerprint="source-fingerprint", config={"enabled": True},
+                start=0, duration=10, fps=30, timebase="1/30",
+                width=1080, height=1920, rotation=0)
+    legacy = video_worker.video_artifact_id(**args)
+    first = video_worker.video_artifact_id(**args, active_intervals=[(0, 5)])
+    moved = video_worker.video_artifact_id(**args, active_intervals=[(1, 5)])
+    assert legacy != first != moved
+    assert first == video_worker.video_artifact_id(**args, active_intervals=[(0, 5)])
+    assert legacy == video_worker.video_artifact_id(**{**args, "config": {
+        "enabled": True, "temporal_mode": "legacy"}})
+    assert first == video_worker.video_artifact_id(**{**args, "config": {
+        "enabled": True, "temporal_mode": "motion"}}, active_intervals=[(0, 5)])
+    assert first != video_worker.video_artifact_id(**{**args, "config": {
+        "enabled": True, "temporal_mode": "legacy"}}, active_intervals=[(0, 5)])
+
+
 def test_proxy_retains_master_alpha_pts_and_api_range_without_affecting_render(tmp_path, monkeypatch):
     source = tmp_path / "source.mp4"
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",

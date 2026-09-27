@@ -149,6 +149,34 @@ def _filter(command):
     return command[command.index("-filter_complex") + 1]
 
 
+def test_scoped_render_requires_artifact_for_active_id_only(monkeypatch, tmp_path):
+    project = {"enabled": True, "scope_mode": "behind_text_windows",
+               "active_clip_ids": ["active"],
+               "active_intervals_by_clip": {"active": [{"start": 0, "end": 1}]}}
+    with pytest.raises(ValueError, match="Cutout is not ready"):
+        _assemble(monkeypatch, tmp_path,
+                  clip_list=[{"id": "active", "source_path": str(tmp_path / "active.mp4"),
+                              "trim_start": 0, "trim_end": 2}],
+                  background_isolation=project)
+    command, _ = _assemble(monkeypatch, tmp_path,
+                           clip_list=[{"id": "inactive", "source_path": str(tmp_path / "inactive.mp4"),
+                                       "trim_start": 0, "trim_end": 2}],
+                           background_isolation={**project, "active_clip_ids": [],
+                                                 "active_intervals_by_clip": {}})
+    assert "alphamerge" not in _filter(command)
+
+
+def test_scoped_render_rejects_clip_ids_lost_between_save_and_render(monkeypatch, tmp_path):
+    project = {"enabled": True, "scope_mode": "behind_text_windows",
+               "active_clip_ids": ["editor-a"],
+               "active_intervals_by_clip": {"editor-a": [{"start": 0, "end": 1}]}}
+    with pytest.raises(ValueError, match="no longer matches"):
+        _assemble(monkeypatch, tmp_path,
+                  clip_list=[{"source_path": str(tmp_path / "source.mp4"),
+                              "trim_start": 0, "trim_end": 2}],
+                  background_isolation=project)
+
+
 def test_disabled_background_keeps_legacy_graph_and_source_untouched(monkeypatch, tmp_path):
     command, sources = _assemble(
         monkeypatch,

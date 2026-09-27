@@ -137,6 +137,15 @@ def _read_ready_background_video(
                 or manifest.get("video_file") != VIDEO_NAME
                 or manifest.get("codec") != "vp9-alpha"):
             return None
+        if config.get("scope_mode") == "behind_text_windows":
+            artifact = config.get("artifact")
+            if not isinstance(artifact, Mapping) or artifact.get("status") != "ready":
+                return None
+            requested = config.get("active_intervals")
+            if not isinstance(requested, list) or [
+                [item.get("start"), item.get("end")] for item in requested if isinstance(item, Mapping)
+            ] != manifest.get("active_intervals") or any(not isinstance(item, Mapping) for item in requested):
+                return None
         fingerprint = config.get("artifact", {}).get("source_fingerprint")
         if fingerprint and fingerprint != manifest.get("source_fingerprint"):
             return None
@@ -190,6 +199,8 @@ def _read_ready_background_sequence(
     video_info = _read_ready_background_video(config, artifact_id, trim_start, source_span)
     if video_info is not None:
         return video_info
+    if config.get("scope_mode") == "behind_text_windows":
+        return None
 
     root = _background_sequence_root()
     artifact_dir = (root / artifact_id).resolve(strict=False)
@@ -1214,6 +1225,19 @@ class VideoEditor:
         isolated_subject_nodes: List[Tuple[int, str]] = []
         used_clip_list = bool(clip_list)
         media_probe = MediaProbeCache(cls.get_media_info)
+
+        if (isinstance(background_isolation, Mapping)
+                and background_isolation.get("enabled") is True
+                and background_isolation.get("scope_mode") == "behind_text_windows"):
+            active_ids = background_isolation.get("active_clip_ids")
+            intervals_by_clip = background_isolation.get("active_intervals_by_clip")
+            if not isinstance(active_ids, list) or not isinstance(intervals_by_clip, Mapping):
+                raise ValueError("Scoped Cutout needs an active clip plan before rendering")
+            render_ids = {clip.get("id") for clip in (clip_list or [])
+                          if isinstance(clip, Mapping) and isinstance(clip.get("id"), str)}
+            if any(not isinstance(clip_id, str) or clip_id not in render_ids
+                   or clip_id not in intervals_by_clip for clip_id in active_ids):
+                raise ValueError("Scoped Cutout clip plan no longer matches the render clips")
 
         if clip_list:
             # Manual Editor: one real ffmpeg input per clip, each independently

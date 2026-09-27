@@ -36,11 +36,33 @@ import {
   clampHookDuration,
 } from '../../../lib/inspectorModel';
 import { toMediaUrl } from '../../../lib/mediaUrl';
+import { subjectLayerForOverlay } from '../../../lib/backgroundIsolationPreview.js';
 import { FONT_OPTIONS, PRESET_STYLES } from './CaptionInspector';
 
 const HOOK_TIER_LABELS = ['แบรนด์', 'รุ่น / จุดเด่น', 'หมวดหมู่ / คำโปรย'];
 const HOOK_MIN_DURATION = 1.0;
 const HOOK_MAX_DURATION = 8.0;
+
+function SubjectLayerSelector({ overlay, onUpdateOverlay }) {
+  if (!overlay) return null;
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-black/40 px-2.5 py-2">
+      <label htmlFor={`subject-layer-${overlay.id}`} className="text-[11px] font-medium text-slate-300">
+        ตำแหน่งเทียบกับสินค้า
+      </label>
+      <select
+        id={`subject-layer-${overlay.id}`}
+        aria-label="ตำแหน่งข้อความเทียบกับสินค้า"
+        value={subjectLayerForOverlay(overlay)}
+        onChange={(event) => onUpdateOverlay?.(overlay.id, { subject_layer: event.target.value })}
+        className="rounded-lg border border-white/[0.12] bg-[#111827] px-2 py-1 text-xs text-white"
+      >
+        <option value="front">หน้าสินค้า</option>
+        <option value="behind">หลังสินค้า</option>
+      </select>
+    </div>
+  );
+}
 const HOOK_CARD_SAMPLE = ['BRAND', 'รุ่นเด่น', 'คำโปรย'];
 
 export const FALLBACK_ACCENT_OPTIONS = {
@@ -323,6 +345,7 @@ export default function OverlayInspector({
         ref={hookHeaderCardRef}
         className="rounded-2xl border border-white/[0.08] bg-black/40 p-3 space-y-3"
       >
+        <SubjectLayerSelector overlay={hookOverlay} onUpdateOverlay={onUpdateOverlay} />
         <div className="flex items-center justify-between pb-1 border-b border-white/[0.08]">
           <span className="text-xs font-bold text-[#E6C24A] flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-[#E6C24A]" />
@@ -914,6 +937,7 @@ export default function OverlayInspector({
 
   return (
     <div className="space-y-3">
+      <SubjectLayerSelector overlay={selectedTextOverlay} onUpdateOverlay={onUpdateOverlay} />
       {/* Header Context Card */}
       <div className="flex items-center justify-between pb-1 border-b border-white/[0.08]">
         <div className="flex items-center gap-2">

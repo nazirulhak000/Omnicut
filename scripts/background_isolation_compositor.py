@@ -71,6 +71,16 @@ _FALLBACK_REASONS = frozenset(
 HOOK_ASS_STYLES = frozenset({"HookHeader", "HookHeaderShadow", "HookHeaderPill"})
 
 
+def subject_layer_for_overlay(overlay: Mapping[str, Any] | None) -> str:
+    """Resolve optional depth without changing saved projects."""
+    if not isinstance(overlay, Mapping):
+        return "front"
+    explicit = overlay.get("subject_layer")
+    if explicit in ("front", "behind"):
+        return explicit
+    return "behind" if overlay.get("kind") == "hook" or overlay.get("type") == "hook_header" else "front"
+
+
 def split_ass_layers_for_subject(lines: list[str]) -> tuple[list[str], list[str]]:
     """Split an ASS document into Hook and foreground event layers.
 
@@ -89,7 +99,9 @@ def split_ass_layers_for_subject(lines: list[str]) -> tuple[list[str], list[str]
             continue
         fields = line.split(",", 9)
         style = fields[3].strip() if len(fields) > 3 else ""
-        (hook_lines if style in HOOK_ASS_STYLES else foreground_lines).append(line)
+        layer = fields[4].strip() if len(fields) > 4 else ""
+        behind = layer == "OCBEHIND" or (layer != "OCFRONT" and style in HOOK_ASS_STYLES)
+        (hook_lines if behind else foreground_lines).append(line)
     return hook_lines, foreground_lines
 
 
@@ -109,10 +121,29 @@ def resolve_background_isolation_config(
 
     if isinstance(project_config, Mapping) and project_config.get("enabled") is False:
         return project_config
+    if isinstance(project_config, Mapping) and project_config.get("scope_mode") == "behind_text_windows":
+        active_ids = project_config.get("active_clip_ids")
+        if isinstance(active_ids, list) and (not isinstance(clip, Mapping) or clip.get("id") not in active_ids):
+            return {**project_config, "enabled": False}
+        scoped = None
+        if isinstance(clip, Mapping):
+            scoped = clip.get("background_isolation") or clip.get("backgroundIsolation")
+        if isinstance(scoped, Mapping) and scoped.get("scope_mode") == "behind_text_windows":
+            if any(project_config.get(key) is not None and scoped.get(key) != project_config.get(key)
+                   for key in ("engine", "model", "quality", "temporal_mode")):
+                return {**project_config, "artifact": {"id": None, "status": "stale"}}
+        intervals = project_config.get("active_intervals_by_clip")
+        if isinstance(scoped, Mapping) and isinstance(intervals, Mapping) and isinstance(clip, Mapping):
+            if scoped.get("active_intervals") != intervals.get(clip.get("id")):
+                return {**project_config, "artifact": {"id": None, "status": "stale"}}
+        return scoped if isinstance(scoped, Mapping) and scoped.get("scope_mode") == "behind_text_windows" else {
+            **project_config, "artifact": {"id": None, "status": "missing"},
+        }
     if isinstance(clip, Mapping):
         for key in ("background_isolation", "backgroundIsolation"):
             if key in clip and clip[key] is not None:
-                return clip[key]
+                value = clip[key]
+                return (value.get("legacy_background_isolation") or project_config) if isinstance(value, Mapping) and value.get("scope_mode") == "behind_text_windows" else value
     return project_config
 
 

@@ -275,6 +275,43 @@ def test_preflight_validates_source_and_returns_actionable_capacity_result(monke
     assert captured["request"].config["model"] == "u2net"
 
 
+@pytest.mark.parametrize("intervals", [
+    [], [[0, 5], [4, 6]], [[-1, 2]], [[0, 11]], [[5, 5]],
+])
+def test_preflight_rejects_invalid_scoped_cutout_intervals(monkeypatch, tmp_path, intervals):
+    client, _cache_root = _client(monkeypatch, tmp_path)
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"fixture")
+    response = client.post("/api/background-isolation/preflight", json={
+        "source_path": str(source), "config": {"enabled": True},
+        "start": 0, "duration": 10, "active_intervals": intervals,
+    })
+    assert response.status_code == 422
+
+
+def test_scoped_request_identity_changes_when_text_window_moves(tmp_path):
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"fixture")
+    normalized = api.normalize_background_isolation({"enabled": True})
+    first = api.BackgroundIsolationProcessRequest(
+        source_path=str(source), start=0, duration=10, active_intervals=[(0, 5)])
+    second = first.model_copy(update={"active_intervals": [(1, 5)]})
+    assert api._request_identity(source, normalized, first) != api._request_identity(source, normalized, second)
+
+
+def test_scoped_preflight_reports_ai_frames_separately_from_container_frames(monkeypatch, tmp_path):
+    monkeypatch.setattr(api, "PROJECTS_DIR", tmp_path)
+    req = api.BackgroundIsolationProcessRequest(
+        source_path=str(tmp_path / "source.mp4"), config={"enabled": True, "model": "u2net"},
+        start=0, duration=60, fps=30, width=16, height=16,
+        active_intervals=[(0, 5), (20, 23)],
+    )
+    result = api._background_isolation_preflight(req, tmp_path / "source.mp4")
+    assert result["frame_count"] == 1800
+    assert result["isolated_frame_count"] == 240
+    assert result["estimated_cache_bytes"] < 1800 * 16 * 16 // 4
+
+
 def test_source_sequence_identity_changes_across_trim_windows():
     normalized = api.normalize_background_isolation({"enabled": True})
     first = api._source_sequence_id(

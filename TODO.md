@@ -1,13 +1,109 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
-## Round CUTOUT-TEXT-DEPTH-SCOPED-PLAN-20260927 — แผนรอตรวจทาน · Codex (GPT-6)
+## Round SUBTITLE-GHOST-REVEAL-20260927 — แผนรอตรวจทาน · Claude Code (Claude Opus 5)
+
+วันที่: 2026-09-27 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Opus 5)
+
+**เป้าหมาย:** นำสไตล์ซับ Progressive Ghost Reveal ตาม SOP Phase 3 (`_Docs/GADGET_VIDEO_PRODUCTION_SOP.md:80-100`) เข้า pipeline จริง — เด้งสีทีละคำตามเสียงพูด เปิด/ปิดได้ เป็น default ทุกคลิป
+
+**คำสั่งจากผู้ใช้ (ล็อกไว้):**
+- EN ต้อง reveal ด้วย (ปลายทาง) — แต่เฟสแรกทำ TH ก่อน EN นิ่ง
+- ใช้ทุกคลิป เป็น style default + toggle เปิดปิดได้
+- เปลี่ยนฟอนต์ได้ — ลอง `Mali-Bold` ก่อน ไม่เวิร์กย้อนกลับของเดิม
+- แนวทาง: **C → B** (spike พิสูจน์ความเสี่ยงก่อน แล้วค่อยทำ TH reveal)
+
+### ผลสำรวจก่อนวางแผน (3 agent ขนาน — เสร็จแล้ว)
+
+**ของที่มีอยู่แล้ว (ใช้ต่อได้):**
+- `scripts/subtitle/word_layout.py:96 layout_line()` — per-word box (x/w) ทั้ง normalized + absolute px, แหล่งเดียวใช้ร่วม 2 ฝั่ง
+- `scripts/subtitle/word_layout.py:29-55` — ต่อวรรณยุกต์/สระกลับเข้าคำ (กันสระลอยตาม SOP)
+- `SequencePlayer.jsx:2752-2860` — preview วาดทีละคำได้แล้ว (word stagger entrance)
+- `frontend/src/lib/editorProjectState.js:111-189` — `manifest.style` per-project bag + `bilingualSubtitles` default true
+- `frontend/src/components/editor/inspector/CaptionInspector.jsx` — UI ซับตัวเดียว มี project-scope + per-caption override
+- `tools/render_sample_gadget_clip.py:136-197` — ghost reveal ASS ทำงานได้จริง (ghost `\alpha&HFF&` / active `#66FF00` / spoken `#FFFFFF`) แต่ hardcode timing
+- `02_Assets/Fonts/Mali-Bold.ttf` — มีไฟล์แล้ว
+
+**ตัวบล็อกที่เจอ:**
+1. **ไม่มี word timing ใช้งานได้ใน pipeline default** — `scripts/stages/voice_stage.py` default = `gemini_tts` → RMS alignment ไม่มี word_timings เลย · edge-TTS WordBoundary (`voice_engine.py:177-216`) มี แต่เป็น branch รอง
+2. **word_timings ตายที่ `scripts/subtitle_engine.py:394-405`** — micro_cue ไม่ copy ต่อ `generate_ass()` ไม่เคยเห็น timestamp ระดับคำ
+3. **EN ไม่มี timing ของตัวเอง** — `subtitle_engine.py:860-876` ต่อท้าย TH ใน Dialogue เดียวกัน ใช้ start/end เดียวกัน
+4. **`\fscx/\fscy` ถูกเลี่ยงกับไทยโดยตั้งใจ** — comment `subtitle_engine.py:842` ระบุว่าทำสระ/วรรณยุกต์ซ้อนพังใน libass/HarfBuzz · SOP สั่ง `\fscx114` พอดี → ต้องพิสูจน์ด้วยเฟรมจริง
+5. **caption ไม่มี style preset registry** — hook มี 14 template แต่ caption มีแค่ 4 ตัวแปรลอย + switch เดียว `subtitle_engine.py:878`
+6. **`Mali` ไม่อยู่ใน `FONT_OPTIONS`** (`CaptionInspector.jsx:50-55`) — ต้องเพิ่ม + ลงทะเบียน 2 ฝั่ง
+7. **per-word path กัน caption ไว้** — `frontend/src/lib/overlayModel.js:211-212` เปิดเฉพาะ text overlay
+
+### รอบย่อย C — Spike พิสูจน์ความเสี่ยง (ทำก่อน ห้ามข้าม)
+
+- [x] C1. เรนเดอร์ ffmpeg จริง เทียบไทยสระ/วรรณยุกต์ซ้อน ด้วย `\fscx114\fscy114` vs ไม่ใส่ — **ผ่าน ไม่พัง** band count เท่ากันทุกคำ ratio 1.12-1.16 ตรวจภาพขยาย 3x แล้ว · comment `subtitle_engine.py:842` ไม่ตรงกับ libass ปัจจุบัน
+- [x] C2. ~~ออกแบบ active-state ทดแทน~~ — **ตัดทิ้ง** เงื่อนไขคือ "ถ้า C1 พัง" ซึ่งไม่เกิด ใช้ `\fscx114\fscy114` ตาม SOP ตรงตัว
+- [x] C3. วัดความแม่น edge-TTS WordBoundary — **ผ่าน** 14 คำ ตัดตรงตามคำไทย (`สมาร์ทโฟน` ไม่ฉีก) ประกอบกลับตรงต้นฉบับ 100% ไม่มี overlap gap สูงสุด 0.130s
+- [x] C4. เรนเดอร์ `Mali-Bold` 88px เทียบ Kanit — **ผ่าน** ทนขยาย 114% เท่ากัน รูปทรงแยกจาก Kanit ชัด · ข้อสังเกต ก้านบางกว่า ต้องตรวจซ้ำบนฉากสว่าง
+- [x] C5. สรุปผลลง `_Docs/Reports/SPIKE_C1_GHOST_REVEAL_FEASIBILITY_20260927.md`
+- [x] **Cleanup 100%** — ลบ `.tmp/spike_c1/` แล้ว ไม่แตะ `04_Exports/`
+
+**ผลรอบ C ที่เปลี่ยนแผน B:**
+- ตัด C2 ออก → ghost reveal ใช้ 3 สถานะครบตาม SOP ได้เลย
+- **B1 มีงานเพิ่ม:** `scripts/stages/voice_stage.py` default `gemini_tts` ไม่มี word_timings เลย → ต้องตัดสินใจ บังคับ edge-TTS เมื่อเปิดสไตล์ หรือ fallback แบ่งตามสัดส่วนตัวอักษร (**รอผู้ใช้ตัดสิน**)
+- **B8 เพิ่ม:** assertion ผูกเวอร์ชัน libass เพราะผล C1 ผูกกับ ffmpeg build ปัจจุบัน (`2025-12-10-git-4f947880bd`)
+- **ความเสี่ยงเหลือ:** ยังไม่พิสูจน์ `\fscx114` ตอนหลายคำในบรรทัดเดียว (คำอาจขยับแนวนอนตอน active โต) · ยังไม่วัด drift สะสมที่ 60s · preview canvas ยังไม่เทียบกับ ASS ที่ 114%
+
+### รอบย่อย B — TH reveal (ทำหลัง C ผ่าน และผู้ใช้อนุมัติ)
+
+- [x] B1. **โมดูล `scripts/subtitle/word_reveal.py`** — คำนวณ (start,end) ต่อคำ ใช้ `word_timings` จริงเมื่อมี · fallback แบ่งตาม **น้ำหนักการออกเสียง** (ไม่นับสระ/วรรณยุกต์เป็นเวลา เพราะไม่กินเวลาพูด) · ใช้ `word_layout.tokenize_text` ตัวเดียวกับ layout เพื่อให้กล่องเวลากับกล่องพิกเซลตรงกัน · **21 เทสผ่าน** (`tests/test_word_reveal.py`)
+- [x] B2. **โมดูล `scripts/subtitle/ghost_reveal_ass.py`** — สร้าง ASS 3 สถานะตาม SOP · **31 เทสผ่าน** (`tests/test_ghost_reveal_ass.py`) · ยืนยันด้วยเฟรมจริงแล้ว
+
+  **บั๊กที่เจอและแก้ในรอบนี้ (สำคัญ):** เทคนิค ghost `\alpha&HFF&` อย่างเดียว **ไม่พอ** — libass จัดกึ่งกลางจากความกว้างที่**วาดจริง** คำโปร่งใสไม่ลงหมึกจึงไม่นับ → บรรทัด**เลื่อนซ้าย 212px** ระหว่าง reveal (วัดจากเฟรมจริง) ซึ่งขัดเจตนา SOP ที่ต้องการล็อกตำแหน่ง · **แก้โดย** เพิ่ม `anchor_tags()` ตรึงบรรทัดด้วย `\pos` + `\an4` คำนวณขอบซ้ายจากความกว้าง**เต็มบรรทัด** ครั้งเดียว → วัดซ้ำได้ **0px** คำที่พูดแล้วไม่ขยับเลย
+  **หมายเหตุ:** prototype `tools/render_sample_gadget_clip.py:136-197` มีบั๊กนี้อยู่ (ไม่มี `\pos` และใช้ `" ".join` ซึ่งแทรกช่องว่างเข้าภาษาไทย) — โมดูลใหม่แก้ทั้งสองจุด
+- [x] B3. **flag `ghost_reveal` ต่อครบสาย 8 จุด** — `editorProjectState.js` (resolve + serialize 2 spelling) → `api_phase1.py` (request model + passthrough + render kwargs) → `pipeline.py` → `pipeline_context.py` (manifest + dataclass + persist) → `batch_render.py` → `subtitle_stage.py` → `subtitle_engine.generate_ass()` · **default = ปิด** จนกว่า preview จะมิเรอร์ (B5) ไม่งั้นผิด parity rule 2.1
+- [x] B4. **เพิ่ม `Mali` เข้า `FONT_OPTIONS`** + map ใน `SequencePlayer.drawCaption` · Python resolver มี Mali อยู่แล้ว (`typography_presets.json`) ไม่ต้องแก้
+  **บั๊กพ่วงที่เจอ:** `NotoSansThai` อยู่ใน picker มาตลอดแต่**ไม่เคย map ใน canvas** → preview วาด Kanit เงียบๆ ขณะ render ใช้ Noto (บั๊กชนิดเดียวกับที่ comment IBM Plex เตือนไว้) · แก้แล้ว + เพิ่มเทส `test_every_picker_font_reaches_the_canvas` กันเกิดซ้ำกับฟอนต์ตัวถัดไป
+- [x] B5. **มิเรอร์ preview ใน `SequencePlayer.jsx`** — `ghostRevealSegments()` + `drawSeg()` รองรับ ghost (วัดแต่ไม่วาด) และ scale 114% (ขยายจากกึ่งกลางคำ) · **ยืนยัน parity ด้วยการวัดจริง** เทียบ canvas (Playwright วัดใน browser) กับ ASS (ffmpeg + PIL) ทีละคำ
+
+  **บั๊ก parity ที่เจอและแก้:** `anchor_tags` ส่ง `font_size` (em) เข้า `layout_line` แต่ `layout_line` คูณ `ass_glyph_scale` ซ้ำภายใน ขณะที่ ASS style ใช้ `font_size_boosted` → วัดบรรทัดได้**ครึ่งเดียวของความกว้างจริง** anchor เลยเยื้องซ้าย **~102px** · แก้เป็นส่ง `font_size_boosted` → เหลือ **2.8px** (คือ outline 5.2 ที่ขยาย ink ออก ไม่ใช่ความคลาด)
+
+  **ตัวเลขยืนยัน (Mali 88px):** canvas lineW 187.85 คงที่ทุกเฟรม · ASS ink เริ่มที่ 355 เทียบ canvas×2 = 352.2 · คำ active ตรงกันทั้ง 3 เฟรม (delta 2.8 / 3.5 / 3.1 px)
+- [x] B6. ~~เปิด per-word path ให้ caption (`overlayModel.js:211-212`)~~ — **ไม่ต้องทำ** path นั้นเป็นของ word-stagger entrance ของ overlay ซึ่งคนละกลไกกับ reveal · caption reveal วาดผ่าน segment loop เดิมของ `drawSingleCue` ไม่แตะข้อห้าม hook
+- [x] B7. **toggle "เด้งสีทีละคำ" ใน `CaptionInspector.jsx`** — switch พร้อม `role="switch"` + `aria-checked` + aria-label ไทย
+
+  **บั๊กพ่วงที่เจอ 2 จุด:**
+  1. `cuesList` ใน `editorProjectState.js` แจงฟิลด์ทีละตัวไม่ spread → `word_reveal` ถูกทิ้งตอนโหลดแล้ว autosave ทับ (บั๊กชนิดเดียวกับที่ `test_editor_preserves_every_field_the_renderer_reads` เตือนเรื่อง clip) · แก้ด้วย `...cue`
+  2. `captionStyle` ใน `EditorShell.jsx` แจงฟิลด์ทีละตัว 2 จุด → `bilingualSubtitles` **ไม่เคยส่งถึง preview เลย** preview จึงวาดบรรทัด EN เสมอไม่ว่าตั้งค่าอะไร · แก้พร้อมกับเพิ่ม `ghostReveal` + ใส่ทั้งคู่เข้า `captionKey` (cache invalidation)
+- [x] B8. **Parity assertions 15 ตัว** ใน `test_preview_render_parity.py` (สี/สเกล/ghost/anchor/default ตรงกัน 2 ฝั่ง/ฟอนต์ทุกตัวใน picker ต้องมี map) + **behavior test เฟรมจริง** `test_ghost_reveal_detaches_stacked_marks_per_word`
+- [x] B9. **พลิก default เป็นเปิดแล้ว** ทั้ง 8 จุด (ตามที่ผู้ใช้สั่ง "default ทุกคลิป") — ทำได้เพราะ preview มิเรอร์แล้ว · เทสเดิมที่ล็อก default=false แทนด้วย `test_ghost_reveal_default_is_the_same_on_both_sides` ซึ่งล็อกว่า 2 ฝั่ง**ต้องตรงกัน** (ป้องกันกรณีอันตรายจริง ไม่ใช่ล็อกค่าใดค่าหนึ่ง)
+
+  **บั๊ก 3 ตัวที่เจอตอนรันเทสจริง (เทสจับได้ ไม่ใช่เทสล้าสมัย):**
+  1. **ghost reveal ข้าม `repair_caption_text`** → สระ+วรรณยุกต์ซ้อน (`ื่`/`ื้`) กลับมาเป็นคู่ดิบ ซึ่งหลายฟอนต์เรนเดอร์ชนกัน (บั๊กที่โปรเจกต์นี้เคยไล่แก้แล้ว) · แก้โดย repair ต่อคำ + ปล่อย mark overlay ตามช่วงเวลาคำ
+  2. **`anchor_tags` ใช้ `video_height - margin_v` ตายตัว** → caption `middle` ไปอยู่ y=1920 ตกขอบล่างจอ · แก้ให้คำนวณตาม alignment (2=ล่าง / 8=บน / อื่น=กลาง)
+  3. **`\an4` ผิดสำหรับ bottom/top** → เยื้อง 40px / 36px เทียบ caption ปกติ · แก้เป็น `\an1` / `\an7` / `\an4` ตามตำแหน่ง → เหลือ 3px / 8px / 2px
+
+  **ผลเทส:** `test_preview_render_behavior` + `parity` + `word_reveal` + `ghost_reveal_ass` = **246 ผ่าน** · `npm test` 415 ผ่าน · `vite build` ผ่าน
+
+### ข้อบังคับที่ผูกรอบนี้
+
+- **AGENTS.md ข้อ 9 + `.agents/rules/preview_render_parity.md`** — แก้ `subtitle_engine.py` ต้องแก้ `SequencePlayer.jsx` ใน commit เดียวกัน · ทุกค่าคงที่ต้องมี assertion · alpha กลับด้าน (`1 - 0xNN/255`) · canvas `lineWidth = 2x` ASS outline · `lineHeight = fontSize`
+- **AGENTS.md ข้อ 12 (font contract)** — ห้าม drift ค่าที่ไม่ได้สั่งเปลี่ยน · probe metric ด้วย `.venv`
+- **AGENTS.md ข้อ 11 + 15** — ห้ามทิ้งไฟล์ทดสอบ ใช้ `.tmp/` เท่านั้น ลบ 100% + ถอดจาก `_Docs/export_registry.json`
+- **Jev gate** — confidence `>= 0.80` ไปต่อ · `< 0.80` หยุดถามผู้ใช้
+
+### สถานะ
+
+**รอบ C ปิดแล้ว — ผ่านทั้ง 3 ข้อเสี่ยง** → รอผู้ใช้ตัดสินเรื่องแหล่ง word timing แล้วเริ่มรอบ B
+
+
+## Round CUTOUT-TEXT-DEPTH-SCOPED-PLAN-20260927 — ลงมือ implementation · Codex (GPT-6)
 
 วันที่: 2026-09-27 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6)
 
 - [x] ตรวจเส้นทาง overlay, Preview, ASS Render, Cutout worker/cache และรูปแบบโปรเจกต์เดิม
 - [x] ออกแบบการจัดชั้นข้อความหน้า/หลังสินค้าและ Cutout เฉพาะช่วงที่ใช้
-- [ ] ตรวจทานแผน `_Docs/Plans/CUTOUT_TEXT_DEPTH_SCOPED_PLAN_20260927.md` กับผู้ใช้ก่อนเริ่ม implementation
-- [ ] หลังได้รับคำสั่งให้ลงมือ แยก implementation เป็นรอบย่อยพร้อม regression และหลักฐาน Preview/Render
+- [x] ผู้ใช้อนุมัติแผนและสั่งเริ่ม implementation หลังคอมมิตงานเดิม (`ddce8f1`)
+- [x] เพิ่ม subject_layer ต่อข้อความ พร้อมค่าเริ่มต้นที่รักษาโปรเจกต์เก่าและ UI หน้า/หลัง
+- [x] เพิ่ม planner เฉพาะช่วงข้อความหลังสินค้าและ scoped artifact binding
+- [x] ต่อ Preview และ Render ให้ใช้ช่วง/ชั้นเดียวกัน พร้อม fail-closed หาก artifact ไม่ครบ
+- [x] ทดสอบ Save/Reload, boundary, speed, overlap, FFmpeg frame parity และ cleanup เฉพาะ Cutout: backend 106 passed, 3 skipped; frontend 415 passed; build ผ่าน
+- [ ] Gate รวม `pytest tests/` ต้องเขียวก่อนปิดรอบ: ล่าสุด 2085 passed, 5 failed, 8 skipped (5 failure อยู่ใน Ghost Reveal/ซับของรอบ SUBTITLE-GHOST-REVEAL-20260927 ที่กำลังทำพร้อมกัน)
+
+**Notes:** Cutout ทำงานครบและเทสเฉพาะผ่านแล้ว แต่ยังไม่คอมมิตโค้ดรอบใหม่นี้: Jev ก่อนคอมมิตให้ score ความเสี่ยง 1.12/4, confidence 0.59 ต่ำกว่าเกณฑ์ 0.80 ของ AGENTS.md; ส่งคำถามให้ผู้ใช้เลือกว่าจะคอมมิต Cutout แยกหรือรอ Gate รวม ขณะนี้รอคำตอบ
 
 
 ## Round HOOK-SAFE-ZONE-SNAP-20260927 — ปิดรอบแล้ว (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro); ดู HISTORY.md)

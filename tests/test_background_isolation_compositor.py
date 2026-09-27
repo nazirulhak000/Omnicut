@@ -73,6 +73,33 @@ def test_ass_layers_put_hook_events_before_subject_and_keep_captions_foreground(
     ]
 
 
+def test_explicit_subject_depth_routes_text_and_hook_without_changing_styles():
+    lines = [
+        "Dialogue: 0,0:00:00.00,0:00:01.00,TextOverlayMain,OCBEHIND,0,0,0,,Behind",
+        "Dialogue: 0,0:00:00.00,0:00:01.00,HookHeader,OCFRONT,0,0,0,,Front",
+    ]
+    behind, front = split_ass_layers_for_subject(lines)
+    assert behind == [lines[0]]
+    assert front == [lines[1]]
+
+
+def test_generated_ass_tags_all_events_from_each_overlay_with_its_depth():
+    from scripts.subtitle.overlay_events import overlay_events
+
+    ctx = {"video_width": 1080, "video_height": 1920, "hook_font": "Kanit",
+           "resolved_font": "Kanit", "style_preset": "premium_minimal"}
+    behind = overlay_events({"kind": "text", "subject_layer": "behind", "start": 0,
+                             "end": 1, "tiers": [{"text": "BEHIND"}]}, ctx)
+    front = overlay_events({"kind": "hook", "subject_layer": "front", "start": 0,
+                            "end": 1, "tiers": [{"text": "FRONT"}]}, ctx)
+    assert behind and front
+    assert all(line.split(",", 9)[4] == "OCBEHIND" for line in behind)
+    assert all(line.split(",", 9)[4] == "OCFRONT" for line in front)
+    back_doc, front_doc = split_ass_layers_for_subject(behind + front)
+    assert back_doc == behind
+    assert front_doc == front
+
+
 def ready_config(**changes):
     config = {**BASE_CONFIG}
     config["artifact"] = {**BASE_CONFIG["artifact"]}
@@ -102,6 +129,26 @@ def test_explicit_project_disable_overrides_ready_clip_artifact():
     effective = resolve_background_isolation_config(clip, project)
 
     assert effective == project
+
+
+def test_scoped_config_requires_matching_active_window_and_ignores_inactive_clip():
+    intervals = [{"start": 0, "end": 5}]
+    clip = {"id": "a", "background_isolation": {
+        **BASE_CONFIG, "scope_mode": "behind_text_windows", "active_intervals": intervals,
+    }}
+    project = {"enabled": True, "scope_mode": "behind_text_windows",
+               "active_clip_ids": ["a"], "active_intervals_by_clip": {"a": intervals}}
+    assert resolve_background_isolation_config(clip, project)["artifact"]["id"] == ARTIFACT_ID
+    assert resolve_background_isolation_config({**clip, "id": "b"}, project)["enabled"] is False
+    assert resolve_background_isolation_config({"id": "a"}, project)["artifact"]["status"] == "missing"
+    changed = {**project, "active_intervals_by_clip": {"a": [{"start": 1, "end": 5}]}}
+    assert resolve_background_isolation_config(clip, changed)["artifact"]["status"] == "stale"
+    assert resolve_background_isolation_config(clip, {"enabled": True}) == {"enabled": True}
+    preserved = {**clip, "background_isolation": {**clip["background_isolation"],
+        "legacy_background_isolation": BASE_CONFIG}}
+    assert resolve_background_isolation_config(preserved, {"enabled": True}) == BASE_CONFIG
+    changed_model = {**project, "model": "isnet-general-use"}
+    assert resolve_background_isolation_config(clip, changed_model)["artifact"]["status"] == "stale"
 
 
 def test_only_ready_matching_sequence_is_composable():

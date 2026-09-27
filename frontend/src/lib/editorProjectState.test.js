@@ -6,9 +6,38 @@ import {
   manifestToEditorState,
   serializeRenderFeatures,
   serializeClips,
+  serializeRenderClips,
   serializeOverlays,
   serializeTransitions,
 } from './editorProjectState.js';
+
+test('text depth and scoped Cutout survive save and reload without changing legacy defaults', () => {
+  const input = {
+    clipList: [{ id: 'local', source_path: 'a.mp4', trim_start: 0, trim_end: 5,
+      background_isolation: { enabled: true, scope_mode: 'behind_text_windows',
+        active_intervals: [{ start: 0, end: 2 }],
+        artifact: { id: 'bgseq1-0123456789abcdef', status: 'ready' } } }],
+    overlays: [{ id: 'text', kind: 'text', subject_layer: 'behind', start: 0, end: 2,
+      tiers: [{ text: 'SPEC' }] },
+    { id: 'hook', kind: 'hook', start: 0, end: 1, tiers: [{ text: 'HOOK' }] }],
+    backgroundIsolation: { schema_version: 1, enabled: true, scope_mode: 'behind_text_windows',
+      mode: 'cutout', engine: 'rembg', model: 'u2net', quality: 'balanced',
+      artifact: { id: null, status: 'missing' } },
+  };
+  const payload = editorStateToSavePayload(input);
+  const loaded = manifestToEditorState(payload);
+  assert.equal(loaded.overlays[0].subject_layer, 'behind');
+  assert.equal(Object.hasOwn(loaded.overlays[1], 'subject_layer'), false);
+  assert.equal(loaded.clipList[0].background_isolation.active_intervals[0].end, 2);
+  assert.equal(loaded.backgroundIsolation.scope_mode, 'behind_text_windows');
+});
+
+test('scoped render carries local clip identity while saved and legacy clips stay unchanged', () => {
+  const clips = [{ id: 'editor-a', source_path: 'a.mp4', trim_start: 0, trim_end: 5 }];
+  assert.equal(serializeRenderClips(clips, 'behind_text_windows')[0].id, 'editor-a');
+  assert.equal(Object.hasOwn(serializeRenderClips(clips, 'legacy_clip')[0], 'id'), false);
+  assert.equal(Object.hasOwn(editorStateToSavePayload({ clipList: clips }).clip_list[0], 'id'), false);
+});
 
 
 test('legacy manifest fields migrate without losing clip render data', () => {

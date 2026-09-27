@@ -24,6 +24,7 @@ import {
 import { CLIP_DRAG_TYPE, TEXT_TEMPLATE_DRAG_TYPE } from './AssetPanel';
 import { getAudioPeaks, MAX_DECODE_SECONDS } from '../../lib/audioPeaks';
 import { formatTimecode, TRANSITIONS, FADE_DURATION } from '../../lib/timelineMath';
+import { resolveBackgroundIsolationConfig, scopedArtifactCoversClip, subjectLayerForOverlay } from '../../lib/backgroundIsolationPreview.js';
 
 const RULER_H = 22;
 const WAVE_COLUMNS = 1200;
@@ -227,6 +228,8 @@ export default function Timeline({
   onSelectEffect,
   onUpdateEffect,
   backgroundIsolation = null,
+  cutoutIntervals = {},
+  cutoutArtifactAvailability = {},
   isCutoutHidden = false,
   onToggleCutout,
 }) {
@@ -239,6 +242,35 @@ export default function Timeline({
   const showHookHeader = !!hookOverlay && !hookOverlay.hidden;
   const isTextOverlayHidden = textOverlays.length > 0 && textOverlays.every((o) => o.hidden);
   const hasCutout = (backgroundIsolation?.enabled === true) || (segments || []).some((s) => s.clip?.background_isolation?.enabled === true);
+  const scopedCutoutWindows = backgroundIsolation?.scope_mode === 'behind_text_windows'
+    ? (segments || []).flatMap((seg) => {
+      const intervals = (overlays || []).filter((overlay) => !overlay?.hidden
+        && subjectLayerForOverlay(overlay) === 'behind'
+        && ((Array.isArray(overlay.tiers) && overlay.tiers.some((tier) => String(tier?.text || '').trim()))
+          || String(overlay.text || '').trim()))
+        .map((overlay) => ({ start: Math.max(seg.segStart, Number(overlay.start)),
+          end: Math.min(seg.segEnd, Number(overlay.end)) }))
+        .filter(({ start, end }) => Number.isFinite(start) && Number.isFinite(end) && end > start)
+        .sort((a, b) => a.start - b.start || a.end - b.end);
+      const merged = [];
+      for (const interval of intervals) {
+        const last = merged.at(-1);
+        if (last && interval.start <= last.end + 1e-9) last.end = Math.max(last.end, interval.end);
+        else merged.push({ ...interval });
+      }
+      const config = resolveBackgroundIsolationConfig(seg.clip, {
+        ...backgroundIsolation,
+        active_clip_ids: Object.keys(cutoutIntervals),
+        active_intervals_by_clip: cutoutIntervals,
+      });
+      const id = config?.artifact?.id || config?.artifact?.sequence_id;
+      const ready = config?.scope_mode === 'behind_text_windows'
+        && config?.artifact?.status === 'ready'
+        && JSON.stringify(config?.active_intervals) === JSON.stringify(cutoutIntervals[seg.clip?.id])
+        && scopedArtifactCoversClip(config, seg.clip, { sourceDurations: { [seg.clip.id]: seg.srcDur } })
+        && cutoutArtifactAvailability[id] === true;
+      return merged.map((interval) => ({ ...interval, seg, ready }));
+    }) : [];
   const onSelectTextOverlay = (id) => onSelectOverlay?.(id, 'text');
   const onSelectHook = () => (hookOverlay ? onSelectOverlay?.(hookOverlay.id, 'hook') : null);
   const onToggleHookHeader = () => onEnsureHookOverlay?.();
@@ -1157,6 +1189,7 @@ export default function Timeline({
                     >
                       <Sparkles className="h-3 w-3 flex-shrink-0 text-[#E6C24A]" />
                       <span className="truncate font-semibold text-[11px] tracking-wide">{hookText}</span>
+                      <span className="text-[9px] text-[#E6C24A]/80 flex-shrink-0">{subjectLayerForOverlay(hookOverlay) === 'behind' ? 'หลัง' : 'หน้า'}</span>
                       <span className="font-mono text-[10px] text-[#E6C24A]/70 flex-shrink-0 ml-auto">
                         {dur.toFixed(1)}s
                       </span>
@@ -1172,8 +1205,22 @@ export default function Timeline({
                   className="relative rounded bg-[#181716] transition-all duration-150"
                   style={rowStyle('cutout')}
                 >
-                  {segments.map((seg) => {
-                    const clipIso = seg.clip?.background_isolation;
+                  {backgroundIsolation?.scope_mode === 'behind_text_windows'
+                    ? scopedCutoutWindows.map((window, index) => (
+                      <div
+                        key={`cutout-window-${window.seg.clip.id}-${index}`}
+                        title={`Cutout สินค้า: ช็อต #${window.seg.index + 1} ช่วง ${window.start.toFixed(2)}–${window.end.toFixed(2)} วินาที (${window.ready ? 'พร้อมใช้งาน' : 'ยังไม่พร้อม'})`}
+                        onClick={(e) => { e.stopPropagation(); selectClip(window.seg.clip.id); }}
+                        className={`absolute top-0.5 h-[calc(100%-4px)] rounded border px-2 text-[10px] font-semibold flex items-center cursor-pointer ${window.ready
+                          ? 'bg-[#2E1065]/80 text-[#C084FC] border-[#7C3AED]/60'
+                          : 'bg-[#3A2208]/80 text-[#FDBA74] border-[#EA580C]/50'}`}
+                        style={{ left: window.start * pxPerSec, width: Math.max(16, (window.end - window.start) * pxPerSec) }}
+                      >
+                        <span className="truncate">{window.ready ? 'Cutout พร้อม' : 'รอ Cutout'}</span>
+                      </div>
+                    ))
+                    : segments.map((seg) => {
+                    const clipIso = resolveBackgroundIsolationConfig(seg.clip, backgroundIsolation);
                     const isIsoOn = clipIso?.enabled === true;
                     const isReady = clipIso?.artifact?.status === 'ready';
                     const w = Math.max(16, seg.dur * pxPerSec);
@@ -1370,6 +1417,7 @@ export default function Timeline({
                       >
                         <Type className="h-3 w-3 flex-shrink-0 text-[#25F4EE]" />
                         <span className="truncate font-medium">{overlayLabel(item)}</span>
+                        <span className="text-[9px] opacity-75 flex-shrink-0">{subjectLayerForOverlay(item) === 'behind' ? 'หลัง' : 'หน้า'}</span>
                       </TimelineIntervalItem>
                     );
                   })}

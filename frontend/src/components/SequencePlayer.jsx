@@ -932,6 +932,46 @@ function BackgroundIsolationStatusBadge({ status = 'off' }) {
 const CAPTION_Y = { bottom: 1 - 420 / 1920, middle: 0.5, top: 260 / 1920 };
 const CAPTION_COLORS = { white: '#fff', yellow: '#FFE600' };
 
+// Progressive Ghost Reveal (SOP Phase 3), mirrored from
+// scripts/subtitle/ghost_reveal_ass.py -- keep the three numbers in step or the
+// preview stops describing the export. The colours are written here as hex and
+// as ASS &HBBGGRR there; the parity test asserts both spellings of each.
+const GHOST_SPOKEN_COLOR = '#FFFFFF';
+const GHOST_ACTIVE_COLOR = '#66FF00';
+const GHOST_ACTIVE_SCALE = 1.14;
+
+/**
+ * The line as coloured segments at time `t`, one per word.
+ *
+ * `reveal` is the track python attached to the cue (`word_reveal`), so both
+ * engines light the same word at the same moment -- the browser has only
+ * Intl.Segmenter, which does not break Thai where pythainlp's newmm does, so a
+ * preview that tokenized for itself would drift from the render.
+ *
+ * Words not yet spoken come back with `ghost: true`: they are still measured
+ * and still advance the cursor, but are not painted. That is what stops the
+ * line reflowing as the reveal moves along it.
+ */
+function ghostRevealSegments(reveal, t) {
+  if (!Array.isArray(reveal) || reveal.length === 0) return null;
+  let activeIdx = -1;
+  for (let i = 0; i < reveal.length; i += 1) {
+    if (t >= reveal[i].start) activeIdx = i;
+  }
+  // Before the first word's own start the whole line is still to come; after
+  // the last word ends it has all been said, which is the settle.
+  const settled = activeIdx === reveal.length - 1 && t >= reveal[reveal.length - 1].end;
+  return reveal.map((word, i) => {
+    if (settled || i < activeIdx) {
+      return { text: word.text, color: GHOST_SPOKEN_COLOR, scale: 1 };
+    }
+    if (i === activeIdx) {
+      return { text: word.text, color: GHOST_ACTIVE_COLOR, scale: GHOST_ACTIVE_SCALE };
+    }
+    return { text: word.text, color: GHOST_SPOKEN_COLOR, scale: 1, ghost: true };
+  });
+}
+
 /**
  * Wraps Thai and English text into natural lines based on canvas width,
  * preventing horizontal font squeezing/compression.
@@ -1378,6 +1418,18 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   } else if (fontFamName === 'Prompt') {
     fontFam = "'Prompt', sans-serif";
     fontWeight = '800';
+  } else if (fontFamName === 'Mali') {
+    // Only Mali-Bold is embedded, and ass_caption_face() resolves the render
+    // to that same cut -- asking for 900 here would let the browser synthesise
+    // a heavier face that libass has no way to match.
+    fontFam = "'Mali', sans-serif";
+    fontWeight = '700';
+  } else if (fontFamName === 'NotoSansThai' || fontFamName === 'Noto Sans Thai') {
+    // Present in the font picker and in index.css, but never mapped here, so
+    // choosing it silently drew Kanit in the preview while the render used
+    // Noto -- the same class of bug the IBM Plex comment above describes.
+    fontFam = "'Noto Sans Thai', sans-serif";
+    fontWeight = '600';
   }
   // Use one deterministic stack for every face. Prompt/Kanit/Mitr/Itim need
   // the repair in libass, and mirroring it here prevents Preview/Render drift.
@@ -1494,10 +1546,19 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
     }
   }
 
+  // Progressive Ghost Reveal replaces the keyword highlighting for the whole
+  // cue: it colours by what has been spoken, not by which word is a keyword, so
+  // the two cannot both own a line. It only applies to a single-line caption --
+  // the reveal track is one flat list of words with no notion of where the text
+  // wrapped, so a wrapped cue keeps the ordinary drawing.
+  const revealSegments = (style.ghostReveal && thaiLines.length === 1)
+    ? ghostRevealSegments(cue.word_reveal, t)
+    : null;
+
   // Draw Thai lines
   thaiLines.forEach((line, idx) => {
     const lineY = thaiStartY + (idx * thaiLineH);
-    const segments = parsedThaiLines[idx] || [{ text: line, color: primaryColor }];
+    const segments = revealSegments || parsedThaiLines[idx] || [{ text: line, color: primaryColor }];
 
     ctx.font = `${fontWeight} ${fontSize}px ${fontFam}`;
     // When repairThaiMarks is active, drawCaptionText strips the tone from
@@ -1522,9 +1583,26 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
     ctx.shadowOffsetX = 2;
     ctx.shadowOffsetY = 3;
 
+    // A word that has not been spoken yet is measured but never painted, so it
+    // holds its width and the line cannot reflow underneath the reveal. An
+    // active word is drawn scaled about its own centre, which is where libass
+    // grows it from under \fscx/\fscy.
+    const drawSeg = (seg, x, w, paint) => {
+      if (seg.ghost) return;
+      if (!seg.scale || seg.scale === 1) {
+        drawCaptionText(ctx, seg.text, x, lineY, fontSize, paint, repairThaiMarks);
+        return;
+      }
+      ctx.save();
+      ctx.translate(x + w / 2, lineY);
+      ctx.scale(seg.scale, seg.scale);
+      drawCaptionText(ctx, seg.text, -w / 2, 0, fontSize, paint, repairThaiMarks);
+      ctx.restore();
+    };
+
     let curX = xCenter - totalLineW / 2;
     segments.forEach((seg, sIdx) => {
-      drawCaptionText(ctx, seg.text, curX, lineY, fontSize, (value, px, py) => ctx.strokeText(value, px, py), repairThaiMarks);
+      drawSeg(seg, curX, segmentWidths[sIdx], (value, px, py) => ctx.strokeText(value, px, py));
       curX += segmentWidths[sIdx];
     });
 
@@ -1533,7 +1611,7 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
     curX = xCenter - totalLineW / 2;
     segments.forEach((seg, sIdx) => {
       ctx.fillStyle = seg.color;
-      drawCaptionText(ctx, seg.text, curX, lineY, fontSize, (value, px, py) => drawTextWithMonoEmoji(ctx, value, px, py), repairThaiMarks);
+      drawSeg(seg, curX, segmentWidths[sIdx], (value, px, py) => drawTextWithMonoEmoji(ctx, value, px, py));
       curX += segmentWidths[sIdx];
     });
   });
@@ -3356,7 +3434,7 @@ function SequencePlayer({
     setPlayhead(t);
   };
 
-  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}:${visualStyle.id}`;
+  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}:${captionStyle.bilingualSubtitles}:${captionStyle.ghostReveal}:${visualStyle.id}`;
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}:${c.x ?? ''}:${c.y ?? ''}:${c.position ?? ''}`).join(';;');
   // An overlay carries a whole look per tier now, so anything short of the
   // real thing would miss a colour or an outline the user just changed.

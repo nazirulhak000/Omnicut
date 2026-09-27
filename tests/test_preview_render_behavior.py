@@ -390,6 +390,11 @@ def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(
         font_name=font_name,
         bilingual=False,
         caption_position="middle",
+        # This test is about the plain caption entrance -- one event that fades
+        # the whole line in. Progressive Ghost Reveal deliberately replaces that
+        # with one event per word, so it is covered separately in
+        # test_ghost_reveal_detaches_stacked_marks_per_word.
+        ghost_reveal=False,
     )
     generated = ass_path.read_text(encoding="utf-8")
     assert f"Style: TikTokWhite,{expected_face}" in generated
@@ -1241,3 +1246,109 @@ def test_style_preset_accent_burns_consistently_across_entry_hold_exit_frames(
             ) <= 70
         ))
     assert all(count > 0 for count in accent_counts), accent_counts
+
+
+@pytest.mark.render_regression
+def test_ghost_reveal_detaches_stacked_marks_per_word(tmp_path):
+    """Progressive Ghost Reveal must repair Thai stacks like any other caption.
+
+    The reveal rebuilds the line as one event per word, which is a separate code
+    path from the plain caption -- and it originally skipped the stacked-mark
+    repair entirely, putting ``ื่``/``ื้`` back into the output as raw pairs that
+    several faces collapse. Rendered here as well as asserted in the ASS, since
+    the whole point of the repair is what the rasterizer does with it.
+    """
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg is required for the Thai render regression")
+
+    from PIL import Image, ImageChops
+    from scripts.subtitle_engine import SubtitleEngine
+
+    source = "ปกติซื้อตามช็อปราคาแรงเอาเรื่อง"
+    ass_path = tmp_path / "ghost_reveal_marks.ass"
+    SubtitleEngine.generate_ass(
+        cues=[{"start": 0.0, "end": 1.2, "text": source, "translation": "unused"}],
+        output_ass_path=str(ass_path),
+        font_name="Prompt",
+        bilingual=False,
+        caption_position="middle",
+        ghost_reveal=True,
+    )
+    generated = ass_path.read_text(encoding="utf-8")
+
+    # The reveal really did split the line up...
+    caption_lines = [l for l in generated.splitlines() if ",TikTokWhite,," in l]
+    assert len(caption_lines) > 3, "expected one event per word, not a single line"
+    assert r"\alpha&HFF&" in generated, "unspoken words must be held transparent"
+
+    # ...and no upper-vowel/tone pair survived into any of those events.
+    for pair in ("ื่", "ื้"):
+        assert pair not in generated, f"stacked pair {pair!r} was not detached"
+
+    ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
+    frames_pattern = str(tmp_path / "gr-%02d.png")
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=0xB49464:s=1080x1920:r=30:d=1.2",
+        "-vf", f"subtitles='{ass_filter_path}':fontsdir='02_Assets/Fonts'",
+        "-frames:v", "34", frames_pattern,
+    ])
+
+    def ink_bbox(path):
+        image = Image.open(path).convert("RGB")
+        background = Image.new("RGB", image.size, image.getpixel((0, 0)))
+        diff = ImageChops.difference(image, background).convert("L")
+        mask = diff.point(lambda value: 255 if value > 8 else 0)
+        # Same always-on watermark column the plain-caption test blanks out...
+        mask.paste(0, (int(round(image.width * 0.82)), 0, image.width, image.height))
+        # ...plus everything outside the caption's own band. A middle-positioned
+        # caption sits around the vertical centre, while the always-on source
+        # credit sits at the very bottom; measuring both together reported a
+        # constant width and hid the reveal entirely.
+        mask.paste(0, (0, 0, image.width, int(round(image.height * 0.40))))
+        mask.paste(0, (0, int(round(image.height * 0.60)), image.width, image.height))
+        return mask.getbbox()
+
+    # The reveal's own contract: the line's LEFT edge never moves, however many
+    # words are still transparent. That is what the \pos anchor buys -- without
+    # it libass re-centres on the painted ink and the text slides sideways
+    # (measured at 212px of drift before the anchor existed).
+    lefts = []
+    for frame in ("gr-04.png", "gr-16.png", "gr-30.png"):
+        box = ink_bbox(tmp_path / frame)
+        assert box is not None, f"{frame} drew no caption"
+        lefts.append(box[0])
+    assert max(lefts) - min(lefts) <= 4, f"the reveal drifted sideways: {lefts}"
+
+    # And it does reveal. Total ink is the wrong measure here -- the companion
+    # mark glyphs span the settled line from the first frame, so the bbox is
+    # constant by design. What moves is the spoken text: the white run grows
+    # rightwards and the green highlight travels along with it.
+    def spans(path):
+        image = Image.open(path).convert("RGB")
+        pixels = image.load()
+        white, green = [], []
+        for y in range(900, 1010, 2):
+            for x in range(100, 900, 2):
+                r, g, b = pixels[x, y]
+                if g > 150 and r < 140 and b < 110:
+                    green.append(x)
+                elif r > 200 and g > 200 and b > 200:
+                    white.append(x)
+        return (min(white), max(white)) if white else None, \
+               (min(green), max(green)) if green else None
+
+    early_white, early_green = spans(tmp_path / "gr-04.png")
+    late_white, late_green = spans(tmp_path / "gr-30.png")
+    assert early_green and late_green, "no highlighted word was drawn"
+    assert late_green[0] > early_green[0], (
+        f"the highlight never moved along the line: {early_green} -> {late_green}"
+    )
+    assert late_white[1] > early_white[1], (
+        f"spoken text never grew rightwards: {early_white} -> {late_white}"
+    )
+    # The left edge of the spoken run stays put -- words already said do not
+    # shift as later ones light up.
+    assert abs(late_white[0] - early_white[0]) <= 4, (
+        f"already-spoken text moved: {early_white} -> {late_white}"
+    )
