@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, Calendar, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, List, MoreHorizontal, Plus, RefreshCw, Rocket, RotateCcw, Settings2, Shuffle, Trash2 } from 'lucide-react';
+import { AlertTriangle, Archive, Calendar, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, List, MoreHorizontal, Plus, RefreshCw, Rocket, RotateCcw, Search, Settings2, Shuffle, Trash2 } from 'lucide-react';
 import { Modal, Badge } from './ui';
 import PaginationControls from './PaginationControls';
 import { commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
@@ -185,6 +185,9 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkRemoving, setBulkRemoving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [productFilter, setProductFilter] = useState('all');
   // Posted history never gets pruned server-side -- window it here so
   // opening this modal after a year of daily posts doesn't mount hundreds
   // of rows at once.
@@ -261,7 +264,98 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   // collapsed history list instead of showing them (un-removable) alongside
   // clips still waiting to go out.
   const activeQueue = useMemo(() => queue.filter((item) => item.status !== 'posted'), [queue]);
-  const grouped = useMemo(() => groupScheduleItems(activeQueue), [activeQueue]);
+
+  const activeProductOptions = useMemo(() => {
+    const map = new Map();
+    activeQueue.forEach((item) => {
+      const key = resolveRowProductKey(item);
+      const name = item.product_name || 'ไม่ระบุสินค้า';
+      if (!map.has(key)) {
+        map.set(key, { key, name, count: 0 });
+      }
+      map.get(key).count += 1;
+    });
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [activeQueue]);
+
+  const dailyAnalysis = useMemo(() => {
+    const fullGrouped = groupScheduleItems(activeQueue);
+    const map = {};
+
+    Object.entries(fullGrouped).forEach(([date, items]) => {
+      const timeCounts = {};
+      items.forEach((item) => {
+        const t = localParts(item.scheduled_at).time;
+        timeCounts[t] = (timeCounts[t] || 0) + 1;
+      });
+      const duplicateTimes = new Set(Object.keys(timeCounts).filter((t) => timeCounts[t] > 1));
+
+      const productCounts = {};
+      items.forEach((item) => {
+        const p = resolveRowProductKey(item);
+        if (p && p !== 'other') {
+          productCounts[p] = (productCounts[p] || 0) + 1;
+        }
+      });
+      const duplicateProducts = new Set(Object.keys(productCounts).filter((p) => productCounts[p] > 1));
+
+      const colors = [];
+      const colorCounts = {};
+      items.forEach((item) => {
+        const c = resolveRowHookColor(item);
+        if (c) {
+          colors.push(c);
+          colorCounts[c] = (colorCounts[c] || 0) + 1;
+        }
+      });
+      const duplicateColors = new Set(Object.keys(colorCounts).filter((c) => colorCounts[c] > 1));
+
+      map[date] = {
+        itemsCount: items.length,
+        duplicateTimes,
+        duplicateProducts,
+        duplicateColors,
+        uniqueColors: Array.from(new Set(colors)),
+        hasTimeConflict: duplicateTimes.size > 0,
+        hasProductConflict: duplicateProducts.size > 0,
+        hasColorConflict: duplicateColors.size > 0,
+      };
+    });
+
+    return map;
+  }, [activeQueue]);
+
+  const filteredActiveQueue = useMemo(() => {
+    const today = dateOnly();
+    const max7 = addDays(today, 7);
+    const max30 = addDays(today, 30);
+    const q = searchQuery.trim().toLowerCase();
+
+    return activeQueue.filter((item) => {
+      const parts = localParts(item.scheduled_at);
+      if (dateFilter === 'today' && parts.date !== today) return false;
+      if (dateFilter === '7days' && (parts.date < today || parts.date > max7)) return false;
+      if (dateFilter === '30days' && (parts.date < today || parts.date > max30)) return false;
+
+      if (productFilter !== 'all') {
+        const pKey = resolveRowProductKey(item);
+        if (pKey !== productFilter) return false;
+      }
+
+      if (q) {
+        const pName = (item.product_name || '').toLowerCase();
+        const hook = (item.hook_title || '').toLowerCase();
+        const proj = (item.project_name || '').toLowerCase();
+        const path = (item.video_path || '').toLowerCase();
+        if (!pName.includes(q) && !hook.includes(q) && !proj.includes(q) && !path.includes(q)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [activeQueue, searchQuery, dateFilter, productFilter]);
+
+  const grouped = useMemo(() => groupScheduleItems(filteredActiveQueue), [filteredActiveQueue]);
   const dates = Object.keys(grouped);
   const todayKey = dateOnly();
   const todayQueue = useMemo(
@@ -314,9 +408,10 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
         monthLabel: new Intl.DateTimeFormat('th-TH', { month: 'short' }).format(dayDateObj),
         isToday: d === todayKey,
         items: grouped[d] || [],
+        analysis: dailyAnalysis[d] || null,
       };
     });
-  }, [calendarWeekStart, grouped, todayKey]);
+  }, [calendarWeekStart, grouped, todayKey, dailyAnalysis]);
 
   const saveSingle = async () => {
     if (!singleDraft.clip || !singleDraft.date || !singleDraft.time) return;
@@ -851,6 +946,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
               </div>
               <button type="button" onClick={openAutofill} className="obsidian-hero-btn px-4 py-2 text-xs flex items-center gap-1.5 shadow-lg"><Shuffle className="w-4 h-4" />จัดคิวอัตโนมัติ</button>
               <button type="button" onClick={openSingle} className="px-3.5 py-2 rounded-xl border border-white/[0.12] bg-white/[0.05] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Plus className="w-4 h-4" />เพิ่มคลิป</button>
+              <button type="button" onClick={openBulk} className="px-3.5 py-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 text-xs font-bold flex items-center gap-1.5 hover:bg-cyan-400/20 hover:border-cyan-400/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 shadow-sm"><Layers className="w-4 h-4 text-cyan-300" />เพิ่มเป็นชุด</button>
               <button type="button" onClick={toggleSelectionMode} className="px-3 py-2 rounded-xl border border-white/[0.12] bg-white/[0.03] text-slate-200 text-xs font-bold flex items-center gap-1.5 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
                 <List className="w-4 h-4" />{selectionMode ? 'เสร็จสิ้น' : 'เลือกหลายคิว'}
               </button>
@@ -898,6 +994,88 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
             <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">สถานะวันนี้</p>
             <p className={`mt-1 text-sm font-black ${overdueTodayCount ? 'text-amber-200' : 'text-emerald-200'}`}>{overdueTodayCount ? `เลยกำหนด ${overdueTodayCount} คลิป` : todayQueue.length ? 'ตามแผน' : 'พร้อมเริ่ม'}</p>
           </div>
+        </div>
+
+        {/* Quick Search & Filters Bar */}
+        <div className="px-4 sm:px-5 py-2.5 border-b border-white/[0.08] bg-black/30 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="ค้นหาชื่อสินค้า / หัวข้อ Hook..."
+                className="w-full pl-8 pr-7 py-1.5 rounded-xl bg-black/50 border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs font-bold"
+                  title="ล้างข้อความค้นหา"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center rounded-xl bg-white/[0.04] p-0.5 border border-white/[0.08] text-[11px]">
+              {[
+                { id: 'all', label: 'ทั้งหมด' },
+                { id: 'today', label: 'วันนี้' },
+                { id: '7days', label: '7 วัน' },
+                { id: '30days', label: '30 วัน' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setDateFilter(tab.id)}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                    dateFilter === tab.id
+                      ? 'bg-cyan-400 text-slate-950 font-black shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {activeProductOptions.length > 1 && (
+              <select
+                value={productFilter}
+                onChange={(e) => setProductFilter(e.target.value)}
+                className="px-2.5 py-1.5 rounded-xl bg-black/50 border border-white/[0.1] text-xs text-slate-200 font-bold focus:outline-none focus:border-cyan-400/50"
+              >
+                <option value="all">สินค้าทั้งหมด ({activeQueue.length})</option>
+                {activeProductOptions.map((opt) => (
+                  <option key={opt.key} value={opt.key}>
+                    {opt.name} ({opt.count})
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {(searchQuery || dateFilter !== 'all' || productFilter !== 'all') && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-cyan-300 font-bold">
+                แสดง {filteredActiveQueue.length} จาก {activeQueue.length} คลิป
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setDateFilter('all');
+                  setProductFilter('all');
+                }}
+                className="text-slate-400 hover:text-white underline underline-offset-2 text-[11px]"
+              >
+                ล้างตัวกรอง
+              </button>
+            </div>
+          )}
         </div>
 
         {loading ? <div className="p-10 text-center text-sm text-slate-500">กำลังโหลดคิวโพสต์...</div> : viewMode === 'calendar' ? (
@@ -961,8 +1139,28 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                             วันนี้
                           </span>
                         )}
+                        {day.analysis?.hasTimeConflict && (
+                          <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" title={`มีเวลาชนกันในวันนี้: ${Array.from(day.analysis.duplicateTimes).join(', ')}`} />
+                        )}
+                        {day.analysis?.hasProductConflict && (
+                          <span className="w-2 h-2 rounded-full bg-amber-400" title="มีสินค้าซ้ำในวันนี้" />
+                        )}
                       </div>
-                      <span className="text-[10px] text-slate-400">{day.dayNumber} {day.monthLabel}</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[10px] text-slate-400">{day.dayNumber} {day.monthLabel}</span>
+                        {day.analysis?.uniqueColors?.length > 0 && (
+                          <div className="flex items-center gap-0.5">
+                            {day.analysis.uniqueColors.map((c) => (
+                              <span
+                                key={c}
+                                className="w-1.5 h-1.5 rounded-full inline-block shadow-[0_0_4px_currentColor]"
+                                style={{ backgroundColor: c }}
+                                title={`สี Hook: ${c}`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <span className="text-[10px] font-mono text-cyan-300 font-bold bg-white/[0.05] px-1.5 py-0.5 rounded-md">
                       {day.items.length}
@@ -976,6 +1174,10 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                       const coverPath = coverValue(item, clip);
                       const hasCover = Boolean(coverPath);
                       const overdue = item.is_overdue || (item.status === 'planned' && new Date(item.scheduled_at).getTime() < Date.now());
+                      const itemHookColor = resolveRowHookColor(item);
+                      const itemPreset = item.style_preset ? getStylePreset(item.style_preset) : null;
+                      const isTimeDuplicate = day.analysis?.duplicateTimes?.has(parts.time);
+                      const isProductDuplicate = day.analysis?.duplicateProducts?.has(resolveRowProductKey(item));
 
                       return (
                         <div
@@ -990,8 +1192,25 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                             <span className="text-[10px] font-mono font-bold text-cyan-300 flex items-center gap-1">
                               <Clock className="w-3 h-3 text-cyan-400" />
                               {parts.time}
+                              {itemHookColor && (
+                                <span
+                                  className="w-2 h-2 rounded-full inline-block shadow-[0_0_5px_currentColor] ml-0.5"
+                                  style={{ backgroundColor: itemHookColor }}
+                                  title={`Hook Color: ${itemHookColor}${itemPreset?.label ? ` (${itemPreset.label})` : ''}`}
+                                />
+                              )}
                             </span>
                             <div className="flex items-center gap-1">
+                              {isTimeDuplicate && (
+                                <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">
+                                  ซ้ำ
+                                </span>
+                              )}
+                              {isProductDuplicate && (
+                                <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                  สินค้าซ้ำ
+                                </span>
+                              )}
                               {selectionMode && item.status === 'planned' && (
                                 <input
                                   type="checkbox"
@@ -1026,9 +1245,23 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                               <p className="text-[11px] font-bold text-slate-200 line-clamp-2 leading-snug">
                                 {item.hook_title || item.product_name || item.video_path}
                               </p>
-                              <p className="text-[9px] text-slate-500 truncate mt-0.5">
-                                {item.product_name || 'ไม่ระบุสินค้า'}
-                              </p>
+                              <div className="flex items-center justify-between gap-1 mt-0.5">
+                                <p className="text-[9px] text-slate-500 truncate">
+                                  {item.product_name || 'ไม่ระบุสินค้า'}
+                                </p>
+                                {itemHookColor && (
+                                  <span
+                                    className="text-[8px] font-mono font-bold px-1 rounded border flex-shrink-0"
+                                    style={{
+                                      backgroundColor: `${itemHookColor}15`,
+                                      borderColor: `${itemHookColor}35`,
+                                      color: itemHookColor,
+                                    }}
+                                  >
+                                    {itemPreset?.label || itemHookColor}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
 
@@ -1112,58 +1345,155 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
         ) : dates.length === 0 ? (
           <div className="p-10 sm:p-12 text-center">
             <div className="w-12 h-12 mx-auto rounded-2xl bg-cyan-400/[0.08] border border-cyan-400/15 flex items-center justify-center"><CalendarDays className="w-6 h-6 text-cyan-300" /></div>
-            <p className="text-sm text-slate-200 font-black mt-4">วันนี้ยังไม่มีคิว</p>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">เริ่มจากจัดคิวอัตโนมัติเพื่อให้ระบบเลือกคลิปที่ยังไม่ซ้ำ หรือเพิ่มคลิปเองก็ได้</p>
-            <div className="flex flex-wrap justify-center gap-2 mt-5">
-              <button type="button" onClick={openAutofill} className="px-3.5 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Shuffle className="w-3.5 h-3.5 inline-block mr-1.5" />จัดคิวอัตโนมัติ</button>
-              <button type="button" onClick={openSingle} className="px-3.5 py-2 rounded-xl border border-white/[0.12] text-slate-200 text-xs font-bold hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Plus className="w-3.5 h-3.5 inline-block mr-1.5" />เพิ่มคลิป</button>
-            </div>
+            {activeQueue.length > 0 ? (
+              <>
+                <p className="text-sm text-slate-200 font-black mt-4">ไม่พบคลิปตามเงื่อนไขที่ค้นหา</p>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                  ลองเปลี่ยนคำค้นหา หรือกดล้างตัวกรองเพื่อดูคิวทั้งหมด ({activeQueue.length} รายการ)
+                </p>
+                <div className="mt-5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setDateFilter('all');
+                      setProductFilter('all');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black hover:brightness-110"
+                  >
+                    ล้างตัวกรองทั้งหมด
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-200 font-black mt-4">วันนี้ยังไม่มีคิว</p>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">เริ่มจากจัดคิวอัตโนมัติเพื่อให้ระบบเลือกคลิปที่ยังไม่ซ้ำ หรือเพิ่มคลิปเองก็ได้</p>
+                <div className="flex flex-wrap justify-center gap-2 mt-5">
+                  <button type="button" onClick={openAutofill} className="px-3.5 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Shuffle className="w-3.5 h-3.5 inline-block mr-1.5" />จัดคิวอัตโนมัติ</button>
+                  <button type="button" onClick={openSingle} className="px-3.5 py-2 rounded-xl border border-white/[0.12] text-slate-200 text-xs font-bold hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Plus className="w-3.5 h-3.5 inline-block mr-1.5" />เพิ่มคลิป</button>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <div className="p-4 sm:p-5 space-y-4">
-            {dates.map((date) => (
-              <section key={date} onDragOver={(event) => event.preventDefault()} onDrop={() => onDropDate(date)} className="rounded-2xl border border-white/[0.08] bg-black/20 overflow-hidden">
-                <div className="px-4 py-3 flex items-center justify-between bg-white/[0.035] border-b border-white/[0.08]"><div><h3 className="text-sm font-black text-white">{thaiDate(date)}</h3><p className="text-[11px] text-slate-500 mt-0.5">{date} · {grouped[date].length} คลิป</p></div><span className="text-[10px] text-cyan-300 border border-cyan-400/20 rounded-full px-2 py-1">ลากคลิปมาวางเพื่อย้ายวัน</span></div>
-                <div className="divide-y divide-white/[0.06]">
-                  {grouped[date].map((item) => {
-                    const parts = localParts(item.scheduled_at);
-                    const clip = readyClips.find((candidate) => clipKey(candidate) === queueKey(item));
-                    const coverPath = coverValue(item, clip);
-                    const hasCover = Boolean(coverPath);
-                    const overdue = item.is_overdue || (item.status === 'planned' && new Date(item.scheduled_at).getTime() < Date.now());
-                    return (
-                      <article key={item.id} draggable onDragStart={() => setDraggedId(item.id)} className="p-3 sm:p-4 flex flex-col lg:flex-row lg:items-center gap-3 hover:bg-white/[0.025] transition-colors">
-                        <GripVertical className="hidden lg:block w-4 h-4 text-slate-600 cursor-grab flex-shrink-0" />
-                        {selectionMode && item.status === 'planned' && (
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(item.id)}
-                            onChange={() => toggleSelected(item.id)}
-                            aria-label={`เลือกคิว ${parts.time} ${item.product_name || item.video_path}`}
-                            className="accent-cyan-400"
-                          />
+            {dates.map((date) => {
+              const dayItems = grouped[date];
+              const analysis = dailyAnalysis[date];
+              return (
+                <section key={date} onDragOver={(event) => event.preventDefault()} onDrop={() => onDropDate(date)} className="rounded-2xl border border-white/[0.08] bg-black/20 overflow-hidden">
+                  <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-2 bg-white/[0.035] border-b border-white/[0.08]">
+                    <div>
+                      <h3 className="text-sm font-black text-white">{thaiDate(date)}</h3>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="text-[11px] text-slate-400 font-bold">{date} · {dayItems.length} คลิป</span>
+                        {analysis?.uniqueColors?.length > 0 && (
+                          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08]">
+                            <span className="text-[9px] text-slate-400 font-bold mr-0.5">ชุดสี Hook:</span>
+                            {analysis.uniqueColors.map((c) => (
+                              <span
+                                key={c}
+                                className="w-2 h-2 rounded-full inline-block shadow-[0_0_5px_currentColor]"
+                                style={{ backgroundColor: c }}
+                                title={`สี Hook วันนี้: ${c}`}
+                              />
+                            ))}
+                          </div>
                         )}
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <button type="button" onClick={() => clip?.video_url && onPreviewVideo?.(clip.video_url, clip)} className="w-14 h-20 rounded-xl overflow-hidden bg-black border border-white/[0.12] flex-shrink-0 relative group">
-                            {coverSrc(coverPath) ? <img src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" /> : <video src={`/api/media/${item.video_path}`} muted className="w-full h-full object-cover" />}
-                            <span className="absolute inset-x-1 bottom-1 text-[9px] rounded bg-black/75 text-white py-0.5">พรีวิว</span>
-                          </button>
-                          <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-1.5"><span className="text-xs font-bold text-white truncate">{item.product_name || 'ไม่ระบุสินค้า'}</span><Badge className={STATUS_STYLES[item.status] || STATUS_STYLES.planned}>{STATUS_LABELS[item.status] || item.status}</Badge>{overdue && <Badge className="text-red-200 bg-red-500/10 border-red-500/25">เลยกำหนด</Badge>}</div><p className="text-sm text-cyan-200 font-bold mt-1 line-clamp-2">{item.hook_title || item.project_name || item.video_path}</p><p className="text-[10px] text-slate-500 font-mono mt-1 truncate">{item.video_path}</p></div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                          <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><CalendarDays className="w-3.5 h-3.5" /><input type="date" value={scheduleDrafts.current.get(item.id)?.date || parts.date} disabled={item.status !== 'planned'} onChange={(event) => updateScheduleField(item, 'date', event.target.value)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white" /></label>
-                          <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><Clock className="w-3.5 h-3.5 text-cyan-300" /><select value={scheduleDrafts.current.get(item.id)?.time || parts.time} disabled={item.status !== 'planned'} onChange={(event) => updateScheduleField(item, 'time', event.target.value)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white font-mono">{timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
-                          {overdue && item.status === 'planned' && <button type="button" onClick={() => openRequeue(item)} className="px-2.5 py-1.5 rounded-lg border border-red-400/30 text-red-200 text-[11px]">จัดคิวใหม่</button>}
-                          {item.status === 'planned' || item.status === 'failed' ? <button type="button" onClick={() => prepareItem(item)} className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-[11px] font-bold flex items-center gap-1"><Rocket className="w-3.5 h-3.5" />เตรียมให้ Extension</button> : item.status === 'ready_for_extension' ? <button type="button" onClick={() => resetForMove(item)} className="px-2.5 py-1.5 rounded-lg border border-amber-400/25 text-amber-200 text-[11px]">รีเซ็ตเพื่อย้าย</button> : null}
-                          {clip && onOpenCoverStudio ? <button type="button" data-cover-state={hasCover ? 'ready' : 'missing'} onClick={() => onOpenCoverStudio(clip)} className={`p-1.5 rounded-lg border transition-colors ${hasCover ? 'border-emerald-400/45 bg-emerald-400/10 text-white shadow-[0_0_12px_rgba(52,211,153,0.16)] hover:bg-emerald-400/20' : 'border-white/[0.1] text-slate-600 hover:text-white hover:border-white/[0.2]'}`} title={hasCover ? 'มีภาพปกแล้ว · คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก · คลิกเพื่อสร้าง'} aria-label={hasCover ? 'มีภาพปกแล้ว คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก คลิกเพื่อสร้าง'}><ImageIcon className="w-3.5 h-3.5" /></button> : <span role="img" data-cover-state={hasCover ? 'ready' : 'missing'} className={`p-1.5 rounded-lg border ${hasCover ? 'border-emerald-400/45 bg-emerald-400/10 text-white' : 'border-white/[0.08] text-slate-700'}`} title={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'} aria-label={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'}><ImageIcon className="w-3.5 h-3.5" /></span>}
-                          {item.status === 'planned' ? <button type="button" onClick={() => removeItem(item)} className="p-1.5 rounded-lg border border-white/[0.1] text-slate-500 hover:text-red-300" title="นำออกจากคิว"><Trash2 className="w-3.5 h-3.5" /></button> : null}
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
+                        {analysis?.hasTimeConflict && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-300 border border-red-500/30 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 text-red-400" />
+                            เวลาชนกัน ({Array.from(analysis.duplicateTimes).join(', ')})
+                          </span>
+                        )}
+                        {analysis?.hasProductConflict && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 text-amber-400" />
+                            สินค้าซ้ำในวันนี้
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-cyan-300 border border-cyan-400/20 rounded-full px-2 py-1">ลากคลิปมาวางเพื่อย้ายวัน</span>
+                  </div>
+                  <div className="divide-y divide-white/[0.06]">
+                    {dayItems.map((item) => {
+                      const parts = localParts(item.scheduled_at);
+                      const clip = readyClips.find((candidate) => clipKey(candidate) === queueKey(item));
+                      const coverPath = coverValue(item, clip);
+                      const hasCover = Boolean(coverPath);
+                      const overdue = item.is_overdue || (item.status === 'planned' && new Date(item.scheduled_at).getTime() < Date.now());
+                      const itemHookColor = resolveRowHookColor(item);
+                      const itemPreset = item.style_preset ? getStylePreset(item.style_preset) : null;
+                      const isTimeDuplicate = analysis?.duplicateTimes?.has(parts.time);
+                      const isProductDuplicate = analysis?.duplicateProducts?.has(resolveRowProductKey(item));
+                      return (
+                        <article key={item.id} draggable onDragStart={() => setDraggedId(item.id)} className="p-3 sm:p-4 flex flex-col lg:flex-row lg:items-center gap-3 hover:bg-white/[0.025] transition-colors">
+                          <GripVertical className="hidden lg:block w-4 h-4 text-slate-600 cursor-grab flex-shrink-0" />
+                          {selectionMode && item.status === 'planned' && (
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(item.id)}
+                              onChange={() => toggleSelected(item.id)}
+                              aria-label={`เลือกคิว ${parts.time} ${item.product_name || item.video_path}`}
+                              className="accent-cyan-400"
+                            />
+                          )}
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <button type="button" onClick={() => clip?.video_url && onPreviewVideo?.(clip.video_url, clip)} className="w-14 h-20 rounded-xl overflow-hidden bg-black border border-white/[0.12] flex-shrink-0 relative group">
+                              {coverSrc(coverPath) ? <img src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" /> : <video src={`/api/media/${item.video_path}`} muted className="w-full h-full object-cover" />}
+                              <span className="absolute inset-x-1 bottom-1 text-[9px] rounded bg-black/75 text-white py-0.5">พรีวิว</span>
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-xs font-bold text-white truncate">{item.product_name || 'ไม่ระบุสินค้า'}</span>
+                                <Badge className={STATUS_STYLES[item.status] || STATUS_STYLES.planned}>{STATUS_LABELS[item.status] || item.status}</Badge>
+                                {overdue && <Badge className="text-red-200 bg-red-500/10 border-red-500/25">เลยกำหนด</Badge>}
+                                {isTimeDuplicate && (
+                                  <Badge className="text-red-300 bg-red-500/15 border-red-500/30">
+                                    ⚠️ เวลาซ้ำ
+                                  </Badge>
+                                )}
+                                {isProductDuplicate && (
+                                  <Badge className="text-amber-300 bg-amber-500/15 border-amber-500/30">
+                                    ⚠️ สินค้าซ้ำวันนี้
+                                  </Badge>
+                                )}
+                                {itemHookColor && (
+                                  <span
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[9px] font-mono font-bold"
+                                    style={{
+                                      backgroundColor: `${itemHookColor}15`,
+                                      borderColor: `${itemHookColor}40`,
+                                      color: itemHookColor,
+                                    }}
+                                    title={`Hook Color: ${itemHookColor}${itemPreset?.label ? ` (${itemPreset.label})` : ''}`}
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor]" style={{ backgroundColor: itemHookColor }} />
+                                    <span>{itemPreset?.label || itemHookColor}</span>
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-cyan-200 font-bold mt-1 line-clamp-2">{item.hook_title || item.project_name || item.video_path}</p>
+                              <p className="text-[10px] text-slate-500 font-mono mt-1 truncate">{item.video_path}</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                            <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><CalendarDays className="w-3.5 h-3.5" /><input type="date" value={scheduleDrafts.current.get(item.id)?.date || parts.date} disabled={item.status !== 'planned'} onChange={(event) => updateScheduleField(item, 'date', event.target.value)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white" /></label>
+                            <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><Clock className="w-3.5 h-3.5 text-cyan-300" /><select value={scheduleDrafts.current.get(item.id)?.time || parts.time} disabled={item.status !== 'planned'} onChange={(event) => updateScheduleField(item, 'time', event.target.value)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white font-mono">{timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
+                            {overdue && item.status === 'planned' && <button type="button" onClick={() => openRequeue(item)} className="px-2.5 py-1.5 rounded-lg border border-red-400/30 text-red-200 text-[11px]">จัดคิวใหม่</button>}
+                            {item.status === 'planned' || item.status === 'failed' ? <button type="button" onClick={() => prepareItem(item)} className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-[11px] font-bold flex items-center gap-1"><Rocket className="w-3.5 h-3.5" />เตรียมให้ Extension</button> : item.status === 'ready_for_extension' ? <button type="button" onClick={() => resetForMove(item)} className="px-2.5 py-1.5 rounded-lg border border-amber-400/25 text-amber-200 text-[11px]">รีเซ็ตเพื่อย้าย</button> : null}
+                            {clip && onOpenCoverStudio ? <button type="button" data-cover-state={hasCover ? 'ready' : 'missing'} onClick={() => onOpenCoverStudio(clip)} className={`p-1.5 rounded-lg border transition-colors ${hasCover ? 'border-emerald-400/45 bg-emerald-400/10 text-white shadow-[0_0_12px_rgba(52,211,153,0.16)] hover:bg-emerald-400/20' : 'border-white/[0.1] text-slate-600 hover:text-white hover:border-white/[0.2]'}`} title={hasCover ? 'มีภาพปกแล้ว · คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก · คลิกเพื่อสร้าง'} aria-label={hasCover ? 'มีภาพปกแล้ว คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก คลิกเพื่อสร้าง'}><ImageIcon className="w-3.5 h-3.5" /></button> : <span role="img" data-cover-state={hasCover ? 'ready' : 'missing'} className={`p-1.5 rounded-lg border ${hasCover ? 'border-emerald-400/45 bg-emerald-400/10 text-white' : 'border-white/[0.08] text-slate-700'}`} title={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'} aria-label={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'}><ImageIcon className="w-3.5 h-3.5" /></span>}
+                            {item.status === 'planned' ? <button type="button" onClick={() => removeItem(item)} className="p-1.5 rounded-lg border border-white/[0.1] text-slate-500 hover:text-red-300" title="นำออกจากคิว"><Trash2 className="w-3.5 h-3.5" /></button> : null}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         )}
       </div>

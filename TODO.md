@@ -1,22 +1,6 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
-## Round SCHEDULE-UX-PRO-ENHANCEMENT-20260927 — กำลังทำ · Antigravity (Gemini 3.8 Flash)
-
-วันที่: 2026-09-27 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
-
-**เป้าหมาย:** ยกระดับ UX & Visual Clarity หน้าตารางจัดการคิว (ScheduleAgenda):
-1. นำปุ่ม `+ เพิ่มเป็นชุด` (Bulk Add) ออกมาวางใน Toolbar หลักข้างปุ่ม `+ เพิ่มคลิป`
-2. แสดงจุดสี Hook (`Hook Color Dot`) พร้อมชื่อสไตล์ บนการ์ดคิวทั้งใน List View และ Calendar View
-3. เพิ่มแถบ Quick Search & Filters สำหรับคิว: ค้นหาตามชื่อสินค้า/ชื่อคลิป, เลือกช่วงวัน (ทั้งหมด, วันนี้, 7 วันข้างหน้า, 30 วัน), และกรองตามสินค้า
-4. เพิ่มป้ายเตือนความสมดุลรายวัน (Daily Balance Warning): แจ้งเตือนเมื่อมีเวลาชนกัน หรือมีสินค้าเดิมลงซ้ำมากกว่า 1 คลิปในวันเดียวกัน
-
-### แผนงาน
-- [ ] 1. เพิ่มปุ่ม `+ เพิ่มเป็นชุด` บน Toolbar หลักของ ScheduleAgenda
-- [ ] 2. เพิ่ม UI แสดงจุดสี Hook (Hook Color Dot) และ Tag สไตล์ Preset ใน List View และ Calendar View
-- [ ] 3. เพิ่ม State & UI กรองคิว (Queue Filter Bar): Search input, Date range filter, Product filter
-- [ ] 4. เพิ่มระบบคำนวณ Daily Conflicts/Duplicates และแสดง Warning Badge บนส่วนหัวของแต่ละวัน
-- [ ] 5. ทดสอบผ่าน `npm test` และ `npm run build`
-- [ ] 6. สรุปผลและปิดรอบย้ายเข้า `HISTORY.md`
+- [x] Round SCHEDULE-UX-PRO-ENHANCEMENT-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 
 - [x] Round SCHEDULE-BULK-SMART-DAY-MATCH-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 - [x] Round SCHEDULE-BULK-AUTO-PICK-DAILY-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
