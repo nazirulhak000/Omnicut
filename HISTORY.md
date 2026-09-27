@@ -7,7 +7,30 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round DRAFT-FONT-OPTIONS-PARITY-20260927 | ซิงค์ตัวเลือกฟอนต์ซับไตเติลในหน้าสร้างคลิปดราฟต์ (`NewClipPanel.jsx`) ให้เท่ากับหน้าตัดต่อ (`CaptionInspector.jsx`) โดยแชร์ `FONT_OPTIONS` มีครบ 5 ฟอนต์ (Kanit, IBM Plex, Prompt, Noto Sans Thai, Mali) แทนที่มีเพียง 2 ฟอนต์ | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round SCHEDULE-UX-PRO-ENHANCEMENT-20260927 | ยกระดับ UX & Visual Clarity หน้าตารางจัดการคิว (ScheduleAgenda): นำปุ่มเพิ่มเป็นชุด (+ Bulk Add) ออกมาหน้าแรก, แสดงจุดสี Hook และแท็กสไตล์บนการ์ดคิว (List & Calendar), เพิ่มแถบค้นหา & ตัวกรองสินค้า/ช่วงวัน, และป้ายเตือนความสมดุลรายวัน (เวลาชนกัน/สินค้าซ้ำ) | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round DRAFT-FONT-OPTIONS-PARITY-20260927 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-27 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง frontend unit tests 416/416 และ vite build
+
+**เป้าหมาย:**
+ซิงค์ตัวเลือกฟอนต์ซับไตเติลในหน้าสร้างคลิปดราฟต์ (`NewClipPanel.jsx`) ให้เท่ากับหน้าตัดต่อ (`CaptionInspector.jsx`) โดยเพิ่มฟอนต์ให้ครบทั้ง 5 ฟอนต์ (`Kanit`, `IBMPlex`, `Prompt`, `NotoSansThai`, `Mali`) แทนที่จะมีเพียง 2 ฟอนต์
+
+**การแก้ไข:**
+1. **Frontend (`frontend/src/components/editor/NewClipPanel.jsx`):**
+   - นำเข้า `FONT_OPTIONS` จาก `./inspector/CaptionInspector`
+   - ปรับ `FONTS` ให้ map จาก `FONT_OPTIONS` เพื่อให้ได้รายการฟอนต์ชุดเดียวกับหน้าตัดต่อ 100%:
+     - `Kanit (คานิท - ค่ามาตรฐาน TikTok)`
+     - `IBM Plex Sans Thai (โมเดิร์น คมชัด)`
+     - `Prompt (พร้อมท์ - เรียบหรู ทันสมัย)`
+     - `Noto Sans Thai (มาตรฐานทางการ)`
+     - `Mali (มะลิ - กลมเป็นมิตร แนวรีวิวแกดเจ็ต)`
+2. **การทดสอบ:**
+   - Frontend Unit Tests: ผ่าน 416/416 เทส
+   - Frontend Production Build: `vite build` สำเร็จ 100% (4.05s)
+
+## Round SCHEDULE-UX-PRO-ENHANCEMENT-20260927 — ปิดรอบแล้ว ✅
 | Round SCHEDULE-BULK-SMART-DAY-MATCH-20260927 | เพิ่มระบบ Smart Day-Matching ใน Bulk Add (โหมดเวลาเดิมทุกวัน): สแกนคิวเดิมของวันนั้นๆ (เช่น 09:00, 12:00, 16:00, 19:00) และคำนวณเลือกคลิปใหม่ที่ไม่ให้ซ้ำทั้ง "สินค้า" และ "ชุดสี Hook" ของวันนั้นเป็นลำดับแรก (Tier 1), หากจำเป็นจึงผ่อนปรน (Tier 2/3/4), พร้อมแสดงจุดสี Hook และแท็กสถานะในตารางตัวอย่าง | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 
 ## Round SCHEDULE-UX-PRO-ENHANCEMENT-20260927 — ปิดรอบแล้ว ✅

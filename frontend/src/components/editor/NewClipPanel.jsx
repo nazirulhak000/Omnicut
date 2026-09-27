@@ -20,6 +20,7 @@ import VoicePickerModal from '../VoicePickerModal';
 import { guessBrandModel, newHookOverlay, templateForAdTone, templateForStylePreset } from '../../lib/overlayModel';
 import { normalizeStylePreset, getRecommendedStyleForAngle } from '../../lib/stylePresetCatalog.js';
 import StylePresetPicker from './StylePresetPicker';
+import { FONT_OPTIONS } from './inspector/CaptionInspector';
 
 function formatTime(seconds) {
   if (seconds == null || isNaN(seconds)) return '00:00';
@@ -59,15 +60,11 @@ function rateToSpeed(rate) {
   return m ? 1 + Number(m[1]) / 100 : 1.15;
 }
 
-// Kanit/Prompt removed 2026-09-07: their font files have no GPOS mark-anchor
-// for stacked Thai tone marks (เพิ่ง/สิ่ง render with the tone mark and vowel
-// merged into one blob) -- confirmed via a libass-vs-PIL differential render,
-// same collapse in both, so it's the font file itself, not a libass bug.
-// IBM Plex Sans Thai and Noto Sans Thai render these correctly.
-const FONTS = [
-  { id: 'IBMPlex', label: 'IBM Plex Sans Thai' },
-  { id: 'NotoSansThai', label: 'Noto Sans Thai' },
-];
+// Mirrors CaptionInspector's FONT_OPTIONS for 100% parity between Draft and Editor
+const FONTS = FONT_OPTIONS.map((f) => ({
+  id: f.id,
+  label: f.name || f.label,
+}));
 
 /** Steps the backend reports, so the wait shows where it is rather than a bar. */
 const RENDER_STEPS = ['เขียนบท', 'พากย์เสียง', 'ทำซับ', 'มิกซ์เสียง', 'เปิด Editor'];
