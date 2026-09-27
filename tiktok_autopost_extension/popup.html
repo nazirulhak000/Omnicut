@@ -52,7 +52,18 @@
   .brand-group {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
+  }
+  .popup-logo-img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 6px rgba(34, 211, 238, 0.5)) drop-shadow(0 2px 6px rgba(244, 63, 94, 0.4));
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .popup-logo-img:hover {
+    transform: scale(1.15) rotate(6deg);
   }
   .brand-dot {
     width: 7px;
@@ -252,7 +263,7 @@
 <body>
   <div class="header">
     <div class="brand-group">
-      <div class="brand-dot"></div>
+      <img src="icons/icon32.png" alt="OmniCut" class="popup-logo-img" width="22" height="22" />
       <h1>OmniCut</h1>
     </div>
     <span class="badge">TikTok Post Helper</span>

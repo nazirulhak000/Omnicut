@@ -109,7 +109,19 @@
   .brand-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+  }
+  .brand-logo-img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 8px rgba(34, 211, 238, 0.5)) drop-shadow(0 3px 12px rgba(244, 63, 94, 0.4));
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease;
+  }
+  .brand-logo-img:hover {
+    transform: scale(1.1) rotate(6deg);
+    filter: drop-shadow(0 4px 14px rgba(34, 211, 238, 0.75)) drop-shadow(0 4px 16px rgba(244, 63, 94, 0.6));
   }
   .pulse-orb {
     width: 9px;
@@ -1512,7 +1524,7 @@
   <!-- Top Bar -->
   <header class="studio-bar">
     <div class="brand-meta">
-      <div class="pulse-orb"></div>
+      <img src="icons/icon48.png" alt="OmniCut Studio" class="brand-logo-img" width="32" height="32" />
       <div class="brand-text">
         <span class="brand-title">OmniCut Studio</span>
         <span class="brand-subtitle">TikTok Post Helper</span>
