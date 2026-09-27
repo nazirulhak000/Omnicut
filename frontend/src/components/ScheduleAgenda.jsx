@@ -110,6 +110,34 @@ function clipToAutofillPayload(clip) {
   };
 }
 
+function resolveClipHookColor(clip) {
+  if (clip.hook_color || clip.hookColor) return String(clip.hook_color || clip.hookColor).trim().toUpperCase();
+  const stylePreset = clip.style_preset || clip.stylePreset || clip.parentProduct?.style_preset || clip.parentProduct?.stylePreset;
+  if (stylePreset) {
+    const preset = getStylePreset(stylePreset);
+    return String(preset?.hookColor || preset?.accentColor || '#FFE600').trim().toUpperCase();
+  }
+  return null;
+}
+
+function resolveRowHookColor(row) {
+  if (row.hook_color) return String(row.hook_color).trim().toUpperCase();
+  if (row.style_preset) {
+    const preset = getStylePreset(row.style_preset);
+    return String(preset?.hookColor || preset?.accentColor || '#FFE600').trim().toUpperCase();
+  }
+  return null;
+}
+
+function resolveClipProductKey(clip) {
+  const p = clip.parentProduct || {};
+  return String(p.id || clip.product_id || p.name || clip.product_name || 'other').trim().toLowerCase();
+}
+
+function resolveRowProductKey(row) {
+  return String(row.product_id || row.product_name || 'other').trim().toLowerCase();
+}
+
 function errorText(error, fallback) {
   return error?.response?.data?.detail || error?.message || fallback;
 }
@@ -127,7 +155,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [bulkOpen, setBulkOpen] = useState(false);
   const [singleDraft, setSingleDraft] = useState({ clip: null, ...nextSlot() });
   const [bulkSelected, setBulkSelected] = useState([]);
-  const [bulkDraft, setBulkDraft] = useState({ ...nextSlot(), interval: 5 });
+  const [bulkDraft, setBulkDraft] = useState({ ...nextSlot(), interval: 5, mode: 'daily', autoCount: 5, filterProduct: 'all' });
   const [saving, setSaving] = useState(false);
   const [draggedId, setDraggedId] = useState(null);
   const [viewMode, setViewMode] = useState('list');
@@ -303,17 +331,148 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     } finally { setSaving(false); }
   };
 
+  const occupiedIso = useMemo(() => {
+    return new Set(queue.filter((row) => row.status !== 'posted').map((row) => row.scheduled_at));
+  }, [queue]);
+
+  const queueDayConstraints = useMemo(() => {
+    const map = {};
+    queue.forEach((row) => {
+      const parts = localParts(row.scheduled_at);
+      if (!parts?.date) return;
+      if (!map[parts.date]) {
+        map[parts.date] = { products: new Set(), colors: new Set() };
+      }
+      const pKey = resolveRowProductKey(row);
+      if (pKey && pKey !== 'other') map[parts.date].products.add(pKey);
+      const color = resolveRowHookColor(row);
+      if (color) map[parts.date].colors.add(color);
+    });
+    return map;
+  }, [queue]);
+
   const bulkPreview = useMemo(() => {
+    if (!bulkDraft.date || !bulkDraft.time) return [];
+    const isDaily = bulkDraft.mode === 'daily';
     const start = new Date(`${bulkDraft.date}T${bulkDraft.time}:00+07:00`);
     return bulkSelected.map((clip, index) => {
-      const at = new Date(start.getTime() + index * Number(bulkDraft.interval || 5) * 60000);
-      const parts = localParts(at.toISOString());
-      return { clip, ...parts, scheduledAt: buildScheduleIso(parts.date, parts.time) };
+      let parts;
+      if (isDaily) {
+        const d = addDays(bulkDraft.date, index);
+        parts = { date: d, time: bulkDraft.time };
+      } else {
+        const at = new Date(start.getTime() + index * Number(bulkDraft.interval || 5) * 60000);
+        parts = localParts(at.toISOString());
+      }
+      const scheduledAt = buildScheduleIso(parts.date, parts.time);
+      const isOccupied = occupiedIso.has(scheduledAt);
+
+      const dayConstraint = queueDayConstraints[parts.date] || { products: new Set(), colors: new Set() };
+      const pKey = resolveClipProductKey(clip);
+      const hookColor = resolveClipHookColor(clip);
+      const hasProductConflict = Boolean(pKey && pKey !== 'other' && dayConstraint.products.has(pKey));
+      const hasColorConflict = Boolean(hookColor && dayConstraint.colors.has(hookColor));
+
+      return {
+        clip,
+        ...parts,
+        scheduledAt,
+        isOccupied,
+        hookColor,
+        hasProductConflict,
+        hasColorConflict,
+      };
     });
-  }, [bulkDraft, bulkSelected]);
+  }, [bulkDraft, bulkSelected, occupiedIso, queueDayConstraints]);
+
+  const hasOccupiedConflict = useMemo(() => {
+    return bulkPreview.some((item) => item.isOccupied);
+  }, [bulkPreview]);
+
+  const autoSelectClips = (desiredCount, filterProduct) => {
+    const count = Number(desiredCount) || 5;
+    const prod = (filterProduct || 'all').toLowerCase();
+    let pool = [...availableClips];
+    if (prod !== 'all') {
+      pool = pool.filter((c) => resolveClipProductKey(c) === prod);
+    }
+    if (!pool.length) {
+      setBulkSelected([]);
+      showToast?.('ไม่พบคลิปที่พร้อมจัดคิวตามเงื่อนไขที่เลือก', 'error');
+      return;
+    }
+
+    // Shuffle pool to give fresh random picks on every click
+    pool.sort(() => Math.random() - 0.5);
+
+    const isDaily = bulkDraft.mode === 'daily';
+    const startDate = bulkDraft.date || dateOnly();
+    const targetCount = Math.min(Math.max(1, count), pool.length);
+    const picked = [];
+
+    // Clone existing day constraints so newly assigned clips also update constraints
+    const dynamicConstraints = {};
+    Object.entries(queueDayConstraints).forEach(([d, info]) => {
+      dynamicConstraints[d] = {
+        products: new Set(info.products),
+        colors: new Set(info.colors),
+      };
+    });
+
+    for (let i = 0; i < targetCount; i++) {
+      if (!pool.length) break;
+      const targetDate = isDaily ? addDays(startDate, i) : startDate;
+      if (!dynamicConstraints[targetDate]) {
+        dynamicConstraints[targetDate] = { products: new Set(), colors: new Set() };
+      }
+      const dayConstraint = dynamicConstraints[targetDate];
+
+      // Tier 1 (Best): Neither Product nor Hook Color is used on that date
+      let chosenIdx = pool.findIndex((c) => {
+        const pKey = resolveClipProductKey(c);
+        const color = resolveClipHookColor(c);
+        const pColl = pKey && pKey !== 'other' && dayConstraint.products.has(pKey);
+        const cColl = color && dayConstraint.colors.has(color);
+        return !pColl && !cColl;
+      });
+
+      // Tier 2: Product NOT used on that date (even if Color repeats)
+      if (chosenIdx === -1) {
+        chosenIdx = pool.findIndex((c) => {
+          const pKey = resolveClipProductKey(c);
+          return !pKey || pKey === 'other' || !dayConstraint.products.has(pKey);
+        });
+      }
+
+      // Tier 3: Color NOT used on that date (even if Product repeats)
+      if (chosenIdx === -1) {
+        chosenIdx = pool.findIndex((c) => {
+          const color = resolveClipHookColor(c);
+          return !color || !dayConstraint.colors.has(color);
+        });
+      }
+
+      // Tier 4 (Fallback if clips are limited and overlap is unavoidable):
+      if (chosenIdx === -1) {
+        chosenIdx = 0;
+      }
+
+      const [selectedClip] = pool.splice(chosenIdx, 1);
+      picked.push(selectedClip);
+
+      // Track newly selected clip in this day's constraints
+      const pKey = resolveClipProductKey(selectedClip);
+      if (pKey && pKey !== 'other') dayConstraint.products.add(pKey);
+      const color = resolveClipHookColor(selectedClip);
+      if (color) dayConstraint.colors.add(color);
+    }
+
+    setBulkSelected(picked);
+    showToast?.(`สุ่มเลือก ${picked.length} คลิปตามเงื่อนไข (สแกนสินค้าและสีของแต่ละวันแล้ว)`);
+  };
 
   const saveBulk = async () => {
-    if (!bulkPreview.length) return;
+    if (!bulkPreview.length || hasOccupiedConflict) return;
     setSaving(true);
     try {
       await createScheduleQueue({ items: bulkPreview.map(({ clip, scheduledAt }) => clipToPayload(clip, scheduledAt)) });
@@ -628,7 +787,17 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   };
 
   const openSingle = () => { setSingleDraft({ clip: null, ...nextSlot(queue) }); setSingleOpen(true); };
-  const openBulk = () => { setBulkDraft({ ...nextSlot(queue), interval: 5 }); setBulkOpen(true); };
+  const openBulk = () => {
+    setBulkDraft({
+      ...nextSlot(queue),
+      interval: 5,
+      mode: 'daily',
+      autoCount: 5,
+      filterProduct: 'all',
+    });
+    setBulkSelected([]);
+    setBulkOpen(true);
+  };
   const openAutofill = () => { chooseAutofillRange('today'); setAutofillOpen(true); };
   const closeMoreAnd = (action) => { setMoreOpen(false); action(); };
 
@@ -1003,8 +1172,322 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
         <div className="space-y-4"><div className="space-y-2"><label className="text-xs font-bold text-slate-300">คลิป</label><select value={singleDraft.clip ? clipKey(singleDraft.clip) : ''} onChange={(event) => setSingleDraft((prev) => ({ ...prev, clip: availableClips.find((clip) => clipKey(clip) === event.target.value) || null }))} className="w-full px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-sm text-white"><option value="">เลือกคลิปที่ตัดต่อเสร็จแล้ว</option>{availableClips.map((clip) => <option key={clipKey(clip)} value={clipKey(clip)}>{clip.parentProduct?.name || 'ไม่ระบุสินค้า'} · {clip.hook_title || clip.project_name}</option>)}</select></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><label className="space-y-1 text-xs font-bold text-slate-300">วันที่<input type="date" value={singleDraft.date} onChange={(event) => setSingleDraft((prev) => ({ ...prev, date: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label><label className="space-y-1 text-xs font-bold text-slate-300">เวลา (รอบละ 5 นาที)<select value={singleDraft.time} onChange={(event) => setSingleDraft((prev) => ({ ...prev, time: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white font-mono">{timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}</select></label></div><p className="text-[11px] text-slate-500">ระบบจะกันคลิปซ้ำและกันเวลาชนกันให้ก่อนบันทึก</p><div className="flex justify-end gap-2"><button type="button" onClick={() => setSingleOpen(false)} className="px-3 py-2 rounded-xl text-xs text-slate-300">ยกเลิก</button><button type="button" disabled={!singleDraft.clip || saving} onClick={saveSingle} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50">บันทึกเข้าคิว</button></div></div>
       </Modal>
 
-      <Modal isOpen={bulkOpen} onClose={() => setBulkOpen(false)} title="เพิ่มคลิปเป็นชุด" subtitle="เลือกหลายคลิป กำหนดเวลาเริ่มต้น และตรวจสอบตารางก่อนบันทึกพร้อมกัน" maxWidth="max-w-4xl">
-        <div className="space-y-4"><div className="grid grid-cols-1 sm:grid-cols-3 gap-3"><label className="space-y-1 text-xs font-bold text-slate-300">เริ่มวันที่<input type="date" value={bulkDraft.date} onChange={(event) => setBulkDraft((prev) => ({ ...prev, date: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label><label className="space-y-1 text-xs font-bold text-slate-300">เริ่มเวลา<select value={bulkDraft.time} onChange={(event) => setBulkDraft((prev) => ({ ...prev, time: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white font-mono">{timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}</select></label><label className="space-y-1 text-xs font-bold text-slate-300">ระยะห่าง<select value={bulkDraft.interval} onChange={(event) => setBulkDraft((prev) => ({ ...prev, interval: Number(event.target.value) }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white"><option value="5">ทุก 5 นาที</option><option value="10">ทุก 10 นาที</option><option value="15">ทุก 15 นาที</option><option value="30">ทุก 30 นาที</option><option value="60">ทุก 1 ชั่วโมง</option></select></label></div><div className="grid grid-cols-1 lg:grid-cols-2 gap-4"><div className="rounded-2xl border border-white/[0.1] p-3 max-h-80 overflow-y-auto space-y-1"><div className="flex items-center justify-between mb-2"><span className="text-xs font-bold text-white">คลิปที่ตัดต่อเสร็จแล้ว</span><button type="button" onClick={() => setBulkSelected(availableClips)} className="text-[10px] text-cyan-300">เลือกทั้งหมด</button></div>{availableClips.length === 0 ? <p className="text-xs text-slate-500 py-8 text-center">ไม่มีคลิปที่ว่างสำหรับจัดคิว</p> : availableClips.map((clip) => { const key = clipKey(clip); const selected = bulkSelected.some((item) => clipKey(item) === key); return <label key={key} className="flex items-center gap-2 p-2 rounded-xl hover:bg-white/[0.05] cursor-pointer"><input type="checkbox" checked={selected} onChange={() => setBulkSelected((prev) => selected ? prev.filter((item) => clipKey(item) !== key) : [...prev, clip])} className="accent-cyan-400" /><span className="text-xs text-slate-200 truncate">{clip.parentProduct?.name || 'ไม่ระบุสินค้า'} · {clip.hook_title || clip.project_name}</span></label>; })}</div><div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.03] p-3 max-h-80 overflow-y-auto"><div className="flex items-center justify-between mb-2"><span className="text-xs font-bold text-white">ตัวอย่างคิว ({bulkPreview.length})</span><span className="text-[10px] text-slate-500">ลากในหน้าหลักเพื่อปรับวันภายหลัง</span></div>{bulkPreview.length === 0 ? <p className="text-xs text-slate-500 py-8 text-center">เลือกคลิปเพื่อดูวันที่และเวลาที่คำนวณ</p> : bulkPreview.map(({ clip, date, time }, index) => <div key={clipKey(clip)} className="flex items-center gap-2 py-2 border-b border-white/[0.06] last:border-0"><span className="w-5 h-5 rounded-full bg-cyan-400/15 text-cyan-200 text-[10px] flex items-center justify-center">{index + 1}</span><span className="text-[11px] text-white font-mono whitespace-nowrap">{date} {time}</span><span className="text-xs text-slate-400 truncate flex-1">{clip.hook_title || clip.project_name}</span><button type="button" disabled={index === 0} onClick={() => setBulkSelected((prev) => { const next = [...prev]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} className="p-1 rounded border border-white/[0.1] text-slate-400 disabled:opacity-25" title="เลื่อนขึ้น" aria-label="เลื่อนขึ้น"><ChevronUp className="w-3.5 h-3.5" /></button><button type="button" disabled={index === bulkPreview.length - 1} onClick={() => setBulkSelected((prev) => { const next = [...prev]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })} className="p-1 rounded border border-white/[0.1] text-slate-400 disabled:opacity-25" title="เลื่อนลง" aria-label="เลื่อนลง"><ChevronDown className="w-3.5 h-3.5" /></button></div>)}</div></div><div className="flex justify-end gap-2"><button type="button" onClick={() => setBulkOpen(false)} className="px-3 py-2 rounded-xl text-xs text-slate-300">ยกเลิก</button><button type="button" disabled={!bulkPreview.length || saving} onClick={saveBulk} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50">บันทึกทั้งชุด</button></div></div>
+      <Modal isOpen={bulkOpen} onClose={() => setBulkOpen(false)} title="เพิ่มคลิปเป็นชุด" subtitle="เลือกจัดเวลาเดิมทุกวัน หรือจัดในวันเดียวกัน พร้อมระบบสุ่มเลือกคลิปอัตโนมัติ" maxWidth="max-w-5xl">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.08]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-slate-400 pl-2">รูปแบบการจัด:</span>
+              <button
+                type="button"
+                onClick={() => setBulkDraft((prev) => ({ ...prev, mode: 'daily' }))}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  bulkDraft.mode === 'daily'
+                    ? 'bg-cyan-400 text-slate-950 font-black shadow-md'
+                    : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                เวลาเดิมทุกวัน (Daily Fixed Time)
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkDraft((prev) => ({ ...prev, mode: 'interval' }))}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  bulkDraft.mode === 'interval'
+                    ? 'bg-cyan-400 text-slate-950 font-black shadow-md'
+                    : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                ในวันเดียวกัน (ตามช่วงนาที)
+              </button>
+            </div>
+            <div className="text-[11px] text-cyan-200/80 pr-2">
+              {bulkDraft.mode === 'daily'
+                ? `ลงเวลา ${bulkDraft.time || '19:30'} ติดต่อกันวันละ 1 คลิป`
+                : `รันต่อเนื่องในวันเดียว ห่างกันทุก ${bulkDraft.interval || 5} นาที`}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <label className="space-y-1 text-xs font-bold text-slate-300">
+              เริ่มวันที่
+              <input
+                type="date"
+                value={bulkDraft.date}
+                onChange={(event) => setBulkDraft((prev) => ({ ...prev, date: event.target.value }))}
+                className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white"
+              />
+            </label>
+            <label className="space-y-1 text-xs font-bold text-slate-300">
+              {bulkDraft.mode === 'daily' ? 'เวลาที่ต้องการลงทุกวัน' : 'เริ่มเวลา'}
+              <select
+                value={bulkDraft.time}
+                onChange={(event) => setBulkDraft((prev) => ({ ...prev, time: event.target.value }))}
+                className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white font-mono"
+              >
+                {timeOptions.map((time) => (
+                  <option key={time} value={time}>{time}</option>
+                ))}
+              </select>
+            </label>
+            {bulkDraft.mode === 'interval' ? (
+              <label className="space-y-1 text-xs font-bold text-slate-300">
+                ระยะห่าง
+                <select
+                  value={bulkDraft.interval}
+                  onChange={(event) => setBulkDraft((prev) => ({ ...prev, interval: Number(event.target.value) }))}
+                  className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white"
+                >
+                  <option value="5">ทุก 5 นาที</option>
+                  <option value="10">ทุก 10 นาที</option>
+                  <option value="15">ทุก 15 นาที</option>
+                  <option value="30">ทุก 30 นาที</option>
+                  <option value="60">ทุก 1 ชั่วโมง</option>
+                </select>
+              </label>
+            ) : (
+              <div className="flex flex-col justify-end">
+                <div className="p-2.5 rounded-xl bg-cyan-400/[0.06] border border-cyan-400/20 text-[11px] text-cyan-200">
+                  📅 คลิปจะถูกจัดลงเวลา <strong className="text-white font-mono">{bulkDraft.time}</strong> ในแต่ละวันต่อเนื่องกัน
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Auto-Pick Control Bar */}
+          <div className="p-3 rounded-2xl bg-gradient-to-r from-cyan-950/30 via-slate-900/60 to-purple-950/20 border border-cyan-400/20 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Shuffle className="w-3.5 h-3.5 text-cyan-300" />
+                ดึงคลิปอัตโนมัติ (ไม่ต้องเลือกทีละอัน)
+              </span>
+              <span className="text-[11px] text-slate-400">
+                พร้อมจัดคิว <strong className="text-cyan-200">{availableClips.length}</strong> คลิป · เลือกแล้ว <strong className="text-white">{bulkSelected.length}</strong> คลิป
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded-xl border border-white/[0.08]">
+                <span className="text-[11px] text-slate-400">จำนวน:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={Math.max(1, availableClips.length)}
+                  value={bulkDraft.autoCount ?? 5}
+                  onChange={(e) => setBulkDraft((prev) => ({ ...prev, autoCount: Math.max(1, Number(e.target.value) || 1) }))}
+                  className="w-14 px-2 py-1 rounded-lg bg-black/60 border border-white/[0.1] text-xs text-white text-center font-bold"
+                />
+                <div className="flex items-center gap-1">
+                  {[3, 5, 7, 10].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => {
+                        setBulkDraft((prev) => ({ ...prev, autoCount: num }));
+                        autoSelectClips(num, bulkDraft.filterProduct);
+                      }}
+                      className="px-2 py-1 rounded-lg border border-white/[0.1] text-[10px] text-slate-300 hover:text-white hover:bg-white/[0.08]"
+                    >
+                      {num}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBulkDraft((prev) => ({ ...prev, autoCount: availableClips.length }));
+                      autoSelectClips(availableClips.length, bulkDraft.filterProduct);
+                    }}
+                    className="px-2 py-1 rounded-lg border border-white/[0.1] text-[10px] text-cyan-300 hover:bg-cyan-400/10"
+                  >
+                    ทั้งหมด
+                  </button>
+                </div>
+              </div>
+
+              <select
+                value={bulkDraft.filterProduct || 'all'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setBulkDraft((prev) => ({ ...prev, filterProduct: val }));
+                  autoSelectClips(bulkDraft.autoCount, val);
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-black/50 border border-white/[0.1] text-xs text-slate-200"
+              >
+                <option value="all">สินค้าทั้งหมด</option>
+                {productOptions.map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => autoSelectClips(bulkDraft.autoCount, bulkDraft.filterProduct)}
+                disabled={!availableClips.length}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md hover:brightness-110 disabled:opacity-50"
+              >
+                <Shuffle className="w-3.5 h-3.5" />
+                สุ่มเลือก {bulkDraft.autoCount || 5} คลิป (หมุนเวียนสินค้า)
+              </button>
+
+              {bulkSelected.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setBulkSelected([])}
+                  className="px-2.5 py-1.5 rounded-xl border border-white/[0.1] text-slate-400 hover:text-white text-xs"
+                >
+                  ล้างการเลือก
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Left: Clips Pool with checkboxes */}
+            <div className="rounded-2xl border border-white/[0.1] p-3 max-h-80 overflow-y-auto space-y-1">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-white">รายการคลิปที่เลือก ({bulkSelected.length})</span>
+                <span className="text-[10px] text-slate-500">ติ๊กเพิ่ม/ลดได้เองตามต้องการ</span>
+              </div>
+              {availableClips.length === 0 ? (
+                <p className="text-xs text-slate-500 py-8 text-center">ไม่มีคลิปที่ว่างสำหรับจัดคิว</p>
+              ) : (
+                availableClips.map((clip) => {
+                  const key = clipKey(clip);
+                  const selected = bulkSelected.some((item) => clipKey(item) === key);
+                  return (
+                    <label key={key} className={`flex items-center gap-2 p-2 rounded-xl hover:bg-white/[0.05] cursor-pointer transition-colors ${selected ? 'bg-cyan-400/[0.08] border border-cyan-400/20' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => setBulkSelected((prev) => selected ? prev.filter((item) => clipKey(item) !== key) : [...prev, clip])}
+                        className="accent-cyan-400"
+                      />
+                      <span className="text-xs text-slate-200 truncate">
+                        {clip.parentProduct?.name || 'ไม่ระบุสินค้า'} · {clip.hook_title || clip.project_name}
+                      </span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Right: Calculated Preview */}
+            <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.03] p-3 max-h-80 overflow-y-auto">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-white">ตัวอย่างคิวที่จะบันทึก ({bulkPreview.length})</span>
+                <span className="text-[10px] text-slate-500">ปรับลำดับด้วยปุ่มขึ้น/ลงได้</span>
+              </div>
+              {bulkPreview.length === 0 ? (
+                <div className="py-12 text-center">
+                  <p className="text-xs text-slate-400">ยังไม่ได้เลือกคลิป</p>
+                  <p className="text-[11px] text-slate-500 mt-1">กดปุ่ม "สุ่มเลือกคลิปอัตโนมัติ" ด้านบนได้ทันที</p>
+                </div>
+              ) : (
+                bulkPreview.map(({ clip, date, time, isOccupied, hookColor, hasProductConflict, hasColorConflict }, index) => (
+                  <div
+                    key={`${clipKey(clip)}-${index}`}
+                    className={`flex items-center gap-2 py-2 border-b border-white/[0.06] last:border-0 ${
+                      isOccupied
+                        ? 'bg-red-500/[0.08] -mx-2 px-2 rounded-lg'
+                        : hasProductConflict || hasColorConflict
+                          ? 'bg-amber-500/[0.04] -mx-2 px-2 rounded-lg'
+                          : ''
+                    }`}
+                  >
+                    <span className="w-5 h-5 rounded-full bg-cyan-400/15 text-cyan-200 text-[10px] flex items-center justify-center font-bold">
+                      {index + 1}
+                    </span>
+                    <span
+                      className="w-2.5 h-2.5 rounded-full border border-white/30 flex-shrink-0"
+                      style={{ backgroundColor: hookColor || '#FFE600' }}
+                      title={`สี Hook: ${hookColor || 'ไม่ระบุ'}`}
+                    />
+                    <span className="text-[11px] text-white font-mono whitespace-nowrap">
+                      {date} {time}
+                    </span>
+                    {isOccupied && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-500/20 text-red-200 border border-red-500/30 whitespace-nowrap">
+                        ⚠️ เวลาซ้ำ
+                      </span>
+                    )}
+                    {hasProductConflict && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-200 border border-amber-500/30 whitespace-nowrap" title="มีคลิปสินค้านี้ลงในวันเดียวกันแล้ว">
+                        ⚠️ สินค้าซ้ำวันนี้
+                      </span>
+                    )}
+                    {hasColorConflict && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/20 text-purple-200 border border-purple-500/30 whitespace-nowrap" title="มีคลิปที่ใช้สี Hook นี้ลงในวันเดียวกันแล้ว">
+                        ⚠️ สีซ้ำวันนี้
+                      </span>
+                    )}
+                    <span className="text-xs text-slate-300 truncate flex-1">
+                      {clip.parentProduct?.name || 'ไม่ระบุสินค้า'} · {clip.hook_title || clip.project_name}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={index === 0}
+                      onClick={() => setBulkSelected((prev) => {
+                        const next = [...prev];
+                        [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                        return next;
+                      })}
+                      className="p-1 rounded border border-white/[0.1] text-slate-400 hover:text-white disabled:opacity-25"
+                      title="เลื่อนขึ้น"
+                      aria-label="เลื่อนขึ้น"
+                    >
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={index === bulkPreview.length - 1}
+                      onClick={() => setBulkSelected((prev) => {
+                        const next = [...prev];
+                        [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                        return next;
+                      })}
+                      className="p-1 rounded border border-white/[0.1] text-slate-400 hover:text-white disabled:opacity-25"
+                      title="เลื่อนลง"
+                      aria-label="เลื่อนลง"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {hasOccupiedConflict && (
+            <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-200 flex items-center gap-2">
+              <span>⚠️ มีบางช่วงเวลาชนกับคิวเดิม กรุณาปรับเปลี่ยนวันที่/เวลา หรือสลับลำดับคลิปก่อนบันทึก</span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-[11px] text-slate-500">
+              {bulkDraft.mode === 'daily'
+                ? `📅 จัดคิวเวลา ${bulkDraft.time} รวมทั้งหมด ${bulkPreview.length} วัน`
+                : `⏱️ จัดคิววันที่ ${bulkDraft.date} เริ่ม ${bulkDraft.time}`}
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setBulkOpen(false)}
+                className="px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/[0.05]"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={!bulkPreview.length || saving || hasOccupiedConflict}
+                onClick={saveBulk}
+                className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50 hover:brightness-110"
+              >
+                {saving ? 'กำลังบันทึก...' : `บันทึกทั้งชุด (${bulkPreview.length} คลิป)`}
+              </button>
+            </div>
+          </div>
+        </div>
       </Modal>
 
       <Modal isOpen={templateOpen} onClose={() => setTemplateOpen(false)} title="ตั้งค่าเวลารายสัปดาห์" subtitle="สัปดาห์จันทร์–อาทิตย์ · เพิ่มช่วงพิเศษแยกเป็นรายวันได้ · ใช้เฉพาะจัดคิวอัตโนมัติ" maxWidth="max-w-4xl">

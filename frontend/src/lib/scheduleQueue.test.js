@@ -86,3 +86,19 @@ test('queue coverage estimates posting days from remaining template slots', () =
   assert.equal(result.endDate, '2026-09-18');
   assert.equal(result.weeklyCapacity, 14);
 });
+
+test('daily fixed-time batch slots advance by 1 day per clip at fixed time', () => {
+  const startDate = '2026-10-10';
+  const fixedTime = '19:30';
+  const clipCount = 5;
+  const slots = Array.from({ length: clipCount }, (_, i) => {
+    const d = addDays(startDate, i);
+    return buildScheduleIso(d, fixedTime);
+  });
+  assert.equal(slots.length, 5);
+  assert.equal(slots[0], '2026-10-10T19:30:00+07:00');
+  assert.equal(slots[1], '2026-10-11T19:30:00+07:00');
+  assert.equal(slots[2], '2026-10-12T19:30:00+07:00');
+  assert.equal(slots[3], '2026-10-13T19:30:00+07:00');
+  assert.equal(slots[4], '2026-10-14T19:30:00+07:00');
+});

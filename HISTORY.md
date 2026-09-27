@@ -7,6 +7,40 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round SCHEDULE-BULK-SMART-DAY-MATCH-20260927 | เพิ่มระบบ Smart Day-Matching ใน Bulk Add (โหมดเวลาเดิมทุกวัน): สแกนคิวเดิมของวันนั้นๆ (เช่น 09:00, 12:00, 16:00, 19:00) และคำนวณเลือกคลิปใหม่ที่ไม่ให้ซ้ำทั้ง "สินค้า" และ "ชุดสี Hook" ของวันนั้นเป็นลำดับแรก (Tier 1), หากจำเป็นจึงผ่อนปรน (Tier 2/3/4), พร้อมแสดงจุดสี Hook และแท็กสถานะในตารางตัวอย่าง | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round SCHEDULE-BULK-AUTO-PICK-DAILY-20260927 | เพิ่มโหมดจัดคิวเป็นชุดข้ามวันในเวลาเดิม (Daily Fixed Time) เช่น 19:30 ทุกวัน พร้อมระบบดึงและสุ่มเลือก N คลิปอัตโนมัติ (Fair Round-robin หมุนเวียนสินค้า) ในหน้าต่างเพิ่มเป็นชุด ไม่ต้องเลือกคลิปทีละอัน | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round SCHEDULE-BULK-SMART-DAY-MATCH-20260927 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-27 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง frontend unit tests 416/416 และ vite build
+
+**เป้าหมาย:**
+เพิ่มระบบ Smart Day-Matching ใน Bulk Add (โหมดเวลาเดิมทุกวัน): สแกนคิวเดิมของวันนั้นๆ (เช่น 09:00, 12:00, 16:00, 19:00) และคำนวณเลือกคลิปใหม่ที่ไม่ให้ซ้ำทั้ง "สินค้า" และ "ชุดสี Hook" ของวันนั้นเป็นลำดับแรก (Tier 1), หากจำเป็นจึงผ่อนปรน (Tier 2/3/4), พร้อมแสดงจุดสี Hook และแท็กสถานะในตารางตัวอย่าง
+
+**การแก้ไข:**
+1. **Frontend (`frontend/src/components/ScheduleAgenda.jsx`):**
+   - เพิ่ม helper functions:
+     - `resolveClipHookColor(clip)`: ดึงรหัสสี Hook จาก preset (`getStylePreset(clip.hookStyle).accentColor`) หรือ fallback `#FFE600`
+     - `resolveRowHookColor(row)`: ดึงรหัสสี Hook จากแถวในคิว
+     - `resolveClipProductKey(clip)` และ `resolveRowProductKey(row)`: ดึง ID/ชื่อสินค้าเพื่อเปรียบเทียบความซ้ำ
+   - เพิ่ม `queueDayConstraints`:
+     - สแกนคิวที่มีอยู่เดิมทั้งหมดใน `queue` แล้วสร้าง map รายวัน (`dateKey -> { products: Set, colors: Set }`)
+   - พัฒนาขั้นตอนการเลือกคลิปแบบ 4 ลำดับขั้น (Tiered Greedy Matching) ใน `autoSelectClips`:
+     - **Tier 1 (อุดมคติ):** สินค้าไม่ซ้ำกับคลิปอื่นในวันนั้น AND สี Hook ไม่ซ้ำกับคลิปอื่นในวันนั้น
+     - **Tier 2 (ยอมรับได้):** สินค้าไม่ซ้ำกับคลิปอื่นในวันนั้น (แต่สี Hook อาจซ้ำได้กรณีสีมีจำกัด)
+     - **Tier 3 (ยอมรับได้เมื่อสินค้าหมด):** สี Hook ไม่ซ้ำกับคลิปอื่นในวันนั้น (แต่สินค้าอาจซ้ำได้)
+     - **Tier 4 (Fallback):** ผ่อนปรนทุกเงื่อนไขเมื่อคลังคลิปมีจำกัด เพื่อให้หยอดคลิปลงคิวจนครบจำนวนที่ต้องการได้เสมอตามคำสั่งผู้ใช้
+   - เพิ่มข้อมูลใน `bulkPreview`:
+     - วิเคราะห์ `hasProductConflict` และ `hasColorConflict` เทียบกับคิวเดิมในวันนั้น
+     - แสดงแถบ Dot สี Hook พร้อมชื่อสี และป้ายเตือน:
+       - `⚠️ เวลาซ้ำ` (สีแดง)
+       - `⚠️ สินค้าซ้ำวันนี้` (สีส้ม)
+       - `⚠️ สีซ้ำวันนี้` (สีเหลือง)
+2. **การทดสอบ:**
+   - Frontend Unit Tests: ผ่าน 416/416 เทส
+   - Frontend Production Build: `vite build` สำเร็จเรียบร้อย (3.98s)
+
+## Round SCHEDULE-BULK-AUTO-PICK-DAILY-20260927 — ปิดรอบแล้ว ✅
 | Round HOOK-SAFE-ZONE-SNAP-20260927 | ปรับค่าเริ่มต้นของตำแหน่ง Hook Overlay (`HOOK_TOP_Y`) ให้ชนขอบบนของ Safe Zone พอดี (180px / 9.4% จากขอบบน) สำหรับทุกคลิปที่สร้างใหม่ พร้อมรักษา Preview = Render Parity 100% | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round COVER-TIMELINE-HIRES-FRAME-20260927 | จับปกจากเฟรม Timeline ที่ 1080×1920 ด้วยคลิปต้นฉบับและ Cutout ตัวเต็ม ก่อน Render | 2026-09-27 | ปิดรอบ (ดำเนินการโดย: Codex (GPT-6)) |
 | Round STORYBOARD-MAPPER-VIDEO-DROPDOWN-DEDUP-20260926 | แก้ไขรายการชื่อวิดีโอซ้ำซ้อนใน Dropdown (เช่น แสดง Hoyaup.mov 3 บรรทัดติดกัน) โดยใช้ Strict Video Deduplication กรองด้วย normalized filename, path และ isSameVideo ให้เหลือตัวเลือกวิดีโอแต่ละไฟล์เพียงรายการเดียว 100% | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -28,6 +62,36 @@
 | Round JEV-DECISION-LAYER-RULE-20260926 | ทำให้ AI ทุกตัวในโปรเจกต์ใช้ Jev (TypeSafe System One) ตัดสินใจร่วมกันได้ ผ่านกฎกลาง `.agents/rules/jev_decision_layer.md` + CLI `tools/jev_advisor.py` (noul/choice/score/fanout) พร้อม confidence gate `proceed|escalate` และเทส offline 22 ตัว | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Cline (Claude)) |
 | Round A11Y-ARIA-LABEL-AND-ROUND-CLOSE-20260926 | เพิ่ม accessible name ที่ขาดใน Inspector 4 จุด (OverlayScaleControl + ช่องค้นหา + ช่องพิมพ์บทพูด) ทำให้ `test_editor_controls_browser.py` ผ่าน 9/9 และปลดล็อก gate ของ 2 รอบ Cutout พร้อมปิดรอบค้าง 2 รอบเข้า HISTORY | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Cline (Claude)) |
 
+
+## Round SCHEDULE-BULK-AUTO-PICK-DAILY-20260927 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-27 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง frontend unit tests 416/416, vite build และ backend pytest 22/22
+
+**เป้าหมาย:**
+เพิ่มโหมดจัดคิวเป็นชุดข้ามวันในเวลาเดิม (Daily Fixed Time) เช่น 19:30 ทุกวัน พร้อมระบบดึงและสุ่มเลือก N คลิปอัตโนมัติ (Fair Round-robin หมุนเวียนสินค้า) ในหน้าต่าง "เพิ่มเป็นชุด" (Bulk Add) เพื่อให้ผู้ใช้สามารถแทรกคิวเวลาเดิมโดยไม่ต้องคลิกเลือกคลิปทีละอัน
+
+**การแก้ไข:**
+1. **Frontend (`frontend/src/components/ScheduleAgenda.jsx`):**
+   - เพิ่มตัวเลือกการจัดคิวใน `bulkDraft`:
+     - โหมด `daily`: "เวลาเดิมทุกวัน (Daily Fixed Time)" โดยคำนวณ `addDays(bulkDraft.date, index)` ที่เวลา `bulkDraft.time`
+     - โหมด `interval`: "ในวันเดียวกัน (ตามช่วงนาที)" (แบบเดิม)
+   - เพิ่มระบบ Quick Auto-Pick Bar:
+     - ช่องระบุจำนวนคลิปพร้อมปุ่มลัด `3`, `5`, `7`, `10`, `ทั้งหมด`
+     - Dropdown กรองสินค้า (สินค้าทั้งหมด หรือระบุสินค้า)
+     - ปุ่ม `สุ่มเลือก N คลิป (หมุนเวียนสินค้า)`: ดึงคลิปจากคลิปที่พร้อมจัดคิวด้วย Fair Round-Robin เพื่อกระจายสินค้าให้ทั่วถึง ไม่ซ้ำติดกัน
+     - ปุ่ม `ล้างการเลือก`
+   - เพิ่มระบบตรวจจับเวลาซ้ำ (`isOccupied` / `hasOccupiedConflict`):
+     - ตรวจสอบกับคิวปัจจุบัน หากมีคลิปจองเวลานั้นอยู่แล้วจะขึ้น Tag เตือน `⚠️ เวลาซ้ำ` สีแดงชัดเจนในพรีวิว
+     - ป้องกันการกดบันทึกซ้ำซ้อน
+2. **Unit Test (`frontend/src/lib/scheduleQueue.test.js`):**
+   - เพิ่ม unit test ทดสอบการคำนวณสล็อต `daily fixed-time batch slots advance by 1 day per clip at fixed time`
+
+### ผลการทดสอบ (Verification)
+- `npm test` (frontend): 416/416 passed (100% pass)
+- `npm run build` (frontend): Vite build สำเร็จ ไร้ข้อผิดพลาด
+- `pytest tests/test_schedule_queue.py`: 22/22 passed (100% pass)
+
+---
 
 ## Round HOOK-SAFE-ZONE-SNAP-20260927 — ปิดรอบแล้ว ✅
 
