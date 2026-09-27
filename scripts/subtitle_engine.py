@@ -1326,13 +1326,39 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         # far taller than their em, so stepping by the em number
                         # left the two lines 6px apart, close enough to read as
                         # collided. The last term is the gap between them.
-                        en_y = reveal_y + font_size_boosted * (
-                            0.5 + (en_pct / 100.0) * 0.5 + 0.12
+                        # One line advance below the Thai, which is exactly what
+                        # the plain caption gets: libass steps a \N by 1.0 x
+                        # Fontsize (parity rule 2.7), and the reveal places the
+                        # English itself, so it has to reproduce that step
+                        # rather than invent one. Measured against the plain
+                        # caption at two faces and two scales -- a formula built
+                        # from half-heights and a hand-picked gap came out ~17px
+                        # wider and read as a gap in the block.
+                        #
+                        # \an1 and \an7 measure the Thai from an edge of its
+                        # line box, which sits about a descender below (or
+                        # above) the ink; \an4 and \an5 measure from its middle.
+                        # Converting to the middle first keeps the step honest
+                        # across all of them, since the English is centred.
+                        if reveal_align == 1:
+                            thai_middle = reveal_y - font_size_boosted * 0.5
+                        elif reveal_align == 7:
+                            thai_middle = reveal_y + font_size_boosted * 0.5
+                        else:
+                            thai_middle = reveal_y
+                        # The English is drawn at en_pct of the Thai size, so
+                        # half of each is what separates their centres.
+                        en_y = thai_middle + font_size_boosted * (
+                            0.5 + (en_pct / 100.0) * 0.5
                         )
+                        # Always positioned, never left to the style's margin.
+                        # The reveal has moved the Thai line off that margin and
+                        # onto its own \pos, so an English line still anchored
+                        # by the style lands where the Thai used to be -- on top
+                        # of it. Centre it under wherever the reveal actually
+                        # put the Thai.
                         en_pos = (
                             f"{{\\an5\\pos({int(round(reveal_x))},{int(round(en_y))})}}"
-                            if pos_override
-                            else f"{{\\an{alignment}}}"
                         )
                         # en_sub leads with the \N that stacked it under the
                         # Thai; as its own event it starts at its own position.

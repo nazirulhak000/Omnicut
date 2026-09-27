@@ -2844,11 +2844,28 @@ def test_both_caption_toggles_are_in_the_inspector():
 
 
 def test_the_english_line_clears_the_thai_one_under_a_reveal():
+    r"""
+    Half of each line separates their centres, in the BOOSTED size libass
+    actually renders -- Thai faces run line boxes far taller than their em, so
+    stepping by the em number left 6px between the two and they read as
+    collided. reveal_y has to be converted to the Thai line's middle first,
+    since it means the line's bottom under \an1 and its top under \an7, both of
+    which sit a descender away from the ink; measuring from those directly put
+    the English ~17px too low, which reads as a gap in the block.
     """
-    \an5 measures each line from its own middle, so the step between them is
-    half of each -- taken from the BOOSTED size libass actually renders, since
-    Thai faces run line boxes far taller than their em. Stepping by the em
-    number left 6px between the two, which reads as a collision.
-    """
-    assert "en_y = reveal_y + font_size_boosted * (" in PY_SRC
+    assert "thai_middle = reveal_y" in PY_SRC
+    assert "en_y = thai_middle + font_size_boosted * (" in PY_SRC
     assert "en_pct / 100.0" in PY_SRC
+
+
+def test_the_english_line_is_always_positioned_under_a_reveal():
+    """
+    The reveal moves the Thai off the style's margin onto its own \\pos, so an
+    English line still anchored by that margin lands where the Thai used to be
+    -- on top of it. It shipped that way for cues with no stored x/y.
+    """
+    block = PY_SRC.split("if reveal_events and en_sub:")[1].split("en_pos = (")[1][:200]
+    assert "if pos_override" not in block, (
+        "the English line must be positioned for every cue, not only placed ones"
+    )
+    assert "an5" in block and "pos(" in block

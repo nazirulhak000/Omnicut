@@ -402,3 +402,94 @@ class TestNoWrapOnRevealEvents:
         assert all(r"\q2" in ev for ev in reveal_events), (
             "every positioned reveal event must opt out of libass wrapping"
         )
+
+
+class TestEnglishPositionedForBothCueKinds:
+    """
+    The reveal moves the Thai line off the style's margin onto its own \pos.
+    An English line left on that margin therefore lands where the Thai used to
+    be -- on top of it. It has to be positioned too, for a cue with stored
+    coordinates and for one without.
+    """
+
+    BASE = {
+        "id": 1, "start": 0.0, "end": 2.0,
+        "text": "แกะกล่องพัดลมแม่เหล็ก",
+        "translation": "Unbox the magnetic fan.",
+    }
+
+    def _en_event(self, tmp_path, extra):
+        from scripts.subtitle_engine import SubtitleEngine
+
+        out = tmp_path / f"en{len(extra)}.ass"
+        SubtitleEngine.generate_ass(
+            [dict(self.BASE, **extra)], str(out), font_name="Mali",
+            bilingual=True, ghost_reveal=True,
+        )
+        for line in out.read_text(encoding="utf-8").splitlines():
+            if line.startswith("Dialogue: 1,") and "EAEAEA" in line:
+                return line
+        return None
+
+    def test_positioned_cue_gets_a_positioned_english_line(self, tmp_path):
+        ev = self._en_event(tmp_path, {"x": 0.5, "y": 0.746})
+        assert ev and "\pos(" in ev
+
+    def test_unpositioned_cue_also_gets_one(self, tmp_path):
+        """The case that shipped broken: no x/y, so the English kept the style
+        margin and overlapped the Thai."""
+        ev = self._en_event(tmp_path, {})
+        assert ev and "\pos(" in ev
+
+    @pytest.mark.render_regression
+    def test_the_english_clears_the_thai_in_both(self, tmp_path):
+        """Measured on a render: the two lines must not touch either way.
+
+        Comparing the \pos numbers directly would not answer this -- the Thai
+        is anchored by its bottom or middle depending on alignment while the
+        English is centred, so the y values are not on the same footing.
+        """
+        import shutil
+        import subprocess
+
+        if not shutil.which("ffmpeg"):
+            pytest.skip("FFmpeg is required for this render regression")
+
+        from PIL import Image
+
+        from scripts.subtitle_engine import SubtitleEngine
+
+        for i, extra in enumerate(({}, {"x": 0.5, "y": 0.746})):
+            ass = tmp_path / f"clear{i}.ass"
+            SubtitleEngine.generate_ass(
+                [dict(self.BASE, **extra)], str(ass), font_name="Mali",
+                bilingual=True, ghost_reveal=True,
+            )
+            esc = str(ass.resolve()).replace("\\", "/").replace(":", "\\:")
+            png = tmp_path / f"clear{i}.png"
+            subprocess.run([
+                "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+                "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=2",
+                "-vf", f"subtitles='{esc}':fontsdir='02_Assets/Fonts'",
+                "-ss", "1.9", "-frames:v", "1", str(png),
+            ], check=True)
+
+            mask = Image.open(png).convert("L").point(lambda v: 255 if v > 60 else 0)
+            mask.paste(0, (int(1080 * 0.82), 0, 1080, 1920))
+            pixels = mask.load()
+            rows = [y for y in range(1250, 1800)
+                    if any(pixels[x, y] for x in range(20, int(1080 * 0.82), 3))]
+            assert rows, f"case {extra} drew nothing"
+            bands, current = [], [rows[0]]
+            for y in rows[1:]:
+                if y - current[-1] > 3:
+                    bands.append((current[0], current[-1]))
+                    current = [y]
+                else:
+                    current.append(y)
+            bands.append((current[0], current[-1]))
+            assert len(bands) >= 2, (
+                f"case {extra}: Thai and English ran together, bands={bands}"
+            )
+            gap = bands[1][0] - bands[0][1]
+            assert gap >= 20, f"case {extra}: only {gap}px between the lines"
