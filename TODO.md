@@ -1,5 +1,23 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
+## Round SCHEDULE-UX-PRO-ENHANCEMENT-20260927 — กำลังทำ · Antigravity (Gemini 3.8 Flash)
+
+วันที่: 2026-09-27 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:** ยกระดับ UX & Visual Clarity หน้าตารางจัดการคิว (ScheduleAgenda):
+1. นำปุ่ม `+ เพิ่มเป็นชุด` (Bulk Add) ออกมาวางใน Toolbar หลักข้างปุ่ม `+ เพิ่มคลิป`
+2. แสดงจุดสี Hook (`Hook Color Dot`) พร้อมชื่อสไตล์ บนการ์ดคิวทั้งใน List View และ Calendar View
+3. เพิ่มแถบ Quick Search & Filters สำหรับคิว: ค้นหาตามชื่อสินค้า/ชื่อคลิป, เลือกช่วงวัน (ทั้งหมด, วันนี้, 7 วันข้างหน้า, 30 วัน), และกรองตามสินค้า
+4. เพิ่มป้ายเตือนความสมดุลรายวัน (Daily Balance Warning): แจ้งเตือนเมื่อมีเวลาชนกัน หรือมีสินค้าเดิมลงซ้ำมากกว่า 1 คลิปในวันเดียวกัน
+
+### แผนงาน
+- [ ] 1. เพิ่มปุ่ม `+ เพิ่มเป็นชุด` บน Toolbar หลักของ ScheduleAgenda
+- [ ] 2. เพิ่ม UI แสดงจุดสี Hook (Hook Color Dot) และ Tag สไตล์ Preset ใน List View และ Calendar View
+- [ ] 3. เพิ่ม State & UI กรองคิว (Queue Filter Bar): Search input, Date range filter, Product filter
+- [ ] 4. เพิ่มระบบคำนวณ Daily Conflicts/Duplicates และแสดง Warning Badge บนส่วนหัวของแต่ละวัน
+- [ ] 5. ทดสอบผ่าน `npm test` และ `npm run build`
+- [ ] 6. สรุปผลและปิดรอบย้ายเข้า `HISTORY.md`
+
 - [x] Round SCHEDULE-BULK-SMART-DAY-MATCH-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 - [x] Round SCHEDULE-BULK-AUTO-PICK-DAILY-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 
@@ -77,9 +95,12 @@
 1. บอกว่าเทส `test_cutout_video_preview` เป็นของเอเจนต์อื่น — จริงๆ เป็นเทส **flaky** (รันเดี่ยว/รันกลุ่มผ่าน พังบางรอบตอนรันเต็ม) · วิธียืนยันที่ใช้ (stash แล้วรันเดี่ยว) พิสูจน์ไม่ได้เพราะรันเดี่ยวผ่านอยู่แล้วทั้งสองแบบ
 2. แนะนำว่า "Mali ไม่ต้องการ repair" จากสมมติฐานที่ไม่ได้ตรวจ — ทดสอบจริง 6 ฟอนต์แล้ว **ทุกฟอนต์รวม Mali ทำวรรณยุกต์หายถ้าไม่ repair** · ต้นตอจริงคือ reveal ของผม repair ทีละคำ ทำให้ companion วาดแค่คำเดียวแทนบรรทัดเต็ม
 
+- [x] D12. **ปิด bilingual แล้วเรนเดอร์ = ลบคำแปลทิ้ง** — `cue["translation"] = ""` เมื่อ `bilingual=False` แล้วเขียนทับ manifest · ผู้ใช้ปิดแล้วเรนเดอร์ → คำแปลหายหมด 18/18 cue → เปิดกลับ preview ว่างเปล่า และต้องแปลใหม่ (เสียเวลา + เรียก API ซ้ำ) · **ไม่แสดงไม่ได้แปลว่าต้องลบ** แก้ให้เก็บไว้ แค่ไม่วาดใน ASS
+- [x] D13. **วรรณยุกต์ลอยสูงเหนือบรรทัด เฉพาะ cue เดียว** — บรรทัดนั้นกว้าง **963px เกินพื้นที่ใช้ได้ 960px แค่ 3px** · `WrapStyle: 0` ทำให้ libass ตัดบรรทัด — body ไม่โดนเพราะมี `\pos` แต่ **companion โดน** ไม้โทเลยไปอยู่บรรทัดบน · แก้ด้วย `\q2` ปิด wrapping ให้ reveal events (มันคุมความกว้างเองด้วย `\pos` อยู่แล้ว)
+
 ### สถานะ
 
-**รอบ B, A, D เสร็จครบ** — เทส subtitle suites 295 ผ่าน · `npm test` 416 ผ่าน · `vite build` ผ่าน
+**รอบ B, A, D เสร็จครบ** — full suite **2131 ผ่าน 0 fail** · subtitle suites 300 ผ่าน · `npm test` 416 ผ่าน · `vite build` ผ่าน
 
 
 ## Round SUBTITLE-GHOST-REVEAL-20260927 — แผนรอตรวจทาน · Claude Code (Claude Opus 5)

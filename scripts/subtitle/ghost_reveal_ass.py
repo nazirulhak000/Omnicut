@@ -117,7 +117,13 @@ def anchor_tags(
     layout = layout_line(text, font_name, font_size_px, norm_x=0.5, video_w=video_w)
     width = float(layout.get("abs_line_width") or 0.0)
     left_x = centre_x - (width / 2.0)
-    return f"{{\\an{vertical_align}\\pos({left_x:.1f},{baseline_y:.1f})}}"
+    # \q2 turns libass's own wrapping off for these events. They already carry
+    # their full width and place themselves, but the script's WrapStyle still
+    # applied: a line a few pixels past the usable width was broken in two, and
+    # since the body is \pos'd and the companions are not, a detached tone could
+    # end up on a line of its own floating above the caption. Measured on a
+    # 963px line against 960px of usable width.
+    return f"{{\\q2\\an{vertical_align}\\pos({left_x:.1f},{baseline_y:.1f})}}"
 
 
 def build_multiline_reveal_events(

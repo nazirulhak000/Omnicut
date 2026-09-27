@@ -980,9 +980,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     dyn_en_chars = max(26, int(round(4000 / max(20, font_size))))
                     en_wrapped = cls.wrap_en_for_ass(ass_escape_text(candidate_en), max_chars_per_line=dyn_en_chars)
                 else:
+                    # The translation came back as an error page, so it is not
+                    # usable text -- clear it rather than burn it into the ASS.
                     cue["translation"] = ""
-            else:
+            elif bilingual:
                 cue["translation"] = ""
+            # With bilingual off the translation is simply not drawn. It used to
+            # be cleared here too, which meant turning the English line off and
+            # back on lost every translation the project had and paid to
+            # regenerate them -- not showing something is not a reason to
+            # delete it.
 
             # The English line sits at 68% of the Thai one; \fscx/\fscy stay
             # at the plain percent now that Fontsize carries the boost (see

@@ -318,3 +318,87 @@ class TestRevealFlagOff:
         assert len(body_events) == 1, (
             f"a plain caption is one event per cue, got {len(body_events)}"
         )
+
+
+class TestBilingualOffKeepsTranslations:
+    """
+    Hiding the English line must not delete it. Rendering with bilingual off
+    used to clear every cue's translation and write that back to the manifest,
+    so turning the toggle off and on again lost the lot and paid to translate
+    them a second time.
+    """
+
+    CUES = [
+        {"id": 1, "start": 0.0, "end": 2.0, "text": "สายเกมเมอร์เคยไหมครับ",
+         "translation": "Gamers, have you ever"},
+        {"id": 2, "start": 2.0, "end": 4.0, "text": "เล่นเกมอยู่ดีๆ",
+         "translation": "playing a game normally"},
+    ]
+
+    def _render(self, tmp_path, bilingual):
+        from scripts.subtitle_engine import SubtitleEngine
+
+        _, cues = SubtitleEngine.generate_ass(
+            [dict(c) for c in self.CUES], str(tmp_path / f"b{int(bilingual)}.ass"),
+            font_name="Mali", bilingual=bilingual, ghost_reveal=True,
+        )
+        return cues
+
+    def test_translations_survive_a_bilingual_off_render(self, tmp_path):
+        cues = self._render(tmp_path, False)
+        assert [c["translation"] for c in cues] == [
+            "Gamers, have you ever", "playing a game normally"
+        ]
+
+    def test_they_are_still_there_with_bilingual_on(self, tmp_path):
+        cues = self._render(tmp_path, True)
+        assert all(c["translation"] for c in cues)
+
+    def test_off_still_keeps_them_out_of_the_ass(self, tmp_path):
+        """Kept in the cue, absent from the render -- both at once."""
+        from scripts.subtitle_engine import SubtitleEngine
+
+        out = tmp_path / "off.ass"
+        _, cues = SubtitleEngine.generate_ass(
+            [dict(c) for c in self.CUES], str(out),
+            font_name="Mali", bilingual=False, ghost_reveal=True,
+        )
+        generated = out.read_text(encoding="utf-8")
+        assert "Gamers, have you ever" not in generated
+        assert cues[0]["translation"] == "Gamers, have you ever"
+
+
+class TestNoWrapOnRevealEvents:
+    r"""
+    The reveal's events carry their own width and place themselves with \pos,
+    but the script's WrapStyle still applied to them. A line a few pixels past
+    the usable width (963px against 960px, measured) was broken in two -- and
+    because the body is positioned while a companion is not, a detached tone
+    ended up on a line of its own, floating well above the caption.
+    """
+
+    def test_anchor_disables_wrapping(self):
+        from scripts.subtitle.ghost_reveal_ass import anchor_tags
+
+        tags = anchor_tags("กล้องคมชัด", "Mali", 88, centre_x=540, baseline_y=1540)
+        assert r"\q2" in tags
+
+    def test_a_line_wider_than_the_frame_stays_on_one_line(self, tmp_path):
+        from scripts.subtitle_engine import SubtitleEngine
+
+        out = tmp_path / "wide.ass"
+        SubtitleEngine.generate_ass(
+            [{"id": 1, "start": 0.0, "end": 2.0,
+              "text": "ในตะกร้าสีเหลืองซ้ายล่างตอนนี้เลย ครับ",
+              "translation": "", "x": 0.5, "y": 0.746}],
+            str(out), font_name="Mali", bilingual=False, ghost_reveal=True,
+        )
+        generated = out.read_text(encoding="utf-8")
+        reveal_events = [
+            line for line in generated.splitlines()
+            if line.startswith("Dialogue: 1,") and "\pos(" in line
+        ]
+        assert reveal_events, "no positioned reveal events were emitted"
+        assert all(r"\q2" in ev for ev in reveal_events), (
+            "every positioned reveal event must opt out of libass wrapping"
+        )
