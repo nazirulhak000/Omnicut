@@ -163,9 +163,9 @@ export function templateForStylePreset(stylePreset) {
   return STYLE_PRESET_TO_TEMPLATE[stylePreset || ''] || null;
 }
 
-// The banner's block is anchored to the top of the frame: ASS MarginV 260 of
-// 1920, canvas y 130 of 960 -- the same fraction, per parity rule 2.8.
-export const HOOK_TOP_Y = 260.0 / 1920.0;
+// The banner's block is anchored to the top of the frame: ASS MarginV 180 of
+// 1920, canvas y 90 of 960 (top Safe Zone 9.4%) -- the same fraction, per parity rule 2.8.
+export const HOOK_TOP_Y = 180.0 / 1920.0;
 export const TEXT_POSITIONS = { top: 0.20, middle: 0.50, bottom: 0.72 };
 
 // Which edge of the block `y` names, which is what an ASS Alignment says.

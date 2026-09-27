@@ -128,7 +128,7 @@ CAPTION_POSITIONS = {
     # the public safe-zone contract remains 420px.
     "bottom": (2, 410),
     "middle": (5, 0),
-    "top": (8, 260),
+    "top": (8, 180),
 }
 
 TEXT_OVERLAY_POSITIONS = {
@@ -702,9 +702,9 @@ Style: TikTokWhite,{caption_font},{font_size_boosted},{primary},&H000000FF,&H000
 Style: TikTokYellow,{caption_font},{font_size_boosted},&H0000E6FF,&H000000FF,&H00000000,&H00000000,{caption_bold},0,0,0,100,100,0,0,1,{front_outline},0,2,60,60,420,1
 Style: TikTokCyan,{caption_font},{font_size_boosted},&H00FFE600,&H000000FF,&H00000000,&H00000000,{caption_bold},0,0,0,100,100,0,0,1,{front_outline},0,2,60,60,420,1
 Style: TikTokMinimalPill,{caption_font},{int(round((font_size - 6) * TEXT_SCALE_BOOST))},{primary},&H000000FF,&H00000000,&HCC000000,{caption_bold},0,0,0,100,100,0,0,3,6,0,{alignment},60,60,{margin_v},1
-Style: HookHeader,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,1,6.0,0,8,60,60,260,1
-Style: HookHeaderShadow,{hook_font},{hook_fs_boosted},&H00000000,&H00000000,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,1,7.0,0,8,62,58,257,1
-Style: HookHeaderPill,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,3,12,0,8,60,60,260,1
+Style: HookHeader,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,1,6.0,0,8,60,60,180,1
+Style: HookHeaderShadow,{hook_font},{hook_fs_boosted},&H00000000,&H00000000,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,1,7.0,0,8,62,58,177,1
+Style: HookHeaderPill,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,3,12,0,8,60,60,180,1
 Style: SpecBar,{resolved_font},{int(round((font_size - 12) * TEXT_SCALE_BOOST))},&H00000000,&H000000FF,&H00000000,&H0000E6FF,{resolved_bold},0,0,0,100,100,0,0,3,10,0,9,50,50,380,1
 Style: TextOverlayMain,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
 Style: TextOverlayPill,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1

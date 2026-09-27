@@ -61,6 +61,52 @@ const BACKGROUND_ISOLATION_BG = '#0B1220';
 const BACKGROUND_FRAME_RETRY_DELAYS_MS = Object.freeze([250, 1000, 4000]);
 const BACKGROUND_FRAME_CACHE_LIMIT = 120;
 
+function loadCoverVideo(url, time) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'auto';
+    video.muted = true;
+    video.playsInline = true;
+    const timer = setTimeout(() => fail(new Error('หมดเวลารอเฟรมต้นฉบับ')), 15000);
+    const cleanup = () => {
+      clearTimeout(timer);
+      video.removeEventListener('error', onError);
+      video.removeEventListener('loadeddata', onLoaded);
+      video.removeEventListener('seeked', onSeeked);
+    };
+    const fail = (error) => { cleanup(); video.removeAttribute('src'); video.load(); reject(error); };
+    const onError = () => fail(new Error('โหลดเฟรมต้นฉบับไม่สำเร็จ'));
+    const onSeeked = () => { if (video.readyState >= 2) { cleanup(); resolve(video); } };
+    const onLoaded = () => {
+      const target = Math.max(0, Math.min(Number(time) || 0,
+        Number.isFinite(video.duration) ? Math.max(0, video.duration - 0.001) : Number(time) || 0));
+      if (Math.abs(video.currentTime - target) < 0.001) { cleanup(); resolve(video); }
+      else video.currentTime = target;
+    };
+    video.addEventListener('error', onError);
+    video.addEventListener('loadeddata', onLoaded);
+    video.addEventListener('seeked', onSeeked);
+    video.src = url;
+  });
+}
+
+function loadCoverImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const timer = setTimeout(() => fail(), 15000);
+    const fail = () => {
+      clearTimeout(timer);
+      image.onload = null;
+      image.onerror = null;
+      image.src = '';
+      reject(new Error('โหลดเฟรม Cutout ไม่สำเร็จ'));
+    };
+    image.onload = () => { clearTimeout(timer); resolve(image); };
+    image.onerror = fail;
+    image.src = url;
+  });
+}
+
 function backgroundFrameRetryDelay(retryCount) {
   const index = Math.max(0, Math.floor(Number(retryCount) || 0));
   if (index >= BACKGROUND_FRAME_RETRY_DELAYS_MS.length) return null;
@@ -547,7 +593,7 @@ function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0, isolatedImage
  * radial alpha ramp for the circles, a solid bridge colour for fadeblack and
  * fadewhite, and a plain crossfade only for `fade` itself.
  */
-function paintEntry(ctx, entry, video, offscreen, isolatedImage = null, cutoutMode = 'composite') {
+function paintEntry(ctx, entry, video, offscreen, isolatedImage = null, cutoutMode = 'composite', scale = 1) {
   const { seg, transition: kind, progress: p, role, alpha } = entry;
   const clip = seg.clip;
 
@@ -583,15 +629,15 @@ function paintEntry(ctx, entry, video, offscreen, isolatedImage = null, cutoutMo
     // Same off-screen route as the circles: draw the frame, then keep it only
     // where the noise mask says the incoming clip has arrived.
     const oc = offscreen.getContext('2d');
-    oc.setTransform(1, 0, 0, 1, 0, 0);
+    oc.setTransform(scale, 0, 0, scale, 0, 0);
     oc.globalCompositeOperation = 'source-over';
     oc.clearRect(0, 0, CANVAS_W, CANVAS_H);
     if (!drawClipInto(oc, video, clip, 1, entry.motionTime, isolatedImage, cutoutMode)) return false;
     oc.globalCompositeOperation = 'destination-in';
-    oc.drawImage(dissolveMaskFor(p), 0, 0);
+    oc.drawImage(dissolveMaskFor(p), 0, 0, CANVAS_W, CANVAS_H);
     oc.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
-    ctx.drawImage(offscreen, 0, 0);
+    ctx.drawImage(offscreen, 0, 0, CANVAS_W, CANVAS_H);
     return true;
   }
 
@@ -600,7 +646,7 @@ function paintEntry(ctx, entry, video, offscreen, isolatedImage = null, cutoutMo
     // then keep it in proportion to a radial gradient built from the measured
     // curve. One extra full-frame draw, instead of 24 clipped ones.
     const oc = offscreen.getContext('2d');
-    oc.setTransform(1, 0, 0, 1, 0, 0);
+    oc.setTransform(scale, 0, 0, scale, 0, 0);
     oc.globalCompositeOperation = 'source-over';
     oc.clearRect(0, 0, CANVAS_W, CANVAS_H);
     if (!drawClipInto(oc, video, clip, 1, entry.motionTime, isolatedImage, cutoutMode)) return false;
@@ -617,7 +663,7 @@ function paintEntry(ctx, entry, video, offscreen, isolatedImage = null, cutoutMo
     oc.fillRect(0, 0, CANVAS_W, CANVAS_H);
     oc.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
-    ctx.drawImage(offscreen, 0, 0);
+    ctx.drawImage(offscreen, 0, 0, CANVAS_W, CANVAS_H);
     return true;
   }
 
@@ -4272,14 +4318,25 @@ function SequencePlayer({
    * lut3d before the sticker overlay and the subtitle burn, so this runs at
    * the same point -- captions and badges keep their exact colours.
    */
-  const applyGrade = (ctx, canvas) => {
+  const applyGrade = (ctx, canvas, highResolution = false) => {
     const lut = lutRef.current;
     const strength = grade?.intensity ?? 1;
     if (!lut || !(strength > 0.001)) return;
-    if (!lutRendererRef.current) {
+    if (!highResolution && !lutRendererRef.current) {
       lutRendererRef.current = createLutRenderer(CANVAS_W, CANVAS_H) || { apply: () => null, dispose: () => {} };
     }
-    const graded = lutRendererRef.current.apply(canvas, lut, strength);
+    const renderer = highResolution ? createLutRenderer(canvas.width, canvas.height) : lutRendererRef.current;
+    const graded = renderer?.apply(canvas, lut, strength);
+    if (highResolution && graded) {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(graded, 0, 0);
+      ctx.restore();
+      renderer.dispose();
+      return;
+    }
+    if (highResolution) renderer?.dispose();
     if (!graded) return;
     const prevAlpha = ctx.globalAlpha;
     const prevFilter = ctx.filter;
@@ -4291,23 +4348,26 @@ function SequencePlayer({
     ctx.filter = prevFilter;
   };
 
-  const renderAt = (t) => {
-    const canvas = canvasRef.current;
+  const renderAt = (t, cover = null) => {
+    const canvas = cover?.canvas || canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!ctx || !segments.length) return;
+    const scale = cover ? 2 : 1;
+    if (cover) ctx.setTransform(scale, 0, 0, scale, 0, 0);
     const plan = getDrawPlan(t);
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     plan.forEach((entry) => {
-      const video = videoElsRef.current[entry.seg.clip.id];
+      const video = cover?.videos.get(entry.seg.clip.id) || videoElsRef.current[entry.seg.clip.id];
       if (video) {
-        const isolatedImage = loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
-        paintEntry(ctx, entry, video, getOffscreen(), isolatedImage, activeCutoutMode);
+        const isolatedImage = cover ? cover.isolated.get(entry.seg.clip.id) : loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
+        paintEntry(ctx, entry, video, cover?.offscreen || getOffscreen(), isolatedImage,
+          cover ? 'composite' : activeCutoutMode, scale);
       }
     });
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
     const bounds = [];
-    applyGrade(ctx, canvas);
+    applyGrade(ctx, canvas, !!cover);
     // Spotlight is a footage-only pass: above the graded video, below every
     // sticker, effect, subtitle, and product overlay.
     drawSpotlight(ctx, previewSpotlight);
@@ -4322,9 +4382,10 @@ function SequencePlayer({
     // opaque mood background must not be repainted here or it would erase the
     // Hook we intentionally placed behind the product.
     plan.forEach((entry) => {
-      const isolatedImage = loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
+      const isolatedImage = cover ? cover.isolated.get(entry.seg.clip.id) : loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
       if (isolatedImage) {
-        drawIsolatedFrame(ctx, isolatedImage, entry.seg.clip, entry.motionTime, { includeBackground: false, cutoutMode: activeCutoutMode });
+        drawIsolatedFrame(ctx, isolatedImage, entry.seg.clip, entry.motionTime,
+          { includeBackground: false, cutoutMode: cover ? 'composite' : activeCutoutMode });
       }
     });
     drawOverlayScrims(ctx, overlaysInFront, t);
@@ -4596,6 +4657,52 @@ function SequencePlayer({
       if (!canvas) return null;
       renderAt(playheadRef.current);
       return canvas.toDataURL('image/jpeg', 0.92);
+    },
+
+    // Cover capture decodes the master media at the chosen time and paints
+    // directly at export size. The small, fast preview canvas stays untouched.
+    captureCoverFrame: async () => {
+      const t = playheadRef.current;
+      const plan = getDrawPlan(t);
+      if (!plan.length) throw new Error('ไม่มีคลิปในเฟรมที่เลือก');
+      const canvas = document.createElement('canvas');
+      canvas.width = 1080;
+      canvas.height = 1920;
+      const offscreen = document.createElement('canvas');
+      offscreen.width = canvas.width;
+      offscreen.height = canvas.height;
+      const videos = new Map();
+      const isolated = new Map();
+      try {
+        const loaded = await Promise.allSettled(plan.map(async (entry) => {
+          const clip = entry.seg.clip;
+          const master = await loadCoverVideo(toMediaUrl(clip.source_path), entry.localTime);
+          videos.set(clip.id, master);
+          const config = resolveBackgroundIsolationConfig(clip, backgroundIsolation);
+          if (config?.enabled !== true) return;
+          const artifactId = backgroundArtifactId(config);
+          const resolution = resolveBackgroundIsolationPreview({
+            config,
+            manifest: backgroundIsolationManifests[artifactId],
+            artifactBaseUrl: '/api/background-isolation/sequences',
+            sourceTime: Math.max(0, Number(entry.localTime) || 0),
+          });
+          if (!resolution.useArtifact) throw new Error('Cutout ของเฟรมนี้ยังไม่พร้อม');
+          const image = resolution.masterVideoUrl
+            ? await loadCoverVideo(resolution.masterVideoUrl, resolution.videoTime)
+            : await loadCoverImage(resolution.frameUrl);
+          isolated.set(clip.id, image);
+        }));
+        const failure = loaded.find((result) => result.status === 'rejected');
+        if (failure) throw failure.reason;
+        renderAt(t, { canvas, offscreen, videos, isolated });
+        return canvas.toDataURL('image/png');
+      } finally {
+        for (const video of videos.values()) { video.removeAttribute('src'); video.load(); }
+        for (const image of isolated.values()) {
+          if (image instanceof HTMLVideoElement) { image.removeAttribute('src'); image.load(); }
+        }
+      }
     },
 
     play: () => { if (!isPlaying) togglePlay(); },

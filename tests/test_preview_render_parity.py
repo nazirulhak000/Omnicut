@@ -206,8 +206,8 @@ def test_hook_block_top_is_the_same_fraction_of_frame_height():
     # The anchor is a field on the overlay now (HOOK_TOP_Y), and the canvas
     # positions every overlay from it rather than a literal 130.
     ass_top = _grab(PY_SRC, r"cursor_y = (\d+)  # HookHeader") / 1920
-    assert ass_top == 260.0 / 1920.0
-    assert "HOOK_TOP_Y = 260.0 / 1920.0" in OVERLAY_JS
+    assert ass_top == 180.0 / 1920.0
+    assert "HOOK_TOP_Y = 180.0 / 1920.0" in OVERLAY_JS
     assert "overlay.anchor === ANCHOR_TOP" in JS_SRC
 
 
@@ -2090,10 +2090,10 @@ def test_overlay_geometry_constants_match_on_both_sides():
 
 
 def test_hook_block_anchor_is_the_same_fraction_of_the_frame():
-    """Parity rule 2.8: ASS MarginV 260/1920 against canvas y 130/960."""
-    assert "HOOK_TOP_Y = 260.0 / 1920.0" in OVERLAY_PY
-    assert "HOOK_TOP_Y = 260.0 / 1920.0" in OVERLAY_JS
-    assert 260.0 / 1920.0 == 130.0 / 960.0
+    """Parity rule 2.8: ASS MarginV 180/1920 against canvas y 90/960."""
+    assert "HOOK_TOP_Y = 180.0 / 1920.0" in OVERLAY_PY
+    assert "HOOK_TOP_Y = 180.0 / 1920.0" in OVERLAY_JS
+    assert 180.0 / 1920.0 == 90.0 / 960.0
 
 
 def test_a_text_overlays_outline_is_now_the_renders_number_not_the_previews():

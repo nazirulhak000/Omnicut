@@ -1,5 +1,40 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
+## Round CUTOUT-TEXT-DEPTH-SCOPED-PLAN-20260927 — แผนรอตรวจทาน · Codex (GPT-6)
+
+วันที่: 2026-09-27 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6)
+
+- [x] ตรวจเส้นทาง overlay, Preview, ASS Render, Cutout worker/cache และรูปแบบโปรเจกต์เดิม
+- [x] ออกแบบการจัดชั้นข้อความหน้า/หลังสินค้าและ Cutout เฉพาะช่วงที่ใช้
+- [ ] ตรวจทานแผน `_Docs/Plans/CUTOUT_TEXT_DEPTH_SCOPED_PLAN_20260927.md` กับผู้ใช้ก่อนเริ่ม implementation
+- [ ] หลังได้รับคำสั่งให้ลงมือ แยก implementation เป็นรอบย่อยพร้อม regression และหลักฐาน Preview/Render
+
+
+## Round HOOK-SAFE-ZONE-SNAP-20260927 — ปิดรอบแล้ว (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro); ดู HISTORY.md)
+## Round COVER-TIMELINE-HIRES-FRAME-20260927 — ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6); ดู HISTORY.md)
+
+---
+
+- **Round STORYBOARD-MAPPER-VIDEO-DROPDOWN-DEDUP-20260926** — ปิดรอบแล้ว ✅ (ดู [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md))
+
+- **Round STORYBOARD-MAPPER-FOCUSED-STUDIO-LAYOUT-20260926** — ปิดรอบแล้ว ✅ (ดู [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md))
+
+- **Round STORYBOARD-MAPPER-DEFAULT-ZOOM-AND-NUDGE-UX-20260926** — ปิดรอบแล้ว ✅ (ดู [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md))
+
+- **Round STORYBOARD-MAPPER-KEYBOARD-NUDGE-20260926** — ปิดรอบแล้ว ✅ (ดู [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md))
+
+- **Round STORYBOARD-MAPPER-SMOOTH-PRO-SCRUBBER-20260926** — ปิดรอบแล้ว ✅ (ดู [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md))
+
+- **Round STORYBOARD-MAPPER-AUTO-PAN-FIX-20260926** — ปิดรอบแล้ว ✅ (ดู [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md))
+
+- **Round STORYBOARD-MAPPER-ZOOM-PAN-SCRUBBER-20260926** — ปิดรอบแล้ว ✅ (ดู [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md))
+
+- **Round STORYBOARD-MAPPER-THUMBNAIL-QUEUE-FIX-20260926** — ปิดรอบแล้ว ✅ (ดู [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md))
+
+- **Round STORYBOARD-MAPPER-9-16-LAYOUT-20260926** — ปิดรอบแล้ว ✅ (ดู [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md))
+- **Round STORYBOARD-MAPPER-UX-REVAMP-20260926** — ปิดรอบแล้ว ✅ (ดู [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md))
+
+
 ## Round HANDOFF-20260926-JEV-A11Y-SAM2 — in progress
 
 วันที่: 2026-09-26 · สั่งโดย: user (ส่งต่องานให้ session ถัดไป) · ดำเนินการโดย: Cline (Claude) · สถานะ: ส่งมอบแล้ว
@@ -893,6 +928,8 @@ Result: implemented `app_capture.py`, scoped tests, `.tmp` enforcement, and tran
 - [x] เพิ่ม targeted tests ใน `tests/motion_capture/` โดยไม่แก้ production renderer
 
 ## สถานะรวม
+
+- [x] Round COVER-TIMELINE-HIRES-FRAME-20260927 — ปกจาก Timeline คมระดับ 1080×1920 ก่อน Render (ดำเนินการโดย: Codex (GPT-6); ดู HISTORY.md)
 
 - [ ] Round CUTOUT-TEMPORAL-QUALITY-PLAN-20260926 — แผนขอบนิ่ง/Preview ลื่น/ติดตามวัตถุพร้อม quality gates; ยังไม่เริ่ม implementation (ดำเนินการโดย: Codex (GPT-6))
 

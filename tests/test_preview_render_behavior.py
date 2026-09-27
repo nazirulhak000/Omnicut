@@ -1127,9 +1127,9 @@ PlayResY: 1920
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: HookHeader,Kanit,75,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,6.0,0,8,60,60,260,1
-Style: HookHeaderShadow,Kanit,75,&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,7.0,0,8,62,58,257,1
-Style: HookHeaderPill,Kanit,75,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,3,12,0,8,60,60,260,1
+Style: HookHeader,Kanit,75,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,6.0,0,8,60,60,180,1
+Style: HookHeaderShadow,Kanit,75,&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,7.0,0,8,62,58,177,1
+Style: HookHeaderPill,Kanit,75,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,3,12,0,8,60,60,180,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

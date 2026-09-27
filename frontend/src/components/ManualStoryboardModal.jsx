@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Film, Sparkles, Clock, Lock, Unlock, Play, Pause, RotateCcw,
   AlertTriangle, ChevronRight, Video, Scissors, CheckCircle2, RotateCw,
-  Eye, RefreshCw, X, Sliders, Check, Share2
+  Eye, RefreshCw, X, Sliders, Check, Share2, FastForward, Image as ImageIcon,
+  ZoomIn, ZoomOut, Maximize2, Move, Compass, ArrowLeft, ArrowRight
 } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
@@ -10,6 +11,165 @@ import { Badge } from './ui/Badge';
 import { toMediaUrl, isSameVideo } from '../lib/mediaUrl';
 import { formatTimecode } from '../lib/timelineMath';
 import { getManualShotMap, saveManualShotMap, syncManualShotMap, getMediaInfo } from '../api';
+
+// ── In-Memory Thumbnail Cache for Scene Thumbnails ──────────────────────
+const sceneThumbnailCache = new Map();
+const MAX_CONCURRENT_CAPTURES = 2;
+let activeCapturesCount = 0;
+const captureQueue = [];
+
+function processCaptureQueue() {
+  while (activeCapturesCount < MAX_CONCURRENT_CAPTURES && captureQueue.length > 0) {
+    const task = captureQueue.shift();
+    if (task) {
+      activeCapturesCount++;
+      let finished = false;
+      const done = () => {
+        if (!finished) {
+          finished = true;
+          activeCapturesCount = Math.max(0, activeCapturesCount - 1);
+          processCaptureQueue();
+        }
+      };
+      try {
+        task(done);
+      } catch (_) {
+        done();
+      }
+    }
+  }
+}
+
+function requestSceneThumbnail(task) {
+  captureQueue.push(task);
+  processCaptureQueue();
+}
+
+/**
+ * SceneThumbnail: renders a lightweight frame preview of the video at scene.start
+ */
+const SceneThumbnail = React.memo(function SceneThumbnail({ videoPath, startTime, isHovered, hoverProgress }) {
+  const cacheKey = `${videoPath}#${Math.round(startTime * 2) / 2}`;
+  const [thumbSrc, setThumbSrc] = useState(sceneThumbnailCache.get(cacheKey) || null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const containerRef = useRef(null);
+  const videoRef = useRef(null);
+  const hoverVideoRef = useRef(null);
+  const releaseCaptureRef = useRef(null);
+
+  const finishCapture = useCallback(() => {
+    if (releaseCaptureRef.current) {
+      releaseCaptureRef.current();
+      releaseCaptureRef.current = null;
+    }
+    setIsCapturing(false);
+  }, []);
+
+  useEffect(() => {
+    if (thumbSrc || !videoPath) return;
+    let isMounted = true;
+    let timeoutId = null;
+
+    requestSceneThumbnail((done) => {
+      if (!isMounted) {
+        done();
+        return;
+      }
+      releaseCaptureRef.current = done;
+      setIsCapturing(true);
+
+      // Safety timeout: release queue slot after 4 seconds even if video stalls
+      timeoutId = setTimeout(() => {
+        if (isMounted) {
+          finishCapture();
+        }
+      }, 4000);
+    });
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      if (releaseCaptureRef.current) {
+        releaseCaptureRef.current();
+        releaseCaptureRef.current = null;
+      }
+    };
+  }, [videoPath, startTime, thumbSrc, finishCapture]);
+
+  const handleCaptureLoaded = useCallback(() => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth || !v.videoHeight) {
+      finishCapture();
+      return;
+    }
+    try {
+      const canvas = document.createElement('canvas');
+      const w = 108;
+      const h = 192; // 9:16 portrait thumbnail
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(v, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+        if (dataUrl && dataUrl.length > 100) {
+          sceneThumbnailCache.set(cacheKey, dataUrl);
+          setThumbSrc(dataUrl);
+        }
+      }
+    } catch (_) {
+      // Ignore cross-origin fallback
+    } finally {
+      finishCapture();
+    }
+  }, [cacheKey, finishCapture]);
+
+  const handleCaptureError = useCallback(() => {
+    finishCapture();
+  }, [finishCapture]);
+
+  return (
+    <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">
+      {/* Live hover scrubbing video layer */}
+      {isHovered ? (
+        <video
+          ref={hoverVideoRef}
+          src={`${toMediaUrl(videoPath)}#t=${(startTime + (hoverProgress || 0)).toFixed(1)}`}
+          preload="auto"
+          muted
+          playsInline
+          className="w-full h-full object-cover pointer-events-none"
+        />
+      ) : thumbSrc ? (
+        <img
+          src={thumbSrc}
+          alt=""
+          loading="lazy"
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none"
+        />
+      ) : isCapturing ? (
+        <>
+          <video
+            ref={videoRef}
+            src={`${toMediaUrl(videoPath)}#t=${Math.max(0.1, Number(startTime) || 0).toFixed(1)}`}
+            preload="metadata"
+            muted
+            playsInline
+            onLoadedData={handleCaptureLoaded}
+            onSeeked={handleCaptureLoaded}
+            onError={handleCaptureError}
+            className="hidden"
+          />
+          <div className="w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+        </>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-slate-900/60 text-slate-600">
+          <ImageIcon className="w-5 h-5 opacity-40" />
+        </div>
+      )}
+    </div>
+  );
+});
 
 const ACTION_MAP = {
   turntable_spin: { label: 'หมุนสินค้า 360', color: 'bg-amber-500/20 text-amber-300 border-amber-500/40' },
@@ -68,6 +228,13 @@ export default function ManualStoryboardModal({
   const [videoDuration, setVideoDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+
+  // Timeline Zoom & Pan state (1x to 8x, defaults to 8x for high precision)
+  const [zoomLevel, setZoomLevel] = useState(8);
+  const [panOffset, setPanOffset] = useState(0); // Viewport start time in seconds
+
+  const [hoveredSceneIdx, setHoveredSceneIdx] = useState(null);
+  const [hoverProgress, setHoverProgress] = useState(0);
 
   const videoRef = useRef(null);
   const angleId = angle?.angle_id || angle?.id;
@@ -143,15 +310,29 @@ export default function ManualStoryboardModal({
     };
   }, [isOpen, productId, angleId]);
 
-  // Available videos list
+  // Available videos list (Strict Deduplication by filename/identity)
   const availableVideos = useMemo(() => {
-    const list = new Map(); // path -> label
+    const list = [];
+    const seenNames = new Set();
+    const seenPaths = new Set();
+
     const addPath = (p) => {
       if (!p) return;
       const clean = typeof p === 'string' ? normalizePath(p) : normalizePath(p.rel_path || p.path || '');
-      if (clean && !list.has(clean)) {
-        list.set(clean, getFileName(clean));
-      }
+      if (!clean) return;
+
+      const fileName = getFileName(clean).toLowerCase();
+      const normPath = clean.toLowerCase();
+
+      // Skip if already in list by exact path or filename
+      if (seenPaths.has(normPath) || seenNames.has(fileName)) return;
+
+      // Also double check with isSameVideo against existing entries
+      if (list.some((existing) => isSameVideo(existing, clean))) return;
+
+      seenPaths.add(normPath);
+      seenNames.add(fileName);
+      list.push(clean);
     };
 
     (angle?.selected_videos || []).forEach(addPath);
@@ -162,7 +343,7 @@ export default function ManualStoryboardModal({
       if (pin.video_path) addPath(pin.video_path);
     });
 
-    return Array.from(list.keys());
+    return list;
   }, [angle, product, sceneCatalogs, shotPins]);
 
   // Load video media info when activeVideoPath changes
@@ -184,6 +365,17 @@ export default function ManualStoryboardModal({
     };
   }, [activeVideoPath]);
 
+  // Helper to ensure zoomed viewport centers on a target timestamp
+  const panToTime = useCallback((targetTime, dur = videoDuration, zoom = zoomLevel) => {
+    if (!dur || zoom <= 1) {
+      setPanOffset(0);
+      return;
+    }
+    const viewSpan = dur / zoom;
+    const idealPan = Math.max(0, Math.min(dur - viewSpan, targetTime - viewSpan * 0.3));
+    setPanOffset(idealPan);
+  }, [videoDuration, zoomLevel]);
+
   // When switching selectedBeatIdx, load the beat's existing pin or default range
   useEffect(() => {
     if (!beatCues.length) return;
@@ -199,14 +391,16 @@ export default function ManualStoryboardModal({
       if (videoRef.current) {
         videoRef.current.currentTime = currentPin.trim_start;
       }
+      panToTime(currentPin.trim_start);
     } else {
       setTrimStart(0);
       setTrimEnd(Math.round(targetDur * 10) / 10);
       if (videoRef.current) {
         videoRef.current.currentTime = 0;
       }
+      panToTime(0);
     }
-  }, [selectedBeatIdx]); // Only sync when beat index changes
+  }, [selectedBeatIdx, panToTime]); // Only sync when beat index changes
 
   // Current beat info
   const currentBeat = beatCues[selectedBeatIdx] || null;
@@ -240,12 +434,13 @@ export default function ManualStoryboardModal({
     setActiveVideoPath(clean);
     setTrimStart(0);
     setTrimEnd(Math.round(currentBeatTargetDur * 10) / 10);
+    setPanOffset(0);
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
     }
   };
 
-  // Handle selecting a scene from catalog
+  // Handle selecting a scene from catalog (previews scene in player & auto-pans viewport)
   const handleSelectScene = (scene) => {
     const sStart = Math.max(0, Number(scene.start) || 0);
     const sEnd = Math.max(sStart + 0.5, Number(scene.end) || (sStart + currentBeatTargetDur));
@@ -254,8 +449,56 @@ export default function ManualStoryboardModal({
     setTrimStart(Math.round(sStart * 10) / 10);
     setTrimEnd(Math.round(idealEnd * 10) / 10);
 
+    // Auto-Pan timeline view to ensure selected scene is visible and centered
+    panToTime(sStart);
+
     if (videoRef.current) {
       videoRef.current.currentTime = sStart;
+      videoRef.current.play?.().catch(() => {});
+      setIsPlaying(true);
+    }
+  };
+
+  // One-Click Fast Assign: locks scene to current beat with auto-fitted duration and auto-advances
+  const handleQuickAssignScene = (scene, e) => {
+    e?.stopPropagation?.();
+    if (!activeVideoPath) return;
+
+    const sStart = Math.max(0, Number(scene.start) || 0);
+    const sEnd = Math.max(sStart + 0.5, Number(scene.end) || (sStart + currentBeatTargetDur));
+    const idealEnd = Math.min(sEnd, sStart + currentBeatTargetDur);
+    const cleanVid = normalizePath(activeVideoPath);
+
+    const roundedStart = Math.round(sStart * 100) / 100;
+    const roundedEnd = Math.round(idealEnd * 100) / 100;
+
+    // 1. Lock shot to current beat
+    setShotPins((prev) => ({
+      ...prev,
+      [selectedBeatIdx]: {
+        beat_index: selectedBeatIdx,
+        video_path: cleanVid,
+        trim_start: roundedStart,
+        trim_end: roundedEnd,
+      },
+    }));
+
+    // 2. Set current trim preview state & pan viewport to scene
+    setTrimStart(roundedStart);
+    setTrimEnd(roundedEnd);
+    panToTime(roundedStart);
+
+    if (videoRef.current) {
+      videoRef.current.currentTime = roundedStart;
+    }
+
+    // 3. Show micro toast
+    setSaveToast(`✓ ล็อกช็อตใส่วรรคที่ ${selectedBeatIdx + 1} เรียบร้อยแล้ว`);
+    setTimeout(() => setSaveToast(null), 2000);
+
+    // 4. Auto-advance to next beat if available
+    if (selectedBeatIdx < beatCues.length - 1) {
+      setSelectedBeatIdx((idx) => idx + 1);
     }
   };
 
@@ -311,6 +554,47 @@ export default function ManualStoryboardModal({
     const nextEnd = Math.min(videoDuration || 9999, s + currentBeatTargetDur);
     setTrimEnd(Math.round(nextEnd * 10) / 10);
   };
+
+  // Nudge trim range by deltaSec (used by keyboard arrow keys or buttons)
+  const nudgeTrimWindow = useCallback((deltaSec) => {
+    if (!videoDuration) return;
+    const span = trimEnd - trimStart;
+    const newStart = Math.max(0, Math.min(videoDuration - span, trimStart + deltaSec));
+    const newEnd = Math.min(videoDuration, newStart + span);
+    const roundedStart = Math.round(newStart * 100) / 100;
+    const roundedEnd = Math.round(newEnd * 100) / 100;
+
+    setTrimStart(roundedStart);
+    setTrimEnd(roundedEnd);
+    panToTime(roundedStart);
+    if (videoRef.current) {
+      videoRef.current.currentTime = roundedStart;
+    }
+  }, [videoDuration, trimStart, trimEnd, panToTime]);
+
+  // Global keyboard shortcuts for arrow keys when modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      // Do not trigger if typing in an input or textarea or select
+      const activeTag = document.activeElement?.tagName?.toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        // Move by 0.5s (~15 frames at 30fps) by default, or 2.0s (~60 frames) with Shift
+        const step = e.shiftKey ? 2.0 : 0.5;
+        const dir = e.key === 'ArrowRight' ? 1 : -1;
+        nudgeTrimWindow(dir * step);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, nudgeTrimWindow]);
 
   // Video timeupdate handler to loop preview within [trimStart, trimEnd]
   const handleTimeUpdate = () => {
@@ -447,7 +731,7 @@ export default function ManualStoryboardModal({
           ? `มุม: ${angle.angle_name} — ล็อกช็อตวิดีโอรายวรรคบทพูดด้วยความยาวเสียงจริง`
           : 'กำหนดช่วงเวลาวิดีโอรายวรรคบทพูด'
       }
-      maxWidth="max-w-6xl"
+      maxWidth="max-w-7xl"
     >
       <div className="space-y-4 p-1">
         {/* Loading state */}
@@ -504,23 +788,23 @@ export default function ManualStoryboardModal({
           </div>
         )}
 
-        {/* Main Content Layout (2-Panel) */}
+        {/* Main Content Layout (Focused 2-Column Studio Layout: Left Beat Cues 5 cols | Right 9:16 Video Player & Timeline 7 cols) */}
         {!loading && hasShotList && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* ── LEFT PANEL: Beat Cues List (5 cols) ── */}
-            <div className="lg:col-span-5 flex flex-col space-y-2.5 max-h-[640px] overflow-hidden">
-              <div className="flex items-center justify-between pb-1 border-b border-white/[0.08]">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
-                  <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
-                  <span>วรรคบทพูด ({beatCues.length} วรรค / รวม {totalDuration.toFixed(1)}s)</span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch min-h-[620px]">
+            {/* ── COL 1 (LEFT): Beat Cues List (5 cols) ── */}
+            <div className="lg:col-span-5 flex flex-col space-y-3 max-h-[680px] overflow-hidden bg-white/[0.02] p-3.5 rounded-2xl border border-white/[0.08]">
+              <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.08]">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
+                  <Film className="w-4 h-4 text-[#25F4EE]" />
+                  <span>วรรคบทพูด ({beatCues.length} วรรค)</span>
                 </div>
-                <span className="text-[11px] text-cyan-300 font-bold">
+                <span className="text-xs text-cyan-300 font-extrabold px-2 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30">
                   ล็อกแล้ว {pinnedCount}/{totalBeats}
                 </span>
               </div>
 
               {/* Scrollable list of beats */}
-              <div className="overflow-y-auto space-y-2 pr-1 custom-scrollbar flex-1">
+              <div className="overflow-y-auto space-y-2.5 pr-1.5 custom-scrollbar flex-1">
                 {beatCues.map((beat, idx) => {
                   const isSelected = idx === selectedBeatIdx;
                   const pin = shotPins[idx];
@@ -533,40 +817,40 @@ export default function ManualStoryboardModal({
                       onClick={() => setSelectedBeatIdx(idx)}
                       className={`p-3 rounded-xl border transition-all cursor-pointer text-left ${
                         isSelected
-                          ? 'bg-[#25F4EE]/10 border-[#25F4EE] ring-1 ring-[#25F4EE]/50 shadow-md'
+                          ? 'bg-[#25F4EE]/10 border-[#25F4EE] ring-1 ring-[#25F4EE]/50 shadow-lg'
                           : 'bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.08]'
                       }`}
                     >
                       {/* Beat Header: Badge & Role & Timing */}
                       <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                            isSelected ? 'bg-[#25F4EE] text-black' : 'bg-white/10 text-white'
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2.5 py-0.5 rounded text-[11px] font-extrabold ${
+                            isSelected ? 'bg-[#25F4EE] text-black shadow-sm' : 'bg-white/10 text-white'
                           }`}>
                             วรรค {idx + 1}
                           </span>
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${role.color}`}>
+                          <span className={`px-2 py-0.5 rounded text-[9.5px] font-bold border ${role.color}`}>
                             {role.label}
                           </span>
                         </div>
-                        <span className="text-[11px] text-amber-300 font-mono font-bold">
-                          {dur.toFixed(1)}s ({beat.start.toFixed(1)}s - {beat.end.toFixed(1)}s)
+                        <span className="text-xs text-amber-300 font-mono font-extrabold">
+                          {dur.toFixed(1)}s
                         </span>
                       </div>
 
                       {/* Script text */}
-                      <p className="text-xs text-slate-200 line-clamp-2 leading-snug mb-2 font-medium">
+                      <p className="text-xs text-slate-200 line-clamp-3 leading-relaxed mb-2.5 font-medium">
                         {beat.text || '(ไม่มีข้อความ)'}
                       </p>
 
                       {/* Assignment status */}
-                      <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-white/[0.05]">
+                      <div className="flex items-center justify-between gap-1 pt-2 border-t border-white/[0.06]">
                         {pin ? (
                           <div className="flex items-center justify-between w-full">
-                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-300 font-bold bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded">
-                              <Lock className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0" />
-                              <span className="truncate max-w-[130px]">{getFileName(pin.video_path)}</span>
-                              <span className="font-mono text-emerald-200">[{pin.trim_start.toFixed(1)}-{pin.trim_end.toFixed(1)}s]</span>
+                            <span className="inline-flex items-center gap-1.5 text-[10.5px] text-emerald-300 font-bold bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-lg truncate max-w-[260px]">
+                              <Lock className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                              <span className="truncate">{getFileName(pin.video_path)}</span>
+                              <span className="font-mono text-emerald-200 flex-shrink-0">[{pin.trim_start.toFixed(1)}-{pin.trim_end.toFixed(1)}s]</span>
                             </span>
                             <button
                               type="button"
@@ -574,14 +858,14 @@ export default function ManualStoryboardModal({
                                 e.stopPropagation();
                                 handleUnlockBeat(idx);
                               }}
-                              className="text-[10px] text-slate-400 hover:text-rose-300 underline cursor-pointer ml-2"
+                              className="text-[11px] text-slate-400 hover:text-rose-300 underline cursor-pointer ml-1.5 flex-shrink-0 font-medium"
                             >
-                              ปลดล็อก
+                              ปลด
                             </button>
                           </div>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 bg-white/[0.04] border border-white/[0.08] px-2 py-0.5 rounded">
-                            <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
+                          <span className="inline-flex items-center gap-1.5 text-[10.5px] text-slate-400 bg-white/[0.04] border border-white/[0.08] px-2.5 py-0.5 rounded-lg">
+                            <Sparkles className="w-3 h-3 text-cyan-400" />
                             <span>AI เลือกให้อัตโนมัติ</span>
                           </span>
                         )}
@@ -592,139 +876,41 @@ export default function ManualStoryboardModal({
               </div>
             </div>
 
-            {/* ── RIGHT PANEL: Scene Catalog & Trimmer (7 cols) ── */}
-            <div className="lg:col-span-7 flex flex-col space-y-3">
-              {/* Video Selector Dropdown / Tabs */}
-              <div className="p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Video className="w-4 h-4 text-cyan-300 flex-shrink-0" />
-                  <span className="text-xs font-bold text-white flex-shrink-0">คลิปดิบ:</span>
-                  <select
-                    value={activeVideoPath}
-                    onChange={(e) => handleVideoChange(e.target.value)}
-                    className="bg-black/60 border border-white/[0.15] text-xs text-cyan-200 rounded-lg px-2.5 py-1 focus:outline-none focus:border-[#25F4EE] max-w-[240px] truncate cursor-pointer font-medium"
-                  >
-                    {availableVideos.map((v) => (
-                      <option key={v} value={v}>
-                        {getFileName(v)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {activeCatalog?.is_spin_footage && (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                    <RotateCw className="w-3 h-3" />
-                    <span>หมุน 360</span>
-                  </span>
-                )}
-              </div>
-
-              {/* Scene Catalog Gallery */}
-              <div className="p-3 bg-white/[0.02] border border-white/[0.08] rounded-xl space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                    <Eye className="w-3.5 h-3.5 text-[#25F4EE]" />
-                    <span>สารบัญฉาก AI ({allScenes.length} ฉาก)</span>
-                  </div>
-
-                  {/* Filter tabs */}
-                  <div className="flex items-center gap-1 overflow-x-auto">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCategoryFilter('all')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
-                        selectedCategoryFilter === 'all'
-                          ? 'bg-[#25F4EE] text-black font-extrabold'
-                          : 'bg-white/[0.06] text-slate-400 hover:text-white'
-                      }`}
+            {/* ── COL 2 (RIGHT): 9:16 Video Player & Pro Scrubber Studio (7 cols) ── */}
+            <div className="lg:col-span-7 flex flex-col space-y-3 bg-black/50 p-4 rounded-2xl border border-white/[0.12] justify-between shadow-2xl">
+              {/* Top Controls: Dropdown & Target Duration Gauge */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Video className="w-4 h-4 text-cyan-300 flex-shrink-0" />
+                    <select
+                      value={activeVideoPath}
+                      onChange={(e) => handleVideoChange(e.target.value)}
+                      className="bg-black/70 border border-white/[0.15] text-xs text-cyan-200 rounded-xl px-3 py-1.5 focus:outline-none focus:border-[#25F4EE] w-full truncate cursor-pointer font-medium shadow-inner"
                     >
-                      ทั้งหมด
-                    </button>
-                    {Object.keys(ACTION_MAP).map((act) => (
-                      <button
-                        key={act}
-                        type="button"
-                        onClick={() => setSelectedCategoryFilter(act)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer whitespace-nowrap transition-all ${
-                          selectedCategoryFilter === act
-                            ? 'bg-cyan-500 text-black font-extrabold'
-                            : 'bg-white/[0.06] text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        {ACTION_MAP[act].label}
-                      </button>
-                    ))}
+                      {availableVideos.map((v) => (
+                        <option key={v} value={v}>
+                          {getFileName(v)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                  {activeCatalog?.is_spin_footage && (
+                    <span className="px-2.5 py-1 rounded-xl text-[10.5px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5 flex-shrink-0">
+                      <RotateCw className="w-3.5 h-3.5" />
+                      <span>360</span>
+                    </span>
+                  )}
                 </div>
 
-                {/* Scene Cards Carousel / Grid */}
-                {filteredScenes.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[190px] overflow-y-auto pr-1 custom-scrollbar">
-                    {filteredScenes.map((scene, sIdx) => {
-                      const sDur = Math.max(0, (scene.end || 0) - (scene.start || 0));
-                      const actionInfo = ACTION_MAP[scene.action_type] || {
-                        label: scene.action_type || 'ฉากทั่วไป',
-                        color: 'bg-slate-500/20 text-slate-300 border-slate-500/40',
-                      };
-
-                      return (
-                        <div
-                          key={sIdx}
-                          onClick={() => handleSelectScene(scene)}
-                          className="p-2 rounded-lg bg-black/40 hover:bg-[#25F4EE]/10 border border-white/[0.08] hover:border-[#25F4EE]/60 transition-all cursor-pointer text-left flex flex-col justify-between group"
-                        >
-                          <div>
-                            <div className="flex items-center justify-between gap-1 mb-1">
-                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold border truncate ${actionInfo.color}`}>
-                                {actionInfo.label}
-                              </span>
-                              <span className="text-[9px] font-mono text-cyan-300 font-bold">
-                                {sDur.toFixed(1)}s
-                              </span>
-                            </div>
-                            <p className="text-[10px] text-slate-300 line-clamp-2 leading-tight">
-                              {scene.visual_focus || scene.summary || `ฉาก ${sIdx + 1}`}
-                            </p>
-                          </div>
-
-                          <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-white/[0.05] text-[9px] text-slate-400 font-mono">
-                            <span>{formatTimecode(scene.start)}</span>
-                            <span className="text-[#25F4EE] opacity-0 group-hover:opacity-100 font-bold transition-opacity">
-                              เลือกฉากนี้ ➔
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="py-6 text-center text-xs text-slate-400 bg-black/20 rounded-lg border border-dashed border-white/[0.08]">
-                    {allScenes.length === 0
-                      ? 'ยังไม่ได้สแกนสารบัญฉาก AI สำหรับคลิปนี้ แต่คุณสามารถเลื่อนแถบตัดต่อด้านล่างได้โดยตรง'
-                      : 'ไม่พบฉากในหมวดหมู่ที่เลือก'}
-                  </div>
-                )}
-              </div>
-
-              {/* ── TRIM SCRUBBER & FINE TUNER ── */}
-              <div className="p-3 bg-black/50 border border-white/[0.12] rounded-xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-[#25F4EE]" />
-                    <span className="text-xs font-bold text-white">
-                      ปรับช่วงตัดสำหรับวรรคที่ {selectedBeatIdx + 1}
-                    </span>
-                  </div>
-
-                  {/* Target duration comparison gauge */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-400">
-                      ต้องการ: <b className="text-amber-300 font-mono">{currentBeatTargetDur.toFixed(1)}s</b>
-                    </span>
-                    <span className="text-[11px] text-slate-400">|</span>
-                    <span className="text-[11px] text-slate-400">
-                      เลือกไว้: <b className={`font-mono ${
+                {/* Target Duration vs Selected Trim Bar */}
+                <div className="flex items-center justify-between text-xs bg-white/[0.03] px-3 py-1.5 rounded-xl border border-white/[0.07]">
+                  <span className="text-slate-300 font-medium">
+                    ความยาวที่ต้องการ: <b className="text-amber-300 font-mono font-extrabold ml-1">{currentBeatTargetDur.toFixed(1)}s</b>
+                  </span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-slate-300 font-medium">
+                      ตัดไว้: <b className={`font-mono font-extrabold ml-1 ${
                         Math.abs(selectedTrimDur - currentBeatTargetDur) <= 0.3
                           ? 'text-emerald-400'
                           : selectedTrimDur > currentBeatTargetDur
@@ -737,17 +923,18 @@ export default function ManualStoryboardModal({
                     <button
                       type="button"
                       onClick={handleSnapToBeatDur}
-                      className="px-2 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold cursor-pointer transition-all"
-                      title="ปรับความยาวช่วงตัดให้พอดีกับความยาววรรคบทพูด"
+                      className="px-2 py-0.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[10px] font-extrabold cursor-pointer transition-all active:scale-95 shadow-sm"
                     >
-                      พอดีวรรค
+                      ปรับให้พอดี
                     </button>
                   </div>
                 </div>
+              </div>
 
-                {/* Video Player Preview */}
+              {/* 9:16 Video Player Container (Enlarged True 9:16 Aspect Ratio) */}
+              <div className="flex-1 flex items-center justify-center my-1.5">
                 {activeVideoPath && (
-                  <div className="relative rounded-lg overflow-hidden bg-black aspect-video max-h-[180px] flex items-center justify-center border border-white/[0.08]">
+                  <div className="relative rounded-2xl overflow-hidden bg-black aspect-[9/16] h-[370px] max-h-[390px] border border-white/[0.18] shadow-2xl flex items-center justify-center group/vid">
                     <video
                       key={activeVideoPath}
                       ref={videoRef}
@@ -757,146 +944,491 @@ export default function ManualStoryboardModal({
                       onClick={togglePlay}
                     />
 
-                    {/* Play/pause overlay button */}
+                    {/* Play/Pause Button */}
                     <button
                       type="button"
                       onClick={togglePlay}
-                      className="absolute inset-0 m-auto w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/20 transition-all opacity-80 hover:opacity-100 cursor-pointer shadow-lg"
+                      className="absolute inset-0 m-auto w-13 h-13 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/20 transition-all opacity-80 group-hover/vid:opacity-100 hover:scale-105 cursor-pointer shadow-2xl active:scale-90 z-10"
                     >
-                      {isPlaying ? <Pause className="w-5 h-5 text-[#25F4EE]" /> : <Play className="w-5 h-5 ml-0.5 text-white" />}
+                      {isPlaying ? <Pause className="w-6 h-6 text-[#25F4EE]" /> : <Play className="w-6 h-6 ml-0.5 text-white" />}
                     </button>
 
                     {/* Timecode overlay */}
-                    <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 text-[10px] font-mono text-cyan-300 border border-white/10">
+                    <div className="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-black/80 backdrop-blur-md text-[10px] font-mono text-cyan-300 border border-white/10 z-10 font-bold">
                       {formatTimecode(currentTime)} / {formatTimecode(videoDuration)}
+                    </div>
+
+                    {/* 9:16 Badge */}
+                    <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-black/75 backdrop-blur-md text-[9px] font-mono text-slate-300 border border-white/10 z-10 font-semibold">
+                      9:16 TikTok
                     </div>
                   </div>
                 )}
+              </div>
 
-                {/* Time Range Inputs & Sliders */}
-                <div className="space-y-2 pt-1">
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    {/* Start Input */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px] text-slate-300">
-                        <span>จุดเริ่ม (วินาที):</span>
-                        <span className="font-mono text-cyan-300">{formatTimecode(trimStart)}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max={Math.max(0, trimEnd - 0.2)}
-                          value={trimStart}
-                          onChange={(e) => {
-                            const val = Math.max(0, Math.min(Number(e.target.value) || 0, trimEnd - 0.2));
-                            setTrimStart(val);
-                            if (videoRef.current) videoRef.current.currentTime = val;
-                          }}
-                          className="w-full bg-black/60 border border-white/[0.15] text-cyan-200 rounded px-2 py-1 font-mono text-xs focus:outline-none focus:border-[#25F4EE]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const val = Math.max(0, trimStart - 0.5);
-                            setTrimStart(val);
-                            if (videoRef.current) videoRef.current.currentTime = val;
-                          }}
-                          className="px-2 py-1 rounded bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer"
-                        >
-                          -0.5s
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const val = Math.min(trimEnd - 0.2, trimStart + 0.5);
-                            setTrimStart(val);
-                            if (videoRef.current) videoRef.current.currentTime = val;
-                          }}
-                          className="px-2 py-1 rounded bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer"
-                        >
-                          +0.5s
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* End Input */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px] text-slate-300">
-                        <span>จุดจบ (วินาที):</span>
-                        <span className="font-mono text-cyan-300">{formatTimecode(trimEnd)}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          step="0.1"
-                          min={trimStart + 0.2}
-                          max={videoDuration || 9999}
-                          value={trimEnd}
-                          onChange={(e) => {
-                            const val = Math.max(trimStart + 0.2, Number(e.target.value) || (trimStart + 0.2));
-                            setTrimEnd(val);
-                          }}
-                          className="w-full bg-black/60 border border-white/[0.15] text-cyan-200 rounded px-2 py-1 font-mono text-xs focus:outline-none focus:border-[#25F4EE]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const val = Math.max(trimStart + 0.2, trimEnd - 0.5);
-                            setTrimEnd(val);
-                          }}
-                          className="px-2 py-1 rounded bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer"
-                        >
-                          -0.5s
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const val = Math.min(videoDuration || 9999, trimEnd + 0.5);
-                            setTrimEnd(val);
-                          }}
-                          className="px-2 py-1 rounded bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer"
-                        >
-                          +0.5s
-                        </button>
-                      </div>
-                    </div>
+              {/* ── Interactive Scrubber & Trimmer Controls (Expanded Width) ── */}
+              <div className="space-y-2.5 pt-2 border-t border-white/[0.08]">
+                {/* Zoom & Pan Toolbar */}
+                <div className="flex items-center justify-between gap-1 pb-0.5 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400 font-semibold flex items-center gap-1 text-[11px]">
+                      <ZoomIn className="w-3.5 h-3.5 text-[#25F4EE]" />
+                      ซูม:
+                    </span>
+                    {[1, 2, 4, 8].map((z) => (
+                      <button
+                        key={z}
+                        type="button"
+                        onClick={() => {
+                          setZoomLevel(z);
+                          if (z === 1) {
+                            setPanOffset(0);
+                          } else {
+                            const viewSpan = videoDuration / z;
+                            const idealStart = Math.max(0, Math.min(videoDuration - viewSpan, trimStart - viewSpan * 0.25));
+                            setPanOffset(idealStart);
+                          }
+                        }}
+                        className={`px-2 py-0.5 rounded-lg font-mono font-bold text-[11px] transition-all cursor-pointer ${
+                          zoomLevel === z
+                            ? 'bg-[#25F4EE] text-black shadow-md'
+                            : 'bg-white/[0.08] hover:bg-white/[0.15] text-slate-300'
+                        }`}
+                      >
+                        {z}x
+                      </button>
+                    ))}
                   </div>
 
-                  {/* Lock / Update & Unlock button */}
-                  <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.08]">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-slate-400">
-                        {isCurrentBeatPinned
-                          ? 'วรรคนี้ถูกล็อกช็อตอยู่ — ปรับเปลี่ยนช่วงเวลาแล้วกดปุ่มเพื่ออัปเดต'
-                          : 'เมื่อปรับเสร็จแล้ว กดปุ่มเพื่อยืนยันการล็อกช็อตนี้'}
-                      </span>
-                      {isCurrentBeatPinned && (
-                        <button
-                          type="button"
-                          onClick={() => handleUnlockBeat(selectedBeatIdx)}
-                          className="px-2.5 py-1 rounded-md bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer"
-                          title="ปลดล็อกวรรคนี้เพื่อให้ AI เลือกช็อตให้อัตโนมัติ"
-                        >
-                          <Unlock className="w-3 h-3" />
-                          <span>ปลดล็อกวรรคนี้</span>
-                        </button>
-                      )}
-                    </div>
+                  <div className="flex items-center gap-1.5">
+                    {/* Focus Selection Button */}
                     <button
                       type="button"
-                      onClick={handleLockCurrentBeat}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-black font-extrabold text-xs shadow-md shadow-cyan-500/20 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                      onClick={() => {
+                        if (!videoDuration) return;
+                        const selDur = Math.max(0.5, trimEnd - trimStart);
+                        const targetZoom = Math.min(8, Math.max(1, Math.round(videoDuration / (selDur * 2))));
+                        setZoomLevel(targetZoom);
+                        const viewSpan = videoDuration / targetZoom;
+                        const center = (trimStart + trimEnd) / 2;
+                        const newPan = Math.max(0, Math.min(videoDuration - viewSpan, center - viewSpan / 2));
+                        setPanOffset(newPan);
+                      }}
+                      className="px-2 py-1 rounded-lg bg-white/[0.08] hover:bg-[#25F4EE]/20 hover:text-[#25F4EE] text-slate-300 font-bold text-[11px] transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      title="ซูมและโฟกัสตรงช่วงที่กำลังตัดต่อ"
                     >
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>
-                        {isCurrentBeatPinned
-                          ? `อัปเดตช็อตวรรคที่ ${selectedBeatIdx + 1}`
-                          : `ล็อกช็อตวรรคที่ ${selectedBeatIdx + 1}`}
-                      </span>
+                      <Maximize2 className="w-3 h-3" />
+                      <span>โฟกัสช่วงตัด</span>
+                    </button>
+
+                    {zoomLevel > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setZoomLevel(1);
+                          setPanOffset(0);
+                        }}
+                        className="px-2 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-[11px] transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        title="รีเซ็ตการซูมเป็น 1x (เต็มคลิป)"
+                      >
+                        <ZoomOut className="w-3 h-3" />
+                        <span>รีเซ็ต</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── PRO INTEGRATED DUAL-DECK SCRUBBER ── */}
+                <div className="space-y-1.5 pt-0.5">
+                  {/* Deck 1: Global Navigator (Always shows 100% of video overview + interactive viewport lens) */}
+                  {videoDuration > 0 && (
+                    <div className="space-y-0.5">
+                      <div className="flex items-center justify-between text-[9.5px] text-slate-400 font-mono px-0.5">
+                        <span className="flex items-center gap-1 text-slate-400 font-medium">
+                          <Compass className="w-3 h-3 text-cyan-400" />
+                          <span>ภาพรวมคลิปเต็ม (Navigator)</span>
+                        </span>
+                        <span className="font-bold">{formatTimecode(videoDuration)}</span>
+                      </div>
+                      <div
+                        className="relative w-full h-4.5 bg-slate-950/90 rounded-lg border border-white/10 overflow-hidden cursor-pointer select-none group/nav"
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const clickRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                          const clickTime = clickRatio * videoDuration;
+                          const viewSpan = videoDuration / zoomLevel;
+                          const maxPan = Math.max(0, videoDuration - viewSpan);
+                          const newPan = Math.max(0, Math.min(maxPan, clickTime - viewSpan / 2));
+                          setPanOffset(newPan);
+                        }}
+                        title="คลิกที่แถบหรือลากกรอบสีขาวเพื่อเลื่อนดูตำแหน่งต่างๆ ในคลิป"
+                      >
+                        {/* Trim Range Indicator on Navigator */}
+                        <div
+                          className="absolute top-0 bottom-0 bg-cyan-400/50 pointer-events-none rounded transition-all"
+                          style={{
+                            left: `${(trimStart / videoDuration) * 100}%`,
+                            width: `${Math.max(1, ((trimEnd - trimStart) / videoDuration) * 100)}%`,
+                          }}
+                        />
+
+                        {/* Current Playhead on Navigator */}
+                        <div
+                          className="absolute top-0 bottom-0 w-0.5 bg-amber-400 pointer-events-none z-10"
+                          style={{ left: `${(currentTime / videoDuration) * 100}%` }}
+                        />
+
+                        {/* Viewport Lens Box on Navigator (Draggable Window) */}
+                        {zoomLevel > 1 && (
+                          <div
+                            className="absolute top-0 bottom-0 bg-white/20 border border-white/90 rounded cursor-grab active:cursor-grabbing pointer-events-auto shadow-md shadow-white/20 transition-colors hover:bg-white/30"
+                            style={{
+                              left: `${(panOffset / videoDuration) * 100}%`,
+                              width: `${(1 / zoomLevel) * 100}%`,
+                            }}
+                            onPointerDown={(e) => {
+                              e.stopPropagation();
+                              const startX = e.clientX;
+                              const initialPan = panOffset;
+                              const parentWidth = e.currentTarget.parentElement?.getBoundingClientRect().width || 1;
+                              const viewSpan = videoDuration / zoomLevel;
+                              const maxPan = Math.max(0, videoDuration - viewSpan);
+
+                              const onPointerMove = (moveEvt) => {
+                                const dx = moveEvt.clientX - startX;
+                                const dt = (dx / parentWidth) * videoDuration;
+                                const newPan = Math.max(0, Math.min(maxPan, initialPan + dt));
+                                setPanOffset(newPan);
+                              };
+                              const onPointerUp = () => {
+                                window.removeEventListener('pointermove', onPointerMove);
+                                window.removeEventListener('pointerup', onPointerUp);
+                              };
+                              window.addEventListener('pointermove', onPointerMove);
+                              window.addEventListener('pointerup', onPointerUp);
+                            }}
+                          >
+                            <div className="w-full h-full flex items-center justify-center opacity-60">
+                              <div className="w-1.5 h-2 bg-white/80 rounded-full" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Deck 2: Precision Zoomed Timeline Scrubber */}
+                  <div
+                    className="relative w-full h-11 bg-slate-950 rounded-xl border border-cyan-500/25 hover:border-cyan-500/40 transition-colors overflow-hidden select-none p-1"
+                    onWheel={(e) => {
+                      if (zoomLevel <= 1 || !videoDuration) return;
+                      e.preventDefault();
+                      const viewSpan = videoDuration / zoomLevel;
+                      const maxPan = Math.max(0, videoDuration - viewSpan);
+                      const deltaSec = (e.deltaY > 0 ? 1 : -1) * (viewSpan * 0.08);
+                      setPanOffset((p) => Math.max(0, Math.min(maxPan, p + deltaSec)));
+                    }}
+                  >
+                    {(() => {
+                      const viewSpan = videoDuration > 0 ? videoDuration / zoomLevel : 1;
+                      const maxPan = Math.max(0, videoDuration - viewSpan);
+                      const clampedPan = Math.max(0, Math.min(maxPan, panOffset));
+                      const viewStart = clampedPan;
+                      const viewEnd = clampedPan + viewSpan;
+
+                      const timeToPct = (t) => {
+                        if (viewSpan <= 0) return 0;
+                        return ((t - viewStart) / viewSpan) * 100;
+                      };
+
+                      const trimLeftPct = timeToPct(trimStart);
+                      const trimRightPct = timeToPct(trimEnd);
+                      const playheadPct = timeToPct(currentTime);
+
+                      return (
+                        <div
+                          className="relative w-full h-full rounded-lg cursor-pointer overflow-hidden bg-black/60"
+                          onClick={(e) => {
+                            if (!videoDuration) return;
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const clickX = e.clientX - rect.left;
+                            const pct = Math.max(0, Math.min(1, clickX / rect.width));
+                            const targetTime = viewStart + pct * viewSpan;
+                            if (videoRef.current) videoRef.current.currentTime = Math.max(0, Math.min(videoDuration, targetTime));
+                          }}
+                        >
+                          {/* Active Trim Window (Shift Range with Auto-Pan at Boundaries) */}
+                          {videoDuration > 0 && (
+                            <div
+                              className="absolute top-0 bottom-0 bg-gradient-to-r from-cyan-500/40 via-cyan-400/30 to-cyan-500/40 border-y-2 border-cyan-400 cursor-grab active:cursor-grabbing z-20 group/range transition-shadow"
+                              style={{
+                                left: `${Math.max(0, trimLeftPct)}%`,
+                                width: `${Math.max(0.5, Math.min(100, trimRightPct) - Math.max(0, trimLeftPct))}%`,
+                              }}
+                              title="คลิกลากตรงกลางเพื่อเลื่อนช่วงตัดต่อ (เมื่อลากชนขอบ ไทม์ไลน์จะเลื่อนตามอัตโนมัติ)"
+                              onPointerDown={(e) => {
+                                e.stopPropagation();
+                                const startX = e.clientX;
+                                const initialStart = trimStart;
+                                const initialEnd = trimEnd;
+                                const spanDur = initialEnd - initialStart;
+                                const trackEl = e.currentTarget.parentElement;
+                                if (!trackEl) return;
+
+                                let currentDx = 0;
+                                let animFrameId = null;
+
+                                const updateDrag = () => {
+                                  const rect = trackEl.getBoundingClientRect();
+                                  const parentWidth = rect.width || 1;
+                                  const dt = (currentDx / parentWidth) * viewSpan;
+                                  let newStart = Math.max(0, Math.min(videoDuration - spanDur, initialStart + dt));
+                                  let newEnd = newStart + spanDur;
+
+                                  // Auto-pan viewport if dragged near or beyond edges
+                                  setPanOffset((curPan) => {
+                                    let nextPan = curPan;
+                                    const edgeMargin = viewSpan * 0.05;
+                                    if (newStart < curPan + edgeMargin) {
+                                      nextPan = Math.max(0, newStart - edgeMargin);
+                                    } else if (newEnd > curPan + viewSpan - edgeMargin) {
+                                      nextPan = Math.min(maxPan, newEnd - viewSpan + edgeMargin);
+                                    }
+                                    return nextPan;
+                                  });
+
+                                  setTrimStart(Math.round(newStart * 10) / 10);
+                                  setTrimEnd(Math.round(newEnd * 10) / 10);
+                                  if (videoRef.current) videoRef.current.currentTime = newStart;
+                                };
+
+                                const onPointerMove = (moveEvt) => {
+                                  currentDx = moveEvt.clientX - startX;
+                                  if (!animFrameId) {
+                                    animFrameId = requestAnimationFrame(() => {
+                                      updateDrag();
+                                      animFrameId = null;
+                                    });
+                                  }
+                                };
+
+                                const onPointerUp = () => {
+                                  if (animFrameId) cancelAnimationFrame(animFrameId);
+                                  window.removeEventListener('pointermove', onPointerMove);
+                                  window.removeEventListener('pointerup', onPointerUp);
+                                };
+
+                                window.addEventListener('pointermove', onPointerMove);
+                                window.addEventListener('pointerup', onPointerUp);
+                              }}
+                            >
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover/range:opacity-90 transition-opacity">
+                                <Move className="w-3.5 h-3.5 text-cyan-200 drop-shadow" />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Playhead */}
+                          {videoDuration > 0 && playheadPct >= 0 && playheadPct <= 100 && (
+                            <div
+                              className="absolute top-0 bottom-0 w-0.5 bg-amber-400 shadow-sm shadow-amber-400/80 z-25 pointer-events-none transition-all"
+                              style={{ left: `${playheadPct}%` }}
+                            />
+                          )}
+
+                          {/* Left Trim Handle */}
+                          {videoDuration > 0 && trimLeftPct >= -2 && trimLeftPct <= 102 && (
+                            <div
+                              className="absolute top-0 bottom-0 w-5 -ml-2.5 flex items-center justify-center cursor-ew-resize z-30 group/handle touch-none"
+                              style={{ left: `${Math.max(0, Math.min(100, trimLeftPct))}%` }}
+                              title="ลากเพื่อปรับเวลาเริ่มต้น"
+                              onPointerDown={(e) => {
+                                e.stopPropagation();
+                                const startX = e.clientX;
+                                const initialTrim = trimStart;
+                                const trackEl = e.currentTarget.parentElement;
+                                if (!trackEl) return;
+
+                                const onPointerMove = (moveEvt) => {
+                                  const rect = trackEl.getBoundingClientRect();
+                                  const parentWidth = rect.width || 1;
+                                  const dx = moveEvt.clientX - startX;
+                                  const dt = (dx / parentWidth) * viewSpan;
+                                  const newStart = Math.max(0, Math.min(trimEnd - 0.2, initialTrim + dt));
+
+                                  if (newStart < panOffset) {
+                                    setPanOffset(Math.max(0, newStart));
+                                  }
+
+                                  setTrimStart(Math.round(newStart * 10) / 10);
+                                  if (videoRef.current) videoRef.current.currentTime = newStart;
+                                };
+
+                                const onPointerUp = () => {
+                                  window.removeEventListener('pointermove', onPointerMove);
+                                  window.removeEventListener('pointerup', onPointerUp);
+                                };
+
+                                window.addEventListener('pointermove', onPointerMove);
+                                window.addEventListener('pointerup', onPointerUp);
+                              }}
+                            >
+                              <div className="w-2.5 h-8 bg-[#25F4EE] rounded-sm shadow-lg group-hover/handle:scale-110 transition-transform border border-black/60 flex items-center justify-center">
+                                <div className="w-0.5 h-3.5 bg-black/40 rounded-full" />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Right Trim Handle */}
+                          {videoDuration > 0 && trimRightPct >= -2 && trimRightPct <= 102 && (
+                            <div
+                              className="absolute top-0 bottom-0 w-5 -ml-2.5 flex items-center justify-center cursor-ew-resize z-30 group/handle touch-none"
+                              style={{ left: `${Math.max(0, Math.min(100, trimRightPct))}%` }}
+                              title="ลากเพื่อปรับเวลาสิ้นสุด"
+                              onPointerDown={(e) => {
+                                e.stopPropagation();
+                                const startX = e.clientX;
+                                const initialTrim = trimEnd;
+                                const trackEl = e.currentTarget.parentElement;
+                                if (!trackEl) return;
+
+                                const onPointerMove = (moveEvt) => {
+                                  const rect = trackEl.getBoundingClientRect();
+                                  const parentWidth = rect.width || 1;
+                                  const dx = moveEvt.clientX - startX;
+                                  const dt = (dx / parentWidth) * viewSpan;
+                                  const newEnd = Math.max(trimStart + 0.2, Math.min(videoDuration, initialTrim + dt));
+
+                                  if (newEnd > panOffset + viewSpan) {
+                                    setPanOffset(Math.min(maxPan, newEnd - viewSpan));
+                                  }
+
+                                  setTrimEnd(Math.round(newEnd * 10) / 10);
+                                  if (videoRef.current) videoRef.current.currentTime = newEnd;
+                                };
+
+                                const onPointerUp = () => {
+                                  window.removeEventListener('pointermove', onPointerMove);
+                                  window.removeEventListener('pointerup', onPointerUp);
+                                };
+
+                                window.addEventListener('pointermove', onPointerMove);
+                                window.addEventListener('pointerup', onPointerUp);
+                              }}
+                            >
+                              <div className="w-2.5 h-8 bg-[#25F4EE] rounded-sm shadow-lg group-hover/handle:scale-110 transition-transform border border-black/60 flex items-center justify-center">
+                                <div className="w-0.5 h-3.5 bg-black/40 rounded-full" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Numeric Fine-tune Row & Lock Button */}
+                <div className="flex items-center justify-between gap-2 pt-1 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-slate-400 font-medium">เริ่ม:</span>
+                    <span className="font-mono text-cyan-300 text-xs font-bold">{formatTimecode(trimStart)}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = Math.max(0, trimStart - 0.5);
+                        setTrimStart(val);
+                        if (videoRef.current) videoRef.current.currentTime = val;
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer transition-all active:scale-95"
+                    >
+                      -0.5
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = Math.min(trimEnd - 0.2, trimStart + 0.5);
+                        setTrimStart(val);
+                        if (videoRef.current) videoRef.current.currentTime = val;
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer transition-all active:scale-95"
+                    >
+                      +0.5
                     </button>
                   </div>
+
+                  {/* Nudge Entire Range Buttons */}
+                  <div className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/10" title="คีย์ลัด: กด ← หรือ → บนคีย์บอร์ด">
+                    <button
+                      type="button"
+                      onClick={() => nudgeTrimWindow(-0.5)}
+                      className="p-1.5 rounded-lg bg-white/[0.08] hover:bg-cyan-500/25 hover:text-cyan-300 text-slate-200 transition-all cursor-pointer flex items-center justify-center active:scale-95 shadow-sm"
+                      title="เลื่อนถอยหลัง 0.5s (~15 เฟรม) (คีย์ลัด: ←)"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => nudgeTrimWindow(0.5)}
+                      className="p-1.5 rounded-lg bg-white/[0.08] hover:bg-cyan-500/25 hover:text-cyan-300 text-slate-200 transition-all cursor-pointer flex items-center justify-center active:scale-95 shadow-sm"
+                      title="เลื่อนไปข้างหน้า 0.5s (~15 เฟรม) (คีย์ลัด: →)"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-slate-400 font-medium">จบ:</span>
+                    <span className="font-mono text-cyan-300 text-xs font-bold">{formatTimecode(trimEnd)}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = Math.max(trimStart + 0.2, trimEnd - 0.5);
+                        setTrimEnd(val);
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer transition-all active:scale-95"
+                    >
+                      -0.5
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = Math.min(videoDuration || 9999, trimEnd + 0.5);
+                        setTrimEnd(val);
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer transition-all active:scale-95"
+                    >
+                      +0.5
+                    </button>
+                  </div>
+                </div>
+
+                {/* Lock Action Button */}
+                <div className="pt-2.5 flex items-center justify-between gap-2 border-t border-white/[0.08]">
+                  {isCurrentBeatPinned ? (
+                    <button
+                      type="button"
+                      onClick={() => handleUnlockBeat(selectedBeatIdx)}
+                      className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                    >
+                      <Unlock className="w-3.5 h-3.5" />
+                      <span>ปลดล็อกช็อตนี้</span>
+                    </button>
+                  ) : (
+                    <span className="text-xs text-slate-400 font-medium">เลือกช่วงเวลาที่ต้องการ แล้วกดปุ่มยืนยัน</span>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleLockCurrentBeat}
+                    className="px-4 py-2 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-black font-black text-xs shadow-lg shadow-cyan-500/25 flex items-center gap-2 transition-all cursor-pointer active:scale-95 ml-auto"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>
+                      {isCurrentBeatPinned
+                        ? `อัปเดตช็อตวรรคที่ ${selectedBeatIdx + 1}`
+                        : `ล็อกช็อตวรรคที่ ${selectedBeatIdx + 1}`}
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>

@@ -7,6 +7,18 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round HOOK-SAFE-ZONE-SNAP-20260927 | ปรับค่าเริ่มต้นของตำแหน่ง Hook Overlay (`HOOK_TOP_Y`) ให้ชนขอบบนของ Safe Zone พอดี (180px / 9.4% จากขอบบน) สำหรับทุกคลิปที่สร้างใหม่ พร้อมรักษา Preview = Render Parity 100% | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round COVER-TIMELINE-HIRES-FRAME-20260927 | จับปกจากเฟรม Timeline ที่ 1080×1920 ด้วยคลิปต้นฉบับและ Cutout ตัวเต็ม ก่อน Render | 2026-09-27 | ปิดรอบ (ดำเนินการโดย: Codex (GPT-6)) |
+| Round STORYBOARD-MAPPER-VIDEO-DROPDOWN-DEDUP-20260926 | แก้ไขรายการชื่อวิดีโอซ้ำซ้อนใน Dropdown (เช่น แสดง Hoyaup.mov 3 บรรทัดติดกัน) โดยใช้ Strict Video Deduplication กรองด้วย normalized filename, path และ isSameVideo ให้เหลือตัวเลือกวิดีโอแต่ละไฟล์เพียงรายการเดียว 100% | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round STORYBOARD-MAPPER-FOCUSED-STUDIO-LAYOUT-20260926 | ปรับปรุงเลย์เอาต์หน้า Manual Storyboard Mapper เป็น Focused 2-Column Studio Layout โดยนำคอลัมน์สารบัญฉาก AI ด้านขวาที่ไม่ได้ใช้ออก ขยาย Video Player ขนาดใหญ่ 9:16 เต็มตา และขยายแถบ Timeline Scrubber กว้างขึ้น ละเอียดยิ่งขึ้น พร้อมตัดทอนโค้ดที่ไม่จำเป็น | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round STORYBOARD-MAPPER-DEFAULT-ZOOM-AND-NUDGE-UX-20260926 | ปรับค่าเริ่มต้น Timeline Zoom เป็น 8x ตามค่าที่ผู้ใช้ต้องการ ขยายระยะก้าวคีย์ลัดลูกศรซ้าย-ขวาเป็น 0.5s (~15 เฟรม) และ Shift เป็น 2.0s (~60 เฟรม) พร้อมปรับ UI เลย์เอาต์ปุ่มเลื่อนช่วงตัดให้กระชับ สะอาดตา ไร้ตัวหนังสือรก | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round STORYBOARD-MAPPER-KEYBOARD-NUDGE-20260926 | เพิ่มคีย์ลัดปุ่มลูกศร `←` และ `→` บนคีย์บอร์ด สำหรับขยับช่วงตัดต่อ (Nudge Trim Window) ทีละ 0.1s (และกดร่วมกับ `Shift` เพื่อเลื่อนทีละ 0.5s) พร้อมปุ่มกดบนหน้าจอและระบบ Auto-pan viewport อัตโนมัติ | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round STORYBOARD-MAPPER-SMOOTH-PRO-SCRUBBER-20260926 | อัปเกรดระบบ Timeline Scrubber & Trimmer สู่ระดับ Pro Integrated Dual-Deck Scrubber รวม Global Navigator Overview เข้ากับ Precision Zoomed Track แก้ปัญหาการลากช่วงตัดต่อสีฟ้าหลุดหายขอบจอ และเพิ่ม Auto-pan at boundaries ลากชนขอบแล้วเลื่อนตามอัตโนมัติอย่างนุ่มนวล | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round STORYBOARD-MAPPER-AUTO-PAN-FIX-20260926 | แก้ไขระบบไทม์ไลน์ขณะซูม เมื่อคลิกเลือกฉากในสารบัญ (เช่น ฉาก 9 เริ่มที่ 01:50.0) หรือสลับวรรค ให้ระบบ Auto-Pan & Auto-Center เลื่อนมุมมองไทม์ไลน์และ Minimap ไปยังช่วงเวลาของฉากนั้นทันที พร้อมเล่นพรีวิววิดีโออัตโนมัติ | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round STORYBOARD-MAPPER-ZOOM-PAN-SCRUBBER-20260926 | เพิ่มระบบ Timeline Zoom & Pan (1x–8x) ใน Manual Storyboard Mapper: ปรับระดับการซูมพร้อม Minimap แถบภาพรวม, การลากเลื่อน (Pan) ข้ามวิดีโอ, ล้อเมาส์ Wheel เลื่อนเวลา, ปุ่มด่วน Focus Selection, และระบบ Window Shift เลื่อนช่วงตัดทั้งก้อนอย่างแม่นยำ | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round STORYBOARD-MAPPER-THUMBNAIL-QUEUE-FIX-20260926 | ปลดล็อกคิว Thumbnail ใน Scene Catalog ที่ทำให้ฉากที่ 14 ขึ้นไปไม่โหลดพรีวิว: แก้ไขการคืนโควต้าคิว capture queue (`done()`) ให้ทำงานทันทีหลังวาด canvas เสร็จ พร้อมเพิ่ม onError และ safety timeout 4s ป้องกันคิวค้างถาวร | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round STORYBOARD-MAPPER-9-16-LAYOUT-20260926 | ออกแบบ Layout หน้า Manual Storyboard Mapper ใหม่เป็น 3 คอลัมน์กว้าง (max-w-7xl) จัดสัดส่วน 9:16 แนวตั้งแท้จริง ทั้ง Video Player และ การ์ด AI Scene Catalog คมชัด ไม่ยืดบิดเบี้ยว พร้อม Interactive Timeline Scrubber & One-Click Fast Assign | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round STORYBOARD-MAPPER-UX-REVAMP-20260926 | ปรับปรุงหน้าต่าง Manual Storyboard Mapper ยกระดับ UX: เพิ่ม Video Thumbnail Preview & Hover Scrubbing, One-Click Fast Assign + Auto-Advance และ Interactive Visual Range Scrubber พร้อม Draggable Handles ทดสอบผ่านฉลุย 399/399 เทส | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round CUTOUT-VIDEO-PIPELINE-REPLAN-20260926 | เปลี่ยน Cutout จาก PNG sequence เป็นวิดีโอ VP9 alpha ที่ Preview และ Render ใช้ไฟล์เดียวกัน · Phase 0 วัด baseline จริง (encode 18.89x realtime, พิสูจน์ว่าต้องบังคับ `-c:v libvpx-vp9` ไม่งั้น alpha หายเงียบ) · Phase 4 เพิ่ม Preview-vs-Render parity gate และวัดขอบสั่นพบว่าโหมด default (`legacy`) ไม่ลดการสั่นเลย ส่วน `motion` ลดได้ 12.7–20.5% | 2026-09-26 | สำเร็จ (ดำเนินการโดย: Codex (GPT-6) Phase 1–3, Claude Code (Claude Opus 5 1M) Phase 0+4) |
 | Round RESTORE-ORIGINAL-FOOTAGE-BG-FOR-CUTOUT-SANDWICH-20260925 | คืนค่าพื้นหลังเดิมของฟุตเทจวิดีโอ (Original Footage Video) ในโหมด Cutout เพื่อทำแซนด์วิช 3 ชั้นสมบูรณ์ [พื้นหลังเดิม -> ฟอนต์ -> สินค้า -> ซับไตเติล] ทั้งใน Render และ Preview | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round DIAGNOSE-AND-FIX-TEXT-BEHIND-SUBJECT-RENDER-EVIDENCE-20260925 | สืบสวนเชิงลึก Root cause ตัวหนังสือทับสินค้าในการเรนเดอร์ 15:07 น. พบ Master Switch ใน project.json ถูกปิด แก้ไขเปิด Master Switch และจับเฟรมภาพพิสูจน์จริงว่าตัวหนังสืออยู่ด้านหลังสินค้า 100% | 2026-09-25 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -16,6 +28,214 @@
 | Round JEV-DECISION-LAYER-RULE-20260926 | ทำให้ AI ทุกตัวในโปรเจกต์ใช้ Jev (TypeSafe System One) ตัดสินใจร่วมกันได้ ผ่านกฎกลาง `.agents/rules/jev_decision_layer.md` + CLI `tools/jev_advisor.py` (noul/choice/score/fanout) พร้อม confidence gate `proceed|escalate` และเทส offline 22 ตัว | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Cline (Claude)) |
 | Round A11Y-ARIA-LABEL-AND-ROUND-CLOSE-20260926 | เพิ่ม accessible name ที่ขาดใน Inspector 4 จุด (OverlayScaleControl + ช่องค้นหา + ช่องพิมพ์บทพูด) ทำให้ `test_editor_controls_browser.py` ผ่าน 9/9 และปลดล็อก gate ของ 2 รอบ Cutout พร้อมปิดรอบค้าง 2 รอบเข้า HISTORY | 2026-09-26 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Cline (Claude)) |
 
+
+## Round HOOK-SAFE-ZONE-SNAP-20260927 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-27 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง pytest parity 159/159, behavior tests 20/20 และ frontend tests 403/403
+
+**เป้าหมาย:**
+ปรับค่า default เริ่มต้นของตัวหนังสือ Hook Overlay (บล็อกบนสุด / tier แรก) ให้เริ่มต้นชนกับเส้นขอบบนของ Safe Zone (180px หรือ 9.4% จากขอบบน สำหรับวิดีโอ 1080x1920) โดยอัตโนมัติตอนเจนคลิปใหม่ครั้งแรก
+
+**การแก้ไข:**
+1. **Model & Generation Defaults:**
+   - ปรับ `HOOK_TOP_Y` จาก `260.0 / 1920.0` เป็น `180.0 / 1920.0` ใน `scripts/overlay_model.py` และ `frontend/src/lib/overlayModel.js`
+   - ปรับ fallback `cursor_y = 180` ใน `scripts/subtitle/overlay_events.py`
+   - ปรับ `CAPTION_POSITIONS["top"]` เป็น `(8, 180)` และปรับ MarginV ของสไตล์ ASS (`HookHeader`: 180, `HookHeaderShadow`: 177, `HookHeaderPill`: 180) ใน `scripts/subtitle_engine.py`
+2. **Preview & Render Parity:**
+   - ปรับค่า assertion ใน `tests/test_preview_render_parity.py` และ `tests/test_preview_render_behavior.py` ให้ตรวจสอบสัดส่วน `180.0 / 1920.0 == 90.0 / 960.0`
+   - พรีวิวบนแคนวาสกับไฟล์ ASS ซับไตเติลที่เบิร์นลงวิดีโอมีตำแหน่งตรงกัน 100%
+
+### ผลการทดสอบ (Verification)
+- `pytest tests/test_preview_render_parity.py`: 159 passed (100% pass)
+- `pytest tests/test_preview_render_behavior.py`: 20 passed (100% pass)
+- `npm test -- --run` (frontend): 403 passed (100% pass)
+
+---
+
+## Round COVER-TIMELINE-HIRES-FRAME-20260927 — ปิดรอบแล้ว
+
+วันที่: 2026-09-27 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6)
+
+**สาเหตุ:** ก่อนมี MP4 หน้า Cover Studio รับ JPEG จาก Canvas Preview 540×960 แล้ว backend ขยายเป็น 1080×1920 ทำให้รายละเอียดที่หายไปกลับมาไม่ได้
+
+**แก้ไข:** `SequencePlayer.jsx` เพิ่มการจับปกแยกที่ 1080×1920 โหลดเฟรมจากคลิปต้นฉบับ และเมื่อเปิด Cutout ใช้ `cutout.webm` ตัวเต็มหรือ PNG frame ของ artifact จากนั้นวาดลำดับภาพ, overlay, caption, sticker, effect และ LUT ด้วย painter เดิมที่ขนาดปก ส่ง PNG เข้า Cover Studio ก่อน Render โดย Preview ตัดต่อยังใช้ 540×960; `EditorShell.jsx` รอการจับภาพเต็มความละเอียดก่อนเปิด Cover Studio และแสดง error ถ้า Cutout ยังไม่พร้อม
+
+**ตรวจสอบ:** Frontend tests 403 ผ่าน, build ผ่าน, Preview/Render parity 159 ผ่าน, FFmpeg behavior และ cover scene 28 ผ่าน, `git diff --check` ผ่าน เฟรมจริงจากหน้า Editor/Cutout ยังไม่ได้ทำ browser QA เพราะไม่มีโปรเจกต์ทดสอบที่พร้อมใช้งานในรอบนี้ ชุด pytest ทั้งโปรเจกต์หยุดหลังผ่านช่วงต้น ~3% เพราะใช้เวลานานมาก
+
+**ขอบเขต:** ไม่แก้ไฟล์ Raw, Assets, ดราฟต์จริง หรือผลส่งออก; รักษา diff งานอื่นที่มีอยู่เดิม
+
+## Round STORYBOARD-MAPPER-VIDEO-DROPDOWN-DEDUP-20260926 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-27 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง 399 frontend tests และ build production สำเร็จ
+
+**เป้าหมาย:** แก้ไขปัญหารายการชื่อวิดีโอซ้ำซ้อนใน Dropdown ตัวเลือกคลิปวิดีโอของ **Manual Storyboard Mapper** (`ManualStoryboardModal.jsx`) ที่แสดงชื่อคลิปเดียวกันซ้ำ 3 บรรทัด (เช่น `Hoyaup.mov` 3 อัน):
+1. **สาเหตุของปัญหา:** คลิปวิดีโอเดียวกันถูกส่งเข้ามาจากหลายแหล่งใน data model เช่น `angle.selected_videos`, `product.videos`, `shotPins` และ `sceneCatalogs` โดยบางแหล่งใช้ path สัมพัทธ์และบางแหล่งมีรูปแบบ path หรือ object โครงสร้างที่ต่างกันเล็กน้อย เมื่อใช้ `Map` ที่เปรียบเทียบ string path ดิบ จึงทำให้หลุดเป็นตัวเลือกซ้ำกัน
+2. **การแก้ไข (Strict Video Deduplication):**
+   - ใช้ `seenNames` และ `seenPaths` ตรวจจับ normalized filename และ path
+   - ใช้ `isSameVideo(existing, clean)` ตรวจจับความซ้ำซ้อนระดับ canonical identity
+   - กรองให้เหลือตัวเลือกคลิปแต่ละไฟล์เพียง 1 รายการเท่านั้น ไม่แสดงชื่อซ้ำซ้อนอีกต่อไป
+
+### ผลการทดสอบ (Verification)
+- `npm test -- --run`: ผ่านครบ 399/399 tests (0 failures, 100% pass)
+- `npm run build`: Vite build สำเร็จ ไร้ข้อผิดพลาด
+
+---
+
+## Round STORYBOARD-MAPPER-FOCUSED-STUDIO-LAYOUT-20260926 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง 399 frontend tests และ build production สำเร็จ
+
+**เป้าหมาย:** ปรับปรุงเลย์เอาต์หน้าต่าง **Manual Storyboard Mapper** (`ManualStoryboardModal.jsx`) สู่ **Focused 2-Column Studio Layout** เพื่อประสิทธิภาพ ความสบายตา และความแม่นยำสูงสุด:
+1. **ตัดคอลัมน์ขวา "สารบัญฉาก AI (18 ฉาก)" ออก:** เนื่องจากผู้ใช้เปลี่ยนมาเลือกและลากกำหนดช่วงตัดต่อจากไทม์ไลน์โดยตรง พร้อมควบคุมด้วยคีย์ลัดลูกศร `←` `→` ที่สะดวกและแม่นยำกว่ามาก
+2. **ขยายพื้นที่ Studio Center เต็มศักยภาพ (7 คอลัมน์):**
+   - Video Player ขนาดใหญ่ขึ้น คมชัด สัดส่วน 9:16 แนวตั้งแท้จริง โฟกัสช็อตได้เต็มตา ไม่โดนบีบอัด
+   - Timeline Scrubber (Pro Dual-Deck) ขยายกว้างเต็มพื้นที่ ลากเลื่อนช่วงตัด (Trim Window) ได้ละเอียดยิ่งขึ้น พร้อมขยับขยายได้แม่นยำระดับเฟรม
+3. **จัดระเบียบคอลัมน์ซ้าย (วรรคบทพูด 5 คอลัมน์):** แสดงข้อความบทพูดและสถานะการล็อกช็อตได้โปร่งโล่ง ชัดเจน
+
+### ผลการทดสอบ (Verification)
+- `npm test -- --run`: ผ่านครบ 399/399 tests (0 failures, 100% pass)
+- `npm run build`: Vite build สำเร็จ ไร้ข้อผิดพลาด
+
+---
+
+## Round STORYBOARD-MAPPER-DEFAULT-ZOOM-AND-NUDGE-UX-20260926 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง 399 frontend tests และ build production สำเร็จ
+
+**เป้าหมาย:** ปรับแต่งการตั้งค่าเริ่มต้นและการควบคุมไทม์ไลน์ใน **Manual Storyboard Mapper** (`ManualStoryboardModal.jsx`) ตามความต้องการของผู้ใช้:
+1. **ตั้งค่า Default Zoom เป็น 8x:** เมื่อเปิดหน้าต่างขึ้นมา ไทม์ไลน์จะซูมระดับสูงสุด 8x ทันทีเพื่อความแม่นยำสูงสุดในการตัดต่อ ไม่ต้องคอยกดเปลี่ยนเอง
+2. **ขยายระยะก้าวคีย์ลัดลูกศร (Multi-frame Step):**
+   - กดปุ่มลูกศร `←` หรือ `→`: ขยับช่วงตัดต่อทีละ **0.5 วินาที** (~15 เฟรมที่ 30 fps) รวดเร็ว ชัดเจน ไม่สั้นจนเกินไป
+   - กด `Shift + ←` หรือ `Shift + →`: ขยับกระโดดทีละ **2.0 วินาที** (~60 เฟรม)
+3. **ปรับ UI เลย์เอาต์ปุ่มลูกศรให้กระชับ มินิมอล:** ตัดข้อความคำอธิบายรกๆ ทิ้ง คงไว้เฉพาะกล่องปุ่มลูกศรคู่ `[ ← ] [ → ]` ดีไซน์เรียบหรู กะทัดรัด พร้อม Tooltip แสดงคีย์ลัดเมื่อนำเมาส์ไปชี้ ทำให้แถบปรับเวลาด้านล่างสะอาดตาและใช้งานสะดวกยิ่งขึ้น
+
+### ผลการทดสอบ (Verification)
+- `npm test -- --run`: ผ่านครบ 399/399 tests (0 failures, 100% pass)
+- `npm run build`: Vite build สำเร็จ ไร้ข้อผิดพลาด
+
+---
+
+## Round STORYBOARD-MAPPER-KEYBOARD-NUDGE-20260926 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง 399 frontend tests และ build production สำเร็จ
+
+**เป้าหมาย:** เพิ่มระบบคีย์ลัดปุ่มลูกศรซ้าย-ขวา (`←` / `→`) บนคีย์บอร์ด สำหรับขยับช่วงตัดต่อ (Nudge Trim Window) ในหน้าต่าง **Manual Storyboard Mapper** (`ManualStoryboardModal.jsx`) เพื่อให้สามารถปรับจังหวะช็อตตัดต่อได้อย่างสะดวกรวดเร็วและแม่นยำระดับเฟรม:
+1. **คีย์ลัดลูกศรซ้าย (`←`) และลูกศรขวา (`→`):** เลื่อนช่วงตัดต่อ (ทั้งก้อน) ถอยหลังหรือไปข้างหน้าทีละ 0.1 วินาที โดยคงความยาวเดิมไว้ 100%
+2. **ปุ่มเร่งความเร็ว (`Shift + ←` / `Shift + →`):** เลื่อนช่วงตัดต่อเร็วขึ้นทีละ 0.5 วินาที
+3. **Auto-Pan & Player Sync:** เมื่อกดเลื่อนช่วงตัดต่อ หน้าต่างมุมมองไทม์ไลน์จะ Auto-pan เลื่อนตามทันทีหากช่วงตัดเข้าใกล้หรือหลุดขอบ พร้อมอัปเดตหัวเล่นวิดีโอ (`currentTime`) ไปยังจุดเริ่มต้นใหม่ทันที
+4. **Interactive UI Nudge Buttons:** เพิ่มปุ่มกดลูกศร `←` และ `→` บนหน้าจอแถบปรับแต่งละเอียด ให้สามารถใช้เมาส์คลิกขยับช่วงเวลาได้อีกทางหนึ่งอย่างสะดวกสบาย
+
+### ผลการทดสอบ (Verification)
+- `npm test -- --run`: ผ่านครบ 399/399 tests (0 failures, 100% pass)
+- `npm run build`: Vite build สำเร็จ ไร้ข้อผิดพลาด
+
+---
+
+## Round STORYBOARD-MAPPER-SMOOTH-PRO-SCRUBBER-20260926 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง 399 frontend tests และ build production สำเร็จ
+
+**เป้าหมาย:** ปรับปรุงระบบ Timeline Scrubber & Trimmer ใน `ManualStoryboardModal.jsx` สู่ระดับ **Pro Integrated Dual-Deck Scrubber** เพื่อแก้ปัญหาการลากตัวเคอร์เซอร์สีฟ้า (Trim Window & Handles) ที่ลากไปทางขวาแล้วพุ่งไปทางซ้าย, อาการติดขัด, และเมื่อลากจนสุดขอบแล้วตัวสีฟ้าหลุดหายออกนอกจอ:
+1. **Root Cause Analysis (Scrutinize):**
+   - การคำนวณตำแหน่งแบบเดิมใช้การลากอิงกับ viewport ที่ซูมอยู่ เมื่อลากตัวสีฟ้า (Trim Window) เลยขอบขวาของ viewport ค่า time percentage จะพุ่งเกิน 100% ทำให้ตัวจับขอบ (Handles) ที่มี guard `trimRightPct <= 105` ไม่ถูก render และแถบสีฟ้ากระโดดหลุดหายไป
+   - เมื่อซูมอยู่ ค่า `panOffset` ไม่ได้เลื่อนตามเมื่อผู้ใช้ลากกล่องสีฟ้าไปชนขอบ (Missing boundary auto-scroll) ทำให้ผู้ใช้รู้สึกว่าไม่สามารถลากข้ามไปซ้ายหรือขวาได้ต่อเนื่อง
+2. **การแก้ไขและการออกแบบ Pro Integrated Dual-Deck Scrubber:**
+   - **Deck 1: Global Navigator Overview (ด้านบน):** แสดงภาพรวมคลิปทั้งไฟล์ 100% ตลอดเวลา พร้อมแถบสีฟ้าและเส้น Playhead สีเหลือง มีกรอบสีขาวแสดงตำแหน่งที่กำลังซูม สามารถคลิกเพื่อกระโดด หรือคลิกลากกรอบเพื่อเลื่อนดูคลิปได้อย่างรวดเร็ว
+   - **Deck 2: Precision Zoomed Track (ด้านล่าง):** แสดงช่วงตัดต่อที่กำลังซูมขยายอย่างคมชัด ลากเลื่อนช่วงเวลาตัดต่อทั้งก้อน (Shift Range) และหัวจับขอบซ้าย-ขวาได้อย่างแม่นยำ
+   - **Auto-Pan on Drag Boundary:** เมื่อลากตัวสีฟ้าหรือหัวจับขอบชนขอบซ้ายหรือขวา ระบบจะคำนวณและเลื่อน viewport (`panOffset`) ตามไปข้างหน้าหรือข้างหลังอย่างนุ่มนวลอัตโนมัติ ไม่สะดุด
+   - **Visual Bounds Clamping:** ป้องกันไม่ให้แถบสีฟ้าหรือตัวจับขอบหลุดหายจากหน้าจออย่างเด็ดขาด แสดงผลชัดเจน 100% เสมอ
+   - **Throttle ด้วย requestAnimationFrame:** ลื่นไหลระดับ 60 FPS เคอร์เซอร์เปลี่ยนตามสถานะอย่างสมูท
+
+### ผลการทดสอบ (Verification)
+- `npm test -- --run`: ผ่านครบ 399/399 tests (0 failures, 100% pass)
+- `npm run build`: Vite build สำเร็จ ไร้ข้อผิดพลาด
+
+---
+
+## Round STORYBOARD-MAPPER-AUTO-PAN-FIX-20260926 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง 399 frontend tests และ build production สำเร็จ
+
+**เป้าหมาย:** แก้ไขระบบไทม์ไลน์ขณะใช้งานโหมดซูม (Zoom 2x, 4x, 8x) ในหน้าต่าง **Manual Storyboard Mapper** (`ManualStoryboardModal.jsx`) เนื่องจากเมื่อผู้ใช้คลิกเลือกฉากใน AI Scene Catalog ที่อยู่ช่วงท้ายวิดีโอ (เช่น ฉาก 9 ที่เริ่มวินาทีที่ `01:50.0` หรือ 110 วินาที) แถบช่วงตัด (Trim Window) หายไปจากแถบไทม์ไลน์ Scrubber:
+1. **Root Cause:** เมื่อตั้งค่า Zoom ไว้ที่ 8x ไทม์ไลน์จะแสดงหน้าต่างเวลาเพียงแค่ ~30 วินาทีแรกของวิดีโอ (`panOffset = 0` ถึง `~30s`) เมื่อผู้ใช้คลิกเลือก "ฉาก 9" (`01:50.0`) ค่า `trimStart` ถูกอัปเดตเป็น 110s ซึ่งอยู่นอกช่วงมุมมองที่กำลังซูมอยู่ จึงทำให้แถบเลือกหลุดขอบมองไม่เห็น และเครื่องเล่นวิดีโอไม่ได้ขยับตาม
+2. **การแก้ไข (Auto-Pan & Auto-Center):**
+   - พัฒนาฟังก์ชัน `panToTime(targetTime, dur, zoom)` สำหรับคำนวณและเลื่อนมุมมองไทม์ไลน์ (`panOffset`) ให้ครอบคลุมช่วงเวลาเป้าหมายโดยอัตโนมัติ โดยจัดให้แถบตัดต่ออยู่บริเวณ ~30% จากขอบซ้ายของไทม์ไลน์อย่างสบายตา
+   - ในฟังก์ชัน `handleSelectScene(scene)`: เมื่อคลิกเลือกการ์ดฉาก ให้เรียก `panToTime(sStart)` เพื่อเลื่อนมุมมองไทม์ไลน์และแถบ Minimap ไปยังฉากนั้นทันที พร้อม Seek วิดีโอ (`videoRef.current.currentTime = sStart`) และสั่ง `play()` เล่นพรีวิวฉากนั้นอัตโนมัติ
+   - ในฟังก์ชัน `handleQuickAssignScene(scene, e)`: เมื่อกดปุ่มแมพด่วน ให้เรียก `panToTime(roundedStart)` อัปเดตมุมมองไปที่ฉากที่เลือกเช่นกัน
+   - ใน `useEffect` เมื่อผู้ใช้สลับวรรคบทพูด (`selectedBeatIdx`): หากวรรคนั้นมีพิกัดเวลาเดิม ให้ Auto-Pan ไปยังเวลานั้นทันที
+   - รีเซ็ต `panOffset = 0` อัตโนมัติเมื่อมีการเปลี่ยนไฟล์ฟุตเทจวิดีโอ
+
+### ผลการทดสอบ (Verification)
+- `npm test -- --run`: ผ่านครบ 399/399 tests (0 failures, 100% pass)
+- `npm run build`: Vite build สำเร็จ ไร้ข้อผิดพลาด
+
+---
+
+## Round STORYBOARD-MAPPER-ZOOM-PAN-SCRUBBER-20260926 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง 399 frontend tests และ build production สำเร็จ
+
+**เป้าหมาย:** เพิ่มระบบ **Timeline Zoom & Pan (ซูมเข้า-ออก และเลื่อนไทม์ไลน์)** ในเครื่องเล่นวิดีโอของหน้าต่าง **Manual Storyboard Mapper** เพื่อให้ผู้ใช้สามารถซูมดูช่วงคลิปที่สั้นมากๆ ได้อย่างแม่นยำและลากเลื่อนช่วงตัดต่อได้อย่างอิสระ:
+1. **Multi-level Zoom Controls:** ปุ่มซูมด่วน `1x`, `2x`, `4x`, `8x` พร้อมปุ่ม `โฟกัสช่วงตัด (Focus Selection)` ซูมขยายช่วงที่กำลังตัดให้ขยายเต็มความกว้างไทม์ไลน์ทันที และปุ่มรีเซ็ตเป็น 1x
+2. **Minimap Overview & Viewport Window:** เมื่อซูมมากกว่า 1x จะปรากฏแถบ Minimap ด้านบน แสดงพิกัดทั้งวิดีโอ พร้อมกล่องขาวไฮไลต์มุมมองที่กำลังซูม สามารถคลิกหรือลากเพื่อ Pan เปลี่ยนช่วงเวลาได้อย่างง่ายดาย
+3. **Pannable Scrubber & Mouse Wheel:** สามารถใช้ลูกกลิ้งเมาส์ (Mouse Wheel) เลื่อนช่วงเวลาเดินหน้า-ถอยหลังได้อย่างรวดเร็วในมุมมองที่ซูมอยู่
+4. **Window Shift Mode (เลื่อนช่วงทั้งก้อน):** สามารถคลิกลากตรงกลางแถบช่วงตัดต่อเพื่อเลื่อนช่วงเวลาไปข้างหน้าหรือข้างหลังโดยคงความยาวเดิมไว้ได้ ไม่ต้องคอยขยับหัว-ท้ายทีละข้าง
+5. **Enlarged Touch/Drag Handles:** ขยายขนาดตัวจับซ้าย-ขวาให้กว้างและหนาขึ้น มองเห็นชัดเจนและลากปรับเวลาได้สะดวก ไม่เบียดกันแม้คลิปจะยาวหลายนาที
+
+### ผลการทดสอบ (Verification)
+- `npm test -- --run`: ผ่านครบ 399/399 tests (0 failures, 100% pass)
+- `npm run build`: Vite build สำเร็จ ไร้ข้อผิดพลาด
+
+---
+
+## Round STORYBOARD-MAPPER-THUMBNAIL-QUEUE-FIX-20260926 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง 399 frontend tests และ build production สำเร็จ
+
+**เป้าหมาย:** แก้ไขปัญหาการ์ดสารบัญฉาก AI ตั้งแต่ฉากที่ 14 ขึ้นไป Thumbnail พรีวิวไม่แสดงผล (หมุนค้างหรือไม่ขึ้นภาพ):
+1. **Root Cause:** คอมโพเนนต์ `SceneThumbnail` ใช้คิวจำกัดปริมาณการสร้างภาพพร้อมกัน 2 ตัว (`MAX_CONCURRENT_CAPTURES = 2`) แต่เมื่อฟังก์ชัน `handleCaptureLoaded` ทำการจับภาพวาดลง canvas และแคชสำเร็จ ตัวปล่อยคิว `releaseCapture` กลับไม่ได้ถูกเรียกทันที (ปล่อยเฉพาะตอน unmount) ทำให้โควต้าค้างอยู่ที่ 2 ตัว คิวที่เหลือทั้งหมดจึงถูกบล็อกไม่ให้ทำงาน
+2. **การแก้ไข:**
+   - ผูก `releaseCaptureRef` และสร้าง `finishCapture` เพื่อเรียก `done()` คืนโควต้าคิวทันทีหลังจับภาพลง canvas เสร็จ
+   - เพิ่ม `onError` callback บน `<video>` เพื่อคืนโควต้าคิวทันทีหากเกิดข้อผิดพลาด
+   - เพิ่ม Safety timeout 4.0 วินาที ป้องกันกรณี browser ไม่ยิง event `onLoadedData`/`onSeeked` เพื่อรับประกันว่าคิวจะไม่มีวันค้าง
+   - ทุกฉากตั้งแต่ฉากที่ 1 ถึงฉากสุดท้ายจะสามารถรันคิวประมวลผล thumbnail ขึ้นมาแสดงผลได้ครบถ้วน 100%
+
+### ผลการทดสอบ (Verification)
+- `npm test -- --run`: ผ่านครบ 399/399 tests (0 failures, 100% pass)
+- `npm run build`: Vite build สำเร็จ ไร้ข้อผิดพลาด
+
+---
+
+## Round STORYBOARD-MAPPER-9-16-LAYOUT-20260926 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง 399 frontend tests และ build production สำเร็จ
+
+**เป้าหมาย:** ออกแบบ Layout หน้าต่าง **Manual Storyboard Mapper** (`ManualStoryboardModal.jsx`) ใหม่ทั้งหมดเป็นโครงสร้าง **3 คอลัมน์กว้าง (`max-w-7xl`)** เพื่อแก้ปัญหาฟุตเทจแนวตั้ง 9:16 ถูกยืดออกแนวนอนจนผิดสัดส่วน (Landscape Distortion):
+1. **คอลัมน์ซ้าย (Left Beat List - 4 cols):** รายการสคริปต์วรรคบทพูด แสดงสถานะการล็อกช็อต (Badge ล็อกแล้ว/ยังไม่ล็อก) และความยาววินาทีแม่นยำ พร้อมปุ่มปลดล็อกรายวรรค
+2. **คอลัมน์กลาง (Center Video Player & Scrubber - 4 cols):** เครื่องเล่นวิดีโอ 9:16 แนวตั้งแท้จริง (`aspect-[9/16]`) สัดส่วนสมจริงตามแบบ TikTok ไม่มีการยืด พร้อมแถบ Visual Range Scrubber มี Draggable Handles ลากหัว-ท้าย พร้อมช่องกรอกตัวเลขแบบละเอียด
+3. **คอลัมน์ขวา (Right AI Scene Catalog - 4 cols):** สารบัญฉาก AI ในกริด 2 คอลัมน์แนวตั้ง 9:16 (`aspect-[9/16]`) แสดง Dynamic Thumbnail สัดส่วนคมชัด พร้อมระบบ Hover Scrubbing และปุ่ม One-Click Fast Assign (`แมพวรรค X ➔`)
+
+### ผลการทดสอบ (Verification)
+- `npm test -- --run`: ผ่านครบ 399/399 tests (0 failures, 100% pass)
+- `npm run build`: Vite build สำเร็จ ไร้ข้อผิดพลาด
+
+---
+
+## Round STORYBOARD-MAPPER-UX-REVAMP-20260926 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-26 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง 399 frontend tests และ build production สำเร็จ
+
+**เป้าหมาย:** ปรับปรุงหน้าต่าง **Manual Storyboard Mapper** (`ManualStoryboardModal.jsx`) ยกระดับ UX สู่มาตรฐาน Impeccable (Operate Mode):
+1. **Scene Thumbnails Preview & Hover Scrubbing:** เพิ่มคอมโพเนนต์ `SceneThumbnail` ดึง dynamic frame preview จากวิดีโอต้นฉบับมาแสดงในการ์ดสารบัญฉาก AI ทันที ไม่ต้องเลือกแบบตาบอด พร้อม live hover scrub เมื่อเลื่อนเมาส์ผ่านการ์ด
+2. **One-Click Fast Assign & Auto-Advance:** เพิ่มปุ่มลัด `แมพวรรค X` ตรงกลางการ์ดฉาก (และฟังก์ชัน `handleQuickAssignScene`) กดคลิกเดียวระบบจะคำนวณตัดเวลาพอดีกับเสียงวรรคพูดปัจจุบัน ล็อกช็อตทันที และกระโดดไปวรรคถัดไปให้อัตโนมัติ (ลดการคลิกจาก 4-5 ขั้นตอนเหลือ 1 คลิก)
+3. **Interactive Visual Range Scrubber:** เพิ่มแถบไทม์ไลน์ภาพรวมพร้อม Draggable Handles ซ้าย-ขวา สำหรับลากเลื่อนจุด Trim Start / Trim End ได้อย่างแม่นยำ พร้อมแถบเทียบความยาวเสียงพูดและวิดีโอ
+4. **Visual Hierarchy & State Polish:** ขยายการ์ดให้เห็นภาพชัดเจน ปรับปรุงระบบสี contrast ในธีมมืด และคงความเข้ากันได้กับการ Sync สคริปต์ 100%
+
+### ผลการทดสอบ (Verification)
+- `npm test -- --run`: ผ่าน 399/399 tests (0 failures, 100% pass)
+- `npm run build`: Build สำเร็จ ไร้ข้อผิดพลาด
+
+---
 
 ## Round CUTOUT-VIDEO-PIPELINE-REPLAN-20260926 — ปิดรอบแล้ว ✅
 

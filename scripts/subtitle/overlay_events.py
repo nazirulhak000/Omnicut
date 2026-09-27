@@ -361,12 +361,12 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
         except (TypeError, ValueError):
             x_center = video_width // 2
 
-    cursor_y = 260  # HookHeader top anchor
+    cursor_y = 180  # HookHeader top anchor
     if "y" in hook_overlay and hook_overlay.get("y") is not None:
         try:
             cursor_y = int(round(video_height * float(hook_overlay["y"])))
         except (TypeError, ValueError):
-            cursor_y = 260
+            cursor_y = 180
     # Canvas anchors a top-aligned hook at the em square while libass \an8
     # anchors the taller Windows line box.  The ASS style intentionally boosts
     # Fontsize to restore the em size, so remove only the added ascent here.
