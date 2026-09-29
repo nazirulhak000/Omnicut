@@ -7,10 +7,32 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round SETUP-LOCAL-ENV-GITHUB-20260929 | ติดตั้งสภาพแวดล้อม Python (.venv Python 3.13) ใหม่บนเครื่องแทน .venv เก่าที่ย้ายเครื่องมาและพัง, ติดตั้ง dependencies จาก requirements.txt ครบ 100%, แก้ไข NameError typing Dict/Any ใน shot_matching_stage.py, ทดสอบ build frontend ผ่าน, และตรวจสอบการเชื่อมต่อ GitHub origin พร้อมใช้งาน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round DRAFT-FONT-OPTIONS-PARITY-20260927 | ซิงค์ตัวเลือกฟอนต์ซับไตเติลในหน้าสร้างคลิปดราฟต์ (`NewClipPanel.jsx`) ให้เท่ากับหน้าตัดต่อ (`CaptionInspector.jsx`) โดยแชร์ `FONT_OPTIONS` มีครบ 5 ฟอนต์ (Kanit, IBM Plex, Prompt, Noto Sans Thai, Mali) แทนที่มีเพียง 2 ฟอนต์ | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
-| Round SCHEDULE-UX-PRO-ENHANCEMENT-20260927 | ยกระดับ UX & Visual Clarity หน้าตารางจัดการคิว (ScheduleAgenda): นำปุ่มเพิ่มเป็นชุด (+ Bulk Add) ออกมาหน้าแรก, แสดงจุดสี Hook และแท็กสไตล์บนการ์ดคิว (List & Calendar), เพิ่มแถบค้นหา & ตัวกรองสินค้า/ช่วงวัน, และป้ายเตือนความสมดุลรายวัน (เวลาชนกัน/สินค้าซ้ำ) | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 
-## Round DRAFT-FONT-OPTIONS-PARITY-20260927 — ปิดรอบแล้ว ✅
+## Round SETUP-LOCAL-ENV-GITHUB-20260929 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ติดตั้งสภาพแวดล้อม Python 3.13 พร้อม dependencies ครบ 100%, backend & frontend พร้อมรัน, เชื่อม GitHub เรียบร้อย
+
+**เป้าหมาย:**
+1. ติดตั้งสภาพแวดล้อมโปรแกรมบนเครื่องให้ใช้งานได้จริง (แก้ปัญหา `.venv` เก่าที่ย้ายเครื่องมาและชี้ไปที่ executable ของเครื่องอื่น)
+2. ติดตั้ง dependencies ใน `requirements.txt` ให้ครบถ้วนสมบูรณ์
+3. ตรวจสอบการเชื่อมต่อ GitHub repository
+4. ตรวจสอบ backend server, frontend Vite build, และความพร้อมในการรัน `start_app.bat`
+
+**ผลการดำเนินงาน:**
+1. **Python Environment:**
+   - ตรวจพบ `.venv` เดิมผูกอยู่กับพาธเครื่องอื่นที่ไม่สามารถรันได้
+   - สร้าง `.venv` ใหม่โดยใช้ Python 3.13 (`3.13.14`) ในเครื่อง
+   - ติดตั้ง dependencies ทั้งหมดจาก `requirements.txt` ลงใน `.venv` เรียบร้อย 100%
+   - แก้ไข bug เล็กน้อยใน `scripts/stages/shot_matching_stage.py`: นำเข้า `Dict, Any` จาก `typing` ที่ตกหล่น
+   - ทดสอบ import `scripts.api_server` และ unit test สำเร็จ (`pytest tests/test_thai_clause_wrap.py` 12/12 ผ่าน, `tests/test_word_reveal.py` 27/27 ผ่าน)
+2. **Frontend Environment:**
+   - ทดสอบ `npm run build` ใน `frontend/` สำเร็จเรียบร้อย (2031 modules transformed, built in 1.03s)
+3. **GitHub Connection:**
+   - Git remote เชื่อมต่อกับ `https://github.com/nazirulhak000/Omnicut.git`
+   - ทดสอบ `git fetch origin` และ `git push --dry-run origin phase1-affiliate-studio` สำเร็จสมบูรณ์ Credential ถูกต้อง พร้อม push/pull ได้ทันที
+
 
 วันที่: 2026-09-27 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง frontend unit tests 416/416 และ vite build
 

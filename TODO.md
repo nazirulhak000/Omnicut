@@ -1,6 +1,9 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
-
+ 
+- [x] Round SETUP-LOCAL-ENV-GITHUB-20260929 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 - [x] Round DRAFT-FONT-OPTIONS-PARITY-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
+
+
 
 - [x] Round SCHEDULE-UX-PRO-ENHANCEMENT-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 

@@ -5,7 +5,7 @@ J-Cut micro-cue grouping, acoustic/motion-guided zoom emphasis, and beat snappin
 """
 
 import os
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from scripts.video_editor import VideoEditor
 from scripts.image_motion_engine import ImageMotionEngine
