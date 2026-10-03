@@ -13,6 +13,7 @@ export function createCutoutVideoPlayback(video, refresh = () => {}) {
   const metrics = { seeks: 0, frames: 0, rejectedFrames: 0 };
   const tolerance = () => 1.5 / fps;
   const publish = () => {
+    video._cutoutTargetTime = target;
     video._cutoutPresentedTime = presented;
     video._cutoutWaitingForFrame = waiting;
   };
@@ -65,6 +66,7 @@ export function createCutoutVideoPlayback(video, refresh = () => {}) {
       fps = Number.isFinite(frameRate) && frameRate > 0 ? frameRate : 30;
       target = Math.max(0, Number(time) || 0);
       if (Number.isFinite(video.duration)) target = Math.min(target, Math.max(0, video.duration - 1 / fps));
+      publish();
       playing = isPlaying;
       const baseRate = Math.max(0.0625, Math.min(16, Number(rate) || 1));
       const elapsed = lastNow == null ? 0 : Math.max(0, (now - lastNow) / 1000);
@@ -74,7 +76,11 @@ export function createCutoutVideoPlayback(video, refresh = () => {}) {
       lastNow = now;
       const drift = video.currentTime - target;
       const pausedMismatch = !playing && (presented == null || Math.abs(presented - target) > 0.75 / fps);
-      const needsSeek = discontinuity || Math.abs(drift) > (playing ? 0.16 : 0.75 / fps);
+      // Source loading can start this decoder early, and a busy compositor can
+      // leave it behind. Beyond the drawable frame window, rate-only recovery
+      // would hide the subject for hundreds of milliseconds. Resynchronise the
+      // decoder while retaining the stricter paused frame selection.
+      const needsSeek = discontinuity || Math.abs(drift) > (playing ? tolerance() : 0.75 / fps);
       if (needsSeek && (!video.seeking || discontinuity)) {
         presented = null;
         waiting = true;
@@ -82,8 +88,12 @@ export function createCutoutVideoPlayback(video, refresh = () => {}) {
         video.currentTime = target;
         metrics.seeks += 1;
       }
-      // Stay on the clip's clock. Small drift is corrected without flushing the decoder.
-      const correction = playing && !needsSeek ? Math.max(-0.1, Math.min(0.1, -drift * 1.5)) : 0;
+      // Follow the frame that Canvas will draw, rather than only currentTime:
+      // Chromium can present an upcoming frame ahead of its playback clock.
+      // Bounded rate corrections keep small phase drift out of the strict frame
+      // readiness window without repeatedly flushing the decoder with seeks.
+      const presentationDrift = presented == null ? drift : presented - target;
+      const correction = playing && !needsSeek ? Math.max(-0.1, Math.min(0.1, -presentationDrift * 6)) : 0;
       video.playbackRate = Math.max(0.0625, Math.min(16, baseRate * (1 + correction)));
       if (!video.requestVideoFrameCallback && !video.seeking && video.readyState >= 2) {
         presented = video.currentTime;

@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import tempfile
+from pathlib import Path
 from urllib.parse import quote, urlsplit
 
 import pytest
@@ -12,8 +14,17 @@ from playwright.sync_api import sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 
+@pytest.fixture
+def cutout_media_dir(tmp_path):
+    # Remove generated source/alpha media even after a failed assertion/encode.
+    with tempfile.TemporaryDirectory(prefix="cutout-video-", dir=tmp_path) as directory:
+        yield Path(directory)
+
+
 @pytest.mark.parametrize("speed", [1, 0.5, 1.3155, 2])
-def test_transparent_video_cutout_appears_in_real_sequence_player(tmp_path, motion_fixture_url, speed):
+@pytest.mark.parametrize("quality", ["smooth540", "master1080"])
+def test_transparent_video_cutout_appears_in_real_sequence_player(cutout_media_dir, motion_fixture_url, speed, quality):
+    tmp_path = cutout_media_dir
     source = tmp_path / "source.mp4"
     raw = tmp_path / "foreground.rgba"
     cutout = tmp_path / "cutout.webm"
@@ -54,6 +65,8 @@ def test_transparent_video_cutout_appears_in_real_sequence_player(tmp_path, moti
         browser = playwright.chromium.launch(headless=True)
         try:
             page = browser.new_page(viewport={"width": 1100, "height": 1100}, ignore_https_errors=True)
+            page_errors = []
+            page.on("pageerror", lambda error: page_errors.append(str(error)))
             page.add_init_script("""(() => {
               window.__cutoutProbeVideos = [];
               const original = document.createElement.bind(document);
@@ -84,14 +97,29 @@ def test_transparent_video_cutout_appears_in_real_sequence_player(tmp_path, moti
 
             page.route(f"**/api/background-isolation/videos/{artifact_id}/cutout.webm", serve_cutout)
             page.goto(url, wait_until="domcontentloaded")
-            page.get_by_test_id("real-media-preview").wait_for()
+            try:
+                page.get_by_test_id("real-media-preview").wait_for(timeout=10000)
+            except PlaywrightTimeoutError:
+                pytest.fail(f"Cutout fixture failed to mount: {page_errors}; {page.locator('body').inner_text()[:1200]}")
+            page.get_by_test_id("preview-quality-select").select_option(quality)
+            expected = [1080, 1920] if quality == "master1080" else [540, 960]
             page.get_by_role("button", name="เล่นพรีวิว").click()
+            try:
+                page.wait_for_function("""dimensions => {
+                  const canvas = document.querySelector('[data-testid="real-media-preview"] canvas');
+                  return canvas?.width === dimensions[0] && canvas?.height === dimensions[1];
+                }""", arg=expected, timeout=10000)
+            except PlaywrightTimeoutError:
+                pytest.fail(str(page.evaluate("""() => ({
+                  canvases: [...document.querySelectorAll('[data-testid="real-media-preview"] canvas')].map(c => ({w:c.width,h:c.height})),
+                  quality: document.querySelector('[data-testid="preview-quality-select"]')?.value,
+                })""")))
             condition = """() => {
               const canvas = document.querySelector('[data-testid="real-media-preview"] canvas');
               if (!canvas) return false;
               const ctx = canvas.getContext('2d');
-              const left = ctx.getImageData(100, 480, 1, 1).data;
-              const right = ctx.getImageData(440, 480, 1, 1).data;
+              const left = ctx.getImageData(Math.floor(canvas.width * 100 / 540), Math.floor(canvas.height / 2), 1, 1).data;
+              const right = ctx.getImageData(Math.floor(canvas.width * 440 / 540), Math.floor(canvas.height / 2), 1, 1).data;
               // Right: the red cut-out subject. Left: the blue source
               // footage, which composite mode must keep visible rather than
               // painting over -- that fill was the regression that lost the
@@ -105,15 +133,23 @@ def test_transparent_video_cutout_appears_in_real_sequence_player(tmp_path, moti
                 assert rate is not None and abs(rate - speed) <= speed * 0.12, (rate, speed)
                 playback = page.evaluate("""async () => {
                   const video = window.__cutoutProbeVideos.find(v => v.src.includes('/cutout.webm'));
-                  const ctx = document.querySelector('[data-testid="real-media-preview"] canvas').getContext('2d');
+                  const canvas = document.querySelector('[data-testid="real-media-preview"] canvas');
+                  const ctx = canvas.getContext('2d');
                   const seeks = video._cutoutPlayback.metrics.seeks;
                   let visible = 0;
+                  const samples = [];
                   for (let i = 0; i < 60; i++) {
                     await new Promise(requestAnimationFrame);
-                    visible += ctx.getImageData(440, 480, 1, 1).data[0] > 100;
+                    const red = ctx.getImageData(Math.floor(canvas.width * 440 / 540), Math.floor(canvas.height / 2), 1, 1).data[0];
+                    visible += red > 100;
+                    samples.push({red, time: video.currentTime, target: video._cutoutTargetTime,
+                      presented: video._cutoutPresentedTime, ready: video._cutoutPlayback.ready(),
+                      seeking: video.seeking, rate: video.playbackRate});
                   }
-                  return {seeks: video._cutoutPlayback.metrics.seeks - seeks, visible};
+                  return {seeks: video._cutoutPlayback.metrics.seeks - seeks, visible, samples};
                 }""")
+                print(json.dumps({"quality": quality, "speed": speed, "visible": playback["visible"], "seeks": playback["seeks"],
+                                  "max_drift": max(abs(x["time"] - x["target"]) for x in playback["samples"])}))
                 assert playback["seeks"] <= 2, playback
                 assert playback["visible"] >= 54, playback
             except PlaywrightTimeoutError:
@@ -125,8 +161,8 @@ def test_transparent_video_cutout_appears_in_real_sequence_player(tmp_path, moti
                     labels: [...root.querySelectorAll('[aria-label]')].map(x => x.getAttribute('aria-label')),
                     videos: window.__cutoutProbeVideos.map(v => ({src:v.currentSrc, ready:v.readyState, time:v.currentTime,
                       presented:v._cutoutPresentedTime, waiting:v._cutoutWaitingForFrame, paused:v.paused, error:v.error?.code})),
-                    left: ctx && Array.from(ctx.getImageData(100, 480, 1, 1).data),
-                    right: ctx && Array.from(ctx.getImageData(440, 480, 1, 1).data),
+                    left: ctx && Array.from(ctx.getImageData(Math.floor(canvas.width * 100 / 540), Math.floor(canvas.height / 2), 1, 1).data),
+                    right: ctx && Array.from(ctx.getImageData(Math.floor(canvas.width * 440 / 540), Math.floor(canvas.height / 2), 1, 1).data),
                   };
                 }""")
                 pytest.fail(f"cutout preview did not show subject: {diagnostics}")
@@ -134,7 +170,8 @@ def test_transparent_video_cutout_appears_in_real_sequence_player(tmp_path, moti
             browser.close()
 
 
-def test_missing_ready_artifact_never_reveals_original_background(tmp_path, motion_fixture_url):
+def test_missing_ready_artifact_never_reveals_original_background(cutout_media_dir, motion_fixture_url):
+    tmp_path = cutout_media_dir
     source = tmp_path / "source.mp4"
     subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
@@ -160,7 +197,7 @@ def test_missing_ready_artifact_never_reveals_original_background(tmp_path, moti
             page.wait_for_function("""() => {
               const canvas = document.querySelector('[data-testid="real-media-preview"] canvas');
               if (!canvas) return false;
-              const pixel = canvas.getContext('2d').getImageData(100, 480, 1, 1).data;
+              const pixel = canvas.getContext('2d').getImageData(Math.floor(canvas.width * 100 / 540), Math.floor(canvas.height / 2), 1, 1).data;
               return pixel[0] < 60 && pixel[1] < 60 && pixel[2] < 80;
             }""", timeout=8000)
         finally:

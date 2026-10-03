@@ -217,6 +217,19 @@ test('status summary exposes failed artifacts instead of downgrading them to mis
   assert.equal(result.label, 'Cutout คุณภาพไม่ผ่าน');
 });
 
+test('a stale project marker over ready clips asks to re-prepare instead of claiming bad quality', () => {
+  const result = summarizeBackgroundIsolationStatus({
+    projectConfig: { enabled: true, artifact: { id: null, status: 'stale' } },
+    clips: [{
+      source_path: 'D:/clips/product.mp4',
+      background_isolation: { enabled: true, artifact: { id: ARTIFACT_ID, status: 'ready' } },
+    }],
+  });
+
+  assert.equal(result.state, 'quality_failed');
+  assert.equal(result.label, 'Cutout ล้าสมัย กรุณาเตรียมใหม่');
+});
+
 test('status summary reports processing before ready and ready only after every clip is ready', () => {
   const clips = [
     { source_path: 'D:/clips/a.mp4', background_isolation: { enabled: true, artifact: { id: ARTIFACT_ID, status: 'ready' } } },
@@ -484,6 +497,8 @@ test('invalid config schema or options is disabled like the backend contract', (
   for (const config of [
     { schema_version: 99, enabled: true },
     { enabled: true, engine: 'other' },
+    { enabled: true, engine: 'sam2', model: 'u2net' },
+    { enabled: true, engine: 'rembg', model: 'sam2.1_hiera_tiny' },
     { enabled: 'yes' },
   ]) {
     const result = resolveBackgroundIsolationPreview({

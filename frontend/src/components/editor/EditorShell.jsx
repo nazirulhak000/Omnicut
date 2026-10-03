@@ -51,6 +51,11 @@ import {
   summarizeBackgroundIsolationStatus,
 } from '../../lib/backgroundIsolationPreview.js';
 import { resolveEditorProjectName } from '../../lib/editorEntry.js';
+import {
+  addSubjectPointToConfig,
+  buildPrepareBaseConfig,
+  clearSubjectPointsOnConfig,
+} from '../../lib/cutoutSubjectPointState.js';
 import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
 import Inspector from './Inspector';
@@ -470,6 +475,7 @@ export default function EditorShell({
   }, [set]);
   const [isCaptionHidden, setIsCaptionHidden] = useState(false);
   const [isCutoutHidden, setIsCutoutHidden] = useState(false);
+  const [subjectPickMode, setSubjectPickMode] = useState(false);
 
   // The banner and the text overlays are one array now, and it lives inside
   // the undo history. The banner used to sit outside it as seven loose
@@ -1455,6 +1461,35 @@ export default function EditorShell({
     set((prev) => ({ ...prev, backgroundIsolation: next || null }));
   }, [set]);
 
+  // Product points picked on the preview. They are project-level config, so
+  // they go through patchBackgroundIsolation only: previewBackgroundIsolation
+  // is a view-only mask and writing it back would persist "hidden" for real.
+  const hasReadyCutoutClipArtifact = useMemo(
+    () => (clipList || []).some((clip) => clip?.background_isolation?.artifact?.status === 'ready'),
+    [clipList],
+  );
+  const handlePickSubjectPoint = useCallback((point) => {
+    if (backgroundIsolationPreparing) return;
+    const next = addSubjectPointToConfig(backgroundIsolation, point,
+      { hasReadyClipArtifact: hasReadyCutoutClipArtifact });
+    if (next !== backgroundIsolation) patchBackgroundIsolation(next);
+  }, [backgroundIsolation, backgroundIsolationPreparing, hasReadyCutoutClipArtifact, patchBackgroundIsolation]);
+  const handleClearSubjectPoints = useCallback(() => {
+    if (backgroundIsolationPreparing) return;
+    const next = clearSubjectPointsOnConfig(backgroundIsolation,
+      { hasReadyClipArtifact: hasReadyCutoutClipArtifact });
+    if (next !== backgroundIsolation) patchBackgroundIsolation(next);
+  }, [backgroundIsolation, backgroundIsolationPreparing, hasReadyCutoutClipArtifact, patchBackgroundIsolation]);
+  const handleToggleSubjectPick = useCallback((nextActive) => {
+    setSubjectPickMode((current) => (typeof nextActive === 'boolean' ? nextActive : !current));
+  }, []);
+  // Picking only makes sense while the cutout is on, visible and idle.
+  const subjectPickAllowed = backgroundIsolation?.enabled === true
+    && !isCutoutHidden && !backgroundIsolationPreparing;
+  // Reset during render (React's documented derived-state pattern) so a stale
+  // `true` cannot come back when the cutout is switched on again.
+  if (subjectPickMode && !subjectPickAllowed) setSubjectPickMode(false);
+
   // A page reload or a short network outage can happen after the backend has
   // already finished. Rebind a completed task's artifact to the matching
   // timeline clips so the user does not need to run cutout again manually.
@@ -1510,28 +1545,9 @@ export default function EditorShell({
       showToast(`กรุณาปิดพื้นหลังเบลอ ${backgroundIsolationPlan.conflictCount} คลิปก่อนเตรียม Cutout`);
       return;
     }
-    const baseConfig = {
-      ...(backgroundIsolation?.enabled === true
-        ? backgroundIsolation
-        : {
-          schema_version: 1,
-          enabled: true,
-          mode: 'cutout',
-          engine: 'rembg',
-          model: 'u2net',
-          quality: 'balanced',
-          fallback: 'spotlight',
-          artifact: { schema_version: 1, id: null, status: 'missing' },
-        }),
-      // Existing projects may carry the old compact-model default. A manual
-      // re-prepare is an explicit request to rebuild, so use the cleaner
-      // model while leaving the old artifact untouched in cache.
-      model: backgroundIsolation?.model === 'u2netp'
-        ? 'u2net'
-        : (backgroundIsolation?.model || 'u2net'),
-      request_id: crypto.randomUUID(),
-      artifact: { schema_version: 1, id: null, status: 'missing' },
-    };
+    // Picked product points (subject_points) travel inside this config to the
+    // backend; buildPrepareBaseConfig keeps them even for a fresh config.
+    const baseConfig = buildPrepareBaseConfig(backgroundIsolation, crypto.randomUUID());
     patchBackgroundIsolation({
       ...baseConfig,
       enabled: true,
@@ -2410,6 +2426,9 @@ export default function EditorShell({
                   // and the render payload -- the export then came out with
                   // the hook text over the product.
                   backgroundIsolation={previewBackgroundIsolation}
+                  subjectPoints={backgroundIsolation?.subject_points ?? []}
+                  subjectPickMode={subjectPickMode && subjectPickAllowed}
+                  onPickSubjectPoint={handlePickSubjectPoint}
                   backgroundIsolationStatus={backgroundIsolationStatus}
                   onToggleBackgroundIsolation={(nextEnabled) => patchBackgroundIsolation({
                     ...(backgroundIsolation || {}),
@@ -2717,6 +2736,10 @@ export default function EditorShell({
                       backgroundIsolationProgress={backgroundIsolationProgress}
                       backgroundIsolationError={backgroundIsolationError}
                       onCancelBackgroundIsolation={cancelBackgroundIsolation}
+                      subjectPoints={backgroundIsolation?.subject_points ?? []}
+                      subjectPickMode={subjectPickMode}
+                      onToggleSubjectPick={handleToggleSubjectPick}
+                      onClearSubjectPoints={handleClearSubjectPoints}
                       onClearAllBgBlur={handleClearAllBgBlur}
                       onSelectClip={handleSelectClipById}
                       onAddEffect={handleAddEffect}
@@ -2874,6 +2897,10 @@ export default function EditorShell({
                         backgroundIsolationProgress={backgroundIsolationProgress}
                         backgroundIsolationError={backgroundIsolationError}
                         onCancelBackgroundIsolation={cancelBackgroundIsolation}
+                        subjectPoints={backgroundIsolation?.subject_points ?? []}
+                        subjectPickMode={subjectPickMode}
+                        onToggleSubjectPick={handleToggleSubjectPick}
+                        onClearSubjectPoints={handleClearSubjectPoints}
                         onClearAllBgBlur={handleClearAllBgBlur}
                         onSelectClip={handleSelectClipById}
                         onAddEffect={handleAddEffect}
@@ -2970,6 +2997,9 @@ export default function EditorShell({
                     spotlight={spotlight}
                     // View-only mask -- see the note on the desktop tree.
                     backgroundIsolation={previewBackgroundIsolation}
+                    subjectPoints={backgroundIsolation?.subject_points ?? []}
+                    subjectPickMode={subjectPickMode && subjectPickAllowed}
+                    onPickSubjectPoint={handlePickSubjectPoint}
                     backgroundIsolationStatus={backgroundIsolationStatus}
                     onToggleBackgroundIsolation={(nextEnabled) => patchBackgroundIsolation({
                       ...(backgroundIsolation || {}),
@@ -3275,7 +3305,6 @@ export default function EditorShell({
                     onToggleMuteAudio={() => setIsAudioMuted((v) => !v)}
                     isCaptionHidden={isCaptionHidden}
                     onToggleHideCaption={() => setIsCaptionHidden((v) => !v)}
-                    backgroundIsolation={backgroundIsolation}
                     isCutoutHidden={isCutoutHidden}
                     onToggleCutout={() => setIsCutoutHidden((v) => !v)}
                     onSplit={splitAtPlayhead}

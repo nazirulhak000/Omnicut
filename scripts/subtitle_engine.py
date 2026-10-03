@@ -808,6 +808,10 @@ class SubtitleEngine:
             )
             return f"{hidden_mark_components}{before}{visible}{tone}{hidden_mark_components}{after}"
 
+        # PlayRes remains the project's full export raster. SequencePlayer's
+        # Master playback and paused inspection both rasterize at 1080x1920;
+        # the selectable 540p mode and editable logical canvas stay half size.
+        # Typography and positions keep the existing 2:1 coordinate contract.
         header = f"""[Script Info]
 Title: TikTok Aesthetic Subtitles
 ScriptType: v4.00+

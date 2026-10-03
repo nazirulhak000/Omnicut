@@ -6,6 +6,7 @@
  * URL or a pure lookup function and decides how to render the returned URL.
  */
 import { buildSegments } from './timelineMath.js';
+import { CUTOUT_ENGINE_MODELS, resolveCutoutEngineModel } from './cutoutEngineModel.js';
 
 export const BACKGROUND_ISOLATION_SCHEMA_VERSION = 1;
 export const SEQUENCE_SCHEMA_VERSION = 1;
@@ -13,8 +14,8 @@ export const SEQUENCE_ARTIFACT_ID_PATTERN = /^bgseq1-[0-9a-f]{16}$/;
 export const SEQUENCE_FRAME_PATTERN = 'frames/frame_%06d.png';
 export const LEGACY_FRAME_PATTERN = 'frame_%06d.png';
 export const SUPPORTED_MODES = Object.freeze(['cutout']);
-export const SUPPORTED_ENGINES = Object.freeze(['rembg']);
-export const SUPPORTED_MODELS = Object.freeze(['u2netp', 'u2net', 'isnet-general-use']);
+export const SUPPORTED_ENGINES = Object.freeze(Object.keys(CUTOUT_ENGINE_MODELS));
+export const SUPPORTED_MODELS = Object.freeze(Object.values(CUTOUT_ENGINE_MODELS).flat());
 export const SUPPORTED_QUALITIES = Object.freeze(['draft', 'balanced', 'quality']);
 export const SEQUENCE_STATUSES = Object.freeze([
   'missing',
@@ -408,10 +409,11 @@ function normalizedConfig(value) {
     ? value.artifact
     : {};
   const artifactId = artifact.sequence_id ?? artifact.sequenceId ?? artifact.id ?? null;
+  const resolvedPair = resolveCutoutEngineModel(value);
   const choices = [
     normalizedChoice(value.mode, SUPPORTED_MODES, 'cutout'),
-    normalizedChoice(value.engine, SUPPORTED_ENGINES, 'rembg'),
-    normalizedChoice(value.model, SUPPORTED_MODELS, 'u2net'),
+    normalizedChoice(value.engine, SUPPORTED_ENGINES, resolvedPair.engine),
+    normalizedChoice(value.model, SUPPORTED_MODELS, resolvedPair.model),
     normalizedChoice(value.quality, SUPPORTED_QUALITIES, 'balanced'),
     normalizedChoice(value.fallback, FALLBACKS, DEFAULT_FALLBACK),
   ];
@@ -420,7 +422,8 @@ function normalizedConfig(value) {
   );
   const artifactSchemaIsValid = artifact.schema_version === undefined || artifact.schema_version === 1;
   const artifactStatusIsValid = artifact.status === undefined || SEQUENCE_STATUSES.includes(artifact.status);
-  const invalid = choices.some(choice => choice === null) || !artifactIsObject || !artifactSchemaIsValid || !artifactStatusIsValid;
+  const pairIsValid = choices[1] !== null && CUTOUT_ENGINE_MODELS[choices[1]].includes(choices[2]);
+  const invalid = choices.some(choice => choice === null) || !pairIsValid || !artifactIsObject || !artifactSchemaIsValid || !artifactStatusIsValid;
 
   return {
     absent: false,
@@ -565,7 +568,9 @@ export function summarizeBackgroundIsolationStatus({
       state: 'quality_failed',
       label: missingCacheCount > 0
         ? 'ไฟล์ Cutout หาย กรุณาเตรียมใหม่'
-        : failedCount === totalCount
+        : projectArtifactStatus === 'stale' && failedCount === 0
+          ? 'Cutout ล้าสมัย กรุณาเตรียมใหม่'
+          : failedCount === totalCount
           ? 'Cutout คุณภาพไม่ผ่าน'
           : `Cutout คุณภาพไม่ผ่านบางส่วน (${readyCount}/${totalCount})`,
       readyCount,

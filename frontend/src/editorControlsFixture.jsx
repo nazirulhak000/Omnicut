@@ -138,7 +138,8 @@ function EditorControlsFixture() {
       )}
       {mediaClipSource && (
         <div data-testid="real-media-preview" style={{ display: 'flex', width: 270, height: 520 }}>
-          <SequencePlayer clips={Array.from({ length: requestedClipCount }, (_, index) => ({
+          <SequencePlayer initialPreviewQuality={new URLSearchParams(window.location.search).get('previewQuality') || undefined}
+            clips={Array.from({ length: requestedClipCount }, (_, index) => ({
             id: `media-clip-${index}`,
             source_path: mediaClipSource,
             trim_start: 0,

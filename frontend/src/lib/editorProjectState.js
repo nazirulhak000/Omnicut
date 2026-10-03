@@ -1,3 +1,4 @@
+import { normalizeBackgroundIsolation } from './backgroundIsolationConfig.js';
 import { migrateToOverlays } from './overlayModel.js';
 import { getOverlayRecolorMetadata } from './overlayRecolor.js';
 import {
@@ -6,6 +7,8 @@ import {
 } from './productCallout.js';
 import { FADE_DURATION } from './timelineMath.js';
 import { effectiveAudioMutes } from './trackMix.js';
+
+export { normalizeBackgroundIsolation };
 
 export const EMPTY_TRACK_MIX = Object.freeze({ mute: {}, solo: {} });
 
@@ -27,52 +30,6 @@ function cloneValue(value) {
   return value;
 }
 
-const BACKGROUND_ISOLATION_SCHEMA_VERSION = 1;
-const BACKGROUND_ISOLATION_OPTIONS = {
-  mode: new Set(['cutout']),
-  engine: new Set(['rembg']),
-  model: new Set(['u2netp', 'u2net', 'isnet-general-use']),
-  quality: new Set(['draft', 'balanced', 'quality']),
-  fallback: new Set(['spotlight', 'original', 'skip']),
-};
-const BACKGROUND_ISOLATION_STATUSES = new Set([
-  'missing',
-  'processing',
-  'ready',
-  'stale',
-  'error',
-  'cancelled',
-]);
-
-/**
- * Keep the optional isolation contract inert in the editor until a later
- * phase consumes it.  Valid objects are cloned losslessly so new backend
- * metadata survives a save/load round-trip; malformed values fail closed.
- */
-export function normalizeBackgroundIsolation(value) {
-  if (value === null || value === undefined) return null;
-  if (!isRecord(value)) return null;
-  if (value.schema_version !== undefined && value.schema_version !== BACKGROUND_ISOLATION_SCHEMA_VERSION) return null;
-  if (value.enabled !== undefined && typeof value.enabled !== 'boolean') return null;
-
-  // An explicitly disabled feature is inert. Preserve its metadata without
-  // validating options that no consumer will read in this state.
-  if (value.enabled !== true) return cloneValue(value);
-
-  for (const [key, choices] of Object.entries(BACKGROUND_ISOLATION_OPTIONS)) {
-    if (value[key] !== undefined && (typeof value[key] !== 'string' || !choices.has(value[key]))) return null;
-  }
-
-  if (value.artifact !== undefined && value.artifact !== null && !isRecord(value.artifact)) return null;
-  if (isRecord(value.artifact)) {
-    const artifact = value.artifact;
-    if (artifact.schema_version !== undefined && artifact.schema_version !== 1) return null;
-    if (artifact.status !== undefined && !BACKGROUND_ISOLATION_STATUSES.has(artifact.status)) return null;
-    if (artifact.status === 'ready' && (typeof artifact.id !== 'string' || artifact.id.length === 0)) return null;
-  }
-
-  return cloneValue(value);
-}
 
 /** Merge normalized fields while retaining unknown nested metadata for future schema versions. */
 function mergeLossless(raw, normalized) {

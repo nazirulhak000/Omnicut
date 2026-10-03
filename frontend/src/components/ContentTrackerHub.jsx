@@ -2446,8 +2446,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                       showToast('ไม่สามารถมาร์กว่าโพสต์แล้วได้: ' + (err.response?.data?.detail || err.message), 'error');
                     });
                     return;
-                    showToast('มาร์กว่าโพสต์บน TikTok สำเร็จแล้ว');
                   }
+                  showToast('ไม่พบสินค้าหรือมุมคลิปของรายการนี้ จึงมาร์กว่าโพสต์แล้วไม่ได้', 'error');
                 }}
                 className="text-xs text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer flex items-center gap-1"
                 title="คลิกหากโพสต์คลิปนี้บน TikTok เสร็จสิ้นแล้ว"

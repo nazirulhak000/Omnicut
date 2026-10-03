@@ -52,6 +52,9 @@ def test_editor_shell_save_reload_preview_matches_render(motion_fixture_url, mon
             try:
                 viewport = {"width": 1024, "height": 768} if mode.endswith("compact") else {"width": 1600, "height": 1100}
                 page = browser.new_page(viewport=viewport, ignore_https_errors=True)
+                # This contract exercises the optional paused inspection over
+                # smooth playback; full-resolution playback has its own suite.
+                page.add_init_script("localStorage.setItem('omnicut.previewQuality', 'smooth540')")
                 page_errors = []
                 page.on("pageerror", lambda error: page_errors.append(str(error)))
 
@@ -140,6 +143,37 @@ def test_editor_shell_save_reload_preview_matches_render(motion_fixture_url, mon
                 assert page.locator('input[aria-label="Trim เข้า (วิ)"]:visible').first.input_value() == "0.5"
 
                 canvas = page.locator('canvas[width="540"][height="960"]:visible').first
+                page.wait_for_function("""() => {
+                    const image = [...document.querySelectorAll('img[data-testid="high-resolution-still-preview"]')]
+                        .find(node => node.getBoundingClientRect().width > 0);
+                    return image && image.complete && image.naturalWidth === 1080
+                        && image.naturalHeight === 1920
+                        && image.dataset.previewResolution === '1080x1920'
+                        && image.dataset.previewSource === 'master';
+                }""", timeout=15000)
+                sharp_button = page.locator('[data-testid="toggle-high-resolution-preview"]:visible').first
+                assert sharp_button.get_attribute("aria-pressed") == "true"
+                sharp_button.click()
+                assert sharp_button.get_attribute("aria-pressed") == "false"
+                assert page.locator('img[data-testid="high-resolution-still-preview"]:visible').count() == 0
+                sharp_button.click()
+                assert sharp_button.get_attribute("aria-pressed") == "true"
+                page.wait_for_function("""() => {
+                    const image = [...document.querySelectorAll('img[data-testid="high-resolution-still-preview"]')]
+                        .find(node => node.getBoundingClientRect().width > 0);
+                    return image && image.complete && image.naturalWidth === 1080
+                        && image.naturalHeight === 1920;
+                }""", timeout=15000)
+                sharp_image = page.locator('img[data-testid="high-resolution-still-preview"]:visible').first
+                sharp_live = Path(temp_root) / "high_resolution_live.png"
+                capture_ms = int(sharp_image.get_attribute("data-capture-duration-ms"))
+                encoded_bytes = int(sharp_image.get_attribute("data-capture-encoded-bytes"))
+                assert 0 < capture_ms < 15000
+                assert encoded_bytes > 0
+                print(f"1080p paused preview capture: {capture_ms} ms, {encoded_bytes / 1024:.1f} KiB PNG")
+                sharp_live.write_bytes(base64.b64decode(sharp_image.evaluate(
+                    "node => node.src.slice(node.src.indexOf(',') + 1)"
+                )))
                 ruler = page.locator('[title="คลิกหรือลากเพื่อเลื่อนหัวอ่าน"]:visible').first
                 tick = ruler.locator(':scope > div').nth(1)
                 tick_timecode = tick.inner_text().strip()
@@ -187,7 +221,7 @@ def test_editor_shell_save_reload_preview_matches_render(motion_fixture_url, mon
                 for index, clip in enumerate(manifest["clip_list"])
             ],
             transitions=manifest["transitions"],
-            export_preset="draft",
+            export_preset="post",
             style_preset="clean_tech_review",
         )
         rendered_frames = _render_frames(rendered, root, sample_times)
@@ -196,3 +230,11 @@ def test_editor_shell_save_reload_preview_matches_render(motion_fixture_url, mon
             _composite_canvas_frame(live, composited, "0x000000")
             comparison = compare_frames(composited, rendered_frame).to_dict()
             assert comparison["passed"], f"t={sample_times[index]}: {json.dumps(comparison, ensure_ascii=False)}"
+
+        sharp_rendered_frames = _render_frames(
+            rendered, root / "sharp_render", (sample_times[0],), size=(1080, 1920),
+        )
+        sharp_comparison = compare_frames(sharp_live, sharp_rendered_frames[0]).to_dict()
+        assert sharp_comparison["passed"], (
+            f"1080p paused preview: {json.dumps(sharp_comparison, ensure_ascii=False)}"
+        )

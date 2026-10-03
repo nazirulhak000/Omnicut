@@ -84,14 +84,20 @@ def _capture_frames(base_url: str, output_dir: Path, params: dict[str, str], fra
     return frames, manifest
 
 
-def _render_frames(video: Path, output_dir: Path, sample_times: tuple[float, ...]) -> list[Path]:
+def _render_frames(
+    video: Path,
+    output_dir: Path,
+    sample_times: tuple[float, ...],
+    size: tuple[int, int] = (540, 960),
+) -> list[Path]:
+    output_dir.mkdir(parents=True, exist_ok=True)
     frames: list[Path] = []
     for index, sample_time in enumerate(sample_times):
         frame = output_dir / f"rendered_{index:02d}.png"
         _run([
             _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
             "-i", str(video), "-ss", f"{sample_time:.6f}", "-frames:v", "1",
-            "-vf", "scale=540:960:flags=lanczos", "-pix_fmt", "rgb24", str(frame),
+            "-vf", f"scale={size[0]}:{size[1]}:flags=lanczos", "-pix_fmt", "rgb24", str(frame),
         ])
         frames.append(frame)
     return frames

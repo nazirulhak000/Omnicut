@@ -374,8 +374,9 @@ export function Fixture() {
   if (!fontsReady) return <main data-testid="motion-capture-font-loading" />;
 
   return (
-    <main data-testid="motion-capture-sequence-player" style={{ width: '100vw', height: '100vh' }}>
+    <main data-testid="motion-capture-sequence-player" className="flex flex-col" style={{ width: '100vw', height: '100vh' }}>
       <SequencePlayer
+        initialPreviewQuality={params.get('previewQuality') || 'smooth540'}
         ref={playerRef}
         clips={clips}
         cues={cues}

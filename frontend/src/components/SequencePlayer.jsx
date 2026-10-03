@@ -4,8 +4,17 @@ import {
   AlertTriangle, CheckCircle2, Loader2, Layers,
 } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
+import { shouldShowHighResolutionStillPreview } from '../lib/highResolutionStillPreview.js';
 import {
-  PROXY_POLL_MS, buildingClipIds, isProxyableSource, mergeProxyEntry, playbackUrlFor,
+  MASTER_PREVIEW, SMOOTH_PREVIEW, cutoutPlaybackSource, previewBackingScale,
+  normalizePreviewQuality, previewPlaybackUrl, readPreviewQuality, writePreviewQuality,
+} from '../lib/previewQuality.js';
+import { normalizeSubjectPoints, subjectPointMarkerStyle } from '../lib/subjectPoints.js';
+import { shouldCaptureSubjectPick, subjectPointFromPickClick } from '../lib/subjectPickGesture.js';
+import { previewPointToSource, sourcePointToPreview } from '../lib/subjectFrameMapping.js';
+import { subjectPromptReference } from '../lib/subjectPromptReference.js';
+import {
+  PROXY_POLL_MS, buildingClipIds, isProxyableSource, mergeProxyEntry,
   readProxyResponse, shouldPoll,
 } from '../lib/clipProxy.js';
 import { getClipProxy } from '../api';
@@ -56,6 +65,7 @@ import {
 
 const CANVAS_W = 540;
 const CANVAS_H = 960;
+const HIGH_RES_PREVIEW_SCALE = 2;
 const CUTOUT_PENDING = Object.freeze({ pendingCutout: true });
 const BACKGROUND_ISOLATION_BG = '#0B1220';
 const BACKGROUND_FRAME_RETRY_DELAYS_MS = Object.freeze([250, 1000, 4000]);
@@ -271,6 +281,7 @@ function drawSpotlightHardCutout(ctx, effect, width, height) {
   ctx.restore();
 }
 
+const spotlightScratch = new WeakMap();
 /** Draw dimmed footage with the configured focus window; never draws text. */
 export function drawSpotlight(ctx, value, width = CANVAS_W, height = CANVAS_H) {
   const effect = normalizeSpotlightPreview(value);
@@ -283,18 +294,32 @@ export function drawSpotlight(ctx, value, width = CANVAS_W, height = CANVAS_H) {
   }
 
   try {
-    const source = document.createElement('canvas');
-    const mask = document.createElement('canvas');
-    const focus = document.createElement('canvas');
-    [source, mask, focus].forEach((canvas) => { canvas.width = width; canvas.height = height; });
+    let scratch = spotlightScratch.get(ctx.canvas);
+    if (!scratch) {
+      scratch = Array.from({ length: 3 }, () => document.createElement('canvas'));
+      spotlightScratch.set(ctx.canvas, scratch);
+    }
+    const [source, mask, focus] = scratch;
+    const scale = ctx.canvas.width / width;
+    const pixelWidth = Math.round(width * scale);
+    const pixelHeight = Math.round(height * scale);
+    scratch.forEach((canvas) => {
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth; canvas.height = pixelHeight;
+      }
+    });
     const sourceCtx = source.getContext('2d');
     const maskCtx = mask.getContext('2d');
     const focusCtx = focus.getContext('2d');
     if (!sourceCtx || !maskCtx || !focusCtx) throw new Error('spotlight canvas unavailable');
 
-    sourceCtx.drawImage(ctx.canvas, 0, 0, width, height);
+    sourceCtx.clearRect(0, 0, pixelWidth, pixelHeight);
+    sourceCtx.drawImage(ctx.canvas, 0, 0);
+    maskCtx.setTransform(scale, 0, 0, scale, 0, 0);
+    maskCtx.clearRect(0, 0, width, height);
+    maskCtx.beginPath();
     maskCtx.fillStyle = '#FFFFFF';
-    if (effect.feather > 0) maskCtx.filter = `blur(${effect.feather * Math.min(width, height)}px)`;
+    if (effect.feather > 0) maskCtx.filter = `blur(${effect.feather * Math.min(width, height) * scale}px)`;
     drawSpotlightShape(maskCtx, effect, width, height);
     maskCtx.fill();
     maskCtx.filter = 'none';
@@ -305,10 +330,12 @@ export function drawSpotlight(ctx, value, width = CANVAS_W, height = CANVAS_H) {
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
 
+    focusCtx.globalCompositeOperation = 'source-over';
+    focusCtx.clearRect(0, 0, pixelWidth, pixelHeight);
     focusCtx.drawImage(source, 0, 0);
     focusCtx.globalCompositeOperation = 'destination-in';
     focusCtx.drawImage(mask, 0, 0);
-    ctx.drawImage(focus, 0, 0);
+    ctx.drawImage(focus, 0, 0, width, height);
     return true;
   } catch {
     drawSpotlightHardCutout(ctx, effect, width, height);
@@ -475,11 +502,9 @@ function bridgeWeights(progress) {
 // `dissolve` reveals the incoming clip per pixel. Measured on real renders: the
 // revealed share equals progress exactly, no pixel ever reverts as progress
 // grows, and the pattern is fine-grained per-pixel noise, not blocks. The
-// pattern is ffmpeg's own and is not the common sin-hash -- tested and it
-// agreed with the real frames only 59% of the time, i.e. a coin flip -- so the
-// preview uses its own uniform noise with a fixed seed. Same character, same
-// share, same monotonic reveal; the individual pixels differ, which is the one
-// approximation here and is invisible on a moving frame.
+// FFmpeg vf_xfade frand() uses single-precision sin-hash. Rounding each
+// intermediate to float32 matters: a double-precision hash gives different
+// pixels. Sample export pixel coordinates even when the backing is 540p.
 let dissolveNoise = null;
 let dissolveMaskCanvas = null;
 let dissolveImage = null;
@@ -487,26 +512,32 @@ let dissolveWords = null;
 let dissolveThreshold = -1;
 
 /** Mask canvas whose alpha is 255 exactly where the incoming clip shows. */
-function dissolveMaskFor(progress) {
-  if (!dissolveNoise) {
-    const n = CANVAS_W * CANVAS_H;
+export function dissolveMaskFor(progress, scale = 1) {
+  const width = CANVAS_W * scale;
+  const height = CANVAS_H * scale;
+  if (!dissolveNoise || dissolveMaskCanvas.width !== width) {
+    const n = width * height;
     dissolveNoise = new Float32Array(n);
-    let seed = 0x9e3779b9;
     for (let i = 0; i < n; i++) {
-      seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
-      dissolveNoise[i] = (seed >>> 0) / 4294967296;
+      const x = (i % width) * HIGH_RES_PREVIEW_SCALE / scale;
+      const y = Math.floor(i / width) * HIGH_RES_PREVIEW_SCALE / scale;
+      const angle = Math.fround(Math.fround(x * Math.fround(12.9898))
+        + Math.fround(y * Math.fround(78.233)));
+      const random = Math.fround(Math.fround(Math.sin(angle)) * Math.fround(43758.545));
+      dissolveNoise[i] = random - Math.floor(random);
     }
     dissolveMaskCanvas = document.createElement('canvas');
-    dissolveMaskCanvas.width = CANVAS_W;
-    dissolveMaskCanvas.height = CANVAS_H;
-    dissolveImage = dissolveMaskCanvas.getContext('2d').createImageData(CANVAS_W, CANVAS_H);
+    dissolveMaskCanvas.width = width;
+    dissolveMaskCanvas.height = height;
+    dissolveImage = dissolveMaskCanvas.getContext('2d').createImageData(width, height);
     // One 32-bit write per pixel instead of four 8-bit ones.
     dissolveWords = new Uint32Array(dissolveImage.data.buffer);
+    dissolveThreshold = -1;
   }
-  const threshold = 1 - Math.max(0, Math.min(1, progress));
+  const threshold = Math.max(0, Math.min(1, progress));
   if (threshold !== dissolveThreshold) {
     for (let i = 0; i < dissolveWords.length; i++) {
-      dissolveWords[i] = dissolveNoise[i] >= threshold ? 0xFFFFFFFF : 0;
+      dissolveWords[i] = dissolveNoise[i] < threshold ? 0xFFFFFFFF : 0;
     }
     dissolveMaskCanvas.getContext('2d').putImageData(dissolveImage, 0, 0);
     dissolveThreshold = threshold;
@@ -634,7 +665,7 @@ function paintEntry(ctx, entry, video, offscreen, isolatedImage = null, cutoutMo
     oc.clearRect(0, 0, CANVAS_W, CANVAS_H);
     if (!drawClipInto(oc, video, clip, 1, entry.motionTime, isolatedImage, cutoutMode)) return false;
     oc.globalCompositeOperation = 'destination-in';
-    oc.drawImage(dissolveMaskFor(p), 0, 0, CANVAS_W, CANVAS_H);
+    oc.drawImage(dissolveMaskFor(p, scale), 0, 0, CANVAS_W, CANVAS_H);
     oc.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
     ctx.drawImage(offscreen, 0, 0, CANVAS_W, CANVAS_H);
@@ -730,7 +761,7 @@ function drawVideoFrame(ctx, video, clip, motionTime = 0) {
     let bx, by, bw, bh;
     if (vRatio > cRatio) { bh = vh; bw = vh * cRatio; by = 0; bx = (vw - bw) / 2; }
     else { bw = vw; bh = vw / cRatio; bx = 0; by = (vh - bh) / 2; }
-    ctx.filter = 'blur(12px)';
+    ctx.filter = `blur(${12 * (ctx.canvas.width / CANVAS_W)}px)`;
     ctx.drawImage(video, bx, by, bw, bh, 0, 0, CANVAS_W, CANVAS_H);
     ctx.filter = 'none';
     // foreground: whole frame, contain-fit, centred
@@ -774,11 +805,13 @@ function drawVideoFrame(ctx, video, clip, motionTime = 0) {
  * by the FFmpeg renderer. The cutout is a full source frame, so crop/zoom,
  * mirror, and rotation must follow the ordinary video path exactly. */
 let matteScratchCanvas = null;
-function getMatteScratch() {
+function getMatteScratch(scale = 1) {
   if (!matteScratchCanvas && typeof document !== 'undefined') {
     matteScratchCanvas = document.createElement('canvas');
-    matteScratchCanvas.width = CANVAS_W;
-    matteScratchCanvas.height = CANVAS_H;
+  }
+  if (matteScratchCanvas && matteScratchCanvas.width !== CANVAS_W * scale) {
+    matteScratchCanvas.width = CANVAS_W * scale;
+    matteScratchCanvas.height = CANVAS_H * scale;
   }
   return matteScratchCanvas;
 }
@@ -839,10 +872,12 @@ function drawIsolatedFrame(ctx, image, clip, motionTime = 0, { includeBackground
 
   const mirror = !!clip?.mirror;
   const isMatte = cutoutMode === 'matte';
-  const targetCanvas = isMatte ? getMatteScratch() : null;
+  const targetCanvas = isMatte ? getMatteScratch(ctx.canvas.width / CANVAS_W) : null;
   const drawCtx = targetCanvas ? targetCanvas.getContext('2d') : ctx;
 
   if (targetCanvas) {
+    const scale = targetCanvas.width / CANVAS_W;
+    drawCtx.setTransform(scale, 0, 0, scale, 0, 0);
     drawCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
   }
 
@@ -872,7 +907,7 @@ function drawIsolatedFrame(ctx, image, clip, motionTime = 0, { includeBackground
     drawCtx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     drawCtx.restore();
 
-    ctx.drawImage(targetCanvas, 0, 0);
+    ctx.drawImage(targetCanvas, 0, 0, CANVAS_W, CANVAS_H);
   }
 
   return true;
@@ -3189,6 +3224,10 @@ function SequencePlayer({
   showSafeZone: externalShowSafeZone = undefined,
   onToggleSafeZone = null,
   showWatermark = true,
+  subjectPoints = [],
+  subjectPickMode = false,
+  onPickSubjectPoint = null,
+  initialPreviewQuality = undefined,
 }, ref) {
   const visualStyle = useMemo(() => getStylePreset(stylePreset), [stylePreset]);
   const previewAccentColor = visualStyle?.accent || '#FFE600';
@@ -3210,6 +3249,7 @@ function SequencePlayer({
     () => splitBackgroundIsolationOverlays(drawnOverlays),
     [drawnOverlays],
   );
+  const normalizedSubjectMarkers = useMemo(() => normalizeSubjectPoints(subjectPoints), [subjectPoints]);
   const [internalShowSafeZone, setInternalShowSafeZone] = useState(false);
   const showSafeZone = externalShowSafeZone !== undefined ? externalShowSafeZone : internalShowSafeZone;
   const toggleSafeZone = useCallback(() => {
@@ -3237,6 +3277,18 @@ function SequencePlayer({
   const lutRef = useRef(null);          // parsed .cube for the chosen filter
   const lutRendererRef = useRef(null);  // WebGL2 pass, or null where unavailable
   const [lutReady, setLutReady] = useState(0);
+  const [highResStillEnabled, setHighResStillEnabled] = useState(true);
+  const [previewQuality, setPreviewQuality] = useState(() => (
+    initialPreviewQuality ? normalizePreviewQuality(initialPreviewQuality) : readPreviewQuality()
+  ));
+  const backingScale = previewBackingScale(previewQuality);
+  const masterPreview = previewQuality === MASTER_PREVIEW;
+  useEffect(() => { writePreviewQuality(undefined, previewQuality); }, [previewQuality]);
+  const [highResStill, setHighResStill] = useState(null);
+  const [highResStillStatus, setHighResStillStatus] = useState('idle');
+  const [highResRevision, setHighResRevision] = useState(0);
+  const highResRequestRef = useRef(0);
+  const highResDirtyTimerRef = useRef(null);
 
   const effectiveStickersList = useMemo(() => {
     if (Array.isArray(stickers) && stickers.length > 0) {
@@ -3262,9 +3314,11 @@ function SequencePlayer({
   const getOffscreen = () => {
     if (!offscreenRef.current) {
       const c = document.createElement('canvas');
-      c.width = CANVAS_W;
-      c.height = CANVAS_H;
       offscreenRef.current = c;
+    }
+    if (offscreenRef.current.width !== CANVAS_W * backingScale) {
+      offscreenRef.current.width = CANVAS_W * backingScale;
+      offscreenRef.current.height = CANVAS_H * backingScale;
     }
     return offscreenRef.current;
   };
@@ -3296,6 +3350,7 @@ function SequencePlayer({
   const backgroundIsolationImagesRef = useRef(new Map());
   const backgroundIsolationVideosRef = useRef(new Map());
   const lastKnownIsolatedFramesRef = useRef(new Map());
+  const subjectPromptReferenceRef = useRef(null);
   const [backgroundIsolationManifests, setBackgroundIsolationManifests] = useState({});
   const [backgroundIsolationTick, setBackgroundIsolationTick] = useState(0);
 
@@ -3328,6 +3383,9 @@ function SequencePlayer({
   }, [backgroundIsolationArtifactIds.join('|')]);
 
   const loadedBackgroundIsolationFrame = useCallback(function loadBackgroundIsolationFrame(clip, sourceTime, prefetch = true, playVideo = isPlaying) {
+    // Point editing uses stable original pixels even after a prompt invalidates
+    // its previous artifact. This permits several positive/negative points.
+    if (subjectPickMode) return null;
     // The legacy blurred-canvas path has different geometry and filter order
     // from subject isolation.  Keep Preview on the same fail-closed branch as
     // the renderer for these clips.
@@ -3346,9 +3404,10 @@ function SequencePlayer({
     if (config?.enabled === true && config?.artifact?.status === 'ready' && !resolution.useArtifact) {
       return CUTOUT_PENDING;
     }
-    if (resolution.useArtifact && resolution.videoUrl) {
+    const cutoutSource = cutoutPlaybackSource(previewQuality, resolution);
+    if (resolution.useArtifact && cutoutSource.url) {
       const videos = backgroundIsolationVideosRef.current;
-      const videoKey = cutoutVideoKey(clip, resolution.videoUrl);
+      const videoKey = cutoutVideoKey(clip, cutoutSource.url);
       let video = videos.get(videoKey);
       if (!video) {
         // Bound decoder memory: current/outgoing/incoming plus one lookahead.
@@ -3361,7 +3420,8 @@ function SequencePlayer({
         video.muted = true;
         video.playsInline = true;
         video.preload = 'auto';
-        video.src = resolution.videoUrl;
+        video.src = cutoutSource.url;
+        video.dataset.previewSource = cutoutSource.source;
         video._cutoutPlayback = createCutoutVideoPlayback(video, () => setBackgroundIsolationTick((value) => value + 1));
       }
       videos.delete(videoKey);
@@ -3453,7 +3513,7 @@ function SequencePlayer({
       });
     }
     return (clip?.id != null ? lastKnownFrames.get(clip.id) : null) || null;
-  }, [backgroundIsolation, backgroundIsolationManifests, isPlaying]);
+  }, [backgroundIsolation, backgroundIsolationManifests, isPlaying, previewQuality, subjectPickMode]);
 
   useEffect(() => () => {
     backgroundIsolationVideosRef.current.forEach((video) => {
@@ -3471,6 +3531,14 @@ function SequencePlayer({
   useEffect(() => {
     if (!isPlaying) backgroundIsolationVideosRef.current.forEach((video) => video._cutoutPlayback.deactivate());
   }, [isPlaying]);
+
+  useEffect(() => {
+    // Old quality decoders must not continue decoding alongside the new source.
+    backgroundIsolationVideosRef.current.forEach((video) => video._cutoutPlayback.dispose());
+    backgroundIsolationVideosRef.current.clear();
+    lastKnownIsolatedFramesRef.current.clear();
+    setBackgroundIsolationTick((value) => value + 1);
+  }, [previewQuality]);
 
   const publishPlayhead = (t, force = false, now = performance.now()) => {
     playheadRef.current = t;
@@ -3498,6 +3566,8 @@ function SequencePlayer({
   // failed lookup leaves the clip on its master, which always plays.
   useEffect(() => {
     if (!clips.length) { setClipSources({}); return undefined; }
+    // High mode reads Master directly and avoids starting background proxy jobs.
+    if (masterPreview) return undefined;
     let cancelled = false;
     let timer = null;
 
@@ -3539,9 +3609,15 @@ function SequencePlayer({
     resolve();
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clipSourceKey]);
+  }, [clipSourceKey, masterPreview]);
 
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}:${JSON.stringify(c.keyframes || [])}`).join('|');
+  const highResStillKey = JSON.stringify([
+    Math.round(playhead * 30), clipKey, captionKey, cuesKey, overlaysKey, spotlightKey,
+    stickerKey, stickersKey, JSON.stringify(effects), JSON.stringify(grade || null),
+    activeCutoutMode, JSON.stringify(backgroundIsolation), backgroundIsolationTick,
+    lutReady, previewSticker, isStickerHidden, showWatermark, highResRevision,
+  ]);
 
 
   // Interactive Bounding Box calculations
@@ -3749,7 +3825,31 @@ function SequencePlayer({
     const cleanupPointerLifecycle = bindWindowPointerLifecycle(onPointerMove, onPointerUp);
   };
 
+  // Pick mode swallows frame pointer events in the capture phase so a click
+  // picks a product point instead of dragging/selecting overlays or toggling
+  // play. Buttons stay live; with pick mode off nothing here runs.
+  const handlePickPointerDownCapture = (e) => {
+    if (e.target.closest?.('select')) return;
+    if (!shouldCaptureSubjectPick(subjectPickMode, e.target)) return;
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  const handlePickClickCapture = (e) => {
+    if (e.target.closest?.('select')) return;
+    if (!shouldCaptureSubjectPick(subjectPickMode, e.target)) return;
+    e.stopPropagation();
+    e.preventDefault();
+    if (!containerRef.current) return;
+    if (isPlaying) return;
+    const point = subjectPointFromPickClick(e, containerRef.current.getBoundingClientRect());
+    const geometry = getSubjectPickGeometry(playheadRef.current);
+    const sourcePoint = geometry && previewPointToSource(point, geometry);
+    if (sourcePoint) onPickSubjectPoint?.(sourcePoint);
+  };
+
   const handleContainerClick = (e) => {
+    if (subjectPickMode) return;
     if (e.target.closest('.interactive-bounding-box')) return;
     if (!containerRef.current) return;
 
@@ -4031,7 +4131,13 @@ function SequencePlayer({
     failedClipSources[`${seg.clip.id}:${seg.clip.source_path}`]
   ))?.seg.clip;
 
-  const getDrawPlan = (t) => planAt(segments, t);
+  const getDrawPlan = (t) => {
+    const reference = subjectPickMode && subjectPromptReferenceRef.current;
+    const seg = reference && segments.find((entry) => entry.clip.id === reference.clipId
+      && entry.clip.source_path === reference.sourcePath);
+    if (seg) return [{ seg, localTime: reference.sourceStart, motionTime: 0, alpha: 1, role: 'solo' }];
+    return planAt(segments, t);
+  };
 
   const currentBackgroundIsolationStatus = useMemo(() => {
     const fallbackState = backgroundIsolationStatus?.state || 'off';
@@ -4057,8 +4163,9 @@ function SequencePlayer({
       artifactBaseUrl: '/api/background-isolation/sequences',
       sourceTime: Math.max(0, Number(currentEntry?.localTime) || 0),
     });
-    if (resolution.useArtifact && resolution.videoUrl) {
-      const video = backgroundIsolationVideosRef.current.get(cutoutVideoKey(currentEntry?.seg.clip, resolution.videoUrl));
+    const cutoutSource = cutoutPlaybackSource(previewQuality, resolution);
+    if (resolution.useArtifact && cutoutSource.url) {
+      const video = backgroundIsolationVideosRef.current.get(cutoutVideoKey(currentEntry?.seg.clip, cutoutSource.url));
       if (video?.error) return 'quality_failed';
       return video?.readyState >= 2 && !video.seeking
         && video._cutoutPresentedTime != null
@@ -4075,7 +4182,47 @@ function SequencePlayer({
     }
     if (resolution.status === 'disabled') return 'off';
     return fallbackState === 'ready' ? 'processing' : fallbackState;
-  }, [backgroundIsolation, backgroundIsolationManifests, backgroundIsolationStatus, backgroundIsolationTick, playhead, segments]);
+  }, [backgroundIsolation, backgroundIsolationManifests, backgroundIsolationStatus, backgroundIsolationTick, playhead, segments, previewQuality]);
+
+  const getSubjectPickGeometry = (t) => {
+    const plan = getDrawPlan(t);
+    // A blended/sliding pair has no single source coordinate to prompt.
+    if (plan.length !== 1) return null;
+    const entry = plan[0];
+    const video = videoElsRef.current[entry.seg.clip.id];
+    if (!(video?.videoWidth > 0 && video?.videoHeight > 0) || video.readyState < 2 || video.seeking) return null;
+    if (subjectPickMode && !subjectPromptReferenceRef.current) return null;
+    if (subjectPickMode) return { sourceWidth: video.videoWidth, sourceHeight: video.videoHeight,
+      clip: entry.seg.clip, motionTime: entry.motionTime, sourceIsLetterboxed: false };
+    const config = resolveBackgroundIsolationConfig(entry.seg.clip, backgroundIsolation);
+    const resolution = resolveBackgroundIsolationPreview({
+      config, manifest: backgroundIsolationManifests[backgroundArtifactId(config)],
+      artifactBaseUrl: '/api/background-isolation/sequences', sourceTime: entry.localTime,
+    });
+    const unsupportedCutout = entry.seg.clip.bg_blur || entry.seg.clip.fit_mode === 'blur';
+    if (!unsupportedCutout && config?.enabled === true && config.artifact?.status === 'ready'
+      && !resolution.useArtifact) return null;
+    const source = cutoutPlaybackSource(previewQuality, resolution);
+    const cutout = source.url && backgroundIsolationVideosRef.current.get(cutoutVideoKey(entry.seg.clip, source.url));
+    const frame = resolution.frameUrl && backgroundIsolationImagesRef.current.get(resolution.frameUrl);
+    const readyCutoutVideo = cutout?.readyState >= 2 && !cutout.seeking
+      && cutout._cutoutPresentedTime != null
+      && Math.abs(cutout._cutoutPresentedTime - resolution.videoTime) <= 0.05;
+    // The pending video branch paints a solid placeholder, not the raw source.
+    if (!unsupportedCutout && resolution.useArtifact && source.url && !readyCutoutVideo) return null;
+    const sourceIsLetterboxed = !unsupportedCutout && resolution.useArtifact && (
+      readyCutoutVideo || frame?.status === 'ready'
+      || lastKnownIsolatedFramesRef.current.has(entry.seg.clip.id)
+    );
+    return { sourceWidth: video.videoWidth, sourceHeight: video.videoHeight,
+      clip: entry.seg.clip, motionTime: entry.motionTime, sourceIsLetterboxed };
+  };
+  const subjectGeometry = getSubjectPickGeometry(playhead);
+  const subjectMarkers = subjectGeometry
+    ? normalizedSubjectMarkers.map((point, index) => ({
+      point: sourcePointToPreview(point, subjectGeometry), index,
+    })).filter((marker) => marker.point)
+    : [];
 
   // --- Stem audio -------------------------------------------------------
   // 1-Click no longer bakes a mix (pipeline.py skips it unless a video is
@@ -4417,6 +4564,8 @@ function SequencePlayer({
   // Teardown: without this the elements keep decoding and the AudioContext
   // stays open after the editor unmounts (browsers cap how many may exist).
   useEffect(() => () => {
+    clearTimeout(highResDirtyTimerRef.current);
+    highResRequestRef.current += 1;
     flushSfx();
     [audioElRef.current, bgmElRef.current].forEach((el) => {
       if (!el) return;
@@ -4446,38 +4595,34 @@ function SequencePlayer({
     const lut = lutRef.current;
     const strength = grade?.intensity ?? 1;
     if (!lut || !(strength > 0.001)) return;
-    if (!highResolution && !lutRendererRef.current) {
-      lutRendererRef.current = createLutRenderer(CANVAS_W, CANVAS_H) || { apply: () => null, dispose: () => {} };
+    if (!highResolution && (lutRendererRef.current?.width !== canvas.width
+        || lutRendererRef.current?.height !== canvas.height)) {
+      lutRendererRef.current?.dispose();
+      const renderer = createLutRenderer(canvas.width, canvas.height);
+      lutRendererRef.current = Object.assign(renderer || { apply: () => null, dispose: () => {} }, {
+        width: canvas.width, height: canvas.height,
+      });
     }
     const renderer = highResolution ? createLutRenderer(canvas.width, canvas.height) : lutRendererRef.current;
     const graded = renderer?.apply(canvas, lut, strength);
-    if (highResolution && graded) {
-      ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(graded, 0, 0);
-      ctx.restore();
-      renderer.dispose();
-      return;
-    }
-    if (highResolution) renderer?.dispose();
-    if (!graded) return;
-    const prevAlpha = ctx.globalAlpha;
-    const prevFilter = ctx.filter;
+    if (!graded) { if (highResolution) renderer?.dispose(); return; }
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
-    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(graded, 0, 0);
-    ctx.globalAlpha = prevAlpha;
-    ctx.filter = prevFilter;
+    ctx.restore();
+    if (highResolution) renderer?.dispose();
   };
 
   const renderAt = (t, cover = null) => {
     const canvas = cover?.canvas || canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!ctx || !segments.length) return;
-    const scale = cover ? 2 : 1;
-    if (cover) ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    const scale = cover ? HIGH_RES_PREVIEW_SCALE : backingScale;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    canvas.dataset.previewTime = String(t);
     const plan = getDrawPlan(t);
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     plan.forEach((entry) => {
@@ -4485,7 +4630,7 @@ function SequencePlayer({
       if (video) {
         const isolatedImage = cover ? cover.isolated.get(entry.seg.clip.id) : loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
         paintEntry(ctx, entry, video, cover?.offscreen || getOffscreen(), isolatedImage,
-          cover ? 'composite' : activeCutoutMode, scale);
+          cover?.cutoutMode || (cover ? 'composite' : activeCutoutMode), scale);
       }
     });
     ctx.globalAlpha = 1;
@@ -4507,9 +4652,9 @@ function SequencePlayer({
     // Hook we intentionally placed behind the product.
     plan.forEach((entry) => {
       const isolatedImage = cover ? cover.isolated.get(entry.seg.clip.id) : loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
-      if (isolatedImage) {
+      if (isolatedImage && isolatedImage !== CUTOUT_PENDING) {
         drawIsolatedFrame(ctx, isolatedImage, entry.seg.clip, entry.motionTime,
-          { includeBackground: false, cutoutMode: cover ? 'composite' : activeCutoutMode });
+          { includeBackground: false, cutoutMode: cover?.cutoutMode || (cover ? 'composite' : activeCutoutMode) });
       }
     });
     drawOverlayScrims(ctx, overlaysInFront, t);
@@ -4520,18 +4665,111 @@ function SequencePlayer({
     if (showWatermark !== false) {
       drawWatermark(ctx);
     }
-    boundsRef.current = bounds;
+    if (!cover) boundsRef.current = bounds;
+    if (!cover && !masterPreview && !isPlaying && highResStillEnabled) {
+      clearTimeout(highResDirtyTimerRef.current);
+      highResDirtyTimerRef.current = setTimeout(() => {
+        setHighResRevision((revision) => revision + 1);
+      }, 100);
+    }
+  };
+
+  const captureHighResolutionFrame = async (t, cutoutMode = 'composite', isCurrent = () => true) => {
+    const plan = getDrawPlan(t);
+    if (!plan.length) throw new Error('ไม่มีคลิปในเฟรมที่เลือก');
+    const canvas = document.createElement('canvas');
+    canvas.width = CANVAS_W * HIGH_RES_PREVIEW_SCALE;
+    canvas.height = CANVAS_H * HIGH_RES_PREVIEW_SCALE;
+    const offscreen = document.createElement('canvas');
+    offscreen.width = canvas.width;
+    offscreen.height = canvas.height;
+    const videos = new Map();
+    const isolated = new Map();
+    try {
+      const loaded = await Promise.allSettled(plan.map(async (entry) => {
+        const clip = entry.seg.clip;
+        const master = await loadCoverVideo(toMediaUrl(clip.source_path), entry.localTime);
+        videos.set(clip.id, master);
+        const config = resolveBackgroundIsolationConfig(clip, backgroundIsolation);
+        if (config?.enabled !== true || clip.bg_blur || clip.fit_mode === 'blur') return;
+        const artifactId = backgroundArtifactId(config);
+        const resolution = resolveBackgroundIsolationPreview({
+          config,
+          manifest: backgroundIsolationManifests[artifactId],
+          artifactBaseUrl: '/api/background-isolation/sequences',
+          sourceTime: Math.max(0, Number(entry.localTime) || 0),
+        });
+        if (!resolution.useArtifact) throw new Error('Cutout ของเฟรมนี้ยังไม่พร้อม');
+        const image = resolution.masterVideoUrl
+          ? await loadCoverVideo(resolution.masterVideoUrl, resolution.videoTime)
+          : await loadCoverImage(resolution.frameUrl);
+        isolated.set(clip.id, image);
+      }));
+      const failure = loaded.find((result) => result.status === 'rejected');
+      if (failure) throw failure.reason;
+      if (!isCurrent()) throw new Error('เฟรมพรีวิวเปลี่ยนระหว่างสร้างภาพ');
+      renderAt(t, { canvas, offscreen, videos, isolated, cutoutMode });
+      return canvas.toDataURL('image/png');
+    } finally {
+      for (const video of videos.values()) { video.removeAttribute('src'); video.load(); }
+      for (const image of isolated.values()) {
+        if (image instanceof HTMLVideoElement) { image.removeAttribute('src'); image.load(); }
+      }
+    }
   };
 
   useEffect(() => {
     renderAt(playheadRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, spotlightKey, backgroundIsolationManifests, backgroundIsolationTick, lutReady, grade?.intensity, previewAccentColor, showWatermark]);
+  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, spotlightKey, backgroundIsolationManifests, backgroundIsolationTick, lutReady, grade?.intensity, previewAccentColor, showWatermark, previewQuality, activeCutoutMode, subjectPickMode]);
+
+  useEffect(() => {
+    const revision = ++highResRequestRef.current;
+    if (subjectPickMode || masterPreview || !highResStillEnabled || isPlaying || !segments.length) {
+      setHighResStill(null);
+      setHighResStillStatus('idle');
+      return undefined;
+    }
+
+    setHighResStill(null);
+    setHighResStillStatus('loading');
+    const timer = setTimeout(async () => {
+      const captureStartedAt = performance.now();
+      try {
+        const src = await captureHighResolutionFrame(
+          playhead,
+          activeCutoutMode,
+          () => highResRequestRef.current === revision,
+        );
+        if (highResRequestRef.current !== revision) return;
+        const base64Length = src.length - src.indexOf(',') - 1;
+        setHighResStill({
+          key: highResStillKey,
+          src,
+          captureMs: performance.now() - captureStartedAt,
+          encodedBytes: Math.max(0, Math.floor(base64Length * 3 / 4)),
+        });
+        setHighResStillStatus('ready');
+      } catch {
+        if (highResRequestRef.current !== revision) return;
+        setHighResStill(null);
+        setHighResStillStatus('fallback');
+      }
+    }, 180);
+
+    return () => {
+      clearTimeout(timer);
+      if (highResRequestRef.current === revision) highResRequestRef.current += 1;
+    };
+    // captureHighResolutionFrame reads the current renderer inputs by design;
+    // highResStillKey covers every visual input and the revision cancels stale work.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highResStillEnabled, isPlaying, segments.length, highResStillKey, playhead, activeCutoutMode, masterPreview, subjectPickMode]);
 
   const lastNotifyRef = useRef(0);
 
   useEffect(() => {
-    if (!isPlaying || segments.length === 0) return;
+    if (!isPlaying || subjectPickMode || segments.length === 0) return;
 
     const tick = () => {
       // Audio Master Clock: Lock subtitle and video frames directly to the audio element's playback
@@ -4639,6 +4877,8 @@ function SequencePlayer({
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d');
       if (ctx) {
+        ctx.setTransform(backingScale, 0, 0, backingScale, 0, 0);
+        canvas.dataset.previewTime = String(t);
         ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
         let framePainted = false;
         plan.forEach((entry) => {
@@ -4670,7 +4910,7 @@ function SequencePlayer({
 
           const isolatedImage = loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
           if (video.readyState >= 2 || isolatedImage) {
-            paintEntry(ctx, entry, video, getOffscreen(), isolatedImage, activeCutoutMode);
+            paintEntry(ctx, entry, video, getOffscreen(), isolatedImage, activeCutoutMode, backingScale);
             framePainted = true;
             prevActiveClipIdRef.current = seg.clip.id;
           }
@@ -4721,10 +4961,10 @@ function SequencePlayer({
     // RAF loop kept drawing whatever array existed when isPlaying last
     // flipped true until some other dep (e.g. overlays) happened to change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, segments, segmentsByClipId, cues, overlays, totalDuration, effectiveStickersList, effects, spotlightKey, backgroundIsolationManifests, backgroundIsolationTick]);
+  }, [isPlaying, subjectPickMode, segments, segmentsByClipId, cues, overlays, totalDuration, effectiveStickersList, effects, spotlightKey, backgroundIsolationManifests, backgroundIsolationTick, previewQuality, activeCutoutMode, previewAccentColor, lutReady, grade?.intensity, showWatermark]);
 
   const togglePlay = () => {
-    if (!segments.length) return;
+    if (!segments.length || subjectPickMode) return;
     if (isPlaying) {
       Object.values(videoElsRef.current).forEach(v => v?.pause());
       stopStems();
@@ -4756,7 +4996,7 @@ function SequencePlayer({
     publishPlayhead(clamped, true);
     onPlayhead?.(clamped);
     clockRef.current = { startWall: performance.now(), startT: clamped };
-    if (isPlaying) startStems();
+    if (isPlaying && !subjectPickMode) startStems();
 
     const plan = getDrawPlan(clamped);
     plan.forEach(({ seg, localTime }) => {
@@ -4768,6 +5008,24 @@ function SequencePlayer({
 
     renderAt(clamped); // immediate draw; onSeeked will repaint crisp frame when decoded
   };
+
+  useEffect(() => {
+    if (!subjectPickMode) { subjectPromptReferenceRef.current = null; return; }
+    // Prompts initialize the worker's first frame, not whichever moving frame
+    // the user happened to pause on. Keep the reference unblended and stable.
+    Object.values(videoElsRef.current).forEach((video) => video?.pause());
+    stopStems();
+    setIsPlaying(false);
+    if (subjectPromptReferenceRef.current) return;
+    const reference = subjectPromptReference(segments, playheadRef.current, {
+      sourceDurations: durations, config: backgroundIsolation || {},
+    });
+    if (!reference) return;
+    subjectPromptReferenceRef.current = reference;
+    setBackgroundIsolationTick((value) => value + 1);
+    seekTo(reference.timelineTime);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subjectPickMode, playhead, segments]);
 
   useImperativeHandle(ref, () => ({
     seekTo,
@@ -4785,49 +5043,7 @@ function SequencePlayer({
 
     // Cover capture decodes the master media at the chosen time and paints
     // directly at export size. The small, fast preview canvas stays untouched.
-    captureCoverFrame: async () => {
-      const t = playheadRef.current;
-      const plan = getDrawPlan(t);
-      if (!plan.length) throw new Error('ไม่มีคลิปในเฟรมที่เลือก');
-      const canvas = document.createElement('canvas');
-      canvas.width = 1080;
-      canvas.height = 1920;
-      const offscreen = document.createElement('canvas');
-      offscreen.width = canvas.width;
-      offscreen.height = canvas.height;
-      const videos = new Map();
-      const isolated = new Map();
-      try {
-        const loaded = await Promise.allSettled(plan.map(async (entry) => {
-          const clip = entry.seg.clip;
-          const master = await loadCoverVideo(toMediaUrl(clip.source_path), entry.localTime);
-          videos.set(clip.id, master);
-          const config = resolveBackgroundIsolationConfig(clip, backgroundIsolation);
-          if (config?.enabled !== true) return;
-          const artifactId = backgroundArtifactId(config);
-          const resolution = resolveBackgroundIsolationPreview({
-            config,
-            manifest: backgroundIsolationManifests[artifactId],
-            artifactBaseUrl: '/api/background-isolation/sequences',
-            sourceTime: Math.max(0, Number(entry.localTime) || 0),
-          });
-          if (!resolution.useArtifact) throw new Error('Cutout ของเฟรมนี้ยังไม่พร้อม');
-          const image = resolution.masterVideoUrl
-            ? await loadCoverVideo(resolution.masterVideoUrl, resolution.videoTime)
-            : await loadCoverImage(resolution.frameUrl);
-          isolated.set(clip.id, image);
-        }));
-        const failure = loaded.find((result) => result.status === 'rejected');
-        if (failure) throw failure.reason;
-        renderAt(t, { canvas, offscreen, videos, isolated });
-        return canvas.toDataURL('image/png');
-      } finally {
-        for (const video of videos.values()) { video.removeAttribute('src'); video.load(); }
-        for (const image of isolated.values()) {
-          if (image instanceof HTMLVideoElement) { image.removeAttribute('src'); image.load(); }
-        }
-      }
-    },
+    captureCoverFrame: () => captureHighResolutionFrame(playheadRef.current, 'composite'),
 
     play: () => { if (!isPlaying) togglePlay(); },
     pause: () => { if (isPlaying) togglePlay(); },
@@ -4842,6 +5058,34 @@ function SequencePlayer({
     }
     seekTo(parseFloat(e.target.value));
   };
+
+  const showHighResStill = shouldShowHighResolutionStillPreview({
+    enabled: !subjectPickMode && !masterPreview && highResStillEnabled,
+    isPlaying,
+    currentKey: highResStillKey,
+    preview: highResStill,
+  });
+  const cutoutUsesPreview = masterPreview && getDrawPlan(playhead).some(({ seg, localTime }) => {
+    const config = resolveBackgroundIsolationConfig(seg.clip, backgroundIsolation);
+    const resolution = resolveBackgroundIsolationPreview({
+      config, manifest: backgroundIsolationManifests[backgroundArtifactId(config)],
+      artifactBaseUrl: '/api/background-isolation/sequences', sourceTime: localTime,
+    });
+    return resolution.useArtifact && resolution.videoUrl && !resolution.masterVideoUrl;
+  });
+  const highResStatusLabel = subjectPickMode ? 'เลือกจุดจากเฟรมเริ่มต้นของ Cutout' : masterPreview
+    ? cutoutUsesPreview ? 'Canvas 1080p · Cutout ใช้ไฟล์พรีวิว' : 'พรีวิว 1080p จากต้นฉบับ'
+    : !highResStillEnabled
+    ? 'พรีวิว 540p'
+    : isPlaying
+      ? 'ขณะเล่น 540p'
+      : showHighResStill
+        ? 'เฟรมหยุด 1080p'
+        : highResStillStatus === 'loading'
+          ? 'กำลังสร้างเฟรม 1080p'
+          : highResStillStatus === 'fallback'
+            ? 'ใช้พรีวิวปกติ'
+            : 'เตรียมพรีวิว 1080p';
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-2">
@@ -4892,10 +5136,13 @@ function SequencePlayer({
                 delete videoElsRef.current[c.id];
               }
             }}
-            // Proxy when one is ready, master otherwise. Only the picture
+            // Point picking needs the native Master aspect even in smooth mode;
+            // the editing proxy is padded and cannot represent raw pick geometry.
+            // Only the picture
             // source changes: every timing value still comes from the clip's
             // own trim/speed against the master.
-            src={playbackUrlFor(c, clipSources, toMediaUrl)}
+            src={previewPlaybackUrl(subjectPickMode ? MASTER_PREVIEW : previewQuality, toMediaUrl(c.source_path), clipSources[c.id])}
+            data-preview-source={subjectPickMode || masterPreview || !clipSources[c.id]?.isProxy ? 'master' : 'proxy'}
             preload="auto"
             // These elements exist to decode frames, so they stay muted --
             // except where the clip has its own volume, which the render mixes
@@ -4903,6 +5150,13 @@ function SequencePlayer({
             muted={!(Number(c.volume) > 0)}
             playsInline
             onLoadedData={() => {
+              // A quality/proxy swap resets the decoder clock. Restore the
+              // current clip time even when the timeline is paused mid-clip.
+              const video = videoElsRef.current[c.id];
+              const entry = getDrawPlan(playheadRef.current).find((item) => item.seg.clip.id === c.id);
+              if (video && entry && !video.seeking && Math.abs(video.currentTime - entry.localTime) > 1 / 60) {
+                video.currentTime = entry.localTime;
+              }
               setFailedClipSources((previous) => {
                 const key = `${c.id}:${c.source_path}`;
                 if (!previous[key]) return previous;
@@ -4928,15 +5182,62 @@ function SequencePlayer({
         <div
           ref={containerRef}
           onClick={handleContainerClick}
-          className="relative overflow-hidden rounded-2xl border border-[#363430] bg-black shadow-2xl select-none"
+          onPointerDownCapture={handlePickPointerDownCapture}
+          onClickCapture={handlePickClickCapture}
+          data-subject-pick-mode={subjectPickMode ? 'on' : undefined}
+          className={`relative overflow-hidden rounded-2xl border border-[#363430] bg-black shadow-2xl select-none${subjectPickMode ? ' cursor-crosshair [&_*:not(button)]:cursor-crosshair' : ''}`}
           style={{ height: '100%', width: 'auto', aspectRatio: '9/16', maxWidth: '100%' }}
         >
           <canvas
             ref={canvasRef}
-            width={CANVAS_W}
-            height={CANVAS_H}
+            width={CANVAS_W * backingScale}
+            height={CANVAS_H * backingScale}
+            data-testid="sequence-preview-canvas"
+            data-preview-quality={previewQuality}
+            data-subject-prompt-source-time={subjectPickMode ? subjectPromptReferenceRef.current?.sourceStart : undefined}
+            data-preview-resolution={`${CANVAS_W * backingScale}x${CANVAS_H * backingScale}`}
+            data-preview-source={subjectPickMode || masterPreview ? 'master' : 'preview'}
+            data-cutout-source={cutoutUsesPreview ? 'preview-fallback' : 'master'}
+            data-preview-playing={isPlaying ? 'true' : 'false'}
             className="absolute inset-0 h-full w-full"
           />
+          {showHighResStill && (
+            <img
+              data-testid="high-resolution-still-preview"
+              data-preview-resolution={`${CANVAS_W * HIGH_RES_PREVIEW_SCALE}x${CANVAS_H * HIGH_RES_PREVIEW_SCALE}`}
+              data-preview-source="master"
+              data-capture-duration-ms={Math.round(highResStill.captureMs)}
+              data-capture-encoded-bytes={highResStill.encodedBytes}
+              src={highResStill.src}
+              alt=""
+              aria-hidden="true"
+              draggable="false"
+              className="pointer-events-none absolute inset-0 z-[1] h-full w-full object-fill"
+            />
+          )}
+          {subjectMarkers.length > 0 && (
+            <div
+              data-testid="subject-point-markers"
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-[35]"
+            >
+              {subjectMarkers.map(({ point, index }) => (
+                <span
+                  key={`${index}-${point.x}-${point.y}-${point.label}`}
+                  data-label={point.label}
+                  className={`absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white shadow-[0_0_6px_rgba(0,0,0,0.7)] ${point.label === 1 ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                  style={subjectPointMarkerStyle(point)}
+                >
+                  {index + 1}
+                </span>
+              ))}
+            </div>
+          )}
+          {subjectPickMode && (isPlaying || !subjectGeometry) && (
+            <div role="status" className="pointer-events-none absolute inset-x-2 bottom-2 z-40 rounded bg-black/85 p-2 text-center text-xs text-amber-200">
+              {isPlaying ? 'หยุดพรีวิวก่อนเลือกจุดสินค้า' : 'เลือกเฟรมที่มีคลิปเดียวและวิดีโอโหลดแล้วเพื่อจิ้มสินค้า'}
+            </div>
+          )}
           {!metadataReady && clips.length > 0 && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-xs font-bold text-[#9C968F] backdrop-blur-sm">
               กำลังโหลดวิดีโอ...
@@ -4959,6 +5260,41 @@ function SequencePlayer({
           {metadataReady && clips.length > 0 && (
             <>
               <BackgroundIsolationStatusBadge status={currentBackgroundIsolationStatus} />
+
+              <div className="pointer-events-auto absolute right-2 top-12 z-40 flex items-center gap-1 rounded-lg border border-cyan-300/30 bg-black/85 p-1 text-[10px] font-semibold text-slate-100 shadow-lg backdrop-blur-md">
+                <span role="status" aria-live="polite" className="px-1 text-cyan-200">
+                  {highResStatusLabel}
+                </span>
+                <select
+                  aria-label="คุณภาพพรีวิวขณะเล่น"
+                  data-testid="preview-quality-select"
+                  value={previewQuality}
+                  onClick={(event) => event.stopPropagation()}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onChange={(event) => setPreviewQuality(event.target.value)}
+                  className="rounded bg-slate-800 px-1 py-0.5 text-slate-100"
+                >
+                  <option value={MASTER_PREVIEW}>ชัด 1080p</option>
+                  <option value={SMOOTH_PREVIEW}>ลื่น 540p</option>
+                </select>
+                {!masterPreview && (
+                <button
+                  type="button"
+                  data-testid="toggle-high-resolution-preview"
+                  aria-pressed={highResStillEnabled}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setHighResStillEnabled((enabled) => !enabled);
+                  }}
+                  title={highResStillEnabled
+                    ? 'ปิดภาพคมชัด 1080p เมื่อหยุดคลิป'
+                    : 'เปิดภาพคมชัด 1080p เมื่อหยุดคลิป'}
+                  className={`rounded px-1.5 py-0.5 transition cursor-pointer ${highResStillEnabled ? 'bg-cyan-700 text-white' : 'bg-slate-700 text-slate-100 hover:bg-slate-600'}`}
+                >
+                  {highResStillEnabled ? 'ปิดพรีวิวคมชัด' : 'เปิดพรีวิวคมชัด'}
+                </button>
+                )}
+              </div>
 
               {/* Cutout Mask Inspection Mode Switcher */}
               {currentBackgroundIsolationStatus !== 'off' ? (
@@ -5196,6 +5532,7 @@ function SequencePlayer({
               {!selectedBox && !previewTextTemplate && (
                 <button
                   type="button"
+                  data-subject-pick-passthrough="true"
                   onClick={togglePlay}
                   aria-label={isPlaying ? 'หยุดพรีวิวชั่วคราว' : 'เล่นพรีวิว'}
                   className="group absolute inset-0 flex cursor-pointer items-center justify-center bg-black/0 transition-colors hover:bg-black/20"

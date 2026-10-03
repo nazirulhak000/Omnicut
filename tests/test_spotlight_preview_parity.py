@@ -56,7 +56,8 @@ def test_focus_shape_and_feather_use_backend_coordinate_contract():
     assert "ctx.ellipse(cx, cy, halfWidth, halfHeight, 0, 0, Math.PI * 2);" in drawer
     assert "ctx.rect(left, top, shapeWidth, shapeHeight);" in drawer
     assert "effect.corner_radius * Math.min(width, height)" in drawer
-    assert "maskCtx.filter = `blur(${effect.feather * Math.min(width, height)}px)`;" in JS_SRC
+    assert "maskCtx.filter = `blur(${effect.feather * Math.min(width, height) * scale}px)`;" in JS_SRC
+    assert "maskCtx.setTransform(scale, 0, 0, scale, 0, 0);" in JS_SRC
     assert "feather degrades to a clean hard" in JS_SRC
 
 

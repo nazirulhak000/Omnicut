@@ -24,6 +24,8 @@ import TextLookPreview from './TextLookPreview';
 import StylePresetPicker from './StylePresetPicker';
 import { HOOK_FS_RATIO, HOOK_SHADOW, overlayFromTextTemplate, overriddenTierFields } from '../../lib/overlayModel';
 import { TIER_KEYS } from '../../lib/hookStyles';
+import { defaultCutoutModel, resolveCutoutEngineModel } from '../../lib/cutoutEngineModel';
+import { describeSubjectPointCount, normalizeSubjectPoints } from '../../lib/subjectPoints';
 
 const normalizeBgmKey = (str) => {
   if (!str || typeof str !== 'string') return '';
@@ -213,8 +215,19 @@ function BackgroundIsolationControls({
   onCutoutModeChange = null,
   onClearAllBgBlur = null,
   onSelectClip = null,
+  subjectPoints = [],
+  subjectPickMode = false,
+  onToggleSubjectPick = null,
+  onClearSubjectPoints = null,
 }) {
   const enabled = backgroundIsolation?.enabled === true;
+  const pointCount = normalizeSubjectPoints(subjectPoints).length;
+
+  // Leaving the Cutout panel (another tab, or the cutout being switched off)
+  // must not leave the preview stuck in pick mode.
+  const toggleSubjectPickRef = useRef(onToggleSubjectPick);
+  useEffect(() => { toggleSubjectPickRef.current = onToggleSubjectPick; });
+  useEffect(() => () => toggleSubjectPickRef.current?.(false), []);
   const status = statusOverride?.state || backgroundIsolation?.artifact?.status || 'missing';
   const statusLabel = statusOverride?.label || status;
 
@@ -257,8 +270,7 @@ function BackgroundIsolationControls({
       schema_version: 1,
       enabled: true,
       mode: 'cutout',
-      engine: 'rembg',
-      model: backgroundIsolation?.model || 'u2net',
+      ...resolveCutoutEngineModel(backgroundIsolation),
       quality: backgroundIsolation?.quality || 'balanced',
       fallback: backgroundIsolation?.fallback || 'spotlight',
       artifact: { ...(backgroundIsolation?.artifact || {}), status: status === 'ready' ? 'ready' : 'missing' },
@@ -268,6 +280,28 @@ function BackgroundIsolationControls({
     <section className="rounded-2xl border border-violet-400/20 bg-violet-400/[0.04] p-3 space-y-2" aria-label="Background Isolation">
       {onPrepare && enabled && (
         <div className="space-y-1.5">
+          <label className="flex items-center justify-between gap-2 text-[11px] text-slate-300">
+            เอนจิน AI (Engine)
+            <select
+              aria-label="เอนจิน AI"
+              value={resolveCutoutEngineModel(backgroundIsolation).engine}
+              disabled={preparing}
+              onChange={(event) => {
+                const eng = event.target.value;
+                const nextModel = defaultCutoutModel(eng);
+                onChange?.({
+                  ...backgroundIsolation,
+                  engine: eng,
+                  model: nextModel,
+                  artifact: { schema_version: 1, id: null, status: 'missing' },
+                });
+              }}
+              className="rounded-lg border border-violet-400/30 bg-[#111827] px-2 py-1 text-[11px] text-white"
+            >
+              <option value="sam2">SAM 2.1 GPU (RTX เร็วพิเศษ)</option>
+              <option value="rembg">rembg U2Net (CPU ดั้งเดิม)</option>
+            </select>
+          </label>
           <label className="flex items-center justify-between gap-2 text-[11px] text-slate-300">
             ช่วงที่ประมวลผล Cutout
             <select
@@ -295,6 +329,35 @@ function BackgroundIsolationControls({
                 temporal_mode: event.target.checked ? 'motion' : 'legacy' })}
               className="h-3.5 w-3.5 accent-violet-400" />
           </label>
+          {onToggleSubjectPick && (
+            <div className="space-y-1" aria-label="จุดสินค้า">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  aria-pressed={subjectPickMode}
+                  disabled={preparing}
+                  onClick={() => onToggleSubjectPick(!subjectPickMode)}
+                  className={`flex-1 rounded-lg border px-2 py-1.5 text-[10px] font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${subjectPickMode
+                    ? 'border-emerald-300/40 bg-emerald-400/20 text-emerald-200 hover:bg-emerald-400/30'
+                    : 'border-violet-300/30 bg-violet-400/10 text-violet-200 hover:bg-violet-400/20'}`}
+                >
+                  {subjectPickMode ? 'เสร็จสิ้นการเลือกจุด' : 'เลือกจุดสินค้า'}
+                </button>
+                <button
+                  type="button"
+                  disabled={preparing || pointCount === 0}
+                  onClick={() => onClearSubjectPoints?.()}
+                  className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[10px] font-bold text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ล้างจุด
+                </button>
+              </div>
+              <p className="text-[10px] leading-relaxed text-slate-400">
+                {describeSubjectPointCount(subjectPoints)}
+                {subjectPickMode ? ' คลิกที่ตัวสินค้าในพรีวิวได้เลย' : ''}
+              </p>
+            </div>
+          )}
           <p className="text-[10px] text-slate-400">กดเตรียม Cutout เพื่อใช้ค่าที่เปลี่ยน แล้วตรวจขอบและส่วนของสินค้าที่ต้องการเก็บ</p>
           <p className="rounded-lg bg-black/20 px-2 py-1.5 text-[10px] leading-relaxed text-slate-400">
             {plan?.ready
@@ -1198,6 +1261,10 @@ export default function AssetPanel({
   backgroundIsolationPreparing = false,
   onClearAllBgBlur = null,
   onSelectClip = null,
+  subjectPoints = [],
+  subjectPickMode = false,
+  onToggleSubjectPick = null,
+  onClearSubjectPoints = null,
   onAddEffect = null,
   playhead = 0,
   totalDuration = 0,
@@ -1717,6 +1784,10 @@ export default function AssetPanel({
             onCutoutModeChange={onCutoutModeChange}
             onClearAllBgBlur={onClearAllBgBlur}
             onSelectClip={onSelectClip}
+            subjectPoints={subjectPoints}
+            subjectPickMode={subjectPickMode}
+            onToggleSubjectPick={onToggleSubjectPick}
+            onClearSubjectPoints={onClearSubjectPoints}
           />
         )}
 

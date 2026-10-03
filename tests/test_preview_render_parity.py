@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from scripts.config import VIDEO_HEIGHT, VIDEO_WIDTH
 
 ROOT = Path(__file__).resolve().parent.parent
 PY_SRC = ""
@@ -59,6 +60,37 @@ def test_hook_and_caption_font_ratios_match():
            _grab(OVERLAY_PY, r"\nHOOK_FS_RATIO = ([\d.]+)\n")
     assert _grab(PY_SRC, r"base_fs = int\(round\(video_width \* ([\d.]+)\)\)") == \
            _grab(JS_SRC, r"baseFs = Math\.round\(CANVAS_W \* ([\d.]+)\)")
+
+
+def test_paused_high_resolution_preview_uses_master_at_render_dimensions():
+    logical_width = _grab(JS_SRC, r"const CANVAS_W = (\d+)", int)
+    logical_height = _grab(JS_SRC, r"const CANVAS_H = (\d+)", int)
+    scale = _grab(JS_SRC, r"const HIGH_RES_PREVIEW_SCALE = (\d+)", int)
+    assert logical_width * scale == VIDEO_WIDTH == 1080
+    assert logical_height * scale == VIDEO_HEIGHT == 1920
+    assert "canvas.width = CANVAS_W * HIGH_RES_PREVIEW_SCALE;" in JS_SRC
+    assert "canvas.height = CANVAS_H * HIGH_RES_PREVIEW_SCALE;" in JS_SRC
+    capture_start = JS_SRC.index("const captureHighResolutionFrame = async")
+    capture_end = JS_SRC.index("  useEffect(() => {", capture_start)
+    capture_source = JS_SRC[capture_start:capture_end]
+    assert "loadCoverVideo(toMediaUrl(clip.source_path), entry.localTime)" in capture_source
+    assert "renderAt(t, { canvas, offscreen, videos, isolated, cutoutMode });" in capture_source
+    assert "PlayResX: {video_width}" in PY_SRC
+    assert "PlayResY: {video_height}" in PY_SRC
+    assert "SequencePlayer's" in PY_SRC and "full export raster" in PY_SRC
+
+
+def test_playback_quality_changes_raster_without_changing_logical_geometry():
+    quality_src = (ROOT / "frontend/src/lib/previewQuality.js").read_text(encoding="utf-8")
+    assert "export const MASTER_PREVIEW = 'master1080'" in quality_src
+    assert "export const SMOOTH_PREVIEW = 'smooth540'" in quality_src
+    assert "=== MASTER_PREVIEW ? 2 : 1" in quality_src
+    assert "width={CANVAS_W * backingScale}" in JS_SRC
+    assert "height={CANVAS_H * backingScale}" in JS_SRC
+    assert "ctx.setTransform(backingScale, 0, 0, backingScale, 0, 0)" in JS_SRC
+    assert "previewPlaybackUrl(subjectPickMode ? MASTER_PREVIEW : previewQuality, toMediaUrl(c.source_path), clipSources[c.id])" in JS_SRC
+    assert "cutoutPlaybackSource(previewQuality, resolution)" in JS_SRC
+    assert "Master playback and paused inspection both rasterize at 1080x1920" in PY_SRC
 
 
 def test_line_advance_matches_measured_libass_behaviour():
@@ -830,7 +862,7 @@ def test_seeking_stops_the_stems_before_repositioning_them():
     body = seek.group(1)
     assert "stopStems()" in body and "cueStemsTo(clamped)" in body
     assert body.index("stopStems()") < body.index("cueStemsTo(clamped)")
-    assert "if (isPlaying) startStems()" in body
+    assert "if (isPlaying && !subjectPickMode) startStems()" in body
 
 
 def test_a_late_decoded_one_shot_is_offset_not_played_from_its_start():
@@ -991,15 +1023,19 @@ def test_bridge_fades_dip_through_a_colour_instead_of_crossfading():
 def test_dissolve_reveals_per_pixel_and_never_goes_backwards():
     """
     Measured: the revealed share equals progress, no pixel ever reverts as
-    progress grows, and the grain is per-pixel rather than blocky. ffmpeg's own
-    pattern is not the common sin-hash (tested: 59% agreement, a coin flip), so
-    the pixels differ while the character and the share match.
+    progress grows, and the grain is per-pixel rather than blocky. The preview
+    mirrors FFmpeg's single-precision frand hash at export coordinates; a real
+    monochrome FFmpeg mask test covers its spatial agreement.
     """
     fn = re.search(r"function dissolveMaskFor\((.*?)\n\}", JS_SRC, re.S)
     assert fn
     body = fn.group(1)
-    assert "1 - Math.max(0, Math.min(1, progress))" in body, "share must equal progress"
-    assert "dissolveNoise[i] >= threshold" in body, "a fixed threshold keeps the reveal monotonic"
+    assert "const threshold = Math.max(0, Math.min(1, progress))" in body, "share must equal progress"
+    assert "dissolveNoise[i] < threshold" in body, "a fixed hash with an increasing threshold keeps reveal monotonic"
+    assert "const width = CANVAS_W * scale" in body
+    assert "const height = CANVAS_H * scale" in body
+    assert "Math.fround" in body
+    assert "HIGH_RES_PREVIEW_SCALE / scale" in body
     assert "Uint32Array" in body, "per-pixel work needs the 32-bit write, not four 8-bit ones"
 
 

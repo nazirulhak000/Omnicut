@@ -35,6 +35,53 @@ for (const rate of [0.5, 1, 1.3155, 2, 4]) {
   });
 }
 
+test('fractional-speed startup lead resynchronises once and follows upcoming decoded frames', async () => {
+  const { video, present } = decoder();
+  const playback = createCutoutVideoPlayback(video);
+  const rate = 1.3155;
+  // The alpha decoder starts before the editor clock while the source loads.
+  video.currentTime = 0.08;
+  present(0.1);
+  assert.equal(playback.sync({ time: 0, isPlaying: true, rate, now: 0 }), false);
+  assert.equal(video.currentTime, 0);
+  assert.equal(playback.metrics.seeks, 1);
+  present(0);
+  let available = 0;
+  for (let i = 1; i < 600; i += 1) {
+    video.currentTime += video.playbackRate / 60;
+    // rVFC announces a compositor frame ahead of video.currentTime.
+    present(Math.floor((video.currentTime + rate / 60) * 30 + 1e-6) / 30);
+    available += playback.sync({ time: i * rate / 60, isPlaying: true, rate, now: i * 1000 / 60 });
+    await Promise.resolve();
+  }
+  assert.equal(playback.metrics.seeks, 1);
+  assert.ok(available / 599 > 0.99, String(available));
+  assert.ok(Math.abs(video.currentTime - 599 * rate / 60) <= 1 / 30);
+});
+
+test('readiness still rejects an unaligned frame until the latest source frame arrives', () => {
+  const { video, present } = decoder();
+  const playback = createCutoutVideoPlayback(video);
+  playback.sync({ time: 0, isPlaying: true, rate: 1.3155, now: 0 });
+  present(0.066);
+  assert.equal(playback.ready(), false);
+  present(0.033);
+  assert.equal(playback.ready(), true);
+});
+
+test('a decoder behind the drawable frame window catches up without hiding the subject for rate-only recovery', () => {
+  const { video, present } = decoder();
+  const playback = createCutoutVideoPlayback(video);
+  playback.sync({ time: 0, isPlaying: true, rate: 2, now: 0 });
+  present(0);
+  video.currentTime = 0.02;
+  assert.equal(playback.sync({ time: 0.1, isPlaying: true, rate: 2, now: 50 }), false);
+  assert.equal(video.currentTime, 0.1);
+  assert.equal(playback.metrics.seeks, 1);
+  present(0.1);
+  assert.equal(playback.ready(), true);
+});
+
 test('paused rapid seeks reject the previous decoded frame and show only the latest target', () => {
   const { video, present } = decoder();
   const playback = createCutoutVideoPlayback(video);

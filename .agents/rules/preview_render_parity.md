@@ -72,7 +72,10 @@ Backend จริงรันด้วย `.venv\Scripts\python.exe` ดัง�
 - หลังแก้ backend visual contract ต้อง restart server แล้ว render artifact จริงใหม่ก่อนปิดงาน
 
 ### 2.3 หน่วยและระบบพิกัดต้องแปลง ไม่ใช่ก็อป
-Canvas = **540×960**, Render = **1080×1920** (ต่างกัน 2 เท่าพอดี)
+Canvas logical = **540×960**, Render = **1080×1920** (ต่างกัน 2 เท่าพอดี)
+- โหมด **ชัด 1080p** เล่นจาก **Master** และวาด Canvas backing **1080×1920** (`2×`) ตั้งแต่เล่นจนถึงหยุด; โหมด **ลื่น 540p** ใช้ backing **540×960** และ Proxy เมื่อมี พร้อมเลือก inspection still จาก Master ที่ `2×` เมื่อหยุดหรือ seek
+- ทั้ง playback และ still ใช้ `renderAt()`/พิกัด logical เดิม จึงเพิ่มความละเอียด raster โดยไม่เปลี่ยนฟอนต์ ตำแหน่ง หรือขนาดเชิงสัดส่วน; ทดสอบ `CANVAS × 2 = VIDEO_WIDTH/HEIGHT` ใน `test_preview_render_parity.py` และวัดภาพ Canvas เทียบ FFmpeg จริง
+- offscreen/transition/matte/LUT ต้องใช้ backing scale ของโหมดปัจจุบัน; Cutout 1080p ต้องใช้ alpha Master จริง ถ้ามีเพียงไฟล์พรีวิวให้บอกตามจริง ห้ามเรียกว่า Master
 - ขนาดฟอนต์/ระยะ: เขียนเป็น **สัดส่วนของความกว้างเฟรม** ให้เหมือนกันทั้งสองฝั่ง
   (เช่น `hook_fs = video_width * 0.065` ↔ `CANVAS_W * 0.065`) ห้าม hardcode พิกเซลคนละชุด
 - ตำแหน่ง: เทียบเป็น **% ของความสูงเฟรม** (เช่น MarginV 260/1920 ↔ y 130/960)
@@ -288,8 +291,7 @@ noise ทั้งภาพด้วย `Uint32Array` เขียนครั�
 
 ### ข้อยกเว้นด้าน transition
 
-- **`dissolve` pattern**: PRNG ของ ffmpeg ไม่ใช่ sin-hash แบบ GLSL (ทดสอบแล้วตรงกัน 59%
-  = เดาสุ่ม) → พรีวิวใช้ noise ของตัวเอง **ลักษณะ/สัดส่วน/ทิศทางตรง แต่พิกเซลไม่ตรง**
+- **`dissolve` pattern (2026-10-03, Codex GPT-6)**: preview now mirrors the float32 `frand()` algorithm from [FFmpeg vf_xfade.c](https://raw.githubusercontent.com/FFmpeg/FFmpeg/master/libavfilter/vf_xfade.c), sampled at export pixel coordinates. The backing mask follows 540p/1080p mode. Actual 1080p monochrome mask normalized MAE measured 0.00000724 against installed FFmpeg; colored pixel comparison must account for export YUV420 chroma subsampling. Cut/circle comparisons remain RGB; dissolve Canvas is converted through the same YUV420 format before comparing. This is a color-format limitation, not permission to ignore geometry or transition timing.
 - **`fadeblack`/`fadewhite` easing**: รูปโค้งไม่ใช่ smoothstep แท้ ผิดสูงสุด **0.067 น้ำหนัก**
   (≈17/255) ช่วงกลางที่เป็นสีคั่นล้วนตรงอยู่แล้ว
 
