@@ -15,12 +15,17 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
+from scripts.cutout_prompt import normalize_subject_points
+
 
 SCHEMA_VERSION = 1
 ARTIFACT_SCHEMA_VERSION = 1
 SUPPORTED_MODES = ("cutout",)
-SUPPORTED_ENGINES = ("rembg",)
-SUPPORTED_MODELS = ("u2netp", "u2net", "isnet-general-use")
+SUPPORTED_ENGINES = ("rembg", "sam2")
+SUPPORTED_MODELS = (
+    "u2netp", "u2net", "isnet-general-use",
+    "sam2.1_hiera_tiny", "sam2.1_hiera_small", "sam2.1_hiera_base_plus"
+)
 SUPPORTED_QUALITIES = ("draft", "balanced", "quality")
 SUPPORTED_FALLBACKS = ("spotlight", "original", "skip")
 ARTIFACT_STATUSES = ("missing", "processing", "ready", "stale", "error")
@@ -136,12 +141,16 @@ def normalize_background_isolation(value: Any) -> dict[str, Any]:
         return _no_op("disabled")
 
     mode = _normalise_choice(value.get("mode"), SUPPORTED_MODES, DEFAULT_MODE)
-    engine = _normalise_choice(value.get("engine"), SUPPORTED_ENGINES, DEFAULT_ENGINE)
-    model = _normalise_choice(value.get("model"), SUPPORTED_MODELS, DEFAULT_MODEL)
+    engine_default = "sam2" if str(value.get("model", "")).startswith("sam2.") else DEFAULT_ENGINE
+    engine = _normalise_choice(value.get("engine"), SUPPORTED_ENGINES, engine_default)
+    model_default = "sam2.1_hiera_tiny" if engine == "sam2" else DEFAULT_MODEL
+    model = _normalise_choice(value.get("model"), SUPPORTED_MODELS, model_default)
     quality = _normalise_choice(value.get("quality"), SUPPORTED_QUALITIES, DEFAULT_QUALITY)
     fallback = _normalise_choice(value.get("fallback"), SUPPORTED_FALLBACKS, DEFAULT_FALLBACK)
     if None in (mode, engine, model, quality, fallback):
         return _no_op("invalid_option")
+    if (engine == "sam2") != model.startswith("sam2."):
+        return _no_op("invalid_engine_model")
 
     artifact = _normalise_artifact(value.get("artifact"))
     if artifact is None:
@@ -153,6 +162,12 @@ def normalize_background_isolation(value: Any) -> dict[str, Any]:
     request_id = value.get("request_id")
     if request_id is not None and (not isinstance(request_id, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,80}", request_id)):
         return _no_op("invalid_request_id")
+    auto_prompt = value.get("auto_prompt")
+    if auto_prompt is not None and not isinstance(auto_prompt, bool):
+        return _no_op("invalid_auto_prompt")
+    # Points picked in the editor are clamped and capped here as well, so the
+    # worker can trust every coordinate it receives.
+    subject_points = normalize_subject_points(value.get("subject_points"))
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -165,6 +180,9 @@ def normalize_background_isolation(value: Any) -> dict[str, Any]:
         "artifact": artifact,
         **({"temporal_mode": temporal_mode} if temporal_mode is not None else {}),
         **({"request_id": request_id} if request_id is not None else {}),
+        **({"subject_points": subject_points} if subject_points else {}),
+        **({"auto_prompt": False} if auto_prompt is False else {}),
+
     }
 
 

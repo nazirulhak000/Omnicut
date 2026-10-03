@@ -27,7 +27,7 @@ VIDEO_NAMESPACE = "background-isolation-videos"
 VIDEO_NAME = "cutout.webm"
 PREVIEW_NAME = "preview.webm"
 VIDEO_SCHEMA_VERSION = 2
-WORKER_VERSION = "stream-rembg-v2-proxy"
+WORKER_VERSION = "stream-rembg-v3-prompt"
 _ID = re.compile(r"^bgseq1-[0-9a-f]{16}$")
 
 
@@ -40,6 +40,18 @@ def video_artifact_id(fingerprint: str, config: dict[str, Any], *, start: float,
     # namespace, so their default identity follows the worker's real default.
     default_temporal = "motion" if active_intervals is not None else "legacy"
     version = f"{WORKER_VERSION}-{normalized.get('temporal_mode', default_temporal)}"
+    if normalized.get("engine") == "sam2":
+        # Earlier SAM2 artifacts stretched the source, unlike editor prompts.
+        version += "-sam2-fit-v1"
+    # Editor-picked points change the mask, so they must change the identity:
+    # otherwise a cached artifact built from the wrong subject would be reused.
+    # An empty list keeps every existing cache id exactly as it was.
+    subject_points = normalized.get("subject_points") or []
+    if subject_points:
+        encoded_points = json.dumps(subject_points, sort_keys=True, separators=(",", ":"))
+        version += "-subj-" + hashlib.sha256(encoded_points.encode()).hexdigest()[:12]
+    if normalized.get("auto_prompt") is False:
+        version += "-autoprompt-off"
     if active_intervals is not None:
         encoded = json.dumps(active_intervals, separators=(",", ":"))
         version += "-sparse-" + hashlib.sha256(encoded.encode()).hexdigest()[:12]
@@ -105,6 +117,98 @@ def build_alpha_preview(master: Path, *, width: int, height: int, frame_count: i
             "height": preview_height, "frame_count": frame_count, "sha256": checksum,
             "size_bytes": preview.stat().st_size, "frame_mapping": "identity",
             "derived_from": VIDEO_NAME}
+
+
+def kill_process_tree(proc: subprocess.Popen | None) -> None:
+    """Kill process and all child processes recursively on Windows and Unix."""
+    if proc is None or proc.poll() is not None:
+        return
+    if sys.platform == "win32":
+        try:
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+        except Exception:
+            try:
+                proc.kill()
+            except OSError:
+                pass
+    else:
+        try:
+            proc.kill()
+        except OSError:
+            pass
+    try:
+        proc.wait(timeout=5)
+    except Exception:
+        pass
+
+
+def _prompt_frame_filter(width: int, height: int) -> str:
+    """Letterbox one frame from the source exactly like the cutout decoder does."""
+    from scripts.cutout_runtime import cutout_frame_filter
+    return cutout_frame_filter(width, height)
+
+
+def derive_sam2_prompts(
+    normalized: dict[str, Any], source: Path, staged: Path, *,
+    start: float, width: int, height: int,
+    worker: BackgroundIsolationWorker,
+) -> list[dict[str, float]] | None:
+    """Resolve the cutout prompt points for one SAM 2 job (hybrid auto-prompt).
+
+    Priority: points picked in the editor, then a derivation from the existing
+    rembg model on the first frame of the segment, then ``None`` which keeps the
+    worker's historical centre point.  Never raises: on real hand-held footage
+    the centre point selected the hand instead of the product (measured 38.74%
+    mask vs 0.58% with a product point), so a failed derivation must degrade to
+    the old behaviour rather than fail the whole job.
+    """
+    from scripts.cutout_prompt import normalize_subject_points, subject_points_from_frame
+
+    try:
+        explicit = normalize_subject_points(normalized.get("subject_points"))
+        if explicit:
+            return explicit
+        if normalized.get("auto_prompt") is False:
+            return None
+
+        frame_path = staged / ".prompt_frame.jpg"
+        try:
+            command = [
+                "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
+                "-ss", str(start), "-i", str(source), "-frames:v", "1",
+                "-vf", _prompt_frame_filter(width, height), "-q:v", "2", "-y", str(frame_path),
+            ]
+            subprocess.run(command, check=True, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=120)
+            from PIL import Image
+
+            # isnet-general-use, not the compact model: measured on the Jbl clip
+            # the compact/default models leak dark background into the mask and
+            # the product point lands outside the product, while isnet keeps the
+            # product inside one clean blob and the outlier stage finds it.
+            rembg, session = worker._get_session("isnet-general-use")
+            with Image.open(frame_path) as opened:
+                frame = opened.convert("RGB")
+                if session is None:
+                    return subject_points_from_frame(
+                        frame, remove_background=lambda image: rembg.remove(image)
+                    )
+                return subject_points_from_frame(
+                    frame, remove_background=lambda image: rembg.remove(image, session=session)
+                )
+        finally:
+            frame_path.unlink(missing_ok=True)
+    except Exception as exc:  # noqa: BLE001 - degrade, never fail the cutout job
+        try:
+            print(f"   ⚠️ หาจุดสินค้าอัตโนมัติไม่สำเร็จ ใช้จุดกลางภาพแบบเดิม: {exc}")
+        except UnicodeError:  # stdout is not UTF-8 (e.g. cp1252 pipe): the log must not break the fallback
+            print("   [warn] auto subject point failed, using the old centre point")
+        return None
 
 
 def process_background_isolation_video(
@@ -191,7 +295,8 @@ def process_background_isolation_video(
         shutil.rmtree(target)
     namespace.mkdir(parents=True, exist_ok=True)
     staged = Path(tempfile.mkdtemp(prefix=f".{artifact_id}.", dir=namespace))
-    decoder = encoder = None
+    decoder = encoder = sam2_proc = None
+    sam2_manifest = None
     frame_count = 0
     isolated_frame_count = 0
     # Phase 0 baseline: the round has to report real throughput rather than
@@ -216,87 +321,149 @@ def process_background_isolation_video(
         from scripts.cutout_temporal import TemporalAlphaRefiner
         refiner = TemporalAlphaRefiner()
     try:
-        rembg, session = worker._get_session(normalized["model"])
-        decode_cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
-                      "-ss", str(start), "-i", str(source)]
-        if duration is not None:
-            decode_cmd += ["-t", str(duration)]
-        decode_cmd += ["-vf", f"fps={fps_text},scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black",
-                       "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"]
-        encode_cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
-                      "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{width}x{height}",
-                      "-r", fps_text, "-i", "pipe:0", "-an", "-c:v", "libvpx-vp9",
-                      "-pix_fmt", "yuva420p", "-auto-alt-ref", "0", "-deadline", "good",
-                      "-cpu-used", "4", "-g", str(max(1, round(fps))),
-                      "-crf", "28", "-b:v", "0", str(staged / VIDEO_NAME)]
-        with tempfile.TemporaryFile() as decoder_log, tempfile.TemporaryFile() as encoder_log:
-            decoder = subprocess.Popen(decode_cmd, stdout=subprocess.PIPE,
-                                       stderr=decoder_log, stdin=subprocess.DEVNULL)
-            encoder = subprocess.Popen(encode_cmd, stdin=subprocess.PIPE,
-                                       stdout=subprocess.DEVNULL, stderr=encoder_log)
-            assert decoder.stdout is not None and encoder.stdin is not None
-            previous_alpha = None
-            while True:
-                if cancel_event is not None and cancel_event.is_set():
-                    raise RuntimeError("background isolation cancelled")
-                raw = decoder.stdout.read(frame_size)
-                if not raw:
-                    break
-                if len(raw) != frame_size:
-                    raise RuntimeError("source decoder returned a partial frame")
-                source_time = start + frame_count / float(fps_ratio)
-                active = active_intervals is None or any(
-                    begin - 1e-6 <= source_time < end - 1e-6 for begin, end in active_intervals
-                )
-                if active:
-                    rgb = Image.frombytes("RGB", (width, height), raw)
-                    result = rembg.remove(rgb, session=session) if session is not None else rembg.remove(rgb)
-                    if isinstance(result, (bytes, bytearray)):
-                        with Image.open(io.BytesIO(result)) as decoded:
-                            rgba = decoded.convert("RGBA")
+        if normalized.get("engine") == "sam2":
+            from scripts.cutout_runtime import sam2_python, resolve_checkpoint
+            interpreter = sam2_python()
+            if not interpreter.is_file():
+                raise RuntimeError("SAM2 runtime missing; set OMNICUT_SAM2_PYTHON or prepare tools/cutout_runtime/.venv")
+            sam2_script = Path(__file__).resolve().parent / "background_isolation_sam2_worker.py"
+            model_name = normalized.get("model", "sam2.1_hiera_tiny")
+            checkpoint_path = resolve_checkpoint(model_name, cache_root=cache_root)
+
+            cmd = [
+                str(interpreter), str(sam2_script),
+                "--source", str(source),
+                "--output-dir", str(staged),
+                "--start", str(start),
+                "--fps", str(float(fps_ratio)),
+                "--width", str(width),
+                "--height", str(height),
+                "--model", model_name,
+            ]
+            cmd.extend(["--checkpoint", str(checkpoint_path)])
+            if duration is not None:
+                cmd.extend(["--duration", str(duration)])
+            if active_intervals is not None:
+                cmd.extend(["--active-intervals", ";".join(f"{begin},{end}" for begin, end in active_intervals)])
+            prompt_points = derive_sam2_prompts(
+                normalized, source, staged, start=start, width=width, height=height, worker=worker,
+            )
+            if prompt_points:
+                from scripts.cutout_prompt import format_prompt_points
+
+                cmd.extend(["--prompt-points", format_prompt_points(prompt_points)])
+
+            with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as sam2_stderr_log:
+                sam2_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=sam2_stderr_log, text=True)
+                while True:
+                    if cancel_event is not None and cancel_event.is_set():
+                        kill_process_tree(sam2_proc)
+                        raise RuntimeError("background isolation cancelled")
+                    line = sam2_proc.stdout.readline()
+                    if not line and sam2_proc.poll() is not None:
+                        break
+                    if line.startswith("PROGRESS:"):
+                        try:
+                            p_val = float(line.strip().split(":", 1)[1])
+                            if progress_callback:
+                                progress_callback({"stage": "processing", "progress": p_val})
+                        except (ValueError, IndexError):
+                            pass
+
+                sam2_proc.wait()
+                if sam2_proc.returncode != 0:
+                    sam2_stderr_log.seek(0)
+                    stderr = sam2_stderr_log.read()
+                    raise RuntimeError(f"SAM 2 worker failed: {stderr[-600:]}")
+
+            sam2_manifest_file = staged / "manifest.json"
+            if not sam2_manifest_file.is_file():
+                raise RuntimeError("SAM 2 worker did not produce manifest.json")
+            sam2_manifest = json.loads(sam2_manifest_file.read_text(encoding="utf-8"))
+            frame_count = sam2_manifest.get("frame_count", 0)
+            isolated_frame_count = sam2_manifest.get("isolated_frame_count", frame_count)
+        else:
+            rembg, session = worker._get_session(normalized["model"])
+            decode_cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
+                          "-ss", str(start), "-i", str(source)]
+            if duration is not None:
+                decode_cmd += ["-t", str(duration)]
+            decode_cmd += ["-vf", f"fps={fps_text},scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black",
+                           "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"]
+            encode_cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+                          "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{width}x{height}",
+                          "-r", fps_text, "-i", "pipe:0", "-an", "-c:v", "libvpx-vp9",
+                          "-pix_fmt", "yuva420p", "-auto-alt-ref", "0", "-deadline", "good",
+                          "-cpu-used", "4", "-g", str(max(1, round(fps))),
+                          "-crf", "28", "-b:v", "0", str(staged / VIDEO_NAME)]
+            with tempfile.TemporaryFile() as decoder_log, tempfile.TemporaryFile() as encoder_log:
+                decoder = subprocess.Popen(decode_cmd, stdout=subprocess.PIPE,
+                                           stderr=decoder_log, stdin=subprocess.DEVNULL)
+                encoder = subprocess.Popen(encode_cmd, stdin=subprocess.PIPE,
+                                           stdout=subprocess.DEVNULL, stderr=encoder_log)
+                assert decoder.stdout is not None and encoder.stdin is not None
+                previous_alpha = None
+                while True:
+                    if cancel_event is not None and cancel_event.is_set():
+                        raise RuntimeError("background isolation cancelled")
+                    raw = decoder.stdout.read(frame_size)
+                    if not raw:
+                        break
+                    if len(raw) != frame_size:
+                        raise RuntimeError("source decoder returned a partial frame")
+                    source_time = start + frame_count / float(fps_ratio)
+                    active = active_intervals is None or any(
+                        begin - 1e-6 <= source_time < end - 1e-6 for begin, end in active_intervals
+                    )
+                    if active:
+                        rgb = Image.frombytes("RGB", (width, height), raw)
+                        result = rembg.remove(rgb, session=session) if session is not None else rembg.remove(rgb)
+                        if isinstance(result, (bytes, bytearray)):
+                            with Image.open(io.BytesIO(result)) as decoded:
+                                rgba = decoded.convert("RGBA")
+                        else:
+                            rgba = result.convert("RGBA")
+                        _validate_alpha_quality(rgba, expected_size=(width, height),
+                                                quality=normalized["quality"])
+                        alpha = rgba.getchannel("A")
+                        if refiner is not None:
+                            import numpy as np
+                            alpha = Image.fromarray(refiner.refine(np.asarray(rgb), np.asarray(alpha),
+                                pts=source_time, fps=float(fps_ratio)))
+                            rgba.putalpha(alpha)
+                        elif previous_alpha is not None and temporal_mode == "legacy":
+                            difference = ImageChops.difference(previous_alpha, alpha)
+                            stable = difference.point(lambda value: 255 if value < 24 else 0)
+                            smoothed = Image.blend(previous_alpha, alpha, 0.65)
+                            alpha.paste(smoothed, mask=stable)
+                            rgba.putalpha(alpha)
+                        previous_alpha = alpha
+                        frame_bytes = rgba.tobytes()
+                        isolated_frame_count += 1
                     else:
-                        rgba = result.convert("RGBA")
-                    _validate_alpha_quality(rgba, expected_size=(width, height),
-                                            quality=normalized["quality"])
-                    alpha = rgba.getchannel("A")
-                    if refiner is not None:
-                        import numpy as np
-                        alpha = Image.fromarray(refiner.refine(np.asarray(rgb), np.asarray(alpha),
-                            pts=source_time, fps=float(fps_ratio)))
-                        rgba.putalpha(alpha)
-                    elif previous_alpha is not None and temporal_mode == "legacy":
-                        difference = ImageChops.difference(previous_alpha, alpha)
-                        stable = difference.point(lambda value: 255 if value < 24 else 0)
-                        smoothed = Image.blend(previous_alpha, alpha, 0.65)
-                        alpha.paste(smoothed, mask=stable)
-                        rgba.putalpha(alpha)
-                    previous_alpha = alpha
-                    frame_bytes = rgba.tobytes()
-                    isolated_frame_count += 1
-                else:
-                    previous_alpha = None
-                    frame_bytes = transparent_frame
-                try:
-                    encoder.stdin.write(frame_bytes)
-                except OSError as exc:
+                        previous_alpha = None
+                        frame_bytes = transparent_frame
+                    try:
+                        encoder.stdin.write(frame_bytes)
+                    except OSError as exc:
+                        encoder_log.seek(0)
+                        details = encoder_log.read(2048).decode(errors="replace")
+                        raise RuntimeError(f"cutout encoder stopped before frame {frame_count + 1}: {details[:400]}") from exc
+                    frame_count += 1
+                    if progress_callback and frame_count % 5 == 0:
+                        progress_callback({"stage": "isolating", "frame": frame_count,
+                                           "progress": min(0.95, frame_count / max(1, round((duration or 60) * fps)))})
+                decoder.stdout.close()
+                encoder.stdin.close()
+                decoder_code = decoder.wait(timeout=30)
+                encoder_code = encoder.wait(timeout=120)
+                if decoder_code or encoder_code or frame_count == 0:
+                    decoder_log.seek(0)
                     encoder_log.seek(0)
-                    details = encoder_log.read(2048).decode(errors="replace")
-                    raise RuntimeError(f"cutout encoder stopped before frame {frame_count + 1}: {details[:400]}") from exc
-                frame_count += 1
-                if progress_callback and frame_count % 5 == 0:
-                    progress_callback({"stage": "isolating", "frame": frame_count,
-                                       "progress": min(0.95, frame_count / max(1, round((duration or 60) * fps)))})
-            decoder.stdout.close()
-            encoder.stdin.close()
-            decoder_code = decoder.wait(timeout=30)
-            encoder_code = encoder.wait(timeout=120)
-            if decoder_code or encoder_code or frame_count == 0:
-                decoder_log.seek(0)
-                encoder_log.seek(0)
-                details = (decoder_log.read(2048) + encoder_log.read(2048)).decode(errors="replace")
-                raise RuntimeError(f"cutout video encode failed ({decoder_code}/{encoder_code}, {frame_count} frames): {details[:400]}")
-            if duration is not None and abs(frame_count - round(duration * float(fps_ratio))) > 1:
-                raise RuntimeError("cutout source ended before the requested video window")
+                    details = (decoder_log.read(2048) + encoder_log.read(2048)).decode(errors="replace")
+                    raise RuntimeError(f"cutout video encode failed ({decoder_code}/{encoder_code}, {frame_count} frames): {details[:400]}")
+                if duration is not None and abs(frame_count - round(duration * float(fps_ratio))) > 1:
+                    raise RuntimeError("cutout source ended before the requested video window")
         video_path = staged / VIDEO_NAME
         encode_seconds = time.perf_counter() - encode_started_at
         _verify_video(video_path, width=width, height=height, frame_count=frame_count)
@@ -304,8 +471,11 @@ def process_background_isolation_video(
             raise RuntimeError("background isolation cancelled")
         if progress_callback:
             progress_callback({"stage": "preview", "frame": frame_count, "progress": 0.97})
-        preview = build_alpha_preview(video_path, width=width, height=height,
-                                      frame_count=frame_count, fps=float(fps_ratio))
+        if (staged / PREVIEW_NAME).is_file() and sam2_manifest and sam2_manifest.get("preview"):
+            preview = sam2_manifest["preview"]
+        else:
+            preview = build_alpha_preview(video_path, width=width, height=height,
+                                          frame_count=frame_count, fps=float(fps_ratio))
         with video_path.open("rb") as handle:
             checksum = hashlib.file_digest(handle, "sha256").hexdigest()
         manifest = {"schema_version": VIDEO_SCHEMA_VERSION, "artifact_id": artifact_id,
@@ -318,6 +488,11 @@ def process_background_isolation_video(
                     "model": normalized["model"], "quality": normalized["quality"],
                     "worker_version": WORKER_VERSION, "sha256": checksum}
         manifest["temporal_mode"] = temporal_mode
+        if sam2_manifest:
+            manifest["sam2"] = {key: sam2_manifest[key] for key in
+                                ("device", "device_name", "torch_version", "prompts", "geometry", "performance",
+                                 "tracking_full_window", "offload_video_to_cpu")
+                                if key in sam2_manifest}
         if active_intervals is not None:
             manifest["active_intervals"] = active_intervals
             manifest["isolated_frame_count"] = isolated_frame_count
@@ -347,9 +522,7 @@ def process_background_isolation_video(
                 "output_directory": str(target), "frame_count": frame_count,
                 "cache_hit": False}
     finally:
-        for proc in (decoder, encoder):
-            if proc is not None and proc.poll() is None:
-                proc.kill()
-                proc.wait()
+        for proc in (decoder, encoder, sam2_proc):
+            kill_process_tree(proc)
         if staged.exists():
             shutil.rmtree(staged)

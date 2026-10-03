@@ -1484,47 +1484,79 @@ def test_short_video_holds_its_last_frame_instead_of_ending_early(monkeypatch, t
     assert "[v_filled]" not in plenty_filter, "video longer than the audio needs no padding"
 
 
-def _quality_setting(cmd):
-    """
-    The encode-effort knob in use, whichever encoder ran. Asserting on x264's
-    `-crf`/`-preset` alone broke the moment a machine with a usable hardware
-    encoder was the one running the tests.
-    """
-    for flag in ("-crf", "-qp_i", "-global_quality", "-qp"):
-        if flag in cmd:
-            return flag, cmd[cmd.index(flag) + 1]
-    raise AssertionError(f"no quality setting in {cmd}")
+_EXPORT_ENCODER_CASES = [
+    pytest.param(None, "-crf", 18, 26, id="libx264"),
+    pytest.param("h264_nvenc", "-cq", 20, 26, id="nvenc"),
+    pytest.param("h264_qsv", "-global_quality", 20, 26, id="qsv"),
+    pytest.param("h264_amf", "-qp_i", 20, 26, id="amf"),
+    pytest.param("h264_videotoolbox", "-q:v", 60, 48, id="videotoolbox"),
+]
 
 
-def test_draft_export_scales_down_and_lowers_encode_effort(monkeypatch, tmp_path):
+@pytest.mark.parametrize("encoder,quality_flag,post_quality,draft_quality", _EXPORT_ENCODER_CASES)
+@pytest.mark.parametrize("legacy_input", [False, True], ids=["clip-list", "legacy-source"])
+def test_draft_export_scales_down_and_lowers_encode_effort(
+    monkeypatch, tmp_path, encoder, quality_flag, post_quality, draft_quality, legacy_input,
+):
+    from scripts import video_editor
+
+    # Exercise command contracts without probing this computer's GPU or .env.
+    monkeypatch.setattr(video_editor, "hardware_encoder", lambda: encoder)
     clip_list = [{"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0}]
+    inputs = {"raw_video_paths": [str(tmp_path / "a.mp4")]} if legacy_input else {
+        "raw_video_paths": [], "clip_list": clip_list,
+    }
 
-    post = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
-    post_flag, post_quality = _quality_setting(post)
+    post = _capture_ffmpeg_cmd(monkeypatch, tmp_path, **inputs)
+    assert post[post.index(quality_flag) + 1] == str(post_quality)
     post_filter = post[post.index("-filter_complex") + 1]
     assert "[v_subbed]" not in post_filter, "post quality must not add a scale pass"
+    assert "scale=1080:1920" in post_filter
 
     draft = _capture_ffmpeg_cmd(
-        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list, export_preset="draft",
+        monkeypatch, tmp_path, **inputs, export_preset="draft",
     )
-    draft_flag, draft_quality = _quality_setting(draft)
-    assert draft_flag == post_flag, "both presets should drive the same encoder"
-    # Draft asks for less: a higher crf, or a higher qp, is coarser and faster.
-    assert int(draft_quality) > int(post_quality)
+    assert draft[draft.index(quality_flag) + 1] == str(draft_quality)
+    for command in (post, draft):
+        assert command[command.index("-c:v") + 1] == (encoder or "libx264")
+        assert command[command.index("-r") + 1] == "30"
+        assert command[command.index("-pix_fmt") + 1] == "yuv420p"
+    # Compare only within the same encoder: CRF/CQ/QP values are not equivalent.
+    assert (draft_quality < post_quality) if quality_flag == "-q:v" else (draft_quality > post_quality)
+    if encoder is None:
+        assert post[post.index("-preset") + 1] == "medium"
+        assert draft[draft.index("-preset") + 1] == "veryfast"
+    elif encoder == "h264_nvenc":
+        for command in (post, draft):
+            assert command[command.index("-rc") + 1] == "vbr"
+            assert command[command.index("-b:v") + 1] == "0"
+    elif encoder == "h264_amf":
+        assert post[post.index("-qp_p") + 1] == "22"
+        assert draft[draft.index("-qp_p") + 1] == "28"
     draft_filter = draft[draft.index("-filter_complex") + 1]
     assert "scale=720:1280" in draft_filter
     # subtitles burn before the downscale -- the .ass coordinates assume 1080
     assert draft_filter.index("subtitles=") < draft_filter.index("scale=720:1280")
 
 
-def test_unknown_export_preset_falls_back_to_post(monkeypatch, tmp_path):
+@pytest.mark.parametrize("encoder,quality_flag,post_quality,draft_quality", _EXPORT_ENCODER_CASES)
+@pytest.mark.parametrize("legacy_input", [False, True], ids=["clip-list", "legacy-source"])
+def test_unknown_export_preset_falls_back_to_post(
+    monkeypatch, tmp_path, encoder, quality_flag, post_quality, draft_quality, legacy_input,
+):
+    from scripts import video_editor
+
+    monkeypatch.setattr(video_editor, "hardware_encoder", lambda: encoder)
     clip_list = [{"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0}]
+    inputs = {"raw_video_paths": [str(tmp_path / "a.mp4")]} if legacy_input else {
+        "raw_video_paths": [], "clip_list": clip_list,
+    }
     cmd = _capture_ffmpeg_cmd(
-        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list, export_preset="nonsense",
+        monkeypatch, tmp_path, **inputs, export_preset="nonsense",
     )
-    _, quality = _quality_setting(cmd)
-    post = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
-    assert quality == _quality_setting(post)[1], "an unknown preset must render like post"
+    post = _capture_ffmpeg_cmd(monkeypatch, tmp_path, **inputs)
+    assert cmd == post, "unknown preset must use the complete Post filter/encoder/audio contract"
+    assert cmd[cmd.index(quality_flag) + 1] == str(post_quality)
     assert "scale=720:1280" not in cmd[cmd.index("-filter_complex") + 1]
 
 

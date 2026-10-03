@@ -34,6 +34,7 @@ from scripts.config import PROJECTS_DIR
 from scripts.storage_cleaner import is_strictly_protected_path
 from scripts.task_manager import TaskManager
 from scripts.background_isolation import normalize_background_isolation
+from scripts.cutout_runtime import probe_sam2_runtime, resolve_checkpoint, sam2_input_memory_bytes
 from scripts.background_isolation_sequence_artifacts import build_sequence_artifact_id
 from scripts.background_isolation_sequence_worker import DERIVED_CACHE_NAMESPACE
 from scripts.background_isolation_video_worker import (
@@ -92,19 +93,16 @@ def _background_isolation_preflight(
 ) -> dict[str, Any]:
     """Return actionable runtime/capacity checks without starting a worker."""
 
-    modules = {
-        name: importlib.util.find_spec(name) is not None
-        for name in ("rembg", "onnxruntime", "PIL")
-    }
-    model_home = Path(os.environ.get("U2NET_HOME") or (Path.home() / ".u2net"))
-    model_path = model_home / f"{req.config.get('model', 'u2net')}.onnx"
-    frame_count = math.ceil((req.duration or 0) * req.fps - 1e-9) if req.duration else None
+    effective_duration = req.duration
+    if effective_duration is None and req.config.get("engine") == "sam2":
+        from scripts.silence_detect import _probe_duration
+        source_duration = _probe_duration(source)
+        if math.isfinite(source_duration) and source_duration > req.start:
+            effective_duration = source_duration - req.start
+    frame_count = math.ceil((effective_duration or 0) * req.fps - 1e-9) if effective_duration else None
     isolated_frame_count = (sum(math.ceil((end - begin) * req.fps - 1e-9)
                                 for begin, end in req.active_intervals)
                             if req.active_intervals is not None else frame_count)
-    # The new worker streams pixels through RAM and stages one alpha video.
-    # Keep a conservative compressed-video allowance without reserving disk
-    # for two full-resolution PNG sequences.
     estimated_cache_bytes = (
         ((isolated_frame_count or 0) * req.width * req.height // 4
          + (frame_count - (isolated_frame_count or 0)) * req.width * req.height // 128)
@@ -115,9 +113,6 @@ def _background_isolation_preflight(
         disk_target = disk_target.parent
     free_disk_bytes = shutil.disk_usage(disk_target).free
     required_disk_bytes = max(128 * 1024 * 1024, int((estimated_cache_bytes or 0) * 2))
-    required_memory_bytes = (
-        384 * 1024 * 1024 if req.config.get("model") == "u2netp" else 768 * 1024 * 1024
-    )
     available_memory_bytes = None
     if importlib.util.find_spec("psutil") is not None:
         try:
@@ -125,25 +120,71 @@ def _background_isolation_preflight(
             available_memory_bytes = int(psutil.virtual_memory().available)
         except Exception:
             available_memory_bytes = None
+
+    engine = req.config.get("engine", "rembg")
     issues: list[dict[str, str]] = []
-    for module, available in modules.items():
-        if not available:
+
+    if engine == "sam2":
+        model_name = req.config.get("model", "sam2.1_hiera_tiny")
+        try:
+            resolve_checkpoint(model_name, cache_root=Path(PROJECTS_DIR) / ".cache")
+            model_cached = True
+        except (FileNotFoundError, ValueError):
+            model_cached = False
+        modules = probe_sam2_runtime()
+        if not modules["sam2_runtime"]:
             issues.append({
                 "severity": "error",
-                "code": f"{module.lower()}_missing",
-                "message": f"ไม่พบ runtime {module} ใน environment ของ backend",
+                "code": "sam2_runtime_missing",
+                "message": "ไม่พบ GPU Cutout Runtime ตั้งค่า OMNICUT_SAM2_PYTHON หรือ tools/cutout_runtime/.venv",
             })
-    if not model_path.is_file():
+        elif not modules.get("cuda"):
+            issues.append({
+                "severity": "error",
+                "code": "sam2_cuda_unavailable",
+                "message": "SAM2 ต้องใช้ runtime ที่มี CUDA และ NVIDIA GPU: " + str(modules.get("error") or "CUDA unavailable"),
+            })
+        if not model_cached:
+            issues.append({
+                "severity": "error",
+                "code": "model_not_cached",
+                "message": f"ไม่พบโมเดล {model_name}.pt ตั้งค่า OMNICUT_SAM2_CHECKPOINT_DIR ให้ตรงกับโมเดลที่เลือก",
+            })
+        # SAM2's eager input tensor uses 1024² RGB float32 on host RAM.
+        # Tracking still covers the full window, including sparse intervals.
+        required_memory_bytes = sam2_input_memory_bytes(frame_count or 0)
+    else:
+        model_name = req.config.get("model", "u2net")
+        modules = {
+            name: importlib.util.find_spec(name) is not None
+            for name in ("rembg", "onnxruntime", "PIL")
+        }
+        model_home = Path(os.environ.get("U2NET_HOME") or (Path.home() / ".u2net"))
+        model_path = model_home / f"{model_name}.onnx"
+        model_cached = model_path.is_file()
+        for module, available in modules.items():
+            if not available:
+                issues.append({
+                    "severity": "error",
+                    "code": f"{module.lower()}_missing",
+                    "message": f"ไม่พบ runtime {module} ใน environment ของ backend",
+                })
+        if not model_cached:
+            issues.append({
+                "severity": "warning",
+                "code": "model_not_cached",
+                "message": f"ยังไม่พบโมเดล {model_path.name} ในเครื่อง งานแรกอาจต้องดาวน์โหลดโมเดล",
+            })
+        required_memory_bytes = (
+            384 * 1024 * 1024 if req.config.get("model") == "u2netp" else 768 * 1024 * 1024
+        )
+
+    if effective_duration is None:
         issues.append({
-            "severity": "warning",
-            "code": "model_not_cached",
-            "message": f"ยังไม่พบโมเดล {model_path.name} ในเครื่อง งานแรกอาจต้องดาวน์โหลดโมเดล",
-        })
-    if req.duration is None:
-        issues.append({
-            "severity": "warning",
+            "severity": "error" if engine == "sam2" else "warning",
             "code": "duration_unknown",
-            "message": "ไม่ทราบความยาวช่วงวิดีโอ จึงยังประเมินจำนวนเฟรมและพื้นที่ไม่ได้",
+            "message": "อ่านความยาว source ไม่สำเร็จ กรุณาระบุ duration ก่อนเริ่ม SAM2 เพื่อประเมิน RAM และพื้นที่"
+                if engine == "sam2" else "ไม่ทราบความยาวช่วงวิดีโอ จึงยังประเมินจำนวนเฟรมและพื้นที่ไม่ได้",
         })
     elif free_disk_bytes < required_disk_bytes:
         issues.append({
@@ -155,14 +196,17 @@ def _background_isolation_preflight(
         issues.append({
             "severity": "error",
             "code": "memory_low",
-            "message": "RAM ว่างไม่พอสำหรับโมเดล Cutout ที่เลือก กรุณาปิดโปรแกรมอื่นหรือใช้โมเดล u2netp",
+            "message": ("RAM ว่างไม่พอสำหรับช่วง SAM2 ที่เลือก กรุณาตัดช่วง source ให้สั้นลงหรือปิดโปรแกรมอื่น"
+                        if engine == "sam2" else
+                        "RAM ว่างไม่พอสำหรับโมเดล Cutout ที่เลือก กรุณาปิดโปรแกรมอื่นหรือใช้โมเดล u2netp"),
         })
 
     return {
         "ok": not any(issue["severity"] == "error" for issue in issues),
         "source_path": str(source),
         "start": req.start,
-        "duration": req.duration,
+        "duration": effective_duration,
+        "duration_inferred": req.duration is None and effective_duration is not None,
         "fps": req.fps,
         "frame_count": frame_count,
         "isolated_frame_count": isolated_frame_count,
@@ -171,8 +215,8 @@ def _background_isolation_preflight(
         "required_disk_bytes": required_disk_bytes,
         "available_memory_bytes": available_memory_bytes,
         "required_memory_bytes": required_memory_bytes,
-        "model": req.config.get("model", "u2net"),
-        "model_cached": model_path.is_file(),
+        "model": model_name,
+        "model_cached": model_cached,
         "runtime": modules,
         "issues": issues,
     }

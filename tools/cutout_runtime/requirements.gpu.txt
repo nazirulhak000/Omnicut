@@ -1,0 +1,14 @@
+# Recreate the isolated RTX 4060 runtime verified by the local API GPU test.
+# Install into tools/cutout_runtime/.venv only; no global/backend installation.
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+numpy==2.2.6
+Pillow==12.3.0
+hydra-core==1.3.7
+tqdm==4.70.1
+iopath==0.1.10
+psutil==7.2.2
+setuptools==84.0.0
+# Install existing ../external_repos/sam2 separately with --no-deps;
+# see README.md. No automatic checkpoint download is performed.
