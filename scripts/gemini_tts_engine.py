@@ -125,14 +125,14 @@ class GeminiFlashTTSEngine:
 
         if gender and "female" in gender.lower():
             return "Kore"
-        return "Puck"
+        return "Fenrir"
 
     @classmethod
     def generate_speech(
         cls,
         text: str,
         output_path: str,
-        voice_preset: str = "gemini_puck_male_hype",
+        voice_preset: str = "gemini_fenrir_male_strong",
         voice_name: Optional[str] = None,
         ad_tone: str = "commercial_hype",
         speed: float = 1.15
@@ -450,7 +450,7 @@ if __name__ == "__main__":
         res = GeminiFlashTTSEngine.generate_speech(
             text="สวัสดีครับ สายชาร์จแม่เหล็กตัวนี้แรงดูดดีมาก ชาร์จไวสุดๆ ลองใช้แล้วจะติดใจครับ",
             output_path=str(test_out),
-            voice_preset="gemini_puck_male_hype",
+            voice_preset="gemini_fenrir_male_strong",
             speed=1.15
         )
         print("Self-test completed:", res)

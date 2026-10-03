@@ -205,7 +205,7 @@ export default function ProductWorkspace({ projectId, onBack, onProjectChanged }
       }, 'บันทึก Story แล้ว กำลังสร้าง Gemini TTS');
       const response = await generateGadgetMediaNarration(projectId, {
         script_text: blocks.map((block) => block.text || '').join(' '),
-        voice_preset: saved.presentation?.voice || 'gemini_puck_male_hype',
+        voice_preset: saved.presentation?.voice || 'gemini_fenrir_male_strong',
         ad_tone: saved.presentation?.ad_tone || 'commercial_expert',
         speed: Number(saved.presentation?.speed) || 1.15,
       });

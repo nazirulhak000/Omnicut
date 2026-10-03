@@ -40,7 +40,7 @@ def execute_gadget_media_narration(
     repository: GadgetMediaRepository,
     *,
     script_text: str = "",
-    voice_preset: str = "gemini_puck_male_hype",
+    voice_preset: str = "gemini_fenrir_male_strong",
     ad_tone: str = "commercial_expert",
     speed: float = 1.15,
 ) -> None:

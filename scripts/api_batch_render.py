@@ -19,7 +19,7 @@ class BatchRenderRequest(BaseModel):
     voice_gender: str = "female"
     voice_rate: str = "+15%"
     voice_mode: str = "gemini_tts"
-    voice_preset: str = "gemini_puck_male_hype"
+    voice_preset: str = "gemini_fenrir_male_strong"
     style_preset: str = "clean_tech_review"
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True

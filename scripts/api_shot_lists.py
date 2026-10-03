@@ -209,7 +209,7 @@ def _execute_batch_generate_audio_worker(
         if not product:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
-        voice_preset = payload.get("voice_preset") or "gemini_puck_male_hype"
+        voice_preset = payload.get("voice_preset") or "gemini_fenrir_male_strong"
         ad_tone = payload.get("ad_tone") or "commercial_hype"
         batch_index = payload.get("batch_index")
         force_regenerate = payload.get("force_regenerate", False)
@@ -359,7 +359,7 @@ def batch_generate_audio(
 
     batch_idx = payload.get("batch_index")
     batch_label = f"ล็อตที่ {batch_idx}" if batch_idx is not None else "ทุกล็อต"
-    preset_name = payload.get("voice_preset", "gemini_puck_male_hype")
+    preset_name = payload.get("voice_preset", "gemini_fenrir_male_strong")
     force_regenerate = payload.get("force_regenerate", False)
 
     angles = product.get("angles", [])

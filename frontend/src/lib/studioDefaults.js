@@ -27,7 +27,7 @@ export const DEFAULT_STUDIO_FORM = {
   voiceMode: 'gemini_tts',
   voiceGender: 'male',
   voiceSpeed: '+15%',
-  voicePreset: 'gemini_puck_male_hype',
+  voicePreset: 'gemini_fenrir_male_strong',
   adTone: 'commercial_hype',
   stylePreset: DEFAULT_ONE_CLICK_STYLE_PRESET,
   stylePresetVersion: STYLE_PRESET_STORAGE_VERSION,

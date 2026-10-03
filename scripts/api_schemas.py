@@ -39,7 +39,7 @@ class RenderRequest(BaseModel):
     voice_mode: str = "gemini_tts"
     voice_gender: str = "male"
     voice_rate: str = "+15%"
-    voice_preset: Optional[str] = "gemini_puck_male_hype"
+    voice_preset: Optional[str] = "gemini_fenrir_male_strong"
     ad_tone: Optional[str] = "commercial_hype"
     style_preset: str = "clean_tech_review"
     human_voice_audio: Optional[str] = None

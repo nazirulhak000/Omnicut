@@ -80,17 +80,17 @@ def test_resolve_voice_tolerates_case_insensitive_raw_voice_name():
 
 def test_resolve_voice_unknown_preset_falls_back_to_gender():
     assert GeminiFlashTTSEngine.resolve_voice(preset="not_a_real_preset", gender="female") == "Kore"
-    assert GeminiFlashTTSEngine.resolve_voice(preset="not_a_real_preset", gender="male") == "Puck"
+    assert GeminiFlashTTSEngine.resolve_voice(preset="not_a_real_preset", gender="male") == "Fenrir"
 
 
 def test_resolve_voice_no_preset_uses_gender_only():
     assert GeminiFlashTTSEngine.resolve_voice(gender="female") == "Kore"
-    assert GeminiFlashTTSEngine.resolve_voice(gender="male") == "Puck"
+    assert GeminiFlashTTSEngine.resolve_voice(gender="male") == "Fenrir"
 
 
-def test_resolve_voice_nothing_given_defaults_to_puck():
-    assert GeminiFlashTTSEngine.resolve_voice() == "Puck"
-    assert GeminiFlashTTSEngine.resolve_voice(preset=None, gender=None) == "Puck"
+def test_resolve_voice_nothing_given_defaults_to_fenrir():
+    assert GeminiFlashTTSEngine.resolve_voice() == "Fenrir"
+    assert GeminiFlashTTSEngine.resolve_voice(preset=None, gender=None) == "Fenrir"
 
 
 # ------------------------------------------------------------- get_api_keys

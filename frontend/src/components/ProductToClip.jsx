@@ -35,15 +35,15 @@ import { resolveHistoryTargetId, resolveSelectedProduct } from '../lib/productSe
 import { buildProjectName } from '../lib/projectName';
 
 const GEMINI_VOICE_OPTIONS = [
-  { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง TikTok (ค่าเริ่มต้น)' },
+  { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง TikTok' },
   { id: 'gemini_charon_male_pro', label: 'Charon — ชายทุ้มลึก น่าเชื่อถือ' },
   { id: 'gemini_kore_female_bright', label: 'Kore — หญิงสดใส ป้ายยาเก่ง' },
   { id: 'gemini_aoede_female_pro', label: 'Aoede — หญิงพรีเมียม นุ่มนวล' },
-  { id: 'gemini_fenrir_male_strong', label: 'Fenrir — ชายสตรอง คมเข้ม' },
+  { id: 'gemini_fenrir_male_strong', label: 'Fenrir — ชายสตรอง คมเข้ม (ค่าเริ่มต้น)' },
 ];
 
 function getVoicePresetShortName(presetId) {
-  if (!presetId) return 'Puck';
+  if (!presetId) return 'Fenrir';
   if (presetId.includes('puck')) return 'Puck';
   if (presetId.includes('charon')) return 'Charon';
   if (presetId.includes('kore')) return 'Kore';
@@ -2966,7 +2966,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     try {
       const overrides = {
         voice_engine_type: 'gemini_tts',
-        voice_preset: targetAngle.voice_preset || 'gemini_puck_male_hype',
+        voice_preset: targetAngle.voice_preset || 'gemini_fenrir_male_strong',
         voice_rate: '+15%',
         ad_tone: resolveAdTone(targetAngle.ad_tone),
         batch: targetAngle.batch || 1,
@@ -3615,7 +3615,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       painPoint: angle.pain_point || '',
       priceDeal: angle.price_deal || productData?.price_note || '',
       adTone: resolveAdTone(angle.ad_tone),
-      voicePreset: angle.voice_preset || 'gemini_puck_male_hype',
+      voicePreset: angle.voice_preset || 'gemini_fenrir_male_strong',
       voiceGender: 'male',
       voiceMode: 'gemini_tts',
       voiceSpeed: '+15%',
@@ -3682,7 +3682,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       painPoint: angle.pain_point || '',
       priceDeal: angle.price_deal || productData?.price_note || '',
       adTone: resolveAdTone(angle.ad_tone),
-      voicePreset: angle.voice_preset || 'gemini_puck_male_hype',
+      voicePreset: angle.voice_preset || 'gemini_fenrir_male_strong',
       voiceGender: 'male',
       selectedVideo: primaryVideo,
       selectedVideos: chosenVideos,
@@ -3790,7 +3790,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
-  const [selectedVoicePreset, setSelectedVoicePreset] = useState('gemini_puck_male_hype');
+  const [selectedVoicePreset, setSelectedVoicePreset] = useState('gemini_fenrir_male_strong');
   const [isStartingBatchAudio, setIsStartingBatchAudio] = useState(false);
 
   // Active batch audio background task for this product

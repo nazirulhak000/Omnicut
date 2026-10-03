@@ -174,7 +174,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 voice=req_data.voice_gender,
                 voice_rate=req_data.voice_rate,
                 voice_engine_type=voice_engine_type,
-                voice_preset=req_data.voice_preset or "gemini_puck_male_hype",
+                voice_preset=req_data.voice_preset or "gemini_fenrir_male_strong",
                 ad_tone=req_data.ad_tone or "commercial_hype",
                 style_preset=req_data.style_preset,
                 human_voice_audio_path=human_voice_path,

@@ -86,7 +86,7 @@ class NarrationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     script_text: str = Field(default="", max_length=12000)
-    voice_preset: str = Field(default="gemini_puck_male_hype", max_length=120)
+    voice_preset: str = Field(default="gemini_fenrir_male_strong", max_length=120)
     ad_tone: str = Field(default="commercial_expert", max_length=120)
     speed: float = Field(default=1.15, ge=0.75, le=1.5)
 

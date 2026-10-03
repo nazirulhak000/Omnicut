@@ -4,11 +4,11 @@ import { Modal, Button, Badge } from './ui';
 import { startBatchRender, getBatchRenderStatus, cancelBatchRender } from '../api';
 
 const GEMINI_VOICE_OPTIONS = [
-  { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง TikTok (ค่าเริ่มต้น)', gender: 'male' },
+  { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง TikTok', gender: 'male' },
   { id: 'gemini_charon_male_pro', label: 'Charon — ชายทุ้มลึก น่าเชื่อถือ', gender: 'male' },
   { id: 'gemini_kore_female_bright', label: 'Kore — หญิงสดใส ป้ายยาเก่ง', gender: 'female' },
   { id: 'gemini_aoede_female_pro', label: 'Aoede — หญิงพรีเมียม นุ่มนวล', gender: 'female' },
-  { id: 'gemini_fenrir_male_strong', label: 'Fenrir — ชายสตรอง คมเข้ม', gender: 'male' },
+  { id: 'gemini_fenrir_male_strong', label: 'Fenrir — ชายสตรอง คมเข้ม (ค่าเริ่มต้น)', gender: 'male' },
 ];
 
 export default function BatchRenderModal({
@@ -16,7 +16,7 @@ export default function BatchRenderModal({
   onClose,
   product,
   angles: propAngles,
-  voicePreset: selectedVoicePreset = 'gemini_puck_male_hype',
+  voicePreset: selectedVoicePreset = 'gemini_fenrir_male_strong',
   onBatchCompleted,
   showToast,
 }) {
