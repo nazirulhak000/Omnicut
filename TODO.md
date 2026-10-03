@@ -5,6 +5,7 @@
 - [x] Round NEXT-WORK-CLAUDE-HANDOFF-20261003 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6) (ดู HISTORY.md)
 - [ ] Round EDITOR-CAPCUT-DEEP-AUDIT-20261003 — ตรวจครบ 7 เลน + สรุป 00_SUMMARY.md เสร็จ รอผู้ใช้ตอบข้อตัดสินใจและเลือก Top 10 · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
 - [ ] Round AUDIT-FIX-SAFETY-AUTOPOST-20261003 — กำลังทำ (ขั้น 1, 2, 3-บางส่วนจาก Top 5 ของ audit) · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+- [x] Round EDITOR-CAPCUT-FIX-WAVE1-20261003 — ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (ดู HISTORY.md)
 - [ ] Round APP-AUDIT-CAPCUT-REFERENCE-20261003 — audit เสร็จ รายงานที่ _Docs/Plans/APP_AUDIT_CAPCUT_REFERENCE_20261003.md รอผู้ใช้เลือกข้อที่จะลงมือ · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
  
 - [x] Round CUTOUT-SAM2-PROMPT-GAP-20260929 — ปิดรอบแล้ว · ดำเนินการโดย: Cline (Claude); เฟส 2 + ปิดรอบโดย Claude Code (Claude Sonnet 5.5) (ดู HISTORY.md)
