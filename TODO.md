@@ -1,14 +1,127 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
+- [ ] Round BACKEND-SAFETY-RENDER-PIPELINE-OPTIMIZATION-20261003 — วางแผนแล้ว พร้อมเริ่มทำ (ไม่แตะ Frontend/Editor) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+- [x] Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6) (ดู HISTORY.md)
+- [x] Round CODEX-NVENC-QA-GATES-20261003 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6) (ดู HISTORY.md)
+- [x] Round NEXT-WORK-CLAUDE-HANDOFF-20261003 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6) (ดู HISTORY.md)
+- [ ] Round EDITOR-CAPCUT-DEEP-AUDIT-20261003 — ตรวจครบ 7 เลน + สรุป 00_SUMMARY.md เสร็จ รอผู้ใช้ตอบข้อตัดสินใจและเลือก Top 10 · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+- [ ] Round AUDIT-FIX-SAFETY-AUTOPOST-20261003 — กำลังทำ (ขั้น 1, 2, 3-บางส่วนจาก Top 5 ของ audit) · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+- [ ] Round APP-AUDIT-CAPCUT-REFERENCE-20261003 — audit เสร็จ รายงานที่ _Docs/Plans/APP_AUDIT_CAPCUT_REFERENCE_20261003.md รอผู้ใช้เลือกข้อที่จะลงมือ · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
  
+- [x] Round CUTOUT-SAM2-PROMPT-GAP-20260929 — ปิดรอบแล้ว · ดำเนินการโดย: Cline (Claude); เฟส 2 + ปิดรอบโดย Claude Code (Claude Sonnet 5.5) (ดู HISTORY.md)
+- [x] Round WORKTREE-HOUSEKEEPING-AND-EDITOR-BUGHUNT-20260929 — ปิดรอบแล้ว · ดำเนินการโดย: Cline (Claude); ปิดโดย Claude Code (Claude Sonnet 5.5) (ดู HISTORY.md)
+- [x] Round PREVIEW-1080-INSPECTION-20260929 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6) (ดู HISTORY.md)
+- [x] Round AUTO-BROLL-SEMANTIC-INDEXER-20260929 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash High) (ดูประวัติเต็มใน HISTORY.md)
+- [x] Round INDEPENDENT-QA-TOOLS-20260929 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6) (ดู HISTORY.md)
+- [x] Round INDEPENDENT-QUALITY-ROADMAP-20260929 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6) (ดู HISTORY.md)
+- [x] Round BIREFNET-BADGE-STICKER-PIPELINE-20260929 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash High) (ดูประวัติเต็มใน HISTORY.md)
+- [x] Round SAM2-DEPTH-TEXT-PIPELINE-20260929 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash High) (ดูประวัติเต็มใน HISTORY.md)
+- [x] Round PC-REPO-AUDIT-PLAN-20260929 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6) (ดูประวัติเต็มใน HISTORY.md)
+- [x] Round SAM2-GPU-FEASIBILITY-SPIKE-20260929 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash High) (ดูประวัติเต็มใน HISTORY.md)
 - [x] Round SETUP-LOCAL-ENV-GITHUB-20260929 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 - [x] Round DRAFT-FONT-OPTIONS-PARITY-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 
+## Round BACKEND-SAFETY-RENDER-PIPELINE-OPTIMIZATION-20261003 — ปรับปรุง Backend Safety & Pipeline Rendering · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+วันที่: 2026-10-03 · สั่งโดย: user ("ทำแผนนายมาได้เลยครับ ทำแผนจดลง TODO ก่อนน่ะครับ") · สถานะ: วางแผนแล้ว พร้อมเริ่มทำ
+**ขอบเขตงาน:** Backend, Pipeline Stages, AI Workers Guard, Data Safety, Auto Color Match — **ห้ามแตะไฟล์ Frontend / Editor Shell / SequencePlayer ทุกไฟล์ 100%** เพื่อไม่ให้ชนงานของ Claude Code
+
+### เป้าหมายหลัก
+1. **Data Safety Guard:** ป้องกันการ purge แคชที่เสี่ยงลบไฟล์งาน/ดราฟต์ และแก้ `ProjectManifest.archive()` ไม่ให้ลบโฟลเดอร์ปลายทางทิ้ง
+2. **GPU & Worker Concurrency Guard:** จัดการคิวงาน AI Worker (SAM2/BiRefNet/Rembg) ด้วย Semaphore ป้องกัน VRAM OOM พร้อมแก้ `import sys` ใน worker เพื่อให้การ cancel ฆ่า subprocess ได้สมบูรณ์ ไม่ค้างใน GPU
+3. **Render Pipeline Enhancement:** ต่อสาย `scripts/color_match.py` เข้า `VideoAssemblyStage` (opt-in), แก้ตรรกะ Hard-Cut vs Transition ไม่ให้ถูกบังคับสุ่ม transition ทับ, แก้ไข sentinel dynamic `hook_duration`, และตัด fallback รูปสุ่มใน `SourceResolutionStage`
+
+### แผนงาน (Todo)
+- [ ] Phase 1: Data Safety & Worker Concurrency Guard
+  - [ ] 1.1 `scripts/storage_cleaner.py`: ปรับปรุง purge rule ข้ามโฟลเดอร์ที่ไม่ใช่ UUID ชัดเจน ไม่ลบ `cache_*` สุ่มเสี่ยง และป้องกันไม่ให้ลบไฟล์ template/preview ใน `03_Projects/`
+  - [ ] 1.2 `scripts/project_manifest.py`: ปรับปรุง `archive()` กรณีโฟลเดอร์ archive ปลายทางชื่อซ้ำ ให้ใส่ timestamp ต่อท้าย แทนการ `rmtree` โฟลเดอร์เดิมทิ้ง
+  - [ ] 1.3 `scripts/background_isolation_video_worker.py`: เพิ่ม `import sys` ให้ `kill_process_tree` ทำงานได้จริงเมื่อถูก cancel คืน VRAM ทันที
+  - [ ] 1.4 `scripts/task_manager.py` / AI workers: เพิ่ม GPU lock / BoundedSemaphore สำหรับงาน AI ที่จอง VRAM ป้องกัน CUDA OOM
+  - [ ] 1.5 `scripts/stages/source_resolution.py`: ถอด fallback เดารูป 6 รูปล่าสุดจาก Inbox ออก ให้แจ้งเตือน FileNotFoundError เพื่อกันคลิปผิดสินค้า
+- [ ] Phase 2: Render Pipeline & Auto Color Match
+  - [ ] 2.1 `scripts/color_match.py` & `scripts/stages/video_assembly_stage.py`: ต่อสาย Auto Color Match เข้า `VideoAssemblyStage` ผ่าน flag `enable_color_match` (opt-in)
+  - [ ] 2.2 `scripts/stages/video_assembly_stage.py`: ปรับแก้ตรรกะการใส่ transition ให้เคารพ hard-cut ทั้งคลิป ไม่สุ่ม transition ทับ
+  - [ ] 2.3 `scripts/stages/subtitle_stage.py`: แก้ sentinel `hook_duration` ให้คำนวณ dynamic duration สัมพันธ์กับความยาวตัวอักษรของป้าย Hook
+- [ ] Phase 3: Verification & Cleanup
+  - [ ] 3.1 รัน targeted pytest สำหรับ `test_storage_cleaner.py`, `test_project_archive.py`, `test_color_match.py`, `test_phase1_smoke.py`
+  - [ ] 3.2 ตรวจสอบความสะอาด ไม่ทิ้งไฟล์ทดสอบนอก `.tmp/` และไม่มีไฟล์ demo ใน `04_Exports/`
+  - [ ] 3.3 ตรวจ git diff ยืนยันว่าไม่มีไฟล์ frontend/editor ถูกแตะต้อง
+
+## Round EDITOR-CAPCUT-DEEP-AUDIT-20261003 — ตรวจ editor เทียบ CapCut แบบละเอียด · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+
+วันที่: 2026-10-03 · สั่งโดย: user ("ทำตามไฟล์ PROMPT_EDITOR_VS_CAPCUT_DEEP_AUDIT.md") · สถานะ: กำลังตรวจ
+**แผน/เกณฑ์:** `_Docs/Plans/PROMPT_EDITOR_VS_CAPCUT_DEEP_AUDIT.md` · **อ่านอย่างเดียว ห้ามแก้ซอร์ส** · ไม่ commit/push · ไม่รัน full suite
+
+### เจ้าของไฟล์รายงาน (เขียนได้เฉพาะไฟล์ของตัวเองใน `_Docs/Reports/CAPCUT_EDITOR_GAP_20261003/`)
+| เลน | ขอบเขต | ดำเนินการโดย | ไฟล์รายงาน |
+|---|---|---|---|
+| L1 | Timeline | Claude sub-agent L1 (Claude Sonnet 5.5) | `L1.md` |
+| L2 | Clip & Inspector | Claude sub-agent L2 | `L2.md` |
+| L3 | Text/ซับ/Overlay | Claude sub-agent L3 | `L3.md` |
+| L4 | Audio | Claude sub-agent L4 | `L4.md` |
+| L5 | Effects/Transition/Cutout | Claude sub-agent L5 | `L5.md` |
+| L6 | Preview & Performance | Claude sub-agent L6 | `L6.md` |
+| L7 | Workflow & Shell | Claude sub-agent L7 | `L7.md` |
+| สังเคราะห์ | รวม L1–L7 | Claude Code (root) | `00_SUMMARY.md` |
+
+### Todo
+- [x] L1–L7: ตรวจเทียบ + Task Benchmark + รายงาน 5 ส่วนตามแผน (ทุกเลนอ่านโค้ดอย่างเดียว ไม่มีเลนไหนกดใน browser จริง)
+- [x] สังเคราะห์ `00_SUMMARY.md` (คะแนนถ่วงน้ำหนัก ≈53% แบบหยาบ, 4 กอง, Top 10, ขอภาพหน้าจอ CapCut, ข้อตัดสินใจ 18 ข้อ)
+- [x] ตรวจซอร์สไม่ถูกแก้โดยรอบนี้ และ `.tmp/` ไม่มีของเลน
+- [ ] รอผู้ใช้: ตอบข้อ 8 ใน 00_SUMMARY (โดยเฉพาะ "ใช้เครื่องไหนทำงานจริง"), ส่งภาพหน้าจอ CapCut, เลือกงานจาก Top 10
+
+### ผลรอบนี้
+- รายงาน: `_Docs/Reports/CAPCUT_EDITOR_GAP_20261003/` (00_SUMMARY + L1–L7) · ผมสุ่มตรวจโค้ดเอง 3 ข้อตรงทั้งหมด (AssetPanel TABS, isEditableTarget, coalesceKey ไม่มีผู้เรียก)
+- ธีมหลัก: "ปุ่มหลอก/Preview≠Render" (B/I/U ซับ, ตัดช่วงเงียบตัดแต่ภาพ, keyframe ซ่อนทับ slider, แท็บ effects/filter หาย) · ไม่มี keyframe UI ทำให้ T9 ทำไม่ได้ · ไม่มีคัดลอก-วางการตั้งค่าคลิป (T11)
+- **เครื่องที่รันตอนนี้คือ i7-14700 + RTX 4060 + 31.7 GB ไม่ตรงกับ "Ryzen 7 7735HS CPU-only" ในเอกสาร** ต้องให้ผู้ใช้ยืนยันเครื่องทำงานจริง
+- พบ `04_Exports/Ready_to_post/demo_20261003_*` (9 ชุด) + `demo_20260929_*` ค้าง และอยู่ใน `export_registry.json` ไม่ใช่ของรอบนี้ ยังไม่ลบ (อาจเป็น gate ของ Codex ที่กำลังรัน) ต้องลบ + ถอด registry หลัง Codex ปิดรอบ ตามกฎข้อ 11/15
+- เทส `test_seeking_stops_the_stems_before_repositioning_them` ตกใน working tree (เทสยึดสตริงเก่า ไม่ใช่บั๊กรอบนี้) แจ้ง Codex
+
+### Notes
+- `SequencePlayer.jsx`/`EditorShell.jsx` มี diff ค้างของ Codex — อ่านได้ เลขบรรทัดอาจขยับ
+- CapCut 7.1.0.2890 ติดตั้งในเครื่อง แต่ห้ามอ่านไฟล์ภายใน/draft; หลักฐานฝั่ง CapCut ติดป้าย A/B/C
 
 
-- [x] Round SCHEDULE-UX-PRO-ENHANCEMENT-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 
-- [x] Round SCHEDULE-BULK-SMART-DAY-MATCH-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
-- [x] Round SCHEDULE-BULK-AUTO-PICK-DAILY-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
+
+## Round AUTO-BROLL-SEMANTIC-INDEXER-20260929 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash High)
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) · สถานะ: สำเร็จสมบูรณ์
+
+**เป้าหมาย:** สร้างระบบ Auto B-Roll Matcher ด้วย Vision-LLM (Semantic Video Scene Indexer) ตามแผนแม่บท `OMNICUT_GPU_ENHANCEMENT_PLAN.md` (ฟีเจอร์ C) ทำงานแบบ Event-driven สแกนคลิปดิบใน `01_Raw` สกัด lightweight proxy วิเคราะห์ action/scene tags ด้วย Gemini Vision บันทึกลงตาราง SQLite `raw_video_scenes` และจับคู่ท่อนสคริปต์เข้ากับช่วงเวลาคลิป B-Roll อัตโนมัติ
+
+**อ้างอิงแผนหลัก:** [OMNICUT_GPU_ENHANCEMENT_PLAN.md](file:///D:/Programmer/All%20Project/Omnicut/_Docs/Plans/OMNICUT_GPU_ENHANCEMENT_PLAN.md) (ฟีเจอร์ C)
+
+### Todo
+- [x] C1. สร้าง Schema และ Database Adapter สำหรับตาราง `raw_video_scenes` ใน `_Docs/store.db` พร้อม migration และ indices
+- [x] C2. สร้าง `scripts/video_semantic_indexer.py` เชื่อมโยง lightweight proxy extractor (640x360 @ 1-2 fps), Gemini Multimodal Vision, และ SQLite scene indexing
+- [x] C3. พัฒนา Semantic B-Roll Matcher ค้นหา Scene ตามข้อความสคริปต์/Keyword และความสัมพันธ์ทางความหมาย (Semantic Similarity) เพื่อสร้าง Timeline Cut Segments
+- [x] C4. สร้าง unit tests `tests/test_video_semantic_indexer.py` และรัน full validation gates
+
+### Gate
+- [x] ตาราง `raw_video_scenes` บันทึกและดึงข้อมูล scene metadata, start_sec, end_sec, tags, action_summary ได้อย่างถูกต้อง
+- [x] ระบบค้นหา B-Roll แมปคำสคริปต์ (เช่น "กล้องหลัง", "ชาร์จไว", "แกะกล่อง") เข้ากับช่วงเวลาของคลิปได้อย่างแม่นยำ (ความเกี่ยวข้อง 0.80 - 0.95)
+- [x] `pytest` (68 passed, 3 skipped) และ `npm test` (416/416 passed) ผ่าน 100%
+
+
+## Round BIREFNET-BADGE-STICKER-PIPELINE-20260929 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash High)
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) · สถานะ: สำเร็จสมบูรณ์
+
+**เป้าหมาย:** สร้างเอนจิน BiRefNet (Bilateral Reference Network) สำหรับการตัดพื้นหลังภาพนิ่งสินค้าและความละเอียดสูงระดับ Pro (Universal Badges 6 แบบ, สายชาร์จ/แกดเจ็ต) บน GPU RTX 4060 แก้ปัญหาขอบแหว่งจาก rembg แบบเดิม
+
+**อ้างอิงแผนหลัก:** [OMNICUT_GPU_ENHANCEMENT_PLAN.md](file:///D:/Programmer/All%20Project/Omnicut/_Docs/Plans/OMNICUT_GPU_ENHANCEMENT_PLAN.md) (ฟีเจอร์ B)
+
+### Todo
+- [x] B1. สร้าง scripts/birefnet_engine.py เชื่อมต่อโมเดล BiRefNet บน CUDA ใน 	ools/cutout_runtime/.venv พร้อม fallback
+- [x] B2. อัปเกรด 	ools/build_3d_pro_badges.py ให้ใช้ BiRefNet ตัดขอบคมชัดระดับพิกเซล พร้อมขอบสติกเกอร์ขาว 12-16px และ Drop Shadow นุ่ม
+- [x] B3. ทดสอบการรันสร้าง Badge ใหม่ 6 แบบใน .tmp/birefnet_test/ ตรวจสอบความคมชัดเปรียบเทียบกับ rembg
+- [x] B4. รันชุดทดสอบความถูกต้องและ Parity
+
+### Gate
+- [x] BiRefNet / IS-Net รันบน RTX 4060 GPU ตัดภาพสินค้าความละเอียดสูงสำเร็จ (isnet 0.11s, birefnet-general-lite 2.1s, u2net 0.026s)
+- [x] Badge stickers มี alpha channel สมบูรณ์และขอบคมชัด ขอบสติกเกอร์ขาว 14px และ Drop Shadow นุ่ม
+- [x] pytest (58 passed, 3 skipped) และ
+pm test (416/416 passed) ผ่าน 100%
 
 ## Round SUBTITLE-GHOST-REVEAL-MULTILINE-20260927 — กำลังทำ · Claude Code (Claude Opus 5)
 
@@ -2516,3 +2629,76 @@ Plan before code:
 - จะรักษางานเดิมทั้งหมด ไม่แก้หรือลบ source download packs และไม่สร้าง test artifact ในโฟลเดอร์ผลงานจริง
 
 ---
+
+## Round APP-AUDIT-CAPCUT-REFERENCE-20261003 — audit + เทียบ CapCut · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+
+วันที่: 2026-10-03 · สั่งโดย: user (ให้ทำตาม `_Docs/Plans/PROMPT_APP_AUDIT_AND_CAPCUT_REFERENCE.md` แบบแยกเอเจนต์) · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) · สถานะ: audit เสร็จ รอผู้ใช้เลือกข้อ (ยังไม่ปิดรอบ)
+
+**เป้าหมาย:** ตรวจ OmniCut ตามพรอมพ์ → รายงาน 2 ตาราง + Top 5 ที่ `_Docs/Plans/APP_AUDIT_CAPCUT_REFERENCE_20261003.md` · **งานตรวจอย่างเดียว ไม่แก้โค้ด** (Codex ยังมี diff ค้างหลายไฟล์ใน working tree)
+
+### Todo
+- [x] A1: Pipeline 9:16 (pipeline.py, stages/, subtitle_engine, TTS, J-Cut, shot matching)
+- [x] A2: Editor frontend (SequencePlayer, EditorShell, AssetPanel, editorProjectState, parity)
+- [x] A3: Cutout/Background isolation (SAM2, BiRefNet, tracker)
+- [x] A4: Schedule/Export/Registry + tiktok_autopost_extension
+- [x] A5: Tools/Audit/Backup + ช่องว่าง test ตาม testing_standard.md
+- [x] A6: เทียบ CapCut (จากโค้ดที่คุยกับ draft + `CAPCUT_PREMIERE_TECH_INTEGRATION_PLAN.md`; ไม่เปิด draft จริง ไม่เดา)
+- [x] A7: ความเสี่ยงข้อมูล (01_Raw/02_Assets/draft ลบ-ทับโดยไม่มี backup)
+- [x] R: root รวมรายงาน, ตรวจ evidence สุ่ม, Top 5 (รอบยังไม่ปิด รอผู้ใช้เลือกข้อ)
+
+### Notes
+- agent ทุกตัว read-only; ห้าม Edit/Write ในโปรเจกต์ ห้าม git add/commit/stash; ห้ามเปิด HISTORY.md ทั้งไฟล์
+- root เป็นคนเขียนไฟล์รายงานเดียว; evidence ต้องเป็น ไฟล์:บรรทัด ที่เปิดอ่านจริง ไม่งั้นระบุ "ยังไม่ได้ยืนยัน"
+- ไม่ใช้ Jev ในรอบนี้ (ไม่มีทางเลือก 3–7 ที่ต้องตัดสินใจก่อน audit)
+
+- ผล: รายงาน 40 แถว (ตาราง 1) + 26 แถว (ตาราง 2) + Top 5 ที่ `_Docs/Plans/APP_AUDIT_CAPCUT_REFERENCE_20261003.md`; root ตรวจซ้ำ 7 จุด (sys import, cache_ prefix, archive rmtree, Ctrl+S split, add_post, color_match, draft_content) ตรงกับที่เอเจนต์รายงาน
+- ไม่ได้แก้โค้ด/ไม่รัน test; ข้อมูล CapCut ทุกแถว = ยังไม่ได้ยืนยัน
+
+## Round AUDIT-FIX-SAFETY-AUTOPOST-20261003 — แก้ตาม Top 5 ของ audit · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+
+วันที่: 2026-10-03 · สั่งโดย: user ("จดลง TODO แล้วแยกเอเจนต์จัดการได้เลย") · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) · สถานะ: โค้ดเสร็จ ผ่านเทสเฉพาะไฟล์; ค้างให้ผู้ใช้ตัดสินใจ 3 ข้อ (ดูผลด้านล่าง) · ยังไม่ commit
+
+**อ้างอิง:** `_Docs/Plans/APP_AUDIT_CAPCUT_REFERENCE_20261003.md` (Top 5 ขั้น 1, 2 และส่วนที่ไม่ชนงาน Codex ของขั้น 3)
+**ไม่ commit/push ในรอบนี้** · ไม่รัน full suite (Codex ยังรัน gate อยู่) รันเฉพาะ test ของไฟล์ที่แก้
+
+### เจ้าของไฟล์ (ขอบเขตเขียนไม่ทับกัน)
+| งาน | ดำเนินการโดย | ขอบเขตที่เขียนได้ |
+|---|---|---|
+| B1: storage purge / archive / vision cache | Claude sub-agent B1 (Claude Sonnet 5.5) | `scripts/storage_cleaner.py`, `scripts/project_manifest.py` (เฉพาะ `archive()`), `scripts/gemini_vision_matcher.py` (เฉพาะ cache read/write), `tests/test_storage_cleaner.py`, `tests/test_project_archive.py` + test cache ใหม่ |
+| B2: dedup / delete-file ไม่ลบทิ้งถาวร | Claude sub-agent B2 | `scripts/asset_dedup.py`, `scripts/api_asset_dedup.py`, `scripts/api_videos.py` (เฉพาะ delete-file/batch-delete), `tests/test_asset_dedup.py`, `tests/test_api_asset_dedup.py`, `tests/test_delete_file_guard.py` (ใหม่) |
+| B3: autopost false-success | Claude sub-agent B3 | `tiktok_autopost_extension/background.js`, `background.test.cjs` |
+| B4: PostLog ตอน mark_posted + metrics snapshot | Claude sub-agent B4 | `scripts/api_exports.py`, `scripts/post_log.py`, `scripts/api_schedule_queue.py` (เฉพาะส่วน metrics/pending), `tests/test_schedule_queue.py`, `tests/test_tiktok_stats_import.py`, `tests/test_export_versioning.py` |
+| B5: Editor shortcuts + history API | Claude sub-agent B5 | `frontend/src/hooks/useEditorShortcuts.js`, `useEditorHistory.js`, `frontend/src/lib/editorHistory.test.js`, `frontend/src/hooks/useEditorShortcuts.test.js` (ใหม่) |
+
+### Todo / เกณฑ์ผ่าน
+- [x] B1: purge CapCut ลบเฉพาะ `.cloud_cache*` (ไม่ลบ `cache_*`/โฟลเดอร์ที่มี `draft_content.json`); purge 03_Projects ใช้ pattern แคบ; `archive()` ไม่ rmtree archive เดิมก่อน move; `.vision_cache.json` เขียน atomic + อ่านพังไม่ทับด้วย `{}` · test ด้วย tmp_path
+- [x] B2: dedup ปฏิเสธการลบที่ไม่เหลือสำเนา + resolve relative path กับ BASE_DIR; `move_to_trash=False` ห้ามลบทิ้งถาวรไฟล์ที่ไม่มีสำเนา; delete-file/batch-delete ย้ายไป trash จริง (ไม่ unlink ทันที) · **ห้ามเปลี่ยน request/response contract กับ `frontend/src/api.js`**
+- [x] B3: autopost ต้องมีสัญญาณบวกก่อนนับว่าโพสต์สำเร็จ; `chrome.debugger.onDetach` → ไม่ mark posted · `node --test` ผ่าน
+- [x] B4: `mark_posted` สร้าง PostLog 1 แถว (ไม่ซ้ำกับ stats auto-register) พร้อม hook/style/hook_color/caption/hashtags/scheduled_at; metrics เก็บ `metrics_history` + `pending_metrics` นับเฉพาะ snapshot ≥48 ชม. · backward-compat กับ post_log เดิม
+- [x] B5: Ctrl+S/Ctrl++/Ctrl+- ไม่ trigger split/zoom ของ editor (คง Ctrl+Z/Y/B); เพิ่ม `coalesceKey` ใน `useEditorHistory.set` แบบ backward-compat (ยังไม่ต่อเข้า EditorShell เพราะ Codex ถืออยู่)
+- [x] R: root ตรวจ diff ทุกเอเจนต์ + รัน test เฉพาะไฟล์ + `git diff --check` เฉพาะไฟล์ของรอบ + cleanup
+
+### เลื่อนไว้ (ยังไม่ทำในรอบนี้ และเหตุผล)
+- ขั้น 3 ส่วน `SequencePlayer.jsx` `clipKey` และการต่อ `coalesceKey` เข้า `EditorShell.jsx` · ขั้น 4 Cutout (`background_isolation_video_worker.py` ฯลฯ) · ขั้น 5 ส่วน editor: **ไฟล์เหล่านี้มี diff ค้างของ Codex** ต้องรอ Codex ส่งงาน/ประสานก่อน
+- default เสียง Puck vs Fenrir (ต้องให้ user ตัดสินใจ) · `git rm --cached` mirror JSON 4 ไฟล์ (ต้อง user ยืนยัน) · สรุป "สูตรที่ชนะ" จากยอดวิว (ทำหลัง B4)
+
+### Notes
+- Jev: `tools/jev_advisor.py --help` ล้มด้วย encoding error ตอนพิมพ์ help (ตาม rule 19 ข้อ "Jev ล่ม → degrade ทำงานต่อ") จึงไม่ได้ใช้ Jev ก่อนเริ่มรอบนี้ ผู้ใช้สั่งลงมือตามแผนใน audit โดยตรง; ไม่ใช้เป็นหลักฐาน
+- ห้ามแตะ font/subtitle/safe-zone; ห้ามเขียนลง 01_Raw/02_Assets/04_Exports จริง; test ใช้ tmp_path เท่านั้น; ห้าม git add/commit/stash/checkout
+
+### ผลรอบนี้ (Claude Code, Claude Sonnet 5.5 + sub-agent B1–B5)
+- Test เฉพาะไฟล์: pytest 82 passed (storage_cleaner, project_archive, vision_cache_atomic, asset_dedup, api_asset_dedup, delete_file_guard, schedule_queue, tiktok_stats_import, export_versioning, post_log_integrity) · frontend editorHistory+editorShortcutKeys 19 passed; B5 รัน `npm test` เต็ม 488 passed · extension `node --test` 44 passed · `git diff --check` ไฟล์ของรอบสะอาด · ไม่รัน full pytest/build (Codex ยังรัน gate)
+- B1: purge CapCut เฉพาะ `.cloud_cache*` + ข้ามโฟลเดอร์ที่มี `draft_content.json`; purge 03_Projects เฉพาะ `preview_*`/`temp_*` (ไม่พบไฟล์ตรง pattern เก่าใน 03_Projects จริง จึงไม่เสียของ); `archive()` ต่อ timestamp แทน rmtree; `.vision_cache.json` atomic + เก็บ `.corrupt`
+- B2: dedup ไม่ลบสำเนาสุดท้าย/ไฟล์ unique (เพิ่ม key `skipped`); delete-file fallback + batch-delete ย้ายไป `06_Archive/.trash`; reference filter เทียบ path แทนชื่อไฟล์
+- B3: autopost ต้องเห็น URL ออกจาก `/tiktokstudio/upload` จึงนับสำเร็จ; ดัก `chrome.debugger.onDetach`; ลบ flag `DIAGNOSTIC_PASSIVE_WAIT`
+- B4: `mark_posted` เขียน PostLog 1 แถว (idempotent, `PostLog.register_posted_export`); `metrics_history` + `mature_metrics` (>=48 ชม.); best-time ต้องมี >=3 โพสต์/ชั่วโมง; field ใหม่ทั้งหมด optional
+- B5: Ctrl/Meta/Alt + ปุ่มอื่นนอก Ctrl+Z/Y/B ไม่ trigger split/zoom (Ctrl+S ยัง save ผ่าน `EditorShell.jsx:1418`); `set(updater,{coalesceKey})` พร้อม clock inject; ยังไม่ต่อเข้า EditorShell
+- Root ตรวจ: ไฟล์ที่แก้อยู่ในขอบเขตของแต่ละเอเจนต์ ไม่แตะไฟล์ Codex; ไม่พบไฟล์ทดสอบค้างใน 04_Exports/03_Projects
+
+### ค้าง / ต้องให้ผู้ใช้ตัดสินใจ
+- delete-file เส้นทางหลักยังเป็น `target.unlink()` ถาวร (`api_videos.py:1265`) B2 แก้เฉพาะ fallback + batch-delete; จะเปลี่ยนเป็น trash ทุกกรณีหรือไม่ (ผลต่อพื้นที่ดิสก์/UI ที่ใช้ลบจริง)
+- autopost: ยืนยันกับ TikTok จริงไม่ได้แบบ offline ต้องลองโพสต์ 1 คลิปดูว่า URL ออกจาก `/upload` จริง ถ้าไม่ออกจะ false-negative (ไม่ mark เอง ผู้ใช้กด mark ได้); detach `target_closed` + URL ออกแล้วยังนับสำเร็จ ผู้ใช้เลือกเข้มกว่านี้ได้
+- B4 ไม่ได้แก้ `angle_performance`/`summary` ให้ใช้ `mature_metrics` (test นอก scope คาดเลข manual ทันที)
+- B5 side effect: Ctrl+Escape ไม่ออก zen แล้ว; Alt+ปุ่มถูกปล่อยผ่านทั้งหมด
+- ยังไม่ทำ: ขั้น 3 ส่วน `SequencePlayer.jsx clipKey`/ต่อ `coalesceKey` เข้า `EditorShell`, ขั้น 4 Cutout, ขั้น 5, default เสียง Puck/Fenrir, `git rm --cached` mirror JSON — รอ Codex/ผู้ใช้
+- รอบนี้ยังไม่ปิด (ไม่ย้ายเข้า HISTORY) จนกว่าผู้ใช้ตอบข้อค้างและ Codex ส่งงาน

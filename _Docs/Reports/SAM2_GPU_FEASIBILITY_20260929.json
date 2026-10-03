@@ -1,0 +1,60 @@
+{
+  "engine": "sam2.1_hiera_tiny",
+  "device": "cuda",
+  "device_name": "NVIDIA GeForce RTX 4060",
+  "checkpoint_sha256": "7402e0d864fa82708a20fbd15bc84245c2f26dff0eb43a4b5b93452deb34be69",
+  "frames": 60,
+  "source_fps": 30,
+  "startup_seconds": 1.871,
+  "total_seconds": 9.648,
+  "track_only_seconds": 7.777,
+  "fps": 7.71,
+  "speedup_vs_realtime": 0.26,
+  "frame_seconds_p50": 0.1348,
+  "frame_seconds_p95": 0.1436,
+  "peak_vram_allocated_mib": 1396.88,
+  "peak_vram_reserved_mib": 1546.0,
+  "coverage_min": 0.0504,
+  "coverage_max": 0.1248,
+  "prompts": [
+    {
+      "object_id": 1,
+      "points": [
+        [
+          0.43,
+          0.49
+        ],
+        [
+          0.46,
+          0.7
+        ],
+        [
+          0.77,
+          0.6
+        ]
+      ],
+      "labels": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "object_id": 2,
+      "points": [
+        [
+          0.75,
+          0.39
+        ],
+        [
+          0.69,
+          0.53
+        ]
+      ],
+      "labels": [
+        1,
+        0
+      ]
+    }
+  ]
+}

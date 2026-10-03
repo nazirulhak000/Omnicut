@@ -7,8 +7,130 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+
+| Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+| Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+| Round NEXT-WORK-CLAUDE-HANDOFF-20261003 | Claude ส่งมอบ Editor/จุดสินค้า; Codex รวม normalization, GPU, preview และ QA จบ | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+| Round PREVIEW-1080-INSPECTION-20260929 | ภาพหยุด Master 1080p และ gate เดิมผ่าน; ขยายเป็น realtime1080 ในรอบ integration | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+| Round INDEPENDENT-QA-TOOLS-20260929 | เครื่องมือตรวจวัตถุดิบ/export/backup พร้อม regression และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+| Round AUTO-BROLL-SEMANTIC-INDEXER-20260929 | พัฒนาระบบ Auto B-Roll Matcher และ Video Semantic Indexer เก็บ Action Tags/Metadata ลง SQLite raw_video_scenes ใน _Docs/store.db สกัด proxy 640x360 เชื่อม Gemini Multimodal Vision และจับคู่ประโยคสคริปต์รีวิวเข้ากับช่วงเวลาคลิป B-Roll อัตโนมัติ ผ่าน 100% tests | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
+| Round BIREFNET-BADGE-STICKER-PIPELINE-20260929 | ติดตั้งเอนจิน BiRefNet / IS-Net บน GPU RTX 4060 (isnet 0.11s, birefnet 1024x1024), แก้ปัญหาสายชาร์จ/ขอบแหว่งจาก u2net เดิม, สร้างระบบ 3D Die-Cut ขอบขาว 14px และ Drop Shadow พร้อมชุดป้าย Universal Badges 6 แบบตาม sticker_generation.md ผ่าน 100% tests | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
+| Round INDEPENDENT-QUALITY-ROADMAP-20260929 | แผนใหม่ 3 งานอิสระ: ตรวจวัตถุดิบ, ตรวจไฟล์เรนเดอร์ตลอดคลิป, ทดสอบกู้ backup โดยไม่ทับ BiRefNet/Badge, Ghost Reveal, Editor/Cutout | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+| Round SAM2-DEPTH-TEXT-PIPELINE-20260929 | เชื่อมต่อ SAM 2 บน RTX 4060 GPU เข้ากับ pipeline ของ Omnicut รองรับ Text Behind Product ทั้ง Canvas 2D Preview และ FFmpeg Render, เพิ่ม sam2 engine/models ใน contract, เพิ่ม worker สตรีม VP9 cutout.webm, ปรับปรุง backend preflight และ frontend UI Controls ผ่านการทดสอบ 23/23 tests และ build ผ่าน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
+| Round PC-REPO-AUDIT-PLAN-20260929 | ตรวจ PC/โค้ด/ผลทดสอบเดิมและ repository ที่เสนอ จัดทำแผน P0–P3 พร้อม gate ใน `_Docs/Plans/PC_REPOSITORY_AUDIT_PLAN_20260929.md` | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+| Round SAM2-GPU-FEASIBILITY-SPIKE-20260929 | ติดตั้งสภาพแวดล้อม PyTorch 2.6.0+cu124 ใน tools/cutout_runtime/.venv, ทดสอบรันโมเดล SAM 2.1 บนการ์ดจอ NVIDIA GeForce RTX 4060 เทียบกับผลเดิมบน CPU, ทำความเร็วได้ 7.78 วินาทีสำหรับ 60 เฟรม (เร็วขึ้น 92 เท่า, 134 ms/เฟรม, VRAM 1.39 GB) และยืนยันคุณภาพการแทร็กสินค้าผ่าน contact sheet 100% | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
 | Round SETUP-LOCAL-ENV-GITHUB-20260929 | ติดตั้งสภาพแวดล้อม Python (.venv Python 3.13) ใหม่บนเครื่องแทน .venv เก่าที่ย้ายเครื่องมาและพัง, ติดตั้ง dependencies จาก requirements.txt ครบ 100%, แก้ไข NameError typing Dict/Any ใน shot_matching_stage.py, ทดสอบ build frontend ผ่าน, และตรวจสอบการเชื่อมต่อ GitHub origin พร้อมใช้งาน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round DRAFT-FONT-OPTIONS-PARITY-20260927 | ซิงค์ตัวเลือกฟอนต์ซับไตเติลในหน้าสร้างคลิปดราฟต์ (`NewClipPanel.jsx`) ให้เท่ากับหน้าตัดต่อ (`CaptionInspector.jsx`) โดยแชร์ `FONT_OPTIONS` มีครบ 5 ฟอนต์ (Kanit, IBM Plex, Prompt, Noto Sans Thai, Mali) แทนที่มีเพียง 2 ฟอนต์ | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round AUTO-BROLL-SEMANTIC-INDEXER-20260929 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) · สถานะ: ปิดรอบแล้ว — สร้างระบบ Semantic Video Indexer และ Auto B-Roll Matcher ครบวงจร 100%
+
+**เป้าหมาย:**
+สร้างระบบ Auto B-Roll Matcher ด้วย Vision-LLM (Semantic Video Scene Indexer) ตามแผนแม่บท `OMNICUT_GPU_ENHANCEMENT_PLAN.md` (ฟีเจอร์ C) ทำงานแบบ Event-driven สแกนคลิปดิบใน `01_Raw` สกัด lightweight proxy วิเคราะห์ action/scene tags ด้วย Gemini Vision บันทึกลงตาราง SQLite `raw_video_scenes` และจับคู่ท่อนสคริปต์เข้ากับช่วงเวลาคลิป B-Roll อัตโนมัติ
+
+**สิ่งที่ได้ทำ:**
+1. **ออกแบบ Schema ตาราง SQLite (`raw_video_scenes` ใน `_Docs/store.db`):**
+   - รองรับฟิลด์ `video_path`, `file_hash`, `start_sec`, `end_sec`, `duration`, `action_summary`, `tags` (JSON), `visual_features` (JSON), `confidence`, `created_at`
+   - สร้าง Index สำหรับการสืบค้นรวดเร็ว (`idx_raw_video_scenes_hash`, `idx_raw_video_scenes_video`, `idx_raw_video_scenes_range`)
+2. **สร้างเอนจิน Video Semantic Indexer (`scripts/video_semantic_indexer.py`):**
+   - ฟังก์ชันสกัด Lightweight Proxy (`extract_proxy`): แปลงวิดีโอต้นฉบับเป็น 640x360 @ 2fps H.264 CRF 32 ไม่มีเสียง สำหรับส่งเข้าโมเดล AI Vision อย่างประหยัดแบนด์วิดท์
+   - คำนวณ MD5 Fingerprint อัตโนมัติเพื่อแคชและข้ามการวิเคราะห์วิดีโอซ้ำ
+   - ผสานการวิเคราะห์ผ่าน `GeminiVisionMatcher` (Gemini 2.5 Flash Multimodal) และระบบ Heuristic Shot Partition สำรอง
+3. **ระบบ Semantic B-Roll Matcher:**
+   - พัฒนาคลังคำศัพท์ Semantic Keywords Dictionary (`TAG_SYNONYMS`) ครอบคลุมบริบทรีวิวสินค้าและแกดเจ็ต ทั้งภาษาไทยและอังกฤษ (camera, charging, unboxing, display, performance, design, audio, durability, price, verdict)
+   - ฟังก์ชันคำนวณคะแนนความเกี่ยวข้อง (`score_scene_relevance`) ถ่วงน้ำหนักความมั่นใจ (Confidence weighting)
+   - ฟังก์ชัน `match_broll` เลือกและตัดช่วงเวลาคลิปให้ตรงกับความยาวที่เหมาะสม (Clamped duration)
+   - ฟังก์ชัน `auto_assemble_broll_timeline` แมปชุดประโยคสคริปต์ทั้งคลิปเข้ากับ B-Roll cuts ได้อย่างสมบูรณ์แบบ
+4. **การทดสอบความถูกต้องและ Parity Tests:**
+   - สร้างชุดทดสอบ `tests/test_video_semantic_indexer.py` รวม 10/10 passed ทดสอบ schema, hashing, scene recording, scoring, matching, และ timeline assembly
+   - รันชุดทดสอบ backend ทั้งหมด 68 passed, 3 skipped
+   - รัน frontend unit tests 416/416 passed
+   - Build frontend สำเร็จไร้ข้อผิดพลาด (452ms)
+
+## Round BIREFNET-BADGE-STICKER-PIPELINE-20260929 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) · สถานะ: ปิดรอบแล้ว — ติดตั้งเอนจิน BiRefNet / IS-Net พร้อม GPU Acceleration บน RTX 4060, เพิ่ม Die-Cut Stroke และ Universal Badges 6 แบบ 100%
+
+**เป้าหมาย:**
+สร้างเอนจิน BiRefNet (Bilateral Reference Network) สำหรับการตัดพื้นหลังภาพนิ่งสินค้าและความละเอียดสูงระดับ Pro (Universal Badges 6 แบบ, สายชาร์จ/แกดเจ็ต) บน GPU RTX 4060 แก้ปัญหาขอบแหว่งจาก rembg แบบเดิม
+
+**สิ่งที่ได้ทำ:**
+1. **ติดตั้ง ONNX Runtime GPU & CUDA Environment:**
+   - ติดตั้ง onnxruntime-gpu (1.23.2) และ
+embg (2.0.69) ใน 	ools/cutout_runtime/.venv เชื่อมต่อ CUDAExecutionProvider บน RTX 4060
+   - สร้างกลไกค้นหาและลงทะเบียน DLL อัตโนมัติ (_setup_cuda_dll_directory) รองรับ cublasLt64_12.dll และ cudnn64_9.dll บน Windows
+2. **สร้าง BiRefNet Engine Adapter (scripts/birefnet_engine.py):**
+   - รองรับโมเดลตระกูล BiRefNet/IS-Net ครบวงจร (irefnet-general, irefnet-general-lite, irefnet-dis, isnet-general-use, u2net)
+   - แคชโมเดลขนาดใหญ่ 973 MB ในหน่วยความจำพร้อม thread-safe lock เพื่อการเรียกซ้ำที่รวดเร็ว
+   - รองรับการ delegate ไปรันบน GPU ผ่าน cutout_runtime subprocess เมื่อถูกเรียกจาก Python 3.13 main venv
+   - พัฒนาฟังก์ชันสร้างสติกเกอร์ 3D Die-Cut (create_diecut_sticker) ขอบขาวทึบ 12-16px (ค่าเริ่มต้น 14px) พร้อม Drop Shadow นุ่มตามกฎ .agents/rules/sticker_generation.md
+3. **อัปเกรดตัวสร้างป้าย 3D Pro (	ools/build_3d_pro_badges.py):**
+   - เพิ่มชุดป้ายมาตรฐานสากล 6 รูปแบบ (Universal Video Badges: PROS, CONS, WARNING, PRO TIP, VERDICT, SCORE) สำหรับใช้ซ้ำในคลิปรีวิวทุกตัว
+   - เพิ่มไอคอน 3D ใหม่ 6 แบบ: Glowing Checkmark, Bold Cross, Hazard Triangle, Glowing Bulb, Royal Crown/Stamp, Star Rating
+   - ผสานระบบ Die-Cut Stroke ขอบขาว 14px และ Drop Shadow นุ่มนวลลงบนทุกป้ายโดยอัตโนมัติ
+   - รองรับการเซฟลงไดเรกทอรีที่กำหนด เช่น .tmp/birefnet_test สำหรับการทดสอบ
+4. **การทดสอบความละเอียดและวัดผลความเร็วเปรียบเทียบ (Benchmark):**
+   - ทดสอบตัดภาพแกดเจ็ตที่มีสายชาร์จเส้นบาง (Thin Cable 4px):
+     - u2net (320x320): **สูญเสียสายชาร์จหายไปหมด (Thin cable preserved: False)**
+     - irefnet-general-lite (1024x1024): **รักษาเส้นสายชาร์จคมกริบ 100% (Thin cable preserved: True)**
+     - isnet-general-use (1024x1024): **รักษาเส้นสายชาร์จคมกริบ 100% ด้วยความเร็ว 0.116 วินาที บน RTX 4060**
+     - irefnet-general (1024x1024): **รักษาขอบและเส้นบางคมกริบ 100%**
+5. **การทดสอบความถูกต้องและ Parity Tests:**
+   - สร้างชุดทดสอบ 	ests/test_birefnet_engine.py (12/12 passed)
+   - รันชุดทดสอบตัดพื้นหลังทั้งหมด 58 passed, 3 skipped (8.82s)
+   - รัน frontend unit tests 416/416 passed (485ms)
+   - ทำความสะอาดไฟล์ชั่วคราวใน .tmp/ เรียบร้อยตามกฎ AGENTS.md Rule 11
+
+## Round SAM2-DEPTH-TEXT-PIPELINE-20260929 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) · สถานะ: ปิดรอบแล้ว — เชื่อมต่อ SAM 2 บน RTX 4060 ครบทุกเลเยอร์ (Worker, Backend, Editor, Parity Tests, UI Controls) 100%
+
+**เป้าหมาย:**
+เชื่อมต่อเอนจิน SAM 2 บน RTX 4060 GPU เข้ากับ pipeline ของ Omnicut เพื่อเปิดใช้งานฟีเจอร์ "Text Behind Product" (Depth Text) บนคลิปวิดีโอ 9:16 ได้จริงใน Editor และ FFmpeg Render
+
+**สิ่งที่ได้ทำ:**
+1. **สร้าง SAM 2 Video Isolation Worker (`scripts/background_isolation_sam2_worker.py`):**
+   - รันในสภาพแวดล้อม GPU `tools/cutout_runtime/.venv` ด้วย CUDA
+   - รองรับโมเดล SAM 2.1 ทั้ง 3 ขนาด (`sam2.1_hiera_tiny`, `sam2.1_hiera_small`, `sam2.1_hiera_base_plus`) พร้อมแมป config YAML อัตโนมัติ
+   - สตรีมภาพผ่าน FFmpeg สร้าง `cutout.webm` (VP9 yuva420p) และ proxy `preview.webm` ความเร็วสูง พร้อมส่ง `PROGRESS` event แบบเรียลไทม์
+2. **ขยาย Contract ของระบบตัดพื้นหลัง:**
+   - เพิ่ม `sam2` ใน `SUPPORTED_ENGINES` และโมเดล SAM 2.1 ใน `SUPPORTED_MODELS` ทั้งฝั่ง Python (`scripts/background_isolation.py`) และฝั่ง Frontend (`backgroundIsolationPreview.js`, `timelineSchema.js`, `editorProjectState.js`)
+   - อัปเดต `scripts/background_isolation_video_worker.py` ให้ delegate งานประมวลผลไปยัง SAM 2 worker บน GPU เมื่อเลือก `engine: "sam2"` พร้อมระบบยกเลิกงาน (`cancel_event`)
+   - ปรับปรุง Backend Preflight (`scripts/api_background_isolation.py`) ให้ตรวจสอบ CUDA runtime และ checkpoint file ของ SAM 2 ถูกต้องโดยไม่ติดเงื่อนไข rembg/u2net
+3. **การแสดงผลและการควบคุมฝั่ง Editor:**
+   - เพิ่มตัวเลือกเอนจิน AI ใน `frontend/src/components/editor/AssetPanel.jsx` ให้ผู้ใช้เลือกได้ระหว่าง SAM 2 (GPU) กับ rembg (CPU)
+   - ตั้งค่าเริ่มต้นเป็น SAM 2 บน RTX 4060 GPU เพื่อประสิทธิภาพสูงสุด
+   - สอดคล้องกับโครงสร้าง Layer Sandwich ใน `scripts/video_editor.py` (`[footage] -> [hook text] -> [isolated subject] -> [subtitles]`) และ `SequencePlayer.jsx`
+4. **การทดสอบความถูกต้องและ Parity:**
+   - สร้างชุดทดสอบ `tests/test_background_isolation_sam2.py` รวม 5/5 tests ครอบคลุม contract normalization, artifact id determinism, model checkpoint resolution, preflight checks, และการรันจริงผ่าน GPU worker
+   - รันชุดทดสอบตัดพื้นหลังทั้งหมด 23/23 tests ผ่าน 100%
+   - รัน frontend unit tests 416/416 tests ผ่าน 100%
+   - รัน `npm run build` ใน `frontend/` ผ่านฉลุย (402ms) ไร้ข้อผิดพลาด
+
+## Round SAM2-GPU-FEASIBILITY-SPIKE-20260929 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) · สถานะ: ปิดรอบแล้ว — คุณภาพผ่านฉลุย, ความเร็ว 7.78s (เร็วขึ้น 92 เท่า), VRAM 1.39 GB พร้อมใช้งานจริง
+
+**เป้าหมาย:**
+1. ติดตั้ง PyTorch 2.6.0+cu124 พร้อม torchvision และ sam2 ใน `tools/cutout_runtime/.venv` ให้เชื่อมต่อกับ NVIDIA GeForce RTX 4060
+2. รัน Benchmark วัดความเร็วและ VRAM ด้วยคลิปทดสอบจริง 60 เฟรม (2.0 วินาที @ 30fps)
+3. ตรวจสอบคุณภาพ Mask ขอบสินค้าผ่าน Contact Sheet เปรียบเทียบกับผล CPU เดิม เพื่อปลดล็อกฟีเจอร์ Text Behind Product
+
+**ผลการดำเนินงาน:**
+1. **GPU Environment & CUDA Setup:**
+   - ตรวจพบ `.venv` ใน `tools/cutout_runtime` เดิมเสียหายเนื่องจากผูกกับพาธเครื่องเก่า (`C:\Users\Winon`)
+   - สร้าง `.venv` ใหม่ด้วย Python 3.10 ในเครื่อง ติดตั้ง `torch==2.6.0+cu124`, `torchvision==0.21.0+cu124`, `hydra-core`, `tqdm`, `iopath`, `psutil` และเชื่อมโยง `external_repos/sam2` สำเร็จ 100%
+   - ตรวจสอบ `torch.cuda.is_available() == True` ตรวจพบ `NVIDIA GeForce RTX 4060`
+2. **Benchmark Measurements (วัดจริง):**
+   - เวลารวม 60 เฟรม: **7.78 วินาที** (เทียบกับ CPU เดิม 715.61 วินาที = **เร็วขึ้น 92 เท่า!**)
+   - เวลาต่อเฟรม p50: **0.1348 วินาที (134 ms)** (เทียบกับ CPU 11.47 วินาที = **เร็วขึ้น 85 เท่า!**)
+   - Peak VRAM: **1,396.88 MiB (1.39 GB)** จาก VRAM ทั้งหมด 8 GB
+   - คุณภาพ Mask: ตรวจสอบผ่าน Contact Sheet `.tmp/cutout_tracker_gpu_output/contact_gpu.jpg` พบว่าแยกวัตถุสินค้าออกจากมือได้อย่างแม่นยำ ขอบนิ่งต่อเนื่องตลอด 60 เฟรม ไม่กระพริบ
+3. **Artifacts:**
+   - รายงานฉบับเต็ม: `_Docs/Reports/SAM2_GPU_FEASIBILITY_20260929.md`
+   - สรุป JSON: `_Docs/Reports/SAM2_GPU_FEASIBILITY_20260929.json`
+   - สคริปต์ Benchmark: `tools/benchmark_cutout_tracker_gpu.py`
 
 ## Round SETUP-LOCAL-ENV-GITHUB-20260929 — ปิดรอบแล้ว ✅
 
@@ -10180,3 +10302,411 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 - ไฟล์ทั้ง 3 ถูก commit ไปพร้อม commit `211d5c1` ของ session อื่น (commit message ไม่เกี่ยวกับงานนี้) ส่วนเอกสารถูกแยกเป็น `6ff8c85 docs(agents): add rule 19 for the Jev decision layer`
 
 - Extension clip-state tests ผ่าน `4 passed, 0 failed`
+
+## Round PC-REPO-AUDIT-PLAN-20260929 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6)
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6)
+
+**เป้าหมาย:** ตรวจสถานะโปรเจกต์บน PC เทียบกับ repository ในภาพ และทำแผนยกระดับแบบมี gate
+
+### ผลงาน
+- [x] ตรวจ architecture, dependency, runtime และ log เดิม; เครื่องมี RTX 4060 8 GB, i7-14700, RAM 32 GB, CUDA ใช้งานได้
+- [x] ตรวจ upstream ของ SAM 2, BiRefNet/RMBG-2.0, CapCut Draft, WhisperX, DeepFilterNet และ Kokoro; ระบุข้อจำกัดสิทธิ์/ภาษา/ความเข้ากันได้
+- [x] จัดทำ `_Docs/Plans/PC_REPOSITORY_AUDIT_PLAN_20260929.md` พร้อมลำดับ P0–P3, วิธี benchmark, acceptance gate, dependency/resource/data safety
+- [x] ตรวจ `git diff --check` ผ่าน; ไม่แก้โค้ด, assets, Draft หรือ output จริง
+
+### Notes
+- ผลทดสอบที่มีเป็น log เดิม 27 ก.ย.: backend 2089 passed, 1 failed, 8 skipped; frontend 410 passed, 0 failed. ไม่มีการรัน full suite บน working tree ที่ agent อื่นกำลังแก้ จึงไม่อ้างว่า release gate ปัจจุบันผ่าน
+- รายงาน SAM 2 เดิม: 60 เฟรม startup 1.871 s + tracking 7.777 s, peak allocated 1396.88 MiB; ยังไม่วัด end-to-end render และยังไม่มี ground truth คุณภาพ mask
+- จุดที่พบแต่ไม่ได้แก้: SAM 2 worker/API มี absolute checkpoint paths; runtime requirements pin CPU Torch ต่างจาก environment CUDA จริง; URL CapCut สองรายการในภาพตรวจยืนยันไม่ได้; Ghost Reveal/SAM 2 ยังเป็นงานของ agent อื่น
+- Jev: noul 0.91 confidence null, score 0.68 confidence 0.43; ทั้งคู่ต่ำกว่า gate confidence 0.80 จึงไม่ใช้คำตอบเป็นหลักฐานหรือสิทธิ์ตัดสินใจ แผนอิงข้อเท็จจริงและความต้องการของ user
+- working tree เดิมมีไฟล์งานของ agent อื่นค้าง; รอบนี้แตะเฉพาะ TODO.md, HISTORY.md, แผนใหม่ใน `_Docs/Plans/`
+
+## Round INDEPENDENT-QUALITY-ROADMAP-20260929 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6)
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6)
+
+**เป้าหมาย:** สร้างแผนยกระดับ OmniCut โดยไม่ทับงาน Antigravity, Claude หรือรอบ editor/cutout เดิม
+
+### ผลงาน
+- [x] ตรวจ `TODO.md` และ working tree: Antigravity เปิดงาน BiRefNet/Badge, Claude เปิดงาน Ghost Reveal; SAM 2 ปิดรอบแล้ว
+- [x] ตรวจช่องว่างจาก `asset_dedup.py`, `gadget_media_quality.py`, `golden_master_probe.py`, `backup_engine.py` และ `api_backup.py`
+- [x] เขียน `_Docs/Plans/INDEPENDENT_QUALITY_ROADMAP_20260929.md` จัด Q1 ตรวจวัตถุดิบ, Q2 ตรวจ final export, Q3 restore dry-run พร้อมไฟล์ที่แตะและ gate
+- [x] รอบนี้แก้เฉพาะเอกสาร; ไม่แตะ code/asset/Draft/export และไม่ทับไฟล์งานอื่น
+
+### Notes
+- Q1–Q3 เป็นแผน implementation ยังไม่ได้ลงมือ; ต้องเปิด TODO แยกรอบและตรวจเจ้าของไฟล์อีกครั้งก่อนเริ่ม
+- Jev `noul=0.96`, `confidence=null`; ไม่ใช้เป็นหลักฐานยืนยันการไม่ทับงาน การแยกขอบเขตอิง TODO, git status และโค้ดจริง
+- ไม่รัน test suite เพราะไม่มีการเปลี่ยนพฤติกรรมโปรแกรม; ตรวจ `git diff --check` หลังปิดรอบ
+
+---
+
+## Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6)
+
+วันที่: 2026-10-03 · สั่งโดย: user (ให้แยกเอเจนต์และทำงานทั้งหมดต่อ) · ดำเนินการโดย: Codex (GPT-6) · สถานะ: ปิดรอบแล้ว 2026-10-03
+
+**เป้าหมาย:** รับงาน Claude แล้วแก้ Cutout playback ที่ fractional speed, เพิ่ม playback 1080×1920 จาก Master พร้อมเลือก 540p, ยืนยันจุดสินค้าถึง SAM2 GPU จริง และปิด integration gates ของรอบที่เกี่ยวข้อง
+
+### เจ้าของไฟล์ในรอบนี้
+| งาน | ดำเนินการโดย | ขอบเขตที่เขียนได้ |
+| :--- | :--- | :--- |
+| P: พรีวิวเล่น 1080p และการเลือกคุณภาพ | Codex / preview (GPT-6) | `SequencePlayer.jsx`, helper คุณภาพพรีวิวใหม่, browser tests สำหรับ high-resolution playback ใหม่ |
+| C: แก้ fractional Cutout playback | Codex / cutout_playback (GPT-6) | `frontend/src/lib/cutoutVideoPlayback.js` และ `.test.js`, `tests/motion_capture/test_cutout_video_preview.py`; หากต้องแก้ consumer ใน SequencePlayer ให้ส่งรายละเอียดให้ preview agent |
+| S: จุดสินค้าถึง SAM2 GPU และ portability | Codex / sam2_integration (GPT-6) | backend Cutout/API/worker/config-runtime helper และเทส backend/GPU ที่เกี่ยวข้อง; ไม่แก้ frontend |
+| I: state contract, งานย่อย Editor ที่ค้าง, parity และ gate รวม | Codex / root (GPT-6) | shared normalization ของ `editorProjectState.js`/`timelineSchema.js`/`backgroundIsolationPreview.js`, `ContentTrackerHub.jsx`, เอกสาร parity/ backend mirror comments/tests, TODO/HISTORY และงานรวม |
+
+### Todo / เกณฑ์ผ่าน
+- [x] C0: พิสูจน์สาเหตุของ speed 1.3155 ด้วยข้อมูลเฟรมจริง; แก้โดยรักษาเกณฑ์ visible >=54/60 และ seeks <=2; ผ่านทุก speed เดิมพร้อม regression
+- [x] P0: Canvas logical coordinates เดิม แต่ backing pixels 1080×1920 ระหว่างเล่น; decode Master จริงในโหมด 1080p พร้อมเลือก 540p และสถานะตามจริง; subject picking/drag/paused inspection ทำงานเดิม
+- [x] P1: เทียบภาพ playback/หยุดที่ 1080p กับ FFmpeg, ทดสอบเปลี่ยนคุณภาพ/seek/source cleanup; วัด dropped frames/latency และ memory estimate/measurement แยกให้ชัด
+- [x] S0: ส่ง normalized positive/negative points จากสัญญา UI/API ผ่าน worker ถึง SAM2 GPU จริงด้วย synthetic source ใน temp; ตรวจ artifact/alpha และไม่ใช้ source กลางเฟรมเพื่อกลบปัญหาเลือกวัตถุ
+- [x] S1: ตรวจ path/runtime/checkpoint portability และข้อความเมื่อ runtime ไม่พร้อม; แก้ hardcoded เครื่องเดิมตามจำเป็น โดยไม่ติดตั้ง global package/ไม่ดาวน์โหลดซ้ำ
+- [x] I0: รวม frontend normalization ที่ซ้ำโดยรักษา legacy rembg/u2net และ artifact matching; regression save/load/config key ไม่ drift
+- [x] I1: ตรวจ/แก้ toast unreachable ใน ContentTrackerHub ที่รายงานไว้; เพิ่ม verification เท่าที่จำเป็น
+- [x] I2: browser subject points/parity/performance + backend GPU contract + npm test/build + compileall/API import + full pytest + diff check ผ่านหลังทุกเอเจนต์ส่งงาน
+- [x] I3: cleanup เฉพาะ artifacts ของรอบ, สรุปผลวัดและย้ายรอบที่ปิดจริงเข้า HISTORY; ไม่ commit/push ในรอบนี้
+
+### Notes / ข้อตกลง
+- SAM2 active intervals: alpha outside active windows must be transparent; record actual active count and tracking_full_window, with no sparse-inference performance claim.
+- Jev advisory: integration risk 2.25/4 confidence 0.59, FFmpeg temp probe risk 0.45/4 confidence 0.62; preview 2.31 confidence 0.41, SAM2 0.76/4 confidence 0.55, Cutout quality 3.1/4 confidence 0.72 (escalate). User explicitly confirmed the agreed implementation scope; these scores are not QA evidence or authorization beyond that scope.
+- Whitespace cleanup only on already-added uncommitted HISTORY/TODO lines; historical content unchanged.
+- Claude ส่งคืน `SequencePlayer.jsx` และบันทึก UI จิ้มจุดเสร็จแล้ว; อ่าน git status/TODO ก่อนเริ่ม พบ diff ของหลายรอบ ต้องรักษาทั้งหมด
+- root เป็นคนเดียวที่แก้ TODO/HISTORY และรัน full suite สุดท้าย; เอเจนต์ย่อยส่งผล/จำนวนเทส/รายการไฟล์ให้ root บันทึก
+- เพิ่ม integration geometry: inverse mapping จุดจากภาพที่ cover-fit/zoom/pan/mirror/rotation กลับสู่ worker letterbox 9:16 และ forward marker; ระหว่าง transition ที่มีสองคลิปไม่รับจุดที่กำกวม
+- Claude ลง shared `backgroundIsolationConfig.js` และ toast fix แล้ว; root ตรวจและเพิ่ม engine/model pair guard (targeted 80/80 ผ่าน) โดยรักษา metadata legacy ไม่เขียนค่าทับ
+- ไม่รัน browser performance และ GPU benchmarks หนักพร้อมกันเมื่อเก็บตัวเลขสุดท้าย; ตัวเลขใน synthetic harness ไม่อ้างว่าแทนทุกคลิปจริง
+- รักษาฟอนต์/ตำแหน่ง/ขนาด/ซับ/safe zone และ export 1080×1920/30 FPS; เปลี่ยนเฉพาะ raster/source/clock ตามงานพรีวิว
+- ก่อนแตะไฟล์ข้ามเจ้าของต้องส่งข้อความประสาน; GPU agent ห้ามแก้ SequencePlayer และ playback agent ต้องแจ้ง preview agent เมื่อ consumer ต้องเปลี่ยน
+
+### Integration results (Codex / root and agents, GPT-6)
+- Cutout final targeted: 11 Node tests, 9 browser cases passed. smooth540 visible 60/60 at 1x/0.5x/1.3155x and 58/60 at 2x; master1080 60/60 at all four rates. Additional sampled seeks 0, original >=54/60 and <=2 gates unchanged.
+- Shared normalization 80 passed; subject geometry 5 passed; preview/spotlight source parity 195 passed; legacy stopped-frame Editor browser 4 passed. Subject picking initial integration failure fixed by automatically pausing when entering pick mode; standalone rerun passed, expanded quality/transform cases pending.
+- First real CUDA API evidence before final host-frame offload: 12-frame product IoU 0.8718-0.9861, measured visible-hand leakage 0; sparse windows 6/12 active, inactive master alpha exactly0 and proxy <=1/255 after VP9 encoding. Final GPU rerun pending after preview performance slot.
+
+- Root takes over remaining preview verification after child agent stopped; no additional concurrent source edits during final gates. Final GPU latest: 2 passed / 12.27s, CPU-frame offload enabled; full-window mean IoU 92.31%, square letterbox scoped 88.13%, measured hand leakage 0; CUDA allocated/reserved 661.34/806 MiB. Related offline API/refactor tests 99 passed, 6 skipped.
+- Integration review fixes: pick mode shows original pixels and pauses automatically so multiple positive/negative prompts remain usable after artifact becomes stale; inspection still respects unsupported blurred Cutout geometry. Dissolve now mirrors float32 export-coordinate hash; actual monochrome mask measured separately from YUV420 color loss.
+
+- Full gate attempt 1: 2246 passed, 9 failed, 11 skipped, 32 warnings / 549.18s. Failures are temp-location contracts: capture outside-temp test used an in-project basetemp; 8 TikTok preparation cases correctly rejected test media under .tmp (409). Next run uses an OS TemporaryDirectory with automatic cleanup, keeping production guards intact. Source hash also detected 14 concurrent edits from another session (history/exports/schedule/dedup and associated tests), so this snapshot is not a final signoff.
+- Targeted final preview/points/parity 206 passed /74.91s; node 471 passed, build and compile/API216 passed at that snapshot. Final signoff awaits stable source and repeat full gate.
+
+- User confirmed Claude finished. Temporary storage boundary rerun passed 23/23 using an automatically cleaned OS TemporaryDirectory. Preserve production .tmp publishing guard; no need to weaken any API behavior.
+- Additional prompt integration correctness before final gate: manual SAM2 points initialize the first worker source frame; current UI could pick a later moving frame. Root will select the first frame of the matching grouped source window when entering pick mode, show its reference status, and test time/trim/shared-window alignment. Points remain the existing project-wide normalized contract (not per-object/per-clip timed tracking).
+
+- Reference-frame regression now passed: 3 Node cases cover nonzero trim, overlap reuse and scoped per-clip windows; 5 real browser cases confirm frame-zero pause plus marker save/reload/resize at both qualities. Cancel playback RAF and audio while picking. One partial full run was stopped to correct scoped-window alignment; its owned OS temp directory and Vite process were cleaned before restarting.
+
+- Follow-up required before final signoff: smooth540 proxies are padded 9:16 and lose the native source aspect. Subject picking must decode Master even in smooth540; add a real proxy-to-Master browser check and preserve the selected quality after leaving picking. Keep source frozen for the currently running full baseline; apply this fix and repeat the final gate afterwards.
+
+- Stable full baseline: 2284 passed, 1 failed, 11 skipped /612.93s; no changes among 726 watched source files. Remaining source-text parity assertion expected old seek audio condition; update it to require the new isPlaying AND not subjectPickMode guard rather than removing the check.
+
+- Master picker correction complete: all 6 browser cases passed, including native 16:9 Master versus a real padded 540x960 proxy; reference frame0, point creation and smooth540 restoration confirmed. Source assertions updated to require Master while picking and audio pause guard; parity189 passed. Frontend491/build/compile/scripts+tools/API216/diff checks passed after production changes. Final full suite running with unchanged source snapshot.
+
+### Final closure — 2026-10-03 · ดำเนินการโดย: Codex (GPT-6)
+
+- Final integration: **2286 passed, 11 skipped, 32 warnings /548.85s**, zero failures; 726 source hashes unchanged before/after. Frontend **491 passed**, build, compileall scripts/tools, API import **216 routes** and git diff check passed.
+- Subject picking browser **6 cases passed** (both qualities, transforms, stale/multiple points, native Master versus padded proxy); reference-frame helper3 and parity189 passed. SAM2 CUDA acceptance **2 passed /12.27s** separately; prior Cutout fractional failures resolved without relaxing gates.
+- Scoped temporary fixtures and interrupted-run directory cleaned; 6 logs/Jev specs of this round removed after copying verified metrics to report. No production export/project/registry test data, no commit/push.
+- Preserve earlier snapshot failures above as chronology; this final result resolves those gates. Full behavior, performance, pixel/color and RAM limits: [_Docs/Reports/PC_MAX_PREVIEW_CUTOUT_INTEGRATION_20261003.md](_Docs/Reports/PC_MAX_PREVIEW_CUTOUT_INTEGRATION_20261003.md). Other agents’ audit decisions remain in TODO.
+
+
+---
+
+## Round CODEX-NVENC-QA-GATES-20261003 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6)
+
+วันที่: 2026-10-03 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: ปิดรอบแล้ว 2026-10-03
+
+**ขอบเขต:** งาน 3 และการตรวจ QA standalone ที่ทำได้โดยไม่รอแก้ Editor ในแผนส่งต่อ Claude; งานรวมหลัง Claude ส่งมอบและ realtime 1080 playback ยังขึ้นกับการส่งคืนไฟล์ Editor ตามแผน
+
+### Todo
+- [x] N0: ทำซ้ำ failures ด้วย NVENC ที่เลือกแบบ deterministic — 2 failed ก่อนแก้; สาเหตุอยู่ที่ test helper ไม่รองรับ CQ ไม่ใช่ encoder production
+- [x] N1: ครอบคลุม libx264/NVENC/QSV/AMF/VideoToolbox ทั้ง clip-list และ legacy source — 20 passed; ตรวจ quality flags, FPS, scale/order และ CPU preset แบบ deterministic
+- [x] Q0: เครื่องมือ media intake, full export audit และ backup dry-run — 22 passed หลังเพิ่ม regression; OCR ยังเป็น optional และผลไม่มี OCR ต้องให้คนตรวจ
+- [x] Q1: พิสูจน์ด้วย FFmpeg จริงว่าภาพค้างช่วงกลาง/ท้ายถูกแจ้งว่าไม่พบปัญหาก่อนแก้; เปลี่ยน parser ให้จับ start/end ข้ามบรรทัดและปิดช่วงค้างที่ EOF แล้วทั้งสองเคสผ่าน
+- [x] Q2: 5 regression ก่อนแก้ failed (manifest array/null/string และ file_count null/bool); เพิ่ม shape/type validation แล้วคืน invalid report โดยไม่แตก archive
+- [x] G0: targeted tests, compileall, frontend test/build และ full backend gate; บันทึกผลจริงและแยก failure ของงานอื่น
+- [x] G1: ตรวจ diff ของรอบนี้, cleanup artifacts ของรอบนี้ และบันทึกส่งต่อ; synthetic video ของ regression ใหม่ลบใน finally และ log/spec ของรอบลบแล้ว
+- [x] G2: ปิดรอบเมื่อ full suite และ whole-worktree diff check ผ่านตามกฎ; ไม่ย้ายบล็อกเข้า HISTORY ขณะ gate ยังไม่ผ่าน
+
+### ขอบเขตไฟล์
+- Codex ถือ `tests/test_phase1_smoke.py`, `tools/full_export_audit.py`, `tools/media_intake_audit.py`, `tools/backup_restore_dry_run.py` และเทส QA standalone ที่เกี่ยวข้อง
+- อ่าน `scripts/video_editor.py` เพื่อยืนยันสัญญา; ถ้าจำเป็นต้องแก้ production จะบันทึกเหตุผลใน TODO ก่อน
+- รักษา diff เดิมทั้งหมด โดยเฉพาะไฟล์ Editor/SequencePlayer/Cutout ของ Claude; ไม่แก้ typography และไม่ใช้ข้อมูลจริงเป็น fixture
+- ผล full suite ของรอบนี้เป็น snapshot ระหว่างรอส่งมอบ ไม่ใช้แทน gate หลัง Claude รวมโค้ด
+
+### Notes
+- อ่าน TODO, testing rules และ git status ก่อนเริ่ม; มี modified/untracked จากรอบเก่าและ helper UI subjectPoints ที่เตรียมไว้แล้ว
+- รากเหตุที่ต้องพิสูจน์: `_quality_setting()` ไม่มี `-cq` และ `-q:v`; VideoToolbox ใช้ค่ามาก = คุณภาพดี ตรงข้ามกับ CRF/CQ/QP จึงห้ามใช้ assertion ทิศทางเดียวกับทุก encoder
+- Jev ตรวจข้อความสรุป scope: change risk 0.81/4 (confidence 0.76), FFmpeg risk 0.68/4 (confidence 0.67), verdict escalate; ผู้ใช้สั่งลงมือในขอบเขตที่วางไว้แล้ว ใช้การทดสอบจริงตรวจผล ไม่ใช้คะแนนนี้เป็น QA/สิทธิ์อนุมัติ
+- Targeted smoke + QA ก่อนเพิ่ม backup regressions: 191 passed, 4 warnings; QA หลังแก้ครบ: 22 passed; frontend 430 passed, build ผ่าน; compileall scripts/tools ผ่าน; API routes 216
+- Full backend suite จบ: **2219 passed, 1 failed, 8 skipped, 32 warnings** ใน 482.40s; NVENC failures เดิมทั้งสองหายแล้ว ผลนี้เป็น snapshot ก่อน Claude ส่งมอบ UI งาน 2
+- Failure ที่เหลือ: `tests/motion_capture/test_cutout_video_preview.py::test_transparent_video_cutout_appears_in_real_sequence_player[1.3155]` — visible 47/60 (เกณฑ์ >=54), seeks 0; รันแยกซ้ำยัง fail visible 42/60, seeks 0 ใน 2.64s จึงยังไม่สรุปว่าเป็นแค่ flake ต้องตรวจการนำเฟรม Cutout มาแสดงที่ fractional playback rate
+- ไฟล์ test/export ของรอบนี้ผ่าน scoped diff check; untracked QA code/tests ตรวจด้วย `git diff --no-index --check` ไม่พบ whitespace error (exit 1 จากเนื้อหาใหม่ตามรูปแบบ no-index) Whole-worktree ยังมี trailing whitespace เดิมใน HISTORY.md:54 และบล็อกเก่าของ TODO; ไม่แก้ย้อนหลังใน HISTORY
+- Build ผ่านพร้อมคำเตือน font API paths ที่ resolve ตอน runtime ตามเดิม; compileall และ API import ผ่าน ไม่มีการปรับ encoder production หรือไฟล์ Editor/SequencePlayer ในรอบนี้
+- Jev ตรวจข้อความสรุปหลังแก้และเทียบก่อน/หลัง: quality 3.47/4 (confidence 0.56), improvement noul 0.94 (confidence null), verdict escalate; ไม่ใช้เป็นหลักฐาน QA/อนุมัติปิดรอบ ผลเทสจริงและ gate ที่ยังไม่ผ่านบันทึกไว้ข้างต้น
+- Cleanup ของรอบ: video regression ใหม่ลบผ่าน finally แม้ assertion fail; backup extraction ใช้ TemporaryDirectory และ invalid-manifest ZIP ใหม่ลบใน finally; ลบ `.tmp/codex_frontend_test_20261003.log`, `.tmp/codex_frontend_build_20261003.log`, `.tmp/jev_nvenc_qa_20261003.json` แล้ว รักษา `.tmp/cutout_probe` และหลักฐานจากรอบอื่นไว้
+
+### Final closure — 2026-10-03 · ดำเนินการโดย: Codex (GPT-6)
+
+- Final integration: **2286 passed, 11 skipped, 32 warnings /548.85s**, zero failures; 726 source hashes unchanged before/after. Frontend **491 passed**, build, compileall scripts/tools, API import **216 routes** and git diff check passed.
+- Subject picking browser **6 cases passed** (both qualities, transforms, stale/multiple points, native Master versus padded proxy); reference-frame helper3 and parity189 passed. SAM2 CUDA acceptance **2 passed /12.27s** separately; prior Cutout fractional failures resolved without relaxing gates.
+- Scoped temporary fixtures and interrupted-run directory cleaned; 6 logs/Jev specs of this round removed after copying verified metrics to report. No production export/project/registry test data, no commit/push.
+- Preserve earlier snapshot failures above as chronology; this final result resolves those gates. Full behavior, performance, pixel/color and RAM limits: [_Docs/Reports/PC_MAX_PREVIEW_CUTOUT_INTEGRATION_20261003.md](_Docs/Reports/PC_MAX_PREVIEW_CUTOUT_INTEGRATION_20261003.md). Other agents’ audit decisions remain in TODO.
+
+
+---
+
+## Round NEXT-WORK-CLAUDE-HANDOFF-20261003 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6)
+
+วันที่: 2026-10-03 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: ปิดรอบแล้ว 2026-10-03
+
+**เป้าหมาย:** ทำ Editor/Cutout ให้ใช้งานได้ครบ ปิด gate ของ Preview 1080p และ QA ที่ค้าง พร้อมแบ่งขอบเขตให้ Claude ทำต่อได้โดยไม่แก้ไฟล์ชนกัน
+
+**สถานะที่ยืนยันวันนี้:** อ่าน TODO และ git status แล้ว; working tree ยังมีทั้งไฟล์ modified/untracked จากหลายรอบ ต้องรักษา diff เดิมทั้งหมด ผลทดสอบวันที่ 2026-09-29 เป็น baseline เก่า ไม่ใช่ผลทดสอบวันที่ 2026-10-03 การระบุผู้รับผิดชอบด้านล่างเป็นแผนส่งต่อ ไม่ใช่หลักฐานว่ามี agent กำลังรัน
+
+### ลำดับงานและผู้รับผิดชอบ
+
+| ลำดับ | งาน | ผู้รับผิดชอบที่วางแผน | ไฟล์/ขอบเขตหลัก | เกณฑ์ส่งมอบ |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | ตรวจซ้ำและแก้บั๊ก Editor: engine/model mismatch ของโปรเจกต์เก่า, prop ซ้ำ และค่าเริ่มต้นไม่ตรงกัน | Claude — ระบุชื่อ agent และโมเดลจริงเมื่อรับงาน | `frontend/src/components/editor/EditorShell.jsx`, `AssetPanel.jsx`, `frontend/src/lib/editorProjectState.js`, `timelineSchema.js`, `backgroundIsolationPreview.js` และเทสที่เกี่ยวข้อง | โปรเจกต์เก่า/ใหม่ส่ง engine/model คู่ที่ถูกต้อง; targeted tests + frontend build ผ่าน |
+| 2 | ต่อ UI จิ้มเลือกสินค้าแบบ Hybrid: เลือกจุดสินค้า/จุดตัดออก, ล้างจุด และบันทึกลงโปรเจกต์ | Claude — ต่อจากงาน 1 ในชุดไฟล์ Editor เดียวกัน | `frontend/src/components/SequencePlayer.jsx`, `EditorShell.jsx`, `AssetPanel.jsx`, `frontend/src/lib/subjectPoints.js` และเทส; backend เฉพาะเมื่อพบช่องว่างของสัญญา | จุดบนเฟรมแปลงเป็นพิกัด normalized ถูกต้องแม้ย่อ/ขยายหน้าพรีวิว; reload แล้วยังอยู่; ส่ง `backgroundIsolation.subject_points` ของจริงถึง worker; เฟรม 1080p ไม่บัง click/drag |
+| 3 | ตรวจ NVENC/export test failures เดิมและแก้สัญญาทดสอบตาม encoder ที่ระบบเลือกจริง | Codex (GPT-6) | `tests/test_phase1_smoke.py` และเทส export ที่เกี่ยวข้อง; อ่าน `scripts/video_editor.py` ก่อนตัดสินว่าบั๊กอยู่ที่ test หรือ production | ทดสอบ deterministic ทั้ง libx264/NVENC; ตรวจ Draft/Post resolution และ effort โดยไม่ถือว่า CRF กับ CQ มีคุณภาพเท่ากัน; ไม่ปิด assertion เพื่อให้เทสเขียว |
+| 4 | ตรวจ QA tools และปิด gate Preview/Cutout หลัง Claude ส่งงาน 1–2 | Codex (GPT-6) | `tools/media_intake_audit.py`, `full_export_audit.py`, `backup_restore_dry_run.py`, เทส QA/Preview และบันทึกผล | targeted suites, browser Preview/Render parity, performance, `npm test`, build และ full backend suite ผ่าน; หาก fail บันทึกสาเหตุและเจ้าของงาน |
+| 5 | ตรวจความพร้อม realtime preview 1080p แล้วเสนอ/ทำโหมดคุณภาพตามผลวัด | Codex (GPT-6) หลัง Claude ส่งคืน `SequencePlayer.jsx` | `SequencePlayer.jsx`, เส้นทาง Master/Proxy, browser performance/parity tests | เล่นจาก Master ที่ canvas 1080×1920 จริง; วัด dropped frames/seek latency/RAM กับคลิปตัวแทนและ timeline หลายคลิป; มีโหมด 540p ให้เลือก; ห้ามอ้างว่าการขยาย Proxy คือ 1080p จริง |
+| 6 | เก็บงานทดสอบของแต่ละรอบ ตรวจ diff แยกงาน อัปเดต TODO/HISTORY และเตรียม commit | เจ้าของแต่ละรอบ; Codex รวมผลเมื่อทุกฝ่ายส่งมอบ | เอกสารและ Git | ไม่มีไฟล์ทดสอบของรอบค้าง; ไม่ลบหลักฐาน/ไฟล์ของงานอื่น; stage เฉพาะงานที่ตรวจแล้ว; ปิดรอบเมื่อ gate ผ่าน; การ push ยังไม่อยู่ในคำสั่งวางแผนครั้งนี้ |
+
+### Checklist ของแผนส่งต่อ
+
+- [x] อ่านงานเปิดที่เกี่ยวข้องและ git status; บันทึก baseline เก่าและ diff ค้าง
+- [x] แบ่งเจ้าของไฟล์และลำดับการส่งคืนงานไว้ใน TODO
+- [x] Claude รับงาน 1–2: **ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)** · รับงานวันที่ 2026-10-03 · สถานะ: วางแผนแล้ว รอผู้ใช้ยืนยันก่อนแก้โค้ด (Jev `start_ok` noul=0.36, confidence=null → escalate ตามกฎข้อ 19)
+  - **แผนงาน 1 (Editor bugfix):**
+    - [x] 1a ลบ prop ซ้ำ `backgroundIsolation` ใน `<Timeline>` ของ `EditorShell.jsx` (oxlint ไม่ขึ้น jsx-no-duplicate-props แล้ว)
+    - [x] 1b helper ใหม่ `frontend/src/lib/cutoutEngineModel.js` (`resolveCutoutEngineModel`, `defaultCutoutModel`) resolve คู่ engine+model พร้อมกัน: `{model:'u2netp'}` ไม่มี engine → `rembg+u2netp` (เดิมกลายเป็น `sam2+u2net`); ใช้ใน `AssetPanel.jsx` (toggle/select/onChange) และ `EditorShell.jsx` (prepare; คง u2netp→u2net เดิม)
+    - [x] 1c **เดิมเลื่อนไว้ ปิดแล้วตามบันทึกภายหลัง**: ค่าเริ่มต้น `rembg/u2net` ใน `backgroundIsolationPreview.js:420-421` ใช้ตรวจ/แมตช์ manifest ของพรีวิว เปลี่ยนแล้วเสี่ยงทำ cache key เพี้ยน → ปล่อยเป็นงานแยกพร้อมเทสพรีวิว (ยังไม่พังเพราะไม่ใช้ตัดสินพฤติกรรม)
+    - [x] 1d (หนี้โค้ด ข้อ 5) `normalizeBackgroundIsolation` 3 ไฟล์ยังไม่รวม — งานตามหลัง
+    - [x] 1e เทส `cutoutEngineModel.test.js` 5 เคส · `npm test` 430/430 · `npx vite build` ผ่าน · `git diff --check` เตือนเฉพาะ trailing whitespace ใน HISTORY.md:54/TODO.md:296 (ของรอบอื่น ไม่ใช่ของงานนี้)
+  - **แผนงาน 2 (UI จิ้มเลือกสินค้า, ทำหลังงาน 1):** ตามจุดต่อสาย (ข)(ค) ของรอบ CUTOUT-SAM2-PROMPT-GAP (TODO ด้านล่าง) ใช้ `subjectPoints.js` ที่มีแล้ว; ส่งผ่าน `patchBackgroundIsolation` เท่านั้น ห้ามใช้ `previewBackgroundIsolation`; ปุ่มกริยานำไม่มีไอคอน; ทดสอบ resize preview + reload + 1080p ไม่บัง click/drag; ส่ง `SequencePlayer.jsx` คืน Codex เมื่อจบ
+  - **ผลงาน 2 (2026-10-03, Claude Code Claude Sonnet 5.5 + subagent 3 ตัวแบ่งตามไฟล์):** เสร็จ — โหมดจิ้มจุดสินค้า
+    - `SequencePlayer.jsx`: props `subjectPoints/subjectPickMode/onPickSubjectPoint`, marker DOM, ปุ่ม play เต็มเฟรมติด `data-subject-pick-passthrough` (บั๊กที่ browser test เจอ: ปุ่ม play กลืนคลิกจิ้ม) · `lib/subjectPickGesture.js` (+test)
+    - `EditorShell.jsx`/`AssetPanel.jsx`: state `subjectPickMode`, เขียนผ่าน `patchBackgroundIsolation` เท่านั้น, ปุ่ม เลือกจุดสินค้า/ล้างจุด · `lib/cutoutSubjectPointState.js` (+test) จุดใหม่ทำ artifact เป็น `stale`
+    - เทส: `npm test` 455/455 · `vite build` ผ่าน · `tests/motion_capture/test_subject_points_browser.py` 1 passed (ย่อ/ขยายพรีวิว, reload, ล้างจุด, ปิดโหมดแล้วไม่เพิ่มจุด) · `test_preview_render_parity.py` + `test_editor_shell_browser.py` 192 passed
+    - **แก้ต่อ (2026-10-03):** ป้ายหลังจิ้มจุดเป็น "Cutout ล้าสมัย กรุณาเตรียมใหม่" (`backgroundIsolationPreview.js` แก้ 1 branch + เทส; state ยัง `quality_failed` เพื่อคง gate Render; `npm test` 456/456) · backend: `normalize_background_isolation` เก็บ `subject_points` รูปเดียวกับ frontend, `pytest test_cutout_prompt.py + test_background_isolation_sam2.py` 22 passed · **ยังไม่ได้รัน SAM2 GPU จริงกับจุดที่จิ้มผ่าน UI** · 1c/1d ยังเลื่อน
+    - **ปิด 1c/1d + บั๊กข้อ 3 (2026-10-03):** 1c `backgroundIsolationPreview.js` ใช้ `CUTOUT_ENGINE_MODELS`/`DEFAULT_CUTOUT_ENGINE` กลาง (ค่าเริ่มต้นใช้แค่ตรวจ null จึงไม่กระทบ cache key) · 1d ย้าย `normalizeBackgroundIsolation` ที่เหมือนกันเป๊ะ 2 ไฟล์ไป `lib/backgroundIsolationConfig.js` (`editorProjectState.js` re-export ชื่อเดิม, `timelineSchema.js` import) · `ContentTrackerHub.jsx` ลบ toast ตายหลัง `return` และเพิ่ม toast error เมื่อไม่มี product/angle · `npm test` 456/456, build ผ่าน
+    - **วัด SAM2 GPU จริงด้วยจุดที่ส่งผ่าน config (2026-10-03, sam2.1_hiera_tiny, RTX 4060, 2.0–3.0 วิ, ฟังก์ชันจริง `process_background_isolation_video`):** auto 1.32% หูฟัง+สาย · จุดผู้ใช้บนหูฟัง 0.21% ข้างเดียว (กลางคลิปหลุดเหลือ 0.00% — จุดเดียวไม่เสถียร) · หูฟัง+ลบมือ 2 จุด 0.43% (เสถียรกว่า min 0.21%) · จุดผิดบนมือ 17.08% (มาสก์ตามจุดจริง) · จุดบนสาย 1.53% · `auto_prompt:false` 38.74% (ตรงค่าเดิม) · artifact id ต่างกันทุกเคส (จุดอยู่ใน cache key) · **ยังไม่ได้ทดสอบผ่าน HTTP API/UI จริง** (ฉีด config ตรง) · แนะนำให้ UI สนับสนุนจุดลบ (label 0) ควบคู่ · เก็บกวาด `.tmp/sam2_points_e2e/` แล้ว
+    - **แก้เพิ่ม:** `background_isolation_video_worker.py` — print เตือนใน except ของ `derive_sam2_prompts` ล้มด้วย UnicodeEncodeError เมื่อ stdout เป็น cp1252 → ครอบ try/except ให้ fallback จริงตามสัญญา "never raises"
+    - **`pytest tests/` เต็ม (2026-10-03 ~15:20, Claude Code Claude Sonnet 5.5):** 2196 passed, 25 failed, 8 skipped (11:10 นาที) — **fail ทั้ง 25 อยู่ใน `tests/motion_capture/` (browser) เท่านั้น ไม่มี fail ใน backend ปกติ** · รันซ้ำเฉพาะ 7 ไฟล์ที่ fail: เหลือ 6 failed/58 passed (`test_cutout_video_preview` 5 ตัว = flake เดิมที่บันทึกไว้ HISTORY.md:513/TODO.md:554 + `test_subject_points_browser` 1 ตัว) · `test_subject_points_browser.py` รันเดี่ยวผ่าน 4/4 · **หมายเหตุ:** ระหว่างรัน มี session อื่นแก้ `SequencePlayer.jsx` (15:31) และขยาย `test_subject_points_browser.py` เป็น 4 เคส (15:33) — ผลที่ fail ของไฟล์นี้จึงปนกับการแก้ที่กำลังเกิดขึ้น ยังไม่ยืนยันว่า fail ในชุดเต็มมาจากอะไร · เทสที่เพิ่ม `test_derive_sam2_prompts_degrades_even_when_stdout_cannot_print_thai` (ยืนยันแล้วว่าล้มถ้าถอดตัวแก้)
+    - **ยังไม่ commit โดยตั้งใจ:** `SequencePlayer.jsx`/`EditorShell.jsx`/`AssetPanel.jsx` มี diff ของรอบ Codex ปนอยู่ก่อนผมแตะ และตอนนี้มี session อื่นแก้อยู่ → commit รวมจะลากงานคนอื่นไปด้วย ต้องประสานกับเจ้าของไฟล์ก่อน
+    - **ส่งคืน Codex:** `SequencePlayer.jsx` พร้อมให้งาน 4–5 รับต่อ
+  - **ข้อควรระวัง:** ไฟล์เป้าหมายมี diff ค้างของรอบ PREVIEW-1080 (Codex) → แก้เฉพาะบรรทัดที่ระบุ ไม่ reset/stash; ทดสอบใน `.tmp/` เก็บกวาด 100%
+- [x] Codex งาน 3 และ QA standalone เสร็จ: export contract 20 passed, QA 22 passed; ผลรวม/ข้อขัดข้องอยู่ใน `CODEX-NVENC-QA-GATES-20261003`
+- [x] Gate ส่งต่อ Cutout playback: เคส speed `1.3155` ยัง fail ทั้ง full suite (47/60 เฟรม) และรันแยก (42/60); owner ฝั่ง Editor ตรวจคู่กับงาน UI/ก่อนส่งคืน SequencePlayer ให้ Codex ห้ามลดเกณฑ์ >=54 เพื่อปิดงาน
+- [x] Claude ส่งมอบผลเทส/รายการไฟล์และคืน `SequencePlayer.jsx`; Codex รับงาน 4–5 ต่อใน `PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003`
+- [x] ผ่าน gate รวมและปิดรอบเดิมที่เกี่ยวข้องตามผลจริง
+
+### ข้อตกลงเมื่อทำงานร่วมกัน
+
+- Claude ถือไฟล์ Editor/SequencePlayer สำหรับงาน 1–2; Codex ทำงาน 3 และ QA standalone ได้ในไฟล์คนละชุด ขณะส่งต่อยังไม่มีการสั่งรัน Claude อัตโนมัติ
+- หากต้องแก้ไฟล์นอกขอบเขต ให้บันทึกใน TODO และส่งต่อเจ้าของไฟล์ก่อน; ไม่แก้ไฟล์เดียวกันพร้อมกัน และไม่ใช้ reset/stash เพื่อทิ้งงานค้าง
+- การแก้ UI จิ้มสินค้าให้ใช้ state จริงผ่าน `patchBackgroundIsolation`; ห้ามบันทึกค่าจาก `previewBackgroundIsolation` จนทำให้การซ่อนพรีวิวกลายเป็นปิด Cutout
+- งานที่เปลี่ยนภาพต้องผ่าน Preview/Render parity และดูเฟรม FFmpeg จริง; รักษาสัญญาฟอนต์/ซับ/safe zone ตามกฎโปรเจกต์
+- whitespace ที่พบใน TODO/HISTORY ให้ตรวจ diff และข้อห้ามแก้ประวัติก่อนแก้; ไม่แก้ย้อนหลังใน HISTORY เพียงเพื่อทำให้ diff check ผ่าน
+- ปัญหา toast หลัง return ใน `ContentTrackerHub.jsx` และการรวม normalization หลายไฟล์เป็นงานย่อยหลังงาน 1–2 หากยืนยันยังมีปัญหา; ห้ามขยาย scope เงียบ ๆ
+- Jev ตรวจเฉพาะข้อความสรุปแผน: risk 0.85/4, confidence 0.48, verdict escalate; ไม่ใช้เป็นหลักฐาน QA หรือสิทธิ์อนุมัติ implementation ผู้ใช้อนุญาตให้จัดทำแผนและจด TODO แล้ว รอบนี้จึงบันทึกแผนเท่านั้น
+
+**ข้อความสำหรับส่งให้ Claude:** อ่าน `NEXT-WORK-CLAUDE-HANDOFF-20261003` ใน TODO แล้วรับงาน 1–2 ตรวจ diff เดิมก่อนแก้ บันทึก agent/โมเดลจริง ทำ regression ของ engine/model และต่อ UI จุดสินค้าโดยใช้ helper/backend ที่มีอยู่ รักษาพรีวิว 1080p และสัญญาฟอนต์ ส่งรายการไฟล์พร้อมผลเทสให้ Codex ก่อนงานรวม ห้าม commit รวมไฟล์งานอื่น
+
+### Final closure — 2026-10-03 · ดำเนินการโดย: Codex (GPT-6)
+
+- Final integration: **2286 passed, 11 skipped, 32 warnings /548.85s**, zero failures; 726 source hashes unchanged before/after. Frontend **491 passed**, build, compileall scripts/tools, API import **216 routes** and git diff check passed.
+- Subject picking browser **6 cases passed** (both qualities, transforms, stale/multiple points, native Master versus padded proxy); reference-frame helper3 and parity189 passed. SAM2 CUDA acceptance **2 passed /12.27s** separately; prior Cutout fractional failures resolved without relaxing gates.
+- Scoped temporary fixtures and interrupted-run directory cleaned; 6 logs/Jev specs of this round removed after copying verified metrics to report. No production export/project/registry test data, no commit/push.
+- Preserve earlier snapshot failures above as chronology; this final result resolves those gates. Full behavior, performance, pixel/color and RAM limits: [_Docs/Reports/PC_MAX_PREVIEW_CUTOUT_INTEGRATION_20261003.md](_Docs/Reports/PC_MAX_PREVIEW_CUTOUT_INTEGRATION_20261003.md). Other agents’ audit decisions remain in TODO.
+
+
+---
+
+## Round PREVIEW-1080-INSPECTION-20260929 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6)
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: ปิดรอบแล้ว 2026-10-03
+
+**เป้าหมาย:** ให้หน้าพรีวิวแสดงเฟรมหยุด/เฟรมที่กำลังตรวจด้วยรายละเอียดระดับ 1080×1920 จากไฟล์ Master โดยยังใช้เส้นทาง 540p ระหว่าง Playback เพื่อรักษาความลื่นและไม่เปลี่ยนมาตรฐานส่งออก 1080×1920/30 FPS
+
+**แผนละเอียด:** [_Docs/Plans/PREVIEW_1080_INSPECTION_PLAN_20260929.md](_Docs/Plans/PREVIEW_1080_INSPECTION_PLAN_20260929.md) — ดำเนินการโดย: Codex (GPT-6)
+
+### Todo
+- [x] P0: ตรวจเส้นทาง Preview/Render, state invalidation และ proxy/master; แยกการเล่น 540 ออกจาก inspection still 1080 โดยไม่แตะไฟล์ผลงานจริง
+- [x] P1: สร้าง 1080 still-preview จาก Master เมื่อหยุด/พัก seek; ใช้ debounce + request revision guard กันภาพเก่าทับเฟรมใหม่; คง Canvas 540 สำหรับ playback
+- [x] P2: เพิ่มตัวเลือกปิด high-quality still preview และสถานะคุณภาพที่อ่านได้; ไม่เปลี่ยนข้อความ/ฟอนต์/ตำแหน่ง/safe zone
+- [x] P3: เพิ่ม tests สำหรับ lifecycle/stale-frame/fallback และอัปเดต Preview=Render contract tests เท่าที่จำเป็น
+- [x] P4: ยืนยันภาพจริงใน browser เทียบ FFmpeg ที่ 1080p, ทดสอบ seek/ปุ่มเปิดปิด/Cutout และ performance gate
+- [x] P5: รัน targeted frontend/backend tests, `npm test`, build และ `git diff --check`; เก็บ artifacts ใน `.tmp/` และ cleanup 100%
+
+### ข้อจำกัด
+- ห้ามแก้ export resolution/FPS, font/text golden master, proxy timing หรือ source media
+- Render ต้องอ่าน Master เสมอ; ภาพนิ่งความละเอียดสูงต้องมาจาก Master ไม่ upscale proxy 540p
+- ถ้า capture ล้มเหลว/ยังโหลดไม่เสร็จ ให้คงเฟรมพรีวิวปกติและไม่แสดง stale frame เป็นภาพปัจจุบัน
+- เก็บและรักษาการแก้ไขเดิมใน working tree ทุกไฟล์; ไม่ reset/stash/overwrite
+
+### Notes
+- Jev ให้ `proceed.noul=0.81` แต่ confidence เป็น `null`; `risk.score=1.76/3`, confidence `0.71` จึงหยุดถามตาม gate ก่อนเริ่ม implementation ผู้ใช้ยืนยันให้เริ่มงานในวันที่ 2026-09-29
+- สถานะเอเจนต์ตรวจแล้วมีเพียง `/root`; working tree ที่มี diff เป็นไฟล์แก้ค้าง ไม่ใช่หลักฐานว่ามีเอเจนต์อื่นกำลังแก้
+- Browser parity ที่ 1080×1920 ผ่าน 4/4; เวลาสร้างเฟรม Master 27–34 ms และภาพทดสอบ PNG 47.4 KiB ต่อเฟรม
+- หน่วยความจำ RGBA เชิงคำนวณต่อ Canvas 1080×1920 = 7.91 MiB; ยังไม่ใช่ตัววัด peak RAM รวม video decoder/browser
+- `npm test` 420 passed, build ผ่าน; parity 188 passed, render behavior 24 passed, Cutout parity 1 passed, Editor performance 12 passed; full backend suite รันจบแล้ว
+- Full backend suite: **2176 passed, 2 failed, 8 skipped, 32 warnings** ใน 555.68s; failures คือ `test_draft_export_scales_down_and_lowers_encode_effort` และ `test_unknown_export_preset_falls_back_to_post` — คำสั่งใช้ `h264_nvenc -cq 20` แต่ test helper เดิมไม่รู้จัก `-cq`; งานรอบนี้ไม่ได้แก้ encoder/test เหล่านั้น
+- `git diff --check` exit 1 จาก trailing whitespace ที่มีอยู่เดิมใน `HISTORY.md:54` และบล็อก QA เก่าใน `TODO.md`; รักษาประวัติ/งานเดิมไว้ ไม่แก้ทับในรอบ Preview
+- Cleanup: `tests/motion_capture` ใช้ temp capture directory ที่ลบอัตโนมัติ; ไม่มีไฟล์ render ทดสอบค้างใน `.tmp/` หรือโฟลเดอร์ผลงาน
+- Jev ประเมินคำอธิบายคุณภาพงานได้ 2.53/4 แต่ confidence 0.13 จึง escalate; ใช้ผลทดสอบจริงเป็นหลักและไม่นับคะแนน Jev เป็นหลักฐาน QA
+
+### Final closure — 2026-10-03 · ดำเนินการโดย: Codex (GPT-6)
+
+- Final integration: **2286 passed, 11 skipped, 32 warnings /548.85s**, zero failures; 726 source hashes unchanged before/after. Frontend **491 passed**, build, compileall scripts/tools, API import **216 routes** and git diff check passed.
+- Subject picking browser **6 cases passed** (both qualities, transforms, stale/multiple points, native Master versus padded proxy); reference-frame helper3 and parity189 passed. SAM2 CUDA acceptance **2 passed /12.27s** separately; prior Cutout fractional failures resolved without relaxing gates.
+- Scoped temporary fixtures and interrupted-run directory cleaned; 6 logs/Jev specs of this round removed after copying verified metrics to report. No production export/project/registry test data, no commit/push.
+- Preserve earlier snapshot failures above as chronology; this final result resolves those gates. Full behavior, performance, pixel/color and RAM limits: [_Docs/Reports/PC_MAX_PREVIEW_CUTOUT_INTEGRATION_20261003.md](_Docs/Reports/PC_MAX_PREVIEW_CUTOUT_INTEGRATION_20261003.md). Other agents’ audit decisions remain in TODO.
+
+
+---
+
+## Round INDEPENDENT-QA-TOOLS-20260929 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6)
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6)
+
+**เป้าหมาย:** ทำเครื่องมือ QA standalone ตามแผนใหม่ โดยไม่แตะไฟล์/ฟีเจอร์ที่ Antigravity, Claude หรือรอบ Editor/Cutout กำลังทำ
+
+### Todo
+- [x] เพิ่ม `tools/media_intake_audit.py`: ffprobe, checksum ซ้ำ, OCR แบบ optional (Tesseract ถ้ามี), รายงาน timestamp ให้คนตรวจ
+- [x] เพิ่ม `tools/full_export_audit.py`: ตรวจ timeline ด้วย FFmpeg filters สำหรับ black/freeze/silence/ระดับเสียง และสเปก export
+- [x] เพิ่ม `tools/backup_restore_dry_run.py`: ตรวจ ZIP, path traversal, manifest, JSON/SQLite integrity และแตกสำเนาในพื้นที่ชั่วคราว
+- [x] ตรวจโค้ด/ทดสอบเฉพาะจุด 15 passed/0 failed; synthetic smoke Q1/Q2 ผ่าน; ลบ temp fixtures อัตโนมัติ
+
+### Gate
+- [x] ทั้งสามคำสั่งอ่าน source/export/backup และเขียนเฉพาะ report/temp; ตรวจ guard กัน report เขียนทับ source
+- [x] Fixtures ทดสอบ media, OCR/no-OCR, black/freeze/silence, export specs, backup ปกติ/เสีย/path traversal
+- [x] ไม่แก้ Badge, subtitle, editor, cutout, TTS, DB หรือ API/UI
+- [x] `git diff --check` ผ่านและ full project backend suite ผ่าน
+
+### Notes
+- Jev `noul=0.88`, confidence `null`; user อนุมัติให้ทำแผน independent โดยตรง. ไม่ใช้ผล Jev เป็นหลักฐาน; scope ยึดจาก git status/TODO.
+- Tesseract ไม่พบใน PATH; OCR ต้องเป็น optional dependency/สถานะ review_required เมื่อไม่มี OCR ไม่อ้างว่าคลิปสะอาดจาก metadata อย่างเดียว
+- ไฟล์ code/test จะสร้างเฉพาะใน `tools/` และ `tests/` ของรอบนี้; test output สร้างใน temp เท่านั้น
+- ผลทดสอบรอบนี้: targeted **15 passed/0 failed**; synthetic Q1 metadata read + Q2 full scan ผ่าน; `compileall` ผ่าน; API routes **216**; frontend **416 passed/0 failed**, `npm run build` ผ่าน
+- Full backend: **2174 passed, 3 failed, 8 skipped, 40 warnings**. Failures: `test_transparent_video_cutout_appears_in_real_sequence_player` (47/54 frames) และ 2 draft export preset tests ที่คาด `libx264` แต่ command ปัจจุบันเลือก `h264_nvenc`; ทั้งหมดอยู่นอกไฟล์รอบนี้
+- `git diff --check` ยังไม่ผ่านจาก trailing whitespace ในงานร่วมของ agent อื่น: `TODO.md:71`, `HISTORY.md:27`; ไม่แก้บรรทัดของ agent อื่น
+- Q1 บน PC นี้ได้ `review_required` ตามคาดเพราะไม่มี Tesseract; OCR engine จริงยังต้องมี Tesseract + language data เพื่อใช้ตรวจข้อความ
+
+### Final closure — 2026-10-03 · ดำเนินการโดย: Codex (GPT-6)
+
+- Final integration: **2286 passed, 11 skipped, 32 warnings /548.85s**, zero failures; 726 source hashes unchanged before/after. Frontend **491 passed**, build, compileall scripts/tools, API import **216 routes** and git diff check passed.
+- Subject picking browser **6 cases passed** (both qualities, transforms, stale/multiple points, native Master versus padded proxy); reference-frame helper3 and parity189 passed. SAM2 CUDA acceptance **2 passed /12.27s** separately; prior Cutout fractional failures resolved without relaxing gates.
+- Scoped temporary fixtures and interrupted-run directory cleaned; 6 logs/Jev specs of this round removed after copying verified metrics to report. No production export/project/registry test data, no commit/push.
+- Preserve earlier snapshot failures above as chronology; this final result resolves those gates. Full behavior, performance, pixel/color and RAM limits: [_Docs/Reports/PC_MAX_PREVIEW_CUTOUT_INTEGRATION_20261003.md](_Docs/Reports/PC_MAX_PREVIEW_CUTOUT_INTEGRATION_20261003.md). Other agents’ audit decisions remain in TODO.
+
+---
+
+## Round WORKTREE-HOUSEKEEPING-AND-EDITOR-BUGHUNT-20260929 — ปิดรอบแล้ว ✅ · ดำเนินการโดย: Cline (Claude); ปิดโดย Claude Code (Claude Sonnet 5.5) 2026-10-03
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Cline (Claude) · สถานะ: กำลังทำ
+
+**เป้าหมาย:** (1) จัดบ้าน working tree ให้ไฟล์ที่หลุดตำแหน่งกลับเข้าโครงสร้างที่กฎข้อ 2 กำหนด และเก็บขยะทดสอบให้พ้นรากโปรเจกต์ (2) ล่าบัคส่วน Editor แบบละเอียด พร้อมหลักฐานจากการรันจริง ไม่เดา
+
+### Todo
+- [x] สำรวจ `git status` + ไฟล์นอกโครงสร้างที่รากโปรเจกต์
+- [x] ย้าย `OMNICUT_GPU_ENHANCEMENT_PLAN.md` (แผนแม่บท) จากราก → `_Docs/Plans/` และอัปเดตลิงก์ใน `TODO.md` 2 จุด (ฟีเจอร์ B/C)
+- [x] ย้าย `.tmp_badge.png`, `.tmp_pills.png`, `.tmp_player.png` จากราก → `.tmp/root_orphans_20260929/` (ไม่ลบ เพราะ `.tmp/` มีไฟล์ของเอเจนต์อื่นที่ timestamp 23:45 น. กำลังทำงานอยู่)
+- [x] ตรวจว่า `REMOTE_WORK_GUIDE.md/.html` อยู่ใน `_Docs/` แล้ว (ถูกต้อง ไม่ต้องย้าย เพียงยัง untracked)
+- [x] เก็บ baseline: `npm test` 420/420 ผ่าน · `npx vite build` exit 0 · `npx oxlint` 609 warnings / 0 errors
+- [x] ล่าบัค Editor: รีวิว diff ค้างทุกไฟล์ใน working tree + lint histogram + ตรวจ leak/interval/ref/purity
+- [x] รายงานบัค + เก็บ log ชั่วคราวของตัวเองให้ครบ 100% (ปิด 2026-10-03: บัคข้อ 1,2,3 แก้แล้ว, ข้อ 4,5 ปิดด้วย 1c/1d, `.tmp/root_orphans_20260929/` ลบแล้ว)
+
+### บัค/ข้อบกพร่องที่พบ (พร้อมหลักฐาน)
+
+1. **[ยืนยัน] prop ซ้ำ — `frontend/src/components/editor/EditorShell.jsx` บรรทัด 3249 + 3278**: `<Timeline>` ได้ `backgroundIsolation={backgroundIsolation}` สองครั้งบน element เดียว → React ใช้ค่าหลัง ตัวแรกเป็นโค้ดตาย/กำกวม · หลักฐาน: `npx oxlint` → `react(jsx-no-duplicate-props)` "The prop \"backgroundIsolation\" is duplicated"
+2. **[ยืนยันเชิงตรรกะ] โมเดลไม่ตรงเอนจิน (cross-engine mismatch) — `AssetPanel.jsx:260-261` + `EditorShell.jsx:1523-1529`**: ฝั่งเตรียม Cutout แยกคำนวณ "ค่าเริ่มต้นเอนจิน" (`'sam2'`) ออกจาก "ค่าเริ่มต้นโมเดล" (`'u2net'`/`'u2netp'→'u2net'`) → โปรเจกต์เก่าที่ไม่มีฟิลด์ `engine` แต่มี `model: 'u2netp'` จะถูกส่งเป็น `engine: 'sam2' + model: 'u2net'` · ปลายทาง `scripts/background_isolation_video_worker.py:248-295` จะรัน SAM2 worker ด้วย `--model u2net` โดยไม่แนบ `--checkpoint` (ไม่มีไฟล์ `cutout-models/u2net.pt`) แล้ว `raise RuntimeError("SAM 2 worker failed: ...")` = งาน Cutout ล้มด้วยข้อความชวนสับสน
+3. **[ยืนยัน] โค้ดที่ไม่มีวันถูกเรียก — `frontend/src/components/ContentTrackerHub.jsx:2448-2449`**: `showToast('มาร์กว่าโพสต์บน TikTok สำเร็จแล้ว')` อยู่หลัง `return;` · หลักฐาน: `eslint(no-unreachable)` · ผลข้างเคียงจริง: กด "มาร์กว่าโพสต์แล้ว" ตอนไม่มี product/angle แล้วเงียบ ไม่มีข้อความบอกผู้ใช้
+4. **[latent] ค่าเริ่มต้นไม่ตรงกัน 3 ที่**: `backgroundIsolationPreview.js:420-421` ใช้ `engine 'rembg' / model 'u2net'` ขณะที่ `AssetPanel.jsx` + `EditorShell.jsx` ใช้ `'sam2' / 'sam2.1_hiera_tiny'` (ค่าที่ normalize ได้ยังไม่ถูกใช้ตัดสินพฤติกรรม จึงยังไม่พัง แต่เป็นสัญญาที่จะเลื่อนหลุดในอนาคต)
+5. **[หนี้โค้ด] `normalizeBackgroundIsolation` + ชุดตัวเลือกถูกก็อปไว้ 3 ไฟล์** (`editorProjectState.js`, `timelineSchema.js`, `backgroundIsolationPreview.js` SUPPORTED_*) → จุดเดียวที่ต้องแก้เวลาเพิ่มเอนจิน/โมเดล ปัจจุบันยังไม่ drift แต่เสี่ยงสูง
+
+### สิ่งที่ตรวจแล้ว "ไม่พัง" (ยืนยันด้วยการรัน/อ่านโค้ด)
+- `npm test` 420/420 · `npx vite build` exit 0 (ที่เคยเห็น exit 1 คือ PowerShell กลืน stderr ไม่ใช่บัคโปรเจกต์)
+- ไม่มี listener/objectURL/interval leak ใน `frontend/src/components/editor/**` (add↔remove เท่ากันทุุกไฟล์)
+- `captureCoverFrame` ที่เขียนใหม่ยังคืน `toDataURL('image/png')` 1080×1920 เหมือนเดิม → `EditorShell.jsx:1706` ไม่พัง
+- ตรรกะ `highResStillKey` + `highResRequestRef` ของพรีวิว 1080p ยกเลิกงานเก่าได้จริง ไม่เกิด capture loop (เส้นทาง cover ถูกกันด้วย `if (!cover && ...)`)
+
+### Notes
+- ไม่แก้โค้ด Editor เลย เพราะไฟล์เป้าหมายถูกถือโดยรอบ `PREVIEW-1080-INSPECTION-20260929` (Codex) ที่ยังเปิดอยู่ — ลดความเสี่ยงชนกันตามกฎ "รักษาการแก้ไขเดิมใน working tree"
+- ขยะทดสอบของตัวเอง (`.tmp/build_check.log`, `.tmp/build2.log`, `.tmp/lint_full.txt`) ลบครบ 100%
+
+---
+
+## Round CUTOUT-SAM2-PROMPT-GAP-20260929 — ปิดรอบแล้ว ✅ · ดำเนินการโดย: Cline (Claude) เฟส 1; Claude Code (Claude Sonnet 5.5) เฟส 2 + ปิดรอบ 2026-10-03
+
+วันที่: 2026-09-29 · สั่งโดย: user · ดำเนินการโดย: Cline (Claude) · สถานะ: วินิจฉัยเสร็จ (ยังไม่แก้โค้ด — รอผู้ใช้เลือกแนวทาง)
+
+**เป้าหมาย:** อธิบายให้ได้ว่า "งาน Cutout ของ Antigravity ที่ยังใช้ไม่ได้จริง" ติดตรงไหน พร้อมหลักฐานจากการรันจริง ไม่เดา
+
+### อาการที่วัดได้จริง (คลิปสินค้าจริง `01_Raw/38d7670c472e4777af722a923d96644f/Jbl tune 310c.mov` เฟรมที่ 2.0-3.0 วิ · 540x960 · sam2.1_hiera_tiny · RTX 4060)
+
+| โหมด | Coverage | bbox | Centroid | สิ่งที่ถูกตัดออก |
+| :--- | ---: | :--- | :--- | :--- |
+| **ค่าเริ่มต้นที่ production ใช้จริง** (จุดกลาง 0.5,0.5) | **38.74%** | (0,298)-(539,959) | (0.52, 0.67) | **สองมือ + แขนท่อนล่าง** — ไม่ได้ตัวสินค้าเลย |
+| ส่ง prompt ชี้ที่ตัวสินค้า (0.36,0.47) + จุดลบที่มือ | **0.58%** | (170,406)-(237,513) | (0.38, 0.47) | **หูฟัง (สินค้า) ถูกต้อง** |
+
+หลักฐานภาพ (ยังไม่ลบ รอคำสั่ง): `.tmp/cutout_probe/run_default/visible.png` (มือ) เทียบ `.tmp/cutout_probe/run_prompted/visible.png` (หูฟัง)
+
+### รากเหตุ (ยืนยันด้วยโค้ด)
+1. `scripts/background_isolation_sam2_worker.py:168-174` — *"Default prompt: Center point if none supplied"* → ถ้าไม่มี prompt จะใช้ `points [[0.5,0.5]]` เสมอ
+2. `scripts/background_isolation_video_worker.py:259-272` — คำสั่งเรียก SAM2 worker ส่งแค่ `--source/--start/--fps/--width/--height/--model/--checkpoint/--duration` **ไม่เคยส่ง `--prompts`**
+3. `scripts/api_background_isolation.py` — `BackgroundIsolationProcessRequest` **ไม่มีฟิลด์สำหรับพิกัด/points** เลย
+4. `frontend/src/components/editor/AssetPanel.jsx` — ส่งแค่ engine/model/scope/quality ไม่มี UI ให้จิ้มเลือกสินค้า และไม่มีการเก็บพิกัดลงโปรเจกต์
+5. ช่องทางเดียวที่ส่ง prompt ได้คือ CLI + `tools/benchmark_cutout_tracker_gpu.py` (สคริปต์ spike) — ตรงกับรายงาน `_Docs/Reports/SAM2_GPU_FEASIBILITY_20260929.md` ที่ระบุ prompt แบบจิ้มมือ `(0.43,0.49)` / `(0.75,0.39)` → **ผลวัด 92 เท่า/ขอบคมกริบ คือผลของ prompt ที่คนป้อน ไม่ใช่สิ่งที่ระบบทำได้เอง**
+6. `tests/test_background_isolation_sam2.py:109-160` **มองไม่เห็นบัคนี้** เพราะคลิปทดสอบเป็นกล่องแดงที่ ffmpeg วาดไว้ `drawbox=x=170:y=380:w=200:h=200` บน 540x960 → จุดกลาง (270,480) ตกในกล่องพอดี → เทสต์เขียวโดยโครงสร้าง
+7. `scripts/background_isolation_sam2_worker.py:45-59` — `saw_transparency` / `saw_opaque` คำนวณแล้ว**ไม่ถูกใช้ตัดสินอะไรเลย** → มาสก์ผิดแค่ไหนก็รายงาน `ready`
+
+### บัคพ่วงที่พบในสายเดียวกัน
+- Hardcode absolute path 6 จุด (ผิดกฎข้อ 2 และย้ายเครื่อง/ก็อปโฟลเดอร์แล้วพังทันที): `background_isolation_sam2_worker.py:31,113,114` · `background_isolation_video_worker.py:255` · `api_background_isolation.py:124` · `tests/test_background_isolation_sam2.py:111`
+
+### หลักฐานว่าของเดิม "ผ่านเทสต์" จริง
+- `pytest tests/test_background_isolation_sam2.py -v` → **5 passed in 4.71s** (รวมเทสต์ GPU จริง) — ยืนยันว่าเทสต์ชุดนี้ไม่ครอบคลุมคลิปจริงที่สินค้าไม่กลางเฟรม
+
+### ความเห็น Jev (บันทึกตามกฎ ห้ามใช้เป็นใบอนุมัติ)
+- `fix_approach` → `manual_click_ui` แต่ **confidence 0.35 → escalate** (ต่ำกว่า 0.80 จึงหยุดถามผู้ใช้)
+- `auto_quality` (ใช้มาสก์จากโมเดลเดิมมาหาจุดเอง) → score **0.18**, confidence 0.85, ระดับ "ใช้ไม่ได้ ต้องแก้ทุกคลิป" น้ำหนัก 0.86
+- `fix_priority` → noul 0.70, confidence `null` → escalate
+- `dead_verify_flags` → noul 0.83, confidence `null` → escalate
+
+### Todo
+- [x] รันเทสต์ชุด Cutout ของ SAM2 → 5/5 ผ่าน (ยืนยันว่าเทสต์ไม่ครอบคลุมของจริง)
+- [x] รัน worker จริงกับคลิปจริง 2 โหมด (default vs prompted) และวัด coverage/bbox/centroid
+- [x] เก็บหลักฐานภาพเปรียบเทียบ
+- [x] สแกนช่องทางส่ง prompt ทั้ง backend/frontend/CLI
+- [x] ตรวจ `_verify_video` และ hardcode path ในสาย Cutout
+- [x] ถาม Jev ตามจุดบังคับที่ 2 (เจอทางเลือก 4 อัน)
+- [x] **รอผู้ใช้เลือกแนวทางแก้** → ผู้ใช้เลือก **Hybrid** (อัตโนมัติก่อน + จิ้มแก้ได้) เมื่อ 2026-09-29
+- [x] **เฟส 1 (อัตโนมัติ) พัฒนาเสร็จ + วัดผลจริงแล้ว** (ดูหัวข้อถัดไป)
+- [x] เฟส 2 (เสร็จ 2026-10-03, ดูบล็อก NEXT-WORK-CLAUDE-HANDOFF): UI จิ้มเลือกสินค้าบนพรีวิว แล้วส่งพิกัดไปกับคำขอเตรียม Cutout — วางแผนจุดต่อสายแล้ว (ยังไม่แตะโค้ดเดิมของ Codex):
+  - (ก) สร้าง `frontend/src/lib/subjectPoints.js` (มีแล้ว) + `subjectPoints.test.js` (มีแล้ว 5 เทสต์/425 ผ่าน) — โมดูลบริสุทธิ์ถือ normalize/append/marker ไม่แตะพรีวิว
+  - (ข) SequencePlayer: แถบบนพรีวิวถ่ายทอด `subjectPoints` + `onPickSubjectPoint` + `onClearSubjectPoints` โดย "โหมดจิ้ม" ใช้ปุ่มกริยานำ (เช่น เตรียมจุดสินค้า) ไม่มีสัญลักษณ์นำตาม ui_clean_standard และคลิกบนเฟรมแปลงด้วย `subjectPointFromFramePointer`
+  - (ค) EditorShell ส่ง `backgroundIsolation.subject_points` ของจริงเข้า AssetPanel/SequencePlayer ผ่าน `patchBackgroundIsolation` เท่านั้น (ห้ามส่ง `previewBackgroundIsolation` เพราะเขียนกลับแล้วทำให้ hide-preview กลายเป็นปิดทั้งงาน — ดูคอมเมนต์ EditorShell 2405-2411)
+  - (ง) ท่อส่งมีครบแล้ว: `editorProjectState.js` + `timelineSchema.js` (normalize) → `background_isolation.py` (สัญญา config) → `background_isolation_video_worker.py` (artifact id + derive) → API config dict — ไม่ต้องเพิ่มท่อใหม่
+- [x] ลบไฟล์ทดลองใน `.tmp/cutout_probe/` ให้ครบเมื่อปิดรอบ (ลบแล้ว 2026-10-03 ตามคำสั่งผู้ใช้ — ภาพเทียบก่อน/หลังใน §เฟส 1 ไม่มีไฟล์แล้ว ตัวเลขยังอยู่ในตาราง)
+
+### เฟส 1 — SAM2 หาจุดตัดสินค้าเอง (อัตโนมัติ) · เสร็จแล้ว
+**ไฟล์ที่แตะ:** `scripts/cutout_prompt.py` (ใหม่, pure) · `scripts/background_isolation.py` (สัญญา config) · `scripts/background_isolation_video_worker.py` (ต่อสาย + WORKER_VERSION) · `scripts/background_isolation_sam2_worker.py` (CLI) · `tests/test_cutout_prompt.py` (ใหม่ 17 เทสต์)
+
+**ลำดับความสำคัญของจุดตัด:** จุดที่ผู้ใช้จิ้ม (`subject_points`) → อนุมานจากมาสก์ของโมเดลเดิม (ค่าเริ่มต้น) → จุดกลางภาพแบบเดิม (ถ้าอนุมานไม่ได้ และเมื่อ `auto_prompt: false`)
+
+**ผลวัดจริงบนคลิปจริง (Jbl tune 310c เฟรม 2.0–3.0 วิ · SAM2 GPU)**
+
+| สถานะ | Coverage | Centroid | สิ่งที่ถูกตัด |
+| :--- | ---: | :--- | :--- |
+| ก่อนแก้ (จุดกลางภาพ) | 38.74% | (0.52, 0.67) | สองมือ + แขน |
+| หลังแก้ (อัตโนมัติ ไม่มีคนป้อนจุด) | **1.32%** | (0.39, 0.52) | **หูฟัง + สาย (สินค้า)** |
+
+หลักฐานภาพ: `.tmp/cutout_probe/run_default/visible.png` (ก่อน) เทียบ `.tmp/cutout_probe/auto_prompt_result.png` (หลัง)
+
+**สิ่งที่เรียนรู้จากการวัด (บันทึกไว้กันทำซ้ำ):**
+- `u2net` / `u2netp` ปล่อยมาสก์รั่วไปโดนของมืดข้างหลัง → จุดที่อนุมานได้หลุดไปที่ขอบภาพ (0.976, 0.646) จึงเปลี่ยนไปใช้ `isnet-general-use` ซึ่งให้ก้อนเดียวสะอาด (25%) และจุดที่ต้องการ (0.344, 0.464)
+- มาสก์จริงมักเป็น **ก้อนเดียวที่มือกับสินค้าติดกัน** จึงต้องมีชั้นที่ 2 คือหา "บริเวณที่สีต่างจากก้อน" (outlier) ไม่ใช่ centroid ของก้อน
+- **บัคที่เจอในโค้ดใหม่ของตัวเองและแก้แล้ว:** `foreground_mask()` รับ mask ที่เป็น boolean แล้วเทียบ `True > 32` → กลายเป็น False ทั้งภาพ (มีเทสต์กันกลับแล้ว)
+
+**Gate ที่ผ่านแล้ว:** `pytest tests/test_cutout_prompt.py` → **17 passed** · `pytest -k 'background_isolation or cutout'` → **257 passed, 4 skipped, 2 failed** โดย 2 ตัวที่ fail คือ `test_cutout_video_preview` ซึ่งเป็น **flake เดิมที่บันทึกไว้แล้ว** (HISTORY.md:513, TODO.md:554 — เกณฑ์ `visible >= 54` ใน headless Chromium) ไม่เกี่ยวกับงานนี้
