@@ -6,13 +6,14 @@ Encapsulates parameters, mutable stage state, and helper methods across all pipe
 import copy
 import hashlib
 import json
+import math
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from scripts.config import (
-    BASE_DIR, DEFAULT_VOICE, DEFAULT_VOICE_RATE
+    BASE_DIR, DEFAULT_VOICE, DEFAULT_VOICE_RATE, SFX_VOLUME, VOICE_VOLUME
 )
 from scripts.project_manifest import ProjectManifest, REROLL_STAGE
 from scripts.color_theme import extract_explicit_theme, is_color_theme, normalize_hex, resolve_color_theme
@@ -124,6 +125,40 @@ def _manifest_value(manifest: Dict[str, Any], key: str, default: Any = None) -> 
     if key in params:
         return params[key]
     return manifest.get(key, default)
+
+
+# Per-project voice/SFX bus levels set in the editor's Track Mix (L4-05). The
+# config value is the default, and [0, 1] is the same ceiling that
+# sfx_manager.build_audio_finishing_policy clamps to (loudnorm TP=-1 finishes
+# the sum). A level equal to the default counts as "not set", so a project that
+# never moved a slider keeps the exact mix fingerprint it was stamped with.
+BUS_VOLUME_DEFAULTS = {"voice_volume": VOICE_VOLUME, "sfx_volume": SFX_VOLUME}
+
+
+def bus_volume_override(manifest: Optional[Dict[str, Any]], key: str) -> Optional[float]:
+    """The clamped voice/SFX level a project asks for, or None for the default."""
+    default = BUS_VOLUME_DEFAULTS[key]
+    raw = _manifest_value(manifest or {}, key)
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(value):
+        return None
+    value = round(min(1.0, max(0.0, value)), 3)
+    return None if value == default else value
+
+
+def _bus_volume_inputs(manifest: Dict[str, Any]) -> Dict[str, float]:
+    """Mix-fingerprint entries for levels that differ from the default only."""
+    inputs: Dict[str, float] = {}
+    for key in BUS_VOLUME_DEFAULTS:
+        value = bus_volume_override(manifest, key)
+        if value is not None:
+            inputs[key] = value
+    return inputs
 
 
 def _manifest_artifact_path(manifest: Dict[str, Any], key: str) -> Optional[Path]:
@@ -282,6 +317,7 @@ def _stage_payload_from_manifest(
                 "bgm_ducking": _manifest_value(manifest, "bgm_ducking"),
                 "audio_mutes": _manifest_value(manifest, "audio_mutes") or {},
                 "sfx_files": _sfx_identities(micro_cues),
+                **_bus_volume_inputs(manifest),
             },
         }
 

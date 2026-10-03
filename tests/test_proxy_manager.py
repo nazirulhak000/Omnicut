@@ -73,8 +73,9 @@ def _probe(path: Path, stream: str, fields: str) -> str:
 # Building proxies
 # ---------------------------------------------------------------------------
 
-def test_ensure_proxy_produces_a_playable_540p_file(cache_root, master):
-    proxy = pm.ensure_proxy(master)
+def test_ensure_proxy_produces_a_playable_540p_file(cache_root, tmp_path):
+    portrait = _make_clip(tmp_path / "portrait.mp4", size="1080x1920")
+    proxy = pm.ensure_proxy(portrait)
     assert proxy.is_file() and proxy.stat().st_size > 0
     assert _probe(proxy, "v:0", "stream=width,height") == f"{pm.PROXY_WIDTH},{pm.PROXY_HEIGHT}"
 
@@ -87,20 +88,69 @@ def test_proxy_is_much_smaller_than_master(cache_root, tmp_path):
     assert proxy.stat().st_size < big.stat().st_size
 
 
-def test_proxy_preserves_aspect_by_padding_not_stretching(cache_root, tmp_path):
-    """A 16:9 source padded into 9:16 keeps its shape. If it were stretched,
-    the user would reframe against a distorted picture and the render would
-    not match what they saw."""
-    wide = _make_clip(tmp_path / "wide.mp4", size="640x360")
-    proxy = pm.ensure_proxy(wide)
-    assert _probe(proxy, "v:0", "stream=width,height") == f"{pm.PROXY_WIDTH},{pm.PROXY_HEIGHT}"
+@pytest.mark.parametrize("size, expected", [
+    ("640x360", (1706, 960)),    # 16:9 B-roll
+    ("640x480", (1280, 960)),    # 4:3
+    ("540x1170", (540, 1170)),   # taller than 9:16 (phone 19.5:9)
+])
+def test_proxy_keeps_the_source_aspect_and_covers_the_frame(cache_root, tmp_path, size, expected):
+    """L6-18: the preview cover-crops the proxy exactly as the render
+    cover-crops the master. A proxy padded to 9:16 turned a 16:9 clip into a
+    letterboxed band in 540p mode while the render filled the frame. The proxy
+    must keep the master's shape (no pad, no stretch) and cover 540x960."""
+    src = _make_clip(tmp_path / f"src_{size}.mp4", size=size)
+    proxy = pm.ensure_proxy(src)
+    width, height = (int(v) for v in _probe(proxy, "v:0", "stream=width,height").split(","))
+    assert (width, height) == expected
+    assert width >= pm.PROXY_WIDTH and height >= pm.PROXY_HEIGHT
+    src_w, src_h = (int(v) for v in size.split("x"))
+    assert abs(width / height - src_w / src_h) < 0.002
 
     # Square pixels, checked explicitly: force_original_aspect_ratio otherwise
     # encodes the source's shape as a non-square SAR (a 640x360 source came
-    # out SAR 1216:1215, DAR 76:135), and a player honoring that would draw
-    # the proxy at different proportions than the render.
+    # out SAR 1216:1215), and a player honoring that would draw the proxy at
+    # different proportions than the render.
     assert _probe(proxy, "v:0", "stream=sample_aspect_ratio") in ("1:1", "0:1", "")
-    assert _probe(proxy, "v:0", "stream=display_aspect_ratio") in ("9:16", "0:1", "")
+
+
+def test_proxy_cover_crop_shows_the_same_picture_as_the_master(cache_root, tmp_path):
+    """Preview=Render for 540p mode: cover-cropping the proxy to 9:16 (what
+    drawVideoFrame does) must show the same region as cover-cropping the
+    master (what the render does). The left/right halves of a 16:9 source
+    are coloured differently and a centre marker sits on the seam; after the
+    crop both images must agree on where the colours and the marker are."""
+    src = tmp_path / "split.mp4"
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-i", "color=c=red:s=1920x1080:r=15:d=1",
+            "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+            "-vf", "drawbox=x=960:y=0:w=960:h=1080:c=blue:t=fill,"
+                   "drawbox=x=900:y=480:w=120:h=120:c=white:t=fill",
+            "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-shortest", str(src),
+        ],
+        capture_output=True, check=True, timeout=120,
+    )
+    proxy = pm.ensure_proxy(src)
+
+    def cover_crop_rgb(path: Path) -> bytes:
+        # Same cover-crop as the preview/render, down to a tiny 9x16 RGB grid.
+        out = subprocess.run(
+            ["ffmpeg", "-v", "error", "-i", str(path), "-frames:v", "1",
+             "-vf", "crop=ih*9/16:ih,scale=9:16:flags=area",
+             "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+            capture_output=True, check=True, timeout=60,
+        )
+        return out.stdout
+
+    master_px = cover_crop_rgb(src)
+    proxy_px = cover_crop_rgb(proxy)
+    assert len(master_px) == len(proxy_px) == 9 * 16 * 3
+    worst = max(abs(a - b) for a, b in zip(master_px, proxy_px))
+    assert worst <= 24, worst
+    # The padded v1 proxy put black bars top and bottom; row 0 must not be black.
+    assert max(proxy_px[: 9 * 3]) > 128
 
 
 def test_proxy_keeps_audio(cache_root, master):

@@ -168,3 +168,30 @@ def test_ducking_graph_uses_the_policy_parameters_without_changing_mix_contract(
     assert "asplit=2[voice_padded][voice_key]" in filter_arg
     assert "threshold=0.02:ratio=12:attack=20:release=300:makeup=1" in filter_arg
     assert "loudnorm=I=-14:TP=-1.0:LRA=8" in filter_arg
+
+
+def test_mix_audio_track_fallback_records_status(monkeypatch, tmp_path):
+    voice = tmp_path / "voice.wav"
+    voice.write_bytes(b"voice")
+
+    def failing_run(command, **kwargs):
+        if "-filter_complex" in command:
+            return SimpleNamespace(returncode=1, stderr="filter graph error simulated")
+        return SimpleNamespace(returncode=0, stderr="")
+
+    monkeypatch.setattr(SFXManager, "resolve", classmethod(lambda cls, name: None))
+    monkeypatch.setattr(SFXManager, "resolve_bgm_path", classmethod(lambda cls, name=None: None))
+    monkeypatch.setattr(sfx_module.subprocess, "run", failing_run)
+
+    out = tmp_path / "mix.wav"
+    result = SFXManager.mix_audio_track(
+        voice_audio_path=str(voice),
+        cues=[],
+        total_duration=1.0,
+        output_audio_path=str(out),
+    )
+
+    assert result == str(out.resolve())
+    assert SFXManager.last_mix_status["success"] is False
+    assert SFXManager.last_mix_status["fallback"] is True
+    assert "filter graph error simulated" in SFXManager.last_mix_status["error"]

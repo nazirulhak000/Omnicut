@@ -1947,11 +1947,22 @@ class VideoEditor:
             except Exception:
                 pass
             window = (float(requested_end) - fx_start) if (requested_end is not None and float(requested_end) > fx_start) else natural_duration
-            fx_duration = max(0.1, min(natural_duration, window))
+            # The editor preview loops effect media for the whole start..end
+            # window (effectPlayback.js wrapEffectTime), so a window longer
+            # than the file loops here too instead of stopping at the file's
+            # own length. `-t` bounds the looped input to the window so the
+            # infinite loop never outlives the effect.
+            fx_duration = max(0.1, window)
             fx_end = fx_start + fx_duration
 
             e_input_idx = audio_input_idx + 1 + len(foreground_inputs) + len(effective_stickers) + e_idx
-            cmd_inputs.extend(["-itsoffset", f"{fx_start:.3f}", "-i", str(fx_info["path"].resolve())])
+            loop_args = ["-stream_loop", "-1"] if fx_duration > natural_duration + 1e-3 else []
+            cmd_inputs.extend([
+                *loop_args,
+                "-itsoffset", f"{fx_start:.3f}",
+                "-t", f"{fx_duration:.3f}",
+                "-i", str(fx_info["path"].resolve()),
+            ])
 
             split_a, split_b = f"[fx_base_a_{e_idx}]", f"[fx_base_b_{e_idx}]"
             bg_node = f"[fx_bg_{e_idx}]"

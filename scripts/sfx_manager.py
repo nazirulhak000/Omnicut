@@ -5,10 +5,13 @@ Audio & SFX Manager with Auto-Ducking and Timestamped Sound Effects Mixing
 import os
 import sys
 import math
+import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
+
+logger = logging.getLogger("OmniCut.SFXManager")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -187,6 +190,8 @@ def sfx_event_start(event: Mapping[str, Any], default: float = 0.0) -> float:
 class SFXManager:
     """Handles sound effects placement and background music mixing with auto-ducking."""
 
+    last_mix_status: Dict[str, Any] = {"success": True, "fallback": False, "error": None}
+
     # Resolution went through AssetRegistry.resolve_sfx_path() instead of a
     # fixed 5-entry dict -- that dict only ever reached whoosh/pop/ding/cash/
     # boom even though 02_Assets/SFX/ has 28 files. resolve_sfx_path() accepts
@@ -246,7 +251,14 @@ class SFXManager:
     ) -> str:
         """
         Mixes voiceover, SFX triggers at cue start times, and looped background music.
+
+        The result of the ffmpeg run is left in ``last_mix_status`` (the return
+        value stays the output path): ``fallback`` is True when the full mix
+        failed and only the voice was kept, so the caller can tell the user the
+        clip has no music/SFX instead of letting that pass silently.
         """
+        # A previous call's failure must not read as this call's.
+        cls.last_mix_status = {"success": True, "fallback": False, "error": None}
         out_path = Path(output_audio_path).resolve()
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -401,9 +413,30 @@ class SFXManager:
 
         res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
         if res.returncode != 0:
-            print(f"Warning: Advanced mix had warning, falling back to simple voice copy. Stderr: {res.stderr[:200]}")
+            err_msg = res.stderr[:500] if res.stderr else "Unknown error"
+            logger.warning(
+                "Advanced audio mix failed (exit %s). Falling back to voice-only track. Error: %s",
+                res.returncode,
+                err_msg,
+            )
+            print(f"Warning: Advanced mix had warning, falling back to simple voice copy. Stderr: {err_msg[:200]}")
+            cls.last_mix_status = {
+                "success": False,
+                "fallback": True,
+                "error": err_msg,
+            }
             cmd_fb = ["ffmpeg", "-y", "-i", str(voice_path), "-ac", "2", "-ar", "44100", str(out_path)]
-            subprocess.run(cmd_fb, capture_output=True, encoding="utf-8", errors="ignore")
+            fb_res = subprocess.run(cmd_fb, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+            if fb_res.returncode != 0:
+                fb_err = fb_res.stderr[:500] if fb_res.stderr else "Unknown error"
+                logger.error("Audio mix fallback (voice-only copy) also failed: %s", fb_err)
+                cls.last_mix_status["fallback_error"] = fb_err
+        else:
+            cls.last_mix_status = {
+                "success": True,
+                "fallback": False,
+                "error": None,
+            }
 
         return str(out_path)
 

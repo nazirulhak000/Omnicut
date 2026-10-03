@@ -328,6 +328,10 @@ def complete_job(job_id: str, result: Dict[str, Any], message: str = "🎉 ก�
         "duration": result.get("duration", 0),
         "script": result.get("script"),
         "manifest": result.get("manifest"),
+        # The editor shows a warning bar when the full audio mix fell back to
+        # voice-only (no music / SFX in the clip).
+        "mix_degraded": bool(result.get("mix_degraded")),
+        "mix_degraded_reason": result.get("mix_degraded_reason"),
     }
     project_name = result.get("project_name")
     if project_name:

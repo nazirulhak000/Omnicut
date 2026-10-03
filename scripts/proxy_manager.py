@@ -2,7 +2,8 @@
 
 Editing a 4K/60fps master over HTTP range requests makes scrubbing and seeking
 expensive: the browser decodes far more pixels than a 1080x1920 preview can
-show. This module builds a small 540x960 H.264 stand-in per source clip so the
+show. This module builds a small H.264 stand-in per source clip -- scaled to
+cover the 540x960 preview frame, keeping the source's aspect -- so the
 timeline stays responsive, while Render keeps reading the untouched master.
 
 Two rules hold this together, and breaking either silently degrades the
@@ -36,10 +37,10 @@ from scripts.config import PROJECTS_DIR
 # 03_Projects/.cache so the two caches can be scanned and purged apart.
 PROXY_CACHE_NAMESPACE = "editing-proxies"
 
-# 540x960 is the 9:16 proxy size named in the master plan. Width is forced
-# even (H.264 requires it) and the aspect is preserved by padding rather than
-# stretching -- a proxy that distorts the frame would make the user reframe
-# against a lie.
+# 540x960 is the 9:16 preview frame named in the master plan. The proxy is
+# scaled to *cover* it with the source's own aspect (a 16:9 source becomes
+# 1706x960), never padded and never stretched -- a padded or distorted proxy
+# would make the user reframe against a picture the render does not produce.
 PROXY_WIDTH = 540
 PROXY_HEIGHT = 960
 PROXY_CRF = 26
@@ -47,7 +48,8 @@ PROXY_PRESET = "ultrafast"
 
 # Bumped whenever the encode settings change, so proxies built by an older
 # version are not reused under the new settings.
-PROXY_VERSION = "v1"
+# v2: cover-scale with the source aspect instead of fit + black pad (L6-18).
+PROXY_VERSION = "v2"
 
 # A proxy encode that runs longer than this is abandoned: the master is always
 # a working fallback, so a pathological source must not wedge a worker.
@@ -136,18 +138,24 @@ def _encode(master: Path, destination: Path) -> None:
     os.close(fd)
     staged = Path(staged_name)
 
-    # Scale to fit inside 540x960 and pad the remainder, so a 16:9 source
-    # keeps its shape instead of being squeezed into portrait.
+    # Scale so the source *covers* 540x960 and keep its own aspect -- no pad.
+    # The preview cover-crops whatever frame it is given (drawVideoFrame in
+    # SequencePlayer.jsx), exactly like the render cover-crops the master
+    # (frame_geometry in video_editor.py). A padded proxy is already 9:16, so
+    # a 16:9 clip was drawn as a letterboxed band while the render filled the
+    # frame (L6-18). An unpadded proxy has the master's shape, so the same
+    # crop, zoom, pan and rotation math lands on the same picture.
+    # force_divisible_by=2 keeps H.264 happy (1920x1080 -> 1706x960).
     #
     # setsar=1 is load-bearing, not tidying: force_original_aspect_ratio
     # preserves the source's display aspect by writing a non-square pixel
-    # aspect into the stream (a 640x360 source came out 540x960 with
-    # SAR 1216:1215, DAR 76:135 instead of 9:16). A player honoring that SAR
-    # would show the proxy at slightly different proportions than the master,
-    # so the user would frame against a picture the render will not reproduce.
+    # aspect into the stream (a 640x360 source came out with SAR 1216:1215).
+    # A player honoring that SAR would show the proxy at slightly different
+    # proportions than the master, so the user would frame against a picture
+    # the render will not reproduce.
     vf = (
-        f"scale={PROXY_WIDTH}:{PROXY_HEIGHT}:force_original_aspect_ratio=decrease:flags=bilinear,"
-        f"pad={PROXY_WIDTH}:{PROXY_HEIGHT}:(ow-iw)/2:(oh-ih)/2,"
+        f"scale={PROXY_WIDTH}:{PROXY_HEIGHT}:force_original_aspect_ratio=increase"
+        ":force_divisible_by=2:flags=bilinear,"
         "setsar=1,"
         "format=yuv420p"
     )
