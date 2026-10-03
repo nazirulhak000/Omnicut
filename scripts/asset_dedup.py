@@ -144,50 +144,144 @@ class AssetDedupEngine:
         duplicate_paths: List[str],
         move_to_trash: bool = True,
     ) -> Dict[str, Any]:
-        """Safely cleans the specified duplicate file paths."""
+        """Safely cleans the specified duplicate file paths.
+
+        A file is only removed when at least one other byte-identical copy
+        (verified by full SHA-256, living in INBOX/RAW and NOT part of this
+        same request) survives. Unique files and groups whose every copy was
+        requested are refused: they are reported in `errors` / `skipped` and
+        nothing from that group is touched. Relative inputs resolve against
+        BASE_DIR. The same rules apply with move_to_trash=False.
+        """
         with _DEDUP_LOCK:
             cleaned_count = 0
             freed_bytes = 0
-            errors = []
+            errors: List[str] = []
+            skipped: List[str] = []
+
+            inbox_root = INBOX_DIR.resolve()
+            raw_root = RAW_DIR.resolve()
+
+            # Step 1: resolve + sandbox-check every requested path (de-duplicated).
+            requested: Dict[Path, str] = {}
+            for path_str in duplicate_paths:
+                raw_p = Path(path_str)
+                if not raw_p.is_absolute():
+                    raw_p = BASE_DIR / raw_p
+                p = raw_p.resolve()
+                # Security sanity checks: must be within INBOX_DIR or RAW_DIR
+                if not (p.is_relative_to(inbox_root) or p.is_relative_to(raw_root)):
+                    errors.append(f"Security: Path outside allowed directories: '{path_str}'")
+                    continue
+                if not p.exists() or not p.is_file():
+                    continue
+                requested.setdefault(p, path_str)
+
+            if not requested:
+                return cls._clean_result(cleaned_count, freed_bytes, errors, skipped)
+
+            # Step 2: hash the requested files and group them by content.
+            by_hash: Dict[str, List[Path]] = {}
+            for p in requested:
+                digest = cls._full_sha256(p)
+                if digest is None:
+                    errors.append(f"Failed hashing '{p.name}': cannot read file")
+                    skipped.append(requested[p])
+                    continue
+                by_hash.setdefault(digest, []).append(p)
+
+            if not by_hash:
+                return cls._clean_result(cleaned_count, freed_bytes, errors, skipped)
 
             if move_to_trash:
                 TRASH_DIR.mkdir(parents=True, exist_ok=True)
 
-            for path_str in duplicate_paths:
-                p = Path(path_str).resolve()
-                # Security sanity checks: must be within INBOX_DIR or RAW_DIR
-                if not (p.is_relative_to(INBOX_DIR.resolve()) or p.is_relative_to(RAW_DIR.resolve())):
-                    errors.append(f"Security: Path outside allowed directories: '{path_str}'")
+            # Step 3: per content group, require a surviving copy outside the request.
+            for digest, group in by_hash.items():
+                survivors = cls._find_surviving_copies(digest, group, set(requested))
+                if not survivors:
+                    for p in group:
+                        errors.append(
+                            f"Safety: no other identical copy would remain, refusing to delete '{requested[p]}'"
+                        )
+                        skipped.append(requested[p])
                     continue
 
-                if not p.exists() or not p.is_file():
-                    continue
+                for p in group:
+                    # Re-verify (sha256) a survivor right before each deletion.
+                    survivors = [s for s in survivors if s.is_file() and cls._full_sha256(s) == digest]
+                    if not survivors:
+                        errors.append(
+                            f"Safety: identical copy disappeared, refusing to delete '{requested[p]}'"
+                        )
+                        skipped.append(requested[p])
+                        continue
 
-                try:
-                    file_sz = p.stat().st_size
-                    if move_to_trash:
-                        target = TRASH_DIR / p.name
-                        # Handle duplicate filenames in trash
-                        counter = 1
-                        while target.exists():
-                            target = TRASH_DIR / f"{p.stem}_{counter}{p.suffix}"
-                            counter += 1
-                        p.rename(target)
-                    else:
-                        p.unlink()
+                    try:
+                        file_sz = p.stat().st_size
+                        if move_to_trash:
+                            target = TRASH_DIR / p.name
+                            # Handle duplicate filenames in trash
+                            counter = 1
+                            while target.exists():
+                                target = TRASH_DIR / f"{p.stem}_{counter}{p.suffix}"
+                                counter += 1
+                            p.rename(target)
+                        else:
+                            p.unlink()
 
-                    cleaned_count += 1
-                    freed_bytes += file_sz
-                except Exception as e:
-                    errors.append(f"Failed cleaning '{p.name}': {str(e)}")
+                        cleaned_count += 1
+                        freed_bytes += file_sz
+                    except Exception as e:
+                        errors.append(f"Failed cleaning '{p.name}': {str(e)}")
 
-            return {
-                "status": "ok",
-                "cleaned_count": cleaned_count,
-                "freed_bytes": freed_bytes,
-                "freed_mb": round(freed_bytes / (1024 * 1024), 2),
-                "errors": errors,
-            }
+            return cls._clean_result(cleaned_count, freed_bytes, errors, skipped)
+
+    @staticmethod
+    def _clean_result(
+        cleaned_count: int, freed_bytes: int, errors: List[str], skipped: List[str]
+    ) -> Dict[str, Any]:
+        return {
+            "status": "ok",
+            "cleaned_count": cleaned_count,
+            "freed_bytes": freed_bytes,
+            "freed_mb": round(freed_bytes / (1024 * 1024), 2),
+            "errors": errors,
+            "skipped": skipped,
+        }
+
+    @classmethod
+    def _find_surviving_copies(
+        cls, digest: str, group: List[Path], requested: set,
+    ) -> List[Path]:
+        """Other copies in INBOX/RAW with the same SHA-256 that are not being deleted."""
+        sizes = set()
+        for p in group:
+            try:
+                sizes.add(p.stat().st_size)
+            except OSError:
+                continue
+
+        survivors: List[Path] = []
+        seen: set = set()
+        for d in (INBOX_DIR, RAW_DIR):
+            if not d.exists():
+                continue
+            for root, _, files in os.walk(d):
+                for fname in files:
+                    cand = Path(root) / fname
+                    try:
+                        resolved = cand.resolve()
+                        if resolved in requested or resolved in seen or not resolved.is_file():
+                            continue
+                        if resolved.stat().st_size not in sizes:
+                            continue
+                    except OSError:
+                        continue
+                    seen.add(resolved)
+                    if cls._full_sha256(resolved) == digest:
+                        survivors.append(resolved)
+        return survivors
 
     @staticmethod
     def _quick_hash(p: Path) -> Optional[str]:

@@ -33,19 +33,6 @@ const UPLOAD_URL_PATTERN = 'https://www.tiktok.com/tiktokstudio/upload*';
 const PROCESSING_TIMEOUT_MS = 90_000;
 const POLL_INTERVAL_MS = 2_000;
 
-// 2026-09-06 diagnostic A/B flag -- TEMPORARY, delete once we have an answer.
-// The tab crash was caught happening WHILE waitForUploadComplete() was still
-// polling (before attachProductLink even started), right as TikTok's own
-// cover/effects worker (clip-forge-effect-sdk) was initializing. Two
-// hypotheses: (a) our repeated Runtime.evaluate calls during that window
-// destabilize it, or (b) merely having chrome.debugger attached at all
-// during that window is enough, independent of what we send it. Setting
-// this to true replaces the active polling loop with one plain sleep
-// (debugger stays attached, zero CDP calls sent) so we can tell which:
-// crash persists -> (b); crash goes away -> (a), and the fix is to poll
-// less aggressively or via chrome.scripting instead of CDP.
-const DIAGNOSTIC_PASSIVE_WAIT = true;
-
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -1356,13 +1343,12 @@ async function dismissLeaveConfirmDialogIfPresent(send, timeoutMs = 8000) {
         returnByValue: true,
       }));
     } catch (e) {
-      // Same reasoning as waitForPostConfirmation's identical guard: this
-      // fires right after clicking Post, where a FAST, genuinely-successful
-      // post navigates the tab away before we get here. Chrome auto-detaches
-      // chrome.debugger on that navigation, so send() throws "Debugger is
-      // not attached" -- which is success evidence, not a real failure.
-      // There's no leave-confirm dialog to dismiss on a page that already
-      // navigated away, so this is a clean no-op, not an error to surface.
+      // This fires right after clicking Post, where a FAST post can navigate
+      // the tab away (or Chrome can detach the debugger) before we get here,
+      // so send() throws "Debugger is not attached". There's no leave-confirm
+      // dialog to dismiss then, so this is a clean no-op, not an error to
+      // surface. It is NOT success evidence: waitForPostConfirmation decides
+      // that from the tab URL / detach record afterwards.
       return false;
     }
     if (result?.value) return true;
@@ -1371,25 +1357,102 @@ async function dismissLeaveConfirmDialogIfPresent(send, timeoutMs = 8000) {
   return false;
 }
 
+// chrome.debugger detaches we were NOT the ones to ask for, keyed by tabId.
+// Chrome fires onDetach when the user clicks Cancel on the "is debugging this
+// browser" banner, when DevTools takes over the tab, or when the tab closes.
+// waitForPostConfirmation reads this so a detach mid-wait can never be
+// mistaken for "the post went through" (the old code counted a dead debugger
+// as success, which made the backend archive a clip that was never posted).
+const debuggerDetaches = new Map();
+
+function recordDebuggerDetach(source, reason) {
+  const tabId = source?.tabId;
+  if (tabId == null) return;
+  debuggerDetaches.set(tabId, { reason: reason || 'unknown', at: Date.now() });
+}
+
+// Returns the detach record for tabId only if it happened at/after sinceMs,
+// so a stale detach from an earlier step's own attach/detach cycle is ignored.
+function getDebuggerDetach(tabId, sinceMs) {
+  const rec = debuggerDetaches.get(tabId);
+  return rec && rec.at >= sinceMs ? rec : null;
+}
+
+if (typeof chrome !== 'undefined' && chrome.debugger?.onDetach?.addListener) {
+  chrome.debugger.onDetach.addListener(recordDebuggerDetach);
+}
+
+// True only for a URL that clearly shows TikTok moved on after a successful
+// Post/Schedule click: a tiktok.com page that is neither the upload form nor a
+// login/signup wall. about:blank, chrome-error:// and foreign hosts are NOT
+// positive evidence.
+function isPostSuccessUrl(url) {
+  if (!url) return false;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch (e) {
+    return false;
+  }
+  if (!/(^|\.)tiktok\.com$/i.test(parsed.hostname)) return false;
+  const p = parsed.pathname.toLowerCase();
+  if (p.includes('/tiktokstudio/upload')) return false;
+  if (p.includes('/login') || p.includes('/signup')) return false;
+  return true;
+}
+
+// Pure decision for one poll of waitForPostConfirmation. Only a POSITIVE
+// signal counts as success; every ambiguous state is unconfirmed/pending.
+//   detach by user / DevTools          -> unconfirmed 'debugger-detached' (final)
+//   TikTok rejection toast             -> failed (message shown verbatim)
+//   URL moved to a success destination -> confirmed 'navigated-away'
+//   other detach (e.g. target_closed)  -> unconfirmed 'debugger-detached' (final)
+//   tab missing, no positive signal    -> unconfirmed 'tab-gone-unverified' (final)
+//   evaluate threw / editor gone while URL still /upload / nothing -> pending
+// "editor gone" and "evaluate threw" are only soft hints (a re-render flicker
+// or a destroyed context), so they never confirm on their own.
+function decidePostConfirmation({ evalThrew = false, evalValue = null, tabUrl = null, tabMissing = false, detach = null } = {}) {
+  if (detach && (detach.reason === 'canceled_by_user' || detach.reason === 'replaced_with_devtools')) {
+    return { outcome: 'unconfirmed', reason: 'debugger-detached', detachReason: detach.reason };
+  }
+  if (!evalThrew && evalValue?.done && evalValue.failed) {
+    return { outcome: 'failed', message: evalValue.message };
+  }
+  if (!tabMissing && isPostSuccessUrl(tabUrl)) {
+    return { outcome: 'confirmed', reason: 'navigated-away' };
+  }
+  if (detach) {
+    return { outcome: 'unconfirmed', reason: 'debugger-detached', detachReason: detach.reason };
+  }
+  if (tabMissing) {
+    return { outcome: 'unconfirmed', reason: 'tab-gone-unverified' };
+  }
+  return {
+    outcome: 'pending',
+    editorGone: Boolean(!evalThrew && evalValue?.done && !evalValue.failed),
+  };
+}
+
 // After clicking Post/Schedule, polls for evidence the click actually did
-// something -- TikTok never confirms via a dedicated success signal we can
-// rely on, so this looks for any of: (a) the URL navigating away from the
-// upload page, (b) the compose form / caption editor disappearing, (c) a
-// validation-error toast/banner TikTok shows for a REJECTED submit (caption
-// too short, cover required, category missing, etc). (a) and (b) both mean
-// "the click was accepted and TikTok moved on" -- we don't need to
-// distinguish "posted immediately" from "scheduled" here, the caller already
-// knows which one it asked for. (c) is reported back verbatim so the user
-// sees TikTok's own reason. Bounded by timeoutMs; if neither success nor
-// failure evidence shows up in time, this returns 'timeout' rather than ever
-// assuming success -- an unconfirmed click must not be reported as a post.
+// something. TikTok never gives us a dedicated success signal we can rely on,
+// so success requires a POSITIVE signal: the tab URL leaving the upload page
+// for a tiktok.com destination (see decidePostConfirmation). A validation-
+// error toast for a REJECTED submit (caption too short, cover required,
+// category missing, etc) is reported back verbatim so the user sees TikTok's
+// own reason. A debugger detach (Cancel on Chrome's banner / DevTools / tab
+// closed), a throwing Runtime.evaluate, the caption editor vanishing while the
+// URL is still /upload, or a vanished tab are all UNCONFIRMED -- never success,
+// since the caller marks the clip as posted (moves the file, archives the
+// project) on success. Bounded by timeoutMs; returns { confirmed:false,
+// timedOut:true } rather than ever assuming success.
 async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000) {
   const start = Date.now();
-  let consecutiveEditorGone = 0;
+  let sawEditorGone = false;
   while (Date.now() - start < timeoutMs) {
-    let check;
+    let evalValue = null;
+    let evalThrew = false;
     try {
-      check = await send('Runtime.evaluate', {
+      const check = await send('Runtime.evaluate', {
       expression: `(() => {
         const isVisible = (el) => {
           if (!el) return false;
@@ -1415,7 +1478,8 @@ async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000) {
           }
         }
 
-        // 2. Compose form gone (caption editor / cover editor no longer present).
+        // 2. Compose form gone (caption editor / cover editor no longer
+        // present). Only a soft hint -- a re-render can flicker this.
         const stillEditing = document.querySelector('[contenteditable="true"]');
         if (!stillEditing) {
           return { done: true, failed: false, reason: 'editor-gone' };
@@ -1425,47 +1489,46 @@ async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000) {
       })()`,
         returnByValue: true,
       });
+      evalValue = check?.result?.value;
     } catch (e) {
-      // Runtime.evaluate can reject outright if the page navigated away
-      // between our poll and the CDP round-trip (execution context
-      // destroyed) -- that failure mode IS the success signal (URL moved
-      // on), not an error to swallow into "still pending".
-      return { confirmed: true, reason: 'navigation-during-eval' };
+      // Runtime.evaluate can reject when the page navigated away mid-call
+      // (context destroyed) OR when the debugger was detached. Neither is
+      // proof of success on its own; the URL / detach checks below decide.
+      evalThrew = true;
     }
 
-    const val = check?.result?.value;
-    if (val?.done) {
-      if (val.failed) {
-        return { confirmed: false, message: val.message };
-      }
-      // "editor-gone" alone can be a one-frame flicker mid-re-render rather
-      // than a real navigation away -- require it to hold across two
-      // consecutive polls (~700ms apart) before trusting it, so a transient
-      // DOM swap right after the click doesn't get reported as success.
-      consecutiveEditorGone += 1;
-      if (consecutiveEditorGone >= 2) {
-        return { confirmed: true, reason: val.reason };
-      }
-    } else {
-      consecutiveEditorGone = 0;
-    }
-
-    // URL navigating away from the upload page is also conclusive success
-    // evidence, and cheaper to check without round-tripping into the page.
+    // The tab URL is the positive-success signal, and is cheap to read
+    // without round-tripping into the page.
+    let tabUrl = null;
+    let tabMissing = false;
     try {
       const target = await chrome.tabs.get(tabId);
-      if (target?.url && !target.url.includes('/tiktokstudio/upload')) {
-        return { confirmed: true, reason: 'navigated-away' };
-      }
+      tabUrl = target?.url || null;
     } catch (e) {
-      // Tab gone entirely (closed / navigated so hard chrome.tabs.get races) --
-      // treat as navigated away rather than erroring the whole flow.
-      return { confirmed: true, reason: 'tab-gone' };
+      tabMissing = true;
     }
+
+    const decision = decidePostConfirmation({
+      evalThrew,
+      evalValue,
+      tabUrl,
+      tabMissing,
+      detach: getDebuggerDetach(tabId, start),
+    });
+    if (decision.outcome === 'confirmed') {
+      return { confirmed: true, reason: decision.reason };
+    }
+    if (decision.outcome === 'failed') {
+      return { confirmed: false, message: decision.message };
+    }
+    if (decision.outcome === 'unconfirmed') {
+      return { confirmed: false, reason: decision.reason, detachReason: decision.detachReason };
+    }
+    if (decision.editorGone) sawEditorGone = true;
 
     await sleep(700);
   }
-  return { confirmed: false, timedOut: true };
+  return { confirmed: false, timedOut: true, editorGone: sawEditorGone };
 }
 
 // UNVERIFIED (plan §3): selector is the plan's best-guess placeholder
@@ -1526,7 +1589,13 @@ async function clickPostButton(send, tabId) {
     if (confirmation.message) {
       throw new Error('TikTok ปฏิเสธการโพสต์: ' + confirmation.message);
     }
-    throw new Error('post_not_confirmed: กดปุ่มโพสต์แล้วแต่ไม่พบสัญญาณว่าสำเร็จหรือไม่สำเร็จภายในเวลาที่กำหนด กรุณาตรวจสอบหน้า TikTok ด้วยตาก่อนลองใหม่');
+    if (confirmation.reason === 'debugger-detached') {
+      throw new Error('post_not_confirmed: ตัวดีบักเกอร์ถูกตัดการเชื่อมต่อระหว่างรอผลโพสต์ (กดยกเลิกที่แถบของ Chrome / เปิด DevTools / ปิดแท็บ) จึงยังไม่ยืนยันว่าโพสต์สำเร็จ และยังไม่ย้ายไฟล์ไป Posted -- กรุณาตรวจสอบหน้า TikTok ด้วยตาก่อนลองใหม่');
+    }
+    if (confirmation.reason === 'tab-gone-unverified') {
+      throw new Error('post_not_confirmed: แท็บ TikTok หายไประหว่างรอผลโพสต์ ไม่พบสัญญาณว่าสำเร็จ จึงยังไม่ย้ายไฟล์ไป Posted -- กรุณาตรวจสอบหน้า TikTok ด้วยตาก่อนลองใหม่');
+    }
+    throw new Error('post_not_confirmed: กดปุ่มโพสต์แล้วแต่ไม่พบสัญญาณว่าสำเร็จหรือไม่สำเร็จภายในเวลาที่กำหนด (ยังอยู่หน้าอัปโหลด) จึงยังไม่ย้ายไฟล์ไป Posted -- กรุณาตรวจสอบหน้า TikTok ด้วยตาก่อนลองใหม่');
   }
 
   // A dialog can still appear after confirmation resolves via URL/tab checks
@@ -1662,8 +1731,10 @@ async function runClickPostOnly() {
   try {
     await send('DOM.enable');
     await send('Runtime.enable');
-    // clickPostButton now throws unless it finds real evidence the post
-    // went through (URL navigated away, compose form gone, or tab closed).
+    // clickPostButton throws unless it finds POSITIVE evidence the post went
+    // through (URL navigated off /upload to a TikTok destination). A debugger
+    // detach, vanished tab or unchanged URL throws, so mark-posted below is
+    // never reached for an unconfirmed post.
     await clickPostButton(send, tab.id);
   } finally {
     try {

@@ -56,3 +56,19 @@ def test_api_dedup_scan_and_clean(dedup_test_client):
     # Scan again -> 0 duplicates
     scan_again = client.get("/api/assets/duplicates/scan?min_size_kb=1")
     assert scan_again.json()["total_duplicate_files"] == 0
+
+
+def test_api_dedup_clean_refuses_to_remove_every_copy(dedup_test_client):
+    client, copy_file = dedup_test_client
+    orig_file = copy_file.parent.parent / "00_Inbox" / "orig.mp4"
+
+    clean_res = client.post("/api/assets/duplicates/clean", json={
+        "duplicate_paths": [str(copy_file.resolve()), str(orig_file.resolve())],
+        "move_to_trash": False,
+    })
+
+    assert clean_res.status_code == 200
+    body = clean_res.json()
+    assert body["cleaned_count"] == 0
+    assert len(body["errors"]) == 2
+    assert copy_file.exists() and orig_file.exists()

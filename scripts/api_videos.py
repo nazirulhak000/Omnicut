@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
 
 from scripts.config import (
-    BASE_DIR, INBOX_DIR, RAW_DIR, EXPORTS_DIR, ASSETS_DIR,
+    BASE_DIR, INBOX_DIR, RAW_DIR, EXPORTS_DIR, ASSETS_DIR, ARCHIVE_DIR,
     SFX_DIR, MUSIC_DIR, STICKERS_DIR, CAPCUT_DRAFT_DIR
 )
 from scripts.asset_registry import AssetRegistry
@@ -683,6 +683,43 @@ def reassign_raw_video(payload: ReassignVideoPayload):
         }
 
 
+def _move_to_trash(src: Path) -> Path:
+    """Move `src` into 06_Archive/.trash under a collision-proof name and KEEP it
+    there (recoverable). Never unlinks. Raises PermissionError/OSError when the
+    file stays locked after retries so callers can fail closed."""
+    trash_dir = ARCHIVE_DIR / ".trash"
+    trash_dir.mkdir(parents=True, exist_ok=True)
+    trash_target = trash_dir / f"{uuid.uuid4().hex}_{src.name}"
+    _move_with_retry(str(src), str(trash_target))
+    return trash_target
+
+
+def _video_ref_points_to(video_ref: Dict[str, Any], target: Path) -> bool:
+    """True when a product video reference resolves to exactly `target`.
+
+    Compares resolved paths (path / rel_path, absolute or relative to BASE_DIR,
+    RAW_DIR or INBOX_DIR), not the bare file name: two products may legitimately
+    hold different clips that share a file name. Entries with no usable path are
+    never matched (a dangling reference is safer than dropping another's clip)."""
+    for key in ("path", "rel_path"):
+        raw = video_ref.get(key)
+        if not isinstance(raw, str) or not raw.strip():
+            continue
+        supplied = Path(raw.replace("\\", "/"))
+        if supplied.is_absolute():
+            candidates = [supplied]
+        else:
+            cleaned = raw.replace("\\", "/").lstrip("/")
+            candidates = [BASE_DIR / cleaned, RAW_DIR / cleaned, INBOX_DIR / cleaned]
+        for candidate in candidates:
+            try:
+                if candidate.resolve() == target:
+                    return True
+            except (OSError, RuntimeError, ValueError):
+                continue
+    return False
+
+
 @router.post("/api/raw-vault/batch-delete")
 def batch_delete_raw_videos(payload: BatchDeleteVideosPayload):
     """Deletes multiple video files safely from disk and removes references."""
@@ -694,17 +731,9 @@ def batch_delete_raw_videos(payload: BatchDeleteVideosPayload):
             v_path = _resolve_allowed_video_path(v_str)
 
             if v_path.exists() and v_path.is_file():
-                for attempt in range(3):
-                    try:
-                        v_path.unlink()
-                        deleted_count += 1
-                        break
-                    except PermissionError:
-                        if attempt < 2:
-                            gc.collect()
-                            time.sleep(0.2)
-                        else:
-                            raise
+                # Recoverable delete: move into 06_Archive/.trash (never unlink).
+                _move_to_trash(v_path)
+                deleted_count += 1
 
                 # Read-modify-write inside one SQLite transaction (ProductStore._mutate())
                 # instead of _load()/_save() -- see rename handler above for why the
@@ -712,7 +741,7 @@ def batch_delete_raw_videos(payload: BatchDeleteVideosPayload):
                 with ProductStore._mutate() as products:
                     for p in products:
                         v_list = p.get("videos", [])
-                        new_v_list = [v for v in v_list if v.get("path") != str(v_path) and v.get("name") != v_path.name]
+                        new_v_list = [v for v in v_list if not _video_ref_points_to(v, v_path)]
                         if len(new_v_list) != len(v_list):
                             p["videos"] = new_v_list
         except PermissionError:
@@ -1231,33 +1260,12 @@ def delete_file(req: DeleteFileRequest):
                 pass
         return {"success": True, "message": f"ลบไฟล์ {target.name} เรียบร้อยแล้ว", "filename": target.name}
 
-    for attempt in range(3):
-        try:
-            target.unlink()
-            return _on_deleted_success()
-        except PermissionError:
-            gc.collect()
-            time.sleep(0.2)
-        except Exception:
-            break
-
+    # Always move into the real trash (06_Archive/.trash) and keep it there so a
+    # mistaken delete is recoverable. Never unlink the clip itself; a file that
+    # stays locked fails closed with the message below.
     try:
-        trash_dir = BASE_DIR / "06_Archive" / ".trash"
-        trash_dir.mkdir(parents=True, exist_ok=True)
-        trash_target = trash_dir / f"{uuid.uuid4().hex}_{target.name}"
-        shutil.move(str(target), str(trash_target))
-        try:
-            trash_target.unlink()
-        except Exception:
-            pass
+        _move_to_trash(target)
         return _on_deleted_success()
-    except Exception:
-        pass
-
-    try:
-        subprocess.run(["cmd", "/c", "del", "/f", "/q", str(target)], capture_output=True)
-        if not target.exists():
-            return _on_deleted_success()
     except Exception:
         pass
 

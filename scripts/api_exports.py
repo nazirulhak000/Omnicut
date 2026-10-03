@@ -642,8 +642,12 @@ def _posted_companions(mp4_path: Path) -> List[Path]:
     return found
 
 
-def _mark_scheduled_queue_item_posted(source: Path, destination: Path, export_id: Optional[str] = None) -> None:
+def _mark_scheduled_queue_item_posted(source: Path, destination: Path, export_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Close the durable queue row when the extension moves this export.
+
+    Returns a copy of the matched queue row (hook/style/caption/schedule
+    metadata for the post log) or None when no row matched / the queue is
+    unavailable.
 
     Queue identity is filename-based across Ready_to_post/Posted, so moving
     the file must update its lifecycle while keeping the same one-clip guard.
@@ -684,10 +688,98 @@ def _mark_scheduled_queue_item_posted(source: Path, destination: Path, export_id
                 target_row["status"] = "posted"
                 target_row["posted_at"] = now_iso()
                 target_row["updated_at"] = now_iso()
+                return dict(target_row)
     except Exception:
         # Never turn a successful file move into a failed post because the
         # optional queue mirror is unavailable.
-        return
+        return None
+    return None
+
+
+def _hashtag_list(value: Any) -> List[str]:
+    """Queue/product rows keep hashtags as one string; the post log wants a list."""
+    if isinstance(value, (list, tuple)):
+        return [str(tag).strip() for tag in value if str(tag).strip()]
+    text = str(value or "").strip()
+    if not text:
+        return []
+    return re.findall(r"#[^\s#]+", text) or text.split()
+
+
+def _planned_post_time(scheduled_at: Any) -> Optional[str]:
+    """Naive local ISO time a scheduled post really goes live, or None.
+
+    The extension marks a clip posted when TikTok ACCEPTS it, which for a
+    scheduled post is before it is public. A future scheduled_at is therefore
+    the true post time (so metrics age counts from it); a past or missing one
+    means "posted now" and the caller falls back to the current time.
+    """
+    import datetime as _dt
+    try:
+        when = _dt.datetime.fromisoformat(str(scheduled_at or "").replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if when.tzinfo is None:
+        return when.isoformat(timespec="seconds") if when > _dt.datetime.now() else None
+    local = when.astimezone().replace(tzinfo=None)
+    return local.isoformat(timespec="seconds") if local > _dt.datetime.now() else None
+
+
+def _record_posted_in_post_log(
+    export_record: Dict[str, Any],
+    destination: Path,
+    queue_row: Optional[Dict[str, Any]],
+    product_id: Optional[str],
+    angle_id: Optional[str],
+) -> None:
+    """Write exactly one PostLog row for a clip just marked posted.
+
+    Without this the row only appeared later through a fuzzy TikTok stats
+    match, and hook / style_preset / hook_color / schedule time were lost.
+    Idempotent (PostLog.register_posted_export matches on export_id or clip
+    file), so a repeated mark-posted or a later stats auto-register reuses the
+    same row. Best-effort: never fails an already-completed file move.
+    """
+    try:
+        from scripts import post_log as post_log_module
+        # The post log is anchored at the real project root. Skip when this
+        # module was pointed at a different root (isolated test workspaces),
+        # so those runs can never write into the real store.db.
+        if post_log_module.LOG_PATH.parent.parent.resolve() != BASE_DIR.resolve():
+            return
+        row = queue_row or {}
+        product: Dict[str, Any] = {}
+        angle: Dict[str, Any] = {}
+        pid = product_id or row.get("product_id") or export_record.get("product_id")
+        aid = angle_id or row.get("angle_id") or export_record.get("angle_id")
+        if pid:
+            try:
+                product = ProductStore.get(pid) or {}
+                angle = next(
+                    (a for a in product.get("angles", []) if aid and (a.get("angle_id") == aid or a.get("id") == aid)),
+                    {},
+                )
+            except Exception:
+                product, angle = {}, {}
+        hook = str(row.get("hook_title") or angle.get("hook_title") or "")
+        scheduled_at = str(row.get("scheduled_at") or "")
+        post_log_module.PostLog.register_posted_export(
+            product_name=str(row.get("product_name") or product.get("name") or product.get("product_name") or ""),
+            clip_file=destination.name,
+            export_id=str(export_record.get("id") or ""),
+            product_id=str(pid or ""),
+            angle_key=str(aid or ""),
+            angle_title=str(angle.get("angle_name") or angle.get("angle_title") or hook),
+            hook=hook,
+            style_preset=str(row.get("style_preset") or angle.get("style_preset") or ""),
+            hook_color=str(row.get("hook_color") or angle.get("hook_color") or ""),
+            caption=str(row.get("caption") or angle.get("tiktok_caption") or angle.get("caption") or "")[:200],
+            hashtags=_hashtag_list(row.get("hashtags") or angle.get("tiktok_hashtags") or angle.get("hashtags")),
+            scheduled_at=scheduled_at,
+            posted_at=_planned_post_time(scheduled_at),
+        )
+    except Exception as exc:
+        print(f"[mark_posted] PostLog notice: {exc}")
 
 
 def _same_file_contents(left: Path, right: Path) -> bool:
@@ -838,7 +930,8 @@ def mark_posted(req: MarkPostedRequest):
             # either way, and the angle can be re-linked by hand afterward.
             product_result["status_warning"] = str(e)
 
-    _mark_scheduled_queue_item_posted(src, dest, export_record["id"])
+    queue_row = _mark_scheduled_queue_item_posted(src, dest, export_record["id"])
+    _record_posted_in_post_log(export_record, dest, queue_row, req.product_id, req.angle_id)
 
     # Auto-archive project folder from 03_Projects to 06_Archive/Projects
     target_project_name = None

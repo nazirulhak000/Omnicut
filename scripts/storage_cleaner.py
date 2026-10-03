@@ -3,7 +3,8 @@ Safe Storage Optimizer & Cache Cleaner.
 Provides automated scanning and cleanup for safe, reclaimable transient files:
 1. Producer Hub vision proxies (.vision_proxies/)
 2. Temporary audio/video render previews (preview_*.wav, temp_*.mp4)
-3. CapCut draft cloud cache (.cloud_cache*, cache_*)
+3. CapCut draft cloud cache (.cloud_cache* only; any folder holding
+   draft_content.json is a real draft and is never touched)
 4. Test / scratch directories that are non-critical
 5. Editing proxies (03_Projects/.cache/editing-proxies) -- 540p stand-ins
    rebuilt on demand from masters that are never touched here
@@ -33,6 +34,11 @@ SAFE_CACHE_TARGETS = [
     BASE_DIR / "temp_scratch",
 ]
 
+TEMP_PROJECT_PREFIXES = ("preview_", "temp_")
+TEMP_PROJECT_SUFFIXES = (".wav", ".mp3", ".tmp", ".jpg", ".png")
+CAPCUT_CACHE_PREFIX = ".cloud_cache"
+CAPCUT_DRAFT_MARKER = "draft_content.json"
+
 CUTOUT_NAMESPACES = ("background-isolation", "background-isolation-sequences",
                      "background-isolation-foreground-sequences", "background-isolation-videos")
 
@@ -45,6 +51,25 @@ def _cutout_cache_roots() -> list[Path]:
     return [path for name in CUTOUT_NAMESPACES if (path := root / name).is_dir()
             and not path.is_symlink() and not path.is_junction()
             and path.resolve().parent == resolved and not is_strictly_protected_path(path)]
+
+
+def _is_transient_project_file(f: Path) -> bool:
+    """True for scratch audio/image files named preview_* or temp_* (prefix only,
+    so template.png / cover_preview.jpg are never matched)."""
+    return f.name.lower().startswith(TEMP_PROJECT_PREFIXES) and f.suffix in TEMP_PROJECT_SUFFIXES
+
+
+def _is_capcut_cache_dir(entry: Path) -> bool:
+    """True only for CapCut .cloud_cache* folders that do not hold a real draft."""
+    try:
+        return (
+            entry.is_dir()
+            and not entry.is_symlink()
+            and entry.name.startswith(CAPCUT_CACHE_PREFIX)
+            and not any(entry.rglob(CAPCUT_DRAFT_MARKER))
+        )
+    except Exception:
+        return False
 
 
 def _dir_size(p: Path) -> int:
@@ -112,8 +137,7 @@ def scan_safe_reclaimable_cache() -> Dict[str, Any]:
         try:
             for f in PROJECTS_DIR.rglob("*"):
                 if f.is_file() and not is_strictly_protected_path(f):
-                    name_lower = f.name.lower()
-                    if ("preview" in name_lower or "temp" in name_lower) and f.suffix in (".wav", ".mp3", ".tmp", ".jpg", ".png"):
+                    if _is_transient_project_file(f):
                         temp_preview_bytes += f.stat().st_size
                         temp_preview_count += 1
         except Exception:
@@ -137,7 +161,7 @@ def scan_safe_reclaimable_cache() -> Dict[str, Any]:
     if CAPCUT_DRAFT_DIR.exists():
         try:
             for entry in CAPCUT_DRAFT_DIR.iterdir():
-                if entry.is_dir() and (entry.name.startswith(".cloud_cache") or entry.name.startswith("cache_")):
+                if _is_capcut_cache_dir(entry):
                     c_size = _dir_size(entry)
                     capcut_cache_bytes += c_size
                     capcut_cache_count += 1
@@ -223,8 +247,7 @@ def execute_safe_purge() -> Dict[str, Any]:
         try:
             for f in list(PROJECTS_DIR.rglob("*")):
                 if f.is_file() and not is_strictly_protected_path(f):
-                    name_lower = f.name.lower()
-                    if ("preview" in name_lower or "temp" in name_lower) and f.suffix in (".wav", ".mp3", ".tmp", ".jpg", ".png"):
+                    if _is_transient_project_file(f):
                         try:
                             sz = f.stat().st_size
                             f.unlink(missing_ok=True)
@@ -239,7 +262,7 @@ def execute_safe_purge() -> Dict[str, Any]:
     if CAPCUT_DRAFT_DIR.exists():
         try:
             for entry in list(CAPCUT_DRAFT_DIR.iterdir()):
-                if entry.is_dir() and (entry.name.startswith(".cloud_cache") or entry.name.startswith("cache_")):
+                if _is_capcut_cache_dir(entry):
                     if not is_strictly_protected_path(entry):
                         sz = _dir_size(entry)
                         shutil.rmtree(str(entry), ignore_errors=True)

@@ -468,6 +468,7 @@ def test_autofill_reports_stats_and_prefers_evidence_backed_time(queue_workspace
         classmethod(lambda cls, newest_first=True: [
             {"product_name": "A", "posted_at": "2026-09-10T19:00:00", "metrics": {"views": 1000, "likes": 100, "cart_clicks": 50, "orders": 10, "commission_thb": 50}},
             {"product_name": "A", "posted_at": "2026-09-11T19:00:00", "metrics": {"views": 800, "likes": 80, "cart_clicks": 40, "orders": 10, "commission_thb": 50}},
+            {"product_name": "A", "posted_at": "2026-09-12T19:00:00", "metrics": {"views": 900, "likes": 90, "cart_clicks": 45, "orders": 10, "commission_thb": 50}},
             {"product_name": "B", "posted_at": "2026-09-10T12:30:00", "metrics": {"views": 100, "likes": 5}},
         ]),
     )
@@ -488,9 +489,11 @@ def test_autofill_reports_stats_and_prefers_evidence_backed_time(queue_workspace
 
     assert preview.status_code == 200
     result = preview.json()
-    assert result["analytics"]["sample_size"] == 3
+    assert result["analytics"]["sample_size"] == 4
     assert result["analytics"]["top_products"][0]["product_name"] == "A"
     assert result["analytics"]["top_hours"][0]["hour"] == 19
+    # 12:30 has a single measured post: below the minimum sample, never ranked.
+    assert [row["hour"] for row in result["analytics"]["top_hours"]] == [19]
     assert result["analytics"]["top_products"][0]["cart_click_rate"] > 0
     assert result["analytics"]["top_products"][0]["orders_per_1000_views"] > 0
     assert result["analytics"]["top_products"][0]["commission_per_1000_views_thb"] > 0

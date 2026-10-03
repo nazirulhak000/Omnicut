@@ -20,13 +20,24 @@ const MAX_STEPS = 50;
  *    concurrent re-renders generally) may invoke an updater more than once.
  *    The model resolves updates against its state mirror and the hook passes
  *    plain values to React, so history mutation happens exactly once.
+ *
+ * Slider-style bursts can opt into coalescing with set(updater, { coalesceKey }):
+ * consecutive sets with the same key, each within COALESCE_WINDOW_MS of the
+ * previous one, share the single undo step pushed by the first set. Undo then
+ * returns to the state before the first change of the burst.
  */
-export function createEditorHistoryModel(initialState) {
+export const COALESCE_WINDOW_MS = 400;
+
+export function createEditorHistoryModel(initialState, options = {}) {
+  const now = options.now || (() => Date.now());
+  const coalesceWindowMs = options.coalesceWindowMs ?? COALESCE_WINDOW_MS;
   let state = initialState;
   const undoStack = [];
   const redoStack = [];
   let dragSnapshot = null;
   let dragActive = false;
+  // { key, at } of the last set() that owns the current top undo entry.
+  let lastCoalesce = null;
 
   const resolve = (updater) => (
     typeof updater === 'function' ? updater(state) : updater
@@ -43,11 +54,27 @@ export function createEditorHistoryModel(initialState) {
       return state;
     },
 
-    set(updater) {
+    set(updater, setOptions) {
       const previous = state;
       const next = resolve(updater);
       if (next === previous) return false;
+      const key = setOptions && setOptions.coalesceKey;
+      const hasKey = key !== undefined && key !== null;
+      const at = hasKey ? now() : 0;
+      if (
+        hasKey
+        && lastCoalesce
+        && lastCoalesce.key === key
+        && at - lastCoalesce.at <= coalesceWindowMs
+        && undoStack.length > 0
+      ) {
+        // Same burst: keep the existing pre-burst undo entry, only advance state.
+        lastCoalesce.at = at;
+        state = next;
+        return true;
+      }
       pushUndo(previous);
+      lastCoalesce = hasKey ? { key, at } : null;
       state = next;
       return true;
     },
@@ -55,6 +82,7 @@ export function createEditorHistoryModel(initialState) {
     setSilent(updater) {
       const next = resolve(updater);
       if (next === state) return false;
+      lastCoalesce = null;
       state = next;
       return true;
     },
@@ -69,6 +97,7 @@ export function createEditorHistoryModel(initialState) {
       if (!dragActive) return false;
       const changed = state !== dragSnapshot;
       if (changed) pushUndo(dragSnapshot);
+      lastCoalesce = null;
       dragSnapshot = null;
       dragActive = false;
       return changed;
@@ -78,6 +107,7 @@ export function createEditorHistoryModel(initialState) {
       const previous = undoStack.pop();
       if (previous === undefined) return false;
       redoStack.push(state);
+      lastCoalesce = null;
       state = previous;
       return true;
     },
@@ -86,6 +116,7 @@ export function createEditorHistoryModel(initialState) {
       const next = redoStack.pop();
       if (next === undefined) return false;
       undoStack.push(state);
+      lastCoalesce = null;
       state = next;
       return true;
     },
@@ -95,6 +126,7 @@ export function createEditorHistoryModel(initialState) {
       redoStack.length = 0;
       dragSnapshot = null;
       dragActive = false;
+      lastCoalesce = null;
       state = nextState;
     },
 
@@ -117,9 +149,12 @@ export function useEditorHistory(initialState) {
     setStateRaw(model.getState());
   }, [model]);
 
-  /** Discrete change -- becomes one undo step. */
-  const set = useCallback((updater) => {
-    if (model.set(updater)) syncState();
+  /**
+   * Discrete change -- becomes one undo step. Pass { coalesceKey } for slider
+   * bursts: same key within the coalesce window shares one undo step.
+   */
+  const set = useCallback((updater, options) => {
+    if (model.set(updater, options)) syncState();
   }, [model, syncState]);
 
   /** Mid-gesture change -- no undo step of its own. */

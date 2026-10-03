@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, field_validator
 from scripts.api_tiktok_autopost import PrepareRequest, prepare
 from scripts.config import BASE_DIR, EXPORTS_DIR
 from scripts.export_registry import ExportRegistry, _normalise_path as _export_normalise_path
-from scripts.post_log import PostLog
+from scripts.post_log import PostLog, mature_metrics
 from scripts.schedule_store import ScheduleQueueStore, ScheduleTemplateStore, new_id, now_iso
 from scripts.style_motion_policy import resolve_style_motion_policy
 
@@ -26,6 +26,9 @@ OLD_DEFAULT_PRIMARY_TIMES = ("12:30", "19:00", "21:30")
 LEGACY_PRIMARY_TIMES = ("07:00", "10:00", "12:00", "16:00", "20:00")
 MAX_TEMPLATE_TIMES = 24
 DAY_INDICES = tuple(range(7))
+# An hour-of-day bucket needs at least this many measured posts before it may
+# influence slot ranking; a single lucky post is noise, not a best time.
+MIN_HOUR_SAMPLES = 3
 ACTIVE_STATUSES = {"planned", "ready_for_extension", "awaiting_post", "failed"}
 ALL_STATUSES = ACTIVE_STATUSES | {"posted"}
 STATUS_LABELS = {
@@ -535,7 +538,9 @@ def _build_performance_analytics(clips: List[AutoFillClipPayload]) -> tuple[Dict
     hour_buckets: Dict[int, Dict[str, Any]] = {}
     measured = 0
     for post in posts:
-        metrics = post.get("metrics") or {}
+        # Only numbers captured at post age >= 48h (legacy rows without a
+        # snapshot history fall back to their latest metrics).
+        metrics = mature_metrics(post) or {}
         if not metrics or not _post_datetime(post.get("posted_at")):
             continue
         views = max(0, int(metrics.get("views") or 0))
@@ -559,7 +564,7 @@ def _build_performance_analytics(clips: List[AutoFillClipPayload]) -> tuple[Dict
 
     products = [_stats_bucket_summary(bucket, "product_name", next((str(post.get("product_name") or "ไม่ระบุสินค้า").strip() for post in posts if _product_key(post.get("product_name")) == key), "ไม่ระบุสินค้า")) for key, bucket in product_buckets.items()]
     products.sort(key=lambda row: (-row["score"], -row["samples"], row["product_name"]))
-    hours = [_stats_bucket_summary(bucket, "hour", hour) for hour, bucket in hour_buckets.items()]
+    hours = [_stats_bucket_summary(bucket, "hour", hour) for hour, bucket in hour_buckets.items() if bucket["samples"] >= MIN_HOUR_SAMPLES]
     hours.sort(key=lambda row: (-row["score"], -row["samples"], row["hour"]))
     product_scores: Dict[str, float] = {}
     for row in products:
@@ -576,6 +581,7 @@ def _build_performance_analytics(clips: List[AutoFillClipPayload]) -> tuple[Dict
         "confidence": confidence,
         "top_products": products[:5],
         "top_hours": hours[:5],
+        "min_hour_samples": MIN_HOUR_SAMPLES,
         "method": "reach + engagement + cart click rate + orders/1,000 views + commission/1,000 views; ใช้เป็นคะแนนช่วยเลือก ไม่ใช่การการันตียอดขาย",
     }
     return analytics, product_scores, hour_scores
@@ -750,9 +756,15 @@ def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
     )
     available_slots = list(slots)
     if req.optimize_by_stats and hour_scores and len(slots) > selected_count:
+        # hour_scores only holds hours with >= MIN_HOUR_SAMPLES measured posts.
+        # Hours without enough evidence get the neutral prior (the mean score
+        # of the evidenced hours) instead of 0 or a 1-sample score, so they
+        # neither outrank nor get buried by hours that were really measured.
+        hour_prior = sum(hour_scores.values()) / len(hour_scores)
         slots = sorted(
             sorted(slots, key=lambda value: value),
-            key=lambda value: (-hour_scores.get(value.hour, 0.0), value),
+            # On equal score an evidenced hour beats an unknown one.
+            key=lambda value: (-hour_scores.get(value.hour, hour_prior), value.hour not in hour_scores, value),
         )[:selected_count]
         slots.sort()
 

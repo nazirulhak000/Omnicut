@@ -131,3 +131,63 @@ def test_scan_and_purge_cutout_cache_only(tmp_path, monkeypatch):
     rescan = scan_cutout_cache()
     assert rescan["bytes"] == 0
     assert rescan["count"] == 0
+
+
+def _patch_cleaner_paths(monkeypatch, tmp_path):
+    base = tmp_path / "app_root"
+    raw, assets, projects = base / "01_Raw", base / "02_Assets", base / "03_Projects"
+    capcut = tmp_path / "CapCutDrafts"
+    for d in (raw, assets, projects, capcut):
+        d.mkdir(parents=True)
+    monkeypatch.setattr("scripts.storage_cleaner.BASE_DIR", base)
+    monkeypatch.setattr("scripts.storage_cleaner.RAW_DIR", raw)
+    monkeypatch.setattr("scripts.storage_cleaner.ASSETS_DIR", assets)
+    monkeypatch.setattr("scripts.storage_cleaner.PROJECTS_DIR", projects)
+    monkeypatch.setattr("scripts.storage_cleaner.CAPCUT_DRAFT_DIR", capcut)
+    return projects, capcut
+
+
+def test_capcut_purge_only_cloud_cache_and_never_real_drafts(tmp_path, monkeypatch):
+    _, capcut = _patch_cleaner_paths(monkeypatch, tmp_path)
+    draft = capcut / "cache_myclip"
+    draft.mkdir()
+    (draft / "draft_content.json").write_text("{}", encoding="utf-8")
+    cloud = capcut / ".cloud_cache_x"
+    cloud.mkdir()
+    (cloud / "blob.dat").write_bytes(b"TRANSIENT")
+    # Even a .cloud_cache-named folder holding a draft must survive.
+    guarded = capcut / ".cloud_cache_with_draft"
+    guarded.mkdir()
+    (guarded / "draft_content.json").write_text("{}", encoding="utf-8")
+
+    scan = scan_safe_reclaimable_cache()
+    capcut_item = next(i for i in scan["items"] if i["id"] == "capcut_cache")
+    assert capcut_item["count"] == 1
+    assert capcut_item["bytes"] == len(b"TRANSIENT")
+
+    execute_safe_purge()
+    assert not cloud.exists()
+    assert (draft / "draft_content.json").exists()
+    assert (guarded / "draft_content.json").exists()
+
+
+def test_project_purge_uses_prefix_patterns_only(tmp_path, monkeypatch):
+    projects, _ = _patch_cleaner_paths(monkeypatch, tmp_path)
+    proj = projects / "clip1"
+    proj.mkdir()
+    template = proj / "template.png"
+    cover = proj / "cover_preview.jpg"
+    scratch = proj / "preview_tts_test.wav"
+    temp_png = proj / "temp_frame.png"
+    for f in (template, cover, scratch, temp_png):
+        f.write_bytes(b"DATA")
+
+    scan = scan_safe_reclaimable_cache()
+    item = next(i for i in scan["items"] if i["id"] == "project_previews")
+    assert item["count"] == 2
+
+    execute_safe_purge()
+    assert template.exists()
+    assert cover.exists()
+    assert not scratch.exists()
+    assert not temp_png.exists()

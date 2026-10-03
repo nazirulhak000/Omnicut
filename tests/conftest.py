@@ -42,3 +42,17 @@ def _no_real_api_key_gate(monkeypatch):
     depends on whether OMNICUT_API_KEY happens to be unset in .env.
     """
     monkeypatch.setenv("OMNICUT_API_KEY", "")
+
+
+@pytest.fixture(autouse=True)
+def _isolated_trash_dir(monkeypatch, tmp_path):
+    """Deleting a clip through the API moves it to 06_Archive/.trash.
+
+    Without this, every test that deletes a fixture file through the API would
+    drop that file into the developer's real trash folder.
+    """
+    try:
+        from scripts import api_videos
+    except ImportError:  # pragma: no cover - optional deps missing
+        return
+    monkeypatch.setattr(api_videos, "ARCHIVE_DIR", tmp_path / "_isolated_archive")

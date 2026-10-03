@@ -435,14 +435,20 @@ class ProjectManifest:
         archive_projects_dir = (ARCHIVE_DIR / "Projects").resolve()
         archive_projects_dir.mkdir(parents=True, exist_ok=True)
         dest = archive_projects_dir / target.name
+        if dest.exists():
+            # Never delete an earlier archive: pick a unique sibling instead.
+            stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            dest = archive_projects_dir / f"{target.name}_{stamp}"
+            counter = 1
+            while dest.exists():
+                dest = archive_projects_dir / f"{target.name}_{stamp}_{counter}"
+                counter += 1
 
         size = cls.folder_size_mb(target)
         files = sum(1 for f in target.rglob("*") if f.is_file())
 
         for attempt in range(3):
             try:
-                if dest.exists():
-                    shutil.rmtree(dest)
                 shutil.move(str(target), str(dest))
                 break
             except OSError as err:

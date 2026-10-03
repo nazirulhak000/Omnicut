@@ -4,12 +4,13 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 
-function worker() {
+function worker(extraChrome = {}) {
   const context = vm.createContext({
-    console, setTimeout: (fn) => { fn(); },
+    console, URL, setTimeout: (fn) => { fn(); },
     chrome: {
       sidePanel: { setPanelBehavior: async () => {} },
       runtime: { onMessage: { addListener() {} } },
+      ...extraChrome,
     },
   });
   context.importScripts = (...files) => files.forEach(file =>
@@ -419,4 +420,145 @@ test('confirmed post marks the exact pending export automatically', async () => 
   assert.equal(calls[0][0], 'mark');
   assert.equal(calls[0][1].export_id, 'exp-1');
   assert.deepEqual(calls.slice(1), [['clear'], ['upload-page', 7]]);
+});
+
+// --- post confirmation: only a POSITIVE signal counts as posted ---------------
+
+const UPLOAD_URL = 'https://www.tiktok.com/tiktokstudio/upload?from=webapp';
+const editorGoneEval = async () => ({ result: { value: { done: true, failed: false, reason: 'editor-gone' } } });
+const stillEditingEval = async () => ({ result: { value: { done: false } } });
+
+test('background registers a chrome.debugger.onDetach listener that records detaches per tab', () => {
+  let listener = null;
+  const context = worker({ debugger: { onDetach: { addListener: (fn) => { listener = fn; } } } });
+  assert.equal(typeof listener, 'function');
+  const before = Date.now();
+  listener({ tabId: 5 }, 'canceled_by_user');
+  assert.equal(context.getDebuggerDetach(5, before).reason, 'canceled_by_user');
+  assert.equal(context.getDebuggerDetach(6, before), null);
+  assert.equal(context.getDebuggerDetach(5, Date.now() + 1000), null);
+});
+
+test('decidePostConfirmation: only a positive URL signal confirms', () => {
+  const ctx = worker();
+  const d = (o) => ctx.decidePostConfirmation(o);
+  assert.equal(d({ tabUrl: 'https://www.tiktok.com/tiktokstudio/content' }).outcome, 'confirmed');
+  assert.equal(d({ tabUrl: UPLOAD_URL }).outcome, 'pending');
+  assert.equal(d({ tabUrl: UPLOAD_URL, evalThrew: true }).outcome, 'pending');
+  assert.equal(d({ tabUrl: UPLOAD_URL, evalValue: { done: true, failed: false } }).outcome, 'pending');
+  assert.equal(d({ tabUrl: 'about:blank' }).outcome, 'pending');
+  assert.equal(d({ tabUrl: 'https://www.tiktok.com/login' }).outcome, 'pending');
+  assert.equal(d({ tabUrl: 'https://evil.example/tiktok.com' }).outcome, 'pending');
+  assert.equal(d({ tabMissing: true }).reason, 'tab-gone-unverified');
+  assert.equal(d({ tabUrl: UPLOAD_URL, evalValue: { done: true, failed: true, message: 'x' } }).outcome, 'failed');
+  assert.equal(d({ tabUrl: UPLOAD_URL, detach: { reason: 'canceled_by_user' } }).reason, 'debugger-detached');
+  // A user cancel never counts as success, even if the URL looks like it moved on.
+  assert.equal(d({ tabUrl: 'https://www.tiktok.com/tiktokstudio/content', detach: { reason: 'canceled_by_user' } }).outcome, 'unconfirmed');
+});
+
+test('waitForPostConfirmation: debugger detached during the wait is unconfirmed', async () => {
+  const ctx = worker();
+  ctx.chrome.tabs = { get: async () => ({ url: UPLOAD_URL }) };
+  const send = async () => {
+    ctx.recordDebuggerDetach({ tabId: 7 }, 'canceled_by_user');
+    throw new Error('Debugger is not attached to the tab with id: 7.');
+  };
+  const res = await ctx.waitForPostConfirmation(send, 7, 5000);
+  assert.equal(res.confirmed, false);
+  assert.equal(res.reason, 'debugger-detached');
+  assert.equal(res.detachReason, 'canceled_by_user');
+});
+
+test('waitForPostConfirmation: editor gone but URL still /upload is not confirmed', async () => {
+  const ctx = worker();
+  ctx.chrome.tabs = { get: async () => ({ url: UPLOAD_URL }) };
+  const res = await ctx.waitForPostConfirmation(editorGoneEval, 7, 50);
+  assert.equal(res.confirmed, false);
+  assert.equal(res.timedOut, true);
+  assert.equal(res.editorGone, true);
+});
+
+test('waitForPostConfirmation: evaluate always throwing with URL on /upload is not confirmed', async () => {
+  const ctx = worker();
+  ctx.chrome.tabs = { get: async () => ({ url: UPLOAD_URL }) };
+  const res = await ctx.waitForPostConfirmation(async () => { throw new Error('Execution context was destroyed'); }, 7, 50);
+  assert.equal(res.confirmed, false);
+  assert.equal(res.timedOut, true);
+});
+
+test('waitForPostConfirmation: tab removed without a positive signal is not confirmed', async () => {
+  const ctx = worker();
+  ctx.chrome.tabs = { get: async () => { throw new Error('No tab with id: 7.'); } };
+  const res = await ctx.waitForPostConfirmation(async () => { throw new Error('gone'); }, 7, 5000);
+  assert.equal(res.confirmed, false);
+  assert.equal(res.reason, 'tab-gone-unverified');
+});
+
+test('waitForPostConfirmation: URL leaving /upload is still confirmed (even if evaluate throws)', async () => {
+  const ctx = worker();
+  ctx.chrome.tabs = { get: async () => ({ url: 'https://www.tiktok.com/tiktokstudio/content' }) };
+  const viaEval = await ctx.waitForPostConfirmation(stillEditingEval, 7, 5000);
+  assert.equal(viaEval.confirmed, true);
+  assert.equal(viaEval.reason, 'navigated-away');
+  const viaThrow = await ctx.waitForPostConfirmation(async () => { throw new Error('context destroyed'); }, 7, 5000);
+  assert.equal(viaThrow.confirmed, true);
+  assert.equal(viaThrow.reason, 'navigated-away');
+});
+
+test('waitForPostConfirmation: TikTok rejection toast is reported verbatim', async () => {
+  const ctx = worker();
+  ctx.chrome.tabs = { get: async () => ({ url: UPLOAD_URL }) };
+  const send = async () => ({ result: { value: { done: true, failed: true, message: 'กรุณาเลือกหมวดหมู่' } } });
+  const res = await ctx.waitForPostConfirmation(send, 7, 5000);
+  assert.equal(res.confirmed, false);
+  assert.equal(res.message, 'กรุณาเลือกหมวดหมู่');
+});
+
+function clickPostHarness({ tabUrl, onConfirmationEval }) {
+  const ctx = worker();
+  const calls = [];
+  ctx.fetchPendingJob = async () => ({ video_path: 'clip.mp4', export_id: 'exp-1' });
+  ctx.findUploadTab = async () => ({ id: 7, windowId: 3, url: UPLOAD_URL });
+  ctx.waitForUploadComplete = async () => true;
+  ctx.dismissLeaveConfirmDialogIfPresent = async () => false;
+  ctx.chrome.tabs = { get: async () => ({ url: tabUrl }) };
+  ctx.chrome.debugger = {
+    attach: async () => {},
+    detach: async () => {},
+    sendCommand: async (_target, method) => {
+      if (method !== 'Runtime.evaluate') return {};
+      // First evaluate = the click; later ones = confirmation polls.
+      if (!calls.includes('clicked')) {
+        calls.push('clicked');
+        return { result: { value: { success: true, method: 'direct' } } };
+      }
+      return onConfirmationEval(ctx);
+    },
+  };
+  ctx.markPendingJobPosted = async () => { calls.push('mark'); return { success: true }; };
+  ctx.clearPendingJob = async () => { calls.push('clear'); };
+  ctx.openUploadPage = async () => { calls.push('upload-page'); };
+  return { ctx, calls };
+}
+
+test('runClickPostOnly does not call mark-posted when the debugger is detached during confirmation', async () => {
+  const { ctx, calls } = clickPostHarness({
+    tabUrl: UPLOAD_URL,
+    onConfirmationEval: (c) => {
+      c.recordDebuggerDetach({ tabId: 7 }, 'canceled_by_user');
+      throw new Error('Debugger is not attached to the tab with id: 7.');
+    },
+  });
+  await assert.rejects(() => ctx.runClickPostOnly(), /post_not_confirmed.*ตัดการเชื่อมต่อ/);
+  assert.deepEqual(calls, ['clicked']);
+});
+
+test('runClickPostOnly still marks posted on a genuine success (URL left /upload)', async () => {
+  const { ctx, calls } = clickPostHarness({
+    tabUrl: 'https://www.tiktok.com/tiktokstudio/content',
+    onConfirmationEval: () => ({ result: { value: { done: false } } }),
+  });
+  const result = await ctx.runClickPostOnly();
+  assert.equal(result.marked, true);
+  assert.deepEqual(calls, ['clicked', 'mark', 'clear', 'upload-page']);
 });

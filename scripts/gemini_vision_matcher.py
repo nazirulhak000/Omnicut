@@ -10,6 +10,7 @@ import json
 import time
 import hashlib
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from collections import Counter
@@ -89,20 +90,61 @@ class GeminiVisionMatcher:
 
     @classmethod
     def _load_cache(cls) -> Dict[str, Any]:
-        if VISION_CACHE_FILE.exists():
-            try:
-                return json.loads(VISION_CACHE_FILE.read_text(encoding="utf-8"))
-            except Exception:
-                return {}
-        return {}
+        if not VISION_CACHE_FILE.exists():
+            return {}
+        try:
+            return json.loads(VISION_CACHE_FILE.read_text(encoding="utf-8"))
+        except ValueError:
+            # Unparseable (JSONDecodeError / UnicodeDecodeError): keep the bad
+            # file as a .corrupt backup so the next save cannot silently wipe
+            # it, then start empty.
+            cls._quarantine_corrupt_cache()
+            return {}
+        except Exception:
+            # Transient read problem (locked file, etc.): leave it untouched.
+            return {}
+
+    @classmethod
+    def _quarantine_corrupt_cache(cls) -> None:
+        try:
+            backup = VISION_CACHE_FILE.with_name(VISION_CACHE_FILE.name + ".corrupt")
+            if backup.exists():
+                backup = VISION_CACHE_FILE.with_name(
+                    f"{VISION_CACHE_FILE.name}.{time.strftime('%Y%m%d_%H%M%S')}.corrupt"
+                )
+                counter = 1
+                while backup.exists():
+                    backup = VISION_CACHE_FILE.with_name(
+                        f"{VISION_CACHE_FILE.name}.{time.strftime('%Y%m%d_%H%M%S')}_{counter}.corrupt"
+                    )
+                    counter += 1
+            os.replace(VISION_CACHE_FILE, backup)
+        except Exception:
+            pass
 
     @classmethod
     def _save_cache(cls, cache_data: Dict[str, Any]) -> None:
+        tmp_path: Optional[str] = None
         try:
             VISION_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            VISION_CACHE_FILE.write_text(json.dumps(cache_data, ensure_ascii=False, indent=2), encoding="utf-8")
+            payload = json.dumps(cache_data, ensure_ascii=False, indent=2)
+            # Atomic write: temp file in the same directory, then replace, so
+            # a crash mid-write can never truncate the existing cache.
+            fd, tmp_path = tempfile.mkstemp(
+                prefix=VISION_CACHE_FILE.name + ".", suffix=".tmp", dir=str(VISION_CACHE_FILE.parent)
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(payload)
+            os.replace(tmp_path, VISION_CACHE_FILE)
+            tmp_path = None
         except Exception:
             pass
+        finally:
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
     @classmethod
     def prepare_request_context(

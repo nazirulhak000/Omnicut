@@ -26,6 +26,99 @@ METRICS_DUE_HOURS = 48
 
 METRIC_FIELDS = ("views", "likes", "comments", "shares", "cart_clicks", "orders", "commission_thb")
 
+# Every metrics write appends a point-in-time snapshot to `metrics_history`
+# (the latest numbers still live in `metrics`). A snapshot only counts as a
+# "measured" result once the post was at least METRICS_DUE_HOURS old when it
+# was captured -- a 1-hour sync is not a 48-hour number.
+METRICS_HISTORY_CAP = 30
+
+# Clip names that carry no identity (fallbacks used when a clip is unknown);
+# never used as a de-duplication key.
+_GENERIC_CLIP_NAMES = {"", "clip.mp4", "video.mp4"}
+
+
+def _parse_dt(value: Any) -> Optional[datetime.datetime]:
+    """ISO string -> naive local datetime (post_log stores naive local time).
+
+    Offset-aware values are converted to local time so comparisons against
+    datetime.now() never raise on mixed naive/aware input.
+    """
+    if not value:
+        return None
+    try:
+        parsed = datetime.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone().replace(tzinfo=None)
+    return parsed
+
+
+def _age_hours(posted_at: Any, at: Optional[datetime.datetime]) -> Optional[float]:
+    posted = _parse_dt(posted_at)
+    if posted is None or at is None:
+        return None
+    return round(max(0.0, (at - posted).total_seconds() / 3600.0), 2)
+
+
+def _clip_name(value: Any) -> str:
+    """Basename of a clip path, casefolded; '' for generic placeholder names."""
+    name = Path(str(value or "").replace("\\", "/")).name.casefold()
+    return "" if name in _GENERIC_CLIP_NAMES else name
+
+
+def _snapshot_is_mature(snapshot: Dict[str, Any]) -> bool:
+    age = snapshot.get("age_hours")
+    if isinstance(age, (int, float)):
+        return age >= METRICS_DUE_HOURS
+    # Age unknown: only a seeded legacy snapshot (measured before history
+    # existed) is trusted; anything else cannot be proven to be a 48h number.
+    return bool(snapshot.get("legacy"))
+
+
+def _record_metrics(post: Dict[str, Any], new_metrics: Dict[str, Any], now_dt: datetime.datetime) -> None:
+    """Set the post's latest `metrics` and append a `metrics_history` snapshot."""
+    history = [h for h in (post.get("metrics_history") or []) if isinstance(h, dict)]
+    if not history and post.get("metrics"):
+        # Legacy row measured before history existed: seed one snapshot from
+        # the old numbers so the first new sync does not erase their meaning.
+        filled = post.get("metrics_filled_at")
+        age = _age_hours(post.get("posted_at"), _parse_dt(filled))
+        seed = {"metrics": dict(post["metrics"]), "captured_at": filled, "age_hours": age}
+        if age is None:
+            seed["legacy"] = True
+        history.append(seed)
+    post["metrics"] = new_metrics
+    post["metrics_filled_at"] = now_dt.isoformat(timespec="seconds")
+    history.append({
+        "metrics": dict(new_metrics),
+        "captured_at": post["metrics_filled_at"],
+        "age_hours": _age_hours(post.get("posted_at"), now_dt),
+    })
+    while len(history) > METRICS_HISTORY_CAP:
+        # Drop the oldest entry, but pin the earliest mature snapshot: it is
+        # the closest thing to the "48h number" analytics rely on.
+        pinned = next((i for i, h in enumerate(history) if _snapshot_is_mature(h)), None)
+        history.pop(1 if pinned == 0 else 0)
+    post["metrics_history"] = history
+
+
+def mature_metrics(post: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The metrics analytics may trust for one post, or None.
+
+    - With `metrics_history`: the EARLIEST snapshot captured when the post was
+      >= 48h old (earliest = most comparable across posts; later snapshots
+      keep drifting upward). No such snapshot -> None (not measured yet).
+    - Legacy row without history: the latest `metrics`, as before.
+    """
+    history = post.get("metrics_history")
+    if isinstance(history, list) and history:
+        for snap in history:
+            if isinstance(snap, dict) and snap.get("metrics") and _snapshot_is_mature(snap):
+                return snap["metrics"]
+        return None
+    return post.get("metrics") or None
+
 
 def _log_db_path() -> Path:
     # Same sqlite file ProductStore uses (BASE_DIR/_Docs/store.db), different
@@ -79,8 +172,18 @@ class PostLog:
         caption: str = "",
         hashtags: Optional[List[str]] = None,
         posted_at: Optional[str] = None,
+        style_preset: str = "",
+        hook_color: str = "",
+        product_id: str = "",
+        scheduled_at: str = "",
+        export_id: str = "",
+        source: str = "",
     ) -> Dict[str, Any]:
-        """Record that a clip went live. Returns the stored row."""
+        """Record that a clip went live. Returns the stored row.
+
+        The trailing keyword fields are optional and only written when given,
+        so rows created by older callers keep their exact old shape.
+        """
         now = datetime.datetime.now()
 
         # _mutate() holds one SQLite transaction across the read-modify-write
@@ -105,6 +208,72 @@ class PostLog:
                 "metrics": None,
                 "metrics_filled_at": None,
             }
+            extras = {
+                "style_preset": style_preset, "hook_color": hook_color, "product_id": product_id,
+                "scheduled_at": scheduled_at, "export_id": export_id, "source": source,
+            }
+            post.update({k: v for k, v in extras.items() if v})
+            posts.append(post)
+            return post
+
+    @classmethod
+    def register_posted_export(
+        cls,
+        product_name: str,
+        clip_file: str,
+        export_id: str = "",
+        product_id: str = "",
+        angle_key: str = "",
+        angle_title: str = "",
+        hook: str = "",
+        style_preset: str = "",
+        hook_color: str = "",
+        caption: str = "",
+        hashtags: Optional[List[str]] = None,
+        scheduled_at: str = "",
+        posted_at: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Idempotently log one posted export (called from mark-posted).
+
+        Identity is export_id when both sides have it, else the clip file's
+        basename -- the same key upsert_tiktok_stats' auto-register and
+        attach_manual use, so a later stats sync merges into THIS row instead
+        of creating a second one. An existing row is enriched (only empty
+        fields are filled), never duplicated or overwritten.
+        """
+        wanted = {
+            "product_name": product_name, "product_id": product_id, "angle_key": angle_key,
+            "angle_title": angle_title or hook, "hook": hook, "style_preset": style_preset,
+            "hook_color": hook_color, "caption": caption, "scheduled_at": scheduled_at,
+            "export_id": export_id,
+        }
+        name = _clip_name(clip_file)
+        with cls._mutate() as posts:
+            for post in posts:
+                if (export_id and post.get("export_id") == export_id) or (name and _clip_name(post.get("clip_file")) == name):
+                    for key, value in wanted.items():
+                        if value and not post.get(key):
+                            post[key] = value
+                    if hashtags and not post.get("hashtags"):
+                        post["hashtags"] = list(hashtags)
+                    return post
+            post = {
+                "id": uuid.uuid4().hex,
+                "product_name": product_name,
+                "product_url": "",
+                "angle_key": angle_key,
+                "angle_title": angle_title or hook,
+                "hook": hook,
+                "clip_file": clip_file,
+                "platform": "tiktok",
+                "caption": caption,
+                "hashtags": list(hashtags or []),
+                "posted_at": posted_at or datetime.datetime.now().isoformat(timespec="seconds"),
+                "metrics": None,
+                "metrics_filled_at": None,
+                "source": "mark_posted",
+            }
+            post.update({k: v for k, v in wanted.items() if v and k not in post})
             posts.append(post)
             return post
 
@@ -124,8 +293,12 @@ class PostLog:
                         except (TypeError, ValueError):
                             raise ValueError(f"ค่า '{field}' ต้องเป็นตัวเลข (ได้: {raw!r})")
 
-                    post["metrics"] = clean
-                    post["metrics_filled_at"] = datetime.datetime.now().isoformat(timespec="seconds")
+                    now_dt = datetime.datetime.now()
+                    if clean:
+                        _record_metrics(post, clean, now_dt)
+                    else:
+                        post["metrics"] = clean
+                        post["metrics_filled_at"] = now_dt.isoformat(timespec="seconds")
                     return post
 
             raise ValueError(f"ไม่พบโพสต์ id '{post_id}'")
@@ -149,7 +322,8 @@ class PostLog:
         """
         matched, updated, registered = 0, 0, 0
         unmatched = []
-        now = datetime.datetime.now().isoformat(timespec="seconds")
+        now_dt = datetime.datetime.now()
+        now = now_dt.isoformat(timespec="seconds")
         with cls._mutate() as posts:
             by_video_id = {p.get("tiktok_video_id"): p for p in posts if p.get("tiktok_video_id")}
             # One post may be claimed by ONE Studio row per run: two rows with
@@ -190,28 +364,48 @@ class PostLog:
                         ckey = (cand.get("clip_file"), cand.get("product_name"), cand.get("angle_title"))
                         claimed_cand_keys.add(ckey)
                         posted_at = cls._parse_studio_posted_at(row.get("posted_text")) or now
-                        # Append here -- never call add_post() inside this
-                        # mutate (nested _mutate on the same table would fight
-                        # the open SQLite transaction).
-                        new_post = {
-                            "id": uuid.uuid4().hex,
-                            "product_name": str(cand.get("product_name") or ""),
-                            "product_url": "",
-                            "angle_key": str(cand.get("angle_key") or ""),
-                            "angle_title": str(cand.get("angle_title") or cand.get("hook_title") or ""),
-                            "hook": str(cand.get("hook_title") or ""),
-                            "clip_file": str(cand.get("clip_file") or "clip.mp4"),
-                            "platform": "tiktok",
-                            "caption": str(cand.get("caption") or row.get("title") or "")[:200],
-                            "hashtags": [],
-                            "posted_at": posted_at,
-                            "metrics": None,
-                            "metrics_filled_at": None,
-                            "source": "tiktok_stats_auto",
-                        }
-                        posts.append(new_post)
-                        target = new_post
-                        registered += 1
+                        # A post for this very clip may already exist (e.g.
+                        # logged by mark-posted but the Studio title was too
+                        # different to fuzzy-match). Link to it instead of
+                        # registering a duplicate; same key as register_posted_export.
+                        cand_name = _clip_name(cand.get("clip_file"))
+                        existing = None
+                        if cand_name:
+                            for post in posts:
+                                if _clip_name(post.get("clip_file")) != cand_name:
+                                    continue
+                                stored_vid = str(post.get("tiktok_video_id") or "")
+                                if stored_vid and video_id and stored_vid != str(video_id):
+                                    continue
+                                if claimed.get(str(post.get("id"))) not in (None, claim):
+                                    continue
+                                existing = post
+                                break
+                        if existing is not None:
+                            target = existing
+                        else:
+                            # Append here -- never call add_post() inside this
+                            # mutate (nested _mutate on the same table would
+                            # fight the open SQLite transaction).
+                            new_post = {
+                                "id": uuid.uuid4().hex,
+                                "product_name": str(cand.get("product_name") or ""),
+                                "product_url": "",
+                                "angle_key": str(cand.get("angle_key") or ""),
+                                "angle_title": str(cand.get("angle_title") or cand.get("hook_title") or ""),
+                                "hook": str(cand.get("hook_title") or ""),
+                                "clip_file": str(cand.get("clip_file") or "clip.mp4"),
+                                "platform": "tiktok",
+                                "caption": str(cand.get("caption") or row.get("title") or "")[:200],
+                                "hashtags": [],
+                                "posted_at": posted_at,
+                                "metrics": None,
+                                "metrics_filled_at": None,
+                                "source": "tiktok_stats_auto",
+                            }
+                            posts.append(new_post)
+                            target = new_post
+                            registered += 1
                 if target is None:
                     unmatched_row = dict(row)
                     unmatched_row["video_id"] = video_id
@@ -228,8 +422,7 @@ class PostLog:
                 if metrics:
                     merged = dict(target.get("metrics") or {})
                     merged.update(metrics)
-                    target["metrics"] = merged
-                    target["metrics_filled_at"] = now
+                    _record_metrics(target, merged, now_dt)
                     updated += 1
         return {"matched": matched, "updated": updated, "registered": registered, "unmatched": unmatched, "total": len(rows)}
 
@@ -250,7 +443,8 @@ class PostLog:
         """
         if post_id is None and candidate is None:
             raise ValueError("ต้องระบุ post_id หรือ candidate อย่างใดอย่างหนึ่ง")
-        now = datetime.datetime.now().isoformat(timespec="seconds")
+        now_dt = datetime.datetime.now()
+        now = now_dt.isoformat(timespec="seconds")
         metrics = {k: row.get(k) for k in ("views", "likes", "comments", "shares") if isinstance(row.get(k), int)}
         video_id = (row.get("video_id") or "").strip() if isinstance(row.get("video_id"), str) else row.get("video_id")
         with cls._mutate() as posts:
@@ -301,8 +495,7 @@ class PostLog:
             if metrics:
                 merged = dict(target.get("metrics") or {})
                 merged.update(metrics)
-                target["metrics"] = merged
-                target["metrics_filled_at"] = now
+                _record_metrics(target, merged, now_dt)
             return target
 
     _THAI_MONTHS = {
@@ -443,15 +636,19 @@ class PostLog:
 
     @classmethod
     def pending_metrics(cls) -> List[Dict[str, Any]]:
-        """Posts that are past the 48-hour mark and still have no numbers."""
+        """Posts past the 48-hour mark that have no 48-hour-old numbers yet.
+
+        "Measured" means mature_metrics() finds a snapshot captured at post
+        age >= 48h (or a legacy row with plain `metrics` and no history), so
+        a sync done 1 hour after posting does not hide the post from here.
+        """
         cutoff = datetime.datetime.now() - datetime.timedelta(hours=METRICS_DUE_HOURS)
         due = []
         for post in cls._load():
-            if post.get("metrics"):
+            if mature_metrics(post):
                 continue
-            try:
-                posted = datetime.datetime.fromisoformat(post["posted_at"])
-            except (KeyError, ValueError):
+            posted = _parse_dt(post.get("posted_at"))
+            if posted is None:
                 continue
             if posted <= cutoff:
                 due.append(post)
@@ -468,6 +665,9 @@ class PostLog:
         buckets: Dict[str, Dict[str, Any]] = {}
 
         for post in cls._load():
+            # Latest numbers on purpose (display/back-compat); the 48h-age
+            # evidence rule lives in mature_metrics() and is applied by the
+            # scheduler's analytics and pending_metrics.
             metrics = post.get("metrics")
             if not metrics:
                 continue

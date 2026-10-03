@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { classifyShortcut, isEditableTarget } from '../lib/editorShortcutKeys.js';
 
 /**
  * Hook to manage timeline keyboard verbs (Space, B, Z, Y, J-K-L, Arrows, Delete).
@@ -29,86 +30,40 @@ export function useEditorShortcuts({
   // the handler is never stale, while the listener is registered only once below.
   useEffect(() => {
     keyHandlerRef.current = (e) => {
-      const el = e.target;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) {
-        return;
-      }
+      if (isEditableTarget(e.target)) return;
 
       // Do not trigger background editor shortcuts if a modal dialog is open
       if (typeof document !== 'undefined' && document.querySelector('[role="dialog"], [aria-modal="true"]')) {
         return;
       }
 
-      const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) redo?.(); else undo?.();
-        return;
-      }
-      if (mod && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        redo?.();
-        return;
-      }
-      if (mod && e.key.toLowerCase() === 'b') {
-        e.preventDefault();
-        splitAtPlayhead?.();
-        return;
-      }
-      if (e.key === 'Escape' && zen) {
-        e.preventDefault();
-        setZen?.(false);
-        return;
-      }
+      // Modified combos not explicitly claimed (Ctrl+S, Ctrl++, ...) come back
+      // as 'none' with preventDefault false, so the browser/app keeps them.
+      const { action, preventDefault, delta } = classifyShortcut(e, { zen });
+      if (action === 'none') return;
+      if (preventDefault) e.preventDefault();
 
-      const jump = (delta) => {
+      const jump = (d) => {
         const maxTime = Math.max(totalDuration || 0, audioDuration || 0);
-        const next = Math.max(0, Math.min(maxTime, (playhead || 0) + delta));
+        const next = Math.max(0, Math.min(maxTime, (playhead || 0) + d));
         seekPlayer?.(next);
       };
 
-      switch (e.key) {
-        case ' ':
-          e.preventDefault();
-          togglePlayer?.();
-          break;
-        case 's': case 'S':
-          e.preventDefault();
-          splitAtPlayhead?.();
-          break;
-        case 'j': case 'J':
-          e.preventDefault();
-          jump(-1.0);
-          break;
-        case 'k': case 'K':
-          e.preventDefault();
-          togglePlayer?.();
-          break;
-        case 'l': case 'L':
-          e.preventDefault();
-          jump(1.0);
-          break;
-        case 'Delete': case 'Backspace':
-          e.preventDefault();
-          deleteSelected?.();
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          jump(-(e.shiftKey ? 1 : 1 / 30));
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          jump(e.shiftKey ? 1 : 1 / 30);
-          break;
-        case '+': case '=':
-          e.preventDefault();
+      switch (action) {
+        case 'undo': undo?.(); break;
+        case 'redo': redo?.(); break;
+        case 'split': splitAtPlayhead?.(); break;
+        case 'exitZen': setZen?.(false); break;
+        case 'togglePlay': togglePlayer?.(); break;
+        case 'jump': jump(delta); break;
+        case 'delete': deleteSelected?.(); break;
+        case 'zoomIn':
           setZoomIndex?.((i) => Math.min(zoomLevelsLength - 1, i + 1));
           break;
-        case '-': case '_':
-          e.preventDefault();
+        case 'zoomOut':
           setZoomIndex?.((i) => Math.max(0, i - 1));
           break;
-        case 'f': case 'F':
+        case 'toggleFade':
           if (selectedSeg && selectedSeg.index > 0) {
             e.preventDefault();
             patchClip?.(selectedSeg.clip.id, {
@@ -116,16 +71,9 @@ export function useEditorShortcuts({
             });
           }
           break;
-        case 'n': case 'N':
-          e.preventDefault();
-          onToggleSnap?.();
-          break;
-        case 'm': case 'M':
-          e.preventDefault();
-          onCycleCutoutMode?.();
-          break;
-        default:
-          break;
+        case 'toggleSnap': onToggleSnap?.(); break;
+        case 'cycleCutout': onCycleCutoutMode?.(); break;
+        default: break;
       }
     };
   });

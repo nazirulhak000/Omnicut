@@ -100,3 +100,75 @@ def test_clean_duplicates_security_rejects_outside_path(isolated_media_env):
     assert len(clean_res["errors"]) == 1
     assert "Security" in clean_res["errors"][0]
     assert outside_file.exists()
+
+
+def test_clean_refuses_when_original_and_duplicate_both_requested(isolated_media_env):
+    inbox = isolated_media_env["inbox"]
+    raw = isolated_media_env["raw"]
+    a = inbox / "copy_a.mp4"
+    b = raw / "copy_b.mp4"
+    a.write_bytes(b"identical payload" * 50)
+    b.write_bytes(b"identical payload" * 50)
+
+    res = AssetDedupEngine.clean_duplicates([str(a), str(b)], move_to_trash=True)
+
+    assert res["cleaned_count"] == 0
+    assert res["freed_bytes"] == 0
+    assert len(res["errors"]) == 2
+    assert len(res["skipped"]) == 2
+    assert a.exists() and b.exists()
+
+
+def test_clean_keeps_one_survivor_when_all_copies_requested_hard_delete(isolated_media_env):
+    inbox = isolated_media_env["inbox"]
+    files = [inbox / f"c{i}.mp4" for i in range(3)]
+    for f in files:
+        f.write_bytes(b"triple content" * 50)
+
+    res = AssetDedupEngine.clean_duplicates([str(f) for f in files], move_to_trash=False)
+
+    assert res["cleaned_count"] == 0
+    assert all(f.exists() for f in files)
+
+
+def test_clean_never_deletes_unique_file(isolated_media_env):
+    inbox = isolated_media_env["inbox"]
+    unique = inbox / "only_one.mp4"
+    unique.write_bytes(b"one of a kind" * 50)
+    (inbox / "other.mp4").write_bytes(b"different content" * 50)
+
+    for trash_flag in (True, False):
+        res = AssetDedupEngine.clean_duplicates([str(unique)], move_to_trash=trash_flag)
+        assert res["cleaned_count"] == 0
+        assert len(res["errors"]) == 1
+        assert unique.exists()
+
+
+def test_clean_hard_delete_with_surviving_copy(isolated_media_env):
+    inbox = isolated_media_env["inbox"]
+    orig = inbox / "orig.mp4"
+    dup = inbox / "dup.mp4"
+    orig.write_bytes(b"same same" * 50)
+    dup.write_bytes(b"same same" * 50)
+
+    res = AssetDedupEngine.clean_duplicates([str(dup)], move_to_trash=False)
+
+    assert res["cleaned_count"] == 1
+    assert orig.exists() and not dup.exists()
+
+
+def test_clean_resolves_relative_path_against_base_dir(isolated_media_env, tmp_path_factory, monkeypatch):
+    inbox = isolated_media_env["inbox"]
+    orig = inbox / "orig.mp4"
+    dup = inbox / "dup.mp4"
+    orig.write_bytes(b"relative payload" * 50)
+    dup.write_bytes(b"relative payload" * 50)
+
+    # cwd is somewhere unrelated: relative input must still resolve vs BASE_DIR.
+    monkeypatch.chdir(tmp_path_factory.mktemp("elsewhere"))
+    res = AssetDedupEngine.clean_duplicates(["00_Inbox/dup.mp4"], move_to_trash=True)
+
+    assert res["cleaned_count"] == 1
+    assert res["errors"] == []
+    assert orig.exists() and not dup.exists()
+    assert (isolated_media_env["archive"] / ".trash" / "dup.mp4").exists()
