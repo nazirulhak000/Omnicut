@@ -483,6 +483,7 @@ export default function App() {
                     onVideoUploaded={handleVideoUploaded}
                     onProductContextChange={setActiveProductContext}
                     workspaceData={workspaceDataRef.current}
+                    onOpenShortcuts={() => setShowShortcutsModal(true)}
                   />
                 </Suspense>
               </main>

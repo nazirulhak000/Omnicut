@@ -10,6 +10,16 @@ export function tickStep(pxPerSec) {
   return 120;
 }
 
+/**
+ * Pixel width of one frame (fps frames per second) when the ruler is zoomed in
+ * far enough to draw a tick per frame, otherwise null. Below `minPx` per frame
+ * the ticks would merge into a solid line, so none are drawn.
+ */
+export function frameTickSpacing(pxPerSec, fps = 30, minPx = 6) {
+  const framePx = pxPerSec / fps;
+  return Number.isFinite(framePx) && framePx >= minPx ? framePx : null;
+}
+
 /** What a lane chip calls an overlay: its first tier that has words. */
 export function overlayLabel(overlay) {
   const tier = (overlay?.tiers || []).find((t) => (t.text || '').trim());

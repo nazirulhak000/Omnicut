@@ -7,9 +7,6 @@ import {
   Volume2,
   Play,
   Type,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
   BookmarkPlus,
   Check,
   Loader2,
@@ -37,6 +34,7 @@ import {
 } from '../../../lib/inspectorModel';
 import { toMediaUrl } from '../../../lib/mediaUrl';
 import { subjectLayerForOverlay } from '../../../lib/backgroundIsolationPreview.js';
+import { typingHistoryOptions } from '../../../lib/captionEdits.js';
 import { FONT_OPTIONS, PRESET_STYLES } from './CaptionInspector';
 
 const HOOK_TIER_LABELS = ['แบรนด์', 'รุ่น / จุดเด่น', 'หมวดหมู่ / คำโปรย'];
@@ -157,8 +155,6 @@ export default function OverlayInspector({
   onDeleteOverlay,
 }) {
   const [openTier, setOpenTier] = useState(0);
-  const [textPattern, setTextPattern] = useState({ bold: true, italic: false, underline: false });
-  const [textAlign, setTextAlign] = useState('center');
   const [newTemplateName, setNewTemplateName] = useState('');
   const [isSavingCustom, setIsSavingCustom] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -234,7 +230,9 @@ export default function OverlayInspector({
     };
     const setHookTierText = (tierIdx, text) => {
       if (!hookOverlay) return;
-      onReplaceOverlay?.(hookOverlay.id, withTierText(hookOverlay, tierIdx, text));
+      // One typed line is one undo step (L3-10), per tier.
+      onReplaceOverlay?.(hookOverlay.id, withTierText(hookOverlay, tierIdx, text),
+        typingHistoryOptions(`overlay:${hookOverlay.id}:${tierIdx}`));
     };
     const onHookTemplate = (template) => {
       if (!hookOverlay) return;
@@ -977,7 +975,11 @@ export default function OverlayInspector({
           aria-label="ข้อความเสริม"
           rows={2}
           value={currentText}
-          onChange={(e) => onReplaceOverlay?.(selectedTextOverlay.id, withTierText(selectedTextOverlay, 0, e.target.value))}
+          onChange={(e) => onReplaceOverlay?.(
+            selectedTextOverlay.id,
+            withTierText(selectedTextOverlay, 0, e.target.value),
+            typingHistoryOptions(`overlay:${selectedTextOverlay.id}:0`),
+          )}
           placeholder="พิมพ์ข้อความที่นี่..."
           className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/[0.1] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE] shadow-inner resize-none font-medium leading-relaxed"
         />
@@ -1084,18 +1086,6 @@ export default function OverlayInspector({
           <div className="space-y-1">
             <span className="text-[11px] text-slate-400 font-medium">รูปแบบ:</span>
             <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setTextPattern((p) => ({ ...p, bold: !p.bold }))}
-                className={`flex-1 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                  textPattern.bold
-                    ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
-                    : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
-                }`}
-                title="ตัวหนา"
-              >
-                B
-              </button>
               {(() => {
                 const isItalic = Math.abs(selectedLook.skew || 0) > 0.01;
                 return (
@@ -1113,43 +1103,6 @@ export default function OverlayInspector({
                   </button>
                 );
               })()}
-              <button
-                type="button"
-                onClick={() => setTextPattern((p) => ({ ...p, underline: !p.underline }))}
-                className={`flex-1 py-1 rounded-lg text-xs font-bold underline border transition-all cursor-pointer ${
-                  textPattern.underline
-                    ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
-                    : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
-                }`}
-                title="ขีดเส้นใต้"
-              >
-                U
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-[11px] text-slate-400 font-medium">จัดแนว:</span>
-            <div className="flex items-center gap-1">
-              {[
-                { id: 'left', icon: AlignLeft, title: 'ชิดซ้าย' },
-                { id: 'center', icon: AlignCenter, title: 'กึ่งกลาง' },
-                { id: 'right', icon: AlignRight, title: 'ชิดขวา' },
-              ].map(({ id, icon: Icon, title }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setTextAlign(id)}
-                  className={`flex-1 py-1 rounded-lg text-xs font-bold border transition-all flex items-center justify-center cursor-pointer ${
-                    textAlign === id
-                      ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
-                      : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
-                  }`}
-                  title={title}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                </button>
-              ))}
             </div>
           </div>
         </div>

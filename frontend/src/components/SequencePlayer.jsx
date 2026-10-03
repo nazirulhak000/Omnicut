@@ -13,6 +13,7 @@ import { normalizeSubjectPoints, subjectPointMarkerStyle } from '../lib/subjectP
 import { shouldCaptureSubjectPick, subjectPointFromPickClick } from '../lib/subjectPickGesture.js';
 import { previewPointToSource, sourcePointToPreview } from '../lib/subjectFrameMapping.js';
 import { subjectPromptReference } from '../lib/subjectPromptReference.js';
+import { revealTrackForCue } from '../lib/captionEdits.js';
 import {
   PROXY_POLL_MS, buildingClipIds, isProxyableSource, mergeProxyEntry,
   readProxyResponse, shouldPoll,
@@ -37,7 +38,7 @@ import {
 } from '../lib/overlayModel';
 import {
   buildSegments, totalDuration as totalDurationOf, getDrawPlan as planAt,
-  resolveClipTransforms, localTimeAt, motionTimeAt,
+  resolveClipTransforms, localTimeAt, motionTimeAt, formatTimecode,
 } from '../lib/timelineMath';
 import { DEFAULT_STYLE_PRESET, getStylePreset } from '../lib/stylePresetCatalog.js';
 import { requestOverlayLayout, getCachedOverlayLayout } from '../lib/overlayLayoutClient.js';
@@ -359,6 +360,9 @@ const WATERMARK_ALPHA = 0.4;
 // preview/render contract is 30 FPS, so this caps React state publication at
 // that same rate without changing the audio master clock or Canvas drawing.
 const PLAYHEAD_UI_INTERVAL_MS = 1000 / 30;
+// Playback paints the Canvas once per output frame of the 30 FPS export
+// (FPS in scripts/config.py), not once per display refresh.
+const PREVIEW_PAINT_FPS = 30;
 // How far a stream's decoded currentTime may drift from the master clock
 // before it is pulled back. Hidden <video> elements were measured decoding at
 // ~3-7x real time in this environment (Chromium doesn't pace paint/compositor
@@ -409,6 +413,16 @@ const AUDIO_MIX = {
   SFX_LATE_LIMIT: 0.25,         // a hit later than this is dropped, not rushed
 };
 
+/**
+ * A project's voice/SFX level (Track Mix, L4-05), clamped to [0, 1] exactly
+ * like sfx_manager._clamp_gain; missing or unusable -> the AUDIO_MIX default.
+ */
+function mixBusGain(value, fallback) {
+  if (value === null || value === undefined || value === '' || typeof value === 'boolean') return fallback;
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : fallback;
+}
+
 // Same word list the render uses to decide a transition whoosh starts early.
 const TRANSITION_SFX_WORDS = ['whoosh', 'swish', 'swoosh', 'transition'];
 
@@ -456,6 +470,9 @@ function clipFilter(clip) {
 }
 
 function mirrorFlag(clip) { return !!clip?.mirror; }
+// Passed by canvas box gestures to the update handlers: "silent, the gesture
+// owns the undo step" (L3-10).
+const BOX_GESTURE_LIVE = Object.freeze({ silent: true });
 
 // ---------------------------------------------------------------- transitions
 // Every boundary used to preview as a crossfade, so a wipe, a slide and a
@@ -733,7 +750,10 @@ function drawVideoFrame(ctx, video, clip, motionTime = 0) {
   if (zoom > 1.001) {
     const zw = sw / zoom, zh = sh / zoom;
     const roomX = sw - zw, roomY = sh - zh;
-    const panX = camera.pan_x;
+    // The render flips (hflip) before it crops, so pan_x is a screen-space
+    // direction. This rect is cut from the unflipped source and flipped after,
+    // so a mirrored clip pans the other way here (L2-10).
+    const panX = mirrorFlag(clip) ? -camera.pan_x : camera.pan_x;
     const panY = camera.pan_y;
     sx += (roomX / 2) * (1 + panX);
     sy += (roomY / 2) * (1 + panY);
@@ -852,7 +872,9 @@ function drawIsolatedFrame(ctx, image, clip, motionTime = 0, { includeBackground
   const zoom = camera.zoom;
   if (zoom > 1.001) {
     const zw = sw / zoom; const zh = sh / zoom;
-    sx += ((sw - zw) / 2) * (1 + camera.pan_x);
+    // Same mirror rule as drawVideoFrame: render flips before it crops (L2-10).
+    const panX = clip?.mirror ? -camera.pan_x : camera.pan_x;
+    sx += ((sw - zw) / 2) * (1 + panX);
     sy += ((sh - zh) / 2) * (1 + camera.pan_y);
     sw = zw; sh = zh;
   }
@@ -1625,7 +1647,10 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   // A wrapped caption reveals across its lines, each drawing its own slice of
   // the track; splitRevealByLines returns null if the words do not line up, and
   // the ordinary keyword highlighting takes over.
-  const revealTrack = style.ghostReveal ? cue.word_reveal : null;
+  // The stored track is only drawn while its words still spell cue.text, and
+  // on the cue's own span (L3-02): the render rebuilds it from the current
+  // text and times, so a stale track would light words the export lacks.
+  const revealTrack = style.ghostReveal ? revealTrackForCue(cue.word_reveal, cue) : null;
   const revealLines = (revealTrack && thaiLines.length > 1)
     ? splitRevealByLines(revealTrack, thaiLines)
     : null;
@@ -3611,9 +3636,20 @@ function SequencePlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clipSourceKey, masterPreview]);
 
-  const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}:${JSON.stringify(c.keyframes || [])}`).join('|');
+  // Three keys, split by what a change actually costs (L6-01 / B2):
+  // - clipSourceKey (above): which files are loaded. Only this reloads
+  //   metadata and stops playback.
+  // - clipTimingKey: where each clip sits on the timeline and which source
+  //   second it shows. Re-seeks the paused decoders; playback keeps running
+  //   and the tick's drift correction follows the new timing.
+  // - clipVisualKey: every field of every clip, so no value that changes the
+  //   picture (speed, freeze_tail, fit_mode, bg_blur, ...) can be left out
+  //   of the redraw. Continuous sliders (zoom/pan/colour) only redraw.
+  const clipTimingKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.speed}:${c.freeze_tail}:${c.transition_in}:${c.transition_duration}`).join('|');
+  const clipVisualKey = JSON.stringify(clips);
+  const clipAudioKey = clips.map(c => `${c.id}:${c.source_path}:${c.volume}`).join('|');
   const highResStillKey = JSON.stringify([
-    Math.round(playhead * 30), clipKey, captionKey, cuesKey, overlaysKey, spotlightKey,
+    Math.round(playhead * 30), clipVisualKey, captionKey, cuesKey, overlaysKey, spotlightKey,
     stickerKey, stickersKey, JSON.stringify(effects), JSON.stringify(grade || null),
     activeCutoutMode, JSON.stringify(backgroundIsolation), backgroundIsolationTick,
     lutReady, previewSticker, isStickerHidden, showWatermark, highResRevision,
@@ -3651,6 +3687,7 @@ function SequencePlayer({
     const rect = containerRef.current.getBoundingClientRect();
     const initialNormX = selectedBox.normX;
     const initialNormY = selectedBox.normY;
+    const live = beginBoxGesture();
 
     const onPointerMove = (moveEvt) => {
       const deltaPxX = moveEvt.clientX - startMouseX;
@@ -3665,15 +3702,15 @@ function SequencePlayer({
       const positionPatch = positionPatchForBox(selectedBox.type, roundedX, roundedY);
 
       if (selectedBox.type === 'text_overlay' || selectedBox.type === 'hook') {
-        onUpdateOverlay?.(selectedBox.id, positionPatch);
+        onUpdateOverlay?.(selectedBox.id, positionPatch, live);
       } else if (selectedBox.type === 'sticker') {
-        onUpdateSticker?.(selectedBox.id, positionPatch);
+        onUpdateSticker?.(selectedBox.id, positionPatch, live);
       } else if (selectedBox.type === 'effect') {
-        onUpdateEffect?.(selectedBox.id, positionPatch);
+        onUpdateEffect?.(selectedBox.id, positionPatch, live);
       } else if (selectedBox.type === 'caption') {
         if (applyToAllCaptions && onUpdateAllCaptions) {
           onUpdateAllCaptions(positionPatch, true);
-          onStyleChange?.({ captionX: roundedX, captionY: roundedY });
+          onStyleChange?.({ captionX: roundedX, captionY: roundedY }, live);
         } else {
           onUpdateCaption?.(selectedBox.id, positionPatch, true);
         }
@@ -3683,6 +3720,9 @@ function SequencePlayer({
     const onPointerUp = (upEvt) => {
       cleanupPointerLifecycle();
       setSnapGuide({ x: null, y: null });
+      // Inside an open gesture the final commit is silent too; endDrag below
+      // turns the whole drag into the one undo step.
+      const commitSilently = !!live;
 
       if (selectedBox.type === 'caption' && upEvt) {
         const deltaPxX = upEvt.clientX - startMouseX;
@@ -3694,18 +3734,29 @@ function SequencePlayer({
         );
         const { x: roundedX, y: roundedY } = roundNormalizedPoint(finalPoint.x, finalPoint.y);
         if (applyToAllCaptions && onUpdateAllCaptions) {
-          onUpdateAllCaptions({ x: roundedX, y: roundedY }, false);
-          onStyleChange?.({ captionX: roundedX, captionY: roundedY });
+          onUpdateAllCaptions({ x: roundedX, y: roundedY }, commitSilently);
+          onStyleChange?.({ captionX: roundedX, captionY: roundedY }, live);
         } else {
           onUpdateCaption?.(selectedBox.id, {
             x: roundedX,
             y: roundedY,
-          }, false);
+          }, commitSilently);
         }
       }
+      if (live) onEndDrag?.();
     };
 
     const cleanupPointerLifecycle = bindWindowPointerLifecycle(onPointerMove, onPointerUp);
+  };
+
+  // A move/resize on the canvas is one undo step (L3-10): open the gesture and
+  // hand back the { silent } option every update inside it passes along, so
+  // endDrag pushes the single pre-gesture snapshot. Without the hooks wired
+  // this returns null and each update commits as it did before.
+  const beginBoxGesture = () => {
+    if (!onBeginDrag || !onEndDrag) return null;
+    onBeginDrag();
+    return BOX_GESTURE_LIVE;
   };
 
   const handleResizeStart = (e, corner) => {
@@ -3728,6 +3779,7 @@ function SequencePlayer({
     if (initialDist < 10) return;
     const dirX = dx / initialDist;
     const dirY = dy / initialDist;
+    const live = beginBoxGesture();
 
     const onPointerMove = (moveEvt) => {
       const deltaX = moveEvt.clientX - startMouseX;
@@ -3737,15 +3789,15 @@ function SequencePlayer({
       const scalePatch = scalePatchForBox(selectedBox.type, newScale, selectedBox.item?.look);
 
       if (selectedBox.type === 'text_overlay' || selectedBox.type === 'hook') {
-        onUpdateOverlay?.(selectedBox.id, scalePatch);
+        onUpdateOverlay?.(selectedBox.id, scalePatch, live);
       } else if (selectedBox.type === 'sticker') {
-        onUpdateSticker?.(selectedBox.id, scalePatch);
+        onUpdateSticker?.(selectedBox.id, scalePatch, live);
       } else if (selectedBox.type === 'effect') {
-        onUpdateEffect?.(selectedBox.id, scalePatch);
+        onUpdateEffect?.(selectedBox.id, scalePatch, live);
       } else if (selectedBox.type === 'caption') {
         if (applyToAllCaptions && onUpdateAllCaptions) {
           onUpdateAllCaptions(scalePatch, true);
-          onStyleChange?.({ captionScale: newScale });
+          onStyleChange?.({ captionScale: newScale }, live);
         } else {
           onUpdateCaption?.(selectedBox.id, scalePatch, true);
         }
@@ -3754,6 +3806,7 @@ function SequencePlayer({
 
     const onPointerUp = (upEvt) => {
       cleanupPointerLifecycle();
+      const commitSilently = !!live;
 
       if (selectedBox.type === 'caption' && upEvt) {
         const deltaX = upEvt.clientX - startMouseX;
@@ -3761,12 +3814,13 @@ function SequencePlayer({
         const projectedDelta = deltaX * dirX + deltaY * dirY;
         const newScale = projectOverlayScale(initialScale, projectedDelta, initialDist, selectedBox.type);
         if (applyToAllCaptions && onUpdateAllCaptions) {
-          onUpdateAllCaptions({ scale: newScale }, false);
-          onStyleChange?.({ captionScale: newScale });
+          onUpdateAllCaptions({ scale: newScale }, commitSilently);
+          onStyleChange?.({ captionScale: newScale }, live);
         } else {
-          onUpdateCaption?.(selectedBox.id, { scale: newScale }, false);
+          onUpdateCaption?.(selectedBox.id, { scale: newScale }, commitSilently);
         }
       }
+      if (live) onEndDrag?.();
     };
 
     const cleanupPointerLifecycle = bindWindowPointerLifecycle(onPointerMove, onPointerUp);
@@ -4031,17 +4085,26 @@ function SequencePlayer({
 
   // Load real duration for every clip up front -- segment timing needs it
   // (a clip with trim_end === null trims to "the source's own end").
+  // Keyed on the source files only: a zoom/colour/trim edit does not change
+  // any source's duration, so it must not reload metadata or stop playback.
   useEffect(() => {
+    // Stopping playback here has to stop everything the play path started.
+    // Flipping isPlaying alone froze the picture while the voice/BGM played on.
+    const stopPlayback = () => {
+      Object.values(videoElsRef.current).forEach(v => v?.pause());
+      stopStems();
+      setIsPlaying(false);
+    };
     if (!clips || clips.length === 0) {
       setMetadataReady(false);
-      setIsPlaying(false);
+      stopPlayback();
       publishPlayhead(0, true);
       setDurations({});
       return undefined;
     }
 
     setMetadataReady(false);
-    setIsPlaying(false);
+    stopPlayback();
     let cancelled = false;
 
     const collectDurations = () => {
@@ -4107,13 +4170,31 @@ function SequencePlayer({
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clipKey]);
+  }, [clipSourceKey]);
 
   const segments = useMemo(
     () => buildSegments(clips, durations),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [clipKey, metadataReady, durations]
+    [clipVisualKey, metadataReady, durations]
   );
+
+  // A trim/speed/transition edit moves which source second sits under the
+  // playhead. While paused, put each visible decoder on its new frame (the
+  // video's onSeeked repaints). While playing the tick already hard-seeks
+  // any decoder that drifted, so playback carries on without a stop.
+  const lastTimingKeyRef = useRef(clipTimingKey);
+  useEffect(() => {
+    if (lastTimingKeyRef.current === clipTimingKey) return;
+    lastTimingKeyRef.current = clipTimingKey;
+    if (isPlaying || !metadataReady) return;
+    planAt(segments, playheadRef.current).forEach(({ seg, localTime }) => {
+      const v = videoElsRef.current[seg.clip.id];
+      if (v && Number.isFinite(localTime) && Math.abs(v.currentTime - localTime) > 1 / 60) {
+        try { v.currentTime = localTime; } catch { /* metadata still loading */ }
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clipTimingKey, segments]);
 
   const segmentsByClipId = useMemo(() => {
     const byId = new Map();
@@ -4261,7 +4342,14 @@ function SequencePlayer({
   // copy of the level fights the gain-setting effect right back down.
   const effectiveMutes = effectiveAudioMutes(trackMix);
   const trackAudible = (track) => !effectiveMutes[track];
-  const trackBase = { voice: AUDIO_MIX.VOICE_GAIN, bgm: bgmVolume, sfx: AUDIO_MIX.SFX_GAIN, clip: AUDIO_MIX.CLIP_GAIN };
+  // Voice/SFX follow the project's Track Mix levels (L4-05), the same values
+  // the render's mix stage reads; without them the config defaults apply.
+  const trackBase = {
+    voice: mixBusGain(audioStems?.voiceVolume, AUDIO_MIX.VOICE_GAIN),
+    bgm: bgmVolume,
+    sfx: mixBusGain(audioStems?.sfxVolume, AUDIO_MIX.SFX_GAIN),
+    clip: AUDIO_MIX.CLIP_GAIN,
+  };
   /** Level a bus should sit at right now, mute and solo included. */
   const trackLevel = (track) => (trackAudible(track) ? trackBase[track] : 0);
 
@@ -4546,13 +4634,13 @@ function SequencePlayer({
       nodes[track].gain.setTargetAtTime(trackLevel(track), ctx.currentTime, 0.01);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackKey, bgmVolume]);
+  }, [trackKey, bgmVolume, trackBase.voice, trackBase.sfx]);
 
   // A clip's volume can change while it plays, and a clip can appear or vanish.
   useEffect(() => {
     if (audioCtxRef.current) wireClipAudio();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clipKey]);
+  }, [clipAudioKey]);
 
   // A BGM volume change from the Inspector must be audible without a replay.
   useEffect(() => {
@@ -4767,9 +4855,12 @@ function SequencePlayer({
   }, [highResStillEnabled, isPlaying, segments.length, highResStillKey, playhead, activeCutoutMode, masterPreview, subjectPickMode]);
 
   const lastNotifyRef = useRef(0);
+  const lastPaintedFrameRef = useRef(-1);
 
   useEffect(() => {
     if (!isPlaying || subjectPickMode || segments.length === 0) return;
+    // A restarted loop (play, or an edit mid-playback) paints its first frame.
+    lastPaintedFrameRef.current = -1;
 
     const tick = () => {
       // Audio Master Clock: Lock subtitle and video frames directly to the audio element's playback
@@ -4874,8 +4965,14 @@ function SequencePlayer({
       });
 
       // 4. Glitch-Protected Double-Buffered Rendering
+      // The export is 30 fps, so a 60/120/144 Hz display repainting every
+      // callback redraws the same output frame 2-5 times (L6-03). Audio,
+      // drift correction and SFX above still run every callback; only the
+      // paint waits for the next 30 fps frame. Each paint still draws time `t`
+      // exactly as before, so what a painted frame shows is unchanged.
+      const outputFrame = Math.floor(t * PREVIEW_PAINT_FPS);
       const canvas = canvasRef.current;
-      const ctx = canvas?.getContext('2d');
+      const ctx = outputFrame === lastPaintedFrameRef.current ? null : canvas?.getContext('2d');
       if (ctx) {
         ctx.setTransform(backingScale, 0, 0, backingScale, 0, 0);
         canvas.dataset.previewTime = String(t);
@@ -4941,6 +5038,9 @@ function SequencePlayer({
           drawWatermark(ctx);
         }
         boundsRef.current = bounds;
+        // A frame whose video was not decoded yet is retried next callback
+        // instead of being held blank for the rest of the 33 ms slot.
+        if (framePainted || plan.length === 0) lastPaintedFrameRef.current = outputFrame;
       }
 
       const now = performance.now();
@@ -5136,8 +5236,9 @@ function SequencePlayer({
                 delete videoElsRef.current[c.id];
               }
             }}
-            // Point picking needs the native Master aspect even in smooth mode;
-            // the editing proxy is padded and cannot represent raw pick geometry.
+            // Point picking reads the native Master even in smooth mode; proxies
+            // built before PROXY_VERSION v2 were padded and cannot represent raw
+            // pick geometry, and the Master gives the sharpest frame to pick on.
             // Only the picture
             // source changes: every timing value still comes from the clip's
             // own trim/speed against the master.
@@ -5607,7 +5708,7 @@ function SequencePlayer({
 
               {/* Timecode lives here, over the stage */}
               <div className="pointer-events-none absolute bottom-2 right-2 z-20 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-mono font-bold text-white/90 backdrop-blur-sm">
-                {playhead.toFixed(1)}s / {totalDuration.toFixed(1)}s
+                {formatTimecode(playhead, { frames: true })} / {formatTimecode(totalDuration, { frames: true })}
               </div>
             </>
           )}

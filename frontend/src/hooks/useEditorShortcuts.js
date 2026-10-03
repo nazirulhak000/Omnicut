@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { classifyShortcut, isEditableTarget } from '../lib/editorShortcutKeys.js';
+import { classifyShortcut, isEditableTarget, shouldIgnoreShortcutTarget } from '../lib/editorShortcutKeys.js';
 
 /**
  * Hook to manage timeline keyboard verbs (Space, B, Z, Y, J-K-L, Arrows, Delete).
@@ -30,6 +30,8 @@ export function useEditorShortcuts({
   // the handler is never stale, while the listener is registered only once below.
   useEffect(() => {
     keyHandlerRef.current = (e) => {
+      // A text field keeps every key. A slider/checkbox/button input keeps
+      // everything except undo/redo, decided below once the key is classified.
       if (isEditableTarget(e.target)) return;
 
       // Do not trigger background editor shortcuts if a modal dialog is open
@@ -41,6 +43,7 @@ export function useEditorShortcuts({
       // as 'none' with preventDefault false, so the browser/app keeps them.
       const { action, preventDefault, delta } = classifyShortcut(e, { zen });
       if (action === 'none') return;
+      if (shouldIgnoreShortcutTarget(e.target, action)) return;
       if (preventDefault) e.preventDefault();
 
       const jump = (d) => {

@@ -107,7 +107,10 @@ def _close_to(actual: tuple[float, float], expected: tuple[float, float], label:
 
 @pytest.mark.parametrize('preview_quality', ['master1080', 'smooth540'])
 @pytest.mark.parametrize('camera,expected_prompt', [({}, TARGET),
-    ({'zoom': 2, 'pan_x': 1, 'mirror': True}, (0.85, 0.55))], ids=['identity', 'zoom-pan-mirror'])
+    # The render flips before it crops, so pan_x=1 shows the right half of the
+    # flipped frame: screen x 0.3 is raw x 540 - 540*0.3 = 378 -> 0.35 (L2-10;
+    # this used to expect 0.85, the opposite side of the shot).
+    ({'zoom': 2, 'pan_x': 1, 'mirror': True}, (0.35, 0.55))], ids=['identity', 'zoom-pan-mirror'])
 def test_subject_points_pick_resize_save_reload_clear(app_url, monkeypatch, preview_quality, camera, expected_prompt):
     sync_api = pytest.importorskip("playwright.sync_api")
     from tests.motion_capture.clip_pair import create_clip_source

@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Scissors, Loader2, Check, Sparkles, Save, PanelLeftOpen, PanelLeftClose,
   PanelRightOpen, PanelRightClose, Minimize2, Maximize2, Columns3, RefreshCw, Trash2,
-  Image as ImageIcon, AlertTriangle, BookOpen, Lightbulb, X, Tag,
+  Image as ImageIcon, AlertTriangle, BookOpen, Lightbulb, X, Tag, Keyboard,
 } from 'lucide-react';
 
 import { formatTimecode } from '../../lib/timelineMath.js';
@@ -48,6 +48,7 @@ export default function EditorHeader({
   onOpenCoverStudio,
   showWatermark = true,
   onToggleWatermark,
+  onOpenShortcuts,
 }) {
   const [showPlaybookModal, setShowPlaybookModal] = React.useState(false);
   const playbookNotes = React.useMemo(() => loadPlaybookNotes(), [showPlaybookModal]);
@@ -80,8 +81,8 @@ export default function EditorHeader({
         {projectName && (
           <div className="flex items-center gap-2">
             <span className="flex-shrink-0 font-mono text-sm font-bold text-slate-400">
-              <span className="text-[#E89274]">{formatTimecode(playhead)}</span>
-              <span className="hidden sm:inline"> / {formatTimecode(Math.max(totalDuration, audioDuration))}</span>
+              <span className="text-[#E89274]">{formatTimecode(playhead, { frames: true })}</span>
+              <span className="hidden sm:inline"> / {formatTimecode(Math.max(totalDuration, audioDuration), { frames: true })}</span>
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-400 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]">
               {saveStatus === 'saving' ? (
@@ -172,6 +173,13 @@ export default function EditorHeader({
               icon: Columns3,
               disabled: !projectName,
               onSelect: resetPanelSizes,
+            },
+            {
+              id: 'shortcuts',
+              label: 'ดูคีย์ลัด',
+              icon: Keyboard,
+              disabled: !onOpenShortcuts,
+              onSelect: onOpenShortcuts,
             },
             {
               id: 'reload',

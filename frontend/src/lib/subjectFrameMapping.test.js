@@ -16,6 +16,17 @@ test('inverse prompts account for zoom/pan/mirror rather than display coordinate
   close(previewPointToSource({ x: 0.2, y: 0.8 }, { ...vertical, clip: { rotation: 180 } }), { x: 0.8, y: 0.2 });
 });
 
+test('a mirrored, zoomed and panned pick lands where the render shows it (L2-10)', () => {
+  // Render: hflip, then a zoom-2 window panned fully right of the flipped
+  // frame -- screen x u shows raw x 540 - 540u. Pan is a screen direction.
+  const options = { ...vertical, clip: { zoom: 2, pan_x: 1, mirror: true } };
+  close(previewPointToSource({ x: 0.25, y: 0.5 }, options), { x: 0.375, y: 0.5 });
+  close(previewPointToSource({ x: 0.75, y: 0.5 }, options), { x: 0.125, y: 0.5 });
+  close(sourcePointToPreview({ x: 0.375, y: 0.5 }, options), { x: 0.25, y: 0.5 });
+  // Unmirrored, the same pan shows the right half of the raw frame.
+  close(previewPointToSource({ x: 0.25, y: 0.5 }, { ...vertical, clip: { zoom: 2, pan_x: 1 } }), { x: 0.625, y: 0.5 });
+});
+
 test('landscape cover-fit picks become worker letterbox points', () => {
   const options = { sourceWidth: 1920, sourceHeight: 1080 };
   // Preview left/right edges are center-cropped raw source, not raw 0 and 1.

@@ -24,7 +24,8 @@ const MAX_STEPS = 50;
  * Slider-style bursts can opt into coalescing with set(updater, { coalesceKey }):
  * consecutive sets with the same key, each within COALESCE_WINDOW_MS of the
  * previous one, share the single undo step pushed by the first set. Undo then
- * returns to the state before the first change of the burst.
+ * returns to the state before the first change of the burst. A set may pass
+ * { coalesceWindowMs } to widen the window for its own burst.
  */
 export const COALESCE_WINDOW_MS = 400;
 
@@ -61,11 +62,15 @@ export function createEditorHistoryModel(initialState, options = {}) {
       const key = setOptions && setOptions.coalesceKey;
       const hasKey = key !== undefined && key !== null;
       const at = hasKey ? now() : 0;
+      // A burst may ask for a wider window than a slider's (typing a caption).
+      const windowMs = Number.isFinite(setOptions && setOptions.coalesceWindowMs)
+        ? setOptions.coalesceWindowMs
+        : coalesceWindowMs;
       if (
         hasKey
         && lastCoalesce
         && lastCoalesce.key === key
-        && at - lastCoalesce.at <= coalesceWindowMs
+        && at - lastCoalesce.at <= windowMs
         && undoStack.length > 0
       ) {
         // Same burst: keep the existing pre-burst undo entry, only advance state.

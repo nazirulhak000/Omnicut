@@ -295,16 +295,82 @@ export function resizeTrimWindow(edge, clip, deltaSource, srcDur) {
   return { trim_start: Math.round(trimStart * 100) / 100, trim_end: Math.round(next * 100) / 100 };
 }
 
-/** 00:04.2 style timecode (mm:ss.tenths). */
-export function formatTimecode(seconds) {
-  const s = Math.max(0, seconds || 0);
+/**
+ * 00:04.2 style timecode (mm:ss.tenths). With `{ frames: true }` it is the
+ * frame-accurate form mm:ss:ff (ff = frame 0..fps-1), which is what a cut has
+ * to be read against: one second is 30 frames, so tenths can hide ~3 frames.
+ */
+export function formatTimecode(seconds, { frames = false, fps = FPS } = {}) {
+  const s = Math.max(0, Number.isFinite(Number(seconds)) ? Number(seconds) : 0);
+  if (frames) {
+    // Round to the nearest frame first so 4.2 (= 126 frames) never prints as
+    // frame 125 because of float error, and ff can never reach `fps`.
+    const total = Math.round(s * fps);
+    const perMinute = 60 * fps;
+    const mm = Math.floor(total / perMinute);
+    const ss = Math.floor((total % perMinute) / fps);
+    const ff = total % fps;
+    return [mm, ss, ff].map((n) => String(n).padStart(2, '0')).join(':');
+  }
   const m = Math.floor(s / 60);
   const rest = s - m * 60;
   return `${String(m).padStart(2, '0')}:${rest.toFixed(1).padStart(4, '0')}`;
 }
 
-export function frameStep(direction = 1) {
-  return direction / FPS;
+/**
+ * Round a time (seconds) to the nearest whole frame. The value stays a plain
+ * float number of seconds -- the renderer reads seconds, not frame counts --
+ * it is only quantised so the editor never lands between two frames.
+ */
+export function snapToFrame(seconds, fps = FPS) {
+  const s = Number(seconds);
+  if (!Number.isFinite(s)) return 0;
+  // `+ 0` turns -0 into 0 so a snapped time never prints or compares as -0.
+  return Math.round(s * fps) / fps + 0;
+}
+
+/**
+ * Frame-snap a playhead seek. A seek that lands on a clip's first instant must
+ * never round BEFORE that clip (the previous clip would then be the one under
+ * the playhead), so those use the first frame at or after the clip start.
+ */
+export function snapSeekTime(seconds, segments = [], fps = FPS) {
+  const s = Number(seconds);
+  if (!Number.isFinite(s)) return 0;
+  const isClipStart = segments.some((seg) => Math.abs(seg.segStart - s) < 1e-6);
+  if (isClipStart) return Math.ceil(s * fps - 1e-6) / fps + 0;
+  return snapToFrame(s, fps);
+}
+
+/**
+ * Which clip a Split would cut, and where. Single source of truth for BOTH the
+ * split command and the toolbar button's enabled state, so the button can
+ * never promise a cut the command then silently refuses.
+ *
+ * Order: the selected clip if the (frame-snapped) playhead is inside it, else
+ * the clip under the playhead. Returns { seg, time } on success, otherwise
+ * { seg: null, time, message } where `message` says why in plain Thai.
+ */
+export function resolveSplitTarget(segments, selectedSeg, playhead, fps = FPS) {
+  const time = snapToFrame(playhead, fps);
+  const cuttable = (seg) => !!seg
+    && time > seg.segStart + MIN_CLIP_DURATION
+    && time < seg.segEnd - MIN_CLIP_DURATION;
+
+  if (cuttable(selectedSeg)) return { seg: selectedSeg, time };
+  const under = (segments || []).find(cuttable);
+  if (under) return { seg: under, time };
+
+  const edgeSeg = (segments || []).find((seg) => time >= seg.segStart && time <= seg.segEnd);
+  let message;
+  if (!segments || segments.length === 0) {
+    message = 'ยังไม่มีคลิปบน Timeline ให้แยก';
+  } else if (edgeSeg) {
+    message = `หัวอ่านอยู่ใกล้ขอบคลิปเกินไป ต้องห่างขอบอย่างน้อย ${MIN_CLIP_DURATION} วินาที จึงจะแยกได้`;
+  } else {
+    message = 'หัวอ่านไม่ได้อยู่บนคลิปวิดีโอ เลื่อนหัวอ่านไปบนคลิปที่ต้องการแยกก่อน';
+  }
+  return { seg: null, time, message };
 }
 
 /**

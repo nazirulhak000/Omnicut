@@ -7,6 +7,7 @@ import {
 } from './productCallout.js';
 import { FADE_DURATION } from './timelineMath.js';
 import { effectiveAudioMutes } from './trackMix.js';
+import { busVolumesFromManifest, clampBusVolume, SFX_VOLUME_DEFAULT, VOICE_VOLUME_DEFAULT } from './audioBusLevels.js';
 
 export { normalizeBackgroundIsolation };
 
@@ -138,6 +139,7 @@ export function manifestToEditorState(data, options = {}) {
     stickerBadge: firstPresent(manifest.sticker_badge, params.sticker_badge, savedStyle.sticker_badge, savedStyle.stickerBadge, null),
     bgmVolume: Number(firstPresent(manifest.bgm_volume, params.bgm_volume, savedStyle.bgm_volume, savedStyle.bgmVolume, 0.12)),
     bgmDucking: !!firstPresent(manifest.bgm_ducking, params.bgm_ducking, savedStyle.bgm_ducking, savedStyle.bgmDucking, false),
+    ...busVolumesFromManifest(manifest, savedStyle),
     captionPosition: firstPresent(manifest.caption_position, params.caption_position, savedStyle.caption_position, savedStyle.captionPosition, 'bottom'),
     captionColor: firstPresent(manifest.caption_color, params.caption_color, savedStyle.caption_color, savedStyle.captionColor, '#FFFFFF'),
     captionScale,
@@ -308,6 +310,8 @@ export function serializeStyle(style = {}) {
     bgm_name: style.bgmName || null,
     bgm_volume: style.bgmVolume ?? 0.12,
     bgm_ducking: !!style.bgmDucking,
+    voice_volume: clampBusVolume(style.voiceVolume, VOICE_VOLUME_DEFAULT),
+    sfx_volume: clampBusVolume(style.sfxVolume, SFX_VOLUME_DEFAULT),
     lut_name: style.lutName || null,
     lut_intensity: style.lutIntensity ?? 1,
     sticker_badge: style.stickerBadge || null,

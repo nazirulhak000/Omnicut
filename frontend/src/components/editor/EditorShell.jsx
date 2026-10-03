@@ -16,12 +16,13 @@ import {
   describePlan, planChangesAnything, planSilenceRipple,
 } from '../../lib/silenceRipple.js';
 import {
-  FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
+  FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, resolveSplitTarget, snapSeekTime, splitClipAt, snapCandidates, snapTime,
   totalDuration as totalDurationOf,
 } from '../../lib/timelineMath';
 import { useEditorHistory } from '../../hooks/useEditorHistory';
 import { useProjectAutosave } from '../../hooks/useProjectAutosave';
-import { rememberProjectRevision } from '../../lib/projectRevision.js';
+import { getProjectRevision, rememberProjectRevision } from '../../lib/projectRevision.js';
+import { POST_RENDER_ACTIONS, decidePostRenderSync, fetchSettledProject } from '../../lib/postRenderRevision.js';
 import { useProjectLoader } from '../../hooks/useProjectLoader';
 import { useRenderJob } from '../../hooks/useRenderJob';
 import { usePanelLayout } from '../../hooks/usePanelLayout';
@@ -31,12 +32,14 @@ import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
 import { toMediaUrl } from '../../lib/mediaUrl';
 import { editorStateToSavePayload, manifestToEditorState, serializeRenderClips, serializeRenderFeatures } from '../../lib/editorProjectState';
 import { AUDIO_TRACKS, effectiveAudioMutes } from '../../lib/trackMix.js';
+import { clampBusVolume, SFX_VOLUME_DEFAULT, VOICE_VOLUME_DEFAULT } from '../../lib/audioBusLevels.js';
 import {
   normalizeStylePreset,
   stylePresetFromManifest,
   withStylePresetPayload,
 } from '../../lib/stylePresetCatalog.js';
 import { removeItemById, updateItemById } from '../../lib/collectionOperations.js';
+import { cameraKeyframeSummary, clearCameraMotionPatch } from '../../lib/inspectorModel.js';
 import { getOverlayRecolorMetadata } from '../../lib/overlayRecolor.js';
 import {
   backgroundIsolationWindowContainsClip,
@@ -86,6 +89,8 @@ import { ActivityIndicatorButton } from '../ActivityCenter';
 import { useTaskManager } from '../../context/TaskContext';
 import HeaderMenu from './HeaderMenu';
 import RenderButton from './RenderButton';
+import MixDegradedNotice from './MixDegradedNotice';
+import ProjectRevisionNotice from './ProjectRevisionNotice';
 
 function formatErrorText(err) {
   if (!err) return '';
@@ -170,7 +175,7 @@ const LEGACY_SFX_ALIASES = {
   boom: 'sfx_vine_boom',
 };
 
-const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], spotlight: null, backgroundIsolation: null, trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review', showWatermark: true } };
+const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], spotlight: null, backgroundIsolation: null, trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, voiceVolume: VOICE_VOLUME_DEFAULT, sfxVolume: SFX_VOLUME_DEFAULT, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review', showWatermark: true } };
 
 const DEFAULT_EDITOR_SPOTLIGHT = Object.freeze({
   schema_version: 1,
@@ -195,6 +200,7 @@ export default function EditorShell({
   onVideoUploaded,
   onProductContextChange,
   workspaceData,
+  onOpenShortcuts,
 }) {
   const { state, set, setSilent, beginDrag, endDrag, undo, redo, reset, canUndo, canRedo } = useEditorHistory(EMPTY);
   const { clipList, cuesList, style, overlays, stickers = [], effects = [], spotlight = null, backgroundIsolation = null, trackMix = { mute: {}, solo: {} } } = state;
@@ -335,6 +341,13 @@ export default function EditorShell({
   const [zen, setZen] = useState(false);
   const [confirmGap, setConfirmGap] = useState(0);
   const pendingRenderBaseline = useRef(null);
+  // Set further down once the loader exists: re-reads the project after a
+  // render so the remembered save revision can catch up safely (L7-04).
+  const syncAfterRenderRef = useRef(null);
+  // 'conflict' (a save got 409) | 'render-dirty' (render rewrote the project
+  // while edits were unsaved) | null. Nothing is replaced until the user asks.
+  const [revisionNotice, setRevisionNotice] = useState(null);
+  const [revisionReloading, setRevisionReloading] = useState(false);
 
   const handleRenderComplete = useCallback((rawResult, id, targetProject) => {
     const pending = pendingRenderBaseline.current;
@@ -345,6 +358,7 @@ export default function EditorShell({
       cuesDirty.current = false;
       pendingRenderBaseline.current = null;
     }
+    syncAfterRenderRef.current?.(targetProject, { allowReload: true });
     if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
       try {
         const vPath = rawResult?.mp4 || rawResult?.final_video_path || rawResult?.video_path || '';
@@ -359,6 +373,9 @@ export default function EditorShell({
       && pendingRenderBaseline.current?.projectName === targetProject) {
       pendingRenderBaseline.current = null;
     }
+    // A failed render may still have written part of the manifest. Catch up
+    // only when nothing the editor owns changed; otherwise ask the user.
+    syncAfterRenderRef.current?.(targetProject, { allowReload: false });
     if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
       try {
         updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'scripted')
@@ -493,19 +510,22 @@ export default function EditorShell({
     setSaveStatus('dirty');
   }, []);
 
-  const handleUpdateOverlay = useCallback((id, patch) => {
-    set((s) => ({
+  // `options` (L3-10): { silent: true } for a canvas drag between
+  // beginDrag/endDrag (one undo step per drag), or { coalesceKey } so typing
+  // shares one undo step. Omitted, every call is its own step as before.
+  const handleUpdateOverlay = useCallback((id, patch, options) => {
+    (options?.silent ? setSilent : set)((s) => ({
       ...s,
       overlays: s.overlays.map((o) => (o.id === id ? { ...o, ...patch } : o)),
-    }));
+    }), options);
     markOverlaysDirty();
-  }, [set, markOverlaysDirty]);
+  }, [set, setSilent, markOverlaysDirty]);
 
   /** Replace one overlay wholesale, for the withX helpers in overlayModel. */
-  const handleReplaceOverlay = useCallback((id, next) => {
-    set((s) => ({ ...s, overlays: s.overlays.map((o) => (o.id === id ? next : o)) }));
+  const handleReplaceOverlay = useCallback((id, next, options) => {
+    (options?.silent ? setSilent : set)((s) => ({ ...s, overlays: s.overlays.map((o) => (o.id === id ? next : o)) }), options);
     markOverlaysDirty();
-  }, [set, markOverlaysDirty]);
+  }, [set, setSilent, markOverlaysDirty]);
 
   const handleAddOverlay = useCallback((overlay, select = true) => {
     set((s) => ({ ...s, overlays: [...s.overlays, overlay] }));
@@ -655,7 +675,7 @@ export default function EditorShell({
   // Music lives in the mix, not the video pass. Apply has to ask for the
   // "bgm" re-roll when any of it changed, or the render happily reuses the
   // old mixed_audio.wav and the new track is silently ignored.
-  const loadedAudioStyle = useRef({ bgmName: null, bgmVolume: 0.12, bgmDucking: false });
+  const loadedAudioStyle = useRef({ bgmName: null, bgmVolume: 0.12, bgmDucking: false, voiceVolume: VOICE_VOLUME_DEFAULT, sfxVolume: SFX_VOLUME_DEFAULT });
   const loadedAudioMutes = useRef({});
   // Caption look is baked into the .ass, which the "video" part reuses -- so a
   // caption style change has to ask for the subtitles part instead.
@@ -684,11 +704,14 @@ export default function EditorShell({
     flush: flushAutosave,
     saveNow: handleManualSave,
     setBaseline: setSaveBaseline,
+    saveConflict,
+    hasUnsavedWork,
   } = useProjectAutosave({
     projectName,
     payload: projectSavePayload,
     enabled: !!projectName && isLoadedRef.current,
     saveProject: updateProjectState,
+    unsavedAtRisk: revisionNotice !== null,
   });
 
   const mapProject = useCallback((manifest) => manifestToEditorState(manifest, {
@@ -731,6 +754,8 @@ export default function EditorShell({
       bgmName: loadedEditorState.style.bgmName,
       bgmVolume: loadedEditorState.style.bgmVolume,
       bgmDucking: loadedEditorState.style.bgmDucking,
+      voiceVolume: loadedEditorState.style.voiceVolume,
+      sfxVolume: loadedEditorState.style.sfxVolume,
     };
     loadedAudioMutes.current = manifest?.audio_mutes || effectiveAudioMutes(loadedEditorState.trackMix);
     pendingRenderBaseline.current = null;
@@ -783,12 +808,98 @@ export default function EditorShell({
     onLoaded: applyLoadedProject,
   });
 
+  // ── Revision catch-up after a render (L7-04) ──
+  // The pipeline rewrites the manifest, so the server revision moves on while
+  // this editor still holds the one it loaded. Catch up only when that cannot
+  // hide anyone's work: see lib/postRenderRevision.js for the decision.
+  const syncInputsRef = useRef({});
+  syncInputsRef.current = { projectName, projectSavePayload, saveStatus, hasUnsavedWork };
+  const manifestToSavePayload = useCallback((manifest) => {
+    const loaded = mapProject(manifest);
+    const preset = stylePresetFromManifest(manifest, loaded.style);
+    return withStylePresetPayload(
+      editorStateToSavePayload({ ...loaded, style: { ...loaded.style, style_preset: preset } }),
+      preset,
+    );
+  }, [mapProject]);
+  const isEditorClean = () => syncInputsRef.current.saveStatus === 'saved'
+    && !syncInputsRef.current.hasUnsavedWork();
+  const reloadProjectFromServer = useCallback(async (name) => {
+    // Let an in-flight or queued save settle first. With a stale revision the
+    // server refuses it (409), so it cannot overwrite the newer project.
+    await flushAutosave().catch(() => {});
+    const manifest = await getProject(name);
+    if (syncInputsRef.current.projectName !== name) return false;
+    setSelection(null);
+    applyLoadedProject(name, mapProject(manifest), manifest);
+    setRevisionNotice(null);
+    return true;
+    // `setSelection` comes from useEditorSelection further down. A deps entry is
+    // read while rendering, before that declaration exists (temporal dead zone);
+    // the call above runs later, so the closure reaches the initialised binding.
+  }, [applyLoadedProject, flushAutosave, mapProject]);
+  syncAfterRenderRef.current = async (targetProject, { allowReload }) => {
+    const name = syncInputsRef.current.projectName;
+    if (!name || name !== targetProject) return;
+    const revisionAtStart = getProjectRevision(name);
+    const manifest = await fetchSettledProject(() => getProject(name));
+    // One tick for an edit made during the fetch to reach the autosave queue.
+    await wait(50);
+    const decide = () => decidePostRenderSync({
+      fetchOk: !!manifest,
+      manifest,
+      projectName: syncInputsRef.current.projectName,
+      targetProject,
+      revisionAtStart,
+      revisionNow: getProjectRevision(name),
+      editorClean: isEditorClean(),
+      currentPayload: syncInputsRef.current.projectSavePayload,
+      toPayload: manifestToSavePayload,
+      allowReload,
+    });
+    let decision = decide();
+    // Re-check synchronously right before replacing editor state.
+    if (decision.action === POST_RENDER_ACTIONS.RELOAD) {
+      const again = decide();
+      if (again.action !== POST_RENDER_ACTIONS.RELOAD) decision = again;
+    }
+    if (decision.action === POST_RENDER_ACTIONS.REMEMBER) {
+      rememberProjectRevision(name, decision.revision);
+    } else if (decision.action === POST_RENDER_ACTIONS.NOTIFY) {
+      setRevisionNotice('render-dirty');
+    } else if (decision.action === POST_RENDER_ACTIONS.RELOAD) {
+      setSelection(null);
+      applyLoadedProject(name, mapProject(manifest), manifest);
+    }
+  };
+  useEffect(() => {
+    if (saveConflict) setRevisionNotice('conflict');
+  }, [saveConflict]);
+  useEffect(() => {
+    setRevisionNotice(null);
+  }, [projectName]);
+  const handleRevisionReload = useCallback(async () => {
+    if (!projectName) return;
+    setRevisionReloading(true);
+    try {
+      await reloadProjectFromServer(projectName);
+    } catch (err) {
+      setLoadError(formatErrorText(err));
+    } finally {
+      setRevisionReloading(false);
+    }
+  }, [projectName, reloadProjectFromServer, setLoadError]);
+
+  // Latest layout for seekPlayer, which is declared before `segments` exists.
+  const seekSegmentsRef = useRef([]);
+  // Every seek lands on a whole 30 fps frame (stored value is still seconds).
   const seekPlayer = useCallback((t) => {
-    setPlayhead(t);
+    const frameTime = snapSeekTime(t, seekSegmentsRef.current);
+    setPlayhead(frameTime);
     if (isMobileView) {
-      mobilePlayerRef.current?.seek(t);
+      mobilePlayerRef.current?.seek(frameTime);
     } else {
-      desktopPlayerRef.current?.seek(t);
+      desktopPlayerRef.current?.seek(frameTime);
     }
   }, [isMobileView]);
 
@@ -926,6 +1037,7 @@ export default function EditorShell({
 
   const segments = useMemo(() => buildSegments(clipList, durations), [clipList, durations]);
   const totalDuration = useMemo(() => totalDurationOf(segments), [segments]);
+  useEffect(() => { seekSegmentsRef.current = segments; }, [segments]);
 
   const {
     selection,
@@ -946,6 +1058,7 @@ export default function EditorShell({
   const {
     addClip,
     patchClip,
+    patchAllClips,
     reorderClip,
     splitAtPlayhead,
     duplicateSelected,
@@ -977,6 +1090,7 @@ export default function EditorShell({
     cuesDirtyRef: cuesDirty,
     handleDeleteOverlay,
     onImportSuccess: () => setMobileTab('timeline'),
+    onNotify: (msg) => showToast(msg),
   });
 
   useEditorShortcuts({
@@ -1020,10 +1134,17 @@ export default function EditorShell({
 
   const pxPerSec = ZOOM_LEVELS[zoomIndex];
 
+  // Split button state comes from the same resolver the Split command runs.
+  const splitTarget = useMemo(
+    () => resolveSplitTarget(segments, selectedSeg, playhead),
+    [segments, selectedSeg, playhead],
+  );
+
   const hasTransformOverride = !!selectedSeg?.clip && (
     (selectedSeg.clip.zoom !== undefined && selectedSeg.clip.zoom !== 1) ||
     (selectedSeg.clip.pan_x !== undefined && selectedSeg.clip.pan_x !== 0) ||
-    (selectedSeg.clip.pan_y !== undefined && selectedSeg.clip.pan_y !== 0)
+    (selectedSeg.clip.pan_y !== undefined && selectedSeg.clip.pan_y !== 0) ||
+    cameraKeyframeSummary(selectedSeg.clip).points > 0
   );
   // Scan the voiceover for dead air and propose a ripple cut. Nothing is
   // applied here: the plan is shown first, because a ripple delete moves every
@@ -1070,7 +1191,14 @@ export default function EditorShell({
 
   const handleResetClipTransform = useCallback(() => {
     if (!selectedSeg?.clip) return;
-    patchClip(selectedSeg.clip.id, { zoom: 1, pan_x: 0, pan_y: 0 });
+    // Camera keyframes beat the static zoom/pan, so they go too -- otherwise
+    // this reset would leave the clip moving.
+    patchClip(selectedSeg.clip.id, {
+      zoom: 1,
+      pan_x: 0,
+      pan_y: 0,
+      ...(cameraKeyframeSummary(selectedSeg.clip).points > 0 ? clearCameraMotionPatch(selectedSeg.clip) : {}),
+    });
   }, [selectedSeg?.clip, patchClip]);
 
   // Beat grid follows whichever BGM the project is using. Analysis is cached
@@ -1210,7 +1338,8 @@ export default function EditorShell({
     setSelection({ type: 'sticker', id: newSticker.id });
   }, [playhead, totalDuration, set]);
 
-  const handleUpdateSticker = useCallback((idOrPatch, maybePatch) => {
+  // `options` as in handleUpdateOverlay: { silent: true } inside a canvas drag.
+  const handleUpdateSticker = useCallback((idOrPatch, maybePatch, options) => {
     let id = null;
     let patch = {};
     if (typeof idOrPatch === 'string') {
@@ -1225,7 +1354,7 @@ export default function EditorShell({
       }
     }
 
-    set((prev) => {
+    (options?.silent ? setSilent : set)((prev) => {
       const currentList = prev.stickers || [];
       const targetId = id || selection?.id;
       if (!targetId || !currentList.some((s) => s.id === targetId)) {
@@ -1245,8 +1374,8 @@ export default function EditorShell({
           ...(patch.badge ? { stickerBadge: patch.badge } : {}),
         },
       };
-    });
-  }, [set, selection]);
+    }, options);
+  }, [set, setSilent, selection]);
 
   const handleDeleteSticker = useCallback((id) => {
     set((prev) => {
@@ -1322,7 +1451,7 @@ export default function EditorShell({
     setSelection({ type: 'effect', id: newId });
   }, [playhead, totalDuration, set]);
 
-  const handleUpdateEffect = useCallback((idOrPatch, maybePatch) => {
+  const handleUpdateEffect = useCallback((idOrPatch, maybePatch, options) => {
     let id = null;
     let patch = {};
     if (typeof idOrPatch === 'string') {
@@ -1332,13 +1461,13 @@ export default function EditorShell({
       id = idOrPatch.id || null;
       patch = idOrPatch;
     }
-    set((prev) => {
+    (options?.silent ? setSilent : set)((prev) => {
       const currentList = prev.effects || [];
       const targetId = id || selection?.id;
       const nextList = updateItemById(currentList, targetId, patch);
       return { ...prev, effects: nextList };
-    });
-  }, [set, selection]);
+    }, options);
+  }, [set, setSilent, selection]);
 
   const handleDeleteEffect = useCallback((id) => {
     set((prev) => {
@@ -1424,9 +1553,10 @@ export default function EditorShell({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleManualSave]);
 
-  const patchStyle = useCallback((patch) => {
-    set((prev) => ({ ...prev, style: { ...prev.style, ...patch } }));
-  }, [set]);
+  // `options` as in handleUpdateOverlay: { silent: true } inside a canvas drag.
+  const patchStyle = useCallback((patch, options) => {
+    (options?.silent ? setSilent : set)((prev) => ({ ...prev, style: { ...prev.style, ...patch } }), options);
+  }, [set, setSilent]);
 
   const patchSpotlight = useCallback((patch) => {
     set((prev) => {
@@ -1828,6 +1958,8 @@ export default function EditorShell({
     const audioDirty = (style.bgmName ?? null) !== (base.bgmName ?? null)
       || (style.bgmVolume ?? 0.12) !== (base.bgmVolume ?? 0.12)
       || !!style.bgmDucking !== !!base.bgmDucking
+      || clampBusVolume(style.voiceVolume, VOICE_VOLUME_DEFAULT) !== clampBusVolume(base.voiceVolume, VOICE_VOLUME_DEFAULT)
+      || clampBusVolume(style.sfxVolume, SFX_VOLUME_DEFAULT) !== clampBusVolume(base.sfxVolume, SFX_VOLUME_DEFAULT)
       || AUDIO_TRACKS.some((track) => !!audioMutes[track] !== !!baselineMutes[track]);
 
     const capBase = loadedCaptionStyle.current;
@@ -1894,6 +2026,8 @@ export default function EditorShell({
           bgmName: style.bgmName ?? null,
           bgmVolume: style.bgmVolume ?? 0.12,
           bgmDucking: !!style.bgmDucking,
+          voiceVolume: clampBusVolume(style.voiceVolume, VOICE_VOLUME_DEFAULT),
+          sfxVolume: clampBusVolume(style.sfxVolume, SFX_VOLUME_DEFAULT),
         },
         audioMutes,
         captionStyle: {
@@ -1908,6 +2042,7 @@ export default function EditorShell({
       pendingRenderBaseline.current = null;
       stopJob();
       setApplyError(formatErrorText(err));
+      if (err?.response?.status === 409) setRevisionNotice('conflict');
     }
   };
 
@@ -2004,8 +2139,12 @@ export default function EditorShell({
           }
         : null,
       sfx: sfxShots,
+      // Track Mix levels (L4-05): the same clamped values the save payload
+      // sends to the render's mix stage.
+      voiceVolume: clampBusVolume(style.voiceVolume, VOICE_VOLUME_DEFAULT),
+      sfxVolume: clampBusVolume(style.sfxVolume, SFX_VOLUME_DEFAULT),
     };
-  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, assets.music, assets.sfx, cuesList, overlays]);
+  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, style.voiceVolume, style.sfxVolume, assets.music, assets.sfx, cuesList, overlays]);
 
   // The colour grade the preview should show, resolved the same way the
   // renderer resolves it (registry id or filename -- see resolve_lut_path).
@@ -2105,6 +2244,7 @@ export default function EditorShell({
         onOpenCoverStudio={openCoverStudioManually}
         showWatermark={style.showWatermark !== false}
         onToggleWatermark={(val) => patchStyle({ showWatermark: val })}
+        onOpenShortcuts={onOpenShortcuts}
       />
 
       {loadError && projectName && (
@@ -2112,6 +2252,13 @@ export default function EditorShell({
           <AlertCircle className="h-3.5 w-3.5" />{loadError}
         </div>
       )}
+
+      <ProjectRevisionNotice
+        kind={projectName ? revisionNotice : null}
+        reloading={revisionReloading}
+        onReload={handleRevisionReload}
+        onDismiss={() => setRevisionNotice(null)}
+      />
 
       {/* Confirm before a ripple cut. The plan is already computed, so this
           shows exactly what will happen -- how many clips, and how much
@@ -2489,6 +2636,7 @@ export default function EditorShell({
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
+                  <MixDegradedNotice result={applyResult} />
                   <div className="flex gap-1.5 pt-0.5">
                     {(applyResult.video_url || applyResult.mp4_video) && (
                       <button
@@ -2585,7 +2733,8 @@ export default function EditorShell({
                   hasClipSelected={!!selectedSeg}
                   hasSelection={!!selection}
                   selectedClip={selectedSeg?.clip}
-                  canSplit={!!selectedSeg || segments.some((s) => playhead >= s.segStart + 0.2 && playhead <= s.segEnd - 0.2)}
+                  canSplit={!!splitTarget.seg}
+                  splitBlockedReason={splitTarget.message}
                   canUndo={canUndo}
                   canRedo={canRedo}
                   onUndo={undo}
@@ -2791,7 +2940,9 @@ export default function EditorShell({
                       onToggleHookHeader={handleEnsureHookOverlay}
                       onAddTextAtPlayhead={addTextAtPlayhead}
                       onStyleChange={patchStyle}
-                      onClipChange={(patch) => selectedSeg && patchClip(selectedSeg.clip.id, patch)}
+                      onClipChange={(patch, options) => selectedSeg && patchClip(selectedSeg.clip.id, patch, false, options)}
+                      clipList={clipList}
+                      onPatchAllClips={patchAllClips}
                       onCaptionChange={(cueUid, patch) => patchCaption(cueUid, patch)}
                       applyToAll={applyToAllCaptions}
                       onToggleApplyToAll={setApplyToAllCaptions}
@@ -3061,6 +3212,7 @@ export default function EditorShell({
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </div>
+                    <MixDegradedNotice result={applyResult} />
                     <div className="flex gap-2">
                       {(applyResult.video_url || applyResult.mp4_video) && (
                         <button
@@ -3158,7 +3310,9 @@ export default function EditorShell({
                         onToggleHookHeader={handleEnsureHookOverlay}
                         onAddTextAtPlayhead={addTextAtPlayhead}
                         onStyleChange={patchStyle}
-                        onClipChange={(patch) => selectedSeg && patchClip(selectedSeg.clip.id, patch)}
+                        onClipChange={(patch, options) => selectedSeg && patchClip(selectedSeg.clip.id, patch, false, options)}
+                        clipList={clipList}
+                        onPatchAllClips={patchAllClips}
                         onCaptionChange={(cueUid, patch) => patchCaption(cueUid, patch)}
                         applyToAll={applyToAllCaptions}
                         onToggleApplyToAll={setApplyToAllCaptions}
@@ -3235,7 +3389,8 @@ export default function EditorShell({
                   hasClipSelected={!!selectedSeg}
                   hasSelection={!!selection}
                   selectedClip={selectedSeg?.clip}
-                  canSplit={!!selectedSeg || segments.some((s) => playhead >= s.segStart + 0.2 && playhead <= s.segEnd - 0.2)}
+                  canSplit={!!splitTarget.seg}
+                  splitBlockedReason={splitTarget.message}
                   canUndo={canUndo}
                   canRedo={canRedo}
                   onUndo={undo}

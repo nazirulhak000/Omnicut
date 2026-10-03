@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { FlipHorizontal2, Gauge, RotateCw, Volume2 } from 'lucide-react';
-import { MIN_CLIP_DURATION, resolveSnapCandidateLabel } from '../../lib/timelineMath';
+import { MIN_CLIP_DURATION, resolveSnapCandidateLabel, snapToFrame } from '../../lib/timelineMath';
 
 const CLIP_RADIUS = 6;
 
@@ -144,7 +144,9 @@ export default function TimelineClip({
       );
       const snapped = snapToEdge(next, d.startTrimEnd);
       if (snapped >= 0 && snapped <= d.startTrimEnd - MIN_CLIP_DURATION * speed) next = snapped;
-      const finalVal = Math.round(next * 100) / 100;
+      // Whole 30 fps frame (still stored in seconds); clamped back inside the
+      // same bounds so rounding can never shrink the clip under its minimum.
+      const finalVal = Math.min(Math.max(snapToFrame(next), 0), d.startTrimEnd - MIN_CLIP_DURATION * speed);
       onTrim(clip.id, { trim_start: finalVal });
       const curDur = Math.max(MIN_CLIP_DURATION, (d.startTrimEnd - finalVal) / speed);
       setTrimHud({ edge: 'start', dur: curDur, delta: curDur - d.initialDur });
@@ -157,7 +159,9 @@ export default function TimelineClip({
       const snapped = snapToEdge(next, d.startTrimStart);
       if (snapped >= d.startTrimStart + MIN_CLIP_DURATION * speed && snapped <= maxNext) next = snapped;
       const atSourceEnd = seg.srcDur && next >= seg.srcDur - 0.05;
-      const finalVal = atSourceEnd ? null : Math.round(next * 100) / 100;
+      const finalVal = atSourceEnd
+        ? null
+        : Math.max(Math.min(snapToFrame(next), maxNext), d.startTrimStart + MIN_CLIP_DURATION * speed);
       onTrim(clip.id, { trim_end: finalVal });
       const curDur = Math.max(MIN_CLIP_DURATION, ((atSourceEnd ? seg.srcDur : finalVal) - d.startTrimStart) / speed);
       setTrimHud({ edge: 'end', dur: curDur, delta: curDur - d.initialDur });

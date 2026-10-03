@@ -31,6 +31,9 @@ export function createProjectAutosaveController({
   schedule = setTimeout,
   cancel = clearTimeout,
   onStatusChange = () => {},
+  // Called when the server refuses a save because the project moved on
+  // (HTTP 409). The failed job stays pending; only a reload resolves it.
+  onConflict = () => {},
   maxSaveRetries = 2,
   saveRetryDelayMs = 4000,
 }) {
@@ -101,6 +104,7 @@ export function createProjectAutosaveController({
           if (error?.response?.status === 409) {
             clearRetryTimer();
             onStatusChange('error');
+            onConflict(error);
           } else if (queue.hasPending()) scheduleRetry();
           else retryCount = 0;
         }
@@ -202,6 +206,11 @@ export function createProjectAutosaveController({
     setBaseline,
     saveNow,
     clearTimer,
+    // True while any edit is waiting, queued, retrying or in flight -- i.e.
+    // the server may not hold what the editor shows.
+    hasUnsavedWork() {
+      return timer !== null || retryTimer !== null || queue.hasPending() || !!queue.isSaving?.();
+    },
     peekPending() {
       return queue.peekPending();
     },
@@ -217,8 +226,15 @@ export function useProjectAutosave({
   enabled,
   saveProject,
   debounceMs = 500,
+  // The caller knows the server moved on (e.g. a render rewrote the project
+  // while edits were pending). Closing the tab then would lose those edits.
+  unsavedAtRisk = false,
 }) {
   const [saveStatus, setSaveStatus] = useState('saved');
+  const [saveConflict, setSaveConflict] = useState(false);
+  const conflictRef = useRef(false);
+  const atRiskRef = useRef(unsavedAtRisk);
+  atRiskRef.current = unsavedAtRisk;
   const saveRef = useRef(saveProject);
   useEffect(() => {
     saveRef.current = saveProject;
@@ -234,6 +250,8 @@ export function useProjectAutosave({
         setSaveStatus('saving');
       },
       onSaved(_job, isLatest) {
+        conflictRef.current = false;
+        setSaveConflict(false);
         if (isLatest) setSaveStatus('saved');
       },
       onError() {
@@ -244,12 +262,19 @@ export function useProjectAutosave({
   const controller = useMemo(() => createProjectAutosaveController({
     queue,
     onStatusChange: setSaveStatus,
+    onConflict() {
+      conflictRef.current = true;
+      setSaveConflict(true);
+    },
   }), [queue]);
 
   const flush = useCallback(() => controller.flush(), [controller]);
   const setBaseline = useCallback((name, body) => {
+    conflictRef.current = false;
+    setSaveConflict(false);
     controller.setBaseline(name, body);
   }, [controller]);
+  const hasUnsavedWork = useCallback(() => controller.hasUnsavedWork(), [controller]);
 
   useEffect(() => {
     controller.observe({ projectName, payload, enabled, debounceMs });
@@ -262,7 +287,19 @@ export function useProjectAutosave({
 
   useEffect(() => {
     let lifecycleSaveStarted = false;
-    const saveBeforeUnload = () => {
+    const saveBeforeUnload = (event) => {
+      // The server already refused these edits (409) or is known to have moved
+      // on: a keepalive save would be refused the same way, silently. Ask the
+      // browser to confirm leaving instead, so the edits are not lost unseen.
+      if (
+        event?.type === 'beforeunload'
+        && (conflictRef.current || atRiskRef.current)
+        && controller.hasUnsavedWork()
+      ) {
+        event.preventDefault();
+        event.returnValue = '';
+        return;
+      }
       // pagehide and beforeunload can both fire for one navigation. Sending
       // twice creates a race and defeats latest-save-wins at the server.
       if (lifecycleSaveStarted) return;
@@ -302,5 +339,5 @@ export function useProjectAutosave({
     };
   }, [controller, queue]);
 
-  return { saveStatus, setSaveStatus, flush, saveNow, setBaseline };
+  return { saveStatus, setSaveStatus, flush, saveNow, setBaseline, saveConflict, hasUnsavedWork };
 }

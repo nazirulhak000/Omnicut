@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { RotateCw, Volume2, VolumeX } from 'lucide-react';
 import { TransitionIcon } from '../../../lib/transitionIcons';
 import { TRANSITIONS, FADE_DURATION } from '../../../lib/timelineMath';
 import {
+  MIN_CLIP_SPEED,
+  MAX_CLIP_SPEED,
+  SLOW_ZOOM_PRESETS,
+  cameraKeyframeSummary,
   clampFreezeTail,
   clampRotation,
   clampSpeed,
@@ -11,15 +15,25 @@ import {
   clampVolume,
   clampZoom,
   clampPan,
+  clearCameraMotionPatch,
+  clipSliderCoalesceKey,
+  countOtherCameraKeyframeClips,
+  framingResetPatch,
+  normalizeSpeed,
+  pickApplyAllPatch,
+  slowZoomPatch,
+  summarizeApplyToAll,
 } from '../../../lib/inspectorModel';
 
-const SPEEDS = [0.5, 1, 1.5, 2];
+const SPEEDS = [0.25, 0.5, 1, 1.25, 1.5, 2, 3, 4];
 
 const COLOR_FIELDS = [
   { key: 'brightness', label: 'ความสว่าง', min: -0.3, max: 0.3, step: 0.02, def: 0 },
   { key: 'contrast', label: 'คอนทราสต์', min: 0.5, max: 2, step: 0.05, def: 1 },
   { key: 'saturation', label: 'ความสด', min: 0, max: 3, step: 0.05, def: 1 },
 ];
+
+const APPLY_ALL_LABELS = { color: 'สี', framing: 'ซูม/เลื่อน', speed: 'ความเร็ว' };
 
 function NumberInput(props) {
   return (
@@ -31,7 +45,57 @@ function NumberInput(props) {
   );
 }
 
-export default function ClipInspector({ selectedSeg, onClipChange }) {
+/**
+ * Typed speed. The value is held as text until Enter/blur: clamping on every
+ * keystroke would jump "0.5" to 0.25 the moment the first "0" is typed.
+ */
+function SpeedInput({ speed, onCommit }) {
+  const [draft, setDraft] = useState(null);
+  const commit = () => {
+    if (draft === null) return;
+    const parsed = parseFloat(draft);
+    setDraft(null);
+    if (Number.isFinite(parsed)) onCommit(normalizeSpeed(parsed));
+  };
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      aria-label="ความเร็วที่กำหนดเอง (เท่า)"
+      value={draft ?? String(speed)}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+        else if (e.key === 'Escape') setDraft(null);
+      }}
+      className="w-16 rounded bg-black/50 border border-white/[0.1] px-1.5 py-0.5 text-right font-mono text-xs text-white focus:outline-none focus:border-[#25F4EE]"
+    />
+  );
+}
+
+function ApplyAllButton({ onClick, disabled = false, title }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      title={title}
+      onClick={onClick}
+      className="text-xs text-[#25F4EE] hover:underline disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed cursor-pointer"
+    >
+      ใช้กับทุกคลิป
+    </button>
+  );
+}
+
+export default function ClipInspector({
+  selectedSeg,
+  onClipChange,
+  clipList = [],
+  onPatchAllClips = null,
+}) {
+  const [applyNote, setApplyNote] = useState(null);
+
   if (!selectedSeg?.clip) return null;
 
   const { clip, index, dur, srcDur } = selectedSeg;
@@ -42,6 +106,39 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
 
   const colorTouched = COLOR_FIELDS.some(
     (f) => (clip[f.key] ?? f.def) !== f.def,
+  );
+
+  // Camera keyframes (written by the pipeline, or by the slow-zoom presets)
+  // win over the static zoom/pan sliders in both preview and render.
+  const cam = cameraKeyframeSummary(clip);
+  const overriddenLabel = cam.zoom && cam.pan ? 'ซูม/เลื่อน' : cam.zoom ? 'ซูม' : 'เลื่อน';
+
+  // Slider drags share one undo step per clip and field.
+  const sliderChange = (field, patch) => onClipChange?.(
+    patch,
+    { coalesceKey: clipSliderCoalesceKey(clip.id, field) },
+  );
+
+  const canApplyAll = typeof onPatchAllClips === 'function' && clipList.length > 1;
+  const otherCameraClips = canApplyAll ? countOtherCameraKeyframeClips(clipList, clip.id) : 0;
+  const applyToAll = (group) => {
+    const patch = pickApplyAllPatch(clip, group);
+    if (!patch || !canApplyAll) return;
+    const { changed, cameraKeyframeClips } = summarizeApplyToAll(clipList, patch);
+    onPatchAllClips(patch);
+    const label = APPLY_ALL_LABELS[group];
+    let text = changed === 0
+      ? `ค่า${label}ตรงกันทุกคลิปอยู่แล้ว`
+      : `ใช้ค่า${label}กับอีก ${changed} คลิปแล้ว (Ctrl+Z ย้อนกลับได้ในครั้งเดียว)`;
+    if (cameraKeyframeClips > 0) {
+      text += ` · ${cameraKeyframeClips} คลิปมีการเคลื่อนกล้องของตัวเอง ค่าซูม/เลื่อนไม่มีผลกับคลิปเหล่านั้น`;
+    }
+    setApplyNote({ clipId: clip.id, group, text });
+  };
+  const applyNoteFor = (group) => (
+    applyNote && applyNote.clipId === clip.id && applyNote.group === group
+      ? <p role="status" className="text-[11px] leading-relaxed text-emerald-300/90">{applyNote.text}</p>
+      : null
   );
 
   return (
@@ -82,7 +179,12 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
 
         {/* Speed Controls */}
         <div>
-          <span className="block text-xs text-slate-400 mb-1">ความเร็ว (Speed)</span>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs text-slate-400">ความเร็ว (Speed)</span>
+            {canApplyAll && (
+              <ApplyAllButton onClick={() => applyToAll('speed')} title="ใช้ความเร็วของคลิปนี้กับทุกคลิป" />
+            )}
+          </div>
           <div className="grid grid-cols-4 gap-1">
             {SPEEDS.map((s) => {
               const active = (clip.speed || 1) === s;
@@ -103,6 +205,16 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
               );
             })}
           </div>
+          <label className="mt-1.5 flex items-center gap-2 text-xs text-slate-400">
+            <span>กำหนดเอง</span>
+            <SpeedInput
+              key={clip.id}
+              speed={clip.speed || 1}
+              onCommit={(next) => onClipChange?.({ speed: next === 1 ? undefined : next })}
+            />
+            <span>เท่า (ช่วง {MIN_CLIP_SPEED} ถึง {MAX_CLIP_SPEED})</span>
+          </label>
+          {applyNoteFor('speed')}
           {/* Only offered where it changes anything: above 0.7x the stepping
               is not visible enough to be worth the render time. The note is
               the UI disclosure required for this approximation -- Preview
@@ -206,7 +318,7 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
             max={1}
             step={0.05}
             value={clip.volume || 0}
-            onChange={(e) => onClipChange?.({ volume: clampVolume(parseFloat(e.target.value)) })}
+            onChange={(e) => sliderChange('volume', { volume: clampVolume(parseFloat(e.target.value)) })}
             className="w-full accent-[#25F4EE]"
           />
           {clip.volume > 0 && (clip.speed || 1) !== 1 && (
@@ -220,15 +332,40 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
         <div className="space-y-1.5 pt-2 border-t border-white/[0.06]">
           <div className="flex items-center justify-between">
             <span className="text-xs text-slate-400">กรอบภาพ</span>
-            <button
-              type="button"
-              disabled={zoom === 1 && !clip.pan_x && !clip.pan_y}
-              onClick={() => onClipChange?.({ zoom: undefined, pan_x: undefined, pan_y: undefined })}
-              className="text-xs text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-            >
-              รีเซ็ต
-            </button>
+            <div className="flex items-center gap-3">
+              {canApplyAll && (
+                <ApplyAllButton
+                  onClick={() => applyToAll('framing')}
+                  disabled={cam.points > 0}
+                  title={cam.points > 0
+                    ? 'คลิปนี้มีการเคลื่อนกล้อง ค่าซูม/เลื่อนที่ตั้งไว้ไม่ใช่ค่าที่เห็นในภาพ ล้างการเคลื่อนกล้องก่อนจึงจะใช้กับทุกคลิปได้'
+                    : 'ใช้ซูมและเลื่อนของคลิปนี้กับทุกคลิป (ไม่คัดลอกการเคลื่อนกล้อง)'}
+                />
+              )}
+              <button
+                type="button"
+                disabled={zoom === 1 && !clip.pan_x && !clip.pan_y && cam.points === 0}
+                onClick={() => onClipChange?.(framingResetPatch(clip))}
+                className="text-xs text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              >
+                รีเซ็ต
+              </button>
+            </div>
           </div>
+          {cam.points > 0 && (
+            <div role="status" className="space-y-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-2">
+              <p className="text-[11px] leading-relaxed text-amber-200">
+                คลิปนี้มีการเคลื่อนกล้องอัตโนมัติ {cam.points} จุด ตัวเลื่อน{overriddenLabel}ไม่มีผลจนกว่าจะล้าง
+              </p>
+              <button
+                type="button"
+                onClick={() => onClipChange?.(clearCameraMotionPatch(clip))}
+                className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2 py-1 text-xs font-bold text-amber-200 hover:bg-amber-500/25 cursor-pointer"
+              >
+                ล้างการเคลื่อนกล้อง
+              </button>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -259,7 +396,7 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
               <span>วิ</span>
             </label>
           </div>
-          <label className="block">
+          <label className={`block ${cam.zoom ? 'opacity-50' : ''}`}>
             <span className="mb-0.5 flex justify-between text-xs text-slate-400">
               <span>ซูม</span>
               <span className="font-mono text-slate-300">{zoom.toFixed(2)}x</span>
@@ -270,7 +407,7 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
               max={3}
               step={0.05}
               value={zoom}
-              onChange={(e) => onClipChange?.({ zoom: clampZoom(parseFloat(e.target.value)) })}
+              onChange={(e) => sliderChange('zoom', { zoom: clampZoom(parseFloat(e.target.value)) })}
               className="w-full accent-[#25F4EE]"
             />
           </label>
@@ -278,7 +415,7 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
             { key: 'pan_x', label: 'เลื่อนซ้าย-ขวา' },
             { key: 'pan_y', label: 'เลื่อนขึ้น-ลง' },
           ].map((f) => (
-            <label key={f.key} className={`block ${panning ? '' : 'opacity-40'}`}>
+            <label key={f.key} className={`block ${!panning ? 'opacity-40' : cam.pan ? 'opacity-50' : ''}`}>
               <span className="mb-0.5 flex justify-between text-xs text-slate-400">
                 <span>{f.label}</span>
                 <span className="font-mono text-slate-300">{(clip[f.key] ?? 0).toFixed(2)}</span>
@@ -290,7 +427,7 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
                 step={0.05}
                 value={clip[f.key] ?? 0}
                 disabled={!panning}
-                onChange={(e) => onClipChange?.({ [f.key]: clampPan(parseFloat(e.target.value)) })}
+                onChange={(e) => sliderChange(f.key, { [f.key]: clampPan(parseFloat(e.target.value)) })}
                 className="w-full accent-[#25F4EE] disabled:cursor-not-allowed"
               />
             </label>
@@ -298,20 +435,64 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
           {!panning && (
             <p className="text-[11px] text-slate-500">ซูมเกิน 1x ก่อนถึงจะเลื่อนกรอบได้</p>
           )}
+          {applyNoteFor('framing')}
+          {canApplyAll && otherCameraClips > 0 && (
+            <p className="text-[11px] leading-relaxed text-amber-200/80">
+              คลิปอื่น {otherCameraClips} คลิปมีการเคลื่อนกล้องของตัวเอง ค่าซูม/เลื่อนที่ใช้กับทุกคลิปจะไม่มีผลกับคลิปเหล่านั้น
+            </p>
+          )}
+
+          {/* Slow zoom across the whole played clip (2-point keyframes) */}
+          <div className="space-y-1 pt-1">
+            <span className="block text-xs text-slate-400">ซูมช้าๆ ตลอดคลิป</span>
+            <div className="grid grid-cols-2 gap-1">
+              {SLOW_ZOOM_PRESETS.map((preset) => {
+                const patch = slowZoomPatch(clip, srcDur, preset);
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    disabled={!patch}
+                    title={patch ? undefined : 'ซูมปัจจุบันสูงสุดแล้ว หรือคลิปสั้นเกินไป'}
+                    onClick={() => patch && onClipChange?.(patch)}
+                    className="rounded-lg border border-white/[0.08] bg-black/40 py-1 text-xs font-bold text-slate-300 transition-all hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                disabled={cam.points === 0}
+                onClick={() => onClipChange?.(clearCameraMotionPatch(clip))}
+                className="rounded-lg border border-white/[0.08] bg-black/40 py-1 text-xs font-bold text-slate-300 transition-all hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              >
+                ล้าง
+              </button>
+            </div>
+            <p className="text-[11px] leading-relaxed text-slate-500">
+              เริ่มจากค่าซูมปัจจุบัน และแทนที่การเคลื่อนกล้องเดิมของคลิปนี้
+            </p>
+          </div>
         </div>
 
         {/* Colour EQ */}
         <div className="space-y-1.5 pt-2 border-t border-white/[0.06]">
           <div className="flex items-center justify-between">
             <span className="text-xs text-slate-400">สีของคลิปนี้</span>
-            <button
-              type="button"
-              disabled={!colorTouched}
-              onClick={() => onClipChange?.({ brightness: undefined, contrast: undefined, saturation: undefined })}
-              className="text-xs text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-            >
-              รีเซ็ต
-            </button>
+            <div className="flex items-center gap-3">
+              {canApplyAll && (
+                <ApplyAllButton onClick={() => applyToAll('color')} title="ใช้ค่าสีของคลิปนี้กับทุกคลิป" />
+              )}
+              <button
+                type="button"
+                disabled={!colorTouched}
+                onClick={() => onClipChange?.({ brightness: undefined, contrast: undefined, saturation: undefined })}
+                className="text-xs text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              >
+                รีเซ็ต
+              </button>
+            </div>
           </div>
           {COLOR_FIELDS.map((f) => {
             const value = clip[f.key] ?? f.def;
@@ -327,12 +508,13 @@ export default function ClipInspector({ selectedSeg, onClipChange }) {
                   max={f.max}
                   step={f.step}
                   value={value}
-                  onChange={(e) => onClipChange?.({ [f.key]: parseFloat(e.target.value) })}
+                  onChange={(e) => sliderChange(f.key, { [f.key]: parseFloat(e.target.value) })}
                   className="w-full accent-[#25F4EE]"
                 />
               </label>
             );
           })}
+          {applyNoteFor('color')}
           {colorTouched && (
             <p className="text-[11px] leading-relaxed text-amber-200/80">
               สีใน Preview เป็นค่าประมาณ โดยเฉพาะความสว่าง; Render เป็นผลลัพธ์อ้างอิง

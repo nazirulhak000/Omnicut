@@ -1,6 +1,15 @@
 import { useCallback } from 'react';
-import { FADE_DURATION, splitClipAt } from '../lib/timelineMath.js';
+import { FADE_DURATION, resolveSplitTarget, splitClipAt } from '../lib/timelineMath.js';
 import { removeItemById } from '../lib/collectionOperations.js';
+import { patchAllClipsInState, patchClipInState } from '../lib/inspectorModel.js';
+import {
+  captionPatchHistoryOptions,
+  mergeCueReveals,
+  reconcileCueReveal,
+  reconcileCuesReveal,
+  splitCueReveal,
+  withReveal,
+} from '../lib/captionEdits.js';
 
 /**
  * Hook providing all timeline manipulation commands (Clips & Captions).
@@ -18,6 +27,7 @@ export function useEditorCommands({
   cuesDirtyRef = { current: false },
   handleDeleteOverlay = () => {},
   onImportSuccess,
+  onNotify,
 }) {
   const markCuesDirty = useCallback(() => {
     if (cuesDirtyRef) cuesDirtyRef.current = true;
@@ -50,12 +60,20 @@ export function useEditorCommands({
     });
   }, [durations, newId, set]);
 
-  const patchClip = useCallback((clipId, patch, silent = false) => {
-    (silent ? setSilent : set)((prev) => ({
-      ...prev,
-      clipList: prev.clipList.map((c) => (c.id === clipId ? { ...c, ...patch } : c)),
-    }));
+  // `options.coalesceKey` lets a slider burst share one undo step (see
+  // useEditorHistory). Silent patches are mid-gesture and never get a step.
+  const patchClip = useCallback((clipId, patch, silent = false, options = undefined) => {
+    const updater = (prev) => patchClipInState(prev, clipId, patch);
+    if (silent) setSilent(updater);
+    else set(updater, options);
   }, [set, setSilent]);
+
+  // One look applied to every clip in a single set(): one Ctrl+Z undoes it all.
+  // Only the whitelisted look fields are copied (never keyframes/trim/source),
+  // and a call that changes nothing leaves the history alone.
+  const patchAllClips = useCallback((patch) => {
+    set((prev) => patchAllClipsInState(prev, patch));
+  }, [set]);
 
   const reorderClip = useCallback((id, direction, silent = false) => {
     (silent ? setSilent : set)((prev) => {
@@ -69,10 +87,20 @@ export function useEditorCommands({
   }, [set, setSilent]);
 
   const splitAtPlayhead = useCallback(() => {
-    const seg = selectedSeg || segments.find((s) => playhead >= s.segStart && playhead < s.segEnd);
-    if (!seg) return;
-    const pieces = splitClipAt(seg, playhead, newId);
-    if (!pieces) return;
+    // Same resolver the toolbar's Split button uses for `canSplit`. The cut
+    // time is the frame-snapped playhead; a refusal always says why instead of
+    // doing nothing.
+    const target = resolveSplitTarget(segments, selectedSeg, playhead);
+    if (!target.seg) {
+      onNotify?.(target.message);
+      return;
+    }
+    const seg = target.seg;
+    const pieces = splitClipAt(seg, target.time, newId);
+    if (!pieces) {
+      onNotify?.('แยกคลิปตรงนี้ไม่ได้');
+      return;
+    }
     const [left, right] = pieces;
     set((prev) => {
       const idx = prev.clipList.findIndex((c) => c.id === seg.clip.id);
@@ -82,7 +110,7 @@ export function useEditorCommands({
       return { ...prev, clipList: next };
     });
     setSelection({ type: 'clip', id: right.id });
-  }, [newId, playhead, segments, selectedSeg, set, setSelection]);
+  }, [newId, onNotify, playhead, segments, selectedSeg, set, setSelection]);
 
   const duplicateSelected = useCallback(() => {
     if (!selectedSeg) return;
@@ -161,15 +189,21 @@ export function useEditorCommands({
     markCuesDirty();
   }, [markCuesDirty, playhead, set, setSelection]);
 
-  const patchCaption = useCallback((cueUid, patch, silent = false) => {
+  // Typing one caption field coalesces into one undo step (L3-10); a text or
+  // time change keeps the cue's word_reveal track in step (L3-02).
+  const patchCaption = useCallback((cueUid, patch, silent = false, options = undefined) => {
     markCuesDirty();
-    (silent ? setSilent : set)((prev) => {
-      const nextList = prev.cuesList.map((c) => ((c._uid === cueUid || c.id === cueUid) ? { ...c, ...patch } : c));
+    const updater = (prev) => {
+      const nextList = prev.cuesList.map((c) => ((c._uid === cueUid || c.id === cueUid)
+        ? reconcileCueReveal(c, { ...c, ...patch })
+        : c));
       const sorted = (!silent && ('start' in patch || 'end' in patch))
         ? [...nextList].sort((a, b) => a.start - b.start)
         : nextList;
       return { ...prev, cuesList: sorted };
-    });
+    };
+    if (silent) setSilent(updater);
+    else set(updater, captionPatchHistoryOptions(cueUid, patch, options));
   }, [markCuesDirty, set, setSilent]);
 
   const patchAllCaptions = useCallback((patch, silent = false) => {
@@ -182,7 +216,7 @@ export function useEditorCommands({
 
   const handleUpdateCuesList = useCallback((newCues, silent = false) => {
     markCuesDirty();
-    (silent ? setSilent : set)((prev) => ({ ...prev, cuesList: newCues }));
+    (silent ? setSilent : set)((prev) => ({ ...prev, cuesList: reconcileCuesReveal(prev.cuesList, newCues) }));
   }, [markCuesDirty, set, setSilent]);
 
   const handleSplitCue = useCallback((cueUid, cursorIndex) => {
@@ -212,14 +246,16 @@ export function useEditorCommands({
         }
       }
 
-      const cue1 = { ...target, end: splitTime, text: text1, translation: trans1 };
-      const cue2 = {
+      // Each half carries only its own words (L3-02), never the whole sentence.
+      const [reveal1, reveal2] = splitCueReveal(target, text1, text2, splitTime);
+      const cue1 = withReveal({ ...target, end: splitTime, text: text1, translation: trans1 }, reveal1);
+      const cue2 = withReveal({
         ...target,
         start: splitTime,
         text: text2,
         translation: trans2,
         _uid: `cue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-      };
+      }, reveal2);
 
       const next = [...prev.cuesList];
       next.splice(idx, 1, cue1, cue2);
@@ -254,14 +290,16 @@ export function useEditorCommands({
         }
       }
 
-      const cue1 = { ...target, end: Number(playheadTime.toFixed(2)), text: text1, translation: trans1 };
-      const cue2 = {
+      const cutTime = Number(playheadTime.toFixed(2));
+      const [reveal1, reveal2] = splitCueReveal(target, text1, text2, cutTime);
+      const cue1 = withReveal({ ...target, end: cutTime, text: text1, translation: trans1 }, reveal1);
+      const cue2 = withReveal({
         ...target,
-        start: Number(playheadTime.toFixed(2)),
+        start: cutTime,
         text: text2,
         translation: trans2,
         _uid: `cue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-      };
+      }, reveal2);
 
       const next = [...prev.cuesList];
       next.splice(idx, 1, cue1, cue2);
@@ -277,12 +315,13 @@ export function useEditorCommands({
       const cur = prev.cuesList[idx];
       const next = prev.cuesList[idx + 1];
 
-      const merged = {
+      const mergedBase = {
         ...cur,
         end: next.end,
         text: `${cur.text || ''} ${next.text || ''}`.trim(),
         translation: `${cur.translation || ''} ${next.translation || ''}`.trim(),
       };
+      const merged = withReveal(mergedBase, mergeCueReveals(cur, next, mergedBase));
 
       const list = [...prev.cuesList];
       list.splice(idx, 2, merged);
@@ -298,12 +337,13 @@ export function useEditorCommands({
       const prevCue = prev.cuesList[idx - 1];
       const curCue = prev.cuesList[idx];
 
-      const merged = {
+      const mergedBase = {
         ...prevCue,
         end: curCue.end,
         text: `${prevCue.text || ''} ${curCue.text || ''}`.trim(),
         translation: `${prevCue.translation || ''} ${curCue.translation || ''}`.trim(),
       };
+      const merged = withReveal(mergedBase, mergeCueReveals(prevCue, curCue, mergedBase));
 
       const list = [...prev.cuesList];
       list.splice(idx - 1, 2, merged);
@@ -332,11 +372,11 @@ export function useEditorCommands({
         const hasMatch = regex.test(c.text || '') || regex.test(c.translation || '');
         if (hasMatch) {
           count++;
-          return {
+          return reconcileCueReveal(c, {
             ...c,
             text: (c.text || '').replace(regex, replaceText),
             translation: c.translation ? c.translation.replace(regex, replaceText) : c.translation,
-          };
+          });
         }
         return c;
       });
@@ -353,7 +393,7 @@ export function useEditorCommands({
           .replace(/\s+/g, ' ')
           .replace(/^[,\.\-_\s]+|[,\.\-_\s]+$/g, '')
           .trim();
-        return { ...c, text: txt };
+        return reconcileCueReveal(c, { ...c, text: txt });
       });
       markCuesDirty();
       return { ...prev, cuesList: list };
@@ -421,6 +461,7 @@ export function useEditorCommands({
   return {
     addClip,
     patchClip,
+    patchAllClips,
     reorderClip,
     splitAtPlayhead,
     duplicateSelected,

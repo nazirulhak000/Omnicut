@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Type,
   Magnet,
@@ -6,9 +6,6 @@ import {
   RotateCcw,
   Target,
   Globe,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
   Play,
   Scissors,
 } from 'lucide-react';
@@ -96,9 +93,6 @@ export default function CaptionInspector({
   onSeek,
   onSplitCueAtPlayhead,
 }) {
-  const [textPattern, setTextPattern] = useState({ bold: true, italic: false, underline: false });
-  const [textAlign, setTextAlign] = useState('center');
-
   if (!selectedCaption) return null;
 
   const currentFont = selectedCaption.fontName || style?.fontName || 'Kanit';
@@ -171,8 +165,6 @@ export default function CaptionInspector({
         position: null,
       });
     }
-    setTextPattern({ bold: true, italic: false, underline: false });
-    setTextAlign('center');
   };
 
   return (
@@ -361,80 +353,6 @@ export default function CaptionInspector({
             onChange={(e) => handleScaleChange(parseFloat(e.target.value))}
             className="w-full accent-[#25F4EE] cursor-pointer"
           />
-        </div>
-
-        {/* Pattern (B / I / U) and Alignment */}
-        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/[0.06]">
-          <div className="space-y-1">
-            <span className="text-[11px] text-slate-400 font-medium">รูปแบบ:</span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setTextPattern((p) => ({ ...p, bold: !p.bold }))}
-                aria-pressed={textPattern.bold}
-                className={`flex-1 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                  textPattern.bold
-                    ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
-                    : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
-                }`}
-                title="ตัวหนา"
-              >
-                B
-              </button>
-              <button
-                type="button"
-                onClick={() => setTextPattern((p) => ({ ...p, italic: !p.italic }))}
-                aria-pressed={textPattern.italic}
-                className={`flex-1 py-1 rounded-lg text-xs font-bold italic border transition-all cursor-pointer ${
-                  textPattern.italic
-                    ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
-                    : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
-                }`}
-                title="ตัวเอียง"
-              >
-                I
-              </button>
-              <button
-                type="button"
-                onClick={() => setTextPattern((p) => ({ ...p, underline: !p.underline }))}
-                aria-pressed={textPattern.underline}
-                className={`flex-1 py-1 rounded-lg text-xs font-bold underline border transition-all cursor-pointer ${
-                  textPattern.underline
-                    ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
-                    : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
-                }`}
-                title="ขีดเส้นใต้"
-              >
-                U
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-[11px] text-slate-400 font-medium">จัดแนว:</span>
-            <div className="flex items-center gap-1">
-              {[
-                { id: 'left', icon: AlignLeft, title: 'ชิดซ้าย' },
-                { id: 'center', icon: AlignCenter, title: 'กึ่งกลาง' },
-                { id: 'right', icon: AlignRight, title: 'ชิดขวา' },
-              ].map(({ id, icon: Icon, title }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setTextAlign(id)}
-                  aria-pressed={textAlign === id}
-                  className={`flex-1 py-1 rounded-lg text-xs font-bold border transition-all flex items-center justify-center cursor-pointer ${
-                    textAlign === id
-                      ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
-                      : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
-                  }`}
-                  title={title}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Position on screen */}

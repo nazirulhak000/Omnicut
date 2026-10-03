@@ -19,6 +19,7 @@ export default function TrackLabel({
   onIconClick,
   dot,
   labelClass,
+  labelTitle,
   fold,
   width,
   slotWidth = 26,
@@ -62,7 +63,7 @@ export default function TrackLabel({
             />
           )}
         </span>
-        <span className={`truncate ${labelClass || ''}`} title={typeof children === 'string' ? children : undefined}>
+        <span className={`truncate ${labelClass || ''}`} title={labelTitle ?? (typeof children === 'string' ? children : undefined)}>
           {children}
         </span>
       </div>

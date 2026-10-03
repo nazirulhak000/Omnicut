@@ -12,6 +12,9 @@ import TimelineContextMenu from './timeline/TimelineContextMenu';
 import { EffectTrackLabel, EffectTrackLane } from './timeline/EffectTrack';
 import TimelineIntervalItem from './timeline/TimelineIntervalItem';
 import TrackLabel from './timeline/TrackLabel';
+import TransitionDurationControl from './timeline/TransitionDurationControl';
+import { TRANSITION_POPOVER_OPTIONS } from '../../lib/transitionControls.js';
+import { previewOnlyLaneLabel, previewOnlyEyeTitle } from '../../lib/laneVisibilityLabel.js';
 import { useTimelineKeyboard } from '../../hooks/useTimelineKeyboard';
 import { useTimelineDrag } from '../../hooks/useTimelineDrag';
 import {
@@ -23,7 +26,7 @@ import {
 } from '../../lib/timelineTrackModel';
 import { CLIP_DRAG_TYPE, TEXT_TEMPLATE_DRAG_TYPE } from './AssetPanel';
 import { getAudioPeaks, MAX_DECODE_SECONDS } from '../../lib/audioPeaks';
-import { formatTimecode, TRANSITIONS, FADE_DURATION } from '../../lib/timelineMath';
+import { formatTimecode, FADE_DURATION } from '../../lib/timelineMath';
 import { resolveBackgroundIsolationConfig, scopedArtifactCoversClip, subjectLayerForOverlay } from '../../lib/backgroundIsolationPreview.js';
 
 const RULER_H = 22;
@@ -757,11 +760,13 @@ export default function Timeline({
                     width={gutterW}
                     slotWidth={dense ? 14 : 26}
                     icon={Scissors}
+                    labelClass={previewOnlyLaneLabel('สินค้าไดคัท', isCutoutHidden).labelClass}
+                    labelTitle={previewOnlyLaneLabel('สินค้าไดคัท', isCutoutHidden).title}
                     action={
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onToggleCutout?.(); }}
-                        title={isCutoutHidden ? 'คลิกเพื่อแสดงสินค้าไดคัทบนพรีวิว' : 'คลิกเพื่อซ่อนสินค้าไดคัทบนพรีวิว'}
+                        title={previewOnlyEyeTitle('สินค้าไดคัท', isCutoutHidden)}
                         className={`p-1 rounded transition-colors ${
                           isCutoutHidden
                             ? 'text-amber-400 hover:bg-amber-400/20'
@@ -772,7 +777,7 @@ export default function Timeline({
                       </button>
                     }
                   >
-                    สินค้าไดคัท
+                    {previewOnlyLaneLabel('สินค้าไดคัท', isCutoutHidden).text}
                   </TrackLabel>
                 </div>
               )}
@@ -782,11 +787,13 @@ export default function Timeline({
                     width={gutterW}
                     slotWidth={dense ? 14 : 26}
                     icon={Smile}
+                    labelClass={previewOnlyLaneLabel('สติกเกอร์', isStickerHidden).labelClass}
+                    labelTitle={previewOnlyLaneLabel('สติกเกอร์', isStickerHidden).title}
                     action={
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onToggleHideSticker?.(); }}
-                        title={isStickerHidden ? 'คลิกเพื่อแสดงสติกเกอร์บนพรีวิว' : 'คลิกเพื่อซ่อนสติกเกอร์บนพรีวิว'}
+                        title={previewOnlyEyeTitle('สติกเกอร์', isStickerHidden)}
                         className={`p-1 rounded transition-colors ${
                           isStickerHidden
                             ? 'text-amber-400 hover:bg-amber-400/20'
@@ -797,7 +804,7 @@ export default function Timeline({
                       </button>
                     }
                   >
-                    สติกเกอร์
+                    {previewOnlyLaneLabel('สติกเกอร์', isStickerHidden).text}
                   </TrackLabel>
                 </div>
               )}
@@ -813,11 +820,13 @@ export default function Timeline({
                   width={gutterW}
                   slotWidth={dense ? 14 : 26}
                   icon={MessageSquare}
+                  labelClass={previewOnlyLaneLabel('คำบรรยาย', isCaptionHidden).labelClass}
+                  labelTitle={previewOnlyLaneLabel('คำบรรยาย', isCaptionHidden).title}
                   action={
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onToggleHideCaption?.(); }}
-                      title={isCaptionHidden ? 'คลิกเพื่อแสดงคำบรรยายบนพรีวิว' : 'คลิกเพื่อซ่อนคำบรรยายบนพรีวิว'}
+                      title={previewOnlyEyeTitle('คำบรรยาย', isCaptionHidden)}
                       className={`p-1 rounded transition-colors ${
                         isCaptionHidden
                           ? 'text-amber-400 hover:bg-amber-400/20'
@@ -828,7 +837,7 @@ export default function Timeline({
                     </button>
                   }
                 >
-                  คำบรรยาย
+                  {previewOnlyLaneLabel('คำบรรยาย', isCaptionHidden).text}
                 </TrackLabel>
               </div>
               {hasTextOverlays && (
@@ -1016,7 +1025,7 @@ export default function Timeline({
                           if (!isOpen) {
                             const rect = e.currentTarget.getBoundingClientRect();
                             const popupWidth = 224;
-                            const popupHeight = 270;
+                            const popupHeight = 390;
                             const above = rect.top - popupHeight - 8;
                             const below = rect.bottom + 8;
                             setTransitionMenuPosition({
@@ -1030,7 +1039,7 @@ export default function Timeline({
                         aria-haspopup="dialog"
                         aria-expanded={isOpen}
                         title={isFade
-                          ? `${currentTransition} ${seg.overlap.toFixed(1)} วิ — คลิกเพื่อเปลี่ยนทรานซิชัน`
+                          ? `${currentTransition} ${seg.overlap.toFixed(2)} วิ — คลิกเพื่อเปลี่ยนทรานซิชัน`
                           : 'ตัดตรง — คลิกเพื่อเลือกรอยต่อทรานซิชัน'}
                         className={`pointer-events-auto absolute top-1/2 z-20 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded border transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
                           isFade
@@ -1082,7 +1091,7 @@ export default function Timeline({
                             </button>
 
                             <div className="grid grid-cols-2 gap-1 pt-1">
-                              {TRANSITIONS.slice(0, 8).map((t) => {
+                              {TRANSITION_POPOVER_OPTIONS.map((t) => {
                                 const active = currentTransition === t.id;
                                 return (
                                   <button
@@ -1109,34 +1118,16 @@ export default function Timeline({
                             </div>
                           </div>
 
-                          {/* Duration presets */}
-                          <div className="pt-2 border-t border-[#363430]">
-                            <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1.5">
-                              <span>ความยาวรอยต่อ:</span>
-                              <span className="font-mono font-bold text-[#25F4EE]">{currentDuration.toFixed(1)}s</span>
-                            </div>
-                            <div className="grid grid-cols-4 gap-1">
-                              {[0.3, 0.5, 0.8, 1.0].map((d) => (
-                                <button
-                                  key={d}
-                                  type="button"
-                                  onClick={() => {
-                                    onClipChange?.(seg.clip.id, {
-                                      transition_in: currentTransition === 'cut' ? 'fade' : currentTransition,
-                                      transition_duration: d,
-                                    });
-                                  }}
-                                  className={`py-0.5 rounded text-center font-mono text-xs transition-colors ${
-                                    Math.abs(currentDuration - d) < 0.05
-                                      ? 'bg-[#25F4EE]/20 border border-[#25F4EE] text-[#25F4EE] font-bold'
-                                      : 'bg-[#282724] hover:bg-[#363430] text-slate-400'
-                                  }`}
-                                >
-                                  {d}s
-                                </button>
-                              ))}
-                            </div>
-                          </div>
+                          {/* Duration: presets + slider over the renderer's 0.1-2.0 s range */}
+                          <TransitionDurationControl
+                            value={currentDuration}
+                            onCommit={(d) => {
+                              onClipChange?.(seg.clip.id, {
+                                transition_in: currentTransition === 'cut' ? 'fade' : currentTransition,
+                                transition_duration: d,
+                              });
+                            }}
+                          />
                         </div>,
                         document.body
                       )}

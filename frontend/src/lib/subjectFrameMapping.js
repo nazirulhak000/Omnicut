@@ -24,7 +24,11 @@ function geometry({ sourceWidth, sourceHeight, sourceIsLetterboxed = false, clip
   let sx = (vw - sw) / 2;
   let sy = (vh - sh) / 2;
   if (camera.zoom > 1.001) {
-    sx += (sw - sw / camera.zoom) * (1 + camera.pan_x) / 2;
+    // The preview cuts this rect from the unflipped frame and flips after,
+    // while the render flips first: a mirrored clip pans the other way here
+    // (L2-10). The blurred-pillarbox branch does not use this crop.
+    const panX = clip.mirror ? -camera.pan_x : camera.pan_x;
+    sx += (sw - sw / camera.zoom) * (1 + panX) / 2;
     sy += (sh - sh / camera.zoom) * (1 + camera.pan_y) / 2;
     sw /= camera.zoom;
     sh /= camera.zoom;

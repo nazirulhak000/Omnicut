@@ -53,6 +53,8 @@ export default function Inspector({
   onAddTextAtPlayhead,
   onStyleChange,
   onClipChange,
+  clipList = [],
+  onPatchAllClips = null,
   onCaptionChange,
   applyToAll = true,
   onToggleApplyToAll = null,
@@ -328,6 +330,8 @@ export default function Inspector({
               <ClipInspector
                 selectedSeg={selectedSeg}
                 onClipChange={onClipChange}
+                clipList={clipList}
+                onPatchAllClips={onPatchAllClips}
               />
             ) : (
               <div className="py-8 px-4 text-center rounded-2xl border border-white/[0.08] bg-black/40 space-y-4">
@@ -407,6 +411,7 @@ export default function Inspector({
             audioDuration={audioDuration}
             trackMix={trackMix}
             onTrackMix={onTrackMix}
+            onStyleChange={onStyleChange}
           />
         )}
       </div>

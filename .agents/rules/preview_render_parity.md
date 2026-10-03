@@ -166,6 +166,7 @@ ASS ใช้ `Layer` เลขน้อยวาดก่อน (อยู่�
 | ค่าเสียง | ฝั่ง render | `SequencePlayer.jsx` |
 |---|---|---|
 | ระดับ voice/BGM/SFX | `config.py` BGM/VOICE/SFX_VOLUME | `AUDIO_MIX.*_GAIN` |
+| ระดับ voice/SFX รายโปรเจกต์ (Track Mix) | `voice_volume`/`sfx_volume` → `bus_volume_override()` (pipeline_context, clamp 0–1, อยู่ใน fingerprint `mix`) | `audioStems.voiceVolume/sfxVolume` → `mixBusGain()` (ค่าเริ่ม = `lib/audioBusLevels.js`) |
 | pre-roll SFX | `pre_roll = 0.12` (sfx_manager) | `AUDIO_MIX.SFX_PRE_ROLL` |
 | เวลาต่ำสุดของ SFX | `max(0.02, ...)` | `AUDIO_MIX.SFX_MIN_TIME` |
 | fade ท้าย BGM | `afade=t=out:d=0.35` | `AUDIO_MIX.BGM_FADE_OUT` |

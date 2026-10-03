@@ -207,3 +207,47 @@ test('existing drag coalescing still works alongside keyed sets', () => {
   assert.equal(history.getState().style.n, 0);
   assert.equal(history.canUndo(), false);
 });
+
+
+test('a set may widen its own coalesce window (typing)', () => {
+  const { history, clock } = clockedHistory(counterState(0));
+
+  history.set(inc, { coalesceKey: 'typing', coalesceWindowMs: 1500 });
+  clock.t += 1200;                       // past the 400 ms default, inside 1500
+  history.set(inc, { coalesceKey: 'typing', coalesceWindowMs: 1500 });
+  clock.t += 1501;
+  history.set(inc, { coalesceKey: 'typing', coalesceWindowMs: 1500 });
+
+  history.undo();
+  assert.equal(history.getState().style.n, 2);
+  history.undo();
+  assert.equal(history.getState().style.n, 0);
+  assert.equal(history.canUndo(), false);
+});
+
+
+test('one canvas drag of an overlay is one undo step back to where it started (L3-10)', () => {
+  // SequencePlayer: beginDrag on pointer-down, every move and the final
+  // commit silent, endDrag on pointer-up.
+  const at = (x) => ({ clipList: [], cuesList: [], overlays: [{ id: 'o1', x }], style: {} });
+  const move = (x) => (s) => ({ ...s, overlays: s.overlays.map((o) => ({ ...o, x })) });
+  const history = createEditorHistoryModel(at(0.5));
+
+  history.beginDrag();
+  for (let i = 1; i <= 40; i += 1) history.setSilent(move(0.5 + i / 100));
+  history.setSilent(move(0.9));
+  history.endDrag();
+
+  assert.equal(history.getState().overlays[0].x, 0.9);
+  assert.equal(history.undo(), true);
+  assert.equal(history.getState().overlays[0].x, 0.5);
+  assert.equal(history.canUndo(), false);
+
+  // What the caption box used to do -- silent moves then a plain set -- left
+  // the undo step at the last silent position, so Ctrl+Z barely moved it.
+  const old = createEditorHistoryModel(at(0.5));
+  for (let i = 1; i <= 40; i += 1) old.setSilent(move(0.5 + i / 100));
+  old.set(move(0.9));
+  old.undo();
+  assert.equal(old.getState().overlays[0].x, 0.9);
+});

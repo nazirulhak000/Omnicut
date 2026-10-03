@@ -129,7 +129,10 @@ def test_timeline_drop_adds_clip_and_persists_after_reload(motion_fixture_url):
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         try:
-            page = browser.new_page(viewport={"width": 1100, "height": 1100}, ignore_https_errors=True)
+            # The timeline sits below the clip inspector on this fixture page, so
+            # the viewport must be tall enough to keep the drop target on screen
+            # as the inspector grows. A drag onto an off-screen target never lands.
+            page = browser.new_page(viewport={"width": 1100, "height": 1500}, ignore_https_errors=True)
             page.goto(url, wait_until="domcontentloaded")
             timeline = page.get_by_test_id("timeline-controls-ready")
             source = page.get_by_test_id("timeline-source-clip")

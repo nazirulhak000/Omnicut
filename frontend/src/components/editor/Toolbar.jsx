@@ -36,6 +36,7 @@ export default function Toolbar({
   hasSelection,
   selectedClip,
   canSplit = hasClipSelected,
+  splitBlockedReason,
   canUndo,
   canRedo,
   onUndo,
@@ -78,16 +79,16 @@ export default function Toolbar({
       {/* Digital Timecode Display */}
       <div
         className="mx-1 flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#161514] border border-[#3A3833] font-mono text-xs font-semibold shadow-inner select-none"
-        title="เวลาปัจจุบัน / เวลาทั้งหมดของคลิป"
+        title="เวลาปัจจุบัน / เวลาทั้งหมดของคลิป (นาที:วินาที:เฟรม ที่ 30 เฟรมต่อวินาที)"
       >
-        <span className="text-[#25F4EE]">{formatTimecode(playhead)}</span>
+        <span className="text-[#25F4EE]">{formatTimecode(playhead, { frames: true })}</span>
         <span className="text-[#6B6660]">/</span>
-        <span className="text-[#9C968F]">{formatTimecode(totalDuration)}</span>
+        <span className="text-[#9C968F]">{formatTimecode(totalDuration, { frames: true })}</span>
       </div>
 
       <span className="mx-1 h-4 w-px bg-[#363430]" />
 
-      <ToolButton icon={Scissors} label="แยก" hint="ผ่าคลิปตรงหัวอ่าน" shortcut="S / Ctrl+B" onClick={onSplit} disabled={!canSplit} />
+      <ToolButton icon={Scissors} label="แยก" hint={!canSplit && splitBlockedReason ? splitBlockedReason : 'ผ่าคลิปตรงหัวอ่าน'} shortcut="S / Ctrl+B" onClick={onSplit} disabled={!canSplit} />
       <ToolButton icon={Type} label="เพิ่มข้อความ" hint="แทรกข้อความใหม่ตรงหัวอ่าน" onClick={onAddText} />
       <ToolButton icon={Copy} label="ทำสำเนา" hint="ก๊อบคลิปที่เลือกต่อท้ายตัวเอง" onClick={onDuplicate} disabled={!hasClipSelected} />
       <ToolButton icon={Trash2} label="ลบ" shortcut="Del" onClick={onDelete} disabled={!hasSelection} />

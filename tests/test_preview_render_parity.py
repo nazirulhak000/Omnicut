@@ -708,6 +708,78 @@ def test_stem_gains_match_the_mix():
             f"{param} should default to config.{const}"
 
 
+def test_project_voice_and_sfx_levels_reach_preview_and_render_alike():
+    """
+    L4-05: the Track Mix voice/SFX sliders are one value read by both sides.
+    The editor sends the clamped level as ``audioStems.voiceVolume/sfxVolume``
+    (preview buses) and as ``voice_volume/sfx_volume`` in the saved style
+    (manifest -> AudioMixStage -> the ffmpeg ``volume=``). Both clamp to the
+    same [0, 1] ceiling and fall back to the same config defaults, checked
+    here by running the shipped JS against the shipped Python on one table.
+    """
+    import json
+    import shutil
+    import subprocess
+    import tempfile
+
+    from scripts.pipeline_context import bus_volume_override
+    from scripts.sfx_manager import _clamp_gain
+
+    levels_src = (ROOT / "frontend" / "src" / "lib" / "audioBusLevels.js").read_text(encoding="utf-8")
+    assert _grab(levels_src, r"VOICE_VOLUME_DEFAULT = ([\d.]+)") == _grab(CONFIG_SRC, r"VOICE_VOLUME = ([\d.]+)")
+    assert _grab(levels_src, r"SFX_VOLUME_DEFAULT = ([\d.]+)") == _grab(CONFIG_SRC, r"SFX_VOLUME = ([\d.]+)")
+    assert "BUS_VOLUME_MAX = 1;" in levels_src and "BUS_VOLUME_MIN = 0;" in levels_src
+
+    base = re.search(r"const trackBase = \{(.*?)\};", JS_SRC, re.S).group(1)
+    assert "voice: mixBusGain(audioStems?.voiceVolume, AUDIO_MIX.VOICE_GAIN)" in base
+    assert "sfx: mixBusGain(audioStems?.sfxVolume, AUDIO_MIX.SFX_GAIN)" in base
+    shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    assert "voiceVolume: clampBusVolume(style.voiceVolume, VOICE_VOLUME_DEFAULT)" in shell
+    assert "sfxVolume: clampBusVolume(style.sfxVolume, SFX_VOLUME_DEFAULT)" in shell
+    # A level change has to send the render down the re-mix ("bgm") path.
+    assert "clampBusVolume(style.voiceVolume, VOICE_VOLUME_DEFAULT) !== clampBusVolume(base.voiceVolume" in shell
+    state_src = (ROOT / "frontend" / "src" / "lib" / "editorProjectState.js").read_text(encoding="utf-8")
+    assert "voice_volume: clampBusVolume(style.voiceVolume, VOICE_VOLUME_DEFAULT)" in state_src
+    assert "sfx_volume: clampBusVolume(style.sfxVolume, SFX_VOLUME_DEFAULT)" in state_src
+
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+    inputs = [None, 0, 0.5, 0.28, 1, 1.5, -0.3, "0.4", "abc"]
+    runner = """
+import { readFileSync } from 'node:fs';
+const src = readFileSync(process.argv[2], 'utf8');
+const fn = src.match(/function mixBusGain\\([\\s\\S]*?\\n\\}/)[0];
+const m = await import('data:text/javascript;base64,' + Buffer.from(fn + '\\nexport { mixBusGain };').toString('base64'));
+const lib = await import(new URL('file:///' + process.argv[3].replace(/\\\\/g, '/')).href);
+const inputs = JSON.parse(process.argv[4]);
+console.log(JSON.stringify(inputs.map((v) => [
+  m.mixBusGain(v, 1.0), m.mixBusGain(v, 0.28),
+  lib.clampBusVolume(v, 1.0), lib.clampBusVolume(v, 0.28),
+])));
+"""
+    with tempfile.TemporaryDirectory() as tmp:
+        script = Path(tmp) / "levels.mjs"
+        script.write_text(runner, encoding="utf-8")
+        proc = subprocess.run(
+            ["node", str(script), str(ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx"),
+             str(ROOT / "frontend" / "src" / "lib" / "audioBusLevels.js"), json.dumps(inputs)],
+            capture_output=True, text=True, encoding="utf-8", timeout=60,
+        )
+    assert proc.returncode == 0, proc.stderr
+    js = json.loads(proc.stdout)
+    for value, (pv_voice, pv_sfx, lib_voice, lib_sfx) in zip(inputs, js):
+        # What the render's mix stage hands ffmpeg: the override, else default,
+        # then the policy's own clamp.
+        render_voice = _clamp_gain(_or(bus_volume_override({"voice_volume": value}, "voice_volume"), 1.0), 1.0)
+        render_sfx = _clamp_gain(_or(bus_volume_override({"sfx_volume": value}, "sfx_volume"), 0.28), 0.28)
+        assert pv_voice == lib_voice == render_voice, (value, pv_voice, lib_voice, render_voice)
+        assert pv_sfx == lib_sfx == render_sfx, (value, pv_sfx, lib_sfx, render_sfx)
+
+
+def _or(value, default):
+    return default if value is None else value
+
+
 def test_sfx_pre_roll_matches_and_reads_the_resolved_filename():
     """
     A transition whoosh starts 120ms early so its peak lands on the cut. The
@@ -863,6 +935,49 @@ def test_seeking_stops_the_stems_before_repositioning_them():
     assert "stopStems()" in body and "cueStemsTo(clamped)" in body
     assert body.index("stopStems()") < body.index("cueStemsTo(clamped)")
     assert "if (isPlaying && !subjectPickMode) startStems()" in body
+
+
+def test_playback_paints_once_per_export_frame():
+    """
+    L6-03: a 60/120/144 Hz display used to repaint the whole scene every
+    refresh for a 30 fps export. The paint now waits for the next output
+    frame of the export rate; audio/drift work still runs every callback.
+    """
+    from scripts.config import FPS
+
+    rate = re.search(r"const PREVIEW_PAINT_FPS = (\d+);", JS_SRC)
+    assert rate and int(rate.group(1)) == FPS
+    tick = JS_SRC[JS_SRC.index("const tick = () => {"):JS_SRC.index("rafRef.current = requestAnimationFrame(tick);")]
+    assert "const outputFrame = Math.floor(t * PREVIEW_PAINT_FPS);" in tick
+    assert "outputFrame === lastPaintedFrameRef.current ? null" in tick
+    # Drift correction and SFX scheduling stay ahead of the paint gate.
+    assert tick.index("pumpSfx(t)") < tick.index("const outputFrame")
+    assert tick.index("v.playbackRate = baseRate") < tick.index("const outputFrame")
+    # A frame whose decoder was not ready is retried, not held blank.
+    assert "if (framePainted || plan.length === 0) lastPaintedFrameRef.current = outputFrame;" in tick
+
+
+def test_clip_edits_reload_only_when_the_source_changes():
+    """
+    L6-01/L6-02 with Phase-2 B2: a slider step on zoom/pan/colour used to
+    reload metadata and stop playback (only the picture stopped -- the stems
+    played on). The metadata reload is keyed on the source files alone, its
+    stop path stops the stems too, and the redraw key covers every clip field
+    so nothing that changes the picture (speed, freeze_tail, ...) is missed.
+    """
+    assert "const clipVisualKey = JSON.stringify(clips);" in JS_SRC
+    timing = re.search(r"const clipTimingKey = clips\.map\(c => `([^`]*)`\)", JS_SRC)
+    assert timing
+    for field in ("trim_start", "trim_end", "speed", "freeze_tail", "transition_in", "transition_duration"):
+        assert f"c.{field}" in timing.group(1), field
+    assert re.search(r"const clipAudioKey = clips\.map\(c => `[^`]*c\.volume[^`]*`\)", JS_SRC)
+
+    meta = re.search(r"// Load real duration for every clip up front(.*?)\n  \}, \[clipSourceKey\]\);", JS_SRC, re.S)
+    assert meta, "metadata effect must be keyed on clipSourceKey"
+    assert "stopStems();" in meta.group(1)
+    assert "setIsPlaying(false)" not in meta.group(1).replace("stopStems();\n      setIsPlaying(false);", "")
+    assert re.search(r"\[clipVisualKey, metadataReady, durations\]", JS_SRC)
+    assert re.search(r"if \(audioCtxRef\.current\) wireClipAudio\(\);\n.*\n  \}, \[clipAudioKey\]\);", JS_SRC)
 
 
 def test_a_late_decoded_one_shot_is_offset_not_played_from_its_start():
@@ -1473,9 +1588,11 @@ const trackMixSrc = readFileSync(process.argv[3], 'utf8');
 const grab = (re, what) => { const m = src.match(re); if (!m) throw new Error('missing ' + what); return m[0]; };
 const code = `
 ${grab(/const AUDIO_MIX = \\{[\\s\\S]*?\\n\\};/, 'AUDIO_MIX')}
+${grab(/function mixBusGain\\([\\s\\S]*?\\n\\}/, 'mixBusGain')}
 ${trackMixSrc.match(/export const AUDIO_TRACKS[^;]*;/)[0].replace('export ', '')}
 ${trackMixSrc.match(/export function effectiveAudioMutes[\\s\\S]*?\\n}/)[0].replace('export ', '')}
 export function scope({ trackMix, bgmVolume, cues, totalDuration }) {
+  const audioStems = null;  // project levels absent -> AUDIO_MIX defaults
   const mk = () => ({ gain: { value: 0, cancelScheduledValues() {}, setTargetAtTime(v) { this.value = v; } } });
   const ctx = { currentTime: 0, state: 'running' };
   const audioCtxRef = { current: ctx };
@@ -2905,3 +3022,338 @@ def test_the_english_line_is_always_positioned_under_a_reveal():
         "the English line must be positioned for every cue, not only placed ones"
     )
     assert "an5" in block and "pos(" in block
+
+
+# ---------------------------------------------- L3-02 edited caption reveal
+_REVEAL_RUNNER = r"""
+import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+const src = readFileSync(process.argv[2], 'utf8');
+const edits = await import(pathToFileURL(process.argv[3]).href);
+const input = JSON.parse(readFileSync(process.argv[4], 'utf8'));
+const grab = (re, what) => { const m = src.match(re); if (!m) throw new Error('missing ' + what); return m[0]; };
+const code = `
+${grab(/const GHOST_SPOKEN_COLOR = [^\n]*/, 'spoken')}
+${grab(/const GHOST_ACTIVE_COLOR = [^\n]*/, 'active')}
+${grab(/const GHOST_ACTIVE_SCALE = [^\n]*/, 'scale')}
+${grab(/function splitRevealByLines\([\s\S]*?\n\}/, 'splitRevealByLines')}
+${grab(/function ghostRevealSegments\([\s\S]*?\n\}/, 'ghostRevealSegments')}
+export const ACTIVE = GHOST_ACTIVE_COLOR;
+export function previewSegments(cue, t, style, thaiLines, revealTrackForCue) {
+  ${grab(/const revealTrack = [\s\S]*?const revealSingle = [\s\S]*?: null;/, 'revealTrack')}
+  return thaiLines.map((line, idx) => {
+    ${grab(/const revealSegments = revealLines[\s\S]*?: revealSingle;/, 'revealSegments')}
+    return revealSegments;
+  });
+}`;
+const m = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+// What the caption looks like at t: the words the reveal paints and which one
+// is lit ('settled' when all are spoken; words null when no reveal is drawn).
+const look = (cue, t) => {
+  const lines = m.previewSegments(cue, t, { ghostReveal: true }, [String(cue.text)], edits.revealTrackForCue);
+  const segs = lines[0];
+  if (!segs) return { words: null, active: null };
+  const active = segs.findIndex((s) => s.color === m.ACTIVE);
+  const settled = active === -1 && segs.every((s) => !s.ghost);
+  return { words: segs.map((s) => s.text), active: settled ? 'settled' : active };
+};
+const out = {};
+for (const [name, c] of Object.entries(input.cases)) {
+  let cue = c.cue;
+  if (c.edit === 'patch') cue = edits.reconcileCueReveal(c.cue, { ...c.cue, ...c.patch });
+  if (c.edit === 'split') {
+    const [, r2] = edits.splitCueReveal(c.cue, c.text1, c.text2, c.splitTime);
+    cue = edits.withReveal({ ...c.cue, start: c.splitTime, text: c.text2 }, r2);
+  }
+  if (c.edit === 'merge') {
+    const merged = { ...c.a, end: c.b.end, text: `${c.a.text} ${c.b.text}` };
+    cue = edits.withReveal(merged, edits.mergeCueReveals(c.a, c.b, merged));
+  }
+  out[name] = { hasTrack: Array.isArray(cue.word_reveal), samples: c.times.map((t) => look(cue, t)) };
+}
+console.log(JSON.stringify(out));
+"""
+
+
+def _render_reveal(text, start, end):
+    """The track the render draws for this cue (generate_ass rebuilds it here)."""
+    from scripts.subtitle_engine import SubtitleEngine
+    micro = SubtitleEngine.generate_micro_cues(
+        [{"start": start, "end": end, "text": text, "translation": "x"}]
+    )
+    assert len(micro) == 1, "fixture must stay one micro cue"
+    return micro[0]["word_reveal"]
+
+
+def _active(reveal, t):
+    """ghostRevealSegments' rule, applied to the render's own track."""
+    idx = -1
+    for i, word in enumerate(reveal):
+        if t >= word["start"]:
+            idx = i
+    if idx == len(reveal) - 1 and t >= reveal[-1]["end"]:
+        return "settled"
+    return idx
+
+
+def test_an_edited_caption_never_reveals_its_old_words(tmp_path):
+    """
+    L3-02. The stored word_reveal is python's track for the text the cue had
+    when the pipeline built it. The render always rebuilds it from the current
+    text; the preview drew the stored one as-is, so after an edit the reveal
+    lit the old sentence (or the whole sentence on both halves of a split, or
+    nothing at all once the cue was dragged to a new time).
+    """
+    import shutil
+    import subprocess
+
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+
+    old_text, new_text = "รีวิวหูฟังไร้สายรุ่นใหม่", "ทดสอบลำโพงพกพาเสียงดี"
+    old = {"_uid": "c1", "start": 1.0, "end": 4.0, "text": old_text,
+           "word_reveal": _render_reveal(old_text, 1.0, 4.0)}
+    times = [1.1, 2.0, 2.6, 3.5, 4.0]
+    moved_times = [t + 5 for t in times]
+    split_time = 2.25
+    half_a = {"_uid": "a", "start": 1.0, "end": 2.5, "text": "รีวิวหูฟัง",
+              "word_reveal": _render_reveal("รีวิวหูฟัง", 1.0, 2.5)}
+    half_b = {"_uid": "b", "start": 2.5, "end": 4.0, "text": "ไร้สายรุ่นใหม่",
+              "word_reveal": _render_reveal("ไร้สายรุ่นใหม่", 2.5, 4.0)}
+    cases = {
+        # A track saved before this fix: words of the old text on the new one.
+        "stale_text": {"cue": {**old, "text": new_text}, "times": times},
+        # patchCaption({ text }) going through the command layer.
+        "typed": {"cue": old, "edit": "patch", "patch": {"text": new_text}, "times": times},
+        # Dragged 5 s later: same words, new span (command layer, then stale).
+        "moved": {"cue": old, "edit": "patch", "patch": {"start": 6.0, "end": 9.0}, "times": moved_times},
+        "moved_stale": {"cue": {**old, "start": 6.0, "end": 9.0}, "times": moved_times},
+        "split_second_half": {"cue": old, "edit": "split", "text1": "รีวิวหูฟัง",
+                              "text2": "ไร้สายรุ่นใหม่", "splitTime": split_time,
+                              "times": [2.3, 3.0, 3.5, 4.0]},
+        "merged": {"edit": "merge", "a": half_a, "b": half_b, "cue": half_a, "times": times},
+    }
+    spec = tmp_path / "reveal_cases.json"
+    spec.write_text(json.dumps({"cases": cases}, ensure_ascii=False), encoding="utf-8")
+    runner = tmp_path / "reveal.mjs"
+    runner.write_text(_REVEAL_RUNNER, encoding="utf-8")
+    res = subprocess.run(
+        ["node", str(runner),
+         str(ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx"),
+         str(ROOT / "frontend" / "src" / "lib" / "captionEdits.js"),
+         str(spec)],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    assert res.returncode == 0, res.stderr
+    got = json.loads(res.stdout)
+
+    # New text: no reveal is drawn from the old track (the preview falls back
+    # to the ordinary caption, which draws cue.text), never the old words.
+    for name in ("stale_text", "typed"):
+        for sample in got[name]["samples"]:
+            assert sample["words"] is None, f"{name}: drew the old track {sample}"
+    assert got["typed"]["hasTrack"] is False, "the command layer must drop the stale track"
+
+    # Moved: the reveal still runs, on the same word at the same moment as the
+    # render's own track for the new span.
+    render_moved = _render_reveal(old_text, 6.0, 9.0)
+    for name in ("moved", "moved_stale"):
+        for t, sample in zip(moved_times, got[name]["samples"]):
+            assert sample["words"] == [w["text"] for w in render_moved], name
+            assert sample["active"] == _active(render_moved, t), f"{name} t={t}: {sample}"
+
+    # Split: the second half reveals only its own words, timed like the render.
+    render_b = _render_reveal("ไร้สายรุ่นใหม่", split_time, 4.0)
+    for t, sample in zip(cases["split_second_half"]["times"], got["split_second_half"]["samples"]):
+        assert sample["words"] == [w["text"] for w in render_b]
+        assert sample["active"] == _active(render_b, t), f"split t={t}: {sample}"
+
+    # Merge: one reveal over both halves' words, never a stale subset.
+    for sample in got["merged"]["samples"]:
+        assert sample["words"] == [w["text"] for w in half_a["word_reveal"] + half_b["word_reveal"]]
+
+
+# ---------------------------------------------- L2-10 mirror + pan direction
+_MIRROR_RUNNER = r"""
+import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+const src = readFileSync(process.argv[2], 'utf8');
+const tm = await import(pathToFileURL(process.argv[3]).href);
+const input = JSON.parse(readFileSync(process.argv[4], 'utf8'));
+const grab = (re, what) => { const m = src.match(re); if (!m) throw new Error('missing ' + what); return m[0]; };
+const code = `
+${grab(/const CANVAS_W = [^\n]*/, 'W')}
+${grab(/const CANVAS_H = [^\n]*/, 'H')}
+${grab(/function mirrorFlag\([^\n]*/, 'mirrorFlag')}
+let resolveClipTransforms;
+export function use(fn) { resolveClipTransforms = fn; }
+export ${grab(/function drawVideoFrame\([\s\S]*?\n\}/, 'drawVideoFrame')}
+export const SIZE = [CANVAS_W, CANVAS_H];`;
+const m = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+m.use(tm.resolveClipTransforms);
+
+// A canvas that keeps the affine transform and every drawImage, then answers
+// "which source pixel lands at this screen point" by inverting it.
+const mul = (a, b) => [a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1], a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3], a[0]*b[4]+a[2]*b[5]+a[4], a[1]*b[4]+a[3]*b[5]+a[5]];
+function makeCtx() {
+  let M = [1, 0, 0, 1, 0, 0]; const stack = []; const draws = [];
+  return {
+    canvas: { width: m.SIZE[0], height: m.SIZE[1] }, filter: 'none', draws,
+    save() { stack.push(M.slice()); }, restore() { M = stack.pop(); },
+    translate(x, y) { M = mul(M, [1, 0, 0, 1, x, y]); },
+    scale(x, y) { M = mul(M, [x, 0, 0, y, 0, 0]); },
+    rotate(r) { const c = Math.cos(r), s = Math.sin(r); M = mul(M, [c, s, -s, c, 0, 0]); },
+    drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh) { draws.push({ M: M.slice(), sx, sy, sw, sh, dx, dy, dw, dh }); },
+  };
+}
+function sample(ctx, X, Y) {
+  for (let i = ctx.draws.length - 1; i >= 0; i -= 1) {
+    const d = ctx.draws[i]; const [a, b, c, dd, e, f] = d.M; const det = a * dd - b * c;
+    const u = (dd * (X - e) - c * (Y - f)) / det; const v = (-b * (X - e) + a * (Y - f)) / det;
+    if (u < d.dx || v < d.dy || u > d.dx + d.dw || v > d.dy + d.dh) continue;
+    return [d.sx + ((u - d.dx) / d.dw) * d.sw, d.sy + ((v - d.dy) / d.dh) * d.sh];
+  }
+  return null;
+}
+const out = {};
+for (const [name, c] of Object.entries(input.cases)) {
+  const ctx = makeCtx();
+  const video = { videoWidth: c.source[0], videoHeight: c.source[1], readyState: 4 };
+  m.drawVideoFrame(ctx, video, c.clip, c.motionTime ?? 0.5);
+  out[name] = input.xs.map((x) => sample(ctx, x, input.y));
+}
+console.log(JSON.stringify(out));
+"""
+
+
+def _band(value, size):
+    """Thirds of a source axis: 0 = R, 1 = G, 2 = B."""
+    return min(2, max(0, int(value * 3 // size)))
+
+
+def _runs(seq):
+    out = []
+    for item in seq:
+        if not out or out[-1][0] != item:
+            out.append([item, 1])
+        else:
+            out[-1][1] += 1
+    return [tuple(r) for r in out]
+
+
+def test_mirrored_pan_frames_the_same_side_as_the_render(tmp_path):
+    """
+    L2-10. The render flips (hflip) before it crops, so pan_x always moves the
+    window the same way on screen. The preview cropped the unflipped frame and
+    flipped afterwards, which showed the opposite side of the shot whenever a
+    mirrored clip was zoomed and panned. Real FFmpeg frames on one side, the
+    real drawVideoFrame on the other, on a source split into three colours.
+    """
+    import shutil
+    import subprocess
+
+    from PIL import Image
+
+    from scripts.video_editor import VideoEditor
+
+    if not shutil.which("node") or not shutil.which("ffmpeg"):
+        pytest.skip("needs node and ffmpeg")
+
+    def run(cmd):
+        done = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        assert done.returncode == 0, done.stderr
+
+    ff = shutil.which("ffmpeg")
+    # Portrait source: R | G | B left to right. Landscape source for the 90
+    # degree case: R / G / B top to bottom, so the turn lays them across x.
+    portrait = tmp_path / "rgb_portrait.mp4"
+    run([ff, "-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+         "-i", "color=c=0x0000ff:size=1080x1920:rate=30:duration=2",
+         "-vf", "drawbox=x=0:y=0:w=360:h=ih:color=0xff0000:t=fill,"
+                "drawbox=x=360:y=0:w=360:h=ih:color=0x00ff00:t=fill",
+         "-an", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12", "-pix_fmt", "yuv420p", str(portrait)])
+    landscape = tmp_path / "rgb_landscape.mp4"
+    run([ff, "-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+         "-i", "color=c=0x0000ff:size=1920x1080:rate=30:duration=2",
+         "-vf", "drawbox=x=0:y=0:w=iw:h=360:color=0xff0000:t=fill,"
+                "drawbox=x=0:y=360:w=iw:h=360:color=0x00ff00:t=fill",
+         "-an", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12", "-pix_fmt", "yuv420p", str(landscape)])
+
+    still_kf = [{"time": 0, "zoom": 2.0, "pan_x": 1.0}, {"time": 1.0, "zoom": 2.0, "pan_x": 1.0}]
+    cases = {
+        "plain_pan_right": (portrait, {"zoom": 2.0, "pan_x": 1.0}),
+        "mirror_pan_left": (portrait, {"zoom": 2.0, "pan_x": -1.0, "mirror": True}),
+        "mirror_pan_right": (portrait, {"zoom": 2.0, "pan_x": 1.0, "mirror": True}),
+        "mirror_half_pan": (portrait, {"zoom": 1.5, "pan_x": 0.5, "mirror": True}),
+        "mirror_keyframes": (portrait, {"zoom": 1.0, "pan_x": 0.0, "mirror": True, "keyframes": still_kf}),
+        "mirror_rot180": (portrait, {"zoom": 2.0, "pan_x": 1.0, "mirror": True, "rotation": 180}),
+        "mirror_rot90": (landscape, {"zoom": 2.0, "pan_x": 1.0, "mirror": True, "rotation": 90}),
+    }
+    clip_list = [
+        {"source_path": str(src), "trim_start": 0.0, "trim_end": 1.0, "duration": 1.0,
+         "zoom": 1.0, "pan_x": 0.0, "pan_y": 0.0, "transition_in": "cut", **cfg}
+        for src, cfg in cases.values()
+    ]
+    total = float(len(clip_list))
+    audio = tmp_path / "silence.wav"
+    run([ff, "-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+         "-i", "anullsrc=channel_layout=stereo:sample_rate=48000", "-t", str(total), str(audio)])
+    ass = tmp_path / "empty.ass"
+    ass.write_text(
+        "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n"
+        "[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+        "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, "
+        "Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        "Style: Default,Arial,72,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3,0,2,40,40,420,1\n"
+        "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n",
+        encoding="utf-8", newline="\n",
+    )
+    rendered = tmp_path / "mirror_pan.mp4"
+    VideoEditor.assemble_tiktok_video(
+        raw_video_paths=[str(src) for src, _ in cases.values()],
+        total_duration=total, mixed_audio_path=str(audio), ass_subtitle_path=str(ass),
+        output_mp4_path=str(rendered), clip_list=clip_list,
+        transitions=["cut"] * (len(clip_list) - 1), export_preset="draft",
+        auto_blur_landscape=False,
+    )
+
+    xs = list(range(5, 540, 10))
+    y = 480
+    render_bands = {}
+    for index, name in enumerate(cases):
+        frame = tmp_path / f"render_{index}.png"
+        run([ff, "-y", "-hide_banner", "-loglevel", "error", "-i", str(rendered),
+             "-ss", f"{index + 0.5:.3f}", "-frames:v", "1",
+             "-vf", "scale=540:960:flags=lanczos", "-pix_fmt", "rgb24", str(frame)])
+        with Image.open(frame) as img:
+            px = img.convert("RGB")
+            render_bands[name] = [max(range(3), key=lambda ch: px.getpixel((x, y))[ch]) for x in xs]
+
+    spec = tmp_path / "mirror_cases.json"
+    spec.write_text(json.dumps({
+        "xs": xs, "y": y,
+        "cases": {
+            name: {"source": [1080, 1920] if src == portrait else [1920, 1080], "clip": cfg}
+            for name, (src, cfg) in cases.items()
+        },
+    }), encoding="utf-8")
+    runner = tmp_path / "mirror.mjs"
+    runner.write_text(_MIRROR_RUNNER, encoding="utf-8")
+    res = subprocess.run(
+        ["node", str(runner),
+         str(ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx"),
+         str(ROOT / "frontend" / "src" / "lib" / "timelineMath.js"), str(spec)],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    assert res.returncode == 0, res.stderr
+    points = json.loads(res.stdout)
+
+    report = {}
+    for name, (src, _cfg) in cases.items():
+        axis = 0 if src == portrait else 1
+        preview = [_band(p[axis], 1080) for p in points[name]]
+        report[name] = {"render": _runs(render_bands[name]), "preview": _runs(preview)}
+        mismatched = sum(a != b for a, b in zip(render_bands[name], preview))
+        # Only a sample straddling a colour edge may disagree.
+        assert mismatched <= 2, f"{name}: {report[name]}"
+    print(json.dumps(report))
