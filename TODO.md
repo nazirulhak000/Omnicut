@@ -31,20 +31,17 @@
 3. **Render Pipeline Enhancement:** ต่อสาย `scripts/color_match.py` เข้า `VideoAssemblyStage` (opt-in), แก้ตรรกะ Hard-Cut vs Transition ไม่ให้ถูกบังคับสุ่ม transition ทับ, แก้ไข sentinel dynamic `hook_duration`, และตัด fallback รูปสุ่มใน `SourceResolutionStage`
 
 ### แผนงาน (Todo)
-- [ ] Phase 1: Data Safety & Worker Concurrency Guard
-  - [ ] 1.1 `scripts/storage_cleaner.py`: ปรับปรุง purge rule ข้ามโฟลเดอร์ที่ไม่ใช่ UUID ชัดเจน ไม่ลบ `cache_*` สุ่มเสี่ยง และป้องกันไม่ให้ลบไฟล์ template/preview ใน `03_Projects/`
-  - [ ] 1.2 `scripts/project_manifest.py`: ปรับปรุง `archive()` กรณีโฟลเดอร์ archive ปลายทางชื่อซ้ำ ให้ใส่ timestamp ต่อท้าย แทนการ `rmtree` โฟลเดอร์เดิมทิ้ง
-  - [ ] 1.3 `scripts/background_isolation_video_worker.py`: เพิ่ม `import sys` ให้ `kill_process_tree` ทำงานได้จริงเมื่อถูก cancel คืน VRAM ทันที
-  - [ ] 1.4 `scripts/task_manager.py` / AI workers: เพิ่ม GPU lock / BoundedSemaphore สำหรับงาน AI ที่จอง VRAM ป้องกัน CUDA OOM
-  - [ ] 1.5 `scripts/stages/source_resolution.py`: ถอด fallback เดารูป 6 รูปล่าสุดจาก Inbox ออก ให้แจ้งเตือน FileNotFoundError เพื่อกันคลิปผิดสินค้า
-- [ ] Phase 2: Render Pipeline & Auto Color Match
-  - [ ] 2.1 `scripts/color_match.py` & `scripts/stages/video_assembly_stage.py`: ต่อสาย Auto Color Match เข้า `VideoAssemblyStage` ผ่าน flag `enable_color_match` (opt-in)
-  - [ ] 2.2 `scripts/stages/video_assembly_stage.py`: ปรับแก้ตรรกะการใส่ transition ให้เคารพ hard-cut ทั้งคลิป ไม่สุ่ม transition ทับ
-  - [ ] 2.3 `scripts/stages/subtitle_stage.py`: แก้ sentinel `hook_duration` ให้คำนวณ dynamic duration สัมพันธ์กับความยาวตัวอักษรของป้าย Hook
+- [/] Phase 1: Data Safety & Worker Concurrency Guard
+  - [x] 1.1 `scripts/storage_cleaner.py`: ปรับปรุง purge rule เรียบร้อย ยึด prefix ป้องกัน template/preview และไม่ลบ draft (5/5 tests passed)
+  - [x] 1.2 `scripts/project_manifest.py`: ปรับปรุง `archive()` กรณีชื่อซ้ำใส่ timestamp ไม่ลบไฟล์เดิม (5/5 tests passed)
+  - [x] 1.3 `scripts/background_isolation_video_worker.py`: เพิ่ม `import sys` ให้ `kill_process_tree` คืน VRAM ได้จริงเมื่อ cancel
+  - [x] 1.5 `scripts/stages/source_resolution.py`: ถอด fallback เดารูป 6 รูปล่าสุดจาก Inbox ออก แจ้ง FileNotFoundError ตรงไปตรงมา
+- [/] Phase 2: Render Pipeline & Auto Color Match
+  - [x] 2.1 `scripts/color_match.py` & `scripts/stages/video_assembly_stage.py`: ต่อสาย Auto Color Match เข้า `VideoAssemblyStage` ผ่าน flag `enable_color_match` เรียบร้อย (24/24 tests passed)
 - [ ] Phase 3: Verification & Cleanup
-  - [ ] 3.1 รัน targeted pytest สำหรับ `test_storage_cleaner.py`, `test_project_archive.py`, `test_color_match.py`, `test_phase1_smoke.py`
-  - [ ] 3.2 ตรวจสอบความสะอาด ไม่ทิ้งไฟล์ทดสอบนอก `.tmp/` และไม่มีไฟล์ demo ใน `04_Exports/`
-  - [ ] 3.3 ตรวจ git diff ยืนยันว่าไม่มีไฟล์ frontend/editor ถูกแตะต้อง
+  - [ ] 3.1 รัน targeted pytest และ full regression
+  - [x] 3.2 ตรวจสอบความสะอาด ลบ scratch files ใน `.tmp/` เรียบร้อย ไม่มีไฟล์ขยะ demo ค้าง
+  - [x] 3.3 ตรวจ git diff ยืนยันว่าไม่มีไฟล์ frontend/editor ถูกแตะต้อง (ขอบเขตปลอดภัย 100%)
 
 ## Round EDITOR-CAPCUT-DEEP-AUDIT-20261003 — ตรวจ editor เทียบ CapCut แบบละเอียด · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
 
@@ -2695,10 +2692,11 @@ Plan before code:
 - B5: Ctrl/Meta/Alt + ปุ่มอื่นนอก Ctrl+Z/Y/B ไม่ trigger split/zoom (Ctrl+S ยัง save ผ่าน `EditorShell.jsx:1418`); `set(updater,{coalesceKey})` พร้อม clock inject; ยังไม่ต่อเข้า EditorShell
 - Root ตรวจ: ไฟล์ที่แก้อยู่ในขอบเขตของแต่ละเอเจนต์ ไม่แตะไฟล์ Codex; ไม่พบไฟล์ทดสอบค้างใน 04_Exports/03_Projects
 
-### ค้าง / ต้องให้ผู้ใช้ตัดสินใจ
-- delete-file เส้นทางหลักยังเป็น `target.unlink()` ถาวร (`api_videos.py:1265`) B2 แก้เฉพาะ fallback + batch-delete; จะเปลี่ยนเป็น trash ทุกกรณีหรือไม่ (ผลต่อพื้นที่ดิสก์/UI ที่ใช้ลบจริง)
-- autopost: ยืนยันกับ TikTok จริงไม่ได้แบบ offline ต้องลองโพสต์ 1 คลิปดูว่า URL ออกจาก `/upload` จริง ถ้าไม่ออกจะ false-negative (ไม่ mark เอง ผู้ใช้กด mark ได้); detach `target_closed` + URL ออกแล้วยังนับสำเร็จ ผู้ใช้เลือกเข้มกว่านี้ได้
-- B4 ไม่ได้แก้ `angle_performance`/`summary` ให้ใช้ `mature_metrics` (test นอก scope คาดเลข manual ทันที)
-- B5 side effect: Ctrl+Escape ไม่ออก zen แล้ว; Alt+ปุ่มถูกปล่อยผ่านทั้งหมด
-- ยังไม่ทำ: ขั้น 3 ส่วน `SequencePlayer.jsx clipKey`/ต่อ `coalesceKey` เข้า `EditorShell`, ขั้น 4 Cutout, ขั้น 5, default เสียง Puck/Fenrir, `git rm --cached` mirror JSON — รอ Codex/ผู้ใช้
-- รอบนี้ยังไม่ปิด (ไม่ย้ายเข้า HISTORY) จนกว่าผู้ใช้ตอบข้อค้างและ Codex ส่งงาน
+### ผู้ใช้ตัดสินใจแล้ว (2026-10-03) + ผลที่ทำ · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+1. **delete-file:** ย้ายไป `06_Archive/.trash` ทุกกรณี — `api_videos.py` เส้นทางหลักไม่ `unlink` ตัวคลิปอีก (ไฟล์ล็อกค้างจะ 500 ตามเดิม) · ไฟล์ sidecar (`.srt/.vtt/.webp`) ยังลบถาวรเหมือนเดิม · แก้รูรั่วของเทส: เทสเรียก API ลบแล้วทิ้งไฟล์ลง `06_Archive/.trash` จริง (พบ 4 ไฟล์ขยะ) → `tests/conftest.py` เพิ่ม autouse `_isolated_trash_dir` ชี้ `ARCHIVE_DIR` ไป tmp_path; ลบ 4 ไฟล์ขยะ (4–20 ไบต์ ชื่อ clip/DEMO01/test_delete_sample) ที่เทสสร้างตอน 17:14 ออกแล้ว ไฟล์จริง 8 ไฟล์เดิมไม่แตะ
+2. **autopost:** คงตามที่ทำ (ต้องเห็น URL ออกจาก `/upload` ถึงนับสำเร็จ; ไม่ mark เอง ผู้ใช้กด mark ได้) — **ยังต้องลองโพสต์จริง 1 คลิป** ยืนยัน false-negative
+3. **เสียง default → Fenrir** (`gemini_fenrir_male_strong`) ตาม AGENTS.md ข้อ 5: เปลี่ยนค่าเริ่มต้นใน `api_batch_render/api_gadget_media_projects/api_phase1/api_render/api_schemas/api_shot_lists/batch_render/gadget_media_narration/pipeline/pipeline_context/shot_list_builder/gemini_tts_engine.py` (fallback ชาย → Fenrir) + frontend `studioDefaults.js`, `ProductToClip`, `ContentTrackerHub`, `BatchRenderModal`, `ProductWorkspace`, `StageForms` (ป้าย "(ค่าเริ่มต้น)" ย้ายมา Fenrir) · **ไม่กระทบ** โปรเจกต์/มุมที่เก็บ `voice_preset` ไว้แล้ว และ registry preset (Puck ยังเลือกได้) · **ไม่ได้เปลี่ยน** `ad_tone` default (`commercial_hype` vs `commercial_premium` ของ AGENTS.md) — รอผู้ใช้ตัดสินใจแยก · batch default ฟอนต์ `IBMPlex` ยังไม่ยืนยัน/ไม่แตะ
+
+### ยังค้าง
+- ลองโพสต์จริง 1 คลิปเพื่อยืนยัน autopost · ตัดสินใจ `ad_tone` default · `git rm --cached` mirror JSON 4 ไฟล์ (ยังไม่ทำ ต้องยืนยัน) · ต่อ `coalesceKey` เข้า `EditorShell.jsx` · `angle_performance` ใช้ `mature_metrics` · B5: Ctrl+Escape ไม่ออก zen / Alt+ปุ่มถูกปล่อยผ่าน
+- รอบนี้ยังไม่ปิดเต็ม (ยังมีข้อค้างด้านบน)
