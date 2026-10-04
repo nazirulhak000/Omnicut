@@ -44,7 +44,7 @@ FADE = 0.008
 CLIP_SECONDS = 4.0
 CLIP_COPIES = 9  # 36 s of picture: longer than the 32.5 s cut voice
 
-PROBE = """
+PROBE = r"""
 (() => {
   const probe = { sources: [], params: [], ctx: null };
   window.__voiceProbe = probe;
@@ -79,11 +79,20 @@ PROBE = """
     const ctx = probe.ctx;
     const input = [...document.querySelectorAll('input[aria-label="เลื่อนตำแหน่งเล่นวิดีโอ"]')]
       .find((el) => el.offsetParent !== null);
+    const clock = [...document.querySelectorAll('[title="เวลาปัจจุบัน / เวลาทั้งหมดของคลิป (นาที:วินาที:เฟรม ที่ 30 fps)"]')]
+      .find((el) => el.offsetParent !== null);
+    const times = clock?.textContent.match(/\d+:\d+:\d+/g) || [];
+    const seconds = (time) => {
+      if (!time) return null;
+      const [minutes, seconds, frames] = time.split(':').map(Number);
+      return minutes * 60 + seconds + frames / 30;
+    };
     const audio = document.querySelector('audio');
     return {
       ctxTime: ctx ? ctx.currentTime : null,
       ctxState: ctx ? ctx.state : null,
-      playhead: input ? Number(input.value) : null,
+      playhead: input ? Number(input.value) : seconds(times[0]),
+      totalDuration: input ? Number(input.max) : seconds(times[1]),
       audioPaused: audio ? audio.paused : null,
       sources: probe.sources.filter((s) => s.started).map(({ when, offset, duration, bufferDuration, ctxAtStart, stopped }) => (
         { when, offset, duration, bufferDuration, ctxAtStart, stopped })),
@@ -161,8 +170,7 @@ def _open_editor(playwright, base_url, manifest, page_errors):
     page.goto(f"{base_url}/editor_shell_audit.html", wait_until="domcontentloaded")
     page.locator('[data-timeline-item="clip"]:visible').first.wait_for(timeout=20000)
     page.wait_for_function(
-        "() => [...document.querySelectorAll('input[aria-label=\"เลื่อนตำแหน่งเล่นวิดีโอ\"]')]"
-        ".some((el) => el.offsetParent !== null && Number(el.max) > 30)",
+        "() => window.__voiceState().totalDuration > 30",
         timeout=30000,
     )
     return browser, page

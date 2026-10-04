@@ -22,6 +22,7 @@ import subprocess
 import wave
 from contextlib import ExitStack
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import numpy as np
@@ -58,14 +59,16 @@ def _decode_rgb(rgb):
     return q[0] + 8 * q[1] + 64 * q[2]
 
 
-def _write_index_coded_source(path, n_frames=512, w=96, h=160):
+def _write_index_coded_source(path, n_frames=512, w=96, h=160, pattern=False, source_fps=FPS):
     """Each frame is one flat colour = its own frame index, so any output frame
     tells which raw frame it came from (zoom/crop cannot change a flat colour)."""
     frames = np.zeros((n_frames, h, w, 3), np.uint8)
     for i in range(n_frames):
         frames[i, :, :] = _code_rgb(i)
+        if pattern:
+            frames[i, 30:50, 20:30] = 255
     _run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
-          "-s", f"{w}x{h}", "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-qp", "0",
+          "-s", f"{w}x{h}", "-r", str(source_fps), "-i", "-", "-c:v", "libx264", "-qp", "0",
           "-pix_fmt", "yuv444p", str(path)], input=frames.tobytes())
 
 
@@ -137,8 +140,8 @@ N_CUES = 4
 FIRST_CUE_STARTS = (0.0, 0.1, 0.3)
 
 
-def _plan_shots(raw, cues, total):
-    """Run the real ShotMatchingStage (legacy rhythmic path, no AI/BGM/motion)."""
+def _plan_shots(raw, cues, total, *, ai_shots=None, beat_times=None, motion=([], [])):
+    """Run the production planner with patched analysers and optional test matches."""
     from scripts.pipeline_context import PipelineContext
     from scripts.stages.shot_matching_stage import ShotMatchingStage
 
@@ -148,16 +151,204 @@ def _plan_shots(raw, cues, total):
     ctx.cues = cues
     ctx.micro_cues = cues
     ctx.editorial_pacing = None
-    ctx.use_ai_vision = False
+    ctx.use_ai_vision = ai_shots is not None
     ctx.effective_bgm_name = None
     ctx.mixed_audio_path = None
     ctx.transitions = None
     with ExitStack() as stack:
-        stack.enter_context(patch(f"{STAGE}.SFXManager.resolve_bgm_path", return_value=None))
-        stack.enter_context(patch(f"{STAGE}.MotionAnalyzer.get_motion_scores", return_value=([], [])))
+        if ai_shots is not None:
+            stack.enter_context(patch(f"{STAGE}.GeminiVisionMatcher.is_available", return_value=True))
+            stack.enter_context(patch(f"{STAGE}.GeminiVisionMatcher.prepare_request_context", return_value=None))
+            stack.enter_context(patch(f"{STAGE}.GeminiVisionMatcher.get_cached_matches", return_value=ai_shots))
+        stack.enter_context(patch(f"{STAGE}.SFXManager.resolve_bgm_path", return_value=Path("unused.wav") if beat_times is not None else None))
+        stack.enter_context(patch(f"{STAGE}.BeatSync.get_beat_times", return_value=beat_times or []))
+        stack.enter_context(patch(f"{STAGE}.MotionAnalyzer.get_motion_scores", return_value=motion))
         stack.enter_context(patch(f"{STAGE}.ScriptToneAnalyzer.classify_tone_shifts", return_value=[]))
         ShotMatchingStage.run(ctx)
     return ctx.actual_clip_list
+
+
+def test_music_and_motion_keep_voice_lead_in_real_render_and_preview(tmp_path, monkeypatch):
+    from scripts.sfx_manager import bgm_tempo_ratio
+    from scripts.video_editor import VideoEditor
+    monkeypatch.setenv("OMNICUT_ENCODER", "cpu")
+    with TemporaryDirectory(dir=tmp_path) as directory:
+        root = Path(directory)
+        raw, ass, voice, out = [root / name for name in ("raw.mp4", "empty.ass", "voice.wav", "out.mp4")]
+        _write_index_coded_source(raw)
+        _write_empty_ass(ass)
+        _write_voice(voice, [0, 2, 4, 6], 8)
+        cues = [{"start": i, "end": i + 2, "text": "feature"} for i in (0, 2, 4, 6)]
+        matches = [{"cue_id": i + 1, "start_time": 2 + 3 * i, "end_time": 6 + 3 * i} for i in range(4)]
+        ratio = bgm_tempo_ratio(cues)
+        clips = _plan_shots(raw, cues, 8, ai_shots=matches,
+                            beat_times=[t * ratio for t in (2.3, 4.133333333, 4.233333333)],
+                            motion=([4.2, 4.3], [.1, 0.]))
+        clips = [{**c, "transition_in": "cut"} for c in clips]
+        for clip in clips:
+            clip.pop("transition_duration", None)
+        VideoEditor.assemble_tiktok_video(
+            raw_video_paths=[str(raw)], total_duration=8, mixed_audio_path=str(voice),
+            ass_subtitle_path=str(ass), output_mp4_path=str(out), clip_list=clips,
+            transitions=["cut"] * 3, export_preset="draft",
+        )
+        indices = _decoded_indices(out)
+        changes = [k for k in range(1, len(indices)) if indices[k] not in (indices[k - 1], indices[k - 1] + 1)]
+        assert len(indices) == 240
+        assert changes == [66, 127, 185], changes
+        onsets = _onsets(_decoded_audio(out))
+        assert len(onsets) == 4
+        for frame, onset in zip(changes, onsets[1:]):
+            assert .15 - FRAME <= frame / FPS - onset <= .25 + FRAME
+        preview = _run(["node", "--input-type=module", "-e", """
+            import {buildSegments,getDrawPlan} from './frontend/src/lib/timelineMath.js';
+            let input=''; for await (const chunk of process.stdin) input+=chunk;
+            const segments=buildSegments(JSON.parse(input));
+            console.log(JSON.stringify(Array.from({length:240},(_,k)=>
+                Math.round(getDrawPlan(segments,k/30+1e-6)[0].localTime*30))));
+        """], input=json.dumps(clips), text=True, cwd=ROOT)
+        expected = json.loads(preview.stdout)
+        assert max(abs(a - b) for a, b in zip(indices, expected)) <= 1
+
+
+@pytest.mark.parametrize("case", ["same_thought", "sentence_change", "topic_change"])
+def test_complete_thought_shots_match_real_render_and_preview(tmp_path, monkeypatch, case):
+    from scripts.video_editor import VideoEditor
+    monkeypatch.setenv("OMNICUT_ENCODER", "cpu")
+    with TemporaryDirectory(dir=tmp_path) as directory:
+        root = Path(directory)
+        raw, ass, voice, out = [root / name for name in ("raw.mp4", "empty.ass", "voice.wav", "out.mp4")]
+        _write_index_coded_source(raw, pattern=True)
+        _write_empty_ass(ass)
+        _write_voice(voice, [0, 2, 4, 6, 8, 10], 12)
+        cues = [{"start": i, "end": i + 2, "text": "same feature"} for i in range(0, 12, 2)]
+        cues[-1]["sentence_end"] = True
+        matches = [{"cue_ids": list(range(1, 7)), "start_time": 2, "end_time": 16}]
+        if case == "same_thought":
+            for cue in cues:
+                cue["line_idx"] = 0
+            cues[1]["text"] += " ครับ"  # Polite filler, not a sentence boundary.
+        elif case == "sentence_change":
+            cues[3]["sentence_end"] = True
+        elif case == "topic_change":
+            matches = [{"cue_ids": [1, 2, 3, 4], "start_time": 2, "end_time": 12},
+                       {"cue_ids": [5, 6], "start_time": 12, "end_time": 17}]
+        clips = _plan_shots(raw, cues, 12, ai_shots=matches)
+        assert len(clips) == (1 if case == "same_thought" else 2)
+        assert not any(c.get("freeze_tail") for c in clips)
+        clips = [{**c, "transition_in": "cut"} for c in clips]
+        for clip in clips:
+            clip.pop("transition_duration", None)
+        VideoEditor.assemble_tiktok_video(
+            raw_video_paths=[str(raw)], total_duration=12, mixed_audio_path=str(voice),
+            ass_subtitle_path=str(ass), output_mp4_path=str(out), clip_list=clips,
+            transitions=["cut"] * (len(clips) - 1), export_preset="draft",
+        )
+        indices = _decoded_indices(out)
+        assert len(indices) == 360
+        assert indices[:245] == list(range(60, 305)), "full first thought must play continuously"
+        if case == "topic_change":
+            assert indices[245:] == list(range(360, 475)), "next feature begins only at the planned boundary"
+        else:
+            assert indices == list(range(60, 420))
+        preview = _run(["node", "--input-type=module", "-e", """
+            import {buildSegments,getDrawPlan} from './frontend/src/lib/timelineMath.js';
+            let input=''; for await (const chunk of process.stdin) input+=chunk;
+            const segments=buildSegments(JSON.parse(input));
+            console.log(JSON.stringify({boundaries:segments.slice(1).map(s=>s.frames.start),
+                indices:Array.from({length:360},(_,k)=>Math.round(getDrawPlan(segments,k/30+1e-6)[0].localTime*30))}));
+        """], input=json.dumps(clips), text=True, cwd=ROOT)
+        expected = json.loads(preview.stdout)
+        assert expected["boundaries"] == ([] if case == "same_thought" else [245])
+        assert max(abs(a - b) for a, b in zip(indices, expected["indices"])) <= 1
+        onsets = _onsets(_decoded_audio(out))
+        assert len(onsets) == 6
+        if case != "same_thought":
+            assert .15 - FRAME <= 245 / FPS - onsets[4] <= .25 + FRAME
+
+
+def test_short_ai_topics_show_both_features_in_preview_and_real_render(tmp_path, monkeypatch):
+    from scripts.video_editor import VideoEditor
+
+    monkeypatch.setenv("OMNICUT_ENCODER", "cpu")
+    with TemporaryDirectory(dir=tmp_path) as directory:
+        root = Path(directory)
+        raw, ass, voice, out = [root / name for name in ("raw.mp4", "empty.ass", "voice.wav", "out.mp4")]
+        _write_index_coded_source(raw)
+        _write_empty_ass(ass)
+        _write_voice(voice, [0, .8], 1.6)
+        cues = [{"start": 0, "end": .8, "text": "feature A"},
+                {"start": .8, "end": 1.6, "text": "feature B"}]
+        matches = [{"cue_ids": [1], "start_time": 2, "end_time": 6},
+                   {"cue_ids": [2], "start_time": 10, "end_time": 14}]
+        clips = _plan_shots(raw, cues, 1.6, ai_shots=matches)
+        assert [c["trim_start"] for c in clips] == [2, 10]
+        clips = [{**c, "transition_in": "cut"} for c in clips]
+        for clip in clips:
+            clip.pop("transition_duration", None)
+        VideoEditor.assemble_tiktok_video(
+            raw_video_paths=[str(raw)], total_duration=1.6, mixed_audio_path=str(voice),
+            ass_subtitle_path=str(ass), output_mp4_path=str(out), clip_list=clips,
+            transitions=["cut"], export_preset="draft",
+        )
+        indices = _decoded_indices(out)
+        assert len(indices) == 48
+        # Use the production preview planner at each decoded render frame.
+        preview = _run(["node", "--input-type=module", "-e", """
+            import {buildSegments, getDrawPlan} from './frontend/src/lib/timelineMath.js';
+            let input = ''; for await (const data of process.stdin) input += data;
+            const segments = buildSegments(JSON.parse(input));
+            console.log(JSON.stringify(Array.from({length:48}, (_,k) =>
+                Math.round(getDrawPlan(segments, k/30 + 1e-6)[0].localTime * 30))));
+        """], input=json.dumps(clips), text=True, cwd=ROOT)
+        expected = json.loads(preview.stdout)
+        assert max(abs(actual - want) for actual, want in zip(indices, expected)) <= 1
+        assert indices[0] == 60
+        assert indices[29] == 300
+        assert indices[-1] > 300
+
+
+@pytest.mark.parametrize("duration,source_fps", [(8, 30), (12, 30), (12, 60)])
+def test_short_source_window_holds_last_included_frame_in_preview_and_render(tmp_path, monkeypatch, duration, source_fps):
+    from scripts.video_editor import VideoEditor
+    from scripts.stages.video_assembly_stage import _centre_transition_overlaps
+    monkeypatch.setenv("OMNICUT_ENCODER", "cpu")
+    with TemporaryDirectory(dir=tmp_path) as directory:
+        root = Path(directory)
+        raw, ass, voice, out = [root / name for name in ("raw.mp4", "empty.ass", "voice.wav", "out.mp4")]
+        _write_index_coded_source(raw, pattern=True, source_fps=source_fps)
+        _write_empty_ass(ass)
+        _write_voice(voice, [0, 2, 4], duration)
+        cues = [{"start": i, "end": i + 2, "text": "same feature"} for i in range(0, duration, 2)]
+        matches = [{"cue_ids": list(range(1, len(cues) + 1)), "start_time": 2, "end_time": 4}]
+        clips = _plan_shots(raw, cues, duration, ai_shots=matches)
+        clips = [{**c, "transition_in": "cut"} for c in clips]
+        for clip in clips:
+            clip.pop("transition_duration", None)
+        transitions = [{"type": "fade", "duration": .35} for _ in clips[1:]]
+        _centre_transition_overlaps(clips, transitions)
+        assert all(t["type"] == "cut" for t in transitions), "held continuation must preserve its exact picture"
+        VideoEditor.assemble_tiktok_video(
+            raw_video_paths=[str(raw)], total_duration=duration, mixed_audio_path=str(voice),
+            ass_subtitle_path=str(ass), output_mp4_path=str(out), clip_list=clips,
+            transitions=transitions, export_preset="draft",
+        )
+        indices = _decoded_indices(out)
+        assert len(indices) == duration * FPS
+        assert indices[:60] == list(range(2 * source_fps, 4 * source_fps, source_fps // FPS))
+        assert set(indices[60:]) == {4 * source_fps - source_fps // FPS}, "next feature must not leak into the hold"
+        preview = _run(["node", "--input-type=module", "-e", """
+            import {buildSegments, getDrawPlan} from './frontend/src/lib/timelineMath.js';
+            let input = ''; for await (const data of process.stdin) input += data;
+            const {clips, duration, source_fps} = JSON.parse(input);
+            const segments = buildSegments(clips);
+            console.log(JSON.stringify(Array.from({length:duration*30}, (_,k) =>
+                Math.round(getDrawPlan(segments,k/30+1e-6)[0].localTime*source_fps))));
+        """], input=json.dumps({"clips": clips, "duration": duration, "source_fps": source_fps}), text=True, cwd=ROOT)
+        expected = json.loads(preview.stdout)
+        assert max(abs(a - b) for a, b in zip(indices, expected)) <= (source_fps // FPS - 1)
+        gray = _gray_frames(out)
+        assert np.abs(gray[75:] - gray[75]).mean() < 1.0, "held camera must not restart or drift"
 
 
 @pytest.fixture(scope="module")
@@ -415,6 +606,73 @@ def test_split_zoom_ramp_clip_renders_seamlessly(tmp_path, monkeypatch):
 
 
 # ── B(b): Ken Burns still images ───────────────────────────────────────────
+
+def test_transition_handles_keep_camera_motion_on_the_original_source_time(tmp_path, monkeypatch):
+    from copy import deepcopy
+    from scripts.stages.video_assembly_stage import _centre_transition_overlaps
+    from scripts.video_editor import VideoEditor, resolve_clip_transforms
+
+    monkeypatch.setenv("OMNICUT_ENCODER", "cpu")
+    with TemporaryDirectory(dir=tmp_path) as directory:
+        root = Path(directory)
+        src, wav, ass = [root / name for name in ("grid.mp4", "silence.wav", "empty.ass")]
+        _run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "color=c=white:s=270x480:r=30:d=5",
+              "-vf", "drawgrid=w=18:h=18:t=2:c=black,drawbox=x=100:y=200:w=70:h=80:c=red:t=fill",
+              "-c:v", "libx264", "-qp", "0", "-pix_fmt", "yuv420p", str(src)])
+        _write_voice(wav, [], 4)
+        _write_empty_ass(ass)
+        original = {"id": "incoming", "source_path": str(src), "trim_start": 1.0, "trim_end": 3.0,
+                    "duration": 2.0, "speed": 1.0, "zoom": 1.3,
+                    "keyframes": [{"time": 0, "zoom": 1.1, "pan_x": -.2},
+                                  {"time": 2, "zoom": 1.5, "pan_x": .2, "easing": "ease_in_out"}]}
+        clips = [{"id": "outgoing", "source_path": str(src), "trim_start": 0, "trim_end": 2,
+                  "duration": 2, "speed": 1, "zoom": 1.1}, deepcopy(original)]
+        clips[1].update(transition_in="fade", transition_duration=.4, transition_easing="ease_out")
+        transitions = [{"type": "fade", "duration": .4, "easing": "ease_out"}]
+        _centre_transition_overlaps(clips, transitions)
+        naive = deepcopy(clips)
+        naive[1]["keyframes"] = deepcopy(original["keyframes"])
+
+        def render(name, plan, length, boundaries):
+            out = root / f"{name}.mp4"
+            VideoEditor.assemble_tiktok_video(
+                raw_video_paths=[str(src)], total_duration=length, mixed_audio_path=str(wav),
+                ass_subtitle_path=str(ass), output_mp4_path=str(out), clip_list=deepcopy(plan),
+                transitions=boundaries, export_preset="draft",
+            )
+            return _gray_frames(out)
+
+        reference = render("reference", [original], 2, [])
+        actual = render("centred", clips, 4, transitions)
+        baseline = render("old_camera_time", naive, 4, transitions)
+        assert len(actual) == len(baseline) == 120
+        assert len(reference) == 60
+        # Compare once the transition is over, at the same source instants.
+        diffs = np.abs(actual[67:120] - reference[7:60]).mean(axis=(1, 2))
+        old_diffs = np.abs(baseline[67:120] - reference[7:60]).mean(axis=(1, 2))
+        print({"camera_mad_median": float(np.median(diffs)), "old_mad_median": float(np.median(old_diffs))})
+        # Separate encodes and scale/crop's 2px size rounding create small
+        # differences even at the same pose; the old phase error moves the
+        # dense grid by tens of pixels. Keep both an absolute and relative gate.
+        assert max(diffs) <= 8
+        assert float(np.median(diffs)) <= 5
+        assert float(np.median(old_diffs)) > 10 * float(np.median(diffs))
+        assert np.min(actual.mean(axis=(1, 2))) > 10  # no empty/black transition frames
+        preview = _run(["node", "--input-type=module", "-e", """
+            import {buildSegments,getDrawPlan,resolveClipTransforms} from './frontend/src/lib/timelineMath.js';
+            let input=''; for await (const chunk of process.stdin) input+=chunk;
+            const clips=JSON.parse(input), segments=buildSegments(clips);
+            console.log(JSON.stringify(Array.from({length:120},(_,k)=>getDrawPlan(segments,k/30+1e-6)
+              .map(p=>({id:p.seg.clip.id,pose:resolveClipTransforms(p.seg.clip,p.motionTime),alpha:p.alpha})))));
+        """], input=json.dumps(clips), text=True, cwd=ROOT)
+        plans = json.loads(preview.stdout)
+        for k, plan in enumerate(plans):
+            for item in plan:
+                local = k / 30 + 1e-6 - (1.8 if item["id"] == "incoming" else 0)
+                clip = clips[1 if item["id"] == "incoming" else 0]
+                assert item["pose"] == pytest.approx(resolve_clip_transforms(clip, local), abs=1e-6)
+        # At 1/4 transition progress, ease_out mixes 43.75%, not linear 25%.
+        assert plans[57][-1]["alpha"] == pytest.approx(.4375, abs=1e-5)
 
 def _circle_png(path, w, h, r=250):
     from PIL import Image, ImageDraw

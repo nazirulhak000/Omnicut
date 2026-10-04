@@ -113,10 +113,14 @@ export default function CaptionInspector({
   const handleScaleChange = (scale) => {
     const clamped = clampScale(scale);
     if (effectiveApplyToAll) {
-      onStyleChange?.({ captionScale: clamped });
-      onPatchAllCaptions?.({ scale: null });
+      onStyleChange?.({ captionScale: clamped }, { coalesceKey: 'caption:scale:all' });
+      onPatchAllCaptions?.({ scale: null }, false, { coalesceKey: 'caption:scale:all' });
     } else {
-      onCaptionChange?.(selectedCaption._uid, { scale: clamped });
+      onCaptionChange?.(
+        selectedCaption._uid,
+        { scale: clamped },
+        { coalesceKey: `caption:scale:${selectedCaption._uid}` },
+      );
     }
   };
 

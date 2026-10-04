@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { useEditorCommands } from '../hooks/useEditorCommands.js';
 import { createEditorHistoryModel } from '../hooks/useEditorHistory.js';
 import { describeRipplePlan } from './rippleRange.js';
+import { describeRippleConfirm, silenceSpansToProgramRanges } from './rippleUi.js';
 
 // The ripple commands of useEditorCommands, driven through a real hook call
 // (server render) against a real history model: ONE set() per ripple, the
@@ -151,4 +152,37 @@ test('the plan is made against the NEWEST state, not the one the dialog saw', ()
   const after = model.getState();
   assert.equal(after.cuesList.find((c) => c._uid === 'u3').start, 11, 'the late caption was shifted too');
   assert.equal(dialogPlan.state.cuesList.find((c) => c._uid === 'u3'), undefined);
+});
+
+test('all-track silence ripple cut flow (User Choice 2. ก): spans mapped, plan confirmed, cuts across lanes in 1 step', () => {
+  const { api, model, calls } = mountCommands();
+  const before = model.getState();
+  const rawSilences = [{ cut_start: 6, cut_end: 8 }];
+  const programRanges = silenceSpansToProgramRanges(rawSilences, before.voiceEdit, 15);
+  assert.deepEqual(programRanges, [{ start: 6, end: 8 }]);
+
+  const plan = api.planRipple(programRanges, 'all', { reason: 'silence' });
+  assert.equal(plan.blocked, null);
+  assert.equal(plan.changed, true);
+
+  const confirm = describeRippleConfirm(plan, { source: 'silence', count: rawSilences.length });
+  assert.equal(confirm.title, 'ตัดช่วงเงียบ 1 ช่วงออก?');
+  assert.match(confirm.summary, /เสียงพากย์สั้นลง 2\.00 วินาที/);
+
+  const applied = api.rippleRanges(programRanges, 'all', { reason: 'silence' });
+  assert.equal(applied.changed, true);
+  assert.equal(calls.setCount, 1);
+
+  const after = model.getState();
+  // Video clips trimmed/shifted
+  assert.equal(after.clipList.length, 4);
+  // Voiceover cut registered
+  assert.deepEqual(after.voiceEdit.cuts.map((c) => [c.start, c.end, c.reason]), [[6, 8, 'silence']]);
+  // Later subtitles shifted
+  assert.equal(after.cuesList[1].start, 8);
+  assert.equal(after.microCuesList[0].start, 8);
+
+  // Single Ctrl+Z undo restores everything
+  assert.equal(model.undo(), true);
+  assert.deepEqual(model.getState(), before);
 });

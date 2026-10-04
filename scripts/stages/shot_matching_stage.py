@@ -24,6 +24,7 @@ from scripts.style_motion_policy import (
     resolve_style_motion_policy,
 )
 from scripts.quota import is_quota_error
+from scripts.shot_source_window import source_window, coalesce_short_windows, allocate_window
 from scripts.error_handler import AppError, ErrorCategory
 
 # Render frame rate (AGENTS.md: 30 FPS). Auto cut times land on this grid so a
@@ -39,9 +40,9 @@ def _frame_round(t: float) -> float:
 
 
 # J-cut window (.agents/rules/j_cut_rules.md) a snapped cut must stay inside,
-# measured as picture change minus the next line's voice onset. Slightly wider
-# than the 150-250 ms voiceover spec so a one-frame nudge is still allowed.
-VOICE_VALLEY_LEAD_WINDOW = (0.10, 0.30)
+# measured as picture change minus the next line's voice onset. Candidates
+# are already quantised to frames; do not widen it again for music or motion.
+VOICE_VALLEY_LEAD_WINDOW = (0.15, 0.25)
 VOICE_VALLEY_SEARCH = 0.08  # +-80 ms around the planned cut
 VOICE_VALLEY_WINDOW = 0.01  # loudness measured over 10 ms
 
@@ -49,6 +50,40 @@ VOICE_VALLEY_WINDOW = 0.01  # loudness measured over 10 ms
 def _j_lead(j_lead: float, prev_dur: float, curr_dur: float) -> float:
     """The lead the legacy path has always used: shortened for short shots."""
     return min(j_lead, prev_dur * 0.25, curr_dur * 0.25, 0.25)
+
+
+def _coalesce_ai_thought_groups(groups, matches, sentence_ends):
+    """Remove rhythmic cuts inside one known AI topic, retaining real ends.
+
+    Object identity is intentional: expanded cue_ids share their AI match;
+    separate matches and unmapped cues provide no same-topic guarantee.
+    """
+    output, topics = [], []
+    for group in groups:
+        topic = matches[group[0]] if group[0] < len(matches) else None
+        if any(i >= len(matches) or matches[i] is not topic for i in group):
+            topic = None
+        if output and topic is not None and topic is topics[-1] and not sentence_ends[output[-1][-1]]:
+            output[-1].extend(group)
+        else:
+            output.append(list(group))
+            topics.append(topic)
+    return output
+
+
+def _snap_preserves_voice_lead(candidate: float, onset: Optional[float], reference: float) -> bool:
+    """Music and motion may refine narration timing, never override it.
+
+    Very short shots deliberately shorten the J-lead; their existing frame
+    is retained rather than imposing the normal 150–250 ms window on them.
+    Missing narration timing keeps the legacy media-only behaviour.
+    """
+    if onset is None:
+        return True
+    if reference - onset < VOICE_VALLEY_LEAD_WINDOW[0] - 1e-6:
+        return abs(candidate - reference) <= 1e-6
+    lo, hi = VOICE_VALLEY_LEAD_WINDOW
+    return lo - 1e-6 <= candidate - onset <= hi + 1e-6
 
 
 def _load_voice_mono(path: Any):
@@ -104,13 +139,11 @@ def _voice_valley_snap(
     half = max(1, int(round(VOICE_VALLEY_WINDOW * sample_rate / 2)))
     floor_prev = min(min_shot, cut - prev_boundary)
     floor_next = min(min_shot, next_boundary - cut)
-    lo, hi = VOICE_VALLEY_LEAD_WINDOW
     steps = int(VOICE_VALLEY_SEARCH * CUT_FRAME_RATE + 1e-9)
     best, best_key = cut, None
     for step in range(-steps, steps + 1):
         cand = _frame_round(cut + step / CUT_FRAME_RATE)
-        lead = cand - onset
-        if not (lo - 1e-6 <= lead <= hi + 1e-6):
+        if not _snap_preserves_voice_lead(cand, onset, cut):
             continue
         if cand - prev_boundary < floor_prev - 1e-6 or next_boundary - cand < floor_next - 1e-6:
             continue
@@ -218,16 +251,20 @@ class ShotMatchingStage:
     def _sentence_end_flags(active_cues: List[dict], parent_cues: Optional[List[dict]] = None) -> List[bool]:
         """flags[i] is True when a sentence ends with cue i. Sources, in
         order: an explicit ``sentence_end`` key, a ``line_idx`` change to the
-        next cue, a sentence-closing text ending, or the cue ending exactly
-        where a parent (sentence-level) cue ends. Cues carrying none of these
+        next cue, a containing parent sentence, then text-ending fallback.
+        Known line/parent membership also establishes non-ending cues, so
+        polite endings within a sentence cannot split the thought. Cues carrying none of these
         give all False, which leaves the grouping exactly as it was."""
         n = len(active_cues)
         flags = [False] * n
         parent_ends = set()
+        parent_spans = []
         if parent_cues and parent_cues is not active_cues:
             for parent in parent_cues:
                 if isinstance(parent, dict) and parent.get("end") is not None:
                     parent_ends.add(round(float(parent["end"]), 3))
+                    if parent.get("start") is not None:
+                        parent_spans.append((float(parent["start"]), float(parent["end"])))
         for i, cue in enumerate(active_cues):
             explicit = cue.get("sentence_end")
             if explicit is not None:
@@ -235,8 +272,13 @@ class ShotMatchingStage:
                 continue
             if i + 1 < n:
                 this_line, next_line = cue.get("line_idx"), active_cues[i + 1].get("line_idx")
-                if this_line is not None and next_line is not None and this_line != next_line:
-                    flags[i] = True
+                if this_line is not None and next_line is not None:
+                    flags[i] = this_line != next_line
+                    continue
+            if cue.get("start") is not None and cue.get("end") is not None:
+                start, end = float(cue["start"]), float(cue["end"])
+                if any(p_start - .001 <= start and end <= p_end + .001 for p_start, p_end in parent_spans):
+                    flags[i] = round(end, 3) in parent_ends
                     continue
             if str(cue.get("text", "")).strip().endswith(SENTENCE_END_SUFFIXES):
                 flags[i] = True
@@ -885,35 +927,81 @@ class ShotMatchingStage:
                                     break
 
                     if not pacing_boundaries:
+                        # Rhythmic minimum-duration merges must not discard a
+                        # different AI-selected topic by using only group[0].
+                        # Cues in one merged AI shot share the same object;
+                        # preserve that hold while restoring distinct matches.
+                        if ai_matched_shots:
+                            topic_groups = []
+                            for group in groups:
+                                topic_group = []
+                                previous_match = None
+                                for cue_idx in group:
+                                    match = ai_matched_shots[cue_idx] if cue_idx < len(ai_matched_shots) else None
+                                    if topic_group and match is not previous_match:
+                                        topic_groups.append(topic_group)
+                                        topic_group = []
+                                    topic_group.append(cue_idx)
+                                    previous_match = match
+                                if topic_group:
+                                    topic_groups.append(topic_group)
+                            # The renderer requires at least .2s per clip.
+                            # If every match cannot fit, retain the original
+                            # grouping instead of lengthening the narration.
+                            if cut_points[-1] - cut_points[0] >= len(topic_groups) * 0.2 - 1e-6:
+                                groups = topic_groups
+                            else:
+                                print("   ⚠️  หัวข้อภาพสั้นเกินกริดคลิปขั้นต่ำ -- คงกลุ่มเดิมเพื่อรักษาเวลาเสียง")
+                            groups = _coalesce_ai_thought_groups(groups, ai_matched_shots, sentence_ends)
                         boundary_times = [cut_points[0]] + [cut_points[g[-1] + 1] for g in groups]
+                        if ai_matched_shots:
+                            for boundary_idx in range(1, len(boundary_times) - 1):
+                                earliest = boundary_times[boundary_idx - 1] + 0.2
+                                latest = boundary_times[-1] - 0.2 * (len(groups) - boundary_idx)
+                                boundary_times[boundary_idx] = _frame_round(
+                                    max(earliest, min(boundary_times[boundary_idx], latest))
+                                )
                         # Voice onset of the line each interior cut leads into.
                         boundary_onsets = [None] + [
                             float(active_cues[g[-1] + 1].get("start", 0.0)) if g[-1] + 1 < n_cues else None
                             for g in groups
                         ]
+                    if ai_matched_shots:
+                        groups, boundary_times, boundary_onsets = coalesce_short_windows(
+                            groups, boundary_times, boundary_onsets, ai_matched_shots, raw_duration
+                        )
                     # Beat snap works in timeline time (beat_times are already
                     # rescaled to the tempo the mixer plays). Motion snap is
                     # done per shot below, in raw-footage time, once each
                     # shot's raw offset is known -- motion_times index the raw
                     # clip, not the timeline. A beat-snapped cut keeps its beat.
+                    locked_holds = {i for i in range(1, len(groups)) if groups[i] is groups[i - 1]}
                     beat_snapped = set()
                     if beat_times and not pacing_boundaries:
                         BEAT_SNAP_TOLERANCE = rhythm.beat_snap_tolerance
                         for b_idx in range(1, len(boundary_times) - 1):
+                            if b_idx in locked_holds:
+                                continue
                             t = boundary_times[b_idx]
-                            nearest = _frame_round(min(beat_times, key=lambda bt: abs(bt - t)))
-                            if abs(nearest - t) <= BEAT_SNAP_TOLERANCE:
-                                prev_b = boundary_times[b_idx - 1]
-                                next_b = boundary_times[b_idx + 1]
-                                if (nearest - prev_b) >= MIN_SHOT_DURATION * 0.8 and (next_b - nearest) >= MIN_SHOT_DURATION * 0.8:
-                                    boundary_times[b_idx] = nearest
-                                    beat_snapped.add(b_idx)
+                            onset = boundary_onsets[b_idx]
+                            prev_b, next_b = boundary_times[b_idx - 1], boundary_times[b_idx + 1]
+                            eligible = [
+                                _frame_round(bt) for bt in beat_times
+                                if abs(_frame_round(bt) - t) <= BEAT_SNAP_TOLERANCE
+                                and _snap_preserves_voice_lead(_frame_round(bt), onset, t)
+                                and _frame_round(bt) - prev_b >= MIN_SHOT_DURATION * 0.8
+                                and next_b - _frame_round(bt) >= MIN_SHOT_DURATION * 0.8
+                            ]
+                            if eligible:
+                                boundary_times[b_idx] = min(eligible, key=lambda bt: abs(bt - t))
+                                beat_snapped.add(b_idx)
                     # Voice-valley snap: an interior cut that no beat claimed
                     # moves (+-80 ms, on the frame grid) to the quietest
                     # instant of the voice-only track, staying inside the
                     # J-cut window after its line's onset. The motion snap in
                     # the loop below still wins where the footage has a
-                    # still frame. Priority: beat > motion > voice > rhythm.
+                    # still frame. All media snaps preserve narration lead;
+                    # beat > motion > quiet voice is used only inside it.
                     if len(boundary_times) > 2:
                         voice = _load_voice_mono(getattr(ctx, "voice_audio_path", None))
                         if voice is None:
@@ -923,7 +1011,7 @@ class ShotMatchingStage:
                             samples, sample_rate = voice
                             for b_idx in range(1, len(boundary_times) - 1):
                                 onset = boundary_onsets[b_idx] if b_idx < len(boundary_onsets) else None
-                                if b_idx in beat_snapped or onset is None:
+                                if b_idx in beat_snapped or b_idx in locked_holds or onset is None:
                                     continue
                                 boundary_times[b_idx] = _voice_valley_snap(
                                     boundary_times[b_idx],
@@ -993,11 +1081,17 @@ class ShotMatchingStage:
                         # it back to timeline time.
                         if (
                             motion_times and not pacing_boundaries
-                            and g_idx < len(groups) - 1 and (g_idx + 1) not in beat_snapped
+                            and g_idx < len(groups) - 1 and (g_idx + 1) not in beat_snapped and (g_idx + 1) not in locked_holds
                         ):
                             raw_end = raw_offset + (v_end - v_start)
+                            onset = boundary_onsets[g_idx + 1]
+                            eligible_motion = [
+                                (t, score) for t, score in zip(motion_times, motion_scores)
+                                if _snap_preserves_voice_lead(_frame_round(v_start + t - raw_offset), onset, v_end)
+                            ]
                             trough = MotionAnalyzer.nearest_trough(
-                                motion_times, motion_scores, raw_end, MOTION_SNAP_TOLERANCE
+                                [t for t, _ in eligible_motion], [s for _, s in eligible_motion],
+                                raw_end, MOTION_SNAP_TOLERANCE
                             )
                             if trough is not None:
                                 snapped = _frame_round(v_start + (trough - raw_offset))
@@ -1012,6 +1106,10 @@ class ShotMatchingStage:
                                     v_end = snapped
                                     c_dur = max(0.2, v_end - v_start)
 
+                        bounded = source_window(ai_shot, raw_duration)
+                        allocation = allocate_window(bounded, ai_start, c_dur) if bounded else None
+                        if allocation:
+                            raw_offset = allocation["raw_offset"]
                         motion_score = (
                             MotionAnalyzer.segment_mean_score(motion_times, motion_scores, raw_offset, raw_offset + c_dur)
                             if motion_times else None
@@ -1046,7 +1144,8 @@ class ShotMatchingStage:
                             "start": v_start,
                             "end": v_end,
                             "scale": scale,
-                            "raw_offset": raw_offset
+                            "raw_offset": raw_offset,
+                            **(allocation or {}),
                         })
 
                         if g_idx > 0:
@@ -1103,7 +1202,7 @@ class ShotMatchingStage:
                 for idx, shot in enumerate(shots):
                     s_dur = max(0.2, shot["end"] - shot["start"])
                     raw_start_offset = float(shot.get("raw_offset", 0.0))
-                    trim_end = round(raw_start_offset + s_dur, 3)
+                    trim_end = shot.get("source_end", round(raw_start_offset + s_dur, 3))
                     boundary = ctx.transitions[idx - 1] if (idx > 0 and ctx.transitions and idx - 1 < len(ctx.transitions)) else None
                     if (
                         idx > 0
@@ -1124,7 +1223,7 @@ class ShotMatchingStage:
                     clip_entry = {
                         "id": f"clip_{idx}",
                         "source_path": str(raw_video),
-                        "trim_start": round(raw_start_offset, 3),
+                        "trim_start": raw_start_offset if "source_window" in shot else round(raw_start_offset, 3),
                         "trim_end": trim_end,
                         "duration": round(s_dur, 3),
                         "speed": 1.0,
@@ -1134,14 +1233,29 @@ class ShotMatchingStage:
                     }
                     if t_dur is not None:
                         clip_entry["transition_duration"] = float(t_dur)
+                    if isinstance(boundary, dict) and boundary.get("easing"):
+                        clip_entry["transition_easing"] = boundary["easing"]
+                    freeze_tail = float(shot.get("freeze_tail", 0))
+                    if "source_window" in shot:
+                        clip_entry["source_window"] = shot["source_window"]
+                    if freeze_tail > 1e-6:
+                        clip_entry["freeze_tail"] = freeze_tail
+                        clip_entry["footage_shortage"] = {"missing_seconds": round(freeze_tail, 3), "reason": "source_window_exhausted"}
+                        ctx.notify(f"ภาพช็อต {idx + 1} ไม่พอ {freeze_tail:.2f} วินาที — ค้างภาพสุดท้ายแทน", .85)
                     camera_keyframes = camera_keyframes_for_clip(
                         clip_entry["zoom"],
-                        s_dur,
+                        max(1 / CUT_FRAME_RATE, s_dur - freeze_tail),
                         idx,
                         style_preset=ctx.style_preset,
                     )
                     if camera_keyframes:
                         clip_entry["keyframes"] = camera_keyframes
+                    if shot.get("hold_only") and generated_clips:
+                        clip_entry["held_source_time"] = trim_end - .75 / CUT_FRAME_RATE
+                        previous = generated_clips[-1]
+                        clip_entry["zoom"] = previous["zoom"]
+                        if previous.get("keyframes"):
+                            clip_entry["keyframes"] = [{**previous["keyframes"][-1], "time": 0}]
                     generated_clips.append(clip_entry)
                 actual_clip_list = generated_clips
                 is_newly_generated_clips = True

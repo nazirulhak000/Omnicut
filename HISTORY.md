@@ -8,6 +8,20 @@
 
 ## สารบัญ
 
+| Round CODEX-CAMERA-SMOOTHNESS-20261004 | Camera timing after transition handles; clip easing matches render; focused122 passed | 2026-10-04 | Closed; ดำเนินการโดย: Codex (GPT-6) |
+| Round CLEAN-TOOLS-HARDCODED-PATHS-20261004 | กวาดล้าง Hardcoded Paths เก่า (Winon/Winona/Brain directory) ทั้งหมดในโฟลเดอร์ tools/, แคปซูลโค้ดเข้าฟังก์ชันพร้อมใส่ if __name__ == '__main__': guards ป้องกัน side-effects และอันตรายจากการ import (Audit Table 1 ข้อ 36), เพิ่ม dry-run ใน clean_and_organize_tmp.py; สร้างชุดทดสอบ tests/test_tools_path_hygiene.py (21 tests passed); ผ่าน pytest 2951 passed และ npm test 805 passed 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round SLIDER-UNDO-COALESCING-20261004 | แก้ไขปัญหา Undo Stack ท่วมจากการลาก Slider ใน Inspector (Audit Table 1 ข้อ 17 & Gap Report Theme B); ส่ง coalesceKey สำหรับ Caption scale, Sticker/Effect scale & timing, Hook duration/tier/outline, Overlay scale, และ Clip trim_start/trim_end; เชื่อมต่อ options ใน EditorShell และ useEditorCommands; 805 frontend tests passed / 2918 backend tests passed / production build 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+
+| Round CODEX-COMPLETE-THOUGHT-SHOTS-20261004 | Complete-thought shared AI holds; authoritative sentence metadata; focused109 passed and real12s parity | 2026-10-04 | Closed; ดำเนินการโดย: Codex (GPT-6) |
+
+| Round CODEX-NATURAL-CUT-SPEECH-GUARD-20261004 | Speech-first beat/motion snap; focused96 passed; real cut/preview parity; no full suite per user | 2026-10-04 | Closed; ดำเนินการโดย: Codex (GPT-6) |
+
+| Round TTS-ATEMPO-SAFETY-GUARD-20261004 | แก้ไขความปลอดภัยของ Gemini Flash TTS atempo & ป้องกัน Stale Audio (Table 1 ข้อ 22); รองรับ filter chaining สำหรับ speed นอกช่วง [0.5, 2.0]; เขียนลงไฟล์ชั่วคราวแบบ atomic (.speed.tmp.wav) พร้อมตรวจสอบ returncode ของ FFmpeg และไฟล์ว่าง; ลบไฟล์ปลายทางเก่าทิ้งก่อนเพื่อป้องกัน silent stale reuse; 25/25 backend TTS tests passed | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round CODEX-SOURCE-WINDOW-COVERAGE-20261004 | Bounded source windows, held-frame shortage notice; Python2907/frontend804; real30/60fps parity | 2026-10-04 | Closed; ดำเนินการโดย: Codex (GPT-6) |
+
+| Round COPY-PASTE-CLIP-SETTINGS-T11-20261004 | ระบบคัดลอกและวางคุณสมบัติคลิปข้ามคลิป (Copy & Paste Settings แบบ CapCut T11); เพิ่มปุ่ม "คัดลอกค่า" / "วางค่า" บน Toolbar, แผง Inspector, Multi-Select Banner และ ClipInspector Header; แก้ TDZ ของ showToast ใน EditorShell; ผ่าน 804 tests / production build 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ALL-TRACK-SILENCE-CUT-RIPPLE-20261004 | ยกระดับปุ่ม "ตัดช่วงเงียบ" ให้ตัดและขยับตามกันทุกเลน (All-Track Ripple) ตามการตัดสินใจข้อ 2. ก ของผู้ใช้; เชื่อม planRipple/rippleRanges ใน EditorShell ขยับภาพ เสียงพากย์ (voiceEdit) ซับไตเติล และ overlays พร้อมกันใน 1 ก้าว state; 800 frontend tests passed / build ผ่าน | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round CODEX-EDITING-QUALITY-TOPIC-20261004 | Preserve distinct AI topics through rhythmic merge; full pytest2888; frontend799/build; real48frame parity | 2026-10-04 | Closed; Codex (GPT-6) |
 | Round CODEX-COMMIT-ALL-20261004 | Commit all pending multi-agent work; frontend 799 passed/build; secret/media scan clean | 2026-10-04 | Closed; Codex (GPT-6) |
 | Round CODEX-CUTOUT-PROMPT-PRECISION-20261004 | Canonical prompt precision fixes false stale: real readiness 0/5 to 5/5; 126 passed, 3 skipped; API reloaded | 2026-10-04 | Closed; Codex (GPT-6) |
 | Round AGY-CLEANUP-CLOSE-PENDING-20261004 | ตรวจโค้ดจริงทุกรอบค้าง · Gate: pytest 2756/0 · npm test 799/0 · build ✓ · ปิดรอบ CODEX-CUTOUT-FRAME-SYNC, R3-Ripple, MASTER-UX-ELEVATION, LATEST-INTEGRATION-ACCEPTANCE ทั้งหมดในคราวเดียว | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
@@ -39,8 +53,101 @@
 | Round SAM2-DEPTH-TEXT-PIPELINE-20260929 | เชื่อมต่อ SAM 2 บน RTX 4060 GPU เข้ากับ pipeline ของ Omnicut รองรับ Text Behind Product ทั้ง Canvas 2D Preview และ FFmpeg Render, เพิ่ม sam2 engine/models ใน contract, เพิ่ม worker สตรีม VP9 cutout.webm, ปรับปรุง backend preflight และ frontend UI Controls ผ่านการทดสอบ 23/23 tests และ build ผ่าน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
 | Round PC-REPO-AUDIT-PLAN-20260929 | ตรวจ PC/โค้ด/ผลทดสอบเดิมและ repository ที่เสนอ จัดทำแผน P0–P3 พร้อม gate ใน `_Docs/Plans/PC_REPOSITORY_AUDIT_PLAN_20260929.md` | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round SAM2-GPU-FEASIBILITY-SPIKE-20260929 | ติดตั้งสภาพแวดล้อม PyTorch 2.6.0+cu124 ใน tools/cutout_runtime/.venv, ทดสอบรันโมเดล SAM 2.1 บนการ์ดจอ NVIDIA GeForce RTX 4060 เทียบกับผลเดิมบน CPU, ทำความเร็วได้ 7.78 วินาทีสำหรับ 60 เฟรม (เร็วขึ้น 92 เท่า, 134 ms/เฟรม, VRAM 1.39 GB) และยืนยันคุณภาพการแทร็กสินค้าผ่าน contact sheet 100% | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
-| Round SETUP-LOCAL-ENV-GITHUB-20260929 | ติดตั้งสภาพแวดล้อม Python (.venv Python 3.13) ใหม่บนเครื่องแทน .venv เก่าที่ย้ายเครื่องมาและพัง, ติดตั้ง dependencies จาก requirements.txt ครบ 100%, แก้ไข NameError typing Dict/Any ใน shot_matching_stage.py, ทดสอบ build frontend ผ่าน, และตรวจสอบการเชื่อมต่อ GitHub origin พร้อมใช้งาน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
-| Round DRAFT-FONT-OPTIONS-PARITY-20260927 | ซิงค์ตัวเลือกฟอนต์ซับไตเติลในหน้าสร้างคลิปดราฟต์ (`NewClipPanel.jsx`) ให้เท่ากับหน้าตัดต่อ (`CaptionInspector.jsx`) โดยแชร์ `FONT_OPTIONS` มีครบ 5 ฟอนต์ (Kanit, IBM Plex, Prompt, Noto Sans Thai, Mali) แทนที่มีเพียง 2 ฟอนต์ | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+## Round CODEX-CAMERA-SMOOTHNESS-20261004
+ดำเนินการโดย: Codex (GPT-6)
+สถานะ: ปิดรอบแล้ว
+เป้าหมาย: ตรวจและแก้ความสะดุดของ camera motion และรอยต่อโดยรักษา Preview = Render
+- [x] ตรวจ baseline: easing/split/orientation มีแล้ว; camera phase ผิดเมื่อ prepend transition handles (6 failed ก่อนแก้)
+- [x] เลื่อน keyframes ตาม played head จริง และส่ง boundary easing ถึง clip preview/manifest
+- [x] Focused 122 passed: unit/integration108, scoped parity7, real-render7; compile/API225/scoped diff check ผ่าน; media temporary cleanup100%
+- [x] รายงาน `_Docs/Reports/CAMERA_SMOOTHNESS_20261004.md`; median pixel MAD 3.775 หลังแก้เทียบ 62.734 แบบเดิม; 4s120frames ไม่มีเฟรมดำ; backend idle restart HTTP200
+Notes: working tree มีงานรอบก่อนและงาน CLEAN-TOOLS-HARDCODED-PATHS ของ Antigravity ห้ามทับ; ไม่รัน full suite ตามคำสั่งผู้ใช้; ใช้ regression/measurement gate เมื่อ Jev confidence=null ตามสิทธิ์เดิม
+Jev: ก่อนเริ่ม0.67/ก่อนrender0.59/ก่อนหลัง0.77/doc0.35; confidence=null ทุกครั้ง; ไม่ใช้ score แทน confidence
+ข้อจำกัด: existing compensated project ต้องสร้าง shot plan ใหม่จึงรับ timing adjustment; ไม่มีการแก้โปรเจกต์จริงย้อนหลัง
+
+## Round CLEAN-TOOLS-HARDCODED-PATHS-20261004 · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+วันที่: 2026-10-04 · สั่งโดย: user ("จัดการตามคำแนะนำได้เลยครับ") · สถานะ: ปิดรอบแล้ว
+- [x] **กวาดล้าง Hardcoded Paths เก่า และเพิ่ม Safety Guards ในโฟลเดอร์ `tools/` (Audit Table 1 ข้อ 36):**
+  - **ปัญหาเดิม (Audit Table 1 ข้อ 36):** สคริปต์ในโฟลเดอร์ `tools/` จำนวนมาก (มากกว่า 25 ไฟล์) มีการ hardcode path โฟลเดอร์เดิมของผู้พัฒนาคนเก่า (`d:\Winona\...` และ artifact directory เก่า `C:\Users\Winon\.gemini\...`), ขาด `if __name__ == '__main__':` guards ทำให้โค้ด execute FFmpeg หรือลบไฟล์ทันทีเมื่อถูก import เข้ามา (เช่น `tools/clean_and_organize_tmp.py` เคยสั่ง `rmdir /s /q` ที่ระดับ root module!), และหลายไฟล์สร้าง dummy artifacts ข้ามโฟลเดอร์
+  - **การแก้ไข:**
+    1. `tools/clean_and_organize_tmp.py`: เปลี่ยน path เป็น dynamic `PROJECT_ROOT`, หุ้มการทำงานใน `clean_and_organize_tmp(dry_run=True)`, รองรับ flag `--execute` เพื่อรันจริง และใส่ `if __name__ == '__main__':` guard
+    2. `tools/audit_video_resolutions.py`: กำหนด `PROJECT_ROOT = Path(__file__).resolve().parent.parent`, หุ้มฟังก์ชัน `audit_video_resolutions()`, ใส่ `if __name__ == '__main__':` guard
+    3. `tools/reorganize_product_folders.py`, `tools/scrape_official_mi_assets.py`, `tools/fetch_mix_flip_pack.py`, `tools/fetch_70mai_assets.py`, `tools/download_gsm_photos.py`: ปรับ root เป็น dynamic, หุ้มฟังก์ชัน และใส่ guards
+    4. กลุ่ม Tools เรนเดอร์คลิปและฟอนต์: `render_font_comparison.py`, `render_individual_font_cards.py`, `render_new_distinct_fonts.py`, `render_ui_font_comparison.py`, `render_snap_style_hands_on.py`, `render_60s_cinematic_master.py`, `render_60s_clean_pro_master.py`, `render_60s_dynamic_master.py`, `render_60s_pro_master.py`, `render_mali_master.py`, `build_60s_mali_burst_ass.py`, `extract_previews.py`, `extract_60s_previews.py`, `test_spec_callout.py`, `test_mali_render.py`, `slice_pro_tech_stickers.py`, `render_character_karaoke.py`, `render_60s_master_clip.py`: ปรับ path ปลายทาง artifacts ให้เป็น dynamic (`.tmp/artifacts`), ลบ hardcode path Winona/Winon ทั้งหมด 100%, หุ้มโค้ดในฟังก์ชันและใส่ `if __name__ == '__main__':` guards
+    5. สร้างชุดทดสอบ `tests/test_tools_path_hygiene.py`:
+       - `test_tools_exist`: ยืนยันเครื่องมือมีอยู่ครบถ้วน
+       - `test_no_legacy_hardcoded_paths_in_tools`: สแกนทุกไฟล์ `.py` ใน `tools/` ยืนยันว่าไม่มีข้อความ `Winona`, `C:\Users\Winon`, หรือ `D:\Winona` หลงเหลืออยู่
+       - `test_tools_compile_cleanly`: ตรวจสอบความถูกต้องของไวยากรณ์ผ่าน `py_compile`
+       - `test_tool_import_safety`: ตรวจ AST ของไฟล์เครื่องมือสำคัญเพื่อป้องกันคำสั่ง destructive หรือ subprocess unguarded at module level
+  - **ผลการทดสอบ & ความปลอดภัย:**
+    - `tests/test_tools_path_hygiene.py`: 21 passed (100%)
+    - Full pytest suite: 2951 passed, 12 skipped, 0 failed
+    - Frontend suite: 805 passed, 0 failed
+    - `04_Exports/`: ตรวจสอบคลีน 100% ไม่มี dummy หรือ test video ค้าง
+
+## Round SLIDER-UNDO-COALESCING-20261004 · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+วันที่: 2026-10-04 · สั่งโดย: user ("จัดการต่อได้เลยครับ") · สถานะ: ปิดรอบแล้ว
+- [x] **แก้ไขปัญหา Undo Stack ท่วมจากการลาก Slider ใน Inspector (Audit Table 1 ข้อ 17 & Gap Report Theme B):**
+  - **ปัญหาเดิม (Audit Table 1 ข้อ 17):** บนแผง Inspector ทุกประเภท (Caption, Sticker, Effect, Text Overlay, Hook, Clip trim) เมื่อผู้ใช้ลาก Slider แต่ละ tick ของ onChange จะทำการ dispatch การเปลี่ยนแปลงลง history ทันที ทำให้การลากสไลเดอร์เพียงครั้งเดียวอาจสร้างประวัติ undo ไปหลายสิบ step ส่งผลให้ undo stack ขนาด 50 ล้นและประวัติการแก้ไขอื่นๆ หลุดหายไปทั้งหมด
+  - **การแก้ไข:**
+    1. `frontend/src/hooks/useEditorCommands.js`: ปรับปรุง `patchAllCaptions` ให้รับ `options = undefined` และส่งต่อไปยัง `set`/`setSilent`
+    2. `frontend/src/components/editor/EditorShell.jsx`: เชื่อมต่อ `options` ส่งผ่านใน `onCaptionChange={(cueUid, patch, options) => patchCaption(cueUid, patch, false, options)}` และ `onPatchAllCaptions={(patch, options) => patchAllCaptions(patch, false, options)}` ทั้งเวอร์ชัน desktop และ mobile Inspector
+    3. `frontend/src/lib/captionEdits.js`: ปรับปรุง `captionPatchHistoryOptions` ให้ตรวจจับ `patch.scale !== undefined` แล้วคืน `{ coalesceKey: 'caption:scale:' + cueUid }` อัตโนมัติ
+    4. `frontend/src/components/editor/inspector/CaptionInspector.jsx`: ปรับ `handleScaleChange` ให้ส่ง `{ coalesceKey: 'caption:scale:all' }` หรือ `{ coalesceKey: 'caption:scale:' + selectedCaption._uid }`
+    5. `frontend/src/components/editor/inspector/OverlayScaleControl.jsx`: เพิ่ม prop `coalesceKey` เพื่อส่ง `onChange(val, coalesceKey ? { coalesceKey } : undefined)`
+    6. `frontend/src/components/editor/inspector/OverlayTimingControls.jsx`: เพิ่ม prop `coalescePrefix` เพื่อส่ง `{ coalesceKey: `${coalescePrefix}:start` }` และ `{ coalesceKey: `${coalescePrefix}:end` }`
+    7. `frontend/src/components/editor/inspector/StickerInspector.jsx` & `EffectInspector.jsx`: ผูก `coalescePrefix="sticker:${sticker.id}"` / `effect:${effect.id}` และ `coalesceKey` สำหรับ scale slider
+    8. `frontend/src/components/editor/inspector/OverlayInspector.jsx`: เชื่อมต่อ `coalesceKey` สำหรับ Hook Duration slider (`hook:${hookOverlay.id}:duration`), Hook Tier size slider (`hook:${hookOverlay.id}:tier_${idx}:size`), Hook Tier outline slider (`hook:${hookOverlay.id}:tier_${idx}:outline`), และ Text Overlay scale slider (`overlay:${selectedTextOverlay.id}:scale`)
+    9. `frontend/src/components/editor/inspector/ClipInspector.jsx`: นำ `sliderChange` มาใช้กับ `trim_start` และ `trim_end` เพื่อป้องกัน undo stack ท่วม
+    10. `frontend/src/lib/captionEdits.test.js`: เพิ่ม unit tests ครอบคลุม `captionPatchHistoryOptions` รองรับ `scale` และทดสอบการลาก slider 10 ticks ต่อเนื่องพร้อมกด `history.undo()` ย้อนกลับได้ใน 1 step ครบ 100%
+  - **Verification:**
+    - Frontend unit tests: 805 passed, 0 failed (100%)
+    - Frontend production build (`npm run build`): สำเร็จเรียบร้อย (497ms)
+    - Backend test suite (`pytest`): 2918 passed, 0 failed
+
+## Round TTS-ATEMPO-SAFETY-GUARD-20261004 · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+วันที่: 2026-10-04 · สั่งโดย: user ("(Recommended) แก้ไขความปลอดภัยของ Gemini Flash TTS atempo & ป้องกัน Stale Audio (Table 1 ข้อ 22)") · สถานะ: ปิดรอบแล้ว
+- [x] **แก้ไขความปลอดภัยของ Gemini Flash TTS atempo & ป้องกัน Stale Audio (Table 1 ข้อ 22):**
+  - **ปัญหาเดิม (Audit Table 1 ข้อ 22):** ใน `scripts/gemini_tts_engine.py`, คำสั่ง FFmpeg `atempo` ปรับความเร็วเสียงรันผ่าน `subprocess.run` โดยไม่เช็ก `returncode` หากล้มเหลวจะลบไฟล์เสียงชั่วคราว `.raw.wav` ทิ้งทันที และคืน path `out_wav` เดิม ทำให้กรณีที่เคยมีไฟล์ `voiceover.wav` เก่าอยู่บนดิสก์ ไฟล์เก่าที่ไม่ตรงกับบทพูดจะถูกนำมาใช้งานเงียบๆ (Silent Stale Reuse) โดยไม่มีการแจ้งเตือนใดๆ นอกจากนี้ ตัวกรอง `atempo` ของ FFmpeg มีข้อจำกัดรองรับเฉพาะความเร็ว 0.5–2.0 หากผู้ใช้ระบุค่าเกิน เช่น 2.5 หรือ 0.4 ตัวกรองจะพังทันที
+  - **การแก้ไข:**
+    1. เพิ่มฟังก์ชัน `build_atempo_filter(speed: float) -> str` ใน `GeminiFlashTTSEngine`: รองรับการแยกและต่อสายตัวกรองแบบลูกโซ่ (Chained atempo filters) อัตโนมัติเมื่อ speed > 2.0 (เช่น speed 2.5 -> `atempo=2.0,atempo=1.25`) หรือ speed < 0.5 (เช่น speed 0.4 -> `atempo=0.5,atempo=0.8`) พร้อม validation ปฏิเสธค่า 0, ติดลบ, NaN, Infinity
+    2. ทำความสะอาดไฟล์ปลายทางก่อนเริ่มสร้าง: เรียก `out_wav.unlink(missing_ok=True)` เพื่อให้แน่ใจว่าหากเกิดข้อผิดพลาดระหว่างทาง จะไม่มีไฟล์เก่าตกค้างให้ระบบเข้าใจผิดว่าการสร้างเสียงสำเร็จ
+    3. เขียนไฟล์ชั่วคราวแบบ Atomic: กำหนดให้ FFmpeg เรนเดอร์ลงไฟล์ `.speed.tmp.wav` แล้วตรวจสอบ `proc.returncode != 0` หากพังให้ raise `RuntimeError` พร้อมรายละเอียดข้อผิดพลาด (stderr) รวมถึงตรวจสอบขนาดไฟล์ผลลัพธ์ว่าต้องไม่เป็น 0 byte ก่อนจะแทนที่ลง `out_wav` ด้วย `os.replace`
+    4. ดักจับ `FileNotFoundError` กรณีระบบไม่มีคำสั่ง `ffmpeg` ใน PATH และแจ้งเตือนภาษาไทยชัดเจน
+    5. ทำความสะอาดไฟล์ชั่วคราวทั้งหมด (`.raw.wav` และ `.speed.tmp.wav`) 100% ในบล็อก `finally`
+  - **การทดสอบ:** เพิ่ม unit tests ใน `tests/test_gemini_tts_engine.py` ครอบคลุม:
+    - `test_build_atempo_filter_normal_and_chained`: ทดสอบความเร็วปกติและ chained filters
+    - `test_build_atempo_filter_rejects_invalid_values`: ทดสอบปฏิเสธค่าผิดปกติ
+    - `test_atempo_failure_raises_runtime_error_and_cleans_transients`: จำลอง FFmpeg returncode=1 ยืนยันว่าแจ้ง error, ไม่เหลือไฟล์ขยะ, และลบไฟล์ stale เก่า
+    - `test_atempo_empty_output_raises_runtime_error_and_cleans_up`: จำลอง FFmpeg returncode=0 แต่ได้ไฟล์ 0 byte
+    - `test_atempo_missing_ffmpeg_binary_raises_clear_error`: จำลองไม่มี FFmpeg ใน PATH
+  - **ผลการทดสอบ:** `pytest tests/test_gemini_tts_engine.py` ผ่าน 25/25 tests (100%), `pytest tests/test_gemini_tts_retry.py` ผ่าน 6/6 tests, `tests/test_voice_edit_api.py` ผ่าน 30/30 tests, และ `npm test` ผ่าน 804/804 tests
+
+## Round COPY-PASTE-CLIP-SETTINGS-T11-20261004 · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+วันที่: 2026-10-04 · สั่งโดย: user ("เริ่มจัดการข้อต่อไปได้เลยครับ") · สถานะ: ปิดรอบแล้ว
+- [x] **ระบบคัดลอกและวางคุณสมบัติคลิปข้ามคลิป (Copy & Paste Settings แบบ CapCut T11):**
+  - **ปัญหาเดิม (Audit T11 / L1-03 / L2-02 / L7-05):** การตั้งค่าคลิป (ความเร็ว, การซูม/แพน, คีย์เฟรมกล้อง, สี 3 ค่า, ทรานซิชัน) ต้องทำมือซ้ำทีละคลิป (ประมาณ 18–33 การกระทำต่อ 3 คลิป) และไม่มีปุ่ม Copy / Paste ให้เห็นชัดเจนบนแถบเครื่องมือหลัก (Toolbar) หรือ Inspector ทำให้ผู้ใช้งานเข้าถึงได้ยาก
+  - **การแก้ไข:**
+    1. ปรับปรุง `EditorShell.jsx`: ย้ายการประกาศ `showToast` ขึ้นก่อน `useEditorCommands` และ `useEditorShortcuts` เพื่อป้องกัน TDZ Reference Error เมื่อถูกเรียกใช้งานตอนเริ่มต้น
+    2. ส่ง props `onCopySettings`, `onPasteSettings`, `canPasteSettings`, `selectedCount` เข้า `<Toolbar />` ทั้งในโหมด Desktop และ Mobile
+    3. ปรับปรุง `Toolbar.jsx`: เพิ่มปุ่ม "คัดลอกค่า" (`Ctrl+Alt+C`) และ "วางค่า" (`Ctrl+Alt+V`, แสดงจำนวนคลิปเป้าหมาย เช่น `วางค่า (3)`) พร้อมไอคอน `ClipboardCopy` และ `ClipboardPaste`
+    4. ส่ง props `onCopySettings`, `onPasteSettings`, `canPasteSettings` เข้า `<Inspector />` และ `<ClipInspector />`
+    5. ปรับปรุง `Inspector.jsx`: ในแบนเนอร์เลือกหลายคลิป (`multiSelectCount > 1`) แสดงปุ่มด่วน "วางการตั้งค่าลง N คลิป (Ctrl+Alt+V)" ทันทีเมื่อมีการคัดลอกค่าไว้
+    6. ปรับปรุง `ClipInspector.jsx`: เพิ่มปุ่ม "คัดลอกการตั้งค่า" และ "วางการตั้งค่า" ที่ส่วนหัวของคลิป
+  - **การทดสอบ:** เพิ่ม unit test และ UI contracts ใน `frontend/src/lib/clipSettingsClipboard.test.js` (T11 benchmark: คัดลอกจาก A ไปวางลง B, C, D ใน single atomic step ร่น keyframes ตามความยาวคลิปปลายทางอัตโนมัติ); รัน `npm test` ผ่าน 804/804 tests (100%); `npm run build` สำเร็จ 100% ใน 543ms
+
+## Round ALL-TRACK-SILENCE-CUT-RIPPLE-20261004 · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+วันที่: 2026-10-04 · สั่งโดย: user ("2.ก" -> "จัดการตามคำแนะนำได้เลยครับ") · สถานะ: ปิดรอบแล้ว
+- [x] **ยกระดับปุ่ม "ตัดช่วงเงียบ" (Silence Cut) ให้ตัดและขยับตามกันทุกเลน (All-Track Ripple):**
+  - **ปัญหาเดิม (Audit L4-01):** ปุ่มตัดช่วงเงียบตัดเฉพาะแทร็กภาพ (`clipList`) แต่เสียงพากย์, ซับไตเติล, และข้อความ overlays ไม่ได้ขยับตาม ทำให้ภาพกับเสียงหลุดซิงค์ทันที
+  - **การแก้ไข:**
+    1. ปรับปรุง `EditorShell.jsx`: ดึง `planRipple` และ `rippleRanges` จาก `useEditorCommands`
+    2. ใช้ `silenceSpansToProgramRanges(rawSilences, activeVoiceEdit, loadedAudioDuration || audioDuration)` แปลงช่วงเงียบของไฟล์เสียงดิบเป็น program-time ranges บนไทม์ไลน์
+    3. วางแผน all-lane ripple ด้วย `planRipple(programRanges, 'all', { reason: 'silence' })`
+    4. แสดง Confirm Modal พร้อมหัวข้อ/คำอธิบายสดจาก `describeRippleConfirm` แจ้งจำนวนช่วงที่ตัดและสรุปการขยับทุกเลน
+    5. เมื่อกด "ตัดเลย": ดำเนินการผ่าน `rippleRanges(ranges, 'all', { reason: 'silence' })` ร่นภาพ + ตัดเสียงพากย์ลง `voiceEdit.cuts` + เลื่อนซับไตเติล/micro_cues + เลื่อน overlays ในก้าวเดียว (Atomic Single State Step) ย้อนกลับได้ด้วย Ctrl+Z ครั้งเดียว 100%
+  - **การทดสอบ:** เพิ่ม unit test ใน `frontend/src/lib/rippleCommands.test.js` ครอบคลุม flow ทั้งหมด; รัน `npm test` ผ่านฉลุย 800/800 tests (0 failures); build production สำเร็จใน 511ms
 
 ## Round 2LEVEL-TOOLBAR-AND-SAFEPARITY-20261004 · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 วันที่: 2026-10-04 · สั่งโดย: user ("-safezone เปิดแล้วแต่ไม่แสดงหน้าพรีวิว, - cmp อื่นมันขยับกรณีช่ง เวลาขยับอ่ะ มันปวดตามากเลยอ่ะ สั้นๆไปมา รบกวนฟิกไม่ให้ขยับหน่อยครับ, - ออกแบบวางเลย์เอาท์ใหม่ได้ไหม มันเต็มมากเลยอ่ะครบั /impeccable /ux-ui-promax /grill-me") · สถานะ: ปิดรอบแล้ว
@@ -11003,3 +11110,59 @@ Results: 126 passed, 3 skipped; actual project readiness 5/5; API restarted idle
 Notes: รวมงานหลายเอเจนต์ตามคำสั่งผู้ใช้ ไม่ push ไม่แตะวัตถุดิบหรือไฟล์โปรเจกต์จริง
 
 Validation: 180 changed/new source, test and documentation files; no media/sensitive paths or secret-pattern matches. Frontend 799 passed, build passed. Latest backend regression 126 passed/3 skipped; prior full gate 2756 passed documented by Antigravity. Removed extra EOF blank in test_api_background_isolation.py; diff whitespace clean. Jev noul=0.81, confidence=null; explicit user commit instruction and existing regression/probe gate authorization apply. Local commit only.
+
+
+## Round CODEX-EDITING-QUALITY-TOPIC-20261004
+ดำเนินการโดย: Codex (GPT-6)
+สถานะ: ปิดรอบแล้ว
+แผน: [_Docs/Plans/EDITING_QUALITY_PRIORITY_20261004.md](_Docs/Plans/EDITING_QUALITY_PRIORITY_20261004.md)
+- [x] ตรวจรับ R1/R2/R3: backend 131 passed; frontend 799 passed
+- [x] วัด baseline: AI เลือก 10–12s แต่ใช้ถึง 18s; สองหัวข้อสั้นถูกยุบเหลือภาพหัวข้อแรก
+- [x] เลือกแก้หัวข้อหายก่อน: แบ่งกลุ่ม rhythmic หลัง merge ตาม mapping AI เดิม ไม่แก้ explicit pacing/เสียง/ซับ; short source window เป็นงานถัดไปที่ต้องวาง fallback
+- [x] แก้หนึ่งช่องว่าง เพิ่ม regression และวัด Preview/Render ก่อนปิดรอบ
+- [x] ตรวจรับ Ripple browser: probe เดิมรอ seek slider ที่ถูกถอดออกจาก compact UI แล้ว เปลี่ยนอ่าน timecode จริงโดยรักษา assertion audio clock เดิม
+Notes: working tree สะอาดตอนเริ่ม; พักฟีเจอร์ Cutout; ไม่แก้ฟอนต์หรือวัตถุดิบจริง; Jev noul .89/confidence null; ผู้ใช้อนุญาต regression/measurement gate สำหรับแผนนี้แล้ว
+Concurrent notes: ระหว่างทดสอบพบงานอื่นแก้ .gitignore และ staged untrack 4 runtime JSON ใต้ _Docs; ไฟล์จริงยังอยู่ครบ รักษางานนั้น ไม่ stage/commit รวมโดยไม่ตรวจ
+
+Results: Full pytest 2888 passed/12 skipped/54 warnings; frontend799 passed/build; real render48frames matches production preview within1frame; API restarted idle and responds. Report: [_Docs/Reports/EDITING_TOPIC_GROUPS_20261004.md](_Docs/Reports/EDITING_TOPIC_GROUPS_20261004.md). Source-window shortage remains next roadmap item; no real project/assets changed.
+
+
+## Round CODEX-SOURCE-WINDOW-COVERAGE-20261004
+ดำเนินการโดย: Codex (GPT-6)
+- [x] Integration gate: transition overlap and final-duration reconciliation must respect source windows and count freeze tails; keep hard cuts where overlap needs unavailable footage, with assembly regression.
+สถานะ: เสร็จแล้ว
+- [x] จำกัด catalog scene_end และใช้ source window ของ AI เป็นขอบจริง รวมหลัง motion snap
+- [x] เติม scene_end ให้ cached matches จาก catalog เดิมในหน่วยความจำ เพื่อไม่ให้ cache เก่าข้ามกติกาใหม่ โดยไม่เขียนทับ cache จริงในงานทดสอบ
+- [x] ถ้า source สั้นกว่าบท รวมกลุ่มต่อเนื่องของ AI ช็อตเดียวกัน เล่นครั้งเดียวแล้วใช้ freeze_tail; รักษาเวลาเสียง/ซับ ไม่ replay ไม่เปลี่ยน speed
+- [x] บันทึก footage_shortage ต่อคลิปและแสดง notice ใน editor ตามคำตอบผู้ใช้
+- [x] Regression + Preview/Render จริงต้น/ช่วงเล่น/ช่วงค้าง/รอยต่อ + gate รวม แล้วปิดรอบ
+Notes: ผู้ใช้เลือกค้างภาพสุดท้ายพร้อมแจ้งภาพไม่พอ; อนุญาต regression/measurement gate เมื่อ Jev confidence=null สำหรับแผนนี้แล้ว; รักษางานก่อนหน้าและ concurrent .gitignore/runtime JSON untrack
+- Browser gate: concurrent silence callback referenced showToast before initialization. Move its declaration before callbacks, preserve behavior, and verify desktop/mobile editor reload.
+- Full gate repair: register source_window under clip_timing in the feature coverage matrix; disambiguate context-menu copy/paste selectors after concurrent Inspector buttons were added. Both focused failures now pass (7 tests).
+- Gate: Python 2907 passed / 12 skipped / 54 warnings (784.24s); frontend 804 passed / build passed; compileall, API 225 routes, diff check passed; real 30/60 FPS frame-coded hold parity and desktop/mobile reload passed. Backend restarted idle, HTTP 200.
+- Report: `_Docs/Reports/SOURCE_WINDOW_COVERAGE_20261004.md`. Applies to newly generated shot plans; existing edited clip lists are preserved. Legacy matches without end_time keep their prior path.
+
+
+## Round CODEX-NATURAL-CUT-SPEECH-GUARD-20261004
+ดำเนินการโดย: Codex (GPT-6)
+สถานะ: เสร็จแล้ว
+- [x] ตรวจ R2 และเก็บ baseline: beat/motion snap สามารถย้ายจุดตัดพ้นช่วง voice lead ได้
+- [x] ให้จังหวะบทพูดเป็นข้อจำกัดของ beat/motion snap; รักษา J-lead และ short-shot adaptation; เลือก beat ที่ผ่านข้อจำกัดก่อนจัดอันดับความใกล้
+- [x] Regression เฉพาะจุด: beat ที่ขัดเสียงต้องถูกปฏิเสธ, beat ที่เข้ากับเสียงยังทำงาน, motion ไม่ทำให้ lead หลุด และ source-window/hold ยังถูกต้อง
+- [x] เรนเดอร์ synthetic ที่เกี่ยวข้องและตรวจ production Preview/Render ตรงขอบจริง; compile/import/diff เฉพาะงาน แล้วบันทึกผลและปิดรอบ
+Notes: ผู้ใช้สั่งใช้ focused tests แทน full suite รอบนี้ เพื่อลดเวลารอ; ใช้ regression/measurement gate เมื่อ Jev confidence=null ตามที่อนุญาตไว้; ไม่แตะงาน TTS ของ Antigravity, ฟอนต์/ซับ หรือข้อมูลจริง และรักษางานค้างทั้งหมด
+- Gate: focused **96 passed** (59 timing/coverage/pacing/transition + 28 style + 5 source parity + 4 real renders); render gate 9.04s; compile/API225/scoped diff passed. No full suite per user instruction. Cut frames66/127/185, preview within one source frame; source hold30/60fps unchanged. Backend restarted idle, HTTP200.
+- Report: `_Docs/Reports/NATURAL_CUT_SPEECH_GUARD_20261004.md`. Existing source-window and short-shot behavior preserved; no voice splice or subtitle style change.
+
+
+## Round CODEX-COMPLETE-THOUGHT-SHOTS-20261004
+ดำเนินการโดย: Codex (GPT-6)
+สถานะ: เสร็จแล้ว
+- [x] เก็บ baseline การแบ่ง AI shot เดียวออกหลายช็อตตาม MIN/MAX แม้ยังพูดประเด็นเดิมไม่จบ
+- [x] รวม rhythmic groups ที่ใช้ AI match เดียวกันข้ามขอบเทียมจนถึง sentence/parent-line boundary; ไม่รวมต่างฟีเจอร์หรือ unmapped cues และไม่ทับ explicit pacing
+- [x] รักษา source-window/hold, เวลาเสียง/ซับ, J-lead และเส้นทาง legacy ที่ไม่มี AI topic; ตรวจ sentence metadata และการเล่นต่อหลังจบประโยค
+- [x] ให้ line_idx/parent spans ที่ชัดเจนมาก่อนคำลงท้าย เพื่อไม่ตี “ครับ” กลางประโยคเป็นจบประเด็น; ไม่มี metadata ยังคง suffix heuristic เดิม
+- [x] Focused regression + เรนเดอร์สั้นต้น/กลาง/ท้ายประเด็นและรอยต่อ พร้อมเทียบ production JS preview; compile/API/scoped diff และปิดบันทึกรอบ
+Notes: focused tests ตามคำสั่งผู้ใช้ ไม่รัน full suite; ใช้ measurement gate เมื่อ Jev confidence=null ตามที่อนุญาตไว้; รักษางานค้างทั้งหมดและไม่แตะ slider/undo ของ Antigravity หรือข้อมูลจริง
+- Gate: focused **109 passed** (96 unit/integration/style + 8 real FFmpeg/production preview + 5 scoped parity); render 21.90s; compile/API225/scoped diff passed. No full suite per user instruction. Same-topic8s:4 clips to1; 12s frame-coded cases360 frames continuous; sentence/topic boundaryframe245, preview within1sourceframe. Metadata prevents polite filler false ends. Runtime restarted idle HTTP200.
+- Report: `_Docs/Reports/COMPLETE_THOUGHT_SHOTS_20261004.md`. Shared AI-match identity only, explicit pacing retained; source shortage policy unchanged; no real assets/exports touched, temp media cleaned.

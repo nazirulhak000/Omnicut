@@ -9,7 +9,11 @@ export default function OverlayTimingControls({
   accentClass = 'text-[#25F4EE]',
   inputFocusClass = 'focus:border-[#25F4EE]',
   endMax,
+  coalescePrefix,
 }) {
+  const startOptions = coalescePrefix ? { coalesceKey: `${coalescePrefix}:start` } : undefined;
+  const endOptions = coalescePrefix ? { coalesceKey: `${coalescePrefix}:end` } : undefined;
+
   return (
     <div className="space-y-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
       <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
@@ -27,7 +31,7 @@ export default function OverlayTimingControls({
             value={start}
             onChange={(e) => {
               const value = parseFloat(e.target.value) || 0;
-              onStartChange?.(Math.max(0, value));
+              onStartChange?.(Math.max(0, value), startOptions);
             }}
             className={`mt-1 w-full rounded-lg bg-black/40 border border-white/[0.1] px-2.5 py-1.5 text-xs font-mono text-white ${inputFocusClass} focus:outline-none`}
           />
@@ -42,7 +46,7 @@ export default function OverlayTimingControls({
             value={end}
             onChange={(e) => {
               const value = parseFloat(e.target.value) || (start + 0.1);
-              onEndChange?.(Math.max(start + 0.1, value));
+              onEndChange?.(Math.max(start + 0.1, value), endOptions);
             }}
             className={`mt-1 w-full rounded-lg bg-black/40 border border-white/[0.1] px-2.5 py-1.5 text-xs font-mono text-white ${inputFocusClass} focus:outline-none`}
           />

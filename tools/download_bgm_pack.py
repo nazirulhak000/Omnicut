@@ -11,7 +11,7 @@ import subprocess
 import json
 from pathlib import Path
 
-PROJECT_ROOT = Path("d:/Winona/Programmer/Capcut")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MUSIC_DIR = PROJECT_ROOT / "02_Assets" / "Music"
 MUSIC_DIR.mkdir(parents=True, exist_ok=True)
 

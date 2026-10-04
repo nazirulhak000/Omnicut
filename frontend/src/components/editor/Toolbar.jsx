@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  AudioLines, Copy, FlipHorizontal2, Gauge, Link2, Magnet, Maximize2, Music2, Redo2, RotateCcw, Scissors, ScissorsLineDashed, Shield, Sparkles, Trash2, Undo2, Unlink, ZoomIn, ZoomOut, Type,
+  AudioLines, ClipboardCopy, ClipboardPaste, Copy, FlipHorizontal2, Gauge, Link2, Magnet, Maximize2, Music2, Redo2, RotateCcw, Scissors, ScissorsLineDashed, Shield, Sparkles, Trash2, Undo2, Unlink, ZoomIn, ZoomOut, Type,
 } from 'lucide-react';
 import { formatTimecode } from '../../lib/timelineMath';
 import { rippleScopeHint, rippleScopeLabel } from '../../lib/rippleUi';
@@ -45,6 +45,10 @@ export default function Toolbar({
   onSplit,
   onAddText,
   onDuplicate,
+  onCopySettings = null,
+  onPasteSettings = null,
+  canPasteSettings = false,
+  selectedCount = 0,
   onDelete,
   onToggleMirror,
   onCycleSpeed,
@@ -94,6 +98,22 @@ export default function Toolbar({
       <ToolButton icon={Scissors} label="แยก" hint={!canSplit && splitBlockedReason ? splitBlockedReason : 'ผ่าคลิปตรงหัวอ่าน'} shortcut="S / Ctrl+B" onClick={onSplit} disabled={!canSplit} />
       <ToolButton icon={Type} label="เพิ่มข้อความ" hint="แทรกข้อความใหม่ตรงหัวอ่าน" onClick={onAddText} />
       <ToolButton icon={Copy} label="ทำสำเนา" hint="ก๊อบคลิปที่เลือกต่อท้ายตัวเอง" onClick={onDuplicate} disabled={!hasClipSelected} />
+      <ToolButton
+        icon={ClipboardCopy}
+        label="คัดลอกค่า"
+        hint="คัดลอกความเร็ว ซูม/แพน สี ทรานซิชันของคลิปหลัก"
+        shortcut="Ctrl+Alt+C"
+        onClick={onCopySettings}
+        disabled={!hasClipSelected}
+      />
+      <ToolButton
+        icon={ClipboardPaste}
+        label={selectedCount > 1 ? `วางค่า (${selectedCount})` : 'วางค่า'}
+        hint={canPasteSettings ? 'วางการตั้งค่าที่คัดลอกไว้ลงคลิปที่เลือก' : 'ยังไม่ได้คัดลอกการตั้งค่าจากคลิปไหน'}
+        shortcut="Ctrl+Alt+V"
+        onClick={onPasteSettings}
+        disabled={!canPasteSettings || (!hasClipSelected && selectedCount === 0)}
+      />
       <ToolButton icon={Trash2} label="ลบ" shortcut="Del" onClick={onDelete} disabled={!hasSelection} />
       {/* One control, one icon: it says what Delete does to the voice and the
           captions now, and a click flips it. Hidden without a voiceover. */}

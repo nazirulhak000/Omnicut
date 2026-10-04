@@ -75,6 +75,10 @@ _Docs/store.db
 _Docs/store.db-wal
 _Docs/store.db-shm
 _Docs/export_registry.json
+_Docs/post_log.json
+_Docs/schedule_queue.json
+_Docs/schedule_templates.json
+_Docs/tiktok_pending.json
 
 # Runtime-generated shot lists (scripts/shot_lists_store.py, rebuilt any
 # time a shot list is (re)generated for an angle)

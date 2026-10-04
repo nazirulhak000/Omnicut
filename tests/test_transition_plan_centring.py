@@ -5,6 +5,20 @@ writes exports). Offline and deterministic.
 """
 
 import pytest
+from copy import deepcopy
+
+
+@pytest.mark.parametrize("side", ["incoming", "outgoing"])
+def test_transition_without_source_handles_becomes_cut(side):
+    clips = _clips(2)
+    selected = clips[0 if side == "outgoing" else 1]
+    selected["source_window"] = {"start": selected["trim_start"], "end": selected["trim_end"]}
+    before = [(c["trim_start"], c["trim_end"], c["duration"]) for c in clips]
+    transitions = [{"type": "fade", "duration": .35}]
+    _centre_transition_overlaps(clips, transitions)
+    assert transitions == [{"type": "cut", "duration": 0.0}]
+    assert clips[1]["transition_in"] == "cut"
+    assert [(c["trim_start"], c["trim_end"], c["duration"]) for c in clips] == before
 
 from scripts.stages.video_assembly_stage import (
     _centre_transition_overlaps,
@@ -18,6 +32,39 @@ def _clips(n=4, dur=2.0):
          "duration": dur, "speed": 1.0, "zoom": 1.0}
         for i in range(n)
     ]
+
+
+@pytest.mark.parametrize("speed,available_head", [(1.0, 1.0), (2.0, 1.0), (0.5, 0.05)])
+@pytest.mark.parametrize("property_shape", [False, True])
+def test_centring_preserves_camera_pose_at_the_same_source_instant(speed, available_head, property_shape):
+    from scripts.video_editor import resolve_clip_transforms
+
+    clips = _clips(3)
+    incoming = clips[1]
+    incoming.update(trim_start=available_head, trim_end=available_head + 2 * speed, speed=speed)
+    incoming["keyframes"] = [
+        {"time": 0.0, "zoom": 1.1, "pan_x": -.2},
+        {"time": 2.0, "zoom": 1.5, "pan_x": .2, "easing": "ease_in_out"},
+    ]
+    if property_shape:
+        incoming["keyframes"] = [
+            {"time": p["time"], "property": prop, "value": p[prop], "easing": p.get("easing", "linear")}
+            for p in incoming["keyframes"] for prop in ("zoom", "pan_x")
+        ]
+    original = deepcopy(incoming)
+    transitions = [{"type": "fade", "duration": .4}, {"type": "fade", "duration": .4}]
+    _centre_transition_overlaps(clips, transitions)
+    head = min(.2, available_head / speed)
+    for local_time in (0, .1, .5, 1, 1.9, 2):
+        assert resolve_clip_transforms(incoming, local_time + head) == pytest.approx(
+            resolve_clip_transforms(original, local_time), abs=1e-6
+        )
+    assert resolve_clip_transforms(incoming, 0) == resolve_clip_transforms(original, 0)
+    assert incoming["keyframes"][0]["time"] == pytest.approx(head)
+    assert original["keyframes"][0]["time"] == 0  # no shared-list mutation
+    snapshot = deepcopy(clips)
+    _centre_transition_overlaps(clips, transitions)
+    assert clips == snapshot
 
 
 def _starts(clips):
@@ -81,3 +128,22 @@ def test_filled_slides_follow_the_outgoing_pan():
     clips[1]["keyframes"] = [{"time": 0.0, "pan_x": 0.2}, {"time": 2.0, "pan_x": -0.2}]  # camera left
     picks = _fill_undecided_transitions(clips, "viral_punch")
     assert picks[1]["type"] == "slideright"
+
+
+def test_auto_filled_transition_easing_survives_manifest(monkeypatch):
+    from scripts.pipeline_context import PipelineContext
+    from scripts.stages.video_assembly_stage import VideoAssemblyStage
+    from unittest.mock import patch
+
+    ctx = PipelineContext(product_name="Test", raw_video_path="dummy.mp4", project_name="camera-test", export_mp4=False)
+    ctx.actual_clip_list = _clips(4)
+    ctx.style_preset = "viral_punch"
+    ctx.transitions = ["cut"] * 3
+    for clip in ctx.actual_clip_list[1:]:
+        clip["transition_easing"] = "ease_in"  # obsolete value must be replaced
+    with patch("scripts.stages.video_assembly_stage.ProjectManifest.save") as save:
+        VideoAssemblyStage.run(ctx)
+    saved = save.call_args.kwargs
+    for clip, boundary in zip(saved["clip_list"][1:], saved["transitions"]):
+        assert clip.get("transition_easing") == boundary.get("easing")
+    assert saved["clip_list"][2]["transition_easing"] == "ease_out"

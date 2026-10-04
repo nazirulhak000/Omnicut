@@ -1,4 +1,35 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
+- [ ] Round CODEX-AUTHORED-TRANSITION-RESPECT-20261004 · ดำเนินการโดย: Codex (GPT-6)
+
+## Round CODEX-AUTHORED-TRANSITION-RESPECT-20261004
+ดำเนินการโดย: Codex (GPT-6)
+สถานะ: กำลังทำ
+เป้าหมาย: เรนเดอร์รักษา hard cuts และ transition ของแผนที่ผู้ใช้จัดไว้ ไม่เติมทับโดยอัตโนมัติ
+- [ ] ตรวจ request → shot matching → assembly → manifest และเก็บ baseline
+- [ ] แยกแผนที่ยังไม่ได้เลือกจากแผน explicit/manual รวม all-cut และ replay
+- [ ] Regression เฉพาะส่วนและ short FFmpeg/production-preview ตรวจจุดตัด/ความยาว ไม่แตะข้อมูลจริง
+- [ ] รายงานผล ปิดรอบเข้า HISTORY และ cleanup media100%
+Notes: working tree มีงานรอบก่อนของหลายเอเจนต์ ห้ามทับ; ผู้ใช้ขอ focused tests ไม่รัน full suite; measurement gate สำหรับ Jev confidence=null ได้รับอนุญาตแล้ว
+
+- [x] Round CODEX-CAMERA-SMOOTHNESS-20261004 · ดำเนินการโดย: Codex (GPT-6)
+
+- [x] Round CODEX-COMPLETE-THOUGHT-SHOTS-20261004 · ดำเนินการโดย: Codex (GPT-6)
+
+- [x] Round CLEAN-TOOLS-HARDCODED-PATHS-20261004 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
+- [x] Round SLIDER-UNDO-COALESCING-20261004 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
+- [x] Round CODEX-NATURAL-CUT-SPEECH-GUARD-20261004 · ดำเนินการโดย: Codex (GPT-6)
+
+
+
+- [x] Round ALL-TRACK-SILENCE-CUT-RIPPLE-20261004 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
+- [x] Round COPY-PASTE-CLIP-SETTINGS-T11-20261004 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
+- [x] Round TTS-ATEMPO-SAFETY-GUARD-20261004 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
+- [x] Round CODEX-SOURCE-WINDOW-COVERAGE-20261004 · ดำเนินการโดย: Codex (GPT-6)
+
+
+- [x] Round CODEX-EDITING-QUALITY-TOPIC-20261004 · ดำเนินการโดย: Codex (GPT-6)
+
+
 - [x] Round CODEX-COMMIT-ALL-20261004 · ดำเนินการโดย: Codex (GPT-6)
 
 
@@ -118,7 +149,7 @@
 - [x] Round NEXT-WORK-CLAUDE-HANDOFF-20261003 — ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6) (ดู HISTORY.md)
 - [ ] Round EDITOR-CAPCUT-DEEP-AUDIT-20261003 — ตรวจครบ 7 เลน + สรุป 00_SUMMARY.md เสร็จ รอผู้ใช้ตอบข้อตัดสินใจและเลือก Top 10 · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
 - [x] Round EDITOR-CAPCUT-FIX-WAVE1-20261003 — ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (ดู HISTORY.md)
-- [ ] Round AUDIT-FIX-SAFETY-AUTOPOST-20261003 — กำลังทำ (ขั้น 1, 2, 3-บางส่วนจาก Top 5 ของ audit) · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+- [x] Round AUDIT-FIX-SAFETY-AUTOPOST-20261003 — ปิดรอบแล้ว (โค้ดเสร็จ + ผู้ใช้ตัดสินใจครบ 5 ข้อ + git rm --cached ป้องกัน DB แล้ว) · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) & Antigravity (Gemini 3.8 Flash)
 - [ ] Round APP-AUDIT-CAPCUT-REFERENCE-20261003 — audit เสร็จ รายงานที่ _Docs/Plans/APP_AUDIT_CAPCUT_REFERENCE_20261003.md รอผู้ใช้เลือกข้อที่จะลงมือ · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
 
 ## Round SMART-PER-CLIP-CUTOUT-FALLBACK-20261003 — ปรับปรุง Smart Per-Clip Cutout Fallback สำหรับ Multi-Shot Timeline · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
@@ -2846,6 +2877,11 @@ Plan before code:
 2. **autopost:** คงตามที่ทำ (ต้องเห็น URL ออกจาก `/upload` ถึงนับสำเร็จ; ไม่ mark เอง ผู้ใช้กด mark ได้) — **ยังต้องลองโพสต์จริง 1 คลิป** ยืนยัน false-negative
 3. **เสียง default → Fenrir** (`gemini_fenrir_male_strong`) ตาม AGENTS.md ข้อ 5: เปลี่ยนค่าเริ่มต้นใน `api_batch_render/api_gadget_media_projects/api_phase1/api_render/api_schemas/api_shot_lists/batch_render/gadget_media_narration/pipeline/pipeline_context/shot_list_builder/gemini_tts_engine.py` (fallback ชาย → Fenrir) + frontend `studioDefaults.js`, `ProductToClip`, `ContentTrackerHub`, `BatchRenderModal`, `ProductWorkspace`, `StageForms` (ป้าย "(ค่าเริ่มต้น)" ย้ายมา Fenrir) · **ไม่กระทบ** โปรเจกต์/มุมที่เก็บ `voice_preset` ไว้แล้ว และ registry preset (Puck ยังเลือกได้) · **ไม่ได้เปลี่ยน** `ad_tone` default (`commercial_hype` vs `commercial_premium` ของ AGENTS.md) — รอผู้ใช้ตัดสินใจแยก · batch default ฟอนต์ `IBMPlex` ยังไม่ยืนยัน/ไม่แตะ
 
-### ยังค้าง
-- ลองโพสต์จริง 1 คลิปเพื่อยืนยัน autopost · ตัดสินใจ `ad_tone` default · `git rm --cached` mirror JSON 4 ไฟล์ (ยังไม่ทำ ต้องยืนยัน) · ต่อ `coalesceKey` เข้า `EditorShell.jsx` · `angle_performance` ใช้ `mature_metrics` · B5: Ctrl+Escape ไม่ออก zen / Alt+ปุ่มถูกปล่อยผ่าน
-- รอบนี้ยังไม่ปิดเต็ม (ยังมีข้อค้างด้านบน)
+### ผู้ใช้ตัดสินใจแล้วเพิ่มเติม (2026-10-04) + ผลที่ทำ · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+1. **ฮาร์ดแวร์ทำงานจริง (Hardware Profile):** ยืนยันเครื่องหลักคือ Intel Core i7-14700 + NVIDIA RTX 4060 + RAM 32GB (ไม่ใช่ CPU-only) ปลดล็อกการประมวลผล GPU เต็มพิกัดสำหรับ SAM 2, BiRefNet, NVENC
+2. **ปุ่มตัดช่วงเงียบ (Silence Cut):** ผู้ใช้เลือกแนวทาง (ก) ให้ตัดและขยับตามกันทุกเลน (ทั้งภาพ + เสียงพากย์ + ซับ + SFX ขยับร่นตามกันทั้งก้อน) บันทึกเป็นโจทย์หลักให้ระบบตัดต่อ/Ripple R3
+3. **แท็บเอฟเฟกต์ & ฟิลเตอร์:** ยืนยันให้คงการซ่อนไว้ตามเดิม ไม่ต้องดึงกลับมาแสดงใน AssetPanel
+4. **สไตล์เสียงขาย (`ad_tone`):** ผู้ใช้ยืนยันไม่ต้องแก้ ให้คงค่าเดิมไว้
+5. **ความปลอดภัยฐานข้อมูล (Git Tracking Guard):** อนุมัติให้รัน `git rm --cached` ปลดไฟล์ `_Docs/post_log.json`, `_Docs/schedule_queue.json`, `_Docs/schedule_templates.json`, `_Docs/tiktok_pending.json` ออกจาก Git tracking เรียบร้อย พร้อมเพิ่มลง `.gitignore` (ไฟล์ข้อมูลจริงบนเครื่องยังอยู่ครบ 100%)
+6. **coalesceKey:** ตรวจสอบพบว่าเชื่อมต่อกับ ClipInspector, ProjectInspector, captionEdits และ useEditorCommands เรียบร้อยแล้วตั้งแต่ Wave 1
+7. **ปิดรอบ:** ย้ายสถานะเป็นสำเร็จสมบูรณ์

@@ -169,6 +169,12 @@ export function typingHistoryOptions(key) {
 export function captionPatchHistoryOptions(cueUid, patch, options) {
   if (options) return options;
   const keys = Object.keys(patch || {});
-  if (keys.length !== 1 || !TYPING_FIELDS.has(keys[0])) return undefined;
-  return typingHistoryOptions(`caption:${keys[0]}:${cueUid}`);
+  if (keys.length !== 1) return undefined;
+  if (TYPING_FIELDS.has(keys[0])) {
+    return typingHistoryOptions(`caption:${keys[0]}:${cueUid}`);
+  }
+  if (keys[0] === 'scale') {
+    return { coalesceKey: `caption:scale:${cueUid}` };
+  }
+  return undefined;
 }

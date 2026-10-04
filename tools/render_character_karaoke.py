@@ -270,8 +270,14 @@ def build_character_karaoke_ass(output_ass_path, total_duration, source_credits)
     print(f"Generated character-by-character ASS to {output_ass_path}")
 
 
-def main():
+def main(art_dir=None):
+    if art_dir is None:
+        art_dir = PROJECT_ROOT / ".tmp" / "artifacts"
+    art_dir = Path(art_dir)
+    art_dir.mkdir(parents=True, exist_ok=True)
+
     print("[1/4] Generating precision Character-by-Character ASS subtitles (NO TECH MX badge)...")
+
     wav_path = OUTPUT_DIR / "voice_mix_flip_gemini.wav"
     total_dur = 28.08
     ass_path = OUTPUT_DIR / "subtitles_character_bounce.ass"
@@ -319,8 +325,7 @@ def main():
     print(f"[3/4] Successfully rendered: {out_video}")
 
     print("[4/4] Extracting character-level preview frames...")
-    art_dir = Path(r"C:\Users\Winon\.gemini\antigravity-ide\brain\17ebf3bb-f0a4-4947-8ff4-4269406b9ba0")
-    
+
     # Extract moments of character-by-character bounce:
     # 0.4s: "นี่" (green)
     # 0.9s: "นี่" (white), "คือ" (green)

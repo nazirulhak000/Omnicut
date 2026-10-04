@@ -170,7 +170,8 @@
         "trim_start",
         "trim_end",
         "speed",
-        "freeze_tail"
+        "freeze_tail",
+        "source_window"
       ],
       "consumers": {
         "ui": [
@@ -179,7 +180,8 @@
             "tokens": [
               "trim_start",
               "trim_end",
-              "freeze_tail"
+              "freeze_tail",
+              "source_window"
             ]
           }
         ],
@@ -223,7 +225,8 @@
             "tokens": [
               "trim_start",
               "freeze_tail",
-              "setpts=PTS/"
+              "setpts=PTS/",
+              "source_window"
             ]
           }
         ]
@@ -240,6 +243,20 @@
           "path": "frontend/src/lib/editorProjectState.test.js",
           "tokens": [
             "solo and clip edits survive save/reload",
+            "freeze_tail"
+          ]
+        },
+        {
+          "path": "tests/test_real_render_cut_alignment.py",
+          "tokens": [
+            "test_short_source_window_holds_last_included_frame_in_preview_and_render",
+            "next feature must not leak into the hold"
+          ]
+        },
+        {
+          "path": "frontend/src/lib/footageCoverageSummary.test.js",
+          "tokens": [
+            "source_window",
             "freeze_tail"
           ]
         }

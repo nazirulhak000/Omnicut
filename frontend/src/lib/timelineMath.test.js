@@ -98,9 +98,9 @@ test('localTimeAt correctly maps sequence time into source clip time with freeze
   // 1.5s in: 6.5 -> 2.5s
   assert.equal(localTimeAt(seg, 6.5), 2.5);
   // at end of played span (5.0 + 3.0 = 8.0s) -> 4.0s
-  assert.equal(localTimeAt(seg, 8.0), 4.0);
+  assert.equal(localTimeAt(seg, 8.0), 4.0 - .75 / 30);
   // during freeze tail (9.5s) -> still holds 4.0s (freeze last frame)
-  assert.equal(localTimeAt(seg, 9.5), 4.0);
+  assert.equal(localTimeAt(seg, 9.5), 4.0 - .75 / 30);
 });
 
 test('resolveClipTransforms applies linear camera keyframes with live clamps', () => {

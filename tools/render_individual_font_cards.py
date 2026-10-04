@@ -2,8 +2,9 @@ import os
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-FONTS_DIR = Path("d:/Winona/Programmer/Capcut/02_Assets/Fonts")
-ARTIFACTS_DIR = Path("C:/Users/Winon/.gemini/antigravity-ide/brain/27833363-7167-4895-a5f6-9434892b9de9")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+FONTS_DIR = PROJECT_ROOT / "02_Assets" / "Fonts"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / ".tmp" / "font_artifacts"
 
 INDIVIDUAL_CONFIGS = [
     {
@@ -68,58 +69,75 @@ INDIVIDUAL_CONFIGS = [
     }
 ]
 
+
 def draw_text_with_outline(draw_obj, pos, text, font, fill_color, outline_color, outline_w=5):
     x, y = pos
     for dx in range(-outline_w, outline_w + 1):
         for dy in range(-outline_w, outline_w + 1):
-            if dx*dx + dy*dy <= outline_w*outline_w and (dx != 0 or dy != 0):
+            if dx * dx + dy * dy <= outline_w * outline_w and (dx != 0 or dy != 0):
                 draw_obj.text((x + dx, y + dy), text, font=font, fill=outline_color)
     draw_obj.text((x, y), text, font=font, fill=fill_color)
 
-# 1080 x 1920 (9:16 Full HD Mobile Ratio)
-W, H = 1080, 1920
 
-for cfg in INDIVIDUAL_CONFIGS:
-    img = Image.new("RGB", (W, H), "#080B12")
-    draw = ImageDraw.Draw(img)
+def render_individual_font_cards(output_dir: Path = None):
+    if output_dir is None:
+        output_dir = DEFAULT_OUTPUT_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Background subtle pattern
-    for y in range(0, H, 80):
-        draw.line([(0, y), (W, y)], fill="#0E1422", width=1)
+    W, H = 1080, 1920
 
-    # Fonts
-    title_f = ImageFont.truetype(str(FONTS_DIR / cfg["file"]), 52)
-    hook_f = ImageFont.truetype(str(FONTS_DIR / cfg["file"]), 58)
-    sub_f = ImageFont.truetype(str(FONTS_DIR / cfg["file"]), 50)
-    cta_f = ImageFont.truetype(str(FONTS_DIR / cfg["file"]), 44)
-    info_f = ImageFont.truetype(str(FONTS_DIR / "Prompt-Bold.ttf"), 30)
+    for cfg in INDIVIDUAL_CONFIGS:
+        img = Image.new("RGB", (W, H), "#080B12")
+        draw = ImageDraw.Draw(img)
 
-    # Header Card Info Banner
-    draw.rectangle([(60, 60), (W - 60, 180)], fill="#0F172A", outline=cfg["accent"], width=3)
-    draw.text((90, 85), cfg["title"], fill="#FFFFFF", font=title_f)
-    draw.text((90, 140), f"อารมณ์: {cfg['vibe']}", fill=cfg["accent"], font=info_f)
+        # Background subtle pattern
+        for y in range(0, H, 80):
+            draw.line([(0, y), (W, y)], fill="#0E1422", width=1)
 
-    # 9:16 Screen Mockup Frame Border
-    draw.rectangle([(60, 220), (W - 60, H - 80)], fill="#05070B", outline="#1E293B", width=4)
+        # Fonts
+        try:
+            title_f = ImageFont.truetype(str(FONTS_DIR / cfg["file"]), 52)
+            hook_f = ImageFont.truetype(str(FONTS_DIR / cfg["file"]), 58)
+            sub_f = ImageFont.truetype(str(FONTS_DIR / cfg["file"]), 50)
+            cta_f = ImageFont.truetype(str(FONTS_DIR / cfg["file"]), 44)
+            info_f = ImageFont.truetype(str(FONTS_DIR / "Prompt-Bold.ttf"), 30)
+        except Exception:
+            title_f = ImageFont.load_default()
+            hook_f = ImageFont.load_default()
+            sub_f = ImageFont.load_default()
+            cta_f = ImageFont.load_default()
+            info_f = ImageFont.load_default()
 
-    # Hook Banner (Top 3s)
-    draw.rectangle([(100, 300), (W - 100, 440)], fill="#000000", outline=cfg["accent"], width=3)
-    draw_text_with_outline(draw, (130, 335), cfg["hook"], hook_f, "#FFFFFF", "#000000", outline_w=6)
+        # Header Card Info Banner
+        draw.rectangle([(60, 60), (W - 60, 180)], fill="#0F172A", outline=cfg["accent"], width=3)
+        draw.text((90, 85), cfg["title"], fill="#FFFFFF", font=title_f)
+        draw.text((90, 140), f"อารมณ์: {cfg['vibe']}", fill=cfg["accent"], font=info_f)
 
-    # Center Product Video Mock Area
-    draw.rectangle([(140, 520), (W - 140, 1200)], fill="#0F1524", outline="#1E293B", width=2)
-    draw.text((360, 830), "🎬 [ วิดีโอสินค้า / B-Roll 9:16 ]", fill="#475569", font=info_f)
+        # 9:16 Screen Mockup Frame Border
+        draw.rectangle([(60, 220), (W - 60, H - 80)], fill="#05070B", outline="#1E293B", width=4)
 
-    # Subtitle Micro-bursts Line 1 (Yellow / Highlight)
-    draw_text_with_outline(draw, (140, 1320), cfg["line1"], sub_f, "#FFE600", "#000000", outline_w=7)
+        # Hook Banner (Top 3s)
+        draw.rectangle([(100, 300), (W - 100, 440)], fill="#000000", outline=cfg["accent"], width=3)
+        draw_text_with_outline(draw, (130, 335), cfg["hook"], hook_f, "#FFFFFF", "#000000", outline_w=6)
 
-    # Subtitle Micro-bursts Line 2 (White with Crisp Stroke)
-    draw_text_with_outline(draw, (120, 1420), cfg["line2"], sub_f, "#FFFFFF", "#000000", outline_w=7)
+        # Center Product Video Mock Area
+        draw.rectangle([(140, 520), (W - 140, 1200)], fill="#0F1524", outline="#1E293B", width=2)
+        draw.text((360, 830), "🎬 [ วิดีโอสินค้า / B-Roll 9:16 ]", fill="#475569", font=info_f)
 
-    # Bottom Call to Action
-    draw.rectangle([(120, 1600), (W - 120, 1720)], fill="#FE2C55")
-    draw_text_with_outline(draw, (230, 1630), cfg["cta"], cta_f, "#FFFFFF", "#000000", outline_w=4)
+        # Subtitle Micro-bursts Line 1 (Yellow / Highlight)
+        draw_text_with_outline(draw, (140, 1320), cfg["line1"], sub_f, "#FFE600", "#000000", outline_w=7)
 
-    out_p = ARTIFACTS_DIR / f"{cfg['id']}.png"
-    img.save(str(out_p), quality=95)
-    print(f"Saved {cfg['id']} to {out_p}")
+        # Subtitle Micro-bursts Line 2 (White with Crisp Stroke)
+        draw_text_with_outline(draw, (120, 1420), cfg["line2"], sub_f, "#FFFFFF", "#000000", outline_w=7)
+
+        # Bottom Call to Action
+        draw.rectangle([(120, 1600), (W - 120, 1720)], fill="#FE2C55")
+        draw_text_with_outline(draw, (230, 1630), cfg["cta"], cta_f, "#FFFFFF", "#000000", outline_w=4)
+
+        out_p = output_dir / f"{cfg['id']}.png"
+        img.save(str(out_p), quality=95)
+        print(f"Saved {cfg['id']} to {out_p}")
+
+
+if __name__ == '__main__':
+    render_individual_font_cards()

@@ -259,8 +259,11 @@ export function localTimeAt(seg, t) {
   const clip = seg.clip;
   const speed = clip.speed || 1;
   const start = clip.trim_start || 0;
+  if (clip.freeze_tail > 0 && Number.isFinite(clip.held_source_time)) return clip.held_source_time;
   const playedSpan = ((clip.trim_end ?? seg.srcDur ?? 0) - start) / speed;
-  const elapsed = Math.min(t - seg.segStart, playedSpan);
+  const elapsed = clip.freeze_tail > 0
+    ? Math.min(t - seg.segStart, Math.max(0, playedSpan - .75 / (30 * speed)))
+    : Math.min(t - seg.segStart, playedSpan);
   return start + elapsed * speed;
 }
 

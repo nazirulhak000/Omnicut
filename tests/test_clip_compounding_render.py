@@ -13,6 +13,29 @@ from scripts.stages.video_assembly_stage import VideoAssemblyStage
 from scripts.video_editor import VideoEditor
 
 
+def test_assembly_counts_holds_and_never_extends_past_topic_window():
+    clips = [
+        {"trim_start": 2., "trim_end": 4., "duration": 8., "speed": 1., "freeze_tail": 6., "source_window": {"start": 2., "end": 4.}},
+        {"trim_start": 10., "trim_end": 12., "duration": 8., "speed": 1., "freeze_tail": 6., "source_window": {"start": 10., "end": 12.}},
+    ]
+    ctx = PipelineContext(product_name="fixture", raw_video_path="unused.mp4", total_duration=16.,
+                          transitions=[{"type": "fade", "duration": .35}], export_mp4=False)
+    ctx.actual_clip_list = clips
+    ctx.is_newly_generated_clips = True
+    with patch("scripts.stages.video_assembly_stage.ProjectManifest.save"):
+        VideoAssemblyStage.run(ctx)
+    assert [c["trim_end"] for c in clips] == [4., 12.]
+    assert [c["freeze_tail"] for c in clips] == [6., 6.]
+    assert sum(c["duration"] for c in clips) == 16.
+    assert clips[1]["transition_in"] == "cut"
+    ctx.is_newly_generated_clips = False
+    ctx.transitions = [{"type": "cut", "duration": 0.0}]
+    with patch("scripts.stages.video_assembly_stage.ProjectManifest.save"):
+        VideoAssemblyStage.run(ctx)
+    assert clips[1]["transition_in"] == "cut", "rerender must not recreate effects needing unavailable source handles"
+    assert [c["trim_end"] for c in clips] == [4., 12.]
+
+
 def test_video_assembly_does_not_compound_clip_durations_on_consecutive_runs():
     """
     Test that re-rendering an existing project or calling VideoAssemblyStage

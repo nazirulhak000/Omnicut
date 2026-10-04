@@ -9,6 +9,7 @@ export default function OverlayScaleControl({
   rangeClass = 'accent-[#25F4EE]',
   resetHoverClass = 'hover:text-[#25F4EE]',
   ariaLabel = 'ขนาด (Scale)',
+  coalesceKey,
 }) {
   return (
     <div className="space-y-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
@@ -28,7 +29,8 @@ export default function OverlayScaleControl({
         value={scalePct}
         onChange={(e) => {
           const pct = parseInt(e.target.value, 10) || 100;
-          onChange?.(Math.round((pct / 100) * 100) / 100);
+          const val = Math.round((pct / 100) * 100) / 100;
+          onChange?.(val, coalesceKey ? { coalesceKey } : undefined);
         }}
         className={`w-full ${rangeClass} cursor-pointer`}
       />

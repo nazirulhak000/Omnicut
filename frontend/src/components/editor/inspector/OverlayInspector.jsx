@@ -224,9 +224,9 @@ export default function OverlayInspector({
     const hookDuration = hookOverlay ? clampHookDuration(hookOverlay.end - hookOverlay.start) : 5.0;
     const hookMotion = hookOverlay?.anim || {};
 
-    const patchHookTier = (tierIdx, patch) => {
+    const patchHookTier = (tierIdx, patch, options) => {
       if (!hookOverlay) return;
-      onReplaceOverlay?.(hookOverlay.id, withTierLook(hookOverlay, tierIdx, patch));
+      onReplaceOverlay?.(hookOverlay.id, withTierLook(hookOverlay, tierIdx, patch), options);
     };
     const setHookTierText = (tierIdx, text) => {
       if (!hookOverlay) return;
@@ -281,9 +281,9 @@ export default function OverlayInspector({
       }
     };
 
-    const onHookDurationChange = (seconds) => {
+    const onHookDurationChange = (seconds, options) => {
       if (!hookOverlay) return;
-      onUpdateOverlay?.(hookOverlay.id, { end: Math.round((hookOverlay.start + seconds) * 100) / 100 });
+      onUpdateOverlay?.(hookOverlay.id, { end: Math.round((hookOverlay.start + seconds) * 100) / 100 }, options);
     };
     const onHookMotionChange = (key, value) => {
       if (!hookOverlay) return;
@@ -545,7 +545,7 @@ export default function OverlayInspector({
                 max={HOOK_MAX_DURATION}
                 step={0.1}
                 value={hookDuration}
-                onChange={(e) => onHookDurationChange(parseFloat(e.target.value))}
+                onChange={(e) => onHookDurationChange(parseFloat(e.target.value), { coalesceKey: `hook:${hookOverlay.id}:duration` })}
                 className="w-full accent-[#E6C24A] cursor-pointer"
               />
             </div>
@@ -660,7 +660,7 @@ export default function OverlayInspector({
                             max={220}
                             step={1}
                             value={look.size_pct}
-                            onChange={(e) => patchHookTier(idx, { size_pct: parseInt(e.target.value, 10) })}
+                            onChange={(e) => patchHookTier(idx, { size_pct: parseInt(e.target.value, 10) }, { coalesceKey: `hook:${hookOverlay.id}:tier_${idx}:size` })}
                             className="min-w-0 flex-1 accent-[#E6C24A] cursor-pointer"
                           />
                           <span className="w-9 flex-shrink-0 text-right font-mono text-[10px] text-[#E6C24A]">
@@ -743,7 +743,7 @@ export default function OverlayInspector({
                             max={20}
                             step={0.5}
                             value={look.outline_px}
-                            onChange={(e) => patchHookTier(idx, { outline_px: parseFloat(e.target.value) })}
+                            onChange={(e) => patchHookTier(idx, { outline_px: parseFloat(e.target.value) }, { coalesceKey: `hook:${hookOverlay.id}:tier_${idx}:outline` })}
                             className="min-w-0 flex-1 accent-[#E6C24A] cursor-pointer"
                           />
                           <span className="w-9 flex-shrink-0 text-right font-mono text-[10px] text-[#E6C24A]">
@@ -918,8 +918,8 @@ export default function OverlayInspector({
   const currentColor = selectedLook.color === ACCENT_COLOR ? '#FFE600' : selectedLook.color;
   const currentPosition = selectedTextOverlay.position || 'middle';
 
-  const patchOverlayLook = (patch) => {
-    onReplaceOverlay?.(selectedTextOverlay.id, withTierLook(selectedTextOverlay, 0, patch));
+  const patchOverlayLook = (patch, options) => {
+    onReplaceOverlay?.(selectedTextOverlay.id, withTierLook(selectedTextOverlay, 0, patch), options);
   };
 
   const handleResetFormat = () => {
@@ -1076,7 +1076,7 @@ export default function OverlayInspector({
             step="0.05"
             value={currentScale}
             aria-label="ปรับขนาดข้อความเสริม"
-            onChange={(e) => patchOverlayLook({ size_pct: Math.round(parseFloat(e.target.value) * 100) })}
+            onChange={(e) => patchOverlayLook({ size_pct: Math.round(parseFloat(e.target.value) * 100) }, { coalesceKey: `overlay:${selectedTextOverlay.id}:scale` })}
             className="w-full accent-[#25F4EE] cursor-pointer"
           />
         </div>

@@ -163,6 +163,9 @@ class GeminiVisionMatcher:
                 cues_summary = "|".join(str(cue.get("text", "")) for cue in cues)
                 match_cache_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
                 cached_matches = cls._exact_cached_match(cache, match_cache_key)
+                if cached_matches:
+                    catalog = cache.get("catalogs", {}).get(file_hash) or {}
+                    cached_matches = cls._bind_catalog_windows(cached_matches, catalog)
             return VisionRequestContext(
                 video_file=video_file,
                 file_hash=file_hash,
@@ -280,6 +283,30 @@ class GeminiVisionMatcher:
             return uploaded
 
         return None
+
+    @staticmethod
+    def _bind_catalog_windows(matches, catalog):
+        scenes = {scene.get("id"): scene for scene in catalog.get("scenes", []) if isinstance(scene, dict)}
+        bounded = []
+        for match in matches:
+            scene = scenes.get(match.get("scene_id")) if isinstance(match, dict) else None
+            if not scene:
+                bounded.append(match)
+                continue
+            try:
+                first, stop = float(scene["start"]), float(scene["end"])
+                if stop - first < 1 / 30:
+                    bounded.append(match)
+                    continue
+                start = max(first, min(float(match.get("start_time", first)), stop - 1 / 30))
+                end = min(stop, float(match.get("end_time", stop)))
+                if end <= start:
+                    start, end = first, stop
+                bounded.append({**match, "start_time": start, "end_time": end,
+                                "scene_start": first, "scene_end": stop})
+            except (TypeError, ValueError, KeyError):
+                bounded.append(match)
+        return bounded
 
     @classmethod
     def get_cached_matches(cls, raw_video_path: str, cues: List[Dict]) -> Optional[List[Dict]]:
@@ -561,8 +588,8 @@ class GeminiVisionMatcher:
             s_start = min(s_start, max_scene_start)
 
             # Timestamp sanity
-            s_start = max(0.0, min(s_start, max(0.0, raw_duration - needed_dur - 0.2)))
-            s_end = min(raw_duration, max(s_start + 1.8, orig_end))
+            s_start = max(orig_start, min(s_start, orig_end - 1 / 30))
+            s_end = min(raw_duration, orig_end)
 
             # Dynamic punch zoom
             base_zoom = float(best_scene.get("punch_zoom", 1.15))
@@ -584,6 +611,7 @@ class GeminiVisionMatcher:
                 "text": group_text,
                 "scene_id": best_scene.get("id"),
                 "scene_start": round(orig_start, 2),
+                "scene_end": orig_end,
                 "start_time": round(s_start, 2),
                 "end_time": round(s_end, 2),
                 "visual_reason": f"จับคู่ฉาก {best_scene.get('action_type', 'scene')} ({best_scene.get('angle_phase', 'normal')}): {best_scene.get('description', '')[:45]}",

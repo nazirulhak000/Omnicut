@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RotateCw, Volume2, VolumeX } from 'lucide-react';
+import { ClipboardCopy, ClipboardPaste, RotateCw, Volume2, VolumeX } from 'lucide-react';
 import { TransitionIcon } from '../../../lib/transitionIcons';
 import { TRANSITIONS, FADE_DURATION } from '../../../lib/timelineMath';
 import {
@@ -93,6 +93,9 @@ export default function ClipInspector({
   onClipChange,
   clipList = [],
   onPatchAllClips = null,
+  onCopySettings = null,
+  onPasteSettings = null,
+  canPasteSettings = false,
 }) {
   const [applyNote, setApplyNote] = useState(null);
 
@@ -152,6 +155,40 @@ export default function ClipInspector({
           {(clip.source_path || '').split(/[\\/]/).pop()}
         </p>
 
+        {clip.source_window && (
+          <p className="text-xs text-slate-400">
+            ช่วงภาพตรงบท: {Number(clip.source_window.start).toFixed(2)}–{Number(clip.source_window.end).toFixed(2)} วินาที
+          </p>
+        )}
+
+        {(onCopySettings || onPasteSettings) && (
+          <div className="flex items-center gap-1.5 pt-0.5">
+            <button
+              type="button"
+              onClick={onCopySettings}
+              title="คัดลอกความเร็ว ซูม/แพน+คีย์เฟรมกล้อง สี และทรานซิชันของคลิปนี้ (Ctrl+Alt+C)"
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-slate-300 hover:text-white transition-colors cursor-pointer"
+            >
+              <ClipboardCopy className="w-3.5 h-3.5 text-[#25F4EE]" />
+              <span>คัดลอกการตั้งค่า</span>
+            </button>
+            <button
+              type="button"
+              disabled={!canPasteSettings}
+              onClick={onPasteSettings}
+              title={canPasteSettings ? 'วางการตั้งค่าที่คัดลอกไว้ลงคลิปนี้ (Ctrl+Alt+V)' : 'ยังไม่ได้คัดลอกการตั้งค่าจากคลิปไหน'}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg border text-xs font-medium transition-colors ${
+                canPasteSettings
+                  ? 'bg-[#D97757]/20 border-[#D97757]/40 text-[#E89274] hover:bg-[#D97757]/30 cursor-pointer'
+                  : 'bg-black/20 border-white/[0.04] text-slate-600 cursor-not-allowed'
+              }`}
+            >
+              <ClipboardPaste className="w-3.5 h-3.5" />
+              <span>วางการตั้งค่า</span>
+            </button>
+          </div>
+        )}
+
         {/* Trimming Controls */}
         <div className="grid grid-cols-2 gap-2 pt-1">
           <div>
@@ -161,7 +198,7 @@ export default function ClipInspector({
               step="0.1"
               min="0"
               value={clip.trim_start ?? 0}
-              onChange={(e) => onClipChange?.({ trim_start: clampTrimStart(e.target.value, clip, srcDur) })}
+              onChange={(e) => sliderChange('trim_start', { trim_start: clampTrimStart(e.target.value, clip, srcDur) })}
             />
           </div>
           <div>
@@ -172,7 +209,7 @@ export default function ClipInspector({
               min="0"
               placeholder="สุดคลิป"
               value={clip.trim_end ?? ''}
-              onChange={(e) => onClipChange?.({ trim_end: clampTrimEnd(e.target.value, clip, srcDur) })}
+              onChange={(e) => sliderChange('trim_end', { trim_end: clampTrimEnd(e.target.value, clip, srcDur) })}
             />
           </div>
         </div>

@@ -334,12 +334,12 @@ export function useEditorCommands({
     else set(updater, captionPatchHistoryOptions(cueUid, patch, options));
   }, [markCuesDirty, set, setSilent]);
 
-  const patchAllCaptions = useCallback((patch, silent = false) => {
+  const patchAllCaptions = useCallback((patch, silent = false, options = undefined) => {
     markCuesDirty();
     (silent ? setSilent : set)((prev) => ({
       ...prev,
       cuesList: prev.cuesList.map((c) => ({ ...c, ...patch })),
-    }));
+    }), options);
   }, [markCuesDirty, set, setSilent]);
 
   const handleUpdateCuesList = useCallback((newCues, silent = false) => {

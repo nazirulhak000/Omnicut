@@ -58,14 +58,16 @@ export default function StickerInspector({
       <OverlayTimingControls
         start={start}
         end={end}
-        onStartChange={(value) => onUpdateSticker?.(sticker.id, { start: value })}
-        onEndChange={(value) => onUpdateSticker?.(sticker.id, { end: value })}
+        coalescePrefix={`sticker:${sticker.id}`}
+        onStartChange={(value, options) => onUpdateSticker?.(sticker.id, { start: value }, options)}
+        onEndChange={(value, options) => onUpdateSticker?.(sticker.id, { end: value }, options)}
       />
 
       <OverlayScaleControl
         scalePct={scalePct}
         ariaLabel="ขนาดสติกเกอร์"
-        onChange={(value) => onUpdateSticker?.(sticker.id, { scale: value })}
+        coalesceKey={`sticker:${sticker.id}:scale`}
+        onChange={(value, options) => onUpdateSticker?.(sticker.id, { scale: value }, options)}
         onReset={() => onUpdateSticker?.(sticker.id, { scale: 1.0 })}
       />
 

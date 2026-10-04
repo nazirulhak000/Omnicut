@@ -98,6 +98,7 @@ import RenderButton from './RenderButton';
 import MixDegradedNotice from './MixDegradedNotice';
 import ProjectRevisionNotice from './ProjectRevisionNotice';
 import VoiceEditNotice from './VoiceEditNotice';
+import FootageCoverageNotice from './FootageCoverageNotice';
 
 function formatErrorText(err) {
   if (!err) return '';
@@ -1160,6 +1161,18 @@ export default function EditorShell({
     seekPlayer,
   });
 
+  const [toastMessage, setToastMessage] = useState(null);
+  const toastTimeoutRef = useRef(null);
+
+  const showToast = useCallback((msg) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToastMessage(msg);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+      toastTimeoutRef.current = null;
+    }, 2500);
+  }, []);
+
   const {
     addClip,
     patchClip,
@@ -1173,6 +1186,8 @@ export default function EditorShell({
     pasteClipSettings,
     hasCopiedClipSettings,
     deleteSelected,
+    planRipple,
+    rippleRanges,
     addTextAtPlayhead,
     patchCaption,
     patchAllCaptions,
@@ -1269,9 +1284,9 @@ export default function EditorShell({
     (selectedSeg.clip.pan_y !== undefined && selectedSeg.clip.pan_y !== 0) ||
     cameraKeyframeSummary(selectedSeg.clip).points > 0
   );
-  // Scan the voiceover for dead air and propose a ripple cut. Nothing is
-  // applied here: the plan is shown first, because a ripple delete moves every
-  // clip after it and is not something to spring on someone.
+
+  // Scan the voiceover for dead air and propose an all-lane ripple cut.
+  // Cuts across video, voiceover, subtitles, and overlays together (User Choice 2. ก).
   const handleScanSilences = useCallback(async () => {
     if (!voiceAudioPath) {
       setSilenceError('ยังไม่มีไฟล์เสียงพากย์ในโปรเจกต์นี้');
@@ -1282,30 +1297,50 @@ export default function EditorShell({
     setSilencePlan(null);
     try {
       const data = await getMediaSilences(voiceAudioPath);
-      const plan = planSilenceRipple(clipList, data?.silences || [], durations);
+      const rawSilences = data?.silences || [];
+      const programRanges = silenceSpansToProgramRanges(
+        rawSilences,
+        activeVoiceEdit,
+        loadedAudioDuration || audioDuration
+      );
+      if (!programRanges.length) {
+        setSilenceError('ไม่พบช่วงเงียบที่ตัดได้');
+        return;
+      }
+      const plan = planRipple(programRanges, 'all', { reason: 'silence' });
       if (plan.blocked) {
-        setSilenceError(plan.blocked);
-      } else if (!planChangesAnything(plan)) {
+        setSilenceError(describeRippleBlocked(plan.blocked, { source: 'silence' }));
+      } else if (!plan.changed) {
         setSilenceError('ไม่พบช่วงเงียบที่ตัดได้');
       } else {
-        setSilencePlan({ plan, description: describePlan(plan) });
+        const confirm = describeRippleConfirm(plan, { source: 'silence', count: rawSilences.length });
+        setSilencePlan({
+          plan,
+          description: confirm.summary || confirm.subtitle,
+          confirmTitle: confirm.title,
+          confirmSubtitle: confirm.subtitle,
+          ranges: programRanges,
+        });
       }
     } catch (err) {
       setSilenceError(err?.friendlyMessage || err?.message || 'ตรวจช่วงเงียบไม่สำเร็จ');
     } finally {
       setSilenceScanning(false);
     }
-  }, [voiceAudioPath, clipList, durations]);
+  }, [voiceAudioPath, activeVoiceEdit, loadedAudioDuration, audioDuration, planRipple]);
 
-  // Apply the confirmed plan as one state change, so a single Ctrl+Z puts the
-  // timeline back exactly as it was.
+  // Apply the confirmed plan across all tracks in ONE state change, so a single Ctrl+Z
+  // puts the timeline back exactly as it was.
   const handleApplySilencePlan = useCallback(() => {
-    const plan = silencePlan?.plan;
-    if (!plan || plan.blocked) return;
-    set((prev) => ({ ...prev, clipList: plan.clips }));
+    const ranges = silencePlan?.ranges || silencePlan?.plan?.ranges;
+    if (!ranges || !ranges.length) return;
+    const plan = rippleRanges(ranges, 'all', { reason: 'silence' });
     setSilencePlan(null);
     setSelection(null);
-  }, [silencePlan, set]);
+    if (plan && plan.changed && !plan.blocked) {
+      showToast('✂️ ตัดช่วงเงียบสำเร็จ (ขยับภาพ เสียง และซับครบ)');
+    }
+  }, [silencePlan, rippleRanges, setSelection, showToast]);
 
   const handleCancelSilencePlan = useCallback(() => {
     setSilencePlan(null);
@@ -1605,18 +1640,6 @@ export default function EditorShell({
     }
   }, [set, selection]);
 
-
-  const [toastMessage, setToastMessage] = useState(null);
-  const toastTimeoutRef = useRef(null);
-
-  const showToast = useCallback((msg) => {
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    setToastMessage(msg);
-    toastTimeoutRef.current = setTimeout(() => {
-      setToastMessage(null);
-      toastTimeoutRef.current = null;
-    }, 2500);
-  }, []);
 
   const handleResetSubtitleTimings = useCallback(() => {
     if (!initialCuesRef.current || initialCuesRef.current.length === 0) return;
@@ -2435,6 +2458,7 @@ export default function EditorShell({
         </div>
       )}
 
+      <FootageCoverageNotice clips={clipList} />
       <ProjectRevisionNotice
         kind={projectName ? revisionNotice : null}
         reloading={revisionReloading}
@@ -2463,8 +2487,12 @@ export default function EditorShell({
                 <Scissors className="h-5 w-5" />
               </span>
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-white">ตัดช่วงเงียบออก?</h2>
-                <p className="pt-0.5 text-sm text-slate-400">คลิปหลังจุดที่ตัดจะเลื่อนมาชิดกันทั้งหมด</p>
+                <h2 className="text-lg font-bold text-white">
+                  {silencePlan.confirmTitle || 'ตัดช่วงเงียบออก?'}
+                </h2>
+                <p className="pt-0.5 text-sm text-slate-400">
+                  {silencePlan.confirmSubtitle || 'ภาพ เสียงพากย์ ซับ และข้อความหลังจุดนี้จะเลื่อนมาชิดกัน'}
+                </p>
               </div>
             </div>
 
@@ -2931,6 +2959,10 @@ export default function EditorShell({
                   onSplit={splitAtPlayhead}
                   onAddText={addTextAtPlayhead}
                   onDuplicate={duplicateSelected}
+                  onCopySettings={copyClipSettings}
+                  onPasteSettings={pasteClipSettings}
+                  canPasteSettings={hasCopiedClipSettings}
+                  selectedCount={selectedClipIds.length}
                   onDelete={deleteSelected}
                   onToggleMirror={() => selectedSeg && patchClip(selectedSeg.clip.id, { mirror: !selectedSeg.clip.mirror })}
                   onCycleSpeed={() => {
@@ -3128,6 +3160,9 @@ export default function EditorShell({
                     <Inspector
                       selection={selection}
                       multiSelectCount={selectedClipIds.length}
+                      onCopySettings={copyClipSettings}
+                      onPasteSettings={pasteClipSettings}
+                      canPasteSettings={hasCopiedClipSettings}
                       selectedSeg={selectedSeg}
                       selectedCaption={selectedCaption}
                       cuesList={cuesList}
@@ -3150,10 +3185,10 @@ export default function EditorShell({
                       onClipChange={(patch, options) => selectedSeg && patchClip(selectedSeg.clip.id, patch, false, options)}
                       clipList={clipList}
                       onPatchAllClips={patchAllClips}
-                      onCaptionChange={(cueUid, patch) => patchCaption(cueUid, patch)}
+                      onCaptionChange={(cueUid, patch, options) => patchCaption(cueUid, patch, false, options)}
                       applyToAll={applyToAllCaptions}
                       onToggleApplyToAll={setApplyToAllCaptions}
-                      onPatchAllCaptions={patchAllCaptions}
+                      onPatchAllCaptions={(patch, options) => patchAllCaptions(patch, false, options)}
                       onSplitCue={handleSplitCue}
                       onSplitCueAtPlayhead={handleSplitCueAtPlayhead}
                       onMergeCue={handleMergeCue}
@@ -3521,6 +3556,9 @@ export default function EditorShell({
                       <Inspector
                         selection={selection}
                         multiSelectCount={selectedClipIds.length}
+                        onCopySettings={copyClipSettings}
+                        onPasteSettings={pasteClipSettings}
+                        canPasteSettings={hasCopiedClipSettings}
                         selectedSeg={selectedSeg}
                         selectedCaption={selectedCaption}
                         cuesList={cuesList}
@@ -3543,10 +3581,10 @@ export default function EditorShell({
                         onClipChange={(patch, options) => selectedSeg && patchClip(selectedSeg.clip.id, patch, false, options)}
                         clipList={clipList}
                         onPatchAllClips={patchAllClips}
-                        onCaptionChange={(cueUid, patch) => patchCaption(cueUid, patch)}
+                        onCaptionChange={(cueUid, patch, options) => patchCaption(cueUid, patch, false, options)}
                         applyToAll={applyToAllCaptions}
                         onToggleApplyToAll={setApplyToAllCaptions}
-                        onPatchAllCaptions={patchAllCaptions}
+                        onPatchAllCaptions={(patch, options) => patchAllCaptions(patch, false, options)}
                         onSplitCue={handleSplitCue}
                         onSplitCueAtPlayhead={handleSplitCueAtPlayhead}
                         onMergeCue={handleMergeCue}
@@ -3641,6 +3679,10 @@ export default function EditorShell({
                   onSplit={splitAtPlayhead}
                   onAddText={addTextAtPlayhead}
                   onDuplicate={duplicateSelected}
+                  onCopySettings={copyClipSettings}
+                  onPasteSettings={pasteClipSettings}
+                  canPasteSettings={hasCopiedClipSettings}
+                  selectedCount={selectedClipIds.length}
                   onDelete={deleteSelected}
                   onToggleMirror={() => selectedSeg && patchClip(selectedSeg.clip.id, { mirror: !selectedSeg.clip.mirror })}
                   onCycleSpeed={() => {

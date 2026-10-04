@@ -9,6 +9,7 @@ import {
   SlidersHorizontal,
   Smile,
   Layers,
+  ClipboardPaste,
 } from 'lucide-react';
 
 import ClipInspector from './inspector/ClipInspector';
@@ -30,13 +31,16 @@ import { resolveSelectedItem } from '../../lib/selectionResolver.js';
 export const RENDER_CLIP_FIELDS = [
   'bg_blur', 'brightness', 'contrast', 'fit_mode', 'freeze_tail', 'mirror',
   'pan_x', 'pan_y', 'rotation', 'saturation', 'smooth_slowmo', 'speed',
-  'trim_end', 'trim_start', 'volume', 'zoom',
+  'trim_end', 'trim_start', 'volume', 'zoom', 'source_window',
 ];
 
 export default function Inspector({
   selection,
   // Clips selected on the timeline with Ctrl/Shift+click (primary included).
   multiSelectCount = 0,
+  onCopySettings = null,
+  onPasteSettings = null,
+  canPasteSettings = false,
   selectedSeg,
   selectedCaption,
   cuesList = [],
@@ -375,10 +379,25 @@ export default function Inspector({
                   <div
                     data-testid="inspector-multi-select"
                     role="status"
-                    className="mb-3 rounded-xl border border-[#D97757]/40 bg-[#D97757]/10 px-3 py-2 text-xs text-[#E89274]"
+                    className="mb-3 rounded-xl border border-[#D97757]/40 bg-[#D97757]/10 p-2.5 text-xs text-[#E89274]"
                   >
-                    <span className="font-bold">เลือก {multiSelectCount} คลิป</span>
-                    <span className="text-[#C9C3BB]"> · แผงนี้แก้เฉพาะคลิปหลักที่ไฮไลต์เข้ม · กด Delete ลบทั้งหมด · Esc ยกเลิกการเลือก</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold">เลือก {multiSelectCount} คลิป</span>
+                      {canPasteSettings && (
+                        <button
+                          type="button"
+                          onClick={onPasteSettings}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#D97757] hover:bg-[#E89274] text-white font-medium transition-colors cursor-pointer text-xs shadow-sm"
+                          title="วางการตั้งค่าที่คัดลอกไว้ลงทุกคลิปที่เลือก (Ctrl+Alt+V)"
+                        >
+                          <ClipboardPaste className="w-3.5 h-3.5" />
+                          <span>วางการตั้งค่า ({multiSelectCount})</span>
+                        </button>
+                      )}
+                    </div>
+                    <span className="text-[#C9C3BB] block mt-1">
+                      · แผงนี้แก้เฉพาะคลิปหลักที่ไฮไลต์เข้ม · กด Delete ลบทั้งหมด · Esc ยกเลิกการเลือก
+                    </span>
                   </div>
                 )}
                 <ClipInspector
@@ -386,6 +405,9 @@ export default function Inspector({
                   onClipChange={onClipChange}
                   clipList={clipList}
                   onPatchAllClips={onPatchAllClips}
+                  onCopySettings={onCopySettings}
+                  onPasteSettings={onPasteSettings}
+                  canPasteSettings={canPasteSettings}
                 />
               </>
             ) : (

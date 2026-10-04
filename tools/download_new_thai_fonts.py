@@ -1,8 +1,8 @@
 import urllib.request
 from pathlib import Path
 
-FONTS_DIR = Path("d:/Winona/Programmer/Capcut/02_Assets/Fonts")
-FONTS_DIR.mkdir(parents=True, exist_ok=True)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+FONTS_DIR = PROJECT_ROOT / "02_Assets" / "Fonts"
 
 # Google Fonts Raw TTF URLs from google/fonts repo
 NEW_FONTS = {
@@ -16,19 +16,29 @@ NEW_FONTS = {
     "Pridi-Bold.ttf": "https://github.com/google/fonts/raw/main/ofl/pridi/Pridi-Bold.ttf"
 }
 
-print("Downloading new distinct Thai fonts...")
-for fname, url in NEW_FONTS.items():
-    dest = FONTS_DIR / fname
-    if not dest.exists() or dest.stat().st_size < 1000:
-        try:
-            print(f"Downloading {fname}...")
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req) as resp, open(dest, 'wb') as f:
-                f.write(resp.read())
-            print(f"[OK] Downloaded {fname} ({dest.stat().st_size} bytes)")
-        except Exception as e:
-            print(f"[ERR] Failed {fname}: {e}")
-    else:
-        print(f"[OK] Already exists {fname}")
 
-print("Done downloading all fonts.")
+def download_fonts(target_dir: Path = None):
+    if target_dir is None:
+        target_dir = FONTS_DIR
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    print("Downloading new distinct Thai fonts...")
+    for fname, url in NEW_FONTS.items():
+        dest = target_dir / fname
+        if not dest.exists() or dest.stat().st_size < 1000:
+            try:
+                print(f"Downloading {fname}...")
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as resp, open(dest, 'wb') as f:
+                    f.write(resp.read())
+                print(f"[OK] Downloaded {fname} ({dest.stat().st_size} bytes)")
+            except Exception as e:
+                print(f"[ERR] Failed {fname}: {e}")
+        else:
+            print(f"[OK] Already exists {fname}")
+
+    print("Done downloading all fonts.")
+
+
+if __name__ == '__main__':
+    download_fonts()

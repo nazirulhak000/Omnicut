@@ -28,6 +28,23 @@ def _every_boundary_is_a_cut(items) -> bool:
     return True
 
 
+def _source_handles_available(outgoing, incoming, overlap):
+    tail = round(overlap / 2.0, 4)
+    head_total = round(overlap - tail, 4)
+    out_window, in_window = outgoing.get("source_window"), incoming.get("source_window")
+    out_speed = float(outgoing.get("speed") or 1.0)
+    in_speed = float(incoming.get("speed") or 1.0)
+    out_missing = isinstance(out_window, dict) and (
+        outgoing.get("freeze_tail", 0) > 0
+        or float(outgoing["trim_end"]) + tail * out_speed > out_window["end"] + 1e-6
+    )
+    in_missing = isinstance(in_window, dict) and (
+        incoming.get("held_source_time") is not None
+        or float(incoming["trim_start"]) - head_total * in_speed < in_window["start"] - 1e-6
+    )
+    return not (out_missing or in_missing)
+
+
 def _centre_transition_overlaps(clips: List[dict], transitions) -> None:
     """Give each planned transition its overlap, centred on the planned cut.
 
@@ -62,21 +79,47 @@ def _centre_transition_overlaps(clips: List[dict], transitions) -> None:
         tail = round(overlap / 2.0, 4)
         head_total = round(overlap - tail, 4)
 
+        # A transition needs footage handles on both sides. A semantic
+        # window must not borrow frames from the neighbouring feature.
+        out_window, in_window = outgoing.get("source_window"), incoming.get("source_window")
+        if not _source_handles_available(outgoing, incoming, overlap):
+            transitions[i] = {"type": "cut", "duration": 0.0}
+            incoming["transition_in"] = "cut"
+            incoming.pop("transition_duration", None)
+            continue
+
         # In both frontend SequencePlayer and FFmpeg, played duration =
         # (trim_end - trim_start) / speed, so a played extension of x needs
         # x * speed more source footage.
         out_speed = float(outgoing.get("speed") or 1.0)
         outgoing["duration"] = round(float(outgoing.get("duration") or 0.0) + tail, 3)
         if outgoing.get("trim_end") is not None:
-            outgoing["trim_end"] = round(float(outgoing["trim_end"]) + tail * out_speed, 3)
+            outgoing["trim_end"] = round(float(outgoing["trim_end"]) + tail * out_speed, 6 if out_window else 3)
         outgoing["_overlap_compensated"] = True
 
         in_speed = float(incoming.get("speed") or 1.0)
         head = 0.0
         if incoming.get("trim_start") is not None:
             head = min(head_total, max(0.0, float(incoming["trim_start"])) / in_speed)
-            incoming["trim_start"] = round(float(incoming["trim_start"]) - head * in_speed, 3)
+            incoming["trim_start"] = round(float(incoming["trim_start"]) - head * in_speed, 6 if in_window else 3)
         incoming["duration"] = round(float(incoming.get("duration") or 0.0) + head_total, 3)
+        if head > 0 and isinstance(incoming.get("keyframes"), list):
+            # Keyframes use played clip time. Prepending source handles must
+            # not advance the camera at the source instant originally planned
+            # for the cut. Holding the first pose during the added head keeps
+            # the original easing curve intact, in both preview and render.
+            shifted = []
+            for point in incoming["keyframes"]:
+                if not isinstance(point, dict):
+                    shifted.append(point)
+                    continue
+                copy = dict(point)
+                try:
+                    copy["time"] = round(float(point["time"]) + head, 6)
+                except (KeyError, TypeError, ValueError):
+                    pass
+                shifted.append(copy)
+            incoming["keyframes"] = shifted
         if incoming.get("trim_end") is not None and head_total - head > 1e-9:
             incoming["trim_end"] = round(float(incoming["trim_end"]) + (head_total - head) * in_speed, 3)
 
@@ -99,6 +142,8 @@ def _fill_undecided_transitions(clips: List[dict], style_preset: Optional[str]) 
         pick = choose_transition(clips[i].get("zoom"), clips[i + 1].get("zoom"), i, previous_type)
         pick = apply_transition_budget(pick, style_preset=style_preset, boundary_index=i + 1)
         pick = orient_slide_to_pan(pick, clips[i].get("keyframes"))
+        if not _source_handles_available(clips[i], clips[i + 1], float(pick.get("duration") or 0)):
+            pick = {"type": "cut", "duration": 0.0}
         previous_type = pick["type"]
         transitions.append(pick)
     return transitions
@@ -124,6 +169,10 @@ class VideoAssemblyStage:
                         continue
                     clip["transition_in"] = transitions[i - 1]["type"]
                     clip["transition_duration"] = transitions[i - 1]["duration"]
+                    if transitions[i - 1].get("easing"):
+                        clip["transition_easing"] = transitions[i - 1]["easing"]
+                    else:
+                        clip.pop("transition_easing", None)
             filled = sum(1 for t in transitions if t.get("type") != "cut")
             print(f"   ✨ ใส่รอยต่อให้อัตโนมัติ {filled}/{boundary_count} จุดตามสไตล์ (ไม่มีรอยต่อเดิมให้ยึด)")
 
@@ -158,9 +207,9 @@ class VideoAssemblyStage:
                             if boundary_type != "cut" and isinstance(boundary, dict):
                                 boundary_overlap = float(boundary.get("duration") or 0.0)
                     seg_start = acc - boundary_overlap if i > 0 else 0.0
-                    span = max(0.05, float(c.get("trim_end", 0.0)) - float(c.get("trim_start", 0.0)))
+                    span = max(1 / 30 if c.get("source_window") else 0.05, float(c.get("trim_end", 0.0)) - float(c.get("trim_start", 0.0)))
                     spd = float(c.get("speed", 1.0))
-                    dur = span / spd
+                    dur = span / spd + min(10.0, max(0.0, float(c.get("freeze_tail") or 0)))
                     seg_end = seg_start + dur
                     acc = seg_end
 
@@ -170,7 +219,18 @@ class VideoAssemblyStage:
                     last_dur = max(0.2, float(last_clip.get("duration", 0.0)) + tail_gap)
                     last_clip["duration"] = round(last_dur, 3)
                     last_spd = float(last_clip.get("speed", 1.0))
-                    if last_clip.get("trim_end") is not None:
+                    if last_clip.get("source_window"):
+                        # Quantisation must not turn an approved hold into
+                        # motion outside the selected source window.
+                        played = (float(last_clip["trim_end"]) - float(last_clip["trim_start"])) / last_spd
+                        hold = max(0.0, last_dur - played)
+                        if hold:
+                            last_clip["freeze_tail"] = hold
+                            last_clip["footage_shortage"] = {"reason": "source_window_exhausted", "missing_seconds": round(hold, 3)}
+                        else:
+                            last_clip.pop("freeze_tail", None)
+                            last_clip["trim_end"] = float(last_clip["trim_start"]) + last_dur * last_spd
+                    elif last_clip.get("trim_end") is not None:
                         last_clip["trim_end"] = round(float(last_clip["trim_start"]) + (last_dur * last_spd), 3)
 
         # Opt-in LUT styling

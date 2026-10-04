@@ -1735,7 +1735,8 @@ def test_each_clip_seeks_its_input_instead_of_trimming_after_decode():
     assert 'cmd_inputs.extend(["-ss", f"{max(0.0, start):.3f}",' in editor
     assert '"-t", f"{span:.3f}", "-i", video_path])' in editor, \
         "the span must be exact -- padding it slid every later clip out of step"
-    assert "input_seeks.append((trim_start, source_span))" in editor
+    assert "input_seeks.append((seek_start, source_span))" in editor
+    assert "else trim_start" in editor, "legacy clips keep their original seek"
 
     # The video filters must not seek a second time...
     assert "trim=start={trim_start}" not in editor.split("1-Click Studio path")[0], \

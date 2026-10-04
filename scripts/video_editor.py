@@ -1574,8 +1574,14 @@ class VideoEditor:
                 trim_end = clip.get("trim_end")
                 if trim_end is None:
                     trim_end = media_info["duration"]
-                source_span = max(0.2, float(trim_end) - trim_start)
-                input_seeks.append((trim_start, source_span))
+                minimum_source_span = 1 / FPS if isinstance(clip.get("source_window"), Mapping) else 0.2
+                source_span = max(minimum_source_span, float(trim_end) - trim_start)
+                # FFmpeg can round a decimal frame-edge seek up to the next
+                # frame. Start halfway before a bounded frame; decoding still
+                # emits its intended first frame and excludes the next topic.
+                seek_rate = max(FPS, float(media_info.get("fps") or FPS))
+                seek_start = max(0.0, trim_start - .5 / seek_rate) if "source_window" in clip else trim_start
+                input_seeks.append((seek_start, source_span))
 
                 # Per-clip speed: setpts stretches/squashes presentation time,
                 # so the clip's contribution to the sequence is span/speed.
@@ -1583,7 +1589,7 @@ class VideoEditor:
                 # xfade offset after this clip lands in the wrong place.
                 speed = float(clip.get("speed") or 1.0)
                 speed = min(4.0, max(0.25, speed))
-                duration = max(0.2, source_span / speed)
+                duration = max(minimum_source_span, source_span / speed)
 
                 # Freeze tail: hold the clip's last frame for N more seconds.
                 # It has to be added to `duration` as well, or every xfade
@@ -1593,8 +1599,12 @@ class VideoEditor:
                     freeze_tail = min(10.0, max(0.0, float(clip.get("freeze_tail") or 0.0)))
                 except (TypeError, ValueError):
                     freeze_tail = 0.0
+                # Hold the last frame on the output grid. Padding a 60 FPS
+                # source first can introduce its next half-frame at the hold
+                # boundary and change the picture when a held chunk resumes.
                 freeze_filter = (
-                    f"tpad=stop_mode=clone:stop_duration={freeze_tail},"
+                    (f"fps={FPS}," if "source_window" in clip else "")
+                    + f"tpad=stop_mode=clone:stop_duration={freeze_tail},"
                     if freeze_tail > 0.01 else ""
                 )
                 duration += freeze_tail
@@ -1685,6 +1695,8 @@ class VideoEditor:
                     clip_trim = f"trim=duration={source_span}"
                     fg_input_idx = len(clip_list) + 1 + len(foreground_inputs)
                     bg_info["input_index"] = fg_input_idx
+                    if "source_window" in clip and bg_info.get("video_path"):
+                        bg_info["video_start"] = max(0.0, bg_info["video_start"] - .5 / FPS)
                     foreground_inputs.append(bg_info)
 
                     transformed_node = f"{node_name}_transformed"

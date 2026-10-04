@@ -96,10 +96,36 @@ test('merge joins both tracks only when both still match their text', () => {
 
 test('typing one caption field coalesces; other fields and captions do not', () => {
   assert.deepEqual(captionPatchHistoryOptions('c1', { text: 'a' }), typingHistoryOptions('caption:text:c1'));
+  assert.deepEqual(captionPatchHistoryOptions('c1', { scale: 1.2 }), { coalesceKey: 'caption:scale:c1' });
   assert.equal(captionPatchHistoryOptions('c1', { start: 1 }), undefined);
   assert.equal(captionPatchHistoryOptions('c1', { text: 'a', start: 1 }), undefined);
   const explicit = { coalesceKey: 'x' };
   assert.equal(captionPatchHistoryOptions('c1', { text: 'a' }, explicit), explicit);
+});
+
+test('dragging caption scale slider coalesces into single undo step (Audit Item 17)', () => {
+  const clock = { t: 0 };
+  const history = createEditorHistoryModel(
+    { cuesList: [{ _uid: 'c1', text: 'คำบรรยาย', scale: 1.0 }] },
+    { now: () => clock.t },
+  );
+
+  const setScale = (uid, scale) => history.set(
+    (s) => ({ ...s, cuesList: s.cuesList.map((c) => (c._uid === uid ? { ...c, scale } : c)) }),
+    captionPatchHistoryOptions(uid, { scale }),
+  );
+
+  // User drags scale slider rapidly from 1.0 to 1.5 in 10 ticks
+  for (let pct = 105; pct <= 150; pct += 5) {
+    setScale('c1', pct / 100);
+    clock.t += 30; // 30ms per tick
+  }
+
+  assert.equal(history.getState().cuesList[0].scale, 1.5);
+  // Undo must revert the entire drag burst in a single step back to 1.0
+  assert.equal(history.undo(), true);
+  assert.equal(history.getState().cuesList[0].scale, 1.0);
+  assert.equal(history.canUndo(), false);
 });
 
 test('one typed sentence is one undo step (L3-10)', () => {

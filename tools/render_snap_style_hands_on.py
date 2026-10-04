@@ -18,7 +18,7 @@ import wave
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-PROJECT_ROOT = Path(r"d:\Winona\Programmer\Capcut")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 INPUT_VIDEO = PROJECT_ROOT / r".tmp\test_hands_on_pb.mp4.webm"
 WORKSPACE = PROJECT_ROOT / r".tmp\Products\Xiaomi_MIX_Flip\02_Workspace"
 EXPORT_DIR = PROJECT_ROOT / r".tmp\Products\Xiaomi_MIX_Flip\03_Export"

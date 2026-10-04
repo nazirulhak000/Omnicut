@@ -366,3 +366,113 @@ def test_multikey_failover_tries_primary_model_on_key2_when_key1_rate_limited(mo
     assert any(a.get("error_type") == "RATE_LIMIT_429" and "-alpha" in a.get("key_tag", "") for a in recorded_alerts)
     assert any(a.get("error_type") == "KEY_FAILOVER_SUCCESS" and "-beta" in a.get("key_tag", "") for a in recorded_alerts)
     assert Path(out).exists()
+
+
+# ------------------------------------------------------------- atempo safety & chaining
+
+def test_build_atempo_filter_normal_and_chained():
+    assert GeminiFlashTTSEngine.build_atempo_filter(1.15) == "atempo=1.15"
+    assert GeminiFlashTTSEngine.build_atempo_filter(1.0) == "atempo=1"
+    assert GeminiFlashTTSEngine.build_atempo_filter(2.0) == "atempo=2"
+    assert GeminiFlashTTSEngine.build_atempo_filter(0.5) == "atempo=0.5"
+
+    # Speeds outside [0.5, 2.0] must be chained
+    assert GeminiFlashTTSEngine.build_atempo_filter(2.5) == "atempo=2.0,atempo=1.25"
+    assert GeminiFlashTTSEngine.build_atempo_filter(4.0) == "atempo=2.0,atempo=2"
+    assert GeminiFlashTTSEngine.build_atempo_filter(0.4) == "atempo=0.5,atempo=0.8"
+    assert GeminiFlashTTSEngine.build_atempo_filter(0.25) == "atempo=0.5,atempo=0.5"
+
+
+def test_build_atempo_filter_rejects_invalid_values():
+    with pytest.raises(ValueError):
+        GeminiFlashTTSEngine.build_atempo_filter(0)
+    with pytest.raises(ValueError):
+        GeminiFlashTTSEngine.build_atempo_filter(-1.5)
+    with pytest.raises(ValueError):
+        GeminiFlashTTSEngine.build_atempo_filter(float("nan"))
+    with pytest.raises(ValueError):
+        GeminiFlashTTSEngine.build_atempo_filter(float("inf"))
+    with pytest.raises(ValueError):
+        GeminiFlashTTSEngine.build_atempo_filter("invalid")
+
+
+def test_atempo_failure_raises_runtime_error_and_cleans_transients(monkeypatch, tmp_path):
+    """When FFmpeg returns non-zero, generate_speech must raise RuntimeError,
+
+    must NOT return a stale file, and must clean up all temporary files."""
+    monkeypatch.setattr(GeminiFlashTTSEngine, "get_api_keys", classmethod(lambda cls: ["key-1"]))
+    from scripts import token_tracker
+    monkeypatch.setattr(token_tracker.TokenTracker, "record_event", lambda **kw: None)
+
+    out_path = Path(_out_path(tmp_path))
+    # Place a pre-existing stale file to ensure it gets removed and not used
+    out_path.write_bytes(b"STALE_OLD_AUDIO_CONTENT")
+
+    def failing_ffmpeg(cmd, **kwargs):
+        # Simulate failed ffmpeg run
+        return MagicMock(returncode=1, stderr="Invalid audio filter: atempo error", stdout="")
+
+    with patch("urllib.request.urlopen", return_value=_fake_urlopen(_ok_payload_bytes())):
+        with patch("subprocess.run", side_effect=failing_ffmpeg):
+            with pytest.raises(RuntimeError) as exc_info:
+                GeminiFlashTTSEngine.generate_speech(
+                    text="test fail", output_path=str(out_path), speed=1.15
+                )
+
+    assert "FFmpeg atempo failed with exit code 1" in str(exc_info.value)
+    assert "Invalid audio filter" in str(exc_info.value)
+
+    # Transients must be cleaned up
+    assert not out_path.with_suffix(".raw.wav").exists()
+    assert not out_path.with_suffix(".speed.tmp.wav").exists()
+    # Destination must not retain the old stale file
+    assert not out_path.exists()
+
+
+def test_atempo_empty_output_raises_runtime_error_and_cleans_up(monkeypatch, tmp_path):
+    """When FFmpeg exits 0 but produces a 0-byte file, fail cleanly."""
+    monkeypatch.setattr(GeminiFlashTTSEngine, "get_api_keys", classmethod(lambda cls: ["key-1"]))
+    from scripts import token_tracker
+    monkeypatch.setattr(token_tracker.TokenTracker, "record_event", lambda **kw: None)
+
+    out_path = Path(_out_path(tmp_path))
+
+    def zero_byte_ffmpeg(cmd, **kwargs):
+        target = Path(cmd[-1])
+        target.write_bytes(b"") # 0 bytes
+        return MagicMock(returncode=0)
+
+    with patch("urllib.request.urlopen", return_value=_fake_urlopen(_ok_payload_bytes())):
+        with patch("subprocess.run", side_effect=zero_byte_ffmpeg):
+            with pytest.raises(RuntimeError) as exc_info:
+                GeminiFlashTTSEngine.generate_speech(
+                    text="test empty", output_path=str(out_path), speed=1.15
+                )
+
+    assert "missing or empty" in str(exc_info.value)
+    assert not out_path.with_suffix(".speed.tmp.wav").exists()
+    assert not out_path.with_suffix(".raw.wav").exists()
+    assert not out_path.exists()
+
+
+def test_atempo_missing_ffmpeg_binary_raises_clear_error(monkeypatch, tmp_path):
+    """When ffmpeg is not found on PATH, raise clear Thai error."""
+    monkeypatch.setattr(GeminiFlashTTSEngine, "get_api_keys", classmethod(lambda cls: ["key-1"]))
+    from scripts import token_tracker
+    monkeypatch.setattr(token_tracker.TokenTracker, "record_event", lambda **kw: None)
+
+    out_path = Path(_out_path(tmp_path))
+
+    def missing_ffmpeg(cmd, **kwargs):
+        raise FileNotFoundError("No such file: ffmpeg")
+
+    with patch("urllib.request.urlopen", return_value=_fake_urlopen(_ok_payload_bytes())):
+        with patch("subprocess.run", side_effect=missing_ffmpeg):
+            with pytest.raises(RuntimeError) as exc_info:
+                GeminiFlashTTSEngine.generate_speech(
+                    text="test no ffmpeg", output_path=str(out_path), speed=1.15
+                )
+
+    assert "ไม่พบคำสั่ง 'ffmpeg' ในระบบ" in str(exc_info.value)
+    assert not out_path.with_suffix(".raw.wav").exists()
+    assert not out_path.exists()

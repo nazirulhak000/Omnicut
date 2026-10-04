@@ -20,13 +20,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = PROJECT_ROOT / ".tmp" / "gadget_demo"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Load 60s whisper transcript tokens
-with open(OUTPUT_DIR / "whisper_60s.json", "r", encoding="utf-8") as f:
-    whisper_data = json.load(f)
-
 # Script phrases and character timing breakdown
 # Mapped to exact timestamps from whisper_60s.json
 SCRIPT_PHRASES_60S = [
+
     # 1. Intro & Hook (0.00 - 6.48)
     {
         "units": [
@@ -452,8 +449,14 @@ def generate_60s_ass(output_ass_path, total_duration):
     print(f"Generated 60s ASS to {output_ass_path}")
 
 
-def main():
+def main(art_dir=None):
+    if art_dir is None:
+        art_dir = PROJECT_ROOT / ".tmp" / "artifacts"
+    art_dir = Path(art_dir)
+    art_dir.mkdir(parents=True, exist_ok=True)
+
     print("[1/3] Generating 60s Character-by-Character & Feature Spec Callout ASS...")
+
     total_dur = 60.00
     ass_path = OUTPUT_DIR / "subtitles_60s_review.ass"
     generate_60s_ass(ass_path, total_dur)
@@ -531,7 +534,7 @@ def main():
     print(f"Successfully rendered 60-second review clip: {out_video} ({out_video.stat().st_size} bytes)")
 
     # Extract 5 preview frames showcasing each feature callout & photo cuts
-    art_dir = Path(r"C:\Users\Winon\.gemini\antigravity-ide\brain\17ebf3bb-f0a4-4947-8ff4-4269406b9ba0")
+
     callout_moments = [
         (9.5, "preview_60s_callout_outer_display.jpg"),
         (22.0, "preview_60s_callout_inner_oled.jpg"),

@@ -15,13 +15,13 @@ import shutil
 import subprocess
 from pathlib import Path
 
-PROJECT_ROOT = Path(r"d:\Winona\Programmer\Capcut")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PRODUCT_DIR = PROJECT_ROOT / ".tmp" / "Products" / "Xiaomi_MIX_Flip"
 TMP_WORKSPACE = PRODUCT_DIR / "02_Workspace"
 TMP_EXPORT = PRODUCT_DIR / "03_Export"
 TMP_SEGS = PROJECT_ROOT / ".tmp" / "04_Sandbox" / "pro_segs"
 FONTS_DIR = PROJECT_ROOT / "02_Assets" / "Fonts"
-ART_DIR = Path(r"C:\Users\Winon\.gemini\antigravity-ide\brain\17ebf3bb-f0a4-4947-8ff4-4269406b9ba0")
+ART_DIR = PROJECT_ROOT / ".tmp" / "artifacts"
 
 BURSTS_60S = [
     # Seg 00 (00.20 - 01.92): นี่คือ Xiaomi MIX Flip
@@ -464,178 +464,189 @@ def format_ass_time(seconds: float) -> str:
     s = seconds % 60
     cs = int((s - int(s)) * 100)
     return f"{h}:{m:02d}:{int(s):02d}.{cs:02d}"
+def build_ass_and_render(bgm_name=None, art_dir=None):
+    if art_dir is None:
+        art_dir = ART_DIR
+    art_dir = Path(art_dir)
+    art_dir.mkdir(parents=True, exist_ok=True)
 
-ass_lines = [
-    "[Script Info]",
-    "ScriptType: v4.00+",
-    "PlayResX: 1080",
-    "PlayResY: 1920",
-    "ScaledBorderAndShadow: yes",
-    "",
-    "[V4+ Styles]",
-    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    # Subtitle font: Mali, size 88, White primary, Black outline 5.2, MarginV 380
-    "Style: Default,Mali,88,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,5.2,0,2,20,20,380,1",
-    # Callout Tech Badge Styles: Cohesive Keynote Spec Pill Badge (Top-Center)
-    # Header: Sleek category pill at y=170
-    "Style: CalloutHeader,Prompt,44,&H0066FF00,&H0066FF00,&H00000000,&H80000000,-1,0,0,0,100,100,3,0,1,3.5,0,8,40,40,170,1",
-    # Metric: Bold spec value at y=230
-    "Style: CalloutMetric,Prompt-Black,72,&H00FFFFFF,&H00FFFFFF,&H00000000,&H90000000,-1,0,0,0,100,100,1,0,1,5.0,2.5,8,40,40,230,1",
-    # Watermark
-    "Style: Watermark,Prompt,24,&H70FFFFFF,&H70FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,1,0,1,2.0,0,2,20,20,36,1",
-    "",
-    "[Events]",
-    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
-]
+    ass_lines = [
+        "[Script Info]",
+        "ScriptType: v4.00+",
+        "PlayResX: 1080",
+        "PlayResY: 1920",
+        "ScaledBorderAndShadow: yes",
+        "",
+        "[V4+ Styles]",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+        # Subtitle font: Mali, size 88, White primary, Black outline 5.2, MarginV 380
+        "Style: Default,Mali,88,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,5.2,0,2,20,20,380,1",
+        # Callout Tech Badge Styles: Cohesive Keynote Spec Pill Badge (Top-Center)
+        # Header: Sleek category pill at y=170
+        "Style: CalloutHeader,Prompt,44,&H0066FF00,&H0066FF00,&H00000000,&H80000000,-1,0,0,0,100,100,3,0,1,3.5,0,8,40,40,170,1",
+        # Metric: Bold spec value at y=230
+        "Style: CalloutMetric,Prompt-Black,72,&H00FFFFFF,&H00FFFFFF,&H00000000,&H90000000,-1,0,0,0,100,100,1,0,1,5.0,2.5,8,40,40,230,1",
+        # Watermark
+        "Style: Watermark,Prompt,24,&H70FFFFFF,&H70FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,1,0,1,2.0,0,2,20,20,36,1",
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
+    ]
 
-# A. Watermark
-ass_lines.append("Dialogue: 0,0:00:00.00,0:01:00.00,Watermark,,0,0,0,,Source : mi.com Official")
+    # A. Watermark
+    ass_lines.append("Dialogue: 0,0:00:00.00,0:01:00.00,Watermark,,0,0,0,,Source : mi.com Official")
 
-# B. Callouts
-callouts_def = [
-    {
-        "start": "0:00:06.74", "end": "0:00:15.00",
-        "top": "OUTER DISPLAY",
-        "bottom": "4.01\" 1.5K 120Hz"
-    },
-    {
-        "start": "0:00:18.14", "end": "0:00:26.50",
-        "top": "INNER LTPO OLED",
-        "bottom": "6.86\" 3,000 NITS"
-    },
-    {
-        "start": "0:00:28.28", "end": "0:00:36.50",
-        "top": "LEICA DUAL OPTICS",
-        "bottom": "50MP SUMMILUX"
-    },
-    {
-        "start": "0:00:38.78", "end": "0:00:46.50",
-        "top": "SNAPDRAGON 8 GEN 3",
-        "bottom": "3D DUAL-VC COOLING"
-    },
-    {
-        "start": "0:00:48.64", "end": "0:00:55.00",
-        "top": "SURGE BATTERY",
-        "bottom": "4,780 mAh / 67W"
-    }
-]
+    # B. Callouts
+    callouts_def = [
+        {
+            "start": "0:00:06.74", "end": "0:00:15.00",
+            "top": "OUTER DISPLAY",
+            "bottom": "4.01\" 1.5K 120Hz"
+        },
+        {
+            "start": "0:00:18.14", "end": "0:00:26.50",
+            "top": "INNER LTPO OLED",
+            "bottom": "6.86\" 3,000 NITS"
+        },
+        {
+            "start": "0:00:28.28", "end": "0:00:36.50",
+            "top": "LEICA DUAL OPTICS",
+            "bottom": "50MP SUMMILUX"
+        },
+        {
+            "start": "0:00:38.78", "end": "0:00:46.50",
+            "top": "SNAPDRAGON 8 GEN 3",
+            "bottom": "3D DUAL-VC COOLING"
+        },
+        {
+            "start": "0:00:48.64", "end": "0:00:55.00",
+            "top": "SURGE BATTERY",
+            "bottom": "4,780 mAh / 67W"
+        }
+    ]
 
-for c in callouts_def:
-    st = c["start"]
-    et = c["end"]
-    top_t = c["top"]
-    bot_t = c["bottom"]
-    ass_lines.append(f"Dialogue: 1,{st},{et},CalloutHeader,,0,0,0,,{{\\fad(200,200)}}—  {top_t}  —")
-    ass_lines.append(f"Dialogue: 1,{st},{et},CalloutMetric,,0,0,0,,{{\\fad(200,200)}}{bot_t}")
+    for c in callouts_def:
+        st = c["start"]
+        et = c["end"]
+        top_t = c["top"]
+        bot_t = c["bottom"]
+        ass_lines.append(f"Dialogue: 1,{st},{et},CalloutHeader,,0,0,0,,{{\\fad(200,200)}}—  {top_t}  —")
+        ass_lines.append(f"Dialogue: 1,{st},{et},CalloutMetric,,0,0,0,,{{\\fad(200,200)}}{bot_t}")
 
-# C. Build Progressive Ghost Reveal Subtitles
-for b_idx, burst in enumerate(BURSTS_60S):
-    units = burst["units"]
-    b_end = burst.get("end", units[-1][2])
-    n = len(units)
-    
-    for i in range(n):
-        u_text, u_start, u_end = units[i]
+    # C. Build Progressive Ghost Reveal Subtitles
+    for b_idx, burst in enumerate(BURSTS_60S):
+        units = burst["units"]
+        b_end = burst.get("end", units[-1][2])
+        n = len(units)
+
+        for i in range(n):
+            u_text, u_start, u_end = units[i]
         
-        parts = []
-        for j in range(n):
-            txt = units[j][0]
-            if j < i:
-                # Past words: pure white
-                parts.append(r"{\c&HFFFFFF&}" + txt)
-            elif j == i:
-                # Active word: Neon green #66FF00 with 114% scale pop
-                parts.append(r"{\c&H66FF00&\fscx114\fscy114}" + txt + r"{\r\c&HFFFFFF&}")
-            else:
-                # Upcoming words: 100% transparent ghost (alpha FF)
-                parts.append(r"{\alpha&HFF&}" + txt)
+            parts = []
+            for j in range(n):
+                txt = units[j][0]
+                if j < i:
+                    # Past words: pure white
+                    parts.append(r"{\c&HFFFFFF&}" + txt)
+                elif j == i:
+                    # Active word: Neon green #66FF00 with 114% scale pop
+                    parts.append(r"{\c&H66FF00&\fscx114\fscy114}" + txt + r"{\r\c&HFFFFFF&}")
+                else:
+                    # Upcoming words: 100% transparent ghost (alpha FF)
+                    parts.append(r"{\alpha&HFF&}" + txt)
                 
-        full_text = "".join(parts)
-        st_str = format_ass_time(u_start)
-        et_str = format_ass_time(u_end)
-        ass_lines.append(f"Dialogue: 0,{st_str},{et_str},Default,,0,0,0,,{full_text}")
+            full_text = "".join(parts)
+            st_str = format_ass_time(u_start)
+            et_str = format_ass_time(u_end)
+            ass_lines.append(f"Dialogue: 0,{st_str},{et_str},Default,,0,0,0,,{full_text}")
         
-    # Settle duration: once whole burst is spoken, keep full white line until burst end
-    last_u_end = units[-1][2]
-    if b_end > last_u_end + 0.05:
-        all_white = "".join(r"{\c&HFFFFFF&}" + u[0] for u in units)
-        st_str = format_ass_time(last_u_end)
-        et_str = format_ass_time(b_end)
-        ass_lines.append(f"Dialogue: 0,{st_str},{et_str},Default,,0,0,0,,{all_white}")
+        # Settle duration: once whole burst is spoken, keep full white line until burst end
+        last_u_end = units[-1][2]
+        if b_end > last_u_end + 0.05:
+            all_white = "".join(r"{\c&HFFFFFF&}" + u[0] for u in units)
+            st_str = format_ass_time(last_u_end)
+            et_str = format_ass_time(b_end)
+            ass_lines.append(f"Dialogue: 0,{st_str},{et_str},Default,,0,0,0,,{all_white}")
 
-ass_path = TMP_WORKSPACE / "subtitles" / "subtitles_60s_mali_burst.ass"
-ass_path.parent.mkdir(parents=True, exist_ok=True)
-ass_path.write_text("\n".join(ass_lines), encoding="utf-8")
-print(f"Generated 60s Mali burst ASS with {len(ass_lines)} lines: {ass_path}")
+    ass_path = TMP_WORKSPACE / "subtitles" / "subtitles_60s_mali_burst.ass"
+    ass_path.parent.mkdir(parents=True, exist_ok=True)
+    ass_path.write_text("\n".join(ass_lines), encoding="utf-8")
+    print(f"Generated 60s Mali burst ASS with {len(ass_lines)} lines: {ass_path}")
 
-import sys
-bgm_arg = sys.argv[1] if len(sys.argv) > 1 else "bgm_joakim_karud_rock_angel.mp3"
-if not bgm_arg.endswith((".mp3", ".wav")):
-    bgm_arg += ".mp3"
-bgm_file = PROJECT_ROOT / "02_Assets" / "Music" / bgm_arg
-if not bgm_file.exists():
-    bgm_file = PROJECT_ROOT / "02_Assets" / "Music" / "tiktok_upbeat_bgm.wav"
+    import sys
+    if bgm_name is None:
+        bgm_arg = sys.argv[1] if len(sys.argv) > 1 else "bgm_joakim_karud_rock_angel.mp3"
+    else:
+        bgm_arg = bgm_name
+    if not bgm_arg.endswith((".mp3", ".wav")):
+        bgm_arg += ".mp3"
+    bgm_file = PROJECT_ROOT / "02_Assets" / "Music" / bgm_arg
+    if not bgm_file.exists():
+        bgm_file = PROJECT_ROOT / "02_Assets" / "Music" / "tiktok_upbeat_bgm.wav"
 
-print(f"Using BGM track: {bgm_file.name}")
+    print(f"Using BGM track: {bgm_file.name}")
 
-# Composite final video
-raw_montage = TMP_WORKSPACE / "temp_cuts" / "dynamic_montage_25cuts_raw.mp4"
-if not raw_montage.exists():
-    raw_montage = TMP_SEGS / "pro_montage_15shots_raw.mp4"
-voice_wav = TMP_WORKSPACE / "audio" / "voice_mix_flip_60s_sync.wav"
-sfx_wav = TMP_WORKSPACE / "audio" / "sfx_master_60s.wav"
-master_output = TMP_EXPORT / "Xiaomi_MIX_Flip_60s_Master.mp4"
+    # Composite final video
+    raw_montage = TMP_WORKSPACE / "temp_cuts" / "dynamic_montage_25cuts_raw.mp4"
+    if not raw_montage.exists():
+        raw_montage = TMP_SEGS / "pro_montage_15shots_raw.mp4"
+    voice_wav = TMP_WORKSPACE / "audio" / "voice_mix_flip_60s_sync.wav"
+    sfx_wav = TMP_WORKSPACE / "audio" / "sfx_master_60s.wav"
+    master_output = TMP_EXPORT / "Xiaomi_MIX_Flip_60s_Master.mp4"
 
-ass_escaped = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
-fonts_escaped = str(FONTS_DIR.resolve()).replace("\\", "/").replace(":", "\\:")
+    ass_escaped = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
+    fonts_escaped = str(FONTS_DIR.resolve()).replace("\\", "/").replace(":", "\\:")
 
-print(f"Rendering Master Video with Curated Syllable Mali Subtitles, SFX & {bgm_file.name}...")
-final_cmd = (
-    f'ffmpeg -y '
-    f'-i "{raw_montage}" '
-    f'-i "{voice_wav}" '
-    f'-i "{bgm_file}" '
-    f'-i "{sfx_wav}" '
-    f'-filter_complex "'
-    f'[0:v]subtitles=\'{ass_escaped}\':fontsdir=\'{fonts_escaped}\'[v];'
-    f'[1:a]volume=1.0[v_voice];'
-    f'[2:a]volume=0.065,aloop=loop=-1:size=2e+09[v_bgm];'
-    f'[3:a]volume=0.85[v_sfx];'
-    f'[v_voice][v_bgm][v_sfx]amix=inputs=3:duration=first:dropout_transition=2[a]" '
-    f'-map "[v]" -map "[a]" -t 60.0 '
-    f'-c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p '
-    f'-c:a aac -b:a 192k "{master_output}"'
-)
+    print(f"Rendering Master Video with Curated Syllable Mali Subtitles, SFX & {bgm_file.name}...")
+    final_cmd = (
+        f'ffmpeg -y '
+        f'-i "{raw_montage}" '
+        f'-i "{voice_wav}" '
+        f'-i "{bgm_file}" '
+        f'-i "{sfx_wav}" '
+        f'-filter_complex "'
+        f'[0:v]subtitles=\'{ass_escaped}\':fontsdir=\'{fonts_escaped}\'[v];'
+        f'[1:a]volume=1.0[v_voice];'
+        f'[2:a]volume=0.065,aloop=loop=-1:size=2e+09[v_bgm];'
+        f'[3:a]volume=0.85[v_sfx];'
+        f'[v_voice][v_bgm][v_sfx]amix=inputs=3:duration=first:dropout_transition=2[a]" '
+        f'-map "[v]" -map "[a]" -t 60.0 '
+        f'-c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p '
+        f'-c:a aac -b:a 192k "{master_output}"'
+    )
 
-subprocess.run(final_cmd, shell=True, check=True)
-print(f"Master Video rendered: {master_output} ({master_output.stat().st_size / 1024 / 1024:.2f} MB)")
+    subprocess.run(final_cmd, shell=True, check=True)
+    print(f"Master Video rendered: {master_output} ({master_output.stat().st_size / 1024 / 1024:.2f} MB)")
 
-# Copy to artifact dir
-dst_video = ART_DIR / "Xiaomi_MIX_Flip_60s_Master.mp4"
-shutil.copy2(master_output, dst_video)
-print(f"Copied to Artifact dir: {dst_video}")
+    # Copy to artifact dir
+    dst_video = art_dir / "Xiaomi_MIX_Flip_60s_Master.mp4"
+    shutil.copy2(master_output, dst_video)
+    print(f"Copied to Artifact dir: {dst_video}")
 
-# Extract comprehensive verification keyframes
-keyframe_points = [
-    ("00:00:01.200", "01s_intro_fliptastic_hero.jpg"),
-    ("00:00:03.500", "03s_luxury_dark_studio_hero.jpg"),
-    ("00:00:08.500", "08s_outer_display_spec_badge.jpg"),
-    ("00:00:10.500", "10s_animated_pet_widgets.jpg"),
-    ("00:00:19.500", "19s_unfolding_inner_oled.jpg"),
-    ("00:00:24.000", "24s_fullbleed_galaxy_3000nits.jpg"),
-    ("00:00:29.000", "29s_leica_summilux_macro.jpg"),
-    ("00:00:33.500", "33s_1080p_broll_lens_flare.jpg"),
-    ("00:00:35.500", "35s_fullbleed_leica_sunset_sample.jpg"),
-    ("00:00:40.000", "40s_1080p_broll_snapdragon_chip.jpg"),
-    ("00:00:42.500", "42s_1080p_broll_vc_cooling_circuit.jpg"),
-    ("00:00:49.500", "49s_1080p_broll_battery_charging_hud.jpg"),
-    ("00:00:58.000", "58s_outro_folding_lifestyle.jpg")
-]
+    # Extract comprehensive verification keyframes
+    keyframe_points = [
+        ("00:00:01.200", "01s_intro_fliptastic_hero.jpg"),
+        ("00:00:03.500", "03s_luxury_dark_studio_hero.jpg"),
+        ("00:00:08.500", "08s_outer_display_spec_badge.jpg"),
+        ("00:00:10.500", "10s_animated_pet_widgets.jpg"),
+        ("00:00:19.500", "19s_unfolding_inner_oled.jpg"),
+        ("00:00:24.000", "24s_fullbleed_galaxy_3000nits.jpg"),
+        ("00:00:29.000", "29s_leica_summilux_macro.jpg"),
+        ("00:00:33.500", "33s_1080p_broll_lens_flare.jpg"),
+        ("00:00:35.500", "35s_fullbleed_leica_sunset_sample.jpg"),
+        ("00:00:40.000", "40s_1080p_broll_snapdragon_chip.jpg"),
+        ("00:00:42.500", "42s_1080p_broll_vc_cooling_circuit.jpg"),
+        ("00:00:49.500", "49s_1080p_broll_battery_charging_hud.jpg"),
+        ("00:00:58.000", "58s_outro_folding_lifestyle.jpg")
+    ]
 
-for ts, name in keyframe_points:
-    out_f = ART_DIR / name
-    cmd_frame = f'ffmpeg -y -ss {ts} -i "{master_output}" -vframes 1 -q:v 2 "{out_f}"'
-    subprocess.run(cmd_frame, shell=True, check=True)
-    print(f"Extracted {name}")
+    for ts, name in keyframe_points:
+        out_f = art_dir / name
+        cmd_frame = f'ffmpeg -y -ss {ts} -i "{master_output}" -vframes 1 -q:v 2 "{out_f}"'
+        subprocess.run(cmd_frame, shell=True, check=True)
+        print(f"Extracted {name}")
+    print("ALL DONE SUCCESSFULLY!")
 
-print("ALL DONE SUCCESSFULLY!")
+
+if __name__ == '__main__':
+    build_ass_and_render()

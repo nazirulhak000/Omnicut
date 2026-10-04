@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import math
 import wave
 import base64
 import subprocess
@@ -127,6 +128,35 @@ class GeminiFlashTTSEngine:
             return "Kore"
         return "Fenrir"
 
+    @staticmethod
+    def build_atempo_filter(speed: float) -> str:
+        """Construct FFmpeg atempo audio filter chain.
+
+        FFmpeg's atempo filter strictly requires 0.5 <= value <= 2.0.
+        Speeds outside this range are decomposed into chained filters,
+        e.g. speed=2.5 becomes 'atempo=2.0,atempo=1.25'.
+        """
+        try:
+            val = float(speed)
+        except (ValueError, TypeError) as exc:
+            raise ValueError(f"Speed must be a valid float, got: {speed!r}") from exc
+
+        if not (math.isfinite(val) and val > 0):
+            raise ValueError(f"Speed must be a positive finite number, got: {speed}")
+
+        filters = []
+        curr = val
+        while curr > 2.0:
+            filters.append("atempo=2.0")
+            curr /= 2.0
+        while curr < 0.5:
+            filters.append("atempo=0.5")
+            curr /= 0.5
+
+        formatted_val = f"{round(curr, 4):g}"
+        filters.append(f"atempo={formatted_val}")
+        return ",".join(filters)
+
     @classmethod
     def generate_speech(
         cls,
@@ -163,6 +193,9 @@ class GeminiFlashTTSEngine:
 
         out_wav = Path(output_path).resolve()
         out_wav.parent.mkdir(parents=True, exist_ok=True)
+        # Remove any pre-existing file at destination so a failed synthesis
+        # run can never silently leave stale audio behind.
+        out_wav.unlink(missing_ok=True)
 
         clean_text = text.strip()
 
@@ -393,31 +426,56 @@ class GeminiFlashTTSEngine:
 
                 # Write standard WAV header (16-bit 24kHz mono PCM)
                 temp_raw_wav = out_wav.with_suffix(".raw.wav")
-                with wave.open(str(temp_raw_wav), "wb") as wf:
-                    wf.setnchannels(1)
-                    wf.setsampwidth(2) # 16-bit
-                    wf.setframerate(24000)
-                    wf.writeframes(pcm_bytes)
+                temp_speed_wav = out_wav.with_suffix(".speed.tmp.wav")
+                try:
+                    with wave.open(str(temp_raw_wav), "wb") as wf:
+                        wf.setnchannels(1)
+                        wf.setsampwidth(2) # 16-bit
+                        wf.setframerate(24000)
+                        wf.writeframes(pcm_bytes)
 
-                # If speed adjustment requested, run ffmpeg atempo
-                if abs(speed - 1.0) > 0.02:
-                    cmd = [
-                        "ffmpeg", "-y",
-                        "-i", str(temp_raw_wav),
-                        "-filter:a", f"atempo={speed}",
-                        "-ar", "24000",
-                        str(out_wav)
-                    ]
-                    subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
-                    if temp_raw_wav.exists():
+                    # If speed adjustment requested, run ffmpeg atempo
+                    if abs(speed - 1.0) > 0.02:
+                        filter_chain = cls.build_atempo_filter(speed)
+                        cmd = [
+                            "ffmpeg", "-y",
+                            "-i", str(temp_raw_wav),
+                            "-filter:a", filter_chain,
+                            "-ar", "24000",
+                            str(temp_speed_wav)
+                        ]
                         try:
-                            temp_raw_wav.unlink()
-                        except Exception:
-                            pass
-                else:
-                    if out_wav.exists():
-                        out_wav.unlink()
-                    temp_raw_wav.rename(out_wav)
+                            proc = subprocess.run(
+                                cmd,
+                                capture_output=True,
+                                text=True,
+                                encoding="utf-8",
+                                errors="ignore"
+                            )
+                        except FileNotFoundError as fnf_err:
+                            raise RuntimeError(
+                                "ไม่พบคำสั่ง 'ffmpeg' ในระบบ กรุณาติดตั้ง FFmpeg หรือตรวจสอบ PATH"
+                            ) from fnf_err
+
+                        if proc.returncode != 0:
+                            err_msg = (proc.stderr or proc.stdout or "").strip()
+                            raise RuntimeError(
+                                f"FFmpeg atempo failed with exit code {proc.returncode}: {err_msg[:400]}"
+                            )
+                        if not temp_speed_wav.exists() or temp_speed_wav.stat().st_size == 0:
+                            raise RuntimeError(
+                                f"FFmpeg atempo succeeded with code 0 but target file is missing or empty: {temp_speed_wav.name}"
+                            )
+                        os.replace(temp_speed_wav, out_wav)
+                    else:
+                        os.replace(temp_raw_wav, out_wav)
+                finally:
+                    for transient in (temp_raw_wav, temp_speed_wav):
+                        if transient.exists():
+                            try:
+                                transient.unlink()
+                            except Exception:
+                                pass
 
                 print(f"✨ [Gemini Flash TTS] Generated successfully with voice '{target_voice}' -> {out_wav}")
 

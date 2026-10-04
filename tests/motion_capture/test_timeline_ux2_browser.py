@@ -418,7 +418,7 @@ def test_copy_paste_clip_settings_reaches_every_selected_clip_in_one_undo_step(m
 
         # Nothing copied yet: the context menu shows Paste disabled and says why.
         clips.nth(1).click(button="right", position={"x": 30, "y": 20})
-        paste = page.get_by_role("button", name="วางการตั้งค่า")
+        paste = page.get_by_role("button", name=re.compile(r"^วางการตั้งค่า\s+Ctrl\+Alt\+V$"))
         assert paste.is_visible() and paste.is_disabled()
         page.keyboard.press("Escape")
         page.keyboard.press("Control+Alt+v")
@@ -475,6 +475,6 @@ def test_copy_paste_clip_settings_reaches_every_selected_clip_in_one_undo_step(m
         # ...and copies from the clip it was opened on. (Pasted 2x speed and fades
         # shrank and overlapped the clips, so aim at the middle of the 50 px clip.)
         clips.nth(1).click(button="right", position={"x": 25, "y": 20})
-        page.get_by_role("button", name="คัดลอกการตั้งค่า").click()
+        page.get_by_role("button", name=re.compile(r"^คัดลอกการตั้งค่า\s+Ctrl\+Alt\+C$")).click()
         assert page.get_by_text("คัดลอกการตั้งค่าคลิปแล้ว").first.is_visible()
         assert not page_errors, page_errors

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   cameraKeyframesOf,
@@ -149,4 +150,105 @@ test('no snapshot or no targets is a no-op', () => {
   const list = [SOURCE, TARGET];
   assert.deepEqual(pasteClipSettingsToClips(list, null, ['b']), { clipList: list, changed: 0 });
   assert.equal(pasteClipSettingsToClips(list, copyClipSettings(SOURCE), []).clipList, list);
+});
+
+test('T11 Benchmark: copy from clip A and paste to B, C, D in a single atomic operation', () => {
+  const clipA = {
+    id: 'clip-a',
+    source_path: 'footage_a.mp4',
+    trim_start: 1,
+    trim_end: 5,
+    speed: 1.5,
+    smooth_slowmo: true,
+    zoom: 1.3,
+    pan_x: 0.15,
+    pan_y: -0.1,
+    brightness: 0.08,
+    contrast: 1.15,
+    saturation: 1.25,
+    transition_in: 'dissolve',
+    transition_duration: 0.5,
+    transition_easing: 'ease_in_out',
+    volume: 0.8,
+    keyframes: [
+      { time: 0, zoom: 1.0 },
+      { time: 2.667, zoom: 1.3 }, // at played duration 4s / 1.5 = 2.667s
+    ],
+  };
+
+  const clipB = { id: 'clip-b', source_path: 'footage_b.mp4', trim_start: 0, trim_end: 3, speed: 1, volume: 0.5 };
+  const clipC = { id: 'clip-c', source_path: 'footage_c.mp4', trim_start: 2, trim_end: 8, speed: 1, volume: 1.0 };
+  const clipD = { id: 'clip-d', source_path: 'footage_d.mp4', trim_start: 0, trim_end: 2, speed: 2, volume: 0.6 };
+
+  const snapshot = copyClipSettings(clipA);
+  assert.ok(snapshot, 'snapshot created from clip A');
+  assert.equal(snapshot.values.speed, 1.5);
+  assert.equal(snapshot.values.zoom, 1.3);
+  assert.equal(snapshot.values.brightness, 0.08);
+
+  const initialList = [clipA, clipB, clipC, clipD];
+  const targetIds = ['clip-b', 'clip-c', 'clip-d'];
+  const { clipList, changed } = pasteClipSettingsToClips(initialList, snapshot, targetIds);
+
+  assert.equal(changed, 3, 'all 3 target clips updated');
+
+  // Verify clip A is unchanged
+  assert.equal(clipList[0], clipA);
+
+  // Verify B, C, D received the copied settings
+  for (let i = 1; i <= 3; i++) {
+    const target = clipList[i];
+    assert.equal(target.speed, 1.5);
+    assert.equal(target.smooth_slowmo, true);
+    assert.equal(target.zoom, 1.3);
+    assert.equal(target.pan_x, 0.15);
+    assert.equal(target.pan_y, -0.1);
+    assert.equal(target.brightness, 0.08);
+    assert.equal(target.contrast, 1.15);
+    assert.equal(target.saturation, 1.25);
+    assert.equal(target.transition_in, 'dissolve');
+    assert.equal(target.transition_duration, 0.5);
+
+    // Verify untouched fields are preserved
+    assert.equal(target.source_path, initialList[i].source_path);
+    assert.equal(target.trim_start, initialList[i].trim_start);
+    assert.equal(target.trim_end, initialList[i].trim_end);
+    assert.equal(target.volume, initialList[i].volume);
+
+    // Verify camera keyframes are rescaled to target played duration
+    assert.ok(Array.isArray(target.keyframes) && target.keyframes.length === 2);
+  }
+});
+
+test('UI contracts: Toolbar, Inspector, and EditorShell wire copy/paste clip settings', () => {
+  const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
+  const toolbarSource = read('../components/editor/Toolbar.jsx');
+  const inspectorSource = read('../components/editor/Inspector.jsx');
+  const clipInspectorSource = read('../components/editor/inspector/ClipInspector.jsx');
+  const editorShellSource = read('../components/editor/EditorShell.jsx');
+
+  // Toolbar checks
+  assert.match(toolbarSource, /ClipboardCopy/);
+  assert.match(toolbarSource, /ClipboardPaste/);
+  assert.match(toolbarSource, /label="คัดลอกค่า"/);
+  assert.match(toolbarSource, /shortcut="Ctrl\+Alt\+C"/);
+  assert.match(toolbarSource, /shortcut="Ctrl\+Alt\+V"/);
+
+  // Inspector multi-select banner checks
+  assert.match(inspectorSource, /data-testid="inspector-multi-select"/);
+  assert.match(inspectorSource, /canPasteSettings &&/);
+  assert.match(inspectorSource, /วางการตั้งค่า/);
+  assert.match(inspectorSource, /onCopySettings=\{onCopySettings\}/);
+  assert.match(inspectorSource, /onPasteSettings=\{onPasteSettings\}/);
+
+  // ClipInspector checks
+  assert.match(clipInspectorSource, /ClipboardCopy/);
+  assert.match(clipInspectorSource, /ClipboardPaste/);
+  assert.match(clipInspectorSource, /คัดลอกการตั้งค่า/);
+  assert.match(clipInspectorSource, /วางการตั้งค่า/);
+
+  // EditorShell checks (wiring to Toolbar and Inspector)
+  assert.match(editorShellSource, /onCopySettings=\{copyClipSettings\}/);
+  assert.match(editorShellSource, /onPasteSettings=\{pasteClipSettings\}/);
+  assert.match(editorShellSource, /canPasteSettings=\{hasCopiedClipSettings\}/);
 });

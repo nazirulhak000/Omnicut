@@ -54,8 +54,9 @@ export default function EffectInspector({
         endMax={totalDuration || undefined}
         accentClass="text-fuchsia-400"
         inputFocusClass="focus:border-fuchsia-400"
-        onStartChange={(value) => onUpdateEffect?.(effect.id, { start: value })}
-        onEndChange={(value) => onUpdateEffect?.(effect.id, { end: value })}
+        coalescePrefix={`effect:${effect.id}`}
+        onStartChange={(value, options) => onUpdateEffect?.(effect.id, { start: value }, options)}
+        onEndChange={(value, options) => onUpdateEffect?.(effect.id, { end: value }, options)}
       />
 
       <OverlayScaleControl
@@ -64,7 +65,8 @@ export default function EffectInspector({
         accentClass="text-fuchsia-400"
         rangeClass="accent-fuchsia-400"
         resetHoverClass="hover:text-fuchsia-400"
-        onChange={(value) => onUpdateEffect?.(effect.id, { scale: value })}
+        coalesceKey={`effect:${effect.id}:scale`}
+        onChange={(value, options) => onUpdateEffect?.(effect.id, { scale: value }, options)}
         onReset={() => onUpdateEffect?.(effect.id, { scale: 1.0 })}
       />
 

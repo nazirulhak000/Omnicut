@@ -10,7 +10,7 @@ import rembg
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 STICKERS_DIR = PROJECT_ROOT / "02_Assets" / "Stickers_Memes"
 BACKUP_DIR = STICKERS_DIR / "_backup_cartoon"
-BRAIN_DIR = Path(r"C:\Users\Winon\.gemini\antigravity-ide\brain\f6aff4c0-1003-4d7e-97ae-33b4f36839b3")
+DEFAULT_SHEET_DIR = PROJECT_ROOT / ".tmp" / "artifacts"
 
 SHEET1 = {
     "badge_pros_review":    (0.01, 0.02, 0.49, 0.35),
@@ -39,16 +39,18 @@ SHEET3 = {
     "badge_connectivity_3d":  (0.51, 0.67, 0.99, 0.98),
 }
 
-def main():
+def slice_pro_tech_stickers(sheet_dir=None):
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    sheet_dir = Path(sheet_dir) if sheet_dir else DEFAULT_SHEET_DIR
 
-    s1_path = BRAIN_DIR / "it_pro_review_badges_sheet1_1788863222289.jpg"
-    s2_path = BRAIN_DIR / "it_pro_review_badges_sheet2_1788863242333.jpg"
-    s3_path = BRAIN_DIR / "it_pro_review_badges_sheet3_1788863338261.jpg"
+    s1_path = sheet_dir / "it_pro_review_badges_sheet1_1788863222289.jpg"
+    s2_path = sheet_dir / "it_pro_review_badges_sheet2_1788863242333.jpg"
+    s3_path = sheet_dir / "it_pro_review_badges_sheet3_1788863338261.jpg"
 
-    assert s1_path.exists(), f"Missing {s1_path}"
-    assert s2_path.exists(), f"Missing {s2_path}"
-    assert s3_path.exists(), f"Missing {s3_path}"
+    if not (s1_path.exists() and s2_path.exists() and s3_path.exists()):
+        print(f"Sheet files not found in {sheet_dir}. Skipping slice.")
+        return 0
+
 
     all_sheets = [
         ("Sheet 1 (Core Review)", s1_path, SHEET1),
@@ -87,4 +89,4 @@ def main():
     print(f"\nCompleted! Total {saved_count} photorealistic stickers saved to {STICKERS_DIR}")
 
 if __name__ == "__main__":
-    main()
+    slice_pro_tech_stickers()
