@@ -8,6 +8,9 @@
 
 ## สารบัญ
 
+| Round SPEED-TRANSITION-TEXT-STYLE-20261004 | ปลดล็อก Speed Slider อิสระ (0.25x–4.0x) ใน ClipInspector, Transition Duration ใน Inspector (0.1–2.0s พร้อมพรีเซ็ต 0.3/0.5/0.8/1.0s), และระบบสไตล์ข้อความอิสระ (ขอบ Stroke/Outline หนา 0.5–12px, เงา Drop Shadow ปรับเบลอ/สี, กล่องพื้นหลัง Background Box กำหนดสีเอง); Jev confidence 0.85 (proceed); unit tests 852 passed / parity 205 passed / build 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round CODEX-EDITING-VALIDATION-20261004 | Read-only HOY audit / multisource media-clock measurement / preflight edge fixes | 2026-10-04 | ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6) |
+
 | Round SHORTCUTS-ZOOM-SLIDER-KEYFRAME-KEYS-20261004 | คีย์ลัดคีย์เฟรม (D, ,, .) + คู่มือคีย์ลัดจัดหมวดหมู่ใหม่ + แถบเลื่อนซูมไทม์ไลน์อิสระ (Continuous Zoom Slider 20–800 px/s พร้อมป้าย % แบบ CapCut); สร้าง lib clipKeyframeOps.js; unit tests 834 passed, production build 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round CODEX-PARALLEL-EDITING-QUALITY-20261004 | Source reuse / indexed preview / timeline preflight; scoped measured gates | 2026-10-04 | ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6) |
 
@@ -58,7 +61,26 @@
 | Round INDEPENDENT-QUALITY-ROADMAP-20260929 | แผนใหม่ 3 งานอิสระ: ตรวจวัตถุดิบ, ตรวจไฟล์เรนเดอร์ตลอดคลิป, ทดสอบกู้ backup โดยไม่ทับ BiRefNet/Badge, Ghost Reveal, Editor/Cutout | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round SAM2-DEPTH-TEXT-PIPELINE-20260929 | เชื่อมต่อ SAM 2 บน RTX 4060 GPU เข้ากับ pipeline ของ Omnicut รองรับ Text Behind Product ทั้ง Canvas 2D Preview และ FFmpeg Render, เพิ่ม sam2 engine/models ใน contract, เพิ่ม worker สตรีม VP9 cutout.webm, ปรับปรุง backend preflight และ frontend UI Controls ผ่านการทดสอบ 23/23 tests และ build ผ่าน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
 | Round PC-REPO-AUDIT-PLAN-20260929 | ตรวจ PC/โค้ด/ผลทดสอบเดิมและ repository ที่เสนอ จัดทำแผน P0–P3 พร้อม gate ใน `_Docs/Plans/PC_REPOSITORY_AUDIT_PLAN_20260929.md` | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
-| Round SAM2-GPU-FEASIBILITY-SPIKE-20260929 | ติดตั้งสภาพแวดล้อม PyTorch 2.6.0+cu124 ใน tools/cutout_runtime/.venv, ทดสอบรันโมเดล SAM 2.1 บนการ์ดจอ NVIDIA GeForce RTX 4060 เทียบกับผลเดิมบน CPU, ทำความเร็วได้ 7.78 วินาทีสำหรับ 60 เฟรม (เร็วขึ้น 92 เท่า, 134 ms/เฟรม, VRAM 1.39 GB) และยืนยันคุณภาพการแทร็กสินค้าผ่าน contact sheet 100% | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
+## Round SPEED-TRANSITION-TEXT-STYLE-20261004 — ปลดล็อก Speed Slider อิสระ (0.25x–4.0x), Transition Duration ใน Inspector, และระบบสไตล์ข้อความอิสระ (ขอบ/เงา/กล่อง) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+วันที่: 2026-10-04 · สั่งโดย: user ("นายแยกเอเจนแล้วเริ่มจัดการทั้งหมดได้เลยครับ") · สถานะ: ปิดรอบแล้ว
+**แผนแม่บท:** [_Docs/Plans/PLAN_SPEED_TRANSITION_TEXT_STYLE_20261004.md](file:///d:/Programmer/All%20Project/Omnicut/_Docs/Plans/PLAN_SPEED_TRANSITION_TEXT_STYLE_20261004.md)
+
+### ผลลัพธ์การทำงาน
+1. **T1 (Speed Range Slider L2-04)**: เพิ่มแถบเลื่อนความเร็ว (0.25x – 4.0x, step 0.05x) ใน `ClipInspector.jsx` แสดงผลตัวเลขเรียลไทม์ พร้อมปุ่มพรีเซ็ต 8 ค่า และกล่องพิมพ์ตัวเลขละเอียด Coalescing undo stack สะอาด
+2. **T2 (Transition Duration in Inspector L5-03/04)**: นำเข้า `TransitionDurationControl` เข้าสู่ `ClipInspector.jsx` ใต้รายการรอยต่อ 14 แบบ ช่วยให้ปรับความยาวทรานซิชัน (0.1 – 2.0s) พร้อมพรีเซ็ต (0.3s, 0.5s, 0.8s, 1.0s) ได้ทันทีในแผงควบคุม
+3. **T3 (Text Overlay Styling L3-04/05)**: เพิ่มชุดควบคุมสไตล์ใน `OverlayInspector.jsx` สำหรับ `text_overlay`:
+   - เส้นขอบ (Outline / Stroke): เปิด/ปิด, เลือกสีขอบ, และแถบเลื่อนความหนา (0.5 – 12.0px)
+   - เงาตัวอักษร (Drop Shadow): เปิด/ปิด, เลือกสีเงา, และแถบเลื่อนความเบลอ (0 – 15.0px)
+   - พื้นหลังกล่องข้อความ (Background Box): พรีเซ็ต 5 แบบ + เลือกสีพื้นหลังกล่องอิสระ
+   - อัปเดต `handleResetFormat` ให้รีเซ็ตค่า outline, shadow, pill, และ skew กลับสู่ค่าเริ่มต้นทั้งหมด
+4. **T4 (Verification & Tests)**:
+   - สร้างชุดทดสอบ `frontend/src/lib/speedAndOverlayControls.test.js` (6 tests passed)
+   - รัน frontend unit tests ทั้งหมดผ่าน 852/852 (0 failed)
+   - รัน parity tests `pytest tests/test_preview_render_parity.py` ผ่าน 205/205
+   - รัน `npm run build` ผ่าน 100% (503ms)
+   - Jev Advisor verdict: `proceed` (confidence = 0.85 >= 0.80)
+
 ## Round SHORTCUTS-ZOOM-SLIDER-KEYFRAME-KEYS-20261004 — คีย์ลัดคีย์เฟรม + คู่มือคีย์ลัด + ซูมไทม์ไลน์อิสระ · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 วันที่: 2026-10-04 · สั่งโดย: user · สถานะ: ปิดรอบแล้ว
@@ -11239,3 +11261,19 @@ Integration: Antigravity ปิดรอบและ commit งานแล้�
 Gate approval: ผู้ใช้อนุญาตเพิ่มให้ regression tests/ผลวัดจริงเป็นเกณฑ์เมื่อ Jev confidence<0.80 ด้วย (รวม null เดิม); A1/A2 เคยรัน synthetic tests ก่อนอ่าน gate ใน paired shell ต้องบันทึกขั้นตอนผิดและไม่มี production writes
 Validation: A1 offline77 passed; render-inclusive8 passed; A2 Node47/parity205/browser1 passed; root Node27/browser3/build/compileall passed. Final Jev noul0.80/confidence=null; approved regression gate. Runtime idle verified, reloaded parent32876.
 Report: _Docs/Reports/PARALLEL_EDITING_QUALITY_20261004.md
+
+
+## Round CODEX-EDITING-VALIDATION-20261004
+ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6)
+สถานะ: Closed - scoped audit/preflight/browser/build passed
+เป้าหมาย: ตรวจผลรอบก่อนในสถานการณ์ที่ใกล้ใช้งานจริง และแก้เฉพาะปัญหาที่พิสูจน์ได้
+- [x] A1 editorial audit: อ่าน manifest โปรเจกต์ตัวอย่างอย่างเดียว วิเคราะห์ภาพซ้ำ/ภาพไม่พอ/การครอบคลุมประโยคจากข้อมูลที่มี แยก semantic accuracy ที่ยังตรวจไม่ได้ รายงาน _Docs/Reports/EDITING_REAL_PLAN_AUDIT_20261004.md
+- [x] A2 playback measurement: วัด browser หลาย source พร้อมเสียง/seek/รอยต่อด้วย synthetic temp fixtures ตรวจ A/V drift ที่วัดได้จริง แก้เฉพาะ reproducible defect ใน preview lane
+- [x] A3 preflight coverage: ตรวจ false positive/false negative จาก saved plans และ boundary cases เพิ่ม scoped regressions แก้เฉพาะ helper/notice ที่ไม่ชน shared Shell
+- [x] Root: รวมผล/แก้ integration ที่จำเป็น ตรวจเฉพาะส่วน ปิดรายงานและ archive รอบ
+Root gate: เพิ่ม tests/test_editing_quality_integration.py ตรวจ generated source-reuse/hold plans ผ่าน production preflight และ indexed preview โดยไม่แตะ media จริง
+Ownership: A1 new audit utility/tests/report; A2 SequencePlayer/scheduler/new browser test/report; A3 renderPreflight helper/tests/notice/report; root TODO/HISTORY/integration เท่านั้น ห้ามแก้ shared Shell/Toolbar/shortcuts/mobile ที่ Antigravity/Cline กำลังทำ
+Notes: มี dirty งานรอบก่อนและงานอื่น ต้องรักษาทั้งหมด; ไม่ commit/push/restart runtime อัตโนมัติ ไม่ full suite; ผู้ใช้อนุญาต regression/ผลวัดจริงเป็น gate เมื่อ Jev confidence=null/<0.80; tests ห้ามแตะ real production data, audit real manifest read-only เท่านั้น; synthetic media cleanup100%; ไม่เพิ่ม Cutout/font/subtitle changes
+Validation: audit20 passed; preflight28 passed; rootintegration/browser5 passed; multisourcebrowser1 passed; finalaudit+integration22 passed; build passed. Root final Jev noul0.80/confidence=null, approved regression gate.
+Report: _Docs/Reports/EDITING_VALIDATION_20261004.md
+Handover: A1 turn ended with workspace-credit error after artifacts written; root validated tests/report and completed round. No auto commit/push/restart.

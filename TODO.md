@@ -1,16 +1,23 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
-- [ ] Round CODEX-EDITING-VALIDATION-20261004 · ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6)
+- [x] Round SPEED-TRANSITION-TEXT-STYLE-20261004 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
 
-## Round CODEX-EDITING-VALIDATION-20261004
-ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6)
-สถานะ: กำลังทำ — ผู้ใช้สั่งแยกเอเจนต์ทำต่อ
-เป้าหมาย: ตรวจผลรอบก่อนในสถานการณ์ที่ใกล้ใช้งานจริง และแก้เฉพาะปัญหาที่พิสูจน์ได้
-- [ ] A1 editorial audit: อ่าน manifest โปรเจกต์ตัวอย่างอย่างเดียว วิเคราะห์ภาพซ้ำ/ภาพไม่พอ/การครอบคลุมประโยคจากข้อมูลที่มี แยก semantic accuracy ที่ยังตรวจไม่ได้ รายงาน _Docs/Reports/EDITING_REAL_PLAN_AUDIT_20261004.md
-- [ ] A2 playback measurement: วัด browser หลาย source พร้อมเสียง/seek/รอยต่อด้วย synthetic temp fixtures ตรวจ A/V drift ที่วัดได้จริง แก้เฉพาะ reproducible defect ใน preview lane
-- [ ] A3 preflight coverage: ตรวจ false positive/false negative จาก saved plans และ boundary cases เพิ่ม scoped regressions แก้เฉพาะ helper/notice ที่ไม่ชน shared Shell
-- [ ] Root: รวมผล/แก้ integration ที่จำเป็น ตรวจเฉพาะส่วน ปิดรายงานและ archive รอบ
-Ownership: A1 new audit utility/tests/report; A2 SequencePlayer/scheduler/new browser test/report; A3 renderPreflight helper/tests/notice/report; root TODO/HISTORY/integration เท่านั้น ห้ามแก้ shared Shell/Toolbar/shortcuts/mobile ที่ Antigravity/Cline กำลังทำ
-Notes: มี dirty งานรอบก่อนและงานอื่น ต้องรักษาทั้งหมด; ไม่ commit/push/restart runtime อัตโนมัติ ไม่ full suite; ผู้ใช้อนุญาต regression/ผลวัดจริงเป็น gate เมื่อ Jev confidence=null/<0.80; tests ห้ามแตะ real production data, audit real manifest read-only เท่านั้น; synthetic media cleanup100%; ไม่เพิ่ม Cutout/font/subtitle changes
+- [x] Round CODEX-EDITING-VALIDATION-20261004 ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6) (HISTORY.md)
+
+- [ ] Round SKILL-INSTALL-4-20261004 · ดำเนินการโดย: Cline (Claude Sonnet 4.5)
+
+## Round SKILL-INSTALL-4-20261004
+ดำเนินการโดย: Cline (Claude Sonnet 4.5)
+สถานะ: รอผู้ใช้ยืนยัน
+เป้าหมาย: ติดตั้งสกิล 4 ตัวให้เรียกใช้ได้ทุกเอเจนต์
+- [x] สำรวจกลไก — โปรเจกต์ใช้ `npx skills` (lock ที่ `skills-lock.json`) สกิลเก็บที่ `.agents/skills/<ชื่อ>/SKILL.md` + symlink `.claude/skills/`
+- [x] ติดตั้ง `impeccable` (pbakaus/impeccable, 62 ไฟล์)
+- [x] ติดตั้ง `ui-ux-pro-max` (nextlevelbuilder/ui-ux-pro-max-skill, 73 ไฟล์) — ผู้ใช้เลือกตัวนี้เอง
+- [x] ติดตั้ง `scrutinize` (thananon/9arm-skills, 1 ไฟล์)
+- [x] ติดตั้ง `transitions-dev` (Jakubantalik/transitions-dev, 14 ไฟล์)
+- [x] ผูกเอเจนต์: Antigravity, Cline, Codex, Gemini CLI, GitHub Copilot, Claude Code
+- [x] ขึ้นทะเบียนตารางสกิลใน `AGENTS.md` หัวข้อ 5.1
+- [ ] ผู้ใช้ยืนยันเรียก `/impeccable` `/ui-ux-pro-max` `/scrutinize` `/transitions-dev` ได้จริง
+Notes: Socket แจ้ง 1 alert ที่ `impeccable` (ตัวอื่น 0) — เจ้าของดูรายละเอียดที่ https://skills.sh/pbakaus/impeccable · ยังไม่ commit
 
 - [ ] Round MOBILE-STUDIO-FLOW-V2-20261004 · ดำเนินการโดย: Cline (Claude Sonnet 4.5)
 
@@ -29,7 +36,13 @@ Notes: มี dirty งานรอบก่อนและงานอื่น
 - [x] P1-4 UI คลีน — Cline (Claude Sonnet 4.5): ลบอีโมจิซ้อนไอคอน (`+ เพิ่มสินค้า`, `⚡ ถ่ายด่วน…`, `➕ เขียนมุม…`, `⚡ ถ่ายด่วน (ไปหน้าถ่ายทำ)`) ตาม `ui_clean_standard`
 - [x] ตรวจสอบ P1 — Cline (Claude Sonnet 4.5): `npm run build` **ผ่าน** (692ms) · esbuild `App.jsx`+`MobileQuickStudio.jsx` OK · oxlint 0 errors · `mobileStudioFlow.test.js` 6/6 · cleanup .tmp 100%
 - ℹ️ `editorShortcutKeys.js` ที่เคยพังถูกเจ้าของงานเดิมซ่อมแล้ว (build เขียว) แต่เทสต์ `editorShortcutKeys.test.js:212` ยังตก 1 ตัว = งาน KEYFRAME ไม่ใช่รอบนี้
-- ⏳ ค้าง: P2 (PWA manifest/dedupe SHA-256/wake-lock)
+### 🥉 P2 (ทำต่อรอบเดียวกัน — แผนก่อนลงมือ 2026-10-04)
+- [ ] P2-1 PWA manifest + apple-touch-icon — ไฟล์ใหม่ `frontend/public/manifest.webmanifest` + `apple-touch-icon.png`/`pwa-192.png`/`pwa-512.png`/`pwa-512-maskable.png` + แท็ก `<link rel=manifest>`/`theme-color`/`apple-mobile-web-app-capable` ใน `frontend/index.html` · AC: เปิดจาก Home Screen ได้เต็มจอ + ไอคอนขึ้น
+- [ ] P2-2 อัปโหลด dedupe SHA-256 — `scripts/mobile_quick_studio.py::upload_mobile_video` คำนวณ SHA-256 + เทียบ size กับไฟล์เดิมใน `01_Raw/<product>/` ก่อนเขียน → ไฟล์ซ้ำใช้ไฟล์เดิม ไม่เขียนซ้ำ · AC: upload bytesเดิม 2 ครั้ง ได้ไฟล์เดียว + `deduplicated: true`
+- [ ] P2-3 Wake-Lock ระหว่างถ่าย/เรนเดอร์ — hook ใหม่ `frontend/src/hooks/useWakeLock.js` (ลองใหม่เมื่อกลับมา visible, release ตอน unmount) ใช้ที่ `MobileFilmingPage.jsx` + `MobileQuickStudio.jsx` ตอน Step 3 · AC: จอไม่ดับระหว่างถ่าย/เรนเดอร์, บราวเซอร์ที่ไม่รองรับไม่พัง
+- [ ] ตรวจสอบ P2 — pytest `tests/test_mobile_quick_studio.py` · `npm run build` · oxlint · `node --test src/lib/mobileStudioFlow.test.js` · cleanup `.tmp` 100%
+- ⏳ เลื่อน P2-4 (แบ่งหน้าแคตตาล็อก) — Jev choice=core, confidence 0.87 → ทำรอบถัดไปถ้าผู้ใช้สั่ง
+
 Ownership: Cline รอบนี้ถือ `MobileQuickStudio.jsx`, `api_mobile_studio.py`, `api.js`, `TODO.md` ฝั่งเพิ่มรอบนี้ — ไม่แตะไฟล์ของรอบ CODEX (SequencePlayer/preflight/stages) และไม่แตะ KEYFRAME ฝั่ง Antigravity
 Notes: ไม่ commit/push อัตโนมัติ · Jev ต้องรันผ่าน `.venv` (`.\\.venv\\Scripts\\python.exe tools/jev_advisor.py`) · P1/P2 ยังไม่ทำรอบนี้
 

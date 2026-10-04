@@ -13,9 +13,12 @@ import {
 } from 'lucide-react';
 import {
   ACCENT_COLOR,
+  DEFAULT_SHADOW,
   DEFAULT_TEXT_LOOK,
   HOOK_FS_RATIO,
   HOOK_SHADOW,
+  PILL_PAD_X_EM,
+  PILL_PAD_Y_EM,
   overriddenTierFields,
   resolveLook,
   withHookFont,
@@ -930,6 +933,9 @@ export default function OverlayInspector({
       color: '#FFE600',
       outline_color: DEFAULT_TEXT_LOOK.outline_color,
       outline_px: DEFAULT_TEXT_LOOK.outline_px,
+      shadow: DEFAULT_SHADOW,
+      pill: null,
+      skew: 0.0,
     });
   };
 
@@ -1150,6 +1156,124 @@ export default function OverlayInspector({
             </div>
           </div>
         </div>
+
+        {/* Stroke / Outline */}
+        <div className="space-y-1.5 pt-1.5 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={Number(selectedLook.outline_px) > 0}
+                onChange={(e) => {
+                  const nextPx = e.target.checked
+                    ? (Number(selectedLook.outline_px) > 0 ? Number(selectedLook.outline_px) : 5.0)
+                    : 0;
+                  patchOverlayLook({ outline_px: nextPx });
+                }}
+                className="rounded border-white/20 bg-black/60 accent-[#25F4EE] cursor-pointer"
+              />
+              <span className="text-[11px] text-slate-300 font-medium">เส้นขอบ (Outline / Stroke)</span>
+            </label>
+            {Number(selectedLook.outline_px) > 0 && (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="color"
+                  value={selectedLook.outline_color?.startsWith('#') ? selectedLook.outline_color : '#000000'}
+                  aria-label="สีเส้นขอบ"
+                  onChange={(e) => patchOverlayLook({ outline_color: e.target.value })}
+                  className="h-5 w-5 rounded border border-white/20 bg-transparent cursor-pointer p-0"
+                />
+                <span className="text-[10px] font-mono font-bold text-slate-300 uppercase">
+                  {selectedLook.outline_color || '#000000'}
+                </span>
+              </div>
+            )}
+          </div>
+          {Number(selectedLook.outline_px) > 0 && (
+            <div className="flex items-center gap-2 pt-0.5">
+              <span className="w-12 flex-shrink-0 text-[10px] text-slate-400">ความหนา</span>
+              <input
+                type="range"
+                min={0.5}
+                max={12}
+                step={0.5}
+                value={Number(selectedLook.outline_px) || 5.0}
+                aria-label="ความหนาเส้นขอบ"
+                onChange={(e) => patchOverlayLook(
+                  { outline_px: parseFloat(e.target.value) },
+                  { coalesceKey: `overlay:${selectedTextOverlay.id}:outline` }
+                )}
+                className="min-w-0 flex-1 accent-[#25F4EE] cursor-pointer"
+              />
+              <span className="w-10 flex-shrink-0 text-right font-mono text-[11px] font-bold text-[#25F4EE]">
+                {(Number(selectedLook.outline_px) || 5.0).toFixed(1)}px
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Drop Shadow */}
+        <div className="space-y-1.5 pt-1.5 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!(selectedLook.shadow && (selectedLook.shadow.blur > 0 || selectedLook.shadow.dx !== 0 || selectedLook.shadow.dy !== 0))}
+                onChange={(e) => {
+                  const nextShadow = e.target.checked ? DEFAULT_SHADOW : null;
+                  patchOverlayLook({ shadow: nextShadow });
+                }}
+                className="rounded border-white/20 bg-black/60 accent-[#25F4EE] cursor-pointer"
+              />
+              <span className="text-[11px] text-slate-300 font-medium">เงาตัวอักษร (Drop Shadow)</span>
+            </label>
+            {selectedLook.shadow && (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="color"
+                  value={selectedLook.shadow.color?.startsWith('#') ? selectedLook.shadow.color : '#000000'}
+                  aria-label="สีเงาข้อความ"
+                  onChange={(e) => patchOverlayLook({
+                    shadow: {
+                      ...(selectedLook.shadow || DEFAULT_SHADOW),
+                      color: e.target.value,
+                    }
+                  })}
+                  className="h-5 w-5 rounded border border-white/20 bg-transparent cursor-pointer p-0"
+                />
+                <span className="text-[10px] font-mono font-bold text-slate-300 uppercase">
+                  {selectedLook.shadow.color || '#000000'}
+                </span>
+              </div>
+            )}
+          </div>
+          {selectedLook.shadow && (
+            <div className="flex items-center gap-2 pt-0.5">
+              <span className="w-12 flex-shrink-0 text-[10px] text-slate-400">ความเบลอ</span>
+              <input
+                type="range"
+                min={0}
+                max={15}
+                step={0.5}
+                value={selectedLook.shadow.blur ?? 4.0}
+                aria-label="ความเบลอของเงา"
+                onChange={(e) => patchOverlayLook(
+                  {
+                    shadow: {
+                      ...(selectedLook.shadow || DEFAULT_SHADOW),
+                      blur: parseFloat(e.target.value),
+                    }
+                  },
+                  { coalesceKey: `overlay:${selectedTextOverlay.id}:shadow` }
+                )}
+                className="min-w-0 flex-1 accent-[#25F4EE] cursor-pointer"
+              />
+              <span className="w-10 flex-shrink-0 text-right font-mono text-[11px] font-bold text-[#25F4EE]">
+                {(selectedLook.shadow.blur ?? 4.0).toFixed(1)}px
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Preset Styles */}
@@ -1336,6 +1460,30 @@ export default function OverlayInspector({
               </button>
             ))}
           </div>
+          {selectedLook.pill && (
+            <div className="flex items-center justify-between pt-1 px-1">
+              <span className="text-[11px] text-slate-400">สีพื้นหลังกรอบ (กำหนดเอง)</span>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="color"
+                  value={selectedLook.pill.fill?.startsWith('#') ? selectedLook.pill.fill : '#000000'}
+                  aria-label="สีพื้นหลังกรอบข้อความ"
+                  onChange={(e) => patchOverlayLook({
+                    pill: {
+                      ...(selectedLook.pill || {}),
+                      fill: e.target.value,
+                      pad_x_em: selectedLook.pill.pad_x_em ?? PILL_PAD_X_EM,
+                      pad_y_em: selectedLook.pill.pad_y_em ?? PILL_PAD_Y_EM,
+                    }
+                  })}
+                  className="h-5 w-5 rounded border border-white/20 bg-transparent cursor-pointer p-0"
+                />
+                <span className="text-[10px] font-mono font-bold text-slate-300">
+                  {selectedLook.pill.fill?.startsWith('#') ? selectedLook.pill.fill.toUpperCase() : 'โปร่งแสง'}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 3. Linked Sound FX */}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, RotateCw, Volume2, VolumeX } from 'lucide-react';
 import { TransitionIcon } from '../../../lib/transitionIcons';
+import TransitionDurationControl from '../timeline/TransitionDurationControl';
 import { TRANSITIONS, FADE_DURATION } from '../../../lib/timelineMath';
 import { keyframeStateAt, toggleKeyframePatch } from '../../../lib/clipKeyframeOps.js';
 import {
@@ -273,6 +274,25 @@ export default function ClipInspector({
                 </button>
               );
             })}
+          </div>
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center justify-between text-[11px] text-slate-400">
+              <span>แถบเลื่อนความเร็ว</span>
+              <span className="font-mono font-bold text-[#25F4EE]">{(clip.speed || 1).toFixed(2)}x</span>
+            </div>
+            <input
+              type="range"
+              aria-label="แถบเลื่อนความเร็ว (Speed slider)"
+              min={MIN_CLIP_SPEED}
+              max={MAX_CLIP_SPEED}
+              step="0.05"
+              value={clip.speed || 1}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                sliderChange('speed', { speed: val === 1 ? undefined : clampSpeed(val) });
+              }}
+              className="w-full accent-[#25F4EE] cursor-pointer"
+            />
           </div>
           <label className="mt-1.5 flex items-center gap-2 text-xs text-slate-400">
             <span>กำหนดเอง</span>
@@ -673,6 +693,14 @@ export default function ClipInspector({
                   </button>
                 ))}
               </div>
+              {kind !== 'cut' && (
+                <div className="pt-1">
+                  <TransitionDurationControl
+                    value={durTrans}
+                    onCommit={(d) => onClipChange?.({ transition_duration: d })}
+                  />
+                </div>
+              )}
               {['dissolve', 'fadeblack', 'fadewhite'].includes(kind) && (
                 <p className="text-[11px] leading-relaxed text-amber-200/80">
                   Preview ของ Transition นี้เป็นค่าประมาณ; ตรวจรอยต่อใน Render อีกครั้ง
