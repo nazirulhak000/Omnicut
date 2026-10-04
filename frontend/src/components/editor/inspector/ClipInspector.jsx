@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ClipboardCopy, ClipboardPaste, RotateCw, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, RotateCw, Volume2, VolumeX } from 'lucide-react';
 import { TransitionIcon } from '../../../lib/transitionIcons';
-import { TRANSITIONS, FADE_DURATION } from '../../../lib/timelineMath';
+import { TRANSITIONS, FADE_DURATION, motionTimeAt } from '../../../lib/timelineMath';
 import {
   MIN_CLIP_SPEED,
   MAX_CLIP_SPEED,
@@ -96,6 +96,8 @@ export default function ClipInspector({
   onCopySettings = null,
   onPasteSettings = null,
   canPasteSettings = false,
+  playhead = 0,
+  onSeek = null,
 }) {
   const [applyNote, setApplyNote] = useState(null);
 
@@ -116,11 +118,53 @@ export default function ClipInspector({
   const cam = cameraKeyframeSummary(clip);
   const overriddenLabel = cam.zoom && cam.pan ? 'ซูม/เลื่อน' : cam.zoom ? 'ซูม' : 'เลื่อน';
 
-  // Slider drags share one undo step per clip and field.
-  const sliderChange = (field, patch) => onClipChange?.(
-    patch,
-    { coalesceKey: clipSliderCoalesceKey(clip.id, field) },
+  // Live played local time for camera keyframes at current playhead position
+  const localMotionTime = selectedSeg ? motionTimeAt(selectedSeg, playhead) : 0;
+  const keyframes = Array.isArray(clip.keyframes) ? clip.keyframes : [];
+  const KEYFRAME_TOLERANCE = 0.05; // within ~1.5 frames at 30 fps
+  const activeKfIndex = keyframes.findIndex(
+    (k) => Math.abs(Number(k.time) - localMotionTime) <= KEYFRAME_TOLERANCE,
   );
+  const hasKeyframeAtPlayhead = activeKfIndex !== -1;
+  const prevKf = [...keyframes].filter((k) => Number(k.time) < localMotionTime - KEYFRAME_TOLERANCE).pop();
+  const nextKf = keyframes.find((k) => Number(k.time) > localMotionTime + KEYFRAME_TOLERANCE);
+
+  const handleToggleKeyframe = () => {
+    if (hasKeyframeAtPlayhead) {
+      const nextKfs = keyframes.filter((_, idx) => idx !== activeKfIndex);
+      onClipChange?.({ keyframes: nextKfs.length > 0 ? nextKfs : undefined });
+    } else {
+      const newKf = {
+        time: Math.round(localMotionTime * 100) / 100,
+        zoom: clip.zoom ?? 1,
+        pan_x: clip.pan_x ?? 0,
+        pan_y: clip.pan_y ?? 0,
+        easing: 'linear',
+      };
+      const nextKfs = [...keyframes, newKf].sort((a, b) => Number(a.time) - Number(b.time));
+      onClipChange?.({ keyframes: nextKfs });
+    }
+  };
+
+  const handleSeekToKeyframe = (kf) => {
+    if (!kf || !selectedSeg) return;
+    const targetSeqTime = selectedSeg.segStart + Number(kf.time);
+    onSeek?.(targetSeqTime);
+  };
+
+  // Slider drags share one undo step per clip and field.
+  // When sitting on an active keyframe, dragging Zoom or Pan updates that keyframe point as well.
+  const sliderChange = (field, patch) => {
+    let finalPatch = patch;
+    if (hasKeyframeAtPlayhead && activeKfIndex !== -1 && (field === 'zoom' || field === 'pan_x' || field === 'pan_y')) {
+      const updatedKeyframes = keyframes.map((kf, i) => (i === activeKfIndex ? { ...kf, ...patch } : kf));
+      finalPatch = { ...patch, keyframes: updatedKeyframes };
+    }
+    onClipChange?.(
+      finalPatch,
+      { coalesceKey: clipSliderCoalesceKey(clip.id, field) },
+    );
+  };
 
   const canApplyAll = typeof onPatchAllClips === 'function' && clipList.length > 1;
   const otherCameraClips = canApplyAll ? countOtherCameraKeyframeClips(clipList, clip.id) : 0;
@@ -403,6 +447,57 @@ export default function ClipInspector({
               </button>
             </div>
           )}
+
+          {/* Keyframe Diamond Controls (CapCut Style) */}
+          <div className="flex items-center justify-between rounded-xl border border-white/[0.08] bg-black/40 px-2.5 py-1.5 shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <span>คีย์เฟรม (Keyframe)</span>
+                {keyframes.length > 0 && (
+                  <span className="rounded-full border border-amber-500/40 bg-amber-500/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-amber-300">
+                    {keyframes.length} จุด
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={!prevKf}
+                onClick={() => prevKf && handleSeekToKeyframe(prevKf)}
+                title={prevKf ? `ไปยังคีย์เฟรมก่อนหน้า (${Number(prevKf.time).toFixed(2)}s)` : 'ไม่มีคีย์เฟรมก่อนหน้า'}
+                className="p-1 rounded text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                data-testid="diamond-keyframe-button"
+                onClick={handleToggleKeyframe}
+                title={hasKeyframeAtPlayhead ? 'ลบคีย์เฟรมที่หัวอ่าน (◆)' : 'เพิ่มคีย์เฟรมที่หัวอ่าน (◇)'}
+                className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all cursor-pointer ${
+                  hasKeyframeAtPlayhead
+                    ? 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
+                    : 'border-white/[0.12] bg-black/60 text-slate-400 hover:border-[#25F4EE] hover:text-[#25F4EE]'
+                }`}
+              >
+                <div
+                  className={`h-2.5 w-2.5 rotate-45 transition-transform ${
+                    hasKeyframeAtPlayhead ? 'bg-amber-400 shadow-sm' : 'border border-current'
+                  }`}
+                />
+              </button>
+              <button
+                type="button"
+                disabled={!nextKf}
+                onClick={() => nextKf && handleSeekToKeyframe(nextKf)}
+                title={nextKf ? `ไปยังคีย์เฟรมถัดไป (${Number(nextKf.time).toFixed(2)}s)` : 'ไม่มีคีย์เฟรมถัดไป'}
+                className="p-1 rounded text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <button
               type="button"

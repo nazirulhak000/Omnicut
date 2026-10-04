@@ -299,3 +299,20 @@ test('scrub snapping: same snap function/targets as trimming, Shift bypasses, pl
   assert.equal((src.match(/onSeek\?\.\(timeFromEvent\(e\)\)/g) || []).length, 0);
   assert.equal((src.match(/onSeek\?\.\(scrubTimeFromEvent\(e\)\)/g) || []).length, 3);
 });
+
+test('Toolbar and EditorShell wire trim head (Q) and trim tail (W) buttons', () => {
+  const toolbar = read('../components/editor/Toolbar.jsx');
+  assert.match(toolbar, /onTrimHead/);
+  assert.match(toolbar, /onTrimTail/);
+  assert.match(toolbar, /shortcut="Q"/);
+  assert.match(toolbar, /shortcut="W"/);
+  assert.match(toolbar, /label="ตัดหัว"/);
+  assert.match(toolbar, /label="ตัดท้าย"/);
+
+  const shell = read('../components/editor/EditorShell.jsx');
+  assert.match(shell, /trimHeadTarget = useMemo/);
+  assert.match(shell, /trimTailTarget = useMemo/);
+  assert.match(shell, /onTrimHead=\{trimHeadAtPlayhead\}/);
+  assert.match(shell, /onTrimTail=\{trimTailAtPlayhead\}/);
+});
+

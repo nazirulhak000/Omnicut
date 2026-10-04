@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round KEYFRAME-TRIM-TRANSITION-CAPCUT-20261004 | ระบบ Keyframe UI บนไทม์ไลน์ (T9), ปุ่มลัดและปุ่ม UI Trim to Playhead (Q/W), และ Transition Sync; เพิ่มปุ่ม Diamond Add/Remove/Jump Keyframe ใน Inspector และ Diamond Marker บนแถบวิดีโอคลิป; เพิ่มปุ่มตัดหัว/ตัดท้ายถึงหัวอ่านบน Toolbar; ผ่าน unit tests ครบวงจร 809 frontend passed, 230 backend parity/cut alignment passed, production build 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round CODEX-FEATURE-FIRST-SHOT-SELECTION-20261004 | Feature evidence before diversity; local catalog cache rematch; offline gate155 passed | 2026-10-04 | Closed; ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-AUTHORED-TRANSITION-RESPECT-20261004 | Preserve authored cuts and transition metadata; focused141 passed, real render/replay | 2026-10-04 | Closed; ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-CAMERA-SMOOTHNESS-20261004 | Camera timing after transition handles; clip easing matches render; focused122 passed | 2026-10-04 | Closed; ดำเนินการโดย: Codex (GPT-6) |
@@ -55,6 +56,20 @@
 | Round SAM2-DEPTH-TEXT-PIPELINE-20260929 | เชื่อมต่อ SAM 2 บน RTX 4060 GPU เข้ากับ pipeline ของ Omnicut รองรับ Text Behind Product ทั้ง Canvas 2D Preview และ FFmpeg Render, เพิ่ม sam2 engine/models ใน contract, เพิ่ม worker สตรีม VP9 cutout.webm, ปรับปรุง backend preflight และ frontend UI Controls ผ่านการทดสอบ 23/23 tests และ build ผ่าน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
 | Round PC-REPO-AUDIT-PLAN-20260929 | ตรวจ PC/โค้ด/ผลทดสอบเดิมและ repository ที่เสนอ จัดทำแผน P0–P3 พร้อม gate ใน `_Docs/Plans/PC_REPOSITORY_AUDIT_PLAN_20260929.md` | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round SAM2-GPU-FEASIBILITY-SPIKE-20260929 | ติดตั้งสภาพแวดล้อม PyTorch 2.6.0+cu124 ใน tools/cutout_runtime/.venv, ทดสอบรันโมเดล SAM 2.1 บนการ์ดจอ NVIDIA GeForce RTX 4060 เทียบกับผลเดิมบน CPU, ทำความเร็วได้ 7.78 วินาทีสำหรับ 60 เฟรม (เร็วขึ้น 92 เท่า, 134 ms/เฟรม, VRAM 1.39 GB) และยืนยันคุณภาพการแทร็กสินค้าผ่าน contact sheet 100% | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
+## Round KEYFRAME-TRIM-TRANSITION-CAPCUT-20261004 — ระบบ Keyframe UI บนไทม์ไลน์ (T9), ปุ่มลัดและปุ่ม UI Trim to Playhead (Q/W), และ Transition Sync · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+วันที่: 2026-10-04 · สั่งโดย: user ("จัดการวางแผนต่อได้เลยครับ") · สถานะ: ปิดรอบแล้ว
+**แผนแม่บท:** [_Docs/Plans/PLAN_KEYFRAME_TRIM_TRANSITION_20261004.md](file:///d:/Programmer/All%20Project/Omnicut/_Docs/Plans/PLAN_KEYFRAME_TRIM_TRANSITION_20261004.md)
+**Jev Advisory:** trim_buttons 0.66, keyframe_ui 0.56 (escalate ตามเกณฑ์ รายงานผู้ใช้ทราบแล้ว)
+
+### ผลการดำเนินงาน
+- [x] T1 (Trim to Playhead Buttons): เพิ่มปุ่ม `ตัดหัวถึงหัวอ่าน (Q)` และ `ตัดท้ายถึงหัวอ่าน (W)` ลงบน Timeline Toolbar (`Toolbar.jsx`) พร้อมไอคอน `ArrowRightToLine` และ `ArrowLeftToLine`, เชื่อมต่อกับ `resolveTrimHead` และ `resolveTrimTail` ผ่าน `onTrimHead` และ `onTrimTail` ใน `EditorShell.jsx` (ทั้ง Desktop และ Mobile)
+- [x] T2 (Keyframe Diamond UI in Inspector): ส่ง `playhead` และ `onSeek` เข้า `ClipInspector.jsx`, เพิ่มแถบควบคุม Keyframe รูปเพชร Diamond (◆/◇) พร้อมปุ่มกระโดดคีย์เฟรมก่อนหน้า/ถัดไป (◀ ▶) และปุ่ม Add/Remove Keyframe ณ เวลาหัวอ่านจริง พร้อมอัปเดต keyframe อัตโนมัติเมื่อเลื่อน Zoom / Pan Slider
+- [x] T3 (Timeline Keyframe Markers): วาดจุด Marker รูปเพชรสีเหลืองอำพัน (`rotate-45`, amber-400) บนแถบวิดีโอของคลิปใน `TimelineClip.jsx` ตามตำแหน่งเวลาคีย์เฟรมจริงของคลิป
+- [x] T4 (Split Clip Keyframe Offset): ตรวจสอบ `splitKeyframesAt` ใน `timelineMath.js` ยืนยันการแบ่งคีย์เฟรมและ offset เวลาให้คลิปท่อนขวาถูกต้องแม่นยำ
+- [x] T5 (Transition Sync Guard): ตรวจสอบความปลอดภัยของ Transition ร่วมกับ Text/Subtitle overlay ไม่เกิดการชนกัน
+- [x] T6 (Verification & Tests): เพิ่มชุดทดสอบ `frontend/src/lib/keyframeUiContract.test.js` และอัปเดต `timelineTrimOps.test.js`; ผลการทดสอบ `npm test` ผ่าน 809/809 tests (100%), `pytest` (preview parity & cut alignment) ผ่าน 230/230 tests (100%), และ `npm run build` ผ่าน 100%
+
 ## Round CODEX-FEATURE-FIRST-SHOT-SELECTION-20261004
 ดำเนินการโดย: Codex (GPT-6)
 สถานะ: ปิดรอบแล้ว

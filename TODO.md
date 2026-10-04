@@ -1,4 +1,18 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
+- [ ] Round CODEX-PARALLEL-EDITING-QUALITY-20261004 · ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6)
+
+## Round CODEX-PARALLEL-EDITING-QUALITY-20261004
+ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6)
+สถานะ: กำลังทำ — ผู้ใช้อนุญาตให้แยกเอเจนต์
+เป้าหมาย: ลดภาพวนซ้ำ พรีวิวโปรเจกต์ใหญ่ลื่นขึ้น และตรวจปัญหาก่อนเรนเดอร์
+- [ ] A1 source-reuse — ดำเนินการโดย: Codex (GPT-6): ตรวจ/แก้การใช้ source scene ซ้ำ ให้เล่นต่อจากที่ใช้แล้ว; หมดภาพค้างเฟรมสุดท้ายพร้อมแจ้ง; backend matching/source allocation + focused regression/FFmpeg
+- [ ] A2 preview-performance — ดำเนินการโดย: Codex (GPT-6): วัด bottleneck และแก้ preview/decoder ในไฟล์ player ที่ไม่ชนงานอื่น; start/seek/transition/speed tests และการวัดผลเฉพาะส่วน
+- [ ] A3 render-preflight — ดำเนินการโดย: Codex (GPT-6): วิเคราะห์ช่องว่าง/ช่วงภาพไม่พอ/เหตุที่เสี่ยงไม่มีภาพจากข้อมูลจริงของ timeline; แจ้งตำแหน่งก่อน render ไม่ปิดกั้น approved hold; แยก inferred risk จาก black frames ที่ตรวจจริง
+- [ ] Root integration — ดำเนินการโดย: Codex (GPT-6): ประสาน file ownership ทดสอบผลร่วม ใช้ focused tests/short renders ปิดรายงานและ archive รอบทั้งหมด
+Ownership: A1 scripts/gemini_vision_matcher.py, scripts/shot_source_window.py, scripts/stages/shot_matching_stage.py; A2 SequencePlayer.jsx และ preview helpers; A3 preflight module/component และ integration ในไฟล์ที่สะอาดเท่านั้น ประสาน root ก่อนแตะ shared files
+Notes: Antigravity กำลังทำ KEYFRAME-TRIM-TRANSITION ใน EditorShell/Inspector/TimelineClip/Toolbar/ClipInspector/timelineMath ห้ามทับ; TODO/HISTORY ให้ root ดูแลส่วนรอบนี้เพียงคนเดียว แต่แต่ละ agent เก็บรายงานของตัวเองใน _Docs/Reports; ไม่ commit/push อัตโนมัติ ไม่รัน full suite; user อนุญาต regression/measurement gate เมื่อ Jev confidence=null ไว้แล้ว; tests ห้ามแตะ real raw/assets/projects/exports/registry และ media ต้อง cleanup100%
+
+- [x] Round KEYFRAME-TRIM-TRANSITION-CAPCUT-20261004 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
 - [x] Round CODEX-FEATURE-FIRST-SHOT-SELECTION-20261004 · ดำเนินการโดย: Codex (GPT-6)
 
 - [x] Round CODEX-AUTHORED-TRANSITION-RESPECT-20261004 · ดำเนินการโดย: Codex (GPT-6)

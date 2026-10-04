@@ -303,6 +303,26 @@ export default function TimelineClip({
         </div>
       )}
 
+      {/* Visual Camera Keyframe Markers on the clip body (CapCut Style) */}
+      {Array.isArray(clip.keyframes) && clip.keyframes.length > 0 && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {clip.keyframes.map((kf, idx) => {
+            const kfTime = Number(kf.time);
+            if (!Number.isFinite(kfTime) || kfTime < 0 || kfTime > seg.dur) return null;
+            const kfLeft = kfTime * pxPerSec;
+            return (
+              <div
+                key={`kf-${idx}`}
+                data-testid="timeline-keyframe-marker"
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-2 w-2 rotate-45 rounded-[1px] bg-amber-400 border border-black/80 shadow-[0_0_4px_rgba(245,158,11,0.5)] z-10"
+                style={{ left: `${kfLeft}px` }}
+                title={`คีย์เฟรม: ${kfTime.toFixed(2)}s`}
+              />
+            );
+          })}
+        </div>
+      )}
+
       {/* Trim handles: always on the selected clip, and on hover for a clip wide
           enough to keep some body. They are absolutely positioned inside the
           clip, so showing one never shifts the layout. Hidden handles take no

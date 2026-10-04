@@ -408,6 +408,8 @@ export default function Inspector({
                   onCopySettings={onCopySettings}
                   onPasteSettings={onPasteSettings}
                   canPasteSettings={canPasteSettings}
+                  playhead={playhead}
+                  onSeek={onSeek}
                 />
               </>
             ) : (

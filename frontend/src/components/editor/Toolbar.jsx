@@ -1,5 +1,7 @@
 import React from 'react';
 import {
+  ArrowLeftToLine,
+  ArrowRightToLine,
   AudioLines, ClipboardCopy, ClipboardPaste, Copy, FlipHorizontal2, Gauge, Link2, Magnet, Maximize2, Music2, Redo2, RotateCcw, Scissors, ScissorsLineDashed, Shield, Sparkles, Trash2, Undo2, Unlink, ZoomIn, ZoomOut, Type,
 } from 'lucide-react';
 import { formatTimecode } from '../../lib/timelineMath';
@@ -38,6 +40,12 @@ export default function Toolbar({
   selectedClip,
   canSplit = hasClipSelected,
   splitBlockedReason,
+  canTrimHead = hasClipSelected,
+  trimHeadBlockedReason,
+  onTrimHead = null,
+  canTrimTail = hasClipSelected,
+  trimTailBlockedReason,
+  onTrimTail = null,
   canUndo,
   canRedo,
   onUndo,
@@ -96,6 +104,22 @@ export default function Toolbar({
       <span className="mx-1 h-4 w-px bg-[#363430]" />
 
       <ToolButton icon={Scissors} label="แยก" hint={!canSplit && splitBlockedReason ? splitBlockedReason : 'ผ่าคลิปตรงหัวอ่าน'} shortcut="S / Ctrl+B" onClick={onSplit} disabled={!canSplit} />
+      <ToolButton
+        icon={ArrowRightToLine}
+        label="ตัดหัว"
+        hint={!canTrimHead && trimHeadBlockedReason ? trimHeadBlockedReason : 'ตัดหัวคลิปทิ้งถึงหัวอ่านแล้วดึงคลิปมาชิด'}
+        shortcut="Q"
+        onClick={onTrimHead}
+        disabled={!onTrimHead || !canTrimHead}
+      />
+      <ToolButton
+        icon={ArrowLeftToLine}
+        label="ตัดท้าย"
+        hint={!canTrimTail && trimTailBlockedReason ? trimTailBlockedReason : 'ตัดท้ายคลิปทิ้งถึงหัวอ่าน'}
+        shortcut="W"
+        onClick={onTrimTail}
+        disabled={!onTrimTail || !canTrimTail}
+      />
       <ToolButton icon={Type} label="เพิ่มข้อความ" hint="แทรกข้อความใหม่ตรงหัวอ่าน" onClick={onAddText} />
       <ToolButton icon={Copy} label="ทำสำเนา" hint="ก๊อบคลิปที่เลือกต่อท้ายตัวเอง" onClick={onDuplicate} disabled={!hasClipSelected} />
       <ToolButton

@@ -20,6 +20,7 @@ import {
   FADE_DURATION, buildSegments, formatTimecode, resolveSplitTarget, snapSeekTime, splitClipAt, snapCandidates, snapTime,
   totalDuration as totalDurationOf,
 } from '../../lib/timelineMath';
+import { resolveTrimHead, resolveTrimTail } from '../../lib/timelineTrimOps.js';
 import {
   DEFAULT_PX_PER_SEC, ZOOM_PRESETS, clampPxPerSec, fitPxPerSec, stepZoomPreset, zoomPresetIndex,
 } from '../../lib/timelineZoom.js';
@@ -1275,6 +1276,14 @@ export default function EditorShell({
   // Split button state comes from the same resolver the Split command runs.
   const splitTarget = useMemo(
     () => resolveSplitTarget(segments, selectedSeg, playhead),
+    [segments, selectedSeg, playhead],
+  );
+  const trimHeadTarget = useMemo(
+    () => resolveTrimHead(segments, selectedSeg, playhead),
+    [segments, selectedSeg, playhead],
+  );
+  const trimTailTarget = useMemo(
+    () => resolveTrimTail(segments, selectedSeg, playhead),
     [segments, selectedSeg, playhead],
   );
 
@@ -2952,6 +2961,12 @@ export default function EditorShell({
                   selectedClip={selectedSeg?.clip}
                   canSplit={!!splitTarget.seg}
                   splitBlockedReason={splitTarget.message}
+                  canTrimHead={Boolean(trimHeadTarget.seg)}
+                  trimHeadBlockedReason={trimHeadTarget.message}
+                  onTrimHead={trimHeadAtPlayhead}
+                  canTrimTail={Boolean(trimTailTarget.seg)}
+                  trimTailBlockedReason={trimTailTarget.message}
+                  onTrimTail={trimTailAtPlayhead}
                   canUndo={canUndo}
                   canRedo={canRedo}
                   onUndo={undo}
@@ -3672,6 +3687,12 @@ export default function EditorShell({
                   selectedClip={selectedSeg?.clip}
                   canSplit={!!splitTarget.seg}
                   splitBlockedReason={splitTarget.message}
+                  canTrimHead={Boolean(trimHeadTarget.seg)}
+                  trimHeadBlockedReason={trimHeadTarget.message}
+                  onTrimHead={trimHeadAtPlayhead}
+                  canTrimTail={Boolean(trimTailTarget.seg)}
+                  trimTailBlockedReason={trimTailTarget.message}
+                  onTrimTail={trimTailAtPlayhead}
                   canUndo={canUndo}
                   canRedo={canRedo}
                   onUndo={undo}
