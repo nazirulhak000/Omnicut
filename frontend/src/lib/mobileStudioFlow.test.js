@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filmingReturnUrl, filmingUrl, pollMobileTask, progressPercent } from './mobileStudioFlow.js';
+import { catalogPageParams, filmingReturnUrl, filmingUrl, mergeCatalogPage, MOBILE_CATALOG_PAGE_SIZE, pollMobileTask, progressPercent } from './mobileStudioFlow.js';
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
 function scheduler() {
@@ -79,3 +79,17 @@ test('missing task pauses immediately', async () => {
   assert.equal(failures.length, 1);
   assert.equal(timers.pending.length, 0);
 });
+
+test('catalog pagination keeps a stable page size and merges pages without duplicates', () => {
+  assert.equal(MOBILE_CATALOG_PAGE_SIZE, 20);
+  assert.deepEqual(catalogPageParams(2), { page: 2, page_size: 20 });
+
+  const loaded = [{ id: 'a' }, { id: 'b' }];
+  const merged = mergeCatalogPage(loaded, [{ id: 'b' }, { id: 'c' }]);
+  assert.deepEqual(merged.map(p => p.id), ['a', 'b', 'c']);
+  assert.deepEqual(loaded.map(p => p.id), ['a', 'b']); // the loaded list is never mutated
+  assert.deepEqual(mergeCatalogPage(loaded, null).map(p => p.id), ['a', 'b']);
+  // items without an id cannot be deduped, so they are appended as-is
+  assert.equal(mergeCatalogPage([], [{ name: 'no id' }]).length, 1);
+});
+

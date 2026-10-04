@@ -6,6 +6,16 @@ import {
 } from 'lucide-react';
 import { getProducts, markPosted } from '../api';
 
+const resolveMediaUrl = (path) => {
+  if (!path) return '';
+  const s = String(path).replace(/\\/g, '/').trim();
+  if (s.startsWith('http://') || s.startsWith('https://')) return s;
+  if (s.startsWith('/api/media/')) return s;
+  if (s.startsWith('api/media/')) return `/${s}`;
+  const clean = s.replace(/^[/\\]+/, '');
+  return `/api/media/${clean}`;
+};
+
 export default function MobileQuickPostPage({ onExit }) {
   const [params, setParams] = useState(() => {
     const p = new URLSearchParams(window.location.search);
@@ -14,6 +24,7 @@ export default function MobileQuickPostPage({ onExit }) {
       angleId: p.get('aid') || '',
       exportId: p.get('eid') || '',
       videoUrl: p.get('video') || '',
+      coverUrl: p.get('cover') || '',
       productName: p.get('product') || '',
       hookTitle: p.get('hook') || '',
       caption: p.get('caption') || '',
@@ -32,7 +43,7 @@ export default function MobileQuickPostPage({ onExit }) {
 
   const showToast = (msg) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
   // Fetch live product & angle details if pid/aid are available
@@ -49,7 +60,7 @@ export default function MobileQuickPostPage({ onExit }) {
           const foundProd = res.products.find(p => p.id === params.productId);
           if (foundProd) {
             setProductData(foundProd);
-            const foundAngle = foundProd.angles?.find(a => a.angle_id === params.angleId);
+            const foundAngle = foundProd.angles?.find(a => (a.angle_id || a.id) === params.angleId);
             if (foundAngle) {
               setAngleData(foundAngle);
               // If angle already marked as posted
@@ -78,6 +89,8 @@ export default function MobileQuickPostPage({ onExit }) {
   // The QR code carries the exact export. Angle-level video_url is only a
   // legacy fallback and must never override that stable identity.
   const effectiveVideo = params.videoUrl || angleData?.video_url || '';
+  const effectiveCover9x16 = angleData?.cover_9x16_url || angleData?.cover_url || params.coverUrl || '';
+  const effectiveCover3x4 = angleData?.cover_3x4_url || '';
   const fullPostText = `${effectiveCaption}\n\n${effectiveHashtags}`.trim();
 
   // Step 1: Handle Video Download / Save
@@ -86,7 +99,7 @@ export default function MobileQuickPostPage({ onExit }) {
       showToast('ไม่พบที่อยู่วิดีโอสำหรับดาวน์โหลด');
       return;
     }
-    const downloadUrl = `/api/media/${effectiveVideo}`;
+    const downloadUrl = resolveMediaUrl(effectiveVideo);
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = effectiveVideo.split(/[\\/]/).pop() || 'tiktok_video.mp4';
@@ -97,6 +110,19 @@ export default function MobileQuickPostPage({ onExit }) {
 
     setIsDownloaded(true);
     showToast('กำลังดาวน์โหลดวิดีโอ...');
+  };
+
+  const handleDownloadCover = (coverUrl, fileName) => {
+    if (!coverUrl) return;
+    const downloadUrl = resolveMediaUrl(coverUrl);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = fileName || 'cover.jpg';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('กำลังดาวน์โหลดภาพปก...');
   };
 
   // Step 2: Copy Caption & Hashtags
@@ -147,17 +173,21 @@ export default function MobileQuickPostPage({ onExit }) {
     if (params.productId && params.angleId) {
       try {
         if (effectiveVideo) {
+          let res;
           try {
-            await markPosted(effectiveVideo, params.productId, params.angleId, params.exportId || null);
-          } catch {
-            // Fallback to direct status update if file already in Posted or moved
-            throw new Error('การโพสต์ต้องยืนยันด้วย export_id และไฟล์จริงเท่านั้น');
+            res = await markPosted(effectiveVideo, params.productId, params.angleId, params.exportId || null);
+          } catch (err) {
+            throw new Error(err.message || 'การโพสต์ต้องยืนยันด้วย export_id และไฟล์จริงเท่านั้น');
+          }
+          if (res?.status_warning) {
+            showToast(`⚠️ วิดีโอถูกย้ายแล้ว แต่มีคำเตือน: ${res.status_warning}`);
+          } else {
+            showToast('🎉 บันทึกสถานะ "โพสต์แล้ว" ส่งกลับไปที่คอมพิวเตอร์เรียบร้อย!');
           }
         } else {
           throw new Error('ไม่พบไฟล์ export ที่ระบุสำหรับการโพสต์');
         }
         setIsPosted(true);
-        showToast('🎉 บันทึกสถานะ "โพสต์แล้ว" ส่งกลับไปที่คอมพิวเตอร์เรียบร้อย!');
       } catch (err) {
         showToast('ไม่สามารถอัปเดตสถานะได้: ' + err.message);
       }
@@ -229,7 +259,7 @@ export default function MobileQuickPostPage({ onExit }) {
         {effectiveVideo && (
           <div className="rounded-2xl overflow-hidden bg-black border border-white/[0.1] shadow-2xl relative max-w-[240px] mx-auto">
             <video
-              src={`/api/media/${effectiveVideo}`}
+              src={resolveMediaUrl(effectiveVideo)}
               controls
               playsInline
               className="w-full aspect-[9/16] object-contain max-h-[280px] mx-auto bg-black"
@@ -237,12 +267,12 @@ export default function MobileQuickPostPage({ onExit }) {
           </div>
         )}
 
-        {/* ── Step 1: Download Video ── */}
-        <div className="p-4 rounded-2xl bg-[#0B0F19] border border-white/[0.08] space-y-2.5 shadow-md">
+        {/* ── Step 1: Download Video & Covers ── */}
+        <div className="p-4 rounded-2xl bg-[#0B0F19] border border-white/[0.08] space-y-3 shadow-md">
           <div className="flex items-center justify-between text-xs font-bold">
             <span className="flex items-center gap-1.5 text-cyan-400">
               <span className="w-5 h-5 rounded-full bg-[#25F4EE]/20 border border-[#25F4EE]/40 flex items-center justify-center text-[#25F4EE] text-[10px] font-mono">1</span>
-              <span>บันทึกวิดีโอเข้าม้วนฟิล์ม (Photos)</span>
+              <span>บันทึกวิดีโอ & ภาพปก (Photos)</span>
             </span>
             {isDownloaded && <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5"><Check className="w-3 h-3" /> ดาวน์โหลดแล้ว</span>}
           </div>
@@ -255,6 +285,32 @@ export default function MobileQuickPostPage({ onExit }) {
             <Download className="w-4 h-4" />
             <span>ดาวน์โหลดวิดีโอ MP4</span>
           </button>
+
+          {(effectiveCover9x16 || effectiveCover3x4) && (
+            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/[0.06]">
+              {effectiveCover9x16 && (
+                <button
+                  type="button"
+                  onClick={() => handleDownloadCover(effectiveCover9x16, `${effectiveProduct}_cover_9x16.jpg`)}
+                  className="py-2 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-medium text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>โหลดปก 9:16</span>
+                </button>
+              )}
+              {effectiveCover3x4 && (
+                <button
+                  type="button"
+                  onClick={() => handleDownloadCover(effectiveCover3x4, `${effectiveProduct}_cover_3x4.jpg`)}
+                  className="py-2 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-medium text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-purple-400" />
+                  <span>โหลดปก 3:4</span>
+                </button>
+              )}
+            </div>
+          )}
+
           <p className="text-[10px] text-slate-400 leading-relaxed text-center">
             💡 สำหรับ iPhone: แตะดาวน์โหลด หรือแตะค้างที่วิดีโอด้านบนแล้วเลือก <b>"บันทึกวิดีโอ" (Save Video)</b>
           </p>

@@ -6,6 +6,7 @@ Handles 3-step mobile production workflow:
 3. One-touch Master Render with TikTok sharing metadata
 """
 
+import hashlib
 import re
 import time
 import uuid
@@ -14,14 +15,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from scripts.config import (
-    BASE_DIR, EXPORTS_DIR, RAW_DIR, INBOX_DIR
+    BASE_DIR, EXPORTS_DIR, RAW_DIR, INBOX_DIR, COVERS_DIR
 )
 from scripts.product_store import ProductStore
 from scripts.shot_lists_store import ShotListsStore
 from scripts import recording_sessions, render_jobs
 from scripts.recording_sessions import RecordingSessionStore
 from scripts.shot_list_builder import generate_shot_list_for_angle
-from scripts.task_manager import TaskManager
+from scripts.task_manager import TaskManager, TaskStatus
 from scripts.pipeline import TikTokAutoCutterPipeline
 from scripts.it_angles import DEFAULT_BGM
 
@@ -67,7 +68,7 @@ def _find_or_create_angle(product: Dict[str, Any], angle_id: str, title: Optiona
         "script_text": script_text,
         "script_lines": script_lines,
         "tts_lines": script_lines,
-        "status": "draft",
+        "status": "scripted",
         "selected_videos": [],
     }
     ProductStore.add_single_angle(p_id, new_angle, batch_index=1)
@@ -104,8 +105,44 @@ def _raw_path(value):
     raise ValueError("ไม่พบคลิปวัตถุดิบ กรุณาถ่ายทำหรือเลือกคลิปใหม่")
 
 
+def _find_duplicate_raw(prod_raw_dir: Path, size: int, digest: str) -> Optional[Path]:
+    """Zero-duplicate guard: return an existing take with the same size + SHA-256.
+
+    เทียบ size ก่อนเพื่อไม่ต้องเปิดอ่านไฟล์ทุกไฟล์ (วิดีโออาจใหญ่หลายร้อย MB)
+    แล้วค่อยยืนยันด้วย SHA-256 ตาม `.agents/rules/asset_sourcing_and_deduplication.md`
+    """
+    if not prod_raw_dir.is_dir() or size <= 0:
+        return None
+    for candidate in sorted(prod_raw_dir.iterdir()):
+        if not candidate.is_file() or candidate.suffix.lower() not in {".mp4", ".mov", ".m4v"}:
+            continue
+        try:
+            if candidate.stat().st_size != size:
+                continue
+            if hashlib.sha256(candidate.read_bytes()).hexdigest() == digest:
+                return candidate
+        except OSError:
+            continue
+    return None
+
+
 def _sessions():
     return sorted(recording_sessions._TABLE.load(), key=lambda r: r.get("updated_at") or r.get("created_at") or "", reverse=True)
+
+
+def _media_url(path_str: Optional[str]) -> Optional[str]:
+    """Helper to safely format store relative path into browser /api/media/ URL."""
+    if not path_str:
+        return None
+    s = str(path_str).replace("\\", "/").strip()
+    if s.startswith("http://") or s.startswith("https://"):
+        return s
+    if s.startswith("/api/media/"):
+        s = s[len("/api/media/"):]
+    elif s.startswith("api/media/"):
+        s = s[len("api/media/"):]
+    s = s.lstrip("/")
+    return "/api/media/" + quote(s, safe="/")
 
 
 class MobileQuickStudioService:
@@ -150,12 +187,27 @@ class MobileQuickStudioService:
                 if session is None:
                     session = next((rec for rec in matches if rec.get("status") == "completed"), None)
                 attached_raw = _attached_raw(angle)
-                is_rendered = bool(angle.get("video_url") or angle.get("status") == "rendered")
+                raw_status = angle.get("status") or "draft"
+                is_rendered = bool(angle.get("video_url") or raw_status in ("rendered", "posted"))
                 has_footage = bool(attached_raw)
                 attached_name = Path(str(attached_raw)).name if attached_raw else None
 
+                if raw_status == "posted":
+                    effective_status = "posted"
+                elif raw_status == "in_production":
+                    effective_status = "in_production"
+                elif is_rendered or raw_status == "rendered":
+                    effective_status = "rendered"
+                else:
+                    effective_status = raw_status
+
+                cov_3x4 = angle.get("cover_3x4_path")
+                cov_9x16 = angle.get("cover_9x16_path")
+                cov_primary = cov_9x16 or angle.get("cover_path") or cov_3x4
+
                 mobile_angles.append({
                     "id": a_id,
+                    "angle_id": a_id,
                     "name": a_name,
                     "hook_headline": hook_headline,
                     "hook_sub": hook_sub,
@@ -163,7 +215,7 @@ class MobileQuickStudioService:
                     "script_full": script_text,
 
                     "shot_count": shot_count,
-                    "status": "rendered" if is_rendered else (angle.get("status") or "draft"),
+                    "status": effective_status,
                     "is_rendered": is_rendered,
                     "has_footage": has_footage,
                     "attached_raw": attached_raw,
@@ -172,7 +224,18 @@ class MobileQuickStudioService:
                     "has_session": session is not None,
                     "session_id": session.get("id") if session else None,
                     "session_status": session.get("status") if session else None,
-                    "rendered_video_url": angle.get("video_url"),
+                    "rendered_video_url": _media_url(angle.get("video_url")),
+                    "export_id": angle.get("export_id"),
+                    "project_name": angle.get("project_name"),
+                    "posted_at": angle.get("posted_at"),
+                    "cover_path": angle.get("cover_path"),
+                    "cover_url": _media_url(cov_primary),
+                    "cover_3x4_path": cov_3x4,
+                    "cover_3x4_url": _media_url(cov_3x4),
+                    "cover_9x16_path": cov_9x16,
+                    "cover_9x16_url": _media_url(cov_9x16),
+                    "qc_reviewed": angle.get("qc_reviewed"),
+                    "qc_note": angle.get("qc_note"),
                 })
 
             # Check cover or image
@@ -247,12 +310,22 @@ class MobileQuickStudioService:
         ext = Path(filename).suffix.lower()
         if ext not in {".mp4", ".mov", ".m4v"}:
             ext = ".mp4"
-        safe_name = f"mobile_take_{int(time.time())}_{uuid.uuid4().hex[:6]}{ext}"
 
         prod_raw_dir = RAW_DIR / product_id
         prod_raw_dir.mkdir(parents=True, exist_ok=True)
-        dest_path = prod_raw_dir / safe_name
-        dest_path.write_bytes(file_bytes)
+
+        # P2-2 / กฎ 13: ตรวจ checksum ก่อนเขียนเสมอ — ไฟล์ซ้ำใช้ไฟล์เดิม ไม่เขียนทับ/เพิ่มซ้ำ
+        digest = hashlib.sha256(file_bytes).hexdigest()
+        duplicate = _find_duplicate_raw(prod_raw_dir, len(file_bytes), digest)
+        if duplicate is not None:
+            dest_path = duplicate
+            deduplicated = True
+        else:
+            safe_name = f"mobile_take_{int(time.time())}_{uuid.uuid4().hex[:6]}{ext}"
+            dest_path = prod_raw_dir / safe_name
+            dest_path.write_bytes(file_bytes)
+            deduplicated = False
+        safe_name = dest_path.name
 
         rel_path = f"01_Raw/{product_id}/{safe_name}"
         try:
@@ -267,6 +340,11 @@ class MobileQuickStudioService:
                 "duration": 0.0,
             }
 
+        if isinstance(file_info, dict):
+            file_info["sha256"] = digest
+
+        # add_video_to_product dedupes by path/rel_path internally, so a
+        # deduplicated take re-attaches without creating a second entry.
         ProductStore.add_video_to_product(product_id, file_info)
         ProductStore.update_angle_videos(product_id, resolved_angle_id, [rel_path])
 
@@ -274,7 +352,9 @@ class MobileQuickStudioService:
             "success": True,
             "filename": safe_name,
             "video_path": rel_path,
-            "file_info": file_info
+            "file_info": file_info,
+            "sha256": digest,
+            "deduplicated": deduplicated,
         }
 
     @classmethod
@@ -288,19 +368,28 @@ class MobileQuickStudioService:
         product_name = name_or_url
         cover_image = ""
         category = "IT / Gadget"
+        tiktok_pid = None
 
         if is_url:
+            all_prods = ProductStore.list()
+            existing = next((p for p in all_prods if p.get("url") == name_or_url), None)
+            if existing:
+                return existing
+
             try:
                 from scripts.api_products import resolve_tiktok_product_id
                 resolved = resolve_tiktok_product_id(name_or_url)
                 if resolved.get("success"):
+                    tiktok_pid = resolved.get("product_id")
                     from scripts.product_scraper import ProductScraper
-                    scraped = ProductScraper.scrape(name_or_url)
-                    if scraped.get("title"):
-                        product_name = scraped["title"]
-                    if scraped.get("images"):
-                        first_img = scraped["images"][0]
-                        cover_image = first_img.get("url") if isinstance(first_img, dict) else str(first_img)
+                    scraper_fn = getattr(ProductScraper, "scrape_url", None) or getattr(ProductScraper, "scrape", None)
+                    if scraper_fn:
+                        scraped = scraper_fn(name_or_url)
+                        if scraped and scraped.get("title"):
+                            product_name = scraped["title"]
+                        if scraped and scraped.get("images"):
+                            first_img = scraped["images"][0]
+                            cover_image = first_img.get("url") if isinstance(first_img, dict) else str(first_img)
             except Exception as scrape_err:
                 print(f"⚠️ [quick_add_product] scrape fallback: {scrape_err}")
                 product_name = "สินค้าใหม่ TikTok"
@@ -309,7 +398,9 @@ class MobileQuickStudioService:
             name=product_name,
             category=category,
             thumbnail=cover_image,
-            angles=[]
+            angles=[],
+            url=name_or_url if is_url else "",
+            tiktok_product_id=tiktok_pid or "",
         )
         p_id = created_product["id"]
 
@@ -360,7 +451,8 @@ class MobileQuickStudioService:
         product_id: str,
         angle_id: str,
         session_id: Optional[str] = None,
-        custom_raw_video: Optional[str] = None
+        custom_raw_video: Optional[str] = None,
+        bgm_enabled: bool = True
     ) -> Dict[str, Any]:
         """
         Executes Step 3: Auto-Assemble & SOP Render.
@@ -374,6 +466,9 @@ class MobileQuickStudioService:
             raise ValueError(f"ไม่พบสินค้า ID: {product_id}")
 
         angle = _find_angle(product, angle_id)
+        if angle.get("status") == "posted" or angle.get("posted_at"):
+            raise ValueError(f"มุมนำเสนอ '{angle_id}' ได้รับการเผยแพร่ (Posted) แล้ว ไม่อนุญาตให้เรนเดอร์ทับ")
+
         script_text = _script_text(angle)
         if not script_text:
             raise ValueError("มุมนี้ยังไม่มีสคริปต์ กรุณาเตรียมสคริปต์ก่อนประกอบคลิป")
@@ -421,6 +516,34 @@ class MobileQuickStudioService:
             features = [f"{spec.get('label', '')}: {spec.get('value', '')}" for spec in specs[:3] if isinstance(spec, dict)]
         key_features = angle.get("key_features") or ", ".join(features)
 
+        # Preflight: Disk space check (>500MB)
+        import shutil
+        disk_target = EXPORTS_DIR if EXPORTS_DIR.exists() else BASE_DIR
+        try:
+            free_bytes = shutil.disk_usage(disk_target).free
+            if free_bytes < 500 * 1024 * 1024:
+                raise ValueError("พื้นที่ดิสก์ไม่เพียงพอสำหรับการเรนเดอร์ (เหลือน้อยกว่า 500MB)")
+        except OSError as disk_err:
+            print(f"⚠️ [MobileQuickStudio] Disk space probe warning: {disk_err}")
+
+        # Idempotency guard: resume existing running task if duplicate request
+        active_tasks = TaskManager.get_active_tasks(limit=100)
+        for t in active_tasks:
+            if t.get("status") in [TaskStatus.QUEUED, TaskStatus.PROCESSING]:
+                payload = t.get("payload") or {}
+                if (
+                    t.get("type") == "mobile_auto_assemble_render"
+                    and payload.get("product_id") == product_id
+                    and payload.get("angle_id") == angle_id
+                ):
+                    return {
+                        "success": True,
+                        "task_id": t["id"],
+                        "project_name": payload.get("project_name", ""),
+                        "message": "ระบบกำลังประมวลผลงานเดิมอยู่แล้ว กำลังเชื่อมต่อเข้าสู่งานเดิม",
+                        "resumed": True
+                    }
+
         # Unique Project Name
         safe_name = re.sub(r'[\\/*?:"<>| ]', '_', product_name)[:30]
         timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -450,6 +573,12 @@ class MobileQuickStudioService:
                         raise render_jobs.RenderCancelled("งานถูกยกเลิก")
                     TaskManager.update_progress(task_id, 0.10, "กำลังวิเคราะห์ช็อตและสร้างเสียงพากย์ Fenrir (SOP)")
 
+                    # Set status to in_production in store
+                    try:
+                        ProductStore.update_angle_status(product_id, angle_id, "in_production", project_name=project_name)
+                    except Exception as pre_err:
+                        print(f"[MobileQuickStudio] Warning setting in_production: {pre_err}")
+
                     source_path = raw_video_path
                     if needs_finalize:
                         source_path = str(_raw_path(RecordingSessionStore.finalize(session_id).get("raw_video_path")))
@@ -459,29 +588,44 @@ class MobileQuickStudioService:
                         TaskManager.update_progress(task_id, round(scaled, 2), p_msg)
                         render_jobs.update_progress(task_id, round(scaled, 2), p_msg)
 
+                    # Multi-source support
+                    selected_videos = angle.get("selected_videos") or []
+                    multi_paths = []
+                    for sv in selected_videos:
+                        try:
+                            p = _raw_path(sv)
+                            if p and p.is_file():
+                                multi_paths.append(str(p))
+                        except Exception:
+                            pass
+
+                    pipeline_kwargs = {
+                        "product_name": product_name,
+                        "raw_video_path": str(source_path),
+                        "project_name": project_name,
+                        "key_features": key_features,
+                        "custom_script": script_text,
+                        "voice": "Fenrir",
+                        "voice_engine_type": "gemini_tts",
+                        "voice_preset": "gemini_fenrir_male_strong",
+                        "font_name": "Mali",
+                        "ghost_reveal": True,
+                        "bgm_name": DEFAULT_BGM if bgm_enabled else None,
+                        "bgm_volume": 0.14 if bgm_enabled else 0.0,
+                        "export_mp4": True,
+                        "export_preset": "post",
+                        "product_id": product_id,
+                        "angle_id": angle_id,
+                        "product_meta": product,
+                        "angle_meta": angle,
+                        "cancel_event": render_jobs.get_cancel_event(task_id),
+                        "progress_callback": on_progress
+                    }
+                    if len(multi_paths) > 1:
+                        pipeline_kwargs["multi_video_paths"] = multi_paths
+
                     # Execute pipeline with strict SOP settings
-                    result = TikTokAutoCutterPipeline.run(
-                        product_name=product_name,
-                        raw_video_path=str(source_path),
-                        project_name=project_name,
-                        key_features=key_features,
-                        custom_script=script_text,
-                        voice="Fenrir",
-                        voice_engine_type="gemini_tts",
-                        voice_preset="gemini_fenrir_male_strong",
-                        font_name="Mali",
-                        ghost_reveal=True,
-                        bgm_name=DEFAULT_BGM,
-                        bgm_volume=0.14,
-                        export_mp4=True,
-                        export_preset="post",
-                        product_id=product_id,
-                        angle_id=angle_id,
-                        product_meta=product,
-                        angle_meta=angle,
-                        cancel_event=render_jobs.get_cancel_event(task_id),
-                        progress_callback=on_progress
-                    )
+                    result = TikTokAutoCutterPipeline.run(**pipeline_kwargs)
 
                     mp4_path = result.get("mp4_video") or result.get("mp4") or result.get("output_video") or result.get("video_path")
                     if not mp4_path:
@@ -495,25 +639,55 @@ class MobileQuickStudioService:
                     if not output_path.is_file() or output_path.stat().st_size == 0:
                         raise ValueError("เรนเดอร์ไม่สำเร็จ: ไม่พบไฟล์วิดีโอหรือไฟล์ว่างเปล่า")
                     mp4_path = str(output_path)
-                    rel_url = "/api/media/" + quote(output_path.relative_to(BASE_DIR.resolve()).as_posix(), safe="/")
+                    rel_store_path = output_path.relative_to(BASE_DIR.resolve()).as_posix()
+                    rel_url = "/api/media/" + quote(rel_store_path, safe="/")
 
                     if render_jobs.is_cancel_requested(task_id):
                         raise render_jobs.RenderCancelled("งานถูกยกเลิก")
-                    render_jobs.complete_job(task_id, {**result, "project_name": project_name, "mp4_video": mp4_path})
 
-                    # Attach to product store
-                    try:
-                        ProductStore.attach_project(product_id, project_name)
-                        ProductStore.update_angle_status(
-                            product_id,
-                            angle_id,
-                            "rendered" if mp4_path else "in_production",
-                            video_url=rel_url or None,
-                            project_name=project_name,
-                            export_id=result.get("export_id")
-                        )
-                    except Exception as store_err:
-                        print(f"[MobileQuickStudio] Warning updating store: {store_err}")
+                    # Resolve cover variants
+                    cover_3x4_path = result.get("cover_3x4_path") or result.get("cover_3x4")
+                    cover_9x16_path = result.get("cover_9x16_path") or result.get("cover_9x16") or result.get("cover_path")
+                    if not cover_9x16_path and output_path:
+                        stem = output_path.stem
+                        for cand in (
+                            COVERS_DIR / f"{stem}_cover.jpg",
+                            COVERS_DIR / f"{stem}_cover_9x16.jpg",
+                        ):
+                            if cand.is_file():
+                                cover_9x16_path = str(cand.relative_to(BASE_DIR.resolve())).replace("\\", "/")
+                                break
+                    if not cover_3x4_path and output_path:
+                        stem = output_path.stem
+                        cand_3x4 = COVERS_DIR / f"{stem}_cover_3x4.jpg"
+                        if cand_3x4.is_file():
+                            cover_3x4_path = str(cand_3x4.relative_to(BASE_DIR.resolve())).replace("\\", "/")
+
+                    # Attach to product store with relative path (MUST succeed before completing job)
+                    ProductStore.attach_project(product_id, project_name)
+                    ProductStore.update_angle_status(
+                        product_id,
+                        angle_id,
+                        "rendered" if mp4_path else "in_production",
+                        video_url=rel_store_path or None,
+                        project_name=project_name,
+                        export_id=result.get("export_id"),
+                        cover_path=cover_9x16_path or cover_3x4_path,
+                        cover_3x4_path=cover_3x4_path,
+                        cover_9x16_path=cover_9x16_path
+                    )
+
+                    render_jobs.complete_job(task_id, {
+                        **result,
+                        "project_name": project_name,
+                        "mp4_video": mp4_path,
+                        "cover_3x4_path": cover_3x4_path,
+                        "cover_9x16_path": cover_9x16_path
+                    })
+
+                    cover_9x16_url = _media_url(cover_9x16_path)
+                    cover_3x4_url = _media_url(cover_3x4_path)
+                    cover_url = cover_9x16_url or cover_3x4_url
 
                     TaskManager.complete_task(
                         task_id,
@@ -521,6 +695,11 @@ class MobileQuickStudioService:
                             "project_name": project_name,
                             "video_path": mp4_path,
                             "video_url": rel_url,
+                            "cover_path": cover_9x16_path or cover_3x4_path,
+                            "cover_url": cover_url,
+                            "cover_9x16_url": cover_9x16_url,
+                            "cover_3x4_url": cover_3x4_url,
+                            "export_id": result.get("export_id"),
                             "product_name": product_name,
                             "hook_headline": hook_headline,
                             "hashtags": f"#{safe_name} #รีวิวไอที #tiktokshop #omnicut",
@@ -532,12 +711,20 @@ class MobileQuickStudioService:
             except render_jobs.RenderCancelled:
                 render_jobs.cancel_job(task_id)
                 TaskManager.cancel_task(task_id)
+                try:
+                    ProductStore.update_angle_status(product_id, angle_id, "draft", project_name=project_name)
+                except Exception:
+                    pass
             except Exception as exc:
                 import traceback
                 print(f"[MobileQuickStudio] Worker failed: {exc}")
                 traceback.print_exc()
                 render_jobs.fail_job(task_id, exc)
                 TaskManager.fail_task(task_id, str(exc), step_label="ประกอบคลิปไม่สำเร็จ")
+                try:
+                    ProductStore.update_angle_status(product_id, angle_id, "draft", project_name=project_name)
+                except Exception:
+                    pass
 
         TaskManager.run_in_background(_run_worker)
 

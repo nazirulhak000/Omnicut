@@ -87,6 +87,23 @@
 
 ## 🧩 5. แผนผังโมดูลสำคัญ — ดู [ARCHITECTURE.md](file:///d:/Winona/Programmer/Capcut/ARCHITECTURE.md) (backend: `scripts/config.py`, `pipeline.py`, `stages/`, `subtitle_engine.py` / frontend: `SequencePlayer.jsx`, `editorProjectState.js`, `hooks/`)
 
+### 5.1 คลังสกิลที่ติดตั้งแล้ว — เรียกด้วย `/ชื่อสกิล`
+
+| สกิล | ใช้ทำอะไร | เรียกเมื่อไหร่ |
+| --- | --- | --- |
+| `/impeccable` | ออกแบบ/วิจารณ์/ขัดเกลา UI: hierarchy, a11y, typography, motion, design tokens | งาน frontend ที่แตะหน้าจอหรือคอมโพเนนต์ |
+| `/ui-ux-pro-max` | คลังค้นได้ — styles, palettes, font pairs, UX guidelines, สแต็ก | ต้องเลือกดีไซน์/สแต็กแล้วให้เหตุผลอ้างอิง |
+| `/scrutinize` | รีวิวแบบคนนอก: ตั้งคำถามว่าควรมีอยู่จริงไหม แล้วไล่ path จริงยืนยันทีละข้อ | ก่อน merge, ปิดงาน, เช็ค plan หรือ diff |
+| `/transitions-dev` | CSS transition สำเร็จรูป 12 แบบ (dropdown, modal, badge, shake, success check) | ขอให้ "แอนิเมต/ทำให้ลื่น" ในเว็บ |
+| `/caveman` | บีบคำตอบให้สั้น ประหยัดโทเคน | อยากได้คำตอบสั้นๆ |
+| `/sub-srt` | สร้างไฟล์ซับ `.srt` จากวิดีโอ/เสียง | งานซับไตเติล |
+| `/token-efficiency-guardian` | กฎคุมโทเคน เช่น ห้ามเปิด `HISTORY.md` ทั้งไฟล์ | **บังคับ** ทุกงาน |
+| `/typesafe-ai` | เอกสาร TypeSafe/Jev เต็มรูปแบบ | ใช้ Jev ลึกกว่า primitive 3 ตัว |
+| `/video-editing` | กฎภาพ/เสียง FFmpeg ของโปรเจกต์ | ก่อนแตะ ffmpeg/ASS/subtitle |
+
+ทุกสกิลอยู่ที่ `.agents/skills/<ชื่อ>/SKILL.md` และ symlink ไป `.claude/skills/` ให้ Claude Code ใช้ร่วมกัน — จัดการด้วย `npx skills add / remove / update` เท่านั้น (lock อยู่ที่ `skills-lock.json`) ห้ามแก้มือ
+
+
 ---
 
 ## 💻 6. วิธีรัน+เทส — ดู [.agents/rules/testing_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/testing_standard.md) (รันเต็ม: `start_app.bat` / `pytest tests/` + `npm test` + `build`)

@@ -631,15 +631,47 @@ class MarkPostedRequest(BaseModel):
     angle_id: Optional[str] = None
 
 
-def _posted_companions(mp4_path: Path) -> List[Path]:
+def _posted_companions(mp4_path: Path, product_id: Optional[str] = None, angle_id: Optional[str] = None) -> List[Path]:
     """Every file that travels with an export when it moves: the gallery
-    poster (webp) and, since Round POST-1, the TikTok cover (jpg)."""
+    poster (webp) and TikTok covers (3:4, 9:16)."""
     stem = mp4_path.stem
-    found = [mp4_path.with_suffix(".webp")]
-    cover = BASE_DIR / "05_Covers_Thumbnails" / f"{stem}_cover.jpg"
-    if cover.exists():
-        found.append(cover)
-    return found
+    found = set()
+    poster = mp4_path.with_suffix(".webp")
+    if poster.exists():
+        found.add(poster)
+
+    covers_dir = BASE_DIR / "05_Covers_Thumbnails"
+    patterns = [
+        f"{stem}_cover.jpg",
+        f"{stem}_cover_9x16.jpg",
+        f"{stem}_cover_3x4.jpg",
+        f"{stem}_cover_9x16.png",
+        f"{stem}_cover_3x4.png",
+        f"{stem}_cover.png",
+    ]
+    for pat in patterns:
+        c = covers_dir / pat
+        if c.exists():
+            found.add(c)
+
+    if product_id and angle_id:
+        try:
+            prod = ProductStore.get(product_id)
+            if prod:
+                for a in prod.get("angles", []):
+                    if a.get("angle_id") == angle_id or a.get("id") == angle_id:
+                        for key in ("cover_path", "cover_9x16_path", "cover_3x4_path"):
+                            val = a.get(key)
+                            if val:
+                                p = Path(val)
+                                if not p.is_absolute():
+                                    p = BASE_DIR / p
+                                if p.exists() and p.is_file():
+                                    found.add(p)
+        except Exception:
+            pass
+
+    return sorted(found)
 
 
 def _mark_scheduled_queue_item_posted(source: Path, destination: Path, export_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -881,7 +913,7 @@ def mark_posted(req: MarkPostedRequest):
 
     _require_latest_export(export_record, req.product_id, req.angle_id)
 
-    companions = _posted_companions(src)
+    companions = _posted_companions(src, req.product_id, req.angle_id)
     POSTED_DIR.mkdir(parents=True, exist_ok=True)
 
     dest = POSTED_DIR / src.name
@@ -901,17 +933,32 @@ def mark_posted(req: MarkPostedRequest):
 
     _move_or_reuse_posted(src, dest)
     moved = [str(dest.relative_to(BASE_DIR)).replace("\\", "/")]
+    new_cover_path = None
+    new_cover_3x4 = None
+    new_cover_9x16 = None
+
     for companion, companion_dest in move_pairs[1:]:
         _move_or_reuse_posted(companion, companion_dest)
-        moved.append(str(companion_dest.relative_to(BASE_DIR)).replace("\\", "/"))
+        rel_dest = str(companion_dest.relative_to(BASE_DIR)).replace("\\", "/")
+        moved.append(rel_dest)
+        lower_name = companion.name.lower()
+        if "9x16" in lower_name:
+            new_cover_9x16 = rel_dest
+        elif "3x4" in lower_name:
+            new_cover_3x4 = rel_dest
+        elif "cover" in lower_name and lower_name.endswith((".jpg", ".png", ".webp")):
+            if not new_cover_path:
+                new_cover_path = rel_dest
+            if not new_cover_3x4:
+                new_cover_3x4 = rel_dest
 
-    # These three status writes (product/angle, schedule queue, export
-    # registry) aren't cross-store transactional -- a crash partway through
-    # leaves them disagreeing regardless of order. Mark the registry before
-    # updating ProductStore because ProductStore validates that an export_id's
-    # stored path matches the video_url it is asked to persist. Once the file
-    # has moved, the registry must already point at Posted/ or that validation
-    # rejects the otherwise-correct status update.
+    # Fallbacks if one variant exists
+    if new_cover_path and not new_cover_3x4:
+        new_cover_3x4 = new_cover_path
+    if not new_cover_path and new_cover_9x16:
+        new_cover_path = new_cover_9x16
+
+    # Mark registry before updating ProductStore
     ExportRegistry.move_and_mark_posted(export_record["id"], dest)
 
     product_result: Dict[str, Any] = {}
@@ -923,6 +970,9 @@ def mark_posted(req: MarkPostedRequest):
                 status="posted",
                 video_url=str(dest.relative_to(BASE_DIR)).replace("\\", "/"),
                 export_id=export_record["id"],
+                cover_path=new_cover_path,
+                cover_3x4_path=new_cover_3x4,
+                cover_9x16_path=new_cover_9x16,
             )
         except Exception as e:
             # The file already moved -- report the status-update failure

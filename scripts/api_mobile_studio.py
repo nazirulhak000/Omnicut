@@ -5,7 +5,7 @@ one-touch SOP auto-assembly & render, and TikTok sharing metadata.
 """
 
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Query
 from pydantic import BaseModel
 
 from scripts.mobile_quick_studio import MobileQuickStudioService
@@ -40,14 +40,46 @@ class AssembleRenderPayload(BaseModel):
     angle_id: str
     session_id: Optional[str] = None
     custom_raw_video: Optional[str] = None
+    bgm_enabled: Optional[bool] = True
 
 
 @router.get("/catalog")
-def get_mobile_catalog():
-    """Returns products and angles formatted specifically for mobile touch cards."""
+def get_mobile_catalog(
+    page: Optional[int] = Query(None, ge=1),
+    page_size: Optional[int] = Query(None, ge=1, le=100),
+):
+    """Returns products and angles formatted specifically for mobile touch cards.
+
+    P2-4: ส่ง ``page``/``page_size`` เพื่อดึงทีละหน้า (page_size สูงสุด 100) คืน
+    ``page``/``page_size``/``total_pages``/``has_more`` ให้ client รู้ว่ามีหน้าถัดไป
+    ไม่ส่งพารามเลย = ของเดิมทั้งหมด (client เก่าและเทสเดิมยังได้ ``catalog``/``total`` เหมือนเดิม)
+    """
     try:
         catalog = MobileQuickStudioService.get_catalog()
-        return {"success": True, "catalog": catalog, "total": len(catalog)}
+        total = len(catalog)
+        if page is None and page_size is None:
+            return {
+                "success": True,
+                "catalog": catalog,
+                "total": total,
+                "page": 1,
+                "page_size": total,
+                "total_pages": 1,
+                "has_more": False,
+            }
+        size = page_size or 20
+        current = page or 1
+        start = (current - 1) * size
+        total_pages = (total + size - 1) // size or 1
+        return {
+            "success": True,
+            "catalog": catalog[start:start + size],
+            "total": total,
+            "page": current,
+            "page_size": size,
+            "total_pages": total_pages,
+            "has_more": start + size < total,
+        }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -77,7 +109,8 @@ def assemble_and_render(payload: AssembleRenderPayload):
             product_id=payload.product_id,
             angle_id=payload.angle_id,
             session_id=payload.session_id,
-            custom_raw_video=payload.custom_raw_video
+            custom_raw_video=payload.custom_raw_video,
+            bgm_enabled=payload.bgm_enabled if payload.bgm_enabled is not None else True,
         )
         return result
     except ValueError as val_err:
@@ -102,6 +135,26 @@ def get_mobile_task(task_id: str):
         "step_label": task.get("step_label", ""),
         "result": task.get("result") or {},
     }
+
+
+@router.post("/cancel/{task_id}")
+def cancel_mobile_task(task_id: str):
+    """Cancels an in-flight mobile auto-assemble render.
+
+    task_id is the same uuid4 mobile_quick_studio.py passes as render_jobs'
+    job_id, so asking the render-job side to stop also unwinds the actual
+    background work -- this never starts a new render. Mirrors the shared
+    scripts/api_tasks.py cancel route (TaskManager + render_jobs).
+    """
+    task = TaskManager.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="ไม่พบงานเรนเดอร์")
+    if task.get("status") in ("completed", "failed", "cancelled"):
+        return {"success": True, "already_terminal": True, "task": task}
+    TaskManager.cancel_task(task_id)
+    from scripts import render_jobs
+    render_jobs.request_cancel(task_id)
+    return {"success": True, "task": TaskManager.get_task(task_id)}
 
 
 @router.post("/quick-angle")

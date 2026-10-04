@@ -1262,6 +1262,31 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
 
   useEffect(() => {
     fetchProductsData();
+
+    // Cross-device sync (M07): Revalidate when switching back from mobile phone
+    const handleRevalidate = () => {
+      if (document.visibilityState === 'visible') {
+        fetchProductsData({ force: true });
+      }
+    };
+
+    window.addEventListener('focus', handleRevalidate);
+    document.addEventListener('visibilitychange', handleRevalidate);
+    window.addEventListener('omnicut:tracker-refresh', handleRevalidate);
+
+    // Light polling while tab is foregrounded (every 12 seconds)
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchProductsData({ force: false });
+      }
+    }, 12000);
+
+    return () => {
+      window.removeEventListener('focus', handleRevalidate);
+      document.removeEventListener('visibilitychange', handleRevalidate);
+      window.removeEventListener('omnicut:tracker-refresh', handleRevalidate);
+      clearInterval(pollInterval);
+    };
   }, [fetchProductsData]);
 
   const handleOpenCoverStudio = useCallback((ang) => {
@@ -1599,10 +1624,12 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     const list = [];
     products.forEach(p => {
       (p.angles || []).forEach(a => {
+        const rawStatus = a.status;
+        const normalizedStatus = (!rawStatus || rawStatus === 'draft') ? 'scripted' : rawStatus;
         list.push({
           ...a,
           parentProduct: p,
-          status: a.status || 'scripted'
+          status: normalizedStatus
         });
       });
     });

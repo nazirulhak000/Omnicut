@@ -42,3 +42,30 @@ export function pollMobileTask({ fetchTask, onTask, onError, interval = 2000, ma
   tick();
   return () => { stopped = true; if (timer !== undefined) cancel(timer); };
 }
+
+// ── P2-4: catalog pagination (mobile touch list) ──
+export const MOBILE_CATALOG_PAGE_SIZE = 20;
+
+/** Query params for one catalog page. */
+export function catalogPageParams(page = 1) {
+  return { page, page_size: MOBILE_CATALOG_PAGE_SIZE };
+}
+
+/** Append a fetched page to the loaded list without showing an id twice. */
+export function mergeCatalogPage(existing, incoming) {
+  const merged = existing.slice();
+  const seen = new Set(merged.map(item => item?.id).filter(id => id !== undefined && id !== null));
+  for (const item of incoming || []) {
+    if (!item) continue;
+    const key = item.id;
+    if (key === undefined || key === null) {
+      merged.push(item);
+      continue;
+    }
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+  }
+  return merged;
+}
+

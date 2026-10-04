@@ -119,7 +119,7 @@ class RecordingSessionStore:
         return None
 
     @classmethod
-    def create(cls, product_id: str, angle_id: str) -> Dict[str, Any]:
+    def create(cls, product_id: str, angle_id: str, batch: int = 1) -> Dict[str, Any]:
         shot_list_record = ShotListsStore.get(product_id, angle_id)
         if not shot_list_record:
             raise ValueError(f"ยังไม่มีแผนถ่ายสำหรับมุม '{angle_id}' -- กรุณาสร้างแผนถ่ายก่อน")
@@ -128,16 +128,21 @@ class RecordingSessionStore:
             raise ValueError(f"แผนถ่ายของมุม '{angle_id}' ว่างเปล่า")
 
         with _TABLE.mutate() as records:
-            # Reopening the same QR link (phone tab closed/reloaded, or the
-            # desktop re-requests a session for the same angle) resumes the
-            # existing session instead of starting a parallel one.
+            # Reopening the same QR link resumes existing session ONLY if the
+            # shot plan has not changed. If beats changed, expire old session.
             for existing in records:
                 if (
                     existing.get("product_id") == product_id
                     and existing.get("angle_id") == angle_id
                     and existing.get("status") not in _TERMINAL_STATUSES
                 ):
-                    return existing
+                    if len(existing.get("segments") or []) == len(shot_list):
+                        return existing
+                    # Script or shot structure changed -> expire stale session
+                    existing["status"] = "expired"
+                    existing["expired_reason"] = "script_revision_changed"
+                    existing["updated_at"] = cls._now()
+                    break
 
             now = cls._now()
             session = {

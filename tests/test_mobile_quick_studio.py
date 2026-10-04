@@ -286,6 +286,35 @@ def test_upload_mobile_video_endpoint(isolated_mobile):
     assert any("mobile_take_" in v for v in updated["angles"][0].get("selected_videos", []))
 
 
+def test_upload_mobile_video_dedupes_identical_bytes(isolated_mobile):
+    """กฎ 13 / P2-2: identical bytes must reuse the existing take (SHA-256 + size)."""
+    base = b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00isommp42"
+    data = {"product_id": "prod", "angle_id": "angle"}
+
+    first_files = {"file": ("take_a.mp4", base + b"B" * 128, "video/mp4")}
+    first = client.post("/api/mobile-studio/upload-video", data=data, files=first_files).json()
+    second_files = {"file": ("take_a_again.mov", base + b"B" * 128, "video/mp4")}
+    second = client.post("/api/mobile-studio/upload-video", data=data, files=second_files).json()
+    other_files = {"file": ("take_b.mp4", base + b"C" * 128, "video/mp4")}
+    third = client.post("/api/mobile-studio/upload-video", data=data, files=other_files).json()
+
+    assert first["deduplicated"] is False
+    assert second["deduplicated"] is True
+    assert second["video_path"] == first["video_path"]
+    assert first["sha256"] == second["sha256"]
+    assert third["deduplicated"] is False
+    assert third["video_path"] != first["video_path"]
+
+    raw_dir = isolated_mobile["root"] / "raw_dir" / "prod"
+    assert len(list(raw_dir.glob("mobile_take_*"))) == 2
+
+    takes = [
+        v for v in ProductStore.get("prod").get("videos", [])
+        if "mobile_take_" in str(v.get("rel_path") or v.get("path") or "")
+    ]
+    assert len(takes) == 2
+
+
 def test_quick_add_product_endpoint(isolated_mobile):
     """Tests creating product directly from mobile."""
     res = client.post("/api/mobile-studio/products/quick-add", json={
@@ -318,3 +347,39 @@ def test_catalog_enrichment_badges_and_footage_status(isolated_mobile):
     assert "attached_raw_name" in ang
     assert "render_status" in ang
     assert ang["render_status"] in ("rendered", "ready_to_cut", "draft")
+def test_catalog_pagination_slices_and_reports_next_page(isolated_mobile):
+    """P2-4: ?page=&page_size=คืนทีละหน้าพร้อม has_more/total_pages ไม่ส่งพารามยังได้ของเดิมทั้งหมด"""
+    baseline = len(client.get("/api/mobile-studio/catalog").json()["catalog"])
+    for i in range(3):
+        ProductStore.add(name=f"สินค้าเพจ {i}", category="Gadget", angles=[])
+
+    full = client.get("/api/mobile-studio/catalog").json()
+    total = baseline + 3
+    assert full["total"] == total
+    assert len(full["catalog"]) == total
+    assert full["page"] == 1
+    assert full["total_pages"] == 1
+    assert full["has_more"] is False
+    all_ids = [p["id"] for p in full["catalog"]]
+
+    first = client.get("/api/mobile-studio/catalog", params={"page": 1, "page_size": 2}).json()
+    assert first["total"] == total
+    assert first["page"] == 1 and first["page_size"] == 2
+    assert first["total_pages"] == (total + 1) // 2
+    assert first["has_more"] is True
+    assert [p["id"] for p in first["catalog"]] == all_ids[:2]
+
+    second = client.get("/api/mobile-studio/catalog", params={"page": 2, "page_size": 2}).json()
+    assert [p["id"] for p in second["catalog"]] == all_ids[2:4]
+    assert second["has_more"] is False
+
+    # page_size อย่างเดียว = หน้า 1 · page อย่างเดียว = page_size เริ่มต้น 20 (เกินคลัง → ว่าง)
+    only_size = client.get("/api/mobile-studio/catalog", params={"page_size": 2}).json()
+    assert only_size["page"] == 1 and len(only_size["catalog"]) == 2
+    only_page = client.get("/api/mobile-studio/catalog", params={"page": 2}).json()
+    assert only_page["catalog"] == [] and only_page["has_more"] is False
+
+    # พารามนอกขอบ → FastAPI ปฏิเสธ
+    assert client.get("/api/mobile-studio/catalog", params={"page": 0}).status_code == 422
+    assert client.get("/api/mobile-studio/catalog", params={"page_size": 101}).status_code == 422
+

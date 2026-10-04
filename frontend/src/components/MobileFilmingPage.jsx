@@ -8,6 +8,7 @@ import {
   finalizeRecordingSession, getTaskStatus,
 } from '../api';
 import { toMediaUrl } from '../lib/mediaUrl';
+import useWakeLock from '../hooks/useWakeLock';
 
 const ROLE_LABELS = { hook: 'Hook', feature: 'Feature', cta: 'CTA' };
 
@@ -115,6 +116,11 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
   const pendingBlobRef = useRef(null);
   const pendingMimeTypeRef = useRef('');
 
+  // P2-3: guided takes run for up to a minute per shot — a sleeping screen
+  // kills MediaRecorder mid-recording, so hold a wake lock while this page is
+  // open (no-op on browsers without the Screen Wake Lock API, e.g. iOS Safari).
+  useWakeLock(true);
+
   useEffect(() => { zoomLevelRef.current = zoomLevel; }, [zoomLevel]);
 
   const showToast = (msg) => {
@@ -147,9 +153,18 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
     const sess = await getRecordingSession(sessionId);
     setSession(sess);
     if (!sess) return sess;
+
+    if (sess.status === 'expired') {
+      throw new Error('แผนถ่ายคลิปบนคอมพิวเตอร์มีการปรับปรุง กรุณาสแกน QR Code หรือเปิดหน้าถ่ายทำใหม่อีกครั้ง');
+    }
+
     const sl = await getShotList(sess.product_id, sess.angle_id).catch(() => null);
     if (sl) {
-      setShotList(sl.shot_list || []);
+      const beats = sl.shot_list || [];
+      if (sess.segments && sess.segments.length > 0 && beats.length > 0 && sess.segments.length !== beats.length) {
+        throw new Error('โครงสร้างสคริปต์มีการเปลี่ยนแปลง กรุณาเริ่มเซสชันใหม่');
+      }
+      setShotList(beats);
       setVoiceAudioPath(sl.voice_audio_path || null);
     }
     return sess;
@@ -215,7 +230,9 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
     canvas.width = 1080;
     canvas.height = 1920;
     const ctx = canvas.getContext('2d');
-    canvasStreamRef.current = canvas.captureStream(30);
+    if (typeof canvas.captureStream === 'function') {
+      canvasStreamRef.current = canvas.captureStream(30);
+    }
     setCanvasReady(true);
 
     let rafId;

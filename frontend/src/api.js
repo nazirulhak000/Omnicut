@@ -557,22 +557,26 @@ export const matchRawFolderWithAI = (rawFolder, sentences) =>
   }).then(r => r.data);
 
 // ── Mobile Quick Studio API ──
-export const fetchMobileCatalog = () =>
-  api.get('/mobile-studio/catalog').then(r => r.data);
+export const fetchMobileCatalog = (params) =>
+  api.get('/mobile-studio/catalog', { params }).then(r => r.data);
 
 export const createMobileSession = (productId, angleId) =>
   api.post('/mobile-studio/session', { product_id: productId, angle_id: angleId }, { timeout: 300000 }).then(r => r.data);
 
-export const triggerMobileAssemble = (productId, angleId, sessionId = null, customRawVideo = null) =>
+export const triggerMobileAssemble = (productId, angleId, sessionId = null, customRawVideo = null, bgmEnabled = true) =>
   api.post('/mobile-studio/assemble', {
     product_id: productId,
     angle_id: angleId,
     session_id: sessionId,
     custom_raw_video: customRawVideo,
+    bgm_enabled: bgmEnabled,
   }).then(r => r.data);
 
 export const fetchMobileTask = (taskId) =>
   api.get(`/mobile-studio/task/${taskId}`).then(r => r.data);
+
+export const cancelMobileTask = (taskId) =>
+  api.post(`/mobile-studio/cancel/${taskId}`).then(r => r.data);
 
 export const createMobileQuickAngle = (productId, title = null, script = null) =>
   api.post('/mobile-studio/quick-angle', { product_id: productId, title, script }).then(r => r.data);

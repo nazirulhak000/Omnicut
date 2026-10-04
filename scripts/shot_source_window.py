@@ -4,6 +4,44 @@ import math
 FPS = 30
 
 
+def scene_window_key(match):
+    """Recognize fresh dictionaries of the same approved semantic source."""
+    if not isinstance(match, dict) or "end_time" not in match:
+        return None
+    return (match.get("source_path"), match.get("scene_id"),
+            match.get("scene_start", match.get("start_time", 0)),
+            match.get("scene_end", match["end_time"]))
+
+
+class SourceWindowLedger:
+    """Consume actual played frame spans, excluding timeline gaps and holds."""
+
+    def __init__(self):
+        self.consumed = {}
+        self.windows = {}
+
+    def allocate(self, match, raw_duration, requested_start, duration):
+        window = source_window(match, raw_duration)
+        if not window:
+            return None
+        key = scene_window_key(match)
+        if key in self.consumed:
+            # Catalog suggestions use nominal cue lengths. Final visual spans
+            # can differ after J-lead/beat snapping: the played cursor wins.
+            first_window = self.windows[key]
+            window = (first_window[0], min(first_window[1], window[1]))
+            requested_start = self.consumed[key]
+        else:
+            self.windows[key] = window
+            requested_start = max(requested_start, float(match.get("consumed_source_until", 0)))
+        allocation = allocate_window(window, requested_start, duration)
+        if not allocation["hold_only"]:
+            self.consumed[key] = math.ceil(allocation["source_end"] * FPS - 1e-6) / FPS
+        else:
+            self.consumed[key] = window[1] / FPS
+        return allocation
+
+
 def source_window(match, raw_duration):
     if not isinstance(match, dict) or "end_time" not in match:
         return None  # Legacy matches have no declared semantic end.

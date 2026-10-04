@@ -1,6 +1,30 @@
 {
   "version": 1,
   "skills": {
+    "impeccable": {
+      "source": "pbakaus/impeccable",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/impeccable/SKILL.md",
+      "computedHash": "7e3fb3791b47c5d0a3ef54a4a1e33e72d8b1a31145ee51063a3114247f507748"
+    },
+    "scrutinize": {
+      "source": "thananon/9arm-skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/scrutinize/SKILL.md",
+      "computedHash": "f09f6aad95f504b0c54c46733fa9a967db9a72a05b7b4605909dcbb77f1b1553"
+    },
+    "transitions-dev": {
+      "source": "Jakubantalik/transitions-dev",
+      "sourceType": "github",
+      "skillPath": "skills/transitions-dev/SKILL.md",
+      "computedHash": "ef42d09639e3af00c2d8e59af67134020212236e40a074400ddec7747bf9a079"
+    },
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "computedHash": "6f56be423a3cf45c2c4884c6ddcdda5177563651bcfadb7b23d42719bac3b2c0"
+    },
     "video-editing": {
       "source": "affaan-m/ECC",
       "sourceType": "github",

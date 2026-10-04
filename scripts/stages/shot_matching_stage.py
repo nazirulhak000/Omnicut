@@ -24,7 +24,7 @@ from scripts.style_motion_policy import (
     resolve_style_motion_policy,
 )
 from scripts.quota import is_quota_error
-from scripts.shot_source_window import source_window, coalesce_short_windows, allocate_window
+from scripts.shot_source_window import source_window, coalesce_short_windows, SourceWindowLedger, scene_window_key
 from scripts.error_handler import AppError, ErrorCategory
 
 # Render frame rate (AGENTS.md: 30 FPS). Auto cut times land on this grid so a
@@ -1034,6 +1034,7 @@ class ShotMatchingStage:
                     tone_shifts = ScriptToneAnalyzer.classify_tone_shifts(group_texts)
 
                     auto_transitions = []
+                    source_ledger = SourceWindowLedger()
                     for g_idx, group in enumerate(groups):
                         v_start = boundary_times[g_idx]
                         v_end = boundary_times[g_idx + 1]
@@ -1047,7 +1048,11 @@ class ShotMatchingStage:
                         if ai_shot:
                             ai_start = float(ai_shot.get("start_time", 0.0))
                             shot_key = id(ai_shot)
-                            if shot_key in ai_shot_anchor:
+                            if source_window(ai_shot, raw_duration):
+                                # Bounded scenes consume actual allocated picture spans below.
+                                # Timeline gaps and frozen tails must not advance this source.
+                                pass
+                            elif shot_key in ai_shot_anchor:
                                 # The same AI shot already fed an earlier
                                 # group: keep playing forward from where that
                                 # group's footage was, instead of replaying
@@ -1107,7 +1112,7 @@ class ShotMatchingStage:
                                     c_dur = max(0.2, v_end - v_start)
 
                         bounded = source_window(ai_shot, raw_duration)
-                        allocation = allocate_window(bounded, ai_start, c_dur) if bounded else None
+                        allocation = source_ledger.allocate(ai_shot, raw_duration, ai_start, c_dur) if bounded else None
                         if allocation:
                             raw_offset = allocation["raw_offset"]
                         motion_score = (
@@ -1146,6 +1151,7 @@ class ShotMatchingStage:
                             "scale": scale,
                             "raw_offset": raw_offset,
                             **(allocation or {}),
+                            "source_reuse_key": scene_window_key(ai_shot) if allocation else None,
                         })
 
                         if g_idx > 0:
@@ -1199,6 +1205,7 @@ class ShotMatchingStage:
                         shot_idx += 1
 
                 generated_clips = []
+                scene_camera_clips = {}
                 for idx, shot in enumerate(shots):
                     s_dur = max(0.2, shot["end"] - shot["start"])
                     raw_start_offset = float(shot.get("raw_offset", 0.0))
@@ -1250,12 +1257,17 @@ class ShotMatchingStage:
                     )
                     if camera_keyframes:
                         clip_entry["keyframes"] = camera_keyframes
-                    if shot.get("hold_only") and generated_clips:
+                    if shot.get("hold_only"):
                         clip_entry["held_source_time"] = trim_end - .75 / CUT_FRAME_RATE
-                        previous = generated_clips[-1]
-                        clip_entry["zoom"] = previous["zoom"]
-                        if previous.get("keyframes"):
-                            clip_entry["keyframes"] = [{**previous["keyframes"][-1], "time": 0}]
+                        previous = scene_camera_clips.get(shot.get("source_reuse_key"))
+                        if previous:
+                            clip_entry["zoom"] = previous["zoom"]
+                            if previous.get("keyframes"):
+                                clip_entry["keyframes"] = [{**previous["keyframes"][-1], "time": 0}]
+                        elif clip_entry.get("keyframes"):
+                            clip_entry["keyframes"] = [{**clip_entry["keyframes"][0], "time": 0}]
+                    if shot.get("source_reuse_key") is not None:
+                        scene_camera_clips[shot["source_reuse_key"]] = clip_entry
                     generated_clips.append(clip_entry)
                 actual_clip_list = generated_clips
                 is_newly_generated_clips = True

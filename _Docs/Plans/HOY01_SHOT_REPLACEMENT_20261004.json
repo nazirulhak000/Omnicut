@@ -1,0 +1,97 @@
+{
+  "round": "CODEX-HOY01-MODEL-AND-SHOT-PLAN-20261004",
+  "agent": "Codex (GPT-6)",
+  "product_id": "673882d55bd84c57ba805000a910c466",
+  "product_code": "HOY01",
+  "source_path": "01_Raw/673882d55bd84c57ba805000a910c466/Hoyaup.mov",
+  "source_sha256": "8da2122543f1b5f8bd9e0a1752d9d549e99a6ba01950dbfd5ff8a1205e481098",
+  "production_mutation": false,
+  "candidates": [
+    {
+      "project": "HOY01-รีวิวสเปก_1",
+      "project_path": "03_Projects/HOY01-รีวิวสเปก_1/project.json",
+      "expected_manifest_sha256": "64f2bfbb5fd12613fb3c23dfa8506b0a32dcc8af08f350ee1cdd38f588725556",
+      "clip_index": 2,
+      "old_source_span": [
+        0,
+        6.692
+      ],
+      "proposed_source_span": [
+        180.0,
+        186.692
+      ],
+      "speed": 1.121,
+      "source_span_seconds": 6.692,
+      "nominal_playback_seconds": 5.96967,
+      "timeline_end_seconds_before": 35.2,
+      "timeline_end_seconds_after": 35.2,
+      "status": "applied_after_user_confirmation",
+      "supported_visual": "Cooler positioned on back of phone with visible clamp hardware",
+      "unsupported_claims": [
+        "magnetic retention",
+        "airflow away from hands"
+      ],
+      "apply": false,
+      "applied_manifest_sha256": "ee58c000bcf0ee016fce538c724fb26e58b3032de615daa395b6d0fc056010b7",
+      "execution_report": "_Docs/Reports/HOY01_PHONE_SHOTS_APPLIED_20261004.md"
+    },
+    {
+      "project": "HOY01-เทียบของเดิม_1",
+      "project_path": "03_Projects/HOY01-เทียบของเดิม_1/project.json",
+      "expected_manifest_sha256": "45b7d46a8bc1db7af0541daca8bf115a9f6ddfaf0742207e17c969f798d11d42",
+      "clip_index": 2,
+      "old_source_span": [
+        0,
+        6.673
+      ],
+      "proposed_source_span": [
+        169.75,
+        176.423
+      ],
+      "speed": 1.0662,
+      "source_span_seconds": 6.673,
+      "nominal_playback_seconds": 6.258676,
+      "timeline_end_seconds_before": 27.233333333333334,
+      "timeline_end_seconds_after": 27.233333333333334,
+      "status": "applied_after_user_confirmation",
+      "supported_visual": "Cooler positioned on back of phone with visible clamp hardware",
+      "unsupported_claims": [
+        "magnetic retention",
+        "airflow away from hands"
+      ],
+      "apply": false,
+      "applied_manifest_sha256": "82be736b72273e07773a0cab522b5c3c65329e52abd022006925b56910f1b356",
+      "execution_report": "_Docs/Reports/HOY01_PHONE_SHOTS_APPLIED_20261004.md"
+    }
+  ],
+  "unchanged_fields": [
+    "duration",
+    "speed",
+    "keyframes",
+    "transitions",
+    "audio",
+    "script",
+    "font",
+    "caption settings"
+  ],
+  "required_gates": [
+    "Exact sold variant / mounting method confirmation",
+    "Continuous source and foreign-subtitle scan",
+    "Motion and transform validation",
+    "Temporary production Preview/Render pair with existing font contract",
+    "No real project overwrite; explicit chosen candidate before mutation"
+  ],
+  "execution_status": "applied",
+  "execution_round": "CODEX-HOY01-APPLY-PHONE-SHOTS-20261004",
+  "user_confirmation": {
+    "date": "2026-10-04",
+    "matching_variant": true,
+    "mounting": [
+      "clamp",
+      "magnetic"
+    ],
+    "power_w": 24,
+    "ai": true,
+    "basis": "user_statement_not_independent_measurement"
+  }
+}

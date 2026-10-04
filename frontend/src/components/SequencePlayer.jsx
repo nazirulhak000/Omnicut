@@ -54,6 +54,7 @@ import {
 import { bindWindowPointerLifecycle } from '../lib/pointerDragLifecycle.js';
 import { drawMediaWithAccentRecolor } from '../lib/overlayRecolor.js';
 import { reconcileEffectPlayback } from '../lib/effectPlayback.js';
+import { createPreviewTimelineIndex, pauseInactivePreviewVideos } from '../lib/previewTimelineScheduler.js';
 import { overlayAnimState } from '../lib/stickerAnimation.js';
 import { createCutoutVideoPlayback } from '../lib/cutoutVideoPlayback.js';
 import { createCutoutFramePair, trackPresentedSource } from '../lib/cutoutFramePair.js';
@@ -3326,6 +3327,7 @@ function SequencePlayer({
   }, [onToggleSafeZone]);
   const [snapGuide, setSnapGuide] = useState({ x: null, y: null });
   const videoElsRef = useRef({});
+  const activePreviewVideoIdsRef = useRef(new Set());
   const audioElRef = useRef(null);
   const bgmElRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -4261,6 +4263,7 @@ function SequencePlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [clipVisualKey, metadataReady, durations]
   );
+  const previewTimelineIndex = useMemo(() => createPreviewTimelineIndex(segments), [segments]);
 
   // A trim/speed/transition edit moves which source second sits under the
   // playhead. While paused, put each visible decoder on its new frame (the
@@ -4271,7 +4274,7 @@ function SequencePlayer({
     if (lastTimingKeyRef.current === clipTimingKey) return;
     lastTimingKeyRef.current = clipTimingKey;
     if (isPlaying || !metadataReady) return;
-    planAt(segments, playheadRef.current).forEach(({ seg, localTime }) => {
+    previewTimelineIndex.planAt(playheadRef.current).forEach(({ seg, localTime }) => {
       const v = videoElsRef.current[seg.clip.id];
       if (v && Number.isFinite(localTime) && Math.abs(v.currentTime - localTime) > 1 / 60) {
         try { v.currentTime = localTime; } catch { /* metadata still loading */ }
@@ -4292,7 +4295,7 @@ function SequencePlayer({
   }, [segments]);
 
   const totalDuration = totalDurationOf(segments);
-  const failedActiveClip = planAt(segments, playhead).find(({ seg }) => (
+  const failedActiveClip = previewTimelineIndex.planAt(playhead).find(({ seg }) => (
     failedClipSources[`${seg.clip.id}:${seg.clip.source_path}`]
   ))?.seg.clip;
 
@@ -4301,7 +4304,7 @@ function SequencePlayer({
     const seg = reference && segments.find((entry) => entry.clip.id === reference.clipId
       && entry.clip.source_path === reference.sourcePath);
     if (seg) return [{ seg, localTime: reference.sourceStart, motionTime: 0, alpha: 1, role: 'solo' }];
-    return planAt(segments, t);
+    return previewTimelineIndex.planAt(t);
   };
 
   const currentBackgroundIsolationStatus = useMemo(() => {
@@ -5198,7 +5201,7 @@ function SequencePlayer({
 
       // 1. Lookahead Pre-Roll: Pre-seek upcoming clips 0.8s - 1.2s in advance so they
       // have their first frame decoded and cached in memory before the cut boundary.
-      const upcomingSeg = segments.find(s => s.segStart > t && s.segStart <= t + 1.2);
+      const upcomingSeg = previewTimelineIndex.upcomingAt(t);
       if (upcomingSeg) {
         const nextV = videoElsRef.current[upcomingSeg.clip.id];
         const nextStart = upcomingSeg.clip.trim_start || 0;
@@ -5248,12 +5251,8 @@ function SequencePlayer({
       });
 
       // 3. Pause video elements no longer in the plan
-      Object.entries(videoElsRef.current).forEach(([id, v]) => {
-        if (v && !v.paused && !neededIds.has(id)) {
-          v.playbackRate = 1.0;
-          v.pause();
-        }
-      });
+      pauseInactivePreviewVideos(activePreviewVideoIdsRef.current, neededIds, videoElsRef.current);
+      activePreviewVideoIdsRef.current = neededIds;
       const activeCutoutKeys = new Set(plan.map(({ seg }) => String(seg.clip.id)));
       backgroundIsolationVideosRef.current.forEach((video, key) => {
         if (![...activeCutoutKeys].some((id) => key.startsWith(`${id}:`))) video._cutoutPlayback.deactivate();

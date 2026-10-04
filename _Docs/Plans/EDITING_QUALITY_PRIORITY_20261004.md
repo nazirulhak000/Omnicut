@@ -26,6 +26,9 @@
 6. รายงาน `_Docs/Reports/SOURCE_WINDOW_COVERAGE_20261004.md`; semantic model accuracy และการประเมินคลิปจริงยังไม่ใช่สิ่งที่ผลนี้รับรอง
 
 ## เป้าหมาย
+รอบตรวจตามผลจริงเสร็จ: read-only audit HOY01 สองแผน, browser3sources/masteraudio, preflight falsegap/metadata fixes; รายงาน `_Docs/Reports/EDITING_VALIDATION_20261004.md` ยังไม่ยืนยันความตรงหัวข้อหรือจบความคิดจากภาพจริงเพราะไม่มี semantic/sentence metadata ให้ตรวจ และไม่ rewrite manual shots
+ความคืบหน้ารอบ 3 เอเจนต์: source reuse เล่นต่อ/หมดแล้ว hold scene เดิม, preview time index/active decoder scheduling, preflight timeline + seek + render gate เสร็จแล้ว ตรวจเฉพาะส่วนตามคำขอผู้ใช้ รายงาน `_Docs/Reports/PARALLEL_EDITING_QUALITY_20261004.md`; ขั้นถัดไปประเมินคลิปจริงและการแก้มือ ไม่ขยาย Cutout
+
 ให้คลิปเล่าเรื่องตรงบท จังหวะเป็นธรรมชาติ ภาพ/เสียง/ซับตรงกัน และลดจำนวนครั้งที่ผู้ใช้ต้องแก้มือ ไม่ใช้จำนวนเอฟเฟกต์เป็นตัวชี้วัด
 
 ## ลำดับงาน

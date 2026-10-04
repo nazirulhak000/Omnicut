@@ -528,6 +528,9 @@ class ProductStore:
         export_id: Optional[str] = None,
         mark_qc_passed: bool = False,
         batch: Optional[int] = None,
+        cover_path: Optional[str] = None,
+        cover_3x4_path: Optional[str] = None,
+        cover_9x16_path: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Updates the lifecycle status of a specific script angle in a product.
 
@@ -722,6 +725,12 @@ class ProductStore:
                         angle["qc_reviewed"] = True
                     if clear_conflict_note:
                         angle["data_conflict_note"] = None
+                    if cover_path is not None:
+                        angle["cover_path"] = _to_relative(cover_path) if cover_path else None
+                    if cover_3x4_path is not None:
+                        angle["cover_3x4_path"] = _to_relative(cover_3x4_path) if cover_3x4_path else None
+                    if cover_9x16_path is not None:
+                        angle["cover_9x16_path"] = _to_relative(cover_9x16_path) if cover_9x16_path else None
                     if status == "posted" and not angle.get("posted_at"):
                         angle["posted_at"] = cls._now()
                     angle["updated_at"] = cls._now()

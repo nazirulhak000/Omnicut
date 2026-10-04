@@ -19,32 +19,8 @@
 - [ ] ผู้ใช้ยืนยันเรียก `/impeccable` `/ui-ux-pro-max` `/scrutinize` `/transitions-dev` ได้จริง
 Notes: Socket แจ้ง 1 alert ที่ `impeccable` (ตัวอื่น 0) — เจ้าของดูรายละเอียดที่ https://skills.sh/pbakaus/impeccable · ยังไม่ commit
 
-- [ ] Round MOBILE-STUDIO-FLOW-V2-20261004 · ดำเนินการโดย: Cline (Claude Sonnet 4.5)
-
-## Round MOBILE-STUDIO-FLOW-V2-20261004
-ดำเนินการโดย: Cline (Claude Sonnet 4.5)
-สถานะ: กำลังทำ — ผู้ใช้อนุมัติแผน `_Docs/Plans/PLAN_MOBILE_STUDIO_FLOW_V2_20261004.md` และสั่งเริ่ม P0 ทันที
-เป้าหมาย: ทำให้โหมดมือถือ "ทำงานได้จริง ไม่ตัน" — กันเรนเดอร์ตอนไม่มีคลิป ยกเลิกงานได้ กู้เมื่อโหลดพัง และ loading ไม่ยุบทั้งหน้า
-- [x] P0-1 preflight ก่อนเรนเดอร์ — Cline (Claude Sonnet 4.5): `MobileQuickStudio.jsx` hydrate session จากหน้ากล้อง (`getRecordingSession`) + `hasFootage` → disable ปุ่ม + ข้อความ + guard ใน handler
-- [x] P0-2 ยกเลิกการเรนเดอร์ — Cline (Claude Sonnet 4.5): `scripts/api_mobile_studio.py` `POST /cancel/{task_id}` (TaskManager.cancel_task + render_jobs.request_cancel) · `frontend/src/api.js` `cancelMobileTask` · ปุ่มยกเลิก + ConfirmModal ใน Step 3
-- [x] P0-3 กู้เมื่อโหลดพัง — Cline (Claude Sonnet 4.5): ปุ่ม "ลองใหม่" ใน error/empty state Step 1
-- [x] P0-4 loading ระดับปุ่ม — Cline (Claude Sonnet 4.5): แยก `confirming` state ไม่ยุบทั้งลิสต์ Step 1
-- [x] ตรวจสอบ — Cline (Claude Sonnet 4.5): py_compile OK · route cancel ลงทะเบียน · pytest `-k "cancel or cancelled"` 2 passed · esbuild transform OK · oxlint 0 errors · cleanup .tmp 100% (ดู `_Docs/Reports/MOBILE_STUDIO_P0_20261004.md`)
-- [x] P1-1 โหมดจำค่า/รีเฟรช — Cline (Claude Sonnet 4.5): `App.jsx` `resolveInitialMobileMode()` (URL > localStorage > width) + `applyUiMode()` persist + ตั้ง `?mode=` + ฟัง resize/orientationchange (auto เฉพาะเมื่อยังไม่เลือกเอง) · `onSwitchToDesktop/Mobile` ใช้ `applyUiMode`
-- [x] P1-2 safe-area — Cline (Claude Sonnet 4.5): เฮดเดอร์ `pt-[calc(env(safe-area-inset-top)+0.75rem)]` + แถบปุ่มล่าง (Step 1/2) `bottom-[calc(env(safe-area-inset-bottom)+1rem)]` → รอยบาก/home bar ไม่ทับปุ่ม
-- [x] P1-3 มาร์คโพสต์แล้วใน Step 4 — Cline (Claude Sonnet 4.5): ปุ่ม + `handleMarkPosted` เรียก `markPosted(video_path, product, angle)` + reset `postedDone` เมื่อเริ่มงานใหม่
-- [x] P1-4 UI คลีน — Cline (Claude Sonnet 4.5): ลบอีโมจิซ้อนไอคอน (`+ เพิ่มสินค้า`, `⚡ ถ่ายด่วน…`, `➕ เขียนมุม…`, `⚡ ถ่ายด่วน (ไปหน้าถ่ายทำ)`) ตาม `ui_clean_standard`
-- [x] ตรวจสอบ P1 — Cline (Claude Sonnet 4.5): `npm run build` **ผ่าน** (692ms) · esbuild `App.jsx`+`MobileQuickStudio.jsx` OK · oxlint 0 errors · `mobileStudioFlow.test.js` 6/6 · cleanup .tmp 100%
-- ℹ️ `editorShortcutKeys.js` ที่เคยพังถูกเจ้าของงานเดิมซ่อมแล้ว (build เขียว) แต่เทสต์ `editorShortcutKeys.test.js:212` ยังตก 1 ตัว = งาน KEYFRAME ไม่ใช่รอบนี้
-### 🥉 P2 (ทำต่อรอบเดียวกัน — แผนก่อนลงมือ 2026-10-04)
-- [ ] P2-1 PWA manifest + apple-touch-icon — ไฟล์ใหม่ `frontend/public/manifest.webmanifest` + `apple-touch-icon.png`/`pwa-192.png`/`pwa-512.png`/`pwa-512-maskable.png` + แท็ก `<link rel=manifest>`/`theme-color`/`apple-mobile-web-app-capable` ใน `frontend/index.html` · AC: เปิดจาก Home Screen ได้เต็มจอ + ไอคอนขึ้น
-- [ ] P2-2 อัปโหลด dedupe SHA-256 — `scripts/mobile_quick_studio.py::upload_mobile_video` คำนวณ SHA-256 + เทียบ size กับไฟล์เดิมใน `01_Raw/<product>/` ก่อนเขียน → ไฟล์ซ้ำใช้ไฟล์เดิม ไม่เขียนซ้ำ · AC: upload bytesเดิม 2 ครั้ง ได้ไฟล์เดียว + `deduplicated: true`
-- [ ] P2-3 Wake-Lock ระหว่างถ่าย/เรนเดอร์ — hook ใหม่ `frontend/src/hooks/useWakeLock.js` (ลองใหม่เมื่อกลับมา visible, release ตอน unmount) ใช้ที่ `MobileFilmingPage.jsx` + `MobileQuickStudio.jsx` ตอน Step 3 · AC: จอไม่ดับระหว่างถ่าย/เรนเดอร์, บราวเซอร์ที่ไม่รองรับไม่พัง
-- [ ] ตรวจสอบ P2 — pytest `tests/test_mobile_quick_studio.py` · `npm run build` · oxlint · `node --test src/lib/mobileStudioFlow.test.js` · cleanup `.tmp` 100%
-- ⏳ เลื่อน P2-4 (แบ่งหน้าแคตตาล็อก) — Jev choice=core, confidence 0.87 → ทำรอบถัดไปถ้าผู้ใช้สั่ง
-
-Ownership: Cline รอบนี้ถือ `MobileQuickStudio.jsx`, `api_mobile_studio.py`, `api.js`, `TODO.md` ฝั่งเพิ่มรอบนี้ — ไม่แตะไฟล์ของรอบ CODEX (SequencePlayer/preflight/stages) และไม่แตะ KEYFRAME ฝั่ง Antigravity
-Notes: ไม่ commit/push อัตโนมัติ · Jev ต้องรันผ่าน `.venv` (`.\\.venv\\Scripts\\python.exe tools/jev_advisor.py`) · P1/P2 ยังไม่ทำรอบนี้
+- [x] Round MOBILE-DESKTOP-SYNC-EXECUTION-20261004 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
+- [x] Round MOBILE-STUDIO-FLOW-V2-20261004 — ปิดรอบแล้ว · ดำเนินการโดย: Cline (Claude Sonnet 4.5) & Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
 
 - [x] Round CODEX-PARALLEL-EDITING-QUALITY-20261004 ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6) (HISTORY.md)
 

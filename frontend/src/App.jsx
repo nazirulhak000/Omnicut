@@ -33,6 +33,25 @@ import { createWorkspaceDataCoordinator } from './lib/workspaceData';
 import { TaskProvider } from './context/TaskContext';
 import { ActivityDrawer, GlobalTaskNotification, ActivityIndicatorButton, GlobalLiveRenderWidget } from './components/ActivityCenter';
 
+// Dual-mode UI: an explicit Desktop/Mobile choice (or a URL mode) must survive
+// a resize/rotate, while an untouched automatic choice keeps following the
+// viewport width. One key drives both the stored preference and that rule.
+const UI_MODE_STORAGE_KEY = 'omnicut.uiMode';
+
+function resolveInitialMobileMode() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'desktop') return false;
+    if (params.get('mode') === 'mobile' || params.get('quick') === '1') return true;
+    const saved = localStorage.getItem(UI_MODE_STORAGE_KEY);
+    if (saved === 'desktop') return false;
+    if (saved === 'mobile') return true;
+  } catch {
+    /* storage/URL unavailable -- fall through to the viewport width */
+  }
+  return typeof window !== 'undefined' && window.innerWidth < 768;
+}
+
 export default function App() {
   // Check if opened via Mobile Quick Post QR code
   const [isQuickPostMode] = useState(() => {
@@ -66,17 +85,39 @@ export default function App() {
   });
 
   // Dual-Mode: Mobile Quick Studio vs Desktop Pro
-  const [isMobileQuickMode, setIsMobileQuickMode] = useState(() => {
+  const [isMobileQuickMode, setIsMobileQuickMode] = useState(resolveInitialMobileMode);
+
+  // Persist an explicit switch and reflect it in the URL so a reload lands on
+  // the same mode the user picked.
+  const applyUiMode = useCallback((mobile) => {
+    setIsMobileQuickMode(mobile);
     try {
-      const p = new URLSearchParams(window.location.search);
-      if (p.get('mode') === 'desktop') return false;
-      if (p.get('mode') === 'mobile' || p.get('quick') === '1') return true;
-      // Auto-detect mobile screen width
-      return typeof window !== 'undefined' && window.innerWidth < 768;
-    } catch {
-      return false;
-    }
-  });
+      localStorage.setItem(UI_MODE_STORAGE_KEY, mobile ? 'mobile' : 'desktop');
+      const url = new URL(window.location.href);
+      url.searchParams.set('mode', mobile ? 'mobile' : 'desktop');
+      url.searchParams.delete('quick');
+      window.history.replaceState({}, '', url);
+    } catch { /* storage/history may be unavailable */ }
+  }, []);
+
+  // Keep following the viewport only while the choice is still automatic --
+  // an explicit pick or URL mode must not be overridden by a resize/rotate.
+  useEffect(() => {
+    const onViewportChange = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('mode') === 'desktop' || params.get('mode') === 'mobile' || params.get('quick') === '1') return;
+        if (localStorage.getItem(UI_MODE_STORAGE_KEY)) return;
+      } catch { return; }
+      setIsMobileQuickMode(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', onViewportChange);
+    window.addEventListener('orientationchange', onViewportChange);
+    return () => {
+      window.removeEventListener('resize', onViewportChange);
+      window.removeEventListener('orientationchange', onViewportChange);
+    };
+  }, []);
 
 
   // 1. Active Tab Persistence with Fallback Migration
@@ -456,7 +497,7 @@ export default function App() {
         <ErrorBoundary>
           <Suspense fallback={<LoadingSpinner message="กำลังเปิด OmniCut Mobile Studio..." />}>
             <MobileQuickStudio
-              onSwitchToDesktop={() => setIsMobileQuickMode(false)}
+              onSwitchToDesktop={() => applyUiMode(false)}
               onOpenFilmingSession={(sId, productId, angleId) => {
                 window.location.href = filmingUrl(sId, productId, angleId);
               }}
@@ -497,7 +538,7 @@ export default function App() {
               setUiScale={handleUiScaleChange}
               onOpenShortcuts={() => setShowShortcutsModal(true)}
               onRefresh={handleGlobalRefresh}
-              onSwitchToMobile={() => setIsMobileQuickMode(true)}
+              onSwitchToMobile={() => applyUiMode(true)}
               activeProductContext={activeProductContext}
               exportsCount={exportsList.length}
               videosCount={videos.length}

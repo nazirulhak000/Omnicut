@@ -441,6 +441,7 @@ class GeminiVisionMatcher:
         prev_action_type = None
         used_scene_counts: Counter[Any] = Counter()
         used_start_times: List[float] = []
+        consumed_scene_until = {}
 
         for g_idx, group_indices in enumerate(groups):
             group_cues = [cues[i] for i in group_indices]
@@ -578,7 +579,6 @@ class GeminiVisionMatcher:
             excess_dur = scene_len - needed_dur
 
             sweet_offset = 0.0
-            progression_offset = 0.0
             s_action = best_scene.get("action_type", "")
             s_id = best_scene.get("id")
 
@@ -594,23 +594,14 @@ class GeminiVisionMatcher:
                 else:
                     sweet_offset = min(0.8, max(0.4, excess_dur * 0.25))
 
-                # 2. Continuous Progression for Reused Long Scenes:
-                # When a long scene is used multiple times across the video,
-                # advance into the next segment of the scene so viewers don't see repeated frames.
-                reuse_count = used_scene_counts[s_id]
-                if reuse_count > 0:
-                    remaining_in_scene = excess_dur - sweet_offset
-                    if remaining_in_scene >= needed_dur * 0.8:
-                        progression_offset = min(remaining_in_scene, reuse_count * needed_dur * 0.8)
-
-            s_start = orig_start + sweet_offset + progression_offset
-            # Ensure start timestamp does not push past the scene's usable window
-            max_scene_start = max(orig_start, orig_end - needed_dur)
-            s_start = min(s_start, max_scene_start)
-
-            # Timestamp sanity
-            s_start = max(orig_start, min(s_start, orig_end - 1 / 30))
+            # Advance by consumed footage, never by reuse_count * current duration.
+            # The stage refines this against the final beat/J-lead shot spans.
+            scene_key = (s_id, orig_start, orig_end)
+            consumed_until = consumed_scene_until.get(scene_key)
+            requested_start = consumed_until if consumed_until is not None else orig_start + sweet_offset
+            s_start = max(orig_start, min(requested_start, orig_end - 1 / 30))
             s_end = min(raw_duration, orig_end)
+            consumed_scene_until[scene_key] = min(s_end, requested_start + needed_dur)
 
             # Dynamic punch zoom
             base_zoom = float(best_scene.get("punch_zoom", 1.15))
@@ -633,8 +624,9 @@ class GeminiVisionMatcher:
                 "scene_id": best_scene.get("id"),
                 "scene_start": round(orig_start, 2),
                 "scene_end": orig_end,
-                "start_time": round(s_start, 2),
+                "start_time": s_start,
                 "end_time": round(s_end, 2),
+                **({"consumed_source_until": consumed_until} if consumed_until is not None else {}),
                 "visual_reason": f"จับคู่ฉาก {best_scene.get('action_type', 'scene')} ({best_scene.get('angle_phase', 'normal')}): {best_scene.get('description', '')[:45]}",
                 "punch_zoom": round(zoom, 2),
                 "selection_evidence": sorted(scored_scenes[0][2]),
