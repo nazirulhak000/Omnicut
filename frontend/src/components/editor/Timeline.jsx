@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TransitionIcon } from '../../lib/transitionIcons';
 import {
@@ -16,6 +16,7 @@ import TransitionDurationControl from './timeline/TransitionDurationControl';
 import { TRANSITION_POPOVER_OPTIONS } from '../../lib/transitionControls.js';
 import { previewOnlyLaneLabel, previewOnlyEyeTitle } from '../../lib/laneVisibilityLabel.js';
 import { useTimelineKeyboard } from '../../hooks/useTimelineKeyboard';
+import { clampPxPerSec, scrollLeftForAnchor } from '../../lib/timelineZoom.js';
 import { useTimelineDrag } from '../../hooks/useTimelineDrag';
 import {
   overlayLabel,
@@ -27,6 +28,7 @@ import {
 import { CLIP_DRAG_TYPE, TEXT_TEMPLATE_DRAG_TYPE } from './AssetPanel';
 import { getAudioPeaks, MAX_DECODE_SECONDS } from '../../lib/audioPeaks';
 import { formatTimecode, FADE_DURATION } from '../../lib/timelineMath';
+import { voiceCutMarkers } from '../../lib/rippleUi';
 import { resolveBackgroundIsolationConfig, scopedArtifactCoversClip, subjectLayerForOverlay } from '../../lib/backgroundIsolationPreview.js';
 
 const RULER_H = 22;
@@ -189,11 +191,21 @@ export default function Timeline({
   // Newer shell prop names. Both sets are accepted so the timeline keeps
   // working whichever shape the shell passes.
   onSelect,
+  // Multi-select: every selected clip id (primary included), and the handler for
+  // Ctrl/Shift+click -> (clipId, 'toggle' | 'range' | 'focus'). Both optional.
+  selectedClipIds = [],
+  onSelectClipWithMode,
+  // Copy / paste clip settings from the clip context menu (all optional).
+  onCopySettings,
+  onPasteSettings,
+  canPasteSettings = false,
   onClipChange,
   onCaptionChange,
   onBeginDrag,
   onEndDrag,
   onZoom,
+  // (px/s) => void. When given, Ctrl+wheel zooms continuously around the cursor.
+  onZoomTo,
   viewportRef,
   audioUrl,
   isAudioMuted = false,
@@ -233,8 +245,14 @@ export default function Timeline({
   backgroundIsolation = null,
   cutoutIntervals = {},
   cutoutArtifactAvailability = {},
+  cutoutProcessingClipIds = [],
+  cutoutQueuedClipIds = [],
   isCutoutHidden = false,
   onToggleCutout,
+  // Ripple delete: the ACTIVE voice edit (null when none / stale) gets a thin
+  // orange marker per cut on the voice lane; `rangeMark` is the I / O pair.
+  voiceEdit = null,
+  rangeMark = null,
 }) {
   // The banner and the text overlays are one array; the two lanes are a view
   // of it, so a trim on either takes the same clamp and the same handler.
@@ -286,7 +304,13 @@ export default function Timeline({
     onSelect?.(null);
   };
 
-  const selectClip = (id) => {
+  const selectClip = (id, mode) => {
+    // Ctrl/Shift+click and right-click on a selected clip adjust the set instead
+    // of replacing it (the shell seeks and sets the primary itself).
+    if (mode && mode !== 'replace' && onSelectClipWithMode) {
+      onSelectClipWithMode(id, mode);
+      return;
+    }
     if (onSelectClip) onSelectClip(id);
     else onSelect?.({ type: 'clip', id });
     const seg = segments.find((sg) => sg.clip?.id === id);
@@ -476,10 +500,41 @@ export default function Timeline({
   const rowStyle = (key) => rowStyleOf[key] || { height: 0, marginTop: 0 };
   const tracksHeight = rows.reduce((sum, r) => sum + r.height + r.marginTop, 0);
 
+  // Ctrl/Cmd+wheel: continuous zoom that keeps the time under the cursor
+  // still. Several wheel events can land before React re-renders, so they
+  // accumulate into one pending anchor measured against the DOM as it is
+  // (old px/s, old scrollLeft); the layout effect below applies it once the
+  // wider/narrower content exists.
+  const zoomAnchorRef = useRef(null);
+  const skipFollowOnceRef = useRef(false);
+  const pxPerSecRef = useRef(pxPerSec);
+  pxPerSecRef.current = pxPerSec;
+  const handleZoomAt = useCallback((factor, anchorX) => {
+    const el = scrollRef.current;
+    if (!el || !onZoomTo) return;
+    const pending = zoomAnchorRef.current;
+    const base = pending || { pxPerSec: pxPerSecRef.current, scrollLeft: el.scrollLeft };
+    const from = pending ? pending.nextPxPerSec : pxPerSecRef.current;
+    const next = clampPxPerSec(from * factor);
+    if (Math.abs(next - from) < 1e-9) return;
+    zoomAnchorRef.current = { ...base, nextPxPerSec: next, anchorX };
+    onZoomTo(next);
+  }, [onZoomTo]);
+  useLayoutEffect(() => {
+    const anchor = zoomAnchorRef.current;
+    const el = scrollRef.current;
+    if (!anchor || !el) return;
+    if (Math.abs(anchor.nextPxPerSec - pxPerSec) > 1e-9) return; // another zoom source won
+    zoomAnchorRef.current = null;
+    el.scrollLeft = scrollLeftForAnchor({ ...anchor, gutter: gutterW });
+    skipFollowOnceRef.current = true;
+  }, [pxPerSec]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Global listeners for Escape, click outside, and native Ctrl/Cmd + wheel zoom
   useTimelineKeyboard({
     scrollRef,
     onZoom,
+    onZoomAt: onZoomTo ? handleZoomAt : undefined,
     transitionMenuClipId,
     setTransitionMenuClipId,
     contextMenu,
@@ -514,6 +569,8 @@ export default function Timeline({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || el.offsetParent === null) return;
+    // A cursor-anchored wheel zoom just placed the view on purpose.
+    if (skipFollowOnceRef.current) { skipFollowOnceRef.current = false; return; }
     const x = gutterW + playhead * pxPerSec;
     const left = el.scrollLeft;
     const right = left + el.clientWidth;
@@ -692,6 +749,8 @@ export default function Timeline({
   }, [totalDuration, audioDuration, step]);
 
   const sfxMarkers = (cues || []).filter((c) => c.sfx);
+  // Where each ripple cut joined the voice, on the program clock.
+  const voiceCutMarks = useMemo(() => voiceCutMarkers(voiceEdit), [voiceEdit]);
 
   return (
     <div className="flex h-full flex-col bg-[#1C1B19]">
@@ -723,6 +782,7 @@ export default function Timeline({
             onStartScrub={startScrub}
             onMoveScrub={moveScrub}
             onEndScrub={endScrub}
+            rangeMark={rangeMark}
           />
 
           {/* Track lanes */}
@@ -982,12 +1042,15 @@ export default function Timeline({
                     seg={seg}
                     pxPerSec={pxPerSec}
                     isSelected={selection?.type === 'clip' && selection.id === seg.clip.id}
+                    isExtraSelected={!(selection?.type === 'clip' && selection.id === seg.clip.id)
+                      && selectedClipIds.includes(seg.clip.id)}
                     onSelect={selectClip}
                     onContextMenu={handleClipContextMenu}
                     onAdjustTrim={onAdjustTrim}
                     onTrim={trimClip}
                     onTrimBegin={dragBegin}
                     onTrimEnd={dragEnd}
+                    onSeek={onSeek}
                     onReorder={(id, dir) => reorder(id, dir, false)}
                     onBodyDragStart={onBodyDragStart}
                     onBodyDragMove={onBodyDragMove}
@@ -1213,7 +1276,9 @@ export default function Timeline({
                     : segments.map((seg) => {
                     const clipIso = resolveBackgroundIsolationConfig(seg.clip, backgroundIsolation);
                     const isIsoOn = clipIso?.enabled === true;
-                    const isReady = clipIso?.artifact?.status === 'ready';
+                    const isProcessing = Boolean(cutoutProcessingClipIds?.includes(seg.clip.id));
+                    const isQueued = Boolean(cutoutQueuedClipIds?.includes(seg.clip.id));
+                    const isReady = !isProcessing && !isQueued && clipIso?.artifact?.status === 'ready';
                     const w = Math.max(16, seg.dur * pxPerSec);
                     return (
                       <div
@@ -1222,21 +1287,23 @@ export default function Timeline({
                           e.stopPropagation();
                           selectClip(seg.clip.id);
                         }}
-                        title={`Cutout สินค้า: ช็อต #${seg.index + 1} (${isIsoOn ? (isReady ? 'พร้อมใช้งาน' : 'กำลังเตรียม') : 'ปิดใช้งาน'})`}
+                        title={`Cutout สินค้า: ช็อต #${seg.index + 1} (${isProcessing ? 'กำลังประมวลผล' : isQueued ? 'รอคิวตัดในรอบนี้' : isIsoOn ? (isReady ? 'พร้อมใช้งาน' : 'รอคิว Cutout') : 'ปิดใช้งาน'})`}
                         className={`group absolute top-0.5 h-[calc(100%-4px)] rounded text-xs select-none flex items-center px-2 gap-1.5 transition-all cursor-pointer ${
                           isCutoutHidden
                             ? 'opacity-30 bg-[#282724] text-[#9C968F] ring-1 ring-white/10'
-                            : isIsoOn && isReady
-                              ? 'bg-[#2E1065]/80 text-[#C084FC] border border-[#7C3AED]/60 shadow-[0_0_8px_rgba(124,58,237,0.25)] hover:border-[#A855F7]'
-                              : isIsoOn
-                                ? 'bg-[#3A2208]/80 text-[#FDBA74] border border-[#EA580C]/50'
-                                : 'bg-[#1C1917]/50 text-[#78716C] border border-white/5 opacity-50 hover:opacity-80'
+                            : isProcessing
+                              ? 'bg-[#78350F]/90 text-[#FDE68A] border border-[#F59E0B] shadow-[0_0_12px_rgba(245,158,11,0.4)] animate-pulse'
+                              : isIsoOn && isReady
+                                ? 'bg-[#2E1065]/80 text-[#C084FC] border border-[#7C3AED]/60 shadow-[0_0_8px_rgba(124,58,237,0.25)] hover:border-[#A855F7]'
+                                : isIsoOn
+                                  ? 'bg-[#3A2208]/80 text-[#FDBA74] border border-[#EA580C]/50'
+                                  : 'bg-[#1C1917]/50 text-[#78716C] border border-white/5 opacity-50 hover:opacity-80'
                         }`}
                         style={{ left: seg.segStart * pxPerSec, width: w }}
                       >
-                        <Scissors className={`h-3 w-3 flex-shrink-0 ${isIsoOn && isReady ? 'text-[#C084FC]' : 'text-slate-500'}`} />
+                        <Scissors className={`h-3 w-3 flex-shrink-0 ${isProcessing ? 'text-[#FDE68A] animate-spin' : isIsoOn && isReady ? 'text-[#C084FC]' : 'text-slate-500'}`} />
                         <span className="truncate font-semibold text-[10.5px]">
-                          {isIsoOn && isReady ? 'Cutout สินค้า' : isIsoOn ? '⏳ รอ Cutout' : 'ไม่มี Cutout'}
+                          {isProcessing ? '⚡ กำลังตัด...' : isIsoOn && isReady ? 'Cutout สินค้า' : isIsoOn ? '⏳ รอ Cutout' : 'ไม่มี Cutout'}
                         </span>
                         {isIsoOn && isReady && (
                           <span className="ml-auto text-[9.5px] font-mono text-[#C084FC]/70 flex-shrink-0">
@@ -1504,6 +1571,22 @@ export default function Timeline({
                       />
                     ))}
 
+                    {/* Ripple cuts of the voice: a thin orange line where the two
+                        sides were joined. Hover says how much was taken out;
+                        restoring a cut is not offered yet. A small hit area keeps
+                        the tooltip reachable without swallowing a click on the lane. */}
+                    {key === 'voice' && voiceCutMarks.map((mark) => (
+                      <div
+                        key={`voice-cut-${mark.id}`}
+                        data-voice-cut-marker={mark.id}
+                        className="absolute inset-y-0 z-20 -translate-x-1/2 cursor-help"
+                        style={{ left: mark.time * pxPerSec, width: 7 }}
+                        title={mark.title}
+                      >
+                        <span className="absolute inset-y-0.5 left-1/2 w-[2px] -translate-x-1/2 rounded-full bg-[#F08A4B] shadow-[0_0_4px_rgba(240,138,75,0.7)]" />
+                      </div>
+                    ))}
+
                     {/* clip lane: a block wherever a clip contributes its own audio.
                         Clip volume defaults to 0, so this lane is empty for most
                         projects -- say so rather than leaving a blank strip. */}
@@ -1599,6 +1682,10 @@ export default function Timeline({
         onAdjustTrim={() => onAdjustTrim?.(contextMenu.seg)}
         onClipChange={onClipChange}
         onDelete={onDelete}
+        selectedCount={selectedClipIds.length}
+        onCopySettings={onCopySettings}
+        onPasteSettings={onPasteSettings}
+        canPasteSettings={canPasteSettings}
       />
     </div>
   );

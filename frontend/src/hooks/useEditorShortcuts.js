@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { classifyShortcut, isEditableTarget, shouldIgnoreShortcutTarget } from '../lib/editorShortcutKeys.js';
+import { editNavigationTarget } from '../lib/timelineTrimOps.js';
 
 /**
- * Hook to manage timeline keyboard verbs (Space, B, Z, Y, J-K-L, Arrows, Delete).
+ * Hook to manage timeline keyboard verbs (Space, B, Z, Y, J-K-L, Arrows, Delete,
+ * Q/W trim to playhead, Up/Down edit points, Home/End, I/O In-Out marks,
+ * Shift+Delete range ripple).
  * Handlers are stashed in a ref so the window listener is registered only once.
  */
 export function useEditorShortcuts({
@@ -15,14 +18,33 @@ export function useEditorShortcuts({
   playhead,
   totalDuration,
   audioDuration,
+  // Continuous zoom: (dir) => void hops to the next preset. setZoomIndex is
+  // the older index-based form, kept for callers that still pass it.
+  onZoomStep,
   setZoomIndex,
   zoomLevelsLength = 5,
   selectedSeg,
   patchClip,
   zen,
   setZen,
+  // Escape drops a multi-clip selection (only while more than one is selected).
+  multiSelectCount = 0,
+  clearSelection,
+  copyClipSettings,
+  pasteClipSettings,
   onToggleSnap,
   onCycleCutoutMode,
+  trimHeadAtPlayhead,
+  trimTailAtPlayhead,
+  segments = [],
+  cues = [],
+  // Ripple range cut: I / O mark In / Out at the playhead, Shift+Delete cuts the
+  // marked range, Escape clears the marks (`hasRange` = any mark is set).
+  hasRange = false,
+  onMarkIn,
+  onMarkOut,
+  onRippleRange,
+  onClearRange,
 } = {}) {
   const keyHandlerRef = useRef(null);
 
@@ -41,9 +63,16 @@ export function useEditorShortcuts({
 
       // Modified combos not explicitly claimed (Ctrl+S, Ctrl++, ...) come back
       // as 'none' with preventDefault false, so the browser/app keeps them.
-      const { action, preventDefault, delta } = classifyShortcut(e, { zen });
+      const { action, preventDefault, delta } = classifyShortcut(e, {
+        zen,
+        multiSelect: multiSelectCount > 1,
+        hasRange,
+      });
       if (action === 'none') return;
       if (shouldIgnoreShortcutTarget(e.target, action)) return;
+      // Escape also closes the clip context menu (useTimelineKeyboard): that
+      // press only closes the menu and keeps the selection (or range) it belongs to.
+      if ((action === 'clearSelection' || action === 'clearRange') && document.querySelector('[data-context-menu]')) return;
       if (preventDefault) e.preventDefault();
 
       const jump = (d) => {
@@ -57,14 +86,33 @@ export function useEditorShortcuts({
         case 'redo': redo?.(); break;
         case 'split': splitAtPlayhead?.(); break;
         case 'exitZen': setZen?.(false); break;
+        case 'clearSelection': clearSelection?.(); break;
+        case 'copySettings': copyClipSettings?.(); break;
+        case 'pasteSettings': pasteClipSettings?.(); break;
         case 'togglePlay': togglePlayer?.(); break;
         case 'jump': jump(delta); break;
+        case 'trimHead': trimHeadAtPlayhead?.(); break;
+        case 'trimTail': trimTailAtPlayhead?.(); break;
+        case 'prevEdit':
+        case 'nextEdit':
+        case 'seekStart':
+        case 'seekEnd': {
+          const target = editNavigationTarget(action, { segments, cues, playhead: playhead || 0, totalDuration });
+          if (target !== null) seekPlayer?.(target);
+          break;
+        }
         case 'delete': deleteSelected?.(); break;
+        case 'markIn': onMarkIn?.(); break;
+        case 'markOut': onMarkOut?.(); break;
+        case 'rippleRange': (onRippleRange || deleteSelected)?.(); break;
+        case 'clearRange': onClearRange?.(); break;
         case 'zoomIn':
-          setZoomIndex?.((i) => Math.min(zoomLevelsLength - 1, i + 1));
+          if (onZoomStep) onZoomStep(1);
+          else setZoomIndex?.((i) => Math.min(zoomLevelsLength - 1, i + 1));
           break;
         case 'zoomOut':
-          setZoomIndex?.((i) => Math.max(0, i - 1));
+          if (onZoomStep) onZoomStep(-1);
+          else setZoomIndex?.((i) => Math.max(0, i - 1));
           break;
         case 'toggleFade':
           if (selectedSeg && selectedSeg.index > 0) {

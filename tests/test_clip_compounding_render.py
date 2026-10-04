@@ -92,18 +92,21 @@ def test_fresh_clips_receive_overlap_compensation_only_once():
     with patch("scripts.project_manifest.ProjectManifest.save") as mock_save:
         VideoAssemblyStage.run(ctx)
 
-    # First clip got +0.25 overlap compensation
-    assert ctx.actual_clip_list[0]["duration"] == 2.75
-    assert ctx.actual_clip_list[0]["trim_end"] == 2.75
+    # The 0.25 overlap is centred on the cut (round EDITOR-CUT-QUALITY-R2,
+    # audit A7d): the first clip runs 0.125 past it ...
+    assert ctx.actual_clip_list[0]["duration"] == 2.625
+    assert ctx.actual_clip_list[0]["trim_end"] == 2.625
     assert ctx.actual_clip_list[0].get("_overlap_compensated") is True
 
-    # Last clip should NOT get overlap compensation
-    assert ctx.actual_clip_list[1]["duration"] == 2.5
+    # ... and the second starts 0.125 earlier in its source; its end is untouched
+    assert ctx.actual_clip_list[1]["duration"] == 2.625
+    assert ctx.actual_clip_list[1]["trim_start"] == 2.375
     assert ctx.actual_clip_list[1]["trim_end"] == 5.0
 
     # If VideoAssemblyStage runs again on the same clips, it must not inflate again
     with patch("scripts.project_manifest.ProjectManifest.save") as mock_save:
         VideoAssemblyStage.run(ctx)
 
-    assert ctx.actual_clip_list[0]["duration"] == 2.75
-    assert ctx.actual_clip_list[0]["trim_end"] == 2.75
+    assert ctx.actual_clip_list[0]["duration"] == 2.625
+    assert ctx.actual_clip_list[0]["trim_end"] == 2.625
+    assert ctx.actual_clip_list[1]["trim_start"] == 2.375

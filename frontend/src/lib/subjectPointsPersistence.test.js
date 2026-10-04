@@ -55,6 +55,21 @@ test('subject_points round-trip load -> save payload -> reload in editorProjectS
   assert.deepEqual(serializeRenderFeatures(reloaded).background_isolation.subject_points, points);
 });
 
+test('picker source/time scopes survive editor and TimelineV2 save/load/render serialization', () => {
+  const config = cutout({ subject_points: [{ x: 0.2, y: 0.3, label: 1 }],
+    prompt_reference_source: '01_Raw/take-b/clip.mp4', prompt_reference_start: 3.125 });
+  const loaded = manifestToEditorState({ background_isolation: config });
+  const payload = editorStateToSavePayload(loaded);
+  const reloaded = manifestToEditorState(payload);
+  for (const value of [payload.background_isolation,
+    serializeRenderFeatures(reloaded).background_isolation,
+    throughTimelineSchema(config).manifest.background_isolation]) {
+    assert.equal(value.prompt_reference_source, config.prompt_reference_source);
+    assert.equal(value.prompt_reference_start, config.prompt_reference_start);
+    assert.deepEqual(value.subject_points, config.subject_points);
+  }
+});
+
 test('subject_points are clamped, defaulted, capped and cleaned in editorProjectState', () => {
   const noisy = [
     { x: -3, y: 4 },

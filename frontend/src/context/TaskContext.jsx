@@ -151,14 +151,17 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
         const prevStatus = prevStatusesRef.current[t.id];
         if (prevStatus && prevStatus !== t.status) {
           if (t.status === 'completed') {
-            playCompletionChime();
-            setNotificationToast({
-              type: 'success',
-              title: '🎉 งานเสร็จสมบูรณ์!',
-              message: t.step_label || t.title,
-              task: t,
-              time: Date.now()
-            });
+            const isCutoutSlice = t.type === 'background_isolation' || t.task_type === 'background_isolation';
+            if (!isCutoutSlice) {
+              playCompletionChime();
+              setNotificationToast({
+                type: 'success',
+                title: '🎉 งานเสร็จสมบูรณ์!',
+                message: t.step_label || t.title,
+                task: t,
+                time: Date.now()
+              });
+            }
             // Auto-refresh child views
             setRefreshTrigger(prev => prev + 1);
           } else if (t.status === 'failed') {

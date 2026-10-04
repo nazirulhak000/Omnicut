@@ -88,7 +88,10 @@ def test_effect_loops_past_its_media_length_like_the_preview(tmp_path, monkeypat
         encoding="utf-8",
     )
 
-    effect_start, effect_end = 0.2, 2.4
+    # End at 2.6 so the 2.30 s sample is past the 0.2 s exit fade
+    # (video_editor.overlay_anim_filters, same in the preview) and still
+    # inside the looped black half.
+    effect_start, effect_end = 0.2, 2.6
     result = VideoEditor.assemble_tiktok_video(
         raw_video_paths=[str(source)],
         total_duration=3.0,

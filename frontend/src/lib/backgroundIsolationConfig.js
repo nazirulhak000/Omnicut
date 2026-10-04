@@ -72,6 +72,11 @@ export function normalizeBackgroundIsolation(value) {
   // A non-boolean switch fails closed like the other options, while unusable
   // points are simply dropped.
   if (value.auto_prompt !== undefined && typeof value.auto_prompt !== 'boolean') return null;
+  if (value.prompt_reference_start !== undefined && (typeof value.prompt_reference_start !== 'number'
+    || !Number.isFinite(value.prompt_reference_start) || value.prompt_reference_start < 0)) return null;
+  if (value.prompt_reference_source !== undefined && (typeof value.prompt_reference_source !== 'string'
+    || !value.prompt_reference_source.trim() || value.prompt_reference_source.length > 4096
+    || value.prompt_reference_source.includes('\0') || value.prompt_reference_start === undefined)) return null;
   const clone = cloneValue(value);
   const subjectPoints = normalizeSubjectPoints(value.subject_points);
   if (subjectPoints.length > 0) {

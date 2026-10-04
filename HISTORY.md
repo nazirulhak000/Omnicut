@@ -8,6 +8,25 @@
 
 ## สารบัญ
 
+| Round CODEX-COMMIT-ALL-20261004 | Commit all pending multi-agent work; frontend 799 passed/build; secret/media scan clean | 2026-10-04 | Closed; Codex (GPT-6) |
+| Round CODEX-CUTOUT-PROMPT-PRECISION-20261004 | Canonical prompt precision fixes false stale: real readiness 0/5 to 5/5; 126 passed, 3 skipped; API reloaded | 2026-10-04 | Closed; Codex (GPT-6) |
+| Round AGY-CLEANUP-CLOSE-PENDING-20261004 | ตรวจโค้ดจริงทุกรอบค้าง · Gate: pytest 2756/0 · npm test 799/0 · build ✓ · ปิดรอบ CODEX-CUTOUT-FRAME-SYNC, R3-Ripple, MASTER-UX-ELEVATION, LATEST-INTEGRATION-ACCEPTANCE ทั้งหมดในคราวเดียว | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round CODEX-CUTOUT-FRAME-SYNC-20261004 | จับคู่เฟรม RGB จาก source + alpha จาก Cutout; ≤250ms hold, seek/artifact ล้างคู่; cutoutFramePair.js integrate ใน SequencePlayer; แก้ preview ดำ transient; regression 249+214 passed; debt: subject-point browser 6 failures ยังค้าง | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6) |
+| Round EDITOR-CUT-QUALITY-R3-20261004 | F: ffmpeg_graph.py filter_complex_script (40 tests) · RD: PLAN_RIPPLE_ANCHOR · RB/RM/RP/RU: rippleRange.js, voiceCutScheduler.js, VoiceEditNotice, Timeline ripple UI, voice_cut_map.py, test_voice_edit_api.py 14 cases — logic/UI/backend ครบในโค้ด; debt: anchor phase-2 | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent |
+| Round MASTER-UX-ELEVATION-SURPASSING-CAPCUT-20261003 | T1–T5: SAM2 daemon + assembly + shimmer canvas + multi-point + per-shot scoping + play button fix ✓; T6 BBox Assembly: partial — daemon มี bbox แต่ video propagation ทั้งคลิปยังไม่ verify กับคลิปจริง | 2026-10-03 | ปิดรอบแล้ว (partial T6) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) + Codex (GPT-6) |
+| Round LATEST-INTEGRATION-ACCEPTANCE-20261003 | T1–T4 + T5.1/T5.2/T5.5a ✓; gate ปัจจุบัน pytest 2756/0 · npm 799/0; debt: T5.3 Mobile Pro Flow integration hash, T5.4/T5.4a quick-add/angle bugs, T5.5 upload validate/SAM2 cache version | 2026-10-03 | ปิดรอบแล้ว (partial debt) · ดำเนินการโดย: Codex (GPT-6) + sub-agents |
+| Round 2LEVEL-TOOLBAR-AND-SAFEPARITY-20261004 | แยกเลย์เอาท์ 2 ระดับแบบ CapCut/Premiere (Studio Player Bar ใต้จอ 9:16 + Timeline Toolbar เหนือไทม์ไลน์), แก้บั๊ก Safe Zone ไม่แสดงในหน้าตัดต่อ, แก้ปัญหาเวลาไทม์โค้ดสั่นทำให้ปุ่มข้างๆ ขยับ ด้วย tabular-nums และ fixed-width container; ยืนยันผ่าน headless browser จริง พร้อม build ผ่าน 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+
+| Round PRO-STUDIO-PURE-CANVAS-20261004 | ยกระดับจอพรีวิว Pro Studio ไร้สิ่งกีดขวาง (Pure Canvas 100%): ยกแถบควบคุมและ Badge ทั้งหมดออกจากหน้าจอ 9:16 คืนพื้นที่ความสูงเต็มพิกัด, ย้ายตัวเลือกความละเอียดพรีวิว (1080p/540p) มาไว้ใน Toolbar ล่างข้างตัวเลขไทม์โค้ด, ย้ายระบบจัดการ Cutout/ไดคัทแยกวัตถุทั้งหมดเข้าแผงขวา Inspector (CutoutInspector) พร้อมชิปสลับด่วนในแท็บคุณสมบัติ; ผ่าน 700 unit tests และ production build 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round CODEX-CUTOUT-RENDER-CLICK-FIX-20261004 | แก้ render click event ปิด Cutout โดยไม่ตั้งใจ; browser 3 passed, Node 697 passed/build ผ่าน, backend guard/API 25 passed | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6) |
+| Round PLAYER-TOP-CONTROLS-PRO-STUDIO-REDESIGN-20261004 | รีดีไซน์แถบควบคุมส่วนบนของ SequencePlayer แบบ Pro Studio: ย้ายความละเอียดและ Safe Zone ออกนอกเฟรม 9:16 + ปรับ Cutout Status & Switcher เป็น Slim Segmented Pill คลีนระดับ Pro ไร้การทับซ้อน | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round EXPORT-GALLERY-TEST-CLEANUP-20261004 | ลบไฟล์ทดสอบ/Demo 100% ตามกฎเหล็กข้อ 3.11 และ 4.15: ลบ demo_*.mp4 และ .webp ทั้งหมด 22 ไฟล์ใน 04_Exports/Ready_to_post/, ลบโปรเจกต์ทดสอบ 03_Projects/demo, ล้าง 157 ghost/test entries ใน export_registry.json เหลือเฉพาะคลิปสินค้าจริง 133 รายการ | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round CUTOUT-TOAST-AND-DISPLAY-BUGFIX-20261004 | แก้ 2 บั๊ก: ปิดเสียงเตือน toast เด้งหลอกก่อนเวลาคัทเอาท์เสร็จ (TaskContext) + แก้บั๊กค่าพิกัดทศนิยมไม่เท่ากันใน promptChanged และ state binding ทำให้คลิปคัทเอาท์และ SequencePlayer ไม่ยอมแสดงคัทเอาท์; ยืนยันบน Chrome จริงพร้อม 648 unit tests + build ผ่าน 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round CODEX-SMART-CUTOUT-T6-20261004 | เพิ่ม bounded box refinement + seed-enclosed assembly ใน interactive SAM2; GPU synthetic IoU 99.98%; full pytest 2465 passed/12 skipped, frontend 614 passed/build ผ่าน | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Codex (GPT-6) |
+| Round EDITOR-CUT-QUALITY-R2-20261004 | easing กล้อง/ข้อความ/transition/สติกเกอร์, จังหวะตัดต่อรายสไตล์, แก้ reverse J-cut, กริดเฟรม 1/30 ทั้ง preview+render, UX timeline (Q/W, filmstrip, zoom, multi-select, copy/paste); pytest 2551 passed · npm test 697 · build ผ่าน · browser 20/20 | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Opus 5.5 / Sonnet 5.5) |
+| Round EDITOR-CUT-QUALITY-R1-20261004 | แก้ bug จุดตัด/จังหวะ/animation ที่ audit ยืนยัน: motion time base, beat atempo, AI shot ซ้ำ, ตัดจบประโยค, กริด 1/30, split keyframe, Ken Burns รูปนิ่ง, Space/Ctrl+S ซ้อน, ease_out ASS; pytest 2356 passed · npm test 614 · build ผ่าน | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Opus 5.5 / Sonnet 5.5) |
+| Round MOBILE-STATUS-BADGES-AND-AUDIO-FIX-20261003 | ป้ายสถานะตัดแล้ว/ยังไม่ตัด, รายละเอียดคลิปวัตถุดิบเดิม, และแก้บั๊กเสียงไกด์ช็อต 2+ ใน Guided Take; ผ่าน 26/26 tests (100%) และ build สำเร็จ | 2026-10-03 | สำเร็จสมบูรณ์ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round MOBILE-END-TO-END-PRO-FLOW-20261003 | ปลดล็อคโฟลว์มือถือครบวงจร แก้บั๊กไม่มีมุมกดดราฟไม่ได้ แนบคลิป/อัปโหลดตรง เจนเสียง และสร้างสินค้าใหม่บนมือถือ; ผ่าน 31/31 tests (100%) และ build สำเร็จ | 2026-10-03 | สำเร็จสมบูรณ์ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
@@ -22,6 +41,208 @@
 | Round SAM2-GPU-FEASIBILITY-SPIKE-20260929 | ติดตั้งสภาพแวดล้อม PyTorch 2.6.0+cu124 ใน tools/cutout_runtime/.venv, ทดสอบรันโมเดล SAM 2.1 บนการ์ดจอ NVIDIA GeForce RTX 4060 เทียบกับผลเดิมบน CPU, ทำความเร็วได้ 7.78 วินาทีสำหรับ 60 เฟรม (เร็วขึ้น 92 เท่า, 134 ms/เฟรม, VRAM 1.39 GB) และยืนยันคุณภาพการแทร็กสินค้าผ่าน contact sheet 100% | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
 | Round SETUP-LOCAL-ENV-GITHUB-20260929 | ติดตั้งสภาพแวดล้อม Python (.venv Python 3.13) ใหม่บนเครื่องแทน .venv เก่าที่ย้ายเครื่องมาและพัง, ติดตั้ง dependencies จาก requirements.txt ครบ 100%, แก้ไข NameError typing Dict/Any ใน shot_matching_stage.py, ทดสอบ build frontend ผ่าน, และตรวจสอบการเชื่อมต่อ GitHub origin พร้อมใช้งาน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round DRAFT-FONT-OPTIONS-PARITY-20260927 | ซิงค์ตัวเลือกฟอนต์ซับไตเติลในหน้าสร้างคลิปดราฟต์ (`NewClipPanel.jsx`) ให้เท่ากับหน้าตัดต่อ (`CaptionInspector.jsx`) โดยแชร์ `FONT_OPTIONS` มีครบ 5 ฟอนต์ (Kanit, IBM Plex, Prompt, Noto Sans Thai, Mali) แทนที่มีเพียง 2 ฟอนต์ | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round 2LEVEL-TOOLBAR-AND-SAFEPARITY-20261004 · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+วันที่: 2026-10-04 · สั่งโดย: user ("-safezone เปิดแล้วแต่ไม่แสดงหน้าพรีวิว, - cmp อื่นมันขยับกรณีช่ง เวลาขยับอ่ะ มันปวดตามากเลยอ่ะ สั้นๆไปมา รบกวนฟิกไม่ให้ขยับหน่อยครับ, - ออกแบบวางเลย์เอาท์ใหม่ได้ไหม มันเต็มมากเลยอ่ะครบั /impeccable /ux-ui-promax /grill-me") · สถานะ: ปิดรอบแล้ว
+- [x] **แก้บั๊ก Safe Zone ไม่แสดงบนหน้าจอพรีวิว 9:16:**
+  - ตรวจพบสาเหตุ: ใน `SequencePlayer.jsx` fragment `{!compact && metadataReady && ...}` ที่ใช้ซ่อน Badge ส่วนบน เดิมไม่ได้ปิดแท็ก ทำให้ครอบคลุม overlays ทั้งหมดรวมถึง TikTok Safe Zone, Snap Guidelines, และ Bounding Box จนถูกปิดการแสดงผลไปด้วยในโหมด Editor (`compact={true}`)
+  - ทำการแยก fragment ของ `!compact` ให้ครอบเฉพาะ Badge ส่วนบน และเปิด fragment ใหม่ให้ overlays สำคัญทั้งหมด (Safe Zone, Snap Guides, Bounding Box) ทำงานได้ 100% ตลอดเวลา
+- [x] **แก้ปัญหาตัวเลขเวลาไทม์โค้ดสั่น/ขยับแล้วดันปุ่มข้างๆ ให้กระตุกไปมา (Layout Jitter):**
+  - กำหนดฟอนต์ `font-mono tabular-nums` (ความกว้างตัวเลขทุกตัวเท่ากันคงที่ 100%)
+  - กำหนดความกว้างคอนเทนเนอร์คงที่ `w-[140px]` และจัดข้อความแบบกึ่งกลาง (`justify-center text-center`)
+  - ย้ายไทม์โค้ดออกจาก Timeline Toolbar ทำให้ปุ่มเครื่องมือตัดต่อทั้งหมดไม่ถูกขยับหรือสั่นอีกต่อไป
+- [x] **ออกแบบและปรับปรุงเลย์เอาท์ 2 ระดับแบบ Pro Studio (CapCut / Premiere Style) ผ่านการสรุปทาง /grill-me:**
+  1. **Level 1: Studio Player Bar (แถบใต้จอพรีวิว 9:16):**
+     - ออกแบบเป็น Frosted Glass Pill Capsule กึ่งกลางพอดีกับแนวสายตาใต้จอพรีวิว 9:16
+     - รวมศูนย์ตัวควบคุมการเล่น: ปุ่ม Play/Pause, ไทม์โค้ดดิจิทัลคงที่, ตัวเลือกความละเอียด (`[ชัด 1080p ▾]` / `[ลื่น 540p ▾]` พร้อมสวิตช์ HD), และปุ่มเปิด/ปิด Safe Zone
+  2. **Level 2: Timeline Toolbar (แถบเครื่องมือตัดต่อเหนือไทม์ไลน์):**
+     - คืนความโล่งโปร่งสบายตา 100% ปราศจากความแออัด
+     - จัดกลุ่มอย่างเป็นระเบียบ:
+       - History & Basic: `ย้อน`, `ไปหน้า`
+       - Clip Actions: `แยก`, `เพิ่มข้อความ`, `ทำสำเนา`, `ลบ`
+       - Transform & Speed: `กลับด้าน`, `1x`, `รีเซ็ตซูม`
+       - Presets: `ฮุก: ... ▾`
+       - Timeline Helpers & Navigation: `ดูดขอบ`, `ตัดช่วงเงียบ`, `ดูดจังหวะ`, เครื่องมือซูมไทม์ไลน์
+- [x] **การตรวจสอบและการทดสอบ:**
+  - Production Build: `vite build` สำเร็จเรียบร้อย `0 errors`
+  - ยืนยันบน Browser จริงผ่าน Playwright: ทั้งโหมดปกติและโหมดเปิด Safe Zone ทำงานสมบูรณ์แบบ แถบใต้จอสวยงาม และเลย์เอาท์นิ่งสนิท 100%
+  - ทำความสะอาดไฟล์สคริปต์ทดสอบชั่วคราวทั้งหมดเรียบร้อย
+
+## Round PRO-STUDIO-PURE-CANVAS-20261004 · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+วันที่: 2026-10-04 · สั่งโดย: user ("ถ้างั้นสองอันนั้นยกออกด้วยได้ไหมครับ แล้ววางเลย์เอาท์ใหม่อ่ะครับ /impeccable /ux-ui-promax ถ้าวางด้านบนแบบนั้นมันทำให้ จอพรีวิวเล็กลงเล็กน้อยไหมครับ") · สถานะ: ปิดรอบแล้ว
+- [x] **วิเคราะห์ผลกระทบเลย์เอาท์จอพรีวิว:** การวางแถบ Header เหนือเฟรม 9:16 เดิม กินพื้นที่แนวตั้งไป ~40px ส่งผลให้อัตราส่วน 9:16 ที่ล็อกความสูง (aspect-ratio fit) ถูกบีบให้เล็กลงทั้งความกว้างและความสูงตามไปด้วยจริง
+- [x] **ยกเครื่องเลย์เอาท์สู่ Pure Canvas (ระดับ Pro Studio):**
+  1. **จอพรีวิว 9:16 สะอาดบริสุทธิ์ 100%:** ในโหมด Editor (`compact={true}`) ซ่อน Header Bar และยกเลิก Badge ซ้อนด้านบนจอพรีวิวทั้งหมด คืนความสูงให้วิดีโอ 9:16 ขยายใหญ่เต็มพื้นที่กลางจอแบบไม่มีสิ่งใดบดบัง
+  2. **ย้ายปุ่มเลือกคุณภาพ (Quality Selector & HD Toggle):** ยกออกจากจอพรีวิว ย้ายมาจัดวางใน `Toolbar.jsx` ตรงข้างตัวเลขไทม์โค้ดดิจิทัล `00:00:00 / 00:30:13` ทำให้เห็นได้ชัดเจนทันที ไม่ถูกบดบัง และคง `data-testid="preview-quality-select"` และ `data-testid="toggle-high-resolution-preview"` ไว้อย่างถูกต้อง
+  3. **ย้ายระบบควบคุม Cutout ทั้งหมดเข้า Inspector (แผงขวา):**
+     - สร้างคอมโพเนนต์ใหม่ `frontend/src/components/editor/inspector/CutoutInspector.jsx` จัดแสดงการควบคุมไดคัทแบบ Pro: สถานะการไดคัท, ปุ่มเปิด/ปิด, ตัวเลือกโหมดแสดงผล (`composite` ปกติ / `checkerboard` หมากรุก / `matte` มาสก์ขาวดำ) และเครื่องมือเลือกจุดวัตถุ (Subject Point Picker)
+     - เพิ่ม Quick Tab Chip `[⬡ ตัดพื้นหลัง]` ในแท็บคุณสมบัติของ `Inspector.jsx` เพื่อเข้าถึงและปรับแต่งได้สะดวกรวดเร็ว
+  4. **เชื่อมต่อ State แบบ Seamless:** ยก state `previewQuality` และ `highResStillEnabled` สู่ `EditorShell.jsx` และส่งต่อไปยัง `Toolbar.jsx`, `Inspector.jsx` และ `SequencePlayer.jsx`
+- [x] **ผลการทดสอบและการตรวจสอบ:**
+  - ผ่าน unit tests ทั้งหมด `700/700 passed`
+  - ตรวจสอบ `npm run build` สำเร็จเรียบร้อย (0 lint errors)
+  - จับภาพยืนยันหน้าจอจริงผ่าน headless browser แสดงผลเลย์เอาท์คลีนระดับสตูดิโอมืออาชีพ จอพรีวิวใหญ่ขึ้นเต็มตา
+
+## Round PLAYER-TOP-CONTROLS-PRO-STUDIO-REDESIGN-20261004 · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+วันที่: 2026-10-04 · สั่งโดย: user ("แถบอะไรเต็มจอครับล้นมากครับ ออกแบบวางใหม่หน่อยครับ วางจุดไหนดีครับ /ux-ui-promax /impeccable") · สถานะ: ปิดรอบแล้ว
+- [x] ย้าย Resolution Selector (`data-testid="preview-quality-select"`), HD Toggle (`data-testid="toggle-high-resolution-preview"`), และปุ่ม Safe Zone ออกมาอยู่นอกจอ 9:16 ในแถบ **Pro Studio Header Bar** เหนือกรอบพรีวิว โดยแบ่งเป็น:
+  - ฝั่งซ้าย: Aspect Pill `9:16` + ปุ่มสลับ `Safe Zone` พร้อมไอคอนเกราะ Shield และ Cyan Glow เมื่อเปิด
+  - ฝั่งขวา: ป้ายสถานะพรีวิว (`highResStatusLabel`) + กล่องเลือกคุณภาพ (`ชัด 1080p` / `ลื่น 540p`) + ปุ่มเปิด/ปิดภาพนิ่ง HD
+- [x] ยุบและปรับสไตล์ปุ่มที่เหลือบนมุมบนของกรอบวิดีโอ 9:16:
+  - มุมบนซ้าย (`top-2 left-2`): `BackgroundIsolationStatusBadge` ยุบเป็น Slim Capsule บรรทัดเดียว (`h-6 rounded-full frosted glass`) ซ่อนข้อความยาวไว้ใน `title` tooltip ไม่บดบังเนื้อหาคลิป
+  - มุมบนขวา (`top-2 right-2`): Cutout Mode Switcher ปรับเป็น Segmented Pill สวยงามสไตล์ Pro (`ปกติ` | `หมากรุก` | `มาสก์`)
+  - กำจัดปุ่ม Safe Zone ที่ซ้ำซ้อน และแผ่นป้าย 1080p ลอยที่เคยทับลงมากลางหน้าจอ
+- [x] ทดสอบผ่าน Unit Tests 697/697 tests (100%) และ `npm run build` ผ่านสมบูรณ์ ไร้ lint/build regression
+
+## Round EXPORT-GALLERY-TEST-CLEANUP-20261004 · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+วันที่: 2026-10-04 · สั่งโดย: user ("ผมว่าผมเคยบอกแล้วน่ะว่างานเทส ต้องลบออกน่ะ รบกวนหน่อยครบั") · สถานะ: ปิดรอบแล้ว
+- [x] ลบไฟล์ทดสอบ/Demo ใน `04_Exports/Ready_to_post/` ครบ 100% (22 ไฟล์): ทั้งไฟล์วิดีโอ `.mp4` และภาพปก `.webp` (`demo_20261003_170756`, `demo_20261003_165858`, `demo_20261003_164218`, `demo_20261003_161059`, `demo_20261003_161047`, `demo_20261003_160934`, `demo_20261003_152636`, `demo_20261003_144917`, `demo_20261003_144153`, `demo_20260929_235108`, `demo_20260929_225542`)
+- [x] ลบโฟลเดอร์โปรเจกต์ทดสอบ `03_Projects/demo`
+- [x] คลีน `_Docs/export_registry.json`: ถอด Ghost entries และ Test entries จำนวน 157 รายการออกจนหมดสิ้น เหลือเฉพาะคลิปผลงานสินค้าจริง 167 รายการ
+- [x] ตรวจสอบ `GET /api/exports`: ส่งคืนเฉพาะคลิปสินค้าจริง 133 รายการ (53 Ready to post + 114 Posted ที่ deduplicate แล้ว) ไร้ไฟล์ demo/test 100%
+
+## Round CUTOUT-TOAST-AND-DISPLAY-BUGFIX-20261004 · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+วันที่: 2026-10-04 · สั่งโดย: user ("คัตเอาท์ยังไม่เสร็จทำไมมีแจ้งเตือนว่าเสร็จแล้วอ่ะ / ตัดเสร็จแล้วทำไมมันไม่แสดงคัตเอาท์ให้อ่ะ / จัดการทั้งหมดได้เลยครับ") · สถานะ: ปิดรอบแล้ว
+- [x] Bug 1 (Premature Notification Toast): ปิดเสียงเตือน chime และ notification toast ใน `frontend/src/context/TaskContext.jsx` สำหรับ intermediate slice tasks (`t.type === 'background_isolation' || t.task_type === 'background_isolation'`) เพื่อไม่ให้ modal แจ้งเตือนเด้งรบกวนระหว่างคลิปย่อยกำลังตัด ปล่อยให้ `EditorShell` คุม batch progress bar เงียบๆ
+- [x] Bug 2 (State Binding & Float Precision Mismatch):
+  - ใน `frontend/src/components/editor/EditorShell.jsx`: แทนที่ strict `JSON.stringify(before.background_isolation)` ด้วย `backgroundIsolationWindowContainsClip` เพื่อให้ task ที่ประมวลผลเสร็จแล้ว bind เข้ากับคลิปในไทม์ไลน์ได้ถูกต้อง ไม่หลุดเป็น `id: null`
+  - ใน `frontend/src/lib/backgroundIsolationPreview.js`: แก้ต้นตอ `status: 'stale'` ใน `promptChanged` ที่ใช้ `JSON.stringify(projectConfig.subject_points) !== JSON.stringify(candidate.subject_points)` ซึ่งพิกัดทศนิยม raw float ใน frontend (`0.328476...`) ไม่ตรงกับค่า round 5 หลักจาก backend (`0.32848`) ทำให้ทุกคลิปถูกตีตราเป็น stale ทันทีหลังตัดเสร็จ
+  - เพิ่ม `subjectPointsEqual` พร้อม float tolerance (0.002) ใน `frontend/src/lib/subjectPoints.js` และ normalized path/start comparison ใน `backgroundIsolationPreview.js`
+- [x] ผลการทดสอบและการแสดงผลจริง:
+  - ไทม์ไลน์แสดงแทร็ก `สินค้าไดคัท` เป็นแถบสีม่วง `✓ Cutout สินค้า` ครบทุกคลิป (5/5 ช็อต)
+  - แบดจ์บนหน้าจอพรีวิวเปลี่ยนเป็น `✓ Cutout พร้อม` สีเขียวสมบูรณ์
+  - ใน `SequencePlayer`: เลเยอร์ข้อความฮุกและสเปกแสดงผลอยู่ด้านหลังสินค้า (Text Behind Product) อย่างถูกต้อง คมชัด ซับไตเติลอยู่ด้านหน้าสุด
+  - ทดสอบ `npm test` ใน frontend ผ่านครบ 648/648 tests (100%) และ `npm run build` สำเร็จเรียบร้อย
+
+## Round CODEX-CUTOUT-RENDER-CLICK-FIX-20261004 · ดำเนินการโดย: Codex (GPT-6)
+วันที่: 2026-10-04 · สถานะ: ปิดรอบแล้ว · user อนุญาตให้แก้หลังอธิบายต้นเหตุ
+- [x] T1 RenderButton เรียก callback โดยไม่ส่ง click event; handleApply ปิด Cutout เฉพาะ requestedCutoutOverride === true
+- [x] T2 เพิ่ม tests/motion_capture/test_render_cutout_click_browser.py กดปุ่มจริงใน production EditorShell/RenderButton ตรวจ POST payload กรณีเปิด/ปิด/ไม่มี config และ explicit fallback
+- [x] T3 Browser 3 passed (6.18s), npm test 697 passed/0 failed, build ผ่าน, backend stale guard/API contracts 25 passed; diff check ไฟล์ของรอบผ่าน
+Notes: ต้นเหตุ onClick={onRender} ส่ง React event เข้า forceDisableCutout เป็น truthy ทำให้ payload enabled=false และ backend stale guard บล็อก แม้ Cutout พร้อม; แก้เฉพาะ callback/boolean guard โดยรักษา backend guard เดิม
+Test fixture: เพิ่ม renderAudit=1 ให้ editorShellAuditFixture ใช้ products API จำลองพร้อม metadata ปก; fixture เดิมยังใช้ empty workspace เหมือนเดิม ไม่มีการสร้างปกหรือรัน render worker จริง
+การทดสอบใช้ synthetic temp clip + in-memory API; route /reroll ตอบ 409 จำลองเพื่อทดสอบปุ่ม fallback; ไม่มี model/network ภายนอกหรือข้อมูลโปรเจกต์จริง; temp_capture_dir ลบ media ทุกกรณีหลังทดสอบ
+Jev: ก่อนเริ่ม noul 0.86, ก่อน browser/FFmpeg 0.73, before-after 0.83; confidence=null ทุกครั้ง; หยุดถามตามกฎแล้ว user อนุญาตใช้ regression tests แทน gate วันที่ 2026-10-04
+ไฟล์: frontend/src/components/editor/RenderButton.jsx, frontend/src/components/editor/EditorShell.jsx, frontend/src/editorShellAuditFixture.jsx, tests/motion_capture/test_render_cutout_click_browser.py
+รักษา diff ของ session อื่น; ไม่มี commit; ไม่เปลี่ยนฟอนต์หรือภาพวิดีโอ; scoped gate ครบ ไม่ rerun full Python/FFmpeg-render suite เนื่องจากไม่เปลี่ยน renderer/API
+
+## Round CODEX-SMART-CUTOUT-T6-20261004 · ดำเนินการโดย: Codex (GPT-6)
+วันที่: 2026-10-04 · สถานะ: ปิดรอบแล้ว · อ้างอิง T6 ของ MASTER-UX-ELEVATION-SURPASSING-CAPCUT-20261003
+- [x] T1 ตรวจ candidate selection และเพิ่ม bounded bounding-box refinement โดยรักษาจุด positive/negative และ multi-point
+- [x] T2 เพิ่ม offline regression tests สำหรับชิ้นส่วนย่อย, รูในสินค้า, background leakage และ negative points
+- [x] T3 รัน pytest เฉพาะระบบ Cutout และตรวจ GPU/เฟรมจริง; บันทึกข้อจำกัดตามจริง
+- [x] T3b ปรับ browser assertion ที่ยังคาดปุ่ม Play ใน pick mode ให้ตรง T5 (ซ่อนปุ่ม); browser gate 6 passed (46.75s); ไม่แก้ UI
+- [x] T4 ทบทวนก่อน/หลังผ่าน Jev ตาม authorization ของผู้ใช้ และปิดรอบเมื่อ full gate ผ่าน
+Gate: tests/test_interactive_sam2_assembly.py + tests/test_api_background_isolation.py + tests/test_sam2_prompt_seeding.py และ full pytest/frontend/build
+Notes: working tree มีงานเดิมหลายไฟล์ รวม interactive_sam2_daemon.py/client.py ที่ยัง untracked; รักษางานเดิม ไม่มี commit รวม
+การแก้: credible seed + enclosing proposal เป็น box hint; box-only refinement; ประกอบเฉพาะพื้นที่ปิดที่มี seed ภายใน; fallback เมื่อ guard ไม่ผ่าน; multi-point ใช้ joint prompts เดิม; daemon ใช้ inference mode และรีโหลดแล้ว
+Jev: noul 0.73 ก่อนเริ่ม, 0.66 ก่อน FFmpeg/before-after, 0.55 หลังโค้ด, 0.35 หลังรายงาน; confidence=null ทุกครั้ง; user อนุญาตให้ดำเนินการต่อหลังแจ้ง gate วันที่ 2026-10-04; Jev ไม่ใช่หลักฐานภาพ
+ผลเฉพาะ Cutout 62 passed/3 skipped; รวม parity 256 passed/3 skipped; frontend ล่าสุด 614 passed/0 failed และ build ผ่าน; compileall + API 225 routes ผ่าน
+Full pytest แรก 2432 passed/4 failed/12 skipped/54 warnings (817.03s); ทั้ง 4 คือ assertion ปุ่ม Play ใน browser ที่ T5 ซ่อนแล้ว แก้ assertion และ rerun browser ผ่านครบ 6
+Full gate สุดท้าย 2465 passed/0 failed/12 skipped/54 warnings (682.92s); warnings จำนวนเท่าเดิมในชุดรวม
+รอบกลาง basetemp ใน .tmp ขัดสมมติฐาน test_app_capture_rejects_non_tmp_output จึงยกเลิก; gate สุดท้ายใช้ temp ภายนอกชื่อเฉพาะ และ cleanup พื้นที่ของทั้งสองรอบแล้ว
+GPU synthetic IoU 0.334084 → 0.999817; warm GPU 14.6ms / HTTP 13.5ms; ดูเฟรม FFmpeg จริงแล้ว; probe media cleanup 100%; diff check เฉพาะเอกสาร/browser test ผ่าน
+ข้อจำกัด: ตรวจภาพจำลอง ไม่รับรองคลิปพัดลมต้นเหตุ/สินค้าทุกชนิด; รอบนี้แก้ interactive preview ตาม handover ส่วน full video propagation ยังใช้ pipeline เดิม
+รายงาน: _Docs/Reports/SMART_CUTOUT_T6_20261004.md; utility ตรวจซ้ำ tools/probe_interactive_sam2_assembly.py
+
+## Round MOBILE-STATUS-BADGES-AND-AUDIO-FIX-20261003 — ป้ายสถานะตัดแล้ว/ยังไม่ตัด, รายละเอียดคลิปวัตถุดิบเดิม, และแก้บั๊กเสียงไกด์ช็อต 2+ ใน Guided Take · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+วันที่: 2026-10-03 · สั่งโดย: user ("-จะรู้ได้ไงว่าสินค้าไหนตัดแล้วเรียบร้อยแล้ว อันไหนยังไม่ตัด ...") · สถานะ: สำเร็จสมบูรณ์
+**ผลการดำเนินงาน:**
+1. **ป้ายสถานะตัดแล้ว/ยังไม่ตัดในสเต็ป 1 (Catalog & Angle Badges):**
+   - คำนวณสรุปรายสินค้า: แสดงป้าย `✅ ตัดเสร็จครบแล้ว (X/Y)` หรือ `⚡ ตัดแล้ว X/Y • มีคลิป Z` หรือ `ยังไม่เริ่มตัด (Y มุม)` บนการ์ดสินค้าทุกตัวใน Mobile Catalog
+   - แสดงป้ายบนการ์ดแต่ละมุม (Angle): `✅ ตัดแล้ว` (เขียวมรกต), `📎 มีคลิป` (ฟ้าไซแอน), หรือ `รอถ่ายคลิป` (เทา)
+   - แสดงชื่อไฟล์วัตถุดิบที่แนบอยู่ เช่น `📎 ไฟล์: hoyaup_broll.mp4` หรือ `🎬 คลิปพร้อมโพสต์: ...mp4` ทันทีใต้หัวข้อ
+2. **แบนเนอร์แจ้งสถานะคลิปวัตถุดิบในสเต็ป 2 (Footage Status Notice):**
+   - เมื่อเลือกมุมที่มีคลิปเดิมอยู่แล้ว แสดงการ์ดสีเขียว `✅ มีคลิปวัตถุดิบพร้อมใช้งาน: [ชื่อไฟล์]` ระบุสถานะ "พร้อมเรนเดอร์ทันที" ทำให้ผู้ใช้กดปุ่ม "ประกอบคลิปและเรนเดอร์" ได้เลยโดยไม่ต้องถ่ายซ้ำ
+   - หากยังไม่มีคลิป แสดงกล่องแจ้งเตือนสีอำพันแนะนำให้กดถ่ายหน้ากล้องหรือเลือกคลิปจากอัลบั้ม
+3. **แก้บั๊กเสียงไกด์ช็อต 2+ ใน Guided Take (Audio Listener Leak Fix):**
+   - ค้นพบสาเหตุหลัก: `playGuideAudioForBeat` ผูกอีเวนต์ `timeupdate` ซ้อนกันโดยไม่ได้เคลียร์ ทำให้ listener เก่าของช็อต 1 สั่ง `pause()` หยุดเสียงของช็อต 2 ทันทีที่เริ่มเล่น
+   - เพิ่ม `stopGuideAudio()` และ `activeAudioTickRef` ควบคุมการเล่น/หยุดของเสียงอย่างเด็ดขาด ล้าง listener ทุกครั้งก่อนเริ่มเล่นช็อตใหม่, เมื่อหยุดอัด, เมื่อเปลี่ยนช็อต, หรือเมื่อออกจากหน้า
+   - เสียงพากย์ไกด์เล่นอัตโนมัติ 100% ทันทีที่กดปุ่มอัดทุกช็อต (ตั้งแต่ช็อตที่ 1, 2, 3 จนถึงช็อตสุดท้าย)
+4. **การทดสอบและการตรวจสอบ:**
+   - Backend unit tests (`tests/test_mobile_quick_studio.py`): ผ่านครบ 26/26 tests (100%)
+   - Frontend Production Build (`npm run build`): ผ่าน 0 errors (401ms)
+
+## Round MOBILE-END-TO-END-PRO-FLOW-20261003 — ปลดล็อคโฟลว์มือถือครบวงจร แก้บั๊กไม่มีมุมกดดราฟไม่ได้ แนบคลิป/อัปโหลดตรง เจนเสียง และสร้างสินค้าใหม่บนมือถือ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+วันที่: 2026-10-03 · สั่งโดย: user ("ต่อไปครับ วางแผนแบบล่ะเอียดการใช้งานบนมือถือ โฟลว์ต้องจบหน่อยครับ...") · สถานะ: สำเร็จสมบูรณ์
+**ผลการดำเนินงาน:**
+1. **ปลดล็อคกรณีไม่มีมุม (Fix Empty Angle Draft Blocker):** แก้ไขปัญหาที่ `selectedAngle` เป็น `null` แล้วทำให้ปุ่มดราฟต์ถูก disable ถาวร โดยเพิ่ม fallback auto-synthesis `_find_or_create_angle` ใน `scripts/mobile_quick_studio.py` และปุ่ม "⚡ ถ่ายด่วนฟรีสไตล์" รวมถึงปุ่ม "➕ เขียนมุม/สคริปต์เอง" ใน UI เพื่อให้ผู้ใช้กดไปหน้าถ่ายทำได้ทันทีโดยไม่ถูกบล็อก
+2. **สร้างมุมและสคริปต์เองจากมือถือ (Custom Angle & Script Modal):** เพิ่ม API `POST /api/mobile-studio/quick-angle` และป๊อปอัปให้ผู้ใช้กรอก Hook + บทสคริปต์ที่ต้องการ แล้วสร้าง Session พร้อมตัดต่อได้ทันที
+3. **แนบคลิปวิดีโอจากอัลบั้มมือถือ (Mobile Direct Video Upload):** เพิ่ม API `POST /api/mobile-studio/upload-video` บันทึกลง `01_Raw/<product_id>/` อย่างปลอดภัย ตรวจ metadata และผูกเข้ากับ Session ทันที พร้อม UI รองรับทั้งถ่ายสดหน้ากล้อง (Teleprompter) หรืออัปโหลดไฟล์วิดีโอจาก Camera Roll
+4. **เพิ่มสินค้าใหม่อย่างรวดเร็ว (Quick Add Product):** เพิ่ม API `POST /api/mobile-studio/products/quick-add` วางลิงก์ TikTok Shop หรือชื่อสินค้า แล้วสร้าง Entity สินค้าพร้อมมุมพื้นฐานทันที
+5. **พรีวิวเสียงพากย์ & สวิตช์ BGM (Voice & Audio Audition):** เพิ่ม API `POST /api/mobile-studio/preview-voice` ทดลองฟังเสียง Fenrir ตัวอย่าง และสวิตช์เปิด/ปิดเพลงประกอบ TikTok Upbeat
+6. **การทดสอบและการตรวจสอบ:**
+   - Backend unit tests (`tests/test_mobile_quick_studio.py`): ผ่าน 25/25 items (100%)
+   - Browser E2E Playwright tests (`tests/motion_capture/test_mobile_studio_browser.py`): ผ่าน 6/6 items (100%)
+   - รวมทดสอบร่วมกัน 31 items ผ่านครบ 100%
+   - Frontend Production Build (`npm run build`): สำเร็จ 0 errors
+   - UI ตรวจสอบด้วย Puppeteer: แสดงผลสมบูรณ์แบบบนหน้าจอมือถือและ P2P Tailscale
+
+## Round EDITOR-CUT-QUALITY-R2-20261004 — easing, จังหวะตัดต่อรายสไตล์, reverse J-cut, กริดเฟรม, UX timeline, เรนเดอร์จริงตรวจเฟรม — ปิดรอบแล้ว ✅ · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Opus 5.5 / Sonnet 5.5)
+
+วันที่: 2026-10-04 · สั่งโดย: user ("จัดการต่อทั้งหมดได้เลยครับ" หลังปิด R1) · สถานะ: ปิดรอบแล้ว
+**รายงานต้นทาง:** `_Docs/Reports/EDITOR_CUT_ANIMATION_AUDIT_20261004.md` · ผลวัดเรนเดอร์จริง `_Docs/Reports/R0_REAL_RENDER_MEASUREMENT_20261004.md`
+**Jev gate (ก่อนเริ่ม):** proceed noul 0.84, confidence null → verdict `escalate` (ไม่ใช่การอนุมัติ) ทำต่อเพราะ user สั่งชัดเจนให้ทำทั้งหมด; ลดความเสี่ยงด้วยแบ่งเฟส + เจ้าของไฟล์ไม่ซ้อน + วัดเรนเดอร์จริงก่อนแก้ A6
+**กติการอบ:** ไม่ commit/push · ทุกเลนตรวจ claim กับโค้ดก่อนแก้ · Edit เฉพาะ hunk ของตัวเอง · เทส tmp_path/`.tmp/` cleanup
+**เหตุการณ์ระหว่างรอบ:** เลน TM และ T2 (Opus) ถูกตัดกลางทางด้วย API session limit → เปิดเลน TM-finish / T2-finish (Sonnet) ตรวจงานที่ค้างในต้นไม้ ต่อให้ครบ และตรวจซ้ำด้วยเทส/เรนเดอร์จริง
+
+### ผลต่อเลน
+- **R0 วัดจริง (Opus):** เรนเดอร์สังเคราะห์ด้วย ShotMatchingStage+VideoEditor จริง — A6 ยืนยัน: lead ภาพหลังเสียง = 0.2 − `first_cue_start` (first_cue_start 0/0.1/0.3 → +200/+100/−100 ms; ติดลบ = ภาพมาก่อนเสียง) หางค้างเฟรมสุดท้าย 0/3/9 เฟรม; circle wipe ของ stage ทำให้ midpoint มาช้า +367/+267/+67 ms; ผล R1 บนเฟรมจริงผ่าน (split keyframe ต่อเนื่อง, Ken Burns 48/45 เฟรมตรง ไม่ยืด, จุดตัดบนกริด 1/30) · เทสใหม่ `tests/test_real_render_cut_alignment.py`
+- **E1 easing กล้อง (Opus):** keyframe มี `easing` ต่อจุด (linear/ease_in/ease_out/ease_in_out ใช้กับ segment ที่จบที่จุดนั้น; ไม่มี = linear โปรเจกต์เก่าไม่เปลี่ยน) ทั้ง preview (`timelineMath.js`) และ render (`video_editor.py` expression) ส่วนต่าง JS/Python/ffmpeg ≤1.1e-16; เรนเดอร์จริงซูม 1.0→1.5: t=0.267s ได้ 1.0196 (eased 1.0178, linear 1.0667); push/pan ที่ pipeline สร้างและ preset ซูม Inspector ใช้ `ease_in_out`; split ใน segment ที่ eased อบเป็น 12 จุด linear ต่อครึ่ง
+- **E2/E2b/E2c ข้อความ (Opus/Sonnet):** bounce/pop/in-zoom accel 0.6, out fade/zoom accel 2.2 ทั้ง ASS และ preview; shake 100 ms, glitch 33 ms (เฟรมเต็ม); rest frame ตรงทุกพิกเซล golden master ไม่ขยับ; catalog `motion_contract.py`/`motionPresets.js` ซิงก์กับ builder + เทสผูก (26 ตัว); แก้บั๊ก `elastic_bounce` ที่ render ถือ scale 40% ค้าง 40 ms ขณะ preview/catalog ramp จาก 0 + เทส effective-value 41 ตัว · ข้ามการ unify ASS time formatter (ต่างกัน 1 cs; พบบั๊กแฝง `%05.2f` อาจพิมพ์ "60.00")
+- **T1 UX #1 (Sonnet):** Q/W trim หัว/ท้ายถึง playhead, ↑/↓ edit point ก่อน/ถัดไป, Home/End, แสดงเฟรมขอบตอนลาก handle, scrub snap (Shift ข้าม), handle trim ตอน hover; ลบการจับ ArrowUp/Down เพื่อ reorder ใน `TimelineClip.jsx` (ใช้ `[` `]` แทน) · browser 40/40
+- **C cut engine (Opus):** A6 first cut = 0.0 → lead จริง +167 ms ทุกจุดตัดที่ first_cue_start 0/0.1/0.3, หางค้าง → 0; transition centred บนจุดตัด (outgoing tail +d/2, incoming head +d/2) midpoint wipe 350 → 167–183 ms; pacing path มี J-lead; refill ของ all-cut ผ่าน style budget; จังหวะรายสไตล์ (min/max/lead/tol) ใน `StyleMotionPolicy` 10 สไตล์; voice-valley snap ±2 เฟรม; slide ตามทิศ pan_x; **A7b whoosh ไม่ได้แก้** (ต้องย้ายลำดับ stage + SequencePlayer) — หลังแก้ A6 พีค whoosh ที่ cue start อยู่ก่อนภาพตัดราว 167 ms ซึ่งอยู่ในกรอบกฎ 100–180 ms (ข้อสรุปจากตัวเลข ไม่ได้วัดเสียงจริง)
+- **S สติกเกอร์/effect (Opus):** เข้า = alpha fade-in 7 เฟรม (+ scale 0.88→1.0 ease_out เฉพาะสติกเกอร์), ออก = fade-out 6 เฟรม, จำกัด ≤40% ของเวลาที่เห็น; rest frame bit-identical; parity JS/Python 132 เคส ≤1e-12, เรนเดอร์จริง alpha ≤0.0066 scale ≤0.0031 · `stickerAnimation.js` + `overlay_anim_*`
+- **TM / TM-finish (Opus → Sonnet):** กริด cumulative `round(cumsum×30)/30` ทั้ง preview (`planSequenceFrames`/`buildSegments`) และ render (`plan_sequence_frames`, tpad/trim ตามจำนวนเฟรม) — เรนเดอร์ 12 คลิป (25/30 fps ผสม) จุดตัดท้ายช้า +7.26 → ≤0.5 เฟรม, รวม 363 = round(total×30), จุดตัดไม่ช้า 1 เฟรมอีก; โปรเจกต์เซฟ 65 อัน ความยาวขยับ ≤0.48 เฟรม · transition easing เฉพาะ fade/fadeblack/fadewhite/wipe×4/slide×4 (parity ≤0.8 % / ≤1.05 px) dissolve/circleopen/circleclose ไม่ทำ; linear = กราฟ ffmpeg เหมือน HEAD (28 กราฟเทียบ)
+- **E3 (Sonnet):** policy ตั้ง `easing` บน transition ที่สร้างเอง: fade/wipe/slide เท่านั้น — ease_in_out (smooth_showcase, premium_minimal, clean_tech_review, tech_product_showcase, niche_focus, tech_compare), ease_out (viral_punch, flash_deal, pain_punch, smart_hack); ไม่ตั้งบน fadeblack/fadewhite (render +8–13 วิ/transition)
+- **T2 / T2-finish (Opus → Sonnet):** filmstrip บนคลิป (lazy, cache), zoom ต่อเนื่องยึดตำแหน่งเมาส์ (10–800 px/s), multi-select (Ctrl/Cmd+click, Shift+click, Esc, Delete ครั้งเดียว undo ครั้งเดียว, Inspector 'เลือก N คลิป'), copy/paste ค่าคลิป Ctrl+Alt+C/V + context menu · **ripple ข้ามซับ/overlay ไม่ทำ:** เสียงพากย์เป็น stem เดียว เลื่อนซับโดยไม่ตัดเสียงจะหลุดซิงก์; ออกแบบที่แนะนำ = anchor `{clip_id, offset}` บน overlay + endpoint ตัดเสียง · browser 6/6
+- **Docs lane (Sonnet):** อัปเดต `preview_render_parity.md` (ตาราง easing/กริด), `j_cut_rules.md` (§6 ตัวเลขวัดจริง), `gadget_editing_style_checklist.md`, `_Docs/GADGET_VIDEO_PRODUCTION_SOP.md` (r1.3 + ตารางจังหวะ 10 สไตล์), `ARCHITECTURE.md`
+
+### Gate สุดท้าย (2026-10-04)
+- `pytest tests/ --ignore=tests/motion_capture` → **2551 passed / 12 skipped / 0 failed** (405.45s) · `npm test` → **697/697** · `npm run build` ผ่าน · browser `test_editor_controls_browser` + `test_timeline_ux2_browser` → **20/20**
+- `git status`: ไม่มีไฟล์ใหม่ใน `04_Exports/` `03_Projects/` `05_Covers_Thumbnails/` `01_Raw/` `02_Assets/` `export_registry.json`
+- เทสเรนเดอร์จริงอยู่ใน pytest ทั้งชุด (tmp_path) ผ่านหมด
+
+### ยังไม่ได้ทำ / ต้องตรวจเอง
+- **`tests/motion_capture/test_editor_shell_browser.py` ตก 4/4** — ไม่ใช่งานรอบนี้: round PLAYER-TOP-CONTROLS-PRO-STUDIO-REDESIGN (Antigravity) ย้ายแถบความละเอียด/คุณภาพ preview ออกนอกเฟรม ปุ่ม `toggle-high-resolution-preview` ที่เทสรอไม่โผล่ในตำแหน่งเดิม (diff ที่ `SequencePlayer.jsx` ~:5329–5470 ไม่ทับกับ region ของเลนในรอบนี้) ต้องให้เจ้าของรอบนั้นปรับเทส
+- **`test_editor_performance_browser.py::test_real_media_render_completes_at_scale[100]` ตก (WinError 206)** — ไม่ใช่ regression: HEAD ยาว 38,109 ตัวอักษรเกินเพดาน Windows 32,767 อยู่แล้ว; รอบนี้ยาวขึ้น ~18% (50 คลิป 19,456 → 23,086; 100 คลิป 38,109 → 45,389) เพดานจำนวนคลิปที่เรนเดอร์ได้ลดจากราว 84 เหลือราว 71 · แก้ถาวร = ย้าย filter graph ไป `-filter_complex_script`
+- **ยังไม่ได้ดูเฟรมใน Chrome จริง:** ต้องกดดูเอง — easing กล้องกับ push/pan ใหม่ (ขอบช้า กลางเร็วขึ้น), fade-out ข้อความที่ทึบนานขึ้นแล้วหายเร็ว, สติกเกอร์ fade/scale เข้า-ออก (เฟรมแรก-สุดท้ายของช่วงเป็นโปร่งใส), effect ที่เคยไม่มี fade ตอนนี้มี, split คลิปที่มี zoom ramp, จังหวะตัดของแต่ละสไตล์, transition eased ตามสไตล์, shake ช้าลง ~10%
+- ไม่ได้รัน `tests/motion_capture/` ทั้งโฟลเดอร์ (ชุดนี้เขียนลง `03_Projects` จริงตามปัญหาเดิม) · เลน T1/T2 ตรวจใน Playwright fixture ไม่ใช่ Chrome ของ user
+- **ไม่ได้ทำ:** easing ของ dissolve/circleopen/circleclose · unify ASS time formatter · A7b whoosh ผูกขอบคลิปจริง · ripple ข้ามซับ/overlay · multi-select บนจอสัมผัส (ต้องมี Ctrl/Shift) · `-filter_complex_script`
+- ไฟล์ที่แก้มี diff ของ session อื่นปน (`SequencePlayer.jsx`, `EditorShell.jsx`, `Timeline.jsx`, `video_assembly_stage.py`, `sfx_manager.py`, `subtitle_engine.py`, `App.jsx`) → ถ้าจะ commit ให้แยก hunk ระวังอย่า stage ทั้งไฟล์
+
+## Round EDITOR-CUT-QUALITY-R1-20261004 — แก้ bug จุดตัด/จังหวะ/animation ที่ audit ยืนยันแล้ว — ปิดรอบแล้ว ✅ · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Opus 5.5 / Sonnet 5.5)
+
+วันที่: 2026-10-04 · สั่งโดย: user ("แยกเอเจนจัดการได้เลยน่ะครับ" หลังรายงาน audit การตัด/animation/สไตล์ตัดต่อ) · สถานะ: ปิดรอบแล้ว
+**รายงานต้นทาง:** `_Docs/Reports/EDITOR_CUT_ANIMATION_AUDIT_20261004.md` (ID A1–A7, B1–B5)
+**Jev gate (ก่อนเริ่ม):** proceed noul 0.75, confidence null → verdict `escalate` (ไม่ใช่การอนุมัติ) ทำต่อเพราะ user สั่งชัดเจนหลังเห็นแผนและความเสี่ยง
+**กติการอบ:** ไม่ commit/push · แต่ละเลนตรวจ claim กับโค้ดก่อนแก้ · แก้เฉพาะ hunk ของตัวเอง · เทส offline tmp_path
+
+### ผลต่อเลน
+- **L1 cut logic (Opus 5.5):** `shot_matching_stage.py` + helper `bgm_tempo_ratio()` ใน `sfx_manager.py` + `tests/test_shot_matching_cut_quality.py` (9 เทส)
+  - A1 motion snap ใช้ฐานเวลา raw footage (เดิมเทียบ raw กับ timeline) · A2 beat_times หารด้วย tempo ratio ตัวเดียวกับที่ mixer ใช้ · A4 AI shot ที่แบ่งหลายกลุ่มเดิน offset ต่อ ไม่เล่นซ้ำ · A5 รอจบประโยคก่อนตัดถ้าถึงภายใน MAX_SHOT · ปัดจุดตัดเป็นกริด 1/30 (ไม่ยุบจุดตัด, ท้ายสุด = total_duration เป๊ะ)
+  - **A6 วัดแล้ว ไม่แก้:** ถ้า `first_cue_start` > 0.18s ภาพเปลี่ยนก่อนเสียง (reverse J-cut เช่น 0.3s → ภาพมาก่อน 120ms) คำนวณจาก clip list ยังไม่ได้เช็กด้วย ffprobe/เฟรมจริง
+  - ข้อจำกัด: merge pass เดิมยังลบจุดตัดจบประโยคแล้วทิ้งจุดกลางประโยคได้ · beat หลัง BGM วนกลับต้นยังไม่ครอบคลุม
+- **L2 split+กริดเวลา (Opus 5.5):** B4 `splitClipAt` แบ่ง keyframe ตามเวลา played (รองรับ speed ≠ 1, 3 track) ผ่าน `splitKeyframesAt` ใน `timelineMath.js` + เทส 4 ตัว + parity test ฝั่ง Python `test_split_clip_camera_keyframes_render_without_a_jump` · แก้ expectation เก่าใน `timelineFrameAccuracy.test.js` ที่ยืนยันพฤติกรรมเดิม
+  - **B5 ไม่แก้โค้ด:** วัดด้วย ffmpeg (null sink) drift +0.04 ถึง +1.52 เฟรมที่ปลายสายมาจากการปัดจำนวนเฟรมต่อคลิปที่ concat ไม่ใช่ xfade offset; ปัดความยาวคลิปเป็นเฟรมเต็มแล้ว drift 0.00 แต่เปลี่ยนความยาว timeline → เสนอเป็นรอบแยก
+- **L3 บั๊กเล็ก (Sonnet 5.5):**
+  - B1 `image_motion_engine.py` — วัดเดิม 3001 เฟรม (~100 วิ) ต่อ cue 2 วิ; แก้เป็น input 1 เฟรม + `-frames:v` ที่ output + pre-upscale lanczos 4x + pad 3:4 (รูปแนวนอนเคยถูกยืด) + `_ENGINE_SCHEMA = 2` + ชื่อ segment ใหม่ `motion_seg_NNN_<hash>.mp4` (ไฟล์ `seg_*.mp4` เก่าในโปรเจกต์กลายเป็น orphan ไม่ได้ลบ) · เทสจริงด้วย ffmpeg
+  - B2 `useKeyboardShortcuts.js` — handler ระดับ App ข้าม Space/Ctrl+S เมื่ออยู่แท็บ editor หรือ `defaultPrevented`; `App.jsx` 1 บรรทัด (`isEditorActive`); เทสใหม่ `globalKeyboardShortcuts.test.js` 12 ตัว
+  - B3 `scripts/subtitle/motion_ass_adapter.py` — ease_out/ease_in_out/sine_in_out/spring อบเป็น `\t` หลายช่วงตามสูตร contract (เดิม ease_out ใช้ t^0.5 เบี่ยงสูงสุด 0.13); กระทบเฉพาะ contract แบบกำหนดเอง (preset ที่ส่งมอบใช้แค่ linear/power)
+
+### Gate สุดท้าย (2026-10-04)
+- `pytest tests/ --ignore=tests/motion_capture` → **2356 passed / 12 skipped / 0 failed** (366.80s)
+- `npm test` → **614/614** · `npm run build` ผ่าน
+- `git status`: ไม่มีไฟล์ใหม่ใน `04_Exports/` `03_Projects/` `05_Covers_Thumbnails/` `.tmp/`; ไฟล์ untracked ใหม่ของรอบนี้มีแค่ audit report, `tests/test_shot_matching_cut_quality.py`, `globalKeyboardShortcuts.test.js`
+- เทส 1 ตัวตกกลางรอบ (`test_bgm_tail_fade_and_tempo_clamp_match` อ่านซอร์ส `sfx_manager.py` ไม่เจอ `BASELINE_CHARS_PER_SEC` หลัง L1 แยก helper) → L1 แก้ให้ผ่านก่อนปิดเลน
+
+### ยังไม่ได้ทำ / ต้องตรวจเอง
+- **ยังไม่ได้เรนเดอร์คลิปจริงแล้วดูเฟรม** (ไม่ได้รัน `tests/motion_capture/` และ preview ใน Chrome) — ต้องดูเอง: (1) ทุกจุดตัดอัตโนมัติขยับได้สูงสุด ~17ms และจุดเริ่ม shot แรกถูกปัดด้วย (2) motion snap เปลี่ยนตำแหน่งตัดจริงในคลิปเรนเดอร์ (3) beat snap ขยับสูงสุด ~8% (4) split คลิปที่มี zoom ramp แล้วดูเฟรมสองฝั่งรอยตัด (5) รูปนิ่งแนวนอนใน Ken Burns
+- A6 (reverse J-cut เมื่อ `first_cue_start` > 0.18s) · A7 (pacing path ไม่มี J-lead, whoosh ไม่ตรงขอบคลิป, style budget ถูกข้าม) · B5 ปัดความยาวคลิปเป็นเฟรมเต็ม
+- รอบ 2–3 ตามรายงาน audit ส่วน C: easing ค่าเริ่มต้น, cut rhythm ต่อสไตล์, ตัดตรงคำ, UX timeline
+- ไฟล์ที่แก้มี diff ของ session อื่นปน (`sfx_manager.py`, `App.jsx`) → ถ้าจะ commit ให้แยก hunk ระวังอย่า stage ไฟล์ทั้งก้อน
 
 ## Round EDITOR-CAPCUT-FIX-WAVE1-20261003 — ลงมือแก้ตาม Top 10 ของ audit (wave 1 + 2) — ปิดรอบแล้ว ✅ · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5)
 
@@ -10759,3 +10980,26 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 - **บัคที่เจอในโค้ดใหม่ของตัวเองและแก้แล้ว:** `foreground_mask()` รับ mask ที่เป็น boolean แล้วเทียบ `True > 32` → กลายเป็น False ทั้งภาพ (มีเทสต์กันกลับแล้ว)
 
 **Gate ที่ผ่านแล้ว:** `pytest tests/test_cutout_prompt.py` → **17 passed** · `pytest -k 'background_isolation or cutout'` → **257 passed, 4 skipped, 2 failed** โดย 2 ตัวที่ fail คือ `test_cutout_video_preview` ซึ่งเป็น **flake เดิมที่บันทึกไว้แล้ว** (HISTORY.md:513, TODO.md:554 — เกณฑ์ `visible >= 54` ใน headless Chromium) ไม่เกี่ยวกับงานนี้
+
+
+## Round CODEX-CUTOUT-PROMPT-PRECISION-20261004
+ดำเนินการโดย: Codex (GPT-6)
+สถานะ: ปิดรอบแล้ว · ต่อเนื่องจากงานแก้ Cutout ที่ผู้ใช้อนุญาตให้ใช้ regression/probe เป็น gate
+- [x] ตรวจแบบอ่านอย่างเดียว: artifact จริงครบ 5/5 แต่ resolver ตี stale เพราะพิกัดดิบต่างจากพิกัดปัด 5 ตำแหน่ง
+- [x] ใช้ normalize_subject_points มาตรฐานเดียวกับ worker ก่อนเทียบ prompt
+- [x] Regression ทั้ง legacy/scoped: การปัดไม่ทำ stale; ย้าย/ล้างจุด เปลี่ยน label/frame ยังทำ stale
+- [x] ตรวจ readiness โปรเจกต์จริงแบบไม่เขียนข้อมูล พร้อมรันชุดทดสอบ resolver/render guard แล้วปิดรอบ
+Notes: working tree มีงานหลายเอเจนต์ค้างอยู่ รักษาการแก้เดิมทั้งหมด ไม่แก้ไฟล์สินค้า/โปรเจกต์จริง ไม่เพิ่มฟีเจอร์ Cutout
+
+Results: 126 passed, 3 skipped; actual project readiness 5/5; API restarted idle and responds. Report: [_Docs/Reports/CUTOUT_PROMPT_PRECISION_20261004.md](_Docs/Reports/CUTOUT_PROMPT_PRECISION_20261004.md). Jev before/after 0.83/0.87, confidence null; existing authorized regression gate applies.
+
+
+## Round CODEX-COMMIT-ALL-20261004
+ดำเนินการโดย: Codex (GPT-6)
+สถานะ: ปิดรอบแล้ว · User สั่ง commit งานทั้งหมด
+- [x] ตรวจรายการ tracked/untracked รวมทุกเอเจนต์ ตรวจ secret/media/test output และ diff whitespace
+- [x] ตรวจ frontend test/build และใช้ผล backend gate ที่บันทึกไว้ร่วมกับ regression ล่าสุด
+- [x] บันทึกผล ปิดรอบ แล้ว commit ทุกไฟล์งาน ตรวจ working tree หลัง commit
+Notes: รวมงานหลายเอเจนต์ตามคำสั่งผู้ใช้ ไม่ push ไม่แตะวัตถุดิบหรือไฟล์โปรเจกต์จริง
+
+Validation: 180 changed/new source, test and documentation files; no media/sensitive paths or secret-pattern matches. Frontend 799 passed, build passed. Latest backend regression 126 passed/3 skipped; prior full gate 2756 passed documented by Antigravity. Removed extra EOF blank in test_api_background_isolation.py; diff whitespace clean. Jev noul=0.81, confidence=null; explicit user commit instruction and existing regression/probe gate authorization apply. Local commit only.

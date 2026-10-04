@@ -29,6 +29,14 @@ from scripts.product_store import STATUSES, ProductStore
 from scripts.product_scraper import _build_safe_image_opener, _validate_public_http_url
 from scripts.config import BASE_DIR, COVERS_DIR, STICKERS_DIR
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest, project_revision
+from scripts.voice_cut_map import (
+    VoiceEditError,
+    effective_duration,
+    resolve_voice_cuts,
+    source_matches,
+    validate_voice_edit,
+    voice_file_identity,
+)
 from scripts import render_jobs
 from scripts.render_jobs import RenderCancelled
 from scripts.task_manager import TaskManager
@@ -727,6 +735,19 @@ def get_project(project_name: str):
     if not manifest:
         raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
     manifest["_editor_revision"] = project_revision(manifest)
+    # Computed on read (not persisted, and after the revision so it never makes
+    # the editor's base_revision drift): saved voice cuts whose file no longer
+    # matches must not be applied by the preview either.
+    if manifest.get("voice_edit"):
+        _, problem, _ = resolve_voice_cuts(manifest["voice_edit"], _voice_edit_stamp(manifest))
+        if problem:
+            manifest["voice_edit_stale"] = True
+            manifest.setdefault("voice_edit_notice", None)
+            if not manifest["voice_edit_notice"]:
+                manifest["voice_edit_notice"] = {
+                    "kind": "invalid" if problem == "invalid" else "stale",
+                    "reason": "การตัดเสียงพากย์ที่บันทึกไว้ใช้ไม่ได้ เพราะไฟล์เสียงพากย์ไม่ตรงกับตอนที่ตัด จึงไม่ตัดเสียง",
+                }
     try:
         _, product, angle = _project_origin(project_name)
         if angle:
@@ -854,6 +875,71 @@ class UpdateProjectStateRequest(BaseModel):
     background_isolation: Optional[Dict[str, Any]] = None
     track_mix: Optional[Dict[str, Any]] = None
     audio_mutes: Optional[Dict[str, bool]] = None
+    # Ripple cuts of the voice file (scripts/voice_cut_map.py, plan §3.1):
+    # {schema_version, source: {path, size, mtime_ns, duration}, cuts: [{id,start,end,reason}]}.
+    # OMITTED = keep what is stored; null or no cuts = clear it. Validated in
+    # update_project_state (422, Thai) and persisted top-level only.
+    voice_edit: Optional[Dict[str, Any]] = None
+
+
+def _voice_edit_stamp(current: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """`{path, size, mtime_ns}` of the project's CURRENT voice file, or None.
+
+    `path` stays in the manifest's own (BASE_DIR-relative) spelling so the
+    stored voice_edit.source compares equal to the artifact entry later.
+    """
+    entry = (current.get("artifacts") or {}).get("voice_audio") or {}
+    identity = voice_file_identity(entry.get("path"))
+    if not identity:
+        return None
+    return {"path": entry.get("path"), "size": identity["size"], "mtime_ns": identity["mtime_ns"]}
+
+
+def _apply_voice_edit_fields(
+    req: "UpdateProjectStateRequest", current: Dict[str, Any], fields: Dict[str, Any]
+) -> None:
+    """Validate `req.voice_edit` and add the manifest fields it implies to `fields`.
+
+    Besides `voice_edit` itself: the manifest `total_duration` becomes the
+    POST-cut length while usable cuts exist (and goes back to the real file
+    length when they are cleared), so every reader of the old field is right at
+    once; `source.duration` keeps the file's real length.
+    """
+    stamp = _voice_edit_stamp(current)
+    try:
+        edit = validate_voice_edit(req.voice_edit, stamp=stamp)
+    except VoiceEditError as err:
+        raise HTTPException(status_code=422, detail=f"ตัดเสียงพากย์ไม่ได้: {err}")
+
+    old_cuts, _, old_duration = resolve_voice_cuts(current.get("voice_edit"), stamp)
+
+    if edit is None:
+        fields["voice_edit"] = None
+        fields["voice_edit_stale"] = False
+        if old_cuts:
+            # Cuts removed: go back to the real file length, but only when the
+            # stored total is still the one those cuts produced.
+            old_total = effective_duration(old_cuts, old_duration)
+            try:
+                stored_total = float(current.get("total_duration"))
+            except (TypeError, ValueError):
+                stored_total = None
+            if stored_total is not None and abs(stored_total - old_total) < 0.01:
+                fields["total_duration"] = old_duration
+        return
+
+    source = edit["source"]
+    if source.get("path") in (None, "") or source.get("size") is None or source.get("mtime_ns") is None:
+        raise HTTPException(
+            status_code=422,
+            detail="ตัดเสียงพากย์ไม่ได้: ไม่พบไฟล์เสียงพากย์ของโปรเจกต์ จึงระบุ source.path/size/mtime_ns ไม่ได้",
+        )
+    usable = source_matches(source, stamp)
+    fields["voice_edit"] = edit
+    fields["voice_edit_stale"] = not usable
+    if usable:
+        fields["voice_edit_notice"] = None
+        fields["total_duration"] = effective_duration(edit["cuts"], source["duration"])
 
 
 @router.patch("/projects/{project_name}/state")
@@ -953,6 +1039,9 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
         if req.background_isolation is not None:
             fields["background_isolation"] = req.background_isolation
             render_params["background_isolation"] = req.background_isolation
+        # `is not None` cannot tell "omitted" from an explicit null (= clear).
+        if "voice_edit" in req.model_fields_set:
+            _apply_voice_edit_fields(req, current, fields)
 
         fields["render_params"] = render_params
         return fields
@@ -966,6 +1055,10 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
         "clip_list": updated.get("clip_list"),
         "overlays": updated.get("overlays"),
         "updated_at": updated.get("updated_at"),
+        "voice_edit": updated.get("voice_edit"),
+        "voice_edit_stale": bool(updated.get("voice_edit_stale")),
+        "voice_edit_notice": updated.get("voice_edit_notice"),
+        "total_duration": updated.get("total_duration"),
     }
 
 

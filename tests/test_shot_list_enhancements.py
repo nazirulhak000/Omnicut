@@ -121,7 +121,9 @@ def test_semantic_camera_direction_for_lift():
     assert "ตะกร้า" in d5
 
 
-def test_shot_list_builder_gemini_defaults(tmp_path):
+def test_shot_list_builder_gemini_defaults(tmp_path, monkeypatch):
+    import scripts.shot_list_builder as builder
+    monkeypatch.setattr(builder, "PROJECTS_DIR", tmp_path / "projects")
     from scripts.shot_list_builder import generate_shot_list_for_angle
     from scripts.shot_lists_store import ShotListsStore
     from scripts.pipeline_context import PipelineContext

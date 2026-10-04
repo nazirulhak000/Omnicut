@@ -6,19 +6,23 @@ import {
   ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Columns3,
 } from 'lucide-react';
 import {
-  deleteProject, getAllAssets, getBackgroundIsolationManifest, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, getTaskStatus, preflightBackgroundIsolation, startBackgroundIsolation, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
+  deleteProject, getAllAssets, getBackgroundIsolationManifest, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, getTaskStatus, preflightBackgroundIsolation, startBackgroundIsolation, interactiveSegment, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
   getHookTemplates, saveCustomHookTemplate, deleteCustomHookTemplate, getBgmBeats, getMediaSilences,
 } from '../../api';
 import {
   EMPTY_BEAT_GRID, beatSnapPoints as beatSnapPointsOf, hasBeats, normalizeBeatGrid,
 } from '../../lib/beatGrid.js';
 import {
-  describePlan, planChangesAnything, planSilenceRipple,
-} from '../../lib/silenceRipple.js';
+  EMPTY_RANGE_MARK, clipRangesFromSegments, describeRippleBlocked, describeRippleConfirm, hasRangeMark, isRippleDelete,
+  markRangePoint, rangeMarkToRanges, resolveRippleScope, silenceSpansToProgramRanges, voiceCutSignature,
+} from '../../lib/rippleUi.js';
 import {
-  FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, resolveSplitTarget, snapSeekTime, splitClipAt, snapCandidates, snapTime,
+  FADE_DURATION, buildSegments, formatTimecode, resolveSplitTarget, snapSeekTime, splitClipAt, snapCandidates, snapTime,
   totalDuration as totalDurationOf,
 } from '../../lib/timelineMath';
+import {
+  DEFAULT_PX_PER_SEC, ZOOM_PRESETS, clampPxPerSec, fitPxPerSec, stepZoomPreset, zoomPresetIndex,
+} from '../../lib/timelineZoom.js';
 import { useEditorHistory } from '../../hooks/useEditorHistory';
 import { useProjectAutosave } from '../../hooks/useProjectAutosave';
 import { getProjectRevision, rememberProjectRevision } from '../../lib/projectRevision.js';
@@ -31,6 +35,7 @@ import { useEditorCommands } from '../../hooks/useEditorCommands';
 import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
 import { toMediaUrl } from '../../lib/mediaUrl';
 import { editorStateToSavePayload, manifestToEditorState, serializeRenderClips, serializeRenderFeatures } from '../../lib/editorProjectState';
+import { effectiveDuration as effectiveVoiceDuration } from '../../lib/voiceCutMap.js';
 import { AUDIO_TRACKS, effectiveAudioMutes } from '../../lib/trackMix.js';
 import { clampBusVolume, SFX_VOLUME_DEFAULT, VOICE_VOLUME_DEFAULT } from '../../lib/audioBusLevels.js';
 import {
@@ -59,6 +64,7 @@ import {
   buildPrepareBaseConfig,
   clearSubjectPointsOnConfig,
 } from '../../lib/cutoutSubjectPointState.js';
+import { readPreviewQuality, writePreviewQuality } from '../../lib/previewQuality.js';
 import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
 import Inspector from './Inspector';
@@ -91,6 +97,7 @@ import HeaderMenu from './HeaderMenu';
 import RenderButton from './RenderButton';
 import MixDegradedNotice from './MixDegradedNotice';
 import ProjectRevisionNotice from './ProjectRevisionNotice';
+import VoiceEditNotice from './VoiceEditNotice';
 
 function formatErrorText(err) {
   if (!err) return '';
@@ -105,8 +112,6 @@ function formatErrorText(err) {
   }
   return String(err.message || 'เกิดข้อผิดพลาดในการประมวลผล');
 }
-
-const framesFor = (seconds) => Math.max(6, Math.min(40, Math.round((seconds || 12) / 3)));
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -175,7 +180,9 @@ const LEGACY_SFX_ALIASES = {
   boom: 'sfx_vine_boom',
 };
 
-const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], spotlight: null, backgroundIsolation: null, trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, voiceVolume: VOICE_VOLUME_DEFAULT, sfxVolume: SFX_VOLUME_DEFAULT, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review', showWatermark: true } };
+// microCuesList and voiceEdit live in the history state too, so ONE Ctrl+Z takes a
+// whole ripple delete back (rippleRange.js changes both together with the clips).
+const EMPTY = { clipList: [], cuesList: [], microCuesList: [], voiceEdit: null, voiceEditStale: false, voiceEditNotice: null, overlays: [], stickers: [], effects: [], spotlight: null, backgroundIsolation: null, trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, voiceVolume: VOICE_VOLUME_DEFAULT, sfxVolume: SFX_VOLUME_DEFAULT, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review', showWatermark: true } };
 
 const DEFAULT_EDITOR_SPOTLIGHT = Object.freeze({
   schema_version: 1,
@@ -203,7 +210,7 @@ export default function EditorShell({
   onOpenShortcuts,
 }) {
   const { state, set, setSilent, beginDrag, endDrag, undo, redo, reset, canUndo, canRedo } = useEditorHistory(EMPTY);
-  const { clipList, cuesList, style, overlays, stickers = [], effects = [], spotlight = null, backgroundIsolation = null, trackMix = { mute: {}, solo: {} } } = state;
+  const { clipList, cuesList, style, overlays, stickers = [], effects = [], spotlight = null, backgroundIsolation = null, trackMix = { mute: {}, solo: {} }, microCuesList = [], voiceEdit = null, voiceEditStale = false, voiceEditNotice = null } = state;
 
   const [projectList, setProjectList] = useState([]);
   const [projectName, setProjectName] = useState(() => {
@@ -230,10 +237,36 @@ export default function EditorShell({
     : getProducts(), [workspaceData]);
 
   const [durations, setDurations] = useState({});
-  const [audioDuration, setAudioDuration] = useState(0);
+  // Length of the voice file as loaded. The voice on the timeline is that minus
+  // the ripple cuts; the cuts live in the history state, so Ctrl+Z restores the
+  // length with no extra bookkeeping. Without usable cuts nothing changes.
+  const [loadedAudioDuration, setAudioDuration] = useState(0);
+  // `activeVoiceEdit` is the edit the preview and the render actually apply:
+  // null when there are no cuts or the server marked them stale (voice re-made).
+  const activeVoiceEdit = useMemo(() => (
+    voiceEdit && !voiceEditStale && Array.isArray(voiceEdit.cuts) && voiceEdit.cuts.length > 0
+      ? voiceEdit
+      : null
+  ), [voiceEdit, voiceEditStale]);
+  const audioDuration = useMemo(() => (
+    activeVoiceEdit
+      ? effectiveVoiceDuration(activeVoiceEdit.cuts, activeVoiceEdit.source?.duration)
+      : loadedAudioDuration
+  ), [activeVoiceEdit, loadedAudioDuration]);
   const [playhead, setPlayhead] = useState(0);
-  const [zoomIndex, setZoomIndex] = useState(2);
+  // Timeline zoom is continuous px/s (Ctrl+wheel, fit); buttons and +/- hop
+  // between ZOOM_PRESETS. zoomIndex only feeds the toolbar's "N/count".
+  const [pxPerSec, setPxPerSec] = useState(DEFAULT_PX_PER_SEC);
+  const zoomIndex = zoomPresetIndex(pxPerSec);
+  const zoomStep = useCallback((dir) => setPxPerSec((px) => stepZoomPreset(px, dir)), []);
+  const zoomTo = useCallback((px) => setPxPerSec(clampPxPerSec(px)), []);
   const [snapEnabled, setSnapEnabled] = useState(true);
+  const [previewQuality, setPreviewQuality] = useState(() => readPreviewQuality());
+  const [highResStillEnabled, setHighResStillEnabled] = useState(true);
+  const handlePreviewQualityChange = useCallback((quality) => {
+    setPreviewQuality(quality);
+    writePreviewQuality(undefined, quality);
+  }, []);
   // Beat grid for the current BGM. `null` means "not analyzed yet"; an empty
   // grid means "analyzed, no beats" -- the two must stay distinguishable or
   // the UI cannot tell "loading" from "this track has no beats".
@@ -243,10 +276,19 @@ export default function EditorShell({
   const [backgroundIsolationPreparing, setBackgroundIsolationPreparing] = useState(false);
   const [backgroundIsolationTaskIds, setBackgroundIsolationTaskIds] = useState([]);
   const [backgroundIsolationError, setBackgroundIsolationError] = useState('');
+  const [cutoutBatchState, setCutoutBatchState] = useState({
+    activeIndex: 0,
+    totalCount: 0,
+    activeClipIds: [],
+    queuedClipIds: [],
+  });
   const cutoutContextRef = useRef({ projectName, generation: 0 });
   if (cutoutContextRef.current.projectName !== projectName) {
     cutoutContextRef.current = { projectName, generation: cutoutContextRef.current.generation + 1 };
   }
+  const isLocalPreparingRef = useRef(false);
+  const [subjectContours, setSubjectContours] = useState([]);
+  const [subjectContourLoading, setSubjectContourLoading] = useState(false);
 
   const backgroundIsolationGroups = useMemo(() => {
     const sourceClips = (clipList || []).filter((clip) => clip?.source_path);
@@ -254,6 +296,51 @@ export default function EditorShell({
       ? groupScopedBackgroundIsolationClips(clipList || [], overlays, { sourceDurations: durations })
       : groupBackgroundIsolationClips(sourceClips, { sourceDurations: durations });
   }, [clipList, durations, overlays, backgroundIsolation?.scope_mode]);
+
+  // Rehydrate running background isolation task if the page was reloaded during a cutout job
+  useEffect(() => {
+    if (backgroundIsolationPreparing) return;
+    const runningCutoutTask = tasks.find(
+      (task) => (task.type === 'background_isolation' || task.task_type === 'background_isolation')
+        && ['pending', 'processing'].includes(task.status)
+        && (!task.payload?.project_name || task.payload?.project_name === projectName)
+    );
+    if (!runningCutoutTask) return;
+    setBackgroundIsolationPreparing(true);
+    setBackgroundIsolationTaskIds((curr) => [...new Set([...curr, runningCutoutTask.id])]);
+
+    if (backgroundIsolationGroups.length > 0) {
+      const activeGroupIdx = backgroundIsolationGroups.findIndex((g) => {
+        const pathMatch = g.sourcePath?.toLowerCase() === String(runningCutoutTask.payload?.source_path || '').toLowerCase();
+        if (!pathMatch) return false;
+        if (runningCutoutTask.payload?.start == null) return true;
+        return Math.abs(g.start - Number(runningCutoutTask.payload.start)) < 0.2;
+      });
+      const safeIdx = Math.max(0, activeGroupIdx);
+      const activeClipIds = (backgroundIsolationGroups[safeIdx]?.clips || []).map((c) => c.id);
+      const queuedClipIds = backgroundIsolationGroups.slice(safeIdx + 1).flatMap((g) => (g.clips || []).map((c) => c.id));
+      setCutoutBatchState({
+        activeIndex: safeIdx,
+        totalCount: backgroundIsolationGroups.length,
+        activeClipIds,
+        queuedClipIds,
+      });
+    }
+  }, [tasks, projectName, backgroundIsolationPreparing, backgroundIsolationGroups]);
+
+  // Clean up ONLY when a rehydrated background isolation finishes or fails (not during active local loop)
+  useEffect(() => {
+    if (!backgroundIsolationPreparing) return;
+    if (isLocalPreparingRef.current) return;
+    if (backgroundIsolationTaskIds.length > 0) {
+      const activeTasks = backgroundIsolationTaskIds.map((id) => tasks.find((t) => t.id === id)).filter(Boolean);
+      const stillRunning = activeTasks.some((t) => ['pending', 'processing'].includes(t.status));
+      if (!stillRunning && activeTasks.length > 0) {
+        setBackgroundIsolationPreparing(false);
+        setCutoutBatchState({ activeIndex: 0, totalCount: 0, activeClipIds: [], queuedClipIds: [] });
+      }
+    }
+  }, [backgroundIsolationPreparing, backgroundIsolationTaskIds, tasks]);
   const backgroundIsolationPlan = useMemo(() => {
     const relevantClips = backgroundIsolation?.scope_mode === 'behind_text_windows'
       ? backgroundIsolationGroups.flatMap((group) => group.clips)
@@ -269,10 +356,22 @@ export default function EditorShell({
     const active = backgroundIsolationTaskIds
       .map((id) => tasks.find((task) => task.id === id))
       .filter(Boolean);
-    if (!active.length) return null;
-    const progress = active.reduce((sum, task) => sum + (Number(task.progress) || 0), 0) / active.length;
-    return { progress, label: active.at(-1)?.step_label || 'กำลังตัดพื้นหลังสินค้า' };
-  }, [backgroundIsolationTaskIds, tasks]);
+    if (!active.length && !backgroundIsolationPreparing) return null;
+    const currentTask = active.at(-1);
+    const currentTaskProgress = Number(currentTask?.progress) || 0;
+    const totalCount = Math.max(1, cutoutBatchState.totalCount || backgroundIsolationGroups.length || 1);
+    const activeIndex = Math.min(totalCount - 1, Math.max(0, cutoutBatchState.activeIndex || 0));
+
+    // Smooth aggregate progress across all clips
+    const progress = Math.min(0.99, Math.max(0.01, (activeIndex + currentTaskProgress) / totalCount));
+
+    const step = currentTask?.step_label || 'กำลังตัดพื้นหลังสินค้า';
+    const label = totalCount > 1
+      ? `กำลังตัดช็อตที่ ${activeIndex + 1}/${totalCount}: ${step} (${Math.round(progress * 100)}%)`
+      : `${step} (${Math.round(progress * 100)}%)`;
+
+    return { progress, label };
+  }, [backgroundIsolationTaskIds, tasks, backgroundIsolationPreparing, cutoutBatchState, backgroundIsolationGroups.length]);
 
   // Isolation artifacts belong to individual timeline clips. Keep this
   // summary aligned with the preview resolver so explicit project disable and
@@ -412,11 +511,25 @@ export default function EditorShell({
   // the file, so it needs the path the backend can open, not the media URL
   // the browser plays.
   const [voiceAudioPath, setVoiceAudioPath] = useState(null);
-  // Proposed silence cut awaiting confirmation: { plan, description }. A
-  // ripple delete moves every later clip, so it is shown before it is done.
+  // Ripple cut awaiting confirmation: { ranges, scope, source, reason, text }
+  // (text = describeRipplePlan). Delete on a clip with a voiceover, Shift+Delete
+  // on the I/O range and the silence button all end here: a ripple moves every
+  // later clip, caption and voice cut, so it is shown before it is done.
+  const [cutConfirm, setCutConfirm] = useState(null);
   const [silencePlan, setSilencePlan] = useState(null);
-  const [silenceScanning, setSilenceScanning] = useState(false);
   const [silenceError, setSilenceError] = useState('');
+  const [silenceScanning, setSilenceScanning] = useState(false);
+  // Why a cut did not happen (nothing found, planner refused, scan failed).
+  const [cutMessage, setCutMessage] = useState('');
+  // What Delete does to the voice and captions: 'all' | 'video' | null (untouched
+  // = the default for this project). Per session on purpose: a saved "video only"
+  // would silently desync the next project's voice.
+  const [rippleScopeChoice, setRippleScopeChoice] = useState(null);
+  // I / O marks (program seconds) for a range cut. Not history state: they are a
+  // pointer, not an edit, and any applied cut clears them.
+  const [rangeMark, setRangeMark] = useState(EMPTY_RANGE_MARK);
+  // The voice-edit notice the user already acknowledged ("project|kind|reason").
+  const [dismissedVoiceNotice, setDismissedVoiceNotice] = useState('');
   // Read off the manifest so the banner can dress itself the way the script's
   // own narration tone asks for, and name the product without being told.
   const [projectAdTone, setProjectAdTone] = useState(null);
@@ -453,7 +566,6 @@ export default function EditorShell({
       throw err;
     }
   }, []);
-  const [microCuesList, setMicroCuesList] = useState([]);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
@@ -493,6 +605,7 @@ export default function EditorShell({
   const [isCaptionHidden, setIsCaptionHidden] = useState(false);
   const [isCutoutHidden, setIsCutoutHidden] = useState(false);
   const [subjectPickMode, setSubjectPickMode] = useState(false);
+  const [subjectPickLabel, setSubjectPickLabel] = useState(1);
 
   // The banner and the text overlays are one array now, and it lives inside
   // the undo history. The banner used to sit outside it as seven loose
@@ -693,7 +806,8 @@ export default function EditorShell({
     backgroundIsolation,
     trackMix,
     microCuesList,
-  }), [clipList, cuesList, overlays, stickers, effects, spotlight, backgroundIsolation, style, trackMix, microCuesList]);
+    voiceEdit,
+  }), [clipList, cuesList, overlays, stickers, effects, spotlight, backgroundIsolation, style, trackMix, microCuesList, voiceEdit]);
   const projectSavePayload = useMemo(
     () => withStylePresetPayload(savePayload, activeStylePreset),
     [savePayload, activeStylePreset],
@@ -739,7 +853,6 @@ export default function EditorShell({
     } catch {}
     setIsProjectPosted(Boolean(manifest?.is_posted || manifest?.angle_status === 'posted' || manifest?.posted_at));
     initialCuesRef.current = JSON.parse(JSON.stringify(loaded.cuesList || []));
-    setMicroCuesList(loaded.microCuesList);
     setProjectAdTone(loaded.adTone);
     setProjectProductName(loaded.productName);
     setAudioUrl(loaded.mixedAudioPath ? toMediaUrl(loaded.mixedAudioPath) : null);
@@ -762,6 +875,10 @@ export default function EditorShell({
     reset({
       clipList: loadedEditorState.clipList,
       cuesList: loadedEditorState.cuesList,
+      microCuesList: loadedEditorState.microCuesList || [],
+      voiceEdit: loadedEditorState.voiceEdit || null,
+      voiceEditStale: Boolean(loadedEditorState.voiceEditStale),
+      voiceEditNotice: loadedEditorState.voiceEditNotice || null,
       overlays: loadedEditorState.overlays,
       stickers: loadedEditorState.stickers || [],
       effects: loadedEditorState.effects || [],
@@ -1018,23 +1135,8 @@ export default function EditorShell({
     if (targetProject) loadProject(targetProject);
   }, [initialProjectName, productContext, angleIndex]);
 
-  // Filmstrip thumbnails -- one real sprite per unique source file, from the
-  // working /api/editor/filmstrip endpoint (durations is keyed by clip.id,
-  // per SequencePlayer's onDurations, not by source_path).
-  const filmstrips = useMemo(() => {
-    const map = {};
-    clipList.forEach((c) => {
-      if (!c.source_path || map[c.source_path]) return;
-      const srcDur = durations[c.id] || 0;
-      const count = framesFor(srcDur || 12);
-      map[c.source_path] = {
-        url: `/api/editor/filmstrip?path=${encodeURIComponent(c.source_path)}&count=${count}`,
-        frames: count,
-      };
-    });
-    return map;
-  }, [clipList, durations]);
-
+  // Clip thumbnails are loaded per clip, lazily, by TimelineClip's
+  // ClipFilmstrip (one sprite per source + trim window).
   const segments = useMemo(() => buildSegments(clipList, durations), [clipList, durations]);
   const totalDuration = useMemo(() => totalDurationOf(segments), [segments]);
   useEffect(() => { seekSegmentsRef.current = segments; }, [segments]);
@@ -1043,6 +1145,9 @@ export default function EditorShell({
     selection,
     setSelection,
     handleSelect,
+    selectedClipIds,
+    selectClipWithMode,
+    clearSelection: clearClipSelection,
     selectedSeg,
     selectedCaption,
     selectedOverlay,
@@ -1061,7 +1166,12 @@ export default function EditorShell({
     patchAllClips,
     reorderClip,
     splitAtPlayhead,
+    trimHeadAtPlayhead,
+    trimTailAtPlayhead,
     duplicateSelected,
+    copyClipSettings,
+    pasteClipSettings,
+    hasCopiedClipSettings,
     deleteSelected,
     addTextAtPlayhead,
     patchCaption,
@@ -1087,28 +1197,42 @@ export default function EditorShell({
     selectedSeg,
     selection,
     setSelection,
+    selectedClipIds,
     cuesDirtyRef: cuesDirty,
     handleDeleteOverlay,
     onImportSuccess: () => setMobileTab('timeline'),
     onNotify: (msg) => showToast(msg),
+    onSeek: seekPlayer,
+    // Ripple delete (rippleRange.js) plans against the history state and needs
+    // the voice length; the commands exist but no control is bound to them yet.
+    editorState: state,
+    hasVoice: !!voiceAudioPath,
+    audioDuration,
   });
 
   useEditorShortcuts({
     undo,
     redo,
     splitAtPlayhead,
+    trimHeadAtPlayhead,
+    trimTailAtPlayhead,
+    segments,
+    cues: cuesList,
     deleteSelected,
     togglePlayer,
     seekPlayer,
     playhead,
     totalDuration,
     audioDuration,
-    setZoomIndex,
-    zoomLevelsLength: ZOOM_LEVELS.length,
+    onZoomStep: zoomStep,
     selectedSeg,
     patchClip,
     zen,
     setZen,
+    multiSelectCount: selectedClipIds.length,
+    clearSelection: clearClipSelection,
+    copyClipSettings,
+    pasteClipSettings,
     onToggleSnap: () => {
       setSnapEnabled((v) => {
         const next = !v;
@@ -1132,7 +1256,6 @@ export default function EditorShell({
     },
   });
 
-  const pxPerSec = ZOOM_LEVELS[zoomIndex];
 
   // Split button state comes from the same resolver the Split command runs.
   const splitTarget = useMemo(
@@ -1238,8 +1361,8 @@ export default function EditorShell({
   // Timeline content is `duration * pxPerSec + 240` wide (see Timeline.jsx),
   // so at the default 50 px/s it outruns a 1440px viewport from about the
   // twelfth 2-second clip and every session starts with manual scrolling.
-  // Picks the largest zoom step whose content still fits the track, so
-  // "fit" never lands on a level that scrolls anyway.
+  // Zoom is continuous, so "fit" uses the exact px/s that fills the track
+  // (clamped to the zoom range) instead of the nearest lower step.
   const timelineViewportRef = useRef(null);
   const zoomToFit = useCallback(() => {
     // Falls back to the window when no visible timeline has claimed the ref
@@ -1248,12 +1371,8 @@ export default function EditorShell({
     const width = timelineViewportRef.current?.clientWidth || window.innerWidth;
     if (!width || !totalDuration) return;
     const usable = Math.max(120, width - 240 - 92); // ruler gutter + trailing pad
-    const wanted = usable / totalDuration;
-    let best = 0;
-    for (let i = 0; i < ZOOM_LEVELS.length; i++) {
-      if (ZOOM_LEVELS[i] <= wanted) best = i;
-    }
-    setZoomIndex(best);
+    const fitted = fitPxPerSec(usable, totalDuration);
+    if (fitted) setPxPerSec(fitted);
   }, [totalDuration]);
 
   const handleAddTextTemplate = useCallback((tpl) => {
@@ -1598,17 +1717,39 @@ export default function EditorShell({
     () => (clipList || []).some((clip) => clip?.background_isolation?.artifact?.status === 'ready'),
     [clipList],
   );
-  const handlePickSubjectPoint = useCallback((point) => {
+  const handlePickSubjectPoint = useCallback(async (point, reference) => {
     if (backgroundIsolationPreparing) return;
     const next = addSubjectPointToConfig(backgroundIsolation, point,
-      { hasReadyClipArtifact: hasReadyCutoutClipArtifact });
+      { hasReadyClipArtifact: hasReadyCutoutClipArtifact, reference });
     if (next !== backgroundIsolation) patchBackgroundIsolation(next);
+
+    // Call interactive SAM 2 daemon on GPU for instant glowing shimmer outline (<50ms)
+    if (reference?.sourcePath && next?.subject_points?.length > 0) {
+      setSubjectContourLoading(true);
+      try {
+        const res = await interactiveSegment({
+          source_path: reference.sourcePath,
+          timestamp: reference.sourceStart ?? 0.0,
+          points: next.subject_points,
+          width: 540,
+          height: 960,
+        });
+        if (res?.ok && res.contours) {
+          setSubjectContours(res.contours);
+        }
+      } catch (err) {
+        console.warn('Interactive segment preview failed:', err);
+      } finally {
+        setSubjectContourLoading(false);
+      }
+    }
   }, [backgroundIsolation, backgroundIsolationPreparing, hasReadyCutoutClipArtifact, patchBackgroundIsolation]);
   const handleClearSubjectPoints = useCallback(() => {
     if (backgroundIsolationPreparing) return;
     const next = clearSubjectPointsOnConfig(backgroundIsolation,
       { hasReadyClipArtifact: hasReadyCutoutClipArtifact });
     if (next !== backgroundIsolation) patchBackgroundIsolation(next);
+    setSubjectContours([]);
   }, [backgroundIsolation, backgroundIsolationPreparing, hasReadyCutoutClipArtifact, patchBackgroundIsolation]);
   const handleToggleSubjectPick = useCallback((nextActive) => {
     setSubjectPickMode((current) => (typeof nextActive === 'boolean' ? nextActive : !current));
@@ -1683,15 +1824,49 @@ export default function EditorShell({
       enabled: true,
       artifact: { ...(baseConfig.artifact || {}), id: null, status: 'processing' },
     });
+    // Reset all target clips in unique groups to pending/queued state so timeline immediately clears old purple
+    set((prev) => ({
+      ...prev,
+      clipList: (prev.clipList || []).map((clip) => {
+        const inUnique = unique.some((g) => (g.clips || []).some((c) => c.id === clip.id));
+        if (!inUnique) return clip;
+        return {
+          ...clip,
+          background_isolation: {
+            ...(clip.background_isolation || {}),
+            enabled: true,
+            artifact: {
+              ...(clip.background_isolation?.artifact || {}),
+              id: null,
+              status: 'queued',
+            },
+          },
+        };
+      }),
+    }));
     const jobContext = { ...cutoutContextRef.current };
     const isCurrentJob = () => cutoutContextRef.current.projectName === jobContext.projectName
       && cutoutContextRef.current.generation === jobContext.generation;
     setBackgroundIsolationError('');
     setBackgroundIsolationTaskIds([]);
     setBackgroundIsolationPreparing(true);
+    isLocalPreparingRef.current = true;
+    setCutoutBatchState({
+      activeIndex: 0,
+      totalCount: unique.length,
+      activeClipIds: (unique[0]?.clips || []).map((c) => c.id),
+      queuedClipIds: unique.slice(1).flatMap((g) => (g.clips || []).map((c) => c.id)),
+    });
     try {
-      for (const item of unique) {
+      for (let i = 0; i < unique.length; i++) {
+        const item = unique[i];
         if (!isCurrentJob()) return;
+        setCutoutBatchState({
+          activeIndex: i,
+          totalCount: unique.length,
+          activeClipIds: (item.clips || []).map((c) => c.id),
+          queuedClipIds: unique.slice(i + 1).flatMap((g) => (g.clips || []).map((c) => c.id)),
+        });
         const request = {
           source_path: item.sourcePath,
           config: baseConfig,
@@ -1732,8 +1907,7 @@ export default function EditorShell({
           ...prev,
           clipList: (prev.clipList || []).map((clip) => {
             const before = item.clips.find((candidate) => candidate.id === clip.id);
-            const covered = before
-              && JSON.stringify(before.background_isolation) === JSON.stringify(clip.background_isolation)
+            const covered = Boolean(before)
               && backgroundIsolationWindowContainsClip(item, clip, { sourceDurations: durations });
             if (!covered) return clip;
             const previous = clip.background_isolation;
@@ -1760,16 +1934,23 @@ export default function EditorShell({
       setBackgroundIsolationError(message);
       showToast(message);
     } finally {
-      if (cutoutContextRef.current.projectName === jobContext.projectName) setBackgroundIsolationPreparing(false);
+      isLocalPreparingRef.current = false;
+      if (cutoutContextRef.current.projectName === jobContext.projectName) {
+        setBackgroundIsolationPreparing(false);
+        setCutoutBatchState({ activeIndex: 0, totalCount: 0, activeClipIds: [], queuedClipIds: [] });
+      }
       setBackgroundIsolationTaskIds([]);
       pollTasks?.();
     }
   }, [backgroundIsolation, backgroundIsolationGroups, backgroundIsolationPlan.conflictCount, clipList, getTaskStatus, patchBackgroundIsolation, projectName, pollTasks, set, showToast, startBackgroundIsolation]);
 
   const cancelBackgroundIsolation = useCallback(async () => {
+    isLocalPreparingRef.current = false;
     const ids = [...backgroundIsolationTaskIds];
     await Promise.all(ids.map((taskId) => cancelTask?.(taskId)));
     setBackgroundIsolationError('ยกเลิกการเตรียม Cutout แล้ว');
+    setBackgroundIsolationPreparing(false);
+    setCutoutBatchState({ activeIndex: 0, totalCount: 0, activeClipIds: [], queuedClipIds: [] });
     pollTasks?.();
   }, [backgroundIsolationTaskIds, cancelTask, pollTasks]);
 
@@ -1887,7 +2068,8 @@ export default function EditorShell({
     return () => { cancelled = true; };
   }, [projectName, findMatchingAngle]);
 
-  const handleApply = async (forceDisableCutout = false) => {
+  const handleApply = async (requestedCutoutOverride = false) => {
+    const forceDisableCutout = requestedCutoutOverride === true;
     if (forceDisableCutout) {
       setApplyError(null);
       showToast('เริ่มเรนเดอร์แบบไม่ใช้ Cutout ชั่วคราว...');
@@ -2534,6 +2716,7 @@ export default function EditorShell({
                   clips={clipList}
                   cues={cuesList}
                   overlays={overlays}
+                  voiceEdit={activeVoiceEdit}
                   audioUrl={audioUrl}
                   audioStems={audioStems}
                   grade={grade}
@@ -2574,7 +2757,9 @@ export default function EditorShell({
                   // the hook text over the product.
                   backgroundIsolation={previewBackgroundIsolation}
                   subjectPoints={backgroundIsolation?.subject_points ?? []}
+                  subjectContours={subjectContours}
                   subjectPickMode={subjectPickMode && subjectPickAllowed}
+                  subjectPickLabel={subjectPickLabel}
                   onPickSubjectPoint={handlePickSubjectPoint}
                   backgroundIsolationStatus={backgroundIsolationStatus}
                   onToggleBackgroundIsolation={(nextEnabled) => patchBackgroundIsolation({
@@ -2611,6 +2796,10 @@ export default function EditorShell({
                   showSafeZone={showSafeZone}
                   onToggleSafeZone={handleToggleSafeZone}
                   showWatermark={style.showWatermark !== false}
+                  previewQuality={previewQuality}
+                  onPreviewQualityChange={handlePreviewQualityChange}
+                  highResStillEnabled={highResStillEnabled}
+                  onToggleHighResStill={() => setHighResStillEnabled((v) => !v)}
                 />
               )}
               {applying && (
@@ -2759,9 +2948,9 @@ export default function EditorShell({
                   showSafeZone={showSafeZone}
                   onToggleSafeZone={handleToggleSafeZone}
                   zoomIndex={zoomIndex}
-                  zoomCount={ZOOM_LEVELS.length}
+                  zoomCount={ZOOM_PRESETS.length}
                   onZoomToFit={zoomToFit}
-                  onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
+                  onZoom={zoomStep}
                   snapEnabled={snapEnabled}
                   onToggleSnap={() => setSnapEnabled((v) => !v)}
                   beatSnapEnabled={beatSnapEnabled}
@@ -2771,6 +2960,10 @@ export default function EditorShell({
                   onScanSilences={handleScanSilences}
                   canScanSilences={!!voiceAudioPath && clipList.length > 0}
                   silenceScanning={silenceScanning}
+                  previewQuality={previewQuality}
+                  onPreviewQualityChange={handlePreviewQualityChange}
+                  highResStillEnabled={highResStillEnabled}
+                  onToggleHighResStill={() => setHighResStillEnabled((v) => !v)}
                 />
                 <div className="min-h-0 flex-1">
                   <Timeline
@@ -2778,8 +2971,13 @@ export default function EditorShell({
                     backgroundIsolation={backgroundIsolation}
                     cutoutIntervals={scopedCutoutClipIntervals}
                     cutoutArtifactAvailability={cutoutArtifactAvailability}
+                    cutoutProcessingClipIds={cutoutBatchState.activeClipIds}
+                    cutoutQueuedClipIds={cutoutBatchState.queuedClipIds}
+                    isCutoutHidden={isCutoutHidden}
+                    onToggleCutout={() => setIsCutoutHidden((v) => !v)}
                     totalDuration={totalDuration}
                     audioDuration={audioDuration}
+                    voiceEdit={activeVoiceEdit}
                     cues={cuesList}
                     bgmLabel={bgmLabel}
                     beatGrid={beatSnapEnabled ? beatGrid : null}
@@ -2787,6 +2985,11 @@ export default function EditorShell({
                     playhead={playhead}
                     selection={selection}
                     onSelect={handleSelect}
+                    selectedClipIds={selectedClipIds}
+                    onSelectClipWithMode={selectClipWithMode}
+                    onCopySettings={copyClipSettings}
+                    onPasteSettings={pasteClipSettings}
+                    canPasteSettings={hasCopiedClipSettings}
                     onSeek={seekPlayer}
                     onClipChange={patchClip}
                     onCaptionChange={patchCaption}
@@ -2811,7 +3014,8 @@ export default function EditorShell({
                     onAdjustTrim={setTrimAdjustSeg}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
-                    onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
+                    onZoom={zoomStep}
+                    onZoomTo={zoomTo}
                     viewportRef={timelineViewportRef}
                     snapCandidates={snapEnabled ? snapCandidates(segments, playhead, [...(audioDuration > 0 ? [audioDuration] : []), ...cueSnapPoints, ...beatSnapPoints]) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
@@ -2887,7 +3091,9 @@ export default function EditorShell({
                       onCancelBackgroundIsolation={cancelBackgroundIsolation}
                       subjectPoints={backgroundIsolation?.subject_points ?? []}
                       subjectPickMode={subjectPickMode}
+                      subjectPickLabel={subjectPickLabel}
                       onToggleSubjectPick={handleToggleSubjectPick}
+                      onSelectPickLabel={setSubjectPickLabel}
                       onClearSubjectPoints={handleClearSubjectPoints}
                       onClearAllBgBlur={handleClearAllBgBlur}
                       onSelectClip={handleSelectClipById}
@@ -2921,6 +3127,7 @@ export default function EditorShell({
                   <div className="h-full">
                     <Inspector
                       selection={selection}
+                      multiSelectCount={selectedClipIds.length}
                       selectedSeg={selectedSeg}
                       selectedCaption={selectedCaption}
                       cuesList={cuesList}
@@ -2976,6 +3183,19 @@ export default function EditorShell({
                       effects={effects}
                       onUpdateEffect={handleUpdateEffect}
                       onDeleteEffect={handleDeleteEffect}
+                      backgroundIsolation={backgroundIsolation}
+                      backgroundIsolationStatus={backgroundIsolationStatus}
+                      onToggleBackgroundIsolation={(nextEnabled) => patchBackgroundIsolation({
+                        ...(backgroundIsolation || {}),
+                        schema_version: 1,
+                        enabled: typeof nextEnabled === 'boolean' ? nextEnabled : !(backgroundIsolation?.enabled === true),
+                      })}
+                      cutoutPreviewMode={cutoutPreviewMode}
+                      onCutoutPreviewModeChange={setCutoutPreviewMode}
+                      subjectPoints={backgroundIsolation?.subject_points ?? []}
+                      subjectPickMode={subjectPickMode && subjectPickAllowed}
+                      onToggleSubjectPickMode={() => setSubjectPickMode((v) => !v)}
+                      onClearSubjectPoints={handleClearSubjectPoints}
                     />
                   </div>
                 )}
@@ -3050,7 +3270,9 @@ export default function EditorShell({
                         onCancelBackgroundIsolation={cancelBackgroundIsolation}
                         subjectPoints={backgroundIsolation?.subject_points ?? []}
                         subjectPickMode={subjectPickMode}
+                        subjectPickLabel={subjectPickLabel}
                         onToggleSubjectPick={handleToggleSubjectPick}
+                        onSelectPickLabel={setSubjectPickLabel}
                         onClearSubjectPoints={handleClearSubjectPoints}
                         onClearAllBgBlur={handleClearAllBgBlur}
                         onSelectClip={handleSelectClipById}
@@ -3115,6 +3337,7 @@ export default function EditorShell({
                     clips={clipList}
                     cues={cuesList}
                     overlays={overlays}
+                    voiceEdit={activeVoiceEdit}
                     audioUrl={audioUrl}
                     audioStems={audioStems}
                     grade={grade}
@@ -3149,7 +3372,9 @@ export default function EditorShell({
                     // View-only mask -- see the note on the desktop tree.
                     backgroundIsolation={previewBackgroundIsolation}
                     subjectPoints={backgroundIsolation?.subject_points ?? []}
+                    subjectContours={subjectContours}
                     subjectPickMode={subjectPickMode && subjectPickAllowed}
+                    subjectPickLabel={subjectPickLabel}
                     onPickSubjectPoint={handlePickSubjectPoint}
                     backgroundIsolationStatus={backgroundIsolationStatus}
                     onToggleBackgroundIsolation={(nextEnabled) => patchBackgroundIsolation({
@@ -3186,6 +3411,10 @@ export default function EditorShell({
                     showSafeZone={showSafeZone}
                     onToggleSafeZone={handleToggleSafeZone}
                     showWatermark={style.showWatermark !== false}
+                    previewQuality={previewQuality}
+                    onPreviewQualityChange={handlePreviewQualityChange}
+                    highResStillEnabled={highResStillEnabled}
+                    onToggleHighResStill={() => setHighResStillEnabled((v) => !v)}
                   />
                 )}
                 {applying && (
@@ -3291,6 +3520,7 @@ export default function EditorShell({
                       </div>
                       <Inspector
                         selection={selection}
+                        multiSelectCount={selectedClipIds.length}
                         selectedSeg={selectedSeg}
                         selectedCaption={selectedCaption}
                         cuesList={cuesList}
@@ -3346,6 +3576,19 @@ export default function EditorShell({
                         effects={effects}
                         onUpdateEffect={handleUpdateEffect}
                         onDeleteEffect={handleDeleteEffect}
+                        backgroundIsolation={backgroundIsolation}
+                        backgroundIsolationStatus={backgroundIsolationStatus}
+                        onToggleBackgroundIsolation={(nextEnabled) => patchBackgroundIsolation({
+                          ...(backgroundIsolation || {}),
+                          schema_version: 1,
+                          enabled: typeof nextEnabled === 'boolean' ? nextEnabled : !(backgroundIsolation?.enabled === true),
+                        })}
+                        cutoutPreviewMode={cutoutPreviewMode}
+                        onCutoutPreviewModeChange={setCutoutPreviewMode}
+                        subjectPoints={backgroundIsolation?.subject_points ?? []}
+                        subjectPickMode={subjectPickMode && subjectPickAllowed}
+                        onToggleSubjectPickMode={() => setSubjectPickMode((v) => !v)}
+                        onClearSubjectPoints={handleClearSubjectPoints}
                       />
                     </div>
                   </div>
@@ -3415,9 +3658,9 @@ export default function EditorShell({
                   showSafeZone={showSafeZone}
                   onToggleSafeZone={handleToggleSafeZone}
                   zoomIndex={zoomIndex}
-                  zoomCount={ZOOM_LEVELS.length}
+                  zoomCount={ZOOM_PRESETS.length}
                   onZoomToFit={zoomToFit}
-                  onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
+                  onZoom={zoomStep}
                   snapEnabled={snapEnabled}
                   onToggleSnap={() => setSnapEnabled((v) => !v)}
                   beatSnapEnabled={beatSnapEnabled}
@@ -3427,6 +3670,10 @@ export default function EditorShell({
                   onScanSilences={handleScanSilences}
                   canScanSilences={!!voiceAudioPath && clipList.length > 0}
                   silenceScanning={silenceScanning}
+                  previewQuality={previewQuality}
+                  onPreviewQualityChange={handlePreviewQualityChange}
+                  highResStillEnabled={highResStillEnabled}
+                  onToggleHighResStill={() => setHighResStillEnabled((v) => !v)}
                 />
                 <div className="min-h-0 flex-1">
                   <Timeline
@@ -3434,8 +3681,11 @@ export default function EditorShell({
                     backgroundIsolation={backgroundIsolation}
                     cutoutIntervals={scopedCutoutClipIntervals}
                     cutoutArtifactAvailability={cutoutArtifactAvailability}
+                    cutoutProcessingClipIds={cutoutBatchState.activeClipIds}
+                    cutoutQueuedClipIds={cutoutBatchState.queuedClipIds}
                     totalDuration={totalDuration}
                     audioDuration={audioDuration}
+                    voiceEdit={activeVoiceEdit}
                     cues={cuesList}
                     bgmLabel={bgmLabel}
                     beatGrid={beatSnapEnabled ? beatGrid : null}
@@ -3443,6 +3693,11 @@ export default function EditorShell({
                     playhead={playhead}
                     selection={selection}
                     onSelect={handleSelect}
+                    selectedClipIds={selectedClipIds}
+                    onSelectClipWithMode={selectClipWithMode}
+                    onCopySettings={copyClipSettings}
+                    onPasteSettings={pasteClipSettings}
+                    canPasteSettings={hasCopiedClipSettings}
                     onSeek={seekPlayer}
                     onClipChange={patchClip}
                     onCaptionChange={patchCaption}
@@ -3469,7 +3724,8 @@ export default function EditorShell({
                     onAdjustTrim={setTrimAdjustSeg}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
-                    onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
+                    onZoom={zoomStep}
+                    onZoomTo={zoomTo}
                     viewportRef={timelineViewportRef}
                     snapCandidates={snapEnabled ? snapCandidates(segments, playhead, [...(audioDuration > 0 ? [audioDuration] : []), ...cueSnapPoints, ...beatSnapPoints]) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}

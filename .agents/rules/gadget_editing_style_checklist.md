@@ -47,6 +47,18 @@
 2. **Dynamic Multi-Cut & Ken Burns**:
    - สลับภาพทุก 1.5 – 3.0 วินาที เพื่อความกระชับ น่าติดตาม
    - ภาพนิ่งทุกภาพต้องใส่ Ken Burns (Slow Zoom 1.0 -> 1.10) ห้ามแช่ภาพนิ่งแข็งทื่อ
+   - Ken Burns ของรูปนิ่ง (`scripts/image_motion_engine.py`, `_ENGINE_SCHEMA = 2`) ต้องได้ **จำนวนเฟรมพอดี `ceil(ความยาว × 30)`** (เดิม cue 2 วิ ได้ ~100 วิ) · ขยายภาพก่อน 4× ด้วย lanczos · รูปแนวนอนต้องไม่ถูกยืด (pad เป็น 3:4) · ชื่อไฟล์ segment `motion_seg_NNN_<hash>.mp4`
+3. **จังหวะตัดตามสไตล์ (Cut Rhythm per Style)** — ค่า `min_shot`/`max_shot`/`j_lead`/`beat_snap_tolerance` อยู่ใน `scripts/style_motion_policy.py` ไม่ใช่ค่าคงที่ร่วมอีกต่อไป (ตารางครบทุกสไตล์ใน [_Docs/GADGET_VIDEO_PRODUCTION_SOP.md](file:///d:/Winona/Programmer/Capcut/_Docs/GADGET_VIDEO_PRODUCTION_SOP.md) Phase 5):
+   - **ค้างภาพจนจบประโยค**: ถ้าจบประโยคอยู่ในระยะ `max_shot` ให้รอจบประโยคก่อนตัด (Sentence-aware grouping) — ไม่ขัดกับ Strict Topic Hold
+   - **ลำดับ snap**: beat > motion > voice-valley > rhythm · voice-valley = ขยับ ±2 เฟรมไปช่วง 10 ms ที่เงียบที่สุดของเสียงพากย์ โดย lead ต้องอยู่ 0.10–0.30 s
+   - **Transition แบบ slide** หันทิศตามการแพนของคลิปขาออก (pan ขวา → เนื้อหาวิ่งไปซ้าย → `slideleft`)
+4. **J-Cut วัดจากไฟล์จริง**: ทุกรอยต่อภาพต้องเปลี่ยน**หลัง**เสียงเริ่มเสมอ (lead เป็นบวก ≈ 167 ms ที่ค่าเริ่มต้น; มาตรฐาน 150–250 ms) · จุดตัดแรก = `0.0` ไม่ใช่ `first_cue_start` · transition วางกึ่งกลางจุดตัด · รายละเอียดใน [.agents/rules/j_cut_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/j_cut_rules.md) §6
+5. **กริดเฟรมเต็ม**: จุดตัด/ความยาวคลิป/offset ของ transition ทั้งหมดอยู่บนกริด 1/30 s แบบสะสม (`boundary_k = round(cumsum_k × 30) / 30`) เฟรมรวม = `round(total × 30)` ทั้งพรีวิวและเรนเดอร์ — สาย 12 คลิปต้องไม่เลื่อนสะสม
+6. **Easing เริ่มต้น (เปลี่ยนเฉพาะเส้นโค้งการเคลื่อนไหว ไม่แตะฟอนต์/ขนาด/ตำแหน่ง)**:
+   - กล้อง: push/pan ที่ pipeline สร้างและ preset ซูมช้าใน Inspector ใช้ `ease_in_out` (keyframe ที่ไม่มี `easing` = linear เหมือนเดิม)
+   - Transition: ตั้ง easing เฉพาะ fade/wipe/slide — `ease_in_out` สำหรับ smooth_showcase, premium_minimal, clean_tech_review, tech_product_showcase, niche_focus, tech_compare · `ease_out` สำหรับ viral_punch, flash_deal, pain_punch, smart_hack · ❌ ห้ามตั้งบน `fadeblack`/`fadewhite` (เรนเดอร์ช้าลง +8–13 วิ ต่อ transition ที่ 1080x1920) · `dissolve`/`circleopen`/`circleclose` คง linear
+   - ข้อความ/Hook: bounce/pop/in-zoom accel 0.6, out fade/zoom accel 2.2, shake step 100 ms, glitch step 33 ms (ค่าอยู่ใน `motion_contract.py` / `motionPresets.js` ผูกด้วยเทส)
+7. **สติกเกอร์/effect เข้า-ออกนุ่มนวล**: เข้า = fade-in 7 เฟรม (0.233 s) + (เฉพาะสติกเกอร์) scale 0.88→1.0 ease_out · ออก = fade-out 6 เฟรม (0.2 s) · fade ไม่เกิน 40% ของเวลาที่เห็น · เฟรมนิ่งต้องเหมือนเดิมทุกบิต · พรีวิว (`stickerAnimation.js`) = render (`video_editor.py overlay_anim_*`)
 
 ---
 
@@ -87,6 +99,11 @@
 | **10. สกัดคีย์เฟรม** | สกัดภาพตรวจสอบจุดสำคัญอย่างน้อย 5 จุดบันทึกลง Artifact | [ ] |
 | **11. ลิงก์เปิดไฟล์** | จัดทำ Markdown Link แบบ `file:///` คลิกเปิดได้ทันที | [ ] |
 | **12. ข้อความหลังสินค้า (ถ้ามี)** | Hook/Text Overlay เลือกชั้นหน้า/หลังตรงตามเจตนา เตรียม Cutout เฉพาะช่วง และตรวจเฟรมเข้า/ออกใน Preview กับ Render | [ ] |
+| **13. J-Cut วัดจริง** | ภาพเปลี่ยนหลังเสียงเริ่มทุกรอยต่อ (lead บวก ≈ 167 ms ที่ค่าเริ่มต้น, มาตรฐาน 150–250 ms) ไม่มี reverse J-cut และไม่มีเฟรมท้ายถูกค้าง | [ ] |
+| **14. กริดเฟรม** | จุดตัดทุกจุดอยู่บนกริด 1/30 s, เฟรมรวม = `round(ความยาว × 30)`, สายคลิปยาวไม่เลื่อนสะสม | [ ] |
+| **15. จังหวะตัดต่อสไตล์** | ความยาว shot อยู่ในช่วง `min_shot`–`max_shot` ของสไตล์ที่เลือก (ตาราง SOP Phase 5) และตัดหลังจบประโยคเมื่อถึงภายใน `max_shot` | [ ] |
+| **16. Easing** | กล้อง push/pan = `ease_in_out`, transition fade/wipe/slide ตามนโยบายสไตล์ (ไม่มีบน fadeblack/fadewhite), Ken Burns รูปนิ่งได้เฟรมเท่า `ceil(dur × 30)` ไม่ถูกยืด | [ ] |
+| **17. สติกเกอร์/effect** | เข้า fade-in 7 เฟรม (+ scale 0.88→1.0 เฉพาะสติกเกอร์) ออก fade-out 6 เฟรม ดูเฟรมเข้า/นิ่ง/ออกใน Preview กับ Render ตรงกัน | [ ] |
 
 ---
 

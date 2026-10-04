@@ -1,8 +1,9 @@
 import React from 'react';
 import {
-  AudioLines, Copy, FlipHorizontal2, Gauge, Magnet, Maximize2, Music2, Redo2, RotateCcw, Scissors, Shield, Sparkles, Trash2, Undo2, ZoomIn, ZoomOut, Type,
+  AudioLines, Copy, FlipHorizontal2, Gauge, Link2, Magnet, Maximize2, Music2, Redo2, RotateCcw, Scissors, ScissorsLineDashed, Shield, Sparkles, Trash2, Undo2, Unlink, ZoomIn, ZoomOut, Type,
 } from 'lucide-react';
 import { formatTimecode } from '../../lib/timelineMath';
+import { rippleScopeHint, rippleScopeLabel } from '../../lib/rippleUi';
 
 const SPEEDS = [0.5, 1, 1.5, 2];
 
@@ -67,6 +68,18 @@ export default function Toolbar({
   onScanSilences,
   canScanSilences = false,
   silenceScanning = false,
+  previewQuality = 'master1080',
+  onPreviewQualityChange = null,
+  highResStillEnabled = true,
+  onToggleHighResStill = null,
+  // Ripple delete. The scope toggle only exists while the project has a
+  // voiceover: without one there is nothing to cut together with the picture.
+  // `rangeReady` = both In and Out are marked, so the range cut is offered.
+  rippleScope = 'all',
+  showRippleScope = false,
+  onToggleRippleScope = null,
+  rangeReady = false,
+  onRippleRange = null,
 }) {
   const speed = selectedClip?.speed || 1;
   const nextSpeed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length] || 1;
@@ -76,22 +89,33 @@ export default function Toolbar({
       <ToolButton icon={Undo2} label="ย้อน" hint="ย้อนการแก้ล่าสุด" shortcut="Ctrl+Z" onClick={onUndo} disabled={!canUndo} />
       <ToolButton icon={Redo2} label="ไปหน้า" hint="ทำสิ่งที่เพิ่งย้อนไปอีกครั้ง" shortcut="Ctrl+Shift+Z" onClick={onRedo} disabled={!canRedo} />
 
-      {/* Digital Timecode Display */}
-      <div
-        className="mx-1 flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#161514] border border-[#3A3833] font-mono text-xs font-semibold shadow-inner select-none"
-        title="เวลาปัจจุบัน / เวลาทั้งหมดของคลิป (นาที:วินาที:เฟรม ที่ 30 เฟรมต่อวินาที)"
-      >
-        <span className="text-[#25F4EE]">{formatTimecode(playhead, { frames: true })}</span>
-        <span className="text-[#6B6660]">/</span>
-        <span className="text-[#9C968F]">{formatTimecode(totalDuration, { frames: true })}</span>
-      </div>
-
       <span className="mx-1 h-4 w-px bg-[#363430]" />
 
       <ToolButton icon={Scissors} label="แยก" hint={!canSplit && splitBlockedReason ? splitBlockedReason : 'ผ่าคลิปตรงหัวอ่าน'} shortcut="S / Ctrl+B" onClick={onSplit} disabled={!canSplit} />
       <ToolButton icon={Type} label="เพิ่มข้อความ" hint="แทรกข้อความใหม่ตรงหัวอ่าน" onClick={onAddText} />
       <ToolButton icon={Copy} label="ทำสำเนา" hint="ก๊อบคลิปที่เลือกต่อท้ายตัวเอง" onClick={onDuplicate} disabled={!hasClipSelected} />
       <ToolButton icon={Trash2} label="ลบ" shortcut="Del" onClick={onDelete} disabled={!hasSelection} />
+      {/* One control, one icon: it says what Delete does to the voice and the
+          captions now, and a click flips it. Hidden without a voiceover. */}
+      {showRippleScope && onToggleRippleScope && (
+        <ToolButton
+          icon={rippleScope === 'video' ? Unlink : Link2}
+          label={rippleScopeLabel(rippleScope)}
+          hint={rippleScopeHint(rippleScope)}
+          onClick={onToggleRippleScope}
+          active={rippleScope !== 'video'}
+        />
+      )}
+      {/* Offered only once In and Out are both marked (I / O keys). */}
+      {rangeReady && onRippleRange && (
+        <ToolButton
+          icon={ScissorsLineDashed}
+          label="ตัดช่วงที่ตั้งไว้"
+          hint="ตัดช่วงระหว่างจุดเข้า-จุดออกทิ้งแล้วดึงส่วนที่เหลือมาชิด (ยืนยันก่อนตัดจริง)"
+          shortcut="Shift+Del"
+          onClick={onRippleRange}
+        />
+      )}
 
       <span className="mx-1 h-4 w-px bg-[#363430]" />
 
@@ -158,13 +182,6 @@ export default function Toolbar({
 
       <div className="ml-auto flex items-center gap-1">
         <ToolButton
-          icon={Shield}
-          label="Safe Zone"
-          hint="เปิด/ปิดเส้นไกด์ TikTok Safe Zone 420px"
-          onClick={onToggleSafeZone}
-          active={showSafeZone}
-        />
-        <ToolButton
           icon={Magnet}
           label="ดูดขอบ"
           onClick={onToggleSnap}
@@ -200,11 +217,11 @@ export default function Toolbar({
           />
         )}
         <span className="mx-1 h-4 w-px bg-[#363430]" />
-        <ToolButton icon={ZoomOut} label="" onClick={() => onZoom(-1)} disabled={zoomIndex <= 0} />
+        <ToolButton icon={ZoomOut} label="" hint="ซูมออก (ปุ่ม -)" onClick={() => onZoom(-1)} disabled={zoomIndex <= 0} />
         <span className="w-10 text-center font-mono text-sm text-[#9C968F]">
           {zoomIndex + 1}/{zoomCount}
         </span>
-        <ToolButton icon={ZoomIn} label="" onClick={() => onZoom(1)} disabled={zoomIndex >= zoomCount - 1} />
+        <ToolButton icon={ZoomIn} label="" hint="ซูมเข้า (ปุ่ม +) · Ctrl+เลื่อนล้อเมาส์ซูมต่อเนื่อง" onClick={() => onZoom(1)} disabled={zoomIndex >= zoomCount - 1} />
         <ToolButton icon={Maximize2} label="" hint="ซูมให้เห็นทั้งคลิปพอดีจอ" onClick={onZoomToFit} disabled={!onZoomToFit} />
       </div>
     </div>

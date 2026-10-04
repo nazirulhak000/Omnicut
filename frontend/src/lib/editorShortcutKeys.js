@@ -5,7 +5,7 @@
  * action to a handler; `preventDefault` tells it whether to swallow the event.
  *
  * Modifier rule: with Ctrl/Meta/Alt held, only the explicit combos below are
- * claimed (Ctrl+Z, Shift+Ctrl+Z, Ctrl+Y, Ctrl+B). Everything else (Ctrl+S,
+ * claimed (Ctrl+Z, Shift+Ctrl+Z, Ctrl+Y, Ctrl+B, Ctrl+Alt+C/V). Everything else (Ctrl+S,
  * Ctrl++, Ctrl+-, Alt+...) is left to the browser/app, never touching the
  * unmodified single-key verbs.
  */
@@ -59,7 +59,7 @@ const act = (action, extra = {}) => ({ action, preventDefault: true, ...extra })
 
 /**
  * @param {{ key?: string, ctrlKey?: boolean, metaKey?: boolean, altKey?: boolean, shiftKey?: boolean }} event
- * @param {{ zen?: boolean }} [context]
+ * @param {{ zen?: boolean, multiSelect?: boolean, hasRange?: boolean }} [context]
  * @returns {{ action: string, preventDefault: boolean, delta?: number }}
  */
 export function classifyShortcut(event, context = {}) {
@@ -74,12 +74,25 @@ export function classifyShortcut(event, context = {}) {
       if (k === 'y') return act('redo');
       if (k === 'b') return act('split');
     }
+    // Ctrl+Alt+C / Ctrl+Alt+V: copy / paste clip settings (the Premiere-style
+    // "paste attributes" combo). Plain Ctrl+C / Ctrl+V stay with the browser,
+    // and Cmd+Alt+C (DevTools on macOS) is not claimed.
+    if (event.altKey && event.ctrlKey && !event.metaKey && !event.shiftKey) {
+      if (k === 'c') return act('copySettings');
+      if (k === 'v') return act('pasteSettings');
+    }
     return NONE;
   }
   // Alt-modified keys belong to the browser/OS menu bar, not the editor.
   if (event.altKey) return NONE;
 
-  if (key === 'Escape') return context.zen ? act('exitZen') : NONE;
+  // Zen mode takes Escape first, then a marked In/Out range, then a multi-clip
+  // selection (and nothing -- NONE -- when only one thing is selected).
+  if (key === 'Escape') {
+    if (context.zen) return act('exitZen');
+    if (context.hasRange) return act('clearRange');
+    return context.multiSelect ? act('clearSelection') : NONE;
+  }
 
   switch (key) {
     case ' ': return act('togglePlay');
@@ -87,9 +100,24 @@ export function classifyShortcut(event, context = {}) {
     case 'j': case 'J': return act('jump', { delta: -1.0 });
     case 'k': case 'K': return act('togglePlay');
     case 'l': case 'L': return act('jump', { delta: 1.0 });
-    case 'Delete': case 'Backspace': return act('delete');
+    // Shift+Delete ripples the marked In-Out range (the hook falls back to a
+    // plain delete while no range is marked). Backspace stays a plain delete.
+    case 'Delete': return act(event.shiftKey ? 'rippleRange' : 'delete');
+    case 'Backspace': return act('delete');
+    // In / Out marks at the playhead for a range cut. Free keys: the tab keys
+    // are digits, and Ctrl/Alt combos never reach this switch.
+    case 'i': case 'I': return act('markIn');
+    case 'o': case 'O': return act('markOut');
     case 'ArrowLeft': return act('jump', { delta: -(event.shiftKey ? 1 : 1 / 30) });
     case 'ArrowRight': return act('jump', { delta: event.shiftKey ? 1 : 1 / 30 });
+    // Manual-cut verbs. Up/Down and Home/End are free in the editor; Ctrl+Q/W
+    // never reach here (the modifier branch above leaves them to the browser).
+    case 'q': case 'Q': return act('trimHead');
+    case 'w': case 'W': return act('trimTail');
+    case 'ArrowUp': return act('prevEdit');
+    case 'ArrowDown': return act('nextEdit');
+    case 'Home': return act('seekStart');
+    case 'End': return act('seekEnd');
     case '+': case '=': return act('zoomIn');
     case '-': case '_': return act('zoomOut');
     // preventDefault is decided by the hook (needs a selected, non-first clip).
@@ -131,8 +159,27 @@ export const SHORTCUT_GROUPS = Object.freeze([
       },
       {
         keys: 'Del / Backspace',
-        desc: 'ลบคลิปหรือคำบรรยายที่เลือก',
+        desc: 'ลบคลิปหรือคำบรรยายที่เลือก (หลายคลิป: ลบทั้งหมดในครั้งเดียว) · โปรเจกต์ที่มีเสียงพากย์จะถามยืนยันก่อน แล้วตัดภาพ เสียงพากย์ และซับพร้อมกัน (สลับเป็นลบเฉพาะภาพได้ที่แถบเครื่องมือ)',
         probes: [{ event: { key: 'Delete' }, action: 'delete' }, { event: { key: 'Backspace' }, action: 'delete' }],
+      },
+      {
+        keys: 'I / O',
+        desc: 'ตั้งจุดเข้า / จุดออกที่หัวอ่าน เพื่อตัดช่วง (แสดงเป็นแถบสีส้มบนไม้บรรทัดเวลา)',
+        probes: [{ event: { key: 'i' }, action: 'markIn' }, { event: { key: 'o' }, action: 'markOut' }],
+      },
+      {
+        keys: 'Shift+Del',
+        desc: 'ตัดช่วงระหว่างจุดเข้า-จุดออกทิ้ง แล้วดึงส่วนที่เหลือมาชิด (ถ้ายังไม่ตั้งช่วง = ลบตามปกติ)',
+        probes: [{ event: { key: 'Delete', shiftKey: true }, action: 'rippleRange' }],
+      },
+      { keys: 'Ctrl / Shift + คลิก', desc: 'เลือกหลายคลิปบนไทม์ไลน์: Ctrl สลับทีละคลิป, Shift เลือกเป็นช่วง' }, // TimelineClip click
+      {
+        keys: 'Ctrl+Alt+C / Ctrl+Alt+V',
+        desc: 'คัดลอกการตั้งค่าของคลิปหลัก (ความเร็ว ซูม/แพน+คีย์เฟรมกล้อง สี ทรานซิชัน) / วางลงคลิปที่เลือก',
+        probes: [
+          { event: { key: 'c', ctrlKey: true, altKey: true }, action: 'copySettings' },
+          { event: { key: 'v', ctrlKey: true, altKey: true }, action: 'pasteSettings' },
+        ],
       },
       { keys: 'Ctrl+Z', desc: 'ย้อนกลับ', probes: [{ event: { key: 'z', ctrlKey: true }, action: 'undo' }] },
       {
@@ -159,6 +206,21 @@ export const SHORTCUT_GROUPS = Object.freeze([
           { event: { key: 'ArrowLeft' }, action: 'jump', delta: -1 / 30 },
           { event: { key: 'ArrowRight', shiftKey: true }, action: 'jump', delta: 1 },
         ],
+      },
+      {
+        keys: 'Q / W',
+        desc: 'ตัดหน้าคลิปทิ้งถึงหัวอ่าน / ตัดท้ายคลิปทิ้งตั้งแต่หัวอ่าน',
+        probes: [{ event: { key: 'q' }, action: 'trimHead' }, { event: { key: 'w' }, action: 'trimTail' }],
+      },
+      {
+        keys: '↑ / ↓',
+        desc: 'ข้ามไปจุดตัดก่อนหน้า / ถัดไป (ขอบคลิปและขอบคำบรรยาย)',
+        probes: [{ event: { key: 'ArrowUp' }, action: 'prevEdit' }, { event: { key: 'ArrowDown' }, action: 'nextEdit' }],
+      },
+      {
+        keys: 'Home / End',
+        desc: 'ไปจุดเริ่ม / จุดจบของไทม์ไลน์',
+        probes: [{ event: { key: 'Home' }, action: 'seekStart' }, { event: { key: 'End' }, action: 'seekEnd' }],
       },
       {
         keys: '+ / -',
@@ -191,8 +253,12 @@ export const SHORTCUT_GROUPS = Object.freeze([
       { keys: 'Space', desc: 'เล่น / หยุด วิดีโอ', probes: [{ event: { key: ' ' }, action: 'togglePlay' }] },
       {
         keys: 'Esc',
-        desc: 'ปิดหน้าต่างป๊อปอัป / ออกจากโหมดพรีวิวเต็มพื้นที่',
-        probes: [{ event: { key: 'Escape' }, context: { zen: true }, action: 'exitZen' }],
+        desc: 'ปิดหน้าต่างป๊อปอัป / ออกจากโหมดพรีวิวเต็มพื้นที่ / ล้างจุดเข้า-จุดออก / ยกเลิกการเลือกหลายคลิป',
+        probes: [
+          { event: { key: 'Escape' }, context: { zen: true }, action: 'exitZen' },
+          { event: { key: 'Escape' }, context: { hasRange: true }, action: 'clearRange' },
+          { event: { key: 'Escape' }, context: { multiSelect: true }, action: 'clearSelection' },
+        ],
       },
       { keys: 'Ctrl + S', desc: 'บันทึกโปรเจกต์' }, // EditorShell
       { keys: '?', desc: 'เปิดหน้าต่างคีย์ลัด' }, // useKeyboardShortcuts

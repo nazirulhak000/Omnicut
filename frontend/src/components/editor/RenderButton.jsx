@@ -68,7 +68,7 @@ export default function RenderButton({
     <div ref={wrapRef} className="relative flex flex-shrink-0">
       <button
         type="button"
-        onClick={onRender}
+        onClick={() => onRender?.()}
         disabled={disabled || busy}
         title={needsCover ? 'กรุณาสร้างและบันทึกหน้าปกก่อน Render' : `เรนเดอร์แบบ${current?.label || ''}`}
         className="flex h-9 cursor-pointer items-center gap-1.5 rounded-l-xl bg-[#D97757] px-3 text-sm font-bold text-white transition-colors hover:bg-[#C2683D] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E89274] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"

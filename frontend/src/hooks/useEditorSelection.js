@@ -1,5 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
 import { resolveSelectedItem } from '../lib/selectionResolver.js';
+import {
+  EMPTY_CLIP_SELECTION,
+  applyClipClick,
+  baseSelectionState,
+  extraClipIds,
+  selectedClipIdsInOrder,
+} from '../lib/clipMultiSelect.js';
 
 /**
  * Hook to manage item selection (clip, caption, overlay/hook)
@@ -14,6 +21,20 @@ export function useEditorSelection({
   seekPlayer = () => {},
 } = {}) {
   const [selection, setSelection] = useState(null);
+  // Extra clips selected beside the primary `selection` (Ctrl/Shift+click).
+  // Only meaningful while `selection` is still the clip it was built around.
+  const [clipMulti, setClipMulti] = useState(EMPTY_CLIP_SELECTION);
+  const clipOrder = useMemo(() => segments.map((seg) => seg.clip?.id).filter(Boolean), [segments]);
+  const primaryClipId = selection?.type === 'clip' ? selection.id : null;
+  // Timeline order, primary included; [] when no clip is the primary.
+  const selectedClipIds = useMemo(
+    () => selectedClipIdsInOrder(clipMulti, primaryClipId, clipOrder),
+    [clipMulti, primaryClipId, clipOrder]
+  );
+  const extraSelectedClipIds = useMemo(
+    () => extraClipIds(clipMulti, primaryClipId, clipOrder),
+    [clipMulti, primaryClipId, clipOrder]
+  );
 
   const selectedSeg = useMemo(
     () => resolveSelectedItem(selection, 'clip', segments, {
@@ -38,6 +59,9 @@ export function useEditorSelection({
 
   const handleSelect = useCallback((sel, autoSeek = true) => {
     setSelection(sel);
+    // Any plain selection drops the extra clips; Ctrl/Shift+click goes through
+    // selectClipWithMode below instead.
+    setClipMulti(sel?.type === 'clip' && sel.id ? applyClipClick(EMPTY_CLIP_SELECTION, sel.id, 'replace') : EMPTY_CLIP_SELECTION);
     if (!sel || !autoSeek) return;
 
     if (sel.type === 'caption') {
@@ -73,35 +97,33 @@ export function useEditorSelection({
     }
   }, [cuesList, segments, overlays, hookOverlay, playhead, seekPlayer]);
 
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  const toggleMultiSelect = useCallback((id, type) => {
-    setSelectedIds((prev) => {
-      const exists = prev.includes(id);
-      const next = exists ? prev.filter((x) => x !== id) : [...prev, id];
-      if (next.length === 1) {
-        setSelection({ type, id: next[0] });
-      } else if (next.length === 0) {
-        setSelection(null);
+  // Ctrl/Cmd+click ('toggle'), Shift+click ('range') and right-click ('focus')
+  // on a clip. The clicked clip becomes the primary selection (the Inspector,
+  // split and Q/W act on it); the rest of the set rides along in `clipMulti`.
+  const selectClipWithMode = useCallback((id, mode) => {
+    const next = applyClipClick(baseSelectionState(clipMulti, primaryClipId), id, mode, clipOrder);
+    setClipMulti(next);
+    setSelection(next.primaryId ? { type: 'clip', id: next.primaryId } : null);
+    if (next.primaryId && next.primaryId === id) {
+      const seg = segments.find((item) => item.clip?.id === id);
+      if (seg && typeof seg.segStart === 'number') {
+        const segEnd = typeof seg.segEnd === 'number' ? seg.segEnd : seg.segStart + 2.0;
+        if (playhead < seg.segStart - 0.05 || playhead > segEnd + 0.05) seekPlayer(seg.segStart);
       }
-      return next;
-    });
-  }, []);
-
-  const isMultiSelected = useCallback((id) => selectedIds.includes(id), [selectedIds]);
+    }
+  }, [clipMulti, primaryClipId, clipOrder, segments, playhead, seekPlayer]);
 
   const clearSelection = useCallback(() => {
     setSelection(null);
-    setSelectedIds([]);
+    setClipMulti(EMPTY_CLIP_SELECTION);
   }, []);
 
   return {
     selection,
     setSelection,
-    selectedIds,
-    setSelectedIds,
-    toggleMultiSelect,
-    isMultiSelected,
+    selectedClipIds,
+    extraSelectedClipIds,
+    selectClipWithMode,
     handleSelect,
     clearSelection,
     selectedSeg,

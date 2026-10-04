@@ -106,6 +106,7 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
   const videoPreviewRef = useRef(null);
   const canvasRef = useRef(null);
   const guideAudioRef = useRef(null);
+  const activeAudioTickRef = useRef(null);
   const streamRef = useRef(null);
   const canvasStreamRef = useRef(null);
   const zoomLevelRef = useRef(1);
@@ -120,6 +121,27 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  const stopGuideAudio = useCallback(() => {
+    const audio = guideAudioRef.current;
+    if (audio) {
+      if (activeAudioTickRef.current) {
+        audio.removeEventListener('timeupdate', activeAudioTickRef.current);
+        activeAudioTickRef.current = null;
+      }
+      try {
+        audio.pause();
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopGuideAudio();
+    };
+  }, [stopGuideAudio]);
 
   const loadSession = useCallback(async () => {
     const sess = await getRecordingSession(sessionId);
@@ -245,6 +267,7 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
   }, [phase]);
 
   const cleanupReview = () => {
+    stopGuideAudio();
     if (reviewUrl) URL.revokeObjectURL(reviewUrl);
     setReviewUrl(null);
     pendingBlobRef.current = null;
@@ -282,15 +305,32 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
   const playGuideAudioForBeat = (beat) => {
     const audio = guideAudioRef.current;
     if (!audio || !beat) return;
-    audio.currentTime = beat.start || 0;
-    audio.play().catch(() => {});
+    // Always stop and remove any active listener before starting new playback
+    stopGuideAudio();
+
+    const startTime = Math.max(0, Number(beat.start) || 0);
+    const endTime = (beat.end && Number(beat.end) > startTime) ? Number(beat.end) : Infinity;
+
+    try {
+      audio.currentTime = startTime;
+    } catch (e) {
+      console.warn('[MobileFilmingPage] failed setting audio currentTime:', e);
+    }
+
     const onTick = () => {
-      if (audio.currentTime >= (beat.end || Infinity)) {
-        audio.pause();
-        audio.removeEventListener('timeupdate', onTick);
+      if (audio.currentTime >= endTime) {
+        stopGuideAudio();
       }
     };
+    activeAudioTickRef.current = onTick;
     audio.addEventListener('timeupdate', onTick);
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn('[MobileFilmingPage] auto guide audio play prevented:', err);
+      });
+    }
   };
 
   const handleStartRecording = () => {
@@ -342,7 +382,7 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
   // a manual early-stop tap. Guards against double-stop (both firing near
   // the same instant).
   function stopRecorder() {
-    guideAudioRef.current?.pause();
+    stopGuideAudio();
     const recorder = mediaRecorderRef.current;
     if (recorder && recorder.state === 'recording') {
       recorder.stop();
@@ -350,6 +390,7 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
   }
 
   const handleConfirm = async () => {
+    stopGuideAudio();
     if (!pendingBlobRef.current) return;
     const clip = { blob: pendingBlobRef.current, mimeType: pendingMimeTypeRef.current };
     const next = [...confirmedClips, clip];
@@ -367,6 +408,7 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
   // 'ready') and re-arms that beat. Repeatable -- each press steps back one
   // more beat once there's nothing fresh left to discard.
   const handleBack = () => {
+    stopGuideAudio();
     if (phase === 'reviewing') {
       cleanupReview();
       setPhase('ready');

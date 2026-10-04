@@ -10,6 +10,7 @@ import {
   resolveClipTransforms,
   transitionOverlap,
   splitClipAt,
+  splitKeyframesAt,
   shiftTrimWindow,
   resizeTrimWindow,
   snapTime,
@@ -154,6 +155,138 @@ test('splitClipAt returns two valid clip pieces and reserves freeze tail for the
   assert.equal(right.trim_end, 6);
   assert.equal(right.transition_in, 'cut'); // cut boundary between pieces
   assert.equal(right.freeze_tail, 1.5); // right piece keeps freeze tail
+});
+
+const closeTo = (actual, expected, label) => {
+  assert.ok(Math.abs(actual - expected) < 1e-6, `${label}: ${actual} != ${expected}`);
+};
+
+test('splitClipAt splits camera keyframes at the played cut with no jump (B4)', () => {
+  let nextId = 1;
+  const clip = {
+    id: 'orig', trim_start: 1, trim_end: 7, speed: 2, zoom: 1.0,
+    keyframes: [
+      { time: 0, zoom: 1.0, pan_x: -0.5 },
+      { time: 2, zoom: 2.0, pan_x: 0.5 },
+      { time: 3, property: 'pan_y', value: 0.4 },
+      { time: 0, property: 'pan_y', value: -0.2 },
+    ],
+  };
+  // played span = 6 / 2 = 3s; cut 1.25s into the played clip (2.5s of source)
+  const seg = { clip, srcDur: 10, segStart: 4, segEnd: 7 };
+  const cut = 1.25;
+  const [left, right] = splitClipAt(seg, seg.segStart + cut, () => `p${nextId++}`);
+
+  assert.equal(left.trim_end, 3.5);
+  assert.equal(right.trim_start, 3.5);
+  assert.ok(left.keyframes.every((p) => !Number.isFinite(p.time) || p.time <= cut + 1e-9));
+  assert.ok(right.keyframes.every((p) => p.time >= 0));
+
+  const leftEnd = resolveClipTransforms(left, cut);
+  const rightStart = resolveClipTransforms(right, 0);
+  const original = resolveClipTransforms(clip, cut);
+  for (const prop of ['zoom', 'pan_x', 'pan_y']) {
+    closeTo(leftEnd[prop], original[prop], `left end ${prop}`);
+    closeTo(rightStart[prop], original[prop], `right start ${prop}`);
+  }
+  for (const local of [0, 0.3, 0.75, 1.0, 1.75]) {
+    const r = resolveClipTransforms(right, local);
+    const o = resolveClipTransforms(clip, cut + local);
+    for (const prop of ['zoom', 'pan_x', 'pan_y']) closeTo(r[prop], o[prop], `right ${prop}@${local}`);
+  }
+  for (const local of [0, 0.5, 1.0]) {
+    const l = resolveClipTransforms(left, local);
+    const o = resolveClipTransforms(clip, local);
+    for (const prop of ['zoom', 'pan_x', 'pan_y']) closeTo(l[prop], o[prop], `left ${prop}@${local}`);
+  }
+  // the source clip is not mutated
+  assert.equal(clip.keyframes.length, 4);
+  assert.equal(clip.keyframes[1].time, 2);
+});
+
+test('splitClipAt keeps a keyframe that sits exactly on the cut without duplicating it', () => {
+  const clip = {
+    id: 'orig', trim_start: 0, trim_end: 4,
+    keyframes: [{ time: 0, zoom: 1 }, { time: 2, zoom: 2 }, { time: 4, zoom: 1.5 }],
+  };
+  const seg = { clip, srcDur: 4, segStart: 0, segEnd: 4 };
+  const [left, right] = splitClipAt(seg, 2, () => 'x');
+  assert.deepEqual(left.keyframes, [{ time: 0, zoom: 1 }, { time: 2, zoom: 2 }]);
+  assert.deepEqual(right.keyframes, [{ time: 0, zoom: 2 }, { time: 2, zoom: 1.5 }]);
+});
+
+test('splitClipAt leaves empty or absent keyframes untouched', () => {
+  const base = { id: 'orig', trim_start: 0, trim_end: 4 };
+  const seg = (clip) => ({ clip, srcDur: 4, segStart: 0, segEnd: 4 });
+  const [l1, r1] = splitClipAt(seg({ ...base, keyframes: [] }), 1.5, () => 'x');
+  assert.deepEqual(l1.keyframes, []);
+  assert.deepEqual(r1.keyframes, []);
+  const [l2, r2] = splitClipAt(seg(base), 1.5, () => 'x');
+  assert.equal('keyframes' in l2, false);
+  assert.equal('keyframes' in r2, false);
+});
+
+test('splitKeyframesAt holds a track that only exists on one side of the cut', () => {
+  const { left, right } = splitKeyframesAt([{ time: 0, zoom: 1 }, { time: 1, zoom: 2 }], 3);
+  assert.deepEqual(left, [{ time: 0, zoom: 1 }, { time: 1, zoom: 2 }]);
+  assert.deepEqual(right, [{ time: 0, property: 'zoom', value: 2 }]);
+  const late = splitKeyframesAt([{ time: 2, zoom: 1.5 }, { time: 3, zoom: 2.5 }], 1);
+  assert.deepEqual(late.left, [{ time: 1, property: 'zoom', value: 1.5 }]);
+  assert.deepEqual(late.right, [{ time: 1, zoom: 1.5 }, { time: 2, zoom: 2.5 }]);
+});
+
+test('camera easing on a point shapes the segment that ends there; none stays linear', () => {
+  const kf = (easing) => ({ keyframes: [{ time: 0, zoom: 1 }, { time: 2, zoom: 1.5, ...(easing && { easing }) }] });
+  const at = (clip, t) => resolveClipTransforms(clip, t).zoom;
+  assert.equal(at(kf(), 0.5), 1.125);
+  assert.equal(at(kf('linear'), 0.5), 1.125);
+  assert.equal(at(kf('nonsense'), 0.5), 1.125);
+  assert.equal(at(kf('ease_in'), 1), 1.125);
+  assert.equal(at(kf('ease_out'), 1), 1.375);
+  assert.equal(at(kf('ease_in_out'), 0.5), 1.0625);
+  assert.equal(at(kf('ease_in_out'), 1), 1.25);
+  assert.equal(at(kf('ease_in_out'), 1.5), 1.4375);
+  assert.equal(at(kf('ease_in_out'), 2), 1.5);
+  // Property-form points carry easing too; clamps still apply after easing.
+  const prop = { keyframes: [{ time: 0, property: 'pan_x', value: 0 }, { time: 1, property: 'pan_x', value: 4, easing: 'ease_in' }] };
+  assert.equal(resolveClipTransforms(prop, 0.25).pan_x, 0.25);
+  assert.equal(resolveClipTransforms(prop, 0.75).pan_x, 1);
+});
+
+test('splitKeyframesAt bakes an eased segment so both halves follow the curve', () => {
+  const clip = {
+    keyframes: [
+      { time: 0, zoom: 1, pan_x: -0.4 },
+      { time: 4, zoom: 1.5, pan_x: 0.4, easing: 'ease_in_out' },
+      { time: 5, zoom: 1.2, pan_x: 0.4, easing: 'ease_out' },
+    ],
+  };
+  const cut = 1.3;
+  const { left, right } = splitKeyframesAt(clip.keyframes, cut);
+  const L = { keyframes: left };
+  const R = { keyframes: right };
+  const orig = (t) => resolveClipTransforms(clip, t);
+  for (const prop of ['zoom', 'pan_x']) {
+    assert.ok(Math.abs(resolveClipTransforms(L, cut)[prop] - orig(cut)[prop]) < 1e-9);
+    assert.ok(Math.abs(resolveClipTransforms(R, 0)[prop] - orig(cut)[prop]) < 1e-9);
+  }
+  let worst = 0;
+  for (let t = 0; t <= cut + 1e-9; t += 0.05) {
+    const a = resolveClipTransforms(L, t); const o = orig(t);
+    worst = Math.max(worst, Math.abs(a.zoom - o.zoom), Math.abs(a.pan_x - o.pan_x));
+  }
+  for (let t = 0; t <= 5 - cut + 1e-9; t += 0.05) {
+    const a = resolveClipTransforms(R, t); const o = orig(cut + t);
+    worst = Math.max(worst, Math.abs(a.zoom - o.zoom), Math.abs(a.pan_x - o.pan_x));
+  }
+  assert.ok(worst < 3e-3, `worst ${worst}`);
+  // The combined end point lost zoom/pan_x to linear property points; the
+  // later ease_out segment is untouched and the emptied point was dropped.
+  assert.ok(right.some((p) => p.time === 3.7 && p.easing === 'ease_out' && p.zoom === 1.2));
+  assert.ok(!right.some((p) => p.time === 2.7 && p.zoom !== undefined));
+  assert.ok(!right.some((p) => Object.keys(p).every((k) => k === 'time' || k === 'easing')));
+  // Linear tracks still split exactly as before (no extra samples).
+  assert.equal(splitKeyframesAt([{ time: 0, zoom: 1 }, { time: 2, zoom: 2 }], 1).right.length, 2);
 });
 
 test('splitClipAt returns null when cut position is too close to boundaries', () => {

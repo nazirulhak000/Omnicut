@@ -38,6 +38,9 @@ from PIL import Image
 from scripts.image_motion_engine import ImageMotionEngine
 import scripts.image_motion_engine as ime_mod
 
+# Captured before the autouse fixture swaps subprocess.run, for the real-ffmpeg test.
+_REAL_RUN = subprocess.run
+
 
 def _make_image(path, size=(200, 300), color=(120, 60, 30)):
     Image.new("RGB", size, color).save(path)
@@ -325,7 +328,9 @@ def test_output_frame_size_matches_configured_video_dimensions(tmp_path, monkeyp
 
     filter_str = _filter_complex_of(fake_run.calls[0])
     assert "scale=1080:1920" in filter_str
-    assert "scale=960:1280" in filter_str
+    # Foreground is pre-upscaled (lanczos) and zoompan renders it at the 960x1280 box.
+    assert "flags=lanczos" in filter_str
+    assert "s=960x1280" in filter_str
     assert f"fps={ime_mod.FPS}" in filter_str
 
 
@@ -347,10 +352,9 @@ def test_segment_duration_clamped_when_no_cues_and_zero_total_duration(tmp_path,
     )
 
     seg_cmd = fake_run.calls[0]
-    # -t <duration> appears before -i in the ffmpeg args for this module.
-    t_idx = seg_cmd.index("-t")
-    dur_str = seg_cmd[t_idx + 1]
-    assert float(dur_str) >= 2.0
+    # The segment length is capped by the output `-frames:v` (input is a single still).
+    frames_idx = seg_cmd.index("-frames:v")
+    assert int(seg_cmd[frames_idx + 1]) >= int(math.ceil(2.0 * ime_mod.FPS))
 
 
 def test_progress_callback_invoked_per_segment(tmp_path, monkeypatch):
@@ -384,3 +388,111 @@ def test_progress_callback_invoked_per_segment(tmp_path, monkeypatch):
     assert progress_events[0] == (1, 3, "ช็อตที่ 1/3")
     assert progress_events[1] == (2, 3, "ช็อตที่ 2/3")
     assert progress_events[2] == (3, 3, "ช็อตที่ 3/3")
+
+
+# ---------------------------------------------------------------------------
+# B1 (EDITOR-CUT-QUALITY-R1): a still must become exactly ceil(dur * FPS) frames
+# ---------------------------------------------------------------------------
+
+def test_segment_command_uses_single_input_frame_and_exact_frame_cap(tmp_path, monkeypatch):
+    """`-loop 1 -t dur` + zoompan d=frames made ~dur*FPS*frames output frames (about
+    100 s for a 2 s cue) because zoompan emits `d` frames per input frame. The input
+    must be one still, and the output frame count must be capped explicitly."""
+    fake_run = _make_fake_run()
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    img = _make_image(tmp_path / "product.png")
+    ImageMotionEngine.generate_motion_video_from_images(
+        image_paths=[str(img)],
+        cues=[{"start": 0.0, "end": 2.5}],
+        total_duration=2.5,
+        output_video_path=str(tmp_path / "out.mp4"),
+    )
+
+    cmd = fake_run.calls[0]
+    expected_frames = int(math.ceil(2.5 * ime_mod.FPS))
+    assert "-loop" not in cmd
+    assert "-t" not in cmd
+    assert cmd.index("-frames:v") > cmd.index("-i")  # output option, not an input option
+    assert int(cmd[cmd.index("-frames:v") + 1]) == expected_frames
+    assert _extract_zoompan_d(_filter_complex_of(cmd)) == expected_frames
+
+
+def test_segment_files_are_keyed_so_stale_segments_are_not_resumed(tmp_path, monkeypatch):
+    fake_run = _make_fake_run(created_bytes=b"x" * 20000)  # > resume size threshold
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    img = _make_image(tmp_path / "product.png")
+    work = tmp_path / "work"
+    work.mkdir()
+    # A legacy (schema 1) segment from the buggy engine: big enough to look reusable.
+    (work / "seg_000.mp4").write_bytes(b"y" * 20000)
+
+    def run(end):
+        fake_run.calls.clear()
+        ImageMotionEngine.generate_motion_video_from_images(
+            image_paths=[str(img)],
+            cues=[{"start": 0.0, "end": end}],
+            total_duration=end,
+            output_video_path=str(tmp_path / "out.mp4"),
+            project_dir=work,
+        )
+        return [c for c in fake_run.calls if "-filter_complex" in c]
+
+    assert len(run(2.0)) == 1, "legacy seg_000.mp4 must not be reused"
+    assert len(run(2.0)) == 0, "identical segment is resumed"
+    assert len(run(3.0)) == 1, "a different length must re-render"
+
+
+def _real_ffmpeg_or_skip():
+    import shutil
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        pytest.skip("ffmpeg/ffprobe not installed")
+
+
+def _probe_video(path):
+    out = _REAL_RUN(
+        ["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0",
+         "-show_entries", "stream=nb_read_frames,width,height", "-of", "json", str(path)],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    import json
+    stream = json.loads(out)["streams"][0]
+    return int(stream["nb_read_frames"]), int(stream["width"]), int(stream["height"])
+
+
+def test_real_ffmpeg_segments_have_exactly_ceil_dur_times_fps_frames(tmp_path, monkeypatch):
+    """Real ffmpeg on tiny synthetic stills (portrait + landscape): every segment, and
+    the concatenated output, must carry exactly ceil(dur * FPS) frames at 1080x1920."""
+    _real_ffmpeg_or_skip()
+    monkeypatch.setattr(subprocess, "run", _REAL_RUN)
+
+    portrait = _make_image(tmp_path / "portrait.png", size=(120, 160))
+    landscape = _make_image(tmp_path / "landscape.png", size=(160, 90), color=(20, 90, 160))
+    work = tmp_path / "work"
+    out = tmp_path / "out.mp4"
+    cues = [
+        {"start": 0.0, "end": 2.0},   # clamp-free, 60 frames
+        {"start": 2.0, "end": 3.5},   # 1.5 s, 45 frames (zoom-out segment)
+        {"start": 3.5, "end": 6.0},   # 2.5 s, 75 frames
+    ]
+    durs = [2.0, 1.5, 2.5]
+
+    ImageMotionEngine.generate_motion_video_from_images(
+        image_paths=[str(portrait), str(landscape)],
+        cues=cues,
+        total_duration=6.0,
+        output_video_path=str(out),
+        project_dir=work,
+    )
+
+    segments = sorted(work.glob("motion_seg_*.mp4"))
+    assert len(segments) == 3
+    for seg, dur in zip(segments, durs):
+        frames, width, height = _probe_video(seg)
+        assert frames == int(math.ceil(dur * ime_mod.FPS)), seg.name
+        assert (width, height) == (1080, 1920)
+
+    total_frames, width, height = _probe_video(out)
+    assert total_frames == sum(int(math.ceil(d * ime_mod.FPS)) for d in durs)
+    assert (width, height) == (1080, 1920)

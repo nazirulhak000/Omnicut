@@ -18,6 +18,7 @@ from scripts.config import (
 from scripts.project_manifest import ProjectManifest, REROLL_STAGE
 from scripts.color_theme import extract_explicit_theme, is_color_theme, normalize_hex, resolve_color_theme
 from scripts.spotlight_effect import normalize_spotlight
+from scripts.voice_cut_map import resolve_voice_cuts
 
 
 INCREMENTAL_RENDER_SCHEMA_VERSION = 1
@@ -303,22 +304,32 @@ def _stage_payload_from_manifest(
 
     if stage == "mix":
         bgm_name = _manifest_value(manifest, "bgm_name")
+        mix_inputs = {
+            "voice_audio": artifact_fingerprints.get("voice_audio"),
+            "micro_cues": micro_cues,
+            "total_duration": manifest.get("total_duration"),
+            "overlays": overlays,
+            "bgm_name": bgm_name,
+            "bgm_file": _resolved_bgm_identity(bgm_name),
+            "bgm_volume": _manifest_value(manifest, "bgm_volume"),
+            "bgm_ducking": _manifest_value(manifest, "bgm_ducking"),
+            "audio_mutes": _manifest_value(manifest, "audio_mutes") or {},
+            "sfx_files": _sfx_identities(micro_cues),
+            **_bus_volume_inputs(manifest),
+        }
+        # Ripple cuts of the voice (source seconds). Only the cuts the mix will
+        # really apply count -- stale/invalid ones are ignored exactly like the
+        # voice stage ignores them -- and the key is absent without cuts, so a
+        # project that never cut keeps the fingerprint it was stamped with.
+        voice_cuts, _, _ = resolve_voice_cuts(
+            manifest.get("voice_edit"), artifact_fingerprints.get("voice_audio")
+        )
+        if voice_cuts:
+            mix_inputs["voice_cuts"] = [[cut["start"], cut["end"]] for cut in voice_cuts]
         return {
             "schema_version": INCREMENTAL_RENDER_SCHEMA_VERSION,
             "stage": stage,
-            "inputs": {
-                "voice_audio": artifact_fingerprints.get("voice_audio"),
-                "micro_cues": micro_cues,
-                "total_duration": manifest.get("total_duration"),
-                "overlays": overlays,
-                "bgm_name": bgm_name,
-                "bgm_file": _resolved_bgm_identity(bgm_name),
-                "bgm_volume": _manifest_value(manifest, "bgm_volume"),
-                "bgm_ducking": _manifest_value(manifest, "bgm_ducking"),
-                "audio_mutes": _manifest_value(manifest, "audio_mutes") or {},
-                "sfx_files": _sfx_identities(micro_cues),
-                **_bus_volume_inputs(manifest),
-            },
+            "inputs": mix_inputs,
         }
 
     if stage == "video":
@@ -474,6 +485,17 @@ class PipelineContext:
     beat_cues: List[Dict[str, Any]] = field(default_factory=list)
     total_duration: float = 0.0
     voice_audio_path: Optional[Path] = None
+    # Ripple-cut state of the voice (scripts/voice_cut_map.py), set by VoiceStage:
+    # `voice_edit` is the manifest object ONLY when its fingerprint matches the
+    # current voice file, `voice_cuts` its normalised cuts in SOURCE seconds
+    # (what the mix drops), `voice_source_duration` the real file length. When
+    # the saved cuts cannot be used `voice_edit_stale` is set and
+    # `voice_edit_notice` carries the Thai reason for the editor to show.
+    voice_edit: Optional[Dict[str, Any]] = None
+    voice_cuts: List[Dict[str, Any]] = field(default_factory=list)
+    voice_source_duration: float = 0.0
+    voice_edit_stale: bool = False
+    voice_edit_notice: Optional[str] = None
 
     ass_sub_path: Optional[Path] = None
     effective_overlays: List[Dict[str, Any]] = field(default_factory=list)
@@ -730,6 +752,8 @@ class PipelineContext:
             snapshot["micro_cues"] = self.micro_cues
         if self.total_duration:
             snapshot["total_duration"] = self.total_duration
+        if self.voice_edit is not None:
+            snapshot["voice_edit"] = self.voice_edit
         if self.effective_overlays:
             snapshot["overlays"] = self.effective_overlays
             params["overlays"] = self.effective_overlays

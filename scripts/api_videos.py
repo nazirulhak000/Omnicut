@@ -1314,6 +1314,15 @@ def stream_media(file_path: str, request: Request):
     target = Path(decoded_path)
     if not target.is_absolute():
         target = base / decoded_path
+    elif not target.exists() and not _allowed_media_path(target, base, drafts):
+        # Fallback for foreign absolute paths from another machine (e.g. moved from laptop)
+        for root_name in _MEDIA_ROOTS:
+            if root_name in target.parts:
+                idx = target.parts.index(root_name)
+                candidate = base.joinpath(*target.parts[idx:])
+                if candidate.exists() and _allowed_media_path(candidate, base, drafts):
+                    target = candidate
+                    break
 
     if not _allowed_media_path(target, base, drafts):
         raise HTTPException(status_code=403, detail="Access denied")

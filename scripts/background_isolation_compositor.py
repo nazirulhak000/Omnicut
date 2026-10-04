@@ -22,6 +22,8 @@ from collections.abc import Mapping
 from fractions import Fraction
 from typing import Any
 
+from .cutout_prompt import normalize_subject_points
+
 from .background_isolation import (
     DEFAULT_ENGINE,
     DEFAULT_FALLBACK,
@@ -119,6 +121,21 @@ def resolve_background_isolation_config(
     artifacts can outlive a later toggle, so the disable must win.
     """
 
+    def current_prompt(candidate):
+        if (isinstance(project_config, Mapping) and project_config.get("enabled") is True
+            and isinstance(candidate, Mapping)
+            and (project_config.get("prompt_reference_source") or candidate.get("prompt_reference_source"))):
+            changed = any(project_config.get(key) != candidate.get(key)
+                          for key in ("prompt_reference_source", "prompt_reference_start"))
+            # The worker stores points rounded to five decimals; the editor can
+            # retain the original click precision. Compare the worker's canonical
+            # prompt so an unchanged click does not invalidate a ready artifact.
+            changed = changed or normalize_subject_points(project_config.get("subject_points")) != normalize_subject_points(candidate.get("subject_points"))
+            changed = changed or (project_config.get("auto_prompt") is not False) != (candidate.get("auto_prompt") is not False)
+            if changed:
+                return {**project_config, "artifact": {"schema_version": 1, "id": None, "status": "stale"}}
+        return candidate
+
     if isinstance(project_config, Mapping) and project_config.get("enabled") is False:
         return project_config
     if isinstance(project_config, Mapping) and project_config.get("scope_mode") == "behind_text_windows":
@@ -136,14 +153,15 @@ def resolve_background_isolation_config(
         if isinstance(scoped, Mapping) and isinstance(intervals, Mapping) and isinstance(clip, Mapping):
             if scoped.get("active_intervals") != intervals.get(clip.get("id")):
                 return {**project_config, "artifact": {"id": None, "status": "stale"}}
-        return scoped if isinstance(scoped, Mapping) and scoped.get("scope_mode") == "behind_text_windows" else {
+        return current_prompt(scoped) if isinstance(scoped, Mapping) and scoped.get("scope_mode") == "behind_text_windows" else {
             **project_config, "artifact": {"id": None, "status": "missing"},
         }
     if isinstance(clip, Mapping):
         for key in ("background_isolation", "backgroundIsolation"):
             if key in clip and clip[key] is not None:
                 value = clip[key]
-                return (value.get("legacy_background_isolation") or project_config) if isinstance(value, Mapping) and value.get("scope_mode") == "behind_text_windows" else value
+                return current_prompt((value.get("legacy_background_isolation") or project_config)
+                                      if isinstance(value, Mapping) and value.get("scope_mode") == "behind_text_windows" else value)
     return project_config
 
 

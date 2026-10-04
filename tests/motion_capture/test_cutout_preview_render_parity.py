@@ -29,6 +29,8 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import tempfile
+from pathlib import Path
 from urllib.parse import quote, urlsplit
 
 import pytest
@@ -46,6 +48,12 @@ CUTOUT_W = CUTOUT_H = 64
 DURATION = 8.0
 
 
+@pytest.fixture
+def cutout_parity_dir(tmp_path):
+    with tempfile.TemporaryDirectory(prefix='cutout-parity-', dir=tmp_path) as directory:
+        yield Path(directory)
+
+
 def _build_cutout(tmp_path):
     """A source clip plus a VP9-alpha cutout whose right half is opaque."""
     source = tmp_path / "source.mp4"
@@ -54,16 +62,14 @@ def _build_cutout(tmp_path):
 
     subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
-         "-i", f"color=c=blue:s={CUTOUT_W}x{CUTOUT_H}:r={FPS}:d={DURATION}",
+         "-i", f"color=c=blue:s={CUTOUT_W}x{CUTOUT_H}:r={FPS}:d={DURATION},drawbox=x=32:y=0:w=32:h=64:color=red:t=fill",
          "-c:v", "libx264", str(source)],
         check=True, capture_output=True,
     )
-    # Left half fully transparent, right half an opaque RED subject over the
-    # BLUE footage above. Composite mode keeps the footage as the base layer,
-    # so a same-coloured subject would be invisible against it and neither
-    # engine's pixels could be told apart.
+    # Deliberately GREEN artifact RGB with right-half alpha over BLUE/RED
+    # source. Both engines must keep source RGB; artifact colour must not leak.
     frame = b"".join(
-        bytes([255, 0, 0, 0] * (CUTOUT_W // 2) + [255, 0, 0, 255] * (CUTOUT_W // 2))
+        bytes([0, 255, 0, 0] * (CUTOUT_W // 2) + [0, 255, 0, 255] * (CUTOUT_W // 2))
         for _ in range(CUTOUT_H)
     )
     raw.write_bytes(frame * int(DURATION * FPS))
@@ -246,7 +252,7 @@ def _preview_sample(motion_fixture_url, source, cutout, artifact_id):
             browser.close()
 
 
-def test_preview_and_render_agree_on_cutout_compositing(tmp_path, motion_fixture_url):
+def test_preview_and_render_agree_on_cutout_compositing(cutout_parity_dir, motion_fixture_url):
     """Preview and Render must composite the same cutout the same way.
 
     This is the Phase 4 gate. Both engines get the SAME artifact and are
@@ -256,6 +262,7 @@ def test_preview_and_render_agree_on_cutout_compositing(tmp_path, motion_fixture
     subject in an export while the preview looks right -- the two disagree
     and this fails.
     """
+    tmp_path = cutout_parity_dir
     source, cutout = _build_cutout(tmp_path)
     artifact_id = "bgseq1-fedcba9876543210"
 

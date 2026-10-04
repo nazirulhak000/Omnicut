@@ -83,7 +83,7 @@ def _fit_mask(mask: Image.Image, width: int, height: int) -> np.ndarray:
     return np.asarray(canvas) > 0
 
 
-@pytest.mark.parametrize("scoped", [False, True], ids=["full-window", "scoped-windows"])
+@pytest.mark.parametrize("scoped", [False, True, "multi-seed"], ids=["full-window", "scoped-windows", "scoped-multiple-seeds"])
 def test_picked_positive_negative_points_reach_actual_sam2_gpu_via_api(monkeypatch, tmp_path, scoped):
     with tempfile.TemporaryDirectory(prefix="sam2-api-gpu-", dir=tmp_path) as temporary:
         workspace = Path(temporary)
@@ -117,6 +117,16 @@ def test_picked_positive_negative_points_reach_actual_sam2_gpu_via_api(monkeypat
         config = {"enabled": True, "engine": "sam2", "model": "sam2.1_hiera_tiny",
                   "mode": "cutout", "quality": "quality", "subject_points": points,
                   "auto_prompt": False}
+        if scoped == "multi-seed":
+            # Deterministic prompt discovery isolates real SAM2's reseeding
+            # behavior from rembg accuracy/model installation. CUDA inference,
+            # all three seed frames, alpha encoding and frame counts are real.
+            config.pop("auto_prompt")
+            config.update(prompt_reference_source=str(source), prompt_reference_start=0)
+            def derive(_source, _staged, timestamp, *_args):
+                return [{**point, "x": round(point["x"] + timestamp * 30 * 2 / 720, 5)}
+                        for point in points]
+            monkeypatch.setattr("scripts.background_isolation_video_worker._derive_points_for_timestamp", derive)
         payload = {"source_path": str(source), "config": config, "start": 0,
                    "duration": count / 30, "fps": 30, "timebase": "1/30",
                    "width": width, "height": height, "rotation": 0}
@@ -145,6 +155,8 @@ def test_picked_positive_negative_points_reach_actual_sam2_gpu_via_api(monkeypat
         assert manifest["sam2"]["offload_video_to_cpu"] is True
         assert manifest["sam2"]["prompts"][0]["labels"] == [1, 0, 0]
         assert manifest["sam2"]["prompts"][0]["points"] == [[p["x"], p["y"]] for p in points]
+        if scoped == "multi-seed":
+            assert [prompt["frame"] for prompt in manifest["sam2"]["prompts"]] == [0, 2, 8]
         master = projects / ".cache/background-isolation-videos" / artifact_id / "cutout.webm"
         preview = master.with_name("preview.webm")
         alpha = _decode_alpha(master, count, width, height)

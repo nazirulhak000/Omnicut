@@ -276,14 +276,14 @@ def _contract(identifier: str, role: str, phase: str, duration_ms: float, tracks
 def _build_presets() -> Dict[str, Dict[str, Any]]:
     # The catalog intentionally mirrors the current frontend/backend numbers.
     in_defs = {
-        "bounce": (450, {"scale": _track([_k(0, 0.6), _k(150 / 450, 1.25), _k(280 / 450, 0.92), _k(380 / 450, 1.05), _k(1, 1)], "ratio")}),
+        "bounce": (450, {"scale": _track([_k(0, 0.6), _k(150 / 450, 1.25, {"name": "power", "exponent": 0.6}), _k(280 / 450, 0.92, {"name": "power", "exponent": 0.6}), _k(380 / 450, 1.05, {"name": "power", "exponent": 0.6}), _k(1, 1, {"name": "power", "exponent": 0.6})], "ratio")}),
         "bounce_soft": (450, {"scale": _track([_k(0, 0.6), _k(150 / 450, 1.25, {"name": "power", "exponent": 0.6}), _k(280 / 450, 0.92), _k(380 / 450, 1.05), _k(1, 1, {"name": "power", "exponent": 0.6})], "ratio")}),
-        "pop": (200, {"scale": _track([_k(0, 0.55), _k(120 / 200, 1.18), _k(1, 1)], "ratio")}),
+        "pop": (200, {"scale": _track([_k(0, 0.55), _k(120 / 200, 1.18, {"name": "power", "exponent": 0.6}), _k(1, 1, {"name": "power", "exponent": 0.6})], "ratio")}),
         "pop_soft": (200, {"scale": _track([_k(0, 0.55), _k(120 / 200, 1.18, {"name": "power", "exponent": 0.6}), _k(1, 1, {"name": "power", "exponent": 2.2})], "ratio")}),
         "slam": (180, {"scale": _track([_k(0, 2.2), _k(1, 1, {"name": "power", "exponent": 2.2})], "ratio"), "alpha": _track([_k(0, 0), _k(50 / 180, 1)], "opacity")}),
         "elastic_bounce": (520, {"scale": _track([_k(0, 0.4), _k(160 / 520, 1.28, {"name": "power", "exponent": 0.6}), _k(290 / 520, 0.88), _k(390 / 520, 1.08), _k(460 / 520, 0.98), _k(1, 1, {"name": "power", "exponent": 0.6})], "ratio"), "alpha": _track([_k(0, 0), _k(40 / 520, 1)], "opacity")}),
         "fade": (250, {"alpha": _track([_k(0, 0), _k(1, 1)], "opacity")}),
-        "zoom": (300, {"scale": _track([_k(0, 1.8), _k(1, 1)], "ratio"), "alpha": _track([_k(0, 0), _k(0.5, 1)], "opacity")}),
+        "zoom": (300, {"scale": _track([_k(0, 1.8), _k(1, 1, {"name": "power", "exponent": 0.6})], "ratio"), "alpha": _track([_k(0, 0), _k(0.5, 1)], "opacity")}),
         "slide_up": (300, {"dy": _track([_k(0, 60), _k(1, 0)], "canvas_px"), "alpha": _track([_k(0, 0), _k(1, 1)], "opacity")}),
         "typewriter": (400, {"reveal": _track([_k(0, 0), _k(1, 1)], "ratio")}),
         "blur": (350, {"alpha": _track([_k(0, 0), _k(1, 1)], "opacity"), "blur": _track([_k(0, 12), _k(1, 0)], "canvas_px")}),
@@ -297,16 +297,17 @@ def _build_presets() -> Dict[str, Dict[str, Any]]:
     loop_defs = {
         "pulse": (700, {"alpha": _track([_k(0, 1), _k(0.5, 1 - 0x25 / 255), _k(1, 1)], "opacity", repeat=True, cycle_duration_ms=700)}),
         "wave": (1200, {"rotation": _track([_k(0, 0), _k(1 / 3, -3), _k(2 / 3, 3), _k(1, 0)], "degrees", repeat=True, cycle_duration_ms=1200)}),
-        "shake": (450, {"rotation": _track([_k(0, 0), _k(0.2, -3), _k(0.4, 3), _k(0.6, -2), _k(0.8, 2), _k(1, 0)], "degrees", repeat=True, cycle_duration_ms=450)}),
+        "shake": (500, {"rotation": _track([_k(0, 0), _k(0.2, -3), _k(0.4, 3), _k(0.6, -2), _k(0.8, 2), _k(1, 0)], "degrees", repeat=True, cycle_duration_ms=500)}),
         "flicker": (760, {"alpha": _track([_k(0, 1), _k(80 / 760, 1 - 0x30 / 255), _k(230 / 760, 1), _k(290 / 760, 1 - 0x45 / 255), _k(490 / 760, 1), _k(580 / 760, 1 - 0x20 / 255), _k(1, 1)], "opacity", repeat=True, cycle_duration_ms=760, interpolation="linear")}),
         "lightsweep": (500, {}),
         "none": (0, {}),
     }
     out_defs = {
-        "fade": (150, {"alpha": _track([_k(0, 1), _k(1, 0)], "opacity")}),
+        "fade": (150, {"alpha": _track([_k(0, 1), _k(1, 0, {"name": "power", "exponent": 2.2})], "opacity")}),
         "slide": (150, {"alpha": _track([_k(0, 1), _k(1, 0)], "opacity"), "dy": _track([_k(0, 0), _k(1, 60)], "canvas_px")}),
-        "zoom": (150, {"alpha": _track([_k(0, 1), _k(1, 0)], "opacity"), "scale": _track([_k(0, 1), _k(1, 1.4)], "ratio")}),
-        "glitch": (150, {"rotation": _track([_k(0, -3), _k(0.3636, 3), _k(0.7272, 0), _k(1, 0)], "degrees"), "alpha": _track([_k(0, 1), _k(0.7333, 1), _k(1, 0)], "opacity")}),
+        "zoom": (150, {"alpha": _track([_k(0, 1), _k(1, 0, {"name": "power", "exponent": 2.2})], "opacity"), "scale": _track([_k(0, 1), _k(1, 1.4, {"name": "power", "exponent": 2.2})], "ratio")}),
+        # 33 ms steps (GLITCH_STEP_MS: one 30 fps frame) in the nominal 150 ms window; hard alpha cut in the last step.
+        "glitch": (150, {"rotation": _track([_k(0, 0), _k(33 / 150, -3), _k(66 / 150, 3), _k(99 / 150, 0), _k(1, 0)], "degrees"), "alpha": _track([_k(0, 1), _k(117 / 150, 1), _k(1, 0)], "opacity")}),
         "none": (1, {"alpha": _track([_k(0, 1), _k(0.999, 1), _k(1, 0)], "opacity")}),
     }
     result: Dict[str, Dict[str, Any]] = {}

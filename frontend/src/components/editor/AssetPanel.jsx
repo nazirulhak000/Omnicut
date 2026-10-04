@@ -217,7 +217,9 @@ function BackgroundIsolationControls({
   onSelectClip = null,
   subjectPoints = [],
   subjectPickMode = false,
+  subjectPickLabel = 1,
   onToggleSubjectPick = null,
+  onSelectPickLabel = null,
   onClearSubjectPoints = null,
 }) {
   const enabled = backgroundIsolation?.enabled === true;
@@ -330,7 +332,7 @@ function BackgroundIsolationControls({
               className="h-3.5 w-3.5 accent-violet-400" />
           </label>
           {onToggleSubjectPick && (
-            <div className="space-y-1" aria-label="จุดสินค้า">
+            <div className="space-y-1.5" aria-label="จุดสินค้า">
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
@@ -352,10 +354,46 @@ function BackgroundIsolationControls({
                   ล้างจุด
                 </button>
               </div>
+              {subjectPickMode && onSelectPickLabel && (
+                <div className="flex items-center gap-1.5 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => onSelectPickLabel(1)}
+                    className={`flex-1 rounded-md border py-1 px-1.5 text-[9.5px] font-semibold transition ${
+                      subjectPickLabel === 1
+                        ? 'border-emerald-400/60 bg-emerald-500/20 text-emerald-200 shadow-sm'
+                        : 'border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    🟢 เก็บสินค้า (บวก)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSelectPickLabel(0)}
+                    className={`flex-1 rounded-md border py-1 px-1.5 text-[9.5px] font-semibold transition ${
+                      subjectPickLabel === 0
+                        ? 'border-rose-400/60 bg-rose-500/20 text-rose-200 shadow-sm'
+                        : 'border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    🔴 ตัดพื้นหลัง (ลบ)
+                  </button>
+                </div>
+              )}
               <p className="text-[10px] leading-relaxed text-slate-400">
                 {describeSubjectPointCount(subjectPoints)}
-                {subjectPickMode ? ' คลิกที่ตัวสินค้าในพรีวิวได้เลย' : ''}
+                {subjectPickMode ? ' (คลิกที่พรีวิว หรือ Shift+คลิก เพื่อตัดพื้นหลัง)' : ''}
               </p>
+              {subjectPickMode && (
+                <div className="rounded-lg bg-emerald-950/30 border border-emerald-500/20 p-2 text-[10px] leading-relaxed text-emerald-200/90 space-y-1">
+                  <p className="font-semibold text-emerald-300 text-[10.5px]">💡 วิธีจิ้มจุดให้ AI ไดคัทแม่นยำ:</p>
+                  <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[9.5px]">
+                    <li>จิ้มจุดสีเขียว <strong>บนตัวสินค้าตรงกลาง 1-3 จุด</strong></li>
+                    <li><span className="text-amber-300 font-medium">ห้ามจิ้มล้อมรอบขอบ</span> หรือจิ้มบนพื้นหลัง/กระดาษ เพราะ AI จะนึกว่าต้องเก็บกระดาษ</li>
+                    <li>หากต้องการตัดพื้นหลังส่วนเกิน ให้เลือก <strong>🔴 ตัดพื้นหลัง</strong> หรือกด <strong>Shift+คลิก</strong></li>
+                  </ul>
+                </div>
+              )}
             </div>
           )}
           <p className="text-[10px] text-slate-400">กดเตรียม Cutout เพื่อใช้ค่าที่เปลี่ยน แล้วตรวจขอบและส่วนของสินค้าที่ต้องการเก็บ</p>
@@ -1263,7 +1301,9 @@ export default function AssetPanel({
   onSelectClip = null,
   subjectPoints = [],
   subjectPickMode = false,
+  subjectPickLabel = 1,
   onToggleSubjectPick = null,
+  onSelectPickLabel = null,
   onClearSubjectPoints = null,
   onAddEffect = null,
   playhead = 0,
@@ -1786,7 +1826,9 @@ export default function AssetPanel({
             onSelectClip={onSelectClip}
             subjectPoints={subjectPoints}
             subjectPickMode={subjectPickMode}
+            subjectPickLabel={subjectPickLabel}
             onToggleSubjectPick={onToggleSubjectPick}
+            onSelectPickLabel={onSelectPickLabel}
             onClearSubjectPoints={onClearSubjectPoints}
           />
         )}

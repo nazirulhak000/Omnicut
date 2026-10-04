@@ -39,11 +39,48 @@ export function transitionOverlap(clip) {
 export const FPS = 30;              // == config.py FPS
 export const MIN_CLIP_DURATION = 0.2;
 
+// Camera keyframe easing (EDITOR-CUT-QUALITY-R2 E1). Same curves as
+// keyframeModel.js, scripts/keyframe_engine.py, scripts/subtitle/motion_contract.py
+// and scripts/video_editor.py ease_camera_ratio. A point's `easing` shapes the
+// segment that ENDS at that point (the keyframeModel/keyframe_engine rule).
+// Missing or unknown easing == linear, so old projects play back unchanged.
+export const CAMERA_EASINGS = {
+  linear: (t) => t,
+  ease_in: (t) => t * t,
+  ease_out: (t) => t * (2 - t),
+  ease_in_out: (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
+};
+
+const cameraEasingName = (value) => (
+  typeof value === 'string' && Object.prototype.hasOwnProperty.call(CAMERA_EASINGS, value) ? value : 'linear'
+);
+
+// Eased transition progress (EDITOR-CUT-QUALITY-R2 lane TM). == video_editor.py
+// EASED_TRANSITIONS: only these types render an eased progress (through an
+// xfade custom expression proven equal to the built-in geometry); every other
+// type ignores `transition_easing` and stays linear, exactly like the render.
+export const EASED_TRANSITIONS = [
+  'fade', 'fadeblack', 'fadewhite',
+  'wipeleft', 'wiperight', 'wipeup', 'wipedown',
+  'slideleft', 'slideright', 'slideup', 'slidedown',
+];
+
+/** Easing a boundary actually plays with (== transition_easing_name). */
+export function transitionEasingName(kind, value) {
+  return EASED_TRANSITIONS.includes(kind) ? cameraEasingName(value) : 'linear';
+}
+
+/** Forward transition progress 0..1 after the boundary's easing. */
+export function easeTransitionProgress(kind, easing, progress) {
+  const p = Math.max(0, Math.min(1, progress));
+  return CAMERA_EASINGS[transitionEasingName(kind, easing)](p);
+}
+
 /** Resolve a numeric keyframe track at local clip time (seconds). */
 export function interpolateKeyframes(keyframes, time, fallback) {
   const points = (Array.isArray(keyframes) ? keyframes : [])
     .filter((p) => Number.isFinite(Number(p?.time)) && Number.isFinite(Number(p?.value)))
-    .map((p) => ({ time: Number(p.time), value: Number(p.value) }))
+    .map((p) => ({ time: Number(p.time), value: Number(p.value), easing: cameraEasingName(p.easing) }))
     .sort((a, b) => a.time - b.time);
   if (!points.length) return fallback;
   if (time <= points[0].time) return points[0].value;
@@ -55,7 +92,8 @@ export function interpolateKeyframes(keyframes, time, fallback) {
       const left = points[i - 1];
       const span = right.time - left.time;
       const ratio = span > 0 ? (time - left.time) / span : 1;
-      return left.value + (right.value - left.value) * ratio;
+      const eased = CAMERA_EASINGS[right.easing](Math.min(1, Math.max(0, ratio)));
+      return left.value + (right.value - left.value) * eased;
     }
   }
   return last.value;
@@ -88,6 +126,7 @@ export function resolveClipTransforms(clip = {}, localTime = 0) {
     .map((point) => ({
       time: point.time,
       value: point[property] !== undefined ? point[property] : point.value,
+      easing: point.easing,
     }));
 
   const base = {
@@ -131,23 +170,80 @@ export function clipDuration(clip, srcDuration) {
  * durations: { [clip.id]: sourceDurationSeconds }
  */
 export function buildSegments(clips, durations = {}) {
-  let acc = 0;
-  return clips.map((clip, i) => {
-    const srcDur = durations[clip.id] || 0;
-    const dur = clipDuration(clip, srcDur);
-    // A transition cannot consume more than either neighboring clip leaves
-    // available. Render clamps this same way before building xfade; applying
-    // the clamp here prevents negative segment starts for short clips.
-    const requestedOverlap = i > 0 ? transitionOverlap(clip) : 0;
-    const overlap = i > 0
-      ? Math.min(requestedOverlap, Math.max(0, acc), Math.max(0, dur) , Math.max(0, Math.min(acc, dur) - 0.05))
-      : 0;
-    const isFade = overlap > 0;
-    const segStart = i === 0 ? 0 : acc - overlap;
-    const segEnd = segStart + dur;
-    acc = segEnd;
-    return { clip, index: i, srcDur, dur, isFade, overlap, segStart, segEnd };
+  const srcDurs = clips.map((clip) => durations[clip.id] || 0);
+  const played = clips.map((clip, i) => clipDuration(clip, srcDurs[i]));
+  const boundaries = clips.slice(1).map((clip) => {
+    const type = clip?.transition_in || 'cut';
+    return type === 'cut' ? { type } : { type, duration: transitionOverlap(clip) };
   });
+  // Whole-frame layout (B5): every edge sits on the 1/FPS grid, the same
+  // frame numbers video_editor.py plan_sequence_frames() renders.
+  const plan = planSequenceFrames(played, boundaries);
+  return clips.map((clip, i) => {
+    const startF = plan.start[i];
+    const endF = plan.end[i];
+    const overlapF = plan.overlap[i];
+    return {
+      clip,
+      index: i,
+      srcDur: srcDurs[i],
+      dur: (endF - startF) / FPS,
+      isFade: overlapF > 0,
+      overlap: overlapF / FPS,
+      segStart: startF / FPS,
+      segEnd: endF / FPS,
+      frames: { start: startF, end: endF, overlap: overlapF },
+    };
+  });
+}
+
+/** Nearest frame, halves up -- == video_editor.py sequence_frame_index. */
+export function sequenceFrameIndex(seconds, fps = FPS) {
+  return Math.floor(seconds * fps + 0.5);
+}
+
+/**
+ * Played clip durations laid on the frame grid. Mirrors video_editor.py
+ * plan_sequence_frames() operation for operation (the parity test runs both):
+ * the CUMULATIVE float boundaries are rounded, and every length is the
+ * difference of two rounded boundaries, so the error of any edge stays under
+ * half a frame and never accumulates along the chain.
+ *
+ * boundaries[i - 1] = { type, duration } for the edge before clip i.
+ * Returns { start, end, overlap } frame arrays (overlap 0 for a cut).
+ */
+export function planSequenceFrames(playedDurations, boundaries = [], fps = FPS) {
+  const start = [];
+  const end = [];
+  const overlap = [];
+  let acc = 0;
+  playedDurations.forEach((rawDur, i) => {
+    const dur = Number(rawDur);
+    const boundary = i > 0 && i <= boundaries.length ? boundaries[i - 1] : null;
+    const isTransition = Boolean(i > 0 && boundary && (boundary.type || 'cut') !== 'cut');
+    let startS;
+    if (isTransition) {
+      // Same clamp as the render's xfade fold: never more than the shorter
+      // side has to give, minus a 50 ms margin.
+      const fade = Math.min(Number(boundary.duration), Math.max(0.05, Math.min(acc, dur) - 0.05));
+      startS = Math.max(0, acc - fade);
+    } else {
+      startS = i > 0 ? acc : 0;
+    }
+    const endS = startS + dur;
+    acc = endS;
+
+    let startF;
+    if (i === 0) startF = 0;
+    else if (isTransition) startF = Math.max(0, Math.min(sequenceFrameIndex(startS, fps), end[i - 1] - 1));
+    else startF = end[i - 1];
+    let endF = Math.max(sequenceFrameIndex(endS, fps), startF + 1);
+    if (isTransition) endF = Math.max(endF, end[i - 1] + 1);
+    start.push(startF);
+    end.push(endF);
+    overlap.push(isTransition ? end[i - 1] - startF : 0);
+  });
+  return { start, end, overlap };
 }
 
 export function totalDuration(segments) {
@@ -207,8 +303,14 @@ export function getDrawPlan(segments, t) {
   // side that owns pixels); this only says which transition and how far.
   if (seg.isFade && idx > 0 && t < seg.segStart + seg.overlap) {
     const prevSeg = segments[idx - 1];
-    const alpha = Math.max(0, Math.min(1, (t - seg.segStart) / seg.overlap));
     const transition = seg.clip.transition_in || 'fade';
+    // Eased boundaries remap progress before any geometry is drawn, the same
+    // curve the render's custom xfade expression applies (linear by default).
+    const alpha = easeTransitionProgress(
+      transition,
+      seg.clip.transition_easing,
+      (t - seg.segStart) / seg.overlap,
+    );
     // Alphas are PAINT-ORDER alphas, not per-clip contributions: entries are
     // drawn in order, each over the previous, so the base layer is opaque and
     // only the incoming one blends. Giving the outgoing clip `1 - alpha` here
@@ -251,13 +353,125 @@ export function splitClipAt(seg, t, makeId) {
 
   const cutSource = localTimeAt(seg, t);
   const sourceEnd = seg.clip.trim_end ?? seg.srcDur;
+  const left = { ...seg.clip, id: makeId(), trim_end: cutSource, freeze_tail: undefined };
+  const right = { ...seg.clip, id: makeId(), trim_start: cutSource, trim_end: sourceEnd, transition_in: 'cut' };
+  // Keyframe times are played local time, so the cut is too (motionTimeAt,
+  // not source time) -- a 2x clip cut 1s in has used 2s of source.
+  if (Array.isArray(seg.clip.keyframes) && seg.clip.keyframes.length) {
+    const halves = splitKeyframesAt(seg.clip.keyframes, motionTimeAt(seg, t));
+    left.keyframes = halves.left;
+    right.keyframes = halves.right;
+  }
+  // Freeze belongs to the final piece of the source. Copying it to both
+  // sides made a 6-second clip become 8 seconds after a split.
+  return [left, right];
+}
 
-  return [
-    // Freeze belongs to the final piece of the source. Copying it to both
-    // sides made a 6-second clip become 8 seconds after a split.
-    { ...seg.clip, id: makeId(), trim_end: cutSource, freeze_tail: undefined },
-    { ...seg.clip, id: makeId(), trim_start: cutSource, trim_end: sourceEnd, transition_in: 'cut' },
-  ];
+const KEYFRAME_TIME_PRECISION = 1e6;
+const roundKeyframeTime = (time) => Math.round(time * KEYFRAME_TIME_PRECISION) / KEYFRAME_TIME_PRECISION;
+const SPLIT_EASING_SAMPLES = 12;
+
+/**
+ * Split a camera keyframe list (played local seconds) at `cut`. The left half
+ * keeps every point at or before the cut; the right half keeps every point at
+ * or after it, re-based so the cut is its t=0. Where a track has points on
+ * both sides of the cut but none exactly on it, each half gets an
+ * interpolated boundary point, so left-end == right-start == original(cut)
+ * and right(t) == original(cut + t). Copying the list unchanged to both
+ * halves restarted every zoom ramp at the cut -- a visible jump.
+ * Boundary values are interpolated raw (unclamped) because both preview and
+ * video_editor.py clamp only after interpolating.
+ */
+export function splitKeyframesAt(keyframes, cut) {
+  const points = Array.isArray(keyframes) ? keyframes : [];
+  const timeOf = (point) => (point && typeof point === 'object' ? Number(point.time) : NaN);
+  const timed = points.filter((point) => Number.isFinite(timeOf(point)));
+  const tracks = new Set();
+  timed.forEach((point) => {
+    Object.keys(CAMERA_MOTION_LIMITS).forEach((property) => {
+      if (point[property] !== undefined) tracks.add(property);
+    });
+    if (typeof point.property === 'string') tracks.add(point.property);
+  });
+
+  // Untimed/invalid points are ignored by both readers; keep them on the left
+  // only so nothing is silently deleted.
+  const left = points.filter((point) => !Number.isFinite(timeOf(point)) || timeOf(point) <= cut);
+  const rebased = new Map();
+  const detached = new Set();
+  const right = timed
+    .filter((point) => timeOf(point) >= cut)
+    .map((point) => {
+      const copy = { ...point, time: roundKeyframeTime(timeOf(point) - cut) };
+      rebased.set(point, copy);
+      return copy;
+    });
+
+  tracks.forEach((property) => {
+    const track = timed
+      .filter((point) => point[property] !== undefined || point.property === property)
+      .map((point) => ({
+        time: timeOf(point),
+        value: point[property] !== undefined ? point[property] : point.value,
+        easing: point.easing,
+        source: point,
+      }))
+      .filter((point) => Number.isFinite(Number(point.value)));
+    if (!track.length || track.some((point) => point.time === cut)) return;
+    const value = interpolateKeyframes(track, cut, undefined);
+    const before = track.filter((point) => point.time < cut);
+    const after = track.filter((point) => point.time > cut);
+    const prev = before.reduce((a, b) => (b.time > a.time ? b : a), before[0]);
+    const next = after.reduce((a, b) => (b.time < a.time ? b : a), after[0]);
+    // A cut inside an eased segment: the curve's tail cannot be re-expressed
+    // as one named easing, so each half gets SPLIT_EASING_SAMPLES linear
+    // sub-segments sampled from the original curve. Values match the original
+    // exactly at every sample and at the cut (position-continuous); between
+    // samples the error is <= ~0.4% of the segment's delta, and velocity is
+    // only approximately continuous across the cut.
+    const baked = prev && next && cameraEasingName(next.easing) !== 'linear';
+    if (next) {
+      if (baked) {
+        for (let k = 1; k < SPLIT_EASING_SAMPLES; k += 1) {
+          const time = prev.time + ((cut - prev.time) * k) / SPLIT_EASING_SAMPLES;
+          left.push({
+            time: roundKeyframeTime(time), property,
+            value: interpolateKeyframes(track, time, undefined), easing: 'linear',
+          });
+        }
+        left.push({ time: roundKeyframeTime(cut), property, value, easing: 'linear' });
+      } else {
+        left.push({ time: roundKeyframeTime(cut), property, value });
+      }
+    }
+    if (prev) {
+      right.unshift({ time: 0, property, value });
+      if (baked) {
+        for (let k = 1; k < SPLIT_EASING_SAMPLES; k += 1) {
+          const time = cut + ((next.time - cut) * k) / SPLIT_EASING_SAMPLES;
+          right.push({
+            time: roundKeyframeTime(time - cut), property,
+            value: interpolateKeyframes(track, time, undefined), easing: 'linear',
+          });
+        }
+        // The original end point's easing now covers only the last sample's
+        // sub-segment; make it linear for this property alone (a combined
+        // point keeps its easing for its other properties).
+        const copy = rebased.get(next.source);
+        if (copy.property === property) {
+          copy.easing = 'linear';
+        } else {
+          delete copy[property];
+          detached.add(copy);
+          right.push({ time: copy.time, property, value: next.value, easing: 'linear' });
+        }
+      }
+    }
+  });
+  // Drop only combined points this split emptied by detaching their values.
+  const emptied = (point) => detached.has(point)
+    && !Object.keys(point).some((key) => key !== 'time' && key !== 'easing');
+  return { left, right: right.filter((point) => !emptied(point)) };
 }
 
 /**

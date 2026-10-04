@@ -7,6 +7,7 @@
  */
 import { buildSegments } from './timelineMath.js';
 import { CUTOUT_ENGINE_MODELS, resolveCutoutEngineModel } from './cutoutEngineModel.js';
+import { subjectPointsEqual } from './subjectPoints.js';
 
 export const BACKGROUND_ISOLATION_SCHEMA_VERSION = 1;
 export const SEQUENCE_SCHEMA_VERSION = 1;
@@ -279,7 +280,8 @@ export function backgroundIsolationPrefetchTimes({
 /** Return only completed isolation tasks that belong to the active project. */
 export function completedBackgroundIsolationTasks(tasks = [], projectName = '', requestId = null) {
   return (Array.isArray(tasks) ? tasks : []).filter((task) => {
-    if (task?.type !== 'background_isolation' || task.status !== 'completed') return false;
+    const isCutout = task?.type === 'background_isolation' || task?.task_type === 'background_isolation';
+    if (!isCutout || task.status !== 'completed') return false;
     if (!task.result?.artifact?.id || !task.payload?.source_path) return false;
     if (requestId != null && task.payload?.config?.request_id !== requestId) return false;
     return !task.payload.project_name || task.payload.project_name === projectName;
@@ -455,7 +457,29 @@ function fallbackResult(config, reason, status = config.artifactStatus) {
  * Resolve clip/project isolation config with an explicit project disable as
  * the master switch. Prepared clip artifacts can outlive a later toggle.
  */
+function promptReferenceSourceEqual(a, b) {
+  if (a === b) return true;
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return String(a).replace(/\\/g, '/').toLowerCase() === String(b).replace(/\\/g, '/').toLowerCase();
+}
+
+function promptReferenceStartEqual(a, b) {
+  if (a === b) return true;
+  if (a == null && b == null) return true;
+  if (a == null || b == null) return false;
+  return Math.abs(Number(a) - Number(b)) <= 0.01;
+}
+
 export function resolveBackgroundIsolationConfig(clip, projectConfig) {
+  const promptChanged = (candidate) => projectConfig?.enabled === true && candidate
+    && (projectConfig.prompt_reference_source || candidate.prompt_reference_source)
+    && (!promptReferenceSourceEqual(projectConfig.prompt_reference_source, candidate.prompt_reference_source)
+      || !promptReferenceStartEqual(projectConfig.prompt_reference_start, candidate.prompt_reference_start)
+      || !subjectPointsEqual(projectConfig.subject_points, candidate.subject_points)
+      || (projectConfig.auto_prompt !== false) !== (candidate.auto_prompt !== false));
+  const currentPrompt = (candidate) => promptChanged(candidate)
+    ? { ...projectConfig, artifact: { schema_version: 1, id: null, status: 'stale' } } : candidate;
   if (projectConfig && typeof projectConfig === 'object' && !Array.isArray(projectConfig)
     && projectConfig.enabled === false) {
     return projectConfig;
@@ -473,16 +497,16 @@ export function resolveBackgroundIsolationConfig(clip, projectConfig) {
       return { ...projectConfig, artifact: { schema_version: 1, id: null, status: 'stale' } };
     }
     return scoped?.scope_mode === 'behind_text_windows'
-      ? scoped : { ...projectConfig, artifact: { schema_version: 1, id: null, status: 'missing' } };
+      ? currentPrompt(scoped) : { ...projectConfig, artifact: { schema_version: 1, id: null, status: 'missing' } };
   }
   if (clip && typeof clip === 'object' && !Array.isArray(clip)) {
     if (clip.background_isolation !== undefined && clip.background_isolation !== null) {
-      return clip.background_isolation.scope_mode === 'behind_text_windows'
-        ? (clip.background_isolation.legacy_background_isolation ?? projectConfig) : clip.background_isolation;
+      return currentPrompt(clip.background_isolation.scope_mode === 'behind_text_windows'
+        ? (clip.background_isolation.legacy_background_isolation ?? projectConfig) : clip.background_isolation);
     }
     if (clip.backgroundIsolation !== undefined && clip.backgroundIsolation !== null) {
-      return clip.backgroundIsolation.scope_mode === 'behind_text_windows'
-        ? (clip.backgroundIsolation.legacy_background_isolation ?? projectConfig) : clip.backgroundIsolation;
+      return currentPrompt(clip.backgroundIsolation.scope_mode === 'behind_text_windows'
+        ? (clip.backgroundIsolation.legacy_background_isolation ?? projectConfig) : clip.backgroundIsolation);
     }
   }
   return projectConfig;

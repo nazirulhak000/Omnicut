@@ -319,6 +319,26 @@ def _run_background_isolation_task(
         normalized = normalize_background_isolation(req.config)
         if not normalized["enabled"]:
             raise ValueError(f"background isolation config is disabled or invalid: {normalized.get('reason', 'invalid_config')}")
+        if req.project_name:
+            project_file = Path(PROJECTS_DIR).resolve() / req.project_name / "project.json"
+            if project_file.is_file():
+                try:
+                    pdata = json.loads(project_file.read_text(encoding="utf-8"))
+                    params = pdata.get("render_params") or {}
+                    clips = (pdata.get("clip_list") or params.get("clip_list") or pdata.get("clips") or [])
+                    if normalized.get("subject_points") and "prompt_reference_source" not in normalized:
+                        # Old projects have no picker reference metadata. Keep
+                        # points on the first timeline source/window; basenames
+                        # and per-source inference conflate different takes.
+                        first = next((c for c in clips if isinstance(c, dict) and c.get("source_path")), None)
+                        if first:
+                            normalized["prompt_reference_source"] = first["source_path"]
+                            normalized.setdefault("prompt_reference_start", first.get("trim_start") or 0.0)
+                except Exception:
+                    pass
+        normalized = normalize_background_isolation(normalized)
+        if not normalized["enabled"]:
+            raise ValueError("invalid Cutout prompt reference")
         source_fingerprint = _source_fingerprint(source)
         if req.timebase:
             timebase = req.timebase
@@ -656,9 +676,35 @@ def get_background_isolation_frame(artifact_id: str, frame_index: str) -> FileRe
     return FileResponse(frame_path, media_type="image/png")
 
 
+class InteractiveSegmentRequest(BaseModel):
+    source_path: str
+    timestamp: float = 0.0
+    points: list[dict[str, Any]] = []
+    width: int = 540
+    height: int = 960
+
+
+@router.post("/interactive-segment")
+def interactive_segment_endpoint(req: InteractiveSegmentRequest) -> dict[str, Any]:
+    """Single-frame real-time SAM 2 interactive segmentation for subject lift preview."""
+    source = _source_for_processing(req.source_path)
+    try:
+        from scripts.interactive_sam2_client import segment_frame_interactive
+        return segment_frame_interactive(
+            str(source),
+            req.timestamp,
+            req.points,
+            width=req.width,
+            height=req.height,
+        )
+    except Exception as e:
+        return {"ok": False, "error": str(e), "contours": [], "bbox": None}
+
+
 __all__ = [
     "get_background_isolation_frame",
     "get_background_isolation_manifest",
     "preflight_background_isolation",
+    "interactive_segment_endpoint",
     "router",
 ]

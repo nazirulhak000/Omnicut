@@ -21,6 +21,11 @@ test('shift or alt click marks background', () => {
   assert.equal(subjectPointFromPickClick({ clientX: 150, clientY: 100, altKey: true }, rect).label, 0);
 });
 
+test('defaultLabel parameter sets label when no shift or alt', () => {
+  assert.equal(subjectPointFromPickClick({ clientX: 150, clientY: 100 }, rect, 0).label, 0);
+  assert.equal(subjectPointFromPickClick({ clientX: 150, clientY: 100 }, rect, 1).label, 1);
+});
+
 test('clicks outside clamp and a degenerate rect is rejected', () => {
   assert.deepEqual(subjectPointFromPickClick({ clientX: 0, clientY: 9999 }, rect), { x: 0, y: 1, label: 1 });
   assert.equal(subjectPointFromPickClick({ clientX: 1, clientY: 1 }, { left: 0, top: 0, width: 0, height: 0 }), null);

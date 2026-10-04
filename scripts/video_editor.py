@@ -41,6 +41,7 @@ from scripts.overlay_recolor import (
 from scripts.spotlight_effect import build_ffmpeg_filter
 from scripts.proxy_manager import is_proxy_path
 from scripts.render_jobs import RenderCancelled
+from scripts.ffmpeg_graph import cleanup_graph_file, externalize_filter_graph
 
 # Above this speed, duplicated frames are not visible enough to be worth
 # minterpolate's cost, so the smooth-slowmo flag is ignored.
@@ -369,6 +370,108 @@ XFADE_TRANSITIONS = (
 DEFAULT_TRANSITION_DURATION = 0.4
 MAX_TRANSITION_DURATION = 2.0
 
+# Eased transition progress (EDITOR-CUT-QUALITY-R2 lane TM spike). xfade's
+# built-in transitions only run linear progress, so an eased boundary is
+# rendered with `xfade=transition=custom:expr=...` that re-implements the
+# built-in geometry from libavfilter/vf_xfade.c at an eased progress. Only
+# the types listed here were proven pixel-equal to the built-in at linear
+# progress by a real render (tests/test_transition_easing.py); every other
+# type ignores `easing` and stays on the built-in, linear. Mirrored by
+# EASED_TRANSITIONS in frontend/src/lib/timelineMath.js.
+EASED_TRANSITIONS = (
+    "fade", "fadeblack", "fadewhite",
+    "wipeleft", "wiperight", "wipeup", "wipedown",
+    "slideleft", "slideright", "slideup", "slidedown",
+)
+
+
+def transition_easing_name(kind: str, value: Any) -> str:
+    """Easing a boundary actually renders with; 'linear' unless honoured."""
+    if kind not in EASED_TRANSITIONS:
+        return "linear"
+    return value if isinstance(value, str) and value in CAMERA_EASINGS else "linear"
+
+
+def eased_xfade_progress_expr(easing: str) -> str:
+    """xfade's own progress P runs 1 -> 0. The curves are the camera ones
+    (ease_camera_ratio, applied to forward progress 1-P), returned in P's
+    direction: E = 1 - ease(1 - P), simplified so P appears without nesting."""
+    if easing == "ease_in":       # 1 - (1-P)^2
+        return "(P*(2-P))"
+    if easing == "ease_out":      # 1 - (1-P)(1+P)
+        return "(P*P)"
+    if easing == "ease_in_out":
+        return "(if(gt(P,0.5),1-2*(1-P)*(1-P),2*P*P))"
+    return "(P)"
+
+
+# Black/white the fadeblack/fadewhite bridge dips through, per plane, for the
+# yuv444p frames xfade negotiates here (measured off the built-in transition).
+_XFADE_BRIDGE_LEVELS = {"fadeblack": (0, 128, 128), "fadewhite": (255, 128, 128)}
+
+
+def _plane_pick(prefix: str, x: str, y: str) -> str:
+    return (f"if(eq(PLANE,0),{prefix}0({x},{y}),if(eq(PLANE,1),{prefix}1({x},{y}),"
+            f"if(eq(PLANE,2),{prefix}2({x},{y}),{prefix}3({x},{y}))))")
+
+
+def _smoothstep_expr(edge0: float, edge1: float, x: str) -> str:
+    t = f"clip(({x}-{edge0})/{round(edge1 - edge0, 6)},0,1)"
+    return f"({t}*{t}*(3-2*{t}))"
+
+
+def eased_xfade_custom_expr(kind: str, easing: str) -> Optional[str]:
+    """The `custom` expression for an eased boundary, or None to stay on the
+    built-in transition (linear, or a type that does not honour easing)."""
+    if transition_easing_name(kind, easing) == "linear":
+        return None
+    return xfade_custom_body(kind, eased_xfade_progress_expr(easing))
+
+
+def xfade_custom_body(kind: str, e: str) -> Optional[str]:
+    """Built-in geometry of `kind` as a custom expression at progress `e`.
+    With e = "(P)" it must reproduce the built-in transition itself -- that
+    is the proof each type in EASED_TRANSITIONS was shipped on."""
+    if kind == "fade":
+        return f"A*{e}+B*(1-{e})"
+    if kind in _XFADE_BRIDGE_LEVELS:
+        lv = _XFADE_BRIDGE_LEVELS[kind]
+        bg = f"if(eq(PLANE,0),{lv[0]},if(eq(PLANE,1),{lv[1]},{lv[2]}))"
+        s_out = _smoothstep_expr(0.8, 1.0, e)
+        s_in = _smoothstep_expr(0.2, 1.0, e)
+        inner_a = f"(A*{s_out}+{bg}*(1-{s_out}))"
+        inner_b = f"({bg}*{s_in}+B*(1-{s_in}))"
+        return f"{inner_a}*{e}+{inner_b}*(1-{e})"
+    if kind == "wipeleft":
+        return f"if(gt(X,trunc(W*{e})),B,A)"
+    if kind == "wiperight":
+        return f"if(gt(X,trunc(W*(1-{e}))),A,B)"
+    if kind == "wipeup":
+        return f"if(gt(Y,trunc(H*{e})),B,A)"
+    if kind == "wipedown":
+        return f"if(gt(Y,trunc(H*(1-{e}))),A,B)"
+    if kind == "slideleft":
+        zx = f"(X-trunc(W*{e}))"
+        return f"if(gte({zx},0),{_plane_pick('b', zx, 'Y')},{_plane_pick('a', f'({zx}+W)', 'Y')})"
+    if kind == "slideright":
+        zx = f"(X+trunc(W*{e}))"
+        return f"if(lt({zx},W),{_plane_pick('b', zx, 'Y')},{_plane_pick('a', f'({zx}-W)', 'Y')})"
+    if kind == "slideup":
+        zy = f"(Y-trunc(H*{e}))"
+        return f"if(gte({zy},0),{_plane_pick('b', 'X', zy)},{_plane_pick('a', 'X', f'({zy}+H)')})"
+    if kind == "slidedown":
+        zy = f"(Y+trunc(H*{e}))"
+        return f"if(lt({zy},H),{_plane_pick('b', 'X', zy)},{_plane_pick('a', 'X', f'({zy}-H)')})"
+    return None
+
+
+def xfade_filter_args(kind: str, fade_dur: float, offset: float, easing: Any = None) -> str:
+    """`xfade=...` for one boundary. Linear keeps the exact built-in text."""
+    expr = eased_xfade_custom_expr(kind, easing)
+    if expr is None:
+        return f"xfade=transition={kind}:duration={fade_dur}:offset={offset}"
+    return f"xfade=transition=custom:expr='{expr}':duration={fade_dur}:offset={offset}"
+
 
 _SPOTLIGHT_INTERNAL_LABELS = (
     "spot_src",
@@ -658,6 +761,105 @@ def sticker_geometry(
         x, y = positions.get(position, positions["top_right"])
     return width, x, y
 
+
+# Sticker/effect entrance + exit animation, mirrored 1:1 by
+# frontend/src/lib/stickerAnimation.js (tests/test_preview_render_parity.py
+# evaluates both on the same inputs). Entrance = linear alpha fade plus, for
+# stickers, an ease_out scale settle 0.88 -> 1.0 about the resting centre;
+# exit = linear alpha fade. Durations are whole frames, capped at 40% of the
+# visible window so a short sticker still reaches full opacity. Only the
+# transient frames change: the resting frame is bit-identical to the old
+# hard on/off overlay (same scale, same overlay x/y, alpha untouched).
+OVERLAY_ANIM_IN_FRAMES = 7       # 7/30 s = 0.233 s (<= 0.25 s)
+OVERLAY_ANIM_OUT_FRAMES = 6      # 6/30 s = 0.2 s
+OVERLAY_ANIM_MAX_SHARE = 0.4
+OVERLAY_ANIM_SCALE_FROM = 0.88
+OVERLAY_ANIM_OPEN_END = 99999.0  # Canvas uses end=999999 for "no end"
+
+
+def overlay_anim_timing(start: float, end: Optional[float], fps: int = FPS) -> Tuple[float, float]:
+    """(entrance seconds, exit seconds) on the 1/fps grid; exit 0 without an end."""
+    start = float(start)
+    has_end = end is not None and math.isfinite(float(end)) and float(end) < OVERLAY_ANIM_OPEN_END
+    if has_end:
+        visible = float(end) - start
+        if visible <= 0:
+            return 0.0, 0.0
+        cap = int(math.floor(visible * OVERLAY_ANIM_MAX_SHARE * fps + 1e-6))
+    else:
+        cap = OVERLAY_ANIM_IN_FRAMES
+    in_frames = max(0, min(OVERLAY_ANIM_IN_FRAMES, cap))
+    out_frames = max(0, min(OVERLAY_ANIM_OUT_FRAMES, cap)) if has_end else 0
+    return in_frames / fps, out_frames / fps
+
+
+def overlay_anim_state(
+    t: float, start: float, end: Optional[float], *, scale_in: bool = True, fps: int = FPS
+) -> Tuple[float, float]:
+    """(alpha, scale) at timeline time t; the reference the ffmpeg chain follows."""
+    d_in, d_out = overlay_anim_timing(start, end, fps)
+    alpha, scale = 1.0, 1.0
+    if d_in > 0:
+        p = min(1.0, max(0.0, (float(t) - float(start)) / d_in))
+        alpha = p
+        if scale_in:
+            scale = OVERLAY_ANIM_SCALE_FROM + (1.0 - OVERLAY_ANIM_SCALE_FROM) * ease_camera_ratio("ease_out", p)
+    if d_out > 0:
+        # Two chained ffmpeg `fade` filters multiply their factors.
+        alpha *= min(1.0, max(0.0, (float(end) - float(t)) / d_out))
+    return alpha, scale
+
+
+def overlay_anim_filters(
+    start: float,
+    end: Optional[float],
+    *,
+    rest_w: Optional[int] = None,
+    rest_h: Optional[int] = None,
+    fps: int = FPS,
+) -> str:
+    """Filter chain (no leading comma, "" when nothing animates) for a
+    rest-size overlay stream with an alpha plane and real per-frame time.
+
+    The scale settle needs the resting size: `pad` keeps the stream at
+    rest_w x rest_h, so overlay's w/h -- and every resting x/y expression --
+    stays exactly as before. Without it (or for effects) only alpha fades.
+    """
+    d_in, d_out = overlay_anim_timing(start, end, fps)
+    start = float(start)
+    parts = []
+    if d_in > 0 and rest_w and rest_h:
+        # ffmpeg form of ease_camera_ratio("ease_out", p) = p*(2-p).
+        p = f"clip((t-{start:.6f})/{d_in:.6f},0,1)"
+        s = f"({OVERLAY_ANIM_SCALE_FROM:g}+{1.0 - OVERLAY_ANIM_SCALE_FROM:g}*{p}*(2-{p}))"
+        # rgba: `pad` rounds a subsampled (yuva420p) size down to even, which
+        # would reject an odd resting height. Rest frames stay bit-identical.
+        parts.append("format=rgba")
+        parts.append(
+            f"scale=w='min(iw,2*trunc(iw*{s}/2+0.5))':h='min(ih,2*trunc(ih*{s}/2+0.5))':eval=frame"
+        )
+        parts.append("format=rgba")
+        parts.append(
+            f"pad=w={int(rest_w)}:h={int(rest_h)}:x='(ow-iw)/2':y='(oh-ih)/2':color=black@0:eval=frame"
+        )
+    if d_in > 0:
+        parts.append(f"fade=t=in:st={start:.6f}:d={d_in:.6f}:alpha=1")
+    if d_out > 0:
+        parts.append(f"fade=t=out:st={float(end) - d_out:.6f}:d={d_out:.6f}:alpha=1")
+    return ",".join(parts)
+
+
+def overlay_rest_height(path: Path, rest_w: int) -> Optional[int]:
+    """Height ffmpeg's `scale=rest_w:-1` produces (av_rescale, round half up)."""
+    try:
+        with Image.open(path) as img:
+            iw, ih = img.size
+    except Exception:
+        return None
+    if iw <= 0 or ih <= 0:
+        return None
+    return (int(rest_w) * ih + iw // 2) // iw
+
 # What "export quality" means, end to end. Draft trades resolution and encode
 # effort for wall clock.
 #
@@ -881,13 +1083,36 @@ def frame_geometry(clip: Dict[str, Any], default_scale: float):
     return scale, offset(room_x, "pan_x"), offset(room_y, "pan_y"), scaled_w, scaled_h
 
 
+# Camera keyframe easing (EDITOR-CUT-QUALITY-R2 E1). Same curves as
+# scripts/subtitle/motion_contract.py, scripts/keyframe_engine.py and
+# frontend/src/lib/timelineMath.js CAMERA_EASINGS. A point's `easing` shapes
+# the segment that ENDS at that point (keyframe_engine / keyframeModel rule).
+# Missing or unknown easing == linear, so old projects render unchanged.
+CAMERA_EASINGS = ("linear", "ease_in", "ease_out", "ease_in_out")
+
+
+def camera_easing_name(value: Any) -> str:
+    return value if isinstance(value, str) and value in CAMERA_EASINGS else "linear"
+
+
+def ease_camera_ratio(name: str, ratio: float) -> float:
+    t = min(1.0, max(0.0, ratio))
+    if name == "ease_in":
+        return t * t
+    if name == "ease_out":
+        return t * (2.0 - t)
+    if name == "ease_in_out":
+        return 2.0 * t * t if t < 0.5 else -1.0 + (4.0 - 2.0 * t) * t
+    return t
+
+
 def interpolate_keyframes(keyframes: Any, time: float, fallback: float) -> float:
     """Deterministically resolve a numeric keyframe track at local time."""
     points = []
     for point in keyframes if isinstance(keyframes, list) else []:
         try:
-            points.append((float(point["time"]), float(point["value"])))
-        except (KeyError, TypeError, ValueError):
+            points.append((float(point["time"]), float(point["value"]), camera_easing_name(point.get("easing"))))
+        except (KeyError, TypeError, ValueError, AttributeError):
             continue
     points.sort(key=lambda item: item[0])
     if not points:
@@ -896,10 +1121,10 @@ def interpolate_keyframes(keyframes: Any, time: float, fallback: float) -> float
         return points[0][1]
     if time >= points[-1][0]:
         return points[-1][1]
-    for (left_t, left_v), (right_t, right_v) in zip(points, points[1:]):
+    for (left_t, left_v, _), (right_t, right_v, easing) in zip(points, points[1:]):
         if time <= right_t:
             ratio = (time - left_t) / (right_t - left_t) if right_t > left_t else 1.0
-            return left_v + (right_v - left_v) * ratio
+            return left_v + (right_v - left_v) * ease_camera_ratio(easing, ratio)
     return points[-1][1]
 
 
@@ -917,9 +1142,9 @@ def _camera_track(clip: Dict[str, Any], prop: str) -> List[Dict[str, Any]]:
         if not isinstance(point, dict):
             continue
         if prop in point:
-            out.append({"time": point.get("time"), "value": point.get(prop)})
+            out.append({"time": point.get("time"), "value": point.get(prop), "easing": point.get("easing")})
         elif point.get("property") == prop:
-            out.append({"time": point.get("time"), "value": point.get("value")})
+            out.append({"time": point.get("time"), "value": point.get("value"), "easing": point.get("easing")})
     return out
 
 
@@ -989,25 +1214,37 @@ def _ffmpeg_keyframe_expression(track: List[Dict[str, Any]], fallback: float, pr
 
 
 def _ffmpeg_keyframe_expression_live(track: List[Dict[str, Any]], fallback: float, prop: str) -> str:
-    """Build the live expression, clamping only after interpolation."""
+    """Build the live expression, clamping only after interpolation.
+
+    Each segment's progress r = (t-left)/span is shaped by the easing of the
+    point that ends it (see CAMERA_EASINGS) as a plain polynomial, so the
+    expression stays sin/cos free; linear segments keep the exact old text.
+    """
     points = []
     low, high = CAMERA_MOTION_LIMITS[prop]
     for point in track:
         try:
-            points.append((float(point["time"]), float(point["value"])))
-        except (KeyError, TypeError, ValueError):
+            points.append((float(point["time"]), float(point["value"]), camera_easing_name(point.get("easing"))))
+        except (KeyError, TypeError, ValueError, AttributeError):
             continue
     points.sort(key=lambda item: item[0])
     if not points:
         return f"{_clamp_camera_value(prop, fallback, fallback):.6f}"
     expr = f"{points[-1][1]:.6f}"
-    for (left_t, left_v), (right_t, right_v) in reversed(list(zip(points, points[1:]))):
+    for (left_t, left_v, _), (right_t, right_v, easing) in reversed(list(zip(points, points[1:]))):
         if right_t <= left_t:
             continue
-        segment = (
-            f"{left_v:.6f}+({right_v - left_v:.6f})*"
-            f"(t-{left_t:.6f})/({right_t - left_t:.6f})"
-        )
+        ratio = f"(t-{left_t:.6f})/({right_t - left_t:.6f})"
+        if easing == "linear":
+            segment = f"{left_v:.6f}+({right_v - left_v:.6f})*{ratio}"
+        else:
+            r = f"({ratio})"
+            curve = {
+                "ease_in": f"{r}*{r}",
+                "ease_out": f"{r}*(2-{r})",
+                "ease_in_out": f"if(lt({r}\\,0.5)\\,2*{r}*{r}\\,-1+(4-2*{r})*{r})",
+            }[easing]
+            segment = f"{left_v:.6f}+({right_v - left_v:.6f})*({curve})"
         expr = f"if(lt(t\\,{right_t:.6f})\\,{segment}\\,{expr})"
     expr = f"if(lt(t\\,{points[0][0]:.6f})\\,{points[0][1]:.6f}\\,{expr})"
     return f"min({high:.6f}\\,max({low:.6f}\\,{expr}))"
@@ -1063,8 +1300,82 @@ def normalize_transitions(transitions: List[Any]) -> List[Dict[str, Any]]:
         if kind != "cut" and kind not in XFADE_TRANSITIONS:
             kind = "fade"
         dur = min(MAX_TRANSITION_DURATION, max(0.1, dur))
-        out.append({"type": kind, "duration": dur})
+        normalized = {"type": kind, "duration": dur}
+        # Only a non-linear easing on a type that honours it is carried, so a
+        # linear/old boundary stays the exact dict (and graph) it always was.
+        easing = transition_easing_name(kind, entry.get("easing") if isinstance(entry, dict) else None)
+        if easing != "linear":
+            normalized["easing"] = easing
+        out.append(normalized)
     return out
+
+
+# --------------------------------------------------------------------------
+# Whole-frame sequence timing (EDITOR-CUT-QUALITY-R2 lane TM, audit B5).
+# Every clip used to come out of its own chain as round(duration*30) frames,
+# so the rounding error of each clip added up along the chain (measured
+# +0.04..+1.52 frames at the end of 12-24 clips) while the preview kept the
+# exact float. Quantising CUMULATIVE boundaries instead -- boundary_k =
+# floor(t_k*FPS + 0.5) and every length a difference of two boundaries --
+# keeps the error of any boundary under half a frame, never accumulating,
+# and the total equals round(total*FPS). frontend/src/lib/timelineMath.js
+# planSequenceFrames() is the same function, operation for operation; the
+# parity test feeds both the same clip list and compares every frame number.
+# --------------------------------------------------------------------------
+def sequence_frame_index(seconds: float, fps: int = FPS) -> int:
+    """Nearest frame, halves up -- Math.floor(x * fps + 0.5) in the preview."""
+    return int(math.floor(float(seconds) * fps + 0.5))
+
+
+def plan_sequence_frames(
+    durations: List[float], boundaries: List[Dict[str, Any]], fps: int = FPS
+) -> Dict[str, List[int]]:
+    """Lay played clip durations on the frame grid.
+
+    `boundaries` are normalize_transitions() entries (one per boundary).
+    Returns per-clip `start`/`end` frame numbers on the output timeline and
+    the `overlap` frames each boundary's transition uses (0 for a cut).
+    xfade offset = start (= previous end - overlap); xfade duration = overlap.
+    """
+    starts: List[int] = []
+    ends: List[int] = []
+    overlaps: List[int] = []
+    acc = 0.0
+    for i, raw_dur in enumerate(durations):
+        dur = float(raw_dur)
+        boundary = boundaries[i - 1] if 0 < i <= len(boundaries) else None
+        is_transition = bool(i > 0 and boundary and boundary.get("type", "cut") != "cut")
+        if is_transition:
+            # Same clamp as the xfade fold: never more than the shorter side
+            # has to give (minus a 50 ms margin).
+            fade = min(float(boundary["duration"]), max(0.05, min(acc, dur) - 0.05))
+            start_s = max(0.0, acc - fade)
+        else:
+            start_s = acc if i > 0 else 0.0
+        end_s = start_s + dur
+        acc = end_s
+
+        if i == 0:
+            start_f = 0
+        elif is_transition:
+            prev_end = ends[i - 1]
+            # A transition keeps at least one frame and starts at or after 0.
+            start_f = max(0, min(sequence_frame_index(start_s, fps), prev_end - 1))
+        else:
+            start_f = ends[i - 1]
+        end_f = max(sequence_frame_index(end_s, fps), start_f + 1)
+        if is_transition:
+            # The incoming clip must outlast its own transition by a frame.
+            end_f = max(end_f, ends[i - 1] + 1)
+        starts.append(start_f)
+        ends.append(end_f)
+        overlaps.append(ends[i - 1] - start_f if is_transition else 0)
+    return {"start": starts, "end": ends, "overlap": overlaps}
+
+
+def frames_to_seconds(frames: int, fps: int = FPS) -> float:
+    """Seconds for the filter graph; 6 decimals is exact to ffmpeg's 1 us parse."""
+    return round(frames / fps, 6)
 
 
 class VideoEditor:
@@ -1420,7 +1731,7 @@ class VideoEditor:
                     fg_rgba = f"[bg_fg_transformed_{idx}]"
                     fg_rgb = f"[bg_fg_rgb_{idx}]"
                     fg_rgb_output = f"[bg_fg_rgb_{idx}_rgb]"
-                    fg_alpha_source = f"[bg_fg_alpha_source_{idx}]"
+                    source_base = f"[bg_source_base_{idx}]"
                     fg_alpha = f"[bg_fg_alpha_{idx}]"
                     subject_for_clip = f"[bg_subject_clip_{idx}]"
                     subject_for_base = f"[bg_subject_base_{idx}]"
@@ -1428,7 +1739,7 @@ class VideoEditor:
                     compositor_plan = bg_info["plan"]
                     compositor_fragment = compositor_plan["filter_fragment"]
                     compositor_fragment = compositor_fragment.replace(
-                        "[clip_transformed]", f"[{transformed_node}]", 1
+                        "[clip_transformed]", source_base, 1
                     ).replace("[foreground_frame]", fg_rgb_output, 1).replace(
                         "[alpha_frame]", fg_alpha, 1
                     ).replace("[clip_composited]", f"[{node_name}]", 1).replace(
@@ -1440,8 +1751,8 @@ class VideoEditor:
                         f"{subject_for_clip}split=2{subject_for_base}{subject_for_overlay};",
                         1,
                     ).replace(
-                        f"[{transformed_node}]{subject_for_clip}overlay",
-                        f"[{transformed_node}]{subject_for_base}overlay",
+                        f"{source_base}{subject_for_clip}overlay",
+                        f"{source_base}{subject_for_base}overlay",
                         1,
                     )
                     # NOTE: do not paint over the base layer here. Round
@@ -1456,9 +1767,11 @@ class VideoEditor:
                     filter_complex.append(
                         source_transform
                         + foreground_transform
-                        + f"{fg_rgba}format=rgba,split=2{fg_rgb}{fg_alpha_source};"
+                        # The subject gets RGB from the same transformed source
+                        # as the base. The artifact contributes only its alpha.
+                        + f"[{transformed_node}]split=2{source_base}{fg_rgb};"
                         + f"{fg_rgb}format=rgb24{fg_rgb_output};"
-                        + f"{fg_alpha_source}alphaextract{fg_alpha};"
+                        + f"{fg_rgba}format=rgba,alphaextract{fg_alpha};"
                         + compositor_fragment
                         + ";"
                     )
@@ -1627,6 +1940,29 @@ class VideoEditor:
             and any(b["type"] != "cut" for b in boundaries)
         )
 
+        # Whole-frame clip timing (B5). Each clip chain alone yields about
+        # round(duration*FPS) frames, and those per-clip roundings added up
+        # along the chain. Pin every clip to the frame count of the cumulative
+        # grid plan (pad a short chain with its last frame, cut a long one) and
+        # derive every start/offset/duration below from the same integers the
+        # preview's buildSegments() uses.
+        frame_plan = None
+        if used_clip_list and clip_durations:
+            frame_plan = plan_sequence_frames(clip_durations, boundaries)
+            gridded_inputs = []
+            for i, inp in enumerate(concat_inputs):
+                name = inp.strip("[]")
+                frames = frame_plan["end"][i] - frame_plan["start"][i]
+                filter_complex.append(
+                    f"[{name}]tpad=stop_mode=clone:stop=3,trim=end_frame={frames}[{name}_grid];"
+                )
+                gridded_inputs.append(f"[{name}_grid]")
+            concat_inputs = gridded_inputs
+            clip_durations = [
+                frames_to_seconds(frame_plan["end"][i] - frame_plan["start"][i])
+                for i in range(len(clip_durations))
+            ]
+
         if has_transition:
             # Sequential reduction: fold clips left-to-right, using xfade at a
             # "fade" boundary and a plain 2-way concat at a "cut" boundary.
@@ -1650,8 +1986,10 @@ class VideoEditor:
                     # A transition can never eat more than the shorter clip has
                     # to give, or xfade produces a negative offset and ffmpeg
                     # errors out.
-                    fade_dur = min(boundary["duration"], max(0.05, min(acc_dur, next_dur) - 0.05))
-                    offset = max(0.0, acc_dur - fade_dur)
+                    # Both come off the frame plan: offset = boundary - overlap,
+                    # each a whole number of frames (the clamp lives there).
+                    fade_dur = frames_to_seconds(frame_plan["overlap"][i])
+                    offset = frames_to_seconds(frame_plan["start"][i])
                     # Two things drift out from under a mixed xfade/concat
                     # chain on a real clip_list, neither visible on a single
                     # xfade in isolation:
@@ -1666,16 +2004,17 @@ class VideoEditor:
                     # `setsar=1,fps={FPS}` after every reduction re-pins
                     # both so nothing downstream ever sees the drift.
                     filter_complex.append(
-                        f"[{acc_node}][{next_node}]xfade=transition={boundary['type']}:duration={fade_dur}:offset={offset},setsar=1,fps={FPS}[{out_node}];"
+                        f"[{acc_node}][{next_node}]"
+                        f"{xfade_filter_args(boundary['type'], fade_dur, offset, boundary.get('easing'))}"
+                        f",setsar=1,fps={FPS}[{out_node}];"
                     )
                     clip_starts.append(offset)
-                    acc_dur = acc_dur + next_dur - fade_dur
                 else:
                     filter_complex.append(
                         f"[{acc_node}][{next_node}]concat=n=2:v=1:a=0,setsar=1,fps={FPS}[{out_node}];"
                     )
-                    clip_starts.append(acc_dur)
-                    acc_dur = acc_dur + next_dur
+                    clip_starts.append(frames_to_seconds(frame_plan["start"][i]))
+                acc_dur = frames_to_seconds(frame_plan["end"][i])
 
                 acc_node = out_node
         else:
@@ -1688,6 +2027,8 @@ class VideoEditor:
             for _d in clip_durations:
                 clip_starts.append(_acc)
                 _acc += _d
+            if frame_plan is not None:
+                clip_starts = [frames_to_seconds(f) for f in frame_plan["start"]]
 
         current_v = "[v_concat]"
 
@@ -1832,17 +2173,36 @@ class VideoEditor:
             )
             # The stickers are appended right after the mixed audio and preceding stickers
             st_idx = audio_input_idx + 1 + len(foreground_inputs) + s_idx
-            cmd_inputs.extend(["-i", str(stk_info["path"].resolve())])
             st_start = stk_info.get("start")
             st_end = stk_info.get("end")
+            anim_start, anim_end = 0.5, None
             if st_start is not None or st_end is not None:
                 st_start_val = max(0.0, float(st_start if st_start is not None else 0.5))
+                anim_start = st_start_val
                 if st_end is not None and float(st_end) > st_start_val:
                     enable_expr = f"between(t,{st_start_val:.2f},{float(st_end):.2f})"
+                    anim_end = float(st_end)
                 else:
                     enable_expr = f"gte(t,{st_start_val:.2f})"
             else:
                 enable_expr = "gte(t,0.5)"
+            # Entrance/exit animation (overlay_anim_filters). The PNG is
+            # looped at the project frame rate so fade/scale see real
+            # per-frame time; a single still frame would never animate.
+            stk_anim = overlay_anim_filters(
+                anim_start,
+                anim_end,
+                rest_w=badge_w,
+                rest_h=overlay_rest_height(stk_info["path"], badge_w),
+            )
+            if stk_anim:
+                cmd_inputs.extend([
+                    "-loop", "1", "-framerate", str(FPS),
+                    "-t", f"{float(total_duration) + 1.0:.3f}",
+                    "-i", str(stk_info["path"].resolve()),
+                ])
+            else:
+                cmd_inputs.extend(["-i", str(stk_info["path"].resolve())])
             stk_node = "sticker_scaled" if s_idx == 0 else f"sticker_scaled_{s_idx}"
             stk_source = f"[{st_idx}:v]"
             recolor_node = f"[sticker_recolored_{s_idx}]"
@@ -1866,7 +2226,7 @@ class VideoEditor:
                 stk_source = recolor_node
             out_label = f"[v_stickered_{s_idx}]"
             filter_complex.append(
-                f"{stk_source}scale={badge_w}:-1[{stk_node}];"
+                f"{stk_source}scale={badge_w}:-1{',' + stk_anim if stk_anim else ''}[{stk_node}];"
                 f"{current_v}[{stk_node}]overlay=x={badge_x}:y={badge_y}:enable='{enable_expr}':format=auto{out_label};"
             )
             current_v = out_label
@@ -1994,10 +2354,24 @@ class VideoEditor:
                 )
                 filter_complex.append(recolor_filter)
                 fx_source = recolor_node
+            # Alpha-only entrance/exit (overlay_anim_filters, no scale: the
+            # effect clip animates itself). Fading the multiplied crop over
+            # the untouched frame == Canvas multiply at globalAlpha; the
+            # resting alpha stays 255 so the resting frame is unchanged.
+            fx_anim = overlay_anim_filters(
+                fx_start,
+                float(requested_end) if (requested_end is not None and float(requested_end) > fx_start) else None,
+            )
+            fx_overlay_node = fx_blended_node
+            fx_anim_filter = ""
+            if fx_anim:
+                fx_overlay_node = f"[fx_anim_{e_idx}]"
+                fx_anim_filter = f"{fx_blended_node}format=yuva420p,{fx_anim}{fx_overlay_node};"
             filter_complex.append(
                 f"{fx_source}scale={fx_size}:{fx_size}{fx_scaled_node};"
                 f"{bg_node}{fx_scaled_node}blend=all_mode=multiply:shortest=1{fx_blended_node};"
-                f"{split_b}{fx_blended_node}overlay=x={px_x}:y={px_y}:enable='{enable_expr}':eof_action=pass{out_label};"
+                f"{fx_anim_filter}"
+                f"{split_b}{fx_overlay_node}overlay=x={px_x}:y={px_y}:enable='{enable_expr}':eof_action=pass{out_label};"
             )
             current_v = out_label
 
@@ -2132,6 +2506,13 @@ class VideoEditor:
             str(out_file)
         ]
 
+        # A long timeline makes this graph (and so the command line) grow with
+        # the clip count; Windows rejects a command line over 32,767 chars
+        # before ffmpeg even starts. Above the threshold the unchanged graph is
+        # handed over through a temp file instead (below it, cmd is untouched).
+        # The finally blocks of the two run paths below delete the file.
+        cmd, graph_script_file = externalize_filter_graph(cmd, full_filter)
+
         if progress_callback:
             cmd.insert(1, "pipe:1")
             cmd.insert(1, "-progress")
@@ -2150,7 +2531,12 @@ class VideoEditor:
                 # signalled/killed independently of this process -- part of
                 # the orphan-prevention cleanup below.
                 popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-            proc = subprocess.Popen(cmd, **popen_kwargs)
+            try:
+                proc = subprocess.Popen(cmd, **popen_kwargs)
+            except BaseException:
+                # The try/finally below only starts once ffmpeg has spawned.
+                cleanup_graph_file(graph_script_file)
+                raise
             _register_ffmpeg_proc(proc)
 
             render_succeeded = False
@@ -2270,6 +2656,9 @@ class VideoEditor:
                     raise RuntimeError(f"FFmpeg render failed:\n{err[-500:]}")
                 render_succeeded = True
             finally:
+                # ffmpeg parsed the graph file at start-up; safe to drop it
+                # whether the render succeeded or not.
+                cleanup_graph_file(graph_script_file)
                 stop_watchdog.set()
                 _unregister_ffmpeg_proc(proc)
                 if not render_succeeded:
@@ -2314,6 +2703,7 @@ class VideoEditor:
             except subprocess.TimeoutExpired:
                 raise TimeoutError(f"FFmpeg render timed out after 300 seconds for: {out_file.name}")
             finally:
+                cleanup_graph_file(graph_script_file)
                 if not render_succeeded:
                     # Mirrors the progress-callback path's cleanup above: a
                     # failed render here (bad returncode or a timeout, which

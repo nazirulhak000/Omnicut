@@ -12,6 +12,9 @@ for any reason, so a missing package or a bad audio file never breaks a
 render -- same graceful-degrade pattern as GeminiVisionMatcher.
 """
 import json
+import math
+import os
+import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -31,6 +34,14 @@ BEATS_PER_BAR = 4
 BEAT_GRID_CACHE_VERSION = "v2"
 
 
+def _valid_beat_times(value) -> bool:
+    return isinstance(value, list) and all(
+        isinstance(item, (int, float)) and not isinstance(item, bool)
+        and math.isfinite(item) and item >= 0
+        for item in value
+    )
+
+
 class BeatSync:
     """Detects and caches beat onset timestamps for a BGM file."""
 
@@ -38,18 +49,33 @@ class BeatSync:
     def _load_cache(cls) -> dict:
         if BEAT_CACHE_FILE.exists():
             try:
-                return json.loads(BEAT_CACHE_FILE.read_text(encoding="utf-8"))
+                cache = json.loads(BEAT_CACHE_FILE.read_text(encoding="utf-8"))
+                return cache if isinstance(cache, dict) else {}
             except Exception:
                 return {}
         return {}
 
     @classmethod
     def _save_cache(cls, cache: dict) -> None:
+        tmp_path = None
         try:
             BEAT_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            BEAT_CACHE_FILE.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+            payload = json.dumps(cache, ensure_ascii=False, indent=2)
+            fd, tmp_path = tempfile.mkstemp(
+                prefix=BEAT_CACHE_FILE.name + ".", suffix=".tmp", dir=str(BEAT_CACHE_FILE.parent)
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(payload)
+            os.replace(tmp_path, BEAT_CACHE_FILE)
+            tmp_path = None
         except Exception:
             pass
+        finally:
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
     @classmethod
     def get_beat_times(cls, bgm_path: Optional[Path]) -> List[float]:
@@ -69,7 +95,7 @@ class BeatSync:
         key = f"{path.name}:{path.stat().st_size}"
         cache = cls._load_cache()
         cached = cache.get(key)
-        if cached is not None:
+        if _valid_beat_times(cached):
             return cached
 
         try:
@@ -121,7 +147,19 @@ class BeatSync:
 
         cache = cls._load_cache()
         cached = cache.get(cache_key)
-        if isinstance(cached, dict):
+        if (
+            isinstance(cached, dict)
+            and _valid_beat_times(cached.get("major_beats"))
+            and _valid_beat_times(cached.get("minor_beats"))
+            and (
+                cached.get("bpm") is None
+                or (
+                    isinstance(cached.get("bpm"), (int, float))
+                    and not isinstance(cached.get("bpm"), bool)
+                    and math.isfinite(cached["bpm"]) and cached["bpm"] > 0
+                )
+            )
+        ):
             return {
                 "bpm": cached.get("bpm"),
                 "major_beats": list(cached.get("major_beats") or []),

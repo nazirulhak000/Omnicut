@@ -314,14 +314,11 @@ def media_url(file_path: Optional[str]) -> Optional[str]:
 
 
 def complete_job(job_id: str, result: Dict[str, Any], message: str = "🎉 การตัดต่อเสร็จสมบูรณ์ 100%!", owner_id: Optional[str] = None) -> None:
-    """Mark a job finished, shaping the pipeline result for the frontend."""
+    """Publish completion only after the final project write has settled."""
     job = get_job(job_id, owner_id=owner_id)
     if not job:
         return
-    job["status"] = "completed"
-    job["progress"] = 1.0
-    job["message"] = message
-    job["result"] = {
+    shaped_result = {
         "project_name": result.get("project_name"),
         "mp4_video": result.get("mp4_video"),
         "mp4_url": media_url(result.get("mp4_video")),
@@ -352,6 +349,14 @@ def complete_job(job_id: str, result: Dict[str, Any], message: str = "🎉 ก�
                 "msg": f"Incremental reuse metadata unavailable: {fingerprint_err}",
                 "progress": 100,
             })
+
+    # Status polling stops at completed and the editor immediately reads the
+    # project revision. Publish the terminal status last, after metadata has
+    # finished writing and the complete response payload is available.
+    job["result"] = shaped_result
+    job["progress"] = 1.0
+    job["message"] = message
+    job["status"] = "completed"
 
 
 def finalize_incremental_render(project_name: Optional[str]) -> Optional[Dict[str, Any]]:

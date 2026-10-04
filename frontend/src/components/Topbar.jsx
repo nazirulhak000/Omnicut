@@ -1,8 +1,10 @@
 import React, { memo } from 'react';
 import {
   Rocket, Layers, Scissors, FolderDown, Palette, Settings,
-  Keyboard, Wifi, WifiOff, RefreshCw, Package, BarChart3, BookOpen, Bot, Cpu
+  Keyboard, Wifi, WifiOff, RefreshCw, Package, BarChart3, BookOpen, Bot, Cpu, Smartphone
 } from 'lucide-react';
+
+
 import { ActivityIndicatorButton } from './ActivityCenter';
 
 const TAB_CONFIG = {
@@ -102,7 +104,9 @@ export default memo(function Topbar({
   setUiFont,
   onOpenShortcuts,
   onRefresh,
+  onSwitchToMobile,
   activeProductContext,
+
   exportsCount = 0,
   videosCount = 0
 }) {
@@ -145,6 +149,18 @@ export default memo(function Topbar({
         {/* Global Activity Center Button (Pulsing badge when active) */}
         <ActivityIndicatorButton />
 
+        {/* Switch to Mobile Quick Studio Button */}
+        {onSwitchToMobile && (
+          <button
+            onClick={onSwitchToMobile}
+            className="min-h-[36px] min-w-[36px] sm:min-h-0 sm:min-w-0 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            title="สลับไปโหมด OmniCut Mobile Studio"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">โหมดมือถือ</span>
+          </button>
+        )}
+
         {/* Global Refresh Button */}
         {onRefresh && (
           <button
@@ -156,6 +172,7 @@ export default memo(function Topbar({
             <span className="hidden sm:inline">รีเฟรช</span>
           </button>
         )}
+
 
         {/* Keyboard Shortcuts Trigger (Desktop only) */}
         <button

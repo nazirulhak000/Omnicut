@@ -40,7 +40,10 @@ def test_editorial_beats_drive_generated_clip_boundaries():
         ShotMatchingStage.run(ctx)
 
     assert ctx.is_newly_generated_clips is True
-    assert [clip["duration"] for clip in ctx.actual_clip_list] == [2.0, 2.0, 2.0]
+    # Beats drive the boundaries; each one then gets the J-lead after the
+    # voice onset it precedes (cue starts 2.0/4.0 + 0.18 on the 1/30 grid,
+    # round EDITOR-CUT-QUALITY-R2 audit A7a), like the legacy path.
+    assert [clip["duration"] for clip in ctx.actual_clip_list] == [2.167, 2.0, 1.833]
     assert sum(clip["duration"] for clip in ctx.actual_clip_list) == 6.0
 
 
@@ -108,7 +111,10 @@ def test_selected_viral_style_reaches_generated_transitions_and_camera_motion():
          patch("scripts.stages.shot_matching_stage.ScriptToneAnalyzer.classify_tone_shifts", return_value=[]):
         ShotMatchingStage.run(ctx)
 
+    # Slides follow the outgoing shot's pan (R2): viral_punch pans every clip,
+    # alternating right/left, so clips 1 and 3 (the outgoing shots at the two
+    # slide boundaries) both pan left -> content moves right -> slideright.
     assert [transition["type"] for transition in ctx.transitions] == [
-        "cut", "slideleft", "cut", "slideright", "cut",
+        "cut", "slideright", "cut", "slideright", "cut",
     ]
     assert all(clip.get("keyframes") for clip in ctx.actual_clip_list)

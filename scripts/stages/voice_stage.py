@@ -15,6 +15,8 @@ from scripts.subtitle_engine import SubtitleEngine
 from scripts.pipeline_context import PipelineContext
 from scripts.error_handler import AppError, ErrorCategory
 from scripts.quota import is_quota_error
+from scripts.project_manifest import ProjectManifest
+from scripts.voice_cut_map import effective_duration, resolve_voice_cuts, voice_file_identity
 
 
 def _probe_audio_duration(audio_path: Path) -> float:
@@ -298,6 +300,91 @@ def _fold_cues_to_lines(
 class VoiceStage:
     """Synthesizes or processes voiceover audio and derives timing cues."""
 
+    @staticmethod
+    def _reset_voice_edit(ctx: PipelineContext) -> None:
+        ctx.voice_edit = None
+        ctx.voice_cuts = []
+        ctx.voice_source_duration = 0.0
+        ctx.voice_edit_stale = False
+        ctx.voice_edit_notice = None
+
+    @staticmethod
+    def _persist_voice_edit_fields(ctx: PipelineContext, **fields: Any) -> None:
+        """Write the voice_edit bookkeeping to an EXISTING project manifest only."""
+        if not ctx.project_name:
+            return
+        try:
+            if not ProjectManifest.load(ctx.project_name):
+                return
+            ProjectManifest.save(ctx.project_name, **fields)
+        except Exception as save_err:
+            print(f"   ⚠️ บันทึกสถานะการตัดเสียงลงโปรเจกต์ไม่สำเร็จ: {save_err}")
+
+    @classmethod
+    def _apply_voice_edit(cls, ctx: PipelineContext, voice_audio_path: Path, total_duration: float) -> float:
+        """Reused voice: use the saved ripple cuts only if they still fit this file.
+
+        Returns the duration the rest of the pipeline must work with: the
+        post-cut length when the cuts apply, the file's real length when a saved
+        voice_edit turned out stale/invalid (cuts are NEVER applied then).
+        """
+        cls._reset_voice_edit(ctx)
+        manifest = ctx.manifest or {}
+        edit = manifest.get("voice_edit")
+        if not edit:
+            return total_duration
+        cuts, problem, source_duration = resolve_voice_cuts(edit, voice_file_identity(voice_audio_path))
+        if cuts:
+            ctx.voice_edit = edit
+            ctx.voice_cuts = cuts
+            ctx.voice_source_duration = source_duration
+            cut_total = effective_duration(cuts, source_duration)
+            print(f"✂️  [2/5] ใช้การตัดเสียงพากย์ {len(cuts)} ช่วง: {source_duration:.2f}s -> {cut_total:.2f}s")
+            return cut_total
+        if problem:
+            ctx.voice_edit_stale = True
+            kind = "invalid" if problem == "invalid" else "stale"
+            reason = (
+                "การตัดเสียงพากย์ที่บันทึกไว้ใช้ไม่ได้ เพราะรูปแบบข้อมูลไม่ถูกต้อง จึงไม่ตัดเสียง"
+                if kind == "invalid"
+                else "การตัดเสียงพากย์ที่บันทึกไว้ใช้ไม่ได้ เพราะไฟล์เสียงพากย์ไม่ตรงกับตอนที่ตัด (พากย์ใหม่หรือไฟล์ถูกแทน) จึงไม่ตัดเสียง"
+            )
+            ctx.voice_edit_notice = reason
+            print(f"⚠️ [VoiceStage] {reason}")
+            cls._persist_voice_edit_fields(
+                ctx, voice_edit_stale=True, voice_edit_notice={"kind": kind, "reason": reason},
+            )
+            try:
+                return _probe_audio_duration(voice_audio_path)
+            except Exception:
+                return total_duration
+        return total_duration
+
+    @classmethod
+    def _drop_voice_edit(cls, ctx: PipelineContext) -> None:
+        """The voice was (re)generated: any saved cut belongs to the old file."""
+        cls._reset_voice_edit(ctx)
+        manifest = ctx.manifest
+        if not isinstance(manifest, dict) or not (manifest.get("voice_edit") or manifest.get("voice_edit_stale")):
+            return
+        old = manifest.get("voice_edit") or {}
+        count = len(old.get("cuts") or []) if isinstance(old, dict) else 0
+        reason = (
+            f"สร้างเสียงพากย์ใหม่ จึงล้างการตัดเสียงเดิม ({count} ช่วง) เพราะไฟล์เสียงใหม่ไม่ตรงกับช่วงที่เคยตัด"
+            " — ถ้ายังต้องการตัดให้ตัดใหม่ในตัวแก้ไข"
+            if count else
+            "สร้างเสียงพากย์ใหม่ จึงล้างสถานะการตัดเสียงเดิม"
+        )
+        ctx.voice_edit_notice = reason
+        manifest.pop("voice_edit", None)
+        manifest["voice_edit_stale"] = False
+        manifest["voice_edit_notice"] = {"kind": "dropped", "reason": reason}
+        print(f"⚠️ [VoiceStage] {reason}")
+        cls._persist_voice_edit_fields(
+            ctx, voice_edit=None, voice_edit_stale=False,
+            voice_edit_notice={"kind": "dropped", "reason": reason},
+        )
+
     @classmethod
     def run(cls, ctx: PipelineContext) -> None:
         # Gemini TTS is the safe/default engine.  Older manifests and callers
@@ -362,7 +449,9 @@ class VoiceStage:
                 except Exception as e:
                     print(f"[VoiceStage] Note: Could not check shot list store: {e}")
 
+        voice_reused = False
         if not ctx.should_run("voice"):
+            voice_reused = True
             if not ctx.manifest:
                 raise ValueError("Cannot reuse voice without manifest")
             voice_audio_path = ctx.reuse("voice_audio", "เสียงพากย์")
@@ -519,6 +608,14 @@ class VoiceStage:
             print(f"   Edge-TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
         else:
             raise ValueError(f"Unknown or unsupported voice engine: {ctx.voice_engine_type}")
+
+        # Saved ripple cuts survive only a REUSED voice file; every path that
+        # produced a new file (human voice, shot-list copy, Gemini, Edge-TTS)
+        # invalidates them.
+        if voice_reused:
+            total_duration = cls._apply_voice_edit(ctx, voice_audio_path, total_duration)
+        else:
+            cls._drop_voice_edit(ctx)
 
         ctx.voice_audio_path = voice_audio_path
         ctx.cues = cues

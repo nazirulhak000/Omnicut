@@ -131,6 +131,43 @@ def test_explicit_project_disable_overrides_ready_clip_artifact():
     assert effective == project
 
 
+@pytest.mark.parametrize("scope_mode", ["legacy_clip", "behind_text_windows"])
+def test_changed_or_cleared_project_points_make_old_render_alpha_stale(scope_mode):
+    config = {**BASE_CONFIG, "enabled": True, "scope_mode": scope_mode,
+              "subject_points": [{"x": 0.2, "y": 0.3, "label": 1}],
+              "prompt_reference_source": "first/clip.mp4", "prompt_reference_start": 2,
+              "artifact": {"id": ARTIFACT_ID, "status": "ready"}}
+    clip = {"id": "a", "background_isolation": config}
+    project = {**config, "active_clip_ids": ["a"]}
+    assert resolve_background_isolation_config(clip, project)["artifact"]["id"] == ARTIFACT_ID
+    for changed in (
+        {**project, "subject_points": [{"x": 0.7, "y": 0.8, "label": 1}]},
+        {**project, "prompt_reference_source": "second/clip.mp4"},
+        {**project, "prompt_reference_start": 3},
+        {**project, "auto_prompt": False},
+        {"enabled": True, "scope_mode": scope_mode, "active_clip_ids": ["a"]},
+    ):
+        assert resolve_background_isolation_config(clip, changed)["artifact"]["status"] == "stale"
+    assert not resolve_background_isolation_config(clip, {**project, "enabled": False})["enabled"]
+    if scope_mode == "behind_text_windows":
+        assert not resolve_background_isolation_config({**clip, "id": "inactive"}, project)["enabled"]
+
+
+@pytest.mark.parametrize("scope_mode", ["legacy_clip", "behind_text_windows"])
+def test_worker_point_rounding_preserves_ready_artifact_but_prompt_edits_invalidate(scope_mode):
+    point = {"x": 0.3444365394719402, "y": 0.4523699183852115, "label": 1, "frame": 0}
+    config = {**BASE_CONFIG, "enabled": True, "scope_mode": scope_mode,
+              "subject_points": [{**point, "x": 0.34444, "y": 0.45237}],
+              "prompt_reference_source": "source.mp4", "prompt_reference_start": 33}
+    clip = {"id": "a", "background_isolation": config}
+    project = {**config, "active_clip_ids": ["a"], "subject_points": [point]}
+
+    assert resolve_background_isolation_config(clip, project)["artifact"]["id"] == ARTIFACT_ID
+    for points in ([], [{**point, "x": 0.345}], [{**point, "label": 0}], [{**point, "frame": 1}]):
+        changed = {**project, "subject_points": points}
+        assert resolve_background_isolation_config(clip, changed)["artifact"]["status"] == "stale"
+
+
 def test_scoped_config_requires_matching_active_window_and_ignores_inactive_clip():
     intervals = [{"start": 0, "end": 5}]
     clip = {"id": "a", "background_isolation": {

@@ -27,10 +27,12 @@ function hasReadyArtifact(config, hasReadyClipArtifact) {
  * marker becomes `stale`: the aggregate status then reads as needing a new
  * prepare, and the prepare run resets it.
  */
-export function setSubjectPointsOnConfig(config, points, { hasReadyClipArtifact = false } = {}) {
+export function setSubjectPointsOnConfig(config, points, { hasReadyClipArtifact = false, reference = null } = {}) {
   const base = config && typeof config === 'object' && !Array.isArray(config) ? config : null;
   const next = normalizeSubjectPoints(points);
-  if (sameJson(next, normalizeSubjectPoints(base?.subject_points))) return config ?? null;
+  const referenceChanged = reference && (base?.prompt_reference_source !== reference.sourcePath
+    || base?.prompt_reference_start !== reference.sourceStart);
+  if (sameJson(next, normalizeSubjectPoints(base?.subject_points)) && !referenceChanged) return config ?? null;
   // Points are only meaningful for an enabled cutout. A disabled one can
   // still be cleared, but never gains points, so picking cannot silently
   // create a half-configured project marker.
@@ -39,7 +41,15 @@ export function setSubjectPointsOnConfig(config, points, { hasReadyClipArtifact 
 
   const updated = { ...base };
   if (next.length > 0) updated.subject_points = next;
-  else delete updated.subject_points;
+  else {
+    delete updated.subject_points;
+    delete updated.prompt_reference_source;
+    delete updated.prompt_reference_start;
+  }
+  if (next.length > 0 && reference) {
+    updated.prompt_reference_source = reference.sourcePath;
+    updated.prompt_reference_start = reference.sourceStart;
+  }
   if (base.enabled === true && hasReadyArtifact(base, hasReadyClipArtifact)) {
     updated.artifact = { ...(base.artifact || {}), schema_version: 1, id: null, status: 'stale' };
   }
@@ -48,7 +58,10 @@ export function setSubjectPointsOnConfig(config, points, { hasReadyClipArtifact 
 
 /** Append one picked point (deduplicated and capped by withSubjectPoint). */
 export function addSubjectPointToConfig(config, point, options) {
-  return setSubjectPointsOnConfig(config, withSubjectPoint(config?.subject_points, point), options);
+  const reference = options?.reference;
+  const changed = reference && (config?.prompt_reference_source !== reference.sourcePath
+    || config?.prompt_reference_start !== reference.sourceStart);
+  return setSubjectPointsOnConfig(config, withSubjectPoint(changed ? [] : config?.subject_points, point), options);
 }
 
 /** Drop every picked point. */

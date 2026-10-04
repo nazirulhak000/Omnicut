@@ -162,8 +162,12 @@ test('splitting keeps what the left piece and keyframes already had (no new drif
   assert.equal(left.trim_start, 0);
   assert.equal(left.trim_end, right.trim_start, 'pieces meet exactly at the cut');
   assert.ok(Math.abs(right.trim_start - 2) < 1 / (2 * FPS) + 1e-9, 'cut within half a frame of the playhead');
-  assert.deepEqual(left.keyframes, keyframes);
-  assert.deepEqual(right.keyframes, keyframes);
+  // Keyframes are split at the cut (B4), not copied: the left half ends on
+  // the interpolated value at the cut, the right half starts from it.
+  const zoomAtCut = 1 + 0.4 * (2 / 3);
+  assert.deepEqual(left.keyframes, [keyframes[0], { time: 2, property: 'zoom', value: zoomAtCut }]);
+  assert.deepEqual(right.keyframes, [{ time: 0, property: 'zoom', value: zoomAtCut }, { time: 1, zoom: 1.4 }]);
+  assert.deepEqual(keyframes, [{ time: 0, zoom: 1 }, { time: 3, zoom: 1.4 }], 'source keyframes untouched');
   assert.equal(left.transition_in, 'fade');
   assert.equal(right.transition_in, 'cut');
 });

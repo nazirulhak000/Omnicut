@@ -1,8 +1,14 @@
 import React, { useRef, useState } from 'react';
 import { FlipHorizontal2, Gauge, RotateCw, Volume2 } from 'lucide-react';
 import { MIN_CLIP_DURATION, resolveSnapCandidateLabel, snapToFrame } from '../../lib/timelineMath';
+import { freezePlayheadCandidate, trimDragSeekTime } from '../../lib/timelineTrimOps';
+import { clickMode } from '../../lib/clipMultiSelect';
+import ClipFilmstrip from './timeline/ClipFilmstrip';
 
 const CLIP_RADIUS = 6;
+// Two 10px handles plus some body to still click/drag: narrower clips only show
+// handles once selected, so a hover can never cover the whole clip.
+const HOVER_HANDLE_MIN_WIDTH = 40;
 
 /**
  * One video clip on the timeline: selection, drag-to-trim on either edge,
@@ -13,13 +19,15 @@ const CLIP_RADIUS = 6;
 export default function TimelineClip({
   seg,
   pxPerSec,
-  isSelected,
-  onSelect,
+  isSelected,          // the primary selection: Inspector, split, Q/W and the trim handles act on it
+  isExtraSelected = false, // part of a Ctrl/Shift+click multi-selection, but not the primary
+  onSelect,            // (clipId, 'replace' | 'toggle' | 'range' | 'focus')
   onContextMenu,
   onAdjustTrim,       // double-click shortcut for the same modal the right-click menu opens
   onTrim,             // (clipId, patch) during drag -- no undo step
   onTrimBegin,
   onTrimEnd,
+  onSeek,             // (seconds) shows the dragged edge's frame in the preview; no undo step
   onReorder,          // (clipId, direction) -- keyboard reorder ([ and ])
   onBodyDragStart,    // dragging the clip body reorders it
   onBodyDragMove,
@@ -95,6 +103,10 @@ export default function TimelineClip({
       startTrimStart: clip.trim_start,
       startTrimEnd,
       initialDur: Math.max(MIN_CLIP_DURATION, initialSpan / speed),
+      // The drag moves the playhead to the dragged edge (onSeek below); the
+      // snap target "playhead" must stay where it was when the drag began, or
+      // the edge would snap to the very frame it is showing.
+      startPlayhead: playhead,
     };
     setTrimHud({ edge, dur: seg.dur, delta: 0 });
     onTrimBegin?.();
@@ -109,17 +121,19 @@ export default function TimelineClip({
   // into the trim value that produces it.
   const snapToEdge = (rawNext, sourceOtherBound) => {
     if (!snapCandidates.length) return rawNext;
+    const dragPlayhead = dragRef.current?.startPlayhead ?? playhead;
+    const candidates = freezePlayheadCandidate(snapCandidates, playhead, dragPlayhead);
     // rawNext/sourceOtherBound are source-domain trim values; the edge that
     // actually moves on screen is measured in sequence seconds, `speed` times
     // slower, so convert to that domain to snap and back to trim to apply it.
     const dur = Math.abs(rawNext - sourceOtherBound) / speed;
     const virtualEnd = seg.segStart + dur;
-    const snappedEnd = snapFunction(virtualEnd, snapCandidates);
+    const snappedEnd = snapFunction(virtualEnd, candidates);
     const snappedDur = snappedEnd - seg.segStart;
     if (snappedDur < MIN_CLIP_DURATION) return rawNext; // snap would collapse the clip -- ignore it
     if (Math.abs(snappedEnd - virtualEnd) > 0.001) {
       const label = resolveSnapCandidateLabel(snappedEnd, {
-        playhead,
+        playhead: dragPlayhead,
         segments,
         cues,
         audioDuration,
@@ -150,6 +164,7 @@ export default function TimelineClip({
       onTrim(clip.id, { trim_start: finalVal });
       const curDur = Math.max(MIN_CLIP_DURATION, (d.startTrimEnd - finalVal) / speed);
       setTrimHud({ edge: 'start', dur: curDur, delta: curDur - d.initialDur });
+      onSeek?.(trimDragSeekTime('start', seg.segStart, curDur));
     } else {
       let next = Math.max(
         Math.min(seg.srcDur || d.startTrimEnd, d.startTrimEnd + deltaSource),
@@ -165,6 +180,7 @@ export default function TimelineClip({
       onTrim(clip.id, { trim_end: finalVal });
       const curDur = Math.max(MIN_CLIP_DURATION, ((atSourceEnd ? seg.srcDur : finalVal) - d.startTrimStart) / speed);
       setTrimHud({ edge: 'end', dur: curDur, delta: curDur - d.initialDur });
+      onSeek?.(trimDragSeekTime('end', seg.segStart, curDur));
     }
   };
 
@@ -184,8 +200,8 @@ export default function TimelineClip({
       role="button"
       tabIndex={0}
       aria-label={`คลิป ${fileName}`}
-      aria-pressed={isSelected}
-      onClick={(e) => { e.stopPropagation(); if (!dragging) onSelect(clip.id); }}
+      aria-pressed={isSelected || isExtraSelected}
+      onClick={(e) => { e.stopPropagation(); if (!dragging) onSelect(clip.id, clickMode(e)); }}
       onDoubleClick={(e) => {
         e.stopPropagation();
         onSelect(clip.id);
@@ -194,7 +210,8 @@ export default function TimelineClip({
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onSelect(clip.id);
+        // Right-clicking a clip that is part of the selection keeps the set.
+        onSelect(clip.id, 'focus');
         onContextMenu?.(e, seg);
       }}
       onPointerDown={startBodyDrag}
@@ -202,18 +219,23 @@ export default function TimelineClip({
       onPointerUp={endBodyDrag}
       onPointerCancel={endBodyDrag}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(clip.id); }
-        if (e.key === '[' || e.key === 'ArrowUp') { e.preventDefault(); onReorder?.(clip.id, -1); }
-        if (e.key === ']' || e.key === 'ArrowDown') { e.preventDefault(); onReorder?.(clip.id, 1); }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(clip.id, clickMode(e)); }
+        // Reorder is [ and ] only (what the shortcuts dialog lists). Up/Down
+        // belong to the editor-wide "previous / next edit point" verbs; keeping
+        // them here as well would reorder the clip AND jump on one key press.
+        if (e.key === '[') { e.preventDefault(); onReorder?.(clip.id, -1); }
+        if (e.key === ']') { e.preventDefault(); onReorder?.(clip.id, 1); }
       }}
-      title="ลากตัวคลิปเพื่อสลับลำดับ · ลากขอบเพื่อตัด · ดับเบิลคลิกเพื่อปรับช่วงตัด"
-      className={`absolute top-0 h-full touch-none overflow-hidden transition-shadow duration-150
+      title="ลากตัวคลิปเพื่อสลับลำดับ · ลากขอบเพื่อตัด · ดับเบิลคลิกเพื่อปรับช่วงตัด · Ctrl หรือ Shift+คลิกเพื่อเลือกหลายคลิป"
+      className={`group/clip absolute top-0 h-full touch-none overflow-hidden transition-shadow duration-150
         focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
         dragging ? 'cursor-grabbing' : 'cursor-grab'
       } ${
         isSelected
           ? 'ring-2 ring-[#D97757] shadow-[0_0_0_1px_rgba(217,119,87,0.6)] z-10'
-          : 'ring-1 ring-[#4A4742] hover:ring-[#6B6660]'
+          : isExtraSelected
+            ? 'ring-2 ring-[#E89274]/80 z-10'
+            : 'ring-1 ring-[#4A4742] hover:ring-[#6B6660]'
       }`}
       style={{
         left,
@@ -225,6 +247,15 @@ export default function TimelineClip({
           : null),
       }}
     >
+      <ClipFilmstrip
+        sourcePath={clip.source_path}
+        trimStart={clip.trim_start}
+        trimEnd={clip.trim_end}
+        width={width}
+      />
+      {isExtraSelected && (
+        <div data-multi-selected="" aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[#D97757]/25" />
+      )}
       <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-1 px-1.5 py-0.5 pointer-events-none">
         <span className="text-xs font-medium text-[#EDE9E3] truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
           {fileName}
@@ -272,9 +303,12 @@ export default function TimelineClip({
         </div>
       )}
 
-      {/* Trim handles -- only interactive on the selected clip so a click on a
-          neighbour selects it instead of accidentally trimming it. */}
-      {isSelected && ['start', 'end'].map((edge) => (
+      {/* Trim handles: always on the selected clip, and on hover for a clip wide
+          enough to keep some body. They are absolutely positioned inside the
+          clip, so showing one never shifts the layout. Hidden handles take no
+          pointer events, which also keeps touch screens (no hover) from
+          trimming by accident -- there a clip must be selected first. */}
+      {(isSelected || width >= HOVER_HANDLE_MIN_WIDTH) && ['start', 'end'].map((edge) => (
         <div
           key={edge}
           data-trim-handle=""
@@ -284,7 +318,9 @@ export default function TimelineClip({
           onPointerCancel={endEdgeDrag}
           title={edge === 'start' ? 'ลากปรับจุดเริ่ม' : 'ลากปรับจุดจบ'}
           className={`absolute top-0 h-full w-2.5 cursor-ew-resize touch-none bg-[#D97757]
-            flex items-center justify-center ${edge === 'start' ? 'left-0' : 'right-0'}`}
+            flex items-center justify-center transition-opacity duration-100 ${edge === 'start' ? 'left-0' : 'right-0'} ${
+            isSelected ? '' : 'opacity-0 pointer-events-none group-hover/clip:opacity-80 group-hover/clip:pointer-events-auto'
+          }`}
           style={{
             borderTopLeftRadius: edge === 'start' ? CLIP_RADIUS : 0,
             borderBottomLeftRadius: edge === 'start' ? CLIP_RADIUS : 0,

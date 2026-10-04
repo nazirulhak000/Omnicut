@@ -745,10 +745,10 @@ def test_lightsweep_adds_an_overlay_event_per_line_not_a_tag(tmp_path):
 @pytest.mark.parametrize(
     "preset, marker",
     [
-        ("fade", "\\t(2850,3000,\\alpha&HFF&)"),
+        ("fade", "\\t(2850,3000,2.2,\\alpha&HFF&)"),                  # eased exit (ACCEL_SNAP_IN)
         ("slide", "\\move(540,141,540,261,2850,3000)"),
         ("zoom", lambda: f"\\fscx{round(_brand_pct() * 1.4)}"),      # grow-out
-        ("glitch", "\\t(2850,2890,\\frz-3)"),
+        ("glitch", "\\t(2850,2883,\\frz-3)"),                         # one-frame (33 ms) jitter step
         ("none", "\\t(2999,3000,\\alpha&HFF&)"),
     ],
 )
@@ -1392,7 +1392,9 @@ def test_transition_duration_is_clamped_to_what_the_clips_can_give(monkeypatch, 
         transitions=[{"type": "circleopen", "duration": 2.0}],
     )
     filter_arg = cmd[cmd.index("-filter_complex") + 1]
-    assert "duration=0.95" in filter_arg, "capped at min(clip)-0.05, not the requested 2.0"
+    # capped at min(clip)-0.05 = 0.95s, not the requested 2.0; then laid on the
+    # 1/30 grid (B5): offset frame round(0.05*30)=2, so 30-2 = 28 frames.
+    assert "duration=0.933333" in filter_arg, "capped at min(clip)-0.05 on the frame grid, not the requested 2.0"
     assert "offset=-" not in filter_arg
 
 

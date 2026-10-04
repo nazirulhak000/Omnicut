@@ -360,13 +360,27 @@ def test_request_identity_includes_trim_window(tmp_path):
     assert first != second
 
 
-def test_worker_threads_requested_window_into_extraction_and_published_manifest(monkeypatch, tmp_path):
+@pytest.mark.parametrize("reference_mode", ["no-points", "legacy-project", "explicit-picker"])
+@pytest.mark.parametrize("project_layout", ["clip_list", "render_params", "clips"])
+def test_worker_threads_requested_window_into_extraction_and_published_manifest(monkeypatch, tmp_path, reference_mode, project_layout):
     project_root = tmp_path / "03_Projects"
     source = tmp_path / "source.mp4"
     source.write_bytes(b"fixture")
     output = tmp_path / "derived"
     output.mkdir()
     captured = {}
+    config = {"enabled": True}
+    if reference_mode != "no-points":
+        config["subject_points"] = [{"x": 0.2, "y": 0.3}]
+        project = project_root / "fixture"
+        project.mkdir(parents=True)
+        clips = [
+            {"source_path": "first/source.mp4", "trim_start": 3},
+            {"source_path": str(source), "trim_start": 8}]
+        saved = {"render_params": {"clip_list": clips}} if project_layout == "render_params" else {project_layout: clips}
+        (project / "project.json").write_text(json.dumps(saved), encoding="utf-8")
+        if reference_mode == "explicit-picker":
+            config.update(prompt_reference_source=str(source), prompt_reference_start=8)
 
     monkeypatch.setattr(api, "PROJECTS_DIR", project_root)
     monkeypatch.setattr(api.TaskManager, "update_progress", lambda *args, **kwargs: None)
@@ -374,6 +388,7 @@ def test_worker_threads_requested_window_into_extraction_and_published_manifest(
     monkeypatch.setattr(api.TaskManager, "complete_task", lambda task_id, result, **kwargs: captured.update(result=result))
     def fake_process(_source, _cache, _config, **kwargs):
         captured["video_request"] = kwargs
+        captured["config"] = _config
         artifact_id = "bgseq1-0123456789abcdef"
         manifest = {"schema_version": 2, "artifact_id": artifact_id,
                     "source_fingerprint": kwargs["source_fingerprint"],
@@ -388,7 +403,8 @@ def test_worker_threads_requested_window_into_extraction_and_published_manifest(
         "task-window",
         api.BackgroundIsolationProcessRequest(
             source_path=str(source),
-            config={"enabled": True},
+            config=config,
+            project_name="fixture" if reference_mode != "no-points" else None,
             start=8.0,
             duration=2.0,
         ),
@@ -400,6 +416,10 @@ def test_worker_threads_requested_window_into_extraction_and_published_manifest(
     assert captured["video_request"]["fps"] == 30
     assert captured["result"]["artifact"]["source_start"] == 8.0
     assert captured["result"]["sequence"]["source_duration"] == 2.0
+    if reference_mode != "no-points":
+        assert captured["config"]["prompt_reference_source"] == (
+            "first/source.mp4" if reference_mode == "legacy-project" else str(source))
+        assert captured["config"]["prompt_reference_start"] == (3 if reference_mode == "legacy-project" else 8)
 
 
 def test_background_task_scheduler_deduplicates_recovery_launches(monkeypatch):
@@ -440,3 +460,34 @@ def test_process_coalesces_identical_active_requests(monkeypatch, tmp_path):
     second = api.process_background_isolation(req, BackgroundTasks())
     assert first["task_id"] == second["task_id"]
     assert len(created) == 1
+
+
+def test_interactive_segment_endpoint(monkeypatch, tmp_path):
+    monkeypatch.setattr(api, "PROJECTS_DIR", tmp_path / "03_Projects")
+    source = tmp_path / "clip.mov"
+    source.write_bytes(b"dummy")
+
+    called_with = []
+    def mock_segment(path, ts, pts, width=540, height=960):
+        called_with.append((path, ts, pts, width, height))
+        return {
+            "ok": True,
+            "contours": [[[0.2, 0.3], [0.4, 0.5], [0.6, 0.7]]],
+            "bbox": [0.2, 0.3, 0.6, 0.7],
+            "score": 0.95,
+            "predict_ms": 35.0,
+            "load_ms": 12.0,
+        }
+
+    monkeypatch.setattr("scripts.interactive_sam2_client.segment_frame_interactive", mock_segment)
+    req = api.InteractiveSegmentRequest(
+        source_path=str(source),
+        timestamp=4.5,
+        points=[{"x": 0.5, "y": 0.5, "label": 1}],
+    )
+    result = api.interactive_segment_endpoint(req)
+    assert result["ok"] is True
+    assert len(result["contours"]) == 1
+    assert result["score"] == 0.95
+    assert len(called_with) == 1
+    assert called_with[0][1] == 4.5

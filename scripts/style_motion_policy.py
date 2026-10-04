@@ -9,6 +9,11 @@ inline if/else chain in the shot matcher.
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
+from scripts.config import J_CUT_OFFSET_SECONDS, MAX_SHOT_DURATION, MIN_SHOT_DURATION
+
+# Today's global beat-snap window (was a literal inside the shot matcher).
+BEAT_SNAP_TOLERANCE = 0.15
+
 
 @dataclass(frozen=True)
 class StyleMotionPolicy:
@@ -28,6 +33,21 @@ class StyleMotionPolicy:
     accent_color: str
     status_color: str
     neutral_color: str
+    # Cut rhythm of the auto shot planner. Defaults are the old global
+    # constants, so a style that does not set them cuts exactly as before.
+    # Invariant kept by every style: beat_snap_tolerance <= j_lead, so a beat
+    # snap can pull a cut earlier but never in front of the voice onset
+    # (reverse J-cut); j_lead stays within 0.17-0.22 s so that, after a cut
+    # is rounded to the 1/30 s grid (+-17 ms), it is still inside the
+    # 150-250 ms J-cut window.
+    min_shot: float = MIN_SHOT_DURATION
+    max_shot: float = MAX_SHOT_DURATION
+    j_lead: float = J_CUT_OFFSET_SECONDS
+    beat_snap_tolerance: float = BEAT_SNAP_TOLERANCE
+    # Easing every auto-generated transition of this style plays with (see
+    # apply_transition_budget). Calm styles settle softly (ease_in_out); the
+    # punchy ones hit fast and decelerate (ease_out).
+    transition_easing: str = "ease_in_out"
 
 
 STYLE_MOTION_POLICIES = {
@@ -47,6 +67,8 @@ STYLE_MOTION_POLICIES = {
         camera_zoom_delta=0.08,
         camera_pan_extent=0.14,
         camera_min_duration=0.8,
+        # Cut rhythm: the golden master keeps the global defaults
+        # (1.5-2.5 s shots, 0.18 s J-lead, 0.15 s beat snap) byte-for-byte.
         accent_color="#FFE600",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
@@ -61,6 +83,12 @@ STYLE_MOTION_POLICIES = {
         camera_zoom_delta=0.12,
         camera_pan_extent=0.18,
         camera_min_duration=0.65,
+        # Cut rhythm: Fast-feed rhythm: shorter ceiling, the shortest J-lead that stays >= 150 ms after frame rounding, for a snappier cut; tighter beat lock (<= lead).
+        min_shot=1.5,
+        max_shot=2.2,
+        j_lead=0.17,
+        beat_snap_tolerance=0.12,
+        transition_easing="ease_out",
         accent_color="#FE2C55",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
@@ -80,6 +108,11 @@ STYLE_MOTION_POLICIES = {
         camera_zoom_delta=0.10,
         camera_pan_extent=0.16,
         camera_min_duration=0.75,
+        # Cut rhythm: Detail shots need a beat longer to read a port or a texture; standard lead.
+        min_shot=1.6,
+        max_shot=2.6,
+        j_lead=0.18,
+        beat_snap_tolerance=0.12,
         accent_color="#FFCC33",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
@@ -94,6 +127,11 @@ STYLE_MOTION_POLICIES = {
         camera_zoom_delta=0.05,
         camera_pan_extent=0.08,
         camera_min_duration=1.0,
+        # Cut rhythm: Smooth flow: longer holds and a softer, later picture change; music snap loosened.
+        min_shot=1.8,
+        max_shot=2.8,
+        j_lead=0.21,
+        beat_snap_tolerance=0.1,
         accent_color="#25F4EE",
         status_color="#FFE600",
         neutral_color="#FFFFFF",
@@ -108,6 +146,11 @@ STYLE_MOTION_POLICIES = {
         camera_zoom_delta=0.04,
         camera_pan_extent=0.06,
         camera_min_duration=1.2,
+        # Cut rhythm: Luxury pace: the longest holds the gadget rule allows (<= 3.0 s), the longest lead that stays <= 250 ms after frame rounding, almost no beat chasing.
+        min_shot=1.8,
+        max_shot=3.0,
+        j_lead=0.22,
+        beat_snap_tolerance=0.08,
         accent_color="#E6C24A",
         status_color="#D8C58A",
         neutral_color="#FFFFFF",
@@ -122,6 +165,12 @@ STYLE_MOTION_POLICIES = {
         camera_zoom_delta=0.12,
         camera_pan_extent=0.18,
         camera_min_duration=0.65,
+        # Cut rhythm: Hard-sell cadence: densest cutting still inside the 1.5 s floor.
+        min_shot=1.5,
+        max_shot=2.0,
+        j_lead=0.17,
+        beat_snap_tolerance=0.12,
+        transition_easing="ease_out",
         accent_color="#FF7A00",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
@@ -136,6 +185,13 @@ STYLE_MOTION_POLICIES = {
         camera_zoom_delta=0.14,
         camera_pan_extent=0.16,
         camera_min_duration=0.65,
+        # Cut rhythm: Problem-agitation: quick like viral_punch but a little
+        # longer ceiling and the standard lead, so the pain line is heard first.
+        min_shot=1.5,
+        max_shot=2.3,
+        j_lead=0.18,
+        beat_snap_tolerance=0.12,
+        transition_easing="ease_out",
         accent_color="#FF2E93",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
@@ -150,6 +206,11 @@ STYLE_MOTION_POLICIES = {
         camera_zoom_delta=0.08,
         camera_pan_extent=0.14,
         camera_min_duration=0.8,
+        # Cut rhythm: Comparisons need time to read both sides; lead slightly above standard.
+        min_shot=1.7,
+        max_shot=2.7,
+        j_lead=0.2,
+        beat_snap_tolerance=0.12,
         accent_color="#3B82F6",
         status_color="#FFE600",
         neutral_color="#FFFFFF",
@@ -164,6 +225,12 @@ STYLE_MOTION_POLICIES = {
         camera_zoom_delta=0.06,
         camera_pan_extent=0.10,
         camera_min_duration=0.9,
+        # Cut rhythm: Step-by-step hack: even cadence close to the golden master.
+        min_shot=1.6,
+        max_shot=2.4,
+        j_lead=0.18,
+        beat_snap_tolerance=0.14,
+        transition_easing="ease_out",
         accent_color="#84CC16",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
@@ -178,6 +245,11 @@ STYLE_MOTION_POLICIES = {
         camera_zoom_delta=0.10,
         camera_pan_extent=0.14,
         camera_min_duration=0.85,
+        # Cut rhythm: Focused explainer: slightly longer holds, lead a bit above standard.
+        min_shot=1.6,
+        max_shot=2.6,
+        j_lead=0.2,
+        beat_snap_tolerance=0.12,
         accent_color="#A855F7",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
@@ -194,6 +266,36 @@ _STYLIZED_TRANSITIONS = frozenset({
     "wipeup",
     "wipedown",
 })
+
+# Types the policy may ease: video_editor.EASED_TRANSITIONS minus fadeblack and
+# fadewhite, whose eased expression costs ~8-13 s of render per transition at
+# 1080x1920 (fade +0.4 s, wipe +0.3 s, slide +0.9 s). dissolve, circle* and cut
+# ignore easing in the renderer, so they never get one.
+_POLICY_EASED_TRANSITIONS = frozenset({
+    "fade",
+    "wipeleft",
+    "wiperight",
+    "wipeup",
+    "wipedown",
+    "slideleft",
+    "slideright",
+    "slideup",
+    "slidedown",
+})
+
+
+def _with_style_easing(candidate: Dict[str, Any], profile: StyleMotionPolicy) -> Dict[str, Any]:
+    """Give a generated transition the style's easing when its type honours it.
+
+    The key is `easing`, the render-side name (video_editor.normalize_transitions
+    reads it; the editor maps it to clip.transition_easing on load). An easing
+    already on the pick is kept; any other type carries none.
+    """
+    if str(candidate.get("type") or "cut") in _POLICY_EASED_TRANSITIONS:
+        candidate.setdefault("easing", profile.transition_easing)
+    else:
+        candidate.pop("easing", None)
+    return candidate
 
 
 def resolve_style_motion_policy(style_preset: Optional[str]) -> StyleMotionPolicy:
@@ -212,7 +314,9 @@ def apply_transition_budget(
 
     ``boundary_index`` is one-based. A non-budget slot becomes an explicit
     cut, which is understood identically by the clip-list preview and FFmpeg
-    renderer. Manual transition lists never call this function.
+    renderer. Manual transition lists never call this function. A pick whose
+    final type honours easing (fade, wipe*, slide*) also gets the style's
+    ``easing``; cut, dissolve, circle*, fadeblack and fadewhite never do.
     """
     candidate = dict(pick or {})
     profile = resolve_style_motion_policy(style_preset)
@@ -238,14 +342,14 @@ def apply_transition_budget(
     ):
         candidate["type"] = "dissolve"
         candidate["duration"] = min(0.25, profile.max_transition_duration)
-        return candidate
+        return _with_style_easing(candidate, profile)
 
     try:
         duration = float(candidate.get("duration", profile.max_transition_duration))
     except (TypeError, ValueError):
         duration = profile.max_transition_duration
     candidate["duration"] = min(profile.max_transition_duration, max(0.1, duration))
-    return candidate
+    return _with_style_easing(candidate, profile)
 
 
 def camera_keyframes_for_clip(
@@ -292,8 +396,64 @@ def camera_keyframes_for_clip(
             "zoom": round(end_zoom, 4),
             "pan_x": round(end_pan, 4),
             "pan_y": 0.0,
+            # Shapes the segment ending here (video_editor.CAMERA_EASINGS):
+            # soft start and settle instead of a constant-speed crawl.
+            "easing": "ease_in_out",
         },
     ]
+
+
+_SLIDE_PAIR = frozenset({"slideleft", "slideright"})
+
+
+def _pan_x_direction_at_end(keyframes: Any) -> int:
+    """Sign of the outgoing clip's last pan_x segment: +1, -1 or 0 (no pan).
+
+    Reads both keyframe shapes video_editor._camera_track understands
+    ({"time", "pan_x"} and {"time", "property": "pan_x", "value"}).
+    """
+    track = []
+    for point in keyframes if isinstance(keyframes, list) else []:
+        if not isinstance(point, dict):
+            continue
+        value = point.get("pan_x") if "pan_x" in point else (
+            point.get("value") if point.get("property") == "pan_x" else None
+        )
+        try:
+            track.append((float(point.get("time")), float(value)))
+        except (TypeError, ValueError):
+            continue
+    track.sort(key=lambda item: item[0])
+    for (_, before), (_, after) in zip(reversed(track[:-1]), reversed(track[1:])):
+        if abs(after - before) > 1e-6:
+            return 1 if after > before else -1
+    return 0
+
+
+def orient_slide_to_pan(pick: Any, outgoing_keyframes: Any) -> Any:
+    """Point a slide transition the way the outgoing shot's camera was moving.
+
+    Sign convention (video_editor.dynamic_camera_filter): the crop window's x
+    is room/2 * (1 + pan_x), so a rising pan_x moves the window right -- the
+    camera pans right and the content on screen travels LEFT. ffmpeg's
+    ``slideleft`` moves both frames left (the new shot enters from the right),
+    so it continues that motion:
+
+        pan_x rising  (camera right, content left)  -> slideleft
+        pan_x falling (camera left,  content right) -> slideright
+        no pan_x motion                             -> pick unchanged
+
+    Only slideleft/slideright picks are touched; every other type, and any
+    non-dict pick, is returned as is.
+    """
+    if not isinstance(pick, dict) or pick.get("type") not in _SLIDE_PAIR:
+        return pick
+    direction = _pan_x_direction_at_end(outgoing_keyframes)
+    if direction == 0:
+        return pick
+    oriented = dict(pick)
+    oriented["type"] = "slideleft" if direction > 0 else "slideright"
+    return oriented
 
 
 def style_motion_catalog() -> Dict[str, Dict[str, Any]]:
@@ -312,6 +472,11 @@ def style_motion_catalog() -> Dict[str, Dict[str, Any]]:
             "accent_color": policy.accent_color,
             "status_color": policy.status_color,
             "neutral_color": policy.neutral_color,
+            "min_shot": policy.min_shot,
+            "max_shot": policy.max_shot,
+            "j_lead": policy.j_lead,
+            "beat_snap_tolerance": policy.beat_snap_tolerance,
+            "transition_easing": policy.transition_easing,
         }
         for key, policy in STYLE_MOTION_POLICIES.items()
     }
@@ -333,6 +498,7 @@ __all__ = [
     "StyleMotionPolicy",
     "apply_transition_budget",
     "camera_keyframes_for_clip",
+    "orient_slide_to_pan",
     "resolve_style_motion_policy",
     "style_motion_catalog",
     "style_visual_palette",

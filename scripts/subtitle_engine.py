@@ -812,6 +812,8 @@ class SubtitleEngine:
         # Master playback and paused inspection both rasterize at 1080x1920;
         # the selectable 540p mode and editable logical canvas stay half size.
         # Typography and positions keep the existing 2:1 coordinate contract.
+        # Cutout picker source/time metadata only scopes SAM2 prompts; it does
+        # not alter these export coordinates or the text/subject layer order.
         header = f"""[Script Info]
 Title: TikTok Aesthetic Subtitles
 ScriptType: v4.00+

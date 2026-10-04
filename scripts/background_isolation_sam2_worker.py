@@ -299,6 +299,7 @@ if __name__ == "__main__":
     parser.add_argument("--active-intervals", type=str, default=None,
                         help="source-time begin,end;begin,end, with end excluded")
     parser.add_argument("--prompts", type=str, default=None)
+    parser.add_argument("--prompt-points-file", type=Path, default=None)
     parser.add_argument(
         "--prompt-points", type=str, default=None,
         help="x,y,label;x,y,label in normalized 0..1 coords (1=subject, 0=background)",
@@ -306,19 +307,29 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     prompts_data = json.loads(args.prompts) if args.prompts else None
-    if args.prompt_points:
+    prompt_points_text = (args.prompt_points_file.read_text(encoding="utf-8")
+                          if args.prompt_points_file else args.prompt_points)
+    if prompt_points_text:
         # A quote-free payload is used because JSON on argv loses its double
         # quotes before this process can parse it on Windows.
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from scripts.cutout_prompt import parse_prompt_points
 
-        points = parse_prompt_points(args.prompt_points)
+        points = parse_prompt_points(prompt_points_text)
         if points:
-            prompts_data = [{
-                "object_id": 1,
-                "points": [[point["x"], point["y"]] for point in points],
-                "labels": [point["label"] for point in points],
-            }]
+            by_frame: dict[int, list[dict[str, Any]]] = {}
+            for point in points:
+                f_idx = int(point.get("frame", 0))
+                by_frame.setdefault(f_idx, []).append(point)
+            prompts_data = [
+                {
+                    "object_id": 1,
+                    "frame": f_idx,
+                    "points": [[p["x"], p["y"]] for p in pts],
+                    "labels": [p["label"] for p in pts],
+                }
+                for f_idx, pts in sorted(by_frame.items())
+            ]
     result = process_video_sam2(
         source=args.source,
         output_dir=args.output_dir,

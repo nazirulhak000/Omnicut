@@ -14,7 +14,7 @@ const track = (keyframes, unit, extra = {}) => ({ keyframes, unit, ...extra });
 const IN_PRESETS = {
   bounce: {
     duration_ms: 450,
-    tracks: { scale: track([k(0, 0.6), k(150 / 450, 1.25), k(280 / 450, 0.92), k(380 / 450, 1.05), k(1, 1)], 'ratio') },
+    tracks: { scale: track([k(0, 0.6), k(150 / 450, 1.25, { name: 'power', exponent: 0.6 }), k(280 / 450, 0.92, { name: 'power', exponent: 0.6 }), k(380 / 450, 1.05, { name: 'power', exponent: 0.6 }), k(1, 1, { name: 'power', exponent: 0.6 })], 'ratio') },
   },
   bounce_soft: {
     duration_ms: 450,
@@ -22,7 +22,7 @@ const IN_PRESETS = {
   },
   pop: {
     duration_ms: 200,
-    tracks: { scale: track([k(0, 0.55), k(120 / 200, 1.18), k(1, 1)], 'ratio') },
+    tracks: { scale: track([k(0, 0.55), k(120 / 200, 1.18, { name: 'power', exponent: 0.6 }), k(1, 1, { name: 'power', exponent: 0.6 })], 'ratio') },
   },
   pop_soft: {
     duration_ms: 200,
@@ -49,7 +49,7 @@ const IN_PRESETS = {
   zoom: {
     duration_ms: 300,
     tracks: {
-      scale: track([k(0, 1.8), k(1, 1)], 'ratio'),
+      scale: track([k(0, 1.8), k(1, 1, { name: 'power', exponent: 0.6 })], 'ratio'),
       alpha: track([k(0, 0), k(0.5, 1)], 'opacity'),
     },
   },
@@ -103,17 +103,18 @@ const IN_PRESETS = {
 const LOOP_PRESETS = {
   pulse: { duration_ms: 700, repeat: true, tracks: { alpha: track([k(0, 1), k(0.5, 1 - 0x25 / 255), k(1, 1)], 'opacity', { repeat: true, cycle_duration_ms: 700 }) } },
   wave: { duration_ms: 1200, repeat: true, tracks: { rotation: track([k(0, 0), k(1 / 3, -3), k(2 / 3, 3), k(1, 0)], 'degrees', { repeat: true, cycle_duration_ms: 1200 }) } },
-  shake: { duration_ms: 450, repeat: true, tracks: { rotation: track([k(0, 0), k(0.2, -3), k(0.4, 3), k(0.6, -2), k(0.8, 2), k(1, 0)], 'degrees', { repeat: true, cycle_duration_ms: 450 }) } },
+  shake: { duration_ms: 500, repeat: true, tracks: { rotation: track([k(0, 0), k(0.2, -3), k(0.4, 3), k(0.6, -2), k(0.8, 2), k(1, 0)], 'degrees', { repeat: true, cycle_duration_ms: 500 }) } },
   flicker: { duration_ms: 760, repeat: true, tracks: { alpha: track([k(0, 1), k(80 / 760, 1 - 0x30 / 255), k(230 / 760, 1), k(290 / 760, 1 - 0x45 / 255), k(490 / 760, 1), k(580 / 760, 1 - 0x20 / 255), k(1, 1)], 'opacity', { repeat: true, cycle_duration_ms: 760, interpolation: 'linear' }) } },
   lightsweep: { duration_ms: 500, repeat: true, tracks: {}, metadata: { secondary_pass: 'lightsweep' } },
   none: { duration_ms: 0, repeat: false, tracks: {} },
 };
 
 const OUT_PRESETS = {
-  fade: { duration_ms: 150, tracks: { alpha: track([k(0, 1), k(1, 0)], 'opacity') } },
+  fade: { duration_ms: 150, tracks: { alpha: track([k(0, 1), k(1, 0, { name: 'power', exponent: 2.2 })], 'opacity') } },
   slide: { duration_ms: 150, tracks: { alpha: track([k(0, 1), k(1, 0)], 'opacity'), dy: track([k(0, 0), k(1, 60)], 'canvas_px') } },
-  zoom: { duration_ms: 150, tracks: { alpha: track([k(0, 1), k(1, 0)], 'opacity'), scale: track([k(0, 1), k(1, 1.4)], 'ratio') } },
-  glitch: { duration_ms: 150, tracks: { rotation: track([k(0, -3), k(0.3636, 3), k(0.7272, 0), k(1, 0)], 'degrees'), alpha: track([k(0, 1), k(0.7333, 1), k(1, 0)], 'opacity') } },
+  zoom: { duration_ms: 150, tracks: { alpha: track([k(0, 1), k(1, 0, { name: 'power', exponent: 2.2 })], 'opacity'), scale: track([k(0, 1), k(1, 1.4, { name: 'power', exponent: 2.2 })], 'ratio') } },
+  // 33 ms steps (GLITCH_STEP_MS: one 30 fps frame) in the nominal 150 ms window; hard alpha cut in the last step.
+  glitch: { duration_ms: 150, tracks: { rotation: track([k(0, 0), k(33 / 150, -3), k(66 / 150, 3), k(99 / 150, 0), k(1, 0)], 'degrees'), alpha: track([k(0, 1), k(117 / 150, 1), k(1, 0)], 'opacity') } },
   none: { duration_ms: 1, tracks: { alpha: track([k(0, 1), k(0.999, 1), k(1, 0)], 'opacity') } },
 };
 

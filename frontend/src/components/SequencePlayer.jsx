@@ -20,6 +20,7 @@ import {
 } from '../lib/clipProxy.js';
 import { getClipProxy } from '../api';
 import { effectiveAudioMutes } from '../lib/trackMix.js';
+import { programTimeAt, scheduleVoiceEdit, voiceEditCutsAnything } from '../lib/voiceCutScheduler.js';
 import api from '../api';
 import { createLutRenderer, loadCube } from '../lib/lut3d';
 import {
@@ -53,7 +54,9 @@ import {
 import { bindWindowPointerLifecycle } from '../lib/pointerDragLifecycle.js';
 import { drawMediaWithAccentRecolor } from '../lib/overlayRecolor.js';
 import { reconcileEffectPlayback } from '../lib/effectPlayback.js';
+import { overlayAnimState } from '../lib/stickerAnimation.js';
 import { createCutoutVideoPlayback } from '../lib/cutoutVideoPlayback.js';
+import { createCutoutFramePair, trackPresentedSource } from '../lib/cutoutFramePair.js';
 import { getMotionPreset, MOTION_PRESETS } from '../lib/motion/motionPresets.js';
 import { sampleCanvasMotion } from '../lib/motion/rendererAdapter.js';
 import {
@@ -68,6 +71,7 @@ const CANVAS_W = 540;
 const CANVAS_H = 960;
 const HIGH_RES_PREVIEW_SCALE = 2;
 const CUTOUT_PENDING = Object.freeze({ pendingCutout: true });
+const CUTOUT_FRAME_WAIT = Object.freeze({ pendingCutout: true, decoderWaiting: true });
 const BACKGROUND_ISOLATION_BG = '#0B1220';
 const BACKGROUND_FRAME_RETRY_DELAYS_MS = Object.freeze([250, 1000, 4000]);
 const BACKGROUND_FRAME_CACHE_LIMIT = 120;
@@ -502,17 +506,19 @@ const SMOOTHSTEP = (x) => {
 };
 
 // fadeblack/fadewhite dip through a solid colour rather than crossfading.
-// Measured on a 30-frame transition: the outgoing frame reaches the bridge
-// colour at p = 0.167 and the incoming one starts leaving it at p = 0.267,
-// with an S-curve on each side. Reproduced to within 0.06 of weight -- the
-// exact easing of a one-sixth-of-a-transition dip is below what the eye can
-// separate, and the rendered file remains the source of truth.
-const FADE_BRIDGE_OUT = 1 / 6;
-const FADE_BRIDGE_IN = 0.2667;
+// This is vf_xfade.c's own formula (R2 lane TM; it replaced a fitted curve
+// that was off by up to ~0.09 of weight). With xfade's P = 1 - progress:
+//   mix(mix(A, bg, smoothstep(1-phase, 1, P)), mix(bg, B, smoothstep(phase, 1, P)), P)
+// with mix(a, b, m) = a*m + b*(1-m) and phase 0.2. The render's eased custom
+// expression (video_editor.py xfade_custom_body) is the same formula.
+const FADE_BRIDGE_PHASE = 0.2;
 
 function bridgeWeights(progress) {
-  const wA = 1 - SMOOTHSTEP(progress / FADE_BRIDGE_OUT);
-  const wB = SMOOTHSTEP((progress - FADE_BRIDGE_IN) / (1 - FADE_BRIDGE_IN));
+  const P = 1 - Math.max(0, Math.min(1, progress));
+  const sOut = SMOOTHSTEP((P - (1 - FADE_BRIDGE_PHASE)) / FADE_BRIDGE_PHASE);
+  const sIn = SMOOTHSTEP((P - FADE_BRIDGE_PHASE) / (1 - FADE_BRIDGE_PHASE));
+  const wA = P * sOut;
+  const wB = (1 - P) * (1 - sIn);
   return { wA, wB, bridge: Math.max(0, 1 - wA - wB) };
 }
 
@@ -609,8 +615,19 @@ function circleWeightAt(kind, p, dNorm) {
 }
 
 /** Draws one clip's frame with its grade, at `alpha`. */
-function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0, isolatedImage = null, cutoutMode = 'composite') {
+export function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0, isolatedImage = null, cutoutMode = 'composite') {
+  video = isolatedImage?._cutoutSourceFrame || video;
   if (isolatedImage?.pendingCutout) {
+    if (isolatedImage.decoderWaiting && cutoutMode === 'composite') {
+      // A healthy artifact can temporarily lack a matched alpha frame at a
+      // cut/seek. Keep the footage visible and omit only the unmatched subject.
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      ctx.filter = clipFilter(clip);
+      const painted = drawVideoFrame(ctx, video, clip, motionTime);
+      ctx.restore();
+      if (painted) return true;
+    }
     ctx.fillStyle = BACKGROUND_ISOLATION_BG;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     return true;
@@ -903,7 +920,10 @@ function drawIsolatedFrame(ctx, image, clip, motionTime = 0, { includeBackground
     drawCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
   }
 
-  if (mirror || rotation !== 0) {
+  if (image._cutoutSourceFrame) {
+    // Source RGB and its masked copy share exactly the ordinary footage geometry.
+    drawVideoFrame(drawCtx, image, clip, motionTime);
+  } else if (mirror || rotation !== 0) {
     drawCtx.save();
     drawCtx.translate(CANVAS_W / 2, CANVAS_H / 2);
     if (mirror) drawCtx.scale(-1, 1);
@@ -948,36 +968,33 @@ function cutoutVideoKey(clip, url) {
 }
 
 function BackgroundIsolationStatusBadge({ status = 'off' }) {
+  if (status === 'off') return null;
   const meta = backgroundIsolationStatusMeta(status);
   const tone = {
-    off: 'border-white/[0.12] bg-black/70 text-slate-300',
-    missing: 'border-amber-300/40 bg-amber-950/75 text-amber-100',
-    processing: 'border-amber-300/40 bg-amber-950/75 text-amber-100',
-    ready: 'border-emerald-300/45 bg-emerald-950/80 text-emerald-100',
-    partial: 'border-amber-300/40 bg-amber-950/75 text-amber-100',
-    quality_failed: 'border-rose-300/45 bg-rose-950/80 text-rose-100',
-  }[status] || 'border-white/[0.12] bg-black/70 text-slate-300';
+    missing: 'border-amber-400/35 bg-black/75 text-amber-200',
+    processing: 'border-amber-400/35 bg-black/75 text-amber-200',
+    ready: 'border-emerald-400/35 bg-black/75 text-emerald-300',
+    partial: 'border-amber-400/35 bg-black/75 text-amber-200',
+    quality_failed: 'border-rose-400/35 bg-black/75 text-rose-300',
+  }[status] || 'border-white/10 bg-black/75 text-slate-300';
   const icon = status === 'ready'
-    ? <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+    ? <CheckCircle2 className="h-3 w-3 text-emerald-400 flex-shrink-0" aria-hidden="true" />
     : status === 'processing'
-      ? <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" aria-hidden="true" />
+      ? <Loader2 className="h-3 w-3 text-amber-400 flex-shrink-0 animate-spin" aria-hidden="true" />
       : status === 'quality_failed'
-        ? <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-        : <Eye className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />;
+        ? <AlertTriangle className="h-3 w-3 text-rose-400 flex-shrink-0" aria-hidden="true" />
+        : <Eye className="h-3 w-3 text-slate-400 flex-shrink-0" aria-hidden="true" />;
 
   return (
     <div
       role="status"
       aria-live="polite"
       aria-label={`${meta.label}: ${meta.detail}`}
-      title={`${meta.label}: ${meta.detail}`}
-      className={`pointer-events-none absolute left-2 top-2 z-30 flex max-w-[78%] items-start gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-bold leading-tight shadow-md backdrop-blur-md ${tone}`}
+      title={`${meta.label}\n${meta.detail}`}
+      className={`pointer-events-auto absolute left-2 top-2 z-30 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold shadow-lg backdrop-blur-md transition-all ${tone}`}
     >
       {icon}
-      <span className="min-w-0">
-        <span className="block">{meta.label}</span>
-        <span className="mt-0.5 block text-[9px] font-medium opacity-75">{meta.detail}</span>
-      </span>
+      <span className="whitespace-nowrap">{meta.label}</span>
     </div>
   );
 }
@@ -1820,11 +1837,14 @@ function drawSingleSticker(ctx, img, t, stk, outBounds = null, accentColor = '#F
     });
   }
 
-  const elapsed = t - startTime;
-  const alpha = Math.min(1, Math.max(0, elapsed / 0.3));
+  // Entrance/exit == video_editor.py overlay_anim_filters (stickerAnimation.js);
+  // hit bounds above stay at the resting box.
+  const anim = overlayAnimState(t, startTime, endTime);
+  const dw = w * anim.scale;
+  const dh = h * anim.scale;
   ctx.save();
-  ctx.globalAlpha = alpha;
-  drawMediaWithAccentRecolor(ctx, img, x, y, w, h, stk, accentColor, 'sticker', stk.badge);
+  ctx.globalAlpha = anim.alpha;
+  drawMediaWithAccentRecolor(ctx, img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh, stk, accentColor, 'sticker', stk.badge);
   ctx.restore();
 }
 
@@ -1915,6 +1935,9 @@ function drawSingleEffect(ctx, videoEl, t, fx, outBounds = null, accentColor = '
 
   ctx.save();
   ctx.globalCompositeOperation = 'multiply';
+  // Alpha-only entrance/exit; multiply at globalAlpha a == render's faded
+  // multiplied crop over the frame (video_editor.py overlay_anim_filters).
+  ctx.globalAlpha = overlayAnimState(t, startTime, endTime, { scaleIn: false }).alpha;
   drawMediaWithAccentRecolor(ctx, videoEl, x, y, w, h, fx, accentColor, 'effect', fx.effectId);
   ctx.restore();
 }
@@ -2030,7 +2053,15 @@ function hookKeyframeAt(ms, kf) {
 const OVERLAY_IN_TRANSFORMS = {
   bounce: {
     durSec: 0.45,
-    at: (ms) => ({ scale: hookKeyframeAt(ms, [[0, 0.6], [150, 1.25], [280, 0.92], [380, 1.05], [450, 1.0]]) }),
+    at: (ms) => ({
+      scale: hookKeyframeAt(ms, [
+        [0, 0.6],
+        [150, 1.25, ACCEL_SOFT_OUT],
+        [280, 0.92, ACCEL_SOFT_OUT],
+        [380, 1.05, ACCEL_SOFT_OUT],
+        [450, 1.0, ACCEL_SOFT_OUT],
+      ]),
+    }),
   },
   bounce_soft: {
     durSec: 0.45,
@@ -2046,7 +2077,7 @@ const OVERLAY_IN_TRANSFORMS = {
   },
   pop: {
     durSec: 0.2,
-    at: (ms) => ({ scale: hookKeyframeAt(ms, [[0, 0.55], [120, 1.18], [200, 1.0]]) }),
+    at: (ms) => ({ scale: hookKeyframeAt(ms, [[0, 0.55], [120, 1.18, ACCEL_SOFT_OUT], [200, 1.0, ACCEL_SOFT_OUT]]) }),
   },
   pop_soft: {
     durSec: 0.2,
@@ -2095,7 +2126,7 @@ const OVERLAY_IN_TRANSFORMS = {
   zoom: {
     durSec: 0.3,
     at: (ms) => ({
-      scale: hookKeyframeAt(ms, [[0, 1.8], [300, 1.0]]),
+      scale: hookKeyframeAt(ms, [[0, 1.8], [300, 1.0, ACCEL_SOFT_OUT]]),
       alpha: hookKeyframeAt(ms, [[0, 0], [150, 1]]),
     }),
   },
@@ -2171,7 +2202,7 @@ function hookCycleAt(tSec, startSec, endSec, stepSec, values) {
 const OVERLAY_LOOP_TRANSFORMS = {
   pulse: (t, s, e) => ({ alpha: hookCycleAt(t, s, e, 0.35, [HOOK_DIM_OPACITY, 1.0]) }),
   wave: (t, s, e) => ({ rot: hookCycleAt(t, s, e, 0.4, [-3, 3, 0]) }),
-  shake: (t, s, e) => ({ rot: hookCycleAt(t, s, e, 0.09, [-3, 3, -2, 2, 0]) }),
+  shake: (t, s, e) => ({ rot: hookCycleAt(t, s, e, 0.1, [-3, 3, -2, 2, 0]) }),
   flicker: (t, s, e) => {
     // irregular step lengths, matching _loop_flicker's hardcoded pattern
     const pattern = [[0.08, 1 - 0x30 / 255], [0.15, 1.0], [0.06, 1 - 0x45 / 255], [0.2, 1.0], [0.09, 1 - 0x20 / 255], [0.18, 1.0]];
@@ -2195,18 +2226,19 @@ const OVERLAY_LOOP_TRANSFORMS = {
 };
 
 const OVERLAY_OUT_TRANSFORMS = {
-  fade: (t, s, e) => ({ alpha: 1 - hookKeyframeAt((t - s) * 1000, [[0, 0], [(e - s) * 1000, 1]]) }),
+  fade: (t, s, e) => ({ alpha: 1 - hookKeyframeAt((t - s) * 1000, [[0, 0], [(e - s) * 1000, 1, ACCEL_SNAP_IN]]) }),
   slide: (t, s, e) => ({
     alpha: 1 - hookKeyframeAt((t - s) * 1000, [[0, 0], [(e - s) * 1000, 1]]),
     dy: hookKeyframeAt((t - s) * 1000, [[0, 0], [(e - s) * 1000, 60]]),
   }),
   zoom: (t, s, e) => ({
-    alpha: 1 - hookKeyframeAt((t - s) * 1000, [[0, 0], [(e - s) * 1000, 1]]),
-    scale: hookKeyframeAt((t - s) * 1000, [[0, 1], [(e - s) * 1000, 1.4]]),
+    alpha: 1 - hookKeyframeAt((t - s) * 1000, [[0, 0], [(e - s) * 1000, 1, ACCEL_SNAP_IN]]),
+    scale: hookKeyframeAt((t - s) * 1000, [[0, 1], [(e - s) * 1000, 1.4, ACCEL_SNAP_IN]]),
   }),
+  // GLITCH_STEP_MS = 33 in motion_effects.py: one whole frame at 30 fps
   glitch: (t, s, e) => ({
-    rot: hookCycleAt(t, s, Math.max(s + 0.001, e - 0.04), 0.04, [-3, 3, 0]),
-    alpha: t >= e - 0.04 ? 1 - (t - (e - 0.04)) / 0.04 : 1,
+    rot: hookCycleAt(t, s, Math.max(s + 0.001, e - 0.033), 0.033, [-3, 3, 0]),
+    alpha: t >= e - 0.033 ? 1 - (t - (e - 0.033)) / 0.033 : 1,
   }),
   none: (t, s, e) => ({ alpha: t >= e - 0.001 ? 0 : 1 }),
 };
@@ -3208,6 +3240,8 @@ function SequencePlayer({
   overlays = [],
   audioUrl = null,
   audioStems = null,
+  // Ripple cuts on the voice (manifest voice_edit, source seconds) or null.
+  voiceEdit = null,
   grade = null,
   spotlight = undefined,
   backgroundIsolation = null,
@@ -3250,9 +3284,15 @@ function SequencePlayer({
   onToggleSafeZone = null,
   showWatermark = true,
   subjectPoints = [],
+  subjectContours = [],
   subjectPickMode = false,
+  subjectPickLabel = 1,
   onPickSubjectPoint = null,
   initialPreviewQuality = undefined,
+  previewQuality: controlledPreviewQuality,
+  onPreviewQualityChange = null,
+  highResStillEnabled: controlledHighResStillEnabled,
+  onToggleHighResStill = null,
 }, ref) {
   const visualStyle = useMemo(() => getStylePreset(stylePreset), [stylePreset]);
   const previewAccentColor = visualStyle?.accent || '#FFE600';
@@ -3294,6 +3334,12 @@ function SequencePlayer({
   const clipGainsRef = useRef(new Map());    // clip id -> { el, gain } for clip audio
   const sfxBuffersRef = useRef(new Map());   // url -> AudioBuffer | Promise
   const sfxLiveRef = useRef([]);             // { key, time, node } already handed to WebAudio
+  const voiceBuffersRef = useRef(new Map()); // voice url -> AudioBuffer | Promise (cut playback only)
+  // Voice-cut playback: { url, edit, cueT, pending: {startT, wall} | null,
+  // clock: {startT, ctxStart} | null, nodes: [{src, gain}], scheduled, waiting, failed: Set<url> }.
+  const voiceCutRef = useRef({
+    url: null, edit: null, cueT: 0, pending: null, clock: null, nodes: [], scheduled: false, waiting: false, failed: new Set(),
+  });
   const rafRef = useRef(null);
   const clockRef = useRef({ startWall: 0, startT: 0 });
   const stickerImgRef = useRef(null);
@@ -3302,10 +3348,16 @@ function SequencePlayer({
   const lutRef = useRef(null);          // parsed .cube for the chosen filter
   const lutRendererRef = useRef(null);  // WebGL2 pass, or null where unavailable
   const [lutReady, setLutReady] = useState(0);
-  const [highResStillEnabled, setHighResStillEnabled] = useState(true);
-  const [previewQuality, setPreviewQuality] = useState(() => (
+  const [internalHighResStillEnabled, setInternalHighResStillEnabled] = useState(true);
+  const highResStillEnabled = controlledHighResStillEnabled !== undefined ? controlledHighResStillEnabled : internalHighResStillEnabled;
+  const setHighResStillEnabled = onToggleHighResStill || setInternalHighResStillEnabled;
+
+  const [internalPreviewQuality, setInternalPreviewQuality] = useState(() => (
     initialPreviewQuality ? normalizePreviewQuality(initialPreviewQuality) : readPreviewQuality()
   ));
+  const previewQuality = controlledPreviewQuality !== undefined ? controlledPreviewQuality : internalPreviewQuality;
+  const setPreviewQuality = onPreviewQualityChange || setInternalPreviewQuality;
+
   const backingScale = previewBackingScale(previewQuality);
   const masterPreview = previewQuality === MASTER_PREVIEW;
   useEffect(() => { writePreviewQuality(undefined, previewQuality); }, [previewQuality]);
@@ -3374,6 +3426,7 @@ function SequencePlayer({
   const prevActiveClipIdRef = useRef(null);
   const backgroundIsolationImagesRef = useRef(new Map());
   const backgroundIsolationVideosRef = useRef(new Map());
+  const cutoutSourcePairsRef = useRef(new Map());
   const lastKnownIsolatedFramesRef = useRef(new Map());
   const subjectPromptReferenceRef = useRef(null);
   const [backgroundIsolationManifests, setBackgroundIsolationManifests] = useState({});
@@ -3407,7 +3460,7 @@ function SequencePlayer({
     return () => { cancelled = true; };
   }, [backgroundIsolationArtifactIds.join('|')]);
 
-  const loadedBackgroundIsolationFrame = useCallback(function loadBackgroundIsolationFrame(clip, sourceTime, prefetch = true, playVideo = isPlaying) {
+  const loadedBackgroundIsolationFrame = useCallback(function loadBackgroundIsolationFrame(clip, sourceTime, prefetch = true, playVideo = isPlaying, pairSource = true) {
     // Point editing uses stable original pixels even after a prompt invalidates
     // its previous artifact. This permits several positive/negative points.
     if (subjectPickMode) return null;
@@ -3416,13 +3469,29 @@ function SequencePlayer({
     // the renderer for these clips.
     if (clip?.bg_blur || clip?.fit_mode === 'blur') return null;
     const config = resolveBackgroundIsolationConfig(clip, backgroundIsolation);
+    const source = videoElsRef.current[clip?.id];
+    let sourcePair = null;
+    if (config?.enabled && source && pairSource) {
+      sourcePair = cutoutSourcePairsRef.current.get(source);
+      if (!sourcePair) {
+        while (cutoutSourcePairsRef.current.size >= 4) {
+          const oldest = cutoutSourcePairsRef.current.keys().next().value;
+          cutoutSourcePairsRef.current.get(oldest).clock.dispose();
+          cutoutSourcePairsRef.current.delete(oldest);
+        }
+        sourcePair = { clock: trackPresentedSource(source), frames: createCutoutFramePair() };
+      }
+      cutoutSourcePairsRef.current.delete(source);
+      cutoutSourcePairsRef.current.set(source, sourcePair);
+    }
+    const presentedSourceTime = sourcePair?.clock.time();
     const artifactId = backgroundArtifactId(config);
     const manifest = artifactId ? backgroundIsolationManifests[artifactId] : null;
     const resolution = resolveBackgroundIsolationPreview({
       config,
       manifest,
       artifactBaseUrl: '/api/background-isolation/sequences',
-      sourceTime: Math.max(0, Number(sourceTime) || 0),
+      sourceTime: Math.max(0, Number(presentedSourceTime ?? sourceTime) || 0),
     });
     // A saved "ready" ID can outlive its cache after a manual clear or a stale
     // editor save. Never paint the original background while that ID is absent.
@@ -3454,21 +3523,36 @@ function SequencePlayer({
       if (video.error) return CUTOUT_PENDING;
       const [numerator, denominator = 1] = String(resolution.fps).split('/').map(Number);
       const frozen = Number.isFinite(Number(clip?.trim_end)) && sourceTime >= Number(clip.trim_end) - 0.001;
-      return video._cutoutPlayback.sync({ time: resolution.videoTime,
+      const ready = video._cutoutPlayback.sync({ time: resolution.videoTime,
         isPlaying: playVideo && !frozen, rate: Number(clip?.speed) || 1,
         frameRate: numerator / denominator,
-      }) ? video : CUTOUT_PENDING;
+      });
+      if (!sourcePair) return ready ? video : CUTOUT_FRAME_WAIT;
+      return sourcePair.frames.resolve({ source, mask: video,
+        sourceTime: presentedSourceTime, maskTime: video._cutoutPresentedTime,
+        sourceStart: resolution.sourceStart, fps: numerator / denominator,
+        requestedTime: Number(sourceTime), artifactKey: `${videoKey}:${source.currentSrc}`,
+      }) || CUTOUT_FRAME_WAIT;
     }
     if (!resolution.useArtifact || !resolution.frameUrl) return null;
     const cache = backgroundIsolationImagesRef.current;
     const lastKnownFrames = lastKnownIsolatedFramesRef.current;
+    const pairSequenceFrame = (image) => {
+      if (!sourcePair) return image || (clip?.id != null ? lastKnownFrames.get(clip.id) : null) || null;
+      const [num, den = 1] = String(resolution.fps).split('/').map(Number);
+      return sourcePair.frames.resolve({ source, mask: image || {},
+        sourceTime: presentedSourceTime, maskTime: image ? (resolution.frameIndex + 0.5) * den / num : null,
+        sourceStart: resolution.sourceStart, fps: num / den,
+        requestedTime: Number(sourceTime), artifactKey: artifactId,
+      }) || CUTOUT_FRAME_WAIT;
+    };
     const cached = cache.get(resolution.frameUrl);
     if (cached) {
       if (cached.status === 'ready') {
         if (clip?.id != null) lastKnownFrames.set(clip.id, cached.image);
-        return cached.image;
+        return pairSequenceFrame(cached.image);
       }
-      return (clip?.id != null ? lastKnownFrames.get(clip.id) : null) || null;
+      return pairSequenceFrame(null);
     }
 
     evictBackgroundIsolationFrameCache(cache, resolution.frameUrl);
@@ -3534,10 +3618,10 @@ function SequencePlayer({
         sourceStart: resolution.sourceStart,
         sourceDuration: resolution.sourceDuration,
       }).slice(1).forEach((nextSourceTime) => {
-        loadBackgroundIsolationFrame(clip, nextSourceTime, false);
+        loadBackgroundIsolationFrame(clip, nextSourceTime, false, false, false);
       });
     }
-    return (clip?.id != null ? lastKnownFrames.get(clip.id) : null) || null;
+    return pairSequenceFrame(null);
   }, [backgroundIsolation, backgroundIsolationManifests, isPlaying, previewQuality, subjectPickMode]);
 
   useEffect(() => () => {
@@ -3896,10 +3980,10 @@ function SequencePlayer({
     e.preventDefault();
     if (!containerRef.current) return;
     if (isPlaying) return;
-    const point = subjectPointFromPickClick(e, containerRef.current.getBoundingClientRect());
+    const point = subjectPointFromPickClick(e, containerRef.current.getBoundingClientRect(), subjectPickLabel);
     const geometry = getSubjectPickGeometry(playheadRef.current);
     const sourcePoint = geometry && previewPointToSource(point, geometry);
-    if (sourcePoint) onPickSubjectPoint?.(sourcePoint);
+    if (sourcePoint) onPickSubjectPoint?.(sourcePoint, subjectPromptReferenceRef.current);
   };
 
   const handleContainerClick = (e) => {
@@ -4299,7 +4383,12 @@ function SequencePlayer({
       clip: entry.seg.clip, motionTime: entry.motionTime, sourceIsLetterboxed };
   };
   const subjectGeometry = getSubjectPickGeometry(playhead);
-  const subjectMarkers = subjectGeometry
+  const markerReference = subjectPickMode ? subjectPromptReferenceRef.current
+    : subjectPromptReference(segments, playhead, { sourceDurations: durations, config: backgroundIsolation || {} });
+  const markerReferenceMatches = !backgroundIsolation?.prompt_reference_source
+    || (markerReference?.sourcePath === backgroundIsolation.prompt_reference_source
+      && Math.abs(markerReference.sourceStart - backgroundIsolation.prompt_reference_start) <= 1e-5);
+  const subjectMarkers = subjectGeometry && markerReferenceMatches
     ? normalizedSubjectMarkers.map((point, index) => ({
       point: sourcePointToPreview(point, subjectGeometry), index,
     })).filter((marker) => marker.point)
@@ -4360,6 +4449,161 @@ function SequencePlayer({
     bgmAudible: trackAudible('bgm'),
   };
 
+  // Ripple cuts on the voice (voice_edit). The <audio> element can only play
+  // the file as it is, so while cuts apply the voice is decoded once and its
+  // kept spans run as AudioBufferSourceNodes on the context clock, planned by
+  // voiceCutScheduler.js with the render's own ranges and 8 ms ramps
+  // (sfx_manager.build_voice_cut_graph). Without cuts `url` is null and every
+  // helper below is a no-op: the element path runs exactly as before. A
+  // baked mix (no voice stem) is never cut -- it was rendered post-cut.
+  const voiceCutUrl = audioStems?.voiceUrl && voiceEditCutsAnything(voiceEdit)
+    ? toMediaUrl(audioStems.voiceUrl)
+    : null;
+  const voiceCutKey = voiceCutUrl
+    ? `${voiceCutUrl}|${voiceEdit.source?.duration}|${JSON.stringify((voiceEdit.cuts || []).map((c) => [c.start, c.end]))}`
+    : '';
+  voiceCutRef.current.url = voiceCutUrl;
+  voiceCutRef.current.edit = voiceCutUrl ? voiceEdit : null;
+
+  /** True while the voice plays through the cut scheduler instead of the element. */
+  const voiceCutActive = () => {
+    const vc = voiceCutRef.current;
+    return Boolean(vc.url) && !vc.failed.has(vc.url);
+  };
+
+  /** Stops every scheduled voice node and forgets the cut clock (seek, stop, edit). */
+  const stopVoiceCut = () => {
+    const vc = voiceCutRef.current;
+    vc.nodes.forEach(({ src, gain }) => {
+      try { src.onended = null; src.stop(); } catch { /* never started / already ended */ }
+      try { src.disconnect(); gain.disconnect(); } catch { /* already detached */ }
+    });
+    vc.nodes = [];
+    vc.scheduled = false;
+    vc.pending = null;
+    vc.clock = null;
+  };
+
+  /** Fetch + decode the voice once per URL (only the current URL is kept). */
+  const loadVoiceBuffer = (ctx, url) => {
+    const cache = voiceBuffersRef.current;
+    const cached = cache.get(url);
+    if (cached) return cached;
+    Array.from(cache.keys()).forEach((key) => { if (key !== url) cache.delete(key); });
+    const pending = fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.arrayBuffer();
+      })
+      .then((b) => ctx.decodeAudioData(b))
+      .then((buf) => { cache.set(url, buf); return buf; })
+      .catch((err) => {
+        cache.delete(url);
+        voiceCutRef.current.failed.add(url);
+        console.warn('[SequencePlayer] ไม่ได้ตัดเสียงในพรีวิว: ถอดรหัสเสียงพากย์ไม่สำเร็จ เล่นเสียงเต็มแทน', err);
+        fallBackFromVoiceCut();
+        return null;
+      });
+    cache.set(url, pending);
+    return pending;
+  };
+
+  /**
+   * Decode failed mid-play: hand the voice back to the element at the current
+   * program time (uncut -- the only voice the preview can still play).
+   */
+  const fallBackFromVoiceCut = () => {
+    const vc = voiceCutRef.current;
+    const ctx = audioCtxRef.current;
+    const playing = Boolean(vc.clock || vc.pending);
+    const t = vc.clock && ctx
+      ? programTimeAt(vc.clock, ctx.currentTime)
+      : vc.pending ? vc.pending.startT + (performance.now() - vc.pending.wall) / 1000 : vc.cueT;
+    stopVoiceCut();
+    if (!playing) return;
+    clockRef.current = { startWall: performance.now(), startT: t };
+    const el = audioElRef.current;
+    if (el) {
+      try { el.currentTime = t; } catch { /* not seekable yet */ }
+      el.play().catch(() => {});
+    }
+  };
+
+  /** Arms cut playback from program time `t`; nodes start once the context runs. */
+  const startVoiceCut = (t) => {
+    stopVoiceCut();
+    voiceCutRef.current.pending = { startT: t, wall: performance.now() };
+    syncVoiceCut();
+  };
+
+  // Nodes start this far ahead of "now" so none is handed to WebAudio already
+  // late (a late start keeps its offset and would lag the clock by the delay).
+  const VOICE_CUT_LEAD = 0.03;
+
+  /**
+   * Once the context runs: pin the cut clock to it (continuing from the wall
+   * clock it ran on while suspended), and once the buffer is decoded schedule
+   * every kept span from the current program time. Called from play and each tick.
+   */
+  const syncVoiceCut = () => {
+    const vc = voiceCutRef.current;
+    if (!vc.pending && !vc.clock) return;
+    const ctx = audioCtxRef.current;
+    const bus = audioNodesRef.current?.voice;
+    if (!ctx || !bus || ctx.state !== 'running' || !voiceCutActive()) return;
+    if (!vc.clock) {
+      const t = vc.pending.startT + (performance.now() - vc.pending.wall) / 1000;
+      vc.clock = { startT: t, ctxStart: ctx.currentTime };
+      vc.pending = null;
+    }
+    if (vc.scheduled) return;
+    const buf = voiceBuffersRef.current.get(vc.url);
+    if (!buf || typeof buf.then === 'function') {
+      if (!vc.waiting) {
+        vc.waiting = true;
+        Promise.resolve(buf || loadVoiceBuffer(ctx, vc.url)).then((ready) => {
+          vc.waiting = false;
+          if (ready) syncVoiceCut();
+        });
+      }
+      return;
+    }
+    const ctxNow = ctx.currentTime + VOICE_CUT_LEAD;
+    const t = programTimeAt(vc.clock, ctxNow);
+    const nodes = [];
+    scheduleVoiceEdit(vc.edit, { t, ctxNow }).forEach((p) => {
+      const duration = Math.min(p.duration, buf.duration - p.offset);
+      if (!(duration > 0)) return;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const gain = ctx.createGain();
+      // Same linear 8 ms ramps as the render's afade, at the same edges.
+      gain.gain.setValueAtTime(p.gainAtStart, p.when);
+      if (p.fadeIn > 0) gain.gain.linearRampToValueAtTime(1, p.when + p.fadeIn);
+      if (p.fadeOut > 0) {
+        const fadeStart = p.when + p.duration - p.fadeOut;
+        if (fadeStart > p.when + p.fadeIn + 1e-9) gain.gain.setValueAtTime(1, fadeStart);
+        gain.gain.linearRampToValueAtTime(0, p.when + p.duration);
+      }
+      src.connect(gain);
+      gain.connect(bus);
+      src.start(p.when, p.offset, duration);
+      nodes.push({ src, gain });
+    });
+    vc.nodes = nodes;
+    vc.scheduled = true; // even with no nodes (t past the voice end): plan once per start
+  };
+
+  /** Program time on the cut clock, or null when the element is the master. */
+  const voiceCutClockTime = () => {
+    const vc = voiceCutRef.current;
+    if ((!vc.pending && !vc.clock) || !voiceCutActive()) return null;
+    syncVoiceCut();
+    if (vc.clock) return programTimeAt(vc.clock, audioCtxRef.current.currentTime);
+    if (vc.pending) return vc.pending.startT + (performance.now() - vc.pending.wall) / 1000;
+    return null;
+  };
+
   /**
    * Creates the graph on first use and routes whatever elements exist into it.
    * Must be called from a user gesture (play), or the context starts suspended
@@ -4413,6 +4657,7 @@ function SequencePlayer({
     // Decode every one-shot up front. Left to fire time, the first pass over a
     // cue is the one that has to wait for the fetch.
     (audioLiveRef.current.shots || []).forEach((shot) => loadSfxBuffer(ctx, shot.url));
+    if (voiceCutActive()) loadVoiceBuffer(ctx, voiceCutRef.current.url);
     wireClipAudio();
     return ctx;
   };
@@ -4578,11 +4823,19 @@ function SequencePlayer({
       }
     }
     flushSfx();
+    voiceCutRef.current.cueT = t;
+    stopVoiceCut();
   };
 
   const startStems = () => {
     ensureAudioGraph();
-    audioElRef.current?.play().catch(() => {});
+    if (voiceCutActive()) {
+      // The element would play the uncut file over the scheduled spans.
+      audioElRef.current?.pause();
+      startVoiceCut(voiceCutRef.current.cueT);
+    } else {
+      audioElRef.current?.play().catch(() => {});
+    }
     const bgm = bgmElRef.current;
     if (bgm) {
       bgm.playbackRate = audioLiveRef.current.bgmRate || 1;
@@ -4594,7 +4847,33 @@ function SequencePlayer({
     audioElRef.current?.pause();
     bgmElRef.current?.pause();
     flushSfx();
+    stopVoiceCut();
   };
+
+  // The cut set changed (ripple, undo, silence cut) or appeared/vanished while
+  // playing: the scheduled spans are stale, so stop them and re-plan from the
+  // current program time -- or hand the voice back to the element when no cut
+  // applies any more. Paused, nothing is scheduled and play re-plans anyway.
+  useEffect(() => {
+    if (!isPlaying || subjectPickMode) return;
+    const t = playheadRef.current;
+    const wasCut = Boolean(voiceCutRef.current.clock || voiceCutRef.current.pending);
+    stopVoiceCut();
+    voiceCutRef.current.cueT = t;
+    if (voiceCutActive()) {
+      audioElRef.current?.pause();
+      ensureAudioGraph();
+      startVoiceCut(t);
+    } else if (wasCut) {
+      clockRef.current = { startWall: performance.now(), startT: t };
+      const el = audioElRef.current;
+      if (el) {
+        try { el.currentTime = t; } catch { /* not seekable yet */ }
+        el.play().catch(() => {});
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceCutKey]);
 
   // Swapping BGM (or loading another project) mounts a new element, keyed by
   // URL, that the graph has never seen -- so wire it up and pick playback back
@@ -4655,6 +4934,7 @@ function SequencePlayer({
     clearTimeout(highResDirtyTimerRef.current);
     highResRequestRef.current += 1;
     flushSfx();
+    stopVoiceCut();
     [audioElRef.current, bgmElRef.current].forEach((el) => {
       if (!el) return;
       el.pause();
@@ -4664,6 +4944,8 @@ function SequencePlayer({
     Object.values(videoElsRef.current).forEach((v) => {
       try { v?.pause(); } catch { /* already detached */ }
     });
+    cutoutSourcePairsRef.current.forEach(({ clock }) => clock.dispose());
+    cutoutSourcePairsRef.current.clear();
     videoElsRef.current = {};
     mediaSourcesRef.current = new Map();
     clipGainsRef.current = new Map();
@@ -4773,6 +5055,7 @@ function SequencePlayer({
     offscreen.height = canvas.height;
     const videos = new Map();
     const isolated = new Map();
+    const isolatedDecoders = [];
     try {
       const loaded = await Promise.allSettled(plan.map(async (entry) => {
         const clip = entry.seg.clip;
@@ -4791,7 +5074,16 @@ function SequencePlayer({
         const image = resolution.masterVideoUrl
           ? await loadCoverVideo(resolution.masterVideoUrl, resolution.videoTime)
           : await loadCoverImage(resolution.frameUrl);
-        isolated.set(clip.id, image);
+        if (image instanceof HTMLVideoElement) isolatedDecoders.push(image);
+        const [num, den = 1] = String(resolution.fps).split('/').map(Number);
+        const paired = createCutoutFramePair().resolve({ source: master, mask: image,
+          sourceTime: master.currentTime,
+          maskTime: image instanceof HTMLVideoElement ? image.currentTime : (resolution.frameIndex + 0.5) * den / num,
+          sourceStart: resolution.sourceStart, fps: num / den,
+          requestedTime: entry.localTime, artifactKey: artifactId,
+        });
+        if (!paired) throw new Error('เฟรมต้นฉบับกับ Cutout ยังไม่ตรงกัน');
+        isolated.set(clip.id, paired);
       }));
       const failure = loaded.find((result) => result.status === 'rejected');
       if (failure) throw failure.reason;
@@ -4800,9 +5092,7 @@ function SequencePlayer({
       return canvas.toDataURL('image/png');
     } finally {
       for (const video of videos.values()) { video.removeAttribute('src'); video.load(); }
-      for (const image of isolated.values()) {
-        if (image instanceof HTMLVideoElement) { image.removeAttribute('src'); image.load(); }
-      }
+      for (const image of isolatedDecoders) { image.removeAttribute('src'); image.load(); }
     }
   };
 
@@ -4866,7 +5156,12 @@ function SequencePlayer({
       // Audio Master Clock: Lock subtitle and video frames directly to the audio element's playback
       const audio = audioElRef.current;
       let t;
-      if (audio && audio.src && !audio.paused && !audio.ended && audio.currentTime > 0) {
+      // With voice cuts the element is idle and audio time != timeline time:
+      // the master is the AudioContext clock the voice spans were started on.
+      const voiceCutT = voiceCutClockTime();
+      if (voiceCutT !== null) {
+        t = voiceCutT;
+      } else if (audio && audio.src && !audio.paused && !audio.ended && audio.currentTime > 0) {
         t = audio.currentTime;
       } else {
         t = clockRef.current.startT + (performance.now() - clockRef.current.startWall) / 1000;
@@ -4985,7 +5280,7 @@ function SequencePlayer({
 
           // If incoming video is still actively seeking to its cut point,
           // hold the outgoing clip's frame to eliminate any flash or random frame stutter
-          if (video.seeking && prevActiveClipIdRef.current && prevActiveClipIdRef.current !== seg.clip.id) {
+          if ((video.seeking || video.readyState < 2) && prevActiveClipIdRef.current && prevActiveClipIdRef.current !== seg.clip.id) {
             const prevV = videoElsRef.current[prevActiveClipIdRef.current];
             const prevSeg = segmentsByClipId.get(prevActiveClipIdRef.current);
             if (prevV && prevSeg && prevV.readyState >= 2) {
@@ -4994,7 +5289,7 @@ function SequencePlayer({
               const prevImage = loadedBackgroundIsolationFrame(prevSeg.clip, localTimeAt(prevSeg, t));
               if (prevImage) {
                 if (prevV && activeCutoutMode === 'composite') {
-                  drawVideoFrame(ctx, prevV, prevSeg.clip);
+                  drawVideoFrame(ctx, prevImage._cutoutSourceFrame || prevV, prevSeg.clip, motionTimeAt(prevSeg, t));
                 }
                 drawIsolatedFrame(ctx, prevImage, prevSeg.clip, motionTimeAt(prevSeg, t), { includeBackground: activeCutoutMode !== 'composite', cutoutMode: activeCutoutMode });
               } else {
@@ -5275,6 +5570,62 @@ function SequencePlayer({
         ))}
       </div>
 
+      {/* Standalone Header Bar: Only shown in standalone mode (compact=false) so Editor mode gets 100% full height */}
+      {!compact && clips?.length > 0 && (
+        <div className="flex w-full max-w-[420px] items-center justify-between px-1 text-[11px] text-slate-300">
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[10px] font-semibold text-slate-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
+              9:16
+            </span>
+            <button
+              type="button"
+              onClick={toggleSafeZone}
+              title={showSafeZone ? 'ซ่อน TikTok Safe Zone' : 'แสดง TikTok Safe Zone (9:16)'}
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-medium border transition-all cursor-pointer ${
+                showSafeZone
+                  ? 'bg-[#25F4EE]/15 border-[#25F4EE]/60 text-[#25F4EE] shadow-[0_0_8px_rgba(37,244,238,0.2)]'
+                  : 'bg-white/5 border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/10'
+              }`}
+            >
+              <Shield className="h-3 w-3" />
+              <span>Safe Zone</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span role="status" aria-live="polite" className="text-[10px] font-medium text-slate-400 hidden sm:inline">
+              {highResStatusLabel}
+            </span>
+            <div className="flex items-center rounded-lg border border-white/10 bg-[#18181B] p-0.5 shadow-sm">
+              <select
+                aria-label="คุณภาพพรีวิวขณะเล่น"
+                data-testid="preview-quality-select"
+                value={previewQuality}
+                onChange={(event) => setPreviewQuality(event.target.value)}
+                className="cursor-pointer rounded bg-transparent px-1.5 py-0.5 text-[10px] font-semibold text-slate-200 outline-none hover:text-white"
+              >
+                <option value={MASTER_PREVIEW} className="bg-[#242220] text-slate-100">ชัด 1080p</option>
+                <option value={SMOOTH_PREVIEW} className="bg-[#242220] text-slate-100">ลื่น 540p</option>
+              </select>
+              {!masterPreview && (
+                <button
+                  type="button"
+                  data-testid="toggle-high-resolution-preview"
+                  aria-pressed={highResStillEnabled}
+                  onClick={() => setHighResStillEnabled((enabled) => !enabled)}
+                  title={highResStillEnabled ? 'ปิดภาพคมชัด 1080p เมื่อหยุดคลิป' : 'เปิดภาพคมชัด 1080p เมื่อหยุดคลิป'}
+                  className={`rounded px-1.5 py-0.5 text-[9.5px] font-semibold transition cursor-pointer ${
+                    highResStillEnabled ? 'bg-cyan-600/80 text-white' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {highResStillEnabled ? 'HD หยุด' : 'HD ปิด'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stage. This wrapper is the one that flexes: it takes whatever height
           the transport row leaves over, and the 9:16 box inside sizes itself
           against that. Sizing the 9:16 box directly off the column made it
@@ -5316,7 +5667,34 @@ function SequencePlayer({
               className="pointer-events-none absolute inset-0 z-[1] h-full w-full object-fill"
             />
           )}
-          {subjectMarkers.length > 0 && (
+          {subjectPickMode && !isPlaying && subjectContours && subjectContours.length > 0 && (
+            <svg
+              data-testid="subject-contour-overlay"
+              aria-hidden="true"
+              viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+              className="pointer-events-none absolute inset-0 z-[34] h-full w-full"
+            >
+              <defs>
+                <filter id="neon-shimmer-glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#22D3EE" floodOpacity="0.8" />
+                  <feDropShadow dx="0" dy="0" stdDeviation="8" floodColor="#06B6D4" floodOpacity="0.6" />
+                </filter>
+              </defs>
+              {subjectContours.map((contour, cIdx) => (
+                <polygon
+                  key={`contour-${cIdx}`}
+                  points={contour.map(([nx, ny]) => `${nx * CANVAS_W},${ny * CANVAS_H}`).join(' ')}
+                  fill="rgba(6, 182, 212, 0.22)"
+                  stroke="#22D3EE"
+                  strokeWidth="2.5"
+                  strokeDasharray="8 4"
+                  filter="url(#neon-shimmer-glow)"
+                  className="animate-pulse"
+                />
+              ))}
+            </svg>
+          )}
+          {subjectPickMode && !isPlaying && subjectMarkers.length > 0 && (
             <div
               data-testid="subject-point-markers"
               aria-hidden="true"
@@ -5358,57 +5736,23 @@ function SequencePlayer({
               เพิ่มคลิปเข้าไทม์ไลน์เพื่อดูพรีวิว
             </div>
           )}
-          {metadataReady && clips.length > 0 && (
+          {!compact && metadataReady && clips.length > 0 && (
             <>
               <BackgroundIsolationStatusBadge status={currentBackgroundIsolationStatus} />
 
-              <div className="pointer-events-auto absolute right-2 top-12 z-40 flex items-center gap-1 rounded-lg border border-cyan-300/30 bg-black/85 p-1 text-[10px] font-semibold text-slate-100 shadow-lg backdrop-blur-md">
-                <span role="status" aria-live="polite" className="px-1 text-cyan-200">
-                  {highResStatusLabel}
-                </span>
-                <select
-                  aria-label="คุณภาพพรีวิวขณะเล่น"
-                  data-testid="preview-quality-select"
-                  value={previewQuality}
-                  onClick={(event) => event.stopPropagation()}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onChange={(event) => setPreviewQuality(event.target.value)}
-                  className="rounded bg-slate-800 px-1 py-0.5 text-slate-100"
-                >
-                  <option value={MASTER_PREVIEW}>ชัด 1080p</option>
-                  <option value={SMOOTH_PREVIEW}>ลื่น 540p</option>
-                </select>
-                {!masterPreview && (
-                <button
-                  type="button"
-                  data-testid="toggle-high-resolution-preview"
-                  aria-pressed={highResStillEnabled}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setHighResStillEnabled((enabled) => !enabled);
-                  }}
-                  title={highResStillEnabled
-                    ? 'ปิดภาพคมชัด 1080p เมื่อหยุดคลิป'
-                    : 'เปิดภาพคมชัด 1080p เมื่อหยุดคลิป'}
-                  className={`rounded px-1.5 py-0.5 transition cursor-pointer ${highResStillEnabled ? 'bg-cyan-700 text-white' : 'bg-slate-700 text-slate-100 hover:bg-slate-600'}`}
-                >
-                  {highResStillEnabled ? 'ปิดพรีวิวคมชัด' : 'เปิดพรีวิวคมชัด'}
-                </button>
-                )}
-              </div>
 
-              {/* Cutout Mask Inspection Mode Switcher */}
+              {/* Cutout Mask Inspection Mode Switcher: Compact pill at top right */}
               {currentBackgroundIsolationStatus !== 'off' ? (
-                <div className="absolute right-2 top-2 z-30 flex items-center gap-1 rounded-lg border border-violet-400/30 bg-black/85 p-1 text-[10px] font-semibold backdrop-blur-md shadow-lg pointer-events-auto">
+                <div className="absolute right-2 top-2 z-30 flex items-center gap-0.5 rounded-full border border-violet-400/30 bg-black/75 p-0.5 px-1 text-[9.5px] font-semibold backdrop-blur-md shadow-lg pointer-events-auto">
                   <span className="px-1 text-violet-300 font-bold flex items-center gap-1">
                     <Layers className="h-3 w-3" />
-                    <span className="hidden sm:inline">Cutout:</span>
+                    <span className="hidden sm:inline text-[9px]">Cutout:</span>
                   </span>
                   <button
                     type="button"
                     onClick={() => setCutoutMode('composite')}
                     title="แสดงคลิปแยกพื้นหลังปกติ"
-                    className={`rounded px-1.5 py-0.5 transition cursor-pointer ${activeCutoutMode === 'composite' ? 'bg-violet-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`rounded-full px-2 py-0.5 transition cursor-pointer ${activeCutoutMode === 'composite' ? 'bg-violet-600 text-white font-bold shadow' : 'text-slate-400 hover:text-slate-200'}`}
                   >
                     ปกติ
                   </button>
@@ -5416,7 +5760,7 @@ function SequencePlayer({
                     type="button"
                     onClick={() => setCutoutMode('checkerboard')}
                     title="แสดงพื้นหลังตารางหมากรุก เพื่อตรวจเช็กความโปร่งใสและขอบไดคัท"
-                    className={`rounded px-1.5 py-0.5 transition cursor-pointer ${activeCutoutMode === 'checkerboard' ? 'bg-violet-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`rounded-full px-2 py-0.5 transition cursor-pointer ${activeCutoutMode === 'checkerboard' ? 'bg-violet-600 text-white font-bold shadow' : 'text-slate-400 hover:text-slate-200'}`}
                   >
                     หมากรุก
                   </button>
@@ -5424,7 +5768,7 @@ function SequencePlayer({
                     type="button"
                     onClick={() => setCutoutMode('matte')}
                     title="แสดงมาสก์ขาวดำ (Alpha Matte) เพื่อตรวจเช็กรอยรั่วและรูโหว่"
-                    className={`rounded px-1.5 py-0.5 transition cursor-pointer ${activeCutoutMode === 'matte' ? 'bg-violet-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`rounded-full px-2 py-0.5 transition cursor-pointer ${activeCutoutMode === 'matte' ? 'bg-violet-600 text-white font-bold shadow' : 'text-slate-400 hover:text-slate-200'}`}
                   >
                     มาสก์
                   </button>
@@ -5434,13 +5778,17 @@ function SequencePlayer({
                   type="button"
                   onClick={() => onToggleBackgroundIsolation(true)}
                   title="คลิกเพื่อเปิดใช้งานระบบตัดพื้นหลัง (Cutout)"
-                  className="absolute right-2 top-2 z-30 flex items-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-950/85 px-2.5 py-1 text-[11px] font-bold text-violet-100 backdrop-blur-md shadow-lg transition hover:bg-violet-900/90 cursor-pointer pointer-events-auto"
+                  className="absolute right-2 top-2 z-30 flex items-center gap-1.5 rounded-full border border-violet-500/40 bg-violet-950/85 px-3 py-1 text-[10.5px] font-bold text-violet-100 backdrop-blur-md shadow-lg transition hover:bg-violet-900/90 cursor-pointer pointer-events-auto"
                 >
-                  <Layers className="h-3.5 w-3.5 text-violet-300" />
+                  <Layers className="h-3 w-3 text-violet-300" />
                   เปิดใช้ Cutout
                 </button>
               ) : null}
+            </>
+          )}
 
+          {metadataReady && clips.length > 0 && (
+            <>
               {/* Smart Snap Guides (Center Guidelines) */}
               {snapGuide.x !== null && (
                 <div
@@ -5629,8 +5977,8 @@ function SequencePlayer({
                 </div>
               )}
 
-              {/* Hover Play Button (Only active when no bounding box is selected and not previewing template) */}
-              {!selectedBox && !previewTextTemplate && (
+              {/* Hover Play Button (Only active when no bounding box is selected, not picking cutout points, and not previewing template) */}
+              {!selectedBox && !previewTextTemplate && !subjectPickMode && (
                 <button
                   type="button"
                   data-subject-pick-passthrough="true"
@@ -5688,32 +6036,99 @@ function SequencePlayer({
                 );
               })()}
 
-              {/* Safe Zone Toggle Button */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleSafeZone();
-                }}
-                title={showSafeZone ? 'ซ่อน Safe Zone' : 'แสดง TikTok Safe Zone (9:16)'}
-                className={`absolute top-2 right-2 z-30 flex h-7 px-2 items-center gap-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer backdrop-blur-md shadow-md ${
-                  showSafeZone
-                    ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
-                    : 'bg-black/60 border-white/[0.1] text-slate-400 hover:text-white'
-                }`}
-              >
-                <Shield className="w-3.5 h-3.5" />
-                <span>Safe Zone</span>
-              </button>
 
-              {/* Timecode lives here, over the stage */}
-              <div className="pointer-events-none absolute bottom-2 right-2 z-20 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-mono font-bold text-white/90 backdrop-blur-sm">
-                {formatTimecode(playhead, { frames: true })} / {formatTimecode(totalDuration, { frames: true })}
-              </div>
+              {/* Timecode lives here on non-compact */}
+              {!compact && (
+                <div className="pointer-events-none absolute bottom-2 right-2 z-20 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-mono font-bold text-white/90 backdrop-blur-sm">
+                  {formatTimecode(playhead, { frames: true })} / {formatTimecode(totalDuration, { frames: true })}
+                </div>
+              )}
             </>
           )}
         </div>
       </div>
+
+      {/* Pro Studio Player Control Bar (Level 1: Right below 9:16 canvas in Editor mode, centered, fixed width, no jitter) */}
+      {compact && metadataReady && clips.length > 0 && (
+        <div className="flex-shrink-0 flex items-center justify-center pt-2 select-none">
+          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#161514]/90 px-3 py-1 shadow-lg backdrop-blur-md">
+            {/* Play/Pause Button (hidden during subject picking to prevent playback conflict) */}
+            {!subjectPickMode ? (
+              <button
+                type="button"
+                onClick={togglePlay}
+                aria-label={isPlaying ? 'หยุดชั่วคราว (Space)' : 'เล่น (Space)'}
+                title={isPlaying ? 'หยุดชั่วคราว (Space)' : 'เล่น (Space)'}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#25F4EE] hover:text-black transition-colors cursor-pointer"
+              >
+                {isPlaying ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 ml-0.5 fill-current" />}
+              </button>
+            ) : (
+              <span className="flex items-center gap-1 text-[10.5px] font-bold text-violet-300 px-1 select-none">
+                🎯 เลือกจุด
+              </span>
+            )}
+
+            {/* Timecode (Fixed width w-[140px], tabular-nums to prevent ANY layout shift) */}
+            <div
+              className="flex items-center justify-center gap-1 font-mono text-xs font-semibold tabular-nums w-[140px] px-1 text-center"
+              title="เวลาปัจจุบัน / เวลาทั้งหมดของคลิป (นาที:วินาที:เฟรม ที่ 30 fps)"
+            >
+              <span className="text-[#25F4EE]">{formatTimecode(playhead, { frames: true })}</span>
+              <span className="text-[#6B6660]">/</span>
+              <span className="text-[#9C968F]">{formatTimecode(totalDuration, { frames: true })}</span>
+            </div>
+
+            <span className="h-3.5 w-px bg-white/15" />
+
+            {/* Preview Quality (1080p / 540p) */}
+            <div className="flex items-center rounded-md bg-[#242220] px-1 py-0.5" title="ความละเอียดพรีวิวขณะเล่นและตัดต่อ">
+              <select
+                aria-label="คุณภาพพรีวิวขณะเล่น"
+                data-testid="preview-quality-select"
+                value={previewQuality}
+                onChange={(e) => setPreviewQuality(e.target.value)}
+                className="cursor-pointer bg-transparent text-[11px] font-semibold text-[#EDE9E3] outline-none hover:text-white"
+              >
+                <option value={MASTER_PREVIEW} className="bg-[#242220] text-slate-100">ชัด 1080p</option>
+                <option value={SMOOTH_PREVIEW} className="bg-[#242220] text-slate-100">ลื่น 540p</option>
+              </select>
+              {!masterPreview && (
+                <button
+                  type="button"
+                  data-testid="toggle-high-resolution-preview"
+                  aria-pressed={highResStillEnabled}
+                  onClick={() => setHighResStillEnabled((enabled) => !enabled)}
+                  title={highResStillEnabled ? 'ปิดภาพคมชัด 1080p เมื่อหยุดคลิป' : 'เปิดภาพคมชัด 1080p เมื่อหยุดคลิป'}
+                  className={`ml-1 rounded px-1 text-[9.5px] font-semibold transition cursor-pointer ${
+                    highResStillEnabled ? 'bg-cyan-600/80 text-white' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {highResStillEnabled ? 'HD' : 'SD'}
+                </button>
+              )}
+            </div>
+
+            <span className="h-3.5 w-px bg-white/15" />
+
+            {/* Safe Zone Toggle Button */}
+            <button
+              type="button"
+              onClick={toggleSafeZone}
+              aria-pressed={showSafeZone}
+              title={showSafeZone ? 'ซ่อน TikTok Safe Zone' : 'แสดง TikTok Safe Zone (9:16)'}
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
+                showSafeZone
+                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50 shadow-[0_0_8px_rgba(254,44,85,0.3)]'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
+              }`}
+            >
+              <Shield className="h-3.5 w-3.5" />
+              <span>Safe Zone</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {metadataReady && clips.length > 0 && !compact && (
         <>

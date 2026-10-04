@@ -48,6 +48,19 @@ export function normalizeSubjectPoints(value) {
   return points;
 }
 
+export function subjectPointsEqual(a, b) {
+  const ptsA = normalizeSubjectPoints(a);
+  const ptsB = normalizeSubjectPoints(b);
+  if (ptsA.length !== ptsB.length) return false;
+  for (let i = 0; i < ptsA.length; i++) {
+    const pA = ptsA[i];
+    const pB = ptsB[i];
+    if (pA.label !== pB.label) return false;
+    if (Math.abs(pA.x - pB.x) > 0.002 || Math.abs(pA.y - pB.y) > 0.002) return false;
+  }
+  return true;
+}
+
 /** Append a picked point, ignoring duplicates of the same subject location. */
 export function withSubjectPoint(points, point) {
   const existing = normalizeSubjectPoints(points);
@@ -88,7 +101,13 @@ export function subjectPointMarkerStyle(point) {
 }
 
 export function describeSubjectPointCount(points) {
-  const count = normalizeSubjectPoints(points).length;
+  const normalized = normalizeSubjectPoints(points);
+  const count = normalized.length;
   if (count === 0) return 'ยังไม่ได้จิ้มจุดสินค้า';
+  const pos = normalized.filter((p) => p.label === 1).length;
+  const neg = normalized.filter((p) => p.label === 0).length;
+  if (neg > 0) {
+    return `จิ้มจุดแล้ว ${count} จุด (เก็บสินค้า ${pos}, ตัดพื้นหลัง ${neg})`;
+  }
   return `จิ้มจุดสินค้าแล้ว ${count} จุด`;
 }

@@ -21,6 +21,7 @@ import numpy as np
 from PIL import Image
 
 MAX_SUBJECT_POINTS = 8
+MAX_WORKER_PROMPT_POINTS = 1024
 # A mask outside this band cannot describe a hand-held product: below it the
 # heuristic probably grabbed a speck, above it the whole frame (which is what
 # the centre-point fallback produced).
@@ -43,49 +44,69 @@ def _clamp_unit(value: Any) -> float | None:
         return None
     try:
         number = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
     if not np.isfinite(number):
         return None
     return min(1.0, max(0.0, number))
 
 
-def _point_from(value: Any) -> tuple[float, float, int] | None:
+def _point_from(value: Any) -> tuple[float, float, int, int | None] | None:
+    frame = None
     if isinstance(value, Mapping):
         x = _clamp_unit(value.get("x"))
         y = _clamp_unit(value.get("y"))
         label = value.get("label", 1)
+        if "frame" in value and value["frame"] is not None:
+            try:
+                frame = max(0, int(value["frame"]))
+            except (ValueError, TypeError, OverflowError):
+                return None
     elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)) and len(value) >= 2:
         x = _clamp_unit(value[0])
         y = _clamp_unit(value[1])
         label = value[2] if len(value) > 2 else 1
+        if len(value) > 3 and value[3] is not None:
+            try:
+                frame = max(0, int(value[3]))
+            except (ValueError, TypeError, OverflowError):
+                return None
     else:
         return None
     if x is None or y is None:
         return None
-    return x, y, 0 if label in (0, False, "0") else 1
+    return x, y, 0 if label in (0, False, "0") else 1, frame
 
 
-def normalize_subject_points(value: Any) -> list[dict[str, float]]:
-    """Normalize editor-picked points into ``[{x, y, label}]``.
+def normalize_subject_points(value: Any) -> list[dict[str, Any]]:
+    """Normalize editor-picked points into ``[{x, y, label}]`` (with optional ``frame``).
 
-    Accepts ``{"x": .., "y": .., "label": ..}``, ``[x, y]`` and ``[x, y, label]``
-    entries.  Invalid entries are dropped, coordinates are clamped to the frame,
+    Accepts ``{"x": .., "y": .., "label": .., "frame": ..}``, ``[x, y]``,
+    ``[x, y, label]``, and ``[x, y, label, frame]`` entries.
+    Invalid entries are dropped, coordinates are clamped to the frame,
     and the list is capped so a hostile payload cannot flood the worker.
     """
     if value is None or isinstance(value, (str, bytes, bool)):
         return []
     if not isinstance(value, Iterable):
         return []
-    points: list[dict[str, float]] = []
+    points: list[dict[str, Any]] = []
+    frame_counts: dict[int, int] = {}
     for item in value:
         parsed = _point_from(item)
         if parsed is None:
             continue
-        x, y, label = parsed
-        points.append({"x": round(x, 5), "y": round(y, 5), "label": label})
-        if len(points) >= MAX_SUBJECT_POINTS:
-            break
+        x, y, label, frame = parsed
+        pt: dict[str, Any] = {"x": round(x, 5), "y": round(y, 5), "label": label}
+        if frame is not None:
+            pt["frame"] = frame
+        frame_key = frame or 0
+        if frame_counts.get(frame_key, 0) >= MAX_SUBJECT_POINTS:
+            continue
+        frame_counts[frame_key] = frame_counts.get(frame_key, 0) + 1
+        points.append(pt)
+        if len(points) > MAX_WORKER_PROMPT_POINTS:
+            raise ValueError("too many SAM2 prompt points; split the source window")
     return points
 
 
@@ -274,19 +295,22 @@ def background_point(mask: Any, subject: Sequence[Mapping[str, float]] = ()) -> 
 
 
 def format_prompt_points(points: Any) -> str:
-    """Serialize points as ``x,y,label;...`` for the SAM 2 worker CLI.
+    """Serialize points as ``x,y,label`` or ``x,y,label,frame;...`` for the SAM 2 worker CLI.
 
     A quote-free payload survives the Windows command line, where JSON on
     ``argv`` loses its double quotes before the child process parses it.
     """
-    return ";".join(
-        f"{point['x']},{point['y']},{point['label']}"
-        for point in normalize_subject_points(points)
-    )
+    chunks = []
+    for point in normalize_subject_points(points):
+        if "frame" in point and point["frame"] is not None:
+            chunks.append(f"{point['x']},{point['y']},{point['label']},{point['frame']}")
+        else:
+            chunks.append(f"{point['x']},{point['y']},{point['label']}")
+    return ";".join(chunks)
 
 
-def parse_prompt_points(text: Any) -> list[dict[str, float]]:
-    """Parse the ``x,y,label;...`` payload back into points (inverse of format)."""
+def parse_prompt_points(text: Any) -> list[dict[str, Any]]:
+    """Parse the ``x,y,label`` or ``x,y,label,frame;...`` payload back into points (inverse of format)."""
     if not isinstance(text, str) or not text.strip():
         return []
     points: list[Any] = []
@@ -294,7 +318,10 @@ def parse_prompt_points(text: Any) -> list[dict[str, float]]:
         parts = [part.strip() for part in chunk.split(",")]
         if len(parts) < 2:
             continue
-        points.append({"x": parts[0], "y": parts[1], "label": parts[2] if len(parts) > 2 else 1})
+        item: dict[str, Any] = {"x": parts[0], "y": parts[1], "label": parts[2] if len(parts) > 2 else 1}
+        if len(parts) > 3:
+            item["frame"] = parts[3]
+        points.append(item)
     return normalize_subject_points(points)
 
 

@@ -76,6 +76,8 @@ from scripts.api_background_isolation import (
 from scripts.api_typesafe_studio import router as typesafe_studio_router
 from scripts.api_audio_beats import router as audio_beats_router
 from scripts.api_proxy import router as proxy_router
+from scripts.api_mobile_studio import router as mobile_studio_router
+
 
 
 def recover_startup_work() -> dict[str, int]:
@@ -306,13 +308,15 @@ app.include_router(background_isolation_router)
 app.include_router(typesafe_studio_router)
 app.include_router(audio_beats_router)
 app.include_router(proxy_router)
+app.include_router(mobile_studio_router)
+
 
 # ----------------------------------------------------------------------
 # Run Server directly if executed
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
-    should_reload = os.environ.get("FASTAPI_RELOAD", "true").lower() in ("1", "true")
+    should_reload = os.environ.get("FASTAPI_RELOAD", "false").lower() in ("1", "true")
     uvicorn.run(
         "scripts.api_server:app",
         host=get_bind_host(),

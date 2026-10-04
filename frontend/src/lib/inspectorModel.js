@@ -213,9 +213,11 @@ export function buildSlowZoomKeyframes(clip, sourceDuration, { direction = 'in',
   if (Math.abs(far - base) < 0.005) return null;
   const [from, to] = direction === 'out' ? [far, base] : [base, far];
   const round = (value, places) => Math.round(value * 10 ** places) / 10 ** places;
+  // The end point's easing shapes the move (timelineMath CAMERA_EASINGS):
+  // ease_in_out starts and settles softly instead of a constant-speed crawl.
   return [
     { time: 0, zoom: round(from, 4) },
-    { time: round(duration, 3), zoom: round(to, 4) },
+    { time: round(duration, 3), zoom: round(to, 4), easing: 'ease_in_out' },
   ];
 }
 

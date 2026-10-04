@@ -184,7 +184,9 @@ def test_editor_shell_save_reload_preview_matches_render(motion_fixture_url, mon
                 live_frames = []
                 for index, sample_time in enumerate(sample_times):
                     if sample_time:
-                        ruler.click(position={"x": sample_time * px_per_second, "y": 10})
+                        # Shift bypasses scrub snapping: these samples sit a frame either
+                        # side of a cut and must land exactly there, not on the cut.
+                        ruler.click(position={"x": sample_time * px_per_second, "y": 10}, modifiers=["Shift"])
                     active_index = 1 if (with_fade and sample_time >= 0.7) or (with_split and sample_time >= 0.5) else 0
                     active_source_time = (sample_time - 0.3) if with_fade and active_index else (0.5 + sample_time)
                     page.wait_for_function("""({variant, elementIndex, expected}) => {

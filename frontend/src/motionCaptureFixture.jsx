@@ -381,7 +381,7 @@ export function Fixture() {
         clips={clips}
         cues={cues}
         overlays={overlay ? [overlay] : []}
-        compact
+        compact={params.get('playbackProbe') !== '1'}
         showWatermark={false}
         isMuted
         captionStyle={isCaptionMode ? {

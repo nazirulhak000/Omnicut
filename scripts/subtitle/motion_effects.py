@@ -77,7 +77,13 @@ def serialize_keyframes(keyframes: List[Tuple[int, Dict[str, object], float]]) -
 # ---- In (entrance) builders -------------------------------------------
 
 def _in_bounce(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
-    """Elastic overshoot/undershoot/settle via \\fscx/\\fscy, ~450ms."""
+    """Elastic overshoot/undershoot/settle via \\fscx/\\fscy, ~450ms.
+
+    Every segment decelerates into its extreme (power 0.6 = ACCEL_SOFT_OUT), so
+    the scale eases into each peak/trough and settles softly onto the resting
+    size. Keyframe times and values are unchanged; only the curve is eased.
+    bounce_soft keeps its own mix (eased first/last, linear middle).
+    """
     target = round(target_scale_pct)
     over = round(target * 1.25)
     under = round(target * 0.92)
@@ -86,10 +92,10 @@ def _in_bounce(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[
     entry_from = round(target * 0.6)
     kfs = [
         (t0_ms, {"fscx": entry_from, "fscy": entry_from}, 1.0),
-        (t0_ms + 150, {"fscx": over, "fscy": over}, 1.0),
-        (t0_ms + 280, {"fscx": under, "fscy": under}, 1.0),
-        (t0_ms + 380, {"fscx": settle_over, "fscy": settle_over}, 1.0),
-        (end_ms, {"fscx": target, "fscy": target}, 1.0),
+        (t0_ms + 150, {"fscx": over, "fscy": over}, ACCEL_SOFT_OUT),
+        (t0_ms + 280, {"fscx": under, "fscy": under}, ACCEL_SOFT_OUT),
+        (t0_ms + 380, {"fscx": settle_over, "fscy": settle_over}, ACCEL_SOFT_OUT),
+        (end_ms, {"fscx": target, "fscy": target}, ACCEL_SOFT_OUT),
     ]
     return serialize_keyframes(kfs), end_ms, None
 
@@ -113,15 +119,19 @@ def _in_bounce_soft(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Opti
 
 
 def _in_pop(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
-    """Snappier one-bounce version of bounce -- single overshoot, ~200ms."""
+    """Snappier one-bounce version of bounce -- single overshoot, ~200ms.
+
+    Both segments ease out (ACCEL_SOFT_OUT): decelerate into the overshoot,
+    then settle softly onto the resting size. pop_soft snaps in instead.
+    """
     target = round(target_scale_pct)
     over = round(target * 1.18)
     entry_from = round(target * 0.55)
     end_ms = t0_ms + 200
     kfs = [
         (t0_ms, {"fscx": entry_from, "fscy": entry_from}, 1.0),
-        (t0_ms + 120, {"fscx": over, "fscy": over}, 1.0),
-        (end_ms, {"fscx": target, "fscy": target}, 1.0),
+        (t0_ms + 120, {"fscx": over, "fscy": over}, ACCEL_SOFT_OUT),
+        (end_ms, {"fscx": target, "fscy": target}, ACCEL_SOFT_OUT),
     ]
     return serialize_keyframes(kfs), end_ms, None
 
@@ -157,7 +167,7 @@ def _in_zoom(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[in
     tag = (
         f"\\fscx{entry_from}\\fscy{entry_from}\\alpha&HFF&"
         f"\\t({t0_ms},{t0_ms + 150},\\alpha&H00&)"
-        f"\\t({t0_ms},{end_ms},\\fscx{target}\\fscy{target})"
+        f"\\t({t0_ms},{end_ms},{ACCEL_SOFT_OUT},\\fscx{target}\\fscy{target})"
     )
     return tag, end_ms, None
 
@@ -210,16 +220,24 @@ def _in_elastic_bounce(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, O
     over2 = round(target * 1.08)
     under2 = round(target * 0.98)
     end_ms = t0_ms + 520
-    kfs = [
-        (t0_ms, {"fscx": entry_from, "fscy": entry_from, "alpha": "&HFF&"}, 1.0),
-        (t0_ms + 40, {"alpha": "&H00&"}, 1.0),
+    # Scale and alpha run on separate keyframe grids, so each gets its own chain:
+    # one shared list would start the first scale segment at the alpha keyframe
+    # (t0+40) and libass would hold the entry scale for 40 ms.
+    scale_head = f"\\fscx{entry_from}\\fscy{entry_from}"
+    scale_kfs = [
+        (t0_ms, {"fscx": entry_from, "fscy": entry_from}, 1.0),
         (t0_ms + 160, {"fscx": over1, "fscy": over1}, ACCEL_SOFT_OUT),
         (t0_ms + 290, {"fscx": under1, "fscy": under1}, 1.0),
         (t0_ms + 390, {"fscx": over2, "fscy": over2}, 1.0),
         (t0_ms + 460, {"fscx": under2, "fscy": under2}, 1.0),
         (end_ms, {"fscx": target, "fscy": target}, ACCEL_SOFT_OUT),
     ]
-    return serialize_keyframes(kfs), end_ms, None
+    alpha_kfs = [
+        (t0_ms, {"alpha": "&HFF&"}, 1.0),
+        (t0_ms + 40, {"alpha": "&H00&"}, 1.0),
+    ]
+    scale_chain = serialize_keyframes(scale_kfs).removeprefix(scale_head)
+    return scale_head + serialize_keyframes(alpha_kfs) + scale_chain, end_ms, None
 
 
 def _in_pop_zoom(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
@@ -308,8 +326,8 @@ def _loop_wave(start_ms: int, exit_start_ms: int) -> str:
 
 
 def _loop_shake(start_ms: int, exit_start_ms: int) -> str:
-    """Sharp jitter via \\frz, 90ms/step."""
-    return _chained_keyframes("frz", start_ms, exit_start_ms, 90, ["-3", "3", "-2", "2", "0"])
+    """Sharp jitter via \\frz, 100ms/step (3 whole frames at 30 fps)."""
+    return _chained_keyframes("frz", start_ms, exit_start_ms, 100, ["-3", "3", "-2", "2", "0"])
 
 
 def _loop_flicker(start_ms: int, exit_start_ms: int) -> str:
@@ -341,7 +359,8 @@ HOOK_LOOP_BUILDERS = {
 # ---- Out (exit) builders -------------------------------------------------
 
 def _out_fade(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
-    return f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)", None
+    # Exit eases in (ACCEL_SNAP_IN): holds near opaque, then accelerates away.
+    return f"\\t({exit_start_ms},{exit_end_ms},{ACCEL_SNAP_IN},\\alpha&HFF&)", None
 
 
 def _out_slide(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
@@ -351,13 +370,16 @@ def _out_slide(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) ->
 def _out_zoom(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
     target = round(target_scale_pct)
     grown = round(target * 1.4)
-    return f"\\t({exit_start_ms},{exit_end_ms},\\fscx{grown}\\fscy{grown}\\alpha&HFF&)", None
+    return f"\\t({exit_start_ms},{exit_end_ms},{ACCEL_SNAP_IN},\\fscx{grown}\\fscy{grown}\\alpha&HFF&)", None
+
+
+GLITCH_STEP_MS = 33  # one frame at 30 fps (33.3 ms, within 1 ms)
 
 
 def _out_glitch(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
-    """Quick \\frz jitter steps packed into the short exit window, then a hard cut."""
-    jitter = _chained_keyframes("frz", exit_start_ms, max(exit_start_ms + 1, exit_end_ms - 40), 40, ["-3", "3", "0"])
-    return f"{jitter}\\t({exit_end_ms - 40},{exit_end_ms},\\frz0\\alpha&HFF&)", None
+    """Quick \\frz jitter steps (one frame each) packed into the short exit window, then a hard cut."""
+    jitter = _chained_keyframes("frz", exit_start_ms, max(exit_start_ms + 1, exit_end_ms - GLITCH_STEP_MS), GLITCH_STEP_MS, ["-3", "3", "0"])
+    return f"{jitter}\\t({exit_end_ms - GLITCH_STEP_MS},{exit_end_ms},\\frz0\\alpha&HFF&)", None
 
 
 def _out_none(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:

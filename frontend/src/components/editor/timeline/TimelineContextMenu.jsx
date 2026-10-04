@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, Crop, FlipHorizontal2, Gauge, Scissors, Trash2 } from 'lucide-react';
+import { ClipboardCopy, ClipboardPaste, Copy, Crop, FlipHorizontal2, Gauge, Scissors, Trash2 } from 'lucide-react';
 
 export default function TimelineContextMenu({
   contextMenu,
@@ -10,6 +10,10 @@ export default function TimelineContextMenu({
   onAdjustTrim,
   onClipChange,
   onDelete,
+  selectedCount = 1, // clips in the multi-selection; Delete and Paste settings reach them all
+  onCopySettings,
+  onPasteSettings,
+  canPasteSettings = false, // true once a clip's settings have been copied
 }) {
   if (!contextMenu) return null;
 
@@ -23,7 +27,7 @@ export default function TimelineContextMenu({
       className="fixed z-50 min-w-[190px] rounded-xl border border-[#4A4742] bg-[#1E1D1A]/95 p-1.5 shadow-2xl backdrop-blur-md text-xs text-[#EDE9E3] animate-in fade-in zoom-in-95 duration-100"
       style={{
         left: Math.max(10, Math.min(typeof window !== 'undefined' ? window.innerWidth - 200 : 1000, contextMenu.x)),
-        top: Math.max(10, Math.min(typeof window !== 'undefined' ? window.innerHeight - 230 : 800, contextMenu.y)),
+        top: Math.max(10, Math.min(typeof window !== 'undefined' ? window.innerHeight - 300 : 800, contextMenu.y)),
       }}
     >
       <div className="px-2 py-1 font-mono text-[10px] font-semibold text-[#9C968F] border-b border-[#363430] truncate">
@@ -104,6 +108,47 @@ export default function TimelineContextMenu({
         ))}
       </div>
 
+      {(onCopySettings || onPasteSettings) && (
+        <>
+          <div className="my-1 border-t border-[#363430]" />
+          <div className="py-1 space-y-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                onCopySettings?.();
+                onClose?.();
+              }}
+              title="คัดลอกความเร็ว ซูม/แพน+คีย์เฟรมกล้อง สี และทรานซิชันของคลิปนี้"
+              className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[#2C2B27] transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <ClipboardCopy className="h-3.5 w-3.5" />
+                <span>คัดลอกการตั้งค่า</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-mono">Ctrl+Alt+C</span>
+            </button>
+            <button
+              type="button"
+              disabled={!canPasteSettings}
+              onClick={() => {
+                onPasteSettings?.();
+                onClose?.();
+              }}
+              title={canPasteSettings ? 'วางการตั้งค่าที่คัดลอกไว้ลงคลิปที่เลือก' : 'ยังไม่ได้คัดลอกการตั้งค่าจากคลิปไหน'}
+              className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg transition-colors ${
+                canPasteSettings ? 'hover:bg-[#2C2B27]' : 'cursor-not-allowed text-[#5A554F]'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <ClipboardPaste className="h-3.5 w-3.5" />
+                <span>{selectedCount > 1 ? `วางการตั้งค่าลง ${selectedCount} คลิป` : 'วางการตั้งค่า'}</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-mono">Ctrl+Alt+V</span>
+            </button>
+          </div>
+        </>
+      )}
+
       <div className="my-1 border-t border-[#363430]" />
       <button
         type="button"
@@ -115,7 +160,7 @@ export default function TimelineContextMenu({
       >
         <span className="flex items-center gap-2">
           <Trash2 className="h-3.5 w-3.5" />
-          <span>ลบคลิป</span>
+          <span>{selectedCount > 1 ? `ลบ ${selectedCount} คลิป` : 'ลบคลิป'}</span>
         </span>
         <span className="text-[10px] text-rose-400/60 font-mono">Del</span>
       </button>

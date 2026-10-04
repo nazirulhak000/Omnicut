@@ -150,6 +150,28 @@ test('scoped artifact becomes unready when a clip grows past its alpha video', (
   assert.equal(scopedArtifactCoversClip(config, { trim_start: 10, trim_end: 50 }), true);
 });
 
+test('edited or cleared project prompt reference makes old clip alpha stale in both scopes', () => {
+  for (const scope_mode of ['legacy_clip', 'behind_text_windows']) {
+    const config = { enabled: true, scope_mode, subject_points: [{ x: 0.2, y: 0.3, label: 1 }],
+      prompt_reference_source: 'first/clip.mp4', prompt_reference_start: 2,
+      artifact: { id: ARTIFACT_ID, status: 'ready' } };
+    const clip = { id: 'a', background_isolation: config };
+    const project = { ...config, active_clip_ids: ['a'] };
+    assert.equal(resolveBackgroundIsolationConfig(clip, project).artifact.id, ARTIFACT_ID);
+    for (const changed of [
+      { ...project, subject_points: [{ x: 0.7, y: 0.8, label: 1 }] },
+      { ...project, prompt_reference_source: 'second/clip.mp4' },
+      { ...project, prompt_reference_start: 3 },
+      { ...project, auto_prompt: false },
+      { enabled: true, scope_mode, active_clip_ids: ['a'] },
+    ]) assert.equal(resolveBackgroundIsolationConfig(clip, changed).artifact.status, 'stale');
+    assert.equal(resolveBackgroundIsolationConfig(clip, { ...project, enabled: false }).enabled, false);
+    if (scope_mode === 'behind_text_windows') {
+      assert.equal(resolveBackgroundIsolationConfig({ ...clip, id: 'inactive' }, project).enabled, false);
+    }
+  }
+});
+
 test('splits Hook overlays behind the isolated Subject while keeping captions foregrounded', () => {
   const result = splitBackgroundIsolationOverlays([
     { id: 'hook', kind: 'hook' },

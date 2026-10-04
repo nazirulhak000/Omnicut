@@ -53,13 +53,7 @@ class SourceResolutionStage:
             is_image_source = True
             image_files = [str(raw_video)]
         elif not raw_video or not raw_video.exists():
-            candidate_imgs = list((INBOX_DIR / "product_images").glob("**/*.*")) + list(INBOX_DIR.glob("*.*"))
-            valid_imgs = [str(f) for f in candidate_imgs if f.suffix.lower() in image_extensions]
-            if valid_imgs:
-                is_image_source = True
-                image_files = valid_imgs[:6]
-            else:
-                raise FileNotFoundError(f"ไม่พบไฟล์วิดีโอดิบหรือรูปสินค้า: '{raw_video_path}' กรุณาตรวจสอบตำแหน่งไฟล์")
+            raise FileNotFoundError(f"ไม่พบไฟล์วิดีโอดิบหรือรูปสินค้า: '{raw_video_path}' กรุณาตรวจสอบตำแหน่งไฟล์")
 
         if raw_video and raw_video.is_file() and not is_image_source:
             if raw_video.stat().st_size < 1024:

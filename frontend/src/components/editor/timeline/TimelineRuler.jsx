@@ -22,11 +22,15 @@ export default function TimelineRuler({
   onStartScrub,
   onMoveScrub,
   onEndScrub,
+  // { inTime, outTime } (seconds or null): the I / O marks of a range cut.
+  rangeMark = null,
 }) {
   // Frame ticks only exist when zoomed in far enough to tell frames apart; the
   // same condition switches the labels to mm:ss:ff so they agree with the toolbar.
   const framePx = frameTickSpacing(pxPerSec, FPS);
   const spanPx = ticks.length ? ticks[ticks.length - 1] * pxPerSec : 0;
+  const markIn = Number.isFinite(rangeMark?.inTime) ? rangeMark.inTime : null;
+  const markOut = Number.isFinite(rangeMark?.outTime) ? rangeMark.outTime : null;
 
   return (
     <div className="sticky top-0 z-20 flex bg-[#1C1B19]">
@@ -40,6 +44,33 @@ export default function TimelineRuler({
         style={{ height: rulerHeight }}
         title="คลิกหรือลากเพื่อเลื่อนหัวอ่าน"
       >
+        {/* In / Out of a range cut: a thin band behind the ticks, and a thin
+            edge line for a lone mark. Never a pointer target, so scrubbing
+            across it still works. */}
+        {markIn !== null && markOut !== null && markOut > markIn && (
+          <span
+            aria-hidden="true"
+            data-range-mark="band"
+            className="pointer-events-none absolute top-0 h-full border-x border-[#D97757] bg-[#D97757]/25"
+            style={{ left: markIn * pxPerSec, width: Math.max(2, (markOut - markIn) * pxPerSec) }}
+          />
+        )}
+        {markIn !== null && (markOut === null || markOut <= markIn) && (
+          <span
+            aria-hidden="true"
+            data-range-mark="in"
+            className="pointer-events-none absolute top-0 h-full w-0.5 bg-[#D97757]"
+            style={{ left: markIn * pxPerSec }}
+          />
+        )}
+        {markOut !== null && markIn === null && (
+          <span
+            aria-hidden="true"
+            data-range-mark="out"
+            className="pointer-events-none absolute top-0 h-full w-0.5 -translate-x-full bg-[#D97757]"
+            style={{ left: markOut * pxPerSec }}
+          />
+        )}
         {framePx !== null && (
           <>
             <span

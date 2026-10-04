@@ -25,6 +25,7 @@ STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 TASKS_FILE = STORAGE_DIR / "task_registry.json"
 
 _TASK_LOCK = threading.RLock()
+_GPU_SEMAPHORE = threading.BoundedSemaphore(1)
 _WORKER_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="capcut_worker")
 
 # Single well-known owner for the current single-user deployment. Every task
@@ -623,6 +624,11 @@ class TaskManager:
     def run_in_background(cls, fn: Callable, *args, **kwargs) -> None:
         """Submits a function to the background thread pool."""
         _WORKER_POOL.submit(fn, *args, **kwargs)
+
+    @classmethod
+    def gpu_lock(cls) -> threading.BoundedSemaphore:
+        """Returns the process-wide GPU semaphore to prevent overlapping heavy AI GPU tasks."""
+        return _GPU_SEMAPHORE
 
 
 # Initialize immediately on module import

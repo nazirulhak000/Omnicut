@@ -184,6 +184,16 @@ ASS ใช้ `Layer` เลขน้อยวาดก่อน (อยู่�
 | ลำดับเกรด | ก่อน sticker + ก่อน burn ซับ | `applyGrade` ก่อน `drawHookHeader` |
 | เสียงในคลิป | `volume=` + `adelay=clip_starts[i]` | bus `clip` + `wireClipAudio` |
 
+| จังหวะ/easing (EDITOR-CUT-QUALITY-R2) | ฝั่ง render | ฝั่งพรีวิว | เทสที่ผูกไว้ |
+|---|---|---|---|
+| easing ของ camera keyframe (`easing` ต่อจุด = เส้นโค้งของช่วงที่ **จบที่จุดนั้น**; ไม่มี = linear โปรเจกต์เก่าไม่เปลี่ยน; split ช่วงที่มี easing = อบ 12 ตัวอย่าง linear ต่อครึ่ง) | `camera_easing_name()` / `ease_camera_ratio()` / `_ffmpeg_keyframe_expression*` ใน `video_editor.py` | `CAMERA_EASINGS` / `interpolateKeyframes` / `splitKeyframesAt` ใน `timelineMath.js` | `test_eased_camera_keyframes_match_between_preview_resolver_and_ffmpeg_expression`, `test_camera_keyframes_without_easing_keep_the_old_linear_expression`, `test_split_inside_an_eased_camera_segment_stays_continuous` · `timelineMath.test.js` (camera easing / splitKeyframesAt) |
+| easing ข้อความ/Hook (bounce·pop·in-zoom accel 0.6 = `ACCEL_SOFT_OUT`, out fade/zoom accel 2.2 = `ACCEL_SNAP_IN` = `progress**accel` ของ libass; shake step 100 ms, glitch step 33 ms = เฟรมเต็ม) | `subtitle/motion_effects.py` + catalog `motion_contract.py` | `SequencePlayer.jsx` + catalog `lib/motion/motionPresets.js` | `test_text_motion_easing.py`, `test_motion_catalog_builder_tie.py`, `test_motion_effective_value_parity.py` · `textMotionEasing.test.js` |
+| easing ของ transition (`transition_easing` เฉพาะ fade/fadeblack/fadewhite/wipe×4/slide×4; dissolve/circleopen/circleclose คง linear เสมอ) | `transition_easing_name()` / `eased_xfade_custom_expr()` / `xfade_filter_args()` ใน `video_editor.py` | `EASED_TRANSITIONS` / `easeTransitionProgress` / `getDrawPlan` ใน `timelineMath.js` | `tests/test_transition_easing.py` (วัดจริงคลาด ≤ 1.05 px / ≤ 0.8 %) · `test_transition_easing_curves_are_the_same_in_the_preview_and_the_render` · `timelineFrameGrid.test.js` |
+| สติกเกอร์/effect เข้า-ออก (เข้า = alpha fade-in 7 เฟรม 0.233 s + สติกเกอร์เท่านั้น scale 0.88→1.0 ease_out; effect = alpha อย่างเดียว · ออก = alpha fade-out 6 เฟรม 0.2 s · ความยาว fade ไม่เกิน `floor(40% ของเวลาที่เห็น × 30)` เฟรม · เฟรมนิ่งต้องเหมือนเดิม bit ต่อ bit) | `overlay_anim_timing` / `overlay_anim_state` / `overlay_anim_filters` ใน `video_editor.py` | `overlayAnimTiming` / `overlayAnimState` ใน `lib/stickerAnimation.js` | `test_sticker_and_effect_entrance_exit_match_preview_math` · `stickerAnimation.test.js` |
+| กริดเฟรมสะสม (`boundary_k = round(cumsum_k × 30) / 30`; เฟรมรวม = `round(total × 30)`; ทุกคลิปมีอย่างน้อย 1 เฟรม; offset ของ transition = boundary − overlap เป็นเฟรมเต็ม) | `plan_sequence_frames()` ใน `video_editor.py` (`tpad`/`trim` ตามจำนวนเฟรม) | `buildSegments` / `planSequenceFrames` / `sequenceFrameIndex` ใน `timelineMath.js` | `tests/test_frame_grid_timing.py` (รวมเคส 12 คลิปต่อกัน) · `timelineFrameGrid.test.js` |
+
+> แก้ตัวเลข/สูตรในตารางนี้ข้างเดียว = พรีวิวโกหกเรื่อง**จังหวะ** (ไม่ใช่แค่ตำแหน่ง) — ต้องแก้คู่ + รันเทสที่ผูกไว้ + เรนเดอร์ ffmpeg ดูเฟรมจริงตามข้อ 3 เหมือนกัน
+
 ---
 
 ## 5. ข้อยกเว้นที่ยอมรับได้ (ต้องแจ้งผู้ใช้ตรงๆ ห้ามเงียบ)
@@ -191,6 +201,7 @@ ASS ใช้ `Layer` เลขน้อยวาดก่อน (อยู่�
 - **Soft shadow**: render ใช้ dialogue เบลอแยกชั้น / preview ใช้ `ctx.shadowBlur` — คนละกลไก
   ทำให้เท่ากันเป๊ะไม่ได้โดยไม่ทำให้ preview กระตุก **ตำแหน่ง/ขนาด/สีต้องตรง** ต่างได้แค่ความฟุ้ง
 - **ฟอนต์ fallback**: ถ้าเบราว์เซอร์ไม่มีฟอนต์เดียวกับที่ libass ใช้ ความกว้างจะต่างเล็กน้อย
+- **ตัวจัดรูปเวลา ASS ยังไม่เป็นฟังก์ชันเดียว (2026-10-04, ยังไม่แก้)**: มี 3 แบบ (truncate / round+clamp / `%05.2f`) — `%05.2f` อาจพิมพ์ `60.00` (บั๊กแฝง) — ถ้าแตะเวลาเริ่ม-จบของ event ให้เทสที่ขอบวินาทีด้วย และอย่าเพิ่มตัวจัดรูปแบบที่ 4
 
 พบข้อยกเว้นใหม่ = **เขียนเพิ่มในหัวข้อนี้ แล้วบอกผู้ใช้** ห้ามปล่อยผ่านเงียบๆ
 
@@ -211,7 +222,8 @@ SFX เป็น `AudioBufferSourceNode` ต่อจุด — เปลี่�
 
 ### 6.2 ⚠️ เวลา SFX ต้องคิดจาก **ชื่อไฟล์ที่ resolve แล้ว** ไม่ใช่ tag ใน cue
 
-render เช็ค `whoosh/swish/swoosh/transition` จาก `sfx_file.name` แล้วยิงก่อนรอยต่อ 0.12s
+render เช็ค `whoosh/swish/swoosh/transition` จาก `sfx_file.name` แล้วยิงก่อน **cue start** 0.12s (`pre_roll`)
+— ผูกกับต้น cue ไม่ได้ผูกกับขอบคลิปที่ตัดจริง; เมื่อภาพตัดช้ากว่าเสียง ≈167 ms จุดพีคจึงอยู่ ≈167 ms ก่อนภาพเปลี่ยน (ดู `j_cut_rules.md` §6)
 cue ที่ tag ว่า `boom` resolve เป็น `sfx_vine_boom.wav` — เช็คจาก tag จะได้ผลต่าง
 พรีวิวต้องได้ชื่อไฟล์ส่งมาด้วย (`name: entry.name`) และ **ปัดลงเป็นมิลลิวินาทีเต็ม**
 เหมือน `adelay` ที่รับแต่ int (`int(secs * 1000)`)
@@ -292,6 +304,7 @@ noise ทั้งภาพด้วย `Uint32Array` เขียนครั�
 
 ### ข้อยกเว้นด้าน transition
 
+- **easing ของ transition (2026-10-04)**: ใช้ได้เฉพาะ fade/fadeblack/fadewhite/wipe×4/slide×4 ผ่าน xfade custom expression (ดูตารางจังหวะ/easing ใน §4) — `dissolve`/`circleopen`/`circleclose` ยัง linear เสมอ ยังไม่รองรับ easing; นโยบายสไตล์ห้ามตั้ง easing บน `fadeblack`/`fadewhite` เพราะเรนเดอร์ช้าลง +8–13 วินาทีต่อ transition ที่ 1080x1920
 - **`dissolve` pattern (2026-10-03, Codex GPT-6)**: preview now mirrors the float32 `frand()` algorithm from [FFmpeg vf_xfade.c](https://raw.githubusercontent.com/FFmpeg/FFmpeg/master/libavfilter/vf_xfade.c), sampled at export pixel coordinates. The backing mask follows 540p/1080p mode. Actual 1080p monochrome mask normalized MAE measured 0.00000724 against installed FFmpeg; colored pixel comparison must account for export YUV420 chroma subsampling. Cut/circle comparisons remain RGB; dissolve Canvas is converted through the same YUV420 format before comparing. This is a color-format limitation, not permission to ignore geometry or transition timing.
 - **`fadeblack`/`fadewhite` easing**: รูปโค้งไม่ใช่ smoothstep แท้ ผิดสูงสุด **0.067 น้ำหนัก**
   (≈17/255) ช่วงกลางที่เป็นสีคั่นล้วนตรงอยู่แล้ว

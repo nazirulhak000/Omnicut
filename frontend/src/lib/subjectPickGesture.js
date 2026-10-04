@@ -8,10 +8,10 @@ import { subjectPointFromFramePointer } from './subjectPoints.js';
  * the result stays correct under any preview resize, zoom or letterbox.
  * Returns null when the frame has no size.
  */
-export function subjectPointFromPickClick(event, rect) {
+export function subjectPointFromPickClick(event, rect, defaultLabel = 1) {
   const point = subjectPointFromFramePointer(event, rect);
   if (!point) return null;
-  return { ...point, label: event?.shiftKey || event?.altKey ? 0 : 1 };
+  return { ...point, label: event?.shiftKey || event?.altKey ? 0 : defaultLabel };
 }
 
 /**

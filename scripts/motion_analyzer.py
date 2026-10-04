@@ -11,6 +11,9 @@ GeminiVisionMatcher and BeatSync.
 """
 import hashlib
 import json
+import math
+import os
+import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -22,6 +25,23 @@ ANALYSIS_WIDTH = 160
 ANALYSIS_HEIGHT = 284
 SMOOTH_WINDOW = 3
 MAX_FRAMES_SAFETY = 30 * 60 * 60  # ~1h at 30fps -- a raw TikTok source never gets close
+
+
+def _valid_motion_entry(value) -> bool:
+    if not isinstance(value, dict):
+        return False
+    times, scores = value.get("times"), value.get("scores")
+    if not isinstance(times, list) or not isinstance(scores, list) or len(times) != len(scores):
+        return False
+    return all(
+        isinstance(item, (int, float)) and not isinstance(item, bool)
+        and math.isfinite(item) and item >= 0
+        for item in times
+    ) and all(
+        isinstance(item, (int, float)) and not isinstance(item, bool)
+        and math.isfinite(item) and 0 <= item <= 1
+        for item in scores
+    )
 
 
 class MotionAnalyzer:
@@ -42,18 +62,33 @@ class MotionAnalyzer:
     def _load_cache(cls) -> Dict[str, dict]:
         if MOTION_CACHE_FILE.exists():
             try:
-                return json.loads(MOTION_CACHE_FILE.read_text(encoding="utf-8"))
+                cache = json.loads(MOTION_CACHE_FILE.read_text(encoding="utf-8"))
+                return cache if isinstance(cache, dict) else {}
             except Exception:
                 return {}
         return {}
 
     @classmethod
     def _save_cache(cls, cache: Dict[str, dict]) -> None:
+        tmp_path = None
         try:
             MOTION_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            MOTION_CACHE_FILE.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+            payload = json.dumps(cache, ensure_ascii=False, indent=2)
+            fd, tmp_path = tempfile.mkstemp(
+                prefix=MOTION_CACHE_FILE.name + ".", suffix=".tmp", dir=str(MOTION_CACHE_FILE.parent)
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(payload)
+            os.replace(tmp_path, MOTION_CACHE_FILE)
+            tmp_path = None
         except Exception:
             pass
+        finally:
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
     @classmethod
     def get_motion_scores(cls, raw_video_path: Optional[Path]) -> Tuple[List[float], List[float]]:
@@ -78,7 +113,7 @@ class MotionAnalyzer:
 
         cache = cls._load_cache()
         cached = cache.get(key)
-        if cached is not None:
+        if _valid_motion_entry(cached):
             return cached.get("times", []), cached.get("scores", [])
 
         try:

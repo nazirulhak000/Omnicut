@@ -7,12 +7,14 @@ contract id) to use this module.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 
 from scripts.subtitle.motion_contract import (
     MOTION_CONTRACT_VERSION,
     MotionContractError,
+    _easing_progress,
     get_motion_preset,
     validate_motion_contract,
 )
@@ -72,14 +74,19 @@ class AssMotionPlan:
         }
 
 
+# ASS ``\t(t1,t2,accel,tags)`` eases with progress = t ** accel, so only these contract
+# easings have an exact single-accel equivalent (ease_in is t*t).  Everything else
+# (ease_out = t*(2-t), ease_in_out, sine_in_out, spring, step) is baked into
+# piecewise-linear ``\t`` segments sampled from the contract's own easing function.
 _ASS_ACCELERATION = {
     "linear": None,
     "ease_in": 2.0,
-    "ease_out": 0.5,
-    "ease_in_out": None,
-    "sine_in_out": None,
-    "spring": None,
-    "step": None,
+}
+
+_BAKED_EASING_STEPS = {
+    "ease_out": 8,      # quadratic: piecewise-linear error <= 1 / (4 * 8**2) ~ 0.4%
+    "ease_in_out": 8,
+    "sine_in_out": 8,
 }
 
 
@@ -123,19 +130,65 @@ def _tag_for_value(
     raise MotionAssAdapterError(f"track {track} has no direct ASS value tag")
 
 
+def _easing_name(easing: Any) -> str:
+    return easing if isinstance(easing, str) else (easing or {}).get("name", "linear")
+
+
 def _easing_acceleration(easing: Any) -> Optional[float]:
-    name = easing if isinstance(easing, str) else (easing or {}).get("name", "linear")
+    name = _easing_name(easing)
     if name == "power" and isinstance(easing, Mapping):
         exponent = _number(easing.get("exponent", 1), "power exponent")
         return exponent if exponent > 0 else None
     return _ASS_ACCELERATION.get(name)
 
 
-def _transition(start_ms: int, end_ms: int, easing: Any, tags: str) -> str:
+def _baked_step_count(easing: Any) -> int:
+    """Sub-segments needed to bake ``easing``; 0 when a plain/accel ``\\t`` is exact."""
+    name = _easing_name(easing)
+    if name == "spring":
+        spec = easing if isinstance(easing, Mapping) else {}
+        mass = _number(spec.get("mass", 1) or 1, "spring mass")
+        stiffness = _number(spec.get("stiffness", 100) or 100, "spring stiffness")
+        cycles = math.sqrt(stiffness / mass) / (2 * math.pi)
+        return max(12, min(48, int(math.ceil(cycles * 12))))  # ~12 samples per oscillation
+    return _BAKED_EASING_STEPS.get(name, 0)
+
+
+def _transition(
+    start_ms: int,
+    end_ms: int,
+    easing: Any,
+    track: str,
+    from_value: Any,
+    to_value: Any,
+    *,
+    scale_base: float,
+    canvas_px_scale: float,
+) -> str:
+    def tags_for(value: Any) -> str:
+        return _tag_for_value(track, value, scale_base=scale_base, canvas_px_scale=canvas_px_scale)
+
+    if _easing_name(easing) == "step":
+        # Contract: hold the start value, jump on the last tick of the segment.
+        return f"\\t({max(start_ms, end_ms - 1)},{end_ms},{tags_for(to_value)})"
+
+    steps = _baked_step_count(easing)
+    if steps and end_ms - start_ms > 1:
+        span = end_ms - start_ms
+        start_number = _number(from_value, f"{track} value")
+        delta = _number(to_value, f"{track} value") - start_number
+        bounds = sorted({start_ms + int(round(span * index / steps)) for index in range(steps + 1)})
+        parts = []
+        for left, right in zip(bounds, bounds[1:]):
+            # The segment must land exactly on its keyframe (spring(1) overshoots).
+            progress = 1.0 if right == end_ms else _easing_progress(easing, (right - start_ms) / span)
+            parts.append(f"\\t({left},{right},{tags_for(start_number + delta * progress)})")
+        return "".join(parts)
+
     acceleration = _easing_acceleration(easing)
     if acceleration is None:
-        return f"\\t({start_ms},{end_ms},{tags})"
-    return f"\\t({start_ms},{end_ms},{acceleration:g},{tags})"
+        return f"\\t({start_ms},{end_ms},{tags_for(to_value)})"
+    return f"\\t({start_ms},{end_ms},{acceleration:g},{tags_for(to_value)})"
 
 
 def _keyframe_segments(
@@ -170,12 +223,11 @@ def _keyframe_segments(
                     segment_start,
                     segment_end,
                     right.get("easing", "linear"),
-                    _tag_for_value(
-                        track_name,
-                        right["value"],
-                        scale_base=scale_base,
-                        canvas_px_scale=canvas_px_scale,
-                    ),
+                    track_name,
+                    left["value"],
+                    right["value"],
+                    scale_base=scale_base,
+                    canvas_px_scale=canvas_px_scale,
                 )
             ),
         )
@@ -213,12 +265,11 @@ def _repeat_segments(
                             cursor,
                             cycle_end,
                             last.get("easing", "linear"),
-                            _tag_for_value(
-                                track_name,
-                                last["value"],
-                                scale_base=scale_base,
-                                canvas_px_scale=canvas_px_scale,
-                            ),
+                            track_name,
+                            first["value"],
+                            last["value"],
+                            scale_base=scale_base,
+                            canvas_px_scale=canvas_px_scale,
                         )
                     ),
                 )

@@ -258,6 +258,20 @@ def test_ready_rgba_sequence_is_composited_per_clip_before_concat(monkeypatch, t
     assert sources[0].read_bytes() == b"source-must-not-be-mutated\x00"
 
 
+def test_ready_cutout_with_worker_rounded_prompt_reaches_render_graph(monkeypatch, tmp_path):
+    config, artifact_id, _ = _make_sequence(monkeypatch, tmp_path)
+    config = {**config, "prompt_reference_source": "source.mp4", "prompt_reference_start": 0,
+              "subject_points": [{"x": 0.34444, "y": 0.45237, "label": 1}]}
+    project = {**config, "subject_points": [
+        {"x": 0.3444365394719402, "y": 0.4523699183852115, "label": 1}]}
+    command, _ = _assemble(monkeypatch, tmp_path, clip_list=[{
+        "source_path": str(tmp_path / "source.mp4"), "trim_start": 0, "trim_end": 2,
+        "background_isolation": config,
+    }], background_isolation=project)
+    assert artifact_id in " ".join(command)
+    assert "alphamerge" in _filter(command)
+
+
 def test_windowed_rgba_sequence_starts_from_artifact_local_frame_zero(monkeypatch, tmp_path):
     config, _, _ = _make_sequence(
         monkeypatch,

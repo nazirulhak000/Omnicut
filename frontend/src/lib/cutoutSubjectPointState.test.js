@@ -18,6 +18,29 @@ const ready = () => ({
   artifact: { schema_version: 1, id: 'abc', status: 'ready' },
 });
 
+test('reference source/time persists, changes reset old coordinates, and clear drops metadata', () => {
+  const ref = { sourcePath: 'a/clip.mp4', sourceStart: 2 };
+  const first = addSubjectPointToConfig(ready(), { x: 0.2, y: 0.3 }, { reference: ref });
+  const second = addSubjectPointToConfig(first, { x: 0.6, y: 0.7 }, { reference: ref });
+  assert.equal(second.subject_points.length, 2);
+  const switched = addSubjectPointToConfig(second, { x: 0.2, y: 0.3 },
+    { reference: { sourcePath: 'b/clip.mp4', sourceStart: 2 } });
+  assert.equal(switched.subject_points.length, 1);
+  assert.equal(switched.prompt_reference_source, 'b/clip.mp4');
+  assert.equal(normalizeBackgroundIsolation(switched).prompt_reference_start, 2);
+  assert.equal(buildPrepareBaseConfig(switched, 'reference-job').prompt_reference_source, 'b/clip.mp4');
+  const cleared = clearSubjectPointsOnConfig(switched);
+  assert.equal(Object.hasOwn(cleared, 'prompt_reference_source'), false);
+  assert.equal(Object.hasOwn(cleared, 'prompt_reference_start'), false);
+});
+
+test('invalid source/time metadata fails closed in saved configs', () => {
+  for (const prompt_reference_start of [NaN, Infinity, -1, true]) {
+    assert.equal(normalizeBackgroundIsolation({ ...ready(), prompt_reference_start }), null);
+  }
+  assert.equal(normalizeBackgroundIsolation({ ...ready(), prompt_reference_source: 'clip.mp4' }), null);
+});
+
 test('a new point appends and marks a ready artifact stale', () => {
   const next = addSubjectPointToConfig(ready(), { x: 0.4, y: 0.5, label: 1 });
   assert.deepEqual(next.subject_points, [{ x: 0.4, y: 0.5, label: 1 }]);

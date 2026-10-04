@@ -18,7 +18,6 @@ from playwright.sync_api import sync_playwright
 from scripts.video_editor import VideoEditor
 from tests.motion_capture.ass_fixture import compare_frames
 from tests.motion_capture.capture import temp_capture_dir
-from tests.motion_capture.clip_pair import _render_frames
 from tests.motion_capture.frame_pair import _composite_canvas_frame
 from tests.motion_capture.overlay_pair import create_empty_ass, vite_fs_url
 
@@ -47,6 +46,26 @@ def _serve_video(route, path: Path):
                   headers={"Accept-Ranges": "bytes", "Content-Range": f"bytes {start}-{end}/{len(payload)}"})
 
 
+def _nearest_export_frames(video: Path, output_dir: Path, sample_times: tuple[float, ...]) -> list[Path]:
+    """Compare continuous live paint times with the nearest 30 FPS export PTS.
+
+    Output-side -ss selects the next frame, which can shift a circle ramp by
+    almost a full frame. Selecting n avoids both that bias and decimal PTS
+    rounding across a frame boundary. The pixel acceptance threshold stays fixed.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    frames = []
+    for index, timestamp in enumerate(sample_times):
+        frame_index = round(timestamp * 30)
+        assert abs(timestamp - frame_index / 30) <= 1 / 60 + 1e-9
+        frame = output_dir / f"rendered_{index:02d}.png"
+        subprocess.run([shutil.which("ffmpeg") or "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            "-i", str(video), "-vf", f"select=eq(n\\,{frame_index}),scale=1080:1920:flags=lanczos",
+            "-frames:v", "1", "-pix_fmt", "rgb24", str(frame)], check=True, capture_output=True)
+        frames.append(frame)
+    return frames
+
+
 @pytest.mark.parametrize("transition", ["cut", "circleopen", "dissolve"])
 def test_master1080_stays_sharp_while_playing_and_matches_render(motion_fixture_url, monkeypatch, transition):
     monkeypatch.setenv("OMNICUT_ENCODER", "cpu")
@@ -63,7 +82,7 @@ def test_master1080_stays_sharp_while_playing_and_matches_render(motion_fixture_
              "transition_duration": 0.5, "mirror": True},
         ]
         query = urlencode({
-            "mode": "clips", "duration": 4.4, "previewQuality": "master1080",
+            "mode": "clips", "duration": 4.4, "previewQuality": "master1080", "playbackProbe": 1,
             "clip": vite_fs_url(base_url, sources[0]), "clip2": vite_fs_url(base_url, sources[1]),
             "clipConfig": json.dumps(configs[0]), "clip2Config": json.dumps(configs[1]),
         })
@@ -97,6 +116,11 @@ def test_master1080_stays_sharp_while_playing_and_matches_render(motion_fixture_
                         return true;
                     }""", arg=target)
                     result = page.evaluate("window.highPreviewSample")
+                    print("PLAYING_SAMPLE " + json.dumps({"transition": transition, "time": result["time"],
+                        "nearest_export_frame": round(result["time"] * 30),
+                        "reference_pts": round(result["time"] * 30) / 30,
+                        "sources": [{key: item[key] for key in ("w", "h", "time", "seeking")}
+                                    for item in result["source"]]}))
                     if target == 1.95 and transition != "cut":
                         assert 1.7 <= result["time"] < 2.2, "sample must exercise the real transition overlap"
                     assert result["playing"] == "true", "sample must be taken during real playback"
@@ -135,7 +159,7 @@ def test_master1080_stays_sharp_while_playing_and_matches_render(motion_fixture_
             transitions=[{"type": transition, "duration": 0.5}],
             export_preset="post",
         )
-        rendered = _render_frames(output, root / "rendered", tuple(t for t, _ in captures), size=(1080, 1920))
+        rendered = _nearest_export_frames(output, root / "rendered", tuple(t for t, _ in captures))
         for (timestamp, capture), reference in zip(captures, rendered):
             live_rgb = capture.with_name(capture.stem + "_rgb.png")
             _composite_canvas_frame(capture, live_rgb, "0x000000")
@@ -232,7 +256,7 @@ def test_high_resolution_playback_performance_probe(motion_fixture_url):
                             }
                         });
                     })()""")
-                    query = urlencode({"mode": "clips", "duration": 4.4, "previewQuality": quality,
+                    query = urlencode({"mode": "clips", "duration": 4.4, "previewQuality": quality, "playbackProbe": 1,
                                        "clip": vite_fs_url(base_url, sources[0]), "clip2": vite_fs_url(base_url, sources[1]),
                                        "clipConfig": json.dumps({"trim_end": 2.2}),
                                        "clip2Config": json.dumps({"trim_end": 2.2, "transition_in": "circleopen", "transition_duration": .5})})

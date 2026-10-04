@@ -1,6 +1,6 @@
 # OmniCut Pro Studio Architecture
 
-เอกสารนี้อธิบายโครงสร้างสถาปัตยกรรมที่ใช้งานจริง ณ วันที่ 2026-09-24 (ปรับปรุงล่าสุด) หากสถานะงานหรือผลทดสอบต่างจากเอกสารนี้ ให้ยึด [TODO.md](TODO.md) และโค้ดปัจจุบันเป็นหลัก
+เอกสารนี้อธิบายโครงสร้างสถาปัตยกรรมที่ใช้งานจริง ณ วันที่ 2026-10-04 (ปรับปรุงล่าสุด) หากสถานะงานหรือผลทดสอบต่างจากเอกสารนี้ ให้ยึด [TODO.md](TODO.md) และโค้ดปัจจุบันเป็นหลัก
 
 ## ภาพรวมระบบ
 
@@ -93,6 +93,12 @@ Cutout รุ่นใหม่ใช้ `scripts/background_isolation_video_wor
 
 Reroll ใช้ stage เดียวกับ Full Render ผ่าน `resume_from` จึงต้องรักษา `ProjectManifest.should_run()` และ artifact reuse contract ห้ามสร้าง branch ประมวลผลสำรองอีกชุด
 
+จังหวะตัดและกริดเฟรม (EDITOR-CUT-QUALITY-R2, 2026-10-04):
+- **จังหวะตัดรายสไตล์** — `ShotMatchingStage` อ่าน `min_shot`/`max_shot`/`j_lead`/`beat_snap_tolerance` จาก `StyleMotionPolicy` (`scripts/style_motion_policy.py`); จุดตัดแรก = `0.0`, snap ตามลำดับ beat > motion > voice-valley > rhythm, ค้างภาพจนจบประโยคเมื่อถึงภายใน `max_shot` (ตารางค่าอยู่ใน `_Docs/GADGET_VIDEO_PRODUCTION_SOP.md` Phase 5, วัดผลจริงใน `.agents/rules/j_cut_rules.md` §6)
+- **กริดเฟรมเดียวกันทั้งสองฝั่ง** — จุดตัดสะสมที่ 1/30 s (`boundary_k = round(cumsum_k × 30) / 30`, เฟรมรวม = `round(total × 30)`) ใน `video_editor.py plan_sequence_frames` และ `timelineMath.js buildSegments`/`planSequenceFrames`; transition วางกึ่งกลางจุดตัด
+- **สัญญา easing** — camera keyframe มี `easing` ต่อจุด (ไม่มี = linear), transition มี `transition_easing` เฉพาะ fade/wipe/slide, ข้อความใช้ accel 0.6/2.2 ตาม `motion_contract.py` / `motionPresets.js`, สติกเกอร์/effect เข้า 7 เฟรม ออก 6 เฟรม (`overlay_anim_*` ↔ `stickerAnimation.js`) — ทั้งหมดผูกกับเทส parity ตามตารางใน `.agents/rules/preview_render_parity.md` §4
+- **ขีดจำกัดที่ยังค้าง** — เรนเดอร์ 100 คลิปเกินคำสั่ง Windows 32,767 ตัวอักษร (45,389; แก้ด้วย `-filter_complex_script`) · ripple ข้าม cue/overlay ยังไม่ทำ เพราะเสียงพากย์เป็น TTS stem เดียว (ขยับ cue โดยไม่ตัดเสียงจะเพี้ยน)
+
 ## Editor State & Save Queue
 
 `frontend/src/components/editor/EditorShell.jsx` เป็น composition shell งาน state และคำสั่งสำคัญแยกออกเป็นโมดูลเฉพาะทาง:
@@ -115,7 +121,8 @@ Manual Save และ Autosave ต้องเรียก serializer เดี�
 `frontend/src/lib/timelineSchema.js` กำหนด Timeline Document v2 พร้อม in-memory migration จาก manifest รุ่นเก่า โดยยังไม่เขียนทับไฟล์เก่าจนผู้ใช้บันทึก
 
 - `timelineMath.js` จัดการเวลา, trim, split, transition, magnetic snap และ ripple math
-- `useEditorShortcuts.js` ควบคุมคีย์ลัดด่วน (Spacebar, S ตัดคลิป, N สลับ Snap, M สลับโหมด Cutout Mask, J/K/L, Ctrl+Z/Y, Ctrl+S)
+- `useEditorShortcuts.js` ควบคุมคีย์ลัดด่วน (Spacebar, S ตัดคลิป, N สลับ Snap, M สลับโหมด Cutout Mask, J/K/L, Ctrl+Z/Y, Ctrl+S) และชุดตัดต่อแบบ CapCut: Q/W ตัดหัว/ท้ายคลิปถึง playhead, ↑/↓ ไปจุดตัดก่อนหน้า/ถัดไป, Home/End, Ctrl/Cmd+คลิกสลับเลือก · Shift+คลิกเลือกช่วง · Esc ล้างการเลือก (multi-select; Delete ลบทั้งหมดใน undo ก้าวเดียว), Ctrl+Alt+C / Ctrl+Alt+V คัดลอก-วางค่าคลิป (+ เมนูคลิกขวา) — ↑/↓ ไม่ย้ายลำดับคลิปแล้ว ใช้ `[` และ `]` แทน
+- Timeline UX เพิ่มเติม: แสดงเฟรมขอบขณะลาก trim handle, scrub snap (กด Shift เพื่อข้าม), handle trim ตอน hover, filmstrip บนคลิป (โหลดแบบ lazy), ซูมต่อเนื่องยึดตำแหน่งเคอร์เซอร์ (preset 10–800 px/s)
 - `SequencePlayer.jsx` เรนเดอร์ Canvas 2D พร้อม Smart Center Crosshair Guides (`🎯 กึ่งกลางจอ 50%`) และ Cutout Mask Inspection 3 โหมด (ปกติ / หมากรุก / ขาวดำ)
 - `timelineTrackModel.js` จัดการ track layout และ audio/video/overlay track state
 - `keyframeModel.js` และ `scripts/keyframe_engine.py` ต้องรักษาสูตร interpolation ให้ตรงกัน

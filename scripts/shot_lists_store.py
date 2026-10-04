@@ -63,8 +63,19 @@ class ShotListsStore:
             return None
         # No batch specified: return the legacy (no-batch) row if it exists
         row_id = f"{product_id}:{angle_id}"
-        for record in _TABLE.load():
+        records = _TABLE.load()
+        for record in records:
             if record.get("id") == row_id:
+                return record
+        # The real voice-timed builder writes explicit batch 1 even for an
+        # unsuffixed default angle. Legacy rows still take priority; another
+        # batch must never be substituted into a default filming session.
+        for record in records:
+            if (
+                record.get("product_id") == product_id
+                and record.get("angle_id") == angle_id
+                and record.get("batch") == 1
+            ):
                 return record
         return None
 

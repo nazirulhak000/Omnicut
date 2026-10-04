@@ -28,6 +28,82 @@ def _every_boundary_is_a_cut(items) -> bool:
     return True
 
 
+def _centre_transition_overlaps(clips: List[dict], transitions) -> None:
+    """Give each planned transition its overlap, centred on the planned cut.
+
+    VideoEditor (and the preview) start a transition ``duration`` before the
+    end of the outgoing clip and run it to that end. Extending only the
+    outgoing clip by the whole overlap therefore put the transition entirely
+    AFTER the planned cut: its visual midpoint landed duration/2 late (175 ms
+    for a 0.35 s wipe, on top of the J-lead -- audit A7d). Splitting the
+    overlap puts the midpoint on the cut, where the J-lead wants the picture
+    to change, without touching how the renderer applies xfade offsets:
+
+    * outgoing clip: +overlap/2 at its tail (footage continues past the cut);
+    * incoming clip: +overlap/2 at its head (``trim_start`` moves back, so the
+      frame planned for the cut instant is still the one shown there); when
+      the source has less than that before ``trim_start``, the rest is added
+      to the incoming clip's tail instead.
+
+    Every clip still gains exactly the overlaps of its boundaries, so every
+    later cut and the total length are unchanged. Applied once per boundary
+    (``_overlap_compensated`` on the outgoing clip marks it).
+    """
+    for i, boundary in enumerate(transitions[: len(clips) - 1]):
+        kind = boundary.get("type") if isinstance(boundary, dict) else str(boundary)
+        if not kind or kind == "cut":
+            continue
+        overlap = float(boundary.get("duration") or 0.0) if isinstance(boundary, dict) else 0.0
+        if overlap <= 0:
+            continue
+        outgoing, incoming = clips[i], clips[i + 1]
+        if outgoing.get("_overlap_compensated"):
+            continue
+        tail = round(overlap / 2.0, 4)
+        head_total = round(overlap - tail, 4)
+
+        # In both frontend SequencePlayer and FFmpeg, played duration =
+        # (trim_end - trim_start) / speed, so a played extension of x needs
+        # x * speed more source footage.
+        out_speed = float(outgoing.get("speed") or 1.0)
+        outgoing["duration"] = round(float(outgoing.get("duration") or 0.0) + tail, 3)
+        if outgoing.get("trim_end") is not None:
+            outgoing["trim_end"] = round(float(outgoing["trim_end"]) + tail * out_speed, 3)
+        outgoing["_overlap_compensated"] = True
+
+        in_speed = float(incoming.get("speed") or 1.0)
+        head = 0.0
+        if incoming.get("trim_start") is not None:
+            head = min(head_total, max(0.0, float(incoming["trim_start"])) / in_speed)
+            incoming["trim_start"] = round(float(incoming["trim_start"]) - head * in_speed, 3)
+        incoming["duration"] = round(float(incoming.get("duration") or 0.0) + head_total, 3)
+        if incoming.get("trim_end") is not None and head_total - head > 1e-9:
+            incoming["trim_end"] = round(float(incoming["trim_end"]) + (head_total - head) * in_speed, 3)
+
+
+def _fill_undecided_transitions(clips: List[dict], style_preset: Optional[str]) -> List[dict]:
+    """Pick a boundary effect for every boundary of an all-cut clip list.
+
+    All-cut means "nothing decided yet" (the editor always sends its own
+    all-cut default), so the boundaries are filled -- but through the same
+    style budget the shot planner uses (audit A7c): a style that keeps a
+    boundary as a hard cut keeps it here too, instead of every boundary
+    becoming a wipe. Slides follow the outgoing clip's camera pan.
+    """
+    from scripts.pipeline import choose_transition
+    from scripts.style_motion_policy import apply_transition_budget, orient_slide_to_pan
+
+    transitions: List[dict] = []
+    previous_type = None
+    for i in range(max(0, len(clips) - 1)):
+        pick = choose_transition(clips[i].get("zoom"), clips[i + 1].get("zoom"), i, previous_type)
+        pick = apply_transition_budget(pick, style_preset=style_preset, boundary_index=i + 1)
+        pick = orient_slide_to_pan(pick, clips[i].get("keyframes"))
+        previous_type = pick["type"]
+        transitions.append(pick)
+    return transitions
+
+
 class VideoAssemblyStage:
     """Applies transitions, resolves LUTs, renders MP4 via VideoEditor, and saves manifest."""
 
@@ -38,28 +114,18 @@ class VideoAssemblyStage:
         background_isolation = ctx.resolve_background_isolation_contract()
         actual_clip_list = ctx.actual_clip_list
         transitions = ctx.transitions
-        from scripts.pipeline import choose_transition
 
         boundary_count = max(0, len(actual_clip_list or []) - 1)
         if boundary_count and _every_boundary_is_a_cut(transitions):
-            transitions = []
-            previous_type = None
-            for i in range(boundary_count):
-                pick = choose_transition(
-                    actual_clip_list[i].get("zoom") if actual_clip_list else 1.0,
-                    actual_clip_list[i + 1].get("zoom") if actual_clip_list else 1.0,
-                    i,
-                    previous_type,
-                )
-                previous_type = pick["type"]
-                transitions.append(pick)
+            transitions = _fill_undecided_transitions(actual_clip_list, ctx.style_preset)
             if actual_clip_list:
                 for i, clip in enumerate(actual_clip_list):
                     if i == 0:
                         continue
                     clip["transition_in"] = transitions[i - 1]["type"]
                     clip["transition_duration"] = transitions[i - 1]["duration"]
-            print(f"   ✨ ใส่รอยต่อให้อัตโนมัติ {boundary_count} จุด (ไม่มีรอยต่อเดิมให้ยึด)")
+            filled = sum(1 for t in transitions if t.get("type") != "cut")
+            print(f"   ✨ ใส่รอยต่อให้อัตโนมัติ {filled}/{boundary_count} จุดตามสไตล์ (ไม่มีรอยต่อเดิมให้ยึด)")
 
         # A transition overlaps its two clips, so the finished video is
         # shorter than the clips add up to -- by the sum of every transition.
@@ -68,23 +134,7 @@ class VideoAssemblyStage:
         # Existing or editor-provided clips must NEVER be inflated repeatedly.
         is_newly_generated = getattr(ctx, "is_newly_generated_clips", False)
         if is_newly_generated and transitions and actual_clip_list and len(actual_clip_list) > 1:
-            for i, boundary in enumerate(transitions[: len(actual_clip_list) - 1]):
-                kind = boundary.get("type") if isinstance(boundary, dict) else str(boundary)
-                if not kind or kind == "cut":
-                    continue
-                overlap = float(boundary.get("duration") or 0.0) if isinstance(boundary, dict) else 0.0
-                if overlap <= 0:
-                    continue
-                clip = actual_clip_list[i]
-                if clip.get("_overlap_compensated"):
-                    continue
-                clip["duration"] = round(float(clip.get("duration") or 0.0) + overlap, 3)
-                speed = float(clip.get("speed") or 1.0)
-                if clip.get("trim_end") is not None:
-                    # In both frontend SequencePlayer and FFmpeg, played duration = (trim_end - trim_start) / speed.
-                    # To increase played duration by overlap, the source footage span must increase by (overlap * speed).
-                    clip["trim_end"] = round(float(clip["trim_end"]) + (overlap * speed), 3)
-                clip["_overlap_compensated"] = True
+            _centre_transition_overlaps(actual_clip_list, transitions)
 
             # Reconcile final timeline duration with ctx.total_duration to eliminate any micro gap
             if ctx.total_duration and ctx.total_duration > 0:
@@ -151,9 +201,24 @@ class VideoAssemblyStage:
             # The clip bus is mixed inside VideoEditor, after the voice/BGM/SFX
             # stage. Preserve the saved slider values and mute only the copy
             # passed to this render.
-            render_clip_list = actual_clip_list
-            if actual_clip_list and (ctx.audio_mutes or {}).get("clip"):
-                render_clip_list = [{**clip, "volume": 0.0} for clip in actual_clip_list]
+            # Opt-in auto color matching
+            enable_color_match = getattr(ctx, "enable_color_match", False) or (
+                (ctx.manifest.get("render_params") or {}).get("enable_color_match", False) if ctx.manifest else False
+            )
+            color_matched_clips = actual_clip_list
+            if enable_color_match and actual_clip_list and len(actual_clip_list) > 1:
+                try:
+                    from scripts.color_match import plan_color_match, apply_corrections
+                    plan = plan_color_match(actual_clip_list)
+                    if plan.get("corrections"):
+                        color_matched_clips = apply_corrections(actual_clip_list, plan["corrections"])
+                        print(f"   🎨 Auto Color Match: ปรับสีและแสงเทียบ Anchor สำเร็จ {len(plan['corrections'])} คลิป")
+                except Exception as e:
+                    print(f"   ⚠️ Auto Color Match ข้ามการทำงาน: {e}")
+
+            render_clip_list = color_matched_clips
+            if color_matched_clips and (ctx.audio_mutes or {}).get("clip"):
+                render_clip_list = [{**clip, "volume": 0.0} for clip in color_matched_clips]
             assemble_kwargs = dict(
                 raw_video_paths=[str(ctx.raw_video)] if ctx.raw_video else [],
                 total_duration=ctx.total_duration,

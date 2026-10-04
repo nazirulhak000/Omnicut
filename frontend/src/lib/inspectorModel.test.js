@@ -232,13 +232,13 @@ test('clipPlayedDuration is the played span motionTimeAt clamps to, without the 
 test('slow zoom builds two keyframes over the played time and stays inside the camera limits', () => {
   const clip = { trim_start: 1, trim_end: 7, speed: 2, zoom: 1.5 };
   const pushIn = buildSlowZoomKeyframes(clip, 10, { direction: 'in', percent: 0.1 });
-  assert.deepEqual(pushIn, [{ time: 0, zoom: 1.5 }, { time: 3, zoom: 1.65 }]);
+  assert.deepEqual(pushIn, [{ time: 0, zoom: 1.5 }, { time: 3, zoom: 1.65, easing: 'ease_in_out' }]);
 
   const pullOut = buildSlowZoomKeyframes({ trim_end: 5 }, 5, { direction: 'out', percent: 0.15 });
-  assert.deepEqual(pullOut, [{ time: 0, zoom: 1.15 }, { time: 5, zoom: 1 }]);
+  assert.deepEqual(pullOut, [{ time: 0, zoom: 1.15 }, { time: 5, zoom: 1, easing: 'ease_in_out' }]);
 
   const nearMax = buildSlowZoomKeyframes({ trim_end: 4, zoom: 2.95 }, 4, { direction: 'in', percent: 0.15 });
-  assert.deepEqual(nearMax, [{ time: 0, zoom: 2.95 }, { time: 4, zoom: 3 }]);
+  assert.deepEqual(nearMax, [{ time: 0, zoom: 2.95 }, { time: 4, zoom: 3, easing: 'ease_in_out' }]);
 
   const { min, max } = CAMERA_MOTION_LIMITS.zoom;
   for (const preset of SLOW_ZOOM_PRESETS) {
@@ -269,8 +269,11 @@ test('a slow zoom replaces the pipeline motion and drives the same transform as 
   // The old pan keyframes are gone, so pan falls back to the (unset) static value.
   assert.equal(cameraKeyframeSummary(next).pan, false);
   assert.equal(resolveClipTransforms(next, 1).pan_x, 0);
-  // Zoom runs 1.04 -> 1.144 across the 4s played span, linearly.
+  // Zoom runs 1.04 -> 1.144 across the 4s played span, eased in and out
+  // (R2 E1): the midpoint matches linear, a quarter in is only 1/8 of the way.
+  assert.equal(patch.keyframes.at(-1).easing, 'ease_in_out');
   assert.equal(resolveClipTransforms(next, 0).zoom, 1.04);
+  assert.ok(Math.abs(resolveClipTransforms(next, 1).zoom - 1.053) < 1e-9);
   assert.ok(Math.abs(resolveClipTransforms(next, 2).zoom - 1.092) < 1e-9);
   assert.ok(Math.abs(resolveClipTransforms(next, 4).zoom - 1.144) < 1e-9);
   assert.ok(Math.abs(resolveClipTransforms(next, 9).zoom - 1.144) < 1e-9, 'holds the last value past the end');

@@ -8,6 +8,7 @@ import {
   Type,
   SlidersHorizontal,
   Smile,
+  Layers,
 } from 'lucide-react';
 
 import ClipInspector from './inspector/ClipInspector';
@@ -17,6 +18,7 @@ import StickerInspector from './inspector/StickerInspector';
 import EffectInspector from './inspector/EffectInspector';
 import CuesTranscriptInspector from './inspector/CuesTranscriptInspector';
 import ProjectInspector from './inspector/ProjectInspector';
+import CutoutInspector from './inspector/CutoutInspector';
 import { resolveSelectedItem } from '../../lib/selectionResolver.js';
 
 /**
@@ -33,6 +35,8 @@ export const RENDER_CLIP_FIELDS = [
 
 export default function Inspector({
   selection,
+  // Clips selected on the timeline with Ctrl/Shift+click (primary included).
+  multiSelectCount = 0,
   selectedSeg,
   selectedCaption,
   cuesList = [],
@@ -87,6 +91,15 @@ export default function Inspector({
   effects = [],
   onUpdateEffect = null,
   onDeleteEffect = null,
+  backgroundIsolation = null,
+  backgroundIsolationStatus = null,
+  onToggleBackgroundIsolation = null,
+  cutoutPreviewMode = 'composite',
+  onCutoutPreviewModeChange = null,
+  subjectPoints = [],
+  subjectPickMode = false,
+  onToggleSubjectPickMode = null,
+  onClearSubjectPoints = null,
 }) {
   const textOverlays = (overlays || []).filter((o) => o.kind === 'text');
 
@@ -260,6 +273,24 @@ export default function Inspector({
                   <span>สติกเกอร์</span>
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={() => onSelect?.({ type: 'cutout' })}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 cursor-pointer border ${
+                  selection?.type === 'cutout'
+                    ? 'bg-violet-500/20 border-violet-400 text-violet-300'
+                    : backgroundIsolation?.enabled
+                      ? 'bg-violet-950/40 border-violet-500/30 text-violet-300 hover:text-white'
+                      : 'bg-white/[0.04] border-white/[0.08] text-slate-400 hover:text-white'
+                }`}
+              >
+                <Layers className="w-3 h-3 text-violet-400" />
+                <span>ตัดพื้นหลัง</span>
+                {backgroundIsolation?.enabled && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                )}
+              </button>
             </div>
 
             {/* Contextual Sub-views */}
@@ -326,24 +357,60 @@ export default function Inspector({
                 onDeleteEffect={onDeleteEffect}
                 totalDuration={totalDuration}
               />
-            ) : selectedSeg ? (
-              <ClipInspector
-                selectedSeg={selectedSeg}
-                onClipChange={onClipChange}
-                clipList={clipList}
-                onPatchAllClips={onPatchAllClips}
+            ) : selection?.type === 'cutout' ? (
+              <CutoutInspector
+                backgroundIsolation={backgroundIsolation}
+                backgroundIsolationStatus={backgroundIsolationStatus}
+                onToggleBackgroundIsolation={onToggleBackgroundIsolation}
+                cutoutPreviewMode={cutoutPreviewMode}
+                onCutoutPreviewModeChange={onCutoutPreviewModeChange}
+                subjectPoints={subjectPoints}
+                subjectPickMode={subjectPickMode}
+                onToggleSubjectPickMode={onToggleSubjectPickMode}
+                onClearSubjectPoints={onClearSubjectPoints}
               />
+            ) : selectedSeg ? (
+              <>
+                {multiSelectCount > 1 && (
+                  <div
+                    data-testid="inspector-multi-select"
+                    role="status"
+                    className="mb-3 rounded-xl border border-[#D97757]/40 bg-[#D97757]/10 px-3 py-2 text-xs text-[#E89274]"
+                  >
+                    <span className="font-bold">เลือก {multiSelectCount} คลิป</span>
+                    <span className="text-[#C9C3BB]"> · แผงนี้แก้เฉพาะคลิปหลักที่ไฮไลต์เข้ม · กด Delete ลบทั้งหมด · Esc ยกเลิกการเลือก</span>
+                  </div>
+                )}
+                <ClipInspector
+                  selectedSeg={selectedSeg}
+                  onClipChange={onClipChange}
+                  clipList={clipList}
+                  onPatchAllClips={onPatchAllClips}
+                />
+              </>
             ) : (
-              <div className="py-8 px-4 text-center rounded-2xl border border-white/[0.08] bg-black/40 space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 flex items-center justify-center mx-auto text-[#25F4EE]">
-                  <SlidersHorizontal className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-sm font-bold text-white">แผงควบคุมคุณสมบัติ (Inspector)</h4>
-                  <p className="text-xs text-slate-400 max-w-[280px] mx-auto leading-relaxed">
-                    คลิกเลือกคำบรรยาย, ข้อความ, คลิป หรือเสียง บนไทม์ไลน์เพื่อปรับแต่งคุณสมบัติเฉพาะตัว
-                  </p>
-                </div>
+              <div className="space-y-3">
+                <CutoutInspector
+                  backgroundIsolation={backgroundIsolation}
+                  backgroundIsolationStatus={backgroundIsolationStatus}
+                  onToggleBackgroundIsolation={onToggleBackgroundIsolation}
+                  cutoutPreviewMode={cutoutPreviewMode}
+                  onCutoutPreviewModeChange={onCutoutPreviewModeChange}
+                  subjectPoints={subjectPoints}
+                  subjectPickMode={subjectPickMode}
+                  onToggleSubjectPickMode={onToggleSubjectPickMode}
+                  onClearSubjectPoints={onClearSubjectPoints}
+                />
+                <div className="py-6 px-4 text-center rounded-2xl border border-white/[0.08] bg-black/40 space-y-3">
+                  <div className="w-10 h-10 rounded-2xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 flex items-center justify-center mx-auto text-[#25F4EE]">
+                    <SlidersHorizontal className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-white">แผงควบคุมคุณสมบัติ (Inspector)</h4>
+                    <p className="text-[11px] text-slate-400 max-w-[260px] mx-auto leading-relaxed">
+                      คลิกเลือกคำบรรยาย, ข้อความ, คลิป หรือเสียง บนไทม์ไลน์เพื่อปรับแต่งคุณสมบัติเฉพาะตัว
+                    </p>
+                  </div>
 
                 <div className="grid grid-cols-2 gap-2 max-w-[280px] mx-auto pt-2">
                   <button
@@ -371,7 +438,8 @@ export default function Inspector({
                   </button>
                 </div>
               </div>
-            )}
+            </div>
+          )}
           </div>
         )}
 

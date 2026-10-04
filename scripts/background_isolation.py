@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from collections.abc import Mapping
 from typing import Any
@@ -167,7 +168,29 @@ def normalize_background_isolation(value: Any) -> dict[str, Any]:
         return _no_op("invalid_auto_prompt")
     # Points picked in the editor are clamped and capped here as well, so the
     # worker can trust every coordinate it receives.
-    subject_points = normalize_subject_points(value.get("subject_points"))
+    try:
+        subject_points = normalize_subject_points(value.get("subject_points"))
+    except ValueError:
+        return _no_op("invalid_subject_points")
+    prompt_reference_start = value.get("prompt_reference_start")
+    if prompt_reference_start is not None:
+        try:
+            if isinstance(prompt_reference_start, bool):
+                raise ValueError("boolean reference")
+            prompt_reference_start = float(prompt_reference_start)
+            if not math.isfinite(prompt_reference_start) or prompt_reference_start < 0:
+                raise ValueError("invalid reference")
+            prompt_reference_start = round(prompt_reference_start, 5)
+        except (ValueError, TypeError, OverflowError):
+            return _no_op("invalid_prompt_reference_start")
+    prompt_reference_source = value.get("prompt_reference_source")
+    if prompt_reference_source is not None and (
+        not isinstance(prompt_reference_source, str) or not prompt_reference_source.strip()
+        or len(prompt_reference_source) > 4096 or "\x00" in prompt_reference_source
+    ):
+        return _no_op("invalid_prompt_reference_source")
+    if prompt_reference_source is not None and prompt_reference_start is None:
+        return _no_op("invalid_prompt_reference_start")
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -182,7 +205,8 @@ def normalize_background_isolation(value: Any) -> dict[str, Any]:
         **({"request_id": request_id} if request_id is not None else {}),
         **({"subject_points": subject_points} if subject_points else {}),
         **({"auto_prompt": False} if auto_prompt is False else {}),
-
+        **({"prompt_reference_start": prompt_reference_start} if prompt_reference_start is not None else {}),
+        **({"prompt_reference_source": prompt_reference_source} if prompt_reference_source is not None else {}),
     }
 
 

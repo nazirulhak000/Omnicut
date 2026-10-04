@@ -225,3 +225,26 @@ def test_stream_media_rejects_sibling_prefix_escape(tmp_path, monkeypatch):
     with pytest.raises(HTTPException) as exc_info:
         api_videos_mod.stream_media(str(leaked), request=None)
     assert exc_info.value.status_code == 403
+
+
+def test_stream_media_rebases_foreign_machine_absolute_path(tmp_path, monkeypatch):
+    root = tmp_path / "OmnicutApp"
+    root.mkdir()
+    raw_dir = root / "01_Raw" / "sample_folder"
+    raw_dir.mkdir(parents=True)
+    local_video = raw_dir / "clip.mp4"
+    local_video.write_bytes(b"sample video bytes")
+
+    monkeypatch.setattr(api_videos_mod, "BASE_DIR", root)
+    monkeypatch.setattr(api_videos_mod, "CAPCUT_DRAFT_DIR", tmp_path / "CapCutDrafts")
+
+    # Foreign path from laptop e.g. D:\Winona\Programmer\Capcut\01_Raw\sample_folder\clip.mp4
+    foreign_path = r"D:\Winona\Programmer\Capcut\01_Raw\sample_folder\clip.mp4"
+
+    from types import SimpleNamespace
+    req = SimpleNamespace(headers={})
+
+    # Call stream_media directly
+    response = api_videos_mod.stream_media(foreign_path, request=req)
+    assert response.status_code == 200
+    assert response.body == b"sample video bytes"

@@ -15,6 +15,7 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5173" ^| findstr "LISTENING
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8501" ^| findstr "LISTENING"') do (
     taskkill /F /T /PID %%a >nul 2>&1
 )
+timeout /t 2 /nobreak >nul
 
 echo [2/3] Launching FastAPI Backend on http://localhost:8000 (WatchFiles reload=OFF for stable renders) ...
 start "OmniCut Pro Studio Backend (FastAPI)" cmd /k "set FASTAPI_RELOAD=false && .venv\Scripts\python.exe scripts/api_server.py"

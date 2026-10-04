@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { applyCaptionMagneticRipple } from '../lib/timelineTrackModel';
 import { resolveSnapCandidateLabel } from '../lib/timelineMath';
+import { withoutPlayheadCandidate } from '../lib/timelineTrimOps';
 import { beginDragAfterThreshold, capturePointer, releasePointer } from '../lib/timelineDragLifecycle';
 import { HOOK_MIN_DURATION, HOOK_MAX_DURATION } from '../components/editor/Timeline';
 
@@ -71,19 +72,37 @@ export function useTimelineDrag({
     return Math.max(0, maxT > 0 ? Math.min(maxT, rawT) : rawT);
   };
 
+  // Scrubbing snaps to the same targets as clip trimming (clip edges, cue
+  // edges, beats, audio end) while magnetic snap is on; holding Shift bypasses
+  // it. The playhead's own target is left out: it is wherever the pointer just
+  // was, so snapping to it would freeze a slow scrub in place.
+  const scrubTimeFromEvent = (e) => {
+    const rawT = timeFromEvent(e);
+    if (!snapEnabled || e.shiftKey || !snapFunction) {
+      onSnapGuide?.(null);
+      return rawT;
+    }
+    const snapped = snapFunction(rawT, withoutPlayheadCandidate(snapPoints, playhead));
+    notifySnap(rawT, snapped);
+    const maxT = Math.max(totalDuration, audioDuration || 0);
+    return Math.max(0, maxT > 0 ? Math.min(maxT, snapped) : snapped);
+  };
+
   const startScrub = (e) => {
     scrubbing.current = true;
     capturePointer(e);
-    onSeek?.(timeFromEvent(e));
+    onSeek?.(scrubTimeFromEvent(e));
   };
 
   const moveScrub = (e) => {
-    if (scrubbing.current) onSeek?.(timeFromEvent(e));
+    if (scrubbing.current) onSeek?.(scrubTimeFromEvent(e));
   };
 
   const endScrub = (e) => {
+    const wasScrubbing = scrubbing.current;
     scrubbing.current = false;
     releasePointer(e);
+    if (wasScrubbing) onSnapGuide?.(null);
   };
 
   const handleTrackAreaPointerDown = (e) => {
@@ -96,7 +115,7 @@ export function useTimelineDrag({
     deselectAll?.();
     scrubbing.current = true;
     capturePointer(e);
-    onSeek?.(timeFromEvent(e));
+    onSeek?.(scrubTimeFromEvent(e));
   };
 
   // Body drag reorders clips

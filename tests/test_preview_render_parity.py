@@ -287,12 +287,18 @@ def test_easing_accel_constants_and_byte_identity_parity():
 
     from scripts.subtitle.motion_effects import _in_bounce, _in_pop, _in_fade, _in_pop_soft, _in_bounce_soft
     tag_bounce, end_bounce, _ = _in_bounce(236, 0)
-    assert tag_bounce == r"\fscx142\fscy142\t(0,150,\fscx295\fscy295)\t(150,280,\fscx217\fscy217)\t(280,380,\fscx248\fscy248)\t(380,450,\fscx236\fscy236)"
+    # bounce/pop are eased (round EDITOR-CUT-QUALITY-R2): same keyframe times
+    # and values as the old linear version, only the 0.6 accel is added.
+    assert tag_bounce == r"\fscx142\fscy142\t(0,150,0.6,\fscx295\fscy295)\t(150,280,0.6,\fscx217\fscy217)\t(280,380,0.6,\fscx248\fscy248)\t(380,450,0.6,\fscx236\fscy236)"
     assert end_bounce == 450
 
     tag_pop, end_pop, _ = _in_pop(236, 0)
-    assert tag_pop == r"\fscx130\fscy130\t(0,120,\fscx278\fscy278)\t(120,200,\fscx236\fscy236)"
+    assert tag_pop == r"\fscx130\fscy130\t(0,120,0.6,\fscx278\fscy278)\t(120,200,0.6,\fscx236\fscy236)"
     assert end_pop == 200
+
+    # The serializer itself still emits byte-identical legacy tags for accel=1.0.
+    from scripts.subtitle.motion_effects import serialize_keyframes
+    assert serialize_keyframes([(0, {"fscx": 142}, 1.0), (150, {"fscx": 295}, 1.0)]) == r"\fscx142\t(0,150,\fscx295)"
 
     tag_fade, end_fade, _ = _in_fade(236, 0)
     assert tag_fade == r"\fscx236\fscy236\alpha&HFF&\t(0,250,\alpha&H00&)"
@@ -389,7 +395,7 @@ def test_accent_reveal_anchors_wipe_from_left_edge():
         ("sweep band width", r"band_w = max\(20, int\(half_w \* ([\d.]+)\)\)",
          r"bandW = Math\.max\(10, s\.halfW \* ([\d.]+)\)"),
         ("out zoom grow", r"grown = round\(target \* ([\d.]+)\)",
-         r"scale: hookKeyframeAt\(\(t - s\) \* 1000, \[\[0, 1\], \[\(e - s\) \* 1000, ([\d.]+)\]\]\)"),
+         r"scale: hookKeyframeAt\(\(t - s\) \* 1000, \[\[0, 1\], \[\(e - s\) \* 1000, ([\d.]+)(?:, ACCEL_SNAP_IN)?\]\]\)"),
         ("in slide dy", r"return tag, end_ms, (\d+)  # slides up",
          r"dy: hookKeyframeAt\(ms, \[\[0, (\d+)\], \[300, 0\]\]\)"),
     ],
@@ -1125,8 +1131,12 @@ def test_bridge_fades_dip_through_a_colour_instead_of_crossfading():
     only starts appearing around 0.267. Crossfading them showed both clips at
     once through the middle, which the render never does.
     """
-    assert _grab(JS_SRC, r"FADE_BRIDGE_OUT = 1 / (\d)") == 6
-    assert abs(_grab(JS_SRC, r"FADE_BRIDGE_IN = ([\d.]+)") - 0.2667) < 1e-6
+    # R2 lane TM: the fitted 1/6 / 0.2667 curve was replaced by vf_xfade.c's
+    # own formula (phase 0.2), proven pixel-equal by tests/test_transition_easing.py.
+    assert _grab(JS_SRC, r"FADE_BRIDGE_PHASE = ([\d.]+);") == 0.2
+    from scripts.video_editor import xfade_custom_body
+    assert "clip(((P)-0.8)/0.2,0,1)" in xfade_custom_body("fadeblack", "(P)")
+    assert "clip(((P)-0.2)/0.8,0,1)" in xfade_custom_body("fadeblack", "(P)")
     paint = re.search(r"if \(painted && role === 'out' && \(kind === 'fadeblack'(.*?)\n    \}", JS_SRC, re.S)
     assert paint, "the bridge colour is never laid down"
     assert "fadewhite' ? '#FFFFFF' : '#000000'" in paint.group(1)
@@ -3357,3 +3367,428 @@ def test_mirrored_pan_frames_the_same_side_as_the_render(tmp_path):
         # Only a sample straddling a colour edge may disagree.
         assert mismatched <= 2, f"{name}: {report[name]}"
     print(json.dumps(report))
+
+
+def test_split_clip_camera_keyframes_render_without_a_jump(tmp_path):
+    """
+    B4 (EDITOR-CUT-QUALITY-R1): the editor's splitClipAt re-bases camera
+    keyframes at the played cut. The render has no split logic of its own -- it
+    reads each half's keyframes with t=0 at that half's trim_start after speed
+    -- so the halves the JS produces, evaluated by video_editor.py's resolver,
+    must reproduce the unsplit clip on both sides of the cut.
+    """
+    import shutil
+    import subprocess
+
+    from scripts.video_editor import resolve_clip_transforms
+
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+    clip = {
+        "id": "orig", "trim_start": 1.0, "trim_end": 7.0, "speed": 2.0,
+        "zoom": 1.0, "pan_x": 0.0, "pan_y": 0.0,
+        "keyframes": [
+            {"time": 0, "zoom": 1.0, "pan_x": -0.5},
+            {"time": 2, "zoom": 2.5, "pan_x": 0.5},
+            {"time": 0, "property": "pan_y", "value": -0.2},
+            {"time": 3, "property": "pan_y", "value": 0.4},
+        ],
+    }
+    seg = {"clip": clip, "srcDur": 10, "segStart": 4, "segEnd": 7}
+    cut = 1.25  # played seconds; 2.5 s of source at 2x
+    runner = tmp_path / "split.mjs"
+    runner.write_text(
+        "const lib = await import(new URL('file:///' + process.argv[2].replace(/\\\\/g, '/')).href);\n"
+        "const seg = JSON.parse(process.argv[3]);\n"
+        "let n = 0;\n"
+        "console.log(JSON.stringify(lib.splitClipAt(seg, seg.segStart + Number(process.argv[4]), () => `p${++n}`)));\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        ["node", str(runner), str(ROOT / "frontend" / "src" / "lib" / "timelineMath.js"), json.dumps(seg), str(cut)],
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+    left, right = json.loads(proc.stdout)
+    assert left["trim_end"] == right["trim_start"] == 3.5
+
+    def close(a, b):
+        return all(abs(a[k] - b[k]) < 1e-6 for k in ("zoom", "pan_x", "pan_y"))
+
+    at_cut = resolve_clip_transforms(clip, cut)
+    assert close(resolve_clip_transforms(left, cut), at_cut)
+    assert close(resolve_clip_transforms(right, 0.0), at_cut)
+    for local in (0.0, 0.4, 0.75, 1.5):
+        assert close(resolve_clip_transforms(right, local), resolve_clip_transforms(clip, cut + local)), local
+    for local in (0.0, 0.6, 1.0):
+        assert close(resolve_clip_transforms(left, local), resolve_clip_transforms(clip, local)), local
+
+
+# ── EDITOR-CUT-QUALITY-R2 E1: camera keyframe easing ──────────────────────────
+
+_EASED_CAMERA_CLIP = {
+    "zoom": 1.0, "pan_x": 0.0, "pan_y": 0.0,
+    "keyframes": [
+        {"time": 0.0, "zoom": 1.0, "pan_x": -0.6},
+        {"time": 2.0, "zoom": 1.5, "pan_x": 0.4, "easing": "ease_in_out"},
+        {"time": 3.0, "zoom": 1.2, "pan_x": 0.4, "easing": "ease_out"},
+        {"time": 4.5, "zoom": 3.4, "pan_x": 1.6, "easing": "ease_in"},  # past the clamps
+        {"time": 0.5, "property": "pan_y", "value": 0.3},
+        {"time": 2.5, "property": "pan_y", "value": -0.5, "easing": "ease_in_out"},
+        {"time": 3.5, "property": "pan_y", "value": 0.1, "easing": "bogus"},  # unknown == linear
+    ],
+}
+
+
+def _eval_ffmpeg_expr(expr: str, t: float) -> float:
+    """Tiny evaluator for the camera expressions video_editor.py emits.
+
+    Only the names below exist (no builtins), so this evaluates exactly the
+    if/lt/min/max/ceil arithmetic subset and nothing else.
+    """
+    source = expr.replace("\\,", ",").replace("if(", "_if(")
+    names = {
+        "__builtins__": {}, "t": t, "_if": lambda c, a, b: a if c else b,
+        "lt": lambda a, b: 1.0 if a < b else 0.0, "min": min, "max": max, "ceil": math.ceil,
+    }
+    return float(eval(source, names))  # noqa: S307 - restricted namespace above
+
+
+def _run_timeline_math(tmp_path, body: str, *args: str):
+    import shutil
+    import subprocess
+
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+    runner = tmp_path / "e1.mjs"
+    runner.write_text(
+        "const lib = await import(new URL('file:///' + process.argv[2].replace(/\\\\/g, '/')).href);\n" + body,
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        ["node", str(runner), str(ROOT / "frontend" / "src" / "lib" / "timelineMath.js"), *args],
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+    return json.loads(proc.stdout)
+
+
+def test_eased_camera_keyframes_match_between_preview_resolver_and_ffmpeg_expression(tmp_path):
+    from scripts.video_editor import _camera_track, _ffmpeg_keyframe_expression_live, resolve_clip_transforms
+
+    times = [i * 0.25 for i in range(-1, 22)]  # 23 samples, before/through/after
+    preview = _run_timeline_math(
+        tmp_path,
+        "const clip = JSON.parse(process.argv[3]);\n"
+        "console.log(JSON.stringify(JSON.parse(process.argv[4]).map((t) => lib.resolveClipTransforms(clip, t))));\n",
+        json.dumps(_EASED_CAMERA_CLIP), json.dumps(times),
+    )
+    exprs = {
+        prop: _ffmpeg_keyframe_expression_live(_camera_track(_EASED_CAMERA_CLIP, prop), 0.0, prop)
+        for prop in ("zoom", "pan_x", "pan_y")
+    }
+    worst = 0.0
+    for t, js in zip(times, preview):
+        py = resolve_clip_transforms(_EASED_CAMERA_CLIP, t)
+        for prop, expr in exprs.items():
+            rendered = _eval_ffmpeg_expr(expr, t)
+            worst = max(worst, abs(js[prop] - py[prop]), abs(js[prop] - rendered))
+    print(json.dumps({"eased_camera_parity_worst": worst}))
+    assert worst < 1e-3, worst
+    # The curve really is eased: ease_in_out at a quarter of 1.0->1.5 is 1.0625, not 1.125.
+    assert abs(resolve_clip_transforms(_EASED_CAMERA_CLIP, 0.5)["zoom"] - 1.0625) < 1e-9
+    assert abs(_eval_ffmpeg_expr(exprs["zoom"], 0.5) - 1.0625) < 1e-5
+
+
+def test_camera_keyframes_without_easing_keep_the_old_linear_expression():
+    from scripts.video_editor import _ffmpeg_keyframe_expression_live
+
+    track = [{"time": 0.0, "value": 1.0}, {"time": 2.0, "value": 1.5}]
+    assert _ffmpeg_keyframe_expression_live(track, 1.0, "zoom") == (
+        "min(3.000000\\,max(1.000000\\,if(lt(t\\,0.000000)\\,1.000000\\,"
+        "if(lt(t\\,2.000000)\\,1.000000+(0.500000)*(t-0.000000)/(2.000000)\\,1.500000))))"
+    )
+
+
+def test_split_inside_an_eased_camera_segment_stays_continuous(tmp_path):
+    from scripts.video_editor import resolve_clip_transforms
+
+    clip = {
+        "id": "orig", "trim_start": 0.0, "trim_end": 4.0, "speed": 1.0,
+        "zoom": 1.0, "pan_x": 0.0, "pan_y": 0.0,
+        "keyframes": [
+            {"time": 0.0, "zoom": 1.0, "pan_x": -0.4},
+            {"time": 4.0, "zoom": 1.5, "pan_x": 0.4, "easing": "ease_in_out"},
+            {"time": 0.0, "property": "pan_y", "value": 0.2},
+            {"time": 4.0, "property": "pan_y", "value": -0.2, "easing": "ease_out"},
+        ],
+    }
+    seg = {"clip": clip, "srcDur": 4, "segStart": 0, "segEnd": 4}
+    cut = 1.3
+    left, right = _run_timeline_math(
+        tmp_path,
+        "const seg = JSON.parse(process.argv[3]);\nlet n = 0;\n"
+        "console.log(JSON.stringify(lib.splitClipAt(seg, seg.segStart + Number(process.argv[4]), () => `p${++n}`)));\n",
+        json.dumps(seg), str(cut),
+    )
+    at_cut = resolve_clip_transforms(clip, cut)
+    for prop in at_cut:
+        assert abs(resolve_clip_transforms(left, cut)[prop] - at_cut[prop]) < 1e-6
+        assert abs(resolve_clip_transforms(right, 0.0)[prop] - at_cut[prop]) < 1e-6
+    worst = 0.0
+    for i in range(27):
+        local = i * 0.1
+        r, o = resolve_clip_transforms(right, local), resolve_clip_transforms(clip, cut + local)
+        worst = max(worst, *(abs(r[k] - o[k]) for k in o))
+    for i in range(14):
+        local = i * 0.1
+        lv, o = resolve_clip_transforms(left, local), resolve_clip_transforms(clip, local)
+        worst = max(worst, *(abs(lv[k] - o[k]) for k in o))
+    # Sampled bake: exact at samples, <= ~0.4% of the segment's delta between.
+    print(json.dumps({"eased_split_worst": worst}))
+    assert worst < 3e-3, worst
+
+
+def test_camera_easing_survives_editor_save_load(tmp_path):
+    import shutil
+    import subprocess
+
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+    runner = tmp_path / "roundtrip.mjs"
+    runner.write_text(
+        "const lib = await import(new URL('file:///' + process.argv[2].replace(/\\\\/g, '/')).href);\n"
+        "const state = lib.manifestToEditorState({ clip_list: JSON.parse(process.argv[3]) });\n"
+        "console.log(JSON.stringify(lib.serializeClips(state.clipList)));\n",
+        encoding="utf-8",
+    )
+    clips = [{"source_path": "a.mp4", "trim_start": 0, "trim_end": 3, "keyframes": _EASED_CAMERA_CLIP["keyframes"]}]
+    proc = subprocess.run(
+        ["node", str(runner), str(ROOT / "frontend" / "src" / "lib" / "editorProjectState.js"), json.dumps(clips)],
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+    saved = json.loads(proc.stdout)
+    assert saved[0]["keyframes"] == _EASED_CAMERA_CLIP["keyframes"]
+
+
+# --- Sticker/effect entrance + exit animation (lane S, EDITOR-CUT-QUALITY-R2) ---
+_OVERLAY_ANIM_CASES = [
+    # (start, end) -- long, short (40% cap), very short, open-ended, Canvas sentinel
+    (1.0, 4.0),
+    (0.5, 0.9),
+    (2.0, 2.1),
+    (0.5, None),
+    (0.0, 999999),
+    (1.2345, 3.3),
+]
+
+
+def _overlay_anim_samples(start, end):
+    base = [start - 0.1, start, start + 0.02, start + 0.06, start + 0.1, start + 0.15,
+            start + 0.2, start + 0.25, start + 0.5]
+    if end is not None and end < 99999:
+        base += [end - 0.25, end - 0.15, end - 0.1, end - 0.05, end, end + 0.05]
+    return base
+
+
+def test_overlay_anim_constants_and_timing_grid():
+    sys.path.insert(0, str(ROOT))
+    from scripts.config import FPS
+    from scripts.video_editor import (
+        OVERLAY_ANIM_IN_FRAMES, OVERLAY_ANIM_OUT_FRAMES, OVERLAY_ANIM_MAX_SHARE,
+        OVERLAY_ANIM_SCALE_FROM, overlay_anim_timing,
+    )
+
+    src = (ROOT / "frontend" / "src" / "lib" / "stickerAnimation.js").read_text(encoding="utf-8")
+    assert f"IN_FRAMES: {OVERLAY_ANIM_IN_FRAMES}," in src
+    assert f"OUT_FRAMES: {OVERLAY_ANIM_OUT_FRAMES}," in src
+    assert f"MAX_SHARE: {OVERLAY_ANIM_MAX_SHARE}," in src
+    assert f"SCALE_FROM: {OVERLAY_ANIM_SCALE_FROM}," in src
+    # <= 0.25 s entrance, 0.2 s exit, both whole frames
+    assert OVERLAY_ANIM_IN_FRAMES / FPS <= 0.25 and OVERLAY_ANIM_OUT_FRAMES / FPS == pytest.approx(0.2)
+    for start, end in _OVERLAY_ANIM_CASES:
+        d_in, d_out = overlay_anim_timing(start, end)
+        for d in (d_in, d_out):
+            assert d * FPS == pytest.approx(round(d * FPS), abs=1e-9)
+        if end is not None and end < 99999:
+            assert d_in <= 0.4 * (end - start) + 1e-9 and d_out <= 0.4 * (end - start) + 1e-9
+    # Canvas no longer fades over the old 0.3 s that render never had (L3-09)
+    player = (ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx").read_text(encoding="utf-8")
+    assert "elapsed / 0.3" not in player
+    assert player.count("overlayAnimState(") >= 2
+
+
+def test_overlay_anim_state_js_matches_python():
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+    sys.path.insert(0, str(ROOT))
+    from scripts.video_editor import overlay_anim_state
+
+    cases = []
+    for start, end in _OVERLAY_ANIM_CASES:
+        for t in _overlay_anim_samples(start, end):
+            for scale_in in (True, False):
+                cases.append({"t": t, "start": start, "end": end, "scaleIn": scale_in})
+    assert len(cases) >= 8
+
+    with tempfile.TemporaryDirectory() as tmp:
+        runner = Path(tmp) / "anim.mjs"
+        mod = (ROOT / "frontend" / "src" / "lib" / "stickerAnimation.js").resolve().as_uri()
+        runner.write_text(
+            f"import {{ overlayAnimState }} from '{mod}';\n"
+            "const cases = JSON.parse(process.argv[2]);\n"
+            "console.log(JSON.stringify(cases.map(c => overlayAnimState(c.t, c.start, c.end, "
+            "{ scaleIn: c.scaleIn }))));\n",
+            encoding="utf-8",
+        )
+        res = subprocess.run(["node", str(runner), json.dumps(cases)],
+                             capture_output=True, text=True, encoding="utf-8")
+        assert res.returncode == 0, res.stderr
+        js_out = json.loads(res.stdout)
+
+    for case, js in zip(cases, js_out):
+        alpha, scale = overlay_anim_state(case["t"], case["start"], case["end"], scale_in=case["scaleIn"])
+        assert js["alpha"] == pytest.approx(alpha, abs=1e-12), case
+        assert js["scale"] == pytest.approx(scale, abs=1e-12), case
+        assert 0.0 <= alpha <= 1.0 and 0.88 - 1e-12 <= scale <= 1.0 + 1e-12
+
+
+def test_overlay_anim_filters_rest_frame_is_untouched():
+    sys.path.insert(0, str(ROOT))
+    from scripts.video_editor import overlay_anim_filters, overlay_anim_state
+
+    chain = overlay_anim_filters(1.0, 3.0, rest_w=320, rest_h=213)
+    # resting scale is the identity and pad restores the exact rest raster
+    assert "min(iw," in chain and "min(ih," in chain
+    assert "pad=w=320:h=213:" in chain
+    assert "fade=t=in:st=1.000000:d=0.233333:alpha=1" in chain
+    assert "fade=t=out:st=2.800000:d=0.200000:alpha=1" in chain
+    assert overlay_anim_state(2.0, 1.0, 3.0) == (1.0, 1.0)
+    # effects: alpha only, and no exit without an explicit end
+    fx = overlay_anim_filters(0.5, None)
+    assert "scale=" not in fx and "pad=" not in fx and "fade=t=out" not in fx
+
+
+def _frame_grid_clip_list():
+    """24 clips with ms-precision trims, speeds, freeze tails and every kind of
+    boundary (cut, built-in, eased, clamped overlong) -- one list, fed both to
+    the preview module and to the render builder."""
+    types = ["cut", "fade", "wipeleft", "cut", "circleopen", "slideup", "dissolve", "cut",
+             "fadeblack", "wipedown", "cut", "slideleft"]
+    transition_durations = [0.4, 0.35, 0.3, 2.0, 0.27, 0.5, 0.4, 0.133, 0.45, 0.4, 0.1, 0.37]
+    easings = [None, "ease_in_out", "ease_out", None, "ease_in", "ease_in_out", None, None,
+               "ease_out", "ease_in", None, "ease_in_out"]
+    speeds = [1.0, 1.0, 1.25, 0.8, 1.7, 1.0, 2.0, 0.5]
+    freezes = [0, 0, 0.21, 0, 0, 0.5, 0, 0]
+    clips = []
+    for i in range(24):
+        start = round(0.137 * i, 3)
+        span = round(0.41 + ((i * 37) % 19) * 0.0971, 3)
+        clip = {
+            "id": f"c{i}", "trim_start": start, "trim_end": round(start + span, 3),
+            "speed": speeds[i % 8], "freeze_tail": freezes[(i * 3) % 8],
+        }
+        if i > 0:
+            clip["transition_in"] = types[(i - 1) % 12]
+            clip["transition_duration"] = transition_durations[(i - 1) % 12]
+            if easings[(i - 1) % 12]:
+                clip["transition_easing"] = easings[(i - 1) % 12]
+        clips.append(clip)
+    return clips
+
+
+def test_frame_grid_plan_is_the_same_in_the_preview_and_the_render_builder(tmp_path, monkeypatch):
+    """B5 (EDITOR-CUT-QUALITY-R2): the preview's buildSegments() and the
+    render's clip chain must put every clip edge and every transition overlap on
+    the SAME frame. The JS module runs under node on the list; the Python side
+    is the real VideoEditor.assemble_tiktok_video filtergraph (trim=end_frame per
+    clip, xfade offset/duration), read back as frame numbers."""
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+    sys.path.insert(0, str(ROOT))
+    from tests.test_frame_grid_timing import capture_graph, graph_frames
+    from scripts.video_editor import plan_sequence_frames, normalize_transitions
+
+    clips = _frame_grid_clip_list()
+    with tempfile.TemporaryDirectory() as tmp:
+        runner = Path(tmp) / "plan.mjs"
+        mod = (ROOT / "frontend" / "src" / "lib" / "timelineMath.js").resolve().as_uri()
+        runner.write_text(
+            f"import {{ buildSegments, totalDuration }} from '{mod}';\n"
+            "const { clips, durations } = JSON.parse(process.argv[2]);\n"
+            "const segs = buildSegments(clips, durations);\n"
+            "console.log(JSON.stringify({ frames: segs.map(s => s.frames), total: totalDuration(segs) }));\n",
+            encoding="utf-8",
+        )
+        res = subprocess.run(["node", str(runner), json.dumps({"clips": clips, "durations": {c["id"]: 60 for c in clips}})],
+                             capture_output=True, text=True, encoding="utf-8")
+        assert res.returncode == 0, res.stderr
+        js = json.loads(res.stdout)
+    js_plan = {k: [f[k] for f in js["frames"]] for k in ("start", "end", "overlap")}
+
+    render_clips = []
+    for i, c in enumerate(clips):
+        src = tmp_path / f"s{i}.mp4"
+        src.write_bytes(b"fake")
+        render_clips.append({"source_path": str(src), "trim_start": c["trim_start"], "trim_end": c["trim_end"],
+                             "speed": c["speed"], "freeze_tail": c["freeze_tail"]})
+    transitions = []
+    for c in clips[1:]:
+        entry = {"type": c["transition_in"], "duration": c["transition_duration"]}
+        if c.get("transition_easing"):
+            entry["easing"] = c["transition_easing"]
+        transitions.append(entry)
+    total = js["total"]
+    graph = capture_graph(tmp_path, monkeypatch, render_clips, transitions, total)
+
+    assert graph_frames(graph) == js_plan
+    # the module the builder calls is the same function, on the same list
+    durations = [max(0.2, c["trim_end"] - c["trim_start"]) / c["speed"] + c["freeze_tail"] for c in clips]
+    assert plan_sequence_frames(durations, normalize_transitions(transitions)) == js_plan
+    # whole-frame total, and within half a frame of the exact float timeline
+    assert js["total"] * 30 == pytest.approx(js_plan["end"][-1], abs=1e-9)
+    assert any(o > 0 for o in js_plan["overlap"]) and any(o == 0 for o in js_plan["overlap"][1:])
+
+
+def test_transition_easing_curves_are_the_same_in_the_preview_and_the_render():
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+    sys.path.insert(0, str(ROOT))
+    from scripts.video_editor import XFADE_TRANSITIONS, ease_camera_ratio, transition_easing_name
+
+    cases = [{"kind": k, "easing": e, "p": p / 12}
+             for k in XFADE_TRANSITIONS for e in (None, "linear", "ease_in", "ease_out", "ease_in_out", "bogus")
+             for p in range(13)]
+    with tempfile.TemporaryDirectory() as tmp:
+        runner = Path(tmp) / "ease.mjs"
+        mod = (ROOT / "frontend" / "src" / "lib" / "timelineMath.js").resolve().as_uri()
+        runner.write_text(
+            "import { readFileSync } from 'node:fs';\n"
+            f"import {{ easeTransitionProgress, transitionEasingName }} from '{mod}';\n"
+            "const cases = JSON.parse(readFileSync(process.argv[2], 'utf8'));\n"
+            "console.log(JSON.stringify(cases.map(c => [easeTransitionProgress(c.kind, c.easing, c.p), "
+            "transitionEasingName(c.kind, c.easing)])));\n",
+            encoding="utf-8",
+        )
+        cases_file = Path(tmp) / "cases.json"
+        cases_file.write_text(json.dumps(cases), encoding="utf-8")
+        res = subprocess.run(["node", str(runner), str(cases_file)], capture_output=True, text=True, encoding="utf-8")
+        assert res.returncode == 0, res.stderr
+        out = json.loads(res.stdout)
+    for case, (value, name) in zip(cases, out):
+        py_name = transition_easing_name(case["kind"], case["easing"])
+        assert name == py_name, case
+        assert value == pytest.approx(ease_camera_ratio(py_name, case["p"]), abs=1e-12), case

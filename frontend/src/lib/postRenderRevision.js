@@ -87,9 +87,9 @@ export function decidePostRenderSync({
 }
 
 /**
- * The job is reported done a moment before its last manifest write, so one
- * read can see a revision that is about to change. Read until two reads in a
- * row agree. Returns the manifest, or null when no stable read was seen.
+ * Older backends reported completion before their final manifest write.
+ * Keep the consecutive-read guard for those backends and external writers.
+ * Returns the manifest, or null when no stable read was seen.
  */
 export async function fetchSettledProject(fetchProject, { attempts = 4, delayMs = 1200, wait } = {}) {
   const pause = wait || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));

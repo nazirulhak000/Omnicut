@@ -67,6 +67,15 @@ class AudioMixStage:
                 mix_kwargs["bgm_vol"] = 0.0
             if ctx.bgm_ducking:
                 mix_kwargs["bgm_ducking"] = True
+            # Ripple cuts of the voice (VoiceStage already verified they fit the
+            # file). Only passed when there are cuts so an uncut call is unchanged;
+            # BGM is deliberately not cut (it keeps playing across the join).
+            voice_cuts = getattr(ctx, "voice_cuts", None)
+            if voice_cuts:
+                mix_kwargs["voice_cuts"] = voice_cuts
+                source_duration = getattr(ctx, "voice_source_duration", 0.0)
+                if source_duration:
+                    mix_kwargs["voice_source_duration"] = source_duration
 
             # Use pipeline module reference so unittest.mock.patch('scripts.pipeline.SFXManager.mix_audio_track') works
             import scripts.pipeline as pipeline_mod

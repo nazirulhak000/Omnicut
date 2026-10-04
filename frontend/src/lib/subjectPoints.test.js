@@ -68,4 +68,5 @@ test('marker positions and the status sentence follow the points', () => {
   assert.deepEqual(subjectPointMarkerStyle({ x: 9, y: -4 }), { left: '100%', top: '0%' });
   assert.equal(describeSubjectPointCount([]), 'ยังไม่ได้จิ้มจุดสินค้า');
   assert.equal(describeSubjectPointCount([{ x: 0.1, y: 0.2 }]), 'จิ้มจุดสินค้าแล้ว 1 จุด');
+  assert.equal(describeSubjectPointCount([{ x: 0.1, y: 0.2, label: 1 }, { x: 0.5, y: 0.5, label: 0 }]), 'จิ้มจุดแล้ว 2 จุด (เก็บสินค้า 1, ตัดพื้นหลัง 1)');
 });

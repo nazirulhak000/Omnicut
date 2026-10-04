@@ -8,6 +8,7 @@ import {
 import { FADE_DURATION } from './timelineMath.js';
 import { effectiveAudioMutes } from './trackMix.js';
 import { busVolumesFromManifest, clampBusVolume, SFX_VOLUME_DEFAULT, VOICE_VOLUME_DEFAULT } from './audioBusLevels.js';
+import { effectiveDuration, normalizeCuts } from './voiceCutMap.js';
 
 export { normalizeBackgroundIsolation };
 
@@ -63,6 +64,48 @@ export function serializeOverlays(overlays = []) {
   return Array.isArray(overlays) ? overlays.map(normalizeOverlayForPersistence) : [];
 }
 
+/**
+ * Manifest `voice_edit` -> editor `voiceEdit`: `{schema_version: 1, source:
+ * {duration, path?, size?, mtime_ns?}, cuts: [{id, start, end, reason}]}` with
+ * the cuts normalized exactly like the backend does (voiceCutMap.normalizeCuts),
+ * or null when there is nothing to cut / the duration is unusable. The source
+ * fingerprint the server stored rides along untouched; it is never invented.
+ */
+export function normalizeVoiceEdit(raw) {
+  if (!isRecord(raw)) return null;
+  const rawSource = isRecord(raw.source) ? raw.source : {};
+  const duration = Number(rawSource.duration);
+  if (!Number.isFinite(duration) || duration <= 0) return null;
+  const usedIds = new Set();
+  const identified = (Array.isArray(raw.cuts) ? raw.cuts : []).map((cut, index) => {
+    if (!isRecord(cut)) return cut;
+    let id = typeof cut.id === 'string' && cut.id.trim() ? cut.id : `cut-${index + 1}`;
+    while (usedIds.has(id)) id = `${id}-${index + 1}`;
+    usedIds.add(id);
+    return { ...cut, id, reason: typeof cut.reason === 'string' && cut.reason ? cut.reason : 'manual' };
+  });
+  const cuts = normalizeCuts(identified, duration);
+  if (!cuts.length) return null;
+  return { schema_version: 1, source: { ...rawSource, duration }, cuts };
+}
+
+/** Editor `voiceEdit` -> the `voice_edit` PATCH value (null clears the cuts on the server). */
+export function serializeVoiceEdit(voiceEdit) {
+  const edit = normalizeVoiceEdit(voiceEdit);
+  if (!edit) return null;
+  return {
+    schema_version: 1,
+    source: { ...edit.source },
+    cuts: edit.cuts.map(({ id, start, end, reason, ...rest }) => ({ ...rest, id, start, end, reason })),
+  };
+}
+
+function normalizeVoiceEditNotice(raw) {
+  if (isRecord(raw)) return { kind: raw.kind || 'notice', reason: String(raw.reason || '') };
+  if (typeof raw === 'string' && raw.trim()) return { kind: 'notice', reason: raw };
+  return null;
+}
+
 export function manifestToEditorState(data, options = {}) {
   const manifest = data || {};
   const params = manifest.render_params || {};
@@ -99,6 +142,10 @@ export function manifestToEditorState(data, options = {}) {
       speed: Number(clip.speed) || 1,
       transition_in: clip.transition_in || boundary.type || 'cut',
       transition_duration: clip.transition_duration ?? boundary.duration ?? undefined,
+      // Optional eased transition progress (R2 lane TM); absent == linear.
+      ...((clip.transition_easing || boundary.easing)
+        ? { transition_easing: clip.transition_easing || boundary.easing }
+        : {}),
       mirror: !!clip.mirror,
       track_id: clip.track_id || 'video-1',
       keyframes: Array.isArray(clip.keyframes) ? clip.keyframes : [],
@@ -247,6 +294,13 @@ export function manifestToEditorState(data, options = {}) {
     null,
   ));
 
+  // Ripple cuts of the voice file (voiceCutMap.js). With usable cuts the voice
+  // is shorter on the timeline than the file, so the timeline's audio length is
+  // the post-cut one; a stale edit (voice re-generated) is never applied.
+  const voiceEdit = normalizeVoiceEdit(manifest.voice_edit);
+  const voiceEditStale = Boolean(manifest.voice_edit_stale);
+  const manifestAudioDuration = Number(manifest.audio_duration || manifest.total_duration) || 0;
+
   return {
     clipList,
     cuesList,
@@ -258,7 +312,12 @@ export function manifestToEditorState(data, options = {}) {
     backgroundIsolation,
     style,
     trackMix,
-    audioDuration: Number(manifest.audio_duration || manifest.total_duration) || 0,
+    voiceEdit,
+    voiceEditStale,
+    voiceEditNotice: normalizeVoiceEditNotice(manifest.voice_edit_notice),
+    audioDuration: voiceEdit && !voiceEditStale
+      ? effectiveDuration(voiceEdit.cuts, voiceEdit.source.duration)
+      : manifestAudioDuration,
     adTone: manifest.ad_tone || params.ad_tone || null,
     productName: manifest.product_name || params.product_name || '',
     mixedAudioPath: manifest.artifacts?.mixed_audio?.path || null,
@@ -267,7 +326,7 @@ export function manifestToEditorState(data, options = {}) {
 }
 
 export function serializeClips(clipList = []) {
-  return clipList.map(({ id, transition_in, transition_duration, ...clip }) => clip);
+  return clipList.map(({ id, transition_in, transition_duration, transition_easing, ...clip }) => clip);
 }
 
 /** Local ids are needed only by a scoped Cutout render request, not saved manifests. */
@@ -282,6 +341,10 @@ export function serializeTransitions(clipList = []) {
   const boundaries = clipList.slice(1).map((clip) => ({
     type: clip.transition_in || 'cut',
     duration: clip.transition_duration ?? FADE_DURATION,
+    // Only a non-linear easing is written, so linear manifests keep their shape.
+    ...(clip.transition_easing && clip.transition_easing !== 'linear'
+      ? { easing: clip.transition_easing }
+      : {}),
   }));
   // Clip 0 has no preceding clip, so it's never a "boundary" -- but it can still
   // carry its own entry transition (e.g. a fade-in on the very start of the video).
@@ -352,7 +415,7 @@ export function serializeRenderFeatures({ stickers, effects, spotlight, backgrou
   return payload;
 }
 
-export function editorStateToSavePayload({ clipList, cuesList, microCuesList, style, overlays, trackMix, stickers, effects, spotlight, backgroundIsolation } = {}) {
+export function editorStateToSavePayload({ clipList, cuesList, microCuesList, style, overlays, trackMix, stickers, effects, spotlight, backgroundIsolation, voiceEdit } = {}) {
   const cues = serializeCues(cuesList);
   // Fall back to `cues` when the caller hasn't been updated to pass microCuesList yet,
   // so this stays backward compatible instead of breaking the save outright.
@@ -371,6 +434,10 @@ export function editorStateToSavePayload({ clipList, cuesList, microCuesList, st
     track_mix: mix,
     audio_mutes: effectiveAudioMutes(mix),
   };
+  // PATCH semantics (scripts/api_phase1.py): OMITTED keeps what the server
+  // stores, null or no cuts clears it. A caller that has not been taught about
+  // voiceEdit passes undefined, so nothing is sent and nothing is cleared.
+  if (voiceEdit !== undefined) payload.voice_edit = serializeVoiceEdit(voiceEdit);
   const normalizedBackgroundIsolation = normalizeBackgroundIsolation(backgroundIsolation);
   if (normalizedBackgroundIsolation !== null) {
     payload.background_isolation = normalizedBackgroundIsolation;

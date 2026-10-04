@@ -13,13 +13,150 @@ from scripts.gemini_vision_matcher import GeminiVisionMatcher
 from scripts.beat_sync import BeatSync
 from scripts.motion_analyzer import MotionAnalyzer
 from scripts.script_tone_analyzer import ScriptToneAnalyzer
-from scripts.sfx_manager import SFXManager
+from scripts.sfx_manager import SFXManager, bgm_tempo_ratio
 from scripts.it_angles import LOOK_PRESETS
 from scripts.pipeline_context import PipelineContext
 from scripts.editorial_pacing import resolve_pacing_boundaries
-from scripts.style_motion_policy import apply_transition_budget, camera_keyframes_for_clip
+from scripts.style_motion_policy import (
+    apply_transition_budget,
+    camera_keyframes_for_clip,
+    orient_slide_to_pan,
+    resolve_style_motion_policy,
+)
 from scripts.quota import is_quota_error
 from scripts.error_handler import AppError, ErrorCategory
+
+# Render frame rate (AGENTS.md: 30 FPS). Auto cut times land on this grid so a
+# cut never falls between two frames and boundary drift cannot accumulate.
+CUT_FRAME_RATE = 30
+# Text endings treated as the close of a sentence (shared by the sentence-aware
+# grouping and the transition-length heuristic).
+SENTENCE_END_SUFFIXES = (".", "!", "?", "ครับ", "ค่ะ", "นะคะ", "นะครับ")
+
+
+def _frame_round(t: float) -> float:
+    return round(float(t) * CUT_FRAME_RATE) / CUT_FRAME_RATE
+
+
+# J-cut window (.agents/rules/j_cut_rules.md) a snapped cut must stay inside,
+# measured as picture change minus the next line's voice onset. Slightly wider
+# than the 150-250 ms voiceover spec so a one-frame nudge is still allowed.
+VOICE_VALLEY_LEAD_WINDOW = (0.10, 0.30)
+VOICE_VALLEY_SEARCH = 0.08  # +-80 ms around the planned cut
+VOICE_VALLEY_WINDOW = 0.01  # loudness measured over 10 ms
+
+
+def _j_lead(j_lead: float, prev_dur: float, curr_dur: float) -> float:
+    """The lead the legacy path has always used: shortened for short shots."""
+    return min(j_lead, prev_dur * 0.25, curr_dur * 0.25, 0.25)
+
+
+def _load_voice_mono(path: Any):
+    """Voice-only track as (mono float32 samples, sample rate), or None."""
+    if not path:
+        return None
+    try:
+        import numpy as np
+        try:
+            import soundfile as sf
+
+            data, sr = sf.read(str(path), dtype="float32", always_2d=True)
+            return np.asarray(data, dtype=np.float32).mean(axis=1), int(sr)
+        except ImportError:
+            import wave
+
+            with wave.open(str(path), "rb") as handle:
+                sr = handle.getframerate()
+                channels = handle.getnchannels()
+                width = handle.getsampwidth()
+                raw = handle.readframes(handle.getnframes())
+            if width != 2:
+                return None
+            samples = np.frombuffer(raw, "<i2").astype(np.float32) / 32768.0
+            return samples.reshape(-1, channels).mean(axis=1), int(sr)
+    except Exception:
+        return None
+
+
+def _voice_valley_snap(
+    cut: float,
+    onset: float,
+    samples,
+    sample_rate: int,
+    prev_boundary: float,
+    next_boundary: float,
+    min_shot: float,
+) -> float:
+    """Nudge one interior cut to the quietest instant of the voice nearby.
+
+    Candidates are the 1/30 s frame times within +-VOICE_VALLEY_SEARCH of
+    ``cut`` (cuts must stay on the frame grid), scored by the RMS of the
+    VOICE_VALLEY_WINDOW of voice centred on each. A candidate is only allowed
+    when the picture still changes VOICE_VALLEY_LEAD_WINDOW after ``onset``
+    (the next line's voice start) and neither neighbouring shot becomes
+    shorter than ``min_shot`` -- or than it already was, if it was shorter.
+    Ties keep the candidate closest to ``cut``; no usable audio keeps ``cut``.
+    """
+    import numpy as np
+
+    if samples is None or not sample_rate or len(samples) == 0:
+        return cut
+    half = max(1, int(round(VOICE_VALLEY_WINDOW * sample_rate / 2)))
+    floor_prev = min(min_shot, cut - prev_boundary)
+    floor_next = min(min_shot, next_boundary - cut)
+    lo, hi = VOICE_VALLEY_LEAD_WINDOW
+    steps = int(VOICE_VALLEY_SEARCH * CUT_FRAME_RATE + 1e-9)
+    best, best_key = cut, None
+    for step in range(-steps, steps + 1):
+        cand = _frame_round(cut + step / CUT_FRAME_RATE)
+        lead = cand - onset
+        if not (lo - 1e-6 <= lead <= hi + 1e-6):
+            continue
+        if cand - prev_boundary < floor_prev - 1e-6 or next_boundary - cand < floor_next - 1e-6:
+            continue
+        centre = int(round(cand * sample_rate))
+        window = samples[max(0, centre - half):centre + half]
+        if len(window) == 0:
+            continue
+        rms = float(np.sqrt(np.mean(np.square(window, dtype=np.float64))))
+        key = (round(rms, 6), abs(step))
+        if best_key is None or key < best_key:
+            best, best_key = cand, key
+    return best
+
+
+def _pacing_j_cut_boundaries(
+    boundaries: List[float],
+    voice_onsets: List[float],
+    j_lead: float,
+    min_shot: float,
+) -> tuple:
+    """Give word-safe pacing boundaries the same J-lead as the legacy path.
+
+    Pacing beats sit on silence gaps, i.e. at or before the next word, so a
+    cut there changes the picture before (or exactly with) the voice. Each
+    interior boundary moves to the first voice onset at/after it plus the
+    (short-shot aware) J-lead, on the frame grid. A move that would reach the
+    next boundary or leave a shot under 0.8 x ``min_shot`` (the slack the
+    beat/motion snaps use) keeps the original boundary. Returns (boundaries, onset per boundary or None).
+    """
+    out = list(boundaries)
+    onsets: List[Optional[float]] = [None] * len(out)
+    ordered = sorted(float(t) for t in voice_onsets)
+    for idx in range(1, len(out) - 1):
+        b = out[idx]
+        onset = next((t for t in ordered if t >= b - 1e-6), None)
+        if onset is None or onset >= boundaries[idx + 1]:
+            continue
+        lead = _j_lead(j_lead, onset - out[idx - 1], boundaries[idx + 1] - onset)
+        moved = _frame_round(onset + lead)
+        # Same 0.8 x min-shot slack the beat and motion snaps allow.
+        floor = min_shot * 0.8 - 1e-6
+        if moved - out[idx - 1] < floor or boundaries[idx + 1] - moved < floor:
+            continue
+        out[idx] = moved
+        onsets[idx] = onset
+    return out, onsets
 
 
 class ShotMatchingStage:
@@ -76,6 +213,37 @@ class ShotMatchingStage:
     def _effective_shot_scales(ctx: PipelineContext) -> List[float]:
         shot_scales = LOOK_PRESETS.get(ctx.angle_meta.get("angle_key", "")) if ctx.angle_meta else None
         return shot_scales or [1.25, 1.0, 1.35, 1.05, 1.3, 1.0]
+
+    @staticmethod
+    def _sentence_end_flags(active_cues: List[dict], parent_cues: Optional[List[dict]] = None) -> List[bool]:
+        """flags[i] is True when a sentence ends with cue i. Sources, in
+        order: an explicit ``sentence_end`` key, a ``line_idx`` change to the
+        next cue, a sentence-closing text ending, or the cue ending exactly
+        where a parent (sentence-level) cue ends. Cues carrying none of these
+        give all False, which leaves the grouping exactly as it was."""
+        n = len(active_cues)
+        flags = [False] * n
+        parent_ends = set()
+        if parent_cues and parent_cues is not active_cues:
+            for parent in parent_cues:
+                if isinstance(parent, dict) and parent.get("end") is not None:
+                    parent_ends.add(round(float(parent["end"]), 3))
+        for i, cue in enumerate(active_cues):
+            explicit = cue.get("sentence_end")
+            if explicit is not None:
+                flags[i] = bool(explicit)
+                continue
+            if i + 1 < n:
+                this_line, next_line = cue.get("line_idx"), active_cues[i + 1].get("line_idx")
+                if this_line is not None and next_line is not None and this_line != next_line:
+                    flags[i] = True
+                    continue
+            if str(cue.get("text", "")).strip().endswith(SENTENCE_END_SUFFIXES):
+                flags[i] = True
+                continue
+            if parent_ends and cue.get("end") is not None and round(float(cue["end"]), 3) in parent_ends:
+                flags[i] = True
+        return flags
 
     @staticmethod
     def _compute_smart_fallback_offset(
@@ -502,6 +670,12 @@ class ShotMatchingStage:
             resolved_bgm_path = SFXManager.resolve_bgm_path(ctx.effective_bgm_name)
             if resolved_bgm_path:
                 beat_times = BeatSync.get_beat_times(resolved_bgm_path)
+                # The mixer plays the BGM through atempo=<ratio>, so a beat
+                # at t in the source file is heard at t / ratio. Same cues
+                # (ctx.micro_cues) and same helper as AudioMixStage.
+                tempo_ratio = bgm_tempo_ratio(ctx.micro_cues)
+                if beat_times and tempo_ratio > 0:
+                    beat_times = [round(bt / tempo_ratio, 3) for bt in beat_times]
         except Exception:
             beat_times = []
 
@@ -536,31 +710,48 @@ class ShotMatchingStage:
                 active_cues = micro_cues if (micro_cues and len(micro_cues) > 0) else cues
                 effective_shot_scales = shot_scales or [1.25, 1.0, 1.35, 1.05, 1.3, 1.0]
                 shots = []
+                auto_transitions_used = False
                 if active_cues:
-                    from scripts.config import J_CUT_OFFSET_SECONDS, MIN_SHOT_DURATION, MAX_SHOT_DURATION
+                    # Cut rhythm comes from the active style; a style that
+                    # sets nothing carries the old config constants.
+                    rhythm = resolve_style_motion_policy(ctx.style_preset)
+                    J_CUT_OFFSET_SECONDS = rhythm.j_lead
+                    MIN_SHOT_DURATION = rhythm.min_shot
+                    MAX_SHOT_DURATION = rhythm.max_shot
                     n_cues = len(active_cues)
                     pacing_boundaries = resolve_pacing_boundaries(
                         ctx.editorial_pacing,
                         total_duration,
                         min_segment_duration=MIN_SHOT_DURATION,
                     )
-                    # Start at the first cue's actual start time (not 0.0).
-                    # Gemini TTS generates ~0.1–0.4s of silence at the very
-                    # beginning of the WAV before the first word; the cue
-                    # timestamps already reflect that offset because they come
-                    # from the real per-cue start times written by the TTS stage.
-                    # Hardcoding 0.0 here made the first shot longer than the
-                    # audio it covers and created a visible silent gap at the
-                    # start of every render.
-                    first_cue_start = float(active_cues[0].get("start", 0.0))
-                    cut_points = [first_cue_start]
+                    # The first shot starts at 0.0, not at the first cue.
+                    # Clips are concatenated from video t=0 while the voice
+                    # keeps its real timing (Gemini TTS leaves ~0.1-0.4 s of
+                    # silence before the first word, already in the cue
+                    # times). Starting the plan at first_cue_start made the
+                    # clips that much shorter than the audio: every cut then
+                    # rendered first_cue_start early (a reverse J-cut once it
+                    # passed the lead) and the renderer padded the missing
+                    # tail by holding the last frame (R0 real-render
+                    # measurement, 2026-10-04). The first shot simply covers
+                    # the leading silence; the grouping below measures it from
+                    # 0.0, i.e. by its real on-screen length.
+                    # Cut times sit on the 1/30 s frame grid; a rounding that
+                    # would collapse a cut onto the previous one keeps the
+                    # unrounded value instead. The final point stays the exact
+                    # total duration so the timeline length is unchanged.
+                    cut_points = [0.0]
                     for i in range(1, n_cues):
                         c_curr_start = float(active_cues[i].get("start", 0.0))
                         prev_dur = float(active_cues[i - 1].get("end", 0.0)) - float(active_cues[i - 1].get("start", 0.0))
                         curr_dur = float(active_cues[i].get("end", 0.0)) - float(active_cues[i].get("start", 0.0))
-                        lead = min(J_CUT_OFFSET_SECONDS, prev_dur * 0.25, curr_dur * 0.25, 0.25)
-                        cut_points.append(round(c_curr_start + lead, 3))
+                        lead = _j_lead(J_CUT_OFFSET_SECONDS, prev_dur, curr_dur)
+                        cut = _frame_round(c_curr_start + lead)
+                        if cut <= cut_points[-1]:
+                            cut = round(c_curr_start + lead, 3)
+                        cut_points.append(cut)
                     cut_points.append(round(total_duration, 3))
+                    sentence_ends = cls._sentence_end_flags(active_cues, cues)
 
                     groups: List[List[int]] = []
                     if pacing_boundaries:
@@ -568,7 +759,17 @@ class ShotMatchingStage:
                         # cue covering each segment midpoint only for content
                         # and AI-shot anchoring; the boundaries themselves are
                         # the single source of timing truth.
-                        boundary_times = pacing_boundaries
+                        # They sit in silence gaps, i.e. at or before the next
+                        # word, so each one is moved to that word's onset plus
+                        # the same J-lead the legacy path uses (audit A7a).
+                        plan_words = ctx.editorial_pacing.get("words") if isinstance(ctx.editorial_pacing, dict) else None
+                        voice_onsets = [
+                            float(w["start"]) for w in (plan_words or [])
+                            if isinstance(w, dict) and isinstance(w.get("start"), (int, float))
+                        ] or [float(c.get("start", 0.0)) for c in active_cues]
+                        boundary_times, boundary_onsets = _pacing_j_cut_boundaries(
+                            pacing_boundaries, voice_onsets, J_CUT_OFFSET_SECONDS, MIN_SHOT_DURATION
+                        )
                         for segment_start, segment_end in zip(boundary_times, boundary_times[1:]):
                             midpoint = (segment_start + segment_end) / 2.0
                             anchor_idx = next(
@@ -591,6 +792,14 @@ class ShotMatchingStage:
                             current.append(i)
                             held_dur = cut_points[i + 1] - group_start
                             if held_dur >= MIN_SHOT_DURATION and i < n_cues - 1:
+                                # Strict Topic Hold: rather than cutting
+                                # mid-sentence, hold to a sentence end that
+                                # is still reachable within MAX_SHOT_DURATION.
+                                if not sentence_ends[i] and any(
+                                    sentence_ends[j] and cut_points[j + 1] - group_start <= MAX_SHOT_DURATION
+                                    for j in range(i + 1, n_cues)
+                                ):
+                                    continue
                                 groups.append(current)
                                 current = []
                                 group_start = cut_points[i + 1]
@@ -677,27 +886,56 @@ class ShotMatchingStage:
 
                     if not pacing_boundaries:
                         boundary_times = [cut_points[0]] + [cut_points[g[-1] + 1] for g in groups]
-                    if motion_times and not pacing_boundaries:
-                        MOTION_SNAP_TOLERANCE = 0.15
-                        for b_idx in range(1, len(boundary_times) - 1):
-                            trough = MotionAnalyzer.nearest_trough(
-                                motion_times, motion_scores, boundary_times[b_idx], MOTION_SNAP_TOLERANCE
-                            )
-                            if trough is not None:
-                                prev_b = boundary_times[b_idx - 1]
-                                next_b = boundary_times[b_idx + 1]
-                                if (trough - prev_b) >= MIN_SHOT_DURATION * 0.8 and (next_b - trough) >= MIN_SHOT_DURATION * 0.8:
-                                    boundary_times[b_idx] = round(trough, 3)
+                        # Voice onset of the line each interior cut leads into.
+                        boundary_onsets = [None] + [
+                            float(active_cues[g[-1] + 1].get("start", 0.0)) if g[-1] + 1 < n_cues else None
+                            for g in groups
+                        ]
+                    # Beat snap works in timeline time (beat_times are already
+                    # rescaled to the tempo the mixer plays). Motion snap is
+                    # done per shot below, in raw-footage time, once each
+                    # shot's raw offset is known -- motion_times index the raw
+                    # clip, not the timeline. A beat-snapped cut keeps its beat.
+                    beat_snapped = set()
                     if beat_times and not pacing_boundaries:
-                        BEAT_SNAP_TOLERANCE = 0.15
+                        BEAT_SNAP_TOLERANCE = rhythm.beat_snap_tolerance
                         for b_idx in range(1, len(boundary_times) - 1):
                             t = boundary_times[b_idx]
-                            nearest = min(beat_times, key=lambda bt: abs(bt - t))
+                            nearest = _frame_round(min(beat_times, key=lambda bt: abs(bt - t)))
                             if abs(nearest - t) <= BEAT_SNAP_TOLERANCE:
                                 prev_b = boundary_times[b_idx - 1]
                                 next_b = boundary_times[b_idx + 1]
                                 if (nearest - prev_b) >= MIN_SHOT_DURATION * 0.8 and (next_b - nearest) >= MIN_SHOT_DURATION * 0.8:
-                                    boundary_times[b_idx] = round(nearest, 3)
+                                    boundary_times[b_idx] = nearest
+                                    beat_snapped.add(b_idx)
+                    # Voice-valley snap: an interior cut that no beat claimed
+                    # moves (+-80 ms, on the frame grid) to the quietest
+                    # instant of the voice-only track, staying inside the
+                    # J-cut window after its line's onset. The motion snap in
+                    # the loop below still wins where the footage has a
+                    # still frame. Priority: beat > motion > voice > rhythm.
+                    if len(boundary_times) > 2:
+                        voice = _load_voice_mono(getattr(ctx, "voice_audio_path", None))
+                        if voice is None:
+                            if getattr(ctx, "voice_audio_path", None):
+                                print("   ⚠️  อ่านไฟล์เสียงพากย์ไม่ได้ -- ข้ามการขยับจุดตัดไปช่วงเสียงเบา")
+                        else:
+                            samples, sample_rate = voice
+                            for b_idx in range(1, len(boundary_times) - 1):
+                                onset = boundary_onsets[b_idx] if b_idx < len(boundary_onsets) else None
+                                if b_idx in beat_snapped or onset is None:
+                                    continue
+                                boundary_times[b_idx] = _voice_valley_snap(
+                                    boundary_times[b_idx],
+                                    onset,
+                                    samples,
+                                    sample_rate,
+                                    boundary_times[b_idx - 1],
+                                    boundary_times[b_idx + 1],
+                                    MIN_SHOT_DURATION,
+                                )
+                    MOTION_SNAP_TOLERANCE = 0.15
+                    ai_shot_anchor: Dict[int, tuple] = {}
 
                     emphasis_scale_idx = effective_shot_scales.index(max(effective_shot_scales))
 
@@ -715,8 +953,67 @@ class ShotMatchingStage:
                         anchor_idx = group[0]
                         ai_shot = ai_matched_shots[anchor_idx] if ai_matched_shots and anchor_idx < len(ai_matched_shots) else None
 
+                        base_scale = effective_shot_scales[g_idx % len(effective_shot_scales)]
+                        max_scale = effective_shot_scales[emphasis_scale_idx]
+
+                        if ai_shot:
+                            ai_start = float(ai_shot.get("start_time", 0.0))
+                            shot_key = id(ai_shot)
+                            if shot_key in ai_shot_anchor:
+                                # The same AI shot already fed an earlier
+                                # group: keep playing forward from where that
+                                # group's footage was, instead of replaying
+                                # start_time.
+                                anchor_v_start, anchor_raw = ai_shot_anchor[shot_key]
+                                ai_start = anchor_raw + max(0.0, v_start - anchor_v_start)
+                            else:
+                                if pacing_boundaries:
+                                    cue_start = float(active_cues[anchor_idx].get("start", 0.0))
+                                    ai_start += max(0.0, v_start - cue_start)
+                                ai_shot_anchor[shot_key] = (v_start, ai_start)
+                            ai_zoom = float(ai_shot.get("punch_zoom", base_scale))
+                            scale = min(1.4, max(1.0, ai_zoom))
+                            raw_offset = max(0.0, min(ai_start, max(0.0, raw_duration - c_dur - 0.2)))
+                        else:
+                            scale = None
+                            previous_offsets = [s["raw_offset"] for s in shots]
+                            raw_offset = cls._compute_smart_fallback_offset(
+                                g_idx=g_idx,
+                                total_groups=len(groups),
+                                raw_duration=raw_duration,
+                                c_dur=c_dur,
+                                motion_times=motion_times,
+                                motion_scores=motion_scores,
+                                previous_offsets=previous_offsets,
+                            )
+
+                        # Motion snap of this shot's outgoing cut, in the raw
+                        # footage's own time base: find the stillest raw frame
+                        # near where this shot's footage ends, then translate
+                        # it back to timeline time.
+                        if (
+                            motion_times and not pacing_boundaries
+                            and g_idx < len(groups) - 1 and (g_idx + 1) not in beat_snapped
+                        ):
+                            raw_end = raw_offset + (v_end - v_start)
+                            trough = MotionAnalyzer.nearest_trough(
+                                motion_times, motion_scores, raw_end, MOTION_SNAP_TOLERANCE
+                            )
+                            if trough is not None:
+                                snapped = _frame_round(v_start + (trough - raw_offset))
+                                next_b = boundary_times[g_idx + 2]
+                                if (
+                                    snapped != v_end
+                                    and (snapped - v_start) >= MIN_SHOT_DURATION * 0.8
+                                    and (next_b - snapped) >= MIN_SHOT_DURATION * 0.8
+                                    and raw_offset + (snapped - v_start) <= raw_duration
+                                ):
+                                    boundary_times[g_idx + 1] = snapped
+                                    v_end = snapped
+                                    c_dur = max(0.2, v_end - v_start)
+
                         motion_score = (
-                            MotionAnalyzer.segment_mean_score(motion_times, motion_scores, v_start, v_end)
+                            MotionAnalyzer.segment_mean_score(motion_times, motion_scores, raw_offset, raw_offset + c_dur)
                             if motion_times else None
                         )
                         energy_score = None
@@ -734,18 +1031,7 @@ class ShotMatchingStage:
                         else:
                             emphasis_score = None
 
-                        base_scale = effective_shot_scales[g_idx % len(effective_shot_scales)]
-                        max_scale = effective_shot_scales[emphasis_scale_idx]
-
-                        if ai_shot:
-                            ai_start = float(ai_shot.get("start_time", 0.0))
-                            if pacing_boundaries:
-                                cue_start = float(active_cues[anchor_idx].get("start", 0.0))
-                                ai_start += max(0.0, v_start - cue_start)
-                            ai_zoom = float(ai_shot.get("punch_zoom", base_scale))
-                            scale = min(1.4, max(1.0, ai_zoom))
-                            raw_offset = max(0.0, min(ai_start, max(0.0, raw_duration - c_dur - 0.2)))
-                        else:
+                        if not ai_shot:
                             if emphasis_score is not None:
                                 scale = base_scale + (max_scale - base_scale) * emphasis_score
                             else:
@@ -755,17 +1041,6 @@ class ShotMatchingStage:
                                     for i in group
                                 )
                                 scale = max_scale if has_emphasis else base_scale
-
-                            previous_offsets = [s["raw_offset"] for s in shots]
-                            raw_offset = cls._compute_smart_fallback_offset(
-                                g_idx=g_idx,
-                                total_groups=len(groups),
-                                raw_duration=raw_duration,
-                                c_dur=c_dur,
-                                motion_times=motion_times,
-                                motion_scores=motion_scores,
-                                previous_offsets=previous_offsets,
-                            )
 
                         shots.append({
                             "start": v_start,
@@ -779,7 +1054,7 @@ class ShotMatchingStage:
                             next_first_cue = active_cues[group[0]]
                             gap = float(next_first_cue.get("start", 0.0)) - float(prev_last_cue.get("end", 0.0))
                             prev_text = str(prev_last_cue.get("text", "")).strip()
-                            sentence_end = prev_text.endswith((".", "!", "?", "ครับ", "ค่ะ", "นะคะ", "นะครับ"))
+                            sentence_end = prev_text.endswith(SENTENCE_END_SUFFIXES)
                             tone = tone_shifts[g_idx - 1] if (g_idx - 1) < len(tone_shifts) else "none"
 
                             previous_type = None
@@ -806,6 +1081,7 @@ class ShotMatchingStage:
 
                     if not ctx.transitions and auto_transitions:
                         ctx.transitions = auto_transitions
+                        auto_transitions_used = True
                 else:
                     curr_t = 0.0
                     shot_idx = 0
@@ -829,6 +1105,16 @@ class ShotMatchingStage:
                     raw_start_offset = float(shot.get("raw_offset", 0.0))
                     trim_end = round(raw_start_offset + s_dur, 3)
                     boundary = ctx.transitions[idx - 1] if (idx > 0 and ctx.transitions and idx - 1 < len(ctx.transitions)) else None
+                    if (
+                        idx > 0
+                        and auto_transitions_used
+                        and isinstance(boundary, dict)
+                        and generated_clips
+                    ):
+                        # An auto slide continues the outgoing shot's camera
+                        # pan instead of alternating by slot.
+                        boundary = orient_slide_to_pan(boundary, generated_clips[-1].get("keyframes"))
+                        ctx.transitions[idx - 1] = boundary
                     if isinstance(boundary, dict):
                         t_in, t_dur = boundary.get("type", "cut"), boundary.get("duration")
                     elif isinstance(boundary, str):

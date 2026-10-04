@@ -1,14 +1,16 @@
 import { useEffect } from 'react';
+import { wheelZoomFactor } from '../lib/timelineZoom.js';
 
 /**
  * Handles global keyboard and wheel listeners for the Timeline:
  * - Escape key closes active menus/popovers
  * - Click outside closes active menus/popovers
- * - Native non-passive wheel zoom for Ctrl/Cmd + wheel
+ * - Native non-passive wheel zoom for Ctrl/Cmd + wheel (anchored at the cursor via onZoomAt)
  */
 export function useTimelineKeyboard({
   scrollRef,
   onZoom,
+  onZoomAt,
   transitionMenuClipId,
   setTransitionMenuClipId,
   contextMenu,
@@ -54,9 +56,16 @@ export function useTimelineKeyboard({
     const onWheelNative = (e) => {
       if (!(e.ctrlKey || e.metaKey)) return;
       e.preventDefault();
+      // Continuous zoom around the cursor when the timeline supports it;
+      // otherwise the old one-preset step.
+      if (onZoomAt) {
+        const rect = el.getBoundingClientRect();
+        onZoomAt(wheelZoomFactor(e.deltaY, e.deltaMode), e.clientX - rect.left);
+        return;
+      }
       onZoom?.(e.deltaY < 0 ? 1 : -1);
     };
     el.addEventListener('wheel', onWheelNative, { passive: false });
     return () => el.removeEventListener('wheel', onWheelNative);
-  }, [scrollRef, onZoom]);
+  }, [scrollRef, onZoom, onZoomAt]);
 }

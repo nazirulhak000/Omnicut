@@ -19,8 +19,27 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.config import VIDEO_WIDTH, VIDEO_HEIGHT, FPS, PROJECTS_DIR
 
+# Foreground (Ken-Burns) box inside the 1080x1920 canvas, and its pre-zoompan upscale factor.
+FG_WIDTH = 960
+FG_HEIGHT = 1280
+_FG_PREUPSCALE = 4
+# Bump when the ffmpeg recipe changes so cached segments/artifacts from older engines
+# (schema 1 rendered ~100 s per still) are never reused.
+_ENGINE_SCHEMA = 2
+
 class ImageMotionEngine:
     """Creates rhythmic, vertical 9:16 motion slideshows from product photos."""
+
+    @classmethod
+    def _segment_key(cls, img_path: str, frames: int, zoom_in: bool) -> str:
+        """Short hash of everything that shapes one segment; names resumable files."""
+        try:
+            stat = Path(img_path).stat()
+            image_state = f"{stat.st_size}:{stat.st_mtime_ns}"
+        except OSError:
+            image_state = "missing"
+        raw = f"{_ENGINE_SCHEMA}|{img_path}|{image_state}|{frames}|{FPS}|{int(zoom_in)}"
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:10]
 
     @staticmethod
     def _valid_images(image_paths: List[str]) -> List[str]:
@@ -41,7 +60,7 @@ class ImageMotionEngine:
             for cue in (cues or [])
         ]
         payload = {
-            "schema_version": 1,
+            "schema_version": _ENGINE_SCHEMA,
             "images": images,
             "cue_timing": cue_timing,
             "total_duration": float(total_duration),
@@ -83,7 +102,7 @@ class ImageMotionEngine:
         )
         metadata_path.parent.mkdir(parents=True, exist_ok=True)
         temp_path = metadata_path.with_suffix(metadata_path.suffix + ".tmp")
-        temp_path.write_text(json.dumps({"schema_version": 1, "fingerprint": fingerprint}), encoding="utf-8")
+        temp_path.write_text(json.dumps({"schema_version": _ENGINE_SCHEMA, "fingerprint": fingerprint}), encoding="utf-8")
         temp_path.replace(metadata_path)
         return result
 
@@ -132,16 +151,19 @@ class ImageMotionEngine:
                     pass
 
             img_path = valid_images[idx % len(valid_images)]
-            seg_out = temp_dir / f"seg_{idx:03d}.mp4"
+
+            # Alternate Zoom In vs Zoom Out for dynamic feel
+            zoom_in = (idx % 2 == 0)
+            frames = int(math.ceil(dur * FPS))
+
+            # Resume key: a leftover segment is only reusable when image, length and
+            # engine version are identical (old seg_NNN.mp4 files were ~100 s long).
+            seg_out = temp_dir / f"motion_seg_{idx:03d}_{cls._segment_key(img_path, frames, zoom_in)}.mp4"
 
             # Check if segment file already exists from previous run (incremental resume)
             if seg_out.exists() and seg_out.stat().st_size > 10240:
                 segment_files.append(seg_out)
                 continue
-
-            # Alternate Zoom In vs Zoom Out for dynamic feel
-            zoom_in = (idx % 2 == 0)
-            frames = int(math.ceil(dur * FPS))
 
             # Dynamic Ken-Burns: smooth zoom rate scaled across the exact duration
             max_zoom = 1.15
@@ -156,22 +178,29 @@ class ImageMotionEngine:
 
             # FFmpeg filter:
             # 1. Background: scale image to fill 1080x1920 + boxblur
-            # 2. Foreground: scale image to fit nicely within 9:16 + Ken-Burns zoompan
+            # 2. Foreground: lanczos pre-upscale (zoompan crops on whole input pixels,
+            #    so a bigger input = sub-pixel jitter) -> pad to 3:4 with transparency so
+            #    non-3:4 photos are not stretched by zoompan's fixed s= -> Ken-Burns zoompan
             # 3. Overlay foreground centered on blurred background
+            # The input is ONE still frame (no -loop): zoompan emits `d` frames for every
+            # input frame, so looping the input multiplied the length by the loop count.
+            up_w = FG_WIDTH * _FG_PREUPSCALE
+            up_h = FG_HEIGHT * _FG_PREUPSCALE
             filter_complex = (
                 f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=20:5[bg];"
-                f"[0:v]scale=960:1280:force_original_aspect_ratio=decrease,"
-                f"zoompan=z='{zoom_expr}':d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=960x1280:fps={FPS}[fg];"
+                f"[0:v]scale={up_w}:{up_h}:force_original_aspect_ratio=decrease:flags=lanczos,"
+                f"format=rgba,pad={up_w}:{up_h}:(ow-iw)/2:(oh-ih)/2:color=black@0,"
+                f"zoompan=z='{zoom_expr}':d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+                f"s={FG_WIDTH}x{FG_HEIGHT}:fps={FPS}[fg];"
                 f"[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p[v]"
             )
 
             cmd = [
                 "ffmpeg", "-y",
-                "-loop", "1",
-                "-t", f"{dur:.2f}",
                 "-i", img_path,
                 "-filter_complex", filter_complex,
                 "-map", "[v]",
+                "-frames:v", str(frames),  # hard cap: exactly ceil(dur * FPS) frames
                 "-c:v", "libx264",
                 "-preset", "ultrafast",
                 "-crf", "20",

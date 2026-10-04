@@ -119,6 +119,8 @@ export const getBackgroundIsolationManifest = (artifactId) =>
   api.get(`/background-isolation/sequences/${encodeURIComponent(artifactId)}/manifest`).then(r => r.data);
 export const preflightBackgroundIsolation = (payload) =>
   api.post('/background-isolation/preflight', payload, { timeout: 30000 }).then(r => r.data);
+export const interactiveSegment = (payload) =>
+  api.post('/background-isolation/interactive-segment', payload, { timeout: 15000 }).then(r => r.data);
 export const cancelBatchRender = (batchId) => api.post(`/render/batch/${batchId}/cancel`).then(r => r.data);
 export const openFolder = (target) => api.post('/open-folder', { target }).then(r => r.data);
 
@@ -553,5 +555,46 @@ export const matchRawFolderWithAI = (rawFolder, sentences) =>
     raw_folder: rawFolder,
     sentences,
   }).then(r => r.data);
+
+// ── Mobile Quick Studio API ──
+export const fetchMobileCatalog = () =>
+  api.get('/mobile-studio/catalog').then(r => r.data);
+
+export const createMobileSession = (productId, angleId) =>
+  api.post('/mobile-studio/session', { product_id: productId, angle_id: angleId }, { timeout: 300000 }).then(r => r.data);
+
+export const triggerMobileAssemble = (productId, angleId, sessionId = null, customRawVideo = null) =>
+  api.post('/mobile-studio/assemble', {
+    product_id: productId,
+    angle_id: angleId,
+    session_id: sessionId,
+    custom_raw_video: customRawVideo,
+  }).then(r => r.data);
+
+export const fetchMobileTask = (taskId) =>
+  api.get(`/mobile-studio/task/${taskId}`).then(r => r.data);
+
+export const createMobileQuickAngle = (productId, title = null, script = null) =>
+  api.post('/mobile-studio/quick-angle', { product_id: productId, title, script }).then(r => r.data);
+
+export const uploadMobileVideo = (productId, angleId, file, onProgress = null) => {
+  const formData = new FormData();
+  formData.append('product_id', productId);
+  formData.append('angle_id', angleId);
+  formData.append('file', file);
+  return api.post('/mobile-studio/upload-video', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: onProgress ? (e) => {
+      const pct = Math.round((e.loaded * 100) / (e.total || e.loaded));
+      onProgress(pct);
+    } : undefined,
+  }).then(r => r.data);
+};
+
+export const quickAddMobileProduct = (nameOrUrl) =>
+  api.post('/mobile-studio/products/quick-add', { name_or_url: nameOrUrl }).then(r => r.data);
+
+export const previewMobileVoice = (text, voice = 'gemini_fenrir_male_strong') =>
+  api.post('/mobile-studio/preview-voice', { text, voice }).then(r => r.data);
 
 export default api;

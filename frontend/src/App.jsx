@@ -1,3 +1,4 @@
+import { filmingReturnUrl, filmingUrl } from './lib/mobileStudioFlow.js';
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
@@ -22,6 +23,8 @@ const UserGuide = lazy(() => import('./components/UserGuide'));
 const MobileQuickPostPage = lazy(() => import('./components/MobileQuickPostPage'));
 const MobileFilmingPage = lazy(() => import('./components/MobileFilmingPage'));
 const QuickRefPage = lazy(() => import('./components/producer/QuickRefPage'));
+const MobileQuickStudio = lazy(() => import('./components/MobileQuickStudio'));
+
 
 import { angleToForm } from './lib/angleToForm';
 import { applyUiScale, initUiScale } from './lib/uiScale';
@@ -61,6 +64,20 @@ export default function App() {
       return '';
     }
   });
+
+  // Dual-Mode: Mobile Quick Studio vs Desktop Pro
+  const [isMobileQuickMode, setIsMobileQuickMode] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('mode') === 'desktop') return false;
+      if (p.get('mode') === 'mobile' || p.get('quick') === '1') return true;
+      // Auto-detect mobile screen width
+      return typeof window !== 'undefined' && window.innerWidth < 768;
+    } catch {
+      return false;
+    }
+  });
+
 
   // 1. Active Tab Persistence with Fallback Migration
   const [activeTab, setActiveTab] = useState(() => {
@@ -183,6 +200,8 @@ export default function App() {
   const [analyticsRefreshKey, setAnalyticsRefreshKey] = useState(0);
 
   useKeyboardShortcuts({
+    // The editor tab owns Space and Ctrl+S (useEditorShortcuts / handleManualSave).
+    isEditorActive: activeTab === 'editor',
     onTabChange: (tab) => {
       handlePrimaryTabChange(tab);
     },
@@ -413,7 +432,7 @@ export default function App() {
     return (
       <div className={`h-screen w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
         <Suspense fallback={<LoadingSpinner message="กำลังเปิดหน้าถ่ายทำ..." />}>
-          <MobileFilmingPage sessionId={filmingSessionId} onExit={() => { window.location.href = window.location.pathname; }} />
+          <MobileFilmingPage sessionId={filmingSessionId} onExit={() => { window.location.href = filmingReturnUrl(window.location.search) || window.location.pathname; }} />
         </Suspense>
       </div>
     );
@@ -425,6 +444,23 @@ export default function App() {
         <ErrorBoundary>
           <Suspense fallback={<LoadingSpinner message="กำลังเปิดคลังไอเดีย Quick-Capture..." />}>
             <QuickRefPage onExit={() => { window.location.href = window.location.pathname; }} />
+          </Suspense>
+        </ErrorBoundary>
+      </div>
+    );
+  }
+
+  if (isMobileQuickMode) {
+    return (
+      <div className={`h-screen w-screen overflow-y-auto bg-slate-950 ${uiFont}`}>
+        <ErrorBoundary>
+          <Suspense fallback={<LoadingSpinner message="กำลังเปิด OmniCut Mobile Studio..." />}>
+            <MobileQuickStudio
+              onSwitchToDesktop={() => setIsMobileQuickMode(false)}
+              onOpenFilmingSession={(sId, productId, angleId) => {
+                window.location.href = filmingUrl(sId, productId, angleId);
+              }}
+            />
           </Suspense>
         </ErrorBoundary>
       </div>
@@ -461,11 +497,13 @@ export default function App() {
               setUiScale={handleUiScaleChange}
               onOpenShortcuts={() => setShowShortcutsModal(true)}
               onRefresh={handleGlobalRefresh}
+              onSwitchToMobile={() => setIsMobileQuickMode(true)}
               activeProductContext={activeProductContext}
               exportsCount={exportsList.length}
               videosCount={videos.length}
             />
           )}
+
 
           {/* ── Content (Enforce overflow-x-hidden so page never shifts horizontally under sidebar) ── */}
           <ErrorBoundary>

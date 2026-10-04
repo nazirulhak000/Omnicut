@@ -256,8 +256,9 @@ def test_mask_video_composites_in_real_ffmpeg_export(tmp_path, monkeypatch):
     # through -- it must NOT be painted over (that regression flattened the
     # background to solid #0B1220 and lost the layer the hook text sits on).
     assert left[2] > left[0] + 70, f"footage should remain visible behind the mask: {left}"
-    # Right half: the red cut-out subject is composited over it.
-    assert right[0] > right[2] + 70, f"subject should be composited on top: {right}"
+    # The artifact has red RGB, but only its alpha is used. The opaque half
+    # must retain the exact source colour rather than introducing another RGB frame.
+    assert right[2] > right[0] + 70, f"subject must use source RGB: {right}"
 
 
 def test_manifest_records_measured_encode_performance(tmp_path):

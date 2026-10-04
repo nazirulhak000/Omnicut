@@ -30,13 +30,12 @@ def test_transparent_video_cutout_appears_in_real_sequence_player(cutout_media_d
     cutout = tmp_path / "cutout.webm"
     subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
-         "-i", "color=c=blue:s=64x64:r=30:d=8", "-c:v", "libx264", str(source)],
+         "-i", "color=c=blue:s=64x64:r=30:d=8,drawbox=x=32:y=0:w=32:h=64:color=red:t=fill", "-c:v", "libx264", str(source)],
         check=True, capture_output=True,
     )
     # The alpha split runs vertically in the player crop. The subject below is
-    # RED over this BLUE footage: composite mode keeps the footage as the base
-    # layer, so a same-coloured subject would be indistinguishable from the
-    # background and the assertions could not tell the two layers apart.
+    # RED on the right of the source too: Cutout supplies alpha, while the
+    # displayed source supplies RGB. The gate checks continuous visibility.
     foreground = b"".join(
         bytes([255, 0, 0, 0] * 32 + [255, 0, 0, 255] * 32)
         for _ in range(64)
@@ -152,6 +151,24 @@ def test_transparent_video_cutout_appears_in_real_sequence_player(cutout_media_d
                                   "max_drift": max(abs(x["time"] - x["target"]) for x in playback["samples"])}))
                 assert playback["seeks"] <= 2, playback
                 assert playback["visible"] >= 54, playback
+                # Simulate the incoming alpha decoder waiting at a cut/seek.
+                # After the matched-pair hold expires, the healthy source must
+                # remain visible rather than becoming the dark pending canvas.
+                waiting = page.evaluate("""async () => {
+                  const mask = window.__cutoutProbeVideos.find(v => v.src.includes('/cutout.webm'));
+                  mask._cutoutPlayback.sync = () => { mask._cutoutPresentedTime = null; return false; };
+                  const canvas = document.querySelector('[data-testid="real-media-preview"] canvas');
+                  const ctx = canvas.getContext('2d');
+                  await new Promise(resolve => setTimeout(resolve, 400));
+                  let footage = 0;
+                  for (let i=0; i<12; i++) {
+                    await new Promise(requestAnimationFrame);
+                    const p=ctx.getImageData(Math.floor(canvas.width*440/540),Math.floor(canvas.height/2),1,1).data;
+                    footage += p[0]>100;
+                  }
+                  return footage;
+                }""")
+                assert waiting >= 10, f"footage disappeared while alpha waited: {waiting}"
             except PlaywrightTimeoutError:
                 diagnostics = page.evaluate("""() => {
                   const root = document.querySelector('[data-testid="real-media-preview"]');

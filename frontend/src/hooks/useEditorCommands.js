@@ -1,6 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { FADE_DURATION, resolveSplitTarget, splitClipAt } from '../lib/timelineMath.js';
+import { resolveTrimHead, resolveTrimTail } from '../lib/timelineTrimOps.js';
+import { copyClipSettings, pasteClipSettingsInState, pasteClipSettingsToClips } from '../lib/clipSettingsClipboard.js';
 import { removeItemById } from '../lib/collectionOperations.js';
+import {
+  applyRipplePlan,
+  defaultRippleScope as defaultRippleScopeFor,
+  planRippleRanges,
+} from '../lib/rippleRange.js';
 import { patchAllClipsInState, patchClipInState } from '../lib/inspectorModel.js';
 import {
   captionPatchHistoryOptions,
@@ -24,10 +31,19 @@ export function useEditorCommands({
   selectedSeg = null,
   selection = null,
   setSelection = () => {},
+  // Every clip selected with Ctrl/Shift+click (primary included, timeline order).
+  // Only Delete looks at the whole set; split/trim/Q/W act on the primary.
+  selectedClipIds = [],
   cuesDirtyRef = { current: false },
   handleDeleteOverlay = () => {},
   onImportSuccess,
   onNotify,
+  onSeek,
+  // Ripple delete: the history state (for the dry-run plan), whether the
+  // project has a voiceover, and the voice length as it is on the timeline now.
+  editorState = null,
+  hasVoice = false,
+  audioDuration = 0,
 }) {
   const markCuesDirty = useCallback(() => {
     if (cuesDirtyRef) cuesDirtyRef.current = true;
@@ -112,6 +128,24 @@ export function useEditorCommands({
     setSelection({ type: 'clip', id: right.id });
   }, [newId, onNotify, playhead, segments, selectedSeg, set, setSelection]);
 
+  // Q / W: cut the clip's head or tail off at the frame-snapped playhead. One
+  // set() call = one undo step; a refusal says why (like splitAtPlayhead).
+  // A head trim slides the kept part back to the clip's own start, so the
+  // playhead follows it and the preview keeps showing the frame it was on.
+  const trimEdgeAtPlayhead = useCallback((edge) => {
+    const target = (edge === 'tail' ? resolveTrimTail : resolveTrimHead)(segments, selectedSeg, playhead);
+    if (!target.seg) {
+      onNotify?.(target.message);
+      return;
+    }
+    const clipId = target.seg.clip.id;
+    set((prev) => patchClipInState(prev, clipId, target.patch));
+    setSelection({ type: 'clip', id: clipId });
+    if (target.seekTo !== null && target.seekTo !== undefined) onSeek?.(target.seekTo);
+  }, [onNotify, onSeek, playhead, segments, selectedSeg, set, setSelection]);
+  const trimHeadAtPlayhead = useCallback(() => trimEdgeAtPlayhead('head'), [trimEdgeAtPlayhead]);
+  const trimTailAtPlayhead = useCallback(() => trimEdgeAtPlayhead('tail'), [trimEdgeAtPlayhead]);
+
   const duplicateSelected = useCallback(() => {
     if (!selectedSeg) return;
     const orig = selectedSeg.clip;
@@ -126,9 +160,47 @@ export function useEditorCommands({
     setSelection({ type: 'clip', id: dup.id });
   }, [newId, selectedSeg, set, setSelection]);
 
+  // Copy / paste of clip settings (speed, zoom/pan + camera keyframes, colour,
+  // incoming transition). The copy lives for this editing session only; paste
+  // goes to every selected clip in ONE set() = one undo step.
+  const [copiedClipSettings, setCopiedClipSettings] = useState(null);
+
+  const copyClipSettingsFromPrimary = useCallback(() => {
+    if (!selectedSeg) {
+      onNotify?.('เลือกคลิปที่จะคัดลอกการตั้งค่าก่อน');
+      return;
+    }
+    setCopiedClipSettings(copyClipSettings(selectedSeg.clip, selectedSeg.srcDur));
+    onNotify?.('คัดลอกการตั้งค่าคลิปแล้ว (ความเร็ว ซูม/แพน สี ทรานซิชัน)');
+  }, [onNotify, selectedSeg]);
+
+  const pasteClipSettingsToSelected = useCallback(() => {
+    if (!copiedClipSettings) {
+      onNotify?.('ยังไม่ได้คัดลอกการตั้งค่าคลิป');
+      return;
+    }
+    const targetIds = selectedClipIds.length ? selectedClipIds : (selectedSeg ? [selectedSeg.clip.id] : []);
+    if (!targetIds.length) {
+      onNotify?.('เลือกคลิปที่จะวางการตั้งค่าก่อน');
+      return;
+    }
+    const sourceDurations = Object.fromEntries(segments.map((seg) => [seg.clip.id, seg.srcDur]));
+    const { changed } = pasteClipSettingsToClips(
+      segments.map((seg) => seg.clip), copiedClipSettings, targetIds, sourceDurations,
+    );
+    if (!changed) {
+      onNotify?.('คลิปที่เลือกมีการตั้งค่าตรงกับที่คัดลอกไว้อยู่แล้ว');
+      return;
+    }
+    set((prev) => pasteClipSettingsInState(prev, copiedClipSettings, targetIds, sourceDurations));
+    onNotify?.(`วางการตั้งค่าลง ${changed} คลิปแล้ว`);
+  }, [copiedClipSettings, onNotify, segments, selectedClipIds, selectedSeg, set]);
+
   const deleteSelected = useCallback(() => {
     if (selection?.type === 'clip') {
-      set((prev) => ({ ...prev, clipList: prev.clipList.filter((c) => c.id !== selection.id) }));
+      // The whole multi-selection goes in ONE set(): one Ctrl+Z brings it back.
+      const doomed = new Set(selectedClipIds.length > 1 ? selectedClipIds : [selection.id]);
+      set((prev) => ({ ...prev, clipList: prev.clipList.filter((c) => !doomed.has(c.id)) }));
       setSelection(null);
     } else if (selection?.type === 'caption') {
       markCuesDirty();
@@ -166,7 +238,63 @@ export function useEditorCommands({
       }));
       setSelection(null);
     }
-  }, [handleDeleteOverlay, markCuesDirty, selection, set, setSelection]);
+  }, [handleDeleteOverlay, markCuesDirty, selectedClipIds, selection, set, setSelection]);
+
+  // ──────────────── Ripple Delete (rippleRange.js) ────────────────
+  // Not bound to any key or button yet. One ripple = ONE set(): clips, captions,
+  // overlays, stickers, effects and the voice cuts change together, so one
+  // Ctrl+Z puts everything back.
+
+  /** Voiceover present -> 'all' (picture + voice + captions), otherwise 'video'. */
+  const defaultRippleScope = useCallback(
+    (voicePresent = hasVoice) => defaultRippleScopeFor(voicePresent),
+    [hasVoice],
+  );
+
+  const rippleOptions = useCallback((scope, extra) => ({
+    scope: scope || defaultRippleScopeFor(hasVoice),
+    durations,
+    hasVoice,
+    audioDuration,
+    newId,
+    ...(extra || {}),
+  }), [audioDuration, durations, hasVoice, newId]);
+
+  // Dry run for the confirm dialog. Returns the plan (see planRippleRanges;
+  // `describeRipplePlan(plan)` gives the Thai text) and changes nothing.
+  const planRipple = useCallback((ranges, scope, extra) => (
+    planRippleRanges(editorState || {}, ranges, rippleOptions(scope, extra))
+  ), [editorState, rippleOptions]);
+
+  // Apply `ranges` (program seconds) now. The plan is made again against the
+  // newest state inside the updater, so a stale dialog can never apply old numbers.
+  // Returns the plan; `plan.blocked` (Thai) says why nothing happened.
+  const rippleRanges = useCallback((ranges, scope, extra) => {
+    let applied = null;
+    set((prev) => {
+      applied = planRippleRanges(prev, ranges, rippleOptions(scope, extra));
+      return applied.changed && !applied.blocked ? applyRipplePlan(prev, applied) : prev;
+    });
+    const plan = applied
+      || (editorState ? planRippleRanges(editorState, ranges, rippleOptions(scope, extra)) : null);
+    if (!plan) return null;
+    if (plan.blocked || !plan.changed) {
+      if (plan.blocked) onNotify?.(plan.blocked);
+      return plan;
+    }
+    const { summary } = plan;
+    if (summary.cues.removed || summary.cues.retimed || summary.microCues.removed || summary.microCues.retimed) {
+      markCuesDirty();
+    }
+    setSelection(null);
+    onSeek?.(plan.playhead);
+    return plan;
+  }, [editorState, markCuesDirty, onNotify, onSeek, rippleOptions, set, setSelection]);
+
+  const rippleDeleteRange = useCallback(
+    ({ t0, t1, scope } = {}, extra) => rippleRanges([{ start: t0, end: t1 }], scope, extra),
+    [rippleRanges],
+  );
 
   // ──────────────── Caption Commands ────────────────
 
@@ -464,8 +592,17 @@ export function useEditorCommands({
     patchAllClips,
     reorderClip,
     splitAtPlayhead,
+    trimHeadAtPlayhead,
+    trimTailAtPlayhead,
     duplicateSelected,
+    copyClipSettings: copyClipSettingsFromPrimary,
+    pasteClipSettings: pasteClipSettingsToSelected,
+    hasCopiedClipSettings: Boolean(copiedClipSettings),
     deleteSelected,
+    defaultRippleScope,
+    planRipple,
+    rippleRanges,
+    rippleDeleteRange,
     addTextAtPlayhead,
     patchCaption,
     patchAllCaptions,

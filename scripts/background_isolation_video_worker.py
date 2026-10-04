@@ -13,6 +13,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from fractions import Fraction
@@ -43,6 +44,10 @@ def video_artifact_id(fingerprint: str, config: dict[str, Any], *, start: float,
     if normalized.get("engine") == "sam2":
         # Earlier SAM2 artifacts stretched the source, unlike editor prompts.
         version += "-sam2-fit-v1"
+        # Points without reference metadata now belong only to source time
+        # zero. Earlier nonzero jobs could use those points, so never reuse
+        # their old SAM2 masks under the stricter fallback semantics.
+        version += "-prompt-scope-v3"
     # Editor-picked points change the mask, so they must change the identity:
     # otherwise a cached artifact built from the wrong subject would be reused.
     # An empty list keeps every existing cache id exactly as it was.
@@ -50,6 +55,11 @@ def video_artifact_id(fingerprint: str, config: dict[str, Any], *, start: float,
     if subject_points:
         encoded_points = json.dumps(subject_points, sort_keys=True, separators=(",", ":"))
         version += "-subj-" + hashlib.sha256(encoded_points.encode()).hexdigest()[:12]
+        reference = {key: normalized.get(key) for key in
+                     ("prompt_reference_start", "prompt_reference_source")}
+        version += "-pref-" + hashlib.sha256(
+            json.dumps(reference, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()[:12]
     if normalized.get("auto_prompt") is False:
         version += "-autoprompt-off"
     if active_intervals is not None:
@@ -153,60 +163,103 @@ def _prompt_frame_filter(width: int, height: int) -> str:
     return cutout_frame_filter(width, height)
 
 
+def _derive_points_for_timestamp(
+    source: Path, staged: Path, timestamp: float,
+    width: int, height: int, worker: BackgroundIsolationWorker,
+) -> list[dict[str, Any]] | None:
+    """Extract 1 frame at timestamp and run isnet-general-use to find product prompt points."""
+    from scripts.cutout_prompt import subject_points_from_frame
+    from PIL import Image
+
+    frame_path = staged / f".prompt_frame_{timestamp:.3f}.jpg"
+    try:
+        command = [
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
+            "-ss", str(timestamp), "-i", str(source), "-frames:v", "1",
+            "-vf", _prompt_frame_filter(width, height), "-q:v", "2", "-y", str(frame_path),
+        ]
+        subprocess.run(command, check=True, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=120)
+        rembg, session = worker._get_session("isnet-general-use")
+        with Image.open(frame_path) as opened:
+            frame = opened.convert("RGB")
+            if session is None:
+                return subject_points_from_frame(
+                    frame, remove_background=lambda image: rembg.remove(image)
+                )
+            return subject_points_from_frame(
+                frame, remove_background=lambda image: rembg.remove(image, session=session)
+            )
+    except Exception as exc:
+        try:
+            print(f"   ⚠️ หาจุดสินค้าอัตโนมัติที่ {timestamp:.2f}s ไม่สำเร็จ: {exc}")
+        except UnicodeError:
+            print(f"   [warn] auto subject point failed at {timestamp:.2f}s")
+        return None
+    finally:
+        frame_path.unlink(missing_ok=True)
+
+
 def derive_sam2_prompts(
     normalized: dict[str, Any], source: Path, staged: Path, *,
     start: float, width: int, height: int,
     worker: BackgroundIsolationWorker,
-) -> list[dict[str, float]] | None:
+    active_intervals: list[tuple[float, float]] | None = None,
+    fps: float = 30.0,
+) -> list[dict[str, Any]] | None:
     """Resolve the cutout prompt points for one SAM 2 job (hybrid auto-prompt).
 
-    Priority: points picked in the editor, then a derivation from the existing
-    rembg model on the first frame of the segment, then ``None`` which keeps the
-    worker's historical centre point.  Never raises: on real hand-held footage
-    the centre point selected the hand instead of the product (measured 38.74%
-    mask vs 0.58% with a product point), so a failed derivation must degrade to
-    the old behaviour rather than fail the whole job.
+    Priority:
+    1. If explicit editor-picked points match this job's reference window, use them.
+       For multi-interval clips, additional interval start frames are seeded via
+       auto-prompt so camera changes remain tracked.
+    2. If this is a subsequent clip/take where the camera changed (start != reference),
+       automatically derive fresh prompt points using isnet-general-use on that clip's
+       first frame so the cutout never tracks empty space.
+    3. If auto-prompt derivation fails, gracefully degrade rather than fail the job.
     """
-    from scripts.cutout_prompt import normalize_subject_points, subject_points_from_frame
+    from scripts.cutout_prompt import normalize_subject_points
 
     try:
         explicit = normalize_subject_points(normalized.get("subject_points"))
-        if explicit:
-            return explicit
-        if normalized.get("auto_prompt") is False:
-            return None
 
-        frame_path = staged / ".prompt_frame.jpg"
-        try:
-            command = [
-                "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
-                "-ss", str(start), "-i", str(source), "-frames:v", "1",
-                "-vf", _prompt_frame_filter(width, height), "-q:v", "2", "-y", str(frame_path),
-            ]
-            subprocess.run(command, check=True, stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL, timeout=120)
-            from PIL import Image
-
-            # isnet-general-use, not the compact model: measured on the Jbl clip
-            # the compact/default models leak dark background into the mask and
-            # the product point lands outside the product, while isnet keeps the
-            # product inside one clean blob and the outlier stage finds it.
-            rembg, session = worker._get_session("isnet-general-use")
-            with Image.open(frame_path) as opened:
-                frame = opened.convert("RGB")
-                if session is None:
-                    return subject_points_from_frame(
-                        frame, remove_background=lambda image: rembg.remove(image)
-                    )
-                return subject_points_from_frame(
-                    frame, remove_background=lambda image: rembg.remove(image, session=session)
-                )
-        finally:
-            frame_path.unlink(missing_ok=True)
-    except Exception as exc:  # noqa: BLE001 - degrade, never fail the cutout job
+        prompt_ref = normalized.get("prompt_reference_start")
+        reference_source = normalized.get("prompt_reference_source")
+        if prompt_ref is None:
+            is_reference_clip = abs(start) <= 1e-5
+        else:
+            is_reference_clip = abs(start - float(prompt_ref)) <= 1e-5
+        if reference_source is not None:
+            is_reference_clip = is_reference_clip and Path(reference_source).resolve() == source.resolve()
+        auto_enabled = normalized.get("auto_prompt") is not False
+        first_points = explicit if explicit and is_reference_clip else (
+            _derive_points_for_timestamp(source, staged, start, width, height, worker)
+            if auto_enabled else None
+        )
+        # Never reuse coordinates from another source/window on failed auto detection.
+        if not active_intervals or not auto_enabled:
+            return first_points
+        starts = sorted({begin for begin, _end in active_intervals if begin > start + 1e-5})
+        if not starts:
+            return first_points
+        # SAM2 starts propagation at its first conditioned frame. Always seed
+        # frame zero, including when the first visible alpha interval is later.
+        multi_points = [dict(point, frame=point.get("frame", 0)) for point in
+                        (first_points or [{"x": 0.5, "y": 0.5, "label": 1}])]
+        seeded_frames = {point["frame"] for point in multi_points}
+        for timestamp in starts:
+            frame = max(0, int(round((timestamp - start) * fps)))
+            if frame in seeded_frames:
+                continue
+            points = _derive_points_for_timestamp(source, staged, timestamp, width, height, worker)
+            if points:
+                multi_points.extend(dict(point, frame=frame) for point in points)
+                seeded_frames.add(frame)
+        return multi_points
+    except Exception as exc:
         try:
             print(f"   ⚠️ หาจุดสินค้าอัตโนมัติไม่สำเร็จ ใช้จุดกลางภาพแบบเดิม: {exc}")
-        except UnicodeError:  # stdout is not UTF-8 (e.g. cp1252 pipe): the log must not break the fallback
+        except UnicodeError:
             print("   [warn] auto subject point failed, using the old centre point")
         return None
 
@@ -347,13 +400,22 @@ def process_background_isolation_video(
                 cmd.extend(["--active-intervals", ";".join(f"{begin},{end}" for begin, end in active_intervals)])
             prompt_points = derive_sam2_prompts(
                 normalized, source, staged, start=start, width=width, height=height, worker=worker,
+                active_intervals=active_intervals, fps=float(fps_ratio),
             )
             if prompt_points:
                 from scripts.cutout_prompt import format_prompt_points
 
-                cmd.extend(["--prompt-points", format_prompt_points(prompt_points)])
+                encoded_points = format_prompt_points(prompt_points)
+                # Windows argv is limited; many interval seeds must survive intact.
+                if len(encoded_points) > 16000:
+                    prompt_file = staged / ".prompt-points.txt"
+                    prompt_file.write_text(encoded_points, encoding="utf-8")
+                    cmd.extend(["--prompt-points-file", str(prompt_file)])
+                else:
+                    cmd.extend(["--prompt-points", encoded_points])
 
-            with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as sam2_stderr_log:
+            from scripts.task_manager import TaskManager
+            with TaskManager.gpu_lock(), tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as sam2_stderr_log:
                 sam2_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=sam2_stderr_log, text=True)
                 while True:
                     if cancel_event is not None and cancel_event.is_set():
@@ -377,6 +439,7 @@ def process_background_isolation_video(
                     raise RuntimeError(f"SAM 2 worker failed: {stderr[-600:]}")
 
             sam2_manifest_file = staged / "manifest.json"
+            (staged / ".prompt-points.txt").unlink(missing_ok=True)
             if not sam2_manifest_file.is_file():
                 raise RuntimeError("SAM 2 worker did not produce manifest.json")
             sam2_manifest = json.loads(sam2_manifest_file.read_text(encoding="utf-8"))

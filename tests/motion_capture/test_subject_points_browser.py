@@ -9,8 +9,8 @@ Cutout point-picking contract end to end:
 * with pick mode on, clicking a known place on the preview stores the same
   normalized point at two different preview sizes, and draws a marker there;
 * markers stay glued to the picked normalized position when the preview resizes;
-* the points survive save + reload, and "ล้างจุด" clears them (markers and the
-  saved project).
+* points and source/time reference survive save + reload; markers appear only
+  while paused in pick mode and "ล้างจุด" clears both points and reference.
 
 Everything runs against temp storage under ``.tmp`` and is removed afterwards.
 The test skips, with the reason, when Node/Vite, Chromium or FFmpeg is missing.
@@ -196,8 +196,8 @@ def test_subject_points_pick_resize_save_reload_clear(app_url, monkeypatch, prev
                     page.wait_for_timeout(300)
                     frame_widths.append(_frame_box(page)["width"])
                     assert not page_errors, page_errors
-                    if page.get_by_role("button", name=CLEAR_BUTTON).is_enabled():
-                        page.get_by_role("button", name=CLEAR_BUTTON).click()
+                    if page.get_by_label("จุดสินค้า", exact=True).get_by_role("button", name=CLEAR_BUTTON).is_enabled():
+                        page.get_by_label("จุดสินค้า", exact=True).get_by_role("button", name=CLEAR_BUTTON).click()
                         assert page.locator(MARKERS).count() == 0
                     play_toggle = page.locator(PLAY_TOGGLE).first
                     label_before = play_toggle.get_attribute("aria-label") if play_toggle.count() else None
@@ -214,6 +214,8 @@ def test_subject_points_pick_resize_save_reload_clear(app_url, monkeypatch, prev
                     assert page.locator(MARKERS).count() == 1
                     _close_to(_marker_fractions(page)[0], TARGET, f"marker at {size}")
                     config = _save(page, manifest)
+                    assert config["prompt_reference_source"] == clip_url
+                    assert config["prompt_reference_start"] == 0
                     points = config.get("subject_points") or []
                     assert len(points) == 1, config
                     assert points[0]["label"] == 1
@@ -230,21 +232,41 @@ def test_subject_points_pick_resize_save_reload_clear(app_url, monkeypatch, prev
                 # 4. Reload keeps the points (pick mode is transient and resets).
                 page.reload(wait_until="domcontentloaded")
                 page.locator('[data-timeline-item="clip"]:visible').first.wait_for(timeout=15000)
-                page.locator(MARKERS).first.wait_for(timeout=10000)
-                assert page.locator(MARKERS).count() == 1
-                _close_to(_marker_fractions(page)[0], TARGET, "marker after reload")
+                assert page.locator(MARKERS).count() == 0, "markers leaked outside transient pick mode after reload"
                 _open_cutout_panel(page)
                 assert page.get_by_role("button", name=re.compile(PICK_BUTTON_ANY)).get_attribute("aria-pressed") in (None, "false")
+                persisted = _save(page, manifest)
+                assert len(persisted["subject_points"]) == 1
+                _close_to((persisted["subject_points"][0]["x"], persisted["subject_points"][0]["y"]),
+                          expected_prompt, "saved point after reload")
+                assert persisted["prompt_reference_source"] == clip_url
+                assert persisted["prompt_reference_start"] == 0
 
                 # 5. After reload with pick mode off a click still adds nothing.
                 _click_fraction(page, 0.7, 0.2)
                 page.wait_for_timeout(250)
+                assert page.locator(MARKERS).count() == 0, "markers leaked into ordinary playback"
+                assert page.locator(PLAY_TOGGLE).first.get_attribute("aria-label") == "หยุดพรีวิวชั่วคราว"
+                assert _save(page, manifest)["subject_points"] == persisted["subject_points"]
+                # Re-entering the picker pauses playback and restores the saved
+                # marker at its source coordinates, without inventing another point.
+                pick = page.get_by_role("button", name=re.compile(PICK_BUTTON_ANY))
+                pick.click()
+                page.locator(MARKERS).first.wait_for(timeout=10000)
                 assert page.locator(MARKERS).count() == 1
+                _close_to(_marker_fractions(page)[0], TARGET, "marker after picker re-entry")
+                # T5 hides the central play overlay while picking, so it cannot
+                # cover the product. Visible markers above prove playback paused.
+                assert page.locator(PLAY_TOGGLE).count() == 0
+                assert page.locator('[data-subject-pick-mode="on"]').count() == 1
+                pick.click()
+                assert page.locator(MARKERS).count() == 0, "markers leaked after leaving picker"
 
                 # 6. "ล้างจุด" clears markers and the saved project.
-                page.get_by_role("button", name=CLEAR_BUTTON).click()
+                page.get_by_label("จุดสินค้า", exact=True).get_by_role("button", name=CLEAR_BUTTON).click()
                 assert page.locator(MARKERS).count() == 0
                 assert not _save(page, manifest).get("subject_points")
+                assert "prompt_reference_source" not in _save(page, manifest)
                 page.reload(wait_until="domcontentloaded")
                 page.locator('[data-timeline-item="clip"]:visible').first.wait_for(timeout=15000)
                 page.wait_for_timeout(300)
@@ -361,6 +383,9 @@ def test_smooth_picker_uses_native_master_then_restores_padded_proxy(app_url):
                         response = {"url": "/api/media/picker-proxy.mp4", "is_proxy": True, "status": "ready"}
                     elif path == f"/api/projects/{PROJECT}" and route.request.method == "GET":
                         response = manifest
+                    elif path == f"/api/projects/{PROJECT}/state" and route.request.method == "PATCH":
+                        manifest.update(route.request.post_data_json)
+                        response = {"ok": True, "project": PROJECT}
                     elif path == "/api/projects":
                         response = {"projects": [PROJECT]}
                     elif path == "/api/assets/all":
@@ -394,7 +419,15 @@ def test_smooth_picker_uses_native_master_then_restores_padded_proxy(app_url):
                 pick.click()
                 page.wait_for_function("Array.from(document.querySelectorAll('video')).some(v => v.currentSrc.includes('picker-proxy.mp4') && v.readyState >= 2)")
                 assert page.locator(FRAME_CANVAS).first.get_attribute("data-preview-quality") == "smooth540"
+                assert page.locator(MARKERS).count() == 0, "markers leaked into normal proxy preview"
+                saved = _save(page, manifest)
+                assert len(saved["subject_points"]) == 1
+                assert saved["prompt_reference_source"] == master_url
+                assert saved["prompt_reference_start"] == 0
+                pick.click()
                 page.locator(MARKERS).first.wait_for(timeout=10000)
-                assert page.locator(MARKERS).count() == 1
+                _close_to(_marker_fractions(page)[0], TARGET, "native Master marker after picker re-entry")
+                pick.click()
+                assert page.locator(MARKERS).count() == 0, "markers leaked after picker re-entry ended"
             finally:
                 browser.close()
