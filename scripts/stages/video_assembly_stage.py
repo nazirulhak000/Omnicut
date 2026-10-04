@@ -17,17 +17,6 @@ from scripts.pipeline_context import PipelineContext
 from scripts.export_registry import ExportRegistry
 
 
-def _every_boundary_is_a_cut(items) -> bool:
-    """True if the boundary list is empty or entirely composed of plain cuts."""
-    if not items:
-        return True
-    for item in items:
-        kind = item.get("type") if isinstance(item, dict) else str(item)
-        if kind and kind != "cut":
-            return False
-    return True
-
-
 def _source_handles_available(outgoing, incoming, overlap):
     tail = round(overlap / 2.0, 4)
     head_total = round(overlap - tail, 4)
@@ -125,11 +114,10 @@ def _centre_transition_overlaps(clips: List[dict], transitions) -> None:
 
 
 def _fill_undecided_transitions(clips: List[dict], style_preset: Optional[str]) -> List[dict]:
-    """Pick a boundary effect for every boundary of an all-cut clip list.
+    """Pick budgeted effects for a newly generated, unspecified boundary plan.
 
-    All-cut means "nothing decided yet" (the editor always sends its own
-    all-cut default), so the boundaries are filled -- but through the same
-    style budget the shot planner uses (audit A7c): a style that keeps a
+    Callers must distinguish unspecified from an explicit all-cut choice.
+    Effects use the same style budget as the shot planner: a style that keeps a
     boundary as a hard cut keeps it here too, instead of every boundary
     becoming a wipe. Slides follow the outgoing clip's camera pan.
     """
@@ -149,6 +137,35 @@ def _fill_undecided_transitions(clips: List[dict], style_preset: Optional[str]) 
     return transitions
 
 
+def _resolve_transition_plan(clips, transitions, *, newly_generated=False, authored_clips=False, style_preset=None):
+    """Resolve one plan for render and preview; only an unspecified new plan is automatic.
+
+    None on an existing/editor timeline reads its clip metadata. An explicit
+    array (including []) wins over metadata; omitted boundaries are cuts.
+    """
+    from scripts.video_editor import DEFAULT_TRANSITION_DURATION, normalize_transitions
+
+    count = max(0, len(clips or []) - 1)
+    automatic = transitions is None and newly_generated and not authored_clips
+    if automatic:
+        entries = _fill_undecided_transitions(clips, style_preset)
+    elif transitions is None:
+        entries = [
+            {"type": c.get("transition_in", "cut"),
+             "duration": c.get("transition_duration", DEFAULT_TRANSITION_DURATION),
+             "easing": c.get("transition_easing")}
+            for c in (clips or [])[1:]
+        ]
+    else:
+        entries = list(transitions[:count])
+    entries += ["cut"] * max(0, count - len(entries))
+    plan = normalize_transitions(entries)
+    for boundary in plan:
+        if boundary["type"] == "cut":
+            boundary["duration"] = 0.0
+    return plan, automatic
+
+
 class VideoAssemblyStage:
     """Applies transitions, resolves LUTs, renders MP4 via VideoEditor, and saves manifest."""
 
@@ -158,21 +175,24 @@ class VideoAssemblyStage:
         spotlight = ctx.resolve_spotlight_contract()
         background_isolation = ctx.resolve_background_isolation_contract()
         actual_clip_list = ctx.actual_clip_list
-        transitions = ctx.transitions
-
-        boundary_count = max(0, len(actual_clip_list or []) - 1)
-        if boundary_count and _every_boundary_is_a_cut(transitions):
-            transitions = _fill_undecided_transitions(actual_clip_list, ctx.style_preset)
-            if actual_clip_list:
-                for i, clip in enumerate(actual_clip_list):
-                    if i == 0:
-                        continue
-                    clip["transition_in"] = transitions[i - 1]["type"]
-                    clip["transition_duration"] = transitions[i - 1]["duration"]
-                    if transitions[i - 1].get("easing"):
-                        clip["transition_easing"] = transitions[i - 1]["easing"]
-                    else:
-                        clip.pop("transition_easing", None)
+        is_newly_generated = getattr(ctx, "is_newly_generated_clips", False)
+        transitions, automatic = _resolve_transition_plan(
+            actual_clip_list, ctx.transitions, newly_generated=is_newly_generated,
+            authored_clips=bool(ctx.clip_list), style_preset=ctx.style_preset,
+        )
+        ctx.transitions = transitions
+        for clip, boundary in zip((actual_clip_list or [])[1:], transitions):
+            clip["transition_in"] = boundary["type"]
+            if boundary["type"] == "cut":
+                clip.pop("transition_duration", None)
+            else:
+                clip["transition_duration"] = boundary["duration"]
+            if boundary.get("easing"):
+                clip["transition_easing"] = boundary["easing"]
+            else:
+                clip.pop("transition_easing", None)
+        if automatic and transitions:
+            boundary_count = len(transitions)
             filled = sum(1 for t in transitions if t.get("type") != "cut")
             print(f"   ✨ ใส่รอยต่อให้อัตโนมัติ {filled}/{boundary_count} จุดตามสไตล์ (ไม่มีรอยต่อเดิมให้ยึด)")
 
@@ -181,7 +201,6 @@ class VideoAssemblyStage:
         # Overlap extension is ONLY applied ONCE when clips are freshly generated
         # from cues (to compensate for transition shortening).
         # Existing or editor-provided clips must NEVER be inflated repeatedly.
-        is_newly_generated = getattr(ctx, "is_newly_generated_clips", False)
         if is_newly_generated and transitions and actual_clip_list and len(actual_clip_list) > 1:
             _centre_transition_overlaps(actual_clip_list, transitions)
 

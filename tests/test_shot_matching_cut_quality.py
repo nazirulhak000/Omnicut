@@ -88,6 +88,15 @@ def test_generated_transition_easing_is_saved_for_preview():
     assert eased > 0
 
 
+def test_explicit_empty_transition_array_stays_all_cut_in_the_planner():
+    ctx = _context(_four_even_cues(), 8)
+    ctx.style_preset = "viral_punch"
+    ctx.transitions = []
+    clips = _run(ctx)
+    assert ctx.transitions == []
+    assert all(c["transition_in"] == "cut" for c in clips)
+
+
 # ── A2: beat grid follows the tempo the mixer actually plays ──────────────
 
 def test_tempo_ratio_helper_is_what_the_mixer_renders(tmp_path):

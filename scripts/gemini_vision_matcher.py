@@ -165,6 +165,16 @@ class GeminiVisionMatcher:
                 cached_matches = cls._exact_cached_match(cache, match_cache_key)
                 if cached_matches:
                     catalog = cache.get("catalogs", {}).get(file_hash) or {}
+                    if catalog.get("scenes") and all(
+                        isinstance(match, dict) and "scene_id" in match for match in cached_matches
+                    ):
+                        # Catalog scoring is local and cheap. Re-evaluate it
+                        # for the current cues/policy instead of freezing old
+                        # diversity-first choices (or old cue durations) in
+                        # the text-keyed match cache. Direct Vision matches
+                        # without catalog scene IDs keep their cache behavior.
+                        catalog_end = max(float(scene.get("end", 0)) for scene in catalog["scenes"])
+                        cached_matches = cls.match_script_with_catalog(catalog, cues, raw_duration=catalog_end)
                     cached_matches = cls._bind_catalog_windows(cached_matches, catalog)
             return VisionRequestContext(
                 video_file=video_file,
@@ -452,6 +462,7 @@ class GeminiVisionMatcher:
                 s_keywords = scene.get("keywords", [])
                 s_start = float(scene.get("start", 0.0))
                 score = 1.0
+                evidence = set()
 
                 # Priority bonus for scenes not yet used in this video
                 if s_id not in used_scene_counts and len(used_scene_counts) < len(scenes):
@@ -468,11 +479,18 @@ class GeminiVisionMatcher:
                     else:
                         if kw_clean in group_text.lower():
                             score += 5.0
+                            evidence.add(kw_clean)
 
                 # Check domain pattern match
                 for pat_type, words in domain_patterns.items():
                     matched_words = [w for w in words if w in group_text.lower()]
                     if matched_words:
+                        # Generic product names and broad action fragments
+                        # cannot lock a scene to a feature. Specific metadata
+                        # evidence takes precedence over visual variety.
+                        evidence.update(w for w in matched_words if w in s_desc.lower()
+                                        and w not in generic_kws
+                                        and w not in {"ไว", "fast", "ปรับ", "มือ", "close"})
                         if pat_type == "anti_tangle_magnet":
                             if any(w in s_desc.lower() for w in ("แม่เหล็ก", "ประกบ", "พัน", "สายแบน", "จัดเก็บ")):
                                 score += 6.0
@@ -546,8 +564,11 @@ class GeminiVisionMatcher:
                 if any(abs(s_start - pst) < 1.5 for pst in used_start_times):
                     score -= 3.0
 
-                scored_scenes.append((score, scene))
+                scored_scenes.append((score, scene, evidence))
 
+            relevant = [candidate for candidate in scored_scenes if candidate[2]]
+            if relevant:
+                scored_scenes = relevant
             scored_scenes.sort(key=lambda x: x[0], reverse=True)
             best_scene = scored_scenes[0][1]
 
@@ -616,6 +637,7 @@ class GeminiVisionMatcher:
                 "end_time": round(s_end, 2),
                 "visual_reason": f"จับคู่ฉาก {best_scene.get('action_type', 'scene')} ({best_scene.get('angle_phase', 'normal')}): {best_scene.get('description', '')[:45]}",
                 "punch_zoom": round(zoom, 2),
+                "selection_evidence": sorted(scored_scenes[0][2]),
             })
 
         return matched_shots

@@ -1,15 +1,7 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
-- [ ] Round CODEX-AUTHORED-TRANSITION-RESPECT-20261004 · ดำเนินการโดย: Codex (GPT-6)
+- [x] Round CODEX-FEATURE-FIRST-SHOT-SELECTION-20261004 · ดำเนินการโดย: Codex (GPT-6)
 
-## Round CODEX-AUTHORED-TRANSITION-RESPECT-20261004
-ดำเนินการโดย: Codex (GPT-6)
-สถานะ: กำลังทำ
-เป้าหมาย: เรนเดอร์รักษา hard cuts และ transition ของแผนที่ผู้ใช้จัดไว้ ไม่เติมทับโดยอัตโนมัติ
-- [ ] ตรวจ request → shot matching → assembly → manifest และเก็บ baseline
-- [ ] แยกแผนที่ยังไม่ได้เลือกจากแผน explicit/manual รวม all-cut และ replay
-- [ ] Regression เฉพาะส่วนและ short FFmpeg/production-preview ตรวจจุดตัด/ความยาว ไม่แตะข้อมูลจริง
-- [ ] รายงานผล ปิดรอบเข้า HISTORY และ cleanup media100%
-Notes: working tree มีงานรอบก่อนของหลายเอเจนต์ ห้ามทับ; ผู้ใช้ขอ focused tests ไม่รัน full suite; measurement gate สำหรับ Jev confidence=null ได้รับอนุญาตแล้ว
+- [x] Round CODEX-AUTHORED-TRANSITION-RESPECT-20261004 · ดำเนินการโดย: Codex (GPT-6)
 
 - [x] Round CODEX-CAMERA-SMOOTHNESS-20261004 · ดำเนินการโดย: Codex (GPT-6)
 

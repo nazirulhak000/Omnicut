@@ -114,7 +114,7 @@ def test_centring_without_source_handle_moves_the_rest_to_the_tail():
     assert end == pytest.approx(4.0, abs=1e-3)
 
 
-def test_all_cut_list_is_filled_through_the_style_budget():
+def test_unspecified_boundary_picker_uses_the_style_budget():
     # clean_tech_review: one movement transition every 5 boundaries
     picks = _fill_undecided_transitions(_clips(7), "clean_tech_review")
     assert [p["type"] for p in picks][:4] == ["cut"] * 4
@@ -138,7 +138,8 @@ def test_auto_filled_transition_easing_survives_manifest(monkeypatch):
     ctx = PipelineContext(product_name="Test", raw_video_path="dummy.mp4", project_name="camera-test", export_mp4=False)
     ctx.actual_clip_list = _clips(4)
     ctx.style_preset = "viral_punch"
-    ctx.transitions = ["cut"] * 3
+    ctx.transitions = None
+    ctx.is_newly_generated_clips = True
     for clip in ctx.actual_clip_list[1:]:
         clip["transition_easing"] = "ease_in"  # obsolete value must be replaced
     with patch("scripts.stages.video_assembly_stage.ProjectManifest.save") as save:

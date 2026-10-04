@@ -8,6 +8,8 @@
 
 ## สารบัญ
 
+| Round CODEX-FEATURE-FIRST-SHOT-SELECTION-20261004 | Feature evidence before diversity; local catalog cache rematch; offline gate155 passed | 2026-10-04 | Closed; ดำเนินการโดย: Codex (GPT-6) |
+| Round CODEX-AUTHORED-TRANSITION-RESPECT-20261004 | Preserve authored cuts and transition metadata; focused141 passed, real render/replay | 2026-10-04 | Closed; ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-CAMERA-SMOOTHNESS-20261004 | Camera timing after transition handles; clip easing matches render; focused122 passed | 2026-10-04 | Closed; ดำเนินการโดย: Codex (GPT-6) |
 | Round CLEAN-TOOLS-HARDCODED-PATHS-20261004 | กวาดล้าง Hardcoded Paths เก่า (Winon/Winona/Brain directory) ทั้งหมดในโฟลเดอร์ tools/, แคปซูลโค้ดเข้าฟังก์ชันพร้อมใส่ if __name__ == '__main__': guards ป้องกัน side-effects และอันตรายจากการ import (Audit Table 1 ข้อ 36), เพิ่ม dry-run ใน clean_and_organize_tmp.py; สร้างชุดทดสอบ tests/test_tools_path_hygiene.py (21 tests passed); ผ่าน pytest 2951 passed และ npm test 805 passed 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round SLIDER-UNDO-COALESCING-20261004 | แก้ไขปัญหา Undo Stack ท่วมจากการลาก Slider ใน Inspector (Audit Table 1 ข้อ 17 & Gap Report Theme B); ส่ง coalesceKey สำหรับ Caption scale, Sticker/Effect scale & timing, Hook duration/tier/outline, Overlay scale, และ Clip trim_start/trim_end; เชื่อมต่อ options ใน EditorShell และ useEditorCommands; 805 frontend tests passed / 2918 backend tests passed / production build 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -53,6 +55,29 @@
 | Round SAM2-DEPTH-TEXT-PIPELINE-20260929 | เชื่อมต่อ SAM 2 บน RTX 4060 GPU เข้ากับ pipeline ของ Omnicut รองรับ Text Behind Product ทั้ง Canvas 2D Preview และ FFmpeg Render, เพิ่ม sam2 engine/models ใน contract, เพิ่ม worker สตรีม VP9 cutout.webm, ปรับปรุง backend preflight และ frontend UI Controls ผ่านการทดสอบ 23/23 tests และ build ผ่าน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
 | Round PC-REPO-AUDIT-PLAN-20260929 | ตรวจ PC/โค้ด/ผลทดสอบเดิมและ repository ที่เสนอ จัดทำแผน P0–P3 พร้อม gate ใน `_Docs/Plans/PC_REPOSITORY_AUDIT_PLAN_20260929.md` | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round SAM2-GPU-FEASIBILITY-SPIKE-20260929 | ติดตั้งสภาพแวดล้อม PyTorch 2.6.0+cu124 ใน tools/cutout_runtime/.venv, ทดสอบรันโมเดล SAM 2.1 บนการ์ดจอ NVIDIA GeForce RTX 4060 เทียบกับผลเดิมบน CPU, ทำความเร็วได้ 7.78 วินาทีสำหรับ 60 เฟรม (เร็วขึ้น 92 เท่า, 134 ms/เฟรม, VRAM 1.39 GB) และยืนยันคุณภาพการแทร็กสินค้าผ่าน contact sheet 100% | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
+## Round CODEX-FEATURE-FIRST-SHOT-SELECTION-20261004
+ดำเนินการโดย: Codex (GPT-6)
+สถานะ: ปิดรอบแล้ว
+เป้าหมาย: เลือกภาพตรงฟีเจอร์ก่อนความหลากหลาย ลดช็อตซ้ำด้วยตัวเลือกที่เกี่ยวข้อง ไม่หนีไปภาพคนละเรื่อง
+- [x] Baseline3 failed/1 passed: diversity penalty ทำให้ USB-C เปลี่ยนเป็น screen/logo/box
+- [x] เลือกจาก feature-evidence pool ก่อน diversity; หลายมุมตรงฟีเจอร์สลับ0/1/0/1; no-evidence fallback เดิม
+- [x] Cached catalog rematch ในเครื่องรวม cue timing; direct Vision cache เดิม; offline gate155 passed รวม render8s240framesตรง previewภายใน1frame และ shortage regression3เคส
+- [x] รายงาน `_Docs/Reports/FEATURE_FIRST_SHOT_SELECTION_20261004.md`; compile/API225/scoped diff ผ่าน; temp media cleanup100%; backend idle reload HTTP200
+Notes: working tree มีงานรอบ authored-transition ที่ยังไม่ commit ห้ามทับ; ไม่แตะ raw/assets/project/export จริง; ไม่เปลี่ยนกติกาค้างภาพพร้อมแจ้งภาพไม่พอ; focused tests ตามผู้ใช้; null-confidence measurement gate อนุญาตแล้ว
+Jev: ก่อนเริ่ม0.54/ก่อนrender0.51/ก่อนหลัง0.62/doc0.59; confidence=null ทุกครั้ง; score ไม่ใช่ confidence
+ข้อจำกัด: metadata ไม่ใช่ pixel understanding; ไม่รับรอง raw-frame dedup เมื่อมีมุมเดียว; legacy manual diagnostic test มี dotenv collection error ไม่ใช้เป็น offline gate (รายละเอียดในรายงาน)
+
+## Round CODEX-AUTHORED-TRANSITION-RESPECT-20261004
+ดำเนินการโดย: Codex (GPT-6)
+สถานะ: ปิดรอบแล้ว
+เป้าหมาย: เรนเดอร์รักษา hard cuts และ transition ของแผนที่ผู้ใช้จัดไว้ ไม่เติมทับโดยอัตโนมัติ
+- [x] Baseline 8 failed/1 passed ยืนยัน all-cut ถูกเติมทับ และ explicit array ไม่ sync ถึง preview
+- [x] Resolver รักษา explicit arrays (รวม []) และ existing clip metadata; auto เฉพาะ unspecified newly generated plan; Shot matcher ไม่ทับ []
+- [x] Focused141 passed: unit/integration125, parity8, real-render8; 4s120frames cut30/60/90 และ replay ตรง; compile/API225/scoped diff check ผ่าน
+- [x] รายงาน `_Docs/Reports/AUTHORED_TRANSITION_RESPECT_20261004.md`; temporary media cleanup100%; backend idle reload HTTP200
+Notes: working tree มีงานรอบก่อนของหลายเอเจนต์ ห้ามทับ; ผู้ใช้ขอ focused tests ไม่รัน full suite; measurement gate สำหรับ Jev confidence=null ได้รับอนุญาตแล้ว
+Jev: ก่อนเริ่ม0.88/ก่อนFFmpeg0.73/ก่อนหลัง0.68/doc0.55; confidence=null ทุกครั้ง; score ไม่ใช่ confidence
+
 ## Round CODEX-CAMERA-SMOOTHNESS-20261004
 ดำเนินการโดย: Codex (GPT-6)
 สถานะ: ปิดรอบแล้ว

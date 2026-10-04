@@ -607,6 +607,106 @@ def test_split_zoom_ramp_clip_renders_seamlessly(tmp_path, monkeypatch):
 
 # ── B(b): Ken Burns still images ───────────────────────────────────────────
 
+def test_feature_first_catalog_selection_matches_real_render_and_preview(tmp_path, monkeypatch):
+    from scripts.gemini_vision_matcher import GeminiVisionMatcher
+    from scripts.video_editor import VideoEditor
+
+    monkeypatch.setenv("OMNICUT_ENCODER", "cpu")
+    with TemporaryDirectory(dir=tmp_path) as directory:
+        root = Path(directory)
+        raw, wav, ass, out = [root / name for name in ("raw.mp4", "voice.wav", "empty.ass", "out.mp4")]
+        _write_index_coded_source(raw, n_frames=480)
+        _write_voice(wav, [0, 2, 4, 6], 8)
+        _write_empty_ass(ass)
+        catalog = {"scenes": [
+            {"id": i, "start": i * 4, "end": i * 4 + 4, "action_type": "closeup",
+             "angle_phase": ("front", "side", "macro_closeup", "45deg")[i],
+             "description": keyword, "keywords": [keyword], "punch_zoom": 1.1}
+            for i, keyword in enumerate(("USB-C", "USB-C", "screen", "box"))
+        ]}
+        cues = [{"start": i * 2, "end": i * 2 + 2, "text": "USB-C charging."} for i in range(4)]
+        matches = GeminiVisionMatcher.match_script_with_catalog(catalog, cues, 16)
+        assert [m["scene_id"] for m in matches] == [0, 1, 0, 1]
+        clips = _plan_shots(raw, cues, 8, ai_shots=matches)
+        for clip in clips:
+            clip["transition_in"] = "cut"
+            clip.pop("transition_duration", None)
+        VideoEditor.assemble_tiktok_video(
+            raw_video_paths=[str(raw)], total_duration=8, mixed_audio_path=str(wav),
+            ass_subtitle_path=str(ass), output_mp4_path=str(out), clip_list=clips,
+            transitions=["cut"] * (len(clips) - 1), export_preset="draft",
+        )
+        indices = _decoded_indices(out)
+        assert len(indices) == 240
+        assert all(0 <= index < 240 for index in indices)  # no screen/box frames
+        preview = _run(["node", "--input-type=module", "-e", """
+            import {buildSegments,getDrawPlan} from './frontend/src/lib/timelineMath.js';
+            let input=''; for await (const chunk of process.stdin) input+=chunk;
+            const segments=buildSegments(JSON.parse(input));
+            console.log(JSON.stringify(Array.from({length:240},(_,k)=>
+              Math.round(getDrawPlan(segments,k/30+1e-6)[0].localTime*30))));
+        """], input=json.dumps(clips), text=True, cwd=ROOT)
+        expected = json.loads(preview.stdout)
+        assert max(abs(a - b) for a, b in zip(indices, expected)) <= 1
+
+def test_editor_hard_cuts_survive_assembly_render_and_replay(tmp_path, monkeypatch):
+    from scripts.pipeline_context import PipelineContext
+    from scripts.stages.video_assembly_stage import VideoAssemblyStage
+    from copy import deepcopy
+
+    monkeypatch.setenv("OMNICUT_ENCODER", "cpu")
+    with TemporaryDirectory(dir=tmp_path) as directory:
+        root = Path(directory)
+        raw, wav, ass = [root / name for name in ("raw.mp4", "voice.wav", "empty.ass")]
+        _write_index_coded_source(raw, n_frames=300)
+        _write_voice(wav, [], 4)
+        _write_empty_ass(ass)
+        clips = [{"id": f"c{i}", "source_path": str(raw), "trim_start": 1 + 2 * i,
+                  "trim_end": 2 + 2 * i, "duration": 1, "speed": 1, "zoom": 1,
+                  "transition_in": "cut"} for i in range(4)]
+        original = deepcopy(clips)
+        ctx = PipelineContext(product_name="Test", project_name="hard-cuts", raw_video_path=str(raw), export_mp4=True)
+        ctx.actual_clip_list = ctx.clip_list = clips
+        ctx.transitions = ["cut"] * 3
+        ctx.raw_video = raw
+        ctx.total_duration = 4
+        ctx.mixed_audio_path = wav
+        ctx.voice_audio_path = wav
+        ctx.ass_sub_path = ass
+        ctx.style_preset = "viral_punch"
+        for iteration in range(2):
+            ctx.project_name = f"hard-cuts-{iteration}"
+            with patch("scripts.stages.video_assembly_stage.EXPORTS_DIR", root), \
+                 patch("scripts.stages.video_assembly_stage.ProjectManifest.save") as save, \
+                 patch("scripts.stages.video_assembly_stage.ExportRegistry.ensure", return_value={"id": "temp-only"}):
+                VideoAssemblyStage.run(ctx)
+            out = Path(ctx.result_paths["mp4_video"])
+            assert out.parent == root
+            indices = _decoded_indices(out)
+            assert len(indices) == 120
+            preview = _run(["node", "--input-type=module", "-e", """
+                import {buildSegments,getDrawPlan} from './frontend/src/lib/timelineMath.js';
+                let input=''; for await (const chunk of process.stdin) input+=chunk;
+                const segments=buildSegments(JSON.parse(input));
+                console.log(JSON.stringify(Array.from({length:120},(_,k)=>{
+                  const p=getDrawPlan(segments,k/30+1e-6);
+                  if(p.length!==1) throw new Error('Unexpected transition');
+                  return Math.round(p[0].localTime*30);
+                })));
+            """], input=json.dumps(clips), text=True, cwd=ROOT)
+            expected = json.loads(preview.stdout)
+            assert max(abs(a - b) for a, b in zip(indices, expected)) <= 1
+            cuts = [k for k in range(1, len(indices)) if abs(indices[k] - indices[k - 1]) > 2]
+            assert cuts == [30, 60, 90]
+            saved = save.call_args.kwargs
+            assert [b["type"] for b in saved["transitions"]] == ["cut"] * 3
+            # The renderer stamps static pan defaults; no timing has changed.
+            assert [(c["trim_start"], c["trim_end"], c["duration"]) for c in clips] == [
+                (c["trim_start"], c["trim_end"], c["duration"]) for c in original
+            ]
+            ctx.clip_list = ctx.actual_clip_list = deepcopy(saved["clip_list"])
+            ctx.transitions = deepcopy(saved["transitions"])
+
 def test_transition_handles_keep_camera_motion_on_the_original_source_time(tmp_path, monkeypatch):
     from copy import deepcopy
     from scripts.stages.video_assembly_stage import _centre_transition_overlaps

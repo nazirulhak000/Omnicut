@@ -572,29 +572,36 @@ def test_every_render_clip_field_is_visible_somewhere_in_the_editor(field):
 
 
 # ------------------------------------------------------- transition filling
-def test_all_cut_transitions_are_treated_as_undecided():
-    """
-    The tiered auto-wiring only runs when the pipeline cuts the shots itself,
-    so once a project had been opened in the editor -- which always sends a
-    clip_list plus a transitions array built from its own all-cut default --
-    it could never regain transitions. A real project sat at 21 boundaries,
-    21 hard cuts, with no path back.
+def test_authored_all_cut_transition_plan_keeps_preview_timing(tmp_path):
+    """All-cut is an authored decision; exercise the real resolver and JS math."""
+    import shutil
+    import subprocess
+    from scripts.stages.video_assembly_stage import _resolve_transition_plan
 
-    An array that is entirely "cut" therefore means "nothing decided yet" and
-    gets filled; one non-cut entry marks the whole array as deliberate.
-    """
-    src = (ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8")
-    assert "_every_boundary_is_a_cut" in src
-    assert "boundary_count and _every_boundary_is_a_cut(transitions)" in src
-
-    # the filler must also stamp the clips, since the editor reads those
-    filler = src.split("if boundary_count and _every_boundary_is_a_cut(transitions):")[1].split("# Opt-in LUT")[0]
-    assert 'clip["transition_in"]' in filler
-    assert 'clip["transition_duration"]' in filler
-
-    # and the tiered path must never fall back to a bare cut any more
-    tiered = src.split("if tone == \"major\":")[1].split("if not transitions")[0]
-    assert '"cut"' not in tiered, "auto-wiring still has a hard-cut fallback"
+    clips = [{"id": str(i), "trim_start": i * 3, "trim_end": i * 3 + 2,
+              "speed": 1, "transition_in": "cut"} for i in range(4)]
+    boundaries, automatic = _resolve_transition_plan(
+        clips, ["cut"] * 3, authored_clips=True, style_preset="viral_punch",
+    )
+    assert not automatic
+    assert boundaries == [{"type": "cut", "duration": 0}] * 3
+    if not shutil.which("node"):
+        pytest.skip("node required for production preview math")
+    runner = tmp_path / "authored_transition.mjs"
+    runner.write_text(
+        "import {buildSegments,getDrawPlan} from "
+        + json.dumps((ROOT / "frontend/src/lib/timelineMath.js").as_uri())
+        + "; const s=buildSegments(JSON.parse(process.argv[2]));"
+        + "console.log(JSON.stringify({starts:s.map(p=>p.segStart),end:s.at(-1).segEnd,"
+        + "draws:Array.from({length:240},(_,k)=>getDrawPlan(s,k/30).length)}));",
+        encoding="utf-8",
+    )
+    result = subprocess.run(["node", str(runner), json.dumps(clips)],
+                            capture_output=True, text=True, check=True)
+    value = json.loads(result.stdout)
+    assert value["starts"] == [0, 2, 4, 6]
+    assert value["end"] == 8
+    assert value["draws"] == [1] * 240
 
 
 def test_transitions_follow_the_framing_and_never_repeat():

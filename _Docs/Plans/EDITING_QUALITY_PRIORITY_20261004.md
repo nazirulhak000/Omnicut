@@ -13,6 +13,8 @@
 - รอบเล่าประเด็นครบ: รวม rhythmic groups ของ AI merged shot เดียวจนถึง sentence/topic boundary และให้ line/parent metadata เหนือคำลงท้าย; ตัวอย่าง 8s จาก 4 clips เป็น 1 clip; focused 109 passed รวม render/preview สามกรณี 12s รายงาน `_Docs/Reports/COMPLETE_THOUGHT_SHOTS_20261004.md`
 - Explicit editorial pacing ยังใช้แผนเดิม รอบแรกแก้เฉพาะ rhythmic grouping
 - รอบความลื่น: เลื่อน camera keyframes ตาม transition head handles และส่ง transition_easing ถึง preview/manifest; focused 122 passed รวม real render; รายงาน `_Docs/Reports/CAMERA_SMOOTHNESS_20261004.md`
+- รอบรักษาแผน: ไม่เติม transition ทับ authored/all-cut plan; existing clip metadata และ explicit arrays sync ถึง render/preview/manifest; focused 141 passed รวม real stage render/replay; รายงาน `_Docs/Reports/AUTHORED_TRANSITION_RESPECT_20261004.md`
+- รอบคุณภาพการเลือกภาพ: จำกัด diversity ให้ใช้ภาพที่มีหลักฐานตรงฟีเจอร์ก่อน; cached catalog rematch ในเครื่อง; offline gate155 passed รวม render8s240frames; รายงาน `_Docs/Reports/FEATURE_FIRST_SHOT_SELECTION_20261004.md`
 - ผู้ใช้อนุญาตให้ regression/measurement เป็น gate สำหรับแผนนี้เมื่อ Jev confidence=null
 
 ## รอบ source window สั้นกว่าบท (2026-10-04)

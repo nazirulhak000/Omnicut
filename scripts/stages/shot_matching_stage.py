@@ -1178,7 +1178,7 @@ class ShotMatchingStage:
                             )
                             auto_transitions.append(pick)
 
-                    if not ctx.transitions and auto_transitions:
+                    if ctx.transitions is None and auto_transitions:
                         ctx.transitions = auto_transitions
                         auto_transitions_used = True
                 else:
