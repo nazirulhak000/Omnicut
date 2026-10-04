@@ -99,7 +99,8 @@ import RenderButton from './RenderButton';
 import MixDegradedNotice from './MixDegradedNotice';
 import ProjectRevisionNotice from './ProjectRevisionNotice';
 import VoiceEditNotice from './VoiceEditNotice';
-import FootageCoverageNotice from './FootageCoverageNotice';
+import RenderPreflightNotice from './RenderPreflightNotice';
+import { analyzeRenderPreflight, preflightBlockingMessage } from '../../lib/renderPreflight.js';
 
 function formatErrorText(err) {
   if (!err) return '';
@@ -1141,6 +1142,9 @@ export default function EditorShell({
   // ClipFilmstrip (one sprite per source + trim window).
   const segments = useMemo(() => buildSegments(clipList, durations), [clipList, durations]);
   const totalDuration = useMemo(() => totalDurationOf(segments), [segments]);
+  const renderPreflight = useMemo(() => analyzeRenderPreflight({
+    clips: clipList, durations, segments, expectedDuration: audioDuration,
+  }), [clipList, durations, segments, audioDuration]);
   useEffect(() => { seekSegmentsRef.current = segments; }, [segments]);
 
   const {
@@ -1249,6 +1253,15 @@ export default function EditorShell({
     clearSelection: clearClipSelection,
     copyClipSettings,
     pasteClipSettings,
+    onKeyframeToggled: (result) => {
+      const msg = {
+        added: '◆ เพิ่มคีย์เฟรมที่หัวอ่านแล้ว',
+        removed: '◇ ลบคีย์เฟรมที่หัวอ่านแล้ว',
+        outside: 'เลื่อนหัวอ่านเข้ามาในคลิปที่เลือกก่อนวางคีย์เฟรม',
+        noClip: 'เลือกคลิปวิดีโอก่อนวางคีย์เฟรม',
+      }[result];
+      if (msg) showToast(msg);
+    },
     onToggleSnap: () => {
       setSnapEnabled((v) => {
         const next = !v;
@@ -2108,6 +2121,10 @@ export default function EditorShell({
     }
     if (!projectName) { setApplyError('เลือกโปรเจกต์ก่อน'); return; }
     if (!clipList.length) { setApplyError('เพิ่มคลิปในไทม์ไลน์ก่อน'); return; }
+    if (!renderPreflight.canRender) {
+      setApplyError(preflightBlockingMessage(renderPreflight));
+      return;
+    }
     if (isProjectPosted) {
       setApplyError('คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม');
       return;
@@ -2467,7 +2484,7 @@ export default function EditorShell({
         </div>
       )}
 
-      <FootageCoverageNotice clips={clipList} />
+      <RenderPreflightNotice report={renderPreflight} onSeek={seekPlayer} />
       <ProjectRevisionNotice
         kind={projectName ? revisionNotice : null}
         reloading={revisionReloading}
@@ -2996,6 +3013,8 @@ export default function EditorShell({
                   onToggleSafeZone={handleToggleSafeZone}
                   zoomIndex={zoomIndex}
                   zoomCount={ZOOM_PRESETS.length}
+                  pxPerSec={pxPerSec}
+                  onZoomTo={zoomTo}
                   onZoomToFit={zoomToFit}
                   onZoom={zoomStep}
                   snapEnabled={snapEnabled}
@@ -3722,6 +3741,8 @@ export default function EditorShell({
                   onToggleSafeZone={handleToggleSafeZone}
                   zoomIndex={zoomIndex}
                   zoomCount={ZOOM_PRESETS.length}
+                  pxPerSec={pxPerSec}
+                  onZoomTo={zoomTo}
                   onZoomToFit={zoomToFit}
                   onZoom={zoomStep}
                   snapEnabled={snapEnabled}

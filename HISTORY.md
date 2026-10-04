@@ -8,6 +8,9 @@
 
 ## สารบัญ
 
+| Round SHORTCUTS-ZOOM-SLIDER-KEYFRAME-KEYS-20261004 | คีย์ลัดคีย์เฟรม (D, ,, .) + คู่มือคีย์ลัดจัดหมวดหมู่ใหม่ + แถบเลื่อนซูมไทม์ไลน์อิสระ (Continuous Zoom Slider 20–800 px/s พร้อมป้าย % แบบ CapCut); สร้าง lib clipKeyframeOps.js; unit tests 834 passed, production build 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round CODEX-PARALLEL-EDITING-QUALITY-20261004 | Source reuse / indexed preview / timeline preflight; scoped measured gates | 2026-10-04 | ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6) |
+
 | Round KEYFRAME-TRIM-TRANSITION-CAPCUT-20261004 | ระบบ Keyframe UI บนไทม์ไลน์ (T9), ปุ่มลัดและปุ่ม UI Trim to Playhead (Q/W), และ Transition Sync; เพิ่มปุ่ม Diamond Add/Remove/Jump Keyframe ใน Inspector และ Diamond Marker บนแถบวิดีโอคลิป; เพิ่มปุ่มตัดหัว/ตัดท้ายถึงหัวอ่านบน Toolbar; ผ่าน unit tests ครบวงจร 809 frontend passed, 230 backend parity/cut alignment passed, production build 100% | 2026-10-04 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round CODEX-FEATURE-FIRST-SHOT-SELECTION-20261004 | Feature evidence before diversity; local catalog cache rematch; offline gate155 passed | 2026-10-04 | Closed; ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-AUTHORED-TRANSITION-RESPECT-20261004 | Preserve authored cuts and transition metadata; focused141 passed, real render/replay | 2026-10-04 | Closed; ดำเนินการโดย: Codex (GPT-6) |
@@ -56,6 +59,20 @@
 | Round SAM2-DEPTH-TEXT-PIPELINE-20260929 | เชื่อมต่อ SAM 2 บน RTX 4060 GPU เข้ากับ pipeline ของ Omnicut รองรับ Text Behind Product ทั้ง Canvas 2D Preview และ FFmpeg Render, เพิ่ม sam2 engine/models ใน contract, เพิ่ม worker สตรีม VP9 cutout.webm, ปรับปรุง backend preflight และ frontend UI Controls ผ่านการทดสอบ 23/23 tests และ build ผ่าน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
 | Round PC-REPO-AUDIT-PLAN-20260929 | ตรวจ PC/โค้ด/ผลทดสอบเดิมและ repository ที่เสนอ จัดทำแผน P0–P3 พร้อม gate ใน `_Docs/Plans/PC_REPOSITORY_AUDIT_PLAN_20260929.md` | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round SAM2-GPU-FEASIBILITY-SPIKE-20260929 | ติดตั้งสภาพแวดล้อม PyTorch 2.6.0+cu124 ใน tools/cutout_runtime/.venv, ทดสอบรันโมเดล SAM 2.1 บนการ์ดจอ NVIDIA GeForce RTX 4060 เทียบกับผลเดิมบน CPU, ทำความเร็วได้ 7.78 วินาทีสำหรับ 60 เฟรม (เร็วขึ้น 92 เท่า, 134 ms/เฟรม, VRAM 1.39 GB) และยืนยันคุณภาพการแทร็กสินค้าผ่าน contact sheet 100% | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
+## Round SHORTCUTS-ZOOM-SLIDER-KEYFRAME-KEYS-20261004 — คีย์ลัดคีย์เฟรม + คู่มือคีย์ลัด + ซูมไทม์ไลน์อิสระ · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+วันที่: 2026-10-04 · สั่งโดย: user · สถานะ: ปิดรอบแล้ว
+
+### ผลการดำเนินงาน
+- [x] T1 (Clip Keyframe Operations Lib): แยกตรรกะคีย์เฟรมเป็นโมดูลบริสุทธิ์ `frontend/src/lib/clipKeyframeOps.js` (`keyframeStateAt`, `toggleKeyframePatch`, `keyframeSeekTarget`) เพื่อให้ทั้ง Inspector และคีย์ลัดทำงานบนมาตรฐานเดียวกัน
+- [x] T2 (Keyframe Shortcuts): เพิ่มคีย์ลัดใหม่:
+  - `D`: เพิ่มหรือลบคีย์เฟรมที่หัวอ่านบนคลิปที่เลือก พร้อมแจ้งเตือน Toast สด
+  - `,` (จุลภาค / <): กระโดดไปหาคีย์เฟรมก่อนหน้าบนคลิปที่เลือก
+  - `.` (มหัพภาค / >): กระโดดไปหาคีย์เฟรมถัดไปบนคลิปที่เลือก
+- [x] T3 (Shortcuts Modal Reorganization): จัดหมวดหมู่คู่มือคีย์ลัดใหม่ใน `editorShortcutKeys.js` (ตัดและแก้คลิป · คีย์เฟรมกล้อง · เล่นและเลื่อนหัวอ่าน · ซูมและมุมมองไทม์ไลน์ · ระบบ) เพื่อให้ผู้ใช้ค้นหาและใช้งานได้อย่างรวดเร็ว
+- [x] T4 (Continuous Zoom Slider): แทนที่ป้าย "3/7" ด้วยแถบเลื่อนซูมไทม์ไลน์อิสระ (Logarithmic Scale 20–800 px/s, 1000 สเต็ป) พร้อมป้ายแสดงระดับเปอร์เซ็นต์ (e.g. 100%, 200%) เลื่อนตามเมาส์/ล้อหมุนแบบเรียลไทม์สไตล์ CapCut โดยยังคงปุ่ม Zoom In (+), Zoom Out (-) และ Zoom to Fit ไว้อย่างครบถ้วน
+- [x] T5 (Unit Tests & Build): เพิ่มการทดสอบครอบคลุมใน `clipKeyframeOps.test.js`, `timelineZoom.test.js`, และ `editorShortcutKeys.test.js`; ผลการทดสอบ `npm test` ผ่าน 834/834 tests (100%) และ `npm run build` ผ่าน 100%
+
 ## Round KEYFRAME-TRIM-TRANSITION-CAPCUT-20261004 — ระบบ Keyframe UI บนไทม์ไลน์ (T9), ปุ่มลัดและปุ่ม UI Trim to Playhead (Q/W), และ Transition Sync · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 วันที่: 2026-10-04 · สั่งโดย: user ("จัดการวางแผนต่อได้เลยครับ") · สถานะ: ปิดรอบแล้ว
@@ -11206,3 +11223,19 @@ Notes: ผู้ใช้สั่งใช้ focused tests แทน full suit
 Notes: focused tests ตามคำสั่งผู้ใช้ ไม่รัน full suite; ใช้ measurement gate เมื่อ Jev confidence=null ตามที่อนุญาตไว้; รักษางานค้างทั้งหมดและไม่แตะ slider/undo ของ Antigravity หรือข้อมูลจริง
 - Gate: focused **109 passed** (96 unit/integration/style + 8 real FFmpeg/production preview + 5 scoped parity); render 21.90s; compile/API225/scoped diff passed. No full suite per user instruction. Same-topic8s:4 clips to1; 12s frame-coded cases360 frames continuous; sentence/topic boundaryframe245, preview within1sourceframe. Metadata prevents polite filler false ends. Runtime restarted idle HTTP200.
 - Report: `_Docs/Reports/COMPLETE_THOUGHT_SHOTS_20261004.md`. Shared AI-match identity only, explicit pacing retained; source shortage policy unchanged; no real assets/exports touched, temp media cleaned.
+
+
+## Round CODEX-PARALLEL-EDITING-QUALITY-20261004
+ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6)
+สถานะ: Closed - scoped tests/build/browser passed
+เป้าหมาย: ลดภาพวนซ้ำ พรีวิวโปรเจกต์ใหญ่ลื่นขึ้น และตรวจปัญหาก่อนเรนเดอร์
+- [x] A1 source-reuse — ดำเนินการโดย: Codex (GPT-6): ตรวจ/แก้การใช้ source scene ซ้ำ ให้เล่นต่อจากที่ใช้แล้ว; หมดภาพค้างเฟรมสุดท้ายพร้อมแจ้ง; backend matching/source allocation + focused regression/FFmpeg
+- [x] A2 preview-performance — ดำเนินการโดย: Codex (GPT-6): วัด bottleneck และแก้ preview/decoder ในไฟล์ player ที่ไม่ชนงานอื่น; start/seek/transition/speed tests และการวัดผลเฉพาะส่วน
+- [x] A3 render-preflight — ดำเนินการโดย: Codex (GPT-6): วิเคราะห์ช่องว่าง/ช่วงภาพไม่พอ/เหตุที่เสี่ยงไม่มีภาพจากข้อมูลจริงของ timeline; แจ้งตำแหน่งก่อน render ไม่ปิดกั้น approved hold; แยก inferred risk จาก black frames ที่ตรวจจริง
+- [x] Root integration — ดำเนินการโดย: Codex (GPT-6): ประสาน file ownership ทดสอบผลร่วม ใช้ focused tests/short renders ปิดรายงานและ archive รอบทั้งหมด
+Ownership: A1 scripts/gemini_vision_matcher.py, scripts/shot_source_window.py, scripts/stages/shot_matching_stage.py; A2 SequencePlayer.jsx และ preview helpers; A3 preflight module/component และ integration ในไฟล์ที่สะอาดเท่านั้น ประสาน root ก่อนแตะ shared files
+Notes: Antigravity กำลังทำ KEYFRAME-TRIM-TRANSITION ใน EditorShell/Inspector/TimelineClip/Toolbar/ClipInspector/timelineMath ห้ามทับ; TODO/HISTORY ให้ root ดูแลส่วนรอบนี้เพียงคนเดียว แต่แต่ละ agent เก็บรายงานของตัวเองใน _Docs/Reports; ไม่ commit/push อัตโนมัติ ไม่รัน full suite; user อนุญาต regression/measurement gate เมื่อ Jev confidence=null ไว้แล้ว; tests ห้ามแตะ real raw/assets/projects/exports/registry และ media ต้อง cleanup100%
+Integration: Antigravity ปิดรอบและ commit งานแล้ว (Shell ไม่มี dirty งานเดิม); root เชื่อม preflight notice/memo/invalid-plan gate ด้วย minimal patches
+Gate approval: ผู้ใช้อนุญาตเพิ่มให้ regression tests/ผลวัดจริงเป็นเกณฑ์เมื่อ Jev confidence<0.80 ด้วย (รวม null เดิม); A1/A2 เคยรัน synthetic tests ก่อนอ่าน gate ใน paired shell ต้องบันทึกขั้นตอนผิดและไม่มี production writes
+Validation: A1 offline77 passed; render-inclusive8 passed; A2 Node47/parity205/browser1 passed; root Node27/browser3/build/compileall passed. Final Jev noul0.80/confidence=null; approved regression gate. Runtime idle verified, reloaded parent32876.
+Report: _Docs/Reports/PARALLEL_EDITING_QUALITY_20261004.md

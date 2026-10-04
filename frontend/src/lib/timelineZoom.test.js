@@ -13,6 +13,9 @@ import {
   stepZoomPreset,
   wheelZoomFactor,
   zoomPresetIndex,
+  pxPerSecToSlider,
+  sliderToPxPerSec,
+  zoomPercentageLabel,
 } from './timelineZoom.js';
 
 test('presets keep the old steps as quick stops and reach frame-level zoom', () => {
@@ -75,3 +78,29 @@ test('fit uses the exact px/s, not the nearest lower preset', () => {
   assert.equal(fitPxPerSec(0, 10), null);
   assert.equal(fitPxPerSec(100, 0), null);
 });
+
+test('slider mapping: round-trips smoothly on log scale and clamps bounds', () => {
+  assert.equal(pxPerSecToSlider(MIN_PX_PER_SEC), 0);
+  assert.equal(pxPerSecToSlider(MAX_PX_PER_SEC), 1);
+  assert.ok(Math.abs(sliderToPxPerSec(0) - MIN_PX_PER_SEC) < 1e-9);
+  assert.ok(Math.abs(sliderToPxPerSec(1) - MAX_PX_PER_SEC) < 1e-9);
+
+  // Round trip arbitrary intermediate values
+  for (const px of [15, 25, 50, 75, 100, 200, 400, 600]) {
+    const frac = pxPerSecToSlider(px);
+    const back = sliderToPxPerSec(frac);
+    assert.ok(Math.abs(back - px) < 1e-6, `failed roundtrip for ${px}`);
+  }
+
+  // Clamping
+  assert.ok(Math.abs(sliderToPxPerSec(-0.5) - MIN_PX_PER_SEC) < 1e-9);
+  assert.ok(Math.abs(sliderToPxPerSec(1.5) - MAX_PX_PER_SEC) < 1e-9);
+});
+
+test('zoom percentage label formats 100% at default 50 px/s', () => {
+  assert.equal(zoomPercentageLabel(DEFAULT_PX_PER_SEC), '100%');
+  assert.equal(zoomPercentageLabel(MIN_PX_PER_SEC), '20%');
+  assert.equal(zoomPercentageLabel(100), '200%');
+  assert.equal(zoomPercentageLabel(MAX_PX_PER_SEC), '1600%');
+});
+

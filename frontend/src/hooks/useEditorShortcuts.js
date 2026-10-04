@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { classifyShortcut, isEditableTarget, shouldIgnoreShortcutTarget } from '../lib/editorShortcutKeys.js';
 import { editNavigationTarget } from '../lib/timelineTrimOps.js';
+import { keyframeSeekTarget, toggleKeyframePatch } from '../lib/clipKeyframeOps.js';
 
 /**
  * Hook to manage timeline keyboard verbs (Space, B, Z, Y, J-K-L, Arrows, Delete,
@@ -45,6 +46,9 @@ export function useEditorShortcuts({
   onMarkOut,
   onRippleRange,
   onClearRange,
+  // D toggles a camera keyframe at the playhead on the selected clip; the
+  // callback reports what happened (added/removed/outside) for a toast.
+  onKeyframeToggled,
 } = {}) {
   const keyHandlerRef = useRef(null);
 
@@ -124,6 +128,23 @@ export function useEditorShortcuts({
           break;
         case 'toggleSnap': onToggleSnap?.(); break;
         case 'cycleCutout': onCycleCutoutMode?.(); break;
+        case 'toggleKeyframe': {
+          if (!selectedSeg?.clip) { onKeyframeToggled?.('noClip'); break; }
+          const patch = toggleKeyframePatch(selectedSeg, playhead || 0);
+          if (!patch) { onKeyframeToggled?.('outside'); break; }
+          patchClip?.(selectedSeg.clip.id, patch);
+          const before = Array.isArray(selectedSeg.clip.keyframes) ? selectedSeg.clip.keyframes.length : 0;
+          const after = Array.isArray(patch.keyframes) ? patch.keyframes.length : 0;
+          onKeyframeToggled?.(after > before ? 'added' : 'removed');
+          break;
+        }
+        case 'prevKeyframe':
+        case 'nextKeyframe': {
+          if (!selectedSeg?.clip) break;
+          const target = keyframeSeekTarget(selectedSeg, playhead || 0, action === 'prevKeyframe' ? -1 : 1);
+          if (target !== null) seekPlayer?.(target);
+          break;
+        }
         default: break;
       }
     };

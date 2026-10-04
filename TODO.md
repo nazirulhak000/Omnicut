@@ -1,16 +1,41 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
-- [ ] Round CODEX-PARALLEL-EDITING-QUALITY-20261004 · ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6)
+- [ ] Round CODEX-EDITING-VALIDATION-20261004 · ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6)
 
-## Round CODEX-PARALLEL-EDITING-QUALITY-20261004
+## Round CODEX-EDITING-VALIDATION-20261004
 ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6)
-สถานะ: กำลังทำ — ผู้ใช้อนุญาตให้แยกเอเจนต์
-เป้าหมาย: ลดภาพวนซ้ำ พรีวิวโปรเจกต์ใหญ่ลื่นขึ้น และตรวจปัญหาก่อนเรนเดอร์
-- [ ] A1 source-reuse — ดำเนินการโดย: Codex (GPT-6): ตรวจ/แก้การใช้ source scene ซ้ำ ให้เล่นต่อจากที่ใช้แล้ว; หมดภาพค้างเฟรมสุดท้ายพร้อมแจ้ง; backend matching/source allocation + focused regression/FFmpeg
-- [ ] A2 preview-performance — ดำเนินการโดย: Codex (GPT-6): วัด bottleneck และแก้ preview/decoder ในไฟล์ player ที่ไม่ชนงานอื่น; start/seek/transition/speed tests และการวัดผลเฉพาะส่วน
-- [ ] A3 render-preflight — ดำเนินการโดย: Codex (GPT-6): วิเคราะห์ช่องว่าง/ช่วงภาพไม่พอ/เหตุที่เสี่ยงไม่มีภาพจากข้อมูลจริงของ timeline; แจ้งตำแหน่งก่อน render ไม่ปิดกั้น approved hold; แยก inferred risk จาก black frames ที่ตรวจจริง
-- [ ] Root integration — ดำเนินการโดย: Codex (GPT-6): ประสาน file ownership ทดสอบผลร่วม ใช้ focused tests/short renders ปิดรายงานและ archive รอบทั้งหมด
-Ownership: A1 scripts/gemini_vision_matcher.py, scripts/shot_source_window.py, scripts/stages/shot_matching_stage.py; A2 SequencePlayer.jsx และ preview helpers; A3 preflight module/component และ integration ในไฟล์ที่สะอาดเท่านั้น ประสาน root ก่อนแตะ shared files
-Notes: Antigravity กำลังทำ KEYFRAME-TRIM-TRANSITION ใน EditorShell/Inspector/TimelineClip/Toolbar/ClipInspector/timelineMath ห้ามทับ; TODO/HISTORY ให้ root ดูแลส่วนรอบนี้เพียงคนเดียว แต่แต่ละ agent เก็บรายงานของตัวเองใน _Docs/Reports; ไม่ commit/push อัตโนมัติ ไม่รัน full suite; user อนุญาต regression/measurement gate เมื่อ Jev confidence=null ไว้แล้ว; tests ห้ามแตะ real raw/assets/projects/exports/registry และ media ต้อง cleanup100%
+สถานะ: กำลังทำ — ผู้ใช้สั่งแยกเอเจนต์ทำต่อ
+เป้าหมาย: ตรวจผลรอบก่อนในสถานการณ์ที่ใกล้ใช้งานจริง และแก้เฉพาะปัญหาที่พิสูจน์ได้
+- [ ] A1 editorial audit: อ่าน manifest โปรเจกต์ตัวอย่างอย่างเดียว วิเคราะห์ภาพซ้ำ/ภาพไม่พอ/การครอบคลุมประโยคจากข้อมูลที่มี แยก semantic accuracy ที่ยังตรวจไม่ได้ รายงาน _Docs/Reports/EDITING_REAL_PLAN_AUDIT_20261004.md
+- [ ] A2 playback measurement: วัด browser หลาย source พร้อมเสียง/seek/รอยต่อด้วย synthetic temp fixtures ตรวจ A/V drift ที่วัดได้จริง แก้เฉพาะ reproducible defect ใน preview lane
+- [ ] A3 preflight coverage: ตรวจ false positive/false negative จาก saved plans และ boundary cases เพิ่ม scoped regressions แก้เฉพาะ helper/notice ที่ไม่ชน shared Shell
+- [ ] Root: รวมผล/แก้ integration ที่จำเป็น ตรวจเฉพาะส่วน ปิดรายงานและ archive รอบ
+Ownership: A1 new audit utility/tests/report; A2 SequencePlayer/scheduler/new browser test/report; A3 renderPreflight helper/tests/notice/report; root TODO/HISTORY/integration เท่านั้น ห้ามแก้ shared Shell/Toolbar/shortcuts/mobile ที่ Antigravity/Cline กำลังทำ
+Notes: มี dirty งานรอบก่อนและงานอื่น ต้องรักษาทั้งหมด; ไม่ commit/push/restart runtime อัตโนมัติ ไม่ full suite; ผู้ใช้อนุญาต regression/ผลวัดจริงเป็น gate เมื่อ Jev confidence=null/<0.80; tests ห้ามแตะ real production data, audit real manifest read-only เท่านั้น; synthetic media cleanup100%; ไม่เพิ่ม Cutout/font/subtitle changes
+
+- [ ] Round MOBILE-STUDIO-FLOW-V2-20261004 · ดำเนินการโดย: Cline (Claude Sonnet 4.5)
+
+## Round MOBILE-STUDIO-FLOW-V2-20261004
+ดำเนินการโดย: Cline (Claude Sonnet 4.5)
+สถานะ: กำลังทำ — ผู้ใช้อนุมัติแผน `_Docs/Plans/PLAN_MOBILE_STUDIO_FLOW_V2_20261004.md` และสั่งเริ่ม P0 ทันที
+เป้าหมาย: ทำให้โหมดมือถือ "ทำงานได้จริง ไม่ตัน" — กันเรนเดอร์ตอนไม่มีคลิป ยกเลิกงานได้ กู้เมื่อโหลดพัง และ loading ไม่ยุบทั้งหน้า
+- [x] P0-1 preflight ก่อนเรนเดอร์ — Cline (Claude Sonnet 4.5): `MobileQuickStudio.jsx` hydrate session จากหน้ากล้อง (`getRecordingSession`) + `hasFootage` → disable ปุ่ม + ข้อความ + guard ใน handler
+- [x] P0-2 ยกเลิกการเรนเดอร์ — Cline (Claude Sonnet 4.5): `scripts/api_mobile_studio.py` `POST /cancel/{task_id}` (TaskManager.cancel_task + render_jobs.request_cancel) · `frontend/src/api.js` `cancelMobileTask` · ปุ่มยกเลิก + ConfirmModal ใน Step 3
+- [x] P0-3 กู้เมื่อโหลดพัง — Cline (Claude Sonnet 4.5): ปุ่ม "ลองใหม่" ใน error/empty state Step 1
+- [x] P0-4 loading ระดับปุ่ม — Cline (Claude Sonnet 4.5): แยก `confirming` state ไม่ยุบทั้งลิสต์ Step 1
+- [x] ตรวจสอบ — Cline (Claude Sonnet 4.5): py_compile OK · route cancel ลงทะเบียน · pytest `-k "cancel or cancelled"` 2 passed · esbuild transform OK · oxlint 0 errors · cleanup .tmp 100% (ดู `_Docs/Reports/MOBILE_STUDIO_P0_20261004.md`)
+- [x] P1-1 โหมดจำค่า/รีเฟรช — Cline (Claude Sonnet 4.5): `App.jsx` `resolveInitialMobileMode()` (URL > localStorage > width) + `applyUiMode()` persist + ตั้ง `?mode=` + ฟัง resize/orientationchange (auto เฉพาะเมื่อยังไม่เลือกเอง) · `onSwitchToDesktop/Mobile` ใช้ `applyUiMode`
+- [x] P1-2 safe-area — Cline (Claude Sonnet 4.5): เฮดเดอร์ `pt-[calc(env(safe-area-inset-top)+0.75rem)]` + แถบปุ่มล่าง (Step 1/2) `bottom-[calc(env(safe-area-inset-bottom)+1rem)]` → รอยบาก/home bar ไม่ทับปุ่ม
+- [x] P1-3 มาร์คโพสต์แล้วใน Step 4 — Cline (Claude Sonnet 4.5): ปุ่ม + `handleMarkPosted` เรียก `markPosted(video_path, product, angle)` + reset `postedDone` เมื่อเริ่มงานใหม่
+- [x] P1-4 UI คลีน — Cline (Claude Sonnet 4.5): ลบอีโมจิซ้อนไอคอน (`+ เพิ่มสินค้า`, `⚡ ถ่ายด่วน…`, `➕ เขียนมุม…`, `⚡ ถ่ายด่วน (ไปหน้าถ่ายทำ)`) ตาม `ui_clean_standard`
+- [x] ตรวจสอบ P1 — Cline (Claude Sonnet 4.5): `npm run build` **ผ่าน** (692ms) · esbuild `App.jsx`+`MobileQuickStudio.jsx` OK · oxlint 0 errors · `mobileStudioFlow.test.js` 6/6 · cleanup .tmp 100%
+- ℹ️ `editorShortcutKeys.js` ที่เคยพังถูกเจ้าของงานเดิมซ่อมแล้ว (build เขียว) แต่เทสต์ `editorShortcutKeys.test.js:212` ยังตก 1 ตัว = งาน KEYFRAME ไม่ใช่รอบนี้
+- ⏳ ค้าง: P2 (PWA manifest/dedupe SHA-256/wake-lock)
+Ownership: Cline รอบนี้ถือ `MobileQuickStudio.jsx`, `api_mobile_studio.py`, `api.js`, `TODO.md` ฝั่งเพิ่มรอบนี้ — ไม่แตะไฟล์ของรอบ CODEX (SequencePlayer/preflight/stages) และไม่แตะ KEYFRAME ฝั่ง Antigravity
+Notes: ไม่ commit/push อัตโนมัติ · Jev ต้องรันผ่าน `.venv` (`.\\.venv\\Scripts\\python.exe tools/jev_advisor.py`) · P1/P2 ยังไม่ทำรอบนี้
+
+- [x] Round CODEX-PARALLEL-EDITING-QUALITY-20261004 ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6) (HISTORY.md)
+
+- [x] Round SHORTCUTS-ZOOM-SLIDER-KEYFRAME-KEYS-20261004 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
 
 - [x] Round KEYFRAME-TRIM-TRANSITION-CAPCUT-20261004 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
 - [x] Round CODEX-FEATURE-FIRST-SHOT-SELECTION-20261004 · ดำเนินการโดย: Codex (GPT-6)

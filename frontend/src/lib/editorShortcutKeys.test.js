@@ -221,8 +221,8 @@ test('SHORTCUT_GROUPS: every probed row is what classifyShortcut really returns'
       }
     }
   }
-  // 28 before the ripple range keys; + I, O, Shift+Delete and Escape-with-a-range.
-  assert.equal(probed, 32, 'every classifyShortcut-backed row keeps its probes');
+  // 32 before keyframe shortcuts; + D, comma, dot keyframe navigation.
+  assert.equal(probed, 35, 'every classifyShortcut-backed row keeps its probes');
 });
 
 test('SHORTCUT_GROUPS: rows are well formed, keys are unique, and there is no tab 6', () => {

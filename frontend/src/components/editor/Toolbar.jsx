@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { formatTimecode } from '../../lib/timelineMath';
 import { rippleScopeHint, rippleScopeLabel } from '../../lib/rippleUi';
+import { pxPerSecToSlider, sliderToPxPerSec, zoomPercentageLabel } from '../../lib/timelineZoom.js';
 
 const SPEEDS = [0.5, 1, 1.5, 2];
 
@@ -69,6 +70,8 @@ export default function Toolbar({
   onToggleSafeZone,
   zoomIndex,
   zoomCount,
+  pxPerSec = null,
+  onZoomTo = null,
   onZoom,
   onZoomToFit,
   snapEnabled,
@@ -262,9 +265,27 @@ export default function Toolbar({
         )}
         <span className="mx-1 h-4 w-px bg-[#363430]" />
         <ToolButton icon={ZoomOut} label="" hint="ซูมออก (ปุ่ม -)" onClick={() => onZoom(-1)} disabled={zoomIndex <= 0} />
-        <span className="w-10 text-center font-mono text-sm text-[#9C968F]">
-          {zoomIndex + 1}/{zoomCount}
-        </span>
+        {onZoomTo && pxPerSec ? (
+          <div className="flex items-center gap-1.5 px-1" title="ลากเพื่อซูมไทม์ไลน์อิสระ (Ctrl+Scroll บนไทม์ไลน์)">
+            <input
+              type="range"
+              min="0"
+              max="1000"
+              step="1"
+              value={Math.round(pxPerSecToSlider(pxPerSec) * 1000)}
+              onChange={(e) => onZoomTo(sliderToPxPerSec(Number(e.target.value) / 1000))}
+              aria-label="แถบซูมไทม์ไลน์"
+              className="h-1.5 w-16 sm:w-20 cursor-pointer appearance-none rounded-full bg-[#363430] accent-[#E89274] hover:bg-[#48453F]"
+            />
+            <span className="w-11 text-center font-mono text-xs font-semibold text-[#9C968F]" title={`สเกล ${Math.round(pxPerSec)} px/s`}>
+              {zoomPercentageLabel(pxPerSec)}
+            </span>
+          </div>
+        ) : (
+          <span className="w-10 text-center font-mono text-sm text-[#9C968F]">
+            {zoomIndex + 1}/{zoomCount}
+          </span>
+        )}
         <ToolButton icon={ZoomIn} label="" hint="ซูมเข้า (ปุ่ม +) · Ctrl+เลื่อนล้อเมาส์ซูมต่อเนื่อง" onClick={() => onZoom(1)} disabled={zoomIndex >= zoomCount - 1} />
         <ToolButton icon={Maximize2} label="" hint="ซูมให้เห็นทั้งคลิปพอดีจอ" onClick={onZoomToFit} disabled={!onZoomToFit} />
       </div>

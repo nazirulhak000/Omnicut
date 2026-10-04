@@ -87,3 +87,33 @@ export function fitPxPerSec(usableWidth, duration) {
   if (!(usableWidth > 0) || !(duration > 0)) return null;
   return clampPxPerSec(usableWidth / duration);
 }
+
+/**
+ * Map continuous px/s to a [0, 1] slider fraction on a logarithmic scale.
+ */
+export function pxPerSecToSlider(px) {
+  const cur = clampPxPerSec(px);
+  const logMin = Math.log(MIN_PX_PER_SEC);
+  const logMax = Math.log(MAX_PX_PER_SEC);
+  return Math.max(0, Math.min(1, (Math.log(cur) - logMin) / (logMax - logMin)));
+}
+
+/**
+ * Map a [0, 1] slider fraction back to px/s on a logarithmic scale.
+ */
+export function sliderToPxPerSec(frac) {
+  const f = Math.max(0, Math.min(1, Number(frac) || 0));
+  const logMin = Math.log(MIN_PX_PER_SEC);
+  const logMax = Math.log(MAX_PX_PER_SEC);
+  return clampPxPerSec(Math.exp(logMin + f * (logMax - logMin)));
+}
+
+/**
+ * Format zoom as a user-friendly percentage (100% at DEFAULT_PX_PER_SEC = 50 px/s).
+ */
+export function zoomPercentageLabel(px) {
+  const cur = clampPxPerSec(px);
+  const pct = Math.round((cur / DEFAULT_PX_PER_SEC) * 100);
+  return `${pct}%`;
+}
+

@@ -124,6 +124,11 @@ export function classifyShortcut(event, context = {}) {
     case 'f': case 'F': return { action: 'toggleFade', preventDefault: false };
     case 'n': case 'N': return act('toggleSnap');
     case 'm': case 'M': return act('cycleCutout');
+    // Camera keyframes of the selected clip: D toggles a diamond at the
+    // playhead, , / . (the < / > keys) jump to the previous / next one.
+    case 'd': case 'D': return act('toggleKeyframe');
+    case ',': case '<': return act('prevKeyframe');
+    case '.': case '>': return act('nextKeyframe');
     default: return NONE;
   }
 }
@@ -150,12 +155,17 @@ export const SHORTCUT_GROUPS = Object.freeze([
     ],
   },
   {
-    category: 'ไทม์ไลน์และการตัดต่อ',
+    category: 'ตัดและแก้คลิป',
     shortcuts: [
       {
         keys: 'S / Ctrl+B',
         desc: 'ตัดแบ่งคลิปตรงหัวอ่าน',
         probes: [{ event: { key: 's' }, action: 'split' }, { event: { key: 'b', ctrlKey: true }, action: 'split' }],
+      },
+      {
+        keys: 'Q / W',
+        desc: 'ตัดหัวคลิปทิ้งถึงหัวอ่าน / ตัดท้ายคลิปทิ้งตั้งแต่หัวอ่าน (ปุ่ม ตัดหัว / ตัดท้าย บนแถบเครื่องมือ)',
+        probes: [{ event: { key: 'q' }, action: 'trimHead' }, { event: { key: 'w' }, action: 'trimTail' }],
       },
       {
         keys: 'Del / Backspace',
@@ -172,15 +182,22 @@ export const SHORTCUT_GROUPS = Object.freeze([
         desc: 'ตัดช่วงระหว่างจุดเข้า-จุดออกทิ้ง แล้วดึงส่วนที่เหลือมาชิด (ถ้ายังไม่ตั้งช่วง = ลบตามปกติ)',
         probes: [{ event: { key: 'Delete', shiftKey: true }, action: 'rippleRange' }],
       },
-      { keys: 'Ctrl / Shift + คลิก', desc: 'เลือกหลายคลิปบนไทม์ไลน์: Ctrl สลับทีละคลิป, Shift เลือกเป็นช่วง' }, // TimelineClip click
       {
         keys: 'Ctrl+Alt+C / Ctrl+Alt+V',
-        desc: 'คัดลอกการตั้งค่าของคลิปหลัก (ความเร็ว ซูม/แพน+คีย์เฟรมกล้อง สี ทรานซิชัน) / วางลงคลิปที่เลือก',
+        desc: 'คัดลอกการตั้งค่าของคลิปหลัก (ความเร็ว ซูม/แพน+คีย์เฟรมกล้อง สี ทรานซิชัน) / วางลงคลิปที่เลือก (ปุ่ม คัดลอกค่า / วางค่า)',
         probes: [
           { event: { key: 'c', ctrlKey: true, altKey: true }, action: 'copySettings' },
           { event: { key: 'v', ctrlKey: true, altKey: true }, action: 'pasteSettings' },
         ],
       },
+      {
+        keys: 'F',
+        desc: 'เปิด / ปิด เฟดเข้าที่คลิปที่เลือก (ไม่รวมคลิปแรก)',
+        probes: [{ event: { key: 'f' }, action: 'toggleFade' }],
+      },
+      { keys: 'Ctrl / Shift + คลิก', desc: 'เลือกหลายคลิปบนไทม์ไลน์: Ctrl สลับทีละคลิป, Shift เลือกเป็นช่วง' }, // TimelineClip click
+      { keys: '[ / ]', desc: 'ย้ายคลิปที่โฟกัสอยู่ไปก่อน / หลัง 1 ลำดับ' }, // TimelineClip onKeyDown
+      { keys: 'Enter', desc: 'ตัดแบ่งท่อนคำบรรยายตรงเคอร์เซอร์' }, // CuesTranscriptInspector
       { keys: 'Ctrl+Z', desc: 'ย้อนกลับ', probes: [{ event: { key: 'z', ctrlKey: true }, action: 'undo' }] },
       {
         keys: 'Ctrl+Y / Ctrl+Shift+Z',
@@ -190,6 +207,27 @@ export const SHORTCUT_GROUPS = Object.freeze([
           { event: { key: 'z', ctrlKey: true, shiftKey: true }, action: 'redo' },
         ],
       },
+    ],
+  },
+  {
+    category: 'คีย์เฟรมกล้อง (ซูม/เลื่อน)',
+    shortcuts: [
+      {
+        keys: 'D',
+        desc: 'เพิ่ม / ลบคีย์เฟรม ◆ ที่หัวอ่าน บนคลิปที่เลือก (เก็บค่าซูม/เลื่อนปัจจุบัน)',
+        probes: [{ event: { key: 'd' }, action: 'toggleKeyframe' }],
+      },
+      {
+        keys: ', / .',
+        desc: 'กระโดดไปคีย์เฟรมก่อนหน้า / ถัดไป ของคลิปที่เลือก',
+        probes: [{ event: { key: ',' }, action: 'prevKeyframe' }, { event: { key: '.' }, action: 'nextKeyframe' }],
+      },
+    ],
+  },
+  {
+    category: 'เล่นและเลื่อนหัวอ่าน',
+    shortcuts: [
+      { keys: 'Space', desc: 'เล่น / หยุด วิดีโอ', probes: [{ event: { key: ' ' }, action: 'togglePlay' }] },
       {
         keys: 'J / K / L',
         desc: 'ถอยหลัง 1s / เล่น-หยุด / เดินหน้า 1s',
@@ -208,11 +246,6 @@ export const SHORTCUT_GROUPS = Object.freeze([
         ],
       },
       {
-        keys: 'Q / W',
-        desc: 'ตัดหน้าคลิปทิ้งถึงหัวอ่าน / ตัดท้ายคลิปทิ้งตั้งแต่หัวอ่าน',
-        probes: [{ event: { key: 'q' }, action: 'trimHead' }, { event: { key: 'w' }, action: 'trimTail' }],
-      },
-      {
         keys: '↑ / ↓',
         desc: 'ข้ามไปจุดตัดก่อนหน้า / ถัดไป (ขอบคลิปและขอบคำบรรยาย)',
         probes: [{ event: { key: 'ArrowUp' }, action: 'prevEdit' }, { event: { key: 'ArrowDown' }, action: 'nextEdit' }],
@@ -222,12 +255,17 @@ export const SHORTCUT_GROUPS = Object.freeze([
         desc: 'ไปจุดเริ่ม / จุดจบของไทม์ไลน์',
         probes: [{ event: { key: 'Home' }, action: 'seekStart' }, { event: { key: 'End' }, action: 'seekEnd' }],
       },
+    ],
+  },
+  {
+    category: 'ซูมและมุมมองไทม์ไลน์',
+    shortcuts: [
       {
         keys: '+ / -',
-        desc: 'ปรับระดับการซูมไทม์ไลน์',
+        desc: 'ซูมไทม์ไลน์เข้า / ออกทีละขั้น',
         probes: [{ event: { key: '+' }, action: 'zoomIn' }, { event: { key: '-' }, action: 'zoomOut' }],
       },
-      { keys: 'Ctrl + Scroll', desc: 'ซูมไทม์ไลน์เข้า / ออก' }, // useTimelineKeyboard (wheel)
+      { keys: 'Ctrl + Scroll', desc: 'ซูมไทม์ไลน์แบบต่อเนื่องรอบเมาส์ (หรือลากแถบซูมบนแถบเครื่องมือ)' }, // useTimelineKeyboard (wheel)
       {
         keys: 'N',
         desc: 'เปิด / ปิด แม่เหล็กดูดคลิป (Magnetic Snap)',
@@ -238,19 +276,11 @@ export const SHORTCUT_GROUPS = Object.freeze([
         desc: 'สลับโหมดพรีวิว Cutout (ปกติ / หมากรุก / มาสก์)',
         probes: [{ event: { key: 'm' }, action: 'cycleCutout' }],
       },
-      {
-        keys: 'F',
-        desc: 'เปิด / ปิด เฟดเข้าที่คลิปที่เลือก (ไม่รวมคลิปแรก)',
-        probes: [{ event: { key: 'f' }, action: 'toggleFade' }],
-      },
-      { keys: '[ / ]', desc: 'ย้ายคลิปที่โฟกัสอยู่ไปก่อน / หลัง 1 ลำดับ' }, // TimelineClip onKeyDown
-      { keys: 'Enter', desc: 'ตัดแบ่งท่อนคำบรรยายตรงเคอร์เซอร์' }, // CuesTranscriptInspector
     ],
   },
   {
-    category: 'การควบคุมมีเดีย & ระบบ',
+    category: 'ระบบ',
     shortcuts: [
-      { keys: 'Space', desc: 'เล่น / หยุด วิดีโอ', probes: [{ event: { key: ' ' }, action: 'togglePlay' }] },
       {
         keys: 'Esc',
         desc: 'ปิดหน้าต่างป๊อปอัป / ออกจากโหมดพรีวิวเต็มพื้นที่ / ล้างจุดเข้า-จุดออก / ยกเลิกการเลือกหลายคลิป',

@@ -12,7 +12,8 @@ test('ClipInspector contract: diamond keyframe button and navigation controls ex
   assert.match(src, /prevKf/);
   assert.match(src, /nextKf/);
   assert.match(src, /hasKeyframeAtPlayhead/);
-  assert.match(src, /motionTimeAt\(selectedSeg, playhead\)/);
+  assert.match(src, /keyframeStateAt\(selectedSeg, playhead\)/);
+  assert.match(src, /toggleKeyframePatch\(selectedSeg, playhead\)/);
   assert.match(src, /keyframes\.length > 0/);
 });
 

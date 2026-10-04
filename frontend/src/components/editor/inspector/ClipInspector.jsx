@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, RotateCw, Volume2, VolumeX } from 'lucide-react';
 import { TransitionIcon } from '../../../lib/transitionIcons';
-import { TRANSITIONS, FADE_DURATION, motionTimeAt } from '../../../lib/timelineMath';
+import { TRANSITIONS, FADE_DURATION } from '../../../lib/timelineMath';
+import { keyframeStateAt, toggleKeyframePatch } from '../../../lib/clipKeyframeOps.js';
 import {
   MIN_CLIP_SPEED,
   MAX_CLIP_SPEED,
@@ -118,32 +119,19 @@ export default function ClipInspector({
   const cam = cameraKeyframeSummary(clip);
   const overriddenLabel = cam.zoom && cam.pan ? 'ซูม/เลื่อน' : cam.zoom ? 'ซูม' : 'เลื่อน';
 
-  // Live played local time for camera keyframes at current playhead position
-  const localMotionTime = selectedSeg ? motionTimeAt(selectedSeg, playhead) : 0;
-  const keyframes = Array.isArray(clip.keyframes) ? clip.keyframes : [];
-  const KEYFRAME_TOLERANCE = 0.05; // within ~1.5 frames at 30 fps
-  const activeKfIndex = keyframes.findIndex(
-    (k) => Math.abs(Number(k.time) - localMotionTime) <= KEYFRAME_TOLERANCE,
-  );
+  // Live played local time for camera keyframes at current playhead position.
+  // Shared with the D / , / . shortcuts (clipKeyframeOps.js).
+  const kfState = keyframeStateAt(selectedSeg, playhead);
+  const keyframes = kfState.keyframes;
+  const activeKfIndex = kfState.activeIndex;
   const hasKeyframeAtPlayhead = activeKfIndex !== -1;
-  const prevKf = [...keyframes].filter((k) => Number(k.time) < localMotionTime - KEYFRAME_TOLERANCE).pop();
-  const nextKf = keyframes.find((k) => Number(k.time) > localMotionTime + KEYFRAME_TOLERANCE);
+  const playheadInClip = kfState.inside;
+  const prevKf = kfState.prev;
+  const nextKf = kfState.next;
 
   const handleToggleKeyframe = () => {
-    if (hasKeyframeAtPlayhead) {
-      const nextKfs = keyframes.filter((_, idx) => idx !== activeKfIndex);
-      onClipChange?.({ keyframes: nextKfs.length > 0 ? nextKfs : undefined });
-    } else {
-      const newKf = {
-        time: Math.round(localMotionTime * 100) / 100,
-        zoom: clip.zoom ?? 1,
-        pan_x: clip.pan_x ?? 0,
-        pan_y: clip.pan_y ?? 0,
-        easing: 'linear',
-      };
-      const nextKfs = [...keyframes, newKf].sort((a, b) => Number(a.time) - Number(b.time));
-      onClipChange?.({ keyframes: nextKfs });
-    }
+    const patch = toggleKeyframePatch(selectedSeg, playhead);
+    if (patch) onClipChange?.(patch);
   };
 
   const handleSeekToKeyframe = (kf) => {
@@ -465,7 +453,7 @@ export default function ClipInspector({
                 type="button"
                 disabled={!prevKf}
                 onClick={() => prevKf && handleSeekToKeyframe(prevKf)}
-                title={prevKf ? `ไปยังคีย์เฟรมก่อนหน้า (${Number(prevKf.time).toFixed(2)}s)` : 'ไม่มีคีย์เฟรมก่อนหน้า'}
+                title={prevKf ? `ไปยังคีย์เฟรมก่อนหน้า (${Number(prevKf.time).toFixed(2)}s) · ปุ่ม ,` : 'ไม่มีคีย์เฟรมก่อนหน้า'}
                 className="p-1 rounded text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
@@ -474,8 +462,11 @@ export default function ClipInspector({
                 type="button"
                 data-testid="diamond-keyframe-button"
                 onClick={handleToggleKeyframe}
-                title={hasKeyframeAtPlayhead ? 'ลบคีย์เฟรมที่หัวอ่าน (◆)' : 'เพิ่มคีย์เฟรมที่หัวอ่าน (◇)'}
-                className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all cursor-pointer ${
+                disabled={!playheadInClip}
+                title={!playheadInClip
+                  ? 'เลื่อนหัวอ่านเข้ามาในคลิปนี้ก่อน'
+                  : hasKeyframeAtPlayhead ? 'ลบคีย์เฟรมที่หัวอ่าน (◆) · ปุ่ม D' : 'เพิ่มคีย์เฟรมที่หัวอ่าน (◇) · ปุ่ม D'}
+                className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
                   hasKeyframeAtPlayhead
                     ? 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
                     : 'border-white/[0.12] bg-black/60 text-slate-400 hover:border-[#25F4EE] hover:text-[#25F4EE]'
@@ -491,7 +482,7 @@ export default function ClipInspector({
                 type="button"
                 disabled={!nextKf}
                 onClick={() => nextKf && handleSeekToKeyframe(nextKf)}
-                title={nextKf ? `ไปยังคีย์เฟรมถัดไป (${Number(nextKf.time).toFixed(2)}s)` : 'ไม่มีคีย์เฟรมถัดไป'}
+                title={nextKf ? `ไปยังคีย์เฟรมถัดไป (${Number(nextKf.time).toFixed(2)}s) · ปุ่ม .` : 'ไม่มีคีย์เฟรมถัดไป'}
                 className="p-1 rounded text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
