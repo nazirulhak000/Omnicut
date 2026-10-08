@@ -9,6 +9,8 @@
 
 - [x] Round SCHEDULE-BULK-SMART-DAY-MATCH-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 - [x] Round SCHEDULE-BULK-AUTO-PICK-DAILY-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
+- [x] Round EXTENSION-THEME-PARITY-ANUPHAN-20261008 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
+- [x] Round EXTENSION-HEALTH-RESPONSIVE-RELIABILITY-20261008 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 
 ## Round SUBTITLE-GHOST-REVEAL-MULTILINE-20260927 — กำลังทำ · Claude Code (Claude Opus 5)
 

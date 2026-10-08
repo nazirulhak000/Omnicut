@@ -7,8 +7,91 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round EXTENSION-HEALTH-RESPONSIVE-RELIABILITY-20261008 | ยกระดับ Chrome Extension Side Panel ให้พร้อมใช้งานจริง 100%: Dynamic Backend Health (Online/Offline/Checking status pill), ปุ่มลองเชื่อมต่อใหม่ inline retry ในการ์ด error, Responsive สำหรับหน้าจอแถบข้างแคบ (320px–360px) สำหรับแถบแท็บและ affiliate grid, Multi-language TikTok selectors (ไทย+อังกฤษ) และเพิ่ม http://localhost:8000/* ใน host_permissions พร้อมเพิ่ม unit test รวมผ่านครบ 35/35 เทส | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round LOGO-MODERN-COMBO-06-20261008 | ออกแบบโลโก้ใหม่ให้ OmniCut ในสไตล์มินิมอลโมเดิร์น: สำรวจ 10 แนวคิดแรก -> ผสมผสานจุดเด่นของ Concept 01 (Sharp Razor Cut) และ Concept 09 (Intertwined OC Monogram) เป็น 6 สไตล์ Combo -> ผู้ใช้เลือก Combo 06 (Modern Geometric OC with 45° Blade Cut) พร้อมแปลงเป็นเวกเตอร์ SVG และสร้างชุดไอคอน PNG ทุกขนาด (16, 32, 48, 128, 512px) ติดตั้งลงใน Extension และ Frontend เรียบร้อย | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round EXTENSION-THEME-PARITY-ANUPHAN-20261008 | ปรับธีมและฟอนต์ของ extension OmniCut (`tiktok_autopost_extension`) ให้เหมือนกับ extension ตอบกลับคอมเมนต์ (`ตอบกลับคอมเมนท์`) ทุกประการ (ฟอนต์ Anuphan ครบทุกน้ำหนัก 300-800, เฮดเดอร์ Deep Obsidian Frosted Glass พร้อม dual radial glows & เส้นขอบเรืองแสง 2px rainbow gradient, Canvas #f8fafc + การ์ดสีขาวเงาละมุน, ปุ่ม TikTok Rose Gradient และพาเลทสีมาตรฐาน) พร้อมจัดวางเลย์เอาต์ใหม่ตามมาตรฐาน /impeccable และ /ui-ux-pro-max | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round SETUP-LOCAL-ENV-GITHUB-20260929 | ติดตั้งสภาพแวดล้อม Python (.venv Python 3.13) ใหม่บนเครื่องแทน .venv เก่าที่ย้ายเครื่องมาและพัง, ติดตั้ง dependencies จาก requirements.txt ครบ 100%, แก้ไข NameError typing Dict/Any ใน shot_matching_stage.py, ทดสอบ build frontend ผ่าน, และตรวจสอบการเชื่อมต่อ GitHub origin พร้อมใช้งาน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round DRAFT-FONT-OPTIONS-PARITY-20260927 | ซิงค์ตัวเลือกฟอนต์ซับไตเติลในหน้าสร้างคลิปดราฟต์ (`NewClipPanel.jsx`) ให้เท่ากับหน้าตัดต่อ (`CaptionInspector.jsx`) โดยแชร์ `FONT_OPTIONS` มีครบ 5 ฟอนต์ (Kanit, IBM Plex, Prompt, Noto Sans Thai, Mali) แทนที่มีเพียง 2 ฟอนต์ | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round EXTENSION-HEALTH-RESPONSIVE-RELIABILITY-20261008 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-10-08 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง unit tests 35/35 เทส 100%
+
+**เป้าหมาย & สิ่งที่พัฒนา:**
+1. **Dynamic Real-time Backend Health Status**:
+   - ปรับแต่ง Header Status Pill (`#headerStatusPill`) ให้ตรวจจับสถานะเชื่อมต่อจริงกับ Python Backend
+   - เมื่อเชื่อมต่อสำเร็จ -> แสดงจุดเขียว `Ready` / `Online`
+   - เมื่อ Backend ยังไม่เปิด (`start_app.bat` ยังไม่รัน) -> แสดงจุดแดง `Offline` พร้อมคลิกเพื่อตรวจเช็คใหม่ได้ทันที
+   - ภายในการ์ด Error ในรายการคลิป เพิ่มปุ่ม Action **"ลองเชื่อมต่อใหม่"** (`#retryConnectionBtn`) สไตล์ Capsule Button มีไอคอน Refresh ทำให้ผู้ใช้ไม่ต้องงมหาปุ่มรีเฟรชเล็กๆ
+2. **Narrow Side Panel Width Responsive (320px–360px)**:
+   - ปรับ `.segmented-switch` แถบแท็บทั้ง 3 (`รายการคลิป`, `ขั้นตอนโพสต์`, `เครื่องมือ`) ให้ปรับระยะ padding, font-size, icon size อัตโนมัติเมื่อแถบข้างมีพื้นที่แคบ ทำให้ข้อความไม่ตกบรรทัดและไม่เบียด
+   - ปรับ `.affiliate-grid` ให้ยุบเป็น 1 คอลัมน์เต็มความกว้างบนหน้าจอแคบ เพื่อให้ช่อง "ID สินค้า" (ตัวเลข 19–20 หลัก) และปุ่มคัดลอกมีพื้นที่แสดงผลชัดเจน ไม่โดนตัดทอน
+3. **Multi-Language TikTok Studio Selectors (Bilingual)**:
+   - ปรับปรุง `waitForUploadStatusBadge` ใน `automation.js` ให้ตรวจจับทั้งภาษาไทย (`อัปโหลดแล้ว`) และภาษาอังกฤษ (`uploaded`)
+   - รองรับกรณีผู้ใช้ตั้งค่า Chrome / TikTok เป็นภาษาอังกฤษ ป้องกันการติด Loop รอ Timeout 90 วินาที
+4. **Manifest Permissions Compatibility**:
+   - เพิ่ม `"http://localhost:8000/*"` ควบคู่กับ `"http://127.0.0.1:8000/*"` ใน `host_permissions` ของ `manifest.json` ป้องกันปัญหา Chrome บล็อกการเข้าถึง
+5. **Quality Assurance & Test Parity**:
+   - เพิ่ม Node Unit Test สำหรับ Backend Health Status และ Bilingual Check ใน `background.test.cjs`
+   - ผลการทดสอบ: **35/35 Passed (100%)** และ Frontend build ผ่านฉลุย
+
+วันที่: 2026-10-08 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง unit tests 34/34 เทส 100%
+
+**เป้าหมาย:**
+ออกแบบโลโก้ใหม่สำหรับ OmniCut ให้มีความมินิมอล ทันสมัย เรียบหรู สไตล์สตาร์ทอัปไอทีระดับสากล แทนที่โลโก้เดิมที่ซับซ้อนและรกสายตา
+
+**กระบวนการออกแบบและการตัดสินใจ:**
+1. **การสำรวจ 10 สไตล์แรก (Initial 10 Concepts):**
+   - สร้าง Master Sheet รวบรวม 10 สไตล์ที่แตกต่างกัน (Sharp Razor Cut, Film Spiral, Aperture, Negative Play, Scissor Cut, Waveform Nodes, Reel, Faceted C, Monoline OC, Precision Ring)
+   - ตัดแยกแต่ละสไตล์ออกมาให้ผู้ใช้พิจารณาอย่างชัดเจนใน `omnicut_logo_concepts.md`
+2. **การรวมร่าง Concept 01 + Concept 09 (User Direction):**
+   - ผู้ใช้ชื่นชอบ Concept 01 (รอยตัดใบมีดคมกริบ) และ Concept 09 (อักษรย่อ OC คล้องเชื่อมกัน) จึงนำมารวมร่างเป็น 6 สไตล์คอมโบใหม่
+   - บันทึกและตัดภาพเปรียบเทียบใน `omnicut_logo_combo_1_9.md`
+3. **การคัดเลือกและผลิตไฟล์ชุดสมบูรณ์ (Production & Installation):**
+   - ผู้ใช้เลือก **Combo 06 — Modern Geometric OC with 45° Blade Cut** (อักษรย่อ OC ทรงเรขาคณิตโมเดิร์น พร้อมรอยผ่าใบมีดทแยง 45 องศา ปลายยอดพุ่งขึ้น สื่อถึง Growth และความรวดเร็วในการตัดต่อคลิป)
+   - สกัดเวกเตอร์ SVG ความละเอียดไม่จำกัด (`omnicut_icon.svg`, `favicon.svg`) พร้อมตกแต่งด้วย TikTok Cyan-to-Rose Gradient และ Deep Obsidian Squircle
+   - เรนเดอร์ไฟล์ PNG คุณภาพสูงด้วย Lanczos Resampling ครบทุกขนาดมาตรฐาน:
+     - `icon16.png` / `icon-16.png` (16x16)
+     - `icon32.png` / `icon-32.png` (32x32)
+     - `icon48.png` / `icon-48.png` (48x48)
+     - `icon128.png` / `icon-128.png` (128x128)
+     - `icon512.png` / `icon-512.png` (512x512)
+     - `logo.png` (512x512)
+   - อัปเดตติดตั้งลงใน `tiktok_autopost_extension/icons/` และ `frontend/public/favicon.svg`
+4. **การทดสอบ:**
+   - รันชุดทดสอบ Extension Unit Test (`node --test background.test.cjs clip_state.test.cjs stats_parser.test.cjs`): ผ่าน 34/34 เทส (100% pass)
+
+## Round EXTENSION-THEME-PARITY-ANUPHAN-20261008 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-10-08 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่านทั้ง unit tests 34/34 เทส 100%
+
+**เป้าหมาย:**
+ทำธีมและฟอนต์ของ extension OmniCut (`tiktok_autopost_extension`) ให้เหมือนกับ extension ตอบกลับคอมเมนต์ (`d:\Winona\Programmer\extension\ตอบกลับคอมเมนท์`) ทุกประการ พร้อมจัดวางเลย์เอาต์ให้สวยงามตามมาตรฐาน /impeccable และ /ui-ux-pro-max
+
+**Jev Decision Layer Gate:**
+- `approach_validation`: confidence 0.94 -> `aligned`
+- `risk_assessment`: confidence 1.00 -> `preserve_dom_ids` (ตรวจรักษา DOM ID และ interaction contracts ครบถ้วน)
+
+**การแก้ไข:**
+1. **คลังฟอนต์:**
+   - คัดลอกฟอนต์ Anuphan woff2 (`anuphan-thai.woff2`, `anuphan-latin.woff2`) จาก `d:\Winona\Programmer\extension\ตอบกลับคอมเมนท์\fonts\` มายัง `tiktok_autopost_extension/fonts/`
+   - ประกาศ `@font-face` สำหรับฟอนต์ Anuphan ทุกน้ำหนัก (300, 400, 500, 600, 700, 800) ใน `sidepanel.html` และ `popup.html` พร้อม fallback font stack ครบถ้วน
+2. **Design Tokens & Theme Parity:**
+   - นำโทเคนและพาเลทสีเดียวกับ extension ตอบกลับคอมเมนต์มาใช้ 100%:
+     - Canvas & Surface: `--canvas: #f8fafc;`, `--surface: #ffffff;`, `--line: #e2e8f0;`, `--line-strong: #cbd5e1;`
+     - Typography: `--ink: #0f172a;`, `--ink-secondary: #334155;`, `--muted: #64748b;`, `--subtle: #94a3b8;`
+     - TikTok Crimson & Rose: `--rose: #fe2c55;`, `--rose-gradient: linear-gradient(135deg, #fe2c55 0%, #ff0050 50%, #e01e47 100%);`, `--rose-glow`, `--rose-tint: #fff1f3;`, `--rose-border: #fecdd3;`
+     - Accents & Status: `--cyan: #25f4ee;`, `--success: #10b981;`, `--warning: #f59e0b;`, `--danger: #ef4444;`
+     - Shadows: `--shadow-xs`, `--shadow-sm`, `--shadow-md`, `--shadow-lg`
+3. **การออกแบบเลย์เอาต์ (Layout Refinement):**
+   - **Header:** Deep Obsidian `#0b0f19` Frosted Glass พร้อม dual radial glows (Cyan & Rose) และเส้นขอบเรืองแสง 2px Rainbow Gradient ที่ขอบล่าง โลโก้พร้อมเงาสองสีและ hover effect
+   - **Segmented Switch:** แถบสลับแท็บแบบโมเดิร์นพิลล์ พื้นขาว ขอบบาง ละมุน พร้อมปุ่ม active เป็น Rose Gradient นุ่มตา
+   - **Clip Cards:** การ์ดพื้นขาวตัดขอบอ่อน เงาสะอาดตา แท็กสินค้า cyan-tint สถานะคลิปแยกสีตามประเภทชัดเจน และ thumbnail สัดส่วน 9:16 พร้อม play overlay
+   - **Inspector & Checklist:** ปรับสไตล์ Input/Textarea ด้วยเส้นขอบโฟกัส Rose Tint, Stepper Checklist วงกลมระบุสถานะสีเขียวสดใสเมื่อทำสำเร็จ และปุ่ม Hero Action ดำเนินการอัตโนมัติเด่นชัดเจน
+   - **Popup (`popup.html`):** ปรับใช้ธีม Deep Obsidian Header + Canvas สะอาดตา และฟอนต์ Anuphan เข้าชุดกัน 100%
+4. **การทดสอบ:**
+   - Extension Test Suite (`node --test background.test.cjs clip_state.test.cjs stats_parser.test.cjs`): ผ่าน 34/34 เทส (100% pass)
+   - ปฏิบัติตาม UI Clean Standard (ห้ามมีอีโมจิในปุ่ม และคง DOM ID ทุกตัว)
 
 ## Round SETUP-LOCAL-ENV-GITHUB-20260929 — ปิดรอบแล้ว ✅
 

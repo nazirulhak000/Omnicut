@@ -392,6 +392,26 @@ test('extension UI exposes single consolidated TikTok upload opener and complies
   assert.doesNotMatch(popupHtml, /<button[^>]*>[^<]*[\u{1F300}-\u{1F9FF}][^<]*<\/button>/u);
 });
 
+test('extension UI exposes dynamic backend health status and bilingual upload status check', () => {
+  const sideHtml = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  const sideJs = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const autoJs = fs.readFileSync(path.join(__dirname, 'automation.js'), 'utf8');
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'manifest.json'), 'utf8'));
+
+  // Header status pill elements
+  assert.match(sideHtml, /id="headerStatusPill"/);
+  assert.match(sideHtml, /id="headerStatusDot"/);
+  assert.match(sideHtml, /id="headerStatusText"/);
+  assert.match(sideJs, /updateHeaderBackendStatus/);
+
+  // Manifest includes both 127.0.0.1 and localhost
+  assert.ok(manifest.host_permissions.includes('http://127.0.0.1:8000/*'));
+  assert.ok(manifest.host_permissions.includes('http://localhost:8000/*'));
+
+  // Bilingual upload check
+  assert.match(autoJs, /text\.includes\('อัปโหลดแล้ว'\) \|\| text\.toLowerCase\(\)\.includes\('uploaded'\)/);
+});
+
 
 test('confirmed post marks the exact pending export automatically', async () => {
   const ctx = worker();

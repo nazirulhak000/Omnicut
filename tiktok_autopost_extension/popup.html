@@ -5,231 +5,234 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>OmniCut TikTok Post Helper</title>
 <style>
+  /* Local Anuphan Fonts for All Weights (Matched to Comment Reply Extension) */
+  @font-face {
+    font-family: 'Anuphan';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('fonts/anuphan-thai.woff2') format('woff2');
+    unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+  }
+  @font-face {
+    font-family: 'Anuphan';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('fonts/anuphan-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Anuphan';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('fonts/anuphan-thai.woff2') format('woff2');
+    unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+  }
+  @font-face {
+    font-family: 'Anuphan';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('fonts/anuphan-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Anuphan';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('fonts/anuphan-thai.woff2') format('woff2');
+    unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+  }
+  @font-face {
+    font-family: 'Anuphan';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('fonts/anuphan-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Anuphan';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('fonts/anuphan-thai.woff2') format('woff2');
+    unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+  }
+  @font-face {
+    font-family: 'Anuphan';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('fonts/anuphan-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Anuphan';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('fonts/anuphan-thai.woff2') format('woff2');
+    unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+  }
+  @font-face {
+    font-family: 'Anuphan';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('fonts/anuphan-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Anuphan';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url('fonts/anuphan-thai.woff2') format('woff2');
+    unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+  }
+  @font-face {
+    font-family: 'Anuphan';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url('fonts/anuphan-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+
   :root {
-    --bg: #070a12;
-    --bg-elevated: #0d1322;
-    --surface: rgba(18, 26, 44, 0.72);
-    --surface-raised: rgba(26, 38, 64, 0.82);
-    --border: rgba(148, 163, 184, 0.12);
-    --border-strong: rgba(148, 163, 184, 0.22);
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-tertiary: #64748b;
-    --accent: #22d3ee;
-    --accent-strong: #67e8f9;
-    --accent-wash: rgba(34, 211, 238, 0.09);
-    --accent-ink: #04202c;
-    --danger: #f43f5e;
-    --danger-wash: rgba(244, 63, 94, 0.12);
+    color-scheme: light;
+    --ink: #0f172a;
+    --ink-secondary: #334155;
+    --muted: #64748b;
+    --subtle: #94a3b8;
+    --line: #e2e8f0;
+    --line-strong: #cbd5e1;
+    --canvas: #f8fafc;
+    --surface: #ffffff;
+
+    /* TikTok Crimson & Gradients */
+    --rose: #fe2c55;
+    --rose-hover: #e01e47;
+    --rose-gradient: linear-gradient(135deg, #fe2c55 0%, #ff0050 50%, #e01e47 100%);
+    --rose-glow: 0 4px 14px rgba(254, 44, 85, 0.28);
+    --rose-tint: #fff1f3;
+    --rose-border: #fecdd3;
+
+    /* Neon Accents & Functional Colors */
+    --cyan: #25f4ee;
+    --cyan-tint: #f0fdfa;
+    --cyan-border: #99f6e4;
+    --cyan-dark: #0d9488;
+    --cyan-glow: 0 4px 14px rgba(37, 244, 238, 0.28);
+
     --success: #10b981;
-    --success-wash: rgba(16, 185, 129, 0.12);
-    --radius-md: 12px;
-    --radius-sm: 8px;
+    --success-tint: #ecfdf5;
+    --success-border: #a7f3d0;
+    --warning: #f59e0b;
+    --warning-tint: #fffbeb;
+    --warning-border: #fde68a;
+    --danger: #ef4444;
+    --danger-tint: #fef2f2;
+    --danger-border: #fecaca;
+    --focus: #3b82f6;
+
+    /* Elevation Shadows */
+    --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+
+    /* Radii & Motion */
+    --radius-lg: 12px;
+    --radius-md: 8px;
+    --radius-sm: 6px;
     --radius-pill: 999px;
-    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   * { box-sizing: border-box; }
 
   body {
-    width: 350px;
+    width: 360px;
     margin: 0;
-    padding: 14px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background:
-      radial-gradient(400px 200px at 50% -10%, rgba(34, 211, 238, 0.08), transparent 70%),
-      var(--bg);
-    color: var(--text-primary);
+    padding: 0;
+    font-family: "Anuphan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    background: var(--canvas);
+    color: var(--ink);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ---- HEADER: Deep Obsidian Frosted Glass ---- */
+  .popup-header {
+    position: relative;
+    color: #fff;
+    background: #0b0f19;
+    background-image: radial-gradient(circle at 100% 0%, rgba(37, 244, 238, 0.14) 0%, transparent 40%),
+                      radial-gradient(circle at 0% 100%, rgba(254, 44, 85, 0.16) 0%, transparent 45%);
+    padding: 13px 14px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .popup-header::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--cyan) 0%, #25f4ee 25%, #fe2c55 75%, #ff0050 100%);
+    opacity: 0.9;
   }
 
   .header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 12px;
   }
   .brand-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 9px;
   }
   .popup-logo-img {
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     object-fit: contain;
     flex-shrink: 0;
-    filter: drop-shadow(0 2px 6px rgba(34, 211, 238, 0.5)) drop-shadow(0 2px 6px rgba(244, 63, 94, 0.4));
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    filter: drop-shadow(0 2px 6px rgba(37, 244, 238, 0.45)) drop-shadow(0 3px 8px rgba(254, 44, 85, 0.35));
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .popup-logo-img:hover {
-    transform: scale(1.15) rotate(6deg);
-  }
-  .brand-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: var(--radius-pill);
-    background: var(--accent);
-    box-shadow: 0 0 10px var(--accent);
+    transform: scale(1.1) rotate(-4deg);
   }
   h1 {
-    font-size: 13.5px;
-    font-weight: 700;
+    font-size: 14.5px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
     margin: 0;
-    color: var(--text-primary);
+    color: #f8fafc;
   }
   .badge {
-    font-size: 9.5px;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: var(--radius-pill);
-    background: var(--accent-wash);
-    color: var(--accent-strong);
-    border: 1px solid rgba(34, 211, 238, 0.2);
-  }
-
-  p.guide {
-    font-size: 11px;
-    line-height: 1.5;
-    color: var(--text-secondary);
-    margin: 0 0 12px;
-  }
-
-  .section-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(10px);
-    padding: 12px;
-    border-radius: var(--radius-md);
-    margin-bottom: 12px;
-  }
-  .input-label {
-    font-size: 10.5px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-bottom: 4px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .input-label svg {
-    color: var(--accent);
-  }
-  .field + .field { margin-top: 10px; }
-
-  textarea, input[type="text"] {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 6px 9px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border-strong);
-    background: var(--bg);
-    color: var(--text-primary);
-    font-size: 11.5px;
-    font-family: inherit;
-    line-height: 1.45;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    resize: vertical;
-  }
-  textarea:focus, input[type="text"]:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-wash);
-  }
-
-  /* Stepper checklist */
-  .checklist {
-    position: relative;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(10px);
-    border-radius: var(--radius-md);
-    padding: 6px;
-    margin-bottom: 10px;
-  }
-  .step-row {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 7px 6px;
-    border-bottom: 1px solid var(--border);
-  }
-  .step-row:last-child { border-bottom: none; }
-
-  .step-row input[type="checkbox"] {
-    width: 15px;
-    height: 15px;
-    border-radius: 4px;
-    accent-color: var(--accent);
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-  .step-label {
-    flex: 1;
-    font-size: 11.5px;
-    color: var(--text-primary);
-    min-width: 0;
-  }
-  .step-label small {
-    display: block;
-    color: var(--text-tertiary);
-    font-size: 9.5px;
-    margin-top: 1px;
-  }
-  .step-row.danger .step-label { color: #fda4af; }
-  .step-row.danger .step-label small { color: var(--danger); }
-
-  button {
-    border: none;
-    border-radius: var(--radius-pill);
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-strong);
-    color: var(--text-primary);
-    font-weight: 600;
-    font-size: 11px;
-    cursor: pointer;
-    padding: 5px 10px;
-    white-space: nowrap;
-    transition: all 0.15s;
-  }
-  button:hover:not(:disabled) {
-    background: var(--accent-wash);
-    border-color: var(--accent);
-    color: var(--accent-strong);
-  }
-  button:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
-  .step-row.danger button {
-    background: var(--danger-wash);
-    border-color: rgba(244, 63, 94, 0.3);
-    color: #fda4af;
-  }
-
-  .step-note {
     font-size: 10px;
-    color: var(--text-tertiary);
-    line-height: 1.5;
-    margin: 6px 0 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: var(--radius-pill);
+    background: rgba(254, 44, 85, 0.2);
+    color: #ff6b87;
+    border: 1px solid rgba(254, 44, 85, 0.35);
   }
 
-  #status {
-    margin-top: 10px;
-    font-size: 11px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
-    border-radius: var(--radius-sm);
-    padding: 7px 10px;
-    display: none;
+  .popup-body {
+    padding: 12px 14px 16px;
   }
-  #status:not(:empty) { display: block; }
-  #status.error { background: var(--danger-wash); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
-  #status.success { background: var(--success-wash); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+
   .popup-launcher-bar {
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
   .btn-popup-tiktok {
     width: 100%;
@@ -237,103 +240,262 @@
     align-items: center;
     justify-content: center;
     gap: 7px;
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    background: linear-gradient(135deg, rgba(34, 211, 238, 0.18) 0%, rgba(2, 132, 199, 0.22) 100%);
-    border: 1px solid rgba(34, 211, 238, 0.4);
-    color: var(--accent-strong);
-    font-size: 11.5px;
+    padding: 9px 12px;
+    border-radius: var(--radius-md);
+    background: var(--rose-gradient);
+    border: none;
+    color: #ffffff;
+    font-size: 12.5px;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    transition: all 0.18s var(--ease-out);
+    box-shadow: var(--rose-glow);
+    transition: all 0.18s var(--ease-spring);
   }
   .btn-popup-tiktok:hover {
-    background: linear-gradient(135deg, rgba(34, 211, 238, 0.32) 0%, rgba(2, 132, 199, 0.38) 100%);
-    border-color: var(--accent);
-    color: #ffffff;
-    box-shadow: 0 0 14px rgba(34, 211, 238, 0.35);
     transform: translateY(-1px);
+    filter: brightness(1.05);
+    box-shadow: 0 4px 14px rgba(254, 44, 85, 0.4);
   }
-  .btn-popup-tiktok:active {
-    transform: translateY(0);
+
+  p.guide {
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+
+  /* Section Card */
+  .section-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 12px;
+    margin-bottom: 10px;
+    box-shadow: var(--shadow-sm);
+  }
+  .field + .field { margin-top: 9px; }
+  .input-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-secondary);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .input-label svg { color: var(--rose); }
+
+  textarea, input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line-strong);
+    background: #ffffff;
+    color: var(--ink);
+    font-size: 12px;
+    font-family: inherit;
+    line-height: 1.45;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    resize: vertical;
+  }
+  textarea:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: var(--rose);
+    box-shadow: 0 0 0 3px rgba(254, 44, 85, 0.12);
+  }
+
+  /* Stepper Checklist */
+  .checklist {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 6px;
+    margin-bottom: 10px;
+    box-shadow: var(--shadow-sm);
+  }
+  .step-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 8px;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s;
+  }
+  .step-row + .step-row {
+    border-top: 1px solid var(--line);
+  }
+  .step-row:hover {
+    background: #f8fafc;
+  }
+  .step-row input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--rose);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .step-label {
+    flex: 1;
+    font-size: 12px;
+    color: var(--ink);
+    font-weight: 600;
+    min-width: 0;
+  }
+  .step-label small {
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 400;
+    margin-top: 1px;
+  }
+  .step-row.danger .step-label { color: #b91c1c; }
+  .step-row.danger .step-label small { color: var(--danger); }
+
+  button {
+    border: none;
+    border-radius: var(--radius-pill);
+    background: #f8fafc;
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 4px 10px;
+    white-space: nowrap;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  button:hover:not(:disabled) {
+    background: var(--rose);
+    border-color: var(--rose);
+    color: #ffffff;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .step-row.danger button {
+    background: var(--danger-tint);
+    border-color: var(--danger-border);
+    color: var(--danger);
+  }
+  .step-row.danger button:hover:not(:disabled) {
+    background: var(--danger);
+    color: #ffffff;
+  }
+
+  .step-note {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.45;
+    margin: 4px 0 8px;
+  }
+
+  /* Status Toast */
+  #status {
+    margin-top: 8px;
+    font-size: 11.5px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    display: none;
+  }
+  #status:not(:empty) { display: block; }
+  #status.error {
+    background: var(--danger-tint);
+    color: var(--danger);
+    border: 1px solid var(--danger-border);
+  }
+  #status.success {
+    background: var(--success-tint);
+    color: #047857;
+    border: 1px solid var(--success-border);
   }
 </style>
 </head>
 <body>
-  <div class="header">
-    <div class="brand-group">
-      <img src="icons/icon32.png" alt="OmniCut" class="popup-logo-img" width="22" height="22" />
-      <h1>OmniCut</h1>
-    </div>
-    <span class="badge">TikTok Post Helper</span>
-  </div>
-
-  <div class="popup-launcher-bar">
-    <button id="popupOpenTikTokBtn" type="button" class="btn-popup-tiktok" title="เปิดหรือสลับไปยังหน้าอัปโหลด TikTok Studio">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
-      <span>เปิดหน้าอัปโหลด TikTok Studio</span>
-    </button>
-  </div>
-
-  <p class="guide">เปิดแท็บ tiktok.com/tiktokstudio/upload ที่ล็อกอินไว้แล้ว กดทำทีละขั้นด้านล่าง เรียงจากบนลงล่าง</p>
-
-  <!-- Caption & Hashtags preview & edit -->
-  <div class="section-card">
-    <div class="field">
-      <span class="input-label">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>
-        คำอธิบายคลิป (Caption)
-      </span>
-      <textarea id="captionInput" rows="2" placeholder="คำอธิบายคลิปรีวิว..."></textarea>
-    </div>
-    <div class="field">
-      <span class="input-label">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></svg>
-        แฮชแท็ก (Hashtags)
-      </span>
-      <textarea id="hashtagsInput" rows="2" placeholder="#รีวิวของดี #พิกัดในตะกร้า..."></textarea>
-    </div>
-    <div class="field">
-      <span class="input-label">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8 8a2 2 0 0 0 2.828 0l7.172-7.172a2 2 0 0 0 0-2.828z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
-        ID สินค้า (หรือคำค้นหา)
-      </span>
-      <input type="text" id="productIdInput" value="1737088044189583209" style="font-family: monospace;" />
+  <!-- Header: Deep Obsidian Frosted Glass -->
+  <div class="popup-header">
+    <div class="header">
+      <div class="brand-group">
+        <img src="icons/icon32.png" alt="OmniCut" class="popup-logo-img" width="24" height="24" />
+        <h1>OmniCut</h1>
+      </div>
+      <span class="badge">TikTok Post Helper</span>
     </div>
   </div>
 
-  <!-- Step-by-step checklist -->
-  <div class="checklist">
-    <div class="step-row">
-      <input type="checkbox" id="chk1" />
-      <span class="step-label">1. อัปโหลดไฟล์<small>ตั้งไฟล์แล้ว detach ทันที ไม่รอ ไม่พิมพ์อะไรต่อ</small></span>
-      <button id="btn1" type="button">ทำ</button>
+  <div class="popup-body">
+    <div class="popup-launcher-bar">
+      <button id="popupOpenTikTokBtn" type="button" class="btn-popup-tiktok" title="เปิดหรือสลับไปยังหน้าอัปโหลด TikTok Studio">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+        <span>เปิดหน้าอัปโหลด TikTok Studio</span>
+      </button>
     </div>
-    <div class="step-row">
-      <input type="checkbox" id="chk2" />
-      <span class="step-label">2. พิมพ์คำอธิบาย/แฮชแท็ก<small>ล้างชื่อไฟล์เดิม แล้วพิมพ์แทน</small></span>
-      <button id="btn2" type="button">ทำ</button>
-    </div>
-    <div class="step-row">
-      <input type="checkbox" id="chk3" />
-      <span class="step-label">3. ปักตะกร้าสินค้า<small>ค้นหา + แนบลิงก์สินค้าตาม ID ด้านบน</small></span>
-      <button id="btn3" type="button">ทำ</button>
-    </div>
-    <div class="step-row">
-      <input type="checkbox" id="chk4" />
-      <span class="step-label">4. สลับเป็นกำหนดเวลา<small>เปลี่ยนโหมดโพสต์ ไม่กดโพสต์จริง</small></span>
-      <button id="btn4" type="button">ทำ</button>
-    </div>
-    <div class="step-row danger">
-      <input type="checkbox" id="chk5" />
-      <span class="step-label">5. กด Post/กำหนดเวลา<small>โพสต์ขึ้นจริงบน TikTok เมื่อกดขั้นนี้</small></span>
-      <button id="btn5" type="button">ทำ</button>
-    </div>
-  </div>
-  <p class="step-note">ทำทีละขั้นเท่านั้น รอผลก่อนกดขั้นถัดไป (ช่องติ๊กจะขึ้นเองเมื่อขั้นนั้นสำเร็จ)</p>
 
-  <div id="status"></div>
+    <p class="guide">เปิดแท็บ tiktok.com/tiktokstudio/upload ที่ล็อกอินไว้แล้ว กดทำทีละขั้นด้านล่าง เรียงจากบนลงล่าง</p>
+
+    <!-- Caption & Hashtags preview & edit -->
+    <div class="section-card">
+      <div class="field">
+        <span class="input-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>
+          คำอธิบายคลิป (Caption)
+        </span>
+        <textarea id="captionInput" rows="2" placeholder="คำอธิบายคลิปรีวิว..."></textarea>
+      </div>
+      <div class="field">
+        <span class="input-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></svg>
+          แฮชแท็ก (Hashtags)
+        </span>
+        <textarea id="hashtagsInput" rows="2" placeholder="#รีวิวของดี #พิกัดในตะกร้า..."></textarea>
+      </div>
+      <div class="field">
+        <span class="input-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8 8a2 2 0 0 0 2.828 0l7.172-7.172a2 2 0 0 0 0-2.828z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+          ID สินค้า (หรือคำค้นหา)
+        </span>
+        <input type="text" id="productIdInput" value="1737088044189583209" style="font-family: monospace;" />
+      </div>
+    </div>
+
+    <!-- Step-by-step checklist -->
+    <div class="checklist">
+      <div class="step-row">
+        <input type="checkbox" id="chk1" />
+        <span class="step-label">1. อัปโหลดไฟล์<small>ตั้งไฟล์แล้ว detach ทันที ไม่รอ ไม่พิมพ์อะไรต่อ</small></span>
+        <button id="btn1" type="button">ทำ</button>
+      </div>
+      <div class="step-row">
+        <input type="checkbox" id="chk2" />
+        <span class="step-label">2. พิมพ์คำอธิบาย/แฮชแท็ก<small>ล้างชื่อไฟล์เดิม แล้วพิมพ์แทน</small></span>
+        <button id="btn2" type="button">ทำ</button>
+      </div>
+      <div class="step-row">
+        <input type="checkbox" id="chk3" />
+        <span class="step-label">3. ปักตะกร้าสินค้า<small>ค้นหา + แนบลิงก์สินค้าตาม ID ด้านบน</small></span>
+        <button id="btn3" type="button">ทำ</button>
+      </div>
+      <div class="step-row">
+        <input type="checkbox" id="chk4" />
+        <span class="step-label">4. สลับเป็นกำหนดเวลา<small>เปลี่ยนโหมดโพสต์ ไม่กดโพสต์จริง</small></span>
+        <button id="btn4" type="button">ทำ</button>
+      </div>
+      <div class="step-row danger">
+        <input type="checkbox" id="chk5" />
+        <span class="step-label">5. กด Post/กำหนดเวลา<small>โพสต์ขึ้นจริงบน TikTok เมื่อกดขั้นนี้</small></span>
+        <button id="btn5" type="button">ทำ</button>
+      </div>
+    </div>
+    <p class="step-note">ทำทีละขั้นเท่านั้น รอผลก่อนกดขั้นถัดไป (ช่องติ๊กจะขึ้นเองเมื่อขั้นนั้นสำเร็จ)</p>
+
+    <div id="status"></div>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>
