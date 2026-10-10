@@ -13,6 +13,7 @@ const DESKTOP_NAV_ITEMS = [
   { id: 'flow',      icon: Rocket,     label: '1. สินค้า → คลิป',     shortLabel: 'สินค้า' },
   { id: 'tracker',   icon: Layers,     label: '2. แทร็กเกอร์ 4 เฟส',    shortLabel: 'Tracker' },
   { id: 'editor',    icon: Scissors,   label: '3. ตัดต่อ & สร้างคลิป', shortLabel: 'Editor' },
+  { id: 'creative',  icon: Sparkles,   label: '3.1 Creative Studio',   shortLabel: 'Creative' },
   { id: 'gallery',   icon: FolderDown, label: '4. Export Gallery',    shortLabel: 'Gallery' },
   { id: 'assets',    icon: Palette,    label: '5. Media Assets Hub',   shortLabel: 'Assets' },
   { id: 'analytics', icon: BarChart3,  label: '6. สถิติ & วิเคราะห์รวม', shortLabel: 'สถิติ' },

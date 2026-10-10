@@ -601,4 +601,12 @@ export const quickAddMobileProduct = (nameOrUrl) =>
 export const previewMobileVoice = (text, voice = 'gemini_fenrir_male_strong') =>
   api.post('/mobile-studio/preview-voice', { text, voice }).then(r => r.data);
 
+// ── HyperFrames Creative Studio APIs ──
+export const getHyperFramesStatus = () => api.get('/hyperframes/status').then(r => r.data);
+export const getHyperFramesStyles = () => api.get('/hyperframes/styles').then(r => r.data);
+export const getHyperFramesCompositions = () => api.get('/hyperframes/compositions').then(r => r.data);
+export const createHyperFramesClip = (payload) => api.post('/hyperframes/create-clip', payload).then(r => r.data);
+export const renderHyperFramesComposition = (payload) => api.post('/hyperframes/render', payload).then(r => r.data);
+export const openHyperFramesStudio = (port = 3100) => api.post('/hyperframes/open-studio', { port }).then(r => r.data);
+
 export default api;

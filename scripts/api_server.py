@@ -77,6 +77,7 @@ from scripts.api_typesafe_studio import router as typesafe_studio_router
 from scripts.api_audio_beats import router as audio_beats_router
 from scripts.api_proxy import router as proxy_router
 from scripts.api_mobile_studio import router as mobile_studio_router
+from scripts.api_hyperframes import router as hyperframes_router
 
 
 
@@ -309,6 +310,7 @@ app.include_router(typesafe_studio_router)
 app.include_router(audio_beats_router)
 app.include_router(proxy_router)
 app.include_router(mobile_studio_router)
+app.include_router(hyperframes_router)
 
 
 # ----------------------------------------------------------------------

@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round HYPERFRAMES-HYBRID-INTEGRATION-20261010 | ผสาน HyperFrames Hybrid Creative Studio เข้ากับ OmniCut: เชื่อมต่อ 4 สไตล์ไวรัล (Meme-PAS, Tech Explainer, VS Battle, POV Chat Story) ผ่าน Hybrid Architecture แยกพอร์ต 3100 ไม่ชนระบบเดิม, เพิ่ม Backend Router (scripts/api_hyperframes.py) และ Frontend Hub (HyperFramesHub.jsx) ในเมนู 3.1 Creative Studio, บริดจ์ ExportRegistry อัตโนมัติพร้อมสร้าง WebP thumbnail, ผ่าน pytest 8/8, npm test 853/853, build ผ่าน 100%, check ผ่าน 0 error | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
 | Round EXTENSION-HEALTH-RESPONSIVE-RELIABILITY-20261008 | ยกระดับ Chrome Extension Side Panel ให้พร้อมใช้งานจริง 100%: Dynamic Backend Health (Online/Offline/Checking status pill), ปุ่มลองเชื่อมต่อใหม่ inline retry ในการ์ด error, Responsive สำหรับหน้าจอแถบข้างแคบ (320px–360px) สำหรับแถบแท็บและ affiliate grid, Multi-language TikTok selectors (ไทย+อังกฤษ) และเพิ่ม http://localhost:8000/* ใน host_permissions พร้อมเพิ่ม unit test รวมผ่านครบ 35/35 เทส | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round LOGO-MODERN-COMBO-06-20261008 | ออกแบบโลโก้ใหม่ให้ OmniCut ในสไตล์มินิมอลโมเดิร์น: สำรวจ 10 แนวคิดแรก -> ผสมผสานจุดเด่นของ Concept 01 (Sharp Razor Cut) และ Concept 09 (Intertwined OC Monogram) เป็น 6 สไตล์ Combo -> ผู้ใช้เลือก Combo 06 (Modern Geometric OC with 45° Blade Cut) พร้อมแปลงเป็นเวกเตอร์ SVG และสร้างชุดไอคอน PNG ทุกขนาด (16, 32, 48, 128, 512px) ติดตั้งลงใน Extension และ Frontend เรียบร้อย | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round EXTENSION-THEME-PARITY-ANUPHAN-20261008 | ปรับธีมและฟอนต์ของ extension OmniCut (`tiktok_autopost_extension`) ให้เหมือนกับ extension ตอบกลับคอมเมนต์ (`ตอบกลับคอมเมนท์`) ทุกประการ (ฟอนต์ Anuphan ครบทุกน้ำหนัก 300-800, เฮดเดอร์ Deep Obsidian Frosted Glass พร้อม dual radial glows & เส้นขอบเรืองแสง 2px rainbow gradient, Canvas #f8fafc + การ์ดสีขาวเงาละมุน, ปุ่ม TikTok Rose Gradient และพาเลทสีมาตรฐาน) พร้อมจัดวางเลย์เอาต์ใหม่ตามมาตรฐาน /impeccable และ /ui-ux-pro-max | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -72,6 +73,47 @@
 | Round INDEPENDENT-QUALITY-ROADMAP-20260929 | แผนใหม่ 3 งานอิสระ: ตรวจวัตถุดิบ, ตรวจไฟล์เรนเดอร์ตลอดคลิป, ทดสอบกู้ backup โดยไม่ทับ BiRefNet/Badge, Ghost Reveal, Editor/Cutout | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round SAM2-DEPTH-TEXT-PIPELINE-20260929 | เชื่อมต่อ SAM 2 บน RTX 4060 GPU เข้ากับ pipeline ของ Omnicut รองรับ Text Behind Product ทั้ง Canvas 2D Preview และ FFmpeg Render, เพิ่ม sam2 engine/models ใน contract, เพิ่ม worker สตรีม VP9 cutout.webm, ปรับปรุง backend preflight และ frontend UI Controls ผ่านการทดสอบ 23/23 tests และ build ผ่าน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
 | Round PC-REPO-AUDIT-PLAN-20260929 | ตรวจ PC/โค้ด/ผลทดสอบเดิมและ repository ที่เสนอ จัดทำแผน P0–P3 พร้อม gate ใน `_Docs/Plans/PC_REPOSITORY_AUDIT_PLAN_20260929.md` | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+
+## Round HYPERFRAMES-HYBRID-INTEGRATION-20261010 — ผสาน HyperFrames Hybrid Creative Studio เข้ากับ OmniCut · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+วันที่: 2026-10-10 · สั่งโดย: user ("เริ่มจัดการได้เลยครบั") · สถานะ: ปิดรอบแล้ว
+**แผนแม่บท:** [_Docs/Plans/PLAN_HYPERFRAMES_HYBRID_STUDIO_20261010.md](file:///d:/Programmer/All%20Project/Omnicut/_Docs/Plans/PLAN_HYPERFRAMES_HYBRID_STUDIO_20261010.md)
+
+### 1. วัตถุประสงค์และการตัดสินใจทางสถาปัตยกรรม (Hybrid Architecture)
+- ผู้ใช้ต้องการนำ HyperFrames Studio ที่พัฒนาไว้ในเครื่องคอมพิวเตอร์อีกเครื่อง (`E:\PGM\Omnicut\03_Projects\_HyperFrames_Studio`) มารวมเข้ากับ OmniCut Pro Studio
+- **การตัดสินใจ (Hybrid Strategy):** คงไทม์ไลน์ NLE + FFmpeg GPU NVENC + React Canvas Preview ของ OmniCut เดิมไว้ 100% สำหรับการตัดต่อคลิปรีวิวแกดเจ็ตปกติที่ต้องการความเร็ว (เรนเดอร์เสร็จใน 5-10 วินาที)
+- ติดตั้ง HyperFrames เป็น **Creative Studio / Motion Engine (เมนู 3.1)** สำหรับ 4 สไตล์โมชันกราฟิกซับซ้อนที่ HTML/CSS ทำได้โดดเด่น:
+  1. `Meme-PAS` (คลิปเปิดตัวมีมรีวิวไวรัล ปรอทแตก ฟิสิกส์เด้งดึ๋ง)
+  2. `Tech Explainer` (Vox-style ไดอะแกรมสเปกและเทคโนโลยี)
+  3. `VS Battle` (Street Fighter HUD มวยแกดเจ็ต 3 ยก K.O.)
+  4. `POV Chat Story` ⭐ (เรื่องเล่าแชท LINE ไร้เสียงพากย์)
+
+### 2. ผลลัพธ์การทำงาน (Work Packages W1–W5)
+1. **W1 (Backend Router & HyperFrames Service Bridge)**:
+   - สร้าง [`scripts/api_hyperframes.py`](file:///d:/Programmer/All%20Project/Omnicut/scripts/api_hyperframes.py):
+     - `GET /api/hyperframes/status`: ตรวจความพร้อมของ Node/NPM, studio folder, styles
+     - `GET /api/hyperframes/styles`: รายการพรีเซ็ตทั้ง 4 สไตล์พร้อมคำอธิบายภาษาไทย
+     - `GET /api/hyperframes/compositions`: สแกน HTML compositions และ companions ที่พร้อมเรนเดอร์
+     - `POST /api/hyperframes/create-clip`: เชื่อมต่อ `kit/new_clip.py` สกัด Whisper word-timestamps และสร้างโปรเจกต์อัตโนมัติ
+     - `POST /api/hyperframes/render`: เรนเดอร์คลิปด้วย Headless Chrome พร้อม mutex lock กัน event loop ชนกัน
+     - `POST /api/hyperframes/open-studio`: เปิด Studio Preview บน Port 3100 อิสระ (ไม่ชน Vite 5173 / FastAPI 8000)
+   - Mount router เข้า [`scripts/api_server.py`](file:///d:/Programmer/All%20Project/Omnicut/scripts/api_server.py)
+2. **W2 (Frontend Hub & Studio Integration)**:
+   - เพิ่ม API methods ใน [`frontend/src/api.js`](file:///d:/Programmer/All%20Project/Omnicut/frontend/src/api.js)
+   - สร้างคอมโพเนนต์ [`frontend/src/components/hyperframes/HyperFramesHub.jsx`](file:///d:/Programmer/All%20Project/Omnicut/frontend/src/components/hyperframes/HyperFramesHub.jsx) (รองรับแท็บ: 4 Creative Styles, Compositions List, Create New Clip Wizard)
+   - เชื่อมต่อเมนู `3.1 Creative Studio` ใน [`frontend/src/components/Sidebar.jsx`](file:///d:/Programmer/All%20Project/Omnicut/frontend/src/components/Sidebar.jsx) และ lazy load ใน [`frontend/src/App.jsx`](file:///d:/Programmer/All%20Project/Omnicut/frontend/src/App.jsx)
+3. **W3 (Export Registry Bridge)**:
+   - เมื่อ HyperFrames เรนเดอร์ไฟล์เสร็จ จะดึงเฟรมแรกสร้าง WebP thumbnail คุณภาพสูง 9:16 ด้วย FFmpeg
+   - บันทึกเข้า `_Docs/export_registry.json` อัตโนมัติผ่าน `ExportRegistry.ensure_many()` เชื่อมต่อเข้า Export Gallery และ TikTok Side Panel ทันที
+4. **W4 (Automated Testing & Build Verification)**:
+   - สร้างชุดทดสอบ [`tests/test_api_hyperframes.py`](file:///d:/Programmer/All%20Project/Omnicut/tests/test_api_hyperframes.py) ครอบคลุม status, styles, compositions, studio launch, render validation (8/8 tests ผ่าน 100%)
+   - ตรวจสอบ Frontend unit tests: 853/853 tests ผ่าน (100%)
+   - ตรวจสอบ Production build: `npm run build` ผ่านสมบูรณ์ (0 error, chunk 17KB)
+   - ตรวจสอบ HyperFrames engine: `npm run check` ผ่านสมบูรณ์ (0 error)
+5. **W5 (Cleanup & Zero-Regression)**:
+   - ตรวจสอบ `04_Exports/` ปราศจากไฟล์ทดสอบตกค้างตามกฎเหล็กข้อ 3.11 และ 4.15
+   - ปิดงานโดยไม่กระทบ Pipeline เดิมและ CapCut draft 100%
+
 ## Round MOBILE-DESKTOP-SYNC-EXECUTION-20261004 — แก้ปัญหาซิงค์ Mobile ↔ Desktop 24 จุด (M01–M24) ครบวงจร W0–W8 · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 วันที่: 2026-10-04 · สั่งโดย: user ("เริ่มจัดการขั้นตอนถัดไปได้เลยครับ") · สถานะ: ปิดรอบแล้ว

@@ -24,6 +24,7 @@ const MobileQuickPostPage = lazy(() => import('./components/MobileQuickPostPage'
 const MobileFilmingPage = lazy(() => import('./components/MobileFilmingPage'));
 const QuickRefPage = lazy(() => import('./components/producer/QuickRefPage'));
 const MobileQuickStudio = lazy(() => import('./components/MobileQuickStudio'));
+const HyperFramesHub = lazy(() => import('./components/hyperframes/HyperFramesHub'));
 
 
 import { angleToForm } from './lib/angleToForm';
@@ -642,6 +643,15 @@ export default function App() {
                   </Suspense>
                 )}
 
+
+                {/* SECTION: Creative Studio (HyperFrames) */}
+                {activeTab === 'creative' && (
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลด Creative Studio..." />}>
+                    <HyperFramesHub
+                      onNavigateToGallery={() => setActiveTab('gallery')}
+                    />
+                  </Suspense>
+                )}
 
                 {/* SECTION: Export Gallery */}
                 {activeTab === 'gallery' && (
