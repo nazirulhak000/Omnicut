@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round HYPERFRAMES-DYNAMIC-PRODUCT-POV-SCENARIOS-20261010 | พัฒนาระบบสร้างบทแชท LINE ไดนามิกเฉพาะสินค้า (Dynamic Product POV Scenario Generator): แยกหมวดหมู่สินค้าอัตโนมัติ (หูฟัง/เครื่องเสียง, พัดลม/ความเย็น, หัวชาร์จ/แบตเตอรี่, ไมโครโฟน, อุปกรณ์โต๊ะทำงาน, สินค้าทั่วไป), สร้างโมดูล dynamicPOVScenarios.js แสดง 4 พรีเซ็ตบทแชท LINE ที่มี Pain Point และฟีเจอร์ตรงกับสินค้านั้นๆ 100% (เช่น EAR01 แสดงปัญหาหูฟังบลูทูธแบตหมดกลางทาง, ประชุมงานไมค์ซ่า, เล่นเกมเสียงดีเลย์, หูฟังสำรองราคาเบาๆ), เพิ่มฟังก์ชันแปลง Angle สินค้าใดก็ได้เป็นบทแชท LINE 2 คน 1-คลิก, เพิ่ม unit test ครอบคลุม 100%, ผ่าน npm test 860/860, pytest 8/8, build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round HYPERFRAMES-STYLE-SCRIPT-COMPATIBILITY-MATCHING-20261010 | พัฒนาระบบจับคู่ความเข้ากันได้ระหว่าง 4 Approved Styles กับ 10 Angles ของสินค้า: จัดกลุ่ม Dropdown แบ่งชัดเจนเป็น ⭐ แนะนำตรงสไตล์ 100% vs มุมมองอื่นๆ, เพิ่มป้ายเตือนและมาตรวัด Compatibility Guard แบบเรียลไทม์ ป้องกันปัญหาภาษาภาพขัดแย้งกับเนื้อหา (เช่น สไตล์ VS Battle ขัดกับสคริปต์แกะกล่อง), เพิ่มปุ่ม 1-คลิก "แปลงบทให้ตรงจังหวะสไตล์" (Script Adapter) ปรับแต่งประโยคให้ลงล็อกกับไทม์ไลน์ 3 ยก / Meme Pause 0.8s / Exploded View / LINE Dialog ทันที, ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round HYPERFRAMES-HUB-THEME-AND-SMART-CREATOR-20261010 | ยกระดับ Creative Studio (HyperFramesHub.jsx) เต็มรูปแบบ: ปรับ Theme Parity ทั้งหน้าให้ตรงกับ OmniCut Pro Studio (#080B11 Deep Obsidian, #25F4EE Neon Cyan, #FE2C55 TikTok Rose), เพิ่มระบบ Smart Unique Clip ID Auto-Generator ตรวจจับความซ้ำแบบเรียลไทม์พร้อมปุ่มสุ่มรหัสใหม่, เพิ่มตัวเลือกดึงบทสคริปต์จาก 10 Angles ของสินค้า (ProductStore) และ 4 พรีเซ็ตบทแชท LINE Scenario สำหรับ POV Chat Story, เพิ่มการ์ดอธิบาย Multi-Agent 3-Step Pipeline (Whisper -> Creative AI Agent / ⌘K -> Chrome Headless MP4 Renderer), ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010 | ตรวจสอบความสมบูรณ์และแก้ไขปัญหาคลิปเปิดดูไม่ได้ใน HyperFrames Studio: เปลี่ยนนามสกุลไฟล์เทมเพลตดิบ `clips/ess02-hype-25s/template.html` และ `kit/index.template.html` เป็น `.tpl` เพื่อกัน Studio สแกนแล้วเกิด SyntaxError Unexpected token '{', อัปเดต `make.py` และ `hf_timing.py`, เพิ่ม `@font-face` ฟอนต์ Anuphan ใน `kit/line-chat.css` และ `ess02-vs-25s.html`, แก้ไขจนผ่าน `hyperframes check` 0 error (60/60 WCAG AA contrast pass), ยืนยัน Compositions ทั้ง 10 คลิปเปิดดูและเรนเดอร์ได้ 100% ไร้ Error modal, ผ่าน pytest 8/8, npm test 853/853, build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -77,6 +78,38 @@
 | Round INDEPENDENT-QUALITY-ROADMAP-20260929 | แผนใหม่ 3 งานอิสระ: ตรวจวัตถุดิบ, ตรวจไฟล์เรนเดอร์ตลอดคลิป, ทดสอบกู้ backup โดยไม่ทับ BiRefNet/Badge, Ghost Reveal, Editor/Cutout | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round SAM2-DEPTH-TEXT-PIPELINE-20260929 | เชื่อมต่อ SAM 2 บน RTX 4060 GPU เข้ากับ pipeline ของ Omnicut รองรับ Text Behind Product ทั้ง Canvas 2D Preview และ FFmpeg Render, เพิ่ม sam2 engine/models ใน contract, เพิ่ม worker สตรีม VP9 cutout.webm, ปรับปรุง backend preflight และ frontend UI Controls ผ่านการทดสอบ 23/23 tests และ build ผ่าน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
 | Round PC-REPO-AUDIT-PLAN-20260929 | ตรวจ PC/โค้ด/ผลทดสอบเดิมและ repository ที่เสนอ จัดทำแผน P0–P3 พร้อม gate ใน `_Docs/Plans/PC_REPOSITORY_AUDIT_PLAN_20260929.md` | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+
+## Round HYPERFRAMES-DYNAMIC-PRODUCT-POV-SCENARIOS-20261010 — ระบบสร้างบทแชท LINE ไดนามิกเฉพาะสินค้า (Dynamic Product POV Scenario Generator) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+วันที่: 2026-10-10 · สั่งโดย: user ("กรณีสินค้าอื่นก็ต้องสร้างสคริป POV ใหม่ไหมครับ") · สถานะ: ปิดรอบแล้ว
+
+### 1. ปัญหาและสิ่งที่ตรวจพบ (Core Problem & Context)
+1. **สินค้าต่างชนิดต้องใช้บทแชทคนละเรื่อง**: เดิมในโหมด `POV Chat Story (ไม่มีเสียงพากย์ 28s)` Dropdown แสดงเฉพาะ 4 พรีเซ็ตฮาร์ดโค้ดของพัดลม Hatari และหัวชาร์จ Essager (แฟนบ่นห้องร้อน, แบตหมดกลางห้าง, แย่งปลั๊กคาเฟ่, ลืมชาร์จแบต) เมื่อผู้ใช้เลือกสินค้าอื่น เช่น `EAR01 (หูฟัง Earphone Synmax)` แต่บทแชทยังเป็นเรื่องพัดลม/หัวชาร์จ ทำให้เนื้อหาขัดแย้งกับสินค้าอย่างสิ้นเชิง
+2. **ความสำคัญของ POV Chat ตามสินค้า**: สไตล์ POV Chat Story ต้องจำลองสถานการณ์จริง (Pain Point) ที่ผู้คนพบเจอในชีวิตประจำวันสำหรับสินค้านั้นๆ โดยเฉพาะ:
+   - หูฟัง: แบตหูฟังไร้สายหมดกลางทาง, ประชุมงานไมค์ซ่า, เล่นเกมเสียงดีเลย์, หูฟังหลักหล่นหาย
+   - พัดลม: แอร์พังห้องร้อน, ค่าไฟแพง, WFH ร้อนอบอ้าว, พัดลมเก่าเสียงดัง
+   - หัวชาร์จ: แบตเหลือ 2% สแกนจ่ายเงิน, แย่งปลั๊กคาเฟ่, ลืมชาร์จก่อนออกบ้าน, หัวชาร์จเดิมร้อนจี๋
+   - แกดเจ็ตอื่นๆ: ต้องดึง Pain Points และ Angles ของสินค้านั้นจริงมาสร้างบทสนทนา
+
+### 2. สิ่งที่ดำเนินการและผลลัพธ์ (Implementation & Enhancements)
+1. **สร้างโมดูล `frontend/src/lib/dynamicPOVScenarios.js`**:
+   - `getProductCategoryType(productObj)`: แยกหมวดหมู่อัตโนมัติ (`audio`, `cooling`, `power`, `microphone`, `desk_setup`, `generic`) รองรับสินค้าทุกตัวใน `ProductStore`
+   - `getCategoryDisplayName(categoryType)`: แสดงชื่อหมวดหมู่ภาษาไทยชัดเจน
+   - `getDynamicPOVScenarios(productObj)`: สร้าง 4 สถานการณ์แชท LINE ไวรัล (5 บับเบิ้ล 2 ผู้พูด แฟน-ฉัน / เพื่อน-ฉัน) ที่มีชื่อสินค้าและประเด็นตรงกับสินค้านั้น 100%
+   - `convertAngleToPOVDialogue(angle, productName)`: ตัวแปลง Angle ใดๆ ของสินค้าให้กลายเป็นบทแชท LINE 2 คนอัตโนมัติ
+2. **ผสานเข้ากับ `HyperFramesHub.jsx`**:
+   - เชื่อมต่อ `activePOVScenarios` แบบไดนามิกผ่าน `useMemo` ทุกครั้งที่เปลี่ยนสินค้าเป้าหมาย
+   - Dropdown POV Chat แสดงบทเฉพาะสินค้าที่เลือกทันที พร้อมป้าย Badge หมวดหมู่
+   - เพิ่มระบบ Dual Sourcing: นอกจากเลือก 4 สถานการณ์แนะนำแล้ว ยังสามารถเลือกจาก 10 Angles ของสินค้าแล้วกดปุ่ม "แปลงเป็นแชท LINE" ได้ด้วย 1-คลิก
+   - อัปเดต `compatibilityInfo` แจ้งเตือนสถานะความเข้ากันได้ 100% ระบุชื่อสินค้าและหมวดหมู่อย่างโปร่งใส
+3. **ระบบทดสอบและการตรวจสอบคุณภาพ**:
+   - เพิ่ม Unit Test Suite ใน `frontend/src/lib/dynamicPOVScenarios.test.js` ครอบคลุม 7 กรณีทดสอบ ผ่าน 100%
+   - `npm test --prefix frontend`: ผ่านครบ 860/860 tests (zero failure)
+   - `npm run build --prefix frontend`: Build ผ่าน 100% ใน 549ms
+   - `.venv\Scripts\pytest.exe tests/test_api_hyperframes.py`: ผ่านครบ 8/8 tests (100%)
+   - ปฏิบัติตามกฎ UI Clean Standard (Rule 3.8/4.8) ปุ่มขึ้นต้นด้วยกริยา ไม่มีไอคอนนำในป้ายกำกับ
+
+---
 
 ## Round HYPERFRAMES-STYLE-SCRIPT-COMPATIBILITY-MATCHING-20261010 — ระบบจับคู่ความเข้ากันได้ระหว่างสไตล์การตัดกับบทสคริปต์, Compatibility Guard & 1-Click Script Adapter · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 

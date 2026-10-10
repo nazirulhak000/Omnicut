@@ -16,6 +16,12 @@ import {
   getProducts
 } from '../../api';
 import StylePosterMockup from './StylePosterMockup';
+import {
+  getProductCategoryType,
+  getCategoryDisplayName,
+  getDynamicPOVScenarios,
+  convertAngleToPOVDialogue
+} from '../../lib/dynamicPOVScenarios';
 
 // ── Rich Editorial Metas for the 4 Approved Styles ──
 const STYLE_EXTRAS = {
@@ -109,45 +115,8 @@ const STYLE_ANGLE_MATCHES = {
   }
 };
 
-// ── Pre-made Viral Scenarios for POV Chat Story (No-voiceover Style) ──
-const POV_CHAT_SCENARIOS = [
-  {
-    id: 'hot_room',
-    title: 'แฟนบ่นห้องร้อน แอร์เสียตอนเที่ยงวัน',
-    script: `แฟน: "เธอออ แอร์ห้องพัง ร้อนจนเหงื่อท่วมแล้วเนี่ยยย 🥵"
-ฉัน: "แป๊บนะ กำลังรีบกลับ! ซื้อพัดลมเทอร์โบตัวเด็ดมาให้แล้ว"
-แฟน: "พัดลมไร มันจะช่วยได้เหรอออ"
-ฉัน: "Hatari T16M1 ปรับลม 3 ระดับ มอเตอร์เทอร์โบ ลมพุ่งถึงใจ เงียบกริบ"
-แฟน: "เฮ้ยยย เย็นจริงงง รอดตายแล้ว ขอบคุณน้าาา 🥰"`
-  },
-  {
-    id: 'battery_low',
-    title: 'แบตหมดกลางห้างตอนจะสแกนจ่ายเงิน',
-    script: `ฉัน: "เธอ แบตจะหมดเหลือ 2% กำลังจะสแกนจ่ายค่าข้าว ทำไงดี 😱"
-แฟน: "ใจเย็น! ในกระเป๋ามีหัวชาร์จ Essager 65W หยิบไปเสียบปลั๊กร้านเลย"
-ฉัน: "เสียบแค่ 10 นาที แบตจะทันเหรอ"
-แฟน: "GaN III ชิปเทอร์โบ 10 นาทีได้เกิน 40% ลองเลย"
-ฉัน: "เห้ยจริงงง จ่ายเงินรอดแล้ว ตัวจิ๋วแต่แรงมากกก"`
-  },
-  {
-    id: 'cafe_outlet',
-    title: 'ทำงานคาเฟ่ แย่งปลั๊กกับโต๊ะข้างๆ',
-    script: `เพื่อน: "แก นั่งคาเฟ่นี้มีเต้ารับเดียว โน้ตบุ๊กกับมือถือจะดับทั้งคู่แล้ว 😭"
-ฉัน: "ไม่ต้องแย่งจ้า นี่เลย Essager 3 พอร์ต เสียบหัวเดียวจบ"
-เพื่อน: "ชาร์จพร้อมกันไฟไม่ดรอปเหรอแก"
-ฉัน: "33W Max กระจายไฟคู่ โน้ตบุ๊กทำงานต่อ มือถือชาร์จด่วนสบายๆ"
-เพื่อน: "ของดี ขอพิกัดด่วนนน"`
-  },
-  {
-    id: 'rush_charge',
-    title: 'ลืมชาร์จแบตก่อนออกจากบ้าน 15 นาที',
-    script: `ฉัน: "ซวยแล้ววว ลืมชาร์จแบต เหลือ 5% ต้องออกจากบ้านใน 15 นาที 🏃‍♂️"
-เพื่อน: "รีบเอาหัวชาร์จเร็วเสียบด่วนเลย ใช้รุ่นไหนอยู่"
-ฉัน: "เพิ่งได้ Essager GaN มา ชาร์จสปีดคู่"
-เพื่อน: "15 นาทีได้เกินครึ่งแน่นอน ทันนัดชัวร์"
-ฉัน: "โอ้โห สปีดพุ่งจริง ออกบ้านได้สบายใจแล้ววว"`
-  }
-];
+// ── Note: POV Chat Scenarios are generated dynamically per product via getDynamicPOVScenarios() ──
+
 
 function generateUniqueClipId(productCode, styleId, existingCompositions = [], seed = 0) {
   const p = (productCode || 'hat01').toLowerCase().trim();
@@ -231,21 +200,7 @@ ${price ? `ราคาโปรโมชั่น: ${price}` : 'พิกัด
   }
 
   if (styleId === 'pov_chat') {
-    return `[0-4s แชทเด้งเตือน]
-แฟน: "เธอออ ${pain ? pain : 'แบตจะหมดแล้ว ช่วยด้วยยย 😱'}"
-
-[4-12s บทสนทนาดราม่า]
-ฉัน: "ใจเย็น! ในกระเป๋ามี ${pName} เสียบใช้ได้เลย"
-แฟน: "เสียบแค่แป๊บเดียว มันจะทันเหรอออ"
-
-[12-20s ส่งของแก้ปัญหา]
-ฉัน: "${features ? features.slice(0, 40) : 'ตัวนี้ชาร์จเร็วเทอร์โบ'} ของแท้ 10 นาทีรอดแน่นอน"
-
-[20-25s แฟนปลื้มรอดตาย]
-แฟน: "เห้ยยย จริงด้วย รอดตายแล้ว ขอบคุณน้าาา 🥰"
-
-[25-28s แจกพิกัดในแชท]
-ฉัน: "ส่งสติกเกอร์ชี้ตะกร้าเหลืองซ้ายล่าง รีบกดกันน้า!"`;
+    return convertAngleToPOVDialogue(angle, pName);
   }
 
   return rawScript || hook || '';
@@ -327,6 +282,19 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
     });
   }, [products, selectedProduct]);
 
+  // Dynamic POV Scenarios matching current product category and angles
+  const activePOVScenarios = useMemo(() => {
+    return getDynamicPOVScenarios(currentProductObj);
+  }, [currentProductObj]);
+
+  const currentProductCategory = useMemo(() => {
+    return getProductCategoryType(currentProductObj);
+  }, [currentProductObj]);
+
+  const currentCategoryName = useMemo(() => {
+    return getCategoryDisplayName(currentProductCategory);
+  }, [currentProductCategory]);
+
   const availableAngles = useMemo(() => {
     return Array.isArray(currentProductObj?.angles) ? currentProductObj.angles : [];
   }, [currentProductObj]);
@@ -367,13 +335,14 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
   // Calculate real-time compatibility score and advice
   const compatibilityInfo = useMemo(() => {
     if (selectedStyle === 'pov_chat') {
+      const pDisplayName = currentProductObj?.name || selectedProduct.toUpperCase();
       if (selectedScenarioId) {
         return {
           score: 1.0,
           level: 'high',
-          tag: '✓ ความเข้ากันได้ 100% (บทแชท LINE ตรงสเปก)',
+          tag: '✓ ความเข้ากันได้ 100% (บทแชท LINE ตรงสินค้า)',
           badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-          message: 'บทสนทนาจำลอง 2 คนนี้ตรงกับหน้าจอ LINE Chat UI อย่างสมบูรณ์แบบ คนดูอ่านตามได้ 100% โดยไม่ต้องพากย์เสียง'
+          message: `บทสนทนาจำลอง 2 คนนี้ตรงกับสินค้า ${pDisplayName} (${currentCategoryName}) และหน้าจอ LINE Chat UI อย่างสมบูรณ์แบบ คนดูอ่านตามได้ 100% โดยไม่ต้องพากย์เสียง`
         };
       }
       return {
@@ -381,7 +350,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
         level: 'moderate',
         tag: 'ℹ️ สไตล์นี้ไม่มีเสียงพากย์',
         badgeColor: 'bg-sky-500/10 text-sky-400 border-sky-500/30',
-        message: 'สไตล์ POV Chat เน้นแชท LINE แนะนำให้เลือก "บทแชท LINE สำเร็จรูป" หรือกดปุ่ม "แปลงบทเป็นแชท LINE"'
+        message: `สไตล์ POV Chat เน้นแชท LINE แนะนำให้เลือก "บทแชท LINE สำเร็จรูป (${currentCategoryName})" ด้านบน หรือเลือก Angle แล้วกด "แปลงเป็นแชท LINE"`
       };
     }
 
@@ -455,7 +424,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
   const handleSelectScenario = (scenarioId) => {
     setSelectedScenarioId(scenarioId);
     if (!scenarioId) return;
-    const sc = POV_CHAT_SCENARIOS.find((s) => s.id === scenarioId);
+    const sc = activePOVScenarios.find((s) => s.id === scenarioId);
     if (sc) {
       setScriptText(sc.script);
     }
@@ -1029,6 +998,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                       setSelectedProduct(e.target.value);
                       setIsManualClipId(false);
                       setSelectedAngleId('');
+                      setSelectedScenarioId('');
                     }}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-sm focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/40 focus:outline-none"
                   >
@@ -1077,7 +1047,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                   </span>
                   <span className="text-[11px] text-slate-400">
                     {selectedStyle === 'pov_chat'
-                      ? 'มี 4 พรีเซ็ตบทแชท LINE ไวรัล'
+                      ? `มี 4 บทแชท LINE แนะนำเฉพาะสินค้า (${currentCategoryName})`
                       : availableAngles.length > 0
                         ? `คลังบท Angle สินค้านี้ ${availableAngles.length} บท (${categorizedAngles.recommended.length} แนะนำตรงสไตล์)`
                         : 'พิมพ์บทเองหรือใช้บทดั้งเดิม'}
@@ -1085,22 +1055,85 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                 </div>
 
                 {selectedStyle === 'pov_chat' ? (
-                  <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">
-                      เลือกบทแชท LINE สำเร็จรูปสำหรับ POV Chat Story (ไม่มีเสียงพากย์)
-                    </label>
-                    <select
-                      value={selectedScenarioId}
-                      onChange={(e) => handleSelectScenario(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg bg-[#0D111A] border border-white/[0.1] text-xs text-slate-200 focus:border-[#25F4EE] focus:outline-none"
-                    >
-                      <option value="">-- เลือก Scenario บทแชท LINE เพื่อกรอกลงช่องข้อความ --</option>
-                      {POV_CHAT_SCENARIOS.map((sc) => (
-                        <option key={sc.id} value={sc.id}>
-                          💬 {sc.title}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-medium text-slate-300">
+                          1) เลือกบทแชท LINE แนะนำตรงสินค้า (หมวด: {currentCategoryName})
+                        </label>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/20 font-mono">
+                          {activePOVScenarios.length} รูปแบบเฉพาะ {selectedProduct.toUpperCase()}
+                        </span>
+                      </div>
+                      <select
+                        value={selectedScenarioId}
+                        onChange={(e) => handleSelectScenario(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-lg bg-[#0D111A] border border-white/[0.1] text-xs text-slate-200 focus:border-[#25F4EE] focus:outline-none"
+                      >
+                        <option value="">-- เลือก Scenario บทแชท LINE เพื่อกรอกลงช่องข้อความ --</option>
+                        {activePOVScenarios.map((sc) => (
+                          <option key={sc.id} value={sc.id}>
+                            💬 [{sc.badge}] {sc.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {availableAngles.length > 0 && (
+                      <div className="pt-2.5 border-t border-white/[0.06] space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-[11px] text-slate-400">
+                            2) หรือเลือกจาก Angle ของสินค้า ({availableAngles.length} บท) แล้วแปลงเป็นบทแชท LINE 2 คน:
+                          </label>
+                          {selectedAngleId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const pName = currentProductObj?.name || selectedProduct.toUpperCase();
+                                const adapted = convertAngleToPOVDialogue(activeAngleObj, pName);
+                                setScriptText(adapted);
+                                setSelectedScenarioId('');
+                                setActionSuccess(`แปลง Angle "${activeAngleObj?.angle_name || ''}" เป็นบทแชท LINE เรียบร้อยแล้ว`);
+                                setTimeout(() => setActionSuccess(null), 4000);
+                              }}
+                              className="text-[11px] font-semibold text-[#25F4EE] hover:brightness-125 flex items-center gap-1 cursor-pointer"
+                            >
+                              <Wand2 className="w-3 h-3" />
+                              แปลงเป็นแชท LINE
+                            </button>
+                          )}
+                        </div>
+                        <select
+                          value={selectedAngleId}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSelectedAngleId(val);
+                            if (val) {
+                              const ang = availableAngles.find((a, idx) => (a.angle_id || a.id || `ang-${idx}`) === val);
+                              if (ang) {
+                                const pName = currentProductObj?.name || selectedProduct.toUpperCase();
+                                const adapted = convertAngleToPOVDialogue(ang, pName);
+                                setScriptText(adapted);
+                                setSelectedScenarioId('');
+                              }
+                            }
+                          }}
+                          className="w-full px-3 py-2 rounded-lg bg-[#0D111A] border border-white/[0.1] text-xs text-slate-200 focus:border-[#25F4EE] focus:outline-none"
+                        >
+                          <option value="">-- หรือเลือก Angle เพื่อแปลงเป็นบทสนทนาแชท LINE อัตโนมัติ --</option>
+                          {availableAngles.map((ang, idx) => {
+                            const angId = ang.angle_id || ang.id || `ang-${idx}`;
+                            const name = ang.angle_name || `Angle ${idx + 1}`;
+                            const hook = ang.hook_title ? ` (${ang.hook_title.slice(0, 32)}...)` : '';
+                            return (
+                              <option key={angId} value={angId}>
+                                • {name}{hook}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div>
