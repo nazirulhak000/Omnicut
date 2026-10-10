@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round HYPERFRAMES-STYLES-SHOWCASE-REDESIGN-20261010 | ออกแบบหน้าจอ 4 Approved Styles ใน Creative Studio (HyperFramesHub.jsx) ใหม่ ให้มินิมอลแต่ข้อมูลครบถ้วน: เพิ่มรูปปกจำลองแนวตั้ง 9:16 (StylePosterMockup.jsx) แสดงอัตลักษณ์และ HUD ของ 4 สไตล์ไวรัล (VS Battle, Tech Explainer, Meme-PAS, POV Chat Story), เพิ่มไทม์ไลน์จังหวะการตัด Beat-by-Beat Timeline Pills, เสริม Style Detail Modal ดูเจาะลึกพร้อมสเปกและสูตรการตัด, ปรับตามมาตรฐาน /impeccable และ /ui-ux-pro-max, ปุ่มขึ้นต้นกริยาไม่มีสัญลักษณ์นำตามกฎ 3.8/4.8, ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round HYPERFRAMES-HYBRID-INTEGRATION-20261010 | ผสาน HyperFrames Hybrid Creative Studio เข้ากับ OmniCut: เชื่อมต่อ 4 สไตล์ไวรัล (Meme-PAS, Tech Explainer, VS Battle, POV Chat Story) ผ่าน Hybrid Architecture แยกพอร์ต 3100 ไม่ชนระบบเดิม, เพิ่ม Backend Router (scripts/api_hyperframes.py) และ Frontend Hub (HyperFramesHub.jsx) ในเมนู 3.1 Creative Studio, บริดจ์ ExportRegistry อัตโนมัติพร้อมสร้าง WebP thumbnail, ผ่าน pytest 8/8, npm test 853/853, build ผ่าน 100%, check ผ่าน 0 error | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
 | Round EXTENSION-HEALTH-RESPONSIVE-RELIABILITY-20261008 | ยกระดับ Chrome Extension Side Panel ให้พร้อมใช้งานจริง 100%: Dynamic Backend Health (Online/Offline/Checking status pill), ปุ่มลองเชื่อมต่อใหม่ inline retry ในการ์ด error, Responsive สำหรับหน้าจอแถบข้างแคบ (320px–360px) สำหรับแถบแท็บและ affiliate grid, Multi-language TikTok selectors (ไทย+อังกฤษ) และเพิ่ม http://localhost:8000/* ใน host_permissions พร้อมเพิ่ม unit test รวมผ่านครบ 35/35 เทส | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round LOGO-MODERN-COMBO-06-20261008 | ออกแบบโลโก้ใหม่ให้ OmniCut ในสไตล์มินิมอลโมเดิร์น: สำรวจ 10 แนวคิดแรก -> ผสมผสานจุดเด่นของ Concept 01 (Sharp Razor Cut) และ Concept 09 (Intertwined OC Monogram) เป็น 6 สไตล์ Combo -> ผู้ใช้เลือก Combo 06 (Modern Geometric OC with 45° Blade Cut) พร้อมแปลงเป็นเวกเตอร์ SVG และสร้างชุดไอคอน PNG ทุกขนาด (16, 32, 48, 128, 512px) ติดตั้งลงใน Extension และ Frontend เรียบร้อย | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -73,6 +74,31 @@
 | Round INDEPENDENT-QUALITY-ROADMAP-20260929 | แผนใหม่ 3 งานอิสระ: ตรวจวัตถุดิบ, ตรวจไฟล์เรนเดอร์ตลอดคลิป, ทดสอบกู้ backup โดยไม่ทับ BiRefNet/Badge, Ghost Reveal, Editor/Cutout | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round SAM2-DEPTH-TEXT-PIPELINE-20260929 | เชื่อมต่อ SAM 2 บน RTX 4060 GPU เข้ากับ pipeline ของ Omnicut รองรับ Text Behind Product ทั้ง Canvas 2D Preview และ FFmpeg Render, เพิ่ม sam2 engine/models ใน contract, เพิ่ม worker สตรีม VP9 cutout.webm, ปรับปรุง backend preflight และ frontend UI Controls ผ่านการทดสอบ 23/23 tests และ build ผ่าน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
 | Round PC-REPO-AUDIT-PLAN-20260929 | ตรวจ PC/โค้ด/ผลทดสอบเดิมและ repository ที่เสนอ จัดทำแผน P0–P3 พร้อม gate ใน `_Docs/Plans/PC_REPOSITORY_AUDIT_PLAN_20260929.md` | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+
+## Round HYPERFRAMES-STYLES-SHOWCASE-REDESIGN-20261010 — ออกแบบหน้าจอ 4 Approved Styles Showcase ใหม่ (Minimal & Visual-First) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+วันที่: 2026-10-10 · สั่งโดย: user ("รบกวนวางแผนออกแบบหน้าจอใหม่หน่อย อยากให้มัน ดูมินิมอลแต่รายล่ะเอียดครบ มองเห็นชัดเลยว่าสไตล์นั้นตัดยังไง... จัดการต่อให้เรียบร้อยได้เลยครับ") · สถานะ: ปิดรอบแล้ว
+**เอกสารแผนงาน:** [_Docs/Plans/20261010_styles_showcase_redesign_plan.md](file:///d:/Programmer/All%20Project/Omnicut/_Docs/Plans/20261010_styles_showcase_redesign_plan.md)
+**อ้างอิงมาตรฐาน:** `/impeccable` (Craft Floor & Visual Hierarchy), `/ui-ux-pro-max` (Dark Swiss / Studio Minimalist), `AGENTS.md` กฎข้อ 3.8, 4.8, 4.10, 4.14
+
+### 1. วัตถุประสงค์และผลลัพธ์
+- ปรับปรุงแท็บ **"4 สไตล์ที่อนุมัติ (Approved Styles)"** ใน Creative Studio (`HyperFramesHub.jsx`) จากเดิมที่เป็นการ์ดข้อความธรรมดา ให้กลายเป็น **Editorial Visual Studio Showcase** ที่ผู้ใช้งานมองเห็นทันทีใน 3 วินาทีว่าแต่ละสไตล์ตัดต่ออย่างไร
+- สร้างคอมโพเนนต์ `frontend/src/components/hyperframes/StylePosterMockup.jsx` เรนเดอร์รูปปกจำลองแนวตั้ง 9:16 ด้วย Vector SVG และ Glassmorphism คมชัดระดับ Retina 4K โหลดไว 0ms:
+  1. **VS Battle (สายเกมต่อสู้ 🥊):** หน้าจอ HUD สไตล์ Street Fighter แบ่งจอ 2 ฝั่ง ซ้ายรุ่นเดิม ขวารุ่นใหม่ หลอดเลือด HP Bar, ตัวเลขนับถอยหลัง 99 สีทอง, โลโก้ VS เรืองแสง, ป้ายคะแนนยก ROUND 1 • SPEED TEST, การ์ดเปรียบเทียบสเปกด้านล่าง
+  2. **Tech Explainer (สาย Vox 📊):** แผงวงจร Blueprint สี Cyan/Blue, Exploded View ชิปเซ็ต GaN III, เส้นโยงสเปกและตัวเลข Telemetry เกจวัดวัตต์ 65.4W และอุณหภูมิต่ำ
+  3. **Meme-PAS (รีวิวสายมีม 🔥):** ป้ายเตือนบิลค่าไฟพุ่ง 3,500.-, หลอดปรอทแตกฟิสิกส์กระจาย, 0.8s MEME PAUSE badge, มีมเหงื่อตก, และ Call-to-Action ชี้ตะกร้าเหลือง TikTok
+  4. **POV Chat Story (แชท LINE เล่าเรื่อง 💬):** หน้าจอแชท LINE เสมือนจริง 100% พร้อม Status Bar (เวลา 14:02, 5G, แบตเตอรี่ 85%), แถบชื่อห้องแชทสีเขียว LINE แท้, กล่องข้อความแชทดราม่ามีหางชี้, ป้ายกำกับ "อ่านแล้ว 14:02", จุดกำลังพิมพ์ดุ๊กดิ๊ก, และแป้นพิมพ์ด้านล่าง
+- เพิ่ม **ไทม์ไลน์จังหวะการตัด Beat-by-Beat Timeline Pills** ในแต่ละการ์ด แสดงขั้นตอนการตัดต่อเป็นช่วงเวลา (เช่น `0-3s เปิดศึก VS` ➔ `3-10s ยก 1` ➔ `10-17s ยก 2` ➔ `17-22s ยก 3` ➔ `22-25s K.O. ตะกร้า`)
+- เพิ่ม **Style Detail Modal** เมื่อกดดูตัวอย่างหรือกด "ดูรายละเอียด" จะเปิดหน้าต่างขยายใหญ่ แสดงข้อมูลเชิงลึก, บทสคริปต์แนะนำ, ไทม์ไลน์เต็ม, คลิปตัวอย่างอ้างอิง และปุ่มเลือกใช้สไตล์
+- กฎเหล็ก UI ตามข้อ 3.8 และ 4.8: ปุ่มขึ้นต้นด้วยคำกริยา ไม่มีสัญลักษณ์ซ้ำซ้อนหรือ emoji นำหน้า เช่น `เลือกใช้สไตล์นี้`, `ดูรายละเอียด`, `เปิดดูพรีวิว`, `ปิดหน้าต่าง`
+
+### 2. ผลการตรวจสอบและการทดสอบ (Verification)
+- `npm run build --prefix frontend`: ผ่าน 100% (`✓ built in 491ms`, 0 errors)
+- `npm test --prefix frontend`: ผ่านครบทุกชุด 853/853 tests (100% pass)
+- `pytest tests/test_api_hyperframes.py`: ผ่านครบ 8/8 tests (100% pass)
+- ทดสอบจริงบน Browser ผ่าน Puppeteer: ตรวจสอบทั้งหน้า Showcase และเปิด Modal ของ VS Battle ได้อย่างสมบูรณ์สวยงาม
+
+---
 
 ## Round HYPERFRAMES-HYBRID-INTEGRATION-20261010 — ผสาน HyperFrames Hybrid Creative Studio เข้ากับ OmniCut · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
 

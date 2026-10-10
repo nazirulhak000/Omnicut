@@ -1,4 +1,32 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
+- [ ] Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010 · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+- [x] Round HYPERFRAMES-STYLES-SHOWCASE-REDESIGN-20261010 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) (ดูรายละเอียดใน HISTORY.md)
+- [x] Round HYPERFRAMES-POV-CHAT-LINE-UI-20261010 (รอเจ้าของช่องยืนยันก่อนย้ายเข้า HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+
+## Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+สถานะ: กำลังดำเนินการ
+เป้าหมาย: ตรวจสอบความเรียบร้อยและแก้ไขปัญหาคลิป/พรีวิวเปิดดูไม่ได้ใน HyperFrames Studio
+- [ ] เปลี่ยนนามสกุลไฟล์เทมเพลตดิบ `clips/ess02-hype-25s/template.html` และ `kit/index.template.html` ให้เป็น `.tpl` เพื่อป้องกัน Studio สแกนเจอแล้วพังด้วย SyntaxError Unexpected token '{'
+- [ ] อัปเดต `clips/ess02-hype-25s/make.py` และ `kit/hf_timing.py` ให้ชี้ไปที่ไฟล์ `.tpl`
+- [ ] เพิ่ม `@font-face` ประกาศฟอนต์ Anuphan ใน `kit/line-chat.css` ให้ครบถ้วนตามสัญญา HyperFrames
+- [ ] รัน `hyperframes check` และทดสอบเปิดพรีวิวทั้ง 10 Compositions ใน Studio ให้โหลดผ่านฉลุย ไร้ Error modal 100%
+- [ ] ทดสอบความเข้ากันได้กับ OmniCut Pro Studio (เมนู 3.1 Creative Studio)
+
+## Round HYPERFRAMES-POV-CHAT-LINE-UI-20261010
+ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+สถานะ: แก้เสร็จ รอเจ้าของช่องดู/สั่ง render จริง
+เป้าหมาย: แก้ฟีดแบ็กเจ้าของช่องใน `03_Projects/_HyperFrames_Studio` (ไม่อยู่ใน git) คลิป `ess02-pov-chat-28s`
+- [x] ลายน้ำ `#wm` (kit/kit.css): ย้ายลงชิดขอบล่าง คงแนวตั้งฝั่งขวา · เอากล่องดำ/มุมโค้งออก เหลือแค่ตัวอักษรแดง (ใช้ text-shadow ช่วยอ่านได้)
+- [x] แชทให้เหมือน LINE จริง (kit/line-chat.css + markup ใน ess02-pov-chat-28s.html): status bar, header (ชื่อ + ไอคอนค้นหา/โทร/เมนู), วันที่, bubble มีหางชี้, ตัวอักษร regular, "อ่านแล้ว", แถบพิมพ์ด้านล่าง (+ กล้อง รูป ช่อง Aa ไมค์)
+- [x] snapshot ทุก beat ของแชท A/B ดูว่าไม่ล้น/ไม่ชนลายน้ำ ไม่ชน safe zone ล่าง
+- [x] เขียน feedback ลง `kit/STYLE.md` (บันทึก feedback + ข้อ 5 ลายน้ำ)
+Notes: ลายน้ำอยู่ใน kit.css ที่ทุกคลิปใช้ร่วม → ทุกคอมโพซิชันได้ลายน้ำใหม่ตอน render ครั้งหน้า · ไม่ commit (ไฟล์ studio อยู่นอก git) · ยังไม่ได้ render ลง `04_Exports/`
+- [x] POV Chat v2 เจ้าของช่องอนุมัติ "ดีมาก" · จดลง STYLE.md แล้ว
+- [x] VS Battle (`ess02-vs-25s`): crop+deskew Essager (`hero_cutout_straight.png`), วางตรง/สูงเท่ากัน/กลางฝั่ง, เอา drop-shadow ดำออก, spotlight+เงาพื้น, พื้นหลังสว่างขึ้น, เอฟเฟกต์เบาๆ (burst, P1 ซีด, bob, หลอดมีขีด), บรรทัดความแฟร์ + เครดิต CC BY-SA · `hyperframes check` Layout 0 error
+- [x] ช็อตปิด VS หม่น: `.scrim.top` ทับสินค้า → scrim เฉพาะหัวข้อ + ขอบดำให้ข้อความ/ลูกศร (ความสว่างบริเวณสินค้า 44 → 92.6)
+- [ ] รอเจ้าของช่องตัดสิน: ยก 3 "ระบบป้องกันไฟเกิน" ในเสียงพากย์ (บอกเป็นนัยว่าของแถมไม่ปลอดภัย) — ต้องเขียนบทใหม่ + สร้าง TTS ใหม่ ยังไม่แตะ
+
 - [x] Round HYPERFRAMES-HYBRID-INTEGRATION-20261010 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) (ดูรายละเอียดใน HISTORY.md)
 - [x] Round EXTENSION-HEALTH-RESPONSIVE-RELIABILITY-20261008 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
 - [x] Round LOGO-MODERN-COMBO-06-20261008 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
