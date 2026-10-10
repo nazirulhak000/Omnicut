@@ -43,14 +43,17 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
         getHyperFramesStatus().catch(() => null),
         getHyperFramesStyles().catch(() => []),
         getHyperFramesCompositions().catch(() => []),
-        getProducts().catch(() => [])
+        getProducts().catch(() => ({ products: [] }))
       ]);
       setStatus(statusRes);
-      setStyles(stylesRes);
-      setCompositions(compsRes);
-      setProducts(prodsRes);
-      if (prodsRes.length > 0 && !selectedProduct) {
-        setSelectedProduct(prodsRes[0].id || prodsRes[0].code || 'hat01');
+      setStyles(Array.isArray(stylesRes) ? stylesRes : (stylesRes?.styles || []));
+      setCompositions(Array.isArray(compsRes) ? compsRes : (compsRes?.compositions || []));
+      const prodsList = Array.isArray(prodsRes) ? prodsRes : (prodsRes?.products || []);
+      setProducts(prodsList);
+      if (prodsList.length > 0 && !selectedProduct) {
+        const first = prodsList[0];
+        const initialVal = (first.id || first.code || first.product_code || 'hat01').toLowerCase();
+        setSelectedProduct(initialVal);
       }
     } catch (err) {
       setActionError('ไม่สามารถโหลดข้อมูล HyperFrames ได้ กรุณาลองใหม่อีกครั้ง');
@@ -257,7 +260,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {styles.map((st) => (
+            {(Array.isArray(styles) ? styles : []).map((st) => (
               <div
                 key={st.id}
                 className="p-5 rounded-2xl bg-slate-900 border border-slate-800/80 hover:border-slate-700 transition-all flex flex-col justify-between space-y-4"
@@ -318,7 +321,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-400">
-              พบ {compositions.length} รายการในสตูดิโอ (จัดเก็บที่ <code className="text-slate-300">03_Projects/_HyperFrames_Studio/compositions/</code>)
+              พบ {(Array.isArray(compositions) ? compositions : []).length} รายการในสตูดิโอ (จัดเก็บที่ <code className="text-slate-300">03_Projects/_HyperFrames_Studio/compositions/</code>)
             </p>
             <button
               type="button"
@@ -330,7 +333,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {compositions.map((comp) => {
+            {(Array.isArray(compositions) ? compositions : []).map((comp) => {
               const isRendering = renderingCompId === comp.id;
               return (
                 <div
@@ -435,11 +438,16 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                   <option value="hat01">HAT01 (Hatari T16M1)</option>
                   <option value="ess02">ESS02 (Essager 30W/65W)</option>
                   <option value="goc01">GOC01 (Gocomma Fan)</option>
-                  {products.map((p) => (
-                    <option key={p.id || p.code} value={(p.id || p.code).toLowerCase()}>
-                      {p.name ? `${p.id || p.code} - ${p.name}` : (p.id || p.code)}
-                    </option>
-                  ))}
+                  {(Array.isArray(products) ? products : []).map((p) => {
+                    const code = (p.id || p.code || p.product_code || '').toLowerCase();
+                    if (!code || ['hat01', 'ess02', 'goc01'].includes(code)) return null;
+                    const displayName = p.name || p.title || p.product_name || code.toUpperCase();
+                    return (
+                      <option key={p.id || p.code || code} value={code}>
+                        {code.toUpperCase()} ({displayName})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
