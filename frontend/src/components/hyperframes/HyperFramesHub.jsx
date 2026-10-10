@@ -4,7 +4,7 @@ import {
   Flame, Swords, MessageSquare, BarChart3, CheckCircle2,
   AlertCircle, Film, Plus, Send, Download, Info, X, ChevronRight,
   Volume2, Music, Check, ArrowRight, Shuffle, Bot, Cpu, Wand2,
-  FileText, Layers
+  FileText, Layers, ShieldCheck, HelpCircle
 } from 'lucide-react';
 import {
   getHyperFramesStatus,
@@ -81,6 +81,34 @@ const STYLE_SLUG_MAP = {
   pov_chat: { slug: 'pov-chat', dur: 28 },
 };
 
+// ── Compatibility Matrix between 4 Styles and 10 Product Angles ──
+const STYLE_ANGLE_MATCHES = {
+  vs_battle: {
+    recommendedIndices: [4, 9], // 0-indexed: 4 = เทียบของเดิม vs ของใหม่, 9 = คำนวณความคุ้มค่า
+    keywords: ['เทียบ', 'vs', 'เก่า', 'ใหม่', 'คุ้มค่า', 'สู้', 'เดิม'],
+    styleRationale: 'สไตล์ VS Battle มีภาษาภาพเป็นเกมต่อสู้ 2 ฝั่ง 3 ยก (Street Fighter HUD) จำเป็นต้องมีเนื้อหาที่เปรียบเทียบชัดเจนระหว่าง 2 สิ่ง',
+    recommendedNames: ['Angle 5 (เทียบของเดิม vs ของใหม่)', 'Angle 10 (คำนวณความคุ้มค่าต่อวัน)']
+  },
+  tech_explainer: {
+    recommendedIndices: [1, 5, 7], // 0-indexed: 1 = สเปกเจาะลึก, 5 = ทริกลึก, 7 = เจาะกลุ่มเฉพาะ
+    keywords: ['สเปก', 'ชิป', 'ฟังก์ชัน', 'ทริก', 'เจาะลึก', 'ระบบ', 'วัตต์', 'อุณหภูมิ', 'แกดเจ็ต'],
+    styleRationale: 'สไตล์ Tech Explainer มีภาษาภาพเป็นพิมพ์เขียววิศวกรรม (Exploded View / ไดอะแกรมชิป) ต้องการเนื้อหาอธิบายเชิงเทคนิค สเปก และข้อเท็จจริง',
+    recommendedNames: ['Angle 2 (รีวิวสเปกเจาะลึก)', 'Angle 6 (ทริกลึก / รู้งี้ซื้อนานแล้ว)']
+  },
+  meme_pas: {
+    recommendedIndices: [0, 6, 8, 3], // 0-indexed: 0 = ปัญหาก่อนใช้, 6 = เตือนภัย, 8 = เพื่อนเตือนเพื่อน, 3 = FOMO
+    keywords: ['ปัญหา', 'เตือน', 'อย่าเพิ่งซื้อ', 'ท้อ', 'เพื่อน', 'fomo', 'ร้อน', 'แบต', 'ชีวิตเปลี่ยน'],
+    styleRationale: 'สไตล์ Meme-PAS ใช้สูตร PAS (Problem-Agitate-Solution) + Meme Pause 0.8s ต้องการปัญหาคนเจอจริง มีมขยี้ความเจ็บปวด แล้วหักมุมเปิดตัวสินค้า',
+    recommendedNames: ['Angle 1 (ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน)', 'Angle 7 (เตือนภัยเชิงลบ / อย่าเพิ่งซื้อ!)']
+  },
+  pov_chat: {
+    recommendedIndices: [0, 6, 8],
+    keywords: ['แชท', 'แฟน', 'เพื่อน', 'ปัญหา', 'ฉุกเฉิน', 'บ่น'],
+    styleRationale: 'สไตล์ POV Chat จำลองหน้าจอแชท LINE ดราม่า 5 บับเบิ้ล ไม่มีเสียงพากย์ เน้นบทสนทนา 2 คนช่วยแก้ปัญหาเฉพาะหน้า',
+    recommendedNames: ['พรีเซ็ตบทแชท LINE 4 รูปแบบ (แนะนำสูงสุด)']
+  }
+};
+
 // ── Pre-made Viral Scenarios for POV Chat Story (No-voiceover Style) ──
 const POV_CHAT_SCENARIOS = [
   {
@@ -141,6 +169,86 @@ function generateUniqueClipId(productCode, styleId, existingCompositions = [], s
     version += 1;
   }
   return `${baseId}-${Date.now().toString().slice(-4)}`;
+}
+
+// ── Smart Script Adapter by Style Blueprint ──
+function adaptScriptToStyle(styleId, angle, rawScript, productName) {
+  const pName = productName || 'สินค้าตัวนี้';
+  const hook = (angle?.hook_title || '').trim();
+  const features = (angle?.key_features || '').trim();
+  const pain = (angle?.pain_point || '').trim();
+  const price = (angle?.price_deal || '').trim();
+
+  if (styleId === 'vs_battle') {
+    return `[0-3s เปิดศึก VS]
+${hook || `เทียบกันชัดๆ ระหว่างของเดิม VS ${pName} รุ่นใหม่ล่าสุด!`}
+
+[3-10s ยก 1: สปีดความเร็วและประสิทธิภาพ]
+ฝั่งเดิมชาร์จช้าอืดอาด หลอดเลือดลดฮวบ! ส่วน ${pName} สปีดเทอร์โบ ชาร์จแป๊บเดียวพลังพุ่งปรี๊ด!
+
+[10-17s ยก 2: อุณหภูมิและความปลอดภัย]
+${pain ? `ของเก่าเจอปัญหา ${pain}` : 'ของเก่าร้อนจัดจนน่ากลัว!'} ส่วน ${pName} คุมความร้อนนิ่งสนิท เย็นเจี๊ยบปลอดภัย 100%
+
+[17-22s ยก 3: ราคาและความคุ้มค่า]
+${price ? `ดีลเดือด: ${price}` : 'สเปกระดับท็อป แต่ราคาเบาๆ สบายกระเป๋า'} เทียบกันแล้วฝั่งใหม่ชนะขาดลอย!
+
+[22-25s K.O. ตะกร้า]
+K.O. จบศึก! พิกัดตะกร้าเหลืองซ้ายล่าง รีบกดก่อนหมดโปร!`;
+  }
+
+  if (styleId === 'tech_explainer') {
+    return `[0-4s ตั้งคำถามข้อสงสัย]
+${hook || `เคยสงสัยไหม ทำไม ${pName} ถึงจ่ายไฟแรงและทำงานได้เสถียรขนาดนี้?`}
+
+[4-15s ผ่าโครงสร้าง Exploded View ชิปเซ็ต]
+ความลับอยู่ที่โครงสร้างภายในและชิปรุ่นใหม่ล่าสุด ทำให้สูญเสียพลังงานน้อยลง และกระจายพลังงานได้อย่างแม่นยำ
+
+[15-28s เจาะสเปกวัตต์และระบบความปลอดภัย]
+${features || `${pName} มาพร้อมระบบตัดไฟอัตโนมัติ และเซนเซอร์วัดอุณหภูมิแบบเรียลไทม์`}
+
+[28-35s ผลการทดสอบใช้งานจริง]
+${pain ? `แก้ปัญหาเรื่อง ${pain} ได้แบบเบ็ดเสร็จ` : 'ทดสอบใช้งานต่อเนื่องหลายชั่วโมง อุณหภูมิผิวยังนิ่งสนิท'} กราฟการทำงานเสถียร 100%
+
+[35-40s สรุปความคุ้มค่าและพิกัด]
+สรุปคือตัวจบสำหรับคนที่ต้องการประสิทธิภาพระดับโปร พิกัดตะกร้าเหลืองด้านล่างครับ`;
+  }
+
+  if (styleId === 'meme_pas') {
+    return `[0-4s ฮุกปัญหาจริง]
+${hook || `เตือนแล้วนะ! ใครยังทนทรมานกับปัญหาเดิมๆ อยู่บ้าง?`}
+
+[4-10s มีมตกใจ • Meme Pause 0.8s]
+${pain ? `เจอปัญหา ${pain}` : 'รีบจะออกบ้าน แบตดันหมด น้ำตาจะไหล!'} [มีมเหงื่อตก ค้าง 0.8s ดึงสายตา]
+
+[10-14s ซาวด์แตรลมเปิดตัวสินค้า]
+[ซาวด์แตรลม] ตัดมาที่ตัวช่วยกู้ชีวิต ${pName}!
+
+[14-38s จุดขายคู่มีม 1 มีม 1 SFX]
+${features || 'เสียบปุ๊บ สปีดพุ่งปรี๊ด [SFX วิ่ง] เล็กพริกขี้หนู พกหัวเดียวจบครบทุกเครื่อง'}
+
+[38-45s ปักตะกร้าเหลือง]
+${price ? `ราคาโปรโมชั่น: ${price}` : 'พิกัดตะกร้าเหลืองซ้ายล่าง รีบจิ้มก่อนราคาจะปรับขึ้น!'}`;
+  }
+
+  if (styleId === 'pov_chat') {
+    return `[0-4s แชทเด้งเตือน]
+แฟน: "เธอออ ${pain ? pain : 'แบตจะหมดแล้ว ช่วยด้วยยย 😱'}"
+
+[4-12s บทสนทนาดราม่า]
+ฉัน: "ใจเย็น! ในกระเป๋ามี ${pName} เสียบใช้ได้เลย"
+แฟน: "เสียบแค่แป๊บเดียว มันจะทันเหรอออ"
+
+[12-20s ส่งของแก้ปัญหา]
+ฉัน: "${features ? features.slice(0, 40) : 'ตัวนี้ชาร์จเร็วเทอร์โบ'} ของแท้ 10 นาทีรอดแน่นอน"
+
+[20-25s แฟนปลื้มรอดตาย]
+แฟน: "เห้ยยย จริงด้วย รอดตายแล้ว ขอบคุณน้าาา 🥰"
+
+[25-28s แจกพิกัดในแชท]
+ฉัน: "ส่งสติกเกอร์ชี้ตะกร้าเหลืองซ้ายล่าง รีบกดกันน้า!"`;
+  }
+
+  return rawScript || hook || '';
 }
 
 export default function HyperFramesHub({ onNavigateToGallery }) {
@@ -223,6 +331,99 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
     return Array.isArray(currentProductObj?.angles) ? currentProductObj.angles : [];
   }, [currentProductObj]);
 
+  // Categorize Angles into "Recommended for this style" vs "Others"
+  const categorizedAngles = useMemo(() => {
+    const matchMeta = STYLE_ANGLE_MATCHES[selectedStyle] || { recommendedIndices: [], keywords: [] };
+    const recommended = [];
+    const others = [];
+
+    availableAngles.forEach((ang, idx) => {
+      const isIndexRec = matchMeta.recommendedIndices.includes(idx);
+      const combined = `${ang.angle_name || ''} ${ang.hook_title || ''}`.toLowerCase();
+      const hasKey = matchMeta.keywords.some((k) => combined.includes(k.toLowerCase()));
+
+      if (isIndexRec || hasKey) {
+        recommended.push({ ...ang, originalIndex: idx, isTopMatch: isIndexRec });
+      } else {
+        others.push({ ...ang, originalIndex: idx, isTopMatch: false });
+      }
+    });
+
+    return { recommended, others };
+  }, [availableAngles, selectedStyle]);
+
+  // Selected angle object
+  const activeAngleObj = useMemo(() => {
+    if (!selectedAngleId) return null;
+    return availableAngles.find((a, idx) => (a.angle_id || a.id || `ang-${idx}`) === selectedAngleId);
+  }, [selectedAngleId, availableAngles]);
+
+  // Active angle index
+  const activeAngleIndex = useMemo(() => {
+    if (!selectedAngleId) return -1;
+    return availableAngles.findIndex((a, idx) => (a.angle_id || a.id || `ang-${idx}`) === selectedAngleId);
+  }, [selectedAngleId, availableAngles]);
+
+  // Calculate real-time compatibility score and advice
+  const compatibilityInfo = useMemo(() => {
+    if (selectedStyle === 'pov_chat') {
+      if (selectedScenarioId) {
+        return {
+          score: 1.0,
+          level: 'high',
+          tag: '✓ ความเข้ากันได้ 100% (บทแชท LINE ตรงสเปก)',
+          badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+          message: 'บทสนทนาจำลอง 2 คนนี้ตรงกับหน้าจอ LINE Chat UI อย่างสมบูรณ์แบบ คนดูอ่านตามได้ 100% โดยไม่ต้องพากย์เสียง'
+        };
+      }
+      return {
+        score: 0.5,
+        level: 'moderate',
+        tag: 'ℹ️ สไตล์นี้ไม่มีเสียงพากย์',
+        badgeColor: 'bg-sky-500/10 text-sky-400 border-sky-500/30',
+        message: 'สไตล์ POV Chat เน้นแชท LINE แนะนำให้เลือก "บทแชท LINE สำเร็จรูป" หรือกดปุ่ม "แปลงบทเป็นแชท LINE"'
+      };
+    }
+
+    if (!activeAngleObj) {
+      return null;
+    }
+
+    const matchMeta = STYLE_ANGLE_MATCHES[selectedStyle];
+    if (!matchMeta) return null;
+
+    const isRec = matchMeta.recommendedIndices.includes(activeAngleIndex);
+    if (isRec) {
+      return {
+        score: 1.0,
+        level: 'high',
+        tag: '✓ ความเข้ากันได้ 100% (เนื้อหาและภาษาภาพสอดคล้องกัน)',
+        badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+        message: `มุมมองนี้มีเนื้อหาตรงกับโครงสร้างของสไตล์ ${selectedStyle === 'vs_battle' ? 'VS Battle' : selectedStyle === 'tech_explainer' ? 'Tech Explainer' : 'Meme-PAS'} พอดีเป๊ะ ตัดแล้วภาพกับเสียงจะไม่ขัดกันแน่นอน`
+      };
+    }
+
+    const combined = `${activeAngleObj.angle_name || ''} ${activeAngleObj.hook_title || ''}`.toLowerCase();
+    const hasKey = matchMeta.keywords.some((k) => combined.includes(k.toLowerCase()));
+    if (hasKey) {
+      return {
+        score: 0.6,
+        level: 'moderate',
+        tag: 'ℹ️ ความเข้ากันได้ 60% (ประยุกต์ใช้ได้)',
+        badgeColor: 'bg-sky-500/10 text-sky-400 border-sky-500/30',
+        message: 'มุมมองนี้สามารถนำมาใช้ได้ แต่จังหวะอาจยังไม่ลงล็อกกับไทม์ไลน์ แนะนำให้กดปุ่ม "แปลงบทให้ตรงจังหวะสไตล์" ด้านล่าง'
+      };
+    }
+
+    return {
+      score: 0.25,
+      level: 'low',
+      tag: '⚠️ เสี่ยงขัดแย้งกับภาพ (ความเข้ากันได้ต่ำ 25%)',
+      badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+      message: `${matchMeta.styleRationale} แต่ Angle ที่เลือกนี้เป็นอีกโทนหนึ่ง แนะนำให้เลือก ${matchMeta.recommendedNames[0]} หรือกด "แปลงบทให้ตรงจังหวะสไตล์"`
+    };
+  }, [selectedStyle, activeAngleObj, activeAngleIndex, selectedScenarioId]);
+
   // Uniqueness check for current input
   const isDuplicateId = useMemo(() => {
     if (!newClipId.trim()) return false;
@@ -244,7 +445,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
   const handleSelectAngle = (angleId) => {
     setSelectedAngleId(angleId);
     if (!angleId) return;
-    const ang = availableAngles.find((a) => (a.angle_id || a.id) === angleId);
+    const ang = availableAngles.find((a, idx) => (a.angle_id || a.id || `ang-${idx}`) === angleId);
     if (ang) {
       const filledText = (ang.script_text || `${ang.hook_title || ''}\n${ang.key_features || ''}`).trim();
       setScriptText(filledText);
@@ -258,6 +459,15 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
     if (sc) {
       setScriptText(sc.script);
     }
+  };
+
+  // 1-Click Script Adaptation to Current Style
+  const handleAdaptScript = () => {
+    const pName = currentProductObj?.name || selectedProduct.toUpperCase();
+    const adapted = adaptScriptToStyle(selectedStyle, activeAngleObj, scriptText, pName);
+    setScriptText(adapted);
+    setActionSuccess(`ปรับโครงสร้างบทให้ตรงกับจังหวะไทม์ไลน์ของ ${selectedStyle.toUpperCase()} เรียบร้อยแล้ว`);
+    setTimeout(() => setActionSuccess(null), 4000);
   };
 
   const handleOpenStudio = () => {
@@ -733,7 +943,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                 สร้างดราฟต์คลิป HyperFrames ใหม่
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                ระบบจะสร้างรหัสคลิปที่ไม่ซ้ำให้อัตโนมัติ พร้อมดึงบทสคริปต์จาก Angle ของสินค้าและเตรียมโครงสร้างเว็บอนิเมชันให้พร้อมแต่ง
+                ระบบจะสร้างรหัสคลิปที่ไม่ซ้ำให้อัตโนมัติ พร้อมตรวจจับความเข้ากันได้ระหว่างสไตล์กับบทสคริปต์ ป้องกันภาษาภาพขัดกับเนื้อหา
               </p>
             </div>
 
@@ -763,7 +973,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                     <button
                       type="button"
                       onClick={handleRegenerateId}
-                      className="text-[11px] px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-[#25F4EE] border border-white/[0.08] transition-colors flex items-center gap-1"
+                      className="text-[11px] px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-[#25F4EE] border border-white/[0.08] transition-colors flex items-center gap-1 cursor-pointer"
                       title="สุ่มรหัสใหม่ที่ไม่ซ้ำ"
                     >
                       <Shuffle className="w-3 h-3" />
@@ -799,7 +1009,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                         setNewClipId(suggestedUniqueId);
                         setIsManualClipId(false);
                       }}
-                      className="text-[#25F4EE] underline hover:no-underline font-mono"
+                      className="text-[#25F4EE] underline hover:no-underline font-mono cursor-pointer"
                     >
                       คลิกเพื่อเปลี่ยนเป็น {suggestedUniqueId}
                     </button>
@@ -840,7 +1050,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
 
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                    สไตล์ที่ต้องการ
+                    สไตล์ที่ต้องการ *
                   </label>
                   <select
                     value={selectedStyle}
@@ -859,17 +1069,17 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
               </div>
 
               {/* ── Script Sourcing Tools: Product Angles & LINE Scenarios ── */}
-              <div className="p-3.5 rounded-xl bg-[#080B11]/90 border border-white/[0.08] space-y-3">
+              <div className="p-4 rounded-xl bg-[#080B11]/90 border border-white/[0.08] space-y-3.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-[#25F4EE] flex items-center gap-1.5">
                     <Wand2 className="w-3.5 h-3.5" />
-                    แหล่งที่มาบทสคริปต์ (Script Sourcing)
+                    แหล่งที่มาบทสคริปต์ (Script Sourcing & Smart Match)
                   </span>
                   <span className="text-[11px] text-slate-400">
                     {selectedStyle === 'pov_chat'
                       ? 'มี 4 พรีเซ็ตบทแชท LINE ไวรัล'
                       : availableAngles.length > 0
-                        ? `พบคลังบท Angle สินค้านี้ ${availableAngles.length} บท`
+                        ? `คลังบท Angle สินค้านี้ ${availableAngles.length} บท (${categorizedAngles.recommended.length} แนะนำตรงสไตล์)`
                         : 'พิมพ์บทเองหรือใช้บทดั้งเดิม'}
                   </span>
                 </div>
@@ -877,12 +1087,12 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                 {selectedStyle === 'pov_chat' ? (
                   <div>
                     <label className="block text-[11px] text-slate-400 mb-1">
-                      เลือกบทแชท LINE สำเร็จรูปสำหรับ POV Chat Story
+                      เลือกบทแชท LINE สำเร็จรูปสำหรับ POV Chat Story (ไม่มีเสียงพากย์)
                     </label>
                     <select
                       value={selectedScenarioId}
                       onChange={(e) => handleSelectScenario(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-[#0D111A] border border-white/[0.1] text-xs text-slate-200 focus:border-[#25F4EE] focus:outline-none"
+                      className="w-full px-3 py-2.5 rounded-lg bg-[#0D111A] border border-white/[0.1] text-xs text-slate-200 focus:border-[#25F4EE] focus:outline-none"
                     >
                       <option value="">-- เลือก Scenario บทแชท LINE เพื่อกรอกลงช่องข้อความ --</option>
                       {POV_CHAT_SCENARIOS.map((sc) => (
@@ -895,44 +1105,107 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                 ) : (
                   <div>
                     <label className="block text-[11px] text-slate-400 mb-1">
-                      ดึงบทสคริปต์จาก Angle ของสินค้า (ProductStore)
+                      ดึงบทสคริปต์จาก Angle ของสินค้า (จัดกลุ่มตามความเข้ากันได้ของสไตล์)
                     </label>
                     <select
                       value={selectedAngleId}
                       onChange={(e) => handleSelectAngle(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-[#0D111A] border border-white/[0.1] text-xs text-slate-200 focus:border-[#25F4EE] focus:outline-none"
+                      className="w-full px-3 py-2.5 rounded-lg bg-[#0D111A] border border-white/[0.1] text-xs text-slate-200 focus:border-[#25F4EE] focus:outline-none"
                     >
                       <option value="">
                         {availableAngles.length > 0
                           ? `-- เลือก Angle ของสินค้าเพื่อดึงบทสคริปต์ (${availableAngles.length} บท) --`
                           : '-- ไม่พบบท Angle ที่บันทึกไว้สำหรับสินค้านี้ --'}
                       </option>
-                      {availableAngles.map((ang, idx) => {
-                        const angId = ang.angle_id || ang.id || `ang-${idx}`;
-                        const name = ang.angle_name || `Angle ${idx + 1}`;
-                        const hook = ang.hook_title ? ` (${ang.hook_title.slice(0, 32)}...)` : '';
-                        return (
-                          <option key={angId} value={angId}>
-                            🎯 {name}{hook}
-                          </option>
-                        );
-                      })}
+
+                      {/* Optgroup 1: Recommended for this style */}
+                      {categorizedAngles.recommended.length > 0 && (
+                        <optgroup label={`⭐ แนะนำตรงสไตล์ 100% (เนื้อหาและภาษาภาพสอดคล้องกัน)`}>
+                          {categorizedAngles.recommended.map((ang) => {
+                            const angId = ang.angle_id || ang.id || `ang-${ang.originalIndex}`;
+                            const name = ang.angle_name || `Angle ${ang.originalIndex + 1}`;
+                            const hook = ang.hook_title ? ` (${ang.hook_title.slice(0, 34)}...)` : '';
+                            return (
+                              <option key={angId} value={angId}>
+                                ⭐ {name}{hook}
+                              </option>
+                            );
+                          })}
+                        </optgroup>
+                      )}
+
+                      {/* Optgroup 2: Other angles requiring adaptation */}
+                      {categorizedAngles.others.length > 0 && (
+                        <optgroup label={`มุมมองอื่นๆ (ต้องกดแปลงบทให้เข้ากับจังหวะไทม์ไลน์)`}>
+                          {categorizedAngles.others.map((ang) => {
+                            const angId = ang.angle_id || ang.id || `ang-${ang.originalIndex}`;
+                            const name = ang.angle_name || `Angle ${ang.originalIndex + 1}`;
+                            const hook = ang.hook_title ? ` (${ang.hook_title.slice(0, 34)}...)` : '';
+                            return (
+                              <option key={angId} value={angId}>
+                                • {name}{hook}
+                              </option>
+                            );
+                          })}
+                        </optgroup>
+                      )}
                     </select>
+                  </div>
+                )}
+
+                {/* ── Real-time Compatibility Guard & Alert Banner ── */}
+                {compatibilityInfo && (
+                  <div className={`p-3 rounded-xl border text-xs space-y-1.5 transition-all animate-in fade-in ${
+                    compatibilityInfo.level === 'high'
+                      ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
+                      : compatibilityInfo.level === 'moderate'
+                        ? 'bg-sky-950/30 border-sky-500/40 text-sky-200'
+                        : 'bg-amber-950/30 border-amber-500/40 text-amber-200'
+                  }`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${compatibilityInfo.badgeColor}`}>
+                        {compatibilityInfo.tag}
+                      </span>
+                      {compatibilityInfo.level !== 'high' && (
+                        <button
+                          type="button"
+                          onClick={handleAdaptScript}
+                          className="text-[11px] font-semibold text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Wand2 className="w-3 h-3" />
+                          กดแปลงบทให้ตรงสไตล์
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] leading-relaxed opacity-90">
+                      {compatibilityInfo.message}
+                    </p>
                   </div>
                 )}
               </div>
 
-              {/* Script Textarea */}
+              {/* Script Textarea with 1-Click Adapter Header */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  บทสคริปต์ (Script Prompt สำหรับ Whisper และจัดไทม์ไลน์)
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-slate-300">
+                    บทสคริปต์ (Script Prompt สำหรับ Whisper และจัดไทม์ไลน์)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAdaptScript}
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE]/10 to-[#00D2C4]/10 hover:from-[#25F4EE]/20 hover:to-[#00D2C4]/20 text-[#25F4EE] border border-[#25F4EE]/30 font-medium transition-all flex items-center gap-1 cursor-pointer"
+                    title="ปรับประโยคและจังหวะของบทพูดให้ตรงกับสูตร Beat-by-Beat ของสไตล์นี้"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    แปลงบทให้ตรงจังหวะสไตล์
+                  </button>
+                </div>
                 <textarea
                   value={scriptText}
                   onChange={(e) => setScriptText(e.target.value)}
-                  placeholder="วางบทสคริปต์ภาษาไทยที่นี่ เพื่อช่วยให้ Whisper สะกดคำไทยและคำเฉพาะได้อย่างแม่นยำ 100%..."
-                  rows={4}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-sm focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/40 focus:outline-none resize-none leading-relaxed"
+                  placeholder="วางบทสคริปต์ภาษาไทยที่นี่ หรือเลือก Angle / Scenario ด้านบน เพื่อช่วยให้ Whisper สะกดคำไทยและจัดจังหวะได้อย่างแม่นยำ 100%..."
+                  rows={5}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-sm focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/40 focus:outline-none resize-none leading-relaxed font-mono text-xs"
                 />
               </div>
 
@@ -975,7 +1248,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
               <button
                 type="button"
                 onClick={() => setSelectedStyleDetail(null)}
-                className="absolute top-4 right-4 p-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white transition-colors border border-white/[0.08]"
+                className="absolute top-4 right-4 p-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white transition-colors border border-white/[0.08] cursor-pointer"
                 title="ปิดหน้าต่าง"
               >
                 <X className="w-5 h-5" />
@@ -1073,14 +1346,14 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                       setSelectedStyleDetail(null);
                       setActiveTab('create');
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 text-slate-950 font-bold text-sm transition-all shadow-md shadow-[#25F4EE]/20 text-center"
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 text-slate-950 font-bold text-sm transition-all shadow-md shadow-[#25F4EE]/20 text-center cursor-pointer"
                   >
                     เลือกใช้สไตล์นี้เพื่อเริ่มดราฟต์
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedStyleDetail(null)}
-                    className="px-5 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 font-medium text-sm border border-white/[0.08] transition-colors"
+                    className="px-5 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 font-medium text-sm border border-white/[0.08] transition-colors cursor-pointer"
                   >
                     ปิดหน้าต่าง
                   </button>

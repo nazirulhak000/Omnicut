@@ -1,8 +1,10 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
+- [x] Round HYPERFRAMES-STYLE-SCRIPT-COMPATIBILITY-MATCHING-20261010 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) (ดูรายละเอียดใน HISTORY.md)
 - [x] Round HYPERFRAMES-HUB-THEME-AND-SMART-CREATOR-20261010 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) (ดูรายละเอียดใน HISTORY.md)
 - [x] Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
 - [x] Round HYPERFRAMES-STYLES-SHOWCASE-REDESIGN-20261010 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) (ดูรายละเอียดใน HISTORY.md)
 - [x] Round HYPERFRAMES-POV-CHAT-LINE-UI-20261010 (รอเจ้าของช่องยืนยันก่อนย้ายเข้า HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+
 
 
 ## Round HYPERFRAMES-POV-CHAT-LINE-UI-20261010
@@ -18,6 +20,7 @@ Notes: ลายน้ำอยู่ใน kit.css ที่ทุกคลิ�
 - [x] VS Battle (`ess02-vs-25s`): crop+deskew Essager (`hero_cutout_straight.png`), วางตรง/สูงเท่ากัน/กลางฝั่ง, เอา drop-shadow ดำออก, spotlight+เงาพื้น, พื้นหลังสว่างขึ้น, เอฟเฟกต์เบาๆ (burst, P1 ซีด, bob, หลอดมีขีด), บรรทัดความแฟร์ + เครดิต CC BY-SA · `hyperframes check` Layout 0 error
 - [x] ช็อตปิด VS หม่น: `.scrim.top` ทับสินค้า → scrim เฉพาะหัวข้อ + ขอบดำให้ข้อความ/ลูกศร (ความสว่างบริเวณสินค้า 44 → 92.6)
 - [x] วิเคราะห์ HyperFrames Catalog 392 ชิ้น → `_Docs/Reports/HYPERFRAMES_CATALOG_PICKS_20261010.md` (Tier A/B/C) · ยังไม่ติดตั้ง/ทดสอบไทยจริง
+- [x] ส่วนกดติดตาม: `kit/follow.css` + `HF.follow()` + ต่อท้าย VS (→29.91s) และ POV (→31s) · Layout 0 error · ยังไม่ใส่ Meme-PAS/Explainer/คลิปอื่น
 - [ ] รอเจ้าของช่องตัดสิน: ยก 3 "ระบบป้องกันไฟเกิน" ในเสียงพากย์ (บอกเป็นนัยว่าของแถมไม่ปลอดภัย) — ต้องเขียนบทใหม่ + สร้าง TTS ใหม่ ยังไม่แตะ
 
 - [x] Round HYPERFRAMES-HYBRID-INTEGRATION-20261010 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) (ดูรายละเอียดใน HISTORY.md)

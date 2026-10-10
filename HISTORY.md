@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round HYPERFRAMES-STYLE-SCRIPT-COMPATIBILITY-MATCHING-20261010 | พัฒนาระบบจับคู่ความเข้ากันได้ระหว่าง 4 Approved Styles กับ 10 Angles ของสินค้า: จัดกลุ่ม Dropdown แบ่งชัดเจนเป็น ⭐ แนะนำตรงสไตล์ 100% vs มุมมองอื่นๆ, เพิ่มป้ายเตือนและมาตรวัด Compatibility Guard แบบเรียลไทม์ ป้องกันปัญหาภาษาภาพขัดแย้งกับเนื้อหา (เช่น สไตล์ VS Battle ขัดกับสคริปต์แกะกล่อง), เพิ่มปุ่ม 1-คลิก "แปลงบทให้ตรงจังหวะสไตล์" (Script Adapter) ปรับแต่งประโยคให้ลงล็อกกับไทม์ไลน์ 3 ยก / Meme Pause 0.8s / Exploded View / LINE Dialog ทันที, ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round HYPERFRAMES-HUB-THEME-AND-SMART-CREATOR-20261010 | ยกระดับ Creative Studio (HyperFramesHub.jsx) เต็มรูปแบบ: ปรับ Theme Parity ทั้งหน้าให้ตรงกับ OmniCut Pro Studio (#080B11 Deep Obsidian, #25F4EE Neon Cyan, #FE2C55 TikTok Rose), เพิ่มระบบ Smart Unique Clip ID Auto-Generator ตรวจจับความซ้ำแบบเรียลไทม์พร้อมปุ่มสุ่มรหัสใหม่, เพิ่มตัวเลือกดึงบทสคริปต์จาก 10 Angles ของสินค้า (ProductStore) และ 4 พรีเซ็ตบทแชท LINE Scenario สำหรับ POV Chat Story, เพิ่มการ์ดอธิบาย Multi-Agent 3-Step Pipeline (Whisper -> Creative AI Agent / ⌘K -> Chrome Headless MP4 Renderer), ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010 | ตรวจสอบความสมบูรณ์และแก้ไขปัญหาคลิปเปิดดูไม่ได้ใน HyperFrames Studio: เปลี่ยนนามสกุลไฟล์เทมเพลตดิบ `clips/ess02-hype-25s/template.html` และ `kit/index.template.html` เป็น `.tpl` เพื่อกัน Studio สแกนแล้วเกิด SyntaxError Unexpected token '{', อัปเดต `make.py` และ `hf_timing.py`, เพิ่ม `@font-face` ฟอนต์ Anuphan ใน `kit/line-chat.css` และ `ess02-vs-25s.html`, แก้ไขจนผ่าน `hyperframes check` 0 error (60/60 WCAG AA contrast pass), ยืนยัน Compositions ทั้ง 10 คลิปเปิดดูและเรนเดอร์ได้ 100% ไร้ Error modal, ผ่าน pytest 8/8, npm test 853/853, build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round HYPERFRAMES-STYLES-SHOWCASE-REDESIGN-20261010 | ออกแบบหน้าจอ 4 Approved Styles ใน Creative Studio (HyperFramesHub.jsx) ใหม่ ให้มินิมอลแต่ข้อมูลครบถ้วน: เพิ่มรูปปกจำลองแนวตั้ง 9:16 (StylePosterMockup.jsx) แสดงอัตลักษณ์และ HUD ของ 4 สไตล์ไวรัล (VS Battle, Tech Explainer, Meme-PAS, POV Chat Story), เพิ่มไทม์ไลน์จังหวะการตัด Beat-by-Beat Timeline Pills, เสริม Style Detail Modal ดูเจาะลึกพร้อมสเปกและสูตรการตัด, ปรับตามมาตรฐาน /impeccable และ /ui-ux-pro-max, ปุ่มขึ้นต้นกริยาไม่มีสัญลักษณ์นำตามกฎ 3.8/4.8, ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
@@ -76,6 +77,40 @@
 | Round INDEPENDENT-QUALITY-ROADMAP-20260929 | แผนใหม่ 3 งานอิสระ: ตรวจวัตถุดิบ, ตรวจไฟล์เรนเดอร์ตลอดคลิป, ทดสอบกู้ backup โดยไม่ทับ BiRefNet/Badge, Ghost Reveal, Editor/Cutout | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round SAM2-DEPTH-TEXT-PIPELINE-20260929 | เชื่อมต่อ SAM 2 บน RTX 4060 GPU เข้ากับ pipeline ของ Omnicut รองรับ Text Behind Product ทั้ง Canvas 2D Preview และ FFmpeg Render, เพิ่ม sam2 engine/models ใน contract, เพิ่ม worker สตรีม VP9 cutout.webm, ปรับปรุง backend preflight และ frontend UI Controls ผ่านการทดสอบ 23/23 tests และ build ผ่าน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
 | Round PC-REPO-AUDIT-PLAN-20260929 | ตรวจ PC/โค้ด/ผลทดสอบเดิมและ repository ที่เสนอ จัดทำแผน P0–P3 พร้อม gate ใน `_Docs/Plans/PC_REPOSITORY_AUDIT_PLAN_20260929.md` | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+
+## Round HYPERFRAMES-STYLE-SCRIPT-COMPATIBILITY-MATCHING-20261010 — ระบบจับคู่ความเข้ากันได้ระหว่างสไตล์การตัดกับบทสคริปต์, Compatibility Guard & 1-Click Script Adapter · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+วันที่: 2026-10-10 · สั่งโดย: user ("สไตล์การตัด และสคริปมันสามารถเป็นอันเดียวกันได้หรอ หรือว่ายังไงคับ มันจะขัดกันไหมอ่ะ มีจุดไหนที่ต้องปรับอีกครับ / เริ่มจัดการได้เลยครับ ทำแบล่ะเอียดได้เลยน่ะ") · สถานะ: ปิดรอบแล้ว
+
+### 1. ปัญหาและสิ่งที่ตรวจพบ (Core Problem & Design Friction)
+1. **Script vs Editing Style Mismatch**: สคริปต์ (Marketing Angle) คือ "เนื้อหา/ประเด็นขาย (What you say)" ขณะที่สไตล์การตัด (Editing Style) คือ "ภาษาภาพและโครงสร้างไทม์ไลน์ (How you present)" หากจับคู่ข้ามบริบทจะเกิดความขัดแย้งรุนแรง:
+   - ตัวอย่างเช่น: เลือกสไตล์ **VS Battle** (HUD เกม Street Fighter ซัดกัน 3 ยก) แต่ดึงสคริปต์ **แกะกล่องว้าว** หรือ **รีวิวสเปกทั่วไป** ➔ ภาพเป็น P1 vs P2 มีหลอดเลือด แต่เสียงบอก "สวัสดีครับวันนี้มาแกะกล่องดูสายชาร์จ..." ทำให้คนดูสับสนและหลุดอารมณ์
+   - เลือกสไตล์ **Tech Explainer** (พิมพ์เขียวผ่าชิป GaN III สุขุม) แต่ดึงสคริปต์ **FOMO ตะโกนขายของ** ➔ ทำลายความน่าเชื่อถือ
+   - เลือกสไตล์ **POV Chat Story** (LINE Chat ไร้เสียงพากย์) แต่ดึงบทพากย์เดี่ยวยาว 45 วิ ➔ ผิดสเปกสไตล์
+
+### 2. สิ่งที่ดำเนินการและผลลัพธ์ (Implementation & Enhancements)
+1. **Style-to-Angle Compatibility Matrix & Smart Recommender**:
+   - ออกแบบระบบประเมินความเข้ากันได้ (`STYLE_ANGLE_MATCHES`) วิเคราะห์ความเชื่อมโยงระหว่าง 4 สไตล์กับ 10 Angles ในคลัง:
+     - **VS Battle**: แนะนำ 100% กับ `Angle 5: เทียบของเดิม vs ของใหม่` และ `Angle 10: คำนวณความคุ้มค่าต่อวัน`
+     - **Tech Explainer**: แนะนำ 100% กับ `Angle 2: รีวิวสเปกเจาะลึก / ฟังก์ชันจัดเต็ม` และ `Angle 6: ทริกลึก / รู้งี้ซื้อนานแล้ว`
+     - **Meme-PAS**: แนะนำ 100% กับ `Angle 1: ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน`, `Angle 7: เตือนภัยเชิงลบ`, `Angle 9: เพื่อนเตือนเพื่อน`, `Angle 4: FOMO`
+     - **POV Chat Story**: บังคับใช้บทสนทนาแชท LINE 2 คน 4 Scenarios หรือแปลงเป็นแชท
+   - จัดกลุ่ม Dropdown แบ่งชัดเจนเป็น 2 Optgroups: `⭐ แนะนำตรงสไตล์ 100%` และ `มุมมองอื่นๆ (ต้องแปลงบท)`
+2. **Real-time Compatibility Guard & Alert Banner**:
+   - เพิ่มป้ายและมาตรวัดความเข้ากันได้แบบเรียลไทม์ใต้ Dropdown:
+     - เขียวมรกต: `✓ ความเข้ากันได้ 100% (เนื้อหาและภาษาภาพสอดคล้องกัน)` พร้อมคำอธิบายเหตุผล
+     - ฟ้าสว่าง: `ℹ️ ความเข้ากันได้ 60% (ประยุกต์ใช้ได้)` แนะนำให้กดแปลงบท
+     - ส้มอำพัน: `⚠️ เสี่ยงขัดแย้งกับภาพ (ความเข้ากันได้ต่ำ 25%)` เตือนว่าสไตล์นี้ต้องการบทแบบไหน พร้อมปุ่มกดแปลงบททันที
+3. **1-Click Smart Style Script Adapter (ปุ่ม "แปลงบทให้ตรงจังหวะสไตล์")**:
+   - พัฒนาฟังก์ชัน `adaptScriptToStyle(styleId, angle, rawScript, productName)` ปรับโครงสร้างบทให้ลงล็อกกับ Beat-by-Beat Blueprint ของแต่ละสไตล์ 100%:
+     - **VS Battle**: ซอยเป็น `[0-3s เปิดศึก VS]`, `[3-10s ยก 1: สปีดความเร็ว]`, `[10-17s ยก 2: อุณหภูมิและความปลอดภัย]`, `[17-22s ยก 3: ราคาและความคุ้มค่า]`, `[22-25s K.O. ตะกร้า]`
+     - **Tech Explainer**: ซอยเป็น `[0-4s ตั้งคำถาม]`, `[4-15s ผ่าโครงสร้าง Exploded View ชิป]`, `[15-28s เจาะสเปกวัตต์]`, `[28-35s ผลเทสจริง]`, `[35-40s สรุปพิกัด]`
+     - **Meme-PAS**: ซอยเป็น `[0-4s ฮุกปัญหา]`, `[4-10s มีมตกใจ • Meme Pause 0.8s]`, `[10-14s ซาวด์แตรลมเปิดตัว]`, `[14-38s จุดขายคู่มีม 1 มีม 1 SFX]`, `[38-45s ปักตะกร้า]`
+     - **POV Chat Story**: แปลงเป็นบทแชท LINE สนทนา 2 ฝั่ง (แฟน/เพื่อน คุยกับ ฉัน)
+4. **Verification & Testing**:
+   - ผ่านการทดสอบ `npm test` 853/853 tests (100% pass)
+   - ผ่านการทดสอบ `pytest tests/test_api_hyperframes.py` 8/8 tests (100% pass)
+   - ผ่านการบิลด์ `npm run build` ใน 457ms ไร้ข้อผิดพลาด
 
 ## Round HYPERFRAMES-HUB-THEME-AND-SMART-CREATOR-20261010 — ยกระดับ Theme Parity, Unique Clip ID Generator, Script Sourcing & AI Multi-Agent Workflow · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
