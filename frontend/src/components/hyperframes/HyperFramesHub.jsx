@@ -67,15 +67,10 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
     loadData();
   }, [loadData]);
 
-  const handleOpenStudio = async () => {
-    try {
-      setActionError(null);
-      setActionSuccess('กำลังเปิด HyperFrames Studio บนเบราว์เซอร์...');
-      await openHyperFramesStudio(3100);
-      setTimeout(() => setActionSuccess(null), 4000);
-    } catch (err) {
-      setActionError('ไม่สามารถเปิด Studio ได้: ' + (err.friendlyMessage || err.message));
-    }
+  const handleOpenStudio = () => {
+    setActionSuccess('กำลังเปิด HyperFrames Studio ในแท็บใหม่...');
+    openHyperFramesStudio(3002).catch(() => {});
+    setTimeout(() => setActionSuccess(null), 4000);
   };
 
   const handleCreateClip = async (e) => {
@@ -171,14 +166,16 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
             <span>{status?.ready ? `Engine v${status.hyperframes_version} พร้อมใช้งาน` : 'กำลังตรวจสอบเอนจิน...'}</span>
           </div>
 
-          <button
-            type="button"
+          <a
+            href="http://127.0.0.1:3002/#project/_HyperFrames_Studio"
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={handleOpenStudio}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors shadow-sm"
           >
             <ExternalLink className="w-4 h-4" />
             เปิด HyperFrames Studio
-          </button>
+          </a>
 
           <button
             type="button"
@@ -323,13 +320,15 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
             <p className="text-sm text-slate-400">
               พบ {(Array.isArray(compositions) ? compositions : []).length} รายการในสตูดิโอ (จัดเก็บที่ <code className="text-slate-300">03_Projects/_HyperFrames_Studio/compositions/</code>)
             </p>
-            <button
-              type="button"
+            <a
+              href="http://127.0.0.1:3002/#project/_HyperFrames_Studio"
+              target="_blank"
+              rel="noopener noreferrer"
               onClick={handleOpenStudio}
               className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium"
             >
               เปิดหน้าต่าง HyperFrames Studio Live Preview ↗
-            </button>
+            </a>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

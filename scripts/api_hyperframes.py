@@ -13,7 +13,10 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import threading
+import urllib.request
+import webbrowser
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -60,7 +63,7 @@ class RenderCompositionRequest(BaseModel):
 
 
 class OpenStudioRequest(BaseModel):
-    port: int = Field(3100, description="Port for HyperFrames Studio web preview")
+    port: int = Field(3002, description="Port for HyperFrames Studio web preview")
 
 
 # ── Helper Functions ──
@@ -415,25 +418,43 @@ async def render_composition(payload: RenderCompositionRequest) -> Dict[str, Any
 
 @router.post("/open-studio")
 def open_studio(payload: OpenStudioRequest = OpenStudioRequest()) -> Dict[str, Any]:
-    """Launch HyperFrames Studio web preview server."""
+    """Launch HyperFrames Studio web preview server and open in browser."""
     if not STUDIO_DIR.exists():
         raise HTTPException(status_code=500, detail="Studio directory not found")
 
-    port = payload.port
-    bat_file = STUDIO_DIR / "open_studio.bat"
-    
-    # Run the preview command detached in background
+    port = payload.port or 3002
+    studio_url = f"http://127.0.0.1:{port}/#project/_HyperFrames_Studio"
+
+    # 1. Check if background preview server is already responding
+    is_running = False
     try:
-        subprocess.Popen(
-            ["cmd.exe", "/c", "start", "", str(bat_file)],
-            cwd=STUDIO_DIR,
-            shell=True,
-        )
+        req = urllib.request.Request(f"http://127.0.0.1:{port}")
+        with urllib.request.urlopen(req, timeout=1) as resp:
+            if resp.status == 200:
+                is_running = True
+    except Exception:
+        is_running = False
+
+    # 2. If not running, start it in background
+    if not is_running:
+        npx_cmd = shutil.which("npx.cmd") or shutil.which("npx") or "npx"
+        try:
+            subprocess.Popen(
+                [npx_cmd, "--yes", "hyperframes@0.8.143", "preview", "--background", f"--port={port}"],
+                cwd=STUDIO_DIR,
+                shell=(sys.platform == "win32"),
+            )
+        except Exception as e:
+            logger.warning("Failed to start preview process via npx: %s", e)
+
+    # 3. Trigger OS default browser
+    try:
+        webbrowser.open(studio_url)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start studio: {e}")
+        logger.warning("webbrowser.open failed: %s", e)
 
     return {
         "status": "started",
-        "url": f"http://localhost:{port}",
-        "message": f"Opening HyperFrames Studio at http://localhost:{port}",
+        "url": studio_url,
+        "message": f"Opening HyperFrames Studio at {studio_url}",
     }
