@@ -64,6 +64,37 @@ const clipCountBadge = document.getElementById('clipCountBadge');
 const captionCharCount = document.getElementById('captionCharCount');
 const copyProductIdBtn = document.getElementById('copyProductIdBtn');
 
+const headerStatusPill = document.getElementById('headerStatusPill');
+const headerStatusDot = document.getElementById('headerStatusDot');
+const headerStatusText = document.getElementById('headerStatusText');
+
+function updateHeaderBackendStatus(state) {
+  if (!headerStatusPill || !headerStatusDot || !headerStatusText) return;
+  headerStatusPill.classList.remove('is-online', 'is-offline', 'is-checking');
+  headerStatusDot.classList.remove('is-online', 'is-offline', 'is-checking');
+
+  if (state === 'online') {
+    headerStatusPill.classList.add('is-online');
+    headerStatusDot.classList.add('is-online');
+    headerStatusText.textContent = 'Ready';
+    headerStatusPill.title = 'OmniCut Backend: เชื่อมต่อสำเร็จ (พร้อมทำงาน)';
+  } else if (state === 'offline') {
+    headerStatusPill.classList.add('is-offline');
+    headerStatusDot.classList.add('is-offline');
+    headerStatusText.textContent = 'Offline';
+    headerStatusPill.title = 'OmniCut Backend: ยังไม่ได้เปิด start_app.bat (คลิกเพื่อลองใหม่)';
+  } else {
+    headerStatusPill.classList.add('is-checking');
+    headerStatusDot.classList.add('is-checking');
+    headerStatusText.textContent = 'Checking';
+    headerStatusPill.title = 'กำลังตรวจสอบการเชื่อมต่อ Backend...';
+  }
+}
+
+headerStatusPill?.addEventListener('click', () => {
+  loadExports();
+});
+
 const videoPreviewModal = document.getElementById('videoPreviewModal');
 const previewBackdrop = document.getElementById('previewBackdrop');
 const previewModalTitle = document.getElementById('previewModalTitle');
@@ -310,13 +341,18 @@ function renderActiveClipBanner() {
   else cover.removeAttribute('src');
   if (!activeClip) {
     activeClipBanner.className = 'empty-state';
+    activeClipBanner.style.cursor = 'pointer';
+    activeClipBanner.title = 'คลิกเพื่อไปเลือกคลิปในแท็บรายการคลิป';
     activeClipBanner.innerHTML = `
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;margin-bottom:2px"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M3 7.5h4"/><path d="M3 12h18"/><path d="M3 16.5h4"/><path d="M17 3v18"/><path d="M17 7.5h4"/><path d="M17 16.5h4"/></svg>
       <span>ยังไม่ได้เลือกคลิป — ไปที่แท็บ "รายการคลิป" แล้วกด "เตรียมคลิปนี้" ก่อน</span>
     `;
+    activeClipBanner.onclick = () => showTab('list');
     syncPrepareDetailsBtnState();
     return;
   }
+  activeClipBanner.style.cursor = 'default';
+  activeClipBanner.onclick = null;
   activeClipBanner.className = '';
   const productLabel = activeClip.product_name ? `<div style="font-size:9.5px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">${escapeHtml(activeClip.product_name)}</div>` : '';
   const timeLabel = activeClip.schedule_time ? `<div style="font-size:10px;color:var(--text-tertiary);margin-top:3px;display:flex;align-items:center;gap:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> กำหนดโพสต์ ${escapeHtml(activeClip.schedule_date || '')} ${escapeHtml(activeClip.schedule_time || '')}</div>` : '';
@@ -341,15 +377,28 @@ function queueScheduleParts(iso) {
 }
 
 async function loadExports() {
-  listEl.innerHTML = '<div class="empty">กำลังโหลด...</div>';
+  updateHeaderBackendStatus('checking');
+  listEl.innerHTML = '<div class="empty">กำลังโหลดรายการคลิป...</div>';
   let items;
   try {
     const res = await authedFetch(`${BACKEND}/api/exports`, apiKey);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     items = Array.isArray(data) ? data : (data.exports || data.items || []);
+    updateHeaderBackendStatus('online');
   } catch (err) {
-    listEl.innerHTML = `<div class="error">โหลดไม่สำเร็จ -- ตรวจสอบว่า OmniCut Pro Studio เปิดอยู่ที่ localhost:8000 หรือไม่<br>(${escapeHtml(err.message)})</div>`;
+    updateHeaderBackendStatus('offline');
+    listEl.innerHTML = `
+      <div class="error error-box-with-retry">
+        <p>โหลดไม่สำเร็จ -- ตรวจสอบว่า OmniCut Pro Studio เปิดอยู่ที่ localhost:8000 หรือไม่<br>(${escapeHtml(err.message)})</p>
+        <button type="button" id="retryConnectionBtn" class="btn-retry-connection" title="ลองเชื่อมต่อ Backend ใหม่">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+          <span>ลองเชื่อมต่อใหม่</span>
+        </button>
+      </div>`;
+    document.getElementById('retryConnectionBtn')?.addEventListener('click', () => {
+      loadExports();
+    });
     return;
   }
 
@@ -1048,3 +1097,9 @@ document.getElementById('headerOpenTikTokBtn')?.addEventListener('click', openTi
 renderActiveClipBanner();
 apiKeyReady.then(loadExports);
 updatePipelineProgress();
+
+window.addEventListener('focus', () => {
+  if (headerStatusPill?.classList.contains('is-offline')) {
+    loadExports();
+  }
+});

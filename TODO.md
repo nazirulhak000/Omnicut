@@ -1,4 +1,7 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
+- [x] Round EXTENSION-HEALTH-RESPONSIVE-RELIABILITY-20261008 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
+- [x] Round LOGO-MODERN-COMBO-06-20261008 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
+- [x] Round EXTENSION-THEME-PARITY-ANUPHAN-20261008 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
 - [x] Round SPEED-TRANSITION-TEXT-STYLE-20261004 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
 
 - [x] Round CODEX-EDITING-VALIDATION-20261004 ดำเนินการโดย: Codex (GPT-6) + 3 delegated agents (Codex GPT-6) (HISTORY.md)
@@ -309,16 +312,19 @@ Notes: Socket แจ้ง 1 alert ที่ `impeccable` (ตัวอื่น
 **อ้างอิงแผนหลัก:** [OMNICUT_GPU_ENHANCEMENT_PLAN.md](file:///D:/Programmer/All%20Project/Omnicut/_Docs/Plans/OMNICUT_GPU_ENHANCEMENT_PLAN.md) (ฟีเจอร์ B)
 
 ### Todo
-- [x] B1. สร้าง scripts/birefnet_engine.py เชื่อมต่อโมเดล BiRefNet บน CUDA ใน 	ools/cutout_runtime/.venv พร้อม fallback
-- [x] B2. อัปเกรด 	ools/build_3d_pro_badges.py ให้ใช้ BiRefNet ตัดขอบคมชัดระดับพิกเซล พร้อมขอบสติกเกอร์ขาว 12-16px และ Drop Shadow นุ่ม
+- [x] B1. สร้าง scripts/birefnet_engine.py เชื่อมต่อโมเดล BiRefNet บน CUDA ใน tools/cutout_runtime/.venv พร้อม fallback
+- [x] B2. อัปเกรด tools/build_3d_pro_badges.py ให้ใช้ BiRefNet ตัดขอบคมชัดระดับพิกเซล พร้อมขอบสติกเกอร์ขาว 12-16px และ Drop Shadow นุ่ม
 - [x] B3. ทดสอบการรันสร้าง Badge ใหม่ 6 แบบใน .tmp/birefnet_test/ ตรวจสอบความคมชัดเปรียบเทียบกับ rembg
 - [x] B4. รันชุดทดสอบความถูกต้องและ Parity
 
 ### Gate
 - [x] BiRefNet / IS-Net รันบน RTX 4060 GPU ตัดภาพสินค้าความละเอียดสูงสำเร็จ (isnet 0.11s, birefnet-general-lite 2.1s, u2net 0.026s)
 - [x] Badge stickers มี alpha channel สมบูรณ์และขอบคมชัด ขอบสติกเกอร์ขาว 14px และ Drop Shadow นุ่ม
-- [x] pytest (58 passed, 3 skipped) และ
-pm test (416/416 passed) ผ่าน 100%
+- [x] pytest (58 passed, 3 skipped) และ npm test (416/416 passed) ผ่าน 100%
+
+- [x] Round EXTENSION-THEME-PARITY-ANUPHAN-20261008 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
+- [x] Round LOGO-MODERN-COMBO-06-20261008 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
+- [x] Round EXTENSION-HEALTH-RESPONSIVE-RELIABILITY-20261008 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 
 ## Round SUBTITLE-GHOST-REVEAL-MULTILINE-20260927 — กำลังทำ · Claude Code (Claude Opus 5)
 

@@ -144,7 +144,7 @@ globalThis.OmniAutomation = (() => {
       const status = document.querySelector('[data-e2e="upload_status_container"] [class*="info-status"]');
       if (!status) return false;
       const text = status.innerText || status.textContent || '';
-      return status.className.includes('success') && text.includes('อัปโหลดแล้ว');
+      return status.className.includes('success') && (text.includes('อัปโหลดแล้ว') || text.toLowerCase().includes('uploaded'));
     })()`, 'TikTok ยังอัปโหลดวิดีโอไม่เสร็จ -- รอสักครู่แล้วลองใหม่', 90000);
   }
 
