@@ -7,6 +7,8 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round HYPERFRAMES-HUB-THEME-AND-SMART-CREATOR-20261010 | ยกระดับ Creative Studio (HyperFramesHub.jsx) เต็มรูปแบบ: ปรับ Theme Parity ทั้งหน้าให้ตรงกับ OmniCut Pro Studio (#080B11 Deep Obsidian, #25F4EE Neon Cyan, #FE2C55 TikTok Rose), เพิ่มระบบ Smart Unique Clip ID Auto-Generator ตรวจจับความซ้ำแบบเรียลไทม์พร้อมปุ่มสุ่มรหัสใหม่, เพิ่มตัวเลือกดึงบทสคริปต์จาก 10 Angles ของสินค้า (ProductStore) และ 4 พรีเซ็ตบทแชท LINE Scenario สำหรับ POV Chat Story, เพิ่มการ์ดอธิบาย Multi-Agent 3-Step Pipeline (Whisper -> Creative AI Agent / ⌘K -> Chrome Headless MP4 Renderer), ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010 | ตรวจสอบความสมบูรณ์และแก้ไขปัญหาคลิปเปิดดูไม่ได้ใน HyperFrames Studio: เปลี่ยนนามสกุลไฟล์เทมเพลตดิบ `clips/ess02-hype-25s/template.html` และ `kit/index.template.html` เป็น `.tpl` เพื่อกัน Studio สแกนแล้วเกิด SyntaxError Unexpected token '{', อัปเดต `make.py` และ `hf_timing.py`, เพิ่ม `@font-face` ฟอนต์ Anuphan ใน `kit/line-chat.css` และ `ess02-vs-25s.html`, แก้ไขจนผ่าน `hyperframes check` 0 error (60/60 WCAG AA contrast pass), ยืนยัน Compositions ทั้ง 10 คลิปเปิดดูและเรนเดอร์ได้ 100% ไร้ Error modal, ผ่าน pytest 8/8, npm test 853/853, build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round HYPERFRAMES-STYLES-SHOWCASE-REDESIGN-20261010 | ออกแบบหน้าจอ 4 Approved Styles ใน Creative Studio (HyperFramesHub.jsx) ใหม่ ให้มินิมอลแต่ข้อมูลครบถ้วน: เพิ่มรูปปกจำลองแนวตั้ง 9:16 (StylePosterMockup.jsx) แสดงอัตลักษณ์และ HUD ของ 4 สไตล์ไวรัล (VS Battle, Tech Explainer, Meme-PAS, POV Chat Story), เพิ่มไทม์ไลน์จังหวะการตัด Beat-by-Beat Timeline Pills, เสริม Style Detail Modal ดูเจาะลึกพร้อมสเปกและสูตรการตัด, ปรับตามมาตรฐาน /impeccable และ /ui-ux-pro-max, ปุ่มขึ้นต้นกริยาไม่มีสัญลักษณ์นำตามกฎ 3.8/4.8, ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round HYPERFRAMES-HYBRID-INTEGRATION-20261010 | ผสาน HyperFrames Hybrid Creative Studio เข้ากับ OmniCut: เชื่อมต่อ 4 สไตล์ไวรัล (Meme-PAS, Tech Explainer, VS Battle, POV Chat Story) ผ่าน Hybrid Architecture แยกพอร์ต 3100 ไม่ชนระบบเดิม, เพิ่ม Backend Router (scripts/api_hyperframes.py) และ Frontend Hub (HyperFramesHub.jsx) ในเมนู 3.1 Creative Studio, บริดจ์ ExportRegistry อัตโนมัติพร้อมสร้าง WebP thumbnail, ผ่าน pytest 8/8, npm test 853/853, build ผ่าน 100%, check ผ่าน 0 error | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
 | Round EXTENSION-HEALTH-RESPONSIVE-RELIABILITY-20261008 | ยกระดับ Chrome Extension Side Panel ให้พร้อมใช้งานจริง 100%: Dynamic Backend Health (Online/Offline/Checking status pill), ปุ่มลองเชื่อมต่อใหม่ inline retry ในการ์ด error, Responsive สำหรับหน้าจอแถบข้างแคบ (320px–360px) สำหรับแถบแท็บและ affiliate grid, Multi-language TikTok selectors (ไทย+อังกฤษ) และเพิ่ม http://localhost:8000/* ใน host_permissions พร้อมเพิ่ม unit test รวมผ่านครบ 35/35 เทส | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -74,6 +76,69 @@
 | Round INDEPENDENT-QUALITY-ROADMAP-20260929 | แผนใหม่ 3 งานอิสระ: ตรวจวัตถุดิบ, ตรวจไฟล์เรนเดอร์ตลอดคลิป, ทดสอบกู้ backup โดยไม่ทับ BiRefNet/Badge, Ghost Reveal, Editor/Cutout | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round SAM2-DEPTH-TEXT-PIPELINE-20260929 | เชื่อมต่อ SAM 2 บน RTX 4060 GPU เข้ากับ pipeline ของ Omnicut รองรับ Text Behind Product ทั้ง Canvas 2D Preview และ FFmpeg Render, เพิ่ม sam2 engine/models ใน contract, เพิ่ม worker สตรีม VP9 cutout.webm, ปรับปรุง backend preflight และ frontend UI Controls ผ่านการทดสอบ 23/23 tests และ build ผ่าน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)) |
 | Round PC-REPO-AUDIT-PLAN-20260929 | ตรวจ PC/โค้ด/ผลทดสอบเดิมและ repository ที่เสนอ จัดทำแผน P0–P3 พร้อม gate ใน `_Docs/Plans/PC_REPOSITORY_AUDIT_PLAN_20260929.md` | 2026-09-29 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+
+## Round HYPERFRAMES-HUB-THEME-AND-SMART-CREATOR-20261010 — ยกระดับ Theme Parity, Unique Clip ID Generator, Script Sourcing & AI Multi-Agent Workflow · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+วันที่: 2026-10-10 · สั่งโดย: user ("- ออกแบบใหม่ รหัสคลิปมันต้ออง uniq นายต้องเจนมารึเปล่าครับ / - สร้างดราฟ์แล้ว AI ตัวไหนไปทำต่อครับ / - บทสคริปต์เอาจากไหนครับ / - ทำไหมสีเมนูนี้ไม่เหมือนหน้า อื่นๆครับ") · สถานะ: ปิดรอบแล้ว
+
+### 1. ปัญหาและสิ่งที่ผู้ใช้ต้องการ (Pain Points & Requirements)
+1. **Theme Inconsistency**: หน้า HyperFramesHub ใช้สีโทน Tailwind ดั้งเดิม (`slate-950`, `indigo-600`) ซึ่งขัดแย้งกับ UI ทั้งหมดของ OmniCut Pro Studio ที่ใช้ **Deep Obsidian (`#080B11`)**, **Neon Cyan (`#25F4EE`)**, และ **TikTok Rose (`#FE2C55`)**
+2. **Manual & Conflicting Clip ID**: เดิมผู้ใช้ต้องพิมพ์รหัสคลิปเอง เสี่ยงต่อการพิมพ์ซ้ำกับคลิปที่มีอยู่แล้ว หรือสะกดผิด
+3. **Unclear AI Agent Workflow**: ผู้ใช้ไม่ทราบว่าหลังกด "สร้างดราฟต์คลิป" แล้ว AI ตัวไหนจะเข้ามารับช่วงต่อในการผลิตวิดีโอ
+4. **Blank Script Syndrome**: ช่องกรอกบทสคริปต์เป็นกล่องว่างเปล่า ไม่ได้ดึงมุมมอง (Angles) ที่มีอยู่แล้ว 10–20 บทในคลังสินค้า `ProductStore` มาใช้ประโยชน์ รวมถึงขาดพรีเซ็ตบทสนทนาแชท LINE สำหรับสไตล์ POV Chat Story
+
+### 2. สิ่งที่ดำเนินการและผลลัพธ์ (Implementation & Enhancements)
+1. **100% Theme Parity กับระบบ OmniCut Pro Studio**:
+   - ปรับ Canvas พื้นหลังหลักเป็น `#080B11` (Deep Obsidian)
+   - ปรับการ์ดและพาเนลเป็น `bg-[#0D111A]/90` พร้อมขอบเส้นคม `border-white/[0.08]`
+   - ปรับ Active Tab เป็นเส้นขอบ `#25F4EE` ข้อความ `#25F4EE` พร้อมพื้นหลังเรืองแสง `bg-[#25F4EE]/5`
+   - ปรับปุ่ม Primary Action ทั้งหมดเป็นไล่เฉด Neon Cyan Gradient (`from-[#25F4EE] to-[#00D2C4]`) ตัวอักษรสีเข้ม `text-slate-950 font-bold` เงาเรืองแสง `shadow-[#25F4EE]/20`
+   - ปรับปุ่มเปิด HyperFrames Studio เป็น TikTok Rose Gradient (`from-[#FE2C55] to-rose-600`)
+2. **Smart Unique Clip ID Auto-Generator**:
+   - ฟังก์ชัน `generateUniqueClipId(product, style, compositions, seed)` สร้างรหัสมาตรฐานอัตโนมัติ `${product}-${styleSlug}-${duration}s` ทันทีที่เลือกสินค้าหรือสไตล์
+   - ตรวจจับความซ้ำกับ `compositions` ที่มีอยู่ในคลังแบบเรียลไทม์: หากซ้ำจะใส่ `-v2`, `-v3` ให้อัตโนมัติ พร้อมแสดงป้ายเตือน `⚠ รหัสซ้ำ มีในคลังแล้ว` และลิงก์คลิกเปลี่ยนเป็นรหัสแนะนำ
+   - หากรหัสว่างจะแสดงป้าย `✓ รหัสไม่ซ้ำ พร้อมใช้งาน (Unique)`
+   - เพิ่มปุ่ม `สุ่มรหัสใหม่` ให้ผู้ใช้คลิกเปลี่ยนรหัสหรือเวอร์ชันได้ทันที 1-คลิก
+3. **Script Sourcing & LINE Scenarios**:
+   - เชื่อมต่อ `ProductStore` ดึงรายการ Angles ทั้งหมดของสินค้าที่เลือก (เช่น HAT01, ESS02 มี 10 Angles) มาแสดงใน Dropdown ให้คลิกเลือกแล้วนำ Hook + Script Text มากรอกลงช่องข้อความอัตโนมัติ
+   - สำหรับสไตล์ `pov_chat` (ไม่มีเสียงพากย์) เพิ่มตัวเลือก 4 พรีเซ็ตบทแชท LINE ไวรัล (เช่น แอร์พังห้องร้อน, แบตหมดกลางห้างตอนจ่ายเงิน, ทำงานคาเฟ่แย่งปลั๊ก, ลืมชาร์จก่อนออกบ้าน) กรอกบทสนทนา 5 บับเบิ้ลลงช่องทันที
+4. **AI Multi-Agent Workflow Explainer Card**:
+   - แสดงผัง 3 ขั้นตอนของ AI อย่างชัดเจนในหน้าสร้างดราฟต์:
+     - **Step 1 (Faster-Whisper)**: สกัด Timestamps คำต่อคำภาษาไทย สร้าง Composition HTML
+     - **Step 2 (Creative AI Agent)**: ผู้ใช้สั่ง Antigravity/Claude Code ในแชทแต่งโมชั่น หรือกด `⌘K` ใน Studio ปรับเลย์เอาต์สด
+     - **Step 3 (Chrome Headless)**: เรนเดอร์ MP4 60FPS Zero-Drift ออกสู่โฟลเดอร์ `Ready_to_post` และลงทะเบียนเข้า Export Gallery อัตโนมัติ
+5. **Quality & Standard Compliance**:
+   - ปฏิบัติตามกฎ 3.8/4.8: ปุ่มแอ็กชันทุกปุ่มขึ้นต้นด้วยคำกริยา ไร้สัญลักษณ์หรือไอคอนนำหน้าในข้อความ
+   - ผ่านการทดสอบครบถ้วน: `npm test` 853/853 passed, `pytest tests/test_api_hyperframes.py` 8/8 passed, production build 100% (445ms) ไร้ Error
+
+## Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010 — ตรวจสอบความสมบูรณ์และแก้ไขปัญหาคลิปเปิดดูไม่ได้ใน HyperFrames Studio · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+วันที่: 2026-10-10 · สั่งโดย: user ("งั้นเช็คความเรียบร้อยทั้งหมดหน่อยครับ ตอนนี้บางตัวเปิดดูไม่ได้อ่ะครับ") · สถานะ: ปิดรอบแล้ว
+
+### 1. สาเหตุของปัญหาที่ตรวจพบ
+1. **Unrendered Template File Crash (SyntaxError)**:
+   - HyperFrames Studio สแกนไฟล์ `.html` ทั้งหมดในโฟลเดอร์ และพบ `clips/ess02-hype-25s/template.html` กับ `kit/index.template.html` ซึ่งเป็นไฟล์เทมเพลตดิบที่มีตัวแปร Jinja/Python `{{TOTAL}}`, `{{CAMS}}`, `{{WORDS}}` ค้างอยู่
+   - เมื่อเปิด Studio หรือคลิกที่เทมเพลต เกิดข้อผิดพลาด `Uncaught SyntaxError: Failed to execute 'replaceWith' on 'Element': Unexpected token '{'` ทำให้ขึ้นกรอบ Error modal สีแดงและจอดำค้าง
+2. **Missing Font Declaration**:
+   - `hyperframes check` ตรวจพบ `font_family_without_font_face: anuphan` ใน `compositions/ess02-vs-25s.html` และ `kit/line-chat.css` เนื่องจากเรียกใช้ `font-family: Anuphan` โดยไม่ได้ใส่ `@font-face` ประกาศไฟล์ฟอนต์ในเครื่อง
+3. **ความเข้าใจผิดเกี่ยวกับแท็บ Catalog**:
+   - ผู้ใช้เปิดแท็บ `Catalog` (เช่น `Orbit Carousel 2`, `Path Carousel 1`) ซึ่งเป็นคลังโค้ดบล็อกสำเร็จรูป (Component Snippets) ไม่ใช่คลิปวิดีโอที่มีไฟล์ให้กดเปิดดูเหมือนแท็บ Compositions
+
+### 2. สิ่งที่แก้ไขและผลลัพธ์
+1. **เปลี่ยนนามสกุลไฟล์เทมเพลตดิบ**:
+   - `clips/ess02-hype-25s/template.html` → `template.tpl` พร้อมอัปเดต `clips/ess02-hype-25s/make.py`
+   - `kit/index.template.html` → `index.template.tpl` พร้อมอัปเดต `kit/hf_timing.py`
+   - ผลลัพธ์: HyperFrames Studio ไม่สแกนไฟล์แม่แบบที่ยังไม่เรนเดอร์อีกต่อไป รายการคลิปสะอาด 100%
+2. **แก้ไขการประกาศฟอนต์ Anuphan**:
+   - เพิ่ม `@font-face` สำหรับ `"Anuphan"` ชี้ไปที่ `kit/fonts/Anuphan-Bold.ttf` ใน `compositions/ess02-vs-25s.html` และ `kit/line-chat.css`
+   - ผลลัพธ์: รัน `hyperframes check` ผ่านฉลุย 0 errors (60/60 WCAG AA contrast pass, layout 0 issues, runtime 0 errors)
+3. **ยืนยันการพรีวิวและระบบ**:
+   - ทดสอบผ่าน headless browser จริงทั้ง 10 Compositions โหลดภาพและเสียงขึ้นไทม์ไลน์ปกติ ไร้ Error modal
+   - Backend tests: pytest 8/8 passed (100%)
+   - Frontend tests: npm test 853/853 passed (100%)
+   - Production build: `npm run build` สำเร็จ 100%
+
+---
 
 ## Round HYPERFRAMES-STYLES-SHOWCASE-REDESIGN-20261010 — ออกแบบหน้าจอ 4 Approved Styles Showcase ใหม่ (Minimal & Visual-First) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 

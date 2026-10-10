@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Sparkles, Play, Video, ExternalLink, RefreshCw, Clock,
   Flame, Swords, MessageSquare, BarChart3, CheckCircle2,
   AlertCircle, Film, Plus, Send, Download, Info, X, ChevronRight,
-  Volume2, Music, Check, ArrowRight
+  Volume2, Music, Check, ArrowRight, Shuffle, Bot, Cpu, Wand2,
+  FileText, Layers
 } from 'lucide-react';
 import {
   getHyperFramesStatus,
@@ -72,6 +73,76 @@ const STYLE_EXTRAS = {
   }
 };
 
+// ── Style Metadata Map for Unique ID Generation ──
+const STYLE_SLUG_MAP = {
+  meme_pas: { slug: 'meme', dur: 45 },
+  tech_explainer: { slug: 'explainer', dur: 40 },
+  vs_battle: { slug: 'vs', dur: 25 },
+  pov_chat: { slug: 'pov-chat', dur: 28 },
+};
+
+// ── Pre-made Viral Scenarios for POV Chat Story (No-voiceover Style) ──
+const POV_CHAT_SCENARIOS = [
+  {
+    id: 'hot_room',
+    title: 'แฟนบ่นห้องร้อน แอร์เสียตอนเที่ยงวัน',
+    script: `แฟน: "เธอออ แอร์ห้องพัง ร้อนจนเหงื่อท่วมแล้วเนี่ยยย 🥵"
+ฉัน: "แป๊บนะ กำลังรีบกลับ! ซื้อพัดลมเทอร์โบตัวเด็ดมาให้แล้ว"
+แฟน: "พัดลมไร มันจะช่วยได้เหรอออ"
+ฉัน: "Hatari T16M1 ปรับลม 3 ระดับ มอเตอร์เทอร์โบ ลมพุ่งถึงใจ เงียบกริบ"
+แฟน: "เฮ้ยยย เย็นจริงงง รอดตายแล้ว ขอบคุณน้าาา 🥰"`
+  },
+  {
+    id: 'battery_low',
+    title: 'แบตหมดกลางห้างตอนจะสแกนจ่ายเงิน',
+    script: `ฉัน: "เธอ แบตจะหมดเหลือ 2% กำลังจะสแกนจ่ายค่าข้าว ทำไงดี 😱"
+แฟน: "ใจเย็น! ในกระเป๋ามีหัวชาร์จ Essager 65W หยิบไปเสียบปลั๊กร้านเลย"
+ฉัน: "เสียบแค่ 10 นาที แบตจะทันเหรอ"
+แฟน: "GaN III ชิปเทอร์โบ 10 นาทีได้เกิน 40% ลองเลย"
+ฉัน: "เห้ยจริงงง จ่ายเงินรอดแล้ว ตัวจิ๋วแต่แรงมากกก"`
+  },
+  {
+    id: 'cafe_outlet',
+    title: 'ทำงานคาเฟ่ แย่งปลั๊กกับโต๊ะข้างๆ',
+    script: `เพื่อน: "แก นั่งคาเฟ่นี้มีเต้ารับเดียว โน้ตบุ๊กกับมือถือจะดับทั้งคู่แล้ว 😭"
+ฉัน: "ไม่ต้องแย่งจ้า นี่เลย Essager 3 พอร์ต เสียบหัวเดียวจบ"
+เพื่อน: "ชาร์จพร้อมกันไฟไม่ดรอปเหรอแก"
+ฉัน: "33W Max กระจายไฟคู่ โน้ตบุ๊กทำงานต่อ มือถือชาร์จด่วนสบายๆ"
+เพื่อน: "ของดี ขอพิกัดด่วนนน"`
+  },
+  {
+    id: 'rush_charge',
+    title: 'ลืมชาร์จแบตก่อนออกจากบ้าน 15 นาที',
+    script: `ฉัน: "ซวยแล้ววว ลืมชาร์จแบต เหลือ 5% ต้องออกจากบ้านใน 15 นาที 🏃‍♂️"
+เพื่อน: "รีบเอาหัวชาร์จเร็วเสียบด่วนเลย ใช้รุ่นไหนอยู่"
+ฉัน: "เพิ่งได้ Essager GaN มา ชาร์จสปีดคู่"
+เพื่อน: "15 นาทีได้เกินครึ่งแน่นอน ทันนัดชัวร์"
+ฉัน: "โอ้โห สปีดพุ่งจริง ออกบ้านได้สบายใจแล้ววว"`
+  }
+];
+
+function generateUniqueClipId(productCode, styleId, existingCompositions = [], seed = 0) {
+  const p = (productCode || 'hat01').toLowerCase().trim();
+  const meta = STYLE_SLUG_MAP[styleId] || { slug: 'clip', dur: 30 };
+  const existingSet = new Set((existingCompositions || []).map((c) => (c.id || '').toLowerCase()));
+
+  const baseId = `${p}-${meta.slug}-${meta.dur}s`;
+
+  if (seed === 0 && !existingSet.has(baseId)) {
+    return baseId;
+  }
+
+  let version = seed > 0 ? seed + 1 : 2;
+  while (version < 100) {
+    const candidate = `${baseId}-v${version}`;
+    if (!existingSet.has(candidate)) {
+      return candidate;
+    }
+    version += 1;
+  }
+  return `${baseId}-${Date.now().toString().slice(-4)}`;
+}
+
 export default function HyperFramesHub({ onNavigateToGallery }) {
   const [activeTab, setActiveTab] = useState('styles'); // 'styles' | 'compositions' | 'create'
   const [status, setStatus] = useState(null);
@@ -86,8 +157,12 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
 
   // Form State for creating a new clip
   const [newClipId, setNewClipId] = useState('');
+  const [isManualClipId, setIsManualClipId] = useState(false);
+  const [clipSeed, setClipSeed] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('meme_pas');
+  const [selectedAngleId, setSelectedAngleId] = useState('');
+  const [selectedScenarioId, setSelectedScenarioId] = useState('');
   const [scriptText, setScriptText] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
@@ -106,12 +181,14 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
       ]);
       setStatus(statusRes);
       setStyles(Array.isArray(stylesRes) ? stylesRes : (stylesRes?.styles || []));
-      setCompositions(Array.isArray(compsRes) ? compsRes : (compsRes?.compositions || []));
+      const loadedComps = Array.isArray(compsRes) ? compsRes : (compsRes?.compositions || []);
+      setCompositions(loadedComps);
       const prodsList = Array.isArray(prodsRes) ? prodsRes : (prodsRes?.products || []);
       setProducts(prodsList);
+
       if (prodsList.length > 0 && !selectedProduct) {
         const first = prodsList[0];
-        const initialVal = (first.id || first.code || first.product_code || 'hat01').toLowerCase();
+        const initialVal = (first.product_code || first.id || first.code || 'hat01').toLowerCase();
         setSelectedProduct(initialVal);
       }
     } catch (err) {
@@ -126,6 +203,63 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
     loadData();
   }, [loadData]);
 
+  // Auto-generate unique clip ID whenever product/style changes or compositions load
+  useEffect(() => {
+    if (!isManualClipId && selectedProduct && selectedStyle) {
+      const generated = generateUniqueClipId(selectedProduct, selectedStyle, compositions, clipSeed);
+      setNewClipId(generated);
+    }
+  }, [selectedProduct, selectedStyle, compositions, clipSeed, isManualClipId]);
+
+  // Find active product object and its angles
+  const currentProductObj = useMemo(() => {
+    return products.find((p) => {
+      const code = (p.product_code || p.id || p.code || '').toLowerCase();
+      return code === selectedProduct.toLowerCase();
+    });
+  }, [products, selectedProduct]);
+
+  const availableAngles = useMemo(() => {
+    return Array.isArray(currentProductObj?.angles) ? currentProductObj.angles : [];
+  }, [currentProductObj]);
+
+  // Uniqueness check for current input
+  const isDuplicateId = useMemo(() => {
+    if (!newClipId.trim()) return false;
+    return compositions.some((c) => (c.id || '').toLowerCase() === newClipId.trim().toLowerCase());
+  }, [newClipId, compositions]);
+
+  const suggestedUniqueId = useMemo(() => {
+    return generateUniqueClipId(selectedProduct, selectedStyle, compositions, clipSeed + 1);
+  }, [selectedProduct, selectedStyle, compositions, clipSeed]);
+
+  const handleRegenerateId = () => {
+    const nextSeed = clipSeed + 1;
+    setClipSeed(nextSeed);
+    setIsManualClipId(false);
+    const regenerated = generateUniqueClipId(selectedProduct, selectedStyle, compositions, nextSeed);
+    setNewClipId(regenerated);
+  };
+
+  const handleSelectAngle = (angleId) => {
+    setSelectedAngleId(angleId);
+    if (!angleId) return;
+    const ang = availableAngles.find((a) => (a.angle_id || a.id) === angleId);
+    if (ang) {
+      const filledText = (ang.script_text || `${ang.hook_title || ''}\n${ang.key_features || ''}`).trim();
+      setScriptText(filledText);
+    }
+  };
+
+  const handleSelectScenario = (scenarioId) => {
+    setSelectedScenarioId(scenarioId);
+    if (!scenarioId) return;
+    const sc = POV_CHAT_SCENARIOS.find((s) => s.id === scenarioId);
+    if (sc) {
+      setScriptText(sc.script);
+    }
+  };
+
   const handleOpenStudio = () => {
     setActionSuccess('กำลังเปิด HyperFrames Studio ในแท็บใหม่...');
     openHyperFramesStudio(3002).catch(() => {});
@@ -135,7 +269,11 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
   const handleCreateClip = async (e) => {
     e.preventDefault();
     if (!newClipId.trim()) {
-      setActionError('กรุณาระบุรหัสคลิป (เช่น hat01-review-30s)');
+      setActionError('กรุณาระบุรหัสคลิป (เช่น hat01-meme-45s)');
+      return;
+    }
+    if (isDuplicateId) {
+      setActionError(`รหัสคลิป "${newClipId.trim()}" มีอยู่แล้วในคลัง กรุณากดสุ่มรหัสใหม่หรือเปลี่ยนเวอร์ชัน`);
       return;
     }
     try {
@@ -149,8 +287,10 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
         style: selectedStyle
       });
       setActionSuccess(`สร้างดราฟต์สำเร็จ: ${res.clip_id} เปิดแต่งต่อใน Compositions ได้ทันที`);
-      setNewClipId('');
+      setIsManualClipId(false);
       setScriptText('');
+      setSelectedAngleId('');
+      setSelectedScenarioId('');
       await loadData();
       setActiveTab('compositions');
     } catch (err) {
@@ -191,23 +331,23 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
       case 'tech_explainer': return <BarChart3 className="w-5 h-5 text-cyan-400" />;
       case 'vs_battle': return <Swords className="w-5 h-5 text-rose-400" />;
       case 'pov_chat': return <MessageSquare className="w-5 h-5 text-emerald-400" />;
-      default: return <Sparkles className="w-5 h-5 text-indigo-400" />;
+      default: return <Sparkles className="w-5 h-5 text-[#25F4EE]" />;
     }
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-950 text-slate-100 p-6 space-y-6">
-      {/* ── Header & Status Bar ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-5">
+    <div className="flex-1 overflow-y-auto bg-[#080B11] text-slate-100 p-6 space-y-6">
+      {/* ── Header & Status Bar (OmniCut Pro Studio Branding) ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/[0.08] pb-5">
         <div>
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500/20 to-rose-500/20 border border-indigo-500/30">
-              <Sparkles className="w-6 h-6 text-indigo-400" />
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#25F4EE]/10 to-[#FE2C55]/10 border border-[#25F4EE]/20 shadow-[0_0_15px_rgba(37,244,238,0.1)]">
+              <Sparkles className="w-6 h-6 text-[#25F4EE]" />
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                 HyperFrames Creative Studio
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-medium">
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#FE2C55]/10 text-[#FE2C55] border border-[#FE2C55]/20 font-medium">
                   Web-Animation 9:16
                 </span>
               </h1>
@@ -220,7 +360,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
 
         <div className="flex items-center gap-3">
           {/* Health Pill */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0D111A] border border-white/[0.08] text-xs text-slate-300">
             <span className={`w-2 h-2 rounded-full ${status?.ready ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
             <span>{status?.ready ? `Engine v${status.hyperframes_version} พร้อมใช้งาน` : 'กำลังตรวจสอบเอนจิน...'}</span>
           </div>
@@ -230,7 +370,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleOpenStudio}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FE2C55] to-rose-600 hover:brightness-110 text-white font-semibold text-sm transition-all shadow-md shadow-[#FE2C55]/20"
           >
             <ExternalLink className="w-4 h-4" />
             เปิด HyperFrames Studio
@@ -240,7 +380,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
             type="button"
             onClick={loadData}
             disabled={refreshing}
-            className="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition-colors"
+            className="p-2 rounded-lg bg-[#0D111A] border border-white/[0.08] hover:bg-white/[0.05] text-slate-300 transition-colors"
             title="รีเฟรชข้อมูล"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -264,15 +404,15 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
         </div>
       )}
 
-      {/* ── Tab Switcher ── */}
-      <div className="flex border-b border-slate-800 gap-2">
+      {/* ── Tab Switcher (Neon Cyan Active Accent) ── */}
+      <div className="flex border-b border-white/[0.08] gap-2">
         <button
           type="button"
           onClick={() => setActiveTab('styles')}
-          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 transition-all ${
             activeTab === 'styles'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-[#25F4EE] text-[#25F4EE] bg-[#25F4EE]/5 font-semibold'
+              : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
           <Flame className="w-4 h-4" />
@@ -282,10 +422,10 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
         <button
           type="button"
           onClick={() => setActiveTab('compositions')}
-          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 transition-all ${
             activeTab === 'compositions'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-[#25F4EE] text-[#25F4EE] bg-[#25F4EE]/5 font-semibold'
+              : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
           <Film className="w-4 h-4" />
@@ -295,10 +435,10 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
         <button
           type="button"
           onClick={() => setActiveTab('create')}
-          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 transition-all ${
             activeTab === 'create'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-[#25F4EE] text-[#25F4EE] bg-[#25F4EE]/5 font-semibold'
+              : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
           <Plus className="w-4 h-4" />
@@ -310,7 +450,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
       {activeTab === 'styles' && (
         <div className="space-y-5">
           {/* Channel Golden Rule Banner */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-indigo-950/40 border border-slate-800/90 text-sm text-slate-300 flex items-start gap-3 shadow-md">
+          <div className="p-4 rounded-xl bg-gradient-to-r from-[#0D111A] via-[#0D111A]/95 to-[#25F4EE]/5 border border-white/[0.08] text-sm text-slate-300 flex items-start gap-3 shadow-md">
             <span className="text-xl">⭐</span>
             <div>
               <span className="font-semibold text-white">กฎเหล็ก 4 สไตล์ไวรัลคุณภาพสูง:</span> ทุกสไตล์คราฟต์ภายใต้แนวคิด
@@ -324,7 +464,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
               const extras = STYLE_EXTRAS[st.id] || {
                 accentBorder: 'hover:border-slate-700',
                 accentShadow: '',
-                tagColor: 'bg-slate-800 text-slate-300 border-slate-700',
+                tagColor: 'bg-white/[0.05] text-slate-300 border-white/[0.1]',
                 audioDetail: st.has_voiceover ? 'มีเสียงพากย์ Fenrir (1.0)' : 'ดนตรีล้วน',
                 rhythm: []
               };
@@ -332,7 +472,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
               return (
                 <div
                   key={st.id}
-                  className={`p-5 rounded-2xl bg-slate-900/90 border border-slate-800/80 transition-all duration-300 flex flex-col sm:flex-row gap-5 shadow-lg group ${extras.accentBorder} ${extras.accentShadow}`}
+                  className={`p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] transition-all duration-300 flex flex-col sm:flex-row gap-5 shadow-lg group hover:border-[#25F4EE]/40 ${extras.accentShadow}`}
                 >
                   {/* Left Column: 9:16 Visual Poster Frame */}
                   <div className="w-full sm:w-44 md:w-48 shrink-0 flex flex-col items-center gap-2">
@@ -343,7 +483,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                     <button
                       type="button"
                       onClick={() => setSelectedStyleDetail(st)}
-                      className="text-[11px] text-slate-400 hover:text-indigo-300 font-medium transition-colors"
+                      className="text-[11px] text-slate-400 hover:text-[#25F4EE] font-medium transition-colors"
                     >
                       เปิดดูตัวอย่างและโครงสร้าง
                     </button>
@@ -355,7 +495,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                       {/* Header: Title + Badge */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2.5">
-                          <div className="p-2 rounded-lg bg-slate-800/90 border border-slate-700/60 shrink-0">
+                          <div className="p-2 rounded-lg bg-[#080B11] border border-white/[0.08] shrink-0">
                             {getStyleIcon(st.id)}
                           </div>
                           <div>
@@ -391,7 +531,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                       </div>
 
                       {/* Formula Detail Summary */}
-                      <div className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800/60 text-xs text-slate-300 leading-relaxed">
+                      <div className="p-2.5 rounded-lg bg-[#080B11]/70 border border-white/[0.06] text-xs text-slate-300 leading-relaxed">
                         {st.formula}
                       </div>
 
@@ -405,13 +545,13 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                         </div>
                         <div className="col-span-2 truncate">
                           <span className="text-slate-500">คลิปตัวอย่าง:</span>{' '}
-                          <span className="text-indigo-400 font-mono text-[11px]">{st.reference}</span>
+                          <span className="text-[#25F4EE] font-mono text-[11px]">{st.reference}</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Bottom Action Footer */}
-                    <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                    <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between gap-2">
                       <span className="text-xs text-emerald-400 font-medium truncate" title={st.pros}>
                         {st.pros}
                       </span>
@@ -419,7 +559,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                         <button
                           type="button"
                           onClick={() => setSelectedStyleDetail(st)}
-                          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-colors"
+                          className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-xs font-medium text-slate-300 border border-white/[0.08] transition-colors"
                         >
                           ดูรายละเอียด
                         </button>
@@ -429,7 +569,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                             setSelectedStyle(st.id);
                             setActiveTab('create');
                           }}
-                          className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow-sm transition-colors"
+                          className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 text-xs font-bold text-slate-950 shadow-sm transition-all"
                         >
                           เลือกใช้สไตล์นี้
                         </button>
@@ -455,7 +595,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={handleOpenStudio}
-              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium"
+              className="text-xs text-[#25F4EE] hover:brightness-125 flex items-center gap-1 font-medium transition-all"
             >
               เปิดหน้าต่าง HyperFrames Studio Live Preview ↗
             </a>
@@ -467,34 +607,34 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
               return (
                 <div
                   key={comp.id}
-                  className="p-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between space-y-4"
+                  className="p-4 rounded-xl bg-[#0D111A]/90 border border-white/[0.08] hover:border-[#25F4EE]/40 transition-all flex flex-col justify-between space-y-4 shadow-md"
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-semibold text-white text-sm truncate" title={comp.id}>
                         {comp.id}
                       </h3>
-                      <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+                      <span className="text-xs px-2 py-0.5 rounded bg-[#080B11] text-slate-300 font-mono border border-white/[0.08]">
                         {comp.duration}s
                       </span>
                     </div>
 
                     <p className="text-xs text-slate-400 truncate">
-                      สินค้า: <span className="text-slate-300 uppercase font-medium">{comp.product}</span>
+                      สินค้า: <span className="text-[#25F4EE] uppercase font-semibold">{comp.product}</span>
                     </p>
 
                     <div className="flex items-center gap-3 text-[11px] text-slate-500">
                       <span>อัปเดต: {comp.updated_at?.split('T')[0]}</span>
-                      {comp.has_vo && <span className="text-indigo-400">• มีเสียงพากย์</span>}
+                      {comp.has_vo && <span className="text-[#25F4EE]">• มีเสียงพากย์</span>}
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-800/80 flex items-center gap-2">
+                  <div className="pt-3 border-t border-white/[0.08] flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => handleRenderComposition(comp, false)}
                       disabled={isRendering}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-medium text-white transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 disabled:opacity-50 text-xs font-bold text-slate-950 transition-all shadow-sm"
                     >
                       {isRendering ? (
                         <>
@@ -513,10 +653,10 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                       type="button"
                       onClick={() => handleRenderComposition(comp, true)}
                       disabled={isRendering}
-                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-xs text-slate-300 transition-colors"
+                      className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] disabled:opacity-50 text-xs text-slate-300 transition-colors"
                       title="เรนเดอร์ทดสอบลง .tmp/"
                     >
-                      เทส
+                      เรนเดอร์ทดสอบ
                     </button>
                   </div>
                 </div>
@@ -528,127 +668,314 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
 
       {/* ── Content: Tab 3 (Create New Clip Draft) ── */}
       {activeTab === 'create' && (
-        <div className="max-w-2xl bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-6">
-          <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Plus className="w-5 h-5 text-indigo-400" />
-              สร้างดราฟต์คลิป HyperFrames ใหม่
-            </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              ระบบจะเชื่อมต่อ Faster-Whisper สกัด Timestamps คำต่อคำ และสร้างไฟล์โครงสร้าง Composition พร้อมโมชั่นอัตโนมัติ
-            </p>
+        <div className="max-w-3xl space-y-5">
+          {/* ── AI Multi-Agent Workflow Explainer Card ── */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0D111A] via-[#080B11] to-[#25F4EE]/5 border border-white/[0.08] space-y-3 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-[#25F4EE]" />
+                <span className="text-xs font-bold text-white tracking-wide uppercase">
+                  ขั้นตอน AI Pipeline หลังกดสร้างดราฟต์
+                </span>
+              </div>
+              <span className="text-[11px] text-[#25F4EE] font-mono font-medium">
+                Autonomous 3-Step Flow
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              {/* Step 1: Faster-Whisper */}
+              <div className="p-3 rounded-xl bg-[#080B11]/80 border border-white/[0.06] space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 flex items-center justify-center font-bold text-[10px]">
+                    1
+                  </span>
+                  <span className="font-semibold text-white">Faster-Whisper</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  สกัด Audio Timestamps คำต่อคำภาษาไทย สร้างไฟล์ Composition HTML พร้อมคีย์เฟรมคำพูดทันที
+                </p>
+              </div>
+
+              {/* Step 2: Creative AI Agent */}
+              <div className="p-3 rounded-xl bg-[#080B11]/80 border border-[#25F4EE]/30 space-y-1 shadow-[0_0_12px_rgba(37,244,238,0.06)]">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-[#25F4EE] text-slate-950 flex items-center justify-center font-bold text-[10px]">
+                    2
+                  </span>
+                  <span className="font-semibold text-[#25F4EE]">Creative AI Agent</span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  ให้ AI (Antigravity/Claude) เขียนแต่ง CSS โมชั่น หรือกด <kbd className="px-1 py-0.5 rounded bg-white/10 text-white font-mono text-[10px]">⌘K</kbd> ใน Studio จัดเลย์เอาต์สด
+                </p>
+              </div>
+
+              {/* Step 3: Chrome Headless Renderer */}
+              <div className="p-3 rounded-xl bg-[#080B11]/80 border border-white/[0.06] space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-[#FE2C55]/10 text-[#FE2C55] border border-[#FE2C55]/30 flex items-center justify-center font-bold text-[10px]">
+                    3
+                  </span>
+                  <span className="font-semibold text-white">Chrome Headless</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  กดเรนเดอร์ MP4 60FPS Zero-Drift ส่งออกวิดีโอ 1080x1920 ลง Ready_to_post อัตโนมัติ
+                </p>
+              </div>
+            </div>
           </div>
 
-          <form onSubmit={handleCreateClip} className="space-y-4">
+          {/* ── Form Card ── */}
+          <div className="bg-[#0D111A]/90 border border-white/[0.08] p-6 rounded-2xl space-y-6 shadow-xl">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                รหัสคลิป (Clip ID) *
-              </label>
-              <input
-                type="text"
-                value={newClipId}
-                onChange={(e) => setNewClipId(e.target.value)}
-                placeholder="เช่น hat01-review-30s หรือ ess02-trick-21s"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:border-indigo-500 focus:outline-none"
-                required
-              />
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Plus className="w-5 h-5 text-[#25F4EE]" />
+                สร้างดราฟต์คลิป HyperFrames ใหม่
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                ระบบจะสร้างรหัสคลิปที่ไม่ซ้ำให้อัตโนมัติ พร้อมดึงบทสคริปต์จาก Angle ของสินค้าและเตรียมโครงสร้างเว็บอนิเมชันให้พร้อมแต่ง
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form onSubmit={handleCreateClip} className="space-y-4">
+              {/* Clip ID Auto Generator Field */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  สินค้าเป้าหมาย *
-                </label>
-                <select
-                  value={selectedProduct}
-                  onChange={(e) => setSelectedProduct(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value="hat01">HAT01 (Hatari T16M1)</option>
-                  <option value="ess02">ESS02 (Essager 30W/65W)</option>
-                  <option value="goc01">GOC01 (Gocomma Fan)</option>
-                  {(Array.isArray(products) ? products : []).map((p) => {
-                    const code = (p.id || p.code || p.product_code || '').toLowerCase();
-                    if (!code || ['hat01', 'ess02', 'goc01'].includes(code)) return null;
-                    const displayName = p.name || p.title || p.product_name || code.toUpperCase();
-                    return (
-                      <option key={p.id || p.code || code} value={code}>
-                        {code.toUpperCase()} ({displayName})
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-slate-300">
+                    รหัสคลิป (Clip ID) *
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {/* Uniqueness Status Pill */}
+                    {newClipId.trim() && (
+                      isDuplicateId ? (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 font-medium flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          รหัสซ้ำ มีในคลังแล้ว
+                        </span>
+                      ) : (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-medium flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          รหัสไม่ซ้ำ พร้อมใช้งาน
+                        </span>
+                      )
+                    )}
 
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  สไตล์ที่ต้องการ
-                </label>
-                <select
-                  value={selectedStyle}
-                  onChange={(e) => setSelectedStyle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value="meme_pas">Meme-PAS (รีวิวสายมีม)</option>
-                  <option value="tech_explainer">Tech Explainer (สาย Vox)</option>
-                  <option value="vs_battle">VS Battle (สายเกมต่อสู้)</option>
-                  <option value="pov_chat">POV Chat Story (ไม่มีเสียงพากย์)</option>
-                </select>
-              </div>
-            </div>
+                    <button
+                      type="button"
+                      onClick={handleRegenerateId}
+                      className="text-[11px] px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-[#25F4EE] border border-white/[0.08] transition-colors flex items-center gap-1"
+                      title="สุ่มรหัสใหม่ที่ไม่ซ้ำ"
+                    >
+                      <Shuffle className="w-3 h-3" />
+                      สุ่มรหัสใหม่
+                    </button>
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                บทสคริปต์ (Script Prompt สำหรับ Whisper)
-              </label>
-              <textarea
-                value={scriptText}
-                onChange={(e) => setScriptText(e.target.value)}
-                placeholder="วางบทสคริปต์ภาษาไทยที่นี่ เพื่อช่วยให้ Whisper สะกดคำไทยและคำเฉพาะได้อย่างแม่นยำ 100%..."
-                rows={4}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:border-indigo-500 focus:outline-none resize-none"
-              />
-            </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={newClipId}
+                    onChange={(e) => {
+                      setNewClipId(e.target.value);
+                      setIsManualClipId(true);
+                    }}
+                    placeholder="เช่น hat01-meme-45s หรือ ess02-vs-25s-v2"
+                    className={`w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border text-slate-100 text-sm focus:outline-none transition-colors font-mono ${
+                      isDuplicateId
+                        ? 'border-rose-500/80 focus:border-rose-500'
+                        : 'border-white/[0.1] focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/40'
+                    }`}
+                    required
+                  />
+                </div>
 
-            <div className="pt-2 flex justify-end">
-              <button
-                type="submit"
-                disabled={isCreating}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm transition-colors shadow-sm"
-              >
-                {isCreating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    กำลังประมวลผล Whisper...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    สร้างดราฟต์คลิป
-                  </>
+                {isDuplicateId && (
+                  <p className="text-xs text-rose-400 mt-1.5 flex items-center gap-1.5">
+                    <span>รหัสนี้ถูกใช้งานแล้วในสตูดิโอ</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewClipId(suggestedUniqueId);
+                        setIsManualClipId(false);
+                      }}
+                      className="text-[#25F4EE] underline hover:no-underline font-mono"
+                    >
+                      คลิกเพื่อเปลี่ยนเป็น {suggestedUniqueId}
+                    </button>
+                  </p>
                 )}
-              </button>
-            </div>
-          </form>
+              </div>
+
+              {/* Product and Style Selectors */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                    สินค้าเป้าหมาย *
+                  </label>
+                  <select
+                    value={selectedProduct}
+                    onChange={(e) => {
+                      setSelectedProduct(e.target.value);
+                      setIsManualClipId(false);
+                      setSelectedAngleId('');
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-sm focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/40 focus:outline-none"
+                  >
+                    <option value="hat01">HAT01 (Hatari T16M1 พัดลมตั้งโต๊ะ)</option>
+                    <option value="ess02">ESS02 (Essager 30W/65W หัวชาร์จ GaN)</option>
+                    <option value="goc01">GOC01 (Gocomma Fan)</option>
+                    {(Array.isArray(products) ? products : []).map((p) => {
+                      const code = (p.product_code || p.id || p.code || '').toLowerCase();
+                      if (!code || ['hat01', 'ess02', 'goc01'].includes(code)) return null;
+                      const displayName = p.name || p.title || p.product_name || code.toUpperCase();
+                      return (
+                        <option key={p.id || p.code || code} value={code}>
+                          {code.toUpperCase()} ({displayName})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                    สไตล์ที่ต้องการ
+                  </label>
+                  <select
+                    value={selectedStyle}
+                    onChange={(e) => {
+                      setSelectedStyle(e.target.value);
+                      setIsManualClipId(false);
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-sm focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/40 focus:outline-none"
+                  >
+                    <option value="meme_pas">Meme-PAS (รีวิวสายมีม 45s)</option>
+                    <option value="tech_explainer">Tech Explainer (สาย Vox เจาะลึก 40s)</option>
+                    <option value="vs_battle">VS Battle (สายเกมต่อสู้ 25s)</option>
+                    <option value="pov_chat">POV Chat Story (ไม่มีเสียงพากย์ 28s)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* ── Script Sourcing Tools: Product Angles & LINE Scenarios ── */}
+              <div className="p-3.5 rounded-xl bg-[#080B11]/90 border border-white/[0.08] space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#25F4EE] flex items-center gap-1.5">
+                    <Wand2 className="w-3.5 h-3.5" />
+                    แหล่งที่มาบทสคริปต์ (Script Sourcing)
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {selectedStyle === 'pov_chat'
+                      ? 'มี 4 พรีเซ็ตบทแชท LINE ไวรัล'
+                      : availableAngles.length > 0
+                        ? `พบคลังบท Angle สินค้านี้ ${availableAngles.length} บท`
+                        : 'พิมพ์บทเองหรือใช้บทดั้งเดิม'}
+                  </span>
+                </div>
+
+                {selectedStyle === 'pov_chat' ? (
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">
+                      เลือกบทแชท LINE สำเร็จรูปสำหรับ POV Chat Story
+                    </label>
+                    <select
+                      value={selectedScenarioId}
+                      onChange={(e) => handleSelectScenario(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-[#0D111A] border border-white/[0.1] text-xs text-slate-200 focus:border-[#25F4EE] focus:outline-none"
+                    >
+                      <option value="">-- เลือก Scenario บทแชท LINE เพื่อกรอกลงช่องข้อความ --</option>
+                      {POV_CHAT_SCENARIOS.map((sc) => (
+                        <option key={sc.id} value={sc.id}>
+                          💬 {sc.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">
+                      ดึงบทสคริปต์จาก Angle ของสินค้า (ProductStore)
+                    </label>
+                    <select
+                      value={selectedAngleId}
+                      onChange={(e) => handleSelectAngle(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-[#0D111A] border border-white/[0.1] text-xs text-slate-200 focus:border-[#25F4EE] focus:outline-none"
+                    >
+                      <option value="">
+                        {availableAngles.length > 0
+                          ? `-- เลือก Angle ของสินค้าเพื่อดึงบทสคริปต์ (${availableAngles.length} บท) --`
+                          : '-- ไม่พบบท Angle ที่บันทึกไว้สำหรับสินค้านี้ --'}
+                      </option>
+                      {availableAngles.map((ang, idx) => {
+                        const angId = ang.angle_id || ang.id || `ang-${idx}`;
+                        const name = ang.angle_name || `Angle ${idx + 1}`;
+                        const hook = ang.hook_title ? ` (${ang.hook_title.slice(0, 32)}...)` : '';
+                        return (
+                          <option key={angId} value={angId}>
+                            🎯 {name}{hook}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Script Textarea */}
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  บทสคริปต์ (Script Prompt สำหรับ Whisper และจัดไทม์ไลน์)
+                </label>
+                <textarea
+                  value={scriptText}
+                  onChange={(e) => setScriptText(e.target.value)}
+                  placeholder="วางบทสคริปต์ภาษาไทยที่นี่ เพื่อช่วยให้ Whisper สะกดคำไทยและคำเฉพาะได้อย่างแม่นยำ 100%..."
+                  rows={4}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-sm focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/40 focus:outline-none resize-none leading-relaxed"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isCreating || isDuplicateId}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 disabled:opacity-50 text-slate-950 font-bold text-sm transition-all shadow-md shadow-[#25F4EE]/20 cursor-pointer"
+                >
+                  {isCreating ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      กำลังประมวลผล Whisper...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      สร้างดราฟต์คลิป
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
       {/* ── Style Detail & Breakdown Modal ── */}
       {selectedStyleDetail && (() => {
         const modalExtras = STYLE_EXTRAS[selectedStyleDetail.id] || {
-          tagColor: 'bg-slate-800 text-slate-300 border-slate-700',
+          tagColor: 'bg-white/[0.05] text-slate-300 border-white/[0.1]',
           audioDetail: selectedStyleDetail.has_voiceover ? 'มีเสียงพากย์ Fenrir (1.0)' : 'ดนตรีล้วน',
           rhythm: []
         };
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
-            <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl p-6 flex flex-col md:flex-row gap-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+            <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[#0D111A] border border-white/[0.12] shadow-2xl p-6 flex flex-col md:flex-row gap-6">
               {/* Close Button */}
               <button
                 type="button"
                 onClick={() => setSelectedStyleDetail(null)}
-                className="absolute top-4 right-4 p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                className="absolute top-4 right-4 p-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white transition-colors border border-white/[0.08]"
                 title="ปิดหน้าต่าง"
               >
                 <X className="w-5 h-5" />
@@ -686,10 +1013,10 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                   {/* Beat-by-Beat Timeline Breakdown */}
                   <div className="space-y-2">
                     <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                      <Clock className="w-3.5 h-3.5 text-[#25F4EE]" />
                       สูตรจังหวะการตัดไทม์ไลน์ (Rhythm Blueprint):
                     </h4>
-                    <div className="space-y-1.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                    <div className="space-y-1.5 bg-[#080B11]/80 p-3 rounded-xl border border-white/[0.06]">
                       {modalExtras.rhythm.map((step, idx) => (
                         <div key={idx} className="flex items-start gap-2.5 text-xs">
                           <span className={`px-2 py-0.5 rounded font-mono font-medium text-[11px] shrink-0 border ${step.color}`}>
@@ -709,13 +1036,13 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                     <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
                       แนวทางการเล่าเรื่อง (Narrative Formula):
                     </h4>
-                    <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded-xl border border-slate-800/60">
+                    <p className="text-xs text-slate-300 leading-relaxed bg-[#080B11]/50 p-3 rounded-xl border border-white/[0.06]">
                       {selectedStyleDetail.formula}
                     </p>
                   </div>
 
                   {/* Technical DNA & Guidelines */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-slate-950/40 p-3 rounded-xl border border-slate-800/60">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-[#080B11]/50 p-3 rounded-xl border border-white/[0.06]">
                     <div>
                       <span className="text-slate-500 block mb-0.5">ความยาวที่แนะนำ:</span>
                       <span className="font-semibold text-white font-mono">
@@ -724,7 +1051,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                     </div>
                     <div>
                       <span className="text-slate-500 block mb-0.5">ระบบเสียง & พากย์:</span>
-                      <span className="font-semibold text-indigo-300">
+                      <span className="font-semibold text-[#25F4EE]">
                         {modalExtras.audioDetail}
                       </span>
                     </div>
@@ -738,7 +1065,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                 </div>
 
                 {/* Modal Footer Actions */}
-                <div className="pt-4 border-t border-slate-800/80 flex items-center gap-3">
+                <div className="pt-4 border-t border-white/[0.08] flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -746,14 +1073,14 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                       setSelectedStyleDetail(null);
                       setActiveTab('create');
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors shadow-md text-center"
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 text-slate-950 font-bold text-sm transition-all shadow-md shadow-[#25F4EE]/20 text-center"
                   >
                     เลือกใช้สไตล์นี้เพื่อเริ่มดราฟต์
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedStyleDetail(null)}
-                    className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-sm transition-colors"
+                    className="px-5 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 font-medium text-sm border border-white/[0.08] transition-colors"
                   >
                     ปิดหน้าต่าง
                   </button>

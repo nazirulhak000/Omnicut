@@ -1,17 +1,9 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
-- [ ] Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010 · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+- [x] Round HYPERFRAMES-HUB-THEME-AND-SMART-CREATOR-20261010 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) (ดูรายละเอียดใน HISTORY.md)
+- [x] Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดูรายละเอียดใน HISTORY.md)
 - [x] Round HYPERFRAMES-STYLES-SHOWCASE-REDESIGN-20261010 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) (ดูรายละเอียดใน HISTORY.md)
 - [x] Round HYPERFRAMES-POV-CHAT-LINE-UI-20261010 (รอเจ้าของช่องยืนยันก่อนย้ายเข้า HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
 
-## Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010
-ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
-สถานะ: กำลังดำเนินการ
-เป้าหมาย: ตรวจสอบความเรียบร้อยและแก้ไขปัญหาคลิป/พรีวิวเปิดดูไม่ได้ใน HyperFrames Studio
-- [ ] เปลี่ยนนามสกุลไฟล์เทมเพลตดิบ `clips/ess02-hype-25s/template.html` และ `kit/index.template.html` ให้เป็น `.tpl` เพื่อป้องกัน Studio สแกนเจอแล้วพังด้วย SyntaxError Unexpected token '{'
-- [ ] อัปเดต `clips/ess02-hype-25s/make.py` และ `kit/hf_timing.py` ให้ชี้ไปที่ไฟล์ `.tpl`
-- [ ] เพิ่ม `@font-face` ประกาศฟอนต์ Anuphan ใน `kit/line-chat.css` ให้ครบถ้วนตามสัญญา HyperFrames
-- [ ] รัน `hyperframes check` และทดสอบเปิดพรีวิวทั้ง 10 Compositions ใน Studio ให้โหลดผ่านฉลุย ไร้ Error modal 100%
-- [ ] ทดสอบความเข้ากันได้กับ OmniCut Pro Studio (เมนู 3.1 Creative Studio)
 
 ## Round HYPERFRAMES-POV-CHAT-LINE-UI-20261010
 ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
@@ -25,6 +17,7 @@ Notes: ลายน้ำอยู่ใน kit.css ที่ทุกคลิ�
 - [x] POV Chat v2 เจ้าของช่องอนุมัติ "ดีมาก" · จดลง STYLE.md แล้ว
 - [x] VS Battle (`ess02-vs-25s`): crop+deskew Essager (`hero_cutout_straight.png`), วางตรง/สูงเท่ากัน/กลางฝั่ง, เอา drop-shadow ดำออก, spotlight+เงาพื้น, พื้นหลังสว่างขึ้น, เอฟเฟกต์เบาๆ (burst, P1 ซีด, bob, หลอดมีขีด), บรรทัดความแฟร์ + เครดิต CC BY-SA · `hyperframes check` Layout 0 error
 - [x] ช็อตปิด VS หม่น: `.scrim.top` ทับสินค้า → scrim เฉพาะหัวข้อ + ขอบดำให้ข้อความ/ลูกศร (ความสว่างบริเวณสินค้า 44 → 92.6)
+- [x] วิเคราะห์ HyperFrames Catalog 392 ชิ้น → `_Docs/Reports/HYPERFRAMES_CATALOG_PICKS_20261010.md` (Tier A/B/C) · ยังไม่ติดตั้ง/ทดสอบไทยจริง
 - [ ] รอเจ้าของช่องตัดสิน: ยก 3 "ระบบป้องกันไฟเกิน" ในเสียงพากย์ (บอกเป็นนัยว่าของแถมไม่ปลอดภัย) — ต้องเขียนบทใหม่ + สร้าง TTS ใหม่ ยังไม่แตะ
 
 - [x] Round HYPERFRAMES-HYBRID-INTEGRATION-20261010 — ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) (ดูรายละเอียดใน HISTORY.md)
