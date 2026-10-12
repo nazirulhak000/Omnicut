@@ -20,6 +20,9 @@ def isolated_files(tmp_path, monkeypatch):
     monkeypatch.setattr(tap, 'POSTED_DIR', tmp_path / '04_Exports' / 'Posted')
     monkeypatch.setattr(tap, 'COVERS_DIR', covers)
     monkeypatch.setattr(tap, '_pending', None)
+    from scripts import export_registry
+    monkeypatch.setattr(export_registry, 'BASE_DIR', tmp_path)
+    monkeypatch.setattr(export_registry, 'REGISTRY_PATH', tmp_path / '_Docs' / 'export_registry.json')
     monkeypatch.setattr(media, 'BASE_DIR', tmp_path)
     monkeypatch.setattr(media, 'COVERS_DIR', covers)
 
@@ -119,7 +122,7 @@ def test_prepare_resolves_product_cover_when_request_path_is_missing(tmp_path, m
     video.write_bytes(b'fixture')
     cover = tap.COVERS_DIR / 'Logitech Wave Keys_cover_3x4.jpg'
     cover.write_bytes(b'cover')
-    monkeypatch.setattr(tap.ProductStore, 'get_all', lambda: [{
+    monkeypatch.setattr(tap.ProductStore, 'get_all', lambda **kwargs: [{
         'id': 'product-1',
         'name': 'Logitech Wave Keys',
         'angles': [],
@@ -141,7 +144,7 @@ def test_pending_repairs_missing_cover_before_extension_reads_it(tmp_path, monke
     video.write_bytes(b'fixture')
     cover = tap.COVERS_DIR / 'Logitech Wave Keys_cover_3x4.jpg'
     cover.write_bytes(b'cover')
-    monkeypatch.setattr(tap.ProductStore, 'get_all', lambda: [{
+    monkeypatch.setattr(tap.ProductStore, 'get_all', lambda **kwargs: [{
         'id': 'product-1',
         'name': 'Logitech Wave Keys',
         'angles': [],
@@ -200,7 +203,7 @@ def test_list_exports_prefers_project_named_cover_over_product_fallback(tmp_path
     monkeypatch.setattr(exports_api, 'COVERS_DIR', covers)
     monkeypatch.setattr(media, 'BASE_DIR', tmp_path)
     monkeypatch.setattr(media, 'COVERS_DIR', covers)
-    monkeypatch.setattr(exports_api.ProductStore, 'get_all', lambda: [{
+    monkeypatch.setattr(exports_api.ProductStore, 'get_all', lambda **kwargs: [{
         'id': 'product-1',
         'name': 'Logitech Wave Keys',
         'angles': [{
@@ -236,7 +239,7 @@ def test_list_exports_promotes_3x4_cover_and_keeps_9x16_fallback(tmp_path, monke
     monkeypatch.setattr(exports_api, 'COVERS_DIR', covers)
     monkeypatch.setattr(media, 'BASE_DIR', tmp_path)
     monkeypatch.setattr(media, 'COVERS_DIR', covers)
-    monkeypatch.setattr(exports_api.ProductStore, 'get_all', lambda: [{
+    monkeypatch.setattr(exports_api.ProductStore, 'get_all', lambda **kwargs: [{
         'id': 'product-1',
         'name': 'Logitech Wave Keys',
         'angles': [{
@@ -271,7 +274,11 @@ def test_prepare_and_get_pending_with_schedule_time(tmp_path, monkeypatch):
             "schedule_time": "12:30",
         })
         assert res.status_code == 200
-        assert res.json() == {"success": True, "cover_path": None}
+        assert res.json()['success'] is True
+        assert res.json()['cover_path'] is None
+        assert res.json()['job_id']
+        assert res.json()['channel_id'] == 'main'
+        assert res.json()['protocol_version'] == 2
 
         # Check pending
         pending_res = client.get("/api/tiktok-autopost/pending")
@@ -282,7 +289,7 @@ def test_prepare_and_get_pending_with_schedule_time(tmp_path, monkeypatch):
         assert data["tiktok_product_id"] == "1737088044189583209"
 
         # Clear pending
-        clear_res = client.post("/api/tiktok-autopost/clear")
+        clear_res = client.post("/api/tiktok-autopost/clear", json={"job_id": res.json()["job_id"]})
         assert clear_res.status_code == 200
 
         # Should now be 404

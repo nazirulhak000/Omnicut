@@ -16,7 +16,7 @@ from pathlib import Path
 from collections.abc import Mapping
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
 from pydantic import BaseModel
 
 from scripts.ai_bridge import AIBridge, ManualModeRequired
@@ -29,6 +29,9 @@ from scripts.product_store import STATUSES, ProductStore
 from scripts.product_scraper import _build_safe_image_opener, _validate_public_http_url
 from scripts.config import BASE_DIR, COVERS_DIR, STICKERS_DIR
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest, project_revision
+from scripts.channel_scope import ChannelScope
+from scripts.channel_store import ChannelError
+from scripts.channel_workflows import get_workflow_scope, get_writable_workflow_scope, require_project_owner, api_store_kwargs, capture_job_scope
 from scripts.voice_cut_map import (
     VoiceEditError,
     effective_duration,
@@ -182,17 +185,17 @@ def get_hook_motion_presets():
 # Post log
 # ----------------------------------------------------------------------
 @router.get("/posts")
-def get_posts():
+def get_posts(channel_scope: ChannelScope = Depends(get_workflow_scope)):
     return {
-        "posts": PostLog.list_posts(),
-        "summary": PostLog.summary(),
-        "pending_metrics": PostLog.pending_metrics(),
+        "posts": PostLog.list_posts(channel_id=channel_scope.channel_id),
+        "summary": PostLog.summary(channel_id=channel_scope.channel_id),
+        "pending_metrics": PostLog.pending_metrics(channel_id=channel_scope.channel_id),
         "metric_fields": list(METRIC_FIELDS),
     }
 
 
 @router.post("/posts")
-def create_post(req: PostCreateRequest):
+def create_post(req: PostCreateRequest, channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     """Record that a clip went live."""
     if not req.product_name.strip():
         raise HTTPException(status_code=400, detail="ต้องระบุชื่อสินค้า")
@@ -209,24 +212,24 @@ def create_post(req: PostCreateRequest):
         hook=req.hook,
         caption=req.caption,
         hashtags=req.hashtags,
-    )
-    return {"success": True, "post": post, "summary": PostLog.summary()}
+     channel_id=channel_scope.channel_id)
+    return {"success": True, "post": post, "summary": PostLog.summary(channel_id=channel_scope.channel_id)}
 
 
 @router.post("/posts/{post_id}/metrics")
-def set_metrics(post_id: str, req: MetricsRequest):
+def set_metrics(post_id: str, req: MetricsRequest, channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     """Fill in the 48-hour numbers."""
     try:
-        post = PostLog.update_metrics(post_id, req.model_dump(exclude_none=True))
+        post = PostLog.update_metrics(post_id, req.model_dump(exclude_none=True), channel_id=channel_scope.channel_id)
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
-    return {"success": True, "post": post, "summary": PostLog.summary()}
+    return {"success": True, "post": post, "summary": PostLog.summary(channel_id=channel_scope.channel_id)}
 
 
 @router.get("/posts/performance")
-def get_performance():
+def get_performance(channel_scope: ChannelScope = Depends(get_workflow_scope)):
     """Which angles actually earn — empty until metrics have been filled in."""
-    return {"by_angle": PostLog.angle_performance(), "summary": PostLog.summary()}
+    return {"by_angle": PostLog.angle_performance(channel_id=channel_scope.channel_id), "summary": PostLog.summary(channel_id=channel_scope.channel_id)}
 
 
 # ----------------------------------------------------------------------
@@ -462,25 +465,25 @@ def fetch_product(req: ProductFetchRequest):
 
 
 @router.get("/products")
-def list_products(status: Optional[str] = None):
+def list_products(status: Optional[str] = None, channel_scope: ChannelScope = Depends(get_workflow_scope)):
     if status and status not in STATUSES:
         raise HTTPException(status_code=400, detail=f"status ต้องเป็นหนึ่งใน {', '.join(STATUSES)}")
-    products = [_with_product_source_fallback(product) for product in ProductStore.list(status)]
+    products = [_with_product_source_fallback(product) for product in ProductStore.list(status, channel_id=channel_scope.channel_id)]
     products = _hydrate_product_covers(products)
-    return {"products": products, "summary": ProductStore.summary()}
+    return {"products": products, "summary": ProductStore.summary(channel_id=channel_scope.channel_id)}
 
 
 @router.post("/products")
-def create_product(req: ProductCreateRequest):
+def create_product(req: ProductCreateRequest, channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     try:
-        product = ProductStore.add(**req.model_dump())
+        product = ProductStore.add(**req.model_dump(), channel_id=channel_scope.channel_id)
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
     return {"success": True, "product": product}
 
 
 @router.patch("/products/{product_id}")
-def update_product(product_id: str, req: ProductUpdateRequest):
+def update_product(product_id: str, req: ProductUpdateRequest, channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     if req.url:
         parsed_url = urllib.parse.urlparse(req.url.strip())
         hostname = (parsed_url.hostname or "").lower().rstrip(".")
@@ -491,16 +494,16 @@ def update_product(product_id: str, req: ProductUpdateRequest):
         ):
             raise HTTPException(status_code=400, detail="URL สินค้าต้องเป็นลิงก์ http(s) จาก TikTok หรือ Shopee")
     try:
-        product = ProductStore.update(product_id, **req.model_dump(exclude_none=True))
+        product = ProductStore.update(product_id, **req.model_dump(exclude_none=True), channel_id=channel_scope.channel_id)
     except ValueError as err:
         raise HTTPException(status_code=404, detail=str(err))
     return {"success": True, "product": product}
 
 
 @router.delete("/products/{product_id}")
-def delete_product(product_id: str, force: bool = False):
+def delete_product(product_id: str, force: bool = False, channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     try:
-        ProductStore.delete(product_id, force=force)
+        ProductStore.delete(product_id, force=force, channel_id=channel_scope.channel_id)
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
     return {"success": True}
@@ -574,11 +577,11 @@ REROLL_COST = {
 
 
 @router.get("/projects")
-def list_projects():
-    return {"projects": ProjectManifest.list_projects()}
+def list_projects(channel_scope: ChannelScope = Depends(get_workflow_scope)):
+    return {"projects": ProjectManifest.list_projects(**api_store_kwargs(channel_scope))}
 
 
-def _project_origin(project_name: str):
+def _project_origin(project_name: str, channel_scope: ChannelScope):
     """The product and angle a project was rendered from, if they still exist."""
     manifest = ProjectManifest.load(project_name)
     params = (manifest or {}).get("render_params") or {}
@@ -592,19 +595,20 @@ def _project_origin(project_name: str):
         project_name,
         product_id=product_id,
         angle_id=angle_id,
-    )
+     channel_id=channel_scope.channel_id)
     return manifest, product, angle
 
 
 @router.get("/projects/{project_name}/origin")
-def project_origin(project_name: str):
+def project_origin(project_name: str, channel_scope: ChannelScope = Depends(get_workflow_scope)):
     """
     What else deleting this project could take with it, so the UI can name it
     instead of guessing. A project rendered before the product link was
     recorded can usually still be traced by product name, but its exact angle
     often cannot -- say so rather than removing the wrong script.
     """
-    manifest, product, angle = _project_origin(project_name)
+    require_project_owner(channel_scope, project_name)
+    manifest, product, angle = _project_origin(project_name, channel_scope)
     if not manifest:
         raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
     return {
@@ -626,7 +630,7 @@ def project_origin(project_name: str):
 
 
 @router.delete("/projects/{project_name}")
-def delete_project(project_name: str, scope: str = "project"):
+def delete_project(project_name: str, scope: str = "project", channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     """
     Delete a project folder for good.
 
@@ -636,6 +640,7 @@ def delete_project(project_name: str, scope: str = "project"):
     untouched -- deleting the project you edited must not remove the video you
     already posted.
     """
+    require_project_owner(channel_scope, project_name, writable=True)
     if render_jobs.is_busy():
         raise HTTPException(
             status_code=409,
@@ -650,7 +655,7 @@ def delete_project(project_name: str, scope: str = "project"):
     # filename/project_name alone risks touching an unrelated angle that
     # happens to share the same stem.
     extra: Dict[str, Any] = {}
-    _, origin_product, origin_angle = _project_origin(project_name)
+    _, origin_product, origin_angle = _project_origin(project_name, channel_scope)
     if scope in ("angle", "product"):
         product, angle = origin_product, origin_angle
         if not product:
@@ -669,7 +674,7 @@ def delete_project(project_name: str, scope: str = "project"):
                     status_code=400,
                     detail="ไม่อนุญาตให้ลบมุมที่โพสต์แล้ว เนื่องจากต้องเก็บไว้เป็นหลักฐาน (สามารถเลือกลบเฉพาะโปรเจกต์ตัดต่อเพื่อคืนพื้นที่ดิสก์ได้)",
                 )
-            extra = ProductStore.remove_angle(product["id"], angle["angle_id"], batch=angle.get("batch"))
+            extra = ProductStore.remove_angle(product["id"], angle["angle_id"], batch=angle.get("batch"), channel_id=channel_scope.channel_id)
         else:
             posted_angles = [a for a in product.get("angles", []) if a.get("status") == "posted" or a.get("posted_at")]
             if posted_angles:
@@ -677,7 +682,7 @@ def delete_project(project_name: str, scope: str = "project"):
                     status_code=400,
                     detail=f"ไม่อนุญาตให้ลบสินค้า '{product.get('name')}' เนื่องจากมีคลิปที่โพสต์แล้ว {len(posted_angles)} มุม (ต้องเก็บไว้เป็นหลักฐาน)",
                 )
-            ProductStore.delete(product["id"])
+            ProductStore.delete(product["id"], channel_id=channel_scope.channel_id)
             extra = {"product_removed": product["id"], "angles_removed": len(product.get("angles") or [])}
 
     try:
@@ -685,7 +690,7 @@ def delete_project(project_name: str, scope: str = "project"):
             project_name,
             product_id=(origin_product or {}).get("id") or "",
             angle_id=(origin_angle or {}).get("angle_id") or "",
-        )
+         channel_id=channel_scope.channel_id)
         return {"success": True, "scope": scope, **ProjectManifest.delete(project_name), **extra}
     except FileNotFoundError as err:
         raise HTTPException(status_code=404, detail=str(err))
@@ -708,11 +713,12 @@ def delete_project(project_name: str, scope: str = "project"):
 
 
 @router.post("/projects/{project_name}/archive")
-def archive_project(project_name: str):
+def archive_project(project_name: str, channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     """
     Move a project folder from 03_Projects/ to 06_Archive/Projects/.
     Keeps exported videos in 04_Exports/ intact.
     """
+    require_project_owner(channel_scope, project_name, writable=True)
     if render_jobs.is_busy():
         raise HTTPException(
             status_code=409,
@@ -730,7 +736,8 @@ def archive_project(project_name: str):
 
 
 @router.get("/projects/{project_name}")
-def get_project(project_name: str):
+def get_project(project_name: str, channel_scope: ChannelScope = Depends(get_workflow_scope)):
+    require_project_owner(channel_scope, project_name)
     manifest = ProjectManifest.load(project_name)
     if not manifest:
         raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
@@ -749,7 +756,7 @@ def get_project(project_name: str):
                     "reason": "การตัดเสียงพากย์ที่บันทึกไว้ใช้ไม่ได้ เพราะไฟล์เสียงพากย์ไม่ตรงกับตอนที่ตัด จึงไม่ตัดเสียง",
                 }
     try:
-        _, product, angle = _project_origin(project_name)
+        _, product, angle = _project_origin(project_name, channel_scope)
         if angle:
             manifest["angle_status"] = angle.get("status")
             manifest["posted_at"] = angle.get("posted_at")
@@ -760,8 +767,9 @@ def get_project(project_name: str):
 
 
 @router.get("/projects/{project_name}/snapshots")
-def list_project_snapshots(project_name: str):
+def list_project_snapshots(project_name: str, channel_scope: ChannelScope = Depends(get_workflow_scope)):
     """Returns list of rolling snapshots (.bak1, .bak2, .bak3) available for this project."""
+    require_project_owner(channel_scope, project_name)
     try:
         snapshots = ProjectManifest.get_snapshots(project_name)
         return {"project_name": project_name, "snapshots": snapshots}
@@ -770,11 +778,14 @@ def list_project_snapshots(project_name: str):
 
 
 @router.post("/projects/{project_name}/snapshots/{snapshot_id}/restore")
-def restore_project_snapshot(project_name: str, snapshot_id: str):
+def restore_project_snapshot(project_name: str, snapshot_id: str, channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     """Restores the project manifest from a rolling backup snapshot."""
+    require_project_owner(channel_scope, project_name, writable=True)
     try:
-        restored = ProjectManifest.restore_snapshot(project_name, snapshot_id)
+        restored = ProjectManifest.restore_snapshot(project_name, snapshot_id, channel_id=channel_scope.channel_id)
         return {"success": True, "project_name": project_name, "snapshot_id": snapshot_id, "manifest": restored}
+    except ChannelError:
+        raise
     except ValueError as err:
         raise HTTPException(status_code=404, detail=str(err))
     except Exception as err:
@@ -788,7 +799,7 @@ class UpdateCuesRequest(BaseModel):
 
 
 @router.patch("/projects/{project_name}/cues")
-def update_project_cues(project_name: str, req: UpdateCuesRequest):
+def update_project_cues(project_name: str, req: UpdateCuesRequest, channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     """
     Manual Editor caption edits: persist edited cue text/timing into the
     manifest only -- no re-render here. `SubtitleEngine.generate_ass()`
@@ -796,6 +807,7 @@ def update_project_cues(project_name: str, req: UpdateCuesRequest):
     this up with `POST /api/reroll` (`part: "subtitles"` or `"video"`) to
     actually regenerate the .ass / final MP4 from the edited cues.
     """
+    require_project_owner(channel_scope, project_name, writable=True)
     if req.cues is None and req.micro_cues is None:
         raise HTTPException(status_code=400, detail="ต้องส่ง cues หรือ micro_cues มาอย่างน้อยหนึ่งอย่าง")
 
@@ -822,13 +834,14 @@ class UpdateClipsRequest(BaseModel):
 
 
 @router.patch("/projects/{project_name}/clips")
-def update_project_clips(project_name: str, req: UpdateClipsRequest):
+def update_project_clips(project_name: str, req: UpdateClipsRequest, channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     """
     Manual Editor clip/trim edits: persist edited clip_list into manifest.
     """
     # render_params is read-modify-written as a whole field below, so the
     # read has to happen under the same lock as the write (save_merge) --
     # see update_project_state's docstring note for the race this avoids.
+    require_project_owner(channel_scope, project_name, writable=True)
     def _mutate(current: Dict[str, Any]) -> Dict[str, Any]:
         if not current:
             raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
@@ -943,7 +956,7 @@ def _apply_voice_edit_fields(
 
 
 @router.patch("/projects/{project_name}/state")
-def update_project_state(project_name: str, req: UpdateProjectStateRequest):
+def update_project_state(project_name: str, req: UpdateProjectStateRequest, channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     """
     Unified atomic save for manual Editor state (captions, clips, transitions, style).
     Saves everything in a single atomic manifest transaction.
@@ -960,6 +973,7 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
     with values computed from its own stale read. save_merge() runs the read
     and the write under the same lock so nothing else can land in between.
     """
+    require_project_owner(channel_scope, project_name, writable=True)
     def _mutate(current: Dict[str, Any]) -> Dict[str, Any]:
         if not current:
             raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
@@ -1099,11 +1113,17 @@ def _guard_stale_cutout_payload(params: Dict[str, Any], manifest: Dict[str, Any]
     )
 
 
-def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[str, Any]) -> None:
+def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[str, Any], job_scope: Optional[Dict[str, Any]] = None) -> None:
     from scripts.pipeline import TikTokAutoCutterPipeline
+    from scripts import config
 
+    provenance = job_scope or {"channel_id": config.DEFAULT_CHANNEL_ID}
+    channel_scope = ChannelScope(provenance["channel_id"], provenance.get("channel_scope_source", "job"),
+                                 bool(provenance.get("channel_scope_strict", config.is_multi_channel_strict())),
+                                 channel={**(provenance.get("channel_identity_snapshot") or {}),
+                                          "status": provenance.get("channel_status", "active")})
     try:
-        manifest = ProjectManifest.require(project_name)
+        manifest = require_project_owner(channel_scope, project_name)
         params = dict(manifest.get("render_params") or {})
         # Fallback to root manifest keys if render_params wasn't populated
         for k in [
@@ -1138,7 +1158,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 project_name,
                 product_id=product_id or "",
                 angle_id=angle_id or ""
-            )
+            , channel_id=channel_scope.channel_id)
             if prod and not product_id:
                 product_id = prod.get("id")
             if ang and not angle_id:
@@ -1153,7 +1173,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
         prev_export_id = None
         if product_id and angle_id:
             try:
-                existing_product = ProductStore.get(product_id)
+                existing_product = ProductStore.get(product_id, channel_id=channel_scope.channel_id)
                 existing_angle = next(
                     (
                         a for a in (existing_product or {}).get("angles", [])
@@ -1175,14 +1195,12 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             except Exception as snapshot_err:
                 print(f"Warning: could not snapshot pre-reroll angle state: {snapshot_err}")
         elif project_name:
-            for prod in ProductStore._load():
-                for a in prod.get("angles", []):
-                    if a.get("project_name") == project_name:
-                        if a.get("status") == "posted" or a.get("posted_at"):
-                            raise HTTPException(
-                                status_code=400,
-                                detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม"
-                            )
+            # TODO(P3 channel scope): pass the request scope; None = compat (all rows), strict -> 422.
+            if ProductStore.has_posted_angle_for_project(project_name, channel_id=channel_scope.channel_id):
+                raise HTTPException(
+                    status_code=400,
+                    detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม"
+                )
 
         if product_id and angle_id:
             try:
@@ -1191,7 +1209,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                     angle_id,
                     "in_production",
                     project_name=project_name
-                )
+                , channel_id=channel_scope.channel_id)
             except Exception:
                 pass
 
@@ -1214,7 +1232,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                         video_url=prev_video_url,
                         project_name=project_name,
                         export_id=prev_export_id,
-                    )
+                     channel_id=channel_scope.channel_id)
                 else:
                     # Snapshot was never taken (product/angle missing at
                     # snapshot time, e.g. deleted mid-reroll) -- fall back to
@@ -1228,7 +1246,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                         angle_id,
                         "in_production",
                         project_name=project_name
-                    )
+                    , channel_id=channel_scope.channel_id)
             except Exception:
                 pass
 
@@ -1309,6 +1327,9 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 export_mp4=True,
                 resume_from=stage,
                 progress_callback=on_progress,
+                channel_id=channel_scope.channel_id,
+                channel_identity_snapshot=provenance.get("channel_identity_snapshot"),
+                job_scope=provenance,
             )
 
         # Round: the pipeline's own result_paths key is "mp4_video"
@@ -1327,13 +1348,13 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                     video_url=str(mp4_val) if mp4_val else None,
                     project_name=project_name,
                     export_id=result.get("export_id") if mp4_val else None,
-                )
+                 channel_id=channel_scope.channel_id)
             except Exception as update_err:
                 print(f"Warning: could not update angle status after reroll: {update_err}")
 
         if product_id:
             try:
-                ProductStore.attach_project(product_id, project_name)
+                ProductStore.attach_project(product_id, project_name, channel_id=channel_scope.channel_id)
             except Exception:
                 pass
 
@@ -1367,7 +1388,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
 
 
 @router.post("/reroll")
-def trigger_reroll(req: RerollRequest, background_tasks: BackgroundTasks):
+def trigger_reroll(req: RerollRequest, background_tasks: BackgroundTasks, channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     """
     Rebuild one part of an existing clip, reusing everything earlier in the
     chain. Returns the same job shape as /api/render so the frontend can watch
@@ -1379,6 +1400,8 @@ def trigger_reroll(req: RerollRequest, background_tasks: BackgroundTasks):
             status_code=400,
             detail=f"part '{req.part}' ไม่ถูกต้อง — ต้องเป็นหนึ่งใน {', '.join(REROLL_STAGE)}",
         )
+
+    require_project_owner(channel_scope, req.project_name, writable=True)
 
     manifest = ProjectManifest.load(req.project_name)
     if not manifest:
@@ -1409,18 +1432,57 @@ def trigger_reroll(req: RerollRequest, background_tasks: BackgroundTasks):
 
     job_id = str(uuid.uuid4())
     part_label = "เรนเดอร์วิดีโอ" if req.part in ("subtitles", "bgm", "video") else f"สุ่มใหม่: {req.part}"
-    render_jobs.create_job(job_id, message=f"กำลัง{part_label}...")
+    pinned_scope = capture_job_scope(channel_scope)
+    render_jobs.create_job(job_id, message=f"กำลัง{part_label}...",
+                           channel_id=channel_scope.channel_id, job_scope=pinned_scope)
 
     # Register in global TaskManager so Activity Center tracks it in real-time
     TaskManager.create_task(
         task_type="render_video",
         title=f"{part_label}: {req.project_name}",
-        payload={"project_name": req.project_name, "part": req.part},
+        payload={"project_name": req.project_name, "part": req.part, **capture_job_scope(channel_scope)},
         target_tab="editor",
         target_id=req.project_name,
         task_id=job_id,
+        channel_id=channel_scope.channel_id,
+        job_scope=pinned_scope,
     )
 
-    background_tasks.add_task(_execute_reroll, job_id, req.project_name, stage, overrides)
+    background_tasks.add_task(_execute_reroll, job_id, req.project_name, stage, overrides, capture_job_scope(channel_scope))
 
     return {"job_id": job_id, "status": "queued", "part": req.part, "cost": REROLL_COST.get(req.part, "")}
+
+
+def _install_nested_project_routes():
+    """Keep legacy flat URLs and expose nested projects without greedy routing."""
+    import inspect
+    from starlette.concurrency import run_in_threadpool
+
+    for route in list(router.routes):
+        if "/projects/{project_name}" not in route.path:
+            continue
+        original = route.endpoint
+        signature = inspect.signature(original)
+
+        def bind(endpoint, endpoint_signature):
+            async def nested_project(channel_namespace: str, **kwargs):
+                scope = kwargs["channel_scope"]
+                if channel_namespace != scope.channel_id:
+                    raise ChannelError(404, "channel_resource_not_found", "ไม่พบโปรเจกต์ของช่อง")
+                kwargs["project_name"] = f"{channel_namespace}/{kwargs['project_name']}"
+                return await run_in_threadpool(endpoint, **kwargs)
+            nested_project.__signature__ = endpoint_signature.replace(parameters=[
+                inspect.Parameter("channel_namespace", inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                                  annotation=str), *endpoint_signature.parameters.values(),
+            ])
+            return nested_project
+
+        router.add_api_route(
+            route.path.removeprefix(router.prefix).replace("/projects/{project_name}",
+                               "/channel-projects/{channel_namespace}/{project_name}"),
+            bind(original, signature), methods=list(route.methods),
+            name=f"channel_{route.name}", tags=route.tags,
+        )
+
+
+_install_nested_project_routes()

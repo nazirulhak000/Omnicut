@@ -9,6 +9,44 @@ const {
 // and refreshed on storage change rather than re-read on every request,
 // since this panel is a long-lived page, not a service worker.
 let apiKey = '';
+let activeChannelId = 'main';
+let channelEpoch = 0;
+let channelReady;
+
+function panelChannelId(value) {
+  if (typeof value !== 'string' || !/^[a-z][a-z0-9_-]{1,31}$/.test(value) || /[\r\n]/.test(value)) throw new Error('รหัสช่องไม่ถูกต้อง');
+  return value;
+}
+
+async function scopedPanelFetch(url, options = {}) {
+  const channel = activeChannelId;
+  const epoch = channelEpoch;
+  const response = await authedFetch(url, apiKey, {...options,
+    headers: {...options.headers, 'X-OmniCut-Channel': panelChannelId(channel)}});
+  if (channel !== activeChannelId || epoch !== channelEpoch) throw new Error('ช่องเปลี่ยนแล้ว กรุณาโหลดข้อมูลใหม่');
+  const readJson = response.json.bind(response);
+  response.json = async () => {
+    const data = await readJson();
+    if (channel !== activeChannelId || epoch !== channelEpoch) throw new Error('ผลตอบกลับของช่องเดิมถูกปฏิเสธ');
+    if (data.channel_id && data.channel_id !== channel) throw new Error('ผลตอบกลับเป็นของอีกช่อง');
+    return data;
+  };
+  return response;
+}
+
+function scopedPanelMedia(url) {
+  const result = new URL(withApiKeyParam(url, apiKey));
+  result.searchParams.set('channel_id', panelChannelId(activeChannelId));
+  return result.href;
+}
+
+function panelWorkerRequest(message) {
+  return new Promise((resolve, reject) => chrome.runtime.sendMessage(message, result => {
+    if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+    if (!result?.success) return reject(new Error(result?.error || 'Extension ไม่รับคำขอ'));
+    resolve(result);
+  }));
+}
 // The very first loadExports() call below (at startup) must wait for this
 // to resolve -- chrome.storage.local.get() is asynchronous, so without
 // this, the panel's initial auto-load always fires with apiKey still ''
@@ -18,6 +56,13 @@ let apiKey = '';
 // refresh, mark-posted's reload) don't need to wait on this since apiKey
 // is long since populated by the time a user can click anything.
 const apiKeyReady = getStoredApiKey().then((key) => { apiKey = key; });
+channelReady = new Promise((resolve, reject) => chrome.storage.local.get(['omnicutChannelId', 'omnicutPostingProtocolV2'], saved => {
+  try {
+    if (chrome.runtime.lastError) throw new Error(chrome.runtime.lastError.message);
+    activeChannelId = panelChannelId(saved.omnicutPostingProtocolV2?.channelId || saved.omnicutChannelId || 'main');
+    resolve();
+  } catch (err) {reject(err);}
+}));
 if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[OMNICUT_API_KEY_STORAGE_KEY]) {
@@ -44,7 +89,101 @@ apiKeySaveBtn?.addEventListener('click', async () => {
   apiKey = val;
   apiKeySettingsRow?.classList.remove('is-open');
   setStatus('บันทึก API Key เรียบร้อยแล้ว', 'success');
+  loadExports();
+  initializeChannelSelector().catch(() => {});
 });
+
+const THEME_STORAGE_KEY = 'omnicutTheme';
+const themeToggleBtn = document.getElementById('themeToggleBtn');
+const themeIconSun = document.getElementById('themeIconSun');
+const themeIconMoon = document.getElementById('themeIconMoon');
+
+function applyTheme(theme) {
+  const isDark = theme === 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+  document.body?.setAttribute('data-theme', theme);
+  if (themeIconSun && themeIconMoon) {
+    themeIconSun.style.display = isDark ? 'inline-block' : 'none';
+    themeIconMoon.style.display = isDark ? 'none' : 'inline-block';
+  }
+}
+
+if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+  chrome.storage.local.get([THEME_STORAGE_KEY], (res) => {
+    const saved = res?.[THEME_STORAGE_KEY] || 'dark';
+    applyTheme(saved);
+  });
+} else {
+  applyTheme('dark');
+}
+
+themeToggleBtn?.addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    chrome.storage.local.set({ [THEME_STORAGE_KEY]: next });
+  }
+});
+
+async function initializeChannelSelector() {
+  await Promise.all([apiKeyReady, channelReady]);
+  const label = document.createElement('label'); label.textContent = 'เลือกช่อง';
+  const select = document.createElement('select'); select.id = 'postingChannelSelect'; select.setAttribute('aria-label','เลือกช่องโพสต์');
+  const response = await authedFetch(`${BACKEND}/api/channels?include_archived=false`, apiKey);
+  if (!response.ok) throw new Error('โหลดช่องไม่สำเร็จ ต้องใช้ Backend รุ่น multi-channel');
+  const data = await response.json();
+  for (const channel of data.channels || []) {
+    if (channel.status !== 'active') continue;
+    const option = document.createElement('option'); option.value = panelChannelId(channel.id);
+    option.textContent = `${channel.display_name || channel.id} (${channel.handle || channel.id})`;
+    select.appendChild(option);
+  }
+  select.value = activeChannelId;
+  select.addEventListener('change', async () => {
+    const next = select.value;
+    if (busy || activeClip) {select.value = activeChannelId; setStatus('ปิดงานเดิมก่อนเปลี่ยนช่อง', 'error'); return;}
+    select.disabled = true;
+    try {
+      await panelWorkerRequest({action:'select-posting-channel', channelId:next});
+      activeChannelId = panelChannelId(next); channelEpoch += 1;
+      activeClip = null; allClips = []; resetChecklist(); renderActiveClipBanner();
+      await loadExports();
+    } catch (err) {select.value = activeChannelId; setStatus(err.message,'error');}
+    finally {select.disabled = false;}
+  });
+  label.appendChild(select); apiKeySettingsRow?.appendChild(label);
+  const release = document.createElement('button'); release.id='releasePostingBtn'; release.type='button'; release.textContent='ยกเลิกงานก่อนโพสต์';
+  release.className='btn-copy-action'; release.style.minHeight='44px';
+  release.title='ยกเลิกเฉพาะงานที่ยังไม่กดโพสต์ เพื่อเลือกคลิปหรือช่องใหม่';
+  release.addEventListener('click',async () => {
+    if (busy) return;
+    release.disabled=true;
+    try {
+      await panelWorkerRequest({action:'release-posting-job'});
+      activeClip=null; resetChecklist(); renderActiveClipBanner(); await loadExports();
+      setStatus('ยกเลิกงานก่อนโพสต์แล้ว เลือกคลิปหรือช่องใหม่ได้','success');
+    } catch (err) {setStatus(err.message,'error');}
+    finally {release.disabled=false;}
+  });
+  // Reuse the existing manual button as a read-only reconciliation action.
+  const button = document.getElementById('markPostedBtn');
+  button?.parentElement?.appendChild(release);
+  if (button) {button.textContent = 'ตรวจผลโพสต์เดิม'; button.title = 'ตรวจข้อความยืนยัน TikTok หรือส่ง receipt เดิมซ้ำ โดยไม่กดโพสต์';}
+  const help = button?.parentElement?.querySelector('p');
+  if (help) help.textContent = 'ตรวจผลของงานเดิมก่อนบันทึกว่าเผยแพร่แล้ว การนัดเวลาหรือผลที่ยังไม่แน่ชัดจะไม่ถูกนับว่าโพสต์';
+  const saved = await new Promise(resolve => chrome.storage.local.get(['omnicutPostingProtocolV2'], resolve));
+  const job = saved.omnicutPostingProtocolV2?.activeJob;
+  if (job) {
+    if (job.channel_id !== activeChannelId || !job.job_id) throw new Error('งานที่บันทึกไว้ไม่ตรงช่อง');
+    activeClip = {...job, rel_path:job.video_path, hook_title:job.product_name || job.job_id};
+    captionInput.value = job.caption || ''; hashtagsInput.value = job.hashtags || '';
+    productIdInput.value = job.tiktok_product_id || ''; cartNameInput.value = job.product_name || '';
+    scheduleDateInput.value = job.schedule_date || ''; scheduleTimeInput.value = job.schedule_time || '';
+    renderActiveClipBanner(); showTab('checklist');
+    setStatus('กู้คืนงานเดิมแล้ว ตรวจผลก่อนเริ่มงานใหม่ ไม่มีการกดโพสต์ซ้ำ', 'success');
+  }
+}
 
 const listEl = document.getElementById('list');
 const statusEl = document.getElementById('status');
@@ -140,7 +279,7 @@ function openVideoPreview(item) {
     return;
   }
   previewModalTitle.textContent = item.hook_title || item.product_name || item.name;
-  previewVideoPlayer.src = withApiKeyParam(`${BACKEND}${vidPath}`, apiKey);
+  previewVideoPlayer.src = scopedPanelMedia(`${BACKEND}${vidPath}`);
   previewVideoPlayer.currentTime = 0;
   previewVideoPlayer.play().catch(() => {});
   videoPreviewModal.hidden = false;
@@ -173,10 +312,7 @@ const confirmText = document.getElementById('confirmText');
 const confirmOkBtn = document.getElementById('confirmOkBtn');
 const confirmCancelBtn = document.getElementById('confirmCancelBtn');
 
-// The one clip currently being worked on. Only one at a time -- matches
-// the backend's own single in-memory "pending" job (see
-// scripts/api_tiktok_autopost.py's docstring: "a local single-user tool
-// run by one person clicking one button at a time, not a queue").
+// The panel displays one captured channel/job; the durable lease lives in the worker.
 let activeClip = null;
 let busy = false;
 
@@ -334,10 +470,14 @@ function resetChecklist() {
 }
 
 function renderActiveClipBanner() {
+  for (const input of [captionInput, hashtagsInput, productIdInput, cartNameInput, scheduleDateInput, scheduleTimeInput]) {
+    input.readOnly = Boolean(activeClip);
+    input.title = activeClip ? 'ใช้ snapshot งานที่เตรียมไว้ แก้ข้อมูลใน OmniCut ก่อนรับงานใหม่' : '';
+  }
   markPostedBtn.disabled = busy || !activeClip;
   const cover = document.getElementById('activeCover');
   cover.hidden = !activeClip?.cover_url;
-  if (activeClip?.cover_url) cover.src = withApiKeyParam(`${BACKEND}${activeClip.cover_url}`, apiKey);
+  if (activeClip?.cover_url) cover.src = scopedPanelMedia(`${BACKEND}${activeClip.cover_url}`);
   else cover.removeAttribute('src');
   if (!activeClip) {
     activeClipBanner.className = 'empty-state';
@@ -381,7 +521,8 @@ async function loadExports() {
   listEl.innerHTML = '<div class="empty">กำลังโหลดรายการคลิป...</div>';
   let items;
   try {
-    const res = await authedFetch(`${BACKEND}/api/exports`, apiKey);
+    await channelReady;
+    const res = await scopedPanelFetch(`${BACKEND}/api/exports`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     items = Array.isArray(data) ? data : (data.exports || data.items || []);
@@ -408,7 +549,7 @@ async function loadExports() {
   // list for backwards compatibility.
   let scheduled = [];
   try {
-    const queueRes = await authedFetch(`${BACKEND}/api/schedule-queue`, apiKey);
+    const queueRes = await scopedPanelFetch(`${BACKEND}/api/schedule-queue`);
     if (queueRes.ok) {
       const queueData = await queueRes.json();
       scheduled = (queueData.items || [])
@@ -478,7 +619,7 @@ function renderClipCards(ready) {
     thumbWrap.title = 'คลิกเพื่อพรีวิววิดีโอ 9:16';
 
     const thumb = document.createElement('img');
-    thumb.src = item.thumbnail_url ? withApiKeyParam(`${BACKEND}${item.thumbnail_url}`, apiKey) : '';
+    thumb.src = item.thumbnail_url ? scopedPanelMedia(`${BACKEND}${item.thumbnail_url}`) : '';
     thumb.alt = '';
     thumbWrap.appendChild(thumb);
 
@@ -539,7 +680,8 @@ async function prepareClip(item) {
   setBusy(true);
   setStatus(`กำลังเตรียม "${item.hook_title || item.name}"...`);
   try {
-    const res = await authedFetch(`${BACKEND}/api/tiktok-autopost/prepare`, apiKey, {
+    await panelWorkerRequest({action:'select-posting-channel', channelId:activeChannelId});
+    const res = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/prepare`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -552,7 +694,7 @@ async function prepareClip(item) {
         angle_id: item.angle_id || null,
         tiktok_product_id: item.tiktok_product_id || null,
         product_name: item.product_name || null,
-        queue_id: item.id || null,
+        queue_id: item.is_scheduled ? item.id : null,
         schedule_date: item.schedule_date || null,
         schedule_time: item.schedule_time || null,
       }),
@@ -562,7 +704,9 @@ async function prepareClip(item) {
       throw new Error(body.detail || `HTTP ${res.status}`);
     }
     const prepared = await res.json();
-    activeClip = {...item, cover_path: prepared.cover_path || item.cover_path || null};
+    if (prepared.protocol_version !== 2 || prepared.channel_id !== activeChannelId || !prepared.job_id) throw new Error('Backend ไม่รองรับ job/channel protocol ต้องอัปเดต Backend');
+    await panelWorkerRequest({action:'claim-posting-job', jobId:prepared.job_id, channelId:activeChannelId});
+    activeClip = {...item, job_id:prepared.job_id, channel_id:prepared.channel_id, cover_path: prepared.cover_path || item.cover_path || null};
     if (item.schedule_date) scheduleDateInput.value = item.schedule_date;
     if (item.schedule_time) scheduleTimeInput.value = item.schedule_time;
     syncScheduleConstraints();
@@ -629,7 +773,7 @@ function wireStep(btnId, chkId, stepName, buildMessage, successText) {
           chk.closest('.step-row')?.classList.add('completed');
           updatePipelineProgress();
           const messageText = typeof successText === 'function' ? successText(response) : successText;
-          setStatus(messageText, 'success');
+          setStatus(messageText + (response.warning ? ` — ${response.warning}` : ''), 'success');
         } else {
           setStatus(response.error || response.reason || 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ', 'error');
         }
@@ -674,6 +818,10 @@ wireStep('btn4', 'chk4', 'ขั้น 4 (สลับเป็นกำหน�
 wireStep('btn5', 'chk5', 'ขั้น 6 (กด Post/กำหนดเวลา)',
   () => ({ action: 'click-post-only' }),
   response => {
+    if (response.outcome === 'scheduled_on_platform') {
+      activeClip = null; resetChecklist(); renderActiveClipBanner(); loadExports(); showTab('list');
+      return 'TikTok ยืนยันนัดเวลาแล้ว ยังไม่นับว่าโพสต์เผยแพร่';
+    }
     if (response.marked) {
       const postedTitle = activeClip?.hook_title || activeClip?.name || 'คลิป';
       activeClip = null;
@@ -868,25 +1016,9 @@ markPostedBtn.addEventListener('click', async () => {
   const postedTitle = activeClip.hook_title || activeClip.name || 'คลิป';
   setStatus(`กำลังมาร์ค "${postedTitle}" ว่าโพสต์แล้ว...`);
   try {
-    const res = await authedFetch(`${BACKEND}/api/exports/mark-posted`, apiKey, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        file_path: activeClip.rel_path,
-        export_id: activeClip.export_id || null,
-        product_id: activeClip.product_id || null,
-        angle_id: activeClip.angle_id || null,
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.detail || `HTTP ${res.status}`);
-    }
-
-    // ล้าง pendingJob จาก Chrome storage ให้สะอาดเหมือนขั้นตอนที่ 6
-    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-      try { await chrome.storage.local.remove('pendingJob'); } catch (e) {}
-    }
+    // Only the original job receipt may authorize local publication effects.
+    const result = await panelWorkerRequest({action:'reconcile-posting-result'});
+    if (result.outcome !== 'published') throw new Error('Publication is not confirmed; no posted status was recorded');
 
     activeClip = null;
     resetChecklist();
@@ -982,6 +1114,8 @@ async function resolveTikTokTab() {
 }
 
 async function runStatsSync() {
+  const capturedChannel = activeChannelId;
+  const capturedEpoch = channelEpoch;
   if (!window.OmniCutStatsParser) {
     setStatus('โหลดตัวอ่านตารางไม่สำเร็จ — ลองปิดแล้วเปิดแถบข้างใหม่', 'error');
     return;
@@ -998,24 +1132,34 @@ async function runStatsSync() {
     await ensureStatsParser(found.tabId);
     const injected = await chrome.scripting.executeScript({
       target: { tabId: found.tabId },
-      func: () => window.OmniCutStatsParser.parsePostsTable(document),
+      func: () => {
+        const result = window.OmniCutStatsParser.parsePostsTable(document);
+        const nodes = document.querySelectorAll('[data-e2e="profile-icon"] a[href*="/@"], a[data-e2e="profile-icon"][href*="/@"], [data-e2e="user-avatar"] a[href*="/@"], [data-e2e="account-menu"] a[href*="/@"], [data-e2e="account-handle"], [data-e2e="user-unique-id"]');
+        const handles = [...new Set(Array.from(nodes).map(el => {
+          const raw = el.getAttribute('href') || (el.textContent || '').trim();
+          return (raw.match(/@([a-zA-Z0-9._]+)/)?.[0] || raw).toLowerCase();
+        }).filter(Boolean))];
+        if (handles.length > 1) return {error:'อ่านบัญชี Studio ได้หลายบัญชี ต้องตรวจบัญชีก่อนซิงก์'};
+        return {...result, source_account:handles[0] || null};
+      },
     });
     const result = injected?.[0]?.result;
     if (!result) throw new Error('อ่านหน้า TikTok ไม่ได้ — รีเฟรชหน้า Studio แล้วลองใหม่');
     if (result.error) throw new Error(result.error);
     if (!result.rows.length) throw new Error('ไม่พบแถวโพสต์ในตาราง — เลื่อนลงให้ตารางโหลดก่อนกดซิงก์');
+    if (activeChannelId !== capturedChannel || channelEpoch !== capturedEpoch) throw new Error('ช่องเปลี่ยนระหว่างอ่าน Studio ต้องเริ่มซิงก์ใหม่');
     setStatus(`พบ ${result.rows.length} โพสต์ กำลังส่งเข้า OmniCut...`);
-    const res = await authedFetch(`${BACKEND}/api/tiktok-stats/import`, apiKey, {
+    const res = await scopedPanelFetch(`${BACKEND}/api/tiktok-stats/import`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: result.rows }),
+      body: JSON.stringify({ rows: result.rows, source_account: result.source_account || null }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
     const unmatched = (body.unmatched || []).length;
     const registered = body.registered || 0;
     setStatus(
-      `ซิงก์สำเร็จ ${body.matched}/${body.total} คลิป อัปเดตตัวเลข ${body.updated} คลิป${registered ? ` ลงทะเบียนโพสต์ใหม่ ${registered} รายการ` : ''}${unmatched ? ` (ไม่เจอคู่ ${unmatched} คลิป ดูในแท็บผลงาน)` : ''}`,
+      `ซิงก์สำเร็จ ${body.matched}/${body.total} คลิป อัปเดตตัวเลข ${body.updated} คลิป${registered ? ` ลงทะเบียนโพสต์ใหม่ ${registered} รายการ` : ''}${unmatched ? ` (รอตรวจ ${unmatched} คลิป ดูในแท็บผลงาน)` : ''}${body.account_check?.warning ? ' — อ่านบัญชีไม่ได้ เก็บรอตรวจสอบ ยังไม่อัปเดตสถิติ กรุณาซิงก์จากบัญชีที่ยืนยันได้' : ''}`,
       'success',
     );
   } catch (err) {
@@ -1096,6 +1240,7 @@ document.getElementById('headerOpenTikTokBtn')?.addEventListener('click', openTi
 
 renderActiveClipBanner();
 apiKeyReady.then(loadExports);
+initializeChannelSelector().catch(err => setStatus(err.message, 'error'));
 updatePipelineProgress();
 
 window.addEventListener('focus', () => {

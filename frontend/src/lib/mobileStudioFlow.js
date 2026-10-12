@@ -1,3 +1,5 @@
+import { activeChannel } from './channelRuntime.js';
+import { assertChannelId } from './channelId.js';
 export const MOBILE_WORKFLOW_KEY = 'omnicut.mobileWorkflow';
 
 export function progressPercent(value) {
@@ -5,15 +7,16 @@ export function progressPercent(value) {
   return Number.isFinite(fraction) ? Math.round(Math.max(0, Math.min(1, fraction)) * 100) : 0;
 }
 
-export function filmingUrl(sessionId, productId, angleId) {
-  const params = new URLSearchParams({ film: '1', session: sessionId, return: 'mobile', product: productId, angle: angleId });
+export function filmingUrl(sessionId, productId, angleId, channelId = activeChannel()) {
+  const params = new URLSearchParams({ film: '1', session: sessionId, return: 'mobile', product: productId, angle: angleId, channel: assertChannelId(channelId) });
   return `/?${params}`;
 }
 
 export function filmingReturnUrl(search) {
   const params = new URLSearchParams(search);
   if (params.get('return') !== 'mobile') return null;
-  return `/?${new URLSearchParams({ mode: 'mobile', mobile_session: params.get('session') || '', product: params.get('product') || '', angle: params.get('angle') || '' })}`;
+  const channelId = assertChannelId(params.get('channel') || activeChannel());
+  return `/?${new URLSearchParams({ mode: 'mobile', mobile_session: params.get('session') || '', product: params.get('product') || '', angle: params.get('angle') || '', channel: channelId })}`;
 }
 
 // Schedule only after the previous request settles. Stop invalidates in-flight replies.

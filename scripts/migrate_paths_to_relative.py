@@ -168,17 +168,17 @@ def _migrate_product(product: Dict[str, Any]) -> Tuple[bool, List[str]]:
 
 def migrate(dry_run: bool = False) -> int:
     """Returns 0 on success (including "nothing to do")."""
-    products = ProductStore._load()
-    print(f"Loaded {len(products)} product(s) from the store.")
-
-    total_changed = 0
-    all_notes: List[str] = []
-
-    for product in products:
+    # Maintenance over every channel: one transaction, only changed rows are
+    # rewritten (never a whole-table replace), channel_id is never touched.
+    def _apply(product):
         changed, notes = _migrate_product(product)
-        if changed:
-            total_changed += 1
-        all_notes.extend(f"{product.get('id')}: {n}" for n in notes)
+        return changed, [f"{product.get('id')}: {n}" for n in notes]
+
+    results = ProductStore.apply_to_each_product(_apply, all_channels=True, dry_run=True)
+    print(f"Loaded {len(results)} product(s) from the store.")
+
+    total_changed = sum(1 for changed, _ in results if changed)
+    all_notes: List[str] = [note for _, notes in results for note in notes]
 
     print(f"{total_changed} product(s) have at least one path field rewritten to relative.")
     if all_notes:
@@ -191,7 +191,7 @@ def migrate(dry_run: bool = False) -> int:
         return 0
 
     if total_changed:
-        ProductStore._save(products)
+        ProductStore.apply_to_each_product(_apply, all_channels=True)
         print("\nSaved.")
     else:
         print("\nNothing to save -- every path field was already relative (or safely left as-is).")

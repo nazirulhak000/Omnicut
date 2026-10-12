@@ -14,7 +14,7 @@ import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -25,6 +25,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from scripts.config import BASE_DIR, CAPCUT_DRAFT_DIR
 from scripts.video_editor import VideoEditor
 from scripts.api_schemas import OverlayLayoutRequest
+from scripts.channel_workflows import get_workflow_scope, require_media_owner
 
 router = APIRouter(prefix="/api/editor", tags=["editor"])
 
@@ -147,7 +148,8 @@ def build_filmstrip(source: Path, count: int, start: Optional[float] = None, end
 
 
 @router.get("/filmstrip")
-def get_filmstrip(path: str, count: int = 10, start: Optional[float] = None, end: Optional[float] = None):
+def get_filmstrip(path: str, count: int = 10, start: Optional[float] = None, end: Optional[float] = None,
+                  channel_scope=Depends(get_workflow_scope)):
     """
     Horizontal sprite of evenly-spaced frames for a timeline clip -- across
     the whole source by default, or across just `start`..`end` seconds of it
@@ -159,6 +161,7 @@ def get_filmstrip(path: str, count: int = 10, start: Optional[float] = None, end
     """
     count = max(MIN_FRAMES, min(MAX_FRAMES, count))
     source = _resolve_media(path)
+    require_media_owner(channel_scope, source, base_dir=BASE_DIR, legacy_roots=(CAPCUT_DRAFT_DIR,))
     sprite = build_filmstrip(source, count, start=start, end=end)
     return FileResponse(
         sprite,
@@ -168,7 +171,7 @@ def get_filmstrip(path: str, count: int = 10, start: Optional[float] = None, end
 
 
 @router.get("/media-info")
-def get_media_info_route(path: str):
+def get_media_info_route(path: str, channel_scope=Depends(get_workflow_scope)):
     """
     True duration (plus resolution/rotation) of a raw source file, straight
     from ffprobe -- what TrimAdjustModal needs to compute a real px-per-second
@@ -177,6 +180,7 @@ def get_media_info_route(path: str):
     span rather than the underlying file's full length.
     """
     source = _resolve_media(path)
+    require_media_owner(channel_scope, source, base_dir=BASE_DIR, legacy_roots=(CAPCUT_DRAFT_DIR,))
     return VideoEditor.get_media_info(str(source))
 
 

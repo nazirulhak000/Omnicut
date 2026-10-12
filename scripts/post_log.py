@@ -15,10 +15,12 @@ import json
 import re
 import uuid
 import datetime
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from scripts.config import BASE_DIR
+from scripts.channel_ownership import OWNER_KEY, StoreScope, owner_for_new_record, resolve_store_scope
 from scripts.db import DocumentTable
 
 LOG_PATH = BASE_DIR / "_Docs" / "post_log.json"
@@ -136,10 +138,20 @@ _TABLE = DocumentTable("posts", _log_db_path, _log_json_path)
 
 
 class PostLog:
-    """Append-only record of posted clips plus their measured results."""
+    """Append-only record of posted clips plus their measured results.
+
+    Channel ownership (multi-channel P2.2, ADR §12/§13): every row carries a
+    top-level ``channel_id`` (rows without it are legacy = ``main`` in compat
+    mode only).  Public methods take keyword ``channel_id``/``all_channels``
+    like ``ProductStore``; ``None`` keeps the old unscoped behaviour in
+    compat mode and fails closed (422) in strict mode.  Idempotency, the
+    legacy basename fallback and fuzzy matching only ever look at rows of
+    the request's channel, and a basename fallback never guesses: it matches
+    only when exactly one row qualifies.
+    """
 
     # ------------------------------------------------------------------
-    # Storage
+    # Storage (internal full-table access -- all channels)
     # ------------------------------------------------------------------
     @classmethod
     def _load(cls) -> List[Dict[str, Any]]:
@@ -155,6 +167,37 @@ class PostLog:
         SQLite transaction across the read-modify-write instead of loading
         outside any lock."""
         return _TABLE.mutate()
+
+    @staticmethod
+    def _scope(channel_id: Optional[str] = None, all_channels: bool = False) -> StoreScope:
+        return resolve_store_scope(channel_id, all_channels=all_channels)
+
+    @classmethod
+    @contextmanager
+    def _scoped_mutate(cls, scope: StoreScope):
+        """Scoped calls -> ``DocumentTable.scoped_mutate`` (other channels'
+        rows never exposed nor written); unscoped -> the old ``cls._mutate()``."""
+        if scope.unscoped:
+            with cls._mutate() as posts:
+                yield posts
+            return
+        with _TABLE.scoped_mutate(scope.channel_id, include_legacy=scope.include_legacy) as posts:
+            yield posts
+
+    @classmethod
+    def _scoped_load(cls, scope: StoreScope) -> List[Dict[str, Any]]:
+        rows = cls._load()
+        if scope.unscoped:
+            return rows
+        return [row for row in rows if scope.owns(row)]
+
+    @classmethod
+    def owner_of(cls, post_id: str) -> tuple[bool, Optional[str]]:
+        """``(exists, channel_id)`` across ALL channels (system read for 404 guards)."""
+        for post in cls._load():
+            if post.get("id") == post_id:
+                return True, post.get(OWNER_KEY)
+        return False, None
 
     # ------------------------------------------------------------------
     # Writing
@@ -178,13 +221,19 @@ class PostLog:
         scheduled_at: str = "",
         export_id: str = "",
         source: str = "",
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> Dict[str, Any]:
         """Record that a clip went live. Returns the stored row.
 
         The trailing keyword fields are optional and only written when given,
-        so rows created by older callers keep their exact old shape.
+        so rows created by older callers keep their exact old shape (plus the
+        server-stamped ``channel_id`` owner).
         """
         now = datetime.datetime.now()
+        scope = cls._scope(channel_id, all_channels)
+        owner = owner_for_new_record(scope)
 
         # _mutate() holds one SQLite transaction across the read-modify-write
         # (P0 item 1 / plan step 2) -- two concurrent add_post() calls used to
@@ -192,9 +241,10 @@ class PostLog:
         # drop one row on save; the id used to collide too (see the uuid4
         # below -- was f"{timestamp}_{len(posts)+1}", which two posts added
         # in the same second at the same list length would share).
-        with cls._mutate() as posts:
+        with cls._scoped_mutate(scope) as posts:
             post = {
                 "id": uuid.uuid4().hex,
+                OWNER_KEY: owner,
                 "product_name": product_name,
                 "product_url": product_url,
                 "angle_key": angle_key,
@@ -232,14 +282,61 @@ class PostLog:
         hashtags: Optional[List[str]] = None,
         scheduled_at: str = "",
         posted_at: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+    ) -> Optional[Dict[str, Any]]:
         """Idempotently log one posted export (called from mark-posted).
 
-        Identity is export_id when both sides have it, else the clip file's
-        basename -- the same key upsert_tiktok_stats' auto-register and
-        attach_manual use, so a later stats sync merges into THIS row instead
-        of creating a second one. An existing row is enriched (only empty
-        fields are filled), never duplicated or overwritten.
+        Returns the stored row, or ``None`` when the legacy basename fallback
+        was ambiguous (nothing written -- see :meth:`record_posted_export`,
+        which returns the full result for callers that report it).
+        """
+        return cls.record_posted_export(
+            product_name=product_name, clip_file=clip_file, export_id=export_id, product_id=product_id,
+            angle_key=angle_key, angle_title=angle_title, hook=hook, style_preset=style_preset,
+            hook_color=hook_color, caption=caption, hashtags=hashtags, scheduled_at=scheduled_at,
+            posted_at=posted_at, channel_id=channel_id, all_channels=all_channels,
+        )["post"]
+
+    @classmethod
+    def record_posted_export(
+        cls,
+        product_name: str,
+        clip_file: str,
+        export_id: str = "",
+        product_id: str = "",
+        angle_key: str = "",
+        angle_title: str = "",
+        hook: str = "",
+        style_preset: str = "",
+        hook_color: str = "",
+        caption: str = "",
+        hashtags: Optional[List[str]] = None,
+        scheduled_at: str = "",
+        posted_at: Optional[str] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+    ) -> Dict[str, Any]:
+        """Idempotently log one posted export; returns ``{"status", "post", "candidate_post_ids"}``.
+
+        Idempotency key = (channel, export identity):
+
+        1. a row of this channel with the same ``export_id`` -> enrich it
+           (``status="matched_export"``);
+        2. else the legacy basename fallback, within this channel only: rows
+           with the same clip basename that carry no (other) ``export_id``.
+           Exactly one -> enrich it (``"matched_legacy"``); two or more ->
+           ``"ambiguous"``: NOTHING is written, ``post`` is ``None`` and
+           ``candidate_post_ids`` lists the rows the caller must report.
+           Generic names (``clip.mp4`` ...) never take part;
+        3. else create a new row stamped with the scope owner (``"created"``).
+
+        An existing row is enriched (only empty fields are filled), never
+        duplicated or overwritten -- the same key upsert_tiktok_stats'
+        auto-register and attach_manual use, so a later stats sync merges into
+        THIS row instead of creating a second one.
         """
         wanted = {
             "product_name": product_name, "product_id": product_id, "angle_key": angle_key,
@@ -248,17 +345,40 @@ class PostLog:
             "export_id": export_id,
         }
         name = _clip_name(clip_file)
-        with cls._mutate() as posts:
-            for post in posts:
-                if (export_id and post.get("export_id") == export_id) or (name and _clip_name(post.get("clip_file")) == name):
-                    for key, value in wanted.items():
-                        if value and not post.get(key):
-                            post[key] = value
-                    if hashtags and not post.get("hashtags"):
-                        post["hashtags"] = list(hashtags)
-                    return post
+        scope = cls._scope(channel_id, all_channels)
+
+        def enrich(post: Dict[str, Any]) -> None:
+            for key, value in wanted.items():
+                if value and not post.get(key):
+                    post[key] = value
+            if hashtags and not post.get("hashtags"):
+                post["hashtags"] = list(hashtags)
+
+        with cls._scoped_mutate(scope) as posts:
+            if export_id:
+                by_export = next((post for post in posts if post.get("export_id") == export_id), None)
+                if by_export is not None:
+                    enrich(by_export)
+                    return {"status": "matched_export", "post": by_export, "candidate_post_ids": [by_export.get("id")]}
+            if name:
+                candidates = [
+                    post for post in posts
+                    if _clip_name(post.get("clip_file")) == name
+                    and (not export_id or not post.get("export_id"))
+                ]
+                if len(candidates) == 1:
+                    enrich(candidates[0])
+                    return {"status": "matched_legacy", "post": candidates[0], "candidate_post_ids": [candidates[0].get("id")]}
+                if len(candidates) > 1:
+                    return {
+                        "status": "ambiguous",
+                        "post": None,
+                        "candidate_post_ids": sorted(str(post.get("id")) for post in candidates),
+                    }
+            owner = owner_for_new_record(scope)
             post = {
                 "id": uuid.uuid4().hex,
+                OWNER_KEY: owner,
                 "product_name": product_name,
                 "product_url": "",
                 "angle_key": angle_key,
@@ -275,12 +395,19 @@ class PostLog:
             }
             post.update({k: v for k, v in wanted.items() if v and k not in post})
             posts.append(post)
-            return post
+            return {"status": "created", "post": post, "candidate_post_ids": [post["id"]]}
 
     @classmethod
-    def update_metrics(cls, post_id: str, metrics: Dict[str, Any]) -> Dict[str, Any]:
-        """Fill in the 48-hour numbers for one post."""
-        with cls._mutate() as posts:
+    def update_metrics(
+        cls,
+        post_id: str,
+        metrics: Dict[str, Any],
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+    ) -> Dict[str, Any]:
+        """Fill in the 48-hour numbers for one post (a post of another channel = not found)."""
+        with cls._scoped_mutate(cls._scope(channel_id, all_channels)) as posts:
             for post in posts:
                 if post["id"] == post_id:
                     clean = {}
@@ -309,8 +436,17 @@ class PostLog:
         rows: List[Dict[str, Any]],
         register_missing: bool = False,
         clip_candidates: Optional[List[Dict[str, Any]]] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> Dict[str, Any]:
         """Merge scraped TikTok Studio rows into the post log.
+
+        Scoped (P2.2): video-id, fuzzy and clip-basename matching only see
+        posts of ``channel_id``; registered posts are stamped with it.  The
+        clip-basename link to an existing post requires exactly one eligible
+        post -- with two or more the Studio row stays ``unmatched`` (carrying
+        ``ambiguous_post_ids``) instead of guessing or registering a duplicate.
 
         Match priority: tiktok_video_id exact > clip title+duration fuzzy.
         With register_missing=True, a row that matches nothing is checked
@@ -324,7 +460,17 @@ class PostLog:
         unmatched = []
         now_dt = datetime.datetime.now()
         now = now_dt.isoformat(timespec="seconds")
-        with cls._mutate() as posts:
+        scope = cls._scope(channel_id, all_channels)
+        # Owner for auto-registered posts; resolved lazily so a maintenance
+        # (all_channels) run that only updates existing rows still works.
+        new_owner: List[str] = []
+
+        def new_post_owner() -> str:
+            if not new_owner:
+                new_owner.append(owner_for_new_record(scope))
+            return new_owner[0]
+
+        with cls._scoped_mutate(scope) as posts:
             by_video_id = {p.get("tiktok_video_id"): p for p in posts if p.get("tiktok_video_id")}
             # One post may be claimed by ONE Studio row per run: two rows with
             # similar captions (same product, different clips) used to
@@ -335,6 +481,7 @@ class PostLog:
             for row_idx, row in enumerate(rows):
                 video_id = (row.get("video_id") or "").strip() if isinstance(row.get("video_id"), str) else row.get("video_id")
                 claim = str(video_id or f"row#{row_idx}")
+                ambiguous_ids: List[str] = []
                 metrics = {k: row.get(k) for k in ("views", "likes", "comments", "shares") if isinstance(row.get(k), int)}
                 target = by_video_id.get(video_id) if video_id else None
                 if target is None and row.get("title"):
@@ -362,14 +509,15 @@ class PostLog:
                     if best_cand is not None:
                         cand = best_cand
                         ckey = (cand.get("clip_file"), cand.get("product_name"), cand.get("angle_title"))
-                        claimed_cand_keys.add(ckey)
                         posted_at = cls._parse_studio_posted_at(row.get("posted_text")) or now
                         # A post for this very clip may already exist (e.g.
                         # logged by mark-posted but the Studio title was too
                         # different to fuzzy-match). Link to it instead of
                         # registering a duplicate; same key as register_posted_export.
+                        # Only an UNAMBIGUOUS hit links (P2.2): two eligible
+                        # posts with this basename -> leave the row unmatched.
                         cand_name = _clip_name(cand.get("clip_file"))
-                        existing = None
+                        eligible = []
                         if cand_name:
                             for post in posts:
                                 if _clip_name(post.get("clip_file")) != cand_name:
@@ -379,16 +527,20 @@ class PostLog:
                                     continue
                                 if claimed.get(str(post.get("id"))) not in (None, claim):
                                     continue
-                                existing = post
-                                break
-                        if existing is not None:
-                            target = existing
+                                eligible.append(post)
+                        if len(eligible) > 1:
+                            ambiguous_ids = sorted(str(post.get("id")) for post in eligible)
+                        elif eligible:
+                            claimed_cand_keys.add(ckey)
+                            target = eligible[0]
                         else:
+                            claimed_cand_keys.add(ckey)
                             # Append here -- never call add_post() inside this
                             # mutate (nested _mutate on the same table would
                             # fight the open SQLite transaction).
                             new_post = {
                                 "id": uuid.uuid4().hex,
+                                OWNER_KEY: new_post_owner(),
                                 "product_name": str(cand.get("product_name") or ""),
                                 "product_url": "",
                                 "angle_key": str(cand.get("angle_key") or ""),
@@ -409,6 +561,8 @@ class PostLog:
                 if target is None:
                     unmatched_row = dict(row)
                     unmatched_row["video_id"] = video_id
+                    if ambiguous_ids:
+                        unmatched_row["ambiguous_post_ids"] = ambiguous_ids
                     unmatched.append(unmatched_row)
                     continue
                 matched += 1
@@ -432,6 +586,9 @@ class PostLog:
         row: Dict[str, Any],
         post_id: Optional[str] = None,
         candidate: Optional[Dict[str, Any]] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> Dict[str, Any]:
         """Attach a hand-matched Studio row (from TikTokPending) to a post.
 
@@ -440,6 +597,13 @@ class PostLog:
         holding that clip_file/hook or registers a new post -- exactly the
         auto-register path but chosen by a human, so no score threshold
         applies.
+
+        Scoped (P2.2): ``post_id`` / clip / hook only resolve inside the
+        channel (another channel's post = not found).  A candidate match must
+        be unambiguous: an exact clip-file match is tried first (generic names
+        such as ``clip.mp4`` never match), then the hook; two or more hits
+        raise ``ValueError`` asking for an explicit ``post_id`` instead of
+        guessing.
         """
         if post_id is None and candidate is None:
             raise ValueError("ต้องระบุ post_id หรือ candidate อย่างใดอย่างหนึ่ง")
@@ -447,7 +611,8 @@ class PostLog:
         now = now_dt.isoformat(timespec="seconds")
         metrics = {k: row.get(k) for k in ("views", "likes", "comments", "shares") if isinstance(row.get(k), int)}
         video_id = (row.get("video_id") or "").strip() if isinstance(row.get("video_id"), str) else row.get("video_id")
-        with cls._mutate() as posts:
+        scope = cls._scope(channel_id, all_channels)
+        with cls._scoped_mutate(scope) as posts:
             target = None
             if post_id is not None:
                 for post in posts:
@@ -459,16 +624,27 @@ class PostLog:
             else:
                 cand_clip = str(candidate.get("clip_file") or "")
                 cand_hook = str(candidate.get("hook_title") or "").lower()
-                for post in posts:
-                    if cand_clip and str(post.get("clip_file") or "") == cand_clip:
-                        target = post
-                        break
-                    if cand_hook and str(post.get("hook") or "").lower() == cand_hook:
-                        target = post
+                clip_hits = [
+                    post for post in posts
+                    if cand_clip and _clip_name(cand_clip) and str(post.get("clip_file") or "") == cand_clip
+                ]
+                hook_hits = [
+                    post for post in posts
+                    if cand_hook and str(post.get("hook") or "").lower() == cand_hook
+                ]
+                for hits in (clip_hits, hook_hits):
+                    if len(hits) > 1:
+                        raise ValueError(
+                            "พบโพสต์ที่ตรงกับคลิปนี้มากกว่า 1 รายการ "
+                            f"({', '.join(sorted(str(p.get('id')) for p in hits))}) กรุณาเลือกโพสต์ด้วย post_id"
+                        )
+                    if hits:
+                        target = hits[0]
                         break
                 if target is None:
                     target = {
                         "id": uuid.uuid4().hex,
+                        OWNER_KEY: owner_for_new_record(scope),
                         "product_name": str(candidate.get("product_name") or ""),
                         "product_url": "",
                         "angle_key": str(candidate.get("angle_key") or ""),
@@ -626,25 +802,23 @@ class PostLog:
     # Reading
     # ------------------------------------------------------------------
     @classmethod
-    def list_posts(cls, newest_first: bool = True) -> List[Dict[str, Any]]:
-        posts = cls._load()
+    def list_posts(
+        cls, newest_first: bool = True, *, channel_id: Optional[str] = None, all_channels: bool = False
+    ) -> List[Dict[str, Any]]:
+        posts = cls._scoped_load(cls._scope(channel_id, all_channels))
         return sorted(posts, key=lambda p: p.get("posted_at", ""), reverse=newest_first)
 
     @classmethod
-    def get_all(cls, newest_first: bool = True) -> List[Dict[str, Any]]:
-        return cls.list_posts(newest_first=newest_first)
+    def get_all(
+        cls, newest_first: bool = True, *, channel_id: Optional[str] = None, all_channels: bool = False
+    ) -> List[Dict[str, Any]]:
+        return cls.list_posts(newest_first=newest_first, channel_id=channel_id, all_channels=all_channels)
 
-    @classmethod
-    def pending_metrics(cls) -> List[Dict[str, Any]]:
-        """Posts past the 48-hour mark that have no 48-hour-old numbers yet.
-
-        "Measured" means mature_metrics() finds a snapshot captured at post
-        age >= 48h (or a legacy row with plain `metrics` and no history), so
-        a sync done 1 hour after posting does not hide the post from here.
-        """
+    @staticmethod
+    def _pending_of(posts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         cutoff = datetime.datetime.now() - datetime.timedelta(hours=METRICS_DUE_HOURS)
         due = []
-        for post in cls._load():
+        for post in posts:
             if mature_metrics(post):
                 continue
             posted = _parse_dt(post.get("posted_at"))
@@ -655,7 +829,17 @@ class PostLog:
         return due
 
     @classmethod
-    def angle_performance(cls) -> List[Dict[str, Any]]:
+    def pending_metrics(cls, *, channel_id: Optional[str] = None, all_channels: bool = False) -> List[Dict[str, Any]]:
+        """Posts past the 48-hour mark that have no 48-hour-old numbers yet.
+
+        "Measured" means mature_metrics() finds a snapshot captured at post
+        age >= 48h (or a legacy row with plain `metrics` and no history), so
+        a sync done 1 hour after posting does not hide the post from here.
+        """
+        return cls._pending_of(cls._scoped_load(cls._scope(channel_id, all_channels)))
+
+    @classmethod
+    def angle_performance(cls, *, channel_id: Optional[str] = None, all_channels: bool = False) -> List[Dict[str, Any]]:
         """
         Average results grouped by angle — the answer to "which angle sells".
 
@@ -664,7 +848,7 @@ class PostLog:
         """
         buckets: Dict[str, Dict[str, Any]] = {}
 
-        for post in cls._load():
+        for post in cls._scoped_load(cls._scope(channel_id, all_channels)):
             # Latest numbers on purpose (display/back-compat); the 48h-age
             # evidence rule lives in mature_metrics() and is applied by the
             # scheduler's analytics and pending_metrics.
@@ -693,20 +877,19 @@ class PostLog:
         return sorted(results, key=lambda b: b["commission_thb"], reverse=True)
 
     @classmethod
-    def summary(cls) -> Dict[str, Any]:
-        posts = cls._load()
+    def summary(cls, *, channel_id: Optional[str] = None, all_channels: bool = False) -> Dict[str, Any]:
+        posts = cls._scoped_load(cls._scope(channel_id, all_channels))
         measured = [p for p in posts if p.get("metrics")]
         return {
             "total_posted": len(posts),
             "measured": len(measured),
-            "pending_metrics": len(cls.pending_metrics()),
+            "pending_metrics": len(cls._pending_of(posts)),
             "total_views": sum(p["metrics"].get("views", 0) for p in measured),
             "total_orders": sum(p["metrics"].get("orders", 0) for p in measured),
             "total_commission_thb": round(
                 sum(p["metrics"].get("commission_thb", 0.0) for p in measured), 2
             ),
         }
-
 
 if __name__ == "__main__":
     print(json.dumps(PostLog.summary(), ensure_ascii=False, indent=2))

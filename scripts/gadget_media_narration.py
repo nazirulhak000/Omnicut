@@ -46,7 +46,7 @@ def execute_gadget_media_narration(
 ) -> None:
     """Generate one versioned Gemini narration and attach it to the project."""
     try:
-        with render_jobs.render_slot(job_id):
+        with render_jobs.render_slot(job_id, channel_id=repository.channel_id):
             project = repository.get(project_id)
             text = project_narration_text(project, script_text)
             if not text:
@@ -54,7 +54,7 @@ def execute_gadget_media_narration(
 
             output = _next_voice_path(repository, project_id)
             output.parent.mkdir(parents=True, exist_ok=True)
-            render_jobs.update_progress(job_id, 0.1, "กำลังเตรียมบทพูด Gemini TTS")
+            render_jobs.update_progress(job_id, 0.1, "กำลังเตรียมบทพูด Gemini TTS", channel_id=repository.channel_id)
             GeminiFlashTTSEngine.generate_speech(
                 text=text,
                 output_path=str(output),
@@ -85,8 +85,8 @@ def execute_gadget_media_narration(
                     "duration": duration,
                 },
                 message="สร้าง Gemini TTS สำหรับ Product Project เสร็จแล้ว",
-            )
+             channel_id=repository.channel_id)
     except render_jobs.RenderCancelled:
-        render_jobs.cancel_job(job_id)
+        render_jobs.cancel_job(job_id, channel_id=repository.channel_id)
     except Exception as exc:
-        render_jobs.fail_job(job_id, exc)
+        render_jobs.fail_job(job_id, exc, channel_id=repository.channel_id)

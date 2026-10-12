@@ -35,12 +35,42 @@ def isolated_log(tmp_path, monkeypatch):
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    # Existing matching tests represent a positively identified Studio account.
+    # Unknown-account quarantine is tested separately without this default.
+    from scripts.channel_store import MAIN_SEED
+    class AccountClient(TestClient):
+        def post(self, url, **kwargs):
+            if url == "/api/tiktok-stats/import" and "json" in kwargs:
+                kwargs["json"] = {"source_account": MAIN_SEED["handle"], **kwargs["json"]}
+            return super().post(url, **kwargs)
+    return AccountClient(app)
+
+
+def test_unknown_account_does_not_merge_and_quarantine_survives_ignore_restore(isolated_log, client):
+    post = post_log_module.PostLog.add_post(product_name="Known clip",clip_file="known.mp4")
+    stored=post_log_module.PostLog.list_posts()
+    stored[0]["tiktok_video_id"]="123456789"
+    stored[0]["metrics"]={"views":10}
+    post_log_module.PostLog._save(stored)
+    response=client.post("/api/tiktok-stats/import",json={"source_account":None,"rows":[{"video_id":"123456789","title":"Known clip","views":999}]})
+    assert response.status_code == 200
+    assert response.json()["matched"] == response.json()["updated"] == response.json()["registered"] == 0
+    assert post_log_module.PostLog.list_posts()[0]["metrics"]["views"] == 10
+    pending=pending_module.TikTokPending.list_rows(channel_id="main")[0]
+    assert pending["account_unverified"] is True
+    ignored=pending_module.TikTokPending.ignore(pending["id"],channel_id="main")
+    restored=pending_module.TikTokPending.restore(ignored["id"],channel_id="main")
+    assert restored["account_unverified"] is True
+    attached=client.post("/api/tiktok-stats/attach",json={"pending_id":restored["id"],"post_id":stored[0]["id"]})
+    assert attached.status_code == 409
+    verified=client.post("/api/tiktok-stats/import",json={"rows":[{"video_id":"123456789","title":"Known clip","views":999}]})
+    assert verified.status_code == 200 and verified.json()["updated"] == 1
+    assert pending_module.TikTokPending.list_rows(channel_id="main") == []
 
 
 def test_import_matches_exact_video_id(isolated_log, client, monkeypatch):
     from scripts import api_tiktok_stats
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [])
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: [])
     post_log_module.PostLog.add_post(product_name="Logitech Lift", clip_file="lift.mp4", angle_title="สเปกเทพ Logitech Lift")
     posts = post_log_module.PostLog.list_posts()
     assert len(posts) == 1
@@ -63,7 +93,7 @@ def test_import_matches_exact_video_id(isolated_log, client, monkeypatch):
 
 def test_import_fuzzy_matches_title_and_skips_unknown(isolated_log, client, monkeypatch):
     from scripts import api_tiktok_stats
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [])
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: [])
     post_log_module.PostLog.add_post(product_name="BlueWOW", clip_file="x110.mp4", angle_title="ด่วน BlueWOW X110 Ultra")
 
     resp = client.post("/api/tiktok-stats/import", json={"rows": [
@@ -88,7 +118,7 @@ def test_import_rejects_empty_and_oversized(isolated_log, client):
 
 def test_latest_returns_synced_first(isolated_log, client, monkeypatch):
     from scripts import api_tiktok_stats
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [])
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: [])
     post_log_module.PostLog.add_post(product_name="A", clip_file="a.mp4")
     post_log_module.PostLog.add_post(product_name="B", clip_file="b.mp4", angle_title="ด่วน BlueWOW X110 Ultra")
     client.post("/api/tiktok-stats/import", json={"rows": [{"title": "ด่วน BlueWOW X110 Ultra", "views": 268}]})
@@ -101,7 +131,7 @@ def test_import_auto_registers_post_from_clip_candidates(isolated_log, client, m
     """Studio caption (tags/emoji included) + Thai posted date + a clip that
     was never marked posted in OmniCut -> auto-register from the candidate."""
     from scripts import api_tiktok_stats
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [{
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: [{
         "hook_title": "แกะกล่องป้ายยา ESSAGER สายชาร์จแม่เหล็ก ทางที่ดีที่สุด",
         "product_name": "ESSAGER ป้ายยาแท็กติดตัว",
         "angle_title": "แกะกล่องป้ายยา ESSAGER สายชาร์จแม่เหล็ก ทางที่ดีที่สุด",
@@ -132,7 +162,7 @@ def test_import_auto_registers_post_from_clip_candidates(isolated_log, client, m
 
 def test_no_auto_register_when_nothing_matches(isolated_log, client, monkeypatch):
     from scripts import api_tiktok_stats
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [{
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: [{
         "hook_title": "แกะกล่องป้ายยา ESSAGER", "product_name": "ESSAGER",
         "angle_title": "แกะกล่องป้ายยา ESSAGER", "clip_file": "a.mp4",
     }])
@@ -149,7 +179,7 @@ def test_no_auto_register_when_nothing_matches(isolated_log, client, monkeypatch
 def test_existing_post_preferred_over_auto_register(isolated_log, client, monkeypatch):
     from scripts import api_tiktok_stats
     post_log_module.PostLog.add_post(product_name="BlueWOW", clip_file="x110.mp4", angle_title="ด่วน BlueWOW X110 Ultra")
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [{
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: [{
         "hook_title": "ด่วน BlueWOW X110 Ultra", "product_name": "BlueWOW",
         "angle_title": "ด่วน BlueWOW X110 Ultra", "clip_file": "x110_export.mp4",
     }])
@@ -177,7 +207,7 @@ def test_import_never_merges_two_similar_rows_into_one_post(isolated_log, client
     the later row's metrics overwrote the first row's real numbers
     (Logitech Lift 59 views -> 370). Each row must own its own post."""
     from scripts import api_tiktok_stats
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: [
         {"hook_title": "รีวิว Logitech Lift เมาส์แนวตั้ง", "product_name": "Logitech Lift",
          "angle_title": "รีวิว Logitech Lift เมาส์แนวตั้ง", "angle_key": "a1",
          "clip_file": "lift_v1.mp4", "duration_sec": None},
@@ -220,7 +250,7 @@ def test_unmatched_rows_persisted_for_manual_match(isolated_log, isolated_pendin
     """Unmatched Studio rows must survive the side panel closing: they land
     in the pending store, matched rows must not."""
     from scripts import api_tiktok_stats
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [])
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: [])
     post_log_module.PostLog.add_post(product_name="BlueWOW", clip_file="x110.mp4", angle_title="ด่วน BlueWOW X110 Ultra")
     resp = client.post("/api/tiktok-stats/import", json={"rows": [
         {"title": "ด่วน BlueWOW X110 Ultra ท็อป", "views": 268, "likes": 9, "comments": 0,
@@ -246,7 +276,7 @@ def test_attach_registers_post_from_candidate_and_clears_pending(isolated_log, i
     pending row consumed, and the post shows up in /latest."""
     from scripts import api_tiktok_stats
     cands_list = []
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: cands_list)
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: cands_list)
     client.post("/api/tiktok-stats/import", json={"rows": [{
         "title": "แกะกล่องป้ายยา ESSAGER สายชาร์จแม่เหล็ก #ESSAGER",
         "views": 12, "likes": 1, "comments": 0,
@@ -289,7 +319,7 @@ def test_attach_registers_post_from_candidate_and_clears_pending(isolated_log, i
 
 def test_attach_requires_target_and_ignore_drops_row(isolated_log, isolated_pending, client, monkeypatch):
     from scripts import api_tiktok_stats
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [])
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: [])
     client.post("/api/tiktok-stats/import", json={"rows": [{"title": "คลิปคนอื่น xyz", "views": 3}]})
     pending = client.get("/api/tiktok-stats/pending").json()["rows"]
     assert len(pending) == 1
@@ -322,8 +352,9 @@ def test_viral_milestones_endpoint(isolated_log, client):
         angle_title="Viral Angle",
     )
     posts = post_log_module.PostLog.list_posts()
-    posts[1]["metrics"] = {"views": 15200, "likes": 850, "comments": 45, "shares": 120}
-    posts[1]["tiktok_synced_at"] = "2026-09-14T10:05:00"
+    high = next(post for post in posts if post["product_name"] == "Product High Viral")
+    high["metrics"] = {"views": 15200, "likes": 850, "comments": 45, "shares": 120}
+    high["tiktok_synced_at"] = "2026-09-14T10:05:00"
     post_log_module.PostLog._save(posts)
 
     # Threshold default 1000: only the 15.2k clip should be returned
@@ -349,7 +380,7 @@ def test_import_matches_via_schedule_queue_caption(isolated_log, client, monkeyp
     from scripts.schedule_store import ScheduleQueueStore
     from scripts.product_store import ProductStore
 
-    monkeypatch.setattr(ScheduleQueueStore, "_load", lambda: [
+    monkeypatch.setattr(ScheduleQueueStore, "list_items", lambda **scope: [
         {
             "id": "q1",
             "product_name": "BASIKE พัดลมระบายความร้อน",
@@ -362,7 +393,7 @@ def test_import_matches_via_schedule_queue_caption(isolated_log, client, monkeyp
             "status": "posted",
         }
     ])
-    monkeypatch.setattr(ProductStore, "get_all", lambda: [])
+    monkeypatch.setattr(ProductStore, "get_all", lambda **scope: [])
 
     resp = client.post("/api/tiktok-stats/import", json={"rows": [{
         "title": "บอกลาปัญหาเครื่องร้อนจนค้าง! ยืดอายุโน้ตบุ๊กคู่ใจด้วย BASIKE Notebook Cooling Pad ลมแรง ดีไซน์บางเฉียบ พิกัดในตะกร้าเลยครับ 👇 #พัดลมโน๊ตบุ๊ค #BASIKE",
@@ -392,8 +423,8 @@ def test_import_matches_via_product_store_tiktok_caption(isolated_log, client, m
     from scripts.product_store import ProductStore
     from scripts.schedule_store import ScheduleQueueStore
 
-    monkeypatch.setattr(ScheduleQueueStore, "_load", lambda: [])
-    monkeypatch.setattr(ProductStore, "get_all", lambda: [
+    monkeypatch.setattr(ScheduleQueueStore, "list_items", lambda **scope: [])
+    monkeypatch.setattr(ProductStore, "get_all", lambda **scope: [
         {
             "id": "prod_orashare",
             "name": "Orashare พัดลมมือถือ",
@@ -432,7 +463,7 @@ def test_import_matches_via_product_store_tiktok_caption(isolated_log, client, m
 def test_import_picks_highest_scoring_candidate_over_earlier_candidates(isolated_log, client, monkeypatch):
     """Candidate with the highest token/caption overlap score is picked over an earlier weaker match."""
     from scripts import api_tiktok_stats
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: [
         {
             # Earlier in candidate list, shares generic word "พัดลม"
             "hook_title": "พัดลมตัวอื่นทั่วไป",
@@ -474,7 +505,7 @@ def test_import_picks_highest_scoring_candidate_over_earlier_candidates(isolated
 def test_ignored_pending_clip_persists_and_is_excluded_from_future_imports(isolated_log, client, monkeypatch):
     """When a user ignores an unmatched pending row, it must not reappear on future syncs."""
     from scripts import api_tiktok_stats
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [])
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: [])
 
     unmatched_row = {
         "title": "คลิปสินค้าคนอื่นที่ไม่เกี่ยวเลย 123",
@@ -522,7 +553,7 @@ def test_ignored_pending_clip_persists_and_is_excluded_from_future_imports(isola
 def test_batch_ignore_all_and_restore(isolated_log, client, monkeypatch):
     """Test batch-ignoring all pending rows and restoring a row back to pending."""
     from scripts import api_tiktok_stats
-    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [])
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda scope=None: [])
 
     row1 = {"title": "คลิปไม่เกี่ยว 1", "views": 10, "video_id": "vid_ignore_1"}
     row2 = {"title": "คลิปไม่เกี่ยว 2", "views": 20, "video_id": "vid_ignore_2"}

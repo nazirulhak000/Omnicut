@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, X, CheckCircle2, Play, Square, Mic2, Wand2, Info } from 'lucide-react';
+import { getVoicePresets, previewVoice } from '../api.js';
 
 /**
  * VoicePickerModal
@@ -57,8 +58,7 @@ export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selec
     setLocalTone(normalizeTone(selectedTone));
     setLoading(true);
     setError(null);
-    fetch('/api/voice/presets')
-      .then((r) => r.json())
+    getVoicePresets()
       .then((data) => { setManifest(data); setLoading(false); })
       .catch((e) => { setError('โหลด presets ไม่ได้: ' + e.message); setLoading(false); });
   }, [isOpen, selectedVoice, selectedTone]);
@@ -87,17 +87,12 @@ export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selec
     if (!url) {
       setPlayingKey(key + '_loading');
       try {
-        const res = await fetch('/api/voice/preview', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const data = await previewVoice({
             text: 'สวัสดีครับ นี่คือตัวอย่างเสียงพากย์รีวิว ลองฟังดูนะครับ',
             voice_gender: combo.voice_id,
             ad_tone: combo.tone_id,
             speed: 1.15,
-          }),
         });
-        const data = await res.json();
         url = data.audio_url || data.url;
       } catch {
         setPlayingKey(null);

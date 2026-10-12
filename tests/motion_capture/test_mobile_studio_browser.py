@@ -1,7 +1,7 @@
 """Production Mobile Quick Studio UI, with every API request intercepted offline."""
 
 import json
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 
 import pytest
 from playwright.sync_api import expect, sync_playwright
@@ -27,7 +27,9 @@ def api_mock(page, tasks):
         path = urlsplit(route.request.url).path
         if path.startswith("/api/mobile-studio"):
             requests.append((path, route.request.post_data_json))
-        if path == "/api/mobile-studio/catalog":
+        if path == "/api/channels":
+            payload = {"revision": 1, "channels": [{"id": "main", "display_name": "Main fixture", "revision": 1, "status": "active"}]}
+        elif path == "/api/mobile-studio/catalog":
             payload = {"success": True, "catalog": CATALOG}
         elif path == "/api/mobile-studio/session":
             payload = {"success": True, "session": {"id": "session1"}}
@@ -71,7 +73,9 @@ def test_mobile_success_reload_and_share_is_browser_menu(motion_fixture_url):
             page.add_init_script("""window.__shares=[]; Object.defineProperty(navigator,'share',{value: async args => window.__shares.push({...args, files:args.files?.map(f=>({name:f.name,type:f.type,size:f.size}))})}); Object.defineProperty(navigator,'canShare',{value:()=>true}); Object.defineProperty(navigator,'clipboard',{value:{writeText:async t=>{window.__caption=t;}}});""")
             start_render(page, mobile_url(motion_fixture_url))
             expect(page.get_by_text("เรนเดอร์สำเร็จ 100% พร้อมโพสต์!", exact=True)).to_be_visible()
-            assert page.locator("video").get_attribute("src") == RESULT["video_url"]
+            video = urlsplit(page.locator("video").get_attribute("src"))
+            assert video.path == RESULT["video_url"]
+            assert parse_qs(video.query) == {"channel": ["main"]}
             body = next(body for path, body in requests if path.endswith("/assemble"))
             assert body["session_id"] == "session1" and body["custom_raw_video"] is None
             page.get_by_role("button", name="เปิดเมนูแชร์วิดีโอ").click()
@@ -129,9 +133,9 @@ def test_filming_navigation_returns_to_same_mobile_workflow(motion_fixture_url):
             page.goto(mobile_url(motion_fixture_url), wait_until="domcontentloaded")
             page.get_by_role("button", name="ยืนยันสคริปต์ & ไปหน้าถ่ายทำ").click()
             page.get_by_role("button", name="กดเปิดกล้องถ่ายทำ (Guided Take)").click()
-            page.wait_for_url("**/?film=1&session=session1&return=mobile&product=prod&angle=angle")
+            page.wait_for_url("**/?film=1&session=session1&return=mobile&product=prod&angle=angle&channel=main")
             page.get_by_role("button", name="เสร็จแล้ว กลับไปหน้าหลัก").click()
-            page.wait_for_url("**/?mode=mobile&mobile_session=session1&product=prod&angle=angle")
+            page.wait_for_url("**/?mode=mobile&mobile_session=session1&product=prod&angle=angle&channel=main")
             expect(page.get_by_role("button", name="ประกอบคลิปและเรนเดอร์", exact=True)).to_be_visible()
             expect(page.get_by_text("สเต็ป 2: ถ่ายคลิปหน้ากล้อง", exact=True)).to_be_visible()
         finally:

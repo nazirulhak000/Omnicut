@@ -1,3 +1,4 @@
+import { channelLocalStorage } from '../lib/channelStorage.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getRenderStatus, startRender } from '../api.js';
 
@@ -99,6 +100,7 @@ export function useRenderJob({
   onError,
   pollIntervalMs = 1000,
 } = {}) {
+  const [workspaceStorage] = useState(channelLocalStorage);
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
   const [jobProjectName, setJobProjectName] = useState(projectName || '');
@@ -135,7 +137,7 @@ export function useRenderJob({
           setJobStatus(null);
           setStartTime(null);
           setDisplayPercent(100);
-          clearActiveJob(targetProject);
+          clearActiveJob(targetProject, workspaceStorage);
           const rawResult = st.result || {};
           const normalized = normalizeJobResult(rawResult);
           setApplyResult(rawResult);
@@ -145,13 +147,13 @@ export function useRenderJob({
           setIsRendering(false);
           setJobStatus(null);
           setStartTime(null);
-          clearActiveJob(targetProject);
+          clearActiveJob(targetProject, workspaceStorage);
         } else if (isFailed) {
           clearTimer();
           setIsRendering(false);
           setJobStatus(null);
           setStartTime(null);
-          clearActiveJob(targetProject);
+          clearActiveJob(targetProject, workspaceStorage);
           const errorMsg = formatJobError(st.error || 'เกิดข้อผิดพลาดในการเรนเดอร์');
           setApplyError(errorMsg);
           callbacksRef.current.onError?.(errorMsg, id, targetProject);
@@ -162,7 +164,7 @@ export function useRenderJob({
         setIsRendering(false);
         setJobStatus(null);
         setStartTime(null);
-        clearActiveJob(targetProject);
+        clearActiveJob(targetProject, workspaceStorage);
         if (err?.response?.status === 404) {
           const errorMsg = 'ไม่พบงานเรนเดอร์นี้แล้ว (อาจถูกล้างหรือเซิร์ฟเวอร์รีสตาร์ท) กรุณาเรนเดอร์ใหม่';
           setApplyError(errorMsg);
@@ -218,7 +220,7 @@ export function useRenderJob({
     }
 
     if (currentProject) {
-      saveActiveJob(currentProject, newJobId);
+      saveActiveJob(currentProject, newJobId, workspaceStorage);
     }
 
     pollJob(newJobId, currentProject);
@@ -275,7 +277,7 @@ export function useRenderJob({
     }
 
     // Check if there is an active background render job for this tab and project.
-    const jobEntry = getActiveJobEntry();
+    const jobEntry = getActiveJobEntry(workspaceStorage);
     const storedJobId = jobEntry?.jobId;
     const isForCurrentProject = Boolean(
       storedJobId && (!jobEntry.projectKey || !projectName || jobEntry.projectKey === projectName)
@@ -302,7 +304,7 @@ export function useRenderJob({
         setJobStatus((current) => {
           const unanswered = !current || current.progress === 0.1;
           if (!unanswered) return current;
-          clearActiveJob(projectName);
+          clearActiveJob(projectName, workspaceStorage);
           setIsRendering(false);
           setJobId(null);
           setStartTime(null);

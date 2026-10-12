@@ -5,6 +5,7 @@ FFmpeg video assembly, and project manifest persistence.
 """
 
 import datetime
+from copy import deepcopy
 import inspect
 import time
 from pathlib import Path
@@ -174,7 +175,9 @@ class VideoAssemblyStage:
         color_theme = ctx.resolve_color_theme_contract()
         spotlight = ctx.resolve_spotlight_contract()
         background_isolation = ctx.resolve_background_isolation_contract()
-        actual_clip_list = ctx.actual_clip_list
+        # Transition planning may add handles and boundary metadata. Keep the
+        # caller's authored/source list immutable, including nested windows.
+        actual_clip_list = deepcopy(ctx.actual_clip_list)
         is_newly_generated = getattr(ctx, "is_newly_generated_clips", False)
         transitions, automatic = _resolve_transition_plan(
             actual_clip_list, ctx.transitions, newly_generated=is_newly_generated,
@@ -265,6 +268,15 @@ class VideoAssemblyStage:
             print("\n✂️ [5/5] Cutting Video, Dynamic Punch-Zooming & Rendering Final MP4...")
             suffix = "_draft" if ctx.export_preset == "draft" else ""
             out_mp4 = EXPORTS_DIR / f"{ctx.project_name}_{timestamp_str}{suffix}.mp4"
+            # A prior render (including one under an older pinned identity) is
+            # immutable. Timestamp collisions create a fresh version before
+            # FFmpeg gets a destination, rather than overwriting its bytes.
+            version = 2
+            initial_path = out_mp4
+            while out_mp4.exists():
+                out_mp4 = initial_path.with_name(f"{initial_path.stem}_v{version}{initial_path.suffix}")
+                version += 1
+            out_mp4.parent.mkdir(parents=True, exist_ok=True)
 
             def on_ffmpeg_progress(curr_sec: float, tot_sec: float):
                 ratio = min(1.0, max(0.0, curr_sec / max(0.1, tot_sec)))
@@ -368,6 +380,8 @@ class VideoAssemblyStage:
                 angle_id=ctx.angle_id,
                 project_name=ctx.project_name,
                 status="rendered",
+                job_scope=ctx.job_scope or None,
+                **ctx.store_kwargs(),
             )
             export_id = export_record["id"]
             ctx.result_paths["export_id"] = export_id
@@ -386,6 +400,9 @@ class VideoAssemblyStage:
             }
 
         manifest_fields = {
+            "render_interrupted": False,
+            **(ctx.job_scope or {}),
+            "channel_id": ctx.channel_id or "main",
             "export_id": export_id,
             "script_data": ctx.script_data,
             "cues": ctx.cues,
@@ -401,6 +418,9 @@ class VideoAssemblyStage:
             "overlays": ctx.effective_overlays,
             "render_params": {
                 "product_name": ctx.product_name,
+                "channel_id": ctx.channel_id,
+                "job_scope": ctx.job_scope,
+                "channel_identity_snapshot": ctx.channel_identity_snapshot,
                 "style_preset": ctx.style_preset,
                 "color_theme": color_theme,
                 "color_theme_input": ctx.color_theme,

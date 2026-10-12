@@ -126,6 +126,8 @@ def test_upload_rejects_relative_traversal_product_id(isolated_dirs, client):
 
 
 def test_upload_with_legit_product_id_still_works(isolated_dirs, client):
+    # Upload now requires an existing product owned by the request's channel.
+    ps._TABLE.save([{"id": "20260907153012_1", "name": "Upload fixture", "channel_id": "main", "videos": []}])
     resp = client.post(
         "/api/upload",
         data={"target_dir": "raw", "product_id": "20260907153012_1"},

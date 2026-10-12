@@ -11,15 +11,66 @@ import threading
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from scripts.channel_ownership import resolve_store_scope
+from scripts.channel_scope import ChannelScope, get_channel_scope, require_writable
+from scripts.channel_store import ChannelError
 from scripts.config import BASE_DIR, EXPORTS_DIR, COVERS_DIR
 from scripts.product_store import ProductStore
 from scripts.media_service import get_file_info
 from scripts.api_schemas import LinkAngleRequest
 from scripts.video_editor import VideoEditor
 from scripts.export_registry import ExportRegistry
+
+
+# ---------------------------------------------------------------------------
+# Channel scope (multi-channel P2.2, ADR §7.1 + §12/§13)
+# ---------------------------------------------------------------------------
+# Export identity is the registry row (``export_id``) and its ``channel_id``;
+# the flat 04_Exports folders are shared until P6 (nested channel folders and
+# Gallery discovery are not changed here).  So a path/filename sent in scope A
+# may only act on A's registry row: a file registered to another channel is
+# 404 before any move/write, and an UNREGISTERED file is only usable where
+# legacy data belongs to the scope (compat ``main``) -- elsewhere it has no
+# provable owner.  Handlers called directly (not via FastAPI) get ``None`` =
+# compat unscoped (strict -> 422 from the stores).
+
+def _channel_of(scope: Any) -> Optional[str]:
+    return scope.channel_id if isinstance(scope, ChannelScope) else None
+
+
+def _kw(channel_id: Optional[str]) -> Dict[str, Any]:
+    return {} if channel_id is None else {"channel_id": channel_id}
+
+
+def _guard_writable(scope: Any) -> None:
+    if isinstance(scope, ChannelScope) and not scope.is_implicit_default:
+        require_writable(scope)
+
+
+def _legacy_files_allowed(channel_id: Optional[str]) -> bool:
+    scope = resolve_store_scope(channel_id)
+    return scope.unscoped or scope.include_legacy
+
+
+def _unregistered_file_error() -> ChannelError:
+    return ChannelError(
+        404,
+        "resource_not_found",
+        "ไฟล์นี้ยังไม่ได้ลงทะเบียนเป็น export ของช่องที่เลือก",
+    )
+
+
+def _raise_if_foreign_product(product_id: Optional[str], channel_id: Optional[str]) -> None:
+    """A product of another channel (or a legacy one hidden by strict mode)
+    looks like it does not exist (404) -- checked before any file is moved."""
+    if not product_id or channel_id is None:
+        return
+    exists, _owner = ProductStore.owner_of(product_id)
+    if exists and ProductStore.find(product_id, channel_id=channel_id) is None:
+        raise ChannelError(404, "resource_not_found", "ไม่พบสินค้าที่ร้องขอ")
 
 
 def _is_contained(path: Path, root: Path) -> bool:
@@ -58,7 +109,8 @@ def _load_project_disk_info(projects_dir: Path) -> Dict[str, dict]:
     global _PROJECT_DISK_INFO_CACHE
 
     try:
-        project_dirs = [p for p in projects_dir.iterdir() if p.is_dir()]
+        project_dirs = [p.parent for p in projects_dir.rglob("project.json")
+                        if not p.is_symlink() and p.resolve().is_relative_to(projects_dir.resolve())]
     except OSError:
         return {}
 
@@ -69,7 +121,7 @@ def _load_project_disk_info(projects_dir: Path) -> Dict[str, dict]:
             stat = manifest.stat()
         except OSError:
             continue
-        signature_rows.append((str(pdir), pdir.name.lower(), stat.st_mtime_ns, stat.st_size))
+        signature_rows.append((str(pdir), pdir.relative_to(projects_dir).as_posix().lower(), stat.st_mtime_ns, stat.st_size))
     signature = tuple(sorted(signature_rows))
     cache_key = str(projects_dir.resolve(strict=False))
 
@@ -226,15 +278,21 @@ def _find_product_cover(product_name: str) -> Optional[Path]:
 
 
 @router.get("/api/exports")
-def list_exports():
+def list_exports(scope: ChannelScope = Depends(get_channel_scope)):
     """Lists all rendered videos in 04_Exports/Ready_to_post enriched with product & script metadata.
     Distinguishes latest active export vs previous superseded versions vs external unlinked files.
+
+    Channel-scoped (P2.2): only files registered to the request channel are
+    listed and matched against that channel's products; files registered to
+    another channel are hidden; unregistered files are listed/hydrated only
+    where legacy data belongs to the scope (compat ``main``).
     """
+    channel_id = _channel_of(scope)
     files = sorted(
         list(EXPORTS_DIR.glob("*.mp4")) + list(POSTED_DIR.glob("*.mp4")),
         key=os.path.getmtime, reverse=True,
     )
-    all_products = ProductStore.get_all()
+    all_products = ProductStore.get_all(**_kw(channel_id))
 
     # 1. Build lookup tables
     project_angle_map: Dict[str, tuple] = {}
@@ -290,13 +348,36 @@ def list_exports():
     # retained only as a one-time migration path for exports made before
     # export_id existed.
     registry_by_path: Dict[Path, Dict[str, Any]] = {}
+    foreign_paths: set = set()
     try:
-        for record in ExportRegistry._load():
+        for record in ExportRegistry.all(**_kw(channel_id)):
             registered_path = _stored_export_path(record.get("path"))
             if registered_path:
                 registry_by_path[registered_path] = record
+        for raw in ExportRegistry.out_of_scope_paths(**_kw(channel_id)):
+            foreign = _stored_export_path(raw)
+            if foreign:
+                foreign_paths.add(foreign)
+    except ChannelError:
+        raise
     except Exception as registry_err:
         print(f"[api_exports] WARNING: could not load export registry: {registry_err}")
+
+    # Discover namespaced outputs by their scoped registry identity. Never
+    # recursively import unregistered files from another channel's directory.
+    candidates = {f.resolve(): f for f in files}
+    for path in registry_by_path:
+        if path.suffix.lower() == ".mp4" and path.is_file() and any(_is_contained(path, root) for root in (EXPORTS_DIR, POSTED_DIR)):
+            candidates.setdefault(path, path)
+    files = sorted(candidates.values(), key=os.path.getmtime, reverse=True)
+
+    if channel_id is not None:
+        legacy_ok = _legacy_files_allowed(channel_id)
+        files = [
+            f for f in files
+            if f.resolve() in registry_by_path
+            or (legacy_ok and f.resolve() not in foreign_paths)
+        ]
 
     # Pass 1: Identify match for each file
     raw_matches = []
@@ -310,6 +391,7 @@ def list_exports():
 
         registry_record = registry_by_path.get(f.resolve())
         if registry_record:
+            matched_proj_name = registry_record.get("project_name")
             registered_product = product_id_map.get(str(registry_record.get("product_id") or "").lower())
             registered_angle = None
             if registered_product:
@@ -381,6 +463,13 @@ def list_exports():
                         break
 
         disk_proj = project_disk_info.get(matched_proj_name.lower()) if matched_proj_name else None
+        if registry_record and registry_record.get("project_name"):
+            canonical_name = registry_record["project_name"]
+            canonical = project_disk_info.get(canonical_name.lower())
+            if canonical and canonical.get("engine") == "hyperframes":
+                matched_proj_name, disk_proj = canonical_name, canonical
+                if canonical.get("source_binding", {}).get("type") in {"standalone", "gadget_project"}:
+                    matched_prod, matched_angle = None, None
 
         raw_matches.append({
             "file": f,
@@ -399,7 +488,7 @@ def list_exports():
         proj = item["proj_name"]
         group_key = None
         if p and a:
-            group_key = f"{p.get('id')}:{a.get('angle_id')}"
+            group_key = f"{p.get('id')}:{a.get('angle_id') or a.get('id')}"
         elif proj:
             group_key = f"proj:{proj}"
         elif p:
@@ -431,14 +520,14 @@ def list_exports():
         registry_requests.append({
             "path": export_file,
             "product_id": matched_prod.get("id") if matched_prod else None,
-            "angle_id": matched_angle.get("angle_id") if matched_angle else None,
+            "angle_id": (matched_angle.get("angle_id") or matched_angle.get("id")) if matched_angle else None,
             "project_name": (matched_angle or {}).get("project_name") or item["proj_name"],
             "status": "posted" if is_posted else "rendered",
             "posted_at": (matched_angle or {}).get("posted_at") if is_posted else None,
         })
 
     try:
-        ensured_records = ExportRegistry.ensure_many(registry_requests)
+        ensured_records = ExportRegistry.ensure_many(registry_requests, **_kw(channel_id))
     except Exception as registry_err:
         # Preserve the legacy per-file fallback if a read-only/older
         # installation cannot perform the bulk write.
@@ -453,6 +542,7 @@ def list_exports():
                     project_name=request["project_name"],
                     status=request["status"],
                     posted_at=request["posted_at"],
+                    **_kw(channel_id),
                 ))
             except Exception as single_err:
                 print(f"[api_exports] WARNING: could not persist export identity for {request['path'].name}: {single_err}")
@@ -506,7 +596,7 @@ def list_exports():
 
         group_key = None
         if matched_prod and matched_angle:
-            group_key = f"{matched_prod.get('id')}:{matched_angle.get('angle_id')}"
+            group_key = f"{matched_prod.get('id')}:{matched_angle.get('angle_id') or matched_angle.get('id')}"
         elif matched_proj_name:
             group_key = f"proj:{matched_proj_name}"
         elif matched_prod:
@@ -530,7 +620,7 @@ def list_exports():
 
         # Script/Angle metadata
         if matched_angle:
-            info["angle_id"] = matched_angle.get("angle_id")
+            info["angle_id"] = matched_angle.get("angle_id") or matched_angle.get("id")
             info["angle_name"] = matched_angle.get("angle_name")
             info["hook_title"] = matched_angle.get("hook_title")
             info["script_lines"] = matched_angle.get("script_lines")
@@ -548,8 +638,60 @@ def list_exports():
             info["tiktok_hashtags"] = f"#{matched_prod.get('name', '').replace(' ', '')} #รีวิวของดี #พิกัดในตะกร้า" if (matched_prod and matched_prod.get("name")) else "#รีวิวของดี #พิกัดในตะกร้า"
             info["project_name"] = disk_proj.get("project_name") or matched_proj_name
 
+        # HyperFrames stores a frozen package for each export. A later Angle
+        # revision must not replace historical caption, basket or chosen cover.
+        if disk_proj and disk_proj.get("engine") == "hyperframes":
+            packages = disk_proj.get("publish_package_refs") or []
+            package = next((p for p in packages if p.get("export_id") == info.get("export_id")), None)
+            if package:
+                for key in ("cover_url", "cover_3x4_path", "cover_3x4_url", "cover_9x16_path", "cover_9x16_url"):
+                    info.pop(key, None)
+                info.update(tiktok_caption=package.get("caption", ""),
+                            tiktok_hashtags=" ".join(package.get("hashtags") or []),
+                            tiktok_product_id=package.get("tiktok_product_id", ""),
+                            cover_path=package.get("cover_path"),
+                            project_name=package.get("project_name"),
+                            source_binding=package.get("source_binding"),
+                            composition_revision=package.get("composition_revision"))
+                if package.get("source_title"):
+                    info["product_name"] = package["source_title"]
+                    info["hook_title"] = package.get("source_hook") or package["source_title"]
+                if package.get("cover_path"):
+                    info["cover_url"] = f"/api/media/{package['cover_path']}"
+                from scripts.hyperframes_publish_readiness import export_readiness
+                try:
+                    review = export_readiness(BASE_DIR, channel_id or "main", {"id": info["export_id"], "project_name": info["project_name"], "path": info.get("rel_path") or info.get("path")})
+                    info.update(source_review_required=review["required"], source_review_ready=review["ready"], source_review_project_id=review.get("project_id"))
+                except ChannelError as error:
+                    info.update(source_review_required=True, source_review_ready=False, source_review_error=error.code)
+
+        # CoverStudio also serves legacy exports: a saved exact selection
+        # must survive reload for either engine, without changing old queues.
+        if info.get("export_id"):
+            from scripts.export_cover_bindings import ExportCoverBindingStore
+            selections = ExportCoverBindingStore(BASE_DIR)
+            try:
+                selected = [selections.get(channel_id, info["export_id"], format=fmt)
+                            for fmt in ("3:4", "9:16")]
+                for binding in filter(None, selected):
+                    variant = "3x4" if binding["format"] == "3:4" else "9x16"
+                    info[f"cover_{variant}_path"] = binding["path"]
+                    info[f"cover_{variant}_url"] = f"/api/media/{binding['path']}"
+                chosen = next(filter(None, selected), None)
+                if chosen:
+                    info.update(cover_path=chosen["path"],
+                                cover_url=f"/api/media/{chosen['path']}",
+                                cover_sha256=chosen["sha256"],
+                                cover_format=chosen["format"],
+                                cover_revision=chosen["revision"])
+            except ChannelError as error:
+                for key in ("cover_url", "cover_3x4_path", "cover_3x4_url", "cover_9x16_path", "cover_9x16_url"):
+                    info.pop(key, None)
+                info.update(cover_path=None, cover_selection_error=error.code)
+
         # Determine version status
-        has_script = bool(matched_angle or (disk_proj and disk_proj.get("script_data", {}).get("hook")))
+        has_script = bool(matched_angle or (disk_proj and disk_proj.get("script_data", {}).get("hook")) or
+                          (disk_proj and disk_proj.get("engine") == "hyperframes" and package))
 
         if has_script:
             info["is_unlinked"] = False
@@ -590,20 +732,28 @@ def list_exports():
 
 
 @router.post("/api/exports/link-angle")
-def link_export_to_angle(req: LinkAngleRequest):
-    """Links an exported video to a product angle."""
+def link_export_to_angle(req: LinkAngleRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    """Links an exported video to a product angle (both must belong to the request channel)."""
+    channel_id = _channel_of(scope)
     try:
-        export_record = ExportRegistry.get(req.export_id) if req.export_id else None
+        _guard_writable(scope)
+        _raise_if_foreign_product(req.product_id, channel_id)
+        # Scoped lookups: an export id / file of another channel -> 404 here,
+        # before anything is registered or linked.
+        export_record = ExportRegistry.lookup(export_id=req.export_id, **_kw(channel_id)) if req.export_id else None
         if req.export_id and export_record is None:
             raise HTTPException(status_code=409, detail="ไม่พบ export_id ที่ระบุ จึงหยุดการผูกคลิปเพื่อป้องกันการแมพผิดตัว")
         if export_record is None:
-            export_record = ExportRegistry.find_by_path(req.video_path)
+            export_record = ExportRegistry.lookup(path=req.video_path, **_kw(channel_id))
         if export_record is None:
+            if not _legacy_files_allowed(channel_id):
+                raise _unregistered_file_error()
             export_record = ExportRegistry.ensure(
                 req.video_path,
                 product_id=req.product_id,
                 angle_id=req.angle_id,
                 status="rendered",
+                **_kw(channel_id),
             )
         requested_path = _stored_export_path(req.video_path)
         registered_path = _stored_export_path(export_record.get("path"))
@@ -611,15 +761,20 @@ def link_export_to_angle(req: LinkAngleRequest):
             raise HTTPException(status_code=409, detail="export_id ไม่ตรงกับไฟล์ที่เลือก")
         if export_record.get("status") == "posted":
             raise HTTPException(status_code=409, detail="คลิปนี้โพสต์แล้ว ไม่สามารถนำกลับไปผูกเป็นคลิปใหม่ได้")
-        _require_latest_export(export_record, req.product_id, req.angle_id)
+        _require_latest_export(export_record, req.product_id, req.angle_id, channel_id)
         updated = ProductStore.update_angle_status(
             product_id=req.product_id,
             angle_id=req.angle_id,
             status="rendered",
             video_url=req.video_path,
             export_id=export_record["id"],
+            **_kw(channel_id),
         )
         return {"status": "success", "product": updated}
+    except ChannelError:
+        # Typed scope errors keep their status/code (404/409/422) -- the
+        # generic 400 below is the route's legacy contract for everything else.
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -631,7 +786,12 @@ class MarkPostedRequest(BaseModel):
     angle_id: Optional[str] = None
 
 
-def _posted_companions(mp4_path: Path, product_id: Optional[str] = None, angle_id: Optional[str] = None) -> List[Path]:
+def _posted_companions(
+    mp4_path: Path,
+    product_id: Optional[str] = None,
+    angle_id: Optional[str] = None,
+    channel_id: Optional[str] = None,
+) -> List[Path]:
     """Every file that travels with an export when it moves: the gallery
     poster (webp) and TikTok covers (3:4, 9:16)."""
     stem = mp4_path.stem
@@ -656,7 +816,7 @@ def _posted_companions(mp4_path: Path, product_id: Optional[str] = None, angle_i
 
     if product_id and angle_id:
         try:
-            prod = ProductStore.get(product_id)
+            prod = ProductStore.get(product_id, **_kw(channel_id))
             if prod:
                 for a in prod.get("angles", []):
                     if a.get("angle_id") == angle_id or a.get("id") == angle_id:
@@ -674,7 +834,12 @@ def _posted_companions(mp4_path: Path, product_id: Optional[str] = None, angle_i
     return sorted(found)
 
 
-def _mark_scheduled_queue_item_posted(source: Path, destination: Path, export_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def _mark_scheduled_queue_item_posted(
+    source: Path,
+    destination: Path,
+    export_id: Optional[str] = None,
+    channel_id: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     """Close the durable queue row when the extension moves this export.
 
     Returns a copy of the matched queue row (hook/style/caption/schedule
@@ -685,12 +850,16 @@ def _mark_scheduled_queue_item_posted(source: Path, destination: Path, export_id
     the file must update its lifecycle while keeping the same one-clip guard.
     A queue update is best-effort here: the export move remains authoritative
     even if an old installation has no schedule table yet.
+
+    Channel-scoped (P2.2): only the request channel's queue rows are looked
+    at, and the filename fallback must be unambiguous (one row, preferring
+    rows that are not posted yet) -- otherwise nothing is changed.
     """
     try:
         from scripts.api_schedule_queue import video_key
         from scripts.schedule_store import ScheduleQueueStore, now_iso
         key = video_key(source)
-        with ScheduleQueueStore._mutate() as records:
+        with ScheduleQueueStore.transaction(**_kw(channel_id)) as records:
             # An exact export_id match is preferred, but a queue row's
             # export_id goes stale the moment the angle is re-rendered after
             # being queued: a fresh render mints a new export_id while the
@@ -704,14 +873,14 @@ def _mark_scheduled_queue_item_posted(source: Path, destination: Path, export_id
             if export_id:
                 target_row = next((row for row in records if row.get("export_id") == export_id), None)
             if target_row is None:
-                target_row = next(
-                    (
-                        row for row in records
-                        if row.get("video_key") == key
-                        or Path(str(row.get("video_path", ""))).name.casefold() == source.name.casefold()
-                    ),
-                    None,
-                )
+                by_file = [
+                    row for row in records
+                    if row.get("video_key") == key
+                    or Path(str(row.get("video_path", ""))).name.casefold() == source.name.casefold()
+                ]
+                open_rows = [row for row in by_file if row.get("status") != "posted"]
+                pool = open_rows or by_file
+                target_row = pool[0] if len(pool) == 1 else None
             if target_row is not None:
                 target_row["video_path"] = str(destination.relative_to(BASE_DIR)).replace("\\", "/")
                 target_row["video_key"] = key
@@ -763,14 +932,18 @@ def _record_posted_in_post_log(
     queue_row: Optional[Dict[str, Any]],
     product_id: Optional[str],
     angle_id: Optional[str],
-) -> None:
+    channel_id: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     """Write exactly one PostLog row for a clip just marked posted.
 
     Without this the row only appeared later through a fuzzy TikTok stats
     match, and hook / style_preset / hook_color / schedule time were lost.
-    Idempotent (PostLog.register_posted_export matches on export_id or clip
-    file), so a repeated mark-posted or a later stats auto-register reuses the
-    same row. Best-effort: never fails an already-completed file move.
+    Idempotent (PostLog.record_posted_export matches on (channel, export_id),
+    then an UNAMBIGUOUS legacy clip basename in the same channel), so a
+    repeated mark-posted or a later stats auto-register reuses the same row.
+    Returns the PostLog result (``status`` ``ambiguous`` = nothing written,
+    reported by the caller) or None. Best-effort: never fails an
+    already-completed file move.
     """
     try:
         from scripts import post_log as post_log_module
@@ -778,7 +951,7 @@ def _record_posted_in_post_log(
         # module was pointed at a different root (isolated test workspaces),
         # so those runs can never write into the real store.db.
         if post_log_module.LOG_PATH.parent.parent.resolve() != BASE_DIR.resolve():
-            return
+            return None
         row = queue_row or {}
         product: Dict[str, Any] = {}
         angle: Dict[str, Any] = {}
@@ -786,7 +959,7 @@ def _record_posted_in_post_log(
         aid = angle_id or row.get("angle_id") or export_record.get("angle_id")
         if pid:
             try:
-                product = ProductStore.get(pid) or {}
+                product = ProductStore.get(pid, **_kw(channel_id)) or {}
                 angle = next(
                     (a for a in product.get("angles", []) if aid and (a.get("angle_id") == aid or a.get("id") == aid)),
                     {},
@@ -795,7 +968,7 @@ def _record_posted_in_post_log(
                 product, angle = {}, {}
         hook = str(row.get("hook_title") or angle.get("hook_title") or "")
         scheduled_at = str(row.get("scheduled_at") or "")
-        post_log_module.PostLog.register_posted_export(
+        return post_log_module.PostLog.record_posted_export(
             product_name=str(row.get("product_name") or product.get("name") or product.get("product_name") or ""),
             clip_file=destination.name,
             export_id=str(export_record.get("id") or ""),
@@ -809,9 +982,11 @@ def _record_posted_in_post_log(
             hashtags=_hashtag_list(row.get("hashtags") or angle.get("tiktok_hashtags") or angle.get("hashtags")),
             scheduled_at=scheduled_at,
             posted_at=_planned_post_time(scheduled_at),
+            **_kw(channel_id),
         )
     except Exception as exc:
         print(f"[mark_posted] PostLog notice: {exc}")
+        return None
 
 
 def _same_file_contents(left: Path, right: Path) -> bool:
@@ -860,11 +1035,16 @@ def _move_or_reuse_posted(source: Path, destination: Path) -> None:
         )
 
 
-def _require_latest_export(export_record: Dict[str, Any], product_id: Optional[str], angle_id: Optional[str]) -> None:
-    """Prevent a stale version from entering the posting flow."""
+def _require_latest_export(
+    export_record: Dict[str, Any],
+    product_id: Optional[str],
+    angle_id: Optional[str],
+    channel_id: Optional[str] = None,
+) -> None:
+    """Prevent a stale version from entering the posting flow (versions of the same channel)."""
     if not product_id or not angle_id:
         return
-    latest = ExportRegistry.latest_for_angle(product_id, angle_id)
+    latest = ExportRegistry.latest_for_angle(product_id, angle_id, **_kw(channel_id))
     if latest and latest.get("id") != export_record.get("id"):
         raise HTTPException(
             status_code=409,
@@ -873,7 +1053,20 @@ def _require_latest_export(export_record: Dict[str, Any], product_id: Optional[s
 
 
 @router.post("/api/exports/mark-posted")
-def mark_posted(req: MarkPostedRequest):
+def mark_posted(req: MarkPostedRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    return _mark_posted_impl(req, scope)
+
+
+def apply_posted_outcome(req: MarkPostedRequest, scope: ChannelScope, posting_job: dict):
+    """Internal receipt repair; HTTP callers cannot select this path."""
+    if (posting_job.get("status") != "published" or not posting_job.get("receipt_hash")
+            or posting_job.get("channel_id") != _channel_of(scope)
+            or posting_job.get("export_id") != req.export_id):
+        raise ChannelError(409, "posting_receipt_required", "ต้องมีผลยืนยันของงานและช่องเดียวกันก่อนซ่อมสถานะโพสต์")
+    return _mark_posted_impl(req, scope, posting_job=posting_job)
+
+
+def _mark_posted_impl(req: MarkPostedRequest, scope: ChannelScope, *, posting_job=None):
     """
     Moves a clip (+ its poster/cover) from Ready_to_post/ into Posted/, and
     when the angle is known, sets its status to 'posted' with the new path.
@@ -882,7 +1075,12 @@ def mark_posted(req: MarkPostedRequest):
     regardless of where the manifest's video_url points (product_store.py's
     "Preserve permanent posted status" branch), so moving the file here
     does not fight the background reconciler.
+
+    Channel-scoped (P2.2): the export (by id or file) and the product must
+    belong to the request channel -- checked before any file moves.  Recording
+    a posted result is allowed for an archived channel (ADR §10.4).
     """
+    channel_id = _channel_of(scope)
     src = Path(req.file_path)
     if not src.is_absolute():
         src = BASE_DIR / req.file_path
@@ -893,15 +1091,23 @@ def mark_posted(req: MarkPostedRequest):
     if not src.exists():
         raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์: {src.name}")
 
-    export_record = ExportRegistry.get(req.export_id) if req.export_id else ExportRegistry.find_by_path(src)
+    _raise_if_foreign_product(req.product_id, channel_id)
+    export_record = (
+        ExportRegistry.lookup(export_id=req.export_id, **_kw(channel_id))
+        if req.export_id
+        else ExportRegistry.lookup(path=src, **_kw(channel_id))
+    )
     if req.export_id and export_record is None:
         raise HTTPException(status_code=409, detail="ไม่พบ export_id ที่ระบุ จึงหยุดการโพสต์เพื่อป้องกันการเลือกคลิปผิดตัว")
     if export_record is None:
+        if not _legacy_files_allowed(channel_id):
+            raise _unregistered_file_error()
         export_record = ExportRegistry.ensure(
             src,
             product_id=req.product_id,
             angle_id=req.angle_id,
             status="rendered",
+            **_kw(channel_id),
         )
     else:
         registry_path = _stored_export_path(export_record.get("path"))
@@ -911,9 +1117,23 @@ def mark_posted(req: MarkPostedRequest):
                 detail="export_id ไม่ตรงกับไฟล์ที่เลือก จึงหยุดการทำรายการเพื่อป้องกันการมาร์กผิดคลิป",
             )
 
-    _require_latest_export(export_record, req.product_id, req.angle_id)
+    superseded_job = False
+    if posting_job is None:
+        _require_latest_export(export_record, req.product_id, req.angle_id, channel_id)
+    else:
+        latest = ExportRegistry.latest_for_angle(req.product_id, req.angle_id, **_kw(channel_id))
+        superseded_job = bool(latest and latest["id"] != export_record["id"])
+    if posting_job is not None and posting_job.get("queue_id"):
+        from scripts.schedule_store import ScheduleQueueStore
+        queued = ScheduleQueueStore.get_item(posting_job["queue_id"], **_kw(channel_id))
+        if not queued or queued.get("export_id") != posting_job["export_id"] or queued.get("posting_job_id") != posting_job["job_id"] or queued.get("status") not in {"ready_for_extension", "posted"}:
+            raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนเจ้าของงานแล้ว ต้องตรวจผลก่อนซ่อมบันทึก")
 
-    companions = _posted_companions(src, req.product_id, req.angle_id)
+    # A receipt has frozen export ownership, but no frozen angle cover/project
+    # ownership. Those live pointers can change during repair, so only move
+    # companions belonging to this exact export filename.
+    companions = _posted_companions(src, None if posting_job else req.product_id,
+                                   None if posting_job else req.angle_id, channel_id)
     POSTED_DIR.mkdir(parents=True, exist_ok=True)
 
     dest = POSTED_DIR / src.name
@@ -921,6 +1141,21 @@ def mark_posted(req: MarkPostedRequest):
     for companion in companions:
         if companion.exists():
             move_pairs.append((companion, POSTED_DIR / companion.name))
+
+    # Posted/ is still one flat folder (P6): never move onto a path another
+    # channel's registry row already owns (it would merge two channels'
+    # exports into one file).  Checked before any file moves.
+    if channel_id is not None and dest.resolve() != src:
+        visible_ids = {str(export_record.get("id"))}
+        for owner_export_id, owner in ExportRegistry.path_owners(dest):
+            if owner_export_id in visible_ids:
+                continue
+            if not resolve_store_scope(channel_id).owns({"channel_id": owner}):
+                raise ChannelError(
+                    409,
+                    "export_path_conflict",
+                    f"มีคลิปชื่อเดียวกันของช่องอื่นอยู่ใน Posted/ แล้ว: {dest.name} จึงหยุดเพื่อไม่ให้ทับไฟล์ของอีกช่อง",
+                )
 
     # Preflight all collisions before moving anything, so a conflicting
     # poster/cover cannot leave a half-moved export behind.
@@ -959,10 +1194,10 @@ def mark_posted(req: MarkPostedRequest):
         new_cover_path = new_cover_9x16
 
     # Mark registry before updating ProductStore
-    ExportRegistry.move_and_mark_posted(export_record["id"], dest)
+    ExportRegistry.move_and_mark_posted(export_record["id"], dest, **_kw(channel_id))
 
     product_result: Dict[str, Any] = {}
-    if req.product_id and req.angle_id:
+    if req.product_id and req.angle_id and not superseded_job:
         try:
             product_result["product"] = ProductStore.update_angle_status(
                 product_id=req.product_id,
@@ -973,21 +1208,40 @@ def mark_posted(req: MarkPostedRequest):
                 cover_path=new_cover_path,
                 cover_3x4_path=new_cover_3x4,
                 cover_9x16_path=new_cover_9x16,
+                **({"require_latest_export": True} if posting_job is not None else {}),
+                **_kw(channel_id),
             )
+            if posting_job is not None and product_result["product"] is None:
+                superseded_job = True
+                product_result.pop("product")
         except Exception as e:
             # The file already moved -- report the status-update failure
             # rather than rolling the move back; "it's in Posted/" stays true
             # either way, and the angle can be re-linked by hand afterward.
             product_result["status_warning"] = str(e)
 
-    queue_row = _mark_scheduled_queue_item_posted(src, dest, export_record["id"])
-    _record_posted_in_post_log(export_record, dest, queue_row, req.product_id, req.angle_id)
+    # Positional on purpose: tests replace this helper with ``lambda *args``.
+    # Durable publication effects select the exact queue job later, under its
+    # own transaction. Legacy basename/export matching must never repair a
+    # different queue job, and the post log uses the frozen receipt payload.
+    queue_row = dict(posting_job) if posting_job is not None else _mark_scheduled_queue_item_posted(src, dest, export_record["id"], channel_id)
+    post_result = _record_posted_in_post_log(export_record, dest, queue_row, req.product_id, req.angle_id, channel_id)
+    if post_result is None:
+        product_result["post_log_warning"] = {"code": "post_log_incomplete", "detail": "ประวัติโพสต์ยังบันทึกไม่สำเร็จ ต้องซ่อมผลเดิม"}
+    if isinstance(post_result, dict) and post_result.get("status") == "ambiguous":
+        # Never guess which legacy post row this clip is: nothing was written
+        # to the post log; tell the caller which rows need a manual pick.
+        product_result["post_log_warning"] = {
+            "code": "post_log_ambiguous",
+            "detail": "พบประวัติโพสต์เดิมชื่อไฟล์เดียวกันมากกว่า 1 รายการ จึงยังไม่บันทึกลง Post Log กรุณาเลือกโพสต์ที่ถูกต้องเอง",
+            "candidate_post_ids": post_result.get("candidate_post_ids") or [],
+        }
 
     # Auto-archive project folder from 03_Projects to 06_Archive/Projects
     target_project_name = None
     if req.product_id and req.angle_id:
         try:
-            prod = ProductStore.get(req.product_id)
+            prod = ProductStore.get(req.product_id, **_kw(channel_id))
             for a in (prod or {}).get("angles", []):
                 if (a.get("angle_id") == req.angle_id or a.get("id") == req.angle_id) and a.get("project_name"):
                     target_project_name = a.get("project_name")
@@ -995,7 +1249,7 @@ def mark_posted(req: MarkPostedRequest):
         except Exception:
             pass
 
-    if target_project_name:
+    if target_project_name and not superseded_job and posting_job is None:
         try:
             from scripts.project_manifest import ProjectManifest
             from scripts.config import PROJECTS_DIR
@@ -1009,7 +1263,7 @@ def mark_posted(req: MarkPostedRequest):
 
 
 @router.get("/api/exports/media-info")
-def get_export_media_info(path: str):
+def get_export_media_info(path: str, scope: ChannelScope = Depends(get_channel_scope)):
     """
     Real per-file ffprobe data for the Post Studio spec tiles, fetched
     on-demand for whichever single clip is on screen -- NOT folded into
@@ -1033,5 +1287,12 @@ def get_export_media_info(path: str):
         raise HTTPException(status_code=403, detail="ไฟล์นี้ไม่ได้อยู่ในโฟลเดอร์ export ที่อนุญาต")
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์: {target.name}")
+
+    channel_id = _channel_of(scope)
+    if channel_id is not None:
+        # A file registered to another channel -> 404 (lookup raises); an
+        # unregistered file only where legacy data belongs to the scope.
+        if ExportRegistry.lookup(path=target, channel_id=channel_id) is None and not _legacy_files_allowed(channel_id):
+            raise _unregistered_file_error()
 
     return VideoEditor.get_media_info(str(target))

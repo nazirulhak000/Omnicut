@@ -1,11 +1,39 @@
 import axios from 'axios';
 import { rememberProjectRevision, withProjectRevision } from './lib/projectRevision.js';
 import { sanitizeText, sanitizeScript } from './lib/sanitize.js';
+import { createChannelTransport, projectApiPath } from './lib/channelTransport.js';
+import { captureChannel, isCurrentChannel, channelSelectionError } from './lib/channelRuntime.js';
 
 const api = axios.create({
   baseURL: '/api',
   timeout: 60000, // 60 seconds default
 });
+
+const originalRequest = api.request.bind(api);
+const scopedRequest = createChannelTransport({ send: originalRequest,
+  capture: captureChannel, isCurrent: isCurrentChannel });
+api.request = options => {
+  if (channelSelectionError() && !/^\/(?:api\/)?channels(?:\/|$)/.test(options.url)) {
+    const error = new Error(channelSelectionError());
+    error.code = 'channel_scope_invalid';
+    return Promise.reject(error);
+  }
+  return scopedRequest({ ...options, baseURL: '/',
+    url: options.url.startsWith('/api/') ? options.url : `/api${options.url}` });
+};
+for (const method of ['get', 'delete', 'head', 'options']) {
+  api[method] = (url, options = {}) => api.request({ ...options, method, url });
+}
+for (const method of ['post', 'put', 'patch']) {
+  api[method] = (url, data, options = {}) => api.request({ ...options, method, url, data });
+}
+
+export const getChannels = () => api.get('/channels').then(response => response.data);
+export const createChannel = payload => api.post('/channels', payload).then(response => response.data);
+export const updateChannel = (id, payload) => api.patch(`/channels/${encodeURIComponent(id)}`, payload).then(response => response.data);
+export const activateChannelProfile = (id, expectedRevision) => api.post(`/channels/${encodeURIComponent(id)}/activate`, { expected_revision: expectedRevision }).then(response => response.data);
+export const archiveChannelProfile = (id, expectedRevision) => api.post(`/channels/${encodeURIComponent(id)}/archive`, { expected_revision: expectedRevision }).then(response => response.data);
+export const getChannelReadiness = id => api.get(`/channels/${encodeURIComponent(id)}/readiness`).then(response => response.data);
 
 // Authentication is injected by the same-origin Vite proxy/server boundary;
 // the browser code never carries the backend shared secret.
@@ -98,6 +126,7 @@ export const previewVoice = (data) => api.post('/voice/preview', {
   ...data,
   text: sanitizeText(data.text)
 }, { timeout: 45000 }).then(r => r.data);
+export const getVoicePresets = () => api.get('/voice/presets').then(r => r.data);
 
 export const startRender = (data) => api.post('/render', {
   ...data,
@@ -147,8 +176,8 @@ export const generateCoverHooks = (productName, angleTitle = '', scriptContent =
     script_content: scriptContent,
   }).then(r => r.data);
 
-export const renderProCover = (payload) =>
-  api.post('/covers/render-pro', payload).then(r => r.data);
+export const renderProCover = (payload, channelToken = captureChannel()) =>
+  api.post('/covers/render-pro', payload, { channelToken }).then(r => r.data);
 
 export const getCoverRawSources = (videoPath) =>
   api.post('/covers/raw-sources', { video_path: videoPath }).then(r => r.data);
@@ -301,8 +330,8 @@ export const updateAngleStatus = (productId, angleId, status, videoUrl = null, p
     ...(markQcPassed ? { mark_qc_passed: true } : {}),
   }).then(r => r.data);
 
-export const updateAngleCover = (productId, angleId, cover, batch = null) =>
-  api.patch(`/products/${productId}/angles/${angleId}/cover`, { ...cover, ...(batch !== null ? { batch } : {}) }).then(r => r.data);
+export const updateAngleCover = (productId, angleId, cover, batch = null, channelToken = captureChannel()) =>
+  api.patch(`/products/${productId}/angles/${angleId}/cover`, { ...cover, ...(batch !== null ? { batch } : {}) }, { channelToken }).then(r => r.data);
 
 export const updateAngleVideos = (productId, angleId, selectedVideos, batch = null) =>
   api.post(`/products/${productId}/angles/${angleId}/videos`, { selected_videos: selectedVideos, ...(batch !== null ? { batch } : {}) }).then(r => r.data);
@@ -322,16 +351,17 @@ export const deleteProductAngle = (productId, angleId, batch = null) =>
 export const deleteProduct = (id, force = false) => api.delete(`/products/${id}`, { params: { force } }).then(r => r.data);
 
 export const getProjects = () => api.get('/projects').then(r => r.data);
-export const getProject = (name) => api.get(`/projects/${encodeURIComponent(name)}`).then(r => r.data);
-export const getProjectOrigin = (name) => api.get(`/projects/${encodeURIComponent(name)}/origin`).then(r => r.data);
+export const getProject = (name) => api.get(projectApiPath(name)).then(r => r.data);
+export const getProjectOrigin = (name) => api.get(`${projectApiPath(name)}/origin`).then(r => r.data);
 export const deleteProject = (name, scope = 'project') =>
-  api.delete(`/projects/${encodeURIComponent(name)}`, { params: { scope } }).then(r => r.data);
-export const updateProjectCues = (name, data) => api.patch(`/projects/${encodeURIComponent(name)}/cues`, data).then(r => r.data);
-export const updateProjectClips = (name, data) => api.patch(`/projects/${encodeURIComponent(name)}/clips`, data).then(r => r.data);
-export const updateProjectState = (name, data) => api.patch(`/projects/${encodeURIComponent(name)}/state`, withProjectRevision(name, data)).then(r => {
-  rememberProjectRevision(name, r.data?._editor_revision);
-  return r.data;
-});
+  api.delete(projectApiPath(name), { params: { scope } }).then(r => r.data);
+export const updateProjectCues = (name, data) => api.patch(`${projectApiPath(name)}/cues`, data).then(r => r.data);
+export const updateProjectClips = (name, data) => api.patch(`${projectApiPath(name)}/clips`, data).then(r => r.data);
+export const updateProjectState = (name, data, channelToken = captureChannel()) =>
+  api.patch(`${projectApiPath(name)}/state`, withProjectRevision(name, data, channelToken.channel_id), { channelToken }).then(r => {
+    rememberProjectRevision(name, r.data?._editor_revision, channelToken.channel_id);
+    return r.data;
+  });
 
 export const startReroll = (data) => api.post('/reroll', data, { timeout: 120000 }).then(r => r.data);
 
@@ -492,10 +522,11 @@ export const applyProjectHook = (payload) => api.post('/hooks/apply-project', pa
 // ═══════════════════════════════════════════════════════════════════════
 // 💡 AI PRODUCER HUB — IDEA & REF VAULT APIS
 // ═══════════════════════════════════════════════════════════════════════
-export const uploadRefMedia = (file) => {
+export const uploadRefMedia = (file, channelToken = captureChannel()) => {
   const formData = new FormData();
   formData.append('file', file);
   return api.post('/producer/upload-ref-media', formData, {
+    channelToken,
     headers: { 'Content-Type': 'multipart/form-data' },
   }).then(r => r.data);
 };
@@ -503,20 +534,20 @@ export const uploadRefMedia = (file) => {
 export const aiIdeaToAngle = (payload) =>
   api.post('/producer/ai-idea-to-angle', payload).then(r => r.data);
 
-export const getProducerNotes = () =>
-  api.get('/producer/notes').then(r => r.data);
+export const getProducerNotes = (channelToken = captureChannel()) =>
+  api.get('/producer/notes', { channelToken }).then(r => r.data);
 
 export const saveProducerNotes = (notes, baseRevision = null) =>
   api.post('/producer/notes', { notes, ...(baseRevision ? { base_revision: baseRevision } : {}) }).then(r => r.data);
 
-export const addProducerNote = (note) =>
-  api.post('/producer/notes/add', { note }).then(r => r.data);
+export const addProducerNote = (note, channelToken = captureChannel()) =>
+  api.post('/producer/notes/add', { note }, { channelToken }).then(r => r.data);
 
-export const updateProducerNote = (noteId, patch, baseRevision = null) =>
-  api.put(`/producer/notes/${encodeURIComponent(noteId)}`, { ...patch, ...(baseRevision ? { base_revision: baseRevision } : {}) }).then(r => r.data);
+export const updateProducerNote = (noteId, patch, baseRevision = null, channelToken = captureChannel()) =>
+  api.put(`/producer/notes/${encodeURIComponent(noteId)}`, { ...patch, ...(baseRevision ? { base_revision: baseRevision } : {}) }, { channelToken }).then(r => r.data);
 
-export const deleteProducerNote = (noteId) =>
-  api.delete(`/producer/notes/${encodeURIComponent(noteId)}`).then(r => r.data);
+export const deleteProducerNote = (noteId, channelToken = captureChannel()) =>
+  api.delete(`/producer/notes/${encodeURIComponent(noteId)}`, { channelToken }).then(r => r.data);
 
 export const getManualShotMap = (productId, angleId, batch = null) =>
   api.get(`/products/${productId}/angles/${angleId}/manual-shot-map`, { params: batch ? { batch } : {} }).then(r => r.data);
@@ -608,5 +639,34 @@ export const getHyperFramesCompositions = () => api.get('/hyperframes/compositio
 export const createHyperFramesClip = (payload) => api.post('/hyperframes/create-clip', payload).then(r => r.data);
 export const renderHyperFramesComposition = (payload) => api.post('/hyperframes/render', payload).then(r => r.data);
 export const openHyperFramesStudio = (port = 3100) => api.post('/hyperframes/open-studio', { port }).then(r => r.data);
+
+// The existing transport freezes request scope and discards late channel replies.
+export const hyperframesWorkflowApi = {
+  aiCapabilities: () => api.get('/hyperframes/ai/capabilities').then(r => r.data),
+  inspectOverlay: payload => api.post('/hyperframes/overlay/inspect', payload).then(r => r.data),
+  createOverlay: payload => api.post('/hyperframes/overlay/projects', payload).then(r => r.data),
+  generateAI: (id, payload) => api.post(`/hyperframes/authoring-jobs/${encodeURIComponent(id)}/generate`, payload).then(r => r.data),
+  cancelAI: id => api.post(`/hyperframes/authoring-jobs/${encodeURIComponent(id)}/generate/cancel`).then(r => r.data),
+  listGadgetProjects: () => listGadgetMediaProjects(),
+  listProjects: () => api.get('/hyperframes/projects').then(r => r.data),
+  createProject: payload => api.post('/hyperframes/projects', payload).then(r => r.data),
+  getProject: id => api.get(`/hyperframes/projects/${encodeURIComponent(id)}`).then(r => r.data),
+  updateProject: (id, payload) => api.patch(`/hyperframes/projects/${encodeURIComponent(id)}`, payload).then(r => r.data),
+  createAuthoringJob: (id, payload) => api.post(`/hyperframes/projects/${encodeURIComponent(id)}/authoring-jobs`, payload).then(r => r.data),
+  getAuthoringJob: id => api.get(`/hyperframes/authoring-jobs/${encodeURIComponent(id)}`).then(r => r.data),
+  getHandoff: id => api.get(`/hyperframes/authoring-jobs/${encodeURIComponent(id)}/handoff`).then(r => r.data),
+  acceptRevision: (id, payload) => api.post(`/hyperframes/projects/${encodeURIComponent(id)}/accept-revision`, payload).then(r => r.data),
+  createRenderJob: (id, payload) => api.post(`/hyperframes/projects/${encodeURIComponent(id)}/render-jobs`, payload).then(r => r.data),
+  getRenderJob: id => api.get(`/hyperframes/render-jobs/${encodeURIComponent(id)}`).then(r => r.data),
+  cancelRender: id => api.post(`/hyperframes/render-jobs/${encodeURIComponent(id)}/cancel`).then(r => r.data),
+  retryRender: id => api.post(`/hyperframes/render-jobs/${encodeURIComponent(id)}/retry`).then(r => r.data),
+  finalizeRender: (id, payload) => api.post(`/hyperframes/render-jobs/${encodeURIComponent(id)}/finalize`, payload).then(r => r.data),
+  repairRender: id => api.post(`/hyperframes/render-jobs/${encodeURIComponent(id)}/repair`).then(r => r.data),
+  artifactUrl: (id, kind = 'video') => `/api/hyperframes/render-jobs/${encodeURIComponent(id)}/artifact/${encodeURIComponent(kind)}?channel=${encodeURIComponent(captureChannel().channel_id)}`,
+};
+
+export const getPostingJobForPublication = (id, options = {}) => api.get(`/tiktok-autopost/jobs/${encodeURIComponent(id)}`, options).then(r => ({ job: r.data }));
+export const getPublicationObservations = (id, options = {}) => api.get(`/tiktok-autopost/jobs/${encodeURIComponent(id)}/publication-observations`, options).then(r => r.data);
+export const recordPublicationObservation = (id, payload, options = {}) => api.post(`/tiktok-autopost/jobs/${encodeURIComponent(id)}/publication-observations`, payload, options).then(r => r.data);
 
 export default api;

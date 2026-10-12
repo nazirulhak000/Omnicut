@@ -12,7 +12,7 @@ import urllib.parse
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, Request, UploadFile, File, Form
 from pydantic import BaseModel
 
 from scripts.config import (
@@ -31,6 +31,42 @@ from scripts.api_schemas import (
     RenameVideoPayload, ReassignVideoPayload, BatchDeleteVideosPayload,
     DeleteFileRequest, OpenFolderRequest
 )
+
+from scripts import config
+from scripts.channel_scope import ChannelScope, get_channel_scope, get_optional_channel_scope, require_writable, require_active_for_new_work, ensure_same_channel
+from scripts.channel_store import ChannelError
+from scripts.channel_workflows import get_workflow_scope, api_store_kwargs, require_media_owner, capture_job_scope
+
+
+def _scope_kwargs(scope):
+    return api_store_kwargs(scope) if isinstance(scope, ChannelScope) else {}
+
+
+def _guard_product(product_id, scope):
+    if product_id and isinstance(scope, ChannelScope) and not ProductStore.get(product_id, **_scope_kwargs(scope)):
+        raise ChannelError(404, "channel_resource_not_found", "Product not found")
+
+
+def _guard_raw_mutation(target, scope):
+    """Internal ownership oracle: shared bytes cannot strand foreign metadata."""
+    if not isinstance(scope, ChannelScope):
+        return
+    for product in ProductStore._load():
+        refs = list(product.get("videos") or [])
+        for angle in product.get("angles") or []:
+            for key in ["selected_videos", "manual_shot_map"]:
+                refs.extend(angle.get(key) or [])
+            for key in ["selected_video", "video_file", "raw_video"]:
+                if angle.get(key):
+                    refs.append(angle[key])
+        if any(_video_ref_points_to({"path": ref.get("video_path")} if isinstance(ref, dict) and ref.get("video_path") else ref if isinstance(ref, dict) else {"path": ref}, target) for ref in refs):
+            ensure_same_channel(scope, product.get("channel_id"), resource_label="media", allow_legacy_main=not scope.strict)
+
+
+def _guard_write(scope, new_work=False):
+    if isinstance(scope, ChannelScope) and not scope.is_implicit_default:
+        (require_active_for_new_work if new_work else require_writable)(scope)
+
 
 router = APIRouter(tags=["Videos & Assets"])
 
@@ -311,7 +347,7 @@ def _rename_with_retry(source: Path, target: Path) -> None:
 
 
 @router.get("/api/videos")
-def list_raw_videos(product_id: Optional[str] = None):
+def list_raw_videos(product_id: Optional[str] = None, scope: ChannelScope = Depends(get_workflow_scope)):
     """Lists all available raw video candidates with fast single-pass scanning."""
     candidates = scan_video_files(RAW_DIR, INBOX_DIR)
     unique_paths = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)
@@ -320,7 +356,7 @@ def list_raw_videos(product_id: Optional[str] = None):
     product_videos = []
     if product_id:
         try:
-            prod_assigned = ProductStore.get_product_videos(product_id)
+            prod_assigned = ProductStore.get_product_videos(product_id, **_scope_kwargs(scope))
             assigned_paths = {v.get("path") or v.get("rel_path") for v in prod_assigned}
 
             prod_dir = _safe_product_dir(RAW_DIR, product_id)
@@ -330,7 +366,7 @@ def list_raw_videos(product_id: Optional[str] = None):
                 v_path = Path(v["path"]).resolve()
                 if v["path"] in assigned_paths or v["rel_path"] in assigned_paths or v_path in prod_dir_paths:
                     product_videos.append(v)
-        except HTTPException:
+        except (HTTPException, ChannelError):
             raise
         except Exception as e:
             print(f"Error fetching product videos: {e}")
@@ -360,14 +396,19 @@ def _sanitize_media_filename(name: str) -> str:
 
 
 @router.post("/api/videos/rename")
-def rename_video_file(payload: RenameVideoPayload):
+def rename_video_file(payload: RenameVideoPayload, scope: ChannelScope = Depends(get_workflow_scope)):
     """Safely renames a video file on disk and updates any ProductStore references."""
+    _guard_write(scope, new_work=False)
     video_path = payload.video_path
     new_name = payload.new_name.strip()
     if not new_name:
         raise HTTPException(status_code=400, detail="กรุณาระบุชื่อคลิปใหม่")
 
+    _guard_product(getattr(payload, "product_id", None), scope)
+    _guard_product(getattr(payload, "source_product_id", None), scope)
+    _guard_product(getattr(payload, "target_product_id", None), scope)
     v_path = _resolve_allowed_video_path(video_path)
+    _guard_raw_mutation(v_path, scope)
     if not v_path.exists() or not v_path.is_file():
         raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์คลิปต้นฉบับ: {Path(video_path).name}")
 
@@ -403,9 +444,9 @@ def rename_video_file(payload: RenameVideoPayload):
     # A rename must not manufacture a second export identity for the same
     # rendered file. Keep the original export_id attached to the new path.
     try:
-        export_record = ExportRegistry.find_by_path(v_path)
+        export_record = ExportRegistry.find_by_path(v_path, **_scope_kwargs(scope))
         if export_record:
-            ExportRegistry.update_path(export_record.get("id"), target_path)
+            ExportRegistry.update_path(export_record.get("id"), target_path, **_scope_kwargs(scope))
     except Exception as e:
         print(f"Notice: Failed to update export registry on rename: {e}")
 
@@ -417,16 +458,15 @@ def rename_video_file(payload: RenameVideoPayload):
         # lock and could silently clobber a concurrent writer's changes to the
         # same products table (e.g. a render finishing and calling
         # update_angle_status while this rename was in flight).
-        with ProductStore._mutate() as products:
-            for p in products:
-                if payload.product_id and p.get("id") != payload.product_id:
-                    continue
-                v_list = p.get("videos", [])
-                for v in v_list:
-                    if v.get("path") == old_abs or v.get("rel_path") == old_rel or v.get("name") == v_path.name:
-                        v["path"] = new_file_info["path"]
-                        v["rel_path"] = new_file_info["rel_path"]
-                        v["name"] = new_file_info["name"]
+        # TODO(P3 channel scope): pass the request scope; None = compat (all rows), strict -> 422.
+        ProductStore.rename_video_references(
+            old_abs=old_abs,
+            old_rel=old_rel,
+            old_name=v_path.name,
+            new_info=new_file_info,
+            product_id=payload.product_id or None,
+            channel_id=scope.channel_id if isinstance(scope, ChannelScope) else None,
+        )
     except Exception as e:
         print(f"Notice: Failed to update ProductStore on rename: {e}")
 
@@ -442,14 +482,16 @@ async def upload_file(
     file: UploadFile = File(...),
     target_dir: str = Form("inbox"),
     product_id: Optional[str] = Form(None),
-    custom_name: Optional[str] = Form(None)
-):
+    custom_name: Optional[str] = Form(None), scope: ChannelScope = Depends(get_workflow_scope)):
     """Uploads a video or audio file to 00_Inbox or 01_Raw, and links to product if product_id is provided."""
+    _guard_write(scope, new_work=False)
     if target_dir not in {"inbox", "raw"}:
         raise HTTPException(status_code=400, detail="target_dir ต้องเป็น inbox หรือ raw")
     dest_dir = INBOX_DIR if target_dir == "inbox" else RAW_DIR
     if product_id:
         dest_dir = _safe_product_dir(RAW_DIR, product_id)
+    _guard_product(product_id, scope)
+    if product_id:
         dest_dir.mkdir(parents=True, exist_ok=True)
 
     orig_filename = Path(file.filename or f"iphone_video_{int(time.time())}.mp4").name
@@ -494,7 +536,7 @@ async def upload_file(
 
     if product_id:
         try:
-            ProductStore.add_video_to_product(product_id, file_info)
+            ProductStore.add_video_to_product(product_id, file_info, **_scope_kwargs(scope))
         except Exception as e:
             print(f"Warning: Failed to attach video to product {product_id}: {e}")
 
@@ -505,7 +547,7 @@ async def upload_file(
 
 
 @router.get("/api/raw-vault")
-def get_raw_vault():
+def get_raw_vault( scope: ChannelScope = Depends(get_workflow_scope)):
     """Returns rich metadata of all raw footage grouped by products and unassigned clips.
 
     Was O(products x raw_files): every raw file got compared against every
@@ -527,7 +569,8 @@ def get_raw_vault():
     every matching product's list, so that multi-match behavior is
     preserved here rather than "fixed".
     """
-    products = ProductStore._load()
+    # TODO(P3 channel scope): pass the request scope; None = compat (all rows), strict -> 422.
+    products = ProductStore.snapshot(channel_id=scope.channel_id if isinstance(scope, ChannelScope) else None)
     raw_file_paths = scan_video_files(RAW_DIR, INBOX_DIR)
     all_raw_files = [get_file_info(p) for p in raw_file_paths]
     raw_dir_resolved = RAW_DIR.resolve()
@@ -628,19 +671,28 @@ def get_raw_vault():
 
 
 @router.post("/api/raw-vault/reassign")
-def reassign_raw_video(payload: ReassignVideoPayload):
+def reassign_raw_video(payload: ReassignVideoPayload, scope: ChannelScope = Depends(get_workflow_scope)):
     """Reassigns or moves a raw video file to a new product, or unbinds it to general pool."""
+    _guard_write(scope, new_work=False)
     video_path = payload.video_path
     target_pid = payload.target_product_id
     source_pid = payload.source_product_id
 
+    # Validate identifiers before ownership lookup or detaching any source.
+    for product_id in (source_pid, target_pid):
+        if product_id:
+            _safe_product_dir(RAW_DIR, product_id)
+    _guard_product(getattr(payload, "product_id", None), scope)
+    _guard_product(getattr(payload, "source_product_id", None), scope)
+    _guard_product(getattr(payload, "target_product_id", None), scope)
     v_path = _resolve_allowed_video_path(video_path)
+    _guard_raw_mutation(v_path, scope)
     if not v_path.exists() or not v_path.is_file():
         raise HTTPException(status_code=404, detail="ไม่พบไฟล์วิดีโอนี้")
 
     if source_pid:
         try:
-            ProductStore.remove_video_from_product(source_pid, str(v_path))
+            ProductStore.remove_video_from_product(source_pid, str(v_path), **_scope_kwargs(scope))
         except Exception as e:
             print(f"Notice on remove from source product: {e}")
 
@@ -658,7 +710,7 @@ def reassign_raw_video(payload: ReassignVideoPayload):
             v_path = dest_path
 
         file_info = get_file_info(v_path)
-        ProductStore.add_video_to_product(target_pid, file_info)
+        ProductStore.add_video_to_product(target_pid, file_info, **_scope_kwargs(scope))
         return {
             "success": True,
             "message": "ผูกคลิปเข้ากับสินค้าเรียบร้อยแล้ว",
@@ -721,11 +773,14 @@ def _video_ref_points_to(video_ref: Dict[str, Any], target: Path) -> bool:
 
 
 @router.post("/api/raw-vault/batch-delete")
-def batch_delete_raw_videos(payload: BatchDeleteVideosPayload):
+def batch_delete_raw_videos(payload: BatchDeleteVideosPayload, scope: ChannelScope = Depends(get_workflow_scope)):
     """Deletes multiple video files safely from disk and removes references."""
+    _guard_write(scope, new_work=False)
     deleted_count = 0
     errors = []
 
+    for v_str in payload.video_paths:
+        _guard_raw_mutation(_resolve_allowed_video_path(v_str), scope)
     for v_str in payload.video_paths:
         try:
             v_path = _resolve_allowed_video_path(v_str)
@@ -738,12 +793,11 @@ def batch_delete_raw_videos(payload: BatchDeleteVideosPayload):
                 # Read-modify-write inside one SQLite transaction (ProductStore._mutate())
                 # instead of _load()/_save() -- see rename handler above for why the
                 # old outside-any-lock pattern was unsafe under concurrent writers.
-                with ProductStore._mutate() as products:
-                    for p in products:
-                        v_list = p.get("videos", [])
-                        new_v_list = [v for v in v_list if not _video_ref_points_to(v, v_path)]
-                        if len(new_v_list) != len(v_list):
-                            p["videos"] = new_v_list
+                # TODO(P3 channel scope): pass the request scope; None = compat (all rows), strict -> 422.
+                ProductStore.remove_video_references(
+                    lambda v, _target=v_path: _video_ref_points_to(v, _target),
+                    channel_id=scope.channel_id if isinstance(scope, ChannelScope) else None,
+                )
         except PermissionError:
             errors.append(f"{v_str}: ไฟล์กำลังถูกเปิดใช้งานหรือเล่นอยู่ กรุณาปิดโปรแกรมที่เปิดไฟล์ก่อน")
         except Exception as e:
@@ -757,7 +811,7 @@ def batch_delete_raw_videos(payload: BatchDeleteVideosPayload):
 
 
 @router.get("/api/raw-vault/scene-catalogs")
-def get_raw_vault_scene_catalogs(video_path: Optional[str] = None):
+def get_raw_vault_scene_catalogs(video_path: Optional[str] = None, scope: ChannelScope = Depends(get_workflow_scope)):
     """Returns scene catalogs for raw clips in Raw Vault."""
     from scripts.gemini_vision_matcher import GeminiVisionMatcher
     results = {}
@@ -800,8 +854,9 @@ def get_raw_vault_scene_catalogs(video_path: Optional[str] = None):
 
 
 @router.post("/api/raw-vault/index-scenes")
-def index_raw_vault_scenes(payload: Dict[str, Any]):
+def index_raw_vault_scenes(payload: Dict[str, Any], scope: ChannelScope = Depends(get_workflow_scope)):
     """Indexes raw video(s) into Scene Catalog using Gemini Vision in background task with real-time Activity tracking."""
+    _guard_write(scope, new_work=True)
     from scripts.gemini_vision_matcher import GeminiVisionMatcher
     from scripts.video_editor import VideoEditor
     from scripts.task_manager import TaskManager
@@ -847,12 +902,12 @@ def index_raw_vault_scenes(payload: Dict[str, Any]):
         },
         target_tab="gallery",
         target_id=video_path or "raw-vault"
-    )
+    , **_scope_kwargs(scope), job_scope=capture_job_scope(scope) if isinstance(scope, ChannelScope) else None)
     task_id = task["id"]
 
     def _worker():
         try:
-            TaskManager.update_progress(task_id, 0.05, f"เริ่มสแกนสารบัญฉาก {num_clips} คลิป...")
+            TaskManager.update_progress(task_id, 0.05, f"เริ่มสแกนสารบัญฉาก {num_clips} คลิป...", **_scope_kwargs(scope))
             base_resolved = BASE_DIR.resolve()
             indexed_results = {}
             total = len(video_paths)
@@ -873,7 +928,7 @@ def index_raw_vault_scenes(payload: Dict[str, Any]):
                     task_id,
                     progress_val,
                     f"กำลังสแกนคลิป ({idx + 1}/{total}): {clip_name}..."
-                )
+                , **_scope_kwargs(scope))
 
                 info = VideoEditor.get_media_info(str(v_full))
                 dur = float(info.get("duration") or 60.0)
@@ -896,9 +951,9 @@ def index_raw_vault_scenes(payload: Dict[str, Any]):
                 task_id,
                 result={"indexed": indexed_results, "total_scenes": total_scenes},
                 step_label=f"สแกนสำเร็จ {len(indexed_results)} คลิป รวม {total_scenes} ฉาก"
-            )
+            , **_scope_kwargs(scope))
         except Exception as e:
-            TaskManager.fail_task(task_id, str(e), step_label="สแกนสารบัญฉากล้มเหลว")
+            TaskManager.fail_task(task_id, str(e), step_label="สแกนสารบัญฉากล้มเหลว", **_scope_kwargs(scope))
 
     TaskManager.run_in_background(_worker)
 
@@ -1067,17 +1122,20 @@ class RevealFileRequest(BaseModel):
 
 
 @router.post("/api/reveal-file")
-def reveal_file(req: RevealFileRequest):
+def reveal_file(req: RevealFileRequest, scope: ChannelScope = Depends(get_workflow_scope)):
     """
     Opens Explorer with one file pre-selected -- `explorer /select,<path>` --
     instead of just the containing folder. Before this, "เปิดโฟลเดอร์" put the
     user in a directory of 8+ mp4s with timestamped Thai filenames and left
     them to find the right one by eye; this highlights it for them directly.
     """
+    _guard_write(scope, new_work=False)
     target = Path(req.file_path)
     if not target.is_absolute():
         target = BASE_DIR / req.file_path
     target = target.resolve()
+    if isinstance(scope, ChannelScope):
+        require_media_owner(scope, target, base_dir=BASE_DIR)
 
     allowed_roots = [
         (BASE_DIR / "04_Exports").resolve(),
@@ -1103,15 +1161,19 @@ def reveal_file(req: RevealFileRequest):
 
 
 @router.post("/api/delete-file")
-def delete_file(req: DeleteFileRequest):
+def delete_file(req: DeleteFileRequest, scope: ChannelScope = Depends(get_workflow_scope)):
     """Safely deletes a file from 00_Inbox, 01_Raw, 04_Exports, or 02_Assets with Windows file-lock handling."""
+    _guard_write(scope, new_work=False)
     target = Path(req.file_path)
     if not target.is_absolute():
         target = BASE_DIR / req.file_path
 
     target = target.resolve()
+    if isinstance(scope, ChannelScope):
+        require_media_owner(scope, target, base_dir=BASE_DIR)
+        _guard_raw_mutation(target, scope)
 
-    export_record = ExportRegistry.get(req.export_id) if req.export_id else ExportRegistry.find_by_path(target)
+    export_record = ExportRegistry.get(req.export_id, **_scope_kwargs(scope)) if req.export_id else ExportRegistry.find_by_path(target, **_scope_kwargs(scope))
     if export_record is not None:
         registered = Path(str(export_record.get("path") or ""))
         if not registered.is_absolute():
@@ -1149,7 +1211,8 @@ def delete_file(req: DeleteFileRequest):
 
     try:
         from scripts.product_store import ProductStore
-        for p in ProductStore._load():
+        # TODO(P3 channel scope): pass the request scope; None = compat (all rows), strict -> 422.
+        for p in ProductStore.snapshot(channel_id=scope.channel_id if isinstance(scope, ChannelScope) else None):
             for a in p.get("angles", []):
                 if a.get("status") == "posted" or a.get("posted_at"):
                     v_url = a.get("video_url")
@@ -1175,7 +1238,7 @@ def delete_file(req: DeleteFileRequest):
                             status_code=400,
                             detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้ลบเพื่อเก็บไว้เป็นหลักฐาน"
                         )
-    except HTTPException:
+    except (HTTPException, ChannelError):
         raise
     except Exception as guard_err:
         # The guard above deliberately raises HTTPException when it finds a
@@ -1195,7 +1258,7 @@ def delete_file(req: DeleteFileRequest):
         # that happens to reuse the same path.
         if export_record:
             try:
-                ExportRegistry.remove(export_record.get("id"))
+                ExportRegistry.remove(export_record.get("id"), **_scope_kwargs(scope))
             except Exception:
                 pass
         return {"success": True, "message": "ไฟล์ถูกลบไปแล้ว", "filename": target.name}
@@ -1221,7 +1284,8 @@ def delete_file(req: DeleteFileRequest):
     def _should_rollback_deleted_export():
         if not export_record or not req.product_id or not req.angle_id:
             return True
-        product = next((p for p in ProductStore._load() if p.get("id") == req.product_id), None)
+        # TODO(P3 channel scope): pass the request scope; None = compat (all rows), strict -> 422.
+        product = ProductStore.find(req.product_id, channel_id=scope.channel_id if isinstance(scope, ChannelScope) else None)
         angle = next(
             (
                 a for a in (product or {}).get("angles", [])
@@ -1250,12 +1314,12 @@ def delete_file(req: DeleteFileRequest):
                     target.name,
                     product_id=req.product_id or "",
                     angle_id=req.angle_id or "",
-                )
+                 **_scope_kwargs(scope))
         except Exception:
             pass
         if export_record:
             try:
-                ExportRegistry.remove(export_record.get("id"))
+                ExportRegistry.remove(export_record.get("id"), **_scope_kwargs(scope))
             except Exception:
                 pass
         return {"success": True, "message": f"ลบไฟล์ {target.name} เรียบร้อยแล้ว", "filename": target.name}
@@ -1287,6 +1351,8 @@ _MEDIA_EXTENSIONS = {
 def _allowed_media_path(path: Path, base: Path, drafts: Path) -> bool:
     if path.suffix.lower() not in _MEDIA_EXTENSIONS:
         return False
+    if _is_contained(path, (config.SOURCE_ROOT / "02_Assets").resolve()):
+        return True
     # Voice preview currently has one explicit artifact at the project root.
     if path == base / "test_voice.wav":
         return True
@@ -1333,4 +1399,9 @@ def stream_media(file_path: str, request: Request):
     if not _allowed_media_path(target, base, drafts):
         raise HTTPException(status_code=403, detail="Access denied")
 
+    scope = get_optional_channel_scope(request)
+    shared = target == base / "test_voice.wav" or any(_is_contained(target, root.resolve()) for root in (INBOX_DIR, RAW_DIR, ASSETS_DIR, config.SOURCE_ROOT / "02_Assets"))
+    if not shared:
+        scope = scope or get_channel_scope(request)
+        require_media_owner(scope, target, base_dir=BASE_DIR, legacy_roots=(CAPCUT_DRAFT_DIR,))
     return stream_media_file(target, request)

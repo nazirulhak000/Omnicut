@@ -161,6 +161,9 @@ class TikTokAutoCutterPipeline:
         progress_callback: Optional[callable] = None,
         overlays: Optional[List[Dict[str, Any]]] = None,
         cancel_event: Optional[threading.Event] = None,
+        channel_id: Optional[str] = None,
+        channel_identity_snapshot: Optional[Dict[str, Any]] = None,
+        job_scope: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Executes all pipeline steps via modular PipelineContext and stages.
@@ -172,6 +175,9 @@ class TikTokAutoCutterPipeline:
         completion unaware a cancel was requested.
         """
         ctx = PipelineContext(
+            channel_id=channel_id,
+            channel_identity_snapshot=channel_identity_snapshot,
+            job_scope=job_scope,
             product_name=product_name,
             raw_video_path=raw_video_path,
             project_name=project_name,

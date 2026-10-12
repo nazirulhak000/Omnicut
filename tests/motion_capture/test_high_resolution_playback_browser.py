@@ -192,8 +192,8 @@ def test_proxy_source_is_only_used_in_smooth_mode(motion_fixture_url):
             browser = playwright.chromium.launch(headless=True)
             try:
                 page = browser.new_page(viewport={"width": 1100, "height": 1100}, ignore_https_errors=True)
-                page.route("**/api/media/high-master.mp4", lambda route: _serve_video(route, source))
-                page.route("**/api/media/high-proxy.mp4", lambda route: _serve_video(route, proxy))
+                page.route("**/api/media/high-master.mp4*", lambda route: _serve_video(route, source))
+                page.route("**/api/media/high-proxy.mp4*", lambda route: _serve_video(route, proxy))
                 requests = []
                 def serve_proxy(route):
                     requests.append(route.request.url)

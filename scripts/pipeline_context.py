@@ -23,6 +23,25 @@ from scripts.voice_cut_map import resolve_voice_cuts
 
 INCREMENTAL_RENDER_SCHEMA_VERSION = 1
 
+
+def channel_project_name(project_name, channel_id):
+    """Main stays flat; a secondary channel may use only its own namespace."""
+    if not project_name or channel_id is None:
+        return project_name
+    from scripts.channel_store import ChannelError
+    parts = str(project_name).replace("\\", "/").split("/")
+    if any(part in {"", ".", ".."} for part in parts):
+        raise ChannelError(422, "project_name_invalid", "ชื่อโปรเจกต์ไม่ถูกต้อง")
+    if channel_id == "main":
+        if len(parts) != 1:
+            raise ChannelError(404, "resource_not_found", "ไม่พบโปรเจกต์ในช่องนี้")
+        return project_name
+    if len(parts) == 1:
+        return f"{channel_id}/{project_name}"
+    if len(parts) != 2 or parts[0] != channel_id:
+        raise ChannelError(404, "resource_not_found", "ไม่พบโปรเจกต์ในช่องนี้")
+    return "/".join(parts)
+
 # `resume_from` is the stage-order policy. Keep the change-class mapping in
 # ProjectManifest so the UI/API and this reuse seam cannot silently drift apart.
 CHANGE_CLASS_TO_STAGE = dict(REROLL_STAGE)
@@ -272,10 +291,13 @@ def _stage_payload_from_manifest(
         }
 
     if stage == "subtitles":
+        from scripts.channel_identity import resolve_channel_identity, identity_fingerprint
+        identity = resolve_channel_identity(_manifest_value(manifest, "channel_identity_snapshot"), channel_id=manifest.get("channel_id"))
         return {
             "schema_version": INCREMENTAL_RENDER_SCHEMA_VERSION,
             "stage": stage,
             "inputs": {
+                "channel_identity": identity_fingerprint(identity),
                 "cues": cues,
                 "total_duration": manifest.get("total_duration"),
                 "font_name": _manifest_value(manifest, "font_name"),
@@ -333,11 +355,14 @@ def _stage_payload_from_manifest(
         }
 
     if stage == "video":
+        from scripts.channel_identity import resolve_channel_identity, identity_fingerprint
+        identity = resolve_channel_identity(_manifest_value(manifest, "channel_identity_snapshot"), channel_id=manifest.get("channel_id"))
         lut_name = _manifest_value(manifest, "lut_name")
         return {
             "schema_version": INCREMENTAL_RENDER_SCHEMA_VERSION,
             "stage": stage,
             "inputs": {
+                "channel_identity": identity_fingerprint(identity),
                 "raw_video": _asset_identity(raw_video_path),
                 "total_duration": manifest.get("total_duration"),
                 "clip_list": manifest.get("clip_list") or _manifest_value(manifest, "clip_list"),
@@ -464,6 +489,39 @@ class PipelineContext:
     progress_callback: Optional[Callable[[str, float], None]] = None
     overlays: Optional[List[Dict[str, Any]]] = None
     cancel_event: Optional[threading.Event] = None
+    channel_id: Optional[str] = None
+    channel_identity_snapshot: Optional[Dict[str, Any]] = None
+    job_scope: Optional[Dict[str, Any]] = None
+
+    def __post_init__(self):
+        from scripts.render_jobs import pin_job_scope
+        self.job_scope = pin_job_scope(self.channel_id, self.job_scope)
+        self.channel_id = self.job_scope.get("channel_id", self.channel_id)
+        captured_identity = self.job_scope.get("channel_identity_snapshot")
+        if self.channel_identity_snapshot is not None and captured_identity is not None and self.channel_identity_snapshot != captured_identity:
+            from scripts.channel_store import ChannelError
+            raise ChannelError(422, "channel_scope_conflict", "identity ของ pipeline ไม่ตรงกับงานที่ตรึงไว้")
+        identity = self.channel_identity_snapshot or self.job_scope.get("channel_identity_snapshot")
+        if identity is not None or self.channel_id is not None:
+            from scripts.channel_identity import resolve_channel_identity
+            identity = resolve_channel_identity(identity, channel_id=self.channel_id)
+        self.channel_identity_snapshot = copy.deepcopy(identity)
+        if identity is not None:
+            self.job_scope = pin_job_scope(self.channel_id, {**self.job_scope, "channel_identity_snapshot": self.channel_identity_snapshot})
+
+    def store_kwargs(self):
+        """Direct legacy callers remain unscoped; request jobs always pin an ID."""
+        return {"channel_id": self.channel_id} if self.channel_id is not None else {}
+
+    def guard_media(self, value):
+        """Request jobs check private artifact owners; standalone CLI stays compatible."""
+        if self.channel_id is None:
+            return Path(value)
+        from scripts.channel_scope import ChannelScope
+        from scripts.channel_workflows import require_media_owner
+        provenance = self.job_scope or {}
+        scope = ChannelScope(self.channel_id, provenance.get("channel_scope_source", "header"), bool(provenance.get("channel_scope_strict", False)))
+        return require_media_owner(scope, value, base_dir=BASE_DIR)
 
     # 2. Stage Execution State
     project_dir: Optional[Path] = None
@@ -675,6 +733,7 @@ class PipelineContext:
             raise FileNotFoundError(
                 f"สุ่มใหม่ไม่ได้ — ไม่พบไฟล์ {label} ของรอบก่อน ต้อง render เต็มรอบใหม่"
             )
+        self.guard_media(existing)
         stage = next((s for s, artifact_key in STAGE_ARTIFACT_KEYS.items() if artifact_key == key), None)
         reusable, reason = self._reuse_status(stage=stage, key=key, path=existing)
         if not reusable:
@@ -721,6 +780,7 @@ class PipelineContext:
             "sticker_start_time", "sticker_end_time", "sticker_norm_x",
             "sticker_norm_y", "stickers", "effects", "text_overlays", "overlays",
             "clip_list", "transitions", "spotlight", "background_isolation",
+            "channel_identity_snapshot",
         )
         input_names = input_names + ('editorial_pacing',)
         for name in input_names:

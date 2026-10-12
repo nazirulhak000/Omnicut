@@ -75,7 +75,7 @@ def test_transparent_video_cutout_appears_in_real_sequence_player(cutout_media_d
                 return element;
               };
             })()""")
-            page.route("**/api/media/cutout-source.mp4", lambda route: route.fulfill(
+            page.route("**/api/media/cutout-source.mp4*", lambda route: route.fulfill(
                 body=source.read_bytes(), content_type="video/mp4"))
             page.route(f"**/api/background-isolation/sequences/{artifact_id}/manifest",
                        lambda route: route.fulfill(body=json.dumps(manifest), content_type="application/json"))
@@ -204,7 +204,7 @@ def test_missing_ready_artifact_never_reveals_original_background(cutout_media_d
         browser = playwright.chromium.launch(headless=True)
         try:
             page = browser.new_page(viewport={"width": 1100, "height": 1100}, ignore_https_errors=True)
-            page.route("**/api/media/cutout-source.mp4", lambda route: route.fulfill(
+            page.route("**/api/media/cutout-source.mp4*", lambda route: route.fulfill(
                 body=source.read_bytes(), content_type="video/mp4"))
             page.route(f"**/api/background-isolation/sequences/{artifact_id}/manifest",
                        lambda route: route.fulfill(status=404, body="missing"))

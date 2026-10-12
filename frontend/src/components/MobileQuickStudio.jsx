@@ -1,3 +1,4 @@
+import { channelSessionStorage } from '../lib/channelStorage.js';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Smartphone,
@@ -42,6 +43,8 @@ import { MOBILE_WORKFLOW_KEY, catalogPageParams, filmingUrl, mergeCatalogPage, p
 import useWakeLock from '../hooks/useWakeLock';
 
 export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSession }) {
+  const [workspaceStorage] = useState(channelSessionStorage);
+
   const [step, setStep] = useState(1); // 1: Select Product, 2: Filming / Intake, 3: Auto-Assemble & Render, 4: Done/Share
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -152,7 +155,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
       let hasMore = Boolean(res.has_more);
       let total = Number(res.total) || items.length;
       let saved = null;
-      try { saved = JSON.parse(sessionStorage.getItem(MOBILE_WORKFLOW_KEY)); } catch { /* optional session memory */ }
+      try { saved = JSON.parse(workspaceStorage.getItem(MOBILE_WORKFLOW_KEY)); } catch { /* optional session memory */ }
       const params = new URLSearchParams(window.location.search);
       const productId = params.get('product') || saved?.productId;
       const angleId = params.get('angle') || saved?.angleId;
@@ -374,7 +377,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
       taskId: tid !== undefined ? tid : workflowRef.current?.taskId,
       ...extra
     };
-    try { sessionStorage.setItem(MOBILE_WORKFLOW_KEY, JSON.stringify(workflowRef.current)); } catch { /* storage may be disabled */ }
+    try { workspaceStorage.setItem(MOBILE_WORKFLOW_KEY, JSON.stringify(workflowRef.current)); } catch { /* storage may be disabled */ }
 
     try {
       const url = new URL(window.location.href);
@@ -1274,7 +1277,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                 <button
                   onClick={() => {
                     stopPolling();
-                    try { sessionStorage.removeItem(MOBILE_WORKFLOW_KEY); } catch { /* optional session memory */ }
+                    try { workspaceStorage.removeItem(MOBILE_WORKFLOW_KEY); } catch { /* optional session memory */ }
                     const url = new URL(window.location.href);
                     ['mobile_session', 'product', 'angle'].forEach(key => url.searchParams.delete(key));
                     window.history.replaceState(null, '', url);

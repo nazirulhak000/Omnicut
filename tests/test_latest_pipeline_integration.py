@@ -16,9 +16,8 @@ def test_color_matching_survives_clip_bus_mute(tmp_path, monkeypatch, mute_clip)
         {"id": "b", "source_path": str(tmp_path / "b.mp4"), "duration": 1.0, "volume": 0.4},
     ]
     original = deepcopy(clips)
-    corrected = [{**clip, "color_brightness": 0.1} for clip in clips]
     monkeypatch.setattr(color_match, "plan_color_match", lambda items: {"corrections": [{"id": "b"}]})
-    monkeypatch.setattr(color_match, "apply_corrections", lambda items, corrections: deepcopy(corrected))
+    monkeypatch.setattr(color_match, "apply_corrections", lambda items, corrections: [{**deepcopy(clip), "color_brightness": 0.1} for clip in items])
     monkeypatch.setattr(video_assembly_stage, "EXPORTS_DIR", tmp_path / "exports")
     saved = {}
     rendered = {}
@@ -37,8 +36,12 @@ def test_color_matching_survives_clip_bus_mute(tmp_path, monkeypatch, mute_clip)
     assert [clip["color_brightness"] for clip in rendered["clip_list"]] == [0.1, 0.1]
     assert [clip["volume"] for clip in rendered["clip_list"]] == ([0.0, 0.0] if mute_clip else [0.7, 0.4])
     assert clips == original
-    assert saved["clip_list"] == original
-    assert not (tmp_path / "exports").exists(), "renderer and registry are mocked; no actual export"
+    expected = deepcopy(original)
+    expected[1].update(transition_in="fade", transition_duration=0.2)
+    assert saved["clip_list"] == expected
+    assert rendered["clip_list"][1]["transition_in"] == saved["clip_list"][1]["transition_in"]
+    assert saved["transitions"] == ctx.transitions
+    assert not any(path.is_file() for path in (tmp_path / "exports").rglob('*')), "renderer and registry are mocked; no actual export"
 
 
 @pytest.mark.parametrize("raw_path", [None, "missing.mp4"])

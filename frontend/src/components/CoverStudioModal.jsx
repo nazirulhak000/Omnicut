@@ -33,6 +33,9 @@ import {
   revealFile,
 } from '../api';
 import { resolveCoverExportStem } from '../lib/coverNaming.js';
+import { toMediaUrl } from '../lib/mediaUrl.js';
+import { captureChannel, isCurrentChannel, registerChannelSwitchParticipant } from '../lib/channelRuntime.js';
+import { createChannelDraftParticipant } from '../lib/channelDraft.js';
 
 export default function CoverStudioModal({
   isOpen,
@@ -117,6 +120,56 @@ export default function CoverStudioModal({
 
   // File input ref
   const fileInputRef = useRef(null);
+  const ownerRef = useRef(captureChannel());
+  const initializedDraftRef = useRef(false);
+  const userEditedRef = useRef(false);
+  const draftValue = { hookText, subText, aiPrompt, activeSourceType, selectedRawPath,
+    currentSeconds, customImage, customImageFile, zoom, panX, panY, enableHookText,
+    enableBadge, template, hookPosition, selectedBadge, badgePosition, aspectRatio };
+  const draftRef = useRef(null);
+  if (!draftRef.current) draftRef.current = createChannelDraftParticipant(draftValue);
+  const draft = draftRef.current;
+  draft.observe(draftValue, { reset: value => {
+    setHookText(value.hookText); setSubText(value.subText); setAiPrompt(value.aiPrompt);
+    setActiveSourceType(value.activeSourceType); setSelectedRawPath(value.selectedRawPath);
+    setCurrentSeconds(value.currentSeconds); setCustomImage(value.customImage);
+    setCustomImageFile(value.customImageFile); setZoom(value.zoom); setPanX(value.panX);
+    setPanY(value.panY); setEnableHookText(value.enableHookText); setEnableBadge(value.enableBadge);
+    setTemplate(value.template); setHookPosition(value.hookPosition);
+    setSelectedBadge(value.selectedBadge); setBadgePosition(value.badgePosition);
+    setAspectRatio(value.aspectRatio);
+  } });
+  const busyRef = useRef(false);
+  busyRef.current = saving || generatingAi;
+  useEffect(() => registerChannelSwitchParticipant({
+    isDirty: () => busyRef.current || draft.isDirty(),
+    save: async () => { throw new Error('บันทึกปกก่อนสลับช่อง หรือเลือกทิ้งการแก้ไข'); },
+    discard: async () => {
+      if (busyRef.current) throw new Error('รอให้การสร้างหรือบันทึกปกเสร็จก่อนทิ้งการแก้ไข');
+      await draft.discard();
+    },
+  }), [draft]);
+  useEffect(() => {
+    const guardUnload = event => {
+      if (!isOpen || (!busyRef.current && !draft.isDirty())) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', guardUnload);
+    return () => window.removeEventListener('beforeunload', guardUnload);
+  }, [draft, isOpen]);
+  useEffect(() => {
+    if (initializedDraftRef.current && !loading) {
+      if (!userEditedRef.current) draft.markSaved(draftValue);
+      initializedDraftRef.current = false;
+    }
+  });
+  const handleClose = async () => {
+    if (saving || generatingAi) return;
+    if (draft.isDirty() && !window.confirm('ปิดสตูดิโอและทิ้งการแก้ไขปกที่ยังไม่ได้บันทึก?')) return;
+    await draft.discard();
+    onClose();
+  };
 
   // Load initial data: badges, highlights, hooks, raw sources
   useEffect(() => {
@@ -169,6 +222,7 @@ export default function CoverStudioModal({
           setProductRefImages(refRes.ref_images);
         }
         setAiPrompt((prev) => prev || `Commercial 8k product photography of ${productName || 'product'}, sleek studio lighting, minimalist podium, vibrant cinematic colors, 9:16 vertical orientation, advertising poster quality`);
+        initializedDraftRef.current = true;
         setLoading(false);
       })
       .catch((err) => {
@@ -180,7 +234,7 @@ export default function CoverStudioModal({
     return () => {
       mounted = false;
     };
-  }, [isOpen, videoPath, productName, angleTitle, videoItem, timelineSnapshotDataUrl, timelineSnapshotSeconds]);
+  }, [isOpen, videoPath, productName, angleTitle, videoItem?.product_id, timelineSnapshotDataUrl, timelineSnapshotSeconds]);
 
   // Live real-time frame fetching when scrubbing across any arbitrary seconds
   useEffect(() => {
@@ -461,6 +515,9 @@ export default function CoverStudioModal({
 
   // Save Cover (3:4, 9:16, or both)
   const handleSaveCover = async () => {
+    if (saving || generatingAi || !isCurrentChannel(ownerRef.current)) return;
+    const savedDraft = structuredClone(draftValue);
+    const savedSignature = getPreviewSignature();
     try {
       setSaving(true);
       setError(null);
@@ -471,10 +528,11 @@ export default function CoverStudioModal({
       const isTimelineSnapshot = activeSourceType === 'timeline' && customImage?.startsWith('data:image/');
 
       const payload = {
-        video_path: isTimelineSnapshot ? null : activeVideoTarget,
+        video_path: videoItem?.export_id ? videoPath : (isTimelineSnapshot ? null : activeVideoTarget),
         raw_video_path: activeSourceType === 'raw' ? selectedRawPath : null,
         custom_image_data: isTimelineSnapshot ? customImage : null,
         export_filename: exportStem,
+        export_id: videoItem?.export_id || null,
         at_seconds: Number(currentSeconds),
         pan_y_pct: Number(panY),
         pan_x_pct: Number(panX),
@@ -491,20 +549,22 @@ export default function CoverStudioModal({
         custom_image_path: customImageFile || null,
       };
 
-      const res = await renderProCover(payload);
+      const res = await renderProCover(payload, ownerRef.current);
+      if (!isCurrentChannel(ownerRef.current)) return;
       if (res && res.success) {
-        savedPreviewSignatureRef.current = getPreviewSignature();
+        draft.markSaved(savedDraft);
+        savedPreviewSignatureRef.current = savedSignature;
         setSavedResult(res);
         const ratioLabel =
           aspectRatio === 'both' ? 'ทั้ง 9:16 และ 3:4' : aspectRatio === '3:4' ? '3:4' : '9:16';
         setSuccessMsg(`บันทึกภาพปก (${ratioLabel}) สำเร็จแล้ว!`);
         if (onCoverSaved) {
-          onCoverSaved({
+          await onCoverSaved({
             cover_path: res.cover_path,
             media_url: res.media_url,
             cover_3x4_path: res.cover_3x4_path || null,
             media_url_3x4: res.media_url_3x4 || null,
-          });
+          }, ownerRef.current);
         }
       } else {
         throw new Error(res?.detail || 'บันทึกไม่สำเร็จ');
@@ -530,7 +590,7 @@ export default function CoverStudioModal({
   const noVideoSource = !loading && !previewImageSrc && !videoPath;
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-fadeIn">
+    <div role="dialog" aria-label="สตูดิโอสร้างปก" onChangeCapture={() => { userEditedRef.current = true; }} className="fixed inset-0 z-[10000] flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-fadeIn">
       <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-800 bg-slate-950/60">
@@ -551,7 +611,9 @@ export default function CoverStudioModal({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
+            aria-label="ปิดสตูดิโอสร้างปก"
+            disabled={saving || generatingAi}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -606,7 +668,7 @@ export default function CoverStudioModal({
                 {/* Background Frame with Zoom & Pan */}
                 {previewImageSrc ? (
                   <img
-                    src={previewImageSrc}
+                    src={toMediaUrl(previewImageSrc, ownerRef.current.channel_id)}
                     alt="Cover Frame"
                     className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-transform duration-75"
                     style={{
@@ -788,7 +850,7 @@ export default function CoverStudioModal({
                   >
                     {badges.find((b) => b.id === selectedBadge) ? (
                       <img
-                        src={badges.find((b) => b.id === selectedBadge)?.url}
+                        src={toMediaUrl(badges.find((b) => b.id === selectedBadge)?.url, ownerRef.current.channel_id)}
                         alt="3D Badge"
                         className="w-16 h-auto drop-shadow-lg object-contain"
                       />
@@ -830,7 +892,7 @@ export default function CoverStudioModal({
               >
                 {previewImageSrc ? (
                   <img
-                    src={previewImageSrc}
+                    src={toMediaUrl(previewImageSrc, ownerRef.current.channel_id)}
                     alt="Cover Frame 3:4"
                     className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-transform duration-75"
                     style={{
@@ -919,7 +981,7 @@ export default function CoverStudioModal({
                   >
                     {badges.find((b) => b.id === selectedBadge) ? (
                       <img
-                        src={badges.find((b) => b.id === selectedBadge)?.url}
+                        src={toMediaUrl(badges.find((b) => b.id === selectedBadge)?.url, ownerRef.current.channel_id)}
                         alt="3D Badge"
                         className="w-14 h-auto drop-shadow-lg object-contain"
                       />
@@ -1138,7 +1200,7 @@ export default function CoverStudioModal({
                               : 'border-white/10 hover:border-amber-400/50 hover:scale-100'
                           }`}
                         >
-                          <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+                          <img src={toMediaUrl(img.url, ownerRef.current.channel_id)} alt={img.name} className="w-full h-full object-cover" />
                           <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1 py-0.5 text-[9px] text-white truncate text-center font-mono">
                             #{idx + 1}
                           </div>
@@ -1220,7 +1282,7 @@ export default function CoverStudioModal({
                               title={`ภาพ AI รอบที่ ${idx + 1}`}
                             >
                               <img
-                                src={item.url}
+                                src={toMediaUrl(item.url, ownerRef.current.channel_id)}
                                 alt={`AI Cover ${idx + 1}`}
                                 className="w-full h-full object-cover"
                               />
@@ -1390,7 +1452,7 @@ export default function CoverStudioModal({
                                   : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:border-amber-400/40'
                               }`}
                             >
-                              <img src={img.url} alt="" className="w-4 h-4 object-cover rounded" />
+                              <img src={toMediaUrl(img.url, ownerRef.current.channel_id)} alt="" className="w-4 h-4 object-cover rounded" />
                               <span>รูป TT #{idx + 1}</span>
                             </button>
                           );
@@ -1524,7 +1586,7 @@ export default function CoverStudioModal({
                       >
                         <div className="aspect-[9/16] w-full bg-slate-950 relative overflow-hidden">
                           <img
-                            src={cand.thumb_url}
+                            src={toMediaUrl(cand.thumb_url, ownerRef.current.channel_id)}
                             alt={cand.label}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                           />
@@ -1842,7 +1904,7 @@ export default function CoverStudioModal({
                           title={b.title}
                         >
                           <img
-                            src={b.url}
+                            src={toMediaUrl(b.url, ownerRef.current.channel_id)}
                             alt={b.title}
                             className="w-10 h-10 object-contain drop-shadow"
                           />
@@ -1941,7 +2003,8 @@ export default function CoverStudioModal({
             )}
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
+              disabled={saving || generatingAi}
               className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
             >
               {savedResult ? 'เสร็จสิ้น' : 'ยกเลิก'}

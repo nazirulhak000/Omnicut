@@ -1,3 +1,4 @@
+import { channelLocalStorage } from '../../lib/channelStorage.js';
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   AlertCircle, Check, ChevronDown, ChevronRight, Film, Loader2, Package,
@@ -127,6 +128,7 @@ export default function NewClipPanel({
   onVideoUploaded,
   onCreated,
 }) {
+  const [workspaceStorage] = useState(channelLocalStorage);
   const [form, setForm] = useState(() => getSavedStudioForm());
   // The product flow used to arrive with these collapsed, which is why the
   // banner was blank on nearly every first render: nobody opened them. They
@@ -147,7 +149,7 @@ export default function NewClipPanel({
 
   useEffect(() => {
     try {
-      localStorage.setItem(STUDIO_FORM_KEY, JSON.stringify(form));
+      workspaceStorage.setItem(STUDIO_FORM_KEY, JSON.stringify(form));
     } catch (err) { /* private mode: the form just will not be remembered */ }
   }, [form]);
 

@@ -100,7 +100,7 @@ def test_cached_batch_one_session_resumes_without_tts(isolated_mobile, monkeypat
 
 def test_fresh_session_uses_existing_real_timing_builder(isolated_mobile, monkeypatch):
     calls = []
-    def generate(product_id, angle_id):
+    def generate(product_id, angle_id, *, channel_id=None):
         calls.append((product_id, angle_id))
         shot_plan()
     monkeypatch.setattr(mobile, "generate_shot_list_for_angle", generate)
@@ -143,7 +143,7 @@ def test_assemble_real_output_progress_metadata_and_storage(isolated_mobile, mon
     assert response.status_code == 200
     task = client.get(f"/api/mobile-studio/task/{response.json()['task_id']}").json()
     assert task["is_completed"] and not task["is_failed"]
-    assert task["result"]["video_url"] == "/api/media/exports_dir/video%20with%20spaces.mp4"
+    assert task["result"]["video_url"] == "/api/media/exports_dir/video%20with%20spaces.mp4?channel=main"
     assert Path(task["result"]["video_path"]).is_file()
     assert task["result"]["mix_degraded"]
     assert any(log["msg"] == "halfway" and log["progress"] == 53 for log in task["task"]["logs"])
@@ -153,6 +153,37 @@ def test_assemble_real_output_progress_metadata_and_storage(isolated_mobile, mon
     assert kwargs["product_meta"]["id"] == "prod" and kwargs["angle_meta"]["angle_id"] == "angle"
     assert kwargs["cancel_event"] is not None
     assert ProductStore.get("prod")["angles"][0]["status"] == "rendered"
+
+
+def test_multiple_selected_sources_use_real_pipeline_signature_and_matcher(isolated_mobile, monkeypatch):
+    import inspect
+    from scripts.stages.shot_matching_stage import ShotMatchingStage
+    signature = inspect.signature(mobile.TikTokAutoCutterPipeline.run)
+    second = mobile.RAW_DIR / "second.mp4"
+    second.write_bytes(b"fixture second source")
+    row = ProductStore.get("prod")
+    row["angles"][0]["selected_videos"].append(second.relative_to(isolated_mobile["root"]).as_posix())
+    product_store._TABLE.save([row])
+    monkeypatch.setattr(mobile.VideoEditor, "get_media_info", lambda path: {"duration": 2.0})
+    observed = []
+    def run(**kwargs):
+        signature.bind(**kwargs)  # catches unsupported options at the actual seam
+        ctx = PipelineContext(product_name=kwargs["product_name"], raw_video_path=kwargs["raw_video_path"],
+                              manual_shot_map=kwargs["manual_shot_map"])
+        ctx.beat_cues = [{"start": 0.0, "end": 1.0}, {"start": 1.0, "end": 2.0}]
+        ctx.total_duration = 2.0
+        clips = ShotMatchingStage._build_manual_storyboard_clip_list(ctx, isolated_mobile["raw"], 2.0)
+        observed.extend(clips)
+        output = mobile.EXPORTS_DIR / "multi.mp4"
+        output.write_bytes(b"offline result")
+        return {"mp4_video": str(output)}
+    monkeypatch.setattr(mobile.TikTokAutoCutterPipeline, "run", run)
+    response = client.post("/api/mobile-studio/assemble", json={"product_id": "prod", "angle_id": "angle"})
+    assert response.status_code == 200, response.text
+    task = TaskManager.get_task(response.json()["task_id"], channel_id="main")
+    assert task["status"] == "completed", task
+    assert [clip["source_path"] for clip in observed] == [str(isolated_mobile["raw"]), str(second)]
+    assert all(clip["manual_pinned"] and clip["duration"] == 1.0 for clip in observed)
 
 
 @pytest.mark.parametrize("mode", ["no_path", "missing_file", "empty_file", "outside_export"])
@@ -188,7 +219,7 @@ def test_uploaded_session_finalizes_with_actual_raw_video_key(isolated_mobile, m
     session = RecordingSessionStore.create("prod", "angle")
     RecordingSessionStore.upload_segment(session["id"], 0, str(isolated_mobile["raw"]), 1)
     finalized = []
-    def finalize(session_id):
+    def finalize(session_id, *, channel_id=None):
         finalized.append(session_id)
         return {"raw_video_path": str(isolated_mobile["raw"])}
     monkeypatch.setattr(RecordingSessionStore, "finalize", finalize)

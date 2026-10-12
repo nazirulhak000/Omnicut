@@ -4,10 +4,14 @@ Enables 1-click batch rendering of multiple script angles for a product.
 """
 
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends
+from starlette.exceptions import HTTPException
 from pydantic import BaseModel, Field
 
 from scripts.batch_render import BatchRenderManager
+from scripts.channel_scope import ChannelScope, require_active_for_new_work, require_final_ready, require_writable
+from scripts.channel_workflows import get_workflow_scope, capture_job_scope, require_record_owner
+from scripts.product_store import ProductStore
 
 router = APIRouter(prefix="/api/render/batch", tags=["batch-render"])
 
@@ -30,9 +34,15 @@ class BatchRenderRequest(BaseModel):
 
 
 @router.post("")
-def start_batch_render(req: BatchRenderRequest) -> Dict[str, Any]:
+def start_batch_render(req: BatchRenderRequest, scope: ChannelScope = Depends(get_workflow_scope)) -> Dict[str, Any]:
     """Starts a background batch rendering job for multiple angles of a product."""
     try:
+        channel_kwargs = {"channel_id": scope.channel_id} if isinstance(scope, ChannelScope) else {}
+        if isinstance(scope, ChannelScope):
+            require_active_for_new_work(scope)
+            if req.export_mp4 and not (scope.is_implicit_default and not scope.strict):
+                require_final_ready(scope)
+            require_record_owner(scope, ProductStore.get(req.product_id, **channel_kwargs), resource_label="สินค้า")
         options = {
             "voice_gender": req.voice_gender,
             "voice_rate": req.voice_rate,
@@ -51,8 +61,12 @@ def start_batch_render(req: BatchRenderRequest) -> Dict[str, Any]:
             product_id=req.product_id,
             angle_ids=req.angle_ids,
             options=options,
+            **channel_kwargs,
+            job_scope=capture_job_scope(scope) if isinstance(scope, ChannelScope) else None,
         )
         return res
+    except HTTPException:
+        raise
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except RuntimeError as re:
@@ -62,18 +76,20 @@ def start_batch_render(req: BatchRenderRequest) -> Dict[str, Any]:
 
 
 @router.get("/{batch_id}")
-def get_batch_render_status(batch_id: str) -> Dict[str, Any]:
+def get_batch_render_status(batch_id: str, scope: ChannelScope = Depends(get_workflow_scope)) -> Dict[str, Any]:
     """Returns the current progress, status, and item details of a batch render."""
-    batch = BatchRenderManager.get_batch(batch_id)
+    batch = BatchRenderManager.get_batch(batch_id, **({"channel_id": scope.channel_id} if isinstance(scope, ChannelScope) else {}))
     if not batch:
         raise HTTPException(status_code=404, detail="ไม่พบคิวเรนเดอร์ชุดนี้")
     return batch
 
 
 @router.post("/{batch_id}/cancel")
-def cancel_batch_render(batch_id: str) -> Dict[str, Any]:
+def cancel_batch_render(batch_id: str, scope: ChannelScope = Depends(get_workflow_scope)) -> Dict[str, Any]:
     """Cancels an in-progress or queued batch render job."""
-    success = BatchRenderManager.cancel_batch(batch_id)
+    if isinstance(scope, ChannelScope):
+        require_writable(scope)
+    success = BatchRenderManager.cancel_batch(batch_id, **({"channel_id": scope.channel_id} if isinstance(scope, ChannelScope) else {}))
     if not success:
         raise HTTPException(status_code=404, detail="ไม่พบคิวเรนเดอร์ชุดนี้")
     return {"batch_id": batch_id, "status": "cancelled"}

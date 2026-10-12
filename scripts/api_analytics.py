@@ -13,7 +13,9 @@ import time
 import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Set
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Depends, Query
+from scripts.channel_scope import ChannelScope, get_channel_scope
+from scripts.channel_workflows import api_store_kwargs
 
 from scripts.config import (
     BASE_DIR, INBOX_DIR, RAW_DIR, ASSETS_DIR,
@@ -108,7 +110,7 @@ def _age_days_from_iso(iso_str: Optional[str]) -> Optional[int]:
 
 
 @router.get("/production")
-def get_production_analytics() -> Dict[str, Any]:
+def get_production_analytics(scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
     """
     Analyzes video production pipeline:
     - 4-phase funnel (scripted -> in_production -> rendered -> posted)
@@ -117,7 +119,7 @@ def get_production_analytics() -> Dict[str, Any]:
     - Average cycle time estimation
     """
     try:
-        products = ProductStore.get_all()
+        products = ProductStore.get_all(**(api_store_kwargs(scope) if isinstance(scope, ChannelScope) else {}))
         
         status_counts = {
             "scripted": 0,
@@ -564,7 +566,7 @@ def purge_cutout_cache() -> Dict[str, Any]:
 
 
 @router.get("/inventory")
-def get_inventory_health() -> Dict[str, Any]:
+def get_inventory_health(scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
     """
     Evaluates product readiness and content health:
     - Products with clips vs without
@@ -572,7 +574,7 @@ def get_inventory_health() -> Dict[str, Any]:
     - Ready-to-cut catalog scoring
     """
     try:
-        products = ProductStore.get_all()
+        products = ProductStore.get_all(**(api_store_kwargs(scope) if isinstance(scope, ChannelScope) else {}))
         total_products = len(products)
         
         covered_products = 0

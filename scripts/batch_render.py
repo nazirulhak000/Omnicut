@@ -22,6 +22,8 @@ from scripts.config import BASE_DIR, RAW_DIR, INBOX_DIR, EXPORTS_DIR, STICKERS_D
 from scripts.product_store import ProductStore
 from scripts.task_manager import TaskManager
 from scripts.batch_queue_store import BatchQueueStore
+from scripts import batch_queue_store as _batch_queue_store
+from scripts import maintenance_lock
 from scripts import render_jobs
 from scripts.render_jobs import RenderCancelled
 from scripts.pipeline import TikTokAutoCutterPipeline
@@ -29,6 +31,11 @@ from scripts.overlay_model import template_for_style_preset, template_for_ad_ton
 from scripts.api_render import check_disk_space
 
 logger = logging.getLogger("batch_render")
+
+
+def _maintenance_root() -> Path:
+    """Data root of the batch queue (maintenance lock lives at <root>/_Docs)."""
+    return Path(_batch_queue_store.BATCH_QUEUE_PATH).parent.parent
 
 # 1-to-1 default mapping between 10 script angles and 10 editorial style presets
 ANGLE_TO_DEFAULT_STYLE: Dict[str, str] = {
@@ -172,6 +179,14 @@ class BatchRenderManager:
     def _dispatch_pending_batches(cls) -> None:
         global _DISPATCHER_THREAD
         while True:
+            if maintenance_lock.is_blocked(_maintenance_root()):
+                # Maintenance mode: start no new batch; queued ones stay
+                # queued and are picked up again by recovery after it ends.
+                with _DISPATCHER_LOCK:
+                    if _DISPATCHER_THREAD is threading.current_thread():
+                        _DISPATCHER_THREAD = None
+                logger.warning("[BatchRender] maintenance mode: หยุดเริ่ม batch ใหม่ชั่วคราว")
+                return
             batch_id = cls._next_queued_batch_id()
             if not batch_id:
                 # `_ensure_dispatcher()` can see this thread alive between
@@ -189,6 +204,9 @@ class BatchRenderManager:
     @classmethod
     def recover_pending_batches(cls) -> int:
         """Requeue interrupted work after a restart without redoing completed items."""
+        if maintenance_lock.is_blocked(_maintenance_root()):
+            logger.warning("[BatchRender] maintenance mode: ข้ามการกู้คิว batch จนกว่าจะย้ายข้อมูลเสร็จ")
+            return 0
         recovered = 0
         for batch in BatchQueueStore.load():
             if batch.get("status") not in ("queued", "processing") or batch.get("cancelled"):
@@ -212,13 +230,26 @@ class BatchRenderManager:
         product_id: str,
         angle_ids: Optional[List[str]] = None,
         options: Optional[Dict[str, Any]] = None,
+        *, channel_id: Optional[str] = None, job_scope: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Validates product angles and enqueues a batch render job."""
-        product = ProductStore.get(product_id)
+        maintenance_lock.refuse_new_job(_maintenance_root(), job_label="batch render ใหม่")
+        pinned = render_jobs.pin_job_scope(channel_id, job_scope)
+        channel_kwargs = {"channel_id": pinned["channel_id"]} if pinned.get("channel_id") else {}
+        product = ProductStore.get(product_id, **channel_kwargs)
         if not product:
             raise ValueError(f"ไม่พบข้อมูลสินค้า id '{product_id}'")
 
-        options = options or {}
+        from copy import deepcopy
+        options = deepcopy(options or {})
+        from scripts.pipeline_context import channel_project_name
+        if pinned.get("channel_id"):
+            if options.get("project_name"):
+                options["project_name"] = channel_project_name(options["project_name"], pinned["channel_id"])
+            options["angle_project_names"] = {
+                aid: channel_project_name(name, pinned["channel_id"])
+                for aid, name in (options.get("angle_project_names") or {}).items()
+            }
         batch_index = options.get("batch_index")
         all_angles = product.get("angles", [])
         if batch_index is not None:
@@ -242,11 +273,17 @@ class BatchRenderManager:
 
         if not target_angles:
             raise ValueError("ไม่มีมุมมองที่สามารถเรนเดอร์ได้ (อาจถูกโพสต์แล้วทั้งหมด)")
+        if pinned.get("channel_id"):
+            for angle in target_angles:
+                if angle.get("project_name"):
+                    channel_project_name(angle["project_name"], pinned["channel_id"])
 
         # Verify disk space (lower threshold if draft-only since no MP4 is produced)
         is_draft = not options.get("export_mp4", True)
         disk = check_disk_space(EXPORTS_DIR)
         min_required = 0.5 if is_draft else 3.0
+        if disk.get("error") or disk.get("free_gb") is None and not disk.get("is_sufficient", True):
+            raise RuntimeError("ตรวจสอบพื้นที่ว่างก่อนเริ่มคิวไม่ได้ จึงหยุดการเรนเดอร์")
         if not disk.get("is_sufficient", True) and disk.get("free_gb", 0) < min_required:
             free_gb = disk.get("free_gb", 0)
             raise RuntimeError(
@@ -272,6 +309,8 @@ class BatchRenderManager:
             })
 
         batch_data = {
+            **pinned,
+            "job_scope": pinned,
             "batch_id": batch_id,
             "product_id": product_id,
             "product_title": product_title,
@@ -307,6 +346,7 @@ class BatchRenderManager:
             target_tab="product",
             target_id=product_id,
             task_id=batch_id,
+            job_scope=pinned, **channel_kwargs,
         )
 
         # A single dispatcher owns admission. Do not create one blocked
@@ -323,21 +363,27 @@ class BatchRenderManager:
         }
 
     @classmethod
-    def get_batch(cls, batch_id: str) -> Optional[Dict[str, Any]]:
+    def get_batch(cls, batch_id: str, *, channel_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Returns the current state and progress of a batch job."""
         with _BATCH_LOCK:
             batch = BATCH_REGISTRY.get(batch_id)
-        if batch is not None:
-            return batch
-        batch = cls._load_persisted_batch(batch_id)
+        if batch is None:
+            batch = cls._load_persisted_batch(batch_id)
+        if batch is not None and channel_id is not None and (batch.get("channel_id") or "main") != channel_id:
+            return None
         if batch is not None:
             with _BATCH_LOCK:
                 BATCH_REGISTRY[batch_id] = batch
+        if batch is not None and channel_id is not None:
+            from copy import deepcopy
+            return deepcopy(batch)
         return batch
 
     @classmethod
-    def cancel_batch(cls, batch_id: str) -> bool:
+    def cancel_batch(cls, batch_id: str, *, channel_id: Optional[str] = None) -> bool:
         """Flags a batch job for cancellation."""
+        if cls.get_batch(batch_id, channel_id=channel_id) is None:
+            return False
         batch = cls.get_batch(batch_id)
         if not batch:
             return False
@@ -346,7 +392,11 @@ class BatchRenderManager:
             if batch["status"] in ("queued", "processing"):
                 batch["status"] = "cancelled"
             cls._persist_batch(batch)
-            TaskManager.cancel_task(batch_id)
+            channel_kwargs = {"channel_id": channel_id} if channel_id is not None else {}
+            TaskManager.cancel_task(batch_id, **channel_kwargs)
+            for item in batch.get("items", []):
+                if item.get("job_id"):
+                    render_jobs.request_cancel(item["job_id"], **channel_kwargs)
             return True
 
     @classmethod
@@ -364,6 +414,8 @@ class BatchRenderManager:
             cls._persist_batch(batch)
 
         product_id = batch["product_id"]
+        pinned = render_jobs.pin_job_scope(batch.get("channel_id"), batch.get("job_scope"))
+        channel_kwargs = {"channel_id": pinned["channel_id"]} if pinned.get("channel_id") else {}
         product_title = batch["product_title"]
         items = batch["items"]
         total_items = len(items)
@@ -373,7 +425,7 @@ class BatchRenderManager:
             batch_id,
             0.0,
             step_label=f"เริ่มเรนเดอร์คิว 0/{total_items} มุมมอง..."
-        )
+        , **channel_kwargs)
 
         completed_count = sum(1 for item in items if item.get("status") == "rendered")
         failed_count = sum(1 for item in items if item.get("status") == "failed")
@@ -399,7 +451,7 @@ class BatchRenderManager:
 
             # Re-fetch latest product state from DB to get up-to-date angle data
             try:
-                latest_prod = ProductStore.get(product_id)
+                latest_prod = ProductStore.get(product_id, **channel_kwargs)
                 angle_data = None
                 if latest_prod:
                     item_batch = item.get("batch") or options.get("batch_index")
@@ -506,6 +558,8 @@ class BatchRenderManager:
                     existing_dirs=list(existing_product_projs),
                 )
 
+            from scripts.pipeline_context import channel_project_name
+            proj_name = channel_project_name(proj_name, pinned.get("channel_id"))
             angle_data["project_name"] = proj_name
             item["project_name"] = proj_name
 
@@ -517,13 +571,13 @@ class BatchRenderManager:
                     "in_production",
                     project_name=proj_name,
                     batch=angle_data.get("batch") if angle_data else item.get("batch"),
-                )
+                 **channel_kwargs)
             except Exception:
                 pass
 
             sub_job_id = str(uuid.uuid4())
             item["job_id"] = sub_job_id
-            render_jobs.create_job(sub_job_id)
+            render_jobs.create_job(sub_job_id, job_scope=pinned, **channel_kwargs)
 
             def make_sub_progress(item_idx: int, a_name: str):
                 def sub_on_progress(msg: str, progress: float):
@@ -534,7 +588,7 @@ class BatchRenderManager:
                         batch_id,
                         overall,
                         step_label=f"[{item_idx + 1}/{total_items}] {a_name}: {msg}"
-                    )
+                    , **channel_kwargs)
                 return sub_on_progress
 
             # Prepare script lines
@@ -551,7 +605,7 @@ class BatchRenderManager:
                 if batch.get("cancelled"):
                     break
                 try:
-                    with render_jobs.render_slot(sub_job_id):
+                    with render_jobs.render_slot(sub_job_id, **channel_kwargs):
                         effective_product_name = angle_data.get("product_name") or product_title
                         brand_guess, model_guess = guess_brand_model(effective_product_name)
                         hook_brand = angle_data.get("hook_brand") or latest_prod.get("hook_brand") or brand_guess or None
@@ -559,7 +613,8 @@ class BatchRenderManager:
                         hook_label = angle_data.get("hook_label") or latest_prod.get("hook_label") or ""
 
                         result = TikTokAutoCutterPipeline.run(
-                            cancel_event=render_jobs.get_cancel_event(sub_job_id),
+                            cancel_event=render_jobs.get_cancel_event(sub_job_id, **channel_kwargs),
+                            job_scope=pinned or None, **channel_kwargs,
                             product_name=effective_product_name,
                             raw_video_path=str(raw_video_path),
                             project_name=proj_name,
@@ -615,7 +670,7 @@ class BatchRenderManager:
 
                     if product_id and proj_name:
                         try:
-                            ProductStore.attach_project(product_id, proj_name)
+                            ProductStore.attach_project(product_id, proj_name, **channel_kwargs)
                         except Exception:
                             pass
 
@@ -631,9 +686,9 @@ class BatchRenderManager:
                         project_name=proj_name,
                         export_id=result.get("export_id") if is_rendered else None,
                         batch=item_b,
-                    )
+                     **channel_kwargs)
 
-                    render_jobs.complete_job(sub_job_id, result)
+                    render_jobs.complete_job(sub_job_id, result, **channel_kwargs)
                     item["status"] = "rendered" if is_rendered else "draft_ready"
                     item["project_name"] = proj_name
                     item["video_url"] = str(mp4_val) if is_rendered else ""
@@ -643,13 +698,13 @@ class BatchRenderManager:
 
                 except RenderCancelled:
                     logger.info("Sub-job %s cancelled for angle %s", sub_job_id, angle_id)
-                    render_jobs.cancel_job(sub_job_id)
+                    render_jobs.cancel_job(sub_job_id, **channel_kwargs)
                     item["status"] = "cancelled"
                     try:
                         item_b = angle_data.get("batch") if angle_data else item.get("batch")
                         ProductStore.update_angle_status(
                             product_id, angle_id, "scripted", project_name="", batch=item_b
-                        )
+                        , **channel_kwargs)
                     except Exception:
                         pass
                     break
@@ -664,9 +719,9 @@ class BatchRenderManager:
                 failed_count += 1
                 item["status"] = "failed"
                 item["error"] = str(last_err) if last_err else "เรนเดอร์ไม่สำเร็จ"
-                render_jobs.fail_job(sub_job_id, str(last_err) if last_err else "Error")
+                render_jobs.fail_job(sub_job_id, str(last_err) if last_err else "Error", **channel_kwargs)
                 try:
-                    ProductStore.update_angle_status(product_id, angle_id, "scripted")
+                    ProductStore.update_angle_status(product_id, angle_id, "scripted", **channel_kwargs)
                 except Exception:
                     pass
 
@@ -703,18 +758,18 @@ class BatchRenderManager:
                     batch_id,
                     result=completed_result,
                     step_label=f"ยกเลิกคิว{action_name} (สำเร็จ {completed_count}/{total_items} {unit_name})"
-                )
+                , **channel_kwargs)
             elif completed_count > 0:
                 batch["status"] = "completed"
                 TaskManager.complete_task(
                     batch_id,
                     result=completed_result,
                     step_label=f"🎉 {action_name}ชุดสำเร็จ {completed_count}/{total_items} {unit_name}!"
-                )
+                , **channel_kwargs)
             else:
                 batch["status"] = "failed"
                 TaskManager.fail_task(
                     batch_id,
                     error=f"{action_name}ไม่สำเร็จทั้ง {total_items} {unit_name} กรุณาตรวจเช็กไฟล์วิดีโอต้นฉบับ"
-                )
+                , **channel_kwargs)
             cls._persist_batch(batch)

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="th">
+<html lang="th" data-theme="dark">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -113,6 +113,9 @@
     --line-strong: #cbd5e1;
     --canvas: #f8fafc;
     --surface: #ffffff;
+    --input-bg: #ffffff;
+    --subtle-bg: #f8fafc;
+    --step-bg: #ffffff;
 
     /* TikTok Crimson & Gradients */
     --rose: #fe2c55;
@@ -154,6 +157,47 @@
     --radius-pill: 999px;
     --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  :root[data-theme="dark"], body[data-theme="dark"] {
+    color-scheme: dark;
+    --ink: #f8fafc;
+    --ink-secondary: #cbd5e1;
+    --muted: #94a3b8;
+    --subtle: #64748b;
+    --line: rgba(255, 255, 255, 0.09);
+    --line-strong: rgba(255, 255, 255, 0.18);
+    --canvas: #0b0f19;
+    --surface: #111827;
+    --input-bg: #1e293b;
+    --subtle-bg: #151d2f;
+    --step-bg: #131b2e;
+
+    /* TikTok Crimson & Gradients */
+    --rose-tint: rgba(254, 44, 85, 0.16);
+    --rose-border: rgba(254, 44, 85, 0.36);
+
+    /* Neon Accents & Functional Colors */
+    --cyan: #25f4ee;
+    --cyan-tint: rgba(37, 244, 238, 0.14);
+    --cyan-border: rgba(37, 244, 238, 0.35);
+    --cyan-dark: #25f4ee;
+
+    --success: #34d399;
+    --success-tint: rgba(16, 185, 129, 0.16);
+    --success-border: rgba(16, 185, 129, 0.35);
+    --warning: #fbbf24;
+    --warning-tint: rgba(245, 158, 11, 0.16);
+    --warning-border: rgba(245, 158, 11, 0.35);
+    --danger: #f87171;
+    --danger-tint: rgba(239, 68, 68, 0.16);
+    --danger-border: rgba(239, 68, 68, 0.35);
+
+    /* Elevation Shadows */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.55), 0 2px 4px -2px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.65), 0 4px 6px -4px rgba(0, 0, 0, 0.35);
   }
 
   * { box-sizing: border-box; }
@@ -886,7 +930,7 @@
     padding: 8px 11px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--line-strong);
-    background: #ffffff;
+    background: var(--input-bg);
     color: var(--ink);
     font-size: 12.5px;
     line-height: 1.45;
@@ -923,7 +967,7 @@
     font-size: 12px;
     font-weight: 600;
     border-radius: var(--radius-md);
-    background: #f8fafc;
+    background: var(--subtle-bg);
     border: 1px solid var(--line-strong);
     color: var(--ink);
     cursor: pointer;
@@ -987,7 +1031,7 @@
 
   /* Schedule Sub-Widget */
   .schedule-widget {
-    background: #f8fafc;
+    background: var(--subtle-bg);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     padding: 10px 12px;
@@ -1091,7 +1135,7 @@
   .pipeline-track {
     width: 100%;
     height: 6px;
-    background: #e2e8f0;
+    background: var(--line);
     border-radius: 999px;
     overflow: hidden;
     margin-bottom: 12px;
@@ -1117,12 +1161,12 @@
     padding: 8px 10px;
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    background: #ffffff;
+    background: var(--step-bg);
     transition: all 0.18s var(--ease-spring);
   }
   .step-row:hover {
     border-color: var(--line-strong);
-    background: #f8fafc;
+    background: var(--subtle-bg);
   }
   .step-row.completed {
     border-color: var(--success-border);
@@ -1139,7 +1183,7 @@
     width: 22px;
     height: 22px;
     border-radius: var(--radius-pill);
-    background: #f1f5f9;
+    background: var(--subtle-bg);
     color: var(--ink);
     font-weight: 700;
     font-size: 11px;
@@ -1173,7 +1217,7 @@
     line-height: 1.35;
   }
   .btn-step {
-    background: #f8fafc;
+    background: var(--subtle-bg);
     border: 1px solid var(--line-strong);
     color: var(--ink);
     font-size: 11px;
@@ -1292,7 +1336,7 @@
     border: 1.5px dashed var(--line-strong);
     border-radius: var(--radius-lg);
     padding: 14px;
-    background: #f8fafc;
+    background: var(--subtle-bg);
     text-align: center;
     margin-top: 12px;
   }
@@ -1326,7 +1370,7 @@
     to { opacity: 1; transform: translateY(0); }
   }
   #status.info {
-    background: #f1f5f9;
+    background: var(--subtle-bg);
     border: 1px solid var(--line-strong);
     color: var(--ink);
   }
@@ -1338,7 +1382,7 @@
   #status.success {
     background: var(--success-tint);
     border: 1px solid var(--success-border);
-    color: #047857;
+    color: var(--success);
   }
 
   /* Empty & Error State */
@@ -1369,7 +1413,7 @@
     line-height: 1.5;
   }
   .btn-retry-connection {
-    background: #ffffff;
+    background: var(--surface);
     border: 1px solid var(--danger-border);
     color: var(--danger);
     font-size: 11.5px;
@@ -1434,7 +1478,7 @@
     justify-content: space-between;
     padding: 12px 14px;
     border-bottom: 1px solid var(--line);
-    background: #ffffff;
+    background: var(--surface);
   }
   .preview-title {
     font-size: 13px;
@@ -1457,7 +1501,7 @@
   }
   .preview-close-btn:hover {
     color: var(--ink);
-    background: #f1f5f9;
+    background: var(--subtle-bg);
   }
   .preview-video-container {
     width: 100%;
@@ -1477,7 +1521,7 @@
     border-top: 1px solid var(--line);
     display: flex;
     gap: 8px;
-    background: #f8fafc;
+    background: var(--subtle-bg);
   }
   .preview-footer button { flex: 1; }
 
@@ -1539,11 +1583,11 @@
     font-weight: 700;
   }
   #confirmCancelBtn {
-    background: #f1f5f9;
+    background: var(--subtle-bg);
     border: 1px solid var(--line);
     color: var(--ink-secondary);
   }
-  #confirmCancelBtn:hover { background: #e2e8f0; }
+  #confirmCancelBtn:hover { background: var(--line); }
   #confirmOkBtn {
     background: var(--rose-gradient);
     border: none;
@@ -1557,6 +1601,15 @@
       animation: none !important;
       transition: none !important;
     }
+  }
+  /* A side panel needs separate brand/action rows at narrow widths. */
+  @media (max-width: 520px) {
+    .brand-row { flex-direction: column; align-items: stretch; gap: 12px; }
+    .brand-meta { width: 100%; }
+    .header-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
+    .header-actions button { min-height: 44px; }
+    .header-actions .btn-gear-settings { min-width: 44px; }
+    .header-actions .header-status-pill { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
   }
 </style>
 </head>
@@ -1580,6 +1633,10 @@
           <span id="headerStatusDot" class="pill-dot is-checking"></span>
           <span id="headerStatusText">Checking</span>
         </div>
+        <button id="themeToggleBtn" type="button" class="btn-gear-settings" title="สลับธีม สว่าง / มืด" aria-label="สลับธีม">
+          <svg id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg id="themeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
         <button id="apiKeySettingsBtn" type="button" class="btn-gear-settings" title="ตั้งค่า API Key ของ OmniCut backend">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>

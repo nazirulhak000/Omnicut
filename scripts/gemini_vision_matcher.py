@@ -430,6 +430,7 @@ class GeminiVisionMatcher:
         }
 
         generic_kws = {"สินค้า", "ตัวเครื่อง", "ของ", "ตัวนี้", "รุ่นนี้", "สาย", "หูฟัง", "jbl"}
+        broad_quality_words = {"คมชัด", "ใส"}
 
         angle_cycle = ["front", "45deg", "side", "macro_closeup", "back"]
         zoom_cycle = [1.10, 1.20, 1.12, 1.25, 1.15]
@@ -480,7 +481,8 @@ class GeminiVisionMatcher:
                     else:
                         if kw_clean in group_text.lower():
                             score += 5.0
-                            evidence.add(kw_clean)
+                            if kw_clean not in broad_quality_words:
+                                evidence.add(kw_clean)
 
                 # Check domain pattern match
                 for pat_type, words in domain_patterns.items():
@@ -491,6 +493,7 @@ class GeminiVisionMatcher:
                         # evidence takes precedence over visual variety.
                         evidence.update(w for w in matched_words if w in s_desc.lower()
                                         and w not in generic_kws
+                                        and w not in broad_quality_words
                                         and w not in {"ไว", "fast", "ปรับ", "มือ", "close"})
                         if pat_type == "anti_tangle_magnet":
                             if any(w in s_desc.lower() for w in ("แม่เหล็ก", "ประกบ", "พัน", "สายแบน", "จัดเก็บ")):

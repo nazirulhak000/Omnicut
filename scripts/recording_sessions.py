@@ -23,8 +23,10 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from scripts.config import BASE_DIR, RAW_DIR, VIDEO_WIDTH, VIDEO_HEIGHT, FPS
+from scripts.config import BASE_DIR, RAW_DIR, PROJECTS_DIR, VIDEO_WIDTH, VIDEO_HEIGHT, FPS
 from scripts.db import DocumentTable
+from scripts.channel_ownership import resolve_store_scope, owner_for_new_record
+from scripts.channel_store import ChannelError
 from scripts.video_editor import VideoEditor
 from scripts.media_service import get_file_info
 from scripts.product_store import ProductStore
@@ -98,6 +100,38 @@ def _normalize_segment(src: Path, dest: Path) -> None:
         raise ValueError(f"แปลงไฟล์วิดีโอไม่สำเร็จ ({src.name}): {(result.stderr or '')[-500:]}")
 
 
+def _channel_kwargs(channel_id):
+    return {"channel_id": channel_id} if channel_id is not None else {}
+
+
+def _load(channel_id):
+    scope = resolve_store_scope(channel_id)
+    return _TABLE.load() if scope.unscoped else _TABLE.scoped_load(scope.channel_id, include_legacy=scope.include_legacy)
+
+
+def _mutate(channel_id):
+    scope = resolve_store_scope(channel_id)
+    return _TABLE.mutate() if scope.unscoped else _TABLE.scoped_mutate(scope.channel_id, include_legacy=scope.include_legacy)
+
+
+def _guard_parent(product_id, channel_id):
+    if channel_id is not None:
+        from scripts.product_store import ProductStore
+        if not ProductStore.get(product_id, channel_id=channel_id):
+            raise ChannelError(404, "resource_not_found", "ไม่พบสินค้าที่ร้องขอ")
+
+
+def _cleanup_consumed_segments(segments, session_id):
+    """Only dispose files in the exact server-owned session scratch directory."""
+    root = (PROJECTS_DIR / "_RecordingSegments").resolve()
+    expected = (root / session_id).resolve()
+    if expected.parent != root:
+        return
+    paths = [Path(seg["raw_file_path"]).resolve() for seg in segments if seg.get("raw_file_path")]
+    if paths and all(path.parent == expected for path in paths):
+        shutil.rmtree(expected, ignore_errors=True)
+
+
 class RecordingSessionStore:
     """Keyed by session id (`secrets.token_urlsafe(16)`, same minting
     convention as scripts/task_manager.py's task ids)."""
@@ -112,22 +146,23 @@ class RecordingSessionStore:
         return (created + datetime.timedelta(hours=_SESSION_TTL_HOURS)).isoformat() + "Z"
 
     @classmethod
-    def get(cls, session_id: str) -> Optional[Dict[str, Any]]:
-        for record in _TABLE.load():
+    def get(cls, session_id: str, *, channel_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        for record in _load(channel_id):
             if record.get("id") == session_id:
                 return record
         return None
 
     @classmethod
-    def create(cls, product_id: str, angle_id: str, batch: int = 1) -> Dict[str, Any]:
-        shot_list_record = ShotListsStore.get(product_id, angle_id)
+    def create(cls, product_id: str, angle_id: str, batch: int = 1, *, channel_id: Optional[str] = None) -> Dict[str, Any]:
+        _guard_parent(product_id, channel_id)
+        shot_list_record = ShotListsStore.get(product_id, angle_id, **_channel_kwargs(channel_id))
         if not shot_list_record:
             raise ValueError(f"ยังไม่มีแผนถ่ายสำหรับมุม '{angle_id}' -- กรุณาสร้างแผนถ่ายก่อน")
         shot_list = shot_list_record.get("shot_list") or []
         if not shot_list:
             raise ValueError(f"แผนถ่ายของมุม '{angle_id}' ว่างเปล่า")
 
-        with _TABLE.mutate() as records:
+        with _mutate(channel_id) as records:
             # Reopening the same QR link resumes existing session ONLY if the
             # shot plan has not changed. If beats changed, expire old session.
             for existing in records:
@@ -147,6 +182,7 @@ class RecordingSessionStore:
             now = cls._now()
             session = {
                 "id": secrets.token_urlsafe(16),
+                "channel_id": owner_for_new_record(resolve_store_scope(channel_id)),
                 "product_id": product_id,
                 "angle_id": angle_id,
                 "shot_list_key": f"{product_id}:{angle_id}",
@@ -181,9 +217,8 @@ class RecordingSessionStore:
 
     @classmethod
     def upload_segment(
-        cls, session_id: str, beat_index: int, raw_file_path: str, probed_duration: float
-    ) -> Dict[str, Any]:
-        with _TABLE.mutate() as records:
+        cls, session_id: str, beat_index: int, raw_file_path: str, probed_duration: float, *, channel_id: Optional[str] = None) -> Dict[str, Any]:
+        with _mutate(channel_id) as records:
             session = next((r for r in records if r.get("id") == session_id), None)
             if not session:
                 raise ValueError(f"ไม่พบเซสชันถ่ายทำ id '{session_id}'")
@@ -211,13 +246,13 @@ class RecordingSessionStore:
             return session
 
     @classmethod
-    def delete_segment(cls, session_id: str, beat_index: int) -> Tuple[Dict[str, Any], Optional[str]]:
+    def delete_segment(cls, session_id: str, beat_index: int, *, channel_id: Optional[str] = None) -> Tuple[Dict[str, Any], Optional[str]]:
         """Retake: only the most-recently-uploaded segment may be removed,
         so the on-screen product state a later beat's footage already
         depends on can never be invalidated by rewinding an earlier one.
         Returns the updated session and the now-orphaned file path (if any)
         so the caller can unlink it outside this transaction."""
-        with _TABLE.mutate() as records:
+        with _mutate(channel_id) as records:
             session = next((r for r in records if r.get("id") == session_id), None)
             if not session:
                 raise ValueError(f"ไม่พบเซสชันถ่ายทำ id '{session_id}'")
@@ -240,8 +275,8 @@ class RecordingSessionStore:
             return session, removed_path
 
     @classmethod
-    def finalize(cls, session_id: str) -> Dict[str, Any]:
-        session = cls.get(session_id)
+    def finalize(cls, session_id: str, *, channel_id: Optional[str] = None) -> Dict[str, Any]:
+        session = cls.get(session_id, **_channel_kwargs(channel_id))
         if not session:
             raise ValueError(f"ไม่พบเซสชันถ่ายทำ id '{session_id}'")
         segments = session["segments"]
@@ -249,6 +284,7 @@ class RecordingSessionStore:
             raise ValueError("ถ่ายไม่ครบทุกช็อต")
 
         product_id = session["product_id"]
+        _guard_parent(product_id, channel_id)
         dest_dir = _safe_product_dir(RAW_DIR, product_id)
         dest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -297,6 +333,7 @@ class RecordingSessionStore:
             sidecar_path.write_text(
                 json.dumps({
                     "session_id": session_id,
+                    "channel_id": session.get("channel_id") or "main",
                     "product_id": product_id,
                     "angle_id": session["angle_id"],
                     "clip_map": clip_map,
@@ -309,7 +346,7 @@ class RecordingSessionStore:
             file_info["source"] = "guided_take"
             file_info["recording_session_id"] = session_id
             try:
-                ProductStore.add_video_to_product(product_id, file_info)
+                ProductStore.add_video_to_product(product_id, file_info, **_channel_kwargs(channel_id))
             except Exception as e:
                 # Mirrors scripts/api_videos.py's own upload endpoint: failing
                 # to link the video into the product record is not a reason
@@ -324,11 +361,11 @@ class RecordingSessionStore:
                 # and so source_resolution.py resolves to THIS file (the one
                 # with the matching .guided_take.json sidecar) rather than
                 # some other clip that happens to also be selected.
-                ProductStore.update_angle_videos(product_id, session["angle_id"], [str(out_path)])
+                ProductStore.update_angle_videos(product_id, session["angle_id"], [str(out_path)], **_channel_kwargs(channel_id))
             except Exception as e:
                 print(f"Warning: Failed to auto-select guided-take video for angle {session['angle_id']}: {e}")
 
-            with _TABLE.mutate() as records:
+            with _mutate(channel_id) as records:
                 rec = next((r for r in records if r.get("id") == session_id), None)
                 if rec:
                     rec["status"] = "completed"
@@ -340,9 +377,7 @@ class RecordingSessionStore:
             # -- keeping them around served no purpose except leaving stray
             # working files behind (they all share one session-scoped
             # directory, scripts/api_recording.py's _SEGMENTS_DIR / session_id).
-            first_raw_path = segments[0].get("raw_file_path")
-            if first_raw_path:
-                shutil.rmtree(Path(first_raw_path).parent, ignore_errors=True)
+            _cleanup_consumed_segments(segments, session_id)
 
             return {"raw_video_path": str(out_path), "clip_map": clip_map}
         finally:

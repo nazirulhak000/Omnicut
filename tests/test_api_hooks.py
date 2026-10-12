@@ -75,15 +75,11 @@ def test_apply_angle_hook(mock_store):
     assert res_data["angle"]["script_lines"][0] == "ใครกำลังจะซื้อเมาส์ตัวนี้ ฟังทางนี้ครับ"
 
 
-@patch("scripts.api_hooks.ProjectManifest")
-def test_apply_project_hook(mock_manifest):
-    mock_manifest.load.return_value = {
-        "project_name": "test_proj",
-        "hook_brand": "OldBrand",
-        "hook_model": "OldModel",
-        "hook_label": "OldLabel",
-        "overlays": [{"kind": "hook", "brand": "OldBrand", "model": "OldModel", "label": "OldLabel"}],
-    }
+def test_apply_project_hook():
+    from scripts.project_manifest import ProjectManifest
+    ProjectManifest.save("test_proj", channel_id="main", hook_brand="OldBrand",
+                         hook_model="OldModel", hook_label="OldLabel",
+                         overlays=[{"kind": "hook", "brand": "OldBrand", "model": "OldModel", "label": "OldLabel"}])
 
     payload = {
         "project_name": "test_proj",
@@ -102,4 +98,10 @@ def test_apply_project_hook(mock_manifest):
     assert res_data["hook_brand"] == "Logitech"
     assert res_data["hook_model"] == "Wave Keys"
     assert res_data["hook_label"] == "คีย์บอร์ดเพื่อสุขภาพ"
-    mock_manifest.save.assert_called_once()
+    stored = ProjectManifest.load("test_proj")
+    assert stored["channel_id"] == "main"
+    assert stored["hook_brand"] == "Logitech"
+    assert stored["hook_model"] == "Wave Keys"
+    assert stored["overlays"][0]["brand"] == "Logitech"
+    assert stored["overlays"][0]["model"] == "Wave Keys"
+    assert stored["overlays"][0]["label"] == res_data["hook_label"]

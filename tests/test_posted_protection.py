@@ -211,6 +211,8 @@ def test_reroll_angle_script_blocks_posted(client):
 
 def test_delete_project_blocks_posted_angle_and_product_scopes(client):
     """DELETE /api/projects/{name} with scope=angle or scope=product must return 400 for posted angles."""
+    from scripts.project_manifest import ProjectManifest
+    ProjectManifest.save("LOG01-รีวิวสเปก_1", channel_id="main")
     fake_product = {
         "id": "prod_1",
         "name": "Test Product",

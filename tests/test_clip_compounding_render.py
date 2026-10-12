@@ -6,6 +6,7 @@ clip durations or trim_ends repeatedly.
 
 from unittest.mock import patch, MagicMock
 from pathlib import Path
+from copy import deepcopy
 
 from scripts.pipeline_context import PipelineContext
 from scripts.stages.shot_matching_stage import ShotMatchingStage
@@ -19,21 +20,30 @@ def test_assembly_counts_holds_and_never_extends_past_topic_window():
         {"trim_start": 10., "trim_end": 12., "duration": 8., "speed": 1., "freeze_tail": 6., "source_window": {"start": 10., "end": 12.}},
     ]
     ctx = PipelineContext(product_name="fixture", raw_video_path="unused.mp4", total_duration=16.,
-                          transitions=[{"type": "fade", "duration": .35}], export_mp4=False)
+                          project_name="fixture_hold", transitions=[{"type": "fade", "duration": .35}], export_mp4=False)
     ctx.actual_clip_list = clips
+    original = deepcopy(clips)
     ctx.is_newly_generated_clips = True
-    with patch("scripts.stages.video_assembly_stage.ProjectManifest.save"):
+    with patch("scripts.stages.video_assembly_stage.ProjectManifest.save") as save:
         VideoAssemblyStage.run(ctx)
-    assert [c["trim_end"] for c in clips] == [4., 12.]
-    assert [c["freeze_tail"] for c in clips] == [6., 6.]
-    assert sum(c["duration"] for c in clips) == 16.
-    assert clips[1]["transition_in"] == "cut"
+    planned = deepcopy(ctx.result_paths["clip_list"])
+    assert save.call_args.kwargs["clip_list"] == planned
+    assert clips == original
+    assert [c["trim_end"] for c in planned] == [4., 12.]
+    assert [c["freeze_tail"] for c in planned] == [6., 6.]
+    assert sum(c["duration"] for c in planned) == 16.
+    assert planned[1]["transition_in"] == "cut"
+    # Re-open the persisted plan, rather than inspecting the immutable input.
+    ctx.actual_clip_list = deepcopy(planned)
     ctx.is_newly_generated_clips = False
     ctx.transitions = [{"type": "cut", "duration": 0.0}]
-    with patch("scripts.stages.video_assembly_stage.ProjectManifest.save"):
+    with patch("scripts.stages.video_assembly_stage.ProjectManifest.save") as save:
         VideoAssemblyStage.run(ctx)
-    assert clips[1]["transition_in"] == "cut", "rerender must not recreate effects needing unavailable source handles"
-    assert [c["trim_end"] for c in clips] == [4., 12.]
+    rerendered = ctx.result_paths["clip_list"]
+    assert save.call_args.kwargs["clip_list"] == rerendered
+    assert rerendered == planned, "rerender must preserve topic holds and the persisted safe cut"
+    assert ctx.actual_clip_list == planned
+    assert clips == original
 
 
 def test_video_assembly_does_not_compound_clip_durations_on_consecutive_runs():
@@ -102,6 +112,7 @@ def test_fresh_clips_receive_overlap_compensation_only_once():
         product_name="TestProduct",
         raw_video_path="dummy.mp4",
         clip_list=None,  # No clips provided -> fresh generation
+        project_name="fixture_overlap",
         transitions=[{"type": "fade", "duration": 0.25}],
         total_duration=5.0,
         export_mp4=False,
@@ -111,25 +122,39 @@ def test_fresh_clips_receive_overlap_compensation_only_once():
         {"id": "clip_0", "duration": 2.5, "trim_start": 0.0, "trim_end": 2.5},
         {"id": "clip_1", "duration": 2.5, "trim_start": 2.5, "trim_end": 5.0},
     ]
+    original = deepcopy(ctx.actual_clip_list)
 
     with patch("scripts.project_manifest.ProjectManifest.save") as mock_save:
         VideoAssemblyStage.run(ctx)
+    planned = deepcopy(ctx.result_paths["clip_list"])
+    assert mock_save.call_args.kwargs["clip_list"] == planned
+    assert ctx.actual_clip_list == original
 
     # The 0.25 overlap is centred on the cut (round EDITOR-CUT-QUALITY-R2,
     # audit A7d): the first clip runs 0.125 past it ...
-    assert ctx.actual_clip_list[0]["duration"] == 2.625
-    assert ctx.actual_clip_list[0]["trim_end"] == 2.625
-    assert ctx.actual_clip_list[0].get("_overlap_compensated") is True
+    assert planned[0]["duration"] == 2.625
+    assert planned[0]["trim_end"] == 2.625
+    assert planned[0].get("_overlap_compensated") is True
 
     # ... and the second starts 0.125 earlier in its source; its end is untouched
-    assert ctx.actual_clip_list[1]["duration"] == 2.625
-    assert ctx.actual_clip_list[1]["trim_start"] == 2.375
-    assert ctx.actual_clip_list[1]["trim_end"] == 5.0
+    assert planned[1]["duration"] == 2.625
+    assert planned[1]["trim_start"] == 2.375
+    assert planned[1]["trim_end"] == 5.0
+    assert sum(c["duration"] for c in planned) - 0.25 == ctx.total_duration
 
     # If VideoAssemblyStage runs again on the same clips, it must not inflate again
     with patch("scripts.project_manifest.ProjectManifest.save") as mock_save:
         VideoAssemblyStage.run(ctx)
 
-    assert ctx.actual_clip_list[0]["duration"] == 2.625
-    assert ctx.actual_clip_list[0]["trim_end"] == 2.625
-    assert ctx.actual_clip_list[1]["trim_start"] == 2.375
+    assert ctx.actual_clip_list == original
+    assert ctx.result_paths["clip_list"] == planned
+    assert mock_save.call_args.kwargs["clip_list"] == planned
+
+    # A loaded, already compensated plan must also survive assembly unchanged.
+    ctx.actual_clip_list = deepcopy(planned)
+    ctx.is_newly_generated_clips = False
+    with patch("scripts.project_manifest.ProjectManifest.save") as mock_save:
+        VideoAssemblyStage.run(ctx)
+    assert ctx.actual_clip_list == planned
+    assert ctx.result_paths["clip_list"] == planned
+    assert mock_save.call_args.kwargs["clip_list"] == planned

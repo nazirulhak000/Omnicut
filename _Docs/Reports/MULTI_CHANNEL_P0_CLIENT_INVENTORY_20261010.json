@@ -1,0 +1,7879 @@
+{
+ "meta": {
+  "agent": "P0-C Claude Code (Claude Opus 5.5)",
+  "date": "2026-10-10",
+  "status": "complete (read-only source review; extension/hyperframes/cli parts from delegated read-only sub-agents, line refs not all re-verified)"
+ },
+ "frontend_api_wrapper": {
+  "file": "frontend/src/api.js",
+  "axios_instance_line": 5,
+  "baseURL": "/api",
+  "exports": 199,
+  "interceptors": "response-only (line 14); no request interceptor -> single place to inject X-OmniCut-Channel",
+  "auth": "X-API-Key injected server-side by Vite proxy frontend/vite.config.js (proxy.configure) - browser never holds secret"
+ },
+ "frontend_fetch_sites": {
+  "api_js_exports": [
+   {
+    "name": "getSystemStatus",
+    "line": 46,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/status",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getRawVideos",
+    "line": 47,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/videos",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "attachVideoToProduct",
+    "line": 48,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/videos",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "removeVideoFromProduct",
+    "line": 49,
+    "calls": [
+     {
+      "method": "DELETE",
+      "path": "/api/products/{productId}/videos",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "renameVideo",
+    "line": 50,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/videos/rename",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getRawVault",
+    "line": 51,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/raw-vault",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "reassignRawVideo",
+    "line": 52,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/raw-vault/reassign",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "batchDeleteRawVideos",
+    "line": 53,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/raw-vault/batch-delete",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getExports",
+    "line": 54,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/exports",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getExportMediaInfo",
+    "line": 55,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/exports/media-info",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "linkExportToAngle",
+    "line": 56,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/exports/link-angle",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getSfxList",
+    "line": 60,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/sfx",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getBgmBeats",
+    "line": 66,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/audio/beats",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getMediaSilences",
+    "line": 71,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/audio/silences",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getClipProxy",
+    "line": 78,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/proxy/for-clip",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "generateScript",
+    "line": 81,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/script/generate",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "generateAiScripts",
+    "line": 89,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/script/ai-generate",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "previewVoice",
+    "line": 97,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/voice/preview",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "startRender",
+    "line": 102,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/render",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getRenderStatus",
+    "line": 112,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/render/status/{jobId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "startBatchRender",
+    "line": 113,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/render/batch",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "startBatchDraft",
+    "line": 114,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/render/batch",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getBatchRenderStatus",
+    "line": 115,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/render/batch/{batchId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "startBackgroundIsolation",
+    "line": 116,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/background-isolation/process",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getBackgroundIsolationManifest",
+    "line": 118,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/background-isolation/sequences/{artifactId}/manifest",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "preflightBackgroundIsolation",
+    "line": 120,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/background-isolation/preflight",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "interactiveSegment",
+    "line": 122,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/background-isolation/interactive-segment",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "cancelBatchRender",
+    "line": 124,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/render/batch/{batchId}/cancel",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "openFolder",
+    "line": 125,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/open-folder",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "revealFile",
+    "line": 131,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/reveal-file",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "generateCover",
+    "line": 133,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/covers/generate",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getCoverBadges",
+    "line": 138,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/covers/badges",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getCoverHighlights",
+    "line": 140,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/covers/highlights",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "generateCoverHooks",
+    "line": 143,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/covers/generate-hooks",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "renderProCover",
+    "line": 150,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/covers/render-pro",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getCoverRawSources",
+    "line": 153,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/covers/raw-sources",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getCoverProductRefImages",
+    "line": 156,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/covers/product-ref-images",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "generateAiCoverImage",
+    "line": 159,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/covers/ai-generate-image",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "grabCoverFrame",
+    "line": 162,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/covers/grab-frame",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "markPosted",
+    "line": 165,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/exports/mark-posted",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "prepareTiktokAutopost",
+    "line": 174,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/tiktok-autopost/prepare",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getScheduleQueue",
+    "line": 183,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/schedule-queue",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "createScheduleQueue",
+    "line": 184,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/schedule-queue",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "updateScheduleQueue",
+    "line": 185,
+    "calls": [
+     {
+      "method": "PATCH",
+      "path": "/api/schedule-queue/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "removeScheduleQueue",
+    "line": 186,
+    "calls": [
+     {
+      "method": "DELETE",
+      "path": "/api/schedule-queue/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "prepareScheduleQueue",
+    "line": 187,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/schedule-queue/{id}/prepare",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getScheduleTemplate",
+    "line": 188,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/schedule-queue/template",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "saveScheduleTemplate",
+    "line": 189,
+    "calls": [
+     {
+      "method": "PUT",
+      "path": "/api/schedule-queue/template",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "copyScheduleTemplate",
+    "line": 190,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/schedule-queue/template/copy",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "resetScheduleTemplate",
+    "line": 191,
+    "calls": [
+     {
+      "method": "DELETE",
+      "path": "/api/schedule-queue/template/{weekStart}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "previewScheduleAutofill",
+    "line": 192,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/schedule-queue/auto-fill/preview",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "commitScheduleAutofill",
+    "line": 193,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/schedule-queue/auto-fill",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "listGadgetMediaCampaigns",
+    "line": 196,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/campaigns",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "createGadgetMediaCampaign",
+    "line": 197,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/campaigns",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getGadgetMediaCampaignReadiness",
+    "line": 198,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/campaigns/{campaignId}/readiness",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getGadgetMediaCampaignAnalytics",
+    "line": 200,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/campaigns/{campaignId}/analytics",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getGadgetMediaPresetSources",
+    "line": 202,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/preset-sources",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "updateGadgetMediaSlot",
+    "line": 203,
+    "calls": [
+     {
+      "method": "PATCH",
+      "path": "/api/gadget-media/campaigns/{campaignId}/slots/{slotId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "listGadgetMediaProjects",
+    "line": 205,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/projects",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "createGadgetMediaProject",
+    "line": 206,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getGadgetMediaProject",
+    "line": 207,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/projects/{projectId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "updateGadgetMediaProject",
+    "line": 209,
+    "calls": [
+     {
+      "method": "PATCH",
+      "path": "/api/gadget-media/projects/{projectId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "probeGadgetMediaSource",
+    "line": 211,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects/{projectId}/sources/probe",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "buildGadgetMediaTimeline",
+    "line": 213,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects/{projectId}/timeline/build",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getGadgetMediaTimeline",
+    "line": 215,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/projects/{projectId}/timeline",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "saveGadgetMediaTimeline",
+    "line": 217,
+    "calls": [
+     {
+      "method": "PUT",
+      "path": "/api/gadget-media/projects/{projectId}/timeline",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "validateGadgetMediaProject",
+    "line": 219,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects/{projectId}/quality/validate",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "generateGadgetMediaNarration",
+    "line": 221,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects/{projectId}/audio/generate",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "renderGadgetMediaProject",
+    "line": 223,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects/{projectId}/renders",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "approveGadgetMediaRender",
+    "line": 225,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects/{projectId}/renders/{artifactId}/approve",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "createGadgetMediaProjectFromSlot",
+    "line": 227,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/campaigns/{campaignId}/slots/{slotId}/project",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "transcribeMedia",
+    "line": 230,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/sub-srt/transcribe",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "uploadFile",
+    "line": 233,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/upload",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "uploadMultipleFiles",
+    "line": 244,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/upload-multiple",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "deleteFile",
+    "line": 255,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/delete-file",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "aiRun",
+    "line": 263,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/ai/prompt",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "aiParse",
+    "line": 264,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/ai/parse",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getAiStatus",
+    "line": 265,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/ai/status",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getAngles",
+    "line": 267,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/angles",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "scrapeAndPlanProduct",
+    "line": 269,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/scrape-and-plan",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getProducts",
+    "line": 278,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "createProduct",
+    "line": 279,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "updateProduct",
+    "line": 280,
+    "calls": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "previewProductSource",
+    "line": 281,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{id}/preview-source",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "previewProductImageMetadata",
+    "line": 283,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{id}/preview-image-metadata",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "previewProductImageMetadataAsync",
+    "line": 285,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{id}/preview-image-metadata-async",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "refreshProductSource",
+    "line": 287,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{id}/refresh-source",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "resolveTiktokProductId",
+    "line": 289,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/resolve-tiktok-id",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "updateAngleStatus",
+    "line": 291,
+    "calls": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "updateAngleCover",
+    "line": 304,
+    "calls": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}/cover",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "updateAngleVideos",
+    "line": 307,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles/{angleId}/videos",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "setDefaultVideosForProduct",
+    "line": 309,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/default-videos",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getSceneCatalogs",
+    "line": 310,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/scene-catalogs",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "indexSceneCatalogs",
+    "line": 312,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/index-scenes",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getRawVaultSceneCatalogs",
+    "line": 314,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/raw-vault/scene-catalogs",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "indexRawVaultScenes",
+    "line": 316,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/raw-vault/index-scenes",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "generateProductBatch",
+    "line": 318,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/generate-batch",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "addProductAngle",
+    "line": 319,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "deleteProductAngle",
+    "line": 320,
+    "calls": [
+     {
+      "method": "DELETE",
+      "path": "/api/products/{productId}/angles/{angleId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "deleteProduct",
+    "line": 322,
+    "calls": [
+     {
+      "method": "DELETE",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getProjects",
+    "line": 324,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/projects",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getProject",
+    "line": 325,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/projects/{name}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getProjectOrigin",
+    "line": 326,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/projects/{name}/origin",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "deleteProject",
+    "line": 327,
+    "calls": [
+     {
+      "method": "DELETE",
+      "path": "/api/projects/{name}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "updateProjectCues",
+    "line": 329,
+    "calls": [
+     {
+      "method": "PATCH",
+      "path": "/api/projects/{name}/cues",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "updateProjectClips",
+    "line": 330,
+    "calls": [
+     {
+      "method": "PATCH",
+      "path": "/api/projects/{name}/clips",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "updateProjectState",
+    "line": 331,
+    "calls": [
+     {
+      "method": "PATCH",
+      "path": "/api/projects/{name}/state",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "startReroll",
+    "line": 336,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/reroll",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getPosts",
+    "line": 338,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/posts",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "createPost",
+    "line": 339,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/posts",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "setPostMetrics",
+    "line": 340,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/posts/{id}/metrics",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getPerformance",
+    "line": 341,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/posts/performance",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getAllAssets",
+    "line": 343,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/assets/all",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "starAsset",
+    "line": 344,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/assets/star",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getHookMotionPresets",
+    "line": 345,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/hook-motion-presets",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "uploadAsset",
+    "line": 346,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/assets/upload",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "scrapeAndPlanProductAsync",
+    "line": 354,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/scrape-and-plan-async",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "rerollAngleScript",
+    "line": 367,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles/{angleId}/reroll-script",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "generateShotList",
+    "line": 374,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles/{angleId}/shot-list",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getShotList",
+    "line": 382,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/angles/{angleId}/shot-list",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getShotListStatus",
+    "line": 385,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/shot-list-status",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "batchGenerateAudio",
+    "line": 388,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/batch-generate-audio",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "createRecordingSession",
+    "line": 395,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/recording-sessions",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getRecordingSession",
+    "line": 398,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/recording-sessions/{sessionId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "uploadRecordingSegment",
+    "line": 401,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/recording-sessions/{sessionId}/segments",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "deleteRecordingSegment",
+    "line": 414,
+    "calls": [
+     {
+      "method": "DELETE",
+      "path": "/api/recording-sessions/{sessionId}/segments/{beatIndex}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "finalizeRecordingSession",
+    "line": 417,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/recording-sessions/{sessionId}/finalize",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getActiveTasks",
+    "line": 420,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/tasks/active",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getTaskStatus",
+    "line": 421,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/tasks/{taskId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "cancelTaskApi",
+    "line": 422,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/tasks/{taskId}/cancel",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "deleteTaskApi",
+    "line": 423,
+    "calls": [
+     {
+      "method": "DELETE",
+      "path": "/api/tasks/{taskId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "clearCompletedTasksApi",
+    "line": 424,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/tasks/clear-completed",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getTokenSummary",
+    "line": 429,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/tokens/summary",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getTokenHistory",
+    "line": 430,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/tokens/history",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "resetTokenAnalytics",
+    "line": 434,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/tokens/reset",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "clearTokenAlerts",
+    "line": 435,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/tokens/alerts/clear",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getProductionAnalytics",
+    "line": 437,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/analytics/production",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getStorageAnalytics",
+    "line": 438,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/analytics/storage",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "purgeSafeStorageCache",
+    "line": 439,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/analytics/storage/purge-safe-cache",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getCutoutCacheStatus",
+    "line": 440,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/analytics/storage/cutout-cache",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "purgeCutoutCache",
+    "line": 441,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/analytics/storage/purge-cutout-cache",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getInventoryHealth",
+    "line": 443,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/analytics/inventory",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getTiktokStatsLatest",
+    "line": 444,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/tiktok-stats/latest",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getTiktokMilestones",
+    "line": 445,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/tiktok-stats/milestones",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getTiktokPending",
+    "line": 446,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/tiktok-stats/pending",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getTiktokClipCandidates",
+    "line": 447,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/tiktok-stats/clip-candidates",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "attachTiktokPending",
+    "line": 448,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/tiktok-stats/attach",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "ignoreTiktokPending",
+    "line": 449,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/tiktok-stats/pending/ignore",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "ignoreAllTiktokPending",
+    "line": 450,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/tiktok-stats/pending/ignore-all",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getTiktokIgnored",
+    "line": 451,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/tiktok-stats/ignored",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "restoreTiktokIgnored",
+    "line": 452,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/tiktok-stats/ignored/restore",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "fetchOverlayLayout",
+    "line": 454,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/editor/overlay/layout",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getMediaInfo",
+    "line": 459,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/editor/media-info",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "filmstripUrlFor",
+    "line": 461,
+    "calls": [
+     {
+      "method": "GET(url)",
+      "path": "/api/editor/filmstrip",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getHookTemplates",
+    "line": 468,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/editor/hook-templates",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "saveCustomHookTemplate",
+    "line": 469,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/editor/hook-templates",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "deleteCustomHookTemplate",
+    "line": 470,
+    "calls": [
+     {
+      "method": "DELETE",
+      "path": "/api/editor/hook-templates/{id}",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "createSystemBackup",
+    "line": 475,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/backup/create",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getSystemBackups",
+    "line": 476,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/backup/list",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "verifySystemBackup",
+    "line": 477,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/backup/verify/{filename}",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "deleteSystemBackup",
+    "line": 478,
+    "calls": [
+     {
+      "method": "DELETE",
+      "path": "/api/backup/{filename}",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "scanAssetDuplicates",
+    "line": 480,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/assets/duplicates/scan",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "cleanAssetDuplicates",
+    "line": 482,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/assets/duplicates/clean",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getHookStyles",
+    "line": 487,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/hooks/styles",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "generateHookVariations",
+    "line": 488,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/hooks/generate",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "applyAngleHook",
+    "line": 489,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/hooks/apply-angle",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "applyProjectHook",
+    "line": 490,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/hooks/apply-project",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "uploadRefMedia",
+    "line": 495,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/producer/upload-ref-media",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "aiIdeaToAngle",
+    "line": 503,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/producer/ai-idea-to-angle",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getProducerNotes",
+    "line": 506,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/producer/notes",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "saveProducerNotes",
+    "line": 509,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/producer/notes",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "addProducerNote",
+    "line": 512,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/producer/notes/add",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "updateProducerNote",
+    "line": 515,
+    "calls": [
+     {
+      "method": "PUT",
+      "path": "/api/producer/notes/{noteId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "deleteProducerNote",
+    "line": 518,
+    "calls": [
+     {
+      "method": "DELETE",
+      "path": "/api/producer/notes/{noteId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getManualShotMap",
+    "line": 521,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/angles/{angleId}/manual-shot-map",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "saveManualShotMap",
+    "line": 524,
+    "calls": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}/manual-shot-map",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "syncManualShotMap",
+    "line": 527,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles/{sourceAngleId}/sync-manual-shot-map",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getUniversalFilmingRecipe",
+    "line": 530,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/filming-recipe",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "getTypeSafeStatus",
+    "line": 534,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/typesafe-studio/status",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "matchBrollWithAI",
+    "line": 537,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/typesafe-studio/match-broll",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "generateHookVariantsAI",
+    "line": 540,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/typesafe-studio/generate-hooks",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "evaluateHookAI",
+    "line": 543,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/typesafe-studio/evaluate-hook",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "matchBrollSequenceWithAI",
+    "line": 546,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/typesafe-studio/match-sequence",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "matchRawFolderWithAI",
+    "line": 553,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/typesafe-studio/match-raw-folder",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "fetchMobileCatalog",
+    "line": 560,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/mobile-studio/catalog",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "createMobileSession",
+    "line": 563,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/session",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "triggerMobileAssemble",
+    "line": 566,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/assemble",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "fetchMobileTask",
+    "line": 575,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/mobile-studio/task/{taskId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "cancelMobileTask",
+    "line": 578,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/cancel/{taskId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "createMobileQuickAngle",
+    "line": 581,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/quick-angle",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "uploadMobileVideo",
+    "line": 584,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/upload-video",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "quickAddMobileProduct",
+    "line": 598,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/products/quick-add",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "previewMobileVoice",
+    "line": 601,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/preview-voice",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getHyperFramesStatus",
+    "line": 605,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/hyperframes/status",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getHyperFramesStyles",
+    "line": 606,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/hyperframes/styles",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "name": "getHyperFramesCompositions",
+    "line": 607,
+    "calls": [
+     {
+      "method": "GET",
+      "path": "/api/hyperframes/compositions",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "createHyperFramesClip",
+    "line": 608,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/hyperframes/create-clip",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "renderHyperFramesComposition",
+    "line": 609,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/hyperframes/render",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "name": "openHyperFramesStudio",
+    "line": 610,
+    "calls": [
+     {
+      "method": "POST",
+      "path": "/api/hyperframes/open-studio",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   }
+  ],
+  "call_sites": [
+   {
+    "file": "src/App.jsx",
+    "line": 422,
+    "api_fn": "updateAngleStatus",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ActivityCenter.jsx",
+    "line": 976,
+    "api_fn": "getRenderStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/render/status/{jobId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/AIBridgePanel.jsx",
+    "line": 34,
+    "api_fn": "aiParse",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/ai/parse",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/BatchRenderModal.jsx",
+    "line": 111,
+    "api_fn": "getBatchRenderStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/render/batch/{batchId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/BatchRenderModal.jsx",
+    "line": 140,
+    "api_fn": "getBatchRenderStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/render/batch/{batchId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/BatchRenderModal.jsx",
+    "line": 137,
+    "api_fn": "cancelBatchRender",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/render/batch/{batchId}/cancel",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/BatchRenderModal.jsx",
+    "line": 103,
+    "api_fn": "startBatchRender",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/render/batch",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 1425,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 1447,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 1243,
+    "api_fn": "getScheduleQueue",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/schedule-queue",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 1175,
+    "api_fn": "getTaskStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/tasks/{taskId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 1118,
+    "api_fn": "prepareTiktokAutopost",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/tiktok-autopost/prepare",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 1478,
+    "api_fn": "prepareTiktokAutopost",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/tiktok-autopost/prepare",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 1165,
+    "api_fn": "generateShotList",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles/{angleId}/shot-list",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 1242,
+    "api_fn": "getProducts",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 1356,
+    "api_fn": "updateAngleStatus",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 1213,
+    "api_fn": "getShotList",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/angles/{angleId}/shot-list",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 1324,
+    "api_fn": "updateAngleCover",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}/cover",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 1349,
+    "api_fn": "markPosted",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/exports/mark-posted",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ContentTrackerHub.jsx",
+    "line": 2462,
+    "api_fn": "markPosted",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/exports/mark-posted",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/CoverStudioModal.jsx",
+    "line": 494,
+    "api_fn": "renderProCover",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/covers/render-pro",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/CoverStudioModal.jsx",
+    "line": 138,
+    "api_fn": "generateCoverHooks",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/covers/generate-hooks",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/CoverStudioModal.jsx",
+    "line": 143,
+    "api_fn": "getCoverRawSources",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/covers/raw-sources",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/CoverStudioModal.jsx",
+    "line": 1880,
+    "api_fn": "revealFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/reveal-file",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/CoverStudioModal.jsx",
+    "line": 1935,
+    "api_fn": "revealFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/reveal-file",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/CoverStudioModal.jsx",
+    "line": 145,
+    "api_fn": "getCoverProductRefImages",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/covers/product-ref-images",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/CoverStudioModal.jsx",
+    "line": 140,
+    "api_fn": "getCoverHighlights",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/covers/highlights",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/CoverStudioModal.jsx",
+    "line": 224,
+    "api_fn": "getCoverHighlights",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/covers/highlights",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/CoverStudioModal.jsx",
+    "line": 246,
+    "api_fn": "getCoverHighlights",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/covers/highlights",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/CoverStudioModal.jsx",
+    "line": 201,
+    "api_fn": "grabCoverFrame",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/covers/grab-frame",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/CoverStudioModal.jsx",
+    "line": 289,
+    "api_fn": "generateAiCoverImage",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/covers/ai-generate-image",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/CoverStudioModal.jsx",
+    "line": 137,
+    "api_fn": "getCoverBadges",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/covers/badges",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ExportGallery.jsx",
+    "line": 1364,
+    "api_fn": "deleteFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/delete-file",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ExportGallery.jsx",
+    "line": 1404,
+    "api_fn": "deleteFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/delete-file",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ExportGallery.jsx",
+    "line": 1337,
+    "api_fn": "prepareTiktokAutopost",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/tiktok-autopost/prepare",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ExportGallery.jsx",
+    "line": 1228,
+    "api_fn": "linkExportToAngle",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/exports/link-angle",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ExportGallery.jsx",
+    "line": 1303,
+    "api_fn": "generateCover",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/covers/generate",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ExportGallery.jsx",
+    "line": 1317,
+    "api_fn": "revealFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/reveal-file",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ExportGallery.jsx",
+    "line": 1186,
+    "api_fn": "getProducts",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ExportGallery.jsx",
+    "line": 1289,
+    "api_fn": "openFolder",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/open-folder",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ExportGallery.jsx",
+    "line": 535,
+    "api_fn": "getExportMediaInfo",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/exports/media-info",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ExportGallery.jsx",
+    "line": 1158,
+    "api_fn": "getExportMediaInfo",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/exports/media-info",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ExportGallery.jsx",
+    "line": 1325,
+    "api_fn": "markPosted",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/exports/mark-posted",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/GadgetMediaHub.jsx",
+    "line": 111,
+    "api_fn": "getGadgetMediaPresetSources",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/preset-sources",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/GadgetMediaHub.jsx",
+    "line": 166,
+    "api_fn": "getGadgetMediaCampaignReadiness",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/campaigns/{campaignId}/readiness",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/GadgetMediaHub.jsx",
+    "line": 202,
+    "api_fn": "getGadgetMediaCampaignReadiness",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/campaigns/{campaignId}/readiness",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/GadgetMediaHub.jsx",
+    "line": 183,
+    "api_fn": "createGadgetMediaCampaign",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/campaigns",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/GadgetMediaHub.jsx",
+    "line": 200,
+    "api_fn": "updateGadgetMediaSlot",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/gadget-media/campaigns/{campaignId}/slots/{slotId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/GadgetMediaHub.jsx",
+    "line": 95,
+    "api_fn": "listGadgetMediaCampaigns",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/campaigns",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/HookVariationModal.jsx",
+    "line": 40,
+    "api_fn": "generateHookVariations",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/hooks/generate",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/HookVariationModal.jsx",
+    "line": 75,
+    "api_fn": "applyAngleHook",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/hooks/apply-angle",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ManualStoryboardModal.jsx",
+    "line": 640,
+    "api_fn": "saveManualShotMap",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}/manual-shot-map",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ManualStoryboardModal.jsx",
+    "line": 693,
+    "api_fn": "saveManualShotMap",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}/manual-shot-map",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ManualStoryboardModal.jsx",
+    "line": 258,
+    "api_fn": "getManualShotMap",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/angles/{angleId}/manual-shot-map",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ManualStoryboardModal.jsx",
+    "line": 353,
+    "api_fn": "getMediaInfo",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/editor/media-info",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ManualStoryboardModal.jsx",
+    "line": 700,
+    "api_fn": "syncManualShotMap",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles/{sourceAngleId}/sync-manual-shot-map",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MediaAssetsHub.jsx",
+    "line": 209,
+    "api_fn": "deleteFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/delete-file",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MediaAssetsHub.jsx",
+    "line": 62,
+    "api_fn": "getAllAssets",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/assets/all",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MediaAssetsHub.jsx",
+    "line": 98,
+    "api_fn": "starAsset",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/assets/star",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MediaAssetsHub.jsx",
+    "line": 78,
+    "api_fn": "openFolder",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/open-folder",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MediaAssetsHub.jsx",
+    "line": 193,
+    "api_fn": "uploadAsset",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/assets/upload",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MediaPickerModal.jsx",
+    "line": 263,
+    "api_fn": "deleteFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/delete-file",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MediaPickerModal.jsx",
+    "line": 185,
+    "api_fn": "uploadFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/upload",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MediaPickerModal.jsx",
+    "line": 93,
+    "api_fn": "getRawVideos",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/videos",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MediaPickerModal.jsx",
+    "line": 226,
+    "api_fn": "renameVideo",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/videos/rename",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MediaPickerModal.jsx",
+    "line": 246,
+    "api_fn": "removeVideoFromProduct",
+    "routes": [
+     {
+      "method": "DELETE",
+      "path": "/api/products/{productId}/videos",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileFilmingPage.jsx",
+    "line": 473,
+    "api_fn": "getTaskStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/tasks/{taskId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileFilmingPage.jsx",
+    "line": 464,
+    "api_fn": "uploadRecordingSegment",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/recording-sessions/{sessionId}/segments",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileFilmingPage.jsx",
+    "line": 161,
+    "api_fn": "getShotList",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/angles/{angleId}/shot-list",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileFilmingPage.jsx",
+    "line": 153,
+    "api_fn": "getRecordingSession",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/recording-sessions/{sessionId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileFilmingPage.jsx",
+    "line": 449,
+    "api_fn": "getRecordingSession",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/recording-sessions/{sessionId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileFilmingPage.jsx",
+    "line": 470,
+    "api_fn": "finalizeRecordingSession",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/recording-sessions/{sessionId}/finalize",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickPostPage.jsx",
+    "line": 178,
+    "api_fn": "markPosted",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/exports/mark-posted",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickPostPage.jsx",
+    "line": 196,
+    "api_fn": "markPosted",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/exports/mark-posted",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickPostPage.jsx",
+    "line": 56,
+    "api_fn": "getProducts",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 304,
+    "api_fn": "quickAddMobileProduct",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/products/quick-add",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 255,
+    "api_fn": "createMobileSession",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/session",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 282,
+    "api_fn": "createMobileSession",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/session",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 351,
+    "api_fn": "previewMobileVoice",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/preview-voice",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 330,
+    "api_fn": "uploadMobileVideo",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/upload-video",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 450,
+    "api_fn": "cancelMobileTask",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/cancel/{taskId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 148,
+    "api_fn": "fetchMobileCatalog",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/mobile-studio/catalog",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 161,
+    "api_fn": "fetchMobileCatalog",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/mobile-studio/catalog",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 210,
+    "api_fn": "fetchMobileCatalog",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/mobile-studio/catalog",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 248,
+    "api_fn": "createMobileQuickAngle",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/quick-angle",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 276,
+    "api_fn": "createMobileQuickAngle",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/quick-angle",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 421,
+    "api_fn": "triggerMobileAssemble",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/mobile-studio/assemble",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 134,
+    "api_fn": "getRecordingSession",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/recording-sessions/{sessionId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 557,
+    "api_fn": "markPosted",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/exports/mark-posted",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/MobileQuickStudio.jsx",
+    "line": 464,
+    "api_fn": "fetchMobileTask",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/mobile-studio/task/{taskId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3777,
+    "api_fn": "generateProductBatch",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/generate-batch",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2470,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2645,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2678,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2703,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2751,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2769,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2814,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2856,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3331,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3354,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3415,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3443,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3729,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2899,
+    "api_fn": "rerollAngleScript",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles/{angleId}/reroll-script",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3226,
+    "api_fn": "uploadFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/upload",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3265,
+    "api_fn": "uploadFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/upload",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3316,
+    "api_fn": "uploadFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/upload",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3178,
+    "api_fn": "scrapeAndPlanProductAsync",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/scrape-and-plan-async",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2717,
+    "api_fn": "updateAngleStatus",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 4085,
+    "api_fn": "getBatchRenderStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/render/batch/{batchId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3513,
+    "api_fn": "updateAngleVideos",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles/{angleId}/videos",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3553,
+    "api_fn": "updateAngleVideos",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles/{angleId}/videos",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2399,
+    "api_fn": "getShotListStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/shot-list-status",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2607,
+    "api_fn": "getShotListStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/shot-list-status",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3011,
+    "api_fn": "getShotListStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/shot-list-status",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3835,
+    "api_fn": "getShotListStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/shot-list-status",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3373,
+    "api_fn": "previewProductSource",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{id}/preview-source",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3085,
+    "api_fn": "deleteProduct",
+    "routes": [
+     {
+      "method": "DELETE",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3928,
+    "api_fn": "batchGenerateAudio",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/batch-generate-audio",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2441,
+    "api_fn": "resolveTiktokProductId",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/resolve-tiktok-id",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2462,
+    "api_fn": "resolveTiktokProductId",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/resolve-tiktok-id",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 4388,
+    "api_fn": "resolveTiktokProductId",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/resolve-tiktok-id",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 4546,
+    "api_fn": "resolveTiktokProductId",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/resolve-tiktok-id",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 4040,
+    "api_fn": "startBatchDraft",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/render/batch",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 4077,
+    "api_fn": "startBatchDraft",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/render/batch",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2975,
+    "api_fn": "generateShotList",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles/{angleId}/shot-list",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3847,
+    "api_fn": "getSceneCatalogs",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/scene-catalogs",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3421,
+    "api_fn": "refreshProductSource",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{id}/refresh-source",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3189,
+    "api_fn": "scrapeAndPlanProduct",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/scrape-and-plan",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3127,
+    "api_fn": "deleteProductAngle",
+    "routes": [
+     {
+      "method": "DELETE",
+      "path": "/api/products/{productId}/angles/{angleId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2988,
+    "api_fn": "getTaskStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/tasks/{taskId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3229,
+    "api_fn": "setDefaultVideosForProduct",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/default-videos",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3479,
+    "api_fn": "setDefaultVideosForProduct",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/default-videos",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3389,
+    "api_fn": "previewProductImageMetadataAsync",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{id}/preview-image-metadata-async",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 2295,
+    "api_fn": "getProducts",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3032,
+    "api_fn": "getShotList",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/angles/{angleId}/shot-list",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ProductToClip.jsx",
+    "line": 3908,
+    "api_fn": "indexSceneCatalogs",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/index-scenes",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/RawVaultPanel.jsx",
+    "line": 74,
+    "api_fn": "getRawVault",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/raw-vault",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/RawVaultPanel.jsx",
+    "line": 76,
+    "api_fn": "getRawVaultSceneCatalogs",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/raw-vault/scene-catalogs",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/RawVaultPanel.jsx",
+    "line": 125,
+    "api_fn": "getRawVaultSceneCatalogs",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/raw-vault/scene-catalogs",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/RawVaultPanel.jsx",
+    "line": 299,
+    "api_fn": "deleteFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/delete-file",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/RawVaultPanel.jsx",
+    "line": 101,
+    "api_fn": "indexRawVaultScenes",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/raw-vault/index-scenes",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/RawVaultPanel.jsx",
+    "line": 316,
+    "api_fn": "batchDeleteRawVideos",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/raw-vault/batch-delete",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/RawVaultPanel.jsx",
+    "line": 75,
+    "api_fn": "getProducts",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/RawVaultPanel.jsx",
+    "line": 155,
+    "api_fn": "getProducts",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/RawVaultPanel.jsx",
+    "line": 277,
+    "api_fn": "reassignRawVideo",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/raw-vault/reassign",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/RawVaultPanel.jsx",
+    "line": 253,
+    "api_fn": "renameVideo",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/videos/rename",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 588,
+    "api_fn": "updateScheduleQueue",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/schedule-queue/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 611,
+    "api_fn": "updateScheduleQueue",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/schedule-queue/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 826,
+    "api_fn": "resetScheduleTemplate",
+    "routes": [
+     {
+      "method": "DELETE",
+      "path": "/api/schedule-queue/template/{weekStart}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 216,
+    "api_fn": "getScheduleQueue",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/schedule-queue",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 672,
+    "api_fn": "prepareScheduleQueue",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/schedule-queue/{id}/prepare",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 232,
+    "api_fn": "getScheduleTemplate",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/schedule-queue/template",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 709,
+    "api_fn": "getScheduleTemplate",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/schedule-queue/template",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 738,
+    "api_fn": "getScheduleTemplate",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/schedule-queue/template",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 875,
+    "api_fn": "commitScheduleAutofill",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/schedule-queue/auto-fill",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 851,
+    "api_fn": "previewScheduleAutofill",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/schedule-queue/auto-fill/preview",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 756,
+    "api_fn": "saveScheduleTemplate",
+    "routes": [
+     {
+      "method": "PUT",
+      "path": "/api/schedule-queue/template",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 618,
+    "api_fn": "removeScheduleQueue",
+    "routes": [
+     {
+      "method": "DELETE",
+      "path": "/api/schedule-queue/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 653,
+    "api_fn": "removeScheduleQueue",
+    "routes": [
+     {
+      "method": "DELETE",
+      "path": "/api/schedule-queue/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 420,
+    "api_fn": "createScheduleQueue",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/schedule-queue",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 573,
+    "api_fn": "createScheduleQueue",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/schedule-queue",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScheduleAgenda.jsx",
+    "line": 805,
+    "api_fn": "copyScheduleTemplate",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/schedule-queue/template/copy",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScriptLab.jsx",
+    "line": 225,
+    "api_fn": "matchRawFolderWithAI",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/typesafe-studio/match-raw-folder",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScriptLab.jsx",
+    "line": 153,
+    "api_fn": "generateHookVariantsAI",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/typesafe-studio/generate-hooks",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ScriptLab.jsx",
+    "line": 126,
+    "api_fn": "generateAiScripts",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/script/ai-generate",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SequencePlayer.jsx",
+    "line": 3700,
+    "api_fn": "getClipProxy",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/proxy/for-clip",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/ShotListModal.jsx",
+    "line": 75,
+    "api_fn": "createRecordingSession",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/recording-sessions",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SubSrtTool.jsx",
+    "line": 26,
+    "api_fn": "transcribeMedia",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/sub-srt/transcribe",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SystemAssets.jsx",
+    "line": 49,
+    "api_fn": "openFolder",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/open-folder",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SystemAssets.jsx",
+    "line": 35,
+    "api_fn": "getAllAssets",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/assets/all",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SystemAssets.jsx",
+    "line": 101,
+    "api_fn": "deleteFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/delete-file",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SystemAssets.jsx",
+    "line": 86,
+    "api_fn": "uploadAsset",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/assets/upload",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SystemSettings.jsx",
+    "line": 106,
+    "api_fn": "deleteSystemBackup",
+    "routes": [
+     {
+      "method": "DELETE",
+      "path": "/api/backup/{filename}",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SystemSettings.jsx",
+    "line": 117,
+    "api_fn": "scanAssetDuplicates",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/assets/duplicates/scan",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SystemSettings.jsx",
+    "line": 67,
+    "api_fn": "getSystemBackups",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/backup/list",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SystemSettings.jsx",
+    "line": 80,
+    "api_fn": "getTypeSafeStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/typesafe-studio/status",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SystemSettings.jsx",
+    "line": 91,
+    "api_fn": "createSystemBackup",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/backup/create",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SystemSettings.jsx",
+    "line": 135,
+    "api_fn": "cleanAssetDuplicates",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/assets/duplicates/clean",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/SystemSettings.jsx",
+    "line": 146,
+    "api_fn": "openFolder",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/open-folder",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/TokenDashboard.jsx",
+    "line": 111,
+    "api_fn": "getTokenSummary",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/tokens/summary",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/TokenDashboard.jsx",
+    "line": 179,
+    "api_fn": "clearTokenAlerts",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/tokens/alerts/clear",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/TokenDashboard.jsx",
+    "line": 131,
+    "api_fn": "getTokenHistory",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/tokens/history",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/TokenDashboard.jsx",
+    "line": 165,
+    "api_fn": "resetTokenAnalytics",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/tokens/reset",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/UniversalFilmingRecipeModal.jsx",
+    "line": 32,
+    "api_fn": "getUniversalFilmingRecipe",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/filming-recipe",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/context/TaskContext.jsx",
+    "line": 80,
+    "api_fn": "getTiktokMilestones",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/tiktok-stats/milestones",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/context/TaskContext.jsx",
+    "line": 261,
+    "api_fn": "deleteTaskApi",
+    "routes": [
+     {
+      "method": "DELETE",
+      "path": "/api/tasks/{taskId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/context/TaskContext.jsx",
+    "line": 143,
+    "api_fn": "getActiveTasks",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/tasks/active",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/context/TaskContext.jsx",
+    "line": 270,
+    "api_fn": "clearCompletedTasksApi",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/tasks/clear-completed",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/context/TaskContext.jsx",
+    "line": 252,
+    "api_fn": "cancelTaskApi",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/tasks/{taskId}/cancel",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/hooks/useRenderJob.js",
+    "line": 243,
+    "api_fn": "startRender",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/render",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/lib/overlayLayoutClient.js",
+    "line": 47,
+    "api_fn": "fetchOverlayLayout",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/editor/overlay/layout",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/AssetPanel.jsx",
+    "line": 1522,
+    "api_fn": "uploadFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/upload",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/AssetPanel.jsx",
+    "line": 256,
+    "api_fn": "purgeCutoutCache",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/analytics/storage/purge-cutout-cache",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/AssetPanel.jsx",
+    "line": 1558,
+    "api_fn": "transcribeMedia",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/sub-srt/transcribe",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/AssetPanel.jsx",
+    "line": 242,
+    "api_fn": "getCutoutCacheStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/analytics/storage/cutout-cache",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorHeader.jsx",
+    "line": 63,
+    "api_fn": "getProjectOrigin",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/projects/{name}/origin",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1114,
+    "api_fn": "getHookTemplates",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/editor/hook-templates",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 398,
+    "api_fn": "getBackgroundIsolationManifest",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/background-isolation/sequences/{artifactId}/manifest",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1100,
+    "api_fn": "getAllAssets",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/assets/all",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 467,
+    "api_fn": "updateAngleStatus",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 483,
+    "api_fn": "updateAngleStatus",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1085,
+    "api_fn": "updateAngleStatus",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 2209,
+    "api_fn": "updateAngleStatus",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1107,
+    "api_fn": "getHookMotionPresets",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/hook-motion-presets",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1044,
+    "api_fn": "getProjects",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/projects",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1088,
+    "api_fn": "getProjects",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/projects",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1096,
+    "api_fn": "getProjects",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/projects",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1928,
+    "api_fn": "preflightBackgroundIsolation",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/background-isolation/preflight",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 2214,
+    "api_fn": "updateProjectState",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/projects/{name}/state",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1393,
+    "api_fn": "getBgmBeats",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/audio/beats",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1934,
+    "api_fn": "startBackgroundIsolation",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/background-isolation/process",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 561,
+    "api_fn": "deleteCustomHookTemplate",
+    "routes": [
+     {
+      "method": "DELETE",
+      "path": "/api/editor/hook-templates/{id}",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1321,
+    "api_fn": "getMediaSilences",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/audio/silences",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1043,
+    "api_fn": "deleteProject",
+    "routes": [
+     {
+      "method": "DELETE",
+      "path": "/api/projects/{name}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 547,
+    "api_fn": "saveCustomHookTemplate",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/editor/hook-templates",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 2896,
+    "api_fn": "openFolder",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/open-folder",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 3527,
+    "api_fn": "openFolder",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/open-folder",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 3889,
+    "api_fn": "openFolder",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/open-folder",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 2215,
+    "api_fn": "startReroll",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/reroll",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 909,
+    "api_fn": "getProject",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/projects/{name}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 951,
+    "api_fn": "getProject",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/projects/{name}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 965,
+    "api_fn": "getProject",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/projects/{name}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 2288,
+    "api_fn": "updateAngleCover",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}/cover",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 240,
+    "api_fn": "getProducts",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/EditorShell.jsx",
+    "line": 1775,
+    "api_fn": "interactiveSegment",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/background-isolation/interactive-segment",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/NewClipPanel.jsx",
+    "line": 1047,
+    "api_fn": "updateAngleVideos",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles/{angleId}/videos",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/NewClipPanel.jsx",
+    "line": 419,
+    "api_fn": "updateProduct",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{id}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/NewClipPanel.jsx",
+    "line": 390,
+    "api_fn": "previewVoice",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/voice/preview",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/NewClipPanel.jsx",
+    "line": 374,
+    "api_fn": "uploadFile",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/upload",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/NewClipPanel.jsx",
+    "line": 161,
+    "api_fn": "updateAngleStatus",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/products/{productId}/angles/{angleId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/NewClipPanel.jsx",
+    "line": 186,
+    "api_fn": "getShotList",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products/{productId}/angles/{angleId}/shot-list",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/ProjectSelector.jsx",
+    "line": 71,
+    "api_fn": "getProducts",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/GadgetMediaStudio.jsx",
+    "line": 20,
+    "api_fn": "listGadgetMediaProjects",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/projects",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/GadgetMediaStudio.jsx",
+    "line": 34,
+    "api_fn": "createGadgetMediaProject",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/ProductWorkspace.jsx",
+    "line": 61,
+    "api_fn": "getGadgetMediaTimeline",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/projects/{projectId}/timeline",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/ProductWorkspace.jsx",
+    "line": 221,
+    "api_fn": "renderGadgetMediaProject",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects/{projectId}/renders",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/ProductWorkspace.jsx",
+    "line": 57,
+    "api_fn": "getGadgetMediaProject",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/gadget-media/projects/{projectId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/ProductWorkspace.jsx",
+    "line": 110,
+    "api_fn": "probeGadgetMediaSource",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects/{projectId}/sources/probe",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/ProductWorkspace.jsx",
+    "line": 143,
+    "api_fn": "validateGadgetMediaProject",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects/{projectId}/quality/validate",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/ProductWorkspace.jsx",
+    "line": 206,
+    "api_fn": "generateGadgetMediaNarration",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects/{projectId}/audio/generate",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/ProductWorkspace.jsx",
+    "line": 120,
+    "api_fn": "buildGadgetMediaTimeline",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects/{projectId}/timeline/build",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/ProductWorkspace.jsx",
+    "line": 133,
+    "api_fn": "saveGadgetMediaTimeline",
+    "routes": [
+     {
+      "method": "PUT",
+      "path": "/api/gadget-media/projects/{projectId}/timeline",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/ProductWorkspace.jsx",
+    "line": 155,
+    "api_fn": "getRenderStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/render/status/{jobId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/ProductWorkspace.jsx",
+    "line": 178,
+    "api_fn": "getRenderStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/render/status/{jobId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/ProductWorkspace.jsx",
+    "line": 94,
+    "api_fn": "updateGadgetMediaProject",
+    "routes": [
+     {
+      "method": "PATCH",
+      "path": "/api/gadget-media/projects/{projectId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/gadget-media/ProductWorkspace.jsx",
+    "line": 232,
+    "api_fn": "approveGadgetMediaRender",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/gadget-media/projects/{projectId}/renders/{artifactId}/approve",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/hyperframes/HyperFramesHub.jsx",
+    "line": 444,
+    "api_fn": "openHyperFramesStudio",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/hyperframes/open-studio",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/hyperframes/HyperFramesHub.jsx",
+    "line": 487,
+    "api_fn": "renderHyperFramesComposition",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/hyperframes/render",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/hyperframes/HyperFramesHub.jsx",
+    "line": 242,
+    "api_fn": "getHyperFramesCompositions",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/hyperframes/compositions",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/hyperframes/HyperFramesHub.jsx",
+    "line": 241,
+    "api_fn": "getHyperFramesStyles",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/hyperframes/styles",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/hyperframes/HyperFramesHub.jsx",
+    "line": 243,
+    "api_fn": "getProducts",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/hyperframes/HyperFramesHub.jsx",
+    "line": 462,
+    "api_fn": "createHyperFramesClip",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/hyperframes/create-clip",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/hyperframes/HyperFramesHub.jsx",
+    "line": 240,
+    "api_fn": "getHyperFramesStatus",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/hyperframes/status",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 647,
+    "api_fn": "updateProducerNote",
+    "routes": [
+     {
+      "method": "PUT",
+      "path": "/api/producer/notes/{noteId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 667,
+    "api_fn": "updateProducerNote",
+    "routes": [
+     {
+      "method": "PUT",
+      "path": "/api/producer/notes/{noteId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 165,
+    "api_fn": "getScheduleQueue",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/schedule-queue",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 166,
+    "api_fn": "getScheduleTemplate",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/schedule-queue/template",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 164,
+    "api_fn": "getProducerNotes",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/producer/notes",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 336,
+    "api_fn": "addProducerNote",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/producer/notes/add",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 607,
+    "api_fn": "addProducerNote",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/producer/notes/add",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 626,
+    "api_fn": "deleteProducerNote",
+    "routes": [
+     {
+      "method": "DELETE",
+      "path": "/api/producer/notes/{noteId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 702,
+    "api_fn": "aiIdeaToAngle",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/producer/ai-idea-to-angle",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 162,
+    "api_fn": "getExports",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/exports",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 161,
+    "api_fn": "getProducts",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 748,
+    "api_fn": "addProductAngle",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 163,
+    "api_fn": "getTiktokStatsLatest",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/tiktok-stats/latest",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/ProducerHub.jsx",
+    "line": 445,
+    "api_fn": "uploadRefMedia",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/producer/upload-ref-media",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/QuickRefPage.jsx",
+    "line": 603,
+    "api_fn": "updateProducerNote",
+    "routes": [
+     {
+      "method": "PUT",
+      "path": "/api/producer/notes/{noteId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/QuickRefPage.jsx",
+    "line": 621,
+    "api_fn": "updateProducerNote",
+    "routes": [
+     {
+      "method": "PUT",
+      "path": "/api/producer/notes/{noteId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/QuickRefPage.jsx",
+    "line": 116,
+    "api_fn": "getProducerNotes",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/producer/notes",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/QuickRefPage.jsx",
+    "line": 559,
+    "api_fn": "addProducerNote",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/producer/notes/add",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/QuickRefPage.jsx",
+    "line": 579,
+    "api_fn": "deleteProducerNote",
+    "routes": [
+     {
+      "method": "DELETE",
+      "path": "/api/producer/notes/{noteId}",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/QuickRefPage.jsx",
+    "line": 653,
+    "api_fn": "aiIdeaToAngle",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/producer/ai-idea-to-angle",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/QuickRefPage.jsx",
+    "line": 129,
+    "api_fn": "getProducts",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/products",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/QuickRefPage.jsx",
+    "line": 688,
+    "api_fn": "addProductAngle",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/products/{productId}/angles",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/producer/QuickRefPage.jsx",
+    "line": 283,
+    "api_fn": "uploadRefMedia",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/producer/upload-ref-media",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/timeline/TrimAdjustModal.jsx",
+    "line": 110,
+    "api_fn": "filmstripUrlFor",
+    "routes": [
+     {
+      "method": "GET(url)",
+      "path": "/api/editor/filmstrip",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/editor/timeline/TrimAdjustModal.jsx",
+    "line": 102,
+    "api_fn": "getMediaInfo",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/editor/media-info",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/InventoryAnalyticsTab.jsx",
+    "line": 26,
+    "api_fn": "getInventoryHealth",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/analytics/inventory",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/PerformanceAnalyticsTab.jsx",
+    "line": 63,
+    "api_fn": "getTiktokIgnored",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/tiktok-stats/ignored",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/PerformanceAnalyticsTab.jsx",
+    "line": 132,
+    "api_fn": "restoreTiktokIgnored",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/tiktok-stats/ignored/restore",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/PerformanceAnalyticsTab.jsx",
+    "line": 61,
+    "api_fn": "getTiktokPending",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/tiktok-stats/pending",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/PerformanceAnalyticsTab.jsx",
+    "line": 62,
+    "api_fn": "getTiktokClipCandidates",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/tiktok-stats/clip-candidates",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/PerformanceAnalyticsTab.jsx",
+    "line": 100,
+    "api_fn": "attachTiktokPending",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/tiktok-stats/attach",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/PerformanceAnalyticsTab.jsx",
+    "line": 34,
+    "api_fn": "getTiktokStatsLatest",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/tiktok-stats/latest",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/PerformanceAnalyticsTab.jsx",
+    "line": 111,
+    "api_fn": "ignoreTiktokPending",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/tiktok-stats/pending/ignore",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/PerformanceAnalyticsTab.jsx",
+    "line": 122,
+    "api_fn": "ignoreAllTiktokPending",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/tiktok-stats/pending/ignore-all",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/ProductionAnalyticsTab.jsx",
+    "line": 61,
+    "api_fn": "getProductionAnalytics",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/analytics/production",
+      "scope_guess": "channel"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/StorageAnalyticsTab.jsx",
+    "line": 250,
+    "api_fn": "openFolder",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/open-folder",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/StorageAnalyticsTab.jsx",
+    "line": 452,
+    "api_fn": "openFolder",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/open-folder",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/StorageAnalyticsTab.jsx",
+    "line": 480,
+    "api_fn": "openFolder",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/open-folder",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/StorageAnalyticsTab.jsx",
+    "line": 517,
+    "api_fn": "openFolder",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/open-folder",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/StorageAnalyticsTab.jsx",
+    "line": 31,
+    "api_fn": "getStorageAnalytics",
+    "routes": [
+     {
+      "method": "GET",
+      "path": "/api/analytics/storage",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   },
+   {
+    "file": "src/components/analytics/tabs/StorageAnalyticsTab.jsx",
+    "line": 96,
+    "api_fn": "purgeSafeStorageCache",
+    "routes": [
+     {
+      "method": "POST",
+      "path": "/api/analytics/storage/purge-safe-cache",
+      "scope_guess": "global_or_shared"
+     }
+    ]
+   }
+  ],
+  "direct_fetch_or_default_axios": [
+   {
+    "file": "frontend/src/hooks/useProjectAutosave.js",
+    "line": 317,
+    "kind": "fetch keepalive PATCH",
+    "route": "/api/projects/{name}/state",
+    "bypasses_axios": true,
+    "note": "pagehide/beforeunload flush; headers from lifecycleSaveHeaders() (line 9) - channel header must be added and must use the job's captured channel, not current"
+   },
+   {
+    "file": "frontend/src/components/VoicePickerModal.jsx",
+    "line": 60,
+    "kind": "fetch GET",
+    "route": "/api/voice/presets",
+    "bypasses_axios": true,
+    "note": "global"
+   },
+   {
+    "file": "frontend/src/components/VoicePickerModal.jsx",
+    "line": 90,
+    "kind": "fetch POST",
+    "route": "/api/voice/preview",
+    "bypasses_axios": true,
+    "note": "global"
+   },
+   {
+    "file": "frontend/src/components/MobileQuickStudio.jsx",
+    "line": 513,
+    "kind": "fetch GET",
+    "route": "/api/media/... (render result)",
+    "bypasses_axios": true,
+    "note": "share-file download; media guard needs non-header scope"
+   },
+   {
+    "file": "frontend/src/components/SequencePlayer.jsx",
+    "line": 4496,
+    "kind": "fetch GET",
+    "route": "voice audio URL (/api/media/...)",
+    "bypasses_axios": true,
+    "note": "cached per URL"
+   },
+   {
+    "file": "frontend/src/components/SequencePlayer.jsx",
+    "line": 4727,
+    "kind": "fetch GET",
+    "route": "SFX URL",
+    "bypasses_axios": true,
+    "note": "shared asset"
+   },
+   {
+    "file": "frontend/src/components/SequencePlayer.jsx",
+    "line": 3454,
+    "kind": "axios default api.get",
+    "route": "/api/background-isolation/sequences/{id}/manifest",
+    "bypasses_axios": false,
+    "note": "direct default-export usage"
+   },
+   {
+    "file": "frontend/src/components/SequencePlayer.jsx",
+    "line": 3599,
+    "kind": "axios default api.get blob",
+    "route": "/api/background-isolation/sequences/... frames",
+    "bypasses_axios": false,
+    "note": ""
+   },
+   {
+    "file": "frontend/src/lib/audioPeaks.js",
+    "line": 25,
+    "kind": "fetch GET",
+    "route": "media URL",
+    "bypasses_axios": true,
+    "note": "module CACHE keyed url|buckets"
+   },
+   {
+    "file": "frontend/src/lib/lut3d.js",
+    "line": 260,
+    "kind": "fetch GET",
+    "route": "LUT .cube URL",
+    "bypasses_axios": true,
+    "note": "shared asset"
+   }
+  ],
+  "native_media_urls_no_custom_header": [
+   {
+    "file": "frontend/src/components/ContentTrackerHub.jsx",
+    "lines": [
+     74,
+     156,
+     636,
+     741,
+     1303,
+     1925,
+     2188,
+     2312,
+     2877
+    ],
+    "pattern": "/api/media/{video_url}"
+   },
+   {
+    "file": "frontend/src/components/ExportGallery.jsx",
+    "lines": [
+     208,
+     305,
+     376,
+     451,
+     642,
+     1009,
+     1959,
+     2349
+    ],
+    "pattern": "/api/media/{rel_path}"
+   },
+   {
+    "file": "frontend/src/components/ScheduleAgenda.jsx",
+    "lines": [
+     32,
+     1238,
+     1445
+    ],
+    "pattern": "/api/media/{video_path|cover}"
+   },
+   {
+    "file": "frontend/src/components/MobileQuickPostPage.jsx",
+    "lines": [
+     13,
+     16
+    ],
+    "pattern": "/api/media/..."
+   },
+   {
+    "file": "frontend/src/components/RawVaultPanel.jsx",
+    "lines": [
+     339
+    ],
+    "pattern": "/api/media/..."
+   },
+   {
+    "file": "frontend/src/components/MediaPickerModal.jsx",
+    "lines": [
+     557
+    ],
+    "pattern": "/api/media/..."
+   },
+   {
+    "file": "frontend/src/components/editor/AssetPanel.jsx",
+    "lines": [
+     1093,
+     1597,
+     2202,
+     2249,
+     3049
+    ],
+    "pattern": "/api/media/..."
+   },
+   {
+    "file": "frontend/src/components/MediaAssetsHub.jsx",
+    "lines": [
+     121,
+     924,
+     936,
+     1213,
+     1281,
+     1483,
+     1538,
+     1591
+    ],
+    "pattern": "/api/media/... (shared assets)"
+   },
+   {
+    "file": "frontend/src/components/SystemAssets.jsx",
+    "lines": [
+     425
+    ],
+    "pattern": "@font-face /api/media/ fonts (shared)"
+   },
+   {
+    "file": "frontend/src/components/SystemSettings.jsx",
+    "lines": [
+     631
+    ],
+    "pattern": "/api/backup/download/{name} (global)"
+   },
+   {
+    "file": "frontend/src/lib/mediaUrl.js",
+    "lines": [
+     23,
+     25
+    ],
+    "pattern": "helper builds /api/media/"
+   },
+   {
+    "file": "frontend/src/api.js",
+    "lines": [
+     461,
+     465
+    ],
+    "pattern": "filmstripUrlFor -> /api/editor/filmstrip?path="
+   },
+   {
+    "file": "frontend/src/lib/timelineFilmstrip.js",
+    "lines": [
+     68
+    ],
+    "pattern": "/api/editor/filmstrip"
+   },
+   {
+    "file": "frontend/src/components/SequencePlayer.jsx",
+    "lines": [
+     3495,
+     4331,
+     4368,
+     5073,
+     5466
+    ],
+    "pattern": "artifactBaseUrl /api/background-isolation/sequences"
+   }
+  ],
+  "unused_exports": [
+   "attachVideoToProduct",
+   "getSfxList",
+   "generateScript",
+   "getGadgetMediaCampaignAnalytics",
+   "createGadgetMediaProjectFromSlot",
+   "uploadMultipleFiles",
+   "aiRun",
+   "getAiStatus",
+   "getAngles",
+   "createProduct",
+   "previewProductImageMetadata",
+   "getPosts",
+   "createPost",
+   "setPostMetrics",
+   "getPerformance",
+   "deleteRecordingSegment",
+   "verifySystemBackup",
+   "getHookStyles",
+   "applyProjectHook",
+   "saveProducerNotes",
+   "matchBrollWithAI",
+   "evaluateHookAI",
+   "matchBrollSequenceWithAI"
+  ]
+ },
+ "frontend_storage_keys": [
+  {
+   "key": "capcut_active_product_context",
+   "storage": "localStorage",
+   "owner": "frontend/src/App.jsx",
+   "lines": [
+    175,
+    224,
+    226
+   ],
+   "value_shape": "JSON full product object",
+   "must_be_channel_scoped": true,
+   "migration": "move to <channel=main> namespace once; revalidate (App.jsx:308) against scoped products"
+  },
+  {
+   "key": "capcut_selected_angle_index",
+   "storage": "localStorage",
+   "owner": "frontend/src/App.jsx",
+   "lines": [
+    186,
+    228
+   ],
+   "value_shape": "int string",
+   "must_be_channel_scoped": true,
+   "migration": "move with product context"
+  },
+  {
+   "key": "capcut_active_angle_context",
+   "storage": "localStorage",
+   "owner": "frontend/src/App.jsx",
+   "lines": [
+    192,
+    230,
+    232
+   ],
+   "value_shape": "JSON {productId,angleId,batch}",
+   "must_be_channel_scoped": true,
+   "migration": "move to main"
+  },
+  {
+   "key": "capcut_active_tab",
+   "storage": "localStorage",
+   "owner": "frontend/src/App.jsx",
+   "lines": [
+    126,
+    136
+   ],
+   "value_shape": "string tab id",
+   "must_be_channel_scoped": false,
+   "migration": "keep global (UI pref)"
+  },
+  {
+   "key": "capcut_ui_font",
+   "storage": "localStorage",
+   "owner": "frontend/src/App.jsx",
+   "lines": [
+    154,
+    163
+   ],
+   "value_shape": "css class string",
+   "must_be_channel_scoped": false,
+   "migration": "global"
+  },
+  {
+   "key": "omnicut.uiMode",
+   "storage": "localStorage",
+   "owner": "frontend/src/App.jsx",
+   "lines": [
+    40,
+    47,
+    96,
+    111
+   ],
+   "value_shape": "'mobile'|'desktop'",
+   "must_be_channel_scoped": false,
+   "migration": "global"
+  },
+  {
+   "key": "capcut_ui_scale",
+   "storage": "localStorage",
+   "owner": "frontend/src/lib/uiScale.js",
+   "lines": [
+    11,
+    15,
+    25
+   ],
+   "value_shape": "'compact'|'normal'|'large'",
+   "must_be_channel_scoped": false,
+   "migration": "global"
+  },
+  {
+   "key": "capcut_task_cache",
+   "storage": "localStorage",
+   "owner": "frontend/src/context/TaskContext.jsx",
+   "lines": [
+    39,
+    135
+   ],
+   "value_shape": "JSON array of up to 20 task objects",
+   "must_be_channel_scoped": true,
+   "migration": "namespace per channel or drop cache; tasks carry channel_id from server"
+  },
+  {
+   "key": "omnicut_active_project",
+   "storage": "localStorage",
+   "owner": "frontend/src/components/editor/EditorShell.jsx",
+   "lines": [
+    224,
+    849,
+    1063,
+    1130
+   ],
+   "value_shape": "project name string (+ ?project= URL param)",
+   "must_be_channel_scoped": true,
+   "migration": "move to main namespace; URL must carry channel"
+  },
+  {
+   "key": "omnicut_active_render_job",
+   "storage": "localStorage",
+   "owner": "frontend/src/lib/renderJobModel.js",
+   "lines": [
+    5,
+    138,
+    164,
+    188,
+    203
+   ],
+   "value_shape": "JSON {jobId, projectKey}",
+   "must_be_channel_scoped": true,
+   "migration": "include channel_id in entry; ActivityCenter.jsx:992 reads it cross-tab via 'storage' event"
+  },
+  {
+   "key": "capcut_studio_form",
+   "storage": "localStorage",
+   "owner": "frontend/src/lib/studioDefaults.js + editor/NewClipPanel.jsx",
+   "lines": [
+    49,
+    67,
+    150
+   ],
+   "value_shape": "JSON create-panel form (product text, voice, showWatermark ...)",
+   "must_be_channel_scoped": true,
+   "migration": "move to main"
+  },
+  {
+   "key": "capcut_script_lab",
+   "storage": "localStorage",
+   "owner": "frontend/src/components/ScriptLab.jsx",
+   "lines": [
+    83,
+    113
+   ],
+   "value_shape": "JSON {productName,keyFeatures,painPoint,priceDeal,activeAngleTab,scripts}",
+   "must_be_channel_scoped": true,
+   "migration": "move to main"
+  },
+  {
+   "key": "omnicut_today_picked_scripts",
+   "storage": "localStorage",
+   "owner": "frontend/src/components/ContentTrackerHub.jsx",
+   "lines": [
+    960,
+    969
+   ],
+   "value_shape": "JSON array of angle/script ids",
+   "must_be_channel_scoped": true,
+   "migration": "move to main"
+  },
+  {
+   "key": "capcut_tracker_view_mode",
+   "storage": "localStorage",
+   "owner": "frontend/src/components/ContentTrackerHub.jsx",
+   "lines": [
+    887,
+    1147
+   ],
+   "value_shape": "'kanban'|...",
+   "must_be_channel_scoped": false,
+   "migration": "global"
+  },
+  {
+   "key": "omnicut_export_gallery_view_mode",
+   "storage": "localStorage",
+   "owner": "frontend/src/components/ExportGallery.jsx",
+   "lines": [
+    1110,
+    1118
+   ],
+   "value_shape": "'grid'|'list'",
+   "must_be_channel_scoped": false,
+   "migration": "global"
+  },
+  {
+   "key": "omnicut_assets_view_mode",
+   "storage": "localStorage",
+   "owner": "frontend/src/components/MediaAssetsHub.jsx",
+   "lines": [
+    19,
+    27
+   ],
+   "value_shape": "'grid'|'list'",
+   "must_be_channel_scoped": false,
+   "migration": "global"
+  },
+  {
+   "key": "omnicut_tiktok_autopost_enabled",
+   "storage": "localStorage",
+   "owner": "frontend/src/components/SystemSettings.jsx + ExportGallery.jsx",
+   "lines": [
+    35,
+    44,
+    510
+   ],
+   "value_shape": "'true'|'false'",
+   "must_be_channel_scoped": false,
+   "migration": "keep as global UI gate; real gate becomes per-channel posting_enabled in registry"
+  },
+  {
+   "key": "omnicut_producer_targets",
+   "storage": "localStorage",
+   "owner": "frontend/src/lib/producerInsights.js",
+   "lines": [
+    13,
+    91,
+    113
+   ],
+   "value_shape": "JSON {dailyCuts,weeklyCuts,dailyPosts}",
+   "must_be_channel_scoped": true,
+   "migration": "per-channel targets (decision needed); copy to main"
+  },
+  {
+   "key": "omnicut_boss_playbook",
+   "storage": "localStorage",
+   "owner": "frontend/src/lib/producerInsights.js",
+   "lines": [
+    14,
+    125,
+    164
+   ],
+   "value_shape": "JSON array of notes",
+   "must_be_channel_scoped": true,
+   "migration": "needs owner decision (shared vs channel); default main"
+  },
+  {
+   "key": "omnicut_guide_checklist_v1",
+   "storage": "localStorage",
+   "owner": "frontend/src/components/UserGuide.jsx",
+   "lines": [
+    78,
+    94,
+    119,
+    125
+   ],
+   "value_shape": "JSON checklist map",
+   "must_be_channel_scoped": false,
+   "migration": "global"
+  },
+  {
+   "key": "omnicut.previewQuality",
+   "storage": "localStorage",
+   "owner": "frontend/src/lib/previewQuality.js",
+   "lines": [
+    2,
+    11,
+    16
+   ],
+   "value_shape": "quality id",
+   "must_be_channel_scoped": false,
+   "migration": "global"
+  },
+  {
+   "key": "capcut_timeline_h / editor.assetW / editor.inspectorW / editor.mobilePreviewH / editor.leftSidebarCollapsed / editor.rightSidebarCollapsed",
+   "storage": "localStorage",
+   "owner": "frontend/src/hooks/usePanelLayout.js",
+   "lines": [
+    34,
+    44,
+    50,
+    59,
+    68,
+    74,
+    82,
+    91,
+    100,
+    106,
+    115,
+    129,
+    148
+   ],
+   "value_shape": "numbers/bools",
+   "must_be_channel_scoped": false,
+   "migration": "global"
+  },
+  {
+   "key": "omnicut.mobileWorkflow",
+   "storage": "sessionStorage",
+   "owner": "frontend/src/lib/mobileStudioFlow.js + MobileQuickStudio.jsx",
+   "lines": [
+    1,
+    155,
+    377,
+    1277
+   ],
+   "value_shape": "JSON {productId,angleId,sessionId,...}",
+   "must_be_channel_scoped": true,
+   "migration": "sessionStorage already per-tab; add channel_id to the entry"
+  },
+  {
+   "key": "projectRevision Map (in-memory)",
+   "storage": "memory",
+   "owner": "frontend/src/lib/projectRevision.js",
+   "lines": [
+    3
+   ],
+   "value_shape": "Map<projectName, sha256>",
+   "must_be_channel_scoped": true,
+   "migration": "key by channel+project to avoid same-name collision"
+  },
+  {
+   "key": "workspaceData coordinator cache (in-memory)",
+   "storage": "memory",
+   "owner": "frontend/src/lib/workspaceData.js",
+   "lines": [
+    6
+   ],
+   "value_shape": "Map keys status/rawVideos/exports/products/scheduleQueue",
+   "must_be_channel_scoped": true,
+   "migration": "key by channel or invalidate all on switch"
+  }
+ ],
+ "frontend_pages_components": [
+  {
+   "file": "frontend/src/App.jsx",
+   "api_functions": [
+    "getExports",
+    "getProducts",
+    "getRawVideos",
+    "getScheduleQueue",
+    "getSystemStatus",
+    "updateAngleStatus"
+   ],
+   "routes": [
+    "GET /api/exports",
+    "GET /api/products",
+    "GET /api/schedule-queue",
+    "GET /api/status",
+    "GET /api/videos",
+    "PATCH /api/products/{productId}/angles/{angleId}"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/AIBridgePanel.jsx",
+   "api_functions": [
+    "aiParse"
+   ],
+   "routes": [
+    "POST /api/ai/parse"
+   ],
+   "needs_channel_scope": false
+  },
+  {
+   "file": "frontend/src/components/ActivityCenter.jsx",
+   "api_functions": [
+    "getRenderStatus"
+   ],
+   "routes": [
+    "GET /api/render/status/{jobId}"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/BatchRenderModal.jsx",
+   "api_functions": [
+    "cancelBatchRender",
+    "getBatchRenderStatus",
+    "startBatchRender"
+   ],
+   "routes": [
+    "GET /api/render/batch/{batchId}",
+    "POST /api/render/batch",
+    "POST /api/render/batch/{batchId}/cancel"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/ContentTrackerHub.jsx",
+   "api_functions": [
+    "deleteProduct",
+    "generateShotList",
+    "getProducts",
+    "getScheduleQueue",
+    "getShotList",
+    "getTaskStatus",
+    "markPosted",
+    "prepareTiktokAutopost",
+    "updateAngleCover",
+    "updateAngleStatus",
+    "updateProduct"
+   ],
+   "routes": [
+    "DELETE /api/products/{id}",
+    "GET /api/products",
+    "GET /api/products/{productId}/angles/{angleId}/shot-list",
+    "GET /api/schedule-queue",
+    "GET /api/tasks/{taskId}",
+    "PATCH /api/products/{id}",
+    "PATCH /api/products/{productId}/angles/{angleId}",
+    "PATCH /api/products/{productId}/angles/{angleId}/cover",
+    "POST /api/exports/mark-posted",
+    "POST /api/products/{productId}/angles/{angleId}/shot-list",
+    "POST /api/tiktok-autopost/prepare"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/CoverStudioModal.jsx",
+   "api_functions": [
+    "generateAiCoverImage",
+    "generateCoverHooks",
+    "getCoverBadges",
+    "getCoverHighlights",
+    "getCoverProductRefImages",
+    "getCoverRawSources",
+    "grabCoverFrame",
+    "renderProCover",
+    "revealFile"
+   ],
+   "routes": [
+    "GET /api/covers/badges",
+    "POST /api/covers/ai-generate-image",
+    "POST /api/covers/generate-hooks",
+    "POST /api/covers/grab-frame",
+    "POST /api/covers/highlights",
+    "POST /api/covers/product-ref-images",
+    "POST /api/covers/raw-sources",
+    "POST /api/covers/render-pro",
+    "POST /api/reveal-file"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/ExportGallery.jsx",
+   "api_functions": [
+    "deleteFile",
+    "generateCover",
+    "getExportMediaInfo",
+    "getProducts",
+    "linkExportToAngle",
+    "markPosted",
+    "openFolder",
+    "prepareTiktokAutopost",
+    "revealFile"
+   ],
+   "routes": [
+    "GET /api/exports/media-info",
+    "GET /api/products",
+    "POST /api/covers/generate",
+    "POST /api/delete-file",
+    "POST /api/exports/link-angle",
+    "POST /api/exports/mark-posted",
+    "POST /api/open-folder",
+    "POST /api/reveal-file",
+    "POST /api/tiktok-autopost/prepare"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/GadgetMediaHub.jsx",
+   "api_functions": [
+    "createGadgetMediaCampaign",
+    "getGadgetMediaCampaignReadiness",
+    "getGadgetMediaPresetSources",
+    "listGadgetMediaCampaigns",
+    "updateGadgetMediaSlot"
+   ],
+   "routes": [
+    "GET /api/gadget-media/campaigns",
+    "GET /api/gadget-media/campaigns/{campaignId}/readiness",
+    "GET /api/gadget-media/preset-sources",
+    "PATCH /api/gadget-media/campaigns/{campaignId}/slots/{slotId}",
+    "POST /api/gadget-media/campaigns"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/HookVariationModal.jsx",
+   "api_functions": [
+    "applyAngleHook",
+    "generateHookVariations"
+   ],
+   "routes": [
+    "POST /api/hooks/apply-angle",
+    "POST /api/hooks/generate"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/ManualStoryboardModal.jsx",
+   "api_functions": [
+    "getManualShotMap",
+    "getMediaInfo",
+    "saveManualShotMap",
+    "syncManualShotMap"
+   ],
+   "routes": [
+    "GET /api/editor/media-info",
+    "GET /api/products/{productId}/angles/{angleId}/manual-shot-map",
+    "PATCH /api/products/{productId}/angles/{angleId}/manual-shot-map",
+    "POST /api/products/{productId}/angles/{sourceAngleId}/sync-manual-shot-map"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/MediaAssetsHub.jsx",
+   "api_functions": [
+    "deleteFile",
+    "getAllAssets",
+    "openFolder",
+    "starAsset",
+    "uploadAsset"
+   ],
+   "routes": [
+    "GET /api/assets/all",
+    "POST /api/assets/star",
+    "POST /api/assets/upload",
+    "POST /api/delete-file",
+    "POST /api/open-folder"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/MediaPickerModal.jsx",
+   "api_functions": [
+    "deleteFile",
+    "getRawVideos",
+    "removeVideoFromProduct",
+    "renameVideo",
+    "uploadFile"
+   ],
+   "routes": [
+    "DELETE /api/products/{productId}/videos",
+    "GET /api/videos",
+    "POST /api/delete-file",
+    "POST /api/upload",
+    "POST /api/videos/rename"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/MobileFilmingPage.jsx",
+   "api_functions": [
+    "finalizeRecordingSession",
+    "getRecordingSession",
+    "getShotList",
+    "getTaskStatus",
+    "uploadRecordingSegment"
+   ],
+   "routes": [
+    "GET /api/products/{productId}/angles/{angleId}/shot-list",
+    "GET /api/recording-sessions/{sessionId}",
+    "GET /api/tasks/{taskId}",
+    "POST /api/recording-sessions/{sessionId}/finalize",
+    "POST /api/recording-sessions/{sessionId}/segments"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/MobileQuickPostPage.jsx",
+   "api_functions": [
+    "getProducts",
+    "markPosted"
+   ],
+   "routes": [
+    "GET /api/products",
+    "POST /api/exports/mark-posted"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/MobileQuickStudio.jsx",
+   "api_functions": [
+    "cancelMobileTask",
+    "createMobileQuickAngle",
+    "createMobileSession",
+    "fetchMobileCatalog",
+    "fetchMobileTask",
+    "getRecordingSession",
+    "markPosted",
+    "previewMobileVoice",
+    "quickAddMobileProduct",
+    "triggerMobileAssemble",
+    "uploadMobileVideo"
+   ],
+   "routes": [
+    "GET /api/mobile-studio/catalog",
+    "GET /api/mobile-studio/task/{taskId}",
+    "GET /api/recording-sessions/{sessionId}",
+    "POST /api/exports/mark-posted",
+    "POST /api/mobile-studio/assemble",
+    "POST /api/mobile-studio/cancel/{taskId}",
+    "POST /api/mobile-studio/preview-voice",
+    "POST /api/mobile-studio/products/quick-add",
+    "POST /api/mobile-studio/quick-angle",
+    "POST /api/mobile-studio/session",
+    "POST /api/mobile-studio/upload-video"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/ProductToClip.jsx",
+   "api_functions": [
+    "batchGenerateAudio",
+    "deleteProduct",
+    "deleteProductAngle",
+    "generateProductBatch",
+    "generateShotList",
+    "getBatchRenderStatus",
+    "getProducts",
+    "getSceneCatalogs",
+    "getShotList",
+    "getShotListStatus",
+    "getTaskStatus",
+    "indexSceneCatalogs",
+    "previewProductImageMetadataAsync",
+    "previewProductSource",
+    "refreshProductSource",
+    "rerollAngleScript",
+    "resolveTiktokProductId",
+    "scrapeAndPlanProduct",
+    "scrapeAndPlanProductAsync",
+    "setDefaultVideosForProduct",
+    "startBatchDraft",
+    "updateAngleStatus",
+    "updateAngleVideos",
+    "updateProduct",
+    "uploadFile"
+   ],
+   "routes": [
+    "DELETE /api/products/{id}",
+    "DELETE /api/products/{productId}/angles/{angleId}",
+    "GET /api/products",
+    "GET /api/products/{productId}/angles/{angleId}/shot-list",
+    "GET /api/products/{productId}/scene-catalogs",
+    "GET /api/products/{productId}/shot-list-status",
+    "GET /api/render/batch/{batchId}",
+    "GET /api/tasks/{taskId}",
+    "PATCH /api/products/{id}",
+    "PATCH /api/products/{productId}/angles/{angleId}",
+    "POST /api/products/resolve-tiktok-id",
+    "POST /api/products/scrape-and-plan",
+    "POST /api/products/scrape-and-plan-async",
+    "POST /api/products/{id}/preview-image-metadata-async",
+    "POST /api/products/{id}/preview-source",
+    "POST /api/products/{id}/refresh-source",
+    "POST /api/products/{productId}/angles/{angleId}/reroll-script",
+    "POST /api/products/{productId}/angles/{angleId}/shot-list",
+    "POST /api/products/{productId}/angles/{angleId}/videos",
+    "POST /api/products/{productId}/batch-generate-audio",
+    "POST /api/products/{productId}/default-videos",
+    "POST /api/products/{productId}/generate-batch",
+    "POST /api/products/{productId}/index-scenes",
+    "POST /api/render/batch",
+    "POST /api/upload"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/RawVaultPanel.jsx",
+   "api_functions": [
+    "batchDeleteRawVideos",
+    "deleteFile",
+    "getProducts",
+    "getRawVault",
+    "getRawVaultSceneCatalogs",
+    "indexRawVaultScenes",
+    "reassignRawVideo",
+    "renameVideo"
+   ],
+   "routes": [
+    "GET /api/products",
+    "GET /api/raw-vault",
+    "GET /api/raw-vault/scene-catalogs",
+    "POST /api/delete-file",
+    "POST /api/raw-vault/batch-delete",
+    "POST /api/raw-vault/index-scenes",
+    "POST /api/raw-vault/reassign",
+    "POST /api/videos/rename"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/ScheduleAgenda.jsx",
+   "api_functions": [
+    "commitScheduleAutofill",
+    "copyScheduleTemplate",
+    "createScheduleQueue",
+    "getScheduleQueue",
+    "getScheduleTemplate",
+    "prepareScheduleQueue",
+    "previewScheduleAutofill",
+    "removeScheduleQueue",
+    "resetScheduleTemplate",
+    "saveScheduleTemplate",
+    "updateScheduleQueue"
+   ],
+   "routes": [
+    "DELETE /api/schedule-queue/template/{weekStart}",
+    "DELETE /api/schedule-queue/{id}",
+    "GET /api/schedule-queue",
+    "GET /api/schedule-queue/template",
+    "PATCH /api/schedule-queue/{id}",
+    "POST /api/schedule-queue",
+    "POST /api/schedule-queue/auto-fill",
+    "POST /api/schedule-queue/auto-fill/preview",
+    "POST /api/schedule-queue/template/copy",
+    "POST /api/schedule-queue/{id}/prepare",
+    "PUT /api/schedule-queue/template"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/ScriptLab.jsx",
+   "api_functions": [
+    "generateAiScripts",
+    "generateHookVariantsAI",
+    "matchRawFolderWithAI"
+   ],
+   "routes": [
+    "POST /api/script/ai-generate",
+    "POST /api/typesafe-studio/generate-hooks",
+    "POST /api/typesafe-studio/match-raw-folder"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/SequencePlayer.jsx",
+   "api_functions": [
+    "getClipProxy"
+   ],
+   "routes": [
+    "GET /api/proxy/for-clip"
+   ],
+   "needs_channel_scope": false
+  },
+  {
+   "file": "frontend/src/components/ShotListModal.jsx",
+   "api_functions": [
+    "createRecordingSession"
+   ],
+   "routes": [
+    "POST /api/recording-sessions"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/SubSrtTool.jsx",
+   "api_functions": [
+    "transcribeMedia"
+   ],
+   "routes": [
+    "POST /api/sub-srt/transcribe"
+   ],
+   "needs_channel_scope": false
+  },
+  {
+   "file": "frontend/src/components/SystemAssets.jsx",
+   "api_functions": [
+    "deleteFile",
+    "getAllAssets",
+    "openFolder",
+    "uploadAsset"
+   ],
+   "routes": [
+    "GET /api/assets/all",
+    "POST /api/assets/upload",
+    "POST /api/delete-file",
+    "POST /api/open-folder"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/SystemSettings.jsx",
+   "api_functions": [
+    "cleanAssetDuplicates",
+    "createSystemBackup",
+    "deleteSystemBackup",
+    "getSystemBackups",
+    "getTypeSafeStatus",
+    "openFolder",
+    "scanAssetDuplicates"
+   ],
+   "routes": [
+    "DELETE /api/backup/{filename}",
+    "GET /api/assets/duplicates/scan",
+    "GET /api/backup/list",
+    "GET /api/typesafe-studio/status",
+    "POST /api/assets/duplicates/clean",
+    "POST /api/backup/create",
+    "POST /api/open-folder"
+   ],
+   "needs_channel_scope": false
+  },
+  {
+   "file": "frontend/src/components/TokenDashboard.jsx",
+   "api_functions": [
+    "clearTokenAlerts",
+    "getTokenHistory",
+    "getTokenSummary",
+    "resetTokenAnalytics"
+   ],
+   "routes": [
+    "GET /api/tokens/history",
+    "GET /api/tokens/summary",
+    "POST /api/tokens/alerts/clear",
+    "POST /api/tokens/reset"
+   ],
+   "needs_channel_scope": false
+  },
+  {
+   "file": "frontend/src/components/UniversalFilmingRecipeModal.jsx",
+   "api_functions": [
+    "getUniversalFilmingRecipe"
+   ],
+   "routes": [
+    "GET /api/products/{productId}/filming-recipe"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/analytics/tabs/InventoryAnalyticsTab.jsx",
+   "api_functions": [
+    "getInventoryHealth"
+   ],
+   "routes": [
+    "GET /api/analytics/inventory"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/analytics/tabs/PerformanceAnalyticsTab.jsx",
+   "api_functions": [
+    "attachTiktokPending",
+    "getTiktokClipCandidates",
+    "getTiktokIgnored",
+    "getTiktokPending",
+    "getTiktokStatsLatest",
+    "ignoreAllTiktokPending",
+    "ignoreTiktokPending",
+    "restoreTiktokIgnored"
+   ],
+   "routes": [
+    "GET /api/tiktok-stats/clip-candidates",
+    "GET /api/tiktok-stats/ignored",
+    "GET /api/tiktok-stats/latest",
+    "GET /api/tiktok-stats/pending",
+    "POST /api/tiktok-stats/attach",
+    "POST /api/tiktok-stats/ignored/restore",
+    "POST /api/tiktok-stats/pending/ignore",
+    "POST /api/tiktok-stats/pending/ignore-all"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/analytics/tabs/ProductionAnalyticsTab.jsx",
+   "api_functions": [
+    "getProductionAnalytics"
+   ],
+   "routes": [
+    "GET /api/analytics/production"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/analytics/tabs/StorageAnalyticsTab.jsx",
+   "api_functions": [
+    "getStorageAnalytics",
+    "openFolder",
+    "purgeSafeStorageCache"
+   ],
+   "routes": [
+    "GET /api/analytics/storage",
+    "POST /api/analytics/storage/purge-safe-cache",
+    "POST /api/open-folder"
+   ],
+   "needs_channel_scope": false
+  },
+  {
+   "file": "frontend/src/components/editor/AssetPanel.jsx",
+   "api_functions": [
+    "getCutoutCacheStatus",
+    "purgeCutoutCache",
+    "transcribeMedia",
+    "uploadFile"
+   ],
+   "routes": [
+    "GET /api/analytics/storage/cutout-cache",
+    "POST /api/analytics/storage/purge-cutout-cache",
+    "POST /api/sub-srt/transcribe",
+    "POST /api/upload"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/editor/EditorHeader.jsx",
+   "api_functions": [
+    "getProjectOrigin"
+   ],
+   "routes": [
+    "GET /api/projects/{name}/origin"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/editor/EditorShell.jsx",
+   "api_functions": [
+    "deleteCustomHookTemplate",
+    "deleteProject",
+    "getAllAssets",
+    "getBackgroundIsolationManifest",
+    "getBgmBeats",
+    "getHookMotionPresets",
+    "getHookTemplates",
+    "getMediaSilences",
+    "getProducts",
+    "getProject",
+    "getProjectOrigin",
+    "getProjects",
+    "getRenderStatus",
+    "getTaskStatus",
+    "interactiveSegment",
+    "openFolder",
+    "preflightBackgroundIsolation",
+    "saveCustomHookTemplate",
+    "startBackgroundIsolation",
+    "startReroll",
+    "updateAngleCover",
+    "updateAngleStatus",
+    "updateProjectClips",
+    "updateProjectCues",
+    "updateProjectState"
+   ],
+   "routes": [
+    "DELETE /api/editor/hook-templates/{id}",
+    "DELETE /api/projects/{name}",
+    "GET /api/assets/all",
+    "GET /api/audio/beats",
+    "GET /api/audio/silences",
+    "GET /api/background-isolation/sequences/{artifactId}/manifest",
+    "GET /api/editor/hook-templates",
+    "GET /api/hook-motion-presets",
+    "GET /api/products",
+    "GET /api/projects",
+    "GET /api/projects/{name}",
+    "GET /api/projects/{name}/origin",
+    "GET /api/render/status/{jobId}",
+    "GET /api/tasks/{taskId}",
+    "PATCH /api/products/{productId}/angles/{angleId}",
+    "PATCH /api/products/{productId}/angles/{angleId}/cover",
+    "PATCH /api/projects/{name}/clips",
+    "PATCH /api/projects/{name}/cues",
+    "PATCH /api/projects/{name}/state",
+    "POST /api/background-isolation/interactive-segment",
+    "POST /api/background-isolation/preflight",
+    "POST /api/background-isolation/process",
+    "POST /api/editor/hook-templates",
+    "POST /api/open-folder",
+    "POST /api/reroll"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/editor/NewClipPanel.jsx",
+   "api_functions": [
+    "getShotList",
+    "previewVoice",
+    "startRender",
+    "updateAngleStatus",
+    "updateAngleVideos",
+    "updateProduct",
+    "uploadFile"
+   ],
+   "routes": [
+    "GET /api/products/{productId}/angles/{angleId}/shot-list",
+    "PATCH /api/products/{id}",
+    "PATCH /api/products/{productId}/angles/{angleId}",
+    "POST /api/products/{productId}/angles/{angleId}/videos",
+    "POST /api/render",
+    "POST /api/upload",
+    "POST /api/voice/preview"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/editor/ProjectSelector.jsx",
+   "api_functions": [
+    "getProducts"
+   ],
+   "routes": [
+    "GET /api/products"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/editor/timeline/TrimAdjustModal.jsx",
+   "api_functions": [
+    "filmstripUrlFor",
+    "getMediaInfo"
+   ],
+   "routes": [
+    "GET /api/editor/media-info",
+    "GET(url) /api/editor/filmstrip"
+   ],
+   "needs_channel_scope": false
+  },
+  {
+   "file": "frontend/src/components/gadget-media/GadgetMediaStudio.jsx",
+   "api_functions": [
+    "createGadgetMediaProject",
+    "listGadgetMediaProjects"
+   ],
+   "routes": [
+    "GET /api/gadget-media/projects",
+    "POST /api/gadget-media/projects"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/gadget-media/ProductWorkspace.jsx",
+   "api_functions": [
+    "approveGadgetMediaRender",
+    "buildGadgetMediaTimeline",
+    "generateGadgetMediaNarration",
+    "getGadgetMediaProject",
+    "getGadgetMediaTimeline",
+    "getRenderStatus",
+    "probeGadgetMediaSource",
+    "renderGadgetMediaProject",
+    "saveGadgetMediaTimeline",
+    "updateGadgetMediaProject",
+    "validateGadgetMediaProject"
+   ],
+   "routes": [
+    "GET /api/gadget-media/projects/{projectId}",
+    "GET /api/gadget-media/projects/{projectId}/timeline",
+    "GET /api/render/status/{jobId}",
+    "PATCH /api/gadget-media/projects/{projectId}",
+    "POST /api/gadget-media/projects/{projectId}/audio/generate",
+    "POST /api/gadget-media/projects/{projectId}/quality/validate",
+    "POST /api/gadget-media/projects/{projectId}/renders",
+    "POST /api/gadget-media/projects/{projectId}/renders/{artifactId}/approve",
+    "POST /api/gadget-media/projects/{projectId}/sources/probe",
+    "POST /api/gadget-media/projects/{projectId}/timeline/build",
+    "PUT /api/gadget-media/projects/{projectId}/timeline"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/hyperframes/HyperFramesHub.jsx",
+   "api_functions": [
+    "createHyperFramesClip",
+    "getHyperFramesCompositions",
+    "getHyperFramesStatus",
+    "getHyperFramesStyles",
+    "getProducts",
+    "openHyperFramesStudio",
+    "renderHyperFramesComposition"
+   ],
+   "routes": [
+    "GET /api/hyperframes/compositions",
+    "GET /api/hyperframes/status",
+    "GET /api/hyperframes/styles",
+    "GET /api/products",
+    "POST /api/hyperframes/create-clip",
+    "POST /api/hyperframes/open-studio",
+    "POST /api/hyperframes/render"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/producer/ProducerHub.jsx",
+   "api_functions": [
+    "addProducerNote",
+    "addProductAngle",
+    "aiIdeaToAngle",
+    "deleteProducerNote",
+    "getExports",
+    "getProducerNotes",
+    "getProducts",
+    "getScheduleQueue",
+    "getScheduleTemplate",
+    "getTiktokStatsLatest",
+    "updateProducerNote",
+    "uploadRefMedia"
+   ],
+   "routes": [
+    "DELETE /api/producer/notes/{noteId}",
+    "GET /api/exports",
+    "GET /api/producer/notes",
+    "GET /api/products",
+    "GET /api/schedule-queue",
+    "GET /api/schedule-queue/template",
+    "GET /api/tiktok-stats/latest",
+    "POST /api/producer/ai-idea-to-angle",
+    "POST /api/producer/notes/add",
+    "POST /api/producer/upload-ref-media",
+    "POST /api/products/{productId}/angles",
+    "PUT /api/producer/notes/{noteId}"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/components/producer/QuickRefPage.jsx",
+   "api_functions": [
+    "addProducerNote",
+    "addProductAngle",
+    "aiIdeaToAngle",
+    "deleteProducerNote",
+    "getProducerNotes",
+    "getProducts",
+    "updateProducerNote",
+    "uploadRefMedia"
+   ],
+   "routes": [
+    "DELETE /api/producer/notes/{noteId}",
+    "GET /api/producer/notes",
+    "GET /api/products",
+    "POST /api/producer/ai-idea-to-angle",
+    "POST /api/producer/notes/add",
+    "POST /api/producer/upload-ref-media",
+    "POST /api/products/{productId}/angles",
+    "PUT /api/producer/notes/{noteId}"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/context/TaskContext.jsx",
+   "api_functions": [
+    "cancelTaskApi",
+    "clearCompletedTasksApi",
+    "deleteTaskApi",
+    "getActiveTasks",
+    "getTiktokMilestones"
+   ],
+   "routes": [
+    "DELETE /api/tasks/{taskId}",
+    "GET /api/tasks/active",
+    "GET /api/tiktok-stats/milestones",
+    "POST /api/tasks/clear-completed",
+    "POST /api/tasks/{taskId}/cancel"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/hooks/useRenderJob.js",
+   "api_functions": [
+    "getRenderStatus",
+    "startRender"
+   ],
+   "routes": [
+    "GET /api/render/status/{jobId}",
+    "POST /api/render"
+   ],
+   "needs_channel_scope": true
+  },
+  {
+   "file": "frontend/src/lib/overlayLayoutClient.js",
+   "api_functions": [
+    "fetchOverlayLayout"
+   ],
+   "routes": [
+    "POST /api/editor/overlay/layout"
+   ],
+   "needs_channel_scope": false
+  }
+ ],
+ "late_response_risks": [
+  {
+   "file": "frontend/src/App.jsx",
+   "line": 264,
+   "what": "refreshData: setStatus/setVideos/setExportsList after await with no generation check"
+  },
+  {
+   "file": "frontend/src/lib/workspaceData.js",
+   "line": 6,
+   "what": "cache keys not channel-keyed; 2s maxAge can return channel A list to B"
+  },
+  {
+   "file": "frontend/src/context/TaskContext.jsx",
+   "line": 141,
+   "what": "poll 1.5s/6s setTasks(all tasks); refreshTrigger fires on any channel task completion; jumpToTaskResult (277) navigates with no channel; clearCompletedTasksApi (270) global"
+  },
+  {
+   "file": "frontend/src/hooks/useProjectAutosave.js",
+   "line": 317,
+   "what": "queued/keepalive save of project A could be sent with channel B header if header read at send time"
+  },
+  {
+   "file": "frontend/src/components/editor/EditorShell.jsx",
+   "line": 1125,
+   "what": "project restore from ?project= / omnicut_active_project; useProjectLoader has sequence guard (good) but getProjects/getAllAssets on mount (1100) unguarded"
+  },
+  {
+   "file": "frontend/src/components/ProductToClip.jsx",
+   "line": 2565,
+   "what": "onFocus loadHistory() without stale guard"
+  },
+  {
+   "file": "frontend/src/components/ContentTrackerHub.jsx",
+   "line": 1278,
+   "what": "12s poll + focus/visibility revalidate, no cancelled/abort guards in file"
+  },
+  {
+   "file": "frontend/src/components/producer/ProducerHub.jsx",
+   "line": 0,
+   "what": "no cancelled guard in file"
+  },
+  {
+   "file": "frontend/src/components/producer/QuickRefPage.jsx",
+   "line": 138,
+   "what": "20s notes poll, no guard"
+  },
+  {
+   "file": "frontend/src/components/analytics/tabs/PerformanceAnalyticsTab.jsx",
+   "line": 0,
+   "what": "no guards"
+  },
+  {
+   "file": "frontend/src/components/hyperframes/HyperFramesHub.jsx",
+   "line": 462,
+   "what": "create/render then loadData() unguarded"
+  },
+  {
+   "file": "frontend/src/components/ActivityCenter.jsx",
+   "line": 974,
+   "what": "1s render status poll driven by global localStorage job key"
+  },
+  {
+   "file": "frontend/src/components/BatchRenderModal.jsx",
+   "line": 109,
+   "what": "batch status poll"
+  },
+  {
+   "file": "frontend/src/components/gadget-media/ProductWorkspace.jsx",
+   "line": 153,
+   "what": "render/narration poll"
+  },
+  {
+   "file": "frontend/src/hooks/useRenderJob.js",
+   "line": 201,
+   "what": "render poll 1s"
+  },
+  {
+   "file": "frontend/src/components/editor/EditorShell.jsx",
+   "line": 408,
+   "what": "15s cutout manifest verify (cancelled-guarded)"
+  }
+ ],
+ "deep_links_url_params": [
+  {
+   "file": "frontend/src/App.jsx",
+   "line": 61,
+   "params": "quick_post=1|mobile_post=1",
+   "note": "isQuickPostMode computed but never used; MobileQuickPostPage lazy-imported (line 23) but never rendered -> QR quick-post links not consumed (verify)"
+  },
+  {
+   "file": "frontend/src/App.jsx",
+   "line": 71,
+   "params": "view=quick-ref|quick_ref=1",
+   "note": "QuickRefPage"
+  },
+  {
+   "file": "frontend/src/App.jsx",
+   "line": 82,
+   "params": "film=1&session=&return=&product=&angle=",
+   "note": "MobileFilmingPage; built by lib/mobileStudioFlow.js:8 filmingUrl and ShotListModal.jsx:76"
+  },
+  {
+   "file": "frontend/src/App.jsx",
+   "line": 44,
+   "params": "mode=mobile|desktop, quick=1",
+   "note": "UI mode"
+  },
+  {
+   "file": "frontend/src/components/editor/EditorShell.jsx",
+   "line": 221,
+   "params": "project=",
+   "note": "editor deep link"
+  },
+  {
+   "file": "frontend/src/components/MobileQuickStudio.jsx",
+   "line": 381,
+   "params": "product=, angle=, mobile_session=",
+   "note": ""
+  },
+  {
+   "file": "frontend/src/components/ExportGallery.jsx",
+   "line": 37,
+   "params": "quick_post=1&pid&aid&eid&video&product&hook",
+   "note": "QR on phone: new browser, no sessionStorage -> must embed channel"
+  },
+  {
+   "file": "frontend/src/components/ContentTrackerHub.jsx",
+   "line": 2247,
+   "params": "same quick_post URL",
+   "note": ""
+  },
+  {
+   "file": "frontend/src/components/Sidebar.jsx",
+   "line": 40,
+   "params": "mobile_url QR",
+   "note": "also Header.jsx:34"
+  }
+ ],
+ "hardcoded_channel_identity": [
+  {
+   "file": "frontend/src/components/SequencePlayer.jsx",
+   "line": 357,
+   "value": "WATERMARK_TEXT 'สงวนลิขสิทธิ์ช่อง rizanntry ...' mirrors subtitle_engine.py"
+  },
+  {
+   "file": "frontend/src/components/editor/NewClipPanel.jsx",
+   "line": 735,
+   "value": "label 'แสดงลายน้ำช่อง (@rizanntry)'"
+  },
+  {
+   "file": "frontend/src/components/ExportGallery.jsx",
+   "line": 1336,
+   "value": "default hashtags '#รีวิวของดี #พิกัดในตะกร้า'"
+  },
+  {
+   "file": "frontend/src/components/ExportGallery.jsx",
+   "line": 1349,
+   "value": "window.open TikTok Studio upload (no account check; whichever Chrome profile)"
+  },
+  {
+   "file": "frontend/src/components/ContentTrackerHub.jsx",
+   "line": 1131,
+   "value": "window.open TikTok Studio upload"
+  },
+  {
+   "file": "scripts/subtitle_engine.py",
+   "line": 167,
+   "value": "WATERMARK_TEXT rizanntry (burn 849-856; badge 876)"
+  },
+  {
+   "file": "frontend/src/components/editor/EditorHeader.jsx",
+   "line": 275,
+   "value": "title (@rizanntry)"
+  },
+  {
+   "file": "frontend/src/components/UserGuide.jsx",
+   "line": 64,
+   "value": "guide text (@rizanntry)"
+  }
+ ],
+ "frontend_tests": {
+  "command": "cd frontend && npm test  (node --test src/lib/*.test.js; does NOT include src/lib/motion/*.test.js)",
+  "count_lib": 101,
+  "storage_cache_related": [
+   "editorEntry.test.js",
+   "notificationReliability.test.js",
+   "postRenderRevision.test.js",
+   "projectRevision.test.js",
+   "renderJobController.test.js",
+   "renderJobModel.test.js",
+   "renderJobPolling.test.js",
+   "workspaceData.test.js",
+   "projectAutosave.test.js",
+   "projectSaveQueue.test.js",
+   "mobileStudioFlow.test.js",
+   "producerInsights.test.js",
+   "scheduleQueue.test.js",
+   "exportGalleryDeleteSyncContract.test.js"
+  ]
+ },
+ "extension_message_flows": [
+  {
+   "id": "pending_get",
+   "from": "background.js:40-59 fetchPendingJob",
+   "to": "GET /api/tiktok-autopost/pending (api_tiktok_autopost.py:281)",
+   "trigger": "re-fetched per action: 1618,1648,1726,1813",
+   "endpoint_or_action": "GET",
+   "side_effect": "read",
+   "account_check": "none",
+   "note": "singleton _pending (api_tiktok_autopost.py:34); no job_id/channel"
+  },
+  {
+   "id": "pending_clear",
+   "from": "background.js:78-85",
+   "to": "POST /api/tiktok-autopost/clear (:292)",
+   "trigger": "after confirmed post + mark (1749)",
+   "endpoint_or_action": "POST",
+   "side_effect": "clears global singleton",
+   "account_check": "none",
+   "note": ""
+  },
+  {
+   "id": "pending_cover",
+   "from": "background.js:87-104",
+   "to": "POST /api/tiktok-autopost/cover (:266)",
+   "trigger": "upload-cover-only",
+   "endpoint_or_action": "POST",
+   "side_effect": "mutates _pending.cover_path",
+   "account_check": "none",
+   "note": ""
+  },
+  {
+   "id": "prepare_sidepanel",
+   "from": "sidepanel.js:537-590",
+   "to": "POST /api/tiktok-autopost/prepare (:187)",
+   "trigger": "panel prepare",
+   "endpoint_or_action": "POST",
+   "side_effect": "overwrites _pending unconditionally (:235)",
+   "account_check": "none",
+   "note": "also frontend api.js:174 and api_schedule_queue.py:1073 (only queue path 409s when pending exists :1096)"
+  },
+  {
+   "id": "mark_posted_auto",
+   "from": "background.js:61-76",
+   "to": "POST /api/exports/mark-posted (api_exports.py:875)",
+   "trigger": "after click-post confirmation",
+   "endpoint_or_action": "POST",
+   "side_effect": "moves file to Posted, PostLog, angle status, queue, archive",
+   "account_check": "none",
+   "note": ""
+  },
+  {
+   "id": "mark_posted_manual",
+   "from": "sidepanel.js:871-880",
+   "to": "POST /api/exports/mark-posted",
+   "trigger": "manual button",
+   "endpoint_or_action": "POST",
+   "side_effect": "same; does NOT clear /pending",
+   "account_check": "none",
+   "note": ""
+  },
+  {
+   "id": "exports_list",
+   "from": "sidepanel.js:384",
+   "to": "GET /api/exports",
+   "trigger": "panel load",
+   "endpoint_or_action": "GET",
+   "side_effect": "read",
+   "account_check": "n/a",
+   "note": "unscoped, all channels"
+  },
+  {
+   "id": "queue_list",
+   "from": "sidepanel.js:411",
+   "to": "GET /api/schedule-queue",
+   "trigger": "panel load",
+   "endpoint_or_action": "GET",
+   "side_effect": "read",
+   "account_check": "n/a",
+   "note": "unscoped"
+  },
+  {
+   "id": "media",
+   "from": "sidepanel.js:143,340,481",
+   "to": "GET /api/media/<rel>?api_key=",
+   "trigger": "preview",
+   "endpoint_or_action": "GET",
+   "side_effect": "read",
+   "account_check": "n/a",
+   "note": ""
+  },
+  {
+   "id": "stats_import",
+   "from": "sidepanel.js:984-1026 runStatsSync",
+   "to": "POST /api/tiktok-stats/import (api_tiktok_stats.py:170)",
+   "trigger": "syncStatsBtn",
+   "endpoint_or_action": "POST {rows}",
+   "side_effect": "PostLog upsert register_missing=True; pending replace",
+   "account_check": "none; any tiktok.com tab (resolveTikTokTab 954-982)",
+   "note": "StatsRow has no account (:27-43); candidates unscoped (:62-167)"
+  },
+  {
+   "id": "msg_upload_file",
+   "from": "sidepanel btn1 -> runtime.sendMessage (617)",
+   "to": "background onMessage 1863 -> runUploadFileOnly 1617",
+   "trigger": "btn1 / prepare",
+   "endpoint_or_action": "DOM.setFileInputFiles(job.video_path)",
+   "side_effect": "UPLOAD",
+   "account_check": "none (findUploadTab 135-173 URL only)",
+   "note": ""
+  },
+  {
+   "id": "msg_type_caption",
+   "from": "btn2",
+   "to": "runTypeCaptionOnly 1768",
+   "trigger": "btn2",
+   "endpoint_or_action": "CDP insertText",
+   "side_effect": "FILL FORM",
+   "account_check": "none",
+   "note": "caption from panel, not job"
+  },
+  {
+   "id": "msg_attach_product",
+   "from": "btn3",
+   "to": "runAttachProductOnly 1664 -> attachProductLink 513",
+   "trigger": "btn3",
+   "endpoint_or_action": "showcase search; last-6 suffix match 759-766",
+   "side_effect": "FILL FORM",
+   "account_check": "none",
+   "note": ""
+  },
+  {
+   "id": "msg_schedule",
+   "from": "btn4",
+   "to": "runScheduleModeOnly 1692",
+   "trigger": "btn4",
+   "endpoint_or_action": "calendar/time picker",
+   "side_effect": "SCHEDULE",
+   "account_check": "none",
+   "note": ""
+  },
+  {
+   "id": "msg_upload_cover",
+   "from": "btn6",
+   "to": "runUploadCoverOnly 1642 -> automation.js uploadCover 151-409",
+   "trigger": "btn6",
+   "endpoint_or_action": "cover upload + save",
+   "side_effect": "FILL FORM",
+   "account_check": "none",
+   "note": ""
+  },
+  {
+   "id": "msg_prepare_details",
+   "from": "prepareDetailsBtn sidepanel.js:746-833",
+   "to": "runPrepareDetails 1811",
+   "trigger": "button",
+   "endpoint_or_action": "wait upload -> caption -> product -> schedule -> cover",
+   "side_effect": "FILL FORM (never publishes)",
+   "account_check": "none",
+   "note": ""
+  },
+  {
+   "id": "msg_click_post",
+   "from": "btn5 sidepanel.js:674",
+   "to": "runClickPostOnly 1725 -> clickPostButton 1538-1605",
+   "trigger": "btn5, no confirm",
+   "endpoint_or_action": "click post_video_button or LAST 'โพสต์/Post/Schedule' button (1557-1569); success = isPostSuccessUrl 1389 (any non-upload tiktok URL)",
+   "side_effect": "PUBLISH/SCHEDULE",
+   "account_check": "none",
+   "note": ""
+  },
+  {
+   "id": "stats_scrape",
+   "from": "sidepanel.js:931,942,999",
+   "to": "scripting.executeScript stats_parser.js parsePostsTable",
+   "trigger": "sync",
+   "endpoint_or_action": "scrape DOM",
+   "side_effect": "read",
+   "account_check": "none",
+   "note": ""
+  }
+ ],
+ "hyperframes_kit_points": {
+  "status": "PARTIAL",
+  "frontend": [
+   {
+    "file": "frontend/src/components/hyperframes/HyperFramesHub.jsx",
+    "line": 462,
+    "call": "createHyperFramesClip {clip_id, product, script, style} - no channel"
+   },
+   {
+    "file": "frontend/src/components/hyperframes/HyperFramesHub.jsx",
+    "line": 487,
+    "call": "renderHyperFramesComposition {composition_id, product_id: comp.product.toUpperCase(), is_test} - product guessed from composition"
+   },
+   {
+    "file": "frontend/src/components/hyperframes/HyperFramesHub.jsx",
+    "line": 444,
+    "call": "openHyperFramesStudio(3002)"
+   },
+   {
+    "file": "frontend/src/components/hyperframes/HyperFramesHub.jsx",
+    "lines": [
+     548,
+     773
+    ],
+    "call": "href http://127.0.0.1:3002/#project/_HyperFrames_Studio"
+   }
+  ],
+  "kit": [
+   {
+    "file": "03_Projects/_HyperFrames_Studio/kit/channels.js",
+    "line": "5-19",
+    "what": "window.HF_CHANNELS; only 'main' (@rizanntry); 'second' commented out"
+   },
+   {
+    "file": "kit/kit.js",
+    "line": "61-77",
+    "what": "HF.applyChannel reads #root data-channel (default main); unknown -> console.warn only (67-69); auto-run 88-89"
+   },
+   {
+    "file": "kit/new_clip.py",
+    "line": "48-54,89-90",
+    "what": "--channel default main, not validated; --vo required (:51)"
+   },
+   {
+    "file": "kit/starter.html",
+    "line": "8,16,27",
+    "what": "loads channels.js; data-channel={{CHANNEL}}; hardcoded watermark fallback"
+   },
+   {
+    "file": "compositions/*.html",
+    "what": "4 of 10 use channels.js + data-channel=main; 6 hardcode watermark only (ess02 asmr/battery/hype/jaokum/review, goc01-spec); clips/ess02-hype-25s/template.tpl:84 hardcoded"
+   },
+   {
+    "file": "assets/shared/img/channel_second.jpg",
+    "what": "exists, 133,762 bytes"
+   },
+   {
+    "file": "kit/STYLE.md",
+    "line": "171-178",
+    "what": "multi-channel section; registry/tracker/autopost pending"
+   },
+   {
+    "file": "scripts/api_hyperframes.py",
+    "line": "49-62",
+    "what": "CreateClipRequest / RenderCompositionRequest have no channel"
+   },
+   {
+    "file": "scripts/api_hyperframes.py",
+    "line": "78-112,99",
+    "what": "metadata product = stem.split('-')[0]; data-channel not parsed"
+   },
+   {
+    "file": "scripts/api_hyperframes.py",
+    "line": "286-292",
+    "what": "VO lookup glob 03_Projects/*{PRODUCT}*/voiceover.wav first match, channel-blind"
+   },
+   {
+    "file": "scripts/api_hyperframes.py",
+    "line": "294",
+    "what": "pov_chat may skip VO but new_clip.py requires --vo (bug)"
+   },
+   {
+    "file": "scripts/api_hyperframes.py",
+    "line": "307-313",
+    "what": "subprocess new_clip.py without --channel"
+   },
+   {
+    "file": "scripts/api_hyperframes.py",
+    "line": "347",
+    "what": "BUG: EXPORTS_DIR already Ready_to_post (config.py:81) + 'Ready_to_post' -> nested folder"
+   },
+   {
+    "file": "scripts/api_hyperframes.py",
+    "line": "384-396,389",
+    "what": "ExportRegistry.ensure_many without channel; product_id short code e.g. HAT01"
+   },
+   {
+    "file": "scripts/api_hyperframes.py",
+    "line": "419-460",
+    "what": "open-studio npx hyperframes preview port 3002; api.js:610 default 3100"
+   }
+  ]
+ },
+ "cli_tools": {
+  "summary": "No CLI calls the HTTP API; all store access is direct Python/JSON and bypasses API guards",
+  "items": [
+   {
+    "path": "scripts/backfill_product_codes.py",
+    "purpose": "assign product_code",
+    "reads": "ProductStore._load",
+    "writes": "ProductStore._save",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "maybe"
+   },
+   {
+    "path": "scripts/migrate_json_to_sqlite.py",
+    "purpose": "json -> sqlite",
+    "reads": "products/post_log json",
+    "writes": "store.db",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "default channel for legacy rows"
+   },
+   {
+    "path": "scripts/migrate_paths_to_relative.py",
+    "purpose": "path rewrite",
+    "reads": "ProductStore",
+    "writes": "ProductStore",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "no"
+   },
+   {
+    "path": "scripts/migrate_compound_angle_ids.py",
+    "purpose": "unique angle ids",
+    "reads": "ProductStore, project.json, ExportRegistry, ShotListsStore",
+    "writes": "same",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "yes if scoped"
+   },
+   {
+    "path": "scripts/rename_projects_with_product_code.py",
+    "purpose": "one-off rename",
+    "reads": "products.json, ProjectManifest",
+    "writes": "same",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "no"
+   },
+   {
+    "path": "tools/clean_products_data.py",
+    "purpose": "sanitize",
+    "reads": "_Docs/products.json raw",
+    "writes": "raw json (bypasses store; db.py:219 re-import)",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "risky once channel field exists"
+   },
+   {
+    "path": "tools/repair_swollen_projects.py",
+    "purpose": "normalize durations",
+    "reads": "03_Projects/*/project.json",
+    "writes": "same (no dry-run)",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "no"
+   },
+   {
+    "path": "tools/system_health_check.py",
+    "purpose": "diagnostics",
+    "reads": "ProductStore, PostLog, TokenTracker, api_server.app routes",
+    "writes": "mkdir",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "per-channel counts"
+   },
+   {
+    "path": "scripts/pipeline.py",
+    "purpose": "CLI render",
+    "reads": "inputs",
+    "writes": "ProjectManifest, EXPORTS_DIR, ExportRegistry.ensure, WATERMARK_TEXT burn",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "YES"
+   },
+   {
+    "path": "scripts/post_log.py __main__",
+    "purpose": "summary",
+    "reads": "PostLog",
+    "writes": "-",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "per channel"
+   },
+   {
+    "path": "scripts/product_store.py __main__",
+    "purpose": "summary",
+    "reads": "ProductStore",
+    "writes": "-",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "maybe"
+   },
+   {
+    "path": "scripts/project_manifest.py __main__",
+    "purpose": "list projects",
+    "reads": "03_Projects",
+    "writes": "-",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "maybe"
+   },
+   {
+    "path": "scripts/asset_registry.py __main__",
+    "purpose": "asset index",
+    "reads": "02_Assets",
+    "writes": "asset_registry.json",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "no (shared)"
+   },
+   {
+    "path": "tools/backup_restore_dry_run.py",
+    "purpose": "validate backup",
+    "reads": "zip",
+    "writes": "report",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "include channels.json later"
+   },
+   {
+    "path": "tools/reprepare_cutout_video.py",
+    "purpose": "cutout re-prep",
+    "reads": "project.json",
+    "writes": "project.json",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "no"
+   },
+   {
+    "path": "tools/playwright_tiktok_assistant.py",
+    "purpose": "open TikTok Studio with one persistent profile tools/tiktok_browser_profile",
+    "reads": "-",
+    "writes": "-",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "YES: profile per account"
+   },
+   {
+    "path": "tools/jev_advisor.py",
+    "purpose": "decision CLI",
+    "reads": "--state",
+    "writes": "-",
+    "calls_api": false,
+    "bypasses_api": true,
+    "needs_channel": "no"
+   }
+  ]
+ },
+ "extension_meta": {
+  "manifest": "tiktok_autopost_extension/manifest.json",
+  "version": "0.2.0",
+  "permissions": [
+   "debugger",
+   "tabs",
+   "storage",
+   "sidePanel",
+   "scripting",
+   "windows"
+  ],
+  "host_permissions": [
+   "http://127.0.0.1:8000/*",
+   "http://localhost:8000/*",
+   "https://www.tiktok.com/*"
+  ],
+  "content_scripts": null,
+  "popup": "popup.js/html not referenced by manifest (dead code; popup.js:37 fetches /pending without X-API-Key)",
+  "backend_base": "hardcoded http://127.0.0.1:8000 (background.js:31, sidepanel.js:1)",
+  "auth": "X-API-Key via authedFetch (auth_key.js:47-52); key in chrome.storage.local 'omnicutApiKey' (auth_key.js:17); ?api_key= for media src (auth_key.js:39-42); server gate scripts/api_server.py:206-269",
+  "handshake": "none; manifest.version only displayed (sidepanel.js:925); backend health inferred from GET /api/exports",
+  "account_identity_reads": "NONE; only stats row video_url hrefs contain /@handle/ (stats_parser.js:106,159), never parsed",
+  "chrome_storage_keys": [
+   {
+    "key": "omnicutApiKey",
+    "area": "local",
+    "shape": "string",
+    "owner": "auth_key.js:17"
+   },
+   {
+    "key": "productId/caption/hashtags",
+    "area": "local",
+    "owner": "popup.js:16-28 (dead)"
+   },
+   {
+    "key": "pendingJob",
+    "area": "local",
+    "note": "only removed at sidepanel.js:888, never written (no-op)"
+   }
+  ],
+  "service_worker_memory": [
+   "actionRunning background.js:1851",
+   "pinnedUploadTabId background.js:1852"
+  ]
+ },
+ "extension_tests": {
+  "run": "cd tiktok_autopost_extension && node --test background.test.cjs clip_state.test.cjs stats_parser.test.cjs (not part of frontend npm test)",
+  "background.test.cjs": "~31 tests incl. prepare never publishes (57), confirmed post marks exact pending export mark->clear->upload (417), runClickPostOnly no-mark on detach (564) / marks on success (576)",
+  "clip_state.test.cjs": 4,
+  "stats_parser.test.cjs": 11,
+  "backend": [
+   "tests/test_api_tiktok_autopost.py",
+   "tests/test_tiktok_stats_import.py",
+   "tests/test_api_hyperframes.py"
+  ]
+ }
+}

@@ -643,3 +643,85 @@ def test_product_update_is_hidden(tmp_path, monkeypatch):
     assert saved2["is_hidden"] is False
 
 
+def test_extract_slug_title_rejects_numeric_ids():
+    from scripts.product_scraper import _extract_slug_title
+    # Numeric product IDs should never be treated as title
+    assert _extract_slug_title("https://shop.tiktok.com/th/pdp/1730141014176663748") == ""
+    assert _extract_slug_title("https://shop.tiktok.com/view/product/1731512091369702645") == ""
+    # Real slug should still work
+    assert _extract_slug_title("https://shopee.co.th/Logitech-Wave-Keys-Wireless-i.12345.67890") == "Logitech Wave Keys Wireless"
+
+
+def test_extract_url_params_metadata_from_tiktok_share_url():
+    from scripts.product_scraper import _extract_url_params_metadata
+    url = (
+        "https://shop.tiktok.com/th/pdp/1730141014176663748?_d=eed51"
+        "&og_info=%7B%22title%22%3A%22Hatari+Cyclone+Max%22%2C%22image%22%3A%22https%3A%2F%2Fcdn.test%2Ffan.jpg%22%7D"
+        "&ec_search_share_params=%7B%22product_id%22%3A%221730141014176663748%22%7D"
+    )
+    meta = _extract_url_params_metadata(url)
+    assert meta["title"] == "Hatari Cyclone Max"
+    assert meta["image"] == "https://cdn.test/fan.jpg"
+    assert meta["product_id"] == "1730141014176663748"
+
+
+def test_extract_tiktok_modern_data():
+    from scripts.product_scraper import _extract_tiktok_modern_data
+    mock_ssr_html = '''
+    <html>
+      <head>
+        <script id="__MODERN_ROUTER_DATA__" type="application/json">
+        {
+          "loaderData": {
+            "pdp": {
+              "page_config": {
+                "components_map": [
+                  {
+                    "component_data": {
+                      "product_info": {
+                        "title": "Hatari Cyclone Max 8 นิ้ว",
+                        "price": {"real_price": "฿603.00"},
+                        "desc_blocks": [{"text": "พัดลมตั้งโต๊ะ ดีไซน์ทันสมัย"}, {"text": "ปรับแรงลมได้ 3 ระดับ"}],
+                        "images": [{"url_list": ["https://cdn.test/p1.webp"]}],
+                        "specifications": [{"name": "Brand", "value": "Hatari"}, {"name": "กำลังไฟ", "value": "18W"}]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+        </script>
+      </head>
+      <body></body>
+    </html>
+    '''
+    modern = _extract_tiktok_modern_data(mock_ssr_html)
+    assert modern["title"] == "Hatari Cyclone Max 8 นิ้ว"
+    assert modern["price"] == "฿603.00"
+    assert "ปรับแรงลมได้ 3 ระดับ" in modern["description"]
+    assert modern["images"] == ["https://cdn.test/p1.webp"]
+    assert "Brand: Hatari" in modern["specs"]
+
+
+def test_tiktok_share_url_fallback_when_http_fails(monkeypatch):
+    """When network/urllib fails or is challenged, og_info in URL query param provides clean fallback."""
+    from scripts.product_scraper import ProductScraper
+    url = (
+        "https://shop.tiktok.com/th/pdp/1730141014176663748?_d=eed51"
+        "&og_info=%7B%22title%22%3A%22Hatari+Cyclone+Max%22%2C%22image%22%3A%22https%3A%2F%2Fcdn.test%2Ffan.jpg%22%7D"
+    )
+    # Simulate urllib raising network error / 403
+    def fake_open(*args, **kwargs):
+        raise OSError("Simulated network block")
+    monkeypatch.setattr("urllib.request.OpenerDirector.open", fake_open)
+    # Simulate browser challenge/block
+    monkeypatch.setattr("scripts.product_scraper._scrape_rendered_page", lambda u: {"warning": "Simulated challenge"})
+
+    res = ProductScraper.scrape_url(url)
+    assert res["title"] == "Hatari Cyclone Max"
+    assert "https://cdn.test/fan.jpg" in res["images"]
+    assert res["metadata_source"] == "url_param_og_info"
+
+

@@ -83,7 +83,7 @@ test('render polling schedules one follow-up only after the previous request set
 });
 
 test('render resume is project-scoped and cleanup resets stale UI state', () => {
-  assert.match(hookSource, /const jobEntry = getActiveJobEntry\(\);/);
+  assert.match(hookSource, /const jobEntry = getActiveJobEntry\(workspaceStorage\);/);
   assert.match(hookSource, /jobEntry\.projectKey === projectName/);
   assert.match(hookSource, /setJobId\(null\);\s*setIsRendering\(false\);\s*setJobStatus\(null\);/s);
   assert.match(hookSource, /return \(\) => \{\s*clearTimer\(\);\s*\};/s);

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ArrowRight, CircleAlert, Filter, Loader2, Plus, RefreshCw } from 'lucide-react';
 
 import { formatDuration, projectDisplayName, STATUS_LABELS } from '../../lib/gadgetMediaProject.js';
+import { useGadgetDraft } from './useGadgetDraft.js';
 
 
 const EMPTY_FORM = {
@@ -18,6 +19,13 @@ export default function ProductLibrary({ projects, loading, onRefresh, onCreate,
   const [statusFilter, setStatusFilter] = useState('all');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const draftParticipant = useGadgetDraft(form, {
+    reset: setForm,
+    save: () => {
+      if (!form.brand.trim() || !form.model.trim()) throw new Error('กรอก Brand และ Model ก่อนบันทึก หรือเลือกทิ้งการแก้ไข');
+      return onCreate(form);
+    },
+  });
 
   const filtered = useMemo(() => projects.filter((project) => {
     const identity = project.product_identity || {};
@@ -32,8 +40,9 @@ export default function ProductLibrary({ projects, loading, onRefresh, onCreate,
     setSubmitting(true);
     setError('');
     try {
-      const created = await onCreate(form);
+      const created = await draftParticipant.save();
       setForm(EMPTY_FORM);
+      draftParticipant.markSaved(EMPTY_FORM);
       setShowCreate(false);
       onOpen(created.project_id);
     } catch (createError) {

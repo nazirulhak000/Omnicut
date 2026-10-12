@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useChannelDraft } from '../../hooks/useChannelDraft.js';
+import { channelLocalStorage } from '../../lib/channelStorage.js';
+import { captureChannel } from '../../lib/channelRuntime.js';
 import {
   Sparkles, Flame, CheckCircle2, Clock, Play, ArrowRight,
   TrendingUp, AlertTriangle, Lightbulb, Target, Settings,
@@ -15,10 +18,9 @@ import {
   getProducerNotes, addProducerNote, deleteProducerNote, updateProducerNote
 } from '../../api';
 import {
-  loadTargets,
-  saveTargets,
-  loadPlaybookNotes,
-  savePlaybookNotes,
+  loadTargets as readTargets,
+  loadPlaybookNotes as readPlaybookNotes,
+  savePlaybookNotes as writePlaybookNotes,
   addPlaybookNote,
   deletePlaybookNote,
   formatNoteForSharing,
@@ -31,6 +33,7 @@ import {
   calculateWeeklyPacing,
   autoSuggestPlaybookNotes,
   DEFAULT_TARGETS,
+  TARGETS_STORAGE_KEY,
   getClipIdentityAliases,
 } from '../../lib/producerInsights';
 import { dateOnly, estimateQueueCoverage, parseDateOnly, templateForWeek, weekStartForDate } from '../../lib/scheduleQueue';
@@ -66,6 +69,13 @@ export default function ProducerHub({
   onGoToTracker,
   onRefreshAll,
 }) {
+  const channelToken = useMemo(() => captureChannel(), []);
+  const storage = useMemo(() => channelLocalStorage(channelToken.channel_id), []);
+  const loadTargets = () => readTargets(storage);
+  const loadPlaybookNotes = () => readPlaybookNotes(storage);
+  const savePlaybookNotes = value => writePlaybookNotes(value, storage);
+  const [retained] = useState(() => { try { return JSON.parse(storage.getItem('producer_manual_draft') || 'null') || {}; } catch { return {}; } });
+  const notesRevision = useRef(null);
   const [products, setProducts] = useState([]);
   const [exportsList, setExportsList] = useState([]);
   const [scheduleQueue, setScheduleQueue] = useState([]);
@@ -78,16 +88,16 @@ export default function ProducerHub({
 
   // Targets state
   const [targets, setTargets] = useState(() => loadTargets());
-  const [showTargetsModal, setShowTargetsModal] = useState(false);
-  const [editingTargets, setEditingTargets] = useState({ ...targets });
+  const [showTargetsModal, setShowTargetsModal] = useState(retained.showTargetsModal || false);
+  const [editingTargets, setEditingTargets] = useState(retained.editingTargets || { ...targets });
 
   // Playbook & Idea/Ref Vault state
   const [playbookNotes, setPlaybookNotes] = useState(() => loadPlaybookNotes());
-  const [ideaText, setIdeaText] = useState('');
-  const [ideaUrl, setIdeaUrl] = useState('');
-  const [ideaImages, setIdeaImages] = useState([]);
-  const [ideaTag, setIdeaTag] = useState('Hook');
-  const [ideaProduct, setIdeaProduct] = useState('');
+  const [ideaText, setIdeaText] = useState(retained.ideaText || '');
+  const [ideaUrl, setIdeaUrl] = useState(retained.ideaUrl || '');
+  const [ideaImages, setIdeaImages] = useState(retained.ideaImages || []);
+  const [ideaTag, setIdeaTag] = useState(retained.ideaTag || 'Hook');
+  const [ideaProduct, setIdeaProduct] = useState(retained.ideaProduct || '');
   const [uploadingRefImage, setUploadingRefImage] = useState(false);
   const [failedRefUploads, setFailedRefUploads] = useState(0);
   const [refSaveSuccess, setRefSaveSuccess] = useState(false);
@@ -96,7 +106,7 @@ export default function ProducerHub({
 
   // AI Idea-to-Script state
   const [aiSynthesizingId, setAiSynthesizingId] = useState(null);
-  const [aiProposal, setAiProposal] = useState(null);
+  const [aiProposal, setAiProposal] = useState(retained.aiProposal || null);
   const [addingAngle, setAddingAngle] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
@@ -113,7 +123,22 @@ export default function ProducerHub({
   // Quick Preview Modal state
   const [previewItem, setPreviewItem] = useState(null);
   // Note editing modal state
-  const [editingNote, setEditingNote] = useState(null);
+  const [editingNote, setEditingNote] = useState(retained.editingNote || null);
+  const draftValue = { ideaText, ideaUrl, ideaImages, ideaTag, ideaProduct, showTargetsModal, editingTargets, editingNote, aiProposal };
+  const currentDraft = useRef(draftValue);
+  currentDraft.current = draftValue;
+  const draft = useChannelDraft(draftValue, {
+    save: value => {
+      if (value.ideaImages.some(img => img.includes('#omnicut-pending-'))) throw new Error('กรุณารอการแนบภาพให้เสร็จก่อนสลับช่อง');
+      storage.setItem('producer_manual_draft', JSON.stringify(value));
+    },
+    reset: value => {
+      setIdeaText(value.ideaText); setIdeaUrl(value.ideaUrl); setIdeaImages(value.ideaImages);
+      setIdeaTag(value.ideaTag); setIdeaProduct(value.ideaProduct);
+      setShowTargetsModal(value.showTargetsModal); setEditingTargets(value.editingTargets); setEditingNote(value.editingNote);
+      setAiProposal(value.aiProposal);
+    },
+  });
 
   useEffect(() => {
     if (!showTargetsModal && !previewItem && !aiProposal && !activeZoomImage && !editingNote) return undefined;
@@ -161,7 +186,7 @@ export default function ProducerHub({
         getProducts(),
         getExports(),
         getTiktokStatsLatest(),
-        getProducerNotes(),
+        getProducerNotes(channelToken),
         getScheduleQueue(),
         getScheduleTemplate(currentWeek),
       ]);
@@ -196,6 +221,7 @@ export default function ProducerHub({
       }
 
       if (notesRes.status === 'fulfilled' && notesRes.value?.success && Array.isArray(notesRes.value?.notes)) {
+        notesRevision.current = notesRes.value.revision;
         setPlaybookNotes(notesRes.value.notes);
         savePlaybookNotes(notesRes.value.notes);
       }
@@ -393,9 +419,17 @@ export default function ProducerHub({
       weeklyCuts: Math.max(1, Number(editingTargets.weeklyCuts) || DEFAULT_TARGETS.weeklyCuts),
       dailyPosts: Math.max(1, Number(editingTargets.dailyPosts) || DEFAULT_TARGETS.dailyPosts),
     };
+    try {
+    storage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(validated));
+    const nextDraft = { ...draftValue, showTargetsModal: false, editingTargets: validated };
+    storage.setItem('producer_manual_draft', JSON.stringify(nextDraft));
+    draft.markSaved(nextDraft);
     setTargets(validated);
-    saveTargets(validated);
+    setEditingTargets(validated);
     setShowTargetsModal(false);
+    } catch {
+      setToastMessage('บันทึกเป้าหมายไม่สำเร็จ ข้อมูลที่แก้ไขยังอยู่');
+    }
   };
 
   const [pastedImageToast, setPastedImageToast] = useState(false);
@@ -412,7 +446,8 @@ export default function ProducerHub({
   };
 
   // Reusable Multi-Image Processor for Producer Hub
-  const processRefImageFiles = async (files) => {
+  const processRefImageFiles = files => draft.run(() => processRefImageFilesWork(files));
+  const processRefImageFilesWork = async (files) => {
     if (!files || files.length === 0) return;
     const fileList = Array.from(files);
 
@@ -442,7 +477,7 @@ export default function ProducerHub({
 
     for (const { file, pendingUrl } of pendingEntries) {
       try {
-        const res = await uploadRefMedia(file);
+        const res = await uploadRefMedia(file, channelToken);
         if (!res?.url) throw new Error('เซิร์ฟเวอร์ไม่คืนลิงก์รูปภาพ');
         setIdeaImages(prev => prev.map(img => (img === pendingUrl ? res.url : img)));
       } catch (err) {
@@ -593,26 +628,32 @@ export default function ProducerHub({
       createdAt: new Date().toISOString(),
     };
 
-    const updated = addPlaybookNote(newNote, playbookNotes);
+    // Build the row without publishing a cache entry before the server accepts it.
+    const updated = addPlaybookNote(newNote, playbookNotes, null);
     const localNote = updated[0];
-    setPlaybookNotes(updated);
-    setIdeaText('');
-    setIdeaUrl('');
-    setIdeaImages([]);
-    setRefSaveSuccess(true);
-    setTimeout(() => setRefSaveSuccess(false), 2500);
 
     // Sync one item so another device cannot be overwritten by a stale list.
     try {
-      const res = await addProducerNote(localNote);
+      await draft.run(async () => {
+      const res = await addProducerNote(localNote, channelToken);
+      if (!res?.success || !Array.isArray(res.notes)) throw new Error('เซิร์ฟเวอร์ไม่ยืนยันการบันทึก');
       if (res?.success && Array.isArray(res.notes)) {
+        notesRevision.current = res.revision;
         setPlaybookNotes(res.notes);
         savePlaybookNotes(res.notes);
       }
+      const unchanged = ['ideaText', 'ideaUrl', 'ideaImages', 'ideaTag', 'ideaProduct'].every(key => JSON.stringify(currentDraft.current[key]) === JSON.stringify(draftValue[key]));
+      const nextDraft = unchanged ? { ...currentDraft.current, ideaText: '', ideaUrl: '', ideaImages: [] } : currentDraft.current;
+      try {
+        storage.setItem('producer_manual_draft', JSON.stringify(nextDraft));
+        draft.markSaved(nextDraft);
+      } catch { setToastMessage('บันทึกโน้ตแล้ว แต่ยังเก็บร่างอื่นในเครื่องไม่ได้'); }
+      if (unchanged) { setIdeaText(''); setIdeaUrl(''); setIdeaImages([]); }
+      setRefSaveSuccess(true);
+      setTimeout(() => setRefSaveSuccess(false), 2500);
+      });
     } catch (err) {
-      setPlaybookNotes(playbookNotes);
-      savePlaybookNotes(playbookNotes);
-      setToastMessage('บันทึกในเครื่องแล้ว แต่ซิงก์เซิร์ฟเวอร์ไม่สำเร็จ กรุณาลองใหม่');
+      setToastMessage('บันทึกไม่สำเร็จ ข้อมูลที่พิมพ์ยังอยู่ กรุณาลองใหม่');
       setTimeout(() => setToastMessage(null), 3500);
       console.warn('Failed to sync note to server:', err);
     }
@@ -620,11 +661,12 @@ export default function ProducerHub({
 
   // Handle Delete Note
   const handleDeleteNote = async (id) => {
-    const updated = deletePlaybookNote(id, playbookNotes);
+    const updated = deletePlaybookNote(id, playbookNotes, storage);
     setPlaybookNotes(updated);
     try {
-      const res = await deleteProducerNote(id);
+      const res = await deleteProducerNote(id, channelToken);
       if (res?.success && Array.isArray(res.notes)) {
+        notesRevision.current = res.revision;
         setPlaybookNotes(res.notes);
         savePlaybookNotes(res.notes);
       }
@@ -644,8 +686,9 @@ export default function ProducerHub({
     const updated = playbookNotes.map(n => n.id === item.id ? patched : n);
     setPlaybookNotes(updated);
     try {
-      const res = await updateProducerNote(item.id, { isPinned: newPinned });
+      const res = await updateProducerNote(item.id, { isPinned: newPinned }, notesRevision.current, channelToken);
       if (res?.success && Array.isArray(res.notes)) {
+        notesRevision.current = res.revision;
         setPlaybookNotes(res.notes);
         savePlaybookNotes(res.notes);
       }
@@ -664,14 +707,26 @@ export default function ProducerHub({
   const handleSaveEditedNote = async (updatedFields) => {
     if (!editingNote) return;
     try {
-      const res = await updateProducerNote(editingNote.id, updatedFields);
+      await draft.run(async () => {
+      if (!editingNote.base_revision) throw new Error('ไม่พบรุ่นข้อมูลเดิม กรุณาโหลดโน้ตใหม่ก่อนแก้ไข');
+      const res = await updateProducerNote(editingNote.id, updatedFields, editingNote.base_revision, channelToken);
+      if (!res?.success || !Array.isArray(res.notes)) throw new Error('เซิร์ฟเวอร์ไม่ยืนยันการบันทึก');
       if (res?.success && Array.isArray(res.notes)) {
+        notesRevision.current = res.revision;
         setPlaybookNotes(res.notes);
         savePlaybookNotes(res.notes);
       }
       setToastMessage('บันทึกการแก้ไขโน้ตเรียบร้อยแล้ว');
       setTimeout(() => setToastMessage(null), 2500);
-      setEditingNote(null);
+      const unchanged = JSON.stringify(currentDraft.current.editingNote) === JSON.stringify(editingNote);
+      const nextNote = unchanged ? null : { ...currentDraft.current.editingNote, base_revision: res.revision };
+      setEditingNote(nextNote);
+      const nextDraft = { ...currentDraft.current, editingNote: nextNote };
+      try {
+        storage.setItem('producer_manual_draft', JSON.stringify(nextDraft));
+        draft.markSaved(nextDraft);
+      } catch { setToastMessage('บันทึกโน้ตแล้ว แต่ยังเก็บร่างอื่นในเครื่องไม่ได้'); }
+      });
     } catch (err) {
       setToastMessage('ไม่สามารถบันทึกการแก้ไขได้ กรุณาลองใหม่');
       setTimeout(() => setToastMessage(null), 3500);
@@ -745,11 +800,20 @@ export default function ProducerHub({
         created_at: new Date().toISOString(),
       };
 
+      await draft.run(async () => {
       await addProductAngle(targetProdId, newAngleData);
       await fetchData(); // Refresh data to immediately show in daily queue
-      setAiProposal(null);
+      const unchanged = JSON.stringify(currentDraft.current.aiProposal) === JSON.stringify(aiProposal);
+      const nextProposal = unchanged ? null : currentDraft.current.aiProposal;
+      setAiProposal(nextProposal);
+      const nextDraft = { ...currentDraft.current, aiProposal: nextProposal };
+      try {
+        storage.setItem('producer_manual_draft', JSON.stringify(nextDraft));
+        draft.markSaved(nextDraft);
+      } catch { setToastMessage('เพิ่มมุมมองแล้ว แต่ยังเก็บร่างอื่นในเครื่องไม่ได้'); }
       setToastMessage('เพิ่มมุมมองใหม่เข้าสินค้าเรียบร้อยแล้ว!');
       setTimeout(() => setToastMessage(null), 3500);
+      });
     } catch (err) {
       console.error('Failed to add angle:', err);
       alert('บันทึกมุมมองไม่สำเร็จ: ' + (err.response?.data?.detail || err.message));
@@ -1431,7 +1495,7 @@ export default function ProducerHub({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setEditingNote({ ...item });
+                            setEditingNote({ ...item, base_revision: notesRevision.current });
                           }}
                           className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 text-xs font-semibold flex items-center cursor-pointer transition-all"
                           title="แก้ไขข้อความโน้ต"

@@ -1,4 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef, memo } from 'react';
+import { toMediaUrl } from '../lib/mediaUrl.js';
+import { activeChannel } from '../lib/channelRuntime.js';
+import { channelLocalStorage } from '../lib/channelStorage.js';
+import { useChannelDraft } from '../hooks/useChannelDraft.js';
 import {
   Film, Download, Folder, RefreshCw, Trash2,
   AlertTriangle, Check, Play, Search, Filter, ArrowUpDown,
@@ -37,6 +41,7 @@ import { matchExportVideo } from '../lib/exportMatching';
 function buildQuickPostUrl(mobileBaseUrl, video) {
   const params = new URLSearchParams({
     quick_post: '1',
+    channel: video.channel_id || activeChannel(),
     pid: video.product_id || '',
     aid: video.angle_id || '',
     eid: video.export_id || '',
@@ -127,7 +132,7 @@ const ExportCard = memo(function ExportCard({
   const isEsseger = nameLow.includes('esseger') || nameLow.includes('สายชาร์จ');
   const isLogitech = nameLow.includes('logitech') || nameLow.includes('wave');
   const cover = getCoverVariant(item, '9:16');
-  const displayThumb = cover.url || item.thumbnail_url;
+  const displayThumb = toMediaUrl(cover.url || item.thumbnail_url);
 
   return (
     <div
@@ -205,7 +210,7 @@ const ExportCard = memo(function ExportCard({
             />
           ) : (
             <video
-              src={`/api/media/${item.rel_path || item.path}#t=1.0`}
+              src={`${toMediaUrl(item.rel_path || item.path)}#t=1.0`}
               preload="metadata"
               className="w-full h-full object-cover"
               playsInline
@@ -302,7 +307,7 @@ const ExportCard = memo(function ExportCard({
         </button>
 
         <a
-          href={`/api/media/${item.path}`}
+          href={toMediaUrl(item.rel_path || item.path)}
           download={item.name}
           className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-bold transition-colors cursor-pointer flex-shrink-0"
           title="ดาวน์โหลด .MP4"
@@ -339,7 +344,7 @@ const ExportCard = memo(function ExportCard({
 // ═══════════════════════════════════════════════════════════════════════
 function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck }) {
   const cover = getCoverVariant(item, '9:16');
-  const displayThumb = cover.url || item.thumbnail_url;
+  const displayThumb = toMediaUrl(cover.url || item.thumbnail_url);
 
   return (
     <div
@@ -373,7 +378,7 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
             <img src={displayThumb} alt="" className="w-full h-full object-cover" />
           ) : (
             <video
-              src={`/api/media/${item.rel_path || item.path}#t=1.0`}
+              src={`${toMediaUrl(item.rel_path || item.path)}#t=1.0`}
               className="w-full h-full object-cover"
               muted
             />
@@ -412,7 +417,7 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
 
           <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
             <span>{item.size_mb} MB</span>
-            <span>{formatDateTimeCompact(item.modified_time || item.modified)}</span>
+            <span>{formatDateTimeFull(item.modified_time || item.modified)}</span>
           </div>
 
           {item.product_name && (
@@ -432,7 +437,7 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
 // ═══════════════════════════════════════════════════════════════════════
 function ExportMobilePill({ item, isActive, onSelect }) {
   const cover = getCoverVariant(item, '9:16');
-  const displayThumb = cover.url || item.thumbnail_url;
+  const displayThumb = toMediaUrl(cover.url || item.thumbnail_url);
 
   return (
     <button
@@ -448,7 +453,7 @@ function ExportMobilePill({ item, isActive, onSelect }) {
         {displayThumb ? (
           <img src={displayThumb} alt="" className="w-full h-full object-cover" />
         ) : (
-          <video src={`/api/media/${item.rel_path || item.path}#t=1.0`} className="w-full h-full object-cover" muted />
+          <video src={`${toMediaUrl(item.rel_path || item.path)}#t=1.0`} className="w-full h-full object-cover" muted />
         )}
       </div>
 
@@ -502,9 +507,30 @@ function ExportActiveWorkbench({
   const [postBusy, setPostBusy] = useState(false);
   const [autopostBusy, setAutopostBusy] = useState(false);
   const [showTierInputs, setShowTierInputs] = useState(false);
-  const [tierBrand, setTierBrand] = useState('');
-  const [tierModel, setTierModel] = useState('');
-  const [tierLabel, setTierLabel] = useState('');
+  const tierStorage = useMemo(() => channelLocalStorage(), []);
+  const [tierDrafts, setTierDrafts] = useState(() => {
+    try { const saved = JSON.parse(tierStorage.getItem('gallery_cover_labels') || '{}'); return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {}; }
+    catch { return {}; }
+  });
+  const tierDraftsRef = useRef(tierDrafts);
+  const [tierStorageError, setTierStorageError] = useState('');
+  const tierController = useChannelDraft(tierDrafts, {
+    save: value => { tierStorage.setItem('gallery_cover_labels', JSON.stringify(value)); setTierStorageError(''); },
+    reset: value => { tierDraftsRef.current = value; setTierDrafts(value); setTierStorageError(''); },
+  });
+  const tierKey = video?.export_id || video?.rel_path || video?.path || '';
+  const tier = tierDrafts[tierKey] || {};
+  const tierBrand = tier.brand || '';
+  const tierModel = tier.model || '';
+  const tierLabel = tier.label || '';
+  const updateTier = (field, value) => {
+    const previous = tierDraftsRef.current;
+    const next = { ...previous, [tierKey]: { ...previous[tierKey], [field]: value } };
+    tierDraftsRef.current = next;
+    setTierDrafts(next);
+    try { tierStorage.setItem('gallery_cover_labels', JSON.stringify(next)); tierController.markSaved(next); setTierStorageError(''); }
+    catch { setTierStorageError('เก็บข้อความบนปกไม่สำเร็จ กรุณาบันทึกหรือทิ้งการแก้ไขก่อนสลับช่อง'); }
+  };
   const [autopostEnabled] = useState(() => {
     try {
       return localStorage.getItem('omnicut_tiktok_autopost_enabled') === 'true';
@@ -523,9 +549,6 @@ function ExportActiveWorkbench({
     setAtSeconds(1.0);
     setCoverResult(null);
     setShowTierInputs(false);
-    setTierBrand('');
-    setTierModel('');
-    setTierLabel('');
   }, [video?.rel_path || video?.path]);
 
   useEffect(() => {
@@ -581,7 +604,7 @@ function ExportActiveWorkbench({
 
   const handlePrepareAutopostClick = async () => {
     setAutopostBusy(true);
-    await onPrepareAutopost(video, coverResult?.cover_path || null);
+    await onPrepareAutopost(video, coverResult?.cover_3x4_path || coverResult?.cover_path || video.cover_path || null);
     setAutopostBusy(false);
   };
 
@@ -639,7 +662,7 @@ function ExportActiveWorkbench({
           <video
             ref={videoRef}
             key={video.export_id || video.rel_path || video.path}
-            src={`/api/media/${video.rel_path || video.path}`}
+            src={toMediaUrl(video.rel_path || video.path)}
             controls
             playsInline
             preload="metadata"
@@ -880,23 +903,24 @@ function ExportActiveWorkbench({
                 </button>
               </div>
 
+              {tierStorageError && <p role="alert" className="text-xs text-red-300">{tierStorageError}</p>}
               {showTierInputs && (
                 <div className="grid grid-cols-3 gap-1.5">
                   <input
                     value={tierBrand}
-                    onChange={(e) => setTierBrand(e.target.value)}
+                    onChange={(e) => updateTier('brand', e.target.value)}
                     placeholder="แบรนด์"
                     className="min-w-0 px-2 py-1 rounded-lg bg-black/40 border border-white/[0.08] text-[11px] text-white placeholder:text-slate-600 focus:outline-none focus:border-[#25F4EE]/40"
                   />
                   <input
                     value={tierModel}
-                    onChange={(e) => setTierModel(e.target.value)}
+                    onChange={(e) => updateTier('model', e.target.value)}
                     placeholder="รุ่น/หัวข้อ"
                     className="min-w-0 px-2 py-1 rounded-lg bg-black/40 border border-white/[0.08] text-[11px] text-white placeholder:text-slate-600 focus:outline-none focus:border-[#25F4EE]/40"
                   />
                   <input
                     value={tierLabel}
-                    onChange={(e) => setTierLabel(e.target.value)}
+                    onChange={(e) => updateTier('label', e.target.value)}
                     placeholder="ป้ายท้าย"
                     className="min-w-0 px-2 py-1 rounded-lg bg-black/40 border border-white/[0.08] text-[11px] text-white placeholder:text-slate-600 focus:outline-none focus:border-[#25F4EE]/40"
                   />
@@ -906,7 +930,7 @@ function ExportActiveWorkbench({
               <div className="flex gap-3 items-center">
                 <div className="w-14 aspect-[9/16] rounded-lg overflow-hidden bg-black border border-white/[0.1] flex-shrink-0 relative">
                   {currentCoverUrl ? (
-                    <img src={currentCoverUrl} className="w-full h-full object-cover" alt="ตัวอย่างปก" />
+                    <img src={toMediaUrl(currentCoverUrl)} className="w-full h-full object-cover" alt="ตัวอย่างปก" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-600">
                       <ImageIcon className="w-4 h-4" />
@@ -960,7 +984,7 @@ function ExportActiveWorkbench({
                   </span>
                   {currentCoverUrl && (
                     <a
-                      href={currentCoverUrl}
+                      href={toMediaUrl(currentCoverUrl)}
                       download={`cover_${video.name || 'video'}.jpg`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -1006,7 +1030,7 @@ function ExportActiveWorkbench({
           {/* Bottom Action Buttons */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-white/[0.08]">
             <a
-              href={`/api/media/${video.rel_path || video.path}`}
+              href={toMediaUrl(video.rel_path || video.path)}
               download={video.name}
               className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-all text-center"
             >
@@ -1331,12 +1355,20 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
   }, [showToast, onRefresh]);
 
   const handlePrepareAutopost = useCallback(async (video, coverPath) => {
+    if (video.source_review_required && !video.source_review_ready) {
+      showToast('ผลงานนี้ยังไม่ผ่าน Gadget Review กรุณาเปิดโปรเจกต์ Gadget และอนุมัติคลิปนี้ก่อนเตรียมโพสต์', 'error');
+      return;
+    }
+    if (video.cover_selection_error) {
+      showToast('ปกที่เลือกไว้ไม่ผ่านการตรวจสอบ กรุณาเลือกหรือสร้างปกใหม่ในสตูดิโอทำปก แล้วโหลดรายการใหม่ก่อนเตรียมโพสต์', 'error');
+      return;
+    }
     try {
       const caption = video.tiktok_caption || video.caption || video.hook_title || '';
       const hashtags = video.tiktok_hashtags || (video.product_name ? `#${video.product_name.replace(/\s+/g, '')} #รีวิวของดี #พิกัดในตะกร้า` : '#รีวิวของดี #พิกัดในตะกร้า');
       await prepareTiktokAutopost(
         video.rel_path || video.path,
-        coverPath || null,
+        coverPath || video.cover_path || null,
         caption,
         hashtags,
         video.product_id || null,
@@ -1956,8 +1988,8 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                 <div className="w-full max-w-[320px] sm:max-w-[360px] aspect-[9/16] max-h-[60vh] mx-auto rounded-2xl overflow-hidden bg-black border border-white/[0.12] shadow-2xl relative flex items-center justify-center ring-1 ring-white/[0.05]">
                   <video
                     key={selectedDetailVideo.export_id || selectedDetailVideo.rel_path || selectedDetailVideo.path}
-                    src={`/api/media/${selectedDetailVideo.rel_path || selectedDetailVideo.path}`}
-                    poster={getCoverVariant(selectedDetailVideo, '9:16').url || selectedDetailVideo.thumbnail_url || undefined}
+                    src={toMediaUrl(selectedDetailVideo.rel_path || selectedDetailVideo.path)}
+                    poster={toMediaUrl(getCoverVariant(selectedDetailVideo, '9:16').url || selectedDetailVideo.thumbnail_url) || undefined}
                     controls
                     playsInline
                     preload="metadata"
@@ -1974,7 +2006,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-16 rounded-lg overflow-hidden bg-black border border-amber-500/40 flex-shrink-0 relative">
-                          <img src={modalCover.url || selectedDetailVideo.thumbnail_url} alt="ปก 9:16" className="w-full h-full object-cover" />
+                          <img src={toMediaUrl(modalCover.url || selectedDetailVideo.thumbnail_url)} alt="ปก 9:16" className="w-full h-full object-cover" />
                         </div>
                         <div className="min-w-0 space-y-0.5">
                           <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
@@ -1992,7 +2024,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                       </div>
                       {modalCover.url && (
                         <a
-                          href={modalCover.url}
+                          href={toMediaUrl(modalCover.url)}
                           download={`cover_${selectedDetailVideo.name || 'video'}.jpg`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -2316,7 +2348,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   {!selectedDetailVideo.is_posted && (
                     <button
                       type="button"
-                      onClick={() => handlePrepareAutopost(selectedDetailVideo, null)}
+                      onClick={() => handlePrepareAutopost(selectedDetailVideo, selectedDetailVideo.cover_path || null)}
                       className="w-full py-2.5 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all shadow-md"
                     >
                       <Zap className="w-3.5 h-3.5" />
@@ -2346,7 +2378,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                 {/* 5. Modal Footer Action Buttons */}
                 <div className="flex items-center gap-2 pt-2 border-t border-white/[0.08]">
                   <a
-                    href={`/api/media/${selectedDetailVideo.rel_path || selectedDetailVideo.path}`}
+                    href={toMediaUrl(selectedDetailVideo.rel_path || selectedDetailVideo.path)}
                     download={selectedDetailVideo.name}
                     className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-all text-center"
                   >

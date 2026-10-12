@@ -16,31 +16,103 @@ import {
   Send 
 } from 'lucide-react';
 
+const STYLE_COVERS = {
+  meme_pas: {
+    src: '/style_covers/meme_pas.jpg',
+    tag: 'รีวิวสายมีม · ตัวอย่าง 45 วินาที',
+    badge: 'ปัญหา → ทางออก',
+    badgeColor: 'bg-amber-500/25 text-amber-300 border-amber-500/50',
+    title: 'Meme-PAS Viral Frame'
+  },
+  tech_explainer: {
+    src: '/style_covers/tech_explainer.jpg',
+    tag: 'อธิบายสเปก · ตัวอย่าง 40 วินาที',
+    badge: 'เล่าเทคโนโลยีให้เข้าใจง่าย',
+    badgeColor: 'bg-cyan-500/25 text-cyan-300 border-cyan-500/50',
+    title: 'Tech Explainer Frame'
+  },
+  vs_battle: {
+    src: '/style_covers/vs_battle.jpg',
+    tag: 'เปรียบเทียบ · ตัวอย่าง 25 วินาที',
+    badge: 'เทียบสองตัวเลือก',
+    badgeColor: 'bg-rose-500/25 text-rose-300 border-rose-500/50',
+    title: 'VS Battle Arena'
+  },
+  pov_chat: {
+    src: '/style_covers/pov_chat.jpg',
+    tag: 'เล่าผ่านแชท · ตัวอย่าง 28 วินาที',
+    badge: 'รูปแบบแชท',
+    badgeColor: 'bg-emerald-500/25 text-emerald-300 border-emerald-500/50',
+    title: 'POV Chat Story'
+  }
+};
+
 /**
  * StylePosterMockup
- * Renders an ultra-crisp, zero-latency 9:16 vector mockup of the 4 approved viral styles.
- * Designed to give creators instant visual comprehension of the editing aesthetic.
+ * Renders high-impact photorealistic 9:16 poster covers with cinematic overlays
+ * to make creators excited and eager to click create.
  */
 export default function StylePosterMockup({ styleId, onPreviewClick }) {
+  const [imageError, setImageError] = React.useState(false);
+  React.useEffect(() => setImageError(false), [styleId]);
+  const coverMeta = STYLE_COVERS[styleId];
+
   return (
-    <div className="relative w-full aspect-[9/16] rounded-xl overflow-hidden shadow-2xl border border-slate-700/60 bg-slate-950 select-none group transition-all duration-300">
-      {/* ── Render Style-Specific 9:16 Canvas ── */}
-      {styleId === 'vs_battle' && <VsBattlePoster />}
-      {styleId === 'tech_explainer' && <TechExplainerPoster />}
-      {styleId === 'meme_pas' && <MemePasPoster />}
-      {styleId === 'pov_chat' && <PovChatPoster />}
+    <div className="relative w-full aspect-[9/16] rounded-xl overflow-hidden shadow-2xl border border-white/[0.12] bg-[#080B11] select-none group transition-all duration-300">
+      {/* ── High-Impact Real Cover Image ── */}
+      {coverMeta && !imageError ? (
+        <div className="relative w-full h-full overflow-hidden">
+          <img
+            src={coverMeta.src}
+            alt={coverMeta.title}
+            onError={() => setImageError(true)}
+            className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-700 ease-out"
+            loading="lazy"
+          />
+
+          {/* Cinematic Gradient Overlays (Vignette) */}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-slate-950/60 pointer-events-none" />
+
+          {/* Top Style Badge */}
+          <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10">
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border backdrop-blur-md shadow-md ${coverMeta.badgeColor}`}>
+              {coverMeta.badge}
+            </span>
+            <span className="px-1.5 py-0.5 rounded bg-black/60 text-[10px] text-white/90 font-mono backdrop-blur-md border border-white/10">
+              9:16
+            </span>
+          </div>
+
+          {/* Bottom Caption Pill */}
+          <div className="absolute bottom-2.5 left-2.5 right-2.5 z-10 pointer-events-none">
+            <div className="px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-md border border-white/10 text-center shadow-lg">
+              <span className="text-[11px] font-bold text-white tracking-wide block truncate">
+                {coverMeta.tag}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Fallback to Vector HUD if image not available */
+        <>
+          {styleId === 'vs_battle' && <VsBattlePoster />}
+          {styleId === 'tech_explainer' && <TechExplainerPoster />}
+          {styleId === 'meme_pas' && <MemePasPoster />}
+          {styleId === 'pov_chat' && <PovChatPoster />}
+        </>
+      )}
 
       {/* ── Hover Overlay with Preview Button ── */}
-      <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 backdrop-blur-[2px] transition-all duration-200 flex flex-col items-center justify-center p-3 gap-2">
+      <div className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 backdrop-blur-[3px] transition-opacity duration-200 motion-reduce:transition-none flex flex-col items-center justify-center p-3 gap-2.5 z-20">
         <button
           type="button"
           onClick={onPreviewClick}
-          className="px-3.5 py-1.5 rounded-lg bg-white/95 hover:bg-white text-slate-950 text-xs font-semibold shadow-lg transition-transform transform active:scale-95 text-center"
+          className="min-h-11 px-4 py-2 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 text-slate-950 text-xs font-bold shadow-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white text-center cursor-pointer"
         >
-          เปิดดูพรีวิว
+          เปิดดูโครงสร้างสไตล์
         </button>
         <span className="text-[10px] text-slate-300 font-mono tracking-wider uppercase">
-          9:16 Vertical HUD
+          ภาพตัวอย่างสไตล์ · ไม่ใช่ผลเรนเดอร์
         </span>
       </div>
     </div>
@@ -340,9 +412,9 @@ function PovChatPoster() {
         {/* Typing indicator bubble */}
         <div className="flex items-center gap-1 pl-6">
           <div className="px-2 py-1 rounded-full bg-white/90 text-slate-600 text-[8px] flex items-center gap-1 shadow-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" />
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:0.2s]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:0.4s]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse motion-reduce:animate-none" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse motion-reduce:animate-none [animation-delay:0.2s]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse motion-reduce:animate-none [animation-delay:0.4s]" />
           </div>
         </div>
       </div>

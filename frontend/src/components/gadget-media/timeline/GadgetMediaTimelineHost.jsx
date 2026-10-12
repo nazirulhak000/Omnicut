@@ -1,14 +1,20 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Loader2, Save, Scissors, Trash2 } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, Trash2 } from 'lucide-react';
 
 import SequencePlayer from '../../SequencePlayer.jsx';
 import Timeline from '../../editor/Timeline.jsx';
 import { buildSegments, totalDuration as totalDurationOf } from '../../../lib/timelineMath.js';
 import { timelineWithClips } from '../../../lib/gadgetMediaProject.js';
+import { projectWatermark } from '../../../lib/channelIdentity.js';
+import { useGadgetDraft } from '../useGadgetDraft.js';
 
 
-export default function GadgetMediaTimelineHost({ timeline, onSave, saving = false }) {
+export default function GadgetMediaTimelineHost({ timeline, onSave, saving = false, channelId = 'main', channelIdentitySnapshot = null }) {
   const [working, setWorking] = useState(timeline);
+  const draftParticipant = useGadgetDraft(working, { reset: setWorking, save: () => onSave(working) });
+  useEffect(() => {
+    if (draftParticipant.acceptExternal(timeline)) setWorking(timeline);
+  }, [timeline, draftParticipant]);
   const [durations, setDurations] = useState({});
   const [playhead, setPlayhead] = useState(0);
   const [selection, setSelection] = useState(null);
@@ -57,10 +63,13 @@ export default function GadgetMediaTimelineHost({ timeline, onSave, saving = fal
 
   return (
     <div className="space-y-3">
+      {(!channelIdentitySnapshot || projectWatermark(channelIdentitySnapshot, channelId) === null) && <p role="alert" className="text-xs text-amber-200">โปรเจกต์นี้ยังไม่มีตัวตนช่องที่บันทึกไว้ กรุณา Render ใหม่เพื่อบันทึกตัวตนก่อนตรวจ Preview</p>}
       <div className="grid gap-3 xl:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
         <div className="rounded-2xl bg-black/35 p-3 ring-1 ring-white/[0.08]">
           <div className="mx-auto max-w-[285px]">
             <SequencePlayer
+              channelId={channelId}
+              channelIdentitySnapshot={channelIdentitySnapshot}
               ref={playerRef}
               clips={clips}
               cues={working?.cues || []}
@@ -79,12 +88,12 @@ export default function GadgetMediaTimelineHost({ timeline, onSave, saving = fal
         <div className="min-w-0 rounded-2xl bg-[#090D15] p-3 ring-1 ring-white/[0.08]">
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
             <div>
-              <h3 className="text-sm font-black text-white">Scoped Timeline</h3>
-              <p className="mt-0.5 text-[11px] text-slate-500">ใช้ Preview และ timeline math กลาง แต่บันทึกลง GadgetMedia เท่านั้น</p>
+              <h3 className="text-sm font-black text-white">ไทม์ไลน์คลิป</h3>
+              <p className="mt-0.5 text-[11px] text-slate-500">ปรับช็อตและบันทึกการตัดต่อของโปรเจกต์นี้</p>
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={splitSelected} disabled={selection?.type !== 'clip'} className="flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-bold text-slate-200 ring-1 ring-white/[0.1] hover:bg-white/[0.06] disabled:opacity-40"><Scissors className="h-4 w-4" /> แบ่งช็อต</button>
-              <button type="button" onClick={() => onSave(working)} disabled={saving || !clips.length} className="flex h-9 items-center gap-1.5 rounded-xl bg-cyan-300 px-3 text-xs font-black text-[#061116] disabled:opacity-50">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} บันทึก Timeline</button>
+              <button type="button" onClick={splitSelected} disabled={selection?.type !== 'clip'} className="flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-xs font-bold text-slate-200 ring-1 ring-white/[0.1] hover:bg-white/[0.06] disabled:opacity-40">แบ่งช็อต</button>
+              <button type="button" onClick={() => draftParticipant.save()} disabled={saving || !clips.length} className="flex min-h-11 items-center gap-1.5 rounded-xl bg-cyan-300 px-3 text-xs font-black text-[#061116] disabled:opacity-50">{saving && <Loader2 className="h-4 w-4 animate-spin" />} บันทึก Timeline</button>
             </div>
           </div>
           <div ref={viewportRef} className="h-[350px] min-w-0 overflow-hidden rounded-xl bg-[#07090E] ring-1 ring-white/[0.06]">

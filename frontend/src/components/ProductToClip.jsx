@@ -4381,7 +4381,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   const val = e.target.value;
                   setUrl(val);
                   if (!tiktokProductId) {
-                    const m = val.match(/\/(?:product|item)\/(\d{10,})/) || val.match(/[?&](?:item_id|itemId|product_id)=(\d{10,})/);
+                    const m = val.match(/\/(?:product|item|pdp)\/(\d{10,})/) || val.match(/[?&](?:item_id|itemId|product_id)=(\d{10,})/);
                     if (m) {
                       setTiktokProductId(m[1]);
                     } else if (val.includes('tiktok.com')) {

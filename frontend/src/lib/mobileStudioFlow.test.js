@@ -23,7 +23,16 @@ test('filming round trip preserves selected product, angle and session', () => {
   assert.equal(params.get('product'), 'prod space');
   assert.equal(params.get('angle'), 'มุม 1');
   assert.equal(params.get('mode'), 'mobile');
+  assert.equal(params.get('channel'), 'main');
   assert.equal(filmingReturnUrl('?film=1&session=desktop'), null);
+});
+
+test('a filming link opened in another tab retains the originating secondary channel', () => {
+  const outgoing = filmingUrl('session-second', 'product-second', 'angle-second', 'second');
+  const params = new URL(filmingReturnUrl(new URL(outgoing, 'https://local').search), 'https://local').searchParams;
+  assert.equal(params.get('channel'), 'second');
+  assert.equal(params.get('mobile_session'), 'session-second');
+  assert.throws(() => filmingUrl('session', null, null, '../main'), { code: 'channel_scope_invalid' });
 });
 
 test('polling waits for response, stops on terminal reply, and cancels pending schedule', async () => {

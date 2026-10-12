@@ -1,12 +1,38 @@
 # OmniCut Pro Studio Architecture
 
-เอกสารนี้อธิบายโครงสร้างสถาปัตยกรรมที่ใช้งานจริง ณ วันที่ 2026-10-04 (ปรับปรุงล่าสุด) หากสถานะงานหรือผลทดสอบต่างจากเอกสารนี้ ให้ยึด [TODO.md](TODO.md) และโค้ดปัจจุบันเป็นหลัก
+เอกสารนี้อธิบายโครงสร้างสถาปัตยกรรมที่ใช้งานจริง ณ วันที่ 2026-10-11 (ปรับปรุงล่าสุด) หากสถานะงานหรือผลทดสอบต่างจากเอกสารนี้ ให้ยึด [TODO.md](TODO.md) และโค้ดปัจจุบันเป็นหลัก
+
+## Multi-channel ownership และ recovery
+
+ดำเนินการโดย: Codex (GPT-6)
+
+- `channel_store` เป็น registry; `channel_scope`, `channel_route_policy` และ `channel_ownership` ตรวจ request กับเจ้าของ record/path ก่อนอ่านหรือเขียน. Media ที่สร้างในโปรเจกต์/export/cover ส่ง `?channel=` เพราะ native video/img/download ไม่ใช้ Axios header; วัตถุดิบและ assets ที่อนุญาตยังเป็น shared references
+- Frontend `ChannelProvider` ใช้ runtime revision เพื่อ recover invalid link แม้เลือก main ที่เป็น internal default อยู่แล้ว. Workspace remount ตาม channel; captured request tokens, storage adapters และ project revisions ป้องกัน response/cache/autosave ของช่องเดิมเขียนช่องใหม่. Dirty participants รอ save ที่ค้างและบล็อก switch เมื่อ save ล้มเหลว; แบบร่างที่เก็บ local แยกตามช่อง
+- `channel_identity` สร้าง snapshot ของงาน; Global Editor, pipeline, Gadget และ HyperFrames ใช้ snapshot เดียวกัน. การแก้ profile ไม่เปลี่ยนคลิปเก่า; missing secondary snapshot ไม่ fallback เป็นตัวตน main
+- `posting_jobs` เป็น durable protocol: job/lease/account fence, fresh platform confirmation และ idempotent receipt repair. Published receipt ซ่อม PostLog/export ได้โดยไม่ publish ซ้ำ. การแก้ current angle ต้องผ่าน compare-and-set ใน transaction ของ ProductStore; competing export ที่ลำดับกำกวมคง angle เดิมไว้. Companion moves ใช้ exact export basename; receipt ไม่ autoarchive mutable project ที่ไม่มี frozen ownership
+- Migration fingerprint ครอบคลุม nested manifests และทุกตาราง SQLite พร้อม intent; rollback ปฏิเสธเมื่อมีข้อมูลใหม่. Backup ใช้ consistent SQLite backup และตรวจ checksum/path ก่อน restore; restore ลง root ใหม่ที่ว่างนอก active workspace เท่านั้น. ไม่ใช้ in-place restore เป็น workflow UI
+
+สถานะ full gates, AC01–AC17 และ cutover ของบัญชี TikTok อยู่ใน [รายงาน audit](_Docs/Reports/CODEX_GEMINI_MULTI_CHANNEL_AUDIT_20261011.md); metadata binding ไม่แทนการตรวจบัญชีใน browser จริง
 
 ## ภาพรวมระบบ
 
+### HyperFrames integrated workflow
+
+ดำเนินการโดย: Codex (GPT-6) + delegated agents (Codex GPT-6)
+
+`api_hyperframes_workflow` เชื่อม `hyperframes_project` → fenced `hyperframes_authoring` → immutable revisions → `hyperframes_render` → recoverable `hyperframes_finalize` โดยทุกขั้นผูก channel/source revision และ saved source facts. `hyperframes_sources` รองรับ product/Angle, standalone และ actual Gadget project/optional campaign slot โดยไม่สร้าง ProductStore parents ปลอม. Trusted SDK worker ที่ `tools/hyperframes_render_worker.mjs` ติดตั้ง request guard ก่อนรัน composition; runtime dependencies ตรึงด้วย scoped package lock. QC-ready ไม่เท่ากับ export ที่ผู้ใช้ยืนยัน และ scheduling receipt ไม่เท่ากับ actual publication
+
+Finalize เก็บ export ใน Ready_to_post แยกช่อง ลง Registry/canonical manifest/Angle แล้ว Gallery อ่าน frozen publish package ของ export นั้น ส่งต่อ Schedule และ extension เดิม; `publication_observations`/`publication_effects` บันทึกการเผยแพร่จริงแบบ idempotent จาก original receipt. ActivityCenter เป็น read-only projection ของ durable HF jobs. Startup recovery ไม่สร้างตารางตอน import และไม่เริ่มโพสต์เอง
+
+`hyperframes_ai_provider`/`api_hyperframes_ai` ใช้ Gemini configuration เดิม พร้อม explicit start/cancel, lease/heartbeat/fence, limits และ startup recovery ที่ไม่เริ่ม paid request เอง. `hyperframes_overlay`/`api_hyperframes_overlay` สำรอง approved master แบบ immutable แล้วสร้าง raster overlays ที่ล็อกภาพ/เสียง/ความยาวและ hash ผ่าน worker guard; ยังคง manual revision acceptance/QC/Review
+
+`hyperframes_publish_readiness` บังคับ exact export bytes และ Gadget approved artifact ก่อนคิว/prepare. `hyperframes_publication` ทำงานใน durable publication effect phase เดิม บันทึก artifact เดิมและ campaign slot ที่ยังตรง frozen identity เท่านั้น; master ใหม่ไม่รับผลโพสต์ของคลิปเก่า. Gadget repository ใช้ shared RLock ครอบ read-modify-write เพื่อรักษา artifact/publication history
+
+Backup รวม sealed dependencies และ referenced review artifacts พร้อม hash; finalized previews ใช้ canonical export ที่ตรวจ hash. HF7 เพิ่ม source/AI/approved-master overlays แล้ว ดู [คู่มือ](_Docs/HYPERFRAMES_WORKFLOW_GUIDE.md), [แผนหลัก](_Docs/Plans/PLAN_HYPERFRAMES_INTEGRATED_FLOW_20261011.md) และ [แผน HF7](_Docs/Plans/PLAN_HYPERFRAMES_HF7_20261012.md)
+
 ```mermaid
 flowchart LR
-    UI[React/Vite 10-Module UI] --> API[FastAPI 26 modular routers]
+    UI[React/Vite UI] --> API[FastAPI modular routers]
     API --> JOB[Task and render jobs]
     JOB --> PIPE[TikTokAutoCutterPipeline]
     PIPE --> STAGES[Modular pipeline stages]
@@ -19,6 +45,16 @@ flowchart LR
     GADGET --> GMAPI[Product Project API]
     GMAPI --> GMSTORE[03_Projects/GadgetMedia]
     GMAPI --> GMEXPORT[04_Exports/Ready_to_post/GadgetMedia]
+    UI --> HF[HyperFrames scoped source adapters]
+    HF --> AUTHOR[External session or in-app Gemini]
+    GMSTORE --> OVERLAY[Approved master backup + raster overlays]
+    OVERLAY --> REV[Immutable accepted revision]
+    AUTHOR --> REV
+    REV --> HFRENDER[Guarded SDK + QC]
+    HFRENDER --> REGISTRY[Finalize Registry + Gallery]
+    REGISTRY --> REVIEW[Gadget exact artifact Review when required]
+    REVIEW --> SCHEDULE[Existing Schedule + manual extension]
+    SCHEDULE --> OBS[Receipt + verified publication effects]
 ```
 
 ค่ามาตรฐานของไฟล์โพสต์จริงคือ 1080x1920 (9:16), H.264, AAC, 30 FPS และ `+faststart` ส่วน Draft ใช้ 720x1280 เพื่อทดสอบเร็วขึ้น

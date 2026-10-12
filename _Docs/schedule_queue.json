@@ -19,7 +19,8 @@
     "created_at": "2026-09-09T16:51:00+00:00",
     "updated_at": "2026-09-10T01:45:22+00:00",
     "extension_prepared_at": "2026-09-10T08:42:03.903861",
-    "posted_at": "2026-09-10T01:45:22+00:00"
+    "posted_at": "2026-09-10T01:45:22+00:00",
+    "channel_id": "main"
   },
   {
     "id": "bd0d7d12102f4782843f63a27db55727",
@@ -41,7 +42,8 @@
     "created_at": "2026-09-10T10:32:24+00:00",
     "updated_at": "2026-09-10T11:38:09+00:00",
     "extension_prepared_at": "2026-09-10T18:25:12.802211",
-    "posted_at": "2026-09-10T11:38:09+00:00"
+    "posted_at": "2026-09-10T11:38:09+00:00",
+    "channel_id": "main"
   },
   {
     "id": "843a694a43a14ac083e73a002698fdde",
@@ -63,7 +65,8 @@
     "created_at": "2026-09-10T10:32:24+00:00",
     "updated_at": "2026-09-10T11:38:32+00:00",
     "extension_prepared_at": "2026-09-10T18:27:40.409260",
-    "posted_at": "2026-09-10T11:38:32+00:00"
+    "posted_at": "2026-09-10T11:38:32+00:00",
+    "channel_id": "main"
   },
   {
     "id": "96a6be7ec65a4b42baf7b3ce62e13358",
@@ -85,7 +88,8 @@
     "created_at": "2026-09-11T11:30:39+00:00",
     "updated_at": "2026-09-11T11:33:05+00:00",
     "extension_prepared_at": "2026-09-11T18:31:07.050979",
-    "posted_at": "2026-09-11T11:33:05+00:00"
+    "posted_at": "2026-09-11T11:33:05+00:00",
+    "channel_id": "main"
   },
   {
     "id": "94da1920c72240d3af73eb557324b31f",
@@ -107,7 +111,8 @@
     "created_at": "2026-09-11T11:30:39+00:00",
     "updated_at": "2026-09-11T11:35:46+00:00",
     "extension_prepared_at": "2026-09-11T18:33:09.615351",
-    "posted_at": "2026-09-11T11:35:46+00:00"
+    "posted_at": "2026-09-11T11:35:46+00:00",
+    "channel_id": "main"
   },
   {
     "id": "677569c2ab1544c8a732ff632927fbbb",
@@ -129,7 +134,8 @@
     "created_at": "2026-09-11T11:51:23+00:00",
     "updated_at": "2026-09-12T11:37:25+00:00",
     "extension_prepared_at": "2026-09-12T18:34:51.581165",
-    "posted_at": "2026-09-12T11:37:25+00:00"
+    "posted_at": "2026-09-12T11:37:25+00:00",
+    "channel_id": "main"
   },
   {
     "id": "58559e5de89c4c989b6afa54ac488125",
@@ -151,7 +157,8 @@
     "created_at": "2026-09-15T05:54:24+00:00",
     "updated_at": "2026-09-15T05:55:42+00:00",
     "extension_prepared_at": "2026-09-15T12:54:37.247252",
-    "posted_at": "2026-09-15T05:55:42+00:00"
+    "posted_at": "2026-09-15T05:55:42+00:00",
+    "channel_id": "main"
   },
   {
     "id": "52d14b2489f2466abe0a076dc3f70749",
@@ -173,7 +180,8 @@
     "created_at": "2026-09-15T08:56:16+00:00",
     "updated_at": "2026-09-15T08:58:30+00:00",
     "extension_prepared_at": "2026-09-15T15:57:01.634148",
-    "posted_at": "2026-09-15T08:58:30+00:00"
+    "posted_at": "2026-09-15T08:58:30+00:00",
+    "channel_id": "main"
   },
   {
     "id": "7014f28e48354aea8381c423cb8200da",
@@ -195,7 +203,8 @@
     "created_at": "2026-09-15T11:44:54+00:00",
     "updated_at": "2026-09-15T11:47:23+00:00",
     "extension_prepared_at": "2026-09-15T18:45:37.535761",
-    "posted_at": "2026-09-15T11:47:23+00:00"
+    "posted_at": "2026-09-15T11:47:23+00:00",
+    "channel_id": "main"
   },
   {
     "id": "46d2a7563408444686e0fcb79bde4115",
@@ -217,7 +226,8 @@
     "created_at": "2026-09-15T11:45:12+00:00",
     "updated_at": "2026-09-15T11:48:26+00:00",
     "extension_prepared_at": "2026-09-15T18:47:31.124180",
-    "posted_at": "2026-09-15T11:48:26+00:00"
+    "posted_at": "2026-09-15T11:48:26+00:00",
+    "channel_id": "main"
   },
   {
     "id": "b213b2e7cba84188a6680f955f1c9e64",
@@ -239,7 +249,8 @@
     "created_at": "2026-09-15T12:28:57+00:00",
     "updated_at": "2026-09-15T12:32:22+00:00",
     "extension_prepared_at": "2026-09-15T19:29:11.373281",
-    "posted_at": "2026-09-15T12:32:22+00:00"
+    "posted_at": "2026-09-15T12:32:22+00:00",
+    "channel_id": "main"
   },
   {
     "id": "bcbd6d78769e4bf0a9f07300eacf06f1",
@@ -261,7 +272,8 @@
     "created_at": "2026-09-16T02:14:37+00:00",
     "updated_at": "2026-09-16T02:15:32+00:00",
     "extension_prepared_at": "2026-09-16T09:14:44.348605",
-    "posted_at": "2026-09-16T02:15:32+00:00"
+    "posted_at": "2026-09-16T02:15:32+00:00",
+    "channel_id": "main"
   },
   {
     "id": "801855421bda4b3cbd08944f15d12aac",
@@ -283,7 +295,8 @@
     "created_at": "2026-09-16T05:00:32+00:00",
     "updated_at": "2026-09-16T05:05:56+00:00",
     "extension_prepared_at": "2026-09-16T12:00:40.243593",
-    "posted_at": "2026-09-16T05:05:56+00:00"
+    "posted_at": "2026-09-16T05:05:56+00:00",
+    "channel_id": "main"
   },
   {
     "id": "22b28e0dc1f240d9ad589da5d45f759f",
@@ -305,7 +318,8 @@
     "created_at": "2026-09-16T12:28:40+00:00",
     "updated_at": "2026-09-16T12:34:13+00:00",
     "extension_prepared_at": "2026-09-16T19:29:15.377450",
-    "posted_at": "2026-09-16T12:34:13+00:00"
+    "posted_at": "2026-09-16T12:34:13+00:00",
+    "channel_id": "main"
   },
   {
     "id": "9751396b76b546d3b27111a178065dcd",
@@ -327,7 +341,8 @@
     "created_at": "2026-09-16T12:29:03+00:00",
     "updated_at": "2026-09-16T12:36:40+00:00",
     "extension_prepared_at": "2026-09-16T19:34:19.162935",
-    "posted_at": "2026-09-16T12:36:40+00:00"
+    "posted_at": "2026-09-16T12:36:40+00:00",
+    "channel_id": "main"
   },
   {
     "id": "e437086849044ca9bbba541a7cd00a9d",
@@ -349,7 +364,8 @@
     "created_at": "2026-09-17T05:12:07+00:00",
     "updated_at": "2026-09-17T05:12:58+00:00",
     "extension_prepared_at": "2026-09-17T12:12:17.816576",
-    "posted_at": "2026-09-17T05:12:58+00:00"
+    "posted_at": "2026-09-17T05:12:58+00:00",
+    "channel_id": "main"
   },
   {
     "id": "d541564a1f844f1089f27c0ebefa8705",
@@ -373,7 +389,8 @@
     "created_at": "2026-09-17T10:41:22+00:00",
     "updated_at": "2026-09-17T10:43:33+00:00",
     "extension_prepared_at": "2026-09-17T17:41:34.693637",
-    "posted_at": "2026-09-17T10:43:33+00:00"
+    "posted_at": "2026-09-17T10:43:33+00:00",
+    "channel_id": "main"
   },
   {
     "id": "182900122d2f4940b775569de8c08f6a",
@@ -397,7 +414,8 @@
     "created_at": "2026-09-17T11:08:19+00:00",
     "updated_at": "2026-09-17T11:09:23+00:00",
     "extension_prepared_at": "2026-09-17T18:08:29.144276",
-    "posted_at": "2026-09-17T11:09:23+00:00"
+    "posted_at": "2026-09-17T11:09:23+00:00",
+    "channel_id": "main"
   },
   {
     "id": "a96c3ab55e4d4de2b48d1404f122ef34",
@@ -421,7 +439,8 @@
     "created_at": "2026-09-17T18:15:53+00:00",
     "updated_at": "2026-09-17T18:23:38+00:00",
     "extension_prepared_at": "2026-09-18T01:21:55.138967",
-    "posted_at": "2026-09-17T18:23:38+00:00"
+    "posted_at": "2026-09-17T18:23:38+00:00",
+    "channel_id": "main"
   },
   {
     "id": "4fa3f8522b324e80b80f2109d6c5ce05",
@@ -445,7 +464,8 @@
     "created_at": "2026-09-17T18:15:53+00:00",
     "updated_at": "2026-09-17T18:19:44+00:00",
     "extension_prepared_at": "2026-09-18T01:18:15.862113",
-    "posted_at": "2026-09-17T18:19:44+00:00"
+    "posted_at": "2026-09-17T18:19:44+00:00",
+    "channel_id": "main"
   },
   {
     "id": "ca5834c3c30c49acad54b3f79cf0080f",
@@ -469,7 +489,8 @@
     "created_at": "2026-09-17T18:15:53+00:00",
     "updated_at": "2026-09-17T18:18:00+00:00",
     "extension_prepared_at": "2026-09-18T01:16:37.062202",
-    "posted_at": "2026-09-17T18:18:00+00:00"
+    "posted_at": "2026-09-17T18:18:00+00:00",
+    "channel_id": "main"
   },
   {
     "id": "8e04ae6ffd5b403298e9cc104a5478c4",
@@ -493,7 +514,8 @@
     "created_at": "2026-09-17T18:15:53+00:00",
     "updated_at": "2026-09-17T18:26:26+00:00",
     "extension_prepared_at": "2026-09-18T01:24:56.798514",
-    "posted_at": "2026-09-17T18:26:26+00:00"
+    "posted_at": "2026-09-17T18:26:26+00:00",
+    "channel_id": "main"
   },
   {
     "id": "5de2254434094537bc2e5724d443e265",
@@ -517,7 +539,8 @@
     "created_at": "2026-09-17T18:15:53+00:00",
     "updated_at": "2026-09-17T18:21:47+00:00",
     "extension_prepared_at": "2026-09-18T01:19:55.818178",
-    "posted_at": "2026-09-17T18:21:47+00:00"
+    "posted_at": "2026-09-17T18:21:47+00:00",
+    "channel_id": "main"
   },
   {
     "id": "2c28b605ad2846bba35066eeac18186e",
@@ -541,7 +564,8 @@
     "created_at": "2026-09-19T01:09:34+00:00",
     "updated_at": "2026-09-19T01:12:48+00:00",
     "extension_prepared_at": "2026-09-19T08:09:45.112269",
-    "posted_at": "2026-09-19T01:12:48+00:00"
+    "posted_at": "2026-09-19T01:12:48+00:00",
+    "channel_id": "main"
   },
   {
     "id": "fde62c72e5f649a6bbd29f99d33310b4",
@@ -565,7 +589,8 @@
     "created_at": "2026-09-19T09:03:28+00:00",
     "updated_at": "2026-09-19T09:04:36+00:00",
     "extension_prepared_at": "2026-09-19T16:03:36.691697",
-    "posted_at": "2026-09-19T09:04:36+00:00"
+    "posted_at": "2026-09-19T09:04:36+00:00",
+    "channel_id": "main"
   },
   {
     "id": "a68ec08486634f60847143d52f120ea7",
@@ -589,7 +614,8 @@
     "created_at": "2026-09-20T10:51:31+00:00",
     "updated_at": "2026-09-20T10:52:35+00:00",
     "extension_prepared_at": "2026-09-20T17:51:40.040251",
-    "posted_at": "2026-09-20T10:52:35+00:00"
+    "posted_at": "2026-09-20T10:52:35+00:00",
+    "channel_id": "main"
   },
   {
     "id": "3919cdfe98134419a205d35798bca9fc",
@@ -613,7 +639,8 @@
     "created_at": "2026-09-20T10:51:31+00:00",
     "updated_at": "2026-09-20T10:53:35+00:00",
     "extension_prepared_at": "2026-09-20T17:52:45.274624",
-    "posted_at": "2026-09-20T10:53:35+00:00"
+    "posted_at": "2026-09-20T10:53:35+00:00",
+    "channel_id": "main"
   },
   {
     "id": "a62f600202e7470a920a588a698e8584",
@@ -637,7 +664,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:11:46+00:00",
     "extension_prepared_at": "2026-09-20T18:10:27.823246",
-    "posted_at": "2026-09-20T11:11:46+00:00"
+    "posted_at": "2026-09-20T11:11:46+00:00",
+    "channel_id": "main"
   },
   {
     "id": "03be9b11fbaf4f418b7eab448b045f78",
@@ -661,7 +689,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "aca19b259a7442489cc92fcc2f6be0ed",
@@ -685,7 +714,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:36:19+00:00",
     "extension_prepared_at": "2026-09-20T21:34:34.843536",
-    "posted_at": "2026-09-20T14:36:19+00:00"
+    "posted_at": "2026-09-20T14:36:19+00:00",
+    "channel_id": "main"
   },
   {
     "id": "c7a116ebef4a4c83800a4a7db4e47303",
@@ -709,7 +739,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "386fc612caed47309a80680db2518b06",
@@ -733,7 +764,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "eca86c4a7fae4010843fa865b948fadd",
@@ -757,7 +789,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:38:51+00:00",
     "extension_prepared_at": "2026-09-22T11:38:01.810704",
-    "posted_at": "2026-09-22T04:38:51+00:00"
+    "posted_at": "2026-09-22T04:38:51+00:00",
+    "channel_id": "main"
   },
   {
     "id": "3ca7fd31e1544e73ad95521fcea14651",
@@ -781,7 +814,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "e598a504e700439a82ad051ff717591c",
@@ -805,7 +839,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T06:43:37+00:00",
     "extension_prepared_at": "2026-09-22T13:43:03.019840",
-    "posted_at": "2026-09-22T06:43:37+00:00"
+    "posted_at": "2026-09-22T06:43:37+00:00",
+    "channel_id": "main"
   },
   {
     "id": "f88eddf8602a42b988c7ef6d639defe8",
@@ -829,7 +864,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T06:45:37+00:00",
     "extension_prepared_at": "2026-09-22T13:44:28.075368",
-    "posted_at": "2026-09-22T06:45:37+00:00"
+    "posted_at": "2026-09-22T06:45:37+00:00",
+    "channel_id": "main"
   },
   {
     "id": "5dbc6653b2a2429fbdeb71e2d6ae271c",
@@ -853,7 +889,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T06:42:57+00:00",
     "extension_prepared_at": "2026-09-22T13:41:56.927363",
-    "posted_at": "2026-09-22T06:42:57+00:00"
+    "posted_at": "2026-09-22T06:42:57+00:00",
+    "channel_id": "main"
   },
   {
     "id": "a0dedd544f9b4270b620b3a623cef917",
@@ -877,7 +914,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "63dcd20ae43b4439bd940b5fd410bcbb",
@@ -901,7 +939,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "bd4e514bffc34406a5f2827551cb00f8",
@@ -925,7 +964,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "72da7eb9a32b4437ba161ed18ef40a80",
@@ -949,7 +989,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "b87358dedaf0438d9ee62152d8834942",
@@ -973,7 +1014,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:16:20+00:00",
     "extension_prepared_at": "2026-09-20T18:15:33.925311",
-    "posted_at": "2026-09-20T11:16:20+00:00"
+    "posted_at": "2026-09-20T11:16:20+00:00",
+    "channel_id": "main"
   },
   {
     "id": "faaca1ba3f14451b82021eb8341a6fa0",
@@ -997,7 +1039,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "12b76383ebcd49c7be4dcd16f7c277f0",
@@ -1021,7 +1064,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:03:36+00:00",
     "extension_prepared_at": "2026-09-20T18:02:34.289525",
-    "posted_at": "2026-09-20T11:03:36+00:00"
+    "posted_at": "2026-09-20T11:03:36+00:00",
+    "channel_id": "main"
   },
   {
     "id": "09c43190f8414edf9e4fcee056978f9f",
@@ -1045,7 +1089,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:30:15+00:00",
     "extension_prepared_at": "2026-09-20T21:28:32.857016",
-    "posted_at": "2026-09-20T14:30:15+00:00"
+    "posted_at": "2026-09-20T14:30:15+00:00",
+    "channel_id": "main"
   },
   {
     "id": "f016ede307c848d5b1e528908d85fb1d",
@@ -1069,7 +1114,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:22:57+00:00",
     "extension_prepared_at": "2026-09-20T21:21:18.585285",
-    "posted_at": "2026-09-20T14:22:57+00:00"
+    "posted_at": "2026-09-20T14:22:57+00:00",
+    "channel_id": "main"
   },
   {
     "id": "e5d24e58f4b04332bfee0bf0fe225d0d",
@@ -1093,7 +1139,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "035fc187cf3c4d508402a5328cd74ff9",
@@ -1117,7 +1164,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T05:23:34+00:00",
     "extension_prepared_at": "2026-09-22T12:21:52.019434",
-    "posted_at": "2026-09-22T05:23:34+00:00"
+    "posted_at": "2026-09-22T05:23:34+00:00",
+    "channel_id": "main"
   },
   {
     "id": "5c040b2a4c9149f18ad8d45db82fc1a5",
@@ -1141,7 +1189,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:19:46+00:00",
     "extension_prepared_at": "2026-09-20T21:17:07.760357",
-    "posted_at": "2026-09-20T14:19:46+00:00"
+    "posted_at": "2026-09-20T14:19:46+00:00",
+    "channel_id": "main"
   },
   {
     "id": "19a95714cdac4d0ab29147df697c513b",
@@ -1165,7 +1214,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:17:24+00:00",
     "extension_prepared_at": "2026-09-20T18:16:30.132118",
-    "posted_at": "2026-09-20T11:17:24+00:00"
+    "posted_at": "2026-09-20T11:17:24+00:00",
+    "channel_id": "main"
   },
   {
     "id": "ffe4c245ed3f4f71bcbfecbbf064883f",
@@ -1189,7 +1239,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "f26c678b79d64b9b97b83415c6ea0158",
@@ -1213,7 +1264,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T12:21:56+00:00",
     "extension_prepared_at": "2026-09-20T19:20:32.006602",
-    "posted_at": "2026-09-20T12:21:56+00:00"
+    "posted_at": "2026-09-20T12:21:56+00:00",
+    "channel_id": "main"
   },
   {
     "id": "847ce15dfe2148989764b2688b9e6aab",
@@ -1237,7 +1289,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:12:54+00:00",
     "extension_prepared_at": "2026-09-20T18:11:58.292300",
-    "posted_at": "2026-09-20T11:12:54+00:00"
+    "posted_at": "2026-09-20T11:12:54+00:00",
+    "channel_id": "main"
   },
   {
     "id": "0d7ccb8ec9e04e469a6a252fefd835b2",
@@ -1261,7 +1314,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:36:14+00:00",
     "extension_prepared_at": "2026-09-22T11:35:01.123331",
-    "posted_at": "2026-09-22T04:36:14+00:00"
+    "posted_at": "2026-09-22T04:36:14+00:00",
+    "channel_id": "main"
   },
   {
     "id": "446732bf80ad40b4ad6ceaf9f484eccb",
@@ -1285,7 +1339,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T14:06:48+00:00",
     "extension_prepared_at": "2026-09-20T21:01:23.465934",
-    "posted_at": "2026-09-20T14:06:48+00:00"
+    "posted_at": "2026-09-20T14:06:48+00:00",
+    "channel_id": "main"
   },
   {
     "id": "580fde01e85f402a87b7af260e510a16",
@@ -1309,7 +1364,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T10:56:04+00:00",
     "extension_prepared_at": "2026-09-20T17:54:40.122270",
-    "posted_at": "2026-09-20T10:56:04+00:00"
+    "posted_at": "2026-09-20T10:56:04+00:00",
+    "channel_id": "main"
   },
   {
     "id": "4dbf3ec731f9461197a7a1da0d626da4",
@@ -1333,7 +1389,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:42:49+00:00",
     "extension_prepared_at": "2026-09-22T11:41:54.008554",
-    "posted_at": "2026-09-22T04:42:49+00:00"
+    "posted_at": "2026-09-22T04:42:49+00:00",
+    "channel_id": "main"
   },
   {
     "id": "5e5e03cd2cd0402585be8adb53859397",
@@ -1357,7 +1414,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "cc267686344f4210b9d87d82784229ec",
@@ -1381,7 +1439,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:21:27+00:00",
     "extension_prepared_at": "2026-09-20T18:20:39.890691",
-    "posted_at": "2026-09-20T11:21:27+00:00"
+    "posted_at": "2026-09-20T11:21:27+00:00",
+    "channel_id": "main"
   },
   {
     "id": "fd7cafc1ff7f4710b133139d3189c249",
@@ -1405,7 +1464,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "3972a60ce5c045978af265c54badf24e",
@@ -1429,7 +1489,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:55:38+00:00",
     "extension_prepared_at": "2026-09-22T11:54:50.887832",
-    "posted_at": "2026-09-22T04:55:38+00:00"
+    "posted_at": "2026-09-22T04:55:38+00:00",
+    "channel_id": "main"
   },
   {
     "id": "1b3eedad969e4ad38e0d06ca6557a2f8",
@@ -1453,7 +1514,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T10:57:48+00:00",
     "extension_prepared_at": "2026-09-20T17:56:14.280963",
-    "posted_at": "2026-09-20T10:57:48+00:00"
+    "posted_at": "2026-09-20T10:57:48+00:00",
+    "channel_id": "main"
   },
   {
     "id": "e1beb1c30381446b8fb718c55b763f71",
@@ -1477,7 +1539,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T14:10:24+00:00",
     "extension_prepared_at": "2026-09-20T21:08:39.790237",
-    "posted_at": "2026-09-20T14:10:24+00:00"
+    "posted_at": "2026-09-20T14:10:24+00:00",
+    "channel_id": "main"
   },
   {
     "id": "dd162ad0b6f24405b5d2c826f7fcb4c1",
@@ -1501,7 +1564,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "60f46abddc094adb8a321f34e5f3430e",
@@ -1525,7 +1589,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "020d8cfc8a14483e8331da0fa4f10962",
@@ -1549,7 +1614,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "4c007e45d6554d5da254ab9d738af092",
@@ -1573,7 +1639,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:33:11+00:00",
     "extension_prepared_at": "2026-09-22T11:32:31.596673",
-    "posted_at": "2026-09-22T04:33:11+00:00"
+    "posted_at": "2026-09-22T04:33:11+00:00",
+    "channel_id": "main"
   },
   {
     "id": "de381c5a00e744b9999062862e0c482b",
@@ -1597,7 +1664,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:54:31+00:00",
     "extension_prepared_at": "2026-09-22T11:48:47.443068",
-    "posted_at": "2026-09-22T04:54:31+00:00"
+    "posted_at": "2026-09-22T04:54:31+00:00",
+    "channel_id": "main"
   },
   {
     "id": "30975ab0bd7f4e86848353b4e7de8ae1",
@@ -1621,7 +1689,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T06:46:26+00:00",
     "extension_prepared_at": "2026-09-22T13:45:46.475415",
-    "posted_at": "2026-09-22T06:46:26+00:00"
+    "posted_at": "2026-09-22T06:46:26+00:00",
+    "channel_id": "main"
   },
   {
     "id": "c89bd553f32048e6a59de0a63e135d58",
@@ -1645,7 +1714,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:44:41+00:00",
     "extension_prepared_at": "2026-09-22T11:43:58.742281",
-    "posted_at": "2026-09-22T04:44:41+00:00"
+    "posted_at": "2026-09-22T04:44:41+00:00",
+    "channel_id": "main"
   },
   {
     "id": "7a68921ff2d44c4db78f8d9de8833bb2",
@@ -1669,7 +1739,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:32:12+00:00",
     "extension_prepared_at": "2026-09-22T11:31:04.848766",
-    "posted_at": "2026-09-22T04:32:12+00:00"
+    "posted_at": "2026-09-22T04:32:12+00:00",
+    "channel_id": "main"
   },
   {
     "id": "2d9842b26e4e485bb1d06a36e13cd87a",
@@ -1693,7 +1764,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:21:06+00:00",
     "extension_prepared_at": "2026-09-20T21:19:56.736403",
-    "posted_at": "2026-09-20T14:21:06+00:00"
+    "posted_at": "2026-09-20T14:21:06+00:00",
+    "channel_id": "main"
   },
   {
     "id": "26b7c4a1aeee48408071d012ae65ffb5",
@@ -1717,7 +1789,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "6e22a17f2fd94a5e9aac71694f93ed1f",
@@ -1741,7 +1814,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T05:08:36+00:00",
     "extension_prepared_at": "2026-09-22T12:07:48.785254",
-    "posted_at": "2026-09-22T05:08:36+00:00"
+    "posted_at": "2026-09-22T05:08:36+00:00",
+    "channel_id": "main"
   },
   {
     "id": "11490f6601044b389c3b7a80665c223e",
@@ -1765,7 +1839,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "1e6cea59781e432c9fd6abab44a69463",
@@ -1789,7 +1864,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "41ce5b453e6847abacee79be9bf87675",
@@ -1813,7 +1889,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:47:44+00:00",
     "extension_prepared_at": "2026-09-22T11:46:22.515378",
-    "posted_at": "2026-09-22T04:47:44+00:00"
+    "posted_at": "2026-09-22T04:47:44+00:00",
+    "channel_id": "main"
   },
   {
     "id": "900a89cde1c34e84aed026e36a1b063d",
@@ -1837,7 +1914,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T05:02:46+00:00",
     "extension_prepared_at": "2026-09-22T12:02:01.636269",
-    "posted_at": "2026-09-22T05:02:46+00:00"
+    "posted_at": "2026-09-22T05:02:46+00:00",
+    "channel_id": "main"
   },
   {
     "id": "afc8d8053b814240bff72e866d65972f",
@@ -1861,7 +1939,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "3551798b9a85472499886887bf7128eb",
@@ -1885,7 +1964,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:25:05+00:00",
     "extension_prepared_at": "2026-09-20T18:23:44.675117",
-    "posted_at": "2026-09-20T11:25:05+00:00"
+    "posted_at": "2026-09-20T11:25:05+00:00",
+    "channel_id": "main"
   },
   {
     "id": "2d1eddd255ab4625ae693daffe14753a",
@@ -1909,7 +1989,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "cb8ee593933a4277ad0e2e9e688ff9f7",
@@ -1933,7 +2014,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:04:50+00:00",
     "extension_prepared_at": "2026-09-20T18:03:49.322992",
-    "posted_at": "2026-09-20T11:04:50+00:00"
+    "posted_at": "2026-09-20T11:04:50+00:00",
+    "channel_id": "main"
   },
   {
     "id": "b297b631564c46e69e8b4c2d4a70517d",
@@ -1957,7 +2039,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:27:03+00:00",
     "extension_prepared_at": "2026-09-20T21:24:45.703358",
-    "posted_at": "2026-09-20T14:27:03+00:00"
+    "posted_at": "2026-09-20T14:27:03+00:00",
+    "channel_id": "main"
   },
   {
     "id": "f8ca01232de6432a88712a459028fa48",
@@ -1981,7 +2064,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "355303d93f144494bea3f1fb25b1e477",
@@ -2005,7 +2089,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "460aa3cc047d43899fd872c6286f631d",
@@ -2029,7 +2114,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "bc4d09dff8e74b5c8bec463d3d598328",
@@ -2053,7 +2139,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:07:43+00:00",
     "extension_prepared_at": "2026-09-20T18:06:44.401216",
-    "posted_at": "2026-09-20T11:07:43+00:00"
+    "posted_at": "2026-09-20T11:07:43+00:00",
+    "channel_id": "main"
   },
   {
     "id": "1bb86a3e626341b2817b16e4c7adbdac",
@@ -2077,7 +2164,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "3d44a27939614bdd9931c081d25bcd74",
@@ -2101,7 +2189,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:39:25+00:00",
     "extension_prepared_at": "2026-09-20T21:36:56.424272",
-    "posted_at": "2026-09-20T14:39:25+00:00"
+    "posted_at": "2026-09-20T14:39:25+00:00",
+    "channel_id": "main"
   },
   {
     "id": "3100a78831f64fb1b67b638a59ee333a",
@@ -2125,7 +2214,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:29:21+00:00",
     "extension_prepared_at": "2026-09-20T18:26:07.413284",
-    "posted_at": "2026-09-20T11:29:21+00:00"
+    "posted_at": "2026-09-20T11:29:21+00:00",
+    "channel_id": "main"
   },
   {
     "id": "ea98c4eaab694e26bb178f8c2b223a53",
@@ -2149,7 +2239,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "501cc954c09c4682921526c96a76750f",
@@ -2173,7 +2264,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "0fcd44a9a2014e32992d364aab25207b",
@@ -2197,7 +2289,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:20:28+00:00",
     "extension_prepared_at": "2026-09-20T18:17:33.864311",
-    "posted_at": "2026-09-20T11:20:28+00:00"
+    "posted_at": "2026-09-20T11:20:28+00:00",
+    "channel_id": "main"
   },
   {
     "id": "378ce73980ed40318a659d6eecfc2ce0",
@@ -2221,7 +2314,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T12:31:23+00:00",
     "extension_prepared_at": "2026-09-20T19:30:13.622984",
-    "posted_at": "2026-09-20T12:31:23+00:00"
+    "posted_at": "2026-09-20T12:31:23+00:00",
+    "channel_id": "main"
   },
   {
     "id": "cbfc11ce35a346168758fb9e73c776f1",
@@ -2245,7 +2339,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:28:21+00:00",
     "extension_prepared_at": "2026-09-20T21:27:32.454438",
-    "posted_at": "2026-09-20T14:28:21+00:00"
+    "posted_at": "2026-09-20T14:28:21+00:00",
+    "channel_id": "main"
   },
   {
     "id": "acc0cd5414634f878d9bf705d50aaffc",
@@ -2269,7 +2364,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:31:59+00:00",
     "extension_prepared_at": "2026-09-20T21:30:32.537497",
-    "posted_at": "2026-09-20T14:31:59+00:00"
+    "posted_at": "2026-09-20T14:31:59+00:00",
+    "channel_id": "main"
   },
   {
     "id": "b8cd929314334e61b1fd9f903cb5c3b0",
@@ -2293,7 +2389,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T05:24:32+00:00",
     "extension_prepared_at": "2026-09-22T12:23:45.813408",
-    "posted_at": "2026-09-22T05:24:32+00:00"
+    "posted_at": "2026-09-22T05:24:32+00:00",
+    "channel_id": "main"
   },
   {
     "id": "434ba12a1f414447977eec1b78f65358",
@@ -2317,7 +2414,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "50ae195aa58f4fbaa61aa216605c2344",
@@ -2341,7 +2439,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:08:47+00:00",
     "extension_prepared_at": "2026-09-20T18:07:53.068479",
-    "posted_at": "2026-09-20T11:08:47+00:00"
+    "posted_at": "2026-09-20T11:08:47+00:00",
+    "channel_id": "main"
   },
   {
     "id": "24afc1bcef6e4f23baa9eda3e7025806",
@@ -2365,7 +2464,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:39:46+00:00",
     "extension_prepared_at": "2026-09-22T11:38:56.495917",
-    "posted_at": "2026-09-22T04:39:46+00:00"
+    "posted_at": "2026-09-22T04:39:46+00:00",
+    "channel_id": "main"
   },
   {
     "id": "14319cd5a7b04f3c9b9c289b45e2e7c6",
@@ -2389,7 +2489,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T06:44:22+00:00",
     "extension_prepared_at": "2026-09-22T13:43:42.849037",
-    "posted_at": "2026-09-22T06:44:22+00:00"
+    "posted_at": "2026-09-22T06:44:22+00:00",
+    "channel_id": "main"
   },
   {
     "id": "4df97037f9d444f58082abfc7f482527",
@@ -2397,7 +2498,7 @@
     "video_key": "export:exp_d0abb2be8c1643bb9e8eecc25a7049ae",
     "export_id": "exp_d0abb2be8c1643bb9e8eecc25a7049ae",
     "scheduled_at": "2026-10-11T21:30+07:00",
-    "status": "planned",
+    "status": "ready_for_extension",
     "product_id": "c3c8f81d146b46de8047d27a34e00fbf",
     "angle_id": "unboxing",
     "product_name": "Toshino ปลั๊กไฟ  (2300W)",
@@ -2411,9 +2512,11 @@
     "hashtags": "#แกะกล่อง #ของดีบอกต่อ #ปลั๊กไฟมอก #รีวิวของใช้ในบ้าน #ของมันต้องมี",
     "tiktok_product_id": "1729587543658761174",
     "created_at": "2026-09-20T10:54:08+00:00",
-    "updated_at": "2026-09-20T10:54:08+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-10-11T01:40:29.974509",
+    "extension_prepared_at": "2026-10-11T01:40:29.974494",
+    "posted_at": null,
+    "channel_id": "main",
+    "posting_job_id": "b3de26681b169722b48a85eeed9c1acf"
   },
   {
     "id": "eeb2dae390ae4dadb41cc282d91af4e0",
@@ -2437,7 +2540,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:06:28+00:00",
     "extension_prepared_at": "2026-09-20T18:04:57.745054",
-    "posted_at": "2026-09-20T11:06:28+00:00"
+    "posted_at": "2026-09-20T11:06:28+00:00",
+    "channel_id": "main"
   },
   {
     "id": "10f89d61d9ad4d3da3740e129aea80ff",
@@ -2461,7 +2565,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:02:23+00:00",
     "extension_prepared_at": "2026-09-20T18:01:01.368326",
-    "posted_at": "2026-09-20T11:02:23+00:00"
+    "posted_at": "2026-09-20T11:02:23+00:00",
+    "channel_id": "main"
   },
   {
     "id": "d499f5ac5d2c4b26a59629b2447204ef",
@@ -2485,7 +2590,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:34:54+00:00",
     "extension_prepared_at": "2026-09-20T18:33:53.555431",
-    "posted_at": "2026-09-20T11:34:54+00:00"
+    "posted_at": "2026-09-20T11:34:54+00:00",
+    "channel_id": "main"
   },
   {
     "id": "b7202865d2f74815b6023e4f9481e9a6",
@@ -2509,7 +2615,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "7511593c71f046a58ee808eb730fa350",
@@ -2533,7 +2640,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:37:07+00:00",
     "extension_prepared_at": "2026-09-22T11:36:21.483031",
-    "posted_at": "2026-09-22T04:37:07+00:00"
+    "posted_at": "2026-09-22T04:37:07+00:00",
+    "channel_id": "main"
   },
   {
     "id": "2f58404a7a284f4d8972fdb9c8444260",
@@ -2557,7 +2665,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:33:34+00:00",
     "extension_prepared_at": "2026-09-20T21:32:04.803077",
-    "posted_at": "2026-09-20T14:33:34+00:00"
+    "posted_at": "2026-09-20T14:33:34+00:00",
+    "channel_id": "main"
   },
   {
     "id": "c101a8ae0ec84ddeb023364f152bda0c",
@@ -2581,7 +2690,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T13:46:32.208066",
     "extension_prepared_at": "2026-09-22T13:46:32.208050",
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "2561a6bc9be14970b2797fae90e9bd97",
@@ -2605,7 +2715,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T12:20:22+00:00",
     "extension_prepared_at": "2026-09-20T19:17:18.258673",
-    "posted_at": "2026-09-20T12:20:22+00:00"
+    "posted_at": "2026-09-20T12:20:22+00:00",
+    "channel_id": "main"
   },
   {
     "id": "e8785bb461a843f08b2a5483cd825179",
@@ -2629,7 +2740,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "48e407e8c08c4302b85dab3575d5a067",
@@ -2653,7 +2765,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "9823b12be4734502ac70ccf7e0a9fede",
@@ -2677,7 +2790,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:15:20+00:00",
     "extension_prepared_at": "2026-09-20T21:14:22.353417",
-    "posted_at": "2026-09-20T14:15:20+00:00"
+    "posted_at": "2026-09-20T14:15:20+00:00",
+    "channel_id": "main"
   },
   {
     "id": "54dbb67a66fe473faf6b77cfb7eed6e7",
@@ -2701,7 +2815,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:10:07+00:00",
     "extension_prepared_at": "2026-09-20T18:08:55.767028",
-    "posted_at": "2026-09-20T11:10:07+00:00"
+    "posted_at": "2026-09-20T11:10:07+00:00",
+    "channel_id": "main"
   },
   {
     "id": "184af2abbd394126a26019d7d532d859",
@@ -2725,7 +2840,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:24:30+00:00",
     "extension_prepared_at": "2026-09-20T21:23:05.835091",
-    "posted_at": "2026-09-20T14:24:30+00:00"
+    "posted_at": "2026-09-20T14:24:30+00:00",
+    "channel_id": "main"
   },
   {
     "id": "d5f1d01047504206a0cd363ab37907e4",
@@ -2749,7 +2865,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:16:38+00:00",
     "extension_prepared_at": "2026-09-20T21:15:24.293655",
-    "posted_at": "2026-09-20T14:16:38+00:00"
+    "posted_at": "2026-09-20T14:16:38+00:00",
+    "channel_id": "main"
   },
   {
     "id": "7f30294613634bed9887acb6b043d537",
@@ -2773,7 +2890,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T05:01:13+00:00",
     "extension_prepared_at": "2026-09-22T12:00:27.060944",
-    "posted_at": "2026-09-22T05:01:13+00:00"
+    "posted_at": "2026-09-22T05:01:13+00:00",
+    "channel_id": "main"
   },
   {
     "id": "59370985d3f1414ca5efcc053cac245b",
@@ -2797,7 +2915,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:38:27+00:00",
     "extension_prepared_at": "2026-09-20T18:37:25.956363",
-    "posted_at": "2026-09-20T11:38:27+00:00"
+    "posted_at": "2026-09-20T11:38:27+00:00",
+    "channel_id": "main"
   },
   {
     "id": "5140c066131745e5ad79e4547251c3ec",
@@ -2821,7 +2940,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T12:26:34+00:00",
     "extension_prepared_at": "2026-09-20T19:24:21.835045",
-    "posted_at": "2026-09-20T12:26:34+00:00"
+    "posted_at": "2026-09-20T12:26:34+00:00",
+    "channel_id": "main"
   },
   {
     "id": "1fe1136c2c07427596119611b5035346",
@@ -2845,7 +2965,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:43:54+00:00",
     "extension_prepared_at": "2026-09-22T11:42:53.515549",
-    "posted_at": "2026-09-22T04:43:54+00:00"
+    "posted_at": "2026-09-22T04:43:54+00:00",
+    "channel_id": "main"
   },
   {
     "id": "34a3dc82d4d64785b8fe51e31d061f5e",
@@ -2869,7 +2990,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:41:46+00:00",
     "extension_prepared_at": "2026-09-22T11:41:02.458680",
-    "posted_at": "2026-09-22T04:41:46+00:00"
+    "posted_at": "2026-09-22T04:41:46+00:00",
+    "channel_id": "main"
   },
   {
     "id": "ba238381d9554c2ba160f4dcfa0d9b39",
@@ -2893,7 +3015,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:37:57+00:00",
     "extension_prepared_at": "2026-09-22T11:37:12.465053",
-    "posted_at": "2026-09-22T04:37:57+00:00"
+    "posted_at": "2026-09-22T04:37:57+00:00",
+    "channel_id": "main"
   },
   {
     "id": "69a0e38174ab4f06996342b575db1c15",
@@ -2917,7 +3040,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "57e33989c1bf415c90bc73a2a1e93ee7",
@@ -2941,7 +3065,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:31:00+00:00",
     "extension_prepared_at": "2026-09-22T11:30:19.435224",
-    "posted_at": "2026-09-22T04:31:00+00:00"
+    "posted_at": "2026-09-22T04:31:00+00:00",
+    "channel_id": "main"
   },
   {
     "id": "c89b7aed0e9540d9bfb30ac405de26e5",
@@ -2965,7 +3090,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:43:39+00:00",
     "extension_prepared_at": "2026-09-20T18:42:48.002532",
-    "posted_at": "2026-09-20T11:43:39+00:00"
+    "posted_at": "2026-09-20T11:43:39+00:00",
+    "channel_id": "main"
   },
   {
     "id": "f770fc703d32498492082f9bc263048c",
@@ -2989,7 +3115,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T12:29:40+00:00",
     "extension_prepared_at": "2026-09-20T19:27:42.098677",
-    "posted_at": "2026-09-20T12:29:40+00:00"
+    "posted_at": "2026-09-20T12:29:40+00:00",
+    "channel_id": "main"
   },
   {
     "id": "1365cbc2ca9e45d08ac779bc19b2bdff",
@@ -3013,7 +3140,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "64b1390ed66d4f6e939f561fef4788ce",
@@ -3037,7 +3165,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "90baa1b9400b4ba5b5239224769fc128",
@@ -3061,7 +3190,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "d5d736319bdc47ad8fef85ca81babacd",
@@ -3085,7 +3215,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "75697bbff1b644f290a810d0059f5b39",
@@ -3109,7 +3240,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "4414ac4b39174bc7aec268c139460d7f",
@@ -3133,7 +3265,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:13:59+00:00",
     "extension_prepared_at": "2026-09-20T18:13:09.225782",
-    "posted_at": "2026-09-20T11:13:59+00:00"
+    "posted_at": "2026-09-20T11:13:59+00:00",
+    "channel_id": "main"
   },
   {
     "id": "0426fad927704a4dbadb0f9fe52ff653",
@@ -3157,7 +3290,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T12:16:23+00:00",
     "extension_prepared_at": "2026-09-20T19:14:22.056636",
-    "posted_at": "2026-09-20T12:16:23+00:00"
+    "posted_at": "2026-09-20T12:16:23+00:00",
+    "channel_id": "main"
   },
   {
     "id": "32598092554645f5a22766a461d083bf",
@@ -3181,7 +3315,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:32:17+00:00",
     "extension_prepared_at": "2026-09-20T18:31:24.578057",
-    "posted_at": "2026-09-20T11:32:17+00:00"
+    "posted_at": "2026-09-20T11:32:17+00:00",
+    "channel_id": "main"
   },
   {
     "id": "57e4a077d3014cad8a122437452c8899",
@@ -3205,7 +3340,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T06:41:50+00:00",
     "extension_prepared_at": "2026-09-22T13:41:05.006325",
-    "posted_at": "2026-09-22T06:41:50+00:00"
+    "posted_at": "2026-09-22T06:41:50+00:00",
+    "channel_id": "main"
   },
   {
     "id": "b50a030c33dd4203bafcb7c48bc7db0b",
@@ -3229,7 +3365,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "8bbe5acfbf5e413d929c40ad6ae137e9",
@@ -3253,7 +3390,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:00:46+00:00",
     "extension_prepared_at": "2026-09-20T17:59:09.406177",
-    "posted_at": "2026-09-20T11:00:46+00:00"
+    "posted_at": "2026-09-20T11:00:46+00:00",
+    "channel_id": "main"
   },
   {
     "id": "a2c314a6b0f7495ea2fa8a685322f9e6",
@@ -3277,7 +3415,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "084d142d169c4880953c172d0243b786",
@@ -3301,7 +3440,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "1f5bf09c20e94efa9c248b86f53e20cc",
@@ -3325,7 +3465,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T05:01:57+00:00",
     "extension_prepared_at": "2026-09-22T12:01:17.658002",
-    "posted_at": "2026-09-22T05:01:57+00:00"
+    "posted_at": "2026-09-22T05:01:57+00:00",
+    "channel_id": "main"
   },
   {
     "id": "b56439d321134896a70119210bd6a8f4",
@@ -3349,7 +3490,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T14:13:29+00:00",
     "extension_prepared_at": "2026-09-20T21:12:34.139292",
-    "posted_at": "2026-09-20T14:13:29+00:00"
+    "posted_at": "2026-09-20T14:13:29+00:00",
+    "channel_id": "main"
   },
   {
     "id": "e76d95d5d17f43d29b922b2bf855d776",
@@ -3373,7 +3515,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "6a3dc6339b6448caa7f8c521d19ed824",
@@ -3397,7 +3540,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T14:12:23+00:00",
     "extension_prepared_at": "2026-09-20T21:10:52.280396",
-    "posted_at": "2026-09-20T14:12:23+00:00"
+    "posted_at": "2026-09-20T14:12:23+00:00",
+    "channel_id": "main"
   },
   {
     "id": "40a2d4c2cd424723946a5297ffc9beeb",
@@ -3421,7 +3565,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T12:00:18+00:00",
     "extension_prepared_at": "2026-09-20T18:58:34.657064",
-    "posted_at": "2026-09-20T12:00:18+00:00"
+    "posted_at": "2026-09-20T12:00:18+00:00",
+    "channel_id": "main"
   },
   {
     "id": "b02373d8ae56409184601bf3a91ad9ef",
@@ -3445,7 +3590,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:46:19+00:00",
     "extension_prepared_at": "2026-09-22T11:45:39.186962",
-    "posted_at": "2026-09-22T04:46:19+00:00"
+    "posted_at": "2026-09-22T04:46:19+00:00",
+    "channel_id": "main"
   },
   {
     "id": "af998cedbba0497d857ff882fa1336e1",
@@ -3469,7 +3615,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T06:39:08+00:00",
     "extension_prepared_at": "2026-09-22T13:38:08.530964",
-    "posted_at": "2026-09-22T06:39:08+00:00"
+    "posted_at": "2026-09-22T06:39:08+00:00",
+    "channel_id": "main"
   },
   {
     "id": "f316ff0edf7f409d846a30af8252e83c",
@@ -3493,7 +3640,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T06:40:39+00:00",
     "extension_prepared_at": "2026-09-22T13:39:40.178858",
-    "posted_at": "2026-09-22T06:40:39+00:00"
+    "posted_at": "2026-09-22T06:40:39+00:00",
+    "channel_id": "main"
   },
   {
     "id": "e1e2eea816d043ca80f5d0a06fec3774",
@@ -3517,7 +3665,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "c32ab37080b8401abeb6915764a11da0",
@@ -3541,7 +3690,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:48:39+00:00",
     "extension_prepared_at": "2026-09-22T11:47:49.132328",
-    "posted_at": "2026-09-22T04:48:39+00:00"
+    "posted_at": "2026-09-22T04:48:39+00:00",
+    "channel_id": "main"
   },
   {
     "id": "4108b6060ac74823bdcaaf608229e9dc",
@@ -3565,7 +3715,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T10:59:01+00:00",
     "extension_prepared_at": "2026-09-20T17:57:59.411017",
-    "posted_at": "2026-09-20T10:59:01+00:00"
+    "posted_at": "2026-09-20T10:59:01+00:00",
+    "channel_id": "main"
   },
   {
     "id": "83d198f24bdc49fd8c8d508317553c55",
@@ -3589,7 +3740,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:23:31+00:00",
     "extension_prepared_at": "2026-09-20T18:21:36.874708",
-    "posted_at": "2026-09-20T11:23:31+00:00"
+    "posted_at": "2026-09-20T11:23:31+00:00",
+    "channel_id": "main"
   },
   {
     "id": "61ad871475904ccd8e5efe39ab9f3616",
@@ -3613,7 +3765,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:40:56+00:00",
     "extension_prepared_at": "2026-09-22T11:39:51.247447",
-    "posted_at": "2026-09-22T04:40:56+00:00"
+    "posted_at": "2026-09-22T04:40:56+00:00",
+    "channel_id": "main"
   },
   {
     "id": "107b0d055c144830b7272f4d67525b05",
@@ -3637,7 +3790,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-20T10:54:08+00:00",
     "extension_prepared_at": null,
-    "posted_at": null
+    "posted_at": null,
+    "channel_id": "main"
   },
   {
     "id": "c48e601251224685800c3483d1e33f1a",
@@ -3661,7 +3815,8 @@
     "created_at": "2026-09-20T10:54:07+00:00",
     "updated_at": "2026-09-20T11:15:14+00:00",
     "extension_prepared_at": "2026-09-20T18:14:15.868989",
-    "posted_at": "2026-09-20T11:15:14+00:00"
+    "posted_at": "2026-09-20T11:15:14+00:00",
+    "channel_id": "main"
   },
   {
     "id": "33ff4e867d464d718786aba0cc632875",
@@ -3685,7 +3840,8 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T04:45:35+00:00",
     "extension_prepared_at": "2026-09-22T11:44:45.705975",
-    "posted_at": "2026-09-22T04:45:35+00:00"
+    "posted_at": "2026-09-22T04:45:35+00:00",
+    "channel_id": "main"
   },
   {
     "id": "79add2e04dc94828815155ad164c045b",
@@ -3709,6 +3865,7 @@
     "created_at": "2026-09-20T10:54:08+00:00",
     "updated_at": "2026-09-22T05:00:06+00:00",
     "extension_prepared_at": "2026-09-22T11:56:21.268704",
-    "posted_at": "2026-09-22T05:00:06+00:00"
+    "posted_at": "2026-09-22T05:00:06+00:00",
+    "channel_id": "main"
   }
 ]

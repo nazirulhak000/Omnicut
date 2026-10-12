@@ -1,0 +1,17 @@
+{
+  "name": "omnicut-hyperframes-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pinned SDK dependencies for the guarded OmniCut render worker",
+  "dependencies": {
+    "@hyperframes/engine": "0.8.143",
+    "@hyperframes/producer": "0.8.143"
+  },
+  "overrides": {
+    "@hyperframes/core": "0.8.143",
+    "@hyperframes/parsers": "0.8.143",
+    "@hyperframes/lint": "0.8.143",
+    "@hyperframes/studio-server": "0.8.143"
+  }
+}

@@ -1017,22 +1017,68 @@ def test_look_presets_are_actually_distinct_across_angles():
     assert len(patterns) >= 6, f"expected real per-angle variety, got only {len(patterns)} distinct patterns"
 
 
-def test_angle_key_resolves_to_the_right_shot_scales_via_pipeline(tmp_path, monkeypatch):
+@pytest.fixture(autouse=True)
+def offline_subtitle_translation(monkeypatch):
+    # ASS formatting tests do not exercise translation providers. The explicit
+    # retry regression below supplies its own mock after this default fixture.
+    from scripts.translator import SubtitleTranslator
+    monkeypatch.setattr(SubtitleTranslator, "translate_batch", staticmethod(lambda texts: [""] * len(texts)))
+
+
+@pytest.fixture
+def offline_pipeline_media(isolated_storage, monkeypatch):
+    """Keep pipeline behavior under test while replacing media/provider I/O."""
+    import shutil
+    import socket
+    import wave
+    from scripts.pipeline import VideoEditor, BeatSync, MotionAnalyzer, SFXManager, ScriptToneAnalyzer
+    from scripts.voice_engine import VoiceEngine
+    raw = isolated_storage / "01_Raw" / "offline-pipeline.mp4"
+    raw.write_bytes(b"offline raw fixture" * 128)
+
+    def voiceover(**kwargs):
+        with wave.open(kwargs["output_audio_path"], "wb") as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(8000)
+            audio.writeframes(b"\x00\x00" * 8000)
+        text = kwargs["text_or_lines"][0]["text"]
+        return {"duration": 1.0, "cues": [{"id": 1, "line_idx": 0, "start": 0.0, "end": 1.0, "text": text}]}
+
+    def mix(**kwargs):
+        shutil.copyfile(kwargs["voice_audio_path"], kwargs["output_audio_path"])
+        return kwargs["output_audio_path"]
+
+    monkeypatch.setattr(VoiceEngine, "generate_voiceover", staticmethod(voiceover))
+    monkeypatch.setattr(VideoEditor, "get_media_info", staticmethod(lambda *a, **k: {"duration": 10.0, "width": 1080, "height": 1920}))
+    monkeypatch.setattr(BeatSync, "get_beat_times", staticmethod(lambda *a, **k: []))
+    monkeypatch.setattr(BeatSync, "get_rms_energy", staticmethod(lambda *a, **k: ([], [])))
+    monkeypatch.setattr(MotionAnalyzer, "get_motion_scores", staticmethod(lambda *a, **k: ([], [])))
+    monkeypatch.setattr(ScriptToneAnalyzer, "classify_tone_shifts", staticmethod(lambda *a, **k: []))
+    monkeypatch.setattr(SFXManager, "mix_audio_track", staticmethod(mix))
+    connections = []
+    def prohibit_network(*args, **kwargs):
+        connections.append((args, kwargs))
+        raise AssertionError("pipeline smoke tests must remain offline")
+    monkeypatch.setattr(socket.socket, "connect", prohibit_network)
+    monkeypatch.setattr(socket.socket, "connect_ex", prohibit_network)
+    yield raw
+    assert connections == [], "pipeline attempted network I/O despite offline fixtures"
+
+
+def test_angle_key_resolves_to_the_right_shot_scales_via_pipeline(tmp_path, monkeypatch, offline_pipeline_media):
     """End-to-end through pipeline.run(), not just a dict lookup in isolation."""
     from unittest.mock import patch
     from scripts.pipeline import TikTokAutoCutterPipeline
     from scripts.stages import source_resolution
 
-    raw_video = next(Path("01_Raw").rglob("*.mov"), None) or next(Path("01_Raw").rglob("*.mp4"), None)
-    if raw_video is None:
-        pytest.skip("no raw video available in 01_Raw to render against")
+    raw_video = offline_pipeline_media
 
     # Redirect every module that has its own bound PROJECTS_DIR name -- per
     # .agents/rules/testing_standard.md rule 3, this must never touch the
     # real 03_Projects/. source_resolution is what actually mkdir()s the
     # project folder; project_manifest is what reads/writes project.json.
-    target = tmp_path / "03_Projects"
-    target.mkdir()
+    target = raw_video.parent.parent / "03_Projects"
     monkeypatch.setattr(source_resolution, "PROJECTS_DIR", target)
     monkeypatch.setattr(project_manifest, "PROJECTS_DIR", target)
 
@@ -1048,6 +1094,7 @@ def test_angle_key_resolves_to_the_right_shot_scales_via_pipeline(tmp_path, monk
             product_name="test", project_name=project_name,
             raw_video_path=str(raw_video), custom_script="ทดสอบ",
             voice_engine_type="edge_tts", export_mp4=True, use_ai_vision=False,
+            bilingual_subtitles=False,
             angle_meta={"angle_key": "fake_vs_real"},
         )
     assert captured["shot_scales"] == LOOK_PRESETS["fake_vs_real"]
@@ -1203,7 +1250,7 @@ def test_reroll_rejects_an_unknown_part(client):
 def test_reroll_refuses_a_project_that_was_never_rendered(client, projects_dir):
     response = client.post("/api/reroll", json={"project_name": "never-rendered", "part": "hook"})
     assert response.status_code == 404
-    assert "render" in response.json()["detail"]
+    assert "ไม่พบ" in response.json()["detail"]
 
 
 def test_reroll_reports_its_cost_up_front(client, projects_dir):
@@ -1706,7 +1753,8 @@ def test_filmstrip_renders_then_serves_from_cache(client, filmstrip_dir, tmp_pat
     from unittest.mock import patch
     from scripts import api_editor
 
-    source = tmp_path / "clip.mp4"
+    source = tmp_path / "01_Raw" / "clip.mp4"
+    source.parent.mkdir()
     source.write_bytes(b"x" * 2048)
     monkeypatch.setattr(api_editor, "BASE_DIR", tmp_path)
     monkeypatch.setattr(api_editor.VideoEditor, "get_media_info",
@@ -1721,7 +1769,7 @@ def test_filmstrip_renders_then_serves_from_cache(client, filmstrip_dir, tmp_pat
         return MagicMock(returncode=0, stderr="")
 
     with patch("scripts.api_editor.subprocess.run", side_effect=fake_run):
-        first = client.get("/api/editor/filmstrip", params={"path": "clip.mp4", "count": 4})
+        first = client.get("/api/editor/filmstrip", params={"path": "01_Raw/clip.mp4", "count": 4})
         assert first.status_code == 200
         assert first.headers["content-type"] == "image/jpeg"
         # 4 input-seek grabs + 1 hstack -- not one whole-file decode
@@ -1729,7 +1777,7 @@ def test_filmstrip_renders_then_serves_from_cache(client, filmstrip_dir, tmp_pat
         assert any("-ss" in c for c in calls[:4])
 
         calls.clear()
-        second = client.get("/api/editor/filmstrip", params={"path": "clip.mp4", "count": 4})
+        second = client.get("/api/editor/filmstrip", params={"path": "01_Raw/clip.mp4", "count": 4})
         assert second.status_code == 200
         assert calls == [], "second request must hit the cached sprite, not ffmpeg"
 
@@ -1738,7 +1786,8 @@ def test_filmstrip_clamps_absurd_frame_counts(client, filmstrip_dir, tmp_path, m
     from unittest.mock import patch
     from scripts import api_editor
 
-    source = tmp_path / "clip.mp4"
+    source = tmp_path / "01_Raw" / "clip.mp4"
+    source.parent.mkdir()
     source.write_bytes(b"x" * 2048)
     monkeypatch.setattr(api_editor, "BASE_DIR", tmp_path)
     monkeypatch.setattr(api_editor.VideoEditor, "get_media_info",
@@ -1754,7 +1803,7 @@ def test_filmstrip_clamps_absurd_frame_counts(client, filmstrip_dir, tmp_path, m
         return MagicMock(returncode=0, stderr="")
 
     with patch("scripts.api_editor.subprocess.run", side_effect=fake_run):
-        assert client.get("/api/editor/filmstrip", params={"path": "clip.mp4", "count": 9999}).status_code == 200
+        assert client.get("/api/editor/filmstrip", params={"path": "01_Raw/clip.mp4", "count": 9999}).status_code == 200
     assert len(grabs) == api_editor.MAX_FRAMES, "must cap frames, not spawn 9999 ffmpeg calls"
 
 
@@ -1966,10 +2015,11 @@ def _pipeline_run_kwargs(raw_video, project_name):
         product_name="test", project_name=project_name,
         raw_video_path=str(raw_video), custom_script="ทดสอบเสียง",
         voice_engine_type="edge_tts", use_ai_vision=False,
+        bilingual_subtitles=False,
     )
 
 
-def test_one_click_does_not_bake_the_audio_mix(tmp_path, monkeypatch):
+def test_one_click_does_not_bake_the_audio_mix(tmp_path, monkeypatch, offline_pipeline_media):
     """
     The mix exists for the ffmpeg render alone -- the editor previews the
     stems. Baking it during a 1-Click that stops at the timeline only froze
@@ -1980,15 +2030,12 @@ def test_one_click_does_not_bake_the_audio_mix(tmp_path, monkeypatch):
     from scripts.pipeline import TikTokAutoCutterPipeline
     from scripts.stages import source_resolution
 
-    raw_video = next(Path("01_Raw").rglob("*.mov"), None) or next(Path("01_Raw").rglob("*.mp4"), None)
-    if raw_video is None:
-        pytest.skip("no raw video available in 01_Raw")
+    raw_video = offline_pipeline_media
 
     # Per .agents/rules/testing_standard.md rule 3 -- never the real
     # 03_Projects/. source_resolution mkdir()s the project folder;
     # project_manifest reads/writes project.json.
-    target = tmp_path / "03_Projects"
-    target.mkdir()
+    target = raw_video.parent.parent / "03_Projects"
     monkeypatch.setattr(source_resolution, "PROJECTS_DIR", target)
     monkeypatch.setattr(project_manifest, "PROJECTS_DIR", target)
 
@@ -2005,7 +2052,7 @@ def test_one_click_does_not_bake_the_audio_mix(tmp_path, monkeypatch):
     assert (manifest.get("artifacts") or {}).get("voice_audio"), "the voice stem is still needed"
 
 
-def test_render_mixes_on_demand_when_no_mix_exists_yet(tmp_path, monkeypatch):
+def test_render_mixes_on_demand_when_no_mix_exists_yet(tmp_path, monkeypatch, offline_pipeline_media):
     """
     The editor's Render button resumes from "subtitles", which reports the mix
     stage as already done. After a 1-Click that skipped mixing there is no file
@@ -2015,15 +2062,12 @@ def test_render_mixes_on_demand_when_no_mix_exists_yet(tmp_path, monkeypatch):
     from scripts.pipeline import TikTokAutoCutterPipeline
     from scripts.stages import source_resolution
 
-    raw_video = next(Path("01_Raw").rglob("*.mov"), None) or next(Path("01_Raw").rglob("*.mp4"), None)
-    if raw_video is None:
-        pytest.skip("no raw video available in 01_Raw")
+    raw_video = offline_pipeline_media
 
     # Per .agents/rules/testing_standard.md rule 3 -- never the real
     # 03_Projects/. source_resolution mkdir()s the project folder;
     # project_manifest reads/writes project.json.
-    target = tmp_path / "03_Projects"
-    target.mkdir()
+    target = raw_video.parent.parent / "03_Projects"
     monkeypatch.setattr(source_resolution, "PROJECTS_DIR", target)
     monkeypatch.setattr(project_manifest, "PROJECTS_DIR", target)
 

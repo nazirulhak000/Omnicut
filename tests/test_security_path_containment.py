@@ -241,8 +241,8 @@ def test_stream_media_rebases_foreign_machine_absolute_path(tmp_path, monkeypatc
     # Foreign path from laptop e.g. D:\Winona\Programmer\Capcut\01_Raw\sample_folder\clip.mp4
     foreign_path = r"D:\Winona\Programmer\Capcut\01_Raw\sample_folder\clip.mp4"
 
-    from types import SimpleNamespace
-    req = SimpleNamespace(headers={})
+    from starlette.requests import Request
+    req = Request({"type": "http", "headers": [], "query_string": b""})
 
     # Call stream_media directly
     response = api_videos_mod.stream_media(foreign_path, request=req)

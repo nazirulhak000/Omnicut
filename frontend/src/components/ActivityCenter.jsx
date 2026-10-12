@@ -1,3 +1,4 @@
+import { channelLocalStorage } from '../lib/channelStorage.js';
 import React, { useMemo, useState } from 'react';
 import {
   Zap, CheckCircle2, AlertCircle, Clock, X, Trash2, ArrowRight,
@@ -68,6 +69,10 @@ function getStatusBadge(status) {
           ยกเลิกแล้ว
         </span>
       );
+    case 'awaiting_review':
+    case 'interrupted':
+    case 'recovery_required':
+      return <span className="inline-flex rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-200">{status === 'awaiting_review' ? 'รอตรวจคลิป' : status === 'interrupted' ? 'งานหยุด รอทำต่อ' : 'รอตรวจการส่งออก'}</span>;
     default:
       return null;
   }
@@ -88,7 +93,7 @@ export function ActivityIndicatorButton({ className = '' }) {
 
   if (activeCount > 0) {
     const primaryTask = activeTasks[0];
-    const pct = Math.round((primaryTask?.progress || 0) * 100);
+    const pct = primaryTask?.read_only_projection && primaryTask.progress == null ? null : Math.round((primaryTask?.progress || 0) * 100);
 
     return (
       <button
@@ -97,7 +102,7 @@ export function ActivityIndicatorButton({ className = '' }) {
         aria-haspopup="dialog"
         aria-expanded={isActivityDrawerOpen}
         aria-controls="activity-drawer"
-        aria-label={`${activeCount} งานกำลังประมวลผล ${pct}% เปิดศูนย์ติดตามกิจกรรม${isStale ? ' ข้อมูลอาจไม่ใช่ข้อมูลล่าสุด' : ''}`}
+        aria-label={`${activeCount} งานกำลังประมวลผล ${pct == null ? '' : `${pct}%`} เปิดศูนย์ติดตามกิจกรรม${isStale ? ' ข้อมูลอาจไม่ใช่ข้อมูลล่าสุด' : ''}`}
         className={`px-2.5 sm:px-3 py-1 rounded-xl bg-gradient-to-r from-[#25F4EE]/15 to-[#FE2C55]/15 hover:from-[#25F4EE]/25 hover:to-[#FE2C55]/25 border border-[#25F4EE]/40 text-[#25F4EE] shadow-lg shadow-[#25F4EE]/10 flex items-center gap-2 cursor-pointer transition-all active:scale-95 group ${className}`}
         title="คลิกเพื่อเปิดศูนย์ติดตามกิจกรรม (Activity Center)"
       >
@@ -107,7 +112,7 @@ export function ActivityIndicatorButton({ className = '' }) {
         </div>
         <div className="flex items-center gap-1.5 text-xs font-bold font-mono">
           <span className="text-white">{activeCount} งาน</span>
-          <span className="text-[#25F4EE]">({pct}%)</span>
+          {pct != null && <span className="text-[#25F4EE]">({pct}%)</span>}
           {isStale && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="ข้อมูลกิจกรรมอาจไม่ใช่ข้อมูลล่าสุด" />}
         </div>
       </button>
@@ -454,11 +459,11 @@ export function ActivityDrawer() {
                         {task.step_label || 'กำลังทำงาน...'}
                       </span>
                       <span className="font-mono text-xs font-bold text-white flex-shrink-0 ml-2">
-                        {pct}%
+                        {task.read_only_projection && task.progress == null ? 'ดูขั้นตอนปัจจุบัน' : `${pct}%`}
                       </span>
                     </div>
 
-                    <div className="h-2 w-full bg-black/60 rounded-full overflow-hidden border border-white/[0.06]">
+                    <div hidden={task.read_only_projection && task.progress == null} className="h-2 w-full bg-black/60 rounded-full overflow-hidden border border-white/[0.06]">
                       <div
                         className={`h-full rounded-full transition-all duration-300 relative overflow-hidden ${
                           isRunning
@@ -487,7 +492,8 @@ export function ActivityDrawer() {
                   <div className="flex items-center justify-between pt-1 border-t border-white/[0.04]">
                     <span className="text-[10px] font-mono text-slate-500">ID: {task.id.slice(-8)}</span>
                     <div className="flex items-center gap-1.5">
-                      {isRunning && (
+                      {task.read_only_projection && <button type="button" onClick={() => jumpToTaskResult(task, 'creative')} className="min-h-11 rounded-lg border border-white/15 px-3 text-xs text-slate-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-cyan-300">เปิดงาน HyperFrames</button>}
+                      {isRunning && !task.read_only_projection && (
                         <button
                           type="button"
                           onClick={() => cancelTask(task.id)}
@@ -497,7 +503,7 @@ export function ActivityDrawer() {
                         </button>
                       )}
 
-                      {isDone && (() => {
+                      {isDone && !task.read_only_projection && (() => {
                         const hasVideo = Boolean(
                           task.result?.mp4 ||
                           task.result?.mp4_video ||
@@ -692,7 +698,7 @@ export function ActivityDrawer() {
                         );
                       })()}
 
-                      {!isRunning && (
+                      {!isRunning && !task.read_only_projection && (
                         <button
                           type="button"
                           onClick={() => deleteTask(task.id)}
@@ -963,6 +969,8 @@ export function GlobalTaskNotification() {
 }
 
 export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavigateToGallery }) {
+  const [workspaceStorage] = useState(channelLocalStorage);
+
   const { activeTasks } = useTaskManager();
   const [liveStatus, setLiveStatus] = useState(null);
   const timerRef = React.useRef(null);
@@ -989,7 +997,7 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
     // Watch localStorage for active render job
     function checkStorage() {
       try {
-        const raw = localStorage.getItem(ACTIVE_RENDER_STORAGE_KEY);
+        const raw = workspaceStorage.getItem(ACTIVE_RENDER_STORAGE_KEY);
         if (!raw) { clearInterval(timerRef.current); setLiveStatus(null); return; }
         const { jobId } = JSON.parse(raw);
         if (jobId) startPolling(jobId);

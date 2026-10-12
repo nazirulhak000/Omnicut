@@ -24,8 +24,16 @@ from scripts.recording_sessions import RecordingSessionStore
 from scripts.shot_list_builder import generate_shot_list_for_angle
 from scripts.task_manager import TaskManager, TaskStatus
 from scripts.pipeline import TikTokAutoCutterPipeline
+from scripts.video_editor import VideoEditor
+from scripts.pipeline_context import channel_project_name
+from copy import deepcopy
 from scripts.it_angles import DEFAULT_BGM
+from scripts.channel_store import ChannelError
 
+
+
+def _channel_kwargs(channel_id):
+    return {"channel_id": channel_id} if channel_id is not None else {}
 
 def _angle_id(angle, index=0):
     return angle.get("angle_id") or angle.get("id") or f"angle_{index + 1}"
@@ -43,7 +51,7 @@ def _attached_raw(angle):
     return (videos[0] if videos else None) or angle.get("selected_video") or angle.get("video_file") or angle.get("raw_video")
 
 
-def _find_or_create_angle(product: Dict[str, Any], angle_id: str, title: Optional[str] = None, script: Optional[str] = None) -> Dict[str, Any]:
+def _find_or_create_angle(product: Dict[str, Any], angle_id: str, title: Optional[str] = None, script: Optional[str] = None, channel_id=None) -> Dict[str, Any]:
     angles = product.get("angles") or []
     found = next((a for i, a in enumerate(angles) if _angle_id(a, i) == angle_id), None)
     if found:
@@ -71,20 +79,20 @@ def _find_or_create_angle(product: Dict[str, Any], angle_id: str, title: Optiona
         "status": "scripted",
         "selected_videos": [],
     }
-    ProductStore.add_single_angle(p_id, new_angle, batch_index=1)
-    updated = ProductStore.get(p_id)
+    ProductStore.add_single_angle(p_id, new_angle, batch_index=1, **_channel_kwargs(channel_id))
+    updated = ProductStore.get(p_id, **_channel_kwargs(channel_id))
     if updated and updated.get("angles"):
         product["angles"] = updated.get("angles") or []
         return updated["angles"][-1]
     return new_angle
 
 
-def _find_angle(product, angle_id):
+def _find_angle(product, angle_id, channel_id=None):
     angles = product.get("angles") or []
     angle = next((a for i, a in enumerate(angles) if _angle_id(a, i) == angle_id), None)
     if not angle:
         if angle_id == "quick_take" or not angles:
-            return _find_or_create_angle(product, angle_id)
+            return _find_or_create_angle(product, angle_id, **_channel_kwargs(channel_id))
         raise ValueError(f"ไม่พบมุมนำเสนอ ID: {angle_id}")
     return angle
 
@@ -126,11 +134,11 @@ def _find_duplicate_raw(prod_raw_dir: Path, size: int, digest: str) -> Optional[
     return None
 
 
-def _sessions():
-    return sorted(recording_sessions._TABLE.load(), key=lambda r: r.get("updated_at") or r.get("created_at") or "", reverse=True)
+def _sessions(channel_id=None):
+    return sorted(recording_sessions._load(channel_id), key=lambda r: r.get("updated_at") or r.get("created_at") or "", reverse=True)
 
 
-def _media_url(path_str: Optional[str]) -> Optional[str]:
+def _media_url(path_str: Optional[str], channel_id=None) -> Optional[str]:
     """Helper to safely format store relative path into browser /api/media/ URL."""
     if not path_str:
         return None
@@ -142,18 +150,18 @@ def _media_url(path_str: Optional[str]) -> Optional[str]:
     elif s.startswith("api/media/"):
         s = s[len("api/media/"):]
     s = s.lstrip("/")
-    return "/api/media/" + quote(s, safe="/")
+    return "/api/media/" + quote(s, safe="/") + ("?channel=" + quote(channel_id, safe="") if channel_id is not None else "")
 
 
 class MobileQuickStudioService:
     """Service layer backing the Mobile Quick Studio API endpoints."""
 
     @classmethod
-    def get_catalog(cls) -> List[Dict[str, Any]]:
+    def get_catalog(cls, channel_id=None) -> List[Dict[str, Any]]:
         """Returns catalog of products formatted for mobile cards."""
-        products = ProductStore.get_all()
+        products = ProductStore.get_all(**_channel_kwargs(channel_id))
         catalog = []
-        sessions = _sessions()
+        sessions = _sessions(channel_id)
 
         for p in products:
             p_id = p.get("id") or ""
@@ -178,7 +186,7 @@ class MobileQuickStudioService:
                 hook_sub = angle.get("hook_sub") or hook.get("sub") or ""
 
                 # Check if shot list exists
-                shot_list_record = ShotListsStore.get(p_id, a_id)
+                shot_list_record = ShotListsStore.get(p_id, a_id, **_channel_kwargs(channel_id))
                 shot_count = len(shot_list_record.get("shot_list", [])) if shot_list_record else 0
 
                 # Check active or completed recording session
@@ -224,16 +232,16 @@ class MobileQuickStudioService:
                     "has_session": session is not None,
                     "session_id": session.get("id") if session else None,
                     "session_status": session.get("status") if session else None,
-                    "rendered_video_url": _media_url(angle.get("video_url")),
+                    "rendered_video_url": _media_url(angle.get("video_url"), channel_id),
                     "export_id": angle.get("export_id"),
                     "project_name": angle.get("project_name"),
                     "posted_at": angle.get("posted_at"),
                     "cover_path": angle.get("cover_path"),
-                    "cover_url": _media_url(cov_primary),
+                    "cover_url": _media_url(cov_primary, channel_id),
                     "cover_3x4_path": cov_3x4,
-                    "cover_3x4_url": _media_url(cov_3x4),
+                    "cover_3x4_url": _media_url(cov_3x4, channel_id),
                     "cover_9x16_path": cov_9x16,
-                    "cover_9x16_url": _media_url(cov_9x16),
+                    "cover_9x16_url": _media_url(cov_9x16, channel_id),
                     "qc_reviewed": angle.get("qc_reviewed"),
                     "qc_note": angle.get("qc_note"),
                 })
@@ -275,16 +283,19 @@ class MobileQuickStudioService:
         cls,
         product_id: str,
         title: Optional[str] = None,
-        script: Optional[str] = None
-    ) -> Dict[str, Any]:
+        script: Optional[str] = None, channel_id=None) -> Dict[str, Any]:
         """Creates a custom angle or fast template angle directly from mobile touch UI."""
-        product = ProductStore.get(product_id)
+        product = ProductStore.get(product_id, **_channel_kwargs(channel_id))
+        if not product and channel_id is not None:
+            from scripts import product_store
+            if any(row.get("id") == product_id for row in product_store._TABLE.load()):
+                raise ChannelError(404, "resource_not_found", "Product not found")
         if not product:
             raise ValueError(f"ไม่พบสินค้า ID: {product_id}")
-        angle = _find_or_create_angle(product, "quick_take", title=title, script=script)
+        angle = _find_or_create_angle(product, "quick_take", title=title, script=script, **_channel_kwargs(channel_id))
         resolved_id = _angle_id(angle)
         try:
-            generate_shot_list_for_angle(product_id, resolved_id)
+            generate_shot_list_for_angle(product_id, resolved_id, **_channel_kwargs(channel_id))
         except Exception as shot_err:
             print(f"⚠️ [create_quick_angle] shot list warning: {shot_err}")
         return angle
@@ -295,16 +306,19 @@ class MobileQuickStudioService:
         product_id: str,
         angle_id: str,
         file_bytes: bytes,
-        filename: str,
-    ) -> Dict[str, Any]:
+        filename: str, channel_id=None) -> Dict[str, Any]:
         """Uploads and attaches raw mobile video footage (MP4/MOV) directly to product and angle."""
-        product = ProductStore.get(product_id)
+        product = ProductStore.get(product_id, **_channel_kwargs(channel_id))
+        if not product and channel_id is not None:
+            from scripts import product_store
+            if any(row.get("id") == product_id for row in product_store._TABLE.load()):
+                raise ChannelError(404, "resource_not_found", "Product not found")
         if not product:
             raise ValueError(f"ไม่พบสินค้า ID: {product_id}")
         if not file_bytes:
             raise ValueError("ไฟล์วิดีโอว่างเปล่า ไม่สามารถอัปโหลดได้")
 
-        angle = _find_angle(product, angle_id)
+        angle = _find_angle(product, angle_id, **_channel_kwargs(channel_id))
         resolved_angle_id = _angle_id(angle)
 
         ext = Path(filename).suffix.lower()
@@ -345,8 +359,8 @@ class MobileQuickStudioService:
 
         # add_video_to_product dedupes by path/rel_path internally, so a
         # deduplicated take re-attaches without creating a second entry.
-        ProductStore.add_video_to_product(product_id, file_info)
-        ProductStore.update_angle_videos(product_id, resolved_angle_id, [rel_path])
+        ProductStore.add_video_to_product(product_id, file_info, **_channel_kwargs(channel_id))
+        ProductStore.update_angle_videos(product_id, resolved_angle_id, [rel_path], **_channel_kwargs(channel_id))
 
         return {
             "success": True,
@@ -358,7 +372,7 @@ class MobileQuickStudioService:
         }
 
     @classmethod
-    def quick_add_product(cls, name_or_url: str) -> Dict[str, Any]:
+    def quick_add_product(cls, name_or_url: str, channel_id=None) -> Dict[str, Any]:
         """Creates a new product directly from mobile by name or TikTok link."""
         name_or_url = (name_or_url or "").strip()
         if not name_or_url:
@@ -371,7 +385,7 @@ class MobileQuickStudioService:
         tiktok_pid = None
 
         if is_url:
-            all_prods = ProductStore.list()
+            all_prods = ProductStore.list(**_channel_kwargs(channel_id))
             existing = next((p for p in all_prods if p.get("url") == name_or_url), None)
             if existing:
                 return existing
@@ -401,7 +415,7 @@ class MobileQuickStudioService:
             angles=[],
             url=name_or_url if is_url else "",
             tiktok_product_id=tiktok_pid or "",
-        )
+         **_channel_kwargs(channel_id))
         p_id = created_product["id"]
 
         cls.create_quick_angle(
@@ -413,22 +427,26 @@ class MobileQuickStudioService:
                 f"ใครที่กำลังมองหาของดีมีคุณภาพ แนะนำตัวนี้เลยครับ\n"
                 f"พิกัดราคาโปรโมชั่น ในตะกร้าสีเหลือง ซ้ายล่างตอนนี้ กดสั่งได้เลยครับ"
             )
-        )
-        return ProductStore.get(p_id)
+        , **_channel_kwargs(channel_id))
+        return ProductStore.get(p_id, **_channel_kwargs(channel_id))
 
     @classmethod
-    def get_or_create_session(cls, product_id: str, angle_id: str) -> Dict[str, Any]:
+    def get_or_create_session(cls, product_id: str, angle_id: str, channel_id=None) -> Dict[str, Any]:
         """Gets existing recording session or creates a new one for guided filming."""
-        product = ProductStore.get(product_id)
+        product = ProductStore.get(product_id, **_channel_kwargs(channel_id))
+        if not product and channel_id is not None:
+            from scripts import product_store
+            if any(row.get("id") == product_id for row in product_store._TABLE.load()):
+                raise ChannelError(404, "resource_not_found", "Product not found")
         if not product:
             raise ValueError(f"ไม่พบสินค้า ID: {product_id}")
 
-        angle = _find_angle(product, angle_id)
+        angle = _find_angle(product, angle_id, **_channel_kwargs(channel_id))
         resolved_angle_id = _angle_id(angle)
-        shot_list_record = ShotListsStore.get(product_id, resolved_angle_id)
+        shot_list_record = ShotListsStore.get(product_id, resolved_angle_id, **_channel_kwargs(channel_id))
         if not shot_list_record or not shot_list_record.get("shot_list"):
             try:
-                generate_shot_list_for_angle(product_id, resolved_angle_id)
+                generate_shot_list_for_angle(product_id, resolved_angle_id, **_channel_kwargs(channel_id))
             except Exception as sl_err:
                 print(f"⚠️ [get_or_create_session] shot list warning: {sl_err}")
                 ShotListsStore.upsert({
@@ -440,9 +458,9 @@ class MobileQuickStudioService:
                         {"beat_index": 1, "role": "feature", "start": 3, "end": 15, "planned_duration": 12, "text": "รีวิวฟังก์ชัน"},
                         {"beat_index": 2, "role": "cta", "start": 15, "end": 20, "planned_duration": 5, "text": "สั่งซื้อในตะกร้า"},
                     ]
-                }, batch=1)
+                }, batch=1, **_channel_kwargs(channel_id))
 
-        session = RecordingSessionStore.create(product_id, resolved_angle_id)
+        session = RecordingSessionStore.create(product_id, resolved_angle_id, **_channel_kwargs(channel_id))
         return session
 
     @classmethod
@@ -452,8 +470,7 @@ class MobileQuickStudioService:
         angle_id: str,
         session_id: Optional[str] = None,
         custom_raw_video: Optional[str] = None,
-        bgm_enabled: bool = True
-    ) -> Dict[str, Any]:
+        bgm_enabled: bool = True, channel_id=None, job_scope=None) -> Dict[str, Any]:
         """
         Executes Step 3: Auto-Assemble & SOP Render.
         1. Finalizes session if needed
@@ -461,11 +478,15 @@ class MobileQuickStudioService:
         3. Spawns background render job with TaskManager
         4. Saves project draft to 03_Projects/ (Dual-Mode Desktop Compatible)
         """
-        product = ProductStore.get(product_id)
+        product = ProductStore.get(product_id, **_channel_kwargs(channel_id))
+        if not product and channel_id is not None:
+            from scripts import product_store
+            if any(row.get("id") == product_id for row in product_store._TABLE.load()):
+                raise ChannelError(404, "resource_not_found", "Product not found")
         if not product:
             raise ValueError(f"ไม่พบสินค้า ID: {product_id}")
 
-        angle = _find_angle(product, angle_id)
+        angle = _find_angle(product, angle_id, **_channel_kwargs(channel_id))
         if angle.get("status") == "posted" or angle.get("posted_at"):
             raise ValueError(f"มุมนำเสนอ '{angle_id}' ได้รับการเผยแพร่ (Posted) แล้ว ไม่อนุญาตให้เรนเดอร์ทับ")
 
@@ -473,7 +494,9 @@ class MobileQuickStudioService:
         if not script_text:
             raise ValueError("มุมนี้ยังไม่มีสคริปต์ กรุณาเตรียมสคริปต์ก่อนประกอบคลิป")
 
-        session = RecordingSessionStore.get(session_id) if session_id else None
+        session = RecordingSessionStore.get(session_id, **_channel_kwargs(channel_id)) if session_id else None
+        if session_id and not session and channel_id is not None:
+            raise ChannelError(404, "resource_not_found", "Recording session not found")
         if session_id and not session:
             raise ValueError("ไม่พบเซสชันถ่ายทำ กรุณาเปิดหน้าถ่ายทำใหม่")
         if session and (session.get("product_id") != product_id or session.get("angle_id") != angle_id):
@@ -527,7 +550,7 @@ class MobileQuickStudioService:
             print(f"⚠️ [MobileQuickStudio] Disk space probe warning: {disk_err}")
 
         # Idempotency guard: resume existing running task if duplicate request
-        active_tasks = TaskManager.get_active_tasks(limit=100)
+        active_tasks = TaskManager.get_active_tasks(limit=100, **_channel_kwargs(channel_id))
         for t in active_tasks:
             if t.get("status") in [TaskStatus.QUEUED, TaskStatus.PROCESSING]:
                 payload = t.get("payload") or {}
@@ -547,7 +570,8 @@ class MobileQuickStudioService:
         # Unique Project Name
         safe_name = re.sub(r'[\\/*?:"<>| ]', '_', product_name)[:30]
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        project_name = f"Mobile_{timestamp}_{safe_name}_{uuid.uuid4().hex[:8]}"
+        project_name = channel_project_name(f"Mobile_{timestamp}_{safe_name}_{uuid.uuid4().hex[:8]}", channel_id)
+        job_scope = deepcopy(job_scope)
 
         # Create Task
         task = TaskManager.create_task(
@@ -562,42 +586,40 @@ class MobileQuickStudioService:
             },
             target_tab="mobile_studio",
             target_id=product_id
-        )
+        , **_channel_kwargs(channel_id), job_scope=job_scope)
         task_id = task["id"]
-        render_jobs.create_job(task_id, "รอคิวประกอบคลิปมือถือ")
+        render_jobs.create_job(task_id, "รอคิวประกอบคลิปมือถือ", **_channel_kwargs(channel_id), job_scope=job_scope)
 
         def _run_worker():
             try:
-                with render_jobs.render_slot(task_id):
-                    if render_jobs.is_cancel_requested(task_id):
+                with render_jobs.render_slot(task_id, **_channel_kwargs(channel_id)):
+                    if render_jobs.is_cancel_requested(task_id, **_channel_kwargs(channel_id)):
                         raise render_jobs.RenderCancelled("งานถูกยกเลิก")
-                    TaskManager.update_progress(task_id, 0.10, "กำลังวิเคราะห์ช็อตและสร้างเสียงพากย์ Fenrir (SOP)")
+                    TaskManager.update_progress(task_id, 0.10, "กำลังวิเคราะห์ช็อตและสร้างเสียงพากย์ Fenrir (SOP)", **_channel_kwargs(channel_id))
 
                     # Set status to in_production in store
                     try:
-                        ProductStore.update_angle_status(product_id, angle_id, "in_production", project_name=project_name)
+                        ProductStore.update_angle_status(product_id, angle_id, "in_production", project_name=project_name, **_channel_kwargs(channel_id))
                     except Exception as pre_err:
                         print(f"[MobileQuickStudio] Warning setting in_production: {pre_err}")
 
                     source_path = raw_video_path
                     if needs_finalize:
-                        source_path = str(_raw_path(RecordingSessionStore.finalize(session_id).get("raw_video_path")))
+                        source_path = str(_raw_path(RecordingSessionStore.finalize(session_id, **_channel_kwargs(channel_id)).get("raw_video_path")))
 
                     def on_progress(p_msg, p_val):
                         scaled = 0.10 + (p_val * 0.85)
-                        TaskManager.update_progress(task_id, round(scaled, 2), p_msg)
-                        render_jobs.update_progress(task_id, round(scaled, 2), p_msg)
+                        TaskManager.update_progress(task_id, round(scaled, 2), p_msg, **_channel_kwargs(channel_id))
+                        render_jobs.update_progress(task_id, round(scaled, 2), p_msg, **_channel_kwargs(channel_id))
 
                     # Multi-source support
                     selected_videos = angle.get("selected_videos") or []
                     multi_paths = []
-                    for sv in selected_videos:
-                        try:
-                            p = _raw_path(sv)
-                            if p and p.is_file():
-                                multi_paths.append(str(p))
-                        except Exception:
-                            pass
+                    if not session and not custom_raw_video:
+                        for selected in selected_videos:
+                            path = str(_raw_path(selected))
+                            if path not in multi_paths:
+                                multi_paths.append(path)
 
                     pipeline_kwargs = {
                         "product_name": product_name,
@@ -618,12 +640,30 @@ class MobileQuickStudioService:
                         "angle_id": angle_id,
                         "product_meta": product,
                         "angle_meta": angle,
-                        "cancel_event": render_jobs.get_cancel_event(task_id),
+                        "cancel_event": render_jobs.get_cancel_event(task_id, **_channel_kwargs(channel_id)),
                         "progress_callback": on_progress
                     }
                     if len(multi_paths) > 1:
-                        pipeline_kwargs["multi_video_paths"] = multi_paths
+                        # The shared pipeline accepts storyboard pins, not a
+                        # multi_video_paths argument. One official script line
+                        # becomes one speech beat, so keep each source for its
+                        # full beat and let the existing matcher fit timing.
+                        durations = {}
+                        for path in multi_paths:
+                            duration = float(VideoEditor.get_media_info(path).get("duration") or 0)
+                            if duration <= 0:
+                                raise ValueError("ตรวจสอบความยาวคลิปวัตถุดิบไม่สำเร็จ กรุณาเลือกคลิปใหม่")
+                            durations[path] = duration
+                        lines = [line.strip() for line in script_text.splitlines() if line.strip()]
+                        pipeline_kwargs["manual_shot_map"] = [
+                            {"beat_index": index, "video_path": multi_paths[index % len(multi_paths)],
+                             "trim_start": 0.0, "trim_end": durations[multi_paths[index % len(multi_paths)]]}
+                            for index in range(len(lines))
+                        ]
 
+                    pipeline_kwargs.update(_channel_kwargs(channel_id))
+                    if job_scope is not None:
+                        pipeline_kwargs["job_scope"] = job_scope
                     # Execute pipeline with strict SOP settings
                     result = TikTokAutoCutterPipeline.run(**pipeline_kwargs)
 
@@ -640,9 +680,9 @@ class MobileQuickStudioService:
                         raise ValueError("เรนเดอร์ไม่สำเร็จ: ไม่พบไฟล์วิดีโอหรือไฟล์ว่างเปล่า")
                     mp4_path = str(output_path)
                     rel_store_path = output_path.relative_to(BASE_DIR.resolve()).as_posix()
-                    rel_url = "/api/media/" + quote(rel_store_path, safe="/")
+                    rel_url = _media_url(rel_store_path, channel_id)
 
-                    if render_jobs.is_cancel_requested(task_id):
+                    if render_jobs.is_cancel_requested(task_id, **_channel_kwargs(channel_id)):
                         raise render_jobs.RenderCancelled("งานถูกยกเลิก")
 
                     # Resolve cover variants
@@ -664,7 +704,7 @@ class MobileQuickStudioService:
                             cover_3x4_path = str(cand_3x4.relative_to(BASE_DIR.resolve())).replace("\\", "/")
 
                     # Attach to product store with relative path (MUST succeed before completing job)
-                    ProductStore.attach_project(product_id, project_name)
+                    ProductStore.attach_project(product_id, project_name, **_channel_kwargs(channel_id))
                     ProductStore.update_angle_status(
                         product_id,
                         angle_id,
@@ -675,7 +715,7 @@ class MobileQuickStudioService:
                         cover_path=cover_9x16_path or cover_3x4_path,
                         cover_3x4_path=cover_3x4_path,
                         cover_9x16_path=cover_9x16_path
-                    )
+                    , **_channel_kwargs(channel_id))
 
                     render_jobs.complete_job(task_id, {
                         **result,
@@ -683,10 +723,10 @@ class MobileQuickStudioService:
                         "mp4_video": mp4_path,
                         "cover_3x4_path": cover_3x4_path,
                         "cover_9x16_path": cover_9x16_path
-                    })
+                    }, **_channel_kwargs(channel_id))
 
-                    cover_9x16_url = _media_url(cover_9x16_path)
-                    cover_3x4_url = _media_url(cover_3x4_path)
+                    cover_9x16_url = _media_url(cover_9x16_path, channel_id)
+                    cover_3x4_url = _media_url(cover_3x4_path, channel_id)
                     cover_url = cover_9x16_url or cover_3x4_url
 
                     TaskManager.complete_task(
@@ -707,22 +747,22 @@ class MobileQuickStudioService:
                             "mix_degraded_reason": result.get("mix_degraded_reason"),
                         },
                         step_label="🎉 ประกอบคลิปและเรนเดอร์สำเร็จ พร้อมโพสต์ TikTok!"
-                    )
+                    , **_channel_kwargs(channel_id))
             except render_jobs.RenderCancelled:
-                render_jobs.cancel_job(task_id)
-                TaskManager.cancel_task(task_id)
+                render_jobs.cancel_job(task_id, **_channel_kwargs(channel_id))
+                TaskManager.cancel_task(task_id, **_channel_kwargs(channel_id))
                 try:
-                    ProductStore.update_angle_status(product_id, angle_id, "draft", project_name=project_name)
+                    ProductStore.update_angle_status(product_id, angle_id, "draft", project_name=project_name, **_channel_kwargs(channel_id))
                 except Exception:
                     pass
             except Exception as exc:
                 import traceback
                 print(f"[MobileQuickStudio] Worker failed: {exc}")
                 traceback.print_exc()
-                render_jobs.fail_job(task_id, exc)
-                TaskManager.fail_task(task_id, str(exc), step_label="ประกอบคลิปไม่สำเร็จ")
+                render_jobs.fail_job(task_id, exc, **_channel_kwargs(channel_id))
+                TaskManager.fail_task(task_id, str(exc), step_label="ประกอบคลิปไม่สำเร็จ", **_channel_kwargs(channel_id))
                 try:
-                    ProductStore.update_angle_status(product_id, angle_id, "draft", project_name=project_name)
+                    ProductStore.update_angle_status(product_id, angle_id, "draft", project_name=project_name, **_channel_kwargs(channel_id))
                 except Exception:
                     pass
 

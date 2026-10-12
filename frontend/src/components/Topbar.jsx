@@ -6,6 +6,7 @@ import {
 
 
 import { ActivityIndicatorButton } from './ActivityCenter';
+import { ChannelSelector } from '../context/ChannelContext.jsx';
 
 const TAB_CONFIG = {
   gadget: {
@@ -122,7 +123,7 @@ export default memo(function Topbar({
   const Icon = currentTab.icon;
 
   return (
-    <header className="h-[52px] sm:h-[56px] flex-shrink-0 bg-[#080B11]/95 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between px-2.5 sm:px-6 z-20 sticky top-0 w-full min-w-0 transition-colors">
+    <header className="min-h-[52px] md:h-[56px] flex-shrink-0 bg-[#080B11]/95 backdrop-blur-xl border-b border-white/[0.08] flex flex-wrap items-center justify-between gap-y-2 py-2 md:py-0 px-2.5 sm:px-6 z-20 sticky top-0 w-full min-w-0 transition-colors">
       {/* ── Left: Context-Aware Section Title & Badges ── */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
         {/* Menu Icon with Cyan Glow Pill */}
@@ -152,15 +153,16 @@ export default memo(function Topbar({
       </div>
 
       {/* ── Right: Quick Actions, Global Font Selector & System Status ── */}
-      <div className="flex items-center gap-1 sm:gap-2.5 min-w-0 flex-shrink-0">
+      <div className="flex flex-wrap justify-end items-center gap-1 sm:gap-2.5 min-w-0 max-w-[calc(100%-48px)] md:max-w-none">
+        <div className="hidden md:block"><ChannelSelector /></div>
         {/* Global Activity Center Button (Pulsing badge when active) */}
-        <ActivityIndicatorButton />
+        <ActivityIndicatorButton className="min-h-11 min-w-11" />
 
         {/* Switch to Mobile Quick Studio Button */}
         {onSwitchToMobile && (
           <button
             onClick={onSwitchToMobile}
-            className="min-h-[36px] min-w-[36px] sm:min-h-0 sm:min-w-0 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            className="min-h-11 min-w-11 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
             title="สลับไปโหมด OmniCut Mobile Studio"
           >
             <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
@@ -172,7 +174,7 @@ export default memo(function Topbar({
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="min-h-[36px] min-w-[36px] sm:min-h-0 sm:min-w-0 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            className="min-h-11 min-w-11 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
             title="รีเฟรชข้อมูลทั้งระบบ"
           >
             <RefreshCw className="w-3.5 h-3.5 text-[#25F4EE]" />
@@ -210,6 +212,7 @@ export default memo(function Topbar({
           )}
         </div>
       </div>
+      <div className="w-full md:hidden"><ChannelSelector /></div>
     </header>
   );
 });

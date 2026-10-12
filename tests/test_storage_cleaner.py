@@ -7,7 +7,7 @@ and STRICT RULE 1 (NEVER touches 01_Raw or 02_Assets).
 import pytest
 from pathlib import Path
 
-from scripts.config import BASE_DIR, RAW_DIR, ASSETS_DIR, PROJECTS_DIR
+from scripts import config
 from scripts.storage_cleaner import (
     scan_safe_reclaimable_cache,
     execute_safe_purge,
@@ -17,14 +17,14 @@ from scripts.storage_cleaner import (
 
 def test_strictly_protected_path_rule_1():
     """Verify STRICT RULE 1 protection check."""
-    raw_subfile = RAW_DIR / "test_product" / "video.mp4"
-    assets_subfile = ASSETS_DIR / "Music" / "bgm.mp3"
-    projects_file = PROJECTS_DIR / "proj1" / "preview_test.wav"
-    vision_proxy = BASE_DIR / ".vision_proxies" / "thumb.jpg"
+    raw_subfile = config.RAW_DIR / "test_product" / "video.mp4"
+    assets_subfile = config.ASSETS_DIR / "Music" / "bgm.mp3"
+    projects_file = config.PROJECTS_DIR / "proj1" / "preview_test.wav"
+    vision_proxy = config.BASE_DIR / ".vision_proxies" / "thumb.jpg"
 
-    assert is_strictly_protected_path(RAW_DIR) is True
+    assert is_strictly_protected_path(config.RAW_DIR) is True
     assert is_strictly_protected_path(raw_subfile) is True
-    assert is_strictly_protected_path(ASSETS_DIR) is True
+    assert is_strictly_protected_path(config.ASSETS_DIR) is True
     assert is_strictly_protected_path(assets_subfile) is True
 
     assert is_strictly_protected_path(projects_file) is False

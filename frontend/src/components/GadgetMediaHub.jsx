@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from './ui';
 import GadgetMediaStudio from './gadget-media/GadgetMediaStudio.jsx';
+import { useGadgetDraft } from './gadget-media/useGadgetDraft.js';
 import {
   createGadgetMediaCampaign,
   getGadgetMediaCampaignReadiness,
@@ -87,6 +88,9 @@ function CampaignPlanner({ onCreateProductProject }) {
   const counts = readinessCounts(readiness);
   const slotBlockers = readiness?.blockers?.[slot?.slot_id] || [];
   const analytics = useMemo(() => calculateCampaignAnalytics(campaign), [campaign]);
+  const draftParticipant = useGadgetDraft(draft, { reset: setDraft, save: () => saveSlot(draft) });
+  const sourceParticipant = useGadgetDraft(sourceDraft, { reset: setSourceDraft, save: () => saveSourceDraft() });
+  const campaignCreation = useGadgetDraft(null, { reset() {}, save: () => createCampaign() });
 
   const loadCampaigns = async (preferredId = selectedCampaignId) => {
     setLoading(true);
@@ -134,16 +138,19 @@ function CampaignPlanner({ onCreateProductProject }) {
 
   useEffect(() => {
     if (!slot) {
-      setDraft({
+      const empty = {
         hook: '',
         script: '',
         status: 'planned',
         metrics: { views: 0, completion_rate: 0.0, comments: 0, follows: 0 },
-      });
+      };
+      setDraft(empty);
+      draftParticipant.markSaved(empty);
       setSourceDraft(EMPTY_SOURCE);
+      sourceParticipant.markSaved(EMPTY_SOURCE);
       return;
     }
-    setDraft({
+    const nextDraft = {
       hook: slot.hook || '',
       script: slot.script || '',
       status: slot.status || 'planned',
@@ -153,9 +160,12 @@ function CampaignPlanner({ onCreateProductProject }) {
         comments: slot.metrics?.comments || 0,
         follows: slot.metrics?.follows || 0,
       },
-    });
+    };
+    setDraft(nextDraft);
+    draftParticipant.markSaved(nextDraft);
     setSourceDraft(EMPTY_SOURCE);
-  }, [slot]);
+    sourceParticipant.markSaved(EMPTY_SOURCE);
+  }, [selectedCampaignId, selectedSlotId]);
 
   useEffect(() => {
     if (!selectedCampaignId) {
@@ -186,24 +196,29 @@ function CampaignPlanner({ onCreateProductProject }) {
       setNotice('สร้าง Campaign 21 ช่องเรียบร้อยแล้ว');
     } catch (createError) {
       setError(errorMessage(createError, 'สร้าง campaign ไม่สำเร็จ'));
+      throw createError;
     } finally {
       setSaving(false);
     }
   };
 
   const saveSlot = async (payload = draft) => {
-    if (!campaign || !slot) return;
+    if (!campaign || !slot) throw new Error('เลือก Campaign และ slot ก่อนบันทึก');
     setSaving(true);
     setError('');
     setNotice('');
     try {
-      await updateGadgetMediaSlot(campaign.campaign_id, slot.slot_id, payload);
-      await loadCampaigns(campaign.campaign_id);
-      const nextReadiness = await getGadgetMediaCampaignReadiness(campaign.campaign_id);
-      setReadiness(nextReadiness);
+      const saved = await updateGadgetMediaSlot(campaign.campaign_id, slot.slot_id, payload);
+      setCampaigns(current => current.map(item => item.campaign_id === campaign.campaign_id
+        ? { ...item, slots: item.slots.map(value => value.slot_id === slot.slot_id ? saved : value) } : item));
+      setReadiness(null);
+      try { setReadiness(await getGadgetMediaCampaignReadiness(campaign.campaign_id)); }
+      catch (refreshError) { console.warn('โหลด readiness หลังบันทึกไม่สำเร็จ:', refreshError); }
       setNotice('บันทึก slot เรียบร้อยแล้ว');
+      return saved;
     } catch (saveError) {
       setError(errorMessage(saveError, 'บันทึก slot ไม่สำเร็จ'));
+      throw saveError;
     } finally {
       setSaving(false);
     }
@@ -251,15 +266,20 @@ function CampaignPlanner({ onCreateProductProject }) {
     });
   };
 
-  const addSource = async () => {
+  const saveSourceDraft = async () => {
     if (!sourceDraft.source_url.trim()) {
-      setError('กรุณาใส่ source URL ก่อนเพิ่มแหล่งที่มา');
-      return;
+      throw new Error('กรุณาใส่ source URL ก่อนบันทึกแหล่งที่มา หรือเลือกทิ้งการแก้ไข');
     }
-    await saveSlot({
+    return saveSlot({
       source_refs: [...(slot?.source_refs || []), { ...sourceDraft }],
     });
+  };
+
+  const addSource = async () => {
+    try { await sourceParticipant.save(); }
+    catch (sourceError) { setError(errorMessage(sourceError, 'บันทึกแหล่งที่มาไม่สำเร็จ')); return; }
     setSourceDraft(EMPTY_SOURCE);
+    sourceParticipant.markSaved(EMPTY_SOURCE);
   };
 
   const removeSource = async (sourceId) => {
@@ -320,7 +340,7 @@ function CampaignPlanner({ onCreateProductProject }) {
             </button>
             <button
               type="button"
-              onClick={createCampaign}
+              onClick={() => campaignCreation.save().catch(() => {})}
               disabled={saving}
               className="min-h-9 px-3 rounded-xl bg-[#25F4EE] text-[#061116] text-xs font-black hover:bg-cyan-300 disabled:opacity-50 flex items-center gap-2"
             >
@@ -364,7 +384,7 @@ function CampaignPlanner({ onCreateProductProject }) {
           <p className="mt-2 text-sm text-slate-400">สร้าง Campaign เพื่อได้ 21 ช่องงาน แบ่งเป็น 3 ซีรีส์ พร้อมสิทธิบัตรและความถูกต้องของคลิป</p>
           <button
             type="button"
-            onClick={createCampaign}
+            onClick={() => campaignCreation.save().catch(() => {})}
             disabled={saving}
             className="mt-5 min-h-10 px-4 rounded-xl bg-[#25F4EE] text-[#061116] text-sm font-black disabled:opacity-50"
           >
@@ -591,11 +611,10 @@ function CampaignPlanner({ onCreateProductProject }) {
                       <div className="flex items-end">
                         <button
                           type="button"
-                          onClick={() => saveSlot()}
+                          onClick={() => draftParticipant.save().catch(() => {})}
                           disabled={saving}
                           className="min-h-9 w-full rounded-xl bg-cyan-300 text-[#061116] text-xs font-black disabled:opacity-50 flex items-center justify-center gap-2 hover:bg-cyan-200"
                         >
-                          <Save className="w-4 h-4" />
                           บันทึก slot
                         </button>
                       </div>
@@ -645,7 +664,7 @@ function CampaignPlanner({ onCreateProductProject }) {
                               </a>
                               <button
                                 type="button"
-                                onClick={() => removeSource(source.source_id)}
+                                onClick={() => removeSource(source.source_id).catch(() => {})}
                                 className="text-[10px] text-rose-300 hover:text-rose-200"
                               >
                                 ลบ
@@ -660,7 +679,7 @@ function CampaignPlanner({ onCreateProductProject }) {
                                 <input
                                   type="checkbox"
                                   checked={source.rights_reviewed}
-                                  onChange={() => toggleSourceReviewed(source.source_id, source.rights_reviewed)}
+                                  onChange={() => toggleSourceReviewed(source.source_id, source.rights_reviewed).catch(() => {})}
                                   className="rounded border-white/20 bg-black/40 text-cyan-400 focus:ring-0"
                                 />
                                 <span>ยืนยันการตรวจสิทธิ์แล้ว</span>
@@ -875,7 +894,7 @@ export default function GadgetMediaHub(props) {
       </div>
 
       {surface === 'studio' ? (
-        <GadgetMediaStudio seed={studioSeed} onSeedConsumed={() => setStudioSeed(null)} />
+        <GadgetMediaStudio key={props.initialProjectId || 'library'} initialProjectId={props.initialProjectId || ''} seed={studioSeed} onSeedConsumed={() => setStudioSeed(null)} />
       ) : (
         <CampaignPlanner {...props} onCreateProductProject={startProjectFromCampaign} />
       )}

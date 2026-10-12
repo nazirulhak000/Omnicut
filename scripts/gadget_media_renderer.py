@@ -8,9 +8,12 @@ from pathlib import Path
 from typing import Any, Dict
 
 from scripts import render_jobs
+from scripts.export_registry import ExportRegistry
 from scripts.gadget_media_project import ProductVideoValidationError, new_id, utc_now
 from scripts.gadget_media_repository import GadgetMediaRepository
 from scripts.video_editor import VideoEditor
+from scripts.subtitle_engine import SubtitleEngine
+from scripts.channel_identity import resolve_channel_identity
 
 
 EMPTY_ASS = """[Script Info]
@@ -81,7 +84,11 @@ def _next_output(repository: GadgetMediaRepository, project_id: str) -> tuple[Pa
     )
     version = 1 + sum(1 for item in project.artifacts if item.get("kind") == "render")
     filename = f"{datetime.now():%Y%m%d}_{stem}_master_v{version:02d}.mp4"
-    return repository.roots.export_dir(project_id) / filename, version
+    output = repository.roots.export_dir(project_id) / filename
+    while output.exists():
+        version += 1
+        output = output.with_name(f"{datetime.now():%Y%m%d}_{stem}_master_v{version:02d}.mp4")
+    return output, version
 
 
 def execute_gadget_media_render(
@@ -93,7 +100,7 @@ def execute_gadget_media_render(
 ) -> None:
     """Render one saved timeline and register the result only after FFmpeg succeeds."""
     try:
-        with render_jobs.render_slot(job_id):
+        with render_jobs.render_slot(job_id, channel_id=repository.channel_id):
             project = repository.get(project_id)
             if not project.quality_report.get("passed"):
                 raise ProductVideoValidationError("quality gates must pass before rendering")
@@ -110,9 +117,17 @@ def execute_gadget_media_render(
             output, version = _next_output(repository, project_id)
             output.parent.mkdir(parents=True, exist_ok=True)
             ass_path = repository.roots.project_layout(project_id)["review"] / "empty_subtitles.ass"
-            ass_path.write_text(EMPTY_ASS, encoding="utf-8")
+            if repository.channel_id is not None:
+                job = render_jobs.get_job(job_id, channel_id=repository.channel_id) or {}
+                identity = resolve_channel_identity(job.get("channel_identity_snapshot"), channel_id=repository.channel_id)
+                SubtitleEngine.generate_ass(
+                    cues=[], output_ass_path=str(ass_path), bilingual=False,
+                    channel_identity_snapshot=identity,
+                )
+            else:
+                ass_path.write_text(EMPTY_ASS, encoding="utf-8")
             audio_path = _prepare_audio(repository, project_id, duration)
-            cancel_event = render_jobs.get_cancel_event(job_id)
+            cancel_event = render_jobs.get_cancel_event(job_id, channel_id=repository.channel_id)
 
             def on_progress(current: float, total: float) -> None:
                 ratio = current / total if total else 0
@@ -120,9 +135,9 @@ def execute_gadget_media_render(
                     job_id,
                     0.08 + min(0.88, max(0.0, ratio) * 0.88),
                     f"กำลัง Render Gadget Media {int(ratio * 100)}%",
-                )
+                 channel_id=repository.channel_id)
 
-            render_jobs.update_progress(job_id, 0.05, "กำลังเตรียม Timeline และเสียง")
+            render_jobs.update_progress(job_id, 0.05, "กำลังเตรียม Timeline และเสียง", channel_id=repository.channel_id)
             VideoEditor.assemble_tiktok_video(
                 raw_video_paths=[str(clip["source_path"]) for clip in clips],
                 total_duration=duration,
@@ -148,17 +163,21 @@ def execute_gadget_media_render(
                 "approved": False,
                 "created_at": utc_now(),
                 "job_id": job_id,
+                **({"channel_identity_snapshot": identity} if repository.channel_id is not None else {}),
             }
             repository.add_render_artifact(project_id, artifact)
+            job = render_jobs.get_job(job_id, channel_id=repository.channel_id) or {}
+            if repository.channel_id is not None:
+                ExportRegistry.ensure(str(output), project_name="GadgetMedia/" + project_id, channel_id=repository.channel_id, job_scope={key: value for key, value in job.items() if key.startswith("channel_")} or None)
             render_jobs.complete_job(job_id, {
                 "mp4_video": str(output),
                 "duration": duration,
                 "manifest": str(repository.roots.project_dir(project_id) / "project.json"),
-            }, message="Render Gadget Media เสร็จสมบูรณ์")
-            job = render_jobs.get_job(job_id)
+            }, message="Render Gadget Media เสร็จสมบูรณ์", channel_id=repository.channel_id)
+            job = render_jobs.get_job(job_id, channel_id=repository.channel_id)
             if job and isinstance(job.get("result"), dict):
                 job["result"].update({"project_id": project_id, "artifact_id": artifact["artifact_id"]})
     except render_jobs.RenderCancelled:
-        render_jobs.cancel_job(job_id)
+        render_jobs.cancel_job(job_id, channel_id=repository.channel_id)
     except Exception as exc:
-        render_jobs.fail_job(job_id, exc)
+        render_jobs.fail_job(job_id, exc, channel_id=repository.channel_id)

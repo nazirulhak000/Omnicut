@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Optional
 import uuid
 
 from scripts.gadget_media_paths import GadgetMediaRoots, validate_project_id
+from scripts.channel_ownership import resolve_store_scope
+from scripts.channel_store import ChannelError
 from scripts.gadget_media_project import ProductVideoProject, ProductVideoValidationError, utc_now
 
 
@@ -24,8 +26,22 @@ class GadgetMediaRepository:
 
     _lock = threading.RLock()
 
-    def __init__(self, roots: Optional[GadgetMediaRoots] = None):
+    def __init__(self, roots: Optional[GadgetMediaRoots] = None, *, channel_id: Optional[str] = None):
+        self.channel_id = channel_id
         self.roots = roots or GadgetMediaRoots.default()
+
+    def for_channel(self, channel_id):
+        scoped = GadgetMediaRepository(self.roots, channel_id=channel_id)
+        scoped._lock = self._lock
+        return scoped
+
+    def _owns(self, project):
+        return resolve_store_scope(self.channel_id).owns({"channel_id": project.channel_id})
+
+    def _guard(self, project):
+        if not self._owns(project):
+            raise ChannelError(404, "resource_not_found", "ไม่พบ Product Video Project")
+        return project
 
     @property
     def index_path(self) -> Path:
@@ -62,6 +78,7 @@ class GadgetMediaRepository:
         self._atomic_json(root / "project.json", data)
         self._atomic_json(root / "product.json", {
             "project_id": project.project_id,
+            **({"channel_id": project.channel_id} if project.channel_id is not None else {}),
             "product_identity": data["product_identity"],
             "audience": data["audience"],
             "editorial_promise": data["editorial_promise"],
@@ -78,6 +95,7 @@ class GadgetMediaRepository:
         master = next((item for item in project.artifacts if item.get("artifact_id") == project.approved_master_id), None)
         return {
             "project_id": project.project_id,
+            **({"channel_id": project.channel_id} if project.channel_id is not None else {}),
             "product_identity": project.product_identity,
             "status": project.status,
             "quality_passed": bool(report.get("passed")),
@@ -95,7 +113,7 @@ class GadgetMediaRepository:
             "projects": [self._summary(item) for item in sorted(projects, key=lambda p: p.updated_at, reverse=True)],
         })
 
-    def list(self) -> List[ProductVideoProject]:
+    def _all_projects(self) -> List[ProductVideoProject]:
         if not self.roots.projects.exists():
             return []
         projects: List[ProductVideoProject] = []
@@ -107,6 +125,9 @@ class GadgetMediaRepository:
             except (OSError, json.JSONDecodeError, ProductVideoValidationError):
                 continue
         return sorted(projects, key=lambda project: project.updated_at, reverse=True)
+
+    def list(self) -> List[ProductVideoProject]:
+        return [project for project in self._all_projects() if self._owns(project)]
 
     def create(
         self,
@@ -126,6 +147,7 @@ class GadgetMediaRepository:
                 raise ProductVideoValidationError(f"project already exists: {project_id}")
             project = ProductVideoProject(
                 project_id=project_id,
+                channel_id=resolve_store_scope(self.channel_id).effective_owner,
                 product_identity=dict(product_identity or {}),
                 audience=audience,
                 editorial_promise=editorial_promise,
@@ -134,22 +156,28 @@ class GadgetMediaRepository:
             project.validate()
             self._ensure_layout(project_id)
             self._materialize(project)
-            self._write_index(self.list())
+            self._write_index(self._all_projects())
             return project
 
     def get(self, project_id: str) -> ProductVideoProject:
         path = self._manifest_path(project_id)
         if not path.is_file():
             raise KeyError(project_id)
-        return ProductVideoProject.from_dict(self._read_json(path))
+        return self._guard(ProductVideoProject.from_dict(self._read_json(path)))
 
     def save(self, project: ProductVideoProject) -> ProductVideoProject:
         project.updated_at = utc_now()
         project.validate()
+        self._guard(project)
         with self._lock:
+            existing_path = self._manifest_path(project.project_id)
+            if existing_path.exists():
+                existing = self.get(project.project_id)
+                if existing.channel_id != project.channel_id:
+                    raise ChannelError(422, "channel_id_immutable", "เปลี่ยนช่องเจ้าของโปรเจกต์ไม่ได้")
             self._ensure_layout(project.project_id)
             self._materialize(project)
-            all_projects = [item for item in self.list() if item.project_id != project.project_id]
+            all_projects = [item for item in self._all_projects() if item.project_id != project.project_id]
             self._write_index([project, *all_projects])
         return project
 
@@ -160,41 +188,50 @@ class GadgetMediaRepository:
     def save_timeline(self, project_id: str, timeline: Dict[str, Any]) -> ProductVideoProject:
         if timeline.get("workspace_scope") != "gadget_media" or timeline.get("project_id") != project_id:
             raise ProductVideoValidationError("timeline scope or project_id does not match")
-        project = self.get(project_id)
-        path = self.roots.project_dir(project_id) / "timeline.json"
-        self._atomic_json(path, timeline)
-        project.edit["timeline_path"] = str(path)
-        project.edit["duration"] = float(timeline.get("duration") or 0)
-        if project.status == "script_ready":
-            project.transition_to("in_production")
-        return self.save(project)
+        with self._lock:
+            project = self.get(project_id)
+            path = self.roots.project_dir(project_id) / "timeline.json"
+            self._atomic_json(path, timeline)
+            project.edit["timeline_path"] = str(path)
+            project.edit["duration"] = float(timeline.get("duration") or 0)
+            if project.status == "script_ready":
+                project.transition_to("in_production")
+            return self.save(project)
 
     def load_timeline(self, project_id: str) -> Dict[str, Any]:
+        self.get(project_id)
         path = self.roots.project_dir(project_id) / "timeline.json"
         if not path.is_file():
             raise KeyError(f"timeline:{project_id}")
         return self._read_json(path)
 
     def save_quality_report(self, project_id: str, report: Dict[str, Any]) -> ProductVideoProject:
-        project = self.get(project_id)
-        project.quality_report = dict(report)
-        if report.get("passed") and project.status == "review_required":
-            project.transition_to("ready_to_render")
-        return self.save(project)
+        with self._lock:
+            project = self.get(project_id)
+            project.quality_report = dict(report)
+            if report.get("passed") and project.status == "review_required":
+                project.transition_to("ready_to_render")
+            return self.save(project)
 
     def add_render_artifact(self, project_id: str, artifact: Dict[str, Any]) -> ProductVideoProject:
-        project = self.get(project_id)
-        artifact_id = str(artifact.get("artifact_id") or "")
-        if not artifact_id or any(item.get("artifact_id") == artifact_id for item in project.artifacts):
-            raise ProductVideoValidationError("render artifact_id must be unique and non-empty")
-        project.artifacts.append(dict(artifact))
-        if project.status == "ready_to_render":
-            project.transition_to("rendered")
-        return self.save(project)
+        with self._lock:
+            project = self.get(project_id)
+            artifact_id = str(artifact.get("artifact_id") or "")
+            if not artifact_id or any(item.get("artifact_id") == artifact_id for item in project.artifacts):
+                raise ProductVideoValidationError("render artifact_id must be unique and non-empty")
+            project.artifacts.append(dict(artifact))
+            if project.status == "ready_to_render":
+                project.transition_to("rendered")
+            return self.save(project)
 
     def approve_render(self, project_id: str, artifact_id: str) -> ProductVideoProject:
-        project = self.get(project_id)
-        if project.status not in {"rendered", "approved"}:
-            raise ProductVideoValidationError("project must be rendered before approval")
-        project.approve_render(artifact_id)
-        return self.save(project)
+        with self._lock:
+            project = self.get(project_id)
+            if project.status == "published" and project.approved_master_id == artifact_id:
+                # Reviewing an already published current master again must not
+                # downgrade its truthful status or rewrite publication history.
+                return project
+            if project.status not in {"rendered", "approved", "published"}:
+                raise ProductVideoValidationError("project must be rendered before approval")
+            project.approve_render(artifact_id)
+            return self.save(project)

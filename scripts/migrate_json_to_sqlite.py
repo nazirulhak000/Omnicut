@@ -89,7 +89,7 @@ def migrate(dry_run: bool = False) -> int:
     # ProductStore._load() / PostLog._load() trigger DocumentTable's
     # import-if-newer logic -- this is the same path the app itself uses,
     # just invoked explicitly and up front rather than lazily.
-    products_after = ProductStore._load()
+    products_after = ProductStore.snapshot(all_channels=True)
     posts_after = PostLog._load()
 
     product_ids_after = {str(p["id"]) for p in products_after}

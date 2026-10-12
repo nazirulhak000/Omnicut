@@ -117,17 +117,21 @@ def migrate_all_products() -> Dict[str, Any]:
     updated_exports = 0
     if id_mapping:
         try:
-            with ExportRegistry._mutate() as records:
-                for row in records:
-                    pid = row.get("product_id")
-                    aid = row.get("angle_id")
-                    batch = row.get("batch")
-                    if batch is None:
-                        from scripts.product_store import _extract_batch_from_name
-                        batch = _extract_batch_from_name(row.get("project_name")) or _extract_batch_from_name(row.get("path")) or 1
-                    if (pid, aid, batch) in id_mapping:
-                        row["angle_id"] = id_mapping[(pid, aid, batch)]
-                        updated_exports += 1
+            def _remap(row):
+                nonlocal updated_exports
+                pid = row.get("product_id")
+                aid = row.get("angle_id")
+                batch = row.get("batch")
+                if batch is None:
+                    from scripts.product_store import _extract_batch_from_name
+                    batch = _extract_batch_from_name(row.get("project_name")) or _extract_batch_from_name(row.get("path")) or 1
+                if (pid, aid, batch) in id_mapping:
+                    row["angle_id"] = id_mapping[(pid, aid, batch)]
+                    updated_exports += 1
+
+            # Maintenance over every channel's exports (product ids are global
+            # uuids, so the (product, angle, batch) mapping cannot cross channels).
+            ExportRegistry.apply_to_each(_remap, all_channels=True)
             print(f"✅ [Migration] ExportRegistry updated: {updated_exports} record(s).")
         except Exception as e:
             print(f"  ⚠️ Warning updating ExportRegistry: {e}")

@@ -368,11 +368,97 @@ def _extract_slug_title(url: str) -> str:
         slug = re.sub(r'-i\.\d+\.\d+.*$', '', slug, flags=re.I)
         slug = re.sub(r'[\?#].*$', '', slug)
         title = slug.replace('-', ' ').strip()
+        # Guard: Numeric IDs (like TikTok/Shopee product IDs) or hex hashes are not titles
+        if re.fullmatch(r'[\d_]+', title) or re.fullmatch(r'[a-f0-9]{16,}', title, re.I):
+            return ""
         if len(title) > 3 and not title.startswith("product"):
             return title
     except Exception:
         pass
     return ""
+
+
+def _extract_url_params_metadata(url: str) -> Dict[str, Any]:
+    """Extract metadata (title, image, product_id) embedded in TikTok share URL query params."""
+    result: Dict[str, Any] = {}
+    try:
+        parsed = urllib.parse.urlparse(url)
+        qs = urllib.parse.parse_qs(parsed.query)
+        if "og_info" in qs and qs["og_info"]:
+            try:
+                og_data = json.loads(qs["og_info"][0])
+                if isinstance(og_data, dict):
+                    if og_data.get("title"):
+                        result["title"] = str(og_data["title"]).strip()
+                    if og_data.get("image"):
+                        result["image"] = str(og_data["image"]).strip()
+            except Exception:
+                pass
+        if "ec_search_share_params" in qs and qs["ec_search_share_params"]:
+            try:
+                ec_data = json.loads(qs["ec_search_share_params"][0])
+                if isinstance(ec_data, dict) and ec_data.get("product_id"):
+                    result["product_id"] = str(ec_data["product_id"]).strip()
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return result
+
+
+def _extract_tiktok_modern_data(raw_html: str) -> Dict[str, Any]:
+    """Extract structured product details from TikTok Shop SSR data (__MODERN_ROUTER_DATA__)."""
+    result: Dict[str, Any] = {}
+    if not raw_html:
+        return result
+    try:
+        m = re.search(r'<script[^>]*id=[\x27\x22]__MODERN_ROUTER_DATA__[\x27\x22][^>]*>(.*?)</script>', raw_html, re.DOTALL)
+        if not m:
+            return result
+        data = json.loads(m.group(1))
+        loader = data.get("loaderData", {})
+        for route_val in loader.values():
+            if not isinstance(route_val, dict):
+                continue
+            page_config = route_val.get("page_config", {})
+            components_map = page_config.get("components_map", [])
+            for comp in components_map:
+                cdata = comp.get("component_data", {})
+                if "product_info" in cdata:
+                    pi = cdata["product_info"]
+                    if pi.get("title") and not result.get("title"):
+                        result["title"] = str(pi["title"]).strip()
+                    if pi.get("price") and not result.get("price"):
+                        price_val = pi["price"].get("real_price") or pi["price"].get("original_price")
+                        if price_val:
+                            result["price"] = str(price_val).strip()
+                    desc_parts = []
+                    for block in pi.get("desc_blocks", []):
+                        txt = (block.get("text") or "").strip()
+                        if txt and txt not in desc_parts:
+                            desc_parts.append(txt)
+                    if desc_parts and not result.get("description"):
+                        result["description"] = "\n".join(desc_parts)
+                    main_images = []
+                    for img in pi.get("images", []):
+                        url_list = img.get("url_list") or []
+                        if url_list:
+                            main_images.append(url_list[0])
+                        elif img.get("uri"):
+                            main_images.append(f"https://p16-oec-sg.ibyteimg.com/{img['uri']}")
+                    if main_images:
+                        result["images"] = main_images
+                    specs_list = []
+                    for spec in pi.get("specifications", []):
+                        name = (spec.get("name") or "").strip()
+                        val = (spec.get("value") or "").strip()
+                        if name and val:
+                            specs_list.append(f"{name}: {val}")
+                    if specs_list:
+                        result["specs"] = specs_list
+    except Exception as e:
+        print(f"[ProductScraper] Note extracting TikTok modern data: {e}")
+    return result
 
 def _normalise_rendered_text(value: str) -> str:
     """Collapse browser ``inner_text`` into bounded, useful source text."""
@@ -575,12 +661,18 @@ def _scrape_rendered_page(url: str) -> Dict[str, Any]:
                         viewport=None,
                     )
                 except Exception:
-                    context = playwright.chromium.launch_persistent_context(
-                        str(RENDERED_PROFILE_DIR),
-                        headless=False,
-                        args=["--start-maximized"],
-                        viewport=None,
-                    )
+                    try:
+                        context = playwright.chromium.launch_persistent_context(
+                            str(RENDERED_PROFILE_DIR),
+                            headless=False,
+                            args=["--start-maximized"],
+                            viewport=None,
+                        )
+                    except Exception as ctx_err:
+                        print(f"[ProductScraper] Persistent context launch note: {ctx_err}")
+                        context = None
+                if context is None:
+                    return {"warning": "TikTok ขอ Security Check จึงยังอ่านรายละเอียดหน้าเว็บไม่ได้"}
                 page = context.pages[0] if context.pages else context.new_page()
                 page.goto(url, wait_until="domcontentloaded", timeout=RENDERED_PAGE_TIMEOUT_MS)
                 deadline = time.monotonic() + RENDERED_CHALLENGE_WAIT_SECONDS
@@ -596,7 +688,10 @@ def _scrape_rendered_page(url: str) -> Dict[str, Any]:
                 return {"warning": "หน้าเว็บ render แล้วแต่ไม่มีข้อความรายละเอียดที่อ่านได้"}
             return snapshot
         except Exception as exc:
-            return {"warning": f"เปิด browser เพื่ออ่านรายละเอียดสินค้าไม่สำเร็จ ({exc})"}
+            err_line = str(exc).splitlines()[0] if str(exc) else "เบราว์เซอร์ไม่พร้อมทำงาน"
+            if "--disable" in err_line or "launch_persistent_context" in err_line:
+                err_line = "เบราว์เซอร์ไม่พร้อมทำงาน"
+            return {"warning": f"เปิด browser เพื่ออ่านรายละเอียดสินค้าไม่สำเร็จ ({err_line})"}
         finally:
             if context is not None:
                 context.close()
@@ -651,6 +746,14 @@ class ProductScraper:
         metadata_source = "slug_fallback"
         source_warning = ""
 
+        # Tier 0: Extract metadata embedded in URL query parameters (e.g. TikTok mobile share links)
+        url_param_meta = _extract_url_params_metadata(resolved_url) or _extract_url_params_metadata(url)
+        if url_param_meta.get("title"):
+            title = url_param_meta["title"]
+            metadata_source = "url_param_og_info"
+        if url_param_meta.get("image") and url_param_meta["image"] not in images:
+            images.append(url_param_meta["image"])
+
         try:
             req = urllib.request.Request(
                 resolved_url,
@@ -662,10 +765,33 @@ class ProductScraper:
             )
             with _build_safe_opener().open(req, timeout=20) as resp:
                 raw_html = resp.read(600_000).decode("utf-8", errors="ignore")
-                
+
+                # Check TikTok SSR JSON data first (highest fidelity structured data)
+                if platform == "tiktok":
+                    modern_data = _extract_tiktok_modern_data(raw_html)
+                    if modern_data.get("title"):
+                        title = modern_data["title"]
+                    if modern_data.get("price"):
+                        price = modern_data["price"]
+                    if modern_data.get("description"):
+                        description = modern_data["description"]
+                        metadata_source = "ssr_json"
+                    if modern_data.get("specs"):
+                        specs = modern_data["specs"]
+                    for m_img in modern_data.get("images", []):
+                        if m_img not in images:
+                            images.append(m_img)
+
                 meta_title = _extract_meta(raw_html, "og:title") or _extract_meta(raw_html, "twitter:title")
-                if meta_title and len(meta_title) > len(title):
-                    title = meta_title
+                if meta_title:
+                    # Prefer meta_title over slug or when current title is empty, generic, or pure numeric
+                    if (
+                        not title
+                        or title == "สินค้าแนะนำ"
+                        or re.fullmatch(r'[\d_]+', title)
+                        or len(meta_title) > len(title)
+                    ):
+                        title = meta_title
 
                 meta_description = (
                     _extract_meta(raw_html, "og:description")
@@ -673,11 +799,14 @@ class ProductScraper:
                     or _extract_meta(raw_html, "description")
                 )
                 html_product_text = _extract_html_product_text(raw_html)
-                description = html_product_text or meta_description
-                price = _extract_meta(raw_html, "product:price:amount") or _extract_meta(raw_html, "og:price:amount")
-                
+                if not description:
+                    description = html_product_text or meta_description
+
+                if not price:
+                    price = _extract_meta(raw_html, "product:price:amount") or _extract_meta(raw_html, "og:price:amount")
+
                 og_img = _extract_meta(raw_html, "og:image") or _extract_meta(raw_html, "twitter:image")
-                if og_img and og_img.startswith("http"):
+                if og_img and og_img.startswith("http") and og_img not in images:
                     images.append(og_img)
 
                 img_matches = re.findall(r'<img[^>]+src=[\'"](https?://[^\'"]+\.(?:jpg|jpeg|png|webp)[^\'"]*)[\'"]', raw_html, re.I)
@@ -686,31 +815,35 @@ class ProductScraper:
                         images.append(img)
 
                 if html_product_text:
-                    selling_section = _extract_section(
-                        html_product_text,
-                        ("คุณสมบัติเด่นของ", "จุดเด่นพิเศษของ"),
-                        ("ตัวเลือกสินค้า", "ข้อมูลทางเทคนิค", "ข้อควรระวัง"),
-                    )
-                    specs_section = _extract_section(
-                        html_product_text,
-                        ("ข้อมูลทางเทคนิค",),
-                        ("ข้อควรระวัง", "#"),
-                    )
-                    selling_points = [
-                        line.lstrip("· ").strip()
-                        for line in selling_section.splitlines()
-                        if line.strip("· ")
-                    ]
-                    specs = [
-                        line.lstrip("· ").strip()
-                        for line in specs_section.splitlines()
-                        if line.strip("· ")
-                    ]
+                    if not selling_points:
+                        selling_section = _extract_section(
+                            html_product_text,
+                            ("คุณสมบัติเด่นของ", "จุดเด่นพิเศษของ"),
+                            ("ตัวเลือกสินค้า", "ข้อมูลทางเทคนิค", "ข้อควรระวัง"),
+                        )
+                        selling_points = [
+                            line.lstrip("· ").strip()
+                            for line in selling_section.splitlines()
+                            if line.strip("· ")
+                        ]
+                    if not specs:
+                        specs_section = _extract_section(
+                            html_product_text,
+                            ("ข้อมูลทางเทคนิค",),
+                            ("ข้อควรระวัง", "#"),
+                        )
+                        specs = [
+                            line.lstrip("· ").strip()
+                            for line in specs_section.splitlines()
+                            if line.strip("· ")
+                        ]
                     raw_text = f"{title}\n{html_product_text}".strip()
-                    metadata_source = "html_body"
+                    if metadata_source in ("slug_fallback", "url_param_og_info"):
+                        metadata_source = "html_body"
                 elif description:
                     raw_text = f"{title}\n{description}"
-                    metadata_source = "html_meta"
+                    if metadata_source in ("slug_fallback", "url_param_og_info"):
+                        metadata_source = "html_meta"
         except Exception as e:
             print(f"[ProductScraper] Direct fetch note ({e}), using proxy/slug extraction...")
 
@@ -733,9 +866,18 @@ class ProductScraper:
                     if image not in images and len(images) < 20:
                         images.append(image)
             else:
-                source_warning = rendered.get("warning", "")
+                raw_warn = rendered.get("warning", "")
+                if raw_warn and ("Target page" in raw_warn or "exitCode" in raw_warn or "launch_persistent_context" in raw_warn):
+                    raw_warn = "เปิด browser เพื่ออ่านรายละเอียดสินค้าไม่สำเร็จ (เบราว์เซอร์ไม่พร้อมทำงาน)"
+                source_warning = raw_warn
 
-        clean_title = title.split("|")[0].split("- Shopee")[0].strip() or "สินค้าแนะนำ"
+        clean_title = re.split(r'\s*[-|•]\s*(?:Shopee|TikTok).*$', title, flags=re.I)[0].strip()
+        clean_title = clean_title.split("|")[0].split("- Shopee")[0].split("- TikTok")[0].strip()
+        if not clean_title or re.fullmatch(r'[\d_]+', clean_title):
+            clean_title = "สินค้าแนะนำ"
+
+        if not raw_text or re.fullmatch(r'[\d_]+', raw_text):
+            raw_text = f"{clean_title}\n{description}".strip() if description else clean_title
 
         return {
             "title": clean_title,

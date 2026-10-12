@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { toMediaUrl } from '../lib/mediaUrl.js';
 import {
   Film, Search, Check, X, Upload, CheckSquare, Square,
   Loader2, Play, Pause, Sparkles, FolderOpen, AlertCircle, Trash2, Unlink, CheckCircle2, Edit3, Tag
@@ -554,7 +555,7 @@ export default function MediaPickerModal({
                 const videoPath = video.path || video.rel_path;
                 const isSelected = selectedList.some(p => isSameVideo(p, video));
                 const isPlaying = previewVideoPath === videoPath;
-                const videoUrl = `/api/media/${video.rel_path || video.path}`;
+                const videoUrl = toMediaUrl(video.rel_path || video.path);
 
                 return (
                   <div

@@ -16,6 +16,7 @@ import {
 } from '../api';
 import { PageHeader } from './ui';
 import PaginationControls from './PaginationControls';
+import ChannelSettings from './ChannelSettings.jsx';
 
 export default function SystemSettings({
   status,
@@ -148,6 +149,12 @@ export default function SystemSettings({
 
   const settingSections = [
     {
+      id: 'channels', name: 'ช่องและตัวตนคลิป',
+      desc: 'ตั้งชื่อ ลายน้ำ รูปประจำช่อง และตรวจความพร้อมก่อนผลิตหรือโพสต์',
+      icon: Layers, color: 'text-cyan-300', badge: 'Channels',
+      badgeColor: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
+    },
+    {
       id: 'appearance',
       name: 'การแสดงผล & ฟอนต์',
       desc: 'ปรับสเกลหน้าจอ (UI Scale) และเลือกฟอนต์ระบบภาษาไทย 10 แบบ',
@@ -199,6 +206,8 @@ export default function SystemSettings({
   // ── Render Specific Section Workbench Content ──
   const renderWorkbenchContent = () => {
     switch (activeTab) {
+      case 'channels':
+        return <ChannelSettings />;
       case 'appearance':
         return (
           <div className="space-y-4 sm:space-y-5 animate-fadeIn">
@@ -810,7 +819,7 @@ export default function SystemSettings({
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-slate-400 hidden xs:inline">สถานะ:</span>
               <span className="text-emerald-300 font-bold font-mono">
-                {status?.capcut_synced ? 'CapCut Synced' : 'Ready'}
+                {activeTab === 'channels' ? 'ตั้งค่าช่อง' : status?.capcut_synced ? 'CapCut Synced' : 'Ready'}
               </span>
             </div>
 

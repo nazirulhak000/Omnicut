@@ -1,3 +1,4 @@
+import { channelLocalStorage } from './channelStorage.js';
 // Everything /api/render needs beyond the product itself, and what it starts
 // as. Lives here rather than in App.jsx because both the old Studio tab and
 // the editor's new-clip panel build the same payload -- two copies of these
@@ -64,7 +65,7 @@ export function migrateSavedStudioForm(saved) {
 /** Saved form merged over the defaults; defaults alone if nothing is stored. */
 export function getSavedStudioForm() {
   try {
-    const raw = localStorage.getItem(STUDIO_FORM_KEY);
+    const raw = channelLocalStorage().getItem(STUDIO_FORM_KEY);
     if (raw) {
       return migrateSavedStudioForm(JSON.parse(raw));
     }

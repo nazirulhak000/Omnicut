@@ -416,7 +416,7 @@ class VoiceStage:
             if p_id and a_id:
                 try:
                     from scripts.shot_lists_store import ShotListsStore
-                    rec = ShotListsStore.get(p_id, a_id)
+                    rec = ShotListsStore.get(p_id, a_id, **ctx.store_kwargs())
                     if rec and rec.get("voice_audio_path"):
                         audio_p = Path(rec["voice_audio_path"])
                         if audio_p.exists() and audio_p.stat().st_size > 0:
@@ -497,6 +497,7 @@ class VoiceStage:
             voice_audio_path = ctx.out_path("voiceover", ".wav")
             ctx.notify("♻️ [2/5] ใช้เสียงพากย์จริงจากแผนถ่าย (ประหยัดเวลาและโควต้า)...", 0.25)
             src_audio = Path(shot_list_record["voice_audio_path"])
+            ctx.guard_media(src_audio)
             shutil.copy2(str(src_audio), str(voice_audio_path))
             total_duration = shot_list_record.get("total_duration") or _probe_audio_duration(voice_audio_path)
             cues = shot_list_record.get("cues") or shot_list_record.get("beat_cues") or []

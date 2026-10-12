@@ -97,7 +97,7 @@ def test_ai_prompt_quota_error_surfaces_as_http_429(client):
     with patch("scripts.api_phase1.AIBridge.generate", side_effect=_quota_app_error()):
         resp = client.post("/api/ai/prompt", json={"task": "script", "context": _SCRIPT_CTX})
 
-    assert resp.status_code == 429
+    assert resp.status_code == 429, resp.text
     assert "โควต้า" in resp.json()["detail"]
 
 
@@ -117,28 +117,28 @@ def test_ai_prompt_genuine_provider_failure_still_degrades_to_manual_mode(client
 # ----------------------------------------------------------------------
 # Site 2: scripts/api_voice.py -- POST /api/voice/preview
 # ----------------------------------------------------------------------
-def test_voice_preview_quota_error_surfaces_as_http_429(client, tmp_path, monkeypatch):
+def test_voice_preview_quota_error_surfaces_as_http_429(client, isolated_storage, monkeypatch):
     from scripts import api_voice
-    monkeypatch.setattr(api_voice, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(api_voice, "BASE_DIR", isolated_storage)
 
     with patch("scripts.api_voice.GeminiFlashTTSEngine.generate_speech", side_effect=_quota_app_error()):
         resp = client.post("/api/voice/preview", json={"voice_gender": "gemini_puck_male_hype"})
 
-    assert resp.status_code == 429
+    assert resp.status_code == 429, resp.text
     assert "โควต้า" in resp.json()["detail"]
 
 
-def test_voice_preview_provider_failure_halts_without_fallback(client, tmp_path, monkeypatch):
+def test_voice_preview_provider_failure_halts_without_fallback(client, isolated_storage, monkeypatch):
     """When Gemini TTS fails in preview, it must NOT degrade to Edge-TTS.
     It returns an error response indicating the failure."""
     from scripts import api_voice
-    monkeypatch.setattr(api_voice, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(api_voice, "BASE_DIR", isolated_storage)
 
     with patch("scripts.api_voice.GeminiFlashTTSEngine.generate_speech", side_effect=RuntimeError("network down")), \
          patch("scripts.api_voice.VoiceEngine.generate_crystal_voice") as mock_edge:
         resp = client.post("/api/voice/preview", json={"voice_gender": "gemini_puck_male_hype"})
 
-    assert resp.status_code in (429, 500)
+    assert resp.status_code in (429, 500), resp.text
     mock_edge.assert_not_called()
 
 

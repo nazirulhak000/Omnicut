@@ -1,3 +1,4 @@
+import { projectWatermark } from '../lib/channelIdentity.js';
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   Play, Pause, Eye, Shield, Trash2, Move, RotateCcw, Plus,
@@ -354,7 +355,7 @@ export function drawSpotlight(ctx, value, width = CANVAS_W, height = CANVAS_H) {
 // WATERMARK_X_RATIO / WATERMARK_Y_RATIO / WATERMARK_FS_RATIO there). Keep
 // these four values identical on both sides; this is the preview half of
 // that render/preview parity, not an independent design choice.
-const WATERMARK_TEXT = 'สงวนลิขสิทธิ์ช่อง rizanntry ห้ามคัดลอก/ดัดแปลง';
+const WATERMARK_TEXT = 'สงวนลิขสิทธิ์ช่อง rizanntry ห้ามคัดลอก/ดัดแปลง'; // Legacy main golden contract.
 const WATERMARK_X_RATIO = 0.945;
 const WATERMARK_Y_RATIO = 0.72;
 const WATERMARK_FS_RATIO = 0.038;
@@ -2552,7 +2553,8 @@ function drawOverlayScrims(ctx, overlays = [], t, predicate = () => true) {
  * separately from drawOverlays() (which returns early on an empty list) so
  * it still shows with zero overlays, same as the render.
  */
-function drawWatermark(ctx) {
+function drawWatermark(ctx, watermarkText) {
+  if (!watermarkText) return;
   const x = CANVAS_W * WATERMARK_X_RATIO;
   const y = CANVAS_H * WATERMARK_Y_RATIO;
   const fontSize = Math.max(7, Math.round(CANVAS_W * WATERMARK_FS_RATIO));
@@ -2570,8 +2572,8 @@ function drawWatermark(ctx) {
   ctx.globalAlpha = WATERMARK_ALPHA;
   ctx.strokeStyle = '#FFFFFF';
   ctx.fillStyle = WATERMARK_COLOR;
-  ctx.strokeText(WATERMARK_TEXT, 0, 0);
-  ctx.fillText(WATERMARK_TEXT, 0, 0);
+  ctx.strokeText(watermarkText, 0, 0);
+  ctx.fillText(watermarkText, 0, 0);
   ctx.restore();
 }
 
@@ -3284,6 +3286,8 @@ function SequencePlayer({
   showSafeZone: externalShowSafeZone = undefined,
   onToggleSafeZone = null,
   showWatermark = true,
+  channelIdentitySnapshot = null,
+  channelId = 'main',
   subjectPoints = [],
   subjectContours = [],
   subjectPickMode = false,
@@ -3295,6 +3299,7 @@ function SequencePlayer({
   highResStillEnabled: controlledHighResStillEnabled,
   onToggleHighResStill = null,
 }, ref) {
+  const watermarkText = projectWatermark(channelIdentitySnapshot, channelId);
   const visualStyle = useMemo(() => getStylePreset(stylePreset), [stylePreset]);
   const previewAccentColor = visualStyle?.accent || '#FFE600';
   const previewSpotlight = useMemo(
@@ -3738,7 +3743,7 @@ function SequencePlayer({
     Math.round(playhead * 30), clipVisualKey, captionKey, cuesKey, overlaysKey, spotlightKey,
     stickerKey, stickersKey, JSON.stringify(effects), JSON.stringify(grade || null),
     activeCutoutMode, JSON.stringify(backgroundIsolation), backgroundIsolationTick,
-    lutReady, previewSticker, isStickerHidden, showWatermark, highResRevision,
+    lutReady, previewSticker, isStickerHidden, showWatermark, watermarkText, highResRevision,
   ]);
 
 
@@ -5036,7 +5041,7 @@ function SequencePlayer({
     }
     drawOverlays(ctx, overlaysInFront, t, previewAccentColor, bounds);
     if (showWatermark !== false) {
-      drawWatermark(ctx);
+      drawWatermark(ctx, watermarkText);
     }
     if (!cover) boundsRef.current = bounds;
     if (!cover && !masterPreview && !isPlaying && highResStillEnabled) {
@@ -5102,7 +5107,7 @@ function SequencePlayer({
   useEffect(() => {
     renderAt(playheadRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, spotlightKey, backgroundIsolationManifests, backgroundIsolationTick, lutReady, grade?.intensity, previewAccentColor, showWatermark, previewQuality, activeCutoutMode, subjectPickMode]);
+  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, spotlightKey, backgroundIsolationManifests, backgroundIsolationTick, lutReady, grade?.intensity, previewAccentColor, showWatermark, watermarkText, previewQuality, activeCutoutMode, subjectPickMode]);
 
   useEffect(() => {
     const revision = ++highResRequestRef.current;
@@ -5329,7 +5334,7 @@ function SequencePlayer({
         }
         drawOverlays(ctx, overlaysInFront, t, previewAccentColor, bounds);
         if (showWatermark !== false) {
-          drawWatermark(ctx);
+          drawWatermark(ctx, watermarkText);
         }
         boundsRef.current = bounds;
         // A frame whose video was not decoded yet is retried next callback
@@ -5355,7 +5360,7 @@ function SequencePlayer({
     // RAF loop kept drawing whatever array existed when isPlaying last
     // flipped true until some other dep (e.g. overlays) happened to change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, subjectPickMode, segments, segmentsByClipId, cues, overlays, totalDuration, effectiveStickersList, effects, spotlightKey, backgroundIsolationManifests, backgroundIsolationTick, previewQuality, activeCutoutMode, previewAccentColor, lutReady, grade?.intensity, showWatermark]);
+  }, [isPlaying, subjectPickMode, segments, segmentsByClipId, cues, overlays, totalDuration, effectiveStickersList, effects, spotlightKey, backgroundIsolationManifests, backgroundIsolationTick, previewQuality, activeCutoutMode, previewAccentColor, lutReady, grade?.intensity, showWatermark, watermarkText]);
 
   const togglePlay = () => {
     if (!segments.length || subjectPickMode) return;

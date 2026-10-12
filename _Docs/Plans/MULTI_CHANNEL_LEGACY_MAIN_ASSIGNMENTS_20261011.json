@@ -1,0 +1,59 @@
+{
+  "schema": "omnicut.channel_assign.v1",
+  "assignments": [
+    {
+      "store": "export_registry",
+      "id": "exp_e9084d645ce54d82903f45211b1be8ff",
+      "channel_id": "main",
+      "note": "user legacy ownership confirmation plus exact canonical export path shared with already-owned main row"
+    },
+    {
+      "store": "posts",
+      "id": "d723fffe69bf4a1294f6a32b7b8b8583",
+      "channel_id": "main",
+      "note": "user legacy ownership confirmation plus stored @rizanntry TikTok URL; not live account verification"
+    },
+    {
+      "store": "posts",
+      "id": "45f5c655530c4bb4a3e12d1fd5d6dc08",
+      "channel_id": "main",
+      "note": "user legacy ownership confirmation plus stored @rizanntry TikTok URL; not live account verification"
+    },
+    {
+      "store": "posts",
+      "id": "24b48378ff9546499233e9f4ec793b7d",
+      "channel_id": "main",
+      "note": "user legacy ownership confirmation plus stored @rizanntry TikTok URL; not live account verification"
+    },
+    {
+      "store": "posts",
+      "id": "3fb59f6fd9dc453988645a532a6cef88",
+      "channel_id": "main",
+      "note": "user legacy ownership confirmation plus stored @rizanntry TikTok URL; not live account verification"
+    },
+    {
+      "store": "posts",
+      "id": "5d469448d5e84739a6995eacc3756309",
+      "channel_id": "main",
+      "note": "user legacy ownership confirmation plus stored @rizanntry TikTok URL; not live account verification"
+    },
+    {
+      "store": "posts",
+      "id": "7d409fe28f064373991120b10570ff6b",
+      "channel_id": "main",
+      "note": "user legacy ownership confirmation plus stored @rizanntry TikTok URL; not live account verification"
+    },
+    {
+      "store": "posts",
+      "id": "2978f22c90404950a243df5acb18a89e",
+      "channel_id": "main",
+      "note": "user legacy ownership confirmation plus stored @rizanntry TikTok URL; not live account verification"
+    },
+    {
+      "store": "gadget_media_campaigns",
+      "id": "gadget-media-ebbb8c0304",
+      "channel_id": "main",
+      "note": "user explicitly confirmed legacy campaign main; 21 slots; no Gadget project manifests on disk"
+    }
+  ]
+}

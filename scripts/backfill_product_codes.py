@@ -8,21 +8,13 @@ from scripts.product_store import ProductStore
 
 
 def main() -> None:
-    products = ProductStore._load()
-    products.sort(key=lambda p: p.get("created_at") or "")
-
-    updated = 0
-    for product in products:
-        if product.get("product_code"):
-            continue
-        code = ProductStore._generate_product_code(product.get("name", ""), products)
-        product["product_code"] = code
-        updated += 1
-        print(f"{product.get('id')}: {product.get('name')!r} -> {code}")
-
-    if updated:
-        ProductStore._save(products)
-    print(f"Done. {updated} product(s) backfilled, {len(products) - updated} already had a code.")
+    # Maintenance over every channel (codes are globally unique). One
+    # transaction; rows are updated in place, never replaced wholesale.
+    total = len(ProductStore.snapshot(all_channels=True))
+    assigned = ProductStore.backfill_missing_product_codes(all_channels=True)
+    for item in assigned:
+        print(f"{item['id']}: {item['name']!r} -> {item['product_code']}")
+    print(f"Done. {len(assigned)} product(s) backfilled, {total - len(assigned)} already had a code.")
 
 
 if __name__ == "__main__":

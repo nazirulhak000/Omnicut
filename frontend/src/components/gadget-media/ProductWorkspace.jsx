@@ -95,7 +95,7 @@ export default function ProductWorkspace({ projectId, onBack, onProjectChanged }
       acceptProject(saved);
       setSaveState('saved');
       setNotice(successMessage);
-      setActiveStage(STATUS_STAGE[saved.status] || activeStage);
+      if (payload.status) setActiveStage(STATUS_STAGE[saved.status] || activeStage);
       return saved;
     } catch (saveError) {
       setSaveState('error');
@@ -240,7 +240,7 @@ export default function ProductWorkspace({ projectId, onBack, onProjectChanged }
 
   let stageContent = null;
   if (project) {
-    const stageKey = `${project.project_id}-${project.updated_at}`;
+    const stageKey = `${project.project_id}-${activeStage}`;
     if (activeStage === 'brief') stageContent = <BriefStage key={stageKey} project={project} busy={busy} onSave={saveProject} />;
     else if (activeStage === 'sources') stageContent = <SourcesStage key={stageKey} project={project} busy={busy} onProbe={probeSource} onAdvance={(status) => saveProject({ status })} />;
     else if (activeStage === 'evidence') stageContent = <EvidenceStage key={stageKey} project={project} busy={busy} onSave={saveProject} />;

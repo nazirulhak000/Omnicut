@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { createLatestSaveQueue } from '../lib/projectSaveQueue.js';
 import { withProjectRevision } from '../lib/projectRevision.js';
+import { captureChannel, registerChannelSwitchParticipant } from '../lib/channelRuntime.js';
+import { projectApiPath } from '../lib/channelTransport.js';
 
 // The normal browser path uses the same-origin proxy, which injects auth on
 // the server side. An explicit key remains supported for isolated callers and
@@ -45,6 +47,7 @@ export function createProjectAutosaveController({
   // promise — both attach a handler, but only one should count as "the" failure.
   const retriedFlushes = new WeakSet();
   let baseline = { projectName: '', key: '' };
+  let baselineGeneration = 0;
   let queued = null;
   let keyCache = { hasValue: false, payload: null, key: '' };
   const jobKeys = new WeakMap();
@@ -91,11 +94,15 @@ export function createProjectAutosaveController({
   };
 
   const runFlush = () => {
+    const generation = baselineGeneration;
     const attempt = queue.flush();
     return attempt.then(
       (result) => {
         retryCount = 0;
         clearRetryTimer();
+        if (result && generation === baselineGeneration) {
+          baseline = { projectName: result.projectName, key: jobKeys.get(result) || getKey(result.payload) };
+        }
         return result;
       },
       (error) => {
@@ -181,6 +188,7 @@ export function createProjectAutosaveController({
   };
 
   const setBaseline = (projectName, payload) => {
+    baselineGeneration += 1;
     clearTimer();
     clearRetryTimer();
     retryCount = 0;
@@ -206,10 +214,25 @@ export function createProjectAutosaveController({
     setBaseline,
     saveNow,
     clearTimer,
+    async discard() {
+      baselineGeneration += 1;
+      clearTimer();
+      clearRetryTimer();
+      queue.clearPending();
+      // An already dispatched request remains bound to its original channel.
+      // Wait for it to settle before leaving; never dispatch pending edits.
+      if (queue.isSaving()) await queue.flush().catch(() => {});
+      queue.clearPending();
+      clearRetryTimer();
+      onStatusChange('saved');
+    },
     // True while any edit is waiting, queued, retrying or in flight -- i.e.
     // the server may not hold what the editor shows.
     hasUnsavedWork() {
       return timer !== null || retryTimer !== null || queue.hasPending() || !!queue.isSaving?.();
+    },
+    hasUnsavedPayload({ projectName, payload, enabled }) {
+      return !!enabled && !!projectName && (baseline.projectName !== projectName || baseline.key !== getKey(payload));
     },
     peekPending() {
       return queue.peekPending();
@@ -230,6 +253,7 @@ export function useProjectAutosave({
   // while edits were pending). Closing the tab then would lose those edits.
   unsavedAtRisk = false,
 }) {
+  const [channelToken] = useState(captureChannel);
   const [saveStatus, setSaveStatus] = useState('saved');
   const [saveConflict, setSaveConflict] = useState(false);
   const conflictRef = useRef(false);
@@ -239,7 +263,7 @@ export function useProjectAutosave({
   useEffect(() => {
     saveRef.current = saveProject;
   }, [saveProject]);
-  const save = useCallback((name, body) => callSave(saveRef, name, body), []);
+  const save = useCallback((name, body) => saveRef.current(name, body, channelToken), [channelToken]);
   const [queue] = useState(() => createLatestSaveQueue(
     save,
     {
@@ -285,6 +309,17 @@ export function useProjectAutosave({
     controller.saveNow({ projectName, payload, enabled })
   ), [controller, enabled, payload, projectName]);
 
+  const currentEdit = useRef(null);
+  currentEdit.current = { projectName, payload, enabled };
+  useEffect(() => registerChannelSwitchParticipant({
+    isDirty: () => controller.hasUnsavedWork() || controller.hasUnsavedPayload(currentEdit.current),
+    save: async () => {
+      controller.observe({ ...currentEdit.current, debounceMs: 0 });
+      await controller.flush();
+    },
+    discard: () => controller.discard(),
+  }), [controller]);
+
   useEffect(() => {
     let lifecycleSaveStarted = false;
     const saveBeforeUnload = (event) => {
@@ -314,10 +349,10 @@ export function useProjectAutosave({
 
       const job = controller.peekPending();
       if (!job || typeof fetch !== 'function') return;
-      fetch(`/api/projects/${encodeURIComponent(job.projectName)}/state`, {
+      fetch(`/api${projectApiPath(job.projectName)}/state`, {
         method: 'PATCH',
-        headers: lifecycleSaveHeaders(),
-        body: JSON.stringify(withProjectRevision(job.projectName, job.payload)),
+        headers: { ...lifecycleSaveHeaders(), 'X-OmniCut-Channel': channelToken.channel_id },
+        body: JSON.stringify(withProjectRevision(job.projectName, { ...job.payload, channel_id: channelToken.channel_id }, channelToken.channel_id)),
         keepalive: true,
       }).catch(() => {});
     };

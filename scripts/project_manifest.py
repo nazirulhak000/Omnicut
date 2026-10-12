@@ -220,6 +220,9 @@ class ProjectManifest:
             "artifacts": {},
         }
 
+        if "channel_id" in fields and "channel_id" in manifest and fields["channel_id"] != manifest["channel_id"]:
+            from scripts.channel_store import ChannelError
+            raise ChannelError(422, "channel_id_immutable", "เปลี่ยนช่องเจ้าของโปรเจกต์ไม่ได้")
         artifacts = cls._normalize_artifacts(fields.pop("artifacts", None))
         manifest.update(fields)
         if artifacts:
@@ -340,22 +343,28 @@ class ProjectManifest:
     # Listing
     # ------------------------------------------------------------------
     @classmethod
-    def list_projects(cls) -> List[Dict[str, Any]]:
+    def list_projects(cls, *, channel_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Every project that has a manifest, newest first."""
         projects = []
         if not PROJECTS_DIR.exists():
             return projects
 
-        for child in PROJECTS_DIR.iterdir():
-            if not child.is_dir():
+        for manifest_file in PROJECTS_DIR.rglob("project.json"):
+            child = manifest_file.parent
+            relative_name = child.relative_to(PROJECTS_DIR).as_posix()
+            if Path(relative_name).parts[0] == "GadgetMedia" or any(part.startswith("_") or part.startswith(".") for part in Path(relative_name).parts):
                 continue
-            manifest = cls.load(child.name)
+            manifest = cls.load(relative_name)
             if not manifest:
                 continue
+            if channel_id is not None:
+                from scripts.channel_ownership import resolve_store_scope
+                if not resolve_store_scope(channel_id).owns(manifest):
+                    continue
             mp4_entry = (manifest.get("artifacts") or {}).get("mp4_video")
             mp4_path = mp4_entry.get("path") if isinstance(mp4_entry, dict) else None
             projects.append({
-                "project_name": manifest.get("project_name", child.name),
+                "project_name": relative_name,
                 "product_name": (manifest.get("product") or {}).get("name", ""),
                 "angle_title": (manifest.get("angle") or {}).get("title", ""),
                 "duration": manifest.get("total_duration"),
@@ -396,7 +405,7 @@ class ProjectManifest:
             raise ValueError(f"'{project_name}' อยู่นอกโฟลเดอร์โปรเจกต์")
         if not target.exists() or not target.is_dir():
             raise FileNotFoundError(f"ไม่พบโปรเจกต์ '{project_name}'")
-        if target.name.startswith("_"):
+        if any(part.startswith(("_", ".")) for part in target.relative_to(root).parts):
             raise ValueError(f"'{target.name}' เป็นโฟลเดอร์ระบบ ลบไม่ได้")
 
         size = cls.folder_size_mb(target)
@@ -414,7 +423,7 @@ class ProjectManifest:
                     raise
                 gc.collect()
                 time.sleep(0.3)
-        return {"project_name": target.name, "size_mb": size, "files_removed": files}
+        return {"project_name": target.relative_to(root).as_posix(), "size_mb": size, "files_removed": files}
 
     @classmethod
     def archive(cls, project_name: str) -> Dict[str, Any]:
@@ -429,19 +438,21 @@ class ProjectManifest:
             raise ValueError(f"'{project_name}' อยู่นอกโฟลเดอร์โปรเจกต์")
         if not target.exists() or not target.is_dir():
             raise FileNotFoundError(f"ไม่พบโปรเจกต์ '{project_name}'")
-        if target.name.startswith("_"):
+        if any(part.startswith(("_", ".")) for part in target.relative_to(root).parts):
             raise ValueError(f"'{target.name}' เป็นโฟลเดอร์ระบบ ย้ายไม่ได้")
 
         archive_projects_dir = (ARCHIVE_DIR / "Projects").resolve()
         archive_projects_dir.mkdir(parents=True, exist_ok=True)
-        dest = archive_projects_dir / target.name
+        relative_name = target.relative_to(root)
+        dest = archive_projects_dir / relative_name
+        dest.parent.mkdir(parents=True, exist_ok=True)
         if dest.exists():
             # Never delete an earlier archive: pick a unique sibling instead.
             stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            dest = archive_projects_dir / f"{target.name}_{stamp}"
+            dest = dest.parent / f"{target.name}_{stamp}"
             counter = 1
             while dest.exists():
-                dest = archive_projects_dir / f"{target.name}_{stamp}_{counter}"
+                dest = dest.parent / f"{target.name}_{stamp}_{counter}"
                 counter += 1
 
         size = cls.folder_size_mb(target)
@@ -458,7 +469,7 @@ class ProjectManifest:
                 time.sleep(0.3)
 
         return {
-            "project_name": target.name,
+            "project_name": relative_name.as_posix(),
             "archived_to": str(dest.relative_to(BASE_DIR)).replace("\\", "/"),
             "size_mb": size,
             "files_moved": files,
@@ -503,7 +514,7 @@ class ProjectManifest:
         return snapshots
 
     @classmethod
-    def restore_snapshot(cls, project_name: str, snapshot_id: str) -> Dict[str, Any]:
+    def restore_snapshot(cls, project_name: str, snapshot_id: str, *, channel_id: Optional[str] = None) -> Dict[str, Any]:
         """Restores manifest from a specified snapshot (bak1, bak2, bak3, bak)."""
         with cls._SAVE_LOCK:
             path = cls.path_for(project_name)
@@ -521,6 +532,11 @@ class ProjectManifest:
             data = json.loads(content)
             if not isinstance(data, dict):
                 raise ValueError(f"ไฟล์สำรอง '{snapshot_id}' ข้อมูลไม่ถูกต้อง")
+            if channel_id is not None:
+                from scripts.channel_ownership import resolve_store_scope
+                from scripts.channel_store import ChannelError
+                if not resolve_store_scope(channel_id).owns(data):
+                    raise ChannelError(404, "channel_resource_not_found", "ไม่พบไฟล์สำรองโปรเจกต์")
 
             # Backup current broken/existing file before restoring
             if path.exists():

@@ -6,12 +6,18 @@ import os
 import sys
 import json
 import time
+import uuid
+from urllib.parse import quote
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request, Depends
 
+from scripts.channel_scope import ChannelScope, require_active_for_new_work, get_optional_channel_scope, get_channel_scope
+from scripts.channel_store import ChannelError
+from scripts.channel_workflows import get_workflow_scope, require_media_owner
+from scripts.channel_artifacts import register as register_artifact
 from scripts.config import (
     BASE_DIR, ASSETS_DIR, VOICES, DEFAULT_VOICE, DEFAULT_VOICE_RATE
 )
@@ -124,9 +130,21 @@ async def trigger_voice_cache_generation(background_tasks: BackgroundTasks, forc
 
 
 @router.post("/api/voice/preview")
-def preview_voice(req: VoicePreviewRequest):
+def preview_voice(req: VoicePreviewRequest, request: Request = None):
     """Generates a quick voice sample for auditioning (Edge-TTS or Gemini Flash)."""
+    scope = (get_optional_channel_scope(request) or get_channel_scope(request)) if request is not None else None
+    if scope is not None:
+        require_active_for_new_work(scope)
     sample_file = BASE_DIR / "test_voice.wav"
+    owner = scope.channel_id if scope is not None else ("main" if request is not None else None)
+    if owner is not None:
+        sample_file = BASE_DIR / "03_Projects" / owner / "_VoicePreviews" / (uuid.uuid4().hex + ".wav")
+        sample_file.parent.mkdir(parents=True, exist_ok=True)
+        register_artifact(sample_file, owner)
+    def sample_url():
+        if owner is not None:
+            register_artifact(sample_file, owner)
+        return "/api/media/" + quote(sample_file.relative_to(BASE_DIR).as_posix(), safe="/") + ("?channel=" + owner if owner is not None else "")
     text = req.text or "สวัสดีครับ นี่คือเสียงตัวอย่างสำหรับคลิปรีวิวสินค้า"
     voice_gender = req.voice_gender or "male"
     speed = req.speed or 1.15
@@ -143,10 +161,12 @@ def preview_voice(req: VoicePreviewRequest):
                 speed=speed,
             )
             return {
-                "audio_url": f"/api/media/{sample_file.name}",
+                "audio_url": sample_url(),
                 "duration": measure_wav_duration(sample_file),
                 "voice_name": gemini_voice
             }
+        except (HTTPException, ChannelError):
+            raise
         except Exception as g_err:
             if is_quota_error(g_err):
                 raise HTTPException(status_code=429, detail=g_err.suggestion_th)
@@ -168,7 +188,7 @@ def preview_voice(req: VoicePreviewRequest):
         raise HTTPException(status_code=500, detail="Voice generation failed")
 
     return {
-        "audio_url": f"/api/media/{sample_file.name}",
+        "audio_url": sample_url(),
         "duration": measure_wav_duration(sample_file),
         "voice_name": voice_gender
     }
@@ -364,8 +384,10 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
 
 
 @router.post("/api/sub-srt/transcribe")
-def run_sub_srt_transcription(req: TranscribeRequest):
+def run_sub_srt_transcription(req: TranscribeRequest, scope: ChannelScope = Depends(get_workflow_scope)):
     """Runs sub-srt Speech Recognition on a video or audio file."""
+    if isinstance(scope, ChannelScope):
+        require_active_for_new_work(scope)
     media_path = Path(req.media_path)
     if not media_path.is_absolute():
         media_path = BASE_DIR / req.media_path
@@ -383,11 +405,20 @@ def run_sub_srt_transcription(req: TranscribeRequest):
     if not media_path.exists():
         raise HTTPException(status_code=404, detail=f"Media file not found: {media_path}")
 
+    if isinstance(scope, ChannelScope):
+        require_media_owner(scope, media_path, base_dir=BASE_DIR)
     skill_script = PROJECT_ROOT / ".agents" / "skills" / "sub-srt" / "generate_srt.py"
     if not skill_script.exists():
         skill_script = Path(os.environ.get("USERPROFILE", "")) / ".gemini" / "config" / "skills" / "sub-srt" / "generate_srt.py"
 
     out_dir = media_path.parent
+    if isinstance(scope, ChannelScope):
+        import hashlib
+        key = hashlib.sha256(str(media_path).encode()).hexdigest()[:16]
+        out_dir = BASE_DIR / "03_Projects" / scope.channel_id / "_Transcripts" / key
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for suffix in ["srt", "vtt"]:
+            register_artifact(out_dir / (media_path.stem + "-sub." + suffix), scope.channel_id)
     cmd = [
         sys.executable, str(skill_script),
         str(media_path),
@@ -410,16 +441,22 @@ def run_sub_srt_transcription(req: TranscribeRequest):
         srt_file = out_dir / f"{base_stem}-sub.srt"
         vtt_file = out_dir / f"{base_stem}-sub.vtt"
 
+        if isinstance(scope, ChannelScope):
+            for artifact in [srt_file, vtt_file]:
+                if artifact.is_file():
+                    register_artifact(artifact, scope.channel_id)
         srt_content = srt_file.read_text(encoding="utf-8", errors="ignore") if srt_file.exists() else ""
 
         return {
             "success": True,
             "srt_path": str(srt_file) if srt_file.exists() else None,
-            "srt_url": f"/api/media/{srt_file.relative_to(BASE_DIR)}" if srt_file.exists() else None,
-            "vtt_url": f"/api/media/{vtt_file.relative_to(BASE_DIR)}" if vtt_file.exists() else None,
+            "srt_url": "/api/media/" + quote(srt_file.relative_to(BASE_DIR).as_posix(), safe="/") + ("?channel=" + scope.channel_id if isinstance(scope, ChannelScope) else "") if srt_file.exists() else None,
+            "vtt_url": "/api/media/" + quote(vtt_file.relative_to(BASE_DIR).as_posix(), safe="/") + ("?channel=" + scope.channel_id if isinstance(scope, ChannelScope) else "") if vtt_file.exists() else None,
             "content": srt_content,
             "stdout": proc.stdout,
             "stderr": proc.stderr
         }
+    except (HTTPException, ChannelError):
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

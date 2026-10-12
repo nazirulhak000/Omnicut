@@ -90,10 +90,12 @@ class AssetRegistry:
     @staticmethod
     def _file_info(path: Path) -> Dict[str, Any]:
         stat = path.stat()
+        from scripts.config import asset_relative_path
+        relative = asset_relative_path(path, data_assets_root=ASSETS_DIR)
         return {
             "name": path.name,
             "path": str(path),
-            "rel_path": str(path.relative_to(ASSETS_DIR.parent)).replace("\\", "/"),
+            "rel_path": relative.as_posix(),
             "size_bytes": stat.st_size,
             "size_mb": round(stat.st_size / (1024 * 1024), 2),
             "modified_time": datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),

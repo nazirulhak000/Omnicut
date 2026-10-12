@@ -1,3 +1,7 @@
+import { channelLocalStorage } from '../lib/channelStorage.js';
+import { activeChannel, registerChannelSwitchParticipant } from '../lib/channelRuntime.js';
+import { toMediaUrl } from '../lib/mediaUrl.js';
+import { readTrackerDraft, writeTrackerDraft, clearTrackerDraft } from '../lib/trackerDrafts.js';
 import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import {
   Layers, Clapperboard, Check, Trash2, ArrowRight, Play,
@@ -71,7 +75,7 @@ const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
     >
       <video
         ref={videoRef}
-        src={`/api/media/${videoUrl}#t=1.0`}
+        src={`${toMediaUrl(videoUrl)}#t=1.0`}
         muted
         playsInline
         loop
@@ -147,13 +151,13 @@ const KanbanCard = memo(function KanbanCard({
         >
           {ang.cover_url ? (
             <img
-              src={ang.cover_url}
+              src={toMediaUrl(ang.cover_url)}
               alt="Cover 9:16"
               className="w-full h-full object-cover"
             />
           ) : ang.video_url ? (
             <video
-              src={`/api/media/${ang.video_url}#t=1.0`}
+              src={`${toMediaUrl(ang.video_url)}#t=1.0`}
               muted
               playsInline
               className="w-full h-full object-cover"
@@ -633,7 +637,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
             onClick={() => onPreviewVideo(ang.video_url)}
             className="w-10 h-14 rounded-xl overflow-hidden bg-black relative border border-white/[0.1] hover:border-[#25F4EE] flex-shrink-0 group cursor-pointer"
           >
-            <video src={`/api/media/${ang.video_url}`} className="w-full h-full object-cover" muted />
+            <video src={toMediaUrl(ang.video_url)} className="w-full h-full object-cover" muted />
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/10">
               <Play className="w-3 h-3 fill-current text-[#25F4EE]" />
             </div>
@@ -738,7 +742,7 @@ const TableRow = memo(function TableRow({
             onClick={() => onPreviewVideo(ang.video_url)}
             className="w-10 h-13 rounded-lg overflow-hidden bg-black relative border border-white/[0.1] hover:border-[#25F4EE] inline-flex items-center justify-center group cursor-pointer shadow-sm"
           >
-            <video src={`/api/media/${ang.video_url}`} className="w-full h-full object-cover" muted />
+            <video src={toMediaUrl(ang.video_url)} className="w-full h-full object-cover" muted />
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/10">
               <Play className="w-3 h-3 fill-current text-[#25F4EE]" />
             </div>
@@ -867,6 +871,8 @@ const TableRow = memo(function TableRow({
 // 🌟 MAIN CONTENT TRACKER HUB COMPONENT (True Deep-Dive Tracking)
 // ═══════════════════════════════════════════════════════════════════════
 export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, onGoToGallery, onGoToEditor, onGoToFlow, workspaceData }) {
+  const [workspaceStorage] = useState(channelLocalStorage);
+
   const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -900,6 +906,34 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const [tiktokProductId, setTiktokProductId] = useState('');
   const [tiktokScheduleDate, setTiktokScheduleDate] = useState('');
   const [tiktokScheduleTime, setTiktokScheduleTime] = useState('');
+  const failedDraftWrites = useRef(new Map());
+  useEffect(() => registerChannelSwitchParticipant({
+    isDirty: () => failedDraftWrites.current.size > 0,
+    save: async () => {
+      for (const [key, { kind, item, draft }] of failedDraftWrites.current) {
+        writeTrackerDraft(workspaceStorage, kind, item, draft);
+        failedDraftWrites.current.delete(key);
+      }
+    },
+    discard: async () => { failedDraftWrites.current.clear(); },
+  }), [workspaceStorage]);
+  function persistManualDraft(kind, item, draft) {
+    const key = `${kind}:${item?.export_id || item?.angle_id || item?.id}`;
+    try {
+      writeTrackerDraft(workspaceStorage, kind, item, draft);
+      failedDraftWrites.current.delete(key);
+    } catch {
+      failedDraftWrites.current.set(key, { kind, item, draft });
+      showToast('เก็บแบบร่างไม่สำเร็จ ระบบจะให้บันทึกอีกครั้งก่อนสลับช่อง', 'error');
+    }
+  }
+  function editTiktokDraft(field, value) {
+    const draft = { caption: tiktokCaption, hashtags: tiktokHashtags, product: tiktokProductId,
+      date: tiktokScheduleDate, time: tiktokScheduleTime, [field]: value };
+    ({ caption: setTiktokCaption, hashtags: setTiktokHashtags, product: setTiktokProductId,
+      date: setTiktokScheduleDate, time: setTiktokScheduleTime })[field](value);
+    persistManualDraft('post', tiktokModalItem, draft);
+  }
   // Cross-referenced against by export_id when opening the TikTok Studio
   // modal, so a clip that's already sitting in ScheduleAgenda's queue shows
   // that date/time here instead of a blank field the user has to re-enter.
@@ -957,7 +991,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   // Picked scripts for today's production (persists in localStorage)
   const [pickedScriptIds, setPickedScriptIds] = useState(() => {
     try {
-      const saved = localStorage.getItem('omnicut_today_picked_scripts');
+      const saved = workspaceStorage.getItem('omnicut_today_picked_scripts');
       if (saved) return JSON.parse(saved);
     } catch {}
     return null;
@@ -966,7 +1000,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   useEffect(() => {
     if (pickedScriptIds !== null) {
       try {
-        localStorage.setItem('omnicut_today_picked_scripts', JSON.stringify(pickedScriptIds));
+        workspaceStorage.setItem('omnicut_today_picked_scripts', JSON.stringify(pickedScriptIds));
       } catch {}
     }
   }, [pickedScriptIds]);
@@ -1080,9 +1114,10 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       cover_url: cover.url || ang.cover_url || '',
       cover_path: cover.path || ang.cover_path || '',
     });
-    setTiktokCaption(ang.tiktok_caption || ang.hook_title || '');
-    setTiktokHashtags(ang.tiktok_hashtags || '#รีวิว #ของดีบอกต่อ');
-    setTiktokProductId(targetPid);
+    const savedDraft = readTrackerDraft(workspaceStorage, 'post', ang);
+    setTiktokCaption(savedDraft?.caption ?? ang.tiktok_caption ?? ang.hook_title ?? '');
+    setTiktokHashtags(savedDraft?.hashtags ?? ang.tiktok_hashtags ?? '#รีวิว #ของดีบอกต่อ');
+    setTiktokProductId(savedDraft?.product ?? targetPid);
 
     // Caller didn't pin a date/time explicitly -- if this exact clip is
     // already sitting in ScheduleAgenda's queue (matched by export_id, or
@@ -1103,9 +1138,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         time = parts.time;
       }
     }
-    setTiktokScheduleDate(date || '');
-    setTiktokScheduleTime(time || '');
-  }, [scheduleQueueItems]);
+    setTiktokScheduleDate(savedDraft?.date ?? date ?? '');
+    setTiktokScheduleTime(savedDraft?.time ?? time ?? '');
+  }, [scheduleQueueItems, workspaceStorage]);
 
   const handleConfirmTiktokAutopost = useCallback(async () => {
     if (!tiktokModalItem) return;
@@ -1127,6 +1162,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         tiktokScheduleTime.trim() || undefined,
         tiktokModalItem.export_id || null,
       );
+      clearTrackerDraft(workspaceStorage, 'post', tiktokModalItem);
       showToast('ส่งข้อมูลให้ Extension แล้ว! กำลังเปิด TikTok Studio...');
       window.open('https://www.tiktok.com/tiktokstudio/upload', '_blank');
     } catch (err) {
@@ -1134,7 +1170,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     } finally {
       setIsSubmittingTiktok(false);
     }
-  }, [tiktokModalItem, tiktokCaption, tiktokHashtags, tiktokProductId, tiktokScheduleDate, tiktokScheduleTime, showToast]);
+  }, [tiktokModalItem, tiktokCaption, tiktokHashtags, tiktokProductId, tiktokScheduleDate, tiktokScheduleTime, showToast, workspaceStorage]);
 
   const handlePreviewVideo = useCallback((url, ang = null) => {
     setPreviewVideoUrl(url);
@@ -1300,7 +1336,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       project_name: ang.project_name || '',
       hook_title: ang.hook_title || '',
       angle_name: ang.angle_name || '',
-      thumbnail_url: ang.cover_url || ang.thumbnail_url || (ang.video_url ? `/api/media/${ang.video_url}` : ''),
+      thumbnail_url: toMediaUrl(ang.cover_url || ang.thumbnail_url || ang.video_url || ''),
       cover_url: cover.url || ang.cover_url || '',
       cover_path: cover.path || ang.cover_path || '',
       cover_3x4_url: ang.cover_3x4_url || ang.media_url_3x4 || '',
@@ -1312,7 +1348,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     setCoverStudioItem(item);
   }, []);
 
-  const handleCoverSaved = useCallback(async (res) => {
+  const handleCoverSaved = useCallback(async (res, channelToken) => {
     showToast('สร้างภาพปก 3:4 สำเร็จแล้ว!');
     if (tiktokModalItem) {
       setTiktokModalItem((prev) => (prev ? applyCoverResult(prev, res) : null));
@@ -1325,7 +1361,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           cover_path: res.cover_path || null,
           cover_3x4_path: res.cover_3x4_path || null,
           cover_9x16_path: res.cover_9x16_path || null,
-        });
+        }, null, channelToken);
       } catch (err) {
         showToast('บันทึกภาพปกเข้ากับมุมสินค้าไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
         return;
@@ -1395,8 +1431,10 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         } : null);
       }
       showToast('อัปเดตสถานะสำเร็จ');
+      return true;
     } catch (err) {
       showToast('ไม่สามารถอัปเดตสถานะได้: ' + err.message, 'error');
+      return false;
     }
   }, [products, inspectAngle, fetchProductsData, showToast, workspaceData]);
 
@@ -1495,13 +1533,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
 
   const handleQcFail = useCallback((ang) => {
     setQcFailTarget(ang);
-    setQcFailNote('');
-  }, []);
+    setQcFailNote(readTrackerDraft(workspaceStorage, 'qc', ang)?.note || '');
+  }, [workspaceStorage]);
 
   const handleQcFailConfirm = useCallback(async () => {
     if (!qcFailTarget) return;
     const note = qcFailNote.trim() || 'QC ไม่ผ่าน';
-    await handleAngleStatusChange(
+    const saved = await handleAngleStatusChange(
       qcFailTarget.parentProduct.id,
       qcFailTarget.angle_id,
       'in_production',
@@ -1509,11 +1547,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       note,     // qc_note
       false,
     );
+    if (!saved) return;
+    clearTrackerDraft(workspaceStorage, 'qc', qcFailTarget);
     showToast('ส่งตัดใหม่แล้ว — สถานะกลับเป็น "กำลังตัดต่อ"');
     setQcFailTarget(null);
     setQcFailNote('');
     setInspectAngle(null); // close inspect modal if open
-  }, [qcFailTarget, qcFailNote, handleAngleStatusChange, showToast]);
+  }, [qcFailTarget, qcFailNote, handleAngleStatusChange, showToast, workspaceStorage]);
 
   const handleQcPass = useCallback(async (ang) => {
     if (!ang || !ang.parentProduct) return;
@@ -1521,7 +1561,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     // used to move toward is gone, and posting itself happens through the
     // schedule-queue/extension flow, a separate concern from this pipeline.
     // qc_reviewed (set via markQcPassed below) is what now marks "ready".
-    await handleAngleStatusChange(
+    const saved = await handleAngleStatusChange(
       ang.parentProduct.id,
       ang.angle_id,
       ang.status || 'rendered',
@@ -1532,6 +1572,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       ang.export_id || null,
       true,     // markQcPassed -- a human actually clicked this button
     );
+    if (!saved) return;
     showToast('🎉 QC ผ่านเรียบร้อยแล้ว! ล้างข้อความไม่ผ่านออก และการ์ดเป็นสีฟ้าพร้อมใช้งาน');
     setPreviewVideoUrl(null);
     setPreviewVideoAngle(null);
@@ -1922,7 +1963,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   {effectiveVideoUrl ? (
                     <div className="relative rounded-xl overflow-hidden bg-black border border-white/[0.1] max-w-[220px] mx-auto shadow-xl">
                       <video
-                        src={`/api/media/${effectiveVideoUrl}`}
+                        src={toMediaUrl(effectiveVideoUrl)}
                         controls
                         playsInline
                         className="w-full aspect-[9/16] max-h-56 object-contain mx-auto bg-black"
@@ -2144,7 +2185,10 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               <label className="text-xs font-bold text-slate-300 block">หมายเหตุ QC (เพื่อให้ตัดต่อเห็นว่าต้องแก้อะไร)</label>
               <textarea
                 value={qcFailNote}
-                onChange={e => setQcFailNote(e.target.value)}
+                onChange={e => {
+                  setQcFailNote(e.target.value);
+                  persistManualDraft('qc', qcFailTarget, { note: e.target.value });
+                }}
                 placeholder="เช่น เสียงพากย์เร็วเกินไป, ตัดจังหวะไม่เรียบร้อย, ข้อความตกขอบจอ"
                 rows={3}
                 className="w-full rounded-xl bg-black/40 border border-white/[0.1] text-slate-200 text-xs sm:text-sm p-3 placeholder-slate-600 focus:outline-none focus:border-[#25F4EE]/50 resize-none font-mono leading-relaxed"
@@ -2185,7 +2229,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         {previewVideoUrl && (
           <div className="space-y-3.5">
             <video
-              src={`/api/media/${previewVideoUrl}`}
+              src={toMediaUrl(previewVideoUrl)}
               controls
               autoPlay
               className="w-full rounded-2xl bg-black aspect-[9/16] object-contain max-h-[60vh] shadow-2xl border border-white/[0.08]"
@@ -2244,7 +2288,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           // embedding the full text here too just risks a long AI-written
           // caption + hashtag list pushing the URL past a QR code's payload
           // ceiling ("RangeError: Data too long" from QRCodeSVG).
-          const quickPostUrl = `${mobileBaseUrl}/?quick_post=1&pid=${encodeURIComponent(qrModalItem.parentProduct?.id || '')}&aid=${encodeURIComponent(qrModalItem.angle_id || '')}&eid=${encodeURIComponent(qrModalItem.export_id || '')}&video=${encodeURIComponent(qrModalItem.video_url || '')}&product=${encodeURIComponent(qrModalItem.parentProduct?.name || '')}&hook=${encodeURIComponent(qrModalItem.hook_title || '')}`;
+          const quickPostUrl = `${mobileBaseUrl}/?quick_post=1&channel=${encodeURIComponent(activeChannel())}&pid=${encodeURIComponent(qrModalItem.parentProduct?.id || '')}&aid=${encodeURIComponent(qrModalItem.angle_id || '')}&eid=${encodeURIComponent(qrModalItem.export_id || '')}&video=${encodeURIComponent(qrModalItem.video_url || '')}&product=${encodeURIComponent(qrModalItem.parentProduct?.name || '')}&hook=${encodeURIComponent(qrModalItem.hook_title || '')}`;
 
           return (
             <div className="text-center space-y-3.5">
@@ -2309,7 +2353,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               {tiktokModalItem.video_url ? (
                 <div className="w-16 aspect-[9/16] rounded-xl overflow-hidden bg-black border border-white/[0.1] flex-shrink-0 shadow-md">
                   <video
-                    src={`/api/media/${tiktokModalItem.video_url}`}
+                    src={toMediaUrl(tiktokModalItem.video_url)}
                     className="w-full h-full object-cover"
                     controls={false}
                     muted
@@ -2346,7 +2390,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     title="เปิดพรีวิวภาพปกขนาดใหญ่"
                   >
                     <img
-                      src={tiktokModalItem.cover_url}
+                      src={toMediaUrl(tiktokModalItem.cover_url)}
                       alt="Cover 3:4"
                       className="w-full h-full object-cover"
                     />
@@ -2391,13 +2435,14 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
 
             {/* Caption & Hashtag Inputs */}
             <div className="space-y-3">
+              <p className="text-xs text-slate-400">แบบร่างเก็บแยกตามช่องบนอุปกรณ์นี้ จนกว่าจะส่งข้อมูลให้ Extension</p>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300">
                   คำอธิบายคลิป (Caption):
                 </label>
                 <Textarea
                   value={tiktokCaption}
-                  onChange={(e) => setTiktokCaption(e.target.value)}
+                  onChange={(e) => editTiktokDraft('caption', e.target.value)}
                   placeholder="เขียนแคปชั่นดึงดูดใจ..."
                   rows={3}
                 />
@@ -2409,7 +2454,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 </label>
                 <Input
                   value={tiktokHashtags}
-                  onChange={(e) => setTiktokHashtags(e.target.value)}
+                  onChange={(e) => editTiktokDraft('hashtags', e.target.value)}
                   placeholder="#รีวิว #ของดีบอกต่อ..."
                 />
               </div>
@@ -2421,7 +2466,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 </label>
                 <Input
                   value={tiktokProductId}
-                  onChange={(e) => setTiktokProductId(e.target.value)}
+                  onChange={(e) => editTiktokDraft('product', e.target.value)}
                   placeholder="เช่น 1737088044189583209 หรือชื่อสินค้า"
                 />
               </div>
@@ -2438,13 +2483,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   <input
                     type="date"
                     value={tiktokScheduleDate}
-                    onChange={(e) => setTiktokScheduleDate(e.target.value)}
+                    onChange={(e) => editTiktokDraft('date', e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]/50"
                   />
                   <input
                     type="time"
                     value={tiktokScheduleTime}
-                    onChange={(e) => setTiktokScheduleTime(e.target.value)}
+                    onChange={(e) => editTiktokDraft('time', e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]/50"
                   />
                 </div>
@@ -2518,7 +2563,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           <div className="space-y-4">
             <div className="rounded-2xl border border-amber-500/25 bg-black/50 p-3 sm:p-5 flex items-center justify-center min-h-[18rem]">
               <img
-                src={coverPreviewItem.cover_url}
+                src={toMediaUrl(coverPreviewItem.cover_url)}
                 alt="พรีวิวภาพปก 3:4"
                 className="max-h-[62dvh] w-auto max-w-full object-contain rounded-xl shadow-2xl"
               />
@@ -2874,7 +2919,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                           title="คลิกเพื่อเปิดดูวิดีโอ"
                         >
                           <video
-                            src={`/api/media/${ang.video_url}#t=1.0`}
+                            src={`${toMediaUrl(ang.video_url)}#t=1.0`}
                             muted
                             playsInline
                             className="w-full h-full object-cover"

@@ -177,10 +177,10 @@ def test_batch_worker_execution(tmp_path):
 
 def test_api_batch_render_flow(tmp_path):
     """Test full FastAPI endpoint flow for /api/render/batch."""
-    # 1. Non-existent product -> 400
+    # 1. Missing or foreign channel product -> 404 (ownership contract)
     with patch.object(ProductStore, "get", return_value=None):
         resp = client.post("/api/render/batch", json={"product_id": "none_123"})
-        assert resp.status_code == 400
+        assert resp.status_code == 404
 
     # 2. Valid product -> 200 Queued
     clip_file = tmp_path / "raw.mp4"

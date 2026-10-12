@@ -15,6 +15,10 @@ from typing import Any, Dict, Iterable, List, Optional
 import uuid
 
 from scripts.config import BASE_DIR
+from scripts.channel_ownership import resolve_store_scope
+from scripts.channel_store import ChannelError
+import threading
+from functools import wraps
 
 
 CAMPAIGNS_FILE = BASE_DIR / "_Docs" / "gadget_media_campaigns.json"
@@ -229,6 +233,7 @@ class GadgetMediaCampaign:
     campaign_id: str
     name: str
     slots: List[ContentSlot]
+    channel_id: Optional[str] = None
     campaign_type: str = CAMPAIGN_TYPE
     account_role: str = ACCOUNT_ROLE
     goal: str = "สร้างผู้ติดตามแบบ organic จากคอนเทนต์ Gadget ที่เข้าใจง่าย"
@@ -236,6 +241,9 @@ class GadgetMediaCampaign:
     updated_at: str = field(default_factory=_now)
 
     def validate(self) -> None:
+        from scripts.channel_store import is_valid_channel_id
+        if self.channel_id is not None and not is_valid_channel_id(self.channel_id):
+            raise CampaignValidationError("invalid channel_id")
         _text(self.campaign_id, "campaign_id", max_length=100)
         _text(self.name, "name", max_length=200)
         if self.campaign_type != CAMPAIGN_TYPE:
@@ -260,6 +268,7 @@ class GadgetMediaCampaign:
         }
         return {
             "campaign_id": self.campaign_id,
+            **({"channel_id": self.channel_id} if self.channel_id is not None else {}),
             "total_slots": len(self.slots),
             "ready_slots": len(self.slots) - len(blockers),
             "blocked_slots": len(blockers),
@@ -303,6 +312,7 @@ class GadgetMediaCampaign:
             }
         return {
             "campaign_id": self.campaign_id,
+            **({"channel_id": self.channel_id} if self.channel_id is not None else {}),
             "total_views": total_views,
             "total_comments": total_comments,
             "total_follows": total_follows,
@@ -315,6 +325,7 @@ class GadgetMediaCampaign:
         self.validate()
         return {
             "campaign_id": self.campaign_id,
+            **({"channel_id": self.channel_id} if self.channel_id is not None else {}),
             "name": self.name,
             "campaign_type": self.campaign_type,
             "account_role": self.account_role,
@@ -330,6 +341,7 @@ class GadgetMediaCampaign:
             raise CampaignValidationError("campaign must be an object")
         campaign = cls(
             campaign_id=str(data.get("campaign_id") or ""),
+            channel_id=data.get("channel_id"),
             name=str(data.get("name") or ""),
             campaign_type=str(data.get("campaign_type") or ""),
             account_role=str(data.get("account_role") or ""),
@@ -372,10 +384,22 @@ def create_starter_campaign(
     return campaign
 
 
+_CAMPAIGNS_LOCK = threading.RLock()
+
+
+def _locked(method):
+    @wraps(method)
+    def call(*args, **kwargs):
+        with _CAMPAIGNS_LOCK:
+            return method(*args, **kwargs)
+    return call
+
+
 class CampaignStore:
     """Atomic JSON persistence with an injectable path for deterministic tests."""
 
-    def __init__(self, path: Optional[Path] = None):
+    def __init__(self, path: Optional[Path] = None, *, channel_id: Optional[str] = None):
+        self.channel_id = channel_id
         self.path = Path(path or CAMPAIGNS_FILE)
 
     def _load_raw(self) -> List[Dict[str, Any]]:
@@ -390,7 +414,7 @@ class CampaignStore:
         return data
 
     def list(self) -> List[GadgetMediaCampaign]:
-        return [GadgetMediaCampaign.from_dict(item) for item in self._load_raw()]
+        return [GadgetMediaCampaign.from_dict(item) for item in self._load_raw() if resolve_store_scope(self.channel_id).owns(item)]
 
     def get(self, campaign_id: str) -> GadgetMediaCampaign:
         for campaign in self.list():
@@ -398,12 +422,17 @@ class CampaignStore:
                 return campaign
         raise KeyError(campaign_id)
 
+    @_locked
     def save(self, campaign: GadgetMediaCampaign) -> GadgetMediaCampaign:
         campaign.validate()
-        campaigns = self.list()
+        if not resolve_store_scope(self.channel_id).owns({"channel_id": campaign.channel_id}):
+            raise ChannelError(404, "resource_not_found", "ไม่พบ campaign")
+        campaigns = [GadgetMediaCampaign.from_dict(item) for item in self._load_raw()]
         replaced = False
         for index, existing in enumerate(campaigns):
             if existing.campaign_id == campaign.campaign_id:
+                if existing.channel_id != campaign.channel_id:
+                    raise ChannelError(422, "channel_id_immutable", "เปลี่ยนช่องเจ้าของ campaign ไม่ได้")
                 campaigns[index] = campaign
                 replaced = True
                 break
@@ -418,11 +447,14 @@ class CampaignStore:
         temp_path.replace(self.path)
         return campaign
 
+    @_locked
     def create(self, campaign: GadgetMediaCampaign) -> GadgetMediaCampaign:
-        if any(item.campaign_id == campaign.campaign_id for item in self.list()):
+        campaign.channel_id = resolve_store_scope(self.channel_id).effective_owner
+        if any(item.get("campaign_id") == campaign.campaign_id for item in self._load_raw()):
             raise CampaignValidationError(f"campaign_id already exists: {campaign.campaign_id}")
         return self.save(campaign)
 
+    @_locked
     def update_slot(self, campaign_id: str, slot_id: str, changes: Dict[str, Any]) -> ContentSlot:
         campaign = self.get(campaign_id)
         slot = next((item for item in campaign.slots if item.slot_id == slot_id), None)

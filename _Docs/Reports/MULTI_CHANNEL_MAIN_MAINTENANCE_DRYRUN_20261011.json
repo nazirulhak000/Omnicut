@@ -1,0 +1,4632 @@
+{
+  "mode": "dry-run",
+  "generated_at": "2026-10-11T06:44:47+00:00",
+  "root": "D:\\Programmer\\All Project\\Omnicut",
+  "plan": {
+    "schema": 1,
+    "migration": "multi_channel_v1",
+    "plan_hash": "b98939574920d701786061224dcae7f04b9ac3e703f7444df318990816a1a388",
+    "options": {
+      "rename_templates": false,
+      "legacy_owner": "main"
+    },
+    "assignments": [
+      {
+        "store": "export_registry",
+        "id": "exp_e9084d645ce54d82903f45211b1be8ff",
+        "channel_id": "main"
+      },
+      {
+        "store": "posts",
+        "id": "d723fffe69bf4a1294f6a32b7b8b8583",
+        "channel_id": "main"
+      },
+      {
+        "store": "posts",
+        "id": "45f5c655530c4bb4a3e12d1fd5d6dc08",
+        "channel_id": "main"
+      },
+      {
+        "store": "posts",
+        "id": "24b48378ff9546499233e9f4ec793b7d",
+        "channel_id": "main"
+      },
+      {
+        "store": "posts",
+        "id": "3fb59f6fd9dc453988645a532a6cef88",
+        "channel_id": "main"
+      },
+      {
+        "store": "posts",
+        "id": "5d469448d5e84739a6995eacc3756309",
+        "channel_id": "main"
+      },
+      {
+        "store": "posts",
+        "id": "7d409fe28f064373991120b10570ff6b",
+        "channel_id": "main"
+      },
+      {
+        "store": "posts",
+        "id": "2978f22c90404950a243df5acb18a89e",
+        "channel_id": "main"
+      },
+      {
+        "store": "gadget_media_campaigns",
+        "id": "gadget-media-ebbb8c0304",
+        "channel_id": "main"
+      }
+    ],
+    "registry": {
+      "exists": true,
+      "error": null,
+      "channels": [
+        {
+          "id": "main",
+          "status": "active",
+          "handle": "@rizanntry"
+        },
+        {
+          "id": "rizannntry",
+          "status": "active",
+          "handle": "@rizannntry"
+        }
+      ]
+    },
+    "evidence": {
+      "post_handles": {
+        "@rizanntry": 72
+      },
+      "legacy_owner": "main",
+      "legacy_owner_reason": "legacy_owner_option",
+      "legacy_owner_reason_th": "เจ้าของระบุ legacy owner เอง (--legacy-owner)"
+    },
+    "stores": {
+      "products": {
+        "total": 27,
+        "already": 27,
+        "backfill": {},
+        "unknown": 0,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0,
+        "table_present": true
+      },
+      "export_registry": {
+        "total": 214,
+        "already": 174,
+        "backfill": {
+          "main": 1
+        },
+        "unknown": 39,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0,
+        "reasons": {
+          "manifest_missing": 38,
+          "product_not_found": 1
+        },
+        "table_present": true
+      },
+      "posts": {
+        "total": 72,
+        "already": 65,
+        "backfill": {
+          "main": 7
+        },
+        "unknown": 0,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0,
+        "table_present": true
+      },
+      "schedule_queue": {
+        "total": 156,
+        "already": 156,
+        "backfill": {},
+        "unknown": 0,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0,
+        "table_present": true
+      },
+      "schedule_templates": {
+        "total": 1,
+        "already": 0,
+        "backfill": {},
+        "unknown": 0,
+        "conflict": 0,
+        "deferred": 1,
+        "unsupported": 0,
+        "table_present": true
+      },
+      "shot_lists": {
+        "total": 430,
+        "already": 200,
+        "backfill": {},
+        "unknown": 230,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0,
+        "reasons": {
+          "product_not_found": 230
+        },
+        "table_present": true
+      },
+      "recording_sessions": {
+        "total": 12,
+        "already": 11,
+        "backfill": {},
+        "unknown": 1,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0,
+        "reasons": {
+          "product_not_found": 1
+        },
+        "table_present": true
+      },
+      "tiktok_pending": {
+        "total": 0,
+        "already": 0,
+        "backfill": {},
+        "unknown": 0,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0,
+        "table_present": true
+      },
+      "tiktok_ignored": {
+        "total": 0,
+        "already": 0,
+        "backfill": {},
+        "unknown": 0,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0,
+        "table_present": true
+      },
+      "batch_render_queue": {
+        "total": 61,
+        "already": 60,
+        "backfill": {},
+        "unknown": 1,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0,
+        "reasons": {
+          "product_not_found": 1
+        },
+        "table_present": true
+      },
+      "task_registry": {
+        "total": 15,
+        "already": 0,
+        "backfill": {},
+        "unknown": 15,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0,
+        "reasons": {
+          "no_parent_reference": 3,
+          "product_not_found": 12
+        }
+      },
+      "manifests": {
+        "total": 65,
+        "already": 65,
+        "backfill": {},
+        "unknown": 0,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0
+      },
+      "gadget_media_campaigns": {
+        "total": 1,
+        "already": 0,
+        "backfill": {
+          "main": 1
+        },
+        "unknown": 0,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0
+      },
+      "gadget_media_projects": {
+        "total": 0,
+        "already": 0,
+        "backfill": {},
+        "unknown": 0,
+        "conflict": 0,
+        "deferred": 0,
+        "unsupported": 0
+      }
+    },
+    "decisions": [
+      {
+        "store": "export_registry",
+        "id": "exp_a53f5b5040714c408336e6207a43d5ef",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_b3716821bb994c5fb7bef2250b881c47",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_92c8bc15740f4c3795150b6853ce7316",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_8861d111eb5846d1b5b92c8ed3617e50",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_4563e0fe23d44339bff85cd988ff5c83",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:6f827d2d47944f36b7ef5aa3edbe6f32"
+          ]
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_b971525bca5a4f228e90b8b0203be6a9",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_17f541f166ee4f9a898302f861cc85e0",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_96c87bb901ef43e48a3bb2aad5589f4f",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_523a05cc987d4d17923747677e1d3427",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_d5f122acb31c45a8b3f2c025733a9014",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_3c171a0a2e0c410dab34826a75e99f87",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_4a050d4b67b844689ede98c84dacf138",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_1382e32c70c14cc0bc938302eb8490c4",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_87b8926205774921ac8718d0352015c1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_1e1b97ad7b6442fc88aae257c1ac0bb9",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_e6910e57b3b240b5b3a2b5901bdd3fac",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_b6aef0ee59d046b5976df4a46f6118bc",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_3e5bc1928dc04340abc1d74cdf22e280",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_0ac389324370475f9a976787cdb6a0d7",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_73d5be4b778845c19590e325c85177c1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_fd2870a3bbb94ccdac9c9faa0980dfe6",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_de0f8aad8ac44dcc96266a4336d2c647",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_36ab6c965256413e9fe27726e6c7425b",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_9e41eb393e354b158e8516f7b489ed4c",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_778c9a62ab5c441abb4bef1ac02add61",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_c1444d6453194f989fc8459b903d7592",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_367f3794ee414ded8a18a6fbd88e9ef2",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_4727d99824484b25a3c2b295ca86b903",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_b73a17ccac8142178aee979167f654c2",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_e9084d645ce54d82903f45211b1be8ff",
+        "status": "backfill",
+        "owner": "main",
+        "reason": "owner_assignment",
+        "reason_th": "เจ้าของกำหนดผ่าน --assign",
+        "detail": {
+          "evidence_reason": "no_product_no_project"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_b35255b6375c4b51a136738026fc7b27",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_290c3a44301b4bb4918bfab8d3755f21",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_98d1a61bf1524011ab2a9d6f0b0bb825",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_0ddc548479ae4f5cb4aed0fef4ab58a3",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_240bd576d9934212880076f2290b50bc",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_06c080e3603848b9a2406847e5690872",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_fa5be3f59c7c4d7287339abbd3b77f2d",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_18af564fcaca420ba0f8378f67a28c44",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_cae6998e99dd47b78be8d19ad0dfc53a",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_look_preset_resolution"
+        }
+      },
+      {
+        "store": "export_registry",
+        "id": "exp_385eb5489fff418ca33040bf646e2863",
+        "status": "unknown",
+        "owner": null,
+        "reason": "manifest_missing",
+        "reason_th": "export ไม่มี product_id และโฟลเดอร์โปรเจกต์ไม่มี project.json",
+        "suggested_action": "ระบุ --assign",
+        "detail": {
+          "project_name": "TEST_mix_on_demand"
+        }
+      },
+      {
+        "store": "posts",
+        "id": "d723fffe69bf4a1294f6a32b7b8b8583",
+        "status": "backfill",
+        "owner": "main",
+        "reason": "owner_assignment",
+        "reason_th": "เจ้าของกำหนดผ่าน --assign",
+        "detail": {
+          "clip_basename": "clip.mp4",
+          "tiktok_handle": "@rizanntry",
+          "handle_matches_channel": [
+            "main"
+          ],
+          "evidence_reason": "generic_clip_name"
+        }
+      },
+      {
+        "store": "posts",
+        "id": "45f5c655530c4bb4a3e12d1fd5d6dc08",
+        "status": "backfill",
+        "owner": "main",
+        "reason": "owner_assignment",
+        "reason_th": "เจ้าของกำหนดผ่าน --assign",
+        "detail": {
+          "clip_basename": "clip.mp4",
+          "tiktok_handle": "@rizanntry",
+          "handle_matches_channel": [
+            "main"
+          ],
+          "evidence_reason": "generic_clip_name"
+        }
+      },
+      {
+        "store": "posts",
+        "id": "24b48378ff9546499233e9f4ec793b7d",
+        "status": "backfill",
+        "owner": "main",
+        "reason": "owner_assignment",
+        "reason_th": "เจ้าของกำหนดผ่าน --assign",
+        "detail": {
+          "clip_basename": "clip.mp4",
+          "tiktok_handle": "@rizanntry",
+          "handle_matches_channel": [
+            "main"
+          ],
+          "evidence_reason": "generic_clip_name"
+        }
+      },
+      {
+        "store": "posts",
+        "id": "3fb59f6fd9dc453988645a532a6cef88",
+        "status": "backfill",
+        "owner": "main",
+        "reason": "owner_assignment",
+        "reason_th": "เจ้าของกำหนดผ่าน --assign",
+        "detail": {
+          "clip_basename": "clip.mp4",
+          "tiktok_handle": "@rizanntry",
+          "handle_matches_channel": [
+            "main"
+          ],
+          "evidence_reason": "generic_clip_name"
+        }
+      },
+      {
+        "store": "posts",
+        "id": "5d469448d5e84739a6995eacc3756309",
+        "status": "backfill",
+        "owner": "main",
+        "reason": "owner_assignment",
+        "reason_th": "เจ้าของกำหนดผ่าน --assign",
+        "detail": {
+          "clip_basename": "clip.mp4",
+          "tiktok_handle": "@rizanntry",
+          "handle_matches_channel": [
+            "main"
+          ],
+          "evidence_reason": "generic_clip_name"
+        }
+      },
+      {
+        "store": "posts",
+        "id": "7d409fe28f064373991120b10570ff6b",
+        "status": "backfill",
+        "owner": "main",
+        "reason": "owner_assignment",
+        "reason_th": "เจ้าของกำหนดผ่าน --assign",
+        "detail": {
+          "clip_basename": "clip.mp4",
+          "tiktok_handle": "@rizanntry",
+          "handle_matches_channel": [
+            "main"
+          ],
+          "evidence_reason": "generic_clip_name"
+        }
+      },
+      {
+        "store": "posts",
+        "id": "2978f22c90404950a243df5acb18a89e",
+        "status": "backfill",
+        "owner": "main",
+        "reason": "owner_assignment",
+        "reason_th": "เจ้าของกำหนดผ่าน --assign",
+        "detail": {
+          "clip_basename": "clip.mp4",
+          "tiktok_handle": "@rizanntry",
+          "handle_matches_channel": [
+            "main"
+          ],
+          "evidence_reason": "generic_clip_name"
+        }
+      },
+      {
+        "store": "schedule_templates",
+        "id": "week:2026-09-07",
+        "status": "deferred",
+        "owner": "main",
+        "reason": "template_rename_not_enabled",
+        "reason_th": "การเปลี่ยน id template เป็น <channel>:<key> ยังไม่เปิด (ต้องใช้ --rename-templates)",
+        "suggested_action": "เปิดเมื่อโค้ดคิว/เทมเพลต (P2.2/P5) อ่าน id แบบมี prefix แล้วเท่านั้น"
+      },
+      {
+        "store": "shot_lists",
+        "id": "ea01b5aacdcb4e8982e43d38d851164d:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:ea01b5aacdcb4e8982e43d38d851164d"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "d6feff613e0143d0829b3bed54bfdb68:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:d6feff613e0143d0829b3bed54bfdb68"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "a36d5d96d10b409280f3b5fb26445587:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:a36d5d96d10b409280f3b5fb26445587"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "cf410e4fb59144a784413dfc1150c138:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:cf410e4fb59144a784413dfc1150c138"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "9842834375524ba1a5f0b55394931207:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:9842834375524ba1a5f0b55394931207"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "05049c94abb94ad0accd550acf115dbe:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:05049c94abb94ad0accd550acf115dbe"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "dc6d95b2b7254c90b66d20ee3ba3f787:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:dc6d95b2b7254c90b66d20ee3ba3f787"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "310aab364c264cb9b9bf4aa8178be6f5:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:310aab364c264cb9b9bf4aa8178be6f5"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "3ea8f1a3d7344f40a877e4a9887f7c0d:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:3ea8f1a3d7344f40a877e4a9887f7c0d"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "ca182685e30842888ff02356b8f6ce1f:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:ca182685e30842888ff02356b8f6ce1f"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "a620a7456a64452fa370431beb0b987e:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:a620a7456a64452fa370431beb0b987e"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "704d0e75357b4523a86e94a0bfee6c54:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:704d0e75357b4523a86e94a0bfee6c54"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "470bdd9483fa4fd7ab2d7200c7a071eb:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:470bdd9483fa4fd7ab2d7200c7a071eb"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "36c9fdfb2d374bd3b2cd3d262a124387:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:36c9fdfb2d374bd3b2cd3d262a124387"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "f275e811ac2d47db92729205b985a232:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:f275e811ac2d47db92729205b985a232"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "d324c70effbf420d9a586ec94243f725:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:d324c70effbf420d9a586ec94243f725"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "f16562c2e1434cbd84fed02bdeabf9b7:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:f16562c2e1434cbd84fed02bdeabf9b7"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "539704de1b3048bcaeca42ba0cd2f473:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:539704de1b3048bcaeca42ba0cd2f473"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "14f2cc794afb472482650103e4941e97:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:14f2cc794afb472482650103e4941e97"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "39cefeefb46b486ebf3c9931503f9c75:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:39cefeefb46b486ebf3c9931503f9c75"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "e7e805169fdb47be9cdecda1501dfc84:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:e7e805169fdb47be9cdecda1501dfc84"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "d1d6baff298f4c56900b45fac9e12860:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:d1d6baff298f4c56900b45fac9e12860"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "be20b35b71f64ad982f3d26cb9d82831:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:be20b35b71f64ad982f3d26cb9d82831"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "b46237a22ca649159413daa6311945fe:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:b46237a22ca649159413daa6311945fe"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "a519c9886ec0490d86712f45818a2e4e:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:a519c9886ec0490d86712f45818a2e4e"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "da36da0992ff432ca9c05ef9a81b2bde:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:da36da0992ff432ca9c05ef9a81b2bde"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "94f7fcc42e804fb2a6f5bbf03bc3c6dd:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:94f7fcc42e804fb2a6f5bbf03bc3c6dd"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "6d4b4103703746108797d8947f65b636:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:6d4b4103703746108797d8947f65b636"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "d6012c2e0758426ab07b5d2f6e6262f7:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:d6012c2e0758426ab07b5d2f6e6262f7"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "723eb0dd2fbf44f1af45fdbf25126efc:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:723eb0dd2fbf44f1af45fdbf25126efc"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "8bd3bfa47a8146eba9de1df8669a0dca:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:8bd3bfa47a8146eba9de1df8669a0dca"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "4e66f07c881d44f8aca666539b152e33:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:4e66f07c881d44f8aca666539b152e33"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "3a67a66dc1574c5ea5d8222b05ddda94:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:3a67a66dc1574c5ea5d8222b05ddda94"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "38ea53b004314d51a6b5bde805e9ed09:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:38ea53b004314d51a6b5bde805e9ed09"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "439e182ad7a9421ca55629f7abc5453c:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:439e182ad7a9421ca55629f7abc5453c"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "8f840aa3ba43407baf4c15b1297d2774:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:8f840aa3ba43407baf4c15b1297d2774"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "1e9efbe857f04de993caa44fc68b5d38:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:1e9efbe857f04de993caa44fc68b5d38"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "edb01fb392524b469950130e47a80b1f:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:edb01fb392524b469950130e47a80b1f"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "8eb222b6ad764892bdf9774ec7e12b66:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:8eb222b6ad764892bdf9774ec7e12b66"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "f895ef42b73e4adda6058f4196053d90:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:f895ef42b73e4adda6058f4196053d90"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "31d59a0e2f30426da946a95bb0cc6e44:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:31d59a0e2f30426da946a95bb0cc6e44"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "73a52371b83d4ed59b67852e75550285:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:73a52371b83d4ed59b67852e75550285"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "ac569249cce84f9abf4a0448b6d06b02:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:ac569249cce84f9abf4a0448b6d06b02"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "077f9cab9b6c4a2c8c245abea36578ed:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:077f9cab9b6c4a2c8c245abea36578ed"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "83876f9beece4deb9e3a1f637257c0bd:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:83876f9beece4deb9e3a1f637257c0bd"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "c1ca5980a5a843fd83d013b9a6772560:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:c1ca5980a5a843fd83d013b9a6772560"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "14eb2448413048f4a15a44e7564b9089:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:14eb2448413048f4a15a44e7564b9089"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "73a13b0e44a14b7b8a28ee1e8ef3ac85:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:73a13b0e44a14b7b8a28ee1e8ef3ac85"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "f457c0158e7b49be9d50d1a0e08e5cc8:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:f457c0158e7b49be9d50d1a0e08e5cc8"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "3f4859631c694c71a675a34ff6b71c15:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:3f4859631c694c71a675a34ff6b71c15"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "43136ea830de40e68290fb9e8ce9a10a:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:43136ea830de40e68290fb9e8ce9a10a"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "ce1ccd160e7c40a28ffe9450b8f9af65:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:ce1ccd160e7c40a28ffe9450b8f9af65"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "4f760d55d1f54ab1b6eae521a6169055:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:4f760d55d1f54ab1b6eae521a6169055"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "7b9d41217462450788b368d8cc1315aa:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:7b9d41217462450788b368d8cc1315aa"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "97293b2a7cfd431e8d9bf349dec97372:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:97293b2a7cfd431e8d9bf349dec97372"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "8c6e068cdd774d25a2b35518103106ba:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:8c6e068cdd774d25a2b35518103106ba"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "8ed1f4f008ec42f180f9c7b8744a7dfd:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:8ed1f4f008ec42f180f9c7b8744a7dfd"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "96b81a32e27448c48d3807d9f20fb1ef:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:96b81a32e27448c48d3807d9f20fb1ef"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "e88452b129174c0ea30204248e82d2cd:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:e88452b129174c0ea30204248e82d2cd"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "c07bd1549d184fe6ac0e2aefe3acad0d:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:c07bd1549d184fe6ac0e2aefe3acad0d"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "30d5849f47ce4976b473da1d608bfd05:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:30d5849f47ce4976b473da1d608bfd05"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "be57c27e4d05470ea61b7e3356f0e473:pain_point:b1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:be57c27e4d05470ea61b7e3356f0e473"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "5c69947f187441c6a11a4611519e0fb2:pain_point:b2",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:5c69947f187441c6a11a4611519e0fb2"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "ae01dcd62186445ba388edbed9963f9a:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:ae01dcd62186445ba388edbed9963f9a"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "636b64e94e35408ba7de61fc1e4ad6b6:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:636b64e94e35408ba7de61fc1e4ad6b6"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "246a85b477bf4f95a857bc8084f131af:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:246a85b477bf4f95a857bc8084f131af"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "fc00b6f9699d4ca8acf360b1f186e952:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:fc00b6f9699d4ca8acf360b1f186e952"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "40e5b0052286401bae7e16b2243b697a:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:40e5b0052286401bae7e16b2243b697a"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "7b4af171ece74cc0b90e52cd671adb0d:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:7b4af171ece74cc0b90e52cd671adb0d"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "3290bee8102b46e0adce6421fa96d664:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:3290bee8102b46e0adce6421fa96d664"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "2dae743849f548e598050b956073bebb:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:2dae743849f548e598050b956073bebb"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "995072e4498f4307beb0622c77940185:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:995072e4498f4307beb0622c77940185"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "67fb9b9e18814937b7c8da198d5947aa:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:67fb9b9e18814937b7c8da198d5947aa"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "f720c875025447be9e5aba058e9b5fef:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:f720c875025447be9e5aba058e9b5fef"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "5e1f83462b63479f959bf5264d379301:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:5e1f83462b63479f959bf5264d379301"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "fa82715af3364e02a5fedc8539583ec8:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:fa82715af3364e02a5fedc8539583ec8"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "530112f9e1b14a11b5f6522583073476:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:530112f9e1b14a11b5f6522583073476"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "62eff3fd503945ed8c709138852a4280:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:62eff3fd503945ed8c709138852a4280"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "93832c639b57475aaf3fd1319472fb38:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:93832c639b57475aaf3fd1319472fb38"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "419c3beb9c054982ae7f6cd6dd6a8614:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:419c3beb9c054982ae7f6cd6dd6a8614"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "b72514ee989e46a59f6d263f2e88de0d:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:b72514ee989e46a59f6d263f2e88de0d"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "9f59e0dfd85046ff87cc618013e3a587:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:9f59e0dfd85046ff87cc618013e3a587"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "1d27fccaf5914866af3123cc6bc4fa2e:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:1d27fccaf5914866af3123cc6bc4fa2e"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "e0655d25bd1549c6bd087a80a2701a92:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:e0655d25bd1549c6bd087a80a2701a92"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "12ec837305e84596b03e462b54810390:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:12ec837305e84596b03e462b54810390"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "094efe9254754a3fb1aefc58bfb3ae35:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:094efe9254754a3fb1aefc58bfb3ae35"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "878f9fbbe67b46689943c91a7566f461:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:878f9fbbe67b46689943c91a7566f461"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "ba42d3ad1a984277a82229a8e7ff5ba8:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:ba42d3ad1a984277a82229a8e7ff5ba8"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "73e22f325319461d95fd831270e4eb7d:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:73e22f325319461d95fd831270e4eb7d"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "1123fb04ed6a45ac9a3f2d3c214e222a:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:1123fb04ed6a45ac9a3f2d3c214e222a"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "06839a5afb374231af55986ddaeadd9a:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:06839a5afb374231af55986ddaeadd9a"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "abad57d418f640d7aac041c3d8eaa810:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:abad57d418f640d7aac041c3d8eaa810"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "6a4337f02bae464bb7aea6ffc8cd28b6:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:6a4337f02bae464bb7aea6ffc8cd28b6"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "d49688dbe96b43fdafb53dc8323756c2:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:d49688dbe96b43fdafb53dc8323756c2"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "f24009fdd526444cac728bd61f62e826:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:f24009fdd526444cac728bd61f62e826"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "507999469cd940b29738dfd1519c3162:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:507999469cd940b29738dfd1519c3162"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "feae082245f84a7896204891f8c7e36d:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:feae082245f84a7896204891f8c7e36d"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "2d9ca6b9f9ae48ed818def19697be379:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:2d9ca6b9f9ae48ed818def19697be379"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "de1e7025001b482e87af434d801d3c8f:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:de1e7025001b482e87af434d801d3c8f"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "2a6d53ecf7d043468245039c6053be03:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:2a6d53ecf7d043468245039c6053be03"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "95c166d51fa04324aa1db5661912b282:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:95c166d51fa04324aa1db5661912b282"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "89b4936261b24f5592b7abf716f27f9d:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:89b4936261b24f5592b7abf716f27f9d"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "32f4ebb6ca08496ba0faf2568b2f395a:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:32f4ebb6ca08496ba0faf2568b2f395a"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "cf777de7edde4da4a131245b00459561:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:cf777de7edde4da4a131245b00459561"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "26e6f81aba9f425a8caa019dcabf7caa:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:26e6f81aba9f425a8caa019dcabf7caa"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "d0443bb1eabc4d06928d6f0ffcf89a86:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:d0443bb1eabc4d06928d6f0ffcf89a86"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "27ed71f8ea8b4c53a7456532e798048c:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:27ed71f8ea8b4c53a7456532e798048c"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "44847252eea24d3a972778c131902b3f:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:44847252eea24d3a972778c131902b3f"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "104a5da9b3ce43c39e5c464c57155849:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:104a5da9b3ce43c39e5c464c57155849"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "f60907ea261a4e67a78691efc21e89a2:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:f60907ea261a4e67a78691efc21e89a2"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "4c997c017f4b48e5baf14159f6247713:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:4c997c017f4b48e5baf14159f6247713"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "d64ed299741b41768026555f6a2fba3b:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:d64ed299741b41768026555f6a2fba3b"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "93b866b1e5754a379ddb1b1de9137466:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:93b866b1e5754a379ddb1b1de9137466"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "58c3f96175b941f29c1ae7a7d2c26ffc:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:58c3f96175b941f29c1ae7a7d2c26ffc"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "c2871c0eb9b44ba383e846907d51d828:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:c2871c0eb9b44ba383e846907d51d828"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "981af170e813471189a17e68e376bf07:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:981af170e813471189a17e68e376bf07"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "5ef849e202024a4385b1594cd6fcbd6e:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:5ef849e202024a4385b1594cd6fcbd6e"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "de70efa7fa424f7ca644b07326feda2b:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:de70efa7fa424f7ca644b07326feda2b"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "121241484079426cb8076b40d0fc4ebc:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:121241484079426cb8076b40d0fc4ebc"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "aed41c1134b14bd18de9fb509823c5e4:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:aed41c1134b14bd18de9fb509823c5e4"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "2b8845bb66f84f8dab1a3fe4592cff7d:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:2b8845bb66f84f8dab1a3fe4592cff7d"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "c95e0b4d0bea4692b70a55649251d360:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:c95e0b4d0bea4692b70a55649251d360"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "48a0d87b5d88409992422e5703e22c52:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:48a0d87b5d88409992422e5703e22c52"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "b2efc04b008c45e38f9574e84900f3d5:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:b2efc04b008c45e38f9574e84900f3d5"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "58a9395c299e4f268cfd93f65da86128:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:58a9395c299e4f268cfd93f65da86128"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "614960e2e7fc42d791fae8813e62a5a0:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:614960e2e7fc42d791fae8813e62a5a0"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "be4e44ce244145cdaaf9e417cab44a50:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:be4e44ce244145cdaaf9e417cab44a50"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "02f5497fa2ad4728bbfc0320daadfc70:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:02f5497fa2ad4728bbfc0320daadfc70"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "8420c6f326db4a0db34b53ad621b0508:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:8420c6f326db4a0db34b53ad621b0508"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "5b77a11afc074ae687981d02d661c689:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:5b77a11afc074ae687981d02d661c689"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "7319328428324325b2a9577b83d7b098:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:7319328428324325b2a9577b83d7b098"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "94087ad702c04e8aae1314481bad97a2:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:94087ad702c04e8aae1314481bad97a2"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "d6d44b2e28ae45aea01f38d3d279bdee:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:d6d44b2e28ae45aea01f38d3d279bdee"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "a799ae7c5b0641b592683ac54c787220:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:a799ae7c5b0641b592683ac54c787220"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "926095f6d33f4cad941b51b247157fd1:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:926095f6d33f4cad941b51b247157fd1"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "6838197bf1944ebf95a6482bb761d40f:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:6838197bf1944ebf95a6482bb761d40f"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "429759ca757046acb0bc460fd14dca53:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:429759ca757046acb0bc460fd14dca53"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "97e6acfbb0874a5b8b46837ec52d9415:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:97e6acfbb0874a5b8b46837ec52d9415"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "54f26afdcfe14a76adfe5b6d19067d99:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:54f26afdcfe14a76adfe5b6d19067d99"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "5ce3ecd04fba48729e871cff19bcc2a4:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:5ce3ecd04fba48729e871cff19bcc2a4"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "0aeb0bbf4b6a4cda8436f0020832fa72:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:0aeb0bbf4b6a4cda8436f0020832fa72"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "119934264df041f48a9ac2e59a61b75b:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:119934264df041f48a9ac2e59a61b75b"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "1eda4c05196a49bdbb9e406d8a6789b0:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:1eda4c05196a49bdbb9e406d8a6789b0"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "14fdce4c984e4195b80ac8717ffc939a:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:14fdce4c984e4195b80ac8717ffc939a"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "6bce7a5db0f54f758b6d1fcca34ec683:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:6bce7a5db0f54f758b6d1fcca34ec683"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "19e8b2c806664523bd3352daa7a75351:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:19e8b2c806664523bd3352daa7a75351"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "c8087f24ddae46da86d07b8f3d388409:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:c8087f24ddae46da86d07b8f3d388409"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "889d24a562714e199b7fa8d1cfb75161:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:889d24a562714e199b7fa8d1cfb75161"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "bbd348ea58114b9fb5ebde58fd8ccc6a:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:bbd348ea58114b9fb5ebde58fd8ccc6a"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "3150125ef5b34b46ba22a6ba339911a1:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:3150125ef5b34b46ba22a6ba339911a1"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "598b0492e2fe4c2a9929501492740794:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:598b0492e2fe4c2a9929501492740794"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "7bca1360fdb8447fb5a841da2ef66683:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:7bca1360fdb8447fb5a841da2ef66683"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "c6bb7e3a49604d7995bf8d962a3b5cfb:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:c6bb7e3a49604d7995bf8d962a3b5cfb"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "0e8240c670c9482ca68ee0f9df708613:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:0e8240c670c9482ca68ee0f9df708613"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "1555f489e2ca47b188a6d995c5aceee2:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:1555f489e2ca47b188a6d995c5aceee2"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "6efe4845d72148ff9e9becd7a14ef9f6:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:6efe4845d72148ff9e9becd7a14ef9f6"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "5b92be11673240d2a7a029ced819792b:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:5b92be11673240d2a7a029ced819792b"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "1d0fe01012944d9889385859acb91b27:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:1d0fe01012944d9889385859acb91b27"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "df11c8719c2c40f48de0d59b6ecdd107:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:df11c8719c2c40f48de0d59b6ecdd107"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "622430c63c9f47b99a63536f83ed9517:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:622430c63c9f47b99a63536f83ed9517"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "4900562f386343cba9c7368b596e39b6:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:4900562f386343cba9c7368b596e39b6"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "1bf8833d7f2144d8ac07a769f26d8188:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:1bf8833d7f2144d8ac07a769f26d8188"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "97c52538be01453f8d891d62c5bb3e6b:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:97c52538be01453f8d891d62c5bb3e6b"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "66e7654eb8a645df8df6f08065eab930:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:66e7654eb8a645df8df6f08065eab930"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "fd586ad8579d45288fb203039ab3fb48:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:fd586ad8579d45288fb203039ab3fb48"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "2f9830fca8eb404daf21a3d36f147a60:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:2f9830fca8eb404daf21a3d36f147a60"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "0e400658b3d544359e4faa3499b6cf57:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:0e400658b3d544359e4faa3499b6cf57"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "59e1f509da364c1b9c65638471407108:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:59e1f509da364c1b9c65638471407108"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "a656be5e749645cf927ffb7643914f90:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:a656be5e749645cf927ffb7643914f90"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "8030f3bc1fe640dbb75e67baa2e741f6:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:8030f3bc1fe640dbb75e67baa2e741f6"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "cbc0cab7d3a640e2b9649cd6449b4eb0:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:cbc0cab7d3a640e2b9649cd6449b4eb0"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "c3bc78ac8213484ab6d60778514e3ed3:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:c3bc78ac8213484ab6d60778514e3ed3"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "248a853da00c453c9c3d496a6a97ba4d:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:248a853da00c453c9c3d496a6a97ba4d"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "63571ba897124324a3acdeb34f02357e:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:63571ba897124324a3acdeb34f02357e"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "aedb66d9acd64ebdb38167c00dca9f1f:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:aedb66d9acd64ebdb38167c00dca9f1f"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "6b2852c49e354145bb4edfcba8e14cda:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:6b2852c49e354145bb4edfcba8e14cda"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "8ee1a81e05ca4d7084a7d4baf4409b91:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:8ee1a81e05ca4d7084a7d4baf4409b91"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "046d04911ffe4b8085597f7aa3cce4cf:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:046d04911ffe4b8085597f7aa3cce4cf"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "94a82321e1884acbbed7cd893cdbb5b7:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:94a82321e1884acbbed7cd893cdbb5b7"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "29034fd760a24c0c846ae2f3a929038d:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:29034fd760a24c0c846ae2f3a929038d"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "1a07bb53d5a4404ba6c00bea1d2c0c04:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:1a07bb53d5a4404ba6c00bea1d2c0c04"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "f1caded2144b4db9a244a12d30389dba:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:f1caded2144b4db9a244a12d30389dba"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "1df7612e2c9449999c773f96d3996cc2:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:1df7612e2c9449999c773f96d3996cc2"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "304e5efb2dc5465293a2f017bdb4dc35:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:304e5efb2dc5465293a2f017bdb4dc35"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "419215d66fd44f7c9e9c613e6ffcffa9:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:419215d66fd44f7c9e9c613e6ffcffa9"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "69c4f4875aa34a6c8592972d3cae6614:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:69c4f4875aa34a6c8592972d3cae6614"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "3a59ef9c0ad849fa9e54beb19d7e84da:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:3a59ef9c0ad849fa9e54beb19d7e84da"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "cdc8f846401a4b32916725f76e4db525:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:cdc8f846401a4b32916725f76e4db525"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "8e6433a880094e0eb4a23c922253c865:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:8e6433a880094e0eb4a23c922253c865"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "c44171295be94148843cb541ae7037ae:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:c44171295be94148843cb541ae7037ae"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "a874837c9ab64e42acd53a82a0fe34eb:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:a874837c9ab64e42acd53a82a0fe34eb"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "a977d5b3c68b4c389ec96814d7cfaea2:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:a977d5b3c68b4c389ec96814d7cfaea2"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "24d70a6d16de42a89ed7c211c3d9ce1c:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:24d70a6d16de42a89ed7c211c3d9ce1c"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "prod:angle:b1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:prod"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "6ceb35c6c9d842deba12b1bf26714188:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:6ceb35c6c9d842deba12b1bf26714188"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "f7dc4e3a071445f28c9cccbbeabcdb32:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:f7dc4e3a071445f28c9cccbbeabcdb32"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "32f7ee7f6d134bf58df6efe456a8fd08:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:32f7ee7f6d134bf58df6efe456a8fd08"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "b1bbe8673b2d42ed9e9d07aa8c21d57d:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:b1bbe8673b2d42ed9e9d07aa8c21d57d"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "7a1d8800258a42bf99c4b8c987194157:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:7a1d8800258a42bf99c4b8c987194157"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "7a7a52072dd7478a8b87f8504e96cdfa:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:7a7a52072dd7478a8b87f8504e96cdfa"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "8c77832a144a40328ee32ee953acac26:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:8c77832a144a40328ee32ee953acac26"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "fc87e64dcf0c4e75ba4459b9738d9d94:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:fc87e64dcf0c4e75ba4459b9738d9d94"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "2b9d287181fb458e9a8353f6646b03b8:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:2b9d287181fb458e9a8353f6646b03b8"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "cc24baf522df4ae09d5f58e4dbb722b2:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:cc24baf522df4ae09d5f58e4dbb722b2"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "12ef2503c99547789a46dfa2b0cc4bed:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:12ef2503c99547789a46dfa2b0cc4bed"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "05cc70dee91f4770a88b60b03383fafc:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:05cc70dee91f4770a88b60b03383fafc"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "dd8af1b918e0474a98a2ec9098b110f3:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:dd8af1b918e0474a98a2ec9098b110f3"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "bdfe2eb5bdf949cdb3e89c600a4ae1df:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:bdfe2eb5bdf949cdb3e89c600a4ae1df"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "59d561b14483479888ed4629ff2d1d0a:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:59d561b14483479888ed4629ff2d1d0a"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "df4d57905bc74853b1e4d9382d8c14f4:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:df4d57905bc74853b1e4d9382d8c14f4"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "3a776fda12a44b1aab53873a8c420e2f:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:3a776fda12a44b1aab53873a8c420e2f"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "17ac939b560b4bacb429cb9a950638cc:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:17ac939b560b4bacb429cb9a950638cc"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "d6e0b483422f4d32a87c5f66ec207113:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:d6e0b483422f4d32a87c5f66ec207113"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "af262e94d8584e61a6572e1fdb0d3c78:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:af262e94d8584e61a6572e1fdb0d3c78"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "f6039bf18e42499a890641ef1c4274b9:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:f6039bf18e42499a890641ef1c4274b9"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "0d009dca3dfa4aa29bf238038fe1a62e:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:0d009dca3dfa4aa29bf238038fe1a62e"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "3b932cb775164076a85834e950e2adf8:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:3b932cb775164076a85834e950e2adf8"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "1c17e5a25a8849b99de7184b003f5870:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:1c17e5a25a8849b99de7184b003f5870"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "7bc9b44225f64529bc34cdda9e7f60f0:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:7bc9b44225f64529bc34cdda9e7f60f0"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "b3610faa2df341658b5b192969b5e6ba:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:b3610faa2df341658b5b192969b5e6ba"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "7a954de36313477aba8f00f45e224481:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:7a954de36313477aba8f00f45e224481"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "e6b4e4f16a8f49d3b717854fa8be3531:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:e6b4e4f16a8f49d3b717854fa8be3531"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "d0011defaf414fabac748ac7ef4327e5:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:d0011defaf414fabac748ac7ef4327e5"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "13538c76f56f4a2484a2fc3f6ca4ae56:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:13538c76f56f4a2484a2fc3f6ca4ae56"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "9256a0cda9584c3290db5791a32fc27c:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:9256a0cda9584c3290db5791a32fc27c"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "41a52161666d4e1b89dbdfc709804546:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:41a52161666d4e1b89dbdfc709804546"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "e2ab258b126a4dd6862244a00d33b390:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:e2ab258b126a4dd6862244a00d33b390"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "3faf9a4913b3490aace269a3ab567ef1:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:3faf9a4913b3490aace269a3ab567ef1"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "94b5806b8942404a8682d490cd6f614b:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:94b5806b8942404a8682d490cd6f614b"
+          ]
+        }
+      },
+      {
+        "store": "shot_lists",
+        "id": "e8d363aa10b742a198e3f7e72958cabb:ang_1",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:e8d363aa10b742a198e3f7e72958cabb"
+          ]
+        }
+      },
+      {
+        "store": "recording_sessions",
+        "id": "SsRzS7HuZI4er75E07Qdqg",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:prod"
+          ]
+        }
+      },
+      {
+        "store": "batch_render_queue",
+        "id": "f36a9253-a078-43e9-af8e-d68550146b58",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:prod_api_test"
+          ]
+        }
+      },
+      {
+        "store": "task_registry",
+        "id": "job_123",
+        "status": "unknown",
+        "owner": null,
+        "reason": "no_parent_reference",
+        "reason_th": "ไม่มี product_id/export_id ให้สืบเจ้าของ",
+        "suggested_action": "ระบุ --assign ถ้าต้องการให้เป็นของช่องใด"
+      },
+      {
+        "store": "task_registry",
+        "id": "833605e5-ceed-4259-94fb-06eaed8dc9a0",
+        "status": "unknown",
+        "owner": null,
+        "reason": "no_parent_reference",
+        "reason_th": "ไม่มี product_id/export_id ให้สืบเจ้าของ",
+        "suggested_action": "ระบุ --assign ถ้าต้องการให้เป็นของช่องใด"
+      },
+      {
+        "store": "task_registry",
+        "id": "Y8jsjrxbkIclrPoJ5OPdKA",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:42964d06669d4bbc8f8fc473fab5f277"
+          ]
+        }
+      },
+      {
+        "store": "task_registry",
+        "id": "JkPMKsuMYG58YneC7mQiog",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:b4a31b3e8d7248e0a3ce99ccecfebcaa"
+          ]
+        }
+      },
+      {
+        "store": "task_registry",
+        "id": "FNQFegZYzYMnDIwcnsyngg",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:57e9b15470a64545a45ffcfb3a05b720"
+          ]
+        }
+      },
+      {
+        "store": "task_registry",
+        "id": "GwPrFWbu0pC9Vqcye_h0IA",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:6ceef539eead4d248eeaca9ba4f291ab"
+          ]
+        }
+      },
+      {
+        "store": "task_registry",
+        "id": "TUCGz5Ng8SHXOYOZOr_qqw",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:bc777cdae190438c9970a4b34d470fef"
+          ]
+        }
+      },
+      {
+        "store": "task_registry",
+        "id": "u5JPU_wAXilHJWBPx7Vjbg",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:d596a6fee2bd45ebbeba96e81a7a56ec"
+          ]
+        }
+      },
+      {
+        "store": "task_registry",
+        "id": "9WOIbkZbE3o_O7mVq3pZRw",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:99d3c3bafff84349ab50ca52a674843d"
+          ]
+        }
+      },
+      {
+        "store": "task_registry",
+        "id": "tBhToVcK0lQyDmxXiU3RYw",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:bd51bfcf05634d61907281f5cdc8bce5"
+          ]
+        }
+      },
+      {
+        "store": "task_registry",
+        "id": "bb5ac433-1171-4e0c-9368-d2a1f2ecc116",
+        "status": "unknown",
+        "owner": null,
+        "reason": "no_parent_reference",
+        "reason_th": "ไม่มี product_id/export_id ให้สืบเจ้าของ",
+        "suggested_action": "ระบุ --assign ถ้าต้องการให้เป็นของช่องใด"
+      },
+      {
+        "store": "task_registry",
+        "id": "Kjxa1IVQeMQCns52mh1gYw",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:c810a0023e2141b0a6bfb39254782675"
+          ]
+        }
+      },
+      {
+        "store": "task_registry",
+        "id": "bpMXXydG_H1O4r3AxOnFYw",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:8548d4d334cc4784aca15dfa142398b5"
+          ]
+        }
+      },
+      {
+        "store": "task_registry",
+        "id": "DU-JFM3peqY8LUP1ZmqpjQ",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:77109ad37a554cf0a21316c9be31ec03"
+          ]
+        }
+      },
+      {
+        "store": "task_registry",
+        "id": "X7G4ASGij8_LCIdgbpLfFA",
+        "status": "unknown",
+        "owner": null,
+        "reason": "product_not_found",
+        "reason_th": "product_id ชี้สินค้าที่ไม่มีอยู่แล้ว (orphan)",
+        "suggested_action": "ตรวจว่าเป็นขยะเทสหรือไม่: ถ้าใช่ให้เจ้าของสั่งลบผ่านเครื่องมือของ store, ถ้าไม่ใช่ให้ระบุ --assign",
+        "detail": {
+          "missing_parents": [
+            "product:878184b03c41472f96153fae0a04706d"
+          ]
+        }
+      },
+      {
+        "store": "gadget_media_campaigns",
+        "id": "gadget-media-ebbb8c0304",
+        "status": "backfill",
+        "owner": "main",
+        "reason": "owner_assignment",
+        "reason_th": "เจ้าของกำหนดผ่าน --assign",
+        "detail": {
+          "account_role": "gadget_media",
+          "slots": 21,
+          "evidence_reason": "gadget_owner_required",
+          "files": [
+            {
+              "rel": "_Docs/gadget_media_campaigns.json",
+              "before_hash": "6f9da9fc87b733074f23e6eb7a68b8604938d0fedc98b8232129d737c1542ae5",
+              "selector": {
+                "kind": "campaign",
+                "id": "gadget-media-ebbb8c0304"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "already_owned": 758,
+    "actions": [
+      {
+        "store": "export_registry",
+        "id": "exp_e9084d645ce54d82903f45211b1be8ff",
+        "op": "set_owner",
+        "owner": "main",
+        "before_hash": "a2d58b128ddbc61bfa34bb4e041d5a72ed1b40dc292c8b9cc2acadbe31d4aefa"
+      },
+      {
+        "store": "posts",
+        "id": "d723fffe69bf4a1294f6a32b7b8b8583",
+        "op": "set_owner",
+        "owner": "main",
+        "before_hash": "1910d5002792ea877014f55b84b1e722be3b3f0fe02adf1f2f199a679aa65e58"
+      },
+      {
+        "store": "posts",
+        "id": "45f5c655530c4bb4a3e12d1fd5d6dc08",
+        "op": "set_owner",
+        "owner": "main",
+        "before_hash": "b2fad60c00fc219e64cb482b64efd6f412cfd53848d66b5f96030b46526ebdfd"
+      },
+      {
+        "store": "posts",
+        "id": "24b48378ff9546499233e9f4ec793b7d",
+        "op": "set_owner",
+        "owner": "main",
+        "before_hash": "352771c50220f4bc14a21ac20f59b6378d2faf6452770f296a9437d2def7ba23"
+      },
+      {
+        "store": "posts",
+        "id": "3fb59f6fd9dc453988645a532a6cef88",
+        "op": "set_owner",
+        "owner": "main",
+        "before_hash": "255da10828f95df40cd588d04fe61f04ac03f719e0999314fc8303d676d3e26a"
+      },
+      {
+        "store": "posts",
+        "id": "5d469448d5e84739a6995eacc3756309",
+        "op": "set_owner",
+        "owner": "main",
+        "before_hash": "85d7e248e3d8e483e3f630feb58218aeba7d11790b29eafff384871883c10262"
+      },
+      {
+        "store": "posts",
+        "id": "7d409fe28f064373991120b10570ff6b",
+        "op": "set_owner",
+        "owner": "main",
+        "before_hash": "31c2d48062cfa07a9876f2831ff14a4215804b74e973affa7baa1bdd7398d1ee"
+      },
+      {
+        "store": "posts",
+        "id": "2978f22c90404950a243df5acb18a89e",
+        "op": "set_owner",
+        "owner": "main",
+        "before_hash": "0b48d7d804b9166fe219513b2be1e3a3eb1462ae7020ab4c109138aa8d923586"
+      },
+      {
+        "store": "gadget_media_campaigns",
+        "id": "gadget-media-ebbb8c0304",
+        "op": "set_owner",
+        "owner": "main",
+        "before_hash": "1cb0edf172c36145462a41069a8dffdf58765faddc18dcc1d0b8337ff5098e31",
+        "files": [
+          {
+            "rel": "_Docs/gadget_media_campaigns.json",
+            "before_hash": "6f9da9fc87b733074f23e6eb7a68b8604938d0fedc98b8232129d737c1542ae5",
+            "selector": {
+              "kind": "campaign",
+              "id": "gadget-media-ebbb8c0304"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "preflight": {
+    "checks": [
+      {
+        "name": "root_layout",
+        "level": "blocker",
+        "ok": true,
+        "message": "โฟลเดอร์ _Docs ใต้ root (D:\\Programmer\\All Project\\Omnicut)"
+      },
+      {
+        "name": "integrity_store",
+        "level": "blocker",
+        "ok": true,
+        "message": "_Docs/store.db integrity_check = ok"
+      },
+      {
+        "name": "integrity_batch",
+        "level": "blocker",
+        "ok": true,
+        "message": "03_Projects/batch_render_queue.db integrity_check = ok"
+      },
+      {
+        "name": "mirror_products",
+        "level": "info",
+        "ok": true,
+        "message": "_Docs/products.json ตรงกับ DB ทุกแถว"
+      },
+      {
+        "name": "mirror_export_registry",
+        "level": "info",
+        "ok": true,
+        "message": "_Docs/export_registry.json ตรงกับ DB ทุกแถว"
+      },
+      {
+        "name": "mirror_posts",
+        "level": "info",
+        "ok": true,
+        "message": "_Docs/post_log.json ตรงกับ DB ทุกแถว"
+      },
+      {
+        "name": "mirror_schedule_queue",
+        "level": "info",
+        "ok": true,
+        "message": "_Docs/schedule_queue.json ตรงกับ DB ทุกแถว"
+      },
+      {
+        "name": "mirror_schedule_templates",
+        "level": "info",
+        "ok": true,
+        "message": "_Docs/schedule_templates.json ตรงกับ DB ทุกแถว"
+      },
+      {
+        "name": "mirror_shot_lists",
+        "level": "info",
+        "ok": true,
+        "message": "_Docs/shot_lists.json ตรงกับ DB ทุกแถว"
+      },
+      {
+        "name": "mirror_recording_sessions",
+        "level": "info",
+        "ok": true,
+        "message": "_Docs/recording_sessions.json ตรงกับ DB ทุกแถว"
+      },
+      {
+        "name": "mirror_tiktok_pending",
+        "level": "info",
+        "ok": true,
+        "message": "_Docs/tiktok_pending.json ตรงกับ DB ทุกแถว (ไฟล์จะถูก import ซ้ำแต่เนื้อหาเท่ากัน)"
+      },
+      {
+        "name": "mirror_tiktok_ignored",
+        "level": "info",
+        "ok": true,
+        "message": "_Docs/tiktok_ignored.json: ไม่มีไฟล์ mirror หรือไม่มีตาราง"
+      },
+      {
+        "name": "mirror_batch_render_queue",
+        "level": "info",
+        "ok": true,
+        "message": "03_Projects/batch_render_queue.json ตรงกับ DB ทุกแถว"
+      },
+      {
+        "name": "mirror_state_foreign_rows",
+        "level": "info",
+        "ok": true,
+        "message": "_json_mirror_state มีแถว path นอก root 16 แถว (เฉื่อย ไม่แตะ)",
+        "count": 16
+      },
+      {
+        "name": "registry",
+        "level": "blocker",
+        "ok": true,
+        "message": "registry อ่านได้และมีช่อง main"
+      },
+      {
+        "name": "legacy_owner",
+        "level": "warning",
+        "ok": true,
+        "message": "เจ้าของข้อมูลเดิม: main (เจ้าของระบุ legacy owner เอง (--legacy-owner))"
+      },
+      {
+        "name": "maintenance_lock",
+        "level": "blocker",
+        "ok": true,
+        "message": "ไม่มี maintenance lock ค้าง"
+      },
+      {
+        "name": "run_in_progress",
+        "level": "blocker",
+        "ok": true,
+        "message": "ไม่มี migration ค้าง"
+      },
+      {
+        "name": "active_tasks",
+        "level": "blocker",
+        "ok": true,
+        "message": "งานเบื้องหลังที่ยังไม่จบ 0 งาน",
+        "ids": []
+      },
+      {
+        "name": "active_batches",
+        "level": "blocker",
+        "ok": true,
+        "message": "batch render ที่ยังไม่จบ 0 รายการ",
+        "ids": []
+      },
+      {
+        "name": "recording_sessions",
+        "level": "warning",
+        "ok": false,
+        "message": "recording session ที่ยังเปิด 1",
+        "ids": [
+          "QYCuanBCqKJQAvhPTc1bxQ"
+        ]
+      },
+      {
+        "name": "posting_in_flight",
+        "level": "warning",
+        "ok": false,
+        "message": "คิวที่เตรียมให้ extension โพสต์ 2 รายการ — ปิด extension ก่อน apply",
+        "ids": [
+          "4df97037f9d444f58082abfc7f482527",
+          "c101a8ae0ec84ddeb023364f152bda0c"
+        ]
+      },
+      {
+        "name": "disk_space",
+        "level": "blocker",
+        "ok": true,
+        "message": "พื้นที่ว่าง 442792 MB ต้องการ ≥ 91 MB",
+        "free_bytes": 464301801472,
+        "need_bytes": 96165006
+      },
+      {
+        "name": "api_server_stopped",
+        "level": "blocker",
+        "ok": true,
+        "message": "ไม่พบ API server ทำงานอยู่"
+      },
+      {
+        "name": "conflicts",
+        "level": "warning",
+        "ok": true,
+        "message": "แถวที่หลักฐานขัดกัน 0 (จะไม่ถูกแตะ)"
+      },
+      {
+        "name": "unknown",
+        "level": "warning",
+        "ok": false,
+        "message": "แถวที่ไม่ทราบเจ้าของ 286 (จะไม่ถูกแตะ จนกว่าจะ --assign)"
+      }
+    ],
+    "blockers": 0,
+    "snapshot_estimate_bytes": 14528071
+  },
+  "write_set": {
+    "rows_by_store": {
+      "export_registry": 1,
+      "posts": 7,
+      "gadget_media_campaigns": 1
+    },
+    "files": [
+      "_Docs/store.db (ตาราง export_registry: 1 แถว)",
+      "_Docs/export_registry.json (เขียนใหม่ทั้งไฟล์จาก DB ผ่าน DocumentTable)",
+      "_Docs/store.db (ตาราง posts: 7 แถว)",
+      "_Docs/post_log.json (เขียนใหม่ทั้งไฟล์จาก DB ผ่าน DocumentTable)",
+      "_Docs/gadget_media_campaigns.json (Gadget channel_id เท่านั้น; ไม่สร้าง stage/artifact ใหม่)",
+      "06_Archive/Migrations/multi_channel_v1/<run_id>/ (plan, journal, state, snapshot)",
+      "_Docs/.maintenance.lock (ระหว่าง apply)"
+    ],
+    "snapshot_estimate_bytes": 14528071
+  },
+  "not_touched": [
+    "01_Raw/, 00_Inbox/, 02_Assets/ (วัตถุดิบ/asset ร่วม)",
+    "04_Exports/ และ 05_Covers_Thumbnails/ (ไฟล์ MP4/ปก — ไม่ย้าย/ไม่เปลี่ยนชื่อ/ไม่แก้เนื้อหา)",
+    "CapCut drafts (draft_content.json / .cloud_cache_*)",
+    "ไฟล์อื่นใน 03_Projects/<project>/ นอกจาก project.json (ไม่สร้าง .bak ใหม่ด้วย)",
+    "_HyperFrames_Studio/ (compositions/kit)",
+    "แถวที่ไม่ทราบเจ้าของ/ขัดแย้ง (คง legacy ไว้จนกว่าจะ --assign)",
+    "แถวที่มี channel_id อยู่แล้ว",
+    "_json_mirror_state แถวของเครื่องอื่น (เฉื่อย)",
+    "03_Projects/omnicut.db (ไฟล์ 0 byte ไม่มีโค้ดใช้)",
+    "GadgetMedia ที่ไม่ได้ --assign (คง unknown); stage/artifact/identity เดิมไม่เปลี่ยน และไม่ย้ายไฟล์",
+    "tiktok_pending / tiktok_ignored (ต้องรู้บัญชีต้นทาง)"
+  ],
+  "inventory": {
+    "table_counts": {
+      "products": 27,
+      "export_registry": 214,
+      "posts": 72,
+      "schedule_queue": 156,
+      "schedule_templates": 1,
+      "shot_lists": 430,
+      "recording_sessions": 12,
+      "tiktok_pending": 0,
+      "tiktok_ignored": 0,
+      "batch_render_queue": 61
+    },
+    "manifests": 65,
+    "project_dirs_without_manifest": [
+      "BLU01-FOMO_โปรไฟลุก_1",
+      "ESS02-explainer_1",
+      "ESS02-vs-battle_1",
+      "ESS02-แบตหมด-meme_1",
+      "HAT01-meme-50s_1"
+    ],
+    "skipped_project_dirs": [],
+    "tasks": 15,
+    "gadget_media_projects": 0,
+    "gadget_media_index_exists": false,
+    "integrity": {
+      "store": "ok",
+      "batch": "ok"
+    }
+  },
+  "current_run": {
+    "run_id": "20261011T004927-850bab",
+    "status": "applied",
+    "created_at": "2026-10-10T17:49:27+00:00",
+    "applied_at": "2026-10-10T17:49:33+00:00"
+  }
+}

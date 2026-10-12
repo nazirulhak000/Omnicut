@@ -105,7 +105,7 @@ def test_sparse_cache_id_tracks_intervals_and_actual_temporal_mode():
         "enabled": True, "temporal_mode": "legacy"}}, active_intervals=[(0, 5)])
 
 
-def test_proxy_retains_master_alpha_pts_and_api_range_without_affecting_render(tmp_path, monkeypatch):
+def test_proxy_retains_master_alpha_pts_and_api_range_without_affecting_render(tmp_path, monkeypatch, isolated_storage):
     source = tmp_path / "source.mp4"
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
                     "-i", "testsrc2=s=64x64:r=30:d=0.2", "-c:v", "libx264", str(source)],
@@ -113,7 +113,7 @@ def test_proxy_retains_master_alpha_pts_and_api_range_without_affecting_render(t
     original = video_worker.build_alpha_preview
     monkeypatch.setattr(video_worker, "build_alpha_preview", lambda *args, **kwargs:
                         original(*args, **kwargs, max_width=32, max_height=32))
-    root = tmp_path / "projects"
+    root = isolated_storage / "03_Projects"
     result = video_worker.process_background_isolation_video(source, root / ".cache", {"enabled": True},
         source_fingerprint="proxy-test", start=0, duration=0.2, fps=30, timebase="1/30",
         width=64, height=64, rotation=0, rembg_worker=_Worker())
@@ -133,15 +133,15 @@ def test_proxy_retains_master_alpha_pts_and_api_range_without_affecting_render(t
     monkeypatch.setattr(video_editor, "PROJECTS_DIR", root)
     app = FastAPI()
     app.include_router(isolation_api.router)
-    client = TestClient(app)
-    url = f"/api/background-isolation/videos/{result['artifact_id']}/preview.webm"
-    assert client.get(url, headers={"Range": "bytes=0-15"}).status_code == 206
-    config = {"enabled": True, "artifact": {"id": result["artifact_id"], "status": "ready"}}
-    assert video_editor._read_ready_background_sequence(config, 0, .2)["video_path"].name == "cutout.webm"
-    (directory / "preview.webm").unlink()
-    assert client.get(url).status_code == 404
-    metadata = client.get(f"/api/background-isolation/sequences/{result['artifact_id']}/manifest").json()
-    assert "preview" not in metadata
+    with TestClient(app) as client:
+        url = f"/api/background-isolation/videos/{result['artifact_id']}/preview.webm"
+        assert client.get(url, headers={"Range": "bytes=0-15"}).status_code == 206
+        config = {"enabled": True, "artifact": {"id": result["artifact_id"], "status": "ready"}}
+        assert video_editor._read_ready_background_sequence(config, 0, .2)["video_path"].name == "cutout.webm"
+        (directory / "preview.webm").unlink()
+        assert client.get(url).status_code == 404
+        metadata = client.get(f"/api/background-isolation/sequences/{result['artifact_id']}/manifest").json()
+        assert "preview" not in metadata
 
 
 def test_video_cutout_is_one_seekable_alpha_artifact_and_render_reads_it(tmp_path, monkeypatch):

@@ -7,6 +7,7 @@ to disk so jobs survive page refreshes, tab switching, and server restarts.
 import os
 import sys
 import json
+from copy import deepcopy
 import secrets
 import time
 import datetime
@@ -15,9 +16,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Callable
 from concurrent.futures import ThreadPoolExecutor
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+SOURCE_ROOT = Path(__file__).resolve().parent.parent
+if str(SOURCE_ROOT) not in sys.path:
+    sys.path.insert(0, str(SOURCE_ROOT))
+
+from scripts.config import BASE_DIR
+
+PROJECT_ROOT = BASE_DIR
 
 # Ensure persistent registry directory exists
 STORAGE_DIR = PROJECT_ROOT / "03_Projects"
@@ -214,6 +219,7 @@ class TaskManager:
         from scripts.product_store import ProductStore
 
         for task in tasks:
+            channel_kwargs = {"channel_id": task.get("channel_id") or "main"}
             task_id = task.get("id", "<unknown>")
             payload = task.get("payload") or {}
 
@@ -227,6 +233,7 @@ class TaskManager:
                         project_name,
                         product_id=product_id or "",
                         angle_id=angle_id or "",
+                        **channel_kwargs,
                     )
                 except Exception as lookup_err:
                     print(
@@ -248,7 +255,7 @@ class TaskManager:
                 continue
 
             try:
-                product = ProductStore.get(product_id)
+                product = ProductStore.get(product_id, **channel_kwargs)
                 angle = None
                 if product:
                     for a in product.get("angles", []) or []:
@@ -276,7 +283,17 @@ class TaskManager:
                     )
                     continue
 
-                ProductStore.update_angle_status(product_id, angle_id, "scripted", project_name="")
+                ProductStore.update_angle_status(product_id, angle_id, "scripted", project_name="", **channel_kwargs)
+                interrupted_project = project_name or angle.get("project_name")
+                if interrupted_project:
+                    from scripts.project_manifest import ProjectManifest
+                    from scripts.channel_scope import ChannelScope, ensure_same_channel
+                    recovery_scope = ChannelScope(channel_kwargs["channel_id"], "default", False)
+                    if ProjectManifest.load(interrupted_project):
+                        def mark_interrupted(manifest):
+                            ensure_same_channel(recovery_scope, manifest.get("channel_id"), resource_label="โปรเจกต์", allow_legacy_main=True)
+                            return {"render_interrupted": True}
+                        ProjectManifest.save_merge(interrupted_project, mark_interrupted)
                 print(
                     f"[TaskManager] restart recovery: reverted product={product_id!r} "
                     f"angle={angle_id!r} from 'in_production' to 'scripted' -- its render "
@@ -382,8 +399,14 @@ class TaskManager:
         target_id: Optional[str] = None,
         task_id: Optional[str] = None,
         owner_id: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        job_scope: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Creates and registers a new task."""
+        # Maintenance mode (data migration in progress): no new jobs.
+        from scripts import maintenance_lock
+
+        maintenance_lock.refuse_new_job(Path(TASKS_FILE).parent.parent, job_label="งานเบื้องหลังใหม่")
         cls.initialize()
         # secrets.token_urlsafe rather than the old timestamp-ms + 6 hex chars
         # scheme: that scheme was guessable/walkable (sequential-ish prefix,
@@ -392,6 +415,8 @@ class TaskManager:
         t_id = task_id or secrets.token_urlsafe(16)
         now = cls._now_iso()
 
+        from scripts.render_jobs import pin_job_scope
+        provenance = pin_job_scope(channel_id, job_scope)
         task_obj = {
             "id": t_id,
             "type": task_type,
@@ -401,7 +426,7 @@ class TaskManager:
             "step_label": "อยู่ในคิวรอเริ่มทำงาน...",
             "target_tab": target_tab,
             "target_id": target_id,
-            "payload": payload or {},
+            "payload": deepcopy(payload or {}),
             "result": None,
             "error": None,
             "created_at": now,
@@ -409,24 +434,29 @@ class TaskManager:
             "completed_at": None,
             "owner_id": owner_id or DEFAULT_OWNER,
             "logs": [{"time": datetime.datetime.now().strftime("%H:%M:%S"), "msg": "งานถูกสร้างขึ้นในระบบ", "progress": 0}],
+            **provenance,
         }
 
         with _TASK_LOCK:
+            prior = cls._tasks.get(t_id)
+            if prior and provenance.get("channel_id") and not cls._owned_by(prior, owner_id, provenance["channel_id"]):
+                from scripts.channel_store import ChannelError
+                raise ChannelError(409, "channel_job_collision", "id งานมีอยู่แล้ว")
             cls._tasks[t_id] = task_obj
             cls._save_to_disk_locked()
 
-        return task_obj
+        return deepcopy(task_obj) if provenance else task_obj
 
     @staticmethod
-    def _owned_by(task: Dict[str, Any], owner_id: Optional[str]) -> bool:
+    def _owned_by(task: Dict[str, Any], owner_id: Optional[str], channel_id: Optional[str] = None) -> bool:
         """True if `owner_id` is unset (unscoped call) or matches the task's owner.
 
         Tasks persisted before this field existed have no "owner_id" key --
         treat those as DEFAULT_OWNER so old data keeps working under scoping.
         """
-        if owner_id is None:
-            return True
-        return task.get("owner_id", DEFAULT_OWNER) == owner_id
+        owner_matches = owner_id is None or task.get("owner_id", DEFAULT_OWNER) == owner_id
+        channel_matches = channel_id is None or (task.get("channel_id") or "main") == channel_id
+        return owner_matches and channel_matches
 
     @classmethod
     def update_progress(
@@ -436,17 +466,18 @@ class TaskManager:
         step_label: Optional[str] = None,
         msg: Optional[str] = None,
         owner_id: Optional[str] = None,
+        channel_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Updates progress and step label for a task."""
         cls.initialize()
         with _TASK_LOCK:
             task = cls._tasks.get(task_id)
-            if not task or not cls._owned_by(task, owner_id):
+            if not task or not cls._owned_by(task, owner_id, channel_id):
                 return None
 
             # Don't overwrite finished states
             if task["status"] in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
-                return task
+                return deepcopy(task) if channel_id is not None else task
 
             task["status"] = TaskStatus.PROCESSING
             task["progress"] = min(1.0, max(0.0, float(progress)))
@@ -466,7 +497,7 @@ class TaskManager:
                     task["logs"] = task["logs"][-50:]
 
             cls._save_to_disk_locked(force=False)
-            return task
+            return deepcopy(task) if channel_id is not None else task
 
     @classmethod
     def complete_task(
@@ -476,19 +507,20 @@ class TaskManager:
         step_label: str = "ดำเนินการเสร็จสิ้น 100%",
         target_id: Optional[str] = None,
         owner_id: Optional[str] = None,
+        channel_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Marks a task as completed."""
         cls.initialize()
         with _TASK_LOCK:
             task = cls._tasks.get(task_id)
-            if not task or not cls._owned_by(task, owner_id):
+            if not task or not cls._owned_by(task, owner_id, channel_id):
                 return None
             # A task that already reached a terminal state stays there, the way
             # update_progress() and cancel_task() already treat one. Without
             # this, completing an already-failed task flipped it to COMPLETED
             # while leaving its `error` populated -- a record claiming both.
             if task["status"] in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
-                return task
+                return deepcopy(task) if channel_id is not None else task
 
             task["status"] = TaskStatus.COMPLETED
             task["progress"] = 1.0
@@ -505,7 +537,7 @@ class TaskManager:
             })
 
             cls._save_to_disk_locked()
-            return task
+            return deepcopy(task) if channel_id is not None else task
 
     @classmethod
     def fail_task(
@@ -514,18 +546,19 @@ class TaskManager:
         error: str,
         step_label: str = "เกิดข้อผิดพลาดในการประมวลผล",
         owner_id: Optional[str] = None,
+        channel_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Marks a task as failed."""
         cls.initialize()
         with _TASK_LOCK:
             task = cls._tasks.get(task_id)
-            if not task or not cls._owned_by(task, owner_id):
+            if not task or not cls._owned_by(task, owner_id, channel_id):
                 return None
             # Terminal is terminal, as in complete_task(). Restart recovery in
             # initialize() sets the status directly rather than coming through
             # here, so it is unaffected by this guard.
             if task["status"] in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
-                return task
+                return deepcopy(task) if channel_id is not None else task
 
             task["status"] = TaskStatus.FAILED
             task["error"] = str(error)
@@ -539,19 +572,19 @@ class TaskManager:
             })
 
             cls._save_to_disk_locked()
-            return task
+            return deepcopy(task) if channel_id is not None else task
 
     @classmethod
-    def cancel_task(cls, task_id: str, owner_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def cancel_task(cls, task_id: str, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Cancels a pending or running task."""
         cls.initialize()
         with _TASK_LOCK:
             task = cls._tasks.get(task_id)
-            if not task or not cls._owned_by(task, owner_id):
+            if not task or not cls._owned_by(task, owner_id, channel_id):
                 return None
 
             if task["status"] in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
-                return task
+                return deepcopy(task) if channel_id is not None else task
 
             task["status"] = TaskStatus.CANCELLED
             task["step_label"] = "งานถูกยกเลิกโดยผู้ใช้"
@@ -559,10 +592,10 @@ class TaskManager:
             task["completed_at"] = cls._now_iso()
 
             cls._save_to_disk_locked()
-            return task
+            return deepcopy(task) if channel_id is not None else task
 
     @classmethod
-    def get_task(cls, task_id: str, owner_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get_task(cls, task_id: str, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Retrieves a single task by ID.
 
         A task_id that exists but belongs to a different owner behaves
@@ -573,12 +606,12 @@ class TaskManager:
         cls.initialize()
         with _TASK_LOCK:
             task = cls._tasks.get(task_id)
-            if not task or not cls._owned_by(task, owner_id):
+            if not task or not cls._owned_by(task, owner_id, channel_id):
                 return None
-            return task
+            return deepcopy(task) if channel_id is not None else task
 
     @classmethod
-    def get_active_tasks(cls, limit: int = 50, owner_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_active_tasks(cls, limit: int = 50, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Returns all running/queued tasks plus recent completed/failed tasks (sorted by updated_at desc).
 
         With owner_id given, only that owner's tasks are considered -- an
@@ -587,32 +620,32 @@ class TaskManager:
         """
         cls.initialize()
         with _TASK_LOCK:
-            all_list = [t for t in cls._tasks.values() if cls._owned_by(t, owner_id)]
+            all_list = [t for t in cls._tasks.values() if cls._owned_by(t, owner_id, channel_id)]
             # Sort newest first
             all_list.sort(key=lambda t: t.get("updated_at", ""), reverse=True)
-            return all_list[:limit]
+            return deepcopy(all_list[:limit]) if channel_id is not None else all_list[:limit]
 
     @classmethod
-    def delete_task(cls, task_id: str, owner_id: Optional[str] = None) -> bool:
+    def delete_task(cls, task_id: str, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> bool:
         """Deletes a task from registry."""
         cls.initialize()
         with _TASK_LOCK:
             task = cls._tasks.get(task_id)
-            if not task or not cls._owned_by(task, owner_id):
+            if not task or not cls._owned_by(task, owner_id, channel_id):
                 return False
             del cls._tasks[task_id]
             cls._save_to_disk_locked()
             return True
 
     @classmethod
-    def clear_completed(cls, owner_id: Optional[str] = None) -> int:
+    def clear_completed(cls, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> int:
         """Clears all completed, failed, or cancelled tasks."""
         cls.initialize()
         with _TASK_LOCK:
             to_del = [
                 tid for tid, t in cls._tasks.items()
                 if t.get("status") in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]
-                and cls._owned_by(t, owner_id)
+                and cls._owned_by(t, owner_id, channel_id)
             ]
             for tid in to_del:
                 del cls._tasks[tid]

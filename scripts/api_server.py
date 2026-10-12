@@ -78,6 +78,13 @@ from scripts.api_audio_beats import router as audio_beats_router
 from scripts.api_proxy import router as proxy_router
 from scripts.api_mobile_studio import router as mobile_studio_router
 from scripts.api_hyperframes import router as hyperframes_router
+from scripts.api_hyperframes_workflow import router as hyperframes_workflow_router
+from scripts.api_hyperframes_ai import router as hyperframes_ai_router
+from scripts.api_hyperframes_overlay import router as hyperframes_overlay_router
+from scripts.api_publication_observations import router as publication_observations_router
+from scripts.api_channels import router as channels_router
+from scripts.channel_scope import CHANNEL_HEADER, install_channel_scope
+from scripts.maintenance_lock import install_maintenance_gate
 
 
 
@@ -114,6 +121,22 @@ def recover_startup_work() -> dict[str, int]:
             )
     except Exception as exc:
         print(f"[BatchRender] startup recovery skipped: {exc}")
+
+    try:
+        from scripts.hyperframes_recovery import recover_hyperframes_work
+        from scripts.config import BASE_DIR
+        recovered["hyperframes"] = recover_hyperframes_work(BASE_DIR)["counts"]
+    except Exception as exc:
+        print(f"[HyperFrames] startup recovery skipped: {exc}")
+        recovered["hyperframes"] = {"interrupted": 0, "queued": 0, "finalizing": 0}
+
+    try:
+        from scripts.hyperframes_ai_provider import recover_provider_work
+        from scripts.config import BASE_DIR
+        recovered["hyperframes_ai"] = recover_provider_work(BASE_DIR)
+    except Exception as exc:
+        print(f"[HyperFrames AI] startup recovery skipped: {exc}")
+        recovered["hyperframes_ai"] = {"interrupted": [], "errors": [{"code": "provider_recovery_failed"}]}
 
     return recovered
 
@@ -266,9 +289,16 @@ async def api_key_gate(request: Request, call_next):
 
 # Registration order matters: Starlette wraps middleware in REVERSE of
 # add_middleware() call order, so the first one added ends up outermost.
-# The key gate is added first so it becomes the inner layer; CORS is added
-# second so it wraps every response (including a 401 from the gate) with
-# the right Access-Control-* headers.
+# The channel-scope middleware (pure ASGI, multi-channel P1) is added first
+# so it is the innermost layer: auth runs before it and CORS decorates its
+# 422 responses. The key gate is added next so it becomes the middle layer;
+# CORS is added last so it wraps every response (including a 401 from the
+# gate) with the right Access-Control-* headers.
+# The maintenance gate (multi-channel P2.3) is added before it all, so it is
+# the very innermost layer: while <root>/_Docs/.maintenance.lock exists every
+# non-GET/HEAD/OPTIONS request gets 503 maintenance_mode (adds no routes).
+install_maintenance_gate(app)
+install_channel_scope(app)
 app.middleware("http")(api_key_gate)
 
 app.add_middleware(
@@ -276,7 +306,9 @@ app.add_middleware(
     allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    # "*" already admits X-OmniCut-Channel on preflight; listed for clarity.
+    allow_headers=["*", CHANNEL_HEADER],
+    expose_headers=[CHANNEL_HEADER],
 )
 
 
@@ -311,6 +343,11 @@ app.include_router(audio_beats_router)
 app.include_router(proxy_router)
 app.include_router(mobile_studio_router)
 app.include_router(hyperframes_router)
+app.include_router(hyperframes_workflow_router)
+app.include_router(hyperframes_ai_router)
+app.include_router(hyperframes_overlay_router)
+app.include_router(publication_observations_router)
+app.include_router(channels_router)
 
 
 # ----------------------------------------------------------------------

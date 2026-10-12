@@ -10,8 +10,16 @@ import urllib.parse
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 
+from scripts.channel_ownership import reject_foreign_body_channel
+from scripts.channel_scope import (
+    ChannelScope,
+    get_channel_scope,
+    require_active_for_new_work,
+    require_writable,
+)
+from scripts.channel_store import ChannelError
 from scripts.config import BASE_DIR, RAW_DIR
 from scripts.product_scraper import (
     ProductScraper, DURATION_SPECS, DEFAULT_DURATION, EXTRA_BEAT_BLOCKS,
@@ -26,6 +34,44 @@ from scripts.tts_sanitizer import TTSSanitizer
 router = APIRouter(tags=["Products"])
 
 
+# ---------------------------------------------------------------------------
+# Channel scope guards (multi-channel P2, ADR §7.1 + "P2 store contract")
+# ---------------------------------------------------------------------------
+# The implicit default scope (compat mode, no header) is never asked for its
+# registry status: that keeps old clients byte-identical and never reads
+# _Docs/channels.json (ADR §10.3).  ``main`` cannot be archived, so skipping
+# the status gate there cannot let a write into an archived channel through.
+
+
+def _guard_writable(scope: ChannelScope) -> None:
+    if not scope.is_implicit_default:
+        require_writable(scope)
+
+
+def _guard_new_work(scope: ChannelScope) -> None:
+    if not scope.is_implicit_default:
+        require_active_for_new_work(scope)
+
+
+def _raise_if_foreign(product_id: str, channel_id: Optional[str]) -> None:
+    """Call ONLY after a scoped lookup/write did not find ``product_id``.
+
+    If the id exists in another channel (or is a legacy row hidden by strict
+    mode) -> 404 ``resource_not_found``.  An id that exists nowhere returns so
+    the route keeps its original not-found response.  Scoped store calls never
+    expose or write another channel's rows, so reaching this point has had no
+    side effect on that product; routes with a side effect BEFORE the store
+    call (raw file move) check visibility first.
+    """
+    exists, _owner = ProductStore.owner_of(product_id)
+    if exists and ProductStore.find(product_id, channel_id=channel_id) is None:
+        raise ChannelError(404, "resource_not_found", "ไม่พบสินค้าที่ร้องขอ")
+
+
+def _guard_body_channel(payload: Any, scope: ChannelScope) -> None:
+    reject_foreign_body_channel(payload, scope.channel_id)
+
+
 def resolve_tiktok_product_id(url_or_id: str) -> Dict[str, Any]:
     """Extracts or resolves a TikTok numeric Product ID from ID, full URL, or shortlink."""
     cleaned = (url_or_id or "").strip()
@@ -37,7 +83,7 @@ def resolve_tiktok_product_id(url_or_id: str) -> Dict[str, Any]:
         return {"success": True, "product_id": cleaned, "resolved_url": None}
 
     # 2. Extract from string if it matches standard product URL patterns
-    m = re.search(r"/(?:product|item)/(\d{10,})", cleaned) or re.search(r"[?&](?:item_id|itemId|product_id)=(\d{10,})", cleaned)
+    m = re.search(r"/(?:product|item|pdp)/(\d{10,})", cleaned) or re.search(r"[?&](?:item_id|itemId|product_id)=(\d{10,})", cleaned)
     if m:
         return {"success": True, "product_id": m.group(1), "resolved_url": cleaned}
 
@@ -50,7 +96,7 @@ def resolve_tiktok_product_id(url_or_id: str) -> Dict[str, Any]:
             )
             with urllib.request.urlopen(req, timeout=5) as resp:
                 final_url = resp.geturl()
-                m2 = re.search(r"/(?:product|item)/(\d{10,})", final_url) or re.search(r"[?&](?:item_id|itemId|product_id)=(\d{10,})", final_url)
+                m2 = re.search(r"/(?:product|item|pdp)/(\d{10,})", final_url) or re.search(r"[?&](?:item_id|itemId|product_id)=(\d{10,})", final_url)
                 if m2:
                     return {"success": True, "product_id": m2.group(1), "resolved_url": final_url}
                 m3 = re.search(r"(\d{15,})", final_url)
@@ -260,10 +306,15 @@ def resolve_tiktok_id_endpoint(payload: Dict[str, Any]):
 
 
 @router.post("/api/products/{product_id}/preview-source")
-def preview_product_source(product_id: str, payload: Optional[Dict[str, Any]] = None):
+def preview_product_source(
+    product_id: str,
+    payload: Optional[Dict[str, Any]] = None,
+    scope: ChannelScope = Depends(get_channel_scope),
+):
     """Read a URL and return a diff without changing the saved product."""
-    product = ProductStore.get(product_id)
+    product = ProductStore.get(product_id, channel_id=scope.channel_id)
     if not product:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
     url = str((payload or {}).get("url") or product.get("url") or "").strip()
     if not url:
@@ -304,10 +355,11 @@ def preview_product_source(product_id: str, payload: Optional[Dict[str, Any]] = 
     }
 
 
-def _get_product_image_paths(product_id: str):
+def _get_product_image_paths(product_id: str, channel_id: Optional[str] = None):
     """Return a product and its usable reference image paths for Vision."""
-    product = ProductStore.get(product_id)
+    product = ProductStore.get(product_id, channel_id=channel_id)
     if not product:
+        _raise_if_foreign(product_id, channel_id)
         raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
 
     image_paths = []
@@ -325,9 +377,9 @@ def _get_product_image_paths(product_id: str):
     return product, image_paths
 
 
-def _build_image_metadata_preview(product_id: str):
+def _build_image_metadata_preview(product_id: str, channel_id: Optional[str] = None):
     """Read product reference images with Vision and return an editable diff."""
-    product, image_paths = _get_product_image_paths(product_id)
+    product, image_paths = _get_product_image_paths(product_id, channel_id)
 
     try:
         extracted = ProductScraper.extract_metadata_from_images(
@@ -378,17 +430,17 @@ def _build_image_metadata_preview(product_id: str):
 
 
 @router.post("/api/products/{product_id}/preview-image-metadata")
-def preview_product_image_metadata(product_id: str):
+def preview_product_image_metadata(product_id: str, scope: ChannelScope = Depends(get_channel_scope)):
     """Synchronous compatibility endpoint for callers that still need the result inline."""
-    return _build_image_metadata_preview(product_id)
+    return _build_image_metadata_preview(product_id, scope.channel_id)
 
 
-def _execute_preview_image_metadata_worker(task_id: str, product_id: str):
-    """Background worker for Vision image metadata preview."""
+def _execute_preview_image_metadata_worker(task_id: str, product_id: str, channel_id: Optional[str] = None):
+    """Background worker for Vision image metadata preview (channel pinned at request time)."""
     try:
         TaskManager.update_progress(task_id, 0.1, "กำลังเตรียมรูปอ้างอิงสินค้า")
         TaskManager.update_progress(task_id, 0.35, "กำลังอ่านรายละเอียดจากรูปด้วย Vision")
-        preview = _build_image_metadata_preview(product_id)
+        preview = _build_image_metadata_preview(product_id, channel_id)
         TaskManager.complete_task(
             task_id,
             result={"product_id": product_id, "preview": preview},
@@ -410,9 +462,13 @@ def _execute_preview_image_metadata_worker(task_id: str, product_id: str):
 
 
 @router.post("/api/products/{product_id}/preview-image-metadata-async")
-def preview_product_image_metadata_async(product_id: str, background_tasks: BackgroundTasks):
+def preview_product_image_metadata_async(
+    product_id: str,
+    background_tasks: BackgroundTasks,
+    scope: ChannelScope = Depends(get_channel_scope),
+):
     """Start Vision image metadata preview as a persistent background task."""
-    product, image_paths = _get_product_image_paths(product_id)
+    product, image_paths = _get_product_image_paths(product_id, scope.channel_id)
     product_name = product.get("name") or product.get("title") or product_id
     task = TaskManager.create_task(
         task_type="image_metadata",
@@ -421,15 +477,22 @@ def preview_product_image_metadata_async(product_id: str, background_tasks: Back
         target_tab="flow",
         target_id=product_id,
     )
-    background_tasks.add_task(_execute_preview_image_metadata_worker, task["id"], product_id)
+    background_tasks.add_task(_execute_preview_image_metadata_worker, task["id"], product_id, scope.channel_id)
     return {"success": True, "task_id": task["id"], "task": task}
 
 
 @router.post("/api/products/{product_id}/refresh-source")
-def refresh_product_source(product_id: str, payload: Optional[Dict[str, Any]] = None):
+def refresh_product_source(
+    product_id: str,
+    payload: Optional[Dict[str, Any]] = None,
+    scope: ChannelScope = Depends(get_channel_scope),
+):
     """Apply explicitly selected fields from a previously previewed source."""
-    product = ProductStore.get(product_id)
+    _guard_writable(scope)
+    _guard_body_channel(payload, scope)
+    product = ProductStore.get(product_id, channel_id=scope.channel_id)
     if not product:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
     payload = payload or {}
     url = str(payload.get("url") or product.get("url") or "").strip()
@@ -455,6 +518,7 @@ def refresh_product_source(product_id: str, payload: Optional[Dict[str, Any]] = 
     fields = {
         "platform": scraped.get("platform") or product.get("platform", ""),
         "metadata_source": source_method,
+        "source_warning": scraped.get("source_warning", ""),
     }
     incoming = _source_preview_candidate(scraped)
     for field in selected_fields - {"images"}:
@@ -480,7 +544,7 @@ def refresh_product_source(product_id: str, payload: Optional[Dict[str, Any]] = 
             first_image.get("rel_path") or first_image.get("url") or ""
         )
 
-    updated = ProductStore.update(product_id, **fields)
+    updated = ProductStore.update(product_id, channel_id=scope.channel_id, **fields)
     return {
         "success": True,
         "product": updated,
@@ -490,8 +554,12 @@ def refresh_product_source(product_id: str, payload: Optional[Dict[str, Any]] = 
 
 
 @router.post("/api/products/{product_id}/videos")
-def attach_video_to_product(product_id: str, payload: Dict[str, Any]):
+def attach_video_to_product(
+    product_id: str, payload: Dict[str, Any], scope: ChannelScope = Depends(get_channel_scope)
+):
     """Links an existing video file to a product."""
+    _guard_writable(scope)
+    _guard_body_channel(payload, scope)
     video_path = payload.get("video_path")
     if not video_path:
         raise HTTPException(status_code=400, detail="Missing video_path")
@@ -504,13 +572,24 @@ def attach_video_to_product(product_id: str, payload: Dict[str, Any]):
         raise HTTPException(status_code=404, detail="Video file not found")
 
     file_info = get_file_info(v_path)
-    updated = ProductStore.add_video_to_product(product_id, file_info)
+    try:
+        updated = ProductStore.add_video_to_product(product_id, file_info, channel_id=scope.channel_id)
+    except ValueError:
+        _raise_if_foreign(product_id, scope.channel_id)
+        raise
     return {"success": True, "product": updated}
 
 
 @router.delete("/api/products/{product_id}/videos")
-def remove_video_from_product(product_id: str, video_path: str):
+def remove_video_from_product(
+    product_id: str, video_path: str, scope: ChannelScope = Depends(get_channel_scope)
+):
     """Unlinks a video file from a product."""
+    # Ownership first: the file move below must never run for another
+    # channel's product.
+    _guard_writable(scope)
+    if ProductStore.find(product_id, channel_id=scope.channel_id) is None:
+        _raise_if_foreign(product_id, scope.channel_id)
     v_path = Path(video_path)
     if not v_path.is_absolute():
         v_path = BASE_DIR / video_path
@@ -526,24 +605,32 @@ def remove_video_from_product(product_id: str, video_path: str):
         except Exception as e:
             print(f"Notice: Failed to move unlinked video: {e}")
 
-    updated = ProductStore.remove_video_from_product(product_id, video_path)
+    updated = ProductStore.remove_video_from_product(product_id, video_path, channel_id=scope.channel_id)
     return {"success": True, "product": updated}
 
 
 @router.delete("/api/products/{product_id}/angles/{angle_id}")
-def delete_product_angle(product_id: str, angle_id: str, batch: Optional[int] = None):
+def delete_product_angle(
+    product_id: str, angle_id: str, batch: Optional[int] = None, scope: ChannelScope = Depends(get_channel_scope)
+):
     """Deletes an angle/script from a product."""
+    _guard_writable(scope)
     try:
-        res = ProductStore.remove_angle(product_id, angle_id, batch=batch)
+        res = ProductStore.remove_angle(product_id, angle_id, batch=batch, channel_id=scope.channel_id)
         return {"success": True, **res}
+    except ChannelError:
+        raise
     except ValueError as e:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการลบมุม: {e}")
 
 
 @router.patch("/api/products/{product_id}/angles/{angle_id}")
-def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[str, Any]):
+def update_product_angle_status(
+    product_id: str, angle_id: str, payload: Dict[str, Any], scope: ChannelScope = Depends(get_channel_scope)
+):
     """Updates status (draft, scripted, in_production, rendered, posted) of a specific angle script.
 
     Optional payload fields:
@@ -553,6 +640,8 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
                         A rendered clip with no qc_note is NOT the same thing as a
                         reviewed-and-approved clip -- see ProductStore.update_angle_status.
     """
+    _guard_writable(scope)
+    _guard_body_channel(payload, scope)
     status = payload.get("status")
     video_url = payload.get("video_url")
     export_id = payload.get("export_id")
@@ -588,15 +677,21 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
             clear_conflict_note=clear_conflict_note,
             mark_qc_passed=mark_qc_passed,
             batch=batch,
+            channel_id=scope.channel_id,
         )
         return {"success": True, "product": updated}
     except ValueError as err:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=404, detail=str(err))
 
 
 @router.patch("/api/products/{product_id}/angles/{angle_id}/cover")
-def update_product_angle_cover(product_id: str, angle_id: str, payload: Dict[str, Any]):
+def update_product_angle_cover(
+    product_id: str, angle_id: str, payload: Dict[str, Any], scope: ChannelScope = Depends(get_channel_scope)
+):
     """Persists generated 9:16/3:4 cover paths for one product angle."""
+    _guard_writable(scope)
+    _guard_body_channel(payload, scope)
     if not any(payload.get(key) for key in ("cover_path", "cover_3x4_path", "cover_9x16_path")):
         raise HTTPException(status_code=400, detail="ต้องระบุไฟล์ปกอย่างน้อยหนึ่งไฟล์")
     batch = payload.get("batch") or payload.get("batch_index")
@@ -613,17 +708,24 @@ def update_product_angle_cover(product_id: str, angle_id: str, payload: Dict[str
             cover_3x4_path=payload.get("cover_3x4_path"),
             cover_9x16_path=payload.get("cover_9x16_path"),
             batch=batch,
+            channel_id=scope.channel_id,
         )
         return {"success": True, "product": updated}
     except LookupError as err:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=404, detail=str(err))
     except ValueError as err:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=400, detail=str(err))
 
 
 @router.post("/api/products/{product_id}/angles/{angle_id}/videos")
-def update_angle_videos_endpoint(product_id: str, angle_id: str, payload: Dict[str, Any]):
+def update_angle_videos_endpoint(
+    product_id: str, angle_id: str, payload: Dict[str, Any], scope: ChannelScope = Depends(get_channel_scope)
+):
     """Persists selected raw footage attachments for a specific script angle."""
+    _guard_writable(scope)
+    _guard_body_channel(payload, scope)
     batch = payload.get("batch") or payload.get("batch_index")
     if batch is not None:
         try:
@@ -632,33 +734,50 @@ def update_angle_videos_endpoint(product_id: str, angle_id: str, payload: Dict[s
             batch = None
     try:
         selected_videos = payload.get("selected_videos", [])
-        updated = ProductStore.update_angle_videos(product_id, angle_id, selected_videos, batch=batch)
+        updated = ProductStore.update_angle_videos(
+            product_id, angle_id, selected_videos, batch=batch, channel_id=scope.channel_id
+        )
         return {"success": True, "product": updated}
+    except ChannelError:
+        raise
     except ValueError as err:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=404, detail=str(err))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/api/products/{product_id}/default-videos")
-def set_default_videos_endpoint(product_id: str, payload: Dict[str, Any]):
+def set_default_videos_endpoint(
+    product_id: str, payload: Dict[str, Any], scope: ChannelScope = Depends(get_channel_scope)
+):
     """Sets default raw footage attachments for all script angles in a product."""
+    _guard_writable(scope)
+    _guard_body_channel(payload, scope)
     try:
         selected_videos = payload.get("selected_videos", [])
-        updated = ProductStore.set_default_videos_for_all_angles(product_id, selected_videos)
+        updated = ProductStore.set_default_videos_for_all_angles(
+            product_id, selected_videos, channel_id=scope.channel_id
+        )
         return {"success": True, "product": updated}
+    except ChannelError:
+        raise
     except ValueError as err:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=404, detail=str(err))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/api/products/{product_id}/scene-catalogs")
-def get_scene_catalogs(product_id: str, video_path: Optional[str] = None):
+def get_scene_catalogs(
+    product_id: str, video_path: Optional[str] = None, scope: ChannelScope = Depends(get_channel_scope)
+):
     """Checks Scene Catalog status for attached product footage."""
     from scripts.gemini_vision_matcher import GeminiVisionMatcher
-    prod = ProductStore.get(product_id)
+    prod = ProductStore.get(product_id, channel_id=scope.channel_id)
     if not prod:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=404, detail="Product not found")
 
     def _collect_canonical_videos(prod_obj, specific_video=None) -> List[str]:
@@ -730,11 +849,16 @@ def get_scene_catalogs(product_id: str, video_path: Optional[str] = None):
 
 
 @router.post("/api/products/{product_id}/index-scenes")
-def index_scenes_endpoint(product_id: str, payload: Dict[str, Any]):
+def index_scenes_endpoint(
+    product_id: str, payload: Dict[str, Any], scope: ChannelScope = Depends(get_channel_scope)
+):
     """Indexes raw video(s) into Scene Catalog using Gemini Vision."""
     from scripts.gemini_vision_matcher import GeminiVisionMatcher
-    prod = ProductStore.get(product_id)
+    _guard_writable(scope)
+    _guard_body_channel(payload, scope)
+    prod = ProductStore.get(product_id, channel_id=scope.channel_id)
     if not prod:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=404, detail="Product not found")
 
     video_path = payload.get("video_path")
@@ -861,8 +985,10 @@ def index_scenes_endpoint(product_id: str, payload: Dict[str, Any]):
 
 
 @router.post("/api/products/scrape-and-plan")
-def scrape_and_plan(payload: Dict[str, Any]):
+def scrape_and_plan(payload: Dict[str, Any], scope: ChannelScope = Depends(get_channel_scope)):
     """Scrapes product info or accepts raw text/keywords/images and generates Content Matrix."""
+    _guard_new_work(scope)
+    _guard_body_channel(payload, scope)
     url = payload.get("url", "").strip()
     raw_text = payload.get("raw_text", "").strip()
     custom_keyword = payload.get("custom_keyword", "").strip()
@@ -943,6 +1069,7 @@ def scrape_and_plan(payload: Dict[str, Any]):
             raw_text=product_info.get("raw_text", ""),
             metadata_source=product_info.get("metadata_source", ""),
             source_warning=product_info.get("source_warning", ""),
+            channel_id=scope.channel_id,
         )
         product_info["id"] = saved_prod["id"]
         product_info["tiktok_product_id"] = saved_prod.get("tiktok_product_id")
@@ -953,6 +1080,8 @@ def scrape_and_plan(payload: Dict[str, Any]):
             "saved_product": saved_prod,
             "angles": angles
         }
+    except ChannelError:
+        raise
     except Exception as e:
         # A quota hit is the user's own daily cap, not a scrape failure; 500
         # would send them looking for a broken URL instead.
@@ -964,8 +1093,12 @@ def scrape_and_plan(payload: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
-    """Background worker that executes product scrape & script generation."""
+def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any], channel_id: Optional[str] = None):
+    """Background worker that executes product scrape & script generation.
+
+    ``channel_id`` is pinned when the request was accepted (ADR §7.1.6); the
+    new product is stamped with it no matter which channel the UI shows now.
+    """
     try:
         TaskManager.update_progress(task_id, 0.15, "กำลังดึงข้อมูลและสเปกสินค้า")
         url = payload.get("url", "").strip()
@@ -1049,6 +1182,7 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
             raw_text=product_info.get("raw_text", ""),
             metadata_source=product_info.get("metadata_source", ""),
             source_warning=product_info.get("source_warning", ""),
+            channel_id=channel_id,
         )
         product_info["id"] = saved_prod["id"]
         product_info["tiktok_product_id"] = saved_prod.get("tiktok_product_id")
@@ -1088,8 +1222,14 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
 
 
 @router.post("/api/products/scrape-and-plan-async")
-def scrape_and_plan_async(payload: Dict[str, Any], background_tasks: BackgroundTasks):
+def scrape_and_plan_async(
+    payload: Dict[str, Any],
+    background_tasks: BackgroundTasks,
+    scope: ChannelScope = Depends(get_channel_scope),
+):
     """Launches Scrape & Plan as a persistent background task, returning job ID immediately."""
+    _guard_new_work(scope)
+    _guard_body_channel(payload, scope)
     url = payload.get("url", "").strip()
     raw_text = payload.get("raw_text", "").strip()
     custom_keyword = payload.get("custom_keyword", "").strip()
@@ -1118,7 +1258,7 @@ def scrape_and_plan_async(payload: Dict[str, Any], background_tasks: BackgroundT
         target_tab="flow"
     )
 
-    background_tasks.add_task(_execute_scrape_and_plan_worker, task["id"], payload)
+    background_tasks.add_task(_execute_scrape_and_plan_worker, task["id"], payload, scope.channel_id)
 
     return {
         "success": True,
@@ -1130,6 +1270,7 @@ def scrape_and_plan_async(payload: Dict[str, Any], background_tasks: BackgroundT
 def _execute_reroll_script_worker(
     task_id: str, product_id: str, angle_id: str, angle_count: int,
     duration: str, extra_beats, angle_snapshot: Dict[str, Any],
+    channel_id: Optional[str] = None,
 ) -> None:
     """Background worker: regenerate ONE angle's script content in place.
 
@@ -1144,7 +1285,7 @@ def _execute_reroll_script_worker(
     """
     try:
         TaskManager.update_progress(task_id, 0.10, "กำลังเตรียมข้อมูลสินค้า")
-        product = _with_product_source_fallback(ProductStore.get(product_id) or {})
+        product = _with_product_source_fallback(ProductStore.get(product_id, channel_id=channel_id) or {})
         if not product:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
@@ -1197,7 +1338,9 @@ def _execute_reroll_script_worker(
 
         TaskManager.update_progress(task_id, 0.95, "กำลังบันทึกสคริปต์ใหม่")
         batch = angle_snapshot.get("batch")
-        updated_product = ProductStore.replace_angle_content(product_id, angle_id, new_angle, batch=batch)
+        updated_product = ProductStore.replace_angle_content(
+            product_id, angle_id, new_angle, batch=batch, channel_id=channel_id
+        )
         # new_angle is the AI's raw output -- it has no idea about this
         # angle's status/project_name/video_url (replace_angle_content
         # deliberately never sends those to the AI, and preserves whatever
@@ -1232,12 +1375,20 @@ def _execute_reroll_script_worker(
 
 
 @router.post("/api/products/{product_id}/angles/{angle_id}/reroll-script")
-def reroll_angle_script(product_id: str, angle_id: str, payload: Dict[str, Any], background_tasks: BackgroundTasks):
+def reroll_angle_script(
+    product_id: str,
+    angle_id: str,
+    payload: Dict[str, Any],
+    background_tasks: BackgroundTasks,
+    scope: ChannelScope = Depends(get_channel_scope),
+):
     """Regenerates ONE angle's script with a new duration/content mix via AI,
     as a background task (same pattern as scrape-and-plan-async). Overwrites
     the angle's script content immediately on completion -- no version
     history is kept, matching how a hand-edit to the script already works.
     """
+    _guard_writable(scope)
+    _guard_body_channel(payload, scope)
     duration = str(payload.get("duration") or DEFAULT_DURATION)
     if duration not in DURATION_SPECS:
         raise HTTPException(status_code=400, detail=f"duration ต้องเป็นหนึ่งใน {', '.join(DURATION_SPECS)}")
@@ -1259,8 +1410,9 @@ def reroll_angle_script(product_id: str, angle_id: str, payload: Dict[str, Any],
         except (ValueError, TypeError):
             batch = None
 
-    product = ProductStore.get(product_id)
+    product = ProductStore.get(product_id, channel_id=scope.channel_id)
     if not product:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
     angle_snapshot = next(
         (
@@ -1289,7 +1441,7 @@ def reroll_angle_script(product_id: str, angle_id: str, payload: Dict[str, Any],
 
     background_tasks.add_task(
         _execute_reroll_script_worker,
-        task["id"], product_id, angle_id, 1, duration, extra_beats, angle_snapshot,
+        task["id"], product_id, angle_id, 1, duration, extra_beats, angle_snapshot, scope.channel_id,
     )
 
     return {
@@ -1302,10 +1454,11 @@ def reroll_angle_script(product_id: str, angle_id: str, payload: Dict[str, Any],
 def _execute_generate_batch_worker(
     task_id: str, product_id: str, angle_count: int,
     duration: str, extra_beats,
+    channel_id: Optional[str] = None,
 ) -> None:
     try:
         TaskManager.update_progress(task_id, 0.10, "กำลังเตรียมข้อมูลสินค้า")
-        product = _with_product_source_fallback(ProductStore.get(product_id) or {})
+        product = _with_product_source_fallback(ProductStore.get(product_id, channel_id=channel_id) or {})
         if not product:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
@@ -1352,7 +1505,9 @@ def _execute_generate_batch_worker(
         new_angles = TTSSanitizer.process_angles(new_angles)
 
         TaskManager.update_progress(task_id, 0.95, f"กำลังบันทึกสคริปต์ {batch_label} ลงสินค้า")
-        updated_product = ProductStore.append_angles(product_id, new_angles, batch_index=next_batch)
+        updated_product = ProductStore.append_angles(
+            product_id, new_angles, batch_index=next_batch, channel_id=channel_id
+        )
 
         persisted_new_angles = [a for a in updated_product.get("angles", []) if (a.get("batch") or 1) == next_batch]
         result_data = {
@@ -1378,10 +1533,18 @@ def _execute_generate_batch_worker(
 
 
 @router.post("/api/products/{product_id}/generate-batch")
-def generate_product_batch(product_id: str, payload: Dict[str, Any], background_tasks: BackgroundTasks):
+def generate_product_batch(
+    product_id: str,
+    payload: Dict[str, Any],
+    background_tasks: BackgroundTasks,
+    scope: ChannelScope = Depends(get_channel_scope),
+):
     """Generates a new batch (e.g. 10 angles) for an existing product without duplicating previous angles."""
-    product = ProductStore.get(product_id)
+    _guard_new_work(scope)
+    _guard_body_channel(payload, scope)
+    product = ProductStore.get(product_id, channel_id=scope.channel_id)
     if not product:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
 
     angle_count = int(payload.get("angle_count", 10))
@@ -1407,7 +1570,7 @@ def generate_product_batch(product_id: str, payload: Dict[str, Any], background_
 
     background_tasks.add_task(
         _execute_generate_batch_worker,
-        task["id"], product_id, angle_count, duration, extra_beats,
+        task["id"], product_id, angle_count, duration, extra_beats, scope.channel_id,
     )
 
     return {
@@ -1418,10 +1581,13 @@ def generate_product_batch(product_id: str, payload: Dict[str, Any], background_
 
 
 @router.post("/api/products/{product_id}/angles")
-def add_product_angle(product_id: str, payload: Dict[str, Any]):
+def add_product_angle(product_id: str, payload: Dict[str, Any], scope: ChannelScope = Depends(get_channel_scope)):
     """Adds a single angle (custom or cloned) to an existing product."""
-    product = ProductStore.get(product_id)
+    _guard_new_work(scope)
+    _guard_body_channel(payload, scope)
+    product = ProductStore.get(product_id, channel_id=scope.channel_id)
     if not product:
+        _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
 
     angle_data = payload.get("angle") if "angle" in payload else payload
@@ -1430,8 +1596,12 @@ def add_product_angle(product_id: str, payload: Dict[str, Any]):
 
     batch_index = payload.get("batch_index") if "batch_index" in payload else None
     try:
-        updated = ProductStore.add_single_angle(product_id, angle_data, batch_index=batch_index)
+        updated = ProductStore.add_single_angle(
+            product_id, angle_data, batch_index=batch_index, channel_id=scope.channel_id
+        )
         return {"success": True, "product": updated}
+    except ChannelError:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

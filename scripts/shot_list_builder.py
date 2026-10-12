@@ -214,6 +214,8 @@ def generate_shot_list_for_angle(
     angle_id: str,
     voice_overrides: Optional[Dict[str, Any]] = None,
     batch: Optional[int] = None,
+    channel_id: Optional[str] = None,
+    job_scope=None,
 ) -> Dict[str, Any]:
     """Orchestrates: look up the angle's script -> run ScriptStage+VoiceStage
     on a scratch context (no raw video, no SubtitleStage) -> build the shot
@@ -221,8 +223,9 @@ def generate_shot_list_for_angle(
     `{shot_list, voice_audio_path, total_duration}`.
     """
     voice_overrides = voice_overrides or {}
+    store_kwargs = {"channel_id": channel_id} if channel_id is not None else {}
 
-    product = ProductStore.get(product_id)
+    product = ProductStore.get(product_id, **store_kwargs)
     if not product:
         raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
     angle = _find_angle(product, angle_id, batch=batch)
@@ -238,7 +241,10 @@ def generate_shot_list_for_angle(
 
     product_name = product.get("name") or product_id
     batch_suffix = f"_b{assigned_batch}" if assigned_batch > 1 and not str(angle_id).endswith(f"_b{assigned_batch}") else ""
-    project_dir = PROJECTS_DIR / "_ShotLists" / f"{product_id}_{angle_id}{batch_suffix}"
+    scoped_root = PROJECTS_DIR / "_ShotLists"
+    if channel_id not in (None, "main"):
+        scoped_root = scoped_root / channel_id
+    project_dir = scoped_root / f"{product_id}_{angle_id}{batch_suffix}"
     project_dir.mkdir(parents=True, exist_ok=True)
 
     voice_engine_type = voice_overrides.get("voice_engine_type") or angle.get("voice_engine_type") or "gemini_tts"
@@ -264,6 +270,10 @@ def generate_shot_list_for_angle(
         resume_from=None,
     )
     ctx.project_dir = project_dir
+    from copy import deepcopy
+    ctx.channel_id = channel_id
+    ctx.job_scope = deepcopy(job_scope or {})
+    ctx.channel_identity_snapshot = deepcopy((job_scope or {}).get("channel_identity_snapshot"))
 
     ScriptStage.run(ctx)
     VoiceStage.run(ctx)
@@ -288,7 +298,7 @@ def generate_shot_list_for_angle(
         "voice_params": {key: getattr(ctx, key) for key in _VOICE_OVERRIDE_KEYS},
         "total_duration": ctx.total_duration,
     }
-    ShotListsStore.upsert(record, batch=assigned_batch)
+    ShotListsStore.upsert(record, batch=assigned_batch, **store_kwargs)
 
     try:
         ProductStore.update_angle_voice(
@@ -298,6 +308,7 @@ def generate_shot_list_for_angle(
             voice_engine_type=voice_engine_type,
             ad_tone=ad_tone,
             batch=assigned_batch,
+            **store_kwargs,
         )
     except Exception as update_err:
         print(f"[ShotList] Note: Could not update angle with voice settings: {update_err}")

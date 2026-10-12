@@ -74,6 +74,7 @@ class SubtitleStage:
         if not should_generate and ctx.manifest:
             existing_ass_path = ProjectManifest.artifact_path(ctx.manifest, "subtitles_ass")
             if existing_ass_path:
+                ctx.guard_media(existing_ass_path)
                 if not subtitle_artifact_is_current(existing_ass_path):
                     should_generate = True
                 elif saved_params.get("show_watermark") is not None and saved_params.get("show_watermark") != effective_show_watermark:
@@ -162,6 +163,7 @@ class SubtitleStage:
                 text_overlays=effective_text_overlays,
                 style_preset=ctx.style_preset,
                 show_watermark=effective_show_watermark,
+                channel_identity_snapshot=ctx.channel_identity_snapshot,
             )
             # Sync micro_cues back
             ctx.cues = micro_cues

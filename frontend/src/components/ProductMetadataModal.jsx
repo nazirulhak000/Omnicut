@@ -177,6 +177,33 @@ export default function ProductMetadataModal({
     >
       {!product ? null : (
         <div className="space-y-4">
+          {Boolean(product.metadata_source === 'slug_fallback' || product.source_warning) && (
+            <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <RefreshCw className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-amber-200">
+                    ข้อมูลสินค้ายังไม่สมบูรณ์ (ดึงจากหน้าเว็บไม่สำเร็จ หรือติดระบบป้องกันของแพลตฟอร์ม)
+                  </p>
+                  <p className="text-[11px] text-amber-200/70 mt-0.5">
+                    {product.source_warning ? `หมายเหตุ: ${product.source_warning}` : 'คุณสามารถกดดึงข้อมูลใหม่อีกครั้ง หรือแก้ไขรายละเอียดด้วยตนเองได้'}
+                  </p>
+                </div>
+              </div>
+              {product.url && onPreviewSource && (
+                <button
+                  type="button"
+                  onClick={() => onPreviewSource({ url: draft.url || product.url })}
+                  disabled={refreshingSource}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-400 px-3.5 py-2 text-xs font-bold text-slate-950 transition hover:bg-amber-300 disabled:cursor-wait disabled:opacity-60 flex-shrink-0 cursor-pointer shadow-sm"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${refreshingSource ? 'animate-spin' : ''}`} />
+                  <span>{refreshingSource ? 'กำลังอ่านหน้าเว็บ...' : 'ดึงข้อมูลใหม่จาก URL ทันที'}</span>
+                </button>
+              )}
+            </div>
+          )}
+
           {onSaveMetadata && (
             <Section icon={FileText} title="แก้ไขข้อมูลก่อนส่งให้ AI" hint="บันทึกเฉพาะเมื่อกดปุ่ม">
               <div className="grid gap-3 sm:grid-cols-2">
@@ -185,8 +212,21 @@ export default function ProductMetadataModal({
                   <input value={draft.name || ''} onChange={(event) => updateDraft('name', event.target.value)} maxLength={180} className="mt-1 w-full rounded-xl border border-white/[0.1] bg-black/30 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-300/60" placeholder="เช่น GoChek GC-ULTRA S24" />
                 </label>
                 <label className="sm:col-span-2 text-xs font-semibold text-slate-300">
-                  URL ต้นทาง
-                  <input type="url" value={draft.url || ''} onChange={(event) => updateDraft('url', event.target.value)} className="mt-1 w-full rounded-xl border border-white/[0.1] bg-black/30 px-3 py-2.5 text-xs text-white outline-none transition focus:border-cyan-300/60" placeholder="https://shop.tiktok.com/..." />
+                  <div className="flex items-center justify-between mb-1">
+                    <span>URL ต้นทาง</span>
+                    {onPreviewSource && (draft.url || product.url) && (
+                      <button
+                        type="button"
+                        onClick={() => onPreviewSource({ url: draft.url || product.url })}
+                        disabled={refreshingSource}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-cyan-300 hover:text-cyan-200 cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${refreshingSource ? 'animate-spin' : ''}`} />
+                        <span>{refreshingSource ? 'กำลังดึง...' : 'ดึงข้อมูลจาก URL นี้'}</span>
+                      </button>
+                    )}
+                  </div>
+                  <input type="url" value={draft.url || ''} onChange={(event) => updateDraft('url', event.target.value)} className="w-full rounded-xl border border-white/[0.1] bg-black/30 px-3 py-2.5 text-xs text-white outline-none transition focus:border-cyan-300/60" placeholder="https://shop.tiktok.com/..." />
                 </label>
                 <label className="text-xs font-semibold text-slate-300">
                   ราคา / โปรโมชั่น

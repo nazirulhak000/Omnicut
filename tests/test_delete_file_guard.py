@@ -1,11 +1,10 @@
 """Safety contracts for /api/delete-file (trash fallback) and /api/raw-vault/batch-delete."""
 
-from contextlib import contextmanager
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from scripts import api_videos
+from scripts import api_videos, product_store
 from scripts.api_server import app
 from scripts.product_store import ProductStore
 
@@ -113,11 +112,13 @@ def test_batch_delete_trashes_and_keeps_other_products_same_named_reference(monk
         ]},
     ]
 
-    @contextmanager
-    def fake_mutate():
-        yield products
-
-    monkeypatch.setattr(ProductStore, "_mutate", staticmethod(fake_mutate))
+    # Exercise the real scoped transaction rather than the obsolete unscoped
+    # _mutate mock, and inspect its persisted result after the endpoint returns.
+    for product in products:
+        product["channel_id"] = "main"
+    monkeypatch.setattr(product_store, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(product_store, "STORE_PATH", tmp_path / "_Docs" / "products.json")
+    product_store._TABLE.save(products)
 
     resp = TestClient(app).post("/api/raw-vault/batch-delete", json={"video_paths": [str(clip_a)]})
 
@@ -132,6 +133,7 @@ def test_batch_delete_trashes_and_keeps_other_products_same_named_reference(monk
     kept = list((archive / ".trash").glob("*clip.mp4"))
     assert len(kept) == 1 and kept[0].read_bytes() == b"clip A"
     # Only the matching reference is dropped.
+    products = product_store._TABLE.load()
     assert products[0]["videos"] == []
     assert len(products[1]["videos"]) == 1
     assert products[1]["videos"][0]["path"] == str(clip_b.resolve())

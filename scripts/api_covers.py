@@ -26,6 +26,7 @@ import time
 import uuid
 import json
 import base64
+import hashlib
 import subprocess
 import urllib.parse
 import urllib.request
@@ -34,7 +35,7 @@ import warnings
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict, Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -46,8 +47,12 @@ from scripts.config import (
     STICKERS_DIR,
     PROJECTS_DIR,
     RAW_DIR,
+    asset_relative_path,
 )
 from scripts.asset_registry import AssetRegistry
+from scripts.channel_workflows import get_workflow_scope, get_writable_workflow_scope, require_media_owner
+from scripts.channel_artifacts import register as register_companion
+from scripts.export_cover_bindings import ExportCoverBindingStore
 from scripts.cover_scene import CoverSceneValidationError, normalize_scene
 from scripts.hook_styles import resolve_hook_style, TIER_KEYS
 
@@ -201,10 +206,11 @@ def generate_cover(
     at_seconds: float,
     brand: str = "", model: str = "", label: str = "",
     template: Optional[str] = None,
+    output_dir: Optional[Path] = None,
 ) -> Path:
     """Frame grab + optional tier stamp, written into 05_Covers_Thumbnails/."""
     video_path = _resolve_media(video_rel_path)
-    out_path = COVERS_DIR / f"{video_path.stem}_cover.jpg"
+    out_path = (output_dir or COVERS_DIR) / f"{video_path.stem}_cover.jpg"
     grab_frame(video_path, at_seconds, out_path)
     stamp_hook_tiers(out_path, brand, model, label, template)
     return out_path
@@ -368,6 +374,7 @@ def find_product_ref_images(
     video_path: Optional[str] = None,
     product_id: Optional[str] = None,
     product_name: Optional[str] = None,
+    *, channel_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Finds high-resolution product reference images (scraped from TikTok Shop / web / uploaded)
@@ -376,11 +383,11 @@ def find_product_ref_images(
     from scripts.product_store import ProductStore
     matched_product = None
     if product_id:
-        matched_product = ProductStore.get(product_id)
+        matched_product = ProductStore.get(product_id, channel_id=channel_id)
 
     if not matched_product and product_name:
         p_clean = product_name.strip().lower()
-        for p in ProductStore.list():
+        for p in ProductStore.list(channel_id=channel_id):
             p_name = (p.get("name") or "").strip().lower()
             if p_name and (p_name == p_clean or p_clean in p_name or p_name in p_clean):
                 matched_product = p
@@ -389,7 +396,7 @@ def find_product_ref_images(
     if not matched_product and video_path:
         v_name = Path(video_path).name.lower()
         v_stem = Path(video_path).stem.lower()
-        for p in ProductStore.list():
+        for p in ProductStore.list(channel_id=channel_id):
             for a in p.get("angles", []):
                 v_url = str(a.get("video_url") or "").lower()
                 pj_name = str(a.get("project_name") or "").lower()
@@ -444,7 +451,7 @@ def get_badges_catalog() -> List[Dict[str, str]]:
         for f in sorted(STICKERS_DIR.glob("*.png")):
             fname = f.name
             title = badge_titles.get(fname, fname.replace(".png", "").replace("_", " "))
-            rel = f.relative_to(BASE_DIR)
+            rel = asset_relative_path(f)
             badges.append({
                 "id": fname,
                 "title": title,
@@ -701,6 +708,7 @@ def render_pro_cover(
     export_stem: Optional[str] = None,
     scene: Optional[Dict[str, Any]] = None,
     layers: Optional[List[Dict[str, Any]]] = None,
+    output_dir: Optional[Path] = None,
 ) -> Tuple[Path, Optional[Path]]:
     """
     Renders official TikTok cover JPG(s) (9:16 1080x1920 and/or 3:4 1080x1440):
@@ -712,8 +720,9 @@ def render_pro_cover(
     """
     from PIL import Image, ImageDraw, ImageFont
 
-    COVERS_DIR.mkdir(parents=True, exist_ok=True)
-    temp_dir = COVERS_DIR / ".cache"
+    cover_root = output_dir or COVERS_DIR
+    cover_root.mkdir(parents=True, exist_ok=True)
+    temp_dir = cover_root / ".cache"
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     # export_stem is client-controlled (RenderProCoverRequest.export_filename)
@@ -1028,8 +1037,8 @@ def render_pro_cover(
 
     # 8. Save Cover Images (9:16 and/or 3:4)
     base_clean = stem_name.replace("_cover_3x4.jpg", "").replace("_cover.jpg", "").replace("_cover", "").replace(".jpg", "")
-    out_path_9x16 = COVERS_DIR / f"{base_clean}_cover.jpg"
-    out_path_3x4 = COVERS_DIR / f"{base_clean}_cover_3x4.jpg"
+    out_path_9x16 = cover_root / f"{base_clean}_cover.jpg"
+    out_path_3x4 = cover_root / f"{base_clean}_cover_3x4.jpg"
 
     # Compute 3:4 profile grid crop (1080 x 1440)
     # Pan moves crop window vertically: 0 is top (cuts bottom 480px subtitles), 100 is bottom
@@ -1084,6 +1093,7 @@ class GenerateHooksRequest(BaseModel):
 
 class RenderProCoverRequest(BaseModel):
     video_path: Optional[str] = None
+    export_id: Optional[str] = None
     at_seconds: float = 1.0
     custom_image_path: Optional[str] = None
     custom_image_data: Optional[str] = None
@@ -1112,28 +1122,37 @@ def get_badges_endpoint():
 
 
 @router.post("/highlights")
-def get_highlights_endpoint(req: HighlightsRequest):
+def get_highlights_endpoint(req: HighlightsRequest, channel_scope=Depends(get_workflow_scope)):
     """Extracts candidate highlight frames across the video for quick selection."""
     v_path = _resolve_media(req.video_path)
+    require_media_owner(channel_scope, v_path, base_dir=BASE_DIR)
     res = extract_highlight_candidates(v_path)
     return res
 
 
 @router.post("/raw-sources")
-def get_raw_sources_endpoint(req: RawSourcesRequest):
+def get_raw_sources_endpoint(req: RawSourcesRequest, channel_scope=Depends(get_workflow_scope)):
     """Lists available unburned raw footage clips for clean frame capture."""
     v_path = _resolve_media(req.video_path)
+    require_media_owner(channel_scope, v_path, base_dir=BASE_DIR)
     sources = find_raw_sources_for_video(v_path)
     return {"raw_sources": sources}
 
 
 @router.post("/product-ref-images")
-def get_product_ref_images_endpoint(req: ProductRefImagesRequest):
+def get_product_ref_images_endpoint(req: ProductRefImagesRequest, channel_scope=Depends(get_workflow_scope)):
     """Lists high-res product reference images scraped from TikTok Shop / catalog."""
+    if req.video_path:
+        require_media_owner(channel_scope, req.video_path, base_dir=BASE_DIR)
+    if req.product_id:
+        from scripts.product_store import ProductStore
+        from scripts.channel_workflows import require_record_owner
+        require_record_owner(channel_scope, ProductStore.get(req.product_id, channel_id=channel_scope.channel_id))
     images = find_product_ref_images(
         video_path=req.video_path,
         product_id=req.product_id,
         product_name=req.product_name,
+        channel_id=channel_scope.channel_id,
     )
     return {"ref_images": images}
 
@@ -1150,8 +1169,19 @@ def generate_hooks_endpoint(req: GenerateHooksRequest):
 
 
 @router.post("/render-pro")
-def render_pro_cover_endpoint(req: RenderProCoverRequest):
+def render_pro_cover_endpoint(req: RenderProCoverRequest, channel_scope=Depends(get_writable_workflow_scope)):
     """Renders high-converting cover images (9:16, 3:4, or both) with chosen template, position, and badge."""
+    binding_store = ExportCoverBindingStore(BASE_DIR) if req.export_id else None
+    binding_revision = None
+    if binding_store:
+        binding_store.validate_export(channel_scope.channel_id, req.export_id, req.video_path)
+        binding_revision = binding_store.revision(channel_scope.channel_id, req.export_id)
+    for source in (req.video_path, req.custom_image_path, req.raw_video_path):
+        if source:
+            require_media_owner(channel_scope, source, base_dir=BASE_DIR)
+    # Unique companion revisions prevent an old cover from being overwritten
+    # by another job using the same video basename.
+    cover_root = COVERS_DIR / channel_scope.channel_id / uuid.uuid4().hex
     try:
         scene_model = _normalise_requested_cover_scene(
             scene=req.scene,
@@ -1167,6 +1197,11 @@ def render_pro_cover_endpoint(req: RenderProCoverRequest):
     except CoverSceneValidationError as exc:
         raise HTTPException(status_code=422, detail={"scene_errors": list(exc.errors)}) from exc
 
+    for layer in (scene_model or {}).get("layers", []):
+        source = _scene_source_path(layer)
+        if source:
+            require_media_owner(channel_scope, source, base_dir=BASE_DIR)
+
     primary_path, path_3x4 = render_pro_cover(
         video_path_str=req.video_path, at_seconds=req.at_seconds,
         custom_image_str=req.custom_image_path, custom_image_data_str=req.custom_image_data,
@@ -1177,9 +1212,11 @@ def render_pro_cover_endpoint(req: RenderProCoverRequest):
         sub_text=req.sub_text, hook_position=req.hook_position, badge=req.badge,
         badge_position=req.badge_position, export_stem=req.export_filename,
         scene=scene_model, layers=None,
+        output_dir=cover_root,
     )
     rel = primary_path.relative_to(BASE_DIR)
-    media_url = f"/api/media/{urllib.parse.quote(str(rel).replace(chr(92), '/'))}"
+    register_companion(rel, channel_scope.channel_id)
+    media_url = f"/api/media/{urllib.parse.quote(str(rel).replace(chr(92), '/'))}?channel={channel_scope.channel_id}"
     res = {
         "success": True,
         "cover_path": str(rel).replace("\\", "/"),
@@ -1187,23 +1224,34 @@ def render_pro_cover_endpoint(req: RenderProCoverRequest):
     }
     if path_3x4 and path_3x4.exists():
         rel_3x4 = path_3x4.relative_to(BASE_DIR)
+        register_companion(rel_3x4, channel_scope.channel_id)
         res["cover_3x4_path"] = str(rel_3x4).replace("\\", "/")
-        res["media_url_3x4"] = f"/api/media/{urllib.parse.quote(str(rel_3x4).replace(chr(92), '/'))}"
+        res["media_url_3x4"] = f"/api/media/{urllib.parse.quote(str(rel_3x4).replace(chr(92), '/'))}?channel={channel_scope.channel_id}"
     if scene_model is not None:
         res["scene"] = scene_model
+    if binding_store:
+        selections = {"3:4" if req.aspect_ratio == "3:4" else "9:16": res["cover_path"]}
+        if res.get("cover_3x4_path"):
+            selections["3:4"] = res["cover_3x4_path"]
+        saved = binding_store.save(channel_scope.channel_id, req.export_id, req.video_path,
+                                   selections, expected_revision=binding_revision)
+        res.update(export_id=req.export_id, cover_binding_revision=saved["revision"])
     return res
 
 
 @router.post("/generate")
-def generate_cover_endpoint(req: GenerateCoverRequest):
+def generate_cover_endpoint(req: GenerateCoverRequest, channel_scope=Depends(get_writable_workflow_scope)):
+    require_media_owner(channel_scope, req.video_path, base_dir=BASE_DIR)
     out_path = generate_cover(
         req.video_path, req.at_seconds, req.brand, req.model, req.label, req.template,
+        output_dir=COVERS_DIR / channel_scope.channel_id / uuid.uuid4().hex,
     )
     rel = out_path.relative_to(BASE_DIR)
+    register_companion(rel, channel_scope.channel_id)
     return {
         "success": True,
         "cover_path": str(rel),
-        "media_url": f"/api/media/{urllib.parse.quote(str(rel).replace(chr(92), '/'))}",
+        "media_url": f"/api/media/{urllib.parse.quote(str(rel).replace(chr(92), '/'))}?channel={channel_scope.channel_id}",
     }
 
 
@@ -1213,7 +1261,7 @@ class GrabFrameRequest(BaseModel):
 
 
 @router.post("/grab-frame")
-def grab_frame_endpoint(req: GrabFrameRequest):
+def grab_frame_endpoint(req: GrabFrameRequest, channel_scope=Depends(get_writable_workflow_scope)):
     """
     Grabs a single high-quality JPG frame from video at the specified timestamp in seconds.
     Cached on disk for instant re-scrubbing.
@@ -1221,13 +1269,15 @@ def grab_frame_endpoint(req: GrabFrameRequest):
     if not req.video_path:
         raise HTTPException(status_code=400, detail="video_path is required")
     v_path = _resolve_media(req.video_path)
+    require_media_owner(channel_scope, v_path, base_dir=BASE_DIR)
     if not v_path.exists():
         raise HTTPException(status_code=404, detail="Video file not found")
 
     sec_str = f"{round(req.at_seconds, 2):.2f}".replace(".", "_")
     vid_stem = v_path.stem[:24]
     cache_name = f"frame_{vid_stem}_{sec_str}.jpg"
-    out_file = COVERS_DIR / cache_name
+    source_hash = hashlib.sha256(str(v_path).encode()).hexdigest()[:16]
+    out_file = COVERS_DIR / channel_scope.channel_id / f"{source_hash}_{cache_name}"
 
     if not out_file.exists():
         grab_frame(v_path, max(0.0, req.at_seconds), out_file)
@@ -1236,7 +1286,8 @@ def grab_frame_endpoint(req: GrabFrameRequest):
         raise HTTPException(status_code=500, detail="Failed to grab frame from video")
 
     rel = out_file.relative_to(BASE_DIR)
-    media_url = f"/api/media/{urllib.parse.quote(str(rel).replace(chr(92), '/'))}"
+    register_companion(rel, channel_scope.channel_id)
+    media_url = f"/api/media/{urllib.parse.quote(str(rel).replace(chr(92), '/'))}?channel={channel_scope.channel_id}"
     return {
         "success": True,
         "frame_path": str(out_file),
@@ -1344,7 +1395,7 @@ def _generate_cover_via_antigravity_cli(
 
 
 @router.post("/ai-generate-image")
-def ai_generate_cover_image_endpoint(req: AiGenerateCoverImageRequest):
+def ai_generate_cover_image_endpoint(req: AiGenerateCoverImageRequest, channel_scope=Depends(get_writable_workflow_scope)):
     """
     Generates a 9:16 vertical commercial cover image.
     Priority 1: Antigravity Pro CLI in-machine Image Generator (Ultra 8K)
@@ -1352,6 +1403,9 @@ def ai_generate_cover_image_endpoint(req: AiGenerateCoverImageRequest):
     Priority 3: Free AI Image Generator (Pollinations / Flux) with strict negative prompt
     Priority 4: Offline 3D Studio Podium Backdrop
     """
+    for source in (req.video_path, req.source_image_path):
+        if source and not source.startswith(("http://", "https://")):
+            require_media_owner(channel_scope, source, base_dir=BASE_DIR)
     COVERS_DIR.mkdir(parents=True, exist_ok=True)
     ts = int(time.time())
     safe_uid = uuid.uuid4().hex[:6]
@@ -1494,10 +1548,15 @@ def ai_generate_cover_image_endpoint(req: AiGenerateCoverImageRequest):
         generated_file = out_path
         method_used = "studio_auto"
 
+    scoped_copy = COVERS_DIR / channel_scope.channel_id / f"{safe_uid}_{generated_file.name}"
+    scoped_copy.parent.mkdir(parents=True, exist_ok=True)
+    generated_file.replace(scoped_copy)
+    generated_file = scoped_copy
+    register_companion(generated_file.relative_to(BASE_DIR), channel_scope.channel_id)
     try:
         rel = generated_file.relative_to(BASE_DIR)
         rel_str = str(rel).replace("\\", "/")
-        media_url = f"/api/media/{urllib.parse.quote(rel_str)}"
+        media_url = f"/api/media/{urllib.parse.quote(rel_str)}?channel={channel_scope.channel_id}"
     except ValueError:
         rel_str = str(generated_file).replace("\\", "/")
         media_url = f"/api/media/{urllib.parse.quote(rel_str)}"

@@ -57,6 +57,8 @@ def tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     raw.mkdir(parents=True)
     projects.mkdir(parents=True)
 
+    from scripts import config
+    monkeypatch.setattr(config, "BASE_DIR", base)
     monkeypatch.setattr(api, "BASE_DIR", base)
     monkeypatch.setattr(api, "CAPCUT_DRAFT_DIR", tmp_path / "drafts")
     monkeypatch.setattr(pm, "PROJECTS_DIR", projects)
@@ -120,7 +122,7 @@ def test_repeat_requests_do_not_queue_a_second_encode(client, tree, monkeypatch)
     spawn another ffmpeg for work already in flight."""
     _make_clip(tree / "clip.mp4")
     started = []
-    monkeypatch.setattr(api, "_build_proxy_task", lambda m, k: started.append(k))
+    monkeypatch.setattr(api, "_build_proxy_task", lambda m, k, channel_id=None: started.append(k))
 
     for _ in range(3):
         _get(client, "01_Raw/clip.mp4")
@@ -156,7 +158,8 @@ def test_proxy_url_points_inside_the_proxy_cache(client, tree):
     master = _make_clip(tree / "clip.mp4")
     proxy = pm.ensure_proxy(master)
     body = _get(client, "01_Raw/clip.mp4").json()
-    assert Path(body["url"]).name == proxy.name
+    from urllib.parse import urlsplit
+    assert Path(urlsplit(body["url"]).path).name == proxy.name
     assert pm.is_proxy_path(proxy) is True
 
 

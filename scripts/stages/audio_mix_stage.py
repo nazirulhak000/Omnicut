@@ -33,6 +33,8 @@ class AudioMixStage:
             effective_bgm_name = BGM_MOOD_MAP.get(angle_key, DEFAULT_BGM)
 
         existing_mix = ProjectManifest.artifact_path(ctx.manifest, "mixed_audio") if ctx.manifest else None
+        if existing_mix:
+            ctx.guard_media(existing_mix)
         # A mix that fell back to voice-only is not "done": mix again on the next
         # render until it succeeds, instead of reusing the file with no music.
         mix_is_due = ctx.should_run("mix") or bool((ctx.manifest or {}).get("mix_degraded"))

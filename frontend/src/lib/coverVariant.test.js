@@ -35,7 +35,7 @@ test('derives a media URL when a saved 3:4 path has no URL field', () => {
   assert.deepEqual(getCoverVariant({
     cover_3x4_path: '05_Covers_Thumbnails/Logitech Wave Keys_cover_3x4.jpg',
   }), {
-    url: '/api/media/05_Covers_Thumbnails/Logitech%20Wave%20Keys_cover_3x4.jpg',
+    url: '/api/media/05_Covers_Thumbnails/Logitech%20Wave%20Keys_cover_3x4.jpg?channel=main',
     path: '05_Covers_Thumbnails/Logitech Wave Keys_cover_3x4.jpg',
   });
 });
@@ -45,7 +45,7 @@ test('keeps a path-only saved cover visible after applying an editor result', ()
     cover_3x4_path: '05_Covers_Thumbnails/edited_cover_3x4.jpg',
   });
 
-  assert.equal(updated.cover_url, '/api/media/05_Covers_Thumbnails/edited_cover_3x4.jpg');
+  assert.equal(updated.cover_url, '/api/media/05_Covers_Thumbnails/edited_cover_3x4.jpg?channel=main');
   assert.equal(updated.cover_path, '05_Covers_Thumbnails/edited_cover_3x4.jpg');
 });
 

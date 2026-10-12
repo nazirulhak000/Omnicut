@@ -382,7 +382,9 @@ export function Fixture() {
         cues={cues}
         overlays={overlay ? [overlay] : []}
         compact={params.get('playbackProbe') !== '1'}
-        showWatermark={false}
+        showWatermark={params.get('watermark') === '1'}
+        channelId={params.get('channel') || 'main'}
+        channelIdentitySnapshot={parseJsonParam(params, 'channelIdentity')}
         isMuted
         captionStyle={isCaptionMode ? {
           hidden: false,

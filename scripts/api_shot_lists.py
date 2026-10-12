@@ -19,7 +19,33 @@ from scripts.quota import is_quota_error
 from scripts.product_store import ProductStore
 from scripts import path_utils
 
+from fastapi import Depends
+from scripts.channel_scope import ChannelScope, require_writable, require_active_for_new_work
+from scripts.channel_store import ChannelError
+from scripts.channel_ownership import reject_foreign_body_channel
+from scripts.channel_workflows import api_store_kwargs, capture_job_scope, get_workflow_scope, require_media_owner
+
 router = APIRouter(tags=["Shot Lists"])
+
+def _scope_kwargs(scope):
+    if isinstance(scope, ChannelScope):
+        return api_store_kwargs(scope)
+    return {"channel_id": scope} if isinstance(scope, str) else {}
+
+
+def _job_snapshot(scope):
+    return capture_job_scope(scope) if isinstance(scope, ChannelScope) else {}
+
+
+def _guard_product(product_id, scope):
+    if isinstance(scope, ChannelScope) and not ProductStore.get(product_id, **_scope_kwargs(scope)):
+        raise ChannelError(404, "resource_not_found", "Product not found")
+
+
+def _guard_write(scope, new_work=False):
+    if isinstance(scope, ChannelScope):
+        (require_active_for_new_work if new_work else require_writable)(scope)
+
 
 _VOICE_OVERRIDE_KEYS = ("voice", "voice_rate", "voice_engine_type", "voice_preset", "ad_tone")
 
@@ -29,18 +55,17 @@ def _execute_generate_shot_list_worker(
     product_id: str,
     angle_id: str,
     voice_overrides: Dict[str, Any],
-    batch: Optional[int] = None,
-) -> None:
+    batch: Optional[int] = None, scope=None, job_scope=None) -> None:
     try:
-        TaskManager.update_progress(task_id, 0.20, "กำลังเตรียมสคริปต์และสังเคราะห์เสียงพากย์จริง")
-        result = generate_shot_list_for_angle(product_id, angle_id, voice_overrides, batch=batch)
-        TaskManager.update_progress(task_id, 0.90, "กำลังบันทึกแผนถ่าย")
+        TaskManager.update_progress(task_id, 0.20, "กำลังเตรียมสคริปต์และสังเคราะห์เสียงพากย์จริง", **_scope_kwargs(scope))
+        result = generate_shot_list_for_angle(product_id, angle_id, voice_overrides, batch=batch, **_scope_kwargs(scope), job_scope=job_scope)
+        TaskManager.update_progress(task_id, 0.90, "กำลังบันทึกแผนถ่าย", **_scope_kwargs(scope))
         TaskManager.complete_task(
             task_id,
             result=result,
             step_label="🎬 สร้างแผนถ่ายสำเร็จ!",
             target_id=product_id,
-        )
+         **_scope_kwargs(scope))
     except Exception as e:
         import traceback
         print(f"[API] Shot list generation error: {type(e).__name__}: {e}")
@@ -53,17 +78,18 @@ def _execute_generate_shot_list_worker(
             err_msg = str(e)
 
         if is_quota_error(e):
-            TaskManager.fail_task(task_id, err_msg, step_label="เกินโควต้า AI ต่อวันแล้ว")
+            TaskManager.fail_task(task_id, err_msg, step_label="เกินโควต้า AI ต่อวันแล้ว", **_scope_kwargs(scope))
         else:
-            TaskManager.fail_task(task_id, err_msg, step_label="สร้างแผนถ่ายไม่สำเร็จ")
+            TaskManager.fail_task(task_id, err_msg, step_label="สร้างแผนถ่ายไม่สำเร็จ", **_scope_kwargs(scope))
 
 
 @router.post("/api/products/{product_id}/angles/{angle_id}/shot-list")
 def create_shot_list(
-    product_id: str, angle_id: str, payload: Dict[str, Any], background_tasks: BackgroundTasks
-):
+    product_id: str, angle_id: str, payload: Dict[str, Any], background_tasks: BackgroundTasks, scope: ChannelScope = Depends(get_workflow_scope)):
     """Kicks off shot-list generation as a background task (same pattern as
     reroll-script, scripts/api_products.py's reroll_angle_script)."""
+    _guard_write(scope, new_work=True)
+    _guard_product(product_id, scope)
     voice_overrides = {
         key: payload.get(key) for key in _VOICE_OVERRIDE_KEYS if payload.get(key) is not None
     }
@@ -86,18 +112,21 @@ def create_shot_list(
         payload={"product_id": product_id, "angle_id": angle_id, "batch": batch, **voice_overrides},
         target_tab="flow",
         target_id=product_id,
-    )
+     **_scope_kwargs(scope), job_scope=_job_snapshot(scope))
 
     background_tasks.add_task(
         _execute_generate_shot_list_worker,
         task["id"], product_id, angle_id, voice_overrides, batch,
+        scope.channel_id if isinstance(scope, ChannelScope) else None,
+        _job_snapshot(scope),
     )
 
     return {"success": True, "task_id": task["id"], "task": task}
 
 
 @router.get("/api/products/{product_id}/angles/{angle_id}/shot-list")
-def get_shot_list(product_id: str, angle_id: str, batch: Optional[int] = None):
+def get_shot_list(product_id: str, angle_id: str, batch: Optional[int] = None, scope: ChannelScope = Depends(get_workflow_scope)):
+    _guard_product(product_id, scope)
     effective_batch = batch
     if effective_batch is None:
         import re
@@ -105,15 +134,15 @@ def get_shot_list(product_id: str, angle_id: str, batch: Optional[int] = None):
         if m:
             effective_batch = int(m.group(1))
 
-    record = ShotListsStore.get(product_id, angle_id, batch=effective_batch)
+    record = ShotListsStore.get(product_id, angle_id, batch=effective_batch, **_scope_kwargs(scope))
     if not record and effective_batch in (None, 1):
-        record = ShotListsStore.get(product_id, angle_id)
+        record = ShotListsStore.get(product_id, angle_id, **_scope_kwargs(scope))
     if not record:
         raise HTTPException(status_code=404, detail="ยังไม่มีแผนถ่ายสำหรับมุมนี้")
 
     # Check if script has changed since this shot list was created
     is_stale = False
-    product = ProductStore.get(product_id)
+    product = ProductStore.get(product_id, **_scope_kwargs(scope))
     if product:
         angle = next(
             (
@@ -141,11 +170,12 @@ def get_shot_list(product_id: str, angle_id: str, batch: Optional[int] = None):
 
 
 @router.get("/api/products/{product_id}/shot-list-status")
-def get_shot_list_status(product_id: str):
+def get_shot_list_status(product_id: str, scope: ChannelScope = Depends(get_workflow_scope)):
     """Returns a map of angle_id → {has_shot_list, is_stale} for all angles
     of a product, so the sidebar can show badges in a single request instead
     of N+1 per-angle calls."""
-    product = ProductStore.get(product_id)
+    _guard_product(product_id, scope)
+    product = ProductStore.get(product_id, **_scope_kwargs(scope))
     if not product:
         raise HTTPException(status_code=404, detail="ไม่พบสินค้า")
 
@@ -155,9 +185,9 @@ def get_shot_list_status(product_id: str):
         if not angle_id:
             continue
         batch = angle.get("batch") or 1
-        record = ShotListsStore.get(product_id, angle_id, batch=batch)
+        record = ShotListsStore.get(product_id, angle_id, batch=batch, **_scope_kwargs(scope))
         if not record and batch == 1:
-            record = ShotListsStore.get(product_id, angle_id)
+            record = ShotListsStore.get(product_id, angle_id, **_scope_kwargs(scope))
         if record:
             lines = angle.get("tts_lines") or angle.get("script_lines") or []
             current_script = "\n".join(str(l).strip() for l in lines if str(l).strip())
@@ -199,13 +229,12 @@ def get_shot_list_status(product_id: str):
 def _execute_batch_generate_audio_worker(
     task_id: str,
     product_id: str,
-    payload: Dict[str, Any],
-) -> None:
+    payload: Dict[str, Any], scope=None, job_scope=None) -> None:
     """Worker for batch generating TTS audio and shot lists across all angles of a product,
     with smart skipping of existing audio and automatic cooldown on HTTP 429 Rate Limits."""
     import time
     try:
-        product = ProductStore.get(product_id)
+        product = ProductStore.get(product_id, **_scope_kwargs(scope))
         if not product:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
@@ -234,7 +263,7 @@ def _execute_batch_generate_audio_worker(
                 result={"total": 0, "generated": 0, "skipped": 0},
                 step_label="ไม่มีสคริปต์ที่ต้องสร้างเสียงพากย์ (คลิปตัดเสร็จ/โพสต์แล้วทั้งหมด)",
                 target_id=product_id,
-            )
+             **_scope_kwargs(scope))
             return
 
         total_angles = len(valid_angles)
@@ -250,7 +279,7 @@ def _execute_batch_generate_audio_worker(
 
         TaskManager.update_progress(
             task_id, 0.05, f"กำลังเตรียมคิวเสียงพากย์ {total_angles} มุม..."
-        )
+        , **_scope_kwargs(scope))
 
         for idx, angle in enumerate(valid_angles, 1):
             angle_id = angle.get("angle_id") or angle.get("id")
@@ -264,14 +293,14 @@ def _execute_batch_generate_audio_worker(
                 pct = (idx / total_angles) * 0.95
                 TaskManager.update_progress(
                     task_id, pct, f"⏭️ ({idx}/{total_angles}) ข้ามคลิปที่เสร็จ/โพสต์แล้ว: {short_title}"
-                )
+                , **_scope_kwargs(scope))
                 continue
 
             # Check if voice audio is already cached and valid
             if not force_regenerate:
-                rec = ShotListsStore.get(product_id, angle_id, batch=angle_batch)
+                rec = ShotListsStore.get(product_id, angle_id, batch=angle_batch, **_scope_kwargs(scope))
                 if not rec and angle_batch == 1:
-                    rec = ShotListsStore.get(product_id, angle_id)
+                    rec = ShotListsStore.get(product_id, angle_id, **_scope_kwargs(scope))
                 if rec and rec.get("voice_audio_path"):
                     audio_p = Path(rec["voice_audio_path"])
                     if audio_p.exists() and audio_p.stat().st_size > 0:
@@ -287,7 +316,7 @@ def _execute_batch_generate_audio_worker(
                             pct = (idx / total_angles) * 0.95
                             TaskManager.update_progress(
                                 task_id, pct, f"⏭️ ({idx}/{total_angles}) มีเสียงพากย์ Gemini แล้ว: {short_title}"
-                            )
+                            , **_scope_kwargs(scope))
                             continue
 
             # Generate with auto 429 rate-limit cooldown
@@ -298,9 +327,9 @@ def _execute_batch_generate_audio_worker(
                 pct = ((idx - 1) / total_angles) * 0.95 + 0.02
                 TaskManager.update_progress(
                     task_id, pct, f"🎙️ ({idx}/{total_angles}) กำลังสังเคราะห์เสียง: {short_title}"
-                )
+                , **_scope_kwargs(scope))
                 try:
-                    generate_shot_list_for_angle(product_id, angle_id, voice_overrides, batch=angle_batch)
+                    generate_shot_list_for_angle(product_id, angle_id, voice_overrides, batch=angle_batch, **_scope_kwargs(scope), job_scope=job_scope)
                     angle_success = True
                     generated_count += 1
                     break
@@ -319,7 +348,7 @@ def _execute_batch_generate_audio_worker(
                                 task_id,
                                 pct,
                                 f"⏳ ติด Rate Limit (429) — พักรออีก {rem} วินาที แล้วจะทำมุม ({idx}/{total_angles}) ต่ออัตโนมัติ...",
-                            )
+                             **_scope_kwargs(scope))
                             time.sleep(1)
                         continue
                     else:
@@ -337,23 +366,24 @@ def _execute_batch_generate_audio_worker(
             },
             step_label=f"🎉 สังเคราะห์เสียงพากย์เสร็จสิ้น: สร้างใหม่ {generated_count} มุม (ข้าม {skipped_count} มุม)",
             target_id=product_id,
-        )
+         **_scope_kwargs(scope))
     except Exception as e:
         import traceback
         traceback.print_exc()
         err_msg = getattr(e, "message_th", str(e))
-        TaskManager.fail_task(task_id, err_msg, step_label="สร้างเสียงพากย์แบบ Batch ไม่สำเร็จ")
+        TaskManager.fail_task(task_id, err_msg, step_label="สร้างเสียงพากย์แบบ Batch ไม่สำเร็จ", **_scope_kwargs(scope))
 
 
 @router.post("/api/products/{product_id}/batch-generate-audio")
 def batch_generate_audio(
     product_id: str,
     payload: Dict[str, Any],
-    background_tasks: BackgroundTasks,
-):
+    background_tasks: BackgroundTasks, scope: ChannelScope = Depends(get_workflow_scope)):
     """Kicks off batch TTS pre-generation for all angles of a product as a background task.
     Skips angles that already have valid audio, and automatically cools down on 429 rate limits."""
-    product = ProductStore.get(product_id)
+    _guard_write(scope, new_work=True)
+    _guard_product(product_id, scope)
+    product = ProductStore.get(product_id, **_scope_kwargs(scope))
     if not product:
         raise HTTPException(status_code=404, detail="ไม่พบสินค้า")
 
@@ -377,13 +407,15 @@ def batch_generate_audio(
         payload={"product_id": product_id, "voice_preset": preset_name, **payload},
         target_tab="flow",
         target_id=product_id,
-    )
+     **_scope_kwargs(scope), job_scope=_job_snapshot(scope))
 
     background_tasks.add_task(
         _execute_batch_generate_audio_worker,
         task["id"],
         product_id,
         payload,
+        scope.channel_id if isinstance(scope, ChannelScope) else None,
+        _job_snapshot(scope),
     )
 
     return {"success": True, "task_id": task["id"], "task": task, "angle_count": len(active_angles)}
@@ -392,14 +424,16 @@ def batch_generate_audio(
 # ─── Manual Storyboard Mapper endpoints ───────────────────────────────────────
 
 @router.patch("/api/products/{product_id}/angles/{angle_id}/manual-shot-map")
-def save_manual_shot_map(product_id: str, angle_id: str, payload: Dict[str, Any]):
+def save_manual_shot_map(product_id: str, angle_id: str, payload: Dict[str, Any], scope: ChannelScope = Depends(get_workflow_scope)):
     """Persists the user's curated shot-map for an angle.
 
     Body: { "shot_map": [ { "beat_index": 0, "video_path": "...", "trim_start": 1.2, "trim_end": 3.8 }, ... ] }
     Entries with beat_index but no video_path are treated as "let AI decide" (will be ignored by pipeline).
     Returns the updated angle record.
     """
-    product = ProductStore.get(product_id)
+    _guard_write(scope, new_work=False)
+    _guard_product(product_id, scope)
+    product = ProductStore.get(product_id, **_scope_kwargs(scope))
     if not product:
         raise HTTPException(status_code=404, detail="ไม่พบสินค้า")
 
@@ -420,6 +454,8 @@ def save_manual_shot_map(product_id: str, angle_id: str, payload: Dict[str, Any]
         v_raw = entry.get("video_path")
         clean_v = None
         if v_raw:
+            if isinstance(scope, ChannelScope):
+                require_media_owner(scope, v_raw)
             from scripts import path_utils
             rel_v = path_utils.to_relative(v_raw)
             clean_v = str(rel_v).replace("\\", "/") if rel_v else str(v_raw).replace("\\", "/")
@@ -438,7 +474,7 @@ def save_manual_shot_map(product_id: str, angle_id: str, payload: Dict[str, Any]
             batch = None
 
     try:
-        ProductStore.update_angle_manual_shot_map(product_id, angle_id, validated, batch=batch)
+        ProductStore.update_angle_manual_shot_map(product_id, angle_id, validated, batch=batch, **_scope_kwargs(scope))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -446,7 +482,7 @@ def save_manual_shot_map(product_id: str, angle_id: str, payload: Dict[str, Any]
 
 
 @router.get("/api/products/{product_id}/angles/{angle_id}/manual-shot-map")
-def get_manual_shot_map(product_id: str, angle_id: str, batch: Optional[int] = None):
+def get_manual_shot_map(product_id: str, angle_id: str, batch: Optional[int] = None, scope: ChannelScope = Depends(get_workflow_scope)):
     """Returns the saved manual shot-map for an angle, together with the beat_cues timing
     (so the frontend can render the storyboard UI from a single request).
 
@@ -459,7 +495,8 @@ def get_manual_shot_map(product_id: str, angle_id: str, batch: Optional[int] = N
           "scene_catalogs": {video_path: catalog},  # indexed catalogs for selected videos
         }
     """
-    product = ProductStore.get(product_id)
+    _guard_product(product_id, scope)
+    product = ProductStore.get(product_id, **_scope_kwargs(scope))
     if not product:
         raise HTTPException(status_code=404, detail="ไม่พบสินค้า")
 
@@ -480,9 +517,9 @@ def get_manual_shot_map(product_id: str, angle_id: str, batch: Optional[int] = N
         raise HTTPException(status_code=404, detail=f"ไม่พบมุม '{angle_id}'")
 
     # Pull existing shot list (beat_cues, total_duration) from ShotListsStore
-    shot_list_record = ShotListsStore.get(product_id, angle_id, batch=batch)
+    shot_list_record = ShotListsStore.get(product_id, angle_id, batch=batch, **_scope_kwargs(scope))
     if not shot_list_record and batch in (None, 1):
-        shot_list_record = ShotListsStore.get(product_id, angle_id)
+        shot_list_record = ShotListsStore.get(product_id, angle_id, **_scope_kwargs(scope))
     beat_cues = []
     total_duration = 0.0
     has_shot_list = False
@@ -650,8 +687,7 @@ def smart_map_storyboard_to_beats(
 def sync_manual_shot_map(
     product_id: str,
     source_angle_id: str,
-    payload: Dict[str, Any] = Body(default_factory=dict),
-) -> Dict[str, Any]:
+    payload: Dict[str, Any] = Body(default_factory=dict), scope: ChannelScope = Depends(get_workflow_scope)) -> Dict[str, Any]:
     """Sync manual storyboard shot map from source_angle to other target angles
     under the same product.
 
@@ -659,10 +695,12 @@ def sync_manual_shot_map(
       target_angle_ids: Optional[List[str]] (if None, targets all other angles)
       overwrite_policy: "overwrite_all" | "skip_existing" (default: "overwrite_all")
     """
+    _guard_write(scope, new_work=False)
+    _guard_product(product_id, scope)
 
     from scripts.shot_lists_store import ShotListsStore
 
-    product = ProductStore.get(product_id)
+    product = ProductStore.get(product_id, **_scope_kwargs(scope))
     if not product:
         raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
 
@@ -711,9 +749,9 @@ def sync_manual_shot_map(
             continue
 
         # Get target beat cues to determine target_beats_count
-        shot_list = ShotListsStore.get(product_id, ang_id, batch=ang_batch)
+        shot_list = ShotListsStore.get(product_id, ang_id, batch=ang_batch, **_scope_kwargs(scope))
         if not shot_list and ang_batch == 1:
-            shot_list = ShotListsStore.get(product_id, ang_id)
+            shot_list = ShotListsStore.get(product_id, ang_id, **_scope_kwargs(scope))
         target_beats = (shot_list or {}).get("beat_cues") or []
         target_beats_count = len(target_beats) if target_beats else len(angle.get("script_lines", []))
         if target_beats_count <= 0:
@@ -735,7 +773,7 @@ def sync_manual_shot_map(
         })
 
     if updates_by_angle:
-        ProductStore.batch_update_manual_shot_maps(product_id, updates_by_angle)
+        ProductStore.batch_update_manual_shot_maps(product_id, updates_by_angle, **_scope_kwargs(scope))
 
     return {
         "success": True,
@@ -747,11 +785,12 @@ def sync_manual_shot_map(
 
 
 @router.get("/api/products/{product_id}/filming-recipe")
-def get_universal_filming_recipe(product_id: str) -> Dict[str, Any]:
+def get_universal_filming_recipe(product_id: str, scope: ChannelScope = Depends(get_workflow_scope)) -> Dict[str, Any]:
     """Generates the 5-shot universal filming recipe customized for this product.
 
     Includes shot roles, recommended durations, camera directions, and tips."""
-    product = ProductStore.get(product_id)
+    _guard_product(product_id, scope)
+    product = ProductStore.get(product_id, **_scope_kwargs(scope))
     if not product:
         raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
 

@@ -2,14 +2,20 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Archive, Calendar, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, List, MoreHorizontal, Plus, RefreshCw, Rocket, RotateCcw, Search, Settings2, Shuffle, Trash2 } from 'lucide-react';
 import { Modal, Badge } from './ui';
 import PaginationControls from './PaginationControls';
+import PublicationReviewModal from './PublicationReviewModal.jsx';
+import { useChannel } from '../context/ChannelContext.jsx';
 import { commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
 import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, estimateQueueCoverage, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
 import { getStylePreset } from '../lib/stylePresetCatalog';
+import { useChannelDraft } from '../hooks/useChannelDraft.js';
+import { toMediaUrl } from '../lib/mediaUrl.js';
 
 const STATUS_LABELS = {
   planned: 'รอจัดส่ง',
   ready_for_extension: 'พร้อมทำใน Extension',
   awaiting_post: 'รอกดโพสต์',
+  scheduled_on_platform: 'TikTok รับตั้งเวลาแล้ว',
+  confirmation_unknown: 'รอตรวจผลจาก TikTok',
   posted: 'โพสต์แล้ว',
   failed: 'ผิดพลาด',
 };
@@ -18,6 +24,8 @@ const STATUS_STYLES = {
   planned: 'text-amber-200 bg-amber-500/10 border-amber-500/25',
   ready_for_extension: 'text-cyan-200 bg-cyan-500/10 border-cyan-500/25',
   awaiting_post: 'text-violet-200 bg-violet-500/10 border-violet-500/25',
+  scheduled_on_platform: 'text-blue-200 bg-blue-500/10 border-blue-500/25',
+  confirmation_unknown: 'text-amber-200 bg-amber-500/10 border-amber-500/25',
   posted: 'text-emerald-200 bg-emerald-500/10 border-emerald-500/25',
   failed: 'text-red-200 bg-red-500/10 border-red-500/25',
 };
@@ -28,8 +36,7 @@ function clipKey(clip) {
 }
 
 function coverSrc(path) {
-  if (!path) return '';
-  return path.startsWith('/') ? path : `/api/media/${path}`;
+  return toMediaUrl(path);
 }
 
 function coverValue(item, clip) {
@@ -149,6 +156,8 @@ function defaultTemplateDraft(weekStart) {
 }
 
 export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpenCoverStudio, showToast }) {
+  const channel = useChannel();
+  const [publicationReview, setPublicationReview] = useState(null);
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [singleOpen, setSingleOpen] = useState(false);
@@ -208,7 +217,24 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const scheduleDrafts = useRef(new Map());
   const scheduleRequestIds = useRef(new Map());
   const requeueRequestId = useRef(0);
+  const templateRequestId = useRef(0);
   const primaryOptions = useMemo(() => primaryTimeOptions(), []);
+  const singleController = useChannelDraft(singleDraft, {
+    save: value => persistSingle(value),
+    reset: value => { setSingleDraft(value); setSingleOpen(false); },
+  });
+  const bulkController = useChannelDraft({ draft: bulkDraft, selected: bulkSelected }, {
+    save: value => persistBulk(value),
+    reset: value => { setBulkDraft(value.draft); setBulkSelected(value.selected); setBulkOpen(false); },
+  });
+  const templateController = useChannelDraft(templateDraft, {
+    save: value => persistTemplate(value),
+    reset: value => { setTemplateDraft(value); setTemplateWeek(value.week_start); setTemplateOpen(false); },
+  });
+  const requeueController = useChannelDraft({ targetId: requeueTarget?.id || null, ...requeueDraft }, {
+    save: value => persistRequeue(value),
+    reset: value => { setRequeueDraft({ date: value.date, time: value.time }); setRequeueOpen(false); },
+  });
 
   const loadQueue = async () => {
     setLoading(true);
@@ -413,18 +439,22 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     });
   }, [calendarWeekStart, grouped, todayKey, dailyAnalysis]);
 
-  const saveSingle = async () => {
-    if (!singleDraft.clip || !singleDraft.date || !singleDraft.time) return;
+  const persistSingle = async (value) => {
+    if (!value.clip || !value.date || !value.time) throw new Error('เลือกคลิป วัน และเวลาก่อนบันทึกคิว');
+    const clip = availableClips.find(item => clipKey(item) === clipKey(value.clip));
+    if (!clip) throw new Error('คลิปที่เลือกเปลี่ยนแล้ว กรุณาเลือกคลิปใหม่');
     setSaving(true);
     try {
-      await createScheduleQueue(clipToPayload(singleDraft.clip, buildScheduleIso(singleDraft.date, singleDraft.time)));
+      await createScheduleQueue(clipToPayload(clip, buildScheduleIso(value.date, value.time)));
       setSingleOpen(false);
       showToast?.('เพิ่มคลิปลงคิวแล้ว');
       await loadQueue();
     } catch (error) {
       showToast?.(error.response?.data?.detail || error.message || 'เพิ่มคิวไม่สำเร็จ', 'error');
+      throw error;
     } finally { setSaving(false); }
   };
+  const saveSingle = () => singleController.save().catch(() => {});
 
   const occupiedIso = useMemo(() => {
     return new Set(queue.filter((row) => row.status !== 'posted').map((row) => row.scheduled_at));
@@ -566,21 +596,35 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     showToast?.(`สุ่มเลือก ${picked.length} คลิปตามเงื่อนไข (สแกนสินค้าและสีของแต่ละวันแล้ว)`);
   };
 
-  const saveBulk = async () => {
-    if (!bulkPreview.length || hasOccupiedConflict) return;
+  const persistBulk = async (value) => {
+    if (!value.selected.length || !value.draft.date || !value.draft.time) throw new Error('เลือกคลิป วัน และเวลาก่อนบันทึกคิวชุด');
+    // Re-resolve every selected clip from the current channel's live list and
+    // recompute times at commit, rather than submitting a rendered preview.
+    const selected = value.selected.map(item => availableClips.find(clip => clipKey(clip) === clipKey(item)));
+    if (selected.some(clip => !clip)) throw new Error('รายการคลิปเปลี่ยนแล้ว กรุณาเลือกคลิปใหม่ก่อนบันทึก');
+    const start = new Date(`${value.draft.date}T${value.draft.time}:00+07:00`);
+    const items = selected.map((clip, index) => {
+      const parts = value.draft.mode === 'daily'
+        ? { date: addDays(value.draft.date, index), time: value.draft.time }
+        : localParts(new Date(start.getTime() + index * Number(value.draft.interval || 5) * 60000).toISOString());
+      const at = buildScheduleIso(parts.date, parts.time);
+      if (occupiedIso.has(at)) throw new Error('เวลาที่เลือกมีคิวแล้ว กรุณาจัดเวลาใหม่');
+      return clipToPayload(clip, at);
+    });
     setSaving(true);
     try {
-      await createScheduleQueue({ items: bulkPreview.map(({ clip, scheduledAt }) => clipToPayload(clip, scheduledAt)) });
+      await createScheduleQueue({ items });
       setBulkOpen(false);
-      setBulkSelected([]);
-      showToast?.(`เพิ่มคิว ${bulkPreview.length} คลิปแล้ว`);
+      showToast?.(`เพิ่มคิว ${items.length} คลิปแล้ว`);
       await loadQueue();
     } catch (error) {
       showToast?.(error.response?.data?.detail || error.message || 'เพิ่มคิวชุดไม่สำเร็จ รายการเดิมยังอยู่ครบ', 'error');
+      throw error;
     } finally { setSaving(false); }
   };
+  const saveBulk = () => bulkController.save().catch(() => {});
 
-  const reschedule = async (item, date, time) => {
+  const reschedule = async (item, date, time, { throwOnError = false } = {}) => {
     const requestId = (scheduleRequestIds.current.get(item.id) || 0) + 1;
     scheduleRequestIds.current.set(item.id, requestId);
     scheduleDrafts.current.set(item.id, { date, time });
@@ -596,6 +640,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
         scheduleDrafts.current.delete(item.id);
         showToast?.(error.response?.data?.detail || error.message || 'ย้ายเวลาไม่สำเร็จ', 'error');
       }
+      if (throwOnError) throw error;
     }
   };
 
@@ -688,10 +733,12 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   };
 
   const openRequeue = async (item) => {
+    if (requeueController.isDirty()) { setRequeueOpen(true); return; }
     const requestId = requeueRequestId.current + 1;
     requeueRequestId.current = requestId;
     const now = new Date();
     setRequeueTarget(item);
+    requeueController.markSaved({ targetId: item.id, date: '', time: '' });
     setRequeueDraft({ date: '', time: '' });
     setRequeueLoading(true);
     setRequeueOpen(true);
@@ -710,7 +757,9 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
         slot = nextTemplateSlotAfterLatest(queue, templates, now);
       }
       if (requestId !== requeueRequestId.current) return;
-      setRequeueDraft(slot || { date: '', time: '' });
+      const loaded = slot || { date: '', time: '' };
+      requeueController.markSaved({ targetId: item.id, ...loaded });
+      setRequeueDraft(loaded);
       if (!slot) showToast?.('ไม่พบช่องว่างตามเทมเพลต กรุณาเลือกวันเวลาเอง', 'error');
     } catch (error) {
       if (requestId === requeueRequestId.current) {
@@ -722,27 +771,34 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     }
   };
 
-  const saveRequeue = async () => {
-    if (!requeueTarget) return;
+  const persistRequeue = async (value) => {
+    const target = queue.find(item => item.id === value.targetId);
+    if (!target || !value.date || !value.time) throw new Error('เลือกคิว วัน และเวลาก่อนบันทึกคิวใหม่');
     setSaving(true);
     try {
-      await reschedule(requeueTarget, requeueDraft.date, requeueDraft.time);
+      await reschedule(target, value.date, value.time, { throwOnError: true });
       setRequeueOpen(false);
-      setRequeueTarget(null);
     } finally { setSaving(false); }
   };
+  const saveRequeue = () => requeueController.save().catch(() => {});
 
   const loadTemplate = async (week = templateWeek) => {
+    if (templateController.isDirty()) {
+      showToast?.('บันทึกหรือทิ้งการแก้ไขเทมเพลตก่อนโหลดสัปดาห์ใหม่', 'error');
+      return;
+    }
+    const requestId = ++templateRequestId.current;
     setTemplateBusy(true);
     try {
       const response = await getScheduleTemplate(week);
       const normalized = templateForWeek(response, week);
-      setTemplateDraft(normalized);
+      if (requestId !== templateRequestId.current) return;
+      if (templateController.acceptExternal(normalized)) setTemplateDraft(normalized);
+      setTemplateWeek(week);
       if (week === currentTemplateWeek) setCapacityTemplate(normalized);
     } catch (error) {
-      setTemplateDraft(defaultTemplateDraft(week));
       showToast?.(errorText(error, 'โหลดเวลารายสัปดาห์ไม่สำเร็จ'), 'error');
-    } finally { setTemplateBusy(false); }
+    } finally { if (requestId === templateRequestId.current) setTemplateBusy(false); }
   };
 
   const openTemplate = async () => {
@@ -750,17 +806,18 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     await loadTemplate();
   };
 
-  const saveTemplate = async () => {
+  const persistTemplate = async (value) => {
+    if (Object.values(value.days).some(day => !day.times.length || new Set(day.times).size !== day.times.length)) throw new Error('ตรวจช่วงเวลาของเทมเพลตก่อนบันทึก');
     setTemplateBusy(true);
     try {
-      const response = await saveScheduleTemplate({ week_start: templateWeek, days: templateDraft.days });
-      const normalized = templateForWeek(response, templateWeek);
-      setTemplateDraft(normalized);
-      if (templateWeek === currentTemplateWeek) setCapacityTemplate(normalized);
+      const response = await saveScheduleTemplate({ week_start: value.week_start, days: value.days });
+      const normalized = templateForWeek(response, value.week_start);
+      if (value.week_start === currentTemplateWeek) setCapacityTemplate(normalized);
       showToast?.('บันทึกเวลารายสัปดาห์แล้ว');
-    } catch (error) { showToast?.(errorText(error, 'บันทึกเวลาไม่สำเร็จ'), 'error'); }
+    } catch (error) { showToast?.(errorText(error, 'บันทึกเวลาไม่สำเร็จ'), 'error'); throw error; }
     finally { setTemplateBusy(false); }
   };
+  const saveTemplate = () => templateController.save().catch(() => {});
 
   const updateTemplateDay = (index, update) => {
     setTemplateDraft((prev) => ({
@@ -799,17 +856,18 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     return !times?.length || new Set(times).size !== times.length;
   });
 
-  const copyPreviousTemplate = async () => {
+  const copyPreviousTemplate = () => templateController.run(async () => {
     setTemplateBusy(true);
     try {
       const response = await copyScheduleTemplate({ source_week_start: addDays(templateWeek, -7), target_week_start: templateWeek });
       const normalized = templateForWeek(response, templateWeek);
+      templateController.markSaved(normalized);
       setTemplateDraft(normalized);
       if (templateWeek === currentTemplateWeek) setCapacityTemplate(normalized);
       showToast?.('คัดลอกเวลาจากสัปดาห์ก่อนแล้ว');
     } catch (error) { showToast?.(errorText(error, 'คัดลอกเวลาไม่สำเร็จ'), 'error'); }
     finally { setTemplateBusy(false); }
-  };
+  }).catch(() => {});
 
   const autofillDateError = autofillStart && autofillEnd && autofillStart > autofillEnd
     ? 'วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น'
@@ -820,17 +878,18 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     ? 'จำนวนคลิปต้องเป็นเลขจำนวนเต็ม 1–10,000'
     : '';
 
-  const resetTemplate = async () => {
+  const resetTemplate = () => templateController.run(async () => {
     setTemplateBusy(true);
     try {
       const response = await resetScheduleTemplate(templateWeek);
       const normalized = templateForWeek(response, templateWeek);
+      templateController.markSaved(normalized);
       setTemplateDraft(normalized);
       if (templateWeek === currentTemplateWeek) setCapacityTemplate(normalized);
       showToast?.('คืนค่าเวลาเริ่มต้นแล้ว');
     } catch (error) { showToast?.(errorText(error, 'คืนค่าเวลาไม่สำเร็จ'), 'error'); }
     finally { setTemplateBusy(false); }
-  };
+  }).catch(() => {});
 
   const chooseAutofillRange = (mode) => {
     const today = dateOnly();
@@ -881,15 +940,18 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     finally { setAutofillBusy(false); }
   };
 
-  const openSingle = () => { setSingleDraft({ clip: null, ...nextSlot(queue) }); setSingleOpen(true); };
+  const openSingle = () => { if (singleController.isDirty()) { setSingleOpen(true); return; } const initial = { clip: null, ...nextSlot(queue) }; singleController.markSaved(initial); setSingleDraft(initial); setSingleOpen(true); };
   const openBulk = () => {
-    setBulkDraft({
+    if (bulkController.isDirty()) { setBulkOpen(true); return; }
+    const initial = {
       ...nextSlot(queue),
       interval: 5,
       mode: 'daily',
       autoCount: 5,
       filterProduct: 'all',
-    });
+    };
+    bulkController.markSaved({ draft: initial, selected: [] });
+    setBulkDraft(initial);
     setBulkSelected([]);
     setBulkOpen(true);
   };
@@ -1223,6 +1285,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                               <Badge className={`text-[9px] px-1.5 py-0 ${STATUS_STYLES[item.status] || STATUS_STYLES.planned}`}>
                                 {STATUS_LABELS[item.status] || item.status}
                               </Badge>
+                              {item.status === 'scheduled_on_platform' && item.posting_job_id && <button type="button" aria-label="ตรวจว่าโพสต์จริงแล้ว" onClick={() => setPublicationReview(item)} className="min-h-11 rounded-lg border border-cyan-400/30 px-2 text-xs text-cyan-200 focus-visible:outline-2 focus-visible:outline-cyan-300">ตรวจโพสต์จริง</button>}
                             </div>
                           </div>
 
@@ -1235,7 +1298,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                               {coverSrc(coverPath) ? (
                                 <img src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" />
                               ) : (
-                                <video src={`/api/media/${item.video_path}`} muted className="w-full h-full object-cover" />
+                              <video src={toMediaUrl(item.video_path)} muted className="w-full h-full object-cover" />
                               )}
                               <span className="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-[8px] text-white">
                                 ดู
@@ -1442,13 +1505,14 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                           )}
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <button type="button" onClick={() => clip?.video_url && onPreviewVideo?.(clip.video_url, clip)} className="w-14 h-20 rounded-xl overflow-hidden bg-black border border-white/[0.12] flex-shrink-0 relative group">
-                              {coverSrc(coverPath) ? <img src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" /> : <video src={`/api/media/${item.video_path}`} muted className="w-full h-full object-cover" />}
+                              {coverSrc(coverPath) ? <img src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" /> : <video src={toMediaUrl(item.video_path)} muted className="w-full h-full object-cover" />}
                               <span className="absolute inset-x-1 bottom-1 text-[9px] rounded bg-black/75 text-white py-0.5">พรีวิว</span>
                             </button>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <span className="text-xs font-bold text-white truncate">{item.product_name || 'ไม่ระบุสินค้า'}</span>
                                 <Badge className={STATUS_STYLES[item.status] || STATUS_STYLES.planned}>{STATUS_LABELS[item.status] || item.status}</Badge>
+                                {item.status === 'scheduled_on_platform' && item.posting_job_id && <button type="button" onClick={() => setPublicationReview(item)} className="min-h-11 rounded-lg border border-cyan-400/30 px-3 text-xs text-cyan-200 hover:bg-cyan-400/10 focus-visible:outline-2 focus-visible:outline-cyan-300">ตรวจว่าโพสต์จริงแล้ว</button>}
                                 {overdue && <Badge className="text-red-200 bg-red-500/10 border-red-500/25">เลยกำหนด</Badge>}
                                 {isTimeDuplicate && (
                                   <Badge className="text-red-300 bg-red-500/15 border-red-500/30">
@@ -1828,19 +1892,19 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
           </div>
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <label className="flex-1 text-xs font-bold text-slate-300">สัปดาห์ที่เริ่มวันจันทร์
-              <input type="date" value={templateWeek} onChange={async (event) => { const week = weekStartForDate(event.target.value); setTemplateWeek(week); await loadTemplate(week); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" />
+              <input type="date" value={templateWeek} disabled={templateBusy} onChange={async (event) => { const week = weekStartForDate(event.target.value); await loadTemplate(week); }} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" />
             </label>
             <div className="flex gap-2">
               <button type="button" disabled={templateBusy} onClick={copyPreviousTemplate} className="px-3 py-2 rounded-xl border border-white/[0.1] text-xs text-slate-200 flex items-center gap-1.5"><Copy className="w-3.5 h-3.5" />คัดลอกสัปดาห์ก่อน</button>
               <button type="button" disabled={templateBusy} onClick={resetTemplate} className="px-3 py-2 rounded-xl border border-white/[0.1] text-xs text-slate-200 flex items-center gap-1.5"><RotateCcw className="w-3.5 h-3.5" />คืนค่าเริ่มต้น</button>
             </div>
           </div>
-          <div className="rounded-2xl border border-white/[0.1] overflow-x-auto">
+          <fieldset disabled={templateBusy} className="rounded-2xl border border-white/[0.1] overflow-x-auto">
             <div className="min-w-[760px]">
               <div className="grid grid-cols-[120px_76px_minmax(0,1fr)] gap-2 px-3 py-2 text-[10px] text-slate-500 border-b border-white/[0.08]"><span>วัน</span><span>เปิดใช้</span><span>ช่วงเวลาโพสต์ · เพิ่ม/ลบแยกเป็นรายวัน</span></div>
               {Object.entries(templateDraft.days).map(([index, day]) => <div key={index} className="grid grid-cols-[120px_76px_minmax(0,1fr)] gap-2 items-center px-3 py-2.5 border-b border-white/[0.06] last:border-0"><span className="text-xs text-white font-bold">{['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'][Number(index)]}</span><label className="flex items-center"><input type="checkbox" checked={day.enabled !== false} onChange={(event) => updateTemplateDay(index, (current) => ({ ...current, enabled: event.target.checked }))} className="accent-cyan-400" /><span className="sr-only">เปิดใช้ {['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'][Number(index)]}</span></label><div className="flex flex-wrap items-center gap-2">{day.times.map((time, timeIndex) => <div key={`${index}-${timeIndex}`} className="flex items-center gap-1"><select value={time} onChange={(event) => updateTemplateTime(index, timeIndex, event.target.value)} className="w-[112px] px-2 py-2 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white font-mono">{primaryOptions.map((option) => <option key={option} value={option} disabled={day.times.some((current, currentIndex) => currentIndex !== timeIndex && current === option)}>{option}</option>)}</select><button type="button" onClick={() => removeTemplateTime(index, timeIndex)} disabled={day.times.length <= 1} className="p-1.5 rounded-lg border border-white/[0.08] text-slate-500 hover:text-red-300 hover:border-red-400/30 disabled:opacity-25 disabled:hover:text-slate-500" title="ลบช่วงเวลานี้" aria-label={`ลบช่วงเวลา ${time} ของวัน${['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'][Number(index)]}`}><Trash2 className="w-3.5 h-3.5" /></button></div>)}<button type="button" onClick={() => addTemplateTime(index)} disabled={day.times.length >= primaryOptions.length} className="px-2.5 py-2 rounded-lg border border-cyan-400/25 text-cyan-200 text-[11px] font-bold flex items-center gap-1 hover:bg-cyan-400/10 disabled:opacity-40" title="เพิ่มช่วงเวลาพิเศษ"><Plus className="w-3.5 h-3.5" />เพิ่มช่วง</button></div></div>)}
             </div>
-          </div>
+          </fieldset>
           <p className={`text-[11px] ${templateHasInvalidTimes ? 'text-amber-200' : 'text-slate-500'}`}>{templateHasInvalidTimes ? 'กรุณาเลือกเวลาไม่ซ้ำกัน และให้เหลืออย่างน้อย 1 ช่วงต่อวัน' : 'ค่าเริ่มต้นมี 5 ช่วง · เพิ่มช่วงพิเศษนอกเหนือจากค่าเริ่มต้นได้ · ทุกช่วงเป็นรอบละ 5 นาที · การแก้เทมเพลตไม่เปลี่ยนคิวที่บันทึกไว้แล้ว'}</p>
           <div className="flex justify-end gap-2"><button type="button" onClick={() => setTemplateOpen(false)} className="px-3 py-2 rounded-xl text-xs text-slate-300">ยกเลิก</button><button type="button" disabled={templateBusy || templateHasInvalidTimes} onClick={saveTemplate} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50">บันทึกเทมเพลต</button></div>
         </div>
@@ -1906,6 +1970,8 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
           )}
         </div>
       </Modal>
+      {publicationReview && <PublicationReviewModal item={publicationReview} channelId={channel?.channelId || 'main'}
+        onClose={() => setPublicationReview(null)} onRecorded={async () => { setPublicationReview(null); await loadQueue(); }} />}
     </div>
   );
 }

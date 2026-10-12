@@ -70,6 +70,7 @@ def deep_merge(current: Dict[str, Any], changes: Dict[str, Any]) -> Dict[str, An
 class ProductVideoProject:
     project_id: str
     product_identity: Dict[str, Any]
+    channel_id: Optional[str] = None
     audience: str = ""
     editorial_promise: str = ""
     status: str = "brief"
@@ -89,6 +90,10 @@ class ProductVideoProject:
     updated_at: str = field(default_factory=utc_now)
 
     def validate(self) -> None:
+        if self.channel_id is not None:
+            from scripts.channel_store import is_valid_channel_id
+            if not is_valid_channel_id(self.channel_id):
+                raise ProductVideoValidationError("invalid channel_id")
         if self.module != MODULE:
             raise ProductVideoValidationError(f"module must be {MODULE}")
         if self.status not in STATUSES:
@@ -146,7 +151,7 @@ class ProductVideoProject:
         self.validate()
 
     def patched(self, changes: Dict[str, Any]) -> "ProductVideoProject":
-        immutable = {"project_id", "module", "schema_version", "created_at", "approved_master_id", "artifacts"}
+        immutable = {"channel_id", "project_id", "module", "schema_version", "created_at", "approved_master_id", "artifacts"}
         blocked = immutable.intersection(changes)
         if blocked:
             raise ProductVideoValidationError(f"immutable fields cannot be patched: {', '.join(sorted(blocked))}")
@@ -164,6 +169,7 @@ class ProductVideoProject:
         return {
             "schema_version": self.schema_version,
             "project_id": self.project_id,
+            **({"channel_id": self.channel_id} if self.channel_id is not None else {}),
             "module": self.module,
             "product_identity": copy.deepcopy(self.product_identity),
             "audience": self.audience,
@@ -190,6 +196,7 @@ class ProductVideoProject:
         project = cls(
             schema_version=int(data.get("schema_version", 1)),
             project_id=str(data.get("project_id") or ""),
+            channel_id=data.get("channel_id"),
             module=str(data.get("module") or MODULE),
             product_identity=_record(data.get("product_identity"), "product_identity"),
             audience=str(data.get("audience") or ""),

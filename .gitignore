@@ -12,6 +12,7 @@ venv/
 
 # Node & Frontend
 frontend/node_modules/
+tools/hyperframes-runtime/node_modules/
 frontend/dist/
 .vite/
 
@@ -80,9 +81,16 @@ _Docs/schedule_queue.json
 _Docs/schedule_templates.json
 _Docs/tiktok_pending.json
 
+# Multi-channel registry write lock (scripts/channel_store.py); channels.json itself stays visible
+_Docs/channels.json.lock
+
 # Runtime-generated shot lists (scripts/shot_lists_store.py, rebuilt any
 # time a shot list is (re)generated for an angle)
 _Docs/shot_lists.json
 
 # Runtime-generated guided-take recording sessions (scripts/recording_sessions.py)
 _Docs/recording_sessions.json
+
+# Durable JSON mirror recovery intents (keep together with DB in backups)
+*.json.publish-pending
+*.json.publish-pending.*.tmp

@@ -1,3 +1,5 @@
+import { channelLocalStorage } from '../lib/channelStorage.js';
+import { activeChannel } from '../lib/channelRuntime.js';
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getActiveTasks, cancelTaskApi, deleteTaskApi, clearCompletedTasksApi, getTiktokMilestones } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -34,9 +36,11 @@ function playCompletionChime() {
 }
 
 export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }) {
+  const [workspaceStorage] = useState(channelLocalStorage);
+
   const [tasks, setTasks] = useState(() => {
     try {
-      const saved = localStorage.getItem('capcut_task_cache');
+      const saved = workspaceStorage.getItem('capcut_task_cache');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -132,7 +136,7 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
   // Save cache to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('capcut_task_cache', JSON.stringify(tasks.slice(0, 20)));
+      workspaceStorage.setItem('capcut_task_cache', JSON.stringify(tasks.slice(0, 20)));
     } catch (e) {
       console.error('Failed to cache tasks:', e);
     }
@@ -276,6 +280,16 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
 
   const jumpToTaskResult = useCallback((task, destinationTab = null) => {
     if (!task) return;
+    if (task.read_only_projection && task.type?.startsWith('hyperframes_')) {
+      const owner = task.channel_id;
+      if (owner !== activeChannel() || !task.payload?.project_id) return;
+      try { window.sessionStorage.setItem(`omnicut.hf.workflow.${owner}`, task.payload.project_id); } catch { /* Optional reload convenience. */ }
+      window.dispatchEvent(new CustomEvent('omnicut:open-hyperframes', { detail: { channelId: owner, projectId: task.payload.project_id } }));
+      setIsActivityDrawerOpen(false);
+      setNotificationToast(null);
+      onNavigateTab?.('creative', { targetId: task.payload.project_id, task });
+      return;
+    }
     setIsActivityDrawerOpen(false);
     setNotificationToast(null);
 

@@ -1,3 +1,4 @@
+import { channelLocalStorage } from './channelStorage.js';
 /**
  * AI Producer Hub & Daily Mission Insights Engine
  * Provides calculation of production quotas, daily action items,
@@ -86,9 +87,9 @@ function findProductForExport(exp, products = []) {
 /**
  * Load targets from localStorage or fallback to defaults.
  */
-export function loadTargets() {
+export function loadTargets(storage = channelLocalStorage()) {
   try {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem(TARGETS_STORAGE_KEY) : null;
+    const raw = typeof window !== 'undefined' ? storage.getItem(TARGETS_STORAGE_KEY) : null;
     if (raw) {
       const parsed = JSON.parse(raw);
       const dailyPosts = Number(parsed.dailyPosts);
@@ -107,10 +108,10 @@ export function loadTargets() {
 /**
  * Save targets to localStorage.
  */
-export function saveTargets(targets) {
+export function saveTargets(targets, storage = channelLocalStorage()) {
   try {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(targets));
+      storage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(targets));
     }
   } catch (e) {
     // Ignore error
@@ -120,9 +121,9 @@ export function saveTargets(targets) {
 /**
  * Load playbook notes.
  */
-export function loadPlaybookNotes() {
+export function loadPlaybookNotes(storage = channelLocalStorage()) {
   try {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem(PLAYBOOK_STORAGE_KEY) : null;
+    const raw = typeof window !== 'undefined' ? storage.getItem(PLAYBOOK_STORAGE_KEY) : null;
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
@@ -158,10 +159,10 @@ export function loadPlaybookNotes() {
 /**
  * Save playbook notes.
  */
-export function savePlaybookNotes(notes) {
+export function savePlaybookNotes(notes, storage = channelLocalStorage()) {
   try {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(PLAYBOOK_STORAGE_KEY, JSON.stringify(notes));
+      storage.setItem(PLAYBOOK_STORAGE_KEY, JSON.stringify(notes));
     }
   } catch (e) {
     // Ignore error
@@ -171,7 +172,7 @@ export function savePlaybookNotes(notes) {
 /**
  * Add a new idea or ref note to the collection.
  */
-export function addPlaybookNote(note, currentNotes = []) {
+export function addPlaybookNote(note, currentNotes = [], storage = channelLocalStorage()) {
   const images = Array.isArray(note.images)
     ? note.images
     : (note.imageUrl ? [note.imageUrl] : []);
@@ -190,16 +191,16 @@ export function addPlaybookNote(note, currentNotes = []) {
     aiAnalysis: note.aiAnalysis || undefined,
   };
   const updated = [newNote, ...currentNotes.filter(n => n.id !== newNote.id)];
-  savePlaybookNotes(updated);
+  savePlaybookNotes(updated, storage);
   return updated;
 }
 
 /**
  * Delete an idea or ref note.
  */
-export function deletePlaybookNote(noteId, currentNotes = []) {
+export function deletePlaybookNote(noteId, currentNotes = [], storage = channelLocalStorage()) {
   const updated = currentNotes.filter(n => n.id !== noteId);
-  savePlaybookNotes(updated);
+  savePlaybookNotes(updated, storage);
   return updated;
 }
 

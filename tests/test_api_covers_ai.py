@@ -7,10 +7,18 @@ import os
 import io
 from unittest.mock import MagicMock, patch
 import pytest
+import urllib.error
 from PIL import Image
 from fastapi.testclient import TestClient
 
 from scripts.api_server import app
+
+@pytest.fixture(autouse=True)
+def offline_cover_providers(monkeypatch):
+    monkeypatch.setattr("scripts.api_covers._generate_cover_via_antigravity_cli", lambda *a, **k: None)
+    def unavailable(*args, **kwargs):
+        raise urllib.error.URLError("offline test")
+    monkeypatch.setattr("scripts.api_covers.urllib.request.urlopen", unavailable)
 
 @pytest.fixture
 def client():
@@ -116,7 +124,8 @@ def test_product_ref_images_endpoint(client):
 
 def test_ai_generate_cover_image_with_ref_image(client, tmp_path):
     """Test AI cover generation when passing a local source_image_path reference."""
-    sample_ref = tmp_path / "ref_test_img.jpg"
+    from scripts import config
+    sample_ref = config.BASE_DIR / "01_Raw/ref_test_img.jpg"
     img = Image.new("RGB", (800, 800), color=(100, 150, 200))
     img.save(sample_ref, format="JPEG")
 

@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "changed_by_table": {
+    "products": 0,
+    "posts": 7,
+    "export_registry": 1,
+    "schedule_queue": 0,
+    "schedule_templates": 0,
+    "shot_lists": 0,
+    "recording_sessions": 0,
+    "posting_jobs": 0
+  },
+  "campaign_only_channel_id": true,
+  "queue_and_jobs_unchanged": true,
+  "run_id": "20261011T135342-0a925b"
+}

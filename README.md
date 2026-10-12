@@ -10,6 +10,10 @@
 
 เริ่มทำงานกับโค้ดให้อ่าน [AGENTS.md](AGENTS.md), [TODO.md](TODO.md) และ [ARCHITECTURE.md](ARCHITECTURE.md) ก่อน สถานะใน `TODO.md` ใหม่กว่าเอกสารสรุปอื่นเสมอ
 
+HyperFrames ผ่าน AI session และ flow ส่งออก/ตั้งโพสต์เดิม: [คู่มือการทำงาน](_Docs/HYPERFRAMES_WORKFLOW_GUIDE.md) · [แผนและเฟส](_Docs/Plans/PLAN_HYPERFRAMES_INTEGRATED_FLOW_20261011.md)
+
+ระบบหลายช่อง: เลือกช่องที่แถบด้านบนก่อนทำงาน และแก้ profile ใน Settings → ช่อง. สินค้า โปรเจกต์ งานผลิต คิวโพสต์ สถิติ และแบบร่างแยกตามช่อง; ก่อนสลับช่อง ระบบให้บันทึกหรือทิ้งงานที่ยังไม่บันทึก. ลิงก์ Editor/ถ่ายทำ/โพสต์บนมือถือมีรหัสช่อง; ลิงก์ช่องไม่ถูกต้องจะหยุดให้เลือกใหม่. ตัวตนคลิปเก่าใช้ snapshot ของโปรเจกต์ การแก้ profile มีผลกับงานใหม่. รายละเอียดสถานะตรวจและข้อจำกัดก่อนเปิดโพสต์จริงอยู่ใน [แผนหลายช่อง](_Docs/Plans/PLAN_MULTI_CHANNEL_20261010.md) และ [รายงาน audit](_Docs/Reports/CODEX_GEMINI_MULTI_CHANNEL_AUDIT_20261011.md).
+
 ---
 
 ## 🚀 ฟีเจอร์หลัก (Core Features)
@@ -33,7 +37,7 @@
 - 🔁 **Partial Reroll:** เปลี่ยน Hook, Subtitle, BGM, Voice หรือ Video โดย reuse artifact ของ stage ก่อนหน้า
 - 🎚️ **Preview = Render Contracts:** Canvas preview และ ASS/libass renderer ใช้ model/constant ที่ mirror กัน พร้อม source, behavior และ FFmpeg regression tests
 - 🎨 **Hook Style & Style Preset 10 แบบ:** สไตล์การตัดต่อ 10 แบบผูกกับป้ายฮุก (สี + อนิเมชัน) แบบ 1-to-1 พร้อมตรวจจับสไตล์ที่เคยใช้กับสินค้านั้นแล้ว
-- 🔒 **Permanent Watermark:** ลายน้ำช่อง (@rizanntry) ติดถาวรทั้งใน Render และ Preview
+- 🔒 **Channel Watermark:** Preview และ Render ใช้ตัวตนช่องที่บันทึกในโปรเจกต์; ช่องรองที่ไม่มี snapshot จะไม่ยืมลายน้ำ main
 - 📊 **Analytics Hub 5 แท็บ:** Production, Performance (ผลงาน TikTok + คลิปปัง), Tokens, Storage (พร้อม Safe Cache Cleaner) และ Inventory
 - 📈 **TikTok Stats Sync:** ดึงสถิติจาก TikTok Studio พร้อมจับคู่โพสต์แบบ manual และ milestone แจ้งเตือนคลิปปัง 10k+
 - 🗂️ **Batch Render & Backup:** เรนเดอร์หลายคลิปพร้อมกัน, One-click Backup/Restore และตัวสแกนไฟล์สื่อซ้ำ

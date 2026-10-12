@@ -21,9 +21,13 @@ import urllib.parse
 from pathlib import Path
 from typing import Any, Dict
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
-from scripts.api_videos import _allowed_media_path
+from scripts.api_videos import _allowed_media_path, _is_contained
+from scripts.channel_scope import get_optional_channel_scope, get_channel_scope, require_active_for_new_work
+from scripts.channel_workflows import require_media_owner
+from scripts.channel_artifacts import register as register_artifact
+from scripts import config
 from scripts.config import BASE_DIR, CAPCUT_DRAFT_DIR
 from scripts.proxy_manager import (
     ProxyError,
@@ -101,14 +105,18 @@ def _relative_media_path(path: Path) -> str:
         return str(path)
 
 
-def _build_proxy_task(master_str: str, key: str) -> None:
+def _build_proxy_task(master_str: str, key: str, channel_id=None) -> None:
     """
     Background encode. Swallows failure by design: the master always plays, so
     a proxy that cannot be built degrades performance, not correctness. The
     error is logged rather than raised because nothing is waiting to catch it.
     """
     try:
-        ensure_proxy(Path(master_str))
+        if channel_id is not None:
+            register_artifact(key, channel_id)
+        proxy = ensure_proxy(Path(master_str), **({"channel_id": channel_id} if channel_id is not None else {}))
+        if channel_id is not None:
+            register_artifact(proxy, channel_id)
     except ProxyError as exc:
         print(f"   ⚠️ สร้าง Proxy ไม่สำเร็จ ({exc}) — ไทม์ไลน์จะเล่นไฟล์ต้นฉบับแทน")
     except Exception as exc:  # noqa: BLE001 - a background task must not die loudly
@@ -122,6 +130,7 @@ def proxy_for_clip(
     source_path: str,
     background_tasks: BackgroundTasks,
     build: bool = True,
+    request: Request = None,
 ) -> Dict[str, Any]:
     """
     The playback URL for one clip, plus whether it is the proxy or the master.
@@ -136,21 +145,35 @@ def proxy_for_clip(
     this minor would be more moving parts than the feature is worth.
     """
     master = _resolve_master(source_path)
-    key = str(proxy_path_for(master))
+    scope = get_optional_channel_scope(request) if request is not None else None
+    shared = any(_is_contained(master, root.resolve()) for root in (BASE_DIR / "00_Inbox", BASE_DIR / "01_Raw", BASE_DIR / "02_Assets", config.SOURCE_ROOT / "02_Assets"))
+    if request is not None and not shared:
+        scope = scope or get_channel_scope(request)
+        require_media_owner(scope, master, base_dir=BASE_DIR)
+    if scope is not None and build and not scope.is_implicit_default:
+        require_active_for_new_work(scope)
+    owner = scope.channel_id if scope is not None else ("main" if request is not None else None)
+    kwargs = {"channel_id": owner} if owner is not None else {}
+    suffix = "?channel=" + owner if owner is not None else ""
+    key = str(proxy_path_for(master, **kwargs))
 
-    existing = get_proxy(master)
-    master_url = "/api/media/" + urllib.parse.quote(_relative_media_path(master), safe="/")
+    existing = get_proxy(master, **kwargs)
+    if existing is None and owner == "main":
+        existing = get_proxy(master)
+    master_url = "/api/media/" + urllib.parse.quote(_relative_media_path(master), safe="/") + suffix
 
     if existing:
+        if owner is not None:
+            register_artifact(existing, owner)
         return {
             "status": "ready",
-            "url": "/api/media/" + urllib.parse.quote(_relative_media_path(existing), safe="/"),
+            "url": "/api/media/" + urllib.parse.quote(_relative_media_path(existing), safe="/") + suffix,
             "master_url": master_url,
             "is_proxy": True,
         }
 
     if build and not _is_building(key) and _claim(key):
-        background_tasks.add_task(_build_proxy_task, str(master), key)
+        background_tasks.add_task(_build_proxy_task, str(master), key, owner)
 
     return {
         "status": "building" if (build and _is_building(key)) else "master",

@@ -15,6 +15,7 @@ import {
   STORY_ROLE_OPTIONS,
 } from '../../../lib/gadgetMediaProject.js';
 import GadgetMediaTimelineHost from '../timeline/GadgetMediaTimelineHost.jsx';
+import { useGadgetDraft } from '../useGadgetDraft.js';
 
 
 const REQUIRED_ROLES = new Set(['hook', 'hero_benefit', 'proof', 'caveat', 'verdict']);
@@ -30,7 +31,10 @@ export function BriefStage({ project, busy, onSave }) {
       ...(project.presentation || {}),
     },
   });
-  const save = () => onSave({ ...draft, ...(project.status === 'brief' ? { status: 'sourcing' } : {}) });
+  const draftParticipant = useGadgetDraft(draft, { reset: setDraft,
+    saveForSwitch: () => onSave(draft),
+    save: () => onSave({ ...draft, ...(project.status === 'brief' ? { status: 'sourcing' } : {}) }) });
+  const save = () => draftParticipant.save();
   return (
     <StageSection title="Brief ของคลิป" description="ล็อกสินค้าเพียงหนึ่งรุ่น คนดู และประโยชน์หลักก่อนเริ่มหา Source">
       <div className="grid gap-3 md:grid-cols-2">
@@ -91,6 +95,7 @@ export function SourcesStage({ project, busy, onProbe, onAdvance }) {
   });
   const [probing, setProbing] = useState(false);
   const [error, setError] = useState('');
+  const sourceParticipant = useGadgetDraft(form, { reset: setForm, save: () => onProbe(form) });
   const sources = project.source_assets || [];
   const ready = sources.length > 0 && sources.every((source) => (
     Math.max(Number(source.width || 0), Number(source.height || 0)) >= 1920
@@ -102,8 +107,10 @@ export function SourcesStage({ project, busy, onProbe, onAdvance }) {
     setProbing(true);
     setError('');
     try {
-      await onProbe(form);
-      setForm((current) => ({ ...current, local_path: '', source_url: '', usage_note: '', rights_reviewed: false }));
+      await sourceParticipant.save();
+      const cleared = { ...form, local_path: '', source_url: '', usage_note: '', rights_reviewed: false };
+      setForm(cleared);
+      sourceParticipant.markSaved(cleared);
     } catch (probeError) {
       setError(probeError?.response?.data?.detail || probeError?.message || 'ตรวจ Source ไม่สำเร็จ');
     } finally {
@@ -164,7 +171,10 @@ export function EvidenceStage({ project, busy, onSave }) {
   const [facts, setFacts] = useState(project.facts || []);
   const ready = facts.length > 0 && facts.every((fact) => fact.type === 'opinion' || (fact.evidence_refs || []).length > 0) && facts.every((fact) => fact.text?.trim());
   const patch = (id, changes) => setFacts((current) => current.map((fact) => fact.fact_id === id ? { ...fact, ...changes } : fact));
-  const save = () => onSave({ facts, ...(project.status === 'source_ready' ? { status: 'research_ready' } : {}) });
+  const draftParticipant = useGadgetDraft(facts, { reset: setFacts,
+    saveForSwitch: () => onSave({ facts }),
+    save: () => onSave({ facts, ...(project.status === 'source_ready' ? { status: 'research_ready' } : {}) }) });
+  const save = () => draftParticipant.save();
   return (
     <StageSection title="Evidence Board" description="แยก Brand claim, Verified fact, Opinion และ Caveat ให้ย้อนกลับไปหา Source ได้ทุกข้อ">
       <div className="space-y-3">
@@ -192,7 +202,10 @@ export function StoryStage({ project, busy, narrationState, onSave, onGenerateNa
   const ready = REQUIRED_ROLES.size === [...REQUIRED_ROLES].filter((role) => roles.has(role)).length && blocks.every((block) => block.text?.trim());
   const patch = (id, changes) => setBlocks((current) => current.map((block) => block.block_id === id ? { ...block, ...changes } : block));
   const createBlueprint = () => setBlocks(STORY_ROLE_OPTIONS.map(([_role], index) => newStoryBlock(index)));
-  const save = () => onSave({ story: { ...(project.story || {}), blocks }, ...(project.status === 'research_ready' ? { status: 'script_ready' } : {}) });
+  const draftParticipant = useGadgetDraft(blocks, { reset: setBlocks,
+    saveForSwitch: () => onSave({ story: { ...(project.story || {}), blocks } }),
+    save: () => onSave({ story: { ...(project.story || {}), blocks }, ...(project.status === 'research_ready' ? { status: 'script_ready' } : {}) }) });
+  const save = () => draftParticipant.save();
   return (
     <StageSection title="Story 45–60 วินาที" description="เรียง Problem → Product Reveal → Benefit → Proof → Use Case → Honest Caveat → Verdict">
       <div className="flex flex-wrap gap-2">
@@ -236,10 +249,12 @@ export function CutStage({ project, timeline, busy, onSaveProject, onBuildTimeli
   const blocks = project.story?.blocks || [];
   const [shots, setShots] = useState(project.edit?.edl?.shots || []);
   const [savingTimeline, setSavingTimeline] = useState(false);
+  const draftParticipant = useGadgetDraft(shots, { reset: setShots,
+    save: () => onSaveProject({ edit: { ...project.edit, edl: { shots } } }) });
   const patch = (id, changes) => setShots((current) => current.map((shot) => shot.shot_id === id ? { ...shot, ...changes } : shot));
   const addShot = () => setShots((current) => [...current, newEdlShot(sources[0]?.source_id, blocks[0]?.block_id, current.length)]);
   const build = async () => {
-    await onSaveProject({ edit: { ...project.edit, edl: { shots } } });
+    await draftParticipant.save();
     await onBuildTimeline();
   };
   const saveTimeline = async (value) => {
@@ -274,7 +289,7 @@ export function CutStage({ project, timeline, busy, onSaveProject, onBuildTimeli
         </table>
       </div>
 
-      {timeline && <GadgetMediaTimelineHost key={timeline.updated_at || timeline.duration} timeline={timeline} onSave={saveTimeline} saving={savingTimeline} />}
+      {timeline && <GadgetMediaTimelineHost timeline={timeline} channelId={project.channel_id || 'main'} channelIdentitySnapshot={timeline.channel_identity_snapshot || project.presentation?.channel_identity_snapshot} onSave={saveTimeline} saving={savingTimeline} />}
 
       {timeline && (
         <div className="rounded-2xl bg-white/[0.025] p-4 ring-1 ring-white/[0.07]">

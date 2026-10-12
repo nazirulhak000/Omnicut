@@ -1,35 +1,5 @@
 @echo off
-title OmniCut Pro Studio Launcher
-echo ========================================================
-echo   OmniCut Pro Studio (Kill and Run)
-echo ========================================================
-echo.
-
-echo [1/3] Terminating any existing servers on ports 8000, 5173, 8501...
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8000" ^| findstr "LISTENING"') do (
-    taskkill /F /T /PID %%a >nul 2>&1
-)
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5173" ^| findstr "LISTENING"') do (
-    taskkill /F /T /PID %%a >nul 2>&1
-)
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8501" ^| findstr "LISTENING"') do (
-    taskkill /F /T /PID %%a >nul 2>&1
-)
-timeout /t 2 /nobreak >nul
-
-echo [2/3] Launching FastAPI Backend on http://localhost:8000 (WatchFiles reload=OFF for stable renders) ...
-start "OmniCut Pro Studio Backend (FastAPI)" cmd /k "set FASTAPI_RELOAD=false && .venv\Scripts\python.exe scripts/api_server.py"
-
-echo [3/3] Launching React Vite Frontend on https://localhost:5173 ...
-cd /d "%~dp0frontend"
-start "OmniCut Pro Studio Frontend (Vite)" cmd /k "npm run dev"
-
-echo.
-echo ========================================================
-echo   System Started Successfully!
-echo   Frontend URL: https://localhost:5173
-echo   Backend API:  http://localhost:8000/docs
-echo ========================================================
-echo.
-ping -n 3 127.0.0.1 >nul
-start https://localhost:5173
+setlocal
+cd /d "%~dp0"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\launch_omnicut.ps1" %*
+exit /b %errorlevel%

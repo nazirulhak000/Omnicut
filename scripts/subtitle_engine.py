@@ -597,6 +597,7 @@ class SubtitleEngine:
         source_credit: Optional[str] = None,
         source_credits: Optional[List[Dict[str, Any]]] = None,
         channel_badge: Optional[str] = None,
+        channel_identity_snapshot: Optional[Dict[str, Any]] = None,
     ) -> Tuple[str, List[Dict]]:
         """
         Generate TikTok style ASS subtitle file with rapid-fire micro-bursts, 
@@ -845,6 +846,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
         events = []
+        from scripts.channel_identity import resolve_channel_identity
+        identity = resolve_channel_identity(channel_identity_snapshot)
+        # Frozen content only; neither preview nor render reads a mutable profile.
+        watermark_text = identity["watermark_text"]
 
         # 0. Copyright watermark -- configurable, burned into right safe-zone
         # column and rotated -90 deg via \frz.
@@ -853,7 +858,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             wm_y = int(round(video_height * WATERMARK_Y_RATIO))
             events.append(
                 f"Dialogue: 0,{cls._format_ass_time(0)},{cls._format_ass_time(10800)},Watermark,,0,0,0,,"
-                f"{{\\an5\\pos({wm_x},{wm_y})\\frz-90\\alpha{WATERMARK_ALPHA}}}{ass_escape_text(WATERMARK_TEXT)}"
+                f"{{\\an5\\pos({wm_x},{wm_y})\\frz-90\\alpha{WATERMARK_ALPHA}}}{ass_escape_text(watermark_text)}"
             )
 
         # 0.5. Source Credit overlay (e.g. "Source : Weibo OPPO", "Source : Weibo Xiaomi", "Source : mi.com")

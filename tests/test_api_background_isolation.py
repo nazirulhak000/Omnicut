@@ -28,7 +28,10 @@ PNG_1X1 = (
 
 
 def _client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[TestClient, Path]:
-    project_root = tmp_path / "project"
+    from scripts import config, project_manifest
+    project_root = tmp_path / "03_Projects"
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(project_manifest, "PROJECTS_DIR", project_root)
     cache_root = project_root / ".cache"
     monkeypatch.setattr(api, "PROJECTS_DIR", project_root)
     app = FastAPI()
@@ -151,7 +154,10 @@ def test_non_png_or_symlink_frame_is_not_served(monkeypatch, tmp_path):
 
 
 def test_cache_root_symlink_is_rejected(monkeypatch, tmp_path):
-    project_root = tmp_path / "project"
+    from scripts import config, project_manifest
+    project_root = tmp_path / "03_Projects"
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(project_manifest, "PROJECTS_DIR", project_root)
     project_root.mkdir()
     outside = tmp_path / "outside-cache"
     outside.mkdir()
@@ -190,7 +196,8 @@ def test_process_rejects_missing_source_and_disabled_config(monkeypatch, tmp_pat
     )
     assert missing.status_code == 404
 
-    source = tmp_path / "source.mp4"
+    source = tmp_path / "01_Raw/source.mp4"
+    source.parent.mkdir(exist_ok=True)
     source.write_bytes(b"fixture")
     disabled = client.post(
         "/api/background-isolation/process",
@@ -227,7 +234,8 @@ def test_process_rejects_non_media_and_symlink_escape_sources(monkeypatch, tmp_p
 
 def test_process_rejects_invalid_rotation(monkeypatch, tmp_path):
     client, _cache_root = _client(monkeypatch, tmp_path)
-    source = tmp_path / "source.mp4"
+    source = tmp_path / "01_Raw/source.mp4"
+    source.parent.mkdir(exist_ok=True)
     source.write_bytes(b"fixture")
     response = client.post(
         "/api/background-isolation/process",
@@ -242,7 +250,8 @@ def test_process_rejects_invalid_rotation(monkeypatch, tmp_path):
 
 def test_preflight_validates_source_and_returns_actionable_capacity_result(monkeypatch, tmp_path):
     client, _cache_root = _client(monkeypatch, tmp_path)
-    source = tmp_path / "source.mp4"
+    source = tmp_path / "01_Raw/source.mp4"
+    source.parent.mkdir(exist_ok=True)
     source.write_bytes(b"fixture")
     captured = {}
 
@@ -280,7 +289,8 @@ def test_preflight_validates_source_and_returns_actionable_capacity_result(monke
 ])
 def test_preflight_rejects_invalid_scoped_cutout_intervals(monkeypatch, tmp_path, intervals):
     client, _cache_root = _client(monkeypatch, tmp_path)
-    source = tmp_path / "source.mp4"
+    source = tmp_path / "01_Raw/source.mp4"
+    source.parent.mkdir(exist_ok=True)
     source.write_bytes(b"fixture")
     response = client.post("/api/background-isolation/preflight", json={
         "source_path": str(source), "config": {"enabled": True},
@@ -290,7 +300,8 @@ def test_preflight_rejects_invalid_scoped_cutout_intervals(monkeypatch, tmp_path
 
 
 def test_scoped_request_identity_changes_when_text_window_moves(tmp_path):
-    source = tmp_path / "source.mp4"
+    source = tmp_path / "01_Raw/source.mp4"
+    source.parent.mkdir(exist_ok=True)
     source.write_bytes(b"fixture")
     normalized = api.normalize_background_isolation({"enabled": True})
     first = api.BackgroundIsolationProcessRequest(
@@ -342,7 +353,8 @@ def test_source_sequence_identity_changes_across_trim_windows():
 
 
 def test_request_identity_includes_trim_window(tmp_path):
-    source = tmp_path / "source.mp4"
+    source = tmp_path / "01_Raw/source.mp4"
+    source.parent.mkdir(exist_ok=True)
     source.write_bytes(b"fixture")
     normalized = api.normalize_background_isolation({"enabled": True})
 
@@ -364,7 +376,8 @@ def test_request_identity_includes_trim_window(tmp_path):
 @pytest.mark.parametrize("project_layout", ["clip_list", "render_params", "clips"])
 def test_worker_threads_requested_window_into_extraction_and_published_manifest(monkeypatch, tmp_path, reference_mode, project_layout):
     project_root = tmp_path / "03_Projects"
-    source = tmp_path / "source.mp4"
+    source = tmp_path / "01_Raw/source.mp4"
+    source.parent.mkdir(exist_ok=True)
     source.write_bytes(b"fixture")
     output = tmp_path / "derived"
     output.mkdir()
@@ -442,7 +455,8 @@ def test_background_task_scheduler_deduplicates_recovery_launches(monkeypatch):
 
 def test_process_coalesces_identical_active_requests(monkeypatch, tmp_path):
     monkeypatch.setattr(api, "PROJECTS_DIR", tmp_path / "project")
-    source = tmp_path / "source.mp4"
+    source = tmp_path / "01_Raw/source.mp4"
+    source.parent.mkdir(exist_ok=True)
     source.write_bytes(b"fixture")
     active = []
     created = []

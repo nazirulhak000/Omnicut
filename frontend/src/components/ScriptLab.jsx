@@ -1,3 +1,4 @@
+import { channelLocalStorage } from '../lib/channelStorage.js';
 import React, { useState } from 'react';
 import {
   Lightbulb, Copy, Check, Sparkles, Send, RefreshCw, Wand2, Edit3, Clock, Hash, MessageSquareText, Clapperboard, ArrowRight,
@@ -14,6 +15,7 @@ export default function ScriptLab({
   initialPriceDeal = 'ลดพิเศษวันนี้เหลือ 149 บาท',
   onApplyScript
 }) {
+  const [workspaceStorage] = useState(channelLocalStorage);
   const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
   const [hookVariants, setHookVariants] = useState([]);
   const [hookLoading, setHookLoading] = useState(false);
@@ -80,7 +82,7 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
 
   const savedLab = (() => {
     try {
-      const raw = localStorage.getItem('capcut_script_lab');
+      const raw = workspaceStorage.getItem('capcut_script_lab');
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
@@ -110,7 +112,7 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
         activeAngleTab,
         scripts
       };
-      localStorage.setItem('capcut_script_lab', JSON.stringify(data));
+      workspaceStorage.setItem('capcut_script_lab', JSON.stringify(data));
     } catch (e) {
       console.error('Failed to save script lab state:', e);
     }

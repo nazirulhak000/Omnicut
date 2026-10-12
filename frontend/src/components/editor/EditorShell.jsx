@@ -1,3 +1,6 @@
+import { useChannel } from '../../context/ChannelContext.jsx';
+import { projectWatermark } from '../../lib/channelIdentity.js';
+import { channelLocalStorage } from '../../lib/channelStorage.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle, AlertTriangle, CheckCircle2, Loader2, Maximize2, Minimize2,
@@ -212,6 +215,9 @@ export default function EditorShell({
   workspaceData,
   onOpenShortcuts,
 }) {
+  const [workspaceStorage] = useState(channelLocalStorage);
+  const channel = useChannel();
+  const [channelIdentitySnapshot, setChannelIdentitySnapshot] = useState(null);
   const { state, set, setSilent, beginDrag, endDrag, undo, redo, reset, canUndo, canRedo } = useEditorHistory(EMPTY);
   const { clipList, cuesList, style, overlays, stickers = [], effects = [], spotlight = null, backgroundIsolation = null, trackMix = { mute: {}, solo: {} }, microCuesList = [], voiceEdit = null, voiceEditStale = false, voiceEditNotice = null } = state;
 
@@ -221,7 +227,7 @@ export default function EditorShell({
       ? new URLSearchParams(window.location.search).get('project')
       : '';
     const storedProject = typeof window !== 'undefined'
-      ? localStorage.getItem('omnicut_active_project')
+      ? workspaceStorage.getItem('omnicut_active_project')
       : '';
     return resolveEditorProjectName({
       intent: initialProjectName,
@@ -826,7 +832,7 @@ export default function EditorShell({
   } = useProjectAutosave({
     projectName,
     payload: projectSavePayload,
-    enabled: !!projectName && isLoadedRef.current,
+    enabled: !!projectName && isLoadedRef.current && (channel?.writable ?? true),
     saveProject: updateProjectState,
     unsavedAtRisk: revisionNotice !== null,
   });
@@ -837,7 +843,8 @@ export default function EditorShell({
   }), []);
 
   const applyLoadedProject = useCallback((name, loaded, manifest) => {
-    rememberProjectRevision(name, manifest?._editor_revision);
+    rememberProjectRevision(name, manifest?._editor_revision, channel?.channelId);
+    setChannelIdentitySnapshot(manifest?.channel_identity_snapshot || null);
     const loadedStylePreset = stylePresetFromManifest(manifest, loaded.style);
     const loadedEditorState = {
       ...loaded,
@@ -846,7 +853,7 @@ export default function EditorShell({
     setProjectName(name);
     try {
       if (name) {
-        localStorage.setItem('omnicut_active_project', name);
+        workspaceStorage.setItem('omnicut_active_project', name);
         const url = new URL(window.location.href);
         if (url.searchParams.get('project') !== name) {
           url.searchParams.set('project', name);
@@ -1060,7 +1067,7 @@ export default function EditorShell({
         setProjectName('');
         setSelection(null);
         try {
-          localStorage.removeItem('omnicut_active_project');
+          workspaceStorage.removeItem('omnicut_active_project');
           const url = new URL(window.location.href);
           url.searchParams.delete('project');
           window.history.replaceState(null, '', url.toString());
@@ -1127,7 +1134,7 @@ export default function EditorShell({
       ? new URLSearchParams(window.location.search).get('project')
       : '';
     const storedProject = typeof window !== 'undefined'
-      ? localStorage.getItem('omnicut_active_project')
+      ? workspaceStorage.getItem('omnicut_active_project')
       : '';
     const targetProject = resolveEditorProjectName({
       intent: initialProjectName,
@@ -2484,6 +2491,9 @@ export default function EditorShell({
         </div>
       )}
 
+      {projectName && projectWatermark(channelIdentitySnapshot, channel?.channelId || 'main') === null && (
+        <p role="alert" className="border-b border-amber-300/20 bg-amber-300/10 px-4 py-2 text-sm text-amber-200">???????????????????????????????????????????? ???????????????????????</p>
+      )}
       <RenderPreflightNotice report={renderPreflight} onSeek={seekPlayer} />
       <ProjectRevisionNotice
         kind={projectName ? revisionNotice : null}
@@ -2766,6 +2776,8 @@ export default function EditorShell({
             >
               {isMobileView && (
                 <SequencePlayer
+                  channelIdentitySnapshot={channelIdentitySnapshot}
+                  channelId={channel?.channelId || 'main'}
                   ref={mobilePlayerRef}
                   clips={clipList}
                   cues={cuesList}
@@ -3402,6 +3414,8 @@ export default function EditorShell({
               <div className="flex min-h-0 flex-1 flex-col items-center gap-2 overflow-hidden p-3 bg-black/40">
                 {!isMobileView && (
                   <SequencePlayer
+                  channelIdentitySnapshot={channelIdentitySnapshot}
+                  channelId={channel?.channelId || 'main'}
                     ref={desktopPlayerRef}
                     clips={clipList}
                     cues={cuesList}

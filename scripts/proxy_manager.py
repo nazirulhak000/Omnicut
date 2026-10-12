@@ -60,10 +60,16 @@ class ProxyError(RuntimeError):
     """Raised when a proxy cannot be produced. Callers fall back to master."""
 
 
-def proxy_cache_root() -> Path:
+def proxy_cache_root(channel_id=None) -> Path:
     """Root of the proxy cache. Read through a function, not bound at import,
     so tests can monkeypatch PROJECTS_DIR."""
-    return PROJECTS_DIR / ".cache" / PROXY_CACHE_NAMESPACE
+    root = PROJECTS_DIR / ".cache" / PROXY_CACHE_NAMESPACE
+    if channel_id is not None:
+        from scripts.channel_store import is_valid_channel_id, ChannelError
+        if not is_valid_channel_id(channel_id):
+            raise ChannelError(422, "channel_scope_invalid", "Invalid channel id")
+        return root / channel_id
+    return root
 
 
 def _fingerprint(master: Path) -> str:
@@ -80,9 +86,9 @@ def _fingerprint(master: Path) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def proxy_path_for(master: Path) -> Path:
+def proxy_path_for(master: Path, *, channel_id=None) -> Path:
     """Where `master`'s proxy lives. Pure path math -- no filesystem writes."""
-    return proxy_cache_root() / f"{_fingerprint(Path(master))}.mp4"
+    return proxy_cache_root(channel_id) / f"{_fingerprint(Path(master))}.mp4"
 
 
 def is_proxy_path(path: Any) -> bool:
@@ -103,19 +109,19 @@ def is_proxy_path(path: Any) -> bool:
     return candidate == root or root in candidate.parents
 
 
-def has_proxy(master: Path) -> bool:
+def has_proxy(master: Path, *, channel_id=None) -> bool:
     """True when a usable proxy already exists for `master`."""
     try:
-        target = proxy_path_for(Path(master))
+        target = proxy_path_for(Path(master), channel_id=channel_id)
     except OSError:
         return False
     return target.is_file() and target.stat().st_size > 0
 
 
-def get_proxy(master: Path) -> Optional[Path]:
+def get_proxy(master: Path, *, channel_id=None) -> Optional[Path]:
     """The existing proxy for `master`, or None. Never builds one: callers on
     a request path must not block on an encode."""
-    return proxy_path_for(Path(master)) if has_proxy(Path(master)) else None
+    return proxy_path_for(Path(master), channel_id=channel_id) if has_proxy(Path(master), channel_id=channel_id) else None
 
 
 def _encode(master: Path, destination: Path) -> None:
@@ -196,7 +202,7 @@ def _encode(master: Path, destination: Path) -> None:
     os.replace(staged, destination)
 
 
-def ensure_proxy(master: Path, *, force: bool = False) -> Path:
+def ensure_proxy(master: Path, *, force: bool = False, channel_id=None) -> Path:
     """
     Return the proxy for `master`, building it if absent.
 
@@ -208,7 +214,7 @@ def ensure_proxy(master: Path, *, force: bool = False) -> Path:
     if not source.is_file():
         raise ProxyError(f"ไม่พบไฟล์ต้นฉบับ: {source}")
 
-    target = proxy_path_for(source)
+    target = proxy_path_for(source, channel_id=channel_id)
     if not force and target.is_file() and target.stat().st_size > 0:
         return target
 

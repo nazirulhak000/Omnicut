@@ -3,8 +3,11 @@ import re
 from pathlib import Path
 from typing import List
 
-# Base Paths
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Source and data roots are separate so tests can isolate storage before imports.
+# With no override, the established single-workspace layout is unchanged.
+SOURCE_ROOT = Path(__file__).resolve().parent.parent
+_data_root_override = os.environ.get("OMNICUT_DATA_ROOT", "").strip()
+BASE_DIR = Path(_data_root_override).expanduser().resolve() if _data_root_override else SOURCE_ROOT
 
 # Load .env into os.environ if present
 _env_file = BASE_DIR / ".env"
@@ -89,6 +92,22 @@ STICKERS_DIR = ASSETS_DIR / "Stickers_Memes"
 LUTS_DIR = ASSETS_DIR / "LUTs_ColorPresets"
 EFFECTS_DIR = ASSETS_DIR / "Effects"
 
+
+def asset_relative_path(value: str | Path, *, data_assets_root: Path | None = None) -> Path:
+    """Catalog URL path for data assets or read-only packaged source assets.
+
+    Generated caches use BASE_DIR. Packaged bytes under SOURCE_ROOT/02_Assets
+    can be read independently, while arbitrary external paths are rejected.
+    """
+    path = Path(value).resolve()
+    assets = (data_assets_root or ASSETS_DIR).resolve()
+    try:
+        path.relative_to(assets)
+        return path.relative_to(assets.parent)
+    except ValueError:
+        path.relative_to((SOURCE_ROOT / "02_Assets").resolve())
+        return path.relative_to(SOURCE_ROOT.resolve())
+
 # Ensure directories exist
 for p in [INBOX_DIR, RAW_DIR, ASSETS_DIR, PROJECTS_DIR, EXPORTS_DIR, COVERS_DIR, ARCHIVE_DIR, FONTS_DIR, SFX_DIR, MUSIC_DIR, STICKERS_DIR, LUTS_DIR, EFFECTS_DIR]:
     p.mkdir(parents=True, exist_ok=True)
@@ -128,3 +147,26 @@ DEFAULT_VOICE_PITCH = "+0Hz"
 BGM_VOLUME = 0.12    # -18dB, a bed under the voice
 VOICE_VOLUME = 1.0
 SFX_VOLUME = 0.28    # -11dB, present but not startling
+
+# Multi-channel foundation (P1, see _Docs/Plans/ADR_MULTI_CHANNEL_20261010.md)
+# The registry is the single source of truth for channel profiles.  Nothing
+# here creates the file: reading a missing registry yields an in-memory
+# registry holding only the implicit ``main`` channel.
+CHANNELS_FILE = BASE_DIR / "_Docs" / "channels.json"
+# Root that channel avatar_asset_path values are relative to (containment root).
+CHANNELS_PROJECT_ROOT = BASE_DIR
+DEFAULT_CHANNEL_ID = "main"
+HYPERFRAMES_STUDIO_DIR = PROJECTS_DIR / "_HyperFrames_Studio"
+MULTI_CHANNEL_STRICT_ENV = "OMNICUT_MULTI_CHANNEL_STRICT"
+_TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
+
+
+def is_multi_channel_strict() -> bool:
+    """Return whether strict multi-channel mode is on.
+
+    Evaluated on every call (never cached at import) so tests and a restarted
+    server pick up ``OMNICUT_MULTI_CHANNEL_STRICT`` changes.  Default: off =
+    single-channel compatibility mode (requests without a channel header
+    resolve to ``main``).
+    """
+    return os.environ.get(MULTI_CHANNEL_STRICT_ENV, "").strip().lower() in _TRUTHY_ENV_VALUES

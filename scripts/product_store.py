@@ -29,11 +29,39 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from scripts.config import BASE_DIR, COVERS_DIR
+from scripts.channel_ownership import (
+    OWNER_KEY,
+    StoreScope,
+    owner_for_new_record,
+    resolve_store_scope,
+)
+from scripts.channel_store import ChannelError
 from scripts.db import DocumentTable
 from scripts import path_utils
 from scripts.export_registry import ExportRegistry, _normalise_path as _export_normalise_path
 
 STORE_PATH = BASE_DIR / "_Docs" / "products.json"
+
+
+def _require_export_in_product_channel(scope: StoreScope, product: Dict[str, Any], export_record: Dict[str, Any]) -> None:
+    """P2.2: an angle may only point at an export of the product's own channel.
+
+    Channel-scoped calls: the export must be visible to that scope (so in
+    strict mode a legacy/unmigrated export is refused too).  Unscoped calls
+    (compat ``None`` / maintenance): compare owners with legacy = ``main``.
+    """
+    if scope.channel_id is not None:
+        same = scope.owns(export_record)
+    else:
+        from scripts.config import DEFAULT_CHANNEL_ID
+
+        same = (export_record.get(OWNER_KEY) or DEFAULT_CHANNEL_ID) == (product.get(OWNER_KEY) or DEFAULT_CHANNEL_ID)
+    if not same:
+        raise ChannelError(
+            409,
+            "channel_child_mismatch",
+            "คลิป export นี้เป็นของช่องอื่น จึงผูกกับสินค้าของช่องนี้ไม่ได้",
+        )
 
 
 def _to_relative(path: object) -> Optional[str]:
@@ -277,6 +305,34 @@ def _store_json_path() -> Path:
 
 _TABLE = DocumentTable("products", _store_db_path, _store_json_path)
 
+# Optional cross-channel identity fields (plan §4.3).  Stored as given; no
+# clone workflow exists (not approved) -- they only label "same model".
+CANONICAL_KEY_FIELDS = ("canonical_product_key", "source_product_id")
+_CANONICAL_MAX_LEN = 200
+
+
+def _clean_canonical_value(field: str, value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{field} ต้องเป็นข้อความ")
+    value = value.strip()
+    if len(value) > _CANONICAL_MAX_LEN:
+        raise ValueError(f"{field} ยาวเกิน {_CANONICAL_MAX_LEN} ตัวอักษร")
+    return value or None
+
+
+def _check_children_owner(owner: Optional[str], angles: Any) -> None:
+    """Angles/batches inherit the product's owner and may never contradict it."""
+    for angle in angles or []:
+        if isinstance(angle, dict) and angle.get(OWNER_KEY) is not None and angle.get(OWNER_KEY) != owner:
+            raise ChannelError(
+                422,
+                "channel_child_mismatch",
+                f"angle '{angle.get('angle_id') or angle.get('id')}' ระบุช่อง {angle.get(OWNER_KEY)} "
+                f"ไม่ตรงกับช่องของสินค้า ({owner or 'ข้อมูลเดิม'})",
+            )
+
 
 class ProductStore:
     """The list of products in play, with what the AI worked out about each."""
@@ -346,6 +402,208 @@ class ProductStore:
                 yield products
 
     # ------------------------------------------------------------------
+    # Channel scope (multi-channel P2 -- see ADR "P2 store contract")
+    # ------------------------------------------------------------------
+    # _load()/_save()/_mutate() above stay the INTERNAL full-table access
+    # (all channels).  Public methods take keyword ``channel_id`` and go
+    # through _scope()/_scoped_mutate()/_scoped_load() below:
+    #   channel_id="a"       -> rows owned by "a" (+ legacy rows when "a" is
+    #                           main and strict mode is off)
+    #   channel_id=None      -> compat only: every row (old behaviour);
+    #                           strict mode -> 422 channel_scope_missing
+    #   all_channels=True    -> maintenance bypass (allowlisted modules only)
+    @staticmethod
+    def _scope(channel_id: Optional[str] = None, all_channels: bool = False) -> StoreScope:
+        return resolve_store_scope(channel_id, all_channels=all_channels)
+
+    @staticmethod
+    def _creation_scope(scope: StoreScope) -> StoreScope:
+        """Scope whose view a NEW product is deduplicated against.
+
+        A compat unscoped call (``channel_id=None``) creates a ``main`` product,
+        so its URL dedup must only ever see main (+ legacy) rows -- never
+        silently merge into another channel's product.
+        """
+        if scope.channel_id is not None:
+            return scope
+        owner = owner_for_new_record(scope)
+        return resolve_store_scope(owner)
+
+    @classmethod
+    @contextmanager
+    def _scoped_mutate(cls, scope: StoreScope):
+        """Read-modify-write the rows visible to ``scope`` in ONE transaction.
+
+        Scoped calls use ``DocumentTable.scoped_mutate`` (other channels' rows
+        are never exposed nor written, verified at commit).  Unscoped calls
+        (compat ``None`` / ``all_channels``) keep the old full-table mutate.
+        """
+        # Unscoped calls go through cls._mutate()/cls._load() on purpose: they
+        # are the long-standing patch points existing tests use to inject
+        # fixture data -- bypassing them would send those tests to the real
+        # store.  (cls._mutate() takes cls._lock itself; it is not reentrant.)
+        if scope.unscoped:
+            with cls._mutate() as products:
+                yield products
+            return
+        with cls._lock:
+            with _TABLE.scoped_mutate(scope.channel_id, include_legacy=scope.include_legacy) as products:
+                yield products
+
+    @classmethod
+    def _scoped_load(cls, scope: StoreScope) -> List[Dict[str, Any]]:
+        rows = cls._load()
+        if scope.unscoped:
+            return rows
+        return [row for row in rows if scope.owns(row)]
+
+    @staticmethod
+    def _code_universe(products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Every product (all channels + legacy) for global product_code uniqueness."""
+        return list(products) + list(getattr(products, "out_of_scope", ()) or ())
+
+    @classmethod
+    def snapshot(cls, *, channel_id: Optional[str] = None, all_channels: bool = False) -> List[Dict[str, Any]]:
+        """Plain read of the products visible to the scope -- no reconcile scan,
+        no write lock.  Replaces direct ``ProductStore._load()`` reads."""
+        return cls._scoped_load(cls._scope(channel_id, all_channels))
+
+    @classmethod
+    def find(cls, product_id: str, *, channel_id: Optional[str] = None, all_channels: bool = False) -> Optional[Dict[str, Any]]:
+        """One product by id within the scope (None for another channel's id), without reconcile."""
+        for product in cls.snapshot(channel_id=channel_id, all_channels=all_channels):
+            if product.get("id") == product_id:
+                return product
+        return None
+
+    @classmethod
+    def owner_of(cls, product_id: str) -> tuple[bool, Optional[str]]:
+        """``(exists, channel_id)`` of a product across ALL channels (system read
+        for ownership checks; ``channel_id`` None = legacy row)."""
+        for product in cls._load():
+            if product.get("id") == product_id:
+                return True, product.get(OWNER_KEY)
+        return False, None
+
+    @classmethod
+    def has_posted_angle_for_project(
+        cls, project_name: str, *, channel_id: Optional[str] = None, all_channels: bool = False
+    ) -> bool:
+        """True when any visible angle linked to ``project_name`` is posted
+        (status or posted_at) -- the render/re-render guard."""
+        if not project_name:
+            return False
+        for product in cls.snapshot(channel_id=channel_id, all_channels=all_channels):
+            for angle in product.get("angles", []) or []:
+                if angle.get("project_name") == project_name and (
+                    angle.get("status") == "posted" or angle.get("posted_at")
+                ):
+                    return True
+        return False
+
+    @classmethod
+    def rename_video_references(
+        cls,
+        *,
+        old_abs: str,
+        old_rel: str,
+        old_name: str,
+        new_info: Dict[str, Any],
+        product_id: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+    ) -> int:
+        """Point every visible ``product.videos[]`` entry that referenced a
+        renamed raw file at its new path/rel_path/name.  Returns entries changed."""
+        scope = cls._scope(channel_id, all_channels)
+        changed = 0
+        with cls._scoped_mutate(scope) as products:
+            for p in products:
+                if product_id and p.get("id") != product_id:
+                    continue
+                for v in p.get("videos", []):
+                    if v.get("path") == old_abs or v.get("rel_path") == old_rel or v.get("name") == old_name:
+                        v["path"] = new_info["path"]
+                        v["rel_path"] = new_info["rel_path"]
+                        v["name"] = new_info["name"]
+                        changed += 1
+        return changed
+
+    @classmethod
+    def remove_video_references(
+        cls,
+        matches,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+    ) -> int:
+        """Drop every visible ``product.videos[]`` entry for which
+        ``matches(video_entry)`` is true (a raw file was deleted).  Returns
+        entries removed."""
+        scope = cls._scope(channel_id, all_channels)
+        removed = 0
+        with cls._scoped_mutate(scope) as products:
+            for p in products:
+                v_list = p.get("videos", [])
+                kept = [v for v in v_list if not matches(v)]
+                if len(kept) != len(v_list):
+                    removed += len(v_list) - len(kept)
+                    p["videos"] = kept
+        return removed
+
+    @classmethod
+    def backfill_missing_product_codes(
+        cls, *, channel_id: Optional[str] = None, all_channels: bool = False, dry_run: bool = False
+    ) -> List[Dict[str, Any]]:
+        """Assign a product_code to visible products lacking one (oldest first),
+        unique across ALL channels.  One transaction.  Returns
+        ``[{id, name, product_code}]`` of what was (or would be) assigned."""
+        scope = cls._scope(channel_id, all_channels)
+        assigned: List[Dict[str, Any]] = []
+        with cls._scoped_mutate(scope) as products:
+            universe = cls._code_universe(products)
+            pending = sorted(
+                (p for p in products if not p.get("product_code")),
+                key=lambda p: p.get("created_at") or "",
+            )
+            for product in pending:
+                code = cls._generate_product_code(product.get("name", ""), universe)
+                assigned.append({"id": product.get("id"), "name": product.get("name"), "product_code": code})
+                if not dry_run:
+                    product["product_code"] = code
+                else:
+                    universe.append({"product_code": code})
+        return assigned
+
+    @classmethod
+    def apply_to_each_product(
+        cls,
+        fn,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+        dry_run: bool = False,
+    ) -> List[Any]:
+        """Maintenance helper: run ``fn(product) -> result`` on every visible
+        product inside one transaction; ``fn`` mutates the product in place.
+        ``dry_run`` runs ``fn`` on deep copies and writes nothing.  The
+        product's ``channel_id`` cannot be changed through this helper."""
+        import copy as _copy
+
+        scope = cls._scope(channel_id, all_channels)
+        if dry_run:
+            return [fn(_copy.deepcopy(p)) for p in cls._scoped_load(scope)]
+        results: List[Any] = []
+        with cls._scoped_mutate(scope) as products:
+            for product in products:
+                had_owner = OWNER_KEY in product
+                owner = product.get(OWNER_KEY)
+                results.append(fn(product))
+                if (OWNER_KEY in product) != had_owner or product.get(OWNER_KEY) != owner:
+                    raise ValueError("apply_to_each_product เปลี่ยน channel_id ของสินค้าไม่ได้")
+        return results
+
+    # ------------------------------------------------------------------
     # Writing
     # ------------------------------------------------------------------
     @classmethod
@@ -369,8 +627,18 @@ class ProductStore:
         raw_text: str = "",
         metadata_source: str = "",
         source_warning: str = "",
+        canonical_product_key: Optional[str] = None,
+        source_product_id: Optional[str] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> Dict[str, Any]:
         """Add a product, or return the existing one when the URL is already queued.
+
+        Multi-channel: the new product is stamped ``channel_id`` = the scope
+        (compat ``None`` -> main).  URL dedup is per ``(channel, url)`` -- a
+        product with the same URL in another channel is never touched.
+        ``product_code`` stays unique across all channels.
 
         description/raw_text are the scraped product-page text (or typed
         spec text) the content matrix was generated from -- persisted here so
@@ -380,6 +648,13 @@ class ProductStore:
         """
         if not name.strip():
             raise ValueError("ต้องมีชื่อสินค้า")
+        canonical = {
+            "canonical_product_key": _clean_canonical_value("canonical_product_key", canonical_product_key),
+            "source_product_id": _clean_canonical_value("source_product_id", source_product_id),
+        }
+        scope = cls._scope(channel_id, all_channels)
+        owner = owner_for_new_record(scope)
+        write_scope = cls._creation_scope(scope)
 
         # The load-modify-save below used to run with the load OUTSIDE any
         # lock (P0 item 1 in SAAS_READINESS_PLAN.md): two concurrent adds for
@@ -387,10 +662,12 @@ class ProductStore:
         # product, or a concurrent add-for-existing-URL update could vanish
         # under a concurrent unrelated add. _mutate() holds one SQLite
         # transaction across the whole read-modify-write.
-        with cls._mutate() as products:
+        with cls._scoped_mutate(write_scope) as products:
+            code_universe = cls._code_universe(products)
             if url.strip():
                 for existing in products:
                     if existing.get("url", "").strip() == url.strip():
+                        _check_children_owner(existing.get(OWNER_KEY), angles)
                         if angles:
                             existing["angles"] = angles
                             existing["status"] = "scripted"
@@ -410,14 +687,19 @@ class ProductStore:
                             existing["product_code"] = (
                                 product_code.strip().upper()
                                 if (product_code and product_code.strip())
-                                else cls._generate_product_code(existing.get("name", ""), products)
+                                else cls._generate_product_code(existing.get("name", ""), code_universe)
                             )
+                        for field, value in canonical.items():
+                            if value and not existing.get(field):
+                                existing[field] = value
                         existing["updated_at"] = cls._now()
                         return existing
 
+            _check_children_owner(owner, angles)
             now = cls._now()
             product = {
                 "id": uuid.uuid4().hex,
+                OWNER_KEY: owner,
                 "name": name.strip(),
                 "url": url.strip(),
                 "platform": platform or cls.detect_platform(url),
@@ -433,7 +715,7 @@ class ProductStore:
                 "metadata_source": metadata_source,
                 "source_warning": source_warning,
                 "tiktok_product_id": tiktok_product_id.strip() if (tiktok_product_id and tiktok_product_id.strip()) else None,
-                "product_code": (product_code.strip().upper() if (product_code and product_code.strip()) else cls._generate_product_code(name, products)),
+                "product_code": (product_code.strip().upper() if (product_code and product_code.strip()) else cls._generate_product_code(name, code_universe)),
                 "status": "scripted" if angles else "candidate",
                 "angles": angles or [],
                 "images": images or [],
@@ -442,17 +724,40 @@ class ProductStore:
                 "created_at": now,
                 "updated_at": now,
             }
+            for field, value in canonical.items():
+                if value:
+                    product[field] = value
             products.append(product)
             return product
 
     @classmethod
-    def update(cls, product_id: str, **fields: Any) -> Dict[str, Any]:
-        """Patch a product. Unknown keys are stored as-is so the UI can grow."""
-        with cls._mutate() as products:
+    def update(
+        cls,
+        product_id: str,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+        **fields: Any,
+    ) -> Dict[str, Any]:
+        """Patch a product. Unknown keys are stored as-is so the UI can grow.
+
+        ``channel_id`` is the SCOPE, never a field: the owner of a product
+        cannot change here (a ``product_owner``-style field does not exist).
+        Shot lists whose script changed are invalidated AFTER the products
+        transaction commits (never nested on the same sqlite connection).
+        """
+        scope = cls._scope(channel_id, all_channels)
+        for field in CANONICAL_KEY_FIELDS:
+            if field in fields:
+                fields[field] = _clean_canonical_value(field, fields[field])
+        stale_shot_lists: List[tuple] = []
+        with cls._scoped_mutate(scope) as products:
             for product in products:
                 if product["id"] == product_id:
                     fields.pop("id", None)
                     fields.pop("created_at", None)
+                    if "angles" in fields:
+                        _check_children_owner(product.get(OWNER_KEY), fields["angles"])
 
                     status = fields.get("status")
                     if status and status not in STATUSES:
@@ -466,10 +771,14 @@ class ProductStore:
                     hook_model = fields.get("hook_model")
                     hook_label = fields.get("hook_label")
 
-                    # If angles are updated, invalidate shot lists for angles whose scripts changed
+                    # If angles are updated, invalidate shot lists for angles whose scripts changed.
+                    # Staged: ShotListsStore lives in the same store.db, so
+                    # deleting from inside this transaction would be a nested
+                    # write on the same connection (it used to fail silently
+                    # here and the stale shot list survived).  Collected now,
+                    # deleted after commit below.
                     if "angles" in fields and isinstance(fields["angles"], list):
                         try:
-                            from scripts.shot_lists_store import ShotListsStore
                             old_angles = {
                                 (a.get("angle_id") or a.get("id"), a.get("batch") or 1): a
                                 for a in product.get("angles", [])
@@ -482,7 +791,7 @@ class ProductStore:
                                     old_script = old_angles[key].get("script_lines") or []
                                     new_script = new_a.get("script_lines") or []
                                     if old_script != new_script:
-                                        ShotListsStore.delete(product_id, aid, batch=a_batch)
+                                        stale_shot_lists.append((aid, a_batch))
                         except Exception:
                             pass
 
@@ -498,13 +807,38 @@ class ProductStore:
 
                     product.update(fields)
                     product["updated_at"] = cls._now()
-                    return product
-            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+                    updated = product
+                    break
+            else:
+                raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+        cls._invalidate_shot_lists(product_id, stale_shot_lists)
+        return updated
+
+    @staticmethod
+    def _invalidate_shot_lists(product_id: str, keys: List[tuple]) -> None:
+        """Delete cached shot lists AFTER the products transaction committed.
+
+        Best effort (as before): a failure leaves a stale cached shot list,
+        never a half-written product.  Idempotent, safe to re-run.
+        """
+        if not keys:
+            return
+        try:
+            from scripts.shot_lists_store import ShotListsStore
+        except Exception:
+            return
+        for angle_id, batch in keys:
+            try:
+                ShotListsStore.delete(product_id, angle_id, batch=batch)
+            except Exception as err:
+                print(f"[ProductStore] WARNING: ลบ shot list ที่ล้าสมัยไม่สำเร็จ ({product_id}/{angle_id}/b{batch}): {err}")
 
     @classmethod
-    def attach_project(cls, product_id: str, project_name: str) -> Dict[str, Any]:
+    def attach_project(
+        cls, product_id: str, project_name: str, *, channel_id: Optional[str] = None, all_channels: bool = False
+    ) -> Dict[str, Any]:
         """Link a rendered project back to the product it came from."""
-        product = cls.get(product_id)
+        product = cls.get(product_id, channel_id=channel_id, all_channels=all_channels)
         if not product:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
@@ -512,7 +846,9 @@ class ProductStore:
         if project_name not in projects:
             projects.append(project_name)
 
-        return cls.update(product_id, projects=projects, status="rendered")
+        return cls.update(
+            product_id, channel_id=channel_id, all_channels=all_channels, projects=projects, status="rendered"
+        )
 
     @classmethod
     def update_angle_status(
@@ -531,8 +867,16 @@ class ProductStore:
         cover_path: Optional[str] = None,
         cover_3x4_path: Optional[str] = None,
         cover_9x16_path: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+        require_latest_export: bool = False,
+    ) -> Optional[Dict[str, Any]]:
         """Updates the lifecycle status of a specific script angle in a product.
+
+        require_latest_export is the durable-post receipt CAS: a superseded
+        angle returns None without mutation. Registry reads share this write
+        transaction; normal callers retain their existing return contract.
 
         qc_note  – optional free-text reason for a QC failure; stored on the
                    angle so Studio can surface it the next time the angle is
@@ -559,6 +903,7 @@ class ProductStore:
                          across different batches, `batch` isolates the exact
                          angle being updated so other batches are never modified.
         """
+        scope = cls._scope(channel_id, all_channels)
         # Validated *before* entering _mutate() on purpose: ExportRegistry
         # shares this store's own store.db file, and on the same thread
         # _connection_for() hands back that exact same cached connection
@@ -570,9 +915,13 @@ class ProductStore:
         # hanging that request (and, since it's the same file-level write
         # lock, every other request touching products/exports/post_log/
         # schedule) for up to busy_timeout x retry-attempts. Doing this
-        # lookup first keeps _mutate()'s block to pure in-memory dict
-        # mutation, no nested DB calls.
-        export_record = ExportRegistry.get(export_id) if export_id else None
+        # lookup first keeps ordinary mutation free of nested store calls.
+        # The optional receipt CAS below performs only raw SELECT on this
+        # already-open write connection, never another load/import/context.
+        # Cross-channel read on purpose (P2.2): the export's owner is compared
+        # with the product's owner below, so an export of another channel is
+        # a 409 ``channel_child_mismatch`` instead of a silent link.
+        export_record = ExportRegistry.get(export_id, all_channels=True) if export_id else None
         if export_id and export_record is None:
             raise ValueError(f"ไม่พบ export_id '{export_id}'")
         if export_id and video_url is not None:
@@ -581,9 +930,11 @@ class ProductStore:
             if stored_path != requested_path:
                 raise ValueError("export_id ไม่ตรงกับ video_url ของไฟล์ที่เลือก")
 
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             for product in products:
                 if product["id"] == product_id:
+                    if export_record is not None:
+                        _require_export_in_product_channel(scope, product, export_record)
                     angles = product.get("angles", [])
                     matching_angles = []
                     for idx, a in enumerate(angles):
@@ -634,6 +985,50 @@ class ProductStore:
                         target_angle = matching_angles[0]
 
                     angle = target_angle
+
+                    if require_latest_export:
+                        # The product mutation holds BEGIN IMMEDIATE. Read the
+                        # registry on this same connection without load/import
+                        # or a nested transaction: concurrent ensure() cannot
+                        # commit a new export between this check and the write.
+                        from scripts import export_registry as registry_module
+                        from scripts.db import _connection_for
+                        if not export_id or _TABLE._db_path_fn().resolve() != registry_module._TABLE._db_path_fn().resolve():
+                            raise ChannelError(409, "posting_registry_transaction_required", "ต้องตรวจ export ใน transaction เดียวกับสินค้า")
+                        conn = _connection_for(_TABLE._db_path_fn())
+                        if not conn.in_transaction:
+                            raise ChannelError(409, "posting_registry_transaction_required", "ต้องตรวจ export ขณะ transaction สินค้ายังเปิดอยู่")
+                        rows = [json.loads(row[0]) for row in conn.execute("SELECT data FROM export_registry")]
+                        candidates = [row for row in rows if scope.owns(row)
+                                      and row.get("product_id") == product_id and row.get("angle_id") == angle_id]
+                        expected = next((row for row in candidates if row.get("id") == export_id), None)
+                        if expected is None:
+                            raise ChannelError(409, "posting_export_changed", "export ไม่ตรงกับมุมใน transaction ปัจจุบัน")
+                        if angle.get("export_id") and angle["export_id"] != export_id:
+                            return None
+                        try:
+                            expected_created = datetime.datetime.fromisoformat(str(expected["created_at"]))
+                        except (KeyError,ValueError,TypeError):
+                            return None
+                        expected_path = _to_absolute(expected.get("path"))
+                        expected_mtime = expected_path.stat().st_mtime if expected_path and expected_path.is_file() else -1
+                        for row in candidates:
+                            if row.get("id") == export_id:
+                                continue
+                            # File metadata is portable/copyable; immutable
+                            # registry creation is independent evidence. The
+                            # registry has second precision and no monotonic
+                            # sequence, so ties/missing timestamps abstain
+                            # rather than inventing order from random UUIDs.
+                            try:
+                                created = datetime.datetime.fromisoformat(str(row["created_at"]))
+                                if created >= expected_created:
+                                    return None
+                            except (KeyError,ValueError,TypeError):
+                                return None
+                            path = _to_absolute(row.get("path"))
+                            if path and path.is_file() and path.stat().st_mtime > expected_mtime:
+                                return None
 
                     # Strict guard: An angle that has been posted is permanently sealed as proof/archive.
                     # Never allow demoting status away from 'posted' under any circumstances.
@@ -745,6 +1140,9 @@ class ProductStore:
         angle_id: str,
         new_content: Dict[str, Any],
         batch: Optional[int] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> Dict[str, Any]:
         """Overwrites an angle's script content (a rerolled script from the AI)
         while preserving everything about where the angle currently stands:
@@ -754,6 +1152,7 @@ class ProductStore:
         lifecycle moving forward or backward -- those stay exactly as they
         were, same as they would if the user had hand-edited the script text.
         """
+        scope = cls._scope(channel_id, all_channels)
         CONTENT_KEYS = (
             "angle_name", "angle_description", "content_types", "badge", "product_name", "hook_title", "pain_point",
             "key_features", "price_deal", "ad_tone", "script_lines",
@@ -761,7 +1160,7 @@ class ProductStore:
             "duration", "extra_beats",
         )
         updated_product = None
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             for product in products:
                 if product["id"] == product_id:
                     angles = product.get("angles", [])
@@ -805,19 +1204,24 @@ class ProductStore:
         product_id: str,
         new_angles: List[Dict[str, Any]],
         batch_index: Optional[int] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> Dict[str, Any]:
         """Appends a list of new angles (e.g. Batch 2, 3...) to an existing product.
         Preserves all existing angles and their statuses.
         """
+        scope = cls._scope(channel_id, all_channels)
         if not new_angles:
-            product = cls.get(product_id)
+            product = cls.get(product_id, channel_id=channel_id, all_channels=all_channels)
             if not product:
                 raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
             return product
 
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             for product in products:
                 if product["id"] == product_id:
+                    _check_children_owner(product.get(OWNER_KEY), new_angles)
                     existing = product.get("angles", [])
                     max_batch = 1
                     for a in existing:
@@ -858,9 +1262,14 @@ class ProductStore:
         product_id: str,
         angle_data: Dict[str, Any],
         batch_index: Optional[int] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> Dict[str, Any]:
         """Appends a single custom or cloned angle to an existing product."""
-        return cls.append_angles(product_id, [angle_data], batch_index=batch_index)
+        return cls.append_angles(
+            product_id, [angle_data], batch_index=batch_index, channel_id=channel_id, all_channels=all_channels
+        )
 
 
     @classmethod
@@ -872,6 +1281,9 @@ class ProductStore:
         cover_3x4_path: Optional[str] = None,
         cover_9x16_path: Optional[str] = None,
         batch: Optional[int] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> Dict[str, Any]:
         """Persist generated cover variants on the angle that owns them.
 
@@ -880,6 +1292,7 @@ class ProductStore:
         refresh while preserving the existing cover naming and media routes.
         Only files inside ``05_Covers_Thumbnails`` are accepted.
         """
+        scope = cls._scope(channel_id, all_channels)
 
         def normalize_cover_path(raw_path: Optional[str], field_name: str) -> Optional[str]:
             if raw_path is None:
@@ -914,7 +1327,7 @@ class ProductStore:
             if match_b:
                 effective_batch = int(match_b.group(1))
 
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             for product in products:
                 if product.get("id") != product_id:
                     continue
@@ -952,6 +1365,9 @@ class ProductStore:
         identifier: str,
         product_id: str = "",
         angle_id: str = "",
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> List[str]:
         """
         Finds the angle matching the given video filename or project_name,
@@ -970,6 +1386,7 @@ class ProductStore:
         warning is logged if more than one candidate exists, since silently
         mutating every stem-alike angle is exactly the bug this guards against.
         """
+        scope = cls._scope(channel_id, all_channels)
         if not identifier:
             return []
         target_token = Path(identifier).stem.lower().strip()
@@ -1008,7 +1425,7 @@ class ProductStore:
             product["updated_at"] = cls._now()
             rolled_back.append(angle.get("angle_id", ""))
 
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             # Scoped path: caller knows product_id and angle_id.
             # When multiple batches share angle_id, identify the exact angle using identifier/batch.
             if product_id and angle_id:
@@ -1093,8 +1510,12 @@ class ProductStore:
         angle_id: str,
         selected_videos: List[str],
         batch: Optional[int] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> Dict[str, Any]:
         """Persists selected raw footage attachments for a specific script angle in a product."""
+        scope = cls._scope(channel_id, all_channels)
         rel_videos = [_to_relative(v) for v in selected_videos]
         effective_batch = batch
         if effective_batch is None:
@@ -1102,7 +1523,7 @@ class ProductStore:
             if match_b:
                 effective_batch = int(match_b.group(1))
 
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             for product in products:
                 if product["id"] == product_id:
                     angles = product.get("angles", [])
@@ -1131,15 +1552,19 @@ class ProductStore:
         voice_engine_type: Optional[str] = None,
         ad_tone: Optional[str] = None,
         batch: Optional[int] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> Dict[str, Any]:
         """Persists voice configuration for a specific script angle in a product."""
+        scope = cls._scope(channel_id, all_channels)
         effective_batch = batch
         if effective_batch is None:
             match_b = re.search(r"_b(\d+)$", str(angle_id))
             if match_b:
                 effective_batch = int(match_b.group(1))
 
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             for product in products:
                 if product["id"] == product_id:
                     matched_angle = None
@@ -1169,11 +1594,15 @@ class ProductStore:
         angle_id: str,
         shot_map: List[Dict[str, Any]],
         batch: Optional[int] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> Dict[str, Any]:
         """Persists a user-curated shot map (list of pinned beat→scene assignments)
         for a specific script angle. Each entry: {beat_index, video_path, trim_start, trim_end}.
         The pipeline reads this during ShotMatchingStage to skip AI Vision for pinned beats.
         """
+        scope = cls._scope(channel_id, all_channels)
         # Normalize video_path fields to relative paths so the store stays portable.
         normalized = []
         for entry in shot_map:
@@ -1189,7 +1618,7 @@ class ProductStore:
             if match_b:
                 effective_batch = int(match_b.group(1))
 
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             for product in products:
                 if product["id"] == product_id:
                     matched_angle = None
@@ -1213,10 +1642,14 @@ class ProductStore:
         cls,
         product_id: str,
         updates_by_angle: Dict[str, List[Dict[str, Any]]],
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
     ) -> Dict[str, Any]:
         """Atomically updates manual shot maps for multiple angles in one mutation.
         updates_by_angle: { angle_id or angle_id_b{batch}: [ {beat_index, video_path, trim_start, trim_end}, ... ] }
         """
+        scope = cls._scope(channel_id, all_channels)
         normalized_updates = {}
         for ang_id, shot_map in updates_by_angle.items():
             normalized = []
@@ -1228,7 +1661,7 @@ class ProductStore:
                 normalized.append(norm)
             normalized_updates[ang_id] = normalized
 
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             for product in products:
                 if product["id"] == product_id:
                     for angle in product.get("angles", []):
@@ -1249,10 +1682,11 @@ class ProductStore:
 
 
     @classmethod
-    def set_default_videos_for_all_angles(cls, product_id: str, selected_videos: List[str]) -> Dict[str, Any]:
+    def set_default_videos_for_all_angles(cls, product_id: str, selected_videos: List[str], *, channel_id: Optional[str] = None, all_channels: bool = False) -> Dict[str, Any]:
         """Sets default raw footage attachments for all script angles belonging to this product."""
+        scope = cls._scope(channel_id, all_channels)
         rel_videos = [_to_relative(v) for v in selected_videos]
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             for product in products:
                 if product["id"] == product_id:
                     for angle in product.get("angles", []):
@@ -1280,7 +1714,7 @@ class ProductStore:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
     @classmethod
-    def add_video_to_product(cls, product_id: str, video_info: Dict[str, Any]) -> Dict[str, Any]:
+    def add_video_to_product(cls, product_id: str, video_info: Dict[str, Any], *, channel_id: Optional[str] = None, all_channels: bool = False) -> Dict[str, Any]:
         """Attaches a raw footage item specifically to a product.
 
         `video_info` normally comes from media_service.get_file_info(), whose
@@ -1293,6 +1727,7 @@ class ProductStore:
         fields filled in consistently (absolute in `path`, relative in
         `rel_path`) rather than stored as a half-formed dict.
         """
+        scope = cls._scope(channel_id, all_channels)
         video_info = dict(video_info)
         raw_path = video_info.get("path") or video_info.get("rel_path")
         if raw_path:
@@ -1303,7 +1738,7 @@ class ProductStore:
         else:
             rel = None
 
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             for product in products:
                 if product["id"] == product_id:
                     v_list = product.setdefault("videos", [])
@@ -1319,11 +1754,12 @@ class ProductStore:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
     @classmethod
-    def remove_video_from_product(cls, product_id: str, video_path: str) -> Dict[str, Any]:
+    def remove_video_from_product(cls, product_id: str, video_path: str, *, channel_id: Optional[str] = None, all_channels: bool = False) -> Dict[str, Any]:
         """Removes a footage link from a product."""
+        scope = cls._scope(channel_id, all_channels)
         rel = _to_relative(video_path)
         abs_str = str(_to_absolute(video_path)) if video_path else None
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             for product in products:
                 if product["id"] == product_id:
                     v_list = product.get("videos", [])
@@ -1338,24 +1774,41 @@ class ProductStore:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
     @classmethod
-    def get_product_videos(cls, product_id: str) -> List[Dict[str, Any]]:
+    def get_product_videos(
+        cls, product_id: str, *, channel_id: Optional[str] = None, all_channels: bool = False
+    ) -> List[Dict[str, Any]]:
         """Retrieves all footage assigned to a product."""
-        product = cls.get(product_id)
+        product = cls.get(product_id, channel_id=channel_id, all_channels=all_channels)
         if not product:
             return []
         return product.get("videos", [])
 
     @classmethod
-    def remove_angle(cls, product_id: str, angle_id: str, batch: Optional[int] = None) -> Dict[str, Any]:
+    def remove_angle(
+        cls,
+        product_id: str,
+        angle_id: str,
+        batch: Optional[int] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+    ) -> Dict[str, Any]:
         """
         Drop one angle (its hook, script and caption) from a product.
 
         Returns what happened, including whether the product itself was removed
         because that was its last angle -- a product with no angles left is an
         empty card in the tracker, not something to keep.
+
+        Check + write happen in ONE scoped transaction (it used to read with
+        get() and write back the whole angle list with update(), which could
+        drop a concurrent writer's angle change).  The cached shot list is
+        deleted after commit (never nested on the same sqlite connection).
         """
-        product = cls.get(product_id)
-        if not product:
+        scope = cls._scope(channel_id, all_channels)
+        # Same get() (and so the same reconcile pass) the old code ran first;
+        # the decision itself is re-made inside the transaction below.
+        if not cls.get(product_id, channel_id=channel_id, all_channels=all_channels):
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
         effective_batch = batch
@@ -1364,38 +1817,50 @@ class ProductStore:
             if match_b:
                 effective_batch = int(match_b.group(1))
 
-        angles = product.get("angles") or []
-        target = next(
-            (
-                a for a in angles
-                if (a.get("angle_id") or a.get("id")) == angle_id
-                and (effective_batch is None or (a.get("batch") or 1) == effective_batch)
-            ),
-            None,
-        )
-        if not target:
-            raise ValueError(f"ไม่พบมุม '{angle_id}' ในสินค้านี้")
+        result: Dict[str, Any]
+        with cls._scoped_mutate(scope) as products:
+            product = next((p for p in products if p.get("id") == product_id), None)
+            if not product:
+                raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
-        if target.get("status") == "posted" or target.get("posted_at"):
-            raise ValueError(f"ไม่อนุญาตให้ลบมุม '{target.get('angle_name') or angle_id}' เนื่องจากถูกโพสต์ลง TikTok แล้ว (ต้องเก็บไว้เป็นหลักฐาน)")
+            angles = product.get("angles") or []
+            target = next(
+                (
+                    a for a in angles
+                    if (a.get("angle_id") or a.get("id")) == angle_id
+                    and (effective_batch is None or (a.get("batch") or 1) == effective_batch)
+                ),
+                None,
+            )
+            if not target:
+                raise ValueError(f"ไม่พบมุม '{angle_id}' ในสินค้านี้")
 
-        remaining = [a for a in angles if a is not target]
-        try:
-            from scripts.shot_lists_store import ShotListsStore
+            if target.get("status") == "posted" or target.get("posted_at"):
+                raise ValueError(f"ไม่อนุญาตให้ลบมุม '{target.get('angle_name') or angle_id}' เนื่องจากถูกโพสต์ลง TikTok แล้ว (ต้องเก็บไว้เป็นหลักฐาน)")
+
             del_b = effective_batch or target.get("batch")
-            ShotListsStore.delete(product_id, angle_id, batch=del_b)
-        except Exception:
-            pass
+            remaining = [a for a in angles if a is not target]
+            if not remaining:
+                products[:] = [p for p in products if p.get("id") != product_id]
+                result = {"angle_removed": angle_id, "product_removed": product_id, "angles_left": 0}
+            else:
+                product["angles"] = remaining
+                product["updated_at"] = cls._now()
+                result = {"angle_removed": angle_id, "product_removed": None, "angles_left": len(remaining)}
 
-        if not remaining:
-            cls.delete(product_id)
-            return {"angle_removed": angle_id, "product_removed": product_id, "angles_left": 0}
-
-        cls.update(product_id, angles=remaining)
-        return {"angle_removed": angle_id, "product_removed": None, "angles_left": len(remaining)}
+        cls._invalidate_shot_lists(product_id, [(angle_id, del_b)])
+        return result
 
     @classmethod
-    def find_by_project(cls, project_name: str, product_id: str = "", angle_id: str = ""):
+    def find_by_project(
+        cls,
+        project_name: str,
+        product_id: str = "",
+        angle_id: str = "",
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+    ):
         """
         Which product/angle a rendered project came from.
 
@@ -1412,7 +1877,7 @@ class ProductStore:
         and it's safer to say "not found" than to silently match on a
         collision-prone name.
         """
-        products = cls._load()
+        products = cls._scoped_load(cls._scope(channel_id, all_channels))
         proj_batch = _extract_batch_from_name(project_name)
 
         # 1. Direct match on angle.project_name
@@ -1460,8 +1925,9 @@ class ProductStore:
         return None, None
 
     @classmethod
-    def delete(cls, product_id: str, force: bool = False) -> None:
-        with cls._mutate() as products:
+    def delete(cls, product_id: str, force: bool = False, *, channel_id: Optional[str] = None, all_channels: bool = False) -> None:
+        scope = cls._scope(channel_id, all_channels)
+        with cls._scoped_mutate(scope) as products:
             target = next((p for p in products if p["id"] == product_id), None)
             if not target:
                 raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
@@ -1480,11 +1946,16 @@ class ProductStore:
     # Reading & Automatic Reconciliation
     # ------------------------------------------------------------------
     @classmethod
-    def reconcile_existing_projects(cls) -> bool:
+    def reconcile_existing_projects(cls, *, channel_id: Optional[str] = None, all_channels: bool = False) -> bool:
         """
         Scans 03_Projects and 04_Exports to match existing rendered projects
         with their corresponding angles in products.json.
+
+        Scoped: only the products visible to ``channel_id`` are matched and
+        rewritten (another channel's products are never exposed to the scan,
+        so a project folder can never unlink/claim another channel's angle).
         """
+        scope = cls._scope(channel_id, all_channels)
         projects_dir = BASE_DIR / "03_Projects"
         exports_dir = BASE_DIR / "04_Exports" / "Ready_to_post"
         # A posted clip's mp4 lives here now (Round POST-1.4) -- if this scan
@@ -1499,7 +1970,7 @@ class ProductStore:
             return False
 
         now = time.monotonic()
-        reconcile_scope = (str(BASE_DIR), str(STORE_PATH))
+        reconcile_scope = (str(BASE_DIR), str(STORE_PATH), scope.channel_id, scope.include_legacy)
         if (
             cls._last_reconcile_scope == reconcile_scope
             and now - cls._last_reconcile_at < cls._RECONCILE_MIN_INTERVAL_S
@@ -1520,7 +1991,14 @@ class ProductStore:
         # locked"). Snapshot everything the scan needs from ExportRegistry
         # here instead, and hand it in as plain data -- see
         # _preferred_registered_export / _registry_record_for_path.
-        export_records = ExportRegistry.all()
+        # P2.2: same scope as the products scan, so a channel's angles are
+        # only ever matched against that channel's exports.
+        if scope.channel_id is not None:
+            export_records = ExportRegistry.all(channel_id=scope.channel_id)
+        elif scope.all_channels:
+            export_records = ExportRegistry.all(all_channels=True)
+        else:
+            export_records = ExportRegistry.all()
 
         changed = False
         # The scan below reads the disk and rewrites angle status/paths, so
@@ -1531,7 +2009,7 @@ class ProductStore:
         # could each read the same list and one silently drop the other's
         # reconciliation. _mutate() commits without rewriting when nothing
         # actually changed, which is the common case here.
-        with cls._mutate() as products:
+        with cls._scoped_mutate(scope) as products:
             if not products:
                 return False
             changed = cls._reconcile_into(products, projects_dir, exports_dir, posted_dir, export_records)
@@ -1595,6 +2073,12 @@ class ProductStore:
                 # a project re-rendered without cleanup can leave more than
                 # one export file behind; always prefer the latest one.
                 mp4_path = _find_mp4_by_glob(p_folder.name, exports_dir, posted_dir)
+
+            # An interrupted worker's partial manifest must not resurrect the
+            # orphaned in_production state restored during restart recovery.
+            # Existing completed output remains authoritative.
+            if p_data.get("render_interrupted") and not mp4_path:
+                continue
 
             # Match against products.
             #
@@ -2010,29 +2494,35 @@ class ProductStore:
         return changed
 
     @classmethod
-    def get_all(cls) -> List[Dict[str, Any]]:
-        cls.reconcile_existing_projects()
-        return cls._load()
+    def get_all(cls, *, channel_id: Optional[str] = None, all_channels: bool = False) -> List[Dict[str, Any]]:
+        scope = cls._scope(channel_id, all_channels)
+        cls.reconcile_existing_projects(channel_id=channel_id, all_channels=all_channels)
+        return cls._scoped_load(scope)
 
     @classmethod
-    def list(cls, status: Optional[str] = None) -> List[Dict[str, Any]]:
-        cls.reconcile_existing_projects()
-        products = cls._load()
+    def list(
+        cls, status: Optional[str] = None, *, channel_id: Optional[str] = None, all_channels: bool = False
+    ) -> List[Dict[str, Any]]:
+        scope = cls._scope(channel_id, all_channels)
+        cls.reconcile_existing_projects(channel_id=channel_id, all_channels=all_channels)
+        products = cls._scoped_load(scope)
         if status:
             products = [p for p in products if p.get("status") == status]
         return sorted(products, key=lambda p: p.get("updated_at", ""), reverse=True)
 
     @classmethod
-    def get(cls, product_id: str) -> Optional[Dict[str, Any]]:
-        cls.reconcile_existing_projects()
-        for product in cls._load():
+    def get(cls, product_id: str, *, channel_id: Optional[str] = None, all_channels: bool = False) -> Optional[Dict[str, Any]]:
+        """Product by id within the scope; another channel's id -> None (404)."""
+        scope = cls._scope(channel_id, all_channels)
+        cls.reconcile_existing_projects(channel_id=channel_id, all_channels=all_channels)
+        for product in cls._scoped_load(scope):
             if product["id"] == product_id:
                 return product
         return None
 
     @classmethod
-    def summary(cls) -> Dict[str, int]:
-        products = cls._load()
+    def summary(cls, *, channel_id: Optional[str] = None, all_channels: bool = False) -> Dict[str, int]:
+        products = cls._scoped_load(cls._scope(channel_id, all_channels))
         counts = {status: 0 for status in STATUSES}
         for product in products:
             status = product.get("status")

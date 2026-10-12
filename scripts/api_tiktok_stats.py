@@ -12,16 +12,31 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from scripts.channel_scope import ChannelScope, get_channel_scope, require_writable
+from scripts.channel_store import ChannelError
+from scripts.channel_workflows import api_store_kwargs
 from pydantic import BaseModel, Field
 
 from scripts.post_log import PostLog
 from scripts.product_store import ProductStore
 from scripts.tiktok_pending import TikTokPending, TikTokIgnored
+from scripts.posting_jobs import PostingJobStore, account_check
 
 router = APIRouter(prefix="/api/tiktok-stats", tags=["tiktok-stats"])
 
 MAX_ROWS = 200
+
+
+def _scope_kwargs(scope):
+    # Direct legacy Python callers have no request dependency. HTTP always resolves main explicitly.
+    return api_store_kwargs(scope) if isinstance(scope, ChannelScope) else {}
+
+
+def _guard_write(scope):
+    if isinstance(scope, ChannelScope) and not scope.is_implicit_default:
+        require_writable(scope)
+
 
 
 class StatsRow(BaseModel):
@@ -41,6 +56,7 @@ class StatsRow(BaseModel):
 class StatsImportRequest(BaseModel):
     rows: List[StatsRow] = Field(default_factory=list)
     synced_at: Optional[str] = None
+    source_account: Optional[str] = None
 
 
 def _clean_row(row: StatsRow) -> Dict[str, Any]:
@@ -59,7 +75,7 @@ def _clean_row(row: StatsRow) -> Dict[str, Any]:
     return data
 
 
-def _export_clip_candidates() -> List[Dict[str, Any]]:
+def _export_clip_candidates(scope=None) -> List[Dict[str, Any]]:
     """Exported clip candidates for auto-registering posts.
 
     Users who post directly in TikTok Studio or via OmniCut's Schedule Queue
@@ -76,7 +92,8 @@ def _export_clip_candidates() -> List[Dict[str, Any]]:
     # 1. Gather from ScheduleQueueStore (exact captions and hashtags sent to TikTok)
     try:
         from scripts.schedule_store import ScheduleQueueStore
-        for q in ScheduleQueueStore._load():
+        # Candidate matching must use the importing account's request channel.
+        for q in ScheduleQueueStore.list_items(**_scope_kwargs(scope)):
             caption = str(q.get("caption") or "").strip()
             hook = str(q.get("hook_title") or "").strip()
             product_name = str(q.get("product_name") or "").strip()
@@ -104,12 +121,16 @@ def _export_clip_candidates() -> List[Dict[str, Any]]:
             }
             seen[key] = item
             candidates.append(item)
+    except ChannelError:
+        raise
     except Exception as q_err:
         print(f"[api_tiktok_stats] WARNING: could not load schedule queue for candidates: {q_err}")
 
     # 2. Gather from ProductStore
     try:
-        products = ProductStore.get_all()
+        products = ProductStore.get_all(**_scope_kwargs(scope))
+    except ChannelError:
+        raise
     except Exception as store_err:  # store missing/corrupt must not break sync
         print(f"[api_tiktok_stats] WARNING: could not load products for candidates: {store_err}")
         return candidates
@@ -168,34 +189,54 @@ def _export_clip_candidates() -> List[Dict[str, Any]]:
 
 
 @router.post("/import")
-def import_stats(payload: StatsImportRequest) -> Dict[str, Any]:
+def import_stats(payload: StatsImportRequest, scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
     """Merge extension-scraped Studio rows into the post log."""
+    _guard_write(scope)
+    check = None
+    if isinstance(scope, ChannelScope):
+        check = account_check(scope.channel_id, scope.channel.get("handle") or "", payload.source_account, strict=scope.strict, allow_unknown=True)
+        binding = scope.channel.get("account_binding") or {}
+        if scope.channel_id != "main" or scope.strict:
+            if binding.get("status") != "verified" or binding.get("verified_handle") != check["source_account"]:
+                raise ChannelError(409, "account_binding_unverified", "บัญชีที่ซิงก์ยังไม่ตรงกับ account binding ของช่อง")
+        PostingJobStore().account_audit(scope.channel_id, "stats_source_account", check)
     if len(payload.rows) > MAX_ROWS:
         raise HTTPException(status_code=400, detail=f"ส่งได้ครั้งละไม่เกิน {MAX_ROWS} แถว (ได้ {len(payload.rows)})")
     rows = [_clean_row(r) for r in payload.rows]
+    if check is not None and check["account_verified"]:
+        rows = [{**row, "source_account": check["source_account"], "account_unverified": False} for row in rows]
     rows = [r for r in rows if r.get("title") or r.get("video_id")]
     if not rows:
         raise HTTPException(status_code=400, detail="ไม่มีแถวที่ใช้ได้ — เปิดหน้า TikTok Studio แท็บ โพสต์ ก่อนกดซิงก์")
-    result = PostLog.upsert_tiktok_stats(rows, register_missing=True, clip_candidates=_export_clip_candidates())
+    if check is not None and not check["account_verified"]:
+        synced_at = payload.synced_at or datetime.now().isoformat(timespec="seconds")
+        quarantined = [{**row, "account_unverified": True, "source_account": None} for row in rows]
+        TikTokPending.replace_from_sync(quarantined, synced_at, **_scope_kwargs(scope))
+        return {"total": len(rows), "matched": 0, "updated": 0, "registered": 0, "unmatched": quarantined,
+                "synced_at": synced_at, "pending_count": len(TikTokPending.list_rows(**_scope_kwargs(scope))),
+                "summary": PostLog.summary(**_scope_kwargs(scope)), "account_check": check}
+    result = PostLog.upsert_tiktok_stats(rows, register_missing=True, clip_candidates=_export_clip_candidates(scope), **_scope_kwargs(scope))
     result["synced_at"] = payload.synced_at or datetime.now().isoformat(timespec="seconds")
     # Persist unmatched rows so the Performance tab can hand-match them
     # later -- the side panel's response is gone once the browser closes.
     unmatched_vids = {u.get("video_id") for u in (result.get("unmatched") or []) if u.get("video_id")}
     matched_vids = [r.get("video_id") for r in rows if r.get("video_id") and r.get("video_id") not in unmatched_vids]
-    TikTokPending.replace_from_sync(result.get("unmatched") or [], result["synced_at"])
-    TikTokPending.remove_video_ids(matched_vids)
-    result["pending_count"] = len(TikTokPending.list_rows())
-    result["summary"] = PostLog.summary()
+    TikTokPending.replace_from_sync(result.get("unmatched") or [], result["synced_at"], **_scope_kwargs(scope))
+    TikTokPending.remove_video_ids(matched_vids, **_scope_kwargs(scope))
+    result["pending_count"] = len(TikTokPending.list_rows(**_scope_kwargs(scope)))
+    result["summary"] = PostLog.summary(**_scope_kwargs(scope))
+    if check is not None:
+        result["account_check"] = check
     return result
 
 
 @router.get("/latest")
-def latest_stats() -> Dict[str, Any]:
+def latest_stats(scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
     """Posts that already carry TikTok numbers, newest sync first."""
-    posts = PostLog.list_posts(newest_first=True)
+    posts = PostLog.list_posts(newest_first=True, **_scope_kwargs(scope))
     synced = [p for p in posts if p.get("tiktok_synced_at") or p.get("tiktok_video_id") or (p.get("metrics") and p.get("metrics_filled_at"))]
     synced.sort(key=lambda p: p.get("tiktok_synced_at") or p.get("metrics_filled_at") or "", reverse=True)
-    return {"posts": synced, "count": len(synced), "summary": PostLog.summary()}
+    return {"posts": synced, "count": len(synced), "summary": PostLog.summary(**_scope_kwargs(scope))}
 
 
 class AttachRequest(BaseModel):
@@ -213,99 +254,115 @@ class RestoreRequest(BaseModel):
 
 
 @router.get("/pending")
-def list_pending() -> Dict[str, Any]:
+def list_pending(scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
     """Studio rows auto-matching could not place -- for manual matching."""
-    rows = TikTokPending.list_rows()
+    rows = TikTokPending.list_rows(**_scope_kwargs(scope))
     return {
         "rows": rows,
         "count": len(rows),
-        "ignored_count": len(TikTokIgnored.list_rows()),
+        "ignored_count": len(TikTokIgnored.list_rows(**_scope_kwargs(scope))),
     }
 
 
 @router.get("/clip-candidates")
-def list_clip_candidates() -> Dict[str, Any]:
+def list_clip_candidates(scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
     """Library clips (from the product store) the user can attach a row to."""
-    return {"candidates": _export_clip_candidates()}
+    return {"candidates": _export_clip_candidates(scope)}
 
 
 @router.post("/attach")
-def attach_pending(payload: AttachRequest) -> Dict[str, Any]:
+def attach_pending(payload: AttachRequest, scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
     """Hand-match one pending row: to an existing post (post_id) or to a
     library clip (candidate -> attach-or-register)."""
+    _guard_write(scope)
     try:
-        row = TikTokPending.get(payload.pending_id)
+        row = TikTokPending.get(payload.pending_id, **_scope_kwargs(scope))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    if row.get("account_unverified"):
+        raise ChannelError(409, "source_account_required", "รายการนี้ยังไม่ทราบบัญชี ต้องซิงก์จากบัญชีที่ยืนยันได้ก่อนจับคู่")
     if payload.post_id is None and payload.candidate is None:
         raise HTTPException(status_code=400, detail="ต้องเลือกโพสต์หรือคลิปในคลังก่อนจับคู่")
+    candidate = payload.candidate
+    if candidate is not None and isinstance(scope, ChannelScope):
+        # Resolve the client's selection back to a server-owned candidate. Never trust metadata from another channel.
+        matches = [item for item in _export_clip_candidates(scope)
+                   if item.get("clip_file") == candidate.get("clip_file")
+                   and item.get("angle_key") == candidate.get("angle_key")
+                   and item.get("project_name") == candidate.get("project_name")]
+        if len(matches) != 1:
+            raise ChannelError(404, "resource_not_found", "ไม่พบคลิปที่ร้องขอ")
+        candidate = matches[0]
     try:
-        PostLog.attach_manual(row, post_id=payload.post_id, candidate=payload.candidate)
+        PostLog.attach_manual(row, post_id=payload.post_id, candidate=candidate, **_scope_kwargs(scope))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    TikTokPending.remove(payload.pending_id)
+    TikTokPending.remove(payload.pending_id, **_scope_kwargs(scope))
     return {
         "attached": True,
-        "remaining": len(TikTokPending.list_rows()),
-        "summary": PostLog.summary(),
+        "remaining": len(TikTokPending.list_rows(**_scope_kwargs(scope))),
+        "summary": PostLog.summary(**_scope_kwargs(scope)),
     }
 
 
 @router.post("/pending/ignore")
-def ignore_pending(payload: IgnoreRequest) -> Dict[str, Any]:
+def ignore_pending(payload: IgnoreRequest, scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
     """Row is not one of ours (someone else's clip / irrelevant) -- drop it and permanently record as ignored."""
+    _guard_write(scope)
     try:
-        ignored_entry = TikTokPending.ignore(payload.pending_id)
+        ignored_entry = TikTokPending.ignore(payload.pending_id, **_scope_kwargs(scope))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     return {
         "ignored": True,
         "item": ignored_entry,
-        "remaining": len(TikTokPending.list_rows()),
-        "ignored_count": len(TikTokIgnored.list_rows()),
+        "remaining": len(TikTokPending.list_rows(**_scope_kwargs(scope))),
+        "ignored_count": len(TikTokIgnored.list_rows(**_scope_kwargs(scope))),
     }
 
 
 @router.post("/pending/ignore-all")
-def ignore_all_pending() -> Dict[str, Any]:
+def ignore_all_pending(scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
     """Batch-ignore all remaining pending rows."""
-    count = TikTokPending.ignore_all()
+    _guard_write(scope)
+    count = TikTokPending.ignore_all(**_scope_kwargs(scope))
     return {
         "ignored_count": count,
         "remaining": 0,
-        "total_ignored": len(TikTokIgnored.list_rows()),
+        "total_ignored": len(TikTokIgnored.list_rows(**_scope_kwargs(scope))),
     }
 
 
 @router.get("/ignored")
-def list_ignored() -> Dict[str, Any]:
+def list_ignored(scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
     """List rows that the user skipped/ignored from pending."""
-    rows = TikTokIgnored.list_rows()
+    rows = TikTokIgnored.list_rows(**_scope_kwargs(scope))
     return {"rows": rows, "count": len(rows)}
 
 
 @router.post("/ignored/restore")
-def restore_ignored(payload: RestoreRequest) -> Dict[str, Any]:
+def restore_ignored(payload: RestoreRequest, scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
     """Move a previously ignored row back into pending."""
+    _guard_write(scope)
     try:
-        restored = TikTokPending.restore(payload.ignored_id)
+        restored = TikTokPending.restore(payload.ignored_id, **_scope_kwargs(scope))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     return {
         "restored": True,
         "item": restored,
-        "remaining": len(TikTokPending.list_rows()),
-        "ignored_count": len(TikTokIgnored.list_rows()),
+        "remaining": len(TikTokPending.list_rows(**_scope_kwargs(scope))),
+        "ignored_count": len(TikTokIgnored.list_rows(**_scope_kwargs(scope))),
     }
 
 
 @router.get("/milestones")
-def get_viral_milestones(threshold: int = 1000) -> Dict[str, Any]:
+def get_viral_milestones(threshold: int = 1000, scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
     """
     Returns clips that achieved viral milestones (e.g. >= 1k, 5k, 10k views).
     Includes product details, hook title, and action link to create follow-up clips.
     """
-    posts = PostLog.list_posts(newest_first=True)
+    posts = PostLog.list_posts(newest_first=True, **_scope_kwargs(scope))
     milestone_posts = []
 
     for p in posts:

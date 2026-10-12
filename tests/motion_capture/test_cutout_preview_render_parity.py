@@ -175,7 +175,7 @@ def _preview_sample(motion_fixture_url, source, cutout, artifact_id):
             # other motion-capture gates.
             page = browser.new_page(viewport={"width": 1100, "height": 1100},
                                     ignore_https_errors=True)
-            page.route("**/api/media/cutout-source.mp4", lambda route: route.fulfill(
+            page.route("**/api/media/cutout-source.mp4*", lambda route: route.fulfill(
                 body=source_bytes, content_type="video/mp4"))
 
             def serve_cutout(route):

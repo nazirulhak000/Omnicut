@@ -1090,7 +1090,7 @@ const LazyVideoThumb = React.memo(function LazyVideoThumb({ mediaPath, name, dur
       ) : isDecoding ? (
         <video
           ref={videoRef}
-          src={`/api/media/${mediaKey}#t=0.5`}
+          src={`${toMediaUrl(mediaKey)}#t=0.5`}
           preload="metadata"
           muted
           playsInline
@@ -1594,7 +1594,7 @@ export default function AssetPanel({
 
   const toggleAudioPreview = (e, relPath) => {
     e.stopPropagation();
-    const url = `/api/media/${relPath}`;
+    const url = toMediaUrl(relPath);
     if (audioPlayerRef.current) {
       audioPlayerRef.current.pause();
       if (previewingAudio === url) {
@@ -2199,7 +2199,7 @@ export default function AssetPanel({
                     )}
                   </Row>
                   {visibleFiltered.music.map((m) => {
-                    const isPlayingThis = previewingAudio === `/api/media/${m.file?.rel_path}`;
+                    const isPlayingThis = previewingAudio === toMediaUrl(m.file?.rel_path);
                     const isActive = isTrackActive(m);
                     return (
                       <Row
@@ -2246,7 +2246,7 @@ export default function AssetPanel({
                 </p>
                 {visibleFiltered.sfx.map((s) => {
                   const rel = s.rel_path || s.file?.rel_path;
-                  const isPlayingThis = previewingAudio === `/api/media/${rel}`;
+                  const isPlayingThis = previewingAudio === toMediaUrl(rel);
                   return (
                     <Row
                       key={s.id}
@@ -3046,7 +3046,7 @@ export default function AssetPanel({
 
             <div className="rounded-xl overflow-hidden bg-black flex items-center justify-center max-h-[55vh]">
               <video
-                src={`/api/media/${previewVideo.rel_path || previewVideo.path}`}
+                src={toMediaUrl(previewVideo.rel_path || previewVideo.path)}
                 controls
                 autoPlay
                 className="max-h-[50vh] w-auto max-w-full rounded-lg"

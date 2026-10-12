@@ -1,6 +1,7 @@
 """Visual variety must not outrank the feature the narration describes."""
 from copy import deepcopy
 import hashlib
+import pytest
 
 from scripts.gemini_vision_matcher import GeminiVisionMatcher
 
@@ -43,6 +44,18 @@ def test_no_feature_evidence_keeps_visual_variety_fallback():
     catalog = {"scenes": [_scene(0, "USB-C"), _scene(1, "screen", "side"), _scene(2, "logo", "45deg")]}
     matches = GeminiVisionMatcher.match_script_with_catalog(catalog, _cues("A great product"), 30)
     assert len({m["scene_id"] for m in matches}) == 3
+
+
+@pytest.mark.parametrize("keyword", ["คมชัด", "ใส"])
+@pytest.mark.parametrize("in_keywords", [True, False])
+def test_broad_quality_words_cannot_lock_a_logo_over_the_actual_feature(keyword, in_keywords):
+    hero = _scene(0, keyword, "macro_closeup", f"โลโก้ {keyword}")
+    if not in_keywords:
+        hero["keywords"] = []
+    feature = _scene(1, "USB-C", "side")
+    matches = GeminiVisionMatcher.match_script_with_catalog({"scenes": [hero, feature]}, _cues(f"USB-C เสียง{keyword}"), 30)
+    assert [item["scene_id"] for item in matches] == [1] * 4
+    assert all(keyword not in item["selection_evidence"] for item in matches)
 
 
 def test_cached_catalog_rematches_old_choices_without_cache_write_or_api(tmp_path, monkeypatch):

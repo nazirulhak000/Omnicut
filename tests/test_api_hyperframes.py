@@ -23,6 +23,21 @@ from scripts.export_registry import ExportRegistry
 client = TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def studio_fixture(isolated_storage, monkeypatch):
+    """A writable Studio sandbox; tests never require production compositions."""
+    from scripts import api_hyperframes
+    studio = isolated_storage / "03_Projects" / "_HyperFrames_Studio"
+    studio.mkdir(parents=True)
+    for attribute, name in (("COMPOSITIONS_DIR", "compositions"), ("CLIPS_DIR", "clips"),
+                            ("KIT_DIR", "kit"), ("ASSETS_DIR", "assets")):
+        directory = studio / name
+        directory.mkdir()
+        monkeypatch.setattr(api_hyperframes, attribute, directory)
+    monkeypatch.setattr(api_hyperframes, "STUDIO_DIR", studio)
+    return studio
+
+
 def test_get_hyperframes_status():
     """Status endpoint returns required system check keys."""
     resp = client.get("/api/hyperframes/status")
@@ -80,7 +95,8 @@ def test_create_clip_validation_errors():
         "/api/hyperframes/create-clip",
         json={"clip_id": "bad name with spaces!", "product": "ess02"},
     )
-    assert bad_resp.status_code == 400
+    assert bad_resp.status_code == 422
+    assert bad_resp.json()["code"] == "composition_id_invalid"
 
     # Non-existent product
     no_prod_resp = client.post(
@@ -120,7 +136,7 @@ def test_render_composition_test_mode(tmp_path, monkeypatch):
 
     # Patch COMPOSITIONS_DIR so it finds a mock composition
     mock_comp = tmp_path / "mock-clip-10s.html"
-    mock_comp.write_text('<div data-duration="10">Mock</div>', encoding="utf-8")
+    mock_comp.write_text('<html><head></head><body data-duration="10">Mock</body></html>', encoding="utf-8")
     monkeypatch.setattr(api_hyperframes, "COMPOSITIONS_DIR", tmp_path)
 
     resp = client.post(
@@ -142,6 +158,8 @@ def test_open_studio_endpoint(monkeypatch):
     from scripts import api_hyperframes
 
     monkeypatch.setattr(api_hyperframes.subprocess, "Popen", MagicMock())
+    monkeypatch.setattr(api_hyperframes.urllib.request, "urlopen", MagicMock(side_effect=OSError("offline")))
+    monkeypatch.setattr(api_hyperframes.webbrowser, "open", MagicMock())
     resp = client.post("/api/hyperframes/open-studio", json={"port": 3100})
     assert resp.status_code == 200
     data = resp.json()
@@ -166,19 +184,20 @@ def test_render_composition_final_registers_export(tmp_path, monkeypatch):
     monkeypatch.setattr(api_hyperframes, "EXPORTS_DIR", tmp_path)
 
     mock_comp = tmp_path / "mock-final-30s.html"
-    mock_comp.write_text('<div data-duration="30">Mock Final</div>', encoding="utf-8")
+    mock_comp.write_text('<html><head></head><body data-duration="30">Mock Final</body></html>', encoding="utf-8")
     monkeypatch.setattr(api_hyperframes, "COMPOSITIONS_DIR", tmp_path)
 
     # Mock ExportRegistry.ensure_many
     mock_ensure = MagicMock(return_value=[{"id": "exp_mock_123"}])
     monkeypatch.setattr(api_hyperframes.ExportRegistry, "ensure_many", mock_ensure)
+    product = api_hyperframes.ProductStore.add("Fixture exact product", channel_id="main")
 
     resp = client.post(
         "/api/hyperframes/render",
         json={
             "composition_id": "mock-final-30s",
             "is_test": False,
-            "product_id": "HAT01",
+            "product_id": product["id"],
         },
     )
     assert resp.status_code == 200
@@ -187,3 +206,7 @@ def test_render_composition_final_registers_export(tmp_path, monkeypatch):
     assert data["is_test"] is False
     assert data["export_id"] == "exp_mock_123"
     assert mock_ensure.called
+    row = mock_ensure.call_args.args[0][0]
+    assert row["product_id"] == product["id"]
+    assert mock_ensure.call_args.kwargs["channel_id"] == "main"
+    assert mock_ensure.call_args.kwargs["job_scope"]["channel_identity_snapshot"]["channel_id"] == "main"

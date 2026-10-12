@@ -44,16 +44,41 @@ ACTIVE_JOBS: Dict[str, Dict[str, Any]] = {}
 DEFAULT_OWNER = "local"
 
 
-def _owned_by(job: Dict[str, Any], owner_id: Optional[str]) -> bool:
+def pin_job_scope(channel_id=None, job_scope=None) -> Dict[str, Any]:
+    """Copy JSON provenance once, rejecting an owner conflict without normalization."""
+    import json
+    from scripts.channel_store import ChannelError, is_valid_channel_id
+    try:
+        pinned = json.loads(json.dumps(job_scope or {}, ensure_ascii=False))
+    except (TypeError, ValueError) as exc:
+        raise ChannelError(422, "channel_scope_invalid", "ข้อมูลขอบเขตงานต้องเป็น JSON") from exc
+    fields = {"channel_id", "channel_scope_source", "channel_scope_strict", "channel_status", "channel_revision", "channel_identity_hash", "channel_identity_snapshot"}
+    if not isinstance(pinned, dict) or set(pinned) - fields:
+        raise ChannelError(422, "channel_scope_invalid", "ข้อมูลขอบเขตงานไม่ถูกต้อง")
+    captured_id = pinned.get("channel_id")
+    if channel_id is not None and captured_id is not None and channel_id != captured_id:
+        raise ChannelError(422, "channel_scope_conflict", "ช่องของงานไม่ตรงกับ request")
+    effective = channel_id if channel_id is not None else captured_id
+    if effective is not None:
+        if not is_valid_channel_id(effective):
+            raise ChannelError(422, "channel_scope_invalid", "channel_id ของงานไม่ถูกต้อง")
+        snapshot = pinned.get("channel_identity_snapshot")
+        if snapshot is not None and (not isinstance(snapshot, dict) or snapshot.get("id") != effective):
+            raise ChannelError(422, "channel_scope_conflict", "identity ของงานไม่ตรงกับช่อง")
+        pinned["channel_id"] = effective
+    return pinned
+
+
+def _owned_by(job: Dict[str, Any], owner_id: Optional[str], channel_id: Optional[str] = None) -> bool:
     """True if `owner_id` is unset (unscoped call) or matches the job's owner.
 
     Jobs created before this field existed have no "owner_id" key -- treat
     those as DEFAULT_OWNER so in-flight jobs from just before a hot-reload
     keep working under scoping.
     """
-    if owner_id is None:
-        return True
-    return job.get("owner_id", DEFAULT_OWNER) == owner_id
+    owner_matches = owner_id is None or job.get("owner_id", DEFAULT_OWNER) == owner_id
+    channel_matches = channel_id is None or (job.get("channel_id") or "main") == channel_id
+    return owner_matches and channel_matches
 
 # This machine renders on CPU with no CUDA and 13.7GB RAM (see
 # _Docs/PRD_phase1.md section 3) -- two ffmpeg encodes or two TTS calls at
@@ -103,8 +128,13 @@ def _prune_old_jobs(max_keep: int = 50) -> None:
         ACTIVE_JOBS.pop(k, None)
 
 
-def create_job(job_id: str, message: str = "กำลังเริ่มต้นกระบวนการ...", owner_id: Optional[str] = None) -> Dict[str, Any]:
+def create_job(job_id: str, message: str = "กำลังเริ่มต้นกระบวนการ...", owner_id: Optional[str] = None, *, channel_id: Optional[str] = None, job_scope: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Register a queued job and return it."""
+    pinned = pin_job_scope(channel_id, job_scope)
+    prior = ACTIVE_JOBS.get(job_id)
+    if prior and pinned.get("channel_id") and not _owned_by(prior, owner_id, pinned["channel_id"]):
+        from scripts.channel_store import ChannelError
+        raise ChannelError(409, "channel_job_collision", "id งานมีอยู่แล้ว")
     _prune_old_jobs(max_keep=50)
     ACTIVE_JOBS[job_id] = {
         "id": job_id,
@@ -120,11 +150,12 @@ def create_job(job_id: str, message: str = "กำลังเริ่มต้
         # loop both check this between units of work and unwind with
         # RenderCancelled when it is set. request_cancel() is the only writer.
         "cancel_event": threading.Event(),
+        **pinned,
     }
     return ACTIVE_JOBS[job_id]
 
 
-def get_job(job_id: str, owner_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def get_job(job_id: str, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Retrieves a single job by ID, scoped to `owner_id` when given.
 
     A job_id that exists but belongs to a different owner behaves exactly
@@ -132,13 +163,13 @@ def get_job(job_id: str, owner_id: Optional[str] = None) -> Optional[Dict[str, A
     would confirm the id exists.
     """
     job = ACTIVE_JOBS.get(job_id)
-    if not job or not _owned_by(job, owner_id):
+    if not job or not _owned_by(job, owner_id, channel_id):
         return None
     return job
 
 
 @contextmanager
-def render_slot(job_id: str, owner_id: Optional[str] = None) -> Iterator[None]:
+def render_slot(job_id: str, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> Iterator[None]:
     """
     Block until it is this job's turn to actually render, updating its status
     to "queued" with an explanatory message for as long as it has to wait.
@@ -164,7 +195,7 @@ def render_slot(job_id: str, owner_id: Optional[str] = None) -> Iterator[None]:
                 )
             _QUEUED_COUNT += 1
 
-        job = get_job(job_id, owner_id=owner_id)
+        job = get_job(job_id, owner_id=owner_id, channel_id=channel_id)
         if job:
             job["status"] = "queued"
             job["message"] = "รอคิว — เครื่องนี้ตัดต่อได้ทีละคลิป มีงานอื่นกำลังทำอยู่"
@@ -182,10 +213,10 @@ def render_slot(job_id: str, owner_id: Optional[str] = None) -> Iterator[None]:
         _RENDER_SLOT.release()
 
 
-def progress_reporter(job_id: str, owner_id: Optional[str] = None) -> Callable[[str, float], None]:
+def progress_reporter(job_id: str, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> Callable[[str, float], None]:
     """A `progress_callback` for the pipeline that writes into the job."""
     def on_progress(msg: str, progress: float) -> None:
-        job = get_job(job_id, owner_id=owner_id)
+        job = get_job(job_id, owner_id=owner_id, channel_id=channel_id)
         if not job:
             return
         # A "cancelling" job is already unwinding -- don't bounce it back to
@@ -212,9 +243,9 @@ def progress_reporter(job_id: str, owner_id: Optional[str] = None) -> Callable[[
     return on_progress
 
 
-def update_progress(job_id: str, progress: float, message: str = "", owner_id: Optional[str] = None) -> None:
+def update_progress(job_id: str, progress: float, message: str = "", owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> None:
     """Direct helper to update a job's progress and message."""
-    job = get_job(job_id, owner_id=owner_id)
+    job = get_job(job_id, owner_id=owner_id, channel_id=channel_id)
     if not job:
         return
     if job.get("status") not in ("cancelling", "cancelled"):
@@ -233,7 +264,7 @@ def update_progress(job_id: str, progress: float, message: str = "", owner_id: O
         job["logs"] = job["logs"][-50:]
 
 
-def request_cancel(job_id: str, owner_id: Optional[str] = None) -> bool:
+def request_cancel(job_id: str, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> bool:
     """
     Ask a running/queued job to stop. Sets its cancel_event (so the pipeline
     and the ffmpeg polling loop notice cooperatively) and moves its status to
@@ -241,7 +272,7 @@ def request_cancel(job_id: str, owner_id: Optional[str] = None) -> bool:
     thread may take a moment to actually unwind. Returns False when the job
     is unknown or already in a terminal state (nothing left to cancel).
     """
-    job = get_job(job_id, owner_id=owner_id)
+    job = get_job(job_id, owner_id=owner_id, channel_id=channel_id)
     if not job:
         return False
     if job.get("status") in ("completed", "failed", "cancelled"):
@@ -265,29 +296,29 @@ def request_cancel(job_id: str, owner_id: Optional[str] = None) -> bool:
     return True
 
 
-def is_cancel_requested(job_id: str, owner_id: Optional[str] = None) -> bool:
+def is_cancel_requested(job_id: str, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> bool:
     """True if request_cancel() has been called for this job."""
-    job = get_job(job_id, owner_id=owner_id)
+    job = get_job(job_id, owner_id=owner_id, channel_id=channel_id)
     if not job:
         return False
     event = job.get("cancel_event")
     return bool(event and event.is_set())
 
 
-def get_cancel_event(job_id: str, owner_id: Optional[str] = None) -> Optional[threading.Event]:
+def get_cancel_event(job_id: str, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> Optional[threading.Event]:
     """The job's cancel_event itself, for threading into the pipeline/ffmpeg
     call as `cancel_event=` rather than polling by job_id from deep inside."""
-    job = get_job(job_id, owner_id=owner_id)
+    job = get_job(job_id, owner_id=owner_id, channel_id=channel_id)
     if not job:
         return None
     return job.get("cancel_event")
 
 
-def cancel_job(job_id: str, message: str = "งานถูกยกเลิกโดยผู้ใช้", owner_id: Optional[str] = None) -> None:
+def cancel_job(job_id: str, message: str = "งานถูกยกเลิกโดยผู้ใช้", owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> None:
     """Mark a job's final, terminal "cancelled" state once its worker thread
     has actually unwound (called from the RenderCancelled except branch) --
     distinct from "cancelling", which only means a stop was requested."""
-    job = get_job(job_id, owner_id=owner_id)
+    job = get_job(job_id, owner_id=owner_id, channel_id=channel_id)
     if not job:
         return
     job["status"] = "cancelled"
@@ -313,9 +344,9 @@ def media_url(file_path: Optional[str]) -> Optional[str]:
     return f"/api/media/{relative}".replace("\\", "/")
 
 
-def complete_job(job_id: str, result: Dict[str, Any], message: str = "🎉 การตัดต่อเสร็จสมบูรณ์ 100%!", owner_id: Optional[str] = None) -> None:
+def complete_job(job_id: str, result: Dict[str, Any], message: str = "🎉 การตัดต่อเสร็จสมบูรณ์ 100%!", owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> None:
     """Publish completion only after the final project write has settled."""
-    job = get_job(job_id, owner_id=owner_id)
+    job = get_job(job_id, owner_id=owner_id, channel_id=channel_id)
     if not job:
         return
     shaped_result = {
@@ -333,7 +364,7 @@ def complete_job(job_id: str, result: Dict[str, Any], message: str = "🎉 ก�
     project_name = result.get("project_name")
     if project_name:
         try:
-            metadata = finalize_incremental_render(project_name)
+            metadata = finalize_incremental_render(project_name, **({"channel_id": job["channel_id"]} if job.get("channel_id") else {}))
             if metadata:
                 job["incremental_render"] = {
                     "schema_version": metadata.get("schema_version"),
@@ -359,7 +390,7 @@ def complete_job(job_id: str, result: Dict[str, Any], message: str = "🎉 ก�
     job["status"] = "completed"
 
 
-def finalize_incremental_render(project_name: Optional[str]) -> Optional[Dict[str, Any]]:
+def finalize_incremental_render(project_name: Optional[str], *, channel_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Stamp fingerprints after the pipeline has atomically saved its manifest.
 
     The pipeline's stage implementation owns the initial manifest write, while
@@ -378,13 +409,16 @@ def finalize_incremental_render(project_name: Optional[str]) -> Optional[Dict[st
     manifest = ProjectManifest.load(project_name)
     if not manifest:
         return None
+    if channel_id is not None:
+        from scripts.channel_scope import ChannelScope, ensure_same_channel
+        ensure_same_channel(ChannelScope(channel_id, "header", False), manifest.get("channel_id"), resource_label="โปรเจกต์", allow_legacy_main=True)
     metadata = build_incremental_render_metadata(manifest)
     updated = ProjectManifest.save(project_name, incremental_render=metadata)
     return updated.get("incremental_render")
 
 
-def fail_job(job_id: str, error: Any, owner_id: Optional[str] = None) -> None:
-    job = get_job(job_id, owner_id=owner_id)
+def fail_job(job_id: str, error: Any, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> None:
+    job = get_job(job_id, owner_id=owner_id, channel_id=channel_id)
     if not job:
         return
     job["status"] = "failed"

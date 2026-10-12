@@ -422,7 +422,7 @@ def test_smooth_picker_uses_native_master_then_restores_padded_proxy(app_url):
                 assert page.locator(MARKERS).count() == 0, "markers leaked into normal proxy preview"
                 saved = _save(page, manifest)
                 assert len(saved["subject_points"]) == 1
-                assert saved["prompt_reference_source"] == master_url
+                assert saved["prompt_reference_source"] == f"{master_url}?channel=main"
                 assert saved["prompt_reference_start"] == 0
                 pick.click()
                 page.locator(MARKERS).first.wait_for(timeout=10000)

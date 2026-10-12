@@ -8,13 +8,15 @@ Provides:
 
 import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
 from pydantic import BaseModel
 
 from scripts.hook_generator import HookVariationEngine, HOOK_STYLES
 from scripts.product_store import ProductStore
 from scripts.project_manifest import ProjectManifest
 from scripts.tts_sanitizer import TTSSanitizer
+from scripts.channel_scope import ChannelScope
+from scripts.channel_workflows import get_writable_workflow_scope, require_project_owner, require_record_owner
 
 router = APIRouter(prefix="/api/hooks", tags=["hooks"])
 
@@ -72,9 +74,9 @@ def generate_hooks(req: HookGenerateRequest):
 
 
 @router.post("/apply-angle")
-def apply_hook_to_angle(req: ApplyAngleHookRequest):
+def apply_hook_to_angle(req: ApplyAngleHookRequest, channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     """Apply a selected hook variant to a specific product angle in store."""
-    product = ProductStore.get(req.product_id)
+    product = ProductStore.get(req.product_id, channel_id=channel_scope.channel_id)
     if not product:
         raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า ID '{req.product_id}'")
 
@@ -111,7 +113,7 @@ def apply_hook_to_angle(req: ApplyAngleHookRequest):
         target_angle["tts_lines"] = script_lines
 
     angles[matched_idx] = target_angle
-    updated_product = ProductStore.update(req.product_id, {"angles": angles})
+    updated_product = ProductStore.update(req.product_id, angles=angles, channel_id=channel_scope.channel_id)
 
     return {
         "status": "success",
@@ -123,9 +125,11 @@ def apply_hook_to_angle(req: ApplyAngleHookRequest):
 
 
 @router.post("/apply-project")
-def apply_hook_to_project(req: ApplyProjectHookRequest, background_tasks: BackgroundTasks):
+def apply_hook_to_project(req: ApplyProjectHookRequest, background_tasks: BackgroundTasks,
+                          channel_scope: ChannelScope = Depends(get_writable_workflow_scope)):
     """Apply a hook variant to an active project's manifest with optional instant reroll."""
     project_name = req.project_name.strip()
+    require_project_owner(channel_scope, project_name, writable=True)
     try:
         manifest = ProjectManifest.load(project_name)
     except Exception as err:
@@ -146,18 +150,30 @@ def apply_hook_to_project(req: ApplyProjectHookRequest, background_tasks: Backgr
             ov["label"] = manifest["hook_label"]
     manifest["overlays"] = overlays
 
-    ProjectManifest.save(project_name, manifest)
+    def update_hook(current):
+        require_record_owner(channel_scope, current, resource_label="โปรเจกต์")
+        fields = {key: variant.get(key) or current.get(key, "")
+                  for key in ("hook_title", "hook_brand", "hook_model", "hook_label")}
+        fresh_overlays = current.get("overlays") or []
+        for overlay in fresh_overlays:
+            if overlay.get("kind") == "hook":
+                overlay.update(brand=fields["hook_brand"], model=fields["hook_model"],
+                               label=fields["hook_label"])
+        fields["overlays"] = fresh_overlays
+        return fields
+    manifest = ProjectManifest.save_merge(project_name, update_hook)
 
     reroll_job_id = None
     if req.auto_reroll:
-        from scripts.api_phase1 import _execute_reroll
-        reroll_job_id = str(uuid.uuid4())
+        from scripts.api_phase1 import RerollRequest, trigger_reroll
         overrides = {
             "hook_brand": manifest["hook_brand"],
             "hook_model": manifest["hook_model"],
             "hook_label": manifest["hook_label"],
         }
-        background_tasks.add_task(_execute_reroll, reroll_job_id, project_name, "subtitles", overrides)
+        job = trigger_reroll(RerollRequest(project_name=project_name, part="subtitles", **overrides),
+                             background_tasks, channel_scope)
+        reroll_job_id = job["job_id"]
 
     return {
         "status": "success",

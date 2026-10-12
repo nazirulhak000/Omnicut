@@ -1,3 +1,6 @@
+import { ChannelWorkspaceBar } from './context/ChannelContext.jsx';
+import { channelLocalStorage } from './lib/channelStorage.js';
+import { activeChannel } from './lib/channelRuntime.js';
 import { filmingReturnUrl, filmingUrl } from './lib/mobileStudioFlow.js';
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import Sidebar from './components/Sidebar';
@@ -54,6 +57,8 @@ function resolveInitialMobileMode() {
 }
 
 export default function App() {
+  const [workspaceStorage] = useState(channelLocalStorage);
+
   // Check if opened via Mobile Quick Post QR code
   const [isQuickPostMode] = useState(() => {
     try {
@@ -172,7 +177,7 @@ export default function App() {
   const cameFromLocalStorageRef = useRef(false);
   const [activeProductContext, setActiveProductContext] = useState(() => {
     try {
-      const raw = localStorage.getItem('capcut_active_product_context');
+      const raw = workspaceStorage.getItem('capcut_active_product_context');
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (parsed) cameFromLocalStorageRef.current = true;
@@ -183,13 +188,13 @@ export default function App() {
   });
 
   const [selectedAngleIndex, setSelectedAngleIndex] = useState(() => {
-    const raw = localStorage.getItem('capcut_selected_angle_index');
+    const raw = workspaceStorage.getItem('capcut_selected_angle_index');
     return raw ? parseInt(raw, 10) || 0 : 0;
   });
 
   const [activeAngleContext, setActiveAngleContext] = useState(() => {
     try {
-      const raw = localStorage.getItem('capcut_active_angle_context');
+      const raw = workspaceStorage.getItem('capcut_active_angle_context');
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
@@ -221,15 +226,15 @@ export default function App() {
   useEffect(() => {
     try {
       if (activeProductContext) {
-        localStorage.setItem('capcut_active_product_context', JSON.stringify(activeProductContext));
+        workspaceStorage.setItem('capcut_active_product_context', JSON.stringify(activeProductContext));
       } else {
-        localStorage.removeItem('capcut_active_product_context');
+        workspaceStorage.removeItem('capcut_active_product_context');
       }
-      localStorage.setItem('capcut_selected_angle_index', String(selectedAngleIndex));
+      workspaceStorage.setItem('capcut_selected_angle_index', String(selectedAngleIndex));
       if (activeAngleContext) {
-        localStorage.setItem('capcut_active_angle_context', JSON.stringify(activeAngleContext));
+        workspaceStorage.setItem('capcut_active_angle_context', JSON.stringify(activeAngleContext));
       } else {
-        localStorage.removeItem('capcut_active_angle_context');
+        workspaceStorage.removeItem('capcut_active_angle_context');
       }
     } catch (e) {
       console.error('Failed to save context to localStorage:', e);
@@ -441,6 +446,11 @@ export default function App() {
   };
 
   const [highlightExportVideo, setHighlightExportVideo] = useState(null);
+  const [gadgetReviewTarget, setGadgetReviewTarget] = useState(null);
+  const openGadgetReview = projectId => {
+    setGadgetReviewTarget({ projectId, channelId: activeChannel() });
+    setActiveTab('gadget');
+  };
 
   const handleNavigateTab = (tab, extra = null) => {
     if (tab === 'flow') {
@@ -470,6 +480,14 @@ export default function App() {
     setActiveTab(tab);
   };
 
+  if (isQuickPostMode) {
+    return <ErrorBoundary><Suspense fallback={<LoadingSpinner message="กำลังเปิดตัวช่วยโพสต์..." />}>
+      <MobileQuickPostPage onExit={() => {
+        window.location.href = `${window.location.pathname}?channel=${encodeURIComponent(activeChannel())}`;
+      }} />
+    </Suspense></ErrorBoundary>;
+  }
+
   if (filmingSessionId) {
     return (
       <div className={`h-screen w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
@@ -495,6 +513,7 @@ export default function App() {
   if (isMobileQuickMode) {
     return (
       <div className={`h-screen w-screen overflow-y-auto bg-slate-950 ${uiFont}`}>
+        <ChannelWorkspaceBar />
         <ErrorBoundary>
           <Suspense fallback={<LoadingSpinner message="กำลังเปิด OmniCut Mobile Studio..." />}>
             <MobileQuickStudio
@@ -527,6 +546,7 @@ export default function App() {
           {/* The editor renders its own activity indicator inside the header
               (EditorShell) -- floating it here covered the render button. */}
 
+          {activeTab === 'editor' && <ChannelWorkspaceBar />}
           {/* ── Topbar (Hidden on Manual Editor to maximize editing workspace) ── */}
           {activeTab !== 'editor' && (
             <Topbar
@@ -574,6 +594,7 @@ export default function App() {
                 {activeTab === 'gadget' && (
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลด Gadget Media..." />}>
                     <GadgetMediaHub
+                      initialProjectId={gadgetReviewTarget?.channelId === activeChannel() ? gadgetReviewTarget.projectId : ''}
                       onApplyToStudio={handleApplyScriptFromLab}
                       onGoToEditor={(payload) => handleNavigateTab('editor', payload)}
                       onGoToGallery={(payload) => handleNavigateTab('gallery', payload)}
@@ -648,7 +669,8 @@ export default function App() {
                 {activeTab === 'creative' && (
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลด Creative Studio..." />}>
                     <HyperFramesHub
-                      onNavigateToGallery={() => setActiveTab('gallery')}
+                      onNavigateToGallery={exportId => handleNavigateTab('gallery', { taskResult: { export_id: exportId } })}
+                      onOpenGadgetReview={openGadgetReview}
                     />
                   </Suspense>
                 )}

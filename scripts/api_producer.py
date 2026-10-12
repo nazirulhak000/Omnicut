@@ -16,14 +16,21 @@ import datetime
 import ipaddress
 import socket
 import urllib.parse
+from urllib.parse import urlparse
+import threading
+from functools import wraps
 from datetime import timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from scripts.channel_scope import ChannelScope, get_channel_scope, require_writable
+from scripts.channel_store import ChannelError
+from scripts.channel_workflows import api_store_kwargs
+from scripts.channel_ownership import reject_foreign_body_channel
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 
-from scripts.config import ASSETS_DIR
+from scripts.config import ASSETS_DIR, BASE_DIR
 from scripts.product_store import ProductStore
 from scripts.tts_sanitizer import TTSSanitizer
 
@@ -36,6 +43,33 @@ MAX_REF_MEDIA_BYTES = 10 * 1024 * 1024
 REF_MEDIA_NAME_RE = re.compile(r"^ref_[0-9a-f]{12}\.(?:jpg|jpeg|png|webp|gif|mp4|mov|heic|heif)$", re.IGNORECASE)
 MAX_NOTE_TEXT_LENGTH = 12000
 MAX_NOTE_IMAGES = 12
+_NOTES_LOCK = threading.RLock()
+
+
+def _channel_id(scope):
+    return scope.channel_id if isinstance(scope, ChannelScope) else "main"
+
+
+def _notes_path(channel_id):
+    return NOTES_FILE if channel_id == "main" else BASE_DIR / "_Docs" / "producer" / channel_id / "playbook_notes.json"
+
+
+def _refs_root(scope):
+    return REFS_DIR if _channel_id(scope) == "main" else BASE_DIR / "_Docs" / "producer" / _channel_id(scope) / "Refs"
+
+
+def _notes_transaction(fn):
+    @wraps(fn)
+    def locked(*args, **kwargs):
+        with _NOTES_LOCK:
+            return fn(*args, **kwargs)
+    return locked
+
+
+def _guard_write(scope):
+    if isinstance(scope, ChannelScope):
+        require_writable(scope)
+
 
 DEFAULT_STARTER_NOTES = [
     {
@@ -63,11 +97,11 @@ def sort_notes(notes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     )
 
 
-def load_notes_from_disk() -> List[Dict[str, Any]]:
-    if not NOTES_FILE.exists():
+def load_notes_from_disk(channel_id="main") -> List[Dict[str, Any]]:
+    if not _notes_path(channel_id).exists():
         return sort_notes(list(DEFAULT_STARTER_NOTES))
     try:
-        with open(NOTES_FILE, "r", encoding="utf-8") as f:
+        with open(_notes_path(channel_id), "r", encoding="utf-8") as f:
             data = json.load(f)
             if isinstance(data, list):
                 for note in data:
@@ -84,12 +118,13 @@ def load_notes_from_disk() -> List[Dict[str, Any]]:
     return sort_notes(list(DEFAULT_STARTER_NOTES))
 
 
-def save_notes_to_disk(notes: List[Dict[str, Any]]) -> None:
+def save_notes_to_disk(notes: List[Dict[str, Any]], channel_id="main") -> None:
+    _notes_path(channel_id).parent.mkdir(parents=True, exist_ok=True)
     sorted_notes = sort_notes(notes)
-    temp_file = NOTES_FILE.with_suffix(".tmp")
+    temp_file = _notes_path(channel_id).with_suffix(".tmp")
     with open(temp_file, "w", encoding="utf-8") as f:
         json.dump(sorted_notes, f, ensure_ascii=False, indent=2)
-    temp_file.replace(NOTES_FILE)
+    temp_file.replace(_notes_path(channel_id))
 
 
 def notes_revision(notes: List[Dict[str, Any]]) -> str:
@@ -163,8 +198,9 @@ class UpdateNotePayload(BaseModel):
 
 
 @router.post("/upload-ref-media")
-async def upload_ref_media(file: UploadFile = File(...)):
+async def upload_ref_media(file: UploadFile = File(...), scope: ChannelScope = Depends(get_channel_scope)):
     """Upload a screenshot or photo reference from mobile or desktop."""
+    _guard_write(scope)
     if not file.filename:
         raise HTTPException(status_code=400, detail="ไม่พบชื่อไฟล์")
 
@@ -186,7 +222,9 @@ async def upload_ref_media(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="รองรับเฉพาะไฟล์ภาพ (.jpg, .png, .webp, .heic) หรือวิดีโอสั้น")
 
     safe_name = f"ref_{uuid.uuid4().hex[:12]}{ext}"
-    dest_path = REFS_DIR / safe_name
+    root = _refs_root(scope)
+    root.mkdir(parents=True, exist_ok=True)
+    dest_path = root / safe_name
 
     contents = await file.read()
     if len(contents) > MAX_REF_MEDIA_BYTES:
@@ -197,7 +235,7 @@ async def upload_ref_media(file: UploadFile = File(...)):
     # If iPhone HEIC/HEIF, convert to JPG with ffmpeg so browsers can render immediately
     if ext in [".heic", ".heif"]:
         jpg_name = f"{dest_path.stem}.jpg"
-        jpg_path = REFS_DIR / jpg_name
+        jpg_path = root / jpg_name
         try:
             import subprocess
             res = subprocess.run(
@@ -214,16 +252,16 @@ async def upload_ref_media(file: UploadFile = File(...)):
     return {
         "success": True,
         "filename": safe_name,
-        "url": f"/api/producer/ref-media/{safe_name}",
+        "url": f"/api/producer/ref-media/{safe_name}" + (f"?channel={_channel_id(scope)}" if isinstance(scope, ChannelScope) and not scope.is_implicit_default else ""),
         "sizeBytes": len(contents),
     }
 
 
 @router.get("/ref-media/{filename}")
-def get_ref_media(filename: str):
+def get_ref_media(filename: str, scope: ChannelScope = Depends(get_channel_scope)):
     """Serve uploaded reference media."""
     safe_name = Path(filename).name
-    refs_root = REFS_DIR.resolve()
+    refs_root = _refs_root(scope).resolve()
     file_path = (refs_root / safe_name).resolve()
     if safe_name != filename or not REF_MEDIA_NAME_RE.fullmatch(safe_name) or file_path.parent != refs_root or not file_path.is_file():
         raise HTTPException(status_code=404, detail="ไม่พบไฟล์สื่อเรฟ")
@@ -231,15 +269,18 @@ def get_ref_media(filename: str):
 
 
 @router.get("/notes")
-def get_notes():
+@_notes_transaction
+def get_notes(scope: ChannelScope = Depends(get_channel_scope)):
     """Get all saved idea and ref notes from server."""
-    return notes_response(load_notes_from_disk())
+    return notes_response(load_notes_from_disk(_channel_id(scope)))
 
 
 @router.post("/notes")
-def save_notes(payload: NotesPayload):
+@_notes_transaction
+def save_notes(payload: NotesPayload, scope: ChannelScope = Depends(get_channel_scope)):
     """Save/overwrite full list of notes."""
-    current = load_notes_from_disk()
+    _guard_write(scope)
+    current = load_notes_from_disk(_channel_id(scope))
     current_revision = notes_revision(current)
     if payload.base_revision and payload.base_revision != current_revision:
         raise HTTPException(
@@ -250,14 +291,18 @@ def save_notes(payload: NotesPayload):
                 "notes": current,
             },
         )
+    for note in payload.notes:
+        reject_foreign_body_channel(note, _channel_id(scope))
     notes = [normalize_note(note) for note in payload.notes]
-    save_notes_to_disk(notes)
+    save_notes_to_disk(notes, _channel_id(scope))
     return notes_response(notes)
 
 
 @router.post("/notes/add")
-def add_note(payload: SingleNotePayload):
+@_notes_transaction
+def add_note(payload: SingleNotePayload, scope: ChannelScope = Depends(get_channel_scope)):
     """Add a single note to the server."""
+    _guard_write(scope)
     if payload.note is not None:
         note = dict(payload.note)
     else:
@@ -265,6 +310,7 @@ def add_note(payload: SingleNotePayload):
     if "note" in note and isinstance(note["note"], dict):
         note = note["note"]
 
+    reject_foreign_body_channel(note, _channel_id(scope))
     note = normalize_note(note)
 
     if "id" not in note or not note["id"]:
@@ -272,25 +318,29 @@ def add_note(payload: SingleNotePayload):
     if "createdAt" not in note or not note["createdAt"]:
         note["createdAt"] = datetime.datetime.now(timezone.utc).isoformat()
 
-    existing = load_notes_from_disk()
+    existing = load_notes_from_disk(_channel_id(scope))
     updated = [note] + [n for n in existing if n.get("id") != note.get("id")]
-    save_notes_to_disk(updated)
+    save_notes_to_disk(updated, _channel_id(scope))
     return {**notes_response(updated), "note": note}
 
 
 @router.delete("/notes/{note_id}")
-def delete_note(note_id: str):
+@_notes_transaction
+def delete_note(note_id: str, scope: ChannelScope = Depends(get_channel_scope)):
     """Delete a note by ID."""
-    existing = load_notes_from_disk()
+    _guard_write(scope)
+    existing = load_notes_from_disk(_channel_id(scope))
     updated = [n for n in existing if n.get("id") != note_id]
-    save_notes_to_disk(updated)
+    save_notes_to_disk(updated, _channel_id(scope))
     return notes_response(updated)
 
 
 @router.put("/notes/{note_id}")
-def update_note(note_id: str, payload: UpdateNotePayload):
+@_notes_transaction
+def update_note(note_id: str, payload: UpdateNotePayload, scope: ChannelScope = Depends(get_channel_scope)):
     """Update an existing note (text, tag, product, images, isPinned, isFavorite, etc.)."""
-    existing = load_notes_from_disk()
+    _guard_write(scope)
+    existing = load_notes_from_disk(_channel_id(scope))
     current_rev = notes_revision(existing)
 
     if payload.base_revision and payload.base_revision != current_rev:
@@ -316,11 +366,11 @@ def update_note(note_id: str, payload: UpdateNotePayload):
     target = normalize_note(target)
 
     existing[target_idx] = target
-    save_notes_to_disk(existing)
+    save_notes_to_disk(existing, _channel_id(scope))
     return {**notes_response(existing), "note": target}
 
 
-def _resolve_image_bytes(img_ref: str) -> Optional[tuple[bytes, str]]:
+def _resolve_image_bytes(img_ref: str, scope=None) -> Optional[tuple[bytes, str]]:
     """Resolve an image reference (file name, URL, local path, or base64 data URL) into (bytes, mime_type)."""
     if not img_ref or not isinstance(img_ref, str):
         return None
@@ -387,15 +437,17 @@ def _resolve_image_bytes(img_ref: str) -> Optional[tuple[bytes, str]]:
 
     # Case 3: Local file.  Only uploaded refs and the configured assets root
     # are readable; arbitrary absolute paths would disclose host files.
-    filename = Path(raw).name
+    filename = Path(urlparse(raw).path).name
     candidate_paths = [
-        REFS_DIR / filename,
+        _refs_root(scope) / filename,
         ASSETS_DIR / raw,
     ]
-    allowed_roots = [REFS_DIR.resolve(), ASSETS_DIR.resolve()]
+    allowed_roots = [_refs_root(scope).resolve(), ASSETS_DIR.resolve()]
     for p in candidate_paths:
         try:
             resolved = p.resolve()
+            if _channel_id(scope) != "main" and REFS_DIR.resolve() in resolved.parents:
+                continue
             if not any(resolved == root or root in resolved.parents for root in allowed_roots):
                 continue
             if resolved.is_file() and 0 < resolved.stat().st_size <= MAX_REF_MEDIA_BYTES:
@@ -543,7 +595,7 @@ def _generate_angle_with_gemini(
 
 
 @router.post("/ai-idea-to-angle")
-def ai_idea_to_angle(req: IdeaToAngleRequest):
+def ai_idea_to_angle(req: IdeaToAngleRequest, scope: ChannelScope = Depends(get_channel_scope)):
     """Synthesize an idea/link/screenshot into a high-converting TikTok video angle proposal using Gemini Vision."""
     idea = (req.idea_text or "").strip()
     url = (req.ref_url or "").strip()
@@ -557,7 +609,9 @@ def ai_idea_to_angle(req: IdeaToAngleRequest):
     brand = ""
 
     if product_id:
-        product = ProductStore.get(product_id)
+        product = ProductStore.get(product_id, **(api_store_kwargs(scope) if isinstance(scope, ChannelScope) else {}))
+        if not product and isinstance(scope, ChannelScope):
+            raise ChannelError(404, "resource_not_found", "ไม่พบสินค้าที่ร้องขอ")
         if product:
             product_name = product.get("name") or product.get("title") or product_name
             product_desc = product.get("description") or ""
@@ -576,7 +630,7 @@ def ai_idea_to_angle(req: IdeaToAngleRequest):
     for img_ref in raw_images:
         if len(resolved_images) >= 3:
             break
-        res_img = _resolve_image_bytes(img_ref)
+        res_img = _resolve_image_bytes(img_ref, scope)
         if res_img:
             resolved_images.append(res_img)
 

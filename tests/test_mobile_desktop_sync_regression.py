@@ -5,6 +5,7 @@ All tests run offline on tmp_path without touching real media or production DB.
 """
 
 from pathlib import Path
+from inspect import signature
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -209,12 +210,27 @@ def test_a11_manual_shot_map_and_multi_sources_forwarded_to_pipeline(isolated_sy
     with product_store._TABLE.mutate() as products:
         products[0]["angles"][0]["selected_videos"].append(second.relative_to(isolated_sync_env["root"]).as_posix())
 
+    source_durations = {str(isolated_sync_env["raw"]): 7.0, str(second): 11.0}
+    probed = []
+
+    def media_info(path):
+        probed.append(str(path))
+        return {"duration": source_durations[str(path)]}
+
+    monkeypatch.setattr(mobile.VideoEditor, "get_media_info", media_info)
+    # Validate kwargs against the real entry point before replacing its runner.
+    pipeline_signature = signature(mobile.TikTokAutoCutterPipeline.run)
     captured = install_pipeline_mock(monkeypatch)
     res = client.post("/api/mobile-studio/assemble", json={"product_id": "prod", "angle_id": "angle"})
     assert res.status_code == 200, res.text
 
-    assert captured.get("multi_video_paths") is not None
-    assert len(captured["multi_video_paths"]) >= 2
+    pipeline_signature.bind(**captured)
+    assert set(probed) == set(source_durations)
+    assert captured["custom_script"].splitlines() == ["Official first line", "Official second line"]
+    assert captured["manual_shot_map"] == [
+        {"beat_index": 0, "video_path": str(isolated_sync_env["raw"]), "trim_start": 0.0, "trim_end": 7.0},
+        {"beat_index": 1, "video_path": str(second), "trim_start": 0.0, "trim_end": 11.0},
+    ]
 
 
 def test_a25_quick_add_deduplicates_shop_url_and_handles_scraper_safely(isolated_sync_env, monkeypatch):

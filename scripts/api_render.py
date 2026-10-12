@@ -9,7 +9,11 @@ import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
+from scripts.channel_scope import ChannelScope, require_active_for_new_work, require_final_ready
+from scripts.channel_workflows import get_workflow_scope, capture_job_scope, require_record_owner, require_project_owner
+from scripts.pipeline_context import channel_project_name
+from scripts.project_manifest import ProjectManifest
 
 from scripts.config import (
     BASE_DIR, INBOX_DIR, RAW_DIR, EXPORTS_DIR, ASSETS_DIR,
@@ -33,6 +37,9 @@ def check_disk_space(path: Optional[Path] = None, min_bytes: int = MIN_FREE_DISK
     """Checks free disk space where video rendering and exports take place."""
     target = path or EXPORTS_DIR or BASE_DIR
     try:
+        target = Path(target)
+        while not target.exists() and target != target.parent:
+            target = target.parent
         usage = shutil.disk_usage(str(target))
         free_gb = round(usage.free / (1024 ** 3), 2)
         total_gb = round(usage.total / (1024 ** 3), 2)
@@ -65,13 +72,15 @@ def get_render_disk_check():
 
 
 
-def execute_render_job(job_id: str, req_data: RenderRequest):
+def execute_render_job(job_id: str, req_data: RenderRequest, job_scope: Optional[Dict[str, Any]] = None):
     """Background worker function executing the full video pipeline."""
-    base_progress = render_jobs.progress_reporter(job_id)
+    pinned = render_jobs.pin_job_scope(job_scope=job_scope)
+    channel_kwargs = {"channel_id": pinned["channel_id"]} if pinned.get("channel_id") else {}
+    base_progress = render_jobs.progress_reporter(job_id, **channel_kwargs)
 
     def on_progress(msg: str, progress: float):
         base_progress(msg, progress)
-        TaskManager.update_progress(job_id, progress, step_label=msg)
+        TaskManager.update_progress(job_id, progress, step_label=msg, **channel_kwargs)
 
     try:
         raw_video = Path(req_data.raw_video_path)
@@ -110,7 +119,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
         is_already_posted = False
         if req_data.product_id and req_data.angle_id:
             try:
-                prod = ProductStore.get(req_data.product_id)
+                prod = ProductStore.get(req_data.product_id, **channel_kwargs)
                 if prod:
                     for a in prod.get("angles", []):
                         if (a.get("angle_id") or a.get("id")) == req_data.angle_id:
@@ -121,12 +130,8 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 pass
         elif req_data.project_name:
             try:
-                for prod in ProductStore._load():
-                    for a in prod.get("angles", []):
-                        if a.get("project_name") == req_data.project_name:
-                            if a.get("status") == "posted" or a.get("posted_at"):
-                                is_already_posted = True
-                                break
+                if ProductStore.has_posted_angle_for_project(req_data.project_name, **channel_kwargs):
+                    is_already_posted = True
             except Exception:
                 pass
 
@@ -155,14 +160,17 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                     req_data.product_id,
                     req_data.angle_id,
                     "in_production",
-                    project_name=req_data.project_name
+                    project_name=req_data.project_name,
+                    **channel_kwargs,
                 )
             except Exception:
                 pass
 
-        with render_jobs.render_slot(job_id):
+        with render_jobs.render_slot(job_id, **channel_kwargs):
             result = TikTokAutoCutterPipeline.run(
-                cancel_event=render_jobs.get_cancel_event(job_id),
+                cancel_event=render_jobs.get_cancel_event(job_id, **channel_kwargs),
+                **channel_kwargs,
+                job_scope=pinned or None,
                 product_name=req_data.product_name,
                 raw_video_path=str(raw_video),
                 project_name=req_data.project_name,
@@ -223,7 +231,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
 
         if req_data.product_id and result.get("project_name"):
             try:
-                ProductStore.attach_project(req_data.product_id, result["project_name"])
+                ProductStore.attach_project(req_data.product_id, result["project_name"], **channel_kwargs)
             except Exception as link_err:
                 print(f"Warning: could not link project to product: {link_err}")
 
@@ -238,17 +246,19 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                     video_url=str(mp4_val) if is_rendered else None,
                     project_name=result.get("project_name"),
                     export_id=result.get("export_id") if is_rendered else None,
+                    **channel_kwargs,
                 )
             except Exception as angle_err:
                 print(f"Warning: could not update angle status: {angle_err}")
 
-        render_jobs.complete_job(job_id, result)
+        render_jobs.complete_job(job_id, result, **channel_kwargs)
         is_exported = bool(req_data.export_mp4 and (result.get("mp4") or result.get("mp4_video") or result.get("output_video") or result.get("video_path")))
         TaskManager.complete_task(
             job_id,
             result=result,
             step_label="🎉 เรนเดอร์วิดีโอเสร็จสมบูรณ์ 100%!" if is_exported else "🎉 การตัดต่อเสร็จสมบูรณ์ 100%!",
-            target_id=result.get("project_name")
+            target_id=result.get("project_name"),
+            **channel_kwargs,
         )
 
     except RenderCancelled:
@@ -268,12 +278,12 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 # regenerate, and GET /api/projects/<name> 404s if anything
                 # tries to open it (there is nothing to resume: this function
                 # only ever runs a from-scratch render, never a reroll).
-                ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "scripted", project_name="")
+                ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "scripted", project_name="", **channel_kwargs)
             except Exception as angle_err:
                 print(f"Warning: Could not revert angle status after cancel: {angle_err}")
 
-        render_jobs.cancel_job(job_id)
-        TaskManager.cancel_task(job_id)
+        render_jobs.cancel_job(job_id, **channel_kwargs)
+        TaskManager.cancel_task(job_id, **channel_kwargs)
 
     except Exception as e:
         from scripts.error_handler import classify_exception
@@ -286,28 +296,41 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
         if req_data.product_id and req_data.angle_id:
             try:
                 # Same project_name clear as the RenderCancelled branch above.
-                ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "scripted", project_name="")
+                ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "scripted", project_name="", **channel_kwargs)
             except Exception as angle_err:
                 print(f"Warning: Could not revert angle status: {angle_err}")
 
-        render_jobs.fail_job(job_id, app_err)
+        render_jobs.fail_job(job_id, app_err, **channel_kwargs)
         fail_msg = f"{app_err.message_th}"
         if getattr(app_err, "suggestion_th", None):
             fail_msg = f"{app_err.message_th} — {app_err.suggestion_th}"
         TaskManager.fail_task(
             job_id,
             fail_msg,
-            step_label=fail_msg
+            step_label=fail_msg,
+            **channel_kwargs,
         )
 
 
 @router.post("/api/render")
-def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
+def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks, scope: ChannelScope = Depends(get_workflow_scope)):
     """Triggers the video creation pipeline in the background."""
+    scoped = isinstance(scope, ChannelScope)
+    channel_kwargs = {"channel_id": scope.channel_id} if scoped else {}
+    if scoped:
+        require_active_for_new_work(scope)
+        if req.export_mp4 and not (scope.is_implicit_default and not scope.strict):
+            require_final_ready(scope)
+        if req.product_id:
+            require_record_owner(scope, ProductStore.get(req.product_id, **channel_kwargs), resource_label="สินค้า")
+        project_name = channel_project_name(req.project_name, scope.channel_id)
+        req = req.model_copy(deep=True, update={"project_name": project_name})
+        if project_name and ProjectManifest.load(project_name) is not None:
+            require_project_owner(scope, project_name, writable=True)
     # Guard: Block re-rendering if this angle or project has already been posted!
     if req.product_id and req.angle_id:
         try:
-            prod = ProductStore.get(req.product_id)
+            prod = ProductStore.get(req.product_id, **channel_kwargs)
             if prod:
                 for a in prod.get("angles", []):
                     if (a.get("angle_id") or a.get("id")) == req.angle_id:
@@ -331,14 +354,11 @@ def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
             )
     elif req.project_name:
         try:
-            for prod in ProductStore._load():
-                for a in prod.get("angles", []):
-                    if a.get("project_name") == req.project_name:
-                        if a.get("status") == "posted" or a.get("posted_at"):
-                            raise HTTPException(
-                                status_code=400,
-                                detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม"
-                            )
+            if ProductStore.has_posted_angle_for_project(req.project_name, **channel_kwargs):
+                raise HTTPException(
+                    status_code=400,
+                    detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม"
+                )
         except HTTPException:
             raise
         except Exception as guard_err:
@@ -364,27 +384,31 @@ def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
         )
 
     job_id = str(uuid.uuid4())
-    render_jobs.create_job(job_id)
+    pinned = capture_job_scope(scope) if scoped else None
+    render_jobs.create_job(job_id, job_scope=pinned, **channel_kwargs)
 
     p_name = req.product_name or req.project_name or "วิดีโอใหม่"
     is_render_task = bool(req.export_mp4)
     TaskManager.create_task(
         task_type="render_video" if is_render_task else "edit_project",
         title=f"{'เรนเดอร์วิดีโอ' if is_render_task else 'ตัดต่อวิดีโอ'}: {p_name}",
-        payload={"project_name": req.project_name, "product_name": req.product_name, "export_mp4": is_render_task},
+        payload={"project_name": req.project_name, "product_name": req.product_name, "product_id": req.product_id, "angle_id": req.angle_id, "export_mp4": is_render_task},
         target_tab="gallery" if is_render_task else "editor",
         target_id=req.project_name,
-        task_id=job_id
+        task_id=job_id,
+        job_scope=pinned,
+        **channel_kwargs,
     )
 
-    background_tasks.add_task(execute_render_job, job_id, req)
+    background_tasks.add_task(execute_render_job, job_id, req, pinned)
     return {"job_id": job_id, "status": "queued"}
 
 
 @router.get("/api/render/status/{job_id}")
-def get_render_status(job_id: str):
+def get_render_status(job_id: str, scope: ChannelScope = Depends(get_workflow_scope)):
     """Returns current status and progress of a render job."""
-    job = render_jobs.get_job(job_id)
+    channel_kwargs = {"channel_id": scope.channel_id} if isinstance(scope, ChannelScope) else {}
+    job = render_jobs.get_job(job_id, **channel_kwargs)
     if job is not None:
         # cancel_event is a threading.Event living on the in-memory job dict
         # for request_cancel()/is_cancel_requested() to use -- it is not
@@ -394,7 +418,7 @@ def get_render_status(job_id: str):
         # through the same shape "completed"/"failed" use.
         return {k: v for k, v in job.items() if k != "cancel_event"}
 
-    task = TaskManager.get_task(job_id)
+    task = TaskManager.get_task(job_id, **channel_kwargs)
     if task:
         return {
             "id": job_id,

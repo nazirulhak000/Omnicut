@@ -53,7 +53,7 @@ def test_timeline_snapshot_can_be_used_before_video_render(tmp_path, monkeypatch
 
 def test_render_pro_endpoint_accepts_timeline_snapshot(tmp_path, monkeypatch):
     monkeypatch.setattr(covers, "BASE_DIR", tmp_path)
-    monkeypatch.setattr(covers, "COVERS_DIR", tmp_path / "covers")
+    monkeypatch.setattr(covers, "COVERS_DIR", tmp_path / "05_Covers_Thumbnails")
     snapshot = io.BytesIO()
     Image.new("RGB", (540, 960), (12, 80, 200)).save(snapshot, format="JPEG")
     data_url = "data:image/jpeg;base64," + base64.b64encode(snapshot.getvalue()).decode("ascii")

@@ -5,18 +5,16 @@ import {
   Tag, Film, Play, RotateCcw, Home
 } from 'lucide-react';
 import { getProducts, markPosted } from '../api';
-
-const resolveMediaUrl = (path) => {
-  if (!path) return '';
-  const s = String(path).replace(/\\/g, '/').trim();
-  if (s.startsWith('http://') || s.startsWith('https://')) return s;
-  if (s.startsWith('/api/media/')) return s;
-  if (s.startsWith('api/media/')) return `/${s}`;
-  const clean = s.replace(/^[/\\]+/, '');
-  return `/api/media/${clean}`;
-};
+import { toMediaUrl } from '../lib/mediaUrl.js';
+import { activeChannel } from '../lib/channelRuntime.js';
+import { ChannelWorkspaceBar } from '../context/ChannelContext.jsx';
 
 export default function MobileQuickPostPage({ onExit }) {
+  const [owner] = useState(activeChannel);
+  const resolveMediaUrl = path => {
+    try { return toMediaUrl(String(path || '').replace(/^api\/media\//, '/api/media/'), owner); }
+    catch { return ''; }
+  };
   const [params, setParams] = useState(() => {
     const p = new URLSearchParams(window.location.search);
     return {
@@ -64,7 +62,7 @@ export default function MobileQuickPostPage({ onExit }) {
             if (foundAngle) {
               setAngleData(foundAngle);
               // If angle already marked as posted
-              if (foundAngle.status === 'posted') {
+              if (foundAngle.status === 'posted' && params.exportId && foundAngle.export_id === params.exportId) {
                 setIsPosted(true);
               }
             }
@@ -91,6 +89,8 @@ export default function MobileQuickPostPage({ onExit }) {
   const effectiveVideo = params.videoUrl || angleData?.video_url || '';
   const effectiveCover9x16 = angleData?.cover_9x16_url || angleData?.cover_url || params.coverUrl || '';
   const effectiveCover3x4 = angleData?.cover_3x4_url || '';
+  const mediaScopeInvalid = [effectiveVideo, effectiveCover9x16, effectiveCover3x4].some(path => path && !resolveMediaUrl(path));
+  const canMarkPosted = Boolean(effectiveVideo && params.exportId && !mediaScopeInvalid);
   const fullPostText = `${effectiveCaption}\n\n${effectiveHashtags}`.trim();
 
   // Step 1: Handle Video Download / Save
@@ -100,6 +100,7 @@ export default function MobileQuickPostPage({ onExit }) {
       return;
     }
     const downloadUrl = resolveMediaUrl(effectiveVideo);
+    if (!downloadUrl) { showToast('ลิงก์ไฟล์ไม่ตรงกับช่องนี้ กรุณาเปิดลิงก์จากช่องเจ้าของคลิป'); return; }
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = effectiveVideo.split(/[\\/]/).pop() || 'tiktok_video.mp4';
@@ -115,6 +116,7 @@ export default function MobileQuickPostPage({ onExit }) {
   const handleDownloadCover = (coverUrl, fileName) => {
     if (!coverUrl) return;
     const downloadUrl = resolveMediaUrl(coverUrl);
+    if (!downloadUrl) { showToast('ลิงก์ภาพปกไม่ตรงกับช่องนี้'); return; }
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = fileName || 'cover.jpg';
@@ -170,38 +172,25 @@ export default function MobileQuickPostPage({ onExit }) {
 
   // Step 5: Mark as Posted
   const handleMarkAsPosted = async () => {
-    if (params.productId && params.angleId) {
-      try {
-        if (effectiveVideo) {
-          let res;
-          try {
-            res = await markPosted(effectiveVideo, params.productId, params.angleId, params.exportId || null);
-          } catch (err) {
-            throw new Error(err.message || 'การโพสต์ต้องยืนยันด้วย export_id และไฟล์จริงเท่านั้น');
-          }
-          if (res?.status_warning) {
-            showToast(`⚠️ วิดีโอถูกย้ายแล้ว แต่มีคำเตือน: ${res.status_warning}`);
-          } else {
-            showToast('🎉 บันทึกสถานะ "โพสต์แล้ว" ส่งกลับไปที่คอมพิวเตอร์เรียบร้อย!');
-          }
-        } else {
-          throw new Error('ไม่พบไฟล์ export ที่ระบุสำหรับการโพสต์');
-        }
-        setIsPosted(true);
-      } catch (err) {
-        showToast('ไม่สามารถอัปเดตสถานะได้: ' + err.message);
-      }
-    } else {
-      if (effectiveVideo) {
-        await markPosted(effectiveVideo, null, null, params.exportId || null);
-      }
+    if (!canMarkPosted || isPosted) {
+      showToast('ต้องมี export_id และไฟล์ของช่องนี้ก่อนบันทึกสถานะโพสต์');
+      return;
+    }
+    try {
+      const res = await markPosted(effectiveVideo, params.productId || null, params.angleId || null, params.exportId);
       setIsPosted(true);
-      showToast('🎉 มาร์กว่าโพสต์เรียบร้อยแล้ว!');
+      if (res?.status_warning || res?.post_log_warning) showToast('บันทึกไฟล์โพสต์แล้ว แต่ประวัติหรือสถานะยังมีคำเตือน กรุณาตรวจจากคอมพิวเตอร์');
+      else showToast('บันทึกสถานะ "โพสต์แล้ว" ส่งกลับไปที่คอมพิวเตอร์เรียบร้อย!');
+    } catch (err) {
+      showToast('ไม่สามารถอัปเดตสถานะได้: ' + (err.friendlyMessage || err.message));
     }
   };
 
   return (
     <div className="min-h-screen bg-[#070A12] text-white flex flex-col justify-between max-w-lg mx-auto p-4 sm:p-6 font-prompt">
+      <ChannelWorkspaceBar />
+      {mediaScopeInvalid && <p role="alert" className="py-3 text-sm text-rose-300">ลิงก์ไฟล์ไม่ตรงกับช่องนี้ กรุณาเปิดลิงก์จากช่องเจ้าของคลิป</p>}
+      {!mediaScopeInvalid && !canMarkPosted && !isPosted && <p role="alert" className="py-3 text-sm text-rose-300">ไม่พบ export_id หรือไฟล์คลิป กรุณาเปิดลิงก์จากช่องเจ้าของคลิปอีกครั้ง</p>}
       {/* ── Toast Notification ── */}
       {toastMessage && (
         <div className="fixed top-4 left-4 right-4 z-50 p-3.5 rounded-2xl bg-[#25F4EE] text-slate-950 font-bold text-xs text-center shadow-2xl border border-white/20 animate-slideDown">
@@ -256,7 +245,7 @@ export default function MobileQuickPostPage({ onExit }) {
         </div>
 
         {/* Video Preview (if video exists) */}
-        {effectiveVideo && (
+        {effectiveVideo && resolveMediaUrl(effectiveVideo) && (
           <div className="rounded-2xl overflow-hidden bg-black border border-white/[0.1] shadow-2xl relative max-w-[240px] mx-auto">
             <video
               src={resolveMediaUrl(effectiveVideo)}
@@ -398,7 +387,7 @@ export default function MobileQuickPostPage({ onExit }) {
           <button
             type="button"
             onClick={handleMarkAsPosted}
-            disabled={isPosted}
+            disabled={isPosted || !canMarkPosted}
             className={`w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 ${
               isPosted
                 ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 cursor-default'

@@ -79,8 +79,9 @@ def test_prepare_marks_one_item_and_sends_date_time_to_extension(queue_workspace
     item = client.post("/api/schedule-queue", json=payload(video_a, "2026-09-14T15:25:00+07:00")).json()["items"][0]
     captured = {}
 
-    def fake_prepare(req):
+    def fake_prepare(req, *, scope):
         captured.update(req.model_dump())
+        captured["resolved_channel"] = scope.channel_id
         return {"success": True}
 
     monkeypatch.setattr(queue_api, "prepare", fake_prepare)
@@ -89,6 +90,8 @@ def test_prepare_marks_one_item_and_sends_date_time_to_extension(queue_workspace
     assert prepared.json()["status"] == "ready_for_extension"
     assert captured["schedule_date"] == "2026-09-14"
     assert captured["schedule_time"] == "15:25"
+    assert captured["queue_id"] == item["id"]
+    assert captured["resolved_channel"] == "main"
 
 
 def test_weekly_template_upsert_copy_and_reset(queue_workspace):
@@ -326,7 +329,7 @@ def test_autofill_skips_clip_recorded_in_post_history_when_queue_row_is_missing(
     monkeypatch.setattr(
         queue_api.PostLog,
         "list_posts",
-        classmethod(lambda cls, newest_first=True: [{"id": "old-loop", "clip_file": video_a.name, "posted_at": "2026-09-17T19:00:00+07:00", "product_name": "LOOP Smartband"}]),
+        classmethod(lambda cls, newest_first=True, **_scope: [{"id": "old-loop", "clip_file": video_a.name, "posted_at": "2026-09-17T19:00:00+07:00", "product_name": "LOOP Smartband"}]),
     )
 
     preview = client.post(
@@ -465,7 +468,7 @@ def test_autofill_reports_stats_and_prefers_evidence_backed_time(queue_workspace
     monkeypatch.setattr(
         queue_api.PostLog,
         "list_posts",
-        classmethod(lambda cls, newest_first=True: [
+        classmethod(lambda cls, newest_first=True, **_scope: [
             {"product_name": "A", "posted_at": "2026-09-10T19:00:00", "metrics": {"views": 1000, "likes": 100, "cart_clicks": 50, "orders": 10, "commission_thb": 50}},
             {"product_name": "A", "posted_at": "2026-09-11T19:00:00", "metrics": {"views": 800, "likes": 80, "cart_clicks": 40, "orders": 10, "commission_thb": 50}},
             {"product_name": "A", "posted_at": "2026-09-12T19:00:00", "metrics": {"views": 900, "likes": 90, "cart_clicks": 45, "orders": 10, "commission_thb": 50}},

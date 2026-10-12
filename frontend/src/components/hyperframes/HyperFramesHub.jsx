@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useChannelDraft } from '../../hooks/useChannelDraft.js';
+import { channelLocalStorage } from '../../lib/channelStorage.js';
 import {
   Sparkles, Play, Video, ExternalLink, RefreshCw, Clock,
   Flame, Swords, MessageSquare, BarChart3, CheckCircle2,
-  AlertCircle, Film, Plus, Send, Download, Info, X, ChevronRight,
+  AlertCircle, Film, Plus, Send, Info, X, ChevronRight,
   Volume2, Music, Check, ArrowRight, Shuffle, Bot, Cpu, Wand2,
   FileText, Layers, ShieldCheck, HelpCircle
 } from 'lucide-react';
@@ -11,11 +13,12 @@ import {
   getHyperFramesStyles,
   getHyperFramesCompositions,
   createHyperFramesClip,
-  renderHyperFramesComposition,
   openHyperFramesStudio,
   getProducts
 } from '../../api';
 import StylePosterMockup from './StylePosterMockup';
+import HyperFramesWorkflow from './HyperFramesWorkflow.jsx';
+import { useChannel } from '../../context/ChannelContext.jsx';
 import {
   getProductCategoryType,
   getCategoryDisplayName,
@@ -206,7 +209,11 @@ ${price ? `ราคาโปรโมชั่น: ${price}` : 'พิกัด
   return rawScript || hook || '';
 }
 
-export default function HyperFramesHub({ onNavigateToGallery }) {
+export default function HyperFramesHub({ onNavigateToGallery, onOpenGadgetReview }) {
+  const channel = useChannel();
+  const storage = useMemo(() => channelLocalStorage(), []);
+  const [retained] = useState(() => { try { return JSON.parse(storage.getItem('hyperframes_create_draft') || 'null') || {}; } catch { return {}; } });
+  const touched = useRef(false);
   const [activeTab, setActiveTab] = useState('styles'); // 'styles' | 'compositions' | 'create'
   const [status, setStatus] = useState(null);
   const [styles, setStyles] = useState([]);
@@ -219,18 +226,25 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
   const [selectedStyleDetail, setSelectedStyleDetail] = useState(null); // Modal state for style deep dive
 
   // Form State for creating a new clip
-  const [newClipId, setNewClipId] = useState('');
-  const [isManualClipId, setIsManualClipId] = useState(false);
+  const [newClipId, setNewClipId] = useState(retained.newClipId || '');
+  const [isManualClipId, setIsManualClipId] = useState(retained.isManualClipId || false);
   const [clipSeed, setClipSeed] = useState(0);
-  const [selectedProduct, setSelectedProduct] = useState('');
-  const [selectedStyle, setSelectedStyle] = useState('meme_pas');
-  const [selectedAngleId, setSelectedAngleId] = useState('');
-  const [selectedScenarioId, setSelectedScenarioId] = useState('');
-  const [scriptText, setScriptText] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState(retained.selectedProduct || '');
+  const [selectedStyle, setSelectedStyle] = useState(retained.selectedStyle || 'meme_pas');
+  const [selectedAngleId, setSelectedAngleId] = useState(retained.selectedAngleId || '');
+  const [selectedScenarioId, setSelectedScenarioId] = useState(retained.selectedScenarioId || '');
+  const [scriptText, setScriptText] = useState(retained.scriptText || '');
   const [isCreating, setIsCreating] = useState(false);
-
-  // Render state tracking
-  const [renderingCompId, setRenderingCompId] = useState(null);
+  const draftValue = { newClipId: isManualClipId ? newClipId : '', isManualClipId, selectedProduct, selectedStyle, selectedAngleId, selectedScenarioId, scriptText };
+  const draft = useChannelDraft(draftValue, {
+    save: value => storage.setItem('hyperframes_create_draft', JSON.stringify(value)),
+    reset: value => {
+      setNewClipId(value.newClipId); setIsManualClipId(value.isManualClipId);
+      setSelectedProduct(value.selectedProduct); setSelectedStyle(value.selectedStyle);
+      setSelectedAngleId(value.selectedAngleId); setSelectedScenarioId(value.selectedScenarioId); setScriptText(value.scriptText);
+    },
+  });
+  useEffect(() => { if (!touched.current) draft.markSaved(draftValue); }, [selectedProduct, selectedStyle, loading]);
 
   const loadData = useCallback(async () => {
     try {
@@ -459,12 +473,14 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
       setIsCreating(true);
       setActionError(null);
       setActionSuccess(null);
-      const res = await createHyperFramesClip({
+      const res = await draft.run(() => createHyperFramesClip({
         clip_id: newClipId.trim(),
         product: selectedProduct.toLowerCase(),
         script: scriptText.trim() || undefined,
         style: selectedStyle
-      });
+      }));
+      storage.removeItem('hyperframes_create_draft');
+      draft.markSaved({ ...draftValue, newClipId: '', isManualClipId: false, scriptText: '', selectedAngleId: '', selectedScenarioId: '' });
       setActionSuccess(`สร้างดราฟต์สำเร็จ: ${res.clip_id} เปิดแต่งต่อใน Compositions ได้ทันที`);
       setIsManualClipId(false);
       setScriptText('');
@@ -476,31 +492,6 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
       setActionError('สร้างคลิปไม่สำเร็จ: ' + (err.friendlyMessage || err.message));
     } finally {
       setIsCreating(false);
-    }
-  };
-
-  const handleRenderComposition = async (comp, isTest = false) => {
-    try {
-      setRenderingCompId(comp.id);
-      setActionError(null);
-      setActionSuccess(`กำลังเรนเดอร์ ${comp.id} ผ่าน Chrome Headless (ประมาณ 1-2 นาที)...`);
-      const res = await renderHyperFramesComposition({
-        composition_id: comp.id,
-        product_id: comp.product?.toUpperCase(),
-        is_test: isTest
-      });
-      if (isTest) {
-        setActionSuccess(`เรนเดอร์ทดสอบสำเร็จในโฟลเดอร์ชั่วคราว: ${res.output_path}`);
-      } else {
-        setActionSuccess(`เรนเดอร์และลงทะเบียนสำเร็จ! บันทึกลง Export Gallery เรียบร้อย`);
-        if (onNavigateToGallery) {
-          setTimeout(() => onNavigateToGallery(), 2500);
-        }
-      }
-    } catch (err) {
-      setActionError('การเรนเดอร์ล้มเหลว: ' + (err.friendlyMessage || err.message));
-    } finally {
-      setRenderingCompId(null);
     }
   };
 
@@ -516,6 +507,12 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#080B11] text-slate-100 p-6 space-y-6">
+      <HyperFramesWorkflow key={channel?.channelId || 'main'} products={products}
+        channelId={channel?.channelId || 'main'} onOpenGallery={onNavigateToGallery} onOpenGadgetReview={onOpenGadgetReview} />
+      <details className="rounded-xl border border-white/10 bg-[#0D111A]">
+        <summary className="cursor-pointer px-4 py-3 text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]">เปิดเครื่องมือเดิมและตัวอย่างสไตล์</summary>
+        <div className="space-y-6 border-t border-white/10 p-4">
+          <p className="text-slate-400">ส่วนนี้ใช้ดูตัวอย่างสไตล์และเปิด composition เดิมใน Studio ส่วนงานใหม่ที่ส่งออกเข้า Gallery และคิวโพสต์ ให้เริ่มจาก flow ด้านบน ตัวอย่างสไตล์เป็นแนวทางสำหรับ AI ภาพจริงต้องตรวจใน revision ที่ส่งกลับ</p>
       {/* ── Header & Status Bar (OmniCut Pro Studio Branding) ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/[0.08] pb-5">
         <div>
@@ -531,7 +528,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                 </span>
               </h1>
               <p className="text-sm text-slate-400 mt-0.5">
-                สตูดิโอผลิตคลิปแนวตั้งอัตโนมัติด้วย Web Animation และ 4 สไตล์ไวรัลคุณภาพสูง (เหมือนคนตัด ไม่ใช่ AI)
+                ตัวอย่างสไตล์และเครื่องมือ Studio เดิมสำหรับงาน Web Animation แนวตั้ง
               </p>
             </div>
           </div>
@@ -540,8 +537,8 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
         <div className="flex items-center gap-3">
           {/* Health Pill */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0D111A] border border-white/[0.08] text-xs text-slate-300">
-            <span className={`w-2 h-2 rounded-full ${status?.ready ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-            <span>{status?.ready ? `Engine v${status.hyperframes_version} พร้อมใช้งาน` : 'กำลังตรวจสอบเอนจิน...'}</span>
+            <span className={`w-2 h-2 rounded-full ${status?.ready ? 'bg-cyan-400' : 'bg-amber-400'}`} />
+            <span>{refreshing ? 'กำลังตรวจข้อมูลเครื่องมือเดิม' : status?.ready ? 'พบ dependencies เครื่องมือเดิม' : 'ยังไม่ยืนยันเครื่องมือเดิม'}</span>
           </div>
 
           <a
@@ -621,7 +618,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
           }`}
         >
           <Plus className="w-4 h-4" />
-          เริ่มคลิปดราฟต์ใหม่
+          ดูแบบฟอร์มอ้างอิงเดิม
         </button>
       </div>
 
@@ -750,7 +747,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                           }}
                           className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 text-xs font-bold text-slate-950 shadow-sm transition-all"
                         >
-                          เลือกใช้สไตล์นี้
+                          ดูแบบฟอร์มอ้างอิง
                         </button>
                       </div>
                     </div>
@@ -782,7 +779,6 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {(Array.isArray(compositions) ? compositions : []).map((comp) => {
-              const isRendering = renderingCompId === comp.id;
               return (
                 <div
                   key={comp.id}
@@ -808,36 +804,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-white/[0.08] flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleRenderComposition(comp, false)}
-                      disabled={isRendering}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 disabled:opacity-50 text-xs font-bold text-slate-950 transition-all shadow-sm"
-                    >
-                      {isRendering ? (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          กำลังเรนเดอร์...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-3.5 h-3.5" />
-                          เรนเดอร์ Final (MP4)
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleRenderComposition(comp, true)}
-                      disabled={isRendering}
-                      className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] disabled:opacity-50 text-xs text-slate-300 transition-colors"
-                      title="เรนเดอร์ทดสอบลง .tmp/"
-                    >
-                      เรนเดอร์ทดสอบ
-                    </button>
-                  </div>
+                  <p className="pt-3 border-t border-white/[0.08] text-xs text-slate-400">เปิดตรวจ composition เดิมใน Studio แล้วส่งเป็น revision ผ่าน flow ด้านบนก่อนเรนเดอร์และส่งออก</p>
                 </div>
               );
             })}
@@ -854,11 +821,11 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
               <div className="flex items-center gap-2">
                 <Bot className="w-4 h-4 text-[#25F4EE]" />
                 <span className="text-xs font-bold text-white tracking-wide uppercase">
-                  ขั้นตอน AI Pipeline หลังกดสร้างดราฟต์
+                  ขั้นตอนร่างงานของเครื่องมือเดิม
                 </span>
               </div>
               <span className="text-[11px] text-[#25F4EE] font-mono font-medium">
-                Autonomous 3-Step Flow
+                แบบอ้างอิงเดิม
               </span>
             </div>
 
@@ -872,7 +839,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                   <span className="font-semibold text-white">Faster-Whisper</span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  สกัด Audio Timestamps คำต่อคำภาษาไทย สร้างไฟล์ Composition HTML พร้อมคีย์เฟรมคำพูดทันที
+                  การทำ timing ต้องมีเสียงพากย์จริงและตรวจผล ไม่ใช่หลักฐานว่าคลิปพร้อมส่งออก
                 </p>
               </div>
 
@@ -898,7 +865,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                   <span className="font-semibold text-white">Chrome Headless</span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  กดเรนเดอร์ MP4 60FPS Zero-Drift ส่งออกวิดีโอ 1080x1920 ลง Ready_to_post อัตโนมัติ
+                  งานใหม่เรนเดอร์จาก revision ที่ยอมรับแล้ว ตรวจ MP4 1080x1920 ที่ 30 FPS และยืนยันคลิปจริงก่อนส่งออกเข้า Gallery
                 </p>
               </div>
             </div>
@@ -909,14 +876,15 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Plus className="w-5 h-5 text-[#25F4EE]" />
-                สร้างดราฟต์คลิป HyperFrames ใหม่
+                แบบฟอร์มอ้างอิงของเครื่องมือเดิม
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                ระบบจะสร้างรหัสคลิปที่ไม่ซ้ำให้อัตโนมัติ พร้อมตรวจจับความเข้ากันได้ระหว่างสไตล์กับบทสคริปต์ ป้องกันภาษาภาพขัดกับเนื้อหา
+                ใช้ flow ด้านบนเพื่อสร้างงานใหม่ที่ผูกสินค้าและ Angle แบบฟอร์มนี้เก็บไว้ดูแนวทางเดิม และไม่ใช้ส่งงานเข้าคิวโพสต์
               </p>
             </div>
 
-            <form onSubmit={handleCreateClip} className="space-y-4">
+            <form onSubmit={handleCreateClip} onChange={() => { touched.current = true; }} className="space-y-4">
+              <fieldset disabled className="contents">
               {/* Clip ID Auto Generator Field */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
@@ -1236,7 +1204,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                 <textarea
                   value={scriptText}
                   onChange={(e) => setScriptText(e.target.value)}
-                  placeholder="วางบทสคริปต์ภาษาไทยที่นี่ หรือเลือก Angle / Scenario ด้านบน เพื่อช่วยให้ Whisper สะกดคำไทยและจัดจังหวะได้อย่างแม่นยำ 100%..."
+                  placeholder="แบบฟอร์มอ้างอิงเดิม ใช้บททางการและ flow ผลิตด้านบนสำหรับงานใหม่"
                   rows={5}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-sm focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/40 focus:outline-none resize-none leading-relaxed font-mono text-xs"
                 />
@@ -1256,11 +1224,12 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                   ) : (
                     <>
                       <Plus className="w-4 h-4" />
-                      สร้างดราฟต์คลิป
+                      เริ่มงานใหม่ผ่าน flow ด้านบน
                     </>
                   )}
                 </button>
               </div>
+              </fieldset>
             </form>
           </div>
         </div>
@@ -1381,7 +1350,7 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
                     }}
                     className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 text-slate-950 font-bold text-sm transition-all shadow-md shadow-[#25F4EE]/20 text-center cursor-pointer"
                   >
-                    เลือกใช้สไตล์นี้เพื่อเริ่มดราฟต์
+                    ดูแบบฟอร์มอ้างอิงของสไตล์นี้
                   </button>
                   <button
                     type="button"
@@ -1396,6 +1365,8 @@ export default function HyperFramesHub({ onNavigateToGallery }) {
           </div>
         );
       })()}
+        </div>
+      </details>
     </div>
   );
 }
