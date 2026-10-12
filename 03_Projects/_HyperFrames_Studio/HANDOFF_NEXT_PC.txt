@@ -1,0 +1,23 @@
+================================================================================
+📋 ข้อความสำหรับก๊อปปี้ไปวางสั่ง AI (Claude Code / Antigravity / Cursor) บนคอมอีกเครื่อง
+================================================================================
+
+ให้อ่านไฟล์ต่อไปนี้ตามลำดับเพื่อรับงานตัดต่อคลิปด้วย HyperFrames Studio ต่อทันที:
+1. `03_Projects/_HyperFrames_Studio/HANDOFF.md`
+2. `03_Projects/_HyperFrames_Studio/kit/STYLE.md` (ดูหัวข้อ สไตล์ #5: Couple Paper Chat)
+3. `.agents/rules/pov_couple_line_chat_standard.md` (ดูหัวข้อ 9: โหมดไร้ฟุตเทจถ่ายเอง — Couple Paper Chat)
+4. `AGENTS.md` (กฎข้อ 20)
+5. สคริปต์ต้นแบบ: `03_Projects/_HyperFrames_Studio/clips/ors01-pov1-240w/build.py` และ `03_Projects/_HyperFrames_Studio/compositions/ors01-pov1-240w.html`
+
+สรุปมาตรฐานที่ล็อกไว้แล้ว (ห้ามเปลี่ยนเด็ดขาด):
+- ต่อไปนี้ทุกคลิปจะตัดด้วยสไตล์ **Couple Paper Chat (แชทคู่รัก พี่บ่าว & น้องนุ้ย บนกระดาษยับ)** โดยใช้แค่ลิงก์ TikTok Shop / รูปสินค้าทางการ ไม่ต้องถ่ายฟุตเทจสินค้าเอง
+- พื้นหลัง: วิดีโอกระดาษยับ `assets/shared/paper_bg.mp4` เล่นช้าลงครึ่งความเร็ว `0.5x` (`playbackRate = 0.5`)
+- เสียงพากย์ TTS: ยิง API แค่ 2 รอบต่อคลิป (1 Single-Take สำหรับน้องนุ้ย `Aoede` + 1 Single-Take สำหรับพี่บ่าว `Puck`) ล็อกโมเดล `gemini-3.1-flash-tts-preview` ตัวเดียว ห้ามสลับรุ่นสำรอง
+  * น้องนุ้ย (`Aoede`): `Cute, sassy, lively Southern Thai girlfriend named น้องนุ้ย (สาวใต้เสียงใส น่ารักแต่ดุ พูดจาเป็นธรรมชาติ)` + FFmpeg `asetrate=24000*1.10,aresample=24000,atempo=1.20,highpass=f=110,loudnorm=I=-15:TP=-1.5:LRA=9`
+  * พี่บ่าว (`Puck`): `Playful, flustered, good-natured Southern Thai boyfriend named พี่บ่าว (พี่บ่าวคนซื่อ น้ำเสียงผู้ชายชัดเจน ตกใจฮาๆ)` (ห้ามใส่คำว่า Calm เด็ดขาด) + FFmpeg `atempo=1.32,highpass=f=95,loudnorm=I=-15:TP=-1.5:LRA=9`
+- หั่นเทิร์นด้วย `split_by_longest_gaps()` (เลือก n-1 ช่วงเงียบที่ยาวที่สุด) และบังคับตรวจด้วย `faster_whisper` (`large-v3-turbo`) ใน `verify_turns_with_whisper()` ทุกเทิร์น
+- การ์ดแชทบนกระดาษโชว์สูงสุด `maxV = 3` บับเบิล แทรกรูปสินค้าจริงในบับเบิลจังหวะโชว์สเปก + ป้ายปักหมุดตะกร้าเหลืองมุมซ้ายล่างช่วงท้ายคลิป
+- ห้ามสั่ง `npx hyperframes render` เป็น MP4 เองโดยพลการ ให้รัน `npx hyperframes lint` แล้วเปิดหน้า Studio Preview (`npx hyperframes preview --background`) ให้ตรวจก่อนเสมอ
+
+เมื่ออ่านเข้าใจครบแล้ว ให้เช็กสถานะ Preview Server ด้วย `npx hyperframes preview --status` (ใน `03_Projects/_HyperFrames_Studio`) แล้วรอรับลิงก์สินค้าหรือคำสั่งตัดคลิปถัดไปได้เลย
+================================================================================

@@ -10355,3 +10355,17 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 3. **ผลตรวจ Jev (`tools/jev_advisor.py`) ก่อน Commit:**
    - `noul` ให้คะแนน `0.85` (`confidence: null`), `score` ให้คะแนน `2.29` (`confidence: 0.17`) — ตรวจจากสรุปข้อความ diff ไม่ได้อ่านไฟล์เอง และดำเนินการตามคำสั่งยืนยันโดยตรงของผู้ใช้
 
+## Round SYNC-HYPERFRAMES-TO-E-DRIVE-AND-HANDOFF-20261012 — ซิงก์ไฟล์ HyperFrames ทั้งหมด (รวมมีเดีย/คลิปที่ตัดเสร็จ/กฎสไตล์ล่าสุด) ลงไดรฟ์ `E:\PGM\Omnicut` พร้อมสร้างไฟล์ Handoff Text สำหรับทำงานต่อบนคอมอีกเครื่อง
+
+วันที่: 2026-10-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### สิ่งที่ทำ
+1. **ซิงก์ `03_Projects/_HyperFrames_Studio/` ทั้งหมดลง `E:\PGM\Omnicut\03_Projects\_HyperFrames_Studio\` ด้วย `robocopy`:**
+   - รวมไฟล์ครบทุกโฟลเดอร์ย่อย (`assets/` ทุกสินค้าและ `shared/paper_bg.mp4`, `sfx/`, `memes/`, `footage.mp4`, `clips/` ทุกตัวพร้อม `tts/` และ `vo.wav`, `compositions/` ทั้ง 22 คลิป, `kit/` พร้อมฟอนต์และ `STYLE.md`, และ `renders/`)
+2. **ซิงก์ไฟล์วิดีโอที่ตัดเสร็จ (`04_Exports/202610*.mp4`) และกฎมาตรฐานลง `E:\PGM\Omnicut\`:**
+   - คัดลอกคลิปที่เรนเดอร์จาก HyperFrames ทั้งหมดใน `04_Exports/` ไปยัง `E:\PGM\Omnicut\04_Exports\`
+   - คัดลอก `AGENTS.md`, `.gitignore`, `TODO.md`, `HISTORY.md`, และ `.agents/rules/pov_couple_line_chat_standard.md` ไปยัง `E:\PGM\Omnicut\`
+3. **อัปเดต `HANDOFF.md` และสร้าง `HANDOFF_NEXT_PC.txt`:**
+   - บันทึกสเปกสไตล์ Couple Paper Chat ล่าสุดและข้อความ Prompt สำเร็จรูปสำหรับนำไปวางสั่ง AI บนคอมอีกเครื่องได้ทันทีที่ `03_Projects/_HyperFrames_Studio/HANDOFF_NEXT_PC.txt` และ `E:\PGM\Omnicut\HANDOFF_NEXT_PC.txt`
+
+
