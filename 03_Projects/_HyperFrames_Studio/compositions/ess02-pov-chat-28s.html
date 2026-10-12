@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1080, height=1920">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="stylesheet" href="kit/kit.css">
+    <link rel="stylesheet" href="kit/line-chat.css">
+    <script src="kit/kit.js"></script>
+    <style>
+      /* ess02-pov-chat-28s — style "POV Chat Story": no voiceover; the story is told by a LINE-style chat. */
+      @font-face {
+        font-family: "Anuphan";
+        src: url("kit/fonts/Anuphan-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+      .cam.soft {
+        filter: blur(14px) brightness(0.55);
+      }
+      #pov-1 {
+        top: 520px;
+        font-size: 150px;
+        color: var(--volt);
+      }
+      #pov-2 {
+        top: 700px;
+        font-size: 84px;
+        line-height: 1.25;
+        white-space: normal;
+        padding: 0 70px;
+      }
+      #mid-1 {
+        top: 330px;
+        font-size: 150px;
+      }
+      #mid-2 {
+        top: 520px;
+        font-size: 86px;
+        color: var(--volt);
+      }
+      #mid-3 {
+        top: 330px;
+        font-size: 110px;
+      }
+      #mid-pct {
+        top: 470px;
+        font-size: 300px;
+        line-height: 1;
+        color: var(--volt);
+        font-variant-numeric: tabular-nums;
+      }
+      #cta-1 {
+        top: 380px;
+        font-size: 125px;
+      }
+      #cta-arrow {
+        left: 0;
+        top: 0;
+        width: 1080px;
+        height: 1920px;
+      }
+      #cta-arrow path {
+        fill: none;
+        stroke: var(--volt);
+        stroke-width: 22;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      #cta-2 {
+        left: 270px;
+        top: 1300px;
+        font-size: 120px;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-mlst" id="root" data-composition-id="ess02-pov-chat-28s" data-start="0" data-duration="28" data-width="1080" data-height="1920">
+      <!-- ================= FOOTAGE ================= -->
+      <div data-hf-id="hf-muwa" class="cam murky" id="c0"><div data-hf-id="hf-l389" class="kb" id="k0" data-layout-allow-overflow=""><video data-hf-id="hf-umr9" id="v0" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="0" data-duration="1.8" data-media-start="0" data-playback-rate="0.3" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-6zrt" class="cam soft" id="c1"><div data-hf-id="hf-kbkg" class="kb" id="k1" data-layout-allow-overflow=""><video data-hf-id="hf-ugsp" id="v1" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="1.8" data-duration="8.7" data-media-start="45.4" data-playback-rate="0.4" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-fhc8" class="cam" id="c2"><div data-hf-id="hf-v723" class="kb" id="k2" data-layout-allow-overflow=""><video data-hf-id="hf-nsyv" id="v2" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="10.5" data-duration="3.0" data-media-start="1.2" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-g901" class="cam" id="c3"><div data-hf-id="hf-p1ca" class="kb" id="k3" data-layout-allow-overflow=""><video data-hf-id="hf-jvvx" id="v3" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="13.5" data-duration="2.0" data-media-start="11.2" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-tm44" class="cam soft" id="c4"><div data-hf-id="hf-8h8d" class="kb" id="k4" data-layout-allow-overflow=""><video data-hf-id="hf-tw95" id="v4" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="15.5" data-duration="9.0" data-media-start="42.3" data-playback-rate="0.5" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-bj87" class="cam" id="c5"><div data-hf-id="hf-7pkk" class="kb" id="k5" data-layout-allow-overflow=""><video data-hf-id="hf-vhcn" id="v5" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="24.5" data-duration="3.5" data-media-start="54.5" data-track-index="0"></video></div></div>
+
+      <!-- ================= POV title (0–1.8) ================= -->
+      <div data-hf-id="hf-goe9" class="beat clip" id="b-pov" data-start="0" data-duration="1.8" data-track-index="2">
+        <div data-hf-id="hf-om7l" class="scrim full"></div>
+        <div data-hf-id="hf-vitz" class="t center" id="pov-1">POV:</div>
+        <div data-hf-id="hf-y27p" class="t center" id="pov-2">แบตเหลือ 1% อีก 15 นาทีต้องไปรับแฟน</div>
+      </div>
+
+      <!-- ================= CHAT A (1.8–10.5) ================= -->
+      <div data-hf-id="hf-jetg" class="beat clip" id="b-chatA" data-start="1.8" data-duration="8.7" data-track-index="2">
+        <div data-hf-id="hf-avsn" class="chat" id="chatA">
+          <div data-hf-id="hf-ufsv" class="bar"><span data-hf-id="hf-n737" class="back">‹</span><span data-hf-id="hf-uia3">น้ำหวาน</span><span data-hf-id="hf-d9xx" class="icons"><i data-hf-id="hf-wt6k"></i><i data-hf-id="hf-zeb8"></i></span></div>
+          <div data-hf-id="hf-4db2" class="day">วันนี้</div>
+          <div data-hf-id="hf-3kwz" class="row in" id="a1" style="top: 210px"><div data-hf-id="hf-pqx1" class="ava">น</div><div data-hf-id="hf-a7gy" class="msg">ถึงไหนแล้ว ใกล้ยัง</div><div data-hf-id="hf-3wch" class="meta">17:42</div></div>
+          <div data-hf-id="hf-20b7" class="row out" id="a2" style="top: 340px"><div data-hf-id="hf-gask" class="meta">อ่านแล้ว<br data-hf-id="hf-x5px">17:43</div><div data-hf-id="hf-9ocj" class="msg">แบตเหลือ 1% อะ รอชาร์จแป๊บ</div></div>
+          <div data-hf-id="hf-q33l" class="row in" id="a3t" style="top: 520px"><div data-hf-id="hf-3ftl" class="ava">น</div><div data-hf-id="hf-t5f5" class="typing"><i data-hf-id="hf-y7e5"></i><i data-hf-id="hf-ylp6"></i><i data-hf-id="hf-0l8b"></i></div></div>
+          <div data-hf-id="hf-w6sr" class="row in" id="a3" style="top: 520px"><div data-hf-id="hf-4mqo" class="ava">น</div><div data-hf-id="hf-esq6" class="msg">ชาร์จนานไหม</div><div data-hf-id="hf-4ani" class="meta">17:43</div></div>
+          <div data-hf-id="hf-g9af" class="row out" id="a4" style="top: 650px"><div data-hf-id="hf-gp3l" class="meta">อ่านแล้ว<br data-hf-id="hf-rsrt">17:44</div><div data-hf-id="hf-yrjm" class="msg">หัวชาร์จแถมเก่าๆ ชาร์จช้ามาก</div></div>
+          <div data-hf-id="hf-mo0t" class="row in" id="a5t" style="top: 830px"><div data-hf-id="hf-48fn" class="ava">น</div><div data-hf-id="hf-kntx" class="typing"><i data-hf-id="hf-0zjc"></i><i data-hf-id="hf-zsm9"></i><i data-hf-id="hf-06xa"></i></div></div>
+          <div data-hf-id="hf-6boj" class="row in" id="a5" style="top: 830px"><div data-hf-id="hf-28wi" class="ava">น</div><div data-hf-id="hf-9bta" class="msg">เปลี่ยนหัวชาร์จได้แล้วมั้ง</div><div data-hf-id="hf-33qf" class="meta">17:44</div></div>
+        </div>
+      </div>
+
+      <!-- ================= THE NEXT DAY (10.5–15.5) ================= -->
+      <div data-hf-id="hf-2po5" class="beat clip" id="b-mid1" data-start="10.5" data-duration="3.0" data-track-index="2">
+        <div data-hf-id="hf-dg67" class="scrim top"></div>
+        <div data-hf-id="hf-jfb5" class="t center" id="mid-1">วันต่อมา</div>
+        <div data-hf-id="hf-sdq8" class="t center" id="mid-2">สั่ง Essager PD 30W มาลอง</div>
+      </div>
+      <div data-hf-id="hf-6mbo" class="beat clip" id="b-mid2" data-start="13.5" data-duration="2.0" data-track-index="2">
+        <div data-hf-id="hf-ba8v" class="scrim top"></div>
+        <div data-hf-id="hf-qxn8" class="t center" id="mid-3">ชาร์จ 30 นาที</div>
+        <div data-hf-id="hf-xomg" class="t center" id="mid-pct">0%</div>
+      </div>
+
+      <!-- ================= CHAT B (15.5–24.5) ================= -->
+      <div data-hf-id="hf-1q6x" class="beat clip" id="b-chatB" data-start="15.5" data-duration="9.0" data-track-index="2">
+        <div data-hf-id="hf-27ws" class="chat" id="chatB">
+          <div data-hf-id="hf-c51b" class="bar"><span data-hf-id="hf-o0wz" class="back">‹</span><span data-hf-id="hf-md7v">น้ำหวาน</span><span data-hf-id="hf-j4qx" class="icons"><i data-hf-id="hf-26gf"></i><i data-hf-id="hf-2krg"></i></span></div>
+          <div data-hf-id="hf-1dtu" class="day">วันนี้</div>
+          <div data-hf-id="hf-0war" class="row out" id="b1" style="top: 210px"><div data-hf-id="hf-dyuw" class="meta">อ่านแล้ว<br data-hf-id="hf-szow">17:21</div><div data-hf-id="hf-5yl1" class="msg">ชาร์จ 30 นาทีได้ 50% แล้ว ไปรับนะ</div></div>
+          <div data-hf-id="hf-boya" class="row in" id="b2t" style="top: 400px"><div data-hf-id="hf-1ulh" class="ava">น</div><div data-hf-id="hf-lur0" class="typing"><i data-hf-id="hf-oz7w"></i><i data-hf-id="hf-okwv"></i><i data-hf-id="hf-o6lu"></i></div></div>
+          <div data-hf-id="hf-5ay8" class="row in" id="b2" style="top: 400px"><div data-hf-id="hf-31ik" class="ava">น</div><div data-hf-id="hf-vq33" class="msg">เร็วขนาดนั้นเลย ใช้อะไรชาร์จ</div><div data-hf-id="hf-rrdm" class="meta">17:21</div></div>
+          <div data-hf-id="hf-1pso" class="row out" id="b3" style="top: 530px"><div data-hf-id="hf-crxt" class="meta">อ่านแล้ว<br data-hf-id="hf-sldv">17:22</div><div data-hf-id="hf-m79s" class="pic"><img data-hf-id="hf-z64x" src="assets/ess02/img/hero_frame.png" alt=""></div></div>
+          <div data-hf-id="hf-oqpk" class="row out" id="b4" style="top: 975px"><div data-hf-id="hf-s5on" class="meta">17:22</div><div data-hf-id="hf-2ciz" class="msg">Essager PD 30W ตัวจิ๋วแค่ฝ่ามือ</div></div>
+        </div>
+      </div>
+      <div data-hf-id="hf-6izv" class="beat clip" id="b-chatB2" data-start="22.2" data-duration="2.3" data-track-index="3">
+        <div data-hf-id="hf-0hxz" class="chat" id="chatB2" style="background: transparent; box-shadow: none">
+          <div data-hf-id="hf-80tb" class="row in" id="b5" style="top: 860px"><div data-hf-id="hf-2n7j" class="ava">น</div><div data-hf-id="hf-l655" class="msg">สั่งให้ด้วยอันนึง</div><div data-hf-id="hf-sjzo" class="meta">17:23</div></div>
+        </div>
+      </div>
+
+      <!-- ================= CTA (24.5–28) ================= -->
+      <div data-hf-id="hf-grng" class="beat clip" id="b-cta" data-start="24.5" data-duration="3.5" data-track-index="2">
+        <div data-hf-id="hf-avxu" class="scrim top"></div>
+        <div data-hf-id="hf-enmw" class="t center volt" id="cta-1">กดตะกร้าเหลือง</div>
+        <svg data-hf-id="hf-azd5" class="fx" id="cta-arrow" viewBox="0 0 1080 1920">
+          <path data-hf-id="hf-uqev" id="cta-shaft" d="M 330 640 C 180 860 120 1180 160 1440" />
+          <path data-hf-id="hf-ryhr" id="cta-head" d="M 80 1360 L 160 1450 L 250 1370" />
+        </svg>
+        <div data-hf-id="hf-7vo8" class="t volt" id="cta-2">ซ้ายล่าง</div>
+      </div>
+
+      <div data-hf-id="hf-hmg5" id="flash"></div>
+      <div data-hf-id="hf-0bt9" id="wm"><span data-hf-id="hf-4vsq">สงวนลิขสิทธิ์ช่อง rizanntry ห้ามคัดลอก/ดัดแปลง</span></div>
+
+      <audio data-hf-id="hf-s5qs" id="bgm" src="assets/shared/bgm_lofi.wav" data-start="0" data-duration="28" data-track-index="11" data-volume="0.22"></audio>
+      <audio data-hf-id="hf-kkh1" id="s01" src="assets/shared/sfx/vine_boom.mp3" data-start="0.2" data-duration="1.0" data-track-index="12" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-a5fs" id="s02" src="assets/shared/sfx/msg_recv.mp3" data-start="2.2" data-duration="0.6" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-30dq" id="s03" src="assets/shared/sfx/typing.mp3" data-start="2.9" data-duration="0.85" data-track-index="13" data-volume="0.35"></audio>
+      <audio data-hf-id="hf-2kvb" id="s04" src="assets/shared/sfx/msg_send.mp3" data-start="3.8" data-duration="0.5" data-track-index="12" data-volume="0.55"></audio>
+      <audio data-hf-id="hf-ta6o" id="s05" src="assets/shared/sfx/msg_recv.mp3" data-start="5.4" data-duration="0.6" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-y0hh" id="s06" src="assets/shared/sfx/typing.mp3" data-start="6.1" data-duration="0.85" data-track-index="13" data-volume="0.35"></audio>
+      <audio data-hf-id="hf-1r7i" id="s07" src="assets/shared/sfx/msg_send.mp3" data-start="7.0" data-duration="0.5" data-track-index="12" data-volume="0.55"></audio>
+      <audio data-hf-id="hf-99kw" id="s08" src="assets/shared/sfx/msg_recv.mp3" data-start="8.6" data-duration="0.6" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-uqpr" id="s09" src="assets/shared/sfx/sad_trombone.mp3" data-start="9.3" data-duration="1.2" data-track-index="13" data-volume="0.35"></audio>
+      <audio data-hf-id="hf-lwgm" id="s10" src="assets/shared/sfx/few_moments_later.mp3" data-start="10.5" data-duration="2.2" data-track-index="12" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-iab9" id="s11" src="assets/shared/sfx/whoosh.mp3" data-start="13.45" data-duration="0.5" data-track-index="13" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-n0vm" id="s12" src="assets/shared/sfx/levelup.mp3" data-start="14.6" data-duration="1.2" data-track-index="12" data-volume="0.3"></audio>
+      <audio data-hf-id="hf-n5sv" id="s13" src="assets/shared/sfx/typing.mp3" data-start="15.2" data-duration="0.8" data-track-index="13" data-volume="0.35"></audio>
+      <audio data-hf-id="hf-3mzy" id="s14" src="assets/shared/sfx/msg_send.mp3" data-start="16.0" data-duration="0.5" data-track-index="12" data-volume="0.55"></audio>
+      <audio data-hf-id="hf-g5ng" id="s15" src="assets/shared/sfx/msg_recv.mp3" data-start="17.8" data-duration="0.6" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-a0cj" id="s16" src="assets/shared/sfx/msg_send.mp3" data-start="19.6" data-duration="0.5" data-track-index="12" data-volume="0.55"></audio>
+      <audio data-hf-id="hf-lhxj" id="s17" src="assets/shared/sfx/msg_send.mp3" data-start="20.6" data-duration="0.5" data-track-index="13" data-volume="0.55"></audio>
+      <audio data-hf-id="hf-t417" id="s18" src="assets/shared/sfx/msg_recv.mp3" data-start="22.4" data-duration="0.6" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-3vs8" id="s19" src="assets/shared/sfx/wow.mp3" data-start="23.1" data-duration="1.2" data-track-index="13" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-jt5u" id="s20" src="assets/shared/sfx/boom.wav" data-start="24.5" data-duration="0.8" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-985f" id="s21" src="assets/shared/sfx/cash_register.mp3" data-start="25.0" data-duration="1.0" data-track-index="13" data-volume="0.5"></audio>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      const $ = (s) => document.querySelector(s);
+      const flash = HF.flash(tl);
+      const bubble = (sel, t, fromX) =>
+        tl.fromTo(sel, { y: 40, x: fromX, scale: 0.85, opacity: 0, transformOrigin: fromX < 0 ? "0% 100%" : "100% 100%" }, { y: 0, x: 0, scale: 1, opacity: 1, duration: 0.32, ease: "back.out(1.8)" }, t);
+      const typing = (sel, t0, t1) => {
+        tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: 0.15 }, t0);
+        document.querySelector(sel).querySelectorAll(".typing i").forEach((d, i) =>
+          tl.fromTo(d, { y: 0 }, { y: -10, duration: 0.18, ease: "sine.inOut", yoyo: true, repeat: Math.max(0, Math.floor((t1 - t0 - i * 0.1) / 0.36) * 2 - 1) }, t0 + i * 0.1),
+        );
+        tl.to(sel, { opacity: 0, duration: 0.05 }, t1);
+      };
+
+      const SHOTS = [[0, 1.8, 1.05, 1.12], [1.8, 8.7, 1.1, 1.2], [10.5, 3.0, 1.2, 1.1], [13.5, 2.0, 1.35, 1.5], [15.5, 9.0, 1.1, 1.2], [24.5, 3.5, 1.05, 1.15]];
+      SHOTS.forEach(([s, d, z0, z1], i) => {
+        tl.fromTo(`#k${i}`, { scale: z0 }, { scale: z1, duration: d, ease: "none" }, s);
+        if (i > 0) tl.fromTo(`#c${i}`, { scale: 1.16 }, { scale: 1, duration: 0.34, ease: "expo.out" }, s);
+      });
+
+      // POV title
+      tl.fromTo("#pov-1", { scale: 2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "power4.out" }, 0.15);
+      tl.fromTo("#pov-2", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "power3.out" }, 0.45);
+
+      // chat A slides up like opening the app
+      tl.fromTo("#chatA", { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 1.8);
+      bubble("#a1", 2.2, -40);
+      bubble("#a2", 3.8, 40);
+      typing("#a3t", 4.5, 5.4);
+      bubble("#a3", 5.4, -40);
+      bubble("#a4", 7.0, 40);
+      typing("#a5t", 7.7, 8.6);
+      bubble("#a5", 8.6, -40);
+      tl.to("#chatA", { y: -80, opacity: 0, duration: 0.25, ease: "power2.in" }, 10.25);
+
+      // next day: product + 30 min → 50%
+      flash(10.5, 0.5, 0.25);
+      tl.fromTo("#mid-1", { scale: 1.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.32, ease: "power4.out" }, 10.55);
+      tl.fromTo("#mid-2", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "power3.out" }, 11.4);
+      tl.fromTo("#mid-3", { y: -40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "power3.out" }, 13.55);
+      const pct = { v: 0 };
+      const pctEl = $("#mid-pct");
+      tl.fromTo(pct, { v: 0 }, { v: 50, duration: 1.1, ease: "power1.inOut", onUpdate: () => (pctEl.textContent = `${Math.round(pct.v)}%`) }, 13.6);
+      tl.fromTo("#mid-pct", { scale: 1.3 }, { scale: 1, duration: 0.35, ease: "back.out(3)", immediateRender: false }, 14.7);
+
+      // chat B
+      tl.fromTo("#chatB", { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 15.5);
+      bubble("#b1", 16.0, 40);
+      typing("#b2t", 16.9, 17.8);
+      bubble("#b2", 17.8, -40);
+      bubble("#b3", 19.6, 40);
+      bubble("#b4", 20.6, 40);
+      // the last reply pushes the thread up, like a real chat scrolling
+      tl.to("#chatB .row", { y: -260, duration: 0.3, ease: "power2.out" }, 22.2);
+      bubble("#b5", 22.4, -40);
+      [10, -8, 6, -3, 0].forEach((x, i) => tl.set("#b5", { x }, 23.0 + i * 0.04));
+
+      // CTA
+      tl.fromTo("#cta-1", { scale: 1.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.32, ease: "power4.out" }, 24.55);
+      const sl = HF.dash($("#cta-shaft"));
+      const hl = HF.dash($("#cta-head"));
+      tl.fromTo("#cta-shaft", { strokeDashoffset: sl }, { strokeDashoffset: 0, duration: 0.45, ease: "power2.inOut" }, 24.8);
+      tl.fromTo("#cta-head", { strokeDashoffset: hl }, { strokeDashoffset: 0, duration: 0.16, ease: "power2.out" }, 25.22);
+      tl.fromTo("#cta-2", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: "expo.out" }, 25.5);
+      tl.to("#cta-arrow", { x: -18, y: 18, duration: 0.25, ease: "sine.inOut", yoyo: true, repeat: 3 }, 25.8);
+
+      window.__timelines["ess02-pov-chat-28s"] = tl;
+    </script>
+  </body>
+</html>

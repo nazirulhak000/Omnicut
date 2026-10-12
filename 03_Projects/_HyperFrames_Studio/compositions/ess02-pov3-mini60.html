@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1080, height=1920">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="stylesheet" href="kit/kit.css">
+    <script src="assets/clips/ess02-pov3-mini60/timing.js"></script>
+    <script src="kit/kit.js"></script>
+    <style>
+      .cyan {
+        color: #00f2fe;
+      }
+      /* Top Hook & Scene Headlines — Large, Clear Multi-Line Poster Layout (Never stretches edge-to-edge!) */
+      .scene-sub {
+        top: 135px;
+        left: 60px !important;
+        right: 60px !important;
+        font-size: 54px;
+        line-height: 1.22;
+        white-space: normal !important;
+        color: rgba(255, 255, 255, 0.96);
+        letter-spacing: 0.01em;
+      }
+      .scene-title {
+        top: 215px;
+        left: 60px !important;
+        right: 60px !important;
+        font-size: 80px;
+        line-height: 1.18;
+        white-space: normal !important;
+        filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.7));
+      }
+
+      /* ============================================================================
+         STACKED LINE MESSENGER CHAT BUBBLES (1 Short Clause = 1 Separate Bubble Box!)
+         If a turn has 2+ phrases, each phrase is its own separate bubble stacked below!
+         ============================================================================ */
+      .cap {
+        display: flex !important;
+        left: 36px !important;
+        right: 36px !important;
+        top: 1245px !important;
+        align-items: flex-start !important;
+        text-shadow: none !important;
+      }
+      .cap-in {
+        position: relative;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        max-width: 760px !important;
+        padding: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+      }
+      .cap-in .w {
+        display: block !important;
+        width: fit-content !important;
+        max-width: 740px !important;
+        padding: 16px 28px !important;
+        font-size: 40px !important;
+        font-weight: 700;
+        line-height: 1.28 !important;
+        white-space: nowrap !important;
+        color: #111111 !important;
+        text-shadow: none !important;
+        border-radius: 26px;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+      }
+
+      /* FEMALE (น้องนุ้ย) — LEFT STACKED WHITE LINE BUBBLES */
+      #cap00,
+      #cap01,
+      #cap03,
+      #cap06,
+      #cap08,
+      #cap10,
+      #cap11 {
+        justify-content: flex-start !important;
+      }
+      #cap00::before,
+      #cap01::before,
+      #cap03::before,
+      #cap06::before,
+      #cap08::before,
+      #cap10::before,
+      #cap11::before {
+        content: "น";
+        flex: 0 0 70px;
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ff9eb5, #ff5277);
+        color: #ffffff;
+        font-size: 38px;
+        font-weight: 700;
+        line-height: 70px;
+        text-align: center;
+        margin-right: 14px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+      }
+      #cap00 .cap-in,
+      #cap01 .cap-in,
+      #cap03 .cap-in,
+      #cap06 .cap-in,
+      #cap08 .cap-in,
+      #cap10 .cap-in,
+      #cap11 .cap-in {
+        align-items: flex-start !important;
+      }
+      #cap00 .cap-in .w,
+      #cap01 .cap-in .w,
+      #cap03 .cap-in .w,
+      #cap06 .cap-in .w,
+      #cap08 .cap-in .w,
+      #cap10 .cap-in .w,
+      #cap11 .cap-in .w {
+        background: #ffffff;
+        text-align: left !important;
+      }
+      #cap00 .cap-in .w:first-child,
+      #cap01 .cap-in .w:first-child,
+      #cap03 .cap-in .w:first-child,
+      #cap06 .cap-in .w:first-child,
+      #cap08 .cap-in .w:first-child,
+      #cap10 .cap-in .w:first-child,
+      #cap11 .cap-in .w:first-child {
+        border-radius: 6px 26px 26px 26px;
+      }
+      #cap00 .cap-in::before,
+      #cap01 .cap-in::before,
+      #cap03 .cap-in::before,
+      #cap06 .cap-in::before,
+      #cap08 .cap-in::before,
+      #cap10 .cap-in::before,
+      #cap11 .cap-in::before {
+        content: "น้องนุ้ย";
+        position: absolute;
+        top: -42px;
+        left: 4px;
+        font-size: 30px;
+        font-weight: 700;
+        color: #ffffff;
+        text-shadow: 0 3px 10px rgba(0, 0, 0, 0.85);
+        white-space: nowrap;
+      }
+      #cap00::after,
+      #cap01::after,
+      #cap03::after,
+      #cap06::after,
+      #cap08::after,
+      #cap10::after,
+      #cap11::after {
+        content: "18:05";
+        align-self: flex-end;
+        margin-left: 12px;
+        margin-bottom: 4px;
+        font-size: 24px;
+        color: rgba(255, 255, 255, 0.92);
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
+        white-space: nowrap;
+      }
+
+      /* MALE (พี่บ่าว) — RIGHT STACKED GREEN LINE BUBBLES */
+      #cap02,
+      #cap04,
+      #cap05,
+      #cap07,
+      #cap09,
+      #cap12 {
+        justify-content: flex-end !important;
+      }
+      #cap02::before,
+      #cap04::before,
+      #cap05::before,
+      #cap07::before,
+      #cap09::before,
+      #cap12::before {
+        content: "อ่านแล้ว\A 18:05";
+        white-space: pre;
+        align-self: flex-end;
+        margin-right: 12px;
+        margin-bottom: 4px;
+        font-size: 23px;
+        line-height: 1.2;
+        text-align: right;
+        color: rgba(255, 255, 255, 0.95);
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
+      }
+      #cap02 .cap-in,
+      #cap04 .cap-in,
+      #cap05 .cap-in,
+      #cap07 .cap-in,
+      #cap09 .cap-in,
+      #cap12 .cap-in {
+        align-items: flex-end !important;
+      }
+      #cap02 .cap-in .w,
+      #cap04 .cap-in .w,
+      #cap05 .cap-in .w,
+      #cap07 .cap-in .w,
+      #cap09 .cap-in .w,
+      #cap12 .cap-in .w {
+        background: #8de07a;
+        text-align: left !important;
+      }
+      #cap02 .cap-in .w:first-child,
+      #cap04 .cap-in .w:first-child,
+      #cap05 .cap-in .w:first-child,
+      #cap07 .cap-in .w:first-child,
+      #cap09 .cap-in .w:first-child,
+      #cap12 .cap-in .w:first-child {
+        border-radius: 26px 6px 26px 26px;
+      }
+      #cap02 .cap-in::before,
+      #cap04 .cap-in::before,
+      #cap05 .cap-in::before,
+      #cap07 .cap-in::before,
+      #cap09 .cap-in::before,
+      #cap12 .cap-in::before {
+        content: "พี่บ่าว";
+        position: absolute;
+        top: -42px;
+        right: 4px;
+        font-size: 30px;
+        font-weight: 700;
+        color: #ffffff;
+        text-shadow: 0 3px 10px rgba(0, 0, 0, 0.85);
+        white-space: nowrap;
+      }
+      #cap02::after,
+      #cap04::after,
+      #cap05::after,
+      #cap07::after,
+      #cap09::after,
+      #cap12::after {
+        content: "บ";
+        flex: 0 0 70px;
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #60a5fa, #2563eb);
+        color: #ffffff;
+        font-size: 38px;
+        font-weight: 700;
+        line-height: 70px;
+        text-align: center;
+        margin-left: 14px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+      }
+
+      /* CLEAN FINAL CTA — LARGE, PUNCHY MULTI-LINE PYRAMID (NEVER STRETCHES FULL SCREEN) */
+      #cta-1 {
+        top: 220px;
+        left: 60px !important;
+        right: 60px !important;
+        font-size: 108px;
+        line-height: 1.12;
+        white-space: normal !important;
+      }
+      #cta-sub {
+        top: 360px;
+        left: 60px !important;
+        right: 60px !important;
+        font-size: 72px;
+        line-height: 1.24;
+        white-space: normal !important;
+        color: var(--paper);
+      }
+      #cta-sub .sub-line2 {
+        display: block;
+        margin-top: 10px;
+        font-size: 64px;
+        color: #00f2fe;
+      }
+      #k-arrow {
+        left: 0;
+        top: 0;
+        width: 1080px;
+        height: 1920px;
+      }
+      #k-arrow path {
+        fill: none;
+        stroke: var(--volt);
+        stroke-width: 22;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.85));
+      }
+      #cta-tag {
+        left: 260px;
+        top: 1290px;
+        font-size: 98px;
+      }
+
+      /* WATERMARK: BOTTOM-ALIGNED, NO BLACK BOX */
+      #wm {
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        bottom: 26px !important;
+        width: 100% !important;
+        height: auto !important;
+        text-align: center !important;
+        z-index: 20;
+      }
+      #wm span {
+        position: static !important;
+        display: inline-block !important;
+        transform: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        font-size: 28px !important;
+        color: rgba(255, 255, 255, 0.78) !important;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85) !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-w2t1" id="root" data-composition-id="ess02-pov3-mini60" data-start="0" data-duration="61.52" data-width="1080" data-height="1920">
+      <!-- 100% CRISP REAL PRODUCT FOOTAGE SHOTS (Essager PD 30W) -->
+      <div data-hf-id="hf-k742" class="cam" id="c0"><div data-hf-id="hf-l389" class="kb" id="k0" data-layout-allow-overflow=""><video data-hf-id="hf-pfzd" id="v0" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="0.0" data-duration="13.14" data-media-start="7.0" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-o583" class="cam" id="c1"><div data-hf-id="hf-kbkg" class="kb" id="k1" data-layout-allow-overflow=""><video data-hf-id="hf-nppu" id="v1" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="13.14" data-duration="10.48" data-media-start="20.6" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-fhc8" class="cam" id="c2"><div data-hf-id="hf-v723" class="kb" id="k2" data-layout-allow-overflow=""><video data-hf-id="hf-mrjy" id="v2" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="23.62" data-duration="9.89" data-media-start="35.0" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-g901" class="cam" id="c3"><div data-hf-id="hf-p1ca" class="kb" id="k3" data-layout-allow-overflow=""><video data-hf-id="hf-ojhj" id="v3" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="33.51" data-duration="8.34" data-media-start="11.2" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-5die" class="cam" id="c4"><div data-hf-id="hf-8h8d" class="kb" id="k4" data-layout-allow-overflow=""><video data-hf-id="hf-iw6g" id="v4" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="41.85" data-duration="9.47" data-media-start="42.3" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-bj87" class="cam" id="c5"><div data-hf-id="hf-7pkk" class="kb" id="k5" data-layout-allow-overflow=""><video data-hf-id="hf-2f6h" id="v5" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="51.32" data-duration="10.2" data-media-start="47.0" data-track-index="0"></video></div></div>
+
+      <!-- CLEAN TOP HEADLINES (Fitted inside Safe Zone) -->
+      <div data-hf-id="hf-re3v" class="beat clip" id="b-hook" data-start="0.0" data-duration="13.14" data-track-index="2">
+        <div data-hf-id="hf-dg67" class="scrim top"></div>
+        <div data-hf-id="hf-7hd7" class="t center scene-sub">POV: หัวชาร์จเก่าก้อนยักษ์</div>
+        <div data-hf-id="hf-60aj" class="t center volt scene-title" id="t-hook">เสียบปลั๊กพ่วงที<br data-hf-id="hf-x5px">เบียดรูข้างๆ มิด!</div>
+      </div>
+
+      <div data-hf-id="hf-x2hl" class="beat clip" id="b-proof" data-start="13.14" data-duration="10.48" data-track-index="2">
+        <div data-hf-id="hf-ba8v" class="scrim top"></div>
+        <div data-hf-id="hf-050g" class="t center scene-sub">เมียเสียบที่หนีบผมไม่ได้!</div>
+        <div data-hf-id="hf-gcf4" class="t center hot scene-title" id="t-proof">หงุดหงิดแต่เช้า<br data-hf-id="hf-rsrt">เกือบบ้านแตก!</div>
+      </div>
+
+      <div data-hf-id="hf-e92n" class="beat clip" id="b-rap" data-start="23.62" data-duration="9.89" data-track-index="2">
+        <div data-hf-id="hf-avxu" class="scrim top"></div>
+        <div data-hf-id="hf-jg9w" class="t center scene-sub">ดีไซน์ตัวจิ๋ว Palm-Size</div>
+        <div data-hf-id="hf-omoo" class="t center volt scene-title" id="t-rap">Essager PD 30W<br data-hf-id="hf-szow">เล็กเท่าฝ่ามือ!</div>
+      </div>
+
+      <div data-hf-id="hf-ioyc" class="beat clip" id="b-hero" data-start="33.51" data-duration="8.34" data-track-index="2">
+        <div data-hf-id="hf-ahmt" class="scrim top"></div>
+        <div data-hf-id="hf-eoxv" class="t center scene-sub">เสียบปลั๊กไม่เบียดช่องข้างๆ</div>
+        <div data-hf-id="hf-bfmv" class="t center cyan scene-title" id="t-hero">พกใส่กระเป๋าจิ๋ว<br data-hf-id="hf-sldv">ไม่ตุง ไม่เกะกะ!</div>
+      </div>
+
+      <div data-hf-id="hf-kbac" class="beat clip" id="b-steal" data-start="41.85" data-duration="9.47" data-track-index="2">
+        <div data-hf-id="hf-d9s0" class="scrim top"></div>
+        <div data-hf-id="hf-6g1p" class="t center scene-sub">จิ๋วแต่แจ๋ว จ่ายไฟเต็ม 30W</div>
+        <div data-hf-id="hf-ha1l" class="t center hot scene-title" id="t-steal">ชาร์จครบจบทั้ง<br data-hf-id="hf-qluq">iPhone และ iPad!</div>
+      </div>
+
+      <div data-hf-id="hf-mcpr" class="beat clip" id="b-payoff" data-start="51.32" data-duration="7.92" data-track-index="2">
+        <div data-hf-id="hf-cvgz" class="scrim top"></div>
+        <div data-hf-id="hf-mchf" class="t center scene-sub">บทสรุปสาวสายคาเฟ่</div>
+        <div data-hf-id="hf-8fcb" class="t center volt scene-title" id="t-payoff">น้องนุ้ยยึดใส่กระเป๋า<br data-hf-id="hf-q7jp">ไปเรียบร้อย!</div>
+      </div>
+
+      <!-- CLEAN FINAL CTA -->
+      <div data-hf-id="hf-h8ot" class="beat clip" id="b-cta" data-start="59.24" data-duration="2.28" data-track-index="2">
+        <div data-hf-id="hf-ch5y" class="scrim top"></div>
+        <div data-hf-id="hf-enmw" class="t center volt" id="cta-1">กดตะกร้าเหลือง</div>
+        <div data-hf-id="hf-1zp0" class="t center" id="cta-sub">Essager USB-C PD 30W<span data-hf-id="hf-fss9" class="sub-line2">ของแท้ • ประกันศูนย์ไทย</span></div>
+        <svg data-hf-id="hf-ikj8" class="fx" id="k-arrow" viewBox="0 0 1080 1920">
+          <path data-hf-id="hf-sufo" id="k-shaft" d="M 330 610 C 180 850 120 1160 160 1420" />
+          <path data-hf-id="hf-j1me" id="k-head" d="M 80 1340 L 160 1430 L 250 1350" />
+        </svg>
+        <div data-hf-id="hf-5moq" class="t volt" id="cta-tag">ซ้ายล่าง</div>
+      </div>
+
+      <!-- CAPTIONS:BEGIN -->
+      <div data-hf-id="hf-kfn5" class="cap clip" id="cap00" data-start="0.0" data-duration="4.85" data-track-index="6"><div data-hf-id="hf-krv8" class="cap-in"><span data-hf-id="hf-qcpn" class="w" data-s="0.0">พี่บ่าว! แลหัวชาร์จก้อนยักษ์ซิ!</span> <span data-hf-id="hf-eic3" class="w" data-s="2.345">เสียบปลั๊กพ่วงที เบียดรูข้างๆ มิด!</span></div></div>
+      <div data-hf-id="hf-zd6e" class="cap clip" id="cap01" data-start="4.85" data-duration="3.098" data-track-index="6"><div data-hf-id="hf-8lyk" class="cap-in"><span data-hf-id="hf-fmx8" class="w" data-s="4.85">นุ้ยจะเสียบที่หนีบผมก็ไม่ได้!</span> <span data-hf-id="hf-9j43" class="w" data-s="6.815">หงุดหงิดแต่เช้าแล้วนะนิ!</span></div></div>
+      <div data-hf-id="hf-ktx9" class="cap clip" id="cap02" data-start="7.948" data-duration="5.19" data-track-index="6"><div data-hf-id="hf-7f1h" class="cap-in"><span data-hf-id="hf-6jr5" class="w" data-s="7.948">ใจเย็นคนสวย! ก้อนยักษ์นั่นอดีต!</span> <span data-hf-id="hf-ueei" class="w" data-s="10.373">วันนี้พี่บ่าวเปลี่ยนมาใช้ตัวจิ๋วนี่!</span></div></div>
+      <div data-hf-id="hf-da5n" class="cap clip" id="cap03" data-start="13.138" data-duration="3.885" data-track-index="6"><div data-hf-id="hf-7tci" class="cap-in"><span data-hf-id="hf-oahd" class="w" data-s="13.138">ไหนเอามาแลซิ... อัยย๊ะ!</span> <span data-hf-id="hf-tsbv" class="w" data-s="14.65">ทำไมก้อนมันเล็กจิ๋วแค่นี้เอง!</span></div></div>
+      <div data-hf-id="hf-cpdb" class="cap clip" id="cap04" data-start="17.023" data-duration="6.6" data-track-index="6"><div data-hf-id="hf-9svn" class="cap-in"><span data-hf-id="hf-ytdk" class="w" data-s="17.023">นี่คือ Essager PD 30W ตัวจิ๋ว!</span> <span data-hf-id="hf-gaig" class="w" data-s="19.853">วางบนฝ่ามือยังเหลือที่เลยครับ!</span></div></div>
+      <div data-hf-id="hf-fqeq" class="cap clip" id="cap05" data-start="23.623" data-duration="4.959" data-track-index="6"><div data-hf-id="hf-a76o" class="cap-in"><span data-hf-id="hf-lg3b" class="w" data-s="23.623">เสียบปลั๊กพ่วง ไม่เบียดช่องข้างๆ!</span> <span data-hf-id="hf-s4rg" class="w" data-s="26.709">เสียบที่หนีบผมคู่กันได้สบาย!</span></div></div>
+      <div data-hf-id="hf-n4c1" class="cap clip" id="cap06" data-start="28.582" data-duration="4.923" data-track-index="6"><div data-hf-id="hf-909l" class="cap-in"><span data-hf-id="hf-j7at" class="w" data-s="28.582">ดีจัง! ปกติถือกระเป๋าใบเล็ก</span><span data-hf-id="hf-15mu" class="w" data-s="31.574">ยัดหัวชาร์จเก่าทีไร กระเป๋าตุงตลอด!</span></div></div>
+      <div data-hf-id="hf-819q" class="cap clip" id="cap07" data-start="33.505" data-duration="4.665" data-track-index="6"><div data-hf-id="hf-9ekm" class="cap-in"><span data-hf-id="hf-r290" class="w" data-s="33.505">เบาหวิว พกง่ายเหมือนลิปสติก!</span> <span data-hf-id="hf-tmep" class="w" data-s="36.098">ใส่กระเป๋ากางเกงยังไม่ตุงเลย!</span></div></div>
+      <div data-hf-id="hf-nqk9" class="cap clip" id="cap08" data-start="38.17" data-duration="3.685" data-track-index="6"><div data-hf-id="hf-517b" class="cap-in"><span data-hf-id="hf-csgw" class="w" data-s="38.17">ตัวเล็กแค่นี้ ชาร์จ iPad ไหวม้าย?</span> <span data-hf-id="hf-nsst" class="w" data-s="40.764">หรือชาร์จได้แค่มือถืออย่างเดียว?</span></div></div>
+      <div data-hf-id="hf-86n8" class="cap clip" id="cap09" data-start="41.855" data-duration="5.139" data-track-index="6"><div data-hf-id="hf-5fic" class="cap-in"><span data-hf-id="hf-30q3" class="w" data-s="41.855">จิ๋วแต่แจ๋ว! จ่ายไฟเต็ม 30 วัตต์</span><span data-hf-id="hf-r2zn" class="w" data-s="44.71">ชาร์จครบทั้ง iPhone และ iPad!</span></div></div>
+      <div data-hf-id="hf-uno9" class="cap clip" id="cap10" data-start="46.994" data-duration="4.329" data-track-index="6"><div data-hf-id="hf-7yms" class="cap-in"><span data-hf-id="hf-bmvq" class="w" data-s="46.994">พกตัวเดียวจบ ไม่ต้องแบกหลายก้อน</span><span data-hf-id="hf-c1j2" class="w" data-s="49.089">ถูกใจสาวสายคาเฟ่ที่สุดเลย!</span></div></div>
+      <div data-hf-id="hf-lqgx" class="cap clip" id="cap11" data-start="51.323" data-duration="3.899" data-track-index="6"><div data-hf-id="hf-7kbr" class="cap-in"><span data-hf-id="hf-k52y" class="w" data-s="51.323">ก้อนจิ๋วนี้น้องนุ้ยขอพกไปคาเฟ่นะ!</span> <span data-hf-id="hf-cwgy" class="w" data-s="53.649">ขอบคุณล่วงหน้าจ้าพี่บ่าว!</span></div></div>
+      <div data-hf-id="hf-phan" class="cap clip" id="cap12" data-start="55.222" data-duration="4.017" data-track-index="6"><div data-hf-id="hf-760q" class="cap-in"><span data-hf-id="hf-c4lo" class="w" data-s="55.222">รีวิวทีไร ของหายทุกคลิปเลยผม!</span> <span data-hf-id="hf-cuvi" class="w" data-s="57.325">พิกัดหัวชาร์จตัวจิ๋วอยู่ข้างล่างครับ</span></div></div>
+      <!-- CAPTIONS:END -->
+
+      <div data-hf-id="hf-hmg5" id="flash"></div>
+      <div data-hf-id="hf-0bt9" id="wm"><span data-hf-id="hf-4vsq">สงวนลิขสิทธิ์ช่อง rizanntry ห้ามคัดลอก/ดัดแปลง</span></div>
+
+      <!-- VO:BEGIN -->
+      <audio data-hf-id="hf-160g" id="vo0" src="assets/clips/ess02-pov3-mini60/vo.wav" data-start="0" data-media-start="0.0" data-duration="61.372" data-track-index="10" data-volume="1"></audio>
+      <!-- VO:END -->
+      <audio data-hf-id="hf-6cnh" id="bgm" src="assets/shared/bgm_lofi.wav" data-start="0" data-duration="55.0" data-track-index="11" data-volume="0.04" data-carve="0.25" data-carve-targets="vo0"></audio>
+      <audio data-hf-id="hf-ukjr" id="bgm2" src="assets/shared/bgm_lofi.wav" data-start="55.0" data-duration="6.52" data-media-start="0" data-track-index="11" data-volume="0.04" data-carve="0.25" data-carve-targets="vo0"></audio>
+      <!-- SFX:BEGIN -->
+      <audio data-hf-id="hf-4ajv" id="sfx00" src="assets/shared/sfx/msg_recv.mp3" data-start="0.01" data-duration="0.5" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-og3d" id="sfx01" src="assets/shared/sfx/msg_recv.mp3" data-start="4.86" data-duration="0.5" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-e5p1" id="sfx02" src="assets/shared/sfx/msg_send.mp3" data-start="7.958" data-duration="0.45" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-s08u" id="sfx03" src="assets/shared/sfx/msg_recv.mp3" data-start="13.148" data-duration="0.5" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-nnl0" id="sfx04" src="assets/shared/sfx/msg_send.mp3" data-start="17.033" data-duration="0.45" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-8uhe" id="sfx05" src="assets/shared/sfx/msg_send.mp3" data-start="23.633" data-duration="0.45" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-xipy" id="sfx06" src="assets/shared/sfx/ding.wav" data-start="23.823" data-duration="0.6" data-track-index="13" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-dzl3" id="sfx07" src="assets/shared/sfx/msg_recv.mp3" data-start="28.592" data-duration="0.5" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-8j1h" id="sfx08" src="assets/shared/sfx/msg_send.mp3" data-start="33.515" data-duration="0.45" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-k8ix" id="sfx09" src="assets/shared/sfx/msg_recv.mp3" data-start="38.18" data-duration="0.5" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-g6zx" id="sfx10" src="assets/shared/sfx/msg_send.mp3" data-start="41.865" data-duration="0.45" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-ua5m" id="sfx11" src="assets/shared/sfx/ding.wav" data-start="42.055" data-duration="0.6" data-track-index="13" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-w9ca" id="sfx12" src="assets/shared/sfx/msg_recv.mp3" data-start="47.004" data-duration="0.5" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-oaa5" id="sfx13" src="assets/shared/sfx/msg_recv.mp3" data-start="51.333" data-duration="0.5" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-s1fn" id="sfx14" src="assets/shared/sfx/punch.mp3" data-start="51.473" data-duration="0.45" data-track-index="13" data-volume="0.32"></audio>
+      <audio data-hf-id="hf-4p1t" id="sfx15" src="assets/shared/sfx/msg_send.mp3" data-start="55.232" data-duration="0.45" data-track-index="12" data-volume="0.28"></audio>
+      <audio data-hf-id="hf-8nud" id="sfx16" src="assets/shared/sfx/cash_register.mp3" data-start="59.239" data-duration="0.9" data-track-index="12" data-volume="0.38"></audio>
+      <!-- SFX:END -->
+    </div>
+
+    <script>
+      const T = window.TIMING.cues;
+      const tl = gsap.timeline({ paused: true });
+      const $ = (s) => document.querySelector(s);
+      const flash = HF.flash(tl);
+      const pop = (sel, t, from = { scale: 0, rotation: -4 }, ease = "back.out(2.0)", dur = 0.32) =>
+        tl.fromTo(sel, { opacity: 0, ...from }, { opacity: 1, scale: 1, rotation: 0, x: 0, y: 0, duration: dur, ease }, t);
+
+      const SHOTS = [
+        [0.0, 13.14, 1.04, 1.14],
+        [13.14, 10.48, 1.06, 1.16],
+        [23.62, 9.89, 1.06, 1.18],
+        [33.51, 8.34, 1.08, 1.18],
+        [41.85, 9.47, 1.05, 1.15],
+        [51.32, 10.2, 1.04, 1.14],
+      ];
+      SHOTS.forEach(([s, d, z0, z1], i) => {
+        tl.fromTo(`#k${i}`, { scale: z0 }, { scale: z1, duration: d, ease: "none" }, s);
+        if (i > 0) tl.fromTo(`#c${i}`, { scale: 1.12 }, { scale: 1, duration: 0.28, ease: "expo.out" }, s);
+      });
+
+      pop("#t-hook", 0.08, { y: -30, rotation: 0 }, "power3.out", 0.28);
+      pop("#t-proof", 13.14, { scale: 1.3, rotation: -2 }, "power4.out", 0.28);
+      pop("#t-rap", 23.62, { scale: 1.3, rotation: 2 }, "power4.out", 0.28);
+      pop("#t-hero", 33.51, { y: -30, rotation: 0 }, "power3.out", 0.28);
+      pop("#t-steal", 41.85, { scale: 1.4, rotation: -3 }, "back.out(2.2)", 0.28);
+      pop("#t-payoff", 51.32, { y: -30, rotation: 0 }, "power3.out", 0.28);
+
+      flash(T.cart, 0.35, 0.2);
+      pop("#cta-1", T.cart, { scale: 1.5, rotation: 0 }, "power4.out", 0.28);
+      pop("#cta-sub", T.cart + 0.1, { y: 24, rotation: 0 }, "expo.out", 0.25);
+      const sl = HF.dash($("#k-shaft"));
+      const hl = HF.dash($("#k-head"));
+      tl.fromTo("#k-shaft", { strokeDashoffset: sl }, { strokeDashoffset: 0, duration: 0.35, ease: "power2.inOut" }, T.cart + 0.12);
+      tl.fromTo("#k-head", { strokeDashoffset: hl }, { strokeDashoffset: 0, duration: 0.14, ease: "power2.out" }, T.cart + 0.44);
+      pop("#cta-tag", T.cart + 0.22, { x: -60, rotation: 0 }, "expo.out", 0.25);
+
+      const leftIds = new Set(["cap00", "cap01", "cap03", "cap06", "cap08", "cap10", "cap11"]);
+      document.querySelectorAll(".cap").forEach((cap) => {
+        const t0 = Number(cap.dataset.start);
+        const fromX = leftIds.has(cap.id) ? -42 : 42;
+        tl.fromTo(
+          cap,
+          { x: fromX, y: 20, opacity: 0 },
+          { x: 0, y: 0, opacity: 1, duration: 0.22, ease: "power3.out" },
+          t0
+        );
+        const words = [...cap.querySelectorAll(".w")];
+        words.forEach((w, i) => {
+          const s = Number(w.dataset.s);
+          if (i > 0) {
+            tl.set(w, { opacity: 0 }, t0);
+          }
+          tl.fromTo(
+            w,
+            { opacity: 0, y: 18, scale: 0.9 },
+            { opacity: 1, y: 0, scale: 1, color: "#d90429", duration: 0.22, ease: "back.out(1.8)", immediateRender: false },
+            s
+          );
+          if (i + 1 < words.length) {
+            tl.set(w, { color: "#111111" }, Number(words[i + 1].dataset.s));
+          }
+        });
+      });
+
+      window.__timelines["ess02-pov3-mini60"] = tl;
+    </script>
+  </body>
+</html>

@@ -1,5 +1,26 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
  
+
+## Round ESSAGER-30W-REVIEW-30S-CAPCUT-20261009 — draft พร้อม รอ user export · Claude Code (Claude Opus 5.5)
+
+วันที่: 2026-10-09 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
+**เป้าหมาย:** ตัดคลิปรีวิว Essager PD 30W (หัวชาร์จไว) ~30 วิ สำหรับ TikTok + motion graphic สะดุดตา เป็น CapCut draft พร้อม export
+
+- [x] 1. บทพูดใหม่ ~30 วิ (เน้นชาร์จไว) → `03_Projects/ESS02-รีวิว30วิ_1/` + VO Gemini `Fenrir` / `commercial_premium`
+- [x] 2. Word timestamps จริงจาก `faster_whisper` (ห้ามกะเวลา)
+- [x] 3. Builder เฉพาะ Essager (`03_Projects/ESS02-รีวิว30วิ_1/build_capcut.py`) — hook 3-tier, karaoke sub, spec badges ฟ้า `#00F2FE`, punch-zoom cuts, SFX, BGM 0.12, filter 冷白, watermark, video mute
+- [x] 4. Deploy draft เข้า CapCut + เช็ค draft_content.json
+- [ ] 5. User เปิด CapCut → `OmniCut_Review_Essager30W_30s` → ตรวจ → Export 1080p30
+- [x] 6. เปลี่ยนเป็น HyperFrames (motion graphic จริง ไม่ใช้ popup) — render แล้ว `04_Exports/20261009_essager-30w_รีวิว30วิ_v1.mp4`, `04_Exports/20261010_essager-30w_เจาะกลุ่ม_v1.mp4`
+- [x] 7. Studio กลาง `03_Projects/_HyperFrames_Studio/` — template กลาง `kit/` (แบรนด์ + ซับ + pipeline) คุมทุกสินค้า, motion แยกต่อคลิปใน `compositions/`, เครื่องมือ `kit/new_product.py` + `kit/new_clip.py`, เปิดด้วย `open_studio.bat` (คู่มือ: README.md ในโฟลเดอร์)
+- [x] 8. สินค้าที่ 2 Hatari T16M1 (สาย meme 43.6 วิ) — `04_Exports/20261010_hatari-t16m1_meme_v1.mp4`: บทใหม่ + VO `03_Projects/HAT01-meme-50s_1/`, meme GIPHY 8 ตัว + meme SFX 11 ตัว ใน `assets/shared/`, kit เพิ่ม meme pause (แทรกจังหวะใน VO) + meme card; ทดสอบ `new_product.py`/`new_clip.py` กับของจริงแล้ว
+- [x] 9. Hatari v2 ตาม feedback "เหมือนคนตัด" — `04_Exports/20261010_hatari-t16m1_meme_v2.mp4`: ฉลากเบอร์ 5 ทางการ กฟผ., เทอร์โมมิเตอร์ภาพจริง (sprite) แตกกระจาย, hero ใช้ฉากจริงแทนพื้นดำ, meme จริงแทนไอคอนเวกเตอร์; แก้บั๊ก id ชน (k1–k4) ที่ทำให้ช็อตดำ; สไตล์จดใน `_HyperFrames_Studio/kit/STYLE.md`
+- [x] 10. Essager มุมใหม่ "แบต 1% ต้องออกจากบ้าน" (35.9 วิ) ตามสูตรมาตรฐาน — `04_Exports/20261010_essager-30w_แบตหมด_v1.mp4`, VO `03_Projects/ESS02-แบตหมด-meme_1/`
+- [x] 11. Essager 5 สไตล์ทดลอง (Explainer / VS Battle / POV Chat / Velocity Hype / ASMR) — `04_Exports/20261010_essager-30w_style-*_v1.mp4`, แคตตาล็อกใน `kit/STYLE.md`
+
+**หมายเหตุ:** `uniform_scale` keyframe ของ pyJianYingDraft เขียนเป็น `KFTypeScaleX` อย่างเดียว (ภาพยืด) — builder ใช้ `scale_x`+`scale_y` แทน
+
 - [x] Round SETUP-LOCAL-ENV-GITHUB-20260929 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 - [x] Round DRAFT-FONT-OPTIONS-PARITY-20260927 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
 
@@ -2518,3 +2539,11 @@ Plan before code:
 - จะรักษางานเดิมทั้งหมด ไม่แก้หรือลบ source download packs และไม่สร้าง test artifact ในโฟลเดอร์ผลงานจริง
 
 ---
+
+- [x] Round ORS01-POV-240W-NO-RAW-CLIP-20261012 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
+- [x] Round ORS01-POV-KINETIC-UPGRADE-20261012 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
+- [x] Round ORS01-COUPLE-PAPER-NEW-SCRIPT-20261012 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
+- [x] Round COUPLE-PAPER-CHAT-STANDARD-AND-PUCK-VOICE-20261012 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
+- [x] Round GIT-PUSH-COUPLE-PAPER-STUDIO-20261012 — สำเร็จสมบูรณ์ · Antigravity (Gemini 3.8 Flash) (ดูประวัติเต็มใน HISTORY.md)
+
+

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1080, height=1920">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="stylesheet" href="kit/kit.css">
+    <script src="kit/kit.js"></script>
+    <style>
+      /* ess02-asmr-26s — style "Hands-only ASMR": slow macro shots, real room tone + foley, no music, no voice, barely any text. */
+      @font-face {
+        font-family: "Anuphan";
+        src: url("kit/fonts/Anuphan-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+      .note {
+        position: absolute;
+        left: 70px;
+        font-family: "Anuphan", sans-serif;
+        font-size: 44px;
+        letter-spacing: 0.12em;
+        color: var(--paper);
+        text-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
+      }
+      .note small {
+        display: block;
+        font-size: 26px;
+        letter-spacing: 0.35em;
+        color: var(--volt);
+      }
+      .low {
+        top: 1380px;
+      }
+      #n-asmr {
+        top: 260px;
+        font-size: 30px;
+        letter-spacing: 0.5em;
+        color: rgba(255, 251, 232, 0.85);
+      }
+      #vignette {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(110% 80% at 50% 50%, rgba(13, 12, 7, 0) 55%, rgba(13, 12, 7, 0.55) 100%);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-g0rb" id="root" data-composition-id="ess02-asmr-26s" data-start="0" data-duration="26.5" data-width="1080" data-height="1920">
+      <!-- slow macro shots; each fades in over the last (no hard cuts) -->
+      <div data-hf-id="hf-k742" class="cam" id="c0"><div data-hf-id="hf-l389" class="kb" id="k0" data-layout-allow-overflow=""><video data-hf-id="hf-5dsx" id="v0" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="0" data-duration="4.3" data-media-start="1.2" data-playback-rate="0.6" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-o583" class="cam" id="c1"><div data-hf-id="hf-kbkg" class="kb" id="k1" data-layout-allow-overflow=""><video data-hf-id="hf-ne4q" id="v1" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="4.0" data-duration="4.3" data-media-start="7.0" data-playback-rate="0.5" data-track-index="1"></video></div></div>
+      <div data-hf-id="hf-fhc8" class="cam" id="c2"><div data-hf-id="hf-v723" class="kb" id="k2" data-layout-allow-overflow=""><video data-hf-id="hf-5q2e" id="v2" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="8.0" data-duration="3.8" data-media-start="16.0" data-playback-rate="0.5" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-g901" class="cam" id="c3"><div data-hf-id="hf-p1ca" class="kb" id="k3" data-layout-allow-overflow=""><video data-hf-id="hf-flzn" id="v3" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="11.5" data-duration="3.8" data-media-start="24.5" data-playback-rate="0.5" data-track-index="1"></video></div></div>
+      <div data-hf-id="hf-5die" class="cam" id="c4"><div data-hf-id="hf-8h8d" class="kb" id="k4" data-layout-allow-overflow=""><video data-hf-id="hf-2x0h" id="v4" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="15.0" data-duration="3.8" data-media-start="20.6" data-playback-rate="0.5" data-track-index="0"></video></div></div>
+      <div data-hf-id="hf-bj87" class="cam" id="c5"><div data-hf-id="hf-7pkk" class="kb" id="k5" data-layout-allow-overflow=""><video data-hf-id="hf-xfg5" id="v5" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="18.5" data-duration="4.3" data-media-start="42.3" data-playback-rate="0.6" data-track-index="1"></video></div></div>
+      <div data-hf-id="hf-0nqk" class="cam" id="c6"><div data-hf-id="hf-gdgf" class="kb" id="k6" data-layout-allow-overflow=""><video data-hf-id="hf-o7ko" id="v6" class="clip" src="assets/ess02/footage.mp4" muted playsinline data-start="22.5" data-duration="4.0" data-media-start="54.5" data-playback-rate="0.6" data-track-index="0"></video></div></div>
+
+      <div data-hf-id="hf-h7i3" id="vignette"></div>
+
+      <div data-hf-id="hf-ha5d" class="beat clip" id="b-notes" data-start="0" data-duration="26.5" data-track-index="2">
+        <div data-hf-id="hf-o87z" class="note" id="n-asmr">ASMR · NO TALKING</div>
+        <div data-hf-id="hf-1bgr" class="note low" id="n1"><small data-hf-id="hf-uw2m">ESSAGER</small>PD 30W</div>
+        <div data-hf-id="hf-ni6y" class="note low" id="n2"><small data-hf-id="hf-utvz">PORT</small>USB-C PD</div>
+        <div data-hf-id="hf-2kax" class="note low" id="n3"><small data-hf-id="hf-pwcp">OUTPUT</small>30W MAX</div>
+        <div data-hf-id="hf-t63o" class="note low" id="n4"><small data-hf-id="hf-ncxp">SIZE</small>เล็กแค่ฝ่ามือ</div>
+        <div data-hf-id="hf-ya03" class="note low" id="n5"><small data-hf-id="hf-veu3">FOR</small>iPhone 15 | 16</div>
+        <div data-hf-id="hf-cib2" class="note low" id="n6"><small data-hf-id="hf-9tnn">ตะกร้าเหลือง</small>ซ้ายล่าง</div>
+      </div>
+
+      <div data-hf-id="hf-0bt9" id="wm"><span data-hf-id="hf-4vsq">สงวนลิขสิทธิ์ช่อง rizanntry ห้ามคัดลอก/ดัดแปลง</span></div>
+
+      <!-- sound: real room tone from the shoot + foley on the visible actions -->
+      <audio data-hf-id="hf-6vro" id="room" src="assets/clips/ess02-asmr-26s/room.wav" data-start="0" data-duration="26.5" data-track-index="10" data-volume="0.9" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0},{&quot;t&quot;:0.8,&quot;v&quot;:1},{&quot;t&quot;:25.5,&quot;v&quot;:1},{&quot;t&quot;:26.5,&quot;v&quot;:0}]}]}"></audio>
+      <audio data-hf-id="hf-7nm3" id="f01" src="assets/shared/sfx/paper.mp3" data-start="0.3" data-duration="1.4" data-track-index="11" data-volume="0.25"></audio>
+      <audio data-hf-id="hf-hkxc" id="f02" src="assets/shared/sfx/soft_click.wav" data-start="2.1" data-duration="0.06" data-track-index="12" data-volume="0.6"></audio>
+      <audio data-hf-id="hf-upwn" id="f03" src="assets/shared/sfx/soft_click.wav" data-start="5.2" data-duration="0.06" data-track-index="12" data-volume="0.55"></audio>
+      <audio data-hf-id="hf-cya9" id="f04" src="assets/shared/sfx/iphone_lock.wav" data-start="6.6" data-duration="0.1" data-track-index="12" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-pe0a" id="f05" src="assets/shared/sfx/soft_click.wav" data-start="9.3" data-duration="0.06" data-track-index="12" data-volume="0.55"></audio>
+      <audio data-hf-id="hf-nv17" id="f06" src="assets/shared/sfx/soft_click.wav" data-start="10.4" data-duration="0.06" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-nzah" id="f07" src="assets/shared/sfx/key_tap.wav" data-start="12.9" data-duration="0.3" data-track-index="12" data-volume="0.35"></audio>
+      <audio data-hf-id="hf-06do" id="f08" src="assets/shared/sfx/magnet_clack.wav" data-start="16.2" data-duration="0.2" data-track-index="12" data-volume="0.6"></audio>
+      <audio data-hf-id="hf-h0w5" id="f09" src="assets/shared/sfx/magnet_clack.wav" data-start="17.6" data-duration="0.2" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-jmoc" id="f10" src="assets/shared/sfx/iphone.mp3" data-start="20.2" data-duration="1.2" data-track-index="12" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-c31c" id="f11" src="assets/shared/sfx/soft_click.wav" data-start="23.6" data-duration="0.06" data-track-index="12" data-volume="0.55"></audio>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      // slow pushes + 0.3s dissolve between shots (each cam overlaps the previous one)
+      const SHOTS = [[0, 4.3, 1.08, 1.2], [4.0, 4.3, 1.6, 1.75], [8.0, 3.8, 1.35, 1.48], [11.5, 3.8, 1.75, 1.9], [15.0, 3.8, 1.45, 1.58], [18.5, 4.3, 1.1, 1.2], [22.5, 4.0, 1.12, 1.24]];
+      SHOTS.forEach(([s, d, z0, z1], i) => {
+        tl.fromTo(`#k${i}`, { scale: z0 }, { scale: z1, duration: d, ease: "none" }, s);
+        if (i > 0) tl.fromTo(`#c${i}`, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "sine.inOut" }, s);
+      });
+      // notes breathe in and out, no slams
+      const note = (sel, t0, t1) => {
+        tl.fromTo(sel, { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "sine.out" }, t0);
+        tl.to(sel, { opacity: 0, duration: 0.5, ease: "sine.in" }, t1 - 0.5);
+      };
+      note("#n-asmr", 0.4, 3.6);
+      note("#n1", 1.2, 3.9);
+      note("#n2", 5.0, 7.9);
+      note("#n3", 12.2, 15.0);
+      note("#n4", 15.8, 18.4);
+      note("#n5", 19.3, 22.4);
+      note("#n6", 23.4, 26.5);
+      window.__timelines["ess02-asmr-26s"] = tl;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1080, height=1920">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="stylesheet" href="kit/kit.css">
+    <script src="kit/kit.js"></script>
+    <script src="assets/clips/goc01-spec-42s/timing.js"></script>
+    <style>
+      /* goc01-spec-42s — GoChek Ultra S24 wireless mic review */
+      :root {
+        --cyan: #00f2fe;
+      }
+      .cyan {
+        color: var(--cyan);
+      }
+      .glow-volt {
+        position: absolute;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 230, 0, 0.5) 0%, rgba(255, 230, 0, 0) 68%);
+      }
+
+      /* Beat 1: Hook (Safe width <= 850px) */
+      #h1 {
+        top: 290px;
+        font-size: 78px;
+        letter-spacing: 1px;
+      }
+      #h2 {
+        top: 395px;
+        font-size: 130px;
+        line-height: 1.15;
+      }
+      #h-stop {
+        top: 565px;
+        font-size: 125px;
+      }
+      #m-fire {
+        left: 170px;
+        top: 740px;
+        width: 740px;
+      }
+
+      /* Beat 2: Pain */
+      #p1 {
+        top: 290px;
+        font-size: 96px;
+      }
+      #p2 {
+        top: 405px;
+        font-size: 145px;
+        line-height: 1.15;
+      }
+      #p-ask {
+        top: 585px;
+        font-size: 115px;
+      }
+      #m-sweat {
+        left: 170px;
+        top: 740px;
+        width: 740px;
+      }
+
+      /* Beat 3: Calm & Hero */
+      #c-glow {
+        width: 1200px;
+        height: 1200px;
+        left: -60px;
+        top: 180px;
+      }
+      #c-1 {
+        top: 330px;
+        font-size: 130px;
+      }
+      #c-2 {
+        top: 485px;
+        font-size: 155px;
+        line-height: 1.15;
+      }
+      #b-hero-txt {
+        z-index: 10;
+      }
+      #x-brand {
+        top: 260px;
+        font-size: 165px;
+        line-height: 1;
+        color: var(--volt);
+      }
+      #x-model {
+        top: 425px;
+        font-size: 105px;
+        letter-spacing: 5px;
+      }
+
+      /* Compatibility badges */
+      #x-easy {
+        top: 290px;
+        font-size: 110px;
+      }
+      .badge-row {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 430px;
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+      }
+      .badge-pill {
+        display: inline-block;
+        padding: 10px 22px;
+        background: rgba(13, 12, 7, 0.88);
+        border: 4px solid var(--volt);
+        border-radius: 999px;
+        font-size: 44px;
+        color: var(--paper);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Beat 4: Spec 1 - Smart CSC & INFER */
+      #csc-l1 {
+        top: 280px;
+        font-size: 88px;
+        letter-spacing: 3px;
+      }
+      #csc-l2 {
+        top: 395px;
+        font-size: 112px;
+        line-height: 1.15;
+      }
+      #m-elmo {
+        left: 200px;
+        top: 640px;
+        width: 680px;
+      }
+      #chip-l1 {
+        top: 280px;
+        font-size: 92px;
+        letter-spacing: 2px;
+      }
+      #chip-l2 {
+        top: 395px;
+        font-size: 115px;
+        line-height: 1.15;
+      }
+      #m-mind {
+        left: 200px;
+        top: 630px;
+        width: 680px;
+      }
+
+      /* Beat 5: Spec 2 - Case & Battery */
+      #bat-l1 {
+        top: 280px;
+        font-size: 96px;
+      }
+      #bat-l2 {
+        top: 395px;
+        font-size: 130px;
+        line-height: 1.15;
+      }
+      #m-chill {
+        left: 180px;
+        top: 650px;
+        width: 720px;
+      }
+      #tough-l1 {
+        top: 340px;
+        font-size: 115px;
+      }
+
+      /* Beat 6: CTA */
+      #cta1 {
+        top: 280px;
+        font-size: 110px;
+      }
+      #cta2 {
+        top: 410px;
+        font-size: 145px;
+        line-height: 1.15;
+      }
+      #m-money {
+        left: 150px;
+        top: 640px;
+        width: 780px;
+      }
+      #cta-card {
+        position: absolute;
+        left: 110px;
+        top: 330px;
+        width: 860px;
+        padding: 30px 20px;
+        background: var(--volt);
+        border-radius: 28px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+        text-align: center;
+      }
+      #cta-cart-l1 {
+        font-size: 84px;
+        color: var(--ink);
+        line-height: 1.1;
+      }
+      #cta-cart-l2 {
+        font-size: 104px;
+        color: var(--ink);
+        line-height: 1.15;
+      }
+      #cta-sub {
+        top: 600px;
+        font-size: 84px;
+        color: var(--paper);
+        text-shadow: 0 6px 24px rgba(0, 0, 0, 0.85);
+      }
+      #k-arrow {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1080px;
+        height: 1920px;
+        pointer-events: none;
+      }
+      #k-arrow path {
+        fill: none;
+        stroke: var(--volt);
+        stroke-width: 22;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.65));
+      }
+      #cta-tag {
+        left: 220px;
+        top: 1360px;
+        font-size: 88px;
+        text-shadow: 0 4px 18px rgba(0, 0, 0, 0.8);
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-zucz" id="root" data-composition-id="goc01-spec-42s" data-start="0" data-duration="44.71" data-width="1080" data-height="1920">
+      <!-- ================= FOOTAGE (camera audio muted) ================= -->
+      <!-- Shot 0: Hook (0 - 5.38s) -->
+      <div data-hf-id="hf-muwa" class="cam murky" id="c0"><div data-hf-id="hf-l389" class="kb" id="k0" data-layout-allow-overflow=""><video data-hf-id="hf-9pe6" id="v0" class="clip" src="assets/goc01/footage.mp4" muted playsinline data-start="0" data-duration="5.38" data-media-start="0.0" data-track-index="0"></video></div></div>
+      <!-- Shot 1: Pain (5.38 - 11.93s) -->
+      <div data-hf-id="hf-qt0b" class="cam murky" id="c1"><div data-hf-id="hf-kbkg" class="kb" id="k1" data-layout-allow-overflow=""><video data-hf-id="hf-2qqr" id="v1" class="clip" src="assets/goc01/footage.mp4" muted playsinline data-start="5.38" data-duration="6.55" data-media-start="6.0" data-track-index="0"></video></div></div>
+      <!-- Shot 2: Calm / Turn (11.93 - 14.09s) -->
+      <div data-hf-id="hf-i54g" class="cam murky" id="c2"><div data-hf-id="hf-v723" class="kb" id="k2" data-layout-allow-overflow=""><video data-hf-id="hf-1spp" id="v2" class="clip" src="assets/goc01/footage.mp4" muted playsinline data-start="11.93" data-duration="2.16" data-media-start="31.0" data-track-index="0"></video></div></div>
+      <!-- Shot 3: Hero Reveal (14.09 - 17.50s) -->
+      <div data-hf-id="hf-g901" class="cam" id="c3"><div data-hf-id="hf-p1ca" class="kb" id="k3" data-layout-allow-overflow=""><video data-hf-id="hf-d5d5" id="v3" class="clip" src="assets/goc01/footage.mp4" muted playsinline data-start="14.09" data-duration="3.41" data-media-start="4.2" data-track-index="0"></video></div></div>
+      <!-- Shot 4: Compatibility / Plug-in (17.50 - 20.53s) -->
+      <div data-hf-id="hf-5die" class="cam" id="c4"><div data-hf-id="hf-8h8d" class="kb" id="k4" data-layout-allow-overflow=""><video data-hf-id="hf-iwal" id="v4" class="clip" src="assets/goc01/footage.mp4" muted playsinline data-start="17.50" data-duration="3.03" data-media-start="26.0" data-track-index="0"></video></div></div>
+      <!-- Shot 5: Spec 1 - Smart CSC 90% (20.53 - 25.71s) -->
+      <div data-hf-id="hf-bj87" class="cam" id="c5"><div data-hf-id="hf-7pkk" class="kb" id="k5" data-layout-allow-overflow=""><video data-hf-id="hf-9n6p" id="v5" class="clip" src="assets/goc01/footage.mp4" muted playsinline data-start="20.53" data-duration="5.18" data-media-start="39.0" data-track-index="0"></video></div></div>
+      <!-- Shot 6: Spec 1 - INFER Chip & Voice (25.71 - 30.76s) -->
+      <div data-hf-id="hf-0nqk" class="cam" id="c6"><div data-hf-id="hf-gdgf" class="kb" id="k6" data-layout-allow-overflow=""><video data-hf-id="hf-g154" id="v6" class="clip" src="assets/goc01/footage.mp4" muted playsinline data-start="25.71" data-duration="5.05" data-media-start="113.0" data-track-index="0"></video></div></div>
+      <!-- Shot 7: Spec 2 - Charging Case & 35h (30.76 - 35.92s) -->
+      <div data-hf-id="hf-1fed" class="cam" id="c7"><div data-hf-id="hf-cfce" class="kb" id="k7" data-layout-allow-overflow=""><video data-hf-id="hf-5b22" id="v7" class="clip" src="assets/goc01/footage.mp4" muted playsinline data-start="30.76" data-duration="5.16" data-media-start="76.0" data-track-index="0"></video></div></div>
+      <!-- Shot 8: Spec 2 - Tough & Lightweight (35.92 - 38.44s) -->
+      <div data-hf-id="hf-srii" class="cam" id="c8"><div data-hf-id="hf-citt" class="kb" id="k8" data-layout-allow-overflow=""><video data-hf-id="hf-16rq" id="v8" class="clip" src="assets/goc01/footage.mp4" muted playsinline data-start="35.92" data-duration="2.52" data-media-start="91.0" data-track-index="0"></video></div></div>
+      <!-- Shot 9: CTA & Full Set (38.44 - 44.71s) -->
+      <div data-hf-id="hf-wpmj" class="cam" id="c9"><div data-hf-id="hf-br60" class="kb" id="k9" data-layout-allow-overflow=""><video data-hf-id="hf-je3m" id="v9" class="clip" src="assets/goc01/footage.mp4" muted playsinline data-start="38.44" data-duration="6.27" data-media-start="108.0" data-track-index="0"></video></div></div>
+
+      <!-- ================= 1 · HOOK: Noise Pain (0–5.38s) ================= -->
+      <div data-hf-id="hf-h070" class="beat clip" id="b-hook" data-start="0" data-duration="5.38" data-track-index="2">
+        <div data-hf-id="hf-om7l" class="scrim full"></div>
+        <div data-hf-id="hf-drch" class="t center" id="h1">คนทำคลิป • สายไลฟ์สด</div>
+        <div data-hf-id="hf-h1ze" class="t center hot" id="h2">เสียงพัดลมกวนใจ!</div>
+        <div data-hf-id="hf-q79n" class="t center volt" id="h-stop">หยุดฟังทางนี้ก่อน</div>
+      </div>
+      <div data-hf-id="hf-hzfv" class="meme-card" id="m-fire"><video data-hf-id="hf-6t8h" id="mv-fire" class="clip" src="assets/shared/memes/this_is_fine.mp4" muted playsinline data-start="2.06" data-duration="3.32" data-media-start="0" data-track-index="5"></video></div>
+
+      <!-- ================= 2 · PAIN: Unprofessional Audio (5.38–11.93s) ================= -->
+      <div data-hf-id="hf-q21r" class="beat clip" id="b-pain" data-start="5.38" data-duration="6.55" data-track-index="2">
+        <div data-hf-id="hf-dg67" class="scrim top"></div>
+        <div data-hf-id="hf-v40a" class="t center" id="p1">เสียงรอบข้างแทรก</div>
+        <div data-hf-id="hf-7odh" class="t center hot" id="p2">ดูไม่เป็นมืออาชีพ!</div>
+        <div data-hf-id="hf-dtru" class="t center volt" id="p-ask">ใช่ไหมครับ?</div>
+      </div>
+      <div data-hf-id="hf-pxa9" class="meme-card" id="m-sweat"><video data-hf-id="hf-0b8w" id="mv-sweat" class="clip" src="assets/shared/memes/sweat_keypeele.mp4" muted playsinline data-start="7.04" data-duration="4.89" data-media-start="0" data-track-index="5"></video></div>
+
+      <!-- ================= 3 · CALM → HERO REVEAL (11.93–17.50s) ================= -->
+      <div data-hf-id="hf-333d" class="beat clip" id="b-calm" data-start="11.93" data-duration="2.16" data-track-index="2">
+        <div data-hf-id="hf-8ns5" class="scrim full"></div>
+        <div data-hf-id="hf-tt08" class="glow-volt" id="c-glow"></div>
+        <div data-hf-id="hf-59pu" class="t center" id="c-1">หมดกังวลได้เลย!</div>
+        <div data-hf-id="hf-9p1z" class="t center volt" id="c-2">ทางรอดสายคอนเทนต์</div>
+      </div>
+      <div data-hf-id="hf-7jm0" class="beat clip" id="b-hero-txt" data-start="14.09" data-duration="3.41" data-track-index="4">
+        <div data-hf-id="hf-ba8v" class="scrim top"></div>
+        <div data-hf-id="hf-cuiy" class="t center" id="x-brand">GoChek</div>
+        <div data-hf-id="hf-lben" class="t center volt" id="x-model">ULTRA S24</div>
+      </div>
+
+      <!-- ================= 3.1 · COMPATIBILITY (17.50–20.53s) ================= -->
+      <div data-hf-id="hf-flmo" class="beat clip" id="b-compat" data-start="17.50" data-duration="3.03" data-track-index="2">
+        <div data-hf-id="hf-avxu" class="scrim top"></div>
+        <div data-hf-id="hf-nxxj" class="t center volt" id="x-easy">เสียบปุ๊บ ใช้ได้ปั๊บ!</div>
+        <div data-hf-id="hf-yc7e" class="badge-row">
+          <span data-hf-id="hf-tz72" class="badge-pill" id="bp-phone">📱 มือถือ</span>
+          <span data-hf-id="hf-s69j" class="badge-pill" id="bp-ipad">🍎 iPad</span>
+          <span data-hf-id="hf-nzt7" class="badge-pill" id="bp-pc">💻 คอมฯ</span>
+        </div>
+      </div>
+
+      <!-- ================= 4 · SPEC 1: CSC 90% & INFER CHIP (20.53–30.76s) ================= -->
+      <div data-hf-id="hf-pdc8" class="beat clip" id="b-csc" data-start="20.53" data-duration="5.18" data-track-index="2">
+        <div data-hf-id="hf-ahmt" class="scrim top"></div>
+        <div data-hf-id="hf-wg8x" class="t center cyan" id="csc-l1">SMART CSC 2.0</div>
+        <div data-hf-id="hf-kaym" class="t center volt" id="csc-l2">ตัดเสียงรบกวน 90%</div>
+      </div>
+      <div data-hf-id="hf-4wcs" class="meme-card" id="m-elmo"><video data-hf-id="hf-inov" id="mv-elmo" class="clip" src="assets/shared/memes/elmo_shh.mp4" muted playsinline data-start="23.07" data-duration="2.64" data-media-start="0" data-track-index="5"></video></div>
+
+      <div data-hf-id="hf-z2vi" class="beat clip" id="b-chip" data-start="25.71" data-duration="5.05" data-track-index="2">
+        <div data-hf-id="hf-d9s0" class="scrim top"></div>
+        <div data-hf-id="hf-ueer" class="t center cyan" id="chip-l1">CHIP INFER 1.0</div>
+        <div data-hf-id="hf-rtui" class="t center volt" id="chip-l2">เสียงคมชัดสมจริง</div>
+      </div>
+      <div data-hf-id="hf-f7ar" class="meme-card" id="m-mind"><video data-hf-id="hf-w9em" id="mv-mind" class="clip" src="assets/shared/memes/mind_blown.mp4" muted playsinline data-start="28.57" data-duration="2.19" data-media-start="0" data-track-index="5"></video></div>
+
+      <!-- ================= 5 · SPEC 2: CASE & 35H BATTERY (30.76–38.44s) ================= -->
+      <div data-hf-id="hf-bwxg" class="beat clip" id="b-bat" data-start="30.76" data-duration="5.16" data-track-index="2">
+        <div data-hf-id="hf-cvgz" class="scrim top"></div>
+        <div data-hf-id="hf-ol80" class="t center" id="bat-l1">กล่องชาร์จอัตโนมัติ</div>
+        <div data-hf-id="hf-7w25" class="t center volt" id="bat-l2">แบตอึด 35 ชั่วโมง</div>
+      </div>
+      <div data-hf-id="hf-9dkf" class="meme-card" id="m-chill"><video data-hf-id="hf-2f1n" id="mv-chill" class="clip" src="assets/shared/memes/chill_guy.mp4" muted playsinline data-start="33.86" data-duration="2.06" data-media-start="0" data-track-index="5"></video></div>
+
+      <div data-hf-id="hf-hpq6" class="beat clip" id="b-tough" data-start="35.92" data-duration="2.52" data-track-index="2">
+        <div data-hf-id="hf-ch5y" class="scrim top"></div>
+        <div data-hf-id="hf-1ues" class="t center volt" id="tough-l1">น้ำหนักเบา • ทนทาน</div>
+      </div>
+
+      <!-- ================= 6 · CTA: TIKTOK BASKET (38.44–44.71s) ================= -->
+      <div data-hf-id="hf-zdgb" class="beat clip" id="b-cta-pre" data-start="38.44" data-duration="3.06" data-track-index="2">
+        <div data-hf-id="hf-c2ux" class="scrim top"></div>
+        <div data-hf-id="hf-qud2" class="t center" id="cta1">สเปกจัดเต็มขนาดนี้</div>
+        <div data-hf-id="hf-dx3p" class="t center volt" id="cta2">ราคาพิเศษสุดคุ้ม!</div>
+      </div>
+      <div data-hf-id="hf-nsr1" class="meme-card" id="m-money"><video data-hf-id="hf-wv2f" id="mv-money" class="clip" src="assets/shared/memes/take_my_money.mp4" muted playsinline data-start="39.00" data-duration="2.50" data-media-start="0" data-track-index="5"></video></div>
+
+      <div data-hf-id="hf-iybq" class="beat clip" id="b-cta-cart" data-start="41.50" data-duration="3.21" data-track-index="2">
+        <div data-hf-id="hf-8i3o" class="scrim top"></div>
+        <div data-hf-id="hf-duuo" id="cta-card">
+          <div data-hf-id="hf-loqq" id="cta-cart-l1">🛒 กดสั่งในตะกร้า</div>
+          <div data-hf-id="hf-n5d3" id="cta-cart-l2">สีเหลือง ซ้ายล่าง</div>
+        </div>
+        <div data-hf-id="hf-d6bs" class="t center volt" id="cta-sub">รีบกดตอนนี้เลย! 👇</div>
+        <svg data-hf-id="hf-ikj8" class="fx" id="k-arrow" viewBox="0 0 1080 1920">
+          <path data-hf-id="hf-l8qt" id="k-shaft" d="M 450 730 C 280 840 180 1040 170 1320" />
+          <path data-hf-id="hf-gpa5" id="k-head" d="M 130 1260 L 170 1320 L 230 1270" />
+        </svg>
+        <div data-hf-id="hf-80g3" class="t volt" id="cta-tag">แตะสั่งตรงนี้!</div>
+      </div>
+
+      <div data-hf-id="hf-hmg5" id="flash"></div>
+
+      <!-- CAPTIONS:BEGIN -->
+      <div data-hf-id="hf-kv0b" class="cap clip" id="cap00" data-start="5.38" data-duration="2.92" data-track-index="6"><div data-hf-id="hf-krv8" class="cap-in"><span data-hf-id="hf-71gc" class="w" data-s="5.38">อัดคลิปทีไร</span><span data-hf-id="hf-bmfa" class="w" data-s="6.18">เสียงรอบข้าง</span><span data-hf-id="hf-vfxa" class="w" data-s="7.04">ดังแทรกเข้ามา</span><span data-hf-id="hf-2nqg" class="w" data-s="7.76">ตลอด</span></div></div>
+      <div data-hf-id="hf-b8ez" class="cap clip" id="cap01" data-start="8.3" data-duration="3.2" data-track-index="6"><div data-hf-id="hf-8lyk" class="cap-in"><span data-hf-id="hf-fg6l" class="w" data-s="8.3">ทำให้วิดีโอของเรา</span><span data-hf-id="hf-yd7v" class="w" data-s="9.18">ดูไม่เป็นมืออาชีพ</span><span data-hf-id="hf-o9qz" class="w" data-s="10.36">เลยใช่ไหมครับ</span></div></div>
+      <div data-hf-id="hf-6qq8" class="cap clip" id="cap02" data-start="12.11" data-duration="1.66" data-track-index="6"><div data-hf-id="hf-7f1h" class="cap-in"><span data-hf-id="hf-9hj9" class="w" data-s="12.11">หมดกังวล</span><span data-hf-id="hf-qa12" class="w" data-s="12.73">ได้เลยครับ</span></div></div>
+      <div data-hf-id="hf-scde" class="cap clip" id="cap03" data-start="14.21" data-duration="2.74" data-track-index="6"><div data-hf-id="hf-7tci" class="cap-in"><span data-hf-id="hf-jfkd" class="w" data-s="14.21">แค่ใช้ไมค์ไร้สาย</span> <span data-hf-id="hf-9ygu" class="w" data-s="15.19">GoChek</span> <span data-hf-id="hf-c3in" class="w" data-s="15.69">Ultra S24</span></div></div>
+      <div data-hf-id="hf-jtmh" class="cap clip" id="cap04" data-start="16.95" data-duration="3.5" data-track-index="6"><div data-hf-id="hf-9svn" class="cap-in"><span data-hf-id="hf-cnpg" class="w" data-s="16.95">เสียบใช้งานง่าย</span><span data-hf-id="hf-hnjj" class="w" data-s="18.19">ทั้งมือถือ</span> <span data-hf-id="hf-cu24" class="w" data-s="18.99">iPad</span> <span data-hf-id="hf-dtt2" class="w" data-s="19.25">และคอมพิวเตอร์</span></div></div>
+      <div data-hf-id="hf-ioo1" class="cap clip" id="cap05" data-start="20.53" data-duration="5.18" data-track-index="6"><div data-hf-id="hf-a76o" class="cap-in"><span data-hf-id="hf-1t0c" class="w" data-s="20.53">ตัวนี้มีระบบ</span> <span data-hf-id="hf-yhh8" class="w" data-s="21.53">Smart CSC 2.0</span> <span data-hf-id="hf-a5q5" class="w" data-s="23.07">กรองเสียงรบกวน</span><span data-hf-id="hf-yzu5" class="w" data-s="24.25">สูงถึง 90%</span></div></div>
+      <div data-hf-id="hf-93rb" class="cap clip" id="cap06" data-start="25.71" data-duration="5.05" data-track-index="6"><div data-hf-id="hf-909l" class="cap-in"><span data-hf-id="hf-wgqs" class="w" data-s="25.71">พร้อมชิป INFER 1.0</span> <span data-hf-id="hf-jebr" class="w" data-s="27.35">ให้คุณภาพเสียงดี</span><span data-hf-id="hf-upfy" class="w" data-s="28.57">คมชัดสมจริงครับ</span></div></div>
+      <div data-hf-id="hf-tru1" class="cap clip" id="cap07" data-start="30.76" data-duration="1.72" data-track-index="6"><div data-hf-id="hf-9ekm" class="cap-in"><span data-hf-id="hf-fswa" class="w" data-s="30.76">แถมยังมีกล่องชาร์จ</span><span data-hf-id="hf-3do9" class="w" data-s="31.74">อัตโนมัติ</span></div></div>
+      <div data-hf-id="hf-tgrk" class="cap clip" id="cap08" data-start="32.48" data-duration="3.44" data-track-index="6"><div data-hf-id="hf-517b" class="cap-in"><span data-hf-id="hf-d4uq" class="w" data-s="32.48">พกพาไปใช้งาน</span><span data-hf-id="hf-p3fj" class="w" data-s="33.24">นอกสถานที่</span><span data-hf-id="hf-09ce" class="w" data-s="33.86">สูงสุดถึง 35 ชั่วโมง</span></div></div>
+      <div data-hf-id="hf-zra7" class="cap clip" id="cap09" data-start="35.92" data-duration="2.52" data-track-index="6"><div data-hf-id="hf-5fic" class="cap-in"><span data-hf-id="hf-ybbl" class="w" data-s="35.92">น้ำหนักเบา</span><span data-hf-id="hf-yn1a" class="w" data-s="36.72">แถมแข็งแกร่งมากครับ</span></div></div>
+      <div data-hf-id="hf-d9ob" class="cap clip" id="cap10" data-start="38.44" data-duration="3.06" data-track-index="6"><div data-hf-id="hf-7yms" class="cap-in"><span data-hf-id="hf-zui9" class="w" data-s="38.44">ไมค์ไร้สาย</span><span data-hf-id="hf-7gel" class="w" data-s="39.0">สเปกจัดเต็มขนาดนี้</span><span data-hf-id="hf-la93" class="w" data-s="40.44">ราคาพิเศษสุดคุ้ม</span></div></div>
+      <!-- CAPTIONS:END -->
+
+      <div data-hf-id="hf-0bt9" id="wm"><span data-hf-id="hf-4vsq">สงวนลิขสิทธิ์ช่อง rizanntry ห้ามคัดลอก/ดัดแปลง</span></div>
+
+      <!-- VO:BEGIN -->
+      <audio data-hf-id="hf-p29a" id="vo0" src="assets/clips/goc01-spec-42s/vo.wav" data-start="0" data-media-start="0.0" data-duration="11.18" data-track-index="10" data-volume="1"></audio>
+      <audio data-hf-id="hf-3z76" id="vo1" src="assets/clips/goc01-spec-42s/vo.wav" data-start="11.93" data-media-start="11.18" data-duration="1.46" data-track-index="10" data-volume="1"></audio>
+      <audio data-hf-id="hf-y7md" id="vo2" src="assets/clips/goc01-spec-42s/vo.wav" data-start="14.09" data-media-start="12.64" data-duration="16.02" data-track-index="10" data-volume="1"></audio>
+      <audio data-hf-id="hf-szje" id="vo3" src="assets/clips/goc01-spec-42s/vo.wav" data-start="30.76" data-media-start="28.66" data-duration="13.804" data-track-index="10" data-volume="1"></audio>
+      <!-- VO:END -->
+      <audio data-hf-id="hf-l3wq" id="bgm" src="assets/shared/bgm.wav" data-start="0" data-duration="44.71" data-track-index="11" data-volume="0.12"></audio>
+      <!-- SFX:BEGIN -->
+      <audio data-hf-id="hf-48eb" id="sfx00" src="assets/shared/sfx/pop.wav" data-start="0.31" data-duration="0.15" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-eu28" id="sfx01" src="assets/shared/sfx/whoosh.mp3" data-start="0.85" data-duration="0.45" data-track-index="12" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-hcfl" id="sfx02" src="assets/shared/sfx/vine_boom.mp3" data-start="2.06" data-duration="1.2" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-ug8l" id="sfx03" src="assets/shared/sfx/fire.mp3" data-start="2.42" data-duration="1.8" data-track-index="13" data-volume="0.25"></audio>
+      <audio data-hf-id="hf-r0ot" id="sfx04" src="assets/shared/sfx/glass_break.mp3" data-start="3.03" data-duration="1.2" data-track-index="14" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-gs1o" id="sfx05" src="assets/shared/sfx/record_scratch.mp3" data-start="3.87" data-duration="0.75" data-track-index="12" data-volume="0.55"></audio>
+      <audio data-hf-id="hf-wzlz" id="sfx06" src="assets/shared/sfx/pop.wav" data-start="4.64" data-duration="0.15" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-q8fk" id="sfx07" src="assets/shared/sfx/whoosh2.mp3" data-start="5.33" data-duration="0.45" data-track-index="12" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-h5n4" id="sfx08" src="assets/shared/sfx/drip.mp3" data-start="6.28" data-duration="0.5" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-gcyf" id="sfx09" src="assets/shared/sfx/boom.wav" data-start="7.04" data-duration="0.8" data-track-index="12" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-ii2r" id="sfx10" src="assets/shared/sfx/sad_trombone.mp3" data-start="9.28" data-duration="1.5" data-track-index="12" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-2ywq" id="sfx11" src="assets/shared/sfx/emotional_damage.mp3" data-start="11.05" data-duration="1.5" data-track-index="12" data-volume="0.55"></audio>
+      <audio data-hf-id="hf-gh1i" id="sfx12" src="assets/shared/sfx/record_scratch.mp3" data-start="12.06" data-duration="0.7" data-track-index="13" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-bxi6" id="sfx13" src="assets/shared/sfx/drumroll.mp3" data-start="13.17" data-duration="0.9" data-track-index="12" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-x6r9" id="sfx14" src="assets/shared/sfx/airhorn.mp3" data-start="15.04" data-duration="1.3" data-track-index="12" data-volume="0.35"></audio>
+      <audio data-hf-id="hf-y0qt" id="sfx15" src="assets/shared/sfx/cinematic_boom.mp3" data-start="15.59" data-duration="1.2" data-track-index="13" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-u6tx" id="sfx16" src="assets/shared/sfx/whoosh.mp3" data-start="16.9" data-duration="0.5" data-track-index="12" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-vqgq" id="sfx17" src="assets/shared/sfx/pop.wav" data-start="18.19" data-duration="0.15" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-rdv5" id="sfx18" src="assets/shared/sfx/pop.wav" data-start="18.99" data-duration="0.15" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-yslz" id="sfx19" src="assets/shared/sfx/levelup.mp3" data-start="19.35" data-duration="0.8" data-track-index="12" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-y6sq" id="sfx20" src="assets/shared/sfx/whoosh2.mp3" data-start="20.48" data-duration="0.45" data-track-index="12" data-volume="0.35"></audio>
+      <audio data-hf-id="hf-2myh" id="sfx21" src="assets/shared/sfx/boom.wav" data-start="21.53" data-duration="0.8" data-track-index="12" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-wn2p" id="sfx22" src="assets/shared/sfx/ding.wav" data-start="23.07" data-duration="0.8" data-track-index="12" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-1m3k" id="sfx23" src="assets/shared/sfx/cinematic_boom.mp3" data-start="24.25" data-duration="1.2" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-r4gm" id="sfx24" src="assets/shared/sfx/electric.mp3" data-start="25.81" data-duration="0.8" data-track-index="12" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-w9v7" id="sfx25" src="assets/shared/sfx/levelup.mp3" data-start="27.35" data-duration="0.8" data-track-index="12" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-hgff" id="sfx26" src="assets/shared/sfx/whoosh.mp3" data-start="30.71" data-duration="0.5" data-track-index="12" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-idzr" id="sfx27" src="assets/shared/sfx/wow.mp3" data-start="30.81" data-duration="1.3" data-track-index="13" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-52mi" id="sfx28" src="assets/shared/sfx/ding.wav" data-start="31.74" data-duration="0.8" data-track-index="12" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-xzqw" id="sfx29" src="assets/shared/sfx/boom.wav" data-start="33.86" data-duration="0.8" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-3cf3" id="sfx30" src="assets/shared/sfx/chill_guy.mp3" data-start="34.36" data-duration="1.8" data-track-index="13" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-bwnv" id="sfx31" src="assets/shared/sfx/whoosh2.mp3" data-start="35.87" data-duration="0.45" data-track-index="12" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-236c" id="sfx32" src="assets/shared/sfx/boom.wav" data-start="36.72" data-duration="0.8" data-track-index="12" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-p1uu" id="sfx33" src="assets/shared/sfx/cash.wav" data-start="38.54" data-duration="0.7" data-track-index="12" data-volume="0.45"></audio>
+      <audio data-hf-id="hf-coi4" id="sfx34" src="assets/shared/sfx/cha_ching.mp3" data-start="40.54" data-duration="1.5" data-track-index="12" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-xdpj" id="sfx35" src="assets/shared/sfx/boom.wav" data-start="41.5" data-duration="0.8" data-track-index="13" data-volume="0.55"></audio>
+      <audio data-hf-id="hf-zcpa" id="sfx36" src="assets/shared/sfx/cash_register.mp3" data-start="41.9" data-duration="1.2" data-track-index="14" data-volume="0.55"></audio>
+      <!-- SFX:END -->
+    </div>
+
+    <script>
+      const T = window.TIMING.cues;
+      const tl = gsap.timeline({ paused: true });
+      const $ = (s) => document.querySelector(s);
+      const flash = HF.flash(tl);
+      const pop = (sel, t, from = { scale: 0, rotation: -8 }, ease = "back.out(2.2)", dur = 0.42) =>
+        tl.fromTo(sel, { opacity: 0, ...from }, { opacity: 1, scale: 1, rotation: 0, x: 0, y: 0, skewX: 0, duration: dur, ease }, t);
+      const out = (sel, t, dur = 0.16) => tl.to(sel, { opacity: 0, scale: 1.25, duration: dur, ease: "power2.in" }, t - dur);
+
+      // ---------- footage: punch-in on every cut, smooth drift inside shot ----------
+      const SHOTS = [
+        [0, 5.38, 1.05, 1.18],
+        [5.38, 6.55, 1.1, 1.22],
+        [11.93, 2.16, 1.15, 1.25],
+        [14.09, 3.41, 1.2, 1.1],
+        [17.50, 3.03, 1.08, 1.18],
+        [20.53, 5.18, 1.1, 1.22],
+        [25.71, 5.05, 1.15, 1.28],
+        [30.76, 5.16, 1.08, 1.2],
+        [35.92, 2.52, 1.12, 1.24],
+        [38.44, 6.27, 1.05, 1.18],
+      ];
+      SHOTS.forEach(([s, d, z0, z1], i) => {
+        tl.fromTo(`#k${i}`, { scale: z0 }, { scale: z1, duration: d, ease: "none" }, s);
+        if (i > 0) tl.fromTo(`#c${i}`, { scale: 1.16 }, { scale: 1, duration: 0.34, ease: "expo.out" }, s);
+      });
+
+      // ---------- 1 · HOOK (0–5.38s) ----------
+      pop("#h1", T.creator + 0.05, { x: -180, rotation: 0 }, "expo.out", 0.36);
+      pop("#h2", T.prob, { scale: 1.6, rotation: 0 }, "power4.out", 0.32);
+      flash(T.prob, 0.45, 0.2);
+      HF.meme(tl, "#m-fire", T.prob + 0.1, 5.38, -4);
+      pop("#h-stop", T.stop, { scale: 1.8, rotation: -4 }, "back.out(2.2)", 0.38);
+      out(["#h1", "#h2", "#h-stop"], 5.38);
+
+      // ---------- 2 · PAIN (5.38–11.93s) ----------
+      pop("#p1", T.rec, { y: -50, rotation: 0 }, "power3.out", 0.3);
+      pop("#p2", T.intrude, { scale: 1.7, rotation: -5 }, "power4.out", 0.32);
+      HF.meme(tl, "#m-sweat", T.intrude + 0.1, 11.93, 3);
+      pop("#p-ask", T.ask, { scale: 1.4, rotation: 4 }, "back.out(2)", 0.3);
+      // emotional damage pause lands here with screen jitter
+      [14, -12, 8, -6, 4, 0].forEach((x, i) => tl.set("#b-pain .scrim, #p2", { x }, T.ask_end + 0.05 + i * 0.04));
+      flash(T.ask_end + 0.05, 0.35, 0.2);
+      out(["#p1", "#p2", "#p-ask"], 11.93);
+
+      // ---------- 3 · CALM → HERO REVEAL (11.93–17.50s) ----------
+      flash(T.noworries, 0.45, 0.2);
+      tl.fromTo("#c-glow", { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 0.85, duration: 0.6, ease: "power2.out" }, T.noworries);
+      pop("#c-1", T.noworries, { scale: 1.3, rotation: 0 }, "power4.out", 0.3);
+      pop("#c-2", T.fine, { scale: 0, rotation: -8 }, "back.out(2.5)", 0.45);
+      // drumroll pause: breathe before hero snap
+      tl.to(["#c-2", "#c-glow"], { scale: 1.1, duration: 0.8, ease: "power1.in" }, T.fine_end);
+      out(["#c-1", "#c-2", "#c-glow"], 14.09);
+
+      // Hero reveal snap on airhorn & brand
+      flash(14.09, 0.7, 0.25);
+      pop("#x-brand", T.brand, { scale: 1.8, rotation: 0 }, "power4.out", 0.32);
+      pop("#x-model", T.model, { y: 40, rotation: 0 }, "expo.out", 0.35);
+      out(["#x-brand", "#x-model"], 17.50);
+
+      // ---------- 3.1 · COMPATIBILITY (17.50–20.53s) ----------
+      pop("#x-easy", T.easy, { y: -50, rotation: 0 }, "power3.out", 0.3);
+      pop("#bp-phone", T.phone, { scale: 0, rotation: -10 }, "back.out(2.5)", 0.32);
+      pop("#bp-ipad", T.ipad, { scale: 0, rotation: 8 }, "back.out(2.5)", 0.32);
+      pop("#bp-pc", T.pc, { scale: 0, rotation: -6 }, "back.out(2.5)", 0.32);
+      out(["#x-easy", "#bp-phone", "#bp-ipad", "#bp-pc"], 20.53);
+
+      // ---------- 4 · SPEC 1: CSC 90% & INFER CHIP (20.53–30.76s) ----------
+      pop("#csc-l1", T.csc_sys + 0.1, { y: 40, rotation: 0 }, "power3.out", 0.3);
+      pop("#csc-l2", T.csc_name, { scale: 1.6, rotation: -4 }, "power4.out", 0.34);
+      HF.meme(tl, "#m-elmo", T.csc_filter - 0.05, 25.71, 4);
+      out(["#csc-l1", "#csc-l2"], 25.71);
+
+      pop("#chip-l1", T.chip, { y: -40, rotation: 0 }, "power3.out", 0.3);
+      pop("#chip-l2", T.sound, { scale: 1.6, rotation: 0 }, "power4.out", 0.34);
+      HF.meme(tl, "#m-mind", T.real - 0.1, 30.76, -5);
+      out(["#chip-l1", "#chip-l2"], 30.76);
+
+      // ---------- 5 · SPEC 2: CASE & 35H BATTERY (30.76–38.44s) ----------
+      pop("#bat-l1", T.case, { y: -40, rotation: 0 }, "power3.out", 0.3);
+      pop("#bat-l2", T.h35, { scale: 1.8, rotation: -5 }, "power4.out", 0.34);
+      HF.meme(tl, "#m-chill", T.h35, 35.92, 3);
+      out(["#bat-l1", "#bat-l2"], 35.92);
+
+      pop("#tough-l1", T.light, { scale: 1.5, rotation: 0 }, "power4.out", 0.32);
+      out("#tough-l1", 38.44);
+
+      // ---------- 6 · CTA: TIKTOK BASKET (38.44–44.71s) ----------
+      pop("#cta1", T.cta_mic, { y: -50, rotation: 0 }, "power3.out", 0.3);
+      pop("#cta2", T.cta_price, { scale: 1.7, rotation: -4 }, "power4.out", 0.32);
+      HF.meme(tl, "#m-money", T.cta_full, T.cart, 4);
+      tl.to(["#cta1", "#cta2"], { opacity: 0, y: -70, duration: 0.18, ease: "power2.in" }, T.cart - 0.18);
+
+      flash(T.cart, 0.45, 0.25);
+      pop("#cta-card", T.cart, { scale: 1.8, rotation: -4 }, "power4.out", 0.35);
+      pop("#cta-sub", T.cart + 0.25, { y: 30, rotation: 0 }, "expo.out", 0.32);
+
+      const sl = HF.dash($("#k-shaft"));
+      const hl = HF.dash($("#k-head"));
+      tl.fromTo("#k-shaft", { strokeDashoffset: sl }, { strokeDashoffset: 0, duration: 0.45, ease: "power2.inOut" }, T.cart + 0.2);
+      tl.fromTo("#k-head", { strokeDashoffset: hl }, { strokeDashoffset: 0, duration: 0.16, ease: "power2.out" }, T.cart + 0.62);
+      const nudges = Math.max(0, Math.floor((44.71 - (T.cart + 0.85)) / 0.45) - 1);
+      tl.to("#k-arrow", { x: -16, y: 16, duration: 0.22, ease: "sine.inOut", yoyo: true, repeat: nudges }, T.cart + 0.85);
+      pop("#cta-tag", T.leftdown, { x: -50, rotation: 0 }, "expo.out", 0.3);
+
+      // ---------- captions (kit) ----------
+      HF.captions(tl);
+
+      window.__timelines["goc01-spec-42s"] = tl;
+    </script>
+  </body>
+</html>

@@ -7,11 +7,87 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round COUPLE-PAPER-CHAT-STANDARD-AND-PUCK-VOICE-20261012 | บันทึกมาตรฐานหลัก **Couple Paper Chat (พี่บ่าว & น้องนุ้ย บนกระดาษยับ สำหรับสินค้าที่ไม่มีคลิปดิบ)** ลงใน `kit/STYLE.md`, `.agents/rules/pov_couple_line_chat_standard.md`, และ `AGENTS.md` (ข้อ 20) พร้อมปรับสไตล์เสียงพี่บ่าว (`Puck`) ใน `clips/ors01-pov1-240w/build.py` และ `clips/els6-couple-paper/build.py` กลับเป็นโทนขี้เล่นชุดเดิม (`Playful, flustered... พี่บ่าวคนซื่อ น้ำเสียงผู้ชายชัดเจน ตกใจฮาๆ` + `atempo=1.32` ห้ามใส่คำว่า `Calm`) เจน `take_M.wav` ใหม่ ตรวจผ่าน `faster_whisper` ครบ 13 เทิร์น (`46.76s`) และผ่าน `npx hyperframes lint` 0 errors | 2026-10-12 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round ORS01-COUPLE-PAPER-NEW-SCRIPT-20261012 | แต่งบทสนทนาใหม่ 13 เทิร์น (`50.05s`) สำหรับ **Orsen by Eloop S6 240W** ("POV: สายชาร์จเก่าข้อต่อฉีก ต้องงอสายค้างถึงจะเข้า!") แล้วตัดต่อในสไตล์ **Couple Paper Chat** ลงใน `ors01-pov1-240w` (`clips/ors01-pov1-240w/build.py` ➔ `compositions/ors01-pov1-240w.html`): พื้นหลังกระดาษยับ `paper_bg.mp4` ความเร็ว `0.5x`, อัดเสียงรวดเดียวต่อคน (`take_F.wav` = `Aoede`, `take_M.wav` = `Puck`) ล็อกโมเดล `gemini-3.1-flash-tts-preview` ตัวเดียว, ตัดแบ่งเทิร์นตามช่วงเงียบที่ยาวที่สุด (`split_by_longest_gaps`), และใช้ `faster_whisper` (`large-v3-turbo`) ตรวจทานทุกเทิร์นตรง 100% (`90.9%–100%` overlap) ผ่าน `npx hyperframes lint` 0 errors | 2026-10-12 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round ORS01-POV-KINETIC-UPGRADE-20261012 | อัปเกรดคลิป `ors01-pov1-240w` (Orsen by Eloop S6 240W · 59.8s) จากภาพนิ่งซูมช้าๆ เป็น **Real Moving 1080p Video B-Roll 66.0s + ไดคัทพื้นหลังใส `rembg` + Interactive Kinetic Stage Motion ครบทั้ง 6 Beats** (วิกฤตแบต 2% + ตราปั๊มจอสั่น, Street-Fighter VS Battle HUD หลอดเลือดลดจน K.O.!, ขดสายไดคัทลอยตัว + หัวสาย 4 สีเด้งเรียง, ตัวเลขวิ่งสด `0 ➔ 240W MAX` + กราฟเปรียบเทียบ 4X, E-Mark X-Ray Laser Scanner + เกจ `32°C` + สายวัด SVG `1.5m`, หลอดโอนไฟล์ `480 Mbps` วิ่งเต็ม 100% + ตราปั๊มน้องนุ้ยยึดสาย + 33 SFX + 5 Meme Reactions) ผ่าน `npx hyperframes lint` 0 errors | 2026-10-12 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round ORS01-POV-240W-NO-RAW-CLIP-20261012 | สร้างคลิป POV คู่รักสายใต้ (`น้องนุ้ย` & `พี่บ่าว`) + แชท LINE ซ้อนลงล่าง ความยาว 59.8 วินาที (`ors01-pov1-240w`) สำหรับสินค้า Orsen by Eloop S6 240W ในกรณีไม่มีคลิปดิบ: ดึงภาพ Official High-Res 13 ภาพ (SHA-256 deduplicated, ไร้ซับต่างชาติ 100%) ➔ สร้างฟุตเทจเคลื่อนไหว 9:16 66.0s (`assets/ors01/footage.mp4` 1080x1920 30fps + เกรดสี LUT) ➔ เจนเสียงพากย์ Single-Speaker TTS แยกแทร็ก (`Aoede` & `Puck`) ➔ ประกอบร่าง `compositions/ors01-pov1-240w.html` ผ่าน `npx hyperframes lint` 0 errors | 2026-10-12 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round EXTENSION-HEALTH-RESPONSIVE-RELIABILITY-20261008 | ยกระดับ Chrome Extension Side Panel ให้พร้อมใช้งานจริง 100%: Dynamic Backend Health (Online/Offline/Checking status pill), ปุ่มลองเชื่อมต่อใหม่ inline retry ในการ์ด error, Responsive สำหรับหน้าจอแถบข้างแคบ (320px–360px) สำหรับแถบแท็บและ affiliate grid, Multi-language TikTok selectors (ไทย+อังกฤษ) และเพิ่ม http://localhost:8000/* ใน host_permissions พร้อมเพิ่ม unit test รวมผ่านครบ 35/35 เทส | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round LOGO-MODERN-COMBO-06-20261008 | ออกแบบโลโก้ใหม่ให้ OmniCut ในสไตล์มินิมอลโมเดิร์น: สำรวจ 10 แนวคิดแรก -> ผสมผสานจุดเด่นของ Concept 01 (Sharp Razor Cut) และ Concept 09 (Intertwined OC Monogram) เป็น 6 สไตล์ Combo -> ผู้ใช้เลือก Combo 06 (Modern Geometric OC with 45° Blade Cut) พร้อมแปลงเป็นเวกเตอร์ SVG และสร้างชุดไอคอน PNG ทุกขนาด (16, 32, 48, 128, 512px) ติดตั้งลงใน Extension และ Frontend เรียบร้อย | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round EXTENSION-THEME-PARITY-ANUPHAN-20261008 | ปรับธีมและฟอนต์ของ extension OmniCut (`tiktok_autopost_extension`) ให้เหมือนกับ extension ตอบกลับคอมเมนต์ (`ตอบกลับคอมเมนท์`) ทุกประการ (ฟอนต์ Anuphan ครบทุกน้ำหนัก 300-800, เฮดเดอร์ Deep Obsidian Frosted Glass พร้อม dual radial glows & เส้นขอบเรืองแสง 2px rainbow gradient, Canvas #f8fafc + การ์ดสีขาวเงาละมุน, ปุ่ม TikTok Rose Gradient และพาเลทสีมาตรฐาน) พร้อมจัดวางเลย์เอาต์ใหม่ตามมาตรฐาน /impeccable และ /ui-ux-pro-max | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round SETUP-LOCAL-ENV-GITHUB-20260929 | ติดตั้งสภาพแวดล้อม Python (.venv Python 3.13) ใหม่บนเครื่องแทน .venv เก่าที่ย้ายเครื่องมาและพัง, ติดตั้ง dependencies จาก requirements.txt ครบ 100%, แก้ไข NameError typing Dict/Any ใน shot_matching_stage.py, ทดสอบ build frontend ผ่าน, และตรวจสอบการเชื่อมต่อ GitHub origin พร้อมใช้งาน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round DRAFT-FONT-OPTIONS-PARITY-20260927 | ซิงค์ตัวเลือกฟอนต์ซับไตเติลในหน้าสร้างคลิปดราฟต์ (`NewClipPanel.jsx`) ให้เท่ากับหน้าตัดต่อ (`CaptionInspector.jsx`) โดยแชร์ `FONT_OPTIONS` มีครบ 5 ฟอนต์ (Kanit, IBM Plex, Prompt, Noto Sans Thai, Mali) แทนที่มีเพียง 2 ฟอนต์ | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round COUPLE-PAPER-CHAT-STANDARD-AND-PUCK-VOICE-20261012 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-10-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่าน `npx hyperframes lint` 0 errors, คลิปยาว `46.76s`
+
+**เป้าหมาย:**
+1. บันทึกมาตรฐานใหม่ **Couple Paper Chat (พี่บ่าว & น้องนุ้ย บนกระดาษยับ สำหรับสินค้าที่ไม่มีคลิปดิบ)** ลงใน `kit/STYLE.md`, `.agents/rules/pov_couple_line_chat_standard.md`, และ `AGENTS.md` (อนุมัติเป็นมาตรฐานหลักสำหรับการทำคลิปโดยไม่ต้องถ่ายสินค้าเอง)
+2. ปรับคำสั่งสไตล์เสียง `M_STYLE` (`Puck` = พี่บ่าว) และ `F_STYLE` (`Aoede` = น้องนุ้ย) ใน `clips/ors01-pov1-240w/build.py` และ `clips/els6-couple-paper/build.py` ให้ใช้โทนเสียงชุดเดิมที่ผู้ใช้ชอบ (`Playful, flustered, good-natured Southern Thai boyfriend named พี่บ่าว (พี่บ่าวคนซื่อ น้ำเสียงผู้ชายชัดเจน ตกใจฮาๆ)` + `lively` + `atempo=1.32`) แล้วเจน `take_M.wav` ใหม่พร้อมตรวจด้วย `faster_whisper` 100%
+
+### ผลดำเนินการจริง
+- [x] 1. อัปเดต `M_STYLE`, `F_STYLE`, และ FFmpeg filter (`atempo=1.20` สำหรับ `Aoede` และ `atempo=1.32` สำหรับ `Puck` ถอดคำว่า `Calm` ออก) ใน `clips/ors01-pov1-240w/build.py` และ `clips/els6-couple-paper/build.py`
+- [x] 2. ลบ `take_M.wav` เดิมของ `ors01-pov1-240w` แล้วเจนเสียง `Puck` โทนพี่บ่าวคนซื่อขี้เล่นใหม่ 1 รอบ (`gemini-3.1-flash-tts-preview`) หั่นตามช่วงเงียบที่ยาวที่สุด และตรวจผ่าน `faster_whisper` (`large-v3-turbo`) ครบทั้ง 13 เทิร์น (`91%–100%` overlap, ความยาวคลิป `46.76s`)
+- [x] 3. บันทึกมาตรฐาน **Couple Paper Chat — approved** ลงใน `kit/STYLE.md`, `.agents/rules/pov_couple_line_chat_standard.md`, และ `AGENTS.md` ข้อ 20
+- [x] 4. ตรวจผ่าน `npx hyperframes lint` ได้ `0 error(s)`
+
+## Round ORS01-COUPLE-PAPER-NEW-SCRIPT-20261012 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-10-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่าน `npx hyperframes lint` 0 errors, คลิปยาว `50.05s`
+
+**เป้าหมาย:** แต่งบทสนทนาใหม่ของ "พี่บ่าว & น้องนุ้ย" สำหรับ **Orsen by Eloop S6 240W** แล้วตัดต่อในสไตล์ **Couple Paper Chat** (`20261012_orsen-s6-240w_couple-paper_v2.mp4` / `els6-couple-paper`) ลงใน `ors01-pov1-240w` ตามโจทย์ผู้ใช้ครบทุกข้อ:
+1. **กระดาษ:** ใช้พื้นหลังวิดีโอกระดาษยับ `assets/shared/paper_bg.mp4` เล่นช้าลงเหลือครึ่งความเร็ว (`data-playback-rate="0.5"`)
+2. **เสียง:** อัดรวดเดียวต่อคน (`take_F.wav` = `Aoede`, `take_M.wav` = `Puck` เสียงโทนเดียวทั้งคลิป) ล็อกโมเดล TTS ตัวเดียว (`gemini-3.1-flash-tts-preview`) ไม่สลับรุ่นสำรอง ➔ ตัดแบ่งเทิร์นตามช่วงเงียบที่ยาวที่สุด (`split_by_longest_gaps`) ➔ **ใช้ `faster_whisper` เช็กอัตโนมัติว่าแต่ละท่อนตรงเทิร์น 100%**
+3. **ไม่ render:** สร้างคอมโพสิชัน ตรวจ `npx hyperframes lint` 0 errors แล้วเปิดหน้า Studio Preview ให้ผู้ใช้ดูทันที
+
+### ผลดำเนินการจริง
+- [x] 1. แต่งบทสนทนาใหม่ 13 เทิร์น (`50.05s`, VO `48.651s`, CTA `46.58s`) มุมเรื่อง **"POV: สายชาร์จเก่าข้อต่อฉีก ต้องงอสายค้างถึงจะเข้า! พี่บ่าวจัดสายถักตัวตึง Orsen S6 240W ให้"** (ตรวจผ่าน Jev Advisor `choice="angle_frayed_bed"`, `confidence=1.0`)
+- [x] 2. สร้างสคริปต์ `clips/ors01-pov1-240w/build.py` ที่:
+  - ล็อกโมเดล TTS ตัวเดียว `TTS_MODEL = "gemini-3.1-flash-tts-preview"` (ไม่สลับรุ่นสำรอง) และอัดเสียงรวดเดียวต่อคน (`tts/take_F.wav` สำหรับ `Aoede` 6 เทิร์น และ `tts/take_M.wav` สำหรับ `Puck` 7 เทิร์น)
+  - ตัดแบ่งเทิร์นตามช่วงเงียบที่ยาวที่สุด (`split_by_longest_gaps`) ได้ `turn_00_F.wav` ถึง `turn_12_M.wav`
+  - รัน `verify_turns_with_whisper()` ด้วย `faster_whisper` (`large-v3-turbo`) ตรวจทานทุกเทิร์นตรง 100% (`90.9%–100%` character overlap, บันทึกผลใน `clips/ors01-pov1-240w/whisper_turns.json`)
+  - ใช้พื้นหลังกระดาษยับ `assets/shared/paper_bg.mp4` ที่ `data-playback-rate="0.5"` พร้อมฟองแชทสติกเกอร์กระดาษและรูปทางการ 6 ภาพ (`braided_vs_broken.jpg`, `coil_240w.jpg`, `emark_chip.jpg`, `dark_beauty.jpg`, `compat_devices.jpg`, `green_heads.jpg`)
+- [x] 3. ตรวจผ่าน `npx hyperframes lint` ได้ `0 error(s)` ลบโฟลเดอร์ชั่วคราว `_tmp_segs` และสคริปต์เก่า `clips/build_ors01_pov60.py` สะอาด 100% และส่งลิงก์ Studio Preview โดยไม่ render MP4
+
+## Round ORS01-POV-KINETIC-UPGRADE-20261012 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-10-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่าน `npx hyperframes lint` 0 errors, คลิปยาว `59.8s`
+
+**เป้าหมาย:** อัปเกรดคลิป `ors01-pov1-240w` (Orsen by Eloop S6 240W · 59.8 วินาที) ตาม Feedback ของ User ที่ว่า *"ไม่เริ่ดเลยอ่ะ แบบ มันดูไม่น่าสนใจเพราะว่า รูปมันค่อยๆซูม มันไม่สนุกเลยอ่ะครับ"* โดยเลิกใช้ภาพนิ่งซูมช้าๆ (`zoompan`) แล้วเปลี่ยนเป็น **Real Moving Video B-Roll + Cutouts ไดคัทพื้นหลังใส + Kinetic Interactive Motion Graphics จัดเต็มทุกจังหวะ** บนโครงสร้างเสียงพากย์คู่รักสายใต้ `น้องนุ้ย (Aoede)` & `พี่บ่าว (Puck)` + กล่องแชท LINE ตัดแยกซ้อนลงล่างตามมาตรฐาน
+
+### ผลดำเนินการจริง
+- [x] 1. สร้างฟุตเทจวิดีโอเคลื่อนไหวจริง 100% (`assets/ors01/footage.mp4`, `1080x1920`, `30fps`, `66.0s`, `32.0 MB`) จากคลิปวิดีโอเคลื่อนไหวจริง 6 ชิ้นใน `02_Assets/Stock_Footage/` (`broll_battery_charging_hud.mp4`, `broll_tech_cyber_lines_loop.mp4`, `broll_electric_energy_surge.mp4`, `broll_screen_touch_lifestyle.mp4`, `broll_microchip_futuristic_3d.mp4`, `broll_macro_processor_circuit.mp4`) เกรดสีด้วย `02_Assets/LUTs_ColorPresets/lut_tech_cool_contrast.cube` + ไดคัทพื้นหลังใสด้วย `rembg` (`cut_coil_240w.png`, `head_black.png`, `head_white.png`, `head_green.png`, `head_pink.png`)
+- [x] 2. อัปเกรด `clips/build_ors01_pov60.py` และ `compositions/ors01-pov1-240w.html` ให้มี Interactive Stage Choreography จัดเต็มทั้ง 6 Beats + 33 SFX + 5 Meme Video Reactions:
+  - **Beat 0 (`b-hook`, 0–10.0s):** แจ้งเตือนวิกฤต `⚠️ แบต MacBook เหลือ 2%` กระพริบแดง + การ์ดเทียบสายเก่าขาดใน vs สายถัก Orsen S6 + ตราปั๊มแดง `❌ สายเก่าขาดใน! ไฟไม่เข้า!` กระแทกจอสั่น + Meme `skeleton_waiting.mp4`
+  - **Beat 1 (`b-proof`, 10.0–18.4s):** **Street-Fighter VS Battle HUD** (`สายขาวทั่วไป 60W` vs `Orsen S6 240W`) หลอดเลือดสายเก่าลดฮวบจน `K.O.!` + เอฟเฟกต์ `fight_bell` & `critical_hit` + Meme `this_is_fine.mp4`
+  - **Beat 2 (`b-rap`, 18.4–28.4s):** แสงทองหมุน + Cutout ขดสาย Orsen S6 ไดคัทลอยตัวแบบ Physics + การ์ดกล่องแท้ 240W + หัวสาย Type-C ไดคัท 4 สี (`ดำ · ขาว · เขียว · ชมพู`) เด้งเรียงทีละหัวพร้อมเสียง `pop`
+  - **Beat 3 (`b-hero`, 28.4–37.6s):** **Live Digital Power Counter** วิ่งรัว `0 ➔ 240W MAX` (`tabular-nums`) + กราฟแท่งเปรียบเทียบพุ่งทะลุจอ (`60W` vs `100W` vs `240W แรงกว่าสายทั่วไป 4 เท่า!`) + ป้ายอุปกรณ์ `MacBook Pro · iPad / iPhone 15-16` + Meme `mind_blown.mp4`
+  - **Beat 4 (`b-steal`, 37.6–46.6s):** **E-Mark Smart Chip X-Ray Scanner** ลำแสงเลเซอร์สีฟ้าไซแอนสแกนขึ้นลงผ่านหัวสาย + เกจวัดอุณหภูมิล็อกที่ `❄️ 32°C ชิป E-Mark คุมไฟนิ่ง!` + สายวัด SVG วาดเส้น `◄── สายถักไนลอน 48 เส้น • ยาวสะใจ 1.5 เมตร (150 cm) ──►` + Meme `chill_guy.mp4`
+  - **Beat 5 (`b-payoff`, 46.6–56.8s):** การ์ดโอนข้อมูล + หลอดโหลดไฟล์ `⚡ โอนไฟล์ด่วน 480 Mbps` วิ่งเต็ม `100% COMPLETE!` + ตราปั๊มชมพู `💖 น้องนุ้ยยึดเข้ากระเป๋าแล้ว!` กระแทกการ์ดสั่น + Meme `take_my_money.mp4`
+- [x] 3. ตรวจผ่าน `npx hyperframes lint` ได้ `0 error(s)` + สกัดเฟรมตรวจสอบความคมชัดและไร้การซ้อนทับครบทั้ง 6 Beats แล้วลบไฟล์ทดสอบใน `.tmp/ors01_verify` สะอาด 100%
+
+### Notes
+- Jev Checkpoints: Checkpoint 1 & 2 (`choice="hybrid_kinetic"`, `confidence=1.0`), Checkpoint 4 FFmpeg safety (`score=0.93`, `confidence=0.86`), Checkpoint 5 & 6 Before/After (`choice="v2_kinetic_showcase"`, `confidence=1.0`).
+
+## Round ORS01-POV-240W-NO-RAW-CLIP-20261012 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-10-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — ผ่าน `npx hyperframes lint` 0 errors, คลิปยาว `59.8s`
+
+**เป้าหมาย:** สร้างคลิป POV คู่รักสายใต้ (`น้องนุ้ย` & `พี่บ่าว`) + กล่องแชท LINE ซ้อนลงล่าง ความยาวมาตรฐาน 45–60 วินาที จำนวน 1 คลิป (`ors01-pov1-240w`) สำหรับสินค้า **Orsen by Eloop S6 สายชาร์จ Type-C to C 5A 240W Fast Charger PD 1.5 เมตร** (`https://shop.tiktok.com/th/pdp/1731512091369702645?_t=ZS-9AUIYeJaiz2`) ในกรณีที่ผู้ใช้ไม่มีคลิปดิบมาให้
+
+### ผลดำเนินการจริง
+
+- [x] 1. ดึงภาพสินค้า Official High-Res ของ **Orsen by Eloop S6 240W** จาก `eloopthailand.com` และ `425degree.com` คัดกรองด้วย SHA-256 Zero-Duplicate และตัดไฟล์ซ้ำ/รุ่นเก่า 100W ออก เหลือ 13 ไฟล์คุณภาพสูง (`ors01_01.png`–`ors01_13.png`, ขนาดรวม 4.77 MB, 1000x1000, ไร้ซับต่างชาติ 100%) ใน `03_Projects/_HyperFrames_Studio/assets/ors01/img/`
+- [x] 2. สร้างฟุตเทจเคลื่อนไหว 9:16 (`assets/ors01/footage.mp4`, `1080x1920`, `30fps`, ความยาว `66.0s` จาก 12 ช็อตย่อย x `5.5s` พร้อมครอปโซนภาพสินค้าสะอาด + พื้นหลัง Dark Tech เบลอ + Ken Burns Pan/Zoom + เกรดสี LUT `lut_tech_cool_contrast.cube` + `contact_sheet.jpg`)
+- [x] 3. เขียนบทสนทนาคู่รักสายใต้ (`น้องนุ้ย` & `พี่บ่าว`) 13 เทิร์น + 1 CTA (รวม `59.8s`, 28 cues, 13 captions, 17 SFX) ปลอดจุดไข่ปลา (`...`) 100% และใช้ศัพท์เทคนิคอังกฤษ (`Orsen by Eloop S6`, `Type-C`, `240W`, `5A`, `E-Mark`, `MacBook`, `iPhone 15 / 16`, `480 Mbps`, `1.5m`)
+- [x] 4. เจนเสียงพากย์ **Single-Speaker Gemini TTS แยก 2 แทร็ก** (`female_aoede_nui.wav` = `Aoede` 36.0s และ `male_puck_nui.wav` = `Puck` 50.0s), หั่นตาม Silence (`split_into_n_segments`), ปรับ Pitch/Tempo/EQ, เรียงสลับ และ Normalize `-16 LUFS` เป็น `assets/clips/ors01-pov1-240w/vo.wav`
+- [x] 5. ประกอบร่าง `compositions/ors01-pov1-240w.html` และ `assets/clips/ors01-pov1-240w/timing.js` ด้วยสคริปต์ `clips/build_ors01_pov60.py`
+- [x] 6. ตรวจเช็กด้วย `npx hyperframes lint` (`0 error(s)`) และตรวจสอบ Preview Server พอร์ต `3002` พร้อมส่งลิงก์ให้ผู้ใช้ตรวจ และลบไฟล์ชั่วคราว (`.tmp/jev_spec.json`, `_tmp_segs`) สะอาด 100%
+
+### Notes
+
+- Jev Pre-Start Check: `risk_level` score = `3.21/4.0` (ปลอดภัย 53% + ปลอดภัยสูงสุด 36% = 89%, confidence `0.59`)
+- Jev Script Check: `script_quality` score = `0.86` (confidence `0.53`)
 
 ## Round EXTENSION-HEALTH-RESPONSIVE-RELIABILITY-20261008 — ปิดรอบแล้ว ✅
 
@@ -10263,3 +10339,19 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
 - ไฟล์ทั้ง 3 ถูก commit ไปพร้อม commit `211d5c1` ของ session อื่น (commit message ไม่เกี่ยวกับงานนี้) ส่วนเอกสารถูกแยกเป็น `6ff8c85 docs(agents): add rule 19 for the Jev decision layer`
 
 - Extension clip-state tests ผ่าน `4 passed, 0 failed`
+
+## Round GIT-PUSH-COUPLE-PAPER-STUDIO-20261012 — ปรับ `.gitignore` และ Push สไตล์ Couple Paper Chat (`_HyperFrames_Studio`) ขึ้น GitHub พร้อมใช้งานข้ามเครื่อง
+
+วันที่: 2026-10-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### สิ่งที่ทำ
+1. **ปรับปรุง `.gitignore` ให้รองรับการซิงก์ `03_Projects/_HyperFrames_Studio/` ข้ามเครื่อง:**
+   - เปลี่ยนจาก `03_Projects/` เป็น `03_Projects/*` และเปิด `!03_Projects/_HyperFrames_Studio/`
+   - กรองเฉพาะไฟล์ cache / runtime / ไฟล์ดิบขนาดใหญ่ออก (`node_modules/`, `.hyperframes/`, `.playwright-mcp/`, `.thumbnails/`, `.tmp/`, `.waveform-cache/`, `renders/`, `clips/**/_tmp_segs/`, `assets/*/footage.mp4`, `assets/*/preview/`, และไฟล์เสียง `.wav` ของคลิปทดลองเก่า)
+2. **รวมไฟล์ Source ของสไตล์ Couple Paper Chat ครบชุดเข้า Git:**
+   - พื้นหลังกระดาษยับ `03_Projects/_HyperFrames_Studio/assets/shared/paper_bg.mp4` (`35.62 MB`) รวมอยู่ใน Git เรียบร้อย
+   - เสียงเอฟเฟกต์ `assets/shared/sfx/*`, ฟอนต์ `kit/fonts/{Anuphan-Bold.ttf, Kanit-Black.ttf}`, รูปสินค้า `assets/ors01/img/*` และ `assets/els6/img/*`
+   - สคริปต์และคอมโพซิชันต้นแบบ `clips/ors01-pov1-240w/` และ `clips/els6-couple-paper/` พร้อมไฟล์เสียงพากย์ `vo.wav`, `tts/*.wav`, `whisper_turns.json` และกฎมาตรฐานใน `AGENTS.md`, `.agents/rules/pov_couple_line_chat_standard.md`, `kit/STYLE.md`
+3. **ผลตรวจ Jev (`tools/jev_advisor.py`) ก่อน Commit:**
+   - `noul` ให้คะแนน `0.85` (`confidence: null`), `score` ให้คะแนน `2.29` (`confidence: 0.17`) — ตรวจจากสรุปข้อความ diff ไม่ได้อ่านไฟล์เอง และดำเนินการตามคำสั่งยืนยันโดยตรงของผู้ใช้
+

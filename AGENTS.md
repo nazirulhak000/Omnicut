@@ -48,9 +48,16 @@
 
 1. ✔️ **สเปกวิดีโอ 9:16** — `1080x1920`, `30 FPS`, ข้อความ/สติกเกอร์ห้ามชิดขอบขวา-ล่าง (กันปุ่ม TikTok บัง)
 2. ✔️ **Naming Convention** — Raw: `YYYYMMDD_ชื่อสินค้า-ประเด็น` / Export: `YYYYMMDD_ชื่อสินค้า_hook_vN.mp4` / Draft ตรงชื่อโฟลเดอร์
-3. ✔️ **ซับไทย Micro-Burst/Kinetic** — burst 2–4 คำ, ไฮไลต์ `#FFE600`, safe zone ล่าง 420px (ดู [.agents/rules/subtitle_kinetic_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/subtitle_kinetic_rules.md))
-4. ✔️ **สติกเกอร์** — เฉพาะ Universal Badges 6 แบบ, พื้นขาว `#FFFFFF` + ขอบ die-cut (ดู [.agents/rules/sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md))
-5. ✔️ **TTS/Audio** — Gemini Flash TTS เสียงมาตรฐาน: `Fenrir` (ชายสตรอง คมเข้ม) + สไตล์ `commercial_premium` (โฆษณาพรีเมียม), Edge-TTS ไทย `+15%`, ระดับเสียง Voice 1.0 / SFX 0.28 / BGM 0.12 ที่ `scripts/config.py`
+3. ✔️ **ซับไตเติลคาราโอเกะคำต่อคำ ปลอดอิโมจิ (Karaoke Word-Highlight Subtitles)** — ประโยคค้างเต็มหน้าจอ (Static Clause), คำที่กำลังพูดไฮไลต์สีเหลืองนีออน `#FFE600`, คำอื่นสีขาว `#FFFFFF`, ขนาดใหญ่ 15.0–16.0pt, ฟอนต์ Prompt-Black, **ห้ามใส่อิโมจิในซับเด็ดขาด**, safe zone ล่าง 420px (`transform_y: -0.55`)
+4. ✔️ **Hook 5 วิแรก สไตล์ 3-Tier Hero Hook Poster (Prompt-Black)** — ข้อความเรียง 3 บรรทัดซ้อนกันกลางจอช่วง 0-5s เด้งขึ้นทีละบรรทัดด้วย Pop_Up (Line 1 สีขาว ~20.0pt ➔ Line 2 คำฮีโร่สีเหลืองทองยักษ์ `#FFE600` ~31.0pt เด่นกระแทกตาเต็มจอ ➔ Line 3 สีขาวสรุป ~18.0pt) เพื่อหยุดนิ้วโป้งคนดูตามแบบคลิปไวรัล TikTok
+5. ✔️ **ตัดเสียงกล้อง 100% (Camera Ambient Mute)** — ฟุตเทจดิบตั้ง `volume: 0.0` ทุกช็อต ปิดเสียงรบกวนในห้าง/สิ่งแวดล้อม แยกแทร็ก Voiceover, BGM Ducking, และ Transition SFX ชัดเจน
+6. ✔️ **อัตลักษณ์โทนสีแนวเทคประจำช่อง (Signature Tech Color Tone)** — 
+   - Mood: **"Cool Tech Contrast"** ตัดความเหลืองของไฟห้างออก คุมไฮไลท์ขาวสะอาดล้ำสมัย เงาดำคมเข้มลึก (Deep Matte Blacks)
+   - LUT: เบสสีด้วย `02_Assets/LUTs_ColorPresets/lut_tech_cool_contrast.cube`
+   - กราฟิกคู่สีแบรนด์: เหลืองนีออน `#FFE600` (Hero Word) + ฟ้าไซแอน `#00F2FE` (Specs/Tech Info)
+   - ปรับแต่งใน CapCut: ใส่แทร็กฟิลเตอร์ `Filter_type.冷白` หรือ `冷蓝` (30-40%) บนไทม์ไลน์
+7. ✔️ **สติกเกอร์** — เฉพาะ Universal Badges 6 แบบ, พื้นขาว `#FFFFFF` + ขอบ die-cut (ดู [.agents/rules/sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md))
+8. ✔️ **TTS/Audio** — Gemini Flash TTS เสียงมาตรฐาน: `Fenrir` (ชายสตรอง คมเข้ม) + สไตล์ `commercial_premium` (โฆษณาพรีเมียม), Edge-TTS ไทย `+15%`, ระดับเสียง Voice 1.0 / SFX 0.28 / BGM 0.12 ที่ `scripts/config.py`
 6. ✔️ **Subprocess (FFmpeg/Rembg)** — รันผ่าน subprocess + error handling + log ไทย
 7. ✔️ **J-Cut** — เสียงช็อตถัดไปมาก่อนภาพ 150–250ms (ดู [.agents/rules/j_cut_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/j_cut_rules.md))
 8. ✔️ **UI คลีน + สถานะตามจริง** — ปุ่มขึ้นต้นกริยาไม่มีสัญลักษณ์นำ, สถานะ `in_production`/`rendered` ตามของจริงเท่านั้น (ดู [.agents/rules/ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md))
@@ -82,6 +89,9 @@
    - Jev อ่านได้**แค่ข้อความ** — ห้ามใช้ตรวจเฟรมวิดีโอ ซับจริง ฟอนต์เรนเดอร์ (ใช้ FFmpeg probe / Gemini vision ตามกฎเดิม)
    - คำตอบ Jev **ไม่ใช่สิทธิ์อนุมัติ** — ไม่พบปัญหา ≠ อนุญาตให้ละเมิดกฎข้อ 1–18 · ห้ามอ้างผล Jev เป็น "หลักฐาน"
    - Jev ล่ม/ไม่มี key → degrade เงียบ ๆ ทำงานต่อ ห้ามบล็อกงาน
+20. ✔️ **สไตล์คลิปละครสั้นคู่รักสายใต้ + แชท LINE / แชทบนกระดาษยับ (POV Couple Sitcom & Couple Paper Chat Standard)** — คาแรกเตอร์ประจำช่อง **ฝ่ายหญิง = `"น้องนุ้ย"`** (อวตารชมพู `"น"` ฝั่งซ้าย, กล่องแชทสีขาว `#ffffff`, เสียง Single-Speaker `Aoede` สไตล์สาวใต้เสียงใส น่ารักแต่ดุ `asetrate*1.10, atempo=1.20`) คู่กับ **ฝ่ายชาย = `"พี่บ่าว"`** (อวตารฟ้า `"บ"` ฝั่งขวา, กล่องแชทสีเขียว LINE `#8de07a`, เสียง Single-Speaker `Puck` สไตล์ `Playful, flustered... พี่บ่าวคนซื่อ น้ำเสียงผู้ชายชัดเจน ตกใจฮาๆ` `atempo=1.32` ห้ามใส่คำว่า `Calm`):
+   - **กรณีไม่มีคลิปดิบ / ไม่ต้องถ่ายสินค้าเอง (Couple Paper Chat — มาตรฐานหลักจากลิงก์ TikTok Shop):** ใช้พื้นหลังวิดีโอกระดาษยับ `assets/shared/paper_bg.mp4` ที่ความเร็วครึ่งเดียว (`data-playback-rate="0.5"`), ยิงเสียงพากย์รวดเดียวต่อคน (ยิง API แค่ 2 รอบต่อคลิป: `take_F.wav` + `take_M.wav`) ล็อกโมเดล `gemini-3.1-flash-tts-preview` ตัวเดียว ➔ ตัดแบ่งเทิร์นตามช่วงเงียบที่ยาวที่สุด (`split_by_longest_gaps`) ➔ ตรวจทานทุกเทิร์นด้วย `faster_whisper` (`verify_turns_with_whisper`) ➔ ส่งรูปสินค้าทางการในการ์ดกรอบขาวเข้าในเธรดแชทพร้อมเสียง `paper.mp3` และเปิดหน้า Studio Preview ให้ตรวจก่อนเสมอโดยไม่เรนเดอร์ MP4 (ดูโค้ดต้นแบบที่ **[clips/ors01-pov1-240w/build.py](file:///d:/Winona/Programmer/Omnicut/03_Projects/_HyperFrames_Studio/clips/ors01-pov1-240w/build.py)** และ **[kit/STYLE.md](file:///d:/Winona/Programmer/Omnicut/03_Projects/_HyperFrames_Studio/kit/STYLE.md)**)
+   - **กรณีมีคลิปฟุตเทจสินค้าจริง:** ใช้กล่องแชท LINE ซ้อนลงล่างบนฟุตเทจจริง (ดูรายละเอียดที่ **[.agents/rules/pov_couple_line_chat_standard.md](file:///d:/Winona/Programmer/Omnicut/.agents/rules/pov_couple_line_chat_standard.md)** และ **[rebuild_all_pov_clean.py](file:///d:/Winona/Programmer/Omnicut/03_Projects/_HyperFrames_Studio/clips/rebuild_all_pov_clean.py)**)
 
 ---
 
