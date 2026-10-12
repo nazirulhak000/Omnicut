@@ -1,23 +1,52 @@
-================================================================================
-📋 ข้อความสำหรับก๊อปปี้ไปวางสั่ง AI (Claude Code / Antigravity / Cursor) บนคอมอีกเครื่อง
-================================================================================
+# 🎬 คำสั่งสำหรับ AI Agent บนคอมเครื่องนี้ (อ่านไฟล์นี้แล้วทำตามทันที)
 
-ให้อ่านไฟล์ต่อไปนี้ตามลำดับเพื่อรับงานตัดต่อคลิปด้วย HyperFrames Studio ต่อทันที:
-1. `03_Projects/_HyperFrames_Studio/HANDOFF.md`
-2. `03_Projects/_HyperFrames_Studio/kit/STYLE.md` (ดูหัวข้อ สไตล์ #5: Couple Paper Chat)
-3. `.agents/rules/pov_couple_line_chat_standard.md` (ดูหัวข้อ 9: โหมดไร้ฟุตเทจถ่ายเอง — Couple Paper Chat)
-4. `AGENTS.md` (กฎข้อ 20)
-5. สคริปต์ต้นแบบ: `03_Projects/_HyperFrames_Studio/clips/ors01-pov1-240w/build.py` และ `03_Projects/_HyperFrames_Studio/compositions/ors01-pov1-240w.html`
+คุณกำลังรับช่วงต่องานตัดต่อวิดีโอ TikTok Affiliate ในโปรเจกต์ **OmniCut (`03_Projects/_HyperFrames_Studio`)**
+ให้อ่านรายละเอียดด้านล่างนี้ทั้งหมด และอ่านไฟล์อ้างอิงที่ระบุไว้เพื่อเริ่มงานต่อทันทีโดยไม่ต้องถามซ้ำ
 
-สรุปมาตรฐานที่ล็อกไว้แล้ว (ห้ามเปลี่ยนเด็ดขาด):
-- ต่อไปนี้ทุกคลิปจะตัดด้วยสไตล์ **Couple Paper Chat (แชทคู่รัก พี่บ่าว & น้องนุ้ย บนกระดาษยับ)** โดยใช้แค่ลิงก์ TikTok Shop / รูปสินค้าทางการ ไม่ต้องถ่ายฟุตเทจสินค้าเอง
-- พื้นหลัง: วิดีโอกระดาษยับ `assets/shared/paper_bg.mp4` เล่นช้าลงครึ่งความเร็ว `0.5x` (`playbackRate = 0.5`)
-- เสียงพากย์ TTS: ยิง API แค่ 2 รอบต่อคลิป (1 Single-Take สำหรับน้องนุ้ย `Aoede` + 1 Single-Take สำหรับพี่บ่าว `Puck`) ล็อกโมเดล `gemini-3.1-flash-tts-preview` ตัวเดียว ห้ามสลับรุ่นสำรอง
-  * น้องนุ้ย (`Aoede`): `Cute, sassy, lively Southern Thai girlfriend named น้องนุ้ย (สาวใต้เสียงใส น่ารักแต่ดุ พูดจาเป็นธรรมชาติ)` + FFmpeg `asetrate=24000*1.10,aresample=24000,atempo=1.20,highpass=f=110,loudnorm=I=-15:TP=-1.5:LRA=9`
-  * พี่บ่าว (`Puck`): `Playful, flustered, good-natured Southern Thai boyfriend named พี่บ่าว (พี่บ่าวคนซื่อ น้ำเสียงผู้ชายชัดเจน ตกใจฮาๆ)` (ห้ามใส่คำว่า Calm เด็ดขาด) + FFmpeg `atempo=1.32,highpass=f=95,loudnorm=I=-15:TP=-1.5:LRA=9`
-- หั่นเทิร์นด้วย `split_by_longest_gaps()` (เลือก n-1 ช่วงเงียบที่ยาวที่สุด) และบังคับตรวจด้วย `faster_whisper` (`large-v3-turbo`) ใน `verify_turns_with_whisper()` ทุกเทิร์น
-- การ์ดแชทบนกระดาษโชว์สูงสุด `maxV = 3` บับเบิล แทรกรูปสินค้าจริงในบับเบิลจังหวะโชว์สเปก + ป้ายปักหมุดตะกร้าเหลืองมุมซ้ายล่างช่วงท้ายคลิป
-- ห้ามสั่ง `npx hyperframes render` เป็น MP4 เองโดยพลการ ให้รัน `npx hyperframes lint` แล้วเปิดหน้า Studio Preview (`npx hyperframes preview --background`) ให้ตรวจก่อนเสมอ
+---
 
-เมื่ออ่านเข้าใจครบแล้ว ให้เช็กสถานะ Preview Server ด้วย `npx hyperframes preview --status` (ใน `03_Projects/_HyperFrames_Studio`) แล้วรอรับลิงก์สินค้าหรือคำสั่งตัดคลิปถัดไปได้เลย
-================================================================================
+## 1. ไฟล์ที่ต้องเปิดอ่านก่อนเริ่มงาน
+1. `03_Projects/_HyperFrames_Studio/HANDOFF.md` — คู่มือตั้งค่าและภาพรวมคลิปทั้งหมด 22 คลิป
+2. `03_Projects/_HyperFrames_Studio/kit/STYLE.md` — คู่มือสไตล์ทั้งหมด (โฟกัส **สไตล์ #5: Couple Paper Chat**)
+3. `.agents/rules/pov_couple_line_chat_standard.md` — กฎเหล็ก **หัวข้อ 9: โหมดไร้ฟุตเทจถ่ายเอง (Couple Paper Chat Standard)**
+4. `AGENTS.md` (ข้อ 20) — กฎหลักของโปรเจกต์
+5. **โค้ดต้นแบบที่สมบูรณ์ที่สุด (ใช้เป็น Template สำหรับคลิปใหม่ทุกตัว):**
+   - `03_Projects/_HyperFrames_Studio/clips/ors01-pov1-240w/build.py`
+   - `03_Projects/_HyperFrames_Studio/compositions/ors01-pov1-240w.html`
+
+---
+
+## 2. มาตรฐานหลักที่ล็อกไว้แล้ว (Couple Paper Chat — ห้ามเปลี่ยนเด็ดขาด)
+เจ้าของโปรเจกต์กำหนดให้**ทุกคลิปต่อจากนี้ใช้สไตล์ Couple Paper Chat เป็นมาตรฐานหลัก** เพื่อไม่ต้องถ่ายคลิปสินค้าเอง (ใช้แค่ลิงก์ TikTok Shop หรือรูปสินค้าทางการ):
+
+1. **พื้นหลังกระดาษยับ (`assets/shared/paper_bg.mp4`):**
+   - เล่นช้าลงครึ่งความเร็ว **`0.5x`** (`playbackRate = 0.5` ทั้งใน `loadedmetadata` และ `timeupdate` loop)
+   - ซ้อนทับด้วย `.warm-tint` และ `.vignette`
+2. **การพากย์เสียง TTS (ยิง API แค่ 2 รอบต่อ 1 คลิป):**
+   - **ล็อกโมเดล `gemini-3.1-flash-tts-preview` ตัวเดียวเท่านั้น** ห้ามใส่ fallback ไปรุ่นอื่นเด็ดขาด
+   - **อัดรวดเดียวต่อคน (1 Single-Take per Speaker):** รวมบทพูดของคนนั้นทั้งหมดคั่นแต่ละเทิร์นด้วย `\n\n... ...\n\n` ยิง API แค่ 2 ครั้งต่อคลิป (`take_F.wav` และ `take_M.wav`):
+     - **ฝ่ายหญิง (`F` = น้องนุ้ย):**
+       - Voice: `Aoede`
+       - Style Prompt: `Cute, sassy, lively Southern Thai girlfriend named น้องนุ้ย (สาวใต้เสียงใส น่ารักแต่ดุ พูดจาเป็นธรรมชาติ)`
+       - FFmpeg Filter: `asetrate=24000*1.10,aresample=24000,atempo=1.20,highpass=f=110,loudnorm=I=-15:TP=-1.5:LRA=9`
+     - **ฝ่ายชาย (`M` = พี่บ่าว):**
+       - Voice: `Puck`
+       - Style Prompt: `Playful, flustered, good-natured Southern Thai boyfriend named พี่บ่าว (พี่บ่าวคนซื่อ น้ำเสียงผู้ชายชัดเจน ตกใจฮาๆ)` (**ห้ามใส่คำว่า `Calm` เด็ดขาด** เพราะจะทำให้โทนเสียงพี่บ่าวทุ้มขรึมผิดคาแรกเตอร์)
+       - FFmpeg Filter: `atempo=1.32,highpass=f=95,loudnorm=I=-15:TP=-1.5:LRA=9`
+3. **การหั่นเทิร์น & ตรวจเช็กด้วย Whisper (บังคับทุกครั้ง):**
+   - หั่น `take_F.wav` และ `take_M.wav` ออกเป็นรายเทิร์นด้วย `split_by_longest_gaps()` (เลือก `n-1` ช่วงเงียบที่ยาวที่สุด + trim หัวท้าย)
+   - **บังคับรัน `faster_whisper` (`large-v3-turbo`)** ในฟังก์ชัน `verify_turns_with_whisper()` เพื่อเช็กว่าเสียงแต่ละเทิร์น (`turn_00`..`turn_NN`) ตรงกับบทพูดของเทิร์นนั้นจริง 100% ไม่เลื่อนเทิร์น และบันทึกผลลง `whisper_turns.json`
+4. **เลย์เอาต์การ์ดแชทบนกระดาษ + รูปสินค้าจริงในบับเบิล:**
+   - หัวคลิป `.paper-header` (`top: 110px`): ป้ายหมวดสีแดง `#d90429` + พาดหัว `Kanit 82px` + เส้นใต้สีแดง
+   - เธรดแชท `.chat-stage` (`top: 380px`, `bottom: 390px`): แสดงบับเบิลพร้อมกันสูงสุด **`maxV = 3` กล่อง** เมื่อมีข้อความใหม่จะดันข้อความเก่าเลื่อนขึ้น (`gsap.to(..., { y: -shift, ease: "power2.out" })`)
+   - แนบรูปสินค้าจริงจาก TikTok Shop (`<img class="b-photo">`) เข้าไปในบับเบิลแชทจังหวะโชว์จุดเด่น พร้อม SFX (`msg_recv.mp3`, `msg_send.mp3`, `pop.wav`, `ding.wav`, `cash.wav`, `whoosh.mp3`)
+   - ท้ายคลิปมีป้ายปักหมุดตะกร้าเหลือง `#cta-note` มุมซ้ายล่าง (`bottom: 130px; left: 54px; transform: rotate(-2deg)`)
+5. **ห้าม Render MP4 เองโดยพลการ:**
+   - สร้างเสร็จแล้วให้รัน `npx hyperframes lint` (`0 error(s)`) และเปิด **HyperFrames Studio Preview** (`npx hyperframes preview --background`) ส่งลิงก์ให้เจ้าของโปรเจกต์ดูก่อนเสมอ ห้ามรัน `npx hyperframes render` จนกว่าจะได้รับคำสั่ง
+
+---
+
+## 3. สิ่งที่ AI ต้องทำทันทีที่อ่านไฟล์นี้จบ
+1. เช็กว่า `03_Projects/_HyperFrames_Studio/node_modules` ติดตั้งหรือยัง ถ้ายังให้รัน `npm install` ใน `03_Projects/_HyperFrames_Studio`
+2. เปิด Studio Preview ทิ้งไว้ใน background ด้วย `npx hyperframes preview --background` และเช็กด้วย `npx hyperframes preview --status`
+3. ตอบกลับเจ้าของโปรเจกต์สั้นๆ ว่าเข้าใจมาตรฐาน **Couple Paper Chat** ครบถ้วนแล้ว พร้อมส่งลิงก์ Preview ของคลิป `ors01-pov1-240w` และรอรับลิงก์สินค้าตัวถัดไปได้เลย
