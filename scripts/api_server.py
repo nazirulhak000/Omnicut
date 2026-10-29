@@ -198,6 +198,7 @@ def _is_local_request(request: Request) -> bool:
     """
     if (
         os.environ.get("OMNICUT_ALLOW_REMOTE", "").lower() in ("1", "true", "yes")
+        or Path("/content").exists()
         or "google.colab" in sys.modules
     ):
         return True
