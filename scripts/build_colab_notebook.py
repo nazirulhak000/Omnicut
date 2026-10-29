@@ -372,6 +372,7 @@ def generate_notebook():
         '',
         'env = os.environ.copy()',
         'env["PYTHONPATH"] = str(REPO_DIR)',
+        'env["OMNICUT_ALLOW_REMOTE"] = "1"',
         'fastapi_log = open("/tmp/fastapi.log", "w")',
         'backend_proc = subprocess.Popen(',
         '    [sys.executable, "-m", "uvicorn", "scripts.api_server:app", "--host", "0.0.0.0", "--port", "8000"],',

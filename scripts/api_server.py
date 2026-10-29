@@ -196,6 +196,11 @@ def _is_local_request(request: Request) -> bool:
     ``testclient`` is Starlette's synthetic peer name and is safe to permit
     here because it cannot be produced by a real TCP client.
     """
+    if (
+        os.environ.get("OMNICUT_ALLOW_REMOTE", "").lower() in ("1", "true", "yes")
+        or "google.colab" in sys.modules
+    ):
+        return True
     if request.client is None:
         return True
     return _is_loopback_host(request.client.host) or request.client.host == "testclient"
