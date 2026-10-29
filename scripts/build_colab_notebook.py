@@ -162,7 +162,7 @@ def generate_notebook():
         "        stdout=open(tunnel_log, 'w'),",
         "        stderr=subprocess.STDOUT,",
         "    )",
-        "    public_url = 'โดเมนถาวรที่คุณตั้งไว้ใน Cloudflare Dashboard'",
+        "    public_url = 'https://studio.nazirulhak.com'",
         "else:",
         "    print('  ⚡ ใช้ Instant Quick Tunnel (สร้างลิงก์สดทันที)...')",
         "    tunnel_proc = subprocess.Popen(",
