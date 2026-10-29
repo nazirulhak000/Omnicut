@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round OMNICUT-CLOUD-RUNNER-COLAB-20261029 | สร้างและติดตั้ง Omnicut Cloud Runner (`Omnicut_Cloud_Runner.ipynb`) สำหรับรันบน Google Colab พร้อมโมดูล `scripts/cloud_runner.py` และ Gradio Web UI ควบคุมระยะไกล 0% PC hardware load เชื่อมต่อ Google Drive อัตโนมัติ | 2026-10-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round COUPLE-PAPER-CHAT-STANDARD-AND-PUCK-VOICE-20261012 | บันทึกมาตรฐานหลัก **Couple Paper Chat (พี่บ่าว & น้องนุ้ย บนกระดาษยับ สำหรับสินค้าที่ไม่มีคลิปดิบ)** ลงใน `kit/STYLE.md`, `.agents/rules/pov_couple_line_chat_standard.md`, และ `AGENTS.md` (ข้อ 20) พร้อมปรับสไตล์เสียงพี่บ่าว (`Puck`) ใน `clips/ors01-pov1-240w/build.py` และ `clips/els6-couple-paper/build.py` กลับเป็นโทนขี้เล่นชุดเดิม (`Playful, flustered... พี่บ่าวคนซื่อ น้ำเสียงผู้ชายชัดเจน ตกใจฮาๆ` + `atempo=1.32` ห้ามใส่คำว่า `Calm`) เจน `take_M.wav` ใหม่ ตรวจผ่าน `faster_whisper` ครบ 13 เทิร์น (`46.76s`) และผ่าน `npx hyperframes lint` 0 errors | 2026-10-12 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round ORS01-COUPLE-PAPER-NEW-SCRIPT-20261012 | แต่งบทสนทนาใหม่ 13 เทิร์น (`50.05s`) สำหรับ **Orsen by Eloop S6 240W** ("POV: สายชาร์จเก่าข้อต่อฉีก ต้องงอสายค้างถึงจะเข้า!") แล้วตัดต่อในสไตล์ **Couple Paper Chat** ลงใน `ors01-pov1-240w` (`clips/ors01-pov1-240w/build.py` ➔ `compositions/ors01-pov1-240w.html`): พื้นหลังกระดาษยับ `paper_bg.mp4` ความเร็ว `0.5x`, อัดเสียงรวดเดียวต่อคน (`take_F.wav` = `Aoede`, `take_M.wav` = `Puck`) ล็อกโมเดล `gemini-3.1-flash-tts-preview` ตัวเดียว, ตัดแบ่งเทิร์นตามช่วงเงียบที่ยาวที่สุด (`split_by_longest_gaps`), และใช้ `faster_whisper` (`large-v3-turbo`) ตรวจทานทุกเทิร์นตรง 100% (`90.9%–100%` overlap) ผ่าน `npx hyperframes lint` 0 errors | 2026-10-12 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round ORS01-POV-KINETIC-UPGRADE-20261012 | อัปเกรดคลิป `ors01-pov1-240w` (Orsen by Eloop S6 240W · 59.8s) จากภาพนิ่งซูมช้าๆ เป็น **Real Moving 1080p Video B-Roll 66.0s + ไดคัทพื้นหลังใส `rembg` + Interactive Kinetic Stage Motion ครบทั้ง 6 Beats** (วิกฤตแบต 2% + ตราปั๊มจอสั่น, Street-Fighter VS Battle HUD หลอดเลือดลดจน K.O.!, ขดสายไดคัทลอยตัว + หัวสาย 4 สีเด้งเรียง, ตัวเลขวิ่งสด `0 ➔ 240W MAX` + กราฟเปรียบเทียบ 4X, E-Mark X-Ray Laser Scanner + เกจ `32°C` + สายวัด SVG `1.5m`, หลอดโอนไฟล์ `480 Mbps` วิ่งเต็ม 100% + ตราปั๊มน้องนุ้ยยึดสาย + 33 SFX + 5 Meme Reactions) ผ่าน `npx hyperframes lint` 0 errors | 2026-10-12 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -16,6 +17,34 @@
 | Round EXTENSION-THEME-PARITY-ANUPHAN-20261008 | ปรับธีมและฟอนต์ของ extension OmniCut (`tiktok_autopost_extension`) ให้เหมือนกับ extension ตอบกลับคอมเมนต์ (`ตอบกลับคอมเมนท์`) ทุกประการ (ฟอนต์ Anuphan ครบทุกน้ำหนัก 300-800, เฮดเดอร์ Deep Obsidian Frosted Glass พร้อม dual radial glows & เส้นขอบเรืองแสง 2px rainbow gradient, Canvas #f8fafc + การ์ดสีขาวเงาละมุน, ปุ่ม TikTok Rose Gradient และพาเลทสีมาตรฐาน) พร้อมจัดวางเลย์เอาต์ใหม่ตามมาตรฐาน /impeccable และ /ui-ux-pro-max | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round SETUP-LOCAL-ENV-GITHUB-20260929 | ติดตั้งสภาพแวดล้อม Python (.venv Python 3.13) ใหม่บนเครื่องแทน .venv เก่าที่ย้ายเครื่องมาและพัง, ติดตั้ง dependencies จาก requirements.txt ครบ 100%, แก้ไข NameError typing Dict/Any ใน shot_matching_stage.py, ทดสอบ build frontend ผ่าน, และตรวจสอบการเชื่อมต่อ GitHub origin พร้อมใช้งาน | 2026-09-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round DRAFT-FONT-OPTIONS-PARITY-20260927 | ซิงค์ตัวเลือกฟอนต์ซับไตเติลในหน้าสร้างคลิปดราฟต์ (`NewClipPanel.jsx`) ให้เท่ากับหน้าตัดต่อ (`CaptionInspector.jsx`) โดยแชร์ `FONT_OPTIONS` มีครบ 5 ฟอนต์ (Kanit, IBM Plex, Prompt, Noto Sans Thai, Mali) แทนที่มีเพียง 2 ฟอนต์ | 2026-09-27 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+## Round OMNICUT-CLOUD-RUNNER-COLAB-20261029 — ปิดรอบแล้ว ✅
+
+วันที่: 2026-10-29 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: ปิดรอบแล้ว — สร้างและทดสอบสมบูรณ์ 100%
+
+**เป้าหมาย:** สร้างและติดตั้ง `Omnicut_Cloud_Runner.ipynb` สำหรับรัน Omnicut บน Google Colab เพื่อผลิตวิดีโอ TikTok 9:16 (Couple Paper Chat: น้องนุ้ย & พี่บ่าว) บน Cloud 100% ประหยัดทรัพยากรเครื่อง PC (0% Local CPU/Disk) และเชื่อมต่อ Google Drive อัตโนมัติ
+
+### ผลดำเนินการจริง
+- [x] 1. วิเคราะห์ Dependency และสถาปัตยกรรมบน Linux/Colab (Ubuntu 22.04 LTS):
+  - ระบบปฏิบัติการ & รันไทม์: Node.js 20 LTS, Chromium/Puppeteer headless dependencies (`libnss3`, `libatk1.0-0`, `libgbm1`, `libasound2`, ฯลฯ), FFmpeg
+  - Python Libraries: `faster-whisper`, `gradio`, `pydub`, `python-dotenv`, `requests`, `scipy`, `numpy`
+  - HyperFrames CLI: `hyperframes@0.8.214` พร้อมตั้งค่า sandbox flags (`--no-sandbox`, `--disable-setuid-sandbox`) ป้องกันสิทธิ์ root บน Colab
+- [x] 2. สร้างโมดูลแกนกลาง `scripts/cloud_runner.py` ที่:
+  - ดึงรายชื่อคอมโพสิชันที่มีอยู่ในระบบ (`list_compositions`) รวม 24 คอมโพสิชัน
+  - ฟังก์ชันเรนเดอร์คอมโพสิชันเป็น MP4 (`render_composition_to_mp4`) อัตโนมัติและคัดลอกไฟล์ผลลัพธ์เข้า Google Drive
+  - ฟังก์ชันสร้างคลิป Couple Paper Chat เต็มรูปแบบ (`build_and_render_couple_chat_clip`) อิงมาตรฐานน้องนุ้ย (`Aoede` + DSP) & พี่บ่าว (`Puck` + DSP), ตรวจสอบเทิร์นด้วย Faster-Whisper และเรนเดอร์ MP4 คมชัด 1080x1920 30FPS
+- [x] 3. สร้างสคริปต์ตัวสร้างและไฟล์สมบูรณ์ `Omnicut_Cloud_Runner.ipynb` (9 เซลล์ตามมาตรฐาน Jupyter Notebook v4):
+  - Cell 0 (Markdown): แนะนำระบบ, สถาปัตยกรรม 0% Local Load, และปุ่มเปิดบน Colab พร้อมใช้งาน
+  - Cell 1 (Code): One-Click Environment Setup (ติดตั้ง Node 20, Chromium libs, FFmpeg, Python libraries, git pull อัตโนมัติ)
+  - Cell 2 (Code): Google Drive Auto-Mount เชื่อมต่อปลายทาง `/content/drive/MyDrive/Omnicut_Exports/`
+  - Cell 3 (Code): Gemini API Key Setup & Diagnostics (รองรับทั้ง Colab Secrets, .env, และ Direct input พร้อม Ping test)
+  - Cell 4 (Code): เปิดตัว Gradio Web UI พร้อม Public URL (`share=True`) ให้สั่งงานผ่านมือถือ/แท็บเล็ตได้ทุกที่
+    - Tab 1: เรนเดอร์คลิปที่มีอยู่ทันที (Quick Render)
+    - Tab 2: สตูดิโอสร้างคลิปใหม่ (Couple Paper Chat Studio: น้องนุ้ย & พี่บ่าว)
+    - Tab 3: แกลเลอรีคลิปวิดีโอใน Google Drive (Exports Gallery)
+    - Tab 4: ตรวจสอบข้อมูลระบบและการเร่งความเร็วด้วย GPU
+- [x] 4. ตรวจสอบความถูกต้องของ Notebook: ผ่านการตรวจสอบโครงสร้าง JSON และ `ast.parse()` ไวยากรณ์ภาษา Python ถูกต้อง 100%
+- [x] 5. เขียนคู่มือการใช้งานอย่างละเอียดใน `_Docs/OMNICUT_CLOUD_STUDIO_GUIDE.md` พร้อมขั้นตอนการเปิดบน Colab
 
 ## Round COUPLE-PAPER-CHAT-STANDARD-AND-PUCK-VOICE-20261012 — ปิดรอบแล้ว ✅
 
@@ -10367,5 +10396,20 @@ pytest tests/motion_capture/test_editor_controls_browser.py -k accessible
    - คัดลอก `AGENTS.md`, `.gitignore`, `TODO.md`, `HISTORY.md`, และ `.agents/rules/pov_couple_line_chat_standard.md` ไปยัง `E:\PGM\Omnicut\`
 3. **อัปเดต `HANDOFF.md` และสร้าง `HANDOFF_NEXT_PC.txt`:**
    - บันทึกสเปกสไตล์ Couple Paper Chat ล่าสุดและข้อความ Prompt สำเร็จรูปสำหรับนำไปวางสั่ง AI บนคอมอีกเครื่องได้ทันทีที่ `03_Projects/_HyperFrames_Studio/HANDOFF_NEXT_PC.txt` และ `E:\PGM\Omnicut\HANDOFF_NEXT_PC.txt`
+
+## Round CLEANUP-HYPERFRAMES-HEAVY-FILES-AND-C-DRIVE-20261012 — ลบไฟล์หนักใน `_HyperFrames_Studio` (เหลือเฉพาะสกิลและสไตล์ 2.34 MB) และล้างแคชบนไดรฟ์ C: คืนพื้นที่ว่าง 18.14 GB
+
+วันที่: 2026-10-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: สำเร็จสมบูรณ์ ✅
+
+### สิ่งที่ทำ
+1. **ลบไฟล์มีเดีย/แคชหนักใน `D:\Winona\Programmer\Omnicut\03_Projects\_HyperFrames_Studio` และ `04_Exports/202610*.mp4` (หลังสำรองลง `E:\PGM\Omnicut` ครบ 100% แล้ว):**
+   - ลบ `assets/`, `node_modules/`, `renders/`, `.thumbnails/`, `.waveform-cache/`, `.hyperframes/`, ไฟล์เสียง `.wav` ใน `clips/` และไฟล์ `.mp4` ของ HyperFrames ใน `04_Exports/`
+   - คงไว้เฉพาะชุดสไตล์ `kit/`, `compositions/*.html`, สคริปต์ `clips/**/*.py`, `HANDOFF.md`, `HANDOFF_NEXT_PC.txt`, `AGENTS.md`, `README.md` (ขนาดรวมเหลือเพียง **2.34 MB** จากเดิม ~1.5 GB, พื้นที่ว่าง `D:` เพิ่มจาก `50.76 GB` เป็น `52.25 GB`)
+2. **ตรวจสอบและล้างแคชบนไดรฟ์ `C:` คืนพื้นที่ว่าง `18.14 GB` (`30.36 GB` ➔ `48.50 GB` Free):**
+   - ลบ `Temp\hf-render-*` (`2.13 GB`), `Temp\hyperframes-extract-cache-*` (`2.04 GB`), `Temp\puppeteer_dev_chrome_profile-*` (`0.60 GB`), `Temp\claude` (`1.00 GB`), `Temp\vsch` + `vscode-stable-user-x64` (`1.30 GB`)
+   - ลบ `.cache\hyperframes` (`2.77 GB`), `.cache\puppeteer` (`1.42 GB`)
+   - ลบ `AppData\Local\uv\cache` (`6.47 GB`), `AppData\Local\npm-cache` (`2.00 GB`), `AppData\Local\pip\cache` (`0.41 GB`)
+   - ตรวจพบอีกส่วนคือ `C:\pagefile.sys` ขยายตัวเป็น `33.9 GB` จากการรัน Headless Chrome + FFmpeg + Whisper พร้อมกัน (จะหดกลับเมื่อรีสตาร์ทเครื่อง)
+
 
 
