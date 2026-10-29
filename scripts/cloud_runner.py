@@ -22,7 +22,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.config import get_gemini_api_keys
+try:
+    from scripts.config import get_gemini_api_keys
+except (ImportError, ModuleNotFoundError):
+    try:
+        from .config import get_gemini_api_keys
+    except (ImportError, ModuleNotFoundError):
+        from config import get_gemini_api_keys
 
 STUDIO_DIR = REPO_ROOT / "03_Projects" / "_HyperFrames_Studio"
 COMPS_DIR = STUDIO_DIR / "compositions"
