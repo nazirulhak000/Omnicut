@@ -631,7 +631,7 @@ def generate_notebook():
     notebook_data = {
         "cells": cells,
         "metadata": {
-            "accelerator": "GPU",
+
             "colab": {
                 "provenance": [],
                 "toc_visible": True,
