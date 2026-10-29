@@ -12,7 +12,8 @@ venv/
 
 # Node & Frontend
 frontend/node_modules/
-frontend/dist/
+# frontend/dist/
+frontend/dist/voice_cache/
 .vite/
 
 # System & OS

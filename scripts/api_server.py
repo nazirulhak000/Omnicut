@@ -231,6 +231,10 @@ async def api_key_gate(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
 
+    # Allow loading frontend SPA HTML and static assets freely
+    if not request.url.path.startswith("/api"):
+        return await call_next(request)
+
     if not is_auth_enforced():
         warn_if_permissive()
         if _is_local_request(request):
@@ -306,6 +310,27 @@ app.include_router(background_isolation_router)
 app.include_router(typesafe_studio_router)
 app.include_router(audio_beats_router)
 app.include_router(proxy_router)
+
+# ----------------------------------------------------------------------
+# Serve Built Frontend SPA (if available in frontend/dist)
+# ----------------------------------------------------------------------
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
+if DIST_DIR.exists() and (DIST_DIR / "index.html").exists():
+    if (DIST_DIR / "assets").exists():
+        app.mount("/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="frontend_assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa_frontend(full_path: str):
+        # Do not hijack API, docs, or openapi routes
+        if full_path.startswith("api") or full_path.startswith("docs") or full_path.startswith("openapi"):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        target = DIST_DIR / full_path
+        if target.exists() and target.is_file():
+            return FileResponse(target)
+        return FileResponse(DIST_DIR / "index.html")
 
 # ----------------------------------------------------------------------
 # Run Server directly if executed
