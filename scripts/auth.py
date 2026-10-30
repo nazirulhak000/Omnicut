@@ -157,7 +157,42 @@ def _now() -> float:
 
 def get_app_password() -> str:
     """Return OMNICUT_APP_PASSWORD ('' when unset). Re-read on every call."""
-    return os.environ.get("OMNICUT_APP_PASSWORD", "").strip()
+    val = os.environ.get("OMNICUT_APP_PASSWORD", "").strip()
+    if val:
+        return val
+
+    # Fallback 1: Google Colab Secrets (userdata)
+    try:
+        from google.colab import userdata
+        # Check full name, trimmed name, and case variants
+        for key in ("OMNICUT_APP_PASSWORD", "OMNICUT_", "omnicut_app_password", "omnicut_password", "APP_PASSWORD"):
+            try:
+                candidate = userdata.get(key)
+                if candidate:
+                    cand_str = str(candidate).strip()
+                    if cand_str:
+                        os.environ["OMNICUT_APP_PASSWORD"] = cand_str
+                        return cand_str
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    # Fallback 2: Google Drive / local container secret files
+    for path in (
+        Path("/content/drive/MyDrive/Omnicut/.secrets/app_password"),
+        Path("/root/.omnicut_app_password"),
+    ):
+        try:
+            if path.exists():
+                candidate = path.read_text(encoding="utf-8").strip()
+                if candidate:
+                    os.environ["OMNICUT_APP_PASSWORD"] = candidate
+                    return candidate
+        except Exception:
+            pass
+
+    return ""
 
 
 def is_password_configured() -> bool:

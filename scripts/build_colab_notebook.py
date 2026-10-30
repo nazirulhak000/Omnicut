@@ -283,7 +283,18 @@ def _colab_secret(name):
         return ''
     try:
         from google.colab import userdata
-        return (userdata.get(name) or '').strip()
+        val = (userdata.get(name) or '').strip()
+        if val:
+            return val
+        aliases = {
+            'OMNICUT_APP_PASSWORD': ('OMNICUT_', 'omnicut_app_password', 'omnicut_password', 'APP_PASSWORD'),
+            'CLOUDFLARE_TUNNEL_TOKEN': ('CLOUDFLA', 'cloudflare_tunnel_token', 'TUNNEL_TOKEN', 'CLOUDFLARE_TOKEN'),
+        }.get(name, ())
+        for alias in aliases:
+            val = (userdata.get(alias) or '').strip()
+            if val:
+                return val
+        return ''
     except Exception:
         return ''
 
