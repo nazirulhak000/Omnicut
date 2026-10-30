@@ -511,8 +511,16 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
     <button id="tab-terminal" class="btn" onclick="setTab('terminal')">💻 Live AGY Terminal (คอนโซลสด Linux & agy login)</button>
   </div>
 
-  <div id="terminal-pane" style="display: none; flex: 1; width: 100%; height: calc(100vh - 125px); background: #000;">
-    <iframe id="terminalFrame" src="/terminal" style="width: 100%; height: 100%; border: none;"></iframe>
+  <div id="terminal-pane" style="display: none; flex-direction: column; flex: 1; width: 100%; height: calc(100vh - 125px); background: #000;">
+    <div style="padding: 8px 16px; background: #1e293b; color: #cbd5e1; font-size: 13px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+      <div>
+        💡 <b>วิธีวางโค้ดในหน้าจอดำ:</b> คลิกขวาที่หน้าจอดำแล้วกด <b>วาง (Paste)</b> หรือกด <b>Ctrl + Shift + V</b> (แล้วกด Enter)
+      </div>
+      <div style="font-size: 12px; color: #94a3b8;">
+        (หากใช้บนมือถือ/แท็บเล็ต ให้แตะค้างที่หน้าจอเพื่อกดวาง)
+      </div>
+    </div>
+    <iframe id="terminalFrame" src="/terminal" allow="clipboard-read; clipboard-write" style="flex: 1; width: 100%; border: none;"></iframe>
   </div>
 
   <div class="quickbar">
