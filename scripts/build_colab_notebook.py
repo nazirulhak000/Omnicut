@@ -43,8 +43,8 @@ def generate_notebook():
     # ==========================================
     cells.append(make_code_cell([
         "# @title 🚀 คลิกปุ่มนี้ปุ่มเดียว: เปิดระบบ OmniCut Pro Studio + Keepalive กันหลับ { vertical-output: true }",
-        "# @markdown กรอก Cloudflare Token หากมี (ถ้าไม่มี ให้ปล่อยว่างไว้ ระบบจะสร้าง URL สดให้ทันที)",
-        "CLOUDFLARE_TUNNEL_TOKEN = \"\"  # @param {type:\"string\"}",
+        "# @markdown Cloudflare Tunnel Token (ตั้งค่าให้พร้อมใช้งานสำหรับ studio.nazirulhak.com แล้ว)",
+        "CLOUDFLARE_TUNNEL_TOKEN = \"eyJhIjoiNjQ3NDU3MTM3ZjBlZTdhMzc3MmFlNGEzOWE3OWJkYjciLCJ0IjoiYmFmZmM5MzMtZWRkMy00MDE2LWI4NGMtNzcwMGRhZjZjMTQ0IiwicyI6IlpESmpaR1UyTURJdFptUmpNQzAwT0RGbExUZ3dZVEF0TjJVeU1qSXdOakl3WkRBNSJ9\"  # @param {type:\"string\"}",
         "",
         "import os",
         "import sys",
