@@ -89,6 +89,12 @@ from scripts.api_publication_observations import router as publication_observati
 from scripts.api_channels import router as channels_router
 from scripts.api_copilot import router as copilot_router
 from scripts.api_agy import router as agy_router
+from scripts.api_couple_production import router as couple_production_router
+from scripts.api_intake import router as intake_router
+from scripts.api_review import router as review_router
+from scripts.api_mobile_posting import router as mobile_posting_router
+from scripts.api_command import router as command_router
+from scripts.api_uploads import router as uploads_router
 from scripts.channel_scope import CHANNEL_HEADER, install_channel_scope
 from scripts.maintenance_lock import install_maintenance_gate
 
@@ -160,6 +166,13 @@ def recover_startup_work() -> dict[str, int]:
     except Exception as exc:
         print(f"[HyperFrames AI] startup recovery skipped: {exc}")
         recovered["hyperframes_ai"] = {"interrupted": [], "errors": [{"code": "provider_recovery_failed"}]}
+
+    try:
+        from scripts.couple_jobs import get_couple_job_store
+        recovered["couple_jobs"] = len(get_couple_job_store().recover_interrupted_jobs())
+    except Exception as exc:
+        print(f"[CoupleJobs] startup recovery skipped: {exc}")
+        recovered["couple_jobs"] = 0
 
     return recovered
 
@@ -312,6 +325,12 @@ app.include_router(publication_observations_router)
 app.include_router(channels_router)
 app.include_router(copilot_router)
 app.include_router(agy_router)
+app.include_router(couple_production_router)
+app.include_router(intake_router)
+app.include_router(review_router)
+app.include_router(mobile_posting_router)
+app.include_router(command_router)
+app.include_router(uploads_router)
 
 
 # ----------------------------------------------------------------------

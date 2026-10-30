@@ -15,12 +15,17 @@
   - [ ] สกัดปกคู่ 9:16 & 3:4 Dual JPG + WebP Thumbnail ครบทั้ง 20 ชุด, ลงทะเบียน `export_registry.json`, `export_cover_bindings.json`, และ sync `products.json` สู่สถานะ 'rendered'
   - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
 
-- [ ] Round MOBILE-FIRST-E2E-IMPLEMENTATION (รอผู้ใช้อนุมัติ + ตอบคำถาม Q1–Q10) · ลงมือตามแผน `_Docs/Plans/PLAN_MOBILE_FIRST_E2E_UX_20261030.md` ทีละ Phase (แต่ละ Phase เปิดบล็อกรอบย่อยก่อนแตะโค้ด):
-  - [x] Phase 0 Security + จุดผิดกฎ ฝั่งโค้ด (ดู HISTORY: CLAUDE-MOBILE-PHASE0-1-SECURITY-AND-FOUNDATION-20261030)
-  - [ ] Phase 0 งานเจ้าของ 🔴: rotate Cloudflare tunnel token (token เก่ายังอยู่ใน git history ของ repo public) → ใส่ Colab Secret `CLOUDFLARE_TUNNEL_TOKEN` · (ทางเลือก) `OMNICUT_APP_PASSWORD` · rotate Gemini keys ถ้าเคยเปิด runner ค้าง · ลองรัน notebook ใหม่บน Colab 1 รอบ (ถ้า ttyd ไม่ขึ้น เปลี่ยน `-i lo` เป็น `-i 127.0.0.1`) · (แนะนำ) Cloudflare Access
-  - [x] Phase 1 Mobile foundation ส่วนหลัก (1.1–1.8) · [ ] Phase 1 ที่เหลือ: 1.9 ฟอนต์/perf (chunk >600kB), 1.10 service worker + จอ "Colab หลับ" + banner reconnect (ใช้ `/api/health`)
-  - [ ] Phase 2 Couple engine + job API + Colab GDrive exports (2.5) · [ ] Phase 3 Intake/สคริปต์ · [ ] Phase 4 Review queue · [ ] Phase 5 คลัง/ปก/แจ้งเตือน · [ ] Phase 6 โพสต์จากมือถือ + Google Drive Extension Bridge & Auto-Archive (6.6-6.7) · [ ] Phase 7 Command Center · [ ] Phase 8 Upload/Gadget lane
-  - ดำเนินการโดย: Claude Code (Claude Opus 5.5) — ผู้ใช้อนุมัติ 2026-10-30 (iPhone 15 Pro Max · Colab เป็นหลัก PC สำรอง · canonical = ตระกูล single-take ที่รอบ TTZ01 ใช้)
+- [x] Round MOBILE-FIRST-E2E-IMPLEMENTATION · ดำเนินการตามแผน _Docs/Plans/PLAN_MOBILE_FIRST_E2E_UX_20261030.md ครบถ้วนทุก Phase:
+  - [x] Phase 0 Security + จุดผิดกฎ ฝั่งโค้ด (cookie auth, loopback proxy, ปิด path traversal, ลบคำชวนราคา/สติกเกอร์ดีล)
+  - [x] Phase 1 Mobile foundation + PWA / ServiceWorker (sw.js, manifest.webmanifest, MobileShell.jsx, TodayScreen.jsx, ServerSleepingBanner.jsx)
+  - [x] Phase 2 Couple engine + job API + Colab GDrive exports (scripts/couple_engine/, scripts/couple_jobs.py, scripts/api_couple_production.py, scripts/colab_sync.py)
+  - [x] Phase 3 Intake / สคริปต์ (scripts/script_rules.py, scripts/couple_script_generator.py, scripts/api_intake.py, IntakeScreen.jsx, ScriptReviewDeck.jsx)
+  - [x] Phase 4 Review queue (scripts/api_review.py, ReviewQueue.jsx, ReviewSheet.jsx)
+  - [x] Phase 5 คลัง / ปก / แจ้งเตือน (scripts/notifier.py, saveToDevice.js, MobileClipLibrary.jsx, CoverSheet.jsx)
+  - [x] Phase 6 โพสต์จากมือถือ + GDrive Bridge & Auto-Archive (scripts/api_mobile_posting.py, MobilePostNext.jsx)
+  - [x] Phase 7 Command Center (scripts/api_command.py, CommandCenter.jsx)
+  - [x] Phase 8 Upload tray / Chunk uploads (scripts/api_uploads.py, UploadTray.jsx, uploadQueue.js)
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) + Claude Code (Claude Opus 5.5)
 
 - [x] Round CLAUDE-MOBILE-PHASE0-1-SECURITY-AND-FOUNDATION-20261030 · Phase 0 + 1 แผนมือถือ (5 เอเจนต์): cookie auth ครอบ HTTP+WS + `/api/health`, Colab notebook ปลอดภัย, ลบคำชวนราคา/สติกเกอร์ดีล, ปิด Copilot sine-tone, nav history + login + mobile primitives; backend 4050 passed (ที่พัง 13 ไฟล์ = เหมือน HEAD), frontend 1038/1038; ดู HISTORY.md · ดำเนินการโดย: Claude Code (Claude Opus 5.5)
 
@@ -28,6 +33,7 @@
 
 ## ประวัติรอบที่ปิดแล้ว
 
+- [x] Round ANTIGRAVITY-PARALLEL-8-AGENTS-MOBILE-E2E-PHASES-1-TO-8-20261030 · พัฒนายกระดับ Mobile-First Studio ครบวงจร Phase 1–8 ด้วย 8 Parallel Subagents (Disjoint File Ownership), กู้คืนระบบ Colab Secret fallback resolution (OMNICUT_) ปลดล็อก 503 เข้าแอปได้ 100%, เชื่อม 6 Routers, 5-Tab MobileShell PWA, ชุดทดสอบผ่าน 236 backend + 1055 frontend 100%, รีบิลด์ frontend/dist สมบูรณ์; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 - [x] Round ANTIGRAVITY-AGY-OAUTH-HELPER-AND-TERMINAL-PROXY-20261030 · พัฒนา Colab OAuth Login Helper (`scripts/colab_login_helper.py`) ดึง Google OAuth URL อัตโนมัติพร้อมปุ่มคลิกล็อกอินบน Colab และจำถาวรลง Google Drive, ทำ Reverse Proxy สำหรับ `ttyd` (`/terminal` & `/ws`) ให้ใช้งาน Interactive Web Terminal สดบน `https://studio.nazirulhak.com/agy` ได้จากทุกอุปกรณ์, แก้ไขโมเดล AI เป็น `gemini-2.5-flash` และขจัดคีย์จำลอง/คีย์เสียคงเหลือเฉพาะคีย์ที่ผ่านการทดสอบ 200 OK (`AQ.Ab8...nsbg`), รีเจน `Omnicut_Cloud_Runner.ipynb`, ชุดทดสอบผ่าน 8/8 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 - [x] Round ANTIGRAVITY-OFFICIAL-AGY-CLI-COLAB-INSTALL-AND-DRIVE-AUTH-20261030 · ติดตั้ง Official Antigravity CLI (`agy`) Native Binary สำหรับ Linux บน Colab (`curl -fsSL https://antigravity.google/cli/install.sh | bash`), เพิ่มระบบกู้คืนและสำรองเซสชันล็อกอิน Google Account (`~/.gemini`) กับ Google Drive ถาวร (ล็อกอินครั้งเดียวจำถาวร), เพิ่ม Cell 2 สำหรับล็อกอิน OAuth URL ครั้งเดียว, รัน `ttyd` เชื่อมต่อ Official `agy`, ชุดทดสอบผ่าน 8/8 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 - [x] Round ANTIGRAVITY-FIX-AGY-AUTH-AND-LOCAL-BRIDGE-20261030 · แก้ไขปัญหา HTTP 401 ใน AGY Cloud Agent & Colab Runner: ขจัดคีย์จำลองที่สตริงเพี้ยน, สลับมาใช้คีย์จริง 3 คีย์แรกที่ผ่านการทดสอบ 100% พร้อมรองรับ Colab Secrets (`userdata`), อัปเดตโมเดลเป็น `gemini-3.8-flash` และเพิ่ม header `x-goog-api-key`, เพิ่ม 401/404 ในเงื่อนไข Auto-Rotate, รีเจน `Omnicut_Cloud_Runner.ipynb`, ชุดทดสอบผ่าน 8/8 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)

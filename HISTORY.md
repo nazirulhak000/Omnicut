@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-PARALLEL-8-AGENTS-MOBILE-E2E-PHASES-1-TO-8-20261030 | ยกระดับ Mobile-First Studio ครบวงจร Phase 1–8 ด้วย 8 Parallel Subagents (Disjoint File Ownership): Phase 1.9–1.10 PWA/ServiceWorker + MobileShell 5 แท็บ, Phase 2A Couple Engine (9 โมดูล) + Phase 2B Job Queue & SSE Router, Phase 3 Intake & Script Deck, Phase 4 Review Queue, Phase 5 Clip Library & LINE Notifier, Phase 6 Mobile Posting & GDrive Bridge, Phase 7–8 Command Center & Uploads, รวม Colab Secret fallback resolution (`OMNICUT_`) ปลดล็อก 503; tests 236 backend + 1055 frontend 100%, production build สำเร็จ | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round CLAUDE-MOBILE-PHASE0-1-SECURITY-AND-FOUNDATION-20261030 | Phase 0+1 แผนมือถือ: cookie auth ครอบ HTTP/WS + tunnel-aware + `/api/health` + ปิด SPA path traversal, Colab notebook (token จาก Secrets, รหัสแอปอัตโนมัติ, ttyd loopback+tmux, watchdog thread), ลบคำชวนราคา/สติกเกอร์ดีล, ปิด Copilot sine render, nav history/login/mobile primitives; backend 4050 passed (13 ไฟล์พังเหมือน HEAD), frontend 1038/1038 | 2026-10-30 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
 | Round CLAUDE-MOBILE-FIRST-E2E-UX-AUDIT-AND-PLAN-20261030 | ตรวจการใช้งานบนมือถือ 10 เอเจนต์ (read-only) ตั้งแต่เปิดแอปจนโพสต์ → แผน Phase 0–8 ที่ `_Docs/Plans/PLAN_MOBILE_FIRST_E2E_UX_20261030.md`; เจอ P0 ความปลอดภัย (repo public + tunnel token ในโค้ด + ไม่มี auth บน Colab + shell ผ่านเว็บ) | 2026-10-30 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
 | Round ANTIGRAVITY-AGY-OAUTH-HELPER-AND-TERMINAL-PROXY-20261030 | พัฒนา Colab OAuth Login Helper (`scripts/colab_login_helper.py`) ดึง Google OAuth URL อัตโนมัติพร้อมปุ่มคลิกล็อกอินบน Colab และจำถาวรลง Google Drive, ทำ Reverse Proxy สำหรับ `ttyd` (`/terminal` & `/ws`) ให้ใช้งาน Interactive Web Terminal สดบน `https://studio.nazirulhak.com/agy` ได้จากทุกอุปกรณ์, แก้ไขโมเดล AI เป็น `gemini-2.5-flash` และขจัดคีย์จำลอง/คีย์เสียคงเหลือเฉพาะคีย์ที่ผ่านการทดสอบ 200 OK (`AQ.Ab8...nsbg`), รีเจน `Omnicut_Cloud_Runner.ipynb`, ชุดทดสอบผ่าน 8/8 100% | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
@@ -103,6 +104,30 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+---
+
+## Round ANTIGRAVITY-PARALLEL-8-AGENTS-MOBILE-E2E-PHASES-1-TO-8-20261030 · ยกระดับ Mobile-First Studio ครบวงจร Phase 1–8 ด้วย 8 Parallel Subagents
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-30 · แผน: `_Docs/Plans/PLAN_MOBILE_FIRST_E2E_UX_20261030.md`
+
+- **สถาปัตยกรรมและการแบ่งงานขนาน (8 Parallel Subagents with Disjoint File Ownership):**
+  - **Agent 1 (Phase 1.9–1.10 PWA & Mobile Shell)**: ติดตั้ง Service Worker (`sw.js`), Web App Manifest (`manifest.webmanifest`), `swRegistration.js`, `ServerSleepingBanner.jsx`, `TodayScreen.jsx`, `MobileShell.jsx` (5 แท็บ: ผลิต / รีวิว / คลัง / โพสต์ / ควบคุม) + unit tests 10/10 ผ่าน 100%
+  - **Agent 2 (Phase 2A Couple Engine)**: วางโครงสร้างเครื่องจักรตัดต่อคลิปคู่รักแบบแยก 9 โมดูล (`scripts/couple_engine/{__init__,config,tts,audio,verify,compose,inspect,render,finalize}.py`), `scripts/colab_sync.py`, CLI `tools/couple_produce.py`, unit tests 14/14 ผ่าน 100%
+  - **Agent 3 (Phase 2B Couple Jobs Store & SSE API)**: จัดทำระบบสถานะงานผลิตและ Realtime SSE Streaming (`scripts/couple_jobs.py`, `scripts/api_couple_production.py`, `ProductionJobCard.jsx`), unit tests 7/7 ผ่าน 100%
+  - **Agent 4 (Phase 3 Intake & Script Deck)**: ระบบรับข้อมูลสินค้า & สคริปต์สไตล์คู่รักสายใต้ คุมกฎห้ามราคา/ห้ามจุดไข่ปลา 100% (`scripts/script_rules.py`, `scripts/couple_script_generator.py`, `scripts/api_intake.py`, `scriptRules.js`, `IntakeScreen.jsx`, `ScriptReviewDeck.jsx`), unit tests 31/31 ผ่าน 100%
+  - **Agent 5 (Phase 4 Review Queue & Light Edit)**: คิวกรรมการตรวจคลิปก่อนเผยแพร่ (`scripts/api_review.py`, `ReviewQueue.jsx`, `ReviewSheet.jsx`), unit tests 5/5 ผ่าน 100%
+  - **Agent 6 (Phase 5 Library, SaveToDevice & LINE Notifier)**: คลังคลิปพกพา บันทึกลงอุปกรณ์ และระบบแจ้งเตือน LINE Notify / LINE Messaging API (`scripts/notifier.py`, `saveToDevice.js`, `MobileClipLibrary.jsx`, `CoverSheet.jsx`), unit tests 12/12 ผ่าน 100%
+  - **Agent 7 (Phase 6 Mobile Posting & GDrive Bridge)**: ศูนย์จัดตารางโพสต์ TikTok และเชื่อมโยงบันทึกลง Google Drive (`scripts/api_mobile_posting.py`, `MobilePostNext.jsx`), unit tests 5/5 ผ่าน 100%
+  - **Agent 8 (Phase 7–8 Command Center & Resumable Uploads)**: ศูนย์สั่งการระบบ และระบบอัปโหลดไฟล์ขนาดใหญ่แบบแบ่งพาร์ททนทานต่อการหลุด (`scripts/api_command.py`, `scripts/api_uploads.py`, `CommandCenter.jsx`, `uploadQueue.js`, `UploadTray.jsx`), unit tests 6/6 ผ่าน 100%
+- **Coordinator Integration & Colab Secret Fix:**
+  - แก้ไขปัญหา Remote 503 ล็อกเอาต์บน Google Colab: เพิ่มระบบตรวจจับ Alias และ Secret Name Truncation ใน `scripts/auth.py` ให้รองรับ `OMNICUT_`, `OMNICUT_APP_PASSWORD`, `omnicut_app_password`, `APP_PASSWORD`, ไฟล์ใน Google Drive และ local secret
+  - ผูก 6 API Routers เข้ากับ `scripts/api_server.py` พร้อม Startup recovery
+  - อัปเดต `scripts/channel_route_policy.json` ครบทั้ง 40 เส้นทางใหม่ คง invariant `allow_query_scope: 7`
+  - สลับ `<MobileQuickStudio>` เป็น `<MobileAppRoot>` ใน `frontend/src/App.jsx`
+  - ชุดทดสอบ Backend `pytest` ผ่านครบ 236/236 (100%)
+  - ชุดทดสอบ Frontend `npm test` ผ่านครบ 1055/1055 (100%)
+  - บิลด์โปรดักชัน `npm run build` สำเร็จเรียบร้อยสู่ `frontend/dist`
+
 ---
 
 ## Round CLAUDE-MOBILE-PHASE0-1-SECURITY-AND-FOUNDATION-20261030 · Phase 0 + 1 ของแผนมือถือ (ความปลอดภัย + โครงหน้าจอมือถือ)

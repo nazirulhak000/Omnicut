@@ -57,6 +57,7 @@ const MobileQuickPostPage = lazyWithRetry(() => import('./components/MobileQuick
 const MobileFilmingPage = lazyWithRetry(() => import('./components/MobileFilmingPage'), 'MobileFilmingPage');
 const QuickRefPage = lazyWithRetry(() => import('./components/producer/QuickRefPage'), 'QuickRefPage');
 const MobileQuickStudio = lazyWithRetry(() => import('./components/MobileQuickStudio'), 'MobileQuickStudio');
+const MobileAppRoot = lazyWithRetry(() => import('./components/mobile/MobileAppRoot'), 'MobileAppRoot');
 
 
 import { angleToForm } from './lib/angleToForm';
@@ -578,7 +579,7 @@ export default function App() {
           <ChannelWorkspaceBar />
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner message="กำลังเปิด OmniCut Mobile Studio..." />}>
-              <MobileQuickStudio
+              <MobileAppRoot
                 onSwitchToDesktop={() => applyUiMode(false)}
                 onOpenFilmingSession={(sId, productId, angleId) => {
                   window.location.href = filmingUrl(sId, productId, angleId);
