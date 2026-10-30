@@ -256,7 +256,7 @@ export default function SystemSettings({
         return (
           <div className="space-y-4 sm:space-y-5 animate-fadeIn">
             {/* Section 1: UI Scale Control */}
-            <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
+            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-[#25F4EE] flex-shrink-0">
                   <Sliders className="w-5 h-5" />
@@ -285,7 +285,7 @@ export default function SystemSettings({
                       className={`p-3.5 rounded-xl text-left border transition-all cursor-pointer relative active:scale-95 ${
                         isActive
                           ? 'bg-cyan-500/10 border-[#25F4EE] shadow-lg shadow-cyan-500/10 ring-1 ring-[#25F4EE]/40'
-                          : 'bg-[#080B11] border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.03]'
+                          : 'glass-tile text-slate-300 hover:border-white/[0.25]'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -304,7 +304,7 @@ export default function SystemSettings({
             </div>
 
             {/* Section 2: Global UI Font Selector */}
-            <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
+            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 flex-shrink-0">
                   <Type className="w-5 h-5" />
@@ -341,7 +341,7 @@ export default function SystemSettings({
                       className={`p-3.5 rounded-xl border transition-all cursor-pointer relative group active:scale-95 ${
                         isSelected
                           ? 'bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-[#25F4EE] shadow-md shadow-cyan-500/10 ring-1 ring-[#25F4EE]/40'
-                          : 'bg-[#080B11] border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.03]'
+                          : 'glass-tile text-slate-300 hover:border-white/[0.25]'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -381,7 +381,7 @@ export default function SystemSettings({
       case 'paths':
         return (
           <div className="space-y-4 animate-fadeIn">
-            <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
+            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
               <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 pb-2.5 border-b border-white/[0.08]">
                 <Folder className="w-4 h-4 text-[#25F4EE]" />
                 ไดเรกทอรีโปรเจกต์มาตรฐาน (Project Workspace Directories)
@@ -393,7 +393,7 @@ export default function SystemSettings({
                   return (
                     <div
                       key={pf.id}
-                      className="p-3 sm:p-3.5 rounded-xl bg-[#080B11] border border-white/[0.06] flex items-center justify-between group hover:border-[#25F4EE]/30 transition-all gap-2"
+                      className="p-3 sm:p-3.5 rounded-xl glass-tile flex items-center justify-between group hover:border-[#25F4EE]/30 transition-all gap-2"
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
@@ -432,7 +432,7 @@ export default function SystemSettings({
             {/* AI Providers Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               {/* Box 1: Antigravity Pro */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0F19] border border-[#25F4EE]/20 space-y-3 relative overflow-hidden shadow-lg">
+              <div className="p-4 sm:p-5 rounded-2xl glass-panel space-y-3 relative overflow-hidden shadow-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <ShieldCheck className="w-5 h-5 text-[#25F4EE]" />
@@ -453,7 +453,7 @@ export default function SystemSettings({
               </div>
 
                 {/* Box 2: TypeSafe System One / Jev */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0F19] border border-violet-500/20 space-y-3 relative overflow-hidden shadow-lg">
+              <div className="p-4 sm:p-5 rounded-2xl glass-panel space-y-3 relative overflow-hidden shadow-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <Cpu className="w-5 h-5 text-violet-400" />
@@ -473,7 +473,7 @@ export default function SystemSettings({
                 </div>
               </div>
             {/* Box 2: Google AI Studio Vision */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0F19] border border-white/[0.08] space-y-3 relative overflow-hidden shadow-lg">
+              <div className="p-4 sm:p-5 rounded-2xl glass-panel space-y-3 relative overflow-hidden shadow-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <Sparkles className="w-5 h-5 text-slate-300" />
@@ -496,7 +496,7 @@ export default function SystemSettings({
             </div>
 
             {/* System Environment Info */}
-            <div className="p-4 sm:p-5 space-y-3.5 bg-[#0B0F19] rounded-2xl border border-white/[0.08] shadow-lg">
+            <div className="p-4 sm:p-5 space-y-3.5 glass-panel rounded-2xl shadow-lg">
               <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08]">
                 <Settings className="w-4 h-4 text-[#25F4EE]" />
                 สถานะการเรนเดอร์และ CapCut PC Integration
@@ -552,7 +552,7 @@ export default function SystemSettings({
             </div>
 
             {/* Round POST-2: TikTok Auto-Post Extension (experimental, risky) */}
-            <div className="p-4 sm:p-5 space-y-3.5 bg-[#0B0F19] rounded-2xl border border-amber-500/20 shadow-lg">
+            <div className="p-4 sm:p-5 space-y-3.5 glass-panel rounded-2xl border border-amber-500/30 shadow-lg">
               <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/[0.08]">
                 <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                   <Bug className="w-4 h-4 text-amber-400" />
@@ -611,7 +611,7 @@ export default function SystemSettings({
         return (
           <div className="space-y-4 animate-fadeIn">
             {/* Box 1: One-Click System Backup */}
-            <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
                 <div>
                   <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
@@ -708,7 +708,7 @@ export default function SystemSettings({
             </div>
 
             {/* Box 2: Asset Deduplication Engine */}
-            <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
                 <div>
                   <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
@@ -938,7 +938,7 @@ export default function SystemSettings({
                 className={`flex-shrink-0 snap-center min-h-[48px] px-3 py-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 max-w-[210px] active:scale-95 ${
                   isSelected
                     ? 'bg-[#25F4EE]/15 border-[#25F4EE] shadow-md shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/40'
-                    : 'bg-[#0B0F19] border-white/[0.08] hover:border-white/[0.2] text-slate-300'
+                    : 'glass-tile text-slate-300 hover:border-white/[0.25]'
                 }`}
               >
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
@@ -980,7 +980,7 @@ export default function SystemSettings({
                   className={`p-3 rounded-xl border transition-all cursor-pointer text-left group relative active:scale-98 ${
                     isSelected
                       ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-md shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/30'
-                      : 'bg-[#080B11] border-white/[0.06] hover:border-white/[0.18] hover:bg-white/[0.02]'
+                      : 'glass-tile text-slate-300 hover:border-white/[0.25]'
                   }`}
                 >
                   {/* Left Indicator */}
@@ -1028,7 +1028,7 @@ export default function SystemSettings({
       ) : (
         /* Classic View: Desktop Tabs Row + Full Width Content */
         <div className="space-y-4">
-          <div className="hidden lg:flex items-center gap-1.5 p-1 rounded-2xl bg-[#0B0F19] border border-white/[0.08]">
+          <div className="hidden lg:flex items-center gap-1.5 p-1 rounded-2xl glass-tile">
             {settingSections.map((t) => {
               const Icon = t.icon;
               const isActive = activeTab === t.id;

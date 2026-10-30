@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-OVERNIGHT-ROUND-6-ANALYTICS-SETTINGS-GUIDE-MODALS-20261031 | ยกระดับ AnalyticsHub, SystemSettings, UserGuide & Global Modals (Station 7 & 8): แปลงแผงการตั้งค่าระบบ, กล่อง FAQ, เมนูนำทาง, และหน้าต่างป๊อปอัปสู่ Ultra-Realistic Glassmorphism Theme (.glass-panel, .glass-tile), เพิ่ม Carousel Section Pills min-h-[48px] และ Touch Accordion min-h-[48px] พร้อม Haptic 10ms ในคู่มือ, ยืนยัน iOS Bottom Sheet ใน Modal.jsx (Grab Handle + Swipe-Down-to-Dismiss 80px + 10ms Haptic) และ Dynamic Island Toast Capsule ใน Toast.jsx, เพิ่มชุดทดสอบ TDD `frontend/src/lib/settingsAndModalsContract.test.js` (6/6 tests pass), ผ่านการทดสอบ Vitest รวม 1,086/1,086 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-5-EXPORT-GALLERY-MEDIA-ASSETS-20261031 | ยกระดับ ExportGallery & MediaAssetsHub (Station 5 & 6): 9:16 Video Stage, 1-Tap Copy Caption พร้อม Micro-Haptic 15ms, บันทึกวิดีโอผ่าน Web Share API (`navigator.share`), แผงควบคุมและคลังเสียง MPC Soundboard 2 คอลัมน์ (Touch Targets w-11 h-11 >=44px) พร้อม Sticky Mobile Audio Mini-Player Bar และปุ่มหยุดเล่นด่วน, อัปเกรดสู่ Ultra-Realistic Glassmorphism Theme (.glass-panel, .glass-tile), เพิ่มชุดทดสอบ TDD `frontend/src/lib/exportAndMediaContract.test.js` (5/5 tests pass), ผ่านการทดสอบ Vitest รวม 1,080/1,080 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-4-EDITOR-NLE-916-ERGONOMICS-20261031 | ยกระดับ EditorShell & Timeline 9:16 (Station 4): Studio Player Bar (`SequencePlayer`), Timeline Toolbar (`Toolbar`), Multi-track Timeline (`Timeline`), และ Panels (`EditorShell`) สู่ Ultra-Realistic Glassmorphism Theme (.glass-panel, .glass-tile), ค้ำประกัน Double-Tap Play/Pause ripple effect บนวิดีโอ 9:16, Scrubber Track ล็อก `touch-action: none`, ปุ่มตัด Q/W และ Mobile Switcher Tabs รักษา Touch Targets min-h-[44px] (Apple HIG), ป้องกันหน้าจอดับด้วย useWakeLock, เพิ่มชุดทดสอบ TDD `frontend/src/lib/editorErgonomicsContract.test.js` (5/5 tests pass), ผ่านการทดสอบ Vitest รวม 1,075/1,075 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-3-CONTENT-TRACKER-20261031 | ยกระดับ ContentTrackerHub.jsx (Station 3): Ultra-Realistic Glassmorphism Theme (แทนที่แบ็กกราวด์ทึบ 16 จุดด้วย .glass-panel, .glass-tile, .glass-input), Sticky Segmented Phase Bar 4 เฟสขยาย Touch Target ปุ่มสู่ min-h-11 (>=44px), ปรับขนาด KanBan คอลัมน์ w-[88vw] max-w-[390px] snap-center รับจอ iPhone 15 Pro Max, ยืนยัน Memory Safety (Cleanup บน Event Listeners และ setInterval), เพิ่มชุดทดสอบ TDD `frontend/src/lib/contentTrackerContract.test.js` (6/6 tests pass), ผ่านการทดสอบ Vitest รวม 1,070/1,070 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -121,6 +122,32 @@
 ---
 
 ---
+
+---
+
+## Round ANTIGRAVITY-OVERNIGHT-ROUND-6-ANALYTICS-SETTINGS-GUIDE-MODALS-20261031 · ยกระดับ AnalyticsHub, SystemSettings, UserGuide & Global Modals (Station 7 & 8): Horizontal Data Scroll, >=48px Touch Accordion, iOS Bottom Sheet Swipe-Down, Dynamic Island Toast Capsule & 100dvh Lock
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-31
+
+- **ผลการตรวจประเมินและยกระดับ (Elevation Details):**
+  1. **AnalyticsHub & Data Display Ergonomics**:
+     - ปรับคอนเทนเนอร์หลักเป็น `bg-transparent relative z-10` เพื่อให้แสงหักเหจาก Ambient Orbs ลอยทะลุกราฟและตัวชี้วัดสถิติ
+     - ปรับปุ่มเปลี่ยนหมวดหมู่สถิติทั้ง 5 แท็บ (`การผลิตคลิป`, `ผลงาน TikTok`, `โทเคน AI`, `พื้นที่จัดเก็บ`, `คลังเนื้อหา`) ให้มี Touch Targets `min-h-[44px]` และสไตล์ `.glass-tile`
+  2. **SystemSettings & Touch Carousel Navigation**:
+     - แปลงแผงควบคุมหลักทั้งหมด (CapCut draft paths, TTS voice config, Storage, Advanced, Cloud AI) สู่ `.glass-panel`
+     - ยกระดับ Carousel Section Pills ด้านบนให้มี Touch Targets ขนาด `min-h-[48px]` สอดรับนิ้วโป้งมือเดียว
+     - ปรับการ์ดย่อยและตัวเลือกการตั้งค่าสู่ `.glass-tile`
+  3. **UserGuide Touch Accordion & Sticky TOC**:
+     - แถบสารบัญติดหนึบ (`Sticky TOC`) แปลงสู่ `.glass-panel` พร้อม Scroll-Spy
+     - FAQ Accordion ทุกหัวข้อมี Touch Target ขนาด `min-h-[48px]` พร้อมระบบสั่นตอบรับ **Micro-Haptic 10ms** (`navigator.vibrate?.(10)`) เมื่อแตะเปิด/ปิด
+     - กล่องคำถาม-คำตอบแปลงสู่ `.glass-tile`
+  4. **Global Modals & Dynamic Island Toast**:
+     - `Modal.jsx`: แปลงโหมดแสดงผลบนหน้าจอมือถือเป็น **iOS Bottom Sheet** พร้อมแถบลากด้านบน (Drag Handle) และระบบปัดลงเพื่อปิด (Swipe-Down-to-Dismiss) ระยะเกิน 80px พร้อมสั่น 10ms
+     - `Toast.jsx`: ดีไซน์แบบ **Dynamic Island Capsule** สไลด์ลงมาจากขอบบนสุดของหน้าจอ OLED โค้งมน `rounded-full` พื้นหลังกระจกฝ้าไม่บดบังปุ่มสำคัญด้านล่าง
+  5. **TDD Contract Testing & Quality Gates**:
+     - สร้างชุดทดสอบสัญญา: [`frontend/src/lib/settingsAndModalsContract.test.js`](file:///d:/Winona/Programmer/Omnicut/frontend/src/lib/settingsAndModalsContract.test.js) (ผ่าน 6/6 tests)
+     - ยอดรวมชุดทดสอบทั้งระบบ: **ผ่านครบ 1,086/1,086 tests (100% pass)**
+     - Vite Production Build: สำเร็จสมบูรณ์ 0 error ใน 2.06s
 
 ## Round ANTIGRAVITY-OVERNIGHT-ROUND-5-EXPORT-GALLERY-MEDIA-ASSETS-20261031 · ยกระดับ ExportGallery & MediaAssetsHub (Station 5 & 6): 9:16 Video Cards, 1-Tap Copy Haptic 15ms, Web Share API, 2-Column MPC Soundboard Pads & Sticky Mini Audio Bar
 

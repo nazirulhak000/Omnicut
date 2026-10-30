@@ -65,7 +65,7 @@ export default function AnalyticsHub({
   ];
 
   return (
-    <div className="h-full flex flex-col overflow-y-auto bg-[#07090E] p-4 sm:p-6 space-y-4">
+    <div className="h-full flex flex-col overflow-y-auto bg-transparent relative z-10 p-4 sm:p-6 space-y-4">
 
       {/* ── Tab Navigation Bar ── */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar border-b border-white/[0.08]">
@@ -79,7 +79,7 @@ export default function AnalyticsHub({
               className={`flex items-center gap-2 min-h-[44px] px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-[0.98] ${
                 isActive
                   ? `${tab.activeBg} shadow-lg shadow-black/20`
-                  : 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-white hover:bg-white/[0.05]'
+                  : 'glass-tile text-slate-400 hover:text-white hover:border-white/[0.25]'
               }`}
             >
               <Icon className="w-4 h-4" />

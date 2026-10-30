@@ -138,7 +138,7 @@ export default function UserGuide({ onNavigate }) {
         actions={(<button onClick={() => go('flow')} className="min-h-[42px] flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-xs font-bold cursor-pointer active:scale-95">เริ่มสร้างคลิปแรก<ArrowRight className="w-3.5 h-3.5" /></button>)}
       />
       {/* ── สารบัญลอย: ติดบน + scrollspy ── */}
-      <nav className="sticky top-[52px] sm:top-[56px] z-10 bg-[#080B11]/95 backdrop-blur-xl border border-white/[0.08] rounded-2xl px-2.5 py-2 shadow-lg">
+      <nav className="sticky top-[52px] sm:top-[56px] z-10 glass-panel rounded-2xl px-2.5 py-2 shadow-lg">
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
           {TOC.map((t) => {
             const active = activeSection === t.href;
@@ -146,7 +146,7 @@ export default function UserGuide({ onNavigate }) {
           })}
         </div>
       </nav>
-      <section id="ug-flow" className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg scroll-mt-20">
+      <section id="ug-flow" className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg scroll-mt-20">
         <div className="flex items-center gap-2.5 mb-1">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#25F4EE]/20 to-[#FE2C55]/20 border border-white/[0.1] flex items-center justify-center"><Sparkles className="w-4 h-4 text-[#25F4EE]" /></div>
           <div><h2 className="text-sm sm:text-base font-black text-white">โฟลว์การทำงานหลัก 7 ขั้น</h2><p className="text-[11px] sm:text-xs text-slate-400">จากสินค้าหนึ่งชิ้น กลายเป็นคลิปพร้อมโพสต์ กดที่การ์ดเพื่อกระโดดไปเมนูนั้นได้เลย</p></div>
@@ -167,7 +167,7 @@ export default function UserGuide({ onNavigate }) {
         <h2 className="text-sm sm:text-base font-black text-white px-1">วิธีใช้ละเอียดทุกเมนู กดชื่อเมนูเพื่อกระโดดไปใช้งานจริง</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-2.5 mt-2.5 items-start">
         {MENU_DETAIL.map((m) => { const meta = MENU_GUIDE.find((g) => g.id === m.id); const Icon = meta.icon; const expanded = !!expandedMenus[m.id]; const visible = expanded ? m.points : m.points.slice(0, 3); return (
-          <article key={m.id} className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 shadow-lg min-w-0">
+          <article key={m.id} className="glass-panel rounded-2xl p-4 shadow-lg min-w-0">
             <button onClick={() => go(m.id)} className="w-full flex items-center gap-2.5 text-left cursor-pointer group">
               <div className="w-9 h-9 rounded-xl bg-white/[0.05] border border-white/[0.1] flex items-center justify-center flex-shrink-0"><Icon className={`w-5 h-5 ${meta.color}`} /></div>
               <div className="flex-1 min-w-0"><div className="flex items-center gap-2 flex-wrap"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta.chip}`}>{meta.badge || `เมนู ${meta.no}`}</span><span className="text-sm font-black text-white group-hover:text-[#25F4EE]">{m.title}</span></div><p className="text-[11px] text-slate-400 mt-0.5">{m.sub}</p></div>
@@ -183,28 +183,28 @@ export default function UserGuide({ onNavigate }) {
           </article> ); })}
         </div>
       </section>
-      <section id="ug-quickstart" className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg scroll-mt-20">
+      <section id="ug-quickstart" className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg scroll-mt-20">
         <div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-500/20 to-[#25F4EE]/20 border border-white/[0.1] flex items-center justify-center"><Clock className="w-4 h-4 text-rose-400" /></div><h2 className="text-sm sm:text-base font-black text-white">คลิปแรกใน 10 นาที ทำตาม 5 ข้อนี้</h2></div>
         <ol className="grid grid-cols-1 lg:grid-cols-2 gap-2 mt-3 items-start">
           {[['นาที 0-2 ใส่สินค้า', 'เปิดเมนู 1 วางลิงก์สินค้า กดดึงข้อมูล ตรวจชื่อ จุดขาย สเปกให้ครบ'], ['นาที 2-4 สร้างสคริปต์', 'เลือกมุมขาย 1 มุม กดสร้างสคริปต์ อ่าน Hook 3 วิแรกว่าหยุดนิ้วคนดูได้ไหม และกดจัดอันดับ Hook ด้วย TypeSafe AI เพื่อดูคะแนนตรึงคนดู'], ['นาที 4-6 ฟังเสียง', 'กดฟังเสียงพากย์ตัวอย่าง ถ้าโอเคกดส่งตัดต่อ ระบบสร้างโปรเจกต์ในเมนู 3 ให้'], ['นาที 6-8 ตรวจพรีวิว', 'ในเมนู 3 กดเล่นพรีวิว ดูซับ ป้าย Hook และ Safe Zone ว่าไม่โดนปุ่ม TikTok บัง'], ['นาที 8-10 เรนเดอร์', 'กดเรนเดอร์ รอไฟล์ 1080x1920 เสร็จที่เมนู 4 แล้วแชร์ QR เข้ามือถือโพสต์ได้เลย']].map(([t, d], i) => (
             <li key={i} className="flex items-start gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-white/[0.06]"><span className="w-6 h-6 rounded-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-[11px] font-black flex items-center justify-center flex-shrink-0 font-mono">{i + 1}</span><div className="min-w-0"><div className="text-xs font-bold text-white">{t}</div><div className="text-[11px] text-slate-400 leading-relaxed mt-0.5">{d}</div></div></li>))}
         </ol>
       </section>
-      <section id="ug-status" className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg scroll-mt-20">
+      <section id="ug-status" className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg scroll-mt-20">
         <h2 className="text-sm sm:text-base font-black text-white">สถานะคลิป 4 เฟส ดูที่เมนู 2</h2>
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mt-3 items-start">
           {[['scripted', 'ร่างสคริปต์', 'มีไอเดีย มีบท แต่ยังไม่เข้าไทม์ไลน์', 'bg-slate-500/10 text-slate-300 border-slate-500/30'], ['in_production', 'กำลังตัดต่อ', 'มีโปรเจกต์ในไทม์ไลน์ กำลังทำ', 'bg-amber-500/10 text-amber-300 border-amber-500/30'], ['rendered', 'ตัดต่อเสร็จ', 'มีไฟล์ MP4 ใน 04_Exports พร้อมโพสต์', 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'], ['posted', 'โพสต์แล้ว', 'ขึ้น TikTok พร้อมตะกร้าสินค้า', 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30']].map(([code, name, desc, chip]) => (
             <div key={code} className="p-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] min-w-0"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border font-mono ${chip}`}>{code}</span><div className="text-xs font-bold text-white mt-1.5">{name}</div><div className="text-[11px] text-slate-400 leading-snug mt-0.5">{desc}</div></div>))}
         </div>
       </section>
-      <section id="ug-folders" className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 shadow-lg scroll-mt-20">
+      <section id="ug-folders" className="glass-panel rounded-2xl p-4 shadow-lg scroll-mt-20">
         <div className="flex items-center gap-2.5"><FolderOpen className="w-4 h-4 text-amber-400" /><h2 className="text-sm sm:text-base font-black text-white">โฟลเดอร์ 00-06 ไฟล์อยู่ไหน</h2></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1.5 mt-2.5 items-start">
           {[['00_Inbox', 'พักไฟล์ดิบจากมือถือ ยังไม่จัดหมวด'], ['01_Raw', 'ฟุตเทจต้นฉบับแยกตามวันและสินค้า ห้ามลบ'], ['02_Assets', 'เพลง ฟอนต์ SFX สติกเกอร์ส่วนกลาง ห้ามลบ'], ['03_Projects', 'ไฟล์โปรเจกต์และสคริปต์ของแต่ละคลิป'], ['04_Exports', 'คลิปเรนเดอร์เสร็จ Ready_to_post และ Posted'], ['05_Covers', 'ปกคลิป 9:16'], ['06_Archive', 'เก็บสำรองหลังโพสต์ครบ 30 วัน'], ['GadgetMedia/', 'โฟลเดอร์ย่อยของงานแกดเจ็ตใน 01_Raw / 03_Projects / 04_Exports และ _Docs/gadget_media'], ['CapCut Drafts', 'เปิดต่อใน CapCut PC เปิดจากเมนู 7']].map(([n, d]) => (
           <div key={n} className="flex items-start gap-2 p-2 rounded-xl bg-white/[0.03] border border-white/[0.06] min-w-0"><span className="text-[11px] font-bold font-mono text-[#25F4EE] whitespace-nowrap">{n}</span><span className="text-[11px] text-slate-300 leading-snug">{d}</span></div>))}
         </div>
       </section>
-      <section id="ug-checklist" className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 shadow-lg scroll-mt-20">
+      <section id="ug-checklist" className="glass-panel rounded-2xl p-4 shadow-lg scroll-mt-20">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h2 className="text-sm sm:text-base font-black text-white">เช็กลิสต์ก่อนโพสต์ 6 ข้อ</h2>
           <div className="flex items-center gap-2">
@@ -221,14 +221,14 @@ export default function UserGuide({ onNavigate }) {
           <li key={i}><button onClick={() => toggleCheck(i)} className={`w-full flex items-start gap-2 p-2 rounded-xl border text-left cursor-pointer transition-colors ${done ? 'bg-emerald-500/[0.08] border-emerald-500/30' : 'bg-white/[0.03] border-white/[0.06] hover:border-white/[0.15]'}`}>{done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" /> : <Circle className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 mt-0.5" />}<span className={`text-[11px] sm:text-xs leading-relaxed ${done ? 'text-slate-200 line-through decoration-emerald-500/60' : 'text-slate-300'}`}>{c}</span></button></li> ); })}
         </ul>
       </section>
-      <section id="ug-trouble" className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 shadow-lg scroll-mt-20">
+      <section id="ug-trouble" className="glass-panel rounded-2xl p-4 shadow-lg scroll-mt-20">
         <h2 className="text-sm sm:text-base font-black text-white">แก้ปัญหาเบื้องต้น 4 อาการ</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1.5 mt-2.5 items-start">
           {TROUBLES.map((item) => (
           <div key={item.t} className="p-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] min-w-0 flex flex-col gap-1"><div className="text-xs font-bold text-white">{item.t}</div><div className="text-[11px] text-slate-400 leading-snug flex-1">{item.d}</div><button onClick={() => go(item.tab)} className="inline-flex items-center gap-1 text-[10px] font-bold text-[#25F4EE] hover:text-white cursor-pointer self-start transition-colors">{item.label}<ArrowRight className="w-3 h-3" /></button></div>))}
         </div>
       </section>
-      <section id="ug-faq" className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 shadow-lg scroll-mt-20">
+      <section id="ug-faq" className="glass-panel rounded-2xl p-4 shadow-lg scroll-mt-20">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2.5"><CircleHelp className="w-4 h-4 text-[#25F4EE]" /><h2 className="text-sm sm:text-base font-black text-white">คำถามพบบ่อย</h2></div>
           <div className="flex items-center gap-1.5">
@@ -251,7 +251,7 @@ export default function UserGuide({ onNavigate }) {
         ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-1.5 mt-2.5 items-start">
           {filteredFaqs.map((f) => { const open = openFaq.includes(f.idx); return (
-            <div key={f.idx} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden min-w-0">
+            <div key={f.idx} className="rounded-2xl glass-tile overflow-hidden min-w-0">
               <button
                 onClick={() => {
                   try { navigator.vibrate?.(10); } catch {}
