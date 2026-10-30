@@ -202,6 +202,64 @@ $map = @{{10=$own;20=$other;30=$unknown;40=$child}}
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows launcher")
+def test_launcher_recognizes_relative_backend_from_exact_venv_parent(tmp_path):
+    helper = Path(__file__).resolve().parents[1] / "tools/launch_omnicut.ps1"
+    root = str(tmp_path / "OmniCut").replace("'", "''")
+    script = f"""
+. '{str(helper).replace("'", "''")}'
+$root = '{root}'
+$when = Get-Date
+$wrapper = [pscustomobject]@{{ProcessId=10;ParentProcessId=0;CreationDate=$when;ExecutablePath=(Join-Path $root '.venv\\Scripts\\python.exe');CommandLine='.venv\\Scripts\\python.exe scripts/api_server.py'}}
+$child = [pscustomobject]@{{ProcessId=11;ParentProcessId=10;CreationDate=$when.AddSeconds(1);ExecutablePath='C:\\Python\\python.exe';CommandLine='.venv\\Scripts\\python.exe scripts/api_server.py'}}
+$foreign = [pscustomobject]@{{ProcessId=20;ParentProcessId=0;CreationDate=$when;ExecutablePath='C:\\Other\\.venv\\Scripts\\python.exe';CommandLine='.venv\\Scripts\\python.exe scripts/api_server.py'}}
+$wrongScript = [pscustomobject]@{{ProcessId=21;ParentProcessId=0;CreationDate=$when;ExecutablePath=$wrapper.ExecutablePath;CommandLine='.venv\\Scripts\\python.exe scripts/other.py'}}
+$absoluteForeign = [pscustomobject]@{{ProcessId=22;ParentProcessId=0;CreationDate=$when;ExecutablePath=$wrapper.ExecutablePath;CommandLine='python C:\\Other\\scripts\\api_server.py'}}
+$reused = [pscustomobject]@{{ProcessId=23;ParentProcessId=10;CreationDate=$when.AddSeconds(-1);ExecutablePath='C:\\Python\\python.exe';CommandLine='python child.py'}}
+$map = @{{10=$wrapper;11=$child;20=$foreign;21=$wrongScript;22=$absoluteForeign;23=$reused}}
+@((Test-OmnicutProcess $wrapper $map $root 8000),(Test-OmnicutProcess $child $map $root 8000),(Test-OmnicutProcess $foreign $map $root 8000),(Test-OmnicutProcess $wrongScript $map $root 8000),(Test-OmnicutProcess $absoluteForeign $map $root 8000),(Test-OmnicutProcess $wrapper $map $root 5173),(Test-OmnicutProcess $reused $map $root 8000)) | ConvertTo-Json -Compress
+"""
+    result = subprocess.run(["powershell.exe", "-NoProfile", "-Command", script], capture_output=True, text=True, check=True)
+    assert json.loads(result.stdout) == [True, True, False, False, False, False, False]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows launcher")
+@pytest.mark.parametrize("studio_command,studio_name,allowed", [
+    ('node "C:\\npm-cache\\hyperframes\\bin\\hyperframes.mjs" preview --foreground --no-open', "node.exe", True),
+    ('node "C:\\other-server.js"', "node.exe", False),
+    ('echo hyperframes preview', "cmd.exe", False),
+])
+def test_launcher_preserves_independent_studio_without_stopping_it(tmp_path, studio_command, studio_name, allowed):
+    helper = Path(__file__).resolve().parents[1] / "tools/launch_omnicut.ps1"
+    root = tmp_path / "launcher fixture"
+    (root / ".venv/Scripts").mkdir(parents=True)
+    (root / ".venv/Scripts/python.exe").write_bytes(b"fixture")
+    (root / "frontend").mkdir()
+    (root / "03_Projects/_HyperFrames_Studio").mkdir(parents=True)
+    script = f"""
+. '{str(helper).replace("'", "''")}'
+$script:fixtureRoot = '{str(root).replace("'", "''")}'
+$script:stopped = @()
+$script:started = 0
+function Get-CimInstance {{
+    [pscustomobject]@{{ProcessId=10;ParentProcessId=0;CreationDate=(Get-Date);CommandLine=('python "' + $script:fixtureRoot + '\\scripts\\api_server.py"')}}
+    [pscustomobject]@{{ProcessId=20;ParentProcessId=0;CreationDate=(Get-Date);Name='{studio_name}';CommandLine='{studio_command}'}}
+}}
+function Get-NetTCPConnection {{
+    [pscustomobject]@{{OwningProcess=10;LocalPort=8000}}
+    [pscustomobject]@{{OwningProcess=20;LocalPort=3002}}
+}}
+function Stop-Process {{ param($Id) $script:stopped += $Id }}
+function Start-Process {{ $script:started++ }}
+$blocked = $false
+try {{ Start-Omnicut -ProjectRoot $script:fixtureRoot }} catch {{ $blocked = $true }}
+@{{blocked=$blocked;stopped=@($script:stopped);started=$script:started}} | ConvertTo-Json -Compress
+"""
+    result = subprocess.run(["powershell.exe", "-NoProfile", "-Command", script], capture_output=True, text=True, check=True)
+    actual = json.loads(result.stdout.splitlines()[-1])
+    assert actual == {"blocked": not allowed, "stopped": [10] if allowed else [], "started": 3 if allowed else 0}
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows launcher")
 def test_launcher_validates_all_listeners_before_stopping_any(tmp_path):
     helper = Path(__file__).resolve().parents[1] / "tools/launch_omnicut.ps1"
     root = tmp_path / "launcher fixture"

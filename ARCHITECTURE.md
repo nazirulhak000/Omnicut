@@ -59,11 +59,11 @@ flowchart LR
 
 ค่ามาตรฐานของไฟล์โพสต์จริงคือ 1080x1920 (9:16), H.264, AAC, 30 FPS และ `+faststart` ส่วน Draft ใช้ 720x1280 เพื่อทดสอบเร็วขึ้น
 
-## เมนูและการนำทางฝั่ง Frontend (10 รายการ: Gadget Media + เมนู 0-8)
+## เมนูและการนำทางฝั่ง Frontend (9 รายการ: เมนู 0-8)
 
-ระบบจัดหมวดหมู่การทำงานเป็น 10 รายการใน `frontend/src/components/Sidebar.jsx` — เมนูเสริม `gadget` (Gadget Media) อยู่บนสุด ตามด้วยเมนูตัวเลข id `producer` ถึง `guide`:
+ระบบมี 9 เมนูหลักใน `frontend/src/components/Sidebar.jsx` ตั้งแต่ `producer` ถึง `guide` เมนู `creative` และ `gadget` ถูกถอดตามคำสั่งผู้ใช้ 2026-10-12/13; saved tab และ navigation เก่าจะกลับไป Tracker:
 
-0. **0. ผู้ช่วยโปรดิวเซอร์ (`producer/ProducerHub.jsx` + `producer/QuickRefPage.jsx`):** ศูนย์บัญชาการรายวัน — Daily Mission, Spotlight Next Mission, Pacing Calculator, 1-Click Playbook Add, คลังไอเดียและเรฟ (Idea & Ref Vault พร้อม Visual Insights จาก Gemini Vision) และ Producer Notes ที่ปักหมุด/แก้ไขได้ (ซิงก์ผ่าน `scripts/api_producer.py`)
+0. **คลังไอเดีย (`producer/ProducerHub.jsx` + `producer/QuickRefPage.jsx`):** เก็บ Idea & Ref Vault เท่านั้น: จดไอเดีย แนบลิงก์/ภาพ ปักหมุด แก้ไข คัดลอก และใช้ AI กับเรฟตามคำสั่งผู้ใช้ ข้อมูลแยกช่องและซิงก์ผ่าน `scripts/api_producer.py` ส่วน greeting/quota/mission/queue/retrospective/targets ถูกถอดจากหน้านี้ 2026-10-13
 1. **1. สินค้า → คลิป (`ProductToClip.jsx`):** วิเคราะห์สินค้าด้วย AI (ลิงก์/สเปก/รูป) สร้าง Content Matrix 4-10 สคริปต์ พร้อมระบุ TikTok Product ID / ลิงก์ปักตะกร้า และสไตล์การตัดต่อ 10 แบบที่ผูกกับ Hook Style 1-to-1
 2. **2. แทร็กเกอร์ 4 เฟส (`ContentTrackerHub.jsx`):** จัดการสเตจงาน 4 ขั้น (สคริปต์พร้อม, เลือกคลิป, กำลังตัดต่อ, ตัดต่อเสร็จ) พร้อม Shot List Modal และ Mobile Filming Page
 3. **3. ตัดต่อ & สร้างคลิป (`editor/EditorShell.jsx`):** สตูดิโอตัดต่อไทม์ไลน์ Multi-track, SequencePlayer (Canvas 2D), Inspector ปรับแต่ง Overlay/Motion/Subtitles
@@ -73,7 +73,7 @@ flowchart LR
 7. **7. ตั้งค่าระบบ (`SystemSettings.jsx`):** ตรวจสอบ System Health, AI Providers, เสียงพากย์ Edge-TTS/Gemini, และการเชื่อมต่อมือถือผ่าน QR Code
 8. **8. คู่มือใช้งาน (`UserGuide.jsx`):** Interactive Knowledge Base สำหรับผู้ใช้ (Sticky TOC, เช็กลิสต์ติ๊กได้พร้อมความจำ localStorage, การ์ดเมนู 0-7, โฟลว์ 7 ขั้นกดเปิดเมนูได้, Quick Action ปุ่มลัดแก้ปัญหา, FAQ ค้นหาได้)
 
-เมนูเสริม **Gadget Media (`GadgetMediaHub.jsx` + `gadget-media/GadgetMediaStudio.jsx`)** อยู่บนสุดของ Sidebar แยกเป็น `Product Studio` สำหรับ workflow `1 สินค้า = 1 Product Video Project = 1 Approved Master` (เดิน 6 ขั้น `Brief → Sources → Evidence → Story → Cut → Review` ผ่าน `StageRail` + `ProductWorkspace` + `QualityInspector`) และ `Campaign และ Analytics` สำหรับวางแผน/ติดตามผล โดย Product Workspace มี Brief, Sources, Evidence, Story, Cut และ Review อยู่ในเมนูเดียว มีไทม์ไลน์ผ่าน `gadget-media/timeline/GadgetMediaTimelineHost.jsx` และไม่ส่งงานไป Global Editor (storage แยกที่ `*/GadgetMedia/`)
+Gadget Media UI (`GadgetMediaHub.jsx` / Product Studio / Campaign และ Analytics) ถูกถอดจากเมนูและ App route แล้ว แต่ backend models/repository/API, approved master และ storage เดิมยังอยู่ การถอดเมนูไม่ได้ย้ายสถานะหรือข้อมูล Gadget เข้า Tracker อัตโนมัติ
 
 ## Backend (FastAPI 26 Routers)
 

@@ -26,6 +26,7 @@ import HookHeaderModal from './HookHeaderModal';
 import SceneCatalogModal from './SceneCatalogModal';
 import ManualStoryboardModal from './ManualStoryboardModal';
 import UniversalFilmingRecipeModal from './UniversalFilmingRecipeModal';
+import AICoPilotChat from './AICoPilotChat';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
@@ -2392,6 +2393,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [shotListStatusMap, setShotListStatusMap] = useState({}); // {angle_id: {has_shot_list, is_stale, voice_engine_type, voice_preset, is_edge_tts}}
   const [storyboardAngle, setStoryboardAngle] = useState(null); // angle opened in ManualStoryboardModal
   const [filmingRecipeModalOpen, setFilmingRecipeModalOpen] = useState(false);
+  const [copilotChatOpen, setCopilotChatOpen] = useState(false);
+
 
   // Automatically keep shotListStatusMap updated whenever current productData changes
   useEffect(() => {
@@ -2528,6 +2531,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       if (requestId === historyRequestRef.current) setLoadingHistory(false);
     }
   };
+
+  const handleCopilotDraftCreated = useCallback((draftInfo) => {
+    if (productData?.id) {
+      loadHistory(productData.id);
+    }
+    showToast('สร้าง HyperFrames Draft สำเร็จ พร้อมตรวจในสตูดิโอ!', 'success');
+  }, [productData?.id, showToast]);
 
   useEffect(() => {
     // A reroll jump from the Activity Center's task list carries its angle
@@ -4259,6 +4269,15 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
                 {productData && (
                   <>
+                    <button
+                      type="button"
+                      onClick={() => setCopilotChatOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-all shadow-sm cursor-pointer"
+                      title="เปิด AI Production Co-Pilot วางมุมมองและดราฟต์คลิปอัตโนมัติ"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>AI Co-Pilot</span>
+                    </button>
                     <button type="button" onClick={() => setShowMetadataModal(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold transition-colors">
                       <Database className="w-3.5 h-3.5 text-[#25F4EE]" /><span>ข้อมูล AI</span>
                     </button>
@@ -4741,6 +4760,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       <Check className="w-3.5 h-3.5" /> พร้อมครบ
                     </span>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => setCopilotChatOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-all shadow-sm cursor-pointer"
+                    title="เปิด AI Production Co-Pilot วางมุมมองและดราฟต์คลิปอัตโนมัติ"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>AI Co-Pilot</span>
+                  </button>
 
                   <button
                     type="button"
@@ -6085,6 +6114,14 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         onClose={() => setFilmingRecipeModalOpen(false)}
         productData={productData}
         showToast={showToast}
+      />
+
+      {/* ── AI Production Co-Pilot Modal (แชทบรีฟ & Auto-Draft HyperFrames) ── */}
+      <AICoPilotChat
+        isOpen={copilotChatOpen}
+        onClose={() => setCopilotChatOpen(false)}
+        product={productData}
+        onDraftCreated={handleCopilotDraftCreated}
       />
 
 

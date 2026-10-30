@@ -20,6 +20,7 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 .vscode/
+Claude outputs/
 
 # Large render cache / temporary artifacts
 00_Inbox/*

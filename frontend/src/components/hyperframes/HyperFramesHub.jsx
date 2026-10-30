@@ -17,7 +17,6 @@ import {
   getProducts
 } from '../../api';
 import StylePosterMockup from './StylePosterMockup';
-import HyperFramesWorkflow from './HyperFramesWorkflow.jsx';
 import { useChannel } from '../../context/ChannelContext.jsx';
 import {
   getProductCategoryType,
@@ -209,7 +208,7 @@ ${price ? `ราคาโปรโมชั่น: ${price}` : 'พิกัด
   return rawScript || hook || '';
 }
 
-export default function HyperFramesHub({ onNavigateToGallery, onOpenGadgetReview }) {
+export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracker }) {
   const channel = useChannel();
   const storage = useMemo(() => channelLocalStorage(), []);
   const [retained] = useState(() => { try { return JSON.parse(storage.getItem('hyperframes_create_draft') || 'null') || {}; } catch { return {}; } });
@@ -507,12 +506,15 @@ export default function HyperFramesHub({ onNavigateToGallery, onOpenGadgetReview
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#080B11] text-slate-100 p-6 space-y-6">
-      <HyperFramesWorkflow key={channel?.channelId || 'main'} products={products}
-        channelId={channel?.channelId || 'main'} onOpenGallery={onNavigateToGallery} onOpenGadgetReview={onOpenGadgetReview} />
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="min-w-0 flex-1 text-slate-300">ติดตามงานและขั้นตอนผลิตใน Tracker เดิม ผลงานที่ส่งออกแล้วอยู่ใน Gallery</p>
+        {onNavigateToTracker && <button type="button" onClick={onNavigateToTracker} className="rounded-lg border border-white/15 px-4 py-2 text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]">เปิด Tracker</button>}
+        {onNavigateToGallery && <button type="button" onClick={() => onNavigateToGallery()} className="rounded-lg border border-white/15 px-4 py-2 text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]">เปิด Gallery</button>}
+      </div>
       <details className="rounded-xl border border-white/10 bg-[#0D111A]">
         <summary className="cursor-pointer px-4 py-3 text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]">เปิดเครื่องมือเดิมและตัวอย่างสไตล์</summary>
         <div className="space-y-6 border-t border-white/10 p-4">
-          <p className="text-slate-400">ส่วนนี้ใช้ดูตัวอย่างสไตล์และเปิด composition เดิมใน Studio ส่วนงานใหม่ที่ส่งออกเข้า Gallery และคิวโพสต์ ให้เริ่มจาก flow ด้านบน ตัวอย่างสไตล์เป็นแนวทางสำหรับ AI ภาพจริงต้องตรวจใน revision ที่ส่งกลับ</p>
+          <p className="text-slate-400">ดูตัวอย่างสไตล์สำหรับสั่ง AI session และเปิด composition เดิมใน Studio ติดตามขั้นตอนผลิตผ่าน Tracker และตรวจผลงานที่ลงทะเบียนแล้วใน Gallery</p>
       {/* ── Header & Status Bar (OmniCut Pro Studio Branding) ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/[0.08] pb-5">
         <div>

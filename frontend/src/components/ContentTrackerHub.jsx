@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import {
   getProducts, getScheduleQueue, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost, markPosted,
-  generateShotList, getShotList, getTaskStatus
+  generateShotList, getShotList, getTaskStatus, renderHyperFramesComposition
 } from '../api';
 import CoverStudioModal from './CoverStudioModal';
 import ShotListModal from './ShotListModal';
@@ -118,6 +118,8 @@ const KanbanCard = memo(function KanbanCard({
   onQcPass,
   onDismissConflict,
   onUnpickScript,
+  onRenderHyperFrames,
+  renderingClipId,
   copiedAngleId
 }) {
   const isSelected = false;
@@ -398,7 +400,12 @@ const KanbanCard = memo(function KanbanCard({
               {ang.parentProduct.product_code}
             </span>
           )}
-          <span className="truncate">{ang.project_name || ang.parentProduct?.name}</span>
+          {(ang.draft_type === 'hyperframes' || ang.clip_id) && (
+            <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 border border-emerald-500/35 text-emerald-300 font-mono text-[10px] flex-shrink-0 font-bold" title="HyperFrames Composition">
+              HF
+            </span>
+          )}
+          <span className="truncate">{ang.project_name || ang.clip_id || ang.parentProduct?.name}</span>
         </span>
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
@@ -525,15 +532,49 @@ const KanbanCard = memo(function KanbanCard({
 
               {phaseId === 'in_production' && (
                 <>
-                  <button
-                    onClick={() => onSendToStudio(ang.parentProduct, ang, -1, { openExisting: true })}
-                    className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
-                    title={ang.project_name ? `เปิดไทม์ไลน์ของมุมนี้ (${ang.project_name})` : "เปิดทำต่อในหน้าตัดต่อ"}
-                  >
-                    <Clapperboard className="w-3.5 h-3.5" />
-                    <span>{ang.project_name ? 'เปิดไทม์ไลน์' : 'ไปหน้าตัดต่อ'}</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
+                  {(ang.draft_type === 'hyperframes' || ang.clip_id) ? (
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => {
+                          window.open(ang.video_preview_url || `http://localhost:3002/clips/${ang.clip_id}`, '_blank');
+                        }}
+                        className="px-2 py-1.5 rounded-lg bg-emerald-600/40 hover:bg-emerald-600/60 border border-emerald-500/40 text-emerald-200 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 shadow-sm flex-shrink-0"
+                        title="เปิดตรวจ HyperFrames Studio Preview ในเบราว์เซอร์"
+                      >
+                        <Play className="w-3.5 h-3.5" />
+                        <span>ตรวจ Studio</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => onRenderHyperFrames && onRenderHyperFrames(ang)}
+                        disabled={renderingClipId === ang.clip_id}
+                        className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
+                        title="เรนเดอร์เป็นคลิป MP4 9:16 ทันที"
+                      >
+                        {renderingClipId === ang.clip_id ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>เรนเดอร์...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Film className="w-3.5 h-3.5" />
+                            <span>เรนเดอร์</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => onSendToStudio(ang.parentProduct, ang, -1, { openExisting: true })}
+                      className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
+                      title={ang.project_name ? `เปิดไทม์ไลน์ของมุมนี้ (${ang.project_name})` : "เปิดทำต่อในหน้าตัดต่อ"}
+                    >
+                      <Clapperboard className="w-3.5 h-3.5" />
+                      <span>{ang.project_name ? 'เปิดไทม์ไลน์' : 'ไปหน้าตัดต่อ'}</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  )}
                   {(() => {
                     const updatedAt = ang.status_updated_at || ang.updated_at || ang.parentProduct?.updated_at;
                     if (!updatedAt) return null;
@@ -596,7 +637,9 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
   onInspectAngle,
   onCopyCaption,
   onQcPass,
-  copiedAngleId
+  copiedAngleId,
+  onRenderHyperFrames,
+  renderingClipId
 }) {
   const currentPhase = PIPELINE_PHASES.find(p => p.id === ang.status) || PIPELINE_PHASES[0];
   const chosenVideos = (ang.selected_videos && ang.selected_videos.length > 0)
@@ -674,19 +717,52 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
           <Info className="w-4 h-4" />
         </button>
 
-        <button
-          onClick={() => hasVideos && onSendToStudio(ang.parentProduct, ang)}
-          disabled={!hasVideos}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-all whitespace-nowrap active:scale-95 flex-shrink-0 ${
-            hasVideos
-              ? 'bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] cursor-pointer'
-              : 'bg-white/[0.03] border border-white/[0.06] text-slate-600 cursor-not-allowed opacity-40'
-          }`}
-          title={hasVideos ? 'ส่งเข้าหน้าตัดต่อ' : 'ยังไม่มีคลิปดิบ (กรุณาแนบคลิปก่อนส่งตัดต่อ)'}
-        >
-          <Clapperboard className="w-3.5 h-3.5 flex-shrink-0" />
-          <span className="whitespace-nowrap">ส่งตัดต่อ</span>
-        </button>
+        {(ang.draft_type === 'hyperframes' || ang.clip_id) ? (
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <button
+              onClick={() => {
+                window.open(ang.video_preview_url || `http://localhost:3002/clips/${ang.clip_id}`, '_blank');
+              }}
+              className="py-2 px-2.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-emerald-200 text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer active:scale-95 flex-shrink-0"
+              title="เปิดตรวจ HyperFrames Studio Preview ในเบราว์เซอร์"
+            >
+              <Play className="w-3.5 h-3.5" />
+              <span>ตรวจ Studio</span>
+            </button>
+            <button
+              onClick={() => onRenderHyperFrames && onRenderHyperFrames(ang)}
+              disabled={renderingClipId === ang.clip_id}
+              className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:brightness-110 active:scale-95 text-white text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
+              title="เรนเดอร์เป็นคลิป MP4 9:16 ทันที"
+            >
+              {renderingClipId === ang.clip_id ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>เรนเดอร์...</span>
+                </>
+              ) : (
+                <>
+                  <Film className="w-3.5 h-3.5" />
+                  <span>เรนเดอร์</span>
+                </>
+              )}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => hasVideos && onSendToStudio(ang.parentProduct, ang)}
+            disabled={!hasVideos}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-all whitespace-nowrap active:scale-95 flex-shrink-0 ${
+              hasVideos
+                ? 'bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] cursor-pointer'
+                : 'bg-white/[0.03] border border-white/[0.06] text-slate-600 cursor-not-allowed opacity-40'
+            }`}
+            title={hasVideos ? 'ส่งเข้าหน้าตัดต่อ' : 'ยังไม่มีคลิปดิบ (กรุณาแนบคลิปก่อนส่งตัดต่อ)'}
+          >
+            <Clapperboard className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="whitespace-nowrap">ส่งตัดต่อ</span>
+          </button>
+        )}
 
         {(ang.status === 'rendered' || ang.qc_note) && onQcPass && (
           <button
@@ -724,7 +800,9 @@ const TableRow = memo(function TableRow({
   onInspectAngle,
   onCopyCaption,
   onQcPass,
-  copiedAngleId
+  copiedAngleId,
+  onRenderHyperFrames,
+  renderingClipId
 }) {
   const currentPhase = PIPELINE_PHASES.find(p => p.id === ang.status) || PIPELINE_PHASES[0];
 
@@ -818,19 +896,50 @@ const TableRow = memo(function TableRow({
             <Info className="w-3.5 h-3.5" />
           </button>
 
-          <button
-            onClick={() => hasVideos && onSendToStudio(ang.parentProduct, ang)}
-            disabled={!hasVideos}
-            className={`py-1.5 px-3 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-all whitespace-nowrap flex-shrink-0 ${
-              hasVideos
-                ? 'bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] cursor-pointer active:scale-95'
-                : 'bg-white/[0.03] border border-white/[0.06] text-slate-600 cursor-not-allowed opacity-40'
-            }`}
-            title={hasVideos ? 'ส่งเข้าหน้าตัดต่อ' : 'ยังไม่มีคลิปดิบ (กรุณาแนบคลิปก่อนส่งตัดต่อ)'}
-          >
-            <Clapperboard className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="whitespace-nowrap">ส่งตัดต่อ</span>
-          </button>
+          {(ang.draft_type === 'hyperframes' || ang.clip_id) ? (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={() => window.open(ang.video_preview_url || `http://localhost:3002/clips/${ang.clip_id}`, '_blank')}
+                className="py-1 px-2 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-emerald-200 text-xs font-bold inline-flex items-center gap-1 cursor-pointer active:scale-95 flex-shrink-0"
+                title="เปิดตรวจ HyperFrames Studio Preview ในเบราว์เซอร์"
+              >
+                <Play className="w-3 h-3" />
+                <span>ตรวจ Studio</span>
+              </button>
+              <button
+                onClick={() => onRenderHyperFrames && onRenderHyperFrames(ang)}
+                disabled={renderingClipId === ang.clip_id}
+                className="py-1 px-2.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:brightness-110 active:scale-95 text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
+                title="เรนเดอร์เป็นคลิป MP4 9:16 ทันที"
+              >
+                {renderingClipId === ang.clip_id ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    <span>เรนเดอร์...</span>
+                  </>
+                ) : (
+                  <>
+                    <Film className="w-3 h-3" />
+                    <span>เรนเดอร์</span>
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => hasVideos && onSendToStudio(ang.parentProduct, ang)}
+              disabled={!hasVideos}
+              className={`py-1.5 px-3 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-all whitespace-nowrap flex-shrink-0 ${
+                hasVideos
+                  ? 'bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] cursor-pointer active:scale-95'
+                  : 'bg-white/[0.03] border border-white/[0.06] text-slate-600 cursor-not-allowed opacity-40'
+              }`}
+              title={hasVideos ? 'ส่งเข้าหน้าตัดต่อ' : 'ยังไม่มีคลิปดิบ (กรุณาแนบคลิปก่อนส่งตัดต่อ)'}
+            >
+              <Clapperboard className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="whitespace-nowrap">ส่งตัดต่อ</span>
+            </button>
+          )}
 
           {ang.video_url && onOpenTiktokModal && (
             <button
@@ -944,6 +1053,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const [shotListResult, setShotListResult] = useState(null);
   const [shotListError, setShotListError] = useState(null);
   const [isGeneratingShotList, setIsGeneratingShotList] = useState(false);
+  const [renderingClipId, setRenderingClipId] = useState(null);
   const colRefs = useRef({});
   const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
 
@@ -1652,6 +1762,29 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       existingProjectName: angle.project_name,
     }));
   }, [onApplyToStudio, showToast]);
+
+  const handleRenderHyperFrames = useCallback(async (ang) => {
+    if (!ang || !ang.clip_id) return;
+    try {
+      setRenderingClipId(ang.clip_id);
+      showToast(`กำลังเรนเดอร์คลิป HyperFrames ${ang.clip_id}...`);
+      const res = await renderHyperFramesComposition({
+        composition_id: ang.clip_id,
+        product_id: ang.parentProduct?.id,
+        angle_id: ang.angle_id,
+      });
+      if (res && res.output_path) {
+        showToast('เรนเดอร์คลิป 9:16 สำเร็จเรียบร้อยแล้ว!');
+        if (fetchProductsData) {
+          await fetchProductsData();
+        }
+      }
+    } catch (err) {
+      showToast('เกิดข้อผิดพลาดในการเรนเดอร์: ' + err.message, 'error');
+    } finally {
+      setRenderingClipId(null);
+    }
+  }, [showToast, fetchProductsData]);
 
   const handleCopyCaption = useCallback((text, angleId) => {
     navigator.clipboard.writeText(text);
@@ -3424,6 +3557,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                                     onDismissConflict={handleDismissConflict}
                                     onUnpickScript={handleTogglePickScript}
                                     copiedAngleId={copiedAngleId}
+                                    onRenderHyperFrames={handleRenderHyperFrames}
+                                    renderingClipId={renderingClipId}
                                   />
                                 ))}
                                 <PaginationControls
@@ -3460,6 +3595,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                             onDismissConflict={handleDismissConflict}
                             onUnpickScript={handleTogglePickScript}
                             copiedAngleId={copiedAngleId}
+                            onRenderHyperFrames={handleRenderHyperFrames}
+                            renderingClipId={renderingClipId}
                           />
                         ))}
                         <PaginationControls
@@ -3543,6 +3680,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   onCopyCaption={handleCopyCaption}
                   onQcPass={handleQcPass}
                   copiedAngleId={copiedAngleId}
+                  onRenderHyperFrames={handleRenderHyperFrames}
+                  renderingClipId={renderingClipId}
                 />
               ))
             )}
@@ -3582,6 +3721,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                         onCopyCaption={handleCopyCaption}
                         onQcPass={handleQcPass}
                         copiedAngleId={copiedAngleId}
+                        onRenderHyperFrames={handleRenderHyperFrames}
+                        renderingClipId={renderingClipId}
                       />
                     ))
                   )}

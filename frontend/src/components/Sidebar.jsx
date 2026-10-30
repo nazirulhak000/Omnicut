@@ -2,18 +2,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Rocket, Sparkles, FolderDown, Settings, Layers,
   Smartphone, Maximize, Minimize, X, Copy, Check, Wifi, Scissors,
-  Palette, MoreHorizontal, BarChart3, ChevronRight, BookOpen, Bot, Cpu
+  Palette, MoreHorizontal, BarChart3, ChevronRight, BookOpen, Lightbulb
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 // ── Desktop Navigation Items (9 items) ──
 const DESKTOP_NAV_ITEMS = [
-  { id: 'gadget',   icon: Cpu,        label: 'Gadget Media',   shortLabel: 'Gadget' },
-  { id: 'producer',  icon: Bot,        label: '0. ผู้ช่วยโปรดิวเซอร์',   shortLabel: 'ผู้ช่วย' },
+  { id: 'producer',  icon: Lightbulb,        label: 'คลังไอเดีย',   shortLabel: 'ไอเดีย' },
   { id: 'flow',      icon: Rocket,     label: '1. สินค้า → คลิป',     shortLabel: 'สินค้า' },
   { id: 'tracker',   icon: Layers,     label: '2. แทร็กเกอร์ 4 เฟส',    shortLabel: 'Tracker' },
   { id: 'editor',    icon: Scissors,   label: '3. ตัดต่อ & สร้างคลิป', shortLabel: 'Editor' },
-  { id: 'creative',  icon: Sparkles,   label: '3.1 Creative Studio',   shortLabel: 'Creative' },
   { id: 'gallery',   icon: FolderDown, label: '4. Export Gallery',    shortLabel: 'Gallery' },
   { id: 'assets',    icon: Palette,    label: '5. Media Assets Hub',   shortLabel: 'Assets' },
   { id: 'analytics', icon: BarChart3,  label: '6. สถิติ & วิเคราะห์รวม', shortLabel: 'สถิติ' },
@@ -72,7 +70,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
     };
   }, [showMobileModal]);
 
-  const isMoreActive = activeTab === 'producer' || activeTab === 'gadget' || activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard' || activeTab === 'guide';
+  const isMoreActive = activeTab === 'producer' || activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard' || activeTab === 'guide';
 
   return (
     <>
@@ -218,40 +216,16 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                    <Bot className="w-4 h-4" />
+                    <Lightbulb className="w-4 h-4" />
                   </div>
                   <div className="text-left">
                     <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                      ผู้ช่วยโปรดิวเซอร์
+                      คลังไอเดีย
                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
                         AI Coach
                       </span>
                     </div>
-                    <div className="text-[10px] text-slate-400">เตือนคิววันนี้, คุมโควตา 35 คลิป, สรุปคลิปปัง</div>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-500" />
-              </button>
-
-              {/* Option 0.5: Gadget Media */}
-              <button
-                onClick={() => {
-                  setActiveTab('gadget');
-                  setShowMoreDrawer(false);
-                }}
-                className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                  activeTab === 'gadget'
-                    ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300'
-                    : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-300">
-                    <Cpu className="w-4 h-4" />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-xs font-bold text-white">Gadget Media</div>
-                    <div className="text-[10px] text-slate-400">Campaign 21 คลิป และตรวจ source rights</div>
+                    <div className="text-[10px] text-slate-400">บันทึกไอเดีย ลิงก์คลิปและภาพเรฟ</div>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-500" />

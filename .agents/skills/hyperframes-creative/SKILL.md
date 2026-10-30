@@ -47,6 +47,7 @@ For motion patterns, scene blueprints, transitions, and CSS marker effects, use 
 | Font selection, pairings, rendered-video type guardrails                                                | `references/typography.md`                     |
 | Story doctrine — hook language, value-before-evidence, storyboard-as-proposal, source-traceable visuals | `references/story-spine.md`                    |
 | Script pacing, tone, openings, number pronunciation                                                     | `references/narration.md`                      |
+| Thai Couple Paper Chat (#5) — Southern couple (น้องนุ้ย & พี่บ่าว), zero tone-drift TTS, request strategy & quota rules, Brand-First CTA  | `references/thai-couple-paper-chat.md`         |
 | Precomputed audio bands mapped to motion                                                                | `references/audio-reactive.md`                 |
 
 ## Scripts

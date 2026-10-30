@@ -556,3 +556,44 @@ def test_new_export_between_file_move_and_angle_mutation_is_preserved(api_env,mo
     previous_id=export["id"] if initially_bound else None
     assert angle.get("export_id")== (injected[0]["id"] if link_new_angle else previous_id) and angle["status"]=="rendered"
     assert registry.get(injected[0]["id"],channel_id="main")["status"]=="rendered"
+
+
+def test_manual_user_confirmation_ack_and_reconcile(api_env):
+    client, api, registry, video, export, channel = api_env
+    row = prepared_claimed_api(api_env)
+    started = client.post("/api/tiktok-autopost/attempt", json=action_body(row)).json()
+    body = {
+        **action_body(started),
+        "outcome": "published",
+        "proof": {
+            "kind": "manual_user_confirmation",
+            "notice": "User confirmed posting on TikTok Studio",
+        },
+    }
+    result = client.post("/api/tiktok-autopost/reconcile", json=body)
+    assert result.status_code == 200, result.text
+    data = result.json()
+    assert data["status"] == "published"
+    assert data["effects_applied"] is True
+    assert registry.get(export["id"], channel_id="main")["status"] == "posted"
+
+
+def test_content_page_reconciled_ack(api_env):
+    client, api, registry, video, export, channel = api_env
+    row = prepared_claimed_api(api_env)
+    started = client.post("/api/tiktok-autopost/attempt", json=action_body(row)).json()
+    body = {
+        **action_body(started),
+        "outcome": "published",
+        "proof": {
+            "kind": "content_page_reconciled",
+            "notice": "Navigated to content management page",
+        },
+    }
+    result = client.post("/api/tiktok-autopost/ack", json=body)
+    assert result.status_code == 200, result.text
+    data = result.json()
+    assert data["status"] == "published"
+    assert data["effects_applied"] is True
+    assert registry.get(export["id"], channel_id="main")["status"] == "posted"
+

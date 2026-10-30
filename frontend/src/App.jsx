@@ -13,7 +13,6 @@ import { useKeyboardShortcuts } from './hooks';
 import { getSystemStatus, getRawVideos, getExports, getScheduleQueue, updateAngleStatus, getProducts } from './api';
 
 // ── Lazy-loaded view chunks for Code Splitting ──
-const GadgetMediaHub = lazy(() => import('./components/GadgetMediaHub'));
 const ProducerHub = lazy(() => import('./components/producer/ProducerHub'));
 const ProductToClip = lazy(() => import('./components/ProductToClip'));
 const ContentTrackerHub = lazy(() => import('./components/ContentTrackerHub'));
@@ -27,7 +26,6 @@ const MobileQuickPostPage = lazy(() => import('./components/MobileQuickPostPage'
 const MobileFilmingPage = lazy(() => import('./components/MobileFilmingPage'));
 const QuickRefPage = lazy(() => import('./components/producer/QuickRefPage'));
 const MobileQuickStudio = lazy(() => import('./components/MobileQuickStudio'));
-const HyperFramesHub = lazy(() => import('./components/hyperframes/HyperFramesHub'));
 
 
 import { angleToForm } from './lib/angleToForm';
@@ -134,6 +132,7 @@ export default function App() {
     // Studio was folded into the editor -- anyone whose last tab was studio
     // would otherwise land on a screen that no longer renders anything.
     if (saved === 'studio') return 'editor';
+    if (saved === 'creative' || saved === 'gadget') return 'tracker';
     return saved;
   });
 
@@ -446,13 +445,9 @@ export default function App() {
   };
 
   const [highlightExportVideo, setHighlightExportVideo] = useState(null);
-  const [gadgetReviewTarget, setGadgetReviewTarget] = useState(null);
-  const openGadgetReview = projectId => {
-    setGadgetReviewTarget({ projectId, channelId: activeChannel() });
-    setActiveTab('gadget');
-  };
 
   const handleNavigateTab = (tab, extra = null) => {
+    if (tab === 'creative' || tab === 'gadget') tab = 'tracker';
     if (tab === 'flow') {
       pendingFlowAngleIdRef.current = extra?.angleId || null;
       const isImageMetadataTask = extra?.task?.type === 'image_metadata' || extra?.task?.task_type === 'image_metadata';
@@ -590,33 +585,10 @@ export default function App() {
             ) : (
             <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 lg:px-6 py-5 pb-20 md:pb-8 w-full min-w-0">
               <div className="mx-auto w-full min-w-0 max-w-[2200px] animate-fadeIn space-y-5">
-                {/* SECTION: Gadget Media */}
-                {activeTab === 'gadget' && (
-                  <Suspense fallback={<LoadingSpinner message="กำลังโหลด Gadget Media..." />}>
-                    <GadgetMediaHub
-                      initialProjectId={gadgetReviewTarget?.channelId === activeChannel() ? gadgetReviewTarget.projectId : ''}
-                      onApplyToStudio={handleApplyScriptFromLab}
-                      onGoToEditor={(payload) => handleNavigateTab('editor', payload)}
-                      onGoToGallery={(payload) => handleNavigateTab('gallery', payload)}
-                      status={status}
-                    />
-                  </Suspense>
-                )}
-
-                {/* SECTION: ผู้ช่วยโปรดิวเซอร์ (Menu 0) */}
+                {/* SECTION: คลังไอเดีย */}
                 {activeTab === 'producer' && (
-                  <Suspense fallback={<LoadingSpinner message="กำลังโหลดผู้ช่วยโปรดิวเซอร์..." />}>
-                    <ProducerHub
-                      onApplyToStudio={handleApplyScriptFromLab}
-                      onGoToEditor={(payload) => handleNavigateTab('editor', payload)}
-                      onGoToGallery={(payload) => handleNavigateTab('gallery', payload)}
-                      onGoToFlow={(productId) => {
-                        if (productId) setSelectedProductIdForFlow(productId);
-                        handlePrimaryTabChange('flow');
-                      }}
-                      onGoToTracker={() => handlePrimaryTabChange('tracker')}
-                      onRefreshAll={refreshData}
-                    />
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลดคลังไอเดีย..." />}>
+                    <ProducerHub />
                   </Suspense>
                 )}
 
@@ -664,16 +636,6 @@ export default function App() {
                   </Suspense>
                 )}
 
-
-                {/* SECTION: Creative Studio (HyperFrames) */}
-                {activeTab === 'creative' && (
-                  <Suspense fallback={<LoadingSpinner message="กำลังโหลด Creative Studio..." />}>
-                    <HyperFramesHub
-                      onNavigateToGallery={exportId => handleNavigateTab('gallery', { taskResult: { export_id: exportId } })}
-                      onOpenGadgetReview={openGadgetReview}
-                    />
-                  </Suspense>
-                )}
 
                 {/* SECTION: Export Gallery */}
                 {activeTab === 'gallery' && (

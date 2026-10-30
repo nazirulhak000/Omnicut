@@ -471,7 +471,11 @@ async def render_composition(payload: RenderCompositionRequest, scope: ChannelSc
     comp_id = _safe_id(payload.composition_id)
     comp_file = COMPOSITIONS_DIR / f"{comp_id}.html"
     if not comp_file.exists():
-        raise HTTPException(status_code=404, detail=f"Composition '{comp_id}' not found")
+        clip_index = CLIPS_DIR / comp_id / "index.html"
+        if clip_index.exists():
+            comp_file = clip_index
+        else:
+            raise HTTPException(status_code=404, detail=f"Composition '{comp_id}' not found")
     metadata = _composition_scope(comp_file, scope)
     identity = metadata["channel_identity_snapshot"]
     require_identity_avatar(identity, allow_legacy_missing=scope.is_implicit_default and not scope.strict)
@@ -516,12 +520,16 @@ async def render_composition(payload: RenderCompositionRequest, scope: ChannelSc
             legacy_clone = None
             content = comp_file.read_text(encoding="utf-8")
             if _embedded_json(content, "omnicut-channel-identity") is None:
-                legacy_clone = COMPOSITIONS_DIR / f".{comp_id}.{uuid.uuid4().hex}.render.html"
+                parent_dir = render_file.parent
+                legacy_clone = parent_dir / f".{comp_id}.{uuid.uuid4().hex}.render.html"
                 legacy_clone.write_text(_freeze_composition(content, identity, metadata), encoding="utf-8")
                 render_file = legacy_clone
+            
+            npx_bin = shutil.which("npx") or ("npx.cmd" if os.name == "nt" else "npx")
+            rel_comp = render_file.relative_to(STUDIO_DIR).as_posix()
             cmd = [
-                "npx", "--yes", "hyperframes@0.8.143", "render",
-                "-c", f"compositions/{render_file.name}",
+                npx_bin, "--yes", "hyperframes@0.8.143", "render",
+                "-c", rel_comp,
                 "-o", str(target),
             ]
             log_file = TMP_DIR / f"render_{comp_id}.log"
@@ -565,6 +573,22 @@ async def render_composition(payload: RenderCompositionRequest, scope: ChannelSc
                 })
                 if reg_rows:
                     export_id = reg_rows[0].get("id")
+
+                # Sync status in ProductStore
+                if product_id:
+                    try:
+                        prod = ProductStore.get(product_id, channel_id=scope.channel_id)
+                        if prod:
+                            for a in prod.get("angles", []):
+                                if (a.get("angle_id") or a.get("id")) == angle_id or a.get("clip_id") == comp_id:
+                                    a["status"] = "rendered"
+                                    a["video_url"] = str(target)
+                                    if export_id:
+                                        a["export_id"] = export_id
+                                    break
+                            ProductStore.update(product_id, channel_id=scope.channel_id, angles=prod.get("angles", []))
+                    except Exception as store_err:
+                        logger.warning("ProductStore update on render: %s", store_err)
 
             return {
                 "output_path": str(target),

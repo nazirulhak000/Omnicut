@@ -59,7 +59,8 @@ def get_file_info(file_path: Path) -> Dict[str, Any]:
     thumbnail_url = None
     if webp_path.exists():
         try:
-            thumbnail_url = f"/api/media/{str(webp_path.relative_to(BASE_DIR)).replace('\\', '/')}"
+            rel_webp = str(webp_path.relative_to(BASE_DIR)).replace("\\", "/")
+            thumbnail_url = f"/api/media/{rel_webp}"
         except Exception:
             thumbnail_url = None
 
@@ -73,8 +74,9 @@ def get_file_info(file_path: Path) -> Dict[str, Any]:
     cover_path = None
     if cover_file.exists():
         try:
-            cover_url = f"/api/media/{str(cover_file.relative_to(BASE_DIR)).replace('\\', '/')}"
-            cover_path = str(cover_file.relative_to(BASE_DIR)).replace('\\', '/')
+            rel_cover = str(cover_file.relative_to(BASE_DIR)).replace('\\', '/')
+            cover_url = f"/api/media/{rel_cover}"
+            cover_path = rel_cover
         except Exception:
             cover_url = None
             cover_path = None

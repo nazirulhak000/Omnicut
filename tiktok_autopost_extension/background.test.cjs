@@ -207,6 +207,7 @@ test('final account capture and attempt happen after processing but before click
   const ctx = worker(); const calls = [];
   ctx.waitForUploadComplete = async () => {calls.push('processed'); return true;};
   ctx.dismissLeaveConfirmDialogIfPresent = async () => {};
+  ctx.dismissContinueToPostDialogIfPresent = async () => {};
   ctx.waitForPostConfirmation = async () => ({confirmed:true,outcome:'published',proof:{kind:'platform_success_notice',notice:'Posted successfully'}});
   await ctx.clickPostButton(async () => {calls.push('click'); return {result:{value:{success:true}}};},7,async () => {calls.push('capture-account-and-attempt');});
   assert.deepEqual(calls,['processed','capture-account-and-attempt','click']);
@@ -858,3 +859,46 @@ test('runClickPostOnly marks posted only on an explicit publication notice', asy
   assert.equal(result.marked, true);
   assert.deepEqual(calls, ['clicked', 'mark', 'upload-page']);
 });
+
+test('waitForPostConfirmation: matches standard Thai TikTok Studio toasts immediately', async () => {
+  const ctx = worker();
+  ctx.chrome.tabs = { get: async () => ({ url: UPLOAD_URL }) };
+
+  const thaiCases = [
+    { notice: 'วิดีโอถูกกำหนดเวลาแล้ว', expectedOutcome: 'scheduled_on_platform' },
+    { notice: 'กำหนดเวลาโพสต์แล้ว', expectedOutcome: 'scheduled_on_platform' },
+    { notice: 'วิดีโอของคุณได้รับการกำหนดเวลาแล้ว', expectedOutcome: 'scheduled_on_platform' },
+    { notice: 'วิดีโอถูกโพสต์แล้ว', expectedOutcome: 'published' },
+    { notice: 'วิดีโอของคุณได้รับการเผยแพร่แล้ว', expectedOutcome: 'published' },
+  ];
+
+  for (const tc of thaiCases) {
+    const send = async () => ({
+      result: {
+        value: {
+          platform_outcome: tc.expectedOutcome,
+          notice: tc.notice,
+        }
+      }
+    });
+    const res = await ctx.waitForPostConfirmation(send, 7, 500);
+    assert.equal(res.confirmed, true, `Notice "${tc.notice}" must be confirmed`);
+    assert.equal(res.outcome, tc.expectedOutcome);
+    assert.equal(res.proof.notice, tc.notice);
+  }
+});
+
+test('waitForPostConfirmation: fast-path breaks quickly when tab navigated to /content', async () => {
+  const ctx = worker();
+  ctx.chrome.tabs = { get: async () => ({ url: 'https://www.tiktok.com/tiktokstudio/content' }) };
+  const send = async () => ({ result: { value: { done: false } } });
+
+  const start = Date.now();
+  const res = await ctx.waitForPostConfirmation(send, 7, 10_000);
+  const elapsed = Date.now() - start;
+
+  // Must break within ~1 second rather than stalling for the full 10,000ms timeout
+  assert.equal(res.confirmed, false);
+  assert.ok(elapsed < 2000, `Expected elapsed < 2000ms on /content navigation fast-path, got ${elapsed}ms`);
+});
+

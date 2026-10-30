@@ -1,0 +1,19 @@
+{
+  "whisper_load_seconds": 6.07,
+  "whisper_device": "cuda",
+  "whisper_compute_type": "float16",
+  "total_tts_seconds": 367.73,
+  "avg_tts_seconds": 30.644,
+  "total_whisper_infer_seconds": 5.9,
+  "avg_whisper_infer_seconds": 0.492,
+  "phase_2_total_seconds": 5.933,
+  "audio_assembly_seconds": 5.754,
+  "vo_duration_seconds": 58.14,
+  "comp_build_seconds": 0.001,
+  "render_seconds": 125.159,
+  "enhance_seconds": 14.044,
+  "frame0_luminance_y": 225.52,
+  "cover_extraction_seconds": 0.453,
+  "total_pipeline_seconds": 157.67,
+  "total_pipeline_minutes": 2.63
+}

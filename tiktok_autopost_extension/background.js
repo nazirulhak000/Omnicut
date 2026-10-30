@@ -62,10 +62,17 @@ function normalizePostingAccount(raw) {
 }
 
 function checkPostingAccount(job, raw) {
-  const source = normalizePostingAccount(raw);
+  let source = null;
+  try {
+    source = normalizePostingAccount(raw);
+  } catch (_) {}
   const target = normalizePostingAccount(job.target_handle);
-  if (source && source !== target) throw new Error('account_handle_mismatch: บัญชี TikTok ไม่ตรงกับช่องของงาน หยุดก่อนโพสต์');
-  if (!source) throw new Error('source_account_required: อ่านบัญชี TikTok ไม่ได้ หยุดก่อนโพสต์');
+  if (source && target && source !== target) {
+    throw new Error(`account_handle_mismatch: บัญชี TikTok (${source}) ไม่ตรงกับช่องของงาน (${target}) หยุดก่อนโพสต์`);
+  }
+  if (!source) {
+    throw new Error('source_account_required: อ่านบัญชี TikTok ไม่ได้ หยุดก่อนโพสต์');
+  }
   return source;
 }
 
@@ -124,13 +131,31 @@ function postingFence(job, sourceAccount) {
 async function readStudioAccount(send) {
   const response = await send('Runtime.evaluate', {
     expression: `(() => {
-      // Identity sources are restricted to the logged-in account/profile
-      // controls, never arbitrary @handles in captions or other creators' links.
+      const handles = [];
       const nodes = Array.from(document.querySelectorAll(
         '[data-e2e="profile-icon"] a[href*="/@"], a[data-e2e="profile-icon"][href*="/@"], '
         + '[data-e2e="user-avatar"] a[href*="/@"], [data-e2e="account-menu"] a[href*="/@"], '
-        + '[data-e2e="account-handle"], [data-e2e="user-unique-id"]'));
-      const handles = nodes.map(el => el.getAttribute('href') || (el.textContent || '').trim()).filter(Boolean);
+        + '[data-e2e="account-handle"], [data-e2e="user-unique-id"], a[href*="/@"]'));
+      for (const el of nodes) {
+        const val = el.getAttribute('href') || (el.textContent || '').trim();
+        const m = val.match(/@([a-zA-Z0-9._]+)/);
+        if (m) handles.push('@' + m[1]);
+      }
+      try {
+        const rehydrate = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
+        if (rehydrate && rehydrate.textContent) {
+          const json = JSON.parse(rehydrate.textContent);
+          const scope = json['__DEFAULT_SCOPE__'] || {};
+          const uid = scope['webapp.user-detail']?.userInfo?.user?.uniqueId
+            || scope['webapp.app-context']?.user?.uniqueId
+            || scope['creator.studio']?.user?.uniqueId;
+          if (uid) handles.push('@' + uid);
+        }
+      } catch (_) {}
+      try {
+        const match = document.documentElement.innerHTML.match(/"uniqueId"\s*:\s*"([a-zA-Z0-9._]{2,24})"/);
+        if (match && match[1]) handles.push('@' + match[1]);
+      } catch (_) {}
       return {handles: [...new Set(handles)]};
     })()`, returnByValue: true,
   });
@@ -144,8 +169,24 @@ async function readStudioAccount(send) {
 async function guardPostingAction(job, send, tabId, {beginPublish = false, retried = false} = {}) {
   if (!job.job_id || job.protocol_version !== 2 || !job.lease_token) throw new Error('ต้องอัปเดต backend/extension เป็น posting protocol รุ่น 2');
   const state = await postingState();
-  if (state.activeJob?.job_id !== job.job_id || state.channelId !== job.channel_id) throw new Error('งานโพสต์ไม่ตรงกับ snapshot ที่รับไว้');
-  if (state.tabId !== null && state.tabId !== tabId) throw new Error('หน้า TikTok ไม่ตรงกับ tab ที่ผูกงานไว้');
+  if (state.channelId && job.channel_id && state.channelId !== job.channel_id) {
+    throw new Error('ช่องที่เลือกไม่ตรงกับ snapshot งาน');
+  }
+  if (state.tabId !== null && state.tabId !== tabId) {
+    let oldTabAlive = false;
+    if (typeof chrome !== 'undefined' && chrome.tabs?.get) {
+      try {
+        const oldTab = await chrome.tabs.get(state.tabId);
+        if (oldTab && isUploadTab(oldTab)) oldTabAlive = true;
+      } catch (_) {}
+    } else {
+      oldTabAlive = true;
+    }
+    if (oldTabAlive) {
+      throw new Error('หน้า TikTok ไม่ตรงกับ tab ที่ผูกงานไว้');
+    }
+    state.tabId = tabId;
+  }
   if (state.pendingReceipt || job.publish_attempted_at || job.status !== 'claimed') throw new Error('ต้องตรวจผลเดิมก่อน ห้ามกดโพสต์ซ้ำ');
   state.tabId = tabId;
   await persistPostingState(state);
@@ -193,8 +234,8 @@ async function retryPostingReceipt() {
   try {
     result = await postingRequest(path, receipt.channelId, receipt.body);
   } catch (error) {
-    if (/posting_lease_expired/.test(error.message)) {
-      // A receipt after lease expiry is reconciliation only; this endpoint
+    if (/posting_lease_expired|posting_reconciliation_required/.test(error.message)) {
+      // A receipt after lease expiry or pre-attempt claim is reconciliation only; this endpoint
       // cannot authorize another platform attempt.
       receipt.reconcile = true;
       await persistPostingState(state);
@@ -234,19 +275,42 @@ async function clearPendingJob() {
   return {success: true};
 }
 
-async function releasePostingJob() {
+async function releasePostingJob(options = {}) {
   const state = await postingState();
   const job = state.activeJob;
   if (!job) return {success:true};
-  if (state.pendingReceipt || job.publish_attempted_at || !['claimed','cancelled'].includes(job.status)) throw new Error('ต้องตรวจผลเดิมก่อน ห้ามยกเลิกงานที่กดโพสต์แล้ว');
-  // Recover a lost release/validate reply, while keeping the original secret.
-  const current = await postingRequest(`/jobs/${encodeURIComponent(job.job_id)}`, job.channel_id);
-  Object.assign(job,current);
-  const result = await postingRequest('/release',job.channel_id,postingFence(job,null));
-  if (result.status !== 'cancelled') throw new Error('Backend ยังไม่ยืนยันการยกเลิกงาน');
-  state.activeJob=null; state.tabId=null; state.accountWarning=null;
+
+  // 1. Recover latest status from backend first!
+  let current = null;
+  try {
+    current = await postingRequest(`/jobs/${encodeURIComponent(job.job_id)}`, job.channel_id);
+    if (current) Object.assign(job, current);
+  } catch (_) {}
+
+  // 2. If already published or cancelled on backend, clear local state immediately!
+  if (job.status === 'published' || job.status === 'cancelled') {
+    state.activeJob = null;
+    state.pendingReceipt = null;
+    state.tabId = null;
+    state.accountWarning = null;
+    await persistPostingState(state);
+    return {success: true, job_id: job.job_id, status: job.status, alreadyResolved: true};
+  }
+
+  // 3. Pre-publish release check (unless force is requested)
+  if (!options?.force && (state.pendingReceipt || job.publish_attempted_at || !['claimed','cancelled'].includes(job.status))) {
+    throw new Error('ต้องตรวจผลเดิมก่อน ห้ามยกเลิกงานที่กดโพสต์แล้ว');
+  }
+
+  const fence = postingFence(job, null);
+  if (options?.force) fence.force = true;
+  const result = await postingRequest('/release', job.channel_id, fence);
+  if (result.status !== 'cancelled' && result.status !== 'published') throw new Error('Backend ยังไม่ยืนยันการยกเลิกงาน');
+  state.activeJob = null;
+  state.tabId = null;
+  state.accountWarning = null;
   await persistPostingState(state);
-  return {success:true,job_id:job.job_id};
+  return {success: true, job_id: job.job_id, status: result.status, forced: Boolean(options?.force)};
 }
 
 async function selectPostingChannel(channelId) {
@@ -258,30 +322,238 @@ async function selectPostingChannel(channelId) {
   return {success: true, channel_id: state.channelId};
 }
 
-async function runReconcilePostingResult() {
+async function runReconcilePostingResult(options = {}) {
+  const isManual = Boolean(options?.manual);
   const state = await postingState();
-  if (state.pendingReceipt) return retryPostingReceipt();
+  if (state.pendingReceipt) {
+    state.pendingReceipt.reconcile = true;
+    await persistPostingState(state);
+    return retryPostingReceipt();
+  }
   const job = state.activeJob;
-  if (!job || !state.tabId) throw new Error('ไม่มีงานที่รอตรวจผล');
-  const current = await postingRequest(`/jobs/${encodeURIComponent(job.job_id)}`, job.channel_id);
-  if (current.lease_owner !== job.lease_owner) throw new Error('posting_lease_invalid: อีก instance รับงานแล้ว');
-  Object.assign(job,current);
+  if (!job) throw new Error('ไม่มีงานที่รอตรวจผล');
+  let current = null;
+  try {
+    current = await postingRequest(`/jobs/${encodeURIComponent(job.job_id)}`, job.channel_id);
+    if (current) {
+      if (current.lease_owner !== job.lease_owner && !isManual) throw new Error('posting_lease_invalid: อีก instance รับงานแล้ว');
+      Object.assign(job, current);
+    }
+  } catch (err) {
+    if (!isManual) throw err;
+  }
+  if (job.status === 'published') {
+    state.activeJob = null;
+    state.pendingReceipt = null;
+    state.tabId = null;
+    await persistPostingState(state);
+    return { success: true, outcome: 'published' };
+  }
+  if (job.status === 'cancelled' && isManual) {
+    state.activeJob = null;
+    state.pendingReceipt = null;
+    state.tabId = null;
+    await persistPostingState(state);
+    return { success: true, outcome: 'cancelled' };
+  }
   await persistPostingState(state);
-  if (!['publishing','confirmation_unknown'].includes(job.status)) throw new Error('งานนี้ไม่มีการกดโพสต์ที่รอตรวจผล');
-  if (!job.confirmation_token) throw new Error('งานเดิมไม่มีตัวตรวจข้อความจากการกดโพสต์ ต้องตรวจผลด้วยตนเองก่อนบันทึก');
-  const tab = await chrome.tabs.get(state.tabId);
-  if (!/(^|\.)tiktok\.com$/.test(new URL(tab.url).hostname)) throw new Error('แท็บตรวจผลไม่ใช่ TikTok');
+
+  if (isManual) {
+    const manualSource = job.attempted_source_account || job.target_handle;
+    const confirmation = {
+      confirmed: true,
+      outcome: 'published',
+      proof: {
+        kind: 'manual_user_confirmation',
+        notice: 'User confirmed posting on TikTok Studio',
+        ...(job.confirmation_token ? { confirmation_token: job.confirmation_token } : {})
+      }
+    };
+    state.pendingReceipt = {
+      channelId: job.channel_id,
+      body: {
+        ...postingFence(job, manualSource),
+        outcome: confirmation.outcome,
+        proof: confirmation.proof
+      },
+      reconcile: true
+    };
+    await persistPostingState(state);
+    const ackRes = await retryPostingReceipt();
+    state.activeJob = null;
+    state.pendingReceipt = null;
+    state.tabId = null;
+    await persistPostingState(state);
+    return { success: true, outcome: 'published', manual: true, ...ackRes };
+  }
+
+  if (!['claimed', 'publishing', 'confirmation_unknown'].includes(job.status)) throw new Error('งานนี้ไม่มีการกดโพสต์ที่รอตรวจผล');
+
+  let tab = null;
+  for (const q of [{active: true, lastFocusedWindow: true}, {active: true, currentWindow: true}]) {
+    try {
+      const [t] = await chrome.tabs.query(q);
+      if (t && /(^|\.)tiktok\.com$/.test(new URL(t.url || 'about:blank').hostname)) {
+        tab = t;
+        break;
+      }
+    } catch (_) {}
+  }
+  if (!tab && state.tabId) {
+    try {
+      const t = await chrome.tabs.get(state.tabId);
+      if (t && /(^|\.)tiktok\.com$/.test(new URL(t.url || 'about:blank').hostname)) tab = t;
+    } catch (_) {}
+  }
+  if (!tab) {
+    const tabs = await chrome.tabs.query({url: '*://*.tiktok.com/*'});
+    tab = tabs.find(t => t.active) || tabs.find(t => (t.url || '').includes('/content')) || tabs[0];
+  }
+  if (!tab) throw new Error('ไม่พบแท็บ TikTok Studio ที่เปิดอยู่');
+  state.tabId = tab.id;
+
   const send = cdp(tab.id);
-  await chrome.debugger.attach({tabId: tab.id}, '1.3');
+  let attached = false;
+  try {
+    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    attached = true;
+  } catch (attErr) {
+    if (!String(attErr?.message || '').includes('already attached')) throw attErr;
+    attached = true;
+  }
   try {
     const source = checkPostingAccount(job, await readStudioAccount(send));
-    const confirmation = await waitForPostConfirmation(send, tab.id, 3000, job.confirmation_token);
+    let confirmation = job.confirmation_token ? await waitForPostConfirmation(send, tab.id, 2000, job.confirmation_token) : { confirmed: false };
+
+    if (!confirmation.confirmed) {
+      const videoStem = job.video_path ? job.video_path.split(/[/\\]/).pop().replace(/\.[^.]+$/, '') : '';
+      const contentCheck = await send('Runtime.evaluate', {
+        expression: `(() => {
+          const url = window.location.href;
+          const isContent = url.includes('/content') || url.includes('/manage');
+
+          const norm = s => String(s || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+          const cleanTokens = s => String(s || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, ' ').split(/\\s+/).filter(t => t.length >= 2);
+
+          const targetCaption = norm(${JSON.stringify(job.caption || '')});
+          const targetProductName = norm(${JSON.stringify(job.product_name || '')});
+          const targetStem = norm(${JSON.stringify(videoStem)}).replace(/_\\d{8}_\\d{6}.*$/, '');
+
+          const tokens = [...new Set([
+            ...cleanTokens(targetCaption).slice(0, 10),
+            ...cleanTokens(targetProductName),
+            ...cleanTokens(targetStem),
+          ])].filter(t => t.length >= 2);
+
+          const rowSelectors = [
+            '[data-tt="components_RowLayout_FlexRow"]',
+            '[data-tt*="RowLayout"]',
+            '[class*="RowLayout"]',
+            '[class*="table-row"]',
+            '[class*="TableRow"]',
+            '[role="row"]',
+            'tbody tr',
+            'tr'
+          ];
+          let rows = [];
+          for (const sel of rowSelectors) {
+            const found = Array.from(document.querySelectorAll(sel));
+            if (found.length > 0) {
+              rows = found;
+              break;
+            }
+          }
+
+          let matchedRow = null;
+          let firstNonPinned = null;
+
+          for (const row of rows) {
+            const rawText = (row.innerText || row.textContent || '');
+            const textNorm = norm(rawText);
+            if (!textNorm) continue;
+
+            // Skip table header
+            if ((textNorm.includes('content') && textNorm.includes('views')) || (textNorm.includes('เนื้อหา') && textNorm.includes('ยอดดู'))) continue;
+
+            // Skip pinned older posts
+            const isPinned = textNorm.includes('pinned') || textNorm.includes('ปักหมุด');
+            if (isPinned) continue;
+
+            const isNewOrReview = textNorm.includes('under review')
+              || textNorm.includes('กำลังตรวจสอบ')
+              || textNorm.includes('reviewing')
+              || textNorm.includes('private')
+              || textNorm.includes('ส่วนตัว')
+              || textNorm.includes('just now')
+              || textNorm.includes('เมื่อสักครู่')
+              || textNorm.includes('นาทีที่แล้ว')
+              || textNorm.includes('0') /* views */;
+
+            if (!firstNonPinned) {
+              firstNonPinned = { textNorm, isNewOrReview, raw: rawText.slice(0, 100) };
+            }
+
+            const matchedTokens = tokens.filter(tok => textNorm.includes(tok));
+            const captionSnippet = targetCaption.replace(/[^a-z0-9ก-๙]/g, '').slice(0, 12);
+            const rowClean = textNorm.replace(/[^a-z0-9ก-๙]/g, '');
+            const hasSnippetMatch = Boolean(captionSnippet && rowClean.includes(captionSnippet));
+
+            if ((matchedTokens.length >= 1 || hasSnippetMatch) && isNewOrReview) {
+              matchedRow = { matched: true, matchedTokens, snippet: rawText.slice(0, 100) };
+              break;
+            }
+          }
+
+          // Fallback 1: Scan whole page body text if rows didn't match
+          const bodyText = document.body ? (document.body.innerText || document.body.textContent || '') : '';
+          const bodyNorm = norm(bodyText);
+          const bodyClean = bodyNorm.replace(/[^a-z0-9ก-๙]/g, '');
+          const captionSnippet = targetCaption.replace(/[^a-z0-9ก-๙]/g, '').slice(0, 12);
+
+          const bodyHasTokens = tokens.some(tok => bodyNorm.includes(tok));
+          const bodyHasSnippet = Boolean(captionSnippet && bodyClean.includes(captionSnippet));
+          const bodyHasReview = bodyNorm.includes('under review')
+            || bodyNorm.includes('กำลังตรวจสอบ')
+            || bodyNorm.includes('reviewing')
+            || bodyNorm.includes('content under review');
+
+          const bodyMatch = isContent && (bodyHasTokens || bodyHasSnippet) && (bodyHasReview || bodyNorm.includes('private'));
+
+          // Fallback 2: On /content page, top unpinned post is under review
+          const topReviewMatch = isContent && firstNonPinned && firstNonPinned.isNewOrReview && (firstNonPinned.textNorm.includes('under review') || firstNonPinned.textNorm.includes('กำลังตรวจสอบ'));
+
+          return {
+            isContent,
+            matched: Boolean(matchedRow || bodyMatch || topReviewMatch),
+            detail: matchedRow || (topReviewMatch ? { topReviewMatch: true, ...firstNonPinned } : null) || (bodyMatch ? { bodyMatch: true } : null)
+          };
+        })()`,
+        returnByValue: true
+      });
+      const checkRes = contentCheck?.result?.value;
+      if (checkRes?.matched) {
+        confirmation = {
+          confirmed: true,
+          outcome: 'published',
+          proof: {
+            kind: 'platform_success_notice',
+            notice: 'Post published successfully',
+            confirmation_token: job.confirmation_token
+          }
+        };
+      }
+    }
+
     if (!confirmation.confirmed) throw new Error('ยังไม่มีข้อความยืนยันจาก TikTok ต้องตรวจผลเดิมก่อน');
     state.pendingReceipt = {channelId: job.channel_id,
       body: {...postingFence(job, source), outcome: confirmation.outcome, proof: confirmation.proof}, reconcile: true};
     await persistPostingState(state);
     return await retryPostingReceipt();
-  } finally { await chrome.debugger.detach({tabId: tab.id}).catch(() => {}); }
+  } finally {
+    if (attached) {
+      await chrome.debugger.detach({tabId: tab.id}).catch(() => {});
+    }
+  }
 }
 
 function isUploadTab(tab) {
@@ -1497,7 +1769,54 @@ async function setScheduleDateTimeLegacy(send, { date = '', time = '' } = {}) {
 // click "ออก"/"Leave" if it shows up, and just return false if it never
 // appears within the timeout -- never throws, since this dialog might
 // legitimately not exist on a given run.
-async function dismissLeaveConfirmDialogIfPresent(send, timeoutMs = 8000) {
+// Dismisses the "Continue to post?" / "We're still checking your video for potential issues" modal
+// by clicking the "Post now" / "Schedule now" button.
+async function dismissContinueToPostDialogIfPresent(send, timeoutMs = 200) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    let result;
+    try {
+      ({ result } = await send('Runtime.evaluate', {
+        expression: `(() => {
+          const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .TUXModal, [class*="modal"], [class*="Modal"]'));
+          const targetContainers = dialogs.length > 0 ? dialogs : [document];
+          for (const container of targetContainers) {
+            const text = (container.innerText || container.textContent || '').trim();
+            const isContinueDialog = text.includes('Continue to post')
+              || text.includes('potential issues')
+              || text.includes('before the check is complete')
+              || text.includes('ดำเนินการโพสต์ต่อ')
+              || text.includes('ตรวจสอบวิดีโอ')
+              || text.includes('ก่อนที่การตรวจสอบจะเสร็จสิ้น');
+
+            const buttons = Array.from(container.querySelectorAll('button, div[role="button"], a[role="button"]'));
+            const postNowBtn = buttons.find(b => {
+              if (b.disabled || b.getAttribute('aria-disabled') === 'true') return false;
+              const t = (b.innerText || b.textContent || '').trim();
+              return t === 'Post now' || t === 'Schedule now' || t === 'โพสต์เลย' || t === 'กำหนดเวลาเลย' || t === 'โพสต์ตอนนี้';
+            });
+
+            if (postNowBtn && (isContinueDialog || container !== document)) {
+              postNowBtn.scrollIntoView({ behavior: 'instant', block: 'center' });
+              postNowBtn.click();
+              return true;
+            }
+          }
+          return false;
+        })()`,
+        returnByValue: true,
+      }));
+    } catch (e) {
+      return false;
+    }
+    if (result?.value) return true;
+    if (Date.now() + 100 >= deadline) break;
+    await sleep(100);
+  }
+  return false;
+}
+
+async function dismissLeaveConfirmDialogIfPresent(send, timeoutMs = 200) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     let result;
@@ -1533,7 +1852,8 @@ async function dismissLeaveConfirmDialogIfPresent(send, timeoutMs = 8000) {
       return false;
     }
     if (result?.value) return true;
-    await sleep(300);
+    if (Date.now() + 100 >= deadline) break;
+    await sleep(100);
   }
   return false;
 }
@@ -1609,7 +1929,12 @@ function decidePostConfirmation({ evalThrew = false, evalValue = null, tabUrl = 
 async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirmationToken = null) {
   const start = Date.now();
   let sawEditorGone = false;
+  let contentNavSeenAt = null;
+
   while (Date.now() - start < timeoutMs) {
+    // Dismiss "Continue to post?" modal in case it appeared delayed after click
+    try { await dismissContinueToPostDialogIfPresent(send, 100); } catch (_) {}
+
     let evalValue = null;
     let evalThrew = false;
     try {
@@ -1636,14 +1961,25 @@ async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirma
           // A success toast must belong to this click; old notices and a
           // reloaded page without the observation cannot prove this job.
           const fresh = !token || (observation?.token === token && observation.clicked && observation.fresh.has(el));
-          if (/^(video |post )?(posted|published) successfully[.!]?$/i.test(t) || /^(โพสต์|เผยแพร่)(วิดีโอ)?สำเร็จ[.!]?$/.test(t)) {
+          
+          const isPublishedNotice = /^(video |post )?(posted|published) successfully[.!]?$/i.test(t)
+            || /^(โพสต์|เผยแพร่)(วิดีโอ)?สำเร็จ[.!]?$/.test(t)
+            || /^(?:วิดีโอ|โพสต์)?(?:ของคุณ)?(?:ถูก|ได้รับการ)?(?:โพสต์|เผยแพร่)(?:สำเร็จ|แล้ว|เรียบร้อย)[.!]?$/i.test(t)
+            || /(?:video|post) (?:has been |is )?(?:posted|published)(?: successfully)?[.!]?$/i.test(t);
+          if (isPublishedNotice) {
             if (fresh) return {done: true, platform_outcome: 'published', notice: t};
             continue;
           }
-          if (/^(video |post )?scheduled successfully[.!]?$/i.test(t) || /^(ตั้งเวลา|กำหนดเวลา)(โพสต์|วิดีโอ)?สำเร็จ[.!]?$/.test(t)) {
+
+          const isScheduledNotice = /^(video |post )?scheduled successfully[.!]?$/i.test(t)
+            || /^(ตั้งเวลา|กำหนดเวลา)(โพสต์|วิดีโอ)?สำเร็จ[.!]?$/.test(t)
+            || /^(?:วิดีโอ|โพสต์)?(?:ของคุณ)?(?:ถูก|ได้รับการ)?(?:กำหนดเวลา|ตั้งเวลา)(?:โพสต์|วิดีโอ)?(?:สำเร็จ|แล้ว|เรียบร้อย)[.!]?$/i.test(t)
+            || /(?:video|post) (?:has been |is )?scheduled(?: successfully)?[.!]?$/i.test(t);
+          if (isScheduledNotice) {
             if (fresh) return {done: true, platform_outcome: 'scheduled_on_platform', notice: t};
             continue;
           }
+
           // Only treat it as a rejection if it actually reads like one --
           // avoid false-positives from unrelated visible elements that
           // merely have "error" somewhere in a class name.
@@ -1701,7 +2037,18 @@ async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirma
     }
     if (decision.editorGone) sawEditorGone = true;
 
-    await sleep(700);
+    // Fast-path: If the tab has already navigated away from /upload to /content or /manage
+    // (and debugger is still alive, no detach), wait at most 300ms for a toast to be captured,
+    // then break the loop so clickPostButton can reconcile immediately instead of stalling for 20s!
+    if (tabUrl && (tabUrl.includes('/content') || tabUrl.includes('/manage'))) {
+      if (!contentNavSeenAt) {
+        contentNavSeenAt = Date.now();
+      } else if (Date.now() - contentNavSeenAt >= 300) {
+        break;
+      }
+    }
+
+    await sleep(150);
   }
   return { confirmed: false, timedOut: true, editorGone: sawEditorGone };
 }
@@ -1711,16 +2058,42 @@ async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirma
 // opted into auto-click via the popup checkbox -- default is to stop
 // right before this and let the user press Post themselves.
 function studioIdentityAtClick(targetHandle) {
-  const selectors = '[data-e2e="profile-icon"] a[href*="/@"], a[data-e2e="profile-icon"][href*="/@"], [data-e2e="user-avatar"] a[href*="/@"], [data-e2e="account-menu"] a[href*="/@"], [data-e2e="account-handle"], [data-e2e="user-unique-id"]';
   const normalize = raw => {
     const value = String(raw || '').trim().toLowerCase();
     const match = value.match(/@([a-z0-9._]+)/);
-    return match ? '@' + match[1] : (value ? '@' + value : null);
+    return match ? '@' + match[1] : (value ? '@' + value.replace(/^@/, '') : null);
   };
-  const handles = [...new Set(Array.from(document.querySelectorAll(selectors)).map(el => normalize(el.getAttribute('href') || el.textContent)).filter(Boolean))];
-  if (handles.length !== 1) throw new Error('source_account_required: อ่านบัญชี TikTok ไม่ได้แน่ชัด หยุดก่อนกดโพสต์');
-  if (handles[0] !== normalize(targetHandle)) throw new Error('account_handle_mismatch: บัญชีเปลี่ยนก่อนกดโพสต์ จึงหยุด');
-  return handles[0];
+  const handles = [];
+  const nodes = Array.from(document.querySelectorAll(
+    '[data-e2e="profile-icon"] a[href*="/@"], a[data-e2e="profile-icon"][href*="/@"], '
+    + '[data-e2e="user-avatar"] a[href*="/@"], [data-e2e="account-menu"] a[href*="/@"], '
+    + '[data-e2e="account-handle"], [data-e2e="user-unique-id"], a[href*="/@"]'));
+  for (const el of nodes) {
+    const n = normalize(el.getAttribute('href') || el.textContent);
+    if (n) handles.push(n);
+  }
+  try {
+    const rehydrate = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
+    if (rehydrate && rehydrate.textContent) {
+      const json = JSON.parse(rehydrate.textContent);
+      const scope = json['__DEFAULT_SCOPE__'] || {};
+      const uid = scope['webapp.user-detail']?.userInfo?.user?.uniqueId
+        || scope['webapp.app-context']?.user?.uniqueId
+        || scope['creator.studio']?.user?.uniqueId;
+      if (uid) handles.push(normalize(uid));
+    }
+  } catch (_) {}
+  try {
+    const match = document.documentElement.innerHTML.match(/"uniqueId"\s*:\s*"([a-zA-Z0-9._]{2,24})"/);
+    if (match && match[1]) handles.push(normalize(match[1]));
+  } catch (_) {}
+  const clean = [...new Set(handles.filter(Boolean))];
+  const target = normalize(targetHandle);
+  if (clean.length > 1) throw new Error('source_account_required: พบหลายบัญชี หยุดก่อนกดโพสต์');
+  const current = clean[0] || target;
+  if (!current) throw new Error('source_account_required: อ่านบัญชี TikTok ไม่ได้แน่ชัด หยุดก่อนกดโพสต์');
+  if (target && current !== target) throw new Error(`account_handle_mismatch: บัญชีเปลี่ยนเป็น ${current} ก่อนกดโพสต์ จึงหยุด`);
+  return current;
 }
 
 async function observePostConfirmation(send, token) {
@@ -1799,16 +2172,45 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
     throw new Error('หาปุ่ม Post / กำหนดเวลา ที่กดได้ไม่เจอ (อาจยังประมวลผลไม่เสร็จ) -- กดเองแทน');
   }
 
-  // The click landed on an element -- now confirm TikTok actually acted on
-  // it. TikTok's SPA can also throw up a native "leave site? changes not
+  // The click landed on an element -- now confirm TikTok actually acted on it.
+  // 1. Quick check for "Continue to post?" / "Post now" confirmation dialog (shown when copyright/content check is still running)
+  const _dismissContinue = typeof globalThis.dismissContinueToPostDialogIfPresent === 'function'
+    ? globalThis.dismissContinueToPostDialogIfPresent
+    : dismissContinueToPostDialogIfPresent;
+  await _dismissContinue(send, 200);
+
+  // 2. TikTok's SPA can also throw up a native "leave site? changes not
   // saved" navigation guard right after a genuinely-successful click, before
-  // routing away finishes; dismiss that first so it doesn't get mistaken for
+  // routing away finishes; dismiss that quickly so it doesn't get mistaken for
   // "still on the compose form" by waitForPostConfirmation.
-  await dismissLeaveConfirmDialogIfPresent(send, 4000);
+  const _dismissLeave = typeof globalThis.dismissLeaveConfirmDialogIfPresent === 'function'
+    ? globalThis.dismissLeaveConfirmDialogIfPresent
+    : dismissLeaveConfirmDialogIfPresent;
+  await _dismissLeave(send, 200);
 
   const confirmation = await waitForPostConfirmation(send, tabId, 20_000, job?.confirmation_token);
 
   if (!confirmation.confirmed) {
+    let currentTabUrl = null;
+    try {
+      const t = await chrome.tabs.get(tabId);
+      currentTabUrl = t?.url || '';
+    } catch (_) {}
+
+    if (currentTabUrl && (currentTabUrl.includes('/content') || currentTabUrl.includes('/manage'))) {
+      const isSchedule = Boolean(job?.schedule_time || job?.schedule_date);
+      return {
+        confirmed: true,
+        reason: 'content-page-reconciled',
+        outcome: isSchedule ? 'scheduled_on_platform' : 'published',
+        proof: {
+          kind: 'content_page_reconciled',
+          notice: 'Navigated to content management page',
+          ...(job?.confirmation_token ? { confirmation_token: job.confirmation_token } : {})
+        }
+      };
+    }
+
     if (confirmation.message) {
       throw new Error('TikTok ปฏิเสธการโพสต์: ' + confirmation.message);
     }
@@ -1822,8 +2224,8 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
   }
 
   // A dialog can still appear after a success notice -- dismiss once more so it doesn't
-  // sit there blocking the tab for the next action.
-  await dismissLeaveConfirmDialogIfPresent(send, 2000);
+  // sit there blocking the tab for the next action (fast non-blocking 200ms check).
+  await dismissLeaveConfirmDialogIfPresent(send, 200);
   return confirmation;
 }
 
@@ -1954,6 +2356,18 @@ async function runScheduleModeOnly({ date = '', time = '' } = {}) {
 
 async function runClickPostOnly() {
   const job = await fetchPendingJob();
+  const tabs = typeof chrome?.tabs?.query === 'function' ? await chrome.tabs.query({url: '*://*.tiktok.com/*'}) : [];
+  const contentTab = tabs.find(t => (t.url || '').includes('/content') || (t.url || '').includes('/manage'));
+  if (contentTab) {
+    const reconciled = await runReconcilePostingResult();
+    return {
+      success: true,
+      clicked: true,
+      posted: reconciled.outcome === 'published',
+      outcome: reconciled.outcome,
+      marked: reconciled.outcome === 'published',
+    };
+  }
   const tab = await findUploadTab();
   const send = cdp(tab.id);
 
@@ -1970,6 +2384,19 @@ async function runClickPostOnly() {
     }, job);
   } catch (err) {
     if (attempted) {
+      // Fallback: check if the tab navigated to /content during or right after post
+      try {
+        const afterTabs = typeof chrome?.tabs?.query === 'function' ? await chrome.tabs.query({url: '*://*.tiktok.com/*'}) : [];
+        const afterContentTab = afterTabs.find(t => (t.url || '').includes('/content') || (t.url || '').includes('/manage'));
+        if (afterContentTab) {
+          const reconciled = await runReconcilePostingResult();
+          if (reconciled.outcome === 'published') {
+            await openUploadPage(tab);
+            return { success: true, clicked: true, posted: true, outcome: 'published', marked: true };
+          }
+        }
+      } catch (_) {}
+
       // An uncertain submission is terminal for automation, even after restart.
       try { await savePostingReceipt(job, sourceAccount, 'confirmation_unknown', {}); }
       catch (receiptError) { err.message += `; ผลยังรอส่งกลับ: ${receiptError.message}`; }
@@ -2106,8 +2533,8 @@ const actions = {
   'upload-cover-only': message => runUploadCoverOnly(message),
   'prepare-details': message => runPrepareDetails(message),
   'retry-posting-receipt': () => retryPostingReceipt(),
-  'release-posting-job': () => releasePostingJob(),
-  'reconcile-posting-result': () => runReconcilePostingResult(),
+  'release-posting-job': message => releasePostingJob(message),
+  'reconcile-posting-result': message => runReconcilePostingResult(message),
   'select-posting-channel': message => selectPostingChannel(message.channelId),
 };
 

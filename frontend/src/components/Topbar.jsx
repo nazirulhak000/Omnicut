@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import {
   Rocket, Layers, Scissors, FolderDown, Palette, Settings,
-  Keyboard, Wifi, WifiOff, RefreshCw, Package, BarChart3, BookOpen, Bot, Cpu, Smartphone, Sparkles
+  Keyboard, Wifi, WifiOff, RefreshCw, Package, BarChart3, BookOpen, Lightbulb, Smartphone
 } from 'lucide-react';
 
 
@@ -9,19 +9,12 @@ import { ActivityIndicatorButton } from './ActivityCenter';
 import { ChannelSelector } from '../context/ChannelContext.jsx';
 
 const TAB_CONFIG = {
-  gadget: {
-    icon: Cpu,
-    title: 'Gadget Media',
-    badge: 'Gadget Media · 30 วัน',
-    badgeColor: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
-    description: 'แคมเปญ 21 คลิปสำหรับสร้างผู้ติดตามแบบ organic',
-  },
   producer: {
-    icon: Bot,
-    title: 'ผู้ช่วยโปรดิวเซอร์',
-    badge: '0. AI Producer Hub',
+    icon: Lightbulb,
+    title: 'คลังไอเดีย',
+    badge: 'Idea & Ref Vault',
     badgeColor: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-    description: 'ศูนย์บัญชาการภารกิจประจำวัน เตือนงาน คุมโควตา และวิเคราะห์คลิปปัง'
+    description: 'บันทึกไอเดีย ลิงก์คลิปและภาพเรฟ แยกตามช่อง'
   },
   flow: {
     icon: Rocket,
@@ -50,13 +43,6 @@ const TAB_CONFIG = {
     badge: '3. Studio Timeline',
     badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
     description: 'ตัดต่อคำบรรยาย ไทม์ไลน์ และเสียงประกอบ'
-  },
-  creative: {
-    icon: Sparkles,
-    title: 'Creative Studio',
-    badge: '3.1 HyperFrames Motion',
-    badgeColor: 'bg-pink-500/10 text-pink-400 border-pink-500/30',
-    description: 'สตูดิโอโมชันกราฟิก สไตล์ Meme, Tech Explainer, VS Battle, POV Chat Story'
   },
   gallery: {
     icon: FolderDown,

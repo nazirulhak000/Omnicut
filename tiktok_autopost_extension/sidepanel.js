@@ -156,32 +156,83 @@ async function initializeChannelSelector() {
   const release = document.createElement('button'); release.id='releasePostingBtn'; release.type='button'; release.textContent='ยกเลิกงานก่อนโพสต์';
   release.className='btn-copy-action'; release.style.minHeight='44px';
   release.title='ยกเลิกเฉพาะงานที่ยังไม่กดโพสต์ เพื่อเลือกคลิปหรือช่องใหม่';
-  release.addEventListener('click',async () => {
+  release.addEventListener('click', async () => {
     if (busy) return;
-    release.disabled=true;
+    release.disabled = true;
     try {
-      await panelWorkerRequest({action:'release-posting-job'});
-      activeClip=null; resetChecklist(); renderActiveClipBanner(); await loadExports();
-      setStatus('ยกเลิกงานก่อนโพสต์แล้ว เลือกคลิปหรือช่องใหม่ได้','success');
-    } catch (err) {setStatus(err.message,'error');}
-    finally {release.disabled=false;}
+      const res = await panelWorkerRequest({action: 'release-posting-job'});
+      activeClip = null; resetChecklist(); renderActiveClipBanner(); await loadExports();
+      showTab('list'); scrollToTop();
+      setStatus(res.alreadyResolved ? 'คลิปเดิมได้รับการเผยแพร่แล้ว ล้างงานเรียบร้อย' : 'ยกเลิกงานก่อนโพสต์แล้ว เลือกคลิปหรือช่องใหม่ได้', 'success');
+    } catch (err) {
+      if (err.message?.includes('ต้องตรวจผลเดิมก่อน')) {
+        const confirmDiscard = confirm('งานนี้มีประวัติเคยกดโพสต์หรือกำลังรอตรวจผล\n\nต้องการ "บังคับยกเลิกและล้างงานนี้" เพื่อเริ่มทำคลิปใหม่ทันทีหรือไม่?');
+        if (confirmDiscard) {
+          try {
+            await panelWorkerRequest({action: 'release-posting-job', force: true});
+            activeClip = null; resetChecklist(); renderActiveClipBanner(); await loadExports();
+            showTab('list'); scrollToTop();
+            setStatus('บังคับล้างงานเดิมเรียบร้อยแล้ว เลือกคลิปถัดไปได้ทันที', 'success');
+            return;
+          } catch (forceErr) {
+            setStatus('ยกเลิกงานไม่สำเร็จ: ' + forceErr.message, 'error');
+            return;
+          }
+        }
+      }
+      setStatus(err.message, 'error');
+    }
+    finally { release.disabled = false; }
   });
   // Reuse the existing manual button as a read-only reconciliation action.
   const button = document.getElementById('markPostedBtn');
   button?.parentElement?.appendChild(release);
-  if (button) {button.textContent = 'ตรวจผลโพสต์เดิม'; button.title = 'ตรวจข้อความยืนยัน TikTok หรือส่ง receipt เดิมซ้ำ โดยไม่กดโพสต์';}
+  if (button) {
+    button.textContent = 'ยืนยันว่าโพสต์แล้ว (เปลี่ยนสถานะทันที)';
+    button.title = 'กดยืนยันว่าคลิปโพสต์หรือตั้งเวลาบน TikTok เรียบร้อยแล้ว เพื่อมาร์กเสร็จสิ้นและเริ่มคลิปถัดไป';
+  }
   const help = button?.parentElement?.querySelector('p');
-  if (help) help.textContent = 'ตรวจผลของงานเดิมก่อนบันทึกว่าเผยแพร่แล้ว การนัดเวลาหรือผลที่ยังไม่แน่ชัดจะไม่ถูกนับว่าโพสต์';
+  if (help) help.textContent = 'กดเมื่อโพสต์หรือตั้งเวลาบน TikTok เรียบร้อยแล้ว เพื่อมาร์กว่าโพสต์สำเร็จ ย้ายไฟล์ และเปิดรับคลิปถัดไปทันที';
   const saved = await new Promise(resolve => chrome.storage.local.get(['omnicutPostingProtocolV2'], resolve));
-  const job = saved.omnicutPostingProtocolV2?.activeJob;
+  let job = saved.omnicutPostingProtocolV2?.activeJob;
   if (job) {
     if (job.channel_id !== activeChannelId || !job.job_id) throw new Error('งานที่บันทึกไว้ไม่ตรงช่อง');
-    activeClip = {...job, rel_path:job.video_path, hook_title:job.product_name || job.job_id};
-    captionInput.value = job.caption || ''; hashtagsInput.value = job.hashtags || '';
-    productIdInput.value = job.tiktok_product_id || ''; cartNameInput.value = job.product_name || '';
-    scheduleDateInput.value = job.schedule_date || ''; scheduleTimeInput.value = job.schedule_time || '';
-    renderActiveClipBanner(); showTab('checklist');
-    setStatus('กู้คืนงานเดิมแล้ว ตรวจผลก่อนเริ่มงานใหม่ ไม่มีการกดโพสต์ซ้ำ', 'success');
+    let isFinished = false;
+    try {
+      const curRes = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/jobs/${encodeURIComponent(job.job_id)}`);
+      if (curRes.ok) {
+        const fresh = await curRes.json();
+        if (fresh.status === 'published' || fresh.status === 'cancelled') {
+          isFinished = true;
+          saved.omnicutPostingProtocolV2.activeJob = null;
+          saved.omnicutPostingProtocolV2.pendingReceipt = null;
+          await new Promise(r => chrome.storage.local.set(saved, r));
+          await panelWorkerRequest({action: 'release-posting-job', force: true}).catch(() => {});
+          activeClip = null;
+          resetChecklist();
+          renderActiveClipBanner();
+          showTab('list');
+          scrollToTop();
+          setStatus(fresh.status === 'published' ? 'คลิปเดิมเผยแพร่เรียบร้อยแล้ว พร้อมสำหรับคลิปถัดไป' : 'งานเดิมถูกยกเลิกแล้ว พร้อมสำหรับคลิปถัดไป', 'success');
+        } else {
+          if (fresh.cover_path) {
+            job.cover_path = fresh.cover_path;
+            saved.omnicutPostingProtocolV2.activeJob.cover_path = fresh.cover_path;
+            await new Promise(r => chrome.storage.local.set(saved, r));
+          }
+          Object.assign(job, fresh);
+        }
+      }
+    } catch (_) {}
+
+    if (!isFinished) {
+      activeClip = {...job, rel_path:job.video_path, hook_title:job.product_name || job.job_id};
+      captionInput.value = job.caption || ''; hashtagsInput.value = job.hashtags || '';
+      productIdInput.value = job.tiktok_product_id || ''; cartNameInput.value = job.product_name || '';
+      scheduleDateInput.value = job.schedule_date || ''; scheduleTimeInput.value = job.schedule_time || '';
+      renderActiveClipBanner(); showTab('checklist');
+      setStatus('กู้คืนงานเดิมแล้ว ตรวจผลก่อนเริ่มงานใหม่ ไม่มีการกดโพสต์ซ้ำ', 'success');
+    }
   }
 }
 
@@ -390,6 +441,23 @@ function setStatus(text, kind) {
   }
   statusEl.innerHTML = iconSvg ? `${iconSvg} <span>${escapeHtml(text)}</span>` : escapeHtml(text);
   statusEl.className = kind || 'info';
+  // Only scroll into view if there is an error on the checklist tab; NEVER scroll down on the list tab or on success
+  if (kind === 'error' && panelChecklist?.classList?.contains('active')) {
+    statusEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  if (panelList) panelList.scrollTop = 0;
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    if (panelList) panelList.scrollTop = 0;
+  });
 }
 
 function escapeHtml(s) {
@@ -410,10 +478,7 @@ function showTab(name) {
   panelChecklist.classList.toggle('active', isChecklist);
   panelTools.classList.toggle('active', isTools);
   if (isList) {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-    if (panelList) panelList.scrollTop = 0;
+    scrollToTop();
   }
 }
 tabBtnList.addEventListener('click', () => showTab('list'));
@@ -681,27 +746,51 @@ async function prepareClip(item) {
   setStatus(`กำลังเตรียม "${item.hook_title || item.name}"...`);
   try {
     await panelWorkerRequest({action:'select-posting-channel', channelId:activeChannelId});
-    const res = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/prepare`, {
+    const preparePayload = {
+      video_path: item.rel_path,
+      export_id: item.export_id || null,
+      cover_path: item.cover_path || null,
+      caption: item.tiktok_caption || '',
+      hashtags: item.tiktok_hashtags || '',
+      product_id: item.product_id || null,
+      angle_id: item.angle_id || null,
+      tiktok_product_id: item.tiktok_product_id || null,
+      product_name: item.product_name || null,
+      queue_id: item.is_scheduled ? item.id : null,
+      schedule_date: item.schedule_date || null,
+      schedule_time: item.schedule_time || null,
+    };
+    let res = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/prepare`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        video_path: item.rel_path,
-        export_id: item.export_id || null,
-        cover_path: item.cover_path || null,
-        caption: item.tiktok_caption || '',
-        hashtags: item.tiktok_hashtags || '',
-        product_id: item.product_id || null,
-        angle_id: item.angle_id || null,
-        tiktok_product_id: item.tiktok_product_id || null,
-        product_name: item.product_name || null,
-        queue_id: item.is_scheduled ? item.id : null,
-        schedule_date: item.schedule_date || null,
-        schedule_time: item.schedule_time || null,
-      }),
+      body: JSON.stringify(preparePayload),
     });
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.detail || `HTTP ${res.status}`);
+      const errBody = await res.json().catch(() => ({}));
+      if (res.status === 409 && (errBody.code === 'posting_export_already_prepared' || errBody.detail?.includes('มีงานโพสต์อยู่แล้ว'))) {
+        try {
+          const pendingRes = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/pending`);
+          if (pendingRes.ok) {
+            const pendingData = await pendingRes.json();
+            if (pendingData?.job_id && pendingData.status === 'prepared') {
+              await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/clear`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ job_id: pendingData.job_id }),
+              });
+              res = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/prepare`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(preparePayload),
+              });
+            }
+          }
+        } catch (_) {}
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || errBody.detail || `HTTP ${res.status}`);
+      }
     }
     const prepared = await res.json();
     if (prepared.protocol_version !== 2 || prepared.channel_id !== activeChannelId || !prepared.job_id) throw new Error('Backend ไม่รองรับ job/channel protocol ต้องอัปเดต Backend');
@@ -819,7 +908,7 @@ wireStep('btn5', 'chk5', 'ขั้น 6 (กด Post/กำหนดเวล�
   () => ({ action: 'click-post-only' }),
   response => {
     if (response.outcome === 'scheduled_on_platform') {
-      activeClip = null; resetChecklist(); renderActiveClipBanner(); loadExports(); showTab('list');
+      activeClip = null; resetChecklist(); renderActiveClipBanner(); loadExports(); showTab('list'); scrollToTop();
       return 'TikTok ยืนยันนัดเวลาแล้ว ยังไม่นับว่าโพสต์เผยแพร่';
     }
     if (response.marked) {
@@ -829,6 +918,7 @@ wireStep('btn5', 'chk5', 'ขั้น 6 (กด Post/กำหนดเวล�
       renderActiveClipBanner();
       loadExports();
       showTab('list');
+      scrollToTop();
       return postedTitle + ' โพสต์และมาร์คเป็นโพสต์แล้วอัตโนมัติ พร้อมเตรียมหน้าอัปโหลดสำหรับคลิปถัดไป';
     }
     return 'โพสต์ขึ้น TikTok แล้ว แต่ยังมาร์คใน OmniCut ไม่สำเร็จ: ' + (response.markError || 'ลองกดมาร์คอีกครั้ง');
@@ -896,6 +986,15 @@ prepareDetailsBtn.addEventListener('click', async () => {
   if (!activeClip) {
     setStatus('ยังไม่ได้เลือกคลิป — ไปที่แท็บ "รายการคลิป" แล้วกด "เตรียมคลิปนี้" ก่อน', 'error');
     return;
+  }
+  if (!activeClip?.cover_path) {
+    try {
+      const curRes = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/jobs/${encodeURIComponent(activeClip.job_id || '')}`);
+      if (curRes.ok) {
+        const fresh = await curRes.json();
+        if (fresh.cover_path) activeClip.cover_path = fresh.cover_path;
+      }
+    } catch (_) {}
   }
   if (!activeClip?.cover_path) {
     setStatus('ยังไม่มีภาพปกสำหรับคลิปนี้ กรุณาบันทึกภาพปกก่อนดำเนินการ', 'error');
@@ -1017,27 +1116,25 @@ markPostedBtn.addEventListener('click', async () => {
   setStatus(`กำลังมาร์ค "${postedTitle}" ว่าโพสต์แล้ว...`);
   try {
     // Only the original job receipt may authorize local publication effects.
-    const result = await panelWorkerRequest({action:'reconcile-posting-result'});
-    if (result.outcome !== 'published') throw new Error('Publication is not confirmed; no posted status was recorded');
+    const result = await panelWorkerRequest({action: 'reconcile-posting-result', manual: true});
+    if (result.outcome !== 'published' && result.outcome !== 'scheduled_on_platform') {
+      throw new Error('Publication is not confirmed; no posted status was recorded');
+    }
 
     activeClip = null;
     resetChecklist();
     renderActiveClipBanner();
     await loadExports();
     showTab('list');
-
-    // เลื่อนหน้าต่างและลิสต์ขึ้นด้านบนสุดเหมือนขั้นตอนที่ 6
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-    if (panelList) panelList.scrollTop = 0;
+    scrollToTop();
 
     // รีเฟรชหน้าอัปโหลด TikTok Studio เตรียมพร้อมสำหรับคลิปถัดไป เหมือนขั้นตอนที่ 6
     try {
       await openTikTokUploadTab(true);
     } catch (tabErr) {}
 
-    setStatus(postedTitle + ' มาร์คว่าโพสต์แล้วอัตโนมัติ พร้อมเตรียมหน้าอัปโหลดสำหรับคลิปถัดไป', 'success');
+    setStatus(postedTitle + ' มาร์คว่าโพสต์แล้วเรียบร้อย (ผู้ใช้ยืนยัน) พร้อมเตรียมหน้าอัปโหลดสำหรับคลิปถัดไป', 'success');
+    scrollToTop();
   } catch (err) {
     setStatus('มาร์คไม่สำเร็จ: ' + err.message, 'error');
   } finally {

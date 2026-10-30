@@ -217,6 +217,7 @@ class ActionRequest(ClaimRequest):
     payload_hash: str
     source_account: Optional[str] = None
     confirmation_token: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    force: bool = False
 
 
 class OutcomeRequest(ActionRequest):
@@ -278,11 +279,12 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
         require_record_owner(scope, queue, resource_label="คิวโพสต์")
         if queue.get("export_id") != export_record["id"]:
             raise ChannelError(409, "posting_parent_conflict", "คิวไม่ตรงกับ export ที่เลือก")
-    latest_record = ExportRegistry.latest_for_angle(product_id, angle_id, channel_id=channel_id)
-    if latest_record and latest_record.get("id") != export_record.get("id"):
-        raise ChannelError(409, "stale_export", "คลิปนี้มี export รุ่นใหม่แล้ว กรุณาเลือกคลิปใหม่ก่อนเตรียมโพสต์",
-                           action="reselect_export", export_id=export_record.get("id"),
-                           latest_export_id=latest_record.get("id"))
+    if not req.queue_id:
+        latest_record = ExportRegistry.latest_for_angle(product_id, angle_id, channel_id=channel_id)
+        if latest_record and latest_record.get("status") != "posted" and latest_record.get("id") != export_record.get("id"):
+            raise ChannelError(409, "stale_export", "คลิปนี้มี export รุ่นใหม่แล้ว กรุณาเลือกคลิปใหม่ก่อนเตรียมโพสต์",
+                               action="reselect_export", export_id=export_record.get("id"),
+                               latest_export_id=latest_record.get("id"))
     hyperframes_package = None
     project_name = export_record.get("project_name")
     if not req.queue_id and project_name:
@@ -555,7 +557,7 @@ def release_job(req: ActionRequest, scope: ChannelScope = Depends(get_workflow_s
     scope = _actual_scope(scope)
     job = _jobs().get(scope.channel_id, req.job_id)
     _validate_request_payload(req, job)
-    released = _jobs().release(scope.channel_id, req.job_id, req.lease_owner, req.lease_token, req.expected_revision)
+    released = _jobs().release(scope.channel_id, req.job_id, req.lease_owner, req.lease_token, req.expected_revision, force=req.force)
     if job.get("queue_id"):
         from scripts.schedule_store import ScheduleQueueStore
         def reset(row, _rows):
@@ -596,8 +598,10 @@ def _apply_outcome_effects(scope, job):
         def apply(row, _rows):
             if row.get("export_id") != job["export_id"]:
                 raise ChannelError(409, "posting_parent_conflict", "คิวเปลี่ยน export ไปแล้ว จึงไม่แก้ผลของคลิปอื่น")
-            if row.get("posting_job_id") != job["job_id"] or row.get("status") == "cancelled":
+            if row.get("status") == "cancelled":
                 raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนงานหรือยกเลิกแล้ว ต้องตรวจผลก่อน")
+            if row.get("posting_job_id") and row["posting_job_id"] != job["job_id"]:
+                raise ChannelError(409, "posting_queue_changed", "คิวผูกกับงานอื่นแล้ว ต้องตรวจผลก่อน")
             row["status"] = "posted" if job["status"] == "published" else "scheduled_on_platform"
             row["posting_job_id"] = job["job_id"]
         if ScheduleQueueStore.update_item(job["queue_id"], apply, channel_id=scope.channel_id) is None:

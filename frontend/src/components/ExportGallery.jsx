@@ -14,6 +14,7 @@ import {
 import {
   openFolder, deleteFile, getProducts, linkExportToAngle,
   revealFile, generateCover, markPosted, prepareTiktokAutopost, getExportMediaInfo,
+  enhanceExportForTiktok,
 } from '../api';
 import { Modal, Toast, Button, Badge, ConfirmModal, SafeQRCode } from './ui';
 import { useDebounce, useToast } from '../hooks';
@@ -194,6 +195,13 @@ const ExportCard = memo(function ExportCard({
           ) : isEsseger ? (
             <Badge variant="cyan" size="xs">Esseger</Badge>
           ) : null}
+
+          {((item.name || '').includes('_tiktok_sharp') || (item.rel_path || '').includes('_tiktok_sharp')) && (
+            <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-cyan-500/25 text-cyan-200 font-black text-[9px] sm:text-[10px] shadow-sm tracking-wider flex items-center gap-1 border border-cyan-400/50 backdrop-blur-md" title="วิดีโอผ่านการปรับความคมชัดสำหรับ TikTok แล้ว">
+              <Zap className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-cyan-300" />
+              <span>TikTok Sharp</span>
+            </span>
+          )}
         </div>
 
         {/* Video / Poster Preview (9:16 Vertical) */}
@@ -506,6 +514,8 @@ function ExportActiveWorkbench({
   const [revealBusy, setRevealBusy] = useState(false);
   const [postBusy, setPostBusy] = useState(false);
   const [autopostBusy, setAutopostBusy] = useState(false);
+  const [sharpBusy, setSharpBusy] = useState(false);
+  const [sharpMessage, setSharpMessage] = useState('');
   const [showTierInputs, setShowTierInputs] = useState(false);
   const tierStorage = useMemo(() => channelLocalStorage(), []);
   const [tierDrafts, setTierDrafts] = useState(() => {
@@ -606,6 +616,29 @@ function ExportActiveWorkbench({
     setAutopostBusy(true);
     await onPrepareAutopost(video, coverResult?.cover_3x4_path || coverResult?.cover_path || video.cover_path || null);
     setAutopostBusy(false);
+  };
+
+  const handleEnhanceTikTokClick = async () => {
+    if (!video || sharpBusy) return;
+    setSharpBusy(true);
+    setSharpMessage('');
+    try {
+      const res = await enhanceExportForTiktok({
+        export_id: video.export_id || video.id,
+        path: video.rel_path || video.path,
+      });
+      if (res?.success) {
+        setSharpMessage('เพิ่มความคมชัดสำเร็จ! บันทึกเป็นไฟล์ใหม่แล้ว');
+        if (onRefresh) onRefresh();
+        setTimeout(() => setSharpMessage(''), 5000);
+      }
+    } catch (err) {
+      console.error('Enhance TikTok error:', err);
+      setSharpMessage(err?.response?.data?.detail || 'เกิดข้อผิดพลาดในการปรับปรุง');
+      setTimeout(() => setSharpMessage(''), 5000);
+    } finally {
+      setSharpBusy(false);
+    }
   };
 
   const scriptLines = Array.isArray(video.script_lines) ? video.script_lines : [];
@@ -1028,7 +1061,33 @@ function ExportActiveWorkbench({
           </div>
 
           {/* Bottom Action Buttons */}
+          {sharpMessage && (
+            <div className="p-2.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center gap-2 animate-pulse">
+              <Zap className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+              <span>{sharpMessage}</span>
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-white/[0.08]">
+            <button
+              type="button"
+              onClick={handleEnhanceTikTokClick}
+              disabled={sharpBusy || (video.name || '').includes('_tiktok_sharp')}
+              className={`py-2.5 px-3.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-all ${
+                (video.name || '').includes('_tiktok_sharp')
+                  ? 'bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 cursor-default'
+                  : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:brightness-110 text-white'
+              } disabled:opacity-70 disabled:cursor-wait`}
+              title="เพิ่มความคมชัดด้วย Unsharp Mask, BT.709, FastStart ป้องกันภาพแตกบน TikTok"
+            >
+              <Zap className={`w-4 h-4 ${sharpBusy ? 'animate-spin text-white' : 'text-yellow-300'}`} />
+              <span>
+                {sharpBusy
+                  ? 'กำลังเร่งความคมชัด...'
+                  : (video.name || '').includes('_tiktok_sharp')
+                  ? 'คมชัดระดับ TikTok แล้ว'
+                  : 'ปรับความคมชัด TikTok'}
+              </span>
+            </button>
             <a
               href={toMediaUrl(video.rel_path || video.path)}
               download={video.name}

@@ -1,8 +1,167 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
+ 
+สถานะ: กำลังผลิตคลิปคู่รักสายใต้ 20 คลิปสินค้า TTZ K106 Magnetic Wireless Power Bank 30000mAh (TTZ01) · วันที่ 2026-10-28
 
-สถานะ: ไม่มีงานเปิดค้าง ปิดรายการทั้งหมดตามคำสั่งผู้ใช้ 2026-10-12
+## รอบปัจจุบัน
 
+- [ ] Round ANTIGRAVITY-RECONCILE-MERGE-AND-PUSH-MAIN-20261030 · Reconcile branch dev กับ origin/main (ผสาน Colab cloud runner + permanent domain tunnel เข้ากับ local production dev), แก้ไข conflicts 7 จุด, ตรวจสอบชุดทดสอบทั้งหมด และ push ขึ้น main เป็นเวอร์ชันล่าสุด:
+  - [ ] บันทึกและ Commit uncommitted changes บน branch dev
+  - [ ] Fetch และ merge origin/main เข้า dev, แก้ไข conflicts ทั้ง 7 จุด และ reconcile scripts/api_server.py
+  - [ ] ตรวจสอบความถูกต้อง: รัน pytest (65 tests), node extension tests (51 tests), และ npm run build
+  - [ ] Fast-forward / merge สู่ local main และตรวจสอบ parity
+  - [ ] Push branch main และ dev ขึ้น origin
+  - [ ] ปิดรอบงานใน TODO.md และย้ายประวัติเข้า HISTORY.md
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [ ] Round ANTIGRAVITY-PRODUCE-20-TTZ-K106-COUPLE-CLIPS-20261028 · ผลิตคลิปสไตล์คู่รักสายใต้บนกระดาษยับ (#5 Couple Paper Chat: น้องนุ้ย Aoede & พี่บ่าว Puck) สินค้า TTZ K106 Magnetic Wireless Power Bank 30000mAh (TTZ01) จากลิงก์ TikTok vt.tiktok.com/ZS9ykaGuy492W-oNdZy/ (TikTok Product ID: 1734519304293746340) ครบทั้ง 20 คลิปแบบ End-to-End:
+  - [x] ตรวจสอบลิงก์ TikTok และสกัดข้อมูลสเปก/จุดขายสินค้า (30000mAh, Magnetic 15W, Fast Charge 22.5W/PD 20W, สายในตัว 2 เส้น, ขาตั้งพับในตัว, 4 สี, มอก. 2879-2560)
+  - [ ] จัดเตรียมวัตถุดิบรูปภาพ 8 รูป 520x520 WebP คลีน + ไดคัท Hero rembg สู่ `03_Projects/_HyperFrames_Studio/assets/ttz01/`
+  - [ ] ออกแบบและสร้างสคริปต์ 20 บทสไตล์คู่รักสายใต้ (#5 Couple Paper Chat) ครอบคลุม 5 หมวดการตลาด ไร้จุดไข่ปลา ไร้ราคา ทับศัพท์อังกฤษถูกต้อง บันทึกลง `_Docs/ttz_k106_20_scripts.json` & `.md` และลงทะเบียน `_Docs/products.json`
+  - [ ] เจนเสียงพากย์ Single-Take 2 passes (Aoede & Puck) ด้วย Gemini Flash TTS, ตรวจสอบความถูกต้องด้วย Faster-Whisper บน GPU, ตัด Dead Air หัว-ท้ายกระชับแน่น, ล้าง Glitches, ประกอบ `vo.wav` + `timings.json` ครบทั้ง 20 คลิป
+  - [ ] ประกอบคอมโพซิชัน HyperFrames 100% Golden Master Parity (ors01) สไตล์ Style 3B Outro (Zero-Emoji, Zero-Arrow, CSS margin-left centering)
+  - [ ] ผ่าน Visual Inspection Gate (สกัด Frame แชท + Frame CTA ตรวจสอบเลย์เอาต์และความถูกต้อง)
+  - [ ] รัน Batch Render คู่ขนาน Multi-Worker (Concurrency = 4) สู่ `04_Exports/Ready_to_post/` ผ่าน TikTok Pro Sharpness Engine (Frame 0 Y 208-221)
+  - [ ] สกัดปกคู่ 9:16 & 3:4 Dual JPG + WebP Thumbnail ครบทั้ง 20 ชุด, ลงทะเบียน `export_registry.json`, `export_cover_bindings.json`, และ sync `products.json` สู่สถานะ 'rendered'
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+## ประวัติรอบที่ปิดแล้ว
+
+- [x] Round ANTIGRAVITY-COUPLE-PIPELINE-REFINEMENT-AND-RE-RENDER-60-CLIPS-20261020 · แก้ไขปัญหา Audio vs Text Desync ใน Hatari ด้วยการซิงค์เทิร์นและเจนเสียงใหม่ 12 เทิร์น (sim 0.95-1.00), แก้ไขเลย์เอาต์ CTA จัดกึ่งกลางด้วย CSS margin-left (X=540px) และเปลี่ยนภาพ Trio Hero ของ Redmi Buds 8 เป็น 3 ชิ้นคลีนไร้ตัวอักษรจีน, ตัด Dead Air หัว-ท้ายเสียงพากย์ (กระชับ 0.18-0.25s), ย้ายไลบรารี GSAP สู่ Local kit/gsap.min.js ขจัดปัญหา CDN ล่ม, เปิดใช้ GPU Hybrid Acceleration (HyperFrames --gpu + NVIDIA NVENC h264_nvenc), และเรนเดอร์สำเร็จครบ 60/60 คลิป (GOO01 20, HAT01 20, RED01 20) พร้อมสกัดปก WebP 60 รูป + Dual JPG 120 รูป และ sync products.json สู่สถานะ 'rendered' 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-GEN-20-JEEP-EW011-COUPLE-SCRIPTS-AND-TTS-20261020 · ออกแบบสคริปต์ 20 บทสินค้า Jeep EW011 Bluetooth Earphones (JEE01) สไตล์คู่รักสายใต้ (#5 Couple Paper Chat) น้องนุ้ย (Aoede) & พี่บ่าว (Puck) ครอบคลุม 5 หมวดการตลาด ไร้จุดไข่ปลา 100%, สกัดภาพสินค้า 8 รูป 520x520 WebP และภาพไดคัท Hero Duo (ขาว/ดำ rembg), เจนเสียงพากย์ด้วย Single-Take Gemini Flash TTS (สลับ gemini-3.1-flash-tts-preview ตามรอบโควตา), ตรวจสอบความถูกต้องด้วย Faster-Whisper GPU, ตัด Lead & Tail Dead Air (0.18-0.25s) กระชับแน่น, ล้าง Glitches, ประกอบ vo.wav + timings.json และสร้างคอมโพซิชัน HTML สไตล์ Duo Hero ครบทั้ง 20 คลิป (s01-s20), พร้อม sync สถานะ draft_ready สู่ products.json ครบ 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-PARALLEL-MULTI-AGENT-BATCH-REBUILD-60-COUPLE-CLIPS-20261020 · รันขนาน 3 เอเจนต์ (GOO01, HAT01, RED01 รวม 60 คลิป) รีบิลด์คอมโพซิชันและเรนเดอร์ใหม่หมดตามสกิล `/couple-paper-chat` (.agents/skills/couple/SKILL.md) 100% Golden Master Parity (ors01), Zero-Emoji, Zero-Arrow, แก้ไข relative assets path, คุมการเขียนฐานข้อมูลแบบ Multi-Process Thread-Safe (filelock), เรนเดอร์คู่ขนานสำเร็จ 60/60 คลิป (0 error) ผ่าน TikTok Pro Sharpness Engine, สกัดปกคู่ 9:16 & 3:4 (120 รูป) + WebP (60 รูป), ลงทะเบียน export_registry, export_cover_bindings และ sync products.json สู่สถานะ 'rendered' 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-BATCH-TTS-AND-PARALLEL-RENDER-20-HATARI16-COUPLE-20261020 · เจนเสียงพากย์สไตล์คู่รักสายใต้ 20 บท (น้องนุ้ย Aoede & พี่บ่าว Puck) สินค้า Hatari พัดลมตั้งโต๊ะ 16 นิ้ว (T16M1 - HAT01) ผ่าน Single-Take Mode (2 requests/คลิป) ประหยัดโควตา 83%, ตรวจความแม่นยำ Faster-Whisper บน GPU, ล้างเสียงรอยต่อ (Glitch Sanitization), วางฉากจบ Style 3B Trio Hero Outro, ประกอบคอมโพซิชัน HyperFrames, เรนเดอร์คู่ขนาน 4 Workers ผ่าน TikTok Pro Sharpness Engine (Frame 0 Y 208–221) ครบทั้ง 20 คลิป (s01-s20), สกัดปก WebP & Dual JPG (9:16 / 3:4) ครบ 20 คู่, ลงทะเบียน export_registry, cover_bindings, sync products.json สู่สถานะ 'rendered' 100%, และ archive ดราฟต์เข้า 06_Archive/HyperFrames_Studio/ คืนพื้นที่ Studio คลีน 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-GEN-20-HATARI16-COUPLE-SCRIPTS-20261020 · ออกแบบและสร้างบทสคริปต์ 20 บทสินค้า Hatari พัดลมตั้งโต๊ะ 16 นิ้ว (T16M1 - HAT01) สไตล์คู่รักสายใต้บนกระดาษยับ (#5 Couple Paper Chat) ดราม่าโบ๊ะบ๊ะระหว่าง น้องนุ้ย & พี่บ่าว 45-60 วินาที ไร้จุดไข่ปลา 100% ครอบคลุม 5 หมวดการตลาด พร้อมบันทึกลง _Docs/hatari_16inch_20_scripts.json, _Docs/hatari_16inch_20_scripts.md และ sync 20 angles สู่ _Docs/products.json ครบวงจร; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-PARALLEL-BATCH-RENDER-20-GOOJODOQ-20261020 · รัน Batch Render วิดีโอ GOOJODOQ มินิพาวเวอร์แบงค์ 5000mAh (GOO01) สไตล์คู่รักสายใต้ครบทั้ง 20 คลิป (goo01-pov-s01..s20) แบบคู่ขนาน Multi-Worker (Concurrency = 4) ตามกฎข้อ 24 จบใน 26.9 นาที พร้อมปรับภาพผ่าน TikTok Pro Sharpness Engine (brightness=-0.031, unsharp, BT.709 คุมระดับ Y 220–225), สกัดปก WebP & Dual JPG (9:16 / 3:4) จากช็อต CTA, ลงทะเบียน export_registry, ผูกปก cover_bindings และ sync Content Tracker สู่สถานะ 'rendered' 100% (20/20 สำเร็จ ไร้ข้อผิดพลาด); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-OPTIMIZE-STEP6-POST-DETECTION-SPEED-20261020 · ปรับปรุงขั้นตอนที่ 6 (กด Post / กำหนดเวลา) ให้ตรวจจับผลและเปลี่ยนสถานะรวดเร็วทันใจ (< 0.5 วินาที จากเดิม 28 วินาที): ขจัด artificial delay 6.0 วินาทีจากการวนลูป sleep รอ modal ที่ไม่มีจริง, ขยาย Regex ตรวจจับ Toast ภาษาไทย/อังกฤษให้ครอบคลุมทุกแพทเทิร์น ("วิดีโอถูกกำหนดเวลาแล้ว" / "วิดีโอถูกโพสต์แล้ว" / "วิดีโอของคุณได้รับการกำหนดเวลาแล้ว"), ปรับ polling interval เป็น 150ms และเพิ่ม fast-path ตรวจจับการเปลี่ยนหน้าสู่ /content หรือ /manage หลุดลูปใน 300ms โดยไม่ต้องรอ timeout 20 วินาที; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-BATCH-TTS-20-GOOJODOQ-COUPLE-SCRIPTS-20261019 · เจนเสียงพากย์สไตล์คู่รักสายใต้ 20 บท (น้องนุ้ย Aoede + rate*1.10 และ พี่บ่าว Puck + tempo=1.32) สินค้า GOOJODOQ 5000mAh (GOO01) โมเดล gemini-3.8-flash-tts ฟรี 100% พร้อมตรวจความแม่นยำ Faster-Whisper (sim 0.94-1.00), ล้างเสียงรอยต่อ (Glitch Sanitization), วางฉากจบ Style 3B Macro Hero Outro, ประกอบคอมโพซิชัน HyperFrames ครบ 20 คลิป (s01-s20) และ sync Content Tracker สู่สถานะ draft_ready 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-FIX-PREPARE-STALE-EXPORT-SCHEDULE-CONFLICT-20261020 · แก้บั๊กคลิปในคิว Extension กดปุ่ม 'เตรียมคลิปนี้ →' ไม่ได้ (HTTP 409 stale_export) อันเกิดจากการตรวจความสดใหม่ของ export (latest_for_angle) เทียบกับคลิปที่เคยโพสต์ไปแล้วบน TikTok ทำให้คลิปเก่าที่จัดคิวไว้ล่วงหน้าถูกปฏิเสธ; ปรับปรุง `scripts/api_tiktok_autopost.py`, `scripts/api_schedule_queue.py`, และ `scripts/api_exports.py` ให้ยกเว้นคิวที่มีการระบุ queue_id ไว้ชัดเจน และไม่นำคลิปที่มีสถานะ posted แล้วมาเป็นตัวบล็อกคลิป unposted พร้อมเพิ่ม unit tests ครบ 15/15 ผ่านฉลุย; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-ALLOW-USER-MANUAL-CONFIRM-MARK-POSTED-20261019 · ปลดล็อกปุ่มเขียวใน Extension ให้ผู้ใช้กดยืนยันผลโพสต์สำเร็จ (มาร์กว่าโพสต์แล้ว) ได้ทันทีโดยผู้ใช้เป็นผู้ยืนยันเอง (Manual User Confirmation), แก้ไข `scripts/posting_jobs.py` ให้ acknowledge ยอมรับหลักฐานประเภท `manual_user_confirmation`, `user_confirmed`, และ `content_page_reconciled` โดยไม่บล็อกด้วย `posting_confirmation_required`, ปรับปรุง `tiktok_autopost_extension/background.js` และ `sidepanel.js` ให้ส่ง `manual: true` เมื่อคลิกปุ่มเขียว เพื่อเปลี่ยนสถานะเป็น `published`, ปรับปรุงไฟล์ export สู่สถานะ posted และเคลียร์งานค้างกลับสู่หน้ารายการคลิปทันที; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-FIX-CANCEL-JOB-RELEASE-AND-PUBLISHED-STATE-20261019 · แก้บั๊ก Extension กดยกเลิกงานไม่ได้ ('ต้องตรวจผลเดิมก่อน ห้ามยกเลิกงานที่กดโพสต์แล้ว'), ตรวจสอบสถานะงานจริงกับ Backend เมื่อเปิด Extension หากสถานะเป็น published/cancelled ให้ล้าง activeJob ทันที, ปรับปรุง releasePostingJob ให้ตรวจสอบสถานะ Backend ก่อนบล็อก, และเพิ่มกลไก Discard/Force Release ป้องกันผู้ใช้ติดค้างในหน้า Checklist 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-FIX-EXTENSION-POST-NOW-MODAL-AND-SCROLL-TOP-20261019 · แก้บั๊ก Extension ข้อ 6 ไม่กดยืนยันปุ่ม 'Post now' บนหน้าต่างเตือนการตรวจสอบ (Continue to post? modal) อัตโนมัติ, เพิ่มระบบ Auto-Reconcile ตรวจตารางคลิปบนหน้า /content ทันทีหลังเปลี่ยนหน้า, และแก้ไขบั๊กหน้าจอไม่เลื่อนขึ้นบนสุด (Scroll to Top = 0) หลังโพสต์เสร็จ โดยขจัดพฤติกรรม statusEl.scrollIntoView ดึงจอลงล่าง; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-SCHEDULE-ALL-72-OLD-NON-COUPLE-EXPORTS-20261019 · จัดตารางตั้งเวลาใหม่ให้คลิปเก่าทั้งหมดที่ไม่ใช่ Couple (รวม 70 คลิปใน 04_Exports/Ready_to_post/) วันละ 7 สล็อตมาตรฐาน (07:00, 09:20, 11:40, 14:00, 16:20, 18:40, 21:00) ขยับเริ่มวันที่ 2026-10-22 ถึง 2026-10-31 (10 วัน) เพื่อไม่ให้ทับซ้อนกับคลิปที่ผู้ใช้ตั้งเวลาล่วงหน้าบน TikTok วันที่ 20-21 ต.ค. เรียบร้อยแล้ว กระจายสินค้า 17 ชนิดสลับเนียนตา ขจัดสินค้าซ้ำติดกัน รีเซ็ตสถานะเป็น planned ทั้งหมด 100% ปลดล็อก Extension ให้แสดง 'จัดเวลาโพสต์แล้ว' ครบทุกคลิป และยกเว้นคลิป Couple Series 83 คลิปทั้งหมด 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-RESCHEDULE-47-UNPOSTED-CLIPS-20261019 · จัดตารางตั้งเวลาใหม่ 47 คลิปที่ค้างในคิว (43 planned + 4 draft) เริ่มพรุ่งนี้ 2026-10-20 เวลา 07:00 น. วันละ 7 สล็อตมาตรฐาน (07:00, 09:20, 11:40, 14:00, 16:20, 18:40, 21:00) สิ้นสุด 2026-10-26 (7 วัน) กระจาย 15 สินค้าสลับเนียนตา ขจัดสินค้าซ้ำติดกัน และรีเซ็ตสถานะ draft สู่ planned เพื่อให้ผู้ใช้กดโพสต์เองได้อย่างราบรื่น 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-GEN-20-GOOJODOQ-COUPLE-SCRIPTS-20261019 · เจนบทสคริปต์ 20 บทสินค้า GOOJODOQ มินิพาวเวอร์แบงค์แคปซูล 5000mAh (GOO01) สไตล์คู่รักสายใต้ (น้องนุ้ย & พี่บ่าว) ดราม่าโบ๊ะบ๊ะบ่นด่ากวนๆ 45-60 วินาที ไร้จุดไข่ปลา 100% บันทึกลง _Docs/goojodoq_5000mah_20_scripts.json และ sync 20 angles สู่ _Docs/products.json ครบ 5 หมวด; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-BATCH-TIKTOK-UPLOAD-60-CLIPS-20261015 · ดำเนินการอัปโหลดคลิป TikTok อัตโนมัติผ่าน Open Browser Use CDP บนเบราว์เซอร์จริงของผู้ใช้ (Chrome Profile 1): โหมดตั้งเวลาสำเร็จ 33 คลิป (ทะลุเป้า 30 คลิป 100%), บันทึกฉบับร่างสำเร็จ 4 คลิป พร้อมระบบป้องกันสินค้าหมด (Stock Guard) และ Safe SPA Reset ขจัดปัญหาค้าง Native Dialog 100%, คลิปที่เหลือ 47 คลิปคงสถานะ planned สะอาดตามคำสั่งหยุดทำงานของผู้ใช้; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-REDISTRIBUTE-ESSAGER-SCHEDULE-EVENLY-20261015 · ปรับอัลกอริทึมกระจายคิว 84 คลิปใหม่ เกลี่ยคลิปสินค้า Essager PD 30W (17 คลิป) ให้แทรกสลับสม่ำเสมอทั่วทั้ง 12 วัน (วันละไม่เกิน 1-2 คลิป แยกเช้า-เย็น) ขจัดปัญหากระจุกตัวติดกันท้ายตาราง และขจัดป้ายเตือนสินค้าซ้ำติดกัน 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-SCHEDULE-84-NON-COUPLE-EXPORTS-20261015 · จัดตารางตั้งเวลาโพสต์คลิปภายนอกและคลิปเก่าทั้งหมดที่ไม่ใช่ Couple (รวม 84 คลิป) วันละ 7 คลิป (07:00, 09:20, 11:40, 14:00, 16:20, 18:40, 21:00) เริ่ม 2026-10-16 ถึง 2026-10-27 (12 วัน) พร้อมรีเซ็ตคลิปค้างในคิวที่เกินเวลา และยกเว้นคลิป Couple ทั้งหมด 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-BATCH-AUTO-LINK-30-UNLINKED-EXPORTS-20261015 · สร้าง Angle เฉพาะและผูกคลิปภายนอกทั้ง 30 คลิปเข้ากับ ProductStore, ซิงค์ ExportRegistry (status='rendered'), และสกัดปก Thumbnail WebP ครบวงจร เพื่อปลดล็อกการอัปโหลดผ่าน TikTok Helper Extension 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-CODIFY-MULTI-WORKER-DEFAULT-AND-ZERO-SLOWNESS-MANDATE-20261015 · บันทึกกฎเหล็กข้อ 24 Hardware-Aware Multi-Worker Default Concurrency = 4 และ Crash-Resilient Instant Resume (is_valid_mp4) ลง AGENTS.md, kit/STYLE.md และ pov_couple_line_chat_standard.md ห้ามรัน Sequential ช้าอีกเด็ดขาด; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-BATCH-UPGRADE-80-CTA-OUTROS-AND-COVERS-20261015 · อัปเกรดฉากจบ CTA Outro ท้ายคลิป และเรนเดอร์ภาพปก 9:16/3:4 ใหม่ครบทั้ง 80 คลิป (4 สินค้า x 20 คลิป: Orsen S6 Style 1B Quad Heads, Hatari Cyclone Max Style 3B Trio Hero, HOYAUP Cooler 780px Macro Hero, และ Essager 30W 730px Macro Hero) ตามมาตรฐาน Style 3B Golden Formula (Zero-Emoji, Zero-Arrow, 3-Tier Layout, Contact Shadows สมจริง, และ Floating Badges) พร้อมเรนเดอร์ MP4 สู่ 04_Exports/Ready_to_post/ ผ่าน TikTok Pro Sharpness Engine, สกัดปก WebP & Dual JPG, ซิงค์ export_registry และ ProductStore ครบวงจร 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-CODIFY-QUAD-HEADS-AND-MACRO-HERO-STANDARD-20261015 · บันทึกมาตรฐาน "Quad Heads Lineup Standard (Style 1B)" สำหรับสินค้าสายชาร์จ/อุปกรณ์หลากสี และ "Macro Hero Scaling Standard (730–780px + 4 Floating Badges)" สำหรับสินค้าชิ้นเดี่ยวขนาดเล็ก เพื่อขจัดพื้นที่ว่างแนวตั้ง (Vertical Emptiness) ลงในระบบสกิลและกฎถาวร (.agents/rules/pov_couple_line_chat_standard.md, kit/STYLE.md, .agents/skills/hyperframes-creative/references/thai-couple-paper-chat.md, และ AGENTS.md ข้อ 23) ตามที่ผู้ใช้อนุมัติ 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-DESIGN-COVER-PROTOTYPES-OTHER-PRODUCTS-20261015 · ออกแบบและเรนเดอร์ภาพปกตัวอย่าง (9:16 Vertical Covers) สำหรับสินค้ากลุ่มอื่นๆ (สายชาร์จ Orsen S6 240W, พัดลม Hatari Cyclone Max 8 นิ้ว, หัวชาร์จ Essager PD 30W ทั้งแบบเดี่ยวและคู่, และพัดลมแม่เหล็ก HOYAUP) ตามมาตรฐาน Style 3B Golden Formula (Zero-Emoji, Zero-Arrow, 3-Tier Layout, Contact Shadow สมจริง, และกลยุทธ์สินค้าเฉพาะหมวดหมู่); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-CODIFY-STYLE3B-COVER-CTA-FRAME-STANDARD-20261014 · บันทึกมาตรฐาน "Master Cover & CTA Outro Frame Standard (Style 3B Golden Formula)" ลงในสกิลและระบบกฎระเบียบ (.agents/rules/pov_couple_line_chat_standard.md, kit/STYLE.md, AGENTS.md ข้อ 23, และ .agents/skills/hyperframes-creative/references/thai-couple-paper-chat.md) ครอบคลุม: Zero Emoji Policy, Zero Arrow Policy, Trio Hero + Swatch Strip, โครงสร้าง 3-Tier 9:16, กลยุทธ์สินค้า 3 กลุ่ม หลากสี/ชิ้นเดียว/เซ็ต, และระบบ Dual-Purpose Export สลับประโยครองเป็นได้ทั้งปกคลิปและฉากจบ CTA ท้ายคลิป; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-HATARI-16INCH-BENCHMARK-CLIP-20261014 · ผลิตและจับเวลา 1 คลิปสินค้า Hatari พัดลมตั้งโต๊ะ 16 นิ้ว (T16M1 - HAT01) สไตล์คู่รักสายใต้ (น้องนุ้ย & พี่บ่าว) บนกระดาษยับ (#5 Couple Paper Chat) ด้วยระบบ Faster-Whisper large-v3-turbo บน GPU (CUDA float16) และสวมทับด้วย Canonical Master Template 100% (ขอบหมึกดำ Comic Die-cut 4px, GSAP Spring Pop-in, หัวข้อปาดเมจิกไฮไลต์เหลือง, SFX แชทครบชุด + Lo-fi BGM, Brand-First CTA Outro 630px, Frame 0 Y = 222.68 ตรงกับคลิป Cyclone Max/Orsen/HOYAUP ทุกประการ); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-HATARI-CYCLONE-MAX-UNIFIED-AI-PRODUCTION-20-CLIPS-20261014 · ผลิตคลิปสินค้า Hatari Cyclone Max 8 นิ้ว (PS8M1) สไตล์คู่รักสายใต้ (น้องนุ้ย Aoede & พี่บ่าว Puck) บนกระดาษยับ (#5 Couple Paper Chat) ครบ 20 คลิปแบบ End-to-End: วางสคริปต์ 20 บท (10-12 เทิร์น ไร้จุดไข่ปลา), Single-Turn Dual-Speaker TTS โมเดล gemini-3.8-flash-tts, Faster-Whisper large-v3-turbo ตรวจ 100%, Inter-turn & Tail Audio Sanitization, HyperFrames Composition พร้อม Brand-First CTA Outro (80px highlight, 630px cutout, ไร้อีโมจิ, ลูกศรแดงโค้ง), เรนเดอร์ 1080x1920 30fps ผ่าน TikTok Pro Sharpness Engine ควบคุม Frame 0 Y = 208–221 ครบ 20 คลิป (s01-s20), สกัดปก WebP และ Dual JPG 9:16/3:4 ครบ 20 คู่, ซิงค์ export_registry, cover_bindings และ products.json (status='rendered'), และ archive ดราฟต์เข้า 06_Archive/HyperFrames_Studio/ คืนพื้นที่ Studio คลีน 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-ORSEN-S6-UNIFIED-AI-PRODUCTION-20-CLIPS-20261014 · ผลิตคลิปสินค้า Orsen by Eloop S6 สไตล์คู่รักสายใต้ (น้องนุ้ย Aoede & พี่บ่าว Puck) บนกระดาษยับ (#5 Couple Paper Chat) ครบ 20 คลิปแบบ End-to-End: วางสคริปต์ 20 บท (10-13 เทิร์น ไร้จุดไข่ปลา), Single-Take Dual-Speaker TTS บนโมเดล gemini-3.8-flash-tts, Faster-Whisper large-v3-turbo ตรวจ 100%, Inter-turn & Tail Audio Sanitization, HyperFrames Composition พร้อม Brand-First CTA Outro (108px highlight, 630px cutout, ไร้อีโมจิ, ลูกศรแดงโค้ง), เรนเดอร์ 1080x1920 30fps และผ่าน TikTok Pro Sharpness Engine ควบคุม Frame 0 Y = 222.68 พอดีเป๊ะครบ 20 คลิป (s01-s20), สกัดปก WebP และ Dual JPG 9:16/3:4 ครบ 20 คู่, ซิงค์ export_registry, cover_bindings และ products.json (status='rendered'), และ archive ดราฟต์เข้า 06_Archive/HyperFrames_Studio/ คืนพื้นที่ Studio คลีน 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+
+- [x] Round ANTIGRAVITY-BATCH-RENDER-20-HOYAUP-AND-ARCHIVE-DRAFTS-20261013 · เรนเดอร์วิดีโอ 1080x1920 30fps คลิป HOYAUP พัดลมแม่เหล็ก (s02-s20) ครบทั้ง 19 คลิปสู่ 04_Exports/Ready_to_post/ ผ่าน TikTok Pro Sharpness Engine ควบคุม Frame 0 Y = 221.57 พอดีเป๊ะครบทั้ง 20 คลิป (s01-s20), สกัดปก Dual Covers 9:16 และ 3:4 ครบ 20 คู่, ซิงค์ export_registry, cover_bindings และ products.json (status='rendered'), และย้ายดราฟต์ clips/hoy01-pov-s01..s20 พร้อมคอมโพซิชันเข้า 06_Archive/HyperFrames_Studio/ คืนพื้นที่ Studio คลีน 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-CLEAN-ALL-HOYAUP-INTER-TURN-AUDIO-GLITCHES-AND-COMPOSITIONS-20261013 · สืบสวนและขจัดเสียงซ่าขยะระหว่างเทิร์น (Inter-Turn Glitches) ในคลิป HOYAUP ครบทั้ง 20 คลิป (s01-s20), ตัดขอบเสียงหัว-ท้าย 260 ไฟล์ turn_*.wav ด้วย speech bounds, re-assemble vo.wav แอมพลิจูดช่วงเงียบเป็น 0.0 เงียบสนิท 100%, ล้าง .waveform-cache ใน Studio, ถอด #paper-tint ออกจากดราฟต์ HTML ทั้ง 20 คลิป, และ re-render HOYAUP s01 ควบคุม Frame 0 Y = 221.57 เรียบร้อย; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-DOCUMENT-TTS-QUOTA-AND-REQUEST-STRATEGY-20261013 · บันทึกคู่มือมาตรฐาน "วิธีการยิง Gemini TTS และการบริหารโควตา API Keys" (Single-Take vs Turn-by-Turn, ข้อจำกัด Free Tier 50 RPD/คีย์ vs 15 RPM, รอบรีเซ็ตเที่ยงคืน PT หรือ 14:00 น. เวลาไทย, ระบบหมุนเวียนคีย์ Multi-Key Rotation, และวิธีแยกแยะ 429 vs 503) ลงในสกิลและคู่มือสไตล์; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-CALIBRATE-BRIGHTNESS-220-225-20261013 · ปรับเทียบระดับความสว่างคลิป Essager (20 คลิป) และ HOYAUP s01 สู่ช่วง Y = 220–225 พอดีเป๊ะ (Frame 0 Y = 221.57), อัปเดต Dual Covers 9:16/3:4, และบันทึกกฎความสว่างลงสกิลและคู่มือสไตล์; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-BRIGHTEN-AND-RE-RENDER-20-ESSAGER-CLIPS-20261013 · ปรับความสว่างคลิป Essager PD 30W ครบ 20 คลิป (s01-s20) สว่างสดใสระดับเดียวกับ HOYAUP/Orsen (Y=236.93); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+
+- [x] Round ANTIGRAVITY-DIAGNOSE-AND-ENHANCE-CLIPS-BRIGHTNESS-20261013 · สืบหาสาเหตุคลิป Essager มืดกว่า Orsen (พบ #paper-tint vignette มืดทึบคลุมทั้งจอ 22% vs Orsen ที่ไม่มี overlay), ถอด overlay มืดทับจอออก และปรับความสว่างเนียนตา (Slight Natural Brightness Lift) ทั้งในคอมโพซิชัน HyperFrames (#paper filter brightness 1.02) และระบบเรนเดอร์ TikTok Sharpness Engine (scripts/tiktok_enhancer.py eq brightness +0.02) ครบทั้ง 20 คลิป HOYAUP ให้ภาพสว่างสดใส ละมุนตา ไม่มืดทึบ และไม่สว่างจ้าหลุดไฮไลต์ (วัดค่า Y เพิ่มขึ้นจาก 187 เป็น 236 สว่างกว่า Orsen Y=227 เล็กน้อยตามสั่ง) (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+
+- [x] Round ANTIGRAVITY-GENERATE-20-ESSAGER-COVERS-AND-FIX-EXTENSION-PREPARE-20261013 · สร้างปก 9:16 และ 3:4 (TikTok Profile Crop) ครบทั้ง 20 คลิป Essager PD 30W ลงใน 05_Covers_Thumbnails/ จากช็อต Brand-First CTA ท้ายคลิป, บันทึกผูกปกใน _Docs/export_cover_bindings.json และ sync สู่ _Docs/products.json เพื่อให้ TikTok Helper Extension ดึงปกไปใช้งานและปลดล็อกการกดอัปโหลดอัตโนมัติได้ 100% (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+
+
+- [x] Round ANTIGRAVITY-HOYAUP-UNIFIED-AI-PRODUCTION-20-CLIPS-20261013 · ผลิตคลิปสินค้า HOYAUP พัดลมแม่เหล็กระบายความร้อนมือถือ สไตล์คู่รักสายใต้ (น้องนุ้ย Aoede & พี่บ่าว Puck) บนกระดาษยับ (#5 Couple Paper Chat) ครบ 20 คลิป พร้อมแก้ปัญหา TTS Hallucination ด้วยสถาปัตยกรรม Turn-by-Turn + Faster-Whisper (0.95-1.00), ขจัดเสียงซ่าท้ายคลิปสู่ 0.0, และ sync Content Tracker ใน _Docs/products.json ครบ 100% (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-TTS-38-AND-OMNICUT-EMBED-FLOW-20261013 · ปรับโมเดลเสียงพากย์เป็น gemini-3.8-flash-tts ตามคำสั่งผู้ใช้ทุกจุด, เปลี่ยนชื่อแผนผังเป็น _Docs/AI_PIPELINE_FLOW.html, และแนบผัง Interactive Flow พร้อม Master Prompts ตรงเข้าหน้าแรกคลังไอเดีย (ProducerHub) ให้เปิดดูสดได้ทันที (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-AUTO-CTA-COVER-TIKTOK-SHARP-AND-MASTER-PROMPT-20261013 · อัปเดตลูปการผลิตให้สกัดปก WebP อัตโนมัติจากช็อต CTA ท้ายคลิป (cta_start + 1.8s), บังคับ export ผ่าน TikTok Pro Sharpness Engine (scripts/tiktok_enhancer.py), แก้ไขโมเดล Gemini 3.1 Flash TTS ในโน้ตสกิล, อัปเดต Interactive Flow HTML & Quickstart และสร้าง Master All-In-One Prompt รันจนจบในคำสั่งเดียวพร้อมคำสั่งบังคับอ่านสกิลทุกครั้ง (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-UPDATE-FLOW-PROMPTS-AND-CREATE-AI-PIPELINE-CHEAT-SHEET-20261013 · อัปเดต Prompts Library ใน _Docs/UNIFIED_AI_PRODUCTION_PIPELINE_FLOW.html#prompts-library ให้ครอบคลุมสูตรเสียงคู่รักสายใต้และปก Brand-First CTA พร้อมสร้างคู่มือ AI Pipeline Quickstart ฉบับกระชับพิเศษ (_Docs/AI_PIPELINE_QUICKSTART.md) สำหรับคัดลอกให้ AI ทุกตัวอ่านและทำต่อได้ทันที (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-ARCHIVE-ESSAGER-CLIPS-AND-DOCUMENT-VOICE-STYLE-20261013 · ย้ายโฟลเดอร์ไฟล์ดราฟต์ clips/ess02-pov-s01..s20 เข้าสู่ 06_Archive/HyperFrames_Studio/clips/ คืนพื้นที่ Studio คลีน 100% พร้อมบันทึกมาตรฐานสไตล์และคู่มือการเจนเสียงพากย์ฉบับสมบูรณ์ลงในโน้ตสกิล (hyperframes-creative) และกฎระเบียบระบบ (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-BATCH-RENDER-20-ESSAGER-AND-ARCHIVE-DRAFTS-20261013 · เรนเดอร์วิดีโอ 1080x1920 30fps ครบทั้ง 20 คลิปสินค้า Essager PD 30W (s01-s20, รวม 860.6 MB) สู่ 04_Exports/Ready_to_post/ พร้อมสกัดปก WebP จากช็อต CTA แบบ Brand & Model First, ซิงค์ export_registry และ ProductStore, และย้ายดราฟต์เข้า 06_Archive/HyperFrames_Studio/ เรียบร้อย (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-REVISE-CTA-COVER-BRAND-FIRST-AND-CLEAN-ARROW-20261013 · ปรับใช้ดีไซน์ปก CTA แบบ Brand & Model First (Essager · PD 30W ไฮไลต์เหลือง + ชาร์จเร็วตัวจบ · กดตะกร้าเหลือง) และถอดข้อความ "ซ้ายล่าง" ให้เหลือเฉพาะลูกศรชี้คลีนๆ มินิมอล ครบทั้ง 20 คลิป (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-CLEAN-ALL-INTER-TURN-AUDIO-GLITCHES-20261013 · สืบหาและขจัดเสียงซ่าค้างในคลิป 19 (t=54.24s) และคลิปอื่นๆ (s06-s20) ที่หลุดรอดในรอยต่อระหว่างเทิร์นเสียงพากย์ชาย-หญิง ขจัด 90 noise bursts ครบ 20 คลิป พร้อมบันทึกผลและกฎ Inter-Turn Sanitization (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-ESSAGER-CLEAN-CUTOUT-AUDIO-FIX-AND-STYLE-DOCS-20261013 · ปรับใช้ภาพไดคัทโปร่งใส Essager (essager_clean_cutout.png) ในปก CTA ครบ 20 คลิป ถอดอีโมจิให้มินิมอลตามแบบ Orsen, คลีนขยะเสียงซ่าท้ายคลิป 150ms ให้เงียบสนิท 100%, และบันทึกสไตล์ลง STYLE.md และ rules (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-APPLY-PROVEN-ORSEN-CTA-AND-AUDIO-FIX-20-CLIPS-20261013 · ปรับใช้เลย์เอาต์ปก CTA สไตล์ Orsen ที่เรียบง่าย ชัดเจน (กดตะกร้าเหลือง + Essager · PD 30W + รูปสินค้า + ป้ายสี/สเปก + ลูกศรซ้ายล่าง) และแก้เสียงช็อตครบ 20 คลิป (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-FIX-AUDIO-CLIPPING-AND-REDESIGN-CTA-COVER-S01-20261013 · แก้ปัญหาเสียงช็อต/แตกพร่าท้ายคลิป และรีดีไซน์ช็อต CTA ปก ess02-pov-s01 เป็นสไตล์มินิมอล คลีนตา ไร้อีโมจิ 100% ชูแบรนด์ ESSAGER และรุ่น PD 30W ชัดเจน (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-GEN-20-ESSAGER-COUPLE-SCRIPTS-20261013 · เจนบทสคริปต์ 20 บทสินค้า Essager PD 30W สไตล์คู่รักสายใต้ (น้องนุ้ย & พี่บ่าว) ดราม่าโบ๊ะบ๊ะบ่นด่ากวนๆ 45-60 วินาที ไร้จุดไข่ปลา พร้อมบันทึกลง _Docs/essager_pd30w_20_scripts.json และ sync สู่ _Docs/products.json · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+  - [x] ออกแบบและร่างบทสนทนา 20 บท (12-16 เทิร์นต่อบท, Micro-burst, ไร้จุดไข่ปลา "...", ครบ 5 หมวด)
+  - [x] ตรวจสอบความถูกต้องของสเปก (PD 30W, Type-C, GaN, ปลอดภัย 6 ชั้น, ไม่ร้อน) และกฎคำทับศัพท์
+  - [x] จัดทำเอกสารและไฟล์ Master Scripts แค็ตตาล็อกบันทึกลง `_Docs/essager_pd30w_20_scripts.json` และ `_Docs/essager_pd30w_20_scripts.md` พร้อม sync 20 angles เข้า `_Docs/products.json`
+
+- [x] Round ANTIGRAVITY-COUPLE-TTS-ZERO-TONE-DRIFT-STANDARD-20261013 · กำหนดกฎเหล็กคุมโทนเสียงพากย์คงที่ 100% ตลอดทั้งคลิป (Strict Monolithic Acting & Zero-Tone-Drift Guard) ทั้งน้องนุ้ย (Aoede) และพี่บ่าว (Puck) ป้องกัน AI สลับบุคลิกกลางคัน พร้อมอัปเดตกฎระเบียบและ Prompt Templates ในระบบ · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) (ดู HISTORY.md)
+
+- [x] Round ANTIGRAVITY-BATCH-TTS-20-ESSAGER-COUPLE-SCRIPTS-20261013 · เจนเสียงพากย์สไตล์คู่รักสายใต้ 20 บท (น้องนุ้ย Aoede + พี่บ่าว Puck) โมเดล gemini-3.1-flash-tts-preview (Gemini 3.1 Flash) ตัดช่วงเงียบ แบ่งเทิร์น ปรับฟิลเตอร์เสียง FFmpeg พร้อมตรวจสอบ Faster-Whisper และ sync อัปเดต Content Tracker · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+  - [x] พัฒนาเครื่องมือ Batch TTS Generator รองรับ 20 สคริปต์ รัน take_F + take_M พร้อมหมุนเวียน 5 Gemini API Keys
+  - [x] ตัดแบ่งเสียงตามช่วงเงียบ (split_by_longest_gaps) และประมวลผลเสียง FFmpeg (F: asetrate*1.10, atempo=1.20 | M: atempo=1.32)
+  - [x] ตรวจทานความถูกต้องของเสียงทุกเทิร์นด้วย faster_whisper (large-v3-turbo)
+  - [x] บันทึกไฟล์เสียง vo.wav และ turn audio แยกรายโฟลเดอร์สำหรับทั้ง 20 บทใน 03_Projects/_HyperFrames_Studio/clips/
+  - [x] อัปเดตสถานะ voice_ready ใน Content Tracker (_Docs/products.json)
+
+- [x] Round ANTIGRAVITY-UNIFIED-AI-PRODUCTION-ESSAGER-COUPLE-PAPER-20261013 · รัน Unified AI Production Pipeline ทำคลิป Essager PD 30W สไตล์คู่รักสายใต้ (น้องนุ้ย Aoede + rate*1.10 และ พี่บ่าว Puck + tempo=1.32) บนกระดาษยับ พร้อมตรวจ Faster-Whisper, บันทึก Tracker และเปิด Studio Preview · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+  - [x] สกัดสเปกสินค้า Essager PD 30W คิด Hook ป้ายยา + สคริปต์ 40-50 วินาทีแบบ Micro-burst (ห้ามมีจุดไข่ปลา "...")
+  - [x] เจนเสียงพากย์สไตล์คู่รักสายใต้ (น้องนุ้ย Aoede + rate*1.10 และ พี่บ่าว Puck + tempo=1.32) พร้อมตรวจทานคำด้วย Faster-Whisper
+  - [x] บันทึกลง Content Tracker ใน `_Docs/products.json` ด้วย `product_id` (uuid4 hex) และ `angle_id` (`ang_xxxxxxxx`)
+  - [x] ประกอบดราฟต์ HyperFrames ใน `03_Projects/_HyperFrames_Studio/compositions/` สไตล์กระดาษยับ (Couple Paper Chat #5) ครบทั้ง 20 คลิป
+  - [x] เปิด Studio Preview (http://localhost:3002) ให้ User ตรวจเช็คก่อนเรนเดอร์ MP4
+
+- [x] Round ANTIGRAVITY-E2E-UNIFIED-PIPELINE-SEAMLESS-RENDER-AUDIT-20261012 · ตรวจเช็กจุดหลุดค้างใน E2E Unified Pipeline และเชื่อมลูป 1-Click Render จาก CoPilot Chat / Tracker เข้าสู่ Rendered Phase พร้อมเชื่อมต่อ Cover Studio · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) (ดู HISTORY.md)
+
+- [x] Round ANTIGRAVITY-INSTALL-FLOW-HTML-SKILL-AND-GENERATE-UNIFIED-FLOW-20261012 · ติดตั้งสกิล /flow-html เข้าสู่ Antigravity (.agents/skills/flow-html/SKILL.md) และสร้าง Interactive Flow HTML ฉบับสมบูรณ์ (5-Stage Architecture, Mermaid Zoom/Pan, UUID & ID Contracts, Cheat Sheet สั่งงาน AI 1-คลิก) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดู HISTORY.md)
+- [x] Round ANTIGRAVITY-UNIFIED-AI-PRODUCTION-FLOW-PLAN-20261012 · ออกแบบและสร้างระบบโฟลว์ผลิตคลิป AI รวมศูนย์ผ่าน HyperFrames Native (Backend Co-Pilot, Scaffolding, Tracker Linkage, AICoPilotChat UI) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) (ดู HISTORY.md)
+- [x] Round ANTIGRAVITY-UNIFIED-PIPELINE-SOP-AND-FLOW-HTML-20261012 · จัดทำ Master SOP และ Interactive Flow HTML (/flow-html) กำหนดกฎเหล็กการเจน ID (product_id, product_code, angle_id, export_id, job_id), ระบบตั้งชื่อ, และลูป 5 สเตจ สคริปต์➔เสียง➔HyperFrames➔OmniCut Tracker ➔ TikTok Auto-Post · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+- [x] Round ANTIGRAVITY-HYPERFRAMES-BATCH-RENDER-AND-ARCHIVE-20261012 · เรนเดอร์เก็บไฟล์ MP4 ครบทั้ง 26 ดราฟต์ (1.0 GB) ใน HyperFrames Studio เข้า 04_Exports/Ready_to_post/ และย้ายดราฟต์เก่า 24 อันเข้า 06_Archive/ ให้หน้า Studio คลีนเหลือเฉพาะงาน Orsen S6 ปัจจุบัน · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+- [x] Round ANTIGRAVITY-TIKTOK-SHARP-INTEGRATION-20261012 · ผนวก TikTok Pro Sharpness Engine เข้าสู่ OmniCut (Core Service, API Router, Export Gallery 1-Click, HyperFrames Hook) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) (ดู HISTORY.md)
 - [x] Round CODEX-COMMIT-ALL-TODO-CLOSE-20261012 · ปิด TODO และตรวจงานทั้งหมดพร้อม local commit · ดำเนินการโดย: Codex (GPT-6)
 
 ประวัติรอบงานและ snapshot TODO เดิมอยู่ใน [HISTORY.md](HISTORY.md); รายการที่พัก/รอเดิมปิดตามคำสั่งและคงสถานะเดิมในประวัติ
 ผลตรวจและขอบเขตคอมมิต: [_Docs/Reports/COMMIT_ALL_TODO_CLOSURE_20261012.md](_Docs/Reports/COMMIT_ALL_TODO_CLOSURE_20261012.md)
+
+- [x] Round CODEX-LAUNCHER-RELATIVE-BACKEND-20261012 · relative backend ownership + preserve existing Studio; tests23/dry-runผ่าน · ดำเนินการโดย: Codex (GPT-6)
+
+- [x] Round CODEX-HF-AI-SESSION-REVIEW-20261012 · canceled ตามคำสั่งผู้ใช้; ดู HISTORY · ดำเนินการโดย: Codex (GPT-6)
+- [x] Round CODEX-HF-REMOVE-SEPARATE-WORKFLOW-20261012 · ถอดหน้าแยก/ใช้Tracker-Galleryเดิม/testsผ่าน; ดู HISTORY · ดำเนินการโดย: Codex (GPT-6)
+- [x] Round CODEX-REMOVE-CREATIVE-MENU-20261012 · ถอดเมนู Creative/desktop-mobile และ migrate ไปTracker; testsผ่าน · ดำเนินการโดย: Codex (GPT-6)
+
+- [x] Round CODEX-REMOVE-GADGET-MENU-20261013 · ถอด Gadget menu/route; migrateTracker/browser13/frontend1021/buildผ่าน · ดำเนินการโดย: Codex (GPT-6)
+
+- [x] Round CODEX-PRODUCER-IDEA-VAULT-ONLY-20261013 · เหลือคลังไอเดีย/เรฟเท่านั้น; browser13/frontend1021/buildผ่าน · ดำเนินการโดย: Codex (GPT-6)
+
+- [x] Round CODEX-GALLERY-HOOK-CRASH-20261013 · โหลด Gallery ใหม่ได้/เสริม browser12; ข้อจำกัดดู HISTORY · ดำเนินการโดย: Codex (GPT-6)

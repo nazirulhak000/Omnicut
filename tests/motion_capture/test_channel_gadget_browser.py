@@ -142,7 +142,7 @@ def _manual_hub(page, tab, hf_state=None):
     return writes
 
 
-@pytest.mark.parametrize("tab", ["creative", "producer"])
+@pytest.mark.parametrize("tab", ["producer"])
 def test_manual_hub_failed_write_retains_draft_across_channel_switch(motion_fixture_url, tab):
     parsed = urlsplit(motion_fixture_url)
     origin = f"{parsed.scheme}://{parsed.netloc}"
@@ -231,7 +231,7 @@ def test_manual_hub_failed_write_retains_draft_across_channel_switch(motion_fixt
             browser.close()
 
 
-@pytest.mark.parametrize("form", ["targets", "note", "proposal"])
+@pytest.mark.parametrize("form", ["note", "proposal"])
 def test_producer_modal_drafts_retain_owner_and_edit_revision(motion_fixture_url, form):
     parsed = urlsplit(motion_fixture_url)
     origin = f"{parsed.scheme}://{parsed.netloc}"
@@ -335,100 +335,10 @@ def _open(page, origin, owner):
         raise AssertionError(page.locator("body").inner_text()[:2000]) from exc
 
 
-@pytest.mark.parametrize("width", [390, 1440])
-def test_gadget_draft_failed_save_success_and_discard_keep_owner(motion_fixture_url, width):
-    parsed = urlsplit(motion_fixture_url)
-    origin = f"{parsed.scheme}://{parsed.netloc}"
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
-        try:
-            page = browser.new_page(viewport={"width": width, "height": 900}, ignore_https_errors=True)
-            project = _project("main")
-            writes, state = _setup(page, "main", project)
-            _open(page, origin, "main")
-            audience = page.get_by_label("คนดูหลัก")
-            try:
-                audience.fill("Unsaved owner edit")
-            except Exception as exc:
-                raise AssertionError(page.locator("body").inner_text()[:3000]) from exc
-            selector = page.get_by_role("combobox", name="เลือกช่อง")
-            selector.select_option("second")
-            dialog = page.get_by_role("dialog", name="บันทึกก่อนสลับช่อง")
-            dialog.get_by_role("button", name="บันทึกและสลับ", exact=True).click()
-            expect(dialog.get_by_role("alert")).to_contain_text("offline fixture save")
-            expect(selector).to_have_value("main")
-            expect(audience).to_have_value("Unsaved owner edit")
-            state["fail_save"] = False
-            dialog.get_by_role("button", name="บันทึกและสลับ", exact=True).click()
-            expect(selector).to_have_value("second")
-            assert len(writes) == 2 and all(channel == "main" for channel, _ in writes)
-            assert writes[-1][1]["audience"] == "Unsaved owner edit"
-            assert "status" not in writes[-1][1] and project["status"] == "brief"
-            selector.select_option("main")
-            page.get_by_role("button", name="Fixture Exact").click()
-            audience.fill("Discard this edit")
-            selector.select_option("second")
-            dialog.get_by_role("button", name="ทิ้งการแก้ไขและสลับ").click()
-            expect(selector).to_have_value("second")
-            assert len(writes) == 2
-        finally:
-            browser.close()
 
 
-@pytest.mark.parametrize("owner,missing", [("main", False), ("second", False), ("second", True)])
-def test_gadget_canvas_draws_frozen_identity_and_missing_secondary_never_main(motion_fixture_url, owner, missing):
-    parsed = urlsplit(motion_fixture_url)
-    origin = f"{parsed.scheme}://{parsed.netloc}"
-    scratch = Path(__file__).resolve().parents[2] / ".tmp"
-    with tempfile.TemporaryDirectory(prefix="gadget-browser-", dir=scratch) as directory:
-        source = create_clip_source(Path(directory))
-        identity = None if missing else {"channel_id": owner, "watermark_text": "frozen " + owner}
-        timeline = {"workspace_scope": "gadget_media", "project_id": "gadget-owned", "channel_id": owner,
-                    "channel_identity_snapshot": identity, "duration": 2, "cues": [], "overlays": [],
-                    "clips": [{"id": "owned-clip", "source_path": vite_fs_url(origin, source), "trim_start": 0, "trim_end": 2, "duration": 2}]}
-        with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=True)
-            try:
-                page = browser.new_page(viewport={"width": 1440, "height": 1000}, ignore_https_errors=True)
-                _setup(page, owner, _project(owner, "in_production", identity), timeline)
-                _open(page, origin, owner)
-                expect(page.get_by_role("heading", name="ไทม์ไลน์คลิป")).to_be_visible()
-                page.wait_for_function("document.querySelector('canvas')?.width > 0 && document.querySelector('video')?.readyState >= 2")
-                if missing:
-                    expect(page.get_by_role("alert").filter(has_text="ยังไม่มีตัวตนช่อง")).to_be_visible()
-                    assert not any("ห้ามคัดลอก" in row["text"] or "frozen main" == row["text"] for row in page.evaluate("window.__drawn"))
-                else:
-                    page.wait_for_function("text => ['fillText','strokeText'].every(method=>window.__drawn.some(row=>row.method===method&&row.text===text))", arg="frozen " + owner)
-                assert not any(row["text"].startswith("changed live") for row in page.evaluate("window.__drawn"))
-            finally:
-                browser.close()
 
 
-def test_unsaved_gadget_creation_form_blocks_switch_without_creating_invalid_project(motion_fixture_url):
-    parsed = urlsplit(motion_fixture_url)
-    origin = f"{parsed.scheme}://{parsed.netloc}"
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
-        try:
-            page = browser.new_page(viewport={"width": 1440, "height": 900}, ignore_https_errors=True)
-            _setup(page, "main", _project("main"))
-            creates = []
-            page.on("request", lambda request: creates.append(request) if request.method == "POST" and urlsplit(request.url).path == "/api/gadget-media/projects" else None)
-            page.goto(f"{origin}/?channel=main&mode=desktop", wait_until="domcontentloaded")
-            page.get_by_role("button", name="สร้าง Product Video").click()
-            page.get_by_label("Brand").fill("Unfinished fixture")
-            selector = page.get_by_role("combobox", name="เลือกช่อง")
-            selector.select_option("second")
-            dialog = page.get_by_role("dialog", name="บันทึกก่อนสลับช่อง")
-            dialog.get_by_role("button", name="บันทึกและสลับ", exact=True).click()
-            expect(dialog.get_by_role("alert")).to_contain_text("กรอก Brand และ Model")
-            expect(selector).to_have_value("main")
-            assert not creates
-            dialog.get_by_role("button", name="ทิ้งการแก้ไขและสลับ").click()
-            expect(selector).to_have_value("second")
-            assert not creates
-        finally:
-            browser.close()
 
 
 def _campaign_api(page, *, empty=False, hold_create=False):
@@ -462,68 +372,3 @@ def _campaign_api(page, *, empty=False, hold_create=False):
         route.fulfill(status=status, headers=headers, content_type="application/json", body=json.dumps(result))
     page.route("**/api/gadget-media/campaigns**", route_api)
     return state, campaign
-
-
-@pytest.mark.parametrize("field", ["draft", "source"])
-def test_campaign_drafts_failed_save_retry_and_discard_preserve_owner(motion_fixture_url, field):
-    parsed = urlsplit(motion_fixture_url)
-    origin = f"{parsed.scheme}://{parsed.netloc}"
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
-        try:
-            page = browser.new_page(viewport={"width": 1440, "height": 1000}, ignore_https_errors=True)
-            _setup(page, "main", _project("main"))
-            state, _campaign = _campaign_api(page)
-            page.goto(f"{origin}/?channel=main&mode=desktop", wait_until="domcontentloaded")
-            page.get_by_role("tab", name="Campaign และ Analytics").click()
-            control = page.get_by_label("Hook (0-2 วินาที)") if field == "draft" else page.get_by_placeholder("Source URL", exact=True)
-            edited = "Changed campaign hook" if field == "draft" else "https://fixture.invalid/official"
-            control.fill(edited)
-            selector = page.get_by_role("combobox", name="เลือกช่อง")
-            selector.select_option("second")
-            dialog = page.get_by_role("dialog", name="บันทึกก่อนสลับช่อง")
-            dialog.get_by_role("button", name="บันทึกและสลับ", exact=True).click()
-            expect(dialog.get_by_role("alert")).to_contain_text("campaign fixture offline")
-            expect(selector).to_have_value("main")
-            expect(control).to_have_value(edited)
-            state["fail"] = False
-            dialog.get_by_role("button", name="บันทึกและสลับ", exact=True).click()
-            expect(selector).to_have_value("second")
-            assert len(state["writes"]) == 2 and all(owner == "main" for owner, _ in state["writes"])
-            body = state["writes"][-1][1]
-            assert (body["hook"] if field == "draft" else body["source_refs"][-1]["source_url"]) == edited
-            selector.select_option("main")
-            page.get_by_role("tab", name="Campaign และ Analytics").click()
-            control.fill(edited + "/discard")
-            selector.select_option("second")
-            dialog.get_by_role("button", name="ทิ้งการแก้ไขและสลับ").click()
-            expect(selector).to_have_value("second")
-            assert len(state["writes"]) == 2
-        finally:
-            browser.close()
-
-
-def test_campaign_create_waits_for_the_owned_request_before_switch(motion_fixture_url):
-    parsed = urlsplit(motion_fixture_url)
-    origin = f"{parsed.scheme}://{parsed.netloc}"
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
-        try:
-            page = browser.new_page(viewport={"width": 1440, "height": 1000}, ignore_https_errors=True)
-            _setup(page, "main", _project("main"))
-            state, campaign = _campaign_api(page, empty=True, hold_create=True)
-            page.goto(f"{origin}/?channel=main&mode=desktop", wait_until="domcontentloaded")
-            page.get_by_role("tab", name="Campaign และ Analytics").click()
-            page.get_by_role("button", name="สร้าง Campaign แรก").click()
-            selector = page.get_by_role("combobox", name="เลือกช่อง")
-            selector.select_option("second")
-            dialog = page.get_by_role("dialog", name="บันทึกก่อนสลับช่อง")
-            dialog.get_by_role("button", name="บันทึกและสลับ", exact=True).click()
-            expect(dialog).to_have_attribute("aria-busy", "true")
-            expect(selector).to_have_value("main")
-            assert len(state["pending"]) == len(state["writes"]) == 1
-            state["pending"][0].fulfill(status=200, headers={"X-OmniCut-Channel": "main"}, content_type="application/json", body=json.dumps(campaign))
-            expect(selector).to_have_value("second")
-            assert state["writes"] == [("main", {})]
-        finally:
-            browser.close()

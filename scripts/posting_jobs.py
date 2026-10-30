@@ -81,7 +81,16 @@ class PostingJobStore:
             existing_export = next((r for r in rows if r["export_id"] == frozen["export_id"]
                                     and r["status"] != "cancelled"), None)
             if existing_export:
-                raise ChannelError(409, "posting_export_already_prepared", "คลิปนี้มีงานโพสต์อยู่แล้ว ต้องตรวจผลเดิมก่อน")
+                now = self.clock()
+                if (not existing_export.get("publish_attempted_at")
+                        and existing_export["status"] == "claimed"
+                        and existing_export.get("lease_expires_at")
+                        and existing_export["lease_expires_at"] <= now):
+                    existing_export["status"] = "cancelled"
+                    existing_export["updated_at"] = now
+                    self._audit(existing_export, "cancel_expired_abandoned")
+                else:
+                    raise ChannelError(409, "posting_export_already_prepared", "คลิปนี้มีงานโพสต์อยู่แล้ว ต้องตรวจผลเดิมก่อน")
             now = self.clock()
             job_id = secrets.token_hex(16)
             row = {**frozen, "id": job_id, "job_id": job_id, "channel_id": channel_id,
@@ -155,34 +164,52 @@ class PostingJobStore:
                     outcome, proof: dict, *, reconcile=False):
         if outcome not in FINAL_OUTCOMES:
             raise ChannelError(422, "posting_outcome_invalid", "ผลการโพสต์ไม่ถูกต้อง")
+        kind = proof.get("kind")
         if outcome != "confirmation_unknown":
             notice = proof.get("notice")
-            patterns = {
-                "published": r"(?:(?:video |post )?(?:posted|published) successfully|(?:โพสต์|เผยแพร่)(?:วิดีโอ)?สำเร็จ)[.!]?",
-                "scheduled_on_platform": r"(?:(?:video |post )?scheduled successfully|(?:ตั้งเวลา|กำหนดเวลา)(?:โพสต์|วิดีโอ)?สำเร็จ)[.!]?",
+            allowed_kinds = {
+                "platform_success_notice",
+                "content_page_reconciled",
+                "manual_user_confirmation",
+                "user_confirmed",
             }
-            if (proof.get("kind") != "platform_success_notice" or not isinstance(notice, str)
-                    or not re.fullmatch(patterns[outcome], notice.strip(), flags=re.I)):
+            if kind not in allowed_kinds:
                 raise ChannelError(422, "posting_confirmation_required", "ต้องมีข้อความยืนยันผลที่ตรงจาก TikTok ก่อนบันทึกผลสำเร็จ")
+            if kind == "platform_success_notice":
+                patterns = {
+                    "published": r"(?:(?:video |post )?(?:posted|published) successfully|(?:โพสต์|เผยแพร่)(?:วิดีโอ)?สำเร็จ)[.!]?",
+                    "scheduled_on_platform": r"(?:(?:video |post )?scheduled successfully|(?:ตั้งเวลา|กำหนดเวลา)(?:โพสต์|วิดีโอ)?สำเร็จ)[.!]?",
+                }
+                if not isinstance(notice, str) or not re.fullmatch(patterns[outcome], notice.strip(), flags=re.I):
+                    raise ChannelError(422, "posting_confirmation_required", "ต้องมีข้อความยืนยันผลที่ตรงจาก TikTok ก่อนบันทึกผลสำเร็จ")
         receipt = {"outcome": outcome, "source_account": source_account, "proof": deepcopy(proof)}
         receipt_hash = fingerprint(receipt)
         with self.table.scoped_mutate(channel_id) as rows:
             row = self._find(rows, job_id)
             if outcome != "confirmation_unknown" and row.get("confirmation_token") and proof.get("confirmation_token") != row["confirmation_token"]:
-                raise ChannelError(422, "posting_confirmation_required", "ข้อความยืนยันไม่ตรงกับการกดโพสต์ของงานนี้")
+                if kind not in {"manual_user_confirmation", "user_confirmed", "content_page_reconciled"}:
+                    raise ChannelError(422, "posting_confirmation_required", "ข้อความยืนยันไม่ตรงกับการกดโพสต์ของงานนี้")
             if row.get("receipt_hash") == receipt_hash:
                 self._fence(row, owner, token, row["revision"], allow_expired=True)
                 return deepcopy(row)
+            if reconcile and row["status"] == "published":
+                self._fence(row, owner, token, row["revision"], allow_expired=True)
+                return deepcopy(row)
             self._fence(row, owner, token, revision, allow_expired=reconcile)
-            if row["status"] not in ({"publishing", "confirmation_unknown"} if reconcile else {"publishing"}):
-                raise ChannelError(409, "posting_reconciliation_required", "สถานะงานไม่รับผลนี้ ต้องตรวจงานเดิมก่อน")
+            if row["status"] not in ({"claimed", "publishing", "confirmation_unknown"} if reconcile else {"publishing"}):
+                if not (reconcile and kind in {"manual_user_confirmation", "user_confirmed"} and row["status"] == "prepared"):
+                    raise ChannelError(409, "posting_reconciliation_required", "สถานะงานไม่รับผลนี้ ต้องตรวจงานเดิมก่อน")
             if row["status"] == "confirmation_unknown" and not reconcile:
                 raise ChannelError(409, "posting_reconciliation_required", "ต้องยืนยันผลผ่านการตรวจสอบงานเดิม")
             check = account_check(channel_id, row["target_handle"], source_account, strict=row["strict_mode"])
-            if check["source_account"] != row.get("attempted_source_account"):
+            if check["source_account"] != row.get("attempted_source_account") and row.get("attempted_source_account") is not None:
                 raise ChannelError(409, "account_handle_mismatch", "บัญชีของผลลัพธ์ต่างจากบัญชีขณะกดโพสต์")
+            now = self.clock()
             row.update(status=outcome, receipt=receipt, receipt_hash=receipt_hash,
-                       revision=row["revision"] + 1, updated_at=self.clock())
+                       publish_attempted_at=row.get("publish_attempted_at") or now,
+                       attempt=row.get("attempt") or 1,
+                       attempted_source_account=row.get("attempted_source_account") or check["source_account"],
+                       revision=row["revision"] + 1, updated_at=now)
             self._audit(row, "reconcile" if reconcile else "outcome", outcome=outcome, **check)
             return deepcopy(row)
 
@@ -202,23 +229,25 @@ class PostingJobStore:
     def cancel(self, channel_id, job_id):
         with self.table.scoped_mutate(channel_id) as rows:
             row = self._find(rows, job_id)
+            if row["status"] in {"cancelled", "published"}:
+                return deepcopy(row)
             if row["status"] != "prepared":
                 raise ChannelError(409, "posting_job_busy", "ยกเลิกงานที่รับหรือกดโพสต์แล้วไม่ได้ ต้องตรวจผลเดิมก่อน")
             row.update(status="cancelled", revision=row["revision"] + 1)
             self._audit(row, "cancel")
             return deepcopy(row)
 
-    def release(self, channel_id, job_id, owner, token, revision):
-        """Cancel a fenced pre-publish claim; attempted jobs are never releasable."""
+    def release(self, channel_id, job_id, owner, token, revision, *, force: bool = False):
+        """Cancel a fenced pre-publish claim; attempted jobs are releasable if force=True or already published."""
         with self.table.scoped_mutate(channel_id) as rows:
             row = self._find(rows, job_id)
-            self._fence(row, owner, token, row["revision"] if row["status"] == "cancelled" else revision, allow_expired=True)
-            if row["status"] == "cancelled":
+            self._fence(row, owner, token, row["revision"] if row["status"] in {"cancelled", "published"} else revision, allow_expired=True)
+            if row["status"] in {"cancelled", "published"}:
                 return deepcopy(row)
-            if row["status"] != "claimed" or row.get("publish_attempted_at"):
+            if (row["status"] != "claimed" or row.get("publish_attempted_at")) and not force:
                 raise ChannelError(409, "posting_reconciliation_required", "งานที่กดโพสต์แล้วต้องตรวจผล ห้ามยกเลิกสิทธิ์")
             row.update(status="cancelled", revision=row["revision"] + 1, updated_at=self.clock())
-            self._audit(row, "release", lease_owner=owner)
+            self._audit(row, "release", lease_owner=owner, forced=force)
             return deepcopy(row)
 
     def update_cover(self, channel_id, job_id, cover_path, *, cover_sha256=None):

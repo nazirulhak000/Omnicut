@@ -283,11 +283,9 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     if (task.read_only_projection && task.type?.startsWith('hyperframes_')) {
       const owner = task.channel_id;
       if (owner !== activeChannel() || !task.payload?.project_id) return;
-      try { window.sessionStorage.setItem(`omnicut.hf.workflow.${owner}`, task.payload.project_id); } catch { /* Optional reload convenience. */ }
-      window.dispatchEvent(new CustomEvent('omnicut:open-hyperframes', { detail: { channelId: owner, projectId: task.payload.project_id } }));
       setIsActivityDrawerOpen(false);
       setNotificationToast(null);
-      onNavigateTab?.('creative', { targetId: task.payload.project_id, task });
+      onNavigateTab?.('tracker');
       return;
     }
     setIsActivityDrawerOpen(false);

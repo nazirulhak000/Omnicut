@@ -81,6 +81,7 @@ export const reassignRawVideo = (payload) => api.post('/raw-vault/reassign', pay
 export const batchDeleteRawVideos = (videoPaths) => api.post('/raw-vault/batch-delete', { video_paths: videoPaths }).then(r => r.data);
 export const getExports = () => api.get('/exports').then(r => r.data);
 export const getExportMediaInfo = (path) => api.get('/exports/media-info', { params: { path } }).then(r => r.data);
+export const enhanceExportForTiktok = (payload) => api.post('/exports/enhance-tiktok', payload).then(r => r.data);
 export const linkExportToAngle = (videoPath, productId, angleId, exportId = null) =>
   api.post('/exports/link-angle', {
     video_path: videoPath, export_id: exportId, product_id: productId, angle_id: angleId,
@@ -668,5 +669,24 @@ export const hyperframesWorkflowApi = {
 export const getPostingJobForPublication = (id, options = {}) => api.get(`/tiktok-autopost/jobs/${encodeURIComponent(id)}`, options).then(r => ({ job: r.data }));
 export const getPublicationObservations = (id, options = {}) => api.get(`/tiktok-autopost/jobs/${encodeURIComponent(id)}/publication-observations`, options).then(r => r.data);
 export const recordPublicationObservation = (id, payload, options = {}) => api.post(`/tiktok-autopost/jobs/${encodeURIComponent(id)}/publication-observations`, payload, options).then(r => r.data);
+
+// ── AI Production Co-Pilot APIs ──
+export const createCopilotSession = (productId, initialPrompt = '') =>
+  api.post('/copilot/sessions', { product_id: productId, initial_prompt: initialPrompt }).then(r => r.data);
+
+export const getCopilotSession = (sessionId) =>
+  api.get(`/copilot/sessions/${encodeURIComponent(sessionId)}`).then(r => r.data);
+
+export const sendCopilotChatMessage = (sessionId, message) =>
+  api.post(`/copilot/sessions/${encodeURIComponent(sessionId)}/chat`, { message }).then(r => r.data);
+
+export const generateCopilotScript = (sessionId, style = 'couple_paper_chat') =>
+  api.post(`/copilot/sessions/${encodeURIComponent(sessionId)}/generate-script`, { style }).then(r => r.data);
+
+export const buildCopilotDraft = (sessionId, clipSlug = null, dryRunAudio = false) =>
+  api.post(`/copilot/sessions/${encodeURIComponent(sessionId)}/build-draft`, { clip_slug: clipSlug, dry_run_audio: dryRunAudio }).then(r => r.data);
+
+export const renderCopilotSession = (sessionId) =>
+  api.post(`/copilot/sessions/${encodeURIComponent(sessionId)}/render`).then(r => r.data);
 
 export default api;

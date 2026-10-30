@@ -4,7 +4,13 @@
 
 ## ขอบเขตที่ใช้งาน
 
-โฟลว์อยู่ใน Creative → HyperFrames เลือกสินค้า/Angle, คลิปอิสระ (Standalone) หรือโปรเจกต์ Gadget ของช่องนั้นได้ ใช้ Gemini ในแอปหรือ AI session ภายนอกเขียน composition ส่วนแอปเก็บ revision, เรนเดอร์, ตรวจไฟล์ และลงทะเบียนส่งต่อ Gallery/Schedule เดิม เครื่องมือและตัวอย่างสไตล์รุ่นเดิมแยกไว้ในส่วนพับเก็บ
+โครงสร้าง backend รองรับสินค้า/Angle, Standalone และ Gadget sources เก็บ revision, render และ Registry/Gallery/Schedule ตามโฟลว์เดิม; หน้า standalone workflow ถูกถอดตามคำสั่งผู้ใช้ โปรดอ่านสถานะ UI ด้านล่าง
+
+## สถานะ UI หลังผู้ใช้ยกเลิก workflow แยก — 2026-10-12
+
+ถอดหน้าสร้าง/ตรวจรับ HyperFrames แยกออกแล้วตามคำสั่งผู้ใช้ เนื่องจากไม่เชื่อมกับ Tracker phases ที่ใช้จริง ใช้ Tracker เดิมติดตามงานและ Gallery ตรวจผลงานที่ลงทะเบียนแล้ว เมนู Creative Studio/HyperFrames ถูกถอดจาก desktop/mobile แล้ว; saved tab และ navigation เก่าจะกลับไป Tracker เครื่องมือ Studio ยังอยู่ใน workspace สำหรับ AI session/CLI
+
+Backend authoring/render/finalize/backup และข้อมูลเดิมยังอยู่ เอกสารโฟลว์ด้านล่างเป็น reference สำหรับ API/CLI ไม่ใช่หน้าที่เปิดให้ผู้ใช้กรอกอีกต่อไป การถอด UI ไม่ได้เพิ่ม adapter ที่เชื่อม standalone/Gadget ทุกงานเข้า Tracker โดยอัตโนมัติ และไม่เปลี่ยนสถานะงานเก่าหรือ approved master
 
 ```mermaid
 flowchart LR
@@ -26,7 +32,7 @@ flowchart LR
   L --> M[publication observation → PostLog และประวัติ source ตัวเดิม]
 ```
 
-## ขั้นตอน
+## ขั้นตอน API/CLI เดิม (reference; standalone UI retired)
 
 1. เลือกช่องและประเภทงาน: สินค้า/Angle ต้องเลือกข้อมูลจริง; Standalone ระบุชื่อและข้อมูลคลิป; Gadget เลือกโปรเจกต์จริงในช่องนี้ ไม่ต้องสร้างสินค้า/Angle ปลอม บันทึก brief และ style profile ที่มี version/tokens จริง เลือก narration, music_only หรือ silent ระบุไฟล์เสียงและวัตถุดิบใน workspace ตามสิทธิ์ของช่อง
 2. เลือกวิธีสร้าง: กด “เริ่มสร้างด้วย AI ในแอป” เพื่อใช้ Gemini API key ที่ตั้งไว้ แอปจำกัดเวลา/จำนวน tokens และแสดงการยกเลิก/ข้อผิดพลาดตามจริง การกดเริ่มอาจมีค่าใช้จ่ายจากผู้ให้บริการ ไม่มี retry คำขอแบบเสียเงินโดยอัตโนมัติ หากไม่มี key/SDK ยังใช้ AI session ภายนอกได้: สร้างงาน AI แล้วคัดลอก handoff ให้ session ที่มีสิทธิ์เข้าถึง workspace ใช้ `tools/hyperframes_workflow.py --help` ดูวิธี claim/heartbeat/checkpoint/submit ต้องส่ง channel/job/generation/fence ตรงกับ lease ไม่แก้ฐานข้อมูลเอง

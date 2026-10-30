@@ -233,9 +233,9 @@ class GeminiFlashTTSEngine:
         }
 
         # Models supporting Thai audio generation in Google Gemini API
-        # Priority: gemini-3.1-flash-tts-preview (best & active), gemini-2.5-flash-preview-tts
+        # Priority: gemini-3.8-flash-tts (best & active), gemini-2.5-flash-preview-tts
         model_candidates = [
-            "gemini-3.1-flash-tts-preview",
+            "gemini-3.8-flash-tts",
             "gemini-2.5-flash-preview-tts",
         ]
 

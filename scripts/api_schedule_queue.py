@@ -458,7 +458,7 @@ def _resolve_payload_export(payload: QueueItemPayload, channel_id: Optional[str]
         if export_record.get("status") == "posted":
             raise HTTPException(status_code=409, detail="คลิปนี้ถูกโพสต์แล้ว ไม่สามารถจัดคิวซ้ำได้")
         latest = ExportRegistry.latest_for_angle(payload.product_id, payload.angle_id, **_kw(channel_id))
-        if latest and latest.get("id") != export_record.get("id"):
+        if latest and latest.get("status") != "posted" and latest.get("id") != export_record.get("id"):
             raise ChannelError(409, "stale_export", "คลิปนี้มี export รุ่นใหม่แล้ว กรุณาเลือกคลิปใหม่ก่อนจัดคิว",
                                action="reselect_export", export_id=export_record.get("id"), latest_export_id=latest.get("id"))
     return path, export_id
@@ -907,7 +907,7 @@ def _auto_fill_preview(req: AutoFillRequest, channel_id: Optional[str] = None) -
                 if export_record.get("status") == "posted":
                     raise HTTPException(status_code=409, detail="คลิปที่โพสต์แล้วไม่สามารถนำมาจัดคิวซ้ำได้")
                 latest = ExportRegistry.latest_for_angle(clip.product_id, clip.angle_id, **_kw(channel_id))
-                if latest and latest.get("id") != export_record.get("id"):
+                if latest and latest.get("status") != "posted" and latest.get("id") != export_record.get("id"):
                     raise HTTPException(status_code=409, detail="คลิปนี้ไม่ใช่ export เวอร์ชันล่าสุดของมุมนี้")
         except (HTTPException, ChannelError) as exc:
             # ChannelError is a Starlette HTTPException, not FastAPI's subclass.

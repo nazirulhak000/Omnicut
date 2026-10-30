@@ -2392,6 +2392,14 @@ class ProductStore:
                         except Exception:
                             has_proj = False
 
+                # Also verify HyperFrames composition existence
+                if not has_proj and (angle.get("draft_type") == "hyperframes" or angle.get("clip_id")):
+                    c_id = angle.get("clip_id")
+                    if c_id:
+                        hf_file = projects_dir / "_HyperFrames_Studio" / "clips" / c_id / "index.html"
+                        if hf_file.exists():
+                            has_proj = True
+
                 has_video = False
                 v_url = angle.get("video_url")
                 if v_url:
@@ -2436,6 +2444,8 @@ class ProductStore:
                     retry_mp4 = _find_mp4_by_glob(p_name or "", exports_dir, posted_dir) if p_name else None
                     if not retry_mp4 and v_url:
                         retry_mp4 = _find_mp4_by_glob(Path(v_url).stem, exports_dir, posted_dir)
+                    if not retry_mp4 and angle.get("clip_id"):
+                        retry_mp4 = _find_mp4_by_glob(angle.get("clip_id"), exports_dir, posted_dir)
                     if retry_mp4:
                         if angle.get("video_url") != retry_mp4:
                             angle["video_url"] = retry_mp4

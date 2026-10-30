@@ -492,7 +492,7 @@ export function ActivityDrawer() {
                   <div className="flex items-center justify-between pt-1 border-t border-white/[0.04]">
                     <span className="text-[10px] font-mono text-slate-500">ID: {task.id.slice(-8)}</span>
                     <div className="flex items-center gap-1.5">
-                      {task.read_only_projection && <button type="button" onClick={() => jumpToTaskResult(task, 'creative')} className="min-h-11 rounded-lg border border-white/15 px-3 text-xs text-slate-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-cyan-300">เปิดงาน HyperFrames</button>}
+                      {task.read_only_projection && <button type="button" onClick={() => jumpToTaskResult(task, 'tracker')} className="min-h-11 rounded-lg border border-white/15 px-3 text-xs text-slate-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-cyan-300">เปิด Tracker</button>}
                       {isRunning && !task.read_only_projection && (
                         <button
                           type="button"

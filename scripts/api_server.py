@@ -83,6 +83,7 @@ from scripts.api_hyperframes_ai import router as hyperframes_ai_router
 from scripts.api_hyperframes_overlay import router as hyperframes_overlay_router
 from scripts.api_publication_observations import router as publication_observations_router
 from scripts.api_channels import router as channels_router
+from scripts.api_copilot import router as copilot_router
 from scripts.channel_scope import CHANNEL_HEADER, install_channel_scope
 from scripts.maintenance_lock import install_maintenance_gate
 
@@ -348,6 +349,7 @@ app.include_router(hyperframes_ai_router)
 app.include_router(hyperframes_overlay_router)
 app.include_router(publication_observations_router)
 app.include_router(channels_router)
+app.include_router(copilot_router)
 
 
 # ----------------------------------------------------------------------

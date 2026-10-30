@@ -310,6 +310,11 @@ class HyperFramesRenderJobs:
                 raise InterruptedError("render cancelled")
             if not target.is_file() or target.stat().st_size == 0:
                 raise ValueError("renderer did not produce a video")
+            if (job.get("inputs") or {}).get("enhance_tiktok"):
+                from scripts.tiktok_enhancer import enhance_video_for_tiktok
+                enhanced = target.with_name(f".{target.stem}-sharp.mp4")
+                enhance_video_for_tiktok(target, enhanced)
+                enhanced.replace(target)
             specs = self.probe(target)
             if (specs["width"] != 1080 or specs["height"] != 1920
                     or not math.isfinite(specs["fps"]) or not math.isfinite(specs["duration"])

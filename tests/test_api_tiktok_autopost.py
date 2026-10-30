@@ -297,3 +297,68 @@ def test_prepare_and_get_pending_with_schedule_time(tmp_path, monkeypatch):
     finally:
         if dummy_video.exists():
             dummy_video.unlink()
+
+
+def test_prepare_queued_item_bypasses_stale_export_guard(tmp_path, monkeypatch):
+    tap._pending = None
+    video = tap.EXPORTS_DIR / "dummy_test_queue_item.mp4"
+    video.write_bytes(b"dummy queue")
+    try:
+        from scripts.export_registry import ExportRegistry
+        from scripts.schedule_store import ScheduleQueueStore
+        rec = ExportRegistry.ensure(video, product_id="p_test", angle_id="a_test", channel_id="main")
+        monkeypatch.setattr(ScheduleQueueStore, "get_item", staticmethod(lambda qid, **kw: {
+            "id": "q_test_123",
+            "channel_id": "main",
+            "export_id": rec["id"],
+            "video_path": str(video),
+        }))
+        monkeypatch.setattr(ScheduleQueueStore, "update_item", staticmethod(lambda qid, fn, **kw: {
+            "id": "q_test_123",
+            "status": "ready_for_extension",
+        }))
+        # Mock latest_for_angle to return a different export id
+        monkeypatch.setattr(ExportRegistry, "latest_for_angle", lambda *args, **kw: {
+            "id": "exp_other_newer",
+            "status": "ready",
+        })
+        res = client.post("/api/tiktok-autopost/prepare", json={
+            "video_path": str(video),
+            "export_id": rec["id"],
+            "queue_id": "q_test_123",
+            "product_id": "p_test",
+            "angle_id": "a_test",
+        })
+        assert res.status_code == 200, res.json()
+        assert res.json()["success"] is True
+        client.post("/api/tiktok-autopost/clear", json={"job_id": res.json()["job_id"]})
+    finally:
+        if video.exists():
+            video.unlink()
+
+
+def test_prepare_ad_hoc_ignores_posted_export_when_checking_stale(tmp_path, monkeypatch):
+    tap._pending = None
+    video = tap.EXPORTS_DIR / "dummy_test_ad_hoc.mp4"
+    video.write_bytes(b"dummy ad hoc")
+    try:
+        from scripts.export_registry import ExportRegistry
+        rec = ExportRegistry.ensure(video, product_id="p_test2", angle_id="a_test2", channel_id="main")
+        # Mock latest_for_angle returning an already posted export
+        monkeypatch.setattr(ExportRegistry, "latest_for_angle", lambda *args, **kw: {
+            "id": "exp_already_posted",
+            "status": "posted",
+        })
+        res = client.post("/api/tiktok-autopost/prepare", json={
+            "video_path": str(video),
+            "export_id": rec["id"],
+            "product_id": "p_test2",
+            "angle_id": "a_test2",
+        })
+        assert res.status_code == 200
+        assert res.json()["success"] is True
+        client.post("/api/tiktok-autopost/clear", json={"job_id": res.json()["job_id"]})
+    finally:
+        if video.exists():
+            video.unlink()
+

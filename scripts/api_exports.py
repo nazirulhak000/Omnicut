@@ -1045,7 +1045,7 @@ def _require_latest_export(
     if not product_id or not angle_id:
         return
     latest = ExportRegistry.latest_for_angle(product_id, angle_id, **_kw(channel_id))
-    if latest and latest.get("id") != export_record.get("id"):
+    if latest and latest.get("status") != "posted" and latest.get("id") != export_record.get("id"):
         raise HTTPException(
             status_code=409,
             detail="ไฟล์นี้ไม่ใช่ export เวอร์ชันล่าสุดของมุมนี้ กรุณาเลือกคลิปล่าสุด",
@@ -1122,12 +1122,16 @@ def _mark_posted_impl(req: MarkPostedRequest, scope: ChannelScope, *, posting_jo
         _require_latest_export(export_record, req.product_id, req.angle_id, channel_id)
     else:
         latest = ExportRegistry.latest_for_angle(req.product_id, req.angle_id, **_kw(channel_id))
-        superseded_job = bool(latest and latest["id"] != export_record["id"])
+        superseded_job = bool(latest and latest.get("status") != "posted" and latest["id"] != export_record["id"])
     if posting_job is not None and posting_job.get("queue_id"):
         from scripts.schedule_store import ScheduleQueueStore
         queued = ScheduleQueueStore.get_item(posting_job["queue_id"], **_kw(channel_id))
-        if not queued or queued.get("export_id") != posting_job["export_id"] or queued.get("posting_job_id") != posting_job["job_id"] or queued.get("status") not in {"ready_for_extension", "posted"}:
+        if not queued or queued.get("export_id") != posting_job["export_id"]:
             raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนเจ้าของงานแล้ว ต้องตรวจผลก่อนซ่อมบันทึก")
+        if queued.get("posting_job_id") and queued["posting_job_id"] != posting_job["job_id"]:
+            raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนเจ้าของงานแล้ว ต้องตรวจผลก่อนซ่อมบันทึก")
+        if queued.get("status") == "cancelled":
+            raise ChannelError(409, "posting_queue_changed", "คิวยกเลิกแล้ว ต้องตรวจผลก่อนซ่อมบันทึก")
 
     # A receipt has frozen export ownership, but no frozen angle cover/project
     # ownership. Those live pointers can change during repair, so only move
@@ -1296,3 +1300,78 @@ def get_export_media_info(path: str, scope: ChannelScope = Depends(get_channel_s
             raise _unregistered_file_error()
 
     return VideoEditor.get_media_info(str(target))
+
+
+class EnhanceTikTokRequest(BaseModel):
+    export_id: Optional[str] = None
+    path: Optional[str] = None
+
+
+@router.post("/api/exports/enhance-tiktok")
+def enhance_export_for_tiktok(
+    req: EnhanceTikTokRequest,
+    scope: ChannelScope = Depends(get_channel_scope),
+):
+    """Enhance an exported video with TikTok sharpness optimization (Unsharp + BT.709 + FastStart)."""
+    _guard_writable(scope)
+    channel_id = _channel_of(scope)
+
+    if not req.export_id and not req.path:
+        raise HTTPException(status_code=400, detail="ต้องระบุ export_id หรือ path")
+
+    export_record = None
+    if req.export_id:
+        export_record = ExportRegistry.get(req.export_id, **_kw(channel_id))
+        if export_record is None:
+            raise HTTPException(status_code=404, detail="ไม่พบ export_id ในระบบ")
+        target = BASE_DIR / export_record["path"]
+    else:
+        target = Path(req.path)
+        if not target.is_absolute():
+            target = BASE_DIR / req.path
+
+    target = target.resolve()
+    if not (
+        _is_contained(target, EXPORTS_DIR.resolve())
+        or _is_contained(target, POSTED_DIR.resolve())
+    ):
+        raise HTTPException(status_code=403, detail="ไฟล์นี้ไม่ได้อยู่ในโฟลเดอร์ export ที่อนุญาต")
+
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์: {target.name}")
+
+    if export_record is None and channel_id is not None:
+        export_record = ExportRegistry.lookup(path=target, **_kw(channel_id))
+        if export_record is None and not _legacy_files_allowed(channel_id):
+            raise _unregistered_file_error()
+
+    from scripts.tiktok_enhancer import enhance_video_for_tiktok
+
+    try:
+        enhanced_file = enhance_video_for_tiktok(target)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"การปรับปรุงความคมชัดล้มเหลว: {str(e)}")
+
+    rel_path = str(enhanced_file.relative_to(BASE_DIR)).replace("\\", "/")
+
+    new_record = None
+    try:
+        new_record = ExportRegistry.ensure(
+            rel_path,
+            product_id=export_record.get("product_id") if export_record else None,
+            angle_id=export_record.get("angle_id") if export_record else None,
+            project_name=export_record.get("project_name") if export_record else None,
+            **_kw(channel_id),
+        )
+    except Exception as reg_err:
+        print(f"[enhance_export_for_tiktok] Warning registering enhanced export: {reg_err}")
+
+    return {
+        "success": True,
+        "enhanced_path": rel_path,
+        "enhanced_filename": enhanced_file.name,
+        "size_bytes": enhanced_file.stat().st_size,
+        "export_id": (new_record or {}).get("id"),
+        "message": "ปรับความคมชัดสำหรับ TikTok สำเร็จเรียบร้อย",
+    }
+

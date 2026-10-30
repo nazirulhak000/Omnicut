@@ -2,97 +2,21 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useChannelDraft } from '../../hooks/useChannelDraft.js';
 import { channelLocalStorage } from '../../lib/channelStorage.js';
 import { captureChannel } from '../../lib/channelRuntime.js';
-import {
-  Sparkles, Flame, CheckCircle2, Clock, Play, ArrowRight,
-  TrendingUp, AlertTriangle, Lightbulb, Target, Settings,
-  Copy, Check, Plus, Trash2, Video, Film, Eye, Share2, ThumbsUp,
-  RefreshCw, Clapperboard, ChevronRight, Zap, Scissors, Compass,
-  BookOpen, FileText, ExternalLink, X, Bookmark, Image as ImageIcon,
-  Link as LinkIcon, Smartphone, Filter, Tag, Loader2, Clipboard, Search,
-  Pin, Edit3
-} from 'lucide-react';
-import {
-  getProducts, getExports, getTiktokStatsLatest,
-  getScheduleQueue, getScheduleTemplate,
-  uploadRefMedia, aiIdeaToAngle, addProductAngle,
-  getProducerNotes, addProducerNote, deleteProducerNote, updateProducerNote
-} from '../../api';
-import {
-  loadTargets as readTargets,
-  loadPlaybookNotes as readPlaybookNotes,
-  savePlaybookNotes as writePlaybookNotes,
-  addPlaybookNote,
-  deletePlaybookNote,
-  formatNoteForSharing,
-  detectRefPlatform,
-  calculateProductionStats,
-  getDailyActionQueue,
-  getNextAction,
-  generateBossGreeting,
-  analyzeContentPerformance,
-  calculateWeeklyPacing,
-  autoSuggestPlaybookNotes,
-  DEFAULT_TARGETS,
-  TARGETS_STORAGE_KEY,
-  getClipIdentityAliases,
-} from '../../lib/producerInsights';
-import { dateOnly, estimateQueueCoverage, parseDateOnly, templateForWeek, weekStartForDate } from '../../lib/scheduleQueue';
+import { Bookmark, Check, CheckCircle2, Clipboard, Copy, Edit3, ExternalLink, Image as ImageIcon, Lightbulb, Link as LinkIcon, Loader2, Pin, RefreshCw, Smartphone, Sparkles, Tag, Trash2, X } from 'lucide-react';
+import { getProducts, uploadRefMedia, aiIdeaToAngle, addProductAngle, getProducerNotes, addProducerNote, deleteProducerNote, updateProducerNote } from '../../api';
+import { loadPlaybookNotes as readPlaybookNotes, savePlaybookNotes as writePlaybookNotes, addPlaybookNote, deletePlaybookNote, formatNoteForSharing, detectRefPlatform } from '../../lib/producerInsights';
 
-function scheduleAliases(item) {
-  const prodScope = item?.product_id || item?.productId || item?.product_code || item?.productCode;
-  return getClipIdentityAliases({
-    ...item,
-    product_id: prodScope,
-    video_url: item?.video_url || item?.video_path,
-    export_path: item?.export_path || item?.video_path,
-  });
-}
-
-function actionClipAliases(item) {
-  const prodScope = item?.productId || item?.product_id || item?.productCode || item?.product_code || item?.angle?.product_id || item?.angle?.productId;
-  return getClipIdentityAliases({
-    ...(item?.angle || {}),
-    product_id: prodScope,
-    angle_id: item?.angle?.angle_id || (item?.type === 'angle_rendered' ? item.id : null),
-    export_id: item?.angle?.export_id || (item?.type === 'export_file' ? item.id : null),
-    export_path: item?.exportPath,
-    video_url: item?.exportPath,
-    project_name: item?.angle?.project_name || item?.projectName,
-  });
-}
-
-export default function ProducerHub({
-  onApplyToStudio,
-  onGoToEditor,
-  onGoToGallery,
-  onGoToFlow,
-  onGoToTracker,
-  onRefreshAll,
-}) {
+/** The retained idea/ref vault; producer quota, missions and queues are retired. */
+export default function ProducerHub() {
   const channelToken = useMemo(() => captureChannel(), []);
   const storage = useMemo(() => channelLocalStorage(channelToken.channel_id), []);
-  const loadTargets = () => readTargets(storage);
-  const loadPlaybookNotes = () => readPlaybookNotes(storage);
   const savePlaybookNotes = value => writePlaybookNotes(value, storage);
   const [retained] = useState(() => { try { return JSON.parse(storage.getItem('producer_manual_draft') || 'null') || {}; } catch { return {}; } });
   const notesRevision = useRef(null);
   const [products, setProducts] = useState([]);
-  const [exportsList, setExportsList] = useState([]);
-  const [scheduleQueue, setScheduleQueue] = useState([]);
-  const [scheduleTemplate, setScheduleTemplate] = useState(null);
-  const [tiktokStats, setTiktokStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState(null);
-  const [partialFailures, setPartialFailures] = useState([]);
-
-  // Targets state
-  const [targets, setTargets] = useState(() => loadTargets());
-  const [showTargetsModal, setShowTargetsModal] = useState(retained.showTargetsModal || false);
-  const [editingTargets, setEditingTargets] = useState(retained.editingTargets || { ...targets });
-
-  // Playbook & Idea/Ref Vault state
-  const [playbookNotes, setPlaybookNotes] = useState(() => loadPlaybookNotes());
+  const [loadError, setLoadError] = useState('');
+  const [playbookNotes, setPlaybookNotes] = useState(() => readPlaybookNotes(storage));
   const [ideaText, setIdeaText] = useState(retained.ideaText || '');
   const [ideaUrl, setIdeaUrl] = useState(retained.ideaUrl || '');
   const [ideaImages, setIdeaImages] = useState(retained.ideaImages || []);
@@ -103,28 +27,13 @@ export default function ProducerHub({
   const [refSaveSuccess, setRefSaveSuccess] = useState(false);
   const [activeZoomImage, setActiveZoomImage] = useState(null);
   const fileInputRef = useRef(null);
-
-  // AI Idea-to-Script state
   const [aiSynthesizingId, setAiSynthesizingId] = useState(null);
   const [aiProposal, setAiProposal] = useState(retained.aiProposal || null);
   const [addingAngle, setAddingAngle] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
-
-  // Queue filter
-  const [queueFilter, setQueueFilter] = useState('all'); // 'all' | 'post' | 'cut' | 'footage'
-  const [productFilter, setProductFilter] = useState('all'); // 'all' | productId
-  const [queueSearch, setQueueSearch] = useState('');
-  const [queueSort, setQueueSort] = useState('priority'); // 'priority' | 'oldest' | 'product'
-  const [queueLimit, setQueueLimit] = useState(10);
-
-  // Clipboard copy state
-  const [copiedId, setCopiedId] = useState(null);
-
-  // Quick Preview Modal state
-  const [previewItem, setPreviewItem] = useState(null);
-  // Note editing modal state
   const [editingNote, setEditingNote] = useState(retained.editingNote || null);
-  const draftValue = { ideaText, ideaUrl, ideaImages, ideaTag, ideaProduct, showTargetsModal, editingTargets, editingNote, aiProposal };
+  const [showPipelineViewer, setShowPipelineViewer] = useState(false);
+  const draftValue = { ideaText, ideaUrl, ideaImages, ideaTag, ideaProduct, editingNote, aiProposal };
   const currentDraft = useRef(draftValue);
   currentDraft.current = draftValue;
   const draft = useChannelDraft(draftValue, {
@@ -134,14 +43,28 @@ export default function ProducerHub({
     },
     reset: value => {
       setIdeaText(value.ideaText); setIdeaUrl(value.ideaUrl); setIdeaImages(value.ideaImages);
-      setIdeaTag(value.ideaTag); setIdeaProduct(value.ideaProduct);
-      setShowTargetsModal(value.showTargetsModal); setEditingTargets(value.editingTargets); setEditingNote(value.editingNote);
-      setAiProposal(value.aiProposal);
+      setIdeaTag(value.ideaTag); setIdeaProduct(value.ideaProduct); setEditingNote(value.editingNote); setAiProposal(value.aiProposal);
     },
   });
 
+  const fetchData = useCallback(async () => {
+    setLoadError('');
+    const [prodRes, notesRes] = await Promise.allSettled([getProducts(), getProducerNotes(channelToken)]);
+    if (prodRes.status === 'fulfilled') {
+      const data = prodRes.value;
+      setProducts(Array.isArray(data) ? data : Array.isArray(data?.products) ? data.products : []);
+    }
+    if (notesRes.status === 'fulfilled' && notesRes.value?.success && Array.isArray(notesRes.value.notes)) {
+      notesRevision.current = notesRes.value.revision;
+      setPlaybookNotes(notesRes.value.notes);
+      writePlaybookNotes(notesRes.value.notes, storage);
+    } else setLoadError('โหลดคลังไอเดียจากเซิร์ฟเวอร์ไม่สำเร็จ ข้อมูลเดิมในเครื่องยังถูกเก็บไว้');
+    setLoading(false);
+  }, [channelToken, storage]);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
   useEffect(() => {
-    if (!showTargetsModal && !previewItem && !aiProposal && !activeZoomImage && !editingNote) return undefined;
+    if (!aiProposal && !activeZoomImage && !editingNote) return undefined;
     const dialog = document.querySelector('[role="dialog"]');
     const previousFocus = document.activeElement;
     const getFocusable = () => dialog
@@ -152,9 +75,7 @@ export default function ProducerHub({
       if (event.key === 'Escape') {
         if (activeZoomImage) setActiveZoomImage(null);
         else if (aiProposal) setAiProposal(null);
-        else if (previewItem) setPreviewItem(null);
         else if (editingNote) setEditingNote(null);
-        else setShowTargetsModal(false);
         return;
       }
       if (event.key !== 'Tab' || !dialog) return;
@@ -175,262 +96,7 @@ export default function ProducerHub({
       document.removeEventListener('keydown', handleModalKeyDown);
       if (previousFocus instanceof HTMLElement && document.contains(previousFocus)) previousFocus.focus();
     };
-  }, [activeZoomImage, aiProposal, previewItem, showTargetsModal, editingNote]);
-
-  // Load data from APIs
-  const fetchData = useCallback(async () => {
-    try {
-      setRefreshing(true);
-      const currentWeek = weekStartForDate(dateOnly());
-      const [prodRes, expRes, statsRes, notesRes, queueRes, templateRes] = await Promise.allSettled([
-        getProducts(),
-        getExports(),
-        getTiktokStatsLatest(),
-        getProducerNotes(channelToken),
-        getScheduleQueue(),
-        getScheduleTemplate(currentWeek),
-      ]);
-
-      const sourceResults = [
-        ['สินค้า', prodRes, prodRes.status === 'fulfilled' && (Array.isArray(prodRes.value) || Array.isArray(prodRes.value?.products))],
-        ['ไฟล์ Export', expRes, expRes.status === 'fulfilled' && (Array.isArray(expRes.value) || Array.isArray(expRes.value?.exports))],
-        ['สถิติ TikTok', statsRes, statsRes.status === 'fulfilled' && (Array.isArray(statsRes.value) || Array.isArray(statsRes.value?.rows) || Array.isArray(statsRes.value?.posts))],
-        ['Playbook', notesRes, notesRes.status === 'fulfilled' && notesRes.value?.success && Array.isArray(notesRes.value?.notes)],
-        ['คิวโพสต์', queueRes, queueRes.status === 'fulfilled' && Array.isArray(queueRes.value?.items)],
-        ['เทมเพลตคิว', templateRes, templateRes.status === 'fulfilled' && !!templateRes.value],
-      ];
-      setPartialFailures(sourceResults
-        .filter(([, result, valid]) => result.status === 'rejected' || !valid)
-        .map(([label]) => label));
-      if (sourceResults.some(([, result, valid]) => result.status === 'fulfilled' && valid)) {
-        setLastSyncedAt(new Date().toISOString());
-      }
-
-      if (prodRes.status === 'fulfilled') {
-        const prodData = prodRes.value;
-        setProducts(Array.isArray(prodData) ? prodData : (prodData?.products || []));
-      }
-
-      if (expRes.status === 'fulfilled') {
-        const expData = expRes.value;
-        setExportsList(Array.isArray(expData) ? expData : (expData?.exports || []));
-      }
-
-      if (statsRes.status === 'fulfilled') {
-        setTiktokStats(statsRes.value);
-      }
-
-      if (notesRes.status === 'fulfilled' && notesRes.value?.success && Array.isArray(notesRes.value?.notes)) {
-        notesRevision.current = notesRes.value.revision;
-        setPlaybookNotes(notesRes.value.notes);
-        savePlaybookNotes(notesRes.value.notes);
-      }
-
-      if (queueRes.status === 'fulfilled') {
-        setScheduleQueue(queueRes.value?.items || []);
-      }
-      if (templateRes.status === 'fulfilled') {
-        setScheduleTemplate(templateRes.value);
-      }
-    } catch (err) {
-      console.error('Failed to load producer hub data:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const currentTemplateWeek = useMemo(() => weekStartForDate(dateOnly()), []);
-
-  const todayTemplateSlotsCount = useMemo(() => {
-    if (!scheduleTemplate) return DEFAULT_TARGETS.dailyPosts;
-    const todayDate = parseDateOnly(dateOnly());
-    const dayOfWeek = (todayDate.getUTCDay() + 6) % 7;
-    const normTemplate = templateForWeek(scheduleTemplate, currentTemplateWeek);
-    const dayConfig = normTemplate?.days?.[String(dayOfWeek)];
-    if (dayConfig && dayConfig.enabled !== false && Array.isArray(dayConfig.times)) {
-      return dayConfig.times.length;
-    }
-    return DEFAULT_TARGETS.dailyPosts;
-  }, [scheduleTemplate, currentTemplateWeek]);
-
-  const effectiveTargets = useMemo(() => {
-    const isCustomized = targets.dailyPosts && targets.dailyPosts !== DEFAULT_TARGETS.dailyPosts && targets.dailyPosts !== 3;
-    return {
-      ...targets,
-      dailyPosts: isCustomized ? targets.dailyPosts : todayTemplateSlotsCount,
-    };
-  }, [targets, todayTemplateSlotsCount]);
-
-  // Calculations
-  const stats = useMemo(() => {
-    return calculateProductionStats(products, exportsList, effectiveTargets);
-  }, [products, exportsList, effectiveTargets]);
-
-  const rawActionQueue = useMemo(() => {
-    return getDailyActionQueue(products, exportsList);
-  }, [products, exportsList]);
-
-  const scheduledAliases = useMemo(() => new Set(
-    scheduleQueue
-      .filter((item) => item.status !== 'posted')
-      .flatMap((item) => scheduleAliases(item)),
-  ), [scheduleQueue]);
-
-  const readyToPostClips = useMemo(() => rawActionQueue.readyToPost.filter((item) => {
-    return !actionClipAliases(item).some((alias) => scheduledAliases.has(alias));
-  }), [rawActionQueue.readyToPost, scheduledAliases]);
-
-  const actionQueue = useMemo(() => ({
-    ...rawActionQueue,
-    readyToPost: readyToPostClips,
-    summary: {
-      ...rawActionQueue.summary,
-      total: readyToPostClips.length + rawActionQueue.readyToCut.length + rawActionQueue.needsFootage.length,
-    },
-  }), [rawActionQueue, readyToPostClips]);
-
-  const latestScheduledAt = useMemo(() => scheduleQueue
-    .filter((item) => item.status !== 'posted')
-    .map((item) => new Date(item.scheduled_at || '').getTime())
-    .filter(Number.isFinite)
-    .reduce((latest, timestamp) => Math.max(latest, timestamp), 0), [scheduleQueue]);
-
-  const capacityEstimate = useMemo(() => estimateQueueCoverage({
-    readyCount: readyToPostClips.length,
-    template: templateForWeek(scheduleTemplate, currentTemplateWeek),
-    startDate: dateOnly(),
-    now: new Date(),
-    latestScheduledAt: latestScheduledAt ? new Date(latestScheduledAt).toISOString() : null,
-  }), [currentTemplateWeek, latestScheduledAt, readyToPostClips.length, scheduleTemplate]);
-
-  const capacityStatus = !capacityEstimate.readyCount
-    ? { label: 'ควรเร่งตัดต่อเพิ่ม', className: 'text-rose-200 bg-rose-500/10 border-rose-400/20' }
-    : capacityEstimate.coveredDays <= 2
-      ? { label: 'ควรเร่งถ่ายและตัดต่อเพิ่ม', className: 'text-rose-200 bg-rose-500/10 border-rose-400/20' }
-      : capacityEstimate.coveredDays <= 5
-        ? { label: 'เตรียมชุดถัดไป', className: 'text-amber-200 bg-amber-500/10 border-amber-400/20' }
-        : { label: 'ยังมี buffer', className: 'text-emerald-200 bg-emerald-500/10 border-emerald-400/20' };
-
-  const weeklyPacing = useMemo(() => {
-    return calculateWeeklyPacing(stats);
-  }, [stats]);
-
-  const bossGreeting = useMemo(() => {
-    return generateBossGreeting({ stats, actionQueue });
-  }, [stats, actionQueue]);
-
-  const retrospective = useMemo(() => {
-    return analyzeContentPerformance(tiktokStats, products);
-  }, [tiktokStats, products]);
-
-  const syncLabel = lastSyncedAt
-    ? `ซิงก์ล่าสุด ${new Intl.DateTimeFormat('th-TH', { hour: '2-digit', minute: '2-digit' }).format(new Date(lastSyncedAt))}`
-    : 'ยังไม่ได้ซิงก์ข้อมูล';
-
-  const playbookSuggestions = useMemo(() => {
-    return autoSuggestPlaybookNotes(retrospective, playbookNotes);
-  }, [retrospective, playbookNotes]);
-
-  const handleSaveRetrospective = useCallback(async (item) => {
-    if (!item || item.alreadySaved) return;
-    const top = retrospective.topPerformer;
-    const newNote = {
-      id: `note-retro-${Date.now()}`,
-      text: item.text,
-      createdAt: new Date().toISOString(),
-      tag: item.tag,
-      provenance: {
-        type: 'retrospective',
-        source: retrospective.source,
-        sourceClipId: top?.sourceId || null,
-        sampleSize: retrospective.sampleSize,
-        period: retrospective.period,
-        confidence: retrospective.confidence,
-        metricSnapshot: top?.metricSnapshot || retrospective.metrics,
-      },
-    };
-    const previousNotes = playbookNotes;
-    const updated = [newNote, ...previousNotes];
-    setPlaybookNotes(updated);
-    savePlaybookNotes(updated);
-    try {
-      const res = await addProducerNote(newNote);
-      if (res?.success && Array.isArray(res.notes)) {
-        setPlaybookNotes(res.notes);
-        savePlaybookNotes(res.notes);
-      }
-    } catch (err) {
-      setPlaybookNotes(previousNotes);
-      savePlaybookNotes(previousNotes);
-      setToastMessage('จดบทเรียนในเครื่องแล้ว แต่ซิงก์เซิร์ฟเวอร์ไม่สำเร็จ');
-      setTimeout(() => setToastMessage(null), 3500);
-      console.warn('Failed to sync retrospective note:', err);
-    }
-  }, [playbookNotes, retrospective]);
-
-  // Next Mission Spotlight: pick the single most urgent task
-  const nextMission = useMemo(() => {
-    return getNextAction(actionQueue);
-  }, [actionQueue]);
-
-  const handleNextMission = useCallback(() => {
-    if (!nextMission) {
-      onGoToFlow?.();
-      return;
-    }
-
-    if (nextMission.type === 'post') {
-      onGoToGallery?.({
-        targetId: nextMission.item.exportPath || nextMission.item.id,
-        exportId: nextMission.item.id,
-      });
-      return;
-    }
-
-    if (nextMission.type === 'cut' && nextMission.item.parentProduct && nextMission.item.angle) {
-      onApplyToStudio?.({
-        fullProduct: nextMission.item.parentProduct,
-        productId: nextMission.item.productId,
-        angleId: nextMission.item.angle.angle_id,
-        angleIndex: nextMission.item.parentProduct.angles?.findIndex(a => a.angle_id === nextMission.item.angle.angle_id) || 0,
-        openExisting: !!nextMission.item.projectName,
-        openProjectName: nextMission.item.projectName,
-      });
-      return;
-    }
-
-    if (nextMission.type === 'footage') {
-      onGoToFlow?.(nextMission.item.productId || nextMission.item.parentProduct?.id);
-      return;
-    }
-
-    onGoToEditor?.();
-  }, [nextMission, onApplyToStudio, onGoToEditor, onGoToFlow, onGoToGallery]);
-
-  // Handle Save Targets
-  const handleSaveTargets = () => {
-    const validated = {
-      dailyCuts: Math.max(1, Number(editingTargets.dailyCuts) || DEFAULT_TARGETS.dailyCuts),
-      weeklyCuts: Math.max(1, Number(editingTargets.weeklyCuts) || DEFAULT_TARGETS.weeklyCuts),
-      dailyPosts: Math.max(1, Number(editingTargets.dailyPosts) || DEFAULT_TARGETS.dailyPosts),
-    };
-    try {
-    storage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(validated));
-    const nextDraft = { ...draftValue, showTargetsModal: false, editingTargets: validated };
-    storage.setItem('producer_manual_draft', JSON.stringify(nextDraft));
-    draft.markSaved(nextDraft);
-    setTargets(validated);
-    setEditingTargets(validated);
-    setShowTargetsModal(false);
-    } catch {
-      setToastMessage('บันทึกเป้าหมายไม่สำเร็จ ข้อมูลที่แก้ไขยังอยู่');
-    }
-  };
+  }, [activeZoomImage, aiProposal, editingNote]);
 
   const [pastedImageToast, setPastedImageToast] = useState(false);
 
@@ -822,417 +488,80 @@ export default function ProducerHub({
     }
   };
 
-  // Handle Copy Caption
-  const handleCopyCaption = (text, id) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  // Filtered queue items with product filter support
-  const displayQueue = useMemo(() => {
-    let base = [];
-    if (queueFilter === 'post') {
-      base = actionQueue.readyToPost.map(i => ({ ...i, queueCategory: 'post' }));
-    } else if (queueFilter === 'cut') {
-      base = actionQueue.readyToCut.map(i => ({ ...i, queueCategory: 'cut' }));
-    } else if (queueFilter === 'footage') {
-      base = actionQueue.needsFootage.map(i => ({ ...i, queueCategory: 'footage' }));
-    } else {
-      base = [
-        ...actionQueue.readyToPost.map(i => ({ ...i, queueCategory: 'post' })),
-        ...actionQueue.readyToCut.map(i => ({ ...i, queueCategory: 'cut' })),
-        ...actionQueue.needsFootage.map(i => ({ ...i, queueCategory: 'footage' })),
-      ];
-    }
-
-    if (productFilter !== 'all') {
-      base = base.filter(i => (
-        i.productId === productFilter ||
-        i.parentProduct?.id === productFilter ||
-        i.productCode === productFilter ||
-        i.productName === productFilter
-      ));
-    }
-
-    const normalizedQuery = queueSearch.trim().toLowerCase();
-    if (normalizedQuery) {
-      base = base.filter(item => [item.title, item.productName, item.productCode, item.projectName]
-        .filter(Boolean)
-        .some(value => String(value).toLowerCase().includes(normalizedQuery)));
-    }
-
-    const categoryRank = { post: 0, cut: 1, footage: 2 };
-    base.sort((a, b) => {
-      if (queueSort === 'product') {
-        return String(a.productName || '').localeCompare(String(b.productName || ''), 'th') || String(a.title || '').localeCompare(String(b.title || ''), 'th');
-      }
-      const aDate = new Date(a.updatedAt || 0).getTime() || 0;
-      const bDate = new Date(b.updatedAt || 0).getTime() || 0;
-      if (queueSort === 'oldest') return aDate - bDate;
-      return (categoryRank[a.queueCategory] ?? 9) - (categoryRank[b.queueCategory] ?? 9) || aDate - bDate;
-    });
-
-    return base;
-  }, [actionQueue, queueFilter, productFilter, queueSearch, queueSort]);
-
-  useEffect(() => {
-    setQueueLimit(10);
-  }, [queueFilter, productFilter, queueSearch, queueSort]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[450px] text-slate-400">
-        <RefreshCw className="w-6 h-6 animate-spin text-amber-500 mr-2" />
-        <span>กำลังเตรียมข้อมูลศูนย์บัญชาการโปรดิวเซอร์...</span>
-      </div>
-    );
-  }
-
-  if (partialFailures.length === 4) {
-    return (
-      <div className="flex min-h-[450px] items-center justify-center p-6">
-        <div role="alert" aria-live="assertive" className="w-full max-w-lg rounded-2xl border border-rose-400/25 bg-slate-900/80 p-6 text-center shadow-xl">
-          <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-rose-300" />
-          <h2 className="text-base font-bold text-white">โหลดข้อมูล Producer Hub ไม่สำเร็จ</h2>
-          <p className="mt-2 text-sm leading-relaxed text-slate-400">ระบบยังเชื่อมต่อแหล่งข้อมูลไม่ได้ จึงยังไม่แสดงตัวเลขหรือคิวงานที่อาจคลาดเคลื่อน</p>
-          <button
-            type="button"
-            onClick={fetchData}
-            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-slate-950 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-amber-300/80"
-          >
-            <RefreshCw className="h-4 w-4" />
-            ลองโหลดใหม่
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6 pb-12">
-      {/* ── 1. Boss Greeting Banner ── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-amber-950/40 border border-amber-500/20 p-6 md:p-8 shadow-2xl backdrop-blur-xl">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 -mb-16 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/25 flex-shrink-0 mt-1">
-              <Sparkles className="w-7 h-7 text-slate-950" />
+  if (loading) return <div className="flex items-center justify-center min-h-[250px] text-slate-400"><RefreshCw className="mr-2 h-6 w-6 animate-spin text-amber-500" />กำลังโหลดคลังไอเดีย...</div>;
+  return <div className="space-y-4 pb-12">
+    {loadError && <div role="alert" className="space-y-2 text-amber-300"><p>{loadError}</p><button type="button" onClick={fetchData} className="rounded-lg border border-white/15 px-3 py-2 text-slate-200">ลองโหลดไอเดียใหม่</button></div>}
+      {/* ── AI Production Pipeline Flow Banner & Interactive Viewer ── */}
+      <div className="rounded-2xl bg-gradient-to-r from-cyan-950/40 via-slate-900/80 to-purple-950/40 border border-cyan-500/20 p-4 shadow-xl backdrop-blur-md">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400/20 to-blue-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300 flex-shrink-0 shadow-lg shadow-cyan-500/10">
+              <Sparkles className="w-5 h-5 text-cyan-300" />
             </div>
-
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-gradient-to-r ${bossGreeting.badgeColor} text-white shadow-sm`}>
-                  {bossGreeting.badge}
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-bold text-white tracking-tight">OmniCut AI Production Pipeline Flow</h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-400/10 text-cyan-300 border border-cyan-400/25">
+                  Interactive SOP & Master Prompts
                 </span>
-                <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-slate-500" />
-                  {syncLabel} · เป้าสัปดาห์นี้ {targets.weeklyCuts} คลิป
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/10 text-amber-300 border border-amber-400/25">
+                  Gemini 3.8 Flash TTS
                 </span>
               </div>
-
-              <h1 className="text-xl md:text-2xl font-black text-white tracking-tight">
-                {bossGreeting.title}
-              </h1>
-
-              <p className="text-sm md:text-base text-slate-300 max-w-3xl leading-relaxed">
-                {bossGreeting.message}
+              <p className="text-xs text-slate-400 mt-0.5">
+                ผังกระบวนการผลิตคลิปแนวตั้ง 9:16 ด้วย AI ครบวงจร (สคริปต์ ➔ เสียงคู่รักใต้ ➔ ดราฟต์ ➔ TikTok Sharpness ➔ Auto ปก CTA ➔ โพสต์)
               </p>
             </div>
           </div>
 
-          {/* Quick Action & Settings Button */}
-          <div className="flex items-center gap-2.5 self-start md:self-auto flex-shrink-0">
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
             <button
-              onClick={handleNextMission}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer transition-all"
+              type="button"
+              onClick={() => setShowPipelineViewer(!showPipelineViewer)}
+              className="px-3.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-xs font-semibold text-cyan-300 hover:text-white border border-cyan-500/30 flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
             >
-              <span>{bossGreeting.actionPrompt}</span>
-              <ArrowRight className="w-4 h-4" />
+              <span>{showPipelineViewer ? 'ซ่อนแผนผัง' : 'เปิดดูแผนผัง Interactive'}</span>
             </button>
-
-            <button
-              onClick={() => {
-                setEditingTargets({ ...effectiveTargets });
-                setShowTargetsModal(true);
-              }}
-              className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 text-slate-300 hover:text-white cursor-pointer transition-all"
-              title="ตั้งค่าเป้าหมายการผลิต (Quota)"
+            <a
+              href="/ai_pipeline_flow.html"
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white border border-white/10 flex items-center gap-1.5 cursor-pointer transition-all"
+              title="เปิดแผนผังแบบเต็มหน้าต่างในแท็บใหม่"
             >
-              <Settings className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={fetchData}
-              disabled={refreshing}
-              className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 text-slate-300 hover:text-white cursor-pointer transition-all disabled:opacity-50"
-              title="รีเฟรชข้อมูล"
-            >
-              <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin text-amber-400' : ''}`} />
-            </button>
+              <span>เปิดแท็บใหม่</span>
+              <ExternalLink className="w-3 h-3 opacity-60" />
+            </a>
           </div>
         </div>
 
-      </div>
-
-      {partialFailures.length > 0 && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-100 flex items-start gap-2" role="status" aria-live="polite">
-          <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <strong className="text-amber-300">ข้อมูลบางส่วนยังไม่พร้อม</strong>
-            <p className="mt-0.5 text-amber-100/80">{partialFailures.join(', ')} โหลดไม่สำเร็จ กดรีเฟรชเพื่อลองใหม่ได้</p>
-          </div>
-        </div>
-      )}
-
-      <div
-        className={`rounded-2xl border px-4 py-3 shadow-lg ${capacityStatus.className}`}
-        role="status"
-        aria-live="polite"
-      >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="mt-0.5 rounded-xl border border-current/20 bg-black/10 p-2">
-              <Film className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-bold text-white">
-                <span>สต็อกคลิปพร้อมโพสต์ {capacityEstimate.readyCount} คลิป</span>
-                <span className="text-white/80">รองรับอีก {capacityEstimate.coveredDays} วัน</span>
-                {capacityEstimate.endDate && <span className="text-white/70">คาดหมด {capacityEstimate.endDate}</span>}
-              </div>
-              <p className="mt-1 text-[11px] text-white/65">
-                อิงเทมเพลตปัจจุบัน {capacityEstimate.weeklyCapacity} คิว/สัปดาห์ · {capacityStatus.label}
-                {exportsList.length > 0 && ` · คลังรวม ${exportsList.length} คลิป (โพสต์แล้ว ${exportsList.filter((e) => e.is_posted).length})`}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onGoToTracker}
-            className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-black/15 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/60"
-          >
-            เปิดหน้าคิว
-            <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* ── 2. Production Quota Gauges (KPI Cards) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Weekly Quota Card */}
-        <div className="rounded-2xl bg-slate-900/70 border border-white/[0.08] p-5 shadow-lg backdrop-blur-md relative overflow-hidden group hover:border-amber-500/30 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold">
-              <Target className="w-4 h-4 text-amber-400" />
-              <span>เป้าหมายสัปดาห์นี้</span>
-            </div>
-            <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
-              {stats.weeklyCuts.pct}%
-            </span>
-          </div>
-
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-3xl font-black text-white">{stats.weeklyCuts.current}</span>
-            <span className="text-slate-400 text-sm font-semibold">/ {stats.weeklyCuts.target} คลิป</span>
-          </div>
-
-          {/* Neon Progress bar */}
-          <div
-            role="progressbar"
-            aria-label="ความคืบหน้าเป้าหมายตัดต่อรายสัปดาห์"
-            aria-valuenow={stats.weeklyCuts.pct}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden mb-2.5"
-          >
-            <div
-              className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500 shadow-sm"
-              style={{ width: `${stats.weeklyCuts.pct}%` }}
-            />
-          </div>
-
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-            <span>เหลืออีก <strong className="text-white font-bold">{stats.weeklyCuts.remaining}</strong> คลิป</span>
-            <span>จันทร์ - อาทิตย์นี้</span>
-          </div>
-
-          {/* Weekly Pacing Advice Badge */}
-          <div className={`mt-2 pt-2 border-t border-white/5 text-[11px] font-semibold flex items-center gap-1.5 ${weeklyPacing.badgeColor} px-2 py-1 rounded-lg`}>
-            <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="truncate">{weeklyPacing.paceAdvice}</span>
-          </div>
-        </div>
-
-        {/* Daily Cuts Card */}
-        <div className="rounded-2xl bg-slate-900/70 border border-white/[0.08] p-5 shadow-lg backdrop-blur-md relative overflow-hidden group hover:border-cyan-500/30 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold">
-              <Clapperboard className="w-4 h-4 text-cyan-400" />
-              <span>เป้าหมายตัดต่อวันนี้</span>
-            </div>
-            <span className="text-xs font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">
-              {stats.dailyCuts.pct}%
-            </span>
-          </div>
-
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-3xl font-black text-white">{stats.dailyCuts.current}</span>
-            <span className="text-slate-400 text-sm font-semibold">/ {stats.dailyCuts.target} คลิป</span>
-          </div>
-
-          {/* Progress bar */}
-          <div
-            role="progressbar"
-            aria-label="ความคืบหน้าเป้าหมายตัดต่อรายวัน"
-            aria-valuenow={stats.dailyCuts.pct}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden mb-2.5"
-          >
-            <div
-              className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-500 shadow-sm"
-              style={{ width: `${stats.dailyCuts.pct}%` }}
-            />
-          </div>
-
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>{stats.dailyCuts.remaining === 0 ? '✨ วันนี้ครบเป้าแล้ว' : `ยังต้องตัดอีก ${stats.dailyCuts.remaining} คลิป`}</span>
-            <span>โควตาประจำวัน</span>
-          </div>
-        </div>
-
-        {/* Daily Posts Card */}
-        <div className="rounded-2xl bg-slate-900/70 border border-white/[0.08] p-5 shadow-lg backdrop-blur-md relative overflow-hidden group hover:border-emerald-500/30 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold">
-              <Share2 className="w-4 h-4 text-emerald-400" />
-              <span>เป้าหมายโพสต์วันนี้</span>
-            </div>
-            <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-              {stats.dailyPosts.pct}%
-            </span>
-          </div>
-
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-3xl font-black text-white">{stats.dailyPosts.current}</span>
-            <span className="text-slate-400 text-sm font-semibold">/ {stats.dailyPosts.target} คลิป</span>
-          </div>
-
-          {/* Progress bar */}
-          <div
-            role="progressbar"
-            aria-label="ความคืบหน้าเป้าหมายโพสต์ TikTok รายวัน"
-            aria-valuenow={stats.dailyPosts.pct}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden mb-2.5"
-          >
-            <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500 shadow-sm"
-              style={{ width: `${stats.dailyPosts.pct}%` }}
-            />
-          </div>
-
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>{stats.dailyPosts.remaining === 0 ? '🎉 โพสต์ครบแล้ว' : `ยังไม่ได้โพสต์อีก ${stats.dailyPosts.remaining} คลิป`}</span>
-            <span>ตามคิวประจำวัน</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 2.5 Spotlight: ภารกิจอันดับ 1 ที่ต้องทำตอนนี้ (Next Action Spotlight) ── */}
-      {nextMission && (
-        <div className={`relative overflow-hidden rounded-2xl p-5 border shadow-2xl backdrop-blur-md transition-all ${
-          nextMission.type === 'post'
-            ? 'bg-gradient-to-r from-rose-950/70 via-slate-900/90 to-slate-900/90 border-rose-500/30'
-            : nextMission.type === 'cut'
-            ? 'bg-gradient-to-r from-amber-950/70 via-slate-900/90 to-slate-900/90 border-amber-500/30'
-            : 'bg-gradient-to-r from-cyan-950/70 via-slate-900/90 to-slate-900/90 border-cyan-500/30'
-        }`}>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-3.5 min-w-0">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                nextMission.type === 'post' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
-                nextMission.type === 'cut' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-              }`}>
-                <Compass className="w-6 h-6 animate-pulse" />
-              </div>
-
-              <div className="space-y-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase ${
-                    nextMission.type === 'post' ? 'bg-rose-500 text-white' :
-                    nextMission.type === 'cut' ? 'bg-amber-500 text-slate-950' :
-                    'bg-cyan-500 text-slate-950'
-                  }`}>
-                    {nextMission.badge}
-                  </span>
-                  <span className="text-xs text-slate-400 font-semibold">สิ่งที่เจ้านายควรทำตอนนี้ (ลดภาระสมอง มองแวบเดียวลุยเลย)</span>
-                </div>
-
-                <h3 className="text-base font-bold text-white tracking-tight truncate">
-                  {nextMission.item.title}
-                </h3>
-
-                <p className="text-xs text-slate-300 truncate">
-                  สินค้า: <strong className="text-white">{nextMission.item.productName}</strong>
-                  {nextMission.item.productCode && ` [${nextMission.item.productCode}]`}
-                  <span className="text-slate-400 ml-1.5">· {nextMission.description} · {nextMission.priorityReason}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Spotlight Action Buttons */}
-            <div className="flex items-center gap-2.5 flex-shrink-0 self-end md:self-center">
-              <button
-                onClick={() => setPreviewItem(nextMission.item)}
-                className="px-3.5 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-white/10 text-xs font-bold text-slate-300 hover:text-white flex items-center gap-1.5 cursor-pointer transition-all"
+        {/* Embedded Interactive Viewer Drawer */}
+        {showPipelineViewer && (
+          <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-1.5 text-cyan-300">
+                <span>⚡ แผนผังสถาปัตยกรรมสด (Mermaid Graph Zoom/Pan + คลังคำสั่ง 1-Click Master Prompt)</span>
+              </span>
+              <a
+                href="/ai_pipeline_flow.html#prompts-library"
+                target="_blank"
+                rel="noreferrer"
+                className="text-amber-400 hover:underline flex items-center gap-1"
               >
-                <FileText className="w-4 h-4" />
-                <span>ดูบท & สเปก</span>
-              </button>
-
-              {nextMission.type === 'post' && (
-                <button
-                  onClick={handleNextMission}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-rose-500/25 transition-all"
-                >
-                  <Flame className="w-4 h-4" />
-                  <span>ส่ง TikTok ตอนนี้เลย</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
-
-              {nextMission.type === 'cut' && (
-                <button
-                  onClick={handleNextMission}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/25 transition-all"
-                >
-                  <Clapperboard className="w-4 h-4" />
-                  <span>เริ่มตัดต่อคลิปนี้ทันที</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
-
-              {nextMission.type === 'footage' && (
-                <button
-                  onClick={handleNextMission}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110 active:scale-95 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/25 transition-all"
-                >
-                  <Video className="w-4 h-4" />
-                  <span>ดูแผนถ่ายทำ Shot List</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
+                <span>ไปยังส่วน Prompts Library</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+            <div className="w-full h-[700px] rounded-xl overflow-hidden border border-white/10 bg-[#070c18] shadow-inner">
+              <iframe
+                src="/ai_pipeline_flow.html"
+                title="OmniCut AI Production Pipeline Flow"
+                className="w-full h-full border-0"
+              />
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ── 2.8 Idea & Ref Vault (สมุดจดไอเดียและคลังเรฟ TikTok / Pinterest) ── */}
       <div className="rounded-2xl bg-slate-900/70 border border-white/[0.08] p-5 shadow-xl backdrop-blur-md space-y-4">
@@ -1255,6 +584,17 @@ export default function ProducerHub({
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-auto">
+            <a
+              href="/ai_pipeline_flow.html"
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-amber-300 hover:text-white border border-amber-500/20 flex items-center gap-1.5 cursor-pointer transition-all"
+              title="เปิดดูแผนผัง AI Production Pipeline Flow"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>ผัง AI Pipeline</span>
+              <ExternalLink className="w-3 h-3 opacity-60" />
+            </a>
             <a
               href="?view=quick-ref"
               target="_blank"
@@ -1635,591 +975,6 @@ export default function ProducerHub({
         )}
       </div>
 
-      {/* ── 3. Daily Action Queue (สิ่งที่ต้องทำวันนี้) ── */}
-      <div className="rounded-2xl bg-slate-900/70 border border-white/[0.08] p-6 shadow-xl backdrop-blur-md space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-amber-400" />
-              <h2 className="text-lg font-bold text-white tracking-tight">สิ่งที่ต้องทำวันนี้ (Daily Action Queue)</h2>
-            </div>
-            <p className="text-xs text-slate-400 mt-1">
-              จัดสรรสินค้าแบบกระจายคละสินค้า (Round-Robin) คลิกเดียวทำงานต่อได้ทันที ไม่ผูกขาดสินค้าเดียว
-            </p>
-          </div>
-
-          {/* Queue Filter Tabs */}
-          <div className="flex items-center gap-1.5 bg-slate-950/60 p-1 rounded-xl border border-white/5 self-start sm:self-auto">
-            <button
-              onClick={() => setQueueFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                queueFilter === 'all'
-                  ? 'bg-amber-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              ทั้งหมด ({actionQueue.readyToPost.length + actionQueue.readyToCut.length + actionQueue.needsFootage.length})
-            </button>
-            <button
-              onClick={() => setQueueFilter('post')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                queueFilter === 'post'
-                  ? 'bg-rose-500 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              พร้อมจัดคิว ({actionQueue.readyToPost.length})
-            </button>
-            <button
-              onClick={() => setQueueFilter('cut')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                queueFilter === 'cut'
-                  ? 'bg-amber-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              รอตัด ({actionQueue.readyToCut.length})
-            </button>
-            <button
-              onClick={() => setQueueFilter('footage')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                queueFilter === 'footage'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              รอถ่ายคลิป ({actionQueue.needsFootage.length})
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2.5">
-          <label className="relative flex-1 min-w-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
-            <span className="sr-only">ค้นหางานในคิว</span>
-            <input
-              type="search"
-              value={queueSearch}
-              onChange={(e) => setQueueSearch(e.target.value)}
-              placeholder="ค้นหาชื่อฮุก สินค้า รหัส หรือไทม์ไลน์"
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950/70 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
-            />
-          </label>
-          <label className="flex items-center gap-2 text-xs text-slate-400">
-            <span className="sr-only">เรียงลำดับคิว</span>
-            <select
-              value={queueSort}
-              onChange={(e) => setQueueSort(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-950/70 border border-white/10 text-xs text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer"
-            >
-              <option value="priority">เรียงตามความเร่งด่วน</option>
-              <option value="oldest">งานเก่าที่สุดก่อน</option>
-              <option value="product">เรียงตามสินค้า</option>
-            </select>
-          </label>
-          <span className="flex items-center text-[11px] text-slate-500 whitespace-nowrap">
-            แสดง {Math.min(queueLimit, displayQueue.length)} จาก {displayQueue.length} งาน
-          </span>
-        </div>
-
-        {/* Product Filter Chips */}
-        {actionQueue.productsInQueue && actionQueue.productsInQueue.length > 1 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-            <span className="text-[11px] text-slate-500 font-bold flex items-center gap-1 flex-shrink-0">
-              <Filter className="w-3 h-3 text-amber-400" /> กรองสินค้า:
-            </span>
-            <button
-              onClick={() => setProductFilter('all')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all flex-shrink-0 ${
-                productFilter === 'all'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                  : 'bg-slate-800 text-slate-300 hover:text-white border border-white/5'
-              }`}
-            >
-              ทั้งหมด
-            </button>
-            {actionQueue.productsInQueue.map(p => (
-              <button
-                key={p.id || p.code}
-                onClick={() => setProductFilter(p.id)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all flex-shrink-0 max-w-[200px] truncate ${
-                  productFilter === p.id
-                    ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40 font-bold'
-                    : 'bg-slate-800/80 text-slate-400 hover:text-white border border-white/5'
-                }`}
-              >
-                {p.code ? `[${p.code}] ` : ''}{p.name} ({p.count})
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Queue Items List */}
-        {displayQueue.length === 0 ? (
-          <div className="py-12 text-center rounded-xl bg-slate-950/40 border border-dashed border-white/10">
-            <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-2 opacity-80" />
-            <p className="text-white font-bold text-sm">เคลียร์คิวเกลี้ยงแล้วครับเจ้านาย!</p>
-            <p className="text-slate-400 text-xs mt-1">ไม่มีงานคั่งค้างในหมวดนี้ กดเพิ่มสินค้าใหม่ใน Script Lab ได้เลย</p>
-          </div>
-        ) : (
-          <div className="space-y-2.5">
-            {displayQueue.slice(0, queueLimit).map((item, idx) => {
-              const isPost = item.queueCategory === 'post' || queueFilter === 'post';
-              const isCut = item.queueCategory === 'cut' || queueFilter === 'cut';
-              const isFootage = item.queueCategory === 'footage' || queueFilter === 'footage';
-
-              return (
-                <div
-                  key={item.id || idx}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-800/40 hover:bg-slate-800/70 border border-white/5 hover:border-white/10 transition-all group"
-                >
-                  <div className="flex items-start sm:items-center gap-3 min-w-0">
-                    {isPost && (
-                      <span className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 flex-shrink-0">
-                        <Flame className="w-4 h-4" />
-                      </span>
-                    )}
-                    {isCut && (
-                      <span className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 flex-shrink-0">
-                        <Scissors className="w-4 h-4" />
-                      </span>
-                    )}
-                    {isFootage && (
-                      <span className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 flex-shrink-0">
-                        <Video className="w-4 h-4" />
-                      </span>
-                    )}
-
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        {item.productCode && (
-                          <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-white/10 text-[10px] font-bold text-slate-300">
-                            {item.productCode}
-                          </span>
-                        )}
-                        <h3 className="text-sm font-bold text-white truncate group-hover:text-amber-300 transition-colors">
-                          {item.title}
-                        </h3>
-                      </div>
-                      <p className="text-xs text-slate-400 truncate mt-0.5">
-                        {item.productName}
-                        {isPost && ' · วิดีโอเรนเดอร์เสร็จแล้ว รอโพสต์ลง TikTok'}
-                        {isCut && (item.projectName ? ` · ไทม์ไลน์: ${item.projectName}` : ' · วัตถุดิบพร้อมตัด')}
-                        {isFootage && ' · สคริปต์พร้อมแล้ว ขาดคลิปถ่ายจริง'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
-                    <button
-                      onClick={() => setPreviewItem(item)}
-                      className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all"
-                      title="ดูบทและรายละเอียด"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span className="hidden md:inline">ดูบท</span>
-                    </button>
-
-                    {isPost && (
-                      <>
-                        {item.caption && (
-                          <button
-                            onClick={() => handleCopyCaption(`${item.caption}\n\n${item.hashtags}`, item.id)}
-                            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1 cursor-pointer transition-all"
-                            title="คัดลอกแคปชัน"
-                          >
-                            {copiedId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{copiedId === item.id ? 'ก๊อปปี้แล้ว' : 'แคปชัน'}</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={() => onGoToGallery?.({
-                            targetId: item.exportPath || item.id,
-                            exportId: item.id,
-                          })}
-                          className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-pink-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm transition-all"
-                        >
-                          <span>ส่ง TikTok</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </>
-                    )}
-
-                    {isCut && (
-                      <button
-                        onClick={() => {
-                          if (item.parentProduct && item.angle) {
-                            onApplyToStudio?.({
-                              fullProduct: item.parentProduct,
-                              angleIndex: item.parentProduct.angles?.findIndex(a => a.angle_id === item.angle.angle_id) || 0,
-                              openExisting: !!item.projectName,
-                              openProjectName: item.projectName,
-                            });
-                          } else {
-                            onGoToEditor?.();
-                          }
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm transition-all"
-                      >
-                        <Clapperboard className="w-3.5 h-3.5" />
-                        <span>{item.projectName ? 'เปิดไทม์ไลน์' : 'เริ่มตัดต่อ'}</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-
-                    {isFootage && (
-                      <button
-                        onClick={() => {
-                          if (item.parentProduct?.id) onGoToFlow?.(item.parentProduct.id);
-                          else onGoToFlow?.();
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 hover:text-white border border-cyan-500/20 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
-                      >
-                        <span>แนบคลิป / ดูแผน</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            {displayQueue.length > queueLimit && (
-              <button
-                type="button"
-                onClick={() => setQueueLimit(limit => limit + 10)}
-                className="w-full py-2.5 rounded-xl bg-slate-800/70 hover:bg-slate-700/80 border border-white/10 text-xs font-bold text-slate-300 hover:text-white cursor-pointer transition-colors"
-              >
-                แสดงงานเพิ่มอีก {Math.min(10, displayQueue.length - queueLimit)} งาน
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ── 4. AI Content Retrospective & Boss's Playbook ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column: AI Retrospective */}
-        <div className="rounded-2xl bg-slate-900/70 border border-white/[0.08] p-6 shadow-xl backdrop-blur-md flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-base font-bold text-white">ถอดรหัสคลิปปัง & สถิติ (Automatic Retrospective)</h2>
-              <span className="text-[10px] font-semibold text-slate-500 border border-white/10 rounded px-1.5 py-0.5">
-                {retrospective.method === 'heuristic' ? 'ข้อเสนอจาก heuristic' : 'จากข้อมูลจริง'}
-              </span>
-            </div>
-
-            <div className="mb-3 text-[11px] text-slate-500">
-              แหล่งข้อมูล: {retrospective.source === 'tiktok_stats_latest' ? 'TikTok Studio ล่าสุด' : 'ยังไม่มีสถิติ TikTok Studio'} · ตัวอย่าง {retrospective.sampleSize} คลิป · ความมั่นใจ {retrospective.confidence}
-            </div>
-            <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] text-slate-400">
-              <div className="rounded-lg bg-slate-800/50 border border-white/5 px-2.5 py-2">
-                <span className="block text-slate-500">ค่าเฉลี่ยวิว</span>
-                <strong className="text-white">{retrospective.metrics.averageViews.toLocaleString()}</strong>
-              </div>
-              <div className="rounded-lg bg-slate-800/50 border border-white/5 px-2.5 py-2">
-                <span className="block text-slate-500">ค่ากลางวิว</span>
-                <strong className="text-white">{retrospective.metrics.medianViews.toLocaleString()}</strong>
-              </div>
-              <div className="rounded-lg bg-slate-800/50 border border-white/5 px-2.5 py-2">
-                <span className="block text-slate-500">Engagement</span>
-                <strong className="text-white">{retrospective.metrics.engagementRate.toFixed(2)}%</strong>
-              </div>
-              <div className="rounded-lg bg-slate-800/50 border border-white/5 px-2.5 py-2">
-                <span className="block text-slate-500">ช่วงข้อมูล</span>
-                <strong className="text-white">{retrospective.period.from ? new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short' }).format(new Date(retrospective.period.from)) : 'ไม่มีวันที่'}</strong>
-              </div>
-            </div>
-
-            {retrospective.topPerformer && (
-              <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-emerald-950/40 via-slate-900/80 to-slate-900/80 border border-emerald-500/20">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
-                    🏆 คลิปยอดวิวสูงสุด
-                  </span>
-                  <div className="flex items-center gap-3 text-xs text-slate-300">
-                    <span className="flex items-center gap-1 font-bold text-emerald-300">
-                      <Eye className="w-3.5 h-3.5" /> {retrospective.topPerformer.views.toLocaleString()}
-                    </span>
-                    <span className="flex items-center gap-1 text-slate-400">
-                      <ThumbsUp className="w-3.5 h-3.5" /> {retrospective.topPerformer.likes.toLocaleString()}
-                    </span>
-                    <span className="flex items-center gap-1 text-slate-400">
-                      <Share2 className="w-3.5 h-3.5" /> {retrospective.topPerformer.shares.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-                <h4 className="text-sm font-bold text-white truncate">{retrospective.topPerformer.title}</h4>
-                <p className="mt-1 text-[10px] text-slate-500 truncate">Source clip: {retrospective.topPerformer.sourceId}</p>
-              </div>
-            )}
-
-            <div className="space-y-2.5 mb-4">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                <span>💡 จุดเด่นที่ทำให้ยอดพุ่ง</span>
-                <span className="text-[10px] text-amber-400 lowercase font-normal">คลิกเพื่อจดลง Playbook ได้ทันที</span>
-              </h4>
-              {playbookSuggestions.map((item, index) => (
-                <div key={item.id || item.text || `suggestion-${index}`} className="flex items-center justify-between gap-3 text-xs text-slate-300 bg-slate-800/30 p-2.5 rounded-lg border border-white/5 group hover:border-amber-500/30 transition-all">
-                  <div className="flex items-start gap-2 min-w-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
-                    <span className="leading-relaxed">{item.text}</span>
-                  </div>
-                  <button
-                    onClick={() => handleSaveRetrospective(item)}
-                    disabled={item.alreadySaved}
-                    className={`px-2 py-1 rounded text-[11px] font-bold flex items-center gap-1 flex-shrink-0 transition-all ${
-                      item.alreadySaved
-                        ? 'text-emerald-400 bg-emerald-500/10 cursor-default'
-                        : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-pointer active:scale-95'
-                    }`}
-                  >
-                    {item.alreadySaved ? <Check className="w-3 h-3 text-emerald-400" /> : <Plus className="w-3 h-3" />}
-                    <span>{item.alreadySaved ? 'จดแล้ว' : 'จดบทเรียน'}</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-200/90 leading-relaxed flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <strong className="text-amber-300 font-bold block mb-0.5">ข้อควรปรับปรุงในคลิปหน้า:</strong>
-              {retrospective.improvementAdvice}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Studio Rules & Guidelines */}
-        <div className="rounded-2xl bg-slate-900/70 border border-white/[0.08] p-6 shadow-xl backdrop-blur-md flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <BookOpen className="w-5 h-5 text-amber-400" />
-              <h2 className="text-base font-bold text-white">คู่มือกฎเหล็กการผลิตคลิปปัง (Studio Rules)</h2>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-xl bg-slate-800/40 border border-white/5 space-y-1">
-                <span className="font-bold text-amber-300 block">⚡ กฎ Hook 0.5 วินาทีแรก</span>
-                <p className="text-slate-300 leading-relaxed">
-                  อย่าเกริ่นทักทายเวิ่นเว้อ ให้เปิดด้วยภาพกระแทกตา ป้ายเตือน หรือปัญหาตรงๆ เพื่อหยุดนิ้วคนดูทันที
-                </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-800/40 border border-white/5 space-y-1">
-                <span className="font-bold text-cyan-300 block">✂️ จังหวะตัดต่อ J-Cut (180ms)</span>
-                <p className="text-slate-300 leading-relaxed">
-                  เสียงพากย์หรือ SFX ของช็อตถัดไปจะดังขึ้นก่อนภาพตัดเปลี่ยน 180ms เพื่อสร้างความลื่นไหลและเร่ง Retention
-                </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-800/40 border border-white/5 space-y-1">
-                <span className="font-bold text-emerald-300 block">📱 Safe Zone 9:16 มาตรฐาน TikTok</span>
-                <p className="text-slate-300 leading-relaxed">
-                  ข้อความซับไตเติลและป้ายราคายกสูงจากขอบล่าง 420px เสมอ เพื่อไม่ให้ปุ่ม Like / แชร์ และชื่อเพลงบดบัง
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
-            <span>ไอเดียทั้งหมดถูกซิงก์เข้า <strong>คลังเรฟด้านบน</strong></span>
-            <button
-              onClick={() => window.scrollTo({ top: 400, behavior: 'smooth' })}
-              className="text-amber-400 hover:text-amber-300 font-semibold cursor-pointer"
-            >
-              ขึ้นไปดูคลังเรฟ ↑
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 5. Targets Modal ── */}
-      {showTargetsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-          <div role="dialog" aria-modal="true" aria-labelledby="producer-targets-title" className="w-full max-w-md bg-slate-900 border border-white/15 rounded-2xl p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-amber-400" />
-                <h3 id="producer-targets-title" className="text-base font-bold text-white">ตั้งเป้าหมายการผลิต (Quotas)</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowTargetsModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
-                aria-label="ปิดหน้าต่างตั้งเป้าหมาย"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                  🎯 เป้าหมายรายสัปดาห์ (คลิป/สัปดาห์)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="200"
-                  value={editingTargets.weeklyCuts}
-                  onChange={(e) => setEditingTargets({ ...editingTargets, weeklyCuts: e.target.value })}
-                  className="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
-                />
-                <p className="text-[11px] text-slate-400 mt-1">ค่าเริ่มต้นมาตรฐานของทีมคือ 35 คลิป/สัปดาห์ (เฉลี่ยวันละ 5 คลิป)</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                  🎬 เป้าหมายตัดต่อรายวัน (คลิป/วัน)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={editingTargets.dailyCuts}
-                  onChange={(e) => setEditingTargets({ ...editingTargets, dailyCuts: e.target.value })}
-                  className="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold text-slate-300">
-                    📢 เป้าหมายโพสต์ TikTok รายวัน (คลิป/วัน)
-                  </label>
-                  <span className="text-[11px] text-slate-400">
-                    ตามคิวประจำวัน: {todayTemplateSlotsCount} คลิป
-                  </span>
-                </div>
-                <input
-                  type="number"
-                  min="1"
-                  max="30"
-                  value={editingTargets.dailyPosts}
-                  onChange={(e) => setEditingTargets({ ...editingTargets, dailyPosts: e.target.value })}
-                  className="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => setShowTargetsModal(false)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer"
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveTargets}
-                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer transition-all shadow-md shadow-amber-500/20"
-              >
-                บันทึกเป้าหมาย
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── 6. Quick Preview Modal (ดูสคริปต์และสเปกก่อนตัด) ── */}
-      {previewItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <div role="dialog" aria-modal="true" aria-labelledby="producer-preview-title" className="w-full max-w-lg bg-slate-900 border border-white/15 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <FileText className="w-5 h-5 text-amber-400 flex-shrink-0" />
-                <h3 id="producer-preview-title" className="text-base font-bold text-white truncate">
-                  รายละเอียด: {previewItem.title}
-                </h3>
-              </div>
-              <button
-                onClick={() => setPreviewItem(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
-                aria-label="ปิดรายละเอียด"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1.5">
-                <div className="text-slate-400 font-medium">ชื่อสินค้า:</div>
-                <div className="text-white font-bold text-sm">{previewItem.productName}</div>
-                {previewItem.productCode && (
-                  <span className="inline-block px-2 py-0.5 rounded bg-slate-800 border border-white/10 text-slate-300 text-[10px] font-bold">
-                    รหัส: {previewItem.productCode}
-                  </span>
-                )}
-              </div>
-
-              {previewItem.angle?.hook_title && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
-                  <div className="text-amber-400 font-bold">Hook Title (หัวข้อเปิดคลิป):</div>
-                  <div className="text-white font-semibold text-sm leading-relaxed">{previewItem.angle.hook_title}</div>
-                </div>
-              )}
-
-              {previewItem.angle?.script_text && (
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1.5">
-                  <div className="text-slate-400 font-medium">บทพูดสคริปต์ (Script):</div>
-                  <div className="text-slate-200 leading-relaxed max-h-40 overflow-y-auto p-2 rounded bg-black/40 whitespace-pre-wrap font-sans">
-                    {previewItem.angle.script_text}
-                  </div>
-                </div>
-              )}
-
-              {previewItem.angle?.key_features && (
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1">
-                  <div className="text-slate-400 font-medium">จุดเด่นสินค้า:</div>
-                  <div className="text-slate-200">{previewItem.angle.key_features}</div>
-                </div>
-              )}
-
-              {previewItem.caption && (
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1">
-                  <div className="text-slate-400 font-medium">แคปชัน & แฮชแท็ก:</div>
-                  <div className="text-slate-200 font-sans">{previewItem.caption}</div>
-                  {previewItem.hashtags && <div className="text-cyan-400 mt-1">{previewItem.hashtags}</div>}
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => setPreviewItem(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer"
-              >
-                ปิดหน้าต่าง
-              </button>
-
-              {previewItem.parentProduct && previewItem.angle && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const itemToOpen = previewItem;
-                    setPreviewItem(null);
-                    onApplyToStudio?.({
-                      fullProduct: itemToOpen.parentProduct,
-                      angleIndex: itemToOpen.parentProduct.angles?.findIndex(a => a.angle_id === itemToOpen.angle.angle_id) || 0,
-                      openExisting: !!itemToOpen.projectName,
-                      openProjectName: itemToOpen.projectName,
-                    });
-                  }}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/25"
-                >
-                  <Clapperboard className="w-3.5 h-3.5" />
-                  <span>เริ่มตัดต่อคลิปนี้ทันที</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── AI Angle Proposal Modal (AI Idea-to-Script) ── */}
       {aiProposal && (
         <div
@@ -2520,6 +1275,5 @@ export default function ProducerHub({
           <span>{toastMessage}</span>
         </div>
       )}
-    </div>
-  );
+  </div>;
 }

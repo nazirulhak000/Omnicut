@@ -484,7 +484,7 @@ def test_policy_file_shape_and_decisions():
     by_scope = {}
     for row in rows:
         by_scope[row.scope] = by_scope.get(row.scope, 0) + 1
-    assert by_scope == {"channel": 206, "shared": 38, "global": 34}
+    assert by_scope == {"channel": 213, "shared": 38, "global": 34}
     release = table.get("POST", "/api/tiktok-autopost/release")
     assert release.scope == "channel" and release.access == "write" and not release.allow_query_scope
     assert {row.key for row in rows if row.allow_query_scope} == QUERY_SCOPE_ROUTES

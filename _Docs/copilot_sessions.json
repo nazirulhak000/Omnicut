@@ -1,0 +1,811 @@
+{
+  "copilot-612a6ed9f404": {
+    "session_id": "copilot-612a6ed9f404",
+    "channel_id": "main",
+    "product_id": "673882d55bd84c57ba805000a910c466",
+    "product_name": "HOYAUP พัดลมมือถือแม่เหล็ก",
+    "price_note": "ราคาพิเศษในตะกร้า",
+    "images": [
+      {
+        "name": "19d3532234e64cc5a00a73ebd1e722a7~tplv-aphluv4xwc-resize-webp:260:260.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/19d3532234e64cc5a00a73ebd1e722a7~tplv-aphluv4xwc-resize-webp:260:260.webp?dr=15582&t=555f072d&ps=933b5bde&shp=7745054a&shcp=9b759fb9&idc=my&from=2001012042"
+      },
+      {
+        "name": "19d3532234e64cc5a00a73ebd1e722a7~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/19d3532234e64cc5a00a73ebd1e722a7~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "bc7dd2e3c7bd40f69d98de91d006cb5f~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/bc7dd2e3c7bd40f69d98de91d006cb5f~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "fa4e05bd04fe43089f81b283d00cb925~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/fa4e05bd04fe43089f81b283d00cb925~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "a324932f4baa45a691784ca6163faaa9~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/a324932f4baa45a691784ca6163faaa9~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "49d85ceb9550418fafd7c1730682e318~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/49d85ceb9550418fafd7c1730682e318~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "6ef3bd3bd43e4947a11ccd887f764ad4~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/6ef3bd3bd43e4947a11ccd887f764ad4~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "61c5ef27af1e4421984acd2244a30ced~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/61c5ef27af1e4421984acd2244a30ced~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "9881bede68ec44aba22c8e44067f865c~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/9881bede68ec44aba22c8e44067f865c~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      }
+    ],
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "สวัสดีครับ! ผมเป็นผู้ช่วย AI ผลิตคลิปสำหรับสินค้า **HOYAUP พัดลมมือถือแม่เหล็ก**\nผมได้วิเคราะห์สเปกและรูปภาพ (9 รูป) พร้อมคัดเลือก 4 มุมมองเริ่มต้นให้แล้ว:\n- **Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)**: แฟนบ่นจนบ้านแทบแตก... แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!\n- **Meme-PAS ปัญหาชีวิตประจำวัน**: ทนใช้ของเก่าจนเกือบขิต! ดูคลิปนี้ก่อนตัดสินใจซื้อ\n- **Tech Explainer ผ่าสเปกสายโหด**: ทำไมรุ่นนี้ถึงขายดีจัด? ผ่าดู 3 จุดเด่นที่คนซื้อพูดเป็นเสียงเดียวกัน\n- **VS Battle ตัวตึงปะทะของเดิม**: มวยคู่เอก! ตัวเก่า VS ตัวใหม่ ศึกนี้ใครจะชนะ?\n\nคุณสามารถเลือกมุมมองด้านบน หรือพิมพ์บรีฟทิศทางคลิปที่ต้องการ (เช่น *'ขอแนวคู่รักสายใต้น้องนุ้ยด่าพี่บ่าวเรื่องกินกาแฟหก'* หรือ *'ขอแนวทดสอบความทนทาน 30 วิ'*) ได้เลยครับ!",
+        "timestamp": "2026-10-13T06:13:49Z"
+      },
+      {
+        "role": "user",
+        "content": "เริ่มวางแผนคลิปวิดีโอ TikTok",
+        "timestamp": "2026-10-13T06:13:49Z"
+      },
+      {
+        "role": "assistant",
+        "content": "ได้รับข้อความแล้วครับ: *\"เริ่มวางแผนคลิปวิดีโอ TikTok\"*\n\nผมได้นำบรีฟนี้มาประยุกต์เข้ากับสินค้า **HOYAUP พัดลมมือถือแม่เหล็ก** โดยแนะนำให้ใช้โครงเรื่องสไตล์ **Couple Paper Chat (สไตล์หลักของช่อง)** หรือสามารถเลือก 4 Approved Styles ได้ทันทีครับ ต้องการให้ผมร่างบทสคริปต์เลยไหมครับ?",
+        "timestamp": "2026-10-13T06:13:49Z"
+      },
+      {
+        "role": "user",
+        "content": "สวัสดีครับ",
+        "timestamp": "2026-10-13T06:14:40Z"
+      },
+      {
+        "role": "assistant",
+        "content": "ได้รับข้อความแล้วครับ: *\"สวัสดีครับ\"*\n\nผมได้นำบรีฟนี้มาประยุกต์เข้ากับสินค้า **HOYAUP พัดลมมือถือแม่เหล็ก** โดยแนะนำให้ใช้โครงเรื่องสไตล์ **Couple Paper Chat (สไตล์หลักของช่อง)** หรือสามารถเลือก 4 Approved Styles ได้ทันทีครับ ต้องการให้ผมร่างบทสคริปต์เลยไหมครับ?",
+        "timestamp": "2026-10-13T06:14:40Z"
+      },
+      {
+        "role": "user",
+        "content": "นานใช้โทเคนจากบันชีไหนอ่ะ",
+        "timestamp": "2026-10-13T06:14:52Z"
+      },
+      {
+        "role": "assistant",
+        "content": "ได้รับข้อความแล้วครับ: *\"นานใช้โทเคนจากบันชีไหนอ่ะ\"*\n\nผมได้นำบรีฟนี้มาประยุกต์เข้ากับสินค้า **HOYAUP พัดลมมือถือแม่เหล็ก** โดยแนะนำให้ใช้โครงเรื่องสไตล์ **Couple Paper Chat (สไตล์หลักของช่อง)** หรือสามารถเลือก 4 Approved Styles ได้ทันทีครับ ต้องการให้ผมร่างบทสคริปต์เลยไหมครับ?",
+        "timestamp": "2026-10-13T06:14:52Z"
+      },
+      {
+        "role": "assistant",
+        "content": "✅ สร้างบทสคริปต์สไตล์ **couple_paper_chat** สำหรับมุมมอง *'Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)'* เรียบร้อยแล้วครับ!\nบทมีความยาวประมาณ 24.0 วินาที รวมทั้งหมด 6 เทิร์นสนทนา\nพร้อมประกอบร่างเป็น HyperFrames Composition ได้ทันที กดปุ่ม **'สร้าง HyperFrames ดราฟต์'** ได้เลยครับ",
+        "timestamp": "2026-10-13T06:15:03Z"
+      }
+    ],
+    "suggested_angles": [
+      {
+        "id": "angle_1",
+        "title": "Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)",
+        "hook": "แฟนบ่นจนบ้านแทบแตก... แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!",
+        "style": "couple_paper_chat",
+        "selling_points": [
+          "สเปกจัดเต็ม การันตีของแท้",
+          "แก้ปัญหาชีวิตคู่",
+          "ราคาพิเศษในตะกร้า"
+        ]
+      },
+      {
+        "id": "angle_2",
+        "title": "Meme-PAS ปัญหาชีวิตประจำวัน",
+        "hook": "ทนใช้ของเก่าจนเกือบขิต! ดูคลิปนี้ก่อนตัดสินใจซื้อ",
+        "style": "meme_pas",
+        "selling_points": [
+          "Pain point ชัดเจน",
+          "เทียบความคุ้มค่า",
+          "ป้ายยาตะกร้าเหลือง"
+        ]
+      },
+      {
+        "id": "angle_3",
+        "title": "Tech Explainer ผ่าสเปกสายโหด",
+        "hook": "ทำไมรุ่นนี้ถึงขายดีจัด? ผ่าดู 3 จุดเด่นที่คนซื้อพูดเป็นเสียงเดียวกัน",
+        "style": "tech_explainer",
+        "selling_points": [
+          "ฟีเจอร์เด่น",
+          "ความคุ้มค่าเกินราคา",
+          "จัดส่งไว"
+        ]
+      },
+      {
+        "id": "angle_4",
+        "title": "VS Battle ตัวตึงปะทะของเดิม",
+        "hook": "มวยคู่เอก! ตัวเก่า VS ตัวใหม่ ศึกนี้ใครจะชนะ?",
+        "style": "vs_battle",
+        "selling_points": [
+          "เทียบกันหมัดต่อหมัด",
+          "ผลลัพธ์ต่างกันชัดเจน",
+          "กดด่วน"
+        ]
+      }
+    ],
+    "selected_angle": {
+      "id": "angle_1",
+      "title": "Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)",
+      "hook": "แฟนบ่นจนบ้านแทบแตก... แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!",
+      "style": "couple_paper_chat",
+      "selling_points": [
+        "สเปกจัดเต็ม การันตีของแท้",
+        "แก้ปัญหาชีวิตคู่",
+        "ราคาพิเศษในตะกร้า"
+      ]
+    },
+    "script": {
+      "style": "couple_paper_chat",
+      "product_name": "HOYAUP พัดลมมือถือแม่เหล็ก",
+      "headlines": [
+        [
+          0,
+          "POV: ของเดิมพังจนหัวจะปวด",
+          "พี่บ่าวจัดตัวตึงให้",
+          "จบทุกปัญหา!"
+        ],
+        [
+          2,
+          "ลองใช้จริงแล้วถึงกับอึ้ง",
+          "HOYAUP พัดลมมือถือแม่เหล็",
+          "คุ้มค่าเกินราคา"
+        ],
+        [
+          4,
+          "ใครเล็งอยู่รีบกดด่วน",
+          "กดตะกร้าเหลือง",
+          "ซ้ายล่างเลย!"
+        ]
+      ],
+      "turns": [
+        {
+          "speaker": "F",
+          "phrases": [
+            [
+              "พี่บ่าว!",
+              "พี่บ่าว!"
+            ],
+            [
+              "ของเก่าพังอีกแล้ว!",
+              "ของเก่าพังอีกแล้ว!"
+            ]
+          ],
+          "photo": null
+        },
+        {
+          "speaker": "M",
+          "phrases": [
+            [
+              "ใจเย็นน้องนุ้ย",
+              "ใจเย็นน้องนุ้ย"
+            ],
+            [
+              "พี่บ่าวมีตัวช่วยใหม่",
+              "พี่บ่าวมีตัวช่วยใหม่มาให้แล้ว"
+            ]
+          ],
+          "photo": {
+            "phrase_idx": 1,
+            "src": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/19d3532234e64cc5a00a73ebd1e722a7~tplv-aphluv4xwc-resize-webp:260:260.webp?dr=15582&t=555f072d&ps=933b5bde&shp=7745054a&shcp=9b759fb9&idc=my&from=2001012042",
+            "kind": "photo"
+          }
+        },
+        {
+          "speaker": "F",
+          "phrases": [
+            [
+              "ตัวนี้ดีจริงเหรอ?",
+              "ตัวนี้ดีจริงเหรอ?"
+            ],
+            [
+              "ใช้ยากหรือเปล่า!",
+              "ใช้ยากหรือเปล่า!"
+            ]
+          ],
+          "photo": null
+        },
+        {
+          "speaker": "M",
+          "phrases": [
+            [
+              "HOYAUP พัดลมมือถือแม่เหล็ก",
+              "HOYAUP พัดลมมือถือแม่เหล็ก"
+            ],
+            [
+              "ของแท้ การันตีคุณภาพ",
+              "ของแท้ การันตีคุณภาพ ใช้โคตรง่าย"
+            ]
+          ],
+          "photo": null
+        },
+        {
+          "speaker": "F",
+          "phrases": [
+            [
+              "งั้นน้องยึดเลยนะ!",
+              "งั้นน้องขอยึดเลยนะ!"
+            ],
+            [
+              "ใครอยากได้",
+              "ใครอยากได้"
+            ]
+          ],
+          "photo": null
+        },
+        {
+          "speaker": "M",
+          "phrases": [
+            [
+              "กดตะกร้าเหลือง",
+              "กดตะกร้าเหลือง"
+            ],
+            [
+              "ซ้ายล่างได้เลยครับ",
+              "ซ้ายล่างได้เลยครับ"
+            ]
+          ],
+          "photo": null
+        }
+      ],
+      "cta_phrase": [
+        5,
+        0
+      ],
+      "cta_model_text": "HOYAUP พัดลมมือถือแม่เหล็ก · ของแท้ส่งไว · ตะกร้าซ้ายล่าง",
+      "estimated_duration_s": 24.0
+    },
+    "draft_info": null,
+    "created_at": "2026-10-13T06:13:49Z",
+    "updated_at": "2026-10-13T06:15:03Z"
+  },
+  "copilot-faee944974af": {
+    "session_id": "copilot-faee944974af",
+    "channel_id": "main",
+    "product_id": "673882d55bd84c57ba805000a910c466",
+    "product_name": "HOYAUP พัดลมมือถือแม่เหล็ก",
+    "price_note": "ราคาพิเศษในตะกร้า",
+    "images": [
+      {
+        "name": "19d3532234e64cc5a00a73ebd1e722a7~tplv-aphluv4xwc-resize-webp:260:260.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/19d3532234e64cc5a00a73ebd1e722a7~tplv-aphluv4xwc-resize-webp:260:260.webp?dr=15582&t=555f072d&ps=933b5bde&shp=7745054a&shcp=9b759fb9&idc=my&from=2001012042"
+      },
+      {
+        "name": "19d3532234e64cc5a00a73ebd1e722a7~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/19d3532234e64cc5a00a73ebd1e722a7~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "bc7dd2e3c7bd40f69d98de91d006cb5f~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/bc7dd2e3c7bd40f69d98de91d006cb5f~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "fa4e05bd04fe43089f81b283d00cb925~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/fa4e05bd04fe43089f81b283d00cb925~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "a324932f4baa45a691784ca6163faaa9~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/a324932f4baa45a691784ca6163faaa9~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "49d85ceb9550418fafd7c1730682e318~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/49d85ceb9550418fafd7c1730682e318~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "6ef3bd3bd43e4947a11ccd887f764ad4~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/6ef3bd3bd43e4947a11ccd887f764ad4~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "61c5ef27af1e4421984acd2244a30ced~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/61c5ef27af1e4421984acd2244a30ced~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "9881bede68ec44aba22c8e44067f865c~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/9881bede68ec44aba22c8e44067f865c~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      }
+    ],
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "สวัสดีครับ! ผมเป็นผู้ช่วย AI ผลิตคลิปสำหรับสินค้า **HOYAUP พัดลมมือถือแม่เหล็ก**\nผมได้วิเคราะห์สเปกและรูปภาพ (9 รูป) พร้อมคัดเลือก 4 มุมมองเริ่มต้นให้แล้ว:\n- **Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)**: แฟนบ่นจนบ้านแทบแตก... แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!\n- **Meme-PAS ปัญหาชีวิตประจำวัน**: ทนใช้ของเก่าจนเกือบขิต! ดูคลิปนี้ก่อนตัดสินใจซื้อ\n- **Tech Explainer ผ่าสเปกสายโหด**: ทำไมรุ่นนี้ถึงขายดีจัด? ผ่าดู 3 จุดเด่นที่คนซื้อพูดเป็นเสียงเดียวกัน\n- **VS Battle ตัวตึงปะทะของเดิม**: มวยคู่เอก! ตัวเก่า VS ตัวใหม่ ศึกนี้ใครจะชนะ?\n\nคุณสามารถเลือกมุมมองด้านบน หรือพิมพ์บรีฟทิศทางคลิปที่ต้องการ (เช่น *'ขอแนวคู่รักสายใต้น้องนุ้ยด่าพี่บ่าวเรื่องกินกาแฟหก'* หรือ *'ขอแนวทดสอบความทนทาน 30 วิ'*) ได้เลยครับ!",
+        "timestamp": "2026-10-13T08:53:51Z"
+      },
+      {
+        "role": "user",
+        "content": "เริ่มวางแผนคลิปวิดีโอ TikTok",
+        "timestamp": "2026-10-13T08:53:51Z"
+      },
+      {
+        "role": "assistant",
+        "content": "ได้รับข้อความแล้วครับ: *\"เริ่มวางแผนคลิปวิดีโอ TikTok\"*\n\nผมได้นำบรีฟนี้มาประยุกต์เข้ากับสินค้า **HOYAUP พัดลมมือถือแม่เหล็ก** โดยแนะนำให้ใช้โครงเรื่องสไตล์ **Couple Paper Chat (สไตล์หลักของช่อง)** หรือสามารถเลือก 4 Approved Styles ได้ทันทีครับ ต้องการให้ผมร่างบทสคริปต์เลยไหมครับ?",
+        "timestamp": "2026-10-13T08:53:51Z"
+      }
+    ],
+    "suggested_angles": [
+      {
+        "id": "angle_1",
+        "title": "Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)",
+        "hook": "แฟนบ่นจนบ้านแทบแตก... แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!",
+        "style": "couple_paper_chat",
+        "selling_points": [
+          "สเปกจัดเต็ม การันตีของแท้",
+          "แก้ปัญหาชีวิตคู่",
+          "ราคาพิเศษในตะกร้า"
+        ]
+      },
+      {
+        "id": "angle_2",
+        "title": "Meme-PAS ปัญหาชีวิตประจำวัน",
+        "hook": "ทนใช้ของเก่าจนเกือบขิต! ดูคลิปนี้ก่อนตัดสินใจซื้อ",
+        "style": "meme_pas",
+        "selling_points": [
+          "Pain point ชัดเจน",
+          "เทียบความคุ้มค่า",
+          "ป้ายยาตะกร้าเหลือง"
+        ]
+      },
+      {
+        "id": "angle_3",
+        "title": "Tech Explainer ผ่าสเปกสายโหด",
+        "hook": "ทำไมรุ่นนี้ถึงขายดีจัด? ผ่าดู 3 จุดเด่นที่คนซื้อพูดเป็นเสียงเดียวกัน",
+        "style": "tech_explainer",
+        "selling_points": [
+          "ฟีเจอร์เด่น",
+          "ความคุ้มค่าเกินราคา",
+          "จัดส่งไว"
+        ]
+      },
+      {
+        "id": "angle_4",
+        "title": "VS Battle ตัวตึงปะทะของเดิม",
+        "hook": "มวยคู่เอก! ตัวเก่า VS ตัวใหม่ ศึกนี้ใครจะชนะ?",
+        "style": "vs_battle",
+        "selling_points": [
+          "เทียบกันหมัดต่อหมัด",
+          "ผลลัพธ์ต่างกันชัดเจน",
+          "กดด่วน"
+        ]
+      }
+    ],
+    "selected_angle": {
+      "id": "angle_1",
+      "title": "Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)",
+      "hook": "แฟนบ่นจนบ้านแทบแตก... แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!",
+      "style": "couple_paper_chat",
+      "selling_points": [
+        "สเปกจัดเต็ม การันตีของแท้",
+        "แก้ปัญหาชีวิตคู่",
+        "ราคาพิเศษในตะกร้า"
+      ]
+    },
+    "script": null,
+    "draft_info": null,
+    "created_at": "2026-10-13T08:53:51Z",
+    "updated_at": "2026-10-13T08:53:51Z"
+  },
+  "copilot-8c9374b5960d": {
+    "session_id": "copilot-8c9374b5960d",
+    "channel_id": "main",
+    "product_id": "37521e0dae1a419e8037e159254d4fdf",
+    "product_name": "Orsen by Eloop S6 สายชาร์จ Type C to C 5A 240W Fast Charger PD สาย โน๊ตบุ๊ค Laptop 1.5 เมตร",
+    "price_note": "ราคาพิเศษในตะกร้า",
+    "images": [
+      {
+        "name": "d41caf7da8dc4e5081cc3e96c0ffbe2d~tplv-aphluv4xwc-resize-jpeg:800:800.jpeg",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/d41caf7da8dc4e5081cc3e96c0ffbe2d~tplv-aphluv4xwc-resize-jpeg:800:800.jpeg?dr=15584&t=555f072d&ps=933b5bde&shp=2408c917&shcp=32ce9e9e&idc=my&from=604555543"
+      },
+      {
+        "name": "d41caf7da8dc4e5081cc3e96c0ffbe2d~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/d41caf7da8dc4e5081cc3e96c0ffbe2d~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "e27e0dc82af04de78bc6f1e7b7df4806~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/e27e0dc82af04de78bc6f1e7b7df4806~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "6d57b0e76a8042f9b3a0c8120ff463f4~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/6d57b0e76a8042f9b3a0c8120ff463f4~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "a6afa6ed2a9a42f0b25ce31b42ad2dea~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/a6afa6ed2a9a42f0b25ce31b42ad2dea~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "8c07cb6078194588ae35c4ab6d75dfd8~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/8c07cb6078194588ae35c4ab6d75dfd8~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "1b62cc01604342af8ab0109544549ee5~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/1b62cc01604342af8ab0109544549ee5~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "b7b284c1ae1b47a285ed2d824b32b692~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/b7b284c1ae1b47a285ed2d824b32b692~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      },
+      {
+        "name": "1943bfe96da947089ac269d93c114c7c~tplv-aphluv4xwc-resize-webp:800:800.webp",
+        "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/1943bfe96da947089ac269d93c114c7c~tplv-aphluv4xwc-resize-webp:800:800.webp?dr=15582&amp;t=555f072d&amp;ps=933b5bde&amp;shp=c940a200&amp;shcp=9b759fb9&amp;idc=my2&amp;from=3376456192"
+      }
+    ],
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "สวัสดีครับ! ผมเป็นผู้ช่วย AI ผลิตคลิปสำหรับสินค้า **Orsen by Eloop S6 สายชาร์จ Type C to C 5A 240W Fast Charger PD สาย โน๊ตบุ๊ค Laptop 1.5 เมตร**\nผมได้วิเคราะห์สเปกและรูปภาพ (9 รูป) พร้อมคัดเลือก 4 มุมมองเริ่มต้นให้แล้ว:\n- **Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)**: แฟนบ่นจนบ้านแทบแตก... แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!\n- **Meme-PAS ปัญหาชีวิตประจำวัน**: ทนใช้ของเก่าจนเกือบขิต! ดูคลิปนี้ก่อนตัดสินใจซื้อ\n- **Tech Explainer ผ่าสเปกสายโหด**: ทำไมรุ่นนี้ถึงขายดีจัด? ผ่าดู 3 จุดเด่นที่คนซื้อพูดเป็นเสียงเดียวกัน\n- **VS Battle ตัวตึงปะทะของเดิม**: มวยคู่เอก! ตัวเก่า VS ตัวใหม่ ศึกนี้ใครจะชนะ?\n\nคุณสามารถเลือกมุมมองด้านบน หรือพิมพ์บรีฟทิศทางคลิปที่ต้องการ (เช่น *'ขอแนวคู่รักสายใต้น้องนุ้ยด่าพี่บ่าวเรื่องกินกาแฟหก'* หรือ *'ขอแนวทดสอบความทนทาน 30 วิ'*) ได้เลยครับ!",
+        "timestamp": "2026-10-14T00:30:14Z"
+      },
+      {
+        "role": "user",
+        "content": "เริ่มวางแผนคลิปวิดีโอ TikTok",
+        "timestamp": "2026-10-14T00:30:14Z"
+      },
+      {
+        "role": "assistant",
+        "content": "ได้รับข้อความแล้วครับ: *\"เริ่มวางแผนคลิปวิดีโอ TikTok\"*\n\nผมได้นำบรีฟนี้มาประยุกต์เข้ากับสินค้า **Orsen by Eloop S6 สายชาร์จ Type C to C 5A 240W Fast Charger PD สาย โน๊ตบุ๊ค Laptop 1.5 เมตร** โดยแนะนำให้ใช้โครงเรื่องสไตล์ **Couple Paper Chat (สไตล์หลักของช่อง)** หรือสามารถเลือก 4 Approved Styles ได้ทันทีครับ ต้องการให้ผมร่างบทสคริปต์เลยไหมครับ?",
+        "timestamp": "2026-10-14T00:30:14Z"
+      }
+    ],
+    "suggested_angles": [
+      {
+        "id": "angle_1",
+        "title": "Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)",
+        "hook": "แฟนบ่นจนบ้านแทบแตก... แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!",
+        "style": "couple_paper_chat",
+        "selling_points": [
+          "สเปกจัดเต็ม การันตีของแท้",
+          "แก้ปัญหาชีวิตคู่",
+          "ราคาพิเศษในตะกร้า"
+        ]
+      },
+      {
+        "id": "angle_2",
+        "title": "Meme-PAS ปัญหาชีวิตประจำวัน",
+        "hook": "ทนใช้ของเก่าจนเกือบขิต! ดูคลิปนี้ก่อนตัดสินใจซื้อ",
+        "style": "meme_pas",
+        "selling_points": [
+          "Pain point ชัดเจน",
+          "เทียบความคุ้มค่า",
+          "ป้ายยาตะกร้าเหลือง"
+        ]
+      },
+      {
+        "id": "angle_3",
+        "title": "Tech Explainer ผ่าสเปกสายโหด",
+        "hook": "ทำไมรุ่นนี้ถึงขายดีจัด? ผ่าดู 3 จุดเด่นที่คนซื้อพูดเป็นเสียงเดียวกัน",
+        "style": "tech_explainer",
+        "selling_points": [
+          "ฟีเจอร์เด่น",
+          "ความคุ้มค่าเกินราคา",
+          "จัดส่งไว"
+        ]
+      },
+      {
+        "id": "angle_4",
+        "title": "VS Battle ตัวตึงปะทะของเดิม",
+        "hook": "มวยคู่เอก! ตัวเก่า VS ตัวใหม่ ศึกนี้ใครจะชนะ?",
+        "style": "vs_battle",
+        "selling_points": [
+          "เทียบกันหมัดต่อหมัด",
+          "ผลลัพธ์ต่างกันชัดเจน",
+          "กดด่วน"
+        ]
+      }
+    ],
+    "selected_angle": {
+      "id": "angle_1",
+      "title": "Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)",
+      "hook": "แฟนบ่นจนบ้านแทบแตก... แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!",
+      "style": "couple_paper_chat",
+      "selling_points": [
+        "สเปกจัดเต็ม การันตีของแท้",
+        "แก้ปัญหาชีวิตคู่",
+        "ราคาพิเศษในตะกร้า"
+      ]
+    },
+    "script": null,
+    "draft_info": null,
+    "created_at": "2026-10-14T00:30:14Z",
+    "updated_at": "2026-10-14T00:30:14Z"
+  },
+  "copilot-3ba53176d3fa": {
+    "session_id": "copilot-3ba53176d3fa",
+    "channel_id": "main",
+    "product_id": "7900bbca318d41ed964b5a721c0d951f",
+    "product_name": "GOOJODOQ มินิพาวเวอร์แบงค์แคปซูล 5000mAh (2 หัวชาร์จ iOS + Type-C)",
+    "price_note": "฿189 (ราคาโปรในตะกร้า)",
+    "images": [
+      {
+        "name": "goo01_img_01.webp",
+        "path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_01.webp",
+        "rel_path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_01.webp",
+        "url": "/api/media/03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_01.webp"
+      },
+      {
+        "name": "goo01_img_02.webp",
+        "path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_02.webp",
+        "rel_path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_02.webp",
+        "url": "/api/media/03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_02.webp"
+      },
+      {
+        "name": "goo01_img_03.webp",
+        "path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_03.webp",
+        "rel_path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_03.webp",
+        "url": "/api/media/03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_03.webp"
+      },
+      {
+        "name": "goo01_img_04.webp",
+        "path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_04.webp",
+        "rel_path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_04.webp",
+        "url": "/api/media/03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_04.webp"
+      },
+      {
+        "name": "goo01_img_05.webp",
+        "path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_05.webp",
+        "rel_path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_05.webp",
+        "url": "/api/media/03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_05.webp"
+      },
+      {
+        "name": "goo01_img_06.webp",
+        "path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_06.webp",
+        "rel_path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_06.webp",
+        "url": "/api/media/03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_06.webp"
+      },
+      {
+        "name": "goo01_img_07.webp",
+        "path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_07.webp",
+        "rel_path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_07.webp",
+        "url": "/api/media/03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_07.webp"
+      },
+      {
+        "name": "goo01_img_08.webp",
+        "path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_08.webp",
+        "rel_path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_08.webp",
+        "url": "/api/media/03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_08.webp"
+      },
+      {
+        "name": "goo01_img_09.webp",
+        "path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_09.webp",
+        "rel_path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_09.webp",
+        "url": "/api/media/03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_09.webp"
+      },
+      {
+        "name": "goo01_img_10.webp",
+        "path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_10.webp",
+        "rel_path": "03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_10.webp",
+        "url": "/api/media/03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_10.webp"
+      }
+    ],
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "สวัสดีครับ! ผมเป็นผู้ช่วย AI ผลิตคลิปสำหรับสินค้า **GOOJODOQ มินิพาวเวอร์แบงค์แคปซูล 5000mAh (2 หัวชาร์จ iOS + Type-C)**\nผมได้วิเคราะห์สเปกและรูปภาพ (10 รูป) พร้อมคัดเลือก 4 มุมมองเริ่มต้นให้แล้ว:\n- **Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)**: แฟนบ่นจนบ้านแทบแตก แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!\n- **Meme-PAS ปัญหาชีวิตประจำวัน**: ทนใช้ของเก่าจนเกือบขิต! ดูคลิปนี้ก่อนตัดสินใจซื้อ\n- **Tech Explainer ผ่าสเปกสายโหด**: ทำไมรุ่นนี้ถึงขายดีจัด? ผ่าดู 3 จุดเด่นที่คนซื้อพูดเป็นเสียงเดียวกัน\n- **VS Battle ตัวตึงปะทะของเดิม**: มวยคู่เอก! ตัวเก่า VS ตัวใหม่ ศึกนี้ใครจะชนะ?\n\nคุณสามารถเลือกมุมมองด้านบน หรือพิมพ์บรีฟทิศทางคลิปที่ต้องการ (เช่น *'ขอแนวคู่รักสายใต้น้องนุ้ยด่าพี่บ่าวเรื่องกินกาแฟหก'* หรือ *'ขอแนวทดสอบความทนทาน 30 วิ'*) ได้เลยครับ!",
+        "timestamp": "2026-10-15T07:32:34Z"
+      },
+      {
+        "role": "user",
+        "content": "ขอคลิปสไตล์คู่รักน้องนุ้ยกับพี่บ่าว เน้นความสะดวก 2 หัวชาร์จ ไม่ต้องพกสาย",
+        "timestamp": "2026-10-15T07:32:34Z"
+      },
+      {
+        "role": "assistant",
+        "content": "ยอดเยี่ยมครับ! ปรับบรีฟเป็น **สไตล์คู่รักสายใต้ (น้องนุ้ย & พี่บ่าว)** ให้เรียบร้อยครับ\n\n**Hook**: POV: น้องนุ้ยจับได้คาตาว่าพี่บ่าวแอบซื้อ GOOJODOQ มินิพาวเวอร์แบงค์แคปซูล 5000mAh (2 หัวชาร์จ iOS + Type-C) มาซ่อน!\nโดยจะให้เปิดเรื่องด้วยเสียงน้องนุ้ยโวยวาย ➔ พี่บ่าวเอาของมาอวด ➔ โชว์ภาพสินค้า GOOJODOQ มินิพาวเวอร์แบงค์แคปซูล 5000mAh (2 หัวชาร์จ iOS + Type-C) ➔ จบด้วยการป้ายยาตะกร้าซ้ายล่างครับ\n\nถ้าชอบมุมนี้ กด **'สร้างบทสคริปต์'** ได้เลยครับ!",
+        "timestamp": "2026-10-15T07:32:34Z",
+        "angles": [
+          {
+            "id": "custom_couple",
+            "title": "Couple POV Sitcom (พี่บ่าว & น้องนุ้ย - Customized)",
+            "hook": "POV: น้องนุ้ยจับได้คาตาว่าพี่บ่าวแอบซื้อ GOOJODOQ มินิพาวเวอร์แบงค์แคปซูล 5000mAh (2 หัวชาร์จ iOS + Type-C) มาซ่อน!",
+            "style": "couple_paper_chat",
+            "selling_points": [
+              "บทสนทนาสายใต้ฮาๆ",
+              "โชว์รูปสินค้าทางการในแชท",
+              "ตะกร้าซ้ายล่าง"
+            ]
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "✅ สร้างบทสคริปต์สไตล์ **couple_paper_chat** สำหรับมุมมอง *'Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)'* เรียบร้อยแล้วครับ!\nบทมีความยาวประมาณ 24.0 วินาที รวมทั้งหมด 6 เทิร์นสนทนา\nพร้อมประกอบร่างเป็น HyperFrames Composition ได้ทันที กดปุ่ม **'สร้าง HyperFrames ดราฟต์'** ได้เลยครับ",
+        "timestamp": "2026-10-15T07:32:42Z"
+      },
+      {
+        "role": "assistant",
+        "content": "🎉 **HyperFrames Composition สร้างเสร็จเรียบร้อยแล้ว!**\n\n- **Clip ID**: `goo01-pov1-dual`\n- **ไฟล์ผลงาน**: `03_Projects/_HyperFrames_Studio/clips/goo01-pov1-dual/index.html`\n- **หน้า Studio Preview**: `http://localhost:3002/clips/goo01-pov1-dual`\n- **สถานะ Tracker**: ขยับเข้าสู่ **เฟส 3 (มีดราฟต์ / draft_ready)** ใน Content Tracker เรียบร้อย\n\nคุณสามารถเปิดดูพรีวิวสดได้ทันที หรือสั่งเรนเดอร์เป็นไฟล์วิดีโอ 1080x1920 MP4 เพื่อเตรียมโพสต์ได้เลยครับ!",
+        "timestamp": "2026-10-15T07:32:50Z"
+      }
+    ],
+    "suggested_angles": [
+      {
+        "id": "angle_1",
+        "title": "Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)",
+        "hook": "แฟนบ่นจนบ้านแทบแตก แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!",
+        "style": "couple_paper_chat",
+        "selling_points": [
+          "ความจุแบตเตอรี่: 5000mAh, หัวชาร์จในตัว: 2 หัว (iOS Lightning + Type-C)",
+          "แก้ปัญหาชีวิตคู่",
+          "฿189 (ราคาโปรในตะกร้า)"
+        ]
+      },
+      {
+        "id": "angle_2",
+        "title": "Meme-PAS ปัญหาชีวิตประจำวัน",
+        "hook": "ทนใช้ของเก่าจนเกือบขิต! ดูคลิปนี้ก่อนตัดสินใจซื้อ",
+        "style": "meme_pas",
+        "selling_points": [
+          "Pain point ชัดเจน",
+          "เทียบความคุ้มค่า",
+          "ป้ายยาตะกร้าเหลือง"
+        ]
+      },
+      {
+        "id": "angle_3",
+        "title": "Tech Explainer ผ่าสเปกสายโหด",
+        "hook": "ทำไมรุ่นนี้ถึงขายดีจัด? ผ่าดู 3 จุดเด่นที่คนซื้อพูดเป็นเสียงเดียวกัน",
+        "style": "tech_explainer",
+        "selling_points": [
+          "ฟีเจอร์เด่น",
+          "ความคุ้มค่าเกินราคา",
+          "จัดส่งไว"
+        ]
+      },
+      {
+        "id": "angle_4",
+        "title": "VS Battle ตัวตึงปะทะของเดิม",
+        "hook": "มวยคู่เอก! ตัวเก่า VS ตัวใหม่ ศึกนี้ใครจะชนะ?",
+        "style": "vs_battle",
+        "selling_points": [
+          "เทียบกันหมัดต่อหมัด",
+          "ผลลัพธ์ต่างกันชัดเจน",
+          "กดด่วน"
+        ]
+      }
+    ],
+    "selected_angle": {
+      "id": "angle_1",
+      "title": "Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)",
+      "hook": "แฟนบ่นจนบ้านแทบแตก แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!",
+      "style": "couple_paper_chat",
+      "selling_points": [
+        "ความจุแบตเตอรี่: 5000mAh, หัวชาร์จในตัว: 2 หัว (iOS Lightning + Type-C)",
+        "แก้ปัญหาชีวิตคู่",
+        "฿189 (ราคาโปรในตะกร้า)"
+      ]
+    },
+    "script": {
+      "style": "couple_paper_chat",
+      "product_name": "GOOJODOQ มินิพาวเวอร์แบงค์แคปซูล 50",
+      "headlines": [
+        [
+          0,
+          "POV: ของเดิมพังจนหัวจะปวด",
+          "พี่บ่าวจัดตัวตึงให้",
+          "จบทุกปัญหา!"
+        ],
+        [
+          2,
+          "ลองใช้จริงแล้วถึงกับอึ้ง",
+          "GOOJODOQ มินิพาวเวอร์แบงค",
+          "คุ้มค่าเกินราคา"
+        ],
+        [
+          4,
+          "ใครเล็งอยู่รีบกดด่วน",
+          "กดตะกร้าเหลือง",
+          "ซ้ายล่างเลย!"
+        ]
+      ],
+      "turns": [
+        {
+          "speaker": "F",
+          "phrases": [
+            [
+              "พี่บ่าว!",
+              "พี่บ่าว!"
+            ],
+            [
+              "ของเก่าพังอีกแล้ว!",
+              "ของเก่าพังอีกแล้ว!"
+            ]
+          ],
+          "photo": null
+        },
+        {
+          "speaker": "M",
+          "phrases": [
+            [
+              "ใจเย็นน้องนุ้ย",
+              "ใจเย็นน้องนุ้ย"
+            ],
+            [
+              "พี่บ่าวมีตัวช่วยใหม่",
+              "พี่บ่าวมีตัวช่วยใหม่มาให้แล้ว"
+            ]
+          ],
+          "photo": {
+            "phrase_idx": 1,
+            "src": "/api/media/03_Projects/_HyperFrames_Studio/assets/goo01/img/goo01_img_01.webp",
+            "kind": "photo"
+          }
+        },
+        {
+          "speaker": "F",
+          "phrases": [
+            [
+              "ตัวนี้ดีจริงเหรอ?",
+              "ตัวนี้ดีจริงเหรอ?"
+            ],
+            [
+              "ใช้ยากหรือเปล่า!",
+              "ใช้ยากหรือเปล่า!"
+            ]
+          ],
+          "photo": null
+        },
+        {
+          "speaker": "M",
+          "phrases": [
+            [
+              "GOOJODOQ มินิพาวเวอร์แบงค์แคปซูล 50",
+              "GOOJODOQ มินิพาวเวอร์แบงค์แคปซูล 50"
+            ],
+            [
+              "ของแท้ การันตีคุณภาพ",
+              "ของแท้ การันตีคุณภาพ ใช้โคตรง่าย"
+            ]
+          ],
+          "photo": null
+        },
+        {
+          "speaker": "F",
+          "phrases": [
+            [
+              "งั้นน้องยึดเลยนะ!",
+              "งั้นน้องขอยึดเลยนะ!"
+            ],
+            [
+              "ใครอยากได้",
+              "ใครอยากได้"
+            ]
+          ],
+          "photo": null
+        },
+        {
+          "speaker": "M",
+          "phrases": [
+            [
+              "กดตะกร้าเหลือง",
+              "กดตะกร้าเหลือง"
+            ],
+            [
+              "ซ้ายล่างได้เลยครับ",
+              "ซ้ายล่างได้เลยครับ"
+            ]
+          ],
+          "photo": null
+        }
+      ],
+      "cta_phrase": [
+        5,
+        0
+      ],
+      "cta_model_text": "GOOJODOQ มินิพาวเวอร์แบงค์แคปซูล 50 · ของแท้ส่งไว · ตะกร้าซ้ายล่าง",
+      "estimated_duration_s": 22.9
+    },
+    "draft_info": {
+      "clip_id": "goo01-pov1-dual",
+      "composition_path": "03_Projects/_HyperFrames_Studio/clips/goo01-pov1-dual/index.html",
+      "preview_url": "http://localhost:3002/clips/goo01-pov1-dual",
+      "status": "draft_ready",
+      "draft_type": "hyperframes",
+      "style": "couple_paper_chat"
+    },
+    "created_at": "2026-10-15T07:32:34Z",
+    "updated_at": "2026-10-15T07:32:50Z"
+  }
+}
