@@ -44,6 +44,10 @@ Claude outputs/
 03_Projects/_HyperFrames_Studio/assets/shared/bgm*.wav
 03_Projects/_HyperFrames_Studio/assets/*/footage.mp4
 03_Projects/_HyperFrames_Studio/assets/*/preview/
+03_Projects/_HyperFrames_Studio/**/*.wav
+03_Projects/_HyperFrames_Studio/**/*.mp3
+03_Projects/_HyperFrames_Studio/**/*.mp4
+03_Projects/_HyperFrames_Studio/snapshots/
 04_Exports/*
 05_Covers_Thumbnails/*
 !05_Covers_Thumbnails/.gitkeep
