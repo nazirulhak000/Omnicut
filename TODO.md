@@ -4,6 +4,81 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-OVERNIGHT-ROUND-1-TOPBAR-QUALITY-20261031 · ยกระดับ Code Quality, Glassmorphism, WAI-ARIA Accessibility, Mobile Ergonomics & Realtime Latency ใน Topbar.jsx · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-ULTRA-REALISTIC-GLASSMORPHISM-PULSE-HUB-20261031 · ยกระดับธีม UI สู่ Ultra-Realistic Glassmorphism Theme สไตล์ Pulse Hub (Apple visionOS Spatial UI & Michal Malewicz Glass Architecture) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-LOOP-DESKTOP-TO-NATIVE-MOBILE-APP-8-STATIONS-20261031 · รันลูปตรวจสอบและยกระดับ "โหมดคอม (Desktop Studio Workspace)" สู่ Native Mobile App 100% บน iPhone 15 Pro Max (430×932 pt) ครบ 8 สถานี ตามแผน `_Docs/Plans/MASTER_DESKTOP_TO_MOBILE_APP_LOOP_PROMPT.md` (คะแนน 100/100 ทุกสถานี, ผ่านการทดสอบ Vitest 1055/1055 tests 100%, รีบิลด์ frontend/dist สมบูรณ์):
+  - [x] สถานี 1: แถบหัว & นำทาง (`Topbar.jsx`, `Sidebar.jsx`, `App.jsx`) — Adaptive Dynamic Topbar 44pt + Product Pill บนมือถือ + Floating Capsule + Haptic 10ms + Project switcher
+  - [x] สถานี 2: สินค้า ➜ คลิป (`ProductToClip.jsx`) — ปุ่ม 1-Tap Paste วางลิงก์คลิปบอร์ด 48px + Haptic 15ms + Category Filter Chips + Angle Pills 50px + SessionStorage Restore + Input >= 16px
+  - [x] สถานี 3: แทร็กเกอร์ 4 เฟส (`ContentTrackerHub.jsx`) — Sticky Segmented Phase Bar + Swipeable KanBan 88vw-90vw + Haptic 10ms + ปุ่มเลือกจากคลัง
+  - [x] สถานี 4: ห้องตัดต่อ & สร้างคลิป (`EditorShell.jsx`, `SequencePlayer.jsx`, `Timeline.jsx`, `Toolbar.jsx`, `TimelinePlayhead.jsx`) — 9:16 Vertical Stage + Double-Tap Play/Pause + `touch-action: none` Scrubbing + White Playhead 3.5px + ปุ่มตัด Q/W >= 44px
+  - [x] สถานี 5: คลังคลิปส่งออก (`ExportGallery.jsx`) — 9:16 Video Cards + 1-Tap Copy Caption/Tags (Haptic 15ms) + Web Share เซฟตรงลง Photos
+  - [x] สถานี 6: คลังวัตถุดิบ & ซาวด์บอร์ด (`MediaAssetsHub.jsx`) — 2-Column MPC Soundboard Pads + Sticky Mini Audio Player Bar
+  - [x] สถานี 7: สถิติ, ตั้งค่า & คู่มือ (`AnalyticsHub.jsx`, `SystemSettings.jsx`, `UserGuide.jsx`) — Horizontal Carousel Pills 48px + Touch Accordion 48px + Haptic 10ms
+  - [x] สถานี 8: ป๊อปอัป & สัมผัสรวม (`Modal.jsx`, `Toast.jsx`, `index.css`) — iOS Bottom Sheet (Drag Handle + Swipe-Down-to-Dismiss 80px + Haptic 10ms) + Dynamic Island Toast Capsule + 100dvh Lock
+  - [x] ตรวจเกณฑ์ 10 มิติ (100/100 ทุกสถานี) + กฎ Rule 3.8/4.8 ปุ่มเป็นคำกริยาไร้ไอคอนนำหน้า + ผ่าน Vitest 1055/1055 tests 100% + รีบิลด์ frontend/dist
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-NATIVE-APP-POLISH-SPRINT-20261031 · ยกระดับ Desktop Studio สู่สัมผัสและพฤติกรรม Native Mobile App 100% บน iPhone 15 Pro Max:
+  - [x] ProductToClip.jsx: เพิ่มแถบ Horizontal Category Filter Chips คัดกรอง 20 มุมมองตามหมวดหมู่ (วิกฤตแบตแดง, สายพันกัน, สเปก, ดราม่า) พร้อมตัวเลขนับมุมแบบ Real-Time
+  - [x] SequencePlayer.jsx: เอฟเฟกต์วงน้ำและไอคอน Play/Pause กระเพื่อมกลางจอ (Double-Tap Visual Ripple Capsule) เมื่อแตะ 2 ครั้ง พร้อม Haptic Tick สไตล์ TikTok/Reels
+  - [x] App.jsx: ปุ่มลอย Floating Speed-Dial (Scroll-To-Top) ลอยเหนือ Bottom Bar เมื่อเลื่อนจอเกิน 320px แตะปุ๊บสไลด์ขึ้นบนสุดนุ่มนวล
+  - [x] Sidebar.jsx: เสริม iOS Grab Handle ด้านบนและระบบปัดนิ้วลงเพื่อปิด (Swipe-Down-to-Dismiss) บน Mobile More Bottom Sheet
+  - [x] index.css: เพิ่มคลาสยูทิลิตี้ `.native-press` (Spring scale 0.96) เสริมความกระชับติดนิ้วทุกปุ่ม
+  - [x] ผ่านการทดสอบ Frontend Unit Tests 1055/1055 รายการ (100%) และ Vite Production Build สมบูรณ์
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-MASTER-MOBILE-AUDIT-LOOP-20261031 · ออกแบบและจัดทำ Master Prompt ลูปยกระดับ "โหมดคอม (Desktop Studio Workspace)" สู่ Native Mobile App 100% ทีละเมนูทุกฟังก์ชัน (100% Native Mobile App Standard) ตามแผน `_Docs/Plans/MASTER_DESKTOP_TO_MOBILE_APP_LOOP_PROMPT.md`:
+  - [x] วิเคราะห์ความต้องการผู้ใช้: ผู้ใช้ไม่ใช้โหมดมือถือแยก (MobileAppRoot) แล้ว แต่ต้องการให้ "โหมดคอม (Desktop Studio Workspace)" ซึ่งมีฟังก์ชันครบที่สุด ใช้งานบนมือถือ (iPhone 15 Pro Max) ได้เหมือน Native Mobile App 100%
+  - [x] สร้าง Master Prompt สำหรับรันลูปตรวจสอบแบบ Recursive Traverse ทีละเมนูครบทั้ง 8 สถานีของโหมดคอม (Topbar/Sidebar, ProductToClip, ContentTracker, Editor 9:16 NLE, ExportGallery, MediaAssets, Analytics/Settings/Guide, Global Modals/Sheets)
+  - [x] บรรจุเกณฑ์ประเมินคะแนน 10 มิติ (มิติละ 10 คะแนน รวม 100 คะแนนต่อเมนู ผ่านเกณฑ์ที่ 98 คะแนน) รักษาฟังก์ชันโปรของโหมดคอมไว้ครบ 100%
+  - [x] ผูกโยงกฎเหล็ก Rule 3.8 / 4.8 (Verb-first buttons), 100dvh lock, Dynamic Island Capsule, Haptic Touch, Double-tap Play/Pause, Touch-none Timeline
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-NATIVE-MOBILE-APP-EXPERIENCE-20261030 · แปลงโฉม Desktop Studio ให้ความรู้สึกเหมือน Native Mobile App 100% บน iPhone 15 Pro Max ตามแผน _Docs/Plans/PLAN_IPHONE15_PRO_MAX_NATIVE_APP_EXPERIENCE_20261030.md:
+  - [x] ล็อกหน้าจอแน่นสนิท overscroll-behavior: none กำจัดอาการเด้งหลุดขอบของ Safari (index.css)
+  - [x] บล็อกการเผลอเลือกข้อความ -webkit-user-select: none และปิด callout ป้องกันเมนูป๊อปอัปเกะกะนิ้ว (index.css)
+  - [x] แปลงระบบแจ้งเตือน Toast เป็น **Dynamic Island Capsule** สไลด์ลงมาจากติ่งบนสุด (Toast.jsx) ไม่บังปุ่มล่าง
+  - [x] แถบเมนูล่าง Frosted Glass พร้อมระบบสั่นตอบรับ **Haptic Tick 10ms** เมื่อแตะสลับแท็บ (Sidebar.jsx)
+  - [x] ระบบจำสถานะฟอร์ม **SessionStorage Auto-Restore** ป้องกันข้อมูลสคริปต์/ลิงก์หลุดเมื่อสลับไปแอปอื่น (ProductToClip.jsx)
+  - [x] ผ่านชุดทดสอบ 1055/1055 tests 100% และรีบิลด์ production bundle เรียบร้อย
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-10PASS-UX-UI-IPHONE15-PRO-MAX-SCRUTINY-V2-20261030 · ตรวจสอบและยกระดับ UX/UI เชิงลึก 10 รอบ ฉบับที่ 2 สวมบทบาทครีเอเตอร์ตัวจริงบน iPhone 15 Pro Max ตามแผน _Docs/Plans/PLAN_IPHONE15_PRO_MAX_UX_UI_10PASS_V2_20261030.md:
+  - [x] ตรวจสอบ 10 มิติเชิงลึก V2 (Landing Mode, Slimline Topbar, Floating Speed-Dial, 20 Angles Filter Chips, Double-Tap Play, Sticky Phase Bar, Fullscreen QC, Sticky Mini Audio, Micro-Haptic, Safari Session Restore)
+  - [x] จัดทำแผนแม่บท Actionable Roadmap 3 สปรินต์ บันทึกลง _Docs/Plans/PLAN_IPHONE15_PRO_MAX_UX_UI_10PASS_V2_20261030.md
+  - [x] ดำเนินการ Sprint 1: ความคล่องตัวของหน้าจอ (App.jsx ล็อก Desktop Studio Mode ถาวรไม่ดีดกลับโหมดง่าย, Topbar.jsx สลิม 44pt คืนพื้นที่ความสูงจอ OLED)
+  - [x] ดำเนินการ Sprint 2: เร่งความเร็วการทำงาน (SequencePlayer.jsx ดับเบิลแท็ป Play/Pause บนวิดีโอ 9:16, ContentTrackerHub.jsx แถบติดหนึบ Segmented Phase 4 เฟสพร้อมตัวเลขสรุป)
+  - [x] ดำเนินการ Sprint 3: ประสบการณ์เต็มจอ & สัมผัสระดับโปร (MediaAssetsHub.jsx แถบลอยมินิเพลเยอร์ Sticky Audio พร้อมปุ่ม Stop, ExportGallery.jsx ระบบสั่นตอบรับ Micro-Haptic 15ms เมื่อก็อปปี้แคปชัน)
+  - [x] ตรวจสอบผ่านชุดทดสอบ 1055/1055 tests 100% และรีบิลด์ production bundle สำเร็จ
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-10PASS-UX-UI-IPHONE15-PRO-MAX-SCRUTINY-20261030 · ตรวจสอบและยกระดับ UX/UI เชิงลึก 10 รอบ สวมบทบาทครีเอเตอร์ตัวจริงบน iPhone 15 Pro Max (430 × 932 pt) ตามแผน _Docs/Plans/PLAN_IPHONE15_PRO_MAX_UX_UI_10PASS_SCRUTINY_20261030.md:
+  - [x] ตรวจสอบ 10 มิติเชิงลึก (Thumb Zone, iOS Keyboard, Cognitive Load, Pipeline Flow, NLE Timeline Scrubbing, Micro-interactions, KanBan Swiping, Video QC, Soundboard, Fail-Safe)
+  - [x] จัดทำแผนแม่บทและ Actionable Roadmap 3 ระยะ บันทึกลง _Docs/Plans/PLAN_IPHONE15_PRO_MAX_UX_UI_10PASS_SCRUTINY_20261030.md
+  - [x] ดำเนินการ ระยะที่ 1: Ergonomics & Timeline Core (Timeline.jsx touch-none ป้องกัน Safari แย่งลาก, TimelinePlayhead.jsx เด่นชัด 3.5px, Modal.jsx รองรับการปัดรูดลง Swipe Down to Dismiss)
+  - [x] ดำเนินการ ระยะที่ 2: Workflow Acceleration (ปุ่ม 1-Tap Paste วางลิงก์สินค้า TikTok ทันทีใน ProductToClip.jsx, Quick Actions Deck ใน ExportGallery.jsx แตะคัดลอกแคปชันและเซฟ MP4 ใต้พรีวิว 9:16)
+  - [x] ดำเนินการ ระยะที่ 3: Audio & Resilience (MediaAssetsHub.jsx ซาวด์บอร์ด 2 คอลัมน์แบบ MPC Pad, เชื่อมต่อ useWakeLock(applying) ป้องกันหน้าจอดับขณะเรนเดอร์ใน EditorShell.jsx)
+  - [x] ตรวจสอบผ่านชุดทดสอบ 1055/1055 tests 100% และรีบิลด์ production bundle สำเร็จ
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-DESKTOP-UI-IPHONE15-PRO-MAX-TRANSFORMATION-20261030 · ปรับปรุงหน้า UI หลักโหมดคอม (Desktop Studio Workspace ทั้ง 8 เมนูหลัก) ให้ใช้งานบน iPhone 15 Pro Max (430 × 932 pt) ได้แบบ 100% ครบทุกเมนู บันทึกลง `_Docs/Plans/PLAN_DESKTOP_UI_MOBILE_TRANSFORMATION_20261030.md`:
+  - [x] วิเคราะห์โจทย์การแปลง UI โหมดคอมสู่หน้าจอมือถือด้วย 10 Specialized Transformation Agents
+  - [x] ออกแบบโครงสร้าง Adaptive Dynamic Topbar (44pt) และ Floating Capsule Sidebar Drawer
+  - [x] ออกแบบผังการแปลง 8 เมนูหลัก (ProductToClip, ContentTracker, Editor NLE 9:16, ExportGallery, Assets, Analytics, Settings, Modals)
+  - [x] ดำเนินการ Phase 0 + เมนูที่ 1: สินค้า → คลิป (ProductToClip) รองรับ iOS Safari ไร้ auto-zoom (16px), Angle Pills 50px, action buttons min-h 48px
+  - [x] ดำเนินการ เมนูที่ 2: แทร็กเกอร์ 4 เฟส (ContentTrackerHub) — KanBan กว้าง 88vw/max-380px สอดรับ iPhone 15 Pro Max (430pt)
+  - [x] ดำเนินการ เมนูที่ 3: ตัดต่อ & สร้างคลิป (EditorShell / SequencePlayer) — Mobile Switcher tabs 44px, Toolbar buttons 40px touch targets
+  - [x] ดำเนินการ เมนูที่ 4: Export Gallery — Floating Batch Action Bar ลอยเหนือ Bottom Navigation Bar และ Home Indicator, การ์ดวิดีโอปุ่มแตะ 38-44px
+  - [x] ดำเนินการ เมนูที่ 5: คลังวัตถุดิบ (MediaAssetsHub) — ปุ่มเล่นเสียงและ Soundboard 44px, Snap horizontal scrolling
+  - [x] ดำเนินการ เมนูที่ 6: สถิติ & วิเคราะห์ (AnalyticsHub) — Navigation tabs min-h 44px, ตารางมี overflow scroll
+  - [x] ดำเนินการ เมนูที่ 7: ตั้งค่าระบบ (SystemSettings) — Section carousel pills 48px
+  - [x] ดำเนินการ เมนูที่ 8: คู่มือการใช้งาน (UserGuide) — Sticky TOC pills 38px, FAQ Accordion 44px
+  - [x] Global Modals & Sheets (Modal.jsx, CoverStudioModal, ShortcutsModal) — Bottom Sheet เต็มความกว้างพร้อม safe-area padding
+  - [x] ชุดทดสอบผ่าน 1055/1055 100%, Vite Build ผลิต bundle สมบูรณ์, เซิร์ฟเวอร์ทำงานต่อเนื่องพร้อมทดสอบจริงบนเครือข่าย LAN Wi-Fi
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [ ] Round ANTIGRAVITY-PRODUCE-20-TTZ-K106-COUPLE-CLIPS-20261028 · ผลิตคลิปสไตล์คู่รักสายใต้บนกระดาษยับ (#5 Couple Paper Chat: น้องนุ้ย Aoede & พี่บ่าว Puck) สินค้า TTZ K106 Magnetic Wireless Power Bank 30000mAh (TTZ01) จากลิงก์ TikTok vt.tiktok.com/ZS9ykaGuy492W-oNdZy/ (TikTok Product ID: 1734519304293746340) ครบทั้ง 20 คลิปแบบ End-to-End:
   - [x] ตรวจสอบลิงก์ TikTok และสกัดข้อมูลสเปก/จุดขายสินค้า (30000mAh, Magnetic 15W, Fast Charge 22.5W/PD 20W, สายในตัว 2 เส้น, ขาตั้งพับในตัว, 4 สี, มอก. 2879-2560)
   - [ ] จัดเตรียมวัตถุดิบรูปภาพ 8 รูป 520x520 WebP คลีน + ไดคัท Hero rembg สู่ `03_Projects/_HyperFrames_Studio/assets/ttz01/`

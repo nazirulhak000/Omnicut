@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  Folder, Volume2, Music, Type,
+  Folder, Volume2, Square, Music, Type,
   Search, Play, Pause, Download, Trash2, Upload, Sparkles, Image as ImageIcon,
   Film, Palette, AlertTriangle, X, Check, RefreshCw, Layers, Sliders,
   CheckCircle2, HardDrive, Cpu, Smartphone, Copy, ExternalLink,
@@ -906,7 +906,7 @@ export default function MediaAssetsHub({ status }) {
                               e.stopPropagation();
                               playAudio(item, item.name);
                             }}
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${
+                            className={`w-11 h-11 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${
                               isPlaying
                                 ? 'bg-[#25F4EE] text-slate-950 scale-95 shadow-md shadow-[#25F4EE]/30'
                                 : 'bg-white/[0.06] text-slate-300 hover:bg-[#25F4EE]/20 hover:text-[#25F4EE]'
@@ -1082,7 +1082,7 @@ export default function MediaAssetsHub({ status }) {
                         <button
                           type="button"
                           onClick={() => playAudio(selectedAsset, selectedAsset.name)}
-                          className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-[#25F4EE]/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                          className="min-h-[44px] px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-[#25F4EE]/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
                         >
                           {currentlyPlayingAudio === selectedAsset.name ? (
                             <>
@@ -1335,7 +1335,7 @@ export default function MediaAssetsHub({ status }) {
         <div className="space-y-4 animate-fadeIn">
           {/* SFX Grid */}
           {activeAssetTab === 'sfx' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3">
               {visibleCurrentItems.map((sfx) => {
                 const isPlaying = currentlyPlayingAudio === sfx.name;
                 return (
@@ -1600,7 +1600,10 @@ export default function MediaAssetsHub({ status }) {
                 </div>
                 <button
                   type="button"
-                  onClick={(e) => handleToggleStar(livePreview, e)}
+                  onClick={(e) => {
+                    try { navigator.vibrate?.(10); } catch {}
+                    handleToggleStar(livePreview, e);
+                  }}
                   className={`w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                     livePreview.starred
                       ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
@@ -1608,7 +1611,7 @@ export default function MediaAssetsHub({ status }) {
                   }`}
                 >
                   <Star className={`w-3.5 h-3.5 ${livePreview.starred ? 'fill-current' : ''}`} />
-                  <span>{livePreview.starred ? 'ติดดาวแล้ว (ใช้ในตัดต่อ)' : 'ติดดาว (ใช้ในตัดต่อ)'}</span>
+                  <span>{livePreview.starred ? 'ยกเลิกการติดดาว' : 'ติดดาวสำหรับตัดต่อ'}</span>
                 </button>
               </div>
             )}
@@ -1629,6 +1632,35 @@ export default function MediaAssetsHub({ status }) {
         loading={deleting}
         variant="danger"
       />
+
+      {/* ── Sticky Mobile Audio Mini-Player Bar ── */}
+      {currentlyPlayingAudio && (
+        <div className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl bg-[#0B0F19]/95 border border-[#25F4EE]/40 backdrop-blur-2xl shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-[#25F4EE]/20 text-[#25F4EE] flex items-center justify-center flex-shrink-0 animate-pulse">
+              <Volume2 className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-white truncate max-w-[200px]">{currentlyPlayingAudio}</div>
+              <div className="text-[10px] text-[#25F4EE] font-mono">กำลังทดลองฟังเสียง...</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+              }
+              setCurrentlyPlayingAudio(null);
+            }}
+            className="px-3.5 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+          >
+            <Square className="w-3.5 h-3.5 fill-current" />
+            <span>หยุดเล่น</span>
+          </button>
+        </div>
+      )}
 
       {/* Toast */}
       {toastMessage && (

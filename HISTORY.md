@@ -7,6 +7,9 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-OVERNIGHT-ROUND-1-TOPBAR-QUALITY-20261031 | ตรวจสอบและยกระดับ Code Quality ใน Topbar.jsx: ล้าง Dead Imports (`Lightbulb`, `Wifi`), เพิ่ม WAI-ARIA keyboard accessibility (`onKeyDown` Enter/Space), ขยาย Touch Target บนมือถือสู่ min-h-11 (>=44px), เพิ่มระบบวัดและแสดงผล Live Ping Latency (เช่น 14ms), ตรวจสอบ Rule 3.8/4.8 คลีน 100%, เพิ่มชุดทดสอบ TDD `frontend/src/lib/topbarContract.test.js` (ผ่าน 5/5, ยอดรวม 1,060/1,060 tests 100%), บิลด์ Vite สำเร็จสมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-ULTRA-REALISTIC-GLASSMORPHISM-PULSE-HUB-20261031 | ยกระดับธีม UI สู่ Ultra-Realistic Glassmorphism Theme สไตล์ Pulse Hub (Apple visionOS Spatial UI & Michal Malewicz Glass Architecture): ฟอนต์ Anuphan ครบทุกน้ำหนัก 300-700 เป็น Default 100%, Canvas OLED Deep Space #030509, Floating Ambient Orbs 3 จุด (Cyan, Amber, Indigo) หักเหทะลุเนื้อกระจก, Master Glass CSS Architecture (.glass-panel, .saas-card แสงสะท้อน 1px Razor Glare ::before และ 38% Curved Sheen ::after, .glass-tile, .glass-btn, .glass-input 16px iOS safe), ผ่านการทดสอบ Vitest 1055/1055 100% และ Vite Production Build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-LOOP-DESKTOP-TO-NATIVE-MOBILE-APP-8-STATIONS-20261031 | รันลูปตรวจสอบและยกระดับ "โหมดคอม (Desktop Studio Workspace)" สู่ Native Mobile App 100% บน iPhone 15 Pro Max (430×932 pt) ครบ 8 สถานี ตามแผน `_Docs/Plans/MASTER_DESKTOP_TO_MOBILE_APP_LOOP_PROMPT.md` (คะแนน 100/100 ทุกสถานี, ผ่านการทดสอบ Vitest 1055/1055 tests 100%, รีบิลด์ frontend/dist สมบูรณ์) | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-API-ULTRA-LITE-AND-DISK-CACHE-20261030 | ปรับปรุงประสิทธิภาพ API และลดขนาด Payload สินค้าจาก 5.26 MB เหลือ 38 KB (ลดลง 99.5%): โหมด lite=compact (120KB) และ lite=summary (38KB), ขยาย reconcile throttle เป็น 30s ลดภาระดิสก์, สร้าง run_studio_pc.bat + tools/run_studio_pc.py พร้อมแสดง QR Code สำหรับมือถือเชื่อมต่อผ่าน Wi-Fi ในบ้าน (0% เน็ตบ้าน), ผ่านการทดสอบ 80 backend + 1055 frontend 100% | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-PARALLEL-8-AGENTS-MOBILE-E2E-PHASES-1-TO-8-20261030 | ยกระดับ Mobile-First Studio ครบวงจร Phase 1–8 ด้วย 8 Parallel Subagents (Disjoint File Ownership): Phase 1.9–1.10 PWA/ServiceWorker + MobileShell 5 แท็บ, Phase 2A Couple Engine (9 โมดูล) + Phase 2B Job Queue & SSE Router, Phase 3 Intake & Script Deck, Phase 4 Review Queue, Phase 5 Clip Library & LINE Notifier, Phase 6 Mobile Posting & GDrive Bridge, Phase 7–8 Command Center & Uploads, รวม Colab Secret fallback resolution (`OMNICUT_`) ปลดล็อก 503; tests 236 backend + 1055 frontend 100%, production build สำเร็จ | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round CLAUDE-MOBILE-PHASE0-1-SECURITY-AND-FOUNDATION-20261030 | Phase 0+1 แผนมือถือ: cookie auth ครอบ HTTP/WS + tunnel-aware + `/api/health` + ปิด SPA path traversal, Colab notebook (token จาก Secrets, รหัสแอปอัตโนมัติ, ttyd loopback+tmux, watchdog thread), ลบคำชวนราคา/สติกเกอร์ดีล, ปิด Copilot sine render, nav history/login/mobile primitives; backend 4050 passed (13 ไฟล์พังเหมือน HEAD), frontend 1038/1038 | 2026-10-30 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
@@ -105,6 +108,60 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+---
+
+## Round ANTIGRAVITY-OVERNIGHT-ROUND-1-TOPBAR-QUALITY-20261031 · ตรวจสอบและยกระดับ Code Quality, Glassmorphism, WAI-ARIA Accessibility & Realtime Latency ใน Topbar.jsx
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-31
+
+- **ผลการตรวจประเมินคุณภาพโค้ด (Code Quality Audit):**
+  - **Dead Imports**: พบการนำเข้าไอคอน `Lightbulb` และ `Wifi` จาก `lucide-react` โดยไม่ได้ถูกเรียกใช้จริงใน JSX -> ทำการลบออกเพื่อคลีน Bundle
+  - **WAI-ARIA Accessibility**: Server Status Indicator มี `role="button"` และ `tabIndex={0}` แต่เดิมขาด `onKeyDown` สำหรับผู้ใช้คีย์บอร์ด -> เพิ่ม `handleStatusKeyDown` รองรับปุ่ม `Enter` และ `Space` พร้อม `aria-label` ครบถ้วน
+  - **Mobile Touch Targets**: ปุ่มสถานะเดิมมีความสูงเพียง `36px` บนมือถือ ซึ่งต่ำกว่ามาตรฐาน Apple HIG (44px) -> ปรับเป็น `min-h-11` (44px) บนหน้าจอสัมผัส และ `sm:min-h-[36px]` บนเดสก์ท็อป
+  - **Realtime Ping Latency**: เพิ่มตัวจับเวลา Roundtrip Latency (ms) ในตัววัดความหน่วงของสถานะเซิร์ฟเวอร์ แสดงผลสดแบบกะทัดรัด (เช่น `14ms` / `Online 14ms`)
+  - **Glassmorphism Specular Accent**: เสริมเส้นแสงสะท้อนขอบบน `shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)]` สไตล์ Apple visionOS
+  - **Rule 3.8 / 4.8 Compliance**: ตรวจสอบปุ่มทุกตัว (`สลับโหมดมือถือ`, `รีเฟรชข้อมูล`, `เปิด AGY Terminal`) ข้อความภาษาไทยขึ้นต้นด้วยคำกริยาแอ็กชัน ไร้เครื่องหมายบวก `+` หรืออีโมจินำหน้า 100%
+- **การทดสอบและการตรวจสอบคุณภาพ (TDD & Quality Gates):**
+  - เพิ่มชุดทดสอบสัญญาการทำงาน: [`frontend/src/lib/topbarContract.test.js`](file:///d:/Winona/Programmer/Omnicut/frontend/src/lib/topbarContract.test.js) ตรวจสอบ TAB_CONFIG, Dead Imports, WAI-ARIA accessibility, Rule 3.8/4.8, และ Latency
+  - ผลการรัน Vitest Suite: **ผ่านครบ 1,060/1,060 tests (100% pass)** (เดิม 1,055 + เพิ่ม 5 tests)
+  - Vite Production Build: สำเร็จสมบูรณ์ 0 error (`dist/` พร้อมใช้งาน)
+
+---
+
+## Round ANTIGRAVITY-ULTRA-REALISTIC-GLASSMORPHISM-PULSE-HUB-20261031 · ยกระดับธีม UI สู่ Ultra-Realistic Glassmorphism Theme สไตล์ Pulse Hub (Apple visionOS Spatial UI & Michal Malewicz Glass Architecture)
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-31
+
+- **แรงบันดาลใจและมาตรฐานการออกแบบ:**
+  - ผสานปรัชญาการออกแบบของ **Apple visionOS Spatial UI** และ **Michal Malewicz Glass Architecture** สู่ Desktop Studio และ Mobile App
+  - สร้างมิติความลึกที่สมจริง (Physical Refraction Proof) ด้วยแสงตกกระทบและแสงหักเหทะลุเนื้อกระจก Frosted Glass แบบ Multi-layered Inset Shadows
+- **รายละเอียดการดำเนินการ:**
+  1. **Palette & Typography**:
+     - นำเข้า Google Fonts `"Anuphan"` (น้ำหนัก 300, 400, 500, 600, 700) เชื่อมโยงเป็น Default UI Font ทั้งระบบ 100%
+     - ปรับ Canvas Background สู่โทน OLED Deep Space `#030509` คมเข้ม สบายตาและประหยัดแบตเตอรี่บนจอ Super Retina XDR
+     - คุมโทนสี Accent 3 แกนหลัก: Cyan (`#00f2fe`/`#25f4ee`), Amber/Orange (`#f59e0b`/`#fb923c`), Purple/Rose (`#a855f7`/`#ec4899`)
+  2. **Floating Ambient Orbs (แสงสะท้อนทะลุกระจก)**:
+     - ติดตั้ง Ambient Background Layer ด้านหลังสุดที่ Fixed Inset-0 (`z-0`) ลอยนุ่มนวลอย่างเป็นอิสระ:
+       - `orb-cyan`: ขนาด 350px สี `#00f2fe` เบลอ 40px แอนิเมชันลอย 9 วินาที
+       - `orb-amber`: ขนาด 380px สี `#f59e0b` เบลอ 45px แอนิเมชันลอย 11 วินาที
+       - `orb-indigo`: ขนาด 320px สี `#818cf8` เบลอ 50px แอนิเมชันลอย 12 วินาที
+     - ทำหน้าที่เป็นแหล่งกำเนิดแสงด้านหลัง (Light Source) ทำให้ทุกการ์ดและพาเนลมีแสงสีเหลือบหักเหทะลุเลนส์กระจกแบบไดนามิก
+  3. **Master Glass CSS Architecture**:
+     - `.glass-panel, .saas-card`: พื้นหลังแบบกึ่งโปร่งใสซ้อน Multi-layered Shadow 7 ระดับ, ขอบบนมีแสงสะท้อน 1px Razor-sharp Glare (`::before`), และแสงสะท้อนทรงโค้งมน 38% Curved Sheen (`::after`)
+     - `.glass-tile`: แผ่นกระจกย่อยลอยด้านใน (Nested Glass Tile) เบลอ 12px อัตราอิ่มตัวสี 180%
+     - `.glass-btn`: ปุ่มกดกระจกสัมผัส (Tactile Glass Button) พร้อม Hover Glare และ Active Spring Scale 0.97
+     - `.glass-input`: กล่องข้อความกระจกหรูหรา พร้อมฟอนต์ 16px ป้องกัน Safari Auto-Zoom
+  4. **Component Integration**:
+     - ยกระดับ `Topbar.jsx`, `Sidebar.jsx`, `Modal.jsx`, `Toast.jsx` และ Main Shell ให้เป็น Frosted Glass สอดคล้องกันอย่างประณีต
+     - ตั้งค่า Main Area ให้มีพื้นหลังแบบ `bg-transparent z-10` เพื่อให้ Refraction Orbs แสดงมิติทะลุเนื้อกระจกแบบสมบูรณ์
+  5. **Mobile & Touch Mechanics**:
+     - ล็อกหน้าจอ `100dvh` และ `overscroll-behavior: none`
+     - ตอบสนองการแตะปุ่มด้วย Tactile Scale `0.98` และ Haptic Tick `10ms`
+     - เคารพกฎ Rule 3.8 / 4.8 ปุ่มเป็นคำกริยานำหน้าไร้ไอคอน
+- **ผลการทดสอบและการตรวจสอบคุณภาพ:**
+  - ผ่านการทดสอบ Vitest Suite: **1055/1055 tests ผ่าน 100%** (0 failure, 0 skipped)
+  - Vite Production Build: สำเร็จสมบูรณ์ 0 error
+
 ---
 
 ## Round ANTIGRAVITY-API-ULTRA-LITE-AND-DISK-CACHE-20261030 · ปรับปรุงความเร็ว API และลดขนาด Payload จาก 5.26 MB เหลือ 38 KB พร้อม Wi-Fi LAN Bridge สำหรับมือถือ

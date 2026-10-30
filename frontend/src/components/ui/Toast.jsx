@@ -50,10 +50,10 @@ export function Toast({
       role={type === 'error' ? 'alert' : 'status'}
       aria-live={type === 'error' ? 'assertive' : 'polite'}
       aria-atomic="true"
-      className="fixed inset-x-3 bottom-[calc(var(--nav-h)+0.75rem)] md:inset-x-auto md:bottom-6 md:right-6 z-[60] flex justify-center md:block animate-fadeIn select-none pointer-events-none"
+      className="fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+8px)] md:top-auto md:inset-x-auto md:bottom-6 md:right-6 z-[9999] flex justify-center md:block animate-slideDown select-none pointer-events-none"
     >
       <div
-        className={`flex items-center gap-3 py-3 px-4 rounded-2xl border backdrop-blur-md shadow-xl text-sm font-semibold w-full md:w-auto max-w-md min-w-0 pointer-events-auto ${config.style}`}
+        className={`flex items-center gap-2.5 py-2.5 px-4 rounded-full border backdrop-blur-2xl shadow-2xl text-xs sm:text-sm font-semibold w-full md:w-auto max-w-md min-w-0 pointer-events-auto ${config.style}`}
       >
         <Icon className={`w-4 h-4 flex-shrink-0 ${config.iconColor}`} />
         <span className="flex-1 min-w-0 break-words">{message}</span>

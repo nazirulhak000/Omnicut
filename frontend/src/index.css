@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* Preview and FFmpeg must shape the exact same physical font files.  These
@@ -24,6 +25,11 @@
 @font-face { font-family: 'Sarabun'; src: url('/api/media/02_Assets/Fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 400 700; font-display: block; }
 
 :root {
+  /* Ultra-Realistic Glassmorphism Tokens (Pulse Hub / Apple visionOS Spatial UI) */
+  --glass-blur: 18px;
+  --glass-saturate: 195%;
+  --glare-opacity: 0.95;
+
   /* Every type size in the app is a rem, so this one number scales the whole
      interface. It used to exist while 214 sizes were hardcoded in px, which
      made it a lever attached to nothing. See _Docs/PLAN_*.md. */
@@ -57,9 +63,9 @@
   }
 
   body {
-    background-color: #07090E;
+    background-color: #030509;
     color: #F1F5F9;
-    font-family: 'Prompt', 'Inter', system-ui, sans-serif;
+    font-family: 'Anuphan', 'Prompt', 'Inter', system-ui, sans-serif;
     min-height: 100vh;
     min-height: 100dvh;
     overflow-x: hidden;
@@ -75,7 +81,7 @@
   html, body, #root {
     height: 100%;
     overflow: hidden;
-    background-color: #07090E;
+    background-color: #030509;
   }
 
   /* Prevent iOS Safari auto-zoom when tapping inputs. Applies to every touch
@@ -108,28 +114,184 @@
   font-feature-settings: 'tnum' on, 'lnum' on;
 }
 
-/* ── Modern Dark Surfaces ── */
-.glass-card, .claude-card {
-  background: rgba(13, 17, 26, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* ── Ultra-Realistic Glassmorphism & Master Glass Architecture (Pulse Hub & Apple visionOS) ── */
+
+/* 1. แผ่นกระจกหลัก (Master Glass Panel / Card) */
+.glass-panel, .saas-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 45%, rgba(230, 245, 255, 0.14) 100%) !important;
+  background-color: rgba(10, 16, 30, 0.45) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.75) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.28) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.28) !important;
+  border-bottom: 1px solid rgba(236, 72, 153, 0.40) !important;
+  box-shadow: 
+    0 25px 50px -12px rgba(14, 116, 144, 0.4),
+    0 0 25px -5px rgba(236, 72, 153, 0.25),
+    inset 0 2px 3px 0 rgba(255, 255, 255, 0.95),
+    inset 2px 0 3px 0 rgba(255, 255, 255, 0.75),
+    inset -2.5px 0 5px 0 rgba(6, 182, 212, 0.55),
+    inset 0 -2.5px 6px 0 rgba(236, 72, 153, 0.55),
+    inset 0 0 22px 0 rgba(255, 255, 255, 0.18) !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+}
+
+/* แสงสะท้อน 1px Razor-sharp ขอบบนสุด */
+.glass-panel::before, .saas-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, var(--glare-opacity)) 50%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* แสงสะท้อนทรงโค้งมน 38% ด้านบน */
+.glass-panel::after, .saas-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 38%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 2. การ์ดย่อยลอยด้านใน (Nested Glass Tile) */
+.glass-tile {
+  background-color: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   border-radius: 16px;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* 3. ปุ่มกดกระจกสัมผัส (Tactile Glass Button) */
+.glass-btn {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-top: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 8px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 14px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.08) 100%);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 4px 14px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
+}
+.glass-btn:active {
+  transform: translateY(1px) scale(0.97);
+}
+
+/* 4. ช่องกรอกข้อมูลกระจก (Glass Input) */
+.glass-input {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  border-radius: 12px;
+  font-size: 16px; /* ป้องกัน iOS ซูมจอ */
+}
+.glass-input:focus {
+  border-color: #00f2fe;
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  outline: none;
+}
+
+/* 5. Compatible Glass Card */
+.glass-card, .claude-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 100%);
+  background-color: rgba(10, 16, 30, 0.65);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-card:hover, .claude-card:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-color: rgba(0, 242, 254, 0.35);
+  box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0, 242, 254, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
-.glass-panel, .claude-panel {
-  background: rgba(10, 14, 22, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+/* ── Floating Ambient Orbs (Pulse Hub Ultra-Realistic Glass Refraction) ── */
+.ambient-orb {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+.orb-cyan {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, #00f2fe 0%, rgba(0, 242, 254, 0.25) 50%, transparent 80%);
+  filter: blur(40px);
+  -webkit-filter: blur(40px);
+  top: 8%;
+  left: 12%;
+  opacity: 0.45;
+  animation: float-cyan 9s ease-in-out infinite alternate;
+}
+
+.orb-amber {
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, #f59e0b 0%, rgba(245, 158, 11, 0.25) 50%, transparent 80%);
+  filter: blur(45px);
+  -webkit-filter: blur(45px);
+  bottom: 12%;
+  right: 12%;
+  opacity: 0.4;
+  animation: float-amber 11s ease-in-out infinite alternate;
+}
+
+.orb-indigo {
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, #818cf8 0%, rgba(129, 140, 248, 0.25) 50%, transparent 80%);
+  filter: blur(50px);
+  -webkit-filter: blur(50px);
+  top: 48%;
+  left: 50%;
+  opacity: 0.4;
+  animation: float-indigo 12s ease-in-out infinite alternate;
+}
+
+@keyframes float-cyan {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(50px, 60px) scale(1.12); }
+  100% { transform: translate(-30px, 40px) scale(0.95); }
+}
+
+@keyframes float-amber {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-60px, -40px) scale(1.1); }
+  100% { transform: translate(40px, -60px) scale(0.92); }
+}
+
+@keyframes float-indigo {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(40px, -50px) scale(1.15); }
+  100% { transform: translate(-40px, 30px) scale(0.9); }
 }
 
 /* ── Obsidian Dark Theme & TypeSafe Intelligence Styling ── */
@@ -213,18 +375,22 @@
 
 /* ── Form Controls & Inputs ── */
 .claude-input {
-  background-color: #080B11;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
   color: #F8FAFC;
   border-radius: 12px;
+  font-size: 16px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
 .claude-input:focus {
   outline: none;
-  border-color: rgba(37, 244, 238, 0.6);
-  box-shadow: 0 0 0 3px rgba(37, 244, 238, 0.15);
-  background-color: #0B0F17;
+  border-color: #00f2fe;
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  background-color: rgba(15, 23, 42, 0.75);
 }
 
 .claude-btn-primary {

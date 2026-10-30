@@ -51,6 +51,17 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
     : window.location.origin;
 
   const closeMoreDrawer = useCallback(() => setShowMoreDrawer(false), []);
+  const moreSheetTouchStartRef = useRef(0);
+  const handleMoreSheetTouchStart = (e) => {
+    moreSheetTouchStartRef.current = e.touches[0].clientY;
+  };
+  const handleMoreSheetTouchEnd = (e) => {
+    const diff = e.changedTouches[0].clientY - moreSheetTouchStartRef.current;
+    if (diff > 80) {
+      try { navigator.vibrate?.(10); } catch {}
+      setShowMoreDrawer(false);
+    }
+  };
   const closeMobileModal = useCallback(() => setShowMobileModal(false), []);
   // Phone back gesture closes the sheet / QR dialog instead of leaving the app.
   useBackToClose(showMoreDrawer, closeMoreDrawer);
@@ -100,7 +111,7 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
   return (
     <>
       {/* ── Desktop Sidebar ── */}
-      <aside className="hidden md:flex flex-col w-[72px] flex-shrink-0 h-dvh bg-[#080B11]/90 backdrop-blur-xl border-r border-white/[0.08] z-30">
+      <aside className="hidden md:flex flex-col w-[72px] flex-shrink-0 h-dvh bg-[#050811]/75 backdrop-blur-2xl border-r border-white/[0.12] z-30">
         {/* Brand mark */}
         <div className="flex items-center justify-center h-[56px] border-b border-white/[0.08]">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center shadow-lg shadow-[#FE2C55]/20 text-white font-extrabold text-sm">
@@ -116,7 +127,7 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => { try { navigator.vibrate?.(10); } catch {} setActiveTab(item.id); }}
                 title={item.label}
                 className={`group relative w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-150 cursor-pointer
                   ${isActive
@@ -164,7 +175,7 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
       {/* ── Mobile Bottom Tab Bar (Strict 5 items limit) ── */}
       <nav
         aria-label="เมนูหลัก"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080B11]/95 backdrop-blur-2xl border-t border-white/[0.08] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] shadow-2xl"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#050811]/80 backdrop-blur-2xl border-t border-white/[0.12] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] shadow-2xl"
       >
         {MOBILE_PRIMARY_TABS.map((item) => {
           const Icon = item.icon;
@@ -173,7 +184,7 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
             <button
               key={item.id}
               type="button"
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => { try { navigator.vibrate?.(10); } catch {} setActiveTab(item.id); }}
               aria-current={isActive ? 'page' : undefined}
               className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl transition-all cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
                 isActive
@@ -224,9 +235,14 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
             role="dialog"
             aria-modal="true"
             aria-labelledby="more-sheet-title"
-            className="bg-[#0D111A] border-t border-white/[0.12] rounded-t-3xl px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4 max-h-[85dvh] overflow-y-auto overscroll-contain"
+            onTouchStart={handleMoreSheetTouchStart}
+            onTouchEnd={handleMoreSheetTouchEnd}
+            className="glass-panel rounded-t-3xl px-4 pt-2.5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4 max-h-[85dvh] overflow-y-auto overscroll-contain"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Native Mobile Sheet Grab Handle */}
+            <div className="w-12 h-1.5 rounded-full bg-white/20 mx-auto -mt-0.5 mb-1.5 flex-shrink-0" />
+
             {/* Header */}
             <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
               <div className="flex items-center gap-2">
@@ -256,7 +272,7 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
                       aria-pressed="false"
                       className="min-h-11 rounded-lg text-sm font-semibold text-slate-300 hover:text-white hover:bg-white/[0.06] cursor-pointer"
                     >
-                      โหมดง่าย
+                      สลับโหมดง่าย
                     </button>
                     <button
                       type="button"
@@ -264,7 +280,7 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
                       aria-current="true"
                       className="min-h-11 rounded-lg text-sm font-bold bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/40 cursor-default"
                     >
-                      โหมดเต็ม
+                      ใช้โหมดเต็ม
                     </button>
                   </div>
                 </div>
@@ -424,7 +440,7 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
                   className="flex-1 min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-sm font-bold cursor-pointer"
                 >
                   {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-                  <span>{isFullscreen ? 'ย่อหน้าจอ' : 'เต็มหน้าจอ'}</span>
+                  <span>{isFullscreen ? 'ย่อหน้าจอ' : 'ขยายเต็มหน้าจอ'}</span>
                 </button>
               </div>
 
@@ -490,7 +506,7 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
                   onClick={copyMobileLink}
                   className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:opacity-90 text-white text-xs font-bold flex items-center gap-1 transition-colors flex-shrink-0 cursor-pointer shadow-md"
                 >
-                  {copied ? <><Check className="w-3.5 h-3.5 text-white" />OK</> : <><Copy className="w-3.5 h-3.5" />คัดลอก</>}
+                  {copied ? <><Check className="w-3.5 h-3.5 text-white" /> คัดลอกแล้ว</> : <><Copy className="w-3.5 h-3.5" /> คัดลอกลิงก์</>}
                 </button>
               </div>
             </div>

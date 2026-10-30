@@ -57,7 +57,7 @@ function geminiPill(aiStatus, loading) {
 
 export default function SystemSettings({
   status,
-  uiFont = 'font-prompt',
+  uiFont = 'font-anuphan',
   setUiFont,
   uiScale = 'normal',
   setUiScale,
@@ -931,8 +931,11 @@ export default function SystemSettings({
               <button
                 key={s.id}
                 type="button"
-                onClick={() => setActiveTab(s.id)}
-                className={`flex-shrink-0 snap-center px-3 py-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 max-w-[210px] active:scale-95 ${
+                onClick={() => {
+                  try { navigator.vibrate?.(10); } catch {}
+                  setActiveTab(s.id);
+                }}
+                className={`flex-shrink-0 snap-center min-h-[48px] px-3 py-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 max-w-[210px] active:scale-95 ${
                   isSelected
                     ? 'bg-[#25F4EE]/15 border-[#25F4EE] shadow-md shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/40'
                     : 'bg-[#0B0F19] border-white/[0.08] hover:border-white/[0.2] text-slate-300'

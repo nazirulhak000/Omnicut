@@ -540,8 +540,11 @@ function AngleMobilePill({ angle, index, isSelected, onSelect, shotListInfo }) {
   return (
     <button
       type="button"
-      onClick={onSelect}
-      className={`w-full px-3 py-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
+      onClick={() => {
+        try { navigator.vibrate?.(10); } catch {}
+        onSelect();
+      }}
+      className={`w-full min-h-[50px] px-3.5 py-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
         isSelected
           ? 'bg-[#25F4EE]/15 border-[#25F4EE] shadow-md shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/40'
           : 'bg-[#080B11] border-white/[0.08] hover:border-white/[0.2] text-slate-300'
@@ -897,7 +900,7 @@ function AngleActiveWorkbench({
                   onChange={(event) => setEditHook(event.target.value)}
                   placeholder="พิมพ์ Hook พาดหัวเปิดคลิป"
                   aria-label="แก้ไข Hook พาดหัวเปิดคลิป"
-                  className="w-full max-w-[72ch] bg-transparent border-b border-[#25F4EE]/40 focus:border-[#25F4EE] px-0 py-1 text-sm font-bold text-white focus:outline-none"
+                  className="w-full max-w-[72ch] bg-transparent border-b border-[#25F4EE]/40 focus:border-[#25F4EE] px-0 py-1.5 text-base sm:text-sm font-bold text-white focus:outline-none"
                 />
               ) : (
                 <p className="text-sm font-bold text-white leading-relaxed max-w-[72ch]">
@@ -1159,7 +1162,7 @@ function AngleActiveWorkbench({
                   }}
                   rows={1}
                   aria-label={`แก้ไขบทพูดท่อนที่ ${lineIndex + 1}`}
-                  className="min-h-8 w-full resize-y bg-transparent border-0 border-b border-transparent focus:border-[#25F4EE]/40 px-0 py-1 text-xs sm:text-sm text-white leading-relaxed focus:outline-none"
+                  className="min-h-8 w-full resize-y bg-transparent border-0 border-b border-transparent focus:border-[#25F4EE]/40 px-0 py-1.5 text-base sm:text-sm text-white leading-relaxed focus:outline-none"
                 />
               </div>
             ))}
@@ -1459,7 +1462,7 @@ function AngleActiveWorkbench({
               e.stopPropagation();
               onOpenMediaPicker && onOpenMediaPicker(index);
             }}
-            className="w-full sm:w-auto py-3 sm:py-2.5 px-5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-95 transition-all"
+            className="w-full sm:w-auto min-h-[48px] py-3 sm:py-2.5 px-5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-[0.98] transition-all"
           >
             <FolderOpen className="w-4 h-4 text-amber-400" />
             <span>เลือกคลิปก่อนส่งตัดต่อ</span>
@@ -1474,7 +1477,7 @@ function AngleActiveWorkbench({
                 if (shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) onSendToStudio(angle, index);
                 else onGenerateShotList && onGenerateShotList(index);
               }}
-              className={`order-2 w-full sm:w-auto py-3 sm:py-2.5 px-5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all ${
+              className={`order-2 w-full sm:w-auto min-h-[48px] py-3 sm:py-2.5 px-5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-all ${
                 shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts
                   ? 'bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 border border-white/[0.12]'
                   : 'bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 shadow-lg shadow-[#25F4EE]/15'
@@ -1494,7 +1497,7 @@ function AngleActiveWorkbench({
                   onQuickDraft ? onQuickDraft(angle, index) : onSendToStudio(angle, index);
                 }}
                 disabled={draftingAngleId === angle.angle_id}
-                className="order-1 w-full sm:w-auto py-3 sm:py-2.5 px-5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 border border-[#25F4EE]/50 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/15 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                className="order-1 w-full sm:w-auto min-h-[48px] py-3 sm:py-2.5 px-5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 border border-[#25F4EE]/50 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/15 cursor-pointer active:scale-[0.98] transition-all disabled:opacity-50"
                 title="1-Click Quick Draft: สร้างดราฟต์ไทม์ไลน์อัตโนมัติตามสไตล์ของมุมนี้และเปิดเข้าสู่ไทม์ไลน์ทันที"
               >
                 {draftingAngleId === angle.angle_id ? (
@@ -2263,9 +2266,36 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   // Input Mode & Active View
   const [showAddModal, setShowAddModal] = useState(false);
   const [inputMode, setInputMode] = useState('link');
-  const [url, setUrl] = useState('');
-  const [customKeyword, setCustomKeyword] = useState('');
-  const [rawText, setRawText] = useState('');
+  const [url, setUrl] = useState(() => {
+    try { return sessionStorage.getItem('omnicut_draft_url') || ''; } catch { return ''; }
+  });
+  const [customKeyword, setCustomKeyword] = useState(() => {
+    try { return sessionStorage.getItem('omnicut_draft_keyword') || ''; } catch { return ''; }
+  });
+  const [rawText, setRawText] = useState(() => {
+    try { return sessionStorage.getItem('omnicut_draft_rawtext') || ''; } catch { return ''; }
+  });
+
+  useEffect(() => {
+    try {
+      if (url) sessionStorage.setItem('omnicut_draft_url', url);
+      else sessionStorage.removeItem('omnicut_draft_url');
+    } catch {}
+  }, [url]);
+
+  useEffect(() => {
+    try {
+      if (customKeyword) sessionStorage.setItem('omnicut_draft_keyword', customKeyword);
+      else sessionStorage.removeItem('omnicut_draft_keyword');
+    } catch {}
+  }, [customKeyword]);
+
+  useEffect(() => {
+    try {
+      if (rawText) sessionStorage.setItem('omnicut_draft_rawtext', rawText);
+      else sessionStorage.removeItem('omnicut_draft_rawtext');
+    } catch {}
+  }, [rawText]);
   const [tiktokProductId, setTiktokProductId] = useState('');
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState(null);
@@ -2616,6 +2646,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     });
     const nextAngles = item.angles || [];
     setAngles(nextAngles);
+    setAngleCategoryFilter('all');
     // Fetch shot-list status for sidebar badges (fire-and-forget)
     getShotListStatus(item.id).then(res => setShotListStatusMap(res.status || {})).catch(() => setShotListStatusMap({}));
     const pendingImagePreview = pendingImageMetadataPreviewRef.current;
@@ -3753,6 +3784,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   const [selectedBatch, setSelectedBatch] = useState('all');
   const [hidePosted, setHidePosted] = useState(false);
+  const [angleCategoryFilter, setAngleCategoryFilter] = useState('all');
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [batchToolsOpen, setBatchToolsOpen] = useState(false);
   const [batchAngleCount, setBatchAngleCount] = useState(10);
@@ -3773,15 +3805,28 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     return Array.from(set).sort((a, b) => a - b);
   }, [angles]);
 
+  const angleCategories = useMemo(() => {
+    const set = new Set();
+    (angles || []).forEach(a => {
+      const cat = a.badge || a.marketing_angle || a.category;
+      if (cat) set.add(cat);
+    });
+    return Array.from(set);
+  }, [angles]);
+
   const displayedAngles = useMemo(() => {
     return angles
       .map((ang, originalIndex) => ({ ...ang, originalIndex }))
       .filter(ang => {
         if (selectedBatch !== 'all' && (ang.batch || 1) !== selectedBatch) return false;
         if (hidePosted && (ang.status === 'posted' || !!ang.posted_at)) return false;
+        if (angleCategoryFilter !== 'all') {
+          const cat = ang.badge || ang.marketing_angle || ang.category;
+          if (cat !== angleCategoryFilter) return false;
+        }
         return true;
       });
-  }, [angles, selectedBatch, hidePosted]);
+  }, [angles, selectedBatch, hidePosted, angleCategoryFilter]);
 
   const handleGenerateBatch = async () => {
     if (!productData?.id) return;
@@ -4417,9 +4462,41 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 }}
                 placeholder="https://shopee.co.th/product/... หรือ https://vt.tiktok.com/..."
               />
-              <p className="text-sm text-slate-500">
-                หากแพลตฟอร์มป้องกันการดึงข้อมูล ระบบจะแนะนำให้วางข้อความสเปกแทน
-              </p>
+              <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const clipText = await navigator.clipboard.readText();
+                      if (clipText && clipText.trim()) {
+                        const val = clipText.trim();
+                        setUrl(val);
+                        const m = val.match(/\/(?:product|item|pdp)\/(\d{10,})/) || val.match(/[?&](?:item_id|itemId|product_id)=(\d{10,})/);
+                        if (m) {
+                          setTiktokProductId(m[1]);
+                        } else if (val.includes('tiktok.com')) {
+                          resolveTiktokProductId(val).then(res => {
+                            if (res?.success && res?.product_id) setTiktokProductId(res.product_id);
+                          }).catch(() => {});
+                        }
+                        try { navigator.vibrate?.(15); } catch {}
+                        showToast('วางลิงก์สินค้าจากคลิปบอร์ดแล้ว!', 'success');
+                      } else {
+                        showToast('คลิปบอร์ดว่างเปล่า กรุณาคัดลอกลิงก์ก่อน', 'warning');
+                      }
+                    } catch (err) {
+                      showToast('กรุณาแตะอนุญาตการเข้าถึงคลิปบอร์ดบนเบราว์เซอร์', 'info');
+                    }
+                  }}
+                  className="w-full sm:w-auto min-h-[48px] px-4 py-2.5 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 active:scale-95 text-[#25F4EE] border border-[#25F4EE]/40 text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/5"
+                >
+                  <Copy className="w-4 h-4" />
+                  <span>วางลิงก์จากคลิปบอร์ด</span>
+                </button>
+                <p className="text-xs text-slate-500">
+                  รองรับ vt.tiktok.com, TikTok Shop & Shopee
+                </p>
+              </div>
             </div>
           )}
 
@@ -4792,10 +4869,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <div id="batch-secondary-tools" className="pt-2.5 border-t border-white/[0.06] grid gap-3 xl:grid-cols-[auto_1fr] animate-fadeIn">
                   <div className="flex items-center gap-1 bg-black/30 p-1 rounded-lg border border-white/[0.06] w-fit h-fit">
                     <button type="button" onClick={() => setViewMode('split')} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold ${viewMode === 'split' ? 'bg-white/[0.1] text-white' : 'text-slate-400'}`}>
-                      <Columns className="w-3.5 h-3.5" /> สตูดิโอ
+                      <Columns className="w-3.5 h-3.5" /> แสดงแบบสตูดิโอ
                     </button>
                     <button type="button" onClick={() => setViewMode('accordion')} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold ${viewMode === 'accordion' ? 'bg-white/[0.1] text-white' : 'text-slate-400'}`}>
-                      <List className="w-3.5 h-3.5" /> แถวยาว
+                      <List className="w-3.5 h-3.5" /> แสดงแบบแถวยาว
                     </button>
                   </div>
 
@@ -4825,14 +4902,14 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         title="สร้างเสียงพากย์ใหม่ให้ทุกสคริปต์ที่ยังไม่ตัดต่อเสร็จ โดยใช้เสียงที่เลือกไว้"
                       >
                         {isStartingBatchAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                        <span>เจนเสียงใหม่ทั้งสคริปต์ ({activeBatchAngles.length})</span>
+                        <span>สร้างเสียงพากย์ใหม่ ({activeBatchAngles.length})</span>
                       </button>
                     )}
-                    <button type="button" onClick={() => { setFindReplaceAngleIdx(activeAngleIdx); setFindReplaceOpen(true); }} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Replace className="w-3.5 h-3.5" /> แทนที่คำ</button>
-                    <button type="button" onClick={() => handleOpenMediaPicker(-1)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><FolderOpen className="w-3.5 h-3.5" /> คลิปให้ทุกมุม</button>
-                    <button type="button" onClick={() => setBatchRenderOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Zap className="w-3.5 h-3.5" /> เรนเดอร์หลายมุม</button>
-                    <button type="button" onClick={() => setFilmingRecipeModalOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Clapperboard className="w-3.5 h-3.5" /> สูตรถ่ายทำ</button>
-                    <button type="button" onClick={() => setShowBatchModal(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Plus className="w-3.5 h-3.5" /> เจนล็อตใหม่</button>
+                    <button type="button" onClick={() => { setFindReplaceAngleIdx(activeAngleIdx); setFindReplaceOpen(true); }} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Replace className="w-3.5 h-3.5" /> แทนที่คำในบท</button>
+                    <button type="button" onClick={() => handleOpenMediaPicker(-1)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><FolderOpen className="w-3.5 h-3.5" /> เลือกคลิปให้ทุกมุม</button>
+                    <button type="button" onClick={() => setBatchRenderOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Zap className="w-3.5 h-3.5" /> เรนเดอร์หลายมุมพร้อมกัน</button>
+                    <button type="button" onClick={() => setFilmingRecipeModalOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Clapperboard className="w-3.5 h-3.5" /> ดูสูตรถ่ายทำ</button>
+                    <button type="button" onClick={() => setShowBatchModal(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Plus className="w-3.5 h-3.5" /> สร้างสคริปต์ล็อตใหม่</button>
                     {postedAngles > 0 && (
                       <button type="button" onClick={() => setHidePosted(!hidePosted)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold">
                         {hidePosted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />} {hidePosted ? 'แสดงที่โพสต์แล้ว' : `ซ่อนที่โพสต์แล้ว (${postedAngles})`}
@@ -5228,18 +5305,74 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       มุมที่ {activeAngleIdx + 1}/{angles.length}
                     </span>
                   </div>
+                  {angleCategories.length > 0 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try { navigator.vibrate?.(10); } catch {}
+                          setAngleCategoryFilter('all');
+                        }}
+                        className={`flex-shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all cursor-pointer active:scale-95 ${
+                          angleCategoryFilter === 'all'
+                            ? 'bg-[#25F4EE] text-slate-950 border-[#25F4EE] shadow-sm'
+                            : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:bg-white/[0.08]'
+                        }`}
+                      >
+                        ทั้งหมด ({angles.length})
+                      </button>
+                      {angleCategories.map((cat) => {
+                        const count = angles.filter((a) => (a.badge || a.marketing_angle || a.category) === cat).length;
+                        const isSelected = angleCategoryFilter === cat;
+                        const shortLabel = cat.length > 22 ? cat.substring(0, 20) + '...' : cat;
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => {
+                              try { navigator.vibrate?.(10); } catch {}
+                              setAngleCategoryFilter(isSelected ? 'all' : cat);
+                            }}
+                            className={`flex-shrink-0 text-[11px] font-semibold px-2.5 py-1.5 rounded-full border transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 ${
+                              isSelected
+                                ? 'bg-[#25F4EE] text-slate-950 border-[#25F4EE] shadow-sm font-bold'
+                                : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:bg-white/[0.08]'
+                            }`}
+                          >
+                            <span>{shortLabel}</span>
+                            <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
+                              isSelected ? 'bg-black/20 text-slate-950 font-bold' : 'bg-white/[0.08] text-slate-400'
+                            }`}>
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   {displayedAngles.length === 0 ? (
                     <div className="p-4 text-center rounded-xl bg-white/[0.02] border border-white/[0.06] text-slate-400 text-xs space-y-1">
                       <p>ไม่มีสคริปต์ที่ตรงกับตัวกรองปัจจุบัน</p>
-                      {hidePosted && (
-                        <button
-                          type="button"
-                          onClick={() => setHidePosted(false)}
-                          className="text-[#25F4EE] underline text-xs cursor-pointer"
-                        >
-                          แสดงคลิปที่โพสต์แล้ว
-                        </button>
-                      )}
+                      <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+                        {angleCategoryFilter !== 'all' && (
+                          <button
+                            type="button"
+                            onClick={() => setAngleCategoryFilter('all')}
+                            className="text-[#25F4EE] underline text-xs cursor-pointer"
+                          >
+                            ล้างตัวกรองหมวดหมู่
+                          </button>
+                        )}
+                        {hidePosted && (
+                          <button
+                            type="button"
+                            onClick={() => setHidePosted(false)}
+                            className="text-[#25F4EE] underline text-xs cursor-pointer"
+                          >
+                            แสดงคลิปที่โพสต์แล้ว
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="grid gap-1.5 max-h-56 overflow-y-auto pr-1 no-scrollbar">

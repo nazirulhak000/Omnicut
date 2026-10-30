@@ -1,9 +1,8 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useCallback } from 'react';
 import {
   Rocket, Layers, Scissors, FolderDown, Palette, Settings,
-  Keyboard, Wifi, WifiOff, RefreshCw, Package, BarChart3, BookOpen, Lightbulb, Smartphone
+  Keyboard, WifiOff, RefreshCw, Package, BarChart3, BookOpen, Smartphone
 } from 'lucide-react';
-
 
 import { ActivityIndicatorButton } from './ActivityCenter';
 import { ChannelSelector } from '../context/ChannelContext.jsx';
@@ -85,7 +84,7 @@ export default memo(function Topbar({
   activeTab = 'flow',
   setActiveTab,
   status,
-  uiFont = 'font-prompt',
+  uiFont = 'font-anuphan',
   uiScale = 'normal',
   setUiScale,
   setUiFont,
@@ -93,7 +92,6 @@ export default memo(function Topbar({
   onRefresh,
   onSwitchToMobile,
   activeProductContext,
-
   exportsCount = 0,
   videosCount = 0
 }) {
@@ -101,12 +99,40 @@ export default memo(function Topbar({
   const currentTab = TAB_CONFIG[activeTab] || TAB_CONFIG.flow;
   const Icon = currentTab.icon;
 
+  const [latencyMs, setLatencyMs] = useState(() => (
+    typeof status?.latency_ms === 'number' ? status.latency_ms : null
+  ));
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefreshWithPing = useCallback(async () => {
+    try { navigator.vibrate?.(10); } catch {}
+    if (!onRefresh) return;
+    setIsRefreshing(true);
+    const start = performance.now();
+    try {
+      await onRefresh();
+      const elapsed = Math.max(1, Math.round(performance.now() - start));
+      setLatencyMs(elapsed);
+    } catch {
+      setLatencyMs(null);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [onRefresh]);
+
+  const handleStatusKeyDown = useCallback((e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleRefreshWithPing();
+    }
+  }, [handleRefreshWithPing]);
+
   return (
-    <header className="h-[calc(56px+env(safe-area-inset-top))] md:h-[56px] flex-shrink-0 bg-[#080B11]/95 backdrop-blur-xl border-b border-white/[0.08] flex flex-nowrap md:flex-wrap items-center justify-between gap-2 px-2.5 sm:px-6 pt-[env(safe-area-inset-top)] md:pt-0 z-20 sticky top-0 w-full min-w-0 transition-colors">
+    <header className="h-[calc(44px+env(safe-area-inset-top))] md:h-[56px] flex-shrink-0 bg-[#050811]/75 backdrop-blur-2xl border-b border-white/[0.12] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] flex flex-nowrap md:flex-wrap items-center justify-between gap-2 px-2.5 sm:px-6 pt-[env(safe-area-inset-top)] md:pt-0 z-20 sticky top-0 w-full min-w-0 transition-colors">
       {/* ── Left: Context-Aware Section Title & Badges ── */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
         {/* Menu Icon with Cyan Glow Pill */}
-        <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.1] text-[#25F4EE] flex items-center justify-center shadow-sm flex-shrink-0">
+        <div className="w-8 h-8 rounded-xl bg-white/[0.05] border border-white/[0.12] text-[#25F4EE] flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] flex-shrink-0">
           <Icon className="w-4 h-4" />
         </div>
 
@@ -123,61 +149,73 @@ export default memo(function Topbar({
 
           {/* Active Product Indicator in Studio / Flow */}
           {activeProductContext?.productName && (activeTab === 'editor' || activeTab === 'flow') && (
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold truncate max-w-[200px]">
-              <Package className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">{activeProductContext.productName}</span>
-            </div>
+            <>
+              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold truncate max-w-[200px] shadow-[inset_0_1px_0_rgba(0,242,254,0.2)]">
+                <Package className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">{activeProductContext.productName}</span>
+              </div>
+              <div className="flex md:hidden items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[11px] font-bold truncate max-w-[110px]" title={activeProductContext.productName}>
+                <Package className="w-2.5 h-2.5 flex-shrink-0" />
+                <span className="truncate">{activeProductContext.productName}</span>
+              </div>
+            </>
           )}
         </div>
       </div>
 
       {/* ── Right: Quick Actions, Global Font Selector & System Status ── */}
-      {/* Phones keep one row: channel, AGY and the mode switch live in the
-          "อื่นๆ" sheet (Sidebar.jsx). */}
       <div className="flex flex-nowrap md:flex-wrap justify-end items-center gap-1 sm:gap-2.5 min-w-0 flex-shrink-0 md:flex-shrink">
         <div className="hidden md:block"><ChannelSelector /></div>
+
         {/* Open AGY Cloud Terminal (/agy) */}
         <a
           href="/agy"
           target="_blank"
           rel="noopener noreferrer"
-          className="hidden md:flex min-h-11 px-3 py-1 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 border border-teal-500/40 text-teal-300 hover:text-white text-xs font-bold items-center justify-center transition-colors"
+          className="hidden md:flex min-h-11 px-3 py-1 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 border border-teal-500/40 text-teal-300 hover:text-white text-xs font-bold items-center justify-center transition-colors shadow-sm"
           title="เปิดหน้าต่าง AGY Cloud Terminal สั่งงาน AI อิสระบน Cloud"
         >
           เปิด AGY Terminal
         </a>
+
         {/* Global Activity Center Button (Pulsing badge when active) */}
         <ActivityIndicatorButton className="min-h-11 min-w-11" />
 
         {/* Switch to Mobile Quick Studio Button */}
         {onSwitchToMobile && (
           <button
+            type="button"
             onClick={onSwitchToMobile}
-            className="hidden md:flex min-h-11 min-w-11 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            aria-label="สลับไปโหมดสตูดิโอมือถือ"
+            className="hidden md:flex min-h-11 min-w-11 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-sm"
             title="สลับไปโหมด OmniCut Mobile Studio"
           >
             <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden sm:inline">โหมดมือถือ</span>
+            <span className="hidden sm:inline">สลับโหมดมือถือ</span>
           </button>
         )}
 
         {/* Global Refresh Button */}
         {onRefresh && (
           <button
-            onClick={onRefresh}
-            className="min-h-11 min-w-11 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            type="button"
+            onClick={handleRefreshWithPing}
+            aria-label="รีเฟรชข้อมูลทั้งระบบ"
+            disabled={isRefreshing}
+            className="min-h-11 min-w-11 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] active:scale-95 border border-white/[0.10] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-sm"
             title="รีเฟรชข้อมูลทั้งระบบ"
           >
-            <RefreshCw className="w-3.5 h-3.5 text-[#25F4EE]" />
-            <span className="hidden sm:inline">รีเฟรช</span>
+            <RefreshCw className={`w-3.5 h-3.5 text-[#25F4EE] ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">รีเฟรชข้อมูล</span>
           </button>
         )}
 
-
         {/* Keyboard Shortcuts Trigger (Desktop only) */}
         <button
+          type="button"
           onClick={onOpenShortcuts}
-          className="hidden md:flex items-center gap-1.5 bg-black/40 hover:bg-white/[0.08] px-2.5 py-1 rounded-xl border border-white/[0.08] text-xs text-slate-300 hover:text-white cursor-pointer transition-colors"
+          aria-label="เปิดหน้าต่างคีย์ลัดด่วน"
+          className="hidden md:flex items-center gap-1.5 min-h-11 bg-white/[0.04] hover:bg-white/[0.08] px-2.5 py-1 rounded-xl border border-white/[0.10] text-xs text-slate-300 hover:text-white cursor-pointer transition-colors shadow-sm"
           title="คีย์ลัดด่วน (กด ? เพื่อเปิดดู)"
         >
           <Keyboard className="w-3.5 h-3.5 text-[#25F4EE]" />
@@ -185,20 +223,33 @@ export default memo(function Topbar({
         </button>
 
         {/* Server Connection Status Badge */}
-        <div className={`flex items-center justify-center gap-1.5 min-h-[36px] px-2 sm:px-2.5 py-1 rounded-xl text-xs font-medium border ${
+        <div
+          onClick={handleRefreshWithPing}
+          onKeyDown={handleStatusKeyDown}
+          role="button"
+          tabIndex={0}
+          aria-label={isOnline ? `สถานะเซิร์ฟเวอร์ออนไลน์ ${latencyMs ? `ความหน่วง ${latencyMs} มิลลิวินาที` : ''} แตะเพื่อรีเฟรช` : 'ขาดการเชื่อมต่อเซิร์ฟเวอร์ แตะเพื่อเชื่อมต่อใหม่'}
+          title={isOnline ? `ระบบออนไลน์พร้อมใช้งาน ${latencyMs ? `(${latencyMs}ms)` : ''} (แตะเพื่อรีเฟรช)` : "ขาดการเชื่อมต่อ (แตะเพื่อรีเฟรชเชื่อมต่อใหม่)"}
+          className={`flex items-center justify-center gap-1.5 min-h-11 sm:min-h-[36px] px-2.5 sm:px-3 py-1 rounded-xl text-xs font-semibold border cursor-pointer active:scale-95 transition-all shadow-sm ${
           isOnline
-            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-            : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 shadow-[inset_0_1px_0_rgba(16,185,129,0.2)]'
+            : 'bg-rose-500/15 text-rose-300 border-rose-500/30 shadow-[inset_0_1px_0_rgba(244,63,94,0.2)]'
         }`}>
           {isOnline ? (
             <>
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-              <span className="hidden sm:inline">Online</span>
+              <span className="hidden sm:inline font-mono">
+                {latencyMs ? `${latencyMs}ms` : 'Online'}
+              </span>
+              <span className="sm:hidden font-mono text-[10px]">
+                {latencyMs ? `${latencyMs}ms` : 'OK'}
+              </span>
             </>
           ) : (
             <>
               <WifiOff className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
               <span className="hidden sm:inline">Offline</span>
+              <span className="sm:hidden text-[10px]">Off</span>
             </>
           )}
         </div>

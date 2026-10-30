@@ -76,7 +76,7 @@ export default function AnalyticsHub({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-2 min-h-[44px] px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-[0.98] ${
                 isActive
                   ? `${tab.activeBg} shadow-lg shadow-black/20`
                   : 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-white hover:bg-white/[0.05]'

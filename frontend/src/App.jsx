@@ -1,796 +1,1658 @@
 import { ChannelWorkspaceBar } from './context/ChannelContext.jsx';
+
 import { channelLocalStorage } from './lib/channelStorage.js';
+
 import { activeChannel } from './lib/channelRuntime.js';
+
 import { filmingReturnUrl, filmingUrl } from './lib/mobileStudioFlow.js';
+
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
+
 import Sidebar from './components/Sidebar';
+
 import Topbar from './components/Topbar';
+
 import LoadingSpinner from './components/LoadingSpinner';
+
 import ErrorBoundary from './components/ErrorBoundary';
+
 import ShortcutsModal from './components/ShortcutsModal';
+
 import { Toast } from './components/ui';
+
+import { ArrowUp } from 'lucide-react';
+
 import { useKeyboardShortcuts } from './hooks';
+
 import { getSystemStatus, getRawVideos, getExports, getScheduleQueue, updateAngleStatus, getProducts } from './api';
+
 import { isChunkLoadError } from './components/ErrorBoundary';
+
 import { TAB_STORAGE_KEY, resolveInitialTab, readTabFromSearch, pushTab, replaceTab } from './lib/appNav';
 
+
+
 // ── Lazy-loaded view chunks with one retry ──
+
 // After a redeploy (Colab restart) an open tab still references the old
+
 // hashed chunk names. Retry once, then reload the page once (guarded per
+
 // chunk in sessionStorage so a genuinely broken chunk cannot loop).
+
 function lazyWithRetry(factory, name) {
+
   const reloadKey = `omnicut:chunk-reload:${name}`;
+
   return lazy(async () => {
+
     try {
+
       const mod = await factory();
+
       try { sessionStorage.removeItem(reloadKey); } catch { /* storage blocked */ }
+
       return mod;
+
     } catch (firstError) {
+
       await new Promise((resolve) => setTimeout(resolve, 700));
+
       try {
+
         const mod = await factory();
+
         try { sessionStorage.removeItem(reloadKey); } catch { /* storage blocked */ }
+
         return mod;
+
       } catch (secondError) {
+
         let alreadyReloaded = true;
+
         try { alreadyReloaded = sessionStorage.getItem(reloadKey) === '1'; } catch { /* storage blocked */ }
+
         if (isChunkLoadError(secondError) && !alreadyReloaded) {
+
           try { sessionStorage.setItem(reloadKey, '1'); } catch { /* storage blocked */ }
+
           window.location.reload();
+
           return new Promise(() => {}); // keep Suspense fallback until the reload
+
         }
+
         throw secondError || firstError;
+
       }
+
     }
+
   });
+
 }
 
+
+
 const ProductToClip = lazyWithRetry(() => import('./components/ProductToClip'), 'ProductToClip');
+
 const ContentTrackerHub = lazyWithRetry(() => import('./components/ContentTrackerHub'), 'ContentTrackerHub');
+
 const EditorShell = lazyWithRetry(() => import('./components/editor/EditorShell'), 'EditorShell');
+
 const ExportGallery = lazyWithRetry(() => import('./components/ExportGallery'), 'ExportGallery');
+
 const MediaAssetsHub = lazyWithRetry(() => import('./components/MediaAssetsHub'), 'MediaAssetsHub');
+
 const AnalyticsHub = lazyWithRetry(() => import('./components/analytics/AnalyticsHub'), 'AnalyticsHub');
+
 const SystemSettings = lazyWithRetry(() => import('./components/SystemSettings'), 'SystemSettings');
+
 const UserGuide = lazyWithRetry(() => import('./components/UserGuide'), 'UserGuide');
+
 const MobileQuickPostPage = lazyWithRetry(() => import('./components/MobileQuickPostPage'), 'MobileQuickPostPage');
+
 const MobileFilmingPage = lazyWithRetry(() => import('./components/MobileFilmingPage'), 'MobileFilmingPage');
+
 const QuickRefPage = lazyWithRetry(() => import('./components/producer/QuickRefPage'), 'QuickRefPage');
+
 const MobileQuickStudio = lazyWithRetry(() => import('./components/MobileQuickStudio'), 'MobileQuickStudio');
+
 const MobileAppRoot = lazyWithRetry(() => import('./components/mobile/MobileAppRoot'), 'MobileAppRoot');
 
 
+
+
+
 import { angleToForm } from './lib/angleToForm';
+
 import { applyUiScale, initUiScale } from './lib/uiScale';
+
 import { editorProjectIntentFromPayload } from './lib/editorEntry';
+
 import { createWorkspaceDataCoordinator } from './lib/workspaceData';
+
 import { TaskProvider } from './context/TaskContext';
+
 import { ActivityDrawer, GlobalTaskNotification, ActivityIndicatorButton, GlobalLiveRenderWidget } from './components/ActivityCenter';
 
+
+
 // Dual-mode UI: an explicit Desktop/Mobile choice (or a URL mode) must survive
+
 // a resize/rotate, while an untouched automatic choice keeps following the
+
 // viewport width. One key drives both the stored preference and that rule.
+
 const UI_MODE_STORAGE_KEY = 'omnicut.uiMode';
 
+
+
 function resolveInitialMobileMode() {
+
   try {
+
     const params = new URLSearchParams(window.location.search);
+
     if (params.get('mode') === 'desktop') return false;
+
     if (params.get('mode') === 'mobile' || params.get('quick') === '1') return true;
+
     const saved = localStorage.getItem(UI_MODE_STORAGE_KEY);
+
     if (saved === 'desktop') return false;
+
     if (saved === 'mobile') return true;
+
   } catch {
+
     /* storage/URL unavailable -- fall through to the viewport width */
+
   }
-  return typeof window !== 'undefined' && window.innerWidth < 768;
+
+  // Default to full Desktop Studio workspace across all devices (including mobile touch)
+
+  return false;
+
 }
 
+
+
 export default function App() {
+
   const [workspaceStorage] = useState(channelLocalStorage);
 
+
+
   // Check if opened via Mobile Quick Post QR code
+
   const [isQuickPostMode] = useState(() => {
+
     try {
+
       const p = new URLSearchParams(window.location.search);
+
       return p.get('quick_post') === '1' || p.get('mobile_post') === '1';
+
     } catch {
+
       return false;
+
     }
+
   });
+
+
 
   // Check if opened via Quick Ref Capture mode (?view=quick-ref or ?quick_ref=1)
+
   const [isQuickRefMode] = useState(() => {
+
     try {
+
       const p = new URLSearchParams(window.location.search);
+
       return p.get('view') === 'quick-ref' || p.get('quick_ref') === '1';
+
     } catch {
+
       return false;
+
     }
+
   });
+
+
 
   // Check if opened via the guided-take filming QR code (mobile companion
+
   // for scripts/recording_sessions.py's session flow)
+
   const [filmingSessionId] = useState(() => {
+
     try {
+
       const p = new URLSearchParams(window.location.search);
+
       return p.get('film') === '1' ? (p.get('session') || '') : '';
+
     } catch {
+
       return '';
+
     }
+
   });
 
+
+
   // Dual-Mode: Mobile Quick Studio vs Desktop Pro
+
   const [isMobileQuickMode, setIsMobileQuickMode] = useState(resolveInitialMobileMode);
 
+
+
   // Persist an explicit switch and reflect it in the URL so a reload lands on
+
   // the same mode the user picked.
+
   const applyUiMode = useCallback((mobile) => {
+
     setIsMobileQuickMode(mobile);
+
     try {
+
       localStorage.setItem(UI_MODE_STORAGE_KEY, mobile ? 'mobile' : 'desktop');
+
       const url = new URL(window.location.href);
+
       url.searchParams.set('mode', mobile ? 'mobile' : 'desktop');
+
       url.searchParams.delete('quick');
+
       window.history.replaceState({}, '', url);
+
     } catch { /* storage/history may be unavailable */ }
+
   }, []);
 
+
+
   // Keep following the viewport only while the choice is still automatic --
+
   // an explicit pick or URL mode must not be overridden by a resize/rotate.
+
   useEffect(() => {
+
     const onViewportChange = () => {
+
       try {
+
         const params = new URLSearchParams(window.location.search);
+
         if (params.get('mode') === 'desktop' || params.get('mode') === 'mobile' || params.get('quick') === '1') return;
+
         if (localStorage.getItem(UI_MODE_STORAGE_KEY)) return;
+
       } catch { return; }
+
       setIsMobileQuickMode(window.innerWidth < 768);
+
     };
+
     window.addEventListener('resize', onViewportChange);
+
     window.addEventListener('orientationchange', onViewportChange);
+
     return () => {
+
       window.removeEventListener('resize', onViewportChange);
+
       window.removeEventListener('orientationchange', onViewportChange);
+
     };
+
   }, []);
+
+
+
 
 
   // 1. Active Tab: `?tab=` (back/forward + shareable) wins, then the last tab
+
   // in localStorage, then 'flow'. Legacy ids (studio, sub_srt, gadget, ...)
+
   // are migrated by lib/appNav.normalizeTab.
+
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+
+    const handleScroll = () => {
+
+      setShowScrollTop(window.scrollY > 320);
+
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => window.removeEventListener('scroll', handleScroll);
+
+  }, []);
+
+
+
   const [activeTab, setActiveTab] = useState(() => {
+
     let stored = null;
+
     try { stored = localStorage.getItem(TAB_STORAGE_KEY); } catch { /* storage blocked */ }
+
     return resolveInitialTab({ search: window.location.search, stored });
+
   });
 
+
+
   useEffect(() => {
+
     try { localStorage.setItem(TAB_STORAGE_KEY, activeTab); } catch { /* storage blocked */ }
+
   }, [activeTab]);
 
+
+
   // Every tab change becomes a browser-history entry so the phone back
+
   // gesture returns to the previous screen instead of leaving the app. The
+
   // first sync only writes ?tab= into the current entry.
+
   const tabHistoryReadyRef = useRef(false);
+
   const tabHistoryEnabled = !isMobileQuickMode && !isQuickPostMode && !isQuickRefMode && !filmingSessionId;
+
   useEffect(() => {
+
     if (!tabHistoryEnabled) return;
+
     if (!tabHistoryReadyRef.current) {
+
       tabHistoryReadyRef.current = true;
+
       replaceTab(activeTab);
+
       return;
+
     }
+
     pushTab(activeTab);
+
   }, [activeTab, tabHistoryEnabled]);
 
+
+
   useEffect(() => {
+
     if (!tabHistoryEnabled) return undefined;
+
     const onPopState = () => {
+
       const tab = readTabFromSearch(window.location.search);
+
       if (tab) setActiveTab((current) => (current === tab ? current : tab));
+
     };
+
     window.addEventListener('popstate', onPopState);
+
     return () => window.removeEventListener('popstate', onPopState);
+
   }, [tabHistoryEnabled]);
 
+
+
   const [status, setStatus] = useState(null);
+
   const [videos, setVideos] = useState([]);
+
   const [exportsList, setExportsList] = useState([]);
+
   const workspaceDataRef = useRef(null);
+
   if (!workspaceDataRef.current) {
+
     workspaceDataRef.current = createWorkspaceDataCoordinator({
+
       getSystemStatus,
+
       getRawVideos,
+
       getExports,
+
       getProducts,
+
       getScheduleQueue,
+
     });
+
   }
 
+
+
   // 2. Global UI Font of the Application (Saved in localStorage)
-  const [uiFont, setUiFont] = useState(() => localStorage.getItem('capcut_ui_font') || 'font-prompt');
+
+  const [uiFont, setUiFont] = useState(() => localStorage.getItem('capcut_ui_font') || 'font-anuphan');
+
   // Interface size. initUiScale writes --ui-scale before the first paint so a
+
   // saved choice does not flash at the default size first.
+
   const [uiScale, setUiScaleState] = useState(() => initUiScale());
+
+
 
   const handleUiScaleChange = (id) => setUiScaleState(applyUiScale(id));
 
+
+
   const handleUiFontChange = (fontClass) => {
+
     setUiFont(fontClass);
+
     localStorage.setItem('capcut_ui_font', fontClass);
+
   };
 
+
+
   // 3. Active Product Context Persistence (from Menu 1 & Menu 2)
+
   // Tracks whether the *current* activeProductContext is the one that was
+
   // lazily hydrated from localStorage on mount (and hasn't yet been
+
   // revalidated against the backend), vs. a fresh selection made this
+
   // session. Only the former should ever be silently cleared/replaced by
+
   // the revalidation effect below -- a brand-new pick must never look stale.
+
   const cameFromLocalStorageRef = useRef(false);
+
   const [activeProductContext, setActiveProductContext] = useState(() => {
+
     try {
+
       const raw = workspaceStorage.getItem('capcut_active_product_context');
+
       if (!raw) return null;
+
       const parsed = JSON.parse(raw);
+
       if (parsed) cameFromLocalStorageRef.current = true;
+
       return parsed;
+
     } catch {
+
       return null;
+
     }
+
   });
+
+
 
   const [selectedAngleIndex, setSelectedAngleIndex] = useState(() => {
+
     const raw = workspaceStorage.getItem('capcut_selected_angle_index');
+
     return raw ? parseInt(raw, 10) || 0 : 0;
+
   });
+
+
 
   const [activeAngleContext, setActiveAngleContext] = useState(() => {
+
     try {
+
       const raw = workspaceStorage.getItem('capcut_active_angle_context');
+
       return raw ? JSON.parse(raw) : null;
+
     } catch {
+
       return null;
+
     }
+
   });
 
+
+
   const [selectedProductIdForFlow, setSelectedProductIdForFlow] = useState(null);
+
   // Plain ref, not state: this is fire-and-forget data for ProductToClip's
+
   // next mount, read exactly once. As state, clearing it after the child
+
   // consumes it becomes a second prop change the child observes -- which
+
   // collides with StrictMode's dev-only double-invoke of mount effects,
+
   // where the second synthetic mount sees the already-cleared value and
+
   // stomps the just-restored angle back to index 0.
+
   const pendingFlowAngleIdRef = useRef(null);
+
   const pendingFlowImageMetadataRef = useRef(null);
+
   const [flowTaskNavigationVersion, setFlowTaskNavigationVersion] = useState(0);
+
   const [initialProjectNameToLoad, setInitialProjectNameToLoad] = useState(null);
 
+
+
   const handlePrimaryTabChange = useCallback((tab) => {
+
     // A direct Editor navigation means "resume normally". One Click entry is
+
     // set separately by handleApplyScriptFromLab and must remain an explicit
+
     // fresh-project intent instead of being inferred from a missing name.
+
     if (tab === 'editor') setInitialProjectNameToLoad(null);
+
     setActiveTab(tab);
+
   }, []);
+
+
+
 
 
   // Auto-save Context Objects to localStorage
+
   useEffect(() => {
+
     try {
+
       if (activeProductContext) {
+
         workspaceStorage.setItem('capcut_active_product_context', JSON.stringify(activeProductContext));
+
       } else {
+
         workspaceStorage.removeItem('capcut_active_product_context');
+
       }
+
       workspaceStorage.setItem('capcut_selected_angle_index', String(selectedAngleIndex));
+
       if (activeAngleContext) {
+
         workspaceStorage.setItem('capcut_active_angle_context', JSON.stringify(activeAngleContext));
+
       } else {
+
         workspaceStorage.removeItem('capcut_active_angle_context');
+
       }
+
     } catch (e) {
+
       console.error('Failed to save context to localStorage:', e);
+
     }
+
   }, [activeProductContext, selectedAngleIndex, activeAngleContext]);
 
+
+
   // 5. Global Keyboard Shortcuts & Modal State
+
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+
   const [globalToast, setGlobalToast] = useState(null);
+
   const [analyticsRefreshKey, setAnalyticsRefreshKey] = useState(0);
 
+
+
   useKeyboardShortcuts({
+
     // The editor tab owns Space and Ctrl+S (useEditorShortcuts / handleManualSave).
+
     isEditorActive: activeTab === 'editor',
+
     onTabChange: (tab) => {
+
       handlePrimaryTabChange(tab);
+
     },
+
     onSave: () => {
+
       // The create panel persists its form on every change, so there is
+
       // nothing to flush here -- just say so.
+
       setGlobalToast('บันทึกข้อมูลฟอร์มเรียบร้อยแล้ว (บันทึกอัตโนมัติอยู่แล้ว)');
+
       setTimeout(() => setGlobalToast(null), 2500);
+
     },
+
     onToggleShortcutsModal: () => {
+
       setShowShortcutsModal(prev => !prev);
+
     },
+
     onEscape: () => {
+
       setShowShortcutsModal(false);
+
     }
+
   });
 
+
+
   const refreshData = useCallback(async ({ includeExports = null, force = false } = {}) => {
+
     try {
+
       const shouldIncludeExports = includeExports !== null ? Boolean(includeExports) : (activeTab === 'gallery');
+
       const shellPromise = workspaceDataRef.current.loadShell({ force });
+
       const exportsPromise = shouldIncludeExports ? workspaceDataRef.current.loadExports({ force }) : null;
 
+
+
       const [shell, exportsData] = await Promise.all([
+
         shellPromise,
+
         exportsPromise,
+
       ]);
 
+
+
       setStatus(shell.status);
+
       setVideos(shell.videos?.videos || []);
+
       if (exportsData) {
+
         setExportsList(exportsData.exports || []);
+
       }
+
     } catch (err) {
+
       console.error('Failed to load initial data:', err);
+
     }
+
   }, [activeTab]);
 
+
+
   const handleGlobalRefresh = useCallback(async () => {
+
     await refreshData({ includeExports: activeTab === 'gallery', force: true });
+
     setAnalyticsRefreshKey((current) => current + 1);
+
   }, [activeTab, refreshData]);
 
+
+
   useEffect(() => {
+
     refreshData();
+
   }, [refreshData]);
 
+
+
   // Gallery is the only shell route that needs the full Export Catalog.
+
   // Sidebar navigation sets activeTab directly, so load it here as well as
+
   // through task-driven handleNavigateTab below.
+
   useEffect(() => {
+
     if (activeTab === 'gallery') refreshData({ includeExports: true });
+
   }, [activeTab, refreshData]);
 
+
+
   // Revalidate a product/angle context that was hydrated from localStorage
+
   // on mount against the backend's current product list. Cached data can go
+
   // stale silently (product renamed/edited/deleted since the last session),
+
   // so once fresh products are available: drop the cached context if the
+
   // product no longer exists, or replace it with the fresh copy if it does
+
   // but differs. Runs exactly once, and only for context that came from
+
   // localStorage -- a selection made during this session is never touched.
+
   useEffect(() => {
+
     if (!cameFromLocalStorageRef.current) return;
+
+
 
     let cancelled = false;
 
+
+
     (async () => {
+
       const productId = activeProductContext?.id;
+
       // Synthetic contexts (e.g. an ad-hoc script with no saved product
+
       // behind it) have no backend record to revalidate against -- leave
+
       // them alone.
+
       if (!productId || productId === 'custom') {
+
         cameFromLocalStorageRef.current = false;
+
         return;
+
       }
 
+
+
       try {
+
         const fresh = await workspaceDataRef.current.loadProducts({ force: true });
+
         const freshList = Array.isArray(fresh) ? fresh : (fresh?.products || []);
+
         if (cancelled) return;
+
+
 
         const freshProduct = freshList.find((p) => p.id === productId);
 
+
+
         if (!freshProduct) {
+
           // Deleted since it was cached -- fall back to "nothing selected".
+
           setActiveProductContext(null);
+
           setSelectedAngleIndex(0);
+
           setActiveAngleContext(null);
+
         } else if (JSON.stringify(freshProduct) !== JSON.stringify(activeProductContext)) {
+
           // Still exists but edited/renamed/re-angled -- the cache should
+
           // only remember *which* product/angle was selected, not the
+
           // product's field values, so replace it with the current copy.
+
           setActiveProductContext(freshProduct);
+
           if (!freshProduct.angles?.[selectedAngleIndex]) {
+
             setSelectedAngleIndex(0);
+
           }
+
         }
+
       } catch (err) {
+
         // Backend unreachable/erroring -- keep showing the cached context
+
         // rather than clearing it out from under the user.
+
         console.error('Failed to revalidate cached product context:', err);
+
       } finally {
+
         if (!cancelled) cameFromLocalStorageRef.current = false;
+
       }
+
     })();
 
+
+
     return () => { cancelled = true; };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
+
+
 
   const handleSelectAngle = (index) => {
+
     // The create panel maps the angle to form fields itself (lib/angleToForm),
+
     // so switching angle is only a matter of which one is current.
+
     if (!activeProductContext?.angles?.[index]) return;
+
     setSelectedAngleIndex(index);
+
   };
+
+
 
   const handleVideoUploaded = (newFile) => {
+
     setVideos((prev) => [newFile, ...prev]);
+
   };
+
+
 
   const handleVideoDeleted = (deletedPath) => {
+
     setVideos((prev) => prev.filter((v) => v.path !== deletedPath && v.rel_path !== deletedPath));
+
   };
 
+
+
   const handleExportDeleted = useCallback((deletedPaths) => {
+
     const list = Array.isArray(deletedPaths) ? deletedPaths : [deletedPaths];
+
     setExportsList((prev) => prev.filter((item) => !list.includes(item.path) && !list.includes(item.rel_path)));
+
     workspaceDataRef.current?.invalidate('exports');
+
   }, []);
 
+
+
   const handleApplyScriptFromLab = (data) => {
+
     if (data.productId && data.angleId) {
+
       setActiveAngleContext({
+
         productId: data.productId,
+
         angleId: data.angleId,
+
         batch: data.batch || (data.fullProduct?.angles?.[data.angleIndex]?.batch) || 1,
+
       });
+
     }
+
+
 
     setInitialProjectNameToLoad(editorProjectIntentFromPayload(data));
 
+
+
     if (data.fullProduct) {
+
       setActiveProductContext(data.fullProduct);
+
       setSelectedAngleIndex(data.angleIndex || 0);
+
     } else {
+
       // No saved product behind this script: wrap what was handed over as a
+
       // single angle so the editor's panel fills itself the same way.
+
       setActiveProductContext({
+
         id: data.productId || 'custom',
+
         title: data.productName || 'สินค้า',
+
                 images: data.selectedVideo ? [{ rel_path: data.selectedVideo, name: 'media' }] : [],
+
         angles: [{
+
           angle_name: 'บทที่เพิ่งเลือก',
+
           product_name: data.productName || 'สินค้า',
+
           hook_title: [data.hookBrand, data.hookModel, data.hookLabel].filter(Boolean).join(' ') || '',
+
           script_text: data.customScript || '',
+
           key_features: data.keyFeatures || '',
+
           pain_point: data.painPoint || '',
+
           price_deal: data.priceDeal || '',
+
           ad_tone: data.adTone,
+
         }],
+
       });
+
       setSelectedAngleIndex(0);
+
     }
+
+
 
     setActiveTab('editor');
+
   };
 
+
+
   const handleRenderSuccess = async (result) => {
+
     if (activeAngleContext?.productId && activeAngleContext?.angleId) {
+
       try {
+
         const videoRelPath = result.final_video_path || result.video_path || result.output_path || '';
+
         const projectName = result.project_name || '';
+
         const batch = activeAngleContext.batch || null;
+
         await updateAngleStatus(
+
           activeAngleContext.productId,
+
           activeAngleContext.angleId,
+
           'rendered',
+
           videoRelPath,
+
           projectName,
+
           null,
+
           false,
+
           false,
+
           null,
+
           false,
+
           batch
+
         );
+
         workspaceDataRef.current.invalidateTrackerData();
+
       } catch (err) {
+
         console.error('Failed to auto-update angle status on render:', err);
+
       }
+
     }
+
     refreshData({ includeExports: true, force: true });
+
   };
+
+
 
   const [highlightExportVideo, setHighlightExportVideo] = useState(null);
 
+
+
   const handleNavigateTab = (tab, extra = null) => {
+
     if (tab === 'creative' || tab === 'gadget' || tab === 'producer') tab = 'flow';
+
     if (tab === 'flow') {
+
       pendingFlowAngleIdRef.current = extra?.angleId || null;
+
       const isImageMetadataTask = extra?.task?.type === 'image_metadata' || extra?.task?.task_type === 'image_metadata';
+
       pendingFlowImageMetadataRef.current = isImageMetadataTask ? extra?.taskResult || null : null;
+
       if (isImageMetadataTask) setFlowTaskNavigationVersion(prev => prev + 1);
+
     } else if (tab === 'gallery') {
+
       const targetDescriptor = {
+
         exportId: extra?.taskResult?.export_id || extra?.task?.result?.export_id,
+
         videoPath: extra?.taskResult?.mp4_video || extra?.taskResult?.final_video_path || extra?.taskResult?.output_video || extra?.taskResult?.video_path || extra?.taskResult?.mp4,
+
         projectName: extra?.projectName || extra?.taskResult?.project_name || extra?.task?.payload?.project_name || extra?.targetId,
+
         productId: extra?.taskResult?.product_id || extra?.task?.payload?.product_id,
+
         angleId: extra?.angleId || extra?.taskResult?.angle_id || extra?.task?.payload?.angle_id,
+
         targetStr: extra?.targetId || extra?.taskResult?.project_name || extra?.taskResult?.final_video_path || extra?.taskResult?.mp4_video || extra?.task?.payload?.project_name || '',
+
       };
+
       setHighlightExportVideo(targetDescriptor);
+
       refreshData({ includeExports: true, force: true });
+
     } else if (tab === 'editor') {
+
       const projName = extra?.projectName || extra?.targetId || extra?.taskResult?.project_name || extra?.task?.payload?.project_name || extra?.task?.target_id;
+
       setInitialProjectNameToLoad(projName || null);
+
       if (extra?.taskResult?.saved_product) {
+
         setActiveProductContext(extra.taskResult.saved_product);
+
       }
+
       refreshData();
+
     }
+
     setActiveTab(tab);
+
   };
 
+
+
   const handleMobileTaskNavigate = useCallback((tab, extra = null) => {
+
     try {
+
       window.dispatchEvent(new CustomEvent('omnicut:task-navigate', { detail: { tab, extra } }));
+
     } catch { /* CustomEvent unavailable */ }
+
   }, []);
 
+
+
   if (isQuickPostMode) {
+
     return <ErrorBoundary><Suspense fallback={<LoadingSpinner message="กำลังเปิดตัวช่วยโพสต์..." />}>
+
       <MobileQuickPostPage onExit={() => {
+
         window.location.href = `${window.location.pathname}?channel=${encodeURIComponent(activeChannel())}`;
+
       }} />
+
     </Suspense></ErrorBoundary>;
+
   }
+
+
 
   if (filmingSessionId) {
+
     return (
-      <div className={`h-dvh w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
+
+      <div className={`h-dvh w-screen overflow-y-auto bg-[#030509] ${uiFont}`}>
+
         <Suspense fallback={<LoadingSpinner message="กำลังเปิดหน้าถ่ายทำ..." />}>
+
           <MobileFilmingPage sessionId={filmingSessionId} onExit={() => { window.location.href = filmingReturnUrl(window.location.search) || window.location.pathname; }} />
+
         </Suspense>
+
       </div>
+
     );
+
   }
+
+
 
   if (isQuickRefMode) {
+
     return (
-      <div className={`h-dvh w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
+
+      <div className={`h-dvh w-screen overflow-y-auto bg-[#030509] ${uiFont}`}>
+
         <ErrorBoundary>
+
           <Suspense fallback={<LoadingSpinner message="กำลังเปิดคลังไอเดีย Quick-Capture..." />}>
+
             <QuickRefPage onExit={() => { window.location.href = window.location.pathname; }} />
+
           </Suspense>
+
         </ErrorBoundary>
+
       </div>
+
     );
+
   }
+
+
 
   if (isMobileQuickMode) {
+
     // Inside TaskProvider so background work shows progress + notifications
+
     // here too. Task "open result" actions never switch to the desktop shell;
+
     // they are re-broadcast as `omnicut:task-navigate` ({tab, extra}) for the
+
     // mobile studio to handle.
+
     return (
+
       <TaskProvider
+
         onNavigateTab={handleMobileTaskNavigate}
+
         onSelectProductForFlow={setSelectedProductIdForFlow}
+
       >
+
         <div className={`h-dvh w-screen overflow-y-auto bg-slate-950 ${uiFont}`}>
+
           <ChannelWorkspaceBar />
+
           <ErrorBoundary>
+
             <Suspense fallback={<LoadingSpinner message="กำลังเปิด OmniCut Mobile Studio..." />}>
+
               <MobileAppRoot
+
                 onSwitchToDesktop={() => applyUiMode(false)}
+
                 onOpenFilmingSession={(sId, productId, angleId) => {
+
                   window.location.href = filmingUrl(sId, productId, angleId);
+
                 }}
+
               />
+
             </Suspense>
+
           </ErrorBoundary>
+
         </div>
+
         <ActivityDrawer />
+
         <GlobalTaskNotification />
+
       </TaskProvider>
+
     );
+
   }
 
+
+
   return (
+
     <TaskProvider
+
       onNavigateTab={handleNavigateTab}
+
       onSelectProductForFlow={setSelectedProductIdForFlow}
+
     >
-      <div className={`flex h-dvh overflow-hidden ${uiFont} bg-[#07090E] text-slate-100`}>
+
+      <div className={`flex h-dvh overflow-hidden ${uiFont} bg-[#030509] text-slate-100 relative`}>
+
+        {/* ── Background Ambient Floating Orbs (Pulse Hub Ultra-Realistic Glass Refraction) ── */}
+
+        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+
+          <div className="ambient-orb orb-cyan" />
+
+          <div className="ambient-orb orb-amber" />
+
+          <div className="ambient-orb orb-indigo" />
+
+        </div>
+
+
+
         {/* ── Sidebar (desktop: left, mobile: bottom) ── */}
+
         <Sidebar
+
           activeTab={activeTab}
+
           setActiveTab={handlePrimaryTabChange}
+
           status={status}
+
           onSwitchToMobile={() => applyUiMode(true)}
+
         />
 
+
+
         {/* ── Main Area ── */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#07090E] relative">
+
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-transparent relative z-10">
+
           {/* The editor renders its own activity indicator inside the header
+
               (EditorShell) -- floating it here covered the render button. */}
 
+
+
           {activeTab === 'editor' && <ChannelWorkspaceBar />}
+
           {/* ── Topbar (Hidden on Manual Editor to maximize editing workspace) ── */}
+
           {activeTab !== 'editor' && (
+
             <Topbar
+
               activeTab={activeTab}
+
               setActiveTab={handlePrimaryTabChange}
+
               status={status}
+
               uiFont={uiFont}
+
               setUiFont={handleUiFontChange}
+
               uiScale={uiScale}
+
               setUiScale={handleUiScaleChange}
+
               onOpenShortcuts={() => setShowShortcutsModal(true)}
+
               onRefresh={handleGlobalRefresh}
+
               onSwitchToMobile={() => applyUiMode(true)}
+
               activeProductContext={activeProductContext}
+
               exportsCount={exportsList.length}
+
               videosCount={videos.length}
+
             />
+
           )}
 
 
+
+
+
           {/* ── Content (Enforce overflow-x-hidden so page never shifts horizontally under sidebar) ── */}
+
           <ErrorBoundary resetKey={activeTab}>
+
             {activeTab === 'editor' ? (
+
               <main className="min-h-0 flex-1 overflow-hidden p-0 md:p-1.5 pb-[var(--nav-h)] md:pb-1.5">
+
                 <Suspense fallback={<LoadingSpinner message="กำลังโหลด Video Editor..." />}>
+
                   <EditorShell
+
                     key={initialProjectNameToLoad === '' ? 'editor-fresh' : (initialProjectNameToLoad || 'editor-shell')}
+
                     videos={videos}
+
                     productContext={activeProductContext}
+
                     angleIndex={selectedAngleIndex}
+
                     initialProjectName={initialProjectNameToLoad}
+
                     onAngleChange={handleSelectAngle}
+
                     onGoToProductFlow={() => setActiveTab('flow')}
+
                     onVideoUploaded={handleVideoUploaded}
+
                     onProductContextChange={setActiveProductContext}
+
                     workspaceData={workspaceDataRef.current}
+
                     onOpenShortcuts={() => setShowShortcutsModal(true)}
+
                   />
+
                 </Suspense>
+
               </main>
+
             ) : (
+
             <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 lg:px-6 py-5 pb-[calc(var(--nav-h)+1.5rem)] md:pb-8 w-full min-w-0">
+
               <div className="mx-auto w-full min-w-0 max-w-[2200px] animate-fadeIn space-y-5">
 
+
+
                 {/* SECTION: สินค้า → คลิป (Menu 1) */}
+
                 {activeTab === 'flow' && (
+
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลดโมดูลสินค้า → คลิป..." />}>
+
                     <ProductToClip
+
                       status={status}
+
                       videos={videos}
+
                       onRefresh={refreshData}
+
                       onApplyToStudio={handleApplyScriptFromLab}
+
                       onGoToGallery={() => setActiveTab('gallery')}
+
                       selectedProductId={selectedProductIdForFlow}
+
                       pendingFlowTaskVersion={flowTaskNavigationVersion}
+
                       workspaceData={workspaceDataRef.current}
+
                       consumePendingAngleId={() => {
+
                         const id = pendingFlowAngleIdRef.current;
+
                         pendingFlowAngleIdRef.current = null;
+
                         return id;
+
                       }}
+
                       consumePendingImageMetadataPreview={() => {
+
                         const preview = pendingFlowImageMetadataRef.current;
+
                         pendingFlowImageMetadataRef.current = null;
+
                         return preview;
+
                       }}
+
                     />
+
                   </Suspense>
+
                 )}
 
+
+
                 {/* SECTION: คลังสินค้า & Tracker (Menu 2) */}
+
                 {activeTab === 'tracker' && (
+
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลด Content Tracker..." />}>
+
                     <ContentTrackerHub
+
                       status={status}
+
                       workspaceData={workspaceDataRef.current}
+
                       onApplyToStudio={handleApplyScriptFromLab}
+
                       onRefresh={refreshData}
+
                       onGoToEditor={() => handlePrimaryTabChange('editor')}
+
                       onGoToFlow={(productId) => {
+
                         if (productId) setSelectedProductIdForFlow(productId);
+
                         setActiveTab('flow');
+
                       }}
+
                       onGoToGallery={() => setActiveTab('gallery')}
+
                     />
+
                   </Suspense>
+
                 )}
+
+
+
 
 
                 {/* SECTION: Export Gallery */}
+
                 {activeTab === 'gallery' && (
+
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลด Export Gallery..." />}>
+
                     <ExportGallery
+
                       exportsList={exportsList}
+
                       onRefresh={(opts) => refreshData({ includeExports: true, force: true, ...(opts && !opts.nativeEvent && typeof opts === 'object' ? opts : {}) })}
+
                       onDeleteExport={handleExportDeleted}
+
                       initialHighlightVideo={highlightExportVideo}
+
                       onClearHighlightVideo={() => setHighlightExportVideo(null)}
+
                       status={status}
+
                     />
+
                   </Suspense>
+
                 )}
+
+
+
+
 
 
 
                 {/* SECTION: Media Assets Hub */}
+
                 {activeTab === 'assets' && (
+
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลด Media Assets Hub..." />}>
+
                     <MediaAssetsHub status={status} />
+
                   </Suspense>
+
                 )}
+
+
 
                 {/* SECTION: Analytics & Operations Hub */}
+
                 {activeTab === 'analytics' && (
+
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลดศูนย์วิเคราะห์และสถิติรวม..." />}>
+
                     <AnalyticsHub
+
                       refreshKey={analyticsRefreshKey}
+
                       onNavigateToEditor={(projName) => {
+
                         setInitialProjectNameToLoad(projName || null);
+
                         setActiveTab('editor');
+
                       }}
+
                       onNavigateToTracker={() => setActiveTab('tracker')}
+
                       onNavigateToFlow={(productId) => {
+
                         if (productId) setSelectedProductIdForFlow(productId);
+
                         setActiveTab('flow');
+
                       }}
+
                     />
+
                   </Suspense>
+
                 )}
+
+
 
                 {/* SECTION: System Settings */}
+
                 {(activeTab === 'settings' || activeTab === 'dashboard') && (
+
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลด System Settings..." />}>
+
                     <SystemSettings
+
                       status={status}
+
                       uiFont={uiFont}
+
                       setUiFont={handleUiFontChange}
+
                       uiScale={uiScale}
+
                       setUiScale={handleUiScaleChange}
+
                       initialSubTab={activeTab === 'dashboard' ? 'engine' : 'appearance'}
+
                     />
+
                   </Suspense>
+
                 )}
+
+
 
                 {/* SECTION: User Guide */}
+
                 {activeTab === 'guide' && (
+
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลดคู่มือใช้งาน..." />}>
+
                     <UserGuide onNavigate={(tab) => handlePrimaryTabChange(tab)} />
+
                   </Suspense>
+
                 )}
+
               </div>
+
             </main>
+
             )}
+
           </ErrorBoundary>
+
         </div>
 
+
+
         {/* ── Global Keyboard Shortcuts Cheat Sheet Modal ── */}
+
         <ShortcutsModal
+
           isOpen={showShortcutsModal}
+
           onClose={() => setShowShortcutsModal(false)}
+
         />
+
+
 
         {/* ── Global Toast for Quick Save / Actions ── */}
+
         <Toast
+
           message={globalToast}
+
           onClose={() => setGlobalToast(null)}
+
         />
 
+
+
+        {/* ── Mobile / Adaptive Floating Scroll-To-Top Button ── */}
+
+        {showScrollTop && (
+
+          <button
+
+            type="button"
+
+            onClick={() => {
+
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+
+              try { navigator.vibrate?.(10); } catch {}
+
+            }}
+
+            aria-label="เลื่อนขึ้นบนสุด"
+
+            className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-slate-900/90 text-[#25F4EE] border border-white/15 shadow-2xl backdrop-blur-xl active:scale-90 transition-all duration-200 cursor-pointer animate-fadeIn"
+
+          >
+
+            <ArrowUp className="h-5 w-5 stroke-[2.5]" />
+
+          </button>
+
+        )}
+
+
+
         {/* ── Global Persistent Activity Drawer & Task Notifications ── */}
+
         <ActivityDrawer />
+
         <GlobalTaskNotification />
+
         <GlobalLiveRenderWidget
+
           currentTab={activeTab}
+
           onNavigateToEditor={(projName) => handleNavigateTab('editor', { projectName: projName })}
+
           onNavigateToGallery={() => handleNavigateTab('gallery')}
+
         />
+
       </div>
+
     </TaskProvider>
+
   );
+
 }
+

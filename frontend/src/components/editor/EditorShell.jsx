@@ -33,6 +33,7 @@ import { getProjectRevision, rememberProjectRevision } from '../../lib/projectRe
 import { POST_RENDER_ACTIONS, decidePostRenderSync, fetchSettledProject } from '../../lib/postRenderRevision.js';
 import { useProjectLoader } from '../../hooks/useProjectLoader';
 import { useRenderJob } from '../../hooks/useRenderJob';
+import useWakeLock from '../../hooks/useWakeLock';
 import { usePanelLayout } from '../../hooks/usePanelLayout';
 import { useEditorSelection } from '../../hooks/useEditorSelection';
 import { useEditorCommands } from '../../hooks/useEditorCommands';
@@ -491,6 +492,8 @@ export default function EditorShell({
       } catch (e) {}
     }
   }, [productContext, angleIndex, workspaceData]);
+
+  useWakeLock(Boolean(applying));
 
   const {
     jobId,
@@ -2957,7 +2960,7 @@ export default function EditorShell({
                     key={tab.id}
                     type="button"
                     onClick={() => setMobileTab(tab.id)}
-                    className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] ${
                       isActive
                         ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
                         : 'text-slate-400 hover:text-white'

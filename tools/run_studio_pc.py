@@ -30,6 +30,8 @@ def get_lan_ip() -> str:
 def main():
     BASE_DIR = Path(__file__).resolve().parent.parent
     os.chdir(BASE_DIR)
+    if str(BASE_DIR) not in sys.path:
+        sys.path.insert(0, str(BASE_DIR))
 
     lan_ip = get_lan_ip()
     port = int(os.environ.get("PORT", "8000"))

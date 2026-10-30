@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useBackToClose } from '../../hooks/useBackToClose';
@@ -58,6 +58,30 @@ export function Modal({
     }
   }, [isOpen]);
 
+  const [dragY, setDragY] = useState(0);
+  const touchStartY = useRef(null);
+
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e) => {
+    if (touchStartY.current === null) return;
+    const diff = e.touches[0].clientY - touchStartY.current;
+    if (diff > 0) {
+      setDragY(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragY > 80) {
+      try { navigator.vibrate?.(10); } catch {}
+      onClose?.();
+    }
+    setDragY(0);
+    touchStartY.current = null;
+  };
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -75,12 +99,26 @@ export function Modal({
         aria-modal="true"
         aria-label={typeof title === 'string' ? title : undefined}
         tabIndex={-1}
-        className={`relative w-full ${maxWidth} bg-[#080B11]/95 backdrop-blur-2xl border border-white/[0.14] shadow-2xl rounded-t-3xl rounded-b-none sm:rounded-3xl z-10 flex flex-col max-h-[90dvh] overflow-hidden animate-scaleUp mt-auto sm:my-auto pb-[env(safe-area-inset-bottom)] sm:pb-0 outline-none`}
+        className={`relative w-full ${maxWidth} glass-panel border border-white/[0.18] shadow-2xl rounded-t-3xl rounded-b-none sm:rounded-3xl z-10 flex flex-col max-h-[90dvh] overflow-hidden animate-scaleUp mt-auto sm:my-auto pb-[env(safe-area-inset-bottom)] sm:pb-0 outline-none`}
+        style={{
+          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+          transition: dragY === 0 ? 'transform 0.2s cubic-bezier(0.25, 1, 0.5, 1)' : 'none'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* iOS Bottom Sheet Grab Handle (Mobile swipe-to-dismiss) */}
+        <div
+          className="sm:hidden flex items-center justify-center pt-2.5 pb-1 cursor-grab active:cursor-grabbing touch-none select-none bg-white/[0.03] backdrop-blur-md z-30"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div className="w-10 h-1.5 rounded-full bg-white/25 active:bg-white/50 transition-colors" />
+        </div>
+
         {/* Header - Fixed Top */}
         {(title || showCloseButton) && (
-          <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 sm:py-4 border-b border-white/[0.08] bg-[#0B0F19]/95 backdrop-blur-xl z-20">
+          <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 sm:py-4 border-b border-white/[0.08] bg-white/[0.03] backdrop-blur-xl z-20">
             <div className="min-w-0 flex-1">
               {title && (
                 <h3 className="text-base md:text-lg font-bold text-white truncate">

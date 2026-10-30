@@ -3993,8 +3993,23 @@ function SequencePlayer({
     if (sourcePoint) onPickSubjectPoint?.(sourcePoint, subjectPromptReferenceRef.current);
   };
 
+  const lastTapRef = useRef(0);
+  const [doubleTapRipple, setDoubleTapRipple] = useState(null);
+
   const handleContainerClick = (e) => {
     if (subjectPickMode) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 320) {
+      // Double-Tap to Toggle Play/Pause on Video Canvas
+      const willPlay = !isPlaying;
+      togglePlay();
+      try { navigator.vibrate?.(10); } catch {}
+      setDoubleTapRipple({ isPlaying: willPlay, id: now });
+      setTimeout(() => setDoubleTapRipple(null), 500);
+      lastTapRef.current = 0;
+      return;
+    }
+    lastTapRef.current = now;
     if (e.target.closest('.interactive-bounding-box')) return;
     if (!containerRef.current) return;
 
@@ -5644,6 +5659,22 @@ function SequencePlayer({
           className={`relative overflow-hidden rounded-2xl border border-[#363430] bg-black shadow-2xl select-none${subjectPickMode ? ' cursor-crosshair [&_*:not(button)]:cursor-crosshair' : ''}`}
           style={{ height: '100%', width: 'auto', aspectRatio: '9/16', maxWidth: '100%' }}
         >
+          {/* Double-Tap Visual Ripple Feedback on Canvas */}
+          {doubleTapRipple && (
+            <div
+              key={doubleTapRipple.id}
+              className="pointer-events-none absolute inset-0 z-[60] flex items-center justify-center animate-out fade-out duration-500"
+            >
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-black/70 backdrop-blur-md border border-[#25F4EE]/40 text-[#25F4EE] shadow-2xl shadow-[#25F4EE]/20 transition-all scale-110">
+                {doubleTapRipple.isPlaying ? (
+                  <Play className="h-9 w-9 fill-current translate-x-0.5" />
+                ) : (
+                  <Pause className="h-9 w-9 fill-current" />
+                )}
+              </div>
+            </div>
+          )}
+
           <canvas
             ref={canvasRef}
             width={CANVAS_W * backingScale}

@@ -166,9 +166,9 @@ const ExportCard = memo(function ExportCard({
         {/* Select Checkbox (Top Left) */}
         <button
           onClick={() => onToggleSelect(item.path)}
-          className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 z-20 w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-black/75 backdrop-blur-md flex items-center justify-center border border-white/20 text-white cursor-pointer hover:border-[#25F4EE] shadow-sm transition-transform active:scale-95"
+          className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 z-20 w-8 h-8 sm:w-7 sm:h-7 rounded-lg bg-black/75 backdrop-blur-md flex items-center justify-center border border-white/20 text-white cursor-pointer hover:border-[#25F4EE] shadow-sm transition-transform active:scale-95 touch-manipulation"
         >
-          {isSelected ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#25F4EE]" /> : <Square className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />}
+          {isSelected ? <Check className="w-4 h-4 sm:w-4 sm:h-4 text-[#25F4EE]" /> : <Square className="w-3.5 h-3.5 sm:w-3.5 sm:h-3.5 text-slate-400" />}
         </button>
 
         {/* Product Tag Badge + Status Badge (Top Right) */}
@@ -319,10 +319,10 @@ const ExportCard = memo(function ExportCard({
       </div>
 
       {/* Card Action Buttons */}
-      <div className="p-2 sm:p-3 pt-0 flex items-center gap-1 sm:gap-1.5 border-t border-white/[0.08] mt-1 sm:mt-2">
+      <div className="p-2 sm:p-3 pt-0 flex items-center gap-1.5 border-t border-white/[0.08] mt-1 sm:mt-2">
         <button
           onClick={() => onOpenDetail(item)}
-          className="flex-1 py-1.5 sm:py-2 px-1.5 sm:px-2.5 rounded-lg sm:rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-white text-[11px] sm:text-xs font-bold flex items-center justify-center cursor-pointer transition-colors"
+          className="flex-1 min-h-[38px] py-1.5 sm:py-2 px-1.5 sm:px-2.5 rounded-lg sm:rounded-xl bg-white/[0.05] hover:bg-white/[0.1] active:scale-[0.98] border border-white/[0.08] text-white text-[11px] sm:text-xs font-bold flex items-center justify-center cursor-pointer transition-colors"
         >
           ดูรายละเอียด
         </button>
@@ -330,7 +330,7 @@ const ExportCard = memo(function ExportCard({
         <a
           href={toMediaUrl(item.rel_path || item.path)}
           download={item.name}
-          className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-bold transition-colors cursor-pointer flex-shrink-0"
+          className="min-h-[38px] min-w-[38px] p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-white/[0.05] hover:bg-white/[0.1] active:scale-[0.98] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-bold transition-colors cursor-pointer flex items-center justify-center flex-shrink-0"
           title="ดาวน์โหลด .MP4"
         >
           <Download className="w-3.5 h-3.5" />
@@ -340,7 +340,7 @@ const ExportCard = memo(function ExportCard({
           <button
             type="button"
             disabled
-            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold opacity-60 cursor-not-allowed flex-shrink-0"
+            className="min-h-[38px] min-w-[38px] p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold opacity-60 cursor-not-allowed flex items-center justify-center flex-shrink-0"
             title="โพสต์แล้ว (เก็บเป็นหลักฐาน ห้ามลบ)"
           >
             <ShieldCheck className="w-3.5 h-3.5" />
@@ -349,7 +349,7 @@ const ExportCard = memo(function ExportCard({
           <button
             type="button"
             onClick={() => onOpenDelete(item)}
-            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold transition-colors cursor-pointer flex-shrink-0"
+            className="min-h-[38px] min-w-[38px] p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:scale-[0.98] text-rose-400 border border-rose-500/20 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center flex-shrink-0"
             title="ลบวิดีโอ"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -905,7 +905,7 @@ function ExportActiveWorkbench({
                   className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer active:scale-95"
                 >
                   <Copy className="w-3 h-3" />
-                  <span>{copiedCaption ? 'คัดลอกแล้ว!' : 'คัดลอก'}</span>
+                  <span>{copiedCaption ? 'คัดลอกแล้ว' : 'คัดลอกแคปชัน'}</span>
                 </button>
               ) : (
                 <button
@@ -1398,6 +1398,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
     try {
       if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
       await navigator.clipboard.writeText(text);
+      try { navigator.vibrate?.(15); } catch {}
       setCopiedCaption(true);
       showToast('คัดลอกแคปชันเรียบร้อยแล้ว');
       setTimeout(() => setCopiedCaption(false), 2000);
@@ -2034,7 +2035,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
 
           {/* ── Floating Batch Action Bar (Mobile & Desktop) ── */}
           {selectedVideos.length > 0 && (
-            <div className="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl bg-[#0B0F19]/95 border border-[#25F4EE]/40 backdrop-blur-2xl shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
+            <div className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl bg-[#0B0F19]/95 border border-[#25F4EE]/40 backdrop-blur-2xl shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
               <div className="flex items-center gap-2.5 text-xs font-bold text-white">
                 <span className="w-6 h-6 rounded-lg bg-[#25F4EE]/20 text-[#25F4EE] flex items-center justify-center font-mono text-xs">
                   {selectedVideos.length}
@@ -2083,6 +2084,47 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     onLoadedMetadata={(e) => setModalDuration(e.target.duration)}
                     className="w-full h-full object-contain"
                   />
+                </div>
+
+                {/* 1.0 Mobile Quick Actions Deck (1-Tap Copy TikTok Caption & Save Video) */}
+                <div className="flex items-center gap-2 pt-1 pb-1">
+                  {selectedDetailVideo.tiktok_caption && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCaption(`${selectedDetailVideo.tiktok_caption}\n\n${selectedDetailVideo.tiktok_hashtags || ''}`)}
+                      className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 active:scale-[0.98] text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer transition-all"
+                    >
+                      <Copy className="w-4 h-4 flex-shrink-0" />
+                      <span>คัดลอกแคปชัน TikTok</span>
+                    </button>
+                  )}
+                  <a
+                    href={toMediaUrl(selectedDetailVideo.rel_path || selectedDetailVideo.path)}
+                    download={selectedDetailVideo.name}
+                    className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#25F4EE]/90 active:scale-[0.98] text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/20 cursor-pointer transition-all"
+                  >
+                    <Download className="w-4 h-4 flex-shrink-0" />
+                    <span>บันทึกคลิป MP4</span>
+                  </a>
+                  {typeof navigator !== 'undefined' && navigator.share && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.share({
+                            title: selectedDetailVideo.hook_title || selectedDetailVideo.name,
+                            text: selectedDetailVideo.tiktok_caption || '',
+                            url: toMediaUrl(selectedDetailVideo.rel_path || selectedDetailVideo.path),
+                          });
+                        } catch {}
+                      }}
+                      className="min-h-[46px] px-3.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-white/10 transition-all cursor-pointer flex-shrink-0"
+                      title="แชร์คลิปลง Photos ใน iPhone"
+                    >
+                      <Share2 className="w-4 h-4 text-[#25F4EE]" />
+                      <span className="hidden sm:inline">แชร์ลง Photos</span>
+                    </button>
+                  )}
                 </div>
 
                 {/* 1.1 Saved 9:16 Cover Banner (If available) */}

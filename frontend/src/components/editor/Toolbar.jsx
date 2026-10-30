@@ -15,11 +15,14 @@ function ToolButton({ icon: Icon, label, hint, shortcut, onClick, disabled, acti
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        try { navigator.vibrate?.(10); } catch {}
+        if (onClick) onClick();
+      }}
       disabled={disabled}
       title={tip}
       aria-label={label}
-      className={`flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+      className={`flex h-11 sm:h-9 min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-xl px-2.5 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] active:scale-[0.96] ${
         disabled
           ? 'cursor-not-allowed text-[#5A554F]'
           : active

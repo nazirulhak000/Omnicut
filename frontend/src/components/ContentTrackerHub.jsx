@@ -301,7 +301,7 @@ const KanbanCard = memo(function KanbanCard({
               title="ส่งคลิปไป TikTok Studio"
             >
               <Rocket className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>ส่ง TikTok</span>
+              <span>ส่งต่อไปยัง TikTok</span>
             </button>
 
             <div className="flex items-center gap-1">
@@ -3337,6 +3337,51 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           )}
         </div>
 
+        {/* ── Mobile Sticky Segmented Phase Bar ── */}
+        <div className="md:hidden sticky top-0 z-20 w-full flex items-center gap-1 p-1 rounded-2xl bg-[#080B11]/95 backdrop-blur-xl border border-white/[0.08] overflow-x-auto no-scrollbar shadow-lg">
+          <button
+            type="button"
+            onClick={() => {
+              try { navigator.vibrate?.(10); } catch {}
+              scrollToPhaseColumn('all');
+            }}
+            className={`flex-1 min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center justify-center gap-1.5 active:scale-95 ${
+              activePhase === 'all'
+                ? 'bg-[#25F4EE] text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <span>ทั้งหมด</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${activePhase === 'all' ? 'bg-slate-950/20 text-slate-950' : 'bg-white/[0.08] text-slate-400'}`}>
+              {allAnglesList.length}
+            </span>
+          </button>
+          {PIPELINE_PHASES.map((p) => {
+            const count = phaseCounts[p.id] || 0;
+            const isActive = activePhase === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  try { navigator.vibrate?.(10); } catch {}
+                  scrollToPhaseColumn(p.id);
+                }}
+                className={`flex-1 min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center justify-center gap-1.5 active:scale-95 ${
+                  isActive
+                    ? 'bg-[#25F4EE] text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>{p.label}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${isActive ? 'bg-slate-950/20 text-slate-950' : 'bg-white/[0.08] text-slate-400'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Product Filter Dropdown & Match Stats */}
         <div className="flex items-center gap-2 justify-between md:justify-end flex-shrink-0">
           <select
@@ -3461,7 +3506,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 <div
                   key={phase.id}
                   ref={(el) => (colRefs.current[phase.id] = el)}
-                  className="w-[82vw] max-w-[320px] xl:w-auto xl:max-w-none flex-shrink-0 snap-center p-2.5 border border-white/[0.08] space-y-2 rounded-2xl glass-card transition-colors hover:border-white/[0.15] bg-[#070A12] flex flex-col"
+                  className="w-[88vw] max-w-[380px] xl:w-auto xl:max-w-none flex-shrink-0 snap-center p-2.5 border border-white/[0.08] space-y-2 rounded-2xl glass-card transition-colors hover:border-white/[0.15] bg-[#070A12] flex flex-col"
                 >
                   {/* Column Header */}
                   <div className="flex items-center justify-between pb-1.5 border-b border-white/[0.08]">
@@ -3480,7 +3525,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                             title="เปิดคลังสคริปต์ทั้งหมดเพื่อเลือกเข้าบอร์ดประจำวัน"
                           >
                             <FolderDown className="w-3 h-3" />
-                            <span>คลัง ({rawPhaseAngles.length})</span>
+                            <span>เลือกจากคลัง ({rawPhaseAngles.length})</span>
                           </button>
                           <span
                             className="text-xs font-mono font-bold px-1.5 py-0.2 rounded-full bg-black/60 border border-white/[0.08] text-[#25F4EE]"

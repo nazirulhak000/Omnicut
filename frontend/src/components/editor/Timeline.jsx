@@ -1011,7 +1011,7 @@ export default function Timeline({
 
             <div
               ref={laneRef}
-              className="relative flex-1"
+              className="relative flex-1 touch-none select-none"
               onPointerDown={handleTrackAreaPointerDown}
               onPointerMove={moveScrub}
               onPointerUp={endScrub}
