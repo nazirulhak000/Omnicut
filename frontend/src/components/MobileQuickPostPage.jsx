@@ -58,7 +58,7 @@ export default function MobileQuickPostPage({ onExit }) {
     let isMounted = true;
     setLoading(true);
 
-    getProducts()
+    getProducts(undefined, 'compact')
       .then((res) => {
         if (!isMounted) return;
         if (res.products) {

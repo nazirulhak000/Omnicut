@@ -347,7 +347,7 @@ class ProductStore:
     # requests queuing on this lock stacked into 90+ second hangs even after
     # the busy_timeout fix, because the lock was being re-acquired far more
     # often than it needed to be).
-    _RECONCILE_MIN_INTERVAL_S = 3.0
+    _RECONCILE_MIN_INTERVAL_S = 30.0
     _last_reconcile_at: float = 0.0
     _last_reconcile_scope: Optional[tuple[str, str]] = None
 
@@ -2510,15 +2510,67 @@ class ProductStore:
         return cls._scoped_load(scope)
 
     @classmethod
+    def _to_lite_product(cls, p: Dict[str, Any], mode: Any = True) -> Dict[str, Any]:
+        """Convert a full product record to a lightweight or summary representation."""
+        mode_str = str(mode).lower() if mode is not True else "compact"
+        is_summary = mode_str in ("summary", "ultra", "2")
+        lite_p = {
+            "id": p.get("id"),
+            "name": p.get("name"),
+            "product_code": p.get("product_code"),
+            "status": p.get("status"),
+            "cover_image": p.get("cover_image"),
+            "thumbnail": p.get("thumbnail"),
+            "images": (p.get("images") or [])[:3],
+            "channel_id": p.get("channel_id"),
+            "created_at": p.get("created_at"),
+            "updated_at": p.get("updated_at"),
+            "angles_count": len(p.get("angles", [])),
+            "selling_points": (p.get("selling_points") or [])[:3],
+            "tiktok_product_id": p.get("tiktok_product_id"),
+        }
+        if is_summary:
+            return lite_p
+
+        angles = []
+        for a in p.get("angles", []):
+            angles.append({
+                "angle_id": a.get("angle_id"),
+                "angle_name": a.get("angle_name"),
+                "badge": a.get("badge"),
+                "status": a.get("status"),
+                "video_url": a.get("video_url"),
+                "cover_image": a.get("cover_image"),
+                "hook_title": a.get("hook_title"),
+                "updated_at": a.get("updated_at"),
+                "tiktok_caption": a.get("tiktok_caption"),
+                "tiktok_hashtags": a.get("tiktok_hashtags"),
+                "batch": a.get("batch"),
+                "format": a.get("format"),
+            })
+        lite_p["angles"] = angles
+        return lite_p
+
+    @classmethod
     def list(
-        cls, status: Optional[str] = None, *, channel_id: Optional[str] = None, all_channels: bool = False
+        cls,
+        status: Optional[str] = None,
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+        lite: Optional[str] = None,
+        reconcile: bool = True,
     ) -> List[Dict[str, Any]]:
         scope = cls._scope(channel_id, all_channels)
-        cls.reconcile_existing_projects(channel_id=channel_id, all_channels=all_channels)
+        if reconcile:
+            cls.reconcile_existing_projects(channel_id=channel_id, all_channels=all_channels)
         products = cls._scoped_load(scope)
         if status:
             products = [p for p in products if p.get("status") == status]
-        return sorted(products, key=lambda p: p.get("updated_at", ""), reverse=True)
+        products = sorted(products, key=lambda p: p.get("updated_at", ""), reverse=True)
+        if lite:
+            products = [cls._to_lite_product(p, mode=lite) for p in products]
+        return products
 
     @classmethod
     def get(cls, product_id: str, *, channel_id: Optional[str] = None, all_channels: bool = False) -> Optional[Dict[str, Any]]:

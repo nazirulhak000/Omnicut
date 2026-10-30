@@ -465,11 +465,20 @@ def fetch_product(req: ProductFetchRequest):
 
 
 @router.get("/products")
-def list_products(status: Optional[str] = None, channel_scope: ChannelScope = Depends(get_workflow_scope)):
+def list_products(
+    status: Optional[str] = None,
+    lite: Optional[str] = None,
+    reconcile: bool = True,
+    channel_scope: ChannelScope = Depends(get_workflow_scope),
+):
     if status and status not in STATUSES:
         raise HTTPException(status_code=400, detail=f"status ต้องเป็นหนึ่งใน {', '.join(STATUSES)}")
-    products = [_with_product_source_fallback(product) for product in ProductStore.list(status, channel_id=channel_scope.channel_id)]
-    products = _hydrate_product_covers(products)
+    products = [
+        _with_product_source_fallback(product)
+        for product in ProductStore.list(status, channel_id=channel_scope.channel_id, lite=lite, reconcile=reconcile)
+    ]
+    if not lite or str(lite).lower() not in ("summary", "ultra", "2"):
+        products = _hydrate_product_covers(products)
     return {"products": products, "summary": ProductStore.summary(channel_id=channel_scope.channel_id)}
 
 

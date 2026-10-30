@@ -365,7 +365,13 @@ export const scrapeAndPlanProduct = (payload) => {
   }, { timeout: 120000 }).then(r => r.data);
 };
 
-export const getProducts = (status) => api.get('/products', { params: status ? { status } : {} }).then(r => r.data);
+export const getProducts = (status, lite = null, reconcile = true) => {
+  const params = {};
+  if (status) params.status = status;
+  if (lite) params.lite = lite;
+  if (reconcile === false) params.reconcile = 0;
+  return api.get('/products', { params }).then(r => r.data);
+};
 export const createProduct = (data) => api.post('/products', data).then(r => r.data);
 export const updateProduct = (id, data) => api.patch(`/products/${id}`, data).then(r => r.data);
 export const previewProductSource = (id, data = {}) =>

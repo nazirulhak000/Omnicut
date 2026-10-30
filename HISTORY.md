@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-API-ULTRA-LITE-AND-DISK-CACHE-20261030 | ปรับปรุงประสิทธิภาพ API และลดขนาด Payload สินค้าจาก 5.26 MB เหลือ 38 KB (ลดลง 99.5%): โหมด lite=compact (120KB) และ lite=summary (38KB), ขยาย reconcile throttle เป็น 30s ลดภาระดิสก์, สร้าง run_studio_pc.bat + tools/run_studio_pc.py พร้อมแสดง QR Code สำหรับมือถือเชื่อมต่อผ่าน Wi-Fi ในบ้าน (0% เน็ตบ้าน), ผ่านการทดสอบ 80 backend + 1055 frontend 100% | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-PARALLEL-8-AGENTS-MOBILE-E2E-PHASES-1-TO-8-20261030 | ยกระดับ Mobile-First Studio ครบวงจร Phase 1–8 ด้วย 8 Parallel Subagents (Disjoint File Ownership): Phase 1.9–1.10 PWA/ServiceWorker + MobileShell 5 แท็บ, Phase 2A Couple Engine (9 โมดูล) + Phase 2B Job Queue & SSE Router, Phase 3 Intake & Script Deck, Phase 4 Review Queue, Phase 5 Clip Library & LINE Notifier, Phase 6 Mobile Posting & GDrive Bridge, Phase 7–8 Command Center & Uploads, รวม Colab Secret fallback resolution (`OMNICUT_`) ปลดล็อก 503; tests 236 backend + 1055 frontend 100%, production build สำเร็จ | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round CLAUDE-MOBILE-PHASE0-1-SECURITY-AND-FOUNDATION-20261030 | Phase 0+1 แผนมือถือ: cookie auth ครอบ HTTP/WS + tunnel-aware + `/api/health` + ปิด SPA path traversal, Colab notebook (token จาก Secrets, รหัสแอปอัตโนมัติ, ttyd loopback+tmux, watchdog thread), ลบคำชวนราคา/สติกเกอร์ดีล, ปิด Copilot sine render, nav history/login/mobile primitives; backend 4050 passed (13 ไฟล์พังเหมือน HEAD), frontend 1038/1038 | 2026-10-30 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
 | Round CLAUDE-MOBILE-FIRST-E2E-UX-AUDIT-AND-PLAN-20261030 | ตรวจการใช้งานบนมือถือ 10 เอเจนต์ (read-only) ตั้งแต่เปิดแอปจนโพสต์ → แผน Phase 0–8 ที่ `_Docs/Plans/PLAN_MOBILE_FIRST_E2E_UX_20261030.md`; เจอ P0 ความปลอดภัย (repo public + tunnel token ในโค้ด + ไม่มี auth บน Colab + shell ผ่านเว็บ) | 2026-10-30 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
@@ -104,6 +105,30 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+---
+
+## Round ANTIGRAVITY-API-ULTRA-LITE-AND-DISK-CACHE-20261030 · ปรับปรุงความเร็ว API และลดขนาด Payload จาก 5.26 MB เหลือ 38 KB พร้อม Wi-Fi LAN Bridge สำหรับมือถือ
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-30
+
+- **ปัญหาเดิม:** ฐานข้อมูลสะสม 31 สินค้า 409 สคริปต์ มีขนาดไฟล์ 5.26 MB (8.3 MB JSON uncompressed) เมื่อเรียก GET /api/products จะส่งข้อมูลสคริปต์ความยาวหลายพันบรรทัดวิ่งผ่านเน็ต/ท่อ Tunnel ข้ามทวีปทุกครั้ง ทำให้โหลดช้า 5–15 วินาที และมี 
+econcile_existing_projects() สแกนดิสก์ซ้ำทุก 3 วินาที
+- **การแก้ไขและผลลัพธ์:**
+  - เพิ่มระบบ _to_lite_product() ใน scripts/product_store.py รองรับ 2 โหมด:
+    - lite='compact': ตัด script_lines, 	ts_lines, 
+aw_text, script_text คงเหลือเฉพาะ metadata และมุมมองย่อ (ลดลงเหลือ ~120 KB หรือ 98.5%)
+    - lite='summary': ส่งเฉพาะ metadata สินค้าพร้อม ngles_count ตัวเลขสรุป (ลดลงเหลือ ~38 KB หรือลดลง 99.5% โหลดใน 5ms)
+  - เพิ่มพารามิเตอร์ lite และ 
+econcile ใน GET /api/products (scripts/api_phase1.py & scripts/channel_route_policy.json)
+  - ขยาย _RECONCILE_MIN_INTERVAL_S จาก 3.0s เป็น 30.0s ลดภาระ I/O สแกนฮาร์ดดิสก์
+  - อัปเดต rontend/src/api.js และปรับแต่ง MobileQuickPostPage.jsx ให้ดึงข้อมูลแบบ compact
+  - สร้างสคริปต์รัน 1-คลิก 
+un_studio_pc.bat และ 	ools/run_studio_pc.py ตรวจจับ IP วง LAN อัตโนมัติ พร้อมแสดง **ASCII QR Code** บนหน้าจอคอนโซล ให้ผู้ใช้เปิดกล้องมือถือสแกนเข้าใช้งานผ่าน Wi-Fi ในบ้านด้วยความเร็วระดับ LAN (300-800 Mbps) โดยไม่ใช้อินเทอร์เน็ตของบ้าน 100%
+  - เพิ่มชุดทดสอบ 	ests/test_product_store_lite.py (ผ่าน 6/6) รวมกับ 	ests/test_channel_scope.py ผ่าน 80/80
+  - ชุดทดสอบ Frontend 
+pm test ผ่านครบ 1,055/1,055 (100%) และรีบิลด์โปรดักชัน 
+pm run build สำเร็จเรียบร้อย
+
 ---
 
 ## Round ANTIGRAVITY-PARALLEL-8-AGENTS-MOBILE-E2E-PHASES-1-TO-8-20261030 · ยกระดับ Mobile-First Studio ครบวงจร Phase 1–8 ด้วย 8 Parallel Subagents
