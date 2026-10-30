@@ -2448,7 +2448,7 @@ export default function EditorShell({
   }, [style.bgmName, assets.music, assets.default_bgm]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#0A0D14]">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl glass-panel">
       {/* ── HEADER / TOPBAR ── */}
       <EditorHeader
         projectName={projectName}
@@ -2947,7 +2947,7 @@ export default function EditorShell({
             </div>
 
             {/* Mobile Mode Switcher Tabs */}
-            <div className="flex-shrink-0 flex items-center justify-around border-b border-white/[0.08] bg-[#0D111A] p-1">
+            <div className="flex-shrink-0 flex items-center justify-around border-b border-white/[0.08] glass-panel p-1">
               {[
                 { id: 'timeline', label: 'ไทม์ไลน์', icon: Layers },
                 { id: 'assets', label: 'คลังวัตถุดิบ & ซับ', icon: Sparkles },

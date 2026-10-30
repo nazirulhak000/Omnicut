@@ -6086,7 +6086,7 @@ function SequencePlayer({
       {/* Pro Studio Player Control Bar (Level 1: Right below 9:16 canvas in Editor mode, centered, fixed width, no jitter) */}
       {compact && metadataReady && clips.length > 0 && (
         <div className="flex-shrink-0 flex items-center justify-center pt-2 select-none">
-          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#161514]/90 px-3 py-1 shadow-lg backdrop-blur-md">
+          <div className="flex items-center gap-2 rounded-full glass-panel px-3 py-1 shadow-lg">
             {/* Play/Pause Button (hidden during subject picking to prevent playback conflict) */}
             {!subjectPickMode ? (
               <button
@@ -6117,7 +6117,7 @@ function SequencePlayer({
             <span className="h-3.5 w-px bg-white/15" />
 
             {/* Preview Quality (1080p / 540p) */}
-            <div className="flex items-center rounded-md bg-[#242220] px-1 py-0.5" title="ความละเอียดพรีวิวขณะเล่นและตัดต่อ">
+            <div className="flex items-center rounded-md glass-tile px-1 py-0.5" title="ความละเอียดพรีวิวขณะเล่นและตัดต่อ">
               <select
                 aria-label="คุณภาพพรีวิวขณะเล่น"
                 data-testid="preview-quality-select"

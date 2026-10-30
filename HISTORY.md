@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-OVERNIGHT-ROUND-4-EDITOR-NLE-916-ERGONOMICS-20261031 | ยกระดับ EditorShell & Timeline 9:16 (Station 4): Studio Player Bar (`SequencePlayer`), Timeline Toolbar (`Toolbar`), Multi-track Timeline (`Timeline`), และ Panels (`EditorShell`) สู่ Ultra-Realistic Glassmorphism Theme (.glass-panel, .glass-tile), ค้ำประกัน Double-Tap Play/Pause ripple effect บนวิดีโอ 9:16, Scrubber Track ล็อก `touch-action: none`, ปุ่มตัด Q/W และ Mobile Switcher Tabs รักษา Touch Targets min-h-[44px] (Apple HIG), ป้องกันหน้าจอดับด้วย useWakeLock, เพิ่มชุดทดสอบ TDD `frontend/src/lib/editorErgonomicsContract.test.js` (5/5 tests pass), ผ่านการทดสอบ Vitest รวม 1,075/1,075 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-3-CONTENT-TRACKER-20261031 | ยกระดับ ContentTrackerHub.jsx (Station 3): Ultra-Realistic Glassmorphism Theme (แทนที่แบ็กกราวด์ทึบ 16 จุดด้วย .glass-panel, .glass-tile, .glass-input), Sticky Segmented Phase Bar 4 เฟสขยาย Touch Target ปุ่มสู่ min-h-11 (>=44px), ปรับขนาด KanBan คอลัมน์ w-[88vw] max-w-[390px] snap-center รับจอ iPhone 15 Pro Max, ยืนยัน Memory Safety (Cleanup บน Event Listeners และ setInterval), เพิ่มชุดทดสอบ TDD `frontend/src/lib/contentTrackerContract.test.js` (6/6 tests pass), ผ่านการทดสอบ Vitest รวม 1,070/1,070 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-2-PRODUCT-TO-CLIP-ERGONOMICS-20261031 | ยกระดับ ProductToClip.jsx สู่ 100% Rule 3.8/4.8 Compliance, Glassmorphism & SessionStorage Expansion: คลีนข้อความปุ่มที่ขึ้นต้นด้วยเครื่องหมายบวก `+` หรืออีโมจิ 7 จุด (`สร้างแผนถ่าย`, `เสียงเดิม Edge-TTS`, `เสียง Gemini`, `ดู X ฉาก`, `สแกนฉาก`), ขยาย `sessionStorage` บันทึก `tiktokProductId` อัตโนมัติป้องกันข้อมูลสูญหายเมื่อสลับแอป, แปลงแผงสถานะและกริดสู่ `.glass-panel` และ `.glass-tile`, เพิ่มชุดทดสอบ TDD `frontend/src/lib/productToClipContract.test.js` (4/4 tests pass), ผ่านการทดสอบ Vitest รวม 1,064/1,064 tests 100%, Vite build สำเร็จ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-1-TOPBAR-QUALITY-20261031 | ตรวจสอบและยกระดับ Code Quality ใน Topbar.jsx: ล้าง Dead Imports (`Lightbulb`, `Wifi`), เพิ่ม WAI-ARIA keyboard accessibility (`onKeyDown` Enter/Space), ขยาย Touch Target บนมือถือสู่ min-h-11 (>=44px), เพิ่มระบบวัดและแสดงผล Live Ping Latency (เช่น 14ms), ตรวจสอบ Rule 3.8/4.8 คลีน 100%, เพิ่มชุดทดสอบ TDD `frontend/src/lib/topbarContract.test.js` (ผ่าน 5/5, ยอดรวม 1,060/1,060 tests 100%), บิลด์ Vite สำเร็จสมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -115,6 +116,34 @@
 ---
 
 ---
+
+---
+
+## Round ANTIGRAVITY-OVERNIGHT-ROUND-4-EDITOR-NLE-916-ERGONOMICS-20261031 · ยกระดับ EditorShell & Timeline 9:16 (Station 4): Double-Tap Play/Pause, Touch-Action None Scrubbing, Q/W Trim >=44px, AudioContext Cleanup & Ultra-Realistic Glassmorphism
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-31
+
+- **ผลการตรวจประเมินและยกระดับ (Elevation Details):**
+  1. **Studio Player Bar & 9:16 Stage Refraction**:
+     - ยกระดับแคปซูลควบคุมการเล่นวิดีโอ (`SequencePlayer.jsx`) จากเดิม `border-white/10 bg-[#161514]/90` สู่ `.glass-panel` สะท้อนแสงหักเหจาก Ambient Orbs
+     - อัปเกรดตัวเลือกความละเอียดพรีวิว (1080p / 540p) สู่ `.glass-tile`
+     - ยืนยันการแสดงผลไทม์โค้ดความกว้างคงที่ `w-[140px] tabular-nums` ป้องกันอาการกระตุกแกว่ง (layout shift)
+     - คงระบบ **Double-Tap Play/Pause Visual Ripple Feedback** และระบบสั่น Haptic เมื่อแตะจอ 2 ครั้งสไตล์ TikTok/Reels
+  2. **Timeline Scrubber Mechanics & Safety**:
+     - กำกับคุณสมบัติ `touch-none` (`touch-action: none`) บน Scrubber Track ใน `Timeline.jsx` ป้องกัน Safari แย่งจับ gesture เลื่อนหน้าจอขณะลาก Playhead
+     - ปรับกรอบไทม์ไลน์หลักสู่ `.glass-panel`
+     - ยืนยันหัวอ่านไทม์ไลน์ `TimelinePlayhead.jsx` เส้นสีขาวเด่นชัด 3.5px พร้อมแสงสะท้อนนีออน Glow
+  3. **Toolbar Ergonomics & Apple HIG**:
+     - อัปเกรดแถบเครื่องมือตัดต่อ `Toolbar.jsx` สู่ `.glass-tile`
+     - ปุ่มตัดต่อทุกปุ่ม (ย้อน, ไปหน้า, แยก S, ตัดหัว Q, ตัดท้าย W, เพิ่มข้อความ, สำเนา, คัดลอกค่า, ลบ) มี Touch Targets บนมือถืออย่างน้อย `min-h-[44px]` และ `min-w-[44px]`
+  4. **Editor Panels & Mobile Tab Switcher**:
+     - ปรับแผงสลับโหมดบนมือถือ (`mobileTab`: ไทม์ไลน์, คลังวัตถุดิบ & ซับ, แก้ไขคำบรรยาย) ใน `EditorShell.jsx` สู่ `.glass-panel` ปุ่มแตะ `min-h-[44px]`
+     - แผง Inspector และ Asset Panel แปลงสู่ `.glass-panel`
+     - ป้องกันหน้าจอดับขณะประมวลผลวิดีโอด้วย `useWakeLock(applying)`
+  5. **TDD Contract Testing & Quality Gates**:
+     - สร้างชุดทดสอบสัญญา: [`frontend/src/lib/editorErgonomicsContract.test.js`](file:///d:/Winona/Programmer/Omnicut/frontend/src/lib/editorErgonomicsContract.test.js) (ผ่าน 5/5 tests)
+     - ยอดรวมชุดทดสอบทั้งระบบ: **ผ่านครบ 1,075/1,075 tests (100% pass)**
+     - Vite Production Build: สำเร็จสมบูรณ์ 0 error ใน 2.02s
 
 ## Round ANTIGRAVITY-OVERNIGHT-ROUND-3-CONTENT-TRACKER-20261031 · ยกระดับ ContentTrackerHub.jsx (Station 3): Glassmorphism KanBan, Sticky Segmented Phase Bar, Mobile Ergonomics & SSE Memory Safety
 
