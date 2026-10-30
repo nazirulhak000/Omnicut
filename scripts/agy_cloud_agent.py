@@ -674,7 +674,7 @@ class AGYCloudAgent:
     def __init__(
         self,
         workspace: Path = PROJECT_ROOT,
-        model: str = "gemini-2.5-flash",
+        model: str = "gemini-3.8-flash",
         api_call_fn: Optional[Callable[[Dict[str, Any], str, str], Dict[str, Any]]] = None,
     ):
         self.workspace = workspace.resolve()
@@ -740,7 +740,10 @@ class AGYCloudAgent:
             req = urllib.request.Request(
                 url,
                 data=req_bytes,
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": api_key,
+                },
                 method="POST",
             )
             try:
@@ -755,8 +758,8 @@ class AGYCloudAgent:
                 except Exception:
                     pass
                 last_err = RuntimeError(f"HTTP {http_err.code}: {err_body[:400]}")
-                # Rotate on 429 Quota, 400 Invalid Key, 403 Permission, or 503 Overload
-                if http_err.code in (400, 403, 429, 500, 503):
+                # Rotate on 400 Invalid, 401 Unauthenticated, 403 Permission/Billing, 404 Not Found, 429 Quota, 500, or 503 Overload
+                if http_err.code in (400, 401, 403, 404, 429, 500, 503):
                     logger.warning(f"[AGY] Key #{idx + 1} returned HTTP {http_err.code}, rotating to next key...")
                     continue
                 raise last_err

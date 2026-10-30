@@ -1,6 +1,6 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
  
-สถานะ: กำลังผลิตคลิปคู่รักสายใต้ 20 คลิปสินค้า TTZ K106 Magnetic Wireless Power Bank 30000mAh (TTZ01) · วันที่ 2026-10-28
+สถานะ: กำลังผลิตคลิปคู่รักสายใต้ 20 คลิปสินค้า TTZ K106 Magnetic Wireless Power Bank 30000mAh (TTZ01) · วันที่ 2026-10-30
 
 ## รอบปัจจุบัน
 
@@ -17,6 +17,7 @@
 
 ## ประวัติรอบที่ปิดแล้ว
 
+- [x] Round ANTIGRAVITY-FIX-AGY-AUTH-AND-LOCAL-BRIDGE-20261030 · แก้ไขปัญหา HTTP 401 ใน AGY Cloud Agent & Colab Runner: ขจัดคีย์จำลองที่สตริงเพี้ยน, สลับมาใช้คีย์จริง 3 คีย์แรกที่ผ่านการทดสอบ 100% พร้อมรองรับ Colab Secrets (`userdata`), อัปเดตโมเดลเป็น `gemini-3.8-flash` และเพิ่ม header `x-goog-api-key`, เพิ่ม 401/404 ในเงื่อนไข Auto-Rotate, รีเจน `Omnicut_Cloud_Runner.ipynb`, ชุดทดสอบผ่าน 8/8 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 - [x] Round ANTIGRAVITY-AGY-COLAB-LIVE-TEST-AND-HARDENING-20261030 · ยกระดับระบบป้องกัน AGY Cloud Agent (4-Tier Defense-in-Depth: บล็อกการฆ่าโปรเซสอุโมงค์ `cloudflared`/`uvicorn`/`ttyd`, ป้องกันลบฐานข้อมูลหลักและ `.env`, ระบบ Auto-Redaction ปิดบัง API Keys/Tokens อัตโนมัติ, ระบบ CapCut Draft Auto-Backup `.bak`, เพิ่ม `POST /api/agy/self-update` และปุ่มลัด **เปิด AGY Terminal** บน Topbar, รีบิลด์ `frontend/dist`, ผ่าน Jev `B_full_defense_in_depth` confidence 1.0 และชุดทดสอบ 8/8 100%); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 4 Argon)
 - [x] Round ANTIGRAVITY-AGY-COLAB-WEB-TERMINAL-20261030 · วางแผนและพัฒนาระบบ AGY Interactive Web Terminal & Autonomous Cloud Agent บน Google Colab (Dual-Hybrid Architecture: `scripts/agy_cloud_agent.py`, `scripts/api_agy.py`, `scripts/colab_agy_cli.py`, Web Console ที่ `https://studio.nazirulhak.com/agy` + `ttyd` พอร์ต 7681, Jev choice `C_dual_hybrid_terminal` confidence 0.98, ผ่านชุดทดสอบ `tests/test_agy_cloud_agent.py` 7/7 100%); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 4 Argon)
 - [x] Round ANTIGRAVITY-CLEAN-OBSOLETE-HUBS-AND-AUTO-SEED-SCRIPTS-20261030 · ตัดเมนูที่เลิกใช้ 2 รายการ (gadget และ producer) ออกจาก UI ถาวร, พัฒนา tools/sync_scripts_to_products.py ซิงก์สคริปต์คู่รัก 20 บททั้ง 9 สินค้า (180 สคริปต์) สู่ _Docs/products.json และสร้าง _Docs/products_seed.json ที่ track บน Git พร้อม Auto-Seed ใน scripts/api_server.py และ Colab Runner, รีบิลด์ frontend/dist สำเร็จ (tests 174 backend + 1021 frontend ผ่าน 100%); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
