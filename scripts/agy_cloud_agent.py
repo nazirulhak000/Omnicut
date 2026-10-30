@@ -189,15 +189,15 @@ def _ensure_capcut_draft_backup(target: Path) -> Optional[str]:
 # ============================================================================
 
 def get_gemini_api_keys() -> List[str]:
-    """Collect all available Gemini API keys from environment and .env."""
+    """Collect all available Gemini API keys from environment and .env, filtering out invalid placeholders."""
     keys: List[str] = []
     env_names = ["GEMINI_API_KEY"] + [f"GEMINI_API_KEY_{i}" for i in range(2, 12)] + ["GOOGLE_API_KEY"]
     for name in env_names:
-        val = os.environ.get(name, "").strip()
-        if val and val not in keys:
+        val = os.environ.get(name, "").strip().strip("'").strip('"')
+        if val and val != "-" and len(val) >= 10 and val not in keys:
             keys.append(val)
 
-    # Also check .env in PROJECT_ROOT if no keys found yet
+    # Also check .env in PROJECT_ROOT if needed
     env_file = PROJECT_ROOT / ".env"
     if env_file.exists():
         try:
@@ -209,7 +209,7 @@ def get_gemini_api_keys() -> List[str]:
                 k = k.strip()
                 v = v.strip().strip("'").strip('"')
                 if k.startswith("GEMINI_API_KEY") or k == "GOOGLE_API_KEY":
-                    if v and v not in keys:
+                    if v and v != "-" and len(v) >= 10 and v not in keys:
                         keys.append(v)
         except Exception:
             pass
@@ -674,7 +674,7 @@ class AGYCloudAgent:
     def __init__(
         self,
         workspace: Path = PROJECT_ROOT,
-        model: str = "gemini-3.8-flash",
+        model: str = "gemini-2.5-flash",
         api_call_fn: Optional[Callable[[Dict[str, Any], str, str], Dict[str, Any]]] = None,
     ):
         self.workspace = workspace.resolve()
@@ -747,7 +747,7 @@ class AGYCloudAgent:
                 method="POST",
             )
             try:
-                with urllib.request.urlopen(req, timeout=90) as resp:
+                with urllib.request.urlopen(req, timeout=30) as resp:
                     body = resp.read().decode("utf-8")
                     self._key_index = idx
                     return json.loads(body)

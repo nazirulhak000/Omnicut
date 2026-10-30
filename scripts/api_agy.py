@@ -8,12 +8,15 @@ language (Thai/English) or run raw Linux/shell commands on Google Colab.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
+import httpx
+import websockets
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from scripts.agy_cloud_agent import (
@@ -134,6 +137,72 @@ def api_agy_stream(payload: AGYChatRequest):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ============================================================================
+# Reverse Proxy Endpoints for Interactive ttyd Web Terminal (port 7681)
+# ============================================================================
+
+@router.get("/terminal")
+@router.get("/terminal/{full_path:path}")
+async def proxy_ttyd_http(full_path: str = ""):
+    """Proxy HTTP requests to internal ttyd terminal on port 7681."""
+    target_url = f"http://127.0.0.1:7681/{full_path}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(target_url)
+            content_type = resp.headers.get("content-type", "text/html; charset=utf-8")
+            return Response(content=resp.content, status_code=resp.status_code, media_type=content_type)
+    except Exception as exc:
+        return Response(content=f"Terminal Proxy Offline (ttyd not ready): {exc}", status_code=502)
+
+
+@router.get("/token")
+async def proxy_ttyd_token():
+    """Proxy ttyd token endpoint."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get("http://127.0.0.1:7681/token")
+            return Response(content=resp.content, status_code=resp.status_code, media_type="application/json")
+    except Exception:
+        return {"token": ""}
+
+
+@router.websocket("/ws")
+@router.websocket("/terminal/ws")
+async def proxy_ttyd_ws(client_ws: WebSocket):
+    """Bidirectional WebSocket proxy to ttyd terminal on port 7681."""
+    await client_ws.accept(subprotocol="tty")
+    try:
+        async with websockets.connect("ws://127.0.0.1:7681/ws", subprotocols=["tty"]) as server_ws:
+            async def forward_client_to_server():
+                try:
+                    while True:
+                        data = await client_ws.receive()
+                        if "bytes" in data and data["bytes"]:
+                            await server_ws.send(data["bytes"])
+                        elif "text" in data and data["text"]:
+                            await server_ws.send(data["text"])
+                except Exception:
+                    pass
+
+            async def forward_server_to_client():
+                try:
+                    async for msg in server_ws:
+                        if isinstance(msg, bytes):
+                            await client_ws.send_bytes(msg)
+                        else:
+                            await client_ws.send_text(msg)
+                except Exception:
+                    pass
+
+            await asyncio.gather(forward_client_to_server(), forward_server_to_client(), return_exceptions=True)
+    except Exception as exc:
+        logger.debug(f"Terminal WS proxy ended: {exc}")
+        try:
+            await client_ws.close()
+        except Exception:
+            pass
 
 
 # ============================================================================
@@ -437,6 +506,15 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
     </div>
   </header>
 
+  <div class="tabs-bar" style="display: flex; gap: 8px; padding: 10px 20px; background: #0c1220; border-bottom: 1px solid var(--border);">
+    <button id="tab-agent" class="btn btn-primary" onclick="setTab('agent')">🤖 AI Cloud Agent (แชทสั่งงาน AI)</button>
+    <button id="tab-terminal" class="btn" onclick="setTab('terminal')">💻 Live AGY Terminal (คอนโซลสด Linux & agy login)</button>
+  </div>
+
+  <div id="terminal-pane" style="display: none; flex: 1; width: 100%; height: calc(100vh - 125px); background: #000;">
+    <iframe id="terminalFrame" src="/terminal" style="width: 100%; height: 100%; border: none;"></iframe>
+  </div>
+
   <div class="quickbar">
     <button class="chip" onclick="sendQuick('ตรวจสอบสถานะ GPU, พื้นที่ดิสก์ และความพร้อมของระบบในตอนนี้ให้หน่อย')">เช็กสถานะ GPU & ระบบ</button>
     <button class="chip" onclick="sendQuick('แสดงรายการสินค้าทั้งหมดใน _Docs/products.json และดูว่ามีคลิปรุ่นไหนเรนเดอร์เสร็จแล้วบ้าง')">ดูรายการสินค้า & คลิป</button>
@@ -480,6 +558,35 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
   <script>
     let currentSessionId = null;
     let isBusy = false;
+
+    function setTab(tab) {
+      const agentTab = document.getElementById('tab-agent');
+      const termTab = document.getElementById('tab-terminal');
+      const termPane = document.getElementById('terminal-pane');
+      const stream = document.getElementById('stream');
+      const composer = document.querySelector('.composer');
+      const quickbar = document.querySelector('.quickbar');
+      const iframe = document.getElementById('terminalFrame');
+
+      if (tab === 'terminal') {
+        agentTab.className = 'btn';
+        termTab.className = 'btn btn-primary';
+        termPane.style.display = 'block';
+        stream.style.display = 'none';
+        if (composer) composer.style.display = 'none';
+        if (quickbar) quickbar.style.display = 'none';
+        if (iframe && (!iframe.src || iframe.src === 'about:blank' || iframe.src.endsWith('/agy'))) {
+          iframe.src = '/terminal';
+        }
+      } else {
+        agentTab.className = 'btn btn-primary';
+        termTab.className = 'btn';
+        termPane.style.display = 'none';
+        stream.style.display = 'flex';
+        if (composer) composer.style.display = 'block';
+        if (quickbar) quickbar.style.display = 'flex';
+      }
+    }
 
     async function refreshStatus() {
       try {
