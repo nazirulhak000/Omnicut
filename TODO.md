@@ -4,13 +4,15 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round ANTIGRAVITY-OVERNIGHT-ROUND-5-EXPORT-GALLERY-MEDIA-ASSETS-20261031 · ยกระดับ ExportGallery & MediaAssetsHub (Station 5 & 6): 9:16 Video Cards, 1-Tap Copy Haptic 15ms, Web Share API, 2-Column MPC Soundboard Pads & Sticky Mini Audio Bar:
-  - [ ] 1. Ultra-Realistic Glassmorphism Styling: ยกระดับ Export Gallery Video Cards, Filter Pills, Action Deck, และ Media Assets Soundboard Pads สู่ `.glass-panel` และ `.glass-tile`
-  - [ ] 2. ExportGallery Mobile Ergonomics: การ์ดวิดีโอ 9:16 สัดส่วนสมบูรณ์, 1-Tap Copy Caption พร้อม Micro-Haptic 15ms, Web Share API (`navigator.share`) บันทึก MP4 สู่ Photos/Files บน iOS
-  - [ ] 3. MediaAssetsHub MPC Soundboard: แพดเสียง 2 คอลัมน์แบบ MPC พร้อมแถบลอย Sticky Mini Audio Player Bar และปุ่มหยุดเสียงด่วน
+- [ ] Round ANTIGRAVITY-OVERNIGHT-ROUND-6-ANALYTICS-SETTINGS-GUIDE-MODALS-20261031 · ยกระดับ AnalyticsHub, SystemSettings, UserGuide & Global Modals (Station 7 & 8): Horizontal Data Scroll, >=48px Touch Accordion, iOS Bottom Sheet Swipe-Down, Dynamic Island Toast Capsule & 100dvh Lock:
+  - [ ] 1. Ultra-Realistic Glassmorphism Theme: แปลงการ์ดสถิติ (`AnalyticsHub`), แผงตั้งค่าระบบ (`SystemSettings`), คู่มือ FAQ (`UserGuide`), และหน้าต่างป๊อปอัป (`Modal.jsx`) สู่ `.glass-panel` และ `.glass-tile`
+  - [ ] 2. Touch Accordion & Horizontal Data Scroll: เมนูตั้งค่าและคู่มือมี Touch Targets สำหรับขยาย Accordion อย่างน้อย 48px พร้อมตารางข้อมูลสถิติรองรับ Horizontal Scrolling
+  - [ ] 3. iOS Bottom Sheet & Dynamic Island Toast: Drag Handle + Swipe-Down-to-Dismiss 80px พร้อม Haptic 10ms ใน `Modal.jsx`, Dynamic Island Toast Capsule ใน `Toast.jsx`, และ `100dvh` lock
   - [ ] 4. Rule 3.8/4.8 Strict Button Hygiene: ตรวจสอบและกำจัดสัญลักษณ์ซ้ำซ้อนหรืออีโมจิในปุ่ม ปรับให้ขึ้นต้นด้วยคำกริยาแอ็กชันภาษาไทย 100%
-  - [ ] 5. TDD Unit Testing: เพิ่มชุดทดสอบสัญญา `frontend/src/lib/exportAndMediaContract.test.js`
+  - [ ] 5. TDD Unit Testing: เพิ่มชุดทดสอบสัญญา `frontend/src/lib/settingsAndModalsContract.test.js`
   - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-OVERNIGHT-ROUND-5-EXPORT-GALLERY-MEDIA-ASSETS-20261031 · ยกระดับ ExportGallery & MediaAssetsHub (Station 5 & 6): 9:16 Video Stage, 1-Tap Copy Caption พร้อม Micro-Haptic 15ms, บันทึกวิดีโอผ่าน Web Share API (`navigator.share`), แผงควบคุมและคลังเสียง MPC Soundboard 2 คอลัมน์ (Touch Targets w-11 h-11 >=44px) พร้อม Sticky Mobile Audio Mini-Player Bar และปุ่มหยุดเล่นด่วน · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-OVERNIGHT-ROUND-4-EDITOR-NLE-916-ERGONOMICS-20261031 · ยกระดับ EditorShell & Timeline 9:16 (Station 4): Double-Tap Play/Pause, Touch-Action None Scrubbing, Q/W Trim >=44px, AudioContext Cleanup & Ultra-Realistic Glassmorphism · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 

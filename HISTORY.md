@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-OVERNIGHT-ROUND-5-EXPORT-GALLERY-MEDIA-ASSETS-20261031 | ยกระดับ ExportGallery & MediaAssetsHub (Station 5 & 6): 9:16 Video Stage, 1-Tap Copy Caption พร้อม Micro-Haptic 15ms, บันทึกวิดีโอผ่าน Web Share API (`navigator.share`), แผงควบคุมและคลังเสียง MPC Soundboard 2 คอลัมน์ (Touch Targets w-11 h-11 >=44px) พร้อม Sticky Mobile Audio Mini-Player Bar และปุ่มหยุดเล่นด่วน, อัปเกรดสู่ Ultra-Realistic Glassmorphism Theme (.glass-panel, .glass-tile), เพิ่มชุดทดสอบ TDD `frontend/src/lib/exportAndMediaContract.test.js` (5/5 tests pass), ผ่านการทดสอบ Vitest รวม 1,080/1,080 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-4-EDITOR-NLE-916-ERGONOMICS-20261031 | ยกระดับ EditorShell & Timeline 9:16 (Station 4): Studio Player Bar (`SequencePlayer`), Timeline Toolbar (`Toolbar`), Multi-track Timeline (`Timeline`), และ Panels (`EditorShell`) สู่ Ultra-Realistic Glassmorphism Theme (.glass-panel, .glass-tile), ค้ำประกัน Double-Tap Play/Pause ripple effect บนวิดีโอ 9:16, Scrubber Track ล็อก `touch-action: none`, ปุ่มตัด Q/W และ Mobile Switcher Tabs รักษา Touch Targets min-h-[44px] (Apple HIG), ป้องกันหน้าจอดับด้วย useWakeLock, เพิ่มชุดทดสอบ TDD `frontend/src/lib/editorErgonomicsContract.test.js` (5/5 tests pass), ผ่านการทดสอบ Vitest รวม 1,075/1,075 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-3-CONTENT-TRACKER-20261031 | ยกระดับ ContentTrackerHub.jsx (Station 3): Ultra-Realistic Glassmorphism Theme (แทนที่แบ็กกราวด์ทึบ 16 จุดด้วย .glass-panel, .glass-tile, .glass-input), Sticky Segmented Phase Bar 4 เฟสขยาย Touch Target ปุ่มสู่ min-h-11 (>=44px), ปรับขนาด KanBan คอลัมน์ w-[88vw] max-w-[390px] snap-center รับจอ iPhone 15 Pro Max, ยืนยัน Memory Safety (Cleanup บน Event Listeners และ setInterval), เพิ่มชุดทดสอบ TDD `frontend/src/lib/contentTrackerContract.test.js` (6/6 tests pass), ผ่านการทดสอบ Vitest รวม 1,070/1,070 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-2-PRODUCT-TO-CLIP-ERGONOMICS-20261031 | ยกระดับ ProductToClip.jsx สู่ 100% Rule 3.8/4.8 Compliance, Glassmorphism & SessionStorage Expansion: คลีนข้อความปุ่มที่ขึ้นต้นด้วยเครื่องหมายบวก `+` หรืออีโมจิ 7 จุด (`สร้างแผนถ่าย`, `เสียงเดิม Edge-TTS`, `เสียง Gemini`, `ดู X ฉาก`, `สแกนฉาก`), ขยาย `sessionStorage` บันทึก `tiktokProductId` อัตโนมัติป้องกันข้อมูลสูญหายเมื่อสลับแอป, แปลงแผงสถานะและกริดสู่ `.glass-panel` และ `.glass-tile`, เพิ่มชุดทดสอบ TDD `frontend/src/lib/productToClipContract.test.js` (4/4 tests pass), ผ่านการทดสอบ Vitest รวม 1,064/1,064 tests 100%, Vite build สำเร็จ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -118,6 +119,29 @@
 ---
 
 ---
+
+---
+
+## Round ANTIGRAVITY-OVERNIGHT-ROUND-5-EXPORT-GALLERY-MEDIA-ASSETS-20261031 · ยกระดับ ExportGallery & MediaAssetsHub (Station 5 & 6): 9:16 Video Cards, 1-Tap Copy Haptic 15ms, Web Share API, 2-Column MPC Soundboard Pads & Sticky Mini Audio Bar
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-31
+
+- **ผลการตรวจประเมินและยกระดับ (Elevation Details):**
+  1. **ExportGallery 9:16 Video & Web Share Ergonomics**:
+     - ยืนยันการ์ดวิดีโอ 9:16 สัดส่วนสมบูรณ์ `aspect-[9/16]` พร้อมระบบพรีวิววิดีโอและภาพปกความละเอียดสูง
+     - ปุ่ม **1-Tap Copy Caption & Tags** พร้อมระบบสั่นตอบรับ **Micro-Haptic 15ms** (`navigator.vibrate?.(15)`)
+     - รองรับ **Web Share API** (`navigator.share`) แตะครั้งเดียวเปิด iOS Native Share Sheet เซฟไฟล์ MP4 ตรงลง Photos หรือแชร์สู่ TikTok ได้ทันที
+     - ยกระดับการ์ดวิดีโอ, แถบตัวกรองสินค้า/หมวดหมู่, และแผงคำสั่งลอย (`Floating Batch Action Bar`) สู่ `.glass-panel` และ `.glass-tile`
+  2. **MediaAssetsHub MPC Soundboard & Sticky Mini Audio Player Bar**:
+     - แพดทดลองฟังเสียงในรายการ SFX และ Music มี Touch Target ขนาด `w-11 h-11` (44px) บนมือถือ สไตล์ MPC Drum Pads เพื่อความแม่นยำในการกดด้วยนิ้วโป้ง
+     - แถบลอยมินิเพลเยอร์ติดหนึบด้านล่าง (`Sticky Mobile Audio Mini-Player Bar`) สไตล์ Frosted Capsule `.glass-panel` เหนือ Navigation Bar พร้อมปุ่มลัด **"หยุดเล่น"**
+     - แผงแคตตาล็อกสื่อและ Media Inspector แปลงสู่ `.glass-panel` และ `.glass-tile`
+  3. **Rule 3.8 / 4.8 Strict Button Hygiene**:
+     - ตรวจสอบปุ่มทั้งหมดใน ExportGallery และ MediaAssetsHub ไร้เครื่องหมาย `+` และอีโมจินำหน้า ปุ่มทุกตัวขึ้นต้นด้วยคำกริยาแอ็กชันภาษาไทย 100%
+  4. **TDD Contract Testing & Quality Gates**:
+     - สร้างชุดทดสอบสัญญา: [`frontend/src/lib/exportAndMediaContract.test.js`](file:///d:/Winona/Programmer/Omnicut/frontend/src/lib/exportAndMediaContract.test.js) (ผ่าน 5/5 tests)
+     - ยอดรวมชุดทดสอบทั้งระบบ: **ผ่านครบ 1,080/1,080 tests (100% pass)**
+     - Vite Production Build: สำเร็จสมบูรณ์ 0 error ใน 2.02s
 
 ## Round ANTIGRAVITY-OVERNIGHT-ROUND-4-EDITOR-NLE-916-ERGONOMICS-20261031 · ยกระดับ EditorShell & Timeline 9:16 (Station 4): Double-Tap Play/Pause, Touch-Action None Scrubbing, Q/W Trim >=44px, AudioContext Cleanup & Ultra-Realistic Glassmorphism
 

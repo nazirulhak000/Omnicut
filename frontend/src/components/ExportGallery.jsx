@@ -373,7 +373,7 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
       className={`p-2.5 rounded-xl border transition-all cursor-pointer text-left group relative active:scale-98 ${
         isActive
           ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-md shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/30'
-          : 'bg-[#080B11] border-white/[0.06] hover:border-white/[0.18] hover:bg-white/[0.02]'
+          : 'glass-tile text-slate-300 hover:border-white/[0.25]'
       }`}
     >
       {isActive && (
@@ -467,7 +467,7 @@ function ExportMobilePill({ item, isActive, onSelect }) {
       className={`flex-shrink-0 snap-center px-2.5 py-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 max-w-[200px] active:scale-95 ${
         isActive
           ? 'bg-[#25F4EE]/15 border-[#25F4EE] shadow-md shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/40'
-          : 'bg-[#080B11] border-white/[0.08] hover:border-white/[0.2] text-slate-300'
+          : 'glass-tile text-slate-300 hover:border-white/[0.25]'
       }`}
     >
       <div className="w-8 h-12 rounded-md overflow-hidden bg-black flex-shrink-0 border border-white/[0.1] relative">
@@ -586,7 +586,7 @@ function ExportActiveWorkbench({
 
   if (!video) {
     return (
-      <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-8 text-center text-slate-400">
+      <div className="glass-panel rounded-2xl p-8 text-center text-slate-400">
         <Film className="w-10 h-10 mx-auto text-slate-600 mb-2" />
         <p className="text-xs">เลือกคลิปจากรายการฝั่งซ้ายเพื่อตรวจ QC และดูรายละเอียด</p>
       </div>
@@ -663,7 +663,7 @@ function ExportActiveWorkbench({
   const relativeTime = getRelativeTimeDesc(video.timestamp, renderedTime);
 
   return (
-    <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-4 animate-fadeIn">
+    <div className="glass-panel rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-4 animate-fadeIn">
       {/* 1. Header with title & badges */}
       <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-3 border-b border-white/[0.08]">
         <div className="min-w-0 flex-1">
@@ -1680,7 +1680,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
       <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
 
       {/* ── Unified Media Center & Command Bar ── */}
-      <div className="rounded-2xl sm:rounded-3xl border border-white/[0.08] bg-[#0B0F19]/90 backdrop-blur-xl p-3 sm:p-5 shadow-2xl relative overflow-hidden space-y-3 sm:space-y-4">
+      <div className="rounded-2xl sm:rounded-3xl glass-panel p-3 sm:p-5 shadow-2xl relative overflow-hidden space-y-3 sm:space-y-4">
         {/* Ambient Glow Aura */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-[#FE2C55]/10 via-[#25F4EE]/5 to-transparent rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
 
@@ -2035,7 +2035,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
 
           {/* ── Floating Batch Action Bar (Mobile & Desktop) ── */}
           {selectedVideos.length > 0 && (
-            <div className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl bg-[#0B0F19]/95 border border-[#25F4EE]/40 backdrop-blur-2xl shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
+            <div className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl glass-panel shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
               <div className="flex items-center gap-2.5 text-xs font-bold text-white">
                 <span className="w-6 h-6 rounded-lg bg-[#25F4EE]/20 text-[#25F4EE] flex items-center justify-center font-mono text-xs">
                   {selectedVideos.length}
@@ -2433,7 +2433,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                 </div>
 
                 {/* 3.5 Post Studio Quick Actions (Desktop & TikTok Helper) */}
-                <div className="p-3.5 rounded-2xl bg-[#0B0F19] border border-amber-500/20 space-y-2.5">
+                <div className="p-3.5 rounded-2xl glass-tile border border-amber-500/30 space-y-2.5">
                   <div className="text-xs font-bold text-amber-300 flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <Zap className="w-3.5 h-3.5 text-amber-400" />
