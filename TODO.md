@@ -4,15 +4,6 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round ANTIGRAVITY-RECONCILE-MERGE-AND-PUSH-MAIN-20261030 · Reconcile branch dev กับ origin/main (ผสาน Colab cloud runner + permanent domain tunnel เข้ากับ local production dev), แก้ไข conflicts 7 จุด, ตรวจสอบชุดทดสอบทั้งหมด และ push ขึ้น main เป็นเวอร์ชันล่าสุด:
-  - [ ] บันทึกและ Commit uncommitted changes บน branch dev
-  - [ ] Fetch และ merge origin/main เข้า dev, แก้ไข conflicts ทั้ง 7 จุด และ reconcile scripts/api_server.py
-  - [ ] ตรวจสอบความถูกต้อง: รัน pytest (65 tests), node extension tests (51 tests), และ npm run build
-  - [ ] Fast-forward / merge สู่ local main และตรวจสอบ parity
-  - [ ] Push branch main และ dev ขึ้น origin
-  - [ ] ปิดรอบงานใน TODO.md และย้ายประวัติเข้า HISTORY.md
-  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
-
 - [ ] Round ANTIGRAVITY-PRODUCE-20-TTZ-K106-COUPLE-CLIPS-20261028 · ผลิตคลิปสไตล์คู่รักสายใต้บนกระดาษยับ (#5 Couple Paper Chat: น้องนุ้ย Aoede & พี่บ่าว Puck) สินค้า TTZ K106 Magnetic Wireless Power Bank 30000mAh (TTZ01) จากลิงก์ TikTok vt.tiktok.com/ZS9ykaGuy492W-oNdZy/ (TikTok Product ID: 1734519304293746340) ครบทั้ง 20 คลิปแบบ End-to-End:
   - [x] ตรวจสอบลิงก์ TikTok และสกัดข้อมูลสเปก/จุดขายสินค้า (30000mAh, Magnetic 15W, Fast Charge 22.5W/PD 20W, สายในตัว 2 เส้น, ขาตั้งพับในตัว, 4 สี, มอก. 2879-2560)
   - [ ] จัดเตรียมวัตถุดิบรูปภาพ 8 รูป 520x520 WebP คลีน + ไดคัท Hero rembg สู่ `03_Projects/_HyperFrames_Studio/assets/ttz01/`
@@ -26,6 +17,7 @@
 
 ## ประวัติรอบที่ปิดแล้ว
 
+- [x] Round ANTIGRAVITY-RECONCILE-MERGE-AND-PUSH-MAIN-20261030 · Reconcile branch dev กับ origin/main (ผสาน Colab cloud runner + permanent domain tunnel token เข้ากับ local production dev), แก้ไข conflicts 8 จุด, ตรวจสอบชุดทดสอบทั้งหมด และ push ขึ้น origin/main & origin/dev สำเร็จ 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 - [x] Round OMNICUT-CLOUD-RUNNER-COLAB-20261029 · สร้างและติดตั้ง Omnicut_Cloud_Runner.ipynb สำหรับรัน Omnicut บน Google Colab ผลิตคลิป Couple Paper Chat บน Cloud 100% เชื่อมต่อ Google Drive และ Cloudflare Tunnel ถาวร; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-COUPLE-PIPELINE-REFINEMENT-AND-RE-RENDER-60-CLIPS-20261020 · แก้ไขปัญหา Audio vs Text Desync ใน Hatari ด้วยการซิงค์เทิร์นและเจนเสียงใหม่ 12 เทิร์น (sim 0.95-1.00), แก้ไขเลย์เอาต์ CTA จัดกึ่งกลางด้วย CSS margin-left (X=540px) และเปลี่ยนภาพ Trio Hero ของ Redmi Buds 8 เป็น 3 ชิ้นคลีนไร้ตัวอักษรจีน, ตัด Dead Air หัว-ท้ายเสียงพากย์ (กระชับ 0.18-0.25s), ย้ายไลบรารี GSAP สู่ Local kit/gsap.min.js ขจัดปัญหา CDN ล่ม, เปิดใช้ GPU Hybrid Acceleration (HyperFrames --gpu + NVIDIA NVENC h264_nvenc), และเรนเดอร์สำเร็จครบ 60/60 คลิป (GOO01 20, HAT01 20, RED01 20) พร้อมสกัดปก WebP 60 รูป + Dual JPG 120 รูป และ sync products.json สู่สถานะ 'rendered' 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
