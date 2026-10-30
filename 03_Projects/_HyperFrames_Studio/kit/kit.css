@@ -1,0 +1,200 @@
+/* OmniCut HyperFrames kit — brand + layout system shared by every clip.
+   Clip files keep only their own beat layout and motion. */
+@font-face {
+  font-family: "Kanit Black";
+  src: url("fonts/Kanit-Black.ttf") format("truetype");
+  font-weight: 900;
+}
+@font-face {
+  font-family: "Anuphan";
+  src: url("fonts/Anuphan-Bold.ttf") format("truetype");
+  font-weight: 700;
+}
+:root {
+  --ink: #0d0c07;
+  --paper: #fffbe8;
+  --volt: #ffe600;
+  --hot: #ff3b30;
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+html,
+body {
+  width: 1080px;
+  height: 1920px;
+  overflow: hidden;
+  background: var(--ink);
+}
+#root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ink);
+  font-family: "Kanit Black", sans-serif;
+  color: var(--paper);
+}
+
+/* ---------- footage ---------- */
+.cam,
+.kb {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  will-change: transform;
+}
+.cam video,
+.cam img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* murky footage for a "before" / pain beat */
+.cam.murky {
+  filter: blur(16px) saturate(0.35) brightness(0.65);
+}
+#hero-bg {
+  filter: blur(18px) brightness(0.42) saturate(0.8);
+}
+#cut-wrap {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+#cut-wrap img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.6));
+}
+
+/* ---------- overlay system ---------- */
+.beat {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.scrim {
+  position: absolute;
+  inset: 0;
+}
+.scrim.top {
+  background: radial-gradient(130% 62% at 50% 18%, rgba(13, 12, 7, 0.86) 0%, rgba(13, 12, 7, 0.55) 52%, rgba(13, 12, 7, 0) 100%);
+}
+.scrim.full {
+  background: radial-gradient(120% 80% at 50% 40%, rgba(13, 12, 7, 0.62) 0%, rgba(13, 12, 7, 0.82) 100%);
+}
+.scrim.left {
+  background: radial-gradient(110% 70% at 0% 34%, rgba(13, 12, 7, 0.9) 0%, rgba(13, 12, 7, 0.5) 60%, rgba(13, 12, 7, 0) 100%);
+}
+.t {
+  position: absolute;
+  line-height: 1.06;
+  white-space: nowrap;
+  text-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  will-change: transform, opacity;
+}
+.center {
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+.volt {
+  color: var(--volt);
+}
+.hot {
+  color: var(--hot);
+}
+.label {
+  font-size: 40px;
+  letter-spacing: 0.32em;
+  color: var(--volt);
+}
+.outline {
+  color: transparent;
+  -webkit-text-stroke: 7px var(--volt);
+  text-shadow: none;
+}
+svg.fx {
+  position: absolute;
+  overflow: visible;
+}
+
+/* captions */
+.cap {
+  position: absolute;
+  left: 60px;
+  right: 60px;
+  top: 1400px;
+  text-align: center;
+  font-family: "Anuphan", sans-serif;
+  font-size: 72px;
+  line-height: 1.25;
+  color: var(--paper);
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.35), 0 6px 24px rgba(0, 0, 0, 0.75);
+}
+.cap-in {
+  will-change: transform, opacity;
+}
+.cap .w {
+  display: inline-block;
+  will-change: transform;
+}
+
+#flash {
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  opacity: 0;
+  pointer-events: none;
+}
+#wm {
+  position: absolute;
+  left: 1020px;
+  top: 1171px;
+  width: 0;
+  height: 0;
+}
+#wm span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%) rotate(90deg);
+  white-space: nowrap;
+  font-family: "Anuphan", sans-serif;
+  font-size: 26px;
+  color: rgba(255, 51, 51, 0.9);
+  background: rgba(13, 12, 7, 0.78);
+  padding: 4px 14px;
+  border-radius: 8px;
+}
+
+/* meme card — sticker-framed GIPHY clip; position/size per clip, motion via HF.meme() */
+.meme-card {
+  position: absolute;
+  padding: 12px;
+  background: var(--paper);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  opacity: 0; /* hidden until HF.meme() brings it in */
+  will-change: transform, opacity;
+}
+.meme-card video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+
+/* flipbook sprite (HF.sprite) */
+.sprite {
+  position: absolute;
+  background-repeat: no-repeat;
+  background-position: 0% 0%;
+}

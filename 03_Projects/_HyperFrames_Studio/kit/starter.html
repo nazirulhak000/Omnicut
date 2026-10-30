@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1080, height=1920">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="stylesheet" href="kit/kit.css">
+    <script src="kit/kit.js"></script>
+    <script src="assets/clips/{{CID}}/timing.js"></script>
+    <style>
+      /* this clip's beat layout — brand, captions, watermark come from kit/kit.css */
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-zucz" id="root" data-composition-id="{{CID}}" data-start="0" data-duration="{{TOTAL}}" data-width="1080" data-height="1920">
+      <!-- ================= FOOTAGE (camera audio muted) — one .cam per shot ================= -->
+      <div data-hf-id="hf-k742" class="cam" id="c0"><div data-hf-id="hf-l389" class="kb" id="k0" data-layout-allow-overflow=""><video data-hf-id="hf-iler" id="v0" class="clip" src="assets/{{PRODUCT}}/footage.mp4" muted playsinline data-start="0" data-duration="{{TOTAL}}" data-media-start="0" data-track-index="0"></video></div></div>
+
+      <!-- ================= BEATS — design this clip's motion here ================= -->
+
+      <div data-hf-id="hf-hmg5" id="flash"></div>
+
+      <!-- CAPTIONS:BEGIN -->
+      <!-- CAPTIONS:END -->
+
+      <div data-hf-id="hf-0bt9" id="wm"><span data-hf-id="hf-4vsq">สงวนลิขสิทธิ์ช่อง rizanntry ห้ามคัดลอก/ดัดแปลง</span></div>
+
+      <!-- VO:BEGIN -->
+      <audio data-hf-id="hf-6z9j" id="vo0" src="assets/clips/{{CID}}/vo.wav" data-start="0" data-duration="{{VO}}" data-track-index="10" data-volume="1"></audio>
+      <!-- VO:END -->
+      <audio data-hf-id="hf-4u22" id="bgm" src="assets/shared/bgm.wav" data-start="0" data-duration="{{TOTAL}}" data-track-index="11" data-volume="0.12"></audio>
+      <!-- SFX:BEGIN -->
+      <!-- SFX:END -->
+    </div>
+
+    <script>
+      const T = window.TIMING.cues;
+      const tl = gsap.timeline({ paused: true });
+      const $ = (s) => document.querySelector(s);
+      const flash = HF.flash(tl);
+
+      // ---------- footage: [start, duration, zoomFrom, zoomTo] per shot ----------
+      const SHOTS = [[0, {{TOTAL}}, 1.05, 1.2]];
+      SHOTS.forEach(([s, d, z0, z1], i) => {
+        tl.fromTo(`#k${i}`, { scale: z0 }, { scale: z1, duration: d, ease: "none" }, s);
+        if (i > 0) tl.fromTo(`#c${i}`, { scale: 1.16 }, { scale: 1, duration: 0.34, ease: "expo.out" }, s);
+      });
+
+      // ---------- beats ----------
+
+      // ---------- captions (kit) ----------
+      HF.captions(tl);
+
+      window.__timelines["{{CID}}"] = tl;
+    </script>
+  </body>
+</html>

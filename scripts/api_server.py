@@ -223,6 +223,12 @@ def _is_local_request(request: Request) -> bool:
     ``testclient`` is Starlette's synthetic peer name and is safe to permit
     here because it cannot be produced by a real TCP client.
     """
+    if (
+        os.environ.get("OMNICUT_ALLOW_REMOTE", "").lower() in ("1", "true", "yes")
+        or Path("/content").exists()
+        or "google.colab" in sys.modules
+    ):
+        return True
     if request.client is None:
         return True
     return _is_loopback_host(request.client.host) or request.client.host == "testclient"
@@ -256,6 +262,10 @@ async def api_key_gate(request: Request, call_next):
       so this fallback is deliberately withheld from every mutating verb.
     """
     if request.method == "OPTIONS":
+        return await call_next(request)
+
+    # Allow loading frontend SPA HTML and static assets freely
+    if not request.url.path.startswith("/api"):
         return await call_next(request)
 
     if not is_auth_enforced():
@@ -351,6 +361,27 @@ app.include_router(publication_observations_router)
 app.include_router(channels_router)
 app.include_router(copilot_router)
 
+
+# ----------------------------------------------------------------------
+# Serve Built Frontend SPA (if available in frontend/dist)
+# ----------------------------------------------------------------------
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
+if DIST_DIR.exists() and (DIST_DIR / "index.html").exists():
+    if (DIST_DIR / "assets").exists():
+        app.mount("/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="frontend_assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa_frontend(full_path: str):
+        # Do not hijack API, docs, or openapi routes
+        if full_path.startswith("api") or full_path.startswith("docs") or full_path.startswith("openapi"):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        target = DIST_DIR / full_path
+        if target.exists() and target.is_file():
+            return FileResponse(target)
+        return FileResponse(DIST_DIR / "index.html")
 
 # ----------------------------------------------------------------------
 # Run Server directly if executed

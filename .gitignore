@@ -13,7 +13,8 @@ venv/
 # Node & Frontend
 frontend/node_modules/
 tools/hyperframes-runtime/node_modules/
-frontend/dist/
+# frontend/dist/
+frontend/dist/voice_cache/
 .vite/
 
 # System & OS
@@ -25,7 +26,24 @@ Claude outputs/
 # Large render cache / temporary artifacts
 00_Inbox/*
 01_Raw/*
-03_Projects/
+03_Projects/*
+!03_Projects/_HyperFrames_Studio/
+03_Projects/_HyperFrames_Studio/node_modules/
+03_Projects/_HyperFrames_Studio/.hyperframes/
+03_Projects/_HyperFrames_Studio/.playwright-mcp/
+03_Projects/_HyperFrames_Studio/.thumbnails/
+03_Projects/_HyperFrames_Studio/.tmp/
+03_Projects/_HyperFrames_Studio/.waveform-cache/
+03_Projects/_HyperFrames_Studio/renders/
+03_Projects/_HyperFrames_Studio/clips/**/_tmp_segs/
+03_Projects/_HyperFrames_Studio/clips/goc01-*/*.wav
+03_Projects/_HyperFrames_Studio/clips/ess02-*/*.wav
+03_Projects/_HyperFrames_Studio/assets/clips/ess02-*/*.wav
+03_Projects/_HyperFrames_Studio/assets/clips/goc01-*/*.wav
+03_Projects/_HyperFrames_Studio/assets/clips/hat01-*/*.wav
+03_Projects/_HyperFrames_Studio/assets/shared/bgm*.wav
+03_Projects/_HyperFrames_Studio/assets/*/footage.mp4
+03_Projects/_HyperFrames_Studio/assets/*/preview/
 04_Exports/*
 05_Covers_Thumbnails/*
 !05_Covers_Thumbnails/.gitkeep
