@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-CLEAN-OBSOLETE-HUBS-AND-AUTO-SEED-SCRIPTS-20261030 | ตัดเมนูที่เลิกใช้ 2 รายการ (gadget และ producer) ออกจาก UI ถาวร, พัฒนา tools/sync_scripts_to_products.py ซิงก์สคริปต์คู่รัก 20 บททั้ง 9 สินค้า (180 สคริปต์) สู่ products_seed.json และ Colab Auto-Seed, รีบิลด์ frontend/dist สำเร็จ (tests 174 backend + 1021 frontend ผ่าน 100%) | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-RECONCILE-MERGE-AND-PUSH-MAIN-20261030 | Reconcile branch dev กับ origin/main (ผสาน Colab cloud runner + permanent domain tunnel token เข้ากับ local production dev), แก้ไข conflicts 8 จุด, ตรวจสอบชุดทดสอบทั้งหมด และ push ขึ้น origin/main & origin/dev สำเร็จ 100% | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round OMNICUT-CLOUD-RUNNER-COLAB-20261029 | สร้างและติดตั้ง Omnicut Cloud Runner (`Omnicut_Cloud_Runner.ipynb`) สำหรับรันบน Google Colab พร้อมโมดูล `scripts/cloud_runner.py` และ Gradio Web UI ควบคุมระยะไกล 0% PC hardware load เชื่อมต่อ Google Drive อัตโนมัติ | 2026-10-29 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round ANTIGRAVITY-COUPLE-PIPELINE-REFINEMENT-AND-RE-RENDER-60-CLIPS-20261020 | แก้ไขปัญหา Audio vs Text Desync ใน Hatari ด้วยการซิงค์เทิร์นและเจนเสียงใหม่ 12 เทิร์น (sim 0.95-1.00), แก้ไขเลย์เอาต์ CTA จัดกึ่งกลางด้วย CSS margin-left (X=540px) และเปลี่ยนภาพ Trio Hero ของ Redmi Buds 8 เป็น 3 ชิ้นคลีนไร้ตัวอักษรจีน, ตัด Dead Air หัว-ท้ายเสียงพากย์ (กระชับ 0.18-0.25s), ย้ายไลบรารี GSAP สู่ Local kit/gsap.min.js ขจัดปัญหา CDN ล่ม, เปิดใช้ GPU Hybrid Acceleration (HyperFrames --gpu + NVIDIA NVENC h264_nvenc), และเรนเดอร์สำเร็จครบ 60/60 คลิป (GOO01 20, HAT01 20, RED01 20) พร้อมสกัดปก WebP 60 รูป + Dual JPG 120 รูป และ sync products.json สู่สถานะ 'rendered' 100% | 2026-10-21 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
@@ -95,6 +96,26 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+---
+
+## Round ANTIGRAVITY-CLEAN-OBSOLETE-HUBS-AND-AUTO-SEED-SCRIPTS-20261030 · ตัด 2 เมนูที่เลิกใช้ (gadget และ producer) ออกจาก UI ถาวร, พัฒนา tools/sync_scripts_to_products.py ซิงก์สคริปต์ 180 บทสู่ products_seed.json, ติดตั้ง Auto-Seed สำหรับ Cloud Studio และรีบิลด์ frontend/dist สำเร็จ 100%
+
+**ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)** · วันที่: 2026-10-30
+
+### 1. สรุปการดำเนินงาน
+- **ตัด 2 ฟังก์ชันที่เลิกใช้ออกอย่างหมดจดตามภาพฟีดแบ็กผู้ใช้:**
+  - ถอด `gadget` (Gadget Media, ไอคอน Cpu) และ `producer` (ผู้ช่วยโปรดิวเซอร์ / คลังไอเดีย, ไอคอน Bot) ออกจาก `frontend/src/components/Sidebar.jsx` (DESKTOP_NAV_ITEMS เหลือ 8 เมนูหลัก), `Topbar.jsx`, `App.jsx` (ตัด lazy import & render block, migrate tab สู่ 'flow'), และ `UserGuide.jsx`
+- **ระบบ Auto-Seed และซิงก์สคริปต์ 180 บทสู่ฐานข้อมูล Cloud:**
+  - พัฒนา `tools/sync_scripts_to_products.py` สกัดสคริปต์ 20 บทสไตล์คู่รักสายใต้ครบ 9 สินค้า (`ttz_k106`, `hatari_16inch`, `hatari_cyclone_max`, `hoyaup_magnetic_fan`, `orsen_s6`, `essager_pd30w`, `redmi_buds8`, `goojodoq_5000mah`, `jeep_ew011`) แปลงเป็น Angles ครบ 180 รายการ
+  - บันทึกลง `_Docs/products.json` และสร้าง `_Docs/products_seed.json` (31 รายการสินค้า) สำหรับ Git tracking เพื่อแก้ปัญหาฐานข้อมูลติด `.gitignore` บน Colab
+  - เพิ่มระบบ Auto-Seed ใน `scripts/api_server.py` และ `Omnicut_Cloud_Runner.ipynb` ตรวจพบฐานข้อมูลว่าง ให้ seed ข้อมูลสินค้าและสคริปต์ทันทีเมื่อเปิดสตูดิโอบน `studio.nazirulhak.com`
+- **Rebuild Frontend Single Page Application:**
+  - รัน `npm run build` ด้วย Vite v8.2.2 อัปเดต `frontend/dist/` ล่าสุด 0 errors
+- **ผลการทดสอบความถูกต้อง:**
+  - Backend Smoke Tests: `pytest tests/test_phase1_smoke.py` -> **174 passed 100%**
+  - Frontend Vitest Tests: `node --test src/lib/*.test.js` -> **1021 passed 100%**
+  - Live Endpoint Test: `GET /api/products` -> Status 200, 31 products พร้อมใช้งาน
+
 ---
 
 ## Round ANTIGRAVITY-COUPLE-PIPELINE-REFINEMENT-AND-RE-RENDER-60-CLIPS-20261020 - ปรับปรุงความถูกต้องตามสกิล /couple แก้เลย์เอาต์ CTA กึ่งกลางเป๊ะ ไร้ล้นจอ, เปลี่ยน Trio Hero Redmi Buds 8 คลีนไร้ตัวอักษรจีน, ตัด Dead Air หัว-ท้ายเสียงพากย์กระชับฉับไว, ย้าย GSAP สู่ Local kit ขจัดปัญหา CDN ล่ม, เปิดใช้ GPU Hybrid Acceleration (HyperFrames --gpu + NVIDIA NVENC h264_nvenc), และเรนเดอร์สำเร็จครบ 60/60 คลิปสู่สถานะ 'rendered' 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)

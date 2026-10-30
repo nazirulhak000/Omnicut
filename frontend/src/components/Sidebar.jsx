@@ -6,9 +6,8 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
-// ── Desktop Navigation Items (9 items) ──
+// ── Desktop Navigation Items (8 items) ──
 const DESKTOP_NAV_ITEMS = [
-  { id: 'producer',  icon: Lightbulb,        label: 'คลังไอเดีย',   shortLabel: 'ไอเดีย' },
   { id: 'flow',      icon: Rocket,     label: '1. สินค้า → คลิป',     shortLabel: 'สินค้า' },
   { id: 'tracker',   icon: Layers,     label: '2. แทร็กเกอร์ 4 เฟส',    shortLabel: 'Tracker' },
   { id: 'editor',    icon: Scissors,   label: '3. ตัดต่อ & สร้างคลิป', shortLabel: 'Editor' },
@@ -70,7 +69,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
     };
   }, [showMobileModal]);
 
-  const isMoreActive = activeTab === 'producer' || activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard' || activeTab === 'guide';
+  const isMoreActive = activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard' || activeTab === 'guide';
 
   return (
     <>
@@ -202,35 +201,6 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
 
             {/* Menu List */}
             <div className="space-y-2">
-              {/* Option 0: AI Producer Hub */}
-              <button
-                onClick={() => {
-                  setActiveTab('producer');
-                  setShowMoreDrawer(false);
-                }}
-                className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                  activeTab === 'producer'
-                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                    : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                    <Lightbulb className="w-4 h-4" />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                      คลังไอเดีย
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                        AI Coach
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-400">บันทึกไอเดีย ลิงก์คลิปและภาพเรฟ</div>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-500" />
-              </button>
-
               {/* Option 1: Media Assets Hub */}
               <button
                 onClick={() => {

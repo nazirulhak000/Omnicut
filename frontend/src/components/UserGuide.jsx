@@ -10,8 +10,6 @@ import { PageHeader } from './ui';
 // ── เมนูที่ 8: คู่มือใช้งานในโปรแกรม ──
 // อธิบายโฟลว์หลัก + วิธีใช้ละเอียดเมนูเสริม Gadget Media และทุกเมนู 0-7 ในหน้าเดียว เน้นอ่านง่าย
 const MENU_GUIDE = [
-  { id: 'gadget', no: 'G', badge: 'เมนูเสริม', icon: Cpu, color: 'text-cyan-300', chip: 'bg-cyan-500/10 text-cyan-200 border-cyan-500/30' },
-  { id: 'producer', no: '0', icon: Bot, color: 'text-amber-300', chip: 'bg-amber-500/10 text-amber-300 border-amber-500/30' },
   { id: 'flow', no: '1', icon: Rocket, color: 'text-rose-400', chip: 'bg-rose-500/10 text-rose-300 border-rose-500/30' },
   { id: 'tracker', no: '2', icon: Layers, color: 'text-cyan-300', chip: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30' },
   { id: 'editor', no: '3', icon: Scissors, color: 'text-purple-400', chip: 'bg-purple-500/10 text-purple-300 border-purple-500/30' },

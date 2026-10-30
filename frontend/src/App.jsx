@@ -13,7 +13,6 @@ import { useKeyboardShortcuts } from './hooks';
 import { getSystemStatus, getRawVideos, getExports, getScheduleQueue, updateAngleStatus, getProducts } from './api';
 
 // ── Lazy-loaded view chunks for Code Splitting ──
-const ProducerHub = lazy(() => import('./components/producer/ProducerHub'));
 const ProductToClip = lazy(() => import('./components/ProductToClip'));
 const ContentTrackerHub = lazy(() => import('./components/ContentTrackerHub'));
 const EditorShell = lazy(() => import('./components/editor/EditorShell'));
@@ -132,7 +131,7 @@ export default function App() {
     // Studio was folded into the editor -- anyone whose last tab was studio
     // would otherwise land on a screen that no longer renders anything.
     if (saved === 'studio') return 'editor';
-    if (saved === 'creative' || saved === 'gadget') return 'tracker';
+    if (saved === 'creative' || saved === 'gadget' || saved === 'producer') return 'flow';
     return saved;
   });
 
@@ -447,7 +446,7 @@ export default function App() {
   const [highlightExportVideo, setHighlightExportVideo] = useState(null);
 
   const handleNavigateTab = (tab, extra = null) => {
-    if (tab === 'creative' || tab === 'gadget') tab = 'tracker';
+    if (tab === 'creative' || tab === 'gadget' || tab === 'producer') tab = 'flow';
     if (tab === 'flow') {
       pendingFlowAngleIdRef.current = extra?.angleId || null;
       const isImageMetadataTask = extra?.task?.type === 'image_metadata' || extra?.task?.task_type === 'image_metadata';
@@ -585,12 +584,6 @@ export default function App() {
             ) : (
             <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 lg:px-6 py-5 pb-20 md:pb-8 w-full min-w-0">
               <div className="mx-auto w-full min-w-0 max-w-[2200px] animate-fadeIn space-y-5">
-                {/* SECTION: คลังไอเดีย */}
-                {activeTab === 'producer' && (
-                  <Suspense fallback={<LoadingSpinner message="กำลังโหลดคลังไอเดีย..." />}>
-                    <ProducerHub />
-                  </Suspense>
-                )}
 
                 {/* SECTION: สินค้า → คลิป (Menu 1) */}
                 {activeTab === 'flow' && (

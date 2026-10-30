@@ -102,6 +102,23 @@ def recover_startup_work() -> dict[str, int]:
         "background_isolation": 0,
         "batch_render": 0,
     }
+    # ── Auto-Seed ProductStore from products_seed.json if empty (e.g. fresh Colab clone) ──
+    try:
+        from scripts.product_store import ProductStore
+        from scripts.config import BASE_DIR
+        store = ProductStore()
+        if len(store.list()) == 0:
+            seed_file = BASE_DIR / "_Docs" / "products_seed.json"
+            if seed_file.exists():
+                import json
+                seed_data = json.loads(seed_file.read_text(encoding="utf-8"))
+                if isinstance(seed_data, list) and seed_data:
+                    scope = ProductStore._scope(None, all_channels=True)
+                    with ProductStore._scoped_mutate(scope) as prods:
+                        prods.extend(seed_data)
+                    print(f"[ProductStore] Auto-seeded {len(seed_data)} products and scripts from products_seed.json")
+    except Exception as exc:
+        print(f"[ProductStore] Auto-seed skipped: {exc}")
     try:
         recovered["background_isolation"] = recover_background_isolation_tasks()
         if recovered["background_isolation"]:

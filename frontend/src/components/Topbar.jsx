@@ -9,13 +9,6 @@ import { ActivityIndicatorButton } from './ActivityCenter';
 import { ChannelSelector } from '../context/ChannelContext.jsx';
 
 const TAB_CONFIG = {
-  producer: {
-    icon: Lightbulb,
-    title: 'คลังไอเดีย',
-    badge: 'Idea & Ref Vault',
-    badgeColor: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-    description: 'บันทึกไอเดีย ลิงก์คลิปและภาพเรฟ แยกตามช่อง'
-  },
   flow: {
     icon: Rocket,
     title: 'สินค้า → คลิป',
