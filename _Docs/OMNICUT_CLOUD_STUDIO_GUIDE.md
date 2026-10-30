@@ -1,95 +1,59 @@
-# 📖 คู่มือการใช้งาน: OmniCut Cloud Studio บน Google Colab
+# 📖 คู่มือการใช้งาน: OmniCut Cloud Studio + AGY Cloud Terminal บน Google Colab
 
-> **OmniCut Cloud Studio (Google Colab Edition)**  
-> สั่งผลิตและเรนเดอร์คลิปวิดีโอ TikTok 9:16 สไตล์ **Couple Paper Chat (#5 น้องนุ้ย & พี่บ่าว)** บน Cloud 100% ผ่านเบราว์เซอร์หรือมือถือ โดยคอมพิวเตอร์ไม่ต้องออกแรงและไม่กินพื้นที่ดิสก์
+> **OmniCut Cloud Studio & AGY Autonomous Agent (Google Colab Edition)**  
+> สั่งผลิตและเรนเดอร์คลิปวิดีโอ TikTok 9:16 สไตล์ **Couple Paper Chat (#5 น้องนุ้ย & พี่บ่าว)** บน Cloud 100% พร้อมหน้าต่าง **AGY Interactive Web Terminal (`/agy`)** ที่สั่งงาน AI เป็นภาษาคนหรือรันคำสั่งระบบได้ทุกอย่างผ่านเบราว์เซอร์และมือถือ โดยคอมพิวเตอร์ที่บ้านไม่ต้องออกแรง (0% PC Hardware Load)
 
 ---
 
 ## 🌟 จุดเด่นหลัก (Key Benefits)
-1. 🖥️ **0% PC Hardware Load**: ทุกขั้นตอน (Single-Take TTS, Faster-Whisper, HyperFrames Headless Chrome, FFmpeg Render) รันอยู่บนเซิร์ฟเวอร์ของ Google ไม่กิน CPU/RAM และไม่กินพื้นที่ฮาร์ดดิสก์ของเครื่องคุณ
-2. 📱 **สั่งงานจากที่ไหนก็ได้**: หน้าควบคุม **Gradio Web UI** มี Public URL (`https://xxxx.gradio.live`) ให้เปิดใช้งานจากสมาร์ตโฟน แท็บเล็ต หรือโน้ตบุ๊กเครื่องไหนก็ได้
-3. 💾 **Google Drive Auto-Save**: เรนเดอร์เสร็จแล้วบันทึกไฟล์วิดีโอ MP4 คมชัด 1080x1920 30FPS ตรงเข้า `Google Drive/MyDrive/Omnicut_Exports/` พร้อมดาวน์โหลดไปโพสต์ลง TikTok ทันที
+1. 🖥️ **0% PC Hardware Load**: ทุกขั้นตอน (Single-Take TTS, Faster-Whisper GPU, HyperFrames Headless Chrome, FFmpeg Render) รันอยู่บนเซิร์ฟเวอร์ของ Google ไม่กิน CPU/RAM และไม่กินพื้นที่ฮาร์ดดิสก์ของเครื่องคุณ
+2. 🤖 **AGY Interactive Web Terminal (`/agy` & `ttyd`)**: เปิดหน้าต่าง `https://studio.nazirulhak.com/agy` สั่งงาน `agy` เป็นภาษาไทย/อังกฤษได้อิสระ 100% ทั้งสั่งผลิตคลิป, แก้โค้ด, แก้บั๊ก, ดึง Git, เช็ก GPU หรือเปิดโหมดเป้าหมายอัตโนมัติ (`/goal`)
+3. 🌐 **Permanent Cloudflare Domain**: เชื่อมต่อผ่าน `https://studio.nazirulhak.com` ถาวร พร้อมระบบสลับคีย์ Gemini 5 คีย์อัตโนมัติ (Auto-Rotate) และระบบ Watchdog Keepalive ป้องกัน Colab หลับ
+4. 💾 **Google Drive Auto-Sync**: ซิงก์ไฟล์วิดีโอ MP4 คมชัด 1080x1920 30FPS จาก `04_Exports/Ready_to_post/` เข้า `Google Drive/MyDrive/Omnicut_Exports/` ได้ในคลิกเดียว
 
 ---
 
-## 🚀 วิธีการเปิดใช้งานบน Google Colab (Step-by-Step)
+## 🚀 วิธีการเปิดใช้งานบน Google Colab (One-Click Runner)
 
 ### ขั้นตอนที่ 1: เปิดไฟล์ Notebook บน Google Colab
 1. เข้าเว็บ [Google Colab](https://colab.research.google.com/)
 2. เลือกแท็บ **GitHub**
-3. ค้นหา Repository: `nazirulhak000/Omnicut`
-4. เลือก Branch: `main` (หรือ branch เริ่มต้น)
-5. คลิกเปิดไฟล์ **`Omnicut_Cloud_Runner.ipynb`**  
-   *(หรือสามารถอัปโหลดไฟล์ `Omnicut_Cloud_Runner.ipynb` จากเครื่องของคุณขึ้น Colab ได้โดยตรง)*
-
-> 💡 **แนะนำ:** ในเมนูของ Colab ด้านบน ให้ไปที่ **Runtime (รันไทม์)** > **Change runtime type (เปลี่ยนประเภทรันไทม์)** > เลือก **T4 GPU** เพื่อเพิ่มความเร็วในการประมวลผล Whisper และการเรนเดอร์
+3. ค้นหา Repository: `nazirulhak000/Omnicut` (Branch: `main`)
+4. คลิกเปิดไฟล์ **`Omnicut_Cloud_Runner.ipynb`**
+5. แนะนำให้ตั้งค่า **Runtime** > **Change runtime type** > เลือก **T4 GPU**
 
 ---
 
-### ขั้นตอนที่ 2: ตั้งค่า Gemini API Key (ครั้งเดียวจบ)
-เพื่อให้ระบบสังเคราะห์เสียงพากย์ **น้องนุ้ย & พี่บ่าว** ด้วย `gemini-3.1-flash-tts-preview`:
-1. ที่แถบเมนูด้านซ้ายของ Google Colab คลิกที่ไอคอน **รูปกุญแจ (Secrets)** 🔑
-2. คลิก **Add new secret**
-3. ช่อง Name ใส่: `GEMINI_API_KEY`
-4. ช่อง Value ใส่: *API Key ของคุณ*
-5. เปิดสวิตช์ **Notebook access** ให้เป็นสีฟ้า
-
-*(หมายเหตุ: หากไม่ได้ใส่ใน Secrets ระบบจะมีช่อง Input ให้กรอกอย่างปลอดภัยตอนรัน Cell 3)*
-
----
-
-### ขั้นตอนที่ 3: สั่งรันตามลำดับ (Run Cells)
-กดปุ่ม **Play (▶)** ที่หัวแต่ละเซลล์ตามลำดับ:
-
-1. **Cell 1: ติดตั้งโปรแกรมและดึงโค้ดล่าสุด**
-   - ติดตั้ง Node.js 20, Puppeteer/Chromium, FFmpeg, Python libraries
-   - ดึงโค้ดล่าสุดจาก GitHub และติดตั้งแพ็กเกจ HyperFrames
-2. **Cell 2: เชื่อมต่อ Google Drive**
-   - กดยืนยันอนุญาตเชื่อมต่อ Google Drive
-   - ระบบจะสร้างโฟลเดอร์ `MyDrive/Omnicut_Exports/` ให้อัตโนมัติ
-3. **Cell 3: ตรวจสอบความพร้อม Gemini API Key**
-   - ตรวจสอบคีย์และทดสอบ Ping โมเดลเสียงพากย์
-4. **Cell 4: เปิดสตูดิโอควบคุม (Gradio Web UI)**
-   - รอประมาณ 10-15 วินาที จะมีลิงก์ **Public URL** ปรากฏขึ้น เช่น:  
-     `Running on public URL: https://xxxxxxxxxxxx.gradio.live`
-   - คุณสามารถคลิกลิงก์นี้ หรือส่งลิงก์เข้ามือถือเพื่อเปิดหน้าสตูดิโอได้ทันที!
+### ขั้นตอนที่ 2: คลิกปุ่ม ▶ (Play) เพียงปุ่มเดียว!
+กดปุ่ม **Play (▶)** ที่เซลล์หลัก ระบบจะดำเนินการให้อัตโนมัติครบ 5 ขั้นตอนในรวดเดียว:
+1. **ซิงก์โค้ดล่าสุดจาก GitHub (`origin/main`)** และซิงก์สคริปต์ 180 บทเข้าสู่ฐานข้อมูล
+2. **ติดตั้งแพ็กเกจระบบ** (`FastAPI`, `faster-whisper`, `cloudflared`, `google-antigravity`, และ `ttyd` Web Terminal)
+3. **โหลด Gemini API Keys ทั้ง 5 คีย์** พร้อมระบบสลับคีย์อัตโนมัติเมื่อโควตาเต็ม
+4. **เปิดเซิร์ฟเวอร์ OmniCut Backend (พอร์ต 8000)** และ **AGY Terminal Daemon (พอร์ต 7681)**
+5. **เปิดอุโมงค์ Cloudflare Tunnel** และแสดงปุ่มลัด 2 ปุ่มใหญ่:
+   - **`✨ เปิด OmniCut Pro Studio`** (`https://studio.nazirulhak.com`)
+   - **`🤖 เปิด AGY Cloud Terminal (/agy)`** (`https://studio.nazirulhak.com/agy`)
 
 ---
 
-## 🎛️ การใช้งานหน้าต่างควบคุม (Gradio Web UI Features)
+## 🤖 วิธีสั่งงาน AGY Cloud Terminal (`/agy`)
 
-### 1. แท็บ `⚡ 1. เรนเดอร์คลิปที่มีอยู่ทันที (Quick Render)`
-- มีรายชื่อคลิปสำเร็จรูปทั้งหมดในโปรเจกต์ให้เลือก (เช่น `ors01-pov1-240w`, `goc01-pov-32s`, `els6-couple-paper`, ฯลฯ)
-- เลือกคุณภาพ: `looks` (แนะนำ - มาตรฐานช่อง), `delivery` (คมชัดสูงสุด), หรือ `draft` (เรนเดอร์ไว)
-- กดปุ่ม **`[ 🎬 เริ่มเรนเดอร์วิดีโอ MP4 ]`**
-- เมื่อเสร็จจะมี Video Player ให้กดดูคลิปได้ทันที และไฟล์จะถูกเซฟลง Google Drive อัตโนมัติ
+เมื่อเปิดหน้า **`https://studio.nazirulhak.com/agy`** (หรือพิมพ์คำสั่ง `agy` ใน Terminal) คุณสามารถสั่งงานได้ 3 รูปแบบ:
 
----
+### 1. สั่งงานด้วยภาษาธรรมชาติ (Natural Language Commands)
+พิมพ์คุยเป็นภาษาไทยหรืออังกฤษได้เหมือนแชทกับ AI Agent:
+- *"ตรวจสอบสถานะ GPU, พื้นที่ดิสก์ และความพร้อมของระบบในตอนนี้ให้หน่อย"*
+- *"แสดงรายการสินค้าทั้งหมดใน `_Docs/products.json` และดูว่ามีคลิปรุ่นไหนเรนเดอร์เสร็จแล้วบ้าง"*
+- *"ช่วยตรวจสอบโค้ดใน `scripts/api_copilot.py` และรัน pytest ทดสอบให้ที"*
+- *"ซิงก์ไฟล์คลิป MP4 ทั้งหมดใน `04_Exports/Ready_to_post/` เข้า Google Drive ให้หน่อย"*
 
-### 2. แท็บ `🎭 2. สตูดิโอน้องนุ้ย & พี่บ่าว (New Couple Paper Chat)`
-- **เลือกสคริปต์แม่แบบ (Presets):** มีบทสนทนาตัวอย่าง เช่น สายชาร์จ Orsen S6 หรือ ไมค์ไร้สาย GoChek Ultra S24
-- **ปรับแต่งพาดหัว 4 ช่วง:** หัวข้อ POV ดึงดูดสายตา + ไฮไลต์ข้อความกลางจอ
-- **พิมพ์บทพูด:** รูปแบบง่ายๆ:
-  ```text
-  F: พี่บ่าว! | สายชาร์จขาวพังอีกแล้ว!
-  M: วางเลยครับน้องนุ้ย | ฝืนใช้เดี๋ยวไฟช็อตนะ
-  F: จะเอาไหรชาร์จโน้ตบุ๊ก | งานก็ยังไม่เสร็จที!
-  M: พี่บ่าวเตรียมเส้นนี้ไว้ | Orsen S6 สายถัก 48 เส้น
-  ```
-- กดปุ่ม **`[ 🚀 เริ่มผลิตคลิปเต็มรูปแบบ ]`**
-  - ระบบจะยิง Single-Take TTS แยกน้องนุ้ย (`Aoede`) และพี่บ่าว (`Puck`)
-  - หั่นช่วงเงียบและเช็กคำต่อคำด้วย Faster-Whisper
-  - ใส่ฟิลเตอร์เสียง DSP คู่รักสายใต้
-  - ประกอบการ์ดแชทเด้งบนกระดาษยับและเรนเดอร์ MP4 ให้ทันที
+### 2. โหมดเป้าหมายอัตโนมัติ (`/goal` — Autonomous Multi-Step Mode)
+ติ๊กช่อง **"เปิดโหมดเป้าหมายอัตโนมัติ (/goal)"** หรือพิมพ์ขึ้นต้นด้วย `/goal`:
+- `/goal ตรวจสอบสคริปต์ของสินค้า TTZ01 แล้วทดสอบเจนเสียงและเรนเดอร์คลิปที่ 1 จนเสร็จสมบูรณ์`
+- Agent จะวางแผน เรียกใช้เครื่องมือ (`run_command`, `read_file`, `write_file`, `edit_file`, `sync_to_drive`) ตรวจสอบผลลัพธ์ และแก้ไขปัญหาเองต่อเนื่องสูงสุด 25 ขั้นตอนจนกว่างานจะสำเร็จ
 
----
-
-### 3. แท็บ `📁 3. แกลเลอรีคลิปวิดีโอ (Exports Gallery)`
-- แสดงรายชื่อคลิปวิดีโอทั้งหมดที่บันทึกอยู่ใน Google Drive
-- สามารถคลิกดูตัวอย่างวิดีโอและดาวน์โหลดลงเครื่องได้ทันที
-
----
-
-### 4. แท็บ `⚙️ 4. ข้อมูลระบบ (System Info)`
-- ตรวจสอบสถานะการเร่งความเร็วด้วย GPU (Nvidia T4)
-- ตรวจสอบเวอร์ชัน Node.js, FFmpeg, HyperFrames และพื้นที่จัดเก็บ
+### 3. โหมดรันคำสั่ง Linux Shell ด่วน (`!command`)
+พิมพ์เครื่องหมายตกใจ `!` นำหน้าคำสั่งเพื่อรัน Bash command โดยตรง:
+- `!nvidia-smi` — ดูสถานะการ์ดจอ T4 และ VRAM
+- `!git status -s && git log -n 5 --oneline` — เช็กสถานะ Git ล่าสุด
+- `!ls -lh 04_Exports/Ready_to_post/` — ดูไฟล์วิดีโอที่เรนเดอร์เสร็จแล้ว

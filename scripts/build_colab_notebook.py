@@ -1,11 +1,12 @@
 """
 Generator script to build Omnicut_Cloud_Runner.ipynb
-Consolidates into a seamless "One-Click Master Runner" with Keepalive Watchdog
-and optional Permanent Cloudflare Named Tunnel support.
+Consolidates into a seamless "One-Click Master Runner" with Keepalive Watchdog,
+Permanent Cloudflare Named Tunnel support, and AGY Interactive Web Terminal (/agy & ttyd).
 """
 
 import json
 from pathlib import Path
+
 
 def make_markdown_cell(source_lines):
     return {
@@ -13,6 +14,7 @@ def make_markdown_cell(source_lines):
         "metadata": {},
         "source": [line + "\n" for line in source_lines],
     }
+
 
 def make_code_cell(source_lines, collapsed=False):
     return {
@@ -23,6 +25,7 @@ def make_code_cell(source_lines, collapsed=False):
         "source": [line + "\n" for line in source_lines],
     }
 
+
 def generate_notebook():
     cells = []
 
@@ -30,19 +33,19 @@ def generate_notebook():
     # Cell 0: Header Banner
     # ==========================================
     cells.append(make_markdown_cell([
-        "# 🚀 OmniCut Pro Studio — Master Cloud Runner",
-        "### ระบบผลิตและตัดต่อคลิปวิดีโอ AI อัตโนมัติ (FastAPI + React SPA + HyperFrames + Gemini Flash TTS)",
+        "# 🚀 OmniCut Pro Studio + AGY Cloud Agent — Master Cloud Runner",
+        "### ระบบผลิตและตัดต่อคลิปวิดีโอ AI อัตโนมัติ พร้อม AGY Interactive Web Terminal (FastAPI + React SPA + HyperFrames + Gemini Flash TTS)",
         "",
         "[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nazirulhak000/Omnicut/blob/main/Omnicut_Cloud_Runner.ipynb)",
         "",
-        "> ⚡ **วิธีเปิดใช้งาน:** กดปุ่ม **▶ (Play)** ที่เซลล์ด้านล่างเพียงปุ่มเดียว ระบบจะติดตั้ง ซิงก์โค้ด ตั้งค่าคีย์ และเปิดหน้าเว็บให้ทันทีภายในไม่กี่วินาที พร้อมระบบ **Keepalive ป้องกันการหลับ** ให้อัตโนมัติ!",
+        "> ⚡ **วิธีเปิดใช้งาน:** กดปุ่ม **▶ (Play)** ที่เซลล์ด้านล่างเพียงปุ่มเดียว ระบบจะติดตั้ง ซิงก์โค้ด ตั้งค่าคีย์ เปิดหน้าเว็บสตูดิโอ และเปิด **AGY Cloud Terminal (`/agy`)** ให้ทันทีภายในไม่กี่วินาที พร้อมระบบ **Keepalive ป้องกันการหลับ** ให้อัตโนมัติ!",
     ]))
 
     # ==========================================
     # Cell 1: Master One-Click Runner & Keepalive Watchdog
     # ==========================================
     cells.append(make_code_cell([
-        "# @title 🚀 คลิกปุ่มนี้ปุ่มเดียว: เปิดระบบ OmniCut Pro Studio + Keepalive กันหลับ { vertical-output: true }",
+        "# @title 🚀 คลิกปุ่มนี้ปุ่มเดียว: เปิดระบบ OmniCut Pro Studio + AGY Cloud Terminal + Keepalive กันหลับ { vertical-output: true }",
         "# @markdown Cloudflare Tunnel Token (ตั้งค่าให้พร้อมใช้งานสำหรับ studio.nazirulhak.com แล้ว)",
         "CLOUDFLARE_TUNNEL_TOKEN = \"eyJhIjoiNjQ3NDU3MTM3ZjBlZTdhMzc3MmFlNGEzOWE3OWJkYjciLCJ0IjoiYmFmZmM5MzMtZWRkMy00MDE2LWI4NGMtNzcwMGRhZjZjMTQ0IiwicyI6IlpESmpaR1UyTURJdFptUmpNQzAwT0RGbExUZ3dZVEF0TjJVeU1qSXdOakl3WkRBNSJ9\"  # @param {type:\"string\"}",
         "",
@@ -57,7 +60,7 @@ def generate_notebook():
         "",
         "IS_COLAB = 'google.colab' in sys.modules",
         "REPO_DIR = Path('/content/Omnicut') if IS_COLAB else Path.cwd()",
-        "print('🚀 [1/5] เริ่มต้นระบบ OmniCut Pro Studio Cloud Server...')",
+        "print('🚀 [1/5] เริ่มต้นระบบ OmniCut Pro Studio + AGY Cloud Agent...')",
         "",
         "# ----------------------------------------------------------------",
         "# 1. ซิงก์โค้ดล่าสุดจาก GitHub",
@@ -80,9 +83,9 @@ def generate_notebook():
         "        os.system(f'cd \"{REPO_DIR}\" && {sys.executable} \"{sync_tool}\"')",
         "",
         "# ----------------------------------------------------------------",
-        "# 2. ตรวจสอบ System Packages & Python Dependencies",
+        "# 2. ตรวจสอบ System Packages, Python Dependencies & AGY CLI",
         "# ----------------------------------------------------------------",
-        "print('\\n📦 [2/5] ตรวจสอบความพร้อมของแพ็กเกจระบบ...')",
+        "print('\\n📦 [2/5] ตรวจสอบความพร้อมของแพ็กเกจระบบและ AGY Cloud Agent...')",
         "if IS_COLAB:",
         "    req_file = REPO_DIR / 'requirements.txt'",
         "    if req_file.exists():",
@@ -90,12 +93,24 @@ def generate_notebook():
         "    else:",
         "        os.system(f'{sys.executable} -m pip install -q fastapi \"uvicorn[standard]\" python-multipart aiofiles pythainlp soundfile faster-whisper')",
         "    ",
+        "    # ติดตั้ง google-antigravity SDK (ถ้าแพลตฟอร์มรองรับ)",
+        "    os.system(f'{sys.executable} -m pip install -q google-antigravity > /dev/null 2>&1 || true')",
+        "    ",
         "    # ติดตั้ง cloudflared ถ้ายังไม่มี",
         "    cf_bin = Path('/usr/local/bin/cloudflared')",
         "    if not cf_bin.exists():",
         "        print('  ⚡ ติดตั้ง Cloudflare Tunnel binary...')",
         "        os.system('curl -sSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared')",
-        "print('  ✅ Dependencies พร้อมทำงาน 100%')",
+        "    ",
+        "    # ติดตั้ง ttyd Interactive Web Terminal binary และคำสั่งลัด agy",
+        "    ttyd_bin = Path('/usr/local/bin/ttyd')",
+        "    if not ttyd_bin.exists():",
+        "        print('  🖥️ ติดตั้ง ttyd Interactive Web Terminal binary...')",
+        "        os.system('curl -sSL https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.x86_64 -o /usr/local/bin/ttyd && chmod +x /usr/local/bin/ttyd')",
+        "    agy_bin = Path('/usr/local/bin/agy')",
+        "    agy_bin.write_text(f'#!/bin/bash\\ncd \"{REPO_DIR}\" && {sys.executable} \"{REPO_DIR}/scripts/colab_agy_cli.py\" \"$@\"\\n', encoding='utf-8')",
+        "    os.system('chmod +x /usr/local/bin/agy')",
+        "print('  ✅ Dependencies & AGY Cloud Agent พร้อมทำงาน 100%')",
         "",
         "# ----------------------------------------------------------------",
         "# 3. โหลดและตั้งค่า Gemini API Keys (Auto-Rotate)",
@@ -111,13 +126,14 @@ def generate_notebook():
         "for i, k in enumerate(DEFAULT_KEYS):",
         "    var_name = 'GEMINI_API_KEY' if i == 0 else f'GEMINI_API_KEY_{i+1}'",
         "    os.environ[var_name] = k",
-        "print('  ✅ โหลดครบทั้ง 5 คีย์เรียบร้อย พร้อมสังเคราะห์เสียงพากย์!')",
+        "print('  ✅ โหลดครบทั้ง 5 คีย์เรียบร้อย พร้อมสังเคราะห์เสียงพากย์และรัน AGY Agent!')",
         "",
         "# ----------------------------------------------------------------",
-        "# 4. เปิดเซิร์ฟเวอร์ FastAPI Backend (พอร์ต 8000)",
+        "# 4. เปิดเซิร์ฟเวอร์ FastAPI Backend (พอร์ต 8000) & ttyd Terminal (พอร์ต 7681)",
         "# ----------------------------------------------------------------",
-        "print('\\n🎬 [4/5] เปิดเซิร์ฟเวอร์ OmniCut Pro Studio Backend...')",
+        "print('\\n🎬 [4/5] เปิดเซิร์ฟเวอร์ OmniCut Pro Studio Backend & AGY Terminal...')",
         "os.system('fuser -k 8000/tcp > /dev/null 2>&1')",
+        "os.system('fuser -k 7681/tcp > /dev/null 2>&1')",
         "os.system('pkill -f cloudflared > /dev/null 2>&1')",
         "",
         "env = os.environ.copy()",
@@ -131,6 +147,14 @@ def generate_notebook():
         "    stdout=fastapi_log,",
         "    stderr=subprocess.STDOUT,",
         ")",
+        "if IS_COLAB and Path('/usr/local/bin/ttyd').exists():",
+        "    subprocess.Popen(",
+        "        ['/usr/local/bin/ttyd', '-W', '-p', '7681', '/usr/local/bin/agy'],",
+        "        cwd=str(REPO_DIR),",
+        "        env=env,",
+        "        stdout=open('/tmp/ttyd.log', 'w'),",
+        "        stderr=subprocess.STDOUT,",
+        "    )",
         "time.sleep(3)",
         "",
         "# ทดสอบว่า FastAPI ตอบสนอง 200 OK หรือไม่",
@@ -145,7 +169,7 @@ def generate_notebook():
         "        time.sleep(0.5)",
         "",
         "if server_ok:",
-        "    print('  ✅ OmniCut FastAPI Server ทำงานบนพอร์ต 8000 สมบูรณ์')",
+        "    print('  ✅ OmniCut FastAPI Server & AGY Web Terminal (/agy) ทำงานบนพอร์ต 8000 สมบูรณ์')",
         "else:",
         "    print('  ⚠️ ตรวจสอบบันทึก /tmp/fastapi.log:')",
         "    if os.path.exists('/tmp/fastapi.log'):",
@@ -185,20 +209,28 @@ def generate_notebook():
         "                break",
         "",
         "if public_url:",
+        "    agy_url = f'{public_url.rstrip(\"/\")}/agy'",
         "    from IPython.display import display, HTML",
         "    print('\\n' + '=' * 70)",
-        "    print('🎉 OmniCut Pro Studio พร้อมใช้งานแล้ว 100%!')",
-        "    print(f'👉 ลิงก์สตูดิโอของคุณ: {public_url}')",
+        "    print('🎉 OmniCut Pro Studio + AGY Cloud Terminal พร้อมใช้งานแล้ว 100%!')",
+        "    print(f'👉 ลิงก์สตูดิโอหลัก   : {public_url}')",
+        "    print(f'🤖 ลิงก์ AGY Terminal : {agy_url}')",
         "    print('=' * 70 + '\\n')",
         "    display(HTML(f'''",
         "    <div style=\"padding: 24px; background: linear-gradient(135deg, #090d16 0%, #171d31 100%); border-radius: 14px; color: white; font-family: sans-serif; text-align: center; border: 1.5px solid #3b82f6; box-shadow: 0 10px 30px rgba(0,0,0,0.6);\">",
-        "        <h2 style=\"margin: 0 0 10px 0; color: #60a5fa; font-size: 24px;\">🚀 OmniCut Pro Studio (Online 100%)</h2>",
-        "        <p style=\"margin: 0 0 20px 0; color: #94a3b8; font-size: 14px;\">สตูดิโอตัดต่อวิดีโอ TikTok 9:16 ด้วย AI สดบน Cloud เชื่อมต่อ API เรียบร้อย</p>",
-        "        <a href=\"{public_url}\" target=\"_blank\" style=\"display: inline-block; padding: 14px 36px; background: #2563eb; color: white; text-decoration: none; font-weight: bold; font-size: 16px; border-radius: 8px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);\">",
-        "            ✨ คลิกเปิด OmniCut Pro Studio",
-        "        </a>",
+        "        <h2 style=\"margin: 0 0 10px 0; color: #60a5fa; font-size: 24px;\">🚀 OmniCut Pro Studio + AGY Cloud Agent (Online 100%)</h2>",
+        "        <p style=\"margin: 0 0 20px 0; color: #94a3b8; font-size: 14px;\">สตูดิโอตัดต่อวิดีโอ TikTok 9:16 และคอนโซลสั่งงาน AI อัตโนมัติ (AGY) บน Cloud เต็มรูปแบบ</p>",
+        "        <div style=\"display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;\">",
+        "            <a href=\"{public_url}\" target=\"_blank\" style=\"display: inline-block; padding: 14px 30px; background: #2563eb; color: white; text-decoration: none; font-weight: bold; font-size: 15px; border-radius: 8px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);\">",
+        "                ✨ เปิด OmniCut Pro Studio",
+        "            </a>",
+        "            <a href=\"{agy_url}\" target=\"_blank\" style=\"display: inline-block; padding: 14px 30px; background: #0d9488; color: white; text-decoration: none; font-weight: bold; font-size: 15px; border-radius: 8px; box-shadow: 0 4px 14px rgba(13, 148, 136, 0.4);\">",
+        "                🤖 เปิด AGY Cloud Terminal (/agy)",
+        "            </a>",
+        "        </div>",
         "        <div style=\"margin-top: 16px; font-size: 13px; color: #64748b;\">",
-        "            URL: <a href=\"{public_url}\" target=\"_blank\" style=\"color: #38bdf8;\">{public_url}</a>",
+        "            Studio: <a href=\"{public_url}\" target=\"_blank\" style=\"color: #38bdf8;\">{public_url}</a> &nbsp;|&nbsp; ",
+        "            AGY Terminal: <a href=\"{agy_url}\" target=\"_blank\" style=\"color: #2dd4bf;\">{agy_url}</a>",
         "        </div>",
         "    </div>",
         "    '''))",
@@ -239,7 +271,7 @@ def generate_notebook():
         "    # ส่งสัญญาณ Heartbeat ทุก 5 นาที เพื่อให้ Google Colab รู้ว่ามี I/O Active อยู่ตลอดเวลา",
         "    if heartbeat_ticks % 10 == 0:",
         "        now = datetime.datetime.now().strftime('%H:%M:%S')",
-        "        print(f'💓 [{now}] Heartbeat Active | OmniCut Studio พร้อมใช้งาน 100% | URL: {public_url}')",
+        "        print(f'💓 [{now}] Heartbeat Active | OmniCut Studio + AGY Terminal พร้อมใช้งาน 100% | URL: {public_url}')",
     ]))
 
     notebook_data = {
@@ -265,6 +297,7 @@ def generate_notebook():
     out_path = Path("Omnicut_Cloud_Runner.ipynb")
     out_path.write_text(json.dumps(notebook_data, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"[OK] Generated {out_path.resolve()} successfully! ({len(cells)} cells)")
+
 
 if __name__ == "__main__":
     generate_notebook()

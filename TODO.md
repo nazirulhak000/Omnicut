@@ -4,15 +4,6 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round ANTIGRAVITY-AGY-COLAB-WEB-TERMINAL-20261030 · วางแผนและพัฒนาระบบ AGY Interactive Web Terminal & Autonomous Cloud Agent บน Google Colab (Dual-Hybrid Architecture: Jev choice C_dual_hybrid_terminal, confidence 0.98):
-  - [ ] บันทึกเอกสารแผนสถาปัตยกรรมละเอียดที่ `_Docs/Plans/PLAN_AGY_COLAB_WEB_TERMINAL_20261030.md` และอัปเดตคู่มือ `_Docs/OMNICUT_CLOUD_STUDIO_GUIDE.md`
-  - [ ] สร้างโมดูล `scripts/agy_cloud_agent.py` (Dual-Engine: รองรับทั้ง `google-antigravity` SDK และ Gemini Native Tool-Calling ReAct Loop พร้อมเครื่องมือ `run_command`, `read_file`, `write_file`, `edit_file`, `list_dir`, `search_files`, `sync_to_drive`, ระบบสลับ 5 คีย์อัตโนมัติ และ Safety Guard ตามกฎเหล็ก `AGENTS.md`)
-  - [ ] สร้างโมดูล `scripts/colab_agy_cli.py` สำหรับรัน Interactive CLI (`agy`) ใน Terminal (รองรับคำสั่งภาษาคน, `/goal`, `/status`, `/keys`, `/drive-sync`, `!shell`)
-  - [ ] สร้างเราเตอร์ `scripts/api_agy.py` และเชื่อมต่อใน `scripts/api_server.py` เพื่อเปิดหน้าเว็บคอนโซล Interactive AGY Web Terminal ที่ `https://studio.nazirulhak.com/agy` พร้อม REST/SSE Streaming API (`/api/agy/status`, `/api/agy/chat`, `/api/agy/stream`, `/api/agy/exec`, `/api/agy/sessions`)
-  - [ ] อัปเดต `scripts/build_colab_notebook.py` และเจน `Omnicut_Cloud_Runner.ipynb` ใหม่ ให้ติดตั้ง `google-antigravity`, `ttyd` Web Terminal (พอร์ต 7681), และแสดงปุ่มเข้าใช้งาน AGY Web Terminal คู่กับ OmniCut Pro Studio
-  - [ ] เขียนและรันชุดทดสอบ `tests/test_agy_cloud_agent.py` ตรวจสอบความถูกต้องครบทุกฟังก์ชัน 100%
-  - ดำเนินการโดย: Antigravity (Gemini 4 Argon)
-
 - [ ] Round ANTIGRAVITY-PRODUCE-20-TTZ-K106-COUPLE-CLIPS-20261028 · ผลิตคลิปสไตล์คู่รักสายใต้บนกระดาษยับ (#5 Couple Paper Chat: น้องนุ้ย Aoede & พี่บ่าว Puck) สินค้า TTZ K106 Magnetic Wireless Power Bank 30000mAh (TTZ01) จากลิงก์ TikTok vt.tiktok.com/ZS9ykaGuy492W-oNdZy/ (TikTok Product ID: 1734519304293746340) ครบทั้ง 20 คลิปแบบ End-to-End:
   - [x] ตรวจสอบลิงก์ TikTok และสกัดข้อมูลสเปก/จุดขายสินค้า (30000mAh, Magnetic 15W, Fast Charge 22.5W/PD 20W, สายในตัว 2 เส้น, ขาตั้งพับในตัว, 4 สี, มอก. 2879-2560)
   - [ ] จัดเตรียมวัตถุดิบรูปภาพ 8 รูป 520x520 WebP คลีน + ไดคัท Hero rembg สู่ `03_Projects/_HyperFrames_Studio/assets/ttz01/`
@@ -26,6 +17,7 @@
 
 ## ประวัติรอบที่ปิดแล้ว
 
+- [x] Round ANTIGRAVITY-AGY-COLAB-WEB-TERMINAL-20261030 · วางแผนและพัฒนาระบบ AGY Interactive Web Terminal & Autonomous Cloud Agent บน Google Colab (Dual-Hybrid Architecture: `scripts/agy_cloud_agent.py`, `scripts/api_agy.py`, `scripts/colab_agy_cli.py`, Web Console ที่ `https://studio.nazirulhak.com/agy` + `ttyd` พอร์ต 7681, Jev choice `C_dual_hybrid_terminal` confidence 0.98, ผ่านชุดทดสอบ `tests/test_agy_cloud_agent.py` 7/7 100%); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 4 Argon)
 - [x] Round ANTIGRAVITY-CLEAN-OBSOLETE-HUBS-AND-AUTO-SEED-SCRIPTS-20261030 · ตัดเมนูที่เลิกใช้ 2 รายการ (gadget และ producer) ออกจาก UI ถาวร, พัฒนา tools/sync_scripts_to_products.py ซิงก์สคริปต์คู่รัก 20 บททั้ง 9 สินค้า (180 สคริปต์) สู่ _Docs/products.json และสร้าง _Docs/products_seed.json ที่ track บน Git พร้อม Auto-Seed ใน scripts/api_server.py และ Colab Runner, รีบิลด์ frontend/dist สำเร็จ (tests 174 backend + 1021 frontend ผ่าน 100%); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 - [x] Round ANTIGRAVITY-RECONCILE-MERGE-AND-PUSH-MAIN-20261030 · Reconcile branch dev กับ origin/main (ผสาน Colab cloud runner + permanent domain tunnel token เข้ากับ local production dev), แก้ไข conflicts 8 จุด, ตรวจสอบชุดทดสอบทั้งหมด และ push ขึ้น origin/main & origin/dev สำเร็จ 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 - [x] Round OMNICUT-CLOUD-RUNNER-COLAB-20261029 · สร้างและติดตั้ง Omnicut_Cloud_Runner.ipynb สำหรับรัน Omnicut บน Google Colab ผลิตคลิป Couple Paper Chat บน Cloud 100% เชื่อมต่อ Google Drive และ Cloudflare Tunnel ถาวร; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
