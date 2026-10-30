@@ -176,7 +176,7 @@ const KanbanCard = memo(function KanbanCard({
           ? 'bg-[#120C05] border-amber-500/50 hover:border-amber-400/70 ring-1 ring-amber-500/25'
           : ang.qc_note
           ? 'bg-[#120A06] border-red-500/40 hover:border-red-400/60 ring-1 ring-red-500/20'
-          : 'bg-[#09111C] border-[#25F4EE]/30 hover:border-[#25F4EE]/60 shadow-[#25F4EE]/5'
+          : 'glass-tile border-[#25F4EE]/30 hover:border-[#25F4EE]/60 shadow-[#25F4EE]/5'
       }`}>
         {/* Left: Mini 9:16 Video or Cover Preview (~52px wide) */}
         <div
@@ -352,8 +352,8 @@ const KanbanCard = memo(function KanbanCard({
           : phaseId === 'rendered' && ang.qc_reviewed
           ? 'bg-[#09111C] border-[#25F4EE]/30 hover:border-[#25F4EE]/60 shadow-[#25F4EE]/5'
           : phaseId === 'rendered'
-          ? 'bg-[#0F0C05] border-amber-500/30 hover:border-amber-400/50'
-          : 'bg-[#0B0F19] border-white/[0.08] hover:border-[#25F4EE]/40'
+          ? 'glass-tile border-amber-500/35 hover:border-amber-400/50'
+          : 'glass-tile border-white/[0.1] hover:border-[#25F4EE]/40'
       }`}
     >
       {/* Round BUG-3: Data Conflict Banner -- this angle's clip got auto-unlinked
@@ -676,7 +676,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
   const captionText = `${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`.trim();
 
   return (
-    <div className="glass-card p-3 rounded-2xl border border-white/[0.08] space-y-2.5 bg-[#080B11]/90 shadow-lg">
+    <div className="glass-panel p-3 rounded-2xl space-y-2.5 shadow-lg">
       {/* 1. Header Row */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -2058,7 +2058,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               {/* 2. Hook Title 3s (Compact) */}
               <div className="space-y-1">
                 <div className="text-sm font-semibold text-slate-400">Hook 3 วินาทีแรก (จุดหยุดคนดู):</div>
-                <div className="p-2.5 rounded-xl bg-[#080B11] border-l-4 border-[#25F4EE] text-xs sm:text-sm font-bold text-cyan-200 leading-snug">
+                <div className="p-2.5 rounded-xl glass-tile border-l-4 border-[#25F4EE] text-xs sm:text-sm font-bold text-cyan-200 leading-snug">
                   {inspectAngle.hook_title || 'ไม่มี Hook'}
                 </div>
               </div>
@@ -2391,7 +2391,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
 
             {/* Quick QC Decision Toolbar */}
             {previewVideoAngle && (
-              <div className="p-3 rounded-2xl bg-[#080B11] border border-white/[0.1] space-y-2.5 shadow-xl">
+              <div className="p-3 rounded-2xl glass-tile space-y-2.5 shadow-xl">
                 {previewVideoAngle.qc_note && (
                   <div className="flex items-center gap-2 py-1.5 px-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-bold text-red-300">
                     <ShieldAlert className="w-4 h-4 text-red-400 flex-shrink-0" />
@@ -2517,7 +2517,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         {tiktokModalItem && (
           <div className="space-y-4 pt-1">
             {/* Top Video Preview & Info Banner */}
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#080B11] border border-white/[0.08]">
+            <div className="flex items-center gap-3 p-3 rounded-2xl glass-tile">
               {tiktokModalItem.video_url ? (
                 <div className="w-16 aspect-[9/16] rounded-xl overflow-hidden bg-black border border-white/[0.1] flex-shrink-0 shadow-md">
                   <video
@@ -3250,7 +3250,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           className={`flex-shrink-0 snap-start min-w-[130px] sm:min-w-0 p-3 rounded-2xl border text-left transition-all relative cursor-pointer active:scale-95 ${
             activePhase === 'all'
               ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 shadow-lg ring-1 ring-[#25F4EE]/30'
-              : 'bg-[#080B11]/80 border-white/[0.06] hover:border-white/[0.15] hover:bg-white/[0.02]'
+              : 'glass-tile text-slate-300 hover:border-white/[0.25]'
           }`}
         >
           <div className="flex items-center justify-between gap-1.5">
@@ -3288,7 +3288,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               className={`flex-shrink-0 snap-start min-w-[140px] sm:min-w-0 p-3 rounded-2xl border text-left transition-all relative cursor-pointer active:scale-95 ${
                 isActive
                   ? `${p.color} shadow-lg ring-1 ring-[#25F4EE]/30`
-                  : 'bg-[#080B11]/80 border-white/[0.06] hover:border-white/[0.15] hover:bg-white/[0.02]'
+                  : 'glass-tile text-slate-300 hover:border-white/[0.25]'
               }`}
             >
               <div className="flex items-center justify-between gap-1.5">
@@ -3316,7 +3316,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       </div>
 
       {/* ── 3. Streamlined Search & Filter Row ── */}
-      <div className="bg-[#0B0F19] p-2.5 sm:p-3 rounded-2xl border border-white/[0.08] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
+      <div className="glass-panel p-2.5 sm:p-3 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
         {/* Search Box */}
         <div className="relative flex-1 min-w-0">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -3325,7 +3325,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="ค้นหาชื่อสินค้า, สคริปต์, หรือ Hook..."
-            className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#080B11] border border-white/[0.1] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]/50 shadow-inner"
+            className="w-full pl-9 pr-8 py-2 rounded-xl glass-input text-xs sm:text-sm placeholder-slate-500 shadow-inner"
           />
           {searchQuery && (
             <button
@@ -3338,14 +3338,14 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         </div>
 
         {/* ── Mobile Sticky Segmented Phase Bar ── */}
-        <div className="md:hidden sticky top-0 z-20 w-full flex items-center gap-1 p-1 rounded-2xl bg-[#080B11]/95 backdrop-blur-xl border border-white/[0.08] overflow-x-auto no-scrollbar shadow-lg">
+        <div className="md:hidden sticky top-0 z-20 w-full flex items-center gap-1 p-1.5 rounded-2xl glass-panel shadow-lg overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => {
               try { navigator.vibrate?.(10); } catch {}
               scrollToPhaseColumn('all');
             }}
-            className={`flex-1 min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center justify-center gap-1.5 active:scale-95 ${
+            className={`flex-1 min-h-11 px-2.5 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center justify-center gap-1.5 active:scale-95 ${
               activePhase === 'all'
                 ? 'bg-[#25F4EE] text-slate-950 shadow-md'
                 : 'text-slate-400 hover:text-white'
@@ -3367,7 +3367,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   try { navigator.vibrate?.(10); } catch {}
                   scrollToPhaseColumn(p.id);
                 }}
-                className={`flex-1 min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center justify-center gap-1.5 active:scale-95 ${
+                className={`flex-1 min-h-11 px-2.5 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center justify-center gap-1.5 active:scale-95 ${
                   isActive
                     ? 'bg-[#25F4EE] text-slate-950 shadow-md'
                     : 'text-slate-400 hover:text-white'
@@ -3387,7 +3387,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           <select
             value={selectedProductFilter}
             onChange={(e) => setSelectedProductFilter(e.target.value)}
-            className="py-2 px-3 rounded-xl bg-[#080B11] border border-white/[0.12] text-xs font-bold text-slate-200 focus:outline-none focus:border-[#25F4EE]/50 cursor-pointer max-w-[170px] sm:max-w-[220px] truncate"
+            className="py-2 px-3 rounded-xl glass-input text-xs font-bold text-slate-200 cursor-pointer max-w-[170px] sm:max-w-[220px] truncate"
           >
             <option value="all">สินค้าทั้งหมด ({products.length})</option>
             {products.map(p => (
@@ -3506,7 +3506,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 <div
                   key={phase.id}
                   ref={(el) => (colRefs.current[phase.id] = el)}
-                  className="w-[88vw] max-w-[380px] xl:w-auto xl:max-w-none flex-shrink-0 snap-center p-2.5 border border-white/[0.08] space-y-2 rounded-2xl glass-card transition-colors hover:border-white/[0.15] bg-[#070A12] flex flex-col"
+                  className="w-[88vw] max-w-[390px] xl:w-auto xl:max-w-none flex-shrink-0 snap-center p-2.5 space-y-2 rounded-2xl glass-panel transition-colors hover:border-white/[0.25] flex flex-col"
                 >
                   {/* Column Header */}
                   <div className="flex items-center justify-between pb-1.5 border-b border-white/[0.08]">
@@ -3743,7 +3743,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           {/* 📱 Mobile Card Feed for iPhone 15 Pro Max and Narrow Screens */}
           <div className="block md:hidden space-y-2.5">
             {filteredAngles.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-500 rounded-2xl bg-[#070A12] border border-white/[0.08]">
+              <div className="py-12 text-center text-xs text-slate-500 rounded-2xl glass-panel">
                 ไม่พบข้อมูลคลิปตามเงื่อนไขที่ค้นหา
               </div>
             ) : (
@@ -3768,7 +3768,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           </div>
 
           {/* 💻 Desktop High-Density Pro Table */}
-          <div className="hidden md:block glass-card rounded-2xl border border-white/[0.08] overflow-hidden bg-[#070A12] shadow-xl">
+          <div className="hidden md:block glass-panel rounded-2xl overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>

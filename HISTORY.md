@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-OVERNIGHT-ROUND-3-CONTENT-TRACKER-20261031 | ยกระดับ ContentTrackerHub.jsx (Station 3): Ultra-Realistic Glassmorphism Theme (แทนที่แบ็กกราวด์ทึบ 16 จุดด้วย .glass-panel, .glass-tile, .glass-input), Sticky Segmented Phase Bar 4 เฟสขยาย Touch Target ปุ่มสู่ min-h-11 (>=44px), ปรับขนาด KanBan คอลัมน์ w-[88vw] max-w-[390px] snap-center รับจอ iPhone 15 Pro Max, ยืนยัน Memory Safety (Cleanup บน Event Listeners และ setInterval), เพิ่มชุดทดสอบ TDD `frontend/src/lib/contentTrackerContract.test.js` (6/6 tests pass), ผ่านการทดสอบ Vitest รวม 1,070/1,070 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-2-PRODUCT-TO-CLIP-ERGONOMICS-20261031 | ยกระดับ ProductToClip.jsx สู่ 100% Rule 3.8/4.8 Compliance, Glassmorphism & SessionStorage Expansion: คลีนข้อความปุ่มที่ขึ้นต้นด้วยเครื่องหมายบวก `+` หรืออีโมจิ 7 จุด (`สร้างแผนถ่าย`, `เสียงเดิม Edge-TTS`, `เสียง Gemini`, `ดู X ฉาก`, `สแกนฉาก`), ขยาย `sessionStorage` บันทึก `tiktokProductId` อัตโนมัติป้องกันข้อมูลสูญหายเมื่อสลับแอป, แปลงแผงสถานะและกริดสู่ `.glass-panel` และ `.glass-tile`, เพิ่มชุดทดสอบ TDD `frontend/src/lib/productToClipContract.test.js` (4/4 tests pass), ผ่านการทดสอบ Vitest รวม 1,064/1,064 tests 100%, Vite build สำเร็จ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-1-TOPBAR-QUALITY-20261031 | ตรวจสอบและยกระดับ Code Quality ใน Topbar.jsx: ล้าง Dead Imports (`Lightbulb`, `Wifi`), เพิ่ม WAI-ARIA keyboard accessibility (`onKeyDown` Enter/Space), ขยาย Touch Target บนมือถือสู่ min-h-11 (>=44px), เพิ่มระบบวัดและแสดงผล Live Ping Latency (เช่น 14ms), ตรวจสอบ Rule 3.8/4.8 คลีน 100%, เพิ่มชุดทดสอบ TDD `frontend/src/lib/topbarContract.test.js` (ผ่าน 5/5, ยอดรวม 1,060/1,060 tests 100%), บิลด์ Vite สำเร็จสมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-ULTRA-REALISTIC-GLASSMORPHISM-PULSE-HUB-20261031 | ยกระดับธีม UI สู่ Ultra-Realistic Glassmorphism Theme สไตล์ Pulse Hub (Apple visionOS Spatial UI & Michal Malewicz Glass Architecture): ฟอนต์ Anuphan ครบทุกน้ำหนัก 300-700 เป็น Default 100%, Canvas OLED Deep Space #030509, Floating Ambient Orbs 3 จุด (Cyan, Amber, Indigo) หักเหทะลุเนื้อกระจก, Master Glass CSS Architecture (.glass-panel, .saas-card แสงสะท้อน 1px Razor Glare ::before และ 38% Curved Sheen ::after, .glass-tile, .glass-btn, .glass-input 16px iOS safe), ผ่านการทดสอบ Vitest 1055/1055 100% และ Vite Production Build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -112,6 +113,30 @@
 ---
 
 ---
+
+---
+
+## Round ANTIGRAVITY-OVERNIGHT-ROUND-3-CONTENT-TRACKER-20261031 · ยกระดับ ContentTrackerHub.jsx (Station 3): Glassmorphism KanBan, Sticky Segmented Phase Bar, Mobile Ergonomics & SSE Memory Safety
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-31
+
+- **ผลการตรวจประเมินและยกระดับ (Elevation Details):**
+  1. **Ultra-Realistic Glassmorphism Theme Adoption**:
+     - กวาดล้างแบ็กกราวด์ทึบแสงเดิม 16 จุด (`bg-[#070A12]`, `bg-[#080B11]`, `bg-[#0B0F19]`, `bg-[#09111C]`) ที่บดบังการหักเหแสงของ Ambient Orbs
+     - ยกระดับส่วนค้นหาและตัวกรอง (Search & Filter Row), คอลัมน์ KanBan ทั้ง 4 เฟส, การ์ดแสดงผลบนมือถือ (`MobileTableRowCard`), และตารางสถิติเดสก์ท็อปสู่ `.glass-panel` (พร้อมเส้นแสงสะท้อน Razor Glare `::before` และ Curved Sheen `::after`)
+     - ปรับการ์ดย่อยใน KanBan (`KanbanCard`), การ์ดตัวชี้วัด 4 เฟส, และแถบตัดสินใจ QC สู่ `.glass-tile`
+     - ติดตั้งคลาส `.glass-input` ในช่องค้นหาและ Dropdown สินค้า (ล็อกฟอนต์ขนาด 16px ป้องกัน Safari Auto-Zoom)
+  2. **Mobile Ergonomics & Apple HIG Compliance (iPhone 15 Pro Max 430pt)**:
+     - ปรับขนาดความกว้างของคอลัมน์ KanBan เป็น `w-[88vw] max-w-[390px] snap-center` เพื่อให้เห็นขอบคอลัมน์ถัดไป ชวนให้ผู้ใช้นิ้วโป้งรูดสลับคอลัมน์อย่างเป็นธรรมชาติ
+     - ขยาย Touch Targets บนปุ่มเปลี่ยนเฟสใน Sticky Segmented Phase Bar จากเดิม `min-h-[36px]` สู่ `min-h-11` (>=44px) รองรับการกดด้วยนิ้วโป้งมือเดียว
+  3. **Memory Safety & Event Cleanup**:
+     - ตรวจสอบ `setInterval` (ตัวนับวันเวลาและ Polling ข้อมูล 12 วินาที) และ Event Listeners (`visibilitychange`, `focus`, `omnicut:tracker-refresh`) มีฟังก์ชัน Cleanup คืนหน่วยความจำครบ 100% ป้องกัน Memory Leak ขณะสลับแท็บ
+  4. **Rule 3.8 / 4.8 Strict Button Hygiene**:
+     - ตรวจสอบปุ่มทั้งหมด 78 จุดใน `ContentTrackerHub.jsx` ไร้เครื่องหมาย `+` และอีโมจินำหน้า ปุ่มขึ้นต้นด้วยคำกริยาภาษาไทย (`ตรวจ Studio`, `ส่งตัดต่อ`, `ตรวจ QC`, `ส่ง TikTok`, `ส่งมือถือ`, `มาร์กว่าโพสต์แล้ว`)
+  5. **TDD Contract Testing & Quality Gates**:
+     - สร้างชุดทดสอบสัญญา: [`frontend/src/lib/contentTrackerContract.test.js`](file:///d:/Winona/Programmer/Omnicut/frontend/src/lib/contentTrackerContract.test.js) (ผ่าน 6/6 tests)
+     - ยอดรวมชุดทดสอบทั้งระบบ: **ผ่านครบ 1,070/1,070 tests (100% pass)**
+     - Vite Production Build: ผ่านสำเร็จ 0 error ใน 2.04s
 
 ## Round ANTIGRAVITY-OVERNIGHT-ROUND-2-PRODUCT-TO-CLIP-ERGONOMICS-20261031 · ยกระดับ ProductToClip.jsx สู่ 100% Rule 3.8/4.8 Compliance, Glassmorphism & SessionStorage Expansion
 

@@ -4,13 +4,15 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round ANTIGRAVITY-OVERNIGHT-ROUND-3-CONTENT-TRACKER-20261031 · ยกระดับ ContentTrackerHub.jsx (Station 3): Glassmorphism KanBan, Sticky Segmented Phase Bar, Mobile Ergonomics & SSE Memory Safety:
-  - [ ] 1. Ultra-Realistic Glassmorphism Styling: ปรับแต่งแผง KanBan Columns ทั้ง 4 เฟส, Phase Summary Cards, และ Filter Pills ให้เป็น `.glass-panel` และ `.glass-tile` สอดรับการหักเหแสง Ambient Orbs
-  - [ ] 2. Mobile Ergonomics & Swipe Mechanics: ปรับขนาดคอลัมน์ KanBan ให้พอดีกับจอ iPhone 15 Pro Max (`min-w-[88vw] max-w-[390px] snap-center`) พร้อม Touch Target ปุ่มและตัวกรอง >= 44px
-  - [ ] 3. Rule 3.8/4.8 Strict Button Hygiene: ตรวจสอบและกำจัดสัญลักษณ์ซ้ำซ้อนหรืออีโมจิในปุ่ม ปรับให้ขึ้นต้นด้วยคำกริยาแอ็กชันภาษาไทย 100%
-  - [ ] 4. SSE & Timer Memory Safety: ตรวจสอบ EventSource SSE listener และ Polling Interval ให้มี Cleanup function ครบถ้วน ไม่เกิด Memory Leak เมื่อสลับแท็บ
-  - [ ] 5. TDD Unit Testing: เพิ่มชุดทดสอบสัญญา `frontend/src/lib/contentTrackerContract.test.js` ตรวจสอบ Phase configuration, SSE cleanup, Rule 3.8/4.8, และ Glass tokens
+- [ ] Round ANTIGRAVITY-OVERNIGHT-ROUND-4-EDITOR-NLE-916-ERGONOMICS-20261031 · ยกระดับ EditorShell & Timeline 9:16 (Station 4): Double-Tap Play/Pause, Touch-Action None Scrubbing, Q/W Trim >=44px, AudioContext Cleanup & Ultra-Realistic Glassmorphism:
+  - [ ] 1. Ultra-Realistic Glassmorphism: แปลง Studio Player Bar (`SequencePlayer`), Timeline Toolbar (`Toolbar.jsx`), Inspector Panels, และ Timeline Container เป็น `.glass-panel` และ `.glass-tile`
+  - [ ] 2. 9:16 Stage & Playback Ergonomics: Double-Tap Play/Pause ripple effect บนวิดีโอ 9:16, White Glow Playhead 3.5px
+  - [ ] 3. Timeline Touch Mechanics: ตรวจสอบ `touch-action: none` บน scrubber track ป้องกัน Safari แย่ง scroll ขณะลาก Playhead พร้อมปุ่มตัดหัว/ตัดท้าย Q/W มีขนาด >= 44px บนมือถือ
+  - [ ] 4. AudioContext & Web Worker Memory Leak Prevention: ตรวจสอบ AudioContext / GainNode / RAF / Canvas dispose เมื่อคอมโพเนนต์ unmount
+  - [ ] 5. TDD Unit Testing: เพิ่มชุดทดสอบสัญญา `frontend/src/lib/editorErgonomicsContract.test.js`
   - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-OVERNIGHT-ROUND-3-CONTENT-TRACKER-20261031 · ยกระดับ ContentTrackerHub.jsx (Station 3): Glassmorphism KanBan, Sticky Segmented Phase Bar, Mobile Ergonomics & SSE Memory Safety · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-OVERNIGHT-ROUND-2-PRODUCT-TO-CLIP-ERGONOMICS-20261031 · ยกระดับ ProductToClip.jsx สู่ 100% Rule 3.8/4.8 Compliance, Glassmorphism & SessionStorage Expansion · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
