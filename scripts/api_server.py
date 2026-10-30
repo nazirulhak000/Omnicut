@@ -25,7 +25,11 @@ from scripts.config import (
     CAPCUT_DRAFT_DIR, VOICES, DEFAULT_VOICE, DEFAULT_VOICE_RATE
 )
 from scripts.auth import (
-    API_KEY_HEADER, is_auth_enforced, key_matches, warn_if_permissive,
+    API_KEY_HEADER, is_auth_enforced, is_password_configured, key_matches,
+    warn_if_permissive,
+)
+from scripts.api_auth import (
+    AuthGateMiddleware, health_router, router as auth_router,
 )
 
 # Re-exports for backwards compatibility with tests and scripts
@@ -228,107 +232,34 @@ def get_bind_host() -> str:
     start Uvicorn with its own ``--host`` flag.
     """
     host = os.environ.get("OMNICUT_HOST", "127.0.0.1").strip() or "127.0.0.1"
-    if not _is_loopback_host(host) and not is_auth_enforced():
+    if (
+        not _is_loopback_host(host)
+        and not is_auth_enforced()
+        and not is_password_configured()
+    ):
         raise RuntimeError(
-            "OMNICUT_API_KEY is required when OMNICUT_HOST binds beyond localhost"
+            "OMNICUT_API_KEY or OMNICUT_APP_PASSWORD is required when "
+            "OMNICUT_HOST binds beyond localhost"
         )
     return host
 
 
-def _is_local_request(request: Request) -> bool:
-    """Allow the intentionally unauthenticated mode only to local clients.
-
-    ``testclient`` is Starlette's synthetic peer name and is safe to permit
-    here because it cannot be produced by a real TCP client.
-    """
-    if (
-        os.environ.get("OMNICUT_ALLOW_REMOTE", "").lower() in ("1", "true", "yes")
-        or Path("/content").exists()
-        or "google.colab" in sys.modules
-    ):
-        return True
-    if request.client is None:
-        return True
-    return _is_loopback_host(request.client.host) or request.client.host == "testclient"
-
-async def api_key_gate(request: Request, call_next):
-    """Single shared-secret check applied to every request.
-
-    Behavior:
-    - OMNICUT_API_KEY unset (default local single-user setup): requests from
-      loopback pass through, but non-loopback clients are rejected. This
-      keeps localhost development working while making an accidental LAN
-      bind fail closed.
-    - OMNICUT_API_KEY set: every request must carry a matching
-      `X-API-Key` header (constant-time compare), or it gets 401.
-      CORS preflight (OPTIONS) is let through unauthenticated -- browsers
-      never attach custom headers to the preflight itself, and the
-      CORSMiddleware below (registered after this one, so it wraps
-      OUTSIDE it -- Starlette builds its stack in reverse registration
-      order) still enforces the origin allowlist on it, and still
-      attaches Access-Control-Allow-Origin to a 401 from this gate so the
-      frontend/extension see a readable error instead of an opaque CORS
-      failure.
-    - GET/HEAD media requests only: also accepts the key as an
-      `?api_key=` query param, falling back to it when the header is absent
-      or wrong. Native
-      <video>/<audio>/<img> tags (used for /api/media/... streaming and
-      thumbnails) cannot attach a custom header at all -- the frontend's
-      Vite proxy normally injects the header; direct-to-backend deployments
-      can explicitly opt into the legacy query-param path.
-      Query params can end up in server access logs and browser history,
-      so this fallback is deliberately withheld from every mutating verb.
-    """
-    if request.method == "OPTIONS":
-        return await call_next(request)
-
-    # Allow loading frontend SPA HTML and static assets freely
-    if not request.url.path.startswith("/api"):
-        return await call_next(request)
-
-    if not is_auth_enforced():
-        warn_if_permissive()
-        if _is_local_request(request):
-            return await call_next(request)
-        return JSONResponse(
-            status_code=401,
-            content={
-                "detail": (
-                    "OMNICUT_API_KEY is required for non-local access. "
-                    "Bind the API to localhost or configure the shared key."
-                )
-            },
-        )
-
-    candidate = request.headers.get(API_KEY_HEADER, "")
-    if (
-        not key_matches(candidate)
-        and request.method in ("GET", "HEAD")
-        and request.url.path.startswith("/api/media/")
-    ):
-        candidate = request.query_params.get("api_key", "")
-    if not key_matches(candidate):
-        return JSONResponse(
-            status_code=401,
-            content={"detail": "Missing or invalid API key. Set the X-API-Key header."},
-        )
-
-    return await call_next(request)
-
-
 # Registration order matters: Starlette wraps middleware in REVERSE of
-# add_middleware() call order, so the first one added ends up outermost.
-# The channel-scope middleware (pure ASGI, multi-channel P1) is added first
-# so it is the innermost layer: auth runs before it and CORS decorates its
-# 422 responses. The key gate is added next so it becomes the middle layer;
-# CORS is added last so it wraps every response (including a 401 from the
-# gate) with the right Access-Control-* headers.
-# The maintenance gate (multi-channel P2.3) is added before it all, so it is
-# the very innermost layer: while <root>/_Docs/.maintenance.lock exists every
+# add_middleware() call order, so the LAST one added ends up outermost.
+# The maintenance gate (multi-channel P2.3) is added first, so it is the very
+# innermost layer: while <root>/_Docs/.maintenance.lock exists every
 # non-GET/HEAD/OPTIONS request gets 503 maintenance_mode (adds no routes).
+# The channel-scope middleware (pure ASGI, multi-channel P1) comes next, so
+# auth runs before it and CORS decorates its 422 responses.
+# The auth gate (scripts/api_auth.py, pure ASGI covering BOTH http and
+# websocket scopes) is the middle layer: unauthenticated remote traffic --
+# including the Cloudflare tunnel, which reaches us as 127.0.0.1 but carries
+# cf-*/x-forwarded-* headers -- is stopped before any route or WebSocket
+# (/ws, /terminal/ws ttyd shell) runs. CORS is added last so it wraps every
+# HTTP response (including a 401 from the gate) with Access-Control-* headers.
 install_maintenance_gate(app)
 install_channel_scope(app)
-app.middleware("http")(api_key_gate)
+app.add_middleware(AuthGateMiddleware, allowed_origins=CORS_ORIGINS)
 
 app.add_middleware(
     CORSMiddleware,
@@ -342,6 +273,8 @@ app.add_middleware(
 
 
 # Mount all domain-specific routers
+app.include_router(auth_router)
+app.include_router(health_router)
 app.include_router(phase1_router)
 app.include_router(editor_router)
 app.include_router(tokens_router)
@@ -388,19 +321,66 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
+
+# index.html / manifest must revalidate so a new deploy is picked up at once;
+# Vite's content-hashed /assets/* files never change -> cache for a year.
+_NO_CACHE_HEADERS = {"Cache-Control": "no-cache"}
+_IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
+_NO_CACHE_SUFFIXES = (".html", ".webmanifest")
+
+
+class _ImmutableStaticFiles(StaticFiles):
+    """StaticFiles for Vite's hashed /assets/* with a long immutable cache."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code in (200, 304):
+            response.headers["Cache-Control"] = _IMMUTABLE_CACHE
+        return response
+
+
+def resolve_spa_file(dist_dir: Path, full_path: str) -> Path | None:
+    """Return the file under ``dist_dir`` for ``full_path``, or None.
+
+    Containment guard: ``full_path`` is attacker-controlled and already
+    percent-decoded (``/..%2f..%2f.env`` arrives as ``../../.env``; on Windows
+    an absolute ``C:/...`` would even replace the base when joined). The
+    resolved target must stay inside the resolved dist directory.
+    """
+    if not full_path or "\x00" in full_path:
+        return None
+    try:
+        root = dist_dir.resolve()
+        target = (dist_dir / full_path).resolve()
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if not target.is_relative_to(root) or target == root:
+        return None
+    if not target.is_file():
+        return None
+    return target
+
+
+def spa_file_response(dist_dir: Path, full_path: str):
+    """Serve a contained dist file, else the SPA shell (index.html)."""
+    target = resolve_spa_file(dist_dir, full_path)
+    if target is not None:
+        headers = _NO_CACHE_HEADERS if target.name.endswith(_NO_CACHE_SUFFIXES) else None
+        return FileResponse(target, headers=headers)
+    return FileResponse(dist_dir / "index.html", headers=_NO_CACHE_HEADERS)
+
+
 if DIST_DIR.exists() and (DIST_DIR / "index.html").exists():
     if (DIST_DIR / "assets").exists():
-        app.mount("/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="frontend_assets")
+        app.mount("/assets", _ImmutableStaticFiles(directory=str(DIST_DIR / "assets")), name="frontend_assets")
 
     @app.get("/{full_path:path}")
     async def serve_spa_frontend(full_path: str):
         # Do not hijack API, docs, or openapi routes
         if full_path.startswith("api") or full_path.startswith("docs") or full_path.startswith("openapi"):
             return JSONResponse({"detail": "Not Found"}, status_code=404)
-        target = DIST_DIR / full_path
-        if target.exists() and target.is_file():
-            return FileResponse(target)
-        return FileResponse(DIST_DIR / "index.html")
+        # DIST_DIR is read at call time so tests can point it at a tmp dir.
+        return spa_file_response(DIST_DIR, full_path)
 
 # ----------------------------------------------------------------------
 # Run Server directly if executed

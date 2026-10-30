@@ -35,7 +35,6 @@ export default function HookVariationModal({
       const pModel = angle?.hook_model || '';
       const pDesc = product?.description || angle?.key_features || '';
       const pPain = angle?.pain_point || '';
-      const pDeal = angle?.price_deal || product?.price_note || '';
 
       const res = await generateHookVariations({
         product_name: pName,
@@ -43,7 +42,6 @@ export default function HookVariationModal({
         model: pModel,
         description: pDesc,
         pain_point: pPain,
-        price_deal: pDeal,
         angle_name: angle?.angle_name || '',
       });
 

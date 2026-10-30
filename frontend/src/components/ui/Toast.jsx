@@ -50,19 +50,19 @@ export function Toast({
       role={type === 'error' ? 'alert' : 'status'}
       aria-live={type === 'error' ? 'assertive' : 'polite'}
       aria-atomic="true"
-      className="fixed bottom-6 right-6 z-50 animate-fadeIn select-none pointer-events-auto"
+      className="fixed inset-x-3 bottom-[calc(var(--nav-h)+0.75rem)] md:inset-x-auto md:bottom-6 md:right-6 z-[60] flex justify-center md:block animate-fadeIn select-none pointer-events-none"
     >
       <div
-        className={`flex items-center gap-3 py-3 px-4 rounded-2xl border backdrop-blur-md shadow-xl text-xs sm:text-sm font-semibold max-w-md ${config.style}`}
+        className={`flex items-center gap-3 py-3 px-4 rounded-2xl border backdrop-blur-md shadow-xl text-sm font-semibold w-full md:w-auto max-w-md min-w-0 pointer-events-auto ${config.style}`}
       >
         <Icon className={`w-4 h-4 flex-shrink-0 ${config.iconColor}`} />
-        <span className="flex-1">{message}</span>
+        <span className="flex-1 min-w-0 break-words">{message}</span>
         {onClose && (
           <button
             type="button"
             onClick={onClose}
             aria-label="ปิดการแจ้งเตือน"
-            className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1 max-md:min-h-11 max-md:min-w-11 pointer-coarse:min-h-11 pointer-coarse:min-w-11 flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
           </button>

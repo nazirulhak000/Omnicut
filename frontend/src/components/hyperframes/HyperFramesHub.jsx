@@ -24,6 +24,11 @@ import {
   getDynamicPOVScenarios,
   convertAngleToPOVDialogue
 } from '../../lib/dynamicPOVScenarios';
+import { LOCAL_STUDIO_HINT, reachableStudioUrl } from '../../lib/mobileLinks.js';
+
+// HyperFrames Studio listens on the desktop only; from the phone / public
+// tunnel this link is dead, so it is replaced by a short hint there.
+const HF_STUDIO_URL = 'http://127.0.0.1:3002/#project/_HyperFrames_Studio';
 
 // ── Rich Editorial Metas for the 4 Approved Styles ──
 const STYLE_EXTRAS = {
@@ -36,7 +41,7 @@ const STYLE_EXTRAS = {
       { time: '0-3s', label: 'เปิดศึก VS', desc: 'ตัดภาพแบ่ง 2 ฝั่ง ซาวด์เปิดศึก', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
       { time: '3-10s', label: 'ยก 1: สปีด', desc: 'ชาร์จเทียบกัน HP บาร์ฝั่งเก่าลด', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
       { time: '10-17s', label: 'ยก 2: อุณหภูมิ', desc: 'วัดความร้อน 58°C vs 34°C', color: 'bg-red-500/20 text-red-300 border-red-500/30' },
-      { time: '17-22s', label: 'ยก 3: ราคา', desc: 'เทียบราคาโปรโมชั่นหลักร้อย', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
+      { time: '17-22s', label: 'ยก 3: ความทนทาน', desc: 'เทียบความทนทานใช้งานจริง', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
       { time: '22-25s', label: 'K.O. ตะกร้า', desc: 'K.O. จบศึก ปักตะกร้าเหลือง', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' }
     ]
   },
@@ -148,7 +153,7 @@ function adaptScriptToStyle(styleId, angle, rawScript, productName) {
   const hook = (angle?.hook_title || '').trim();
   const features = (angle?.key_features || '').trim();
   const pain = (angle?.pain_point || '').trim();
-  const price = (angle?.price_deal || '').trim();
+  // angle.price_deal is never read here: clips must not mention price/promo.
 
   if (styleId === 'vs_battle') {
     return `[0-3s เปิดศึก VS]
@@ -160,11 +165,11 @@ ${hook || `เทียบกันชัดๆ ระหว่างของ�
 [10-17s ยก 2: อุณหภูมิและความปลอดภัย]
 ${pain ? `ของเก่าเจอปัญหา ${pain}` : 'ของเก่าร้อนจัดจนน่ากลัว!'} ส่วน ${pName} คุมความร้อนนิ่งสนิท เย็นเจี๊ยบปลอดภัย 100%
 
-[17-22s ยก 3: ราคาและความคุ้มค่า]
-${price ? `ดีลเดือด: ${price}` : 'สเปกระดับท็อป แต่ราคาเบาๆ สบายกระเป๋า'} เทียบกันแล้วฝั่งใหม่ชนะขาดลอย!
+[17-22s ยก 3: ความทนทานและการใช้งานจริง]
+ใช้งานต่อเนื่องทั้งวันก็ยังเอาอยู่ เทียบกันแล้วฝั่งใหม่ชนะขาดลอย!
 
 [22-25s K.O. ตะกร้า]
-K.O. จบศึก! พิกัดตะกร้าเหลืองซ้ายล่าง รีบกดก่อนหมดโปร!`;
+K.O. จบศึก! กดตะกร้าเหลืองซ้ายล่าง ดูรายละเอียดได้เลย!`;
   }
 
   if (styleId === 'tech_explainer') {
@@ -180,7 +185,7 @@ ${features || `${pName} มาพร้อมระบบตัดไฟอั�
 [28-35s ผลการทดสอบใช้งานจริง]
 ${pain ? `แก้ปัญหาเรื่อง ${pain} ได้แบบเบ็ดเสร็จ` : 'ทดสอบใช้งานต่อเนื่องหลายชั่วโมง อุณหภูมิผิวยังนิ่งสนิท'} กราฟการทำงานเสถียร 100%
 
-[35-40s สรุปความคุ้มค่าและพิกัด]
+[35-40s สรุปและพิกัด]
 สรุปคือตัวจบสำหรับคนที่ต้องการประสิทธิภาพระดับโปร พิกัดตะกร้าเหลืองด้านล่างครับ`;
   }
 
@@ -198,7 +203,7 @@ ${pain ? `เจอปัญหา ${pain}` : 'รีบจะออกบ้า
 ${features || 'เสียบปุ๊บ สปีดพุ่งปรี๊ด [SFX วิ่ง] เล็กพริกขี้หนู พกหัวเดียวจบครบทุกเครื่อง'}
 
 [38-45s ปักตะกร้าเหลือง]
-${price ? `ราคาโปรโมชั่น: ${price}` : 'พิกัดตะกร้าเหลืองซ้ายล่าง รีบจิ้มก่อนราคาจะปรับขึ้น!'}`;
+สนใจกดตะกร้าเหลืองซ้ายล่าง ดูรายละเอียดได้เลยครับ`;
   }
 
   if (styleId === 'pov_chat') {
@@ -543,16 +548,20 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
             <span>{refreshing ? 'กำลังตรวจข้อมูลเครื่องมือเดิม' : status?.ready ? 'พบ dependencies เครื่องมือเดิม' : 'ยังไม่ยืนยันเครื่องมือเดิม'}</span>
           </div>
 
-          <a
-            href="http://127.0.0.1:3002/#project/_HyperFrames_Studio"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={handleOpenStudio}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#FE2C55] to-rose-600 hover:brightness-110 text-white font-semibold text-sm transition-all shadow-md shadow-[#FE2C55]/20"
-          >
-            <ExternalLink className="w-4 h-4" />
-            เปิด HyperFrames Studio
-          </a>
+          {reachableStudioUrl(HF_STUDIO_URL) ? (
+            <a
+              href={HF_STUDIO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleOpenStudio}
+              className="flex items-center gap-2 px-4 py-2 min-h-11 rounded-lg bg-gradient-to-r from-[#FE2C55] to-rose-600 hover:brightness-110 text-white font-semibold text-sm transition-all shadow-md shadow-[#FE2C55]/20"
+            >
+              <ExternalLink className="w-4 h-4" />
+              เปิด HyperFrames Studio
+            </a>
+          ) : (
+            <span className="text-xs text-slate-400">{LOCAL_STUDIO_HINT}</span>
+          )}
 
           <button
             type="button"
@@ -768,15 +777,20 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
             <p className="text-sm text-slate-400">
               พบ {(Array.isArray(compositions) ? compositions : []).length} รายการในสตูดิโอ (จัดเก็บที่ <code className="text-slate-300">03_Projects/_HyperFrames_Studio/compositions/</code>)
             </p>
-            <a
-              href="http://127.0.0.1:3002/#project/_HyperFrames_Studio"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={handleOpenStudio}
-              className="text-xs text-[#25F4EE] hover:brightness-125 flex items-center gap-1 font-medium transition-all"
-            >
-              เปิดหน้าต่าง HyperFrames Studio Live Preview ↗
-            </a>
+            {reachableStudioUrl(HF_STUDIO_URL) ? (
+              <a
+                href={HF_STUDIO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleOpenStudio}
+                className="min-h-11 text-xs text-[#25F4EE] hover:brightness-125 flex items-center gap-1 font-medium transition-all"
+              >
+                เปิดหน้าต่าง HyperFrames Studio Live Preview
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            ) : (
+              <span className="text-xs text-slate-500">{LOCAL_STUDIO_HINT}</span>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

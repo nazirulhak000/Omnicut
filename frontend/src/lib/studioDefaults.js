@@ -21,7 +21,7 @@ export const DEFAULT_STUDIO_FORM = {
   hookModel: '',
   hookLabel: '',
   painPoint: 'สายชาร์จพังง่าย เสียบยากในที่มืด',
-  priceDeal: 'ลดพิเศษวันนี้ จิ้มตะกร้าซ้ายล่าง',
+  priceDeal: '', // never a price/promo default -- no price in clips
   keyFeatures: 'แม่เหล็กแรงดูดสูง เสียบปึ้ง ติดทันที ชาร์จเร็ว ไม่ทำร้ายแบต ทนทานมาก',
   customScript: '',
   useCustomScript: false,

@@ -8,6 +8,25 @@ import { useTaskManager } from '../context/TaskContext';
 import { getRenderStatus } from '../api';
 import { ACTIVE_RENDER_STORAGE_KEY } from '../lib/renderJobModel';
 import PaginationControls from './PaginationControls';
+import { useBackToClose } from '../hooks/useBackToClose';
+
+// Phones get the compact behaviour (bottom-anchored cards above the tab bar,
+// no desktop-Editor jumps). Tracks rotation / window resizes.
+function useCompactViewport(query = '(max-width: 767px)') {
+  const get = () => (typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia(query).matches
+    : false);
+  const [matches, setMatches] = useState(get);
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const mql = window.matchMedia(query);
+    const onChange = () => setMatches(mql.matches);
+    onChange();
+    mql.addEventListener?.('change', onChange);
+    return () => mql.removeEventListener?.('change', onChange);
+  }, [query]);
+  return matches;
+}
 
 function getTaskIcon(type) {
   switch (type) {
@@ -171,6 +190,9 @@ export function ActivityDrawer() {
   const [viralPage, setViralPage] = useState(1);
   const [viralPageSize, setViralPageSize] = useState(10);
   const drawerRef = React.useRef(null);
+  const closeDrawer = React.useCallback(() => setIsActivityDrawerOpen(false), [setIsActivityDrawerOpen]);
+  // Phone back gesture closes the drawer instead of leaving the app.
+  useBackToClose(isActivityDrawerOpen, closeDrawer);
 
   React.useEffect(() => {
     if (tabFilter === 'viral' && fetchViralMilestones) {
@@ -243,7 +265,7 @@ export function ActivityDrawer() {
         aria-modal="true"
         aria-labelledby="activity-drawer-title"
         tabIndex={-1}
-        className="relative w-full max-w-full sm:max-w-md bg-[#080B11]/95 backdrop-blur-2xl border-l border-white/[0.12] shadow-2xl flex flex-col h-[100dvh] max-h-[100dvh] z-10 animate-slideLeft overflow-hidden"
+        className="relative w-full max-w-full sm:max-w-md bg-[#080B11]/95 backdrop-blur-2xl border-l border-white/[0.12] shadow-2xl flex flex-col h-dvh max-h-dvh z-10 animate-slideLeft overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
       >
         {/* Header */}
         <div className="p-4 border-b border-white/[0.08] flex items-center justify-between bg-black/40">
@@ -280,7 +302,7 @@ export function ActivityDrawer() {
               type="button"
               onClick={() => setIsActivityDrawerOpen(false)}
               aria-label="ปิดศูนย์ติดตามกิจกรรม"
-              className="min-h-[36px] min-w-[36px] flex items-center justify-center p-2 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-colors cursor-pointer"
+              className="min-h-11 min-w-11 md:min-h-[36px] md:min-w-[36px] pointer-coarse:min-h-11 pointer-coarse:min-w-11 flex items-center justify-center p-2 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -743,7 +765,7 @@ export function GlobalTaskNotification() {
       aria-live={isSuccess ? 'polite' : 'assertive'}
       aria-atomic="true"
       aria-label="การแจ้งเตือนงาน"
-      className="fixed bottom-5 right-5 z-50 max-w-sm w-full animate-slideUp"
+      className="fixed inset-x-3 bottom-[calc(var(--nav-h)+0.75rem)] md:inset-x-auto md:bottom-5 md:right-5 z-[60] md:max-w-sm md:w-full animate-slideUp"
     >
       <div className={`p-4 rounded-2xl backdrop-blur-2xl border shadow-2xl space-y-3 ${
         isSuccess
@@ -775,7 +797,7 @@ export function GlobalTaskNotification() {
             type="button"
             onClick={() => setNotificationToast(null)}
             aria-label="ปิดการแจ้งเตือน"
-            className="text-slate-400 hover:text-white p-1 rounded-md cursor-pointer"
+            className="text-slate-400 hover:text-white p-1 rounded-md cursor-pointer -m-2 md:m-0 min-h-11 min-w-11 md:min-h-0 md:min-w-0 pointer-coarse:min-h-11 pointer-coarse:min-w-11 flex items-center justify-center flex-shrink-0"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -971,8 +993,10 @@ export function GlobalTaskNotification() {
 export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavigateToGallery }) {
   const [workspaceStorage] = useState(channelLocalStorage);
 
-  const { activeTasks } = useTaskManager();
+  const { activeTasks, setIsActivityDrawerOpen } = useTaskManager();
   const [liveStatus, setLiveStatus] = useState(null);
+  const [dismissedKey, setDismissedKey] = useState(null);
+  const isCompact = useCompactViewport();
   const timerRef = React.useRef(null);
 
   // Poll /api/render/status/{jobId} directly — this gives the SAME data as terminal output
@@ -980,6 +1004,8 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
     function startPolling(jobId) {
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(async () => {
+        // Locked phone / background tab: skip the tick, resume when visible.
+        if (typeof document !== 'undefined' && document.hidden) return;
         try {
           const data = await getRenderStatus(jobId);
           setLiveStatus(data);
@@ -1027,6 +1053,11 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
   if (!isLive && !renderTask) return null;
   if (currentTab === 'editor' && !isDone && !isFailed) return null;
 
+  // Closing hides this job's current phase only: a later done/failed state
+  // shows again so the result is never silently missed.
+  const widgetKey = `${liveStatus?.job_id || liveStatus?.id || renderTask?.id || 'render'}:${isDone ? 'done' : isFailed ? 'failed' : 'running'}`;
+  if (dismissedKey === widgetKey) return null;
+
   const pct = isLive
     ? Math.round((liveStatus.progress || 0) * 100)
     : Math.round((renderTask?.progress || 0) * 100);
@@ -1049,7 +1080,7 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
   const borderColor = isDone ? 'border-emerald-500/40 ring-emerald-500/20' : isFailed ? 'border-red-500/40 ring-red-500/20' : 'border-[#D97757]/40 ring-[#D97757]/20';
 
   return (
-    <div className="fixed bottom-20 md:bottom-5 right-4 z-40 w-[92%] max-w-sm animate-slideUp">
+    <div className="fixed inset-x-3 bottom-[calc(var(--nav-h)+0.75rem)] md:inset-x-auto md:bottom-5 md:right-4 z-[45] md:w-[92%] md:max-w-sm animate-slideUp">
       <div className={`p-3 rounded-2xl bg-[#080B11]/95 border ${borderColor} shadow-2xl backdrop-blur-2xl flex items-center justify-between gap-3 ring-1`}>
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isDone ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400' : 'bg-[#D97757]/15 border border-[#D97757]/30 text-[#D97757]'}`}>
@@ -1077,6 +1108,13 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
         <button
           type="button"
           onClick={() => {
+            // Phones never get pushed into the desktop Editor: a finished
+            // render opens the gallery, anything else the activity drawer.
+            if (isCompact) {
+              if (isDone && onNavigateToGallery) onNavigateToGallery();
+              else setIsActivityDrawerOpen?.(true);
+              return;
+            }
             const proj = liveStatus?.project_name || renderTask?.payload?.project_name || renderTask?.target_id;
             if (isDone && onNavigateToEditor) {
               onNavigateToEditor(proj);
@@ -1084,14 +1122,23 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
               onNavigateToEditor();
             }
           }}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all shadow-md flex-shrink-0 active:scale-95 ${
+          className={`px-3 py-1.5 min-h-11 md:min-h-0 pointer-coarse:min-h-11 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all shadow-md flex-shrink-0 active:scale-95 ${
             isDone
               ? 'bg-gradient-to-r from-[#25F4EE] to-blue-500 text-slate-950 hover:brightness-110 shadow-[#25F4EE]/20'
               : 'bg-[#D97757] hover:bg-[#C2683D] text-white'
           }`}
         >
-          <span>{isDone ? 'เปิดไทม์ไลน์' : 'ดูหน้าตัดต่อ'}</span>
-          <ExternalLink className="w-3 h-3" />
+          <span>{isCompact ? (isDone ? 'ดูคลิปในคลัง' : 'ดูความคืบหน้า') : (isDone ? 'เปิดไทม์ไลน์' : 'ดูหน้าตัดต่อ')}</span>
+          {!isCompact && <ExternalLink className="w-3 h-3" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => setDismissedKey(widgetKey)}
+          aria-label="ปิดแถบความคืบหน้าการเรนเดอร์"
+          title="ปิดแถบนี้"
+          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 pointer-coarse:min-h-11 pointer-coarse:min-w-11 -mr-1 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] cursor-pointer flex-shrink-0"
+        >
+          <X className="w-4 h-4" />
         </button>
       </div>
     </div>

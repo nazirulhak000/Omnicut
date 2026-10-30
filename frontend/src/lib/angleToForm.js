@@ -49,7 +49,8 @@ export function angleToForm(angle, context = {}) {
     useCustomScript: true,
     keyFeatures: angle.key_features || context.description || '',
     painPoint: angle.pain_point || '',
-    priceDeal: angle.price_deal || context.price_note || '',
+    // No price_note fallback: price stays product data, never clip text.
+    priceDeal: angle.price_deal || '',
   };
   const angleId = angle.angle_id || angle.id;
   const recommendedStyle = angleId ? getRecommendedStyleForAngle(angleId) : null;

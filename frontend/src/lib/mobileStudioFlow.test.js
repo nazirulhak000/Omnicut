@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { catalogPageParams, filmingReturnUrl, filmingUrl, mergeCatalogPage, MOBILE_CATALOG_PAGE_SIZE, pollMobileTask, progressPercent } from './mobileStudioFlow.js';
+import { angleVideoUrl, catalogPageParams, filmingReturnUrl, filmingUrl, findResumableMobileTask, footageKey, isAlreadyPostedError, isAnglePosted, isNoResponseError, mergeCatalogPage, MOBILE_CATALOG_PAGE_SIZE, pollMobileTask, progressPercent } from './mobileStudioFlow.js';
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
 function scheduler() {
@@ -102,3 +102,48 @@ test('catalog pagination keeps a stable page size and merges pages without dupli
   assert.equal(mergeCatalogPage([], [{ name: 'no id' }]).length, 1);
 });
 
+
+test('angle DTO exposes the rendered clip as rendered_video_url (legacy video_url fallback)', () => {
+  assert.equal(angleVideoUrl({ rendered_video_url: '/media/a.mp4', video_url: '/old.mp4' }), '/media/a.mp4');
+  assert.equal(angleVideoUrl({ video_url: '/old.mp4' }), '/old.mp4');
+  assert.equal(angleVideoUrl({}), null);
+  assert.equal(angleVideoUrl(null), null);
+});
+
+test('posted state comes only from backend status or posted_at', () => {
+  assert.equal(isAnglePosted({ status: 'posted' }), true);
+  assert.equal(isAnglePosted({ status: 'rendered', posted_at: '2026-10-30T10:00:00' }), true);
+  assert.equal(isAnglePosted({ status: 'rendered', is_rendered: true }), false);
+  assert.equal(isAnglePosted(null), false);
+});
+
+test('footage key isolates product+angle pairs', () => {
+  assert.equal(footageKey('p1', 'a1'), 'p1:a1');
+  assert.notEqual(footageKey('p1', 'a1'), footageKey('p1', 'a2'));
+  assert.equal(footageKey('p1', null), 'p1:quick_take');
+  assert.equal(footageKey(null, 'a1'), null);
+});
+
+test('resume picks the live mobile render for the remembered angle only', () => {
+  const tasks = [
+    { id: 'done', type: 'mobile_auto_assemble_render', status: 'completed', payload: { product_id: 'p1', angle_id: 'a1' } },
+    { id: 'other', type: 'render', status: 'processing', payload: { product_id: 'p1', angle_id: 'a1' } },
+    { id: 'p2', type: 'mobile_auto_assemble_render', status: 'processing', payload: { product_id: 'p2', angle_id: 'b1' } },
+    { id: 'live', type: 'mobile_auto_assemble_render', status: 'queued', payload: { product_id: 'p1', angle_id: 'a1' } },
+  ];
+  assert.equal(findResumableMobileTask(tasks, { productId: 'p1', angleId: 'a1' }).id, 'live');
+  assert.equal(findResumableMobileTask(tasks, { productId: 'p9', angleId: 'zz' }), null);
+  assert.equal(findResumableMobileTask(tasks).id, 'p2');
+  assert.equal(findResumableMobileTask(null), null);
+});
+
+test('mark-posted treats already-posted and lost-reply retry 404 as success, nothing else', () => {
+  const err = (status, detail) => ({ response: { status, data: { detail } } });
+  assert.equal(isAlreadyPostedError(err(409, 'already posted')), true);
+  assert.equal(isAlreadyPostedError(err(409, 'ไม่พบ export_id ที่ระบุ จึงหยุดการโพสต์เพื่อป้องกันการเลือกคลิปผิดตัว')), false);
+  assert.equal(isAlreadyPostedError(err(404, 'ไม่พบไฟล์: a.mp4')), false);
+  assert.equal(isAlreadyPostedError(err(404, 'ไม่พบไฟล์: a.mp4'), { previousAttemptLost: true }), true);
+  assert.equal(isAlreadyPostedError(err(500, 'boom'), { previousAttemptLost: true }), false);
+  assert.equal(isNoResponseError(new Error('Network Error')), true);
+  assert.equal(isNoResponseError(err(500, 'x')), false);
+});

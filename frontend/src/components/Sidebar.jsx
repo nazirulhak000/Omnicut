@@ -1,10 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Rocket, Sparkles, FolderDown, Settings, Layers,
   Smartphone, Maximize, Minimize, X, Copy, Check, Wifi, Scissors,
-  Palette, MoreHorizontal, BarChart3, ChevronRight, BookOpen, Lightbulb
+  Palette, MoreHorizontal, BarChart3, ChevronRight, BookOpen, Terminal, LogOut
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { ChannelSelector } from '../context/ChannelContext.jsx';
+import { useBackToClose } from '../hooks/useBackToClose';
+import { useAuth } from './LoginScreen.jsx';
+
+function isLocalHostname(hostname) {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]';
+}
 
 // ── Desktop Navigation Items (8 items) ──
 const DESKTOP_NAV_ITEMS = [
@@ -26,15 +33,34 @@ const MOBILE_PRIMARY_TABS = [
   { id: 'gallery', icon: FolderDown, label: 'Gallery' },
 ];
 
-export default function Sidebar({ activeTab, setActiveTab, status }) {
+export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMobile }) {
   const [showMobileModal, setShowMobileModal] = useState(false);
   const [showMoreDrawer, setShowMoreDrawer] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const closeMobileModalRef = useRef(null);
   const mobileModalPreviousFocusRef = useRef(null);
+  const { authRequired, logout } = useAuth();
 
-  const mobileUrl = status?.mobile_url || `https://${window.location.hostname}:5173`;
+  // The page's own origin is what a phone can open (e.g. the public studio
+  // domain). Only when this desktop is on localhost does the backend's LAN
+  // URL make sense for the QR handoff.
+  const mobileUrl = isLocalHostname(window.location.hostname)
+    ? (status?.mobile_url || window.location.origin)
+    : window.location.origin;
+
+  const closeMoreDrawer = useCallback(() => setShowMoreDrawer(false), []);
+  const closeMobileModal = useCallback(() => setShowMobileModal(false), []);
+  // Phone back gesture closes the sheet / QR dialog instead of leaving the app.
+  useBackToClose(showMoreDrawer, closeMoreDrawer);
+  useBackToClose(showMobileModal, closeMobileModal);
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try { await logout(); } finally { setLoggingOut(false); }
+  };
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -74,7 +100,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
   return (
     <>
       {/* ── Desktop Sidebar ── */}
-      <aside className="hidden md:flex flex-col w-[72px] flex-shrink-0 h-screen bg-[#080B11]/90 backdrop-blur-xl border-r border-white/[0.08] z-30">
+      <aside className="hidden md:flex flex-col w-[72px] flex-shrink-0 h-dvh bg-[#080B11]/90 backdrop-blur-xl border-r border-white/[0.08] z-30">
         {/* Brand mark */}
         <div className="flex items-center justify-center h-[56px] border-b border-white/[0.08]">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center shadow-lg shadow-[#FE2C55]/20 text-white font-extrabold text-sm">
@@ -136,67 +162,113 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
       </aside>
 
       {/* ── Mobile Bottom Tab Bar (Strict 5 items limit) ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080B11]/95 backdrop-blur-2xl border-t border-white/[0.08] flex items-center justify-around px-1.5 py-1 safe-bottom shadow-2xl">
+      <nav
+        aria-label="เมนูหลัก"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080B11]/95 backdrop-blur-2xl border-t border-white/[0.08] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] shadow-2xl"
+      >
         {MOBILE_PRIMARY_TABS.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => setActiveTab(item.id)}
-              className={`flex flex-col items-center justify-center min-h-[48px] py-1 px-2 rounded-xl transition-all cursor-pointer flex-1 select-none active:scale-95 ${
+              aria-current={isActive ? 'page' : undefined}
+              className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl transition-all cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
                 isActive
                   ? 'text-[#25F4EE] font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-400 font-medium hover:text-slate-200'
               }`}
             >
-              <Icon className="w-5 h-5" strokeWidth={isActive ? 2.3 : 1.7} />
-              <span className="text-[11px] tracking-tight mt-0.5">{item.label}</span>
+              {/* Active indicator: a bar, not color alone */}
+              <span
+                aria-hidden="true"
+                className={`absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-8 rounded-b-full transition-opacity ${isActive ? 'bg-[#25F4EE] opacity-100' : 'opacity-0'}`}
+              />
+              <Icon className="w-5 h-5" strokeWidth={isActive ? 2.4 : 1.7} />
+              <span className="text-[12px] leading-tight tracking-tight mt-0.5 truncate max-w-full">{item.label}</span>
             </button>
           );
         })}
 
         {/* 5th Tab: 'อื่นๆ' (More Drawer Button) */}
         <button
+          type="button"
           onClick={() => setShowMoreDrawer(true)}
-          className={`flex flex-col items-center justify-center min-h-[48px] py-1 px-2 rounded-xl transition-all cursor-pointer flex-1 select-none active:scale-95 ${
+          aria-haspopup="dialog"
+          aria-expanded={showMoreDrawer}
+          aria-current={isMoreActive ? 'page' : undefined}
+          className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl transition-all cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
             isMoreActive
               ? 'text-[#25F4EE] font-bold'
-              : 'text-slate-400 hover:text-slate-200'
+              : 'text-slate-400 font-medium hover:text-slate-200'
           }`}
         >
-          <div className="relative">
-            <MoreHorizontal className="w-5 h-5" strokeWidth={isMoreActive ? 2.3 : 1.7} />
-            {isMoreActive && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#25F4EE] ring-2 ring-[#080B11]" />
-            )}
-          </div>
-          <span className="text-[11px] tracking-tight mt-0.5">อื่นๆ</span>
+          <span
+            aria-hidden="true"
+            className={`absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-8 rounded-b-full transition-opacity ${isMoreActive ? 'bg-[#25F4EE] opacity-100' : 'opacity-0'}`}
+          />
+          <MoreHorizontal className="w-5 h-5" strokeWidth={isMoreActive ? 2.4 : 1.7} />
+          <span className="text-[12px] leading-tight tracking-tight mt-0.5">อื่นๆ</span>
         </button>
       </nav>
 
       {/* ── Mobile More Bottom Sheet / Drawer ── */}
       {showMoreDrawer && (
         <div
-          className="md:hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex flex-col justify-end animate-fadeIn"
+          className="md:hidden fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex flex-col justify-end animate-fadeIn"
           onClick={() => setShowMoreDrawer(false)}
         >
           <div
-            className="bg-[#0D111A] border-t border-white/[0.12] rounded-t-3xl p-5 pb-8 space-y-4 max-h-[85vh] overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="more-sheet-title"
+            className="bg-[#0D111A] border-t border-white/[0.12] rounded-t-3xl px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4 max-h-[85dvh] overflow-y-auto overscroll-contain"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-[#25F4EE]" />
-                <h3 className="text-sm font-bold text-white">เมนูเพิ่มเติม</h3>
+                <h3 id="more-sheet-title" className="text-base font-bold text-white">เมนูเพิ่มเติม</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowMoreDrawer(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                aria-label="ปิดเมนูเพิ่มเติม"
+                className="w-11 h-11 -mr-1 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.06] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Workspace: channel + simple/full mode (moved off the phone topbar) */}
+            <div className="space-y-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3">
+              <ChannelSelector />
+              {onSwitchToMobile && (
+                <div role="group" aria-labelledby="ui-mode-label" className="space-y-1.5">
+                  <div id="ui-mode-label" className="text-xs font-semibold text-slate-400">โหมดหน้าจอ</div>
+                  <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/40 p-1 border border-white/[0.06]">
+                    <button
+                      type="button"
+                      onClick={() => { setShowMoreDrawer(false); onSwitchToMobile(); }}
+                      aria-pressed="false"
+                      className="min-h-11 rounded-lg text-sm font-semibold text-slate-300 hover:text-white hover:bg-white/[0.06] cursor-pointer"
+                    >
+                      โหมดง่าย
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed="true"
+                      aria-current="true"
+                      className="min-h-11 rounded-lg text-sm font-bold bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/40 cursor-default"
+                    >
+                      โหมดเต็ม
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Menu List */}
@@ -207,7 +279,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                   setActiveTab('assets');
                   setShowMoreDrawer(false);
                 }}
-                className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border transition-all cursor-pointer ${
                   activeTab === 'assets'
                     ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
                     : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
@@ -218,8 +290,8 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                     <Palette className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <div className="text-xs font-bold text-white">Media Assets Hub</div>
-                    <div className="text-[10px] text-slate-400">คลังเสียง SFX, เพลง BGM, ฟอนต์ และสติกเกอร์ 3D</div>
+                    <div className="text-sm font-bold text-white">Media Assets Hub</div>
+                    <div className="text-xs text-slate-400">คลังเสียง SFX, เพลง BGM, ฟอนต์ และสติกเกอร์ 3D</div>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-500" />
@@ -231,7 +303,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                   setActiveTab('analytics');
                   setShowMoreDrawer(false);
                 }}
-                className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border transition-all cursor-pointer ${
                   activeTab === 'analytics'
                     ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
                     : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
@@ -242,13 +314,13 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                     <BarChart3 className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <div className="text-sm font-bold text-white flex items-center gap-1.5">
                       ศูนย์วิเคราะห์ & สถิติรวม
                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-[#25F4EE] border border-cyan-500/30">
                         Analytics
                       </span>
                     </div>
-                    <div className="text-[10px] text-slate-400">สถิติการผลิตคลิป, โทเคน AI, พื้นที่จัดเก็บ, สุขภาพสินค้า</div>
+                    <div className="text-xs text-slate-400">สถิติการผลิตคลิป, โทเคน AI, พื้นที่จัดเก็บ, สุขภาพสินค้า</div>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-500" />
@@ -260,7 +332,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                   setActiveTab('settings');
                   setShowMoreDrawer(false);
                 }}
-                className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border transition-all cursor-pointer ${
                   activeTab === 'settings'
                     ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
                     : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
@@ -271,10 +343,10 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                     <Settings className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <div className="text-sm font-bold text-white flex items-center gap-1.5">
                       ตั้งค่าระบบ
                     </div>
-                    <div className="text-[10px] text-slate-400">ขนาดจอ, ฟอนต์ระบบ, โฟลเดอร์จัดเก็บ, ความปลอดภัย</div>
+                    <div className="text-xs text-slate-400">ขนาดจอ, ฟอนต์ระบบ, โฟลเดอร์จัดเก็บ, ความปลอดภัย</div>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-500" />
@@ -286,7 +358,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                   setActiveTab('guide');
                   setShowMoreDrawer(false);
                 }}
-                className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border transition-all cursor-pointer ${
                   activeTab === 'guide'
                     ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
                     : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
@@ -297,42 +369,76 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                     <BookOpen className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <div className="text-sm font-bold text-white flex items-center gap-1.5">
                       คู่มือใช้งาน
                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                         Guide
                       </span>
                     </div>
-                    <div className="text-[10px] text-slate-400">โฟลว์หลัก 7 ขั้น วิธีใช้ทุกเมนู คำถามพบบ่อย</div>
+                    <div className="text-xs text-slate-400">โฟลว์หลัก 7 ขั้น วิธีใช้ทุกเมนู คำถามพบบ่อย</div>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-500" />
               </button>
 
-              {/* Utilities Row: QR & Fullscreen */}
-              <div className="grid grid-cols-2 gap-2.5 pt-1">
+              {/* AGY Cloud Terminal (moved off the phone topbar) */}
+              <a
+                href="/agy"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setShowMoreDrawer(false)}
+                className="flex items-center justify-between min-h-11 p-3.5 rounded-2xl border bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06] transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-300">
+                    <Terminal className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-bold text-white">เปิด AGY Terminal</div>
+                    <div className="text-xs text-slate-400">สั่งงาน AI บน Cloud ในแท็บใหม่</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </a>
+
+              {/* Utilities Row: QR (desktop -> phone handoff only) & Fullscreen */}
+              <div className="flex flex-wrap gap-2.5 pt-1">
                 <button
+                  type="button"
                   onClick={() => {
                     setShowMoreDrawer(false);
                     setShowMobileModal(true);
                   }}
-                  className="flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-xs font-bold cursor-pointer"
+                  className="pointer-coarse:hidden flex-1 min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-sm font-bold cursor-pointer"
                 >
                   <Smartphone className="w-4 h-4 text-[#25F4EE]" />
                   <span>สแกน QR มือถือ</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     toggleFullscreen();
                     setShowMoreDrawer(false);
                   }}
-                  className="flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-xs font-bold cursor-pointer"
+                  className="flex-1 min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-sm font-bold cursor-pointer"
                 >
                   {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                   <span>{isFullscreen ? 'ย่อหน้าจอ' : 'เต็มหน้าจอ'}</span>
                 </button>
               </div>
+
+              {authRequired && (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="w-full min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/30 text-rose-200 text-sm font-bold cursor-pointer disabled:opacity-60"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>{loggingOut ? 'กำลังออกจากระบบ' : 'ออกจากระบบ'}</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -351,7 +457,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
               ref={closeMobileModalRef}
               onClick={() => setShowMobileModal(false)}
               aria-label="ปิด QR modal"
-              className="absolute top-3 right-3 p-2 rounded-xl hover:bg-white/[0.1] text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center border border-white/[0.06]"
+              className="absolute top-3 right-3 w-11 h-11 p-2 rounded-xl hover:bg-white/[0.1] text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center border border-white/[0.06]"
             >
               <X className="w-5 h-5" />
             </button>

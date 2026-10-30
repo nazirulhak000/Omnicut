@@ -89,7 +89,7 @@ def test_secret_redaction_masks_api_keys_and_tokens(tmp_path: Path):
     raw_output = (
         "Key1: AIzaSyD9876543210abcdefghijklmnopqrstuv\n"
         "Key2: AQ.Ab8-N-957mUj4B2F7f2677zXlqf4j7-B5E3uWzNf4f0p6V-zQ\n"
-        "Tunnel: eyJhIjoiNjQ3NDU3MTM3ZjBlZTdhMzc3MmFlNGEzOWE3OWJkYjciLCJ0IjoiYmFmZmM5MzM\n"
+        "Tunnel: eyJhIjoiZmFrZS1hY2NvdW50LWZvci10ZXN0cy1vbmx5In0\n"
     )
     masked = redact_secrets(raw_output)
     assert "AIzaSyD" not in masked
@@ -210,7 +210,10 @@ def test_fastapi_agy_endpoints_and_sse_streaming():
     r_html = client.get("/agy")
     assert r_html.status_code == 200
     assert "Antigravity Cloud Terminal" in r_html.text
-    assert "ทดสอบ Safety Guard" in r_html.text
+    # No one-tap chip that deletes/overwrites data (the safety guard itself
+    # is covered by the /api/agy/exec blocked-command check below).
+    assert "rm -rf" not in r_html.text
+    assert "ทดสอบ Safety Guard" not in r_html.text
 
     # 2. GET /api/agy/status
     r_status = client.get("/api/agy/status")
@@ -259,3 +262,38 @@ def test_colab_notebook_contains_agy_setup():
     assert "/usr/local/bin/agy" in source_joined
     assert "colab_agy_cli.py" in source_joined
     assert "/agy" in source_joined
+
+
+def test_agy_page_mobile_layout_auth_and_confirm_guards():
+    """Static checks on the inline /agy page (served as a Python string)."""
+    import re
+
+    from scripts.api_agy import AGY_WEB_TERMINAL_HTML as page
+
+    # Git pull asks first.
+    update_fn = page[page.index("async function selfUpdateGit()"):page.index("async function syncDrive()")]
+    assert "window.confirm(" in update_fn
+    assert update_fn.index("window.confirm(") < update_fn.index("git pull")
+
+    # Terminal pane is a real flex column so the iframe fills the height.
+    assert "calc(100vh" not in page
+    assert "termPane.style.display = 'block'" not in page
+    assert "#terminal-pane.active" in page
+    assert re.search(r"#terminalFrame \{[^}]*flex: 1;[^}]*min-height: 0;", page)
+
+    # Mobile: inputs >= 16px (no iOS zoom), touch targets >= 44px.
+    textarea_css = re.search(r"\n    textarea \{([^}]*)\}", page).group(1)
+    assert "font-size: 16px" in textarea_css
+    for selector in (".btn", ".chip"):
+        block = re.search(r"\n    " + re.escape(selector) + r" \{([^}]*)\}", page).group(1)
+        assert "min-height: 44px" in block, selector
+    assert re.search(r"\.nav-actions \{[^}]*flex-wrap: wrap;", page)
+
+    # Fetches check res.ok, send same-origin cookies and bounce 401 to login.
+    assert "credentials: 'same-origin'" in page
+    assert "res.status === 401" in page
+    assert "/?login=1&next=" in page
+    assert "if (!res.ok)" in page
+    assert "await fetch('/api/agy/stream'" not in page
+    assert "agyFetch('/api/agy/stream'" in page
+    assert "ลองใหม่" in page

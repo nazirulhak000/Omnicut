@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Request
 from scripts.channel_scope import ChannelScope, require_active_for_new_work, require_final_ready
 from scripts.channel_workflows import get_workflow_scope, capture_job_scope, require_record_owner, require_project_owner
 from scripts.pipeline_context import channel_project_name
@@ -434,8 +434,38 @@ def get_render_status(job_id: str, scope: ChannelScope = Depends(get_workflow_sc
     raise HTTPException(status_code=404, detail="Job not found")
 
 
+_LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"}
+
+
+def _public_mobile_url(request: Optional[Request], local_ip: str) -> str:
+    """Base URL a PHONE can open for mobile / quick-post links.
+
+    Order: ``OMNICUT_PUBLIC_URL`` (e.g. the Colab tunnel
+    ``https://studio.nazirulhak.com``) -> the URL this request actually came
+    in on (honouring ``x-forwarded-proto`` / ``x-forwarded-host`` from the
+    tunnel/proxy) unless that is localhost -> the LAN dev server as a last
+    resort. A LAN ``https://<ip>:5173`` link is dead for a phone outside the
+    office network, so it must never win over a real public origin.
+    """
+    env_url = (os.environ.get("OMNICUT_PUBLIC_URL") or "").strip().rstrip("/")
+    if env_url:
+        return env_url
+    if request is not None:
+        headers = request.headers
+        host = (headers.get("x-forwarded-host") or headers.get("host") or "").split(",")[0].strip()
+        proto = (headers.get("x-forwarded-proto") or request.url.scheme or "https").split(",")[0].strip()
+        hostname = host.rsplit(":", 1)[0] if not host.startswith("[") else host.split("]")[0] + "]"
+        if host and hostname.lower() not in _LOCAL_HOSTNAMES:
+            return f"{proto}://{host}"
+    # https, not http: MobileFilmingPage.jsx's getUserMedia() is only exposed
+    # by phone browsers in a secure context (https:// or localhost) --
+    # frontend/vite.config.js's basicSsl() plugin serves the dev server over
+    # self-signed https to match.
+    return f"https://{local_ip}:5173"
+
+
 @router.get("/api/status")
-def get_system_status(refresh_ip: bool = False):
+def get_system_status(request: Request, refresh_ip: bool = False):
     """Returns general health and system stats with fast single-pass scanning."""
     raw_files = scan_video_files(RAW_DIR, INBOX_DIR)
     export_files = list(EXPORTS_DIR.glob("*.mp4"))
@@ -449,11 +479,7 @@ def get_system_status(refresh_ip: bool = False):
         "total_raw_videos": len(raw_files),
         "total_exports": len(export_files),
         "local_ip": local_ip,
-        # https, not http: MobileFilmingPage.jsx's getUserMedia() is only
-        # exposed by phone browsers in a secure context (https:// or
-        # localhost) -- frontend/vite.config.js's basicSsl() plugin serves
-        # the dev server over self-signed https to match.
-        "mobile_url": f"https://{local_ip}:5173",
+        "mobile_url": _public_mobile_url(request, local_ip),
         "directories": {
             "base": str(BASE_DIR),
             "inbox": str(INBOX_DIR),

@@ -118,6 +118,12 @@ def test_copilot_build_hyperframes_draft(mock_product):
         assert draft_info["status"] == "draft_ready"
         assert draft_info["draft_type"] == "hyperframes"
         assert draft_info["clip_id"] == test_slug
+        # Placeholder tone audio is flagged and render is not offered.
+        assert draft_info["audio_placeholder"] is True
+        assert draft_info["render_supported"] is False
+        # No machine-local preview URL is persisted anywhere.
+        assert not draft_info.get("preview_url")
+        assert "localhost" not in json.dumps(updated, ensure_ascii=False)
 
         # Check files on disk
         index_file = created_clip_dir / "index.html"
@@ -148,6 +154,9 @@ def test_copilot_build_hyperframes_draft(mock_product):
         assert matched_angle is not None
         assert matched_angle["status"] == "in_production"
         assert matched_angle["draft_type"] == "hyperframes"
+        assert "video_preview_url" not in matched_angle
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+        assert meta["preview_url"] is None
 
     finally:
         # Cleanup test residue completely (Strict Rule #15)
@@ -155,6 +164,7 @@ def test_copilot_build_hyperframes_draft(mock_product):
             shutil.rmtree(created_clip_dir, ignore_errors=True)
         if created_assets_dir.exists():
             shutil.rmtree(created_assets_dir, ignore_errors=True)
+        (copilot_mod.COMPOSITIONS_DIR / f"{test_slug}.html").unlink(missing_ok=True)
 
 
 def test_api_copilot_endpoints(mock_product):
@@ -219,3 +229,58 @@ def test_api_copilot_endpoints(mock_product):
             shutil.rmtree(created_clip_dir, ignore_errors=True)
         if created_assets_dir.exists():
             shutil.rmtree(created_assets_dir, ignore_errors=True)
+        (copilot_mod.COMPOSITIONS_DIR / f"{test_slug}.html").unlink(missing_ok=True)
+
+
+def test_copilot_angles_and_script_never_mention_price(mock_product):
+    """mock_product has price_note "฿499": it must not leak into angles/script."""
+    session = CopilotEngine.create_session(product_id=mock_product["id"], channel_id="main")
+    assert "price_note" not in session
+    updated = CopilotEngine.generate_script(session_id=session["session_id"], channel_id="main")
+    blob = json.dumps(
+        {"angles": updated["suggested_angles"], "script": updated["script"]},
+        ensure_ascii=False,
+    )
+    for word in ("499", "฿", "ราคา", "บาท", "โปร", "ส่วนลด"):
+        assert word not in blob, word
+
+
+def test_api_copilot_render_is_refused_and_writes_nothing(mock_product, monkeypatch):
+    """1-Click render must refuse placeholder-audio drafts (rule 8 + rule 11)."""
+    import scripts.api_hyperframes as api_hf
+
+    def _must_not_render(*args, **kwargs):
+        raise AssertionError("render_composition must not be called for Co-Pilot drafts")
+
+    monkeypatch.setattr(api_hf, "render_composition", _must_not_render)
+
+    client = TestClient(app)
+    headers = {"X-OmniCut-Channel": "main"}
+    session = CopilotEngine.create_session(product_id=mock_product["id"], channel_id="main")
+    s_id = session["session_id"]
+    test_slug = f"render-refuse-{os.urandom(3).hex()}"
+    created_clip_dir = copilot_mod.CLIPS_DIR / test_slug
+    created_assets_dir = copilot_mod.STUDIO_DIR / "assets" / "clips" / test_slug
+    ready_dir = BASE_DIR / "04_Exports" / "Ready_to_post"
+    before = set(ready_dir.glob("*.mp4")) if ready_dir.exists() else set()
+
+    try:
+        CopilotEngine.build_hyperframes_draft(
+            session_id=s_id, clip_slug=test_slug, channel_id="main", dry_run_audio=True
+        )
+        resp = client.post(f"/api/copilot/sessions/{s_id}/render", headers=headers)
+        assert resp.status_code == 409, resp.text
+        assert resp.json()["detail"] == copilot_mod.COPILOT_RENDER_UNSUPPORTED_MSG
+
+        after_session = CopilotEngine.get_session(s_id, channel_id="main")
+        assert after_session["draft_info"]["status"] == "draft_ready"
+        assert "render_result" not in after_session
+        after = set(ready_dir.glob("*.mp4")) if ready_dir.exists() else set()
+        assert after == before
+
+        missing = client.post("/api/copilot/sessions/copilot-missing/render", headers=headers)
+        assert missing.status_code == 404
+    finally:
+        shutil.rmtree(created_clip_dir, ignore_errors=True)
+        shutil.rmtree(created_assets_dir, ignore_errors=True)
+        (copilot_mod.COMPOSITIONS_DIR / f"{test_slug}.html").unlink(missing_ok=True)

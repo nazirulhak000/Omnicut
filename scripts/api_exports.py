@@ -612,7 +612,6 @@ def list_exports(scope: ChannelScope = Depends(get_channel_scope)):
         if matched_prod:
             info["product_id"] = matched_prod.get("id")
             info["product_name"] = matched_prod.get("name")
-            info["price_deal"] = matched_prod.get("price_note")
             info["tiktok_product_id"] = (
                 matched_prod.get("tiktok_product_id")
                 or matched_prod.get("name", "")

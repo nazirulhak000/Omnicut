@@ -23,7 +23,13 @@ import {
   Search,
   FileVideo,
   Check,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle,
+  Package,
+  Paperclip,
+  Film,
+  Lightbulb,
+  FolderOpen
 } from 'lucide-react';
 import {
   fetchMobileCatalog,
@@ -36,11 +42,16 @@ import {
   previewMobileVoice,
   cancelMobileTask,
   getRecordingSession,
-  markPosted
+  markPosted,
+  getActiveTasks
 } from '../api';
 import { ConfirmModal } from './ui';
-import { MOBILE_WORKFLOW_KEY, catalogPageParams, filmingUrl, mergeCatalogPage, pollMobileTask, progressPercent } from '../lib/mobileStudioFlow.js';
+import {
+  MOBILE_WORKFLOW_KEY, angleVideoUrl, catalogPageParams, filmingUrl, findResumableMobileTask, footageKey,
+  isAlreadyPostedError, isAnglePosted, isNoResponseError, mergeCatalogPage, pollMobileTask, progressPercent
+} from '../lib/mobileStudioFlow.js';
 import useWakeLock from '../hooks/useWakeLock';
+import { useBackToClose } from '../hooks/useBackToClose';
 
 export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSession }) {
   const [workspaceStorage] = useState(channelSessionStorage);
@@ -72,12 +83,18 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
   const [customScriptInput, setCustomScriptInput] = useState('');
   const [creatingAngle, setCreatingAngle] = useState(false);
 
-  // Mobile Video Upload
-  const [uploadedVideoPath, setUploadedVideoPath] = useState(null);
-  const [uploadedVideoName, setUploadedVideoName] = useState('');
+  // Mobile Video Upload -- footage belongs to ONE product+angle pair
+  // ({ key: `${productId}:${angleId}`, path, name }); switching angle drops it
+  // so a clip filmed for angle A can never be rendered under angle B.
+  const [uploadedFootage, setUploadedFootage] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
   const fileInputRef = useRef(null);
+  // Errors raised while a bottom sheet is open are shown INSIDE the sheet
+  // (the page-top banner sits behind the sheet on a phone).
+  const [sheetError, setSheetError] = useState(null);
+  const [resumableTask, setResumableTask] = useState(null);
 
   // Audio Preview & BGM
   const [previewingVoice, setPreviewingVoice] = useState(false);
@@ -106,12 +123,33 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
   const [cancelling, setCancelling] = useState(false);
   const [markingPosted, setMarkingPosted] = useState(false);
   const [postedDone, setPostedDone] = useState(false);
+  const [showPostConfirm, setShowPostConfirm] = useState(false);
+  // Set when a mark-posted request got no reply: a 404 on the retry then means
+  // the first request already moved the file into Posted/.
+  const postAttemptLostRef = useRef(false);
+
+  const selectedAngleId = selectedAngle?.angle_id || selectedAngle?.id || null;
+  const currentFootageKey = footageKey(selectedProduct?.id, selectedAngleId);
+  const uploadedVideoPath = uploadedFootage && uploadedFootage.key === currentFootageKey ? uploadedFootage.path : null;
+  const uploadedVideoName = uploadedVideoPath ? uploadedFootage.name : '';
+  const selectedAnglePosted = isAnglePosted(selectedAngle);
+
+  useEffect(() => {
+    setUploadedFootage(prev => (prev && prev.key !== currentFootageKey ? null : prev));
+    setUploadError(null);
+  }, [currentFootageKey]);
 
   // P2-3: keep the screen awake while the SOP render runs, otherwise the phone
   // sleeps mid-render and polling stalls.
-  useWakeLock(step === 3 && Boolean(taskId) && !renderResult);
+  useWakeLock((step === 3 && Boolean(taskId) && !renderResult) || isUploading);
 
   const stopPolling = () => { pollIntervalRef.current?.(); pollIntervalRef.current = null; };
+
+  // Phone Back gesture closes the open sheet / leaves step 2, instead of
+  // leaving the app. Step 3 (render running) and 4 (result) keep their screen.
+  useBackToClose(showAddProductModal, () => { setShowAddProductModal(false); setNewProductInput(''); setSheetError(null); });
+  useBackToClose(showCustomAngleModal, () => { setShowCustomAngleModal(false); setCustomHookInput(''); setCustomScriptInput(''); setSheetError(null); });
+  useBackToClose(step === 2 && !showAddProductModal && !showCustomAngleModal, () => { setUploadError(null); setStep(1); });
 
   // Load Catalog on mount
   useEffect(() => {
@@ -181,26 +219,68 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
       const currentAid = angle?.angle_id || angle?.id;
       workflowRef.current = { productId: prod?.id, angleId: currentAid, sessionId: restoredSession };
 
+      const restoredTask = params.get('task') || saved?.taskId;
+      let resumed = false;
       if (prod?.id === productId && currentAid === angleId) {
         if (saved?.renderResult) {
           setRenderResult(saved.renderResult);
           setStep(4);
-        } else if (saved?.taskId) {
-          setTaskId(saved.taskId);
+          resumed = true;
+        } else if (restoredTask) {
+          setTaskId(restoredTask);
           setStep(3);
-          startPolling(saved.taskId);
+          startPolling(restoredTask);
+          resumed = true;
         } else if (restoredSession) {
           setSessionId(restoredSession);
           setStep(2);
           refreshSessionFootage(restoredSession);
+          resumed = true;
         }
       }
+      if (!resumed) rediscoverRunningRender(items, productId, angleId, version);
     } catch (err) {
       console.error('[MobileQuickStudio] load error:', err);
       if (mountedRef.current && version === catalogVersionRef.current) setError('ไม่สามารถโหลดรายการสินค้าได้ กรุณาตรวจสอบการเชื่อมต่อ');
     } finally {
       if (mountedRef.current && version === catalogVersionRef.current) setLoading(false);
     }
+  };
+
+  // iOS drops sessionStorage/URL when Safari evicts the tab: ask the server
+  // which mobile render is still running and reattach to it (remembered
+  // product+angle -> resume directly; otherwise offer a banner).
+  const rediscoverRunningRender = async (items, productId, angleId, version) => {
+    try {
+      const res = await getActiveTasks();
+      if (!mountedRef.current || version !== catalogVersionRef.current) return;
+      const tasks = res?.tasks || [];
+      const exact = (productId || angleId) ? findResumableMobileTask(tasks, { productId, angleId }) : null;
+      const any = exact || findResumableMobileTask(tasks);
+      if (!any) return;
+      if (exact) {
+        attachToTask(exact, items);
+      } else {
+        setResumableTask(any);
+      }
+    } catch { /* best-effort: task list unavailable keeps the normal step 1 */ }
+  };
+
+  const attachToTask = (task, items = catalog) => {
+    const pid = task?.payload?.product_id;
+    const aid = task?.payload?.angle_id;
+    const prod = items.find(p => p.id === pid);
+    const angle = prod?.angles?.find(a => (a.angle_id || a.id) === aid);
+    if (prod) setSelectedProduct(prod);
+    if (angle) setSelectedAngle(angle);
+    workflowRef.current = { productId: pid, angleId: aid, sessionId: task?.payload?.session_id || null, taskId: task.id };
+    if (task?.payload?.session_id) setSessionId(task.payload.session_id);
+    setResumableTask(null);
+    setRenderResult(null);
+    setTaskId(task.id);
+    setStep(3);
+    syncWorkflowUrl(pid, aid, task?.payload?.session_id || null, task.id);
+    startPolling(task.id);
   };
 
   // P2-4: append the next catalog page without dropping the current selection.
@@ -232,8 +312,8 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
     setSessionId(null);
     setSessionData(null);
     setSelectedProduct(prod);
-    setUploadedVideoPath(null);
-    setUploadedVideoName('');
+    setUploadedFootage(null);
+    setSessionFootageReady(false);
     if (prod.angles && prod.angles.length > 0) {
       setSelectedAngle(prod.angles[0]);
     } else {
@@ -241,8 +321,22 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
     }
   };
 
+  const handleSelectAngle = (ang) => {
+    if ((ang?.angle_id || ang?.id) !== selectedAngleId) {
+      setSessionId(null);
+      setSessionData(null);
+      setSessionFootageReady(false);
+      setUploadedFootage(null);
+    }
+    setSelectedAngle(ang);
+  };
+
   const handleConfirmStep1 = async () => {
     if (!selectedProduct) return;
+    if (selectedAnglePosted) {
+      setError('มุมนี้โพสต์แล้ว เลือกมุมอื่นหรือเพิ่มมุมใหม่ก่อนทำคลิป');
+      return;
+    }
     try {
       setConfirming(true);
       setError(null);
@@ -273,12 +367,17 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
 
   const handleCreateQuickAngle = async (customTitle = null, customScript = null) => {
     if (!selectedProduct) return;
+    const fromSheet = Boolean(customTitle);
+    let angleCreated = false;
     try {
       setCreatingAngle(true);
       setError(null);
+      setSheetError(null);
       const res = await createMobileQuickAngle(selectedProduct.id, customTitle, customScript);
       if (res?.angle) {
+        angleCreated = true;
         setSelectedAngle(res.angle);
+        setUploadedFootage(null);
         setShowCustomAngleModal(false);
         setCustomHookInput('');
         setCustomScriptInput('');
@@ -293,7 +392,10 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
       }
     } catch (err) {
       console.error('[handleCreateQuickAngle] error:', err);
-      setError(err?.response?.data?.detail || 'ไม่สามารถสร้างมุมนำเสนอได้');
+      const message = err?.response?.data?.detail || (angleCreated ? 'สร้างมุมแล้ว แต่เปิดเซสชันถ่ายทำไม่สำเร็จ กดยืนยันสคริปต์อีกครั้ง' : 'ไม่สามารถสร้างมุมนำเสนอได้');
+      // Once the angle exists the sheet is closed; retrying in the sheet would
+      // create a duplicate angle, so that case goes to the page banner.
+      if (fromSheet && !angleCreated) setSheetError(message); else setError(message);
     } finally {
       setCreatingAngle(false);
     }
@@ -304,6 +406,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
     try {
       setAddingProduct(true);
       setError(null);
+      setSheetError(null);
       const res = await quickAddMobileProduct(newProductInput.trim());
       if (res?.product) {
         setShowAddProductModal(false);
@@ -316,32 +419,38 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
       }
     } catch (err) {
       console.error('[handleQuickAddProduct] error:', err);
-      setError(err?.response?.data?.detail || 'ไม่สามารถเพิ่มสินค้าได้');
+      setSheetError(err?.response?.data?.detail || 'ไม่สามารถเพิ่มสินค้าได้');
     } finally {
       setAddingProduct(false);
     }
   };
 
   const handleUploadMobileVideo = async (e) => {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file || !selectedProduct) return;
+    const targetAngleId = selectedAngle?.id || selectedAngle?.angle_id || 'quick_take';
+    const key = footageKey(selectedProduct.id, targetAngleId);
     try {
       setIsUploading(true);
       setUploadProgress(0);
-      setError(null);
-      const targetAngleId = selectedAngle?.id || selectedAngle?.angle_id || 'quick_take';
+      setUploadError(null);
       const res = await uploadMobileVideo(selectedProduct.id, targetAngleId, file, (pct) => {
         setUploadProgress(pct);
       });
-      if (res?.success) {
-        setUploadedVideoPath(res.video_path);
-        setUploadedVideoName(file.name);
+      if (!mountedRef.current) return;
+      if (res?.success && res.video_path) {
+        setUploadedFootage({ key, path: res.video_path, name: file.name });
+      } else {
+        setUploadError('เซิร์ฟเวอร์ไม่ยืนยันไฟล์ที่อัปโหลด กรุณาลองอีกครั้ง');
       }
     } catch (err) {
       console.error('[handleUploadMobileVideo] error:', err);
-      setError(err?.response?.data?.detail || 'อัปโหลดคลิปจากมือถือไม่สำเร็จ');
+      if (mountedRef.current) setUploadError(err?.response?.data?.detail || 'อัปโหลดคลิปจากมือถือไม่สำเร็จ');
     } finally {
-      setIsUploading(false);
+      // Reset so picking the SAME file again fires onChange (retry after a failure).
+      try { input.value = ''; } catch { /* some browsers lock the value */ }
+      if (mountedRef.current) setIsUploading(false);
     }
   };
 
@@ -378,13 +487,18 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
       ...extra
     };
     try { workspaceStorage.setItem(MOBILE_WORKFLOW_KEY, JSON.stringify(workflowRef.current)); } catch { /* storage may be disabled */ }
+    syncWorkflowUrl(pid, aid, workflowRef.current.sessionId, workflowRef.current.taskId);
+  };
 
+  // replaceState only -- history entries (pushState) belong to the app shell.
+  const syncWorkflowUrl = (pid, aid, sid, tid) => {
     try {
       const url = new URL(window.location.href);
       if (pid) url.searchParams.set('product', pid);
       if (aid) url.searchParams.set('angle', aid);
       if (sid) url.searchParams.set('mobile_session', sid);
-      window.history.replaceState(null, '', url);
+      if (tid) url.searchParams.set('task', tid); else url.searchParams.delete('task');
+      window.history.replaceState(window.history.state, '', url);
     } catch { /* URL sync best-effort */ }
   };
 
@@ -405,6 +519,10 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
   // Step 3: Trigger Auto-Assemble & Render
   const handleStartAssemble = async () => {
     if (!selectedProduct || !selectedAngle) return;
+    if (selectedAnglePosted) {
+      setError('มุมนี้โพสต์แล้ว ระบบไม่อนุญาตให้เรนเดอร์ทับ');
+      return;
+    }
     if (!hasFootage) {
       setError('ยังไม่มีคลิปวัตถุดิบ กรุณาถ่ายทำหรือแนบคลิปก่อนประกอบคลิป');
       return;
@@ -481,7 +599,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
         }
         if (t.status === 'failed' || t.status === 'cancelled') {
           setError(t.error || (t.status === 'cancelled' ? 'งานถูกยกเลิก' : 'การเรนเดอร์ไม่สำเร็จ'));
-          rememberWorkflow(sessionId);
+          rememberWorkflow(sessionId, null);
           setStep(2);
           return false;
         }
@@ -493,6 +611,58 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
       },
     });
   };
+
+  // iOS freezes timers while Safari is in the background; poll right away
+  // when the page is visible again instead of waiting for a stalled timer.
+  const resumePollRef = useRef(null);
+  resumePollRef.current = () => {
+    if (step === 3 && taskId && !renderResult) startPolling(taskId);
+  };
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') resumePollRef.current?.();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', onVisible);
+    };
+  }, []);
+
+  // Task notification "open result" in mobile mode (App re-broadcasts it as
+  // `omnicut:task-navigate`): jump to the render progress or the finished clip.
+  const taskNavigateRef = useRef(null);
+  taskNavigateRef.current = (detail) => {
+    const task = detail?.extra?.task;
+    if (!task || task.type !== 'mobile_auto_assemble_render') return;
+    if (task.status === 'queued' || task.status === 'processing') {
+      attachToTask(task);
+      return;
+    }
+    if (task.status === 'completed' && task.result?.video_url) {
+      const pid = task.payload?.product_id;
+      const aid = task.payload?.angle_id;
+      const prod = catalog.find(p => p.id === pid);
+      const angle = prod?.angles?.find(a => (a.angle_id || a.id) === aid);
+      if (prod) setSelectedProduct(prod);
+      if (angle) setSelectedAngle(angle);
+      stopPolling();
+      setResumableTask(null);
+      setTaskId(task.id);
+      setRenderResult(task.result);
+      setPostedDone(false);
+      setStep(4);
+      workflowRef.current = { productId: pid, angleId: aid, sessionId: task.payload?.session_id || null, taskId: task.id, renderResult: task.result };
+      try { workspaceStorage.setItem(MOBILE_WORKFLOW_KEY, JSON.stringify(workflowRef.current)); } catch { /* optional */ }
+      syncWorkflowUrl(pid, aid, task.payload?.session_id || null, task.id);
+    }
+  };
+  useEffect(() => {
+    const onNavigate = (e) => taskNavigateRef.current?.(e.detail);
+    window.addEventListener('omnicut:task-navigate', onNavigate);
+    return () => window.removeEventListener('omnicut:task-navigate', onNavigate);
+  }, []);
 
   // Web Share API Action
   const handleShareToTikTok = async () => {
@@ -553,24 +723,46 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
       setError('ไม่พบตำแหน่งไฟล์วิดีโอสำหรับมาร์คว่าโพสต์แล้ว');
       return;
     }
+    if (markingPosted || postedDone) return;
+    const aid = selectedAngle?.angle_id || selectedAngle?.id || null;
+    const markLocalPosted = () => {
+      const postedAt = new Date().toISOString();
+      const patch = (a) => ((a?.angle_id || a?.id) === aid ? { ...a, status: 'posted', posted_at: a.posted_at || postedAt } : a);
+      setSelectedAngle(prev => (prev ? patch(prev) : prev));
+      setCatalog(prev => prev.map(p => (p.id === selectedProduct?.id ? { ...p, angles: (p.angles || []).map(patch) } : p)));
+      setPostedDone(true);
+      setShowPostConfirm(false);
+    };
     try {
       setMarkingPosted(true);
-      const aid = selectedAngle?.angle_id || selectedAngle?.id || null;
+      setError(null);
       const eid = renderResult?.export_id || selectedAngle?.export_id || null;
       const res = await markPosted(filePath, selectedProduct?.id || null, aid, eid);
+      postAttemptLostRef.current = false;
       if (res?.status_warning) {
         setError(`บันทึกสถานะเรียบร้อย แต่มีคำเตือน: ${res.status_warning}`);
       }
-      setPostedDone(true);
+      markLocalPosted();
     } catch (err) {
-      setError(err?.response?.data?.detail || 'มาร์คว่าโพสต์แล้วไม่สำเร็จ');
+      if (isAlreadyPostedError(err, { previousAttemptLost: postAttemptLostRef.current })) {
+        postAttemptLostRef.current = false;
+        markLocalPosted();
+        return;
+      }
+      if (isNoResponseError(err)) {
+        postAttemptLostRef.current = true;
+        setError('การเชื่อมต่อหลุดระหว่างบันทึก ยังไม่แน่ใจว่าบันทึกแล้วหรือยัง กดยืนยันอีกครั้งเพื่อตรวจ');
+      } else {
+        setError(err?.response?.data?.detail || 'มาร์คว่าโพสต์แล้วไม่สำเร็จ');
+      }
+      setShowPostConfirm(false);
     } finally {
       setMarkingPosted(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-12">
+    <div className="min-h-dvh bg-slate-950 text-slate-100 flex flex-col font-sans pb-[calc(env(safe-area-inset-bottom)+3rem)]">
       {/* Mobile Top App Bar */}
       <header className="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-2">
@@ -592,7 +784,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
         {onSwitchToDesktop && (
           <button
             onClick={onSwitchToDesktop}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 border border-slate-700 transition-colors"
+            className="min-h-11 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 border border-slate-700 transition-colors"
           >
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
             <span className="hidden sm:inline">สลับไป</span>โหมดคอม
@@ -623,10 +815,22 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
       {/* Main Container */}
       <main className="flex-1 max-w-md mx-auto w-full px-4 py-4 flex flex-col">
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2 shadow-lg">
-            <span className="text-sm">⚠️</span>
-            <div className="flex-1">{error}</div>
-            <button onClick={() => setError(null)} className="text-rose-400 hover:text-white font-bold">✕</button>
+          <div role="alert" className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2 shadow-lg">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+            <div className="flex-1 pt-0.5">{error}</div>
+            <button type="button" onClick={() => setError(null)} aria-label="ปิดข้อความแจ้งเตือน" className="min-h-11 min-w-11 -m-2 flex items-center justify-center text-rose-400 hover:text-white">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {resumableTask && step === 1 && (
+          <div className="mb-4 p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-200 text-xs flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 shrink-0 animate-spin text-cyan-400" />
+            <div className="flex-1">มีงานประกอบคลิปที่ยังเรนเดอร์อยู่บนเซิร์ฟเวอร์</div>
+            <button type="button" onClick={() => attachToTask(resumableTask)} className="min-h-11 px-3 rounded-lg bg-cyan-500 text-slate-950 font-bold shrink-0">
+              ดูความคืบหน้า
+            </button>
           </div>
         )}
 
@@ -640,8 +844,8 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
               </div>
               <button
                 type="button"
-                onClick={() => setShowAddProductModal(true)}
-                className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-90 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/20 shrink-0 cursor-pointer"
+                onClick={() => { setSheetError(null); setShowAddProductModal(true); }}
+                className="min-h-11 py-1.5 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-90 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/20 shrink-0 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>เพิ่มสินค้า</span>
@@ -660,13 +864,13 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                 <button
                   type="button"
                   onClick={loadCatalog}
-                  className="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-cyan-300 text-xs font-bold cursor-pointer"
+                  className="min-h-11 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-cyan-300 text-xs font-bold cursor-pointer"
                 >
                   ลองโหลดใหม่
                 </button>
               </div>
             ) : (
-              <div className="space-y-3 flex-1 overflow-y-auto max-h-[60vh] pr-1">
+              <div className="space-y-3 flex-1 overflow-y-auto max-h-[60dvh] pr-1">
                 {catalog.map((prod, prodIdx) => {
                   const isSelected = selectedProduct?.id === prod.id;
                   const prodKey = prod.id || `prod_${prodIdx}`;
@@ -689,8 +893,8 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                             className="w-14 h-14 rounded-xl object-cover bg-slate-800 shrink-0"
                           />
                         ) : (
-                          <div className="w-14 h-14 rounded-xl bg-slate-800 flex items-center justify-center shrink-0 text-slate-500 font-bold">
-                            📦
+                          <div className="w-14 h-14 rounded-xl bg-slate-800 flex items-center justify-center shrink-0 text-slate-500">
+                            <Package className="w-6 h-6" aria-hidden="true" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
@@ -702,11 +906,6 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                             <span className="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-medium">
                               {prod.category}
                             </span>
-                            {prod.price && (
-                              <span className="text-xs font-semibold text-emerald-400">
-                                {prod.price}
-                              </span>
-                            )}
                             {prod.product_status === 'completed' && (
                               <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1">
                                 <CheckCircle2 className="w-3 h-3" /> ตัดเสร็จครบแล้ว ({prod.rendered_count}/{prod.total_angles || prod.angles?.length || 0})
@@ -737,9 +936,10 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setSheetError(null);
                                 setShowCustomAngleModal(true);
                               }}
-                              className="text-[11px] text-cyan-400 font-medium hover:text-cyan-300 flex items-center gap-1"
+                              className="min-h-11 px-2 -mr-2 text-[11px] text-cyan-400 font-medium hover:text-cyan-300 flex items-center gap-1"
                             >
                               <Plus className="w-3 h-3" />
                               <span>เพิ่มมุมใหม่</span>
@@ -749,15 +949,17 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                             {prod.angles.map((ang, angIdx) => {
                               const angKey = ang.id || `ang_${prodKey}_${angIdx}`;
                               const isAngActive = selectedAngle?.id === ang.id;
+                              const angVideoUrl = angleVideoUrl(ang);
+                              const angPosted = isAnglePosted(ang);
                               return (
+                                <div key={angKey} className="space-y-1">
                                 <button
-                                  key={angKey}
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setSelectedAngle(ang);
+                                    handleSelectAngle(ang);
                                   }}
-                                  className={`text-left p-2.5 rounded-xl border transition-all text-xs ${
+                                  className={`w-full min-h-11 text-left p-2.5 rounded-xl border transition-all text-xs ${
                                     isAngActive
                                       ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-300 font-medium'
                                       : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:border-slate-700'
@@ -766,7 +968,11 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                                   <div className="flex items-start justify-between gap-2">
                                     <span className="font-bold flex-1 leading-snug">{ang.hook_headline}</span>
                                     <div className="flex items-center gap-1.5 shrink-0">
-                                      {ang.is_rendered ? (
+                                      {angPosted ? (
+                                        <span className="text-[10px] px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 border border-violet-500/40 font-bold flex items-center gap-1">
+                                          <Check className="w-3 h-3" /> โพสต์แล้ว
+                                        </span>
+                                      ) : ang.is_rendered ? (
                                         <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold flex items-center gap-1">
                                           <CheckCircle2 className="w-3 h-3 text-emerald-400" /> ตัดแล้ว
                                         </span>
@@ -787,19 +993,34 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                                     </div>
                                   </div>
                                   {ang.has_footage && ang.attached_raw_name && (
-                                    <div className="text-[10px] text-cyan-300/90 font-mono flex items-center gap-1 mt-1 truncate">
-                                      <span>📎 ไฟล์: {ang.attached_raw_name}</span>
+                                    <div className="text-[10px] text-cyan-300/90 font-mono flex items-center gap-1 mt-1 min-w-0">
+                                      <Paperclip className="w-3 h-3 shrink-0" aria-hidden="true" />
+                                      <span className="truncate">ไฟล์: {ang.attached_raw_name}</span>
                                     </div>
                                   )}
-                                  {ang.is_rendered && ang.video_url && (
-                                    <div className="text-[10px] text-emerald-300/90 font-mono flex items-center gap-1 mt-1 truncate">
-                                      <span>🎬 คลิปพร้อมโพสต์: {ang.video_url.split('/').pop()}</span>
+                                  {ang.is_rendered && angVideoUrl && (
+                                    <div className="text-[10px] text-emerald-300/90 font-mono flex items-center gap-1 mt-1 min-w-0">
+                                      <Film className="w-3 h-3 shrink-0" aria-hidden="true" />
+                                      <span className="truncate">{angPosted ? 'คลิปที่โพสต์แล้ว' : 'คลิปพร้อมโพสต์'}: {angVideoUrl.split('/').pop().split('?')[0]}</span>
                                     </div>
                                   )}
                                   <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
                                     {ang.script_preview}
                                   </p>
                                 </button>
+                                {angVideoUrl && (
+                                  <a
+                                    href={angVideoUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="min-h-11 px-3 rounded-xl bg-slate-950/60 border border-slate-800 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5"
+                                  >
+                                    <Play className="w-3.5 h-3.5" aria-hidden="true" />
+                                    <span>ดูคลิปที่ตัดแล้ว</span>
+                                  </a>
+                                )}
+                                </div>
                               );
                             })}
                           </div>
@@ -826,7 +1047,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                                 e.stopPropagation();
                                 handleCreateQuickAngle();
                               }}
-                              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20"
+                              className="w-full min-h-11 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20"
                             >
                               <Flame className="w-4 h-4 text-white" />
                               <span>ถ่ายด่วนฟรีสไตล์ (สร้างมุมอัตโนมัติ)</span>
@@ -836,9 +1057,10 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setSheetError(null);
                                 setShowCustomAngleModal(true);
                               }}
-                              className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-2"
+                              className="w-full min-h-11 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-2"
                             >
                               <Plus className="w-4 h-4 text-cyan-400" />
                               <span>เขียนมุม / สคริปต์พูดเอง</span>
@@ -854,7 +1076,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                     type="button"
                     onClick={loadMoreCatalog}
                     disabled={loadingMore}
-                    className="w-full py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-cyan-300 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full min-h-11 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-cyan-300 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {loadingMore && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
                     <span>
@@ -871,15 +1093,17 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
             {/* Bottom Floating Action: NEVER blocked */}
             <div className="pt-2 sticky bottom-[calc(env(safe-area-inset-bottom)+1rem)]">
               <button
-                disabled={!selectedProduct || confirming || creatingAngle}
+                disabled={!selectedProduct || confirming || creatingAngle || selectedAnglePosted}
                 onClick={handleConfirmStep1}
                 className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
               >
                 {confirming && <RefreshCw className="w-4 h-4 animate-spin" />}
                 <span>
-                  {!selectedAngle
-                    ? 'ถ่ายด่วนฟรีสไตล์ (ไปหน้าถ่ายทำ)'
-                    : 'ยืนยันสคริปต์ & ไปหน้าถ่ายทำ'}
+                  {selectedAnglePosted
+                    ? 'มุมนี้โพสต์แล้ว เลือกมุมอื่น'
+                    : !selectedAngle
+                      ? 'ถ่ายด่วนฟรีสไตล์ (ไปหน้าถ่ายทำ)'
+                      : 'ยืนยันสคริปต์ & ไปหน้าถ่ายทำ'}
                 </span>
                 {!confirming && <ChevronRight className="w-4 h-4" />}
               </button>
@@ -896,9 +1120,11 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                 <p className="text-xs text-slate-400">{selectedProduct?.name} • {selectedAngle?.hook_headline || 'รีวิวทั่วไป'}</p>
               </div>
               <button
-                onClick={() => setStep(1)}
-                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
+                type="button"
+                onClick={() => { setUploadError(null); setStep(1); }}
+                className="min-h-11 min-w-11 flex items-center justify-center rounded-lg bg-slate-800 text-slate-400 hover:text-white"
                 title="ย้อนกลับ"
+                aria-label="ย้อนกลับไปเลือกสินค้า"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
@@ -921,7 +1147,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
             </div>
 
             {/* Footage Status Notice */}
-            {(selectedAngle?.attached_raw || uploadedVideoPath) ? (
+            {hasFootage ? (
               <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 text-xs space-y-1.5 shadow-md">
                 <div className="flex items-center justify-between">
                   <span className="font-bold flex items-center gap-1.5 text-emerald-400">
@@ -934,11 +1160,12 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                 </div>
                 <p className="text-[11px] text-slate-300">
                   ไฟล์วัตถุดิบ: <span className="font-mono text-cyan-300 font-medium">
-                    {uploadedVideoName || selectedAngle.attached_raw_name || selectedAngle.attached_raw.split(/[\\/]/).pop()}
+                    {uploadedVideoName || selectedAngle?.attached_raw_name || selectedAngle?.attached_raw?.split(/[\\/]/).pop() || 'คลิปจากการถ่ายสด (Guided Take)'}
                   </span>
                 </p>
-                <p className="text-[10px] text-emerald-400/90 leading-tight">
-                  💡 มีคลิปวัตถุดิบอยู่แล้ว คุณสามารถกดปุ่ม <span className="font-bold text-white">"ประกอบคลิปและเรนเดอร์"</span> ด้านล่างได้ทันที หรือเลือกถ่ายใหม่/แนบไฟล์ใหม่ด้านล่างเพื่อแทนที่
+                <p className="text-[10px] text-emerald-400/90 leading-tight flex items-start gap-1">
+                  <Lightbulb className="w-3 h-3 shrink-0 mt-px" aria-hidden="true" />
+                  <span>มีคลิปวัตถุดิบอยู่แล้ว คุณสามารถกดปุ่ม <span className="font-bold text-white">"ประกอบคลิปและเรนเดอร์"</span> ด้านล่างได้ทันที หรือเลือกถ่ายใหม่/แนบไฟล์ใหม่ด้านล่างเพื่อแทนที่</span>
                 </p>
               </div>
             ) : (
@@ -956,8 +1183,8 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
               {/* Option A: Open Camera Teleprompter */}
               <div className="p-4 rounded-2xl bg-slate-900/90 border border-cyan-500/30 text-center space-y-2.5 shadow-lg">
                 <div className="flex items-center gap-3 text-left">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-lg shrink-0">
-                    📹
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+                    <Video className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <div>
                     <h3 className="font-bold text-xs text-white">ถ่ายสดหน้ากล้อง (Teleprompter)</h3>
@@ -967,7 +1194,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                 <button
                   type="button"
                   onClick={handleOpenFilming}
-                  className="w-full py-2.5 px-3 rounded-xl font-bold text-xs bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-cyan-500/20 flex items-center justify-center gap-2 cursor-pointer transition-transform active:scale-[0.98]"
+                  className="w-full min-h-11 py-2.5 px-3 rounded-xl font-bold text-xs bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-cyan-500/20 flex items-center justify-center gap-2 cursor-pointer transition-transform active:scale-[0.98]"
                 >
                   <Video className="w-3.5 h-3.5" />
                   <span>กดเปิดกล้องถ่ายทำ (Guided Take)</span>
@@ -977,8 +1204,8 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
               {/* Option B: Direct Mobile Camera Roll Upload */}
               <div className="p-4 rounded-2xl bg-slate-900/90 border border-indigo-500/30 space-y-2.5 shadow-lg">
                 <div className="flex items-center gap-3 text-left">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-lg shrink-0">
-                    📁
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+                    <FolderOpen className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-xs text-white">แนบคลิปจากมือถือ (Camera Roll / Files)</h3>
@@ -1002,8 +1229,9 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                     </span>
                     <button
                       type="button"
+                      disabled={isUploading}
                       onClick={() => fileInputRef.current?.click()}
-                      className="text-[11px] underline text-emerald-400 hover:text-white shrink-0 ml-2 font-semibold"
+                      className="min-h-11 px-2 -my-2 text-[11px] underline text-emerald-400 hover:text-white shrink-0 ml-2 font-semibold"
                     >
                       เปลี่ยนคลิป
                     </button>
@@ -1013,7 +1241,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                     type="button"
                     disabled={isUploading}
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/30 flex items-center justify-center gap-2 cursor-pointer transition-transform active:scale-[0.98]"
+                    className="w-full min-h-11 py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/30 flex items-center justify-center gap-2 cursor-pointer transition-transform active:scale-[0.98] disabled:opacity-70"
                   >
                     {isUploading ? (
                       <>
@@ -1027,6 +1255,19 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                       </>
                     )}
                   </button>
+                )}
+                {uploadError && !isUploading && (
+                  <div role="alert" className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                    <span className="flex-1">{uploadError}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setUploadError(null); fileInputRef.current?.click(); }}
+                      className="min-h-11 px-3 rounded-lg bg-rose-500/20 text-rose-200 font-bold shrink-0"
+                    >
+                      ลองอีกครั้ง
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -1042,7 +1283,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                   type="button"
                   onClick={handlePreviewVoice}
                   disabled={previewingVoice}
-                  className="px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[11px] font-medium hover:bg-cyan-500/20 flex items-center gap-1 cursor-pointer"
+                  className="min-h-11 px-3 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[11px] font-medium hover:bg-cyan-500/20 flex items-center gap-1 cursor-pointer"
                 >
                   {previewingVoice ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
                   <span>{previewingVoice ? 'กำลังสร้างเสียง...' : 'ฟังตัวอย่างเสียง'}</span>
@@ -1053,7 +1294,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                   <Music className="w-3.5 h-3.5 text-amber-400" />
                   ดนตรี BGM ไอทีคึกคัก (0.14)
                 </span>
-                <label className="relative inline-flex items-center cursor-pointer">
+                <label className="relative inline-flex items-center justify-end min-h-11 min-w-11 cursor-pointer" aria-label="เปิดหรือปิดดนตรี BGM">
                   <input
                     type="checkbox"
                     checked={bgmEnabled}
@@ -1068,15 +1309,19 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
             {/* Big Action: Proceed to Auto-Assemble */}
             <div className="pt-2 sticky bottom-[calc(env(safe-area-inset-bottom)+1rem)] space-y-2">
               <button
-                disabled={!hasFootage}
+                disabled={!hasFootage || selectedAnglePosted || isUploading}
                 onClick={handleStartAssemble}
-                title={hasFootage ? undefined : 'ต้องถ่ายทำหรือแนบคลิปก่อน'}
+                title={selectedAnglePosted ? 'มุมนี้โพสต์แล้ว' : hasFootage ? undefined : 'ต้องถ่ายทำหรือแนบคลิปก่อน'}
                 className="w-full py-4 px-4 rounded-2xl font-extrabold text-base bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 disabled:shadow-none"
               >
                 <Sparkles className="w-5 h-5 text-slate-950 fill-slate-950" />
                 <span>ประกอบคลิปและเรนเดอร์</span>
               </button>
-              {hasFootage ? (
+              {selectedAnglePosted ? (
+                <p className="text-[11px] text-center text-violet-300">
+                  มุมนี้โพสต์บน TikTok แล้ว ระบบไม่เรนเดอร์ทับ กลับไปเลือกมุมอื่น
+                </p>
+              ) : hasFootage ? (
                 <p className="text-[11px] text-center text-slate-400">
                   AI จะประกอบคลิป + ซับ Mali-Bold + สเปกสีส้ม + เสียง Fenrir ให้อัตโนมัติ
                 </p>
@@ -1086,7 +1331,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                   <button
                     type="button"
                     onClick={() => refreshSessionFootage(sessionId)}
-                    className="underline font-semibold text-amber-200 cursor-pointer"
+                    className="inline-flex items-center min-h-11 px-1 underline font-semibold text-amber-200 cursor-pointer"
                   >
                     ตรวจสอบคลิปอีกครั้ง
                   </button>
@@ -1116,7 +1361,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
             </div>
 
             {pollPaused && (
-              <button onClick={() => startPolling(taskId)} className="px-4 py-3 rounded-xl bg-cyan-500 text-slate-950 font-bold">ตรวจสถานะอีกครั้ง</button>
+              <button type="button" onClick={() => startPolling(taskId)} className="min-h-11 px-4 py-3 rounded-xl bg-cyan-500 text-slate-950 font-bold">ตรวจสถานะอีกครั้ง</button>
             )}
 
             {/* SOP Specifications Active */}
@@ -1142,7 +1387,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
               <button
                 type="button"
                 onClick={() => setShowCancelConfirm(true)}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 border border-rose-500/30 text-rose-300 font-semibold text-xs hover:bg-rose-500/10 cursor-pointer"
+                className="min-h-11 px-4 py-2.5 rounded-xl bg-slate-900 border border-rose-500/30 text-rose-300 font-semibold text-xs hover:bg-rose-500/10 cursor-pointer"
               >
                 ยกเลิกการเรนเดอร์
               </button>
@@ -1165,7 +1410,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
 
             {/* Video Player */}
             {renderResult?.video_url ? (
-              <div className="w-full aspect-[9/16] max-h-[48vh] rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-2xl relative">
+              <div className="w-full aspect-[9/16] max-h-[48dvh] rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-2xl relative">
                 <video
                   src={renderResult.video_url}
                   controls
@@ -1174,7 +1419,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                 />
               </div>
             ) : (
-              <div className="w-full aspect-[9/16] max-h-[40vh] rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 text-xs">
+              <div className="w-full aspect-[9/16] max-h-[40dvh] rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 text-xs">
                 ไม่พบไฟล์วิดีโอ
               </div>
             )}
@@ -1208,9 +1453,9 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                           download={`cover_9x16_${renderResult?.project_name || 'video'}.jpg`}
                           target="_blank"
                           rel="noreferrer"
-                          className="py-0.5 px-1.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-bold flex items-center gap-1"
+                          className="min-h-11 px-3 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center gap-1"
                         >
-                          <Download className="w-2.5 h-2.5" /> โหลด
+                          <Download className="w-3.5 h-3.5" /> โหลด
                         </a>
                       </div>
                     </div>
@@ -1233,9 +1478,9 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                           download={`cover_3x4_${renderResult?.project_name || 'video'}.jpg`}
                           target="_blank"
                           rel="noreferrer"
-                          className="py-0.5 px-1.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-bold flex items-center gap-1"
+                          className="min-h-11 px-3 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center gap-1"
                         >
-                          <Download className="w-2.5 h-2.5" /> โหลด
+                          <Download className="w-3.5 h-3.5" /> โหลด
                         </a>
                       </div>
                     </div>
@@ -1258,8 +1503,8 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
               </button>
 
               {copiedCaption && (
-                <p className="text-[11px] text-center text-emerald-400 font-semibold animate-bounce">
-                  ✓ คัดลอกแคปชันและแฮชแท็กให้เรียบร้อยแล้ว!
+                <p role="status" className="text-[11px] text-center text-emerald-400 font-semibold flex items-center justify-center gap-1">
+                  <Check className="w-3.5 h-3.5" aria-hidden="true" /> คัดลอกแคปชันและแฮชแท็กให้เรียบร้อยแล้ว
                 </p>
               )}
 
@@ -1268,7 +1513,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                   <a
                     href={renderResult.video_url}
                     download
-                    className="flex-1 py-3 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                    className="flex-1 min-h-11 py-3 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <Download className="w-4 h-4 text-cyan-400" />
                     <span>เซฟลงอัลบั้ม</span>
@@ -1278,17 +1523,24 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                   onClick={() => {
                     stopPolling();
                     try { workspaceStorage.removeItem(MOBILE_WORKFLOW_KEY); } catch { /* optional session memory */ }
-                    const url = new URL(window.location.href);
-                    ['mobile_session', 'product', 'angle'].forEach(key => url.searchParams.delete(key));
-                    window.history.replaceState(null, '', url);
+                    try {
+                      const url = new URL(window.location.href);
+                      ['mobile_session', 'product', 'angle', 'task'].forEach(key => url.searchParams.delete(key));
+                      window.history.replaceState(window.history.state, '', url);
+                    } catch { /* URL sync best-effort */ }
+                    workflowRef.current = null;
                     setStep(1);
                     setSessionId(null);
                     setSessionData(null);
+                    setSessionFootageReady(false);
+                    setUploadedFootage(null);
+                    setUploadError(null);
                     setTaskId(null);
                     setRenderResult(null);
                     setPostedDone(false);
+                    postAttemptLostRef.current = false;
                   }}
-                  className="flex-1 py-3 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                  className="flex-1 min-h-11 py-3 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <RefreshCw className="w-4 h-4 text-emerald-400" />
                   <span>เริ่มทำคลิปใหม่</span>
@@ -1297,12 +1549,12 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
 
               <button
                 type="button"
-                disabled={markingPosted || postedDone || !renderResult?.video_path}
-                onClick={handleMarkPosted}
-                className="w-full py-3 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={markingPosted || postedDone || selectedAnglePosted || !renderResult?.video_path}
+                onClick={() => setShowPostConfirm(true)}
+                className="w-full min-h-11 py-3 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>{postedDone ? 'มาร์คว่าโพสต์แล้วเรียบร้อย' : 'มาร์คว่าโพสต์แล้ว'}</span>
+                <span>{markingPosted ? 'กำลังบันทึก...' : (postedDone || selectedAnglePosted) ? 'บันทึกว่าโพสต์แล้วเรียบร้อย' : 'มาร์คว่าโพสต์แล้ว'}</span>
               </button>
             </div>
           </div>
@@ -1326,10 +1578,24 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
         variant="warning"
       />
 
+      {/* P1-3: confirm the clip is really live before flipping it to posted */}
+      <ConfirmModal
+        isOpen={showPostConfirm}
+        onClose={() => { if (!markingPosted) setShowPostConfirm(false); }}
+        onConfirm={handleMarkPosted}
+        title="ยืนยันว่าโพสต์บน TikTok แล้ว"
+        description="ระบบจะย้ายคลิปเข้าโฟลเดอร์ Posted และเปลี่ยนสถานะมุมนี้เป็นโพสต์แล้ว กดเฉพาะเมื่อคลิปขึ้นบน TikTok จริง"
+        dangerNote={null}
+        confirmText="ยืนยันว่าโพสต์แล้ว"
+        cancelText="ยังไม่ได้โพสต์"
+        loading={markingPosted}
+        variant="info"
+      />
+
       {/* Modal: Quick Add Product */}
       {showAddProductModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl relative space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:p-4 animate-in fade-in duration-200">
+          <div role="dialog" aria-modal="true" className="w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl relative space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
@@ -1341,8 +1607,10 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                 </div>
               </div>
               <button
-                onClick={() => { setShowAddProductModal(false); setNewProductInput(''); }}
-                className="p-1.5 rounded-xl bg-slate-800/60 text-slate-400 hover:text-slate-200"
+                type="button"
+                aria-label="ปิด"
+                onClick={() => { setShowAddProductModal(false); setNewProductInput(''); setSheetError(null); }}
+                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-slate-800/60 text-slate-400 hover:text-slate-200"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1356,16 +1624,31 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                 rows={3}
                 value={newProductInput}
                 onChange={(e) => setNewProductInput(e.target.value)}
-                placeholder="เช่น หูฟังบลูทูธ Baseus Bowie M2 หรือวางลิงก์ https://vt.tiktok.com/..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors resize-none"
+                placeholder="เช่น หูฟัง Bluetooth Baseus Bowie M2 หรือวางลิงก์ https://vt.tiktok.com/"
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-base sm:text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors resize-none"
               />
             </div>
+
+            {sheetError && (
+              <div role="alert" className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span className="flex-1">{sheetError}</span>
+                <button
+                  type="button"
+                  disabled={addingProduct || !newProductInput.trim()}
+                  onClick={handleQuickAddProduct}
+                  className="min-h-11 px-3 rounded-lg bg-rose-500/20 text-rose-200 font-bold shrink-0 disabled:opacity-50"
+                >
+                  ลองอีกครั้ง
+                </button>
+              </div>
+            )}
 
             <div className="flex gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => { setShowAddProductModal(false); setNewProductInput(''); }}
-                className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+                onClick={() => { setShowAddProductModal(false); setNewProductInput(''); setSheetError(null); }}
+                className="flex-1 min-h-11 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
               >
                 ยกเลิก
               </button>
@@ -1373,7 +1656,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                 type="button"
                 disabled={!newProductInput.trim() || addingProduct}
                 onClick={handleQuickAddProduct}
-                className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-1.5"
+                className="flex-1 min-h-11 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-1.5"
               >
                 {addingProduct ? (
                   <>
@@ -1394,8 +1677,8 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
 
       {/* Modal: Custom Angle & Script */}
       {showCustomAngleModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl relative space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:p-4 animate-in fade-in duration-200">
+          <div role="dialog" aria-modal="true" className="w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl relative space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
@@ -1407,8 +1690,10 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                 </div>
               </div>
               <button
-                onClick={() => { setShowCustomAngleModal(false); setCustomHookInput(''); setCustomScriptInput(''); }}
-                className="p-1.5 rounded-xl bg-slate-800/60 text-slate-400 hover:text-slate-200"
+                type="button"
+                aria-label="ปิด"
+                onClick={() => { setShowCustomAngleModal(false); setCustomHookInput(''); setCustomScriptInput(''); setSheetError(null); }}
+                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-slate-800/60 text-slate-400 hover:text-slate-200"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1423,8 +1708,8 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                   type="text"
                   value={customHookInput}
                   onChange={(e) => setCustomHookInput(e.target.value)}
-                  placeholder="เช่น หูฟังตัดเสียงรบกวน 45dB ราคาหลักร้อย"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
+                  placeholder="เช่น หูฟังตัดเสียงรบกวน 45dB ใส่สบายทั้งวัน"
+                  className="w-full min-h-11 bg-slate-950 border border-slate-800 rounded-2xl px-3.5 py-2.5 text-base sm:text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
                 />
               </div>
 
@@ -1436,17 +1721,32 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                   rows={4}
                   value={customScriptInput}
                   onChange={(e) => setCustomScriptInput(e.target.value)}
-                  placeholder="เช่น เบื่อไหมเสียงรอบข้างกวนใจเวลาทำงาน ตัวนี้ตัดเสียงเงียบกริบ แบตอึด 40 ชม. เบสนุ่มลึกเกินราคา กดที่ตะกร้าด่วน!"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors resize-none leading-relaxed"
+                  placeholder="เช่น เบื่อไหมเสียงรอบข้างกวนใจเวลาทำงาน ตัวนี้ตัดเสียงเงียบกริบ แบตอึด 40 ชม. เบสนุ่มลึก กดที่ตะกร้าเลย"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-base sm:text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors resize-none leading-relaxed"
                 />
               </div>
             </div>
 
+            {sheetError && (
+              <div role="alert" className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span className="flex-1">{sheetError}</span>
+                <button
+                  type="button"
+                  disabled={creatingAngle || !customHookInput.trim()}
+                  onClick={() => handleCreateQuickAngle(customHookInput.trim(), customScriptInput.trim())}
+                  className="min-h-11 px-3 rounded-lg bg-rose-500/20 text-rose-200 font-bold shrink-0 disabled:opacity-50"
+                >
+                  ลองอีกครั้ง
+                </button>
+              </div>
+            )}
+
             <div className="flex gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => { setShowCustomAngleModal(false); setCustomHookInput(''); setCustomScriptInput(''); }}
-                className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+                onClick={() => { setShowCustomAngleModal(false); setCustomHookInput(''); setCustomScriptInput(''); setSheetError(null); }}
+                className="flex-1 min-h-11 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
               >
                 ยกเลิก
               </button>
@@ -1454,7 +1754,7 @@ export default function MobileQuickStudio({ onSwitchToDesktop, onOpenFilmingSess
                 type="button"
                 disabled={!customHookInput.trim() || creatingAngle}
                 onClick={() => handleCreateQuickAngle(customHookInput.trim(), customScriptInput.trim())}
-                className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5"
+                className="flex-1 min-h-11 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5"
               >
                 {creatingAngle ? (
                   <>

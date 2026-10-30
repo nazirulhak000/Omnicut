@@ -7,7 +7,64 @@ import { captureChannel, isCurrentChannel, channelSelectionError } from './lib/c
 const api = axios.create({
   baseURL: '/api',
   timeout: 60000, // 60 seconds default
+  // Same-origin today; keeps the HttpOnly session cookie (omnicut_session)
+  // attached even if the API is ever served from a sibling origin.
+  withCredentials: true,
 });
+
+// ── App login (session cookie) ──
+// The API answers protected calls with 401 {login_required: true} once the
+// session cookie is missing/expired. One window event lets AuthGate show the
+// login screen without every caller knowing about auth. /api/auth/* never
+// fires it (the login form handles its own 401), so there is no loop.
+export const LOGIN_REQUIRED_EVENT = 'omnicut:login-required';
+export const AUTH_RESTORED_EVENT = 'omnicut:auth-restored';
+
+function isAuthEndpoint(url = '') {
+  return /(?:^|\/)api\/auth(?:\/|$)|^\/?auth(?:\/|$)/.test(String(url));
+}
+
+export function notifyLoginRequired(url, data) {
+  if (typeof window === 'undefined' || isAuthEndpoint(url)) return false;
+  if (!data || data.login_required !== true) return false;
+  try {
+    window.dispatchEvent(new CustomEvent(LOGIN_REQUIRED_EVENT, { detail: { url: String(url || '') } }));
+  } catch { /* CustomEvent unavailable */ }
+  return true;
+}
+
+const authClient = axios.create({ baseURL: '/', timeout: 15000, withCredentials: true });
+
+/** GET /api/auth/me -> {authenticated, auth_required, method, password_configured} */
+export const getAuthMe = () => authClient.get('/api/auth/me').then(r => r.data);
+/** POST /api/auth/login -> sets the HttpOnly cookie on 200; 401 wrong password; 429 throttled; 503 not configured. */
+export const loginWithPassword = (password) => authClient.post('/api/auth/login', { password }).then(r => r.data);
+export const logout = () => authClient.post('/api/auth/logout').then(r => r.data);
+
+/**
+ * Many components call fetch('/api/...') directly. Watch those responses for
+ * the same 401 {login_required} contract. Idempotent; call once at startup.
+ */
+export function installAuthFetchWatcher() {
+  if (typeof window === 'undefined' || typeof window.fetch !== 'function') return;
+  if (window.fetch.__omnicutAuthWatcher) return;
+  const nativeFetch = window.fetch.bind(window);
+  const watchedFetch = async (input, init) => {
+    const response = await nativeFetch(input, init);
+    if (response.status === 401) {
+      try {
+        const rawUrl = typeof input === 'string' ? input : (input?.url || String(input));
+        const url = new URL(rawUrl, window.location.href);
+        if (url.origin === window.location.origin && url.pathname.startsWith('/api/') && !isAuthEndpoint(url.pathname)) {
+          response.clone().json().then(data => notifyLoginRequired(url.pathname, data)).catch(() => {});
+        }
+      } catch { /* non-URL input */ }
+    }
+    return response;
+  };
+  watchedFetch.__omnicutAuthWatcher = true;
+  window.fetch = watchedFetch;
+}
 
 const originalRequest = api.request.bind(api);
 const scopedRequest = createChannelTransport({ send: originalRequest,
@@ -52,7 +109,10 @@ api.interceptors.response.use(
       const status = error.response.status;
       const detail = error.response.data?.detail || error.response.data?.message;
 
-      if (status === 413) {
+      if (status === 401) {
+        notifyLoginRequired(error.config?.url, error.response.data);
+        friendlyMessage = detail || 'ต้องเข้าสู่ระบบก่อน';
+      } else if (status === 413) {
         friendlyMessage = 'ไฟล์ที่อัปโหลดมีขนาดใหญ่เกินกว่าที่เซิร์ฟเวอร์รองรับ';
       } else if (status === 404) {
         friendlyMessage = detail || 'ไม่พบข้อมูลที่ร้องขอในระบบ';

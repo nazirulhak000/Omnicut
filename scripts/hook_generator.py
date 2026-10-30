@@ -4,7 +4,7 @@ Generates 5 distinct high-converting TikTok/Reels hook styles for products:
 1. curiosity (กระตุ้นความสงสัย)
 2. warning (เตือนภัย / หยุดก่อน)
 3. social_proof (ผลลัพธ์จริง / สถิติ)
-4. deal_promo (โปรแรง / ความคุ้มค่า)
+4. deal_promo (ห้ามพลาด / ของมันต้องมี -- no price/discount talk)
 5. pain_point (แทงใจดำ / ขยี้ปัญหา)
 
 Adheres strictly to project rules:
@@ -39,9 +39,9 @@ HOOK_STYLES: List[Dict[str, str]] = [
     },
     {
         "style_id": "deal_promo",
-        "style_name": "โปรแรง / ความคุ้มค่า",
+        "style_name": "ห้ามพลาด / ของมันต้องมี",
         "tag": "สายปิดการขาย",
-        "description": "ชูความคุ้มค่า ส่วนลด หรือดีลพิเศษเพื่อเร่งการตัดสินใจซื้อ",
+        "description": "เร่งการตัดสินใจด้วยประโยชน์ใช้งานจริง ไม่พูดถึงราคา ส่วนลด หรือโปรโมชั่น",
     },
     {
         "style_id": "pain_point",
@@ -112,7 +112,6 @@ class HookVariationEngine:
         m_val = model or (" ".join(p_name.split()[1:]) if len(p_name.split()) > 1 else p_name)
 
         pain = pain_point.strip() or "เจอปัญหานี้ซ้ำๆ"
-        deal = price_deal.strip() or "ราคาพิเศษคุ้มค่า"
 
         raw_variants = [
             {
@@ -141,11 +140,11 @@ class HookVariationEngine:
             },
             {
                 "style_id": "deal_promo",
-                "hook_title": f"⚡ Flash Sale วันนี้วันเดียว! {deal} กับ {display_name}",
+                "hook_title": f"⚡ ของมันต้องมี! ใครยังไม่มี {display_name} ดูด่วน",
                 "hook_brand": b_val,
                 "hook_model": m_val,
-                "hook_label": "โปรแรงวันเดียวเท่านั้น",
-                "opening_line": f"ใครรอโปรอยู่ ตอนนี้ลดแรงกระแทกใจมาก รีบกดก่อนของจะหมดนะครับ",
+                "hook_label": "ของมันต้องมี",
+                "opening_line": f"ใครยังไม่มี {display_name} ดูคลิปนี้ให้จบ แล้วกดตะกร้าดูรายละเอียดได้เลยครับ",
             },
             {
                 "style_id": "pain_point",
@@ -187,19 +186,19 @@ class HookVariationEngine:
                     f"- รุ่น (ห้ามแปลทับศัพท์ ให้คงภาษาอังกฤษ): {model}\n"
                     f"- รายละเอียด/สรรพคุณ: {description}\n"
                     f"- Pain Point: {pain_point}\n"
-                    f"- ราคา/โปรโมชั่น: {price_deal}\n"
                     f"- มุมเนื้อหา: {angle_name}\n\n"
                     f"กฎเหล็กสำคัญที่สุด:\n"
                     f"1. ห้ามใช้จุดไข่ปลา '...' หรือ '…' ในทุกข้อความโดยเด็ดขาด ให้เว้นวรรคปกติ (Strict No Ellipsis)\n"
                     f"2. ห้ามทับศัพท์ชื่อแบรนด์หรือรุ่นเป็นภาษาไทยเด็ดขาด เช่น Logitech ห้ามเขียน โลจิเทค (Strict English Retention)\n"
                     f"3. hook_label คือข้อความสั้นบนป้ายแบนเนอร์ (ความยาวไม่เกิน 15-25 ตัวอักษร)\n"
                     f"4. opening_line คือประโยคพูดเปิดคลิป ห้ามใส่อีโมจิใน opening_line เด็ดขาด\n"
-                    f"5. hook_title คือพาดหัวรวม (ใส่อีโมจิดึงดูดสายตาได้ 1 ตัวที่หน้าข้อความ)\n\n"
+                    f"5. hook_title คือพาดหัวรวม (ใส่อีโมจิดึงดูดสายตาได้ 1 ตัวที่หน้าข้อความ)\n"
+                    f"6. ห้ามพูด/เขียนถึงราคา ตัวเลขเงิน ส่วนลด โปรโมชั่น Flash Sale คูปอง ส่งฟรี หรือการเดาราคา (เช่น หลักร้อย หลักพัน) ในทุกช่องเด็ดขาด (ผิดกฎ TikTok)\n\n"
                     f"สไตล์ทั้ง 5 แบบที่ต้องสร้าง:\n"
                     f"1. curiosity (กระตุ้นความสงสัย ชวนหยุดดู)\n"
                     f"2. warning (เตือนภัย หยุดก่อน อย่าเพิ่งซื้อ)\n"
                     f"3. social_proof (ผลลัพธ์จริง ยอดขาย รีวิว)\n"
-                    f"4. deal_promo (โปรแรง คุ้มค่า ลดกระหน่ำ)\n"
+                    f"4. deal_promo (ห้ามพลาด ของมันต้องมี เร่งด้วยประโยชน์ใช้งานจริง ห้ามพูดราคา/ส่วนลด)\n"
                     f"5. pain_point (แทงใจดำ แก้ปัญหาตรงจุด)\n\n"
                     f"ส่งคำตอบกลับมาเป็น JSON อาเรย์เท่านั้น โดยมีรูปแบบดังนี้:\n"
                     f"[\n"

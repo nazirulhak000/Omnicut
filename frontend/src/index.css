@@ -28,6 +28,26 @@
      interface. It used to exist while 214 sizes were hardcoded in px, which
      made it a lever attached to nothing. See _Docs/PLAN_*.md. */
   --ui-scale: 1;
+
+  /* Height of the mobile bottom tab bar (Sidebar.jsx) including the iPhone
+     home-indicator inset. Main content padding and every floating toast /
+     notification / live-render widget sits above it. 0 from md up, where the
+     bar is replaced by the left rail. */
+  --nav-h: calc(56px + env(safe-area-inset-bottom, 0px));
+
+  /* Layer scale (z-index) -- keep new overlays on these steps:
+       20     sticky headers (Topbar)
+       30     desktop left rail
+       40     mobile bottom tab bar
+       45     floating live-render widget
+       60     toasts and task notifications
+       100    sheets and drawers ("อื่นๆ" sheet, Activity drawer, QR dialog)
+       9999   modal dialogs (ui/Modal.jsx)
+       10000  login / session-expired screen (LoginScreen.jsx) */
+}
+
+@media (min-width: 768px) {
+  :root { --nav-h: 0px; }
 }
 
 @layer base {
@@ -41,6 +61,7 @@
     color: #F1F5F9;
     font-family: 'Prompt', 'Inter', system-ui, sans-serif;
     min-height: 100vh;
+    min-height: 100dvh;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -57,8 +78,11 @@
     background-color: #07090E;
   }
 
-  /* Prevent iOS Safari auto-zoom when tapping inputs */
-  @media screen and (max-width: 768px) {
+  /* Prevent iOS Safari auto-zoom when tapping inputs. Applies to every touch
+     device (an iPad or a landscape iPhone Pro Max is wider than 768px) and to
+     narrow screens. Fixed px on purpose: the compact --ui-scale must never
+     shrink a text field below 16px on touch. */
+  @media (pointer: coarse), screen and (max-width: 768px) {
     input, textarea, select {
       font-size: 16px !important;
     }

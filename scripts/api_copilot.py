@@ -16,7 +16,7 @@ from scripts.channel_scope import (
     require_active_for_new_work,
     require_writable,
 )
-from scripts.copilot_engine import CopilotEngine
+from scripts.copilot_engine import COPILOT_RENDER_UNSUPPORTED_MSG, CopilotEngine
 
 logger = logging.getLogger("omnicut.api_copilot")
 
@@ -158,54 +158,16 @@ async def render_session_draft(
     session_id: str,
     scope: ChannelScope = Depends(get_channel_scope)
 ) -> Dict[str, Any]:
-    """Render the HyperFrames draft created in this Co-Pilot session to 04_Exports/Ready_to_post/ MP4."""
+    """Refuse to render a Co-Pilot draft to MP4.
+
+    Co-Pilot drafts carry a placeholder tone track, not real TTS. Rendering one
+    used to drop an unusable clip into 04_Exports/Ready_to_post and mark it
+    "Rendered" -- violating rule 11 (no junk in exports) and rule 8 (status
+    must reflect reality). Until the Co-Pilot is wired to the real voice line,
+    this always answers 409 and writes nothing.
+    """
     _guard_writable(scope)
     session = CopilotEngine.get_session(session_id, channel_id=scope.channel_id)
     if not session:
         raise HTTPException(status_code=404, detail=f"ไม่พบ session '{session_id}' ในช่องนี้")
-
-    draft_info = session.get("draft_info")
-    if not draft_info or not draft_info.get("clip_id"):
-        raise HTTPException(status_code=400, detail="ยังไม่มี HyperFrames draft ใน session นี้ กรุณาสร้าง draft ก่อนเรนเดอร์")
-
-    clip_id = draft_info["clip_id"]
-    product_id = session.get("product_id")
-    sel_angle = session.get("selected_angle") or {}
-    angle_id = sel_angle.get("angle_id")
-
-    from scripts.api_hyperframes import render_composition, RenderCompositionRequest
-    req = RenderCompositionRequest(
-        composition_id=clip_id,
-        product_id=product_id,
-        angle_id=angle_id,
-        channel_id=scope.channel_id
-    )
-
-    try:
-        render_result = await render_composition(req, scope=scope)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error(f"Render failed for session {session_id} clip {clip_id}: {exc}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการเรนเดอร์: {exc}")
-
-    # Mark draft as rendered in session
-    session["draft_info"]["status"] = "rendered"
-    session["draft_info"]["video_url"] = render_result.get("output_path")
-    session["draft_info"]["export_id"] = render_result.get("export_id")
-    session["render_result"] = render_result
-
-    CopilotEngine._append_chat(
-        session,
-        "assistant",
-        f"🎬 **เรนเดอร์วิดีโอ 9:16 สำเร็จเรียบร้อยแล้ว!**\n\n"
-        f"- **ไฟล์วิดีโอ**: `{render_result.get('output_path')}`\n"
-        f"- **ขนาดไฟล์**: {round(render_result.get('size_bytes', 0) / (1024 * 1024), 2)} MB\n"
-        f"- **สถานะ Tracker**: อัปเดตเป็น **เสร็จสมบูรณ์ (Rendered)** เรียบร้อยแล้ว\n\n"
-        f"สามารถเปิดทำภาพปกใน Cover Studio หรือส่งต่อเพื่อตั้งเวลาโพสต์ TikTok ได้ทันทีครับ!"
-    )
-    from scripts.copilot_engine import _SESSIONS_CACHE, _save_sessions_to_disk
-    _SESSIONS_CACHE[session_id] = session
-    _save_sessions_to_disk()
-
-    return {"success": True, "result": render_result, "session": session}
+    raise HTTPException(status_code=409, detail=COPILOT_RENDER_UNSUPPORTED_MSG)

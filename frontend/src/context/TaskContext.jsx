@@ -6,6 +6,42 @@ import { useToast } from '../hooks/useToast';
 
 const TaskContext = createContext(null);
 
+// Last statuses this device saw (channel-scoped via workspaceStorage). Lets a
+// reopened PWA / returning tab report what finished while it was away.
+const TASK_STATUS_SNAPSHOT_KEY = 'capcut_task_status_snapshot';
+const TASK_STATUS_SNAPSHOT_LIMIT = 200;
+// Success notifications clear themselves; failures stay until dismissed.
+const SUCCESS_TOAST_MS = 6000;
+const NOTIFICATION_QUEUE_LIMIT = 5;
+
+function isCutoutSliceTask(t) {
+  return t?.type === 'background_isolation' || t?.task_type === 'background_isolation';
+}
+
+function readStatusSnapshot(storage) {
+  try {
+    const raw = storage?.getItem(TASK_STATUS_SNAPSHOT_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed.statuses === 'object' && parsed.statuses ? { ...parsed.statuses } : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeStatusSnapshot(storage, tasks) {
+  try {
+    const statuses = {};
+    for (const t of tasks.slice(0, TASK_STATUS_SNAPSHOT_LIMIT)) {
+      if (t?.id != null && t.status) statuses[t.id] = t.status;
+    }
+    storage?.setItem(TASK_STATUS_SNAPSHOT_KEY, JSON.stringify({ statuses, savedAt: Date.now() }));
+  } catch { /* storage full/blocked -- the summary is a convenience */ }
+}
+
+function isPageHidden() {
+  return typeof document !== 'undefined' && document.hidden === true;
+}
+
 // Optional subtle audio chime using Web Audio API (no external file dependency)
 function playCompletionChime() {
   try {
@@ -52,16 +88,18 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     toast: notificationToast,
     showToast: enqueueNotification,
     hideToast: dismissNotification,
-  } = useToast(0);
+  } = useToast(0, NOTIFICATION_QUEUE_LIMIT);
   const setNotificationToast = useCallback((nextToast) => {
     if (!nextToast) {
       dismissNotification();
       return;
     }
+    const type = nextToast.type || 'info';
+    const duration = nextToast.duration ?? (type === 'error' || type === 'warning' ? 0 : SUCCESS_TOAST_MS);
     enqueueNotification(
       nextToast.message || nextToast.title || 'มีการแจ้งเตือนใหม่',
-      nextToast.type || 'info',
-      0,
+      type,
+      duration,
       nextToast,
     );
   }, [dismissNotification, enqueueNotification]);
@@ -90,7 +128,7 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
             notifiedMilestonesRef.current.add(m.post_id);
             setNotificationToast({
               type: 'success',
-              title: '🔥 คลิปปังทะลุเป้า!',
+              title: 'คลิปยอดวิวทะลุเป้า',
               message: `คลิป "${m.product_name}" ทำยอดวิวทะลุ ${m.views.toLocaleString()} วิวแล้ว!`,
               milestone: m,
               time: Date.now()
@@ -117,8 +155,15 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     void fetchViralMilestones();
   }, [fetchViralMilestones]);
 
-  // Keep a map of previous statuses to detect transitions (e.g. processing -> completed)
-  const prevStatusesRef = useRef({});
+  // Keep a map of previous statuses to detect transitions (e.g. processing -> completed).
+  // Seeded from the persisted snapshot so work that finished while the app was
+  // closed is still reported once.
+  const prevStatusesRef = useRef(null);
+  if (prevStatusesRef.current === null) prevStatusesRef.current = readStatusSnapshot(workspaceStorage);
+  // True on mount and whenever the page was hidden: the next successful poll
+  // summarises everything that changed meanwhile instead of a toast storm.
+  const awayRef = useRef(true);
+  const [isPageVisible, setIsPageVisible] = useState(() => !isPageHidden());
   // Holds the Promise of an in-flight pollTasks() call (or null when idle).
   const inFlightPollRef = useRef(null);
   // Set when pollTasks() is called again while one is already in flight.
@@ -150,36 +195,63 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       }
       const fetchedTasks = res.tasks;
 
-      // Check for state transitions
-      fetchedTasks.forEach(t => {
-        const prevStatus = prevStatusesRef.current[t.id];
-        if (prevStatus && prevStatus !== t.status) {
-          if (t.status === 'completed') {
-            const isCutoutSlice = t.type === 'background_isolation' || t.task_type === 'background_isolation';
-            if (!isCutoutSlice) {
-              playCompletionChime();
-              setNotificationToast({
-                type: 'success',
-                title: '🎉 งานเสร็จสมบูรณ์!',
-                message: t.step_label || t.title,
-                task: t,
-                time: Date.now()
-              });
-            }
-            // Auto-refresh child views
-            setRefreshTrigger(prev => prev + 1);
-          } else if (t.status === 'failed') {
+      const notifyTransition = (t) => {
+        if (t.status === 'completed') {
+          if (!isCutoutSliceTask(t)) {
+            playCompletionChime();
             setNotificationToast({
-              type: 'error',
-              title: '❌ งานไม่สำเร็จ',
-              message: t.error || t.step_label || t.title,
+              type: 'success',
+              title: 'งานเสร็จสมบูรณ์',
+              message: t.step_label || t.title,
               task: t,
               time: Date.now()
             });
           }
+        } else if (t.status === 'failed') {
+          setNotificationToast({
+            type: 'error',
+            title: 'งานไม่สำเร็จ',
+            message: t.error || t.step_label || t.title,
+            task: t,
+            time: Date.now()
+          });
+        }
+      };
+
+      // First poll after mount / returning to the page: collect, then summarise.
+      const summarizeAway = awayRef.current && !isPageHidden();
+      if (summarizeAway) awayRef.current = false;
+      const awayTransitions = [];
+
+      // Check for state transitions
+      fetchedTasks.forEach(t => {
+        const prevStatus = prevStatusesRef.current[t.id];
+        if (prevStatus && prevStatus !== t.status && (t.status === 'completed' || t.status === 'failed')) {
+          // Auto-refresh child views
+          if (t.status === 'completed') setRefreshTrigger(prev => prev + 1);
+          if (summarizeAway) awayTransitions.push(t);
+          else notifyTransition(t);
         }
         prevStatusesRef.current[t.id] = t.status;
       });
+
+      if (awayTransitions.length === 1) {
+        notifyTransition(awayTransitions[0]);
+      } else if (awayTransitions.length > 1) {
+        const doneCount = awayTransitions.filter(t => t.status === 'completed' && !isCutoutSliceTask(t)).length;
+        const failedCount = awayTransitions.filter(t => t.status === 'failed').length;
+        if (doneCount + failedCount > 0) {
+          if (doneCount > 0) playCompletionChime();
+          setNotificationToast({
+            type: failedCount > 0 ? 'error' : 'success',
+            title: 'สรุปงานเบื้องหลัง',
+            message: `ระหว่างไม่อยู่: เสร็จ ${doneCount} · ล้มเหลว ${failedCount}`,
+            summary: { done: doneCount, failed: failedCount },
+            time: Date.now()
+          });
+        }
+      }
+      writeStatusSnapshot(workspaceStorage, fetchedTasks);
 
       // Initialize prevStatuses for new tasks
       fetchedTasks.forEach(t => {
@@ -203,7 +275,7 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       }));
       throw err;
     }
-  }, [maybeFetchViralMilestones]);
+  }, [maybeFetchViralMilestones, setNotificationToast, workspaceStorage]);
 
   // Starts exactly one fresh fetch, tracked via inFlightPollRef.
   const startPoll = useCallback(() => {
@@ -242,13 +314,41 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     return startPoll();
   }, [startPoll]);
 
-  // Adaptive Polling: 1.5s when active tasks exist, 6s when idle
+  // Background/foreground: a hidden page (locked phone, other app, background
+  // tab) stops polling; coming back -- visibilitychange, a bfcache restore
+  // (pageshow) or the network returning (online) -- polls immediately.
   useEffect(() => {
-    pollTasks(); // Initial fetch on mount / F5
+    if (typeof document === 'undefined') return undefined;
+    const onVisibilityChange = () => {
+      const visible = !isPageHidden();
+      if (!visible) awayRef.current = true;
+      setIsPageVisible(visible);
+    };
+    const onResume = () => {
+      if (isPageHidden()) return;
+      setIsPageVisible(true);
+      pollTasks();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pageshow', onResume);
+    window.addEventListener('online', onResume);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pageshow', onResume);
+      window.removeEventListener('online', onResume);
+    };
+  }, [pollTasks]);
+
+  // Adaptive Polling: 1.5s when active tasks exist, 6s when idle; paused while hidden.
+  useEffect(() => {
+    if (!isPageVisible) return undefined;
+    pollTasks(); // Initial fetch on mount / F5 / return to the page
     const intervalTime = activeCount > 0 ? 1500 : 6000;
-    const timer = setInterval(pollTasks, intervalTime);
+    const timer = setInterval(() => {
+      if (!isPageHidden()) pollTasks();
+    }, intervalTime);
     return () => clearInterval(timer);
-  }, [activeCount, pollTasks]);
+  }, [activeCount, pollTasks, isPageVisible]);
 
   // Actions
   const cancelTask = useCallback(async (taskId) => {

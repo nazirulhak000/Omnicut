@@ -484,7 +484,8 @@ def test_policy_file_shape_and_decisions():
     by_scope = {}
     for row in rows:
         by_scope[row.scope] = by_scope.get(row.scope, 0) + 1
-    assert by_scope == {"channel": 213, "shared": 38, "global": 34}
+    # global +17: /api/auth/{me,login,logout}, /api/health, plus previously unregistered agy/terminal/token/SPA catch-all rows
+    assert by_scope == {"channel": 213, "shared": 38, "global": 51}
     release = table.get("POST", "/api/tiktok-autopost/release")
     assert release.scope == "channel" and release.access == "write" and not release.allow_query_scope
     assert {row.key for row in rows if row.allow_query_scope} == QUERY_SCOPE_ROUTES
@@ -587,7 +588,7 @@ def test_middleware_order_on_real_app():
 
     names = [m.cls.__name__ for m in app.user_middleware]
     # MaintenanceGateMiddleware (P2.3) is the innermost layer: 503 for writes during migration.
-    assert names == ["CORSMiddleware", "BaseHTTPMiddleware", "ChannelScopeMiddleware", "MaintenanceGateMiddleware"]
+    assert names == ["CORSMiddleware", "AuthGateMiddleware", "ChannelScopeMiddleware", "MaintenanceGateMiddleware"]
 
 
 def test_cors_preflight_allows_channel_header(monkeypatch, registry):

@@ -102,7 +102,7 @@ export default memo(function Topbar({
   const Icon = currentTab.icon;
 
   return (
-    <header className="min-h-[52px] md:h-[56px] flex-shrink-0 bg-[#080B11]/95 backdrop-blur-xl border-b border-white/[0.08] flex flex-wrap items-center justify-between gap-y-2 py-2 md:py-0 px-2.5 sm:px-6 z-20 sticky top-0 w-full min-w-0 transition-colors">
+    <header className="h-[calc(56px+env(safe-area-inset-top))] md:h-[56px] flex-shrink-0 bg-[#080B11]/95 backdrop-blur-xl border-b border-white/[0.08] flex flex-nowrap md:flex-wrap items-center justify-between gap-2 px-2.5 sm:px-6 pt-[env(safe-area-inset-top)] md:pt-0 z-20 sticky top-0 w-full min-w-0 transition-colors">
       {/* ── Left: Context-Aware Section Title & Badges ── */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
         {/* Menu Icon with Cyan Glow Pill */}
@@ -132,14 +132,16 @@ export default memo(function Topbar({
       </div>
 
       {/* ── Right: Quick Actions, Global Font Selector & System Status ── */}
-      <div className="flex flex-wrap justify-end items-center gap-1 sm:gap-2.5 min-w-0 max-w-[calc(100%-48px)] md:max-w-none">
+      {/* Phones keep one row: channel, AGY and the mode switch live in the
+          "อื่นๆ" sheet (Sidebar.jsx). */}
+      <div className="flex flex-nowrap md:flex-wrap justify-end items-center gap-1 sm:gap-2.5 min-w-0 flex-shrink-0 md:flex-shrink">
         <div className="hidden md:block"><ChannelSelector /></div>
         {/* Open AGY Cloud Terminal (/agy) */}
         <a
           href="/agy"
           target="_blank"
           rel="noopener noreferrer"
-          className="min-h-11 px-3 py-1 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 border border-teal-500/40 text-teal-300 hover:text-white text-xs font-bold flex items-center justify-center transition-colors"
+          className="hidden md:flex min-h-11 px-3 py-1 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 border border-teal-500/40 text-teal-300 hover:text-white text-xs font-bold items-center justify-center transition-colors"
           title="เปิดหน้าต่าง AGY Cloud Terminal สั่งงาน AI อิสระบน Cloud"
         >
           เปิด AGY Terminal
@@ -151,7 +153,7 @@ export default memo(function Topbar({
         {onSwitchToMobile && (
           <button
             onClick={onSwitchToMobile}
-            className="min-h-11 min-w-11 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            className="hidden md:flex min-h-11 min-w-11 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold items-center justify-center gap-1.5 cursor-pointer transition-colors"
             title="สลับไปโหมด OmniCut Mobile Studio"
           >
             <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
@@ -201,7 +203,6 @@ export default memo(function Topbar({
           )}
         </div>
       </div>
-      <div className="w-full md:hidden"><ChannelSelector /></div>
     </header>
   );
 });

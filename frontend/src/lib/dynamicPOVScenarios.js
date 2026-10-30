@@ -101,14 +101,14 @@ export function convertAngleToPOVDialogue(angle, productName) {
   const pName = productName || 'สินค้าตัวนี้';
   const pain = cleanText(angle?.pain_point) || 'เจอปัญหาของเดิมไม่ตอบโจทย์ หงุดหงิดมากกก';
   const feat = cleanText(angle?.key_features);
-  const featureText = feat ? feat.slice(0, 42) : 'ตัวนี้ฟังก์ชันครบ คุณภาพแน่น คุ้มค่ามาก';
-  const price = cleanText(angle?.price_deal);
-  const dealText = price ? ` มีดีลพิเศษ ${price}` : '';
+  const featureText = feat ? feat.slice(0, 42) : 'ตัวนี้ฟังก์ชันครบ คุณภาพแน่น ใช้งานได้จริง';
+  // angle.price_deal is deliberately not spoken: clips must never mention
+  // price, discount or promo (project rule).
 
   return `แฟน: "เธอออ ${pain} ช่วยด้วยยย 😱"
 ฉัน: "ใจเย็น! ในกระเป๋ามี ${pName} ตัวเด็ด หยิบมาใช้เลย"
 แฟน: "มันจะช่วยแก้ปัญหาได้จริงเหรอเธอ"
-ฉัน: "${featureText}${dealText} ลองแล้วชีวิตดีขึ้นแน่นอน"
+ฉัน: "${featureText} ลองแล้วชีวิตดีขึ้นแน่นอน"
 แฟน: "เห้ยยย จริงด้วย รอดตายแล้ว ขอบคุณน้าาา 🥰"`;
 }
 
@@ -137,7 +137,7 @@ export function getDynamicPOVScenarios(productObj) {
 เพื่อน: "รีบเอา ${pName} มาเสียบเลย ไมค์ในตัวตัดเสียงรบกวน พูดชัดทุกคำ"
 ฉัน: "เสียบตรงกับมือถือคุยงานได้ทันทีเลยเหรอ"
 เพื่อน: "ใช่ เสียงพูดเคลียร์ชัดระดับ HD ไม่ดีเลย์ ลูกค้าฟังชัดแน่นอน"
-ฉัน: "รอดแล้ว ลูกค้าชมว่าเสียงใสมากกก ตัวนี้คุ้มเกินราคาจริง"`
+ฉัน: "รอดแล้ว ลูกค้าชมว่าเสียงใสมากกก ตัวนี้ใช้ดีจริง"`
       },
       {
         id: 'audio_gaming_lag',
@@ -151,13 +151,13 @@ export function getDynamicPOVScenarios(productObj) {
       },
       {
         id: 'audio_lost_backup',
-        badge: 'ตัวสำรองสุดคุ้ม',
+        badge: 'ตัวสำรองติดกระเป๋า',
         title: 'หูฟังหลักทำหล่นหาย ต้องหาตัวสำรองเสียงดีด่วน',
-        script: `แฟน: "เธอ หูฟังหลักหล่นหายบนรถ เซ็งมากกก ซื้อใหม่ตัวเป็นพันไม่ไหว 😭"
-ฉัน: "ใจเย็น ไม่ต้องจ่ายแพง สั่ง ${pName} เป็นตัวสำรองติดตัวไว้เลย"
-แฟน: "ราคาเบาๆ แบบนี้ คุณภาพเสียงกับความทนทานจะไหวเหรอ"
-ฉัน: "สายเหนียวทนทาน เสียงดีเกินราคา มีประกันศูนย์แท้แน่นอน"
-แฟน: "กดสั่งตามแล้ว คุ้มจริง สบายกระเป๋าขึ้นเยอะ 🥰"`
+        script: `แฟน: "เธอ หูฟังหลักหล่นหายบนรถ เซ็งมากกก ต้องหาตัวสำรองด่วน 😭"
+ฉัน: "ใจเย็น สั่ง ${pName} เป็นตัวสำรองติดตัวไว้เลย"
+แฟน: "ตัวสำรองแบบนี้ คุณภาพเสียงกับความทนทานจะไหวเหรอ"
+ฉัน: "สายเหนียวทนทาน เสียงดีใช้ได้จริง มีประกันศูนย์แท้แน่นอน"
+แฟน: "กดสั่งตามแล้ว ใช้ดีจริง อุ่นใจขึ้นเยอะ 🥰"`
       }
     ];
   }
@@ -346,14 +346,12 @@ export function getDynamicPOVScenarios(productObj) {
   const ang0 = angles[0];
   const ang1 = angles[1] || angles[4];
   const ang2 = angles[2] || angles[7];
-  const ang3 = angles[3] || angles[9];
 
   const pain0 = cleanText(ang0?.pain_point) || 'เจอปัญหาของเดิมไม่ตอบโจทย์';
   const feat0 = cleanText(ang0?.key_features)?.slice(0, 40) || 'ฟังก์ชันครบ คุณภาพระดับพรีเมียม';
 
   const feat1 = cleanText(ang1?.key_features)?.slice(0, 40) || 'สเปกแรง ใช้งานง่าย สะดวกสบาย';
-  const feat2 = cleanText(ang2?.key_features)?.slice(0, 40) || 'งานประกอบเนี๊ยบ คุ้มค่าคุ้มราคา';
-  const deal3 = cleanText(ang3?.price_deal) || 'ราคาโปรโมชั่นสุดคุ้ม มีประกันศูนย์';
+  const feat2 = cleanText(ang2?.key_features)?.slice(0, 40) || 'งานประกอบเนี๊ยบ ใช้งานทนทาน';
 
   return [
     {
@@ -382,8 +380,8 @@ export function getDynamicPOVScenarios(productObj) {
       title: `เพื่อนทักถามหาของดี: ${pName}`,
       script: `เพื่อน: "แก เห็นคนรีวิว ${pName} เต็มฟีด ใช้ดีจริงไหมอ่ะ"
 ฉัน: "ดีจริงแก! ฉันใช้อยู่ทุกวัน ${feat2}"
-เพื่อน: "ราคาแรงไหม มีประกันแท้หรือเปล่า"
-ฉัน: "${deal3} มีประกันศูนย์ มั่นใจได้เลย"
+เพื่อน: "ทนไหม มีประกันแท้หรือเปล่า"
+ฉัน: "ใช้ทุกวันยังทนอยู่ มีประกันศูนย์ มั่นใจได้เลย"
 เพื่อน: "ป้ายยาสำเร็จ กดสั่งตามเรียบร้อยแล้วจ้าาา 🎉"`
     },
     {

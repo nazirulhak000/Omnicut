@@ -85,8 +85,10 @@ def test_query_api_key_is_only_accepted_for_media(monkeypatch):
 def test_unconfigured_remote_client_is_rejected_even_if_server_was_bound_lan(monkeypatch):
     api_server = _api_server_module_or_skip()
     monkeypatch.delenv("OMNICUT_API_KEY", raising=False)
+    monkeypatch.delenv("OMNICUT_APP_PASSWORD", raising=False)
     client = TestClient(api_server.app, client=("192.168.1.25", 54321))
-    assert client.get("/api/status").status_code == 401
+    # Fail closed: remote access with no password configured is refused (503, not served).
+    assert client.get("/api/status").status_code == 503
 
 
 @pytest.mark.parametrize(

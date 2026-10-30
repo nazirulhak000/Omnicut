@@ -3,12 +3,13 @@ import { toMediaUrl } from '../lib/mediaUrl.js';
 import { activeChannel } from '../lib/channelRuntime.js';
 import { channelLocalStorage } from '../lib/channelStorage.js';
 import { useChannelDraft } from '../hooks/useChannelDraft.js';
+import { isCoarsePointer, publicAppOrigin } from '../lib/mobileLinks.js';
 import {
   Film, Download, Folder, RefreshCw, Trash2,
   AlertTriangle, Check, Play, Search, Filter, ArrowUpDown,
   Smartphone, CheckSquare, Square, Share2, Copy, FileText, QrCode, Sparkles, HardDrive,
   ShieldAlert, XCircle, CheckCircle2, History, FileQuestion, Link2,
-  Columns, List, LayoutGrid, Clock, Calendar, Tag, DollarSign, Layers, ChevronDown, ChevronUp, Zap, ShieldCheck,
+  Columns, List, LayoutGrid, Clock, Calendar, Tag, Layers, ChevronDown, ChevronUp, Zap, ShieldCheck,
   Image as ImageIcon, FolderOpen, ExternalLink
 } from 'lucide-react';
 import {
@@ -39,6 +40,15 @@ import { matchExportVideo } from '../lib/exportMatching';
 // full hashtag list easily pushes the encoded URL past a QR code's payload
 // ceiling ("RangeError: Data too long" from QRCodeSVG) -- keep only the
 // short identifying fields here and let the mobile page fetch the rest.
+// media_service sends `timestamp` (epoch seconds) + `modified_time`
+// ("YYYY-MM-DD HH:MM:SS"); fall back to parsing the string.
+function exportSortTime(item) {
+  const ts = Number(item?.timestamp);
+  if (Number.isFinite(ts) && ts > 0) return ts;
+  const parsed = Date.parse(String(item?.modified_time || item?.modified || '').replace(' ', 'T'));
+  return Number.isFinite(parsed) ? parsed / 1000 : 0;
+}
+
 function buildQuickPostUrl(mobileBaseUrl, video) {
   const params = new URLSearchParams({
     quick_post: '1',
@@ -133,7 +143,9 @@ const ExportCard = memo(function ExportCard({
   const isEsseger = nameLow.includes('esseger') || nameLow.includes('สายชาร์จ');
   const isLogitech = nameLow.includes('logitech') || nameLow.includes('wave');
   const cover = getCoverVariant(item, '9:16');
-  const displayThumb = toMediaUrl(cover.url || item.thumbnail_url);
+  // Grid thumbnail: the small sibling .webp first; the 1080x1920 JPG cover
+  // is only a fallback (dozens of full-size JPGs stall a phone on cellular).
+  const displayThumb = toMediaUrl(item.thumbnail_url || cover.url);
 
   return (
     <div
@@ -214,6 +226,7 @@ const ExportCard = memo(function ExportCard({
               src={displayThumb}
               alt={item.name}
               loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
@@ -299,7 +312,7 @@ const ExportCard = memo(function ExportCard({
               {item.size_mb} MB
             </span>
             <span className="text-[10px] sm:text-xs text-slate-400">
-              {item.modified?.split(' ')?.[0] || item.modified}
+              {(item.modified_time || item.modified || '').split(' ')[0]}
             </span>
           </div>
         </div>
@@ -352,7 +365,7 @@ const ExportCard = memo(function ExportCard({
 // ═══════════════════════════════════════════════════════════════════════
 function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck }) {
   const cover = getCoverVariant(item, '9:16');
-  const displayThumb = toMediaUrl(cover.url || item.thumbnail_url);
+  const displayThumb = toMediaUrl(item.thumbnail_url || cover.url);
 
   return (
     <div
@@ -383,7 +396,7 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
         {/* Mini 9:16 Thumbnail / Cover */}
         <div className="w-10 h-16 rounded-lg overflow-hidden bg-black flex-shrink-0 relative border border-white/[0.08]">
           {displayThumb ? (
-            <img src={displayThumb} alt="" className="w-full h-full object-cover" />
+            <img src={displayThumb} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
           ) : (
             <video
               src={`${toMediaUrl(item.rel_path || item.path)}#t=1.0`}
@@ -445,7 +458,7 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
 // ═══════════════════════════════════════════════════════════════════════
 function ExportMobilePill({ item, isActive, onSelect }) {
   const cover = getCoverVariant(item, '9:16');
-  const displayThumb = toMediaUrl(cover.url || item.thumbnail_url);
+  const displayThumb = toMediaUrl(item.thumbnail_url || cover.url);
 
   return (
     <button
@@ -459,7 +472,7 @@ function ExportMobilePill({ item, isActive, onSelect }) {
     >
       <div className="w-8 h-12 rounded-md overflow-hidden bg-black flex-shrink-0 border border-white/[0.1] relative">
         {displayThumb ? (
-          <img src={displayThumb} alt="" className="w-full h-full object-cover" />
+          <img src={displayThumb} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
         ) : (
           <video src={`${toMediaUrl(item.rel_path || item.path)}#t=1.0`} className="w-full h-full object-cover" muted />
         )}
@@ -580,11 +593,15 @@ function ExportActiveWorkbench({
     );
   }
 
-  const handleCopyPath = () => {
+  const handleCopyPath = async () => {
     const p = video.rel_path || video.path;
-    navigator.clipboard.writeText(p);
-    setCopiedPath(true);
-    setTimeout(() => setCopiedPath(false), 2000);
+    try {
+      await navigator.clipboard.writeText(p);
+      setCopiedPath(true);
+      setTimeout(() => setCopiedPath(false), 2000);
+    } catch {
+      setCopiedPath(false);
+    }
   };
 
   const handleScrub = (e) => {
@@ -809,18 +826,13 @@ function ExportActiveWorkbench({
           </div>
 
           {/* Product & Marketing Context Card */}
-          {(video.product_name || video.angle_name || video.price_deal || video.key_features) && (
+          {(video.product_name || video.angle_name || video.key_features) && (
             <div className="p-3 rounded-xl bg-gradient-to-br from-white/[0.04] to-black/40 border border-white/[0.08] space-y-2">
               <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <Tag className="w-3.5 h-3.5 text-[#FE2C55]" />
                   <span>ข้อมูลสินค้าและแคมเปญ</span>
                 </span>
-                {video.price_deal && (
-                  <span className="px-2 py-0.5 rounded-full bg-[#FE2C55]/15 text-[#FE2C55] font-bold text-[10px] border border-[#FE2C55]/30">
-                    {video.price_deal}
-                  </span>
-                )}
               </div>
               <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <div>
@@ -1051,13 +1063,23 @@ function ExportActiveWorkbench({
                 </button>
               </div>
             </div>
-            <div className="p-1.5 bg-white rounded-xl shadow-lg flex-shrink-0" title="สแกนเพื่อเปิดตัวช่วยโพสต์ Quick Post บนมือถือ">
-              <SafeQRCode
-                value={buildQuickPostUrl(mobileBaseUrl, video)}
-                size={68}
-                level="M"
-              />
-            </div>
+            {isCoarsePointer() ? (
+              <a
+                href={buildQuickPostUrl(mobileBaseUrl, video)}
+                className="min-h-11 px-3 rounded-xl bg-[#25F4EE]/15 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1.5 flex-shrink-0"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>เปิดหน้าโพสต์</span>
+              </a>
+            ) : (
+              <div className="p-1.5 bg-white rounded-xl shadow-lg flex-shrink-0" title="สแกนเพื่อเปิดตัวช่วยโพสต์ Quick Post บนมือถือ">
+                <SafeQRCode
+                  value={buildQuickPostUrl(mobileBaseUrl, video)}
+                  size={68}
+                  level="M"
+                />
+              </div>
+            )}
           </div>
 
           {/* Bottom Action Buttons */}
@@ -1372,11 +1394,17 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
     openFolder('exports');
   }, []);
 
-  const handleCopyCaption = useCallback((text) => {
-    navigator.clipboard.writeText(text);
-    setCopiedCaption(true);
-    showToast('คัดลอกแคปชันเรียบร้อยแล้ว');
-    setTimeout(() => setCopiedCaption(false), 2000);
+  const handleCopyCaption = useCallback(async (text) => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
+      await navigator.clipboard.writeText(text);
+      setCopiedCaption(true);
+      showToast('คัดลอกแคปชันเรียบร้อยแล้ว');
+      setTimeout(() => setCopiedCaption(false), 2000);
+    } catch {
+      setCopiedCaption(false);
+      showToast('คัดลอกไม่สำเร็จ กรุณากดค้างที่ข้อความแล้วเลือกคัดลอกเอง', 'error');
+    }
   }, [showToast]);
 
   // Round POST-1.3: Post Studio actions -- cover grab, reveal-in-Explorer,
@@ -1573,8 +1601,8 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
 
     // Sorting
     list = [...list].sort((a, b) => {
-      if (sortBy === 'newest') return (b.modified_raw || 0) - (a.modified_raw || 0);
-      if (sortBy === 'oldest') return (a.modified_raw || 0) - (b.modified_raw || 0);
+      if (sortBy === 'newest') return exportSortTime(b) - exportSortTime(a);
+      if (sortBy === 'oldest') return exportSortTime(a) - exportSortTime(b);
       if (sortBy === 'size_desc') return (parseFloat(b.size_mb) || 0) - (parseFloat(a.size_mb) || 0);
       if (sortBy === 'name') return a.name.localeCompare(b.name);
       return 0;
@@ -1640,10 +1668,10 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
     }
   }, [selectedVideos.length, filteredExports]);
 
-  // status.mobile_url (from /api/status) survives a production build served
-  // from a different port than the Vite dev server's 5173; ContentTrackerHub
-  // already does the same fallback chain.
-  const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '');
+  // Phone-reachable base for quick-post links: this page's own origin on a
+  // real host (public tunnel), else the backend's public mobile_url. A LAN
+  // https://<ip>:5173 link is dead for a phone outside the office network.
+  const mobileBaseUrl = publicAppOrigin(status?.mobile_url);
 
   return (
     <div className="space-y-4 relative animate-fadeIn pb-16">
@@ -1767,7 +1795,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="ค้นหาชื่อคลิป, แคปชัน, หรือสินค้า..."
-                  className="w-full bg-black/50 border border-white/[0.1] focus:border-[#FE2C55] focus:ring-1 focus:ring-[#FE2C55] rounded-xl pl-10 pr-9 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+                  className="w-full bg-black/50 border border-white/[0.1] focus:border-[#FE2C55] focus:ring-1 focus:ring-[#FE2C55] rounded-xl pl-10 pr-9 py-2 min-h-11 sm:min-h-0 text-base sm:text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
                 />
                 {searchQuery && (
                   <button
@@ -1787,7 +1815,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   <select
                     value={selectedProductFilter}
                     onChange={(e) => setSelectedProductFilter(e.target.value)}
-                    className="w-full py-2 px-3 rounded-xl bg-black/50 border border-white/[0.1] text-white text-xs font-bold focus:outline-none focus:border-[#FE2C55] transition-colors cursor-pointer truncate"
+                    className="w-full py-2 px-3 min-h-11 sm:min-h-0 rounded-xl bg-black/50 border border-white/[0.1] text-white text-base sm:text-xs font-bold focus:outline-none focus:border-[#FE2C55] transition-colors cursor-pointer truncate"
                   >
                     <option value="all" className="bg-[#080B11]">สินค้าทั้งหมด ({exportsList?.length || 0})</option>
                     {productTags.map(t => (
@@ -1800,7 +1828,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full py-2 px-3 rounded-xl bg-black/50 border border-white/[0.1] text-white text-xs font-bold focus:outline-none focus:border-[#FE2C55] transition-colors cursor-pointer"
+                    className="w-full py-2 px-3 min-h-11 sm:min-h-0 rounded-xl bg-black/50 border border-white/[0.1] text-white text-base sm:text-xs font-bold focus:outline-none focus:border-[#FE2C55] transition-colors cursor-pointer"
                   >
                     <option value="newest" className="bg-[#080B11]">ใหม่ล่าสุด</option>
                     <option value="oldest" className="bg-[#080B11]">เก่าที่สุด</option>
@@ -2233,18 +2261,13 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                 </div>
 
                 {/* Product & Marketing Context Card */}
-                {(selectedDetailVideo.product_name || selectedDetailVideo.angle_name || selectedDetailVideo.price_deal || selectedDetailVideo.key_features) && (
+                {(selectedDetailVideo.product_name || selectedDetailVideo.angle_name || selectedDetailVideo.key_features) && (
                   <div className="p-3 rounded-xl bg-gradient-to-br from-white/[0.04] to-black/40 border border-white/[0.08] space-y-2">
                     <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <Tag className="w-3.5 h-3.5 text-[#FE2C55]" />
                         <span>ข้อมูลสินค้าและแคมเปญ</span>
                       </span>
-                      {selectedDetailVideo.price_deal && (
-                        <span className="px-2 py-0.5 rounded-full bg-[#FE2C55]/15 text-[#FE2C55] font-bold text-[10px] border border-[#FE2C55]/30">
-                          {selectedDetailVideo.price_deal}
-                        </span>
-                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-[11px]">
                       <div>
@@ -2351,10 +2374,14 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(selectedDetailVideo.rel_path || selectedDetailVideo.path);
-                      setModalCopiedPath(true);
-                      setTimeout(() => setModalCopiedPath(false), 2000);
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(selectedDetailVideo.rel_path || selectedDetailVideo.path);
+                        setModalCopiedPath(true);
+                        setTimeout(() => setModalCopiedPath(false), 2000);
+                      } catch {
+                        showToast('คัดลอกที่อยู่ไฟล์ไม่สำเร็จ', 'error');
+                      }
                     }}
                     className="px-2.5 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
                   >
@@ -2422,16 +2449,26 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     <Smartphone className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white">สแกน QR เปิดตัวช่วยโพสต์บนมือถือ</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">เปิดกล้องมือถือสแกนเพื่อโหลดคลิป, ก็อปแคปชัน, ก็อปชื่อปักตะกร้า และเปิด TikTok ทันที</p>
+                    <h4 className="text-sm font-bold text-white">{isCoarsePointer() ? 'เปิดตัวช่วยโพสต์' : 'สแกน QR เปิดตัวช่วยโพสต์บนมือถือ'}</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">{isCoarsePointer() ? 'โหลดคลิป, ก็อปแคปชัน, ก็อปชื่อปักตะกร้า และเปิด TikTok ทันที' : 'เปิดกล้องมือถือสแกนเพื่อโหลดคลิป, ก็อปแคปชัน, ก็อปชื่อปักตะกร้า และเปิด TikTok ทันที'}</p>
                   </div>
-                  <div className="p-3 bg-white rounded-2xl inline-block shadow-xl">
-                    <SafeQRCode
-                      value={buildQuickPostUrl(mobileBaseUrl, selectedDetailVideo)}
-                      size={150}
-                      level="M"
-                    />
-                  </div>
+                  {isCoarsePointer() ? (
+                    <a
+                      href={buildQuickPostUrl(mobileBaseUrl, selectedDetailVideo)}
+                      className="min-h-11 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-sm font-black flex items-center justify-center gap-2 shadow-lg"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      <span>เปิดหน้าโพสต์</span>
+                    </a>
+                  ) : (
+                    <div className="p-3 bg-white rounded-2xl inline-block shadow-xl">
+                      <SafeQRCode
+                        value={buildQuickPostUrl(mobileBaseUrl, selectedDetailVideo)}
+                        size={150}
+                        level="M"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* 5. Modal Footer Action Buttons */}

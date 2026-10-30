@@ -15,6 +15,17 @@
   - [ ] สกัดปกคู่ 9:16 & 3:4 Dual JPG + WebP Thumbnail ครบทั้ง 20 ชุด, ลงทะเบียน `export_registry.json`, `export_cover_bindings.json`, และ sync `products.json` สู่สถานะ 'rendered'
   - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
 
+- [ ] Round MOBILE-FIRST-E2E-IMPLEMENTATION (รอผู้ใช้อนุมัติ + ตอบคำถาม Q1–Q10) · ลงมือตามแผน `_Docs/Plans/PLAN_MOBILE_FIRST_E2E_UX_20261030.md` ทีละ Phase (แต่ละ Phase เปิดบล็อกรอบย่อยก่อนแตะโค้ด):
+  - [x] Phase 0 Security + จุดผิดกฎ ฝั่งโค้ด (ดู HISTORY: CLAUDE-MOBILE-PHASE0-1-SECURITY-AND-FOUNDATION-20261030)
+  - [ ] Phase 0 งานเจ้าของ 🔴: rotate Cloudflare tunnel token (token เก่ายังอยู่ใน git history ของ repo public) → ใส่ Colab Secret `CLOUDFLARE_TUNNEL_TOKEN` · (ทางเลือก) `OMNICUT_APP_PASSWORD` · rotate Gemini keys ถ้าเคยเปิด runner ค้าง · ลองรัน notebook ใหม่บน Colab 1 รอบ (ถ้า ttyd ไม่ขึ้น เปลี่ยน `-i lo` เป็น `-i 127.0.0.1`) · (แนะนำ) Cloudflare Access
+  - [x] Phase 1 Mobile foundation ส่วนหลัก (1.1–1.8) · [ ] Phase 1 ที่เหลือ: 1.9 ฟอนต์/perf (chunk >600kB), 1.10 service worker + จอ "Colab หลับ" + banner reconnect (ใช้ `/api/health`)
+  - [ ] Phase 2 Couple engine + job API (ประสานรอบ TTZ01 ที่เปิดอยู่ ห้ามแก้ `tools/batch_produce_ttz_k106_20.py` ระหว่างนั้น) · [ ] Phase 3 Intake/สคริปต์ · [ ] Phase 4 Review queue · [ ] Phase 5 คลัง/ปก/แจ้งเตือน · [ ] Phase 6 โพสต์จากมือถือ · [ ] Phase 7 Command Center · [ ] Phase 8 Upload/Gadget lane
+  - ดำเนินการโดย: Claude Code (Claude Opus 5.5) — ผู้ใช้อนุมัติ 2026-10-30 (iPhone 15 Pro Max · Colab เป็นหลัก PC สำรอง · canonical = ตระกูล single-take ที่รอบ TTZ01 ใช้)
+
+- [x] Round CLAUDE-MOBILE-PHASE0-1-SECURITY-AND-FOUNDATION-20261030 · Phase 0 + 1 แผนมือถือ (5 เอเจนต์): cookie auth ครอบ HTTP+WS + `/api/health`, Colab notebook ปลอดภัย, ลบคำชวนราคา/สติกเกอร์ดีล, ปิด Copilot sine-tone, nav history + login + mobile primitives; backend 4050 passed (ที่พัง 13 ไฟล์ = เหมือน HEAD), frontend 1038/1038; ดู HISTORY.md · ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
+- [x] Round CLAUDE-MOBILE-FIRST-E2E-UX-AUDIT-AND-PLAN-20261030 · ตรวจมือถือ 10 เอเจนต์ → แผน Phase 0–8 (`_Docs/Plans/PLAN_MOBILE_FIRST_E2E_UX_20261030.md`), เจอ P0 ความปลอดภัย; ดู HISTORY.md · ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
 ## ประวัติรอบที่ปิดแล้ว
 
 - [x] Round ANTIGRAVITY-AGY-OAUTH-HELPER-AND-TERMINAL-PROXY-20261030 · พัฒนา Colab OAuth Login Helper (`scripts/colab_login_helper.py`) ดึง Google OAuth URL อัตโนมัติพร้อมปุ่มคลิกล็อกอินบน Colab และจำถาวรลง Google Drive, ทำ Reverse Proxy สำหรับ `ttyd` (`/terminal` & `/ws`) ให้ใช้งาน Interactive Web Terminal สดบน `https://studio.nazirulhak.com/agy` ได้จากทุกอุปกรณ์, แก้ไขโมเดล AI เป็น `gemini-2.5-flash` และขจัดคีย์จำลอง/คีย์เสียคงเหลือเฉพาะคีย์ที่ผ่านการทดสอบ 200 OK (`AQ.Ab8...nsbg`), รีเจน `Omnicut_Cloud_Runner.ipynb`, ชุดทดสอบผ่าน 8/8 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)

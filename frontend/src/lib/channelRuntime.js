@@ -9,7 +9,13 @@ function initialChannel() {
     try { return assertChannelId(query); }
     catch { selectionFailure = 'รหัสช่องในลิงก์ไม่ถูกต้อง กรุณาเลือกช่องก่อนเริ่มทำงาน'; return 'main'; }
   }
-  try { return readActiveChannel(window.sessionStorage); } catch { return 'main'; }
+  // sessionStorage keeps one channel per tab; localStorage is the fallback so
+  // reopening the installed PWA (a fresh session) lands on the last channel.
+  try { return readActiveChannel(window.sessionStorage, { sharedStorage: sharedStorage() }); } catch { return 'main'; }
+}
+
+function sharedStorage() {
+  try { return window.localStorage || null; } catch { return null; }
 }
 
 let current = initialChannel();
@@ -28,7 +34,11 @@ export function activateChannel(next) {
   assertChannelId(next);
   if (next === current && !selectionFailure) return;
   // Persist first: a storage failure cannot partially change the active UI.
-  if (typeof window !== 'undefined') writeActiveChannel(window.sessionStorage, next);
+  if (typeof window !== 'undefined') {
+    writeActiveChannel(window.sessionStorage, next);
+    // Best effort: a full/blocked localStorage must not block the switch.
+    try { const shared = sharedStorage(); if (shared) writeActiveChannel(shared, next); } catch { /* ignore */ }
+  }
   current = next;
   revision += 1;
   selectionFailure = null;

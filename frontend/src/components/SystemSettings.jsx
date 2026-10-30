@@ -13,10 +13,47 @@ import {
   scanAssetDuplicates,
   cleanAssetDuplicates,
   getTypeSafeStatus,
+  getAiStatus,
 } from '../api';
 import { PageHeader } from './ui';
 import PaginationControls from './PaginationControls';
 import ChannelSettings from './ChannelSettings.jsx';
+
+// Rule 8: a status pill only turns green/amber when real data says so.
+// Anything not reported by an endpoint renders as the neutral gray
+// "ไม่ทราบสถานะ" -- never a hard-coded success state.
+const PILL_TONES = {
+  ok: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+  warn: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+  unknown: 'bg-slate-500/10 text-slate-400 border-slate-500/30',
+};
+const DOT_TONES = { ok: 'bg-emerald-400', warn: 'bg-amber-400', unknown: 'bg-slate-500' };
+const TEXT_TONES = { ok: 'text-emerald-300', warn: 'text-amber-300', unknown: 'text-slate-400' };
+const UNKNOWN_STATUS = 'ไม่ทราบสถานะ';
+
+function StatusPill({ tone = 'unknown', children }) {
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold border ${PILL_TONES[tone] || PILL_TONES.unknown}`}>
+      {children || UNKNOWN_STATUS}
+    </span>
+  );
+}
+
+// /api/ai/status -> provider is "antigravity_pro" | "gemini_api" | "manual".
+function antigravityPill(aiStatus, loading) {
+  if (loading) return { tone: 'unknown', label: 'กำลังตรวจสอบ' };
+  if (!aiStatus?.provider) return { tone: 'unknown', label: UNKNOWN_STATUS };
+  if (aiStatus.provider === 'antigravity_pro') return { tone: 'ok', label: 'พบ CLI ในเครื่อง' };
+  return { tone: 'unknown', label: 'ไม่พบ CLI' };
+}
+
+function geminiPill(aiStatus, loading) {
+  if (loading) return { tone: 'unknown', label: 'กำลังตรวจสอบ' };
+  if (aiStatus?.provider === 'gemini_api') return { tone: 'ok', label: 'มี API key' };
+  if (aiStatus?.provider === 'manual') return { tone: 'warn', label: 'ไม่มี API key' };
+  // antigravity_pro wins the provider slot, so key presence is not reported.
+  return { tone: 'unknown', label: UNKNOWN_STATUS };
+}
 
 export default function SystemSettings({
   status,
@@ -62,6 +99,8 @@ export default function SystemSettings({
   const [cleanMessage, setCleanMessage] = useState(null);
   const [typeSafeStatus, setTypeSafeStatus] = useState(null);
   const [typeSafeLoading, setTypeSafeLoading] = useState(false);
+  const [aiStatus, setAiStatus] = useState(null);
+  const [aiStatusLoading, setAiStatusLoading] = useState(false);
 
   const fetchBackups = async () => {
     try {
@@ -82,6 +121,11 @@ export default function SystemSettings({
         .then(setTypeSafeStatus)
         .catch(() => setTypeSafeStatus({ available: false, provider: 'TypeSafe System One (Jev)' }))
         .finally(() => setTypeSafeLoading(false));
+      setAiStatusLoading(true);
+      getAiStatus()
+        .then(setAiStatus)
+        .catch(() => setAiStatus(null))
+        .finally(() => setAiStatusLoading(false));
     }
   }, [activeTab]);
 
@@ -394,17 +438,17 @@ export default function SystemSettings({
                     <ShieldCheck className="w-5 h-5 text-[#25F4EE]" />
                     <h4 className="font-bold text-white text-xs sm:text-sm">Antigravity Pro Engine</h4>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30">
-                    เชื่อมต่อแล้ว
-                  </span>
+                  {(() => {
+                    const pill = antigravityPill(aiStatus, aiStatusLoading);
+                    return <StatusPill tone={pill.tone}>{pill.label}</StatusPill>;
+                  })()}
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">
                   ใช้งาน <b>Gemini 3.8 Flash (High)</b> สำหรับคิดบท Hook หยุดนิ้ว และแปลภาษาอังกฤษ ผ่านบัญชี Pro โดยตรง ไม่เสียเงินค่า API เพิ่มเติม
                 </p>
                 <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] text-[11px] font-mono text-slate-400 space-y-1">
-                  <div>• Path: ~/.gemini/bin/agy.exe</div>
-                  <div>• Reasoning: High Effort</div>
-                  <div>• API Cost: 0 THB (Included in subscription)</div>
+                  <div>• Provider: {aiStatus?.provider || UNKNOWN_STATUS}</div>
+                  <div>• Model: {aiStatus?.model || UNKNOWN_STATUS}</div>
                 </div>
               </div>
 
@@ -429,21 +473,22 @@ export default function SystemSettings({
                 </div>
               </div>
             {/* Box 2: Google AI Studio Vision */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0F19] border border-emerald-500/20 space-y-3 relative overflow-hidden shadow-lg">
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0F19] border border-white/[0.08] space-y-3 relative overflow-hidden shadow-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    <Sparkles className="w-5 h-5 text-slate-300" />
                     <h4 className="font-bold text-white text-xs sm:text-sm">Gemini 2.5 Flash Vision</h4>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                    Free Tier
-                  </span>
+                  {(() => {
+                    const pill = geminiPill(aiStatus, aiStatusLoading);
+                    return <StatusPill tone={pill.tone}>{pill.label}</StatusPill>;
+                  })()}
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">
                   วิเคราะห์ฟุตเทจวิดีโอดิบแบบ 1 FPS ผ่าน Google File API ด้วยความเร็วสูง (4-7 วินาที) มาร์กจุดตัดอัตโนมัติ
                 </p>
                 <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] text-[11px] font-mono text-slate-400 space-y-1">
-                  <div>• Mode: Free Tier (1,500 requests/day)</div>
+                  <div>• โควตา: ขึ้นกับบัญชี Google AI Studio ของคีย์ที่ใช้</div>
                   <div>• Max Video Upload: 2GB per clip</div>
                   <div>• Model: gemini-2.5-flash</div>
                 </div>
@@ -460,31 +505,33 @@ export default function SystemSettings({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
                 <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] text-slate-200 flex flex-col justify-between space-y-1">
                   <span className="font-bold flex items-center gap-1.5 text-slate-300">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <Cpu className="w-3.5 h-3.5 text-slate-400" />
                     FFmpeg Video Engine
                   </span>
-                  <span className="text-xs font-mono font-bold text-white">
-                    CPU Encode (libx264)
+                  <span className="text-xs font-mono font-bold text-slate-400">
+                    {UNKNOWN_STATUS}
                   </span>
                 </div>
 
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 flex flex-col justify-between space-y-1">
+                <div className={`p-3 rounded-xl border flex flex-col justify-between space-y-1 ${status?.capcut_synced ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-black/40 border-white/[0.06] text-slate-300'}`}>
                   <span className="font-bold flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    {status?.capcut_synced
+                      ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      : <Layers className="w-3.5 h-3.5 text-slate-400" />}
                     CapCut PC Draft Sync
                   </span>
-                  <span className="text-xs font-mono font-bold text-emerald-300">
-                    {status?.capcut_synced ? 'Synced' : 'Configured'}
+                  <span className={`text-xs font-mono font-bold ${status?.capcut_synced ? 'text-emerald-300' : 'text-slate-400'}`}>
+                    {!status ? UNKNOWN_STATUS : status.capcut_synced ? 'พบโฟลเดอร์ดราฟต์' : 'ไม่พบโฟลเดอร์ดราฟต์'}
                   </span>
                 </div>
 
                 <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] text-slate-200 flex flex-col justify-between space-y-1">
                   <span className="font-bold flex items-center gap-1.5 text-slate-300">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <Smartphone className="w-3.5 h-3.5 text-slate-400" />
                     Wi-Fi Mobile Sync
                   </span>
-                  <span className="text-xs font-mono font-bold text-white">
-                    {status?.local_ip || '127.0.0.1'}:5173
+                  <span className="text-xs font-mono font-bold text-white break-all">
+                    {status?.mobile_url || UNKNOWN_STATUS}
                   </span>
                 </div>
               </div>
@@ -816,11 +863,19 @@ export default function SystemSettings({
           <>
             {/* System Status Pill */}
             <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-xl border border-white/[0.08] text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-slate-400 hidden xs:inline">สถานะ:</span>
-              <span className="text-emerald-300 font-bold font-mono">
-                {activeTab === 'channels' ? 'ตั้งค่าช่อง' : status?.capcut_synced ? 'CapCut Synced' : 'Ready'}
-              </span>
+              {(() => {
+                const tone = activeTab === 'channels' || !status ? 'unknown' : status.capcut_synced ? 'ok' : 'warn';
+                const label = activeTab === 'channels'
+                  ? 'ตั้งค่าช่อง'
+                  : !status ? UNKNOWN_STATUS : status.capcut_synced ? 'CapCut Synced' : 'ไม่พบ CapCut';
+                return (
+                  <>
+                    <span className={`w-2 h-2 rounded-full ${DOT_TONES[tone]}`} />
+                    <span className="text-slate-400 hidden xs:inline">สถานะ:</span>
+                    <span className={`${TEXT_TONES[tone]} font-bold font-mono`}>{label}</span>
+                  </>
+                );
+              })()}
             </div>
 
             {/* View Mode Toggle */}

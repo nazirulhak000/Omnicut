@@ -1,10 +1,17 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
+export function isChunkLoadError(error) {
+  const text = `${error?.name || ''} ${error?.message || ''}`;
+  return /ChunkLoadError|Loading chunk|dynamically imported module|Importing a module script failed|error loading dynamically imported/i.test(text);
+}
+
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
+    // resetCount keys the children: "ลองกู้คืน" remounts the failed subtree
+    // with fresh state instead of re-rendering the exact tree that just threw.
+    this.state = { hasError: false, error: null, errorInfo: null, resetCount: 0 };
   }
 
   static getDerivedStateFromError(error) {
@@ -16,18 +23,31 @@ export default class ErrorBoundary extends React.Component {
     this.setState({ errorInfo });
   }
 
+  componentDidUpdate(prevProps) {
+    // Navigating away (e.g. another tab) clears the error for the new screen.
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.handleReset();
+    }
+  }
+
   handleReload = () => {
     window.location.reload();
   };
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
+    // A chunk that failed to download will fail again on remount -- only a
+    // reload fetches the new build's files.
+    if (isChunkLoadError(this.state.error)) {
+      this.handleReload();
+      return;
+    }
+    this.setState((prev) => ({ hasError: false, error: null, errorInfo: null, resetCount: prev.resetCount + 1 }));
   };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-[#080B11] text-slate-100 flex items-center justify-center p-6 select-none font-sans">
+        <div className="min-h-dvh bg-[#080B11] text-slate-100 flex items-center justify-center p-6 select-none font-sans">
           <div className="max-w-lg w-full p-8 rounded-3xl glass-panel border border-rose-500/30 text-center space-y-5 shadow-2xl animate-fadeIn">
             <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto shadow-lg shadow-rose-500/10">
               <AlertTriangle className="w-8 h-8" />
@@ -48,16 +68,16 @@ export default class ErrorBoundary extends React.Component {
               </div>
             )}
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
               <button
                 onClick={this.handleReset}
-                className="flex-1 py-3 px-4 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-bold transition-all cursor-pointer"
+                className="flex-1 min-h-12 py-3 px-4 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-bold transition-all cursor-pointer"
               >
                 ลองกู้คืนหน้าจอเดิม
               </button>
               <button
                 onClick={this.handleReload}
-                className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:opacity-90 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/20 cursor-pointer"
+                className="flex-1 min-h-12 py-3 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:opacity-90 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/20 cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>รีเฟรชหน้าเว็บ</span>
@@ -68,6 +88,6 @@ export default class ErrorBoundary extends React.Component {
       );
     }
 
-    return this.props.children;
+    return <React.Fragment key={this.state.resetCount}>{this.props.children}</React.Fragment>;
   }
 }

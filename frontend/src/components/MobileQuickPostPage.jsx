@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Download, Copy, Check, ExternalLink, ShoppingBag, Sparkles,
   Smartphone, CheckCircle2, ArrowRight, Video, AlertCircle,
-  Tag, Film, Play, RotateCcw, Home
+  Tag, Film, Play, RotateCcw, Home, Lightbulb
 } from 'lucide-react';
 import { getProducts, markPosted } from '../api';
 import { toMediaUrl } from '../lib/mediaUrl.js';
 import { activeChannel } from '../lib/channelRuntime.js';
 import { ChannelWorkspaceBar } from '../context/ChannelContext.jsx';
+import { ConfirmModal } from './ui';
+import { isAlreadyPostedError, isNoResponseError } from '../lib/mobileStudioFlow.js';
 
 export default function MobileQuickPostPage({ onExit }) {
   const [owner] = useState(activeChannel);
@@ -37,6 +39,11 @@ export default function MobileQuickPostPage({ onExit }) {
   const [copiedProduct, setCopiedProduct] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isPosted, setIsPosted] = useState(false);
+  const [markingPosted, setMarkingPosted] = useState(false);
+  const [showPostConfirm, setShowPostConfirm] = useState(false);
+  // A mark-posted request that got no reply may still have moved the file;
+  // the retry's 404 then means "already done", not "failed".
+  const postAttemptLostRef = useRef(false);
   const [toastMessage, setToastMessage] = useState(null);
 
   const showToast = (msg) => {
@@ -170,30 +177,49 @@ export default function MobileQuickPostPage({ onExit }) {
     }, 1000);
   };
 
-  // Step 5: Mark as Posted
+  // Step 5: Mark as Posted (after an explicit confirm; idempotent on retry)
   const handleMarkAsPosted = async () => {
-    if (!canMarkPosted || isPosted) {
+    if (isPosted || markingPosted) return;
+    if (!canMarkPosted) {
       showToast('ต้องมี export_id และไฟล์ของช่องนี้ก่อนบันทึกสถานะโพสต์');
       return;
     }
+    setMarkingPosted(true);
     try {
       const res = await markPosted(effectiveVideo, params.productId || null, params.angleId || null, params.exportId);
+      postAttemptLostRef.current = false;
       setIsPosted(true);
+      setShowPostConfirm(false);
       if (res?.status_warning || res?.post_log_warning) showToast('บันทึกไฟล์โพสต์แล้ว แต่ประวัติหรือสถานะยังมีคำเตือน กรุณาตรวจจากคอมพิวเตอร์');
-      else showToast('บันทึกสถานะ "โพสต์แล้ว" ส่งกลับไปที่คอมพิวเตอร์เรียบร้อย!');
+      else showToast('บันทึกสถานะ "โพสต์แล้ว" ส่งกลับไปที่คอมพิวเตอร์เรียบร้อย');
     } catch (err) {
-      showToast('ไม่สามารถอัปเดตสถานะได้: ' + (err.friendlyMessage || err.message));
+      if (isAlreadyPostedError(err, { previousAttemptLost: postAttemptLostRef.current })) {
+        postAttemptLostRef.current = false;
+        setIsPosted(true);
+        setShowPostConfirm(false);
+        showToast('คลิปนี้ถูกบันทึกว่าโพสต์แล้ว');
+        return;
+      }
+      setShowPostConfirm(false);
+      if (isNoResponseError(err)) {
+        postAttemptLostRef.current = true;
+        showToast('การเชื่อมต่อหลุดระหว่างบันทึก ยังไม่แน่ใจว่าบันทึกแล้วหรือยัง กดมาร์กอีกครั้งเพื่อตรวจ');
+      } else {
+        showToast('ไม่สามารถอัปเดตสถานะได้: ' + (err?.response?.data?.detail || err.friendlyMessage || err.message));
+      }
+    } finally {
+      setMarkingPosted(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#070A12] text-white flex flex-col justify-between max-w-lg mx-auto p-4 sm:p-6 font-prompt">
+    <div className="min-h-dvh bg-[#070A12] text-white flex flex-col justify-between max-w-lg mx-auto px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:p-6 font-prompt">
       <ChannelWorkspaceBar />
       {mediaScopeInvalid && <p role="alert" className="py-3 text-sm text-rose-300">ลิงก์ไฟล์ไม่ตรงกับช่องนี้ กรุณาเปิดลิงก์จากช่องเจ้าของคลิป</p>}
       {!mediaScopeInvalid && !canMarkPosted && !isPosted && <p role="alert" className="py-3 text-sm text-rose-300">ไม่พบ export_id หรือไฟล์คลิป กรุณาเปิดลิงก์จากช่องเจ้าของคลิปอีกครั้ง</p>}
       {/* ── Toast Notification ── */}
       {toastMessage && (
-        <div className="fixed top-4 left-4 right-4 z-50 p-3.5 rounded-2xl bg-[#25F4EE] text-slate-950 font-bold text-xs text-center shadow-2xl border border-white/20 animate-slideDown">
+        <div role="status" className="fixed top-[calc(env(safe-area-inset-top)+1rem)] left-4 right-4 z-50 p-3.5 rounded-2xl bg-[#25F4EE] text-slate-950 font-bold text-xs text-center shadow-2xl border border-white/20 animate-slideDown">
           {toastMessage}
         </div>
       )}
@@ -215,7 +241,7 @@ export default function MobileQuickPostPage({ onExit }) {
         {onExit && (
           <button
             onClick={onExit}
-            className="py-1.5 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-slate-300 flex items-center gap-1 cursor-pointer transition-colors"
+            className="min-h-11 py-1.5 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-slate-300 flex items-center gap-1 cursor-pointer transition-colors"
           >
             <Home className="w-3.5 h-3.5" />
             <span>หน้าหลัก</span>
@@ -269,7 +295,7 @@ export default function MobileQuickPostPage({ onExit }) {
           <button
             type="button"
             onClick={handleDownloadVideo}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-cyan-900/20 active:scale-95 transition-all cursor-pointer"
+            className="w-full min-h-11 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-cyan-900/20 active:scale-95 transition-all cursor-pointer"
           >
             <Download className="w-4 h-4" />
             <span>ดาวน์โหลดวิดีโอ MP4</span>
@@ -281,7 +307,7 @@ export default function MobileQuickPostPage({ onExit }) {
                 <button
                   type="button"
                   onClick={() => handleDownloadCover(effectiveCover9x16, `${effectiveProduct}_cover_9x16.jpg`)}
-                  className="py-2 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-medium text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="min-h-11 py-2 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-medium text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5 text-cyan-400" />
                   <span>โหลดปก 9:16</span>
@@ -291,7 +317,7 @@ export default function MobileQuickPostPage({ onExit }) {
                 <button
                   type="button"
                   onClick={() => handleDownloadCover(effectiveCover3x4, `${effectiveProduct}_cover_3x4.jpg`)}
-                  className="py-2 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-medium text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="min-h-11 py-2 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-medium text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5 text-purple-400" />
                   <span>โหลดปก 3:4</span>
@@ -301,7 +327,7 @@ export default function MobileQuickPostPage({ onExit }) {
           )}
 
           <p className="text-[10px] text-slate-400 leading-relaxed text-center">
-            💡 สำหรับ iPhone: แตะดาวน์โหลด หรือแตะค้างที่วิดีโอด้านบนแล้วเลือก <b>"บันทึกวิดีโอ" (Save Video)</b>
+            <Lightbulb className="inline w-3 h-3 mr-1 align-[-2px]" aria-hidden="true" />สำหรับ iPhone: แตะดาวน์โหลด หรือแตะค้างที่วิดีโอด้านบนแล้วเลือก <b>"บันทึกวิดีโอ" (Save Video)</b>
           </p>
         </div>
 
@@ -322,7 +348,7 @@ export default function MobileQuickPostPage({ onExit }) {
           <button
             type="button"
             onClick={handleCopyCaption}
-            className={`w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 ${
+            className={`w-full min-h-11 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 ${
               copiedCaption
                 ? 'bg-emerald-500 text-slate-950 font-black'
                 : 'bg-white/[0.08] hover:bg-white/[0.12] border border-white/[0.1] text-white'
@@ -331,7 +357,7 @@ export default function MobileQuickPostPage({ onExit }) {
             {copiedCaption ? (
               <>
                 <Check className="w-4 h-4 text-slate-950 stroke-[3]" />
-                <span>คัดลอกแคปชันเรียบร้อยแล้ว!</span>
+                <span>คัดลอกแคปชันเรียบร้อยแล้ว</span>
               </>
             ) : (
               <>
@@ -359,14 +385,14 @@ export default function MobileQuickPostPage({ onExit }) {
             <button
               type="button"
               onClick={handleCopyProductName}
-              className="py-1 px-2.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1 flex-shrink-0 cursor-pointer active:scale-95 transition-all"
+              className="min-h-11 py-1 px-3 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1 flex-shrink-0 cursor-pointer active:scale-95 transition-all"
             >
               {copiedProduct ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copiedProduct ? 'คัดลอกแล้ว' : 'คัดลอก'}</span>
             </button>
           </div>
           <p className="text-[10px] text-slate-400 leading-relaxed">
-            💡 ในหน้าก่อนโพสต์ TikTok ให้แตะ <b>"เพิ่มลิงก์" → "สินค้า"</b> แล้ววางชื่อนี้ในช่องค้นหาเพื่อปักตะกร้าได้ทันที
+            <Lightbulb className="inline w-3 h-3 mr-1 align-[-2px]" aria-hidden="true" />ในหน้าก่อนโพสต์ TikTok ให้แตะ <b>"เพิ่มลิงก์" → "สินค้า"</b> แล้ววางชื่อนี้ในช่องค้นหาเพื่อปักตะกร้าได้ทันที
           </p>
         </div>
 
@@ -386,18 +412,30 @@ export default function MobileQuickPostPage({ onExit }) {
         <div className="pt-1">
           <button
             type="button"
-            onClick={handleMarkAsPosted}
-            disabled={isPosted || !canMarkPosted}
-            className={`w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 ${
+            onClick={() => setShowPostConfirm(true)}
+            disabled={isPosted || !canMarkPosted || markingPosted}
+            className={`w-full min-h-11 py-3 px-4 rounded-xl disabled:opacity-60 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 ${
               isPosted
                 ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 cursor-default'
                 : 'bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-slate-300 hover:text-white'
             }`}
           >
             <CheckCircle2 className={`w-4 h-4 ${isPosted ? 'text-emerald-400' : 'text-slate-400'}`} />
-            <span>{isPosted ? '✓ โพสต์ลง TikTok เรียบร้อยแล้ว' : '5. มาร์กว่า "โพสต์ลง TikTok แล้ว"'}</span>
+            <span>{isPosted ? 'บันทึกว่าโพสต์ลง TikTok แล้ว' : markingPosted ? 'กำลังบันทึก...' : '5. มาร์กว่า "โพสต์ลง TikTok แล้ว"'}</span>
           </button>
         </div>
+        <ConfirmModal
+          isOpen={showPostConfirm}
+          onClose={() => { if (!markingPosted) setShowPostConfirm(false); }}
+          onConfirm={handleMarkAsPosted}
+          title="ยืนยันว่าโพสต์บน TikTok แล้ว"
+          description="ระบบจะย้ายคลิปเข้าโฟลเดอร์ Posted และเปลี่ยนสถานะเป็นโพสต์แล้ว กดเฉพาะเมื่อคลิปขึ้นบน TikTok จริง"
+          dangerNote={null}
+          confirmText="ยืนยันว่าโพสต์แล้ว"
+          cancelText="ยังไม่ได้โพสต์"
+          loading={markingPosted}
+          variant="info"
+        />
       </div>
 
       {/* ── Footer ── */}

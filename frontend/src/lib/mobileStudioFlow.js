@@ -72,3 +72,59 @@ export function mergeCatalogPage(existing, incoming) {
   return merged;
 }
 
+// ── Mobile E2E UX (2026-10-30) ──
+
+/** The mobile catalog DTO names the finished clip `rendered_video_url`; older rows used `video_url`. */
+export function angleVideoUrl(angle) {
+  return angle?.rendered_video_url || angle?.video_url || null;
+}
+
+/** An angle counts as posted only when the backend says so (status or posted_at). */
+export function isAnglePosted(angle) {
+  return Boolean(angle && (angle.status === 'posted' || angle.posted_at));
+}
+
+/** Uploaded footage belongs to exactly one product+angle pair. */
+export function footageKey(productId, angleId) {
+  if (!productId) return null;
+  return `${productId}:${angleId || 'quick_take'}`;
+}
+
+const MOBILE_RENDER_TASK_TYPE = 'mobile_auto_assemble_render';
+const LIVE_TASK_STATUSES = new Set(['queued', 'processing']);
+
+/**
+ * Pick the still-running mobile render task to reattach to after the phone
+ * reopened the page. Prefers the task for the remembered product/angle, then
+ * the newest live mobile render. Returns null when nothing is running.
+ */
+export function findResumableMobileTask(tasks, { productId = null, angleId = null } = {}) {
+  const live = (Array.isArray(tasks) ? tasks : []).filter(t =>
+    t && t.type === MOBILE_RENDER_TASK_TYPE && LIVE_TASK_STATUSES.has(t.status));
+  if (!live.length) return null;
+  const sameAngle = live.find(t => {
+    const p = t.payload || {};
+    return (!productId || p.product_id === productId) && (!angleId || p.angle_id === angleId);
+  });
+  if (productId || angleId) return sameAngle || null;
+  return live[0];
+}
+
+/**
+ * Mark-posted is idempotent from the phone's point of view. Success when the
+ * server says the clip is already posted, or when it answers 404 (file already
+ * moved into Posted/) to a RETRY whose previous attempt got no response at all
+ * (request reached the server, reply was lost). Any other 409/404 is a real
+ * failure -- e.g. export_id mismatch -- and must stay an error.
+ */
+export function isAlreadyPostedError(error, { previousAttemptLost = false } = {}) {
+  const status = error?.response?.status;
+  const detail = String(error?.response?.data?.detail || '').toLowerCase();
+  if (/already posted|โพสต์แล้ว/.test(detail) && !/ไม่สามารถนำกลับ/.test(detail)) return true;
+  return status === 404 && previousAttemptLost;
+}
+
+/** True when the request never got an HTTP reply (offline, timeout, tunnel drop). */
+export function isNoResponseError(error) {
+  return Boolean(error) && !error.response;
+}

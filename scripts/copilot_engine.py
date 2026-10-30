@@ -39,6 +39,12 @@ COMPOSITIONS_DIR = STUDIO_DIR / "compositions"
 SHARED_ASSETS_DIR = STUDIO_DIR / "assets" / "shared"
 SESSIONS_STORE_FILE = BASE_DIR / "_Docs" / "copilot_sessions.json"
 
+# Co-Pilot drafts carry a deterministic placeholder voice track (tones, not
+# speech) -- fine for previewing layout/timing in Studio, never fine as a
+# deliverable. Rendering them to an MP4 is refused (rule 11: no junk clips
+# in 04_Exports, rule 8: never mark a placeholder clip "rendered").
+COPILOT_RENDER_UNSUPPORTED_MSG = "ยังไม่รองรับเรนเดอร์จาก Co-Pilot — ใช้ไลน์ผลิตหลัก"
+
 F_STYLE = (
     "Cute, bright, energetic young Southern Thai girlfriend named น้องนุ้ย "
     "(สาวใต้เสียงใส น่ารักแต่ดุ พูดจังหวะกระชับชัดเจน)"
@@ -117,12 +123,12 @@ class CopilotEngine:
         # Extract product facts
         title = product.get("name") or product.get("title") or "สินค้าแนะนำ"
         specs = product.get("specs") or []
-        price_note = product.get("price_note") or "ราคาพิเศษในตะกร้า"
         images = product.get("images") or []
         images_count = len(images)
 
-        # Generate initial recommended angles
-        initial_angles = cls._generate_initial_angles(title, specs, price_note)
+        # Generate initial recommended angles. price_note is deliberately not
+        # passed in: clips must never mention price/discount/promo.
+        initial_angles = cls._generate_initial_angles(title, specs)
 
         welcome_msg = (
             f"สวัสดีครับ! ผมเป็นผู้ช่วย AI ผลิตคลิปสำหรับสินค้า **{title}**\n"
@@ -136,7 +142,6 @@ class CopilotEngine:
             "channel_id": channel_id,
             "product_id": product_id,
             "product_name": title,
-            "price_note": price_note,
             "images": images,
             "messages": [
                 {
@@ -295,7 +300,11 @@ class CopilotEngine:
             "duration": script.get("estimated_duration_s", 30.0),
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "composition_path": f"03_Projects/_HyperFrames_Studio/clips/{clip_slug}/index.html",
-            "preview_url": f"http://localhost:3002/clips/{clip_slug}",
+            # No machine-local URL is persisted: a "localhost:3002" link stored
+            # here is dead on every other device (phone, Colab, LAN). The UI
+            # opens the Studio via /api/hyperframes/open-studio instead.
+            "preview_url": None,
+            "audio_placeholder": True,
         }
         (clip_dir / "meta.json").write_text(json.dumps(manifest_data, indent=2, ensure_ascii=False), encoding="utf-8")
 
@@ -307,6 +316,9 @@ class CopilotEngine:
             "status": "draft_ready",
             "draft_type": "hyperframes",
             "style": script.get("style", "couple_paper_chat"),
+            # Voice track is a placeholder tone, not TTS -- render is refused.
+            "audio_placeholder": True,
+            "render_supported": False,
         }
 
         # Update angle status in ProductStore
@@ -323,7 +335,7 @@ class CopilotEngine:
                         ang["draft_type"] = "hyperframes"
                         ang["clip_id"] = clip_slug
                         ang["composition_path"] = manifest_data["composition_path"]
-                        ang["video_preview_url"] = manifest_data["preview_url"]
+                        ang.pop("video_preview_url", None)
                         matched = True
                         break
                 if not matched:
@@ -336,7 +348,6 @@ class CopilotEngine:
                         "draft_type": "hyperframes",
                         "clip_id": clip_slug,
                         "composition_path": manifest_data["composition_path"],
-                        "video_preview_url": manifest_data["preview_url"],
                         "batch": 1,
                         "style": script.get("style", "couple_paper_chat"),
                     }
@@ -352,9 +363,9 @@ class CopilotEngine:
             f"🎉 **HyperFrames Composition สร้างเสร็จเรียบร้อยแล้ว!**\n\n"
             f"- **Clip ID**: `{clip_slug}`\n"
             f"- **ไฟล์ผลงาน**: `{manifest_data['composition_path']}`\n"
-            f"- **หน้า Studio Preview**: `{manifest_data['preview_url']}`\n"
             f"- **สถานะ Tracker**: ขยับเข้าสู่ **เฟส 3 (มีดราฟต์ / draft_ready)** ใน Content Tracker เรียบร้อย\n\n"
-            "คุณสามารถเปิดดูพรีวิวสดได้ทันที หรือสั่งเรนเดอร์เป็นไฟล์วิดีโอ 1080x1920 MP4 เพื่อเตรียมโพสต์ได้เลยครับ!"
+            "เปิดดูเลย์เอาต์ได้ใน HyperFrames Studio ครับ (เสียงในดราฟต์นี้เป็นเสียงทดแทนชั่วคราว ยังไม่ใช่เสียงพากย์จริง)\n"
+            f"{COPILOT_RENDER_UNSUPPORTED_MSG}"
         )
         cls._append_chat(session, "assistant", done_msg)
 
@@ -386,7 +397,6 @@ class CopilotEngine:
         cls,
         title: str,
         specs: List[Any],
-        price_note: str
     ) -> List[Dict[str, Any]]:
         def _fmt(s: Any) -> str:
             if isinstance(s, dict):
@@ -402,21 +412,21 @@ class CopilotEngine:
                 "title": "Couple POV Sitcom (พี่บ่าว & น้องนุ้ย)",
                 "hook": "แฟนบ่นจนบ้านแทบแตก แต่พอหยิบตัวนี้มาให้ถึงกับเงียบกริบ!",
                 "style": "couple_paper_chat",
-                "selling_points": [spec_summary, "แก้ปัญหาชีวิตคู่", price_note],
+                "selling_points": [spec_summary, "แก้ปัญหาชีวิตคู่", "กดตะกร้าดูรายละเอียด"],
             },
             {
                 "id": "angle_2",
                 "title": "Meme-PAS ปัญหาชีวิตประจำวัน",
                 "hook": "ทนใช้ของเก่าจนเกือบขิต! ดูคลิปนี้ก่อนตัดสินใจซื้อ",
                 "style": "meme_pas",
-                "selling_points": ["Pain point ชัดเจน", "เทียบความคุ้มค่า", "ป้ายยาตะกร้าเหลือง"],
+                "selling_points": ["Pain point ชัดเจน", "เทียบก่อน-หลังใช้", "ป้ายยาตะกร้าเหลือง"],
             },
             {
                 "id": "angle_3",
                 "title": "Tech Explainer ผ่าสเปกสายโหด",
                 "hook": "ทำไมรุ่นนี้ถึงขายดีจัด? ผ่าดู 3 จุดเด่นที่คนซื้อพูดเป็นเสียงเดียวกัน",
                 "style": "tech_explainer",
-                "selling_points": ["ฟีเจอร์เด่น", "ความคุ้มค่าเกินราคา", "จัดส่งไว"],
+                "selling_points": ["ฟีเจอร์เด่น", "สเปกใช้งานจริง", "จัดส่งไว"],
             },
             {
                 "id": "angle_4",
@@ -546,7 +556,7 @@ class CopilotEngine:
 
         headlines = [
             [0, "POV: ของเดิมพังจนหัวจะปวด", "พี่บ่าวจัดตัวตึงให้", "จบทุกปัญหา!"],
-            [2, "ลองใช้จริงแล้วถึงกับอึ้ง", short_name[:25], "คุ้มค่าเกินราคา"],
+            [2, "ลองใช้จริงแล้วถึงกับอึ้ง", short_name[:25], "ใช้ง่ายจริง"],
             [4, "ใครเล็งอยู่รีบกดด่วน", "กดตะกร้าเหลือง", "ซ้ายล่างเลย!"],
         ]
 
@@ -567,7 +577,12 @@ class CopilotEngine:
         out_wav: Path,
         dry_run: bool = False
     ) -> List[Dict[str, Any]]:
-        """Generate voiceover audio or valid deterministic offline synthetic waveform."""
+        """Write a deterministic PLACEHOLDER voice track (sine tones, not speech).
+
+        Only good for previewing layout/timing in Studio. Drafts built from it are
+        flagged audio_placeholder=True and the render endpoint refuses them, so
+        this audio can never end up in an MP4 under 04_Exports.
+        """
         out_wav.parent.mkdir(parents=True, exist_ok=True)
         sr = 48000
         turns = script.get("turns", [])

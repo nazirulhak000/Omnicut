@@ -158,6 +158,11 @@ class ManualModeRequired(Exception):
         self.task = task
 
 
+# Context keys that carry price/promo data. Stripped from every generation
+# prompt (see build_prompt) -- TikTok clips must never mention price.
+PRICE_CONTEXT_KEYS = frozenset({"price_deal", "price_note", "price", "deal"})
+
+
 class AIBridge:
     """Builds prompts, validates answers, and optionally calls Gemini directly."""
 
@@ -175,7 +180,7 @@ class AIBridge:
                 "pain_points": ["ปัญหาที่คนซื้อของแบบนี้เจอจริง"],
                 "selling_points": ["จุดขายที่พูดแล้วคนอยากกด"],
                 "target_buyer": "คนแบบไหนควรซื้อ",
-                "price_note": "ราคา/โปรที่เห็นในหน้าร้าน ถ้าไม่มีให้ใส่ว่าง",
+                "price_note": "ราคาที่เห็นในหน้าร้าน (เก็บเป็นข้อมูลอ้างอิงภายในเท่านั้น ห้ามนำไปใช้ในคลิป) ถ้าไม่มีให้ใส่ว่าง",
             },
         },
         "angles": {
@@ -196,7 +201,7 @@ class AIBridge:
         },
         "script": {
             "label": "เขียนสคริปต์พากย์และซับไตเติลสองภาษา",
-            "required_context": ["product_name", "angle_title", "hook", "specs", "price_deal"],
+            "required_context": ["product_name", "angle_title", "hook", "specs"],
             "schema_hint": {
                 "hook_title": "ข้อความแบนเนอร์บนจอ 3 วิแรก สั้นมาก (ไม่เกิน 5-7 คำ)",
                 # The banner is three stacked tiers, not one sentence. Asking
@@ -218,9 +223,9 @@ class AIBridge:
         },
         "caption": {
             "label": "เขียน caption + hashtag",
-            "required_context": ["product_name", "angle_title", "hook", "price_deal"],
+            "required_context": ["product_name", "angle_title", "hook"],
             "schema_hint": {
-                "caption": "แคปชั่น TikTok ไม่เกิน 150 ตัวอักษร มี CTA ชี้ตะกร้า",
+                "caption": "แคปชั่น TikTok ไม่เกิน 150 ตัวอักษร มี CTA กลางๆ ชี้ตะกร้า (ห้ามมีราคา/ส่วนลด/โปร)",
                 "hashtags": ["#แฮชแท็ก 8-12 อัน ผสมกว้าง+เฉพาะสินค้า"],
                 "cover_text": "ข้อความบนภาพปก สั้นมาก อ่านออกในครึ่งวินาที",
             },
@@ -233,8 +238,9 @@ class AIBridge:
 - ห้ามใส่จุดไข่ปลา หรือ "..." หรือ "…" ในบทพูดหรือคำแปลโดยเด็ดขาด ให้ใช้การเว้นวรรคภาษาไทยธรรมดา เพื่อไม่ให้มีจุดติดไปที่ซับไตเติลบนหน้าจอ
 - สินค้า IT ต้องมีตัวเลขสเปคจริงเสมอ (W, mAh, ms, Hz, dB) ห้ามมั่วตัวเลข ถ้าไม่รู้ให้เว้น
 - ห้ามเคลมเกินจริง ห้ามใช้คำว่า "ดีที่สุดในโลก" "รักษาโรค" หรือคำที่พิสูจน์ไม่ได้
+- ห้ามพูด/เขียนถึงราคา ตัวเลขเงิน ส่วนลด โปรโมชั่น Flash Sale คูปอง ส่งฟรี หรือการเดาราคา (เช่น "หลักร้อย" "หลักพัน") ในบทพูด ซับ แคปชั่น แฮชแท็ก และข้อความบนจอทุกจุด (ผิดกฎ TikTok) ห้ามเร่งด้วยราคา ให้ใช้ CTA กลางๆ เท่านั้น
 - ความยาวและโครงสร้างสคริปต์ (สำคัญมาก):
-  * ถ้าต้องการคลิปมาตรฐาน 35–45 วินาที: ต้องเขียน 7–8 บรรทัด (ประมาณ 500–650 ตัวอักษร) ไล่สเต็ป: Hook หยุดนิ้ว (3 วิ) -> เปิด Pain Point คนใช้ -> เฉลยตัวช่วย/แกะกล่องสินค้า -> จุดเด่นที่ 1 พร้อมสเปกจริง -> จุดเด่นที่ 2 / ประสบการณ์สัมผัสจริง -> ความสะดวก/ความทนทาน -> ราคาโปรโมชั่น -> CTA ชี้พิกัดตะกร้า
+  * ถ้าต้องการคลิปมาตรฐาน 35–45 วินาที: ต้องเขียน 7–8 บรรทัด (ประมาณ 500–650 ตัวอักษร) ไล่สเต็ป: Hook หยุดนิ้ว (3 วิ) -> เปิด Pain Point คนใช้ -> เฉลยตัวช่วย/แกะกล่องสินค้า -> จุดเด่นที่ 1 พร้อมสเปกจริง -> จุดเด่นที่ 2 / ประสบการณ์สัมผัสจริง -> ความสะดวก/ความทนทาน -> เหตุผลที่ควรมีติดไว้ -> CTA กลางๆ ชี้ตะกร้า เช่น "กดตะกร้าดูรายละเอียดได้เลยครับ"
   * ถ้าต้องการคลิปสั้นกระชับ 20–25 วินาที: ให้เขียน 5 บรรทัด (ประมาณ 300–380 ตัวอักษร)
 - กฎการตัดประโยคคำบรรยาย:
   * แบ่งตามประโยคธรรมชาติที่ได้ใจความก่อนเว้นวรรค ห้ามตัดขาดกลางคำเดี่ยวๆ
@@ -257,6 +263,11 @@ class AIBridge:
         if missing:
             raise ValueError(f"Task '{task}' missing context: {', '.join(missing)}")
 
+        # Price fields never reach a generation prompt: clips must not show
+        # or say a price/discount/promo (project rule), so even if a caller
+        # still sends one it is dropped here rather than nudging the model.
+        if task != "product_enrich":
+            context = {k: v for k, v in context.items() if k not in PRICE_CONTEXT_KEYS}
         context_block = json.dumps(context, ensure_ascii=False, indent=2)
 
         # The "script" task's schema_hint carries a sentinel for the sfx

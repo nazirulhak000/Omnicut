@@ -87,7 +87,7 @@ const CONTENT_TYPE_CATALOG = {
   problem_solution: { label: 'ปัญหา → ทางออก', className: 'text-rose-200 bg-rose-500/10 border-rose-400/25' },
   specs: { label: 'สเปก/สรรพคุณ', className: 'text-cyan-200 bg-cyan-500/10 border-cyan-400/25' },
   unboxing: { label: 'แกะกล่อง / First Impression', className: 'text-violet-200 bg-violet-500/10 border-violet-400/25' },
-  promotion: { label: 'โปรโมชัน / ความคุ้มค่า', className: 'text-amber-200 bg-amber-500/10 border-amber-400/25' },
+  promotion: { label: 'ห้ามพลาด / เหตุผลที่ควรมี', className: 'text-amber-200 bg-amber-500/10 border-amber-400/25' },
   comparison: { label: 'เปรียบเทียบ', className: 'text-blue-200 bg-blue-500/10 border-blue-400/25' },
   tips: { label: 'ทริก / How-to', className: 'text-lime-200 bg-lime-500/10 border-lime-400/25' },
   warning: { label: 'ข้อควรระวัง', className: 'text-orange-200 bg-orange-500/10 border-orange-400/25' },
@@ -95,7 +95,7 @@ const CONTENT_TYPE_CATALOG = {
   experience: { label: 'ประสบการณ์ใช้งานจริง', className: 'text-emerald-200 bg-emerald-500/10 border-emerald-400/25' },
   use_cases: { label: 'การใช้งานจริง', className: 'text-teal-200 bg-teal-500/10 border-teal-400/25' },
   faq: { label: 'FAQ / ข้อกังวล', className: 'text-sky-200 bg-sky-500/10 border-sky-400/25' },
-  value: { label: 'คำนวณความคุ้มค่า', className: 'text-yellow-200 bg-yellow-500/10 border-yellow-400/25' },
+  value: { label: 'คุ้มค่าการใช้งาน', className: 'text-yellow-200 bg-yellow-500/10 border-yellow-400/25' },
 };
 
 const ANGLE_CONTENT_TYPES = {
@@ -2253,9 +2253,12 @@ function ScriptAccordionItem({
 // 🌟 MAIN: ProductToClip Component (Redesigned Guided Workflow)
 // ═══════════════════════════════════════════════════════════════════════
 export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio, onGoToGallery, selectedProductId, pendingFlowTaskVersion, consumePendingAngleId, consumePendingImageMetadataPreview, workspaceData }) {
-  // Mirrors ExportGallery.jsx's mobileBaseUrl computation -- the LAN IP of
-  // the Vite dev server a phone scanning a QR code needs to reach.
-  const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '');
+  // Same rule as lib/mobileLinks.js publicAppOrigin(): on a real host (public
+  // tunnel) the phone reaches this page's own origin; on localhost use the
+  // backend's public mobile_url. Never a dead LAN https://<ip>:5173 link.
+  const mobileBaseUrl = (typeof window !== 'undefined' && !['localhost', '127.0.0.1', '::1', '[::1]'].includes(window.location.hostname))
+    ? window.location.origin
+    : (status?.mobile_url || (typeof window !== 'undefined' ? window.location.origin : ''));
 
   // Input Mode & Active View
   const [showAddModal, setShowAddModal] = useState(false);
@@ -3623,7 +3626,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       customScript: scriptText,
       keyFeatures: angle.key_features || productData?.description || '',
       painPoint: angle.pain_point || '',
-      priceDeal: angle.price_deal || productData?.price_note || '',
+      priceDeal: angle.price_deal || '',
       adTone: resolveAdTone(angle.ad_tone),
       voicePreset: angle.voice_preset || 'gemini_fenrir_male_strong',
       voiceGender: 'male',
@@ -3690,7 +3693,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       customScript: scriptText,
       keyFeatures: angle.key_features || productData?.description || '',
       painPoint: angle.pain_point || '',
-      priceDeal: angle.price_deal || productData?.price_note || '',
+      priceDeal: angle.price_deal || '',
       adTone: resolveAdTone(angle.ad_tone),
       voicePreset: angle.voice_preset || 'gemini_fenrir_male_strong',
       voiceGender: 'male',
@@ -4642,7 +4645,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             )}
             {angleCount === 10 && (
               <p className="text-slate-400 leading-relaxed">
-                ครบ 10 รูปแบบ (รวม ⚙️ <strong className="text-cyan-300">รีวิวสเปกเจาะลึก</strong>, สายเฉพาะทาง, รีวิว 3 เดือน, และคำนวณความคุ้มค่า)
+                ครบ 10 รูปแบบ (รวม ⚙️ <strong className="text-cyan-300">รีวิวสเปกเจาะลึก</strong>, สายเฉพาะทาง, รีวิว 3 เดือน, และคุ้มค่าการใช้งานระยะยาว)
               </p>
             )}
           </div>

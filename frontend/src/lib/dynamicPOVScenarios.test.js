@@ -84,6 +84,11 @@ test('getDynamicPOVScenarios gracefully handles generic products with angles', (
   assert.ok(scenarios[0].script.includes('ของเดิมเปราะหักง่ายมาก'));
   assert.ok(scenarios[0].script.includes('Gadget XYZ'));
   assert.ok(scenarios[0].script.includes('ไทเทเนียม'));
+  // price_deal is product data only -- it never reaches the POV chat script.
+  for (const s of scenarios) {
+    assert.ok(!s.script.includes('ลด 50%'), s.id);
+    assert.ok(!/ราคา|บาท|โปรโมชั่น|ส่วนลด|ส่งฟรี/.test(s.script), s.id);
+  }
 });
 
 test('convertAngleToPOVDialogue adapts an angle into a 2-person LINE dialogue', () => {
@@ -99,6 +104,8 @@ test('convertAngleToPOVDialogue adapts an angle into a 2-person LINE dialogue', 
   assert.ok(dialogue.includes('เสียงอู้อี้'));
   assert.ok(dialogue.includes('ฉัน: "ใจเย็น! ในกระเป๋ามี หูฟัง Earphone Synmax'));
   assert.ok(dialogue.includes('ไมค์คมชัด'));
-  assert.ok(dialogue.includes('159 บาท ส่งฟรี'));
+  // No price/promo in the clip dialogue even when the angle carries one.
+  assert.ok(!dialogue.includes('159 บาท'));
+  assert.ok(!dialogue.includes('ส่งฟรี'));
   assert.ok(dialogue.includes('แฟน: "เห้ยยย จริงด้วย รอดตายแล้ว ขอบคุณน้าาา 🥰"'));
 });

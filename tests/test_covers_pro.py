@@ -43,7 +43,10 @@ def test_generate_hook_ideas():
     # Check categories
     categories = [h["category"] for h in hooks]
     assert any("เตือนภัย" in c or "อยากรู้" in c for c in categories)
-    assert any("คุ้มราคา" in c or "โปรเด็ด" in c for c in categories)
+    assert any("คุ้มค่า" in c for c in categories)
+    # Covers never carry a price / promo (TikTok rule).
+    for h in hooks:
+        assert "ราคา" not in h["text"] and "โปร" not in h["category"]
 
 
 def test_wrap_thai_text():

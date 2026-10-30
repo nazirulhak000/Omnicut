@@ -21,7 +21,7 @@ export default function PresetsBar({
         hookModel: 'สายชาร์จแม่เหล็ก',
         hookLabel: 'ชาร์จไว ไม่ทำร้ายแบต',
         painPoint: 'สายชาร์จพังง่าย เสียบยากในที่มืด',
-        priceDeal: 'ลดพิเศษวันนี้ จิ้มตะกร้าซ้ายล่าง',
+        priceDeal: '',
         keyFeatures: 'แม่เหล็กแรงดูดสูง เสียบปึ้ง ติดทันที ชาร์จเร็ว ไม่ทำร้ายแบต ทนทานมาก'
       }
     },
@@ -35,7 +35,7 @@ export default function PresetsBar({
         hookModel: 'เครื่องดูดฝุ่นไร้สาย',
         hookLabel: 'มินิมอล พลังดูดแรง',
         painPoint: 'ฝุ่นตามซอกทำความสะอาดยาก เครื่องใหญ่หนักมือ',
-        priceDeal: 'ลด 50% วันนี้ ส่งฟรีถึงบ้าน',
+        priceDeal: '',
         keyFeatures: 'พลังดูดแรงสูง ไร้สาย น้ำหนักเบา แบตอึด ดีไซน์สวยเข้ากับบ้าน'
       }
     },
@@ -49,13 +49,13 @@ export default function PresetsBar({
         hookModel: 'เซรั่มไฮยาลูรอน',
         hookLabel: 'หน้าฉ่ำโกลว์ ชุ่มชื้น 72 ชม.',
         painPoint: 'หน้าแห้ง แต่งหน้าไม่ติด ผิวโทรมดูหมองคล้ำ',
-        priceDeal: 'โปร 1 แถม 1 จัดในตะกร้าด่วน',
+        priceDeal: '',
         keyFeatures: 'ซึมไวไม่เหนียวเหนอะ ล็อคความชุ่มชื้น 72 ชม. หน้าฉ่ำใส รูขุมขนกระชับ'
       }
     },
     {
       id: 'flash_sale',
-      name: 'Flash Sale',
+      name: 'แกดเจ็ตพกพา',
       icon: Flame,
       data: {
         productName: 'พาวเวอร์แบงค์ชาร์จไว 20000mAh',
@@ -63,7 +63,7 @@ export default function PresetsBar({
         hookModel: 'พาวเวอร์แบงค์ 20000mAh',
         hookLabel: 'ชาร์จเร็ว 22.5W',
         painPoint: 'แบตมือถือหมดระหว่างวัน พกพาวเวอร์แบงค์หนักๆ',
-        priceDeal: 'Flash Sale 199.- วันนี้วันเดียวเท่านั้น',
+        priceDeal: '',
         keyFeatures: 'บางเบาพกง่าย ชาร์จเร็ว 22.5W มีสายในตัวไม่ต้องพกสายเพิ่ม'
       }
     }

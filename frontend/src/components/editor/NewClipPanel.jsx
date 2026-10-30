@@ -854,7 +854,7 @@ export default function NewClipPanel({
                   )}
                   <Field label="ปัญหาที่ลูกค้าเจอ" value={form.painPoint} onChange={(v) => patch({ painPoint: v })} />
                   <Field label="จุดเด่น" value={form.keyFeatures} onChange={(v) => patch({ keyFeatures: v })} multiline />
-                  <Field label="โปรโมชั่น / CTA" value={form.priceDeal} onChange={(v) => patch({ priceDeal: v })} />
+                  <Field label="CTA ปิดท้าย (ห้ามใส่ราคา/โปร)" value={form.priceDeal} onChange={(v) => patch({ priceDeal: v })} />
                 </div>
               )}
             </Section>

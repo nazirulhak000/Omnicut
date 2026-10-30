@@ -10,7 +10,7 @@ class ScriptGenerateRequest(BaseModel):
     product_name: str
     key_features: str = "แม่เหล็กแรงดูดสูง เสียบง่าย ชาร์จเร็ว ไม่ทำร้ายแบต"
     pain_point: str = "สายชาร์จพังง่าย เสียบยากในที่มืด"
-    price_deal: str = "ลดพิเศษวันนี้"
+    price_deal: str = ""  # never a price/promo: clips must not mention price (project rule)
     template_key: str = "problem_solution"
 
 

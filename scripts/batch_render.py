@@ -620,7 +620,9 @@ class BatchRenderManager:
                             project_name=proj_name,
                             key_features=angle_data.get("key_features") or latest_prod.get("description", ""),
                             pain_point=angle_data.get("pain_point", ""),
-                            price_deal=angle_data.get("price_deal") or latest_prod.get("price_note", ""),
+                            # price_note stays product data; it is never copied into
+                            # the clip (no price/discount in TikTok clips).
+                            price_deal=angle_data.get("price_deal", ""),
                             custom_script=custom_script,
                             hook_brand=hook_brand,
                             hook_model=hook_model,

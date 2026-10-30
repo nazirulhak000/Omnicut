@@ -483,8 +483,8 @@ def generate_hook_ideas(
         },
         {
             "style": "value",
-            "category": "คุ้มราคา / โปรเด็ด",
-            "text": f"ราคาหลักร้อย\nได้ขนาดนี้จริงดิ?!",
+            "category": "คุ้มค่าการใช้งาน",
+            "text": f"ใช้จริงทุกวัน\nดีขนาดนี้จริงดิ?!",
         },
         {
             "style": "problem",

@@ -11,20 +11,52 @@ import ShortcutsModal from './components/ShortcutsModal';
 import { Toast } from './components/ui';
 import { useKeyboardShortcuts } from './hooks';
 import { getSystemStatus, getRawVideos, getExports, getScheduleQueue, updateAngleStatus, getProducts } from './api';
+import { isChunkLoadError } from './components/ErrorBoundary';
+import { TAB_STORAGE_KEY, resolveInitialTab, readTabFromSearch, pushTab, replaceTab } from './lib/appNav';
 
-// ── Lazy-loaded view chunks for Code Splitting ──
-const ProductToClip = lazy(() => import('./components/ProductToClip'));
-const ContentTrackerHub = lazy(() => import('./components/ContentTrackerHub'));
-const EditorShell = lazy(() => import('./components/editor/EditorShell'));
-const ExportGallery = lazy(() => import('./components/ExportGallery'));
-const MediaAssetsHub = lazy(() => import('./components/MediaAssetsHub'));
-const AnalyticsHub = lazy(() => import('./components/analytics/AnalyticsHub'));
-const SystemSettings = lazy(() => import('./components/SystemSettings'));
-const UserGuide = lazy(() => import('./components/UserGuide'));
-const MobileQuickPostPage = lazy(() => import('./components/MobileQuickPostPage'));
-const MobileFilmingPage = lazy(() => import('./components/MobileFilmingPage'));
-const QuickRefPage = lazy(() => import('./components/producer/QuickRefPage'));
-const MobileQuickStudio = lazy(() => import('./components/MobileQuickStudio'));
+// ── Lazy-loaded view chunks with one retry ──
+// After a redeploy (Colab restart) an open tab still references the old
+// hashed chunk names. Retry once, then reload the page once (guarded per
+// chunk in sessionStorage so a genuinely broken chunk cannot loop).
+function lazyWithRetry(factory, name) {
+  const reloadKey = `omnicut:chunk-reload:${name}`;
+  return lazy(async () => {
+    try {
+      const mod = await factory();
+      try { sessionStorage.removeItem(reloadKey); } catch { /* storage blocked */ }
+      return mod;
+    } catch (firstError) {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      try {
+        const mod = await factory();
+        try { sessionStorage.removeItem(reloadKey); } catch { /* storage blocked */ }
+        return mod;
+      } catch (secondError) {
+        let alreadyReloaded = true;
+        try { alreadyReloaded = sessionStorage.getItem(reloadKey) === '1'; } catch { /* storage blocked */ }
+        if (isChunkLoadError(secondError) && !alreadyReloaded) {
+          try { sessionStorage.setItem(reloadKey, '1'); } catch { /* storage blocked */ }
+          window.location.reload();
+          return new Promise(() => {}); // keep Suspense fallback until the reload
+        }
+        throw secondError || firstError;
+      }
+    }
+  });
+}
+
+const ProductToClip = lazyWithRetry(() => import('./components/ProductToClip'), 'ProductToClip');
+const ContentTrackerHub = lazyWithRetry(() => import('./components/ContentTrackerHub'), 'ContentTrackerHub');
+const EditorShell = lazyWithRetry(() => import('./components/editor/EditorShell'), 'EditorShell');
+const ExportGallery = lazyWithRetry(() => import('./components/ExportGallery'), 'ExportGallery');
+const MediaAssetsHub = lazyWithRetry(() => import('./components/MediaAssetsHub'), 'MediaAssetsHub');
+const AnalyticsHub = lazyWithRetry(() => import('./components/analytics/AnalyticsHub'), 'AnalyticsHub');
+const SystemSettings = lazyWithRetry(() => import('./components/SystemSettings'), 'SystemSettings');
+const UserGuide = lazyWithRetry(() => import('./components/UserGuide'), 'UserGuide');
+const MobileQuickPostPage = lazyWithRetry(() => import('./components/MobileQuickPostPage'), 'MobileQuickPostPage');
+const MobileFilmingPage = lazyWithRetry(() => import('./components/MobileFilmingPage'), 'MobileFilmingPage');
+const QuickRefPage = lazyWithRetry(() => import('./components/producer/QuickRefPage'), 'QuickRefPage');
+const MobileQuickStudio = lazyWithRetry(() => import('./components/MobileQuickStudio'), 'MobileQuickStudio');
 
 
 import { angleToForm } from './lib/angleToForm';
@@ -123,21 +155,43 @@ export default function App() {
   }, []);
 
 
-  // 1. Active Tab Persistence with Fallback Migration
+  // 1. Active Tab: `?tab=` (back/forward + shareable) wins, then the last tab
+  // in localStorage, then 'flow'. Legacy ids (studio, sub_srt, gadget, ...)
+  // are migrated by lib/appNav.normalizeTab.
   const [activeTab, setActiveTab] = useState(() => {
-    const saved = localStorage.getItem('capcut_active_tab') || 'flow';
-    if (saved === 'sub_srt') return 'editor';
-    if (saved === 'script_lab') return 'flow';
-    // Studio was folded into the editor -- anyone whose last tab was studio
-    // would otherwise land on a screen that no longer renders anything.
-    if (saved === 'studio') return 'editor';
-    if (saved === 'creative' || saved === 'gadget' || saved === 'producer') return 'flow';
-    return saved;
+    let stored = null;
+    try { stored = localStorage.getItem(TAB_STORAGE_KEY); } catch { /* storage blocked */ }
+    return resolveInitialTab({ search: window.location.search, stored });
   });
 
   useEffect(() => {
-    localStorage.setItem('capcut_active_tab', activeTab);
+    try { localStorage.setItem(TAB_STORAGE_KEY, activeTab); } catch { /* storage blocked */ }
   }, [activeTab]);
+
+  // Every tab change becomes a browser-history entry so the phone back
+  // gesture returns to the previous screen instead of leaving the app. The
+  // first sync only writes ?tab= into the current entry.
+  const tabHistoryReadyRef = useRef(false);
+  const tabHistoryEnabled = !isMobileQuickMode && !isQuickPostMode && !isQuickRefMode && !filmingSessionId;
+  useEffect(() => {
+    if (!tabHistoryEnabled) return;
+    if (!tabHistoryReadyRef.current) {
+      tabHistoryReadyRef.current = true;
+      replaceTab(activeTab);
+      return;
+    }
+    pushTab(activeTab);
+  }, [activeTab, tabHistoryEnabled]);
+
+  useEffect(() => {
+    if (!tabHistoryEnabled) return undefined;
+    const onPopState = () => {
+      const tab = readTabFromSearch(window.location.search);
+      if (tab) setActiveTab((current) => (current === tab ? current : tab));
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [tabHistoryEnabled]);
 
   const [status, setStatus] = useState(null);
   const [videos, setVideos] = useState([]);
@@ -474,6 +528,12 @@ export default function App() {
     setActiveTab(tab);
   };
 
+  const handleMobileTaskNavigate = useCallback((tab, extra = null) => {
+    try {
+      window.dispatchEvent(new CustomEvent('omnicut:task-navigate', { detail: { tab, extra } }));
+    } catch { /* CustomEvent unavailable */ }
+  }, []);
+
   if (isQuickPostMode) {
     return <ErrorBoundary><Suspense fallback={<LoadingSpinner message="กำลังเปิดตัวช่วยโพสต์..." />}>
       <MobileQuickPostPage onExit={() => {
@@ -484,7 +544,7 @@ export default function App() {
 
   if (filmingSessionId) {
     return (
-      <div className={`h-screen w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
+      <div className={`h-dvh w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
         <Suspense fallback={<LoadingSpinner message="กำลังเปิดหน้าถ่ายทำ..." />}>
           <MobileFilmingPage sessionId={filmingSessionId} onExit={() => { window.location.href = filmingReturnUrl(window.location.search) || window.location.pathname; }} />
         </Suspense>
@@ -494,7 +554,7 @@ export default function App() {
 
   if (isQuickRefMode) {
     return (
-      <div className={`h-screen w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
+      <div className={`h-dvh w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
         <ErrorBoundary>
           <Suspense fallback={<LoadingSpinner message="กำลังเปิดคลังไอเดีย Quick-Capture..." />}>
             <QuickRefPage onExit={() => { window.location.href = window.location.pathname; }} />
@@ -505,20 +565,31 @@ export default function App() {
   }
 
   if (isMobileQuickMode) {
+    // Inside TaskProvider so background work shows progress + notifications
+    // here too. Task "open result" actions never switch to the desktop shell;
+    // they are re-broadcast as `omnicut:task-navigate` ({tab, extra}) for the
+    // mobile studio to handle.
     return (
-      <div className={`h-screen w-screen overflow-y-auto bg-slate-950 ${uiFont}`}>
-        <ChannelWorkspaceBar />
-        <ErrorBoundary>
-          <Suspense fallback={<LoadingSpinner message="กำลังเปิด OmniCut Mobile Studio..." />}>
-            <MobileQuickStudio
-              onSwitchToDesktop={() => applyUiMode(false)}
-              onOpenFilmingSession={(sId, productId, angleId) => {
-                window.location.href = filmingUrl(sId, productId, angleId);
-              }}
-            />
-          </Suspense>
-        </ErrorBoundary>
-      </div>
+      <TaskProvider
+        onNavigateTab={handleMobileTaskNavigate}
+        onSelectProductForFlow={setSelectedProductIdForFlow}
+      >
+        <div className={`h-dvh w-screen overflow-y-auto bg-slate-950 ${uiFont}`}>
+          <ChannelWorkspaceBar />
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner message="กำลังเปิด OmniCut Mobile Studio..." />}>
+              <MobileQuickStudio
+                onSwitchToDesktop={() => applyUiMode(false)}
+                onOpenFilmingSession={(sId, productId, angleId) => {
+                  window.location.href = filmingUrl(sId, productId, angleId);
+                }}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
+        <ActivityDrawer />
+        <GlobalTaskNotification />
+      </TaskProvider>
     );
   }
 
@@ -527,12 +598,13 @@ export default function App() {
       onNavigateTab={handleNavigateTab}
       onSelectProductForFlow={setSelectedProductIdForFlow}
     >
-      <div className={`flex h-screen overflow-hidden ${uiFont} bg-[#07090E] text-slate-100`}>
+      <div className={`flex h-dvh overflow-hidden ${uiFont} bg-[#07090E] text-slate-100`}>
         {/* ── Sidebar (desktop: left, mobile: bottom) ── */}
         <Sidebar
           activeTab={activeTab}
           setActiveTab={handlePrimaryTabChange}
           status={status}
+          onSwitchToMobile={() => applyUiMode(true)}
         />
 
         {/* ── Main Area ── */}
@@ -562,9 +634,9 @@ export default function App() {
 
 
           {/* ── Content (Enforce overflow-x-hidden so page never shifts horizontally under sidebar) ── */}
-          <ErrorBoundary>
+          <ErrorBoundary resetKey={activeTab}>
             {activeTab === 'editor' ? (
-              <main className="min-h-0 flex-1 overflow-hidden p-0 md:p-1.5 pb-16 md:pb-1.5">
+              <main className="min-h-0 flex-1 overflow-hidden p-0 md:p-1.5 pb-[var(--nav-h)] md:pb-1.5">
                 <Suspense fallback={<LoadingSpinner message="กำลังโหลด Video Editor..." />}>
                   <EditorShell
                     key={initialProjectNameToLoad === '' ? 'editor-fresh' : (initialProjectNameToLoad || 'editor-shell')}
@@ -582,7 +654,7 @@ export default function App() {
                 </Suspense>
               </main>
             ) : (
-            <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 lg:px-6 py-5 pb-20 md:pb-8 w-full min-w-0">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 lg:px-6 py-5 pb-[calc(var(--nav-h)+1.5rem)] md:pb-8 w-full min-w-0">
               <div className="mx-auto w-full min-w-0 max-w-[2200px] animate-fadeIn space-y-5">
 
                 {/* SECTION: สินค้า → คลิป (Menu 1) */}

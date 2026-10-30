@@ -426,7 +426,7 @@ class PipelineContext:
     project_name: Optional[str] = None
     key_features: str = "แม่เหล็กแรงดูดสูง เสียบง่าย ชาร์จเร็ว ไม่ทำร้ายแบต"
     pain_point: str = "สายชาร์จพังง่าย เสียบยากในที่มืด"
-    price_deal: str = "ลดพิเศษวันนี้"
+    price_deal: str = ""  # never a price/promo: clips must not mention price (project rule)
     custom_script: Optional[str] = None
     script_overlays: Optional[List[str]] = None
     voice: str = DEFAULT_VOICE

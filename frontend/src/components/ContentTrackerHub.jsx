@@ -28,6 +28,7 @@ import { withEditorProjectAction } from '../lib/editorEntry';
 import { localParts } from '../lib/scheduleQueue';
 import { getRelativeTime, formatFullDateTime } from '../lib/dateUtils';
 import PaginationControls from './PaginationControls';
+import { LOCAL_STUDIO_HINT, isCoarsePointer, publicAppOrigin, reachableStudioUrl } from '../lib/mobileLinks.js';
 
 // 4 Granular Pipeline Phases (Original Vibrant & Readable Palette)
 const PIPELINE_PHASES = [
@@ -99,6 +100,38 @@ const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
     </div>
   );
 });
+
+// HyperFrames Studio runs on the desktop (localhost:3002). From the phone /
+// public tunnel that link is dead, so show a short hint instead of a button.
+function StudioPreviewButton({ ang, className, iconClassName = 'w-3.5 h-3.5', trailingIcon = false }) {
+  const url = reachableStudioUrl(ang.video_preview_url || `http://localhost:3002/clips/${ang.clip_id}`);
+  if (!url) {
+    return (
+      <span className="text-[10px] text-slate-500 leading-tight max-w-[9rem]" title={LOCAL_STUDIO_HINT}>
+        {LOCAL_STUDIO_HINT}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => window.open(url, '_blank', 'noopener')}
+      className={className}
+      title="เปิดตรวจ HyperFrames Studio Preview ในเบราว์เซอร์"
+    >
+      <Play className={iconClassName} />
+      <span>ตรวจ Studio</span>
+      {trailingIcon && <ExternalLink className="w-3 h-3" />}
+    </button>
+  );
+}
+
+// QC is decided only after WATCHING the clip: badges open the preview modal
+// (which holds the pass / re-cut buttons); no video -> open the detail view.
+const openQcReview = (ang, onPreviewVideo, onInspectAngle) => {
+  if (ang?.video_url && onPreviewVideo) onPreviewVideo(ang.video_url, ang);
+  else if (onInspectAngle) onInspectAngle(ang);
+};
 
 // ═══════════════════════════════════════════════════════════════════════
 // 📌 MEMOIZED KANBAN CARD (Ultra High-Density & Deep-Dive Trigger)
@@ -212,9 +245,9 @@ const KanbanCard = memo(function KanbanCard({
                 ) : ang.qc_note ? (
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); onQcPass && onQcPass(ang); }}
-                    className="px-1.5 py-0.2 rounded bg-red-500/20 border border-red-500/30 text-red-300 font-bold text-[10px] cursor-pointer"
-                    title={ang.qc_note}
+                    onClick={(e) => { e.stopPropagation(); openQcReview(ang, onPreviewVideo, onInspectAngle); }}
+                    className="min-h-11 sm:min-h-0 inline-flex items-center px-2 sm:px-1.5 py-0.5 rounded bg-red-500/20 border border-red-500/30 text-red-300 font-bold text-[10px] cursor-pointer"
+                    title={`QC ไม่ผ่าน: ${ang.qc_note} -- แตะเพื่อดูคลิปและตรวจใหม่`}
                   >
                     QC ไม่ผ่าน
                   </button>
@@ -226,9 +259,9 @@ const KanbanCard = memo(function KanbanCard({
                 ) : (
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); onQcPass && onQcPass(ang); }}
-                    className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 cursor-pointer transition-colors"
-                    title="เรนเดอร์เสร็จแล้ว แต่ยังไม่มีใครกด QC ผ่าน -- กดตรงนี้เพื่อยืนยัน QC ผ่าน"
+                    onClick={(e) => { e.stopPropagation(); openQcReview(ang, onPreviewVideo, onInspectAngle); }}
+                    className="min-h-11 sm:min-h-0 inline-flex items-center text-[10px] font-bold px-2 sm:px-1.5 py-0.5 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 cursor-pointer transition-colors"
+                    title="เรนเดอร์เสร็จแล้ว แต่ยังไม่ได้ตรวจ QC -- แตะเพื่อดูคลิปก่อนตัดสิน"
                   >
                     รอตรวจ QC
                   </button>
@@ -354,11 +387,11 @@ const KanbanCard = memo(function KanbanCard({
           {onQcPass && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onQcPass(ang); }}
-              className="px-2 py-0.5 rounded-md bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 font-black text-[10px] cursor-pointer shadow-sm shadow-[#25F4EE]/20 whitespace-nowrap active:scale-95 transition-all"
-              title="กดตรงนี้เพื่อแก้ให้เป็น QC ผ่านสีฟ้าทันที"
+              onClick={(e) => { e.stopPropagation(); openQcReview(ang, onPreviewVideo, onInspectAngle); }}
+              className="min-h-11 sm:min-h-0 inline-flex items-center px-2 py-0.5 rounded-md bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 font-black text-[10px] cursor-pointer shadow-sm shadow-[#25F4EE]/20 whitespace-nowrap active:scale-95 transition-all"
+              title="ดูคลิปก่อน แล้วค่อยตัดสินว่า QC ผ่านหรือไม่"
             >
-              แก้เป็นผ่าน
+              ดูคลิปแล้วตรวจ
             </button>
           )}
         </div>
@@ -378,11 +411,11 @@ const KanbanCard = memo(function KanbanCard({
           {onQcPass && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onQcPass(ang); }}
-              className="px-2 py-0.5 rounded-md bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 font-black text-[10px] cursor-pointer shadow-sm shadow-[#25F4EE]/20 whitespace-nowrap active:scale-95 transition-all"
-              title="กดรับรอง QC ผ่าน"
+              onClick={(e) => { e.stopPropagation(); openQcReview(ang, onPreviewVideo, onInspectAngle); }}
+              className="min-h-11 sm:min-h-0 inline-flex items-center px-2 py-0.5 rounded-md bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 font-black text-[10px] cursor-pointer shadow-sm shadow-[#25F4EE]/20 whitespace-nowrap active:scale-95 transition-all"
+              title="ดูคลิปก่อน แล้วค่อยกด QC ผ่านในหน้าพรีวิว"
             >
-              QC ผ่าน
+              ตรวจ QC
             </button>
           )}
         </div>
@@ -534,17 +567,11 @@ const KanbanCard = memo(function KanbanCard({
                 <>
                   {(ang.draft_type === 'hyperframes' || ang.clip_id) ? (
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button
-                        onClick={() => {
-                          window.open(ang.video_preview_url || `http://localhost:3002/clips/${ang.clip_id}`, '_blank');
-                        }}
+                      <StudioPreviewButton
+                        ang={ang}
+                        trailingIcon
                         className="px-2 py-1.5 rounded-lg bg-emerald-600/40 hover:bg-emerald-600/60 border border-emerald-500/40 text-emerald-200 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 shadow-sm flex-shrink-0"
-                        title="เปิดตรวจ HyperFrames Studio Preview ในเบราว์เซอร์"
-                      >
-                        <Play className="w-3.5 h-3.5" />
-                        <span>ตรวจ Studio</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </button>
+                      />
                       <button
                         onClick={() => onRenderHyperFrames && onRenderHyperFrames(ang)}
                         disabled={renderingClipId === ang.clip_id}
@@ -719,16 +746,10 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
 
         {(ang.draft_type === 'hyperframes' || ang.clip_id) ? (
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <button
-              onClick={() => {
-                window.open(ang.video_preview_url || `http://localhost:3002/clips/${ang.clip_id}`, '_blank');
-              }}
-              className="py-2 px-2.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-emerald-200 text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer active:scale-95 flex-shrink-0"
-              title="เปิดตรวจ HyperFrames Studio Preview ในเบราว์เซอร์"
-            >
-              <Play className="w-3.5 h-3.5" />
-              <span>ตรวจ Studio</span>
-            </button>
+            <StudioPreviewButton
+              ang={ang}
+              className="min-h-11 py-2 px-2.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-emerald-200 text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer active:scale-95 flex-shrink-0"
+            />
             <button
               onClick={() => onRenderHyperFrames && onRenderHyperFrames(ang)}
               disabled={renderingClipId === ang.clip_id}
@@ -766,12 +787,13 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
 
         {(ang.status === 'rendered' || ang.qc_note) && onQcPass && (
           <button
-            onClick={() => onQcPass(ang)}
-            className="py-2 px-3 rounded-xl bg-[#25F4EE]/20 hover:bg-[#25F4EE]/30 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 whitespace-nowrap flex-shrink-0"
-            title="รับรอง QC ผ่าน"
+            type="button"
+            onClick={() => openQcReview(ang, onPreviewVideo, onInspectAngle)}
+            className="min-h-11 py-2 px-3 rounded-xl bg-[#25F4EE]/20 hover:bg-[#25F4EE]/30 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 whitespace-nowrap flex-shrink-0"
+            title="ดูคลิปก่อน แล้วค่อยกด QC ผ่านในหน้าพรีวิว"
           >
             <Check className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0" />
-            <span className="whitespace-nowrap">QC ผ่าน</span>
+            <span className="whitespace-nowrap">ตรวจ QC</span>
           </button>
         )}
 
@@ -898,14 +920,11 @@ const TableRow = memo(function TableRow({
 
           {(ang.draft_type === 'hyperframes' || ang.clip_id) ? (
             <div className="flex items-center gap-1 flex-shrink-0">
-              <button
-                onClick={() => window.open(ang.video_preview_url || `http://localhost:3002/clips/${ang.clip_id}`, '_blank')}
+              <StudioPreviewButton
+                ang={ang}
+                iconClassName="w-3 h-3"
                 className="py-1 px-2 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-emerald-200 text-xs font-bold inline-flex items-center gap-1 cursor-pointer active:scale-95 flex-shrink-0"
-                title="เปิดตรวจ HyperFrames Studio Preview ในเบราว์เซอร์"
-              >
-                <Play className="w-3 h-3" />
-                <span>ตรวจ Studio</span>
-              </button>
+              />
               <button
                 onClick={() => onRenderHyperFrames && onRenderHyperFrames(ang)}
                 disabled={renderingClipId === ang.clip_id}
@@ -954,12 +973,13 @@ const TableRow = memo(function TableRow({
 
           {(ang.status === 'rendered' || ang.qc_note) && onQcPass && (
             <button
-              onClick={() => onQcPass(ang)}
+              type="button"
+              onClick={() => openQcReview(ang, onPreviewVideo, onInspectAngle)}
               className="py-1.5 px-2.5 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/35 text-[#25F4EE] text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 whitespace-nowrap flex-shrink-0"
-              title="รับรอง QC ผ่าน (ล้างป้ายแดงออก)"
+              title="ดูคลิปก่อน แล้วค่อยกด QC ผ่านในหน้าพรีวิว"
             >
               <Check className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0" />
-              <span className="whitespace-nowrap">QC ผ่าน</span>
+              <span className="whitespace-nowrap">ตรวจ QC</span>
             </button>
           )}
 
@@ -982,7 +1002,10 @@ const TableRow = memo(function TableRow({
 export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, onGoToGallery, onGoToEditor, onGoToFlow, workspaceData }) {
   const [workspaceStorage] = useState(channelLocalStorage);
 
-  const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '');
+  // Phone-reachable base for quick-post links: this page's own origin when it
+  // is on a real host (tunnel), else the backend's public mobile_url.
+  const mobileBaseUrl = publicAppOrigin(status?.mobile_url);
+  const [touchDevice] = useState(isCoarsePointer);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   // Round P1.5: request-sequence guard so an older, slower fetchProductsData()
@@ -1739,7 +1762,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       customScript: scriptText,
       keyFeatures: angle.key_features || product.description || '',
       painPoint: angle.pain_point || '',
-      priceDeal: angle.price_deal || product.price_note || '',
+      priceDeal: angle.price_deal || '',
       adTone: angle.ad_tone || 'commercial_hype',
       voicePreset: angle.voice_preset || 'gemini_fenrir_male_strong',
       voiceGender: 'male',
@@ -1851,8 +1874,6 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     const totalPages = Math.max(1, Math.ceil(filteredAngles.length / CARD_PAGE_SIZE));
     setTablePage((page) => Math.min(page, totalPages));
   }, [filteredAngles.length]);
-
-  const mobileUrl = typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '';
 
   // Drag & Drop Handler (Desktop)
   const handleDropOnColumn = (targetPhaseId, e) => {
@@ -2283,10 +2304,10 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     setQrModalItem(inspectAngle);
                   }}
                   className="py-2.5 px-3.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
-                  title="สแกน QR โหลดเข้ามือถือ"
+                  title={touchDevice ? 'เปิดหน้าโพสต์บนเครื่องนี้' : 'สแกน QR โหลดเข้ามือถือ'}
                 >
                   <QrCode className="w-3.5 h-3.5 text-[#25F4EE]" />
-                  <span>ส่งมือถือ (QR)</span>
+                  <span>{touchDevice ? 'เปิดหน้าโพสต์' : 'ส่งมือถือ (QR)'}</span>
                 </button>
               </div>
             </div>
@@ -2365,7 +2386,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               src={toMediaUrl(previewVideoUrl)}
               controls
               autoPlay
-              className="w-full rounded-2xl bg-black aspect-[9/16] object-contain max-h-[60vh] shadow-2xl border border-white/[0.08]"
+              className="w-full rounded-2xl bg-black aspect-[9/16] object-contain max-h-[60dvh] shadow-2xl border border-white/[0.08]"
             />
 
             {/* Quick QC Decision Toolbar */}
@@ -2410,7 +2431,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       <Modal
         isOpen={!!qrModalItem}
         onClose={() => setQrModalItem(null)}
-        title="สแกนเพื่อเปิดตัวช่วยโพสต์บนมือถือ"
+        title={touchDevice ? 'เปิดตัวช่วยโพสต์' : 'สแกนเพื่อเปิดตัวช่วยโพสต์บนมือถือ'}
         subtitle={qrModalItem?.hook_title}
         maxWidth="max-w-sm"
       >
@@ -2431,13 +2452,25 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   <span>Quick Post Companion 4 สเต็ป</span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
-                  สแกนด้วย iPhone / Android เพื่อโหลดคลิป, ก็อปแคปชัน, ก็อปชื่อปักตะกร้า และเปิด TikTok ทันที
+                  {touchDevice
+                    ? 'เปิดหน้าโพสต์เพื่อโหลดคลิป, ก็อปแคปชัน, ก็อปชื่อปักตะกร้า และเปิด TikTok ทันที'
+                    : 'สแกนด้วย iPhone / Android เพื่อโหลดคลิป, ก็อปแคปชัน, ก็อปชื่อปักตะกร้า และเปิด TikTok ทันที'}
                 </p>
               </div>
 
-              <div className="bg-white p-3 rounded-2xl inline-block shadow-xl">
-                <SafeQRCode value={quickPostUrl} size={180} level="M" />
-              </div>
+              {touchDevice ? (
+                <a
+                  href={quickPostUrl}
+                  className="min-h-11 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-sm font-black flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>เปิดหน้าโพสต์</span>
+                </a>
+              ) : (
+                <div className="bg-white p-3 rounded-2xl inline-block shadow-xl">
+                  <SafeQRCode value={quickPostUrl} size={180} level="M" />
+                </div>
+              )}
 
               {/* Caption Preview & Copy inside Modal */}
               <div className="p-3 rounded-xl bg-black/40 border border-white/[0.08] text-left space-y-2">
@@ -2457,14 +2490,16 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               </div>
 
               <div className="space-y-2 pt-1">
-                <a
-                  href={quickPostUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block text-[11px] text-slate-400 hover:text-[#25F4EE] hover:underline pt-1"
-                >
-                  ทดสอบเปิดหน้านี้บนเบราว์เซอร์นี้
-                </a>
+                {!touchDevice && (
+                  <a
+                    href={quickPostUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block text-[11px] text-slate-400 hover:text-[#25F4EE] hover:underline pt-1"
+                  >
+                    ทดสอบเปิดหน้านี้บนเบราว์เซอร์นี้
+                  </a>
+                )}
               </div>
             </div>
           );

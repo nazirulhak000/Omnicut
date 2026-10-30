@@ -103,7 +103,7 @@ class TikTokAutoCutterPipeline:
         project_name: Optional[str] = None,
         key_features: str = "แม่เหล็กแรงดูดสูง เสียบง่าย ชาร์จเร็ว ไม่ทำร้ายแบต",
         pain_point: str = "สายชาร์จพังง่าย เสียบยากในที่มืด",
-        price_deal: str = "ลดพิเศษวันนี้",
+        price_deal: str = "",  # never a price/promo: clips must not mention price (project rule)
         custom_script: Optional[str] = None,
         script_overlays: Optional[List[str]] = None,
         voice: str = DEFAULT_VOICE,
@@ -361,7 +361,7 @@ def main():
     parser.add_argument("--project", default=None, help="Project Name")
     parser.add_argument("--features", default="แม่เหล็กแรงดูดสูง เสียบง่าย ชาร์จเร็ว ไม่ทำร้ายแบต", help="Key Features")
     parser.add_argument("--pain", default="สายชาร์จพังง่าย เสียบยากในที่มืด", help="Pain Point")
-    parser.add_argument("--deal", default="ลดพิเศษวันนี้", help="Price / Special Deal")
+    parser.add_argument("--deal", default="", help="Legacy field; never spoken or shown (no price in clips)")
     parser.add_argument("--voice", default=DEFAULT_VOICE, help="Voice Gender/Type")
     parser.add_argument("--rate", default=DEFAULT_VOICE_RATE, help="Voice Speed Rate")
     parser.add_argument("--lut", default=None, help="Color grading LUT name")

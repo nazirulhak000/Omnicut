@@ -308,18 +308,28 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
     .btn {
       background: var(--bg-card);
       color: var(--text-main);
       border: 1px solid var(--border);
-      padding: 7px 14px;
+      padding: 10px 14px;
+      min-height: 44px;
+      min-width: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       border-radius: 7px;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       text-decoration: none;
       transition: all 0.15s ease;
+    }
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
     }
     .btn:hover {
       border-color: var(--accent-blue);
@@ -348,10 +358,14 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
       background: var(--bg-card);
       color: #cbd5e1;
       border: 1px solid var(--border);
-      padding: 5px 12px;
+      padding: 10px 14px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
       border-radius: 6px;
-      font-size: 12px;
+      font-size: 14px;
       white-space: nowrap;
+      flex-shrink: 0;
       cursor: pointer;
       transition: all 0.15s ease;
     }
@@ -450,7 +464,7 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
       border-radius: 8px;
       padding: 11px 14px;
       font-family: var(--font-sans);
-      font-size: 14px;
+      font-size: 16px;
       resize: none;
       min-height: 46px;
       max-height: 150px;
@@ -476,10 +490,61 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
       user-select: none;
       color: #cbd5e1;
     }
+    .goal-toggle {
+      min-height: 44px;
+    }
     .goal-toggle input {
       accent-color: var(--accent-blue);
-      width: 15px;
-      height: 15px;
+      width: 20px;
+      height: 20px;
+    }
+    .tabs-bar {
+      display: flex;
+      gap: 8px;
+      padding: 10px 20px;
+      background: #0c1220;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    /* Terminal pane: a flex column that fills the space left under the
+       header/tabs (body is a 100dvh flex column), so the iframe's flex:1
+       actually gets the full height instead of collapsing to ~150px. */
+    #terminal-pane {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      background: #000;
+    }
+    #terminal-pane.active {
+      display: flex;
+    }
+    #terminalFrame {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      border: none;
+    }
+    .error-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .msg-body.error-text {
+      color: #fca5a5;
+    }
+    @media (max-width: 640px) {
+      .topbar { padding: 10px 12px; }
+      .nav-actions { width: 100%; }
+      .nav-actions .btn { flex: 1 1 auto; }
+      .tabs-bar { padding: 8px 12px; }
+      .tabs-bar .btn { flex: 1 1 100%; }
+      .quickbar { padding: 8px 12px; }
+      .composer { padding: 10px 12px; }
+      .terminal-stream { padding: 12px; }
     }
   </style>
 </head>
@@ -506,12 +571,12 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
     </div>
   </header>
 
-  <div class="tabs-bar" style="display: flex; gap: 8px; padding: 10px 20px; background: #0c1220; border-bottom: 1px solid var(--border);">
+  <div class="tabs-bar">
     <button id="tab-agent" class="btn btn-primary" onclick="setTab('agent')">🤖 AI Cloud Agent (แชทสั่งงาน AI)</button>
     <button id="tab-terminal" class="btn" onclick="setTab('terminal')">💻 Live AGY Terminal (คอนโซลสด Linux & agy login)</button>
   </div>
 
-  <div id="terminal-pane" style="display: none; flex-direction: column; flex: 1; width: 100%; height: calc(100vh - 125px); background: #000;">
+  <div id="terminal-pane">
     <div style="padding: 8px 16px; background: #1e293b; color: #cbd5e1; font-size: 13px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
       <div>
         💡 <b>วิธีวางโค้ดในหน้าจอดำ:</b> คลิกขวาที่หน้าจอดำแล้วกด <b>วาง (Paste)</b> หรือกด <b>Ctrl + Shift + V</b> (แล้วกด Enter)
@@ -520,7 +585,7 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
         (หากใช้บนมือถือ/แท็บเล็ต ให้แตะค้างที่หน้าจอเพื่อกดวาง)
       </div>
     </div>
-    <iframe id="terminalFrame" src="/terminal" allow="clipboard-read; clipboard-write" style="flex: 1; width: 100%; border: none;"></iframe>
+    <iframe id="terminalFrame" src="/terminal" allow="clipboard-read; clipboard-write"></iframe>
   </div>
 
   <div class="quickbar">
@@ -528,7 +593,6 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
     <button class="chip" onclick="sendQuick('แสดงรายการสินค้าทั้งหมดใน _Docs/products.json และดูว่ามีคลิปรุ่นไหนเรนเดอร์เสร็จแล้วบ้าง')">ดูรายการสินค้า & คลิป</button>
     <button class="chip" onclick="sendQuick('!git status -s && git log -n 3 --oneline')">เช็กสถานะ Git ล่าสุด</button>
     <button class="chip" onclick="sendQuick('!nvidia-smi')">รัน nvidia-smi</button>
-    <button class="chip" onclick="sendQuick('!rm -rf 01_Raw/test_protect')">ทดสอบ Safety Guard (ป้องกันลบไฟล์)</button>
     <button class="chip" onclick="sendQuick('ตรวจสอบไฟล์ MP4 ใน 04_Exports/Ready_to_post/ และซิงก์เข้า Google Drive ให้หน่อย')">ซิงก์คลิปเข้า Google Drive</button>
   </div>
 
@@ -567,6 +631,27 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
     let currentSessionId = null;
     let isBusy = false;
 
+    // Same-origin fetch that understands the global auth middleware:
+    // 401 (body {"login_required": true}) -> go log in and come back here;
+    // any other non-2xx -> throw a Thai error the caller can show.
+    class LoginRequired extends Error {}
+    async function agyFetch(url, options) {
+      const res = await fetch(url, Object.assign({ credentials: 'same-origin' }, options || {}));
+      if (res.status === 401) {
+        window.location.href = '/?login=1&next=' + encodeURIComponent('/agy');
+        throw new LoginRequired('ต้องเข้าสู่ระบบก่อน');
+      }
+      if (!res.ok) {
+        let detail = '';
+        try {
+          const data = await res.json();
+          detail = (data && (data.detail || data.message)) || '';
+        } catch (e) {}
+        throw new Error(`เซิร์ฟเวอร์ตอบกลับผิดพลาด (HTTP ${res.status})${detail ? ': ' + detail : ''}`);
+      }
+      return res;
+    }
+
     function setTab(tab) {
       const agentTab = document.getElementById('tab-agent');
       const termTab = document.getElementById('tab-terminal');
@@ -579,7 +664,7 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
       if (tab === 'terminal') {
         agentTab.className = 'btn';
         termTab.className = 'btn btn-primary';
-        termPane.style.display = 'block';
+        termPane.classList.add('active');
         stream.style.display = 'none';
         if (composer) composer.style.display = 'none';
         if (quickbar) quickbar.style.display = 'none';
@@ -589,7 +674,7 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
       } else {
         agentTab.className = 'btn btn-primary';
         termTab.className = 'btn';
-        termPane.style.display = 'none';
+        termPane.classList.remove('active');
         stream.style.display = 'flex';
         if (composer) composer.style.display = 'block';
         if (quickbar) quickbar.style.display = 'flex';
@@ -598,7 +683,7 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
 
     async function refreshStatus() {
       try {
-        const res = await fetch('/api/agy/status');
+        const res = await agyFetch('/api/agy/status');
         const data = await res.json();
         const envEl = document.getElementById('pill-env');
         const gpuEl = document.getElementById('pill-gpu');
@@ -622,8 +707,35 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
         driveEl.textContent = data.drive_mounted ? 'Drive: เชื่อมต่อแล้ว' : 'Drive: ไม่ได้เชื่อม';
         driveEl.className = data.drive_mounted ? 'pill ok' : 'pill';
       } catch (e) {
+        if (e instanceof LoginRequired) return;
         console.error('Status check failed:', e);
+        const envEl = document.getElementById('pill-env');
+        envEl.textContent = 'ไม่ทราบสถานะ';
+        envEl.className = 'pill';
       }
+    }
+
+    function showStreamError(container, message, retryText, retryGoalMode) {
+      const statusEl = container.querySelector('.step-status');
+      const bodyEl = container.querySelector('.msg-body');
+      statusEl.textContent = 'เกิดข้อผิดพลาด';
+      bodyEl.textContent = message;
+      bodyEl.classList.add('error-text');
+      if (!retryText) return;
+      const actions = document.createElement('div');
+      actions.className = 'error-actions';
+      const retryBtn = document.createElement('button');
+      retryBtn.className = 'btn';
+      retryBtn.type = 'button';
+      retryBtn.textContent = 'ลองใหม่';
+      retryBtn.onclick = () => {
+        actions.remove();
+        document.getElementById('promptInput').value = retryText;
+        document.getElementById('goalModeCheck').checked = !!retryGoalMode;
+        submitPrompt();
+      };
+      actions.appendChild(retryBtn);
+      container.appendChild(actions);
     }
 
     function appendUserMessage(text, goalMode) {
@@ -677,8 +789,9 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
       const statusEl = container.querySelector('.step-status');
       const stream = document.getElementById('stream');
 
+      let finished = false;
       try {
-        const res = await fetch('/api/agy/stream', {
+        const res = await agyFetch('/api/agy/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -687,6 +800,9 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
             goal_mode: goalMode
           })
         });
+        if (!res.body) {
+          throw new Error('เบราว์เซอร์นี้ไม่รองรับการรับผลแบบสตรีม');
+        }
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder('utf-8');
@@ -705,7 +821,12 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
             const jsonStr = line.slice(5).trim();
             if (!jsonStr) continue;
 
-            const ev = JSON.parse(jsonStr);
+            let ev;
+            try {
+              ev = JSON.parse(jsonStr);
+            } catch (parseErr) {
+              continue;
+            }
             if (ev.session_id) {
               currentSessionId = ev.session_id;
               document.getElementById('sessionLabel').textContent = `Session: ${currentSessionId}`;
@@ -728,18 +849,26 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
               tr.textContent = String(preview).slice(0, 1200);
               eventsLog.appendChild(tr);
             } else if (ev.type === 'answer') {
+              finished = true;
               statusEl.textContent = `สำเร็จ (${ev.steps || 1} ขั้นตอน)`;
               bodyEl.textContent = ev.text;
             } else if (ev.type === 'error') {
-              statusEl.textContent = 'เกิดข้อผิดพลาด';
-              bodyEl.textContent = ev.message || 'Error';
+              finished = true;
+              showStreamError(container, ev.message || 'เกิดข้อผิดพลาดระหว่างทำงาน', text, goalMode);
             }
             stream.scrollTop = stream.scrollHeight;
           }
         }
+        if (!finished) {
+          showStreamError(container, 'การเชื่อมต่อจบก่อนได้คำตอบ ลองส่งคำสั่งอีกครั้ง', text, goalMode);
+        }
       } catch (err) {
-        statusEl.textContent = 'การเชื่อมต่อขัดข้อง';
-        bodyEl.textContent = 'เกิดข้อผิดพลาด: ' + err.message;
+        if (err instanceof LoginRequired) {
+          statusEl.textContent = 'ต้องเข้าสู่ระบบก่อน';
+          bodyEl.textContent = 'กำลังพาไปหน้าเข้าสู่ระบบ';
+        } else {
+          showStreamError(container, 'การเชื่อมต่อขัดข้อง: ' + err.message, text, goalMode);
+        }
       } finally {
         isBusy = false;
         document.getElementById('sendBtn').disabled = false;
@@ -752,6 +881,8 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
     }
 
     async function selfUpdateGit() {
+      const ok = window.confirm('ยืนยันอัปเดตโค้ดจาก Git?\\nระบบจะดึงโค้ดล่าสุดจาก origin/main (git pull) และไฟล์โค้ดบนเซิร์ฟเวอร์นี้จะเปลี่ยนตาม');
+      if (!ok) return;
       sendQuick('!git fetch origin main && git pull --ff-only origin main');
     }
 
@@ -761,7 +892,12 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
 
     async function resetSession() {
       if (currentSessionId) {
-        await fetch(`/api/agy/sessions/${currentSessionId}`, { method: 'DELETE' });
+        try {
+          await agyFetch(`/api/agy/sessions/${currentSessionId}`, { method: 'DELETE' });
+        } catch (e) {
+          if (e instanceof LoginRequired) return;
+          console.error('Reset session failed:', e);
+        }
         currentSessionId = null;
       }
       document.getElementById('sessionLabel').textContent = 'Session: เริ่มต้นใหม่';

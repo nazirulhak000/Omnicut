@@ -7,6 +7,8 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-MOBILE-PHASE0-1-SECURITY-AND-FOUNDATION-20261030 | Phase 0+1 แผนมือถือ: cookie auth ครอบ HTTP/WS + tunnel-aware + `/api/health` + ปิด SPA path traversal, Colab notebook (token จาก Secrets, รหัสแอปอัตโนมัติ, ttyd loopback+tmux, watchdog thread), ลบคำชวนราคา/สติกเกอร์ดีล, ปิด Copilot sine render, nav history/login/mobile primitives; backend 4050 passed (13 ไฟล์พังเหมือน HEAD), frontend 1038/1038 | 2026-10-30 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
+| Round CLAUDE-MOBILE-FIRST-E2E-UX-AUDIT-AND-PLAN-20261030 | ตรวจการใช้งานบนมือถือ 10 เอเจนต์ (read-only) ตั้งแต่เปิดแอปจนโพสต์ → แผน Phase 0–8 ที่ `_Docs/Plans/PLAN_MOBILE_FIRST_E2E_UX_20261030.md`; เจอ P0 ความปลอดภัย (repo public + tunnel token ในโค้ด + ไม่มี auth บน Colab + shell ผ่านเว็บ) | 2026-10-30 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
 | Round ANTIGRAVITY-AGY-OAUTH-HELPER-AND-TERMINAL-PROXY-20261030 | พัฒนา Colab OAuth Login Helper (`scripts/colab_login_helper.py`) ดึง Google OAuth URL อัตโนมัติพร้อมปุ่มคลิกล็อกอินบน Colab และจำถาวรลง Google Drive, ทำ Reverse Proxy สำหรับ `ttyd` (`/terminal` & `/ws`) ให้ใช้งาน Interactive Web Terminal สดบน `https://studio.nazirulhak.com/agy` ได้จากทุกอุปกรณ์, แก้ไขโมเดล AI เป็น `gemini-2.5-flash` และขจัดคีย์จำลอง/คีย์เสียคงเหลือเฉพาะคีย์ที่ผ่านการทดสอบ 200 OK (`AQ.Ab8...nsbg`), รีเจน `Omnicut_Cloud_Runner.ipynb`, ชุดทดสอบผ่าน 8/8 100% | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-OFFICIAL-AGY-CLI-COLAB-INSTALL-AND-DRIVE-AUTH-20261030 | ติดตั้ง Official Antigravity CLI (`agy`) Native Binary สำหรับ Linux บน Colab (`curl -fsSL https://antigravity.google/cli/install.sh | bash`), เพิ่มระบบกู้คืนและสำรองเซสชันล็อกอิน Google Account (`~/.gemini`) กับ Google Drive ถาวร (ล็อกอินครั้งเดียวจำถาวร), เพิ่ม Cell 2 สำหรับล็อกอิน OAuth URL ครั้งเดียว, รัน `ttyd` เชื่อมต่อ Official `agy`, ชุดทดสอบผ่าน 8/8 100% | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-FIX-AGY-AUTH-AND-LOCAL-BRIDGE-20261030 | แก้ไขปัญหา HTTP 401 ใน AGY Cloud Agent & Colab Runner: ขจัดคีย์จำลองที่สตริงเพี้ยน, สลับมาใช้คีย์จริง 3 คีย์แรกที่ผ่านการทดสอบ 100% พร้อมรองรับ Colab Secrets (`userdata`), อัปเดตโมเดลเป็น `gemini-3.8-flash` และเพิ่ม header `x-goog-api-key`, เพิ่ม 401/404 ในเงื่อนไข Auto-Rotate, รีเจน `Omnicut_Cloud_Runner.ipynb`, ชุดทดสอบผ่าน 8/8 100% | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
@@ -101,6 +103,37 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+---
+
+## Round CLAUDE-MOBILE-PHASE0-1-SECURITY-AND-FOUNDATION-20261030 · Phase 0 + 1 ของแผนมือถือ (ความปลอดภัย + โครงหน้าจอมือถือ)
+
+**ดำเนินการโดย: Claude Code (Claude Opus 5.5)** · วันที่: 2026-10-30 · แผน: `_Docs/Plans/PLAN_MOBILE_FIRST_E2E_UX_20261030.md`
+
+- ผู้ใช้: iPhone 15 Pro Max · Colab เป็นหลัก (PC สำรอง) · canonical = ตระกูล single-take (TTZ01) · เลือก "Phase 0 + 1" + "สุ่มรหัสแอปอัตโนมัติ" (Jev batch_scope conf 0.56 / no_password conf 0.34 → escalate → ผู้ใช้ตัดสิน)
+- [x] **A Backend auth** — `scripts/auth.py`, `scripts/api_auth.py` (ใหม่), `scripts/api_server.py`, `frontend/vite.config.js`, `scripts/channel_route_policy.json`: cookie `omnicut_session` (HMAC, HttpOnly, Lax, 30 วัน), `/api/auth/{me,login,logout}` + rate limit, pure-ASGI `AuthGateMiddleware` ครอบ HTTP+WebSocket (Origin check), แยก remote ด้วย `cf-connecting-ip`/`x-forwarded-*` (cloudflared มาจาก loopback), ลบ bypass Colab/`OMNICUT_ALLOW_REMOTE`, remote ไม่มีรหัส → 503 fail-closed, `/api/health`, ปิด SPA path traversal (ของเดิมอ่าน `.env` ได้ 4 ทาง), cache headers, Vite proxy ไม่แจก key ให้เครื่องใน LAN · `test_api_auth.py` 85 passed
+- [x] **B Colab runner** — `scripts/build_colab_notebook.py`, `Omnicut_Cloud_Runner.ipynb`, `tests/test_build_colab_notebook.py`: ไม่มี tunnel token literal (อ่าน Secret/env/Drive, ไม่มีก็ quick tunnel), สุ่ม `OMNICUT_APP_PASSWORD` + `OMNICUT_SESSION_SECRET` จำใน Drive, ttyd `-i lo` + tmux ไม่มี `|| bash`, watchdog เป็น thread (Cell 2 login รันได้), git update ไม่ทับไฟล์ค้าง, Cell 3 keepalive · ยังไม่ได้ลองบน Colab จริง (Jev ความเสี่ยงสูง conf 0.36)
+- [x] **C จุดผิดกฎ** — ลบคำชวนราคาจาก prompt/เทมเพลต/ค่า default (product_scraper, ai_bridge, mobile_quick_studio, copilot_engine, script_generator, api_voice, hook_generator, api_producer, api_schemas, pipeline, pipeline_context, batch_render, api_exports, api_covers ข้อความปกเท่านั้น, frontend หลายไฟล์), `tests/test_no_price_in_prompts.py`; Co-Pilot render → 409 ไม่สร้าง MP4 เสียง sine; SystemSettings สถานะจริง/ไม่ทราบ; หน้า `/agy` (ลบ chip rm -rf, confirm git pull, terminal เต็มจอ, 16px/44px, res.ok/401); ลบ `ScriptLab.jsx`, `Header.jsx` (dead code); token จริงในเทส → ค่าปลอม
+- [x] **D Frontend shell** — `appNav.js`, `useBackToClose`, `LoginScreen.jsx` (AuthGate + overlay + จอเชื่อมต่อไม่ได้), โหมดมือถืออยู่ใน TaskProvider, `h-dvh`/`--nav-h`, Button/Modal(bottom sheet)/Toast ≥44px, input 16px บน coarse pointer, Topbar มือถือแถวเดียว + sheet "อื่นๆ", visibility resync + สรุป "ระหว่างไม่อยู่", channel ใน localStorage, ErrorBoundary/lazyWithRetry, manualChunks
+- [x] **E หน้าจอมือถือ** — MobileQuickStudio (rendered_video_url, ฟุตเทจไม่ข้ามมุม, แบนเนอร์, 16px/44px/dvh, error ใน sheet, resume งานจาก server, ไม่มีราคา/อีโมจิ), mark-posted มี confirm + กันกดซ้ำ, ลิงก์/QR ใช้ origin (`mobileLinks.js`, `_public_mobile_url`), ซ่อนลิงก์ localhost Studio, QC ต้องดูพรีวิวก่อนผ่าน, Gallery ไม่แสดง `price_deal` + WebP lazy + แก้บั๊กวันที่/sort/copy
+- [x] ตามคำสั่งผู้ใช้: `posted_at` = เวลาที่ตั้งโพสต์ไว้ (คงพฤติกรรมเดิม revert การเปลี่ยนของ E) · ลบสติกเกอร์หมวด "ดีล & โปรโมชั่น" 5 แบบ + "ลดกระหน่ำวันนี้" + "กดเก็บคูปองลดเพิ่ม" (`AssetPanel.jsx`)
+- [x] ตรวจรวม: backend รันทีละไฟล์ 289 ไฟล์ (4 workers, cap 300s) → 4050 passed / 12 failed + 3 error ใน 13 ไฟล์ ซึ่งพังเหมือนกันบน HEAD ทุกไฟล์ (เทียบใน worktree) · `test_golden_master_probe.py` เก็บเทสไม่ได้ตั้งแต่ HEAD (ไม่มี `tools.golden_master_probe`) · frontend `npm test` 1038/1038 · `npm run build` ผ่าน · login flow ผ่าน tunnel header จำลอง (401/200/cookie/302) · Playwright 390×844: ปุ่ม <44px = 0, input <16px = 0, ไม่มี scroll แนวนอน/ราคา/ลิงก์ localhost, back ย้อนแท็บ + ปิด sheet ได้ · desktop 1280 ปกติ · สแกน diff ไม่มีค่าลับในบรรทัดที่เพิ่ม
+- Jev ก่อน commit: commit_risk score 1.19 (กลาง) conf 0.56 → escalate; รอผลเทสทั้งชุดจนไม่มี regression แล้ว push ตามคำสั่งผู้ใช้
+- ⚠️ ค้าง: เจ้าของต้อง rotate tunnel token (ยังอยู่ใน git history) + ใส่ Colab Secret · Phase 1.9/1.10 · Phase 2–8
+
+---
+
+## Round CLAUDE-MOBILE-FIRST-E2E-UX-AUDIT-AND-PLAN-20261030 · ตรวจการใช้งานบนมือถือแบบ end-to-end ด้วย 10 เอเจนต์ และทำแผนละเอียด
+
+**ดำเนินการโดย: Claude Code (Claude Opus 5.5)** · วันที่: 2026-10-30
+
+- [x] `git pull origin main` (Already up to date @ 8238fc8) + อ่าน TODO.md + git status สะอาด
+- [x] Jev ก่อนเริ่มงาน: `split_axis` = journey (confidence 1.0); `touches_protected_data` noul 0.14 / confidence null → escalate ตามกฎ (ผู้ใช้สั่ง "ตรวจสอบได้เลย" + ใช้เอเจนต์ read-only ไม่แตะไฟล์)
+- [x] แยก 10 เอเจนต์ (Plan, read-only) ตาม user journey — คะแนน: เข้าแอป 3 · shell 4 · MQS 3 · intake 2 · engine 2 · upload 4 · preview 2 · render 3 · post 3 · AI 2 (เฉลี่ย 2.8/10) — เอเจนต์ #1 ชนโควตา API กลางทาง ส่วนที่ขาดตรวจซ้ำโดย #2/#6/#8/#10
+- [x] ผู้ประสานงานยืนยันช่องโหว่จากโค้ดเอง: repo PUBLIC (`gh repo view`), tunnel token เป็น literal ที่ `scripts/build_colab_notebook.py:50`, auth bypass บน Colab `scripts/api_server.py:244-249`, path ที่ไม่ใช่ `/api` ข้าม gate `:286`, ttyd `-W ... || bash` `build_colab_notebook.py:220` — แจ้งผู้ใช้ให้ rotate token / เปิด Cloudflare Access แล้ว (ยังไม่แก้โค้ด)
+- [x] เขียนแผน `_Docs/Plans/PLAN_MOBILE_FIRST_E2E_UX_20261030.md` (รากปัญหา 8 ข้อ, จุดผิดกฎ 7 ข้อ, North Star 5 แท็บ, Phase 0–8 ≈45–55 วัน พร้อมไฟล์/effort/AC, quick wins 12, แผนเทส, คำถาม 10 ข้อ)
+- [x] Jev หลังเขียนเอกสารเสร็จ: `plan_actionable` score 1.93/2 (สูง), confidence 0.9; `security_first_correct` noul 0.94 / confidence null → escalate → ส่งให้ผู้ใช้ตัดสินพร้อมแผน
+- ไม่ได้แก้โค้ด ไม่ได้ commit · งานลงมือแยกเป็นรอบ `MOBILE-FIRST-E2E-IMPLEMENTATION` ใน TODO.md (รออนุมัติ)
+
 ---
 
 ## Round ANTIGRAVITY-AGY-COLAB-LIVE-TEST-AND-HARDENING-20261030 · ยกระดับระบบป้องกัน AGY Cloud Agent ครบ 4 ชั้น (4-Tier Defense-in-Depth) และทดสอบสั่งงานจริงสำเร็จ 100%

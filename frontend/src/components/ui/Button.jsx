@@ -17,11 +17,14 @@ export const Button = forwardRef(function Button(
 ) {
   const baseStyles = 'inline-flex items-center justify-center font-bold transition-all cursor-pointer select-none active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100';
 
+  // Touch targets: on phones (<768px) and any coarse pointer every size is at
+  // least 44x44 with 14px text; desktop mouse layouts keep their density.
+  const touchTarget = 'max-md:min-h-11 pointer-coarse:min-h-11';
   const sizeStyles = {
-    sm: 'px-2.5 py-1.5 rounded-lg text-xs gap-1.5',
-    md: 'px-4 py-2.5 rounded-xl text-xs sm:text-sm gap-2',
-    lg: 'px-5 py-3.5 rounded-2xl text-sm sm:text-base gap-2.5',
-    icon: 'p-2 rounded-xl text-xs sm:text-sm'
+    sm: `px-2.5 py-1.5 rounded-lg text-xs max-md:text-sm gap-1.5 ${touchTarget}`,
+    md: `px-4 py-2.5 rounded-xl text-xs sm:text-sm max-md:text-sm gap-2 ${touchTarget}`,
+    lg: 'px-5 py-3.5 rounded-2xl text-sm sm:text-base gap-2.5 min-h-12',
+    icon: `p-2 rounded-xl text-xs sm:text-sm max-md:text-sm ${touchTarget} max-md:min-w-11 pointer-coarse:min-w-11`
   };
 
   const variantStyles = {

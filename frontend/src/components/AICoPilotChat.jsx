@@ -13,13 +13,12 @@ import {
   sendCopilotChatMessage,
   generateCopilotScript,
   buildCopilotDraft,
-  renderCopilotSession,
   openHyperFramesStudio
 } from '../api';
 
 const QUICK_PROMPTS = [
   'ขอสไตล์คู่รักสายใต้น้องนุ้ยกับพี่บ่าว',
-  'เน้นจุดขายเรื่องความคุ้มค่าและทนทาน',
+  'เน้นจุดขายเรื่องความทนทานและใช้งานจริง',
   'ผ่าสเปกและฟีเจอร์เด่นให้เห็นภาพชัด',
   'บทสนทนาสั้นกระชับ จบใน 25 วินาที'
 ];
@@ -36,7 +35,6 @@ export default function AICoPilotChat({
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [isBuildingDraft, setIsBuildingDraft] = useState(false);
-  const [isRendering, setIsRendering] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState('couple_paper_chat');
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'script' | 'draft'
 
@@ -135,36 +133,13 @@ export default function AICoPilotChat({
 
   const handleOpenStudioPreview = useCallback(async () => {
     try {
+      // The backend opens the Studio itself; no machine-local preview URL is
+      // stored on the draft any more (it was dead on every other device).
       await openHyperFramesStudio(3002);
-      if (session?.draft_info?.preview_url) {
-        window.open(session.draft_info.preview_url, '_blank');
-      }
     } catch (err) {
       console.error('Failed to open HyperFrames Studio:', err);
-      if (session?.draft_info?.preview_url) {
-        window.open(session.draft_info.preview_url, '_blank');
-      }
     }
-  }, [session?.draft_info?.preview_url]);
-
-  const handleRenderDraft = useCallback(async () => {
-    if (!session?.session_id || isRendering) return;
-    setIsRendering(true);
-
-    try {
-      const res = await renderCopilotSession(session.session_id);
-      if (res.success && res.session) {
-        setSession(res.session);
-        if (onDraftCreated) {
-          onDraftCreated(res.session.draft_info);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to render draft:', err);
-    } finally {
-      setIsRendering(false);
-    }
-  }, [session?.session_id, isRendering, onDraftCreated]);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -196,11 +171,6 @@ export default function AICoPilotChat({
                 <span className="font-semibold text-sm sm:text-base text-white truncate max-w-[400px]">
                   {product?.name}
                 </span>
-                {product?.price_note && (
-                  <Badge variant="outline" className="text-amber-300 border-amber-400/30 bg-amber-500/10 text-xs">
-                    {product.price_note}
-                  </Badge>
-                )}
               </div>
               <p className="text-xs text-slate-400 truncate">
                 สไตล์มาตรฐาน: <span className="text-emerald-400 font-medium">Couple Paper Chat #5 (น้องนุ้ย & พี่บ่าว)</span> · HyperFrames 9:16
@@ -356,7 +326,7 @@ export default function AICoPilotChat({
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                      placeholder="บอก AI เช่น: 'ขอคลิปแนวฮาๆ ป้ายยาน้องนุ้ยกับพี่บ่าว', 'เน้นโปรโมชันส่งฟรี'..."
+                      placeholder="บอก AI เช่น: 'ขอคลิปแนวฮาๆ ป้ายยาน้องนุ้ยกับพี่บ่าว', 'เน้นความทนทานใช้งานจริง'..."
                       className="flex-1 bg-black/40 border border-white/10 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none"
                     />
                     <Button
@@ -539,7 +509,7 @@ export default function AICoPilotChat({
                       </div>
                       <h3 className="font-bold text-lg text-white mb-1">HyperFrames Composition พร้อมแล้ว!</h3>
                       <p className="text-xs text-slate-400 mb-4">
-                        โครงสร้างคลิป 9:16 ติดตั้งในสตูดิโอเรียบร้อย ตรวจความถูกต้องใน Preview แล้วกดเรนเดอร์ได้ทันที
+                        โครงสร้างคลิป 9:16 ติดตั้งในสตูดิโอเรียบร้อย เปิดตรวจเลย์เอาต์ใน Studio Preview ได้
                       </p>
 
                       <div className="p-3 rounded-xl bg-black/40 border border-white/10 text-left text-xs space-y-1.5 mb-5 text-slate-300">
@@ -556,23 +526,12 @@ export default function AICoPilotChat({
                           <Play className="w-4 h-4" />
                           เปิดตรวจหน้า Studio Preview
                         </Button>
-                        <Button
-                          onClick={handleRenderDraft}
-                          disabled={isRendering}
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40"
+                        <p
+                          role="note"
+                          className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-xs text-slate-400 text-left"
                         >
-                          {isRendering ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              กำลังเรนเดอร์วิดีโอ MP4 9:16...
-                            </>
-                          ) : (
-                            <>
-                              <Film className="w-4 h-4" />
-                              เรนเดอร์เป็นวิดีโอ MP4 (1-Click)
-                            </>
-                          )}
-                        </Button>
+                          ยังไม่รองรับเรนเดอร์จาก Co-Pilot เพราะเสียงในดราฟต์นี้เป็นเสียงทดแทนชั่วคราว — ใช้ไลน์ผลิตหลักเพื่อทำเสียงพากย์จริงและเรนเดอร์
+                        </p>
                         <Button
                           onClick={onClose}
                           variant="outline"

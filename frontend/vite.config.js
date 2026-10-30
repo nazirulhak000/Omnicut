@@ -69,10 +69,28 @@ export default defineConfig(({ mode }) => {
         changeOrigin: true,
         timeout: 600000,
         proxyTimeout: 600000,
+        // LAN guard: `host: true` exposes this dev server to the Wi-Fi, and
+        // every proxied request reaches the backend from 127.0.0.1. Only a
+        // loopback browser (the desktop) is treated as local: it gets the
+        // API key injected and no forward headers. Any other client (a phone
+        // on the LAN) gets X-Forwarded-For with its real IP and never the
+        // key, so scripts/api_auth.py classifies it REMOTE -> cookie login
+        // (needs OMNICUT_APP_PASSWORD in .env), same as the Colab tunnel.
+        // Not `xfwd: true`: that would mark the desktop remote as well.
         configure: (proxy) => {
-          if (!apiKey) return
-          proxy.on('proxyReq', (proxyReq) => {
-            proxyReq.setHeader('X-API-Key', apiKey)
+          const isLoopback = (addr) =>
+            addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1'
+          proxy.on('proxyReq', (proxyReq, req) => {
+            for (const h of ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host', 'forwarded', 'x-real-ip']) {
+              proxyReq.removeHeader(h)
+            }
+            const remote = req.socket?.remoteAddress || ''
+            if (isLoopback(remote)) {
+              if (apiKey) proxyReq.setHeader('X-API-Key', apiKey)
+              return
+            }
+            proxyReq.setHeader('X-Forwarded-For', remote || 'unknown')
+            proxyReq.setHeader('X-Forwarded-Proto', req.socket?.encrypted ? 'https' : 'http')
           })
         },
       }
@@ -83,17 +101,20 @@ export default defineConfig(({ mode }) => {
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'vendor-react';
-            }
-            if (id.includes('lucide-react')) {
+            // Specific packages first: "lucide-react" and "qrcode.react" both
+            // contain "react" and used to fall into vendor-react.
+            const path = id.split('\\').join('/');
+            if (path.includes('/node_modules/lucide-react/')) {
               return 'vendor-icons';
             }
-            if (id.includes('@dnd-kit')) {
+            if (path.includes('/node_modules/@dnd-kit/')) {
               return 'vendor-dnd';
             }
-            if (id.includes('axios') || id.includes('clsx') || id.includes('tailwind-merge') || id.includes('qrcode.react')) {
+            if (path.includes('/node_modules/qrcode.react/') || path.includes('/node_modules/axios/') || path.includes('/node_modules/clsx/') || path.includes('/node_modules/tailwind-merge/')) {
               return 'vendor-utils';
+            }
+            if (/\/node_modules\/(react|react-dom|scheduler)\//.test(path)) {
+              return 'vendor-react';
             }
             return 'vendor-misc';
           }
