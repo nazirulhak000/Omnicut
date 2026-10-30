@@ -17,6 +17,20 @@
 
 ## ประวัติรอบที่ปิดแล้ว
 
+- [x] Round ANTIGRAVITY-OFFICIAL-AGY-CLI-COLAB-INSTALL-AND-DRIVE-AUTH-20261030 · ติดตั้ง Official Antigravity CLI (`agy`) Native Binary สำหรับ Linux บน Colab (`curl -fsSL https://antigravity.google/cli/install.sh | bash`), เพิ่มระบบกู้คืนและสำรองเซสชันล็อกอิน Google Account (`~/.gemini`) กับ Google Drive ถาวร (ล็อกอินครั้งเดียวจำถาวร), เพิ่ม Cell 2 สำหรับล็อกอิน OAuth URL ครั้งเดียว, รัน `ttyd` เชื่อมต่อ Official `agy`, ชุดทดสอบผ่าน 8/8 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-FIX-AGY-AUTH-AND-LOCAL-BRIDGE-20261030 · แก้ไขปัญหา HTTP 401 ใน AGY Cloud Agent & Colab Runner: ขจัดคีย์จำลองที่สตริงเพี้ยน, สลับมาใช้คีย์จริง 3 คีย์แรกที่ผ่านการทดสอบ 100% พร้อมรองรับ Colab Secrets (`userdata`), อัปเดตโมเดลเป็น `gemini-3.8-flash` และเพิ่ม header `x-goog-api-key`, เพิ่ม 401/404 ในเงื่อนไข Auto-Rotate, รีเจน `Omnicut_Cloud_Runner.ipynb`, ชุดทดสอบผ่าน 8/8 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+  - [x] ตรวจสอบลิงก์ TikTok และสกัดข้อมูลสเปก/จุดขายสินค้า (30000mAh, Magnetic 15W, Fast Charge 22.5W/PD 20W, สายในตัว 2 เส้น, ขาตั้งพับในตัว, 4 สี, มอก. 2879-2560)
+  - [ ] จัดเตรียมวัตถุดิบรูปภาพ 8 รูป 520x520 WebP คลีน + ไดคัท Hero rembg สู่ `03_Projects/_HyperFrames_Studio/assets/ttz01/`
+  - [ ] ออกแบบและสร้างสคริปต์ 20 บทสไตล์คู่รักสายใต้ (#5 Couple Paper Chat) ครอบคลุม 5 หมวดการตลาด ไร้จุดไข่ปลา ไร้ราคา ทับศัพท์อังกฤษถูกต้อง บันทึกลง `_Docs/ttz_k106_20_scripts.json` & `.md` และลงทะเบียน `_Docs/products.json`
+  - [ ] เจนเสียงพากย์ Single-Take 2 passes (Aoede & Puck) ด้วย Gemini Flash TTS, ตรวจสอบความถูกต้องด้วย Faster-Whisper บน GPU, ตัด Dead Air หัว-ท้ายกระชับแน่น, ล้าง Glitches, ประกอบ `vo.wav` + `timings.json` ครบทั้ง 20 คลิป
+  - [ ] ประกอบคอมโพซิชัน HyperFrames 100% Golden Master Parity (ors01) สไตล์ Style 3B Outro (Zero-Emoji, Zero-Arrow, CSS margin-left centering)
+  - [ ] ผ่าน Visual Inspection Gate (สกัด Frame แชท + Frame CTA ตรวจสอบเลย์เอาต์และความถูกต้อง)
+  - [ ] รัน Batch Render คู่ขนาน Multi-Worker (Concurrency = 4) สู่ `04_Exports/Ready_to_post/` ผ่าน TikTok Pro Sharpness Engine (Frame 0 Y 208-221)
+  - [ ] สกัดปกคู่ 9:16 & 3:4 Dual JPG + WebP Thumbnail ครบทั้ง 20 ชุด, ลงทะเบียน `export_registry.json`, `export_cover_bindings.json`, และ sync `products.json` สู่สถานะ 'rendered'
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+## ประวัติรอบที่ปิดแล้ว
+
 - [x] Round ANTIGRAVITY-FIX-AGY-AUTH-AND-LOCAL-BRIDGE-20261030 · แก้ไขปัญหา HTTP 401 ใน AGY Cloud Agent & Colab Runner: ขจัดคีย์จำลองที่สตริงเพี้ยน, สลับมาใช้คีย์จริง 3 คีย์แรกที่ผ่านการทดสอบ 100% พร้อมรองรับ Colab Secrets (`userdata`), อัปเดตโมเดลเป็น `gemini-3.8-flash` และเพิ่ม header `x-goog-api-key`, เพิ่ม 401/404 ในเงื่อนไข Auto-Rotate, รีเจน `Omnicut_Cloud_Runner.ipynb`, ชุดทดสอบผ่าน 8/8 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 - [x] Round ANTIGRAVITY-AGY-COLAB-LIVE-TEST-AND-HARDENING-20261030 · ยกระดับระบบป้องกัน AGY Cloud Agent (4-Tier Defense-in-Depth: บล็อกการฆ่าโปรเซสอุโมงค์ `cloudflared`/`uvicorn`/`ttyd`, ป้องกันลบฐานข้อมูลหลักและ `.env`, ระบบ Auto-Redaction ปิดบัง API Keys/Tokens อัตโนมัติ, ระบบ CapCut Draft Auto-Backup `.bak`, เพิ่ม `POST /api/agy/self-update` และปุ่มลัด **เปิด AGY Terminal** บน Topbar, รีบิลด์ `frontend/dist`, ผ่าน Jev `B_full_defense_in_depth` confidence 1.0 และชุดทดสอบ 8/8 100%); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 4 Argon)
 - [x] Round ANTIGRAVITY-AGY-COLAB-WEB-TERMINAL-20261030 · วางแผนและพัฒนาระบบ AGY Interactive Web Terminal & Autonomous Cloud Agent บน Google Colab (Dual-Hybrid Architecture: `scripts/agy_cloud_agent.py`, `scripts/api_agy.py`, `scripts/colab_agy_cli.py`, Web Console ที่ `https://studio.nazirulhak.com/agy` + `ttyd` พอร์ต 7681, Jev choice `C_dual_hybrid_terminal` confidence 0.98, ผ่านชุดทดสอบ `tests/test_agy_cloud_agent.py` 7/7 100%); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 4 Argon)
