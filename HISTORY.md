@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-AGY-COLAB-LIVE-TEST-AND-HARDENING-20261030 | ยกระดับระบบป้องกัน AGY Cloud Agent ครบ 4 ชั้น (บล็อกการฆ่าโปรเซสอุโมงค์ `cloudflared`/`uvicorn`/`ttyd`, ป้องกันลบฐานข้อมูลหลักและ `.env`, ระบบ Auto-Redaction ปิดบัง API Keys/Tokens อัตโนมัติ, ระบบ CapCut Draft Auto-Backup `.bak`, เพิ่ม `POST /api/agy/self-update` และปุ่มลัด **เปิด AGY Terminal** บน Topbar, รีบิลด์ `frontend/dist`, Jev `B_full_defense_in_depth` confidence 1.0, ผ่านชุดทดสอบ 8/8 100%) | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 4 Argon) |
 | Round ANTIGRAVITY-AGY-COLAB-WEB-TERMINAL-20261030 | วางแผนและพัฒนาระบบ AGY Interactive Web Terminal & Autonomous Cloud Agent บน Google Colab (`scripts/agy_cloud_agent.py`, `scripts/api_agy.py`, `scripts/colab_agy_cli.py`, Web Console ที่ `https://studio.nazirulhak.com/agy` + `ttyd` พอร์ต 7681, Jev choice `C_dual_hybrid_terminal` confidence 0.98, ผ่านชุดทดสอบ 7/7 100%) | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 4 Argon) |
 | Round ANTIGRAVITY-CLEAN-OBSOLETE-HUBS-AND-AUTO-SEED-SCRIPTS-20261030 | ตัดเมนูที่เลิกใช้ 2 รายการ (gadget และ producer) ออกจาก UI ถาวร, พัฒนา tools/sync_scripts_to_products.py ซิงก์สคริปต์คู่รัก 20 บททั้ง 9 สินค้า (180 สคริปต์) สู่ products_seed.json และ Colab Auto-Seed, รีบิลด์ frontend/dist สำเร็จ (tests 174 backend + 1021 frontend ผ่าน 100%) | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-RECONCILE-MERGE-AND-PUSH-MAIN-20261030 | Reconcile branch dev กับ origin/main (ผสาน Colab cloud runner + permanent domain tunnel token เข้ากับ local production dev), แก้ไข conflicts 8 จุด, ตรวจสอบชุดทดสอบทั้งหมด และ push ขึ้น origin/main & origin/dev สำเร็จ 100% | 2026-10-30 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -97,6 +98,26 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+---
+
+## Round ANTIGRAVITY-AGY-COLAB-LIVE-TEST-AND-HARDENING-20261030 · ยกระดับระบบป้องกัน AGY Cloud Agent ครบ 4 ชั้น (4-Tier Defense-in-Depth) และทดสอบสั่งงานจริงสำเร็จ 100%
+
+**ดำเนินการโดย: Antigravity (Gemini 4 Argon)** · วันที่: 2026-10-30
+
+### 1. สรุปการดำเนินงาน
+- **ผลตรวจ Jev Decision Layer:** เลือก `B_full_defense_in_depth` ด้วยค่า `confidence = 1.00` (`verdict = proceed`)
+- **ยกระดับระบบป้องกัน 4 ชั้นใน `scripts/agy_cloud_agent.py`:**
+  1. **Tunnel & Server Self-Preservation Guard:** บล็อกคำสั่งฆ่าโปรเซสตัวเอง (`pkill cloudflared`, `killall uvicorn`, `pkill ttyd`, `fuser -k 8000/tcp`, `fuser -k 7681/tcp`) ป้องกันอุโมงค์หลุดกลางคัน
+  2. **Critical Database & `.env` Protection:** บล็อกการลบฐานข้อมูลหลัก (`_Docs/products.json`, `_Docs/products_seed.json`, `_Docs/export_registry.json`) และการเข้าถึงไฟล์ `.env` โดยตรง เพิ่มเติมจาก `01_Raw/` และ `02_Assets/`
+  3. **Auto-Redaction (`redact_secrets`):** ปิดบัง API Keys (`AIza...`, `AQ.Ab8-...`) และ Cloudflare Tunnel Token (`eyJh...`) ในผลลัพธ์ `run_command` และ `read_file` อัตโนมัติ (`[REDACTED_SECRET]`)
+  4. **CapCut Draft Auto-Backup (กฎข้อ 3):** สำรองไฟล์ `.bak` อัตโนมัติทุกครั้งก่อนแก้ไข `draft_content.json` หรือ `.cloud_cache_*`
+- **เพิ่มฟีเจอร์อำนวยความสะดวกใน `scripts/api_agy.py` และ `frontend/src/components/Topbar.jsx`:**
+  - เพิ่ม Endpoint `POST /api/agy/self-update` และปุ่ม **อัปเดตโค้ดจาก Git** + ชิป **ทดสอบ Safety Guard** ในหน้า `/agy`
+  - เพิ่มปุ่ม **เปิด AGY Terminal** บนแถบ `Topbar.jsx` ของหน้าหลัก Studio และรีบิลด์ `frontend/dist` สำเร็จ
+- **ผลการทดสอบสั่งงานจริงและชุดทดสอบ:**
+  - `pytest tests/test_agy_cloud_agent.py -v` -> **8 passed in 5.51s (100%)**
+  - ทดสอบสั่งงานจริงผ่าน `scripts/colab_agy_cli.py`: `--status`, `"!git status -s"`, และทดสอบบล็อกคำสั่งทำลายล้าง `"!rm -rf 01_Raw/test_protect"` ทำงานถูกต้อง 100%
+
 ---
 
 ## Round ANTIGRAVITY-AGY-COLAB-WEB-TERMINAL-20261030 · วางแผนและพัฒนาระบบ AGY Interactive Web Terminal & Autonomous Cloud Agent บน Google Colab (Dual-Hybrid Architecture) สำเร็จ 100%

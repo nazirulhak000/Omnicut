@@ -35,6 +35,14 @@ DEFAULT_DRIVE_EXPORT_DIR = Path("/content/drive/MyDrive/Omnicut_Exports")
 # Protected directories per AGENTS.md Rule #1 (Never delete/overwrite without explicit confirmation)
 PROTECTED_DIRS = ("01_Raw", "02_Assets")
 
+# Critical system files protected from deletion
+PROTECTED_FILES = (
+    "_Docs/products.json",
+    "_Docs/products_seed.json",
+    "_Docs/export_registry.json",
+    ".env",
+)
+
 # Destructive shell patterns blocked by default Safety Guard
 DESTRUCTIVE_COMMAND_PATTERNS = [
     r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*f?\s+/\s*$",
@@ -45,6 +53,14 @@ DESTRUCTIVE_COMMAND_PATTERNS = [
     r"\bmkfs\b",
     r"\bdd\s+if=",
     r"\bgit\s+reset\s+--hard\b.*origin",
+    r"\b(pkill|killall)\b.*(cloudflared|uvicorn|ttyd)",
+    r"\bfuser\s+-k\s+(8000|7681)/tcp",
+]
+
+SECRET_REDACT_PATTERNS = [
+    re.compile(r"AIza[0-9A-Za-z_\-]{20,}"),
+    re.compile(r"AQ\.Ab8-[0-9A-Za-z_\-]{15,}"),
+    re.compile(r"eyJh[0-9A-Za-z_\-]{35,}"),
 ]
 
 SYSTEM_PROMPT_TEMPLATE = """คุณคือ **AGY (Antigravity Cloud Agent)** ผู้ช่วย AI อัตโนมัติประจำระบบ **OmniCut Pro Studio (Google Colab Cloud Edition)**
@@ -73,8 +89,21 @@ SYSTEM_PROMPT_TEMPLATE = """คุณคือ **AGY (Antigravity Cloud Agent)**
 # 1. Safety Guardrails
 # ============================================================================
 
+def redact_secrets(text: str) -> str:
+    """Redact API keys, tokens, and credentials from any string output."""
+    if not text:
+        return ""
+    masked = text
+    for pat in SECRET_REDACT_PATTERNS:
+        masked = pat.sub("[REDACTED_SECRET]", masked)
+    for k in get_gemini_api_keys():
+        if len(k) >= 12 and k in masked:
+            masked = masked.replace(k, "[REDACTED_SECRET]")
+    return masked
+
+
 def is_safe_command(command: str) -> Tuple[bool, str]:
-    """Validate shell command against AGENTS.md destructive rules."""
+    """Validate shell command against AGENTS.md destructive rules and tunnel self-preservation."""
     cmd_str = (command or "").strip()
     if not cmd_str:
         return False, "คำสั่งว่างเปล่า (Empty command)"
@@ -83,7 +112,7 @@ def is_safe_command(command: str) -> Tuple[bool, str]:
         if re.search(pattern, cmd_str, re.IGNORECASE):
             return (
                 False,
-                f"ถูกบล็อกโดย Safety Guard (กฎเหล็ก AGENTS.md): ห้ามรันคำสั่งทำลายล้างหรือลบโฟลเดอร์ป้องกัน ({pattern})",
+                f"ถูกบล็อกโดย Safety Guard (กฎเหล็ก AGENTS.md): ห้ามรันคำสั่งทำลายล้างหรือตัดการเชื่อมต่อตัวเอง ({pattern})",
             )
 
     # Check direct rm/del targeting protected dirs
@@ -94,11 +123,20 @@ def is_safe_command(command: str) -> Tuple[bool, str]:
                 f"ถูกบล็อกโดย Safety Guard (กฎข้อ 1): ห้ามลบไฟล์ในโฟลเดอร์ `{protected}/` โดยไม่ได้รับอนุญาต",
             )
 
+    # Check direct rm/del targeting critical database files
+    for pfile in PROTECTED_FILES:
+        base_name = Path(pfile).name
+        if re.search(rf"\b(rm|del|unlink|Remove-Item)\b.*{re.escape(base_name)}", cmd_str, re.IGNORECASE):
+            return (
+                False,
+                f"ถูกบล็อกโดย Safety Guard: ห้ามลบไฟล์ระบบสำคัญ `{pfile}`",
+            )
+
     return True, "ok"
 
 
 def resolve_safe_path(rel_or_abs_path: str, workspace: Path = PROJECT_ROOT, for_write: bool = False) -> Tuple[Optional[Path], str]:
-    """Resolve path inside workspace and protect 01_Raw / 02_Assets from modification."""
+    """Resolve path inside workspace and protect 01_Raw / 02_Assets and .env."""
     raw = (rel_or_abs_path or "").strip()
     if not raw:
         return None, "ไม่ได้ระบุพาธไฟล์"
@@ -118,6 +156,9 @@ def resolve_safe_path(rel_or_abs_path: str, workspace: Path = PROJECT_ROOT, for_
     if not (inside_ws or inside_drive):
         return None, f"ไม่อนุญาตให้เข้าถึงไฟล์นอกโฟลเดอร์โปรเจกต์: {candidate}"
 
+    if candidate.name == ".env":
+        return None, "ถูกบล็อกโดย Safety Guard: ไม่อนุญาตให้อ่านหรือเขียนทับไฟล์ความลับ `.env` โดยตรง"
+
     if for_write and inside_ws:
         try:
             rel_parts = candidate.relative_to(ws_resolved).parts
@@ -130,6 +171,17 @@ def resolve_safe_path(rel_or_abs_path: str, workspace: Path = PROJECT_ROOT, for_
             pass
 
     return candidate, "ok"
+
+
+def _ensure_capcut_draft_backup(target: Path) -> Optional[str]:
+    """Rule #3 of AGENTS.md: Never modify draft_content.json or .cloud_cache_* without backup."""
+    if not target.exists():
+        return None
+    if target.name == "draft_content.json" or target.name.startswith(".cloud_cache_"):
+        bak_path = target.with_name(target.name + ".bak")
+        shutil.copy2(target, bak_path)
+        return str(bak_path)
+    return None
 
 
 # ============================================================================
@@ -269,8 +321,8 @@ class AGYWorkspaceTools:
                 timeout=timeout_sec,
             )
             elapsed = round(time.time() - start_ts, 2)
-            stdout = (proc.stdout or "")[-8000:]
-            stderr = (proc.stderr or "")[-4000:]
+            stdout = redact_secrets((proc.stdout or "")[-8000:])
+            stderr = redact_secrets((proc.stderr or "")[-4000:])
             return {
                 "ok": proc.returncode == 0,
                 "exit_code": proc.returncode,
@@ -290,9 +342,9 @@ class AGYWorkspaceTools:
             return {
                 "ok": False,
                 "exit_code": -3,
-                "error": str(exc),
+                "error": redact_secrets(str(exc)),
                 "stdout": "",
-                "stderr": str(exc),
+                "stderr": redact_secrets(str(exc)),
             }
 
     def read_file(self, path: str, start_line: int = 1, end_line: int = 200) -> Dict[str, Any]:
@@ -317,7 +369,7 @@ class AGYWorkspaceTools:
                 "total_lines": total,
                 "start_line": s_idx,
                 "end_line": e_idx,
-                "content": numbered[:15000],
+                "content": redact_secrets(numbered[:15000]),
             }
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
@@ -329,12 +381,16 @@ class AGYWorkspaceTools:
 
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
+            backup_path = _ensure_capcut_draft_backup(target)
             target.write_text(content or "", encoding="utf-8")
-            return {
+            res: Dict[str, Any] = {
                 "ok": True,
                 "path": str(target.relative_to(self.workspace)) if self.workspace in target.parents else str(target),
                 "bytes_written": len((content or "").encode("utf-8")),
             }
+            if backup_path:
+                res["backup_created"] = backup_path
+            return res
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
@@ -349,16 +405,33 @@ class AGYWorkspaceTools:
             original = target.read_text(encoding="utf-8")
             if not target_text or target_text not in original:
                 return {"ok": False, "error": "ไม่พบข้อความเป้าหมาย (target_text) ที่ตรงกันในไฟล์"}
+            backup_path = _ensure_capcut_draft_backup(target)
             count = original.count(target_text)
             updated = original.replace(target_text, replacement_text or "")
             target.write_text(updated, encoding="utf-8")
-            return {
+            res: Dict[str, Any] = {
                 "ok": True,
                 "path": str(target.relative_to(self.workspace)) if self.workspace in target.parents else str(target),
                 "replacements_count": count,
             }
+            if backup_path:
+                res["backup_created"] = backup_path
+            return res
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
+
+    def self_update_from_git(self) -> Dict[str, Any]:
+        """Safely pull latest commits from origin/main without terminating active tunnels."""
+        pull_res = self.run_command("git fetch origin main && git pull --ff-only origin main", timeout_sec=60)
+        sync_tool = self.workspace / "tools" / "sync_scripts_to_products.py"
+        sync_res = None
+        if sync_tool.exists():
+            sync_res = self.run_command(f"\"{sys.executable}\" \"{sync_tool}\"", timeout_sec=30)
+        return {
+            "ok": pull_res.get("ok", False),
+            "git_pull": pull_res,
+            "scripts_sync": sync_res,
+        }
 
     def list_dir(self, path: str = ".") -> Dict[str, Any]:
         target, reason = resolve_safe_path(path or ".", self.workspace, for_write=False)

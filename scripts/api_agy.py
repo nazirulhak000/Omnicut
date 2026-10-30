@@ -82,6 +82,13 @@ def api_agy_drive_sync(payload: AGYDriveSyncRequest) -> Dict[str, Any]:
     return agent.tools.sync_to_drive(subpath=payload.subpath)
 
 
+@router.post("/api/agy/self-update")
+def api_agy_self_update() -> Dict[str, Any]:
+    """Pull latest commits from origin/main and sync product scripts without killing active tunnels."""
+    agent = get_cloud_agent()
+    return agent.tools.self_update_from_git()
+
+
 @router.post("/api/agy/chat")
 def api_agy_chat(payload: AGYChatRequest) -> Dict[str, Any]:
     """Send a prompt/command to AGY Cloud Agent and receive the complete multi-step result."""
@@ -423,6 +430,7 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
       <span id="pill-drive" class="pill">Drive: -</span>
     </div>
     <div class="nav-actions">
+      <button class="btn" onclick="selfUpdateGit()">อัปเดตโค้ดจาก Git</button>
       <button class="btn" onclick="syncDrive()">ซิงก์เข้า Drive</button>
       <button class="btn" onclick="resetSession()">ล้างหน้าจอ</button>
       <a href="/" class="btn btn-primary">เปิดหน้าหลัก Studio</a>
@@ -434,6 +442,7 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
     <button class="chip" onclick="sendQuick('แสดงรายการสินค้าทั้งหมดใน _Docs/products.json และดูว่ามีคลิปรุ่นไหนเรนเดอร์เสร็จแล้วบ้าง')">ดูรายการสินค้า & คลิป</button>
     <button class="chip" onclick="sendQuick('!git status -s && git log -n 3 --oneline')">เช็กสถานะ Git ล่าสุด</button>
     <button class="chip" onclick="sendQuick('!nvidia-smi')">รัน nvidia-smi</button>
+    <button class="chip" onclick="sendQuick('!rm -rf 01_Raw/test_protect')">ทดสอบ Safety Guard (ป้องกันลบไฟล์)</button>
     <button class="chip" onclick="sendQuick('ตรวจสอบไฟล์ MP4 ใน 04_Exports/Ready_to_post/ และซิงก์เข้า Google Drive ให้หน่อย')">ซิงก์คลิปเข้า Google Drive</button>
   </div>
 
@@ -625,6 +634,10 @@ AGY_WEB_TERMINAL_HTML = """<!DOCTYPE html>
     function sendQuick(cmd) {
       document.getElementById('promptInput').value = cmd;
       submitPrompt();
+    }
+
+    async function selfUpdateGit() {
+      sendQuick('!git fetch origin main && git pull --ff-only origin main');
     }
 
     async function syncDrive() {

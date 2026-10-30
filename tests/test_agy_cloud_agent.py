@@ -1,5 +1,5 @@
 """
-tests/test_agy_cloud_agent.py — Unit & API tests for AGY Cloud Agent & Web Terminal (/agy).
+tests/test_agy_cloud_agent.py — Unit, Security Penetration & Live API tests for AGY Cloud Agent (/agy).
 Deterministic, offline-safe, uses pytest tmp_path without touching production data.
 """
 
@@ -18,12 +18,14 @@ from scripts.agy_cloud_agent import (
     get_gemini_api_keys,
     get_system_status,
     is_safe_command,
+    redact_secrets,
     resolve_safe_path,
 )
 from scripts.api_server import app
 
 
-def test_safety_guard_blocks_destructive_commands():
+def test_safety_guard_blocks_destructive_and_tunnel_kill_commands():
+    # 1. Root & protected dir deletion
     ok1, reason1 = is_safe_command("rm -rf /")
     assert not ok1
     assert "Safety Guard" in reason1
@@ -36,11 +38,26 @@ def test_safety_guard_blocks_destructive_commands():
     assert not ok3
     assert "02_Assets" in reason3
 
+    # 2. Tunnel & Server Self-Preservation
+    ok4, reason4 = is_safe_command("pkill -f cloudflared")
+    assert not ok4
+    assert "Safety Guard" in reason4
+
+    ok5, reason5 = is_safe_command("fuser -k 8000/tcp")
+    assert not ok5
+    assert "Safety Guard" in reason5
+
+    # 3. Critical database deletion
+    ok6, reason6 = is_safe_command("rm _Docs/products.json")
+    assert not ok6
+    assert "products.json" in reason6
+
+    # 4. Safe commands allowed
     ok_safe, _ = is_safe_command("python --version")
     assert ok_safe
 
 
-def test_resolve_safe_path_protects_raw_and_assets(tmp_path: Path):
+def test_resolve_safe_path_protects_raw_assets_and_env(tmp_path: Path):
     raw_dir = tmp_path / "01_Raw"
     raw_dir.mkdir()
     existing_raw_file = raw_dir / "clip.mp4"
@@ -55,10 +72,53 @@ def test_resolve_safe_path_protects_raw_and_assets(tmp_path: Path):
     assert resolved_write is None
     assert "01_Raw" in reason
 
+    # Direct access to .env is blocked
+    env_file = tmp_path / ".env"
+    env_file.write_text("GEMINI_API_KEY=secret", encoding="utf-8")
+    resolved_env, env_reason = resolve_safe_path(".env", workspace=tmp_path, for_write=False)
+    assert resolved_env is None
+    assert ".env" in env_reason
+
     # Accessing outside workspace is blocked
     outside, out_reason = resolve_safe_path("../outside_secret.txt", workspace=tmp_path, for_write=False)
     assert outside is None
     assert "ไม่อนุญาต" in out_reason
+
+
+def test_secret_redaction_masks_api_keys_and_tokens(tmp_path: Path):
+    raw_output = (
+        "Key1: AIzaSyD9876543210abcdefghijklmnopqrstuv\n"
+        "Key2: AQ.Ab8-N-957mUj4B2F7f2677zXlqf4j7-B5E3uWzNf4f0p6V-zQ\n"
+        "Tunnel: eyJhIjoiNjQ3NDU3MTM3ZjBlZTdhMzc3MmFlNGEzOWE3OWJkYjciLCJ0IjoiYmFmZmM5MzM\n"
+    )
+    masked = redact_secrets(raw_output)
+    assert "AIzaSyD" not in masked
+    assert "AQ.Ab8-" not in masked
+    assert "eyJhIjoi" not in masked
+    assert masked.count("[REDACTED_SECRET]") == 3
+
+    tools = AGYWorkspaceTools(workspace=tmp_path)
+    tools.write_file("notes.txt", raw_output)
+    read_res = tools.read_file("notes.txt")
+    assert read_res["ok"] is True
+    assert "AIzaSyD" not in read_res["content"]
+    assert "[REDACTED_SECRET]" in read_res["content"]
+
+
+def test_capcut_draft_auto_backup_on_write_and_edit(tmp_path: Path):
+    tools = AGYWorkspaceTools(workspace=tmp_path)
+    draft_path = tmp_path / "03_Projects" / "demo" / "draft_content.json"
+    draft_path.parent.mkdir(parents=True)
+    draft_path.write_text('{"version": 1}', encoding="utf-8")
+
+    # Edit draft_content.json -> must create draft_content.json.bak automatically (Rule #3)
+    res = tools.edit_file("03_Projects/demo/draft_content.json", '"version": 1', '"version": 2')
+    assert res["ok"] is True
+    assert "backup_created" in res
+    bak_file = draft_path.with_name("draft_content.json.bak")
+    assert bak_file.exists()
+    assert bak_file.read_text(encoding="utf-8") == '{"version": 1}'
+    assert draft_path.read_text(encoding="utf-8") == '{"version": 2}'
 
 
 def test_workspace_tools_crud_and_search(tmp_path: Path):
@@ -106,7 +166,6 @@ def test_agent_multi_step_tool_calling_and_goal_mode(tmp_path: Path):
     def fake_gemini_api(payload: Dict[str, Any], api_key: str, model: str) -> Dict[str, Any]:
         call_counter["count"] += 1
         if call_counter["count"] == 1:
-            # First step: model thinks and calls write_file
             return {
                 "candidates": [
                     {
@@ -124,7 +183,6 @@ def test_agent_multi_step_tool_calling_and_goal_mode(tmp_path: Path):
                     }
                 ]
             }
-        # Second step: model sees tool result and returns final answer
         return {
             "candidates": [
                 {
@@ -145,20 +203,14 @@ def test_agent_multi_step_tool_calling_and_goal_mode(tmp_path: Path):
     assert (tmp_path / "note.txt").read_text(encoding="utf-8") == "AGY Colab Ready 100%"
 
 
-def test_agent_shell_shortcut_bang_command(tmp_path: Path):
-    agent = AGYCloudAgent(workspace=tmp_path)
-    res = agent.chat("!python --version", session_id="test-shell")
-    assert res["ok"] is True
-    assert "Python" in res["answer"]
-
-
-def test_fastapi_agy_endpoints():
+def test_fastapi_agy_endpoints_and_sse_streaming():
     client = TestClient(app)
 
     # 1. GET /agy Web Terminal HTML
     r_html = client.get("/agy")
     assert r_html.status_code == 200
     assert "Antigravity Cloud Terminal" in r_html.text
+    assert "ทดสอบ Safety Guard" in r_html.text
 
     # 2. GET /api/agy/status
     r_status = client.get("/api/agy/status")
@@ -173,22 +225,28 @@ def test_fastapi_agy_endpoints():
     assert r_exec.status_code == 200
     assert r_exec.json()["ok"] is True
 
-    # 4. POST /api/agy/chat with !command shortcut
-    r_chat = client.post(
-        "/api/agy/chat",
-        json={"message": "!python -c \"print('AGY_OK')\"", "session_id": "api-test-sess"},
-    )
-    assert r_chat.status_code == 200
-    chat_data = r_chat.json()
-    assert chat_data["ok"] is True
-    assert "AGY_OK" in chat_data["answer"]
+    # 4. POST /api/agy/exec (blocked destructive command)
+    r_blocked = client.post("/api/agy/exec", json={"command": "rm -rf 01_Raw/test_protect", "timeout_sec": 15})
+    assert r_blocked.status_code == 200
+    assert r_blocked.json()["ok"] is False
+    assert "Safety Guard" in r_blocked.json()["error"]
 
-    # 5. GET & DELETE /api/agy/sessions
+    # 5. POST /api/agy/stream SSE streaming test
+    with client.stream(
+        "POST",
+        "/api/agy/stream",
+        json={"message": "!python -c \"print('SSE_STREAM_OK')\"", "session_id": "sse-test-1"},
+    ) as resp:
+        assert resp.status_code == 200
+        body = "".join(resp.iter_text())
+        assert "SSE_STREAM_OK" in body
+
+    # 6. GET & DELETE /api/agy/sessions
     r_sess = client.get("/api/agy/sessions")
     assert r_sess.status_code == 200
-    assert any(s["session_id"] == "api-test-sess" for s in r_sess.json()["sessions"])
+    assert any(s["session_id"] == "sse-test-1" for s in r_sess.json()["sessions"])
 
-    r_del = client.delete("/api/agy/sessions/api-test-sess")
+    r_del = client.delete("/api/agy/sessions/sse-test-1")
     assert r_del.status_code == 200
     assert r_del.json()["deleted"] is True
 
