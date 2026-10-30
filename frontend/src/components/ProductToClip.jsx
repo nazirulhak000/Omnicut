@@ -413,7 +413,7 @@ function AngleSidebarItem({
                 {isEdgeTtsShotList ? (
                   <>
                     <AlertTriangle className="w-2.5 h-2.5 text-amber-300 flex-shrink-0" />
-                    <span>⚠️ Edge-TTS (เสียงเดิม)</span>
+                    <span>เสียงเดิม Edge-TTS</span>
                   </>
                 ) : isStaleShotList ? (
                   <>
@@ -423,7 +423,7 @@ function AngleSidebarItem({
                 ) : (
                   <>
                     <Mic className="w-2.5 h-2.5 text-cyan-300 flex-shrink-0" />
-                    <span>🎙️ Gemini ({getVoicePresetShortName(shotListInfo?.voice_preset)})</span>
+                    <span>เสียง Gemini ({getVoicePresetShortName(shotListInfo?.voice_preset)})</span>
                   </>
                 )}
               </button>
@@ -444,7 +444,7 @@ function AngleSidebarItem({
                   ) : (
                     <Clapperboard className="w-2.5 h-2.5 text-amber-400/70" />
                   )}
-                  <span>+ แผนถ่าย</span>
+                  <span>สร้างแผนถ่าย</span>
                 </button>
               )
             )}
@@ -574,9 +574,9 @@ function AngleMobilePill({ angle, index, isSelected, onSelect, shotListInfo }) {
                 : 'text-cyan-300 bg-indigo-500/15 border-indigo-500/30'
             }`}>
               {shotListInfo?.is_edge_tts ? (
-                <span>⚠️ Edge</span>
+                <span>เสียง Edge</span>
               ) : (
-                <span>🎙️ {getVoicePresetShortName(shotListInfo?.voice_preset)}</span>
+                <span>เสียง {getVoicePresetShortName(shotListInfo?.voice_preset)}</span>
               )}
             </span>
           )}
@@ -1315,7 +1315,7 @@ function AngleActiveWorkbench({
                     className="ml-0.5 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 font-bold border border-emerald-500/40 whitespace-nowrap cursor-pointer flex items-center gap-1 transition-all active:scale-95 shadow-xs"
                     title={`คลิกเพื่อดูสารบัญฉาก ${cat.scenes_count} ฉาก (ตรวจดูมุมมองและจังหวะตัด)`}
                   >
-                    <span>⚡ {cat.scenes_count} ฉาก</span>
+                    <span>ดู {cat.scenes_count} ฉาก</span>
                     <Eye className="w-3 h-3 text-emerald-400" />
                   </button>
                 ) : (
@@ -1329,7 +1329,7 @@ function AngleActiveWorkbench({
                     className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer whitespace-nowrap disabled:opacity-50"
                     title="สแกนสารบัญฉากด้วย Vision AI ทันที"
                   >
-                    ⚡ สแกนฉาก
+                    สแกนฉาก
                   </button>
                 )}
                 {isLocked ? (
@@ -2014,7 +2014,7 @@ function ScriptAccordionItem({
                         className="ml-0.5 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 font-bold border border-emerald-500/40 whitespace-nowrap cursor-pointer flex items-center gap-1 transition-all active:scale-95 shadow-xs"
                         title={`คลิกเพื่อดูสารบัญฉาก ${cat.scenes_count} ฉาก (ตรวจดูมุมมองและจังหวะตัด)`}
                       >
-                        <span>⚡ {cat.scenes_count} ฉาก</span>
+                        <span>ดู {cat.scenes_count} ฉาก</span>
                         <Eye className="w-3 h-3 text-emerald-400" />
                       </button>
                     ) : (
@@ -2028,7 +2028,7 @@ function ScriptAccordionItem({
                         className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer whitespace-nowrap disabled:opacity-50"
                         title="สแกนสารบัญฉากด้วย Vision AI ทันที"
                       >
-                        ⚡ สแกนฉาก
+                        สแกนฉาก
                       </button>
                     )}
                     {isLocked ? (
@@ -2296,7 +2296,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       else sessionStorage.removeItem('omnicut_draft_rawtext');
     } catch {}
   }, [rawText]);
-  const [tiktokProductId, setTiktokProductId] = useState('');
+  const [tiktokProductId, setTiktokProductId] = useState(() => {
+    try { return sessionStorage.getItem('omnicut_draft_tiktok_id') || ''; } catch { return ''; }
+  });
+
+  useEffect(() => {
+    try {
+      if (tiktokProductId) sessionStorage.setItem('omnicut_draft_tiktok_id', tiktokProductId);
+      else sessionStorage.removeItem('omnicut_draft_tiktok_id');
+    } catch {}
+  }, [tiktokProductId]);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
@@ -4745,7 +4754,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         <div className="space-y-4">
           {/* ──── STEP 2: Script Lab & Footage Selection ──── */}
           <div className="space-y-3">
-            <section aria-label="สถานะเวิร์กโฟลว์" className="rounded-2xl border border-white/[0.08] bg-[#090D15] overflow-hidden">
+            <section aria-label="สถานะเวิร์กโฟลว์" className="rounded-2xl glass-panel overflow-hidden">
               <div className="px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06]">
                 <div>
                   <h2 className="text-sm font-bold text-white">พื้นที่ทำงานสคริปต์</h2>
@@ -4788,7 +4797,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               </div>
             </section>
 
-            <section className="rounded-2xl border border-white/[0.08] bg-[#080B11] p-2.5 sm:p-3 space-y-2.5">
+            <section className="rounded-2xl glass-tile p-2.5 sm:p-3 space-y-2.5">
               <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5">
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
                   <button

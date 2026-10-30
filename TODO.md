@@ -4,6 +4,16 @@
 
 ## รอบปัจจุบัน
 
+- [ ] Round ANTIGRAVITY-OVERNIGHT-ROUND-3-CONTENT-TRACKER-20261031 · ยกระดับ ContentTrackerHub.jsx (Station 3): Glassmorphism KanBan, Sticky Segmented Phase Bar, Mobile Ergonomics & SSE Memory Safety:
+  - [ ] 1. Ultra-Realistic Glassmorphism Styling: ปรับแต่งแผง KanBan Columns ทั้ง 4 เฟส, Phase Summary Cards, และ Filter Pills ให้เป็น `.glass-panel` และ `.glass-tile` สอดรับการหักเหแสง Ambient Orbs
+  - [ ] 2. Mobile Ergonomics & Swipe Mechanics: ปรับขนาดคอลัมน์ KanBan ให้พอดีกับจอ iPhone 15 Pro Max (`min-w-[88vw] max-w-[390px] snap-center`) พร้อม Touch Target ปุ่มและตัวกรอง >= 44px
+  - [ ] 3. Rule 3.8/4.8 Strict Button Hygiene: ตรวจสอบและกำจัดสัญลักษณ์ซ้ำซ้อนหรืออีโมจิในปุ่ม ปรับให้ขึ้นต้นด้วยคำกริยาแอ็กชันภาษาไทย 100%
+  - [ ] 4. SSE & Timer Memory Safety: ตรวจสอบ EventSource SSE listener และ Polling Interval ให้มี Cleanup function ครบถ้วน ไม่เกิด Memory Leak เมื่อสลับแท็บ
+  - [ ] 5. TDD Unit Testing: เพิ่มชุดทดสอบสัญญา `frontend/src/lib/contentTrackerContract.test.js` ตรวจสอบ Phase configuration, SSE cleanup, Rule 3.8/4.8, และ Glass tokens
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-OVERNIGHT-ROUND-2-PRODUCT-TO-CLIP-ERGONOMICS-20261031 · ยกระดับ ProductToClip.jsx สู่ 100% Rule 3.8/4.8 Compliance, Glassmorphism & SessionStorage Expansion · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [x] Round ANTIGRAVITY-OVERNIGHT-ROUND-1-TOPBAR-QUALITY-20261031 · ยกระดับ Code Quality, Glassmorphism, WAI-ARIA Accessibility, Mobile Ergonomics & Realtime Latency ใน Topbar.jsx · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-ULTRA-REALISTIC-GLASSMORPHISM-PULSE-HUB-20261031 · ยกระดับธีม UI สู่ Ultra-Realistic Glassmorphism Theme สไตล์ Pulse Hub (Apple visionOS Spatial UI & Michal Malewicz Glass Architecture) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)

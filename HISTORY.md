@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-OVERNIGHT-ROUND-2-PRODUCT-TO-CLIP-ERGONOMICS-20261031 | ยกระดับ ProductToClip.jsx สู่ 100% Rule 3.8/4.8 Compliance, Glassmorphism & SessionStorage Expansion: คลีนข้อความปุ่มที่ขึ้นต้นด้วยเครื่องหมายบวก `+` หรืออีโมจิ 7 จุด (`สร้างแผนถ่าย`, `เสียงเดิม Edge-TTS`, `เสียง Gemini`, `ดู X ฉาก`, `สแกนฉาก`), ขยาย `sessionStorage` บันทึก `tiktokProductId` อัตโนมัติป้องกันข้อมูลสูญหายเมื่อสลับแอป, แปลงแผงสถานะและกริดสู่ `.glass-panel` และ `.glass-tile`, เพิ่มชุดทดสอบ TDD `frontend/src/lib/productToClipContract.test.js` (4/4 tests pass), ผ่านการทดสอบ Vitest รวม 1,064/1,064 tests 100%, Vite build สำเร็จ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-1-TOPBAR-QUALITY-20261031 | ตรวจสอบและยกระดับ Code Quality ใน Topbar.jsx: ล้าง Dead Imports (`Lightbulb`, `Wifi`), เพิ่ม WAI-ARIA keyboard accessibility (`onKeyDown` Enter/Space), ขยาย Touch Target บนมือถือสู่ min-h-11 (>=44px), เพิ่มระบบวัดและแสดงผล Live Ping Latency (เช่น 14ms), ตรวจสอบ Rule 3.8/4.8 คลีน 100%, เพิ่มชุดทดสอบ TDD `frontend/src/lib/topbarContract.test.js` (ผ่าน 5/5, ยอดรวม 1,060/1,060 tests 100%), บิลด์ Vite สำเร็จสมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-ULTRA-REALISTIC-GLASSMORPHISM-PULSE-HUB-20261031 | ยกระดับธีม UI สู่ Ultra-Realistic Glassmorphism Theme สไตล์ Pulse Hub (Apple visionOS Spatial UI & Michal Malewicz Glass Architecture): ฟอนต์ Anuphan ครบทุกน้ำหนัก 300-700 เป็น Default 100%, Canvas OLED Deep Space #030509, Floating Ambient Orbs 3 จุด (Cyan, Amber, Indigo) หักเหทะลุเนื้อกระจก, Master Glass CSS Architecture (.glass-panel, .saas-card แสงสะท้อน 1px Razor Glare ::before และ 38% Curved Sheen ::after, .glass-tile, .glass-btn, .glass-input 16px iOS safe), ผ่านการทดสอบ Vitest 1055/1055 100% และ Vite Production Build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-LOOP-DESKTOP-TO-NATIVE-MOBILE-APP-8-STATIONS-20261031 | รันลูปตรวจสอบและยกระดับ "โหมดคอม (Desktop Studio Workspace)" สู่ Native Mobile App 100% บน iPhone 15 Pro Max (430×932 pt) ครบ 8 สถานี ตามแผน `_Docs/Plans/MASTER_DESKTOP_TO_MOBILE_APP_LOOP_PROMPT.md` (คะแนน 100/100 ทุกสถานี, ผ่านการทดสอบ Vitest 1055/1055 tests 100%, รีบิลด์ frontend/dist สมบูรณ์) | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -109,6 +110,33 @@
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 ---
+
+---
+
+## Round ANTIGRAVITY-OVERNIGHT-ROUND-2-PRODUCT-TO-CLIP-ERGONOMICS-20261031 · ยกระดับ ProductToClip.jsx สู่ 100% Rule 3.8/4.8 Compliance, Glassmorphism & SessionStorage Expansion
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-31
+
+- **วัตถุประสงค์และผลการปฏิบัติงาน:**
+  - สแกนและตรวจสอบ `ProductToClip.jsx` ตามกฎ Rule 3.8 / 4.8 (`ui_clean_standard.md`): กำจัดเครื่องหมาย `+` และอีโมจินำหน้าในปุ่มที่มีไอคอน Lucide อยู่แล้ว
+  - แก้ไข 7 จุดในปุ่ม:
+    1. `⚠️ Edge-TTS (เสียงเดิม)` -> `เสียงเดิม Edge-TTS`
+    2. `🎙️ Gemini ({preset})` -> `เสียง Gemini ({preset})`
+    3. `+ แผนถ่าย` -> `สร้างแผนถ่าย`
+    4. `⚠️ Edge` -> `เสียง Edge`
+    5. `🎙️ {preset}` -> `เสียง {preset}`
+    6. `⚡ {cat.scenes_count} ฉาก` -> `ดู {cat.scenes_count} ฉาก`
+    7. `⚡ สแกนฉาก` -> `สแกนฉาก`
+  - **SessionStorage Persistence Expansion**:
+    - เพิ่มการจัดเก็บ `tiktokProductId` ลงใน `sessionStorage` ด้วยคีย์ `omnicut_draft_tiktok_id`
+    - เพิ่มการกู้คืนค่าอัตโนมัติเมื่อคอมโพเนนต์ mount ป้องกันลิงก์และ ID สินค้าหายเมื่อผู้ใช้สลับแอปบน Safari/PWA
+  - **VisionOS Glass Architecture**:
+    - ยกระดับส่วนแผงสถานะการทำงาน (`section[aria-label="สถานะเวิร์กโฟลว์"]`) สู่ `.glass-panel`
+    - ปรับส่วนแคตตาล็อกและสคริปต์กริดสู่ `.glass-tile`
+  - **TDD Contract Testing**:
+    - สร้าง `frontend/src/lib/productToClipContract.test.js` ตรวจสอบข้อกำหนดทั้ง 4 ด้าน (Rule 3.8/4.8 button cleanliness, sessionStorage keys, glassmorphism class structure)
+    - ผลการทดสอบ: ผ่านครบ 4/4 tests, ยอดรวมทั้งระบบผ่าน 1,064/1,064 tests 100%
+    - Vite production build ผ่านฉลุยใน 2.03s
 
 ## Round ANTIGRAVITY-OVERNIGHT-ROUND-1-TOPBAR-QUALITY-20261031 · ตรวจสอบและยกระดับ Code Quality, Glassmorphism, WAI-ARIA Accessibility & Realtime Latency ใน Topbar.jsx
 
