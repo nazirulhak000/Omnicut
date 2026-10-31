@@ -50,6 +50,17 @@ test('SystemSettings provides >=48px section carousel pills and glass tokens', (
   assert.ok(glassPanelCount >= 5, `Expected at least 5 glass-panel in settings, found ${glassPanelCount}`);
 });
 
+test('SystemSettings embeds UI Theme Presets Switcher with 4 presets and haptic feedback', () => {
+  const source = fs.readFileSync(settingsPath, 'utf8');
+
+  assert.match(source, /THEME_PRESETS/);
+  assert.match(source, /ชุดธีมสีของระบบ \(UI Theme Presets\)/);
+  assert.match(source, /แสงสะท้อนเบื้องหลัง \(Ambient Orbs\)/);
+  assert.match(source, /handleSelectTheme/);
+  assert.match(source, /handleToggleOrbs/);
+  assert.match(source, /navigator\.vibrate\?\.?\s*\(\s*10\s*\)/);
+});
+
 test('UserGuide provides >=48px FAQ accordion with haptic feedback and glass tokens', () => {
   const source = fs.readFileSync(guidePath, 'utf8');
 

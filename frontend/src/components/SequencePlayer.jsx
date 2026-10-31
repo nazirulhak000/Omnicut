@@ -3994,13 +3994,24 @@ function SequencePlayer({
   };
 
   const lastTapRef = useRef(0);
+  const singleTapTimerRef = useRef(null);
   const [doubleTapRipple, setDoubleTapRipple] = useState(null);
+
+  useEffect(() => () => {
+    if (singleTapTimerRef.current) {
+      clearTimeout(singleTapTimerRef.current);
+    }
+  }, []);
 
   const handleContainerClick = (e) => {
     if (subjectPickMode) return;
     const now = Date.now();
     if (now - lastTapRef.current < 320) {
       // Double-Tap to Toggle Play/Pause on Video Canvas
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
       const willPlay = !isPlaying;
       togglePlay();
       try { navigator.vibrate?.(10); } catch {}
@@ -4040,7 +4051,13 @@ function SequencePlayer({
       if (selection) {
         onSelect?.(null);
       } else {
-        togglePlay();
+        if (singleTapTimerRef.current) {
+          clearTimeout(singleTapTimerRef.current);
+        }
+        singleTapTimerRef.current = setTimeout(() => {
+          togglePlay();
+          singleTapTimerRef.current = null;
+        }, 220);
       }
     }
   };

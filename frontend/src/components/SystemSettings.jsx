@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Settings, Folder, HardDrive, CheckCircle2, Sliders, Type,
+  Settings, Folder, HardDrive, CheckCircle2, Sliders, Type, Palette,
   Sparkles, RefreshCw, Smartphone, ShieldCheck, Cpu, Layers,
   BarChart3, Columns, List, ChevronRight, AlertTriangle, Bug, Trash2,
   Download, Archive, Copy, Loader2, Database
@@ -18,6 +18,13 @@ import {
 import { PageHeader } from './ui';
 import PaginationControls from './PaginationControls';
 import ChannelSettings from './ChannelSettings.jsx';
+import {
+  THEME_PRESETS,
+  applyTheme,
+  setOrbsEnabled,
+  getStoredTheme,
+  getStoredOrbsEnabled
+} from '../lib/themeManager';
 
 // Rule 8: a status pill only turns green/amber when real data says so.
 // Anything not reported by an endpoint renders as the neutral gray
@@ -61,8 +68,38 @@ export default function SystemSettings({
   setUiFont,
   uiScale = 'normal',
   setUiScale,
+  uiTheme: propUiTheme,
+  setUiTheme: propSetUiTheme,
+  ambientOrbsEnabled: propOrbsEnabled,
+  setAmbientOrbsEnabled: propSetOrbsEnabled,
   initialSubTab = 'appearance'
 }) {
+  const [internalTheme, setInternalTheme] = useState(() => getStoredTheme());
+  const [internalOrbs, setInternalOrbs] = useState(() => getStoredOrbsEnabled(internalTheme));
+
+  const currentTheme = propUiTheme || internalTheme;
+  const currentOrbs = propOrbsEnabled !== undefined ? propOrbsEnabled : internalOrbs;
+
+  const handleSelectTheme = (themeId) => {
+    navigator.vibrate?.(10);
+    if (propSetUiTheme) {
+      propSetUiTheme(themeId);
+    } else {
+      applyTheme(themeId);
+      setInternalTheme(themeId);
+      setInternalOrbs(getStoredOrbsEnabled(themeId));
+    }
+  };
+
+  const handleToggleOrbs = (enabled) => {
+    navigator.vibrate?.(10);
+    if (propSetOrbsEnabled) {
+      propSetOrbsEnabled(enabled);
+    } else {
+      setOrbsEnabled(enabled);
+      setInternalOrbs(enabled);
+    }
+  };
   const [activeTab, setActiveTab] = useState(initialSubTab); // 'appearance' | 'paths' | 'engine'
   const [viewMode, setViewMode] = useState('split'); // 'split' | 'classic'
 
@@ -201,7 +238,7 @@ export default function SystemSettings({
     {
       id: 'appearance',
       name: 'การแสดงผล & ฟอนต์',
-      desc: 'ปรับสเกลหน้าจอ (UI Scale) และเลือกฟอนต์ระบบภาษาไทย 10 แบบ',
+      desc: 'ปรับธีมสีระบบ 4 สไตล์, อัตราส่วนหน้าจอ (UI Scale) และเลือกฟอนต์ระบบภาษาไทย 10 แบบ',
       icon: Sliders,
       color: 'text-purple-400',
       badge: 'Appearance',
@@ -255,6 +292,102 @@ export default function SystemSettings({
       case 'appearance':
         return (
           <div className="space-y-4 sm:space-y-5 animate-fadeIn">
+            {/* Section 0: UI Theme Presets */}
+            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400 flex-shrink-0">
+                    <Palette className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-white">
+                      ชุดธีมสีของระบบ (UI Theme Presets)
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      เลือกรูปแบบความงาม แสงสะท้อน และบรรยากาศหน้าจอที่คุณต้องการใช้งาน
+                    </p>
+                  </div>
+                </div>
+
+                {/* Ambient Orbs Toggle Switch */}
+                <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl glass-tile self-start sm:self-auto">
+                  <span className="text-xs font-medium text-slate-300">
+                    แสงสะท้อนเบื้องหลัง (Ambient Orbs)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleOrbs(!currentOrbs)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer active:scale-95 ${
+                      currentOrbs ? 'bg-cyan-500' : 'bg-slate-700'
+                    }`}
+                    aria-label="สลับการแสดงผลแสงสะท้อนเบื้องหลัง"
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        currentOrbs ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Theme Presets Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                {THEME_PRESETS.map((preset) => {
+                  const isSelected = currentTheme === preset.id;
+                  return (
+                    <div
+                      key={preset.id}
+                      onClick={() => handleSelectTheme(preset.id)}
+                      className={`p-4 rounded-xl border transition-all cursor-pointer relative group active:scale-95 min-h-[48px] ${
+                        isSelected
+                          ? 'bg-gradient-to-br from-cyan-500/10 to-pink-500/10 border-[#25F4EE] shadow-lg shadow-cyan-500/10 ring-1 ring-[#25F4EE]/40'
+                          : 'glass-tile text-slate-300 hover:border-white/[0.25]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {/* Accent Color Swatch Dots */}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {preset.accentColors.map((color, idx) => (
+                              <span
+                                key={idx}
+                                className="w-2.5 h-2.5 rounded-full border border-black/30 shadow-sm"
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </div>
+                          <span className="font-bold text-white text-xs sm:text-sm truncate">
+                            {preset.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                            isSelected
+                              ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40'
+                              : 'bg-white/[0.05] text-slate-400 border border-white/[0.08]'
+                          }`}>
+                            {preset.styleTag}
+                          </span>
+                          {isSelected && (
+                            <CheckCircle2 className="w-4 h-4 text-[#25F4EE] flex-shrink-0" />
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                        {preset.description}
+                      </p>
+
+                      <div className="mt-2.5 pt-2 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-slate-400">
+                        <span>{preset.features}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Section 1: UI Scale Control */}
             <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
               <div className="flex items-center gap-3">

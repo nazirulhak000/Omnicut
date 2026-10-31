@@ -1532,7 +1532,10 @@ export default function OverlayInspector({
 
             <div className="flex items-center text-[10px] text-slate-400 px-1">
               {selectedTextOverlay.sfx ? (
-                <span className="text-emerald-400">✓ ผูกเสียงแล้ว (ลบตาม)</span>
+                <span className="inline-flex items-center gap-1 text-emerald-400">
+                  <Check className="w-3 h-3 text-emerald-400 inline" />
+                  ผูกเสียงแล้ว (ลบตาม)
+                </span>
               ) : (
                 <span className="text-slate-500">ไม่มีเสียงประกอบ</span>
               )}

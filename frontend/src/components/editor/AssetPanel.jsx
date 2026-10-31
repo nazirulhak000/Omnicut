@@ -2533,7 +2533,10 @@ export default function AssetPanel({
                       <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/85 backdrop-blur text-[8.5px] font-medium text-slate-300 flex items-center gap-1 border border-white/[0.1] shadow-sm">
                         <span className="text-[#25F4EE] font-bold">{(tpl.anim || 'pop').toUpperCase()}</span>
                         <span className="text-slate-500">•</span>
-                        <span className="text-amber-300 font-semibold truncate max-w-[68px]">🔊 {tpl.sfxLabel || tpl.sfx}</span>
+                        <span className="inline-flex items-center gap-1 text-amber-300 font-semibold truncate max-w-[68px]">
+                          <Volume2 className="w-3 h-3 text-amber-400 inline" />
+                          {tpl.sfxLabel || tpl.sfx}
+                        </span>
                       </div>
                     </div>
 

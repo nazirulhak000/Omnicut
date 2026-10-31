@@ -128,6 +128,8 @@ import { angleToForm } from './lib/angleToForm';
 
 import { applyUiScale, initUiScale } from './lib/uiScale';
 
+import { initTheme, applyTheme, setOrbsEnabled, getStoredOrbsEnabled } from './lib/themeManager';
+
 import { editorProjectIntentFromPayload } from './lib/editorEntry';
 
 import { createWorkspaceDataCoordinator } from './lib/workspaceData';
@@ -462,6 +464,24 @@ export default function App() {
 
     localStorage.setItem('capcut_ui_font', fontClass);
 
+  };
+
+  // 2b. Global UI Theme Presets & Ambient Orbs
+  const [uiTheme, setUiThemeState] = useState(() => {
+    const { themeId } = initTheme();
+    return themeId;
+  });
+  const [ambientOrbsEnabled, setAmbientOrbsEnabledState] = useState(() => getStoredOrbsEnabled(uiTheme));
+
+  const handleUiThemeChange = (themeId) => {
+    const applied = applyTheme(themeId);
+    setUiThemeState(applied);
+    setAmbientOrbsEnabledState(getStoredOrbsEnabled(applied));
+  };
+
+  const handleAmbientOrbsToggle = (enabled) => {
+    const val = setOrbsEnabled(enabled);
+    setAmbientOrbsEnabledState(val);
   };
 
 
@@ -1225,16 +1245,13 @@ export default function App() {
       <div className={`flex h-dvh overflow-hidden ${uiFont} bg-[#030509] text-slate-100 relative`}>
 
         {/* ── Background Ambient Floating Orbs (Pulse Hub Ultra-Realistic Glass Refraction) ── */}
-
-        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
-
-          <div className="ambient-orb orb-cyan" />
-
-          <div className="ambient-orb orb-amber" />
-
-          <div className="ambient-orb orb-indigo" />
-
-        </div>
+        {ambientOrbsEnabled && (
+          <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+            <div className="ambient-orb orb-cyan" />
+            <div className="ambient-orb orb-amber" />
+            <div className="ambient-orb orb-indigo" />
+          </div>
+        )}
 
 
 
@@ -1543,6 +1560,11 @@ export default function App() {
                       uiScale={uiScale}
 
                       setUiScale={handleUiScaleChange}
+                      uiTheme={uiTheme}
+                      setUiTheme={handleUiThemeChange}
+                      ambientOrbsEnabled={ambientOrbsEnabled}
+                      setAmbientOrbsEnabled={handleAmbientOrbsToggle}
+                      
 
                       initialSubTab={activeTab === 'dashboard' ? 'engine' : 'appearance'}
 

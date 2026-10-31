@@ -96,7 +96,7 @@ export function classifyShortcut(event, context = {}) {
 
   switch (key) {
     case ' ': return act('togglePlay');
-    case 's': case 'S': return act('split');
+    case 's': case 'S': case 'c': case 'C': return act('split');
     case 'j': case 'J': return act('jump', { delta: -1.0 });
     case 'k': case 'K': return act('togglePlay');
     case 'l': case 'L': return act('jump', { delta: 1.0 });
@@ -158,9 +158,9 @@ export const SHORTCUT_GROUPS = Object.freeze([
     category: 'ตัดและแก้คลิป',
     shortcuts: [
       {
-        keys: 'S / Ctrl+B',
+        keys: 'C / S / Ctrl+B',
         desc: 'ตัดแบ่งคลิปตรงหัวอ่าน',
-        probes: [{ event: { key: 's' }, action: 'split' }, { event: { key: 'b', ctrlKey: true }, action: 'split' }],
+        probes: [{ event: { key: 'c' }, action: 'split' }, { event: { key: 's' }, action: 'split' }, { event: { key: 'b', ctrlKey: true }, action: 'split' }],
       },
       {
         keys: 'Q / W',

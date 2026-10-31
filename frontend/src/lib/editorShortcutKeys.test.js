@@ -30,11 +30,14 @@ test('Ctrl/Meta + plus/minus/equals do not hijack editor zoom', () => {
 test('plain s splits and plain +/- zoom', () => {
   assert.equal(key('s').action, 'split');
   assert.equal(key('S', { shiftKey: true }).action, 'split');
+  assert.equal(key('c').action, 'split');
+  assert.equal(key('C', { shiftKey: true }).action, 'split');
   assert.equal(key('+').action, 'zoomIn');
   assert.equal(key('=').action, 'zoomIn');
   assert.equal(key('-').action, 'zoomOut');
   assert.equal(key('_').action, 'zoomOut');
   assert.equal(key('s').preventDefault, true);
+  assert.equal(key('c').preventDefault, true);
 });
 
 test('explicit modifier combos: Ctrl+B split, Ctrl+Z undo, Ctrl+Y / Shift+Ctrl+Z redo', () => {
@@ -222,7 +225,7 @@ test('SHORTCUT_GROUPS: every probed row is what classifyShortcut really returns'
     }
   }
   // 32 before keyframe shortcuts; + D, comma, dot keyframe navigation.
-  assert.equal(probed, 35, 'every classifyShortcut-backed row keeps its probes');
+  assert.equal(probed, 36, 'every classifyShortcut-backed row keeps its probes');
 });
 
 test('SHORTCUT_GROUPS: rows are well formed, keys are unique, and there is no tab 6', () => {

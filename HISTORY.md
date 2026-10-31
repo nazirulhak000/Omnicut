@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-UI-THEME-PRESETS-SWITCHER-20261031 | ออกแบบและติดตั้งระบบสลับธีมสี (Theme Presets Switcher) 4 ธีมระดับพรีเมียมใน SystemSettings.jsx และ App.jsx: สร้าง frontend/src/lib/themeManager.js และชุดทดสอบ themeManager.test.js (3/3 passed), ติดตั้ง Theme Tokens & Classes ใน index.css (glassmorphism, obsidian, cyberpunk, slate), อัปเกรด App.jsx จัดการ state uiTheme และควบคุมการเปิด/ปิด Ambient Orbs, เพิ่มการ์ดเลือก 4 ธีมพร้อม Swatch Previews, สวิตช์ Ambient Orbs อิสระ, Haptic Feedback 10ms ในแท็บ Appearance ของ SystemSettings.jsx, ผ่านการทดสอบ Vitest 1,090/1,090 tests (100%), Parity Tests 205/205 passed (100%), รีบิลด์ production bundle สำเร็จ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-6-ANALYTICS-SETTINGS-GUIDE-MODALS-20261031 | ยกระดับ AnalyticsHub, SystemSettings, UserGuide & Global Modals (Station 7 & 8): แปลงแผงการตั้งค่าระบบ, กล่อง FAQ, เมนูนำทาง, และหน้าต่างป๊อปอัปสู่ Ultra-Realistic Glassmorphism Theme (.glass-panel, .glass-tile), เพิ่ม Carousel Section Pills min-h-[48px] และ Touch Accordion min-h-[48px] พร้อม Haptic 10ms ในคู่มือ, ยืนยัน iOS Bottom Sheet ใน Modal.jsx (Grab Handle + Swipe-Down-to-Dismiss 80px + 10ms Haptic) และ Dynamic Island Toast Capsule ใน Toast.jsx, เพิ่มชุดทดสอบ TDD `frontend/src/lib/settingsAndModalsContract.test.js` (6/6 tests pass), ผ่านการทดสอบ Vitest รวม 1,086/1,086 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-5-EXPORT-GALLERY-MEDIA-ASSETS-20261031 | ยกระดับ ExportGallery & MediaAssetsHub (Station 5 & 6): 9:16 Video Stage, 1-Tap Copy Caption พร้อม Micro-Haptic 15ms, บันทึกวิดีโอผ่าน Web Share API (`navigator.share`), แผงควบคุมและคลังเสียง MPC Soundboard 2 คอลัมน์ (Touch Targets w-11 h-11 >=44px) พร้อม Sticky Mobile Audio Mini-Player Bar และปุ่มหยุดเล่นด่วน, อัปเกรดสู่ Ultra-Realistic Glassmorphism Theme (.glass-panel, .glass-tile), เพิ่มชุดทดสอบ TDD `frontend/src/lib/exportAndMediaContract.test.js` (5/5 tests pass), ผ่านการทดสอบ Vitest รวม 1,080/1,080 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-ROUND-4-EDITOR-NLE-916-ERGONOMICS-20261031 | ยกระดับ EditorShell & Timeline 9:16 (Station 4): Studio Player Bar (`SequencePlayer`), Timeline Toolbar (`Toolbar`), Multi-track Timeline (`Timeline`), และ Panels (`EditorShell`) สู่ Ultra-Realistic Glassmorphism Theme (.glass-panel, .glass-tile), ค้ำประกัน Double-Tap Play/Pause ripple effect บนวิดีโอ 9:16, Scrubber Track ล็อก `touch-action: none`, ปุ่มตัด Q/W และ Mobile Switcher Tabs รักษา Touch Targets min-h-[44px] (Apple HIG), ป้องกันหน้าจอดับด้วย useWakeLock, เพิ่มชุดทดสอบ TDD `frontend/src/lib/editorErgonomicsContract.test.js` (5/5 tests pass), ผ่านการทดสอบ Vitest รวม 1,075/1,075 tests 100%, Vite production build สมบูรณ์ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -122,6 +123,37 @@
 ---
 
 ---
+
+---
+
+## Round ANTIGRAVITY-UI-THEME-PRESETS-SWITCHER-20261031 · ออกแบบและติดตั้งระบบสลับธีมสี (Theme Presets Switcher) 4 ธีมระดับพรีเมียมใน SystemSettings.jsx และ App.jsx
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-31
+
+- **ผลการพัฒนาและยกระดับระบบธีม (Theme Architecture Elevation):**
+  1. **สถาปัตยกรรม Theme Manager (`frontend/src/lib/themeManager.js`)**:
+     - สร้างตัวจัดการธีมระดับ Global รองรับ 4 พรีเซ็ตมาตรฐาน:
+       - 🔮 `glassmorphism` (**Ultra-Realistic Glassmorphism**): กระจกใสสมจริง หักเหแสงผ่าน Ambient Orbs 3 จุดบนพื้น OLED Deep Space (`#030509`) สไตล์ visionOS / Pulse Hub
+       - 🌌 `obsidian` (**Obsidian Pro Dark**): โทนดำทึบ คมชัดสไตล์ NLE Studio (DaVinci/Premiere), ปิด Ambient Orbs เพื่อลดแสงกวนตาสำหรับการตัดต่อระยะยาว
+       - ⚡ `cyberpunk` (**Cyberpunk Neon Horizon**): ขอบนีออนเรืองแสงสี Cyan (`#00f2fe`) และ Rose/Pink (`#ec4899`) คอนทราสต์สูง มีพลังสดใส
+       - 🪟 `slate` (**Minimal Frosted Slate**): กระจกฝ้าซอฟต์มินิมอล โทนสีเทา Slate นุ่มตา สะอาด เรียบง่าย
+     - จัดการความปลอดภัยข้อมูล Hydration & Fallback ป้องกัน Theme ID ผิดเพี้ยน, Sync สถานะลง `document.documentElement.setAttribute('data-theme', id)` และ persist ลง `localStorage ('omnicut_ui_theme')`
+  2. **Theme CSS Rules ใน `frontend/src/index.css`**:
+     - กำหนดตัวเลือก `[data-theme="..."]` สำหรับแต่ละธีม คุมการแสดงผล/ซ่อนลูกแก้วแสงสะท้อน (`.ambient-orb`), เปลี่ยนสีแบ็กกราวด์แคนวาส, และปรับความลึกเงา/ขอบของการ์ด `.glass-panel` และ `.glass-tile`
+  3. **เชื่อมต่อ State ใน `frontend/src/App.jsx`**:
+     - เพิ่ม state `uiTheme` และ `ambientOrbsEnabled` ผ่าน `initTheme()`
+     - ควบคุมการแสดงผล Ambient Orbs ให้สอดคล้องกับธีมที่เลือก และส่งต่อ props ไปยัง `<SystemSettings>`
+  4. **หน้าจอเลือกธีมใน `frontend/src/components/SystemSettings.jsx` (แท็บ Appearance)**:
+     - ติดตั้งการ์ด Interactive Theme Presets 4 ใบพร้อม Swatch Dots พรีวิวสีคู่หลัก, ป้ายสไตล์แท็ก, คำอธิบายจุดเด่น, และ CheckCircle2 บ่งบอกสถานะการเลือก
+     - เพิ่มสวิตช์ Toggle สลับเปิด-ปิด **"แสงสะท้อนเบื้องหลัง (Ambient Orbs)"** แบบแยกอิสระ
+     - รองรับ Haptic Feedback 10ms เมื่อแตะเลือกธีมหรือสลับ Orbs
+     - ปฏิบัติตามกฎ Rule 3.8 / 4.8 Clean UI 100% (ไม่มีไอคอนหรือเครื่องหมาย `+` นำหน้าปุ่ม)
+  5. **Verification & Quality Gates**:
+     - เพิ่มชุดทดสอบ TDD `frontend/src/lib/themeManager.test.js` (3/3 passed)
+     - เพิ่มการตรวจสอบใน `frontend/src/lib/settingsAndModalsContract.test.js` (7/7 passed)
+     - ผ่านชุดทดสอบ Frontend Unit Tests ครบ **1,090 / 1,090 รายการ (100% Pass Rate)**
+     - ผ่านชุดทดสอบ Parity Tests `tests/test_preview_render_parity.py` ครบ **205 / 205 รายการ (100% Pass Rate)**
+     - คอมไพล์ Vite Production Bundle (`frontend/dist/`) สำเร็จสมบูรณ์ ไร้ข้อผิดพลาด
 
 ---
 

@@ -294,6 +294,127 @@
   100% { transform: translate(-40px, 30px) scale(0.9); }
 }
 
+/* ── Theme Presets Architecture (Glassmorphism, Obsidian, Cyberpunk, Slate) ── */
+
+/* Global control to toggle ambient orbs */
+.ambient-orbs-hidden .ambient-orb,
+[data-theme="obsidian"] .ambient-orb,
+[data-theme="slate"] .ambient-orb {
+  display: none !important;
+}
+
+/* 1. Theme: Obsidian Pro Dark */
+[data-theme="obsidian"] body,
+[data-theme="obsidian"] html,
+[data-theme="obsidian"] #root {
+  background-color: #07090e !important;
+}
+
+[data-theme="obsidian"] .glass-panel,
+[data-theme="obsidian"] .saas-card {
+  background: #0e1322 !important;
+  background-color: #0e1322 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="obsidian"] .glass-panel::before,
+[data-theme="obsidian"] .glass-panel::after,
+[data-theme="obsidian"] .saas-card::before,
+[data-theme="obsidian"] .saas-card::after {
+  display: none !important;
+}
+
+[data-theme="obsidian"] .glass-tile {
+  background-color: #141b2d !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-theme="obsidian"] .glass-input {
+  background: #0d121f !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* 2. Theme: Cyberpunk Neon Horizon */
+[data-theme="cyberpunk"] body,
+[data-theme="cyberpunk"] html,
+[data-theme="cyberpunk"] #root {
+  background-color: #05050d !important;
+}
+
+[data-theme="cyberpunk"] .glass-panel,
+[data-theme="cyberpunk"] .saas-card {
+  background: linear-gradient(135deg, rgba(20, 24, 45, 0.78) 0%, rgba(10, 12, 28, 0.70) 100%) !important;
+  background-color: rgba(10, 12, 28, 0.70) !important;
+  border-top: 1px solid rgba(0, 242, 254, 0.85) !important;
+  border-bottom: 1px solid rgba(236, 72, 153, 0.85) !important;
+  border-left: 1px solid rgba(0, 242, 254, 0.3) !important;
+  border-right: 1px solid rgba(236, 72, 153, 0.3) !important;
+  box-shadow: 
+    0 0 30px -5px rgba(0, 242, 254, 0.25),
+    0 0 20px -5px rgba(236, 72, 153, 0.2),
+    inset 0 1px 0 rgba(0, 242, 254, 0.7) !important;
+}
+
+[data-theme="cyberpunk"] .glass-tile {
+  background-color: rgba(18, 24, 48, 0.65) !important;
+  border-color: rgba(0, 242, 254, 0.3) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(0, 242, 254, 0.2) !important;
+}
+
+[data-theme="cyberpunk"] .orb-cyan {
+  opacity: 0.65 !important;
+  filter: blur(35px) !important;
+}
+
+[data-theme="cyberpunk"] .orb-amber {
+  background: radial-gradient(circle, #ec4899 0%, rgba(236, 72, 153, 0.35) 50%, transparent 80%) !important;
+  opacity: 0.55 !important;
+}
+
+/* 3. Theme: Minimal Frosted Slate */
+[data-theme="slate"] body,
+[data-theme="slate"] html,
+[data-theme="slate"] #root {
+  background-color: #0b1120 !important;
+}
+
+[data-theme="slate"] .glass-panel,
+[data-theme="slate"] .saas-card {
+  background: rgba(26, 36, 53, 0.75) !important;
+  background-color: rgba(26, 36, 53, 0.75) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(148, 163, 184, 0.16) !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.35) !important;
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+[data-theme="slate"] .glass-panel::before,
+[data-theme="slate"] .glass-panel::after,
+[data-theme="slate"] .saas-card::before,
+[data-theme="slate"] .saas-card::after {
+  display: none !important;
+}
+
+[data-theme="slate"] .glass-tile {
+  background-color: rgba(45, 59, 80, 0.45) !important;
+  border: 1px solid rgba(148, 163, 184, 0.14) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+[data-theme="slate"] .glass-input {
+  background: rgba(20, 29, 44, 0.6) !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+}
+
 /* ── Obsidian Dark Theme & TypeSafe Intelligence Styling ── */
 .obsidian-card {
   background: linear-gradient(180deg, rgba(16, 22, 36, 0.75) 0%, rgba(9, 13, 22, 0.95) 100%);

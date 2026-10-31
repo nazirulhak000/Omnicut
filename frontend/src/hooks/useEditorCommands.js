@@ -518,6 +518,7 @@ export function useEditorCommands({
     set((prev) => {
       const list = prev.cuesList.map((c) => {
         const txt = (c.text || '')
+          .replace(/\.{2,}|…/g, ' ')
           .replace(/\s+/g, ' ')
           .replace(/^[,\.\-_\s]+|[,\.\-_\s]+$/g, '')
           .trim();
@@ -558,7 +559,7 @@ export function useEditorCommands({
         const newCue = {
           start: 0,
           end: 3.0,
-          text: 'ข้อความคำบรรยายใหม่...',
+          text: 'ข้อความคำบรรยายใหม่',
           translation: '',
           sfx: null,
           _uid: `cue-${Date.now().toString(36)}`,
@@ -575,7 +576,7 @@ export function useEditorCommands({
       const newCue = {
         start,
         end,
-        text: 'ข้อความคำบรรยายใหม่...',
+        text: 'ข้อความคำบรรยายใหม่',
         translation: '',
         sfx: null,
         _uid: `cue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,

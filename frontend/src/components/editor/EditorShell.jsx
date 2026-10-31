@@ -493,8 +493,6 @@ export default function EditorShell({
     }
   }, [productContext, angleIndex, workspaceData]);
 
-  useWakeLock(Boolean(applying));
-
   const {
     jobId,
     jobStatus,
@@ -512,6 +510,8 @@ export default function EditorShell({
     onComplete: handleRenderComplete,
     onError: handleRenderError,
   });
+
+  useWakeLock(Boolean(applying));
   // Draft = 720p/crf26/veryfast. Measured on this machine: a 12s clip took
   // 25.5s at post quality vs 12.5s as a draft (12.18 MB vs 1.82 MB).
   const [exportPreset, setExportPreset] = useState('post');

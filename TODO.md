@@ -4,6 +4,42 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-FIX-EDITOR-TDZ-WAKELOCK-BUG-20261031 · แก้ไขข้อผิดพลาด ReferenceError: Cannot access 'nn' before initialization ใน `EditorShell.jsx`:
+  - [x] ตรวจพบสาเหตุ: `useWakeLock(Boolean(applying))` ถูกวางไว้ก่อนการ destructure `const { isRendering: applying } = useRenderJob(...)` ทำให้เกิด JavaScript Temporal Dead Zone (TDZ)
+  - [x] ย้าย `useWakeLock(Boolean(applying))` ไปอยู่หลัง `useRenderJob` ทันที เพื่อให้ตัวแปร `applying` ได้รับการประกาศและกำหนดค่าเรียบร้อยก่อนเรียกใช้
+  - [x] รีบิลด์ Vite Production Bundle สำเร็จ (`EditorShell-D6G83PuG.js`), ตรวจสอบด้วย oxlint 0 error และ curl ทดสอบเซิร์ฟเวอร์ตอบกลับ HTTP 200 OK
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-UI-THEME-PRESETS-SWITCHER-20261031 · ออกแบบและติดตั้งระบบสลับธีมสี (Theme Presets Switcher) 4 ธีมระดับพรีเมียมใน SystemSettings.jsx และ App.jsx · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-SURGICAL-PATCH-EDITOR-5-BUGS-20261031 · ดำเนินการ Surgical Patching แก้ไขบั๊ก P1 & P2 ของหน้า Editor 5 จุดตามผลการตรวจ (Zero-Regression & 100% Non-Destructive):
+  - [x] Agent 1: แก้ไข Single-Tap vs Double-Tap Collision ใน `SequencePlayer.jsx` (Debounced single-tap 220ms ป้องกันการ toggle 2 รอบซ้อน)
+  - [x] Agent 1: เพิ่มคีย์ลัด `c` / `C` สำหรับ `action: 'split'` ใน `editorShortcutKeys.js` และอัปเดตชุดทดสอบ `editorShortcutKeys.test.js`
+  - [x] Agent 2: ลบจุดไข่ปลา `...` ออกจากดีฟอลต์เทมเพลตซับใหม่ใน `useEditorCommands.js` (Rule 3.7) และอัปเกรด `handleBatchFormatClean` ให้กวาดล้าง `...` และ `…` กลางประโยค
+  - [x] Agent 2: คลีนสัญลักษณ์ `✓` และอีโมจิ `🔊` ให้เป็น Lucide Components ใน `OverlayInspector.jsx` และ `AssetPanel.jsx` (Rule 3.8 / Clean UI Standard)
+  - [x] Agent 2: แก้ไขหรือเก็บกวาด orphaned test `tests/test_golden_master_probe.py`
+  - [x] Verification Gate: รัน Vitest (1,086/1,086 tests ผ่าน 100%), Preview-Render Parity (205/205 tests ผ่าน 100%), และ Feature Coverage (6/6 tests ผ่าน 100%), Vite Production Build สำเร็จ
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-EDITOR-DEEP-AUDIT-9-STATIONS-20261031 · ตรวจสอบเชิงลึก ตรวจจับบั๊ก และค้นหาจุดบกพร่องของหน้า Editor (`frontend/src/components/editor/` และ `SequencePlayer.jsx`) ครบทั้ง 9 สถานีตามแผนแม่บท `_Docs/Plans/MASTER_EDITOR_AUDIT_NON_DESTRUCTIVE_PROMPT.md`:
+  - [x] สถานี 1: เครื่องเล่นวิดีโอแนวตั้ง 9:16 (`SequencePlayer.jsx`) — 9:16 Stage, Sync, Double-Tap, TikTok Safe Zone, Mali-Bold 88px Parity
+  - [x] สถานี 2: ไทม์ไลน์มัลติแทร็ก & หัวอ่าน (`Timeline.jsx`, `TimelinePlayhead.jsx`, `TimelineRuler.jsx`) — Scrubbing, touch-none, Zooming, Ruler
+  - [x] สถานี 3: การจัดการคลิป & ฟิล์มสตริป (`TimelineClip.jsx`, `ClipFilmstrip.jsx`, `TrimAdjustModal.jsx`) — Trimming Threshold, Filmstrip cache, J-Cut preview
+  - [x] สถานี 4: ระบบผสมเสียงมัลติบัส (`audioBusLevels.js`, `voiceCutScheduler.js`, `VoiceEditNotice.jsx`, `MixDegradedNotice.jsx`) — 4 Bus, 8ms/15ms linear ramps, AudioContext lifecycle cleanup, Solo/Mute
+  - [x] สถานี 5: แผงตรวจคำและซับไตเติล (`CaptionInspector.jsx`, `CuesTranscriptInspector.jsx`) — In-place edit, Thai rule linter, Syllable bounds
+  - [x] สถานี 6: ตัวควบคุมโอเวอร์เลย์และสติกเกอร์ (`OverlayInspector.jsx`, `StickerInspector.jsx`, `CutoutInspector.jsx`) — Cutout, Universal Badges, Z-index
+  - [x] สถานี 7: แถบเครื่องมือและพรีเซ็ต (`Toolbar.jsx`, `StylePresetPicker.jsx`, `RenderButton.jsx`) — Verb-clean buttons, >=44px touch, Preset consistency
+  - [x] สถานี 8: การเซฟสถานะและการกู้คืน (`EditorShell.jsx`, `workspaceCoordinator.js`, `ProjectRevisionNotice.jsx`) — Debounced Autosave, Conflict Guard, WakeLock
+  - [x] สถานี 9: ตรวจสอบความถูกต้องผ่านชุดทดสอบ — Vitest (1,086/1,086 tests ผ่าน 100%), Parity Test (205/205 tests ผ่าน 100%), Editor Feature Coverage (6/6 tests ผ่าน 100%)
+  - [x] สรุปรายงานผลการตรวจ 4 ส่วน (Verified Strengths, Latent Bugs, Refinement Opportunities P1-P3, Surgical Patching Plan)
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-MASTER-EDITOR-AUDIT-NON-DESTRUCTIVE-PROMPT-20261031 · ออกแบบและจัดทำ Master Prompt ตรวจสอบหน้า Editor เชิงลึกและค้นหาบั๊กแบบไม่กระทบฟังก์ชันเดิม 100% ตามแผน `_Docs/Plans/MASTER_EDITOR_AUDIT_NON_DESTRUCTIVE_PROMPT.md`:
+  - [x] กำหนดกฎเหล็ก Strict Zero-Regression & Non-Destructive Contract (ห้ามกระทบ Preview=Render, ห้ามเปลี่ยน Schema Manifest, ห้ามกระทบคีย์ลัด Space/Q/W/C, ห้ามกระทบ Audio Mix 4 Bus)
+  - [x] วางแผนผังการตรวจ 9 สถานีหลัก (SequencePlayer 9:16, Timeline/Playhead, Clip/Filmstrip, Audio Bus/Voice Edit, Cues/Caption, Overlays/Cutout, Toolbar, State/Autosave, Automated Tests)
+  - [x] ครอบคลุมการตรวจทั้ง Desktop NLE Precision และ Mobile Touch Ergonomics บน iPhone 15 Pro Max
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [x] Round ANTIGRAVITY-OVERNIGHT-ROUND-6-ANALYTICS-SETTINGS-GUIDE-MODALS-20261031 · ยกระดับ AnalyticsHub, SystemSettings, UserGuide & Global Modals (Station 7 & 8): Horizontal Data Scroll, >=48px Touch Accordion, iOS Bottom Sheet Swipe-Down, Dynamic Island Toast Capsule & 100dvh Lock · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-OVERNIGHT-ROUND-5-EXPORT-GALLERY-MEDIA-ASSETS-20261031 · ยกระดับ ExportGallery & MediaAssetsHub (Station 5 & 6): 9:16 Video Stage, 1-Tap Copy Caption พร้อม Micro-Haptic 15ms, บันทึกวิดีโอผ่าน Web Share API (`navigator.share`), แผงควบคุมและคลังเสียง MPC Soundboard 2 คอลัมน์ (Touch Targets w-11 h-11 >=44px) พร้อม Sticky Mobile Audio Mini-Player Bar และปุ่มหยุดเล่นด่วน · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
