@@ -4,6 +4,15 @@
 
 ## รอบปัจจุบัน
 
+- [ ] Round CLAUDE-AI-EDITOR-VIRAL-S2-20261031 · เก็บงานค้างจาก S1 + M4/M9 บน branch `feat/viral-s2` แยก 6 agent (worktree, ไฟล์ไม่ทับกัน); 🔒 M1/M5/M8 รอคำตอบผู้ใช้ · ดำเนินการโดย: Claude Code (Claude Opus 5.5) + 6 sub-agents (Claude Opus 5.5)
+  - [ ] G Render concurrency: `render_jobs` N slots + thread-safety audit → batch เรนเดอร์ขนานจริง
+  - [ ] H Pipeline plumbing: `target_duration`/`story_format` ใน context/API/manifest, `cut_times` เข้า mix, style_metadata ตอน render/HF finalize
+  - [ ] I Cleanup: it_angles ราคา, hook_generator `call_direct_gemini`, Gemini match cache key, route policy `/api/ssd/*`, `productCallout.js` price
+  - [ ] J Frontend: Performance tab style-performance, selector ความยาว/story format, custom keywords ใน preview highlight
+  - [ ] K M4 Viral Lint: `scripts/viral_lint.py` + endpoint + preflight UI + `hold_reason`
+  - [ ] L M9 Word timing: faster-whisper (cuda) align Gemini TTS → `word_timings`, SpecBar เริ่มตอนพูดตัวเลข
+  - [ ] รวม branch + pytest ทั้งชุด + npm test + build + merge main
+
 - [x] Round CODEX-REVERT-OWN-THEME-20261031 · ถอนงานธีม Codex ครบ: source เดิม 33 ไฟล์ตรง 34c5ba9, ลบ v2/docs/flag, คง GDrive/Claude; frontend tests 1,099/1,099 และ build เดิมผ่าน · ดำเนินการโดย: Codex (GPT-6)
 
 - [x] Round ANTIGRAVITY-GDRIVE-ARCHIVE-ASYNC-PROGRESS-AND-DELTA-RESUME-20261031 · ยกระดับระบบสำรองข้อมูล Google Drive รองรับ Background Task, Real-time Progress Bar, Unlimited Timeout, และ Smart Delta Skip ป้องกันการอัพซ้ำ 100% · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
