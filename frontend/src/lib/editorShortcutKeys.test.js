@@ -38,6 +38,8 @@ test('plain s splits and plain +/- zoom', () => {
   assert.equal(key('_').action, 'zoomOut');
   assert.equal(key('s').preventDefault, true);
   assert.equal(key('c').preventDefault, true);
+  assert.equal(key('Z', { shiftKey: true }).action, 'zoomFit');
+  assert.equal(key('z', { shiftKey: true }).action, 'zoomFit');
 });
 
 test('explicit modifier combos: Ctrl+B split, Ctrl+Z undo, Ctrl+Y / Shift+Ctrl+Z redo', () => {
@@ -224,8 +226,8 @@ test('SHORTCUT_GROUPS: every probed row is what classifyShortcut really returns'
       }
     }
   }
-  // 32 before keyframe shortcuts; + D, comma, dot keyframe navigation.
-  assert.equal(probed, 36, 'every classifyShortcut-backed row keeps its probes');
+  // 32 before keyframe shortcuts; + D, comma, dot keyframe navigation; + Shift+Z zoomFit.
+  assert.equal(probed, 37, 'every classifyShortcut-backed row keeps its probes');
 });
 
 test('SHORTCUT_GROUPS: rows are well formed, keys are unique, and there is no tab 6', () => {

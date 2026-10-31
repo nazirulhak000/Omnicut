@@ -120,6 +120,9 @@ export function classifyShortcut(event, context = {}) {
     case 'End': return act('seekEnd');
     case '+': case '=': return act('zoomIn');
     case '-': case '_': return act('zoomOut');
+    case 'z': case 'Z':
+      if (event.shiftKey) return act('zoomFit');
+      return NONE;
     // preventDefault is decided by the hook (needs a selected, non-first clip).
     case 'f': case 'F': return { action: 'toggleFade', preventDefault: false };
     case 'n': case 'N': return act('toggleSnap');
@@ -264,6 +267,11 @@ export const SHORTCUT_GROUPS = Object.freeze([
         keys: '+ / -',
         desc: 'ซูมไทม์ไลน์เข้า / ออกทีละขั้น',
         probes: [{ event: { key: '+' }, action: 'zoomIn' }, { event: { key: '-' }, action: 'zoomOut' }],
+      },
+      {
+        keys: 'Shift+Z',
+        desc: 'ซูมไทม์ไลน์พอดีหน้าจอ (Zoom to Fit)',
+        probes: [{ event: { key: 'Z', shiftKey: true }, action: 'zoomFit' }],
       },
       { keys: 'Ctrl + Scroll', desc: 'ซูมไทม์ไลน์แบบต่อเนื่องรอบเมาส์ (หรือลากแถบซูมบนแถบเครื่องมือ)' }, // useTimelineKeyboard (wheel)
       {

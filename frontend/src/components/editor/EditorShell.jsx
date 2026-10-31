@@ -42,9 +42,7 @@ import {
   INSPECTOR_MIN_W,
   INSPECTOR_MAX_W,
   INSPECTOR_DEFAULT_W,
-  TIMELINE_MIN_H,
   TIMELINE_MAX_H,
-  TIMELINE_DEFAULT_H,
 } from '../../hooks/usePanelLayout';
 import { useEditorSelection } from '../../hooks/useEditorSelection';
 import { useEditorCommands } from '../../hooks/useEditorCommands';
@@ -159,6 +157,15 @@ const EXPORT_PRESETS = [
   { id: 'post', label: 'โพสต์จริง 1080p', hint: 'คุณภาพเต็ม สำหรับอัปขึ้น TikTok' },
   { id: 'draft', label: 'ทดลอง 720p', hint: 'เร็วกว่าประมาณ 2 เท่า ไฟล์มี _draft ต่อท้าย ไม่ใช่ไฟล์สำหรับโพสต์' },
 ];
+
+// The dock's own chrome: the drag handle plus the toolbar above the tracks.
+const TIMELINE_CHROME_H = 8 + 44;
+// Derived from the tracks themselves rather than hand-tuned. These were fixed
+// numbers sized for a five-row timeline, so the four audio lanes pushed the
+// video track past the bottom edge where nothing could reach it.
+const TIMELINE_DEFAULT_H = TIMELINE_CHROME_H + tracksFitHeight();
+// Folded audio still shows picture, hook, captions and one audio row.
+const TIMELINE_MIN_H = TIMELINE_CHROME_H + tracksFitHeight({ audioCollapsed: true });
 
 // Where the editor switches between its mobile and desktop layout trees.
 // Tailwind `lg` (1024px): below it the desktop tree's own default panel
@@ -1249,6 +1256,7 @@ export default function EditorShell({
     totalDuration,
     audioDuration,
     onZoomStep: zoomStep,
+    onZoomFit: zoomToFit,
     selectedSeg,
     patchClip,
     zen,
@@ -1269,7 +1277,7 @@ export default function EditorShell({
     onToggleSnap: () => {
       setSnapEnabled((v) => {
         const next = !v;
-        showToast(next ? '🧲 แม่เหล็กดูด Timeline: เปิด' : 'แม่เหล็กดูด Timeline: ปิด');
+        showToast(next ? 'แม่เหล็กดูด Timeline: เปิด' : 'แม่เหล็กดูด Timeline: ปิด');
         return next;
       });
     },

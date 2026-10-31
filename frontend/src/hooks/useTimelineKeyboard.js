@@ -54,16 +54,25 @@ export function useTimelineKeyboard({
     const el = scrollRef.current;
     if (!el) return;
     const onWheelNative = (e) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      e.preventDefault();
-      // Continuous zoom around the cursor when the timeline supports it;
-      // otherwise the old one-preset step.
-      if (onZoomAt) {
-        const rect = el.getBoundingClientRect();
-        onZoomAt(wheelZoomFactor(e.deltaY, e.deltaMode), e.clientX - rect.left);
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        // Continuous zoom around the cursor when the timeline supports it;
+        // otherwise the old one-preset step.
+        if (onZoomAt) {
+          const rect = el.getBoundingClientRect();
+          onZoomAt(wheelZoomFactor(e.deltaY, e.deltaMode), e.clientX - rect.left);
+          return;
+        }
+        onZoom?.(e.deltaY < 0 ? 1 : -1);
         return;
       }
-      onZoom?.(e.deltaY < 0 ? 1 : -1);
+
+      // Normal wheel: scroll timeline horizontally on desktop
+      if (e.deltaY !== 0 && e.deltaX === 0) {
+        e.preventDefault();
+        const delta = e.deltaMode === 1 ? e.deltaY * 32 : e.deltaY;
+        el.scrollLeft += delta;
+      }
     };
     el.addEventListener('wheel', onWheelNative, { passive: false });
     return () => el.removeEventListener('wheel', onWheelNative);

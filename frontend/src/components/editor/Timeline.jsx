@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createPortal } from 'react-dom';
 import { TransitionIcon } from '../../lib/transitionIcons';
 import {
-  Eye, EyeOff, Film, MessageSquare, Music, Plus, Scissors, Smile, Sparkles, Type, Volume2, VolumeX, Waves, X
+  Eye, EyeOff, Film, Magnet, MessageSquare, Music, Plus, Scissors, Smile, Sparkles, Type, Volume2, VolumeX, Waves, X
 } from 'lucide-react';
 import TimelineClip from './TimelineClip';
 import TimelineRuler from './timeline/TimelineRuler';
@@ -66,10 +66,10 @@ const TRACK_TOP = 6;
 const BEAT_MARKER_COLOUR = '#FFE600';
 
 const STEMS = [
-  { key: 'voice', label: 'พากย์', colour: '#8FBF9F', ring: '#33463A', bg: '#242A26' },
-  { key: 'bgm', label: 'เพลง', colour: '#9FB4D8', ring: '#33405A', bg: '#232833' },
-  { key: 'sfx', label: 'SFX', colour: '#D8C39F', ring: '#524731', bg: '#302B22' },
-  { key: 'clip', label: 'คลิป', colour: '#C79FD8', ring: '#4A3155', bg: '#2C2333' },
+  { key: 'voice', label: 'พากย์', colour: '#F59E0B', ring: '#D97757', bg: 'rgba(245, 158, 11, 0.08)' },
+  { key: 'bgm', label: 'เพลง', colour: '#10B981', ring: '#059669', bg: 'rgba(16, 185, 129, 0.08)' },
+  { key: 'sfx', label: 'SFX', colour: '#A855F7', ring: '#7C3AED', bg: 'rgba(168, 85, 247, 0.08)' },
+  { key: 'clip', label: 'คลิป', colour: '#06B6D4', ring: '#0891B2', bg: 'rgba(6, 182, 212, 0.08)' },
 ];
 
 // The label gutter and the lanes are two columns describing the same rows, so
@@ -396,7 +396,7 @@ export default function Timeline({
     if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current);
     setRippleFeedback({
       active: true,
-      text: `🧲 Magnetic Ripple: จัดเรียง ${count} ${type === 'caption' ? 'ซับไตเติล' : 'คลิป'} ต่อเนื่องไร้ช่องว่าง`,
+      text: `Magnetic Ripple: จัดเรียง ${count} ${type === 'caption' ? 'ซับไตเติล' : 'คลิป'} ต่อเนื่องไร้ช่องว่าง`,
     });
     rippleTimerRef.current = setTimeout(() => {
       setRippleFeedback(null);
@@ -789,7 +789,9 @@ export default function Timeline({
           <div className="flex" style={{ paddingTop: TRACK_TOP, paddingBottom: TRACK_BOTTOM }}>
             <div className="flex flex-shrink-0 flex-col">
               <div style={rowStyle('video')} className="flex items-center">
-                <TrackLabel icon={Film} width={gutterW} slotWidth={dense ? 14 : 26}>วิดีโอ</TrackLabel>
+                <TrackLabel icon={Film} iconClass="text-[#25F4EE]" width={gutterW} slotWidth={dense ? 14 : 26}>
+                  <span className="text-slate-200 font-medium">วิดีโอ</span>
+                </TrackLabel>
               </div>
               <div style={rowStyle('hook')} className="flex items-center">
                 <TrackLabel
@@ -880,6 +882,7 @@ export default function Timeline({
                   width={gutterW}
                   slotWidth={dense ? 14 : 26}
                   icon={MessageSquare}
+                  iconClass="text-[#66FF00]"
                   labelClass={previewOnlyLaneLabel('คำบรรยาย', isCaptionHidden).labelClass}
                   labelTitle={previewOnlyLaneLabel('คำบรรยาย', isCaptionHidden).title}
                   action={
@@ -904,8 +907,9 @@ export default function Timeline({
                 <div style={rowStyle('text')} className="flex items-center transition-all duration-150">
                   <TrackLabel
                     width={gutterW}
-                  slotWidth={dense ? 14 : 26}
+                    slotWidth={dense ? 14 : 26}
                     icon={Type}
+                    iconClass="text-[#38BDF8]"
                     action={
                       <button
                         type="button"
@@ -1654,7 +1658,8 @@ export default function Timeline({
                   }}
                 >
                   <div className="sticky top-0 z-50 mb-0.5 flex items-center gap-1 rounded bg-[#FFE600] px-1.5 py-0.5 text-[10px] font-bold text-black shadow-[0_2px_8px_rgba(0,0,0,0.8)] whitespace-nowrap">
-                    <span>🧲 {activeSnapGuide.label}</span>
+                    <Magnet className="h-3 w-3 text-black stroke-[2.5]" />
+                    <span>{activeSnapGuide.label}</span>
                     <span className="font-mono font-semibold opacity-85">({formatTimecode(activeSnapGuide.time)})</span>
                   </div>
                   <div className="w-[2px] flex-1 bg-[#FFE600] shadow-[0_0_10px_#FFE600,0_0_20px_rgba(255,230,0,0.7)]" />

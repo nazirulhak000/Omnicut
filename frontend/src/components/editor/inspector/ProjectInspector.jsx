@@ -11,10 +11,10 @@ import {
 // `level` = a per-project gain slider (L4-05). BGM keeps its slider in the
 // music panel; clip audio is set per clip in the clip inspector.
 const TRACKS = [
-  { id: 'voice', label: 'เสียงพากย์ (Voice)', color: '#25F4EE', level: { key: 'voiceVolume', fallback: VOICE_VOLUME_DEFAULT } },
-  { id: 'bgm', label: 'ดนตรีประกอบ (BGM)', color: '#D97757' },
-  { id: 'sfx', label: 'เสียงเอฟเฟกต์ (SFX)', color: '#E6C24A', level: { key: 'sfxVolume', fallback: SFX_VOLUME_DEFAULT } },
-  { id: 'clip', label: 'เสียงจากคลิปวิดีโอ (Clip)', color: '#A78BFA' },
+  { id: 'voice', label: 'เสียงพากย์ (Voice)', color: '#F59E0B', level: { key: 'voiceVolume', fallback: VOICE_VOLUME_DEFAULT } },
+  { id: 'bgm', label: 'ดนตรีประกอบ (BGM)', color: '#10B981' },
+  { id: 'sfx', label: 'เสียงเอฟเฟกต์ (SFX)', color: '#A855F7', level: { key: 'sfxVolume', fallback: SFX_VOLUME_DEFAULT } },
+  { id: 'clip', label: 'เสียงจากคลิปวิดีโอ (Clip)', color: '#06B6D4' },
 ];
 
 export default function ProjectInspector({
@@ -121,8 +121,8 @@ export default function ProjectInspector({
                     onClick={() => toggleMute(track.id)}
                     className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer ${
                       isMuted
-                        ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
-                        : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
+                        ? 'bg-rose-500/30 border-rose-500 text-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.4)]'
+                        : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white hover:border-white/20'
                     }`}
                     title={isMuted ? 'เปิดเสียงแทร็กนี้' : 'ปิดเสียงแทร็กนี้ (Mute)'}
                   >
@@ -134,8 +134,8 @@ export default function ProjectInspector({
                     onClick={() => toggleSolo(track.id)}
                     className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer ${
                       isSolo
-                        ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                        : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
+                        ? 'bg-amber-500/30 border-amber-400 text-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
+                        : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white hover:border-white/20'
                     }`}
                     title={isSolo ? 'ยกเลิกฟังเดี่ยว' : 'ฟังแทร็กนี้เดี่ยว (Solo)'}
                   >

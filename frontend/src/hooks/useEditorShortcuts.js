@@ -22,6 +22,7 @@ export function useEditorShortcuts({
   // Continuous zoom: (dir) => void hops to the next preset. setZoomIndex is
   // the older index-based form, kept for callers that still pass it.
   onZoomStep,
+  onZoomFit,
   setZoomIndex,
   zoomLevelsLength = 5,
   selectedSeg,
@@ -117,6 +118,9 @@ export function useEditorShortcuts({
         case 'zoomOut':
           if (onZoomStep) onZoomStep(-1);
           else setZoomIndex?.((i) => Math.max(0, i - 1));
+          break;
+        case 'zoomFit':
+          onZoomFit?.();
           break;
         case 'toggleFade':
           if (selectedSeg && selectedSeg.index > 0) {
