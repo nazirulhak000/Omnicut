@@ -166,6 +166,42 @@ class HookVariationEngine:
 
         return [cls.sanitize_variant(v, b_val, m_val) for v in raw_variants]
 
+    @staticmethod
+    def call_gemini_api(prompt: str) -> str:
+        """Raw-text Gemini call through the API keys AIBridge manages.
+
+        AIBridge has no raw-text direct-API method: `_generate_from_prompt`
+        only serves its own TASKS and parses into a dict, while hooks come
+        back as a JSON *array*. So this reuses AIBridge's pieces (key list,
+        default model, request timeout, daily budget check) and rotates keys
+        on failure. A quota error is re-raised; the caller falls back to the
+        offline templates. Returns "" when no key produced text.
+        """
+        from scripts.ai_bridge import AIBridge, API_REQUEST_TIMEOUT_SECONDS, DEFAULT_MODEL
+        from scripts.quota import check_budget, is_quota_error
+
+        api_keys = AIBridge.get_api_keys()
+        if not api_keys:
+            return ""
+        check_budget(task="hooks")
+
+        from google import genai  # lazy: offline mode needs no SDK
+        from google.genai import types as genai_types
+
+        http_options = genai_types.HttpOptions(timeout=API_REQUEST_TIMEOUT_SECONDS * 1000)
+        for key_idx, cur_key in enumerate(api_keys, 1):
+            try:
+                client = genai.Client(api_key=cur_key, http_options=http_options)
+                response = client.models.generate_content(model=DEFAULT_MODEL, contents=prompt)
+                text = (getattr(response, "text", "") or "").strip()
+                if text:
+                    return text
+            except Exception as api_err:
+                if is_quota_error(api_err):
+                    raise
+                print(f"⚠️ [HookVariationEngine] Gemini Key #{key_idx} error ({api_err}) — ลองคีย์ถัดไป")
+        return ""
+
     @classmethod
     def generate_variations(
         cls,
@@ -222,9 +258,12 @@ class HookVariationEngine:
 
                 raw_resp = ""
                 if AIBridge.has_antigravity_cli():
-                    raw_resp = AIBridge.call_antigravity_cli(prompt)
-                elif AIBridge.has_api_key():
-                    raw_resp = AIBridge.call_direct_gemini(prompt)
+                    try:
+                        raw_resp = AIBridge.call_antigravity_cli(prompt)
+                    except Exception as cli_err:
+                        print(f"⚠️ [HookVariationEngine] Antigravity CLI error ({cli_err}) — ลองผ่าน Gemini API key")
+                if not raw_resp and AIBridge.has_api_key():
+                    raw_resp = cls.call_gemini_api(prompt)
 
                 if raw_resp:
                     # Clean markdown fence if present

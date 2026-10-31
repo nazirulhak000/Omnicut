@@ -718,6 +718,56 @@
     },
     {
       "method": "GET",
+      "path": "/api/archive/progress",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "minor",
+      "resource_params": [],
+      "module": "scripts.api_gdrive_archive"
+    },
+    {
+      "method": "GET",
+      "path": "/api/archive/status",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "major",
+      "resource_params": [],
+      "module": "scripts.api_gdrive_archive"
+    },
+    {
+      "method": "POST",
+      "path": "/api/archive/execute",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "blocker",
+      "resource_params": [],
+      "module": "scripts.api_gdrive_archive"
+    },
+    {
+      "method": "POST",
+      "path": "/api/archive/restore",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "major",
+      "resource_params": [],
+      "module": "scripts.api_gdrive_archive"
+    },
+    {
+      "method": "POST",
+      "path": "/api/archive/reveal",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "minor",
+      "resource_params": [],
+      "module": "scripts.api_gdrive_archive"
+    },
+    {
+      "method": "GET",
       "path": "/api/assets/all",
       "scope": "shared",
       "allow_query_scope": false,
@@ -3164,6 +3214,46 @@
       "risk": "minor",
       "resource_params": [],
       "module": "scripts.api_videos"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ssd/drives",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "minor",
+      "resource_params": [],
+      "module": "scripts.api_ssd_sync"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ssd/inspect",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "minor",
+      "resource_params": [],
+      "module": "scripts.api_ssd_sync"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ssd/reconcile",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "blocker",
+      "resource_params": [],
+      "module": "scripts.api_ssd_sync"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ssd/stage",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "major",
+      "resource_params": [],
+      "module": "scripts.api_ssd_sync"
     },
     {
       "method": "GET",

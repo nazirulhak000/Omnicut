@@ -55,7 +55,11 @@ test('validator rejects out-of-bounds normalized coordinates', () => {
 });
 
 test('allowed semantic roles, origins, and callout types are explicit', () => {
-  assert.deepEqual(PRODUCT_CALLOUT_TYPES, ['brand', 'model', 'feature', 'spec', 'price', 'proof', 'cta']);
+  assert.deepEqual(PRODUCT_CALLOUT_TYPES, ['brand', 'model', 'feature', 'spec', 'proof', 'cta']);
+  assert.equal(PRODUCT_CALLOUT_TYPES.includes('price'), false);
+  const priceCallout = normalizeProductCallout({ text: 'Model X', callout_type: 'price' });
+  assert.equal(validateProductCallout(priceCallout).valid, false);
+  assert.match(validateProductCallout(priceCallout).errors.join(' '), /callout_type/);
   assert.deepEqual(PRODUCT_CALLOUT_ORIGINS, ['auto', 'manual', 'imported']);
   const invalidRole = normalizeProductCallout({ text: 'Model X', role: 'caption' });
   assert.equal(validateProductCallout(invalidRole).valid, false);
