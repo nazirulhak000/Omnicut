@@ -43,6 +43,8 @@ import {
   INSPECTOR_MAX_W,
   INSPECTOR_DEFAULT_W,
   TIMELINE_MAX_H,
+  MOBILE_PREVIEW_MIN_H,
+  MOBILE_PREVIEW_DEFAULT,
 } from '../../hooks/usePanelLayout';
 import { useEditorSelection } from '../../hooks/useEditorSelection';
 import { useEditorCommands } from '../../hooks/useEditorCommands';

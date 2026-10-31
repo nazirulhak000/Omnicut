@@ -124,6 +124,7 @@ export default function NewClipPanel({
   onAngleChange,
   existingProjects = [],
   projectList = [],
+  initialValues = null,
   onGoToProductFlow,
   onVideoUploaded,
   onCreated,

@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-FIX-EDITOR-UNDEFINED-MOBILE-PREVIEW-CONSTANTS-20261031 | แก้ไขข้อผิดพลาด ReferenceError: MOBILE_PREVIEW_MIN_H is not defined และ MOBILE_PREVIEW_DEFAULT ใน EditorShell.jsx: ตรวจพบสาเหตุการเรียกใช้ตัวแปรความสูงพรีวิวมือถือที่ยังไม่ได้ import มาจาก hooks/usePanelLayout.js, เพิ่ม import MOBILE_PREVIEW_MIN_H และ MOBILE_PREVIEW_DEFAULT ใน EditorShell.jsx พร้อมเพิ่ม default prop initialValues = null ใน NewClipPanel.jsx, ตรวจสอบผ่าน Oxlint no-undef พบ 0 undefined identifiers, ผ่านการทดสอบ Vitest 1,092/1,092 tests (100%), Pytest Parity 205/205 tests (100%), Feature Coverage 6/6 tests (100%), รีบิลด์ Vite Production Bundle สำเร็จ (EditorShell-ClsfVLn7.js) | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-FIX-EDITOR-TDZ-ZOOMTOFIT-BUG-20261031 | แก้ไขข้อผิดพลาด ReferenceError: Cannot access 'jo' before initialization ใน EditorShell.jsx: ตรวจพบสาเหตุ useEditorShortcuts เรียกใช้ onZoomFit: zoomToFit ก่อนการประกาศ timelineViewportRef และ zoomToFit ส่งผลให้เกิด JavaScript Temporal Dead Zone (TDZ) และแครชที่ Runtime ในโหมด Minified Production Bundle (jo identifier), ดำเนินการย้ายการประกาศ timelineViewportRef และ zoomToFit ขึ้นมาอยู่ก่อนหน้าการเรียก useEditorShortcuts, รีบิลด์ Vite Production Bundle สำเร็จ (EditorShell-zpXCEXu8.js), ผ่านการทดสอบ Vitest 1,092/1,092 tests (100%), Pytest Parity 205/205 tests (100%), Feature Coverage 6/6 tests (100%), Oxlint 0 errors | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-1HOUR-DESKTOP-NLE-SPRINT-20261031 | ปฏิบัติการกะ 1 ชั่วโมงเต็ม (60 นาที) ยกระดับและขัดเกลาหน้า Editor โหมดเดสก์ท็อปขนาดใหญ่ (1920x1080 / 1440p / 4K) ครบ 4 Cycles ตามแผนแม่บท _Docs/Plans/MASTER_EDITOR_DESKTOP_1HOUR_LOOP_PROMPT.md: Cycle 1 Pro 3-Column Splitters (Active neon glow, ARIA keyboard navigation, px live tooltips, max 560/760px ultrawide, DaVinci-style dock strips), Cycle 2 Timeline Mouse & Pro Track Colors (Horizontal wheel scroll, Ctrl+Wheel anchored zoom, Cyan/Amber/Violet/Emerald/Neon Green Pro NLE track colors, Lucide Magnet clean icon), Cycle 3 Pro Shortcuts (Universal Shift+Z zoom-to-fit, J/K/L shuttle, 1-frame arrow nudge, Q/W trim, C split), Cycle 4 Dark Glass Studio & 4-Bus Mixer (OLED canvas #030509, hardware-style Mute/Solo glow lights, 4-bus faders), ผ่านการทดสอบ Vitest 1,092/1,092 tests (100%), Pytest Parity 205/205 tests (100%), Feature Coverage 6/6 tests (100%), ผลิตรายงานสมบูรณ์ _Docs/Reports/EDITOR_DESKTOP_1HOUR_SPRINT_20261031.md | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-PULSEHUB-CRYSTAL-GLASS-CUSTOMIZER-20261031 | ยกระดับความใสของกระจก Ultra-Realistic สู่ระดับ Crystal Clear Parity ของ Pulse Hub พร้อมแผงควบคุมปรับแต่งกระจกสด (Glass Finetuner Controls & Live Refraction Preview) ใน SystemSettings.jsx และ index.css: จูน default --glass-opacity เป็น 0.16 (จากเดิม 0.45), --glass-blur เป็น 14px, ยกระดับ --orbs-opacity เป็น 0.75 ให้แสงนีออนส่องทะลุเนื้อกระจกคมชัด 100%, สร้าง DEFAULT_GLASS_CONFIG และ GLASS_PRESETS 3 พรีเซ็ตด่วน (กระจกใส Pulse Hub, กระจกฝ้า visionOS, กระจกรมควัน Smoky) ใน themeManager.js, ติดตั้ง 4 แถบสไลเดอร์สด (ความใส, ความเบลอ, แสงลูกแก้ว, แสงสะท้อนขอบ) พร้อมกล่อง Live Optical Refraction Preview ใน SystemSettings.jsx, ผ่านชุดทดสอบ Vitest 1,092/1,092 tests (100%), Parity Tests 205/205 passed (100%), รีบิลด์ production bundle สำเร็จ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -126,6 +127,27 @@
 ---
 
 ---
+
+---
+
+## Round ANTIGRAVITY-FIX-EDITOR-UNDEFINED-MOBILE-PREVIEW-CONSTANTS-20261031 · แก้ไขข้อผิดพลาด ReferenceError: MOBILE_PREVIEW_MIN_H is not defined และ MOBILE_PREVIEW_DEFAULT ใน EditorShell.jsx
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-31
+
+- **สาเหตุของบั๊กและการวินิจฉัย (Root Cause Diagnostic):**
+  - เกิด `ReferenceError: MOBILE_PREVIEW_MIN_H is not defined` ขึ้นในหน้าต่างแจ้งเตือนข้อผิดพลาดระบบ (Error Boundary) เมื่อเข้าสู่หน้าแท็บ Editor
+  - ตรวจสอบซอร์สโค้ดใน `frontend/src/components/editor/EditorShell.jsx` พบว่าที่บรรทัด 2782 มีการเรียกใช้ `minHeight: MOBILE_PREVIEW_MIN_H` และที่บรรทัด 2947 มีการเรียกใช้ `MOBILE_PREVIEW_DEFAULT`
+  - ตรวจสอบรายการนำเข้า (Imports) จาก `../../hooks/usePanelLayout` ที่บรรทัด 37-46 พบว่านำเข้าเฉพาะค่าคงที่ของ Desktop Panel (`ASSET_*`, `INSPECTOR_*`, `TIMELINE_MAX_H`) แต่ยังไม่ได้ระบุ `MOBILE_PREVIEW_MIN_H` และ `MOBILE_PREVIEW_DEFAULT` จึงเกิดข้อผิดพลาด ReferenceError ทันทีที่เรนเดอร์ส่วนจอพรีวิว
+  - ตรวจสอบเพิ่มเติมด้วย Oxlint Static Analysis (`no-undef`) พบจุดเสี่ยงแฝงอีก 1 จุดใน `frontend/src/components/editor/NewClipPanel.jsx` ที่บรรทัด 469 มีการอ้างถึง `initialValues?.manualShotMap` แต่ไม่มีการรับตัวแปร `initialValues` ในพารามิเตอร์ของคอมโพเนนต์
+- **การแก้ไขแบบไม่กระทบการทำงานเดิม (Surgical Non-Destructive Fix):**
+  - เพิ่ม `MOBILE_PREVIEW_MIN_H` และ `MOBILE_PREVIEW_DEFAULT` เข้าไปใน destructuring import จาก `../../hooks/usePanelLayout` ใน [EditorShell.jsx](file:///d:/Winona/Programmer/Omnicut/frontend/src/components/editor/EditorShell.jsx)
+  - เพิ่ม default prop `initialValues = null` ในฟังก์ชันคอมโพเนนต์ `NewClipPanel` ใน [NewClipPanel.jsx](file:///d:/Winona/Programmer/Omnicut/frontend/src/components/editor/NewClipPanel.jsx)
+  - รัน Oxlint Script ตรวจสอบตัวแปรที่ไม่ได้ประกาศ ยืนยันผลลัพธ์ `REAL UNDEFS COUNT: 0` ทั้งหมด
+- **ผลการทดสอบและการตรวจสอบ (Verification Gates):**
+  - **Vite Production Build:** คอมไพล์สำเร็จใน 1.98s (`EditorShell-ClsfVLn7.js`)
+  - **Vitest Suite:** ผ่านครบ 1,092/1,092 tests 100% (`npm test --prefix frontend -- --run`)
+  - **Pytest Preview-Render Parity:** ผ่านครบ 205/205 tests 100% (`tests/test_preview_render_parity.py`)
+  - **Pytest Editor Feature Coverage:** ผ่านครบ 6/6 tests 100% (`tests/test_editor_feature_coverage.py`)
 
 ---
 

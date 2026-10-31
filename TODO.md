@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-FIX-EDITOR-UNDEFINED-MOBILE-PREVIEW-CONSTANTS-20261031 · แก้ไขข้อผิดพลาด ReferenceError: MOBILE_PREVIEW_MIN_H is not defined และ MOBILE_PREVIEW_DEFAULT ใน EditorShell.jsx และ initialValues ใน NewClipPanel.jsx · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [x] Round ANTIGRAVITY-FIX-EDITOR-TDZ-ZOOMTOFIT-BUG-20261031 · แก้ไขข้อผิดพลาด ReferenceError: Cannot access 'jo' before initialization ใน EditorShell.jsx ย้าย zoomToFit ขึ้นก่อน useEditorShortcuts ป้องกัน TDZ 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-PULSEHUB-CRYSTAL-GLASS-CUSTOMIZER-20261031 · ยกระดับความใสของกระจก Ultra-Realistic สู่ระดับ Crystal Clear Parity ของ Pulse Hub พร้อมแผงควบคุมปรับแต่งกระจกสด (Glass Finetuner Controls & Live Refraction Preview) ใน SystemSettings.jsx และ index.css · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
