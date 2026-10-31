@@ -39,10 +39,24 @@ def test_family_values_match_the_roadmap():
         "adaptive": (1.3, 2.5),
         "smooth": (1.5, 3.0),
         "minimal": (1.8, 3.5),
+        "compare": (1.3, 2.5),  # M5: tech_compare's own family
     }
     for key, policy in STYLE_MOTION_POLICIES.items():
         assert policy.hook_window_sec == 3.0, key
-        assert (policy.hook_max_shot, policy.max_static_sec) == FAMILY_PACING[policy.transition_family], key
+        # M5: a preset may override its family's pacing (e.g. flash_deal hooks
+        # at 0.9 s, clean_tech_review at 1.2 s) but never beyond the S1 audit's
+        # retention bounds.
+        assert 0 < policy.hook_max_shot <= 1.8, key
+        assert 0 < policy.max_static_sec <= 3.5, key
+    # A preset that sets nothing still resolves to its family default.
+    for family, expected in FAMILY_PACING.items():
+        bare = StyleMotionPolicy(
+            key="bare", transition_stride=1, stylized_stride=0, max_transition_duration=0.3,
+            transition_family=family, camera_motion_stride=1, camera_zoom_delta=0.1,
+            camera_pan_extent=0.1, camera_min_duration=1.0, accent_color="#FFFFFF",
+            status_color="#FFFFFF", neutral_color="#FFFFFF",
+        )
+        assert (bare.hook_max_shot, bare.max_static_sec) == expected, family
 
 
 def test_catalog_exposes_pacing_fields():
@@ -89,7 +103,7 @@ def test_no_shot_inside_the_hook_window_exceeds_hook_max(family, style):
     ctx = _context(cues, 12.0)
     ctx.style_preset = style
     clips = _run(ctx)
-    hook_max = FAMILY_PACING[family][0]
+    hook_max = resolve_style_motion_policy(style).hook_max_shot
     for start, end in _shots(clips):
         if start < 3.0 - 1e-6:
             assert end - start <= hook_max + 1e-6, (style, start, end)
@@ -206,5 +220,5 @@ def test_generated_plans_have_no_static_span_longer_than_the_style_allows(family
     ctx = _context(cues, 14.4)
     ctx.style_preset = style
     clips = _run(ctx)
-    assert _max_static_run(clips) <= FAMILY_PACING[family][1] + 1 / FPS
+    assert _max_static_run(clips) <= resolve_style_motion_policy(style).max_static_sec + 1 / FPS
     assert sum(c["duration"] for c in clips) == pytest.approx(14.4, abs=0.01)

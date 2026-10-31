@@ -123,16 +123,37 @@ def test_hook_color_is_the_colour_the_hook_actually_renders(preset_id):
     assert preset["hookColor"].upper() == brand_colour.upper()
 
 
-_FAMILY_KEYWORD = {"smooth": "Dissolve", "minimal": "Fade", "energetic": "Slide"}
+_TYPE_KEYWORD = {
+    "dissolve": "Dissolve", "fade": "Fade", "circleopen": "Circle",
+    "slideleft": "Slide", "slideright": "Slide",
+    "wipeleft": "Wipe", "wiperight": "Wipe",
+}
 
 
 @pytest.mark.parametrize("preset_id", sorted(STYLE_MOTION_POLICIES))
 def test_transition_label_names_the_transition_the_policy_renders(preset_id):
+    """M5: the label names every transition type the policy can emit.
+
+    Derived from apply_transition_budget itself (24 boundaries, a circleopen
+    candidate) instead of a per-family guess, so a label can no longer promise
+    an effect the renderer never plays, nor hide one it does.
+    """
+    from scripts.style_motion_policy import apply_transition_budget
+
     family = STYLE_MOTION_POLICIES[preset_id].transition_family
-    keyword = _FAMILY_KEYWORD.get(family)
-    if keyword is None:
-        pytest.skip(f"{family} family picks transitions from shot context")
-    assert keyword in _js_presets()[preset_id]["transitions"]
+    if family == "adaptive":
+        pytest.skip("adaptive family picks transitions from shot context")
+    emitted = {
+        apply_transition_budget({"type": "circleopen", "duration": 0.5},
+                                style_preset=preset_id, boundary_index=i)["type"]
+        for i in range(1, 25)
+    } - {"cut"}
+    label = _js_presets()[preset_id]["transitions"]
+    assert emitted
+    for kind in emitted:
+        assert _TYPE_KEYWORD[kind] in label, (preset_id, kind, label)
+    promised = {kw for kw in set(_TYPE_KEYWORD.values()) if kw in label}
+    assert promised == {_TYPE_KEYWORD[k] for k in emitted}, (preset_id, promised, emitted)
 
 
 def test_catalog_drops_effect_promises_the_renderer_does_not_keep():
