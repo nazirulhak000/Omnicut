@@ -15,6 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.config import FONTS_DIR, VIDEO_WIDTH, VIDEO_HEIGHT
+from scripts.word_alignment import spec_onset_time
 from scripts.asset_registry import AssetRegistry
 from scripts.hook_styles import resolve_hook_style
 from scripts.overlay_model import (
@@ -1413,7 +1414,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 continue
             if " ".join(on_screen.split()).strip().casefold() in product_callout_texts:
                 continue
-            spec_start = cls._format_ass_time(cue["start"])
+            # With word timings (Edge-TTS, or Gemini TTS aligned by
+            # scripts/word_alignment.py) the bar lands on the spoken number
+            # instead of the sentence start; the end stays the cue end.
+            # No timings / no number found -> sentence start, as before.
+            spec_onset = spec_onset_time(
+                cue.get("word_timings"), on_screen, start=cue["start"], end=cue["end"]
+            )
+            spec_start = cls._format_ass_time(cue["start"] if spec_onset is None else spec_onset)
             spec_end = cls._format_ass_time(cue["end"])
             spec_from = 110
             spec_to = 100
