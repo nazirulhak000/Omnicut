@@ -24,7 +24,7 @@ class BatchRenderRequest(BaseModel):
     voice_rate: str = "+15%"
     voice_mode: str = "gemini_tts"
     voice_preset: str = "gemini_fenrir_male_strong"
-    style_preset: str = "clean_tech_review"
+    style_preset: str = "auto"  # "auto" = resolve per angle in batch_render
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
     use_ai_vision: bool = True
