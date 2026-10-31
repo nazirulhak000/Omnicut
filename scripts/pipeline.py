@@ -116,7 +116,7 @@ class TikTokAutoCutterPipeline:
         hook_brand: Optional[str] = None,
         hook_model: Optional[str] = None,
         hook_label: Optional[str] = None,
-        hook_duration: float = 5.0,
+        hook_duration: float = 3.0,
         hook_motion: Optional[Dict[str, Any]] = None,
         hook_colors: Optional[Dict[str, str]] = None,
         hook_style: Optional[Dict[str, object]] = None,

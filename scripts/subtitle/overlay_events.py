@@ -759,7 +759,32 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
 
     from scripts.subtitle.word_layout import layout_overlay
     overlay_layout = item.get("layout")
-    if not overlay_layout:
+    if not overlay_layout and item.get("layout_mode") == "line":
+        # One run for the whole line, measured at the em the glyphs are drawn
+        # at. The hook line opts in (scripts/hook_line.py) because per-word
+        # layout below is measured at the *unboosted* size and so lays Thai
+        # words out too tight; each word's outline then paints over its
+        # neighbour's last letters. Not stored on the item: the overlay
+        # persists in the manifest and a stored layout would go stale the
+        # moment the line is edited.
+        _run_w = _measure_text_width_px(txt, item_font, render_fs)
+        if _run_w is None:
+            _run_w = int(len(txt) * render_fs * 0.55)
+        _run_x = x_pos - _run_w / 2.0
+        overlay_layout = {"lines": [{
+            "line_idx": 0,
+            "text": txt,
+            "line_width": _run_w / float(video_width),
+            "abs_line_width": float(_run_w),
+            "words": [{
+                "text": txt,
+                "x": _run_x / float(video_width),
+                "w": _run_w / float(video_width),
+                "abs_x": _run_x,
+                "abs_w": float(_run_w),
+            }],
+        }]}
+    elif not overlay_layout:
         overlay_layout = layout_overlay(
             text=txt,
             font_name=item_font,
@@ -884,6 +909,9 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
         shad_dy = float(shadow.get("dy") or 0.0) if shadow else 0.0
         shad_blur = float(shadow.get("blur") or 0.0) if shadow else 0.0
 
+        line_run = item.get("layout_mode") == "line"
+        line_top_adj = ass_top_anchor_offset(item_font, render_fs) if line_run else 0
+
         g_word_idx = 0
         for line_info in lines_data:
             line_idx = line_info.get("line_idx", 0)
@@ -899,14 +927,24 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
                 word_t0 = g_word_idx * word_stagger_ms if word_stagger_ms > 0 else 0
                 g_word_idx += 1
 
+                if line_run:
+                    # Top-centre anchored, like the hook banner: \an8 at the
+                    # line's centre, lifted by the line box's extra ascent so
+                    # the em square (what the canvas preview centres) lands on
+                    # the stored y. Scaling about the centre also keeps the
+                    # entrance pop inside the frame.
+                    an, ax, ay = "an8", w_cx, line_y - line_top_adj
+                else:
+                    an, ax, ay = "an7", w_x, line_y
+
                 if anim_in == "rise":
                     dur = 200
                     t1 = word_t0 + dur
-                    w_pos = f"\\q2\\an7\\move({w_x:.1f},{line_y + 40:.1f},{w_x:.1f},{line_y:.1f},{word_t0},{t1})"
+                    w_pos = f"\\q2\\{an}\\move({ax:.1f},{ay + 40:.1f},{ax:.1f},{ay:.1f},{word_t0},{t1})"
                 elif move_dy_out is not None:
-                    w_pos = f"\\q2\\an7\\move({w_x:.1f},{line_y:.1f},{w_x:.1f},{line_y + move_dy_out:.1f},{exit_start_ms},{exit_end_ms})"
+                    w_pos = f"\\q2\\{an}\\move({ax:.1f},{ay:.1f},{ax:.1f},{ay + move_dy_out:.1f},{exit_start_ms},{exit_end_ms})"
                 else:
-                    w_pos = f"\\q2\\an7\\pos({w_x:.1f},{line_y:.1f})"
+                    w_pos = f"\\q2\\{an}\\pos({ax:.1f},{ay:.1f})"
 
                 word_contract_in = _build_contract_plan(
                     item,
@@ -969,11 +1007,11 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
                 w_text_safe = ass_escape_text(repaired_word)
                 if shadow and shad_color:
                     if anim_in == "rise":
-                        s_pos = f"\\q2\\an7\\move({w_x + shad_dx:.1f},{line_y + shad_dy + 40:.1f},{w_x + shad_dx:.1f},{line_y + shad_dy:.1f},{word_t0},{t1})"
+                        s_pos = f"\\q2\\{an}\\move({ax + shad_dx:.1f},{ay + shad_dy + 40:.1f},{ax + shad_dx:.1f},{ay + shad_dy:.1f},{word_t0},{t1})"
                     elif move_dy_out is not None:
-                        s_pos = f"\\q2\\an7\\move({w_x + shad_dx:.1f},{line_y + shad_dy:.1f},{w_x + shad_dx:.1f},{line_y + shad_dy + move_dy_out:.1f},{exit_start_ms},{exit_end_ms})"
+                        s_pos = f"\\q2\\{an}\\move({ax + shad_dx:.1f},{ay + shad_dy:.1f},{ax + shad_dx:.1f},{ay + shad_dy + move_dy_out:.1f},{exit_start_ms},{exit_end_ms})"
                     else:
-                        s_pos = f"\\q2\\an7\\pos({w_x + shad_dx:.1f},{line_y + shad_dy:.1f})"
+                        s_pos = f"\\q2\\{an}\\pos({ax + shad_dx:.1f},{ay + shad_dy:.1f})"
                     s_tag = f"{s_pos}{font_tag}{skew_tag}{w_anim}{loop_tag}\\c{shad_color}&\\blur{shad_blur:.1f}{out_tag}"
                     events.append(f"Dialogue: 3,{start_t},{end_t},TextOverlayShadow,,0,0,0,,{{{s_tag}}}{w_text_safe}")
                     for parts in word_companions:

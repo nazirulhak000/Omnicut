@@ -472,7 +472,7 @@ def _stage_payload_from_manifest(
                 "hook_brand": _manifest_value(manifest, "hook_brand"),
                 "hook_model": _manifest_value(manifest, "hook_model"),
                 "hook_label": _manifest_value(manifest, "hook_label"),
-                "hook_duration": _manifest_value(manifest, "hook_duration", 5.0),
+                "hook_duration": _manifest_value(manifest, "hook_duration", 3.0),
                 "hook_motion": _manifest_value(manifest, "hook_motion"),
                 "hook_colors": _manifest_value(manifest, "hook_colors"),
                 "hook_style": _manifest_value(manifest, "hook_style"),
@@ -612,7 +612,7 @@ class PipelineContext:
     hook_brand: Optional[str] = None
     hook_model: Optional[str] = None
     hook_label: Optional[str] = None
-    hook_duration: float = 5.0
+    hook_duration: float = 3.0
     hook_motion: Optional[Dict[str, Any]] = None
     hook_colors: Optional[Dict[str, str]] = None
     hook_style: Optional[Dict[str, object]] = None
