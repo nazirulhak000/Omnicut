@@ -1344,7 +1344,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 hook_brand=params.get("hook_brand"),
                 hook_model=params.get("hook_model"),
                 hook_label=params.get("hook_label"),
-                hook_duration=float(params.get("hook_duration", 5.0) or 5.0),
+                hook_duration=float(params.get("hook_duration", 3.0) or 3.0),
                 hook_motion=params.get("hook_motion"),
                 hook_colors=params.get("hook_colors"),
                 hook_style=params.get("hook_style"),

@@ -8,7 +8,8 @@ from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
 from scripts.subtitle_engine import MICRO_BURST_MAX_CHARS, SubtitleEngine, subtitle_artifact_is_current
 from scripts.editorial_pacing import build_pacing_plan_from_cues
-from scripts.overlay_model import guess_brand_model, migrate_to_overlays
+from scripts.hook_line import apply_hook_line, merge_adjacent_spans
+from scripts.overlay_model import HOOK_NAMEPLATE_DEFAULT_SEC, guess_brand_model, migrate_to_overlays
 from scripts.pipeline_context import PipelineContext
 from scripts.product_callout_builder import build_product_callouts
 from scripts.project_manifest import ProjectManifest
@@ -24,6 +25,14 @@ def _materialize_product_callouts(
     have been disabled per user request. Overlays remain strictly user-authored.
     """
     return [copy.deepcopy(dict(item)) for item in (effective_overlays or []) if isinstance(item, Mapping)]
+
+
+def _is_first_subtitle_pass(ctx: PipelineContext) -> bool:
+    """True until a subtitle pass has been recorded for this project."""
+    manifest = ctx.manifest or {}
+    if manifest.get("micro_cues"):
+        return False
+    return not (manifest.get("artifacts") or {}).get("subtitles_ass")
 
 
 def _first_sequence(value: Any) -> List[Mapping[str, Any]]:
@@ -101,11 +110,15 @@ class SubtitleStage:
                     effective_hook_brand = guessed_b or None
                     effective_hook_model = guessed_m or None
 
-            banner_combined_len = len(" ".join(filter(None, [effective_hook_brand, effective_hook_model, effective_hook_label])))
-            if ctx.hook_duration is not None and abs(float(ctx.hook_duration) - 3.0) > 0.01:
-                effective_hook_duration = float(ctx.hook_duration)
-            else:
-                effective_hook_duration = max(2.0, min(banner_combined_len / 11.0 + 0.6, 5.0))
+            # How long the nameplate stays up. 3.0 s by default (it was 5.0
+            # until M1 gave the first 1.8 s to the hook line); an explicit
+            # hook_duration still wins. It is measured from the nameplate's own
+            # start, so apply_hook_line() below moves the start, not the length.
+            effective_hook_duration = (
+                float(ctx.hook_duration)
+                if ctx.hook_duration is not None
+                else HOOK_NAMEPLATE_DEFAULT_SEC
+            )
             effective_hook_duration = min(effective_hook_duration, ctx.total_duration)
 
             effective_text_overlays = ctx.text_overlays if ctx.text_overlays is not None else (
@@ -130,13 +143,34 @@ class SubtitleStage:
                     "text_overlays": effective_text_overlays,
                 })
 
+            # M1: the first time subtitles are generated for a project, the
+            # hook line goes on screen at 0-1.8 s and the nameplate moves behind
+            # it. That covers both a project built from the banner scalars and
+            # one whose overlays arrived with the request (the new-clip form
+            # sends its nameplate that way). A later pass -- a re-roll after the
+            # user has edited, moved or deleted overlays -- is the user's list
+            # and is never rewritten here.
+            if _is_first_subtitle_pass(ctx):
+                effective_overlays = apply_hook_line(
+                    effective_overlays,
+                    ctx.script_data,
+                    total_duration=ctx.total_duration,
+                    style={
+                        "style_preset": ctx.style_preset,
+                        "ad_tone": ctx.ad_tone,
+                        "motion": ctx.hook_motion,
+                        "colors": ctx.hook_colors,
+                        "style": ctx.hook_style,
+                    },
+                )
+
             effective_overlays = _materialize_product_callouts(ctx, effective_overlays)
 
-            scrim_spans = [
+            scrim_spans = merge_adjacent_spans([
                 (float(o.get("start") or 0.0), float(o.get("end") or 0.0))
                 for o in effective_overlays
                 if o.get("scrim") and not o.get("hidden")
-            ]
+            ])
 
             # Capture the optional word-level timing contract before
             # generate_ass replaces ctx.cues with micro-cues. Legacy cues
@@ -183,11 +217,11 @@ class SubtitleStage:
             saved_params = (ctx.manifest.get("render_params") or {}) if ctx.manifest else {}
             effective_overlays = ctx.overlays if ctx.overlays is not None else migrate_to_overlays(ctx.manifest or {})
             effective_overlays = _materialize_product_callouts(ctx, effective_overlays)
-            scrim_spans = [
+            scrim_spans = merge_adjacent_spans([
                 (float(o.get("start") or 0.0), float(o.get("end") or 0.0))
                 for o in effective_overlays
                 if o.get("scrim") and not o.get("hidden")
-            ]
+            ])
             effective_text_overlays = ctx.text_overlays if ctx.text_overlays is not None else (
                 ctx.manifest.get("text_overlays") or saved_params.get("text_overlays")
             )
