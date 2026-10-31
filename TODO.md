@@ -4,6 +4,22 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-PULSEHUB-CRYSTAL-GLASS-CUSTOMIZER-20261031 · ยกระดับความใสของกระจก Ultra-Realistic สู่ระดับ Crystal Clear Parity ของ Pulse Hub พร้อมแผงควบคุมปรับแต่งกระจกสด (Glass Finetuner Controls & Live Refraction Preview) ใน SystemSettings.jsx และ index.css · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [/] Round ANTIGRAVITY-1HOUR-DESKTOP-NLE-SPRINT-20261031 · ปฏิบัติการกะ 1 ชั่วโมงเต็ม (60 นาที) ยกระดับและขัดเกลาหน้า Editor โหมดเดสก์ท็อปขนาดใหญ่ (1920x1080 / 1440p / 4K) ครบ 4 Cycles ตามแผนแม่บท `_Docs/Plans/MASTER_EDITOR_DESKTOP_1HOUR_LOOP_PROMPT.md`:
+  - [ ] Cycle 1 (00-15 น.): Pro 3-Column Split & Resizable Panes — Splitter Handles ลากปรับขนาดซ้าย/ขวา/ล่างลื่นไหล พร้อม persist ขนาดลง localStorage และปุ่มพับขยายแผง
+  - [ ] Cycle 2 (15-30 น.): ไทม์ไลน์เมาส์ขั้นสูง & สีแทร็ก — ล้อเมาส์เลื่อนแนวนอน, Ctrl+Wheel Anchored Zoom, สีแทร็กมาตรฐาน Pro NLE (Cyan/Amber/Violet/Emerald) และ Snapping
+  - [ ] Cycle 3 (30-45 น.): คีย์ลัดมืออาชีพ — Shuttle Playback J/K/L (1x/2x/4x), ลูกศร ซ้าย/ขวา 1-frame step, Shift+ลูกศร 1-second step, Q/W Ripple Trim, C Split, Shift+Z Zoom to fit
+  - [ ] Cycle 4 (45-60 น.): ธีม Dark Glass Studio, แผงมิกเซอร์เสียง 4 Bus Faders & จัดทำรายงานส่งมอบ `_Docs/Reports/EDITOR_DESKTOP_1HOUR_SPRINT_20261031.md`
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-MASTER-EDITOR-DESKTOP-1HOUR-LOOP-PROMPT-20261031 · ออกแบบและจัดทำ Master Prompt กะ 1 ชั่วโมงเต็ม สำหรับยกระดับหน้า Editor ขนาด Desktop (1920x1080 / 1440p / 4K) สู่ระดับ Premiere Pro / CapCut Desktop ตามแผน `_Docs/Plans/MASTER_EDITOR_DESKTOP_1HOUR_LOOP_PROMPT.md`:
+  - [x] ออกแบบโครงสร้าง 4 Cycles (รอบละ 15 นาที รวม 60 นาที): Layout & Resizable Splitters, Timeline Mouse & Waveforms, Pro Shortcuts J/K/L, Dark Glass Studio & Audio Mixer
+  - [x] ผูกโยงคีย์ลัดระดับ Pro NLE (J/K/L Shuttle, 1-Frame arrow stepping, Q/W Ripple Trim, C Razor Split, Shift+Z Zoom-to-fit)
+  - [x] รองรับเมาส์ขั้นสูง: Ctrl+Wheel Anchored Zoom, Horizontal Wheel Scroll, Beat Snap Snapping
+  - [x] ล็อกกฎเหล็ก Zero-Regression: Preview=Render 100%, Manifest Schema ไม่เพี้ยน, คุมเทส 1,055/1,055 tests pass 100%
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [x] Round ANTIGRAVITY-FIX-EDITOR-TDZ-WAKELOCK-BUG-20261031 · แก้ไขข้อผิดพลาด ReferenceError: Cannot access 'nn' before initialization ใน `EditorShell.jsx`:
   - [x] ตรวจพบสาเหตุ: `useWakeLock(Boolean(applying))` ถูกวางไว้ก่อนการ destructure `const { isRendering: applying } = useRenderJob(...)` ทำให้เกิด JavaScript Temporal Dead Zone (TDZ)
   - [x] ย้าย `useWakeLock(Boolean(applying))` ไปอยู่หลัง `useRenderJob` ทันที เพื่อให้ตัวแปร `applying` ได้รับการประกาศและกำหนดค่าเรียบร้อยก่อนเรียกใช้

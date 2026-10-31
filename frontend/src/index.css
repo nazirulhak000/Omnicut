@@ -26,9 +26,11 @@
 
 :root {
   /* Ultra-Realistic Glassmorphism Tokens (Pulse Hub / Apple visionOS Spatial UI) */
-  --glass-blur: 18px;
-  --glass-saturate: 195%;
+  --glass-blur: 14px;
+  --glass-opacity: 0.16;
+  --glass-saturate: 210%;
   --glare-opacity: 0.95;
+  --orbs-opacity: 0.75;
 
   /* Every type size in the app is a rem, so this one number scales the whole
      interface. It used to exist while 214 sizes were hardcoded in px, which
@@ -118,10 +120,10 @@
 
 /* 1. แผ่นกระจกหลัก (Master Glass Panel / Card) */
 .glass-panel, .saas-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 45%, rgba(230, 245, 255, 0.14) 100%) !important;
-  background-color: rgba(10, 16, 30, 0.45) !important;
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.03) 45%, rgba(230, 245, 255, 0.10) 100%) !important;
+  background-color: rgba(10, 16, 30, var(--glass-opacity, 0.16)) !important;
+  backdrop-filter: blur(var(--glass-blur, 14px)) saturate(var(--glass-saturate, 210%)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur, 14px)) saturate(var(--glass-saturate, 210%)) !important;
   border-top: 1px solid rgba(255, 255, 255, 0.75) !important;
   border-left: 1px solid rgba(255, 255, 255, 0.28) !important;
   border-right: 1px solid rgba(255, 255, 255, 0.28) !important;
@@ -241,38 +243,38 @@
 }
 
 .orb-cyan {
-  width: 350px;
-  height: 350px;
-  background: radial-gradient(circle, #00f2fe 0%, rgba(0, 242, 254, 0.25) 50%, transparent 80%);
-  filter: blur(40px);
-  -webkit-filter: blur(40px);
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, #00f2fe 0%, rgba(0, 242, 254, 0.35) 45%, transparent 75%);
+  filter: blur(35px);
+  -webkit-filter: blur(35px);
   top: 8%;
   left: 12%;
-  opacity: 0.45;
+  opacity: var(--orbs-opacity, 0.75);
   animation: float-cyan 9s ease-in-out infinite alternate;
 }
 
 .orb-amber {
-  width: 380px;
-  height: 380px;
-  background: radial-gradient(circle, #f59e0b 0%, rgba(245, 158, 11, 0.25) 50%, transparent 80%);
-  filter: blur(45px);
-  -webkit-filter: blur(45px);
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, #f59e0b 0%, rgba(245, 158, 11, 0.35) 45%, transparent 75%);
+  filter: blur(40px);
+  -webkit-filter: blur(40px);
   bottom: 12%;
   right: 12%;
-  opacity: 0.4;
+  opacity: var(--orbs-opacity, 0.70);
   animation: float-amber 11s ease-in-out infinite alternate;
 }
 
 .orb-indigo {
-  width: 320px;
-  height: 320px;
-  background: radial-gradient(circle, #818cf8 0%, rgba(129, 140, 248, 0.25) 50%, transparent 80%);
-  filter: blur(50px);
-  -webkit-filter: blur(50px);
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, #818cf8 0%, rgba(129, 140, 248, 0.35) 45%, transparent 75%);
+  filter: blur(45px);
+  -webkit-filter: blur(45px);
   top: 48%;
   left: 50%;
-  opacity: 0.4;
+  opacity: var(--orbs-opacity, 0.70);
   animation: float-indigo 12s ease-in-out infinite alternate;
 }
 

@@ -34,7 +34,18 @@ import { POST_RENDER_ACTIONS, decidePostRenderSync, fetchSettledProject } from '
 import { useProjectLoader } from '../../hooks/useProjectLoader';
 import { useRenderJob } from '../../hooks/useRenderJob';
 import useWakeLock from '../../hooks/useWakeLock';
-import { usePanelLayout } from '../../hooks/usePanelLayout';
+import {
+  usePanelLayout,
+  ASSET_MIN_W,
+  ASSET_MAX_W,
+  ASSET_DEFAULT_W,
+  INSPECTOR_MIN_W,
+  INSPECTOR_MAX_W,
+  INSPECTOR_DEFAULT_W,
+  TIMELINE_MIN_H,
+  TIMELINE_MAX_H,
+  TIMELINE_DEFAULT_H,
+} from '../../hooks/usePanelLayout';
 import { useEditorSelection } from '../../hooks/useEditorSelection';
 import { useEditorCommands } from '../../hooks/useEditorCommands';
 import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
@@ -149,17 +160,6 @@ const EXPORT_PRESETS = [
   { id: 'draft', label: 'ทดลอง 720p', hint: 'เร็วกว่าประมาณ 2 เท่า ไฟล์มี _draft ต่อท้าย ไม่ใช่ไฟล์สำหรับโพสต์' },
 ];
 
-// The dock's own chrome: the drag handle plus the toolbar above the tracks.
-const TIMELINE_CHROME_H = 8 + 44;
-// Derived from the tracks themselves rather than hand-tuned. These were fixed
-// numbers sized for a five-row timeline, so the four audio lanes pushed the
-// video track past the bottom edge where nothing could reach it.
-const TIMELINE_DEFAULT_H = TIMELINE_CHROME_H + tracksFitHeight();
-// Folded audio still shows picture, hook, captions and one audio row.
-const TIMELINE_MIN_H = TIMELINE_CHROME_H + tracksFitHeight({ audioCollapsed: true });
-const MOBILE_PREVIEW_MIN_H = 160;
-const MOBILE_PREVIEW_DEFAULT = 0.45;   // share of the window height
-const TIMELINE_MAX_H = 560;
 // Where the editor switches between its mobile and desktop layout trees.
 // Tailwind `lg` (1024px): below it the desktop tree's own default panel
 // widths (250 asset + 380 inspector + gutters = ~668px) leave under 100px
@@ -170,12 +170,6 @@ const LAYOUT_BREAKPOINT = 1024;
 const MOBILE_TOOLBAR_H = 44;
 // The timeline/assets/inspector tab strip above it.
 const MOBILE_TAB_ROW_H = 48;
-const ASSET_MIN_W = 180;
-const ASSET_MAX_W = 480;
-const ASSET_DEFAULT_W = 250;
-const INSPECTOR_MIN_W = 280;
-const INSPECTOR_MAX_W = 680;
-const INSPECTOR_DEFAULT_W = 380;
 
 // Mirrors asset_registry.py's LEGACY_SFX_ALIASES: an old manifest's cue can
 // still say "whoosh" where the registry id is "sfx_whoosh_fast".
@@ -2430,6 +2424,8 @@ export default function EditorShell({
     inspectorResizeRef,
     mobileWrapRef,
     mobileResizeRef,
+    activeSplitter,
+    setActiveSplitter,
   } = usePanelLayout({ mobileTimelineH });
 
   // The drag clamp has to reserve the timeline's real height, not a guess.
@@ -3290,19 +3286,27 @@ export default function EditorShell({
           {/* ══════════════════════════════════════════════════════════
               🖥️ DESKTOP PRO LAYOUT (>= md breakpoint) - 3 Columns
              ══════════════════════════════════════════════════════════ */}
-          <div className="hidden lg:flex flex-col flex-1 min-h-0">
+          <div className={`hidden lg:flex flex-col flex-1 min-h-0 ${activeSplitter ? 'select-none' : ''}`}>
             {/* Middle Row (AssetPanel + Video + Inspector) */}
             <div className="flex min-h-0 flex-1">
               {!zen && (
                 leftSidebarCollapsed ? (
-                  <div className="flex-shrink-0 flex items-start border-r border-white/[0.08] bg-[#0A0D14] z-20">
+                  <div className="flex-shrink-0 flex flex-col items-center border-r border-white/[0.08] bg-[#0A0D14] z-20 py-2 select-none w-10">
                     <button
                       type="button"
                       onClick={toggleLeftSidebar}
                       title="เปิดแถบซ้าย (คลังสื่อ)"
-                      className="m-2 flex h-8 w-7 items-center justify-center rounded-lg bg-white/[0.06] text-slate-400 hover:bg-[#25F4EE]/20 hover:text-[#25F4EE] border border-white/[0.08] transition-all cursor-pointer shadow-sm"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-slate-400 hover:bg-[#25F4EE]/20 hover:text-[#25F4EE] border border-white/[0.08] transition-all cursor-pointer shadow-sm"
                     >
                       <ChevronRight className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleLeftSidebar}
+                      title="เปิดแถบซ้าย (คลังสื่อ)"
+                      className="mt-6 text-[11px] font-medium text-slate-500 hover:text-[#25F4EE] transition-colors py-2 [writing-mode:vertical-rl] tracking-widest uppercase flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>คลังสื่อ</span>
                     </button>
                   </div>
                 ) : (
@@ -3384,14 +3388,26 @@ export default function EditorShell({
                         projectName={projectName}
                       />
                     </div>
-                    {/* Left Resizer */}
+                    {/* Left Resizer with Pro Specular Rim & Pill Handle */}
                     <div
                       role="separator"
+                      tabIndex={0}
                       aria-orientation="vertical"
                       aria-label="ปรับความกว้างแผงซ้าย"
-                      title="ลากซ้าย-ขวาเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อรีเซ็ต"
+                      aria-valuenow={Math.round(assetW)}
+                      aria-valuemin={ASSET_MIN_W}
+                      aria-valuemax={ASSET_MAX_W}
+                      title="ลากซ้าย-ขวาเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อรีเซ็ต · ลูกศรซ้าย/ขวาเพื่อปรับ"
+                      onKeyDown={(e) => {
+                        const step = e.shiftKey ? 40 : 10;
+                        if (e.key === 'ArrowLeft') { e.preventDefault(); applyAssetW(assetW - step); }
+                        else if (e.key === 'ArrowRight') { e.preventDefault(); applyAssetW(assetW + step); }
+                        else if (e.key === 'Home') { e.preventDefault(); applyAssetW(ASSET_MIN_W); }
+                        else if (e.key === 'End') { e.preventDefault(); applyAssetW(ASSET_MAX_W); }
+                      }}
                       onPointerDown={(e) => {
                         assetResizeRef.current = { startX: e.clientX, startW: assetW };
+                        setActiveSplitter('asset');
                         try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
                       }}
                       onPointerMove={(e) => {
@@ -3401,13 +3417,28 @@ export default function EditorShell({
                       }}
                       onPointerUp={(e) => {
                         assetResizeRef.current = null;
+                        setActiveSplitter(null);
                         try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
                       }}
-                      onPointerCancel={() => { assetResizeRef.current = null; }}
+                      onPointerCancel={() => {
+                        assetResizeRef.current = null;
+                        setActiveSplitter(null);
+                      }}
                       onDoubleClick={() => applyAssetW(ASSET_DEFAULT_W)}
-                      className="group relative w-1.5 flex-shrink-0 cursor-col-resize touch-none bg-white/[0.04] transition-colors hover:bg-[#25F4EE]/60 flex items-center justify-center"
+                      className={`group relative w-2 flex-shrink-0 cursor-col-resize touch-none select-none transition-colors flex items-center justify-center z-20 focus:outline-none focus:ring-1 focus:ring-[#25F4EE] ${
+                        activeSplitter === 'asset'
+                          ? 'bg-[#25F4EE]/40 ring-1 ring-[#25F4EE]/60'
+                          : 'bg-white/[0.04] hover:bg-[#25F4EE]/30'
+                      }`}
                     >
-                      <span className="h-6 w-0.5 rounded-full bg-white/20 group-hover:bg-[#25F4EE] transition-colors" />
+                      <span className={`h-8 w-1 rounded-full transition-all duration-150 ${
+                        activeSplitter === 'asset' ? 'bg-[#25F4EE] shadow-[0_0_8px_#25F4EE]' : 'bg-white/20 group-hover:bg-[#25F4EE]/80'
+                      }`} />
+                      {activeSplitter === 'asset' && (
+                        <div className="absolute top-1/2 left-4 -translate-y-1/2 px-2 py-0.5 rounded bg-[#0A0D14]/95 border border-[#25F4EE]/40 text-[#25F4EE] text-[10px] font-mono tracking-wider shadow-lg pointer-events-none whitespace-nowrap z-30">
+                          {Math.round(assetW)}px
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
@@ -3554,26 +3585,46 @@ export default function EditorShell({
 
               {!zen && (
                 rightSidebarCollapsed ? (
-                  <div className="flex-shrink-0 flex items-start border-l border-white/[0.08] bg-[#0A0D14] z-20">
+                  <div className="flex-shrink-0 flex flex-col items-center border-l border-white/[0.08] bg-[#0A0D14] z-20 py-2 select-none w-10">
                     <button
                       type="button"
                       onClick={toggleRightSidebar}
-                      title="เปิดแถบขวา (แก้ไขคำบรรยาย)"
-                      className="m-2 flex h-8 w-7 items-center justify-center rounded-lg bg-white/[0.06] text-slate-400 hover:bg-[#D97757]/20 hover:text-[#D97757] border border-white/[0.08] transition-all cursor-pointer shadow-sm"
+                      title="เปิดแถบขวา (แก้ไขคำบรรยาย/ตัวควบคุม)"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-slate-400 hover:bg-[#D97757]/20 hover:text-[#D97757] border border-white/[0.08] transition-all cursor-pointer shadow-sm"
                     >
                       <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleRightSidebar}
+                      title="เปิดแถบขวา (แก้ไขคำบรรยาย/ตัวควบคุม)"
+                      className="mt-6 text-[11px] font-medium text-slate-500 hover:text-[#D97757] transition-colors py-2 [writing-mode:vertical-rl] tracking-widest uppercase flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>ตัวควบคุม</span>
                     </button>
                   </div>
                 ) : (
                   <div className="relative flex flex-shrink-0">
-                    {/* Right Resizer */}
+                    {/* Right Resizer with Pro Specular Rim & Pill Handle */}
                     <div
                       role="separator"
+                      tabIndex={0}
                       aria-orientation="vertical"
                       aria-label="ปรับความกว้างแผงขวา"
-                      title="ลากซ้าย-ขวาเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อรีเซ็ต"
+                      aria-valuenow={Math.round(inspectorW)}
+                      aria-valuemin={INSPECTOR_MIN_W}
+                      aria-valuemax={INSPECTOR_MAX_W}
+                      title="ลากซ้าย-ขวาเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อรีเซ็ต · ลูกศรซ้าย/ขวาเพื่อปรับ"
+                      onKeyDown={(e) => {
+                        const step = e.shiftKey ? 40 : 10;
+                        if (e.key === 'ArrowLeft') { e.preventDefault(); applyInspectorW(inspectorW + step); }
+                        else if (e.key === 'ArrowRight') { e.preventDefault(); applyInspectorW(inspectorW - step); }
+                        else if (e.key === 'Home') { e.preventDefault(); applyInspectorW(INSPECTOR_MIN_W); }
+                        else if (e.key === 'End') { e.preventDefault(); applyInspectorW(INSPECTOR_MAX_W); }
+                      }}
                       onPointerDown={(e) => {
                         inspectorResizeRef.current = { startX: e.clientX, startW: inspectorW };
+                        setActiveSplitter('inspector');
                         try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag still works */ }
                       }}
                       onPointerMove={(e) => {
@@ -3584,13 +3635,28 @@ export default function EditorShell({
                       }}
                       onPointerUp={(e) => {
                         inspectorResizeRef.current = null;
+                        setActiveSplitter(null);
                         try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
                       }}
-                      onPointerCancel={() => { inspectorResizeRef.current = null; }}
+                      onPointerCancel={() => {
+                        inspectorResizeRef.current = null;
+                        setActiveSplitter(null);
+                      }}
                       onDoubleClick={() => applyInspectorW(INSPECTOR_DEFAULT_W)}
-                      className="group relative w-1.5 flex-shrink-0 cursor-col-resize touch-none bg-white/[0.04] transition-colors hover:bg-[#D97757]/60 flex items-center justify-center"
+                      className={`group relative w-2 flex-shrink-0 cursor-col-resize touch-none select-none transition-colors flex items-center justify-center z-20 focus:outline-none focus:ring-1 focus:ring-[#D97757] ${
+                        activeSplitter === 'inspector'
+                          ? 'bg-[#D97757]/40 ring-1 ring-[#D97757]/60'
+                          : 'bg-white/[0.04] hover:bg-[#D97757]/30'
+                      }`}
                     >
-                      <span className="h-6 w-0.5 rounded-full bg-white/20 group-hover:bg-[#D97757] transition-colors" />
+                      <span className={`h-8 w-1 rounded-full transition-all duration-150 ${
+                        activeSplitter === 'inspector' ? 'bg-[#D97757] shadow-[0_0_8px_#D97757]' : 'bg-white/20 group-hover:bg-[#D97757]/80'
+                      }`} />
+                      {activeSplitter === 'inspector' && (
+                        <div className="absolute top-1/2 right-4 -translate-y-1/2 px-2 py-0.5 rounded bg-[#0A0D14]/95 border border-[#D97757]/40 text-[#D97757] text-[10px] font-mono tracking-wider shadow-lg pointer-events-none whitespace-nowrap z-30">
+                          {Math.round(inspectorW)}px
+                        </div>
+                      )}
                     </div>
                     <div style={{ width: inspectorW }} className="relative flex-shrink-0 border-l border-white/[0.08] flex flex-col min-w-0">
                       {/* Collapse button for right panel */}
@@ -3691,13 +3757,26 @@ export default function EditorShell({
                 className="flex flex-shrink-0 flex-col border-t border-white/[0.08]"
                 style={{ height: timelineH }}
               >
+                {/* Timeline Bottom Resizer with Specular Rim & Pill Handle */}
                 <div
                   role="separator"
+                  tabIndex={0}
                   aria-orientation="horizontal"
                   aria-label="ปรับความสูงไทม์ไลน์"
-                  title="ลากขึ้น-ลงเพื่อปรับความสูงไทม์ไลน์ · ดับเบิลคลิกเพื่อรีเซ็ต"
+                  aria-valuenow={Math.round(timelineH)}
+                  aria-valuemin={TIMELINE_MIN_H}
+                  aria-valuemax={TIMELINE_MAX_H}
+                  title="ลากขึ้น-ลงเพื่อปรับความสูงไทม์ไลน์ · ดับเบิลคลิกเพื่อรีเซ็ต · ลูกศรขึ้น/ลงเพื่อปรับ"
+                  onKeyDown={(e) => {
+                    const step = e.shiftKey ? 30 : 10;
+                    if (e.key === 'ArrowUp') { e.preventDefault(); applyTimelineH(timelineH + step); }
+                    else if (e.key === 'ArrowDown') { e.preventDefault(); applyTimelineH(timelineH - step); }
+                    else if (e.key === 'Home') { e.preventDefault(); applyTimelineH(TIMELINE_MIN_H); }
+                    else if (e.key === 'End') { e.preventDefault(); applyTimelineH(TIMELINE_MAX_H); }
+                  }}
                   onPointerDown={(e) => {
                     resizeRef.current = { startY: e.clientY, startH: timelineH };
+                    setActiveSplitter('timeline');
                     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag */ }
                   }}
                   onPointerMove={(e) => {
@@ -3707,13 +3786,28 @@ export default function EditorShell({
                   }}
                   onPointerUp={(e) => {
                     resizeRef.current = null;
+                    setActiveSplitter(null);
                     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* released */ }
                   }}
-                  onPointerCancel={() => { resizeRef.current = null; }}
+                  onPointerCancel={() => {
+                    resizeRef.current = null;
+                    setActiveSplitter(null);
+                  }}
                   onDoubleClick={() => applyTimelineH(TIMELINE_DEFAULT_H)}
-                  className="group flex h-2 flex-shrink-0 cursor-ns-resize touch-none items-center justify-center bg-[#0F1420]"
+                  className={`group relative flex h-2.5 flex-shrink-0 cursor-ns-resize touch-none select-none items-center justify-center transition-colors focus:outline-none focus:ring-1 focus:ring-[#25F4EE] z-20 ${
+                    activeSplitter === 'timeline'
+                      ? 'bg-[#25F4EE]/30'
+                      : 'bg-[#0F1420] hover:bg-white/[0.06]'
+                  }`}
                 >
-                  <span className="h-0.5 w-10 rounded-full bg-slate-600 transition-colors duration-150 group-hover:bg-[#25F4EE]" />
+                  <span className={`h-1 w-12 rounded-full transition-all duration-150 ${
+                    activeSplitter === 'timeline' ? 'bg-[#25F4EE] shadow-[0_0_8px_#25F4EE]' : 'bg-slate-600 group-hover:bg-[#25F4EE]/80'
+                  }`} />
+                  {activeSplitter === 'timeline' && (
+                    <div className="absolute left-1/2 -top-6 -translate-x-1/2 px-2 py-0.5 rounded bg-[#0A0D14]/95 border border-[#25F4EE]/40 text-[#25F4EE] text-[10px] font-mono tracking-wider shadow-lg pointer-events-none whitespace-nowrap z-30">
+                      {Math.round(timelineH)}px
+                    </div>
+                  )}
                 </div>
                 <Toolbar
                   playhead={playhead}

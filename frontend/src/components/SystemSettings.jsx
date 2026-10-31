@@ -23,7 +23,12 @@ import {
   applyTheme,
   setOrbsEnabled,
   getStoredTheme,
-  getStoredOrbsEnabled
+  getStoredOrbsEnabled,
+  DEFAULT_GLASS_CONFIG,
+  GLASS_PRESETS,
+  getStoredGlassConfig,
+  applyGlassConfig,
+  resetGlassConfig
 } from '../lib/themeManager';
 
 // Rule 8: a status pill only turns green/amber when real data says so.
@@ -99,6 +104,28 @@ export default function SystemSettings({
       setOrbsEnabled(enabled);
       setInternalOrbs(enabled);
     }
+  };
+
+  const [glassConfig, setGlassConfig] = useState(() => getStoredGlassConfig());
+
+  const handleUpdateGlassConfig = (key, value) => {
+    setGlassConfig((prev) => {
+      const next = { ...prev, [key]: Number(value) };
+      applyGlassConfig(next);
+      return next;
+    });
+  };
+
+  const handleApplyGlassPreset = (preset) => {
+    navigator.vibrate?.(10);
+    const updated = applyGlassConfig(preset.config);
+    setGlassConfig(updated);
+  };
+
+  const handleResetGlass = () => {
+    navigator.vibrate?.(10);
+    const def = resetGlassConfig();
+    setGlassConfig(def);
   };
   const [activeTab, setActiveTab] = useState(initialSubTab); // 'appearance' | 'paths' | 'engine'
   const [viewMode, setViewMode] = useState('split'); // 'split' | 'classic'
@@ -385,6 +412,189 @@ export default function SystemSettings({
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Section 0.5: Pulse Hub Real Glass Finetuner */}
+            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-[#25F4EE] flex-shrink-0">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-white">
+                      ปรับแต่งคุณสมบัติกระจกใสสมจริง (Pulse Hub Glass Finetuner)
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      ปรับความใส แสงหักเห และความสว่างลูกแก้วเบื้องหลังให้โปร่งใสทะลุเหมือนกระจกจริง 100%
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleResetGlass}
+                  className="px-3 py-1.5 rounded-xl glass-tile text-xs text-slate-300 hover:text-white hover:border-[#25F4EE]/40 transition-all self-start sm:self-auto cursor-pointer active:scale-95"
+                >
+                  คืนค่ามาตรฐาน Pulse Hub
+                </button>
+              </div>
+
+              {/* 3 Quick Glass Presets */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                {GLASS_PRESETS.map((preset) => {
+                  const isActive =
+                    glassConfig.opacity === preset.config.opacity &&
+                    glassConfig.blur === preset.config.blur;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleApplyGlassPreset(preset)}
+                      className={`p-3 rounded-xl text-left border transition-all cursor-pointer relative active:scale-95 ${
+                        isActive
+                          ? 'bg-cyan-500/10 border-[#25F4EE] shadow-md shadow-cyan-500/10 ring-1 ring-[#25F4EE]/40'
+                          : 'glass-tile text-slate-300 hover:border-white/[0.25]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`font-bold text-xs sm:text-sm ${isActive ? 'text-[#25F4EE]' : 'text-white'}`}>
+                          {preset.name}
+                        </span>
+                        {isActive && <CheckCircle2 className="w-3.5 h-3.5 text-[#25F4EE]" />}
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                        {preset.desc}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 4 Interactive Sliders Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                {/* 1. Transparency / Opacity */}
+                <div className="p-3.5 rounded-xl glass-tile space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-200">
+                      ความใสของกระจก (Glass Transparency)
+                    </span>
+                    <span className="font-bold text-[#25F4EE] tabular-nums">
+                      {100 - glassConfig.opacity}% (ความทึบ {glassConfig.opacity}%)
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max="50"
+                    step="1"
+                    value={glassConfig.opacity}
+                    onChange={(e) => handleUpdateGlassConfig('opacity', e.target.value)}
+                    className="w-full accent-cyan-400 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400">
+                    <span>ใสแจ๋วแบบคริสตัล (5%)</span>
+                    <span>กึ่งทึบแสง (50%)</span>
+                  </div>
+                </div>
+
+                {/* 2. Blur */}
+                <div className="p-3.5 rounded-xl glass-tile space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-200">
+                      ความเบลอของแสง (Glass Blur)
+                    </span>
+                    <span className="font-bold text-[#25F4EE] tabular-nums">
+                      {glassConfig.blur}px
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="4"
+                    max="30"
+                    step="1"
+                    value={glassConfig.blur}
+                    onChange={(e) => handleUpdateGlassConfig('blur', e.target.value)}
+                    className="w-full accent-cyan-400 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400">
+                    <span>คมชัดสูง (4px)</span>
+                    <span>ฝ้าหนานุ่ม (30px)</span>
+                  </div>
+                </div>
+
+                {/* 3. Ambient Orbs Glow */}
+                <div className="p-3.5 rounded-xl glass-tile space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-200">
+                      ความสว่างแสงนีออนเบื้องหลัง (Orbs Glow)
+                    </span>
+                    <span className="font-bold text-amber-400 tabular-nums">
+                      {glassConfig.orbsGlow}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="20"
+                    max="100"
+                    step="5"
+                    value={glassConfig.orbsGlow}
+                    onChange={(e) => handleUpdateGlassConfig('orbsGlow', e.target.value)}
+                    className="w-full accent-amber-400 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400">
+                    <span>แสงซอฟต์ (20%)</span>
+                    <span>สว่างพุ่งทะลุกระจก (100%)</span>
+                  </div>
+                </div>
+
+                {/* 4. Glare Specular */}
+                <div className="p-3.5 rounded-xl glass-tile space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-200">
+                      ความคมของเส้นแสงสะท้อนขอบ (Rim Glare)
+                    </span>
+                    <span className="font-bold text-pink-400 tabular-nums">
+                      {glassConfig.glare}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="20"
+                    max="100"
+                    step="5"
+                    value={glassConfig.glare}
+                    onChange={(e) => handleUpdateGlassConfig('glare', e.target.value)}
+                    className="w-full accent-pink-400 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400">
+                    <span>แสงจาง (20%)</span>
+                    <span>คมกริบแบบคริสตัล (100%)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Optical Refraction Preview Box */}
+              <div className="mt-3 p-4 rounded-xl border border-white/[0.12] bg-[#030509] relative overflow-hidden h-32 flex items-center justify-center">
+                <div
+                  className="absolute w-24 h-24 rounded-full bg-cyan-400/80 blur-xl pointer-events-none animate-pulse"
+                  style={{ top: '15%', left: '20%' }}
+                />
+                <div
+                  className="absolute w-28 h-28 rounded-full bg-pink-500/80 blur-xl pointer-events-none animate-pulse"
+                  style={{ bottom: '10%', right: '25%' }}
+                />
+
+                <div className="glass-panel p-3.5 rounded-xl z-10 max-w-sm w-full text-center space-y-1">
+                  <div className="text-xs font-bold text-white flex items-center justify-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-[#25F4EE]" />
+                    <span>ตัวอย่างแสงหักเหทะลุกระจกสด (Live Refraction Preview)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300">
+                    ความใส {100 - glassConfig.opacity}% · เบลอ {glassConfig.blur}px · แสงนีออน {glassConfig.orbsGlow}%
+                  </p>
+                </div>
               </div>
             </div>
 

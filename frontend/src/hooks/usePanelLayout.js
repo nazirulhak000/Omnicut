@@ -4,14 +4,14 @@ import { tracksFitHeight } from '../components/editor/Timeline.jsx';
 export const TIMELINE_CHROME_H = 8 + 44;
 export const TIMELINE_DEFAULT_H = TIMELINE_CHROME_H + tracksFitHeight();
 export const TIMELINE_MIN_H = TIMELINE_CHROME_H + tracksFitHeight({ audioCollapsed: true });
-export const TIMELINE_MAX_H = 560;
+export const TIMELINE_MAX_H = 680;
 
 export const ASSET_MIN_W = 180;
-export const ASSET_MAX_W = 480;
-export const ASSET_DEFAULT_W = 250;
+export const ASSET_MAX_W = 560;
+export const ASSET_DEFAULT_W = 260;
 
 export const INSPECTOR_MIN_W = 280;
-export const INSPECTOR_MAX_W = 680;
+export const INSPECTOR_MAX_W = 760;
 export const INSPECTOR_DEFAULT_W = 380;
 
 export const MOBILE_PREVIEW_MIN_H = 160;
@@ -27,6 +27,7 @@ export function usePanelLayout({ mobileTimelineH = 0 } = {}) {
   const inspectorResizeRef = useRef(null);
   const mobileWrapRef = useRef(null);
   const mobileResizeRef = useRef(null);
+  const [activeSplitter, setActiveSplitter] = useState(null);
 
   // Desktop timeline height
   const [timelineH, setTimelineH] = useState(() => {
@@ -173,6 +174,8 @@ export function usePanelLayout({ mobileTimelineH = 0 } = {}) {
     applyMobilePreviewH,
     mobileWrapRef,
     mobileResizeRef,
+    activeSplitter,
+    setActiveSplitter,
     resetPanelSizes,
   };
 }

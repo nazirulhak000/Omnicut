@@ -61,6 +61,18 @@ test('SystemSettings embeds UI Theme Presets Switcher with 4 presets and haptic 
   assert.match(source, /navigator\.vibrate\?\.?\s*\(\s*10\s*\)/);
 });
 
+test('SystemSettings embeds Pulse Hub Glass Finetuner with 4 sliders, presets and live preview', () => {
+  const source = fs.readFileSync(settingsPath, 'utf8');
+
+  assert.match(source, /Pulse Hub Glass Finetuner/);
+  assert.match(source, /GLASS_PRESETS/);
+  assert.match(source, /handleUpdateGlassConfig/);
+  assert.match(source, /handleApplyGlassPreset/);
+  assert.match(source, /handleResetGlass/);
+  assert.match(source, /คืนค่ามาตรฐาน Pulse Hub/);
+  assert.match(source, /Live Refraction Preview/);
+});
+
 test('UserGuide provides >=48px FAQ accordion with haptic feedback and glass tokens', () => {
   const source = fs.readFileSync(guidePath, 'utf8');
 
