@@ -3959,6 +3959,25 @@ def test_highlight_keyword_fixture_matches_the_render(tmp_path):
             assert case["custom_keywords"] in derived, case["name"]
 
 
+def test_clip_cut_times_fixture_matches_the_backend():
+    sys.path.insert(0, str(ROOT))
+    from scripts.pipeline_context import clip_cut_times
+
+    cases = json.loads(PARITY_CASES_PATH.read_text(encoding="utf-8"))["cut_times"]
+    assert cases, "fixture lost its cut_times section"
+    for case in cases:
+        got = clip_cut_times(case["clips"])
+        assert got == pytest.approx(case["expected"], abs=1e-6), case["name"]
+
+
+def test_preview_sfx_plan_gets_the_same_cut_times_as_the_render():
+    # AudioMixStage.sync_cut_bound_sfx re-plans with clip_cut_times(); the
+    # preview must feed planSfxEvents the equivalent from its own segments.
+    shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    assert "cutTimes: clipCutTimes(segments)" in shell
+    assert "clipCutTimes" in (ROOT / "frontend" / "src" / "lib" / "timelineMath.js").read_text(encoding="utf-8")
+
+
 def test_sfx_plan_and_highlight_js_ports_match_the_fixture():
     import shutil
     import subprocess

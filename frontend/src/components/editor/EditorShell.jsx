@@ -20,7 +20,7 @@ import {
   markRangePoint, rangeMarkToRanges, resolveRippleScope, silenceSpansToProgramRanges, voiceCutSignature,
 } from '../../lib/rippleUi.js';
 import {
-  FADE_DURATION, buildSegments, formatTimecode, resolveSplitTarget, snapSeekTime, splitClipAt, snapCandidates, snapTime,
+  FADE_DURATION, buildSegments, clipCutTimes, formatTimecode, resolveSplitTarget, snapSeekTime, splitClipAt, snapCandidates, snapTime,
   totalDuration as totalDurationOf,
 } from '../../lib/timelineMath';
 import { resolveTrimHead, resolveTrimTail } from '../../lib/timelineTrimOps.js';
@@ -2371,6 +2371,9 @@ export default function EditorShell({
     const plan = planSfxEvents(cuesList || [], liveOverlays, {
       totalDuration: audioDuration > 0 ? audioDuration : null,
       boomAvailable: !!boom,
+      // The render re-plans with the final cut times (AudioMixStage.sync_cut_bound_sfx),
+      // so a whoosh on a real cut keeps its slot there -- and here.
+      cutTimes: clipCutTimes(segments),
       sfxFilename: (tag) => findSfx(tag)?.name || null,
     });
     const sfxShots = [];
@@ -2410,7 +2413,7 @@ export default function EditorShell({
       voiceVolume: clampBusVolume(style.voiceVolume, VOICE_VOLUME_DEFAULT),
       sfxVolume: clampBusVolume(style.sfxVolume, SFX_VOLUME_DEFAULT),
     };
-  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, style.voiceVolume, style.sfxVolume, assets.music, assets.sfx, cuesList, overlays, audioDuration]);
+  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, style.voiceVolume, style.sfxVolume, assets.music, assets.sfx, cuesList, overlays, audioDuration, segments]);
 
   // The colour grade the preview should show, resolved the same way the
   // renderer resolves it (registry id or filename -- see resolve_lut_path).

@@ -1,43 +1,1331 @@
 {
   "_comment": "Shared Preview = Render fixture. tests/test_preview_render_parity.py runs it through plan_sfx_events / translation_service.py; frontend/src/lib/sfxPlan.test.js and kineticHighlight.test.js run it through the JS ports. Both must produce `expected`. Sound names resolve to sfx_<tag>.wav; tags in options.missing resolve to no file.",
   "sfx": [
-    {"name": "boom opens, dense line hits thinned to one per 2s, last cue is closer", "cues": [{"start": 1.0, "sfx": "pop"}, {"start": 2.5, "sfx": "ding"}, {"start": 3.4, "sfx": "pop"}, {"start": 6.0, "sfx": "ding"}, {"start": 7.0, "sfx": "pop"}], "overlays": [], "options": {"total_duration": 9.0}, "expected": [{"source": "boom", "index": null, "start": 0.0, "fire": 0.0, "role": "opener", "exempt": false}, {"source": "cue", "index": 1, "start": 2.5, "fire": 2.5, "role": "line", "exempt": false}, {"source": "cue", "index": 4, "start": 7.0, "fire": 7.0, "role": "closer", "exempt": false}]},
-    {"name": "hook line SFX within 0.5s becomes the opener and the auto boom is skipped", "cues": [{"start": 0.3, "sfx": "pop"}, {"start": 4.0, "sfx": "ding"}], "overlays": [], "options": {"total_duration": 6.0}, "expected": [{"source": "cue", "index": 0, "start": 0.3, "fire": 0.3, "role": "opener", "exempt": false}, {"source": "cue", "index": 1, "start": 4.0, "fire": 4.0, "role": "closer", "exempt": false}]},
-    {"name": "hook SFX after 0.5s does not suppress the boom and loses to it", "cues": [{"start": 0.8, "sfx": "pop"}, {"start": 4.0, "sfx": "ding"}, {"start": 8.0, "sfx": "pop"}], "overlays": [], "options": {"total_duration": 10.0}, "expected": [{"source": "boom", "index": null, "start": 0.0, "fire": 0.0, "role": "opener", "exempt": false}, {"source": "cue", "index": 1, "start": 4.0, "fire": 4.0, "role": "line", "exempt": false}, {"source": "cue", "index": 2, "start": 8.0, "fire": 8.0, "role": "closer", "exempt": false}]},
-    {"name": "no boom file: nothing replaces it", "cues": [{"start": 0.8, "sfx": "pop"}, {"start": 1.5, "sfx": "ding"}, {"start": 5.0, "sfx": "pop"}], "overlays": [], "options": {"total_duration": 6.0, "boom_available": false}, "expected": [{"source": "cue", "index": 0, "start": 0.8, "fire": 0.8, "role": "line", "exempt": false}, {"source": "cue", "index": 2, "start": 5.0, "fire": 5.0, "role": "closer", "exempt": false}]},
-    {"name": "whoosh pre-roll counts: fires at 2.0 so it keeps exactly 2.0s from the boom", "cues": [{"start": 2.12, "sfx": "whoosh"}, {"start": 3.9, "sfx": "pop"}, {"start": 6.0, "sfx": "pop"}], "overlays": [], "options": {"total_duration": 8.0}, "expected": [{"source": "boom", "index": null, "start": 0.0, "fire": 0.0, "role": "opener", "exempt": false}, {"source": "cue", "index": 0, "start": 2.12, "fire": 2.0, "role": "line", "exempt": false}, {"source": "cue", "index": 2, "start": 6.0, "fire": 6.0, "role": "closer", "exempt": false}]},
-    {"name": "cut-bound whoosh is exempt (flag and cut_times snap); unbound one competes", "cues": [{"start": 1.0, "sfx": "whoosh", "cut_bound": true}, {"start": 2.5, "sfx": "pop"}, {"start": 3.05, "sfx": "swoosh"}, {"start": 3.6, "sfx": "whoosh"}, {"start": 6.0, "sfx": "pop"}], "overlays": [], "options": {"total_duration": 8.0, "cut_times": [3.0]}, "expected": [{"source": "boom", "index": null, "start": 0.0, "fire": 0.0, "role": "opener", "exempt": false}, {"source": "cue", "index": 0, "start": 1.0, "fire": 0.88, "role": "line", "exempt": true}, {"source": "cue", "index": 1, "start": 2.5, "fire": 2.5, "role": "line", "exempt": false}, {"source": "cue", "index": 2, "start": 3.05, "fire": 2.93, "role": "line", "exempt": true}, {"source": "cue", "index": 4, "start": 6.0, "fire": 6.0, "role": "closer", "exempt": false}]},
-    {"name": "missing sound file never takes a slot", "cues": [{"start": 2.0, "sfx": "ghost"}, {"start": 2.6, "sfx": "pop"}, {"start": 5.0, "sfx": "pop"}], "overlays": [], "options": {"total_duration": 6.0, "missing": ["ghost"]}, "expected": [{"source": "boom", "index": null, "start": 0.0, "fire": 0.0, "role": "opener", "exempt": false}, {"source": "cue", "index": 1, "start": 2.6, "fire": 2.6, "role": "line", "exempt": false}, {"source": "cue", "index": 2, "start": 5.0, "fire": 5.0, "role": "closer", "exempt": false}]},
-    {"name": "overlays compete with cues; boom < cue < overlay on ties; overlay default start 0", "cues": [{"start": 3.0, "sfx": "pop"}, {"start": 7.0, "sfx": "ding"}], "overlays": [{"start": 3.0, "sfx": "ding"}, {"sfx": "pop"}, {"start": 5.2, "sfx": "pop"}, {"start": 5.4, "sfx": "pop", "sfx_enabled": false}], "options": {"total_duration": 9.0}, "expected": [{"source": "boom", "index": null, "start": 0.0, "fire": 0.0, "role": "opener", "exempt": false}, {"source": "cue", "index": 0, "start": 3.0, "fire": 3.0, "role": "line", "exempt": false}, {"source": "cue", "index": 1, "start": 7.0, "fire": 7.0, "role": "closer", "exempt": false}]},
-    {"name": "ineligible events: past the end, bad timing, blank tag, no start on a cue", "cues": [{"start": 2.5, "sfx": "pop"}, {"start": 12.0, "sfx": "pop"}, {"start": "abc", "sfx": "pop"}, {"start": 5.0, "sfx": "  "}, {"sfx": "pop"}, {"start": 6.0, "end": 5.0, "sfx": "pop"}, {"start": "7.5", "sfx": "ding"}], "overlays": [], "options": {"total_duration": 10.0}, "expected": [{"source": "boom", "index": null, "start": 0.0, "fire": 0.0, "role": "opener", "exempt": false}, {"source": "cue", "index": 0, "start": 2.5, "fire": 2.5, "role": "line", "exempt": false}, {"source": "cue", "index": 6, "start": 7.5, "fire": 7.5, "role": "closer", "exempt": false}]},
-    {"name": "closer outranks an earlier ordinary line within 2s", "cues": [{"start": 4.0, "sfx": "pop"}, {"start": 5.0, "sfx": "ding"}], "overlays": [], "options": {"total_duration": 6.0}, "expected": [{"source": "boom", "index": null, "start": 0.0, "fire": 0.0, "role": "opener", "exempt": false}, {"source": "cue", "index": 1, "start": 5.0, "fire": 5.0, "role": "closer", "exempt": false}]}
+    {
+      "name": "boom opens, dense line hits thinned to one per 2s, last cue is closer",
+      "cues": [
+        {
+          "start": 1.0,
+          "sfx": "pop"
+        },
+        {
+          "start": 2.5,
+          "sfx": "ding"
+        },
+        {
+          "start": 3.4,
+          "sfx": "pop"
+        },
+        {
+          "start": 6.0,
+          "sfx": "ding"
+        },
+        {
+          "start": 7.0,
+          "sfx": "pop"
+        }
+      ],
+      "overlays": [],
+      "options": {
+        "total_duration": 9.0
+      },
+      "expected": [
+        {
+          "source": "boom",
+          "index": null,
+          "start": 0.0,
+          "fire": 0.0,
+          "role": "opener",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 1,
+          "start": 2.5,
+          "fire": 2.5,
+          "role": "line",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 4,
+          "start": 7.0,
+          "fire": 7.0,
+          "role": "closer",
+          "exempt": false
+        }
+      ]
+    },
+    {
+      "name": "hook line SFX within 0.5s becomes the opener and the auto boom is skipped",
+      "cues": [
+        {
+          "start": 0.3,
+          "sfx": "pop"
+        },
+        {
+          "start": 4.0,
+          "sfx": "ding"
+        }
+      ],
+      "overlays": [],
+      "options": {
+        "total_duration": 6.0
+      },
+      "expected": [
+        {
+          "source": "cue",
+          "index": 0,
+          "start": 0.3,
+          "fire": 0.3,
+          "role": "opener",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 1,
+          "start": 4.0,
+          "fire": 4.0,
+          "role": "closer",
+          "exempt": false
+        }
+      ]
+    },
+    {
+      "name": "hook SFX after 0.5s does not suppress the boom and loses to it",
+      "cues": [
+        {
+          "start": 0.8,
+          "sfx": "pop"
+        },
+        {
+          "start": 4.0,
+          "sfx": "ding"
+        },
+        {
+          "start": 8.0,
+          "sfx": "pop"
+        }
+      ],
+      "overlays": [],
+      "options": {
+        "total_duration": 10.0
+      },
+      "expected": [
+        {
+          "source": "boom",
+          "index": null,
+          "start": 0.0,
+          "fire": 0.0,
+          "role": "opener",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 1,
+          "start": 4.0,
+          "fire": 4.0,
+          "role": "line",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 2,
+          "start": 8.0,
+          "fire": 8.0,
+          "role": "closer",
+          "exempt": false
+        }
+      ]
+    },
+    {
+      "name": "no boom file: nothing replaces it",
+      "cues": [
+        {
+          "start": 0.8,
+          "sfx": "pop"
+        },
+        {
+          "start": 1.5,
+          "sfx": "ding"
+        },
+        {
+          "start": 5.0,
+          "sfx": "pop"
+        }
+      ],
+      "overlays": [],
+      "options": {
+        "total_duration": 6.0,
+        "boom_available": false
+      },
+      "expected": [
+        {
+          "source": "cue",
+          "index": 0,
+          "start": 0.8,
+          "fire": 0.8,
+          "role": "line",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 2,
+          "start": 5.0,
+          "fire": 5.0,
+          "role": "closer",
+          "exempt": false
+        }
+      ]
+    },
+    {
+      "name": "whoosh pre-roll counts: fires at 2.0 so it keeps exactly 2.0s from the boom",
+      "cues": [
+        {
+          "start": 2.12,
+          "sfx": "whoosh"
+        },
+        {
+          "start": 3.9,
+          "sfx": "pop"
+        },
+        {
+          "start": 6.0,
+          "sfx": "pop"
+        }
+      ],
+      "overlays": [],
+      "options": {
+        "total_duration": 8.0
+      },
+      "expected": [
+        {
+          "source": "boom",
+          "index": null,
+          "start": 0.0,
+          "fire": 0.0,
+          "role": "opener",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 0,
+          "start": 2.12,
+          "fire": 2.0,
+          "role": "line",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 2,
+          "start": 6.0,
+          "fire": 6.0,
+          "role": "closer",
+          "exempt": false
+        }
+      ]
+    },
+    {
+      "name": "cut-bound whoosh is exempt (flag and cut_times snap); unbound one competes",
+      "cues": [
+        {
+          "start": 1.0,
+          "sfx": "whoosh",
+          "cut_bound": true
+        },
+        {
+          "start": 2.5,
+          "sfx": "pop"
+        },
+        {
+          "start": 3.05,
+          "sfx": "swoosh"
+        },
+        {
+          "start": 3.6,
+          "sfx": "whoosh"
+        },
+        {
+          "start": 6.0,
+          "sfx": "pop"
+        }
+      ],
+      "overlays": [],
+      "options": {
+        "total_duration": 8.0,
+        "cut_times": [
+          3.0
+        ]
+      },
+      "expected": [
+        {
+          "source": "boom",
+          "index": null,
+          "start": 0.0,
+          "fire": 0.0,
+          "role": "opener",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 0,
+          "start": 1.0,
+          "fire": 0.88,
+          "role": "line",
+          "exempt": true
+        },
+        {
+          "source": "cue",
+          "index": 1,
+          "start": 2.5,
+          "fire": 2.5,
+          "role": "line",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 2,
+          "start": 3.05,
+          "fire": 2.93,
+          "role": "line",
+          "exempt": true
+        },
+        {
+          "source": "cue",
+          "index": 4,
+          "start": 6.0,
+          "fire": 6.0,
+          "role": "closer",
+          "exempt": false
+        }
+      ]
+    },
+    {
+      "name": "missing sound file never takes a slot",
+      "cues": [
+        {
+          "start": 2.0,
+          "sfx": "ghost"
+        },
+        {
+          "start": 2.6,
+          "sfx": "pop"
+        },
+        {
+          "start": 5.0,
+          "sfx": "pop"
+        }
+      ],
+      "overlays": [],
+      "options": {
+        "total_duration": 6.0,
+        "missing": [
+          "ghost"
+        ]
+      },
+      "expected": [
+        {
+          "source": "boom",
+          "index": null,
+          "start": 0.0,
+          "fire": 0.0,
+          "role": "opener",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 1,
+          "start": 2.6,
+          "fire": 2.6,
+          "role": "line",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 2,
+          "start": 5.0,
+          "fire": 5.0,
+          "role": "closer",
+          "exempt": false
+        }
+      ]
+    },
+    {
+      "name": "overlays compete with cues; boom < cue < overlay on ties; overlay default start 0",
+      "cues": [
+        {
+          "start": 3.0,
+          "sfx": "pop"
+        },
+        {
+          "start": 7.0,
+          "sfx": "ding"
+        }
+      ],
+      "overlays": [
+        {
+          "start": 3.0,
+          "sfx": "ding"
+        },
+        {
+          "sfx": "pop"
+        },
+        {
+          "start": 5.2,
+          "sfx": "pop"
+        },
+        {
+          "start": 5.4,
+          "sfx": "pop",
+          "sfx_enabled": false
+        }
+      ],
+      "options": {
+        "total_duration": 9.0
+      },
+      "expected": [
+        {
+          "source": "boom",
+          "index": null,
+          "start": 0.0,
+          "fire": 0.0,
+          "role": "opener",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 0,
+          "start": 3.0,
+          "fire": 3.0,
+          "role": "line",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 1,
+          "start": 7.0,
+          "fire": 7.0,
+          "role": "closer",
+          "exempt": false
+        }
+      ]
+    },
+    {
+      "name": "ineligible events: past the end, bad timing, blank tag, no start on a cue",
+      "cues": [
+        {
+          "start": 2.5,
+          "sfx": "pop"
+        },
+        {
+          "start": 12.0,
+          "sfx": "pop"
+        },
+        {
+          "start": "abc",
+          "sfx": "pop"
+        },
+        {
+          "start": 5.0,
+          "sfx": "  "
+        },
+        {
+          "sfx": "pop"
+        },
+        {
+          "start": 6.0,
+          "end": 5.0,
+          "sfx": "pop"
+        },
+        {
+          "start": "7.5",
+          "sfx": "ding"
+        }
+      ],
+      "overlays": [],
+      "options": {
+        "total_duration": 10.0
+      },
+      "expected": [
+        {
+          "source": "boom",
+          "index": null,
+          "start": 0.0,
+          "fire": 0.0,
+          "role": "opener",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 0,
+          "start": 2.5,
+          "fire": 2.5,
+          "role": "line",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 6,
+          "start": 7.5,
+          "fire": 7.5,
+          "role": "closer",
+          "exempt": false
+        }
+      ]
+    },
+    {
+      "name": "closer outranks an earlier ordinary line within 2s",
+      "cues": [
+        {
+          "start": 4.0,
+          "sfx": "pop"
+        },
+        {
+          "start": 5.0,
+          "sfx": "ding"
+        }
+      ],
+      "overlays": [],
+      "options": {
+        "total_duration": 6.0
+      },
+      "expected": [
+        {
+          "source": "boom",
+          "index": null,
+          "start": 0.0,
+          "fire": 0.0,
+          "role": "opener",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 1,
+          "start": 5.0,
+          "fire": 5.0,
+          "role": "closer",
+          "exempt": false
+        }
+      ]
+    },
+    {
+      "name": "whoosh on a real cut keeps its slot despite the 2s gap",
+      "cues": [
+        {
+          "start": 1.0,
+          "sfx": "pop"
+        },
+        {
+          "start": 1.6,
+          "sfx": "whoosh"
+        },
+        {
+          "start": 4.0,
+          "sfx": "pop"
+        }
+      ],
+      "overlays": [],
+      "options": {
+        "total_duration": 6.0,
+        "cut_times": [
+          1.65
+        ]
+      },
+      "expected": [
+        {
+          "source": "boom",
+          "index": null,
+          "start": 0.0,
+          "fire": 0.0,
+          "role": "opener",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 1,
+          "start": 1.6,
+          "fire": 1.48,
+          "role": "line",
+          "exempt": true
+        },
+        {
+          "source": "cue",
+          "index": 2,
+          "start": 4.0,
+          "fire": 4.0,
+          "role": "closer",
+          "exempt": false
+        }
+      ]
+    },
+    {
+      "name": "same whoosh with no cut near it is thinned by the gap",
+      "cues": [
+        {
+          "start": 1.0,
+          "sfx": "pop"
+        },
+        {
+          "start": 1.6,
+          "sfx": "whoosh"
+        },
+        {
+          "start": 4.0,
+          "sfx": "pop"
+        }
+      ],
+      "overlays": [],
+      "options": {
+        "total_duration": 6.0,
+        "cut_times": [
+          3.0
+        ]
+      },
+      "expected": [
+        {
+          "source": "boom",
+          "index": null,
+          "start": 0.0,
+          "fire": 0.0,
+          "role": "opener",
+          "exempt": false
+        },
+        {
+          "source": "cue",
+          "index": 2,
+          "start": 4.0,
+          "fire": 4.0,
+          "role": "closer",
+          "exempt": false
+        }
+      ]
+    }
   ],
   "highlight": [
-    {"name": "spec number beats the hype dictionary", "th_lines": ["แบต 5000mAh ดีมาก"], "en_lines": [], "expected": {"th": [[["แบต ", null], ["5000mAh", "&H00FFE600&"], [" ดีมาก", null]]], "en": []}},
-    {"name": "spec number beats a feature keyword on another wrapped line (one highlight per burst)", "th_lines": ["เชื่อมต่อ Bluetooth", "ชาร์จ 65W"], "en_lines": [], "expected": {"th": [[["เชื่อมต่อ Bluetooth", null]], [["ชาร์จ ", null], ["65W", "&H00FFE600&"]]], "en": []}},
-    {"name": "English tech term replaces the old transliteration", "th_lines": ["รองรับ Bluetooth ด้วยนะ"], "en_lines": [], "expected": {"th": [[["รองรับ ", null], ["Bluetooth", "&H00FFE600&"], [" ด้วยนะ", null]]], "en": []}},
-    {"name": "Fast Charge is in the dictionary", "th_lines": ["มี Fast Charge ด้วย"], "en_lines": [], "expected": {"th": [[["มี ", null], ["Fast Charge", "&H00FFE600&"], [" ด้วย", null]]], "en": []}},
-    {"name": "explicit marker wins over spec", "th_lines": ["*สุดปัง* แบต 5000mAh"], "en_lines": [], "expected": {"th": [[["สุดปัง", "&H0000E6FF&"], [" แบต 5000mAh", null]]], "en": []}},
-    {"name": "custom keyword wins over spec", "th_lines": ["Logitech แบต 5000mAh"], "en_lines": [], "custom_keywords": ["Logitech"], "expected": {"th": [[["Logitech", "&H00FFE600&"], [" แบต 5000mAh", null]]], "en": []}},
-    {"name": "price, percent and year are not specs", "th_lines": ["ราคา 199 บาท ลด 20% ปี 2026"], "en_lines": [], "expected": {"th": [[["ราคา 199 ", null], ["บาท", "&H0000E6FF&"], [" ลด 20% ปี 2026", null]]], "en": []}},
-    {"name": "spec glued to Thai gets the separating space", "th_lines": ["แบต5000mAh"], "en_lines": [], "expected": {"th": [[["แบต ", null], ["5000mAh", "&H00FFE600&"]]], "en": []}},
-    {"name": "hours in Thai units", "th_lines": ["ใช้ได้ 30 ชั่วโมง เต็ม"], "en_lines": [], "expected": {"th": [[["ใช้ได้ ", null], ["30 ชั่วโมง", "&H00FFE600&"], [" เต็ม", null]]], "en": []}},
-    {"name": "bilingual: spec on both lines, same colour", "th_lines": ["แบต 5000mAh ดีมาก"], "en_lines": ["5000mAh battery, really good"], "expected": {"th": [[["แบต ", null], ["5000mAh", "&H00FFE600&"], [" ดีมาก", null]]], "en": [[["5000mAh", "&H00FFE600&"], [" battery, really good", null]]]}},
-    {"name": "bilingual: Thai pain word, English forced to the salient word", "th_lines": ["ปวดหลังทุกวัน"], "en_lines": ["Every single day at the desk"], "expected": {"th": [[["ปวดหลัง", "&H0000E6FF&"], ["ทุกวัน", null]]], "en": [[["Every ", null], ["single", "&H0000E6FF&"], [" day at the desk", null]]]}},
-    {"name": "bilingual: English pass is limited to the Thai colour", "th_lines": ["ไร้สาย ใช้ง่าย"], "en_lines": ["wireless and so good"], "expected": {"th": [[["ไร้สาย", "&H00FFE600&"], [" ใช้ง่าย", null]]], "en": [[["wireless", "&H00FFE600&"], [" and so good", null]]]}},
-    {"name": "English word boundary: no match inside a longer word", "th_lines": ["อันนี้"], "en_lines": ["goodness me"], "expected": {"th": [[["อันนี้", null]]], "en": [[["goodness me", null]]]}},
-    {"name": "red alert dictionary", "th_lines": ["อย่าเพิ่งซื้อ จนกว่าจะดู"], "en_lines": [], "expected": {"th": [[["อย่าเพิ่งซื้อ", "&H00303BFF&"], [" จนกว่าจะดู", null]]], "en": []}},
-    {"name": "wrapped English: second line spec is behind the literal \\N like in the render", "th_lines": ["แบตอึด"], "en_lines": ["Huge battery", "5000mAh inside"], "expected": {"th": [[["แบตอึด", "&H00FFE600&"]]], "en": [[["Huge ", null], ["battery", "&H00FFE600&"]], [["5000mAh inside", null]]]}},
-    {"name": "hook brand keyword and spec number in one burst: the brand takes the one highlight", "th_lines": ["Anker ชาร์จ 65W"], "en_lines": [], "custom_keywords": ["Anker Nano 3", "Anker", "Nano"], "expected": {"th": [[["Anker", "&H00FFE600&"], [" ชาร์จ 65W", null]]], "en": []}},
-    {"name": "bilingual: hook brand keyword beats the spec number on both lines", "th_lines": ["Anker ชาร์จ 65W"], "en_lines": ["Anker charges at 65W"], "custom_keywords": ["Anker Nano 3", "Anker", "Nano"], "expected": {"th": [[["Anker", "&H00FFE600&"], [" ชาร์จ 65W", null]]], "en": [[["Anker", "&H00FFE600&"], [" charges at 65W", null]]]}}
+    {
+      "name": "spec number beats the hype dictionary",
+      "th_lines": [
+        "แบต 5000mAh ดีมาก"
+      ],
+      "en_lines": [],
+      "expected": {
+        "th": [
+          [
+            [
+              "แบต ",
+              null
+            ],
+            [
+              "5000mAh",
+              "&H00FFE600&"
+            ],
+            [
+              " ดีมาก",
+              null
+            ]
+          ]
+        ],
+        "en": []
+      }
+    },
+    {
+      "name": "spec number beats a feature keyword on another wrapped line (one highlight per burst)",
+      "th_lines": [
+        "เชื่อมต่อ Bluetooth",
+        "ชาร์จ 65W"
+      ],
+      "en_lines": [],
+      "expected": {
+        "th": [
+          [
+            [
+              "เชื่อมต่อ Bluetooth",
+              null
+            ]
+          ],
+          [
+            [
+              "ชาร์จ ",
+              null
+            ],
+            [
+              "65W",
+              "&H00FFE600&"
+            ]
+          ]
+        ],
+        "en": []
+      }
+    },
+    {
+      "name": "English tech term replaces the old transliteration",
+      "th_lines": [
+        "รองรับ Bluetooth ด้วยนะ"
+      ],
+      "en_lines": [],
+      "expected": {
+        "th": [
+          [
+            [
+              "รองรับ ",
+              null
+            ],
+            [
+              "Bluetooth",
+              "&H00FFE600&"
+            ],
+            [
+              " ด้วยนะ",
+              null
+            ]
+          ]
+        ],
+        "en": []
+      }
+    },
+    {
+      "name": "Fast Charge is in the dictionary",
+      "th_lines": [
+        "มี Fast Charge ด้วย"
+      ],
+      "en_lines": [],
+      "expected": {
+        "th": [
+          [
+            [
+              "มี ",
+              null
+            ],
+            [
+              "Fast Charge",
+              "&H00FFE600&"
+            ],
+            [
+              " ด้วย",
+              null
+            ]
+          ]
+        ],
+        "en": []
+      }
+    },
+    {
+      "name": "explicit marker wins over spec",
+      "th_lines": [
+        "*สุดปัง* แบต 5000mAh"
+      ],
+      "en_lines": [],
+      "expected": {
+        "th": [
+          [
+            [
+              "สุดปัง",
+              "&H0000E6FF&"
+            ],
+            [
+              " แบต 5000mAh",
+              null
+            ]
+          ]
+        ],
+        "en": []
+      }
+    },
+    {
+      "name": "custom keyword wins over spec",
+      "th_lines": [
+        "Logitech แบต 5000mAh"
+      ],
+      "en_lines": [],
+      "custom_keywords": [
+        "Logitech"
+      ],
+      "expected": {
+        "th": [
+          [
+            [
+              "Logitech",
+              "&H00FFE600&"
+            ],
+            [
+              " แบต 5000mAh",
+              null
+            ]
+          ]
+        ],
+        "en": []
+      }
+    },
+    {
+      "name": "price, percent and year are not specs",
+      "th_lines": [
+        "ราคา 199 บาท ลด 20% ปี 2026"
+      ],
+      "en_lines": [],
+      "expected": {
+        "th": [
+          [
+            [
+              "ราคา 199 ",
+              null
+            ],
+            [
+              "บาท",
+              "&H0000E6FF&"
+            ],
+            [
+              " ลด 20% ปี 2026",
+              null
+            ]
+          ]
+        ],
+        "en": []
+      }
+    },
+    {
+      "name": "spec glued to Thai gets the separating space",
+      "th_lines": [
+        "แบต5000mAh"
+      ],
+      "en_lines": [],
+      "expected": {
+        "th": [
+          [
+            [
+              "แบต ",
+              null
+            ],
+            [
+              "5000mAh",
+              "&H00FFE600&"
+            ]
+          ]
+        ],
+        "en": []
+      }
+    },
+    {
+      "name": "hours in Thai units",
+      "th_lines": [
+        "ใช้ได้ 30 ชั่วโมง เต็ม"
+      ],
+      "en_lines": [],
+      "expected": {
+        "th": [
+          [
+            [
+              "ใช้ได้ ",
+              null
+            ],
+            [
+              "30 ชั่วโมง",
+              "&H00FFE600&"
+            ],
+            [
+              " เต็ม",
+              null
+            ]
+          ]
+        ],
+        "en": []
+      }
+    },
+    {
+      "name": "bilingual: spec on both lines, same colour",
+      "th_lines": [
+        "แบต 5000mAh ดีมาก"
+      ],
+      "en_lines": [
+        "5000mAh battery, really good"
+      ],
+      "expected": {
+        "th": [
+          [
+            [
+              "แบต ",
+              null
+            ],
+            [
+              "5000mAh",
+              "&H00FFE600&"
+            ],
+            [
+              " ดีมาก",
+              null
+            ]
+          ]
+        ],
+        "en": [
+          [
+            [
+              "5000mAh",
+              "&H00FFE600&"
+            ],
+            [
+              " battery, really good",
+              null
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "name": "bilingual: Thai pain word, English forced to the salient word",
+      "th_lines": [
+        "ปวดหลังทุกวัน"
+      ],
+      "en_lines": [
+        "Every single day at the desk"
+      ],
+      "expected": {
+        "th": [
+          [
+            [
+              "ปวดหลัง",
+              "&H0000E6FF&"
+            ],
+            [
+              "ทุกวัน",
+              null
+            ]
+          ]
+        ],
+        "en": [
+          [
+            [
+              "Every ",
+              null
+            ],
+            [
+              "single",
+              "&H0000E6FF&"
+            ],
+            [
+              " day at the desk",
+              null
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "name": "bilingual: English pass is limited to the Thai colour",
+      "th_lines": [
+        "ไร้สาย ใช้ง่าย"
+      ],
+      "en_lines": [
+        "wireless and so good"
+      ],
+      "expected": {
+        "th": [
+          [
+            [
+              "ไร้สาย",
+              "&H00FFE600&"
+            ],
+            [
+              " ใช้ง่าย",
+              null
+            ]
+          ]
+        ],
+        "en": [
+          [
+            [
+              "wireless",
+              "&H00FFE600&"
+            ],
+            [
+              " and so good",
+              null
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "name": "English word boundary: no match inside a longer word",
+      "th_lines": [
+        "อันนี้"
+      ],
+      "en_lines": [
+        "goodness me"
+      ],
+      "expected": {
+        "th": [
+          [
+            [
+              "อันนี้",
+              null
+            ]
+          ]
+        ],
+        "en": [
+          [
+            [
+              "goodness me",
+              null
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "name": "red alert dictionary",
+      "th_lines": [
+        "อย่าเพิ่งซื้อ จนกว่าจะดู"
+      ],
+      "en_lines": [],
+      "expected": {
+        "th": [
+          [
+            [
+              "อย่าเพิ่งซื้อ",
+              "&H00303BFF&"
+            ],
+            [
+              " จนกว่าจะดู",
+              null
+            ]
+          ]
+        ],
+        "en": []
+      }
+    },
+    {
+      "name": "wrapped English: second line spec is behind the literal \\N like in the render",
+      "th_lines": [
+        "แบตอึด"
+      ],
+      "en_lines": [
+        "Huge battery",
+        "5000mAh inside"
+      ],
+      "expected": {
+        "th": [
+          [
+            [
+              "แบตอึด",
+              "&H00FFE600&"
+            ]
+          ]
+        ],
+        "en": [
+          [
+            [
+              "Huge ",
+              null
+            ],
+            [
+              "battery",
+              "&H00FFE600&"
+            ]
+          ],
+          [
+            [
+              "5000mAh inside",
+              null
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "name": "hook brand keyword and spec number in one burst: the brand takes the one highlight",
+      "th_lines": [
+        "Anker ชาร์จ 65W"
+      ],
+      "en_lines": [],
+      "custom_keywords": [
+        "Anker Nano 3",
+        "Anker",
+        "Nano"
+      ],
+      "expected": {
+        "th": [
+          [
+            [
+              "Anker",
+              "&H00FFE600&"
+            ],
+            [
+              " ชาร์จ 65W",
+              null
+            ]
+          ]
+        ],
+        "en": []
+      }
+    },
+    {
+      "name": "bilingual: hook brand keyword beats the spec number on both lines",
+      "th_lines": [
+        "Anker ชาร์จ 65W"
+      ],
+      "en_lines": [
+        "Anker charges at 65W"
+      ],
+      "custom_keywords": [
+        "Anker Nano 3",
+        "Anker",
+        "Nano"
+      ],
+      "expected": {
+        "th": [
+          [
+            [
+              "Anker",
+              "&H00FFE600&"
+            ],
+            [
+              " ชาร์จ 65W",
+              null
+            ]
+          ]
+        ],
+        "en": [
+          [
+            [
+              "Anker",
+              "&H00FFE600&"
+            ],
+            [
+              " charges at 65W",
+              null
+            ]
+          ]
+        ]
+      }
+    }
   ],
   "_highlight_keywords_comment": "custom_keywords the render derives per product: SubtitleStage falls back to guess_brand_model(product_name) when all three hook tiers are blank, then SubtitleEngine.generate_ass joins the tiers and adds every 3+ character word. JS: projectHighlightKeywords(resolveHookKeywordSource(hook, product_name)).",
   "highlight_keywords": [
-    {"name": "tiers joined first, then each word of 3+ characters", "hook": {"brand": "Anker", "model": "Nano 3", "label": ""}, "product_name": "Anker Nano 3 Charger", "expected": ["Anker Nano 3", "Anker", "Nano"]},
-    {"name": "Thai label word counts; a repeated word is listed once", "hook": {"brand": "JBL", "model": "Flip 6", "label": "ลำโพง JBL"}, "product_name": "", "expected": ["JBL Flip 6 ลำโพง JBL", "JBL", "Flip", "ลำโพง"]},
-    {"name": "blank banner falls back to the product name (brand + model guess)", "hook": {"brand": "", "model": "", "label": ""}, "product_name": "Logitech Wave Keys", "expected": ["Logitech Wave Keys", "Logitech", "Wave", "Keys"]},
-    {"name": "whitespace-only tiers count as blank", "hook": {"brand": "  ", "model": "", "label": " "}, "product_name": "Baseus", "expected": ["Baseus"]},
-    {"name": "words shorter than 3 characters are not keywords of their own", "hook": {"brand": "LG", "model": "C3", "label": ""}, "product_name": "", "expected": ["LG C3"]},
-    {"name": "nothing to go on: no keywords", "hook": {"brand": "", "model": "", "label": ""}, "product_name": "", "expected": []}
-  ]
+    {
+      "name": "tiers joined first, then each word of 3+ characters",
+      "hook": {
+        "brand": "Anker",
+        "model": "Nano 3",
+        "label": ""
+      },
+      "product_name": "Anker Nano 3 Charger",
+      "expected": [
+        "Anker Nano 3",
+        "Anker",
+        "Nano"
+      ]
+    },
+    {
+      "name": "Thai label word counts; a repeated word is listed once",
+      "hook": {
+        "brand": "JBL",
+        "model": "Flip 6",
+        "label": "ลำโพง JBL"
+      },
+      "product_name": "",
+      "expected": [
+        "JBL Flip 6 ลำโพง JBL",
+        "JBL",
+        "Flip",
+        "ลำโพง"
+      ]
+    },
+    {
+      "name": "blank banner falls back to the product name (brand + model guess)",
+      "hook": {
+        "brand": "",
+        "model": "",
+        "label": ""
+      },
+      "product_name": "Logitech Wave Keys",
+      "expected": [
+        "Logitech Wave Keys",
+        "Logitech",
+        "Wave",
+        "Keys"
+      ]
+    },
+    {
+      "name": "whitespace-only tiers count as blank",
+      "hook": {
+        "brand": "  ",
+        "model": "",
+        "label": " "
+      },
+      "product_name": "Baseus",
+      "expected": [
+        "Baseus"
+      ]
+    },
+    {
+      "name": "words shorter than 3 characters are not keywords of their own",
+      "hook": {
+        "brand": "LG",
+        "model": "C3",
+        "label": ""
+      },
+      "product_name": "",
+      "expected": [
+        "LG C3"
+      ]
+    },
+    {
+      "name": "nothing to go on: no keywords",
+      "hook": {
+        "brand": "",
+        "model": "",
+        "label": ""
+      },
+      "product_name": "",
+      "expected": []
+    }
+  ],
+  "cut_times": [
+    {
+      "name": "hard cuts only",
+      "clips": [
+        {
+          "id": "a",
+          "trim_start": 0,
+          "trim_end": 2.0
+        },
+        {
+          "id": "b",
+          "trim_start": 1,
+          "trim_end": 3.5
+        },
+        {
+          "id": "c",
+          "trim_start": 0,
+          "trim_end": 1.8
+        }
+      ],
+      "expected": [
+        2.0,
+        4.5
+      ]
+    },
+    {
+      "name": "dissolve eats the overlap, cut point is the overlap midpoint",
+      "clips": [
+        {
+          "id": "a",
+          "trim_start": 0,
+          "trim_end": 3.0
+        },
+        {
+          "id": "b",
+          "trim_start": 0,
+          "trim_end": 2.5,
+          "transition_in": "dissolve",
+          "transition_duration": 0.4
+        },
+        {
+          "id": "c",
+          "trim_start": 0,
+          "trim_end": 2.0
+        }
+      ],
+      "expected": [
+        2.8,
+        5.1
+      ]
+    },
+    {
+      "name": "speed and freeze tail change the played length",
+      "clips": [
+        {
+          "id": "a",
+          "trim_start": 0,
+          "trim_end": 4.0,
+          "speed": 2.0
+        },
+        {
+          "id": "b",
+          "trim_start": 0,
+          "trim_end": 2.0,
+          "freeze_tail": 0.5
+        },
+        {
+          "id": "c",
+          "trim_start": 0,
+          "trim_end": 1.5
+        }
+      ],
+      "expected": [
+        2.0,
+        4.5
+      ]
+    },
+    {
+      "name": "transition default duration at the top of the editor speed range",
+      "clips": [
+        {
+          "id": "a",
+          "trim_start": 0,
+          "trim_end": 2.0,
+          "speed": 4.0
+        },
+        {
+          "id": "b",
+          "trim_start": 0,
+          "trim_end": 2.2,
+          "transition_in": "slide"
+        }
+      ],
+      "expected": [
+        0.3
+      ]
+    },
+    {
+      "name": "source duration used when trim_end is absent",
+      "clips": [
+        {
+          "id": "a",
+          "trim_start": 0,
+          "duration": 3.0
+        },
+        {
+          "id": "b",
+          "trim_start": 0,
+          "duration": 2.5
+        },
+        {
+          "id": "c",
+          "trim_start": 0,
+          "trim_end": 2.0
+        }
+      ],
+      "expected": [
+        3.0,
+        5.5
+      ]
+    },
+    {
+      "name": "unknown clip length means no cut times",
+      "clips": [
+        {
+          "id": "a",
+          "trim_start": 0,
+          "trim_end": 2.0
+        },
+        {
+          "id": "b",
+          "trim_start": 0
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "single clip has no cuts",
+      "clips": [
+        {
+          "id": "a",
+          "trim_start": 0,
+          "trim_end": 5.0
+        }
+      ],
+      "expected": []
+    }
+  ],
+  "_cut_times_comment": "clip_cut_times() in scripts/pipeline_context.py vs clipCutTimes(buildSegments()) in frontend/src/lib/timelineMath.js. For clips without trim_end the JS side is given durations[id] = clip.duration (what the editor loads from the probed source). KNOWN GAP, not covered here: with no trim_end AND a non-zero trim_start the backend treats clip.duration as the played length while the JS treats it as the source length and subtracts trim_start. Planned clips always carry trim_end, so the state is not reachable in normal use. Also, the backend clamps speed to 0.25-4 and JS clipDuration does not; the editor limits the slider to that range."
 }
