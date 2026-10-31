@@ -3,9 +3,12 @@ Batch Render Engine & Queue Worker for OmniCut Pro Studio.
 
 Batches are admitted one at a time by a single durable FIFO dispatcher.
 Inside a batch, angles render concurrently on a ThreadPoolExecutor
-(``BATCH_MAX_WORKERS``, AGENTS rule 24) in waves: each wave holds the global
-render slot (``render_jobs.render_slot``) once, so single renders and
-re-rolls still queue behind it and ``render_jobs.is_busy()`` stays truthful.
+(``BATCH_MAX_WORKERS``, AGENTS rule 24). Each item acquires its own slot
+from the shared render pool (``render_jobs.render_slot``, up to
+``render_jobs.RENDER_MAX_CONCURRENT`` clips at once), so up to four clips
+truly render in parallel, a freed slot is reused immediately (no wave
+barrier), single renders and re-rolls interleave fairly with batch items
+(the pool is FIFO) and ``render_jobs.is_busy()`` stays truthful.
 Items whose MP4 was already produced for this batch (``is_valid_mp4``) are
 skipped on resume. All shared batch state is mutated under ``_BATCH_LOCK``;
 the lock is never held while a clip renders.
@@ -54,7 +57,7 @@ MIN_VALID_MP4_BYTES = 1024 * 1024
 DEFAULT_BATCH_STYLE = "clean_tech_review"
 # Batch picker values that mean "no explicit choice, use each angle's default".
 AUTO_STYLE_VALUES = frozenset({"", "auto"})
-# How long a wave waits before retrying when the render queue is full (429).
+# How long an item waits before retrying when the render queue is full (429).
 _SLOT_RETRY_SECONDS = 2.0
 
 
@@ -553,16 +556,17 @@ class BatchRenderManager:
 
     @classmethod
     @contextmanager
-    def _wave_slot(cls, batch: Dict[str, Any], channel_kwargs: Dict[str, Any]) -> Iterator[None]:
-        """Hold the global render slot for one wave.
+    def _item_slot(cls, batch: Dict[str, Any], channel_kwargs: Dict[str, Any]) -> Iterator[None]:
+        """Hold one slot of the shared render pool while a single item renders.
 
-        A wave is a single waiter on the slot, so a batch never fills the
-        render queue by itself. If other callers already filled it (HTTP 429)
-        the wave waits and retries instead of failing its items.
+        The batch never runs more items than there are slots (see
+        _run_batch_worker), so at most a few batch threads ever wait in the
+        render queue. If other callers already filled it (HTTP 429) the item
+        waits and retries instead of failing.
         """
         while True:
-            slot = render_jobs.render_slot(f"batch:{batch['batch_id']}", **channel_kwargs)
             try:
+                slot = render_jobs.render_slot(f"batch:{batch['batch_id']}", **channel_kwargs)
                 slot.__enter__()
             except HTTPException as exc:
                 if exc.status_code != 429 or batch.get("cancelled"):
@@ -616,7 +620,7 @@ class BatchRenderManager:
 
     @classmethod
     def _run_batch_worker(cls, batch_id: str) -> None:
-        """Render a batch's pending angles on BATCH_MAX_WORKERS threads, in waves."""
+        """Render a batch's pending angles on BATCH_MAX_WORKERS threads, one render slot per item."""
         batch = cls.get_batch(batch_id)
         if not batch:
             return
@@ -662,35 +666,34 @@ class BatchRenderManager:
             (idx, item) for idx, item in enumerate(items)
             if item.get("status") not in ("rendered", "draft_ready", "failed", "skipped", "cancelled")
         ]
-        workers = max(1, int(BATCH_MAX_WORKERS))
+        # Never run more batch threads than render slots: extra threads would
+        # only sit in the render queue and could fill it (429) for everyone.
+        workers = max(1, min(int(BATCH_MAX_WORKERS), render_jobs.render_concurrency()))
         with ThreadPoolExecutor(max_workers=workers, thread_name_prefix=f"batch_{batch_id[:8]}") as pool:
-            for start in range(0, len(pending), workers):
-                wave = pending[start:start + workers]
-                if batch.get("cancelled"):
-                    logger.info("Batch %s cancelled by user before item %d", batch_id, wave[0][0])
-                    for _idx, item in pending[start:]:
-                        cls._update_item(batch, item, status="cancelled")
-                    break
-                try:
-                    with cls._wave_slot(batch, channel_kwargs):
-                        futures = [pool.submit(cls._process_item_safely, ctx, idx, item) for idx, item in wave]
-                        for future in futures:
-                            future.result()
-                except HTTPException as exc:
-                    # Slot refused for a reason other than a full queue (or the
-                    # batch was cancelled while waiting): fail just this wave.
-                    for _idx, item in wave:
-                        if item.get("status") in ("queued", "in_production"):
-                            cls._update_item(batch, item, status="cancelled" if batch.get("cancelled") else "failed",
-                                             error=None if batch.get("cancelled") else str(exc.detail))
+            futures = [pool.submit(cls._process_item_safely, ctx, idx, item) for idx, item in pending]
+            for future in futures:
+                future.result()
 
         cls._finalize_batch(ctx)
 
     @classmethod
     def _process_item_safely(cls, ctx: Dict[str, Any], idx: int, item: Dict[str, Any]) -> None:
+        batch = ctx["batch"]
         try:
-            cls._process_item(ctx, idx, item)
-        except Exception as exc:  # never let one angle take down the wave
+            if batch.get("cancelled"):
+                # Skip without touching the render queue at all.
+                cls._update_item(batch, item, status="cancelled")
+                return
+            with cls._item_slot(batch, ctx["channel_kwargs"]):
+                cls._process_item(ctx, idx, item)
+        except HTTPException as exc:
+            # Slot refused for a reason other than a full queue (or the batch
+            # was cancelled while retrying): settle just this item.
+            if batch.get("cancelled"):
+                cls._update_item(batch, item, status="cancelled")
+            else:
+                cls._update_item(batch, item, status="failed", error=str(exc.detail))
+        except Exception as exc:  # never let one angle take down the batch
             logger.exception("[BatchRender] มุมมอง %s ล้มเหลวโดยไม่คาดคิด: %s", item.get("angle_id"), exc)
             cls._update_item(ctx["batch"], item, status="failed", error=str(exc) or "เรนเดอร์ไม่สำเร็จ")
         finally:
@@ -910,8 +913,7 @@ class BatchRenderManager:
             if batch.get("cancelled"):
                 break
             try:
-                # The wave holding render_jobs.render_slot owns admission; a
-                # per-item slot here would serialise the wave again.
+                # _process_item_safely already holds this item's render slot.
                 effective_product_name = angle_data.get("product_name") or product_title
                 brand_guess, model_guess = guess_brand_model(effective_product_name)
                 hook_brand = angle_data.get("hook_brand") or latest_prod.get("hook_brand") or brand_guess or None

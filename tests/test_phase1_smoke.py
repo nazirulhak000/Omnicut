@@ -1160,10 +1160,19 @@ def test_download_handles_a_result_with_no_preview_url():
 # ----------------------------------------------------------------------
 # Render concurrency guard
 #
-# This machine has no CUDA and 13.7GB RAM (see _Docs/PRD_phase1.md section 3)
-# -- two ffmpeg encodes or two TTS calls at once is a real OOM/thrash risk.
+# The slot pool allows RENDER_MAX_CONCURRENT clips at once (default 4, see
+# tests/test_render_slot_pool.py). With OMNICUT_RENDER_CONCURRENCY=1 it must
+# still serialise exactly like the old single slot.
 # ----------------------------------------------------------------------
-def test_render_slot_serializes_two_jobs():
+@pytest.fixture
+def single_render_slot():
+    previous = render_jobs.render_concurrency()
+    render_jobs.set_render_concurrency(1)
+    yield
+    render_jobs.set_render_concurrency(previous)
+
+
+def test_render_slot_serializes_two_jobs(single_render_slot):
     job_a, job_b = render_jobs.create_job("job-a"), render_jobs.create_job("job-b")
     order = []
     b_saw_queued_while_waiting = threading.Event()
