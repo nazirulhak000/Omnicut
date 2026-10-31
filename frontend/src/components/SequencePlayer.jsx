@@ -15,6 +15,7 @@ import { shouldCaptureSubjectPick, subjectPointFromPickClick } from '../lib/subj
 import { previewPointToSource, sourcePointToPreview } from '../lib/subjectFrameMapping.js';
 import { subjectPromptReference } from '../lib/subjectPromptReference.js';
 import { revealTrackForCue } from '../lib/captionEdits.js';
+import { ASS_TO_PREVIEW_COLOR, highlightBurstLines } from '../lib/kineticHighlight.js';
 import {
   PROXY_POLL_MS, buildingClipIds, isProxyableSource, mergeProxyEntry,
   readProxyResponse, shouldPoll,
@@ -1171,216 +1172,16 @@ function wrapCanvasText(text, ctx, maxW) {
   return resultLines.length > 0 ? resultLines : [text];
 }
 
-const KINETIC_COLOR_MAP = {
-  '#FFE600': [ // 🟡 Neon Yellow (Pain points, prices, deals, primary punch, positive reactions)
-    // 1. Physical Discomfort & Pain Points
-    'ออฟฟิศซินโดรม', 'ปวดข้อมือ', 'ปวดหลัง', 'ปวดคอ', 'ปวดหัว', 'ปวดไหล่', 'ปวดขา', 'ปวดเมื่อย',
-    'ปวดมือ', 'ปวดตัว', 'ปวด', 'เมื่อยล้า', 'เมื่อย', 'ทรมาน', 'เหนื่อยล้า', 'เหนื่อย',
-    'เจ็บมือ', 'บาดมือ', 'แสบตา', 'รกโต๊ะ', 'เสียงดังหนวกหู', 'เสียงกวนใจ',
-    // 2. Tech & Everyday Frustrations
-    'สายพันกัน', 'สายขาด', 'แบตหมดไว', 'แบตเสื่อม', 'กระตุก', 'เครื่องค้าง', 'ค้าง', 'ช้ามาก', 'ช้า',
-    'พังง่าย', 'พัง', 'หักง่าย', 'หัก', 'เสียเงินฟรี', 'เสียดายเงิน', 'เสีย', 'หลุดบ่อย', 'หลุด',
-    // 3. Beauty, Skin & Personal Care Problems
-    'สิวบุก', 'สิวเห่อ', 'สิวขึ้น', 'เป็นสิว', 'รอยสิว', 'รอยดำ', 'รอยแดง', 'หน้ามัน', 'หน้าหมอง', 'หมองคล้ำ',
-    'ผิวแห้ง', 'ผิวลอก', 'เหนียวเหนอะหนะ', 'เหนอะหนะ', 'คราบฝังลึก', 'สกปรก', 'กลิ่นอับ', 'เหม็นอับ', 'เหม็น',
-    // 4. Fashion, Body & Confidence
-    'อึดอัด', 'แน่นพุง', 'พุงยื่น', 'ขาใหญ่', 'ดูอ้วน', 'เชยๆ', 'เชย', 'ล้าสมัย', 'ไม่มั่นใจ', 'ไม่สวย',
-    'ปัญหา', 'ยุ่งยาก', 'เสียเวลา', 'เปลืองแรง', 'เปลืองเงิน', 'หงุดหงิด',
-    // 5. Price, Deals, Vouchers & E-Commerce CTA
-    'ราคาพิเศษ', 'ลดราคา', 'ลดกระหน่ำ', 'ลดแรง', 'ดีลพิเศษ', 'ดีลลับ', 'โปรเด็ด', 'โปรแรง', 'โปรโมชั่น',
-    'แฟลชเซล', 'flash sale', 'โค้ดลด', 'โค้ดลับ', 'คูปอง', 'ส่งฟรี', '1 แถม 1', 'หนึ่งแถมหนึ่ง',
-    'ของแถม', 'แจกฟรี', 'ฟรี', 'บาท', 'หลักสิบ', 'หลักร้อย', 'ราคาดี', 'ราคาโดน', 'ถูกและดี',
-    'ถูกสุดๆ', 'ถูกมาก', 'คุ้มสุดๆ', 'คุ้มค่า', 'คุ้มราคา', 'เกินคุ้ม', 'คุ้ม', 'ประหยัด', 'ตกใจราคา',
-    'ตะกร้าส้ม', 'ตะกร้าซ้ายล่าง', 'ตะกร้า', 'ใส่ตะกร้า', 'จิ้มตะกร้า', 'จิ้มเลย', 'จิ้มตรงนี้', 'กดตรงนี้',
-    'พิกัดในคอมเมนต์', 'พิกัดในโปรไฟล์', 'พิกัด', 'ปักหมุด', 'อย่ารอ', 'อย่าช้า', 'ช้าหมด',
-    'รีบตำ', 'รีบจัด', 'ด่วนเลย', 'ด่วน', 'ต้องมี', 'ของมันต้องมี', 'ขาดไม่ได้', 'สอยด่วน', 'รีบสอย',
-    'เคาะราคา', 'สั่งซื้อเลย', 'กดลงตะกร้า', 'ลิงก์หน้าโปรไฟล์', 'กดที่ลิงก์', 'จัดโปร', 'ลดเยอะมาก',
-    // 6. Viral Praise & Reviewer Hype
-    'ป้ายยา', 'ตัวท็อป', 'ตัวแม่', 'ยืนหนึ่ง', 'ตัวตึง', 'ของดีบอกต่อ', 'ใช้ดีบอกต่อ', 'ของดี',
-    'ดีจริง', 'ดูดีมาก', 'ดีมาก', 'ดีเกินคาด', 'ดีเกินราคา', 'ว้าวมาก', 'ว้าว', 'ตาแตก', 'ตะลึง',
-    'สุดปัง', 'ปังมาก', 'จึ้งมาก', 'จึ้ง', 'เลิศมาก', 'เลิศ', 'เอาเรื่อง', 'ของแทร่', 'เปลี่ยนชีวิต',
-    'ยกระดับ', 'หลงรักเลย', 'หลงรัก', 'ชอบมาก', 'ติดใจ', 'ไม่ผิดหวัง', 'ไม่จกตา', 'รีวิวจริง',
-    'ใช้จริง', 'หมดปัญหา', 'ลืมแบบเก่าไปเลย', 'โคตรดี', 'โคตรคุ้ม', 'ฟินมาก', 'ช็อค', 'น่ารักกว่าในรูป', 'ของที่รอคอย',
-    'สมคำร่ำลือ', 'ตอบโจทย์', 'ตัวจริง', 'ปังไม่ไหว', 'สิบเต็มสิบ', '10/10', 'คุ้มสุดในรุ่น', 'ยืนยันอีกเสียง',
-    'ขาดตัวนี้ไม่ได้', 'ต้องมีติดบ้าน', 'ไอเทมลับ', 'ไอเทมเด็ด', 'รอดไม่รอด', 'ของมันต้องลอง', 'ประทับใจ',
-    'เกินต้าน', 'ยอมใจ', 'เด็ดจริง', 'ไม่คิดว่าจะดี', 'ดีกว่าที่คิด', 'คุ้มเกินเบอร์', 'ปังสุด', 'สุดจัด',
-    'ลองแล้วรัก', 'ถูกใจมาก', 'ใช้เองรีวิวเอง', 'โนสปอน', 'ซื้อเองใช้เอง', 'ใช้จนหมด', 'ซื้อซ้ำ', 'ตุนด่วน', 'ต้องตุน', 'ตำด่วน', 'ใช้ทุกวัน',
-    // English Counterparts
-    'office syndrome', 'wrist pain', 'back pain', 'neck pain', 'shoulder pain', 'headache', 'leg pain',
-    'body pain', 'hand hurts', 'hurts', 'painful', 'pain', 'tight', 'sore', 'exhausted',
-    'tiring', 'tired', 'suffering', 'messy desk', 'noisy',
-    'tangled', 'broken cord', 'dead battery', 'low battery', 'laggy', 'lagging', 'freezing', 'too slow', 'slow',
-    'breaks easily', 'broken', 'waste of money', 'waste of time', 'wasted', 'annoying',
-    'acne breakout', 'breakouts', 'pimples', 'dark spots', 'redness', 'oily skin', 'dull skin',
-    'dry skin', 'peeling skin', 'sticky', 'greasy', 'deep stains', 'dirty', 'bad odor', 'smelly',
-    'uncomfortable', 'stuffy', 'bloated', 'tight fit', 'outdated', 'unconfident', 'insecure',
-    'problems', 'problem', 'frustrating', 'troublesome', 'not sure',
-    'special price', 'huge discount', 'discount', 'special deal', 'secret deal', 'best promo', 'promotion',
-    'flash sale', 'promo code', 'voucher', 'coupon', 'free shipping', 'buy 1 get 1', 'bogo',
-    'free gift', 'giveaway', 'free', 'baht', 'super cheap', 'cheap', 'affordable', 'best price',
-    'best value', 'great value', 'worth every penny', 'worth it', 'save money', 'shocking price',
-    'yellow basket', 'orange basket', 'cart', 'add to cart', 'click cart', 'click now', 'click here',
-    'pinned link', 'link in bio', 'coordinates', 'don\'t wait', 'don\'t delay', 'almost gone',
-    'buy now', 'grab it now', 'hurry up', 'must have', 'essential', 'check profile link', 'grab yours',
-    'holy grail', 'game changer', 'life-changing', 'top tier', 'the best', 'highly recommend',
-    'really good', 'looks really good', 'looks good', 'so good', 'very good', 'good', 'exceeded expectations',
-    'unbelievable', 'very wow', 'wow', 'mind blowing', 'stunning', 'gorgeous', 'slay',
-    'aesthetic', 'next level', 'fell in love', 'obsessed', 'love it', 'no regret', 'won\'t be disappointed',
-    'real review', 'tried and tested', 'problem solved', 'insanely good', 'super worth it', 'so satisfying',
-    'much cuter', 'long-awaited', 'recommend', '10 out of 10', '10/10', 'worth the hype', 'honest review',
-    'holy grail item', 'no sponsor', 'bought it myself', 'repurchase', 'stock up', 'daily staple'
-  ],
-  '#00E5FF': [ // 🔵 Electric Cyan (Features, tech, ergonomics, certifications, comfort)
-    // 1. Tech, Gadgets & Hardware
-    'Logitech Wave Keys', 'Logitech', 'Wave Keys', 'คีย์บอร์ดในฝัน', 'คีย์บอร์ด', 'ไร้สาย', 'บลูทูธ',
-    'แม่เหล็ก', 'แรงดูดสูง', 'ดูดแน่น', '540 องศา', '360 องศา', 'ชาร์จไว', 'ฟาสชาร์จ', '66W', '100W',
-    'แบตอึด', 'แบตทน', 'ทนทาน', 'แข็งแรง', 'ประกันศูนย์', 'ของแท้', 'แท้ 100%', 'จอสวย', 'จอลื่น',
-    '120Hz', 'คมชัด', 'กล้องชัด', 'เสียงดี', 'เบสแน่น', 'ตัดเสียงรบกวน', 'กันน้ำ', 'ชิปเร็ว',
-    'ลื่นไหล', 'ไม่สะดุด', 'เชื่อมต่อง่าย', 'เสียบปุ๊บติดปั๊บ', 'พกพาสะดวก', 'น้ำหนักเบา', 'กะทัดรัด',
-    'ปรับระดับได้', 'พับเก็บได้', 'ประหยัดพื้นที่', 'ประกอบง่าย', 'ใช้งานง่าย',
-    'ปุ่มเงียบ', 'สวิตช์เงียบ', 'ไร้สาย 2.4G', 'ต่อได้ 3 อุปกรณ์', 'สลับเครื่องไว', 'รองรับ Mac และ Windows',
-    'ปรับความสูงได้', 'วัสดุพรีเมียม', 'งานประกอบเนี๊ยบ', 'แบตเตอรี่ใช้ได้นาน', 'ชาร์จครั้งเดียวอยู่ได้ยาว', 'จับถนัดมือ',
-    // 2. Ergonomics, Comfort, Softness & Apparel
-    'สรีรศาสตร์', 'เมมโมรี่โฟม', 'ที่รองข้อมือ', 'พิมพ์สบาย', 'นั่งสบาย', 'นอนสบาย', 'ใส่สบาย',
-    'สบายมาก', 'นุ่มสบาย', 'สบายมือ', 'สบายหลัง', 'สบายตา', 'สบายตัว', 'สบาย', 'นุ่มนิ่ม', 'นุ่มฟู',
-    'นุ่มมาก', 'นุ่มๆ', 'นุ่ม', 'ยืดหยุ่น', 'สัมผัสนุ่ม', 'ไม่ระคายเคือง', 'ไม่บาดผิว', 'ทรงสวย',
-    'ทรงเป๊ะ', 'พอดีตัว', 'เข้ารูป', 'ทิ้งตัวสวย', 'พรางหุ่น', 'เก็บพุง', 'ระบายอากาศ', 'ไม่อับชื้น',
-    'ไม่ร้อน', 'เย็นสบาย', 'มินิมอล', 'ดีไซน์แบบคลื่นๆ', 'แบบคลื่นๆ', 'คลื่น', 'ดีไซน์สวย',
-    // 3. Skincare, Beauty & Quality Efficacy
-    'ผิวฉ่ำวาว', 'ผิวฉ่ำน้ำ', 'ผิวฉ่ำ', 'หน้าใส', 'ผิวเนียน', 'ผิวกระจก', 'ผิวนุ่มเด้ง', 'หน้าเด็ก',
-    'ซึมไว', 'ซึมเร็ว', 'แห้งไว', 'บางเบา', 'ไม่เหนอะหนะ', 'คุมมัน', 'ผิวกระชับ', 'รูขุมขนกระชับ',
-    'กลิ่นหอม', 'หอมละมุน', 'หอมฟุ้ง', 'ติดทน', 'ติดทนนาน', 'ไม่ติดแมสก์', 'กันเหงื่อ', 'กันน้ำกันเหงื่อ',
-    'ปกปิดเนียน', 'กลบเนียน', 'ไม่วอก', 'ไม่ลอย', 'อ่อนโยน', 'แพ้ง่ายใช้ได้', 'สารสกัดธรรมชาติ',
-    'ออร์แกนิก', 'พรีเมียมสุดๆ', 'พรีเมียม', 'หรูหรา', 'ดูแพง', 'สะอาดหมดจด', 'ฆ่าเชื้อ', 'กรองฝุ่น',
-    'รับรอง', 'ผู้เชี่ยวชาญ', 'แพทย์ผิวหนัง', 'สุขภาพดี', 'ปลอดภัย',
-    // English Counterparts
-    'logitech wave keys', 'wave keys', 'logitech', 'dream keyboard', 'keyboard', 'wireless', 'bluetooth',
-    'magnetic', 'strong magnet', '540 degrees', '360 degrees', 'fast charging', 'quick charge', '66w', '100w',
-    'long battery', 'battery life', 'durable', 'sturdy', 'warranty', 'genuine', 'authentic', 'smooth screen',
-    '120hz', 'crystal clear', 'sharp camera', 'great sound', 'deep bass', 'noise cancelling', 'anc', 'waterproof',
-    'fast chip', 'ultra smooth', 'easy connect', 'plug and play', 'portable', 'lightweight', 'compact',
-    'adjustable', 'foldable', 'space saving', 'easy to assemble', 'easy to use',
-    'silent keys', 'quiet typing', 'multi-device', 'easy switch', 'mac and windows compatible',
-    'ergonomic', 'ergonomics', 'memory foam', 'wrist rest', 'typing comfortable', 'sit comfortably',
-    'comfortable fit', 'comfortable', 'comfy', 'super comfy', 'soft and comfy', 'extra soft', 'pillow soft',
-    'very soft', 'soft', 'flexible', 'gentle touch', 'non-irritating', 'flattering fit',
-    'perfect fit', 'slim fit', 'tummy control', 'breathable', 'airy', 'cool and fresh',
-    'minimalist', 'minimal', 'wavy design', 'wavy', 'sleek design', 'beautiful design',
-    'glass skin', 'glowy skin', 'glowing skin', 'clear skin', 'smooth skin', 'bouncy skin', 'youthful',
-    'fast absorbing', 'quick absorb', 'quick drying', 'lightweight texture', 'non-sticky', 'non-greasy', 'oil control',
-    'firming', 'pore tightening', 'nice scent', 'pleasant smell', 'long lasting', 'transfer-proof', 'sweat-proof',
-    'water resistant', 'full coverage', 'natural finish', 'no white cast', 'gentle formula', 'sensitive skin friendly',
-    'natural extracts', 'organic', 'very premium', 'premium', 'luxury', 'looks expensive',
-    'deep clean', 'antibacterial', 'hepa filter', 'certified', 'experts', 'expert',
-    'dermatologist', 'healthy', 'safe'
-  ],
-  '#FF3B30': [ // 🔴 Alert Red (Urgency, warnings)
-    'อย่าเพิ่งซื้อ', 'อย่าเพิ่ง', 'หยุดก่อน', 'หยุดดูคลิปนี้', 'ฟังทางนี้', 'เตือนภัย', 'เตือน',
-    'ระวังของปลอม', 'ระวัง', 'อันตราย', 'เสี่ยง', 'ห้ามทำ', 'อย่าหาทำ', 'อย่าพลาด',
-    'ห้ามพลาด', 'ห้ามเลื่อนผ่าน', 'ของปลอมระบาด', 'ซื้อผิดรุ่น', 'ดูให้จบ', 'ข้อเสีย', 'สิ่งที่ควรรู้',
-    'เช็กด่วน', 'ระวังโดนหลอก', 'ข้อควรระวัง', 'อย่าเพิ่งเลื่อน', 'เตือนไว้ก่อน', 'ก่อนจะสาย', 'จุดสังเกต', 'ระวังผิดหวัง', 'ดูตรงนี้ก่อน',
-    // English Counterparts
-    'don\'t buy yet', 'don\'t buy', 'stop scrolling', 'wait a minute', 'listen to this', 'urgent warning', 'warning',
-    'beware of fake', 'beware', 'danger', 'risky', 'don\'t do this', 'don\'t miss out',
-    'don\'t miss', 'watch till the end', 'counterfeit', 'fake products', 'cons', 'must know',
-    'look at this', 'watch this', 'warn', 'stop', 'before you buy', 'watch out', 'critical warning', 'check this before buying'
-  ]
-};
-
-const EN_STOPWORDS = new Set([
-  'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'am', 'of', 'to', 'in',
-  'on', 'at', 'for', 'with', 'and', 'or', 'but', 'if', 'it', 'its', 'this', 'that',
-  'these', 'those', 'as', 'by', 'from', 'up', 'out', 'so', 'than', 'then', 'too',
-  'very', 'can', 'will', 'just', 'not', 'no', 'do', 'does', 'did', 'you', 'your',
-  'i', 'my', 'we', 'our', 'they', 'their', 'he', 'she', 'his', 'her', 'how', 'what',
-  'who', 'why', 'when', 'where', 'all', 'any', 'more', 'most', 'some', 'such', 'own',
-  'about', 'into', 'over', 'also', 'have', 'has', 'had', 'would', 'could', 'should',
-]);
-
-function salientWordEn(text) {
-  let best = null;
-  const words = text.match(/[A-Za-z][A-Za-z'-]*/g) || [];
-  for (const raw of words) {
-    if (EN_STOPWORDS.has(raw.toLowerCase()) || raw.length < 3) continue;
-    if (!best || raw.length > best.length) best = raw;
-  }
-  return best;
-}
-
-function forceHighlightWord(text, word, color, defaultColor) {
-  if (!word || !text.includes(word)) return [{ text, color: defaultColor }];
-  const idx = text.indexOf(word);
-  const segments = [];
-  const needsSpace = idx > 0 && /[\u0E00-\u0E7F]/.test(text[idx - 1]) && text[idx - 1] !== ' ';
-  const beforeStr = text.slice(0, idx) + (needsSpace ? ' ' : '');
-  if (beforeStr) segments.push({ text: beforeStr, color: defaultColor });
-  segments.push({ text: word, color });
-  if (idx + word.length < text.length) segments.push({ text: text.slice(idx + word.length), color: defaultColor });
-  return segments;
-}
-
-function parseKineticSegments(text, defaultColor = '#FFFFFF', colorHint = null, customKeywords = []) {
-  if (!text) return [];
-
-  // Tier 1: Check for explicit user / AI markers like *keyword* or [keyword]
-  const markerRegex = /(\*([^*]+)\*|\[([^\]]+)\])/;
-  const markerMatch = markerRegex.exec(text);
-  if (markerMatch) {
-    const chosenColor = colorHint || '#FFE600';
-    const before = text.slice(0, markerMatch.index);
-    const kw = markerMatch[2] || markerMatch[3];
-    const after = text.slice(markerMatch.index + markerMatch[0].length);
-    const segments = [];
-    if (before) segments.push({ text: before, color: defaultColor });
-    segments.push({ text: kw, color: chosenColor });
-    if (after) segments.push({ text: after, color: defaultColor });
-    return segments;
-  }
-
-  // Tier 2 & 3: Word-level kinetic highlighting (mirrors subtitle_engine.py)
-  const lowerText = text.toLowerCase();
-  const colors = Object.keys(KINETIC_COLOR_MAP);
-  const colorOrder = colorHint && colors.includes(colorHint)
-    ? [colorHint, ...colors.filter(c => c !== colorHint)]
-    : colors;
-
-  for (const color of colorOrder) {
-    let keywords = KINETIC_COLOR_MAP[color] || [];
-    if (color === '#00E5FF' && customKeywords && customKeywords.length > 0) {
-      keywords = [...customKeywords, ...keywords];
-    }
-    const sorted = [...keywords].sort((a, b) => b.length - a.length);
-    for (const kw of sorted) {
-      const lowerKw = kw.toLowerCase();
-      if (/[^\u0000-\u007F]/.test(kw)) {
-        const idx = text.indexOf(kw);
-        if (idx !== -1) {
-          const segments = [];
-          const needsSpace = idx > 0 && /[\u0E00-\u0E7F]/.test(text[idx - 1]) && text[idx - 1] !== ' ';
-          const beforeStr = text.slice(0, idx) + (needsSpace ? ' ' : '');
-          if (beforeStr) segments.push({ text: beforeStr, color: defaultColor });
-          segments.push({ text: kw, color });
-          if (idx + kw.length < text.length) segments.push({ text: text.slice(idx + kw.length), color: defaultColor });
-          return segments;
-        }
-      } else {
-        const escaped = lowerKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`(?:^|(?<=[^a-zA-Z0-9]))(${escaped})(?:(?=[^a-zA-Z0-9])|$)`, 'i');
-        const match = regex.exec(text);
-        if (match) {
-          const idx = match.index;
-          const matchStr = match[1];
-          const segments = [];
-          if (idx > 0) segments.push({ text: text.slice(0, idx), color: defaultColor });
-          segments.push({ text: matchStr, color });
-          if (idx + matchStr.length < text.length) segments.push({ text: text.slice(idx + matchStr.length), color: defaultColor });
-          return segments;
-        }
-      }
-    }
-  }
-
-  return [{ text, color: defaultColor }];
+// Caption keyword highlighting is the backend's own algorithm, ported to
+// lib/kineticHighlight.js (markers -> custom keywords -> spec number ->
+// dictionary, one highlight per burst, Thai/English colour sync). This maps
+// the ASS colour it picks onto the canvas colour the preview paints.
+function toCanvasSegments(segments, line, defaultColor) {
+  if (!segments || segments.length === 0) return [{ text: line, color: defaultColor }];
+  return segments.map((seg) => ({
+    text: seg.text,
+    color: seg.ass ? (ASS_TO_PREVIEW_COLOR[seg.ass] || defaultColor) : defaultColor,
+  }));
 }
 
 // The browser paints emoji as colour bitmap glyphs, which ignore fillStyle;
@@ -1625,38 +1426,11 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   const primaryColor = CAPTION_COLORS[style.captionColor] || style.captionColor || '#FFFFFF';
   const enDefaultColor = '#EAEAEA';
 
-  let activeKineticColor = null;
-  let parsedThaiLines = thaiLines.map((line) => {
-    const segs = parseKineticSegments(line, primaryColor);
-    const matched = segs.find(s => s.color !== primaryColor);
-    if (matched) activeKineticColor = matched.color;
-    return segs;
-  });
-
-  let parsedEnLines = [];
-  if (enLines.length > 0) {
-    let enMatchedColor = null;
-    parsedEnLines = enLines.map((line) => {
-      const segs = parseKineticSegments(line, enDefaultColor, activeKineticColor);
-      const matched = segs.find(s => s.color !== enDefaultColor);
-      if (matched) enMatchedColor = matched.color;
-      return segs;
-    });
-
-    // If Thai had no match initially, but English matched a color, re-parse Thai with English's color
-    if (!activeKineticColor && enMatchedColor) {
-      activeKineticColor = enMatchedColor;
-      parsedThaiLines = thaiLines.map(line => parseKineticSegments(line, primaryColor, enMatchedColor));
-    }
-
-    // Parity fallback: 100% color synchronization between Thai and English (no lopsided cues)
-    if (activeKineticColor && !enMatchedColor) {
-      parsedEnLines = enLines.map(line => {
-        const sw = salientWordEn(line);
-        return sw ? forceHighlightWord(line, sw, activeKineticColor, enDefaultColor) : [{ text: line, color: enDefaultColor }];
-      });
-    }
-  }
+  // The render highlights the whole burst (wrapped lines joined by \N) in one
+  // pass, so the preview does too instead of colouring every wrapped line.
+  const burstHighlight = highlightBurstLines(thaiLines, enLines);
+  const parsedThaiLines = thaiLines.map((line, idx) => toCanvasSegments(burstHighlight.th[idx], line, primaryColor));
+  const parsedEnLines = enLines.map((line, idx) => toCanvasSegments(burstHighlight.en[idx], line, enDefaultColor));
 
   // Progressive Ghost Reveal replaces the keyword highlighting for the whole
   // cue: it colours by what has been spoken, not by which word is a keyword, so
