@@ -25,8 +25,13 @@ FAMILY_PACING = {
     "adaptive": (1.3, 2.5),   # tech
     "smooth": (1.5, 3.0),
     "minimal": (1.8, 3.5),    # premium
+    "compare": (1.3, 2.5),    # rhythmic wipe/slide alternation (tech_compare)
 }
 DEFAULT_FAMILY_PACING = FAMILY_PACING["adaptive"]
+
+# Mirrors video_editor.CAMERA_EASINGS / timelineMath.js CAMERA_EASINGS.
+CAMERA_EASING_NAMES = ("linear", "ease_in", "ease_out", "ease_in_out")
+DEFAULT_CAMERA_EASING = "ease_in_out"
 
 
 @dataclass(frozen=True)
@@ -68,6 +73,12 @@ class StyleMotionPolicy:
     hook_window_sec: float = HOOK_WINDOW_SEC
     hook_max_shot: Optional[float] = None
     max_static_sec: Optional[float] = None
+    # Easing of the generated camera push/pan (M5). It rides on the manifest
+    # keyframe's own ``easing`` key, which the renderer and the preview both
+    # already interpolate, so it needs no preview-side logic. The default is
+    # the pre-M5 behaviour (soft start and settle); punchy styles use
+    # ease_out so the push lands hard and then decelerates.
+    camera_easing: str = DEFAULT_CAMERA_EASING
 
     def __post_init__(self) -> None:
         hook_default, static_default = FAMILY_PACING.get(self.transition_family, DEFAULT_FAMILY_PACING)
@@ -77,11 +88,17 @@ class StyleMotionPolicy:
             object.__setattr__(self, "max_static_sec", static_default)
 
 
+# M5 (user decision 2026-10-31): all ten presets stay selectable and each one
+# must FEEL different, using only levers the renderer already honours. The
+# punch / tech / smooth / premium motion families are the starting point; the
+# per-preset notes say what separates a preset from its nearest sibling.
+# `tests/test_style_distinctness.py` enforces it (pairwise distance, unique
+# transition fingerprint). Colours/hook templates are untouched by M5.
 STYLE_MOTION_POLICIES = {
     "clean_tech_review": StyleMotionPolicy(
         key="clean_tech_review",
-        # One movement transition every five boundaries keeps roughly 80% of
-        # boundaries as hard cuts on normal-length short-form clips.
+        # Calm default. One movement transition every five boundaries keeps
+        # roughly 80% of boundaries as hard cuts on short-form clips.
         transition_stride=5,
         # A circle/wipe is reserved for every tenth boundary; the other
         # transition slots are demoted to a restrained dissolve/fade.
@@ -96,12 +113,17 @@ STYLE_MOTION_POLICIES = {
         camera_min_duration=0.8,
         # Cut rhythm: the golden master keeps the global defaults
         # (1.5-2.5 s shots, 0.18 s J-lead, 0.15 s beat snap) byte-for-byte.
+        # M5: only the opening is tightened (1.3 -> 1.2 s hook shots) for
+        # retention; the body of the clip is unchanged.
+        hook_max_shot=1.2,
         accent_color="#FFE600",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
     ),
     "viral_punch": StyleMotionPolicy(
         key="viral_punch",
+        # The base of the punch group: slide every second boundary, circle
+        # every sixth, zoom AND pan on every shot. Unchanged by M5.
         transition_stride=2,
         stylized_stride=6,
         max_transition_duration=0.28,
@@ -122,30 +144,31 @@ STYLE_MOTION_POLICIES = {
     ),
     "tech_product_showcase": StyleMotionPolicy(
         key="tech_product_showcase",
-        # Product cards get a visible but deliberate movement rhythm: two
-        # clean cuts, then one directional transition for the next detail.
+        # Steady, camera-forward product reveal: the picture travels (wide
+        # pans, a light push) and the slide that joins two shots continues
+        # that pan (orient_slide_to_pan). No circle reveals.
         transition_stride=3,
-        # Reserve the stronger circle reveal for every second movement slot.
-        stylized_stride=6,
+        stylized_stride=0,
         max_transition_duration=0.30,
         transition_family="energetic",
-        # Every usable product shot gets a restrained hero push/pan. The
-        # smaller delta leaves room for large product titles and callouts.
         camera_motion_stride=1,
-        camera_zoom_delta=0.10,
-        camera_pan_extent=0.16,
-        camera_min_duration=0.75,
+        camera_zoom_delta=0.06,
+        camera_pan_extent=0.24,
+        camera_min_duration=0.9,
         # Cut rhythm: Detail shots need a beat longer to read a port or a texture; standard lead.
-        min_shot=1.6,
+        min_shot=1.7,
         max_shot=2.6,
         j_lead=0.18,
-        beat_snap_tolerance=0.12,
+        beat_snap_tolerance=0.10,
+        hook_max_shot=1.2,
         accent_color="#FFCC33",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
     ),
     "smooth_showcase": StyleMotionPolicy(
         key="smooth_showcase",
+        # Dissolve-led and gentle: the only preset whose joins are all
+        # cross-dissolves. Unchanged by M5.
         transition_stride=3,
         stylized_stride=0,
         max_transition_duration=0.35,
@@ -165,6 +188,7 @@ STYLE_MOTION_POLICIES = {
     ),
     "premium_minimal": StyleMotionPolicy(
         key="premium_minimal",
+        # The most restrained preset. Unchanged by M5.
         transition_stride=6,
         stylized_stride=0,
         max_transition_duration=0.3,
@@ -184,99 +208,130 @@ STYLE_MOTION_POLICIES = {
     ),
     "flash_deal": StyleMotionPolicy(
         key="flash_deal",
+        # Urgency from the CUTS, not the camera: the shortest shots and the
+        # tightest hook of any preset, a slide every second boundary and no
+        # circle reveals, but a calmer camera (every other shot, small
+        # push, short pan) so the energy is in the edit.
         transition_stride=2,
-        stylized_stride=6,
-        max_transition_duration=0.28,
+        stylized_stride=0,
+        max_transition_duration=0.24,
         transition_family="energetic",
-        camera_motion_stride=1,
-        camera_zoom_delta=0.12,
-        camera_pan_extent=0.18,
-        camera_min_duration=0.65,
+        camera_motion_stride=2,
+        camera_zoom_delta=0.06,
+        camera_pan_extent=0.10,
+        camera_min_duration=0.9,
         # Cut rhythm: Hard-sell cadence: densest cutting still inside the 1.5 s floor.
         min_shot=1.5,
-        max_shot=2.0,
+        max_shot=1.9,
         j_lead=0.17,
-        beat_snap_tolerance=0.12,
+        beat_snap_tolerance=0.10,
         transition_easing="ease_out",
+        hook_max_shot=0.9,
+        camera_easing="ease_out",
         accent_color="#FF7A00",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
     ),
     "pain_punch": StyleMotionPolicy(
         key="pain_punch",
-        transition_stride=2,
-        stylized_stride=5,
-        max_transition_duration=0.28,
+        # Heavy zoom-in impact: the biggest push of any preset (almost no
+        # pan) that lands with ease_out, a circle reveal on every second
+        # movement slot, and cuts slower than flash_deal so the problem line
+        # is held and heard first.
+        transition_stride=3,
+        stylized_stride=6,
+        max_transition_duration=0.24,
         transition_family="energetic",
         camera_motion_stride=1,
-        camera_zoom_delta=0.14,
-        camera_pan_extent=0.16,
-        camera_min_duration=0.65,
-        # Cut rhythm: Problem-agitation: quick like viral_punch but a little
-        # longer ceiling and the standard lead, so the pain line is heard first.
-        min_shot=1.5,
-        max_shot=2.3,
-        j_lead=0.18,
-        beat_snap_tolerance=0.12,
+        camera_zoom_delta=0.20,
+        camera_pan_extent=0.06,
+        camera_min_duration=0.7,
+        # Cut rhythm: Problem-agitation: slower cuts than flash_deal, a
+        # later J-lead so the pain line is heard first, and a firmer beat lock
+        # so the heavy zoom lands on the music.
+        min_shot=1.7,
+        max_shot=2.5,
+        j_lead=0.19,
+        beat_snap_tolerance=0.15,
         transition_easing="ease_out",
+        hook_max_shot=1.2,
+        max_static_sec=2.5,
+        camera_easing="ease_out",
         accent_color="#FF2E93",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
     ),
     "tech_compare": StyleMotionPolicy(
         key="tech_compare",
+        # Rhythmic A/B alternation: the "compare" family joins every third
+        # boundary with a wipe, a slide, a wipe from the other side...
+        # (see apply_transition_budget), on a camera that pans wide on
+        # alternating shots, with an even 1.8-2.4 s shot cadence.
         transition_stride=3,
-        stylized_stride=6,
-        max_transition_duration=0.32,
-        transition_family="adaptive",
+        stylized_stride=0,
+        max_transition_duration=0.30,
+        transition_family="compare",
         camera_motion_stride=2,
-        camera_zoom_delta=0.08,
-        camera_pan_extent=0.14,
-        camera_min_duration=0.8,
-        # Cut rhythm: Comparisons need time to read both sides; lead slightly above standard.
-        min_shot=1.7,
-        max_shot=2.7,
-        j_lead=0.2,
-        beat_snap_tolerance=0.12,
+        camera_zoom_delta=0.06,
+        camera_pan_extent=0.22,
+        camera_min_duration=0.9,
+        # Cut rhythm: Comparisons need time to read both sides: an even
+        # 1.8-2.4 s cadence, lead above standard.
+        min_shot=1.8,
+        max_shot=2.4,
+        j_lead=0.20,
+        beat_snap_tolerance=0.16,
+        hook_max_shot=1.3,
+        max_static_sec=2.8,
         accent_color="#3B82F6",
         status_color="#FFE600",
         neutral_color="#FFFFFF",
     ),
     "smart_hack": StyleMotionPolicy(
         key="smart_hack",
-        transition_stride=3,
+        # Crisp, step-by-step: mostly hard cuts with a short slide only every
+        # fourth boundary (no dissolve, no circle) and quick camera nudges
+        # (short minimum, ease_out) so each step snaps into place.
+        transition_stride=4,
         stylized_stride=0,
-        max_transition_duration=0.30,
-        transition_family="smooth",
+        max_transition_duration=0.20,
+        transition_family="energetic",
         camera_motion_stride=1,
-        camera_zoom_delta=0.06,
-        camera_pan_extent=0.10,
-        camera_min_duration=0.9,
-        # Cut rhythm: Step-by-step hack: even cadence close to the golden master.
+        camera_zoom_delta=0.07,
+        camera_pan_extent=0.12,
+        camera_min_duration=0.7,
+        # Cut rhythm: Step-by-step hack: even cadence, light beat lock.
         min_shot=1.6,
-        max_shot=2.4,
-        j_lead=0.18,
+        max_shot=2.3,
+        j_lead=0.19,
         beat_snap_tolerance=0.14,
         transition_easing="ease_out",
+        hook_max_shot=1.3,
+        camera_easing="ease_out",
         accent_color="#84CC16",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
     ),
     "niche_focus": StyleMotionPolicy(
         key="niche_focus",
+        # Tight push-ins with long holds: the deepest push of the calm
+        # presets with almost no pan, on alternating long shots, joined by an
+        # iris (circle) reveal every fourth boundary: "focus in".
         transition_stride=4,
-        stylized_stride=6,
-        max_transition_duration=0.30,
+        stylized_stride=4,
+        max_transition_duration=0.32,
         transition_family="energetic",
         camera_motion_stride=2,
-        camera_zoom_delta=0.10,
-        camera_pan_extent=0.14,
-        camera_min_duration=0.85,
-        # Cut rhythm: Focused explainer: slightly longer holds, lead a bit above standard.
-        min_shot=1.6,
-        max_shot=2.6,
-        j_lead=0.2,
-        beat_snap_tolerance=0.12,
+        camera_zoom_delta=0.16,
+        camera_pan_extent=0.04,
+        camera_min_duration=1.0,
+        # Cut rhythm: Focused explainer: long holds so a function can be read, lead a bit above standard, light beat lock.
+        min_shot=1.8,
+        max_shot=2.8,
+        j_lead=0.20,
+        beat_snap_tolerance=0.09,
+        hook_max_shot=1.4,
+        max_static_sec=3.0,
         accent_color="#A855F7",
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
@@ -358,6 +413,16 @@ def apply_transition_budget(
         candidate["type"] = "dissolve"
     elif profile.transition_family == "minimal":
         candidate["type"] = "fade"
+    elif profile.transition_family == "compare":
+        # Rhythmic A/B alternation at a regular stride: a wipe, then a slide,
+        # then a wipe from the other side. Deterministic in the slot number
+        # alone (no dependence on the picker's pick), so the plan is the same
+        # for the render and for the preview that plays its manifest.
+        slot = boundary_index // max(1, profile.transition_stride)
+        if slot % 2:
+            candidate["type"] = "wipeleft" if (slot // 2) % 2 == 0 else "wiperight"
+        else:
+            candidate["type"] = "slideleft"
     elif profile.transition_family == "energetic":
         if profile.stylized_stride > 0 and boundary_index % profile.stylized_stride == 0:
             candidate["type"] = "circleopen"
@@ -424,8 +489,9 @@ def camera_keyframes_for_clip(
             "pan_x": round(end_pan, 4),
             "pan_y": 0.0,
             # Shapes the segment ending here (video_editor.CAMERA_EASINGS):
-            # soft start and settle instead of a constant-speed crawl.
-            "easing": "ease_in_out",
+            # the style's easing (soft settle by default, ease_out to land a
+            # punch) instead of a constant-speed crawl.
+            "easing": profile.camera_easing if profile.camera_easing in CAMERA_EASING_NAMES else DEFAULT_CAMERA_EASING,
         },
     ]
 
@@ -507,6 +573,7 @@ def style_motion_catalog() -> Dict[str, Dict[str, Any]]:
             "hook_window_sec": policy.hook_window_sec,
             "hook_max_shot": policy.hook_max_shot,
             "max_static_sec": policy.max_static_sec,
+            "camera_easing": policy.camera_easing,
         }
         for key, policy in STYLE_MOTION_POLICIES.items()
     }
@@ -526,6 +593,11 @@ def style_motion_policy_from_dict(data: Optional[Mapping[str, Any]]) -> StyleMot
     base = resolve_style_motion_policy(data.get("key"))
     known = {f.name for f in fields(StyleMotionPolicy)} - {"key"}
     overrides = {name: data[name] for name in known if name in data and data[name] is not None}
+    if "camera_easing" not in data and overrides:
+        # A serialized policy older than M5 played every generated camera move
+        # with the old fixed easing; the registered preset may now ease
+        # differently, so a legacy entry keeps the legacy value.
+        overrides["camera_easing"] = DEFAULT_CAMERA_EASING
     return replace(base, **overrides) if overrides else base
 
 

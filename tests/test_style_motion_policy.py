@@ -133,15 +133,19 @@ def test_tech_product_showcase_keeps_product_motion_visible_but_budgeted():
         for index in range(1, 7)
     ]
 
+    # M5: camera-forward reveal -- no circle reveals (stylized_stride=0), only
+    # slides every third boundary, alternating by slot (and re-oriented to the
+    # outgoing pan by orient_slide_to_pan in the real planner).
     assert [pick["type"] for pick in picks] == [
-        "cut", "cut", "slideleft", "cut", "cut", "circleopen",
+        "cut", "cut", "slideleft", "cut", "cut", "slideright",
     ]
     assert all(pick.get("duration", 0.0) <= 0.30 for pick in picks)
+    # M5: wide pan (0.24), light push (0.06), shots of at least 0.9 s move.
     assert camera_keyframes_for_clip(
         1.2, 1.0, 0, style_preset="tech_product_showcase"
     ) == [
-        {"time": 0.0, "zoom": 1.15, "pan_x": -0.16, "pan_y": 0.0},
-        {"time": 1.0, "zoom": 1.25, "pan_x": 0.16, "pan_y": 0.0, "easing": "ease_in_out"},
+        {"time": 0.0, "zoom": 1.17, "pan_x": -0.24, "pan_y": 0.0},
+        {"time": 1.0, "zoom": 1.23, "pan_x": 0.24, "pan_y": 0.0, "easing": "ease_in_out"},
     ]
 
 
@@ -180,11 +184,12 @@ def test_flash_deal_is_energetic_and_respects_stride_2():
         )
         for index in range(1, 7)
     ]
-    # stride-2 energetic: cut, slideleft, cut, slideright, cut, stylized
+    # stride-2 energetic. M5: stylized_stride=0, so urgency comes from the
+    # cuts and slides only -- no circle reveal at boundary 6.
     assert [pick["type"] for pick in picks] == [
-        "cut", "slideleft", "cut", "slideright", "cut", "circleopen",
+        "cut", "slideleft", "cut", "slideright", "cut", "slideleft",
     ]
-    assert all(pick.get("duration", 0.0) <= 0.28 for pick in picks)
+    assert all(pick.get("duration", 0.0) <= 0.24 for pick in picks)
     assert style_motion_catalog()["flash_deal"]["accent_color"] == "#FF7A00"
 
 
@@ -202,24 +207,19 @@ def test_pain_punch_is_energetic_with_pink_accent():
         )
         for index in range(1, 7)
     ]
-    # pain_punch: stride=2, stylized_stride=5
+    # M5 pain_punch: stride=3, stylized_stride=6 (was 2 / 5)
     # boundary % stride != 0  => cut (off-stride)
     # boundary % stride == 0  => energetic movement slot:
     #   if boundary % stylized_stride == 0 => circleopen
     #   else => slideleft/slideright alternating
-    # boundary 1: 1%2=1 -> cut
-    # boundary 2: 2%2=0, 2%5=2 -> slideleft (slot=1, 1%2=1 -> slideleft)
-    # boundary 3: 3%2=1 -> cut
-    # boundary 4: 4%2=0, 4%5=4 -> slideright (slot=2, 2%2=0 -> slideright)
-    # boundary 5: 5%2=1 -> cut  (5 is NOT a stride-2 slot, it's off-stride!)
-    # boundary 6: 6%2=0, 6%5=1 -> slideleft (slot=3, 3%2=1 -> slideleft)
-    assert picks[0]["type"] == "cut"       # boundary 1
-    assert picks[1]["type"] == "slideleft" # boundary 2
-    assert picks[2]["type"] == "cut"       # boundary 3
-    assert picks[3]["type"] == "slideright"# boundary 4
-    assert picks[4]["type"] == "cut"       # boundary 5 — off-stride! 5%2=1
-    assert picks[5]["type"] == "slideleft" # boundary 6
-    assert all(pick.get("duration", 0.0) <= 0.28 for pick in picks)
+    # boundary 1,2: off-stride -> cut
+    # boundary 3: 3%6=3 -> slideleft (slot=1)
+    # boundary 4,5: off-stride -> cut
+    # boundary 6: 6%6=0 -> circleopen
+    assert [pick["type"] for pick in picks] == [
+        "cut", "cut", "slideleft", "cut", "cut", "circleopen",
+    ]
+    assert all(pick.get("duration", 0.0) <= 0.24 for pick in picks)
     assert style_motion_catalog()["pain_punch"]["accent_color"] == "#FF2E93"
 
 
@@ -228,27 +228,29 @@ def test_pain_punch_is_energetic_with_pink_accent():
 # ---------------------------------------------------------------------------
 
 
-def test_tech_compare_uses_adaptive_family_and_stride_3():
+def test_tech_compare_alternates_wipe_and_slide_at_a_regular_stride():
     picks = [
         apply_transition_budget(
             {"type": "circleopen", "duration": 0.9},
             style_preset="tech_compare",
             boundary_index=index,
         )
-        for index in range(1, 7)
+        for index in range(1, 13)
     ]
-    # tech_compare: stride=3, stylized_stride=6, family="adaptive"
-    # adaptive family: on stride slot with stylized kind and stylized_stride check:
-    #   kind="circleopen" in _STYLIZED_TRANSITIONS and 3%6!=0 => dissolve
-    #   kind="circleopen" in _STYLIZED_TRANSITIONS and 6%6==0 => kind passes through (circleopen)
-    # boundary 1,2: off-stride -> cut
-    # boundary 3: on-stride, adaptive, kind=circleopen in STYLIZED, 3%6!=0 -> dissolve
-    # boundary 4,5: off-stride -> cut
-    # boundary 6: on-stride, adaptive, kind=circleopen in STYLIZED, 6%6==0 -> circleopen passes
+    # M5 tech_compare: the new "compare" family (was adaptive, which only
+    # ever produced a dissolve here). Every third boundary is a movement slot;
+    # slot 1 wipes left, slot 2 slides, slot 3 wipes right, slot 4 slides...
+    # independent of the candidate the picker offered.
     assert [pick["type"] for pick in picks] == [
-        "cut", "cut", "dissolve", "cut", "cut", "circleopen",
+        "cut", "cut", "wipeleft", "cut", "cut", "slideleft",
+        "cut", "cut", "wiperight", "cut", "cut", "slideleft",
     ]
-    assert all(pick.get("duration", 0.0) <= 0.32 for pick in picks)
+    assert all(pick.get("duration", 0.0) <= 0.30 for pick in picks)
+    assert all(pick["easing"] == "ease_in_out" for pick in picks if pick["type"] != "cut")
+    other = apply_transition_budget(
+        {"type": "fade", "duration": 0.2}, style_preset="tech_compare", boundary_index=3,
+    )
+    assert other["type"] == "wipeleft"
     assert style_motion_catalog()["tech_compare"]["accent_color"] == "#3B82F6"
 
 
@@ -257,20 +259,23 @@ def test_tech_compare_uses_adaptive_family_and_stride_3():
 # ---------------------------------------------------------------------------
 
 
-def test_smart_hack_uses_smooth_dissolve_family():
-    pick_on_stride = apply_transition_budget(
-        {"type": "wipeleft", "duration": 0.9},
-        style_preset="smart_hack",
-        boundary_index=3,
-    )
-    pick_off_stride = apply_transition_budget(
-        {"type": "wipeleft", "duration": 0.9},
-        style_preset="smart_hack",
-        boundary_index=1,
-    )
-    # smooth family coerces the transition to dissolve on budget slots
-    assert pick_on_stride == {"type": "dissolve", "duration": 0.30}
-    assert pick_off_stride == {"type": "cut", "duration": 0.0}
+def test_smart_hack_is_crisp_hard_cuts_with_an_occasional_slide():
+    # M5: smart_hack stopped being a smooth_showcase clone. It is the
+    # energetic family at stride 4 with no circle reveal: hard cuts, and every
+    # fourth boundary a short ease_out slide (never a dissolve).
+    picks = [
+        apply_transition_budget(
+            {"type": "wipeleft", "duration": 0.9},
+            style_preset="smart_hack",
+            boundary_index=index,
+        )
+        for index in range(1, 9)
+    ]
+    assert [pick["type"] for pick in picks] == [
+        "cut", "cut", "cut", "slideleft", "cut", "cut", "cut", "slideright",
+    ]
+    assert picks[3] == {"type": "slideleft", "duration": 0.20, "easing": "ease_out"}
+    assert picks[0] == {"type": "cut", "duration": 0.0}
     assert style_motion_catalog()["smart_hack"]["accent_color"] == "#84CC16"
 
 
@@ -288,23 +293,16 @@ def test_niche_focus_energetic_stride_4_with_purple_accent():
         )
         for index in range(1, 9)
     ]
-    _STYLIZED = {"circleopen", "circleclose", "wipeleft", "wiperight", "wipeup", "wipedown"}
-    # niche_focus: stride=4, stylized_stride=6, family="energetic"
+    # M5 niche_focus: stride=4, stylized_stride=4 (was 6), family="energetic".
+    # Every movement slot is an iris (circleopen) reveal: "focus in".
     # boundary 1,2,3: off-stride -> cut
-    # boundary 4: 4%4=0, 4%6=4 -> energetic slideleft (slot=1, 1%2=1)
-    # boundary 5: off-stride -> cut
-    # boundary 6: 6%4=2 != 0 -> off-stride -> cut  (NOT a stride-4 slot!)
-    # boundary 7: off-stride -> cut
-    # boundary 8: 8%4=0, 8%6=2 -> energetic slideright (slot=2, 2%2=0)
-    assert picks[0]["type"] == "cut"        # boundary 1
-    assert picks[1]["type"] == "cut"        # boundary 2
-    assert picks[2]["type"] == "cut"        # boundary 3
-    assert picks[3]["type"] == "slideleft"  # boundary 4 — first stride-4 hit
-    assert picks[4]["type"] == "cut"        # boundary 5
-    assert picks[5]["type"] == "cut"        # boundary 6 — 6%4=2, off-stride!
-    assert picks[6]["type"] == "cut"        # boundary 7
-    assert picks[7]["type"] == "slideright" # boundary 8 — second stride-4 hit
-    assert all(pick.get("duration", 0.0) <= 0.30 for pick in picks)
+    # boundary 4: 4%4=0 and 4%4=0 -> circleopen
+    # boundary 5,6,7: off-stride -> cut
+    # boundary 8: circleopen
+    assert [pick["type"] for pick in picks] == [
+        "cut", "cut", "cut", "circleopen", "cut", "cut", "cut", "circleopen",
+    ]
+    assert all(pick.get("duration", 0.0) <= 0.32 for pick in picks)
     assert style_motion_catalog()["niche_focus"]["accent_color"] == "#A855F7"
 
 
@@ -500,9 +498,11 @@ def test_generated_transitions_carry_the_style_easing_only_on_supported_types():
                     # dissolve, circleopen/close, fadeblack/fadewhite: linear
                     assert "easing" not in pick, where
     # Not vacuous: styles that can pick a slide/fade/wipe do get an easing
-    # (smooth_showcase and smart_hack are dissolve-only families).
+    # (smooth_showcase is the only dissolve-only family since M5 made
+    # smart_hack a slide preset).
+    # niche_focus is circleopen-only since M5 (an iris reveal ignores easing).
     for style, count in eased_per_style.items():
-        if style in ("smooth_showcase", "smart_hack"):
+        if style in ("smooth_showcase", "niche_focus"):
             assert count == 0, style
         else:
             assert count > 0, style

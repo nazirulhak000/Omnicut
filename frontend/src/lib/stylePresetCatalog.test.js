@@ -111,6 +111,21 @@ test('every angle default points at a real preset, including IT angle keys and b
   assert.equal(getRecommendedStyleForAngle('unknown'), DEFAULT_STYLE_PRESET);
 });
 
+test('M5: every preset describes its own motion and transitions (no copy-paste labels)', () => {
+  for (const field of ['description', 'motion', 'transitions']) {
+    const values = STYLE_PRESET_CATALOG.map((preset) => preset[field]);
+    assert.equal(new Set(values).size, STYLE_PRESET_CATALOG.length, `${field} must be unique per preset`);
+  }
+  const byId = Object.fromEntries(STYLE_PRESET_CATALOG.map((preset) => [preset.id, preset]));
+  // The wording names what the renderer plays (scripts/style_motion_policy.py).
+  assert.match(byId.smooth_showcase.transitions, /Dissolve/);
+  assert.doesNotMatch(byId.smart_hack.transitions, /Dissolve/);
+  assert.match(byId.smart_hack.transitions, /Slide/);
+  assert.match(byId.tech_compare.transitions, /Wipe/);
+  assert.match(byId.niche_focus.transitions, /Circle/);
+  assert.match(byId.premium_minimal.transitions, /Fade/);
+});
+
 test('batch auto choice is not a preset id, so it never masks an angle default', () => {
   assert.equal(AUTO_STYLE_PRESET, 'auto');
   assert.ok(!STYLE_PRESET_CATALOG.some((preset) => preset.id === AUTO_STYLE_PRESET));
