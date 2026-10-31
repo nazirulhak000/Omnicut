@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Check, AlertCircle, RefreshCw, X, Film, CheckSquare, Square, Zap, Loader2 } from 'lucide-react';
 import { Modal, Button, Badge } from './ui';
 import { startBatchRender, getBatchRenderStatus, cancelBatchRender } from '../api';
+import { AUTO_STYLE_PRESET, STYLE_PRESET_CATALOG, getStylePreset } from '../lib/stylePresetCatalog';
 
 const GEMINI_VOICE_OPTIONS = [
   { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง TikTok', gender: 'male' },
@@ -22,7 +23,7 @@ export default function BatchRenderModal({
 }) {
   const [selectedAngleIds, setSelectedAngleIds] = useState(new Set());
   const [voiceRate, setVoiceRate] = useState('+15%');
-  const [stylePreset, setStylePreset] = useState('clean_tech_review');
+  const [stylePreset, setStylePreset] = useState(AUTO_STYLE_PRESET);
   const [starting, setStarting] = useState(false);
   const [activeBatch, setActiveBatch] = useState(null);
   const [cancelling, setCancelling] = useState(false);
@@ -381,32 +382,28 @@ export default function BatchRenderModal({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">สไตล์วิดีโอ</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setStylePreset('clean_tech_review')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      stylePreset === 'clean_tech_review'
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                        : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10'
-                    }`}
-                  >
-                    Clean Tech
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStylePreset('commercial_premium')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      stylePreset === 'commercial_premium'
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10'
-                    }`}
-                  >
-                    Commercial
-                  </button>
-                </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="batch-style-preset" className="block text-xs font-bold text-slate-300 mb-1.5">สไตล์วิดีโอ</label>
+                <select
+                  id="batch-style-preset"
+                  value={stylePreset}
+                  onChange={(e) => setStylePreset(e.target.value)}
+                  className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-3 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+                >
+                  <option value={AUTO_STYLE_PRESET} className="bg-slate-900 text-slate-200">
+                    ตามมุมมอง (แนะนำ)
+                  </option>
+                  {STYLE_PRESET_CATALOG.map((preset) => (
+                    <option key={preset.id} value={preset.id} className="bg-slate-900 text-slate-200">
+                      {preset.labelTh} ({preset.label})
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  {stylePreset === AUTO_STYLE_PRESET
+                    ? 'แต่ละมุมมองใช้สไตล์ที่แนะนำของมุมนั้น'
+                    : `ทุกมุมมองในชุดนี้ใช้ ${getStylePreset(stylePreset).labelTh}`}
+                </p>
               </div>
             </div>
 

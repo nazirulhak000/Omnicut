@@ -309,9 +309,10 @@ def test_batch_worker_resolves_angle_style_and_completes_task_with_project_name(
         batch_id = res["batch_id"]
         BatchRenderManager._run_batch_worker(batch_id)
 
-    # 1. Verify angle style mapping
-    assert captured_styles == ["viral_punch", "pain_punch"]
-    assert captured_hook_styles == [{"template": "b1_viral_red"}, {"template": "b1_pain_pink"}]
+    # 1. Verify angle style mapping (items render concurrently, so compare
+    # without relying on call order)
+    assert sorted(captured_styles) == sorted(["viral_punch", "pain_punch"])
+    assert sorted(h["template"] for h in captured_hook_styles) == sorted(["b1_viral_red", "b1_pain_pink"])
 
     # 2. Verify TaskManager.complete_task received project_name
     assert len(completed_tasks) == 1
