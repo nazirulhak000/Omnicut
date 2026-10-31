@@ -3517,6 +3517,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/tiktok-stats/style-performance",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "major",
+      "resource_params": [
+        "group_by"
+      ],
+      "module": "scripts.api_tiktok_stats"
+    },
+    {
+      "method": "GET",
       "path": "/api/tokens/alerts",
       "scope": "global",
       "allow_query_scope": false,

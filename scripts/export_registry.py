@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import math
 import threading
 import uuid
 from copy import deepcopy
@@ -75,6 +76,97 @@ def _normalise_path(raw_path: Any) -> str:
     return path_utils.to_relative(resolved, base_dir=BASE_DIR) or ""
 
 
+# ----------------------------------------------------------------------
+# Style metadata (Q6 feedback loop): which look/hook/format a clip used, so
+# measured TikTok results can later be grouped by it.  Every field is
+# optional -- rows written before this existed load and behave unchanged.
+# ----------------------------------------------------------------------
+STYLE_METADATA_FIELDS = ("style_preset", "hook_style", "story_format", "duration_sec", "hook_text")
+DEFAULT_STORY_FORMAT = "classic"
+_HOOK_TEXT_MAX = 200
+
+
+def normalize_style_metadata(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Keep only known, non-empty, well-typed style fields.
+
+    ``duration_sec`` must be a positive number (rounded to 0.01 s); text
+    fields are stripped strings (``hook_text`` capped).  Unknown keys and
+    empty values are dropped, so the result can be merged "fill only what
+    is missing" without ever blanking a stored value.
+    """
+    clean: Dict[str, Any] = {}
+    for key in STYLE_METADATA_FIELDS:
+        value = (raw or {}).get(key)
+        if value is None or isinstance(value, bool):
+            continue
+        if key == "duration_sec":
+            try:
+                seconds = float(value)
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(seconds) and seconds > 0:
+                clean[key] = round(seconds, 2)
+            continue
+        if not isinstance(value, str):
+            continue
+        text = " ".join(value.split())
+        if key == "hook_text":
+            text = text[:_HOOK_TEXT_MAX]
+        if text:
+            clean[key] = text
+    return clean
+
+
+def style_metadata_from_manifest(manifest: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Derive the export's style metadata from its project manifest.
+
+    Reads only fields the render already persists -- no media probe:
+    ``style_preset`` (manifest or ``render_params``), ``hook_style_id``
+    (written by /api/hooks/apply-* when a hook variant is chosen; the
+    manifest's ``hook_style`` key is the banner *template dict* and is used
+    only when it is a plain id string), ``story_format`` (default
+    ``"classic"``), ``total_duration`` and the spoken hook line
+    (``script_data.hook`` -> first script line -> ``hook_title``).
+    """
+    if not isinstance(manifest, dict):
+        return {}
+    render_params = manifest.get("render_params") if isinstance(manifest.get("render_params"), dict) else {}
+    script = manifest.get("script_data") if isinstance(manifest.get("script_data"), dict) else {}
+
+    hook_style = manifest.get("hook_style_id") or render_params.get("hook_style_id")
+    if not hook_style and isinstance(manifest.get("hook_style"), str):
+        hook_style = manifest.get("hook_style")
+
+    hook_text = script.get("hook") if isinstance(script.get("hook"), str) else ""
+    if not hook_text:
+        lines = script.get("lines") if isinstance(script.get("lines"), list) else []
+        first = lines[0] if lines else None
+        if isinstance(first, dict):
+            hook_text = first.get("text") or ""
+        elif isinstance(first, str):
+            hook_text = first
+    if not hook_text:
+        hook_text = manifest.get("hook_text") or manifest.get("hook_title") or ""
+
+    return normalize_style_metadata({
+        "style_preset": manifest.get("style_preset") or render_params.get("style_preset"),
+        "hook_style": hook_style,
+        "story_format": manifest.get("story_format") or render_params.get("story_format") or DEFAULT_STORY_FORMAT,
+        "duration_sec": manifest.get("duration_sec") or manifest.get("total_duration"),
+        "hook_text": hook_text,
+    })
+
+
+def _fill_style_metadata(record: Dict[str, Any], metadata: Dict[str, Any], *, overwrite: bool = False) -> bool:
+    """Write ``metadata`` onto ``record`` (fill-missing unless ``overwrite``); True when changed."""
+    changed = False
+    for key, value in normalize_style_metadata(metadata).items():
+        if record.get(key) in (None, "") or (overwrite and record.get(key) != value):
+            record[key] = value
+            changed = True
+    return changed
+
+
 def _foreign_export_error() -> ChannelError:
     # ADR §2: a resource of another channel must look like it does not exist.
     return ChannelError(404, "resource_not_found", "ไม่พบไฟล์ export ที่ร้องขอในช่องที่เลือก")
@@ -92,6 +184,10 @@ class ExportRegistry:
     """Transactional store for per-file export identities."""
 
     _path_index_lock = threading.Lock()
+    # Serialises style-metadata stamping across worker threads (AGENTS rule
+    # 24).  SQLite's BEGIN IMMEDIATE already serialises the transaction; the
+    # lock keeps same-process writers from spinning on busy_timeout.
+    _metadata_lock = threading.Lock()
     # Cached ``[(path_key, export_id, owner)]`` in registry order, rebuilt
     # once per registry change (signature).  Filtered per scope on read.
     _path_index: Optional[List[Tuple[str, str, Optional[str]]]] = None
@@ -449,6 +545,9 @@ class ExportRegistry:
                         "posted_at": posted_at,
                         **provenance,
                     }
+                    # Optional style metadata: only keys with real values are
+                    # added, so rows without it keep the exact old shape.
+                    _fill_style_metadata(record, entry.get("style_metadata") or {})
                     records.append(record)
                     by_path[path_key] = record
                 else:
@@ -478,6 +577,8 @@ class ExportRegistry:
                         record["status"] = "posted"
                         record["posted_at"] = posted_at or record.get("posted_at") or now
                         changed = True
+                    if _fill_style_metadata(record, entry.get("style_metadata") or {}):
+                        changed = True
                     if changed:
                         record["updated_at"] = now
                 result.append(dict(record))
@@ -497,12 +598,14 @@ class ExportRegistry:
         channel_id: Optional[str] = None,
         all_channels: bool = False,
         job_scope: Optional[Dict[str, Any]] = None,
+        style_metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Return the existing identity or create one for this exact file.
 
         This is also the one-time migration seam for exports made before the
         registry existed.  A later call can enrich a legacy record without
-        changing its ID.
+        changing its ID.  ``style_metadata`` (see STYLE_METADATA_FIELDS) is
+        optional and only fills fields the record does not have yet.
         """
         return cls.ensure_many([{
             "path": path,
@@ -511,7 +614,39 @@ class ExportRegistry:
             "project_name": project_name,
             "status": status,
             "posted_at": posted_at,
+            "style_metadata": style_metadata,
         }], channel_id=channel_id, all_channels=all_channels, job_scope=job_scope)[0]
+
+    @classmethod
+    def set_style_metadata(
+        cls,
+        export_id: Optional[str],
+        metadata: Optional[Dict[str, Any]],
+        *,
+        overwrite: bool = False,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """Stamp style metadata on one export (fill-missing unless ``overwrite``).
+
+        Returns the stored row, or ``None`` when the export is unknown in this
+        scope (another channel's export looks absent).  The read-modify-write
+        runs inside one ``BEGIN IMMEDIATE`` transaction and under
+        ``_metadata_lock`` (AGENTS rule 24) so concurrent finalizers in worker
+        threads never lose each other's fields.
+        """
+        clean = normalize_style_metadata(metadata)
+        if not export_id:
+            return None
+        scope = cls._scope(channel_id, all_channels)
+        with cls._metadata_lock:
+            with cls._scoped_mutate(scope) as records:
+                record = next((row for row in records if str(row.get("id")) == str(export_id)), None)
+                if record is None:
+                    return None
+                if clean and _fill_style_metadata(record, clean, overwrite=overwrite):
+                    record["updated_at"] = _now()
+                return dict(record)
 
     @classmethod
     def move_and_mark_posted(
@@ -552,7 +687,7 @@ class ExportRegistry:
                 # and a second registry row for the Posted path. Collapse the
                 # duplicate while keeping the already-posted identity as the
                 # canonical proof record.
-                for field in ("product_id", "angle_id", "project_name"):
+                for field in ("product_id", "angle_id", "project_name", *STYLE_METADATA_FIELDS):
                     if not posted_destination.get(field) and record.get(field):
                         posted_destination[field] = record[field]
                 records[:] = [
