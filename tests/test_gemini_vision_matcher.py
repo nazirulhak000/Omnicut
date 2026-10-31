@@ -116,9 +116,8 @@ def test_prepared_request_context_returns_cached_match_without_a_second_lookup(m
     raw.write_bytes(b"data")
     cached = [{"cue_id": 1, "start_time": 0.0, "end_time": 2.0}]
     file_hash = gvm.GeminiVisionMatcher._compute_file_hash(raw)
-    cue_text = "|".join(cue["text"] for cue in _CUES)
     gvm.GeminiVisionMatcher._save_cache({
-        "matches": {f"{file_hash}_{hashlib.md5(cue_text.encode('utf-8')).hexdigest()}": cached}
+        "matches": {gvm.GeminiVisionMatcher.match_cache_key(file_hash, _CUES): cached}
     })
 
     context = gvm.GeminiVisionMatcher.prepare_request_context(str(raw), _CUES)
@@ -174,8 +173,7 @@ def test_get_cached_matches_returns_hit_with_correct_key(tmp_path):
     raw.write_bytes(b"video data")
 
     file_hash = gvm.GeminiVisionMatcher._compute_file_hash(raw.resolve())
-    cues_summary = "|".join([c.get("text", "") for c in _CUES])
-    key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
+    key = gvm.GeminiVisionMatcher.match_cache_key(file_hash, _CUES)
 
     gvm.GeminiVisionMatcher._save_cache({"matches": {key: [{"cue_id": 1, "start_time": 0.0, "end_time": 2.0}]}})
 
@@ -199,8 +197,7 @@ def test_get_cached_matches_empty_list_entry_is_treated_as_a_miss(tmp_path):
     raw = tmp_path / "raw.mp4"
     raw.write_bytes(b"video data")
     file_hash = gvm.GeminiVisionMatcher._compute_file_hash(raw.resolve())
-    cues_summary = "|".join([c.get("text", "") for c in _CUES])
-    key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
+    key = gvm.GeminiVisionMatcher.match_cache_key(file_hash, _CUES)
     gvm.GeminiVisionMatcher._save_cache({"matches": {key: []}})
 
     assert gvm.GeminiVisionMatcher.get_cached_matches(str(raw), _CUES) is None
@@ -424,8 +421,7 @@ def test_match_script_to_video_success_actually_writes_the_persistent_cache(monk
 
     # the cache on disk (not just the return value) carries the match
     file_hash = gvm.GeminiVisionMatcher._compute_file_hash(raw.resolve())
-    cues_summary = "|".join([c.get("text", "") for c in _CUES])
-    expected_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
+    expected_key = gvm.GeminiVisionMatcher.match_cache_key(file_hash, _CUES)
     on_disk = json.loads(gvm.VISION_CACHE_FILE.read_text(encoding="utf-8"))
     assert on_disk["matches"][expected_key] == shots
 
@@ -529,16 +525,13 @@ def test_a_failed_parse_does_not_reuse_a_match_from_a_different_script(monkeypat
 
 def test_a_failed_parse_still_reuses_the_map_for_this_exact_script(monkeypatch, tmp_path):
     """The same-video-same-cues entry is still worth falling back to."""
-    import hashlib
-
     _prime_failed_parse(monkeypatch)
 
     raw = tmp_path / "raw.mp4"
     raw.write_bytes(b"data")
     file_hash = gvm.GeminiVisionMatcher._compute_file_hash(raw.resolve())
     # Key it exactly as match_script_to_video does.
-    cues_summary = "|".join([f"{c.get('text', '')}" for c in _CUES])
-    exact_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
+    exact_key = gvm.GeminiVisionMatcher.match_cache_key(file_hash, _CUES)
     shots = [{"cue_id": 1, "start_time": 1.0, "end_time": 3.0}]
     gvm.GeminiVisionMatcher._save_cache({"matches": {exact_key: shots}})
 
@@ -568,3 +561,88 @@ def test_match_script_to_video_quota_error_is_never_caught_by_the_broad_except(m
     with patch("scripts.quota.check_budget", side_effect=quota_err):
         with pytest.raises(AppError):
             gvm.GeminiVisionMatcher.match_script_to_video(str(raw), _CUES, raw_duration=10.0)
+
+
+# ------------------------------------------- cache key: shot range + prompt version
+
+def test_match_cache_key_folds_in_shot_range_and_prompt_version():
+    from scripts.config import MAX_SHOT_DURATION, MIN_SHOT_DURATION
+    key = gvm.GeminiVisionMatcher.match_cache_key
+    default = key("vid", _CUES)
+    assert default == key("vid", _CUES, MIN_SHOT_DURATION, MAX_SHOT_DURATION)
+    assert f"_v{gvm.MATCH_PROMPT_VERSION}_" in default
+    assert key("vid", _CUES, 2.0, 6.0) != key("vid", _CUES, 1.5, 2.5)
+    assert key("vid", _CUES, 6.0, 2.0) == key("vid", _CUES, 2.0, 6.0)  # reversed range normalised
+    legacy = f"vid_{hashlib.md5(_CUES[0]['text'].encode('utf-8')).hexdigest()}"
+    assert default != legacy and default.startswith(legacy)
+
+
+def test_legacy_key_cached_under_the_old_prompt_is_not_reused(tmp_path):
+    raw = tmp_path / "raw.mp4"
+    raw.write_bytes(b"video data")
+    file_hash = gvm.GeminiVisionMatcher._compute_file_hash(raw.resolve())
+    legacy = f"{file_hash}_{hashlib.md5(_CUES[0]['text'].encode('utf-8')).hexdigest()}"
+    gvm.GeminiVisionMatcher._save_cache({"matches": {legacy: [{"cue_id": 1, "start_time": 0.0, "end_time": 6.0}]}})
+
+    assert gvm.GeminiVisionMatcher.get_cached_matches(str(raw), _CUES) is None
+    assert gvm.GeminiVisionMatcher.get_cached_matches(str(raw), _CUES, min_shot=2.0, max_shot=6.0) is None
+
+
+def test_cache_hit_requires_the_same_shot_range(tmp_path):
+    raw = tmp_path / "raw.mp4"
+    raw.write_bytes(b"video data")
+    file_hash = gvm.GeminiVisionMatcher._compute_file_hash(raw.resolve())
+    shots = [{"cue_id": 1, "start_time": 0.0, "end_time": 2.0}]
+    gvm.GeminiVisionMatcher._save_cache({
+        "matches": {gvm.GeminiVisionMatcher.match_cache_key(file_hash, _CUES, 1.5, 2.5): shots}
+    })
+
+    assert gvm.GeminiVisionMatcher.get_cached_matches(str(raw), _CUES, min_shot=1.5, max_shot=2.5) == shots
+    assert gvm.GeminiVisionMatcher.get_cached_matches(str(raw), _CUES, min_shot=2.0, max_shot=6.0) is None
+
+
+def test_context_prepared_without_range_is_rekeyed_to_the_prompt_range(monkeypatch, tmp_path):
+    """The stage prepares the context with no range, then asks Gemini for the
+    style's range. An entry cached under the default range must not answer a
+    request for another range; the new answer lands under the range key."""
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+    monkeypatch.setattr(
+        gvm.GeminiVisionMatcher, "get_or_upload_video",
+        classmethod(lambda cls, client, path: MagicMock(name="remote_video")),
+    )
+    monkeypatch.setattr(
+        gvm.GeminiVisionMatcher, "_get_or_upload_context",
+        classmethod(lambda cls, client, context: MagicMock(name="remote_video")),
+    )
+    raw = tmp_path / "raw.mp4"
+    raw.write_bytes(b"data")
+    file_hash = gvm.GeminiVisionMatcher._compute_file_hash(raw.resolve())
+    default_shots = [{"cue_id": 1, "start_time": 0.0, "end_time": 2.0}]
+    gvm.GeminiVisionMatcher._save_cache({
+        "matches": {gvm.GeminiVisionMatcher.match_cache_key(file_hash, _CUES): default_shots}
+    })
+    context = gvm.GeminiVisionMatcher.prepare_request_context(str(raw), _CUES)
+    assert context.cached_matches == default_shots
+
+    fresh = [{"cue_id": 1, "start_time": 3.0, "end_time": 7.5, "visual_reason": "x", "punch_zoom": 1.1}]
+    factory = _fake_client_factory([_ok_response(fresh)])
+    with patch("google.genai.Client", side_effect=factory):
+        result = gvm.GeminiVisionMatcher.match_script_to_video(
+            str(raw), _CUES, raw_duration=10.0, request_context=context, min_shot=3.0, max_shot=5.0
+        )
+
+    assert [s["start_time"] for s in result] == [3.0]
+    prompt_parts = factory.created[0].models.generate_content.call_args.kwargs["contents"]
+    assert "3.0 - 5.0" in str(prompt_parts)
+    on_disk = json.loads(gvm.VISION_CACHE_FILE.read_text(encoding="utf-8"))["matches"]
+    range_key = gvm.GeminiVisionMatcher.match_cache_key(file_hash, _CUES, 3.0, 5.0)
+    assert on_disk[range_key] == result
+    assert on_disk[gvm.GeminiVisionMatcher.match_cache_key(file_hash, _CUES)] == default_shots
+
+    # Same range again: served from cache, no Gemini call.
+    context2 = gvm.GeminiVisionMatcher.prepare_request_context(str(raw), _CUES)
+    with patch("google.genai.Client", side_effect=AssertionError("must not call Gemini")):
+        again = gvm.GeminiVisionMatcher.match_script_to_video(
+            str(raw), _CUES, raw_duration=10.0, request_context=context2, min_shot=3.0, max_shot=5.0
+        )
+    assert again == result

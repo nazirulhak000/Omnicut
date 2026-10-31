@@ -43,7 +43,7 @@ def _capture_prompt(monkeypatch, tmp_path, **kwargs):
     monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
     monkeypatch.setenv("DAILY_TOKEN_LIMIT", "0")
     monkeypatch.setenv("DAILY_COST_THB_LIMIT", "0")
-    monkeypatch.setattr(gvm.GeminiVisionMatcher, "get_cached_matches", classmethod(lambda cls, p, c: None))
+    monkeypatch.setattr(gvm.GeminiVisionMatcher, "get_cached_matches", classmethod(lambda cls, p, c, **k: None))
     monkeypatch.setattr(gvm.GeminiVisionMatcher, "get_or_upload_video",
                         classmethod(lambda cls, client, path: MagicMock(name="remote_video")))
     from scripts import token_tracker

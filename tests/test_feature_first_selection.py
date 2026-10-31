@@ -1,6 +1,5 @@
 """Visual variety must not outrank the feature the narration describes."""
 from copy import deepcopy
-import hashlib
 import pytest
 
 from scripts.gemini_vision_matcher import GeminiVisionMatcher
@@ -63,7 +62,7 @@ def test_cached_catalog_rematches_old_choices_without_cache_write_or_api(tmp_pat
     raw.write_bytes(b"synthetic identity; never decoded")
     cues = _cues("USB-C charging")
     catalog = {"scenes": [_scene(0, "USB-C"), _scene(1, "logo")]}
-    key = "source_" + hashlib.md5("|".join(c["text"] for c in cues).encode()).hexdigest()
+    key = GeminiVisionMatcher.match_cache_key("source", cues)
     old = [{"scene_id": i % 2, "cue_ids": [i + 1], "start_time": (i % 2) * 10,
             "end_time": (i % 2) * 10 + 8} for i in range(4)]
     cache = {"catalogs": {"source": catalog}, "matches": {key: old}}
@@ -88,7 +87,7 @@ def test_direct_vision_cache_without_scene_ids_is_preserved(tmp_path, monkeypatc
     raw = tmp_path / "raw.mp4"
     raw.write_bytes(b"synthetic identity")
     cues = _cues("USB-C charging", 1)
-    key = "source_" + hashlib.md5(cues[0]["text"].encode()).hexdigest()
+    key = GeminiVisionMatcher.match_cache_key("source", cues)
     matches = [{"cue_ids": [1], "start_time": 5, "end_time": 8}]
     cache = {"matches": {key: matches}, "catalogs": {"source": {"scenes": [_scene(0, "USB-C")]}}}
     monkeypatch.setattr(GeminiVisionMatcher, "_compute_file_hash", lambda _: "source")

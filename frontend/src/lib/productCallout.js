@@ -13,8 +13,10 @@ import {
  * explicit and safe to persist.
  */
 export const PRODUCT_CALLOUT_ROLE = 'product_callout';
+// Mirrors scripts/product_callout_builder.py CALLOUT_TYPES. No 'price': price
+// talk is banned in clips (TikTok rule) and the backend drops price callouts.
 export const PRODUCT_CALLOUT_TYPES = Object.freeze([
-  'brand', 'model', 'feature', 'spec', 'price', 'proof', 'cta',
+  'brand', 'model', 'feature', 'spec', 'proof', 'cta',
 ]);
 export const PRODUCT_CALLOUT_ORIGINS = Object.freeze(['auto', 'manual', 'imported']);
 

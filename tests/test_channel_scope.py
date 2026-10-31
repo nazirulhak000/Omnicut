@@ -485,7 +485,10 @@ def test_policy_file_shape_and_decisions():
     for row in rows:
         by_scope[row.scope] = by_scope.get(row.scope, 0) + 1
     # global +17: /api/auth/{me,login,logout}, /api/health, plus previously unregistered agy/terminal/token/SPA catch-all rows
-    assert by_scope == {"channel": 246, "shared": 38, "global": 59}  # channel +1: GET /api/tiktok-stats/style-performance
+    # channel +1: GET /api/tiktok-stats/style-performance
+    # global +9: /api/ssd/{drives,inspect,stage,reconcile} + /api/archive/{status,progress,execute,restore,reveal}
+    # -- device/Drive maintenance over the whole export registry, no channel input
+    assert by_scope == {"channel": 246, "shared": 38, "global": 68}
     release = table.get("POST", "/api/tiktok-autopost/release")
     assert release.scope == "channel" and release.access == "write" and not release.allow_query_scope
     assert {row.key for row in rows if row.allow_query_scope} == QUERY_SCOPE_ROUTES
