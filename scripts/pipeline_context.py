@@ -24,6 +24,45 @@ from scripts.voice_cut_map import resolve_voice_cuts
 INCREMENTAL_RENDER_SCHEMA_VERSION = 1
 
 
+# Retention controls (AI editor viral M3). Both are optional: with no
+# target length and the "classic" format the script prompt, the manifest and
+# every stage fingerprint stay exactly what they were before these existed.
+TARGET_DURATION_CHOICES = (15, 25, 35, 45)
+STORY_FORMATS = ("classic", "countdown", "problem_reveal", "myth_buster", "loop")
+DEFAULT_STORY_FORMAT = "classic"
+
+
+def normalize_target_duration(value: Any) -> Optional[int]:
+    """A supported target clip length in seconds, or None (= no target).
+
+    Accepts 15/25/35/45 as int, whole float or numeric string; anything else
+    (bool, junk, other lengths) falls back silently to None.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return None
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(seconds) or seconds != int(seconds):
+        return None
+    seconds = int(seconds)
+    return seconds if seconds in TARGET_DURATION_CHOICES else None
+
+
+def normalize_story_format(value: Any) -> str:
+    """A supported story format id; anything else falls back to "classic"."""
+    if isinstance(value, str):
+        key = value.strip().lower()
+        if key in STORY_FORMATS:
+            return key
+    return DEFAULT_STORY_FORMAT
+
+
 def channel_project_name(project_name, channel_id):
     """Main stays flat; a secondary channel may use only its own namespace."""
     if not project_name or channel_id is None:
@@ -232,6 +271,121 @@ def _sfx_identities(cues: Any) -> List[Dict[str, Any]]:
     return identities
 
 
+# --- Cut-bound SFX (roadmap Q4 follow-up) ----------------------------------
+# A transition whoosh within SFX_CUT_SNAP_S of a visual cut is exempt from the
+# SFX gap rule (sfx_manager.plan_sfx_events). The cut instants come from the
+# clip list laid on the render's frame grid -- the same plan_sequence_frames()
+# the renderer and the preview's buildSegments() use.
+_MIN_PLAYED_CLIP_S = 0.2  # == timelineMath.js MIN_CLIP_DURATION
+
+
+def _played_clip_duration(clip: Dict[str, Any]) -> Optional[float]:
+    """Seconds a clip occupies on the output timeline, or None when unknown."""
+    try:
+        speed = float(clip.get("speed") or 1.0)
+        speed = min(4.0, max(0.25, speed)) if math.isfinite(speed) else 1.0
+        freeze_tail = min(10.0, max(0.0, float(clip.get("freeze_tail") or 0.0)))
+        if clip.get("trim_end") is not None:
+            span = float(clip["trim_end"]) - float(clip.get("trim_start") or 0.0)
+            seconds = span / speed + freeze_tail
+        elif clip.get("duration") is not None:
+            seconds = float(clip["duration"])
+        else:
+            return None
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(seconds):
+        return None
+    return max(_MIN_PLAYED_CLIP_S, seconds)
+
+
+def clip_cut_times(clip_list: Any) -> List[float]:
+    """Output-timeline instant of every internal cut of ``clip_list``.
+
+    A hard cut is the frame where the next clip starts; a transition counts
+    at its visual midpoint (VideoAssemblyStage centres the overlap on the
+    planned cut, so both land on the same instant). Empty when the list has
+    fewer than two clips or any clip's played length is unknown.
+    """
+    clips = [clip for clip in (clip_list or []) if isinstance(clip, dict)]
+    if len(clips) < 2:
+        return []
+    played: List[float] = []
+    for clip in clips:
+        seconds = _played_clip_duration(clip)
+        if seconds is None:
+            return []
+        played.append(seconds)
+    try:
+        from scripts.video_editor import (
+            DEFAULT_TRANSITION_DURATION, FPS, MAX_TRANSITION_DURATION, plan_sequence_frames,
+        )
+    except Exception:
+        return []
+    boundaries: List[Dict[str, Any]] = []
+    for clip in clips[1:]:
+        kind = str(clip.get("transition_in") or "cut")
+        if kind == "cut":
+            boundaries.append({"type": "cut"})
+            continue
+        raw = clip.get("transition_duration")
+        try:
+            overlap = DEFAULT_TRANSITION_DURATION if raw is None else float(raw)
+        except (TypeError, ValueError):
+            overlap = DEFAULT_TRANSITION_DURATION
+        boundaries.append({"type": kind, "duration": min(MAX_TRANSITION_DURATION, max(0.1, overlap))})
+    plan = plan_sequence_frames(played, boundaries, FPS)
+    return [
+        round((plan["start"][i] + plan["end"][i - 1]) / 2.0 / FPS, 6)
+        for i in range(1, len(clips))
+    ]
+
+
+def cut_bound_sfx_plan(
+    cues: Any,
+    overlays: Any,
+    total_duration: Any,
+    cut_times: Optional[List[float]],
+    base_cut_times: Optional[List[float]] = None,
+) -> Optional[List[List[Any]]]:
+    """The kept SFX events (``[source, index]``) when binding whooshes to
+    ``cut_times`` changes the mix plan versus ``base_cut_times``; else None.
+
+    Mirrors the plan inputs SFXManager.mix_audio_track uses (resolved file
+    names, boom availability), so a None here means the mix would come out
+    identical with or without these cuts.
+    """
+    if not cut_times:
+        return None
+    try:
+        from scripts.sfx_manager import SFXManager, plan_sfx_events
+
+        def _name(tag):
+            path = SFXManager.resolve(tag) if tag else None
+            return path.name if path and path.exists() else None
+
+        boom = SFXManager.resolve("boom")
+        boom_available = bool(boom and boom.exists())
+        try:
+            duration = float(total_duration) if total_duration is not None else None
+        except (TypeError, ValueError):
+            duration = None
+
+        def _keys(cuts):
+            return [
+                [event["source"], event["index"]]
+                for event in plan_sfx_events(
+                    cues or [], overlays or [], total_duration=duration,
+                    boom_available=boom_available, cut_times=cuts, sfx_filename=_name,
+                )
+            ]
+
+        with_cuts = _keys(list(cut_times))
+        return with_cuts if with_cuts != _keys(list(base_cut_times or [])) else None
+    except Exception:
+        return None
+
+
 def _artifact_fingerprints_from_manifest(manifest: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     fingerprints: Dict[str, Dict[str, Any]] = {}
     for key in {key for key in STAGE_ARTIFACT_KEYS.values() if key}:
@@ -272,7 +426,17 @@ def _stage_payload_from_manifest(
     }
 
     if stage == "script":
-        return {"schema_version": INCREMENTAL_RENDER_SCHEMA_VERSION, "stage": stage, "inputs": common}
+        script_inputs = dict(common)
+        # Retention controls shape the AI script. The keys are absent at their
+        # defaults so a project that never set them keeps the fingerprint it
+        # was stamped with.
+        target_duration = normalize_target_duration(_manifest_value(manifest, "target_duration"))
+        if target_duration is not None:
+            script_inputs["target_duration"] = target_duration
+        story_format = normalize_story_format(_manifest_value(manifest, "story_format"))
+        if story_format != DEFAULT_STORY_FORMAT:
+            script_inputs["story_format"] = story_format
+        return {"schema_version": INCREMENTAL_RENDER_SCHEMA_VERSION, "stage": stage, "inputs": script_inputs}
 
     if stage == "voice":
         return {
@@ -348,6 +512,15 @@ def _stage_payload_from_manifest(
         )
         if voice_cuts:
             mix_inputs["voice_cuts"] = [[cut["start"], cut["end"]] for cut in voice_cuts]
+        # Whooshes bound to visual cuts. Present only when the binding really
+        # changes which SFX the mix keeps, so a project where it does not keeps
+        # its stamped fingerprint, and a clip edit that moves such a cut re-mixes.
+        cut_plan = cut_bound_sfx_plan(
+            micro_cues, overlays, manifest.get("total_duration"),
+            clip_cut_times(manifest.get("clip_list") or _manifest_value(manifest, "clip_list")),
+        )
+        if cut_plan:
+            mix_inputs["cut_bound_sfx"] = cut_plan
         return {
             "schema_version": INCREMENTAL_RENDER_SCHEMA_VERSION,
             "stage": stage,
@@ -443,6 +616,11 @@ class PipelineContext:
     hook_motion: Optional[Dict[str, Any]] = None
     hook_colors: Optional[Dict[str, str]] = None
     hook_style: Optional[Dict[str, object]] = None
+    # Retention controls (M3): target clip length (15/25/35/45 s, None = no
+    # target) and story format. Normalised in __post_init__; bad input falls
+    # back to the defaults silently.
+    target_duration: Optional[int] = None
+    story_format: str = DEFAULT_STORY_FORMAT
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
     # Progressive Ghost Reveal captions (SOP Phase 3) -- on by default, and
@@ -494,6 +672,8 @@ class PipelineContext:
     job_scope: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
+        self.target_duration = normalize_target_duration(self.target_duration)
+        self.story_format = normalize_story_format(self.story_format)
         from scripts.render_jobs import pin_job_scope
         self.job_scope = pin_job_scope(self.channel_id, self.job_scope)
         self.channel_id = self.job_scope.get("channel_id", self.channel_id)
@@ -565,6 +745,10 @@ class PipelineContext:
 
     effective_bgm_name: Optional[str] = None
     mixed_audio_path: Optional[Path] = None
+    # The SFXManager.mix_audio_track kwargs of the mix made in THIS render
+    # (None when the mix was reused/skipped). AudioMixStage.sync_cut_bound_sfx
+    # re-runs it once with the final cut times when they change the SFX plan.
+    mix_request: Optional[Dict[str, Any]] = None
 
     actual_clip_list: Optional[List[Dict[str, Any]]] = None
     ai_matched_shots: Optional[List[Dict[str, Any]]] = None
@@ -788,6 +972,13 @@ class PipelineContext:
             if value is not None:
                 snapshot[name] = value
                 params[name] = value
+        # The context is authoritative for the retention controls even at
+        # their defaults: clearing a target must not leave the persisted one
+        # in the snapshot (the script fingerprint drops default values).
+        for name in ("target_duration", "story_format"):
+            value = getattr(self, name, None)
+            snapshot[name] = value
+            params[name] = value
 
         if self.raw_video is not None:
             snapshot["raw_video_path"] = str(self.raw_video)

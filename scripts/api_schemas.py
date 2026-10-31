@@ -3,7 +3,19 @@ Pydantic Request and Response Schemas for OmniCut Pro Studio API.
 """
 
 from typing import Optional, Dict, Any, List
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+
+def _coerce_target_duration(value: Any) -> Optional[int]:
+    # Lazy import: keeps this schema module light. Unsupported lengths fall
+    # back to None (no target) instead of a 422.
+    from scripts.pipeline_context import normalize_target_duration
+    return normalize_target_duration(value)
+
+
+def _coerce_story_format(value: Any) -> str:
+    from scripts.pipeline_context import normalize_story_format
+    return normalize_story_format(value)
 
 
 class ScriptGenerateRequest(BaseModel):
@@ -76,6 +88,21 @@ class RenderRequest(BaseModel):
     overlays: Optional[List[Dict[str, Any]]] = None
     shot_list_id: Optional[str] = None
     manual_shot_map: Optional[List[Dict[str, Any]]] = None
+    # Retention controls (M3). target_duration: 15/25/35/45 seconds, anything
+    # else (or omitted) = None = no target. story_format: classic | countdown |
+    # problem_reveal | myth_buster | loop, anything else = "classic".
+    target_duration: Optional[int] = None
+    story_format: str = "classic"
+
+    @field_validator("target_duration", mode="before")
+    @classmethod
+    def _valid_target_duration(cls, value: Any) -> Optional[int]:
+        return _coerce_target_duration(value)
+
+    @field_validator("story_format", mode="before")
+    @classmethod
+    def _valid_story_format(cls, value: Any) -> str:
+        return _coerce_story_format(value)
 
 
 class DeleteFileRequest(BaseModel):

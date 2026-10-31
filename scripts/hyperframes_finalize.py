@@ -33,6 +33,39 @@ def _fingerprint(value):
                                      allow_nan=False, separators=(",", ":")).encode()).hexdigest()
 
 
+def hyperframes_style_metadata(angle=None, inputs=None, duration=None):
+    """Export style metadata for a HyperFrames clip from data already in hand.
+
+    HyperFrames clips have no OmniCut project manifest, so this feeds the
+    registry's ``style_metadata_from_manifest`` a manifest-shaped view of the
+    source angle / render inputs: ``style_preset``, ``hook_style_id``,
+    ``story_format`` (default ``classic``), the rendered ``duration`` and the
+    hook line. Never raises; missing data simply yields fewer fields.
+    """
+    try:
+        from scripts.export_registry import style_metadata_from_manifest
+        angle = angle if isinstance(angle, dict) else {}
+        inputs = inputs if isinstance(inputs, dict) else {}
+
+        def pick(*keys):
+            for source in (inputs, angle):
+                for key in keys:
+                    value = source.get(key)
+                    if isinstance(value, str) and value.strip():
+                        return value
+            return None
+
+        return style_metadata_from_manifest({
+            "style_preset": pick("style_preset"),
+            "hook_style_id": pick("hook_style_id"),
+            "story_format": pick("story_format"),
+            "total_duration": duration,
+            "hook_text": pick("hook_text", "hook_headline", "hook"),
+        })
+    except Exception:
+        return {}
+
+
 class HyperFramesFinalizer:
     def __init__(self, root, *, jobs=None, projects=None, registry=None, product_store=None,
                  artifact_register=None, fault_hook=None, sources=None):
@@ -312,7 +345,12 @@ class HyperFramesFinalizer:
                      "channel_identity_hash": snapshot.get("identity_hash"), "channel_identity_snapshot": snapshot}
             export = self.registry.find_by_path(intent["video_path"], channel_id=channel)
             if export is None:
-                export = self.registry.ensure_many([entry], channel_id=channel, job_scope=scope)[0]
+                style = hyperframes_style_metadata(
+                    job.get("source_angle_snapshot"), job.get("inputs"),
+                    ((job.get("artifact") or {}).get("specs") or {}).get("duration"),
+                )
+                export = self.registry.ensure_many([{**entry, "style_metadata": style}],
+                                                   channel_id=channel, job_scope=scope)[0]
             if any(export.get(key) != entry[key] for key in ("product_id", "angle_id", "project_name")):
                 raise ChannelError(409, "hyperframes_export_conflict", "Registry parent binding changed")
             if export.get("channel_id") != channel or (intent["export_id"] and intent["export_id"] != export["id"]):

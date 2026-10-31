@@ -120,6 +120,8 @@ class TikTokAutoCutterPipeline:
         hook_motion: Optional[Dict[str, Any]] = None,
         hook_colors: Optional[Dict[str, str]] = None,
         hook_style: Optional[Dict[str, object]] = None,
+        target_duration: Optional[int] = None,
+        story_format: str = "classic",
         font_name: str = "IBMPlex",
         bilingual_subtitles: bool = True,
         ghost_reveal: bool = True,
@@ -200,6 +202,8 @@ class TikTokAutoCutterPipeline:
             hook_motion=hook_motion,
             hook_colors=hook_colors,
             hook_style=hook_style,
+            target_duration=target_duration,
+            story_format=story_format,
             font_name=font_name,
             bilingual_subtitles=bilingual_subtitles,
             ghost_reveal=ghost_reveal,
@@ -288,6 +292,12 @@ class TikTokAutoCutterPipeline:
 
             # Stage 6: Shot Matching & Visual Motion
             _run_stage("shot_matching", ShotMatchingStage.run)
+            _raise_if_cancelled()
+
+            # The mix ran before the clips existed. Re-mix only when the final
+            # cut times change which SFX it keeps (a transition whoosh on a
+            # cut); otherwise this is a pure check and nothing is rewritten.
+            AudioMixStage.sync_cut_bound_sfx(ctx)
             _raise_if_cancelled()
 
             # Stage 7: Video Assembly & Manifest Persistence (also checks

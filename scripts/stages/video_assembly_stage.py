@@ -15,7 +15,37 @@ from scripts.config import EXPORTS_DIR
 from scripts.asset_registry import AssetRegistry
 from scripts.project_manifest import ProjectManifest
 from scripts.pipeline_context import PipelineContext
-from scripts.export_registry import ExportRegistry
+from scripts.export_registry import ExportRegistry, style_metadata_from_manifest
+
+
+def render_style_metadata(ctx: PipelineContext) -> Dict[str, Any]:
+    """Style metadata of the clip this render just produced.
+
+    Built from the same values the manifest is about to persist (this
+    render's context over the last saved manifest, which carries e.g. the
+    ``hook_style_id`` a hook variant stamped), through the registry's own
+    ``style_metadata_from_manifest`` so render time and later backfills agree.
+    Never raises: metadata is supplemental to registering the export.
+    """
+    try:
+        base = dict(ctx.manifest or {})
+        render_params = dict(base.get("render_params") or {})
+        current = {
+            "style_preset": ctx.style_preset,
+            "story_format": ctx.story_format,
+            "target_duration": ctx.target_duration,
+        }
+        render_params.update(current)
+        manifest = {**base, **current, "render_params": render_params}
+        if ctx.script_data is not None:
+            manifest["script_data"] = ctx.script_data
+        if ctx.total_duration:
+            manifest["total_duration"] = ctx.total_duration
+            manifest.pop("duration_sec", None)
+        return style_metadata_from_manifest(manifest)
+    except Exception as meta_err:
+        print(f"   ⚠️ เก็บข้อมูลสไตล์ของคลิปไม่สำเร็จ: {meta_err}")
+        return {}
 
 
 def _source_handles_available(outgoing, incoming, overlap):
@@ -381,6 +411,7 @@ class VideoAssemblyStage:
                 project_name=ctx.project_name,
                 status="rendered",
                 job_scope=ctx.job_scope or None,
+                style_metadata=render_style_metadata(ctx),
                 **ctx.store_kwargs(),
             )
             export_id = export_record["id"]
@@ -410,6 +441,10 @@ class VideoAssemblyStage:
             "beat_cues": ctx.beat_cues,
             "editorial_pacing": ctx.editorial_pacing,
             "style_preset": ctx.style_preset,
+            # Retention controls: always written (also at their defaults) so a
+            # cleared target never leaves a stale value behind at either level.
+            "target_duration": ctx.target_duration,
+            "story_format": ctx.story_format,
             "color_theme": color_theme,
             "spotlight": spotlight,
             "total_duration": ctx.total_duration,
@@ -422,6 +457,8 @@ class VideoAssemblyStage:
                 "job_scope": ctx.job_scope,
                 "channel_identity_snapshot": ctx.channel_identity_snapshot,
                 "style_preset": ctx.style_preset,
+                "target_duration": ctx.target_duration,
+                "story_format": ctx.story_format,
                 "color_theme": color_theme,
                 "color_theme_input": ctx.color_theme,
                 "spotlight": spotlight,
