@@ -7,6 +7,8 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-AI-EDITOR-VIRAL-AUDIT-PLAN-20261031 | audit AI Editor/การตัดอัตโนมัติด้านไวรัล (read-only 4 sub-agents + ยืนยันมือ 9 ข้อ) → รายงาน `_Docs/Reports/AI_EDITOR_VIRAL_AUDIT_20261031.md` + แผน `_Docs/Plans/PLAN_AI_EDITOR_VIRAL_STYLES_20261031.md`; ไม่แตะโค้ด | 2026-10-31 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
+| Round CLAUDE-PROMPT-AI-EDITOR-VIRAL-STYLE-AUDIT-20261031 | พรอมพ์ audit+วางแผน AI Editor สไตล์ตัดไวรัล `_Docs/Plans/PROMPT_AI_EDITOR_VIRAL_STYLE_AUDIT_20261031.md` | 2026-10-31 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
 | Round ANTIGRAVITY-INTEGRATE-CHANNEL-SELECTOR-INTO-EDITOR-HEADER-20261031 | ย้ายและจัดระเบียบ Channel Selector เข้าสู่ EditorHeader โดยตรง และถอดแถบ ChannelWorkspaceBar ด้านบนที่กินพื้นที่และดูโดดออก: ถอดแถบ standalone bar ด้านบนใน App.jsx คืนพื้นที่แนวตั้ง 44px+ ให้กับหน้าต่างตัดต่อ, สร้าง EditorChannelSelector.jsx เป็น Glassmorphism Pill แสดงชื่อช่อง (@handle) พร้อมจุดสถานะ (เขียว/ส้ม) และ Dropdown Popover สำหรับสลับช่องอย่างนุ่มนวล, ฝังลงใน EditorHeader.jsx เคียงข้าง ProjectSelector สวยงามลงตัว, ปฏิบัติตาม Rule 3.8/4.8 คลีน 100%, เพิ่มชุดทดสอบ TDD frontend/src/lib/editorChannelSelector.test.js ผ่าน 5/5 tests (รวม Vitest 1,097/1,097 tests 100%, Pytest Parity 205/205 tests 100%), บิลด์ Vite สำเร็จ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-FIX-EDITOR-UNDEFINED-MOBILE-PREVIEW-CONSTANTS-20261031 | แก้ไขข้อผิดพลาด ReferenceError: MOBILE_PREVIEW_MIN_H is not defined และ MOBILE_PREVIEW_DEFAULT ใน EditorShell.jsx: ตรวจพบสาเหตุการเรียกใช้ตัวแปรความสูงพรีวิวมือถือที่ยังไม่ได้ import มาจาก hooks/usePanelLayout.js, เพิ่ม import MOBILE_PREVIEW_MIN_H และ MOBILE_PREVIEW_DEFAULT ใน EditorShell.jsx พร้อมเพิ่ม default prop initialValues = null ใน NewClipPanel.jsx, ตรวจสอบผ่าน Oxlint no-undef พบ 0 undefined identifiers, ผ่านการทดสอบ Vitest 1,092/1,092 tests (100%), Pytest Parity 205/205 tests (100%), Feature Coverage 6/6 tests (100%), รีบิลด์ Vite Production Bundle สำเร็จ (EditorShell-ClsfVLn7.js) | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-FIX-EDITOR-TDZ-ZOOMTOFIT-BUG-20261031 | แก้ไขข้อผิดพลาด ReferenceError: Cannot access 'jo' before initialization ใน EditorShell.jsx: ตรวจพบสาเหตุ useEditorShortcuts เรียกใช้ onZoomFit: zoomToFit ก่อนการประกาศ timelineViewportRef และ zoomToFit ส่งผลให้เกิด JavaScript Temporal Dead Zone (TDZ) และแครชที่ Runtime ในโหมด Minified Production Bundle (jo identifier), ดำเนินการย้ายการประกาศ timelineViewportRef และ zoomToFit ขึ้นมาอยู่ก่อนหน้าการเรียก useEditorShortcuts, รีบิลด์ Vite Production Bundle สำเร็จ (EditorShell-zpXCEXu8.js), ผ่านการทดสอบ Vitest 1,092/1,092 tests (100%), Pytest Parity 205/205 tests (100%), Feature Coverage 6/6 tests (100%), Oxlint 0 errors | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -16775,3 +16777,22 @@ Plan before code:
 5. **ความปลอดภัยฐานข้อมูล (Git Tracking Guard):** อนุมัติให้รัน `git rm --cached` ปลดไฟล์ `_Docs/post_log.json`, `_Docs/schedule_queue.json`, `_Docs/schedule_templates.json`, `_Docs/tiktok_pending.json` ออกจาก Git tracking เรียบร้อย พร้อมเพิ่มลง `.gitignore` (ไฟล์ข้อมูลจริงบนเครื่องยังอยู่ครบ 100%)
 6. **coalesceKey:** ตรวจสอบพบว่าเชื่อมต่อกับ ClipInspector, ProjectInspector, captionEdits และ useEditorCommands เรียบร้อยแล้วตั้งแต่ Wave 1
 7. **ปิดรอบ:** ย้ายสถานะเป็นสำเร็จสมบูรณ์
+
+---
+
+## Round CLAUDE-PROMPT-AI-EDITOR-VIRAL-STYLE-AUDIT-20261031
+
+ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
+- [x] เขียนพรอมพ์ audit + วางแผน AI Editor / สไตล์ตัดคลิปอัตโนมัติ เน้นไวรัล → `_Docs/Plans/PROMPT_AI_EDITOR_VIRAL_STYLE_AUDIT_20261031.md`
+
+## Round CLAUDE-AI-EDITOR-VIRAL-AUDIT-PLAN-20261031
+
+ดำเนินการโดย: Claude Code (Claude Opus 5.5) + 4 Explore sub-agents (Claude Opus 5.5)
+
+- [x] ขั้น 1–5 audit → `_Docs/Reports/AI_EDITOR_VIRAL_AUDIT_20261031.md` (Viral Readiness: A3 B3 C4 D4 E6 F2 G1 H5)
+- [x] ขั้น 6 roadmap → `_Docs/Plans/PLAN_AI_EDITOR_VIRAL_STYLES_20261031.md` (Q1–Q7, M1–M9, B1–B6, Sprint S1–S5)
+- [x] ยืนยันด้วยมือ 9 ข้อ: hook_title ไม่ขึ้นจอ, MICRO_BURST_MAX_CHARS=34, TTS แปลงราคาเป็น "บาท", API bgm_ducking=False, batch_render ไม่มี worker pool (ผิดกฎข้อ 24), Gemini prompt ช็อต 2–6 วิ, BatchRenderModal ส่ง 'commercial_premium', fallback hook มีคำราคา, shot planning exception → คลิปเดียว
+- [x] Jev `choice` ลำดับแรก → hook @0.74 (< 0.80 escalate → คำถามผู้ใช้ §5 ข้อ 1)
+- ไม่แตะโค้ด ไม่เรนเดอร์ ไม่ยิง paid API · ไม่มีไฟล์ทดสอบค้าง
+- ค้าง: รอผู้ใช้ตอบคำถาม 8 ข้อใน §5 ของแผนก่อนเริ่ม Sprint S1
