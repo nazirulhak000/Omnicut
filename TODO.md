@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-PRD-OFFLINE-SSD-SNEAKERNET-SYNC-20261031 · ออกแบบสถาปัตยกรรมโฟลว์การทำงานและจัดทำ PRD ระบบซิงค์คลิปผ่าน External SSD (Sneakernet) แยกเครื่องเจน (Home PC) กับเครื่องอัปโหลดเน็ตแรง (Cafe Laptop) พร้อมกลไก Two-Way State Reconciliation ใน `_Docs/Plans/PRD_OFFLINE_SSD_SNEAKERNET_SYNC_20261031.md` · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [x] Round ANTIGRAVITY-FIX-EDITOR-UNDEFINED-MOBILE-PREVIEW-CONSTANTS-20261031 · แก้ไขข้อผิดพลาด ReferenceError: MOBILE_PREVIEW_MIN_H is not defined และ MOBILE_PREVIEW_DEFAULT ใน EditorShell.jsx และ initialValues ใน NewClipPanel.jsx · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-FIX-EDITOR-TDZ-ZOOMTOFIT-BUG-20261031 · แก้ไขข้อผิดพลาด ReferenceError: Cannot access 'jo' before initialization ใน EditorShell.jsx ย้าย zoomToFit ขึ้นก่อน useEditorShortcuts ป้องกัน TDZ 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
