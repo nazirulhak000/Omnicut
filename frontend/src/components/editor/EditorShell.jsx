@@ -2793,6 +2793,7 @@ export default function EditorShell({
                   clips={clipList}
                   cues={cuesList}
                   overlays={overlays}
+                  productName={projectProductName}
                   voiceEdit={activeVoiceEdit}
                   audioUrl={audioUrl}
                   audioStems={audioStems}
@@ -3466,6 +3467,7 @@ export default function EditorShell({
                     clips={clipList}
                     cues={cuesList}
                     overlays={overlays}
+                    productName={projectProductName}
                     voiceEdit={activeVoiceEdit}
                     audioUrl={audioUrl}
                     audioStems={audioStems}

@@ -540,6 +540,10 @@ export const purgeCutoutCache = () => api.post('/analytics/storage/purge-cutout-
 export const getInventoryHealth = () => api.get('/analytics/inventory').then(r => r.data);
 export const getTiktokStatsLatest = () => api.get('/tiktok-stats/latest').then(r => r.data);
 export const getTiktokMilestones = (threshold = 1000) => api.get('/tiktok-stats/milestones', { params: { threshold } }).then(r => r.data);
+// Measured results (posts >= 48h old) grouped by style_preset / hook_style /
+// story_format. No groupBy -> all three groupings in one scoped read.
+export const getTiktokStylePerformance = (groupBy = null) =>
+  api.get('/tiktok-stats/style-performance', { params: groupBy ? { group_by: groupBy } : {} }).then(r => r.data);
 export const getTiktokPending = () => api.get('/tiktok-stats/pending').then(r => r.data);
 export const getTiktokClipCandidates = () => api.get('/tiktok-stats/clip-candidates').then(r => r.data);
 export const attachTiktokPending = (payload) => api.post('/tiktok-stats/attach', payload).then(r => r.data);
@@ -763,8 +767,8 @@ export const stageToSSD = (payload) => api.post('/ssd/stage', payload).then(r =>
 export const reconcileFromSSD = (payload) => api.post('/ssd/reconcile', payload).then(r => r.data);
 
 // ── Google Drive Smart Archive APIs ──
-export const getArchiveStatus = () => api.get('/archive/status').then(r => r.data);
-export const getArchiveProgress = () => api.get('/archive/progress').then(r => r.data);
+export const getArchiveStatus = () => api.get('/archive/status').then(r => r.data);
+export const getArchiveProgress = () => api.get('/archive/progress').then(r => r.data);
 export const executeArchive = (payload) => api.post('/archive/execute', payload, { timeout: 0 }).then(r => r.data);
 export const restoreArchivedClip = (exportId) => api.post('/archive/restore', { export_id: exportId }).then(r => r.data);
 export const revealInExplorer = (targetPath) => api.post('/archive/reveal', { target_path: targetPath }).then(r => r.data);

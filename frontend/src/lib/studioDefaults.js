@@ -32,6 +32,10 @@ export const DEFAULT_STUDIO_FORM = {
   adTone: 'commercial_hype',
   stylePreset: DEFAULT_ONE_CLICK_STYLE_PRESET,
   stylePresetVersion: STYLE_PRESET_STORAGE_VERSION,
+  // Sent as target_duration / story_format (lib/clipFormatOptions.js).
+  // null = let the script decide the length, as every render did before.
+  targetDuration: null,
+  storyFormat: 'classic',
   fontName: 'IBMPlex',
   bilingualSubtitles: true,
   showWatermark: true,
