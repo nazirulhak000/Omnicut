@@ -10,7 +10,7 @@ import {
   Smartphone, CheckSquare, Square, Share2, Copy, FileText, QrCode, Sparkles, HardDrive,
   ShieldAlert, XCircle, CheckCircle2, History, FileQuestion, Link2,
   Columns, List, LayoutGrid, Clock, Calendar, Tag, Layers, ChevronDown, ChevronUp, Zap, ShieldCheck,
-  Image as ImageIcon, FolderOpen, ExternalLink
+  Image as ImageIcon, FolderOpen, ExternalLink, Cloud, CloudCheck
 } from 'lucide-react';
 import {
   openFolder, deleteFile, getProducts, linkExportToAngle,
@@ -22,6 +22,7 @@ import { useDebounce, useToast } from '../hooks';
 import RawVaultPanel from './RawVaultPanel';
 import CoverStudioModal from './CoverStudioModal';
 import SSDSyncModal from './SSDSyncModal';
+import CloudArchiveModal from './CloudArchiveModal';
 import { getCoverVariant } from '../lib/coverVariant';
 import PaginationControls from './PaginationControls';
 import { matchExportVideo } from '../lib/exportMatching';
@@ -587,7 +588,7 @@ function ExportActiveWorkbench({
 
   if (!video) {
     return (
-      <div className="glass-panel rounded-2xl p-8 text-center text-slate-400">
+      <div data-oc-surface="data" className="glass-panel rounded-2xl p-8 text-center text-slate-400">
         <Film className="w-10 h-10 mx-auto text-slate-600 mb-2" />
         <p className="text-xs">เลือกคลิปจากรายการฝั่งซ้ายเพื่อตรวจ QC และดูรายละเอียด</p>
       </div>
@@ -664,7 +665,7 @@ function ExportActiveWorkbench({
   const relativeTime = getRelativeTimeDesc(video.timestamp, renderedTime);
 
   return (
-    <div className="glass-panel rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-4 animate-fadeIn">
+    <div data-oc-surface="data" className="glass-panel rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-4 animate-fadeIn">
       {/* 1. Header with title & badges */}
       <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-3 border-b border-white/[0.08]">
         <div className="min-w-0 flex-1">
@@ -1211,6 +1212,7 @@ function ExportActiveWorkbench({
 
 export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, initialHighlightVideo, onClearHighlightVideo, status }) {
   const [showSSDSyncModal, setShowSSDSyncModal] = useState(false);
+  const [showCloudArchiveModal, setShowCloudArchiveModal] = useState(false);
   const [activeMediaTab, setActiveMediaTab] = useState('exports');
   const [viewMode, setViewMode] = useState(() => {
     try {
@@ -1677,12 +1679,12 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
   const mobileBaseUrl = publicAppOrigin(status?.mobile_url);
 
   return (
-    <div className="space-y-4 relative animate-fadeIn pb-16">
+    <div data-oc-surface="workspace" className="space-y-4 relative animate-fadeIn pb-16">
       {/* Central Toast Notification */}
       <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
 
       {/* ── Unified Media Center & Command Bar ── */}
-      <div className="rounded-2xl sm:rounded-3xl glass-panel p-3 sm:p-5 shadow-2xl relative overflow-hidden space-y-3 sm:space-y-4">
+      <div data-oc-surface="section" className="rounded-2xl sm:rounded-3xl glass-panel p-3 sm:p-5 shadow-2xl relative overflow-hidden space-y-3 sm:space-y-4">
         {/* Ambient Glow Aura */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-[#FE2C55]/10 via-[#25F4EE]/5 to-transparent rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
 
@@ -1790,6 +1792,16 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   title="ศูนย์จัดการ External SSD (ส่งออกไปคาเฟ่ / ซิงค์ผลกลับบ้าน)"
                 >
                   <span className="hidden sm:inline">External SSD</span>
+                </Button>
+                <Button
+                  onClick={() => setShowCloudArchiveModal(true)}
+                  variant="secondary"
+                  size="sm"
+                  icon={Cloud}
+                  className="px-2.5 sm:px-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:border-blue-400 font-semibold cursor-pointer"
+                  title="ศูนย์สำรองข้อมูล Google Drive และคืนพื้นที่ดิสก์ (Smart Breadcrumbs)"
+                >
+                  <span className="hidden sm:inline">Google Drive</span>
                 </Button>
               </div>
             </div>
@@ -1920,7 +1932,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
         <>
           {filteredExports.length === 0 ? (
             /* Empty State */
-            <div className="p-16 text-center space-y-4 rounded-3xl border border-white/[0.08] glass-panel shadow-xl">
+            <div data-oc-surface="data" className="p-16 text-center space-y-4 rounded-3xl border border-white/[0.08] glass-panel shadow-xl">
               <div>
                 <h3 className="text-lg font-bold text-white">
                   {searchQuery ? 'ไม่พบคลิปวิดีโอที่ค้นหา' : 'ยังไม่มีคลิปวิดีโอที่ตัดเสร็จในคลัง'}
@@ -2047,7 +2059,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
 
           {/* ── Floating Batch Action Bar (Mobile & Desktop) ── */}
           {selectedVideos.length > 0 && (
-            <div className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl glass-panel shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
+            <div data-oc-surface="floating" className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl glass-panel shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
               <div className="flex items-center gap-2.5 text-xs font-bold text-white">
                 <span className="w-6 h-6 rounded-lg bg-[#25F4EE]/20 text-[#25F4EE] flex items-center justify-center font-mono text-xs">
                   {selectedVideos.length}
@@ -2667,6 +2679,13 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
           <SSDSyncModal
             isOpen={showSSDSyncModal}
             onClose={() => setShowSSDSyncModal(false)}
+            onRefreshData={() => onRefresh?.({ includeExports: true, force: true })}
+          />
+
+          {/* ── Google Drive Smart Archive Modal ── */}
+          <CloudArchiveModal
+            isOpen={showCloudArchiveModal}
+            onClose={() => setShowCloudArchiveModal(false)}
             onRefreshData={() => onRefresh?.({ includeExports: true, force: true })}
           />
         </>

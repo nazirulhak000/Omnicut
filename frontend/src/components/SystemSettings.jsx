@@ -18,6 +18,8 @@ import {
 import { PageHeader } from './ui';
 import PaginationControls from './PaginationControls';
 import ChannelSettings from './ChannelSettings.jsx';
+import AppearanceSettings from './settings/AppearanceSettings.jsx';
+import { useThemeSettings } from '../context/ThemeContext.jsx';
 import {
   THEME_PRESETS,
   applyTheme,
@@ -79,6 +81,7 @@ export default function SystemSettings({
   setAmbientOrbsEnabled: propSetOrbsEnabled,
   initialSubTab = 'appearance'
 }) {
+  const { enabled: themeV2Enabled } = useThemeSettings();
   const [internalTheme, setInternalTheme] = useState(() => getStoredTheme());
   const [internalOrbs, setInternalOrbs] = useState(() => getStoredOrbsEnabled(internalTheme));
 
@@ -319,6 +322,7 @@ export default function SystemSettings({
       case 'appearance':
         return (
           <div className="space-y-4 sm:space-y-5 animate-fadeIn">
+            {themeV2Enabled ? <AppearanceSettings /> : <>
             {/* Section 0: UI Theme Presets */}
             <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -598,6 +602,7 @@ export default function SystemSettings({
               </div>
             </div>
 
+            </>}
             {/* Section 1: UI Scale Control */}
             <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
               <div className="flex items-center gap-3">

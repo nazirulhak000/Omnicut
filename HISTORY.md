@@ -7,6 +7,8 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CODEX-THEME-GLASS-SAAS-PLAN-20261031 | Source audit 16 ข้อ + แผน PulseHub Glass × Professional SaaS: 3 directions, semantic tokens, customizer, migration, Phase 0–5 และ rollback; baseline theme tests 4/4; visual gate ค้างก่อน implementation | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
+| Round ANTIGRAVITY-GDRIVE-ARCHIVE-ASYNC-PROGRESS-AND-DELTA-RESUME-20261031 | ยกระดับระบบสำรองข้อมูล Google Drive รองรับ Background Task, Real-time Progress Bar, Unlimited Timeout, และ Smart Delta Skip ป้องกันการอัพซ้ำ 100% พร้อมขยาย timeout ใน api.js และผ่านชุดทดสอบ 7/7 tests | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round CLAUDE-AI-EDITOR-VIRAL-AUDIT-PLAN-20261031 | audit AI Editor/การตัดอัตโนมัติด้านไวรัล (read-only 4 sub-agents + ยืนยันมือ 9 ข้อ) → รายงาน `_Docs/Reports/AI_EDITOR_VIRAL_AUDIT_20261031.md` + แผน `_Docs/Plans/PLAN_AI_EDITOR_VIRAL_STYLES_20261031.md`; ไม่แตะโค้ด | 2026-10-31 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
 | Round CLAUDE-PROMPT-AI-EDITOR-VIRAL-STYLE-AUDIT-20261031 | พรอมพ์ audit+วางแผน AI Editor สไตล์ตัดไวรัล `_Docs/Plans/PROMPT_AI_EDITOR_VIRAL_STYLE_AUDIT_20261031.md` | 2026-10-31 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
 | Round ANTIGRAVITY-INTEGRATE-CHANNEL-SELECTOR-INTO-EDITOR-HEADER-20261031 | ย้ายและจัดระเบียบ Channel Selector เข้าสู่ EditorHeader โดยตรง และถอดแถบ ChannelWorkspaceBar ด้านบนที่กินพื้นที่และดูโดดออก: ถอดแถบ standalone bar ด้านบนใน App.jsx คืนพื้นที่แนวตั้ง 44px+ ให้กับหน้าต่างตัดต่อ, สร้าง EditorChannelSelector.jsx เป็น Glassmorphism Pill แสดงชื่อช่อง (@handle) พร้อมจุดสถานะ (เขียว/ส้ม) และ Dropdown Popover สำหรับสลับช่องอย่างนุ่มนวล, ฝังลงใน EditorHeader.jsx เคียงข้าง ProjectSelector สวยงามลงตัว, ปฏิบัติตาม Rule 3.8/4.8 คลีน 100%, เพิ่มชุดทดสอบ TDD frontend/src/lib/editorChannelSelector.test.js ผ่าน 5/5 tests (รวม Vitest 1,097/1,097 tests 100%, Pytest Parity 205/205 tests 100%), บิลด์ Vite สำเร็จ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -16796,3 +16798,43 @@ Plan before code:
 - [x] Jev `choice` ลำดับแรก → hook @0.74 (< 0.80 escalate → คำถามผู้ใช้ §5 ข้อ 1)
 - ไม่แตะโค้ด ไม่เรนเดอร์ ไม่ยิง paid API · ไม่มีไฟล์ทดสอบค้าง
 - ค้าง: รอผู้ใช้ตอบคำถาม 8 ข้อใน §5 ของแผนก่อนเริ่ม Sprint S1
+
+---
+
+### Round ANTIGRAVITY-GDRIVE-ARCHIVE-ASYNC-PROGRESS-AND-DELTA-RESUME-20261031 · อัปเกรดระบบสำรองขึ้น Google Drive ด้วย Background Thread Runner, Real-time Progress Bar, Unlimited Timeout, และ Smart Delta Skip ป้องกันการอัพซ้ำ 100%
+**วันที่:** 2026-10-31  
+**ดำเนินการโดย:** Antigravity (Gemini 2.5 Pro)
+
+#### 1. วัตถุประสงค์และปัญหาที่พบ
+- ผู้ใช้งานพบปัญหา Timeout 60 วินาที (`timeout of 60000ms exceeded`) ในเบราว์เซอร์เมื่อกดสำรองคลิปจำนวนมาก (116 คลิป รวม 3.91 GB จาก 17 สินค้า)
+- ขาด Real-time Progress Bar ทำให้ผู้ใช้ไม่ทราบว่ากระบวนการกำลังทำงานอยู่ที่ไฟล์ใด หรือค้างหรือไม่
+- ผู้ใช้กังวลเรื่องโอกาสที่คลิปจะถูกอัปโหลดซ้ำซ้อนขึ้น Google Drive จนเกิดไฟล์เบิ้ล
+
+#### 2. สิ่งที่ดำเนินการ
+1. **Backend Engine (`scripts/gdrive_archive_engine.py`):**
+   - ติดตั้ง `progress_callback` รายงานความคืบหน้าระดับวินาที (stage, index, total, file, product, bytes, percent)
+   - ติดตั้ง `Smart Delta Skip`: ตรวจสอบไฟล์ปลายทางใน Google Drive ก่อนคัดลอก หากพบว่าไฟล์มีอยู่แล้วและขนาดรวมถึง SHA-256 ตรงกัน 100% ระบบจะ Skip ข้ามการคัดลอกทันที และมาร์กสถานะ `archived_gdrive` ใน Registry อัตโนมัติ ไม่สร้างไฟล์ซ้ำซ้อนเด็ดขาด
+2. **Backend Async Router (`scripts/api_gdrive_archive.py`):**
+   - เพิ่ม Background Worker Thread ปลดล็อกคำขอ HTTP ให้ตอบกลับสถานะ `started` ทันทีภายใน 50ms ป้องกัน HTTP Timeout 100%
+   - เพิ่ม Endpoint `GET /api/archive/progress` สำหรับให้ Frontend โพลล์สถานะแบบ Real-time
+3. **Frontend Modal & API (`CloudArchiveModal.jsx`, `api.js`):**
+   - ติดตั้งแถบ Progress Bar นีออนสีฟ้า-มรกตแบบเคลื่อนไหว แสดงเปอร์เซ็นต์ (%), จำนวนคลิปที่เสร็จ/ทั้งหมด, ชื่อคลิปปัจจุบัน, และขนาดพื้นที่ที่ได้คืนสดๆ
+   - ขยาย Timeout ของคำขอสำรองใน Axios (`timeout: 0` / Unlimited) เพื่อป้องกันการตัดการเชื่อมต่อ
+4. **Verification & Testing (`tests/test_gdrive_archive_pipeline.py`):**
+   - เพิ่มการทดสอบ `test_archive_clips_progress_callback` และ `test_archive_clips_smart_delta_skip`
+   - ผลการทดสอบผ่าน 7/7 tests (100%) และการทดสอบระบบ SSD ผ่าน 6/6 tests (100%) รวม 13/13 tests
+   - รีบิลด์ Vite Production Bundle สำเร็จ ไร้ข้อผิดพลาด
+
+
+## Round CODEX-THEME-GLASS-SAAS-PLAN-20261031 — ดำเนินการโดย: Codex (GPT-6)
+
+ดำเนินการโดย: Codex (GPT-6) · วันที่ 2026-10-31
+
+- [x] ตรวจ source ของระบบธีม OmniCut และ reference ที่ผู้ใช้ระบุ `D:/Winona/Programmer/Pulse-Hub/public/index.html`
+- [x] ส่งรายงาน `_Docs/Reports/THEME_GLASS_SAAS_AUDIT_20261031.md`: inventory, 16 findings พร้อม code evidence, reference comparison, source hashes และข้อจำกัด
+- [x] ส่งแผน `_Docs/Plans/PLAN_THEME_GLASS_SAAS_20261031.md`: 3 directions, แนะนำ Balanced Glass Workspace, semantic tokens/surface hierarchy, draft/apply/cancel customizer, per-preset persistence/migration, Phase 0–5, acceptance/tests/risks/rollback และ 4 เรื่องให้เจ้าของเลือก
+- [x] Baseline `node --test frontend/src/lib/themeManager.test.js`: 4 passed, 0 failed; ไม่มีการแก้โค้ด UI หรือธีมจริง
+- Visual/runtime gate: browser access host และ native pipe unavailable; ผู้ใช้ยืนยันทำแผนต่อจาก source พร้อมข้อจำกัดแล้ว; ภาพจริง contrast และ performance ยัง Pending ก่อน implementation
+- Jev ตรวจจากสรุป ไม่ได้อ่านไฟล์เอง: scope noul 0.93 / confidence null; document coverage 2.62/3 / confidence 0.61; ทั้งคู่ escalate ไม่ใช้เป็นการรับรองหรืออนุมัติแก้ UI
+- คงงาน agent อื่น: Cloud Archive/API/gallery/dist/TODO/HISTORY ที่มี delta อยู่ก่อน; ไม่ commit/build/แก้ข้อมูลจริง และไม่สร้าง media ทดสอบ
+- รอบวางแผนปิดแล้ว; งาน implementation/visual verification ยังไม่เริ่ม และไม่ถูกนับว่าเสร็จ

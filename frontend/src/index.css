@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
+@import "./styles/theme-materials.css";
 
 /* Preview and FFmpeg must shape the exact same physical font files.  These
    URLs are served read-only from 02_Assets by the API (and by Vite's local

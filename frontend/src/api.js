@@ -762,4 +762,11 @@ export const inspectSSDDrive = (targetDrive) =>
 export const stageToSSD = (payload) => api.post('/ssd/stage', payload).then(r => r.data);
 export const reconcileFromSSD = (payload) => api.post('/ssd/reconcile', payload).then(r => r.data);
 
+// ── Google Drive Smart Archive APIs ──
+export const getArchiveStatus = () => api.get('/archive/status').then(r => r.data);
+export const getArchiveProgress = () => api.get('/archive/progress').then(r => r.data);
+export const executeArchive = (payload) => api.post('/archive/execute', payload, { timeout: 0 }).then(r => r.data);
+export const restoreArchivedClip = (exportId) => api.post('/archive/restore', { export_id: exportId }).then(r => r.data);
+export const revealInExplorer = (targetPath) => api.post('/archive/reveal', { target_path: targetPath }).then(r => r.data);
+
 export default api;

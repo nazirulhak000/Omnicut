@@ -138,7 +138,7 @@ export function getStoredGlassConfig() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_GLASS_CONFIG);
     if (raw) {
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(raw) ?? {};
       return {
         opacity: Number.isFinite(parsed.opacity) ? Math.min(Math.max(parsed.opacity, 5), 70) : DEFAULT_GLASS_CONFIG.opacity,
         blur: Number.isFinite(parsed.blur) ? Math.min(Math.max(parsed.blur, 2), 36) : DEFAULT_GLASS_CONFIG.blur,
@@ -152,6 +152,7 @@ export function getStoredGlassConfig() {
 }
 
 export function applyGlassConfig(config) {
+  config = config ?? {};
   const safeConfig = {
     opacity: Number.isFinite(config.opacity) ? Math.min(Math.max(config.opacity, 5), 70) : DEFAULT_GLASS_CONFIG.opacity,
     blur: Number.isFinite(config.blur) ? Math.min(Math.max(config.blur, 2), 36) : DEFAULT_GLASS_CONFIG.blur,

@@ -191,8 +191,8 @@ export default function IntakeScreen({
   };
 
   return (
-    <div className="min-h-dvh bg-slate-950 text-slate-100 flex flex-col pb-28">
-      <header className="px-4 pt-4 pb-3 border-b border-slate-800 bg-slate-900/80 sticky top-0 z-10">
+    <div data-oc-surface="workspace" className="min-h-dvh bg-slate-950 text-slate-100 flex flex-col pb-28">
+      <header data-oc-surface="data" className="px-4 pt-4 pb-3 border-b border-slate-800 bg-slate-900/80 sticky top-0 z-10">
         <h1 className="text-lg font-bold text-white">นำเข้าสินค้า TikTok Shop</h1>
         <p className="text-xs text-slate-400 mt-0.5">
           แชร์ลิงก์จากแอป TikTok หรือวางข้อความแชร์เพื่อเตรียมสร้าง 20 สคริปต์คู่รัก

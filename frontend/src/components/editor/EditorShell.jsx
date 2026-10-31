@@ -2454,7 +2454,7 @@ export default function EditorShell({
   }, [style.bgmName, assets.music, assets.default_bgm]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl glass-panel">
+    <div data-oc-surface="workspace" className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl glass-panel">
       {/* ── HEADER / TOPBAR ── */}
       <EditorHeader
         projectName={projectName}

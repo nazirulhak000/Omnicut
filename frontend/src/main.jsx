@@ -5,6 +5,7 @@ import App from './App.jsx'
 import { ChannelProvider, ChannelWorkspaceBar, useChannel } from './context/ChannelContext.jsx'
 import { AuthGate } from './components/LoginScreen.jsx'
 import { installAuthFetchWatcher } from './api.js'
+import { ThemeProvider } from './context/ThemeContext.jsx'
 
 // Direct fetch('/api/...') calls report 401 {login_required} the same way the
 // axios client does, so the login screen appears instead of silent failures.
@@ -18,8 +19,10 @@ function Workspace() {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
+    <ThemeProvider>
     <AuthGate>
       <ChannelProvider><Workspace /></ChannelProvider>
     </AuthGate>
+    </ThemeProvider>
   </StrictMode>,
 )

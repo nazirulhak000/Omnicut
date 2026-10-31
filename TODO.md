@@ -4,6 +4,20 @@
 
 ## รอบปัจจุบัน
 
+- [ ] Round CODEX-THEME-GLASS-SAAS-IMPLEMENTATION-20261031 · Balanced Glass Workspace หลัง feature flag (ค่าเริ่มปิด) · ดำเนินการโดย: Codex (GPT-6) + 3 sub-agents (GPT-6)
+  - [ ] Agent Foundation: v2 catalog/resolver/storage/migration และ offline tests
+  - [ ] Agent Materials: semantic CSS, shared UI, fallback และ legacy compatibility
+  - [ ] Agent Customizer: scoped preview + draft/apply/cancel/reset/custom presets
+  - [ ] Root: reactive context, desktop/mobile shell/page integration, verification และเอกสารส่งต่อ
+  - [ ] Gate: targeted/full frontend tests + isolated build + review; visual/runtime QA ก่อนเปิดใช้จริง
+  - Notes: ผู้ใช้อนุญาตพัฒนาหลัง flag โดยยังไม่เปิดใช้จนภาพจริงผ่าน; browser/native host ยัง unavailable; ใช้ C Balanced, ambient นิ่งเบา, accent #67D7E7; ไม่แตะฟอนต์/geometry/video/render semantics; รักษา dirty Cloud Archive/API/dist ของ agent อื่น
+
+- [x] Round CODEX-THEME-GLASS-SAAS-PLAN-20261031 · Audit 16 ข้อ + แผนธีม 3 directions/Phase 0–5; source OmniCut + Pulse-Hub; ภาพจริงเป็น gate ก่อนลงมือ · ดำเนินการโดย: Codex (GPT-6)
+
+- [x] Round ANTIGRAVITY-GDRIVE-ARCHIVE-ASYNC-PROGRESS-AND-DELTA-RESUME-20261031 · ยกระดับระบบสำรองข้อมูล Google Drive รองรับ Background Task, Real-time Progress Bar, Unlimited Timeout, และ Smart Delta Skip ป้องกันการอัพซ้ำ 100% · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-GDRIVE-ARCHIVE-SMART-BREADCRUMBS-20261031 · พัฒนาระบบ Cloud Archive & Smart Breadcrumbs: สำรองไฟล์วิดีโอที่โพสต์แล้วขึ้น Google Drive อัตโนมัติ คืนพื้นที่ดิสก์ คงรูปปก 3:4 และประวัติ 100% GUI · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
 - [ ] Round CLAUDE-AI-EDITOR-VIRAL-S1-20261031 · ลงมือตามแผน `_Docs/Plans/PLAN_AI_EDITOR_VIRAL_STYLES_20261031.md` บน branch `feat/ai-editor-viral-s1` แยก 5 agent (worktree, ไฟล์ไม่ทับกัน) — ข้อ 🔒 M1/M5/M8 ยังไม่ทำ รออนุมัติ · ดำเนินการโดย: Claude Code (Claude Opus 5.5) + 5 sub-agents (Claude Opus 5.5)
   - [ ] Agent A Compliance & Script: Q1, Q3, M3
   - [ ] Agent B Shot timing: Q2, M2, M6, Q7(fail-loud)
@@ -277,7 +291,6 @@
 
 - [x] Round ANTIGRAVITY-ORSEN-S6-UNIFIED-AI-PRODUCTION-20-CLIPS-20261014 · ผลิตคลิปสินค้า Orsen by Eloop S6 สไตล์คู่รักสายใต้ (น้องนุ้ย Aoede & พี่บ่าว Puck) บนกระดาษยับ (#5 Couple Paper Chat) ครบ 20 คลิปแบบ End-to-End: วางสคริปต์ 20 บท (10-13 เทิร์น ไร้จุดไข่ปลา), Single-Take Dual-Speaker TTS บนโมเดล gemini-3.8-flash-tts, Faster-Whisper large-v3-turbo ตรวจ 100%, Inter-turn & Tail Audio Sanitization, HyperFrames Composition พร้อม Brand-First CTA Outro (108px highlight, 630px cutout, ไร้อีโมจิ, ลูกศรแดงโค้ง), เรนเดอร์ 1080x1920 30fps และผ่าน TikTok Pro Sharpness Engine ควบคุม Frame 0 Y = 222.68 พอดีเป๊ะครบ 20 คลิป (s01-s20), สกัดปก WebP และ Dual JPG 9:16/3:4 ครบ 20 คู่, ซิงค์ export_registry, cover_bindings และ products.json (status='rendered'), และ archive ดราฟต์เข้า 06_Archive/HyperFrames_Studio/ คืนพื้นที่ Studio คลีน 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
 
-
 - [x] Round ANTIGRAVITY-BATCH-RENDER-20-HOYAUP-AND-ARCHIVE-DRAFTS-20261013 · เรนเดอร์วิดีโอ 1080x1920 30fps คลิป HOYAUP พัดลมแม่เหล็ก (s02-s20) ครบทั้ง 19 คลิปสู่ 04_Exports/Ready_to_post/ ผ่าน TikTok Pro Sharpness Engine ควบคุม Frame 0 Y = 221.57 พอดีเป๊ะครบทั้ง 20 คลิป (s01-s20), สกัดปก Dual Covers 9:16 และ 3:4 ครบ 20 คู่, ซิงค์ export_registry, cover_bindings และ products.json (status='rendered'), และย้ายดราฟต์ clips/hoy01-pov-s01..s20 พร้อมคอมโพซิชันเข้า 06_Archive/HyperFrames_Studio/ คืนพื้นที่ Studio คลีน 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-CLEAN-ALL-HOYAUP-INTER-TURN-AUDIO-GLITCHES-AND-COMPOSITIONS-20261013 · สืบสวนและขจัดเสียงซ่าขยะระหว่างเทิร์น (Inter-Turn Glitches) ในคลิป HOYAUP ครบทั้ง 20 คลิป (s01-s20), ตัดขอบเสียงหัว-ท้าย 260 ไฟล์ turn_*.wav ด้วย speech bounds, re-assemble vo.wav แอมพลิจูดช่วงเงียบเป็น 0.0 เงียบสนิท 100%, ล้าง .waveform-cache ใน Studio, ถอด #paper-tint ออกจากดราฟต์ HTML ทั้ง 20 คลิป, และ re-render HOYAUP s01 ควบคุม Frame 0 Y = 221.57 เรียบร้อย; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
@@ -288,13 +301,9 @@
 
 - [x] Round ANTIGRAVITY-BRIGHTEN-AND-RE-RENDER-20-ESSAGER-CLIPS-20261013 · ปรับความสว่างคลิป Essager PD 30W ครบ 20 คลิป (s01-s20) สว่างสดใสระดับเดียวกับ HOYAUP/Orsen (Y=236.93); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
-
 - [x] Round ANTIGRAVITY-DIAGNOSE-AND-ENHANCE-CLIPS-BRIGHTNESS-20261013 · สืบหาสาเหตุคลิป Essager มืดกว่า Orsen (พบ #paper-tint vignette มืดทึบคลุมทั้งจอ 22% vs Orsen ที่ไม่มี overlay), ถอด overlay มืดทับจอออก และปรับความสว่างเนียนตา (Slight Natural Brightness Lift) ทั้งในคอมโพซิชัน HyperFrames (#paper filter brightness 1.02) และระบบเรนเดอร์ TikTok Sharpness Engine (scripts/tiktok_enhancer.py eq brightness +0.02) ครบทั้ง 20 คลิป HOYAUP ให้ภาพสว่างสดใส ละมุนตา ไม่มืดทึบ และไม่สว่างจ้าหลุดไฮไลต์ (วัดค่า Y เพิ่มขึ้นจาก 187 เป็น 236 สว่างกว่า Orsen Y=227 เล็กน้อยตามสั่ง) (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
-
 - [x] Round ANTIGRAVITY-GENERATE-20-ESSAGER-COVERS-AND-FIX-EXTENSION-PREPARE-20261013 · สร้างปก 9:16 และ 3:4 (TikTok Profile Crop) ครบทั้ง 20 คลิป Essager PD 30W ลงใน 05_Covers_Thumbnails/ จากช็อต Brand-First CTA ท้ายคลิป, บันทึกผูกปกใน _Docs/export_cover_bindings.json และ sync สู่ _Docs/products.json เพื่อให้ TikTok Helper Extension ดึงปกไปใช้งานและปลดล็อกการกดอัปโหลดอัตโนมัติได้ 100% (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
-
-
 
 - [x] Round ANTIGRAVITY-HOYAUP-UNIFIED-AI-PRODUCTION-20-CLIPS-20261013 · ผลิตคลิปสินค้า HOYAUP พัดลมแม่เหล็กระบายความร้อนมือถือ สไตล์คู่รักสายใต้ (น้องนุ้ย Aoede & พี่บ่าว Puck) บนกระดาษยับ (#5 Couple Paper Chat) ครบ 20 คลิป พร้อมแก้ปัญหา TTS Hallucination ด้วยสถาปัตยกรรม Turn-by-Turn + Faster-Whisper (0.95-1.00), ขจัดเสียงซ่าท้ายคลิปสู่ 0.0, และ sync Content Tracker ใน _Docs/products.json ครบ 100% (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 

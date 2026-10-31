@@ -32,7 +32,7 @@ export function MobileAppRoot({ onSwitchToDesktop, onOpenFilmingSession }) {
 
   if (subView === 'library') {
     return (
-      <div className="flex h-full w-full flex-col bg-slate-950">
+      <div data-oc-surface="workspace" className="flex h-full w-full flex-col bg-slate-950">
         <div className="flex min-h-12 items-center justify-between border-b border-white/10 px-4 py-2">
           <span className="text-sm font-bold text-white">คลังคลิปวิดีโอ</span>
           <button
@@ -52,7 +52,7 @@ export function MobileAppRoot({ onSwitchToDesktop, onOpenFilmingSession }) {
 
   if (subView === 'command') {
     return (
-      <div className="flex h-full w-full flex-col bg-slate-950">
+      <div data-oc-surface="workspace" className="flex h-full w-full flex-col bg-slate-950">
         <div className="flex min-h-12 items-center justify-between border-b border-white/10 px-4 py-2">
           <span className="text-sm font-bold text-white">สั่งงาน AI (Command Center)</span>
           <button
@@ -72,7 +72,7 @@ export function MobileAppRoot({ onSwitchToDesktop, onOpenFilmingSession }) {
 
   if (subView === 'settings') {
     return (
-      <div className="flex h-full w-full flex-col bg-slate-950">
+      <div data-oc-surface="workspace" className="flex h-full w-full flex-col bg-slate-950">
         <div className="flex min-h-12 items-center justify-between border-b border-white/10 px-4 py-2">
           <span className="text-sm font-bold text-white">ตั้งค่าระบบ</span>
           <button
@@ -94,7 +94,7 @@ export function MobileAppRoot({ onSwitchToDesktop, onOpenFilmingSession }) {
 
   if (subView === 'classic_studio') {
     return (
-      <div className="flex h-full w-full flex-col bg-slate-950">
+      <div data-oc-surface="workspace" className="flex h-full w-full flex-col bg-slate-950">
         <div className="flex min-h-12 items-center justify-between border-b border-white/10 px-4 py-2">
           <span className="text-sm font-bold text-white">สตูดิโอดั้งเดิม (Classic MQS)</span>
           <button

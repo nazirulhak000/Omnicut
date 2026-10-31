@@ -362,9 +362,9 @@ export function MobileClipLibrary({
   };
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-100 flex flex-col">
+    <div data-oc-surface="workspace" className="w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-100 flex flex-col">
       {/* Top Action & Filter Bar */}
-      <div className="px-3 pt-3 pb-2 space-y-2.5 border-b border-slate-800/80 bg-slate-950/95 sticky top-0 z-20">
+      <div data-oc-surface="data" className="px-3 pt-3 pb-2 space-y-2.5 border-b border-slate-800/80 bg-slate-950/95 sticky top-0 z-20">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <Film className="w-5 h-5 text-cyan-400 shrink-0" />

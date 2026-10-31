@@ -279,6 +279,7 @@ export function MobileShell({
 
   return (
     <div
+      data-oc-surface="workspace"
       className="flex min-h-dvh w-full flex-col bg-[#07090E] text-slate-100"
       data-testid="mobile-shell"
       data-active-tab={currentTab}
@@ -305,6 +306,7 @@ export function MobileShell({
       {/* Bottom 5-Tab Navigation Bar */}
       <nav
         aria-label="เมนูหลักมือถือ"
+        data-oc-surface="shell"
         data-testid="mobile-bottom-nav"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#07090E]/95 backdrop-blur-md"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
@@ -323,7 +325,7 @@ export function MobileShell({
                 aria-selected={isActive}
                 data-testid={`mobile-tab-${tab.id}`}
                 onClick={() => handleSelectTab(tab.id)}
-                className={`relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-xs font-bold transition ${
+                className={`oc-ui-nav-item ${isActive ? 'oc-ui-nav-active' : ''} relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-xs font-bold transition ${
                   isActive
                     ? 'bg-white/[0.08] text-[#25F4EE]'
                     : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
