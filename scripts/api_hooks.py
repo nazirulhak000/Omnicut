@@ -44,6 +44,21 @@ class ApplyProjectHookRequest(BaseModel):
     auto_reroll: Optional[bool] = False
 
 
+_HOOK_STYLE_IDS = {style["style_id"] for style in HOOK_STYLES}
+
+
+def _variant_style_id(variant: Dict[str, Any]) -> str:
+    """The chosen variant's HOOK_STYLES id ("" when absent/unknown).
+
+    Stored as ``hook_style_id`` -- the manifest key ``hook_style`` is already
+    the hook banner *template dict* used by render/reroll, so it must not be
+    overwritten with a plain id.  The export registry/PostLog read
+    ``hook_style_id`` and record it as ``hook_style`` (Q6).
+    """
+    style_id = str((variant or {}).get("style_id") or "").strip()
+    return style_id if style_id in _HOOK_STYLE_IDS else ""
+
+
 @router.get("/styles")
 def get_hook_styles():
     """Return the 5 standard marketing hook styles."""
@@ -99,6 +114,8 @@ def apply_hook_to_angle(req: ApplyAngleHookRequest, channel_scope: ChannelScope 
     target_angle["hook_model"] = variant.get("hook_model") or target_angle.get("hook_model", "")
     target_angle["hook_label"] = variant.get("hook_label") or target_angle.get("hook_label", "")
     target_angle["tts_hook_title"] = TTSSanitizer.clean(target_angle["hook_title"])
+    if _variant_style_id(variant):
+        target_angle["hook_style_id"] = _variant_style_id(variant)
 
     # Optionally update the first spoken line
     if req.update_script_first_line and variant.get("opening_line"):
@@ -160,6 +177,8 @@ def apply_hook_to_project(req: ApplyProjectHookRequest, background_tasks: Backgr
                 overlay.update(brand=fields["hook_brand"], model=fields["hook_model"],
                                label=fields["hook_label"])
         fields["overlays"] = fresh_overlays
+        if _variant_style_id(variant):
+            fields["hook_style_id"] = _variant_style_id(variant)
         return fields
     manifest = ProjectManifest.save_merge(project_name, update_hook)
 
@@ -181,5 +200,6 @@ def apply_hook_to_project(req: ApplyProjectHookRequest, background_tasks: Backgr
         "hook_brand": manifest["hook_brand"],
         "hook_model": manifest["hook_model"],
         "hook_label": manifest["hook_label"],
+        "hook_style_id": manifest.get("hook_style_id") or "",
         "reroll_job_id": reroll_job_id,
     }

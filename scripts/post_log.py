@@ -26,7 +26,21 @@ from scripts.db import DocumentTable
 LOG_PATH = BASE_DIR / "_Docs" / "post_log.json"
 METRICS_DUE_HOURS = 48
 
-METRIC_FIELDS = ("views", "likes", "comments", "shares", "cart_clicks", "orders", "commission_thb")
+METRIC_FIELDS = (
+    "views", "likes", "comments", "shares", "cart_clicks", "orders", "commission_thb",
+    # Retention (Q6, optional): seconds and a 0-1 fraction. Present only when
+    # the Studio export / manual entry carried them; never defaulted to 0.
+    "avg_watch_time_sec", "completion_rate",
+)
+# Metrics stored as float; every other METRIC_FIELDS entry is an int count.
+FLOAT_METRIC_FIELDS = ("commission_thb", "avg_watch_time_sec", "completion_rate")
+COUNT_METRIC_FIELDS = ("views", "likes", "comments", "shares")
+RETENTION_METRIC_FIELDS = ("avg_watch_time_sec", "completion_rate")
+
+# Style dimensions a post row may carry (copied from the export registry at
+# mark-posted time) and that style_performance() can group by.
+STYLE_GROUP_FIELDS = ("style_preset", "hook_style", "story_format")
+DEFAULT_STORY_FORMAT = "classic"
 
 # Every metrics write appends a point-in-time snapshot to `metrics_history`
 # (the latest numbers still live in `metrics`). A snapshot only counts as a
@@ -61,6 +75,120 @@ def _age_hours(posted_at: Any, at: Optional[datetime.datetime]) -> Optional[floa
     if posted is None or at is None:
         return None
     return round(max(0.0, (at - posted).total_seconds() / 3600.0), 2)
+
+
+_DURATION_UNIT_RE = re.compile(r"(seconds?|secs?|sec|s|วินาที|วิ\.?)$")
+_MIN_SEC_RE = re.compile(r"^(?:(\d+(?:\.\d+)?)\s*(?:m|min|mins|นาที))?\s*(?:(\d+(?:\.\d+)?)\s*(?:s|sec|secs|seconds?|วินาที|วิ\.?))?$")
+
+
+def parse_watch_time_sec(value: Any) -> Optional[float]:
+    """Average watch time -> seconds (float >= 0) or None.
+
+    Accepts numbers, ``"12.5"``, ``"12.5s"``, ``"12.5 วินาที"``, ``"0:12"``,
+    ``"1:02:03"`` and ``"1m 5s"`` (TikTok Studio / CSV variants).
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        seconds = float(value)
+    else:
+        text = str(value).strip().lower().replace(",", "")
+        if not text:
+            return None
+        try:
+            if ":" in text:
+                parts = [float(part) for part in text.split(":")]
+                if len(parts) > 3:
+                    return None
+                seconds = 0.0
+                for part in parts:
+                    seconds = seconds * 60 + part
+            else:
+                compact = text.replace(" ", "")
+                try:
+                    seconds = float(_DURATION_UNIT_RE.sub("", compact))
+                except ValueError:
+                    match = _MIN_SEC_RE.match(text)
+                    if not match or not any(match.groups()):
+                        return None
+                    seconds = float(match.group(1) or 0) * 60 + float(match.group(2) or 0)
+        except ValueError:
+            return None
+    if seconds != seconds or seconds in (float("inf"), float("-inf")) or seconds < 0:
+        return None
+    return round(seconds, 2)
+
+
+def parse_completion_rate(value: Any) -> Optional[float]:
+    """Completion / "watched full video" -> fraction 0..1 or None.
+
+    ``"45.3%"`` -> 0.453; a bare number <= 1 is already a fraction; a bare
+    number in (1, 100] is read as a percentage.  Anything else -> None.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    percent = False
+    if isinstance(value, (int, float)):
+        number = float(value)
+    else:
+        text = str(value).strip().replace(",", ".").replace(" ", "")
+        if text.endswith("%"):
+            percent, text = True, text[:-1]
+        if not text:
+            return None
+        try:
+            number = float(text)
+        except ValueError:
+            return None
+    if number != number or number < 0:
+        return None
+    if percent or number > 1:
+        if number > 100:
+            return None
+        number /= 100.0
+    return round(number, 4)
+
+
+def _clean_duration(value: Any) -> Optional[float]:
+    """Positive clip duration in seconds (0.01 s) or None."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        return None
+    if seconds != seconds or seconds == float("inf") or seconds <= 0:
+        return None
+    return round(seconds, 2)
+
+
+def _median(values: List[float]) -> Optional[float]:
+    ordered = sorted(values)
+    if not ordered:
+        return None
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return float(ordered[mid])
+    return (ordered[mid - 1] + ordered[mid]) / 2.0
+
+
+def _mean(values: List[float]) -> Optional[float]:
+    return (sum(values) / len(values)) if values else None
+
+
+def _row_metrics(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Metrics carried by one Studio row: int counts + optional retention."""
+    metrics: Dict[str, Any] = {
+        k: row.get(k) for k in COUNT_METRIC_FIELDS
+        if isinstance(row.get(k), int) and not isinstance(row.get(k), bool)
+    }
+    watch = parse_watch_time_sec(row.get("avg_watch_time_sec"))
+    if watch is not None:
+        metrics["avg_watch_time_sec"] = watch
+    rate = parse_completion_rate(row.get("completion_rate"))
+    if rate is not None:
+        metrics["completion_rate"] = rate
+    return metrics
 
 
 def _clip_name(value: Any) -> str:
@@ -221,6 +349,10 @@ class PostLog:
         scheduled_at: str = "",
         export_id: str = "",
         source: str = "",
+        hook_style: str = "",
+        story_format: str = "",
+        duration_sec: Optional[float] = None,
+        hook_text: str = "",
         *,
         channel_id: Optional[str] = None,
         all_channels: bool = False,
@@ -261,6 +393,8 @@ class PostLog:
             extras = {
                 "style_preset": style_preset, "hook_color": hook_color, "product_id": product_id,
                 "scheduled_at": scheduled_at, "export_id": export_id, "source": source,
+                "hook_style": hook_style, "story_format": story_format,
+                "duration_sec": _clean_duration(duration_sec), "hook_text": (hook_text or "")[:200],
             }
             post.update({k: v for k, v in extras.items() if v})
             posts.append(post)
@@ -282,6 +416,10 @@ class PostLog:
         hashtags: Optional[List[str]] = None,
         scheduled_at: str = "",
         posted_at: Optional[str] = None,
+        hook_style: str = "",
+        story_format: str = "",
+        duration_sec: Optional[float] = None,
+        hook_text: str = "",
         *,
         channel_id: Optional[str] = None,
         all_channels: bool = False,
@@ -296,7 +434,9 @@ class PostLog:
             product_name=product_name, clip_file=clip_file, export_id=export_id, product_id=product_id,
             angle_key=angle_key, angle_title=angle_title, hook=hook, style_preset=style_preset,
             hook_color=hook_color, caption=caption, hashtags=hashtags, scheduled_at=scheduled_at,
-            posted_at=posted_at, channel_id=channel_id, all_channels=all_channels,
+            posted_at=posted_at, hook_style=hook_style, story_format=story_format,
+            duration_sec=duration_sec, hook_text=hook_text,
+            channel_id=channel_id, all_channels=all_channels,
         )["post"]
 
     @classmethod
@@ -315,6 +455,10 @@ class PostLog:
         hashtags: Optional[List[str]] = None,
         scheduled_at: str = "",
         posted_at: Optional[str] = None,
+        hook_style: str = "",
+        story_format: str = "",
+        duration_sec: Optional[float] = None,
+        hook_text: str = "",
         *,
         channel_id: Optional[str] = None,
         all_channels: bool = False,
@@ -343,6 +487,9 @@ class PostLog:
             "angle_title": angle_title or hook, "hook": hook, "style_preset": style_preset,
             "hook_color": hook_color, "caption": caption, "scheduled_at": scheduled_at,
             "export_id": export_id,
+            # Q6 style metadata (optional; only non-empty values are written).
+            "hook_style": hook_style, "story_format": story_format,
+            "duration_sec": _clean_duration(duration_sec), "hook_text": (hook_text or "")[:200],
         }
         name = _clip_name(clip_file)
         scope = cls._scope(channel_id, all_channels)
@@ -415,10 +562,18 @@ class PostLog:
                         raw = metrics.get(field)
                         if raw in (None, ""):
                             continue
-                        try:
-                            clean[field] = float(raw) if field == "commission_thb" else int(raw)
-                        except (TypeError, ValueError):
+                        if field == "avg_watch_time_sec":
+                            value = parse_watch_time_sec(raw)
+                        elif field == "completion_rate":
+                            value = parse_completion_rate(raw)
+                        else:
+                            try:
+                                value = float(raw) if field in FLOAT_METRIC_FIELDS else int(raw)
+                            except (TypeError, ValueError):
+                                value = None
+                        if value is None:
                             raise ValueError(f"ค่า '{field}' ต้องเป็นตัวเลข (ได้: {raw!r})")
+                        clean[field] = value
 
                     now_dt = datetime.datetime.now()
                     if clean:
@@ -482,7 +637,7 @@ class PostLog:
                 video_id = (row.get("video_id") or "").strip() if isinstance(row.get("video_id"), str) else row.get("video_id")
                 claim = str(video_id or f"row#{row_idx}")
                 ambiguous_ids: List[str] = []
-                metrics = {k: row.get(k) for k in ("views", "likes", "comments", "shares") if isinstance(row.get(k), int)}
+                metrics = _row_metrics(row)
                 target = by_video_id.get(video_id) if video_id else None
                 if target is None and row.get("title"):
                     fuzzy = cls._fuzzy_match(posts, row)
@@ -609,7 +764,7 @@ class PostLog:
             raise ValueError("ต้องระบุ post_id หรือ candidate อย่างใดอย่างหนึ่ง")
         now_dt = datetime.datetime.now()
         now = now_dt.isoformat(timespec="seconds")
-        metrics = {k: row.get(k) for k in ("views", "likes", "comments", "shares") if isinstance(row.get(k), int)}
+        metrics = _row_metrics(row)
         video_id = (row.get("video_id") or "").strip() if isinstance(row.get("video_id"), str) else row.get("video_id")
         scope = cls._scope(channel_id, all_channels)
         with cls._scoped_mutate(scope) as posts:
@@ -759,8 +914,9 @@ class PostLog:
     def _fuzzy_match(posts: List[Dict[str, Any]], row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Best-scoring title match on normalized text (tags/emoji stripped).
 
-        Duration filters only when BOTH sides have it (post_log posts never
-        store duration), widened to ±5s for encode padding differences.
+        Duration filters only when BOTH sides have it (only posts logged at
+        mark-posted since Q6 carry ``duration_sec``), widened to ±5s for
+        encode padding differences.
         """
         title = str(row.get("title") or "").strip()
         if len(title) < 4:
@@ -875,6 +1031,79 @@ class PostLog:
             results.append(bucket)
 
         return sorted(results, key=lambda b: b["commission_thb"], reverse=True)
+
+    @staticmethod
+    def _style_key(post: Dict[str, Any], field: str) -> str:
+        value = post.get(field)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        # Rows logged before story formats existed were all the classic format.
+        return DEFAULT_STORY_FORMAT if field == "story_format" else "unspecified"
+
+    @classmethod
+    def style_performance(
+        cls,
+        group_by: str = "style_preset",
+        *,
+        posts: Optional[List[Dict[str, Any]]] = None,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """Read-only: measured results grouped by one style dimension.
+
+        Uses mature_metrics() only (snapshot at post age >= 48h, or a legacy
+        row's latest metrics), so a 1-hour sync never counts.  Per group:
+        ``count`` (measured posts), ``median_views``, ``avg_watch_time_sec``
+        and ``completion_rate`` (means over posts that carry them; ``None``
+        when no post in the group has that metric).  Missing style values
+        group as ``"unspecified"`` (``story_format`` -> ``"classic"``).
+        Sorted by median views, highest first.
+        """
+        if group_by not in STYLE_GROUP_FIELDS:
+            raise ValueError(f"group_by ต้องเป็นหนึ่งใน {', '.join(STYLE_GROUP_FIELDS)} (ได้: {group_by!r})")
+        rows = posts if posts is not None else cls._scoped_load(cls._scope(channel_id, all_channels))
+        buckets: Dict[str, Dict[str, Any]] = {}
+        for post in rows:
+            metrics = mature_metrics(post)
+            if not metrics:
+                continue
+            bucket = buckets.setdefault(
+                cls._style_key(post, group_by), {"count": 0, "views": [], "watch": [], "completion": []}
+            )
+            bucket["count"] += 1
+            views = metrics.get("views")
+            if isinstance(views, (int, float)) and not isinstance(views, bool):
+                bucket["views"].append(float(views))
+            watch = parse_watch_time_sec(metrics.get("avg_watch_time_sec"))
+            if watch is not None:
+                bucket["watch"].append(watch)
+            rate = parse_completion_rate(metrics.get("completion_rate"))
+            if rate is not None:
+                bucket["completion"].append(rate)
+        results = []
+        for key, bucket in buckets.items():
+            median_views = _median(bucket["views"])
+            watch = _mean(bucket["watch"])
+            rate = _mean(bucket["completion"])
+            results.append({
+                group_by: key,
+                "count": bucket["count"],
+                "median_views": round(median_views, 1) if median_views is not None else None,
+                "avg_watch_time_sec": round(watch, 2) if watch is not None else None,
+                "completion_rate": round(rate, 4) if rate is not None else None,
+            })
+        return sorted(results, key=lambda r: (-(r["median_views"] or 0), str(r[group_by])))
+
+    @classmethod
+    def style_performance_report(
+        cls, *, channel_id: Optional[str] = None, all_channels: bool = False
+    ) -> Dict[str, Any]:
+        """All three groupings from ONE scoped read (for the stats endpoint)."""
+        rows = cls._scoped_load(cls._scope(channel_id, all_channels))
+        return {
+            "measured": sum(1 for post in rows if mature_metrics(post)),
+            **{f"by_{field}": cls.style_performance(field, posts=rows) for field in STYLE_GROUP_FIELDS},
+        }
 
     @classmethod
     def summary(cls, *, channel_id: Optional[str] = None, all_channels: bool = False) -> Dict[str, Any]:
