@@ -114,6 +114,90 @@ export function analyzeRenderPreflight({ clips = [], durations = {}, segments, e
     warnings: issues.filter((issue) => issue.severity === 'warning'), canRender: !issues.some((issue) => issue.severity === 'error') };
 }
 
+// ── Viral Lint (M4, POST /api/viral-lint) ───────────────────────────────────
+// The server rule set lives in scripts/viral_lint.py. Its block issues
+// (compliance: price / exaggerated claim) block render exactly like the
+// structural errors above; warn issues are advisory; info is context only.
+const VIRAL_SEVERITY = { block: 'error', warn: 'warning', info: 'info' };
+const finiteOrNull = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
+/** Validate an /api/viral-lint response. Anything malformed becomes null, so a
+ * bad payload never blocks a render. */
+export function normalizeViralLintReport(data) {
+  if (!data || typeof data !== 'object' || !Array.isArray(data.issues)) return null;
+  const issues = data.issues
+    .filter((issue) => issue && typeof issue === 'object' && VIRAL_SEVERITY[issue.severity]
+      && typeof issue.code === 'string' && typeof issue.message_th === 'string')
+    .map((issue) => {
+      const start = finiteOrNull(issue.start);
+      const end = finiteOrNull(issue.end);
+      return {
+        code: issue.code,
+        severity: issue.severity,
+        start,
+        end: start != null && end != null && end < start ? start : end,
+        message: issue.message_th,
+        clipIndex: Number.isInteger(issue.clip_index) ? issue.clip_index : null,
+        detail: typeof issue.detail === 'string' ? issue.detail : null,
+      };
+    });
+  const count = (severity) => issues.filter((issue) => issue.severity === severity).length;
+  const score = finiteOrNull(data.score);
+  return {
+    issues,
+    summary: { block: count('block'), warn: count('warn'), info: count('info') },
+    score: score == null ? null : Math.max(0, Math.min(100, Math.round(score))),
+  };
+}
+
+/** Preflight report + viral lint, in the same shape analyzeRenderPreflight
+ * returns. A HOLD clip already listed as `footage_hold` is not repeated. */
+export function mergeViralLint(report, viral, clips = []) {
+  if (!viral?.issues?.length) return { ...report, viralScore: viral?.score ?? null };
+  const heldClips = new Set(report.issues.filter((issue) => issue.code === 'footage_hold').map((issue) => issue.clipIndex));
+  const extra = viral.issues
+    .filter((issue) => !(issue.code === 'HOLD' && heldClips.has(issue.clipIndex)))
+    .map((issue) => ({
+      code: `viral_${issue.code.toLowerCase()}`,
+      source: 'viral',
+      severity: VIRAL_SEVERITY[issue.severity],
+      message: issue.message,
+      clipIndex: issue.clipIndex,
+      clipId: issue.clipIndex == null ? null : clips[issue.clipIndex]?.id ?? null,
+      start: issue.start,
+      end: issue.end,
+    }));
+  const issues = [...report.issues, ...extra].sort((a, b) => (a.start ?? Infinity) - (b.start ?? Infinity));
+  const errors = issues.filter((issue) => issue.severity === 'error');
+  return {
+    ...report,
+    issues,
+    errors,
+    warnings: issues.filter((issue) => issue.severity === 'warning'),
+    infos: issues.filter((issue) => issue.severity === 'info'),
+    canRender: errors.length === 0,
+    viralScore: viral.score,
+  };
+}
+
+/** Timeline-ruler spans for warn/block issues that carry a time. An issue with
+ * only a start (no end) gets a short marker so it can still be pointed at. */
+export const VIRAL_MARKER_SECONDS = 0.25;
+export function viralLintHeatmapSpans(viral) {
+  if (!viral?.issues?.length) return [];
+  return viral.issues
+    .filter((issue) => (issue.severity === 'block' || issue.severity === 'warn') && issue.start != null)
+    .map((issue) => ({
+      code: issue.code,
+      severity: issue.severity,
+      start: issue.start,
+      end: issue.end != null && issue.end > issue.start ? issue.end : issue.start + VIRAL_MARKER_SECONDS,
+      message: issue.message,
+    }))
+    // Block spans draw last so they sit on top of overlapping warnings.
+    .sort((a, b) => (a.severity === b.severity ? a.start - b.start : a.severity === 'block' ? 1 : -1));
+}
+
 export function preflightBlockingMessage(report) {
   return report.errors.map((issue) => `${issue.clipIndex == null ? '' : `ช็อต ${issue.clipIndex + 1} `}${formatPreflightTime(issue.start)}: ${issue.message}`).join('\n');
 }

@@ -10,6 +10,7 @@ import {
 } from '../../../api';
 import { buildCandidateOptions, buildAttachPayload, metricSummary } from '../../../lib/manualMatch';
 import MetricKpiCard from '../components/MetricKpiCard';
+import StylePerformancePanel from '../components/StylePerformancePanel';
 import LoadingSpinner from '../../LoadingSpinner';
 import AreaLineChart from '../charts/AreaLineChart';
 import PaginationControls from '../../PaginationControls';
@@ -392,6 +393,10 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
           </div>
         </div>
       )}
+
+      {/* ── ผลตามสไตล์ (style_preset / hook_style / story_format) ── */}
+      <StylePerformancePanel />
+
       {/* ── Manual matching (แถวที่ยังไม่ได้จับคู่) ── */}
       {pendingRows.length > 0 && (
         <div className="bg-[#0B0F19] border border-amber-500/25 rounded-2xl p-4 sm:p-5 shadow-lg">

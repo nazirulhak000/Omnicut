@@ -197,6 +197,26 @@ export function buildSegments(clips, durations = {}) {
   });
 }
 
+/**
+ * Output-timeline instant of every internal cut -- == pipeline_context.py
+ * clip_cut_times(). A hard cut is the frame where the next clip starts; a
+ * transition counts at the midpoint of its overlap (the renderer centres the
+ * overlap on the planned cut, so both land on the same instant). Empty for
+ * fewer than two clips or when any clip's length is unknown (no trim_end and no
+ * known source duration), like the backend.
+ */
+export function clipCutTimes(segments) {
+  if (!Array.isArray(segments) || segments.length < 2) return [];
+  for (const seg of segments) {
+    if ((seg?.clip?.trim_end ?? null) === null && !(seg?.srcDur > 0)) return [];
+  }
+  const out = [];
+  for (let i = 1; i < segments.length; i += 1) {
+    out.push(Math.round(((segments[i].segStart + segments[i - 1].segEnd) / 2) * 1e6) / 1e6);
+  }
+  return out;
+}
+
 /** Nearest frame, halves up -- == video_editor.py sequence_frame_index. */
 export function sequenceFrameIndex(seconds, fps = FPS) {
   return Math.floor(seconds * fps + 0.5);

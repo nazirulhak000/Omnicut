@@ -140,7 +140,15 @@ Viral retention layer (CLAUDE-AI-EDITOR-VIRAL-S1, 2026-10-31) · ดำเนิ
 - **Pacing** — `StyleMotionPolicy` เพิ่ม `hook_window_sec`/`hook_max_shot`/`max_static_sec`; ช็อตยาวไม่เกิน `max_shot × 1.25` (split ภายใน topic เดิม), freeze hold > 1 วิ ใช้ฟุตเทจข้างเคียง (`hold_reason`), ช่วงนิ่งเกิน `max_static_sec` ได้ camera punch ใน keyframe รูปแบบเดิม; Gemini match มี `confidence` และ shot planning ที่พังจะ raise `SHOT_PLANNING_FAILED`
 - **เสียง/ซับ** — `sfx_manager.plan_sfx_events()` (gap 2.0 วิ, opener/closer มาก่อน) ↔ `frontend/src/lib/sfxPlan.js`; ไฮไลต์ลำดับ marker → custom keyword → ตัวเลขสเปก → dictionary ↔ `frontend/src/lib/kineticHighlight.js` (fixture ร่วม `tests/fixtures/sfx_highlight_parity_cases.json`); `bgm_ducking` ค่าเริ่มต้น True
 - **ข้อมูลวัดผล** — export registry/PostLog เก็บ `style_preset`/`hook_style`/`story_format`/`duration_sec`/`hook_text`; PostLog metrics รับ `avg_watch_time_sec`/`completion_rate`; `GET /api/tiktok-stats/style-performance` สรุปตามสไตล์จาก mature metrics (≥48 ชม.)
-- **Batch** — `batch_render.BATCH_MAX_WORKERS = 4` + `is_valid_mp4` resume แต่ `render_jobs._RENDER_SLOT` ยังเป็น lock เดียว จึงยังเรนเดอร์จริงทีละคลิป
+- **Batch / render slots** — `render_jobs` ใช้ pool FIFO ขนาด `RENDER_MAX_CONCURRENT` (4, `OMNICUT_RENDER_CONCURRENCY` ปรับ 1–4); `batch_render` ให้แต่ละ item ขอ slot เอง + `is_valid_mp4` resume; render โปรเจกต์เดียวกันซ้อนกันไม่ได้ (per-project lock); NVENC ของ `tiktok_enhancer` จำกัดด้วย semaphore แล้วถอยไป libx264 เมื่อเปิด session ไม่ได้
+
+Viral retention layer S2 (CLAUDE-AI-EDITOR-VIRAL-S2, 2026-10-31):
+- **Hook บนจอ** — `scripts/hook_line.py` สร้างบรรทัด hook (≤ 22 ตัวอักษร ตัดที่ขอบคำไทย ผ่าน compliance lint) เป็น text overlay `role:"hook_line"` 0–1.8 วิ ใช้ฟอนต์/สีของ hook template; nameplate 3 ชั้นเริ่ม 1.8 วิ ค้าง 3.0 วิ (`HOOK_NAMEPLATE_DEFAULT_SEC`); ทำเฉพาะ subtitle pass แรกของโปรเจกต์
+- **ซับ** — `MICRO_BURST_MAX_CHARS = 24`; ซับอังกฤษที่จำนวนท่อนไม่ตรงจะแปลใหม่รายท่อนจากไทย
+- **Style presets** — 10 preset ต่างกันจริง (เทส `test_style_distinctness.py` ระยะห่างทุกคู่ ≥ 0.90); `camera_easing` ต่อ preset; family `compare`; preview เล่นตาม manifest จึง parity โดยโครงสร้าง
+- **Viral Lint** — `scripts/viral_lint.py` (pure) + `POST /api/viral-lint`; compliance = block, อื่น ๆ = warn/info; `RenderPreflightNotice` + heatmap บน `TimelineRuler`
+- **Word timing** — `scripts/word_alignment.py` align เสียง Gemini TTS ด้วย faster-whisper → `word_timings` (เปิดใช้ editorial pacing + SpecBar ตรงตอนพูดตัวเลข); ล้มเหลวคือข้ามพร้อมคำเตือน ไม่ทำให้เรนเดอร์พัง; ปิดด้วย `OMNICUT_WORD_ALIGN=0`
+- **Pipeline fields** — `target_duration` / `story_format` อยู่ใน PipelineContext, render params, manifest; `AudioMixStage.sync_cut_bound_sfx` mix ใหม่หลัง shot matching เมื่อจุดตัดจริงเปลี่ยนว่า SFX ตัวไหนถูกเก็บ; preview ส่ง `clipCutTimes(segments)` เข้า `planSfxEvents` ให้ตรงกัน
 
 ## Editor State & Save Queue
 

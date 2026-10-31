@@ -15,7 +15,7 @@ import { shouldCaptureSubjectPick, subjectPointFromPickClick } from '../lib/subj
 import { previewPointToSource, sourcePointToPreview } from '../lib/subjectFrameMapping.js';
 import { subjectPromptReference } from '../lib/subjectPromptReference.js';
 import { revealTrackForCue } from '../lib/captionEdits.js';
-import { ASS_TO_PREVIEW_COLOR, highlightBurstLines } from '../lib/kineticHighlight.js';
+import { ASS_TO_PREVIEW_COLOR, highlightBurstLines, hookHighlightKeywords } from '../lib/kineticHighlight.js';
 import {
   PROXY_POLL_MS, buildingClipIds, isProxyableSource, mergeProxyEntry,
   readProxyResponse, shouldPoll,
@@ -1428,7 +1428,11 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
 
   // The render highlights the whole burst (wrapped lines joined by \N) in one
   // pass, so the preview does too instead of colouring every wrapped line.
-  const burstHighlight = highlightBurstLines(thaiLines, enLines);
+  // highlightKeywords are the per-product words (hook brand/model/label, or
+  // the product name) the render passes as custom_keywords.
+  const burstHighlight = highlightBurstLines(thaiLines, enLines, {
+    customKeywords: style.highlightKeywords?.length ? style.highlightKeywords : null,
+  });
   const parsedThaiLines = thaiLines.map((line, idx) => toCanvasSegments(burstHighlight.th[idx], line, primaryColor));
   const parsedEnLines = enLines.map((line, idx) => toCanvasSegments(burstHighlight.en[idx], line, enDefaultColor));
 
@@ -3072,9 +3076,23 @@ function SequencePlayer({
   onPreviewQualityChange = null,
   highResStillEnabled: controlledHighResStillEnabled,
   onToggleHighResStill = null,
+  // Fallback source for the caption custom keywords when the hook banner is
+  // blank -- the render guesses brand/model from the product name then.
+  productName = '',
 }, ref) {
   const watermarkText = projectWatermark(channelIdentitySnapshot, channelId);
   const visualStyle = useMemo(() => getStylePreset(stylePreset), [stylePreset]);
+  const highlightKeywords = useMemo(
+    () => hookHighlightKeywords(overlays, productName),
+    [overlays, productName],
+  );
+  const highlightKeywordsKey = highlightKeywords.join('\u0001');
+  const captionDrawStyle = useMemo(
+    () => ({ ...captionStyle, highlightKeywords }),
+    // captionKey below lists every caption field that reaches the canvas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [captionStyle, highlightKeywordsKey],
+  );
   const previewAccentColor = visualStyle?.accent || '#FFE600';
   const previewSpotlight = useMemo(
     () => resolveSpotlightPreview(spotlight, effects),
@@ -3438,7 +3456,7 @@ function SequencePlayer({
     setPlayhead(t);
   };
 
-  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}:${captionStyle.bilingualSubtitles}:${captionStyle.ghostReveal}:${visualStyle.id}`;
+  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}:${captionStyle.bilingualSubtitles}:${captionStyle.ghostReveal}:${visualStyle.id}:${highlightKeywordsKey}`;
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}:${c.x ?? ''}:${c.y ?? ''}:${c.position ?? ''}`).join(';;');
   // An overlay carries a whole look per tier now, so anything short of the
   // real thing would miss a colour or an outline the user just changed.
@@ -4843,7 +4861,7 @@ function SequencePlayer({
     });
     drawOverlayScrims(ctx, overlaysInFront, t);
     if (!captionStyle.hidden) {
-      drawCaption(ctx, cues, t, captionStyle, bounds);
+      drawCaption(ctx, cues, t, captionDrawStyle, bounds);
     }
     drawOverlays(ctx, overlaysInFront, t, previewAccentColor, bounds);
     if (showWatermark !== false) {
@@ -5136,7 +5154,7 @@ function SequencePlayer({
         });
         drawOverlayScrims(ctx, overlaysInFront, t);
         if (!captionStyle.hidden) {
-          drawCaption(ctx, cues, t, captionStyle, bounds);
+          drawCaption(ctx, cues, t, captionDrawStyle, bounds);
         }
         drawOverlays(ctx, overlaysInFront, t, previewAccentColor, bounds);
         if (showWatermark !== false) {
@@ -5166,7 +5184,7 @@ function SequencePlayer({
     // RAF loop kept drawing whatever array existed when isPlaying last
     // flipped true until some other dep (e.g. overlays) happened to change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, subjectPickMode, segments, segmentsByClipId, cues, overlays, totalDuration, effectiveStickersList, effects, spotlightKey, backgroundIsolationManifests, backgroundIsolationTick, previewQuality, activeCutoutMode, previewAccentColor, lutReady, grade?.intensity, showWatermark, watermarkText]);
+  }, [isPlaying, subjectPickMode, segments, segmentsByClipId, cues, overlays, highlightKeywordsKey, totalDuration, effectiveStickersList, effects, spotlightKey, backgroundIsolationManifests, backgroundIsolationTick, previewQuality, activeCutoutMode, previewAccentColor, lutReady, grade?.intensity, showWatermark, watermarkText]);
 
   const togglePlay = () => {
     if (!segments.length || subjectPickMode) return;

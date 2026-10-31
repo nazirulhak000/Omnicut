@@ -286,15 +286,64 @@ def _fold_cues_to_lines(
         if not group:
             continue
         line = original_lines[line_idx] if line_idx < len(original_lines) else {}
-        folded.append({
+        entry = {
             "id": line_idx + 1,
             "start": group[0]["start"],
             "end": group[-1]["end"],
             "text": line.get("text", "") or " ".join(c.get("text", "") for c in group),
             "sfx": line.get("sfx"),
             "on_screen": line.get("on_screen", ""),
-        })
+        }
+        # Aligned word timings (Gemini TTS, see _attach_aligned_word_timings)
+        # follow the clauses up to their line. Cues without them fold exactly
+        # as before -- no empty key is added.
+        line_words = [w for c in group for w in (c.get("word_timings") or [])]
+        if line_words:
+            entry["word_timings"] = line_words
+        folded.append(entry)
     return folded
+
+
+def _attach_aligned_word_timings(
+    voice_audio_path: Path,
+    cues: List[Dict[str, Any]],
+    total_duration: float,
+) -> List[Dict[str, Any]]:
+    """
+    Gemini Flash TTS returns no word boundaries, so align the finished
+    voiceover against the script with faster-whisper (`scripts/word_alignment.py`)
+    and attach `word_timings` in the same schema Edge-TTS cues carry. That is
+    what switches on editorial pacing and SpecBar-on-the-number for the
+    default engine.
+
+    Best effort only: any failure (faster-whisper missing, model not cached,
+    low match rate, unexpected error) logs a Thai warning and returns `cues`
+    unchanged, so the render proceeds exactly as it did without timings.
+    Results are cached by audio hash in a sidecar JSON next to the wav.
+    """
+    if not cues:
+        return cues
+    try:
+        from scripts.word_alignment import align_cues, attach_word_timings
+
+        cache_path = voice_audio_path.with_name(f"{voice_audio_path.stem}.word_timings.json")
+        alignment = align_cues(
+            voice_audio_path,
+            cues,
+            duration=total_duration,
+            cache_path=cache_path,
+        )
+        if alignment is None:
+            print("⚠️ [VoiceStage] ไม่มีเวลาคำจากการจัดเสียงพากย์ — ใช้จังหวะซับ/ช็อตแบบเดิม")
+            return cues
+        print(
+            f"   [WordAlign] จัดเวลาคำได้ {alignment.matched}/{alignment.total} คำ "
+            f"({alignment.coverage:.0%}){' จากแคช' if alignment.cached else ''}"
+        )
+        return attach_word_timings(cues, alignment)
+    except Exception as align_err:
+        print(f"⚠️ [VoiceStage] จัดเวลาคำล้มเหลว ({align_err}) — ทำงานต่อโดยไม่มีเวลาคำ")
+        return cues
 
 
 class VoiceStage:
@@ -570,6 +619,7 @@ class VoiceStage:
                     total_duration=total_duration,
                     log_prefix="[Gemini Flash TTS]",
                 )
+                cues = _attach_aligned_word_timings(voice_audio_path, cues, total_duration)
                 # cues here is clause-level (gemini_tts split each line into
                 # smart clauses above) -- fold back to one cue per script
                 # line for beat_cues, since that's the granularity a shot

@@ -31,6 +31,7 @@ typesafe-sdk==0.7.1        # TypeSafe AI System One decision model (Jev)
 
 # --- Thai text / subtitles ---
 pythainlp==5.3.7           # word segmentation for subtitle bursts
+faster-whisper==1.2.1       # word-level timings for Gemini TTS (scripts/word_alignment.py); needs the large-v3-turbo weights cached locally
 deep-translator==1.11.4    # bilingual subtitle translation
 fonttools==4.63.0          # embedded font family metadata for the asset registry
 # --- Audio / image processing ---

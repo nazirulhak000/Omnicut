@@ -5,20 +5,9 @@ Generates or prepares TikTok script cues using custom script, AIBridge, ScriptGe
 
 from scripts.ai_bridge import AIBridge
 from scripts.script_generator import ScriptGenerator
-from scripts.pipeline_context import PipelineContext
+from scripts.pipeline_context import PipelineContext, normalize_story_format, normalize_target_duration
 from scripts.quota import is_quota_error
 from scripts.compliance_lint import enforce_script_compliance, format_violations_th, lint_script
-
-
-def _optional_target_duration(value) -> "int | None":
-    """Coerce an optional target clip length (seconds) to a positive int or None."""
-    if isinstance(value, bool) or not isinstance(value, (int, float, str)) or value in ("", 0):
-        return None
-    try:
-        seconds = int(value)
-    except (TypeError, ValueError):
-        return None
-    return seconds if seconds > 0 else None
 
 
 class ScriptStage:
@@ -74,11 +63,12 @@ class ScriptStage:
                         }
                         # M3 retention controls. Optional: with no target the
                         # prompt keeps today's default length rules exactly.
-                        target_duration = _optional_target_duration(getattr(ctx, "target_duration", None))
+                        # PipelineContext already normalised both fields;
+                        # normalising again keeps a hand-built context safe.
+                        target_duration = normalize_target_duration(ctx.target_duration)
                         if target_duration is not None:
                             ai_ctx["target_duration"] = target_duration
-                        story_format = getattr(ctx, "story_format", None)
-                        ai_ctx["story_format"] = story_format.strip() if isinstance(story_format, str) and story_format.strip() else "classic"
+                        ai_ctx["story_format"] = normalize_story_format(ctx.story_format)
                         ai_resp = AIBridge.generate("script", ai_ctx)
                         ai_lines = ai_resp.get("lines", [])
                         if ai_lines:

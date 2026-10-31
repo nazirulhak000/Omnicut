@@ -572,6 +572,12 @@ class RerollRequest(BaseModel):
     effects: Optional[List[Dict[str, Any]]] = None
     spotlight: Optional[Dict[str, Any]] = None
     background_isolation: Optional[Dict[str, Any]] = None
+    # Retention controls (M3). OMITTED = keep the stored value. Sent = the
+    # normalised value wins: target_duration outside 15/25/35/45 (or null)
+    # clears the target, an unknown story_format becomes "classic". Only a
+    # script reroll (or a stale script fingerprint) rewrites the script.
+    target_duration: Optional[Any] = None
+    story_format: Optional[Any] = None
 
 
 # What each button costs, so the UI can warn before a slow one.
@@ -897,11 +903,32 @@ class UpdateProjectStateRequest(BaseModel):
     background_isolation: Optional[Dict[str, Any]] = None
     track_mix: Optional[Dict[str, Any]] = None
     audio_mutes: Optional[Dict[str, bool]] = None
+    # Retention controls (M3), same contract as RerollRequest: omitted = keep,
+    # sent = normalised (bad target -> None/cleared, bad format -> "classic").
+    target_duration: Optional[Any] = None
+    story_format: Optional[Any] = None
     # Ripple cuts of the voice file (scripts/voice_cut_map.py, plan §3.1):
     # {schema_version, source: {path, size, mtime_ns, duration}, cuts: [{id,start,end,reason}]}.
     # OMITTED = keep what is stored; null or no cuts = clear it. Validated in
     # update_project_state (422, Thai) and persisted top-level only.
     voice_edit: Optional[Dict[str, Any]] = None
+
+
+def _retention_controls(present, source) -> Dict[str, Any]:
+    """Normalised ``target_duration``/``story_format`` for the keys in ``present``.
+
+    ``source`` is a request model or a dict. A key that was not sent is left
+    out (= keep what is stored); a sent key always yields its normalised
+    value, so junk clears the target / resets the format instead of a 422.
+    """
+    from scripts.pipeline_context import normalize_story_format, normalize_target_duration
+    get = source.get if isinstance(source, dict) else (lambda key: getattr(source, key, None))
+    out: Dict[str, Any] = {}
+    if "target_duration" in present:
+        out["target_duration"] = normalize_target_duration(get("target_duration"))
+    if "story_format" in present:
+        out["story_format"] = normalize_story_format(get("story_format"))
+    return out
 
 
 def _voice_edit_stamp(current: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -1017,6 +1044,15 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest, chan
             for k, v in req.style.items():
                 fields[k] = v
                 render_params[k] = v
+        # Retention controls: top level AND render_params (the pipeline and
+        # export_registry.style_metadata_from_manifest read either), always
+        # normalised -- also when they arrive inside `style`.
+        retention = _retention_controls(req.model_fields_set, req)
+        if req.style is not None:
+            retention = {**_retention_controls(set(req.style), req.style), **retention}
+        for key, value in retention.items():
+            fields[key] = value
+            render_params[key] = value
         # Top-level AND render_params, matching EditorShell.jsx's load priority
         # (data.hook_brand first, data.render_params?.hook_brand as fallback) --
         # writing only one of the two would leave the other stale.
@@ -1146,11 +1182,18 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             "bgm_ducking", "lut_name", "lut_intensity", "caption_position", "caption_color",
             "audio_mutes",
             "caption_scale", "sticker_position", "sticker_scale", "clip_list", "transitions",
-            "text_overlays", "stickers", "effects", "spotlight", "background_isolation"
+            "text_overlays", "stickers", "effects", "spotlight", "background_isolation",
+            "target_duration", "story_format",
         ]:
             if k not in params and k in manifest and manifest[k] is not None:
                 params[k] = manifest[k]
+        retention_overrides = {
+            k: overrides.pop(k) for k in ("target_duration", "story_format") if k in overrides
+        }
         params.update({k: v for k, v in overrides.items() if v is not None})
+        # Sent retention controls win even when they normalise to the default
+        # (None = clear the target), unlike the `is not None` merge above.
+        params.update(retention_overrides)
 
         # Ensure raw_video_path is resolved
         raw_video = params.get("raw_video_path")
@@ -1301,10 +1344,12 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 hook_brand=params.get("hook_brand"),
                 hook_model=params.get("hook_model"),
                 hook_label=params.get("hook_label"),
-                hook_duration=float(params.get("hook_duration", 5.0) or 5.0),
+                hook_duration=float(params.get("hook_duration", 3.0) or 3.0),
                 hook_motion=params.get("hook_motion"),
                 hook_colors=params.get("hook_colors"),
                 hook_style=params.get("hook_style"),
+                target_duration=params.get("target_duration"),
+                story_format=params.get("story_format") or "classic",
                 font_name=params.get("font_name", "IBMPlex"),
                 bilingual_subtitles=params.get("bilingual_subtitles", True),
                 ghost_reveal=bool(params.get("ghost_reveal", True)),
@@ -1422,6 +1467,9 @@ def trigger_reroll(req: RerollRequest, background_tasks: BackgroundTasks, channe
     overrides = req.model_dump(exclude={"project_name", "part"}, exclude_none=True)
     if "voice_gender" in overrides:
         overrides["voice"] = overrides.pop("voice_gender")
+    overrides.pop("target_duration", None)
+    overrides.pop("story_format", None)
+    overrides.update(_retention_controls(req.model_fields_set, req))
 
     # A badge name resolves to a path the same way /api/render does. "Clear the
     # badge" is written as "" rather than None on purpose: _execute_reroll

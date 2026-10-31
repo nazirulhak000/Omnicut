@@ -21,6 +21,8 @@ import VoicePickerModal from '../VoicePickerModal';
 import { guessBrandModel, newHookOverlay, templateForAdTone, templateForStylePreset } from '../../lib/overlayModel';
 import { normalizeStylePreset, getRecommendedStyleForAngle } from '../../lib/stylePresetCatalog.js';
 import StylePresetPicker from './StylePresetPicker';
+import ClipFormatPicker from './ClipFormatPicker';
+import { clipFormatPayload } from '../../lib/clipFormatOptions.js';
 import { FONT_OPTIONS } from './inspector/CaptionInspector';
 
 function formatTime(seconds) {
@@ -461,6 +463,8 @@ export default function NewClipPanel({
       voice_rate: form.voiceSpeed,
       ad_tone: form.adTone || 'commercial_hype',
       style_preset: normalizeStylePreset(form.stylePreset),
+      // target_duration (null = length follows the script) + story_format.
+      ...clipFormatPayload(form),
       human_voice_audio: null,
       product_id: productContext?.id || null,
       angle_id: (currentAngle?.angle_id || angles[angleIndex]?.angle_id) || null,
@@ -703,6 +707,17 @@ export default function NewClipPanel({
                     helpText="เลือกก่อนสร้างคลิป ระบบจะใช้ค่านี้จัด Motion, Transition และสี Accent อัตโนมัติ"
                     usedStyleIds={usedStyleIds}
                     usedStyleInfo={usedStyleInfo}
+                  />
+                </div>
+
+                <div className="border-t border-white/[0.06] pt-3">
+                  <ClipFormatPicker
+                    targetDuration={form.targetDuration}
+                    storyFormat={form.storyFormat}
+                    onChange={patch}
+                    scriptSeconds={form.useCustomScript && form.customScript
+                      ? Math.max(5, Math.round(form.customScript.length / 14))
+                      : null}
                   />
                 </div>
 

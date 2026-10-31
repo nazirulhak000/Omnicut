@@ -50,7 +50,7 @@ from scripts.stages import (
     ShotMatchingStage,
     VideoAssemblyStage,
 )
-from scripts.render_jobs import RenderCancelled
+from scripts.render_jobs import RenderCancelled, acquire_project_render_lock
 
 # Threshold for transition push-in / pull-back
 ZOOM_MOVE_THRESHOLD = 0.10
@@ -116,10 +116,12 @@ class TikTokAutoCutterPipeline:
         hook_brand: Optional[str] = None,
         hook_model: Optional[str] = None,
         hook_label: Optional[str] = None,
-        hook_duration: float = 5.0,
+        hook_duration: float = 3.0,
         hook_motion: Optional[Dict[str, Any]] = None,
         hook_colors: Optional[Dict[str, str]] = None,
         hook_style: Optional[Dict[str, object]] = None,
+        target_duration: Optional[int] = None,
+        story_format: str = "classic",
         font_name: str = "IBMPlex",
         bilingual_subtitles: bool = True,
         ghost_reveal: bool = True,
@@ -200,6 +202,8 @@ class TikTokAutoCutterPipeline:
             hook_motion=hook_motion,
             hook_colors=hook_colors,
             hook_style=hook_style,
+            target_duration=target_duration,
+            story_format=story_format,
             font_name=font_name,
             bilingual_subtitles=bilingual_subtitles,
             ghost_reveal=ghost_reveal,
@@ -262,6 +266,9 @@ class TikTokAutoCutterPipeline:
         # returns. A stage raising after that point would take the name with
         # it, leaving the failure report unable to say which folder holds the
         # partial work -- so stamp it onto the exception on the way out.
+        # Up to four clips render at once (render_jobs slot pool), so two
+        # renders of the same project must not write its folder together.
+        project_lock = acquire_project_render_lock(project_name, channel_id=channel_id, cancel_event=cancel_event)
         try:
             # Stage 1: Source Resolution
             _run_stage("source", SourceResolutionStage.run)
@@ -287,6 +294,12 @@ class TikTokAutoCutterPipeline:
             _run_stage("shot_matching", ShotMatchingStage.run)
             _raise_if_cancelled()
 
+            # The mix ran before the clips existed. Re-mix only when the final
+            # cut times change which SFX it keeps (a transition whoosh on a
+            # cut); otherwise this is a pure check and nothing is rewritten.
+            AudioMixStage.sync_cut_bound_sfx(ctx)
+            _raise_if_cancelled()
+
             # Stage 7: Video Assembly & Manifest Persistence (also checks
             # cancel_event itself, mid-encode, via ctx.cancel_event)
             _run_stage("video_assembly", VideoAssemblyStage.run)
@@ -301,6 +314,8 @@ class TikTokAutoCutterPipeline:
                 # original type and traceback reach classify_exception intact.
                 setattr(stage_err, "pipeline_project_name", ctx.project_name)
             raise
+        finally:
+            project_lock.release()
 
         return ctx.result_paths
 

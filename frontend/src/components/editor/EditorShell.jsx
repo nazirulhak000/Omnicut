@@ -20,7 +20,7 @@ import {
   markRangePoint, rangeMarkToRanges, resolveRippleScope, silenceSpansToProgramRanges, voiceCutSignature,
 } from '../../lib/rippleUi.js';
 import {
-  FADE_DURATION, buildSegments, formatTimecode, resolveSplitTarget, snapSeekTime, splitClipAt, snapCandidates, snapTime,
+  FADE_DURATION, buildSegments, clipCutTimes, formatTimecode, resolveSplitTarget, snapSeekTime, splitClipAt, snapCandidates, snapTime,
   totalDuration as totalDurationOf,
 } from '../../lib/timelineMath';
 import { resolveTrimHead, resolveTrimTail } from '../../lib/timelineTrimOps.js';
@@ -115,7 +115,8 @@ import MixDegradedNotice from './MixDegradedNotice';
 import ProjectRevisionNotice from './ProjectRevisionNotice';
 import VoiceEditNotice from './VoiceEditNotice';
 import RenderPreflightNotice from './RenderPreflightNotice';
-import { analyzeRenderPreflight, preflightBlockingMessage } from '../../lib/renderPreflight.js';
+import { analyzeRenderPreflight, mergeViralLint, preflightBlockingMessage, viralLintHeatmapSpans } from '../../lib/renderPreflight.js';
+import useViralLint from '../../hooks/useViralLint';
 import { planSfxEvents } from '../../lib/sfxPlan.js';
 
 function formatErrorText(err) {
@@ -1159,6 +1160,16 @@ export default function EditorShell({
   const renderPreflight = useMemo(() => analyzeRenderPreflight({
     clips: clipList, durations, segments, expectedDuration: audioDuration,
   }), [clipList, durations, segments, audioDuration]);
+  // Viral Lint (M4): server-side retention + compliance check of the live
+  // editor state, merged into the same preflight report. Advisory unless it
+  // finds a compliance block; an unreachable API never blocks a render.
+  const viralLint = useViralLint({ projectName, manifest: projectSavePayload, enabled: clipList.length > 0 });
+  const refreshViralLint = viralLint.refresh;
+  const preflightReport = useMemo(
+    () => mergeViralLint(renderPreflight, viralLint.report, clipList),
+    [renderPreflight, viralLint.report, clipList],
+  );
+  const viralHeatmap = useMemo(() => viralLintHeatmapSpans(viralLint.report), [viralLint.report]);
   useEffect(() => { seekSegmentsRef.current = segments; }, [segments]);
 
   const {
@@ -2140,6 +2151,14 @@ export default function EditorShell({
       setApplyError(preflightBlockingMessage(renderPreflight));
       return;
     }
+    // Compliance (price / exaggerated claim) blocks like a structural error.
+    // Lint the latest state now, not the debounced result from a moment ago.
+    const freshViralLint = await refreshViralLint();
+    const viralGate = mergeViralLint(renderPreflight, freshViralLint ?? viralLint.report, clipList);
+    if (!viralGate.canRender) {
+      setApplyError(preflightBlockingMessage(viralGate));
+      return;
+    }
     if (isProjectPosted) {
       setApplyError('คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม');
       return;
@@ -2352,6 +2371,9 @@ export default function EditorShell({
     const plan = planSfxEvents(cuesList || [], liveOverlays, {
       totalDuration: audioDuration > 0 ? audioDuration : null,
       boomAvailable: !!boom,
+      // The render re-plans with the final cut times (AudioMixStage.sync_cut_bound_sfx),
+      // so a whoosh on a real cut keeps its slot there -- and here.
+      cutTimes: clipCutTimes(segments),
       sfxFilename: (tag) => findSfx(tag)?.name || null,
     });
     const sfxShots = [];
@@ -2391,7 +2413,7 @@ export default function EditorShell({
       voiceVolume: clampBusVolume(style.voiceVolume, VOICE_VOLUME_DEFAULT),
       sfxVolume: clampBusVolume(style.sfxVolume, SFX_VOLUME_DEFAULT),
     };
-  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, style.voiceVolume, style.sfxVolume, assets.music, assets.sfx, cuesList, overlays, audioDuration]);
+  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, style.voiceVolume, style.sfxVolume, assets.music, assets.sfx, cuesList, overlays, audioDuration, segments]);
 
   // The colour grade the preview should show, resolved the same way the
   // renderer resolves it (registry id or filename -- see resolve_lut_path).
@@ -2505,7 +2527,7 @@ export default function EditorShell({
       {projectName && projectWatermark(channelIdentitySnapshot, channel?.channelId || 'main') === null && (
         <p role="alert" className="border-b border-amber-300/20 bg-amber-300/10 px-4 py-2 text-sm text-amber-200">???????????????????????????????????????????? ???????????????????????</p>
       )}
-      <RenderPreflightNotice report={renderPreflight} onSeek={seekPlayer} />
+      <RenderPreflightNotice report={preflightReport} onSeek={seekPlayer} />
       <ProjectRevisionNotice
         kind={projectName ? revisionNotice : null}
         reloading={revisionReloading}
@@ -2793,6 +2815,7 @@ export default function EditorShell({
                   clips={clipList}
                   cues={cuesList}
                   overlays={overlays}
+                  productName={projectProductName}
                   voiceEdit={activeVoiceEdit}
                   audioUrl={audioUrl}
                   audioStems={audioStems}
@@ -3067,6 +3090,7 @@ export default function EditorShell({
                     totalDuration={totalDuration}
                     audioDuration={audioDuration}
                     voiceEdit={activeVoiceEdit}
+                    lintSpans={viralHeatmap}
                     cues={cuesList}
                     bgmLabel={bgmLabel}
                     beatGrid={beatSnapEnabled ? beatGrid : null}
@@ -3466,6 +3490,7 @@ export default function EditorShell({
                     clips={clipList}
                     cues={cuesList}
                     overlays={overlays}
+                    productName={projectProductName}
                     voiceEdit={activeVoiceEdit}
                     audioUrl={audioUrl}
                     audioStems={audioStems}
@@ -3893,6 +3918,7 @@ export default function EditorShell({
                     totalDuration={totalDuration}
                     audioDuration={audioDuration}
                     voiceEdit={activeVoiceEdit}
+                    lintSpans={viralHeatmap}
                     cues={cuesList}
                     bgmLabel={bgmLabel}
                     beatGrid={beatSnapEnabled ? beatGrid : null}

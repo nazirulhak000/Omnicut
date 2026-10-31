@@ -12,13 +12,13 @@ from typing import Any, Dict, List, Optional
 IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
     {
         "key": "spec_compare",
-        "name": "เทียบรุ่น / เทียบราคา",
-        "description": "เอาสองราคามาชนกัน แล้วเฉลยว่าเงินที่จ่ายเพิ่มไปได้อะไร",
+        "name": "เทียบรุ่น / เทียบสเปก",
+        "description": "เอาสองรุ่นมาวางเทียบกัน แล้วเฉลยว่ารุ่นที่สเปกสูงกว่าได้อะไรเพิ่มจริง",
         "needs_own_footage": False,
         "proof_needed": "ตารางสเปคสองฝั่ง ตัวเลขต้องขึ้นจอ",
         "hook_patterns": [
-            "ตัวละ {ราคาถูก} กับ {ราคาแพง} ต่างกันตรงไหน เดี๋ยวเทียบให้ดู",
-            "จ่ายเพิ่ม {ส่วนต่าง} บาท ได้อะไรเพิ่มบ้าง",
+            "{รุ่นเล็ก} กับ {รุ่นใหญ่} ต่างกันตรงไหน เดี๋ยวเทียบให้ดู",
+            "{สเปคต่ำ} กับ {สเปคสูง} ใช้จริงต่างกันแค่ไหน",
         ],
         "fallback_hook": "{สินค้า} รุ่นเล็กกับรุ่นใหญ่ ต่างกันตรงไหน เดี๋ยวเทียบสเปคให้ดูชัดๆ",
     },
@@ -65,20 +65,20 @@ IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
         "needs_own_footage": True,
         "proof_needed": "ภาพของพัง/ปัญหาจริง แล้วตัดไปของใหม่",
         "hook_patterns": [
-            "ใครสายชาร์จพังเดือนละเส้น ดูคลิปนี้",
+            "ใครสายชาร์จพังเดือนละเส้น ต้องรู้จักตัวนี้",
             "{ปัญหา} มาตลอด จนเจอตัวนี้",
         ],
         "fallback_hook": "ใครมีปัญหากับของเดิมมาตลอด จนเจอ {สินค้า} ตัวนี้",
     },
     {
         "key": "dont_cheap_out",
-        "name": "ของถูกที่ไม่ควรประหยัด",
-        "description": "เตือนภัย + ชี้ว่าประหยัดตรงไหนแล้วเสียหายกว่า",
+        "name": "ของเกรดต่ำที่ไม่ควรเสี่ยง",
+        "description": "เตือนภัย + ชี้ว่าเลือกของเกรดต่ำตรงไหนแล้วเสียหายกว่า",
         "needs_own_footage": False,
-        "proof_needed": "ภาพความเสียหายจากของถูก + ตัวเลขค่าเสียหาย",
+        "proof_needed": "ภาพความเสียหายจากของเกรดต่ำ + จุดสังเกตที่ต่างกัน",
         "hook_patterns": [
-            "ประหยัด {จำนวนเงิน} แต่เสีย {ค่าเสียหาย} คุ้มไหม",
-            "ของ {ราคาถูก} บาท พังยังไงบ้าง",
+            "{สินค้า} เกรดต่ำ เสี่ยง {ความเสียหาย} คุ้มไหม",
+            "{สินค้า} ไม่ได้มาตรฐาน พังยังไงบ้าง",
         ],
         "fallback_hook": "{สินค้า} เกรดต่ำ พังแล้วลามถึงเครื่อง ดูจุดนี้ก่อนเลือก",
     },
@@ -102,7 +102,7 @@ IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
         "proof_needed": "เทียบของเดิม vs ของใหม่เป็นตัวเลข",
         "hook_patterns": [
             "ใช้ {ของเดิม} อยู่ ควรเปลี่ยนไหม",
-            "อัปเป็น {สินค้า} คุ้มกับ {ราคา} หรือเปล่า",
+            "อัปเป็น {สินค้า} ได้ {สเปคที่ดีขึ้น} เพิ่ม คุ้มหรือเปล่า",
         ],
         "fallback_hook": "ใช้ของเดิมอยู่ อัปเป็น {สินค้า} คุ้มหรือเปล่า",
     },
@@ -188,7 +188,7 @@ def fallback_angles(product_name: str, seller_assets_only: bool = False) -> List
     Ready-to-use angles for running with no LLM at all.
 
     These come from `fallback_hook`, not `hook_patterns`: the patterns carry
-    placeholders like {ราคาถูก} that only a model can fill, and a half-filled
+    placeholders like {รุ่นเล็ก} that only a model can fill, and a half-filled
     hook with literal braces in it would go straight onto the screen.
     """
     source = IT_ANGLE_CATALOG
@@ -211,4 +211,4 @@ def fallback_angles(product_name: str, seller_assets_only: bool = False) -> List
 if __name__ == "__main__":
     import json
 
-    print(json.dumps(fallback_angles("หูฟังบลูทูธ", seller_assets_only=True), ensure_ascii=False, indent=2))
+    print(json.dumps(fallback_angles("หูฟัง Bluetooth", seller_assets_only=True), ensure_ascii=False, indent=2))

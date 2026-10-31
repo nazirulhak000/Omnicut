@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { planSfxEvents, isSfxEventEligible, SFX_MIN_GAP_S } from './sfxPlan.js';
+import { buildSegments, clipCutTimes } from './timelineMath.js';
 
 // Shared with tests/test_preview_render_parity.py, which runs the same cases
 // through plan_sfx_events() in scripts/sfx_manager.py.
@@ -47,3 +48,15 @@ test('eligibility follows the backend: explicit opt-out flags and non-objects ar
   assert.equal(isSfxEventEligible({ start: '1.5', sfx: 'pop' }), true);
   assert.equal(isSfxEventEligible({ start: null, sfx: 'pop' }), false);
 });
+
+// clip_cut_times() in scripts/pipeline_context.py is the backend side of this
+// fixture. Clips without trim_end are given their source duration the way the
+// editor loads it from the probed file.
+for (const c of CASES.cut_times) {
+  test(`cut times parity: ${c.name}`, () => {
+    const durations = Object.fromEntries(c.clips.map((clip) => [clip.id, clip.duration || 0]));
+    const got = clipCutTimes(buildSegments(c.clips, durations));
+    assert.equal(got.length, c.expected.length);
+    got.forEach((t, i) => assert.ok(Math.abs(t - c.expected[i]) < 1e-6, `${t} vs ${c.expected[i]}`));
+  });
+}

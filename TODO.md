@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CLAUDE-AI-EDITOR-VIRAL-S2-20261031 · branch `feat/viral-s2` รวม 8 agent (G–N): render slot pool 4 ช่อง, plumbing target_duration/story_format/cut_times/style_metadata, cleanup S1, Performance tab + ตัวเลือกความยาว/รูปแบบ, M4 Viral Lint + heatmap, M9 word timing, M1 hook text 0–1.8 วิ, M8 ซับ ≤ 24, M5 preset 10 แบบต่างจริง · pytest 4687 pass (11 fail เดิมจาก main) · npm 1174/1174 + build · ยังไม่ merge main รอผู้ใช้ดูคลิปจริง · ดำเนินการโดย: Claude Code (Claude Opus 5.5 / Sonnet 5.5) + 8 sub-agents
+
 - [x] Round CODEX-REVERT-OWN-THEME-20261031 · ถอนงานธีม Codex ครบ: source เดิม 33 ไฟล์ตรง 34c5ba9, ลบ v2/docs/flag, คง GDrive/Claude; frontend tests 1,099/1,099 และ build เดิมผ่าน · ดำเนินการโดย: Codex (GPT-6)
 
 - [x] Round ANTIGRAVITY-GDRIVE-ARCHIVE-ASYNC-PROGRESS-AND-DELTA-RESUME-20261031 · ยกระดับระบบสำรองข้อมูล Google Drive รองรับ Background Task, Real-time Progress Bar, Unlimited Timeout, และ Smart Delta Skip ป้องกันการอัพซ้ำ 100% · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)

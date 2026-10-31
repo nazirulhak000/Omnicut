@@ -11,7 +11,7 @@ import time
 import hashlib
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as dataclass_replace
 from pathlib import Path
 from collections import Counter
 from typing import List, Dict, Any, Optional
@@ -59,6 +59,13 @@ PROXY_WIDTH = 640
 # keyword/description hit are trusted; ones chosen on priors alone are not.
 CATALOG_MATCH_CONFIDENCE = 0.85
 CATALOG_LOW_CONFIDENCE = 0.35
+
+# Folded into every scene-match cache key together with the shot-length range
+# the prompt asks for. Bump it whenever the match prompt changes in a way that
+# makes old answers wrong, so stale cached responses are never reused.
+#   v1 (implicit: keys with no suffix): fixed 2-6 s shots in the prompt.
+#   v2: the active style's min/max shot range is written into the prompt.
+MATCH_PROMPT_VERSION = 2
 # Narration seconds treated as the hook when the catalog picks scenes.
 CATALOG_HOOK_WINDOW_SEC = 3.0
 # Hero preference for an unmatched hook: moving product footage first, then
@@ -188,11 +195,74 @@ class GeminiVisionMatcher:
                 except OSError:
                     pass
 
+    @staticmethod
+    def resolve_shot_range(
+        min_shot: Optional[float] = None, max_shot: Optional[float] = None
+    ) -> tuple:
+        """The (lo, hi) shot length the match prompt asks for.
+
+        Missing values fall back to the config constants; a reversed range is
+        swapped. Shared by the prompt and the cache key so they never drift.
+        """
+        from scripts.config import MAX_SHOT_DURATION, MIN_SHOT_DURATION
+        shot_lo = float(min_shot) if min_shot else float(MIN_SHOT_DURATION)
+        shot_hi = float(max_shot) if max_shot else float(MAX_SHOT_DURATION)
+        if shot_hi < shot_lo:
+            shot_lo, shot_hi = shot_hi, shot_lo
+        return shot_lo, shot_hi
+
+    @classmethod
+    def match_cache_key(
+        cls,
+        file_hash: str,
+        cues: List[Dict],
+        min_shot: Optional[float] = None,
+        max_shot: Optional[float] = None,
+    ) -> str:
+        """Scene-match cache key: video + cue text + prompt version + shot range.
+
+        The range and MATCH_PROMPT_VERSION are part of the key because they
+        are part of the prompt: an answer cached for a 2-6 s prompt must not
+        be reused when the style now asks for 1.5-2.5 s shots.
+        """
+        cues_summary = "|".join(str(cue.get("text", "")) for cue in cues)
+        cues_digest = hashlib.md5(cues_summary.encode("utf-8")).hexdigest()
+        shot_lo, shot_hi = cls.resolve_shot_range(min_shot, max_shot)
+        return f"{file_hash}_{cues_digest}_v{MATCH_PROMPT_VERSION}_{shot_lo:.2f}-{shot_hi:.2f}"
+
+    @classmethod
+    def _lookup_cached_matches(
+        cls, cache: Dict[str, Any], file_hash: str, match_cache_key: str, cues: List[Dict]
+    ) -> Optional[List[Dict]]:
+        cached_matches = cls._exact_cached_match(cache, match_cache_key)
+        if cached_matches:
+            catalog = cache.get("catalogs", {}).get(file_hash) or {}
+            if catalog.get("scenes") and all(
+                isinstance(match, dict) and "scene_id" in match for match in cached_matches
+            ):
+                # Catalog scoring is local and cheap. Re-evaluate it
+                # for the current cues/policy instead of freezing old
+                # diversity-first choices (or old cue durations) in
+                # the text-keyed match cache. Direct Vision matches
+                # without catalog scene IDs keep their cache behavior.
+                catalog_end = max(float(scene.get("end", 0)) for scene in catalog["scenes"])
+                cached_matches = cls.match_script_with_catalog(catalog, cues, raw_duration=catalog_end)
+            cached_matches = cls._bind_catalog_windows(cached_matches, catalog)
+        return cached_matches
+
     @classmethod
     def prepare_request_context(
-        cls, raw_video_path: str, cues: Optional[List[Dict]] = None
+        cls,
+        raw_video_path: str,
+        cues: Optional[List[Dict]] = None,
+        min_shot: Optional[float] = None,
+        max_shot: Optional[float] = None,
     ) -> Optional[VisionRequestContext]:
-        """Read source identity and the local Vision cache once for one job."""
+        """Read source identity and the local Vision cache once for one job.
+
+        Pass the same ``min_shot`` / ``max_shot`` that ``match_script_to_video``
+        will get; the match cache is keyed by that range.
+        """
         try:
             video_file = Path(raw_video_path).resolve()
             if not video_file.exists():
@@ -202,22 +272,8 @@ class GeminiVisionMatcher:
             match_cache_key = None
             cached_matches = None
             if cues is not None:
-                cues_summary = "|".join(str(cue.get("text", "")) for cue in cues)
-                match_cache_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
-                cached_matches = cls._exact_cached_match(cache, match_cache_key)
-                if cached_matches:
-                    catalog = cache.get("catalogs", {}).get(file_hash) or {}
-                    if catalog.get("scenes") and all(
-                        isinstance(match, dict) and "scene_id" in match for match in cached_matches
-                    ):
-                        # Catalog scoring is local and cheap. Re-evaluate it
-                        # for the current cues/policy instead of freezing old
-                        # diversity-first choices (or old cue durations) in
-                        # the text-keyed match cache. Direct Vision matches
-                        # without catalog scene IDs keep their cache behavior.
-                        catalog_end = max(float(scene.get("end", 0)) for scene in catalog["scenes"])
-                        cached_matches = cls.match_script_with_catalog(catalog, cues, raw_duration=catalog_end)
-                    cached_matches = cls._bind_catalog_windows(cached_matches, catalog)
+                match_cache_key = cls.match_cache_key(file_hash, cues, min_shot, max_shot)
+                cached_matches = cls._lookup_cached_matches(cache, file_hash, match_cache_key, cues)
             return VisionRequestContext(
                 video_file=video_file,
                 file_hash=file_hash,
@@ -361,9 +417,15 @@ class GeminiVisionMatcher:
         return bounded
 
     @classmethod
-    def get_cached_matches(cls, raw_video_path: str, cues: List[Dict]) -> Optional[List[Dict]]:
+    def get_cached_matches(
+        cls,
+        raw_video_path: str,
+        cues: List[Dict],
+        min_shot: Optional[float] = None,
+        max_shot: Optional[float] = None,
+    ) -> Optional[List[Dict]]:
         """Checks if scene matches exist in the local cache without calling any API or printing warnings."""
-        context = cls.prepare_request_context(raw_video_path, cues)
+        context = cls.prepare_request_context(raw_video_path, cues, min_shot=min_shot, max_shot=max_shot)
         return context.cached_matches if context else None
 
     @classmethod
@@ -943,14 +1005,31 @@ class GeminiVisionMatcher:
         ``min_shot`` / ``max_shot`` are the active style's shot range; the
         prompt asks for shots inside it (default: the config constants).
         """
+        # The match cache is keyed by the shot range the prompt asks for. A
+        # context prepared without that range (or for another one) is re-keyed
+        # here so an answer cached under a different prompt is never reused.
+        if request_context is not None:
+            range_key = cls.match_cache_key(request_context.file_hash, cues, min_shot, max_shot)
+            if request_context.match_cache_key != range_key:
+                request_context = dataclass_replace(
+                    request_context,
+                    match_cache_key=range_key,
+                    cached_matches=cls._lookup_cached_matches(
+                        request_context.cache, request_context.file_hash, range_key, cues
+                    ),
+                )
+
         # Fast local cache check before calling API -- a cache hit costs
         # nothing and must never consume quota, so the budget check below
         # sits AFTER this, not before it.
-        cached_matched = (
-            request_context.cached_matches
-            if request_context is not None
-            else cls.get_cached_matches(raw_video_path, cues)
-        )
+        if request_context is not None:
+            cached_matched = request_context.cached_matches
+        elif min_shot is None and max_shot is None:
+            # Same key as passing None explicitly; kept positional-only so
+            # existing two-argument stubs of get_cached_matches still fit.
+            cached_matched = cls.get_cached_matches(raw_video_path, cues)
+        else:
+            cached_matched = cls.get_cached_matches(raw_video_path, cues, min_shot=min_shot, max_shot=max_shot)
         if cached_matched:
             print(f"   ⚡ Reusing {len(cached_matched)} AI Vision matched shots from local cache!")
             return cached_matched
@@ -969,8 +1048,7 @@ class GeminiVisionMatcher:
                     video_file = Path(raw_video_path).resolve()
                     file_hash = cls._compute_file_hash(video_file)
                     cache = cls._load_cache()
-                    cues_summary = "|".join([f"{c.get('text', '')}" for c in cues])
-                    match_cache_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
+                    match_cache_key = cls.match_cache_key(file_hash, cues, min_shot, max_shot)
                 if "matches" not in cache:
                     cache["matches"] = {}
                 if match_cache_key:
@@ -1000,14 +1078,9 @@ class GeminiVisionMatcher:
         else:
             file_hash = cls._compute_file_hash(Path(raw_video_path).resolve())
             cache = cls._load_cache()
-            cues_summary = "|".join([f"{c.get('text', '')}" for c in cues])
-            match_cache_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
+            match_cache_key = cls.match_cache_key(file_hash, cues, min_shot, max_shot)
 
-        from scripts.config import MAX_SHOT_DURATION, MIN_SHOT_DURATION
-        shot_lo = float(min_shot) if min_shot else float(MIN_SHOT_DURATION)
-        shot_hi = float(max_shot) if max_shot else float(MAX_SHOT_DURATION)
-        if shot_hi < shot_lo:
-            shot_lo, shot_hi = shot_hi, shot_lo
+        shot_lo, shot_hi = cls.resolve_shot_range(min_shot, max_shot)
         shot_cap = shot_hi * 1.25
 
         # Format cues for prompt
@@ -1025,7 +1098,7 @@ class GeminiVisionMatcher:
 
 กติกาสำคัญ:
 1. อย่าตัดช็อตใหม่ทุกท่อน — ให้รวมท่อนที่ต่อเนื่องเป็นประโยค/ใจความเดียวกัน (ยังไม่จบด้วย . ! ? หรือคำลงท้ายอย่าง "ครับ"/"ค่ะ") เข้าเป็น 1 ช็อตเดียว ถ้าภาพช่วงนั้นยังสื่อความหมายเดิมต่อเนื่อง เพื่อให้จังหวะตัดไม่ถี่เกินไปจนดูรก
-2. ตัดช็อตใหม่เฉพาะตอนที่ใจความเปลี่ยน (เปลี่ยนหัวข้อ/เปลี่ยนแอ็กชันที่ต้องโชว์) เช่น ท่อนหมุนข้อต่อ ให้เลือกช่วงที่มือหมุนข้อต่อ, ท่อนเสียบชาร์จ ให้เลือกช่วงที่เสียบชาร์จ, ท่อนราคา/ปิดการขาย ให้เลือกช่วงโชว์สินค้าชัดเจน
+2. ตัดช็อตใหม่เฉพาะตอนที่ใจความเปลี่ยน (เปลี่ยนหัวข้อ/เปลี่ยนแอ็กชันที่ต้องโชว์) เช่น ท่อนหมุนข้อต่อ ให้เลือกช่วงที่มือหมุนข้อต่อ, ท่อนเสียบชาร์จ ให้เลือกช่วงที่เสียบชาร์จ, ท่อนปิดการขาย ให้เลือกช่วงโชว์สินค้าชัดเจน
 3. start_time และ end_time ต้องอยู่ในช่วง 0 ถึง {raw_duration:.1f} วินาที และความยาวของแต่ละช็อตควรอยู่ที่ {shot_lo:.1f} - {shot_hi:.1f} วินาที และห้ามเกิน {shot_cap:.1f} วินาที (สั้นกว่านี้จะถี่และรกเกินไป ยาวกว่านี้จะดูนิ่งน่าเบื่อ) ถ้าใจความเดียวยาวกว่านั้น ให้แบ่งเป็นหลายช็อตต่อเนื่องที่ยังโชว์เรื่องเดิม
 4. cue_ids ต้องเป็น array ของลำดับท่อน (จากเลข 1-{len(cues)} ด้านบน) ที่ช็อตนี้ครอบคลุม เรียงต่อเนื่องกันและไม่มีช่องว่างหรือซ้ำกับช็อตอื่น รวมกันแล้วต้องครบทุกท่อนทั้ง {len(cues)} ท่อน
 5. punch_zoom: กำหนดค่า 1.0 ถึง 1.35 เพื่อเพิ่มความตื่นเต้นในสไตล์ TikTok — ใช้ค่าสูงกว่าตรงจุดเฉลย/จุดขายของสินค้า/CTA และค่าต่ำกว่าตรงช่วงเกริ่นนำธรรมดา

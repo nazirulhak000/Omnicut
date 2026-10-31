@@ -15,6 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.config import FONTS_DIR, VIDEO_WIDTH, VIDEO_HEIGHT
+from scripts.word_alignment import spec_onset_time
 from scripts.asset_registry import AssetRegistry
 from scripts.hook_styles import resolve_hook_style
 from scripts.overlay_model import (
@@ -96,17 +97,18 @@ from scripts.subtitle.word_reveal import (
     split_reveal_by_lines,
 )
 
-# Longest a micro-burst clause may be, in characters. This is the clause
-# splitter's own historical default, kept here so the caller that now bounds it
-# by the rendered line width cannot silently widen it: a line at the default
-# font size fits ~62 characters, and filling that would turn rapid-fire bursts
-# back into subtitle paragraphs.
+# Longest a micro-burst clause may be, in characters. Every caption in every
+# clip is split to this bound, then further bounded by the rendered line width
+# (a line at the default font size fits ~62 characters, and filling that would
+# turn rapid-fire bursts back into subtitle paragraphs).
 #
-# Note this is above the 16-24 that subtitle_kinetic_rules.md asks for. That
-# gap predates the per-size bound added here and is left alone deliberately --
-# narrowing it changes the pacing of every caption in every clip, which is a
-# decision for the project owner, not a side effect of this change.
-MICRO_BURST_MAX_CHARS = 34
+# 24 is the top of the 16-24 range subtitle_kinetic_rules.md asks for (2-4
+# words per burst). It was 34 until 2026-10-31, when the project owner
+# approved the cut (M8 of PLAN_AI_EDITOR_VIRAL_STYLES_20261031). Only where a
+# clause breaks changes: font, size, outline, colours, margins and the
+# Progressive Ghost Reveal are untouched, and the splitter still breaks only at
+# PyThaiNLP word boundaries, so vowels and tone marks never separate.
+MICRO_BURST_MAX_CHARS = 24
 
 # Emoji and pictographs, plus the variation selector and zero-width joiner that
 # bind them into sequences. Captions are stripped of these: libass renders them
@@ -236,11 +238,32 @@ class SubtitleEngine:
         except Exception:
             return [part]
 
+    @staticmethod
+    def _peel_last_word_th(part: str) -> Tuple[str, str]:
+        """
+        Splits `part` into (everything before its last Thai word, last word) at
+        a PyThaiNLP word boundary, so no syllable, vowel or tone mark is cut.
+        Returns ("", "") when the tokenizer is unavailable or `part` is a single
+        word -- the caller then keeps `part` whole.
+        """
+        try:
+            from pythainlp.tokenize import word_tokenize
+            words = [w for w in word_tokenize(part, engine="newmm") if w]
+        except Exception:
+            return "", ""
+        if len(words) < 2:
+            return "", ""
+        tail = words[-1]
+        head = part[: len(part) - len(tail)].rstrip()
+        if not head or not tail.strip():
+            return "", ""
+        return head, tail
+
     @classmethod
     def split_into_smart_clauses(cls, text: str, short_clause_max: int = 18, max_line_len: int = 34) -> List[str]:
         """
         Splits Thai text into natural grammatical clauses delimited by spaces and punctuation:
-        - Short clauses (< 18 chars): Combines up to 2 short clauses per line (<= 34 chars).
+        - Short clauses (< 18 chars): Combines up to 2 short clauses per line (<= max_line_len chars).
         - Long clauses (>= 18 chars): Stays as 1 single sentence/clause per line.
         - Orphan words / punctuation (like 'บ้าง...', 'ๆ', 'นะ', 'ครับ', '<= 4 chars'): Merged into preceding clause.
         - Never cuts mid-word or creates isolated single-word meaningless frames.
@@ -279,7 +302,20 @@ class SubtitleEngine:
                 or p.startswith("ๆ")
                 or p in ["บ้าง", "นะ", "ครับ", "ค่ะ", "เลย", "ด้วย", "อ่ะ", "น้า", "จ้า", "ล่ะ"]
             ):
-                merged_parts[-1] += " " + p
+                prev = merged_parts[-1]
+                if len(prev) + 1 + len(p) <= max_line_len:
+                    merged_parts[-1] = prev + " " + p
+                else:
+                    # Merging would push the clause past the burst bound (the
+                    # tokenizer had just split to fit it). Hand the orphan the
+                    # previous clause's last word instead, so a particle like
+                    # "ครับ" neither overflows the burst nor stands alone.
+                    head, tail = cls._peel_last_word_th(prev)
+                    if head and tail and len(tail) + 1 + len(p) <= max_line_len:
+                        merged_parts[-1] = head
+                        merged_parts.append(tail + " " + p)
+                    else:
+                        merged_parts[-1] = prev + " " + p
             else:
                 merged_parts.append(p)
 
@@ -380,8 +416,8 @@ class SubtitleEngine:
         the user can scale: at the default size a line holds ~62 characters, but
         at 2.4x only ~26. Splitting at a fixed 34 regardless meant a scaled-up
         caption produced clauses too long for their own line, and the ASS writer
-        then wrapped them onto a second one. Left unset, the clause splitter's
-        own default applies and behaviour is exactly as before.
+        then wrapped them onto a second one. Left unset, MICRO_BURST_MAX_CHARS
+        applies.
         """
         micro_cues = []
         cue_id = 1
@@ -403,10 +439,12 @@ class SubtitleEngine:
             # wrapper below converts each paragraph to `\\N`.
             if "\n" in text or "\r" in text:
                 clauses = [text]
-            elif max_line_len:
-                clauses = cls.split_into_smart_clauses(text, max_line_len=max_line_len)
             else:
-                clauses = cls.split_into_smart_clauses(text)
+                # Unset means "the micro-burst bound", not the splitter's own
+                # 34 default, which the voice stage still uses for TTS clauses.
+                clauses = cls.split_into_smart_clauses(
+                    text, max_line_len=max_line_len or MICRO_BURST_MAX_CHARS
+                )
             real_boundaries = cls._clause_boundaries_from_word_timings(
                 clauses, c.get("word_timings") or []
             )
@@ -454,9 +492,17 @@ class SubtitleEngine:
                     trans_parts = [t.strip() for t in re.split(r'[,.]\s+', trans) if t.strip()]
                     if len(trans_parts) == len(clauses):
                         cue_trans = trans_parts[idx]
-                    elif idx == 0:
-                        cue_trans = trans
                     else:
+                        # The sentence-level English does not line up with the
+                        # clause split. It used to be pinned on the FIRST clause
+                        # while the rest were machine-translated on their own,
+                        # which put the whole sentence under clause 1 and then
+                        # repeated its tail under the others. With bursts capped
+                        # at 24 characters a sentence now splits into 3-4
+                        # clauses, so that mismatch would show on almost every
+                        # line. Leave every clause empty instead: the batch
+                        # translation below translates each clause's own Thai,
+                        # so TH and EN stay one-to-one by construction.
                         cue_trans = ""
 
                 if not cue_text:
@@ -1413,7 +1459,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 continue
             if " ".join(on_screen.split()).strip().casefold() in product_callout_texts:
                 continue
-            spec_start = cls._format_ass_time(cue["start"])
+            # With word timings (Edge-TTS, or Gemini TTS aligned by
+            # scripts/word_alignment.py) the bar lands on the spoken number
+            # instead of the sentence start; the end stays the cue end.
+            # No timings / no number found -> sentence start, as before.
+            spec_onset = spec_onset_time(
+                cue.get("word_timings"), on_screen, start=cue["start"], end=cue["end"]
+            )
+            spec_start = cls._format_ass_time(cue["start"] if spec_onset is None else spec_onset)
             spec_end = cls._format_ass_time(cue["end"])
             spec_from = 110
             spec_to = 100

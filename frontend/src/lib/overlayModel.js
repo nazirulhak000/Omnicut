@@ -22,6 +22,10 @@ export const CANVAS_SCALE = 0.5;
 // different natural sizes, so the ratio rides on the overlay rather than the
 // look, and size_pct stays a number the user recognises.
 export const HOOK_FS_RATIO = 0.065;
+
+// Mirrors HOOK_NAMEPLATE_DEFAULT_SEC in scripts/overlay_model.py: the default
+// nameplate length (was 5.0 until M1, when the hook line took the first 1.8 s).
+export const HOOK_NAMEPLATE_DEFAULT_SEC = 3.0;
 export const TEXT_FS_RATIO = 0.0463;
 
 // Ask a face for a weight it does not ship and the browser synthesises one
@@ -297,7 +301,7 @@ export function hookOverlayFromLegacy(brand, model, label, duration, motion, col
   if (!texts.some((t) => t.trim())) return null;
   const template = (style || {}).template || DEFAULT_HOOK_TEMPLATE;
   const resolved = resolveHookStyle(template, style || {}, colors || {});
-  const dur = Number(duration) || 5.0;
+  const dur = Number(duration) || HOOK_NAMEPLATE_DEFAULT_SEC;
   return {
     id: 'ovl_hook',
     kind: 'hook',
@@ -390,7 +394,7 @@ export function migrateToOverlays(manifest) {
     manifestGet(data, 'hook_brand', '') || '',
     manifestGet(data, 'hook_model', '') || '',
     manifestGet(data, 'hook_label', '') || '',
-    manifestGet(data, 'hook_duration', 5.0) || 5.0,
+    manifestGet(data, 'hook_duration', HOOK_NAMEPLATE_DEFAULT_SEC) || HOOK_NAMEPLATE_DEFAULT_SEC,
     manifestGet(data, 'hook_motion', null) || {},
     manifestGet(data, 'hook_colors', null) || {},
     manifestGet(data, 'hook_style', null) || {},
@@ -459,7 +463,7 @@ export function newTextOverlay({
 
 /** The banner as an overlay, dressed in `template`. null when it is blank. */
 export function newHookOverlay({
-  brand = '', model = '', label = '', template = null, start = 0, duration = 5.0,
+  brand = '', model = '', label = '', template = null, start = 0, duration = HOOK_NAMEPLATE_DEFAULT_SEC,
 }) {
   const overlay = hookOverlayFromLegacy(
     brand, model, label, duration, null, null,

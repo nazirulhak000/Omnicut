@@ -193,6 +193,8 @@ def execute_render_job(job_id: str, req_data: RenderRequest, job_scope: Optional
                 hook_motion=req_data.hook_motion,
                 hook_colors=req_data.hook_colors,
                 hook_style=req_data.hook_style,
+                target_duration=req_data.target_duration,
+                story_format=req_data.story_format,
                 font_name=req_data.font_name,
                 bilingual_subtitles=req_data.bilingual_subtitles,
                 show_watermark=req_data.show_watermark,

@@ -9,7 +9,9 @@ Jobs live in memory only: a server restart forgets them, which is fine because
 the artifacts themselves are on disk and recorded in the project manifest.
 """
 
+import collections
 import datetime
+import os
 import threading
 from contextlib import contextmanager
 from pathlib import Path
@@ -80,14 +82,110 @@ def _owned_by(job: Dict[str, Any], owner_id: Optional[str], channel_id: Optional
     channel_matches = channel_id is None or (job.get("channel_id") or "main") == channel_id
     return owner_matches and channel_matches
 
-# This machine renders on CPU with no CUDA and 13.7GB RAM (see
-# _Docs/PRD_phase1.md section 3) -- two ffmpeg encodes or two TTS calls at
-# once is a real OOM/thrash risk, not a theoretical one. Every render and
-# re-roll acquires this before touching the pipeline, so only one clip is
-# ever being produced at a time; everything else waits its turn as "queued".
-_RENDER_SLOT = threading.Lock()
+# Render slot pool (AGENTS rules 21 + 24). This machine is a 20-core / 32GB
+# RAM workstation with an RTX 4060 (8GB VRAM): four pipelines at once fit
+# comfortably (~4.5GB RAM, ~2GB VRAM), so up to RENDER_MAX_CONCURRENT clips
+# render in parallel. Every render, re-roll and batch item acquires one slot
+# before touching the pipeline; anything beyond the pool waits as "queued".
+# Override with OMNICUT_RENDER_CONCURRENCY (clamped to 1..4) -- 1 restores
+# the old one-clip-at-a-time behaviour.
+RENDER_CONCURRENCY_ENV = "OMNICUT_RENDER_CONCURRENCY"
+RENDER_CONCURRENCY_DEFAULT = 4
+RENDER_CONCURRENCY_MIN = 1
+RENDER_CONCURRENCY_MAX = 4
 
-# How many callers may be blocked waiting for _RENDER_SLOT before a new one
+
+def resolve_render_concurrency(raw: Optional[str] = None) -> int:
+    """Parse a concurrency override (env var when `raw` is None), clamped.
+
+    Missing/blank/garbage values fall back to RENDER_CONCURRENCY_DEFAULT;
+    numbers outside 1..4 are clamped rather than rejected so a typo in the
+    env never stops the server from starting.
+    """
+    if raw is None:
+        raw = os.environ.get(RENDER_CONCURRENCY_ENV)
+    if raw is None or not str(raw).strip():
+        return RENDER_CONCURRENCY_DEFAULT
+    try:
+        value = int(str(raw).strip())
+    except ValueError:
+        return RENDER_CONCURRENCY_DEFAULT
+    return max(RENDER_CONCURRENCY_MIN, min(RENDER_CONCURRENCY_MAX, value))
+
+
+class RenderQueueFull(Exception):
+    """Raised by _SlotPool.enqueue when the wait queue is at capacity."""
+
+
+class _SlotPool:
+    """Bounded, strictly FIFO pool of render slots.
+
+    A plain Semaphore lets a thread that just released a slot barge back in
+    ahead of threads already waiting -- a 4-worker batch would then starve a
+    single render/re-roll indefinitely. Here waiters are served in arrival
+    order, and a newcomer never jumps a non-empty queue.
+    """
+
+    def __init__(self, capacity: int):
+        self.capacity = max(1, int(capacity))
+        self._cond = threading.Condition(threading.Lock())
+        self._active = 0
+        self._waiters: "collections.deque[object]" = collections.deque()
+
+    def active(self) -> int:
+        with self._cond:
+            return self._active
+
+    def waiting(self) -> int:
+        with self._cond:
+            return len(self._waiters)
+
+    def try_acquire(self) -> bool:
+        with self._cond:
+            if not self._waiters and self._active < self.capacity:
+                self._active += 1
+                return True
+            return False
+
+    def enqueue(self, max_waiting: int) -> object:
+        """Reserve a place in line, or raise RenderQueueFull."""
+        with self._cond:
+            if len(self._waiters) >= max_waiting:
+                raise RenderQueueFull()
+            ticket = object()
+            self._waiters.append(ticket)
+            return ticket
+
+    def acquire_ticket(self, ticket: object) -> None:
+        """Block until `ticket` is first in line and a slot is free."""
+        with self._cond:
+            try:
+                while self._waiters[0] is not ticket or self._active >= self.capacity:
+                    self._cond.wait()
+            except BaseException:
+                try:
+                    self._waiters.remove(ticket)
+                except ValueError:
+                    pass
+                self._cond.notify_all()
+                raise
+            self._waiters.popleft()
+            self._active += 1
+            # The next in line may also fit (several slots freed at once).
+            self._cond.notify_all()
+
+    def release(self) -> None:
+        with self._cond:
+            if self._active <= 0:
+                raise RuntimeError("render slot released more times than acquired")
+            self._active -= 1
+            self._cond.notify_all()
+
+
+RENDER_MAX_CONCURRENT = resolve_render_concurrency()
+_RENDER_SLOTS = _SlotPool(RENDER_MAX_CONCURRENT)
+
+# How many callers may be blocked waiting for a render slot before a new one
 # is refused outright instead of joining the wait. Most endpoints in this
 # app are synchronous `def`s that FastAPI runs on its threadpool -- render_
 # slot()'s wait used to be a bare, uncapped acquire(), so a burst of queued
@@ -95,24 +193,112 @@ _RENDER_SLOT = threading.Lock()
 # every OTHER endpoint (status polling included), not just rendering.
 MAX_QUEUED_RENDERS = 3
 
-# Guards _QUEUED_COUNT -- a separate, tiny lock rather than piggybacking on
-# _RENDER_SLOT itself, since the whole point is to check/reserve a queue
-# slot *before* touching _RENDER_SLOT.
-_QUEUE_COUNT_LOCK = threading.Lock()
-_QUEUED_COUNT = 0
+# Guards ACTIVE_JOBS insert/prune: concurrent create_job calls (batch items
+# render four at a time) must not mutate the dict while _prune_old_jobs
+# iterates it.
+_JOBS_LOCK = threading.RLock()
+
+
+def render_concurrency() -> int:
+    """How many clips may render at once (size of the slot pool)."""
+    return _RENDER_SLOTS.capacity
+
+
+def set_render_concurrency(value: Any) -> int:
+    """Resize the slot pool (clamped 1..4). Only allowed while idle --
+    swapping the pool under a running render would orphan its slot."""
+    global RENDER_MAX_CONCURRENT, _RENDER_SLOTS
+    size = resolve_render_concurrency(str(value))
+    if _RENDER_SLOTS.active() or _RENDER_SLOTS.waiting():
+        raise RuntimeError("cannot resize the render slot pool while renders are running or queued")
+    RENDER_MAX_CONCURRENT = size
+    _RENDER_SLOTS = _SlotPool(size)
+    return size
 
 
 def is_busy() -> bool:
-    """True while a render holds the slot -- callers use it to refuse work
-    that would pull files out from under the running job."""
-    return _RENDER_SLOT.locked()
+    """True while at least one render holds a slot -- callers use it to refuse
+    work that would pull files out from under a running job (delete/archive
+    project), so it stays true as long as ANY clip is rendering, not only
+    when the pool is full."""
+    return _RENDER_SLOTS.active() > 0
+
+
+def active_count() -> int:
+    """How many renders currently hold a slot."""
+    return _RENDER_SLOTS.active()
 
 
 def queued_count() -> int:
-    """How many callers are currently blocked waiting for _RENDER_SLOT (not
-    counting whichever one holds it)."""
-    with _QUEUE_COUNT_LOCK:
-        return _QUEUED_COUNT
+    """How many callers are currently blocked waiting for a render slot (not
+    counting the ones holding one)."""
+    return _RENDER_SLOTS.waiting()
+
+
+# Per-project render mutex. With one global slot two renders of the SAME
+# project could never overlap; with a pool they can (double-clicked render,
+# a re-roll while a batch re-renders that angle), and both would write the
+# same 03_Projects/<name>/ folder and manifest. TikTokAutoCutterPipeline.run
+# takes this for its project, so same-project renders queue behind each other
+# while different projects still render in parallel.
+_PROJECT_LOCKS_GUARD = threading.Lock()
+_PROJECT_LOCKS: Dict[str, list] = {}  # key -> [RLock, refcount]
+PROJECT_LOCK_POLL_SECONDS = 0.5
+
+
+def _project_lock_key(project_name: str, channel_id: Optional[str]) -> str:
+    name = str(project_name).replace("\\", "/").strip("/")
+    if channel_id and channel_id != "main" and "/" not in name:
+        name = f"{channel_id}/{name}"
+    return os.path.normcase(name)
+
+
+class _ProjectLockHandle:
+    def __init__(self, key: Optional[str] = None, entry: Optional[list] = None):
+        self._key = key
+        self._entry = entry
+
+    def release(self) -> None:
+        if self._entry is None:
+            return
+        entry, self._entry = self._entry, None
+        entry[0].release()
+        _drop_project_lock_ref(self._key, entry)
+
+
+def _drop_project_lock_ref(key: Optional[str], entry: list) -> None:
+    with _PROJECT_LOCKS_GUARD:
+        entry[1] -= 1
+        if entry[1] <= 0 and _PROJECT_LOCKS.get(key) is entry:
+            del _PROJECT_LOCKS[key]
+
+
+def acquire_project_render_lock(
+    project_name: Optional[str],
+    *,
+    channel_id: Optional[str] = None,
+    cancel_event: Optional[threading.Event] = None,
+) -> _ProjectLockHandle:
+    """Block until no other render is producing `project_name`; returns a
+    handle whose release() must be called. A falsy name (the pipeline will
+    invent a fresh one) needs no lock. Waiting honours `cancel_event` by
+    raising RenderCancelled."""
+    if not project_name:
+        return _ProjectLockHandle()
+    key = _project_lock_key(project_name, channel_id)
+    with _PROJECT_LOCKS_GUARD:
+        entry = _PROJECT_LOCKS.get(key)
+        if entry is None:
+            entry = _PROJECT_LOCKS[key] = [threading.RLock(), 0]
+        entry[1] += 1
+    try:
+        while not entry[0].acquire(timeout=PROJECT_LOCK_POLL_SECONDS):
+            if cancel_event is not None and cancel_event.is_set():
+                raise RenderCancelled(f"Render cancelled while waiting for project '{project_name}'")
+    except BaseException:
+        _drop_project_lock_ref(key, entry)
+        raise
+    return _ProjectLockHandle(key, entry)
 
 
 def _prune_old_jobs(max_keep: int = 50) -> None:
@@ -135,6 +321,12 @@ def create_job(job_id: str, message: str = "กำลังเริ่มต้
     if prior and pinned.get("channel_id") and not _owned_by(prior, owner_id, pinned["channel_id"]):
         from scripts.channel_store import ChannelError
         raise ChannelError(409, "channel_job_collision", "id งานมีอยู่แล้ว")
+    with _JOBS_LOCK:
+        return _register_job(job_id, owner_id, message, pinned)
+
+
+def _register_job(job_id: str, owner_id: Optional[str], message: str, pinned: Dict[str, Any]) -> Dict[str, Any]:
+    """Insert a fresh queued job (caller holds _JOBS_LOCK)."""
     _prune_old_jobs(max_keep=50)
     ACTIVE_JOBS[job_id] = {
         "id": job_id,
@@ -171,8 +363,9 @@ def get_job(job_id: str, owner_id: Optional[str] = None, *, channel_id: Optional
 @contextmanager
 def render_slot(job_id: str, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> Iterator[None]:
     """
-    Block until it is this job's turn to actually render, updating its status
-    to "queued" with an explanatory message for as long as it has to wait.
+    Block until one of the RENDER_MAX_CONCURRENT slots is free and it is this
+    job's turn (strict FIFO), updating its status to "queued" with an
+    explanatory message for as long as it has to wait.
 
     Refuses outright (HTTP 429) instead of joining the wait once
     MAX_QUEUED_RENDERS callers are already queued -- see that constant's
@@ -183,34 +376,29 @@ def render_slot(job_id: str, owner_id: Optional[str] = None, *, channel_id: Opti
         with render_slot(job_id):
             TikTokAutoCutterPipeline.run(...)
     """
-    global _QUEUED_COUNT
-
-    must_wait = _RENDER_SLOT.locked()
-    if must_wait:
-        with _QUEUE_COUNT_LOCK:
-            if _QUEUED_COUNT >= MAX_QUEUED_RENDERS:
-                raise HTTPException(
-                    status_code=429,
-                    detail="คิวเรนเดอร์เต็ม — มีงานรออยู่หลายรายการแล้ว กรุณารอสักครู่แล้วลองใหม่",
-                )
-            _QUEUED_COUNT += 1
-
-        job = get_job(job_id, owner_id=owner_id, channel_id=channel_id)
-        if job:
-            job["status"] = "queued"
-            job["message"] = "รอคิว — เครื่องนี้ตัดต่อได้ทีละคลิป มีงานอื่นกำลังทำอยู่"
-
-    try:
-        _RENDER_SLOT.acquire()
-    finally:
-        if must_wait:
-            with _QUEUE_COUNT_LOCK:
-                _QUEUED_COUNT -= 1
+    pool = _RENDER_SLOTS
+    if not pool.try_acquire():
+        try:
+            ticket = pool.enqueue(MAX_QUEUED_RENDERS)
+        except RenderQueueFull:
+            raise HTTPException(
+                status_code=429,
+                detail="คิวเรนเดอร์เต็ม — มีงานรออยู่หลายรายการแล้ว กรุณารอสักครู่แล้วลองใหม่",
+            )
+        try:
+            job = get_job(job_id, owner_id=owner_id, channel_id=channel_id)
+            if job:
+                job["status"] = "queued"
+                job["message"] = f"รอคิว — เครื่องนี้ตัดต่อพร้อมกันได้ {pool.capacity} คลิป ตอนนี้ช่องเต็มอยู่"
+        finally:
+            # acquire_ticket always consumes or discards the ticket, so a
+            # failure above can never leave a dead ticket blocking the line.
+            pool.acquire_ticket(ticket)
 
     try:
         yield
     finally:
-        _RENDER_SLOT.release()
+        pool.release()
 
 
 def progress_reporter(job_id: str, owner_id: Optional[str] = None, *, channel_id: Optional[str] = None) -> Callable[[str, float], None]:

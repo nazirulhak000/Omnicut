@@ -894,6 +894,10 @@ _PROBE_SOURCE = "testsrc2=size=480x854:rate=30:duration=1,format=yuv420p"
 
 _hw_encoder_probe: Optional[str] = None
 _hw_encoder_probed = False
+# Up to four renders run at once: without this, the first render probes while
+# the other three see `_hw_encoder_probed` already set and silently fall back
+# to libx264 (CPU) with a None result.
+_hw_encoder_lock = threading.Lock()
 
 
 def _encoder_quality_ok(name: str) -> Optional[float]:
@@ -931,10 +935,17 @@ def hardware_encoder() -> Optional[str]:
     frames before it is trusted. `OMNICUT_ENCODER` overrides: `cpu` forces
     libx264, any other value names an encoder and skips both checks.
     """
-    global _hw_encoder_probe, _hw_encoder_probed
     forced = os.environ.get("OMNICUT_ENCODER", "").strip()
     if forced:
         return None if forced.lower() in ("cpu", "x264", "libx264", "software") else forced
+    # Concurrent renders wait for the one probe instead of racing past it.
+    with _hw_encoder_lock:
+        return _probe_hardware_encoder()
+
+
+def _probe_hardware_encoder() -> Optional[str]:
+    """The once-per-process probe behind hardware_encoder(); caller holds _hw_encoder_lock."""
+    global _hw_encoder_probe, _hw_encoder_probed
     if _hw_encoder_probed:
         return _hw_encoder_probe
     _hw_encoder_probed = True

@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 
 from scripts.config import BASE_DIR, EXPORTS_DIR, SOURCE_ROOT
 from scripts.export_registry import ExportRegistry
+from scripts.hyperframes_finalize import hyperframes_style_metadata
 from scripts.product_store import ProductStore
 from scripts import path_utils
 from scripts.channel_scope import ChannelScope, ensure_same_channel, require_active_for_new_work, require_final_ready
@@ -485,10 +486,12 @@ async def render_composition(payload: RenderCompositionRequest, scope: ChannelSc
         raise ChannelError(422, "composition_parent_conflict", "สินค้าไม่ตรงกับ composition")
     if metadata.get("angle_id") and payload.angle_id and metadata["angle_id"] != payload.angle_id:
         raise ChannelError(422, "composition_parent_conflict", "มุมมองไม่ตรงกับ composition")
+    source_angle = None
     if product_id:
         product = require_record_owner(scope, ProductStore.get(product_id, channel_id=scope.channel_id), resource_label="สินค้า")
         if angle_id and not any((a.get("angle_id") or a.get("id")) == angle_id for a in product.get("angles", [])):
             raise ChannelError(404, "channel_resource_not_found", "ไม่พบมุมมองของสินค้า")
+        source_angle = next((a for a in product.get("angles", []) if angle_id and (a.get("angle_id") or a.get("id")) == angle_id), None)
     elif angle_id:
         raise ChannelError(422, "composition_parent_missing", "angle ต้องมีสินค้าเจ้าของ")
 
@@ -566,6 +569,9 @@ async def render_composition(payload: RenderCompositionRequest, scope: ChannelSc
                         "angle_id": angle_id,
                         "project_name": f"_HyperFrames_Studio/{comp_id}",
                         "status": "rendered",
+                        # Hook line / story format from the source angle; no
+                        # probe here, so duration is filled later if at all.
+                        "style_metadata": hyperframes_style_metadata(source_angle),
                     }
                 ], channel_id=scope.channel_id, job_scope={
                     **{key: value for key, value in metadata.items() if key.startswith("channel_")},

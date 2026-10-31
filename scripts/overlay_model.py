@@ -42,6 +42,11 @@ CANVAS_SCALE = 0.5
 # brand tier reads 130%, not the 182% it would take to say the same thing
 # against the caption's base.
 HOOK_FS_RATIO = 0.065
+
+# How long the nameplate (brand / model / label) stays up by default. It was 5.0
+# until M1 (2026-10-31): the first 1.8 s now belong to the hook line, and the
+# nameplate follows it for 3.0 s. An explicit hook_duration still wins.
+HOOK_NAMEPLATE_DEFAULT_SEC = 3.0
 TEXT_FS_RATIO = 0.0463
 
 # Weight per family, previously HOOK_FONT_WEIGHTS in SequencePlayer.jsx and
@@ -327,7 +332,7 @@ def hook_overlay_from_legacy(
     brand: str,
     model: str,
     label: str,
-    duration: float = 5.0,
+    duration: float = HOOK_NAMEPLATE_DEFAULT_SEC,
     motion: Optional[Dict[str, Any]] = None,
     colors: Optional[Dict[str, str]] = None,
     style: Optional[Dict[str, Any]] = None,
@@ -350,7 +355,7 @@ def hook_overlay_from_legacy(
         or DEFAULT_HOOK_TEMPLATE
     )
     resolved = resolve_hook_style(template, style, colors)
-    dur = float(duration or 5.0)
+    dur = float(duration or HOOK_NAMEPLATE_DEFAULT_SEC)
     return {
         "id": "ovl_hook",
         "kind": "hook",
@@ -441,7 +446,7 @@ def migrate_to_overlays(manifest: Optional[Dict[str, Any]]) -> List[Dict[str, An
         _manifest_get(manifest, "hook_brand", "") or "",
         _manifest_get(manifest, "hook_model", "") or "",
         _manifest_get(manifest, "hook_label", "") or "",
-        _manifest_get(manifest, "hook_duration", 5.0) or 5.0,
+        _manifest_get(manifest, "hook_duration", HOOK_NAMEPLATE_DEFAULT_SEC) or HOOK_NAMEPLATE_DEFAULT_SEC,
         _manifest_get(manifest, "hook_motion") or {},
         _manifest_get(manifest, "hook_colors") or {},
         _manifest_get(manifest, "hook_style") or {},
@@ -525,7 +530,7 @@ def overlay_to_legacy_hook(overlay: Dict[str, Any]) -> Dict[str, Any]:
 def overlays_to_legacy(overlays: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Everything a pre-overlays reader expects, rebuilt from the array."""
     legacy: Dict[str, Any] = {
-        "hook_brand": "", "hook_model": "", "hook_label": "", "hook_duration": 5.0,
+        "hook_brand": "", "hook_model": "", "hook_label": "", "hook_duration": HOOK_NAMEPLATE_DEFAULT_SEC,
         "hook_motion": {}, "hook_colors": {}, "hook_style": {"template": DEFAULT_HOOK_TEMPLATE},
         "text_overlays": [],
     }
