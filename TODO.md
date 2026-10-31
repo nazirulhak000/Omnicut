@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-FIX-EDITOR-TDZ-ZOOMTOFIT-BUG-20261031 · แก้ไขข้อผิดพลาด ReferenceError: Cannot access 'jo' before initialization ใน EditorShell.jsx ย้าย zoomToFit ขึ้นก่อน useEditorShortcuts ป้องกัน TDZ 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [x] Round ANTIGRAVITY-PULSEHUB-CRYSTAL-GLASS-CUSTOMIZER-20261031 · ยกระดับความใสของกระจก Ultra-Realistic สู่ระดับ Crystal Clear Parity ของ Pulse Hub พร้อมแผงควบคุมปรับแต่งกระจกสด (Glass Finetuner Controls & Live Refraction Preview) ใน SystemSettings.jsx และ index.css · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-1HOUR-DESKTOP-NLE-SPRINT-20261031 · ปฏิบัติการกะ 1 ชั่วโมงเต็ม (60 นาที) ยกระดับและขัดเกลาหน้า Editor โหมดเดสก์ท็อปขนาดใหญ่ (1920x1080 / 1440p / 4K) ครบ 4 Cycles สำเร็จสมบูรณ์ 100% ตามรายงาน `_Docs/Reports/EDITOR_DESKTOP_1HOUR_SPRINT_20261031.md` · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)

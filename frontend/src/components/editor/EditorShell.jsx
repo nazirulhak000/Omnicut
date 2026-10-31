@@ -1241,6 +1241,23 @@ export default function EditorShell({
     audioDuration,
   });
 
+  // Timeline content is `duration * pxPerSec + 240` wide (see Timeline.jsx),
+  // so at the default 50 px/s it outruns a 1440px viewport from about the
+  // twelfth 2-second clip and every session starts with manual scrolling.
+  // Zoom is continuous, so "fit" uses the exact px/s that fills the track
+  // (clamped to the zoom range) instead of the nearest lower step.
+  const timelineViewportRef = useRef(null);
+  const zoomToFit = useCallback(() => {
+    // Falls back to the window when no visible timeline has claimed the ref
+    // yet (see the visibility guard in Timeline.jsx), so the button still
+    // does something sensible rather than nothing.
+    const width = timelineViewportRef.current?.clientWidth || window.innerWidth;
+    if (!width || !totalDuration) return;
+    const usable = Math.max(120, width - 240 - 92); // ruler gutter + trailing pad
+    const fitted = fitPxPerSec(usable, totalDuration);
+    if (fitted) setPxPerSec(fitted);
+  }, [totalDuration]);
+
   useEditorShortcuts({
     undo,
     redo,
@@ -1426,23 +1443,6 @@ export default function EditorShell({
     });
     return pts;
   }, [snapEnabled, cuesList]);
-
-  // Timeline content is `duration * pxPerSec + 240` wide (see Timeline.jsx),
-  // so at the default 50 px/s it outruns a 1440px viewport from about the
-  // twelfth 2-second clip and every session starts with manual scrolling.
-  // Zoom is continuous, so "fit" uses the exact px/s that fills the track
-  // (clamped to the zoom range) instead of the nearest lower step.
-  const timelineViewportRef = useRef(null);
-  const zoomToFit = useCallback(() => {
-    // Falls back to the window when no visible timeline has claimed the ref
-    // yet (see the visibility guard in Timeline.jsx), so the button still
-    // does something sensible rather than nothing.
-    const width = timelineViewportRef.current?.clientWidth || window.innerWidth;
-    if (!width || !totalDuration) return;
-    const usable = Math.max(120, width - 240 - 92); // ruler gutter + trailing pad
-    const fitted = fitPxPerSec(usable, totalDuration);
-    if (fitted) setPxPerSec(fitted);
-  }, [totalDuration]);
 
   const handleAddTextTemplate = useCallback((tpl) => {
     const isHook = tpl?.category === 'hook';

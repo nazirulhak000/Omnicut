@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-FIX-EDITOR-TDZ-ZOOMTOFIT-BUG-20261031 | แก้ไขข้อผิดพลาด ReferenceError: Cannot access 'jo' before initialization ใน EditorShell.jsx: ตรวจพบสาเหตุ useEditorShortcuts เรียกใช้ onZoomFit: zoomToFit ก่อนการประกาศ timelineViewportRef และ zoomToFit ส่งผลให้เกิด JavaScript Temporal Dead Zone (TDZ) และแครชที่ Runtime ในโหมด Minified Production Bundle (jo identifier), ดำเนินการย้ายการประกาศ timelineViewportRef และ zoomToFit ขึ้นมาอยู่ก่อนหน้าการเรียก useEditorShortcuts, รีบิลด์ Vite Production Bundle สำเร็จ (EditorShell-zpXCEXu8.js), ผ่านการทดสอบ Vitest 1,092/1,092 tests (100%), Pytest Parity 205/205 tests (100%), Feature Coverage 6/6 tests (100%), Oxlint 0 errors | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-1HOUR-DESKTOP-NLE-SPRINT-20261031 | ปฏิบัติการกะ 1 ชั่วโมงเต็ม (60 นาที) ยกระดับและขัดเกลาหน้า Editor โหมดเดสก์ท็อปขนาดใหญ่ (1920x1080 / 1440p / 4K) ครบ 4 Cycles ตามแผนแม่บท _Docs/Plans/MASTER_EDITOR_DESKTOP_1HOUR_LOOP_PROMPT.md: Cycle 1 Pro 3-Column Splitters (Active neon glow, ARIA keyboard navigation, px live tooltips, max 560/760px ultrawide, DaVinci-style dock strips), Cycle 2 Timeline Mouse & Pro Track Colors (Horizontal wheel scroll, Ctrl+Wheel anchored zoom, Cyan/Amber/Violet/Emerald/Neon Green Pro NLE track colors, Lucide Magnet clean icon), Cycle 3 Pro Shortcuts (Universal Shift+Z zoom-to-fit, J/K/L shuttle, 1-frame arrow nudge, Q/W trim, C split), Cycle 4 Dark Glass Studio & 4-Bus Mixer (OLED canvas #030509, hardware-style Mute/Solo glow lights, 4-bus faders), ผ่านการทดสอบ Vitest 1,092/1,092 tests (100%), Pytest Parity 205/205 tests (100%), Feature Coverage 6/6 tests (100%), ผลิตรายงานสมบูรณ์ _Docs/Reports/EDITOR_DESKTOP_1HOUR_SPRINT_20261031.md | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-PULSEHUB-CRYSTAL-GLASS-CUSTOMIZER-20261031 | ยกระดับความใสของกระจก Ultra-Realistic สู่ระดับ Crystal Clear Parity ของ Pulse Hub พร้อมแผงควบคุมปรับแต่งกระจกสด (Glass Finetuner Controls & Live Refraction Preview) ใน SystemSettings.jsx และ index.css: จูน default --glass-opacity เป็น 0.16 (จากเดิม 0.45), --glass-blur เป็น 14px, ยกระดับ --orbs-opacity เป็น 0.75 ให้แสงนีออนส่องทะลุเนื้อกระจกคมชัด 100%, สร้าง DEFAULT_GLASS_CONFIG และ GLASS_PRESETS 3 พรีเซ็ตด่วน (กระจกใส Pulse Hub, กระจกฝ้า visionOS, กระจกรมควัน Smoky) ใน themeManager.js, ติดตั้ง 4 แถบสไลเดอร์สด (ความใส, ความเบลอ, แสงลูกแก้ว, แสงสะท้อนขอบ) พร้อมกล่อง Live Optical Refraction Preview ใน SystemSettings.jsx, ผ่านชุดทดสอบ Vitest 1,092/1,092 tests (100%), Parity Tests 205/205 passed (100%), รีบิลด์ production bundle สำเร็จ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-UI-THEME-PRESETS-SWITCHER-20261031 | ออกแบบและติดตั้งระบบสลับธีมสี (Theme Presets Switcher) 4 ธีมระดับพรีเมียมใน SystemSettings.jsx และ App.jsx: สร้าง frontend/src/lib/themeManager.js และชุดทดสอบ themeManager.test.js (3/3 passed), ติดตั้ง Theme Tokens & Classes ใน index.css (glassmorphism, obsidian, cyberpunk, slate), อัปเกรด App.jsx จัดการ state uiTheme และควบคุมการเปิด/ปิด Ambient Orbs, เพิ่มการ์ดเลือก 4 ธีมพร้อม Swatch Previews, สวิตช์ Ambient Orbs อิสระ, Haptic Feedback 10ms ในแท็บ Appearance ของ SystemSettings.jsx, ผ่านการทดสอบ Vitest 1,090/1,090 tests (100%), Parity Tests 205/205 passed (100%), รีบิลด์ production bundle สำเร็จ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -125,6 +126,28 @@
 ---
 
 ---
+
+---
+
+## Round ANTIGRAVITY-FIX-EDITOR-TDZ-ZOOMTOFIT-BUG-20261031 · แก้ไขข้อผิดพลาด ReferenceError: Cannot access 'jo' before initialization ใน EditorShell.jsx
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-31
+
+- **สาเหตุของบั๊กและการวินิจฉัย (Root Cause Diagnostic):**
+  - เกิด `ReferenceError: Cannot access 'jo' before initialization` ขึ้นในหน้าต่างแจ้งเตือนข้อผิดพลาดระบบ (Error Boundary) เมื่อเปิดแท็บ Editor
+  - ตรวจสอบไฟล์ Production Bundle ที่ถูกคอมไพล์ (`EditorShell-CLJEtAsi.js`) พบว่า `jo` คือตัวแปรที่ถูก Minified มาจาก `zoomToFit = useCallback(() => { ... })`
+  - ตรวจสอบซอร์สโค้ดใน `frontend/src/components/editor/EditorShell.jsx` พบว่า `useEditorShortcuts({ ..., onZoomFit: zoomToFit, ... })` ถูกเรียกทำงานที่บรรทัด 1259 ขณะที่ `const timelineViewportRef = useRef(null);` และ `const zoomToFit = useCallback(...)` ถูกประกาศไว้ข้างล่างที่บรรทัด 1435-1445
+  - เนื่องจากตัวแปรแบบ `const` ใน JavaScript มีกฎ Temporal Dead Zone (TDZ) จึงไม่สามารถเข้าถึงได้ก่อนบรรทัดที่มีการประกาศและกำหนดค่า ส่งผลให้เกิด Runtime Crash ทันทีเมื่อ React ทำการประเมินฟังก์ชันคอมโพเนนต์
+- **การแก้ไขแบบไม่กระทบการทำงานเดิม (Surgical Non-Destructive Fix):**
+  - ย้ายการประกาศ `const timelineViewportRef = useRef(null);` และ `const zoomToFit = useCallback(...)` ขึ้นมาไว้ก่อนหน้าการเรียกใช้ `useEditorShortcuts` (บรรทัด ~1243)
+  - ลบโค้ดส่วนที่ซ้ำซ้อนเดิมที่บรรทัด 1435 ออกอย่างหมดจด
+  - ตรวจสอบตัวแปรและ hooks อื่นๆ ใน `EditorShell.jsx` อย่างละเอียด ไม่พบ TDZ hazards อื่นใด
+- **ผลการทดสอบและการตรวจสอบ (Verification Gates):**
+  - **Vite Production Build:** คอมไพล์สำเร็จใน 2.61s (`EditorShell-zpXCEXu8.js`) ตรวจสอบเนื้อหาใน bundle ยืนยันว่า `xo` (`zoomToFit`) ถูกกำหนดค่าก่อนการเรียก `Cu` (`useEditorShortcuts`)
+  - **Vitest Suite:** ผ่านครบ 1,092/1,092 tests 100% (`npm test --prefix frontend -- --run`)
+  - **Pytest Preview-Render Parity:** ผ่านครบ 205/205 tests 100% (`tests/test_preview_render_parity.py`)
+  - **Pytest Editor Feature Coverage:** ผ่านครบ 6/6 tests 100% (`tests/test_editor_feature_coverage.py`)
+  - **Oxlint Quality Guard:** ตรวจสอบ `EditorShell.jsx` พบ 0 errors
 
 ---
 
