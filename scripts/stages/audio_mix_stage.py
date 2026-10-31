@@ -8,7 +8,9 @@ from typing import Optional
 
 from scripts.it_angles import BGM_MOOD_MAP, DEFAULT_BGM
 from scripts.project_manifest import ProjectManifest
-from scripts.pipeline_context import PipelineContext, bus_volume_override
+from scripts.pipeline_context import (
+    PipelineContext, bus_volume_override, clip_cut_times, cut_bound_sfx_plan,
+)
 
 
 # Shown to the user after a render whose full mix failed. The clip still has
@@ -24,6 +26,93 @@ def _stderr_tail(text, limit: int = 200) -> str:
 
 class AudioMixStage:
     """Mixes voiceover, sound effects, and background music track."""
+
+    @classmethod
+    def _mix(cls, ctx: PipelineContext, mix_request: dict):
+        """Run one SFXManager mix; return ``(degraded, reason, detail)``."""
+        # Use pipeline module reference so unittest.mock.patch('scripts.pipeline.SFXManager.mix_audio_track') works
+        import scripts.pipeline as pipeline_mod
+        # Cleared here as well as inside mix_audio_track: a mock that never
+        # touches it must not inherit an earlier real call's failure.
+        pipeline_mod.SFXManager.last_mix_status = {"success": True, "fallback": False, "error": None}
+        pipeline_mod.SFXManager.mix_audio_track(**mix_request)
+        print(f"   Audio mixed: {mix_request['output_audio_path']}")
+
+        mix_degraded = False
+        mix_degraded_reason = None
+        mix_degraded_detail = None
+        mix_status = dict(getattr(pipeline_mod.SFXManager, "last_mix_status", None) or {})
+        if mix_status.get("fallback_error"):
+            # The voice-only copy failed too: there is no usable mix. Stop
+            # with the reason instead of handing a missing/partial file on.
+            raise RuntimeError(
+                "มิกซ์เสียงล้มเหลวทั้งแบบเต็มและแบบเสียงพากย์อย่างเดียว: "
+                f"{_stderr_tail(mix_status.get('fallback_error')) or 'ไม่ทราบสาเหตุ'}"
+            )
+        if mix_status.get("fallback"):
+            mix_degraded = True
+            mix_degraded_reason = MIX_DEGRADED_REASON
+            mix_degraded_detail = _stderr_tail(mix_status.get("error")) or None
+            print(f"   ⚠️ {mix_degraded_reason}")
+            ctx.notify(f"⚠️ {mix_degraded_reason}", 0.66)
+        # Keep the manifest in step with the mix that is on disk now: set it
+        # when this mix is degraded, clear it when a good remix replaced a
+        # degraded one. Nothing is written for the ordinary good-to-good case.
+        if ctx.project_name and (mix_degraded or (ctx.manifest or {}).get("mix_degraded")):
+            try:
+                ProjectManifest.save(
+                    ctx.project_name,
+                    mix_degraded=mix_degraded,
+                    mix_degraded_reason=mix_degraded_reason,
+                    mix_degraded_detail=mix_degraded_detail,
+                )
+            except Exception as save_err:
+                print(f"   ⚠️ บันทึกสถานะมิกซ์เสียงลงโปรเจกต์ไม่สำเร็จ: {save_err}")
+        return mix_degraded, mix_degraded_reason, mix_degraded_detail
+
+    @classmethod
+    def sync_cut_bound_sfx(cls, ctx: PipelineContext) -> bool:
+        """Re-mix once when the final cuts change which SFX the mix keeps.
+
+        AudioMixStage runs before ShotMatchingStage (whose cut snapping reads
+        the mix's energy), so a render that generates its clips cannot know
+        the cut times at mix time. After shot matching this compares the SFX
+        plan under the final cuts with the plan the mix was made with -- a
+        pure, file-free check -- and re-runs the same mix call with
+        ``cut_times`` only when they differ (a transition whoosh within
+        SFX_CUT_SNAP_S of a cut that the 2 s gap had dropped). A mix that was
+        reused or skipped (``ctx.mix_request`` is None) is never touched.
+        Returns True when it re-mixed.
+        """
+        mix_request = getattr(ctx, "mix_request", None)
+        if not mix_request:
+            return False
+        cut_times = clip_cut_times(ctx.actual_clip_list)
+        used = list(mix_request.get("cut_times") or [])
+        if not cut_times or cut_times == used:
+            return False
+        if cut_bound_sfx_plan(
+            mix_request.get("cues"), mix_request.get("overlays"),
+            mix_request.get("total_duration"), cut_times, base_cut_times=used,
+        ) is None:
+            return False
+
+        print("🎵 [4/5] Re-mixing SFX: a transition whoosh lands on a new cut")
+        ctx.notify("🎵 ปรับเอฟเฟกต์ whoosh ให้ตรงจุดตัดภาพ...", 0.84)
+        remix_request = {**mix_request, "cut_times": cut_times}
+        mix_degraded, reason, detail = cls._mix(ctx, remix_request)
+        ctx.mix_request = remix_request
+        ctx.mixed_audio_path = Path(remix_request["output_audio_path"])
+        if isinstance(ctx.result_paths, dict):
+            ctx.result_paths["mixed_audio"] = remix_request["output_audio_path"]
+            ctx.result_paths["mix_degraded"] = mix_degraded
+            ctx.result_paths.pop("mix_degraded_reason", None)
+            ctx.result_paths.pop("mix_degraded_detail", None)
+            if mix_degraded:
+                ctx.result_paths["mix_degraded_reason"] = reason
+                if detail:
+                    ctx.result_paths["mix_degraded_detail"] = detail
+        return True
 
     @classmethod
     def run(cls, ctx: PipelineContext) -> None:
@@ -79,48 +168,26 @@ class AudioMixStage:
                 if source_duration:
                     mix_kwargs["voice_source_duration"] = source_duration
 
-            # Use pipeline module reference so unittest.mock.patch('scripts.pipeline.SFXManager.mix_audio_track') works
-            import scripts.pipeline as pipeline_mod
-            # Cleared here as well as inside mix_audio_track: a mock that never
-            # touches it must not inherit an earlier real call's failure.
-            pipeline_mod.SFXManager.last_mix_status = {"success": True, "fallback": False, "error": None}
-            pipeline_mod.SFXManager.mix_audio_track(
-                voice_audio_path=str(ctx.voice_audio_path),
-                cues=ctx.micro_cues,
-                total_duration=ctx.total_duration,
-                output_audio_path=str(mixed_audio_path),
-                overlays=ctx.effective_overlays,
-                **mix_kwargs
-            )
-            print(f"   Audio mixed: {mixed_audio_path}")
+            # Visual cut times bind transition whooshes to their cut (exempt
+            # from the SFX gap). Known here only when the clip list already
+            # exists (editor-authored clips, reroll/resume from the manifest);
+            # clips generated later by ShotMatchingStage are handled by
+            # sync_cut_bound_sfx(). Omitted when empty so a call without clips
+            # stays exactly what it was.
+            cut_times = clip_cut_times(ctx.clip_list)
+            if cut_times:
+                mix_kwargs["cut_times"] = cut_times
 
-            mix_status = dict(getattr(pipeline_mod.SFXManager, "last_mix_status", None) or {})
-            if mix_status.get("fallback_error"):
-                # The voice-only copy failed too: there is no usable mix. Stop
-                # with the reason instead of handing a missing/partial file on.
-                raise RuntimeError(
-                    "มิกซ์เสียงล้มเหลวทั้งแบบเต็มและแบบเสียงพากย์อย่างเดียว: "
-                    f"{_stderr_tail(mix_status.get('fallback_error')) or 'ไม่ทราบสาเหตุ'}"
-                )
-            if mix_status.get("fallback"):
-                mix_degraded = True
-                mix_degraded_reason = MIX_DEGRADED_REASON
-                mix_degraded_detail = _stderr_tail(mix_status.get("error")) or None
-                print(f"   ⚠️ {mix_degraded_reason}")
-                ctx.notify(f"⚠️ {mix_degraded_reason}", 0.66)
-            # Keep the manifest in step with the mix that is on disk now: set it
-            # when this mix is degraded, clear it when a good remix replaced a
-            # degraded one. Nothing is written for the ordinary good-to-good case.
-            if ctx.project_name and (mix_degraded or (ctx.manifest or {}).get("mix_degraded")):
-                try:
-                    ProjectManifest.save(
-                        ctx.project_name,
-                        mix_degraded=mix_degraded,
-                        mix_degraded_reason=mix_degraded_reason,
-                        mix_degraded_detail=mix_degraded_detail,
-                    )
-                except Exception as save_err:
-                    print(f"   ⚠️ บันทึกสถานะมิกซ์เสียงลงโปรเจกต์ไม่สำเร็จ: {save_err}")
+            mix_request = {
+                "voice_audio_path": str(ctx.voice_audio_path),
+                "cues": ctx.micro_cues,
+                "total_duration": ctx.total_duration,
+                "output_audio_path": str(mixed_audio_path),
+                "overlays": ctx.effective_overlays,
+                **mix_kwargs,
+            }
+            mix_degraded, mix_degraded_reason, mix_degraded_detail = cls._mix(ctx, mix_request)
+            ctx.mix_request = mix_request
         else:
             mixed_audio_path = existing_mix
             if mixed_audio_path:
