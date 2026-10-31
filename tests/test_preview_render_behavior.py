@@ -359,8 +359,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # The emoji is stripped on the way in (strip_caption_emoji), so the
             # body it produces carries none -- what this case still exercises is
             # the two stacked pairs in the Thai.
-            "⚡ ปกติซื้อตามช็อปราคาแรงเอาเรื่อง",
-            "ปกติซือตามช็อปราคาแรงเอาเรือง",
+            # One burst (<= MICRO_BURST_MAX_CHARS): a longer sentence is split into
+            # separately centred lines, which this settled-geometry check is not about.
+            "⚡ ปกติซื้อช็อปเรื่องราคา",
+            "ปกติซือช็อปเรืองราคา",
             ("ื้", "ื่"),
         ),
     ],
@@ -1267,7 +1269,10 @@ def test_ghost_reveal_detaches_stacked_marks_per_word(tmp_path):
     from PIL import Image, ImageChops
     from scripts.subtitle_engine import SubtitleEngine
 
-    source = "ปกติซื้อตามช็อปราคาแรงเอาเรื่อง"
+    # Kept under MICRO_BURST_MAX_CHARS (24) on purpose: a longer sentence is now
+    # split into several bursts, each its own centred line, and this test is
+    # about the left edge of ONE line staying put while its words are revealed.
+    source = "ปกติซื้อช็อปเรื่องราคา"
     ass_path = tmp_path / "ghost_reveal_marks.ass"
     SubtitleEngine.generate_ass(
         cues=[{"start": 0.0, "end": 1.2, "text": source, "translation": "unused"}],
