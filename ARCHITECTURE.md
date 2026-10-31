@@ -135,6 +135,13 @@ Reroll ใช้ stage เดียวกับ Full Render ผ่าน `resume
 - **สัญญา easing** — camera keyframe มี `easing` ต่อจุด (ไม่มี = linear), transition มี `transition_easing` เฉพาะ fade/wipe/slide, ข้อความใช้ accel 0.6/2.2 ตาม `motion_contract.py` / `motionPresets.js`, สติกเกอร์/effect เข้า 7 เฟรม ออก 6 เฟรม (`overlay_anim_*` ↔ `stickerAnimation.js`) — ทั้งหมดผูกกับเทส parity ตามตารางใน `.agents/rules/preview_render_parity.md` §4
 - **ขีดจำกัดที่ยังค้าง** — เรนเดอร์ 100 คลิปเกินคำสั่ง Windows 32,767 ตัวอักษร (45,389; แก้ด้วย `-filter_complex_script`) · ripple ข้าม cue/overlay ยังไม่ทำ เพราะเสียงพากย์เป็น TTS stem เดียว (ขยับ cue โดยไม่ตัดเสียงจะเพี้ยน)
 
+Viral retention layer (CLAUDE-AI-EDITOR-VIRAL-S1, 2026-10-31) · ดำเนินการโดย: Claude Code (Claude Opus 5.5):
+- **Compliance gate** — `scripts/compliance_lint.py` ตรวจราคา/claim เกินจริง/filler opener/CTA บรรทัดแรก กับสคริปต์ AI, hook variants, callout และ template; AI ถูก regen 1 ครั้งแล้ว strip บรรทัดที่ผิด; `check_script_structure()` เตือนโครง open loop/payoff/คำถามท้ายคลิป (ไม่ block)
+- **Pacing** — `StyleMotionPolicy` เพิ่ม `hook_window_sec`/`hook_max_shot`/`max_static_sec`; ช็อตยาวไม่เกิน `max_shot × 1.25` (split ภายใน topic เดิม), freeze hold > 1 วิ ใช้ฟุตเทจข้างเคียง (`hold_reason`), ช่วงนิ่งเกิน `max_static_sec` ได้ camera punch ใน keyframe รูปแบบเดิม; Gemini match มี `confidence` และ shot planning ที่พังจะ raise `SHOT_PLANNING_FAILED`
+- **เสียง/ซับ** — `sfx_manager.plan_sfx_events()` (gap 2.0 วิ, opener/closer มาก่อน) ↔ `frontend/src/lib/sfxPlan.js`; ไฮไลต์ลำดับ marker → custom keyword → ตัวเลขสเปก → dictionary ↔ `frontend/src/lib/kineticHighlight.js` (fixture ร่วม `tests/fixtures/sfx_highlight_parity_cases.json`); `bgm_ducking` ค่าเริ่มต้น True
+- **ข้อมูลวัดผล** — export registry/PostLog เก็บ `style_preset`/`hook_style`/`story_format`/`duration_sec`/`hook_text`; PostLog metrics รับ `avg_watch_time_sec`/`completion_rate`; `GET /api/tiktok-stats/style-performance` สรุปตามสไตล์จาก mature metrics (≥48 ชม.)
+- **Batch** — `batch_render.BATCH_MAX_WORKERS = 4` + `is_valid_mp4` resume แต่ `render_jobs._RENDER_SLOT` ยังเป็น lock เดียว จึงยังเรนเดอร์จริงทีละคลิป
+
 ## Editor State & Save Queue
 
 `frontend/src/components/editor/EditorShell.jsx` เป็น composition shell งาน state และคำสั่งสำคัญแยกออกเป็นโมดูลเฉพาะทาง:

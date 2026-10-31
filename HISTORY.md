@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-AI-EDITOR-VIRAL-S1-20261031 | ลงมือ S1–S2 + M3 ของแผน AI Editor Viral บน branch `feat/ai-editor-viral-s1` ด้วย 6 sub-agents (worktree แยก): compliance lint/opener/โครงสคริปต์, shot caps + hook pacing + match confidence, SFX density + ducking + Gemini lead trim + spec highlight, preset consistency + batch 4 workers, style/watch-time data capture + endpoint, preview parity; pytest 4378 pass / 17 fail เดิม, npm 1132/1132, build ผ่าน | 2026-10-31 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + 6 sub-agents (Claude Opus 5.5) |
 | Round CODEX-REVERT-OWN-THEME-20261031 | ผู้ใช้สั่งย้อนงานธีม Codex ทั้งหมด: คืนไฟล์เดิม 33 ไฟล์ตรง 34c5ba9, ถอน v2 modules/docs/local flag, ถอนเฉพาะ hooks ใน ExportGallery โดยคง GDrive/Claude AI Editor, build UI เดิมกลับ; frontend tests 1,099/1,099 | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-THEME-READY-DEFAULT-20261031 | ลดขั้นตอนตามคำสั่งผู้ใช้: เปิดครั้งแรกเป็น Balanced พร้อมใช้ทันที ตัวปรับแต่งทั้งหมดอยู่ในขั้นสูง; รักษา v2 selection ที่บันทึกแล้ว; theme tests 25/25, full frontend 1,120/1,120, build frontend/dist ผ่าน | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-THEME-V2-ENABLE-LOCAL-20261031 | ผู้ใช้สั่งเปิดให้ทดลองจริง: ตั้ง VITE_UI_THEME_V2=true ใน .env เฉพาะเครื่อง, Vite อ่าน true, build frontend/dist exit0 และตรวจ asset references ครบ; ไม่ restart แทนผู้ใช้; visual QA ยัง Pending | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
@@ -16890,3 +16891,22 @@ Plan before code:
 - ถอน VITE_UI_THEME_V2 จาก .env โดยคงค่าอื่น; prefs เก่าใน browser ไม่เคยถูกเขียนทับ จึงกลับ renderer/theme manager เดิม
 - npm test: 1,099 passed/0 failed; production frontend/dist build exit0; ไม่ restart server แทนผู้ใช้
 - ตรวจ diff เทียบก่อนงานธีม: เหลือเฉพาะ 6 ไฟล์ frontend ของ GDrive/Claude; ถอน TODO งานธีมที่ยกเลิก เหลือประวัติและบันทึกย้อนงานเพื่อสืบย้อน
+
+---
+
+## Round CLAUDE-AI-EDITOR-VIRAL-S1-20261031
+
+ดำเนินการโดย: Claude Code (Claude Opus 5.5) + 6 sub-agents (Claude Opus 5.5) · branch `feat/ai-editor-viral-s1` (ยังไม่ merge main)
+แผน: `_Docs/Plans/PLAN_AI_EDITOR_VIRAL_STYLES_20261031.md` · รายงาน audit: `_Docs/Reports/AI_EDITOR_VIRAL_AUDIT_20261031.md`
+
+- [x] Agent A `85598b2` — Q1 `scripts/compliance_lint.py` (ราคา/claim/filler opener/CTA บรรทัดแรก, ปิดได้ด้วย `COMPLIANCE_LINT_ENABLED`), regen 1 ครั้งแล้ว strip, TTS เลิกแปลงราคาเป็น "บาท", ถอด price callout/claim ปลอม/อีโมจิ; Q3 opener ใหม่; M3 `target_duration`/`story_format` + `check_script_structure()` (เตือนอย่างเดียว) — 70 เทสใหม่
+- [x] Agent B `3c7a28e` — Q2 เพดานช็อต max×1.25 + split ตาม topic, freeze >1 วิใช้ฟุตเทจข้างเคียง (`hold_reason`); M2 `hook_window_sec`/`hook_max_shot`/`max_static_sec` + camera punch อัตโนมัติ; M6 `confidence` + hero fallback + ไม่ snap เข้าเฟรมนิ่ง; Q7 shot planning fail → `AppError SHOT_PLANNING_FAILED` — 59 เทสใหม่ (5 suite เดิมใส่ fixture ปิด M2)
+- [x] Agent C `bd203e8` — Q4 `plan_sfx_events()` gap 2.0 วิ + ไม่ boom ซ้อน, `bgm_ducking` default True; Q7 ตัด lead silence Gemini, ไฮไลต์ตัวเลขสเปก, แก้ log; ถอด 📊 + ทับศัพท์ใน dictionary
+- [x] Agent D `acb7f90` — Q5 Batch modal ใช้ preset จริง + "auto", angle map ครบทุก it_angles key (JS = Python), color_theme อ่านจาก policy, label ตรง render; M7 `BATCH_MAX_WORKERS=4` + `is_valid_mp4` resume
+- [x] Agent E `bff2115` — Q6 export/PostLog เก็บ style_preset/hook_style/story_format/duration_sec/hook_text, import watch time/completion, `GET /api/tiktok-stats/style-performance`
+- [x] Agent F `4616541` — preview parity: `frontend/src/lib/sfxPlan.js`, `kineticHighlight.js` + fixture ข้ามภาษา
+- [x] Lead: `101e2c6` batch API default "auto", `8837729` api_phase1 ducking default True, `21c4164` channel policy count
+- [x] เทส: pytest ทั้งชุด (worktree สะอาด @ee25040) 4378 pass / 19 fail / 26 skip → 17 fail เหมือน main@5a1b4ca (NVENC, hyperframes, ssd route policy, couple_jobs lifespan, gemini multikey, tools path hygiene), 1 แก้แล้ว (policy count), 1 flaky (sam2 preflight ผ่านเมื่อรันเดี่ยว); parity @348c2a1 221 pass; npm test 1132/1132; build ผ่าน
+- ⚠ branch นี้มี commit ของ AI อื่นปน: `60a5abc` (gdrive, Antigravity), `c270bcd` (rollback ธีม Codex) — merge เข้า main จะติดไปด้วย
+- ค้าง (ต้องอนุมัติ): M1 hook text บนจอ, M5 รวม preset, M8 burst ซับ 16–24 ตัวอักษร, hook template สี tech_product_showcase/smooth_showcase
+- ค้าง (follow-up): `render_jobs._RENDER_SLOT` เป็น lock เดียว → batch 4 workers ยังเรนเดอร์จริงทีละคลิป (ต้อง semaphore + audit thread-safety); `PipelineContext` ยังไม่มี field `target_duration`/`story_format`; `audio_mix_stage` ยังไม่ส่ง `cut_times`; preview ยังไม่รู้ custom keywords จาก hook; Gemini match cache key ไม่รวมช่วงช็อต; `it_angles` spec_compare ยังชื่อ "เทียบราคา"; frontend `productCallout.js` ยังมี 'price'; Performance tab UI สำหรับ style-performance; route policy `/api/ssd/*`
