@@ -128,7 +128,7 @@ export default memo(function Topbar({
   }, [handleRefreshWithPing]);
 
   return (
-    <header data-oc-surface="shell" className="h-[calc(44px+env(safe-area-inset-top))] md:h-[56px] flex-shrink-0 bg-[#050811]/75 backdrop-blur-2xl border-b border-white/[0.12] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] flex flex-nowrap md:flex-wrap items-center justify-between gap-2 px-2.5 sm:px-6 pt-[env(safe-area-inset-top)] md:pt-0 z-20 sticky top-0 w-full min-w-0 transition-colors">
+    <header className="h-[calc(44px+env(safe-area-inset-top))] md:h-[56px] flex-shrink-0 bg-[#050811]/75 backdrop-blur-2xl border-b border-white/[0.12] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] flex flex-nowrap md:flex-wrap items-center justify-between gap-2 px-2.5 sm:px-6 pt-[env(safe-area-inset-top)] md:pt-0 z-20 sticky top-0 w-full min-w-0 transition-colors">
       {/* ── Left: Context-Aware Section Title & Badges ── */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
         {/* Menu Icon with Cyan Glow Pill */}

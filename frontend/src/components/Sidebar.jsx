@@ -111,7 +111,7 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
   return (
     <>
       {/* ── Desktop Sidebar ── */}
-      <aside data-oc-surface="shell" className="hidden md:flex flex-col w-[72px] flex-shrink-0 h-dvh bg-[#050811]/75 backdrop-blur-2xl border-r border-white/[0.12] z-30">
+      <aside className="hidden md:flex flex-col w-[72px] flex-shrink-0 h-dvh bg-[#050811]/75 backdrop-blur-2xl border-r border-white/[0.12] z-30">
         {/* Brand mark */}
         <div className="flex items-center justify-center h-[56px] border-b border-white/[0.08]">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center shadow-lg shadow-[#FE2C55]/20 text-white font-extrabold text-sm">
@@ -129,7 +129,7 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
                 key={item.id}
                 onClick={() => { try { navigator.vibrate?.(10); } catch {} setActiveTab(item.id); }}
                 title={item.label}
-                className={`oc-ui-nav-item ${isActive ? 'oc-ui-nav-active' : ''} group relative w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-150 cursor-pointer
+                className={`group relative w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-150 cursor-pointer
                   ${isActive
                     ? 'bg-gradient-to-b from-[#25F4EE]/20 to-blue-500/10 text-[#25F4EE] border border-[#25F4EE]/40 shadow-md shadow-[#25F4EE]/10'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
@@ -175,7 +175,6 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
       {/* ── Mobile Bottom Tab Bar (Strict 5 items limit) ── */}
       <nav
         aria-label="เมนูหลัก"
-        data-oc-surface="shell"
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#050811]/80 backdrop-blur-2xl border-t border-white/[0.12] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] shadow-2xl"
       >
         {MOBILE_PRIMARY_TABS.map((item) => {
@@ -187,7 +186,7 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
               type="button"
               onClick={() => { try { navigator.vibrate?.(10); } catch {} setActiveTab(item.id); }}
               aria-current={isActive ? 'page' : undefined}
-              className={`oc-ui-nav-item ${isActive ? 'oc-ui-nav-active' : ''} relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl transition-all cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
+              className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl transition-all cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
                 isActive
                   ? 'text-[#25F4EE] font-bold'
                   : 'text-slate-400 font-medium hover:text-slate-200'

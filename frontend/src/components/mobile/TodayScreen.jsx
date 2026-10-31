@@ -136,7 +136,7 @@ export function TodayScreen({
   };
 
   return (
-    <div data-oc-surface="workspace" className="flex flex-col gap-4 pb-6" data-testid="today-screen">
+    <div className="flex flex-col gap-4 pb-6" data-testid="today-screen">
       {/* 1. Active Production Job Summary */}
       <section
         aria-label="สรุปงานผลิตคลิป"

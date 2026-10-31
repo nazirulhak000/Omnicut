@@ -202,9 +202,9 @@ export default function CommandCenter({ productCode = null, onSendTerminalKey = 
   };
 
   return (
-    <div data-oc-surface="workspace" className="flex min-h-0 flex-1 flex-col bg-slate-950 text-slate-100">
+    <div className="flex min-h-0 flex-1 flex-col bg-slate-950 text-slate-100">
       {/* Top AI Status Strip */}
-      <div data-oc-surface="data" className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900/80 px-4 py-2.5 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900/80 px-4 py-2.5 text-xs">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-white">ศูนย์สั่งงาน AI</span>
           <span className="rounded-full border border-slate-700 bg-slate-800 px-2.5 py-0.5 text-slate-300">

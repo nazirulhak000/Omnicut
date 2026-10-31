@@ -149,7 +149,7 @@ export default function Inspector({
   const isTextSelected = isOverlaySelected || isCaptionSelected;
 
   return (
-    <div data-oc-surface="data" className="flex h-full min-h-0 flex-col overflow-y-auto bg-[#0C1019] text-slate-200">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[#0C1019] text-slate-200">
       {/* ═════════════════════════════════════════════════════════════════════
           TOP VIEW SWITCHER (3 Pro Tabs: คุณสมบัติ | บทพูด | ภาพรวม)
          ═════════════════════════════════════════════════════════════════════ */}

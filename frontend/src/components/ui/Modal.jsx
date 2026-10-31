@@ -88,7 +88,6 @@ export function Modal({
     <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 w-screen h-dvh max-h-dvh overflow-hidden overscroll-none animate-fadeIn">
       {/* Click outside to close backdrop */}
       <div
-        data-oc-surface="scrim"
         className="fixed inset-0 bg-black/80 backdrop-blur-md z-0 transition-opacity"
         onClick={onClose}
       />
@@ -96,7 +95,6 @@ export function Modal({
       {/* Modal Container - bottom sheet on phones, centered dialog from sm */}
       <div
         ref={dialogRef}
-        data-oc-surface="floating"
         role="dialog"
         aria-modal="true"
         aria-label={typeof title === 'string' ? title : undefined}
@@ -110,7 +108,6 @@ export function Modal({
       >
         {/* iOS Bottom Sheet Grab Handle (Mobile swipe-to-dismiss) */}
         <div
-          data-oc-modal-chrome
           className="sm:hidden flex items-center justify-center pt-2.5 pb-1 cursor-grab active:cursor-grabbing touch-none select-none bg-white/[0.03] backdrop-blur-md z-30"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -121,21 +118,20 @@ export function Modal({
 
         {/* Header - Fixed Top */}
         {(title || showCloseButton) && (
-          <div data-oc-modal-chrome className="flex-shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 sm:py-4 border-b border-white/[0.08] bg-white/[0.03] backdrop-blur-xl z-20">
+          <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 sm:py-4 border-b border-white/[0.08] bg-white/[0.03] backdrop-blur-xl z-20">
             <div className="min-w-0 flex-1">
               {title && (
-                <h3 data-oc-modal-title className="text-base md:text-lg font-bold text-white truncate">
+                <h3 className="text-base md:text-lg font-bold text-white truncate">
                   {title}
                 </h3>
               )}
               {subtitle && (
-                <p data-oc-field-helper className="text-xs text-slate-400 mt-0.5 line-clamp-2 leading-tight">{subtitle}</p>
+                <p className="text-xs text-slate-400 mt-0.5 line-clamp-2 leading-tight">{subtitle}</p>
               )}
             </div>
 
             {showCloseButton && (
               <button
-                data-oc-button="secondary"
                 type="button"
                 onClick={onClose}
                 className="w-11 h-11 sm:w-9 sm:h-9 pointer-coarse:w-11 pointer-coarse:h-11 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 border border-white/[0.06]"

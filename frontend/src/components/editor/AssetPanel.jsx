@@ -1597,7 +1597,7 @@ export default function AssetPanel({
   };
 
   return (
-    <div data-oc-surface="data" className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0C1019]">
+    <div className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0C1019]">
       {/* tab rail - horizontally scrollable without squeezing existing boxes */}
       <div
         className="flex items-center overflow-x-auto no-scrollbar border-b border-white/[0.08] bg-black/40 p-1.5 gap-1.5 flex-shrink-0 scroll-smooth"

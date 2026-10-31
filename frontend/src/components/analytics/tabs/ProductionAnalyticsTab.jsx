@@ -183,7 +183,7 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
       )}
 
       {/* ── 4-Phase Pipeline Funnel Visualization ── */}
-      <div data-oc-surface="data" className="p-5 sm:p-6 rounded-3xl bg-[#0D111A]/80 border border-white/[0.08] backdrop-blur-xl space-y-4 shadow-xl">
+      <div className="p-5 sm:p-6 rounded-3xl bg-[#0D111A]/80 border border-white/[0.08] backdrop-blur-xl space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <h3 className="text-sm sm:text-base font-bold text-white">แผนภาพ Funnel การผลิต 4 ขั้นตอน (Pipeline Health)</h3>
@@ -208,7 +208,7 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
       {/* ── Two Columns: Angle Types Distribution & Recent Activity ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Col: Angle Types */}
-        <div data-oc-surface="data" className="p-5 sm:p-6 rounded-3xl bg-[#0D111A]/80 border border-white/[0.08] backdrop-blur-xl space-y-4 flex flex-col justify-start">
+        <div className="p-5 sm:p-6 rounded-3xl bg-[#0D111A]/80 border border-white/[0.08] backdrop-blur-xl space-y-4 flex flex-col justify-start">
           <div className="space-y-1">
             <h3 className="text-sm font-bold text-white">สัดส่วนมุมมองคลิป (Content Angles)</h3>
             <p className="text-xs text-slate-400">หมวดหมู่และรูปแบบคอนเทนต์ที่สร้าง (5 อันดับแรก)</p>
@@ -233,7 +233,7 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
         </div>
 
         {/* Right Col: Recent Productions Table */}
-        <div data-oc-surface="data" className="lg:col-span-2 p-5 rounded-3xl bg-[#0D111A]/80 border border-white/[0.08] backdrop-blur-xl space-y-4">
+        <div className="lg:col-span-2 p-5 rounded-3xl bg-[#0D111A]/80 border border-white/[0.08] backdrop-blur-xl space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h3 className="text-sm font-bold text-white">ความเคลื่อนไหวล่าสุด (Recent Productions)</h3>

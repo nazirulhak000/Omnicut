@@ -439,7 +439,7 @@ export default function MobilePostNext() {
     currentClip.minutes_until_due <= 10;
 
   return (
-    <div data-oc-surface="workspace" className="min-h-dvh bg-slate-950 text-slate-100 pb-28 px-4 pt-4 select-none">
+    <div className="min-h-dvh bg-slate-950 text-slate-100 pb-28 px-4 pt-4 select-none">
       {/* Toast Banner */}
       {toastMsg && (
         <div

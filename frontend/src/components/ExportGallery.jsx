@@ -588,7 +588,7 @@ function ExportActiveWorkbench({
 
   if (!video) {
     return (
-      <div data-oc-surface="data" className="glass-panel rounded-2xl p-8 text-center text-slate-400">
+      <div className="glass-panel rounded-2xl p-8 text-center text-slate-400">
         <Film className="w-10 h-10 mx-auto text-slate-600 mb-2" />
         <p className="text-xs">เลือกคลิปจากรายการฝั่งซ้ายเพื่อตรวจ QC และดูรายละเอียด</p>
       </div>
@@ -665,7 +665,7 @@ function ExportActiveWorkbench({
   const relativeTime = getRelativeTimeDesc(video.timestamp, renderedTime);
 
   return (
-    <div data-oc-surface="data" className="glass-panel rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-4 animate-fadeIn">
+    <div className="glass-panel rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-4 animate-fadeIn">
       {/* 1. Header with title & badges */}
       <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-3 border-b border-white/[0.08]">
         <div className="min-w-0 flex-1">
@@ -1679,12 +1679,12 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
   const mobileBaseUrl = publicAppOrigin(status?.mobile_url);
 
   return (
-    <div data-oc-surface="workspace" className="space-y-4 relative animate-fadeIn pb-16">
+    <div className="space-y-4 relative animate-fadeIn pb-16">
       {/* Central Toast Notification */}
       <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
 
       {/* ── Unified Media Center & Command Bar ── */}
-      <div data-oc-surface="section" className="rounded-2xl sm:rounded-3xl glass-panel p-3 sm:p-5 shadow-2xl relative overflow-hidden space-y-3 sm:space-y-4">
+      <div className="rounded-2xl sm:rounded-3xl glass-panel p-3 sm:p-5 shadow-2xl relative overflow-hidden space-y-3 sm:space-y-4">
         {/* Ambient Glow Aura */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-[#FE2C55]/10 via-[#25F4EE]/5 to-transparent rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
 
@@ -1932,7 +1932,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
         <>
           {filteredExports.length === 0 ? (
             /* Empty State */
-            <div data-oc-surface="data" className="p-16 text-center space-y-4 rounded-3xl border border-white/[0.08] glass-panel shadow-xl">
+            <div className="p-16 text-center space-y-4 rounded-3xl border border-white/[0.08] glass-panel shadow-xl">
               <div>
                 <h3 className="text-lg font-bold text-white">
                   {searchQuery ? 'ไม่พบคลิปวิดีโอที่ค้นหา' : 'ยังไม่มีคลิปวิดีโอที่ตัดเสร็จในคลัง'}
@@ -2059,7 +2059,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
 
           {/* ── Floating Batch Action Bar (Mobile & Desktop) ── */}
           {selectedVideos.length > 0 && (
-            <div data-oc-surface="floating" className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl glass-panel shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
+            <div className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl glass-panel shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
               <div className="flex items-center gap-2.5 text-xs font-bold text-white">
                 <span className="w-6 h-6 rounded-lg bg-[#25F4EE]/20 text-[#25F4EE] flex items-center justify-center font-mono text-xs">
                   {selectedVideos.length}

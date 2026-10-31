@@ -67,7 +67,7 @@ export default function EditorHeader({
   };
 
   return (
-    <div data-oc-surface="data" className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-white/[0.08] bg-[#0F1420] px-2.5 sm:px-4 py-2">
+    <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-white/[0.08] bg-[#0F1420] px-2.5 sm:px-4 py-2">
       {/* ── Left: Project selector, timecode, save status ── */}
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <Scissors className="hidden h-4 w-4 flex-shrink-0 text-[#D97757] sm:block" />

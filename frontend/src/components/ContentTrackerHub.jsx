@@ -676,7 +676,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
   const captionText = `${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`.trim();
 
   return (
-    <div data-oc-surface="data" className="glass-panel p-3 rounded-2xl space-y-2.5 shadow-lg">
+    <div className="glass-panel p-3 rounded-2xl space-y-2.5 shadow-lg">
       {/* 1. Header Row */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -1897,7 +1897,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   };
 
   return (
-    <div data-oc-surface="workspace" className="space-y-3 animate-fadeIn pb-16">
+    <div className="space-y-3 animate-fadeIn pb-16">
       {/* Central Toast */}
       <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
 
@@ -3316,7 +3316,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       </div>
 
       {/* ── 3. Streamlined Search & Filter Row ── */}
-      <div data-oc-surface="section" className="glass-panel p-2.5 sm:p-3 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
+      <div className="glass-panel p-2.5 sm:p-3 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
         {/* Search Box */}
         <div className="relative flex-1 min-w-0">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -3338,7 +3338,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         </div>
 
         {/* ── Mobile Sticky Segmented Phase Bar ── */}
-        <div data-oc-surface="data" className="md:hidden sticky top-0 z-20 w-full flex items-center gap-1 p-1.5 rounded-2xl glass-panel shadow-lg overflow-x-auto no-scrollbar">
+        <div className="md:hidden sticky top-0 z-20 w-full flex items-center gap-1 p-1.5 rounded-2xl glass-panel shadow-lg overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => {
@@ -3743,7 +3743,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           {/* 📱 Mobile Card Feed for iPhone 15 Pro Max and Narrow Screens */}
           <div className="block md:hidden space-y-2.5">
             {filteredAngles.length === 0 ? (
-              <div data-oc-surface="data" className="py-12 text-center text-xs text-slate-500 rounded-2xl glass-panel">
+              <div className="py-12 text-center text-xs text-slate-500 rounded-2xl glass-panel">
                 ไม่พบข้อมูลคลิปตามเงื่อนไขที่ค้นหา
               </div>
             ) : (
@@ -3768,7 +3768,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           </div>
 
           {/* 💻 Desktop High-Density Pro Table */}
-          <div data-oc-surface="data" className="hidden md:block glass-panel rounded-2xl overflow-hidden shadow-xl">
+          <div className="hidden md:block glass-panel rounded-2xl overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>

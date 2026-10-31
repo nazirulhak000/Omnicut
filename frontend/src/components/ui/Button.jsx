@@ -40,7 +40,6 @@ export const Button = forwardRef(function Button(
   return (
     <button
       ref={ref}
-      data-oc-button={Object.hasOwn(variantStyles, variant) ? variant : 'primary'}
       disabled={disabled || loading}
       className={`${baseStyles} ${sizeStyles[size] || sizeStyles.md} ${variantStyles[variant] || variantStyles.primary} ${className}`}
       {...props}

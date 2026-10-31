@@ -495,7 +495,7 @@ export default function MediaAssetsHub({ status }) {
   };
 
   return (
-    <div data-oc-surface="workspace" className="space-y-4 sm:space-y-5 animate-fadeIn pb-24 md:pb-12 max-w-[2200px] mx-auto">
+    <div className="space-y-4 sm:space-y-5 animate-fadeIn pb-24 md:pb-12 max-w-[2200px] mx-auto">
       {/* ── 1. Command Bar Header (shared PageHeader) ── */}
       <PageHeader
         icon={Layers}
@@ -718,7 +718,7 @@ export default function MediaAssetsHub({ status }) {
       {activeAssetTab === 'system' ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 animate-fadeIn">
           {/* Storage Directory Explorer (7 cols) */}
-          <div data-oc-surface="section" className="lg:col-span-7 glass-panel rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
+          <div className="lg:col-span-7 glass-panel rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <div className="flex items-center gap-2">
                 <Folder className="w-4 h-4 text-[#25F4EE]" />
@@ -861,7 +861,7 @@ export default function MediaAssetsHub({ status }) {
         /* ── STUDIO SPLIT WORKBENCH (Desktop: 2 columns, Mobile: Top list + Bottom Inspector) ── */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
           {/* Left Column: Asset Catalog List (lg:col-span-5) */}
-          <div data-oc-surface="data" className="lg:col-span-5 space-y-2.5 glass-panel rounded-2xl p-3 sm:p-4 shadow-xl">
+          <div className="lg:col-span-5 space-y-2.5 glass-panel rounded-2xl p-3 sm:p-4 shadow-xl">
             <div className="flex items-center justify-between px-1 pb-2 border-b border-white/[0.08] text-xs font-bold text-slate-300">
               <span>รายการในหมวด ({currentItems.length} ไฟล์)</span>
               <span className="text-[11px] text-slate-400">แตะเพื่อดูรายละเอียด</span>
@@ -994,7 +994,7 @@ export default function MediaAssetsHub({ status }) {
           {/* Right Column: Interactive Workbench Detail Inspector (lg:col-span-7) */}
           <div className="lg:col-span-7 sticky top-4">
             {selectedAsset ? (
-              <div data-oc-surface="data" className="glass-panel rounded-2xl p-4 sm:p-5 shadow-xl space-y-4 animate-fadeIn">
+              <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-xl space-y-4 animate-fadeIn">
                 {/* Inspector Header */}
                 <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/[0.08]">
                   <div className="min-w-0">
@@ -1635,7 +1635,7 @@ export default function MediaAssetsHub({ status }) {
 
       {/* ── Sticky Mobile Audio Mini-Player Bar ── */}
       {currentlyPlayingAudio && (
-        <div data-oc-surface="floating" className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl glass-panel shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
+        <div className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl glass-panel shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-[#25F4EE]/20 text-[#25F4EE] flex items-center justify-center flex-shrink-0 animate-pulse">
               <Volume2 className="w-4 h-4" />

@@ -4188,7 +4188,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   // RENDER
   // ═══════════════════════════════════════════════════════════════
   return (
-    <div data-oc-surface="workspace" className="space-y-4 relative animate-fadeIn pb-16">
+    <div className="space-y-4 relative animate-fadeIn pb-16">
       {/* Central Toast Notification */}
       <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
 
@@ -4754,7 +4754,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         <div className="space-y-4">
           {/* ──── STEP 2: Script Lab & Footage Selection ──── */}
           <div className="space-y-3">
-            <section data-oc-surface="section" aria-label="สถานะเวิร์กโฟลว์" className="rounded-2xl glass-panel overflow-hidden">
+            <section aria-label="สถานะเวิร์กโฟลว์" className="rounded-2xl glass-panel overflow-hidden">
               <div className="px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06]">
                 <div>
                   <h2 className="text-sm font-bold text-white">พื้นที่ทำงานสคริปต์</h2>

@@ -65,7 +65,7 @@ export default function AnalyticsHub({
   ];
 
   return (
-    <div data-oc-surface="workspace" className="h-full flex flex-col overflow-y-auto bg-transparent relative z-10 p-4 sm:p-6 space-y-4">
+    <div className="h-full flex flex-col overflow-y-auto bg-transparent relative z-10 p-4 sm:p-6 space-y-4">
 
       {/* ── Tab Navigation Bar ── */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar border-b border-white/[0.08]">

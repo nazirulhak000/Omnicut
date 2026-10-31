@@ -202,9 +202,9 @@ export function ReviewQueue({ productCode = null }) {
   };
 
   return (
-    <div data-oc-surface="workspace" className="w-full min-h-dvh bg-[#070A12] text-white pb-28 px-3 pt-3 space-y-4">
+    <div className="w-full min-h-dvh bg-[#070A12] text-white pb-28 px-3 pt-3 space-y-4">
       {/* Header + Filter Chips */}
-      <div data-oc-surface="data" className="sticky top-0 z-20 bg-[#070A12]/95 backdrop-blur-md py-2.5 border-b border-white/10 space-y-2.5">
+      <div className="sticky top-0 z-20 bg-[#070A12]/95 backdrop-blur-md py-2.5 border-b border-white/10 space-y-2.5">
         <div className="flex items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-bold text-white">คิวตรวจคลิปก่อนโพสต์</h2>

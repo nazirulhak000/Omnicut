@@ -33,7 +33,7 @@ test('Timeline enforces touch-action none for drag scrubbing and glass-panel lay
   assert.ok(touchNoneCount >= 2, `Expected at least 2 touch-none occurrences, found ${touchNoneCount}`);
 
   // Root container must use glass-panel
-  assert.match(source, /<div\b[^>]*\bclassName="flex h-full flex-col glass-panel"[^>]*>/);
+  assert.match(source, /<div className="flex h-full flex-col glass-panel">/);
 });
 
 test('Toolbar enforces >= 44px mobile touch targets, Q/W trims, and glass styling', () => {

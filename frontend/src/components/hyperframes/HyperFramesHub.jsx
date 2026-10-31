@@ -510,7 +510,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
   };
 
   return (
-    <div data-oc-surface="workspace" className="flex-1 overflow-y-auto bg-[#080B11] text-slate-100 p-6 space-y-6">
+    <div className="flex-1 overflow-y-auto bg-[#080B11] text-slate-100 p-6 space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <p className="min-w-0 flex-1 text-slate-300">ติดตามงานและขั้นตอนผลิตใน Tracker เดิม ผลงานที่ส่งออกแล้วอยู่ใน Gallery</p>
         {onNavigateToTracker && <button type="button" onClick={onNavigateToTracker} className="rounded-lg border border-white/15 px-4 py-2 text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]">เปิด Tracker</button>}

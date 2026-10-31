@@ -129,7 +129,6 @@ import { angleToForm } from './lib/angleToForm';
 import { applyUiScale, initUiScale } from './lib/uiScale';
 
 import { initTheme, applyTheme, setOrbsEnabled, getStoredOrbsEnabled } from './lib/themeManager';
-import { useThemeSettings } from './context/ThemeContext.jsx';
 
 import { editorProjectIntentFromPayload } from './lib/editorEntry';
 
@@ -468,10 +467,7 @@ export default function App() {
   };
 
   // 2b. Global UI Theme Presets & Ambient Orbs
-  const uiThemeSettings = useThemeSettings();
-  const candidateTheme = uiThemeSettings.enabled && !uiThemeSettings.resolved.isLegacy;
   const [uiTheme, setUiThemeState] = useState(() => {
-    if (uiThemeSettings.enabled && !uiThemeSettings.readOnly) return uiThemeSettings.preferences.legacyThemeId;
     const { themeId } = initTheme();
     return themeId;
   });
@@ -1246,16 +1242,10 @@ export default function App() {
 
     >
 
-      <div className={`oc-ui-app-shell flex h-dvh overflow-hidden ${uiFont} bg-[#030509] text-slate-100 relative`}>
+      <div className={`flex h-dvh overflow-hidden ${uiFont} bg-[#030509] text-slate-100 relative`}>
 
         {/* ── Background Ambient Floating Orbs (Pulse Hub Ultra-Realistic Glass Refraction) ── */}
-        {candidateTheme && uiThemeSettings.resolved.ambientEnabled && (
-          <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
-            <div className="oc-ui-ambient oc-ui-ambient-cyan absolute w-[380px] h-[380px] top-[8%] left-[12%]" />
-            <div className="oc-ui-ambient oc-ui-ambient-indigo absolute w-[420px] h-[420px] bottom-[12%] right-[8%]" />
-          </div>
-        )}
-        {!candidateTheme && (uiThemeSettings.enabled && !uiThemeSettings.readOnly ? uiThemeSettings.preferences.legacyOrbsEnabled : ambientOrbsEnabled) && (
+        {ambientOrbsEnabled && (
           <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
             <div className="ambient-orb orb-cyan" />
             <div className="ambient-orb orb-amber" />
