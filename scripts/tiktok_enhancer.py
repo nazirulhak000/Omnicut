@@ -9,10 +9,12 @@ Optimizes 1080x1920 (9:16) video for TikTok's aggressive transcoder pipeline:
 
 import json
 import logging
+import os
 from pathlib import Path
 import shutil
 import subprocess
-from typing import Dict, Optional, Union
+import threading
+from typing import Dict, List, Optional, Union
 
 logger = logging.getLogger("omnicut.tiktok_enhancer")
 
@@ -32,6 +34,31 @@ if HAS_NVENC:
     logger.info("NVIDIA NVENC hardware acceleration is active.")
 else:
     logger.info("NVIDIA NVENC not available, using libx264 CPU fallback.")
+
+# GeForce drivers cap concurrent NVENC sessions per system (5 on drivers from
+# 2023, 8 on current ones) and the pipeline's own final encodes already use up
+# to four (render_jobs slot pool). Batch enhancement runs on four workers
+# (AGENTS rule 24), so enhancer encodes take a session from this small pool
+# rather than racing for the driver limit; a session that still fails to open
+# falls back to libx264 below instead of failing the export.
+NVENC_SESSIONS_ENV = "OMNICUT_NVENC_SESSIONS"
+NVENC_SESSIONS_DEFAULT = 4
+NVENC_SESSIONS_MAX = 8
+
+
+def resolve_nvenc_sessions(raw: Optional[str] = None) -> int:
+    """Enhancer NVENC session cap from env (clamped 1..8, default 4)."""
+    if raw is None:
+        raw = os.environ.get(NVENC_SESSIONS_ENV)
+    try:
+        value = int(str(raw).strip()) if raw is not None and str(raw).strip() else NVENC_SESSIONS_DEFAULT
+    except ValueError:
+        value = NVENC_SESSIONS_DEFAULT
+    return max(1, min(NVENC_SESSIONS_MAX, value))
+
+
+NVENC_MAX_SESSIONS = resolve_nvenc_sessions()
+_NVENC_SESSIONS = threading.BoundedSemaphore(NVENC_MAX_SESSIONS)
 
 
 def probe_audio_codec(input_path: Path) -> Optional[str]:
@@ -88,49 +115,59 @@ def enhance_video_for_tiktok(
 
     vf_filter = f"unsharp={unsharp},eq=contrast={contrast}:brightness={brightness}:saturation={saturation}"
 
-    if HAS_NVENC:
-        video_codec_args = [
-            "-c:v", "h264_nvenc",
-            "-preset", "p4",
-            "-rc", "vbr",
-            "-cq", str(crf + 1),
-            "-b:v", "0",
-            "-profile:v", "high",
-            "-level", "4.2",
-            "-pix_fmt", "yuv420p",
-            "-color_primaries", "bt709",
-            "-color_trc", "bt709",
-            "-colorspace", "bt709",
-            "-g", str(gop),
-            "-bf", "2",
-        ]
-    else:
-        video_codec_args = [
-            "-c:v", "libx264",
-            "-profile:v", "high",
-            "-level", "4.2",
-            "-pix_fmt", "yuv420p",
-            "-color_primaries", "bt709",
-            "-color_trc", "bt709",
-            "-colorspace", "bt709",
-            "-crf", str(crf),
-            "-preset", preset,
-            "-g", str(gop),
-            "-bf", "2",
-        ]
-
-    cmd = [
-        ffmpeg_bin, "-y",
-        "-i", str(in_file),
-        "-vf", vf_filter,
-        *video_codec_args,
-        *audio_args,
-        "-movflags", "+faststart",
-        str(out_file)
+    nvenc_args = [
+        "-c:v", "h264_nvenc",
+        "-preset", "p4",
+        "-rc", "vbr",
+        "-cq", str(crf + 1),
+        "-b:v", "0",
+        "-profile:v", "high",
+        "-level", "4.2",
+        "-pix_fmt", "yuv420p",
+        "-color_primaries", "bt709",
+        "-color_trc", "bt709",
+        "-colorspace", "bt709",
+        "-g", str(gop),
+        "-bf", "2",
+    ]
+    x264_args = [
+        "-c:v", "libx264",
+        "-profile:v", "high",
+        "-level", "4.2",
+        "-pix_fmt", "yuv420p",
+        "-color_primaries", "bt709",
+        "-color_trc", "bt709",
+        "-colorspace", "bt709",
+        "-crf", str(crf),
+        "-preset", preset,
+        "-g", str(gop),
+        "-bf", "2",
     ]
 
+    def build_cmd(video_codec_args: List[str]) -> List[str]:
+        return [
+            ffmpeg_bin, "-y",
+            "-i", str(in_file),
+            "-vf", vf_filter,
+            *video_codec_args,
+            *audio_args,
+            "-movflags", "+faststart",
+            str(out_file)
+        ]
+
     logger.info("Enhancing video for TikTok: %s -> %s", in_file.name, out_file.name)
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = None
+    if HAS_NVENC:
+        with _NVENC_SESSIONS:
+            proc = subprocess.run(build_cmd(nvenc_args), capture_output=True, text=True)
+        if proc.returncode != 0:
+            logger.warning(
+                "h264_nvenc ล้มเหลว (exit %s) — สลับไปใช้ libx264 บน CPU แทน: %s",
+                proc.returncode, (proc.stderr or "")[-300:],
+            )
+            proc = None
+    if proc is None:
+        proc = subprocess.run(build_cmd(x264_args), capture_output=True, text=True)
     if proc.returncode != 0:
         logger.error("FFmpeg enhancement failed:\n%s", proc.stderr)
         raise RuntimeError(f"FFmpeg failed with exit code {proc.returncode}: {proc.stderr[-500:]}")

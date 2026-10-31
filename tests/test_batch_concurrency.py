@@ -12,9 +12,11 @@ import time
 from unittest.mock import patch
 
 import pytest
+from fastapi import HTTPException
 
 import scripts.batch_queue_store as batch_queue_store
 import scripts.batch_render as batch_render
+from scripts import render_jobs
 from scripts.batch_render import BATCH_REGISTRY, BatchRenderManager, is_valid_mp4
 from scripts.product_store import ProductStore
 from scripts.render_jobs import RenderCancelled
@@ -224,7 +226,7 @@ def test_cancel_stops_running_wave_and_skips_remaining_items(tmp_path):
 
     batch = BatchRenderManager.get_batch(batch_id)
     assert batch["status"] == "cancelled"
-    assert len(fake.calls) == 4  # second wave never started
+    assert len(fake.calls) == 4  # queued items never started
     assert all(item["status"] == "cancelled" for item in batch["items"])
     assert batch["completed_items"] == 0
 
@@ -284,3 +286,114 @@ def test_ffprobe_oserror_is_handled(tmp_path, monkeypatch):
     good = tmp_path / "good.mp4"
     _write_mp4(good)
     assert is_valid_mp4(good) is False
+
+
+# --------------------------------------------------------- shared slot pool
+@pytest.fixture
+def pool_of(monkeypatch):
+    monkeypatch.setattr(render_jobs, "ACTIVE_JOBS", {})
+    previous = render_jobs.render_concurrency()
+    yield render_jobs.set_render_concurrency
+    render_jobs.set_render_concurrency(previous)
+
+
+class SlotTrackingPipeline(FakePipeline):
+    """FakePipeline that also records how many render slots are held."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_slots = 0
+
+    def __call__(self, **kwargs):
+        with self.lock:
+            self.max_slots = max(self.max_slots, render_jobs.active_count())
+        return super().__call__(**kwargs)
+
+
+def test_each_batch_item_holds_its_own_render_slot(tmp_path, pool_of):
+    pool_of(4)
+    fake = SlotTrackingPipeline(seconds=0.3)
+    batch, _ = _run_batch(tmp_path, 8, fake, workers=4)
+    assert batch["completed_items"] == 8
+    assert fake.max_active == 4
+    # One slot per running item, not one per wave.
+    assert fake.max_slots == 4
+    assert render_jobs.active_count() == 0
+
+
+def test_batch_never_exceeds_the_render_pool(tmp_path, pool_of):
+    pool_of(2)  # e.g. OMNICUT_RENDER_CONCURRENCY=2
+    fake = FakePipeline(seconds=0.1)
+    batch, _ = _run_batch(tmp_path, 6, fake, workers=4)
+    assert batch["completed_items"] == 6
+    assert fake.max_active == 2
+
+
+def test_single_render_and_batch_share_the_pool(tmp_path, pool_of):
+    """A single render holding one slot leaves three for the batch; together
+    they never exceed the pool."""
+    pool_of(4)
+    fake = SlotTrackingPipeline(seconds=0.2)
+    single_started = threading.Event()
+    release_single = threading.Event()
+
+    def single_render():
+        with render_jobs.render_slot("single-render"):
+            single_started.set()
+            release_single.wait(10)
+
+    single = threading.Thread(target=single_render)
+    single.start()
+    assert single_started.wait(5)
+    try:
+        batch, _ = _run_batch(tmp_path, 6, fake, workers=4)
+    finally:
+        release_single.set()
+        single.join(5)
+    assert batch["completed_items"] == 6
+    assert fake.max_active == 3
+    assert fake.max_slots == 4
+    assert render_jobs.active_count() == 0
+
+
+def test_a_freed_slot_is_reused_without_waiting_for_the_whole_wave(tmp_path, pool_of):
+    """One slow item must not hold back the other workers (no wave barrier)."""
+    pool_of(4)
+    product = _product(tmp_path, 8)
+    lock = threading.Lock()
+    finished = []
+
+    def fake(**kwargs):
+        time.sleep(1.0 if kwargs["angle_id"] == "ang_0" else 0.1)
+        with lock:
+            finished.append(kwargs["angle_id"])
+        return {"mp4": "", "project_name": kwargs["project_name"], "export_id": ""}
+
+    with patch.object(ProductStore, "get", return_value=product), \
+         patch.object(ProductStore, "update_angle_status"), \
+         patch.object(ProductStore, "attach_project"), \
+         patch("scripts.pipeline.TikTokAutoCutterPipeline.run", side_effect=fake):
+        res = BatchRenderManager.create_batch(product_id="prod_conc", options={"export_mp4": False})
+        BatchRenderManager._run_batch_worker(res["batch_id"])
+    # With waves, ang_4..ang_7 could only start after ang_0 (1s) finished.
+    assert finished[-1] == "ang_0"
+    assert BatchRenderManager.get_batch(res["batch_id"])["completed_items"] == 8
+
+
+def test_item_retries_when_the_render_queue_is_full(tmp_path, pool_of, monkeypatch):
+    pool_of(4)
+    monkeypatch.setattr(batch_render, "_SLOT_RETRY_SECONDS", 0.01)
+    real_slot = render_jobs.render_slot
+    refusals = {"left": 2}
+
+    def flaky_slot(job_id, *args, **kwargs):
+        if refusals["left"] > 0:
+            refusals["left"] -= 1
+            raise HTTPException(status_code=429, detail="full")
+        return real_slot(job_id, *args, **kwargs)
+
+    monkeypatch.setattr(render_jobs, "render_slot", flaky_slot)
+    fake = FakePipeline(seconds=0.01)
+    batch, _ = _run_batch(tmp_path, 1, fake, workers=1)
+    assert batch["completed_items"] == 1
+    assert refusals["left"] == 0

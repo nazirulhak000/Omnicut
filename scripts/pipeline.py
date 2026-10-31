@@ -50,7 +50,7 @@ from scripts.stages import (
     ShotMatchingStage,
     VideoAssemblyStage,
 )
-from scripts.render_jobs import RenderCancelled
+from scripts.render_jobs import RenderCancelled, acquire_project_render_lock
 
 # Threshold for transition push-in / pull-back
 ZOOM_MOVE_THRESHOLD = 0.10
@@ -262,6 +262,9 @@ class TikTokAutoCutterPipeline:
         # returns. A stage raising after that point would take the name with
         # it, leaving the failure report unable to say which folder holds the
         # partial work -- so stamp it onto the exception on the way out.
+        # Up to four clips render at once (render_jobs slot pool), so two
+        # renders of the same project must not write its folder together.
+        project_lock = acquire_project_render_lock(project_name, channel_id=channel_id, cancel_event=cancel_event)
         try:
             # Stage 1: Source Resolution
             _run_stage("source", SourceResolutionStage.run)
@@ -301,6 +304,8 @@ class TikTokAutoCutterPipeline:
                 # original type and traceback reach classify_exception intact.
                 setattr(stage_err, "pipeline_project_name", ctx.project_name)
             raise
+        finally:
+            project_lock.release()
 
         return ctx.result_paths
 
