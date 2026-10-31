@@ -280,7 +280,6 @@ NATURAL_THAI_REPLACEMENTS = [
     (r"รักษาสุขภาพข้อมือ", "รักข้อมือตัวเอง"),
     (r"เพื่อสุขภาพข้อมือ", "เพื่อสุขภาพ"),
     (r"เพื่อสุขภาพร่างกาย", "เพื่อสุขภาพ"),
-    (r"ราคาลดกระหน่ำด่วนๆ", "ราคาพิเศษ"),
     (r"ลดกระหน่ำด่วนๆ", "ลดกระหน่ำ"),
 ]
 
@@ -326,10 +325,11 @@ class TTSSanitizer:
         """Replace tech abbreviations with Thai pronunciation equivalents."""
         result = text
 
-        # Currency & Price notation expansions (e.g., "199.-", "฿199", "199฿")
-        result = re.sub(r'(\d+)\s*\.-', r'\1 บาท', result)
-        result = re.sub(r'฿\s*(\d+)', r'\1 บาท', result)
-        result = re.sub(r'(\d+)\s*฿', r'\1 บาท', result)
+        # Price notation ("199.-", "฿199", "199฿") is deliberately NOT turned
+        # into spoken "บาท" any more: clips must never say a price (TikTok
+        # rule). It is left as-is so the upstream compliance lint
+        # (scripts/compliance_lint.py) catches it instead of TTS laundering
+        # it into natural-sounding speech.
 
         # Percentage expansion (e.g., "50%" → "50 เปอร์เซ็นต์")
         result = re.sub(r'(\d+(?:,\d+)*(?:\.\d+)?)\s*%', r'\1 เปอร์เซ็นต์', result)

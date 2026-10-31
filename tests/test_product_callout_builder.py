@@ -132,12 +132,14 @@ def test_manual_without_id_gets_stable_id_and_non_callout_overlay_is_ignored():
         {"brand": "Anker"},
         [
             {"kind": "text", "role": "caption", "text": "ไม่ใช่ callout", "start": 0, "end": 1},
+            {"role": "product_callout", "callout_type": "proof", "text": "ทดสอบกันน้ำ IPX5", "start": 1, "end": 2},
+            # "price" is no longer a callout type (TikTok no-price rule).
             {"role": "product_callout", "callout_type": "price", "text": "฿1,990", "start": 1, "end": 2},
         ],
     )
 
-    assert [item["callout_type"] for item in overlays] == ["brand", "price"]
-    assert overlays[1]["id"].startswith("callout-price-")
+    assert [item["callout_type"] for item in overlays] == ["brand", "proof"]
+    assert overlays[1]["id"].startswith("callout-proof-")
 
 
 def test_builder_keeps_text_raw_for_render_boundary_escaping():

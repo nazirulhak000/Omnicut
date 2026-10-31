@@ -11,12 +11,19 @@ Adheres strictly to project rules:
 - Rule 7: NO ellipsis "..." or "…" in spoken text or titles.
 - Rule 8: Clean UI compatibility.
 - Rule 9: Strict English retention for brand names and specs.
+- Zero-emoji on every field (hook_title included) and no price / exaggerated
+  claim / filler opener -- enforced by scripts/compliance_lint.py.
 """
 
 import re
 import json
 from typing import Any, Dict, List, Optional
 from scripts.tts_sanitizer import TTSSanitizer
+from scripts.compliance_lint import (
+    format_violations_th,
+    lint_hook_variant,
+    strip_emoji,
+)
 
 HOOK_STYLES: List[Dict[str, str]] = [
     {
@@ -35,7 +42,7 @@ HOOK_STYLES: List[Dict[str, str]] = [
         "style_id": "social_proof",
         "style_name": "ผลลัพธ์จริง / สถิติ",
         "tag": "น่าเชื่อถือ",
-        "description": "เน้นตัวเลขยอดขาย ระยะเวลาที่ใช้จริง หรือผลลัพธ์ที่จับต้องได้",
+        "description": "เน้นผลลัพธ์ที่เห็นได้ในคลิปและตัวเลขสเปกจริง ไม่แต่งยอดขายหรือระยะเวลาใช้งาน",
     },
     {
         "style_id": "deal_promo",
@@ -71,10 +78,11 @@ class HookVariationEngine:
         style_id = variant.get("style_id", "curiosity")
         meta = next((s for s in HOOK_STYLES if s["style_id"] == style_id), HOOK_STYLES[0])
 
-        brand = cls.clean_text(variant.get("hook_brand") or default_brand)
-        model = cls.clean_text(variant.get("hook_model") or default_model)
-        label = cls.clean_text(variant.get("hook_label", ""))
-        title = cls.clean_text(variant.get("hook_title", ""))
+        brand = cls.clean_text(strip_emoji(variant.get("hook_brand") or default_brand))
+        model = cls.clean_text(strip_emoji(variant.get("hook_model") or default_model))
+        label = cls.clean_text(strip_emoji(variant.get("hook_label", "")))
+        # Banner title is on-screen text: zero-emoji like every other field.
+        title = cls.clean_text(strip_emoji(variant.get("hook_title", "")))
         
         # Spoken opening line must not have emojis (Rule: no emojis in speech)
         raw_opening = variant.get("opening_line") or title
@@ -116,39 +124,39 @@ class HookVariationEngine:
         raw_variants = [
             {
                 "style_id": "curiosity",
-                "hook_title": f"💡 เพิ่งรู้ว่ามีของแบบนี้ด้วย! ทำไมเพิ่งมาเจอ {display_name}",
+                "hook_title": f"เพิ่งรู้ว่า {display_name} ทำแบบนี้ได้ด้วย",
                 "hook_brand": b_val,
                 "hook_model": m_val,
                 "hook_label": "เพิ่งรู้ว่ามีแบบนี้ด้วย",
-                "opening_line": f"ใครที่ยังไม่เคยลอง {display_name} บอกเลยว่าพลาดมากครับ",
+                "opening_line": f"{display_name} มีลูกเล่นหนึ่งที่คนใช้ส่วนใหญ่ไม่เคยรู้ เดี๋ยวให้ดูครับ",
             },
             {
                 "style_id": "warning",
-                "hook_title": f"⚠️ หยุดก่อน! อย่าเพิ่งซื้อ {display_name} ถ้ายังไม่รู้ข้อนี้",
+                "hook_title": f"อย่าเพิ่งซื้อ {display_name} ถ้ายังไม่รู้ข้อนี้",
                 "hook_brand": b_val,
                 "hook_model": m_val,
                 "hook_label": "อย่าเพิ่งซื้อถ้าไม่รู้ข้อนี้",
-                "opening_line": f"หยุดดูก่อน 10 วินาทีครับ ใครกำลังจะซื้อ {display_name} ต้องฟัง",
+                "opening_line": f"ก่อนเลือก {display_name} มีอยู่ 1 จุดที่ต้องเช็ค ไม่งั้นได้ของไม่ตรงใจครับ",
             },
             {
                 "style_id": "social_proof",
-                "hook_title": f"⭐ ใช้จริงมา 3 เดือนเต็ม สรุปคุ้มไหม? รีวิวหมดเปลือก {display_name}",
+                "hook_title": f"ลองให้ดูกับตา {display_name} ทำได้จริงไหม",
                 "hook_brand": b_val,
                 "hook_model": m_val,
-                "hook_label": "ใช้จริง 3 เดือนสรุปสั้นๆ",
-                "opening_line": f"หลังจากทดลองใช้ {display_name} มา 3 เดือนเต็ม วันนี้มาสรุปให้ฟังตรงๆ ครับ",
+                "hook_label": "ลองให้ดูกับตา",
+                "opening_line": f"{display_name} ที่เขาว่ากัน ทำได้จริงไหม ลองให้ดูกับตาเลยครับ",
             },
             {
                 "style_id": "deal_promo",
-                "hook_title": f"⚡ ของมันต้องมี! ใครยังไม่มี {display_name} ดูด่วน",
+                "hook_title": f"ของมันต้องมี {display_name} ช่วยอะไรได้บ้าง",
                 "hook_brand": b_val,
                 "hook_model": m_val,
                 "hook_label": "ของมันต้องมี",
-                "opening_line": f"ใครยังไม่มี {display_name} ดูคลิปนี้ให้จบ แล้วกดตะกร้าดูรายละเอียดได้เลยครับ",
+                "opening_line": f"{display_name} ตัวเดียว ช่วยเรื่องไหนได้บ้างในแต่ละวัน เดี๋ยวไล่ให้ดูครับ",
             },
             {
                 "style_id": "pain_point",
-                "hook_title": f"🔥 จบปัญหา {pain}! เซฟคลิปนี้ไว้เลย {display_name}",
+                "hook_title": f"จบปัญหา {pain} ด้วย {display_name}",
                 "hook_brand": b_val,
                 "hook_model": m_val,
                 "hook_label": f"แก้ปัญหา {pain}",
@@ -192,12 +200,14 @@ class HookVariationEngine:
                     f"2. ห้ามทับศัพท์ชื่อแบรนด์หรือรุ่นเป็นภาษาไทยเด็ดขาด เช่น Logitech ห้ามเขียน โลจิเทค (Strict English Retention)\n"
                     f"3. hook_label คือข้อความสั้นบนป้ายแบนเนอร์ (ความยาวไม่เกิน 15-25 ตัวอักษร)\n"
                     f"4. opening_line คือประโยคพูดเปิดคลิป ห้ามใส่อีโมจิใน opening_line เด็ดขาด\n"
-                    f"5. hook_title คือพาดหัวรวม (ใส่อีโมจิดึงดูดสายตาได้ 1 ตัวที่หน้าข้อความ)\n"
-                    f"6. ห้ามพูด/เขียนถึงราคา ตัวเลขเงิน ส่วนลด โปรโมชั่น Flash Sale คูปอง ส่งฟรี หรือการเดาราคา (เช่น หลักร้อย หลักพัน) ในทุกช่องเด็ดขาด (ผิดกฎ TikTok)\n\n"
+                    f"5. hook_title คือพาดหัวรวม ห้ามใส่อีโมจิในทุกช่องเด็ดขาด (Zero-Emoji)\n"
+                    f"6. ห้ามพูด/เขียนถึงราคา ตัวเลขเงิน ส่วนลด โปรโมชั่น Flash Sale คูปอง ส่งฟรี หรือการเดาราคา (เช่น หลักร้อย หลักพัน) ในทุกช่องเด็ดขาด (ผิดกฎ TikTok)\n"
+                    f"7. ห้ามเคลมเกินจริงหรือแต่งข้อมูล เช่น ใช้จริงมา 3 เดือน, ยอดขายถล่มทลาย, อันดับ 1, ดีที่สุดในโลก, 100% ไม่พัง\n"
+                    f"8. opening_line ประโยคแรกห้ามขอให้คนดูหยุดเลื่อน/หยุดดู/ดูให้จบ และห้ามมี CTA (ตะกร้า/กดซื้อ) ให้เปิดด้วยผลลัพธ์ ภาพที่เห็น หรือคำถามเฉพาะสินค้า\n\n"
                     f"สไตล์ทั้ง 5 แบบที่ต้องสร้าง:\n"
-                    f"1. curiosity (กระตุ้นความสงสัย ชวนหยุดดู)\n"
+                    f"1. curiosity (กระตุ้นความสงสัยด้วยสิ่งที่คนไม่เคยรู้เกี่ยวกับสินค้า)\n"
                     f"2. warning (เตือนภัย หยุดก่อน อย่าเพิ่งซื้อ)\n"
-                    f"3. social_proof (ผลลัพธ์จริง ยอดขาย รีวิว)\n"
+                    f"3. social_proof (ผลลัพธ์ที่โชว์ให้เห็นได้ในคลิป ห้ามแต่งยอดขาย/ระยะเวลาใช้งาน)\n"
                     f"4. deal_promo (ห้ามพลาด ของมันต้องมี เร่งด้วยประโยชน์ใช้งานจริง ห้ามพูดราคา/ส่วนลด)\n"
                     f"5. pain_point (แทงใจดำ แก้ปัญหาตรงจุด)\n\n"
                     f"ส่งคำตอบกลับมาเป็น JSON อาเรย์เท่านั้น โดยมีรูปแบบดังนี้:\n"
@@ -225,7 +235,19 @@ class HookVariationEngine:
                         results = []
                         for item in parsed:
                             if isinstance(item, dict) and "style_id" in item:
-                                results.append(cls.sanitize_variant(item, brand, model))
+                                clean = cls.sanitize_variant(item, brand, model)
+                                hits = lint_hook_variant(clean)
+                                if hits:
+                                    # Rejected, not passed through: the
+                                    # offline template for this style fills
+                                    # the slot below.
+                                    print(
+                                        f"⚠️ [HookVariationEngine] ตัดฮุกสไตล์ '{clean['style_id']}' "
+                                        f"ที่ผิดกฎ compliance ออก แล้วใช้เทมเพลตสำรองแทน:\n"
+                                        f"{format_violations_th(hits)}"
+                                    )
+                                    continue
+                                results.append(clean)
                         if len(results) >= 3:
                             # Fill any missing styles from offline generator
                             existing_ids = {r["style_id"] for r in results}

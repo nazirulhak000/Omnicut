@@ -15,10 +15,15 @@ import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from scripts.color_theme import normalize_hex
+from scripts.compliance_lint import format_violations_th, lint_text
 from scripts.overlay_model import new_text_overlay
 
 
-CALLOUT_TYPES = ("brand", "model", "feature", "spec", "price", "proof", "cta")
+# No "price" type: clips must never show a price/discount (TikTok rule). A
+# legacy "price" callout (auto metadata or a manual overlay) normalizes to
+# None and is dropped, and any other callout whose text trips the compliance
+# lint is dropped with a Thai log line (see _passes_compliance).
+CALLOUT_TYPES = ("brand", "model", "feature", "spec", "proof", "cta")
 _CALLOUT_TYPE_SET = set(CALLOUT_TYPES)
 _TYPE_PRIORITY = {name: index for index, name in enumerate(CALLOUT_TYPES)}
 CALLOUT_THEME_ROLES = {
@@ -26,7 +31,6 @@ CALLOUT_THEME_ROLES = {
     "model": "secondary",
     "feature": "primary",
     "spec": "secondary",
-    "price": "primary",
     "proof": "secondary",
     "cta": "primary",
 }
@@ -45,8 +49,10 @@ def build_product_callouts(
     ``beat_cues`` are the source of truth for automatic timing.  A product
     value may select a cue with ``beat_id``/``beat_index``; values without a
     selector use the first valid cue.  The metadata supports the common
-    product fields (brand, model, features, specs, price, proof and cta) and
-    an optional explicit ``callouts`` list.
+    product fields (brand, model, features, specs, proof and cta) and an
+    optional explicit ``callouts`` list. A ``price`` field is ignored and any
+    callout text that trips ``scripts.compliance_lint`` (price/claim) is
+    dropped with a Thai log line -- never rendered.
 
     Dedupe is semantic: normalized ``(callout_type, text)`` is one identity.
     A manual overlay with that identity replaces the generated overlay.  The
@@ -106,7 +112,6 @@ def _metadata_candidates(metadata: Mapping[str, Any]) -> Iterable[Dict[str, Any]
     for field, callout_type in (
         ("features", "feature"),
         ("specs", "spec"),
-        ("price", "price"),
         ("proof", "proof"),
         ("cta", "cta"),
     ):
@@ -179,6 +184,8 @@ def _candidate_to_overlay(
     callout_type = _normalize_callout_type(candidate.get("callout_type") or candidate.get("type"))
     if not text or callout_type is None:
         return None
+    if not _passes_compliance(text, callout_type, origin):
+        return None
 
     timing = _candidate_timing(candidate, cues)
     if timing is None:
@@ -237,6 +244,8 @@ def _normalize_manual_overlay(item: Any) -> Optional[Dict[str, Any]]:
     text = _candidate_text(item)
     callout_type = _normalize_callout_type(item.get("callout_type") or item.get("type"))
     if not text or callout_type is None:
+        return None
+    if not _passes_compliance(text, callout_type, "manual"):
         return None
     copied = copy.deepcopy(dict(item))
     copied["kind"] = "text"
@@ -358,8 +367,20 @@ def _source_for(candidate: Mapping[str, Any], beat: Optional[Mapping[str, Any]])
     return source
 
 
+def _passes_compliance(text: str, callout_type: str, origin: str) -> bool:
+    """False (and a Thai log line) when a callout would show price/claim text."""
+    hits = lint_text(text, field=f"callout:{callout_type}")
+    if not hits:
+        return True
+    print(
+        f"⚠️ [ProductCallout] ตัด callout ({origin}/{callout_type}) '{text[:40]}' "
+        f"ออก เพราะผิดกฎ compliance:\n{format_violations_th(hits)}"
+    )
+    return False
+
+
 def _looks_like_spec(text: str) -> bool:
-    return bool(re.search(r"\d|%|บาท|฿|mah|w\b|v\b|hz\b|ip\d", text, re.IGNORECASE))
+    return bool(re.search(r"\d|%|mah|w\b|v\b|hz\b|ip\d", text, re.IGNORECASE))
 
 
 def _finite_number(value: Any) -> Optional[float]:
