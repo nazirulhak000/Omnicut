@@ -6,7 +6,7 @@ Generates animated Thai & bilingual subtitles (.ass), parses/migrates overlays, 
 import copy
 from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
-from scripts.subtitle_engine import SubtitleEngine, subtitle_artifact_is_current
+from scripts.subtitle_engine import MICRO_BURST_MAX_CHARS, SubtitleEngine, subtitle_artifact_is_current
 from scripts.editorial_pacing import build_pacing_plan_from_cues
 from scripts.overlay_model import guess_brand_model, migrate_to_overlays
 from scripts.pipeline_context import PipelineContext
@@ -81,8 +81,11 @@ class SubtitleStage:
                     should_generate = True
 
         if should_generate:
-            ctx.notify("💬 [3/5] กำลังสร้างซับไตเติล TikTok เคลื่อนไหว (Kanit-Black 86pt)...", 0.50)
-            print(f"\n💬 [3/5] Generating TikTok Animated Subtitles (.ass with {ctx.font_name} font & 3-word bursts)...")
+            ctx.notify(f"💬 [3/5] กำลังสร้างซับไตเติล TikTok เคลื่อนไหว (ฟอนต์ {ctx.font_name})...", 0.50)
+            print(
+                f"\n💬 [3/5] Generating TikTok Animated Subtitles (.ass, {ctx.font_name} font, "
+                f"micro-burst clauses up to {MICRO_BURST_MAX_CHARS} chars, 1 highlight per burst)..."
+            )
             ass_path = ctx.out_path("subtitles", ".ass")
 
             effective_hook_brand = ctx.hook_brand

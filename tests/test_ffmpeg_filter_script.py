@@ -523,7 +523,9 @@ def _fake_mix_ffmpeg(monkeypatch, seen, returncode=0):
 def test_audio_mix_with_many_sfx_uses_a_graph_file(sfx_env, monkeypatch, temp_in_tmp_path):
     seen = {}
     _fake_mix_ffmpeg(monkeypatch, seen)
-    cues = [{"sfx": "whoosh", "start": 0.1 * i} for i in range(250)]
+    # cut_bound: transition whooshes on a cut are exempt from the SFX density
+    # gap (sfx_manager.SFX_MIN_GAP_S), so all 250 inputs still reach the graph.
+    cues = [{"sfx": "whoosh", "start": 0.1 * i, "cut_bound": True} for i in range(250)]
 
     SFXManager.mix_audio_track(str(sfx_env.voice), cues, 30.0, str(sfx_env.out))
 

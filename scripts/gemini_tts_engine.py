@@ -21,6 +21,66 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.error_handler import AppError, ErrorCategory
 
+# Gemini takes open with ~0.1-0.4 s of silence before the first word; Edge
+# takes are trimmed to start within 15 ms (voice_engine._trim_silence). Same
+# -42 dBFS speech threshold as Edge, but a 40 ms head pad so a soft onset
+# (fricative, breathy vowel) that ramps up under the threshold is never cut.
+GEMINI_LEAD_SILENCE_THRESHOLD_DB = -42.0
+GEMINI_LEAD_SILENCE_PAD_S = 0.040
+GEMINI_LEAD_SILENCE_MAX_S = 0.050
+
+
+def trim_leading_silence_wav(
+    wav_path: Path,
+    threshold_db: float = GEMINI_LEAD_SILENCE_THRESHOLD_DB,
+    pad_s: float = GEMINI_LEAD_SILENCE_PAD_S,
+) -> float:
+    """Trim a 16-bit PCM WAV in place so the first sound starts within ``pad_s``.
+
+    Only leading silence is removed; nothing after the first sample above
+    ``threshold_db`` (plus the ``pad_s`` before it) is touched, so the speech
+    onset is never clipped. Returns the seconds removed (0.0 when the file is
+    already tight, entirely silent, or not 16-bit PCM).
+    """
+    import numpy as np
+
+    wav_path = Path(wav_path)
+    with wave.open(str(wav_path), "rb") as wf:
+        channels = wf.getnchannels()
+        sampwidth = wf.getsampwidth()
+        rate = wf.getframerate()
+        frames = wf.readframes(wf.getnframes())
+    if sampwidth != 2 or rate <= 0 or channels <= 0:
+        return 0.0
+    samples = np.frombuffer(frames, dtype="<i2")
+    n_frames = len(samples) // channels
+    if n_frames == 0:
+        return 0.0
+    per_frame = np.abs(samples[: n_frames * channels].astype(np.int32)).reshape(n_frames, channels).max(axis=1)
+    threshold = (10.0 ** (threshold_db / 20.0)) * 32768.0
+    loud = np.flatnonzero(per_frame > threshold)
+    if len(loud) == 0:
+        return 0.0
+    start_frame = max(0, int(loud[0]) - int(round(pad_s * rate)))
+    if start_frame == 0:
+        return 0.0
+    tmp_path = wav_path.with_suffix(".trim.tmp.wav")
+    try:
+        with wave.open(str(tmp_path), "wb") as out:
+            out.setnchannels(channels)
+            out.setsampwidth(sampwidth)
+            out.setframerate(rate)
+            out.writeframes(frames[start_frame * channels * sampwidth:])
+        os.replace(tmp_path, wav_path)
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+    return start_frame / rate
+
+
 class GeminiTTSError(AppError, RuntimeError):
     """Specific error for Gemini Flash TTS failures with actionable wait time and reasons."""
     def __init__(
@@ -476,6 +536,15 @@ class GeminiFlashTTSEngine:
                                 transient.unlink()
                             except Exception:
                                 pass
+
+                # Speech starts within GEMINI_LEAD_SILENCE_MAX_S, like Edge takes.
+                # A trim failure keeps the untrimmed (still valid) take.
+                try:
+                    trimmed_s = trim_leading_silence_wav(out_wav)
+                    if trimmed_s > 0:
+                        print(f"   [Gemini Flash TTS] ตัดช่วงเงียบต้นเสียง {trimmed_s * 1000:.0f}ms")
+                except Exception as trim_err:
+                    print(f"⚠️ [Gemini Flash TTS] ตัดช่วงเงียบต้นเสียงไม่สำเร็จ ใช้ไฟล์เดิม: {trim_err}")
 
                 print(f"✨ [Gemini Flash TTS] Generated successfully with voice '{target_voice}' -> {out_wav}")
 
