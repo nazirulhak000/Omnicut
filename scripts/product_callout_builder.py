@@ -17,6 +17,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 from scripts.color_theme import normalize_hex
 from scripts.compliance_lint import format_violations_th, lint_text
 from scripts.overlay_model import new_text_overlay
+from scripts.word_alignment import spec_onset_time
 
 
 # No "price" type: clips must never show a price/discount (TikTok rule). A
@@ -153,13 +154,23 @@ def _cue_candidates(cues: Sequence[Mapping[str, Any]]) -> Iterable[Dict[str, Any
         value = str(cue.get("on_screen") or "").strip()
         if not value:
             continue
+        callout_type = "spec" if _looks_like_spec(value) else "feature"
+        start = cue.get("start")
+        if callout_type == "spec":
+            # A spec callout lands on the spoken number when the cue has word
+            # timings; the end stays the cue end. No timings -> cue start.
+            onset = spec_onset_time(
+                cue.get("word_timings"), value, start=cue.get("_start"), end=cue.get("_end")
+            )
+            if onset is not None:
+                start = onset
         yield {
             "text": value,
-            "callout_type": "spec" if _looks_like_spec(value) else "feature",
+            "callout_type": callout_type,
             "source_field": "beat_cues.on_screen",
             "beat_id": cue.get("id"),
             "beat_index": cue.get("_index"),
-            "start": cue.get("start"),
+            "start": start,
             "end": cue.get("end"),
         }
 
