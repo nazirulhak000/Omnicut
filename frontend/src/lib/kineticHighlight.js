@@ -281,3 +281,56 @@ export function highlightBurstLines(thLines, enLines = [], { customKeywords = nu
     en: splitSegmentsByLine(en, enLines.length),
   };
 }
+
+// -- Per-product custom keywords ------------------------------------------
+// Python's str.split() / str.strip() whitespace, so a banner tier holding an
+// odd space splits into the same words on both sides.
+const PY_WS_RUN = new RegExp(`[${PY_WS}]+`, 'u');
+const PY_WS_EDGES = new RegExp(`^[${PY_WS}]+|[${PY_WS}]+$`, 'gu');
+const pyStrip = (s) => String(s ?? '').replace(PY_WS_EDGES, '');
+const pySplit = (s) => pyStrip(s).split(PY_WS_RUN).filter(Boolean);
+
+/**
+ * The keyword list SubtitleEngine.generate_ass builds from the hook banner
+ * (scripts/subtitle_engine.py, "Collect dynamic project keywords"): the three
+ * tiers joined, then every word of 3+ characters, first occurrence only.
+ * Tiers are joined untrimmed, exactly like `" ".join(filter(None, ...))`.
+ */
+export function projectHighlightKeywords({ brand = '', model = '', label = '' } = {}) {
+  const combined = pyStrip([brand, model, label].filter(Boolean).join(' '));
+  if (!combined) return [];
+  const keywords = [combined];
+  for (const word of pySplit(combined)) {
+    if (pyLen(word) >= 3 && !keywords.includes(word)) keywords.push(word);
+  }
+  return keywords;
+}
+
+/**
+ * Banner text the render feeds that builder. When all three tiers are blank
+ * the subtitle stage guesses brand/model from the product name
+ * (scripts/stages/subtitle_stage.py -> guess_brand_model in
+ * scripts/overlay_model.py, "Brand Model..." word order); the label stays blank.
+ */
+export function resolveHookKeywordSource({ brand = '', model = '', label = '' } = {}, productName = '') {
+  if (pyStrip(brand) || pyStrip(model) || pyStrip(label)) return { brand, model, label };
+  const parts = pySplit(productName);
+  if (!parts.length) return { brand: '', model: '', label: '' };
+  if (parts.length === 1) return { brand: pyStrip(productName), model: '', label: '' };
+  return { brand: parts[0], model: parts.slice(1).join(' '), label: '' };
+}
+
+/**
+ * Custom highlight keywords for the editor preview. The editor holds the
+ * banner as the hook overlay (tiers brand / model / label -- the same three
+ * strings the render's hook_brand / hook_model / hook_label carry), so it
+ * reads those, falling back to the product name exactly like the render.
+ */
+export function hookHighlightKeywords(overlays = [], productName = '') {
+  const hook = (Array.isArray(overlays) ? overlays : []).find((o) => o && o.kind === 'hook');
+  const tiers = Array.isArray(hook?.tiers) ? hook.tiers : [];
+  const text = (i) => (typeof tiers[i]?.text === 'string' ? tiers[i].text : '');
+  return projectHighlightKeywords(
+    resolveHookKeywordSource({ brand: text(0), model: text(1), label: text(2) }, productName),
+  );
+}

@@ -27,6 +27,17 @@
     {"name": "bilingual: English pass is limited to the Thai colour", "th_lines": ["ไร้สาย ใช้ง่าย"], "en_lines": ["wireless and so good"], "expected": {"th": [[["ไร้สาย", "&H00FFE600&"], [" ใช้ง่าย", null]]], "en": [[["wireless", "&H00FFE600&"], [" and so good", null]]]}},
     {"name": "English word boundary: no match inside a longer word", "th_lines": ["อันนี้"], "en_lines": ["goodness me"], "expected": {"th": [[["อันนี้", null]]], "en": [[["goodness me", null]]]}},
     {"name": "red alert dictionary", "th_lines": ["อย่าเพิ่งซื้อ จนกว่าจะดู"], "en_lines": [], "expected": {"th": [[["อย่าเพิ่งซื้อ", "&H00303BFF&"], [" จนกว่าจะดู", null]]], "en": []}},
-    {"name": "wrapped English: second line spec is behind the literal \\N like in the render", "th_lines": ["แบตอึด"], "en_lines": ["Huge battery", "5000mAh inside"], "expected": {"th": [[["แบตอึด", "&H00FFE600&"]]], "en": [[["Huge ", null], ["battery", "&H00FFE600&"]], [["5000mAh inside", null]]]}}
+    {"name": "wrapped English: second line spec is behind the literal \\N like in the render", "th_lines": ["แบตอึด"], "en_lines": ["Huge battery", "5000mAh inside"], "expected": {"th": [[["แบตอึด", "&H00FFE600&"]]], "en": [[["Huge ", null], ["battery", "&H00FFE600&"]], [["5000mAh inside", null]]]}},
+    {"name": "hook brand keyword and spec number in one burst: the brand takes the one highlight", "th_lines": ["Anker ชาร์จ 65W"], "en_lines": [], "custom_keywords": ["Anker Nano 3", "Anker", "Nano"], "expected": {"th": [[["Anker", "&H00FFE600&"], [" ชาร์จ 65W", null]]], "en": []}},
+    {"name": "bilingual: hook brand keyword beats the spec number on both lines", "th_lines": ["Anker ชาร์จ 65W"], "en_lines": ["Anker charges at 65W"], "custom_keywords": ["Anker Nano 3", "Anker", "Nano"], "expected": {"th": [[["Anker", "&H00FFE600&"], [" ชาร์จ 65W", null]]], "en": [[["Anker", "&H00FFE600&"], [" charges at 65W", null]]]}}
+  ],
+  "_highlight_keywords_comment": "custom_keywords the render derives per product: SubtitleStage falls back to guess_brand_model(product_name) when all three hook tiers are blank, then SubtitleEngine.generate_ass joins the tiers and adds every 3+ character word. JS: projectHighlightKeywords(resolveHookKeywordSource(hook, product_name)).",
+  "highlight_keywords": [
+    {"name": "tiers joined first, then each word of 3+ characters", "hook": {"brand": "Anker", "model": "Nano 3", "label": ""}, "product_name": "Anker Nano 3 Charger", "expected": ["Anker Nano 3", "Anker", "Nano"]},
+    {"name": "Thai label word counts; a repeated word is listed once", "hook": {"brand": "JBL", "model": "Flip 6", "label": "ลำโพง JBL"}, "product_name": "", "expected": ["JBL Flip 6 ลำโพง JBL", "JBL", "Flip", "ลำโพง"]},
+    {"name": "blank banner falls back to the product name (brand + model guess)", "hook": {"brand": "", "model": "", "label": ""}, "product_name": "Logitech Wave Keys", "expected": ["Logitech Wave Keys", "Logitech", "Wave", "Keys"]},
+    {"name": "whitespace-only tiers count as blank", "hook": {"brand": "  ", "model": "", "label": " "}, "product_name": "Baseus", "expected": ["Baseus"]},
+    {"name": "words shorter than 3 characters are not keywords of their own", "hook": {"brand": "LG", "model": "C3", "label": ""}, "product_name": "", "expected": ["LG C3"]},
+    {"name": "nothing to go on: no keywords", "hook": {"brand": "", "model": "", "label": ""}, "product_name": "", "expected": []}
   ]
 }

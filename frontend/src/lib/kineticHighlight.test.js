@@ -6,7 +6,10 @@ import {
   findSpecNumber,
   highlightBurstLines,
   highlightTh,
+  hookHighlightKeywords,
   KINETIC_KEYWORDS_TH,
+  projectHighlightKeywords,
+  resolveHookKeywordSource,
 } from './kineticHighlight.js';
 
 // Shared with tests/test_preview_render_parity.py, which runs the same bursts
@@ -23,6 +26,35 @@ for (const c of CASES.highlight) {
     assert.deepEqual({ th: lines(r.th), en: lines(r.en) }, c.expected);
   });
 }
+
+for (const c of CASES.highlight_keywords) {
+  test(`custom keyword parity: ${c.name}`, () => {
+    assert.deepEqual(projectHighlightKeywords(resolveHookKeywordSource(c.hook, c.product_name)), c.expected);
+  });
+}
+
+const hookOverlay = (brand, model, label) => ({
+  id: 'ovl_hook',
+  kind: 'hook',
+  tiers: [{ text: brand, look: {} }, { text: model, look: {} }, { text: label, look: {} }],
+});
+
+test('preview keywords come from the hook overlay tiers', () => {
+  const overlays = [{ id: 'ovl_text', kind: 'text', tiers: [{ text: 'ไม่ใช่ Hook' }] }, hookOverlay('Anker', 'Nano 3', '')];
+  assert.deepEqual(hookHighlightKeywords(overlays, 'ชื่ออื่น'), ['Anker Nano 3', 'Anker', 'Nano']);
+});
+
+test('preview keywords fall back to the product name when the banner is blank or missing', () => {
+  assert.deepEqual(hookHighlightKeywords([hookOverlay('', ' ', '')], 'Logitech Wave Keys'), ['Logitech Wave Keys', 'Logitech', 'Wave', 'Keys']);
+  assert.deepEqual(hookHighlightKeywords([], 'Baseus'), ['Baseus']);
+  assert.deepEqual(hookHighlightKeywords(null, ''), []);
+});
+
+test('brand from the banner and a spec number in one burst: the brand is highlighted', () => {
+  const customKeywords = hookHighlightKeywords([hookOverlay('Anker', 'Nano 3', '')], '');
+  const r = highlightBurstLines(['Anker ชาร์จ 65W'], [], { customKeywords });
+  assert.deepEqual(lines(r.th), [[['Anker', '&H00FFE600&'], [' ชาร์จ 65W', null]]]);
+});
 
 // Same table as tests/test_spec_highlight.py::test_spec_regex_*.
 test('spec regex matches number + unit', () => {

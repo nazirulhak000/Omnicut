@@ -3908,6 +3908,57 @@ def test_sfx_plan_and_highlight_fixture_matches_the_backend():
         assert _highlight_case(case) == case["expected"], case["name"]
 
 
+def _render_highlight_keywords(case, tmp_path):
+    """custom_keywords the real render passes to the caption highlighter.
+
+    SubtitleStage.run's product-name fallback (guess_brand_model when all
+    three tiers are blank) followed by SubtitleEngine.generate_ass itself,
+    with the highlighter spied on so the inline keyword build is what runs.
+    """
+    sys.path.insert(0, str(ROOT))
+    from unittest import mock
+
+    from scripts.overlay_model import guess_brand_model
+    from scripts.subtitle.translation_service import apply_kinetic_highlighting
+    from scripts.subtitle_engine import SubtitleEngine
+
+    hook = case["hook"]
+    brand, model, label = hook.get("brand"), hook.get("model"), hook.get("label")
+    if not (brand or "").strip() and not (model or "").strip() and not (label or "").strip():
+        guessed_b, guessed_m = guess_brand_model(case.get("product_name"))
+        if guessed_b or guessed_m:
+            brand, model = guessed_b or None, guessed_m or None
+
+    seen = []
+
+    def spy(cls, text, primary_color_ass="&H00FFFFFF&", color_hint=None, custom_keywords=None):
+        seen.append(custom_keywords)
+        return apply_kinetic_highlighting(
+            text, primary_color_ass=primary_color_ass, color_hint=color_hint, custom_keywords=custom_keywords)
+
+    with mock.patch.object(SubtitleEngine, "apply_kinetic_highlighting", classmethod(spy)):
+        SubtitleEngine.generate_ass(
+            cues=[{"start": 0.0, "end": 1.5, "text": "ทดสอบซับ"}],
+            output_ass_path=str(tmp_path / f"kw_{len(list(tmp_path.iterdir()))}.ass"),
+            hook_brand=brand, hook_model=model, hook_label=label,
+            bilingual=False, show_watermark=False,
+        )
+    assert seen, case["name"]
+    return seen[0]
+
+
+def test_highlight_keyword_fixture_matches_the_render(tmp_path):
+    cases = json.loads(PARITY_CASES_PATH.read_text(encoding="utf-8"))
+    assert cases["highlight_keywords"]
+    for case in cases["highlight_keywords"]:
+        assert _render_highlight_keywords(case, tmp_path) == case["expected"], case["name"]
+    # The burst cases built on hook keywords use a list this derivation yields.
+    derived = [case["expected"] for case in cases["highlight_keywords"]]
+    for case in cases["highlight"]:
+        if case["name"].startswith(("hook brand", "bilingual: hook brand")):
+            assert case["custom_keywords"] in derived, case["name"]
+
+
 def test_sfx_plan_and_highlight_js_ports_match_the_fixture():
     import shutil
     import subprocess
@@ -3919,7 +3970,8 @@ def test_sfx_plan_and_highlight_js_ports_match_the_fixture():
     script = (
         "import { readFileSync } from 'node:fs';\n"
         f"import {{ planSfxEvents }} from '{(lib / 'sfxPlan.js').resolve().as_uri()}';\n"
-        f"import {{ highlightBurstLines }} from '{(lib / 'kineticHighlight.js').resolve().as_uri()}';\n"
+        "import { highlightBurstLines, projectHighlightKeywords, resolveHookKeywordSource } from "
+        f"'{(lib / 'kineticHighlight.js').resolve().as_uri()}';\n"
         "const cases = JSON.parse(readFileSync(process.argv[2], 'utf8'));\n"
         "const r6 = (v) => Math.round(v * 1e6) / 1e6;\n"
         "const sfx = cases.sfx.map((c) => {\n"
@@ -3936,7 +3988,9 @@ def test_sfx_plan_and_highlight_js_ports_match_the_fixture():
         "  const r = highlightBurstLines(c.th_lines, c.en_lines || [], { customKeywords: c.custom_keywords || null });\n"
         "  return { th: lines(r.th), en: lines(r.en) };\n"
         "});\n"
-        "console.log(JSON.stringify({ sfx, hl }));\n"
+        "const kw = cases.highlight_keywords.map((c) =>\n"
+        "  projectHighlightKeywords(resolveHookKeywordSource(c.hook, c.product_name)));\n"
+        "console.log(JSON.stringify({ sfx, hl, kw }));\n"
     )
     with tempfile.TemporaryDirectory() as tmp:
         runner = Path(tmp) / "parity.mjs"
@@ -3950,6 +4004,9 @@ def test_sfx_plan_and_highlight_js_ports_match_the_fixture():
     for case, got in zip(cases["sfx"], out["sfx"]):
         assert got == case["expected"], case["name"]
     for case, got in zip(cases["highlight"], out["hl"]):
+        assert got == case["expected"], case["name"]
+    assert len(out["kw"]) == len(cases["highlight_keywords"])
+    for case, got in zip(cases["highlight_keywords"], out["kw"]):
         assert got == case["expected"], case["name"]
 
 
@@ -3978,5 +4035,9 @@ def test_preview_keyword_dictionaries_are_the_backend_dictionaries():
     # The canvas colour per ASS tag is what the preview has always painted.
     for pair in ("[ASS_YELLOW]: '#FFE600'", "[ASS_CYAN]: '#00E5FF'", "[ASS_RED]: '#FF3B30'"):
         assert pair in js
-    assert "highlightBurstLines(thaiLines, enLines)" in JS_SRC, "caption must use the ported highlighter"
+    assert "highlightBurstLines(thaiLines, enLines, {" in JS_SRC, "caption must use the ported highlighter"
+    # ...and feed it the per-product keywords the render passes (hook banner
+    # words, or the product name when the banner is blank).
+    assert "customKeywords: style.highlightKeywords" in JS_SRC, "caption must pass the custom keywords"
+    assert "hookHighlightKeywords(overlays, productName)" in JS_SRC, "keywords must come from the hook overlay"
     assert "KINETIC_COLOR_MAP" not in JS_SRC, "the old divergent preview dictionary must stay gone"
