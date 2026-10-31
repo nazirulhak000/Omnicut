@@ -253,6 +253,8 @@ export default function Timeline({
   // orange marker per cut on the voice lane; `rangeMark` is the I / O pair.
   voiceEdit = null,
   rangeMark = null,
+  // Viral Lint heatmap: [{ code, severity: 'warn'|'block', start, end, message }].
+  lintSpans = null,
 }) {
   // The banner and the text overlays are one array; the two lanes are a view
   // of it, so a trim on either takes the same clamp and the same handler.
@@ -783,6 +785,7 @@ export default function Timeline({
             onMoveScrub={moveScrub}
             onEndScrub={endScrub}
             rangeMark={rangeMark}
+            lintSpans={lintSpans}
           />
 
           {/* Track lanes */}

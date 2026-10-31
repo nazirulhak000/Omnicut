@@ -115,7 +115,8 @@ import MixDegradedNotice from './MixDegradedNotice';
 import ProjectRevisionNotice from './ProjectRevisionNotice';
 import VoiceEditNotice from './VoiceEditNotice';
 import RenderPreflightNotice from './RenderPreflightNotice';
-import { analyzeRenderPreflight, preflightBlockingMessage } from '../../lib/renderPreflight.js';
+import { analyzeRenderPreflight, mergeViralLint, preflightBlockingMessage, viralLintHeatmapSpans } from '../../lib/renderPreflight.js';
+import useViralLint from '../../hooks/useViralLint';
 import { planSfxEvents } from '../../lib/sfxPlan.js';
 
 function formatErrorText(err) {
@@ -1159,6 +1160,16 @@ export default function EditorShell({
   const renderPreflight = useMemo(() => analyzeRenderPreflight({
     clips: clipList, durations, segments, expectedDuration: audioDuration,
   }), [clipList, durations, segments, audioDuration]);
+  // Viral Lint (M4): server-side retention + compliance check of the live
+  // editor state, merged into the same preflight report. Advisory unless it
+  // finds a compliance block; an unreachable API never blocks a render.
+  const viralLint = useViralLint({ projectName, manifest: projectSavePayload, enabled: clipList.length > 0 });
+  const refreshViralLint = viralLint.refresh;
+  const preflightReport = useMemo(
+    () => mergeViralLint(renderPreflight, viralLint.report, clipList),
+    [renderPreflight, viralLint.report, clipList],
+  );
+  const viralHeatmap = useMemo(() => viralLintHeatmapSpans(viralLint.report), [viralLint.report]);
   useEffect(() => { seekSegmentsRef.current = segments; }, [segments]);
 
   const {
@@ -2140,6 +2151,14 @@ export default function EditorShell({
       setApplyError(preflightBlockingMessage(renderPreflight));
       return;
     }
+    // Compliance (price / exaggerated claim) blocks like a structural error.
+    // Lint the latest state now, not the debounced result from a moment ago.
+    const freshViralLint = await refreshViralLint();
+    const viralGate = mergeViralLint(renderPreflight, freshViralLint ?? viralLint.report, clipList);
+    if (!viralGate.canRender) {
+      setApplyError(preflightBlockingMessage(viralGate));
+      return;
+    }
     if (isProjectPosted) {
       setApplyError('คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม');
       return;
@@ -2505,7 +2524,7 @@ export default function EditorShell({
       {projectName && projectWatermark(channelIdentitySnapshot, channel?.channelId || 'main') === null && (
         <p role="alert" className="border-b border-amber-300/20 bg-amber-300/10 px-4 py-2 text-sm text-amber-200">???????????????????????????????????????????? ???????????????????????</p>
       )}
-      <RenderPreflightNotice report={renderPreflight} onSeek={seekPlayer} />
+      <RenderPreflightNotice report={preflightReport} onSeek={seekPlayer} />
       <ProjectRevisionNotice
         kind={projectName ? revisionNotice : null}
         reloading={revisionReloading}
@@ -3068,6 +3087,7 @@ export default function EditorShell({
                     totalDuration={totalDuration}
                     audioDuration={audioDuration}
                     voiceEdit={activeVoiceEdit}
+                    lintSpans={viralHeatmap}
                     cues={cuesList}
                     bgmLabel={bgmLabel}
                     beatGrid={beatSnapEnabled ? beatGrid : null}
@@ -3895,6 +3915,7 @@ export default function EditorShell({
                     totalDuration={totalDuration}
                     audioDuration={audioDuration}
                     voiceEdit={activeVoiceEdit}
+                    lintSpans={viralHeatmap}
                     cues={cuesList}
                     bgmLabel={bgmLabel}
                     beatGrid={beatSnapEnabled ? beatGrid : null}

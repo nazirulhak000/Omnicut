@@ -3782,6 +3782,18 @@
       "module": "scripts.api_videos"
     },
     {
+      "method": "POST",
+      "path": "/api/viral-lint",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "major",
+      "resource_params": [
+        "project_name"
+      ],
+      "module": "scripts.api_viral_lint"
+    },
+    {
       "method": "GET",
       "path": "/api/voice/cache-status",
       "scope": "shared",
