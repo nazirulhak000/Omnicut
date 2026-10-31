@@ -2,9 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  ANGLE_TO_DEFAULT_STYLE,
+  AUTO_STYLE_PRESET,
   DEFAULT_ONE_CLICK_STYLE_PRESET,
   DEFAULT_STYLE_PRESET,
   STYLE_PRESET_CATALOG,
+  getRecommendedStyleForAngle,
   getStylePreset,
   normalizeStylePreset,
   stylePresetFromManifest,
@@ -94,4 +97,21 @@ test('custom option lists stay duplicate-safe without mutating the catalog', () 
   ];
   assert.deepEqual(uniqueStylePresets(options).map((preset) => preset.id), ['alpha', ' beta ']);
   assert.equal(uniqueStylePresets().length, STYLE_PRESET_CATALOG.length);
+});
+
+test('every angle default points at a real preset, including IT angle keys and batch suffixes', () => {
+  for (const [angle, style] of Object.entries(ANGLE_TO_DEFAULT_STYLE)) {
+    assert.equal(normalizeStylePreset(style), style, angle);
+  }
+  for (const key of ['spec_compare', 'fake_vs_real', 'real_test', 'spec_explained', 'pain_point', 'dont_cheap_out', 'how_to_setup', 'worth_upgrade']) {
+    assert.ok(Object.hasOwn(ANGLE_TO_DEFAULT_STYLE, key), key);
+  }
+  assert.equal(getRecommendedStyleForAngle('spec_compare_b2'), 'tech_compare');
+  assert.equal(getRecommendedStyleForAngle(' HOW_TO_SETUP '), 'smart_hack');
+  assert.equal(getRecommendedStyleForAngle('unknown'), DEFAULT_STYLE_PRESET);
+});
+
+test('batch auto choice is not a preset id, so it never masks an angle default', () => {
+  assert.equal(AUTO_STYLE_PRESET, 'auto');
+  assert.ok(!STYLE_PRESET_CATALOG.some((preset) => preset.id === AUTO_STYLE_PRESET));
 });

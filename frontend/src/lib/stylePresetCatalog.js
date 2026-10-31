@@ -78,9 +78,9 @@ const STYLE_PRESETS = [
     id: 'premium_minimal',
     label: 'Premium Minimal',
     labelTh: 'เรียบหรู จังหวะนิ่ง',
-    description: 'ลดการเคลื่อนไหว ใช้ Fade เฉพาะจุดสำคัญ และคุมสีทองสำหรับสินค้าพรีเมียม',
+    description: 'ลดการเคลื่อนไหว ตัดช้าและนิ่ง ใช้ Fade เป็นระยะ และคุมสีทองสำหรับสินค้าพรีเมียม',
     motion: 'Motion เบา เว้นพื้นที่ให้สินค้า',
-    transitions: 'Hard cut เป็นหลัก · Fade เฉพาะ Section',
+    transitions: 'Hard cut เป็นหลัก · Fade ทุกประมาณ 6 รอยต่อ',
     audio: 'Voice นำหน้า พร้อม SFX เฉพาะ event สำคัญ',
     accent: '#E6C24A',
     status: '#D8C58A',
@@ -96,7 +96,7 @@ const STYLE_PRESETS = [
     description: 'จังหวะเร็ว กระตุ้นความสนใจและจำกัดเวลา เหมาะกับคลิปโปรโมชั่นและส่วนลดพิเศษ',
     motion: 'Motion เร็ว เน้นกระตุ้นการมอง',
     transitions: 'สลับ Hard cut กับ Slide เร็ว',
-    audio: 'Voice นำหน้า พร้อม SFX เพิ่มความตื่นเต้น',
+    audio: 'Voice นำหน้า พร้อม SFX เฉพาะ event สำคัญ',
     accent: '#FF7A00',
     status: '#25F4EE',
     neutral: '#FFFFFF',
@@ -110,8 +110,8 @@ const STYLE_PRESETS = [
     labelTh: 'ชี้ปัญหา กระตุกอารมณ์',
     description: 'เปิดด้วยปัญหาที่คนดูเจอ ขยี้จุดเจ็บและตัดเข้าทางแก้ปัญหาอย่างชัดเจน',
     motion: 'Motion สั่นเน้นย้ำจุดปัญหา',
-    transitions: 'Hard cut ฉับไว ตัดเข้าไฮไลต์',
-    audio: 'Voice นำหน้า พร้อม SFX จุดสะดุดใจ',
+    transitions: 'สลับ Hard cut กับ Slide · Circle เป็นครั้งคราว',
+    audio: 'Voice นำหน้า พร้อม SFX เฉพาะ event สำคัญ',
     accent: '#FF2E93',
     status: '#25F4EE',
     neutral: '#FFFFFF',
@@ -125,8 +125,8 @@ const STYLE_PRESETS = [
     labelTh: 'เทียบสเปก วิเคราะห์ชัด',
     description: 'เน้นความน่าเชื่อถือ เปรียบเทียบของเดิมกับของใหม่ เห็นความต่างชัดเจน',
     motion: 'Motion นิ่งและแม่นยำ',
-    transitions: 'Hard cut และ Wipe ซ้ายขวา',
-    audio: 'Voice คมชัด SFX อารมณ์เทคโนโลยี',
+    transitions: 'Hard cut เป็นหลัก · เปลี่ยนช็อตทุกประมาณ 3 รอยต่อด้วย Slide, Fade หรือ Dissolve ตามจังหวะภาพ',
+    audio: 'Voice นำหน้า พร้อม SFX เฉพาะ event สำคัญ',
     accent: '#3B82F6',
     status: '#FFE600',
     neutral: '#FFFFFF',
@@ -139,9 +139,9 @@ const STYLE_PRESETS = [
     label: 'Smart Hack',
     labelTh: 'ทริกลึก เคล็ดลับป้ายยา',
     description: 'บอกวิธีใช้งานหรือทริกที่คนส่วนใหญ่ไม่รู้ ดูเพลินและน่าแชร์ต่อ',
-    motion: 'Motion กวาดสายตาแบบ Step-by-step',
-    transitions: 'Slide นุ่มนวล เชื่อมแต่ละทริก',
-    audio: 'Voice สบายๆ เป็นกันเอง SFX กวาดเสียง',
+    motion: 'กล้องเคลื่อนเบาทุกช็อต ไล่ดูทีละขั้น',
+    transitions: 'Dissolve ทุกประมาณ 3 รอยต่อ เชื่อมแต่ละทริก',
+    audio: 'Voice นำหน้า พร้อม SFX เฉพาะ event สำคัญ',
     accent: '#84CC16',
     status: '#25F4EE',
     neutral: '#FFFFFF',
@@ -154,9 +154,9 @@ const STYLE_PRESETS = [
     label: 'Niche Focus',
     labelTh: 'เจาะกลุ่ม เฉพาะสาย',
     description: 'เน้นคุณสมบัติเฉพาะที่ตอบโจทย์กลุ่มเป้าหมายเฉพาะทางอย่างตรงจุด',
-    motion: 'Motion เจาะลึกเฉพาะฟังก์ชัน',
-    transitions: 'Hard cut สลับ Zoom เฉพาะส่วน',
-    audio: 'Voice นิ่ง มั่นใจ โทนผู้เชี่ยวชาญ',
+    motion: 'กล้อง Push/Pan ทุก 2 ช็อต ค้างภาพนานขึ้นให้อ่านฟังก์ชันทัน',
+    transitions: 'Hard cut เป็นหลัก · Slide ทุกประมาณ 4 รอยต่อ และ Circle เป็นครั้งคราว',
+    audio: 'Voice นำหน้า พร้อม SFX เฉพาะ event สำคัญ',
     accent: '#A855F7',
     status: '#25F4EE',
     neutral: '#FFFFFF',
@@ -172,7 +172,12 @@ export const STYLE_PRESET_CATALOG = Object.freeze(
 
 const STYLE_PRESET_IDS = new Set(STYLE_PRESET_CATALOG.map((preset) => preset.id));
 
-/** 1-to-1 default mapping between 10 script angles and 10 editorial style presets. */
+/**
+ * Default style preset per script angle. Covers the 10 classic angles and
+ * every IT angle key in scripts/it_angles.py. Must stay identical to
+ * ANGLE_TO_DEFAULT_STYLE in scripts/batch_render.py (enforced by
+ * tests/test_style_preset_consistency.py).
+ */
 export const ANGLE_TO_DEFAULT_STYLE = Object.freeze({
   stop_scroll: 'viral_punch',
   fomo_deal: 'flash_deal',
@@ -184,13 +189,24 @@ export const ANGLE_TO_DEFAULT_STYLE = Object.freeze({
   niche_target: 'niche_focus',
   longterm_review: 'smooth_showcase',
   math_value: 'premium_minimal',
+  spec_compare: 'tech_compare',
+  fake_vs_real: 'viral_punch',
+  real_test: 'tech_product_showcase',
+  spec_explained: 'niche_focus',
+  dont_cheap_out: 'pain_punch',
+  how_to_setup: 'smart_hack',
+  worth_upgrade: 'premium_minimal',
 });
 
 /** Return recommended default style preset for an angle id, or fallback default. */
 export function getRecommendedStyleForAngle(angleId) {
   const normalizedAngle = String(angleId || '').trim().toLowerCase();
-  return ANGLE_TO_DEFAULT_STYLE[normalizedAngle] || DEFAULT_STYLE_PRESET;
+  const baseAngle = normalizedAngle.replace(/_b\d+$/, '');
+  return ANGLE_TO_DEFAULT_STYLE[normalizedAngle] || ANGLE_TO_DEFAULT_STYLE[baseAngle] || DEFAULT_STYLE_PRESET;
 }
+
+/** Batch picker value meaning "use each angle's recommended style". */
+export const AUTO_STYLE_PRESET = 'auto';
 
 /** Return a renderer-supported id, falling back safely for old/unknown data. */
 export function normalizeStylePreset(value) {
