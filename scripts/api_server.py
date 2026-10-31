@@ -95,6 +95,7 @@ from scripts.api_review import router as review_router
 from scripts.api_mobile_posting import router as mobile_posting_router
 from scripts.api_command import router as command_router
 from scripts.api_uploads import router as uploads_router
+from scripts.api_ssd_sync import router as ssd_sync_router
 from scripts.channel_scope import CHANNEL_HEADER, install_channel_scope
 from scripts.maintenance_lock import install_maintenance_gate
 
@@ -331,6 +332,7 @@ app.include_router(review_router)
 app.include_router(mobile_posting_router)
 app.include_router(command_router)
 app.include_router(uploads_router)
+app.include_router(ssd_sync_router)
 
 
 # ----------------------------------------------------------------------

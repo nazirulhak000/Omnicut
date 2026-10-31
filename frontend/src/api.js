@@ -755,4 +755,11 @@ export const buildCopilotDraft = (sessionId, clipSlug = null, dryRunAudio = fals
 export const renderCopilotSession = (sessionId) =>
   api.post(`/copilot/sessions/${encodeURIComponent(sessionId)}/render`).then(r => r.data);
 
+// ── External SSD Sneakernet Sync APIs ──
+export const getSSDDrives = () => api.get('/ssd/drives').then(r => r.data);
+export const inspectSSDDrive = (targetDrive) =>
+  api.get('/ssd/inspect?target_drive=' + encodeURIComponent(targetDrive)).then(r => r.data);
+export const stageToSSD = (payload) => api.post('/ssd/stage', payload).then(r => r.data);
+export const reconcileFromSSD = (payload) => api.post('/ssd/reconcile', payload).then(r => r.data);
+
 export default api;

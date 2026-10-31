@@ -1281,7 +1281,7 @@ export default function App() {
 
 
 
-          {activeTab === 'editor' && <ChannelWorkspaceBar />}
+
 
           {/* ── Topbar (Hidden on Manual Editor to maximize editing workspace) ── */}
 

@@ -4,6 +4,22 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-INTEGRATE-CHANNEL-SELECTOR-INTO-EDITOR-HEADER-20261031 · ย้ายและจัดระเบียบ Channel Selector เข้าสู่ EditorHeader โดยตรง และถอดแถบ ChannelWorkspaceBar ด้านบนที่กินพื้นที่และดูโดดออก คืนพื้นที่แนวตั้ง 44px+ และผ่านการทดสอบ 1,097/1,097 tests 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-SSD-4ENHANCEMENTS-DEEP-UPGRADE-20261031 · ดำเนินการยกระดับ 4 จุดสำคัญของระบบ External SSD Sneakernet: (1) โฟลเดอร์ Posted_Archive บน SSD (2) UI Clip Selector เลือกส่งออกเฉพาะบางคลิปได้ (3) Partial Upload Resumption รองรับกรณีโพสต์ค้าง (4) Embedded Python Launcher ใน `START_CAFE_UPLOADER.bat` · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-SSD-100PERCENT-GUI-PANEL-INTEGRATION-20261031 · พัฒนาแผงควบคุม UI สวยงามเป็นระเบียบ 100% GUI ไร้คำสั่ง Command Line สำหรับจัดการ External SSD (`SSDSyncModal.jsx`, `ExportGallery.jsx`, `api.js`) พร้อมปุ่มส่งออก 1-Click, ตรวจจับไดรฟ์อัตโนมัติ, และปุ่มซิงค์ผลโพสต์กลับบ้าน · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-SSD-SNEAKERNET-AUTONOMOUS-EXECUTION-20261031 · ปฏิบัติการ 5 เอเจนต์พัฒนาและประกอบระบบ External SSD Backup & Cafe Chrome Extension Uploader สมบูรณ์แบบครบทั้ง 5 ด้านจนผ่านเกณฑ์ 100/100 คะแนนเต็ม ตามแผน `_Docs/Plans/MASTER_SSD_SNEAKERNET_AUTONOMOUS_PLAN.md`:
+  - [x] Agent 1: Staging & Drive Detection Engine (`scripts/ssd_staging_engine.py` + SHA-256 + Disk Flush)
+  - [x] Agent 2: Portable Mini-Server Architect (`tools/portable_uploader_server.py` + `START_CAFE_UPLOADER.bat`)
+  - [x] Agent 3: Chrome Extension & TikTok Automation Specialist (`tiktok_autopost_extension` SSD file mounting & batch runner)
+  - [x] Agent 4: Two-Way Reconciliation & State Auditor (`scripts/ssd_reconcile_engine.py` + auto archive)
+  - [x] Agent 5: QA / TDD Gatekeeper (`tests/test_ssd_sneakernet_pipeline.py` รันชุดทดสอบ End-to-End ครบ 100/100 คะแนน)
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-MASTER-SSD-SNEAKERNET-AUTONOMOUS-LOOP-PLAN-20261031 · ออกแบบแผนแม่บทลูปรันทำงานแยก 5 เอเจนต์ พร้อมเกณฑ์ทดสอบ 100 คะแนนเต็ม (100-Point Scoring Rubric) สำหรับระบบ Backup External SSD & Cafe Chrome Extension Uploader ใน `_Docs/Plans/MASTER_SSD_SNEAKERNET_AUTONOMOUS_PLAN.md` · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [x] Round ANTIGRAVITY-PRD-OFFLINE-SSD-SNEAKERNET-SYNC-20261031 · ออกแบบสถาปัตยกรรมโฟลว์การทำงานและจัดทำ PRD ระบบซิงค์คลิปผ่าน External SSD (Sneakernet) แยกเครื่องเจน (Home PC) กับเครื่องอัปโหลดเน็ตแรง (Cafe Laptop) พร้อมกลไก Two-Way State Reconciliation ใน `_Docs/Plans/PRD_OFFLINE_SSD_SNEAKERNET_SYNC_20261031.md` · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-FIX-EDITOR-UNDEFINED-MOBILE-PREVIEW-CONSTANTS-20261031 · แก้ไขข้อผิดพลาด ReferenceError: MOBILE_PREVIEW_MIN_H is not defined และ MOBILE_PREVIEW_DEFAULT ใน EditorShell.jsx และ initialValues ใน NewClipPanel.jsx · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)

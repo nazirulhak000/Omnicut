@@ -21,6 +21,7 @@ import { Modal, Toast, Button, Badge, ConfirmModal, SafeQRCode } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import RawVaultPanel from './RawVaultPanel';
 import CoverStudioModal from './CoverStudioModal';
+import SSDSyncModal from './SSDSyncModal';
 import { getCoverVariant } from '../lib/coverVariant';
 import PaginationControls from './PaginationControls';
 import { matchExportVideo } from '../lib/exportMatching';
@@ -1209,6 +1210,7 @@ function ExportActiveWorkbench({
 }
 
 export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, initialHighlightVideo, onClearHighlightVideo, status }) {
+  const [showSSDSyncModal, setShowSSDSyncModal] = useState(false);
   const [activeMediaTab, setActiveMediaTab] = useState('exports');
   const [viewMode, setViewMode] = useState(() => {
     try {
@@ -1778,6 +1780,16 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   title="เปิดโฟลเดอร์ Exports บนเครื่อง"
                 >
                   <span className="hidden sm:inline">เปิดโฟลเดอร์</span>
+                </Button>
+                <Button
+                  onClick={() => setShowSSDSyncModal(true)}
+                  variant="secondary"
+                  size="sm"
+                  icon={HardDrive}
+                  className="px-2.5 sm:px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:border-emerald-400 font-semibold cursor-pointer"
+                  title="ศูนย์จัดการ External SSD (ส่งออกไปคาเฟ่ / ซิงค์ผลกลับบ้าน)"
+                >
+                  <span className="hidden sm:inline">External SSD</span>
                 </Button>
               </div>
             </div>
@@ -2649,6 +2661,13 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
             confirmText={`ลบทั้งหมด ${selectedVideos.length} ไฟล์`}
             loading={deleting}
             variant="danger"
+          />
+
+          {/* ── External SSD Sneakernet Sync Modal ── */}
+          <SSDSyncModal
+            isOpen={showSSDSyncModal}
+            onClose={() => setShowSSDSyncModal(false)}
+            onRefreshData={() => onRefresh?.({ includeExports: true, force: true })}
           />
         </>
       )}

@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-INTEGRATE-CHANNEL-SELECTOR-INTO-EDITOR-HEADER-20261031 | ย้ายและจัดระเบียบ Channel Selector เข้าสู่ EditorHeader โดยตรง และถอดแถบ ChannelWorkspaceBar ด้านบนที่กินพื้นที่และดูโดดออก: ถอดแถบ standalone bar ด้านบนใน App.jsx คืนพื้นที่แนวตั้ง 44px+ ให้กับหน้าต่างตัดต่อ, สร้าง EditorChannelSelector.jsx เป็น Glassmorphism Pill แสดงชื่อช่อง (@handle) พร้อมจุดสถานะ (เขียว/ส้ม) และ Dropdown Popover สำหรับสลับช่องอย่างนุ่มนวล, ฝังลงใน EditorHeader.jsx เคียงข้าง ProjectSelector สวยงามลงตัว, ปฏิบัติตาม Rule 3.8/4.8 คลีน 100%, เพิ่มชุดทดสอบ TDD frontend/src/lib/editorChannelSelector.test.js ผ่าน 5/5 tests (รวม Vitest 1,097/1,097 tests 100%, Pytest Parity 205/205 tests 100%), บิลด์ Vite สำเร็จ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-FIX-EDITOR-UNDEFINED-MOBILE-PREVIEW-CONSTANTS-20261031 | แก้ไขข้อผิดพลาด ReferenceError: MOBILE_PREVIEW_MIN_H is not defined และ MOBILE_PREVIEW_DEFAULT ใน EditorShell.jsx: ตรวจพบสาเหตุการเรียกใช้ตัวแปรความสูงพรีวิวมือถือที่ยังไม่ได้ import มาจาก hooks/usePanelLayout.js, เพิ่ม import MOBILE_PREVIEW_MIN_H และ MOBILE_PREVIEW_DEFAULT ใน EditorShell.jsx พร้อมเพิ่ม default prop initialValues = null ใน NewClipPanel.jsx, ตรวจสอบผ่าน Oxlint no-undef พบ 0 undefined identifiers, ผ่านการทดสอบ Vitest 1,092/1,092 tests (100%), Pytest Parity 205/205 tests (100%), Feature Coverage 6/6 tests (100%), รีบิลด์ Vite Production Bundle สำเร็จ (EditorShell-ClsfVLn7.js) | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-FIX-EDITOR-TDZ-ZOOMTOFIT-BUG-20261031 | แก้ไขข้อผิดพลาด ReferenceError: Cannot access 'jo' before initialization ใน EditorShell.jsx: ตรวจพบสาเหตุ useEditorShortcuts เรียกใช้ onZoomFit: zoomToFit ก่อนการประกาศ timelineViewportRef และ zoomToFit ส่งผลให้เกิด JavaScript Temporal Dead Zone (TDZ) และแครชที่ Runtime ในโหมด Minified Production Bundle (jo identifier), ดำเนินการย้ายการประกาศ timelineViewportRef และ zoomToFit ขึ้นมาอยู่ก่อนหน้าการเรียก useEditorShortcuts, รีบิลด์ Vite Production Bundle สำเร็จ (EditorShell-zpXCEXu8.js), ผ่านการทดสอบ Vitest 1,092/1,092 tests (100%), Pytest Parity 205/205 tests (100%), Feature Coverage 6/6 tests (100%), Oxlint 0 errors | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-1HOUR-DESKTOP-NLE-SPRINT-20261031 | ปฏิบัติการกะ 1 ชั่วโมงเต็ม (60 นาที) ยกระดับและขัดเกลาหน้า Editor โหมดเดสก์ท็อปขนาดใหญ่ (1920x1080 / 1440p / 4K) ครบ 4 Cycles ตามแผนแม่บท _Docs/Plans/MASTER_EDITOR_DESKTOP_1HOUR_LOOP_PROMPT.md: Cycle 1 Pro 3-Column Splitters (Active neon glow, ARIA keyboard navigation, px live tooltips, max 560/760px ultrawide, DaVinci-style dock strips), Cycle 2 Timeline Mouse & Pro Track Colors (Horizontal wheel scroll, Ctrl+Wheel anchored zoom, Cyan/Amber/Violet/Emerald/Neon Green Pro NLE track colors, Lucide Magnet clean icon), Cycle 3 Pro Shortcuts (Universal Shift+Z zoom-to-fit, J/K/L shuttle, 1-frame arrow nudge, Q/W trim, C split), Cycle 4 Dark Glass Studio & 4-Bus Mixer (OLED canvas #030509, hardware-style Mute/Solo glow lights, 4-bus faders), ผ่านการทดสอบ Vitest 1,092/1,092 tests (100%), Pytest Parity 205/205 tests (100%), Feature Coverage 6/6 tests (100%), ผลิตรายงานสมบูรณ์ _Docs/Reports/EDITOR_DESKTOP_1HOUR_SPRINT_20261031.md | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -127,6 +128,29 @@
 ---
 
 ---
+
+---
+
+## Round ANTIGRAVITY-INTEGRATE-CHANNEL-SELECTOR-INTO-EDITOR-HEADER-20261031 · ย้ายและจัดระเบียบ Channel Selector เข้าสู่ EditorHeader โดยตรง และถอดแถบ ChannelWorkspaceBar ด้านบนที่กินพื้นที่และดูโดดออก
+
+**ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)** · วันที่: 2026-10-31
+
+- **ปัญหาและการวินิจฉัย (Problem & Diagnostics):**
+  - ผู้ใช้รายงานปัญหาพร้อมภาพประกอบ โดยวงแถบด้านบนของหน้า Editor ที่มี `ช่อง [rizannTry v] @rizanntry ... พร้อมผลิต` และชี้ลูกศรลงมายัง EditorHeader ว่า "ผมไม่ชอบเลยอ่ะ จุดนี้มันดูโดด เปลืองพื้นที่มากครับ เอาออกหรือวางเลย์เอาท์ใหม่หน่อยครับ"
+  - ตรวจสอบพบว่าใน `frontend/src/App.jsx` ที่บรรทัด 1284 มีการใส่ `{activeTab === 'editor' && <ChannelWorkspaceBar />}` ซึ่งเป็นแถบสีดำทึบขนาด 44px+ วางคั่นอยู่เหนือพื้นที่ตัดต่อทั้งหมด ทำให้ดูแปลกแยกและกินพื้นที่แนวตั้งโดยไม่จำเป็น
+- **การแก้ไขและจัดวางเลย์เอาท์ใหม่ (Redesign & Implementation):**
+  - ถอด `{activeTab === 'editor' && <ChannelWorkspaceBar />}` ออกจาก `frontend/src/App.jsx` คืนพื้นที่แนวตั้ง 44px+ ให้กับ Canvas และ Timeline
+  - สร้าง `frontend/src/components/editor/EditorChannelSelector.jsx` เป็น Glassmorphism Pill ที่มีขนาดกะทัดรัด (h-8/h-9) คุมโทน Ultra-Realistic Glass เข้ากับ Dark Studio
+  - แสดงชื่อช่องพร้อมจุดไฟสถานะ (เขียวสำหรับพร้อมผลิต, ส้มสำหรับแบบร่าง), ชื่อ handle (@rizanntry), และลูกศร Dropdown
+  - เมื่อคลิกจะเปิด Glass Popover เมนูเลือกสลับช่อง พร้อมแสดงสถานะของแต่ละช่อง, เครื่องหมายถูกที่ช่องปัจจุบัน, และรองรับการสลับช่องที่ติดค้างการบันทึก (dirty changes guard) อัตโนมัติ
+  - รองรับการปิดด้วยปุ่ม Escape และคลิกนอกพื้นที่ (Outside click listener)
+  - ฝัง `EditorChannelSelector` ลงใน `frontend/src/components/editor/EditorHeader.jsx` อยู่ติดกับ `ProjectSelector` โดยมีเส้นคั่นบาง ๆ ไม่ดันปุ่มเรนเดอร์ตกขอบ
+  - ปฏิบัติตาม Rule 3.8 / 4.8 อย่างเคร่งครัด (ปุ่มทุกปุ่มขึ้นต้นด้วยคำกริยา ไร้สัญลักษณ์หรืออีโมจินำหน้า)
+- **การทดสอบและการตรวจสอบ (Verification Gate):**
+  - สร้างชุดทดสอบ TDD `frontend/src/lib/editorChannelSelector.test.js` ครอบคลุม 5 จุดทดสอบ (Component contract, Keyboard escape, Rule 3.8/4.8, Header integration, App.jsx removal) ผ่าน 5/5 tests
+  - รันชุดทดสอบ Vitest ผ่านทั้งหมด 1,097 / 1,097 tests (100%)
+  - รันชุดทดสอบ Backend Parity `pytest tests/test_preview_render_parity.py` ผ่าน 205 / 205 tests (100%)
+  - รัน `npm --prefix frontend run build` คอมไพล์โปรดักชันบันเดิลสำเร็จสมบูรณ์ ไร้ข้อผิดพลาด
 
 ---
 

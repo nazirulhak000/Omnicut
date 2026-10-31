@@ -9,6 +9,7 @@ import { formatTimecode } from '../../lib/timelineMath.js';
 import HeaderMenu from './HeaderMenu.jsx';
 import RenderButton from './RenderButton.jsx';
 import ProjectSelector from './ProjectSelector.jsx';
+import EditorChannelSelector from './EditorChannelSelector.jsx';
 import { ActivityIndicatorButton } from '../ActivityCenter.jsx';
 import { getProjectOrigin } from '../../api.js';
 import { loadPlaybookNotes } from '../../lib/producerInsights.js';
@@ -70,6 +71,10 @@ export default function EditorHeader({
       {/* ── Left: Project selector, timecode, save status ── */}
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <Scissors className="hidden h-4 w-4 flex-shrink-0 text-[#D97757] sm:block" />
+
+        <EditorChannelSelector />
+
+        <div className="hidden sm:block h-4 w-px bg-white/10 flex-shrink-0" />
 
         <ProjectSelector
           projectName={projectName}
