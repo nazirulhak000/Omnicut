@@ -1312,7 +1312,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 sticker_path=params.get("sticker_path"),
                 bgm_name=params.get("bgm_name"),
                 bgm_volume=params.get("bgm_volume"),
-                bgm_ducking=bool(params.get("bgm_ducking")),
+                bgm_ducking=bool(params.get("bgm_ducking", True)),
                 audio_mutes=params.get("audio_mutes"),
                 lut_name=params.get("lut_name"),
                 lut_intensity=params.get("lut_intensity", 1.0),
