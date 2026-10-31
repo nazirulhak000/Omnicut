@@ -15,71 +15,29 @@ from typing import Any
 
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
-# These are deliberately kept local.  Importing the renderer's style policy
-# here would make this foundational resolver part of the render dependency
-# graph before it is wired into the pipeline.
-STYLE_FALLBACKS: dict[str, dict[str, str]] = {
-    "clean_tech_review": {
-        "primary": "#FFE600",
-        "secondary": "#25F4EE",
-        "neutral": "#FFFFFF",
-        "ink": "#080B10",
-    },
-    "viral_punch": {
-        "primary": "#FE2C55",
-        "secondary": "#25F4EE",
-        "neutral": "#FFFFFF",
-        "ink": "#080B10",
-    },
-    "smooth_showcase": {
-        "primary": "#25F4EE",
-        "secondary": "#FFB000",
-        "neutral": "#FFFFFF",
-        "ink": "#080B10",
-    },
-    "premium_minimal": {
-        "primary": "#E6C24A",
-        "secondary": "#25F4EE",
-        "neutral": "#FFFFFF",
-        "ink": "#080B10",
-    },
-    "tech_product_showcase": {
-        "primary": "#FFCC33",
-        "secondary": "#25F4EE",
-        "neutral": "#FFFFFF",
-        "ink": "#080B10",
-    },
-    "flash_deal": {
-        "primary": "#FF7A00",
-        "secondary": "#25F4EE",
-        "neutral": "#FFFFFF",
-        "ink": "#080B10",
-    },
-    "pain_punch": {
-        "primary": "#FF2E93",
-        "secondary": "#25F4EE",
-        "neutral": "#FFFFFF",
-        "ink": "#080B10",
-    },
-    "tech_compare": {
-        "primary": "#3B82F6",
-        "secondary": "#FFE600",
-        "neutral": "#FFFFFF",
-        "ink": "#080B10",
-    },
-    "smart_hack": {
-        "primary": "#84CC16",
-        "secondary": "#25F4EE",
-        "neutral": "#FFFFFF",
-        "ink": "#080B10",
-    },
-    "niche_focus": {
-        "primary": "#A855F7",
-        "secondary": "#25F4EE",
-        "neutral": "#FFFFFF",
-        "ink": "#080B10",
-    },
-}
+# Style fallbacks are read from the renderer's style policy so overlay
+# colours can never drift from the preset contract (accent -> primary,
+# status -> secondary).  style_motion_policy is a pure data module (it only
+# imports scripts.config), so this keeps the resolver free of renderer and
+# pipeline dependencies.
+from scripts.style_motion_policy import STYLE_MOTION_POLICIES as _STYLE_MOTION_POLICIES
+
+STYLE_FALLBACK_INK = "#080B10"
+
+
+def _style_fallbacks_from_policy() -> dict[str, dict[str, str]]:
+    return {
+        key: {
+            "primary": policy.accent_color.upper(),
+            "secondary": policy.status_color.upper(),
+            "neutral": policy.neutral_color.upper(),
+            "ink": STYLE_FALLBACK_INK,
+        }
+        for key, policy in _STYLE_MOTION_POLICIES.items()
+    }
+
+
+STYLE_FALLBACKS: dict[str, dict[str, str]] = _style_fallbacks_from_policy()
 
 DEFAULT_STYLE = "clean_tech_review"
 

@@ -7,6 +7,18 @@ from scripts.ai_bridge import AIBridge
 from scripts.script_generator import ScriptGenerator
 from scripts.pipeline_context import PipelineContext
 from scripts.quota import is_quota_error
+from scripts.compliance_lint import enforce_script_compliance, format_violations_th, lint_script
+
+
+def _optional_target_duration(value) -> "int | None":
+    """Coerce an optional target clip length (seconds) to a positive int or None."""
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)) or value in ("", 0):
+        return None
+    try:
+        seconds = int(value)
+    except (TypeError, ValueError):
+        return None
+    return seconds if seconds > 0 else None
 
 
 class ScriptStage:
@@ -36,6 +48,15 @@ class ScriptStage:
                     "lines": lines,
                     "full_text": "\n".join([l["text"] for l in lines])
                 }
+                # The user's own script is never rewritten, but a price/claim
+                # hit must not pass silently either.
+                custom_hits = lint_script(script_data)
+                if custom_hits:
+                    print(
+                        "⚠️ [Pipeline] สคริปต์ที่ผู้ใช้เขียนเองมีจุดผิดกฎ compliance (ไม่แก้ให้อัตโนมัติ):\n"
+                        f"{format_violations_th(custom_hits)}"
+                    )
+                    ctx.notify("⚠️ สคริปต์มีคำเรื่องราคา/เคลมเกินจริง/เปิดคลิปด้วยคำขอให้หยุดดู — ควรแก้ก่อนโพสต์", 0.10)
             else:
                 ai_script = None
                 if AIBridge.is_available():
@@ -45,10 +66,19 @@ class ScriptStage:
                         ai_ctx = {
                             "product_name": ctx.product_name,
                             "angle_title": ctx.angle_meta.get("title", "รีวิวสินค้า") if ctx.angle_meta else "รีวิวสินค้าสุดปัง",
-                            "hook": ctx.angle_meta.get("hook", "") if ctx.angle_meta else f"ใครหา {ctx.product_name} อยู่ดูคลิปนี้เลย",
+                            # Default hook opens with a concrete question, not a
+                            # "stop scrolling / watch this" filler (Q3).
+                            "hook": ctx.angle_meta.get("hook", "") if ctx.angle_meta else f"{ctx.product_name} ใช้งานจริงเป็นยังไง เดี๋ยวให้ดูกับตา",
                             "specs": [{"label": "จุดเด่น", "value": ctx.key_features[:60]}],
                             "price_deal": ctx.price_deal
                         }
+                        # M3 retention controls. Optional: with no target the
+                        # prompt keeps today's default length rules exactly.
+                        target_duration = _optional_target_duration(getattr(ctx, "target_duration", None))
+                        if target_duration is not None:
+                            ai_ctx["target_duration"] = target_duration
+                        story_format = getattr(ctx, "story_format", None)
+                        ai_ctx["story_format"] = story_format.strip() if isinstance(story_format, str) and story_format.strip() else "classic"
                         ai_resp = AIBridge.generate("script", ai_ctx)
                         ai_lines = ai_resp.get("lines", [])
                         if ai_lines:
@@ -85,6 +115,18 @@ class ScriptStage:
                         pain_point=ctx.pain_point,
                         price_deal=ctx.price_deal
                     )
+                    # Template text is clean, but pain_point/key_features come
+                    # from product data and could carry a price or claim.
+                    script_data, removed = enforce_script_compliance(script_data)
+                    if removed:
+                        print(
+                            "⚠️ [Pipeline] สคริปต์สำเร็จรูปมีจุดผิดกฎ compliance — ตัดบรรทัดที่ผิดออกแล้ว:\n"
+                            f"{format_violations_th(removed)}"
+                        )
+                        kept = script_data.get("lines") or []
+                        script_data["full_text"] = "\n".join(l["text"] for l in kept)
+                        if kept:
+                            script_data["hook"] = kept[0]["text"]
         else:
             if not ctx.manifest:
                 raise ValueError("Cannot reuse script without manifest")

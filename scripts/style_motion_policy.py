@@ -7,12 +7,26 @@ inline if/else chain in the shot matcher.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Mapping, Optional
 
 from scripts.config import J_CUT_OFFSET_SECONDS, MAX_SHOT_DURATION, MIN_SHOT_DURATION
 
 # Today's global beat-snap window (was a literal inside the shot matcher).
 BEAT_SNAP_TOLERANCE = 0.15
+
+# Pacing curve (roadmap M2). The opening seconds cut faster than the body of
+# the clip, and no span may sit longer than max_static_sec without a cut, a
+# transition or a camera move. Values per motion family:
+#   (hook_max_shot, max_static_sec)
+# [assumption, to be tuned from the Q6 watch-time data].
+HOOK_WINDOW_SEC = 3.0
+FAMILY_PACING = {
+    "energetic": (1.0, 2.0),  # punch
+    "adaptive": (1.3, 2.5),   # tech
+    "smooth": (1.5, 3.0),
+    "minimal": (1.8, 3.5),    # premium
+}
+DEFAULT_FAMILY_PACING = FAMILY_PACING["adaptive"]
 
 
 @dataclass(frozen=True)
@@ -48,6 +62,19 @@ class StyleMotionPolicy:
     # apply_transition_budget). Calm styles settle softly (ease_in_out); the
     # punchy ones hit fast and decelerate (ease_out).
     transition_easing: str = "ease_in_out"
+    # Pacing curve (M2). None means "derive from transition_family" via
+    # FAMILY_PACING, so a policy written before these fields existed (or a
+    # serialized one missing them) still resolves to sensible values.
+    hook_window_sec: float = HOOK_WINDOW_SEC
+    hook_max_shot: Optional[float] = None
+    max_static_sec: Optional[float] = None
+
+    def __post_init__(self) -> None:
+        hook_default, static_default = FAMILY_PACING.get(self.transition_family, DEFAULT_FAMILY_PACING)
+        if self.hook_max_shot is None:
+            object.__setattr__(self, "hook_max_shot", hook_default)
+        if self.max_static_sec is None:
+            object.__setattr__(self, "max_static_sec", static_default)
 
 
 STYLE_MOTION_POLICIES = {
@@ -477,9 +504,29 @@ def style_motion_catalog() -> Dict[str, Dict[str, Any]]:
             "j_lead": policy.j_lead,
             "beat_snap_tolerance": policy.beat_snap_tolerance,
             "transition_easing": policy.transition_easing,
+            "hook_window_sec": policy.hook_window_sec,
+            "hook_max_shot": policy.hook_max_shot,
+            "max_static_sec": policy.max_static_sec,
         }
         for key, policy in STYLE_MOTION_POLICIES.items()
     }
+
+
+def style_motion_policy_from_dict(data: Optional[Mapping[str, Any]]) -> StyleMotionPolicy:
+    """Rebuild a policy from a serialized catalog entry.
+
+    Unknown keys are ignored and missing keys fall back to the registered
+    policy of the same ``key`` (or the Golden Master), so entries saved before
+    the pacing-curve fields existed load unchanged.
+    """
+    from dataclasses import fields, replace
+
+    if not isinstance(data, Mapping):
+        return DEFAULT_STYLE_MOTION_POLICY
+    base = resolve_style_motion_policy(data.get("key"))
+    known = {f.name for f in fields(StyleMotionPolicy)} - {"key"}
+    overrides = {name: data[name] for name in known if name in data and data[name] is not None}
+    return replace(base, **overrides) if overrides else base
 
 
 def style_visual_palette(style_preset: Optional[str]) -> Dict[str, str]:
@@ -501,5 +548,6 @@ __all__ = [
     "orient_slide_to_pan",
     "resolve_style_motion_policy",
     "style_motion_catalog",
+    "style_motion_policy_from_dict",
     "style_visual_palette",
 ]

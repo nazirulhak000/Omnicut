@@ -1422,8 +1422,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # long spec bar's footprint ever crosses either at the same time.
             # on_screen is AI-script-generated but ultimately derived from
             # scraped product data, so it gets the same override-tag escaping
-            # as every other user/scraper-controlled caption text.
-            events.append(f"Dialogue: 2,{spec_start},{spec_end},SpecBar,,0,0,0,,{spec_anim}📊 {ass_escape_text(on_screen)}")
+            # as every other user/scraper-controlled caption text. No emoji
+            # prefix: zero-emoji rule (and libass draws emoji via a fallback face).
+            events.append(f"Dialogue: 2,{spec_start},{spec_end},SpecBar,,0,0,0,,{spec_anim}{ass_escape_text(on_screen)}")
 
         # 4. Custom Text Overlays (Freeform multi-layer text lines)
         if text_items:

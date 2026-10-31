@@ -8,6 +8,11 @@ import pytest
 
 from tests.test_shot_matching_cut_quality import _context, _run
 
+from tests.legacy_shot_pacing import legacy_body_pacing  # noqa: F401  (fixture)
+
+# Body-planner contracts: the M2 pacing curve is tested in test_pacing_curve.py.
+pytestmark = pytest.mark.usefixtures("legacy_body_pacing")
+
 
 @pytest.mark.parametrize("revisit", [False, True])
 def test_generated_exhausted_scene_plan_remains_renderable_and_seekable(revisit):

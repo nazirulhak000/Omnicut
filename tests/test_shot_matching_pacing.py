@@ -1,10 +1,17 @@
 """Contract tests for applying editorial pacing at the shared clip-list seam."""
 
 from pathlib import Path
+
+import pytest
 from unittest.mock import patch
 
 from scripts.pipeline_context import PipelineContext
 from scripts.stages.shot_matching_stage import ShotMatchingStage
+
+from tests.legacy_shot_pacing import legacy_body_pacing  # noqa: F401  (fixture)
+
+# Body-planner contracts: the M2 pacing curve is tested in test_pacing_curve.py.
+pytestmark = pytest.mark.usefixtures("legacy_body_pacing")
 
 
 def _context(*, pacing=None, clip_list=None, cue_count=3, total_duration=6.0):

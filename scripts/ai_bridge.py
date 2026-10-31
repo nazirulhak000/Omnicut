@@ -203,7 +203,7 @@ class AIBridge:
             "label": "เขียนสคริปต์พากย์และซับไตเติลสองภาษา",
             "required_context": ["product_name", "angle_title", "hook", "specs"],
             "schema_hint": {
-                "hook_title": "ข้อความแบนเนอร์บนจอ 3 วิแรก สั้นมาก (ไม่เกิน 5-7 คำ)",
+                "hook_title": "ข้อความแบนเนอร์บนจอ 3 วิแรก สั้นมาก (ไม่เกิน 5-7 คำ) ห้ามมีอีโมจิ",
                 # The banner is three stacked tiers, not one sentence. Asking
                 # the model to split the product name is far more reliable
                 # than splitting it here on whitespace, which was the old
@@ -215,7 +215,7 @@ class AIBridge:
                     {
                         "text": "ประโยคพูดสั้นเป็นธรรมชาติ (เว้นวรรคระหว่างประโยคย่อย ประโยคสั้น <18 ตัวอักษรรวมกันได้ 2 ประโยค, ประโยคยาวแยก 1 บรรทัด)",
                         "translation": "คำแปลภาษาอังกฤษกระชับตรงตามประโยคนี้ (English translation matching this clause)",
-                        "on_screen": "ตัวเลข/สเปคที่ต้องขึ้นจอตอนพูดบรรทัดนี้ ถ้าไม่มีใส่ว่าง",
+                        "on_screen": "ตัวเลข/สเปคที่ต้องขึ้นจอตอนพูดบรรทัดนี้ (ห้ามราคา ห้ามอีโมจิ ห้ามจุดไข่ปลา) ถ้าไม่มีใส่ว่าง",
                         "sfx": "__SFX_NAME_LIST__",
                     }
                 ],
@@ -239,15 +239,55 @@ class AIBridge:
 - สินค้า IT ต้องมีตัวเลขสเปคจริงเสมอ (W, mAh, ms, Hz, dB) ห้ามมั่วตัวเลข ถ้าไม่รู้ให้เว้น
 - ห้ามเคลมเกินจริง ห้ามใช้คำว่า "ดีที่สุดในโลก" "รักษาโรค" หรือคำที่พิสูจน์ไม่ได้
 - ห้ามพูด/เขียนถึงราคา ตัวเลขเงิน ส่วนลด โปรโมชั่น Flash Sale คูปอง ส่งฟรี หรือการเดาราคา (เช่น "หลักร้อย" "หลักพัน") ในบทพูด ซับ แคปชั่น แฮชแท็ก และข้อความบนจอทุกจุด (ผิดกฎ TikTok) ห้ามเร่งด้วยราคา ให้ใช้ CTA กลางๆ เท่านั้น
-- ความยาวและโครงสร้างสคริปต์ (สำคัญมาก):
-  * ถ้าต้องการคลิปมาตรฐาน 35–45 วินาที: ต้องเขียน 7–8 บรรทัด (ประมาณ 500–650 ตัวอักษร) ไล่สเต็ป: Hook หยุดนิ้ว (3 วิ) -> เปิด Pain Point คนใช้ -> เฉลยตัวช่วย/แกะกล่องสินค้า -> จุดเด่นที่ 1 พร้อมสเปกจริง -> จุดเด่นที่ 2 / ประสบการณ์สัมผัสจริง -> ความสะดวก/ความทนทาน -> เหตุผลที่ควรมีติดไว้ -> CTA กลางๆ ชี้ตะกร้า เช่น "กดตะกร้าดูรายละเอียดได้เลยครับ"
-  * ถ้าต้องการคลิปสั้นกระชับ 20–25 วินาที: ให้เขียน 5 บรรทัด (ประมาณ 300–380 ตัวอักษร)
+__LENGTH_RULES__
 - กฎการตัดประโยคคำบรรยาย:
   * แบ่งตามประโยคธรรมชาติที่ได้ใจความก่อนเว้นวรรค ห้ามตัดขาดกลางคำเดี่ยวๆ
   * ประโยคสั้น (<18 ตัวอักษร) รวมกันได้สูงสุด 2 ประโยคต่อ 1 บรรทัด (ไม่เกิน 34 ตัวอักษร)
   * ประโยคยาว (>=18 ตัวอักษร) ตัดเป็น 1 ประโยคเดี่ยวต่อ 1 บรรทัด
   * คำลงท้าย เช่น "ครับ", "ค่ะ", "บ้าง", "ๆ" ให้ต่อท้ายประโยคเดิมเสมอ
 - ทุกบรรทัดต้องมี field "translation" เป็นคำแปลภาษาอังกฤษที่ตรงกับประโยคนั้นๆ 100%"""
+
+    # Length block of STYLE_RULES. Non-script tasks get the legacy text
+    # verbatim; the script task swaps in the retention beat order (M3) while
+    # keeping the same default length numbers when no target_duration is set.
+    LEGACY_LENGTH_RULES = """- ความยาวและโครงสร้างสคริปต์ (สำคัญมาก):
+  * ถ้าต้องการคลิปมาตรฐาน 35–45 วินาที: ต้องเขียน 7–8 บรรทัด (ประมาณ 500–650 ตัวอักษร) ไล่สเต็ป: Hook หยุดนิ้ว (3 วิ) -> เปิด Pain Point คนใช้ -> เฉลยตัวช่วย/แกะกล่องสินค้า -> จุดเด่นที่ 1 พร้อมสเปกจริง -> จุดเด่นที่ 2 / ประสบการณ์สัมผัสจริง -> ความสะดวก/ความทนทาน -> เหตุผลที่ควรมีติดไว้ -> CTA กลางๆ ชี้ตะกร้า เช่น "กดตะกร้าดูรายละเอียดได้เลยครับ"
+  * ถ้าต้องการคลิปสั้นกระชับ 20–25 วินาที: ให้เขียน 5 บรรทัด (ประมาณ 300–380 ตัวอักษร)"""
+
+    SCRIPT_DEFAULT_LENGTH_RULES = """- ความยาวสคริปต์ (สำคัญมาก):
+  * ถ้าต้องการคลิปมาตรฐาน 35–45 วินาที: ต้องเขียน 7–8 บรรทัด (ประมาณ 500–650 ตัวอักษร)
+  * ถ้าต้องการคลิปสั้นกระชับ 20–25 วินาที: ให้เขียน 5 บรรทัด (ประมาณ 300–380 ตัวอักษร)"""
+
+    SCRIPT_STRUCTURE_RULES = """- โครงสร้างสคริปต์แบบรักษาคนดู (เรียงตามนี้ ห้ามข้าม):
+  1. Hook บรรทัดแรก: เปิดด้วยผลลัพธ์ ภาพที่เห็น หรือคำถามเฉพาะสินค้า ประโยคแรกห้ามขอให้คนดูหยุดเลื่อน/หยุดดู/ดูให้จบ และห้ามมี CTA หรือคำว่าตะกร้าในบรรทัดแรก
+  2. Open loop ภายในราว 3 วินาทีแรก (บรรทัดที่ 1–2): สัญญาว่าเดี๋ยวจะได้เห็น/รู้อะไร เพื่อให้ดูต่อ
+  3. เนื้อหา: Pain Point คนใช้ -> จุดเด่นพร้อมสเปกจริง -> ประสบการณ์ใช้งาน
+  4. Payoff: เฉลยสิ่งที่สัญญาไว้ใน hook ให้ชัด (ผูกกลับไปที่ประโยคแรก)
+  5. คำถามปลายเปิด 1 ข้อชวนคอมเมนต์ (เช่น ใช้แบบไหนอยู่) ห้ามเป็นคำถามทายราคา/เดาราคาเด็ดขาด
+  6. CTA กลางๆ ชี้ตะกร้าบรรทัดสุดท้ายเท่านั้น เช่น "กดตะกร้าดูรายละเอียดได้เลยครับ"
+- ห้ามเคลมหรือแต่งข้อมูล เช่น "ใช้จริงมา 3 เดือน" "ขายถล่มทลาย" "อันดับ 1" "100% ไม่พัง" และ on_screen ห้ามมีราคา อีโมจิ หรือจุดไข่ปลา"""
+
+    # Optional story_format hints (M3). Unknown formats add nothing.
+    STORY_FORMAT_HINTS: Dict[str, str] = {
+        "countdown": "- รูปแบบเล่า: นับถอยหลัง 3 ข้อ (ข้อ 3 -> 2 -> 1) บอกตั้งแต่ต้นว่าข้อ 1 ดีที่สุดเก็บไว้ท้าย",
+        "problem_reveal": "- รูปแบบเล่า: ปัญหาก่อนใช้ -> เฉลยตัวช่วย -> ผลลัพธ์หลังใช้ให้เห็นภาพชัด",
+        "myth_buster": "- รูปแบบเล่า: เปิดด้วยความเชื่อผิดๆ ที่คนเข้าใจกัน แล้วแก้ด้วยข้อเท็จจริงจากสเปกจริง",
+        "loop": "- รูปแบบเล่า: ประโยคสุดท้ายต้องต่อกลับเข้าประโยคแรกได้อย่างลื่นไหล เพื่อให้คนดูวนซ้ำ",
+    }
+
+    @classmethod
+    def _script_length_rules(cls, target_duration: Optional[float]) -> str:
+        from scripts.compliance_lint import LENGTH_TOLERANCE, target_char_count
+        target_chars = target_char_count(target_duration)
+        if not target_chars:
+            return cls.SCRIPT_DEFAULT_LENGTH_RULES
+        lo = int(target_chars * (1 - LENGTH_TOLERANCE))
+        hi = int(round(target_chars * (1 + LENGTH_TOLERANCE)))
+        return (
+            "- ความยาวสคริปต์ (สำคัญมาก):\n"
+            f"  * คลิปเป้าหมาย {int(target_duration)} วินาที: เขียนรวมประมาณ {target_chars} ตัวอักษร "
+            f"(ไม่ต่ำกว่า {lo} และไม่เกิน {hi} ตัวอักษร ไม่นับช่องว่าง)"
+        )
 
     # ------------------------------------------------------------------
     # Prompt building
@@ -268,6 +308,34 @@ class AIBridge:
         # still sends one it is dropped here rather than nudging the model.
         if task != "product_enrich":
             context = {k: v for k, v in context.items() if k not in PRICE_CONTEXT_KEYS}
+
+        # M3: optional retention controls travel in the context but are
+        # rendered as rules, not dumped as raw data.
+        target_duration = None
+        story_format = "classic"
+        if task == "script":
+            context = dict(context)
+            raw_target = context.pop("target_duration", None)
+            raw_format = context.pop("story_format", None)
+            try:
+                target_duration = int(raw_target) if raw_target not in (None, "", 0) else None
+            except (TypeError, ValueError):
+                target_duration = None
+            if target_duration is not None and target_duration <= 0:
+                target_duration = None
+            if isinstance(raw_format, str) and raw_format.strip():
+                story_format = raw_format.strip()
+
+        if task == "script":
+            rules_block = cls.STYLE_RULES.replace(
+                "__LENGTH_RULES__", cls._script_length_rules(target_duration)
+            ) + "\n" + cls.SCRIPT_STRUCTURE_RULES
+            hint = cls.STORY_FORMAT_HINTS.get(story_format)
+            if hint:
+                rules_block += "\n" + hint
+        else:
+            rules_block = cls.STYLE_RULES.replace("__LENGTH_RULES__", cls.LEGACY_LENGTH_RULES)
+
         context_block = json.dumps(context, ensure_ascii=False, indent=2)
 
         # The "script" task's schema_hint carries a sentinel for the sfx
@@ -283,7 +351,7 @@ class AIBridge:
         return f"""คุณคือครีเอเตอร์ TikTok Shop สายสินค้า IT ที่ขายเก่งที่สุดในไทย
 งาน: {spec['label']}
 
-{cls.STYLE_RULES}
+{rules_block}
 
 ข้อมูลที่มี:
 {context_block}
@@ -296,8 +364,14 @@ class AIBridge:
     # Response parsing
     # ------------------------------------------------------------------
     @classmethod
-    def parse_response(cls, task: str, raw_text: str) -> Dict[str, Any]:
-        """Parse a pasted answer into a dict, tolerating code fences and stray prose."""
+    def parse_response(cls, task: str, raw_text: str, enforce_compliance: bool = True) -> Dict[str, Any]:
+        """Parse a pasted answer into a dict, tolerating code fences and stray prose.
+
+        With `enforce_compliance` (the default -- manual paste path), any
+        script line / on_screen / hook field that trips the compliance lint
+        is removed and logged in Thai. `generate()` passes False so it can
+        try one regeneration first and enforce afterwards.
+        """
         if task not in cls.TASKS:
             raise ValueError(f"Unknown task '{task}'")
         if not raw_text or not raw_text.strip():
@@ -326,18 +400,73 @@ class AIBridge:
             raise ValueError("คำตอบต้องเป็น JSON object ไม่ใช่ list หรือค่าเดี่ยว")
 
         if task == "script":
+            from scripts.compliance_lint import strip_emoji
             for key in ("hook_title", "hook_brand", "hook_model", "hook_label"):
                 if key in data and isinstance(data[key], str):
-                    data[key] = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', data[key])).strip()
+                    cleaned = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', data[key])).strip()
+                    # Banner text is on screen: zero-emoji (hook_title used
+                    # to be allowed one).
+                    data[key] = strip_emoji(cleaned)
             if "lines" in data and isinstance(data["lines"], list):
                 for line in data["lines"]:
+                    if not isinstance(line, dict):
+                        continue
                     if "text" in line and isinstance(line["text"], str):
                         line["text"] = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', line["text"])).strip()
                     if "translation" in line and isinstance(line["translation"], str):
                         line["translation"] = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', line["translation"])).strip()
+                    if "on_screen" in line and isinstance(line["on_screen"], str):
+                        line["on_screen"] = strip_emoji(
+                            re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', line["on_screen"])).strip()
+                        )
 
         cls._validate(task, data)
+        if enforce_compliance:
+            data = cls._enforce_compliance(task, data)
         return data
+
+    # Tasks whose output is spoken/shown in a clip and must pass the lint.
+    COMPLIANCE_TASKS = frozenset({"script"})
+
+    @classmethod
+    def compliance_violations(cls, task: str, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Hard compliance hits (price / claim / filler opener / CTA line 1)."""
+        if task not in cls.COMPLIANCE_TASKS:
+            return []
+        from scripts.compliance_lint import lint_script
+        return lint_script(data)
+
+    @classmethod
+    def _enforce_compliance(cls, task: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Strip every offending line/field and log it in Thai; never silent.
+
+        Raises ValueError (Thai) if nothing usable is left.
+        """
+        if task not in cls.COMPLIANCE_TASKS:
+            return data
+        from scripts.compliance_lint import enforce_script_compliance, format_violations_th
+        data, removed = enforce_script_compliance(data)
+        if removed:
+            print(
+                f"⚠️ [AIBridge] สคริปต์มีจุดผิดกฎ compliance {len(removed)} จุด — ตัดบรรทัด/ช่องที่ผิดออกแล้ว:\n"
+                f"{format_violations_th(removed)}"
+            )
+        if not data.get("lines"):
+            raise ValueError("สคริปต์ผิดกฎ compliance ทั้งหมด (ราคา/เคลมเกินจริง) ไม่เหลือบรรทัดที่ใช้ได้")
+        return data
+
+    @classmethod
+    def log_structure_warnings(cls, data: Dict[str, Any], target_duration: Optional[float] = None) -> Dict[str, Any]:
+        """M3: deterministic retention-structure check. Logs Thai warnings, never raises."""
+        try:
+            from scripts.compliance_lint import check_script_structure
+            report = check_script_structure(data.get("lines") or [], target_duration=target_duration)
+        except Exception as exc:  # pragma: no cover - defensive, warnings only
+            print(f"⚠️ [AIBridge] ตรวจโครงสคริปต์ไม่สำเร็จ ({exc}) — ข้ามการตรวจ")
+            return {"ok": True, "warnings": []}
+        for w in report["warnings"]:
+            print(f"⚠️ [AIBridge] โครงสคริปต์: {w['message']}")
+        return report
 
     @classmethod
     def _validate(cls, task: str, data: Dict[str, Any]) -> None:
@@ -451,9 +580,46 @@ class AIBridge:
         1. Try Antigravity Pro CLI (gemini-3.8-flash-high) first if available (uses Pro quota, zero extra cost).
         2. Fallback to Google AI Studio GEMINI_API_KEY if available.
         3. Fallback to ManualModeRequired (prompt for user to copy-paste).
+
+        Compliance (script task): a price / claim / filler-opener hit gets
+        ONE regeneration with the violations fed back; if the retry still
+        hits (or cannot run), the offending lines are stripped and logged in
+        Thai. Retention structure (M3) is checked afterwards as warnings only.
         """
         prompt = cls.build_prompt(task, context)
+        parsed = cls._generate_from_prompt(task, prompt, context, model, prefer_antigravity)
 
+        violations = cls.compliance_violations(task, parsed)
+        if violations:
+            from scripts.compliance_lint import format_violations_th
+            summary = format_violations_th(violations)
+            print(f"⚠️ [AIBridge] ผลลัพธ์ '{task}' ผิดกฎ compliance — ขอให้ AI เขียนใหม่ 1 ครั้ง:\n{summary}")
+            retry_prompt = (
+                f"{prompt}\n\nคำตอบรอบก่อนผิดกฎต่อไปนี้ ให้เขียนใหม่ทั้งชุดโดยห้ามมีจุดเหล่านี้อีก:\n{summary}"
+            )
+            try:
+                retried = cls._generate_from_prompt(task, retry_prompt, context, model, prefer_antigravity)
+                parsed = retried
+            except Exception as retry_err:
+                from scripts.quota import is_quota_error
+                reason = "เกินโควต้า AI" if is_quota_error(retry_err) else str(retry_err)[:120]
+                print(f"⚠️ [AIBridge] เขียนใหม่ไม่สำเร็จ ({reason}) — ตัดบรรทัดที่ผิดกฎจากรอบแรกแทน")
+            parsed = cls._enforce_compliance(task, parsed)
+
+        if task == "script":
+            cls.log_structure_warnings(parsed, target_duration=context.get("target_duration"))
+        return parsed
+
+    @classmethod
+    def _generate_from_prompt(
+        cls,
+        task: str,
+        prompt: str,
+        context: Dict[str, Any],
+        model: str = DEFAULT_MODEL,
+        prefer_antigravity: bool = True,
+    ) -> Dict[str, Any]:
+        """One generation pass for an already-built prompt (no compliance step)."""
         # Pre-flight budget check -- BEFORE either paid path below (Antigravity
         # Pro at :385-ish and the AI Studio API fallback at :419-ish both record
         # usage only after a successful call; this is what actually stops a
@@ -469,7 +635,7 @@ class AIBridge:
                 print(f"✨ [AIBridge] Generating '{task}' via Antigravity Pro ({PRO_MODEL})...")
                 raw_text = cls.call_antigravity_cli(prompt, model=PRO_MODEL)
                 latency = time.time() - t0
-                parsed = cls.parse_response(task, raw_text)
+                parsed = cls.parse_response(task, raw_text, enforce_compliance=False)
                 try:
                     from scripts.token_tracker import TokenTracker
                     in_tok = max(100, len(prompt) // 2)
@@ -528,7 +694,7 @@ class AIBridge:
                         response = client.models.generate_content(model=model, contents=prompt)
                         latency = time.time() - t0
                         raw_text = response.text or ""
-                        parsed = cls.parse_response(task, raw_text)
+                        parsed = cls.parse_response(task, raw_text, enforce_compliance=False)
                         try:
                             from scripts.token_tracker import TokenTracker
                             in_tok = max(100, len(prompt) // 2)

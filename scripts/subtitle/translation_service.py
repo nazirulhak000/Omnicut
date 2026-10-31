@@ -41,8 +41,8 @@ KINETIC_KEYWORDS: Dict[str, List[str]] = {
         "ลองแล้วรัก", "ถูกใจมาก", "ใช้เองรีวิวเอง", "โนสปอน", "ซื้อเองใช้เอง", "ใช้จนหมด", "ซื้อซ้ำ", "ตุนด่วน", "ต้องตุน", "ตำด่วน", "ใช้ทุกวัน"
     ],
     "&H00FFE600&": [  # 🔵 Electric Cyan (Features, tech, ergonomics, certifications, comfort)
-        "Logitech Wave Keys", "Logitech", "Wave Keys", "คีย์บอร์ดในฝัน", "คีย์บอร์ด", "ไร้สาย", "บลูทูธ",
-        "แม่เหล็ก", "แรงดูดสูง", "ดูดแน่น", "540 องศา", "360 องศา", "ชาร์จไว", "ฟาสชาร์จ", "66W", "100W",
+        "Logitech Wave Keys", "Logitech", "Wave Keys", "คีย์บอร์ดในฝัน", "คีย์บอร์ด", "ไร้สาย", "Bluetooth",
+        "แม่เหล็ก", "แรงดูดสูง", "ดูดแน่น", "540 องศา", "360 องศา", "ชาร์จไว", "Fast Charge", "66W", "100W",
         "แบตอึด", "แบตทน", "ทนทาน", "แข็งแรง", "ประกันศูนย์", "ของแท้", "แท้ 100%", "จอสวย", "จอลื่น",
         "120Hz", "คมชัด", "กล้องชัด", "เสียงดี", "เบสแน่น", "ตัดเสียงรบกวน", "กันน้ำ", "ชิปเร็ว",
         "ลื่นไหล", "ไม่สะดุด", "เชื่อมต่อง่าย", "เสียบปุ๊บติดปั๊บ", "พกพาสะดวก", "น้ำหนักเบา", "กะทัดรัด",
@@ -261,6 +261,27 @@ def wrap_en_for_ass(text: str, max_chars_per_line: int = 58) -> str:
     return "\\N".join(lines) if len(lines) > 1 else clean
 
 
+# Spec numbers ("5000mAh", "65W", "120 Hz", "30 ชั่วโมง") are what a viewer
+# remembers from a gadget clip, so they win the burst's single highlight over
+# the hype/pain dictionary. Explicit *markers* and per-product keywords still
+# come first. The colour is the one the dictionary already gave 66W/100W/120Hz
+# (feature cyan, or the caller's colour hint) -- only the chosen word changes.
+SPEC_NUMBER_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9.,])\d+(?:[.,]\d+)?\s?"
+    r"(?:mAh|ms|mm|cm|GB|TB|Hz|W|ชม\.|ชั่วโมง|นาที|วัตต์|นิ้ว)"
+    r"(?![A-Za-z])"
+)
+SPEC_HIGHLIGHT_COLOR = "&H00FFE600&"
+
+
+def find_spec_number(text: str) -> Optional[str]:
+    """First spec number (value + unit) in ``text``, or None."""
+    if not text:
+        return None
+    m = SPEC_NUMBER_PATTERN.search(text)
+    return m.group(0) if m else None
+
+
 def apply_kinetic_highlighting(
     text: str,
     primary_color_ass: str = "&H00FFFFFF&",
@@ -302,6 +323,10 @@ def apply_kinetic_highlighting(
             if len(ckw) >= 2 and ckw in result:
                 cyan_color = color_hint or "&H00FFE600&"
                 return _safe_replace_kw(result, ckw, cyan_color)
+
+    spec = find_spec_number(result)
+    if spec:
+        return _safe_replace_kw(result, spec, color_hint or SPEC_HIGHLIGHT_COLOR)
 
     color_order = [color_hint] if color_hint else list(KINETIC_KEYWORDS.keys())
     for color_tag in color_order:
@@ -349,6 +374,12 @@ def apply_kinetic_highlighting_en(
                     start, end = match.span()
                     cyan_color = color_hint or "&H00FFE600&"
                     return result[:start] + f"{{\\c{cyan_color}}}{matched_str}{{\\c{clean_primary}}}" + result[end:]
+
+    spec_match = SPEC_NUMBER_PATTERN.search(result)
+    if spec_match:
+        start, end = spec_match.span()
+        spec_color = color_hint or SPEC_HIGHLIGHT_COLOR
+        return result[:start] + f"{{\\c{spec_color}}}{spec_match.group(0)}{{\\c{clean_primary}}}" + result[end:]
 
     color_order = [color_hint] if color_hint else list(KINETIC_KEYWORDS_EN.keys())
     for color_tag in color_order:

@@ -22,7 +22,13 @@ from scripts.product_store import ProductStore
 from scripts.media_service import get_file_info
 from scripts.api_schemas import LinkAngleRequest
 from scripts.video_editor import VideoEditor
-from scripts.export_registry import ExportRegistry
+from scripts.export_registry import (
+    DEFAULT_STORY_FORMAT,
+    STYLE_METADATA_FIELDS,
+    ExportRegistry,
+    normalize_style_metadata,
+    style_metadata_from_manifest,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -524,6 +530,10 @@ def list_exports(scope: ChannelScope = Depends(get_channel_scope)):
             "project_name": (matched_angle or {}).get("project_name") or item["proj_name"],
             "status": "posted" if is_posted else "rendered",
             "posted_at": (matched_angle or {}).get("posted_at") if is_posted else None,
+            # Q6: fill-missing style metadata, only from the manifest that
+            # describes THIS render (same export_id) -- never from a later
+            # re-render of the same project.  No media probe on list reads.
+            "style_metadata": _manifest_style_for_record(item["disk_proj"], item["registry_record"]),
         })
 
     try:
@@ -925,6 +935,78 @@ def _planned_post_time(scheduled_at: Any) -> Optional[str]:
     return local.isoformat(timespec="seconds") if local > _dt.datetime.now() else None
 
 
+def _manifest_style_for_record(
+    manifest: Optional[Dict[str, Any]], record: Optional[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
+    """Style metadata the record is still missing, from its own manifest.
+
+    Returns None unless ``manifest["export_id"]`` is exactly this record's
+    id (the manifest is rewritten by every re-render, so an older export of
+    the same project must not inherit the newer render's style) and the
+    record lacks at least one field the manifest can supply.
+    """
+    if not manifest or not record or not record.get("id"):
+        return None
+    if str(manifest.get("export_id") or "") != str(record["id"]):
+        return None
+    missing = {
+        key: value for key, value in style_metadata_from_manifest(manifest).items()
+        if record.get(key) in (None, "")
+    }
+    return missing or None
+
+
+def _stamp_export_style_metadata(export_record: Dict[str, Any], channel_id: Optional[str]) -> Dict[str, Any]:
+    """Finalize-time capture: copy style metadata onto the registry record.
+
+    Runs at mark-posted, before the project folder is archived, reading the
+    project manifest the render already wrote.  Best-effort: a missing or
+    foreign manifest leaves the record untouched.
+    """
+    if all(export_record.get(key) not in (None, "") for key in STYLE_METADATA_FIELDS):
+        return export_record
+    project_name = str(export_record.get("project_name") or "").strip()
+    if not project_name:
+        return export_record
+    try:
+        from scripts.project_manifest import ProjectManifest
+        manifest = ProjectManifest.load(project_name)
+        if manifest and manifest.get("channel_id") and channel_id and manifest.get("channel_id") != channel_id:
+            return export_record
+        missing = _manifest_style_for_record(manifest, export_record)
+        if not missing:
+            return export_record
+        stamped = ExportRegistry.set_style_metadata(export_record["id"], missing, **_kw(channel_id))
+        return stamped or export_record
+    except ChannelError:
+        return export_record
+    except Exception as exc:
+        print(f"[mark_posted] Style metadata notice: {exc}")
+        return export_record
+
+
+def _post_style_fields(export_record: Dict[str, Any], row: Dict[str, Any], angle: Dict[str, Any]) -> Dict[str, Any]:
+    """Q6 style fields for the PostLog row: registry record first, then the
+    queue row / product angle; ``story_format`` defaults to ``classic``."""
+    script_lines = angle.get("script_lines") if isinstance(angle.get("script_lines"), list) else []
+    first_line = script_lines[0] if script_lines and isinstance(script_lines[0], str) else ""
+    merged = normalize_style_metadata({
+        "style_preset": export_record.get("style_preset") or row.get("style_preset") or angle.get("style_preset"),
+        "hook_style": export_record.get("hook_style") or row.get("hook_style_id") or angle.get("hook_style_id"),
+        "story_format": export_record.get("story_format") or row.get("story_format") or angle.get("story_format")
+        or DEFAULT_STORY_FORMAT,
+        "duration_sec": export_record.get("duration_sec"),
+        "hook_text": export_record.get("hook_text") or first_line,
+    })
+    return {
+        "style_preset": merged.get("style_preset", ""),
+        "hook_style": merged.get("hook_style", ""),
+        "story_format": merged.get("story_format", DEFAULT_STORY_FORMAT),
+        "duration_sec": merged.get("duration_sec"),
+        "hook_text": merged.get("hook_text", ""),
+    }
+
+
 def _record_posted_in_post_log(
     export_record: Dict[str, Any],
     destination: Path,
@@ -967,6 +1049,7 @@ def _record_posted_in_post_log(
                 product, angle = {}, {}
         hook = str(row.get("hook_title") or angle.get("hook_title") or "")
         scheduled_at = str(row.get("scheduled_at") or "")
+        style = _post_style_fields(export_record, row, angle)
         return post_log_module.PostLog.record_posted_export(
             product_name=str(row.get("product_name") or product.get("name") or product.get("product_name") or ""),
             clip_file=destination.name,
@@ -975,12 +1058,16 @@ def _record_posted_in_post_log(
             angle_key=str(aid or ""),
             angle_title=str(angle.get("angle_name") or angle.get("angle_title") or hook),
             hook=hook,
-            style_preset=str(row.get("style_preset") or angle.get("style_preset") or ""),
+            style_preset=style["style_preset"],
             hook_color=str(row.get("hook_color") or angle.get("hook_color") or ""),
             caption=str(row.get("caption") or angle.get("tiktok_caption") or angle.get("caption") or "")[:200],
             hashtags=_hashtag_list(row.get("hashtags") or angle.get("tiktok_hashtags") or angle.get("hashtags")),
             scheduled_at=scheduled_at,
             posted_at=_planned_post_time(scheduled_at),
+            hook_style=style["hook_style"],
+            story_format=style["story_format"],
+            duration_sec=style["duration_sec"],
+            hook_text=style["hook_text"],
             **_kw(channel_id),
         )
     except Exception as exc:
@@ -1195,6 +1282,10 @@ def _mark_posted_impl(req: MarkPostedRequest, scope: ChannelScope, *, posting_jo
         new_cover_3x4 = new_cover_path
     if not new_cover_path and new_cover_9x16:
         new_cover_path = new_cover_9x16
+
+    # Q6: capture style metadata on the export record while the project
+    # manifest still exists (the project folder is archived below).
+    export_record = _stamp_export_style_metadata(export_record, channel_id)
 
     # Mark registry before updating ProductStore
     ExportRegistry.move_and_mark_posted(export_record["id"], dest, **_kw(channel_id))

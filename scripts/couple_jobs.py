@@ -684,3 +684,10 @@ class CoupleJobStore:
                 )
                 recovered.append(deepcopy(job))
         return recovered
+
+
+def get_couple_job_store() -> "CoupleJobStore":
+    """Convenience helper so `from scripts.couple_jobs import get_couple_job_store` resolves."""
+    from scripts.api_couple_production import get_couple_job_store as _get_store
+    return _get_store()
+

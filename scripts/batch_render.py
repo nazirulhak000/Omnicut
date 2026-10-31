@@ -1,18 +1,32 @@
 """
 Batch Render Engine & Queue Worker for OmniCut Pro Studio.
 
-Processes multiple product angles sequentially in a background queue,
-preventing CPU/Memory thrashing via concurrency locking and keeping
-track of overall batch progress across all angles.
+Batches are admitted one at a time by a single durable FIFO dispatcher.
+Inside a batch, angles render concurrently on a ThreadPoolExecutor
+(``BATCH_MAX_WORKERS``, AGENTS rule 24) in waves: each wave holds the global
+render slot (``render_jobs.render_slot``) once, so single renders and
+re-rolls still queue behind it and ``render_jobs.is_busy()`` stays truthful.
+Items whose MP4 was already produced for this batch (``is_valid_mp4``) are
+skipped on resume. All shared batch state is mutated under ``_BATCH_LOCK``;
+the lock is never held while a clip renders.
 """
 
+import glob
+import json
+import re
+import shutil
+import subprocess
 import sys
 import uuid
 import time
 import logging
 import threading
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Iterator, List, Optional
+
+from fastapi import HTTPException
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -29,15 +43,29 @@ from scripts.render_jobs import RenderCancelled
 from scripts.pipeline import TikTokAutoCutterPipeline
 from scripts.overlay_model import template_for_style_preset, template_for_ad_tone, guess_brand_model
 from scripts.api_render import check_disk_space
+from scripts.style_motion_policy import STYLE_MOTION_POLICIES
 
 logger = logging.getLogger("batch_render")
+
+# AGENTS rule 24: batch work runs on 4 concurrent workers by default.
+BATCH_MAX_WORKERS = 4
+# An output smaller than this is treated as truncated/broken.
+MIN_VALID_MP4_BYTES = 1024 * 1024
+DEFAULT_BATCH_STYLE = "clean_tech_review"
+# Batch picker values that mean "no explicit choice, use each angle's default".
+AUTO_STYLE_VALUES = frozenset({"", "auto"})
+# How long a wave waits before retrying when the render queue is full (429).
+_SLOT_RETRY_SECONDS = 2.0
 
 
 def _maintenance_root() -> Path:
     """Data root of the batch queue (maintenance lock lives at <root>/_Docs)."""
     return Path(_batch_queue_store.BATCH_QUEUE_PATH).parent.parent
 
-# 1-to-1 default mapping between 10 script angles and 10 editorial style presets
+# Default style preset per script angle: the 10 classic angles plus every IT
+# angle key in scripts/it_angles.py. Must stay identical to
+# ANGLE_TO_DEFAULT_STYLE in frontend/src/lib/stylePresetCatalog.js
+# (enforced by tests/test_style_preset_consistency.py).
 ANGLE_TO_DEFAULT_STYLE: Dict[str, str] = {
     "stop_scroll": "viral_punch",
     "fomo_deal": "flash_deal",
@@ -49,7 +77,112 @@ ANGLE_TO_DEFAULT_STYLE: Dict[str, str] = {
     "niche_target": "niche_focus",
     "longterm_review": "smooth_showcase",
     "math_value": "premium_minimal",
+    "spec_compare": "tech_compare",
+    "fake_vs_real": "viral_punch",
+    "real_test": "tech_product_showcase",
+    "spec_explained": "niche_focus",
+    "dont_cheap_out": "pain_punch",
+    "how_to_setup": "smart_hack",
+    "worth_upgrade": "premium_minimal",
 }
+
+
+def _known_style(value: Any) -> Optional[str]:
+    """Return a renderer-supported preset id, or None for auto/unknown values."""
+    key = str(value or "").strip().lower()
+    if key in AUTO_STYLE_VALUES:
+        return None
+    return key if key in STYLE_MOTION_POLICIES else None
+
+
+def default_style_for_angle(angle_data: Dict[str, Any]) -> Optional[str]:
+    """Recommended preset for an angle (accepts angle_key/angle_id, ``_bN`` suffix)."""
+    for raw in (angle_data.get("angle_key"), angle_data.get("angle_id"), angle_data.get("id")):
+        key = str(raw or "").strip().lower()
+        if not key:
+            continue
+        style = ANGLE_TO_DEFAULT_STYLE.get(key) or ANGLE_TO_DEFAULT_STYLE.get(re.sub(r"_b\d+$", "", key))
+        if style:
+            return style
+    return None
+
+
+def resolve_batch_style_preset(angle_data: Dict[str, Any], options: Dict[str, Any]) -> str:
+    """Style for one batch item.
+
+    An explicit preset chosen in the batch modal wins; ``auto``/empty/unknown
+    values (including the legacy ``commercial_premium``) mean "no choice" and
+    fall through to the angle's own preset, then the angle default.
+    """
+    return (
+        _known_style(options.get("style_preset"))
+        or _known_style(angle_data.get("style_preset"))
+        or default_style_for_angle(angle_data)
+        or DEFAULT_BATCH_STYLE
+    )
+
+
+def _ffprobe_binary() -> Optional[str]:
+    return shutil.which("ffprobe")
+
+
+def _run_ffprobe(command: List[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(command, capture_output=True, text=True, timeout=30)
+
+
+def _has_mp4_atoms(path: Path) -> bool:
+    """Fallback when ffprobe is unavailable: ISO BMFF header plus a moov atom."""
+    try:
+        size = path.stat().st_size
+        window = 4 * 1024 * 1024
+        with open(path, "rb") as handle:
+            head = handle.read(window)
+            if b"ftyp" not in head[:64]:
+                return False
+            if b"moov" in head:
+                return True
+            handle.seek(max(0, size - window))
+            return b"moov" in handle.read(window)
+    except OSError:
+        return False
+
+
+def is_valid_mp4(path: Any) -> bool:
+    """True when ``path`` is a finished MP4: > 1MB, has a video stream, duration > 0.
+
+    Uses ffprobe; if ffprobe is not installed it falls back to an MP4 atom
+    check instead of failing, so a missing tool never blocks a batch.
+    """
+    try:
+        p = Path(path)
+        if not p.is_file() or p.stat().st_size <= MIN_VALID_MP4_BYTES:
+            return False
+    except (OSError, TypeError, ValueError):
+        return False
+
+    ffprobe = _ffprobe_binary()
+    if not ffprobe:
+        logger.warning("[BatchRender] ไม่พบ ffprobe ตรวจไฟล์ %s ด้วยโครงสร้าง MP4 แทน", p.name)
+        return _has_mp4_atoms(p)
+    command = [
+        ffprobe, "-v", "error", "-select_streams", "v:0",
+        "-show_entries", "stream=codec_type:format=duration",
+        "-of", "json", str(p),
+    ]
+    try:
+        proc = _run_ffprobe(command)
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("[BatchRender] ffprobe ตรวจไฟล์ %s ไม่สำเร็จ: %s", p.name, exc)
+        return False
+    if proc.returncode != 0:
+        return False
+    try:
+        data = json.loads(proc.stdout or "{}")
+        duration = float((data.get("format") or {}).get("duration") or 0)
+    except (ValueError, TypeError, AttributeError):
+        return False
+    has_video = any((s or {}).get("codec_type") == "video" for s in (data.get("streams") or []))
+    return has_video and duration > 0
 
 ANGLE_SLUG_MAP: Dict[str, str] = {
     "spec_review": "รีวิวสเปก",
@@ -399,9 +532,91 @@ class BatchRenderManager:
                     render_jobs.request_cancel(item["job_id"], **channel_kwargs)
             return True
 
+    # ------------------------------------------------------------------
+    # Worker: concurrent waves inside one batch
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _refresh_counts(batch: Dict[str, Any]) -> None:
+        """Recount from item state (caller holds _BATCH_LOCK)."""
+        items = batch.get("items", [])
+        batch["completed_items"] = sum(1 for it in items if it.get("status") in ("rendered", "draft_ready"))
+        batch["failed_items"] = sum(1 for it in items if it.get("status") == "failed")
+
+    @classmethod
+    def _update_item(cls, batch: Dict[str, Any], item: Dict[str, Any], **fields: Any) -> None:
+        """Mutate one item and checkpoint the batch under the shared lock."""
+        with _BATCH_LOCK:
+            item.update(fields)
+            cls._refresh_counts(batch)
+            cls._persist_batch(batch)
+
+    @classmethod
+    @contextmanager
+    def _wave_slot(cls, batch: Dict[str, Any], channel_kwargs: Dict[str, Any]) -> Iterator[None]:
+        """Hold the global render slot for one wave.
+
+        A wave is a single waiter on the slot, so a batch never fills the
+        render queue by itself. If other callers already filled it (HTTP 429)
+        the wave waits and retries instead of failing its items.
+        """
+        while True:
+            slot = render_jobs.render_slot(f"batch:{batch['batch_id']}", **channel_kwargs)
+            try:
+                slot.__enter__()
+            except HTTPException as exc:
+                if exc.status_code != 429 or batch.get("cancelled"):
+                    raise
+                time.sleep(_SLOT_RETRY_SECONDS)
+                continue
+            break
+        try:
+            yield
+        finally:
+            slot.__exit__(None, None, None)
+
+    @classmethod
+    def _find_resumable_output(
+        cls, batch: Dict[str, Any], item: Dict[str, Any], angle_data: Dict[str, Any]
+    ) -> Optional[str]:
+        """A valid MP4 already produced for this batch (resume gate), or None.
+
+        Only files written after the batch was created count, so choosing to
+        re-render an angle that has an older export still renders it again.
+        """
+        created_at = float(batch.get("created_at") or 0)
+        candidates: List[str] = []
+        for value in (item.get("video_url"), angle_data.get("video_url")):
+            if value:
+                candidates.append(str(value))
+        names = {n for n in (item.get("project_name"), angle_data.get("project_name")) if n}
+        for name in sorted(names):
+            try:
+                matches = sorted(
+                    EXPORTS_DIR.glob(f"{glob.escape(str(name))}_*.mp4"),
+                    key=lambda p: p.stat().st_mtime,
+                    reverse=True,
+                )
+            except OSError:
+                matches = []
+            candidates.extend(str(m) for m in matches)
+        for candidate in candidates:
+            path = Path(candidate)
+            if not path.is_absolute():
+                path = BASE_DIR / path
+            try:
+                mtime = path.stat().st_mtime
+            except OSError:
+                continue
+            if mtime + 1.0 < created_at:
+                continue
+            if is_valid_mp4(path):
+                return candidate
+        return None
+
     @classmethod
     def _run_batch_worker(cls, batch_id: str) -> None:
-        """Sequential FIFO worker that renders each angle one by one."""
+        """Render a batch's pending angles on BATCH_MAX_WORKERS threads, in waves."""
         batch = cls.get_batch(batch_id)
         if not batch:
             return
@@ -416,7 +631,6 @@ class BatchRenderManager:
         product_id = batch["product_id"]
         pinned = render_jobs.pin_job_scope(batch.get("channel_id"), batch.get("job_scope"))
         channel_kwargs = {"channel_id": pinned["channel_id"]} if pinned.get("channel_id") else {}
-        product_title = batch["product_title"]
         items = batch["items"]
         total_items = len(items)
         options = batch.get("options", {})
@@ -427,111 +641,204 @@ class BatchRenderManager:
             step_label=f"เริ่มเรนเดอร์คิว 0/{total_items} มุมมอง..."
         , **channel_kwargs)
 
-        completed_count = sum(1 for item in items if item.get("status") == "rendered")
-        failed_count = sum(1 for item in items if item.get("status") == "failed")
+        ctx: Dict[str, Any] = {
+            "batch": batch,
+            "batch_id": batch_id,
+            "product_id": product_id,
+            "product_title": batch["product_title"],
+            "items": items,
+            "total_items": total_items,
+            "options": options,
+            "pinned": pinned,
+            "channel_kwargs": channel_kwargs,
+            # Per-item fraction done (0..1) for the overall progress bar.
+            "progress": {
+                idx: 1.0 for idx, it in enumerate(items)
+                if it.get("status") in ("rendered", "draft_ready", "failed", "skipped", "cancelled")
+            },
+        }
 
-        for idx, item in enumerate(items):
-            if item.get("status") in ("rendered", "failed", "skipped", "cancelled"):
-                continue
-            # Check for cancellation before starting next angle
-            if batch.get("cancelled"):
-                logger.info("Batch %s cancelled by user before item %d", batch_id, idx)
-                item["status"] = "cancelled"
-                cls._persist_batch(batch)
-                continue
+        pending = [
+            (idx, item) for idx, item in enumerate(items)
+            if item.get("status") not in ("rendered", "draft_ready", "failed", "skipped", "cancelled")
+        ]
+        workers = max(1, int(BATCH_MAX_WORKERS))
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix=f"batch_{batch_id[:8]}") as pool:
+            for start in range(0, len(pending), workers):
+                wave = pending[start:start + workers]
+                if batch.get("cancelled"):
+                    logger.info("Batch %s cancelled by user before item %d", batch_id, wave[0][0])
+                    for _idx, item in pending[start:]:
+                        cls._update_item(batch, item, status="cancelled")
+                    break
+                try:
+                    with cls._wave_slot(batch, channel_kwargs):
+                        futures = [pool.submit(cls._process_item_safely, ctx, idx, item) for idx, item in wave]
+                        for future in futures:
+                            future.result()
+                except HTTPException as exc:
+                    # Slot refused for a reason other than a full queue (or the
+                    # batch was cancelled while waiting): fail just this wave.
+                    for _idx, item in wave:
+                        if item.get("status") in ("queued", "in_production"):
+                            cls._update_item(batch, item, status="cancelled" if batch.get("cancelled") else "failed",
+                                             error=None if batch.get("cancelled") else str(exc.detail))
 
-            angle_id = item["angle_id"]
-            angle_name = item["angle_name"]
+        cls._finalize_batch(ctx)
 
+    @classmethod
+    def _process_item_safely(cls, ctx: Dict[str, Any], idx: int, item: Dict[str, Any]) -> None:
+        try:
+            cls._process_item(ctx, idx, item)
+        except Exception as exc:  # never let one angle take down the wave
+            logger.exception("[BatchRender] มุมมอง %s ล้มเหลวโดยไม่คาดคิด: %s", item.get("angle_id"), exc)
+            cls._update_item(ctx["batch"], item, status="failed", error=str(exc) or "เรนเดอร์ไม่สำเร็จ")
+        finally:
             with _BATCH_LOCK:
-                batch["current_index"] = idx
-                batch["current_angle_name"] = angle_name
-                item["status"] = "in_production"
-                cls._persist_batch(batch)
+                ctx["progress"][idx] = 1.0
 
-            # Re-fetch latest product state from DB to get up-to-date angle data
-            try:
-                latest_prod = ProductStore.get(product_id, **channel_kwargs)
-                angle_data = None
-                if latest_prod:
-                    item_batch = item.get("batch") or options.get("batch_index")
-                    if item_batch is not None:
-                        for a in latest_prod.get("angles", []):
-                            if (a.get("batch") or 1) == item_batch and str(a.get("angle_id") or a.get("id")) == angle_id:
-                                angle_data = a
-                                break
-                    if not angle_data:
-                        for a in latest_prod.get("angles", []):
-                            if str(a.get("angle_id") or a.get("id")) == angle_id:
-                                angle_data = a
-                                break
-            except Exception as e:
-                logger.error("Failed to read product %s angle %s: %s", product_id, angle_id, e)
-                angle_data = None
+    @classmethod
+    def _process_item(cls, ctx: Dict[str, Any], idx: int, item: Dict[str, Any]) -> None:
+        """Render one angle. Runs on a pool thread; never holds _BATCH_LOCK while rendering."""
+        batch = ctx["batch"]
+        batch_id = ctx["batch_id"]
+        product_id = ctx["product_id"]
+        product_title = ctx["product_title"]
+        items = ctx["items"]
+        total_items = ctx["total_items"]
+        options = ctx["options"]
+        pinned = ctx["pinned"]
+        channel_kwargs = ctx["channel_kwargs"]
 
-            if not angle_data:
-                item["status"] = "failed"
-                item["error"] = "ไม่พบข้อมูลมุมมองในฐานข้อมูล"
-                failed_count += 1
-                cls._persist_batch(batch)
-                continue
+        def mark(**fields: Any) -> None:
+            cls._update_item(batch, item, **fields)
 
-            # Check if posted
-            if angle_data.get("status") == "posted" or angle_data.get("posted_at"):
-                item["status"] = "skipped"
-                item["error"] = "คลิปนี้ถูกโพสต์แล้ว ข้ามการเรนเดอร์ซ้ำ"
-                cls._persist_batch(batch)
-                continue
+        if batch.get("cancelled"):
+            mark(status="cancelled")
+            return
 
-            # Resolve footage
-            chosen_videos = angle_data.get("selected_videos") or []
-            if not chosen_videos and angle_data.get("selected_video"):
-                chosen_videos = [angle_data["selected_video"]]
-            if not chosen_videos and latest_prod:
-                chosen_videos = latest_prod.get("default_videos") or []
+        angle_id = item["angle_id"]
+        angle_name = item["angle_name"]
 
-            # Check files in RAW/INBOX if still empty
-            if not chosen_videos:
-                raw_clips = list(RAW_DIR.glob("*.mp4")) + list(INBOX_DIR.glob("*.mp4"))
-                if raw_clips:
-                    chosen_videos = [str(raw_clips[0])]
+        with _BATCH_LOCK:
+            batch["current_index"] = idx
+            batch["current_angle_name"] = angle_name
+            item["status"] = "in_production"
+            cls._persist_batch(batch)
 
-            if not chosen_videos:
-                item["status"] = "failed"
-                item["error"] = "ไม่มีไฟล์คลิปวิดีโอสำหรับมุมมองนี้ กรุณาแนบคลิปก่อนเรนเดอร์"
-                failed_count += 1
-                cls._persist_batch(batch)
-                continue
+        # Re-fetch latest product state from DB to get up-to-date angle data
+        latest_prod = None
+        try:
+            latest_prod = ProductStore.get(product_id, **channel_kwargs)
+            angle_data = None
+            if latest_prod:
+                item_batch = item.get("batch") or options.get("batch_index")
+                if item_batch is not None:
+                    for a in latest_prod.get("angles", []):
+                        if (a.get("batch") or 1) == item_batch and str(a.get("angle_id") or a.get("id")) == angle_id:
+                            angle_data = a
+                            break
+                if not angle_data:
+                    for a in latest_prod.get("angles", []):
+                        if str(a.get("angle_id") or a.get("id")) == angle_id:
+                            angle_data = a
+                            break
+        except Exception as e:
+            logger.error("Failed to read product %s angle %s: %s", product_id, angle_id, e)
+            angle_data = None
 
-            primary_video = chosen_videos[0]
-            raw_video_path = Path(primary_video)
-            if not raw_video_path.is_absolute():
-                raw_video_path = BASE_DIR / primary_video
+        if not angle_data:
+            mark(status="failed", error="ไม่พบข้อมูลมุมมองในฐานข้อมูล")
+            return
 
-            if not raw_video_path.exists():
-                item["status"] = "failed"
-                item["error"] = f"ไม่พบไฟล์วิดีโอที่ระบุ: {primary_video}"
-                failed_count += 1
-                cls._persist_batch(batch)
-                continue
+        # Check if posted
+        if angle_data.get("status") == "posted" or angle_data.get("posted_at"):
+            mark(status="skipped", error="คลิปนี้ถูกโพสต์แล้ว ข้ามการเรนเดอร์ซ้ำ")
+            return
 
-            # Resolve project_name for this angle following standard convention
-            current_batch = angle_data.get("batch") or item.get("batch") or options.get("batch_index") or 1
-            proj_name = angle_data.get("project_name")
-            if not proj_name:
-                angle_pnames = options.get("angle_project_names") or {}
-                if angle_id in angle_pnames:
-                    proj_name = angle_pnames[angle_id]
-                elif len(items) == 1 and options.get("project_name"):
-                    proj_name = options.get("project_name")
+        # Resume gate: an MP4 already produced for this batch is not rendered again.
+        if options.get("export_mp4", True):
+            resumed = cls._find_resumable_output(batch, item, angle_data)
+            if resumed:
+                resumed_project = item.get("project_name") or angle_data.get("project_name") or ""
+                try:
+                    ProductStore.update_angle_status(
+                        product_id,
+                        angle_id,
+                        "rendered",
+                        video_url=resumed,
+                        project_name=resumed_project or None,
+                        batch=angle_data.get("batch") or item.get("batch"),
+                        **channel_kwargs,
+                    )
+                except Exception as exc:
+                    logger.warning("[BatchRender] อัปเดตสถานะมุม %s หลังข้ามไม่สำเร็จ: %s", angle_id, exc)
+                logger.info("[BatchRender] ข้ามมุม %s: มีไฟล์ MP4 สมบูรณ์จากรอบนี้แล้ว (%s)", angle_id, resumed)
+                mark(status="rendered", video_url=resumed, project_name=resumed_project, error=None)
+                return
 
-            # Collision & Batch Isolation Guard:
-            # Verify proj_name does not belong to another angle/batch or collide with existing project folders
+        # Resolve footage
+        chosen_videos = angle_data.get("selected_videos") or []
+        if not chosen_videos and angle_data.get("selected_video"):
+            chosen_videos = [angle_data["selected_video"]]
+        if not chosen_videos and latest_prod:
+            chosen_videos = latest_prod.get("default_videos") or []
+
+        # Check files in RAW/INBOX if still empty
+        if not chosen_videos:
+            raw_clips = list(RAW_DIR.glob("*.mp4")) + list(INBOX_DIR.glob("*.mp4"))
+            if raw_clips:
+                chosen_videos = [str(raw_clips[0])]
+
+        if not chosen_videos:
+            mark(status="failed", error="ไม่มีไฟล์คลิปวิดีโอสำหรับมุมมองนี้ กรุณาแนบคลิปก่อนเรนเดอร์")
+            return
+
+        primary_video = chosen_videos[0]
+        raw_video_path = Path(primary_video)
+        if not raw_video_path.is_absolute():
+            raw_video_path = BASE_DIR / primary_video
+
+        if not raw_video_path.exists():
+            mark(status="failed", error=f"ไม่พบไฟล์วิดีโอที่ระบุ: {primary_video}")
+            return
+
+        # Resolve project_name for this angle following standard convention
+        current_batch = angle_data.get("batch") or item.get("batch") or options.get("batch_index") or 1
+        proj_name = angle_data.get("project_name")
+        if not proj_name:
+            angle_pnames = options.get("angle_project_names") or {}
+            if angle_id in angle_pnames:
+                proj_name = angle_pnames[angle_id]
+            elif len(items) == 1 and options.get("project_name"):
+                proj_name = options.get("project_name")
+
+        existing_product_projs = set(latest_prod.get("projects", []))
+        for o in latest_prod.get("angles", []):
+            if o.get("project_name") and o is not angle_data:
+                existing_product_projs.add(o["project_name"])
+        if PROJECTS_DIR.exists():
+            for d in PROJECTS_DIR.iterdir():
+                if d.is_dir():
+                    existing_product_projs.add(d.name)
+
+        from scripts.pipeline_context import channel_project_name
+        from scripts.product_store import _extract_batch_from_name
+
+        # Collision & Batch Isolation Guard. Sibling items render at the same
+        # time now, so names they reserved count as taken; reserve under the
+        # lock so two workers can never pick the same project folder.
+        with _BATCH_LOCK:
+            sibling_names = {
+                it.get("project_name") for it in items
+                if it is not item and it.get("project_name")
+            }
             is_colliding = False
             if proj_name:
-                from scripts.product_store import _extract_batch_from_name
                 proj_batch = _extract_batch_from_name(proj_name)
                 if proj_batch is not None and current_batch is not None and proj_batch != current_batch:
+                    is_colliding = True
+                elif proj_name in sibling_names or channel_project_name(proj_name, pinned.get("channel_id")) in sibling_names:
                     is_colliding = True
                 else:
                     for o in latest_prod.get("angles", []):
@@ -540,200 +847,198 @@ class BatchRenderManager:
                             break
 
             if not proj_name or is_colliding:
-                existing_product_projs = set(latest_prod.get("projects", []))
-                for o in latest_prod.get("angles", []):
-                    if o.get("project_name") and o is not angle_data:
-                        existing_product_projs.add(o["project_name"])
-                if PROJECTS_DIR.exists():
-                    for d in PROJECTS_DIR.iterdir():
-                        if d.is_dir():
-                            existing_product_projs.add(d.name)
-
                 proj_name = synthesize_project_name(
                     product_code=latest_prod.get("product_code", ""),
                     product_title=angle_data.get("product_name") or product_title,
                     angle_id=angle_id,
                     angle_name=angle_data.get("angle_name", ""),
                     batch=current_batch,
-                    existing_dirs=list(existing_product_projs),
+                    existing_dirs=list(existing_product_projs | sibling_names),
                 )
 
-            from scripts.pipeline_context import channel_project_name
             proj_name = channel_project_name(proj_name, pinned.get("channel_id"))
             angle_data["project_name"] = proj_name
+            # In-memory reservation is what siblings read; it is checkpointed
+            # together with job_id just below.
             item["project_name"] = proj_name
 
-            # Update angle to in_production in ProductStore
+        # Update angle to in_production in ProductStore
+        try:
+            ProductStore.update_angle_status(
+                product_id,
+                angle_id,
+                "in_production",
+                project_name=proj_name,
+                batch=angle_data.get("batch") if angle_data else item.get("batch"),
+             **channel_kwargs)
+        except Exception:
+            pass
+
+        sub_job_id = str(uuid.uuid4())
+        render_jobs.create_job(sub_job_id, job_scope=pinned, **channel_kwargs)
+        mark(job_id=sub_job_id)
+        if batch.get("cancelled"):
+            # cancel_batch may have scanned items before this job_id existed.
+            render_jobs.request_cancel(sub_job_id, **channel_kwargs)
+
+        def sub_on_progress(msg: str, progress: float) -> None:
+            with _BATCH_LOCK:
+                ctx["progress"][idx] = max(0.0, min(1.0, float(progress) / 100.0))
+                overall = (sum(ctx["progress"].values()) / max(1, total_items)) * 100.0
+                batch["progress"] = round(overall, 1)
+            TaskManager.update_progress(
+                batch_id,
+                overall,
+                step_label=f"[{idx + 1}/{total_items}] {angle_name}: {msg}"
+            , **channel_kwargs)
+
+        # Prepare script lines
+        script_lines = angle_data.get("script_lines") or []
+        if not script_lines and angle_data.get("script_text"):
+            script_lines = angle_data["script_text"].split("\n")
+        custom_script = "\n".join(script_lines)
+
+        style_preset = resolve_batch_style_preset(angle_data, options)
+        ad_tone = angle_data.get("ad_tone") or options.get("ad_tone") or "commercial_hype"
+
+        # Auto retry up to 1 time if transient error
+        success = False
+        cancelled = False
+        last_err = None
+
+        for attempt in range(2):
+            if batch.get("cancelled"):
+                break
             try:
+                # The wave holding render_jobs.render_slot owns admission; a
+                # per-item slot here would serialise the wave again.
+                effective_product_name = angle_data.get("product_name") or product_title
+                brand_guess, model_guess = guess_brand_model(effective_product_name)
+                hook_brand = angle_data.get("hook_brand") or latest_prod.get("hook_brand") or brand_guess or None
+                hook_model = angle_data.get("hook_model") or latest_prod.get("hook_model") or model_guess or None
+                hook_label = angle_data.get("hook_label") or latest_prod.get("hook_label") or ""
+
+                result = TikTokAutoCutterPipeline.run(
+                    cancel_event=render_jobs.get_cancel_event(sub_job_id, **channel_kwargs),
+                    job_scope=pinned or None, **channel_kwargs,
+                    product_name=effective_product_name,
+                    raw_video_path=str(raw_video_path),
+                    project_name=proj_name,
+                    key_features=angle_data.get("key_features") or latest_prod.get("description", ""),
+                    pain_point=angle_data.get("pain_point", ""),
+                    # price_note stays product data; it is never copied into
+                    # the clip (no price/discount in TikTok clips).
+                    price_deal=angle_data.get("price_deal", ""),
+                    custom_script=custom_script,
+                    hook_brand=hook_brand,
+                    hook_model=hook_model,
+                    hook_label=hook_label,
+                    voice=options.get("voice_gender", "male"),
+                    voice_rate=options.get("voice_rate", "+15%"),
+                    voice_engine_type="edge_tts" if options.get("voice_mode") == "edge_tts" else "gemini_tts",
+                    voice_preset=options.get("voice_preset", "gemini_fenrir_male_strong"),
+                    ad_tone=ad_tone,
+                    style_preset=style_preset,
+                    hook_style={
+                        "template": (
+                            (angle_data.get("hook_style") or {}).get("template")
+                            or template_for_style_preset(style_preset)
+                            or template_for_ad_tone(ad_tone)
+                        )
+                    },
+                    font_name=options.get("font_name", "IBMPlex"),
+                    bilingual_subtitles=options.get("bilingual_subtitles", True),
+                    ghost_reveal=bool(options.get("ghost_reveal", True)),
+                    use_ai_vision=options.get("use_ai_vision", True),
+                    export_mp4=options.get("export_mp4", True),
+                    product_id=product_id,
+                    angle_id=angle_id,
+                    manual_shot_map=angle_data.get("manual_shot_map") or [],
+                    progress_callback=sub_on_progress,
+                )
+
+                mp4_val = (
+                    result.get("mp4")
+                    or result.get("mp4_video")
+                    or result.get("output_video")
+                    or result.get("video_path")
+                    or ""
+                )
+                proj_name = result.get("project_name", "")
+
+                if product_id and proj_name:
+                    try:
+                        ProductStore.attach_project(product_id, proj_name, **channel_kwargs)
+                    except Exception:
+                        pass
+
+                # Mark rendered or in_production in store
+                is_draft = not options.get("export_mp4", True)
+                is_rendered = bool(not is_draft and mp4_val)
+                item_b = angle_data.get("batch") if angle_data else item.get("batch")
                 ProductStore.update_angle_status(
                     product_id,
                     angle_id,
-                    "in_production",
+                    "rendered" if is_rendered else "in_production",
+                    video_url=str(mp4_val) if is_rendered else None,
                     project_name=proj_name,
-                    batch=angle_data.get("batch") if angle_data else item.get("batch"),
+                    export_id=result.get("export_id") if is_rendered else None,
+                    batch=item_b,
                  **channel_kwargs)
-            except Exception:
-                pass
 
-            sub_job_id = str(uuid.uuid4())
-            item["job_id"] = sub_job_id
-            render_jobs.create_job(sub_job_id, job_scope=pinned, **channel_kwargs)
+                render_jobs.complete_job(sub_job_id, result, **channel_kwargs)
+                mark(
+                    status="rendered" if is_rendered else "draft_ready",
+                    project_name=proj_name,
+                    video_url=str(mp4_val) if is_rendered else "",
+                )
+                success = True
+                break
 
-            def make_sub_progress(item_idx: int, a_name: str):
-                def sub_on_progress(msg: str, progress: float):
-                    overall = ((item_idx + (progress / 100.0)) / total_items) * 100.0
-                    with _BATCH_LOCK:
-                        batch["progress"] = round(overall, 1)
-                    TaskManager.update_progress(
-                        batch_id,
-                        overall,
-                        step_label=f"[{item_idx + 1}/{total_items}] {a_name}: {msg}"
-                    , **channel_kwargs)
-                return sub_on_progress
-
-            # Prepare script lines
-            script_lines = angle_data.get("script_lines") or []
-            if not script_lines and angle_data.get("script_text"):
-                script_lines = angle_data["script_text"].split("\n")
-            custom_script = "\n".join(script_lines)
-
-            # Auto retry up to 1 time if transient error
-            success = False
-            last_err = None
-
-            for attempt in range(2):
-                if batch.get("cancelled"):
-                    break
+            except RenderCancelled:
+                logger.info("Sub-job %s cancelled for angle %s", sub_job_id, angle_id)
+                render_jobs.cancel_job(sub_job_id, **channel_kwargs)
+                cancelled = True
+                mark(status="cancelled")
                 try:
-                    with render_jobs.render_slot(sub_job_id, **channel_kwargs):
-                        effective_product_name = angle_data.get("product_name") or product_title
-                        brand_guess, model_guess = guess_brand_model(effective_product_name)
-                        hook_brand = angle_data.get("hook_brand") or latest_prod.get("hook_brand") or brand_guess or None
-                        hook_model = angle_data.get("hook_model") or latest_prod.get("hook_model") or model_guess or None
-                        hook_label = angle_data.get("hook_label") or latest_prod.get("hook_label") or ""
-
-                        result = TikTokAutoCutterPipeline.run(
-                            cancel_event=render_jobs.get_cancel_event(sub_job_id, **channel_kwargs),
-                            job_scope=pinned or None, **channel_kwargs,
-                            product_name=effective_product_name,
-                            raw_video_path=str(raw_video_path),
-                            project_name=proj_name,
-                            key_features=angle_data.get("key_features") or latest_prod.get("description", ""),
-                            pain_point=angle_data.get("pain_point", ""),
-                            # price_note stays product data; it is never copied into
-                            # the clip (no price/discount in TikTok clips).
-                            price_deal=angle_data.get("price_deal", ""),
-                            custom_script=custom_script,
-                            hook_brand=hook_brand,
-                            hook_model=hook_model,
-                            hook_label=hook_label,
-                            voice=options.get("voice_gender", "male"),
-                            voice_rate=options.get("voice_rate", "+15%"),
-                            voice_engine_type="edge_tts" if options.get("voice_mode") == "edge_tts" else "gemini_tts",
-                            voice_preset=options.get("voice_preset", "gemini_fenrir_male_strong"),
-                            ad_tone=angle_data.get("ad_tone") or options.get("ad_tone") or "commercial_hype",
-                            style_preset=(
-                                angle_data.get("style_preset")
-                                or ANGLE_TO_DEFAULT_STYLE.get(str(angle_data.get("angle_id") or "").strip().lower())
-                                or options.get("style_preset")
-                                or "clean_tech_review"
-                            ),
-                            hook_style={
-                                "template": (
-                                    (angle_data.get("hook_style") or {}).get("template")
-                                    or template_for_style_preset(
-                                        angle_data.get("style_preset")
-                                        or ANGLE_TO_DEFAULT_STYLE.get(str(angle_data.get("angle_id") or "").strip().lower())
-                                        or options.get("style_preset")
-                                        or "clean_tech_review"
-                                    )
-                                    or template_for_ad_tone(angle_data.get("ad_tone") or options.get("ad_tone") or "commercial_hype")
-                                )
-                            },
-                            font_name=options.get("font_name", "IBMPlex"),
-                            bilingual_subtitles=options.get("bilingual_subtitles", True),
-                            ghost_reveal=bool(options.get("ghost_reveal", True)),
-                            use_ai_vision=options.get("use_ai_vision", True),
-                            export_mp4=options.get("export_mp4", True),
-                            product_id=product_id,
-                            angle_id=angle_id,
-                            manual_shot_map=angle_data.get("manual_shot_map") or [],
-                            progress_callback=make_sub_progress(idx, angle_name)
-                        )
-
-                    mp4_val = (
-                        result.get("mp4")
-                        or result.get("mp4_video")
-                        or result.get("output_video")
-                        or result.get("video_path")
-                        or ""
-                    )
-                    proj_name = result.get("project_name", "")
-
-                    if product_id and proj_name:
-                        try:
-                            ProductStore.attach_project(product_id, proj_name, **channel_kwargs)
-                        except Exception:
-                            pass
-
-                    # Mark rendered or in_production in store
-                    is_draft = not options.get("export_mp4", True)
-                    is_rendered = bool(not is_draft and mp4_val)
                     item_b = angle_data.get("batch") if angle_data else item.get("batch")
                     ProductStore.update_angle_status(
-                        product_id,
-                        angle_id,
-                        "rendered" if is_rendered else "in_production",
-                        video_url=str(mp4_val) if is_rendered else None,
-                        project_name=proj_name,
-                        export_id=result.get("export_id") if is_rendered else None,
-                        batch=item_b,
-                     **channel_kwargs)
-
-                    render_jobs.complete_job(sub_job_id, result, **channel_kwargs)
-                    item["status"] = "rendered" if is_rendered else "draft_ready"
-                    item["project_name"] = proj_name
-                    item["video_url"] = str(mp4_val) if is_rendered else ""
-                    completed_count += 1
-                    success = True
-                    break
-
-                except RenderCancelled:
-                    logger.info("Sub-job %s cancelled for angle %s", sub_job_id, angle_id)
-                    render_jobs.cancel_job(sub_job_id, **channel_kwargs)
-                    item["status"] = "cancelled"
-                    try:
-                        item_b = angle_data.get("batch") if angle_data else item.get("batch")
-                        ProductStore.update_angle_status(
-                            product_id, angle_id, "scripted", project_name="", batch=item_b
-                        , **channel_kwargs)
-                    except Exception:
-                        pass
-                    break
-
-                except Exception as e:
-                    last_err = e
-                    logger.warning("Attempt %d failed for angle %s: %s", attempt + 1, angle_id, e)
-                    if attempt == 0:
-                        time.sleep(2)  # Pause before retry
-
-            if not success and item["status"] != "cancelled":
-                failed_count += 1
-                item["status"] = "failed"
-                item["error"] = str(last_err) if last_err else "เรนเดอร์ไม่สำเร็จ"
-                render_jobs.fail_job(sub_job_id, str(last_err) if last_err else "Error", **channel_kwargs)
-                try:
-                    ProductStore.update_angle_status(product_id, angle_id, "scripted", **channel_kwargs)
+                        product_id, angle_id, "scripted", project_name="", batch=item_b
+                    , **channel_kwargs)
                 except Exception:
                     pass
+                break
 
-            with _BATCH_LOCK:
-                batch["completed_items"] = completed_count
-                batch["failed_items"] = failed_count
-                cls._persist_batch(batch)
+            except Exception as e:
+                last_err = e
+                logger.warning("Attempt %d failed for angle %s: %s", attempt + 1, angle_id, e)
+                if attempt == 0:
+                    time.sleep(2)  # Pause before retry
 
-        # Final batch state
+        if success or cancelled:
+            return
+        if batch.get("cancelled") and last_err is None:
+            mark(status="cancelled")
+            return
+        mark(status="failed", error=str(last_err) if last_err else "เรนเดอร์ไม่สำเร็จ")
+        render_jobs.fail_job(sub_job_id, str(last_err) if last_err else "Error", **channel_kwargs)
+        try:
+            ProductStore.update_angle_status(product_id, angle_id, "scripted", **channel_kwargs)
+        except Exception:
+            pass
+
+    @classmethod
+    def _finalize_batch(cls, ctx: Dict[str, Any]) -> None:
+        batch = ctx["batch"]
+        batch_id = ctx["batch_id"]
+        items = ctx["items"]
+        total_items = ctx["total_items"]
+        options = ctx["options"]
+        channel_kwargs = ctx["channel_kwargs"]
         with _BATCH_LOCK:
+            cls._refresh_counts(batch)
+            completed_count = batch["completed_items"]
+            failed_count = batch["failed_items"]
             batch["progress"] = 100.0
             is_draft = not options.get("export_mp4", True)
             action_name = "สร้างดราฟต์" if is_draft else "เรนเดอร์"
@@ -751,7 +1056,7 @@ class BatchRenderManager:
                 "total": total_items,
                 "items": items,
                 "project_name": first_project_name or "",
-                "product_id": product_id,
+                "product_id": ctx["product_id"],
             }
 
             if batch.get("cancelled"):

@@ -4,6 +4,18 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CODEX-REVERT-OWN-THEME-20261031 · ถอนงานธีม Codex ครบ: source เดิม 33 ไฟล์ตรง 34c5ba9, ลบ v2/docs/flag, คง GDrive/Claude; frontend tests 1,099/1,099 และ build เดิมผ่าน · ดำเนินการโดย: Codex (GPT-6)
+
+- [x] Round ANTIGRAVITY-GDRIVE-ARCHIVE-ASYNC-PROGRESS-AND-DELTA-RESUME-20261031 · ยกระดับระบบสำรองข้อมูล Google Drive รองรับ Background Task, Real-time Progress Bar, Unlimited Timeout, และ Smart Delta Skip ป้องกันการอัพซ้ำ 100% · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-GDRIVE-ARCHIVE-SMART-BREADCRUMBS-20261031 · พัฒนาระบบ Cloud Archive & Smart Breadcrumbs: สำรองไฟล์วิดีโอที่โพสต์แล้วขึ้น Google Drive อัตโนมัติ คืนพื้นที่ดิสก์ คงรูปปก 3:4 และประวัติ 100% GUI · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round CLAUDE-AI-EDITOR-VIRAL-S1-20261031 · branch `feat/ai-editor-viral-s1` รวม 6 agent (A–F): compliance lint, shot caps/pacing curve, SFX density/ducking/spec highlight, preset+batch 4 workers, style/watch-time data, preview parity · pytest 4378 pass (17 fail เดิมจาก main) · npm 1132/1132 + build · ยังไม่ merge main รอผู้ใช้ · ค้าง 🔒 M1/M5/M8 + follow-ups ใน HISTORY · ดำเนินการโดย: Claude Code (Claude Opus 5.5) + 6 sub-agents (Claude Opus 5.5)
+
+- [x] Round CLAUDE-AI-EDITOR-VIRAL-AUDIT-PLAN-20261031 · audit AI Editor/สไตล์ตัด (Viral Score A–H, preset 10 แบบ, สไตล์ใหม่ 4 แบบ) + Roadmap Q1–Q7/M1–M9/B1–B6 รอผู้ใช้ตอบคำถาม §5 ของแผนก่อนเริ่มโค้ด · ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
+- [x] Round CLAUDE-PROMPT-AI-EDITOR-VIRAL-STYLE-AUDIT-20261031 · ออกแบบพรอมพ์ audit+วางแผน AI Editor / สไตล์ตัดคลิปอัตโนมัติ เน้นไวรัล (Viral Checklist A–H, วิเคราะห์ 10 preset, เสนอสไตล์ใหม่, Roadmap) ที่ `_Docs/Plans/PROMPT_AI_EDITOR_VIRAL_STYLE_AUDIT_20261031.md` ไม่แตะโค้ด · ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
 - [x] Round ANTIGRAVITY-INTEGRATE-CHANNEL-SELECTOR-INTO-EDITOR-HEADER-20261031 · ย้ายและจัดระเบียบ Channel Selector เข้าสู่ EditorHeader โดยตรง และถอดแถบ ChannelWorkspaceBar ด้านบนที่กินพื้นที่และดูโดดออก คืนพื้นที่แนวตั้ง 44px+ และผ่านการทดสอบ 1,097/1,097 tests 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-SSD-4ENHANCEMENTS-DEEP-UPGRADE-20261031 · ดำเนินการยกระดับ 4 จุดสำคัญของระบบ External SSD Sneakernet: (1) โฟลเดอร์ Posted_Archive บน SSD (2) UI Clip Selector เลือกส่งออกเฉพาะบางคลิปได้ (3) Partial Upload Resumption รองรับกรณีโพสต์ค้าง (4) Embedded Python Launcher ใน `START_CAFE_UPLOADER.bat` · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
@@ -265,7 +277,6 @@
 
 - [x] Round ANTIGRAVITY-ORSEN-S6-UNIFIED-AI-PRODUCTION-20-CLIPS-20261014 · ผลิตคลิปสินค้า Orsen by Eloop S6 สไตล์คู่รักสายใต้ (น้องนุ้ย Aoede & พี่บ่าว Puck) บนกระดาษยับ (#5 Couple Paper Chat) ครบ 20 คลิปแบบ End-to-End: วางสคริปต์ 20 บท (10-13 เทิร์น ไร้จุดไข่ปลา), Single-Take Dual-Speaker TTS บนโมเดล gemini-3.8-flash-tts, Faster-Whisper large-v3-turbo ตรวจ 100%, Inter-turn & Tail Audio Sanitization, HyperFrames Composition พร้อม Brand-First CTA Outro (108px highlight, 630px cutout, ไร้อีโมจิ, ลูกศรแดงโค้ง), เรนเดอร์ 1080x1920 30fps และผ่าน TikTok Pro Sharpness Engine ควบคุม Frame 0 Y = 222.68 พอดีเป๊ะครบ 20 คลิป (s01-s20), สกัดปก WebP และ Dual JPG 9:16/3:4 ครบ 20 คู่, ซิงค์ export_registry, cover_bindings และ products.json (status='rendered'), และ archive ดราฟต์เข้า 06_Archive/HyperFrames_Studio/ คืนพื้นที่ Studio คลีน 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
 
-
 - [x] Round ANTIGRAVITY-BATCH-RENDER-20-HOYAUP-AND-ARCHIVE-DRAFTS-20261013 · เรนเดอร์วิดีโอ 1080x1920 30fps คลิป HOYAUP พัดลมแม่เหล็ก (s02-s20) ครบทั้ง 19 คลิปสู่ 04_Exports/Ready_to_post/ ผ่าน TikTok Pro Sharpness Engine ควบคุม Frame 0 Y = 221.57 พอดีเป๊ะครบทั้ง 20 คลิป (s01-s20), สกัดปก Dual Covers 9:16 และ 3:4 ครบ 20 คู่, ซิงค์ export_registry, cover_bindings และ products.json (status='rendered'), และย้ายดราฟต์ clips/hoy01-pov-s01..s20 พร้อมคอมโพซิชันเข้า 06_Archive/HyperFrames_Studio/ คืนพื้นที่ Studio คลีน 100%; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-CLEAN-ALL-HOYAUP-INTER-TURN-AUDIO-GLITCHES-AND-COMPOSITIONS-20261013 · สืบสวนและขจัดเสียงซ่าขยะระหว่างเทิร์น (Inter-Turn Glitches) ในคลิป HOYAUP ครบทั้ง 20 คลิป (s01-s20), ตัดขอบเสียงหัว-ท้าย 260 ไฟล์ turn_*.wav ด้วย speech bounds, re-assemble vo.wav แอมพลิจูดช่วงเงียบเป็น 0.0 เงียบสนิท 100%, ล้าง .waveform-cache ใน Studio, ถอด #paper-tint ออกจากดราฟต์ HTML ทั้ง 20 คลิป, และ re-render HOYAUP s01 ควบคุม Frame 0 Y = 221.57 เรียบร้อย; ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
@@ -276,13 +287,9 @@
 
 - [x] Round ANTIGRAVITY-BRIGHTEN-AND-RE-RENDER-20-ESSAGER-CLIPS-20261013 · ปรับความสว่างคลิป Essager PD 30W ครบ 20 คลิป (s01-s20) สว่างสดใสระดับเดียวกับ HOYAUP/Orsen (Y=236.93); ดู HISTORY.md · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
-
 - [x] Round ANTIGRAVITY-DIAGNOSE-AND-ENHANCE-CLIPS-BRIGHTNESS-20261013 · สืบหาสาเหตุคลิป Essager มืดกว่า Orsen (พบ #paper-tint vignette มืดทึบคลุมทั้งจอ 22% vs Orsen ที่ไม่มี overlay), ถอด overlay มืดทับจอออก และปรับความสว่างเนียนตา (Slight Natural Brightness Lift) ทั้งในคอมโพซิชัน HyperFrames (#paper filter brightness 1.02) และระบบเรนเดอร์ TikTok Sharpness Engine (scripts/tiktok_enhancer.py eq brightness +0.02) ครบทั้ง 20 คลิป HOYAUP ให้ภาพสว่างสดใส ละมุนตา ไม่มืดทึบ และไม่สว่างจ้าหลุดไฮไลต์ (วัดค่า Y เพิ่มขึ้นจาก 187 เป็น 236 สว่างกว่า Orsen Y=227 เล็กน้อยตามสั่ง) (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
-
 - [x] Round ANTIGRAVITY-GENERATE-20-ESSAGER-COVERS-AND-FIX-EXTENSION-PREPARE-20261013 · สร้างปก 9:16 และ 3:4 (TikTok Profile Crop) ครบทั้ง 20 คลิป Essager PD 30W ลงใน 05_Covers_Thumbnails/ จากช็อต Brand-First CTA ท้ายคลิป, บันทึกผูกปกใน _Docs/export_cover_bindings.json และ sync สู่ _Docs/products.json เพื่อให้ TikTok Helper Extension ดึงปกไปใช้งานและปลดล็อกการกดอัปโหลดอัตโนมัติได้ 100% (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
-
-
 
 - [x] Round ANTIGRAVITY-HOYAUP-UNIFIED-AI-PRODUCTION-20-CLIPS-20261013 · ผลิตคลิปสินค้า HOYAUP พัดลมแม่เหล็กระบายความร้อนมือถือ สไตล์คู่รักสายใต้ (น้องนุ้ย Aoede & พี่บ่าว Puck) บนกระดาษยับ (#5 Couple Paper Chat) ครบ 20 คลิป พร้อมแก้ปัญหา TTS Hallucination ด้วยสถาปัตยกรรม Turn-by-Turn + Faster-Whisper (0.95-1.00), ขจัดเสียงซ่าท้ายคลิปสู่ 0.0, และ sync Content Tracker ใน _Docs/products.json ครบ 100% (ดู HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 

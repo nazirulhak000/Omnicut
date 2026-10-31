@@ -204,6 +204,134 @@ def bgm_tempo_ratio(cues: Optional[List[Mapping[str, Any]]]) -> float:
     return round(tempo_ratio, 3)
 
 
+# --- SFX density (roadmap Q4) -------------------------------------------------
+# One SFX per script line plus one per overlay plus the hook boom stacked up to
+# a hit every second or two, and two booms at 0.0 when the hook line carried its
+# own opener. The planner below keeps at most one SFX per SFX_MIN_GAP_S window,
+# choosing the more important event (opener/closer over an ordinary line), and
+# leaves a transition whoosh alone only when it is bound to a visual cut.
+SFX_MIN_GAP_S = 2.0
+# The hook line counts as "carrying the opener" when its SFX fires this early.
+SFX_OPENER_WINDOW_S = 0.5
+# A whoosh within this distance of a cut time is bound to that cut.
+SFX_CUT_SNAP_S = 0.1
+_SFX_TRANSITION_WORDS = ("whoosh", "swish", "swoosh", "transition")
+_SFX_PRE_ROLL_S = 0.12
+_SFX_MIN_FIRE_S = 0.02
+_SFX_ROLE_PRIORITY = {"opener": 2, "closer": 2, "line": 1}
+_SFX_SOURCE_ORDER = {"boom": 0, "cue": 1, "overlay": 2}
+
+
+def _is_transition_sfx_name(name: str) -> bool:
+    low = str(name or "").lower()
+    return any(w in low for w in _SFX_TRANSITION_WORDS)
+
+
+def plan_sfx_events(
+    cues: Optional[List[Mapping[str, Any]]],
+    overlays: Optional[List[Mapping[str, Any]]] = None,
+    *,
+    total_duration: Optional[float] = None,
+    boom_available: bool = True,
+    min_gap: float = SFX_MIN_GAP_S,
+    cut_times: Optional[List[float]] = None,
+    sfx_filename: Optional[Any] = None,
+) -> List[Dict[str, Any]]:
+    """Decide which SFX events the mix keeps. Pure and deterministic.
+
+    ``sfx_filename(tag)`` returns the resolved file name for a cue/overlay tag
+    (None when the file is missing -- such an event is not a candidate, so it
+    can never take a slot from one that would actually play). Without it the
+    tag itself is used as the name.
+
+    Returns the kept events in mix order (boom, cues by index, overlays by
+    index), each ``{"source", "index", "sfx", "start", "fire", "role",
+    "exempt"}``. ``fire`` is the time the sound is heard (transition pre-roll
+    applied), and the gap is measured between fire times.
+
+    Rules:
+    - The hook boom at 0.0 is the opener -- unless the hook line (the earliest
+      cue SFX, firing within SFX_OPENER_WINDOW_S) already carries one; then that
+      cue is the opener and no second boom is added.
+    - The last cue carrying an SFX is the closer.
+    - A transition whoosh bound to a cut (``cut_bound: True`` on the event, or
+      its start within SFX_CUT_SNAP_S of one of ``cut_times``) is always kept
+      and does not block other events.
+    - Every other event must sit at least ``min_gap`` seconds from every kept
+      event. Conflicts are settled by priority (opener/closer > line), then by
+      earlier fire time, then boom < cue < overlay, then index.
+    """
+    resolve_name = sfx_filename if callable(sfx_filename) else (lambda tag: tag)
+    cuts = []
+    for t in cut_times or []:
+        try:
+            value = float(t)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(value):
+            cuts.append(value)
+
+    candidates: List[Dict[str, Any]] = []
+
+    def _add(source: str, index: Optional[int], event: Mapping[str, Any], default_start: Optional[float]):
+        if not is_sfx_event_eligible(event, total_duration=total_duration, default_start=default_start):
+            return
+        tag = event.get("sfx")
+        name = resolve_name(tag)
+        if not name:
+            return
+        start = sfx_event_start(event, 0.0 if default_start is None else default_start)
+        transition = _is_transition_sfx_name(name)
+        fire = max(_SFX_MIN_FIRE_S, start - (_SFX_PRE_ROLL_S if transition else 0.0))
+        bound = event.get("cut_bound") is True or any(abs(start - c) <= SFX_CUT_SNAP_S for c in cuts)
+        candidates.append({
+            "source": source,
+            "index": index,
+            "sfx": tag,
+            "start": start,
+            "fire": fire,
+            "role": "line",
+            "exempt": bool(transition and bound),
+        })
+
+    for idx, cue in enumerate(cues or []):
+        _add("cue", idx, cue, None)
+    for idx, item in enumerate(overlays or []):
+        _add("overlay", idx, item, 0.0)
+
+    cue_events = sorted((c for c in candidates if c["source"] == "cue"), key=lambda c: (c["fire"], c["index"]))
+    hook_carries_opener = bool(cue_events) and cue_events[0]["start"] <= SFX_OPENER_WINDOW_S
+    if hook_carries_opener:
+        cue_events[0]["role"] = "opener"
+    elif boom_available:
+        candidates.insert(0, {
+            "source": "boom", "index": None, "sfx": "boom", "start": 0.0, "fire": 0.0,
+            "role": "opener", "exempt": False,
+        })
+    if cue_events and cue_events[-1]["role"] == "line":
+        cue_events[-1]["role"] = "closer"
+
+    kept: List[Dict[str, Any]] = []
+    ranked = sorted(
+        candidates,
+        key=lambda c: (
+            -_SFX_ROLE_PRIORITY[c["role"]],
+            c["fire"],
+            _SFX_SOURCE_ORDER[c["source"]],
+            -1 if c["index"] is None else c["index"],
+        ),
+    )
+    for cand in ranked:
+        if cand["exempt"]:
+            kept.append(cand)
+            continue
+        if all(k["exempt"] or abs(k["fire"] - cand["fire"]) >= min_gap - 1e-9 for k in kept):
+            kept.append(cand)
+
+    kept.sort(key=lambda c: (_SFX_SOURCE_ORDER[c["source"]], -1 if c["index"] is None else c["index"]))
+    return kept
+
+
 # Each cut leaves a hard edge in the voice; an 8 ms ramp on both sides of every
 # join removes the click without moving a single sample (afade keeps the length,
 # unlike acrossfade which would shorten the track by the fade time).
@@ -360,6 +488,10 @@ class SFXManager:
         # length of the voice file (probed when omitted).
         voice_cuts: Optional[List[Dict]] = None,
         voice_source_duration: Optional[float] = None,
+        # Visual cut times (seconds). A transition whoosh within
+        # SFX_CUT_SNAP_S of one is bound to that cut and exempt from the
+        # SFX_MIN_GAP_S density rule; None treats every whoosh as a normal hit.
+        cut_times: Optional[List[float]] = None,
     ) -> str:
         """
         Mixes voiceover, SFX triggers at cue start times, and looped background music.
@@ -402,9 +534,40 @@ class SFXManager:
         else:
             filter_complex.append(f"{cut_graph}{voice_head}volume={policy.voice_volume},apad=pad_dur=1.0[voice_padded];")
 
-        # 2. Add Boom on 0.0s Hook
+        # SFX density plan (SFX_MIN_GAP_S): which boom/cue/overlay hits stay.
+        def _sfx_filename(tag):
+            path = cls.resolve(tag) if tag else None
+            return path.name if path and path.exists() else None
+
         boom_file = cls.resolve("boom")
-        if boom_file and boom_file.exists():
+        sfx_plan = plan_sfx_events(
+            cues,
+            overlays,
+            total_duration=total_duration,
+            boom_available=bool(boom_file and boom_file.exists()),
+            cut_times=cut_times,
+            sfx_filename=_sfx_filename,
+        )
+        keep_boom = any(e["source"] == "boom" for e in sfx_plan)
+        keep_cues = {e["index"] for e in sfx_plan if e["source"] == "cue"}
+        keep_overlays = {e["index"] for e in sfx_plan if e["source"] == "overlay"}
+        candidate_count = sum(
+            1 for c in (cues or [])
+            if is_sfx_event_eligible(c, total_duration=total_duration) and _sfx_filename(c.get("sfx"))
+        ) + sum(
+            1 for o in (overlays or [])
+            if is_sfx_event_eligible(o, total_duration=total_duration, default_start=0.0)
+            and _sfx_filename(o.get("sfx"))
+        )
+        dropped = max(0, candidate_count - len(keep_cues) - len(keep_overlays))
+        if dropped:
+            logger.info(
+                "SFX density: ตัดเสียงเอฟเฟกต์ที่ถี่เกินไป %d จุด (ระยะห่างขั้นต่ำ %.1f วิ)",
+                dropped, SFX_MIN_GAP_S,
+            )
+
+        # 2. Add Boom on 0.0s Hook (skipped when the hook line carries its own opener)
+        if keep_boom:
             inputs.extend(["-i", str(boom_file)])
             filter_complex.append(f"[{input_count}:a]volume={policy.sfx_volume}[sfx_boom];")
             sfx_nodes = ["[sfx_boom]"]
@@ -414,7 +577,7 @@ class SFXManager:
 
         # 3. Add SFX inputs per cue
         for idx, cue in enumerate(cues):
-            if not is_sfx_event_eligible(cue, total_duration=total_duration):
+            if idx not in keep_cues:
                 continue
             sfx_type = cue.get("sfx")
             sfx_file = cls.resolve(sfx_type) if sfx_type else None
@@ -436,7 +599,7 @@ class SFXManager:
         # overlay too now, so a banner with a whoosh mixes like any other.
         if overlays:
             for idx, item in enumerate(overlays):
-                if not is_sfx_event_eligible(item, total_duration=total_duration, default_start=0.0):
+                if idx not in keep_overlays:
                     continue
                 sfx_type = item.get("sfx")
                 if not sfx_type:

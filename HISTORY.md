@@ -7,6 +7,15 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-AI-EDITOR-VIRAL-S1-20261031 | ลงมือ S1–S2 + M3 ของแผน AI Editor Viral บน branch `feat/ai-editor-viral-s1` ด้วย 6 sub-agents (worktree แยก): compliance lint/opener/โครงสคริปต์, shot caps + hook pacing + match confidence, SFX density + ducking + Gemini lead trim + spec highlight, preset consistency + batch 4 workers, style/watch-time data capture + endpoint, preview parity; pytest 4378 pass / 17 fail เดิม, npm 1132/1132, build ผ่าน | 2026-10-31 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + 6 sub-agents (Claude Opus 5.5) |
+| Round CODEX-REVERT-OWN-THEME-20261031 | ผู้ใช้สั่งย้อนงานธีม Codex ทั้งหมด: คืนไฟล์เดิม 33 ไฟล์ตรง 34c5ba9, ถอน v2 modules/docs/local flag, ถอนเฉพาะ hooks ใน ExportGallery โดยคง GDrive/Claude AI Editor, build UI เดิมกลับ; frontend tests 1,099/1,099 | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
+| Round CODEX-THEME-READY-DEFAULT-20261031 | ลดขั้นตอนตามคำสั่งผู้ใช้: เปิดครั้งแรกเป็น Balanced พร้อมใช้ทันที ตัวปรับแต่งทั้งหมดอยู่ในขั้นสูง; รักษา v2 selection ที่บันทึกแล้ว; theme tests 25/25, full frontend 1,120/1,120, build frontend/dist ผ่าน | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
+| Round CODEX-THEME-V2-ENABLE-LOCAL-20261031 | ผู้ใช้สั่งเปิดให้ทดลองจริง: ตั้ง VITE_UI_THEME_V2=true ใน .env เฉพาะเครื่อง, Vite อ่าน true, build frontend/dist exit0 และตรวจ asset references ครบ; ไม่ restart แทนผู้ใช้; visual QA ยัง Pending | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
+| Round CODEX-THEME-GLASS-SAAS-IMPLEMENTATION-20261031 | พัฒนา Balanced Glass Workspace หลัง flag ปิด: v2 migration/persistence, resolver, customizer, scoped preview, UI surfaces; theme tests 24/24, full frontend 1,119/1,119, builds flag off/on ผ่าน; visual rollout gate ยัง Pending | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) + 3 sub-agents (GPT-6) |
+| Round CODEX-THEME-GLASS-SAAS-PLAN-20261031 | Source audit 16 ข้อ + แผน PulseHub Glass × Professional SaaS: 3 directions, semantic tokens, customizer, migration, Phase 0–5 และ rollback; baseline theme tests 4/4; visual gate ค้างก่อน implementation | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
+| Round ANTIGRAVITY-GDRIVE-ARCHIVE-ASYNC-PROGRESS-AND-DELTA-RESUME-20261031 | ยกระดับระบบสำรองข้อมูล Google Drive รองรับ Background Task, Real-time Progress Bar, Unlimited Timeout, และ Smart Delta Skip ป้องกันการอัพซ้ำ 100% พร้อมขยาย timeout ใน api.js และผ่านชุดทดสอบ 7/7 tests | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round CLAUDE-AI-EDITOR-VIRAL-AUDIT-PLAN-20261031 | audit AI Editor/การตัดอัตโนมัติด้านไวรัล (read-only 4 sub-agents + ยืนยันมือ 9 ข้อ) → รายงาน `_Docs/Reports/AI_EDITOR_VIRAL_AUDIT_20261031.md` + แผน `_Docs/Plans/PLAN_AI_EDITOR_VIRAL_STYLES_20261031.md`; ไม่แตะโค้ด | 2026-10-31 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
+| Round CLAUDE-PROMPT-AI-EDITOR-VIRAL-STYLE-AUDIT-20261031 | พรอมพ์ audit+วางแผน AI Editor สไตล์ตัดไวรัล `_Docs/Plans/PROMPT_AI_EDITOR_VIRAL_STYLE_AUDIT_20261031.md` | 2026-10-31 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
 | Round ANTIGRAVITY-INTEGRATE-CHANNEL-SELECTOR-INTO-EDITOR-HEADER-20261031 | ย้ายและจัดระเบียบ Channel Selector เข้าสู่ EditorHeader โดยตรง และถอดแถบ ChannelWorkspaceBar ด้านบนที่กินพื้นที่และดูโดดออก: ถอดแถบ standalone bar ด้านบนใน App.jsx คืนพื้นที่แนวตั้ง 44px+ ให้กับหน้าต่างตัดต่อ, สร้าง EditorChannelSelector.jsx เป็น Glassmorphism Pill แสดงชื่อช่อง (@handle) พร้อมจุดสถานะ (เขียว/ส้ม) และ Dropdown Popover สำหรับสลับช่องอย่างนุ่มนวล, ฝังลงใน EditorHeader.jsx เคียงข้าง ProjectSelector สวยงามลงตัว, ปฏิบัติตาม Rule 3.8/4.8 คลีน 100%, เพิ่มชุดทดสอบ TDD frontend/src/lib/editorChannelSelector.test.js ผ่าน 5/5 tests (รวม Vitest 1,097/1,097 tests 100%, Pytest Parity 205/205 tests 100%), บิลด์ Vite สำเร็จ | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-FIX-EDITOR-UNDEFINED-MOBILE-PREVIEW-CONSTANTS-20261031 | แก้ไขข้อผิดพลาด ReferenceError: MOBILE_PREVIEW_MIN_H is not defined และ MOBILE_PREVIEW_DEFAULT ใน EditorShell.jsx: ตรวจพบสาเหตุการเรียกใช้ตัวแปรความสูงพรีวิวมือถือที่ยังไม่ได้ import มาจาก hooks/usePanelLayout.js, เพิ่ม import MOBILE_PREVIEW_MIN_H และ MOBILE_PREVIEW_DEFAULT ใน EditorShell.jsx พร้อมเพิ่ม default prop initialValues = null ใน NewClipPanel.jsx, ตรวจสอบผ่าน Oxlint no-undef พบ 0 undefined identifiers, ผ่านการทดสอบ Vitest 1,092/1,092 tests (100%), Pytest Parity 205/205 tests (100%), Feature Coverage 6/6 tests (100%), รีบิลด์ Vite Production Bundle สำเร็จ (EditorShell-ClsfVLn7.js) | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-FIX-EDITOR-TDZ-ZOOMTOFIT-BUG-20261031 | แก้ไขข้อผิดพลาด ReferenceError: Cannot access 'jo' before initialization ใน EditorShell.jsx: ตรวจพบสาเหตุ useEditorShortcuts เรียกใช้ onZoomFit: zoomToFit ก่อนการประกาศ timelineViewportRef และ zoomToFit ส่งผลให้เกิด JavaScript Temporal Dead Zone (TDZ) และแครชที่ Runtime ในโหมด Minified Production Bundle (jo identifier), ดำเนินการย้ายการประกาศ timelineViewportRef และ zoomToFit ขึ้นมาอยู่ก่อนหน้าการเรียก useEditorShortcuts, รีบิลด์ Vite Production Bundle สำเร็จ (EditorShell-zpXCEXu8.js), ผ่านการทดสอบ Vitest 1,092/1,092 tests (100%), Pytest Parity 205/205 tests (100%), Feature Coverage 6/6 tests (100%), Oxlint 0 errors | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -16775,3 +16784,129 @@ Plan before code:
 5. **ความปลอดภัยฐานข้อมูล (Git Tracking Guard):** อนุมัติให้รัน `git rm --cached` ปลดไฟล์ `_Docs/post_log.json`, `_Docs/schedule_queue.json`, `_Docs/schedule_templates.json`, `_Docs/tiktok_pending.json` ออกจาก Git tracking เรียบร้อย พร้อมเพิ่มลง `.gitignore` (ไฟล์ข้อมูลจริงบนเครื่องยังอยู่ครบ 100%)
 6. **coalesceKey:** ตรวจสอบพบว่าเชื่อมต่อกับ ClipInspector, ProjectInspector, captionEdits และ useEditorCommands เรียบร้อยแล้วตั้งแต่ Wave 1
 7. **ปิดรอบ:** ย้ายสถานะเป็นสำเร็จสมบูรณ์
+
+---
+
+## Round CLAUDE-PROMPT-AI-EDITOR-VIRAL-STYLE-AUDIT-20261031
+
+ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
+- [x] เขียนพรอมพ์ audit + วางแผน AI Editor / สไตล์ตัดคลิปอัตโนมัติ เน้นไวรัล → `_Docs/Plans/PROMPT_AI_EDITOR_VIRAL_STYLE_AUDIT_20261031.md`
+
+## Round CLAUDE-AI-EDITOR-VIRAL-AUDIT-PLAN-20261031
+
+ดำเนินการโดย: Claude Code (Claude Opus 5.5) + 4 Explore sub-agents (Claude Opus 5.5)
+
+- [x] ขั้น 1–5 audit → `_Docs/Reports/AI_EDITOR_VIRAL_AUDIT_20261031.md` (Viral Readiness: A3 B3 C4 D4 E6 F2 G1 H5)
+- [x] ขั้น 6 roadmap → `_Docs/Plans/PLAN_AI_EDITOR_VIRAL_STYLES_20261031.md` (Q1–Q7, M1–M9, B1–B6, Sprint S1–S5)
+- [x] ยืนยันด้วยมือ 9 ข้อ: hook_title ไม่ขึ้นจอ, MICRO_BURST_MAX_CHARS=34, TTS แปลงราคาเป็น "บาท", API bgm_ducking=False, batch_render ไม่มี worker pool (ผิดกฎข้อ 24), Gemini prompt ช็อต 2–6 วิ, BatchRenderModal ส่ง 'commercial_premium', fallback hook มีคำราคา, shot planning exception → คลิปเดียว
+- [x] Jev `choice` ลำดับแรก → hook @0.74 (< 0.80 escalate → คำถามผู้ใช้ §5 ข้อ 1)
+- ไม่แตะโค้ด ไม่เรนเดอร์ ไม่ยิง paid API · ไม่มีไฟล์ทดสอบค้าง
+- ค้าง: รอผู้ใช้ตอบคำถาม 8 ข้อใน §5 ของแผนก่อนเริ่ม Sprint S1
+
+---
+
+### Round ANTIGRAVITY-GDRIVE-ARCHIVE-ASYNC-PROGRESS-AND-DELTA-RESUME-20261031 · อัปเกรดระบบสำรองขึ้น Google Drive ด้วย Background Thread Runner, Real-time Progress Bar, Unlimited Timeout, และ Smart Delta Skip ป้องกันการอัพซ้ำ 100%
+**วันที่:** 2026-10-31  
+**ดำเนินการโดย:** Antigravity (Gemini 2.5 Pro)
+
+#### 1. วัตถุประสงค์และปัญหาที่พบ
+- ผู้ใช้งานพบปัญหา Timeout 60 วินาที (`timeout of 60000ms exceeded`) ในเบราว์เซอร์เมื่อกดสำรองคลิปจำนวนมาก (116 คลิป รวม 3.91 GB จาก 17 สินค้า)
+- ขาด Real-time Progress Bar ทำให้ผู้ใช้ไม่ทราบว่ากระบวนการกำลังทำงานอยู่ที่ไฟล์ใด หรือค้างหรือไม่
+- ผู้ใช้กังวลเรื่องโอกาสที่คลิปจะถูกอัปโหลดซ้ำซ้อนขึ้น Google Drive จนเกิดไฟล์เบิ้ล
+
+#### 2. สิ่งที่ดำเนินการ
+1. **Backend Engine (`scripts/gdrive_archive_engine.py`):**
+   - ติดตั้ง `progress_callback` รายงานความคืบหน้าระดับวินาที (stage, index, total, file, product, bytes, percent)
+   - ติดตั้ง `Smart Delta Skip`: ตรวจสอบไฟล์ปลายทางใน Google Drive ก่อนคัดลอก หากพบว่าไฟล์มีอยู่แล้วและขนาดรวมถึง SHA-256 ตรงกัน 100% ระบบจะ Skip ข้ามการคัดลอกทันที และมาร์กสถานะ `archived_gdrive` ใน Registry อัตโนมัติ ไม่สร้างไฟล์ซ้ำซ้อนเด็ดขาด
+2. **Backend Async Router (`scripts/api_gdrive_archive.py`):**
+   - เพิ่ม Background Worker Thread ปลดล็อกคำขอ HTTP ให้ตอบกลับสถานะ `started` ทันทีภายใน 50ms ป้องกัน HTTP Timeout 100%
+   - เพิ่ม Endpoint `GET /api/archive/progress` สำหรับให้ Frontend โพลล์สถานะแบบ Real-time
+3. **Frontend Modal & API (`CloudArchiveModal.jsx`, `api.js`):**
+   - ติดตั้งแถบ Progress Bar นีออนสีฟ้า-มรกตแบบเคลื่อนไหว แสดงเปอร์เซ็นต์ (%), จำนวนคลิปที่เสร็จ/ทั้งหมด, ชื่อคลิปปัจจุบัน, และขนาดพื้นที่ที่ได้คืนสดๆ
+   - ขยาย Timeout ของคำขอสำรองใน Axios (`timeout: 0` / Unlimited) เพื่อป้องกันการตัดการเชื่อมต่อ
+4. **Verification & Testing (`tests/test_gdrive_archive_pipeline.py`):**
+   - เพิ่มการทดสอบ `test_archive_clips_progress_callback` และ `test_archive_clips_smart_delta_skip`
+   - ผลการทดสอบผ่าน 7/7 tests (100%) และการทดสอบระบบ SSD ผ่าน 6/6 tests (100%) รวม 13/13 tests
+   - รีบิลด์ Vite Production Bundle สำเร็จ ไร้ข้อผิดพลาด
+
+
+## Round CODEX-THEME-GLASS-SAAS-PLAN-20261031 — ดำเนินการโดย: Codex (GPT-6)
+
+ดำเนินการโดย: Codex (GPT-6) · วันที่ 2026-10-31
+
+- [x] ตรวจ source ของระบบธีม OmniCut และ reference ที่ผู้ใช้ระบุ `D:/Winona/Programmer/Pulse-Hub/public/index.html`
+- [x] ส่งรายงาน `_Docs/Reports/THEME_GLASS_SAAS_AUDIT_20261031.md`: inventory, 16 findings พร้อม code evidence, reference comparison, source hashes และข้อจำกัด
+- [x] ส่งแผน `_Docs/Plans/PLAN_THEME_GLASS_SAAS_20261031.md`: 3 directions, แนะนำ Balanced Glass Workspace, semantic tokens/surface hierarchy, draft/apply/cancel customizer, per-preset persistence/migration, Phase 0–5, acceptance/tests/risks/rollback และ 4 เรื่องให้เจ้าของเลือก
+- [x] Baseline `node --test frontend/src/lib/themeManager.test.js`: 4 passed, 0 failed; ไม่มีการแก้โค้ด UI หรือธีมจริง
+- Visual/runtime gate: browser access host และ native pipe unavailable; ผู้ใช้ยืนยันทำแผนต่อจาก source พร้อมข้อจำกัดแล้ว; ภาพจริง contrast และ performance ยัง Pending ก่อน implementation
+- Jev ตรวจจากสรุป ไม่ได้อ่านไฟล์เอง: scope noul 0.93 / confidence null; document coverage 2.62/3 / confidence 0.61; ทั้งคู่ escalate ไม่ใช้เป็นการรับรองหรืออนุมัติแก้ UI
+- คงงาน agent อื่น: Cloud Archive/API/gallery/dist/TODO/HISTORY ที่มี delta อยู่ก่อน; ไม่ commit/build/แก้ข้อมูลจริง และไม่สร้าง media ทดสอบ
+- รอบวางแผนปิดแล้ว; งาน implementation/visual verification ยังไม่เริ่ม และไม่ถูกนับว่าเสร็จ
+
+
+## Round CODEX-THEME-GLASS-SAAS-IMPLEMENTATION-20261031 — ดำเนินการโดย: Codex (GPT-6) + 3 sub-agents (GPT-6)
+
+ดำเนินการโดย: Codex (GPT-6) + 3 sub-agents (GPT-6) · วันที่ 2026-10-31
+
+- [x] Foundation: catalog/resolver/storage v2, per-preset overrides, legacy snapshots, custom themes และ future-schema/CAS protection
+- [x] Materials: opt-in semantic surfaces/shared UI, effects full/light/off, no-backdrop fallback และ reduced-motion; namespace --oc-ui-* ไม่ใช้กับวิดีโอ
+- [x] Customizer: scoped draft preview, apply/cancel/reset/custom presets, storage status และ dirty cross-tab conflict
+- [x] Root: Context/session/runtime, shell/desktop/mobile/page hooks, legacy remount safety, label/id และ review integration
+- [x] Theme tests 24 passed/0 failed; full frontend 1,119 passed/0 failed; Vite config builds flag=false/true exit0; targeted core oxlint ไม่มี diagnostics; static design detector []
+- [x] เก็บกวาด copied test media 16 ไฟล์จาก .tmp builds; final builds copyPublicDir=false; ไม่สร้างวิดีโอ/โปรเจกต์ทดสอบหรือแก้ export registry
+- ส่งมอบ `_Docs/Reports/THEME_GLASS_SAAS_IMPLEMENTATION_20261031.md` พร้อม coverage, warnings, คำสั่ง review/rollback และเกณฑ์ภาพจริง
+- Feature flag VITE_UI_THEME_V2 ค่าเริ่มปิด ไม่มีการแก้ .env หรือเปิดใช้จริง ผู้ใช้อนุญาตพัฒนาหลัง flag ระหว่าง tooling unavailable
+- ยังไม่ผ่าน visual acceptance: browser access host/native pipe unavailable; contrast/compositing/performance/font-video pixels ต้องตรวจบนภาพจริงก่อน rollout; แยกงานค้างไว้ TODO แล้ว
+- Source บางส่วนถูก agent อื่น commit/merge ระหว่างทำงานใน shared branch; รอบนี้ไม่ได้สั่ง commit/merge/push และไม่ย้อนงาน API/Cloud Archive/Batch ของผู้อื่น
+
+
+## Round CODEX-THEME-V2-ENABLE-LOCAL-20261031 — ดำเนินการโดย: Codex (GPT-6)
+
+ดำเนินการโดย: Codex (GPT-6) · วันที่ 2026-10-31
+
+- [x] ผู้ใช้สั่งเปิดให้ทดลองใช้งานจริงและจะ restart server เอง จึงตั้ง VITE_UI_THEME_V2=true ใน root .env โดยรักษาค่าอื่นทั้งหมด
+- [x] ตรวจ Vite production environment อ่าน flag=true; npm run build ลง frontend/dist exit0 (มี warning chunk size/runtime fonts ตามเดิม)
+- [x] ตรวจ index.html อ้าง hashed assets ที่มีอยู่จริงครบ; ไม่เปลี่ยน browser localStorage และไม่ restart server แทนผู้ใช้
+- ธีม Balanced เลือกผ่าน Settings → Appearance → Balanced Glass Workspace → ใช้ธีม; visual acceptance ยัง Pending และไม่ถือว่าผ่านจาก build
+
+
+## Round CODEX-THEME-READY-DEFAULT-20261031 — ดำเนินการโดย: Codex (GPT-6)
+
+ดำเนินการโดย: Codex (GPT-6) · วันที่ 2026-10-31
+
+- [x] ผู้ใช้ต้องการพร้อมใช้: first-run v2 ใช้ Balanced โดยอัตโนมัติพร้อม optical defaults; เก็บ legacy snapshot และรักษา v2 selection ที่บันทึกแล้ว
+- [x] ซ่อนชุดตัวเลือก/preview/slider/custom presets/apply ใน details ขั้นสูงที่ยุบไว้ หน้าหลักแสดงธีมที่ใช้อยู่
+- [x] Theme tests 25 passed/0 failed, full frontend 1,120 passed/0 failed; build frontend/dist exit0; ไม่มีการแก้ video/fonts หรือข้อมูลจริง
+- Visual acceptance ยังเป็นงานค้าง ไม่อ้างว่าภาพผ่านจาก tests/build; .env เปิดไว้ตามคำสั่งก่อนหน้า
+
+
+## Round CODEX-REVERT-OWN-THEME-20261031 — ดำเนินการโดย: Codex (GPT-6)
+
+ดำเนินการโดย: Codex (GPT-6) · วันที่ 2026-10-31
+
+- ผู้ใช้สั่งถอนงานของ Codex ทั้งหมดและขอธีมเดิมก่อนแก้ไข
+- คืน source เดิม 33 ไฟล์ตรง baseline 34c5ba9 แบบ byte-for-byte; ถอน v2 modules/tests/styles และเอกสารธีมที่สร้างใหม่ทั้งหมด
+- ExportGallery ถอนเฉพาะ 6 surface hooks ของ Codex; คง Cloud Archive code; คง API/Batch/stylePresetCatalog ของ agent อื่น ไม่มีการ revert mixed GDrive commit ทั้งก้อน
+- ถอน VITE_UI_THEME_V2 จาก .env โดยคงค่าอื่น; prefs เก่าใน browser ไม่เคยถูกเขียนทับ จึงกลับ renderer/theme manager เดิม
+- npm test: 1,099 passed/0 failed; production frontend/dist build exit0; ไม่ restart server แทนผู้ใช้
+- ตรวจ diff เทียบก่อนงานธีม: เหลือเฉพาะ 6 ไฟล์ frontend ของ GDrive/Claude; ถอน TODO งานธีมที่ยกเลิก เหลือประวัติและบันทึกย้อนงานเพื่อสืบย้อน
+
+---
+
+## Round CLAUDE-AI-EDITOR-VIRAL-S1-20261031
+
+ดำเนินการโดย: Claude Code (Claude Opus 5.5) + 6 sub-agents (Claude Opus 5.5) · branch `feat/ai-editor-viral-s1` (ยังไม่ merge main)
+แผน: `_Docs/Plans/PLAN_AI_EDITOR_VIRAL_STYLES_20261031.md` · รายงาน audit: `_Docs/Reports/AI_EDITOR_VIRAL_AUDIT_20261031.md`
+
+- [x] Agent A `85598b2` — Q1 `scripts/compliance_lint.py` (ราคา/claim/filler opener/CTA บรรทัดแรก, ปิดได้ด้วย `COMPLIANCE_LINT_ENABLED`), regen 1 ครั้งแล้ว strip, TTS เลิกแปลงราคาเป็น "บาท", ถอด price callout/claim ปลอม/อีโมจิ; Q3 opener ใหม่; M3 `target_duration`/`story_format` + `check_script_structure()` (เตือนอย่างเดียว) — 70 เทสใหม่
+- [x] Agent B `3c7a28e` — Q2 เพดานช็อต max×1.25 + split ตาม topic, freeze >1 วิใช้ฟุตเทจข้างเคียง (`hold_reason`); M2 `hook_window_sec`/`hook_max_shot`/`max_static_sec` + camera punch อัตโนมัติ; M6 `confidence` + hero fallback + ไม่ snap เข้าเฟรมนิ่ง; Q7 shot planning fail → `AppError SHOT_PLANNING_FAILED` — 59 เทสใหม่ (5 suite เดิมใส่ fixture ปิด M2)
+- [x] Agent C `bd203e8` — Q4 `plan_sfx_events()` gap 2.0 วิ + ไม่ boom ซ้อน, `bgm_ducking` default True; Q7 ตัด lead silence Gemini, ไฮไลต์ตัวเลขสเปก, แก้ log; ถอด 📊 + ทับศัพท์ใน dictionary
+- [x] Agent D `acb7f90` — Q5 Batch modal ใช้ preset จริง + "auto", angle map ครบทุก it_angles key (JS = Python), color_theme อ่านจาก policy, label ตรง render; M7 `BATCH_MAX_WORKERS=4` + `is_valid_mp4` resume
+- [x] Agent E `bff2115` — Q6 export/PostLog เก็บ style_preset/hook_style/story_format/duration_sec/hook_text, import watch time/completion, `GET /api/tiktok-stats/style-performance`
+- [x] Agent F `4616541` — preview parity: `frontend/src/lib/sfxPlan.js`, `kineticHighlight.js` + fixture ข้ามภาษา
+- [x] Lead: `101e2c6` batch API default "auto", `8837729` api_phase1 ducking default True, `21c4164` channel policy count
+- [x] เทส: pytest ทั้งชุด (worktree สะอาด @ee25040) 4378 pass / 19 fail / 26 skip → 17 fail เหมือน main@5a1b4ca (NVENC, hyperframes, ssd route policy, couple_jobs lifespan, gemini multikey, tools path hygiene), 1 แก้แล้ว (policy count), 1 flaky (sam2 preflight ผ่านเมื่อรันเดี่ยว); parity @348c2a1 221 pass; npm test 1132/1132; build ผ่าน
+- ⚠ branch นี้มี commit ของ AI อื่นปน: `60a5abc` (gdrive, Antigravity), `c270bcd` (rollback ธีม Codex) — merge เข้า main จะติดไปด้วย
+- ค้าง (ต้องอนุมัติ): M1 hook text บนจอ, M5 รวม preset, M8 burst ซับ 16–24 ตัวอักษร, hook template สี tech_product_showcase/smooth_showcase
+- ค้าง (follow-up): `render_jobs._RENDER_SLOT` เป็น lock เดียว → batch 4 workers ยังเรนเดอร์จริงทีละคลิป (ต้อง semaphore + audit thread-safety); `PipelineContext` ยังไม่มี field `target_duration`/`story_format`; `audio_mix_stage` ยังไม่ส่ง `cut_times`; preview ยังไม่รู้ custom keywords จาก hook; Gemini match cache key ไม่รวมช่วงช็อต; `it_angles` spec_compare ยังชื่อ "เทียบราคา"; frontend `productCallout.js` ยังมี 'price'; Performance tab UI สำหรับ style-performance; route policy `/api/ssd/*`

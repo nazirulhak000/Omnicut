@@ -6,8 +6,12 @@ No TikTok API, no cloud, no OAuth — the numbers were already on screen.
 
 Request rows come from stats_parser.js: title, posted_text, privacy,
 views, likes, comments, shares, duration_sec, thumbnail, video_url,
-video_id. Matching/merging lives in PostLog.upsert_tiktok_stats.
+video_id -- plus optional retention columns avg_watch_time_sec and
+completion_rate (TikTok Studio header variants such as "Average watch time"
+/ "Watched full video" are accepted; "45%" -> 0.45). Matching/merging lives
+in PostLog.upsert_tiktok_stats.
 """
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -16,9 +20,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from scripts.channel_scope import ChannelScope, get_channel_scope, require_writable
 from scripts.channel_store import ChannelError
 from scripts.channel_workflows import api_store_kwargs
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
-from scripts.post_log import PostLog
+from scripts.post_log import PostLog, STYLE_GROUP_FIELDS, parse_completion_rate, parse_watch_time_sec
 from scripts.product_store import ProductStore
 from scripts.tiktok_pending import TikTokPending, TikTokIgnored
 from scripts.posting_jobs import PostingJobStore, account_check
@@ -39,6 +43,31 @@ def _guard_write(scope):
 
 
 
+# Header variants (TikTok Studio exports, CSV tools, Thai UI) -> canonical
+# keys.  Matched after lower-casing and dropping everything but letters,
+# digits and Thai characters.
+_RETENTION_ALIASES = {
+    "avg_watch_time_sec": (
+        "avgwatchtimesec", "avgwatchtime", "averagewatchtime", "averagewatchtimesec",
+        "averagewatchtimeseconds", "avgwatchtimeseconds", "averagewatchtimes", "avgwatchtimes",
+        "averageviewduration", "avgviewduration", "เวลารับชมเฉลี่ย", "เวลาการรับชมเฉลี่ย",
+        "ระยะเวลารับชมเฉลี่ย",
+    ),
+    "completion_rate": (
+        "completionrate", "watchedfullvideo", "watchedfullvideorate", "watchedfullvideo%",
+        "fullvideowatchedrate", "finishrate", "completion", "percentagewatchedfullvideo",
+        "ดูวิดีโอจนจบ", "รับชมวิดีโอจนจบ", "ดูจนจบ", "อัตราการดูจนจบ",
+    ),
+}
+
+
+def _header_key(key: Any) -> str:
+    return re.sub(r"[^0-9a-z\u0E00-\u0E7F%]+", "", str(key).lower())
+
+
+_ALIAS_LOOKUP = {alias: canonical for canonical, aliases in _RETENTION_ALIASES.items() for alias in aliases}
+
+
 class StatsRow(BaseModel):
     title: str = ""
     posted_text: str = ""
@@ -51,6 +80,22 @@ class StatsRow(BaseModel):
     thumbnail: Optional[str] = None
     video_url: Optional[str] = None
     video_id: Optional[str] = None
+    # Optional retention columns (raw: number or Studio text such as "8.5s"
+    # / "45.3%"); normalized in _clean_row. Absent -> import unchanged.
+    avg_watch_time_sec: Optional[Any] = None
+    completion_rate: Optional[Any] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _map_retention_headers(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        mapped = dict(data)
+        for key, value in data.items():
+            canonical = _ALIAS_LOOKUP.get(_header_key(key))
+            if canonical and mapped.get(canonical) in (None, ""):
+                mapped[canonical] = value
+        return mapped
 
 
 class StatsImportRequest(BaseModel):
@@ -72,6 +117,14 @@ def _clean_row(row: StatsRow) -> Dict[str, Any]:
             data[key] = None
             continue
         data[key] = value if value >= 0 else None
+    watch = parse_watch_time_sec(data.get("avg_watch_time_sec"))
+    rate = parse_completion_rate(data.get("completion_rate"))
+    # Keep the row shape unchanged when the columns were not sent.
+    for key, value in (("avg_watch_time_sec", watch), ("completion_rate", rate)):
+        if value is None:
+            data.pop(key, None)
+        else:
+            data[key] = value
     return data
 
 
@@ -354,6 +407,22 @@ def restore_ignored(payload: RestoreRequest, scope: ChannelScope = Depends(get_c
         "remaining": len(TikTokPending.list_rows(**_scope_kwargs(scope))),
         "ignored_count": len(TikTokIgnored.list_rows(**_scope_kwargs(scope))),
     }
+
+
+@router.get("/style-performance")
+def style_performance(group_by: Optional[str] = None, scope: ChannelScope = Depends(get_channel_scope)) -> Dict[str, Any]:
+    """Read-only: which style_preset / hook_style / story_format performs.
+
+    Only mature (>= 48h) metrics count. Per group: count, median_views,
+    avg_watch_time_sec, completion_rate (None when no post has the metric).
+    ``group_by`` limits the answer to one dimension; omitted -> all three.
+    """
+    if group_by is not None and group_by not in STYLE_GROUP_FIELDS:
+        raise HTTPException(status_code=400, detail=f"group_by ต้องเป็นหนึ่งใน {', '.join(STYLE_GROUP_FIELDS)}")
+    report = PostLog.style_performance_report(**_scope_kwargs(scope))
+    if group_by is not None:
+        return {"group_by": group_by, "measured": report["measured"], "groups": report[f"by_{group_by}"]}
+    return report
 
 
 @router.get("/milestones")

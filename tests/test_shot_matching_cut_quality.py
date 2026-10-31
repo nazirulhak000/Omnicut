@@ -19,6 +19,11 @@ from scripts.stages.shot_matching_stage import ShotMatchingStage
 
 STAGE = "scripts.stages.shot_matching_stage"
 
+from tests.legacy_shot_pacing import legacy_body_pacing  # noqa: F401  (fixture)
+
+# Body-planner contracts: the M2 pacing curve is tested in test_pacing_curve.py.
+pytestmark = pytest.mark.usefixtures("legacy_body_pacing")
+
 
 def _cue(start, end, text):
     return {"start": start, "end": end, "text": text}
@@ -146,8 +151,8 @@ def test_beat_snap_uses_tempo_scaled_beat_times():
 def test_motion_snap_lands_on_raw_footage_trough():
     cues = _four_even_cues()
     times = [round(i * 0.1, 1) for i in range(601)]
-    trough_raw = {7.2, 17.0}  # still frames that also respect narration lead
-    scores = [0.0 if t in trough_raw else 1.0 for t in times]
+    trough_raw = {7.2, 17.0}  # calmest (not near-still, M6) frames inside the narration lead
+    scores = [0.3 if t in trough_raw else 1.0 for t in times]
     ai_shots = [
         {"cue_id": i + 1, "start_time": 5.0 + 10.0 * i, "end_time": 9.0 + 10.0 * i, "punch_zoom": 1.1}
         for i in range(4)
@@ -171,9 +176,11 @@ def test_motion_snap_lands_on_raw_footage_trough():
     assert clips[0]["duration"] == pytest.approx(2.2, abs=1e-3)
     assert clips[1]["trim_start"] == 15.0
     assert clips[1]["duration"] == pytest.approx(2.0, abs=1e-3)
-    # Emphasis scoring reads each shot's own raw window, not timeline time.
-    assert windows[0] == (5.0, 7.2)
-    assert windows[1] == (15.0, 17.0)
+    # Emphasis scoring reads each shot's own raw window, not timeline time
+    # (the M6 hook check may read the opening window once more first).
+    distinct = [w for i, w in enumerate(windows) if i == 0 or w != windows[i - 1]]
+    assert distinct[0] == (5.0, 7.2)
+    assert distinct[1] == (15.0, 17.0)
 
 
 def test_beat_cannot_move_picture_outside_narration_lead():
@@ -207,7 +214,7 @@ def test_short_shot_lead_and_missing_voice_timing_are_preserved():
 def test_motion_uses_eligible_trough_instead_of_quieter_out_of_window_frame():
     ai_shots = [{"cue_id": i + 1, "start_time": 5. + 10. * i, "end_time": 9. + 10. * i} for i in range(4)]
     clips = _run(_context(_four_even_cues(), 8., use_ai_vision=True),
-                 motion=([7.233333333, 7.3], [.1, 0.]), ai_shots=ai_shots)
+                 motion=([7.233333333, 7.3], [.4, .3]), ai_shots=ai_shots)
     assert _cut_times(clips)[0] == pytest.approx(2.233, abs=1e-3)
 
 
@@ -233,15 +240,22 @@ def test_split_ai_shot_advances_source_offset():
     assert starts[0] == 10.0
 
 
-def test_same_ai_thought_is_one_continuous_shot_when_source_is_sufficient():
+def _assert_one_continuous_source(clips, first, last, cap=2.5 * 1.25):
+    """Q2: a long topic plays as consecutive pieces of one source, each <= cap."""
+    assert clips[0]["trim_start"] == pytest.approx(first, abs=2e-3)
+    assert clips[-1]["trim_end"] == pytest.approx(last, abs=2e-3)
+    for prev, nxt in zip(clips, clips[1:]):
+        assert nxt["trim_start"] == pytest.approx(prev["trim_end"], abs=2e-3)
+    assert all(c["duration"] <= cap + 1e-6 for c in clips)
+    assert all(c["speed"] == 1. and not c.get("freeze_tail") for c in clips)
+
+
+def test_same_ai_thought_is_one_continuous_source_split_under_the_cap():
     clips = _run(_context(_four_even_cues(), 8., use_ai_vision=True),
                  ai_shots=[{"cue_ids": [1, 2, 3, 4], "start_time": 10., "end_time": 20.}])
-    assert len(clips) == 1
-    assert clips[0]["trim_start"] == 10.
-    assert clips[0]["trim_end"] == 18.
-    assert clips[0]["duration"] == 8.
-    assert clips[0]["speed"] == 1.
-    assert not clips[0].get("freeze_tail")
+    _assert_one_continuous_source(clips, 10., 18.)
+    # Pieces end on the J-safe cue cuts, not mid-word.
+    assert _cut_times(clips) == pytest.approx([2.167, 4.167, 6.167], abs=2e-3)
 
 
 @pytest.mark.parametrize("signal", ["explicit", "line_idx", "parent", "suffix"])
@@ -260,9 +274,10 @@ def test_complete_thought_hold_respects_real_sentence_metadata(signal):
     if signal == "parent":
         ctx.cues = [_cue(0., 8., "sentence one"), _cue(8., 12., "sentence two")]
     clips = _run(ctx, ai_shots=[{"cue_ids": list(range(1, 7)), "start_time": 10., "end_time": 25.}])
-    assert len(clips) == 2
-    assert _cut_times(clips) == pytest.approx([8.166666667], abs=.002)
-    assert clips[1]["trim_start"] == pytest.approx(clips[0]["trim_end"], abs=.002)
+    # The sentence end is still a cut; Q2 adds only J-safe cue cuts inside
+    # each sentence, never one across the 8.167 s sentence boundary.
+    assert _cut_times(clips) == pytest.approx([2.167, 4.167, 6.167, 8.166666667, 10.167], abs=.002)
+    _assert_one_continuous_source(clips, 10., 22.)
     assert sum(c["duration"] for c in clips) == pytest.approx(12.)
 
 
@@ -273,9 +288,12 @@ def test_different_ai_feature_still_changes_before_sentence_end():
     matches = [{"cue_ids": [1, 2], "start_time": 10., "end_time": 20.},
                {"cue_ids": [3, 4], "start_time": 30., "end_time": 40.}]
     clips = _run(_context(cues, 8., use_ai_vision=True), ai_shots=matches)
-    assert len(clips) == 2
-    assert [c["trim_start"] for c in clips] == [10., 30.]
-    assert _cut_times(clips) == pytest.approx([4.166666667], abs=.002)
+    cuts = _cut_times(clips)
+    assert 4.166666667 == pytest.approx(cuts[1], abs=.002)
+    # Each feature stays on its own source; Q2 splits each under the cap.
+    assert [c["trim_start"] for c in clips][::2] == [10., 30.]
+    assert all(10. <= c["trim_start"] < 20. for c in clips[:2])
+    assert all(30. <= c["trim_start"] < 40. for c in clips[2:])
 
 
 def test_explicit_pacing_keeps_its_cuts_inside_shared_ai_topic():
@@ -298,30 +316,44 @@ def test_polite_ending_inside_known_sentence_does_not_split_the_thought(signal):
         ctx.cues = [_cue(0., 8., "full sentence")]
     assert ShotMatchingStage._sentence_end_flags(cues, ctx.cues) == [False, False, False, True]
     clips = _run(ctx, ai_shots=[{"cue_ids": [1, 2, 3, 4], "start_time": 10., "end_time": 20.}])
-    assert len(clips) == 1
-    assert clips[0]["duration"] == 8.
+    # One thought, one continuous source (Q2 pieces at the cue cuts only).
+    _assert_one_continuous_source(clips, 10., 18.)
 
 
-def test_short_ai_window_plays_once_then_holds_without_crossing_topic():
+def test_short_ai_window_plays_once_then_continues_on_adjacent_footage():
     ctx = _context(_four_even_cues(), 8, use_ai_vision=True)
     clips = _run(ctx, ai_shots=[{"cue_ids": [1, 2, 3, 4], "start_time": 10, "end_time": 12}])
-    assert len(clips) == 1
     assert clips[0]["trim_start"] == 10
     assert clips[0]["trim_end"] == 12
+    # The rest plays the footage right after the window instead of a 6 s freeze.
+    _assert_one_continuous_source(clips, 10, 18)
+    assert sum(c["duration"] for c in clips) == pytest.approx(8)
+    assert not any(c.get("hold_reason") for c in clips)
+
+
+def test_short_ai_window_without_adjacent_footage_still_holds_and_is_tagged():
+    ctx = _context(_four_even_cues(), 8, use_ai_vision=True)
+    clips = _run(ctx, raw_duration=2.0, ai_shots=[{"cue_ids": [1, 2, 3, 4], "start_time": 0, "end_time": 2}])
+    assert len(clips) == 1
+    assert clips[0]["trim_start"] == 0
+    assert clips[0]["trim_end"] == 2
     assert clips[0]["freeze_tail"] == 6
     assert clips[0]["footage_shortage"]["missing_seconds"] == 6
+    assert clips[0]["hold_reason"] == "source_window_exhausted"
     assert clips[0]["duration"] == 8
     assert clips[0]["speed"] == 1
 
 
 def test_long_shortage_uses_only_last_frame_after_window_is_exhausted():
     cues = [_cue(i * 2, (i + 1) * 2, "same topic") for i in range(12)]
-    clips = _run(_context(cues, 24, use_ai_vision=True),
+    # raw ends at the window: no adjacent footage can cover the shortfall.
+    clips = _run(_context(cues, 24, use_ai_vision=True), raw_duration=12,
                  ai_shots=[{"cue_ids": list(range(1, 13)), "start_time": 10, "end_time": 12}])
     assert sum(c["duration"] for c in clips) == pytest.approx(24)
     assert all(c["trim_end"] <= 12 for c in clips)
     assert all(c.get("freeze_tail", 0) <= 10 for c in clips)
     assert clips[1]["trim_start"] == pytest.approx(12 - 1 / 30, abs=1e-6)
+    assert all(c.get("hold_reason") == "source_window_exhausted" for c in clips)
 
 
 # ── A5: hold to a sentence end instead of cutting mid-sentence ───────────
@@ -475,8 +507,9 @@ def test_pacing_plan_cuts_after_voice_onset():
     ctx.editorial_pacing = {"words": words, "beats": [{"timestamp": 3.6}, {"timestamp": 5.6}]}
     clips = _run(ctx)
     cuts = _cut_times(clips)
-    assert len(cuts) == 2
-    for cut, onset in zip(cuts, (4.05, 6.05)):
+    # Q2 splits the 4.2 s first segment at the J-led word onset 2.05.
+    assert len(cuts) == 3
+    for cut, onset in zip(cuts, (2.05, 4.05, 6.05)):
         assert 0.15 <= cut - onset <= 0.25, (cuts, onset)
 
 

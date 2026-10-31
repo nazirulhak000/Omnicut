@@ -10,7 +10,7 @@ import {
   Smartphone, CheckSquare, Square, Share2, Copy, FileText, QrCode, Sparkles, HardDrive,
   ShieldAlert, XCircle, CheckCircle2, History, FileQuestion, Link2,
   Columns, List, LayoutGrid, Clock, Calendar, Tag, Layers, ChevronDown, ChevronUp, Zap, ShieldCheck,
-  Image as ImageIcon, FolderOpen, ExternalLink
+  Image as ImageIcon, FolderOpen, ExternalLink, Cloud, CloudCheck
 } from 'lucide-react';
 import {
   openFolder, deleteFile, getProducts, linkExportToAngle,
@@ -22,6 +22,7 @@ import { useDebounce, useToast } from '../hooks';
 import RawVaultPanel from './RawVaultPanel';
 import CoverStudioModal from './CoverStudioModal';
 import SSDSyncModal from './SSDSyncModal';
+import CloudArchiveModal from './CloudArchiveModal';
 import { getCoverVariant } from '../lib/coverVariant';
 import PaginationControls from './PaginationControls';
 import { matchExportVideo } from '../lib/exportMatching';
@@ -1211,6 +1212,7 @@ function ExportActiveWorkbench({
 
 export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, initialHighlightVideo, onClearHighlightVideo, status }) {
   const [showSSDSyncModal, setShowSSDSyncModal] = useState(false);
+  const [showCloudArchiveModal, setShowCloudArchiveModal] = useState(false);
   const [activeMediaTab, setActiveMediaTab] = useState('exports');
   const [viewMode, setViewMode] = useState(() => {
     try {
@@ -1790,6 +1792,16 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   title="ศูนย์จัดการ External SSD (ส่งออกไปคาเฟ่ / ซิงค์ผลกลับบ้าน)"
                 >
                   <span className="hidden sm:inline">External SSD</span>
+                </Button>
+                <Button
+                  onClick={() => setShowCloudArchiveModal(true)}
+                  variant="secondary"
+                  size="sm"
+                  icon={Cloud}
+                  className="px-2.5 sm:px-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:border-blue-400 font-semibold cursor-pointer"
+                  title="ศูนย์สำรองข้อมูล Google Drive และคืนพื้นที่ดิสก์ (Smart Breadcrumbs)"
+                >
+                  <span className="hidden sm:inline">Google Drive</span>
                 </Button>
               </div>
             </div>
@@ -2667,6 +2679,13 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
           <SSDSyncModal
             isOpen={showSSDSyncModal}
             onClose={() => setShowSSDSyncModal(false)}
+            onRefreshData={() => onRefresh?.({ includeExports: true, force: true })}
+          />
+
+          {/* ── Google Drive Smart Archive Modal ── */}
+          <CloudArchiveModal
+            isOpen={showCloudArchiveModal}
+            onClose={() => setShowCloudArchiveModal(false)}
             onRefreshData={() => onRefresh?.({ includeExports: true, force: true })}
           />
         </>
