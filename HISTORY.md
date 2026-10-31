@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-AI-EDITOR-VIRAL-S2-20261031 | เก็บงานค้าง S1 + M4/M9 + M1/M5/M8 บน branch `feat/viral-s2` ด้วย 8 sub-agents: render slot pool + batch ขนานจริง, field target_duration/story_format, viral lint, word alignment, hook text บนจอ, ซับ 24 ตัวอักษร, preset 10 แบบต่างจริง; pytest 4687 pass / 11 fail เดิมจาก main, npm 1174/1174, build ผ่าน | 2026-10-31 | ดำเนินการโดย: Claude Code + 8 sub-agents |
 | Round CLAUDE-AI-EDITOR-VIRAL-S1-20261031 | ลงมือ S1–S2 + M3 ของแผน AI Editor Viral บน branch `feat/ai-editor-viral-s1` ด้วย 6 sub-agents (worktree แยก): compliance lint/opener/โครงสคริปต์, shot caps + hook pacing + match confidence, SFX density + ducking + Gemini lead trim + spec highlight, preset consistency + batch 4 workers, style/watch-time data capture + endpoint, preview parity; pytest 4378 pass / 17 fail เดิม, npm 1132/1132, build ผ่าน | 2026-10-31 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + 6 sub-agents (Claude Opus 5.5) |
 | Round CODEX-REVERT-OWN-THEME-20261031 | ผู้ใช้สั่งย้อนงานธีม Codex ทั้งหมด: คืนไฟล์เดิม 33 ไฟล์ตรง 34c5ba9, ถอน v2 modules/docs/local flag, ถอนเฉพาะ hooks ใน ExportGallery โดยคง GDrive/Claude AI Editor, build UI เดิมกลับ; frontend tests 1,099/1,099 | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-THEME-READY-DEFAULT-20261031 | ลดขั้นตอนตามคำสั่งผู้ใช้: เปิดครั้งแรกเป็น Balanced พร้อมใช้ทันที ตัวปรับแต่งทั้งหมดอยู่ในขั้นสูง; รักษา v2 selection ที่บันทึกแล้ว; theme tests 25/25, full frontend 1,120/1,120, build frontend/dist ผ่าน | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
@@ -16910,3 +16911,22 @@ Plan before code:
 - ⚠ branch นี้มี commit ของ AI อื่นปน: `60a5abc` (gdrive, Antigravity), `c270bcd` (rollback ธีม Codex) — merge เข้า main จะติดไปด้วย
 - ค้าง (ต้องอนุมัติ): M1 hook text บนจอ, M5 รวม preset, M8 burst ซับ 16–24 ตัวอักษร, hook template สี tech_product_showcase/smooth_showcase
 - ค้าง (follow-up): `render_jobs._RENDER_SLOT` เป็น lock เดียว → batch 4 workers ยังเรนเดอร์จริงทีละคลิป (ต้อง semaphore + audit thread-safety); `PipelineContext` ยังไม่มี field `target_duration`/`story_format`; `audio_mix_stage` ยังไม่ส่ง `cut_times`; preview ยังไม่รู้ custom keywords จาก hook; Gemini match cache key ไม่รวมช่วงช็อต; `it_angles` spec_compare ยังชื่อ "เทียบราคา"; frontend `productCallout.js` ยังมี 'price'; Performance tab UI สำหรับ style-performance; route policy `/api/ssd/*`
+
+---
+
+## Round CLAUDE-AI-EDITOR-VIRAL-S2-20261031
+
+ดำเนินการโดย: Claude Code (Claude Opus 5.5 / Sonnet 5.5) + 8 sub-agents · branch `feat/viral-s2` (ยังไม่ merge main)
+ผู้ใช้อนุมัติ 2026-10-31: M1 hook text + ป้ายชื่อ 3 วิ · M8 ซับ ≤ 24 · M5 คง 10 preset ทำให้ต่างจริง · สี hook template คงเดิม
+
+- [x] G `62e60ef` — `render_jobs` pool 4 ช่อง FIFO (`OMNICUT_RENDER_CONCURRENCY` 1–4), batch item ละ slot, per-project render lock, probe encoder ใต้ lock, `tiktok_enhancer` NVENC semaphore + fallback libx264 (ยังไม่ทดสอบ NVENC หลาย session บนการ์ดจริง)
+- [x] H `b6af23e` — `target_duration` (15/25/35/45|null) + `story_format` (classic/countdown/problem_reveal/myth_buster/loop) ตลอดสาย request→ctx→manifest→script→registry; `AudioMixStage.sync_cut_bound_sfx` mix ใหม่หลัง shot matching เมื่อจุดตัดเปลี่ยนแผน SFX; style_metadata ตอน render/HF finalize
+- [x] I `fcecaa8` — angle ไม่ชี้นำราคา, `HookVariationEngine.call_gemini_api`, cache key vision รวมช่วงช็อต, route policy `/api/ssd/*` + `/api/archive/*` (global), เอา 'price' ออกจาก productCallout.js
+- [x] J `acb251b` — Performance tab "ผลตามสไตล์", ClipFormatPicker, keyword ไฮไลต์ใน preview
+- [x] K `75a5805` — `scripts/viral_lint.py` 11 กฎ + `POST /api/viral-lint` + preflight + heatmap บน ruler (compliance = block)
+- [x] L `75feb15` — `scripts/word_alignment.py` (faster-whisper cuda/float16, model ร่วม 1 ตัว) → word_timings ให้ Gemini TTS, SpecBar เริ่มตอนพูดตัวเลข; เพิ่ม `faster-whisper==1.2.1` ใน requirements.txt (ยังไม่ติดตั้ง ยังไม่ลองกับเสียงจริง)
+- [x] N `f805df3` — M5 preset 10 แบบต่างจริง (ระยะห่างต่ำสุด 0.17→0.967, เกณฑ์ 0.90), `camera_easing`, transition family `compare`
+- [x] M `3a4b7fa` — M1 `scripts/hook_line.py` บรรทัด hook 0–1.8 วิ ≤ 22 ตัวอักษร + nameplate เริ่ม 1.8 วิ ค้าง 3 วิ; M8 `MICRO_BURST_MAX_CHARS=24`; ดูเฟรมจริง (พื้นหลังจำลอง) แล้วลบ
+- [x] Lead: `80f2270` preview ส่ง cutTimes เข้า SFX plan, `46571a1` requirements, `64ccda3` + `e8101f1` แก้เทสที่นับ route / fixture ซับที่ยาวเกินท่อนเดียว
+- [x] เทส: pytest ทั้งชุด @b607cd7 = 13 fail → 11 เดิมจาก main@5a1b4ca (hyperframes ×7, api_server_lifespan ×2 [`couple_jobs` key], channel_store_primitives, gemini multikey, tools_path_hygiene) + 2 regression จาก M8 (fixture ซับ 31 ตัวอักษรถูกแบ่ง 2 ท่อน) แก้แล้ว; npm 1174/1174; build ผ่าน
+- ค้าง: ดูคลิปจริง (ฟุตเทจจริง) ก่อน merge main สำหรับ M1/M8/M5; ติดตั้ง `faster-whisper` + น้ำหนัก `large-v3-turbo` แล้วลอง word alignment กับเสียงจริง; ทดสอบ batch 4 คลิปจริงบน NVENC; overlay ข้อความทั่วไปมีบั๊ก layout รายคำวัดแคบเกิน ~0.55–0.63× (ไทยถูกขอบคำข้างเคียงทับ — เฉพาะบรรทัด hook แก้แล้ว); `clipDuration` ฝั่ง JS ไม่บีบ speed 0.25–4 และตีความ `duration` ต่างจาก backend เมื่อไม่มี trim_end; EditorShell/OverlayInspector ยังใช้ duration 5.0 ตอนเพิ่ม nameplate มือ; `test_hook_generator`/`test_api_hooks` เรียก Gemini CLI จริงและค้างตอนออฟไลน์; SpecBar ไม่มีใน preview เลย (มีมาก่อน)

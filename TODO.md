@@ -4,15 +4,7 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round CLAUDE-AI-EDITOR-VIRAL-S2-20261031 · เก็บงานค้างจาก S1 + M4/M9 บน branch `feat/viral-s2` แยก 6 agent (worktree, ไฟล์ไม่ทับกัน); 🔒 M1/M5/M8 รอคำตอบผู้ใช้ · ดำเนินการโดย: Claude Code (Claude Opus 5.5) + 6 sub-agents (Claude Opus 5.5)
-  - [ ] G Render concurrency: `render_jobs` N slots + thread-safety audit → batch เรนเดอร์ขนานจริง
-  - [ ] H Pipeline plumbing: `target_duration`/`story_format` ใน context/API/manifest, `cut_times` เข้า mix, style_metadata ตอน render/HF finalize
-  - [ ] I Cleanup: it_angles ราคา, hook_generator `call_direct_gemini`, Gemini match cache key, route policy `/api/ssd/*`, `productCallout.js` price
-  - [ ] J Frontend: Performance tab style-performance, selector ความยาว/story format, custom keywords ใน preview highlight
-  - [ ] K M4 Viral Lint: `scripts/viral_lint.py` + endpoint + preflight UI + `hold_reason`
-  - [ ] L M9 Word timing: faster-whisper (cuda) align Gemini TTS → `word_timings`, SpecBar เริ่มตอนพูดตัวเลข
-  - [ ] ชุดที่ 2 (ผู้ใช้อนุมัติ 2026-10-31): M1 hook text 0–1.8 วิ + ป้ายชื่อ 3 วิ · M8 burst ซับ ≤ 24 ตัวอักษร · M5 คง 10 preset ทำให้ต่างจริง · สี hook template คงเดิม
-  - [ ] รวม branch + pytest ทั้งชุด + npm test + build + merge main
+- [x] Round CLAUDE-AI-EDITOR-VIRAL-S2-20261031 · branch `feat/viral-s2` รวม 8 agent (G–N): render slot pool 4 ช่อง, plumbing target_duration/story_format/cut_times/style_metadata, cleanup S1, Performance tab + ตัวเลือกความยาว/รูปแบบ, M4 Viral Lint + heatmap, M9 word timing, M1 hook text 0–1.8 วิ, M8 ซับ ≤ 24, M5 preset 10 แบบต่างจริง · pytest 4687 pass (11 fail เดิมจาก main) · npm 1174/1174 + build · ยังไม่ merge main รอผู้ใช้ดูคลิปจริง · ดำเนินการโดย: Claude Code (Claude Opus 5.5 / Sonnet 5.5) + 8 sub-agents
 
 - [x] Round CODEX-REVERT-OWN-THEME-20261031 · ถอนงานธีม Codex ครบ: source เดิม 33 ไฟล์ตรง 34c5ba9, ลบ v2/docs/flag, คง GDrive/Claude; frontend tests 1,099/1,099 และ build เดิมผ่าน · ดำเนินการโดย: Codex (GPT-6)
 
