@@ -9,6 +9,12 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+from scripts.compliance_lint import (
+    COUPLE_PRICE_KEYWORDS,
+    COUPLE_PRICE_SHORT_BAHT_RE,
+    find_couple_price_term,
+)
+
 RULE_NO_ELLIPSIS = "NO_ELLIPSIS"
 RULE_NO_PRICE = "NO_PRICE"
 RULE_NO_EMOJI = "NO_EMOJI"
@@ -35,18 +41,12 @@ DEFAULT_MAX_TURNS = 14
 # Rule 3.7: Forbidden ellipsis patterns ("..." or "…")
 ELLIPSIS_RE = re.compile(r"(\.{2,}|\u2026)")
 
-# Zero-Price Rule: Forbidden price/discount/currency keywords & patterns
-PRICE_KEYWORDS = (
-    "บาท",
-    "฿",
-    "ราคา",
-    "โปรโมชั่น",
-    "ลดเหลือ",
-    "คูปอง",
-    "ส่วนลด",
-    "ถูกมาก",
-)
-PRICE_SHORT_BAHT_RE = re.compile(r"\d+\s*บ\.")
+# Zero-Price Rule: Forbidden price/discount/currency keywords & patterns.
+# The list now lives in the central compliance lint (scripts/compliance_lint.py)
+# and is re-exported here unchanged, so couple behavior -- and parity with
+# frontend/src/lib/scriptRules.js -- stays identical.
+PRICE_KEYWORDS = COUPLE_PRICE_KEYWORDS
+PRICE_SHORT_BAHT_RE = COUPLE_PRICE_SHORT_BAHT_RE
 
 # Style 3B Zero-Emoji Policy: Unicode emoji ranges
 EMOJI_RE = re.compile(
@@ -175,13 +175,7 @@ def lint_text_field(
             "field": field_name,
         })
 
-    matched_price: Optional[str] = None
-    for kw in PRICE_KEYWORDS:
-        if kw in text:
-            matched_price = kw
-            break
-    if not matched_price and PRICE_SHORT_BAHT_RE.search(text):
-        matched_price = "บ."
+    matched_price: Optional[str] = find_couple_price_term(text)
 
     if matched_price:
         violations.append({

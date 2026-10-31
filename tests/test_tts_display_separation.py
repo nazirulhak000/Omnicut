@@ -11,7 +11,9 @@ def test_tts_display_separation():
     # TTS audio input must have phonetic expansion for clear Thai pronunciation
     assert "ยูเอสบีซี" in tts_text
     assert "เวิร์คฟรอมโฮม" in tts_text
-    assert "บาท" in tts_text
+    # Price notation is no longer laundered into spoken "บาท" (TikTok no-price
+    # rule): it stays as-is so the upstream compliance lint catches it.
+    assert "บาท" not in tts_text
     
     # 2. Check clause segmentation preserves both tracks
     clauses = VoiceEngine.segment_into_clauses([sample_text])
