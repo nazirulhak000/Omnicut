@@ -7,6 +7,10 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CODEX-REVERT-OWN-THEME-20261031 | ผู้ใช้สั่งย้อนงานธีม Codex ทั้งหมด: คืนไฟล์เดิม 33 ไฟล์ตรง 34c5ba9, ถอน v2 modules/docs/local flag, ถอนเฉพาะ hooks ใน ExportGallery โดยคง GDrive/Claude AI Editor, build UI เดิมกลับ; frontend tests 1,099/1,099 | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
+| Round CODEX-THEME-READY-DEFAULT-20261031 | ลดขั้นตอนตามคำสั่งผู้ใช้: เปิดครั้งแรกเป็น Balanced พร้อมใช้ทันที ตัวปรับแต่งทั้งหมดอยู่ในขั้นสูง; รักษา v2 selection ที่บันทึกแล้ว; theme tests 25/25, full frontend 1,120/1,120, build frontend/dist ผ่าน | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
+| Round CODEX-THEME-V2-ENABLE-LOCAL-20261031 | ผู้ใช้สั่งเปิดให้ทดลองจริง: ตั้ง VITE_UI_THEME_V2=true ใน .env เฉพาะเครื่อง, Vite อ่าน true, build frontend/dist exit0 และตรวจ asset references ครบ; ไม่ restart แทนผู้ใช้; visual QA ยัง Pending | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
+| Round CODEX-THEME-GLASS-SAAS-IMPLEMENTATION-20261031 | พัฒนา Balanced Glass Workspace หลัง flag ปิด: v2 migration/persistence, resolver, customizer, scoped preview, UI surfaces; theme tests 24/24, full frontend 1,119/1,119, builds flag off/on ผ่าน; visual rollout gate ยัง Pending | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) + 3 sub-agents (GPT-6) |
 | Round CODEX-THEME-GLASS-SAAS-PLAN-20261031 | Source audit 16 ข้อ + แผน PulseHub Glass × Professional SaaS: 3 directions, semantic tokens, customizer, migration, Phase 0–5 และ rollback; baseline theme tests 4/4; visual gate ค้างก่อน implementation | 2026-10-31 | ดำเนินการโดย: Codex (GPT-6) |
 | Round ANTIGRAVITY-GDRIVE-ARCHIVE-ASYNC-PROGRESS-AND-DELTA-RESUME-20261031 | ยกระดับระบบสำรองข้อมูล Google Drive รองรับ Background Task, Real-time Progress Bar, Unlimited Timeout, และ Smart Delta Skip ป้องกันการอัพซ้ำ 100% พร้อมขยาย timeout ใน api.js และผ่านชุดทดสอบ 7/7 tests | 2026-10-31 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round CLAUDE-AI-EDITOR-VIRAL-AUDIT-PLAN-20261031 | audit AI Editor/การตัดอัตโนมัติด้านไวรัล (read-only 4 sub-agents + ยืนยันมือ 9 ข้อ) → รายงาน `_Docs/Reports/AI_EDITOR_VIRAL_AUDIT_20261031.md` + แผน `_Docs/Plans/PLAN_AI_EDITOR_VIRAL_STYLES_20261031.md`; ไม่แตะโค้ด | 2026-10-31 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) |
@@ -16838,3 +16842,51 @@ Plan before code:
 - Jev ตรวจจากสรุป ไม่ได้อ่านไฟล์เอง: scope noul 0.93 / confidence null; document coverage 2.62/3 / confidence 0.61; ทั้งคู่ escalate ไม่ใช้เป็นการรับรองหรืออนุมัติแก้ UI
 - คงงาน agent อื่น: Cloud Archive/API/gallery/dist/TODO/HISTORY ที่มี delta อยู่ก่อน; ไม่ commit/build/แก้ข้อมูลจริง และไม่สร้าง media ทดสอบ
 - รอบวางแผนปิดแล้ว; งาน implementation/visual verification ยังไม่เริ่ม และไม่ถูกนับว่าเสร็จ
+
+
+## Round CODEX-THEME-GLASS-SAAS-IMPLEMENTATION-20261031 — ดำเนินการโดย: Codex (GPT-6) + 3 sub-agents (GPT-6)
+
+ดำเนินการโดย: Codex (GPT-6) + 3 sub-agents (GPT-6) · วันที่ 2026-10-31
+
+- [x] Foundation: catalog/resolver/storage v2, per-preset overrides, legacy snapshots, custom themes และ future-schema/CAS protection
+- [x] Materials: opt-in semantic surfaces/shared UI, effects full/light/off, no-backdrop fallback และ reduced-motion; namespace --oc-ui-* ไม่ใช้กับวิดีโอ
+- [x] Customizer: scoped draft preview, apply/cancel/reset/custom presets, storage status และ dirty cross-tab conflict
+- [x] Root: Context/session/runtime, shell/desktop/mobile/page hooks, legacy remount safety, label/id และ review integration
+- [x] Theme tests 24 passed/0 failed; full frontend 1,119 passed/0 failed; Vite config builds flag=false/true exit0; targeted core oxlint ไม่มี diagnostics; static design detector []
+- [x] เก็บกวาด copied test media 16 ไฟล์จาก .tmp builds; final builds copyPublicDir=false; ไม่สร้างวิดีโอ/โปรเจกต์ทดสอบหรือแก้ export registry
+- ส่งมอบ `_Docs/Reports/THEME_GLASS_SAAS_IMPLEMENTATION_20261031.md` พร้อม coverage, warnings, คำสั่ง review/rollback และเกณฑ์ภาพจริง
+- Feature flag VITE_UI_THEME_V2 ค่าเริ่มปิด ไม่มีการแก้ .env หรือเปิดใช้จริง ผู้ใช้อนุญาตพัฒนาหลัง flag ระหว่าง tooling unavailable
+- ยังไม่ผ่าน visual acceptance: browser access host/native pipe unavailable; contrast/compositing/performance/font-video pixels ต้องตรวจบนภาพจริงก่อน rollout; แยกงานค้างไว้ TODO แล้ว
+- Source บางส่วนถูก agent อื่น commit/merge ระหว่างทำงานใน shared branch; รอบนี้ไม่ได้สั่ง commit/merge/push และไม่ย้อนงาน API/Cloud Archive/Batch ของผู้อื่น
+
+
+## Round CODEX-THEME-V2-ENABLE-LOCAL-20261031 — ดำเนินการโดย: Codex (GPT-6)
+
+ดำเนินการโดย: Codex (GPT-6) · วันที่ 2026-10-31
+
+- [x] ผู้ใช้สั่งเปิดให้ทดลองใช้งานจริงและจะ restart server เอง จึงตั้ง VITE_UI_THEME_V2=true ใน root .env โดยรักษาค่าอื่นทั้งหมด
+- [x] ตรวจ Vite production environment อ่าน flag=true; npm run build ลง frontend/dist exit0 (มี warning chunk size/runtime fonts ตามเดิม)
+- [x] ตรวจ index.html อ้าง hashed assets ที่มีอยู่จริงครบ; ไม่เปลี่ยน browser localStorage และไม่ restart server แทนผู้ใช้
+- ธีม Balanced เลือกผ่าน Settings → Appearance → Balanced Glass Workspace → ใช้ธีม; visual acceptance ยัง Pending และไม่ถือว่าผ่านจาก build
+
+
+## Round CODEX-THEME-READY-DEFAULT-20261031 — ดำเนินการโดย: Codex (GPT-6)
+
+ดำเนินการโดย: Codex (GPT-6) · วันที่ 2026-10-31
+
+- [x] ผู้ใช้ต้องการพร้อมใช้: first-run v2 ใช้ Balanced โดยอัตโนมัติพร้อม optical defaults; เก็บ legacy snapshot และรักษา v2 selection ที่บันทึกแล้ว
+- [x] ซ่อนชุดตัวเลือก/preview/slider/custom presets/apply ใน details ขั้นสูงที่ยุบไว้ หน้าหลักแสดงธีมที่ใช้อยู่
+- [x] Theme tests 25 passed/0 failed, full frontend 1,120 passed/0 failed; build frontend/dist exit0; ไม่มีการแก้ video/fonts หรือข้อมูลจริง
+- Visual acceptance ยังเป็นงานค้าง ไม่อ้างว่าภาพผ่านจาก tests/build; .env เปิดไว้ตามคำสั่งก่อนหน้า
+
+
+## Round CODEX-REVERT-OWN-THEME-20261031 — ดำเนินการโดย: Codex (GPT-6)
+
+ดำเนินการโดย: Codex (GPT-6) · วันที่ 2026-10-31
+
+- ผู้ใช้สั่งถอนงานของ Codex ทั้งหมดและขอธีมเดิมก่อนแก้ไข
+- คืน source เดิม 33 ไฟล์ตรง baseline 34c5ba9 แบบ byte-for-byte; ถอน v2 modules/tests/styles และเอกสารธีมที่สร้างใหม่ทั้งหมด
+- ExportGallery ถอนเฉพาะ 6 surface hooks ของ Codex; คง Cloud Archive code; คง API/Batch/stylePresetCatalog ของ agent อื่น ไม่มีการ revert mixed GDrive commit ทั้งก้อน
+- ถอน VITE_UI_THEME_V2 จาก .env โดยคงค่าอื่น; prefs เก่าใน browser ไม่เคยถูกเขียนทับ จึงกลับ renderer/theme manager เดิม
+- npm test: 1,099 passed/0 failed; production frontend/dist build exit0; ไม่ restart server แทนผู้ใช้
+- ตรวจ diff เทียบก่อนงานธีม: เหลือเฉพาะ 6 ไฟล์ frontend ของ GDrive/Claude; ถอน TODO งานธีมที่ยกเลิก เหลือประวัติและบันทึกย้อนงานเพื่อสืบย้อน

@@ -4,15 +4,7 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round CODEX-THEME-GLASS-SAAS-IMPLEMENTATION-20261031 · Balanced Glass Workspace หลัง feature flag (ค่าเริ่มปิด) · ดำเนินการโดย: Codex (GPT-6) + 3 sub-agents (GPT-6)
-  - [ ] Agent Foundation: v2 catalog/resolver/storage/migration และ offline tests
-  - [ ] Agent Materials: semantic CSS, shared UI, fallback และ legacy compatibility
-  - [ ] Agent Customizer: scoped preview + draft/apply/cancel/reset/custom presets
-  - [ ] Root: reactive context, desktop/mobile shell/page integration, verification และเอกสารส่งต่อ
-  - [ ] Gate: targeted/full frontend tests + isolated build + review; visual/runtime QA ก่อนเปิดใช้จริง
-  - Notes: ผู้ใช้อนุญาตพัฒนาหลัง flag โดยยังไม่เปิดใช้จนภาพจริงผ่าน; browser/native host ยัง unavailable; ใช้ C Balanced, ambient นิ่งเบา, accent #67D7E7; ไม่แตะฟอนต์/geometry/video/render semantics; รักษา dirty Cloud Archive/API/dist ของ agent อื่น
-
-- [x] Round CODEX-THEME-GLASS-SAAS-PLAN-20261031 · Audit 16 ข้อ + แผนธีม 3 directions/Phase 0–5; source OmniCut + Pulse-Hub; ภาพจริงเป็น gate ก่อนลงมือ · ดำเนินการโดย: Codex (GPT-6)
+- [x] Round CODEX-REVERT-OWN-THEME-20261031 · ถอนงานธีม Codex ครบ: source เดิม 33 ไฟล์ตรง 34c5ba9, ลบ v2/docs/flag, คง GDrive/Claude; frontend tests 1,099/1,099 และ build เดิมผ่าน · ดำเนินการโดย: Codex (GPT-6)
 
 - [x] Round ANTIGRAVITY-GDRIVE-ARCHIVE-ASYNC-PROGRESS-AND-DELTA-RESUME-20261031 · ยกระดับระบบสำรองข้อมูล Google Drive รองรับ Background Task, Real-time Progress Bar, Unlimited Timeout, และ Smart Delta Skip ป้องกันการอัพซ้ำ 100% · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
