@@ -116,6 +116,7 @@ import ProjectRevisionNotice from './ProjectRevisionNotice';
 import VoiceEditNotice from './VoiceEditNotice';
 import RenderPreflightNotice from './RenderPreflightNotice';
 import { analyzeRenderPreflight, preflightBlockingMessage } from '../../lib/renderPreflight.js';
+import { planSfxEvents } from '../../lib/sfxPlan.js';
 
 function formatErrorText(err) {
   if (!err) return '';
@@ -2323,8 +2324,10 @@ export default function EditorShell({
   // Every lookup here mirrors a backend resolver so the preview never plays a
   // different file than the render: resolve_bgm_path()'s default-then-first
   // fallback (sfx_manager.py:41-60), resolve_sfx_path()'s legacy short-name
-  // aliases (asset_registry.py:244-258), and the boom the mix always lays down
-  // at t=0 (sfx_manager.py:90-97).
+  // aliases (asset_registry.py:244-258), and which hits the mix keeps:
+  // plan_sfx_events() (sfx_manager.py) enforces SFX_MIN_GAP_S between hits and
+  // lays down the hook boom at t=0 only when the hook line has no opener SFX of
+  // its own -- planSfxEvents (lib/sfxPlan.js) is the same rule set.
   const audioStems = useMemo(() => {
     const music = assets.music || [];
     const sfxList = assets.sfx || [];
@@ -2343,35 +2346,34 @@ export default function EditorShell({
       || music[0]
       || null;
 
-    const sfxShots = [];
+    // Hidden overlays stay silent in the preview (they are not drawn either).
+    const liveOverlays = (overlays || []).filter((o) => o && !o.hidden);
     const boom = findSfx('boom');
-    if (boom) sfxShots.push({ time: 0, id: 'boom', name: boom.name, url: toMediaUrl(boom.path) });
-    (cuesList || []).forEach((c) => {
-      if (!c.sfx) return;
-      const entry = findSfx(c.sfx);
+    const plan = planSfxEvents(cuesList || [], liveOverlays, {
+      totalDuration: audioDuration > 0 ? audioDuration : null,
+      boomAvailable: !!boom,
+      sfxFilename: (tag) => findSfx(tag)?.name || null,
+    });
+    const sfxShots = [];
+    plan.forEach((ev) => {
+      if (ev.source === 'boom') {
+        // Only when the hook line carries no opener of its own.
+        sfxShots.push({ time: 0, id: 'boom', name: boom.name, url: toMediaUrl(boom.path) });
+        return;
+      }
+      const entry = findSfx(ev.sfx);
       if (!entry) return;
-      sfxShots.push({
-        time: Number(c.start) || 0,
-        id: c.sfx,
+      const shot = {
+        time: ev.start,
+        id: ev.sfx,
         // The render's pre-roll test reads the resolved *filename*, not the cue
         // tag (sfx_manager.py:107) -- pass it through so the preview fires early
         // on exactly the same files.
         name: entry.name,
         url: toMediaUrl(entry.path),
-      });
-    });
-
-    (overlays || []).forEach((o) => {
-      if (!o.sfx || o.hidden) return;
-      const entry = findSfx(o.sfx);
-      if (!entry) return;
-      sfxShots.push({
-        time: Number(o.start) || 0,
-        id: o.sfx,
-        name: entry.name,
-        url: toMediaUrl(entry.path),
-        overlayId: o.id,
-      });
+      };
+      if (ev.source === 'overlay') shot.overlayId = liveOverlays[ev.index].id;
+      sfxShots.push(shot);
     });
 
     return {
@@ -2389,7 +2391,7 @@ export default function EditorShell({
       voiceVolume: clampBusVolume(style.voiceVolume, VOICE_VOLUME_DEFAULT),
       sfxVolume: clampBusVolume(style.sfxVolume, SFX_VOLUME_DEFAULT),
     };
-  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, style.voiceVolume, style.sfxVolume, assets.music, assets.sfx, cuesList, overlays]);
+  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, style.voiceVolume, style.sfxVolume, assets.music, assets.sfx, cuesList, overlays, audioDuration]);
 
   // The colour grade the preview should show, resolved the same way the
   // renderer resolves it (registry id or filename -- see resolve_lut_path).

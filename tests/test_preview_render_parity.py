@@ -926,12 +926,30 @@ def test_legacy_sfx_aliases_match_on_both_sides():
     assert js_pairs == LEGACY_SFX_ALIASES
 
 
-def test_preview_lays_down_the_boom_the_mix_always_adds():
-    """The mix puts a boom on the hook at t=0 whether or not a cue asked."""
-    assert "# 2. Add Boom on 0.0s Hook" in SFX_SRC
+def test_preview_lays_down_the_boom_only_when_the_mix_does():
+    """
+    The mix's hook boom at t=0 is conditional: plan_sfx_events() skips it when
+    the hook line fires its own SFX within SFX_OPENER_WINDOW_S, and every hit
+    -- boom included -- is subject to the SFX_MIN_GAP_S density rule. The
+    preview has to take its SFX list from the same plan (lib/sfxPlan.js, held
+    to the backend by the shared fixture below), not push a boom and every
+    cue/overlay SFX unconditionally.
+    """
+    assert "# 2. Add Boom on 0.0s Hook (skipped when the hook line carries its own opener)" in SFX_SRC
+    assert 'keep_boom = any(e["source"] == "boom" for e in sfx_plan)' in SFX_SRC
     shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
-    assert re.search(r"sfxShots\.push\(\{ time: 0, id: 'boom'", shell), \
-        "preview must start with the same boom the mix does"
+    stems = re.search(r"const audioStems = useMemo\(\(\) => \{(.*?)\n  \}, \[", shell, re.S)
+    assert stems, "audioStems moved"
+    body = stems.group(1)
+    assert "planSfxEvents(" in body, "preview SFX must come from the mix's plan"
+    assert "boomAvailable: !!boom" in body
+    assert "sfxFilename: (tag) => findSfx(tag)?.name || null" in body, \
+        "a hit whose file is missing must not take a slot in the preview either"
+    # The boom is pushed only for a boom entry of the plan, never up front.
+    boom_push = body.index("sfxShots.push({ time: 0, id: 'boom'")
+    assert body.rfind("ev.source === 'boom'", 0, boom_push) != -1, \
+        "the boom must only be laid down when the plan keeps it"
+    assert "(cuesList || []).forEach" not in body, "cue SFX must not bypass the plan"
 
 
 def test_seeking_stops_the_stems_before_repositioning_them():
@@ -2198,7 +2216,11 @@ def test_text_overlay_sfx_is_supported_in_both_preview_and_render():
 
     assert "overlays: Optional[List[Dict]] = None" in sfx_src
     assert "sfx_txt_" in sfx_src, "sfx_manager does not mix overlay SFX nodes"
-    assert "overlayId: o.id" in shell_src, "EditorShell does not mix overlays into audioStems.sfx"
+    # Overlays go through the same density plan as the mix (planSfxEvents),
+    # and a kept overlay hit carries its overlay's id into audioStems.sfx.
+    assert "planSfxEvents(cuesList || [], liveOverlays," in shell_src, \
+        "EditorShell does not mix overlays into audioStems.sfx"
+    assert "shot.overlayId = liveOverlays[ev.index].id" in shell_src
     # A banner is an overlay too, so its own SFX has to reach the mix.
     pipeline = (ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8")
     assert "overlays=effective_overlays," in pipeline
@@ -3800,3 +3822,161 @@ def test_transition_easing_curves_are_the_same_in_the_preview_and_the_render():
         py_name = transition_easing_name(case["kind"], case["easing"])
         assert name == py_name, case
         assert value == pytest.approx(ease_camera_ratio(py_name, case["p"]), abs=1e-12), case
+
+
+# ------------------------------------------- SFX density + caption highlight
+# One fixture, two implementations: plan_sfx_events() (sfx_manager.py) vs
+# planSfxEvents (frontend/src/lib/sfxPlan.js), and the translation_service.py
+# highlighter vs frontend/src/lib/kineticHighlight.js. The expectation lives
+# in the fixture; Python is checked against it here and the JS ports run
+# through node against the same file (sfxPlan.test.js and
+# kineticHighlight.test.js do the same under `npm test`).
+PARITY_CASES_PATH = ROOT / "tests" / "fixtures" / "sfx_highlight_parity_cases.json"
+_ASS_COLOUR_TAG = re.compile(r"\{\\c(&H[0-9A-Fa-f]+&)\}")
+_ASS_BREAK = "\\N"
+
+
+def _sfx_case_plan(case):
+    sys.path.insert(0, str(ROOT))
+    from scripts.sfx_manager import plan_sfx_events
+
+    opts = case.get("options") or {}
+    missing = set(opts.get("missing") or [])
+    plan = plan_sfx_events(
+        case["cues"],
+        case.get("overlays"),
+        total_duration=opts.get("total_duration"),
+        boom_available=opts.get("boom_available", True),
+        cut_times=opts.get("cut_times"),
+        sfx_filename=lambda tag: None if tag in missing else f"sfx_{tag}.wav",
+    )
+    return [
+        {"source": e["source"], "index": e["index"], "start": round(e["start"], 6),
+         "fire": round(e["fire"], 6), "role": e["role"], "exempt": e["exempt"]}
+        for e in plan
+    ]
+
+
+def _ass_to_line_segments(ass_text):
+    """ASS highlight output -> per-line [[text, colour|None], ...] lists.
+
+    Every highlight is written as an opening colour tag plus a closing primary
+    tag, so the tags alternate highlight / primary.
+    """
+    parts = _ASS_COLOUR_TAG.split(ass_text)
+    runs = [(parts[0], None)]
+    for i in range(1, len(parts), 2):
+        runs.append((parts[i + 1], parts[i] if (i // 2) % 2 == 0 else None))
+    lines = [[]]
+    for text, colour in runs:
+        for j, piece in enumerate(text.split(_ASS_BREAK)):
+            if j:
+                lines.append([])
+            if piece:
+                line = lines[-1]
+                if line and line[-1][1] == colour:
+                    line[-1][0] += piece
+                else:
+                    line.append([piece, colour])
+    return lines
+
+
+def _highlight_case(case):
+    sys.path.insert(0, str(ROOT))
+    from scripts.subtitle.translation_service import (
+        apply_bilingual_kinetic_highlighting,
+        apply_kinetic_highlighting,
+    )
+
+    # The render highlights a whole burst, its wrapped lines joined by \N.
+    th_text = _ASS_BREAK.join(case["th_lines"])
+    custom = case.get("custom_keywords")
+    if case.get("en_lines"):
+        th, en = apply_bilingual_kinetic_highlighting(
+            th_text, _ASS_BREAK.join(case["en_lines"]), custom_keywords=custom)
+        return {"th": _ass_to_line_segments(th), "en": _ass_to_line_segments(en)}
+    th = apply_kinetic_highlighting(th_text, custom_keywords=custom)
+    return {"th": _ass_to_line_segments(th), "en": []}
+
+
+def test_sfx_plan_and_highlight_fixture_matches_the_backend():
+    cases = json.loads(PARITY_CASES_PATH.read_text(encoding="utf-8"))
+    assert cases["sfx"] and cases["highlight"]
+    for case in cases["sfx"]:
+        assert _sfx_case_plan(case) == case["expected"], case["name"]
+    for case in cases["highlight"]:
+        assert _highlight_case(case) == case["expected"], case["name"]
+
+
+def test_sfx_plan_and_highlight_js_ports_match_the_fixture():
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+    lib = ROOT / "frontend" / "src" / "lib"
+    script = (
+        "import { readFileSync } from 'node:fs';\n"
+        f"import {{ planSfxEvents }} from '{(lib / 'sfxPlan.js').resolve().as_uri()}';\n"
+        f"import {{ highlightBurstLines }} from '{(lib / 'kineticHighlight.js').resolve().as_uri()}';\n"
+        "const cases = JSON.parse(readFileSync(process.argv[2], 'utf8'));\n"
+        "const r6 = (v) => Math.round(v * 1e6) / 1e6;\n"
+        "const sfx = cases.sfx.map((c) => {\n"
+        "  const o = c.options || {}; const missing = new Set(o.missing || []);\n"
+        "  return planSfxEvents(c.cues, c.overlays, {\n"
+        "    totalDuration: o.total_duration ?? null, boomAvailable: o.boom_available ?? true,\n"
+        "    cutTimes: o.cut_times ?? null,\n"
+        "    sfxFilename: (tag) => (missing.has(tag) ? null : `sfx_${tag}.wav`),\n"
+        "  }).map((e) => ({ source: e.source, index: e.index, start: r6(e.start), fire: r6(e.fire),\n"
+        "    role: e.role, exempt: e.exempt }));\n"
+        "});\n"
+        "const lines = (ls) => ls.map((l) => l.map((s) => [s.text, s.ass]));\n"
+        "const hl = cases.highlight.map((c) => {\n"
+        "  const r = highlightBurstLines(c.th_lines, c.en_lines || [], { customKeywords: c.custom_keywords || null });\n"
+        "  return { th: lines(r.th), en: lines(r.en) };\n"
+        "});\n"
+        "console.log(JSON.stringify({ sfx, hl }));\n"
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        runner = Path(tmp) / "parity.mjs"
+        runner.write_text(script, encoding="utf-8")
+        res = subprocess.run(["node", str(runner), str(PARITY_CASES_PATH)],
+                             capture_output=True, text=True, encoding="utf-8")
+        assert res.returncode == 0, res.stderr
+        out = json.loads(res.stdout)
+    cases = json.loads(PARITY_CASES_PATH.read_text(encoding="utf-8"))
+    assert len(out["sfx"]) == len(cases["sfx"]) and len(out["hl"]) == len(cases["highlight"])
+    for case, got in zip(cases["sfx"], out["sfx"]):
+        assert got == case["expected"], case["name"]
+    for case, got in zip(cases["highlight"], out["hl"]):
+        assert got == case["expected"], case["name"]
+
+
+def test_preview_keyword_dictionaries_are_the_backend_dictionaries():
+    """kineticKeywords.json is the preview's copy -- same words, same order."""
+    sys.path.insert(0, str(ROOT))
+    from scripts.subtitle.translation_service import (
+        KINETIC_KEYWORDS,
+        KINETIC_KEYWORDS_EN,
+        SPEC_NUMBER_PATTERN,
+    )
+
+    mirror = json.loads((ROOT / "frontend" / "src" / "lib" / "kineticKeywords.json").read_text(encoding="utf-8"))
+    assert mirror["th"] == KINETIC_KEYWORDS
+    assert mirror["en"] == KINETIC_KEYWORDS_EN
+    assert list(mirror["th"]) == list(KINETIC_KEYWORDS), "colour order decides which tier wins"
+    assert list(mirror["en"]) == list(KINETIC_KEYWORDS_EN)
+
+    js = (ROOT / "frontend" / "src" / "lib" / "kineticHighlight.js").read_text(encoding="utf-8")
+    # Same spec regex; Python's Unicode \d is spelled \p{Nd} on the JS side.
+    assert "(?<![A-Za-z0-9.,])" in SPEC_NUMBER_PATTERN.pattern and "(?<![A-Za-z0-9.,])" in js
+    units = re.search(r"\(\?:(mAh\|[^)]*)\)", SPEC_NUMBER_PATTERN.pattern).group(1)
+    js_units = re.search(r"'\(\?:(mAh\|[^)]*)\)'", js).group(1).replace("\\\\", "\\")
+    assert js_units == units, "spec units drifted between preview and render"
+    assert "(?![A-Za-z])" in SPEC_NUMBER_PATTERN.pattern and "'(?![A-Za-z])'" in js
+    # The canvas colour per ASS tag is what the preview has always painted.
+    for pair in ("[ASS_YELLOW]: '#FFE600'", "[ASS_CYAN]: '#00E5FF'", "[ASS_RED]: '#FF3B30'"):
+        assert pair in js
+    assert "highlightBurstLines(thaiLines, enLines)" in JS_SRC, "caption must use the ported highlighter"
+    assert "KINETIC_COLOR_MAP" not in JS_SRC, "the old divergent preview dictionary must stay gone"
