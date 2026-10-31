@@ -30,6 +30,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 STAGE = "scripts.stages.shot_matching_stage"
+# Body-planner contracts: the M2 pacing curve is tested in test_pacing_curve.py.
+from tests.legacy_shot_pacing import pacing_curve_disabled  # noqa: E402
 FPS = 30
 FRAME = 1.0 / FPS
 SR = 48000
@@ -164,6 +166,7 @@ def _plan_shots(raw, cues, total, *, ai_shots=None, beat_times=None, motion=([],
         stack.enter_context(patch(f"{STAGE}.BeatSync.get_beat_times", return_value=beat_times or []))
         stack.enter_context(patch(f"{STAGE}.MotionAnalyzer.get_motion_scores", return_value=motion))
         stack.enter_context(patch(f"{STAGE}.ScriptToneAnalyzer.classify_tone_shifts", return_value=[]))
+        stack.enter_context(pacing_curve_disabled())
         ShotMatchingStage.run(ctx)
     return ctx.actual_clip_list
 
@@ -183,7 +186,7 @@ def test_music_and_motion_keep_voice_lead_in_real_render_and_preview(tmp_path, m
         ratio = bgm_tempo_ratio(cues)
         clips = _plan_shots(raw, cues, 8, ai_shots=matches,
                             beat_times=[t * ratio for t in (2.3, 4.133333333, 4.233333333)],
-                            motion=([4.2, 4.3], [.1, 0.]))
+                            motion=([4.2, 4.3], [.4, .3]))
         clips = [{**c, "transition_in": "cut"} for c in clips]
         for clip in clips:
             clip.pop("transition_duration", None)
@@ -234,7 +237,7 @@ def test_complete_thought_shots_match_real_render_and_preview(tmp_path, monkeypa
             matches = [{"cue_ids": [1, 2, 3, 4], "start_time": 2, "end_time": 12},
                        {"cue_ids": [5, 6], "start_time": 12, "end_time": 17}]
         clips = _plan_shots(raw, cues, 12, ai_shots=matches)
-        assert len(clips) == (1 if case == "same_thought" else 2)
+        assert all(c["duration"] <= 2.5 * 1.25 + 1e-6 for c in clips)
         assert not any(c.get("freeze_tail") for c in clips)
         clips = [{**c, "transition_in": "cut"} for c in clips]
         for clip in clips:
@@ -259,7 +262,8 @@ def test_complete_thought_shots_match_real_render_and_preview(tmp_path, monkeypa
                 indices:Array.from({length:360},(_,k)=>Math.round(getDrawPlan(segments,k/30+1e-6)[0].localTime*30))}));
         """], input=json.dumps(clips), text=True, cwd=ROOT)
         expected = json.loads(preview.stdout)
-        assert expected["boundaries"] == ([] if case == "same_thought" else [245])
+        # Q2 pieces at the J-led cue cuts; 245 is the sentence/topic boundary.
+        assert expected["boundaries"] == [65, 125, 185, 245, 305]
         assert max(abs(a - b) for a, b in zip(indices, expected["indices"])) <= 1
         onsets = _onsets(_decoded_audio(out))
         assert len(onsets) == 6
@@ -316,12 +320,15 @@ def test_short_source_window_holds_last_included_frame_in_preview_and_render(tmp
     with TemporaryDirectory(dir=tmp_path) as directory:
         root = Path(directory)
         raw, ass, voice, out = [root / name for name in ("raw.mp4", "empty.ass", "voice.wav", "out.mp4")]
-        _write_index_coded_source(raw, pattern=True, source_fps=source_fps)
+        # Source ends with the window: no adjacent footage, so the Q2 freeze
+        # cap keeps the legacy hold (tagged hold_reason).
+        _write_index_coded_source(raw, n_frames=4 * source_fps, pattern=True, source_fps=source_fps)
         _write_empty_ass(ass)
         _write_voice(voice, [0, 2, 4], duration)
         cues = [{"start": i, "end": i + 2, "text": "same feature"} for i in range(0, duration, 2)]
         matches = [{"cue_ids": list(range(1, len(cues) + 1)), "start_time": 2, "end_time": 4}]
         clips = _plan_shots(raw, cues, duration, ai_shots=matches)
+        assert all(c.get("hold_reason") == "source_window_exhausted" for c in clips)
         clips = [{**c, "transition_in": "cut"} for c in clips]
         for clip in clips:
             clip.pop("transition_duration", None)

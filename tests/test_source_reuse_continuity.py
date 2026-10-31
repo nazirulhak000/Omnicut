@@ -5,6 +5,11 @@ from scripts.gemini_vision_matcher import GeminiVisionMatcher
 from tests.test_shot_matching_cut_quality import _context, _run
 from scripts.shot_source_window import SourceWindowLedger
 
+from tests.legacy_shot_pacing import legacy_body_pacing  # noqa: F401  (fixture)
+
+# Body-planner contracts: the M2 pacing curve is tested in test_pacing_curve.py.
+pytestmark = pytest.mark.usefixtures("legacy_body_pacing")
+
 
 def _match(cue_id, start=2, end=7, scene_id=1, zoom=1.15):
     return {"cue_ids": [cue_id], "scene_id": scene_id, "scene_start": start,
@@ -46,9 +51,9 @@ def test_stage_distinct_matches_of_same_scene_continue_then_hold_and_warn():
 def test_revisited_exhausted_topic_retains_its_own_camera_pose():
     cues = [{"start": i * 2, "end": (i + 1) * 2, "text": f"feature {i} ครับ"} for i in range(3)]
     clips = _run(_context(cues, 6, use_ai_vision=True), raw_duration=20,
-                 ai_shots=[_match(1, 2, 3, zoom=1.1), _match(2, 10, 15, 2, 1.35), _match(3, 2, 3)])
+                 ai_shots=[_match(1, 2, 3.5, zoom=1.1), _match(2, 10, 15, 2, 1.35), _match(3, 2, 3.5)])
     assert clips[1]["trim_start"] == 10
-    assert clips[2]["trim_start"] == pytest.approx(3 - 1 / 30, abs=1e-6)
+    assert clips[2]["trim_start"] == pytest.approx(3.5 - 1 / 30, abs=1e-6)
     assert clips[2]["zoom"] == clips[0]["zoom"]
     assert clips[2]["keyframes"] == [{**clips[0]["keyframes"][-1], "time": 0}]
 

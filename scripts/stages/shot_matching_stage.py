@@ -52,23 +52,268 @@ def _j_lead(j_lead: float, prev_dur: float, curr_dur: float) -> float:
     return min(j_lead, prev_dur * 0.25, curr_dur * 0.25, 0.25)
 
 
-def _coalesce_ai_thought_groups(groups, matches, sentence_ends):
+def _coalesce_ai_thought_groups(groups, matches, sentence_ends, cut_points=None, max_duration=None):
     """Remove rhythmic cuts inside one known AI topic, retaining real ends.
 
     Object identity is intentional: expanded cue_ids share their AI match;
     separate matches and unmapped cues provide no same-topic guarantee.
+    With ``cut_points`` and ``max_duration`` a merge that would make the shot
+    longer than ``max_duration`` is not made (Q2 shot-length cap); the topic
+    simply continues in the next shot, which plays the same AI match.
     """
     output, topics = [], []
     for group in groups:
         topic = matches[group[0]] if group[0] < len(matches) else None
         if any(i >= len(matches) or matches[i] is not topic for i in group):
             topic = None
-        if output and topic is not None and topic is topics[-1] and not sentence_ends[output[-1][-1]]:
+        fits = True
+        if output and cut_points is not None and max_duration is not None:
+            fits = cut_points[group[-1] + 1] - cut_points[output[-1][0]] <= max_duration + 1e-6
+        if output and topic is not None and topic is topics[-1] and not sentence_ends[output[-1][-1]] and fits:
             output[-1].extend(group)
         else:
             output.append(list(group))
             topics.append(topic)
     return output
+
+
+# ── Shot-length caps and pacing curve (roadmap Q2 / M2 / M6) ─────────────
+# No auto shot may exceed max_shot x SHOT_CAP_FACTOR, except a freeze hold
+# that has no other footage to use (tagged ``hold_reason``).
+SHOT_CAP_FACTOR = 1.25
+# A shared AI window that is shorter than its narration may freeze its last
+# frame for at most this long before the shot moves to adjacent footage.
+MAX_FREEZE_HOLD_SEC = 1.0
+# Matches below this confidence (Gemini ``confidence`` / catalog without a
+# keyword hit) are not trusted to open the clip.
+LOW_MATCH_CONFIDENCE = 0.5
+# MotionAnalyzer scores are normalised 0..1 per clip. Below this a frame is
+# "near-still": a cut is never moved onto it, and inside the hook window a
+# window averaging less is replaced when a moving alternative exists.
+STILL_MOTION_THRESHOLD = 0.15
+HOOK_MOTION_THRESHOLD = 0.25
+# Interrupt-guard camera punch (existing camera keyframe vocabulary).
+CAMERA_PUNCH_DELTA = 0.08
+CAMERA_PUNCH_SEC = 0.15
+# Consecutive pieces of one split topic alternate their zoom by this much so
+# the continuation reads as a cut-in rather than an invisible cut.
+SPLIT_CUT_IN_STEP = 0.1
+
+
+# Shortest piece a split may leave (seconds).
+MIN_SPLIT_PIECE = 0.5
+
+
+def _plan_split_points(
+    start: float,
+    end: float,
+    limit_at,
+    candidates: Optional[List[tuple]] = None,
+) -> List[tuple]:
+    """Interior (time, voice_onset) cuts so each piece obeys ``limit_at(t)``.
+
+    ``limit_at(piece_start)`` is the longest allowed piece starting there, or
+    None for "no limit" (stop splitting). J-safe ``candidates`` -- the
+    planner's own cue cut points, already a J-lead after a voice onset --
+    are preferred (the farthest one that still fits); only when none fits is
+    a balanced mid-line point used, whose onset is None.
+    """
+    import math
+
+    points: List[tuple] = []
+    cursor = start
+    for _ in range(64):  # hard stop; real spans need a handful of pieces
+        limit = limit_at(cursor)
+        if limit is None or limit <= 0 or end - cursor <= limit + 1e-6:
+            break
+        fitting = [
+            (t, onset) for t, onset in (candidates or [])
+            if cursor + MIN_SPLIT_PIECE - 1e-6 <= t <= cursor + limit + 1e-6
+            and end - t >= MIN_SPLIT_PIECE - 1e-6
+        ]
+        if fitting:
+            point, onset = max(fitting, key=lambda item: item[0])
+        else:
+            pieces = max(2, int(math.ceil((end - cursor) / limit - 1e-9)))
+            point, onset = _frame_round(cursor + (end - cursor) / pieces), None
+            if point - cursor < 0.2 - 1e-6 or end - point < 0.2 - 1e-6:
+                break
+        points.append((point, onset))
+        cursor = point
+    return points
+
+
+def _split_groups(groups, boundary_times, boundary_onsets, split_fn, skip_ids=frozenset()):
+    """Split each group's span at ``split_fn(start, end)`` (time, onset) points.
+
+    Pieces keep the SAME group list object, so downstream code treats them as
+    one topic: the same AI match keeps playing forward from its window
+    (Strict Topic Hold), and the snaps treat the interior cuts as locked.
+    Returns new (groups, boundary_times, boundary_onsets).
+    """
+    out_groups, out_times, out_onsets = [], [boundary_times[0]], [boundary_onsets[0]]
+    for idx, group in enumerate(groups):
+        start, end = boundary_times[idx], boundary_times[idx + 1]
+        points = [] if id(group) in skip_ids else split_fn(start, end)
+        for point, onset in points:
+            out_groups.append(group)
+            out_times.append(point)
+            out_onsets.append(onset)
+        out_groups.append(group)
+        out_times.append(end)
+        out_onsets.append(boundary_onsets[idx + 1] if idx + 1 < len(boundary_onsets) else None)
+    return out_groups, out_times, out_onsets
+
+
+def _match_confidence(match: Any) -> Optional[float]:
+    """The 0..1 confidence a match carries, or None when it says nothing."""
+    if not isinstance(match, dict) or match.get("confidence") is None:
+        return None
+    try:
+        value = float(match["confidence"])
+    except (TypeError, ValueError):
+        return None
+    return min(1.0, max(0.0, value)) if value == value else None
+
+
+def _best_motion_window(
+    motion_times: List[float],
+    motion_scores: List[float],
+    duration: float,
+    lo: float,
+    hi: float,
+    avoid: Optional[List[float]] = None,
+    min_gap: float = 2.0,
+) -> Optional[tuple]:
+    """(start, mean score) of the most-moving ``duration`` window in [lo, hi].
+
+    Candidate starts are the analysis sample times; starts closer than
+    ``min_gap`` to an ``avoid`` offset are skipped (anti-duplicate). None when
+    there is no motion data or no candidate fits.
+    """
+    if not motion_times or duration <= 0:
+        return None
+    best = None
+    for t in motion_times:
+        if t < lo - 1e-6 or t + duration > hi + 1e-6:
+            continue
+        if avoid and any(abs(t - a) < min_gap for a in avoid):
+            continue
+        score = MotionAnalyzer.segment_mean_score(motion_times, motion_scores, t, t + duration)
+        if score is None:
+            continue
+        if best is None or score > best[1] + 1e-9:
+            best = (float(t), float(score))
+    return best
+
+
+def _camera_values_at_end(keyframes: Any, base_zoom: float) -> Dict[str, float]:
+    """Last camera values of a keyframe list (both vocabularies), else base."""
+    values = {"zoom": base_zoom, "pan_x": 0.0, "pan_y": 0.0}
+    latest = {}
+    for point in keyframes if isinstance(keyframes, list) else []:
+        if not isinstance(point, dict):
+            continue
+        try:
+            t = float(point.get("time", 0.0))
+        except (TypeError, ValueError):
+            continue
+        for prop in values:
+            raw = point.get(prop) if prop in point else (point.get("value") if point.get("property") == prop else None)
+            if raw is None:
+                continue
+            try:
+                if prop not in latest or t >= latest[prop][0]:
+                    latest[prop] = (t, float(raw))
+            except (TypeError, ValueError):
+                continue
+    for prop, (_, value) in latest.items():
+        values[prop] = value
+    return values
+
+
+def _static_tail_start(keyframes: Any) -> float:
+    """Clip-local time after which the camera no longer moves (0 = static)."""
+    points = []
+    for point in keyframes if isinstance(keyframes, list) else []:
+        if not isinstance(point, dict):
+            continue
+        try:
+            points.append((float(point.get("time", 0.0)), point))
+        except (TypeError, ValueError):
+            continue
+    points.sort(key=lambda item: item[0])
+    moving_until = 0.0
+    previous: Dict[str, float] = {}
+    for t, point in points:
+        for prop in ("zoom", "pan_x", "pan_y"):
+            raw = point.get(prop) if prop in point else (point.get("value") if point.get("property") == prop else None)
+            if raw is None:
+                continue
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if prop in previous and abs(previous[prop] - value) > 1e-6:
+                moving_until = max(moving_until, t)
+            previous[prop] = value
+    return moving_until
+
+
+def _apply_interrupt_guard(clips: List[dict], max_static_sec: Optional[float]) -> int:
+    """Give every static span longer than ``max_static_sec`` a camera punch.
+
+    A span is static when nothing changes on screen: inside one clip (every
+    clip boundary is a cut or transition) and after the clip's last moving
+    camera keyframe. Punches use the existing camera keyframe vocabulary
+    ({"time", "zoom", "pan_x", "pan_y", "easing"}), which the renderer
+    (video_editor._camera_track) and the preview already interpolate, so the
+    manifest schema does not change. Each punch moves zoom by
+    CAMERA_PUNCH_DELTA over CAMERA_PUNCH_SEC with ease_out, alternating in and
+    out so repeated punches stay bounded. Returns the number of punches.
+    """
+    import math
+
+    if not max_static_sec or max_static_sec <= 0:
+        return 0
+    added = 0
+    for clip in clips:
+        try:
+            duration = float(clip.get("duration", 0.0))
+            base_zoom = float(clip.get("zoom", 1.0) or 1.0)
+        except (TypeError, ValueError):
+            continue
+        keyframes = clip.get("keyframes") if isinstance(clip.get("keyframes"), list) else []
+        static_from = _static_tail_start(keyframes)
+        span = duration - static_from
+        if span <= max_static_sec + 1e-6:
+            continue
+        pieces = int(math.ceil(span / max_static_sec - 1e-9))
+        values = _camera_values_at_end(keyframes, base_zoom)
+        zoom = min(3.0, max(1.0, values["zoom"]))
+        points = [dict(p) for p in keyframes if isinstance(p, dict)]
+        if not points:
+            points.append({"time": 0.0, "zoom": round(zoom, 4), "pan_x": round(values["pan_x"], 4), "pan_y": round(values["pan_y"], 4)})
+        direction = 1.0 if zoom + CAMERA_PUNCH_DELTA <= 3.0 else -1.0
+        for k in range(1, pieces):
+            t0 = round(static_from + k * span / pieces, 4)
+            t1 = round(min(duration, t0 + CAMERA_PUNCH_SEC), 4)
+            if t1 - t0 < 1e-3:
+                continue
+            target = min(3.0, max(1.0, zoom + direction * CAMERA_PUNCH_DELTA))
+            points.append({"time": t0, "zoom": round(zoom, 4), "pan_x": round(values["pan_x"], 4), "pan_y": round(values["pan_y"], 4)})
+            points.append({
+                "time": t1,
+                "zoom": round(target, 4),
+                "pan_x": round(values["pan_x"], 4),
+                "pan_y": round(values["pan_y"], 4),
+                "easing": "ease_out",
+            })
+            zoom = target
+            direction = -direction
+            added += 1
+        clip["keyframes"] = points
+    return added
 
 
 def _snap_preserves_voice_lead(candidate: float, onset: Optional[float], reference: float) -> bool:
@@ -665,11 +910,16 @@ class ShotMatchingStage:
                 ctx.notify("👁️ [AI Vision] ให้ Gemini 2.5 Flash ดูคลิปและเลือกฉากที่ตรงกับสคริปต์ (ครั้งแรก)...", 0.76)
                 print("\n👁️ [AI Vision] Gemini 2.5 Flash is analyzing raw footage scenes (first time)...")
                 try:
+                    # Q2: ask Gemini for the active style's shot range, not a
+                    # fixed 2-6 s that the planner then had to cut down.
+                    vision_rhythm = resolve_style_motion_policy(ctx.style_preset)
                     raw_matched_shots = GeminiVisionMatcher.match_script_to_video(
                         raw_video_path=str(raw_video),
                         cues=micro_cues,
                         raw_duration=raw_duration,
                         request_context=vision_request,
+                        min_shot=vision_rhythm.min_shot,
+                        max_shot=vision_rhythm.max_shot,
                     )
                     # Gemini now merges consecutive micro-cues that belong to
                     # the same sentence/idea into one shot (cue_ids: [5,6,7]
@@ -760,6 +1010,21 @@ class ShotMatchingStage:
                     J_CUT_OFFSET_SECONDS = rhythm.j_lead
                     MIN_SHOT_DURATION = rhythm.min_shot
                     MAX_SHOT_DURATION = rhythm.max_shot
+                    # Q2: hard ceiling for every merge/hold; M2: shorter
+                    # ceiling while the hook window is on screen.
+                    SHOT_CAP = MAX_SHOT_DURATION * SHOT_CAP_FACTOR
+                    HOOK_WINDOW = float(rhythm.hook_window_sec or 0.0)
+                    HOOK_MAX_SHOT = float(rhythm.hook_max_shot or 0.0)
+
+                    def _shot_fits(start: float, end: float) -> bool:
+                        """A snap may not push a shot over its cap."""
+                        length = end - start
+                        if length > SHOT_CAP + 1e-6:
+                            return False
+                        if HOOK_MAX_SHOT > 0 and start < HOOK_WINDOW - 1e-6 and length > HOOK_MAX_SHOT + 1e-6:
+                            return False
+                        return True
+
                     n_cues = len(active_cues)
                     pacing_boundaries = resolve_pacing_boundaries(
                         ctx.editorial_pacing,
@@ -869,7 +1134,11 @@ class ShotMatchingStage:
                         # At 1.15× MAX (= 2.875 s) those could never merge; 1.5×
                         # MAX (= 3.75 s) covers those real-world pairs while still
                         # preventing truly excessively long shots (>3.75 s).
-                        MERGE_TOLERANCE = 1.5
+                        # Q2 (2026-10-31): the tolerance is now the shot cap
+                        # (max_shot x 1.25) -- 1.5x let 3.75-4.5 s shots
+                        # through. Pairs that no longer fit are handled by
+                        # the force-merge + cap split below instead.
+                        MERGE_TOLERANCE = SHOT_CAP_FACTOR
                         FORCE_MERGE_THRESHOLD = MIN_SHOT_DURATION * 0.5
 
                         # Pass 1 – standard tolerance merge
@@ -915,6 +1184,14 @@ class ShotMatchingStage:
                                     cut_points[groups[gi + 1][-1] + 1] - cut_points[groups[gi + 1][0]]
                                     if gi < len(groups) - 1 else float("inf")
                                 )
+                                # Prefer a neighbour that stays under the
+                                # shot cap; when neither does, the merged
+                                # group is split back into balanced pieces of
+                                # the same topic by the cap split below.
+                                prev_fits = gi > 0 and prev_dur_val + dur <= SHOT_CAP + 1e-6
+                                next_fits = gi < len(groups) - 1 and next_dur_val + dur <= SHOT_CAP + 1e-6
+                                if prev_fits != next_fits:
+                                    prev_dur_val, next_dur_val = (0.0, float("inf")) if prev_fits else (float("inf"), 0.0)
                                 if prev_dur_val <= next_dur_val and gi > 0:
                                     groups[gi - 1] = groups[gi - 1] + g
                                     del groups[gi]
@@ -952,7 +1229,9 @@ class ShotMatchingStage:
                                 groups = topic_groups
                             else:
                                 print("   ⚠️  หัวข้อภาพสั้นเกินกริดคลิปขั้นต่ำ -- คงกลุ่มเดิมเพื่อรักษาเวลาเสียง")
-                            groups = _coalesce_ai_thought_groups(groups, ai_matched_shots, sentence_ends)
+                            groups = _coalesce_ai_thought_groups(
+                                groups, ai_matched_shots, sentence_ends, cut_points, SHOT_CAP
+                            )
                         boundary_times = [cut_points[0]] + [cut_points[g[-1] + 1] for g in groups]
                         if ai_matched_shots:
                             for boundary_idx in range(1, len(boundary_times) - 1):
@@ -966,10 +1245,61 @@ class ShotMatchingStage:
                             float(active_cues[g[-1] + 1].get("start", 0.0)) if g[-1] + 1 < n_cues else None
                             for g in groups
                         ]
+                    # Q2 freeze cap: a short shared AI window may hold its
+                    # last frame for <= MAX_FREEZE_HOLD_SEC; longer shortfalls
+                    # continue on the adjacent footage (window_overrides),
+                    # and only fall back to a hold when none exists.
+                    window_overrides: Dict[int, tuple] = {}
+                    exhausted_holds: set = set()
                     if ai_matched_shots:
                         groups, boundary_times, boundary_onsets = coalesce_short_windows(
-                            groups, boundary_times, boundary_onsets, ai_matched_shots, raw_duration
+                            groups, boundary_times, boundary_onsets, ai_matched_shots, raw_duration,
+                            max_hold=MAX_FREEZE_HOLD_SEC,
+                            overrides=window_overrides,
+                            exhausted=exhausted_holds,
                         )
+                    # Q2 cap split: any shot still longer than the cap is cut
+                    # into balanced pieces of <= max_shot that keep playing
+                    # the same topic/source (Strict Topic Hold), never a new
+                    # topic. Then M2 hook pacing: pieces starting inside the
+                    # hook window are cut to <= hook_max_shot. Both only add
+                    # interior cuts; J-lead cut times are left untouched.
+                    # J-safe split candidates: the cue cut points (voice
+                    # onset + J-lead on the frame grid) with their onsets.
+                    # A pacing plan carries word onsets: lead those instead.
+                    if pacing_boundaries:
+                        split_candidates = [
+                            (_frame_round(onset + J_CUT_OFFSET_SECONDS), onset)
+                            for onset in sorted(set(voice_onsets)) if onset > 0
+                        ]
+                    else:
+                        split_candidates = [
+                            (cut_points[i], float(active_cues[i].get("start", 0.0)))
+                            for i in range(1, n_cues)
+                        ]
+                    groups, boundary_times, boundary_onsets = _split_groups(
+                        groups, boundary_times, boundary_onsets,
+                        lambda s, e: _plan_split_points(
+                            s, e, lambda _t: MAX_SHOT_DURATION, split_candidates
+                        ) if e - s > SHOT_CAP + 1e-6 else [],
+                        skip_ids=exhausted_holds,
+                    )
+                    if HOOK_MAX_SHOT > 0 and HOOK_WINDOW > 0:
+                        groups, boundary_times, boundary_onsets = _split_groups(
+                            groups, boundary_times, boundary_onsets,
+                            lambda s, e: _plan_split_points(
+                                s, e,
+                                lambda t: HOOK_MAX_SHOT if t < HOOK_WINDOW - 1e-6 else None,
+                                split_candidates,
+                            ),
+                            skip_ids=exhausted_holds,
+                        )
+
+                    def _snap_keeps_caps(prev_b: float, candidate: float, next_b: float, current: float) -> bool:
+                        """Neither neighbour may grow past its cap through a snap."""
+                        left_ok = candidate - prev_b <= current - prev_b + 1e-6 or _shot_fits(prev_b, candidate)
+                        right_ok = next_b - candidate <= next_b - current + 1e-6 or _shot_fits(candidate, next_b)
+                        return left_ok and right_ok
                     # Beat snap works in timeline time (beat_times are already
                     # rescaled to the tempo the mixer plays). Motion snap is
                     # done per shot below, in raw-footage time, once each
@@ -991,6 +1321,7 @@ class ShotMatchingStage:
                                 and _snap_preserves_voice_lead(_frame_round(bt), onset, t)
                                 and _frame_round(bt) - prev_b >= MIN_SHOT_DURATION * 0.8
                                 and next_b - _frame_round(bt) >= MIN_SHOT_DURATION * 0.8
+                                and _snap_keeps_caps(prev_b, _frame_round(bt), next_b, t)
                             ]
                             if eligible:
                                 boundary_times[b_idx] = min(eligible, key=lambda bt: abs(bt - t))
@@ -1013,7 +1344,7 @@ class ShotMatchingStage:
                                 onset = boundary_onsets[b_idx] if b_idx < len(boundary_onsets) else None
                                 if b_idx in beat_snapped or b_idx in locked_holds or onset is None:
                                     continue
-                                boundary_times[b_idx] = _voice_valley_snap(
+                                snapped_valley = _voice_valley_snap(
                                     boundary_times[b_idx],
                                     onset,
                                     samples,
@@ -1022,6 +1353,11 @@ class ShotMatchingStage:
                                     boundary_times[b_idx + 1],
                                     MIN_SHOT_DURATION,
                                 )
+                                if _snap_keeps_caps(
+                                    boundary_times[b_idx - 1], snapped_valley,
+                                    boundary_times[b_idx + 1], boundary_times[b_idx],
+                                ):
+                                    boundary_times[b_idx] = snapped_valley
                     MOTION_SNAP_TOLERANCE = 0.15
                     ai_shot_anchor: Dict[int, tuple] = {}
 
@@ -1031,7 +1367,20 @@ class ShotMatchingStage:
                         " ".join(str(active_cues[i].get("text", "")) for i in g).strip()
                         for g in groups
                     ]
-                    tone_shifts = ScriptToneAnalyzer.classify_tone_shifts(group_texts)
+                    try:
+                        tone_shifts = ScriptToneAnalyzer.classify_tone_shifts(group_texts)
+                    except Exception as tone_err:
+                        # Tone shifts only pick transition strength; a quota
+                        # hit there must not fail the plan (Q7 keeps real
+                        # planning bugs loud, below).
+                        if not is_quota_error(tone_err):
+                            raise
+                        ctx.notify(
+                            "⚠️ เกินโควต้า AI ต่อวันแล้ว — ข้ามการวิเคราะห์โทนบท ใช้ transition ตามจังหวะปกติแทน",
+                            0.85,
+                        )
+                        print(f"Warning: tone-shift analysis skipped: quota exceeded ({tone_err})")
+                        tone_shifts = []
 
                     auto_transitions = []
                     source_ledger = SourceWindowLedger()
@@ -1041,9 +1390,42 @@ class ShotMatchingStage:
                         c_dur = max(0.2, v_end - v_start)
                         anchor_idx = group[0]
                         ai_shot = ai_matched_shots[anchor_idx] if ai_matched_shots and anchor_idx < len(ai_matched_shots) else None
+                        if id(group) in window_overrides:
+                            # Adjacent footage that continues a short AI window.
+                            ai_shot = window_overrides[id(group)][1]
+                        in_hook = HOOK_WINDOW > 0 and v_start < HOOK_WINDOW - 1e-6
+                        split_continuation = g_idx > 0 and groups[g_idx - 1] is group
+                        previous_offsets = [s["raw_offset"] for s in shots]
 
                         base_scale = effective_shot_scales[g_idx % len(effective_shot_scales)]
                         max_scale = effective_shot_scales[emphasis_scale_idx]
+
+                        # M6: a low-confidence match (or no match) must not
+                        # open the clip on a guess -- inside the hook window
+                        # use the most-moving footage instead, when the
+                        # motion data offers a window above the hook floor.
+                        # A catalog hero fallback is already a deliberate
+                        # hero pick and is kept.
+                        hook_hero = None
+                        if in_hook and motion_times and not split_continuation:
+                            confidence = _match_confidence(ai_shot)
+                            low_confidence = ai_shot is None or (
+                                confidence is not None and confidence < LOW_MATCH_CONFIDENCE
+                                and not ai_shot.get("hero_fallback")
+                            )
+                            if low_confidence:
+                                candidate = _best_motion_window(
+                                    motion_times, motion_scores, c_dur, 0.0,
+                                    max(0.0, raw_duration - 0.2), avoid=previous_offsets,
+                                )
+                                if candidate and candidate[1] >= HOOK_MOTION_THRESHOLD:
+                                    hook_hero = candidate
+                                    if ai_shot is not None:
+                                        print(
+                                            f"   🎯 [Hook] ช็อต {g_idx + 1} ความมั่นใจต่ำ "
+                                            f"({confidence:.2f}) — ใช้ช่วงภาพเคลื่อนไหวสูงสุดแทน"
+                                        )
+                                    ai_shot = None
 
                         if ai_shot:
                             ai_start = float(ai_shot.get("start_time", 0.0))
@@ -1067,9 +1449,11 @@ class ShotMatchingStage:
                             ai_zoom = float(ai_shot.get("punch_zoom", base_scale))
                             scale = min(1.4, max(1.0, ai_zoom))
                             raw_offset = max(0.0, min(ai_start, max(0.0, raw_duration - c_dur - 0.2)))
+                        elif hook_hero is not None:
+                            scale = None
+                            raw_offset = round(hook_hero[0], 3)
                         else:
                             scale = None
-                            previous_offsets = [s["raw_offset"] for s in shots]
                             raw_offset = cls._compute_smart_fallback_offset(
                                 g_idx=g_idx,
                                 total_groups=len(groups),
@@ -1090,9 +1474,11 @@ class ShotMatchingStage:
                         ):
                             raw_end = raw_offset + (v_end - v_start)
                             onset = boundary_onsets[g_idx + 1]
+                            # M6: never move a cut onto a near-still frame.
                             eligible_motion = [
                                 (t, score) for t, score in zip(motion_times, motion_scores)
                                 if _snap_preserves_voice_lead(_frame_round(v_start + t - raw_offset), onset, v_end)
+                                and score >= STILL_MOTION_THRESHOLD
                             ]
                             trough = MotionAnalyzer.nearest_trough(
                                 [t for t, _ in eligible_motion], [s for _, s in eligible_motion],
@@ -1106,12 +1492,28 @@ class ShotMatchingStage:
                                     and (snapped - v_start) >= MIN_SHOT_DURATION * 0.8
                                     and (next_b - snapped) >= MIN_SHOT_DURATION * 0.8
                                     and raw_offset + (snapped - v_start) <= raw_duration
+                                    and _snap_keeps_caps(v_start, snapped, next_b, v_end)
                                 ):
                                     boundary_times[g_idx + 1] = snapped
                                     v_end = snapped
                                     c_dur = max(0.2, v_end - v_start)
 
                         bounded = source_window(ai_shot, raw_duration)
+                        if (
+                            bounded and in_hook and motion_times and not split_continuation
+                            and scene_window_key(ai_shot) not in source_ledger.consumed
+                        ):
+                            # M6: inside the hook a matched window may still
+                            # open on a near-still stretch; start at the most
+                            # moving part of the SAME window when that clears
+                            # the hook floor (topic unchanged).
+                            w_lo, w_hi = bounded[0] / 30.0, bounded[1] / 30.0
+                            first = max(ai_start, w_lo)
+                            current = MotionAnalyzer.segment_mean_score(motion_times, motion_scores, first, first + c_dur)
+                            if current is not None and current < HOOK_MOTION_THRESHOLD:
+                                alt = _best_motion_window(motion_times, motion_scores, min(c_dur, w_hi - w_lo), w_lo, w_hi)
+                                if alt and alt[1] >= HOOK_MOTION_THRESHOLD:
+                                    ai_start = alt[0]
                         allocation = source_ledger.allocate(ai_shot, raw_duration, ai_start, c_dur) if bounded else None
                         if allocation:
                             raw_offset = allocation["raw_offset"]
@@ -1144,6 +1546,13 @@ class ShotMatchingStage:
                                     for i in group
                                 )
                                 scale = max_scale if has_emphasis else base_scale
+
+                        if split_continuation and shots and not (allocation or {}).get("hold_only"):
+                            # A split topic continues the same footage: step
+                            # the zoom so the cut reads as a cut-in.
+                            prev_scale = float(shots[-1].get("scale") or 1.0)
+                            step = SPLIT_CUT_IN_STEP if prev_scale + SPLIT_CUT_IN_STEP <= 1.4 else -SPLIT_CUT_IN_STEP
+                            scale = round(min(1.4, max(1.0, prev_scale + step)), 3)
 
                         shots.append({
                             "start": v_start,
@@ -1268,54 +1677,39 @@ class ShotMatchingStage:
                             clip_entry["keyframes"] = [{**clip_entry["keyframes"][0], "time": 0}]
                     if shot.get("source_reuse_key") is not None:
                         scene_camera_clips[shot["source_reuse_key"]] = clip_entry
+                    if freeze_tail > MAX_FREEZE_HOLD_SEC + 1e-6 or shot.get("hold_only"):
+                        # Q2: the only clips allowed past the shot cap / the
+                        # 1 s freeze limit -- no other footage existed.
+                        clip_entry["hold_reason"] = "source_window_exhausted"
                     generated_clips.append(clip_entry)
+                # M2 interrupt guard: no span may stay static longer than the
+                # style's max_static_sec (camera punch, existing keyframes).
+                punches = _apply_interrupt_guard(
+                    generated_clips, resolve_style_motion_policy(ctx.style_preset).max_static_sec
+                )
+                if punches:
+                    print(f"   🎥 [Interrupt Guard] เพิ่ม camera punch {punches} จุด กันช่วงภาพนิ่งนานเกิน")
                 actual_clip_list = generated_clips
                 is_newly_generated_clips = True
+            except AppError:
+                raise
             except Exception as shot_err:
-                # Same reasoning as the AI Vision handler above: a quota hit is
-                # the user's own daily cap, not a provider failure, and the
-                # single-clip fallback below hides that distinction unless it
-                # is said out loud in the job's progress log.
-                if is_quota_error(shot_err):
-                    ctx.notify(
-                        "⚠️ เกินโควต้า AI ต่อวันแล้ว — ข้ามการวิเคราะห์โทนบท ใช้คลิปเดียวตลอดความยาวแทน",
-                        0.85,
-                    )
-                    print(f"Warning: tone-shift analysis skipped: quota exceeded ({shot_err})")
-                else:
-                    # Anything else here is NOT an expected/recoverable
-                    # failure mode -- AI Vision matching and beat/motion/BGM
-                    # analysis each already have their own narrow try/except
-                    # further up this method and never reach this block, so
-                    # whatever lands here is a genuine bug in shot planning
-                    # (e.g. malformed cue data). The single-clip fallback
-                    # below still runs -- one static clip beats a hard-failed
-                    # render -- but it must not look like a normal render:
-                    # surface it the same way the quota branch does (visible
-                    # in the live progress log) and record it on the job
-                    # result so it's still visible after the render finishes,
-                    # instead of only existing in a server-side print no one
-                    # sees.
-                    warning_msg = (
-                        f"Unexpected error generating shot plan, fell back to a "
-                        f"single static clip for the whole render: {shot_err}"
-                    )
-                    ctx.notify(
-                        "⚠️ เกิดข้อผิดพลาดไม่คาดคิดระหว่างวางแผนช็อต — ใช้คลิปเดียวตลอดความยาวแทน",
-                        0.85,
-                    )
-                    print(f"Warning: {warning_msg}")
-                    ctx.result_paths["shot_matching_degraded"] = warning_msg
-                actual_clip_list = [{
-                    "id": "clip_0",
-                    "source_path": str(raw_video),
-                    "trim_start": 0.0,
-                    "trim_end": round(total_duration, 3),
-                    "duration": round(total_duration, 3),
-                    "speed": 1.0,
-                    "transition_in": "cut"
-                }]
-                is_newly_generated_clips = True
+                # Q7 fail-loud (2026-10-31): this used to emit ONE clip spanning
+                # the whole narration, i.e. a long static render that looked
+                # like a success. AI Vision, beat, motion and BGM analysis all
+                # have their own narrow handlers above, and a quota hit in the
+                # tone analysis degrades on its own, so anything that lands
+                # here is a genuine shot-planning bug: stop the job with a
+                # clear Thai error instead of shipping a degenerate clip.
+                ctx.notify("❌ วางแผนช็อตไม่สำเร็จ — หยุดงานแทนการส่งคลิปเดียวยาวทั้งเรื่อง", 0.85)
+                print(f"❌ [ShotMatching] วางแผนช็อตล้มเหลว: {type(shot_err).__name__}: {shot_err}")
+                raise AppError(
+                    category=ErrorCategory.INTERNAL,
+                    code="SHOT_PLANNING_FAILED",
+                    message_th="วางแผนช็อตอัตโนมัติไม่สำเร็จ ระบบหยุดงานแทนการส่งคลิปภาพนิ่งยาวทั้งเรื่อง",
+                    suggestion_th="ตรวจข้อมูลซับ/เสียงพากย์ของโปรเจกต์ (เวลาเริ่ม-จบของแต่ละท่อน) แล้วลองใหม่ หากยังพังให้ส่ง log ให้ทีมพัฒนา",
+                    details=f"{type(shot_err).__name__}: {shot_err}",
+                ) from shot_err
 
         ctx.actual_clip_list = actual_clip_list
         ctx.ai_matched_shots = ai_matched_shots

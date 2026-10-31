@@ -54,6 +54,48 @@ VISION_GENERATE_TIMEOUT_SECONDS = 180
 # what, and it samples about one frame a second, so resolution and frame rate
 # buy nothing here -- see _vision_proxy for the measurements.
 PROXY_WIDTH = 640
+
+# Matching confidence (roadmap M6). Catalog matches backed by a specific
+# keyword/description hit are trusted; ones chosen on priors alone are not.
+CATALOG_MATCH_CONFIDENCE = 0.85
+CATALOG_LOW_CONFIDENCE = 0.35
+# Narration seconds treated as the hook when the catalog picks scenes.
+CATALOG_HOOK_WINDOW_SEC = 3.0
+# Hero preference for an unmatched hook: moving product footage first, then
+# a branded close-up. Static overviews are what a position guess produced.
+HERO_ACTION_BONUS = {
+    "turntable_spin": 4.0,
+    "hands_on": 3.5,
+    "feature_demo": 3.5,
+    "port_connection": 3.0,
+    "unboxing": 2.5,
+    "closeup": 2.0,
+}
+HERO_KEYWORDS = ("โลโก้", "logo", "hero", "สกรีนชัดเจน", "ประณีต", "คมชัด")
+
+
+def normalize_match_confidence(matched):
+    """Clamp an optional ``confidence`` to 0..1; drop unusable values.
+
+    Gemini may omit the field (older prompt, cached response) or send text.
+    Absence stays absence -- callers read "no confidence" as unknown, never
+    as low.
+    """
+    out = []
+    for shot in matched if isinstance(matched, list) else []:
+        if isinstance(shot, dict) and "confidence" in shot:
+            shot = dict(shot)
+            try:
+                value = float(shot["confidence"])
+                if value != value:  # NaN
+                    raise ValueError
+                if 10.0 <= value <= 100.0:
+                    value = value / 100.0  # sent as a percentage
+                shot["confidence"] = round(min(1.0, max(0.0, value)), 3)
+            except (TypeError, ValueError):
+                shot.pop("confidence", None)
+        out.append(shot)
+    return out
 PROXY_FPS = 6
 PROXY_CRF = 32
 
@@ -571,10 +613,26 @@ class GeminiVisionMatcher:
                 scored_scenes.append((score, scene, evidence))
 
             relevant = [candidate for candidate in scored_scenes if candidate[2]]
+            hero_fallback = False
             if relevant:
                 scored_scenes = relevant
+            elif float(group_cues[0].get("start", 0.0)) < CATALOG_HOOK_WINDOW_SEC:
+                # M6: nothing in the hook matched a keyword -- open on the
+                # moving / branded hero footage instead of the scene the
+                # positional priors happen to favour.
+                def _hero_bonus(scene):
+                    desc = str(scene.get("description", "")).lower()
+                    kws = " ".join(str(k).lower() for k in scene.get("keywords", []) or [])
+                    bonus = HERO_ACTION_BONUS.get(scene.get("action_type", ""), 0.0)
+                    if any(k in desc or k in kws for k in HERO_KEYWORDS):
+                        bonus += 2.0
+                    return bonus
+
+                scored_scenes = [(score + _hero_bonus(scene), scene, evidence) for score, scene, evidence in scored_scenes]
+                hero_fallback = True
             scored_scenes.sort(key=lambda x: x[0], reverse=True)
             best_scene = scored_scenes[0][1]
+            match_confidence = CATALOG_MATCH_CONFIDENCE if scored_scenes[0][2] else CATALOG_LOW_CONFIDENCE
 
             orig_start = float(best_scene.get("start", 0.0))
             orig_end = float(best_scene.get("end", orig_start + needed_dur))
@@ -633,6 +691,8 @@ class GeminiVisionMatcher:
                 "visual_reason": f"จับคู่ฉาก {best_scene.get('action_type', 'scene')} ({best_scene.get('angle_phase', 'normal')}): {best_scene.get('description', '')[:45]}",
                 "punch_zoom": round(zoom, 2),
                 "selection_evidence": sorted(scored_scenes[0][2]),
+                "confidence": match_confidence,
+                **({"hero_fallback": True} if hero_fallback else {}),
             })
 
         return matched_shots
@@ -873,10 +933,15 @@ class GeminiVisionMatcher:
         cues: List[Dict],
         raw_duration: float = 60.0,
         request_context: Optional[VisionRequestContext] = None,
+        min_shot: Optional[float] = None,
+        max_shot: Optional[float] = None,
     ) -> List[Dict]:
         """
         Uses Gemini 2.5 Flash with Native Video Understanding to map each script cue
         to the best visual time slice in the raw video.
+
+        ``min_shot`` / ``max_shot`` are the active style's shot range; the
+        prompt asks for shots inside it (default: the config constants).
         """
         # Fast local cache check before calling API -- a cache hit costs
         # nothing and must never consume quota, so the budget check below
@@ -938,6 +1003,13 @@ class GeminiVisionMatcher:
             cues_summary = "|".join([f"{c.get('text', '')}" for c in cues])
             match_cache_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
 
+        from scripts.config import MAX_SHOT_DURATION, MIN_SHOT_DURATION
+        shot_lo = float(min_shot) if min_shot else float(MIN_SHOT_DURATION)
+        shot_hi = float(max_shot) if max_shot else float(MAX_SHOT_DURATION)
+        if shot_hi < shot_lo:
+            shot_lo, shot_hi = shot_hi, shot_lo
+        shot_cap = shot_hi * 1.25
+
         # Format cues for prompt
         lines_prompt = "\n".join([
             f"{idx+1}. [{c.get('start', 0.0):.2f}s - {c.get('end', 0.0):.2f}s] {c.get('text', '')}"
@@ -954,9 +1026,10 @@ class GeminiVisionMatcher:
 กติกาสำคัญ:
 1. อย่าตัดช็อตใหม่ทุกท่อน — ให้รวมท่อนที่ต่อเนื่องเป็นประโยค/ใจความเดียวกัน (ยังไม่จบด้วย . ! ? หรือคำลงท้ายอย่าง "ครับ"/"ค่ะ") เข้าเป็น 1 ช็อตเดียว ถ้าภาพช่วงนั้นยังสื่อความหมายเดิมต่อเนื่อง เพื่อให้จังหวะตัดไม่ถี่เกินไปจนดูรก
 2. ตัดช็อตใหม่เฉพาะตอนที่ใจความเปลี่ยน (เปลี่ยนหัวข้อ/เปลี่ยนแอ็กชันที่ต้องโชว์) เช่น ท่อนหมุนข้อต่อ ให้เลือกช่วงที่มือหมุนข้อต่อ, ท่อนเสียบชาร์จ ให้เลือกช่วงที่เสียบชาร์จ, ท่อนราคา/ปิดการขาย ให้เลือกช่วงโชว์สินค้าชัดเจน
-3. start_time และ end_time ต้องอยู่ในช่วง 0 ถึง {raw_duration:.1f} วินาที และความยาวของแต่ละช็อตควรอยู่ที่ 2.0 - 6.0 วินาที (สั้นกว่านี้จะถี่และรกเกินไป ยาวกว่านี้จะดูนิ่งน่าเบื่อ)
+3. start_time และ end_time ต้องอยู่ในช่วง 0 ถึง {raw_duration:.1f} วินาที และความยาวของแต่ละช็อตควรอยู่ที่ {shot_lo:.1f} - {shot_hi:.1f} วินาที และห้ามเกิน {shot_cap:.1f} วินาที (สั้นกว่านี้จะถี่และรกเกินไป ยาวกว่านี้จะดูนิ่งน่าเบื่อ) ถ้าใจความเดียวยาวกว่านั้น ให้แบ่งเป็นหลายช็อตต่อเนื่องที่ยังโชว์เรื่องเดิม
 4. cue_ids ต้องเป็น array ของลำดับท่อน (จากเลข 1-{len(cues)} ด้านบน) ที่ช็อตนี้ครอบคลุม เรียงต่อเนื่องกันและไม่มีช่องว่างหรือซ้ำกับช็อตอื่น รวมกันแล้วต้องครบทุกท่อนทั้ง {len(cues)} ท่อน
 5. punch_zoom: กำหนดค่า 1.0 ถึง 1.35 เพื่อเพิ่มความตื่นเต้นในสไตล์ TikTok — ใช้ค่าสูงกว่าตรงจุดเฉลย/จุดขายของสินค้า/CTA และค่าต่ำกว่าตรงช่วงเกริ่นนำธรรมดา
+6. confidence: ความมั่นใจ 0.0 ถึง 1.0 ว่าภาพช่วงนี้ตรงกับใจความของท่อนจริง (1.0 = เห็นสิ่งที่พูดชัดเจน, ต่ำกว่า 0.5 = ไม่มีภาพที่ตรง ต้องเดาเอา) ห้ามให้ค่าสูงถ้าไม่เห็นสิ่งที่พูดในภาพ
 
 ตอบกลับเป็น JSON format เท่านั้น:
 ```json
@@ -968,7 +1041,8 @@ class GeminiVisionMatcher:
       "start_time": 0.0,
       "end_time": 4.5,
       "visual_reason": "สิ่งที่เห็นในภาพช่วงนี้ เช่น มือหยิบหัวสายชาร์จขึ้นมาโชว์",
-      "punch_zoom": 1.15
+      "punch_zoom": 1.15,
+      "confidence": 0.85
     }}
   ]
 }}
@@ -1082,7 +1156,7 @@ class GeminiVisionMatcher:
                 clean_json = resp_text.strip()
 
             data = json.loads(clean_json)
-            matched = data.get("matched_shots", [])
+            matched = normalize_match_confidence(data.get("matched_shots", []))
             print(f"   ✓ Gemini Vision successfully matched {len(matched)} visual scenes to the script!")
             for idx, m_shot in enumerate(matched[:3]):
                 print(f"     • Shot {idx+1}: [{m_shot.get('start_time')}s-{m_shot.get('end_time')}s] ({m_shot.get('punch_zoom', 1.15)}x) -> {m_shot.get('visual_reason', '')[:50]}")
