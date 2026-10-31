@@ -11,6 +11,7 @@
   - [ ] J Frontend: Performance tab style-performance, selector ความยาว/story format, custom keywords ใน preview highlight
   - [ ] K M4 Viral Lint: `scripts/viral_lint.py` + endpoint + preflight UI + `hold_reason`
   - [ ] L M9 Word timing: faster-whisper (cuda) align Gemini TTS → `word_timings`, SpecBar เริ่มตอนพูดตัวเลข
+  - [ ] ชุดที่ 2 (ผู้ใช้อนุมัติ 2026-10-31): M1 hook text 0–1.8 วิ + ป้ายชื่อ 3 วิ · M8 burst ซับ ≤ 24 ตัวอักษร · M5 คง 10 preset ทำให้ต่างจริง · สี hook template คงเดิม
   - [ ] รวม branch + pytest ทั้งชุด + npm test + build + merge main
 
 - [x] Round CODEX-REVERT-OWN-THEME-20261031 · ถอนงานธีม Codex ครบ: source เดิม 33 ไฟล์ตรง 34c5ba9, ลบ v2/docs/flag, คง GDrive/Claude; frontend tests 1,099/1,099 และ build เดิมผ่าน · ดำเนินการโดย: Codex (GPT-6)
