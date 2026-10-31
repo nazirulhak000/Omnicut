@@ -1,0 +1,582 @@
+{
+  "description": "Viral Lint (M4) fixtures. 'clean' must produce zero warn/block. 'planted' carries exactly the 8 problems in 'planted_codes': HOOK_SLOW (voice + first caption at 0.6 s), HOOK_PACING (clip 1 is 2.0 s inside the 3 s hook window), LONG_SHOT (clip 3 is 4.0 s), STATIC_SPAN (clip 4 is 3.0 s without keyframes), DEAD_AIR (5.0-6.0 s), SFX_DENSE (cut-bound whoosh 5.08 s + line SFX 6.0 s), LENGTH (16.5 s vs target 12 s), COMPLIANCE (price in the last line). Timings are load-bearing.",
+  "clean": {
+    "project_name": "fixture",
+    "style_preset": "clean_tech_review",
+    "target_duration": 15.0,
+    "script_data": {
+      "hook": "แบตอึดใช้ได้ทั้งวัน",
+      "lines": [
+        {
+          "text": "พาวเวอร์แบงก์ตัวนี้ชาร์จมือถือได้สามรอบเต็ม"
+        },
+        {
+          "text": "เดี๋ยวดูกันว่าทำไมมันเบากว่าที่คิด"
+        },
+        {
+          "text": "บอดี้อะลูมิเนียมบางแค่หนึ่งเซนติเมตร"
+        },
+        {
+          "text": "ใครใช้รุ่นไหนอยู่ เมนต์บอกกันหน่อย"
+        },
+        {
+          "text": "จบด้วยแม่เหล็กที่ดูดแน่นไม่หลุดง่าย"
+        }
+      ]
+    },
+    "cues": [
+      {
+        "start": 0.0,
+        "end": 2.8,
+        "text": "พาวเวอร์แบงก์ตัวนี้ชาร์จมือถือได้สามรอบเต็ม",
+        "sfx": "pop"
+      },
+      {
+        "start": 3.0,
+        "end": 5.8,
+        "text": "เดี๋ยวดูกันว่าทำไมมันเบากว่าที่คิด"
+      },
+      {
+        "start": 6.0,
+        "end": 9.0,
+        "text": "บอดี้อะลูมิเนียมบางแค่หนึ่งเซนติเมตร"
+      },
+      {
+        "start": 9.2,
+        "end": 12.0,
+        "text": "ใครใช้รุ่นไหนอยู่ เมนต์บอกกันหน่อย"
+      },
+      {
+        "start": 12.2,
+        "end": 14.8,
+        "text": "จบด้วยแม่เหล็กที่ดูดแน่นไม่หลุดง่าย",
+        "sfx": "ding"
+      }
+    ],
+    "beat_cues": [
+      {
+        "start": 0.0,
+        "end": 2.8,
+        "text": "พาวเวอร์แบงก์ตัวนี้ชาร์จมือถือได้สามรอบเต็ม",
+        "sfx": "pop"
+      },
+      {
+        "start": 3.0,
+        "end": 5.8,
+        "text": "เดี๋ยวดูกันว่าทำไมมันเบากว่าที่คิด"
+      },
+      {
+        "start": 6.0,
+        "end": 9.0,
+        "text": "บอดี้อะลูมิเนียมบางแค่หนึ่งเซนติเมตร"
+      },
+      {
+        "start": 9.2,
+        "end": 12.0,
+        "text": "ใครใช้รุ่นไหนอยู่ เมนต์บอกกันหน่อย"
+      },
+      {
+        "start": 12.2,
+        "end": 14.8,
+        "text": "จบด้วยแม่เหล็กที่ดูดแน่นไม่หลุดง่าย",
+        "sfx": "ding"
+      }
+    ],
+    "clip_list": [
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 1.2,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 1.2,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 1.2,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 1.2,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 1.2,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 1.2,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 2.4,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 2.4,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 2.4,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 2.4,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 2.4,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 2.4,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 2.4,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 2.4,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 1.8,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 1.8,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      }
+    ],
+    "transitions": [
+      {
+        "type": "cut",
+        "duration": 0.4
+      },
+      {
+        "type": "cut",
+        "duration": 0.4
+      },
+      {
+        "type": "cut",
+        "duration": 0.4
+      },
+      {
+        "type": "cut",
+        "duration": 0.4
+      },
+      {
+        "type": "cut",
+        "duration": 0.4
+      },
+      {
+        "type": "cut",
+        "duration": 0.4
+      },
+      {
+        "type": "cut",
+        "duration": 0.4
+      }
+    ],
+    "overlays": [
+      {
+        "id": "ovl_hook",
+        "kind": "hook",
+        "start": 0.0,
+        "end": 2.0,
+        "tiers": [
+          {
+            "text": "แบตอึด"
+          },
+          {
+            "text": "ใช้ได้ทั้งวัน"
+          }
+        ]
+      }
+    ]
+  },
+  "planted": {
+    "project_name": "fixture",
+    "style_preset": "clean_tech_review",
+    "target_duration": 12.0,
+    "script_data": {
+      "hook": "แบตอึดใช้ได้ทั้งวัน",
+      "lines": [
+        {
+          "text": "พาวเวอร์แบงก์ตัวนี้ชาร์จมือถือได้สามรอบเต็ม"
+        },
+        {
+          "text": "เดี๋ยวดูกันว่าทำไมมันเบากว่าที่คิด"
+        },
+        {
+          "text": "บอดี้อะลูมิเนียมบางแค่หนึ่งเซนติเมตร"
+        },
+        {
+          "text": "ใครใช้รุ่นไหนอยู่ เมนต์บอกกันหน่อย"
+        },
+        {
+          "text": "ราคาแค่ 299 บาท แม่เหล็กดูดแน่นไม่หลุดง่าย"
+        }
+      ]
+    },
+    "cues": [
+      {
+        "start": 0.6,
+        "end": 2.8,
+        "text": "พาวเวอร์แบงก์ตัวนี้ชาร์จมือถือได้สามรอบเต็ม",
+        "sfx": "pop"
+      },
+      {
+        "start": 3.0,
+        "end": 5.0,
+        "text": "เดี๋ยวดูกันว่าทำไมมันเบากว่าที่คิด"
+      },
+      {
+        "start": 6.0,
+        "end": 9.0,
+        "text": "บอดี้อะลูมิเนียมบางแค่หนึ่งเซนติเมตร",
+        "sfx": "ding"
+      },
+      {
+        "start": 9.2,
+        "end": 12.0,
+        "text": "ใครใช้รุ่นไหนอยู่ เมนต์บอกกันหน่อย"
+      },
+      {
+        "start": 12.2,
+        "end": 16.0,
+        "text": "ราคาแค่ 299 บาท แม่เหล็กดูดแน่นไม่หลุดง่าย",
+        "sfx": "ding"
+      }
+    ],
+    "beat_cues": [
+      {
+        "start": 0.6,
+        "end": 2.8,
+        "text": "พาวเวอร์แบงก์ตัวนี้ชาร์จมือถือได้สามรอบเต็ม",
+        "sfx": "pop"
+      },
+      {
+        "start": 3.0,
+        "end": 5.0,
+        "text": "เดี๋ยวดูกันว่าทำไมมันเบากว่าที่คิด"
+      },
+      {
+        "start": 6.0,
+        "end": 9.0,
+        "text": "บอดี้อะลูมิเนียมบางแค่หนึ่งเซนติเมตร",
+        "sfx": "ding"
+      },
+      {
+        "start": 9.2,
+        "end": 12.0,
+        "text": "ใครใช้รุ่นไหนอยู่ เมนต์บอกกันหน่อย"
+      },
+      {
+        "start": 12.2,
+        "end": 16.0,
+        "text": "ราคาแค่ 299 บาท แม่เหล็กดูดแน่นไม่หลุดง่าย",
+        "sfx": "ding"
+      }
+    ],
+    "clip_list": [
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 2.0,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 2.0,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 1.2,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 1.2,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 4.0,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 4.0,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 3.0,
+        "speed": 1.0,
+        "zoom": 1.1
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 2.4,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 2.4,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 2.4,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 2.4,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      },
+      {
+        "source_path": "fixture/raw/product.mp4",
+        "trim_start": 0.0,
+        "trim_end": 1.5,
+        "speed": 1.0,
+        "zoom": 1.1,
+        "keyframes": [
+          {
+            "time": 0.0,
+            "zoom": 1.1,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          },
+          {
+            "time": 1.5,
+            "zoom": 1.18,
+            "pan_x": 0.0,
+            "pan_y": 0.0
+          }
+        ]
+      }
+    ],
+    "transitions": [
+      {
+        "type": "cut",
+        "duration": 0.4
+      },
+      {
+        "type": "cut",
+        "duration": 0.4
+      },
+      {
+        "type": "cut",
+        "duration": 0.4
+      },
+      {
+        "type": "cut",
+        "duration": 0.4
+      },
+      {
+        "type": "cut",
+        "duration": 0.4
+      },
+      {
+        "type": "cut",
+        "duration": 0.4
+      }
+    ],
+    "overlays": [
+      {
+        "id": "ovl_hook",
+        "kind": "hook",
+        "start": 0.8,
+        "end": 2.8,
+        "tiers": [
+          {
+            "text": "แบตอึด"
+          },
+          {
+            "text": "ใช้ได้ทั้งวัน"
+          }
+        ]
+      },
+      {
+        "id": "ovl_whoosh",
+        "kind": "sfx",
+        "start": 5.2,
+        "end": 5.6,
+        "sfx": "whoosh",
+        "cut_bound": true
+      }
+    ]
+  },
+  "planted_codes": [
+    "COMPLIANCE",
+    "DEAD_AIR",
+    "HOOK_PACING",
+    "HOOK_SLOW",
+    "LENGTH",
+    "LONG_SHOT",
+    "SFX_DENSE",
+    "STATIC_SPAN"
+  ]
+}

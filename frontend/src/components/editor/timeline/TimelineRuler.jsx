@@ -1,8 +1,19 @@
 import React from 'react';
 import { FPS, formatTimecode } from '../../../lib/timelineMath';
 import { frameTickSpacing } from '../../../lib/timelineTrackModel';
+import { formatPreflightTime } from '../../../lib/renderPreflight';
 
 const FRAME_TICK_COLOR = '#4A4742';
+
+// Viral Lint heatmap strip (warn / block spans). Sits on the ruler's bottom
+// edge, below the tick labels. Severity is also carried by height and style, so
+// it does not depend on hue alone: warn = 3px amber, block = 5px red with a
+// light top edge. Both clear 3:1 against the #1C1B19 ruler.
+const LINT_STYLE = {
+  warn: { label: 'ข้อสังเกต', background: '#D9A441', height: 3, edge: null },
+  block: { label: 'ต้องแก้', background: '#EF6A5E', height: 5, edge: '#FFD9D4' },
+};
+const LINT_MIN_PX = 3;
 
 // One repeating-gradient layer draws every tick of a family in a single
 // element, so a 60 second clip at full zoom (1800 frames) costs one node.
@@ -24,6 +35,8 @@ export default function TimelineRuler({
   onEndScrub,
   // { inTime, outTime } (seconds or null): the I / O marks of a range cut.
   rangeMark = null,
+  // [{ code, severity, start, end, message }] from viralLintHeatmapSpans().
+  lintSpans = null,
 }) {
   // Frame ticks only exist when zoomed in far enough to tell frames apart; the
   // same condition switches the labels to mm:ss:ff so they agree with the toolbar.
@@ -86,6 +99,33 @@ export default function TimelineRuler({
               style={tickLayer(framePx * 5, 5, spanPx)}
             />
           </>
+        )}
+        {Array.isArray(lintSpans) && lintSpans.length > 0 && (
+          <div data-viral-heatmap className="pointer-events-none absolute inset-x-0 bottom-0 h-[5px]">
+            {lintSpans.map((span, index) => {
+              const look = LINT_STYLE[span.severity] || LINT_STYLE.warn;
+              const range = `${formatPreflightTime(span.start)}${span.end > span.start ? ` – ${formatPreflightTime(span.end)}` : ''}`;
+              const text = `${look.label} · ${range} · ${span.message}`;
+              return (
+                <span
+                  key={`${span.code}-${span.start}-${index}`}
+                  data-viral-span={span.severity}
+                  role="img"
+                  aria-label={text}
+                  title={text}
+                  className="pointer-events-auto absolute bottom-0 rounded-[1px]"
+                  style={{
+                    left: span.start * pxPerSec,
+                    width: Math.max(LINT_MIN_PX, (span.end - span.start) * pxPerSec),
+                    height: look.height,
+                    background: look.background,
+                    opacity: 0.9,
+                    boxShadow: look.edge ? `inset 0 1px 0 ${look.edge}` : undefined,
+                  }}
+                />
+              );
+            })}
+          </div>
         )}
         {ticks.map((t) => (
           <div key={t} className="pointer-events-none absolute top-0 h-full" style={{ left: t * pxPerSec }}>

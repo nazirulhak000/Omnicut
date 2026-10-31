@@ -97,6 +97,7 @@ from scripts.api_command import router as command_router
 from scripts.api_uploads import router as uploads_router
 from scripts.api_ssd_sync import router as ssd_sync_router
 from scripts.api_gdrive_archive import router as gdrive_archive_router
+from scripts.api_viral_lint import router as viral_lint_router
 from scripts.channel_scope import CHANNEL_HEADER, install_channel_scope
 from scripts.maintenance_lock import install_maintenance_gate
 
@@ -335,6 +336,7 @@ app.include_router(command_router)
 app.include_router(uploads_router)
 app.include_router(ssd_sync_router)
 app.include_router(gdrive_archive_router)
+app.include_router(viral_lint_router)
 
 
 # ----------------------------------------------------------------------
