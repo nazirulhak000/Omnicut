@@ -112,13 +112,16 @@ def test_mix_graph_skips_invalid_events_but_keeps_legacy_valid_events(
 
     result = SFXManager.mix_audio_track(
         voice_audio_path=str(voice),
+        # The valid cue sits 2.5 s after the legacy start-less overlay (0.0) so
+        # the SFX density gap (SFX_MIN_GAP_S = 2.0) keeps both; 3.0 is still
+        # past the end of the clip.
         cues=[
-            {"sfx": "pop", "start": 0.5},
+            {"sfx": "pop", "start": 2.5},
             {"sfx": "pop"},
             {"sfx": "pop", "start": 0.2, "sfx_enabled": False},
             {"sfx": "pop", "start": 3.0},
         ],
-        total_duration=2.0,
+        total_duration=2.8,
         output_audio_path=str(tmp_path / "mix.wav"),
         sfx_vol=0.5,
         overlays=[{"sfx": "pop"}],

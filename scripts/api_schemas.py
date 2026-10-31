@@ -55,7 +55,7 @@ class RenderRequest(BaseModel):
     sticker_badge: Optional[str] = None
     bgm_name: Optional[str] = None
     bgm_volume: Optional[float] = None
-    bgm_ducking: bool = False
+    bgm_ducking: bool = True
     audio_mutes: Optional[Dict[str, bool]] = None
     lut_name: Optional[str] = None
     clip_list: Optional[List[Dict[str, Any]]] = None
