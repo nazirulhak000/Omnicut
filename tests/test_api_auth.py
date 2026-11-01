@@ -51,6 +51,8 @@ def clean_api_key_env(monkeypatch):
     monkeypatch.delenv("OMNICUT_APP_PASSWORD", raising=False)
     monkeypatch.delenv("OMNICUT_SESSION_SECRET", raising=False)
     monkeypatch.delenv("OMNICUT_ALLOW_REMOTE", raising=False)
+    monkeypatch.delenv("OMNICUT_AUTH_DISABLED", raising=False)
+    monkeypatch.delenv("OMNICUT_REQUIRE_AUTH", raising=False)
     monkeypatch.setattr(auth_module, "_warned_permissive", False)
     api_auth.login_rate_limiter.reset()
     yield
@@ -650,3 +652,37 @@ def test_hashed_assets_get_immutable_cache(tmp_path):
     assert res.status_code == 200
     assert res.headers["cache-control"] == "public, max-age=31536000, immutable"
     assert "cache-control" not in c.get("/assets/missing.js").headers
+
+def test_auth_disabled_overrides_configured_key_and_password(monkeypatch):
+    """When OMNICUT_AUTH_DISABLED=true, auth enforcement and password requirements are bypassed."""
+    monkeypatch.setenv("OMNICUT_API_KEY", "configured-secret-key")
+    monkeypatch.setenv("OMNICUT_APP_PASSWORD", "some-password")
+    monkeypatch.setenv("OMNICUT_AUTH_DISABLED", "true")
+
+    assert auth_module.is_auth_disabled() is True
+    assert auth_module.get_configured_api_key() == ""
+    assert auth_module.is_auth_enforced() is False
+    assert auth_module.get_app_password() == ""
+    assert auth_module.is_password_configured() is False
+
+    c = _fresh_client()
+    res = c.get("/api/auth/me")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["authenticated"] is True
+    assert data["auth_required"] is False
+    assert data["password_configured"] is False
+
+    # Status route should succeed without credentials
+    status_res = c.get("/api/status")
+    assert status_res.status_code == 200
+
+
+def test_auth_disabled_via_require_auth_false(monkeypatch):
+    """OMNICUT_REQUIRE_AUTH=false also disables auth requirement."""
+    monkeypatch.setenv("OMNICUT_API_KEY", "configured-secret-key")
+    monkeypatch.setenv("OMNICUT_REQUIRE_AUTH", "false")
+
+    assert auth_module.is_auth_disabled() is True
+    assert auth_module.is_auth_enforced() is False
+

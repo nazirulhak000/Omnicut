@@ -7589,5 +7589,169 @@
       }
     },
     "receipt_hash": "c2fde5d379759164e8c9eebe5353680fb986482e30e0b7ee7329fe48d73e691a"
+  },
+  {
+    "video_path": "D:\\Programmer\\All Project\\Omnicut\\04_Exports\\Ready_to_post\\EAR01-เทียบของเดิม_1_20260919_155140.mp4",
+    "export_id": "exp_ae5c6b36bd4949cca64a7da2e08e820c",
+    "cover_path": "D:\\Programmer\\All Project\\Omnicut\\05_Covers_Thumbnails\\EAR01-เทียบของเดิม_1_cover_3x4.jpg",
+    "caption": "test",
+    "hashtags": "",
+    "product_id": "5082eeff0635403a9c7f9f51d44f7404",
+    "angle_id": "comparison",
+    "tiktok_product_id": null,
+    "product_name": null,
+    "schedule_date": null,
+    "schedule_time": null,
+    "queue_id": null,
+    "target_handle": "@rizanntry",
+    "channel_revision": 4,
+    "account_binding": {
+      "status": "verified",
+      "verified_handle": "@rizanntry",
+      "verified_at": "2026-10-10T18:23:52Z"
+    },
+    "strict_mode": false,
+    "video_sha256": "8c0ff68bba95be3ef3401f1f8c81082b1146c5c19363d6c3c8fb423ff58e9bc5",
+    "cover_sha256": "44e92c31c13b1be1039ec2a07fe1d4969953646267ec110669cd05e379b335ab",
+    "id": "b9a9ba5330465bfae98b9fb75fafa238",
+    "job_id": "b9a9ba5330465bfae98b9fb75fafa238",
+    "channel_id": "main",
+    "protocol_version": 2,
+    "payload_hash": "c60c3799186bd413b75e3b2a08915aa381ae96bd866437c7a5598eacaf41884a",
+    "prepared_payload_hash": "c60c3799186bd413b75e3b2a08915aa381ae96bd866437c7a5598eacaf41884a",
+    "payload_fields": [
+      "video_path",
+      "export_id",
+      "cover_path",
+      "caption",
+      "hashtags",
+      "product_id",
+      "angle_id",
+      "tiktok_product_id",
+      "product_name",
+      "schedule_date",
+      "schedule_time",
+      "queue_id",
+      "target_handle",
+      "channel_revision",
+      "account_binding",
+      "strict_mode",
+      "video_sha256",
+      "cover_sha256"
+    ],
+    "idempotency_key": "c60c3799186bd413b75e3b2a08915aa381ae96bd866437c7a5598eacaf41884a",
+    "status": "prepared",
+    "revision": 1,
+    "lease_owner": null,
+    "lease_token": null,
+    "lease_expires_at": null,
+    "attempt": 0,
+    "created_at": 1793468032.4473095,
+    "updated_at": 1793468032.4473095,
+    "effects_applied": false,
+    "prepare_effects_applied": true,
+    "audit": [
+      {
+        "event": "prepare",
+        "at": 1793468032.447424
+      }
+    ]
+  },
+  {
+    "video_path": "D:\\Programmer\\All Project\\Omnicut\\04_Exports\\Ready_to_post\\HOY01-รีวิวสเปก_1_20260927_202531.mp4",
+    "export_id": "exp_bcebbf0cb7d24420a81957a5734241b9",
+    "cover_path": "D:\\Programmer\\All Project\\Omnicut\\05_Covers_Thumbnails\\HOY01-รีวิวสเปก_1_cover.jpg",
+    "caption": "เล่นเกมนานแค่ไหนเครื่องก็ไม่ร้อน! HOYAUP พัดลมระบายความร้อน AI เย็นจัดถึง -9 องศา ถนอมมือถือด่วน พิกัดในตะกร้าเลยครับ 👇",
+    "hashtags": "#พัดลมระบายความร้อนมือถือ #HOYAUP #พัดลมแม่เหล็ก #รีวิวแกดเจ็ต #ของดีบอกต่อ #tiktokป้ายยา",
+    "product_id": "673882d55bd84c57ba805000a910c466",
+    "angle_id": "spec_review",
+    "tiktok_product_id": "1736306705697900220",
+    "product_name": "HOYAUP พัดลมมือถือแม่เหล็ก",
+    "schedule_date": "2026-11-01",
+    "schedule_time": "07:00",
+    "queue_id": "aa9cb33cc2524682aaf72133e663a071",
+    "target_handle": "@rizanntry",
+    "channel_revision": 4,
+    "account_binding": {
+      "status": "verified",
+      "verified_handle": "@rizanntry",
+      "verified_at": "2026-10-10T18:23:52Z"
+    },
+    "strict_mode": false,
+    "video_sha256": "96f8f2848505d35faa634dffafbda329e4e8ff16854862de3528817efc6e340d",
+    "cover_sha256": "f196113e09ec2b19ed64ec067dd788dd7e2bda7237fe5195ea12a88afd40d2e5",
+    "id": "e2361449ee98c86868f1849e5c30475a",
+    "job_id": "e2361449ee98c86868f1849e5c30475a",
+    "channel_id": "main",
+    "protocol_version": 2,
+    "payload_hash": "21b808d426516253ed0e8405587f20d7597801d81f625b6d79c50cdde72dc8b0",
+    "prepared_payload_hash": "21b808d426516253ed0e8405587f20d7597801d81f625b6d79c50cdde72dc8b0",
+    "payload_fields": [
+      "video_path",
+      "export_id",
+      "cover_path",
+      "caption",
+      "hashtags",
+      "product_id",
+      "angle_id",
+      "tiktok_product_id",
+      "product_name",
+      "schedule_date",
+      "schedule_time",
+      "queue_id",
+      "target_handle",
+      "channel_revision",
+      "account_binding",
+      "strict_mode",
+      "video_sha256",
+      "cover_sha256"
+    ],
+    "idempotency_key": "21b808d426516253ed0e8405587f20d7597801d81f625b6d79c50cdde72dc8b0",
+    "status": "cancelled",
+    "revision": 5,
+    "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2",
+    "lease_token": "nV4hRvLLmfXfdo60iSN5ictUo7lB5948rb_aGMO6M64",
+    "lease_expires_at": 1793469663.8752341,
+    "attempt": 0,
+    "created_at": 1793469133.4228797,
+    "updated_at": 1793498052.1299965,
+    "effects_applied": false,
+    "prepare_effects_applied": true,
+    "audit": [
+      {
+        "event": "prepare",
+        "at": 1793469133.4229028
+      },
+      {
+        "event": "prepare_queue_applied",
+        "at": 1793469133.568604,
+        "error": null
+      },
+      {
+        "event": "claim",
+        "at": 1793469135.039752,
+        "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2"
+      },
+      {
+        "event": "account_check",
+        "at": 1793469151.1032202,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1793469363.8752384,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "release",
+        "at": 1793498052.1299992,
+        "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2",
+        "forced": false
+      }
+    ]
   }
 ]

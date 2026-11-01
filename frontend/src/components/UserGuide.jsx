@@ -10,6 +10,7 @@ import { PageHeader } from './ui';
 // ── เมนูที่ 8: คู่มือใช้งานในโปรแกรม ──
 // อธิบายโฟลว์หลัก + วิธีใช้ละเอียดเมนูเสริม Gadget Media และทุกเมนู 0-7 ในหน้าเดียว เน้นอ่านง่าย
 const MENU_GUIDE = [
+  { id: 'producer', no: '0', icon: Sparkles, color: 'text-amber-400', chip: 'bg-amber-500/10 text-amber-300 border-amber-500/30' },
   { id: 'flow', no: '1', icon: Rocket, color: 'text-rose-400', chip: 'bg-rose-500/10 text-rose-300 border-rose-500/30' },
   { id: 'tracker', no: '2', icon: Layers, color: 'text-cyan-300', chip: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30' },
   { id: 'editor', no: '3', icon: Scissors, color: 'text-purple-400', chip: 'bg-purple-500/10 text-purple-300 border-purple-500/30' },
@@ -17,6 +18,7 @@ const MENU_GUIDE = [
   { id: 'assets', no: '5', icon: Palette, color: 'text-amber-400', chip: 'bg-amber-500/10 text-amber-300 border-amber-500/30' },
   { id: 'analytics', no: '6', icon: BarChart3, color: 'text-cyan-300', chip: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30' },
   { id: 'settings', no: '7', icon: Settings, color: 'text-slate-300', chip: 'bg-slate-500/10 text-slate-300 border-slate-500/30' },
+  { id: 'gadget', no: 'G', icon: MonitorPlay, color: 'text-cyan-400', chip: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30', badge: 'Gadget Media' },
 ];
 
 const FLOW_STEPS = [
@@ -166,7 +168,7 @@ export default function UserGuide({ onNavigate }) {
       <section id="ug-menus" className="scroll-mt-20">
         <h2 className="text-sm sm:text-base font-black text-white px-1">วิธีใช้ละเอียดทุกเมนู กดชื่อเมนูเพื่อกระโดดไปใช้งานจริง</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-2.5 mt-2.5 items-start">
-        {MENU_DETAIL.map((m) => { const meta = MENU_GUIDE.find((g) => g.id === m.id); const Icon = meta.icon; const expanded = !!expandedMenus[m.id]; const visible = expanded ? m.points : m.points.slice(0, 3); return (
+        {MENU_DETAIL.map((m) => { const meta = MENU_GUIDE.find((g) => g.id === m.id) || { icon: BookOpen, color: 'text-slate-300', chip: 'bg-slate-500/10 text-slate-300 border-slate-500/30', no: '' }; const Icon = meta.icon || BookOpen; const expanded = !!expandedMenus[m.id]; const visible = expanded ? m.points : m.points.slice(0, 3); return (
           <article key={m.id} className="glass-panel rounded-2xl p-4 shadow-lg min-w-0">
             <button onClick={() => go(m.id)} className="w-full flex items-center gap-2.5 text-left cursor-pointer group">
               <div className="w-9 h-9 rounded-xl bg-white/[0.05] border border-white/[0.1] flex items-center justify-center flex-shrink-0"><Icon className={`w-5 h-5 ${meta.color}`} /></div>

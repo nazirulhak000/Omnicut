@@ -167,16 +167,6 @@ export default memo(function Topbar({
       <div className="flex flex-nowrap md:flex-wrap justify-end items-center gap-1 sm:gap-2.5 min-w-0 flex-shrink-0 md:flex-shrink">
         <div className="hidden md:block"><ChannelSelector /></div>
 
-        {/* Open AGY Cloud Terminal (/agy) */}
-        <a
-          href="/agy"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hidden md:flex min-h-11 px-3 py-1 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 border border-teal-500/40 text-teal-300 hover:text-white text-xs font-bold items-center justify-center transition-colors shadow-sm"
-          title="เปิดหน้าต่าง AGY Cloud Terminal สั่งงาน AI อิสระบน Cloud"
-        >
-          เปิด AGY Terminal
-        </a>
 
         {/* Global Activity Center Button (Pulsing badge when active) */}
         <ActivityIndicatorButton className="min-h-11 min-w-11" />

@@ -73,6 +73,8 @@ export function classifyShortcut(event, context = {}) {
       if (k === 'z') return act(event.shiftKey ? 'redo' : 'undo');
       if (k === 'y') return act('redo');
       if (k === 'b') return act('split');
+      if (k === 'l') return act('toggleLinkage');
+      if (k === 'g') return act(event.shiftKey ? 'ungroup' : 'group');
     }
     // Ctrl+Alt+C / Ctrl+Alt+V: copy / paste clip settings (the Premiere-style
     // "paste attributes" combo). Plain Ctrl+C / Ctrl+V stay with the browser,
@@ -164,6 +166,19 @@ export const SHORTCUT_GROUPS = Object.freeze([
         keys: 'C / S / Ctrl+B',
         desc: 'ตัดแบ่งคลิปตรงหัวอ่าน',
         probes: [{ event: { key: 'c' }, action: 'split' }, { event: { key: 's' }, action: 'split' }, { event: { key: 'b', ctrlKey: true }, action: 'split' }],
+      },
+      {
+        keys: 'Ctrl+L',
+        desc: 'เปิด/ปิดการเชื่อมแทร็ก (Track Linkage) ให้ซับไตเติลและสติกเกอร์ขยับตามคลิปหลัก',
+        probes: [{ event: { key: 'l', ctrlKey: true }, action: 'toggleLinkage' }, { event: { key: 'L', metaKey: true }, action: 'toggleLinkage' }],
+      },
+      {
+        keys: 'Ctrl+G / Ctrl+Shift+G',
+        desc: 'รวมไอเท็มเป็นกลุ่ม (Compound Clip Group) / ยกเลิกกลุ่ม',
+        probes: [
+          { event: { key: 'g', ctrlKey: true }, action: 'group' },
+          { event: { key: 'G', ctrlKey: true, shiftKey: true }, action: 'ungroup' },
+        ],
       },
       {
         keys: 'Q / W',

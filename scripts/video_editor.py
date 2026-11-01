@@ -530,6 +530,7 @@ EQ_LIMITS = {
     "brightness": (-0.3, 0.3, 0.0),
     "contrast": (0.5, 2.0, 1.0),
     "saturation": (0.0, 3.0, 1.0),
+    "gamma": (0.5, 2.0, 1.0),
 }
 
 
@@ -689,7 +690,197 @@ def build_eq_filter(clip: Dict[str, Any]) -> str:
     parts = []
     for key, value in resolve_color_finish(clip)["eq"].items():
         parts.append(f"{key}={value}")
-    return f"eq={':'.join(parts)}," if parts else ""
+    eq_str = f"eq={':'.join(parts)}," if parts else ""
+    temp = min(0.3, max(-0.3, _finite_number((clip or {}).get("temperature"), 0.0)))
+    if abs(temp) > 1e-3:
+        eq_str += f"colorbalance=rs={temp:.3f}:bs={-temp:.3f}:rm={temp * 0.5:.3f}:bm={-temp * 0.5:.3f},"
+    shadows = min(0.5, max(-0.5, _finite_number((clip or {}).get("shadows"), 0.0)))
+    highlights = min(0.5, max(-0.5, _finite_number((clip or {}).get("highlights"), 0.0)))
+    if abs(shadows) > 1e-3 or abs(highlights) > 1e-3:
+        s_val = capcut_adjust_shadow(0.25, shadows)
+        h_val = capcut_adjust_highlight(0.75, highlights)
+        eq_str += f"curves=all='0/0 0.25/{s_val:.3f} 0.75/{h_val:.3f} 1/1',"
+    vibrance = min(0.5, max(-0.5, _finite_number((clip or {}).get("vibrance"), 0.0)))
+    if abs(vibrance) > 1e-3:
+        eq_str += f"eq=saturation={max(0.2, 1.0 + vibrance * 0.65):.3f},"
+    vignette = min(1.0, max(0.0, _finite_number((clip or {}).get("vignette"), 0.0)))
+    if vignette > 1e-3:
+        angle = (math.pi / 4.0) * vignette
+        eq_str += f"vignette=angle={angle:.4f},"
+    return eq_str
+
+
+LOG_WHEEL_CROSSOVER = {"rug_down": 0.333, "rug_up": 0.555}
+
+
+def process_primary_wheel_channel(src_color: float, lift: float = 0.0, gamma: float = 1.0, gain: float = 1.0) -> float:
+    """CapCut 7.1 PrimaryWheel per-channel Lift/Gamma/Gain shader formula."""
+    s = min(1.0, max(0.0, float(src_color)))
+    lift_x = -1e6 if lift >= 0.5 else float(lift) / (float(lift) - 0.5)
+    gain_x = 1e6 if gain == 0.0 else 1.0 / float(gain)
+    if lift_x >= gain_x:
+        gain_x = lift_x + 1e-6
+    res = (s - lift_x) / (gain_x - lift_x)
+    if res > 0.0:
+        res = math.exp(float(gamma) * math.log(res))
+    return min(1.0, max(0.0, res))
+
+
+CAPCUT_DECODE_BALANCE_LIMIT = (8, 4, 2, 1)
+CAPCUT_FRAME_BUDGET_MS = 12.0
+
+
+def capcut_adjust_shadow(c: float, p: float = 0.0) -> float:
+    """CapCut 7.1 Shadow recovery curve (`merge_all_adjust_color/xshader/colorAdjustBundle.frag`)."""
+    s = min(1.0, max(0.0, float(c)))
+    param = min(0.5, max(-0.5, float(p or 0.0)))
+    if abs(param) < 1e-6:
+        return s
+    if param <= 0.0:
+        res = (s ** (param + 1.0)) - 0.1 * param * ((1.0 - s) ** 5.0)
+    else:
+        res = s ** (1.0 / max(1.0 - param, 1e-5))
+    return min(1.0, max(0.0, res))
+
+
+def capcut_adjust_highlight(c: float, p: float = 0.0) -> float:
+    """CapCut 7.1 Highlight recovery curve (`merge_all_adjust_color/xshader/colorAdjustBundle.frag`)."""
+    s = min(1.0, max(0.0, float(c)))
+    param = min(0.5, max(-0.5, float(p or 0.0)))
+    if abs(param) < 1e-6:
+        return s
+    if param < 0.0:
+        res = 1.0 - (max(0.0, 1.0 - s - 0.1 * param * s) ** (param + 1.0))
+    else:
+        res = 1.0 - ((1.0 - s) ** (1.0 / max(1.0 - param, 1e-5)))
+    return min(1.0, max(0.0, res))
+
+
+def capcut_dehaze_channel(ori_color: float, dark_color: float = 0.35, air_light: float = 0.85, dehaze_param: float = 0.0) -> float:
+    """CapCut 7.1 Dark-Channel Dehaze (`AmazingFeature_dehazing/xshader/dehaze.frag`)."""
+    c = min(1.0, max(0.0, float(ori_color)))
+    p = min(0.95, max(0.0, float(dehaze_param or 0.0)))
+    if p <= 1e-6:
+        return c
+    dehaze_weight = max(0.5, min(0.95, p))
+    trans = max(0.1, 1.0 - dehaze_weight * min(1.0, max(0.0, float(dark_color))))
+    res = (c - float(air_light)) / trans + float(air_light)
+    return min(1.0, max(0.0, c * (1.0 - p) + res * p))
+
+
+CAPCUT_HSL_RANGES = {
+    "red": (-45, -20, 10, 45),
+    "orange": (-10, 20, 40, 60),
+    "yellow": (20, 50, 70, 105),
+    "green": (50, 80, 160, 190),
+    "cyan": (140, 170, 210, 240),
+    "blue": (145, 195, 245, 275),
+    "purple": (240, 270, 290, 330),
+    "magenta": (285, 315, 345, 365),
+}
+
+
+def capcut_splendor_vibrance(r: float, g: float, b: float, vibrance: float = 0.0) -> Tuple[float, float, float]:
+    """CapCut 7.1 Skin-Tone Protected Vibrance (`AmazingFeature_splendor` + `AmazingFeature_hsl`)."""
+    rr = min(1.0, max(0.0, float(r)))
+    gg = min(1.0, max(0.0, float(g)))
+    bb = min(1.0, max(0.0, float(b)))
+    v = min(0.5, max(-0.5, float(vibrance or 0.0)))
+    if abs(v) < 1e-6:
+        return (rr, gg, bb)
+    max_c = max(rr, gg, bb)
+    min_c = min(rr, gg, bb)
+    delta = max_c - min_c
+    sat = 0.0 if max_c <= 1e-6 else delta / max_c
+    hue = 0.0
+    if delta > 1e-6:
+        if max_c == rr:
+            hue = 60.0 * (((gg - bb) / delta) % 6.0)
+        elif max_c == gg:
+            hue = 60.0 * ((bb - rr) / delta + 2.0)
+        else:
+            hue = 60.0 * ((rr - gg) / delta + 4.0)
+        if hue < 0.0:
+            hue += 360.0
+    skin_protection = 0.35 if 15.0 <= hue <= 45.0 else 1.0
+    boost = 1.0 + v * (1.0 - sat) * skin_protection
+    lum = 0.299 * rr + 0.587 * gg + 0.114 * bb
+    return (
+        min(1.0, max(0.0, lum + (rr - lum) * boost)),
+        min(1.0, max(0.0, lum + (gg - lum) * boost)),
+        min(1.0, max(0.0, lum + (bb - lum) * boost)),
+    )
+
+
+def capcut_vignette_weight(u: float, v: float, intensity: float = 0.0) -> float:
+    """CapCut 7.1 Vignette radial smoothstep falloff (`AmazingFeature_vignetting/xshader/vignetting.frag`)."""
+    p = min(1.0, max(-1.0, float(intensity or 0.0)))
+    if abs(p) < 1e-6:
+        return 0.0
+    sqrt2 = 1.415
+    ux = 2.0 * min(1.0, max(0.0, float(u))) - 1.0
+    vy = 2.0 * min(1.0, max(0.0, float(v))) - 1.0
+    dist = math.hypot(ux, vy)
+    abs_p = abs(p)
+    r0 = (1.0 + (0.2 - 1.0) * abs_p if p < 0.0 else 1.0 + (0.1 - 1.0) * abs_p) * sqrt2
+    r1 = (1.4 + (0.9 - 1.4) * abs_p if p < 0.0 else 1.4 + (0.85 - 1.4) * abs_p) * sqrt2
+    t = min(1.0, max(0.0, (dist - r0) / max(1e-6, r1 - r0)))
+    return t * t * (3.0 - 2.0 * t)
+
+
+def capcut_particle_noise(u: float, v: float, seed: float = 0.25, intensity: float = 0.08) -> float:
+    """CapCut 7.1 Procedural Film Particle Noise (`AmazingFeature_particle/xshader/noise.frag`)."""
+    scale = 9331.99
+    frac = lambda val: val - math.floor(val)
+    x = frac(float(u) * scale * 0.1031) + float(seed)
+    y = frac(float(v) * scale * 0.1031) + float(seed)
+    z = frac(float(seed) * scale * 0.1031) + float(seed)
+    dot_val = x * (y + 33.33) + y * (z + 33.33) + z * (x + 33.33)
+    x += dot_val
+    y += dot_val
+    z += dot_val
+    return (frac((x + y) * z) - 0.5) * float(intensity)
+
+
+CAPCUT_HIGH_SPEED_TRANSITIONS = (
+    {"id": "whip_pan", "label": "เหวี่ยงกล้อง (Whip Pan)", "xfade": "slideleft", "duration": 0.25, "easing": "ease_in_out"},
+    {"id": "zoom_in_punch", "label": "พุ่งซูมกระแทก (Zoom Punch)", "xfade": "circleopen", "duration": 0.22, "easing": "ease_out"},
+    {"id": "flash_white", "label": "แฟลชขาวไวรัล (Flash White)", "xfade": "fadewhite", "duration": 0.18, "easing": "ease_out"},
+    {"id": "glitch_shake", "label": "สั่นกลิตช์ (Glitch Shake)", "xfade": "dissolve", "duration": 0.20, "easing": "linear"},
+)
+
+
+def capcut_damped_camera_shake(t: float, freq: float = 14.0, decay: float = 6.0, amplitude: float = 0.08) -> Dict[str, float]:
+    """CapCut 7.1 Damped Harmonic Camera Shake (`Resources/lumi_js_resources_video/js/video/video.js`)."""
+    sec = max(0.0, float(t or 0.0))
+    if sec > 1.2:
+        return {"dx": 0.0, "dy": 0.0}
+    env = math.exp(-float(decay) * sec) * float(amplitude)
+    omega = 2.0 * math.pi * float(freq)
+    return {
+        "dx": round(env * math.sin(omega * sec), 6),
+        "dy": round(env * math.cos(omega * 0.85 * sec) * 0.65, 6),
+    }
+
+
+def apply_capcut_high_speed_transition(clip: Optional[Dict[str, Any]], preset_id: str = "whip_pan") -> Dict[str, Any]:
+    """Return a clip patch for a CapCut 7.1 High-Speed Transition preset."""
+    preset = next((p for p in CAPCUT_HIGH_SPEED_TRANSITIONS if p["id"] == preset_id), CAPCUT_HIGH_SPEED_TRANSITIONS[0])
+    s0 = capcut_damped_camera_shake(0.02)
+    s1 = capcut_damped_camera_shake(0.10)
+    c = clip if isinstance(clip, dict) else {}
+    shake_kfs = [
+        {"time": 0, "zoom": 1.18 if preset["id"] == "zoom_in_punch" else 1.08, "pan_x": s0["dx"], "pan_y": s0["dy"], "easing": "ease_out"},
+        {"time": 0.12, "zoom": 1.03, "pan_x": s1["dx"], "pan_y": s1["dy"], "easing": "ease_out"},
+        {"time": 0.28, "zoom": c.get("zoom", 1.0), "pan_x": c.get("pan_x", 0), "pan_y": c.get("pan_y", 0), "easing": "ease_in_out"},
+    ]
+    return {
+        "transition_in": preset["xfade"],
+        "transition_duration": preset["duration"],
+        "transition_easing": preset["easing"],
+        "capcut_transition_preset": preset["id"],
+        "keyframes": shake_kfs,
+    }
 
 
 ZOOM_LIMITS = (1.0, 3.0)
@@ -776,6 +967,53 @@ OVERLAY_ANIM_MAX_SHARE = 0.4
 OVERLAY_ANIM_SCALE_FROM = 0.88
 OVERLAY_ANIM_OPEN_END = 99999.0  # Canvas uses end=999999 for "no end"
 
+BLEND_MODE_FFMPEG_MAP = {
+    "normal": "normal",
+    "screen": "screen",
+    "multiply": "multiply",
+    "overlay": "overlay",
+    "soft-light": "softlight",
+    "soft_light": "softlight",
+    "lighten": "lighten",
+    "darken": "darken",
+}
+
+
+def capcut_spring_scale(p: float, omega: float = 18.0, zeta: float = 0.45, from_scale: float = OVERLAY_ANIM_SCALE_FROM) -> float:
+    """CapCut 7.1 Damped Harmonic Oscillator spring scale (`template_sticker`)."""
+    t = min(1.0, max(0.0, float(p or 0.0)))
+    wd = float(omega) * math.sqrt(max(0.0, 1.0 - float(zeta) ** 2))
+    return 1.0 - (1.0 - float(from_scale)) * math.exp(-float(zeta) * float(omega) * t) * math.cos(wd * t)
+
+
+def capcut_elastic_out(p: float) -> float:
+    """CapCut 7.1 `Easing.Elastic.Out` from `Resources/template_sticker/js/template/template.js`."""
+    amount = min(1.0, max(0.0, float(p or 0.0)))
+    if amount == 0.0:
+        return 0.0
+    if amount == 1.0:
+        return 1.0
+    return (2.0 ** (-10.0 * amount)) * math.sin((amount - 0.1) * 5.0 * math.pi) + 1.0
+
+
+def capcut_back_out(p: float) -> float:
+    """CapCut 7.1 `Easing.Back.Out` from `Resources/template_sticker/js/template/template.js`."""
+    amount = min(1.0, max(0.0, float(p or 0.0)))
+    if amount == 0.0:
+        return 0.0
+    s = 1.70158
+    amount -= 1.0
+    return amount * amount * ((s + 1.0) * amount + s) + 1.0
+
+
+def capcut_soft_light_channel(fg: float, bg: float) -> float:
+    """CapCut 7.1 MixMode SoftLight GLSL formula (`5ccf14a16ee408733fb178d87473b43b.frag`)."""
+    f = min(1.0, max(0.0, float(fg or 0.0)))
+    b = min(1.0, max(0.0, float(bg or 0.0)))
+    if f < 0.5:
+        return 2.0 * b * f + b * b * (1.0 - 2.0 * f)
+    return math.sqrt(b) * (2.0 * f - 1.0) + 2.0 * b * (1.0 - f)
+
 
 def overlay_anim_timing(start: float, end: Optional[float], fps: int = FPS) -> Tuple[float, float]:
     """(entrance seconds, exit seconds) on the 1/fps grid; exit 0 without an end."""
@@ -794,7 +1032,7 @@ def overlay_anim_timing(start: float, end: Optional[float], fps: int = FPS) -> T
 
 
 def overlay_anim_state(
-    t: float, start: float, end: Optional[float], *, scale_in: bool = True, fps: int = FPS
+    t: float, start: float, end: Optional[float], *, scale_in: bool = True, anim: str = "ease_out", fps: int = FPS
 ) -> Tuple[float, float]:
     """(alpha, scale) at timeline time t; the reference the ffmpeg chain follows."""
     d_in, d_out = overlay_anim_timing(start, end, fps)
@@ -803,7 +1041,14 @@ def overlay_anim_state(
         p = min(1.0, max(0.0, (float(t) - float(start)) / d_in))
         alpha = p
         if scale_in:
-            scale = OVERLAY_ANIM_SCALE_FROM + (1.0 - OVERLAY_ANIM_SCALE_FROM) * ease_camera_ratio("ease_out", p)
+            if anim == "spring_bounce":
+                scale = capcut_spring_scale(p, from_scale=OVERLAY_ANIM_SCALE_FROM)
+            elif anim == "elastic_out":
+                scale = OVERLAY_ANIM_SCALE_FROM + (1.0 - OVERLAY_ANIM_SCALE_FROM) * capcut_elastic_out(p)
+            elif anim == "back_out":
+                scale = OVERLAY_ANIM_SCALE_FROM + (1.0 - OVERLAY_ANIM_SCALE_FROM) * capcut_back_out(p)
+            else:
+                scale = OVERLAY_ANIM_SCALE_FROM + (1.0 - OVERLAY_ANIM_SCALE_FROM) * ease_camera_ratio("ease_out", p)
     if d_out > 0:
         # Two chained ffmpeg `fade` filters multiply their factors.
         alpha *= min(1.0, max(0.0, (float(end) - float(t)) / d_out))
@@ -939,8 +1184,29 @@ def hardware_encoder() -> Optional[str]:
     if forced:
         return None if forced.lower() in ("cpu", "x264", "libx264", "software") else forced
     # Concurrent renders wait for the one probe instead of racing past it.
+    if is_gpu_driver_blacklisted():
+        return None
     with _hw_encoder_lock:
         return _probe_hardware_encoder()
+
+
+CAPCUT_GPU_DRIVER_BUG_LIST: Dict[str, List[str]] = {
+    "0x8086": ["0x041e", "0x0412", "0x0416", "0x0a26", "0x5912", "0x591b"],
+    "0x10de": ["0x0f00", "0x1cb6"],
+}
+
+
+def is_gpu_driver_blacklisted(vendor_id: Optional[str] = None, device_id: Optional[str] = None) -> bool:
+    """Return True if the GPU vendor/device is blacklisted in CapCut 7.1 gpu_driver_bug_list.json."""
+    v = (vendor_id or os.environ.get("OMNICUT_GPU_VENDOR_ID") or "").strip().lower()
+    d = (device_id or os.environ.get("OMNICUT_GPU_DEVICE_ID") or "").strip().lower()
+    if not v or not d:
+        return False
+    if not v.startswith("0x"):
+        v = f"0x{v}"
+    if not d.startswith("0x"):
+        d = f"0x{d}"
+    return d in CAPCUT_GPU_DRIVER_BUG_LIST.get(v, [])
 
 
 def _probe_hardware_encoder() -> Optional[str]:

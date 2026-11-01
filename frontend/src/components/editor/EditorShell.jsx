@@ -86,6 +86,7 @@ import AssetPanel from './AssetPanel';
 import Inspector from './Inspector';
 import Timeline, { tracksFitHeight } from './Timeline';
 import TrimAdjustModal from './timeline/TrimAdjustModal';
+import OmniCutAgentDock from '../agent/OmniCutAgentDock';
 import EditorHeader from './EditorHeader';
 import { DEFAULT_HOOK_TEMPLATE, HOOK_TEMPLATES, registerCustomHookTemplates } from '../../lib/hookStyles';
 import {
@@ -276,6 +277,7 @@ export default function EditorShell({
   const zoomStep = useCallback((dir) => setPxPerSec((px) => stepZoomPreset(px, dir)), []);
   const zoomTo = useCallback((px) => setPxPerSec(clampPxPerSec(px)), []);
   const [snapEnabled, setSnapEnabled] = useState(true);
+  const [trackLinkageEnabled, setTrackLinkageEnabled] = useState(true);
   const [previewQuality, setPreviewQuality] = useState(() => readPreviewQuality());
   const [highResStillEnabled, setHighResStillEnabled] = useState(true);
   const handlePreviewQualityChange = useCallback((quality) => {
@@ -588,7 +590,19 @@ export default function EditorShell({
   const [deleteError, setDeleteError] = useState(null);
   const [deleteScope, setDeleteScope] = useState('project');
   const [deleteOrigin, setDeleteOrigin] = useState(null);
-  const [trimAdjustSeg, setTrimAdjustSeg] = useState(null); // seg being edited in TrimAdjustModal, or null when closed
+  const [trimAdjustSeg, setTrimAdjustSeg] = useState(null);
+  const [isAgentOpen, setIsAgentOpen] = useState(false);
+
+  useEffect(() => {
+    const handleAgentShortcut = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsAgentOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', handleAgentShortcut);
+    return () => window.removeEventListener('keydown', handleAgentShortcut);
+  }, []); // seg being edited in TrimAdjustModal, or null when closed
   // Opened from the header's "ปก" button (openCoverStudioManually).
   // null when closed; otherwise the videoItem shape CoverStudioModal expects.
   const [coverGateItem, setCoverGateItem] = useState(null);
@@ -1204,6 +1218,8 @@ export default function EditorShell({
   }, []);
 
   const {
+    groupSelectedClips,
+    ungroupSelectedClips,
     addClip,
     patchClip,
     patchAllClips,
@@ -1252,7 +1268,7 @@ export default function EditorShell({
     // the voice length; the commands exist but no control is bound to them yet.
     editorState: state,
     hasVoice: !!voiceAudioPath,
-    audioDuration,
+    audioDuration, trackLinkageEnabled,
   });
 
   // Timeline content is `duration * pxPerSec + 240` wide (see Timeline.jsx),
@@ -1285,7 +1301,7 @@ export default function EditorShell({
     seekPlayer,
     playhead,
     totalDuration,
-    audioDuration,
+    audioDuration, trackLinkageEnabled,
     onZoomStep: zoomStep,
     onZoomFit: zoomToFit,
     selectedSeg,
@@ -2450,6 +2466,8 @@ export default function EditorShell({
     applyInspectorW,
     rightSidebarCollapsed,
     toggleRightSidebar,
+    isFocusMode,
+    toggleFocusMode,
     mobilePreviewH,
     applyMobilePreviewH,
     resetPanelSizes,
@@ -2463,6 +2481,7 @@ export default function EditorShell({
   } = usePanelLayout({ mobileTimelineH });
 
   // The drag clamp has to reserve the timeline's real height, not a guess.
+  const splitterRafRef = useRef(null);
   const reserve = MOBILE_TAB_ROW_H + (Number.isFinite(mobileTimelineH) ? mobileTimelineH : 0);
 
   const progress = Math.round((jobStatus?.progress || 0) * 100);
@@ -2495,6 +2514,8 @@ export default function EditorShell({
         toggleLeftSidebar={toggleLeftSidebar}
         rightSidebarCollapsed={rightSidebarCollapsed}
         toggleRightSidebar={toggleRightSidebar}
+        isFocusMode={isFocusMode}
+        toggleFocusMode={toggleFocusMode}
         zen={zen}
         setZen={setZen}
         resetPanelSizes={resetPanelSizes}
@@ -2516,6 +2537,8 @@ export default function EditorShell({
         showWatermark={style.showWatermark !== false}
         onToggleWatermark={(val) => patchStyle({ showWatermark: val })}
         onOpenShortcuts={onOpenShortcuts}
+        isAgentOpen={isAgentOpen}
+        onToggleAgent={() => setIsAgentOpen((v) => !v)}
       />
 
       {loadError && projectName && (
@@ -3449,14 +3472,28 @@ export default function EditorShell({
                       onPointerMove={(e) => {
                         const d = assetResizeRef.current;
                         if (!d) return;
-                        applyAssetW(d.startW + (e.clientX - d.startX));
+                        const nextW = d.startW + (e.clientX - d.startX);
+                        if (!splitterRafRef.current) {
+                          splitterRafRef.current = requestAnimationFrame(() => {
+                            splitterRafRef.current = null;
+                            if (assetResizeRef.current) applyAssetW(nextW);
+                          });
+                        }
                       }}
                       onPointerUp={(e) => {
+                        if (splitterRafRef.current) {
+                          cancelAnimationFrame(splitterRafRef.current);
+                          splitterRafRef.current = null;
+                        }
                         assetResizeRef.current = null;
                         setActiveSplitter(null);
                         try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
                       }}
                       onPointerCancel={() => {
+                        if (splitterRafRef.current) {
+                          cancelAnimationFrame(splitterRafRef.current);
+                          splitterRafRef.current = null;
+                        }
                         assetResizeRef.current = null;
                         setActiveSplitter(null);
                       }}
@@ -3667,15 +3704,28 @@ export default function EditorShell({
                       onPointerMove={(e) => {
                         const d = inspectorResizeRef.current;
                         if (!d) return;
-                        // Dragging left (negative dx) widens the panel -- it sits on the right edge of the screen.
-                        applyInspectorW(d.startW - (e.clientX - d.startX));
+                        const nextW = d.startW - (e.clientX - d.startX);
+                        if (!splitterRafRef.current) {
+                          splitterRafRef.current = requestAnimationFrame(() => {
+                            splitterRafRef.current = null;
+                            if (inspectorResizeRef.current) applyInspectorW(nextW);
+                          });
+                        }
                       }}
                       onPointerUp={(e) => {
+                        if (splitterRafRef.current) {
+                          cancelAnimationFrame(splitterRafRef.current);
+                          splitterRafRef.current = null;
+                        }
                         inspectorResizeRef.current = null;
                         setActiveSplitter(null);
                         try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
                       }}
                       onPointerCancel={() => {
+                        if (splitterRafRef.current) {
+                          cancelAnimationFrame(splitterRafRef.current);
+                          splitterRafRef.current = null;
+                        }
                         inspectorResizeRef.current = null;
                         setActiveSplitter(null);
                       }}
@@ -3819,14 +3869,28 @@ export default function EditorShell({
                   onPointerMove={(e) => {
                     const d = resizeRef.current;
                     if (!d) return;
-                    applyTimelineH(d.startH - (e.clientY - d.startY));
+                    const nextH = d.startH - (e.clientY - d.startY);
+                    if (!splitterRafRef.current) {
+                      splitterRafRef.current = requestAnimationFrame(() => {
+                        splitterRafRef.current = null;
+                        if (resizeRef.current) applyTimelineH(nextH);
+                      });
+                    }
                   }}
                   onPointerUp={(e) => {
+                    if (splitterRafRef.current) {
+                      cancelAnimationFrame(splitterRafRef.current);
+                      splitterRafRef.current = null;
+                    }
                     resizeRef.current = null;
                     setActiveSplitter(null);
                     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* released */ }
                   }}
                   onPointerCancel={() => {
+                    if (splitterRafRef.current) {
+                      cancelAnimationFrame(splitterRafRef.current);
+                      splitterRafRef.current = null;
+                    }
                     resizeRef.current = null;
                     setActiveSplitter(null);
                   }}
@@ -4076,6 +4140,17 @@ export default function EditorShell({
         onClose={() => setCoverGateItem(null)}
         videoItem={coverGateItem}
         onCoverSaved={handleCoverGateSaved}
+      />
+
+      <OmniCutAgentDock
+        isOpen={isAgentOpen}
+        onClose={() => setIsAgentOpen(false)}
+        projectName={projectName}
+        onActionApplied={(res) => {
+          if (projectName) {
+            loadProject(projectName);
+          }
+        }}
       />
     </div>
   );

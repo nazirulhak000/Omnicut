@@ -58,6 +58,17 @@ class AudioFinishingPolicy:
     loudness_lra: float = DEFAULT_LOUDNESS_LRA
 
 
+VOICE_CLARITY_CHAIN = (
+    "highpass=f=80,afftdn=nf=-25,"
+    "acompressor=threshold=-18dB:ratio=2.5:attack=15:release=120,deesser=i=0.4"
+)
+
+
+def voice_clarity_filter(enabled: bool = False) -> str:
+    """CapCut 7.1 RNNoise / AudioSAMI equivalent voice clarity + denoise filter chain."""
+    return f"{VOICE_CLARITY_CHAIN}," if enabled else ""
+
+
 def _clamp_gain(value: Any, default: float) -> float:
     """Return a finite FFmpeg volume gain in the safe [0, 1] range."""
     try:
@@ -492,6 +503,7 @@ class SFXManager:
         # SFX_CUT_SNAP_S of one is bound to that cut and exempt from the
         # SFX_MIN_GAP_S density rule; None treats every whoosh as a normal hit.
         cut_times: Optional[List[float]] = None,
+        voice_clarity: bool = False,
     ) -> str:
         """
         Mixes voiceover, SFX triggers at cue start times, and looped background music.
@@ -526,7 +538,7 @@ class SFXManager:
         # (`cut_graph` + `[voice_cut]`); everything after it is unchanged, and
         # with no cuts both stay the empty string / `[0:a]` (graph byte-identical).
         cut_graph = cls._voice_cut_graph(voice_path, voice_cuts, voice_source_duration)
-        voice_head = "[voice_cut]" if cut_graph else "[0:a]"
+        voice_head = f"{'[voice_cut]' if cut_graph else '[0:a]'}{voice_clarity_filter(voice_clarity)}"
         if policy.bgm_ducking:
             filter_complex.append(
                 f"{cut_graph}{voice_head}volume={policy.voice_volume},apad=pad_dur=1.0,asplit=2[voice_padded][voice_key];"

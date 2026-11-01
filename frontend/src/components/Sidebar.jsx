@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Rocket, Sparkles, FolderDown, Settings, Layers,
   Smartphone, Maximize, Minimize, X, Copy, Check, Wifi, Scissors,
-  Palette, MoreHorizontal, BarChart3, ChevronRight, BookOpen, Terminal, LogOut
+  Palette, MoreHorizontal, BarChart3, ChevronRight, BookOpen, LogOut
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ChannelSelector } from '../context/ChannelContext.jsx';
@@ -397,25 +397,6 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
                 <ChevronRight className="w-4 h-4 text-slate-500" />
               </button>
 
-              {/* AGY Cloud Terminal (moved off the phone topbar) */}
-              <a
-                href="/agy"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setShowMoreDrawer(false)}
-                className="flex items-center justify-between min-h-11 p-3.5 rounded-2xl border bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06] transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-300">
-                    <Terminal className="w-4 h-4" />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-sm font-bold text-white">เปิด AGY Terminal</div>
-                    <div className="text-xs text-slate-400">สั่งงาน AI บน Cloud ในแท็บใหม่</div>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-500" />
-              </a>
 
               {/* Utilities Row: QR (desktop -> phone handoff only) & Fullscreen */}
               <div className="flex flex-wrap gap-2.5 pt-1">

@@ -50,6 +50,9 @@ export function useEditorShortcuts({
   // D toggles a camera keyframe at the playhead on the selected clip; the
   // callback reports what happened (added/removed/outside) for a toast.
   onKeyframeToggled,
+  onToggleLinkage,
+  onGroup,
+  onUngroup,
 } = {}) {
   const keyHandlerRef = useRef(null);
 
@@ -131,6 +134,9 @@ export function useEditorShortcuts({
           }
           break;
         case 'toggleSnap': onToggleSnap?.(); break;
+        case 'toggleLinkage': onToggleLinkage?.(); break;
+        case 'group': onGroup?.(); break;
+        case 'ungroup': onUngroup?.(); break;
         case 'cycleCutout': onCycleCutoutMode?.(); break;
         case 'toggleKeyframe': {
           if (!selectedSeg?.clip) { onKeyframeToggled?.('noClip'); break; }

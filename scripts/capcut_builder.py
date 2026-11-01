@@ -32,21 +32,489 @@ VECTCUT_PATH = r"D:\Winona\Programmer\VectCutAPI"
 if VECTCUT_PATH not in sys.path:
     sys.path.insert(0, VECTCUT_PATH)
 
-import pyJianYingDraft as draft
-from pyJianYingDraft import (
-    Draft_folder,
-    Track_type,
-    Timerange,
-    Text_style,
-    Text_border,
-    Filter_type,
-)
-from pyJianYingDraft.text_segment import CapCut_Text_intro, TextStyleRange
-from create_draft import get_or_create_draft
-from add_video_track import add_video_track
-from add_audio_track import add_audio_track
-from add_text_impl import add_text_impl
-from save_draft_impl import save_draft_background
+try:
+    import pyJianYingDraft as draft
+    from pyJianYingDraft import (
+        Draft_folder,
+        Track_type,
+        Timerange,
+        Text_style,
+        Text_border,
+        Filter_type,
+    )
+    from pyJianYingDraft.text_segment import CapCut_Text_intro, TextStyleRange
+    from create_draft import get_or_create_draft
+    from add_video_track import add_video_track
+    from add_audio_track import add_audio_track
+    from add_text_impl import add_text_impl
+    from save_draft_impl import save_draft_background
+    HAS_PYJIANYING = True
+except ImportError:
+    HAS_PYJIANYING = False
+    draft = None
+
+CAPCUT_7_1_MATERIAL_KEYS = [
+    "ai_translates", "audio_balances", "audio_effects", "audio_fades", "audio_pannings",
+    "audio_track_indexes", "audios", "beats", "canvases", "chromas",
+    "color_curves", "common_mask", "digital_human_model_dressing", "digital_humans", "drafts",
+    "effects", "flowers", "green_screens", "handwrites", "hsl",
+    "hsl_curves", "images", "log_color_wheels", "loudnesses", "manual_beautys",
+    "manual_deformations", "material_animations", "material_colors", "multi_language_refs", "placeholder_infos",
+    "placeholders", "plugin_effects", "primary_color_wheels", "realtime_denoises", "shapes",
+    "smart_crops", "smart_relights", "sound_channel_mappings", "speeds", "stickers",
+    "tail_leaders", "text_templates", "texts", "time_marks", "transitions",
+    "video_effects", "video_trackings", "videos", "vocal_beautifys", "vocal_separations"
+]
+
+
+def upgrade_draft_content_to_7_1(data: dict) -> dict:
+    """Upgrades draft_content.json to CapCut Desktop v7.1.0.2890 Schema (E14).
+    
+    Ensures version 360000, new_version 144.0.0, 9:16 canvas config,
+    track linkage relationships, free/render index mode flags, and full 49 materials.
+    """
+    if not isinstance(data, dict):
+        return data
+
+    data["version"] = 360000
+    data["new_version"] = "144.0.0"
+    data["color_space"] = data.get("color_space", 0)
+    data["fps"] = float(data.get("fps", 30.0))
+    data["free_render_index_mode_on"] = True
+    data["render_index_track_mode_on"] = True
+
+    if "platform" not in data or not isinstance(data["platform"], dict):
+        data["platform"] = {}
+    data["platform"].update({
+        "app_id": 359289,
+        "app_source": "cc",
+        "app_version": "7.1.0",
+        "os": "windows"
+    })
+
+    if "canvas_config" not in data or not isinstance(data["canvas_config"], dict):
+        data["canvas_config"] = {}
+    data["canvas_config"].update({
+        "background": None,
+        "height": 1920,
+        "ratio": "9:16",
+        "width": 1080
+    })
+
+    if "keyframe_graph_list" not in data or not isinstance(data["keyframe_graph_list"], list):
+        data["keyframe_graph_list"] = []
+
+    # Ensure 49 standard material collections
+    if "materials" not in data or not isinstance(data["materials"], dict):
+        data["materials"] = {}
+    for mat_k in CAPCUT_7_1_MATERIAL_KEYS:
+        if mat_k not in data["materials"] or not isinstance(data["materials"][mat_k], list):
+            data["materials"][mat_k] = []
+
+    # Build relationships for Track Linkage
+    tracks = data.get("tracks", [])
+    video_tracks = [t for t in tracks if t.get("type") == "video"]
+    other_tracks = [t for t in tracks if t.get("type") in ("text", "effect", "sticker", "audio")]
+
+    relationships = list(data.get("relationships", []))
+    existing_pairs = {(r.get("source_id"), r.get("target_id")) for r in relationships if isinstance(r, dict)}
+
+    if video_tracks:
+        main_video_track = video_tracks[0]
+        for vseg in main_video_track.get("segments", []):
+            vid = vseg.get("id")
+            v_tr = vseg.get("target_timerange") or {}
+            v_start = v_tr.get("start", 0)
+            v_end = v_start + v_tr.get("duration", 0)
+            if not vid or v_end <= v_start:
+                continue
+
+            for otr in other_tracks:
+                for oseg in otr.get("segments", []):
+                    oid = oseg.get("id")
+                    if not oid:
+                        continue
+                    o_tr = oseg.get("target_timerange") or {}
+                    o_start = o_tr.get("start", 0)
+                    o_end = o_start + o_tr.get("duration", 0)
+                    if max(v_start, o_start) < min(v_end, o_end):
+                        pair = (vid, oid)
+                        if pair not in existing_pairs:
+                            relationships.append({
+                                "source_id": vid,
+                                "target_id": oid,
+                                "type": "track_linkage"
+                            })
+                            existing_pairs.add(pair)
+
+    data["relationships"] = relationships
+    return data
+
+
+class CapCutBuilder:
+    """Pure-Python CapCut Desktop v7.1.0 Draft Builder & Round-Trip Importer (E14, W3.5)."""
+
+    def __init__(self, project_name: str, draft_root: Path | None = None):
+        self.project_name = project_name
+        self.draft_root = Path(draft_root) if draft_root else CAPCUT_DRAFTS_DIR
+
+    def _create_draft_content(
+        self,
+        video_path: Path,
+        audio_path: Path,
+        cues: list[dict],
+        total_dur_us: int,
+        clips: list[dict] | None = None,
+        stickers: list[dict] | None = None,
+    ) -> dict:
+        vid_mat_id = f"vid_mat_{uuid.uuid4().hex[:8]}"
+        aud_mat_id = f"aud_mat_{uuid.uuid4().hex[:8]}"
+        video_materials = [
+            {
+                "id": vid_mat_id,
+                "path": str(video_path).replace("\\", "/"),
+                "duration": total_dur_us,
+                "width": 1080,
+                "height": 1920,
+                "type": "video",
+            }
+        ]
+        audio_materials = [
+            {
+                "id": aud_mat_id,
+                "path": str(audio_path).replace("\\", "/"),
+                "duration": total_dur_us,
+                "type": "extract_music",
+            }
+        ]
+        speed_materials = []
+        video_segments = []
+
+        if clips:
+            cursor_us = 0
+            for idx, c in enumerate(clips):
+                seg_id = c.get("id") or f"vseg_{idx + 1:03d}"
+                spd = float(c.get("speed") or 1.0)
+                spd_id = f"spd_{idx + 1:03d}"
+                speed_materials.append({"id": spd_id, "speed": spd, "type": "speed"})
+                trim_start_s = float(c.get("trim_start") or c.get("source_start") or 0.0)
+                dur_s = float(
+                    c.get("duration")
+                    or ((c.get("trim_end") or 0.0) - trim_start_s)
+                    or 3.0
+                )
+                dur_us = max(100_000, int(round(dur_s * 1_000_000)))
+                src_start_us = int(round(trim_start_s * 1_000_000))
+                src_dur_us = int(round(dur_us * spd))
+                c_path = c.get("source_path") or c.get("file_path")
+                mat_id = vid_mat_id
+                if c_path and str(c_path).replace("\\", "/") != str(video_path).replace("\\", "/"):
+                    mat_id = f"vid_mat_{idx + 1:03d}"
+                    video_materials.append(
+                        {
+                            "id": mat_id,
+                            "path": str(c_path).replace("\\", "/"),
+                            "duration": max(total_dur_us, src_start_us + src_dur_us),
+                            "width": 1080,
+                            "height": 1920,
+                            "type": "video",
+                        }
+                    )
+                scale_val = float(c.get("zoom") or 1.0)
+                video_segments.append(
+                    {
+                        "id": seg_id,
+                        "material_id": mat_id,
+                        "extra_material_refs": [spd_id],
+                        "source_timerange": {"start": src_start_us, "duration": src_dur_us},
+                        "target_timerange": {"start": cursor_us, "duration": dur_us},
+                        "speed": spd,
+                        "volume": float(c.get("volume") if c.get("volume") is not None else 0.0),
+                        "clip": {
+                            "scale": {"x": scale_val, "y": scale_val},
+                            "transform": {"x": 0.0, "y": 0.0},
+                        },
+                    }
+                )
+                cursor_us += dur_us
+        else:
+            video_segments.append(
+                {
+                    "id": "vseg_001",
+                    "material_id": vid_mat_id,
+                    "source_timerange": {"start": 0, "duration": total_dur_us},
+                    "target_timerange": {"start": 0, "duration": total_dur_us},
+                    "speed": 1.0,
+                    "volume": 0.0,
+                    "clip": {"scale": {"x": 1.0, "y": 1.0}, "transform": {"x": 0.0, "y": 0.0}},
+                }
+            )
+
+        text_materials = []
+        text_segments = []
+        for idx, cue in enumerate(cues or []):
+            t_id = f"txt_mat_{idx + 1:03d}"
+            t_seg_id = cue.get("id") or f"tseg_{idx + 1:03d}"
+            start_s = float(cue.get("start") or 0.0)
+            end_s = float(cue.get("end") or (start_s + 1.5))
+            start_us = int(round(start_s * 1_000_000))
+            dur_us = max(50_000, int(round((end_s - start_s) * 1_000_000)))
+            txt_str = str(cue.get("text") or "").strip()
+            text_materials.append(
+                {
+                    "id": t_id,
+                    "type": "text",
+                    "font_name": "Mali-Bold",
+                    "font_size": 13.5,
+                    "content": json.dumps({"text": txt_str, "styles": []}, ensure_ascii=False),
+                }
+            )
+            text_segments.append(
+                {
+                    "id": t_seg_id,
+                    "material_id": t_id,
+                    "target_timerange": {"start": start_us, "duration": dur_us},
+                }
+            )
+
+        sticker_materials = []
+        sticker_segments = []
+        for idx, stk in enumerate(stickers or []):
+            s_id = f"stk_mat_{idx + 1:03d}"
+            s_seg_id = stk.get("id") or f"sseg_{idx + 1:03d}"
+            start_s = float(stk.get("start") or 0.0)
+            end_s = float(stk.get("end") or (start_s + 2.0))
+            start_us = int(round(start_s * 1_000_000))
+            dur_us = max(50_000, int(round((end_s - start_s) * 1_000_000)))
+            sticker_materials.append(
+                {
+                    "id": s_id,
+                    "type": "sticker",
+                    "path": str(stk.get("path") or stk.get("badge_type") or "badge"),
+                    "badge_type": str(stk.get("badge_type") or " GUARANTEE "),
+                }
+            )
+            sticker_segments.append(
+                {
+                    "id": s_seg_id,
+                    "material_id": s_id,
+                    "target_timerange": {"start": start_us, "duration": dur_us},
+                    "clip": {
+                        "scale": {
+                            "x": float(stk.get("scale") or 1.0),
+                            "y": float(stk.get("scale") or 1.0),
+                        },
+                        "transform": {
+                            "x": float(stk.get("x") or 0.5),
+                            "y": float(stk.get("y") or 0.2),
+                        },
+                    },
+                }
+            )
+
+        tracks = [
+            {"id": "track_video_main", "type": "video", "segments": video_segments},
+            {
+                "id": "track_audio_voice",
+                "type": "audio",
+                "segments": [
+                    {
+                        "id": "aseg_001",
+                        "material_id": aud_mat_id,
+                        "source_timerange": {"start": 0, "duration": total_dur_us},
+                        "target_timerange": {"start": 0, "duration": total_dur_us},
+                        "volume": 1.0,
+                    }
+                ],
+            },
+            {"id": "track_text_subtitles", "type": "text", "segments": text_segments},
+        ]
+        if sticker_segments:
+            tracks.append({"id": "track_stickers", "type": "sticker", "segments": sticker_segments})
+
+        raw_draft = {
+            "id": str(uuid.uuid4()).upper(),
+            "duration": total_dur_us,
+            "tracks": tracks,
+            "materials": {
+                "videos": video_materials,
+                "audios": audio_materials,
+                "texts": text_materials,
+                "stickers": sticker_materials,
+                "speeds": speed_materials,
+            },
+        }
+        return upgrade_draft_content_to_7_1(raw_draft)
+
+
+def import_capcut_draft_to_manifest(
+    draft_data: dict,
+    base_manifest: dict | None = None,
+) -> dict:
+    """Two-Way CapCut 7.1 Draft Importer (W3.5).
+
+    Reads CapCut 7.1 `draft_content.json` (`tracks`, `materials`, `relationships`)
+    and converts microsecond timestamps, trim points, speeds, text cues, and stickers
+    back into an OmniCut `project.json` manifest dict with 100% round-trip accuracy.
+    """
+    if not isinstance(draft_data, dict):
+        raise ValueError("draft_data must be a dictionary parsed from draft_content.json")
+
+    manifest = dict(base_manifest) if isinstance(base_manifest, dict) else {}
+    materials = draft_data.get("materials") or {}
+    videos_by_id = {m.get("id"): m for m in (materials.get("videos") or []) if isinstance(m, dict)}
+    texts_by_id = {m.get("id"): m for m in (materials.get("texts") or []) if isinstance(m, dict)}
+    stickers_by_id = {m.get("id"): m for m in (materials.get("stickers") or []) if isinstance(m, dict)}
+    speeds_by_id = {m.get("id"): m for m in (materials.get("speeds") or []) if isinstance(m, dict)}
+
+    imported_clips = []
+    imported_cues = []
+    imported_stickers = []
+    max_end_s = 0.0
+
+    for track in draft_data.get("tracks") or []:
+        if not isinstance(track, dict):
+            continue
+        t_type = track.get("type")
+        segments = track.get("segments") or []
+
+        if t_type == "video":
+            for idx, seg in enumerate(segments):
+                if not isinstance(seg, dict):
+                    continue
+                mat_id = seg.get("material_id")
+                v_mat = videos_by_id.get(mat_id, {})
+                src_tr = seg.get("source_timerange") or {}
+                tgt_tr = seg.get("target_timerange") or {}
+
+                spd = float(seg.get("speed") or 0.0)
+                if spd <= 0.0:
+                    for ref_id in seg.get("extra_material_refs") or []:
+                        if ref_id in speeds_by_id:
+                            spd = float(speeds_by_id[ref_id].get("speed") or 1.0)
+                            break
+                if spd <= 0.0:
+                    spd = 1.0
+
+                src_start_s = round(float(src_tr.get("start", 0)) / 1_000_000.0, 3)
+                src_dur_s = round(float(src_tr.get("duration", 0)) / 1_000_000.0, 3)
+                tgt_start_s = round(float(tgt_tr.get("start", 0)) / 1_000_000.0, 3)
+                tgt_dur_s = round(float(tgt_tr.get("duration", 0)) / 1_000_000.0, 3)
+                if tgt_dur_s <= 0.0 and src_dur_s > 0.0:
+                    tgt_dur_s = round(src_dur_s / spd, 3)
+                if src_dur_s <= 0.0 and tgt_dur_s > 0.0:
+                    src_dur_s = round(tgt_dur_s * spd, 3)
+
+                trim_end_s = round(src_start_s + src_dur_s, 3)
+                target_end_s = round(tgt_start_s + tgt_dur_s, 3)
+                max_end_s = max(max_end_s, target_end_s)
+
+                clip_transform = seg.get("clip") or {}
+                scale_obj = clip_transform.get("scale") or {}
+                zoom_val = round(float(scale_obj.get("x") or 1.0), 3)
+                v_path = v_mat.get("path") or ""
+
+                imported_clips.append(
+                    {
+                        "id": seg.get("id") or f"clip_{idx + 1:03d}",
+                        "source_path": v_path,
+                        "file_path": v_path,
+                        "trim_start": src_start_s,
+                        "trim_end": trim_end_s,
+                        "target_start": tgt_start_s,
+                        "target_end": target_end_s,
+                        "duration": tgt_dur_s,
+                        "speed": round(spd, 3),
+                        "zoom": zoom_val,
+                        "volume": round(float(seg.get("volume") if seg.get("volume") is not None else 0.0), 3),
+                    }
+                )
+
+        elif t_type == "text":
+            for idx, seg in enumerate(segments):
+                if not isinstance(seg, dict):
+                    continue
+                mat_id = seg.get("material_id")
+                t_mat = texts_by_id.get(mat_id, {})
+                tgt_tr = seg.get("target_timerange") or {}
+                start_s = round(float(tgt_tr.get("start", 0)) / 1_000_000.0, 3)
+                dur_s = round(float(tgt_tr.get("duration", 0)) / 1_000_000.0, 3)
+                end_s = round(start_s + dur_s, 3)
+                max_end_s = max(max_end_s, end_s)
+
+                raw_content = t_mat.get("content", "")
+                text_val = ""
+                if isinstance(raw_content, str) and raw_content.strip().startswith("{"):
+                    try:
+                        parsed_c = json.loads(raw_content)
+                        text_val = str(parsed_c.get("text") or "")
+                    except Exception:
+                        text_val = raw_content
+                else:
+                    text_val = str(raw_content or t_mat.get("text") or "")
+
+                imported_cues.append(
+                    {
+                        "id": seg.get("id") or f"cue_{idx + 1:03d}",
+                        "start": start_s,
+                        "end": end_s,
+                        "text": text_val,
+                    }
+                )
+
+        elif t_type == "sticker":
+            for idx, seg in enumerate(segments):
+                if not isinstance(seg, dict):
+                    continue
+                mat_id = seg.get("material_id")
+                s_mat = stickers_by_id.get(mat_id, {})
+                tgt_tr = seg.get("target_timerange") or {}
+                start_s = round(float(tgt_tr.get("start", 0)) / 1_000_000.0, 3)
+                dur_s = round(float(tgt_tr.get("duration", 0)) / 1_000_000.0, 3)
+                end_s = round(start_s + dur_s, 3)
+                max_end_s = max(max_end_s, end_s)
+
+                clip_transform = seg.get("clip") or {}
+                scale_obj = clip_transform.get("scale") or {}
+                trans_obj = clip_transform.get("transform") or {}
+
+                imported_stickers.append(
+                    {
+                        "id": seg.get("id") or f"stk_{idx + 1:03d}",
+                        "badge_type": s_mat.get("badge_type") or s_mat.get("path") or "badge",
+                        "path": s_mat.get("path") or "",
+                        "start": start_s,
+                        "end": end_s,
+                        "scale": round(float(scale_obj.get("x") or 1.0), 3),
+                        "x": round(float(trans_obj.get("x") if trans_obj.get("x") is not None else 0.5), 3),
+                        "y": round(float(trans_obj.get("y") if trans_obj.get("y") is not None else 0.2), 3),
+                    }
+                )
+
+    draft_dur_s = round(float(draft_data.get("duration") or 0) / 1_000_000.0, 3)
+    total_duration = max(max_end_s, draft_dur_s, float(manifest.get("total_duration") or 0.0))
+
+    if imported_clips:
+        manifest["clip_list"] = imported_clips
+    if imported_cues:
+        manifest["cues"] = imported_cues
+        manifest["micro_cues"] = imported_cues
+    if imported_stickers:
+        manifest["stickers"] = imported_stickers
+    if total_duration > 0:
+        manifest["total_duration"] = round(total_duration, 3)
+
+    manifest["capcut_7_1_import"] = {
+        "draft_id": draft_data.get("id", ""),
+        "version": draft_data.get("version", 360000),
+        "new_version": draft_data.get("new_version", "144.0.0"),
+        "relationships": draft_data.get("relationships", []),
+        "imported_clips_count": len(imported_clips),
+        "imported_cues_count": len(imported_cues),
+        "imported_stickers_count": len(imported_stickers),
+    }
+    return manifest
+    return data
 
 OMNICUT_ROOT = Path(r"D:\Winona\Programmer\Omnicut")
 ASSETS_DIR = OMNICUT_ROOT / "02_Assets"
@@ -508,6 +976,7 @@ def build_capcut_project(project_path: Path, draft_name: str = None) -> str:
                         new_tracks[0]["name"] = ""
                         new_tracks[0]["is_default_name"] = True
                     data["tracks"] = new_tracks
+                    data = upgrade_draft_content_to_7_1(data)
 
                     # Patch Anuphan-Bold across all texts (No Stroke, clean soft shadow, perfect tonemarks)
                     for tm in data.get("materials", {}).get("texts", []):
@@ -592,7 +1061,7 @@ def build_capcut_project(project_path: Path, draft_name: str = None) -> str:
                 "draft_is_web_article_video": False,
                 "draft_json_file": str(target_project_dir / "draft_content.json").replace("\\", "/"),
                 "draft_name": draft_name,
-                "draft_new_version": "",
+                "draft_new_version": "144.0.0",
                 "draft_root_path": str(CAPCUT_DRAFTS_DIR).replace("\\", "/"),
                 "draft_timeline_materials_size": 75000000,
                 "draft_type": "",

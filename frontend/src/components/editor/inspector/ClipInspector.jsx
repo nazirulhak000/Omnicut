@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, RotateCw, Volume2, VolumeX } from 'lucide-react';
 import { TransitionIcon } from '../../../lib/transitionIcons';
 import TransitionDurationControl from '../timeline/TransitionDurationControl';
-import { TRANSITIONS, FADE_DURATION } from '../../../lib/timelineMath';
+import { TRANSITIONS, FADE_DURATION, CAPCUT_HIGH_SPEED_TRANSITIONS, applyCapcutHighSpeedTransition } from '../../../lib/timelineMath';
 import { keyframeStateAt, toggleKeyframePatch } from '../../../lib/clipKeyframeOps.js';
 import {
   MIN_CLIP_SPEED,
   MAX_CLIP_SPEED,
   SLOW_ZOOM_PRESETS,
+  SMART_CAMERA_PRESETS,
+  KEYFRAME_EASING_OPTIONS,
+  smartCameraPatch,
   cameraKeyframeSummary,
   clampFreezeTail,
   clampRotation,
@@ -25,15 +28,12 @@ import {
   pickApplyAllPatch,
   slowZoomPatch,
   summarizeApplyToAll,
+  COLOR_FIELDS,
 } from '../../../lib/inspectorModel';
 
 const SPEEDS = [0.25, 0.5, 1, 1.25, 1.5, 2, 3, 4];
 
-const COLOR_FIELDS = [
-  { key: 'brightness', label: 'ความสว่าง', min: -0.3, max: 0.3, step: 0.02, def: 0 },
-  { key: 'contrast', label: 'คอนทราสต์', min: 0.5, max: 2, step: 0.05, def: 1 },
-  { key: 'saturation', label: 'ความสด', min: 0, max: 3, step: 0.05, def: 1 },
-];
+// Color fields imported from inspectorModel.js
 
 const APPLY_ALL_LABELS = { color: 'สี', framing: 'ซูม/เลื่อน', speed: 'ความเร็ว' };
 
@@ -616,6 +616,44 @@ export default function ClipInspector({
             <p className="text-[11px] leading-relaxed text-slate-500">
               เริ่มจากค่าซูมปัจจุบัน และแทนที่การเคลื่อนกล้องเดิมของคลิปนี้
             </p>
+            <span className="block text-xs text-slate-400 pt-1.5">กล้องอัจฉริยะ 9:16 & โค้งความเร็ว (CapCut 7.1)</span>
+            <div className="grid grid-cols-2 gap-1">
+              {SMART_CAMERA_PRESETS.map((preset) => {
+                const patch = smartCameraPatch(clip, srcDur, preset.preset);
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    disabled={!patch}
+                    onClick={() => patch && onClipChange?.(patch)}
+                    className="rounded-lg border border-[#25F4EE]/30 bg-[#25F4EE]/10 py-1 text-xs font-bold text-[#25F4EE] transition-all hover:bg-[#25F4EE]/20 disabled:opacity-30 cursor-pointer"
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+            {keyframes.length > 0 && (
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <span className="text-[11px] text-slate-400">โค้งคีย์เฟรม (Bezier):</span>
+                <select
+                  aria-label="โค้งความเร็วคีย์เฟรม (Bezier Easing)"
+                  value={(keyframes[activeKfIndex !== -1 ? activeKfIndex : keyframes.length - 1]?.easing) || 'ease_in_out'}
+                  onChange={(e) => {
+                    const targetIdx = activeKfIndex !== -1 ? activeKfIndex : keyframes.length - 1;
+                    const nextKfs = keyframes.map((kf, idx) => (idx === targetIdx ? { ...kf, easing: e.target.value } : kf));
+                    onClipChange?.({ keyframes: nextKfs });
+                  }}
+                  className="rounded-lg border border-white/[0.12] bg-black/60 px-2 py-1 text-xs text-white focus:border-[#25F4EE] focus:outline-none"
+                >
+                  {KEYFRAME_EASING_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <p className="hidden">
+            </p>
           </div>
         </div>
 
@@ -630,7 +668,7 @@ export default function ClipInspector({
               <button
                 type="button"
                 disabled={!colorTouched}
-                onClick={() => onClipChange?.({ brightness: undefined, contrast: undefined, saturation: undefined })}
+                onClick={() => onClipChange?.({ brightness: undefined, contrast: undefined, saturation: undefined, temperature: undefined, gamma: undefined, shadows: undefined, highlights: undefined, vibrance: undefined, vignette: undefined })}
                 className="text-xs text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 รีเซ็ต
@@ -671,7 +709,25 @@ export default function ClipInspector({
           const durTrans = clip.transition_duration ?? FADE_DURATION;
           return (
             <div className="space-y-1.5 pt-2 border-t border-white/[0.06]">
-              <span className="block text-xs text-slate-400">รอยต่อกับคลิปก่อนหน้า</span>
+                <span className="block text-xs text-slate-400">รอยต่อกับคลิปก่อนหน้า</span>
+                <span className="block text-[11px] text-slate-400 pt-1">ทรานซิชันความเร็วสูง CapCut 7.1 (Lumi Video)</span>
+                <div className="grid grid-cols-2 gap-1 pb-1">
+                  {CAPCUT_HIGH_SPEED_TRANSITIONS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      aria-pressed={clip.capcut_transition_preset === preset.id}
+                      onClick={() => onClipChange?.(applyCapcutHighSpeedTransition(clip, preset.id))}
+                      className={`py-1 px-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer border ${
+                        clip.capcut_transition_preset === preset.id
+                          ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                          : 'bg-black/40 border-white/[0.08] text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
               <div className="grid grid-cols-2 gap-1">
                 {TRANSITIONS.map((t) => (
                   <button

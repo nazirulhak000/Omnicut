@@ -232,6 +232,13 @@ function goToNextOrClean() {
  * shows the login screen as an overlay so open, unsaved work stays mounted.
  */
 export function AuthGate({ children }) {
+  if (import.meta.env.VITE_AUTH_DISABLED === 'true' || import.meta.env.VITE_AUTH_DISABLED === '1') {
+    return (
+      <AuthContext.Provider value={{ authRequired: false, authenticated: true, logout: () => {} }}>
+        {children}
+      </AuthContext.Provider>
+    );
+  }
   // checking | ready | login | unreachable
   const [phase, setPhase] = useState('checking');
   const [me, setMe] = useState(null);

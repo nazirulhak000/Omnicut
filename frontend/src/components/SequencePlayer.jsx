@@ -57,10 +57,14 @@ import { bindWindowPointerLifecycle } from '../lib/pointerDragLifecycle.js';
 import { drawMediaWithAccentRecolor } from '../lib/overlayRecolor.js';
 import { reconcileEffectPlayback } from '../lib/effectPlayback.js';
 import { createPreviewTimelineIndex, pauseInactivePreviewVideos } from '../lib/previewTimelineScheduler.js';
-import { overlayAnimState } from '../lib/stickerAnimation.js';
+import { overlayAnimState, resolveCanvasCompositeOp } from '../lib/stickerAnimation.js';
 import { createCutoutVideoPlayback } from '../lib/cutoutVideoPlayback.js';
 import { createCutoutFramePair, trackPresentedSource } from '../lib/cutoutFramePair.js';
 import { getMotionPreset, MOTION_PRESETS } from '../lib/motion/motionPresets.js';
+import { capcutAdjustShadow, capcutAdjustHighlight, capcutVignetteWeight } from '../lib/inspectorModel.js';
+
+export const CAPCUT_DECODE_BALANCE_LIMIT = Object.freeze([8, 4, 2, 1]);
+export const CAPCUT_FRAME_BUDGET_MS = 12.0;
 import { sampleCanvasMotion } from '../lib/motion/rendererAdapter.js';
 import {
   backgroundIsolationPrefetchTimes,
@@ -473,6 +477,21 @@ function clipFilter(clip) {
   if (Math.abs(b) > 1e-3) parts.push(`brightness(${(1 + b).toFixed(3)})`);
   if (Math.abs(c - 1) > 1e-3) parts.push(`contrast(${c.toFixed(3)})`);
   if (Math.abs(sat - 1) > 1e-3) parts.push(`saturate(${sat.toFixed(3)})`);
+  const gamma = clip.gamma ?? 1;
+  if (Math.abs(gamma - 1) > 1e-3) parts.push(`brightness(${(Math.pow(0.5, 1 / gamma) / 0.5).toFixed(3)})`);
+  const temp = clip.temperature ?? 0;
+  if (Math.abs(temp) > 1e-3) parts.push(temp > 0 ? `sepia(${Math.min(0.4, temp).toFixed(3)}) saturate(${(1 + temp * 0.4).toFixed(3)})` : `hue-rotate(${(temp * 30).toFixed(1)}deg)`);
+  const shadows = clip.shadows ?? 0;
+  const highlights = clip.highlights ?? 0;
+  if (Math.abs(shadows) > 1e-3 || Math.abs(highlights) > 1e-3) {
+    const midLift = capcutAdjustShadow(0.25, shadows) / 0.25;
+    const hiComp = capcutAdjustHighlight(0.75, highlights) / 0.75;
+    parts.push(`brightness(${((midLift * 0.55 + hiComp * 0.45)).toFixed(3)})`);
+  }
+  const vibrance = clip.vibrance ?? 0;
+  if (Math.abs(vibrance) > 1e-3) {
+    parts.push(`saturate(${Math.max(0.2, 1 + vibrance * 0.65).toFixed(3)})`);
+  }
   return parts.length ? parts.join(' ') : 'none';
 }
 
@@ -652,6 +671,20 @@ export function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0, isolat
     : (video ? drawVideoFrame(ctx, video, clip, motionTime) : false);
   ctx.globalAlpha = 1;
   ctx.filter = 'none';
+  const vignette = Number(clip?.vignette) || 0;
+  if (painted && vignette > 0.005 && typeof ctx.createRadialGradient === 'function') {
+    const cx = CANVAS_W / 2;
+    const cy = CANVAS_H / 2;
+    const maxR = Math.hypot(cx, cy);
+    const edgeWeight = capcutVignetteWeight(1, 1, vignette);
+    const grad = ctx.createRadialGradient(cx, cy, maxR * 0.25, cx, cy, maxR);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, `rgba(0,0,0,${(Math.min(0.92, edgeWeight * 0.85) * Math.max(0, Math.min(1, alpha))).toFixed(3)})`);
+    ctx.save();
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.restore();
+  }
   return painted;
 }
 
@@ -1619,11 +1652,12 @@ function drawSingleSticker(ctx, img, t, stk, outBounds = null, accentColor = '#F
 
   // Entrance/exit == video_editor.py overlay_anim_filters (stickerAnimation.js);
   // hit bounds above stay at the resting box.
-  const anim = overlayAnimState(t, startTime, endTime);
+  const anim = overlayAnimState(t, startTime, endTime, { anim: stk.anim || 'ease_out' });
   const dw = w * anim.scale;
   const dh = h * anim.scale;
   ctx.save();
   ctx.globalAlpha = anim.alpha;
+  if (stk.blend_mode && stk.blend_mode !== 'normal') ctx.globalCompositeOperation = resolveCanvasCompositeOp(stk.blend_mode);
   drawMediaWithAccentRecolor(ctx, img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh, stk, accentColor, 'sticker', stk.badge);
   ctx.restore();
 }
@@ -2361,7 +2395,12 @@ function drawOverlays(ctx, overlays = [], t, accentColor = '#FFE600', outBounds 
   // banner (2) under the text overlays (4).
   const live = overlays.filter((o) => predicate(o) && overlayIsLive(o, t));
   live.sort((a, b) => (a.layer ?? 0) - (b.layer ?? 0));
-  for (const overlay of live) drawOneOverlay(ctx, overlay, t, accentColor, outBounds);
+  for (const overlay of live) {
+    ctx.save();
+    if (overlay.blend_mode && overlay.blend_mode !== 'normal') ctx.globalCompositeOperation = resolveCanvasCompositeOp(overlay.blend_mode);
+    drawOneOverlay(ctx, overlay, t, accentColor, outBounds);
+    ctx.restore();
+  }
 }
 
 function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
@@ -4661,6 +4700,16 @@ function SequencePlayer({
 
   const startStems = () => {
     ensureAudioGraph();
+    const ctx = audioCtxRef.current;
+    const master = audioNodesRef.current?.master;
+    if (ctx && master && !isMuted) {
+      const now = ctx.currentTime;
+      try {
+        master.gain.cancelScheduledValues(now);
+        master.gain.setValueAtTime(0, now);
+        master.gain.linearRampToValueAtTime(1, now + 0.012);
+      } catch (_) {}
+    }
     if (voiceCutActive()) {
       // The element would play the uncut file over the scheduled spans.
       audioElRef.current?.pause();
@@ -4779,6 +4828,16 @@ function SequencePlayer({
     cutoutSourcePairsRef.current.forEach(({ clock }) => clock.dispose());
     cutoutSourcePairsRef.current.clear();
     videoElsRef.current = {};
+    effectVideosRef.current.forEach((item) => {
+      try {
+        if (item?.video) {
+          item.video.pause();
+          item.video.removeAttribute('src');
+          item.video.load();
+        }
+      } catch (_) {}
+    });
+    effectVideosRef.current.clear();
     mediaSourcesRef.current = new Map();
     clipGainsRef.current = new Map();
     audioCtxRef.current?.close().catch(() => {});
@@ -4978,6 +5037,7 @@ function SequencePlayer({
 
   const lastNotifyRef = useRef(0);
   const lastPaintedFrameRef = useRef(-1);
+  const lastFrameDrawMsRef = useRef(0);
 
   useEffect(() => {
     if (!isPlaying || subjectPickMode || segments.length === 0) return;
@@ -5097,6 +5157,7 @@ function SequencePlayer({
       const canvas = canvasRef.current;
       const ctx = outputFrame === lastPaintedFrameRef.current ? null : canvas?.getContext('2d');
       if (ctx) {
+        const paintStartMs = performance.now();
         ctx.setTransform(backingScale, 0, 0, backingScale, 0, 0);
         canvas.dataset.previewTime = String(t);
         ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
@@ -5161,6 +5222,9 @@ function SequencePlayer({
           drawWatermark(ctx, watermarkText);
         }
         boundsRef.current = bounds;
+        lastFrameDrawMsRef.current = performance.now() - paintStartMs;
+        const maxActiveRate = plan.reduce((acc, p) => Math.max(acc, Number(p.seg?.clip?.speed) || 1), 1);
+        canvas.dataset.frameBudgetGuard = (maxActiveRate > 1.5 && lastFrameDrawMsRef.current > CAPCUT_FRAME_BUDGET_MS) ? 'throttled' : 'full';
         // A frame whose video was not decoded yet is retried next callback
         // instead of being held blank for the rest of the 33 ms slot.
         if (framePainted || plan.length === 0) lastPaintedFrameRef.current = outputFrame;
@@ -5661,6 +5725,13 @@ function SequencePlayer({
               {snapGuide.y === 0.5 && snapGuide.x !== 0.5 && (
                 <div className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 z-25 rounded border border-[#25F4EE]/70 bg-black/85 px-1.5 py-0.5 text-[9px] font-bold text-[#25F4EE] shadow-md whitespace-nowrap">
                   <span>กึ่งกลางแนวตั้ง 50%</span>
+                </div>
+              )}
+              {(snapGuide.x !== null && snapGuide.x !== 0.5) || (snapGuide.y !== null && snapGuide.y !== 0.5) ? (
+                <div className="pointer-events-none absolute top-2 right-2 z-25 rounded border border-[#FFE600]/80 bg-black/85 px-1.5 py-0.5 text-[9px] font-bold text-[#FFE600] shadow-md whitespace-nowrap">
+                  <span>เส้นดูด 9:16 ({snapGuide.x ? `X:${Math.round(snapGuide.x * 100)}%` : ''} {snapGuide.y ? `Y:${Math.round(snapGuide.y * 100)}%` : ''})</span>
+                </div>
+              ) : (null && <div><span></span>
                 </div>
               )}
 

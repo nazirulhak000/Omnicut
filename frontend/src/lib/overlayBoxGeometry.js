@@ -137,13 +137,21 @@ export function resolveSelectedBox({
   return null;
 }
 
-export function snapNormalizedPoint(x, y, { min = 0.05, max = 0.95, yGuides = [0.5, 0.2, 0.72] } = {}) {
+export const SNAP_X_GUIDES_9_16 = Object.freeze([0.5, 0.333, 0.667, 0.889]);
+export const SNAP_Y_GUIDES_9_16 = Object.freeze([0.5, 0.2, 0.72, 0.333, 0.667, 0.781]);
+
+export function smoothstep(edge0, edge1, value) {
+  const t = Math.max(0, Math.min(1, (value - edge0) / ((edge1 - edge0) || 1)));
+  return t * t * (3 - 2 * t);
+}
+
+export function snapNormalizedPoint(x, y, { min = 0.05, max = 0.95, xGuides = SNAP_X_GUIDES_9_16, yGuides = SNAP_Y_GUIDES_9_16 } = {}) {
   let nextX = Math.max(min, Math.min(max, x));
   let nextY = Math.max(min, Math.min(max, y));
   let snapX = null;
   let snapY = null;
 
-  if (Math.abs(nextX - 0.5) < 0.025) {
+  for (const guide of xGuides) { if (Math.abs(nextX - guide) < 0.025) { nextX = guide; snapX = guide; break; } } if (false) {
     nextX = 0.5;
     snapX = 0.5;
   }

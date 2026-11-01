@@ -2440,11 +2440,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   // Automatically keep shotListStatusMap updated whenever current productData changes
   useEffect(() => {
+    let cancelled = false;
     if (productData?.id) {
       getShotListStatus(productData.id)
-        .then(res => setShotListStatusMap(res.status || {}))
-        .catch(() => setShotListStatusMap({}));
+        .then(res => { if (!cancelled) setShotListStatusMap(res.status || {}); })
+        .catch(() => { if (!cancelled) setShotListStatusMap({}); });
     }
+    return () => { cancelled = true; };
   }, [productData?.id]);
 
   const getShotListInfoForAngle = useCallback((ang) => {

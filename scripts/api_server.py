@@ -25,7 +25,7 @@ from scripts.config import (
     CAPCUT_DRAFT_DIR, VOICES, DEFAULT_VOICE, DEFAULT_VOICE_RATE
 )
 from scripts.auth import (
-    API_KEY_HEADER, is_auth_enforced, is_password_configured, key_matches,
+    API_KEY_HEADER, is_auth_disabled, is_auth_enforced, is_password_configured, key_matches,
     warn_if_permissive,
 )
 from scripts.api_auth import (
@@ -88,7 +88,8 @@ from scripts.api_hyperframes_overlay import router as hyperframes_overlay_router
 from scripts.api_publication_observations import router as publication_observations_router
 from scripts.api_channels import router as channels_router
 from scripts.api_copilot import router as copilot_router
-from scripts.api_agy import router as agy_router
+# Native Antigravity In-App AI Agent
+from scripts.agent.api_agent import router as agent_router
 from scripts.api_couple_production import router as couple_production_router
 from scripts.api_intake import router as intake_router
 from scripts.api_review import router as review_router
@@ -252,6 +253,7 @@ def get_bind_host() -> str:
         not _is_loopback_host(host)
         and not is_auth_enforced()
         and not is_password_configured()
+        and not is_auth_disabled()
     ):
         raise RuntimeError(
             "OMNICUT_API_KEY or OMNICUT_APP_PASSWORD is required when "
@@ -327,7 +329,7 @@ app.include_router(hyperframes_overlay_router)
 app.include_router(publication_observations_router)
 app.include_router(channels_router)
 app.include_router(copilot_router)
-app.include_router(agy_router)
+app.include_router(agent_router)
 app.include_router(couple_production_router)
 app.include_router(intake_router)
 app.include_router(review_router)

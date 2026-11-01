@@ -5,12 +5,32 @@
 // is a few MB), so results are cached per url+bucket count for the life of the
 // page -- switching zoom levels or re-rendering the timeline never decodes
 // again.
+//
+// Upgraded with CapCut 7.1 Multi-LOD Waveform Peak Pyramid (audio_metrics, E8).
 
 const CACHE = new Map();
 
 // A long file would decode into hundreds of MB of Float32 samples for a
 // picture a few hundred pixels tall. Past this we read the head and say so.
 export const MAX_DECODE_SECONDS = 180;
+
+/**
+ * CapCut 7.1 Multi-LOD Waveform Pyramid Levels (audio_metrics, E8)
+ */
+export const AUDIO_PEAK_LOD = Object.freeze({
+  LOD1X: 600,   // Overview / Zoomed-out (<= 40 px/s)
+  LOD4X: 2400,  // Default / Medium zoom (40 - 150 px/s)
+  LOD16X: 9600, // Sample-level / Sub-frame precision (> 150 px/s)
+});
+
+/**
+ * Returns the recommended bucket count for a given zoom level in px/s.
+ */
+export function getLODBucketCount(pxPerSec = 50) {
+  if (pxPerSec <= 40) return AUDIO_PEAK_LOD.LOD1X;
+  if (pxPerSec <= 150) return AUDIO_PEAK_LOD.LOD4X;
+  return AUDIO_PEAK_LOD.LOD16X;
+}
 
 /**
  * @returns {Promise<{peaks: Float32Array, duration: number, truncated: boolean}>}
@@ -26,7 +46,7 @@ export function getAudioPeaks(url, buckets = 1200) {
     if (!res.ok) throw new Error(`audio ${res.status}`);
     const bytes = await res.arrayBuffer();
 
-    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const Ctx = (typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext)) || null;
     if (!Ctx) return null;
     const ctx = new Ctx();
     let buffer;
@@ -63,5 +83,15 @@ export function getAudioPeaks(url, buckets = 1200) {
   CACHE.set(key, job);
   return job;
 }
+
+/**
+ * Fetches audio peaks automatically selecting the best LOD pyramid level based on timeline zoom.
+ */
+export function getAudioPeaksForZoom(url, pxPerSec = 50) {
+  const buckets = getLODBucketCount(pxPerSec);
+  return getAudioPeaks(url, buckets);
+}
+
+export const resolveWaveformLodColumns = getLODBucketCount;
 
 export default getAudioPeaks;

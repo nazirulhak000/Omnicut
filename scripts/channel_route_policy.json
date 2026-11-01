@@ -3,138 +3,6 @@
   "description": "Channel scope policy per FastAPI route (method + path template). Derived from _Docs/Reports/MULTI_CHANNEL_P0_ROUTE_MATRIX_20261010.json (P0-A, 228 routes) + scripts/api_channels.py. scope: channel = request must resolve a channel scope; shared/global = not scope-gated (header validated when present, ignored when ignore_scope_header). allow_query_scope: ?channel= accepted (media-style GET used in <img>/<video> src). tests/test_channel_scope.py fails when a live APIRoute is missing here or a row is stale.",
   "routes": [
     {
-      "method": "DELETE",
-      "path": "/api/agy/sessions/{session_id}",
-      "scope": "global",
-      "allow_query_scope": false,
-      "access": "write",
-      "risk": "major",
-      "resource_params": [
-        "session_id"
-      ],
-      "module": "scripts.api_agy"
-    },
-    {
-      "method": "GET",
-      "path": "/api/agy/sessions",
-      "scope": "global",
-      "allow_query_scope": false,
-      "access": "read",
-      "risk": "minor",
-      "resource_params": [],
-      "module": "scripts.api_agy"
-    },
-    {
-      "method": "GET",
-      "path": "/api/agy/status",
-      "scope": "global",
-      "allow_query_scope": false,
-      "access": "read",
-      "risk": "minor",
-      "resource_params": [],
-      "module": "scripts.api_agy"
-    },
-    {
-      "method": "POST",
-      "path": "/api/agy/chat",
-      "scope": "global",
-      "allow_query_scope": false,
-      "access": "write",
-      "risk": "blocker",
-      "resource_params": [
-        "message",
-        "session_id"
-      ],
-      "module": "scripts.api_agy"
-    },
-    {
-      "method": "POST",
-      "path": "/api/agy/stream",
-      "scope": "global",
-      "allow_query_scope": false,
-      "access": "write",
-      "risk": "blocker",
-      "resource_params": [
-        "message",
-        "session_id"
-      ],
-      "module": "scripts.api_agy"
-    },
-    {
-      "method": "POST",
-      "path": "/api/agy/exec",
-      "scope": "global",
-      "allow_query_scope": false,
-      "access": "write",
-      "risk": "blocker",
-      "resource_params": [
-        "command"
-      ],
-      "module": "scripts.api_agy"
-    },
-    {
-      "method": "POST",
-      "path": "/api/agy/drive-sync",
-      "scope": "global",
-      "allow_query_scope": false,
-      "access": "write",
-      "risk": "major",
-      "resource_params": [],
-      "module": "scripts.api_agy"
-    },
-    {
-      "method": "POST",
-      "path": "/api/agy/self-update",
-      "scope": "global",
-      "allow_query_scope": false,
-      "access": "write",
-      "risk": "blocker",
-      "resource_params": [],
-      "module": "scripts.api_agy"
-    },
-    {
-      "method": "GET",
-      "path": "/agy",
-      "scope": "global",
-      "allow_query_scope": false,
-      "access": "read",
-      "risk": "major",
-      "resource_params": [],
-      "module": "scripts.api_agy"
-    },
-    {
-      "method": "GET",
-      "path": "/terminal",
-      "scope": "global",
-      "allow_query_scope": false,
-      "access": "read",
-      "risk": "blocker",
-      "resource_params": [],
-      "module": "scripts.api_agy"
-    },
-    {
-      "method": "GET",
-      "path": "/terminal/{full_path:path}",
-      "scope": "global",
-      "allow_query_scope": false,
-      "access": "read",
-      "risk": "blocker",
-      "resource_params": [
-        "full_path"
-      ],
-      "module": "scripts.api_agy"
-    },
-    {
-      "method": "GET",
-      "path": "/token",
-      "scope": "global",
-      "allow_query_scope": false,
-      "access": "read",
-      "risk": "blocker",
-      "resource_params": [],
-      "module": "scripts.api_agy"
-    },
-    {
       "method": "GET",
       "path": "/{full_path:path}",
       "scope": "global",
@@ -4239,6 +4107,52 @@
       "risk": "major",
       "resource_params": [],
       "module": "scripts.api_uploads"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/status",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "minor",
+      "resource_params": [],
+      "module": "scripts.agent.api_agent"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/timeline/{project_name}",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "minor",
+      "resource_params": [
+        "project_name"
+      ],
+      "module": "scripts.agent.api_agent"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/stream",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "major",
+      "resource_params": [
+        "message"
+      ],
+      "module": "scripts.agent.api_agent"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/actions/apply",
+      "scope": "global",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "major",
+      "resource_params": [
+        "action"
+      ],
+      "module": "scripts.agent.api_agent"
     }
   ]
 }

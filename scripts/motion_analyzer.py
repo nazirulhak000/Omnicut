@@ -199,6 +199,42 @@ class MotionAnalyzer:
             return None
         return min(candidates, key=lambda ts: ts[1])[0]
 
+    # CapCut 7.1 SceneEditDetection/config.json & AlgorithmCache/face_detect_cache.json constants
+    CAPCUT_SCENE_DETECT_WINDOW = 7
+    CAPCUT_SCENE_DETECT_THRESHOLD = 0.35
+    CAPCUT_SCENE_DETECT_BLIT = (96, 96)
+    CAPCUT_FACE_DETECT_BLIT = (360, 640)
+
+    @classmethod
+    def detect_scene_cuts(
+        cls,
+        times: List[float],
+        scores: List[float],
+        threshold: float = CAPCUT_SCENE_DETECT_THRESHOLD,
+        sliding_window: int = CAPCUT_SCENE_DETECT_WINDOW,
+    ) -> List[float]:
+        """Detect true scene cuts using CapCut 7.1 7-frame sliding window and threshold 0.35, rejecting flash spikes."""
+        if not times or not scores or len(times) != len(scores):
+            return []
+        half = max(1, int(sliding_window) // 2)
+        cuts: List[float] = []
+        for i, (t, s) in enumerate(zip(times, scores)):
+            if s < threshold:
+                continue
+            lo = max(0, i - half)
+            hi = min(len(scores), i + half + 1)
+            neighbors = [scores[j] for j in range(lo, hi) if j != i]
+            local_baseline = (sum(neighbors) / len(neighbors)) if neighbors else 0.0
+            # Reject isolated 1-sample camera flash if immediately surrounded by near-zero baseline
+            if (s - local_baseline) >= threshold * 0.5 and s == max(scores[lo:hi]):
+                if not cuts or (t - cuts[-1]) >= 0.5:
+                    cuts.append(round(float(t), 3))
+        return cuts
+
+
+CAPCUT_SCENE_DETECT_WINDOW = MotionAnalyzer.CAPCUT_SCENE_DETECT_WINDOW
+CAPCUT_SCENE_DETECT_THRESHOLD = MotionAnalyzer.CAPCUT_SCENE_DETECT_THRESHOLD
+detect_scene_cuts = MotionAnalyzer.detect_scene_cuts
 
 if __name__ == "__main__":
     print("MotionAnalyzer ready.")

@@ -3,7 +3,7 @@ import {
   PILL_PAD_X_EM,
   PILL_PAD_Y_EM,
 } from './overlayModel.js';
-import { CAMERA_MOTION_LIMITS, MIN_CLIP_DURATION } from './timelineMath.js';
+import { CAMERA_MOTION_LIMITS, MIN_CLIP_DURATION, generateSmartCameraKeyframes } from './timelineMath.js';
 
 /** Format seconds to mm:ss.tenths (e.g. 01:23.4) */
 export function formatShortTime(sec) {
@@ -324,3 +324,183 @@ export function countOtherCameraKeyframeClips(clipList, exceptId) {
     .filter((clip) => clip && clip.id !== exceptId && cameraKeyframeSummary(clip).points > 0)
     .length;
 }
+
+
+export const SMART_CAMERA_PRESETS = Object.freeze([
+  { id: 'slow_push', label: 'ซูมเข้า 9:16', preset: 'slow_push' },
+  { id: 'slow_pull', label: 'ซูมออก 9:16', preset: 'slow_pull' },
+  { id: 'pan_left', label: 'แพนซ้าย 9:16', preset: 'pan_left' },
+  { id: 'pan_right', label: 'แพนขวา 9:16', preset: 'pan_right' },
+]);
+
+export function smartCameraPatch(clip, sourceDuration, presetName = 'slow_push') {
+  const duration = clipPlayedDuration(clip, sourceDuration);
+  if (duration < MIN_CLIP_DURATION) return null;
+  const moves = generateSmartCameraKeyframes({ duration, preset: presetName });
+  if (!moves || !moves.length) return null;
+  return { keyframes: [...withoutCameraKeyframes(clip?.keyframes), ...moves] };
+}
+
+export const KEYFRAME_EASING_OPTIONS = Object.freeze([
+  { id: 'ease_in_out', label: 'สมูท (Ease In-Out)' },
+  { id: 'linear', label: 'คงที่ (Linear)' },
+  { id: 'montage', label: 'Montage (CapCut)' },
+  { id: 'hero_in', label: 'Hero In (CapCut)' },
+  { id: 'bullet_stop', label: 'Bullet Stop (CapCut)' },
+  { id: 'jump_cut', label: 'Jump Cut (CapCut)' },
+]);
+
+/** CapCut 7.1 LogWheel crossover thresholds (`Resources/LogWheel/log_wheel_v0/Wheel/xshader/fshader.frag`). */
+export const LOG_WHEEL_CROSSOVER = Object.freeze({ rugDown: 0.333, rugUp: 0.555 });
+
+/**
+ * CapCut 7.1 PrimaryWheel per-channel Lift/Gamma/Gain formula
+ * (`Resources/PrimaryWheel/primary_wheel_v0/Wheel/xshader/fshader.frag`).
+ */
+export function processPrimaryWheelChannel(srcColor, lift = 0, gamma = 1, gain = 1) {
+  const s = clampValue(srcColor, 0, 1, 0);
+  let liftX = lift >= 0.5 ? -1e6 : lift / (lift - 0.5);
+  let gainX = gain === 0 ? 1e6 : 1.0 / gain;
+  if (liftX >= gainX) gainX = liftX + 1e-6;
+  let res = (s - liftX) / (gainX - liftX);
+  if (res > 0) res = Math.exp(gamma * Math.log(res));
+  return clampValue(res, 0, 1, 0);
+}
+
+/**
+ * CapCut 7.1 Shadow recovery curve (`merge_all_adjust_color/xshader/colorAdjustBundle.frag`).
+ */
+export function capcutAdjustShadow(c, p = 0) {
+  const s = clampValue(c, 0, 1, 0);
+  const param = clampValue(p, -0.5, 0.5, 0);
+  if (Math.abs(param) < 1e-6) return s;
+  let res;
+  if (param <= 0) {
+    res = Math.pow(s, param + 1.0) - 0.1 * param * Math.pow(1.0 - s, 5.0);
+  } else {
+    res = Math.pow(s, 1.0 / Math.max(1.0 - param, 1e-5));
+  }
+  return clampValue(res, 0, 1, 0);
+}
+
+/**
+ * CapCut 7.1 Highlight recovery curve (`merge_all_adjust_color/xshader/colorAdjustBundle.frag`).
+ */
+export function capcutAdjustHighlight(c, p = 0) {
+  const s = clampValue(c, 0, 1, 0);
+  const param = clampValue(p, -0.5, 0.5, 0);
+  if (Math.abs(param) < 1e-6) return s;
+  let res;
+  if (param < 0) {
+    res = 1.0 - Math.pow(Math.max(0, 1.0 - s - 0.1 * param * s), param + 1.0);
+  } else {
+    res = 1.0 - Math.pow(1.0 - s, 1.0 / Math.max(1.0 - param, 1e-5));
+  }
+  return clampValue(res, 0, 1, 0);
+}
+
+/**
+ * CapCut 7.1 Dark-Channel Dehaze (`AmazingFeature_dehazing/xshader/dehaze.frag`).
+ */
+export function capcutDehazeChannel(oriColor, darkColor = 0.35, airLight = 0.85, dehazeParam = 0) {
+  const c = clampValue(oriColor, 0, 1, 0);
+  const p = clampValue(dehazeParam, 0, 0.95, 0);
+  if (p <= 1e-6) return c;
+  const dehazeWeight = Math.max(0.5, Math.min(0.95, p));
+  const trans = Math.max(0.1, 1.0 - dehazeWeight * clampValue(darkColor, 0, 1, 0.35));
+  const res = (c - airLight) / trans + airLight;
+  return clampValue(c * (1 - p) + res * p, 0, 1, 0);
+}
+
+/**
+ * CapCut 7.1 8-Band HSL Hue Windows (`AmazingFeature_hsl/xshader/fshader.frag`).
+ */
+export const CAPCUT_HSL_RANGES = Object.freeze({
+  red: Object.freeze([-45, -20, 10, 45]),
+  orange: Object.freeze([-10, 20, 40, 60]),
+  yellow: Object.freeze([20, 50, 70, 105]),
+  green: Object.freeze([50, 80, 160, 190]),
+  cyan: Object.freeze([140, 170, 210, 240]),
+  blue: Object.freeze([145, 195, 245, 275]),
+  purple: Object.freeze([240, 270, 290, 330]),
+  magenta: Object.freeze([285, 315, 345, 365]),
+});
+
+/**
+ * CapCut 7.1 Skin-Tone Protected Vibrance (`AmazingFeature_splendor` + `AmazingFeature_hsl`).
+ * Boosts low-saturation pixels while protecting skin-tone hues (15..45 deg, orange weight 0.35).
+ */
+export function capcutSplendorVibrance(r, g, b, vibrance = 0) {
+  const rr = clampValue(r, 0, 1, 0);
+  const gg = clampValue(g, 0, 1, 0);
+  const bb = clampValue(b, 0, 1, 0);
+  const v = clampValue(vibrance, -0.5, 0.5, 0);
+  if (Math.abs(v) < 1e-6) return [rr, gg, bb];
+  const maxC = Math.max(rr, gg, bb);
+  const minC = Math.min(rr, gg, bb);
+  const delta = maxC - minC;
+  const sat = maxC <= 1e-6 ? 0 : delta / maxC;
+  let hue = 0;
+  if (delta > 1e-6) {
+    if (maxC === rr) hue = 60 * (((gg - bb) / delta) % 6);
+    else if (maxC === gg) hue = 60 * ((bb - rr) / delta + 2);
+    else hue = 60 * ((rr - gg) / delta + 4);
+    if (hue < 0) hue += 360;
+  }
+  const skinProtection = (hue >= 15 && hue <= 45) ? 0.35 : 1.0;
+  const boost = 1.0 + v * (1.0 - sat) * skinProtection;
+  const lum = 0.299 * rr + 0.587 * gg + 0.114 * bb;
+  return [
+    clampValue(lum + (rr - lum) * boost, 0, 1, 0),
+    clampValue(lum + (gg - lum) * boost, 0, 1, 0),
+    clampValue(lum + (bb - lum) * boost, 0, 1, 0),
+  ];
+}
+
+/**
+ * CapCut 7.1 Vignette radial smoothstep falloff (`AmazingFeature_vignetting/xshader/vignetting.frag`).
+ */
+export function capcutVignetteWeight(u, v, intensity = 0) {
+  const p = clampValue(intensity, -1, 1, 0);
+  if (Math.abs(p) < 1e-6) return 0;
+  const SQRT2 = 1.415;
+  const ux = 2.0 * clampValue(u, 0, 1, 0.5) - 1.0;
+  const vy = 2.0 * clampValue(v, 0, 1, 0.5) - 1.0;
+  const dist = Math.hypot(ux, vy);
+  const absP = Math.abs(p);
+  const r0 = (p < 0 ? (1.0 + (0.2 - 1.0) * absP) : (1.0 + (0.1 - 1.0) * absP)) * SQRT2;
+  const r1 = (p < 0 ? (1.4 + (0.9 - 1.4) * absP) : (1.4 + (0.85 - 1.4) * absP)) * SQRT2;
+  const t = clampValue((dist - r0) / Math.max(1e-6, r1 - r0), 0, 1, 0);
+  return t * t * (3.0 - 2.0 * t);
+}
+
+/**
+ * CapCut 7.1 Procedural Film Particle Noise (`AmazingFeature_particle/xshader/noise.frag`).
+ */
+export function capcutParticleNoise(u, v, seed = 0.25, intensity = 0.08) {
+  const SCALE = 9331.99;
+  const frac = (x) => x - Math.floor(x);
+  let x = frac(u * SCALE * 0.1031) + seed;
+  let y = frac(v * SCALE * 0.1031) + seed;
+  let z = frac(seed * SCALE * 0.1031) + seed;
+  const dot = x * (y + 33.33) + y * (z + 33.33) + z * (x + 33.33);
+  x += dot;
+  y += dot;
+  z += dot;
+  return (frac((x + y) * z) - 0.5) * intensity;
+}
+
+/**
+ * Standard CapCut 7.1 Video Color Adjustment Fields.
+ */
+export const COLOR_FIELDS = Object.freeze([
+  { key: 'brightness', label: 'ความสว่าง', min: -0.3, max: 0.3, step: 0.02, def: 0 },
+  { key: 'contrast', label: 'คอนทราสต์', min: 0.5, max: 2, step: 0.05, def: 1 },
+  { key: 'saturation', label: 'ความสด', min: 0, max: 3, step: 0.05, def: 1 },
+  { key: 'temperature', label: 'อุณหภูมิสี (Warm/Cool)', min: -0.3, max: 0.3, step: 0.02, def: 0 },
+  { key: 'gamma', label: 'แกมม่า (Gamma / LogWheel)', min: 0.5, max: 2.0, step: 0.05, def: 1 },
+  { key: 'shadows', label: 'ดึงเงามืด (Shadows)', min: -0.5, max: 0.5, step: 0.05, def: 0 },
+  { key: 'highlights', label: 'ลดแสงจ้า (Highlights)', min: -0.5, max: 0.5, step: 0.05, def: 0 },
+  { key: 'vibrance', label: 'เร่งสีสดถนอมผิว (Splendor Vibrance)', min: -0.5, max: 0.5, step: 0.05, def: 0 },
+  { key: 'vignette', label: 'ขอบมืดโฟกัสสินค้า (Vignette)', min: 0, max: 1.0, step: 0.05, def: 0 },
+]);

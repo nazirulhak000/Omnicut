@@ -158,6 +158,8 @@ class AudioMixStage:
                 mix_kwargs["bgm_vol"] = 0.0
             if ctx.bgm_ducking:
                 mix_kwargs["bgm_ducking"] = True
+            if ((ctx.manifest or {}).get("style") or {}).get("voice_clarity") or ((ctx.manifest or {}).get("style") or {}).get("voiceClarity"):
+                mix_kwargs["voice_clarity"] = True
             # Ripple cuts of the voice (VoiceStage already verified they fit the
             # file). Only passed when there are cuts so an uncut call is unchanged;
             # BGM is deliberately not cut (it keeps playing across the join).

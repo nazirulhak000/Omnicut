@@ -27,6 +27,14 @@ RENDERED_CHALLENGE_WAIT_SECONDS = 60
 RENDERED_PROFILE_DIR = BASE_DIR / "tools" / "tiktok_browser_profile"
 RENDERED_SOURCE_FALLBACK = "สินค้าคุณภาพยอดนิยม การันตีของแท้"
 
+STEALTH_ARGS = [
+    "--disable-blink-features=AutomationControlled",
+    "--disable-infobars",
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--lang=th-TH,th",
+]
+
 # Only these hosts (and their subdomains) are legitimate scrape targets --
 # Shopee/TikTok product pages and the short-link domains their own "share"
 # buttons produce. Everything else is refused before a single socket opens,
@@ -617,17 +625,170 @@ def _looks_like_browser_challenge(text: str) -> bool:
         "drag the puzzle",
         "security check",
         "ตรวจสอบความปลอดภัย",
+        "please verify",
     ))
 
 
-def _scrape_rendered_page(url: str) -> Dict[str, Any]:
-    """Read the post-JavaScript product page without bypassing its challenge.
+def _looks_like_login_page(title: str, text: str, url: str = "") -> bool:
+    lowered_title = (title or "").lower().strip()
+    lowered_text = (text or "").lower()
+    lowered_url = (url or "").lower()
+    if "tiktok.com/login" in lowered_url:
+        return True
+    if lowered_title in ("log in", "sign in", "เข้าสู่ระบบ", "login", "feedback and help"):
+        return True
+    return any(marker in lowered_text for marker in (
+        "log in to tiktok",
+        "login to tiktok",
+        "manage your account, check notifications",
+        "use qr code\nuse phone",
+        "continue with facebook",
+    ))
 
-    TikTok frequently serves a challenge to non-browser clients. We first try
-    a normal headless Chrome page; when that challenge appears, we open the
-    existing persistent Chrome profile so the user can complete it or use a
-    saved session. No CAPTCHA/anti-bot bypass is attempted.
-    """
+
+def _clean_title(title: str) -> str:
+    if not title:
+        return ""
+    t = re.sub(r"【[^】]*】", "", title)
+    t = re.sub(r"\[[^\]]*\]", "", t)
+    t = re.sub(r"\([^\)]*COD[^\)]*\)", "", t, flags=re.I)
+    t = re.split(r'\s*[-|•]\s*(?:Shopee|TikTok).*$', t, flags=re.I)[0]
+    t = t.split("- Shopee")[0].split("- TikTok")[0].strip()
+    clean = re.sub(r'\s+', ' ', t).strip(" -|•")
+    if clean.lower() in ("log in", "sign in", "เข้าสู่ระบบ", "security check", "verify to continue", "tiktok"):
+        return ""
+    return clean
+
+
+def _clean_rendered_description(text: str) -> str:
+    if not text:
+        return ""
+    lines = [line.strip() for line in text.replace("\r\n", "\n").split("\n")]
+
+    desc_start_idx = -1
+    for idx, line in enumerate(lines):
+        lower = line.lower().strip()
+        if lower in ("about this product", "product description", "คำอธิบายสินค้า", "รายละเอียดสินค้า", "เกี่ยวกับสินค้านี้"):
+            desc_start_idx = idx
+            if idx + 1 < len(lines) and lines[idx + 1].lower().strip() in ("product description", "รายละเอียดสินค้า"):
+                desc_start_idx = idx + 1
+
+    if desc_start_idx != -1:
+        lines = lines[desc_start_idx + 1:]
+
+    header_skip_patterns = [
+        r"^search$",
+        r"^\d+\s*/\s*\d+$",
+        r"^-?\d+%$",
+        r"^฿[\d,.]*$",
+        r"^\d+(\.\d+)?$",
+        r"^sold by",
+        r"^\d+(\.\d+)?k?\s*(sold|ratings|reviews)",
+        r"^select options",
+        r"^about this product",
+        r"^product description",
+        r"^คำอธิบายสินค้า",
+        r"^รายละเอียดสินค้า",
+        r"^ข้อมูลสินค้า",
+    ]
+
+    footer_stop_patterns = [
+        r"^shop\s*$",
+        r"^sell\s*$",
+        r"^about\s*$",
+        r"^customer support",
+        r"^legal",
+        r"^free shipping",
+        r"^new customer deals",
+        r"^buy now",
+        r"^get the full app experience",
+        r"^open tiktok",
+        r"^not now",
+        r"^feedback and help",
+        r"^log in to tiktok",
+        r"^terms of service",
+        r"^privacy policy",
+        r"^©\s*\d+",
+    ]
+
+    cleaned_lines = []
+    in_body = False
+
+    for line in lines:
+        if not line:
+            if in_body and cleaned_lines and cleaned_lines[-1] != "":
+                cleaned_lines.append("")
+            continue
+
+        lower = line.lower()
+        if in_body and any(re.match(pat, lower) for pat in footer_stop_patterns):
+            break
+
+        if not in_body:
+            if any(re.match(pat, lower) for pat in header_skip_patterns):
+                continue
+            in_body = True
+            cleaned_lines.append(line)
+            continue
+
+        cleaned_lines.append(line)
+
+    res = "\n".join(cleaned_lines).strip()
+    return res if res else text.strip()
+
+
+def _extract_specs_from_text(text: str) -> List[str]:
+    specs = []
+    seen_keys = set()
+    lines = [l.strip() for l in text.replace("\r\n", "\n").split("\n") if l.strip()]
+    for line in lines:
+        line_clean = line.lstrip("·•- \t").strip()
+        m = re.match(r"^([^:\n\t]{2,30})[:：]\s*(.+)$", line_clean)
+        if m:
+            key, val = m.group(1).strip().lstrip("·•- "), m.group(2).strip()
+            if not key.lower().startswith("http") and val and len(key) < 30 and key not in seen_keys:
+                seen_keys.add(key)
+                specs.append(f"{key}: {val}")
+    return specs
+
+
+def _deduplicate_and_filter_images(urls: List[str]) -> List[str]:
+    seen_hashes = {}
+    skip_markers = [
+        "tts_logo",
+        "tiktok_shop_web_mono",
+        "avatar",
+        "tos-alisg-avt",
+        "icon",
+        ".svg",
+        "star",
+        "arrow",
+    ]
+    for url in urls:
+        if not url or not url.startswith("http"):
+            continue
+        lowered = url.lower()
+        if any(marker in lowered for marker in skip_markers):
+            continue
+        m = re.search(r"([a-f0-9]{32})", url)
+        img_hash = m.group(1) if m else url.split("?")[0]
+        quality = 0
+        if "800:800" in url or "800:1600" in url:
+            quality = 2
+        elif "crop" in url or "300:300" in url or "100:100" in url:
+            quality = -1
+        else:
+            quality = 1
+        if img_hash not in seen_hashes:
+            seen_hashes[img_hash] = (quality, url)
+        else:
+            if quality > seen_hashes[img_hash][0]:
+                seen_hashes[img_hash] = (quality, url)
+    return [u for q, u in seen_hashes.values()]
+
+
+def _scrape_rendered_page(url: str) -> Dict[str, Any]:
+    """Read the post-JavaScript product page with persistent session and anti-detection."""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -637,78 +798,118 @@ def _scrape_rendered_page(url: str) -> Dict[str, Any]:
         page.wait_for_timeout(RENDERED_PAGE_WAIT_MS)
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         page.wait_for_timeout(500)
+
+        dom_title = page.evaluate("() => document.querySelector('h1, [class*=\"title\"], [class*=\"Title\"]')?.innerText.trim() || document.title") or ""
+        dom_price = page.evaluate("() => document.querySelector('[class*=\"price-value\"], [class*=\"Price\"], [class*=\"salePrice\"]')?.innerText.trim() || ''") or ""
+        desc_elem_text = page.evaluate("() => document.querySelector('[class*=\"sectionContent\"], [class*=\"desc\"], [class*=\"Desc\"]')?.innerText.trim() || ''") or ""
         body_text = _normalise_rendered_text(page.locator("body").inner_text(timeout=5000))
-        images = page.locator("img").evaluate_all(
+
+        if not dom_price:
+            m_price = re.search(r"฿\s*([\d,.]+)", body_text)
+            if m_price:
+                dom_price = f"฿{m_price.group(1)}"
+
+        raw_imgs = page.locator("img").evaluate_all(
             """imgs => imgs.map(img => img.currentSrc || img.src || '')
                 .filter(src => /^https?:\\/\\//i.test(src))"""
         )
+        images = _deduplicate_and_filter_images(raw_imgs)
+
+        challenge = _looks_like_browser_challenge(body_text)
+        login_required = _looks_like_login_page(dom_title, body_text, page.url)
+
         return {
-            "title": page.title().strip(),
+            "title": dom_title.strip(),
+            "price": dom_price.strip(),
+            "desc_elem": desc_elem_text.strip(),
             "raw_text": body_text,
             "images": images[:20],
-            "challenge": _looks_like_browser_challenge(body_text),
+            "challenge": challenge,
+            "login_required": login_required,
         }
 
     with sync_playwright() as playwright:
-        browser = None
         context = None
+        RENDERED_PROFILE_DIR.mkdir(parents=True, exist_ok=True)
         try:
             try:
-                browser = playwright.chromium.launch(headless=True, channel="chrome")
+                context = playwright.chromium.launch_persistent_context(
+                    str(RENDERED_PROFILE_DIR),
+                    channel="chrome",
+                    headless=True,
+                    ignore_default_args=["--enable-automation"],
+                    args=STEALTH_ARGS,
+                    viewport={"width": 1440, "height": 1100},
+                    locale="th-TH",
+                )
             except Exception:
-                browser = playwright.chromium.launch(headless=True)
-            page = browser.new_page(viewport={"width": 1440, "height": 1100}, locale="th-TH")
+                context = playwright.chromium.launch_persistent_context(
+                    str(RENDERED_PROFILE_DIR),
+                    headless=True,
+                    ignore_default_args=["--enable-automation"],
+                    args=STEALTH_ARGS,
+                    viewport={"width": 1440, "height": 1100},
+                    locale="th-TH",
+                )
+
+            context.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            """)
+            page = context.pages[0] if context.pages else context.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=RENDERED_PAGE_TIMEOUT_MS)
             snapshot = read_page(page)
 
-            if snapshot["challenge"]:
-                browser.close()
-                browser = None
+            if snapshot["challenge"] or snapshot["login_required"]:
+                context.close()
+                context = None
                 try:
                     context = playwright.chromium.launch_persistent_context(
                         str(RENDERED_PROFILE_DIR),
                         channel="chrome",
                         headless=False,
-                        args=["--start-maximized", "--disable-blink-features=AutomationControlled"],
+                        ignore_default_args=["--enable-automation"],
+                        args=STEALTH_ARGS + ["--start-maximized"],
                         viewport=None,
+                        locale="th-TH",
                     )
                 except Exception:
-                    try:
-                        context = playwright.chromium.launch_persistent_context(
-                            str(RENDERED_PROFILE_DIR),
-                            headless=False,
-                            args=["--start-maximized"],
-                            viewport=None,
-                        )
-                    except Exception as ctx_err:
-                        print(f"[ProductScraper] Persistent context launch note: {ctx_err}")
-                        context = None
-                if context is None:
-                    return {"warning": "TikTok ขอ Security Check จึงยังอ่านรายละเอียดหน้าเว็บไม่ได้"}
+                    context = playwright.chromium.launch_persistent_context(
+                        str(RENDERED_PROFILE_DIR),
+                        headless=False,
+                        ignore_default_args=["--enable-automation"],
+                        args=STEALTH_ARGS + ["--start-maximized"],
+                        viewport=None,
+                        locale="th-TH",
+                    )
+                context.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                """)
                 page = context.pages[0] if context.pages else context.new_page()
                 page.goto(url, wait_until="domcontentloaded", timeout=RENDERED_PAGE_TIMEOUT_MS)
                 deadline = time.monotonic() + RENDERED_CHALLENGE_WAIT_SECONDS
                 while time.monotonic() < deadline:
                     snapshot = read_page(page)
-                    if not snapshot["challenge"] and len(snapshot["raw_text"]) >= 80:
+                    if not snapshot["challenge"] and not snapshot["login_required"] and len(snapshot["raw_text"]) >= 80:
                         break
                     page.wait_for_timeout(1500)
-                if snapshot["challenge"]:
-                    return {"warning": "TikTok ขอ Security Check จึงยังอ่านรายละเอียดหน้าเว็บไม่ได้"}
 
+            if snapshot["challenge"]:
+                return {"warning": "TikTok ขอ Security Check จึงยังอ่านรายละเอียดหน้าเว็บไม่ได้", "challenge": True}
+            if snapshot["login_required"]:
+                return {"warning": "TikTok ขอให้เข้าสู่ระบบ (Login) จึงยังอ่านรายละเอียดหน้าเว็บไม่ได้", "login_required": True}
             if len(snapshot["raw_text"]) < 80:
                 return {"warning": "หน้าเว็บ render แล้วแต่ไม่มีข้อความรายละเอียดที่อ่านได้"}
+
             return snapshot
         except Exception as exc:
             err_line = str(exc).splitlines()[0] if str(exc) else "เบราว์เซอร์ไม่พร้อมทำงาน"
-            if "--disable" in err_line or "launch_persistent_context" in err_line:
-                err_line = "เบราว์เซอร์ไม่พร้อมทำงาน"
             return {"warning": f"เปิด browser เพื่ออ่านรายละเอียดสินค้าไม่สำเร็จ ({err_line})"}
         finally:
             if context is not None:
-                context.close()
-            if browser is not None:
-                browser.close()
+                try:
+                    context.close()
+                except Exception:
+                    pass
 
 
 class ProductScraper:
@@ -766,6 +967,39 @@ class ProductScraper:
         if url_param_meta.get("image") and url_param_meta["image"] not in images:
             images.append(url_param_meta["image"])
 
+        # Tier 0.5: If TikTok, prefer the official desktop PDP (shop.tiktok.com/th/pdp/{id})
+        # which serves complete SSR data (__MODERN_ROUTER_DATA__) without challenge or login walls.
+        if platform == "tiktok":
+            pid_match = re.search(r'/(?:view/product|pdp)/(\d+)', resolved_url) or re.search(r'/(?:view/product|pdp)/(\d+)', url)
+            if pid_match:
+                tiktok_pdp_url = f"https://shop.tiktok.com/th/pdp/{pid_match.group(1)}"
+                try:
+                    pdp_req = urllib.request.Request(
+                        tiktok_pdp_url,
+                        headers={
+                            "User-Agent": BROWSER_UA,
+                            "Accept-Language": "th-TH,th;q=0.9,en;q=0.8",
+                            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                        }
+                    )
+                    with _build_safe_opener().open(pdp_req, timeout=12) as pdp_resp:
+                        pdp_html = pdp_resp.read(600_000).decode("utf-8", errors="ignore")
+                        modern_data = _extract_tiktok_modern_data(pdp_html)
+                        if modern_data.get("title"):
+                            title = modern_data["title"]
+                        if modern_data.get("price"):
+                            price = modern_data["price"]
+                        if modern_data.get("description"):
+                            description = modern_data["description"]
+                            metadata_source = "ssr_json"
+                        if modern_data.get("specs"):
+                            specs = modern_data["specs"]
+                        for m_img in modern_data.get("images", []):
+                            if m_img not in images:
+                                images.append(m_img)
+                except Exception as pdp_err:
+                    print(f"[ProductScraper] Desktop PDP probe note: {pdp_err}")
+
         try:
             req = urllib.request.Request(
                 resolved_url,
@@ -779,7 +1013,7 @@ class ProductScraper:
                 raw_html = resp.read(600_000).decode("utf-8", errors="ignore")
 
                 # Check TikTok SSR JSON data first (highest fidelity structured data)
-                if platform == "tiktok":
+                if platform == "tiktok" and not description:
                     modern_data = _extract_tiktok_modern_data(raw_html)
                     if modern_data.get("title"):
                         title = modern_data["title"]
@@ -867,26 +1101,47 @@ class ProductScraper:
         if platform == "tiktok" and not description:
             rendered = _scrape_rendered_page(resolved_url)
             rendered_text = rendered.get("raw_text", "")
-            if rendered_text:
+            if rendered_text and not rendered.get("login_required") and not rendered.get("challenge"):
                 rendered_title = rendered.get("title", "")
-                if rendered_title and rendered_title.lower() not in {"security check", "verify to continue"}:
+                if rendered_title and not _looks_like_login_page(rendered_title, ""):
                     title = rendered_title
-                raw_text = rendered_text
-                description = rendered_text[:MAX_RENDERED_DESCRIPTION_CHARS]
+
+                desc_candidate = rendered.get("desc_elem") or rendered_text
+                cleaned_desc = _clean_rendered_description(desc_candidate)
+                if cleaned_desc:
+                    description = cleaned_desc
+
+                extracted_specs = _extract_specs_from_text(desc_candidate)
+                if extracted_specs:
+                    specs = extracted_specs
+
+                if rendered.get("price") and not price:
+                    price = rendered.get("price")
+
+                raw_text = f"{title}\n{description}".strip()
                 metadata_source = "browser_dom"
-                for image in rendered.get("images", []):
-                    if image not in images and len(images) < 20:
-                        images.append(image)
+                images = _deduplicate_and_filter_images(images + rendered.get("images", []))[:20]
             else:
                 raw_warn = rendered.get("warning", "")
                 if raw_warn and ("Target page" in raw_warn or "exitCode" in raw_warn or "launch_persistent_context" in raw_warn):
                     raw_warn = "เปิด browser เพื่ออ่านรายละเอียดสินค้าไม่สำเร็จ (เบราว์เซอร์ไม่พร้อมทำงาน)"
                 source_warning = raw_warn
 
-        clean_title = re.split(r'\s*[-|•]\s*(?:Shopee|TikTok).*$', title, flags=re.I)[0].strip()
-        clean_title = clean_title.split("|")[0].split("- Shopee")[0].split("- TikTok")[0].strip()
+        # Extract additional structured specs from description text
+        desc_specs = _extract_specs_from_text(description)
+        if desc_specs:
+            existing_names = {s.get("name") if isinstance(s, dict) else s.split(":")[0].strip().lstrip("·•- ") for s in specs}
+            for ds in desc_specs:
+                ds_key = ds.split(":")[0].strip().lstrip("·•- ")
+                if ds_key not in existing_names:
+                    specs.append(ds)
+                    existing_names.add(ds_key)
+
+        clean_title = _clean_title(title)
         if not clean_title or re.fullmatch(r'[\d_]+', clean_title):
             clean_title = "สินค้าแนะนำ"
+
+        final_images = _deduplicate_and_filter_images(images)[:20]
 
         if not raw_text or re.fullmatch(r'[\d_]+', raw_text):
             raw_text = f"{clean_title}\n{description}".strip() if description else clean_title
@@ -897,7 +1152,7 @@ class ProductScraper:
             "platform": platform,
             "price_note": price or "ราคาพิเศษในตะกร้า",
             "description": description[:MAX_RENDERED_DESCRIPTION_CHARS] if description else RENDERED_SOURCE_FALLBACK,
-            "images": images,
+            "images": final_images,
             "specs": specs,
             "selling_points": selling_points,
             "raw_text": raw_text,

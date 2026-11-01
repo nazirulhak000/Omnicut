@@ -79,6 +79,8 @@ export default function Toolbar({
   onZoomToFit,
   snapEnabled,
   onToggleSnap,
+  trackLinkageEnabled = true,
+  onToggleTrackLinkage = null,
   beatSnapEnabled = false,
   onToggleBeatSnap,
   beatGridAvailable = false,
@@ -237,6 +239,16 @@ export default function Toolbar({
           onClick={onToggleSnap}
           active={snapEnabled}
         />
+        {onToggleTrackLinkage && (
+          <ToolButton
+            icon={trackLinkageEnabled ? Link2 : Unlink}
+            label={trackLinkageEnabled ? 'เชื่อมแทร็ก' : 'แยกแทร็ก'}
+            hint={trackLinkageEnabled ? 'เชื่อมแทร็ก (ขยับซับและสติกเกอร์ตามคลิปหลัก)' : 'แยกแทร็กอิสระ'}
+            shortcut="Ctrl+L"
+            onClick={onToggleTrackLinkage}
+            active={trackLinkageEnabled}
+          />
+        )}
         {/* Dead-air trimming. Disabled without a voiceover rather than hidden,
             so the capability is discoverable and the tooltip can say what it
             needs. The label names the action, not the finding: pressing it

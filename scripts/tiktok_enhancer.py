@@ -18,9 +18,30 @@ from typing import Dict, List, Optional, Union
 
 logger = logging.getLogger("omnicut.tiktok_enhancer")
 
+# CapCut 7.1 gpu_driver_bug_list.json hardware decoder/encoder blacklist
+CAPCUT_GPU_DRIVER_BUG_LIST: Dict[str, List[str]] = {
+    "0x8086": ["0x041e", "0x0412", "0x0416", "0x0a26", "0x5912", "0x591b"],
+    "0x10de": ["0x0f00", "0x1cb6"],
+}
+
+
+def is_gpu_driver_blacklisted(vendor_id: Optional[str] = None, device_id: Optional[str] = None) -> bool:
+    """Return True if the GPU vendor/device is in CapCut 7.1's hardware bug list."""
+    v = (vendor_id or os.environ.get("OMNICUT_GPU_VENDOR_ID") or "").strip().lower()
+    d = (device_id or os.environ.get("OMNICUT_GPU_DEVICE_ID") or "").strip().lower()
+    if not v or not d:
+        return False
+    if not v.startswith("0x"):
+        v = f"0x{v}"
+    if not d.startswith("0x"):
+        d = f"0x{d}"
+    return d in CAPCUT_GPU_DRIVER_BUG_LIST.get(v, [])
+
 
 def check_nvenc_support() -> bool:
     """Check if NVIDIA NVENC hardware encoder is available."""
+    if is_gpu_driver_blacklisted():
+        return False
     try:
         ffmpeg_bin = shutil.which("ffmpeg") or "ffmpeg"
         res = subprocess.run([ffmpeg_bin, "-encoders"], capture_output=True, text=True, check=False)
@@ -82,12 +103,18 @@ def probe_audio_codec(input_path: Path) -> Optional[str]:
     return None
 
 
+def capcut_splendor_vibrance_saturation(base_saturation: float = 1.04, vibrance: float = 0.0) -> float:
+    """CapCut 7.1 Skin-Tone Protected Vibrance multiplier (`AmazingFeature_splendor`)."""
+    v = max(-0.5, min(0.5, float(vibrance or 0.0)))
+    return round(max(0.2, float(base_saturation) * (1.0 + v * 0.65)), 4)
+
+
 def enhance_video_for_tiktok(
     input_path: Union[str, Path],
     output_path: Optional[Union[str, Path]] = None,
     *,
-    crf: int = 18,
-    unsharp: str = "5:5:0.8:5:5:0.3",
+    crf: int = 17,
+    unsharp: str = "lx=3:ly=3:la=0.8:cx=3:cy=3:ca=0.0",
     contrast: float = 1.04,
     brightness: float = -0.015,
     saturation: float = 1.04,
@@ -128,7 +155,7 @@ def enhance_video_for_tiktok(
         "-color_trc", "bt709",
         "-colorspace", "bt709",
         "-g", str(gop),
-        "-bf", "2",
+        "-bf", "1",
     ]
     x264_args = [
         "-c:v", "libx264",
@@ -141,7 +168,7 @@ def enhance_video_for_tiktok(
         "-crf", str(crf),
         "-preset", preset,
         "-g", str(gop),
-        "-bf", "2",
+        "-bf", "1",
     ]
 
     def build_cmd(video_codec_args: List[str]) -> List[str]:

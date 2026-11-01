@@ -589,3 +589,11 @@ def process_background_isolation_video(
             kill_process_tree(proc)
         if staged.exists():
             shutil.rmtree(staged)
+
+
+# CapCut 7.1 Resolution-Independent Stroke Normalization (DilateErode.lua, E5)
+STROKE_NORM_BASE = 720.0
+
+def calculate_normalized_stroke(base_stroke: float = 14.0, width: int = 1080, height: int = 1920) -> int:
+    scale_norm = min(width, height) / STROKE_NORM_BASE
+    return int(round(base_stroke * scale_norm))

@@ -85,11 +85,25 @@ def _is_contained(path: Path, root: Path) -> bool:
         return False
 
 
+_MEDIA_ROOTS = (
+    "00_Inbox", "01_Raw", "02_Assets", "03_Projects", "04_Exports",
+    "05_Covers_Thumbnails", "06_Archive",
+)
+
+
 def _resolve_media(raw_path: str) -> Path:
     """Same absolute-or-BASE_DIR-relative rule as stream_media()/build_filmstrip()."""
     target = Path(urllib.parse.unquote(raw_path))
     if not target.is_absolute():
         target = BASE_DIR / target
+    elif not (_is_contained(target, BASE_DIR.resolve()) or _is_contained(target, CAPCUT_DRAFT_DIR.resolve())):
+        for root_name in _MEDIA_ROOTS:
+            if root_name in target.parts:
+                idx = target.parts.index(root_name)
+                candidate = BASE_DIR.joinpath(*target.parts[idx:])
+                if candidate.exists() and _is_contained(candidate.resolve(), BASE_DIR.resolve()):
+                    target = candidate
+                    break
     target = target.resolve()
     if not (_is_contained(target, BASE_DIR.resolve()) or _is_contained(target, CAPCUT_DRAFT_DIR.resolve())):
         raise HTTPException(status_code=403, detail="Access denied")

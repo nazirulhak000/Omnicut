@@ -640,3 +640,53 @@ export function resolveSnapCandidateLabel(snappedTime, { playhead, segments = []
   return 'จุดตัด (Snap)';
 }
 
+
+export { generateSmartCameraKeyframes } from './keyframeModel.js';
+
+/**
+ * CapCut 7.1 High-Speed Transition Presets (`Resources/lumi_js_resources_video`).
+ * Note: IDs use snake_case so `test_transition_catalogs_are_identical` keeps
+ * checking pure XFADE_TRANSITIONS while these presets map cleanly to xfade + camera shake.
+ */
+export const CAPCUT_HIGH_SPEED_TRANSITIONS = Object.freeze([
+  { id: 'whip_pan', label: 'เหวี่ยงกล้อง (Whip Pan)', xfade: 'slideleft', duration: 0.25, easing: 'ease_in_out' },
+  { id: 'zoom_in_punch', label: 'พุ่งซูมกระแทก (Zoom Punch)', xfade: 'circleopen', duration: 0.22, easing: 'ease_out' },
+  { id: 'flash_white', label: 'แฟลชขาวไวรัล (Flash White)', xfade: 'fadewhite', duration: 0.18, easing: 'ease_out' },
+  { id: 'glitch_shake', label: 'สั่นกลิตช์ (Glitch Shake)', xfade: 'dissolve', duration: 0.20, easing: 'linear' },
+]);
+
+/**
+ * CapCut 7.1 Damped Harmonic Camera Shake (`Resources/lumi_js_resources_video/js/video/video.js`).
+ * Returns { dx, dy } in normalized pan coordinates [-1..1] at elapsed seconds `t`.
+ */
+export function capcutDampedCameraShake(t, freq = 14.0, decay = 6.0, amplitude = 0.08) {
+  const sec = Math.max(0, Number(t) || 0);
+  if (sec > 1.2) return { dx: 0, dy: 0 };
+  const env = Math.exp(-Number(decay) * sec) * Number(amplitude);
+  const omega = 2.0 * Math.PI * Number(freq);
+  return {
+    dx: Math.round(env * Math.sin(omega * sec) * 1e6) / 1e6,
+    dy: Math.round(env * Math.cos(omega * 0.85 * sec) * 0.65 * 1e6) / 1e6,
+  };
+}
+
+/**
+ * Build a clip patch for a CapCut 7.1 High-Speed Transition preset (sets xfade + damped camera shake keyframes).
+ */
+export function applyCapcutHighSpeedTransition(clip, presetId = 'whip_pan') {
+  const preset = CAPCUT_HIGH_SPEED_TRANSITIONS.find((p) => p.id === presetId) || CAPCUT_HIGH_SPEED_TRANSITIONS[0];
+  const s0 = capcutDampedCameraShake(0.02);
+  const s1 = capcutDampedCameraShake(0.10);
+  const shakeKfs = [
+    { time: 0, zoom: preset.id === 'zoom_in_punch' ? 1.18 : 1.08, pan_x: s0.dx, pan_y: s0.dy, easing: 'ease_out' },
+    { time: 0.12, zoom: 1.03, pan_x: s1.dx, pan_y: s1.dy, easing: 'ease_out' },
+    { time: 0.28, zoom: clip?.zoom ?? 1.0, pan_x: clip?.pan_x ?? 0, pan_y: clip?.pan_y ?? 0, easing: 'ease_in_out' },
+  ];
+  return {
+    transition_in: preset.xfade,
+    transition_duration: preset.duration,
+    transition_easing: preset.easing,
+    capcut_transition_preset: preset.id,
+    keyframes: shakeKfs,
+  };
+}

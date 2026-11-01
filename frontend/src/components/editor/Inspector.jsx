@@ -31,7 +31,8 @@ import { resolveSelectedItem } from '../../lib/selectionResolver.js';
 export const RENDER_CLIP_FIELDS = [
   'bg_blur', 'brightness', 'contrast', 'fit_mode', 'freeze_tail', 'mirror',
   'pan_x', 'pan_y', 'rotation', 'saturation', 'smooth_slowmo', 'speed',
-  'trim_end', 'trim_start', 'volume', 'zoom', 'source_window',
+  'trim_end', 'trim_start', 'volume', 'zoom', 'source_window', 'temperature', 'gamma',
+  'shadows', 'highlights', 'vibrance', 'vignette', 'capcut_transition_preset',
 ];
 
 export default function Inspector({

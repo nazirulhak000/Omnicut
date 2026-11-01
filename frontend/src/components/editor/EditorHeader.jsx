@@ -29,6 +29,8 @@ export default function EditorHeader({
   toggleLeftSidebar,
   rightSidebarCollapsed = false,
   toggleRightSidebar,
+  isFocusMode,
+  toggleFocusMode,
   zen = false,
   setZen,
   resetPanelSizes,
@@ -50,6 +52,8 @@ export default function EditorHeader({
   showWatermark = true,
   onToggleWatermark,
   onOpenShortcuts,
+  isAgentOpen = false,
+  onToggleAgent,
 }) {
   const [showPlaybookModal, setShowPlaybookModal] = React.useState(false);
   const playbookNotes = React.useMemo(() => loadPlaybookNotes(), [showPlaybookModal]);
@@ -136,6 +140,20 @@ export default function EditorHeader({
           </button>
           <button
             type="button"
+            onClick={toggleFocusMode}
+            disabled={!projectName || zen}
+            title={zen ? 'ปิดโหมดเต็มจอก่อน (Esc)' : (isFocusMode ?? (leftSidebarCollapsed && rightSidebarCollapsed)) ? 'ออกจากโหมดโฟกัส (เปิดพาเนลข้าง)' : 'เข้าโหมดโฟกัส (ซ่อนพาเนลข้างทั้งหมด)'}
+            className={`h-7 px-2 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 ${
+              (isFocusMode ?? (leftSidebarCollapsed && rightSidebarCollapsed))
+                ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Columns3 className="h-3.5 w-3.5" />
+            <span className="text-[11px]">โฟกัส</span>
+          </button>
+          <button
+            type="button"
             onClick={toggleRightSidebar}
             disabled={!projectName || zen}
             title={zen ? 'ปิดโหมดเต็มจอก่อน (Esc)' : rightSidebarCollapsed ? 'เปิดแถบขวา (คำบรรยาย)' : 'ซ่อนแถบขวา'}
@@ -159,6 +177,22 @@ export default function EditorHeader({
         >
           <Sparkles className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">คลิปใหม่</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onToggleAgent}
+          data-testid="toggle-ai-agent-btn"
+          title="สั่งงาน Antigravity AI Agent (Ctrl+K)"
+          className={`flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition-all cursor-pointer ${
+            isAgentOpen
+              ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+              : 'border-white/[0.12] bg-white/[0.04] text-slate-300 hover:border-emerald-500/40 hover:text-white'
+          }`}
+        >
+          <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+          <span className="hidden sm:inline">สั่งงาน AI Agent</span>
+          <span className="hidden lg:inline text-[10px] text-slate-400 font-mono bg-black/40 px-1 py-0.5 rounded">Ctrl+K</span>
         </button>
 
         <ActivityIndicatorButton className="hidden h-9 md:flex" />
@@ -227,6 +261,7 @@ export default function EditorHeader({
             <span className="hidden sm:inline">บันทึก</span>
           </button>
         )}
+
 
         {projectName && (
           <button

@@ -109,6 +109,18 @@ export function usePanelLayout({ mobileTimelineH = 0 } = {}) {
     });
   }, []);
 
+  const isFocusMode = Boolean(leftSidebarCollapsed && rightSidebarCollapsed);
+
+  const toggleFocusMode = useCallback(() => {
+    const shouldCollapse = !(leftSidebarCollapsed && rightSidebarCollapsed);
+    setLeftSidebarCollapsed(shouldCollapse);
+    setRightSidebarCollapsed(shouldCollapse);
+    try {
+      localStorage.setItem('editor.leftSidebarCollapsed', String(shouldCollapse));
+      localStorage.setItem('editor.rightSidebarCollapsed', String(shouldCollapse));
+    } catch (_) {}
+  }, [leftSidebarCollapsed, rightSidebarCollapsed]);
+
   // Mobile preview height
   const [mobilePreviewH, setMobilePreviewH] = useState(() => {
     const fallback = Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT);
@@ -177,5 +189,7 @@ export function usePanelLayout({ mobileTimelineH = 0 } = {}) {
     activeSplitter,
     setActiveSplitter,
     resetPanelSizes,
+    isFocusMode,
+    toggleFocusMode,
   };
 }

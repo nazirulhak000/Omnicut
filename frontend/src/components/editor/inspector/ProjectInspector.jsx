@@ -6,6 +6,9 @@ import {
   clampBusVolume,
   SFX_VOLUME_DEFAULT,
   VOICE_VOLUME_DEFAULT,
+  TARGET_LUFS,
+  amplitudeToLufs,
+  calculateLoudnessGain,
 } from '../../../lib/audioBusLevels.js';
 
 // `level` = a per-project gain slider (L4-05). BGM keeps its slider in the
@@ -159,7 +162,7 @@ export default function ProjectInspector({
                     className="flex-1 accent-[#25F4EE] cursor-pointer"
                   />
                   <span className="w-9 text-right font-mono text-[10px] text-slate-300">
-                    {Math.round(levelValue * 100)}%
+                    {Math.round(levelValue * 100)}% · {amplitudeToLufs(levelValue * 0.2).toFixed(1)} LUFS
                   </span>
                   <button
                     type="button"
@@ -175,6 +178,43 @@ export default function ProjectInspector({
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* CapCut 7.1 Loudness (-14 LUFS) & Voice Clarity / RNNoise Chain */}
+      <div className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] space-y-2">
+        <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+          <span>ปรับความดังและกรองเสียงพูด (CapCut 7.1)</span>
+          <span className="font-mono text-[10px] text-[#25F4EE]">เป้าหมาย {TARGET_LUFS.toFixed(1)} LUFS</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            disabled={!onStyleChange}
+            onClick={() => {
+              const voiceCurLufs = amplitudeToLufs(clampBusVolume(style?.voiceVolume, VOICE_VOLUME_DEFAULT) * 0.2);
+              const gain = calculateLoudnessGain(voiceCurLufs, TARGET_LUFS);
+              onStyleChange?.({
+                voiceVolume: clampBusVolume(clampBusVolume(style?.voiceVolume, VOICE_VOLUME_DEFAULT) * gain, VOICE_VOLUME_DEFAULT),
+                sfxVolume: SFX_VOLUME_DEFAULT,
+              });
+            }}
+            className="py-1.5 px-2 rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 text-xs font-bold text-[#25F4EE] transition-colors cursor-pointer"
+          >
+            ปรับเสียงมาตรฐาน -14 LUFS
+          </button>
+          <button
+            type="button"
+            disabled={!onStyleChange}
+            onClick={() => onStyleChange?.({ voiceClarity: !style?.voiceClarity })}
+            className={`py-1.5 px-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+              style?.voiceClarity
+                ? 'border-emerald-400/50 bg-emerald-500/20 text-emerald-300'
+                : 'border-white/[0.1] bg-black/40 text-slate-300 hover:text-white'
+            }`}
+          >
+            {style?.voiceClarity ? 'ปิดเสียงใสตัดนอยส์' : 'เปิดเสียงใสตัดนอยส์'}
+          </button>
         </div>
       </div>
 

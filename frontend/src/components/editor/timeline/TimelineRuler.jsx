@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { FPS, formatTimecode } from '../../../lib/timelineMath';
 import { frameTickSpacing } from '../../../lib/timelineTrackModel';
 import { formatPreflightTime } from '../../../lib/renderPreflight';
@@ -25,7 +25,7 @@ function tickLayer(period, height, widthPx) {
   };
 }
 
-export default function TimelineRuler({
+function TimelineRuler({
   gutterW,
   rulerHeight = 22,
   ticks = [],
@@ -139,3 +139,5 @@ export default function TimelineRuler({
     </div>
   );
 }
+
+export default memo(TimelineRuler);

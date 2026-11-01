@@ -119,8 +119,11 @@ export default function TimelineClip({
   // clips before it); only how far the box's right edge retreats does. So
   // snapping is applied to that shared edge for both handles, converted back
   // into the trim value that produces it.
-  const snapToEdge = (rawNext, sourceOtherBound) => {
-    if (!snapCandidates.length) return rawNext;
+  const snapToEdge = (rawNext, sourceOtherBound, e) => {
+    if (!snapCandidates.length || e?.ctrlKey || e?.metaKey || e?.shiftKey) {
+      onSnapGuide?.(null);
+      return rawNext;
+    }
     const dragPlayhead = dragRef.current?.startPlayhead ?? playhead;
     const candidates = freezePlayheadCandidate(snapCandidates, playhead, dragPlayhead);
     // rawNext/sourceOtherBound are source-domain trim values; the edge that
@@ -156,7 +159,7 @@ export default function TimelineClip({
         Math.max(0, d.startTrimStart + deltaSource),
         d.startTrimEnd - MIN_CLIP_DURATION * speed,
       );
-      const snapped = snapToEdge(next, d.startTrimEnd);
+      const snapped = snapToEdge(next, d.startTrimEnd, e);
       if (snapped >= 0 && snapped <= d.startTrimEnd - MIN_CLIP_DURATION * speed) next = snapped;
       // Whole 30 fps frame (still stored in seconds); clamped back inside the
       // same bounds so rounding can never shrink the clip under its minimum.
@@ -171,7 +174,7 @@ export default function TimelineClip({
         d.startTrimStart + MIN_CLIP_DURATION * speed,
       );
       const maxNext = seg.srcDur || d.startTrimEnd;
-      const snapped = snapToEdge(next, d.startTrimStart);
+      const snapped = snapToEdge(next, d.startTrimStart, e);
       if (snapped >= d.startTrimStart + MIN_CLIP_DURATION * speed && snapped <= maxNext) next = snapped;
       const atSourceEnd = seg.srcDur && next >= seg.srcDur - 0.05;
       const finalVal = atSourceEnd

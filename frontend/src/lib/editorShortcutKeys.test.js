@@ -227,7 +227,8 @@ test('SHORTCUT_GROUPS: every probed row is what classifyShortcut really returns'
     }
   }
   // 32 before keyframe shortcuts; + D, comma, dot keyframe navigation; + Shift+Z zoomFit.
-  assert.equal(probed, 37, 'every classifyShortcut-backed row keeps its probes');
+  // 37 before CapCut 7.1 shortcuts; + Ctrl+L linkage (2 probes); + Ctrl+G / Ctrl+Shift+G compound (2 probes).
+  assert.equal(probed, 41, 'every classifyShortcut-backed row keeps its probes');
 });
 
 test('SHORTCUT_GROUPS: rows are well formed, keys are unique, and there is no tab 6', () => {

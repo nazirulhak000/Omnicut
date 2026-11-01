@@ -1,1981 +1,4833 @@
 <!doctype html>
+
 <html lang="th" data-theme="dark">
+
 <head>
+
 <meta charset="utf-8" />
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
 <title>OmniCut TikTok Post Helper</title>
+
 <style>
+
   /* Local Anuphan Fonts for All Weights (Matched to Comment Reply Extension) */
+
   @font-face {
+
     font-family: 'Anuphan';
+
     font-style: normal;
+
     font-weight: 300;
+
     font-display: swap;
+
     src: url('fonts/anuphan-thai.woff2') format('woff2');
+
     unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+
   }
+
   @font-face {
+
     font-family: 'Anuphan';
+
     font-style: normal;
+
     font-weight: 300;
+
     font-display: swap;
+
     src: url('fonts/anuphan-latin.woff2') format('woff2');
+
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+
   }
+
   @font-face {
+
     font-family: 'Anuphan';
+
     font-style: normal;
+
     font-weight: 400;
+
     font-display: swap;
+
     src: url('fonts/anuphan-thai.woff2') format('woff2');
+
     unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+
   }
+
   @font-face {
+
     font-family: 'Anuphan';
+
     font-style: normal;
+
     font-weight: 400;
+
     font-display: swap;
+
     src: url('fonts/anuphan-latin.woff2') format('woff2');
+
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+
   }
+
   @font-face {
+
     font-family: 'Anuphan';
+
     font-style: normal;
+
     font-weight: 500;
+
     font-display: swap;
+
     src: url('fonts/anuphan-thai.woff2') format('woff2');
+
     unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+
   }
+
   @font-face {
+
     font-family: 'Anuphan';
+
     font-style: normal;
+
     font-weight: 500;
+
     font-display: swap;
+
     src: url('fonts/anuphan-latin.woff2') format('woff2');
+
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+
   }
+
   @font-face {
+
     font-family: 'Anuphan';
+
     font-style: normal;
+
     font-weight: 600;
+
     font-display: swap;
+
     src: url('fonts/anuphan-thai.woff2') format('woff2');
+
     unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+
   }
+
   @font-face {
+
     font-family: 'Anuphan';
+
     font-style: normal;
+
     font-weight: 600;
+
     font-display: swap;
+
     src: url('fonts/anuphan-latin.woff2') format('woff2');
+
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+
   }
+
   @font-face {
+
     font-family: 'Anuphan';
+
     font-style: normal;
+
     font-weight: 700;
+
     font-display: swap;
+
     src: url('fonts/anuphan-thai.woff2') format('woff2');
+
     unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+
   }
+
   @font-face {
+
     font-family: 'Anuphan';
+
     font-style: normal;
+
     font-weight: 700;
+
     font-display: swap;
+
     src: url('fonts/anuphan-latin.woff2') format('woff2');
+
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+
   }
+
   @font-face {
+
     font-family: 'Anuphan';
+
     font-style: normal;
+
     font-weight: 800;
+
     font-display: swap;
+
     src: url('fonts/anuphan-thai.woff2') format('woff2');
+
     unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+
   }
+
   @font-face {
+
     font-family: 'Anuphan';
+
     font-style: normal;
+
     font-weight: 800;
+
     font-display: swap;
+
     src: url('fonts/anuphan-latin.woff2') format('woff2');
+
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+
   }
 
   :root {
+
     color-scheme: light;
+
     --ink: #0f172a;
+
     --ink-secondary: #334155;
+
     --muted: #64748b;
+
     --subtle: #94a3b8;
+
     --line: #e2e8f0;
+
     --line-strong: #cbd5e1;
+
     --canvas: #f8fafc;
+
     --surface: #ffffff;
+
     --input-bg: #ffffff;
+
     --subtle-bg: #f8fafc;
+
     --step-bg: #ffffff;
 
     /* TikTok Crimson & Gradients */
+
     --rose: #fe2c55;
+
     --rose-hover: #e01e47;
+
     --rose-gradient: linear-gradient(135deg, #fe2c55 0%, #ff0050 50%, #e01e47 100%);
+
     --rose-glow: 0 4px 14px rgba(254, 44, 85, 0.28);
+
     --rose-tint: #fff1f3;
+
     --rose-border: #fecdd3;
 
     /* Neon Accents & Functional Colors */
+
     --cyan: #25f4ee;
+
     --cyan-tint: #f0fdfa;
+
     --cyan-border: #99f6e4;
+
     --cyan-dark: #0d9488;
+
     --cyan-glow: 0 4px 14px rgba(37, 244, 238, 0.28);
 
     --success: #10b981;
+
     --success-tint: #ecfdf5;
+
     --success-border: #a7f3d0;
+
     --warning: #f59e0b;
+
     --warning-tint: #fffbeb;
+
     --warning-border: #fde68a;
+
     --danger: #ef4444;
+
     --danger-tint: #fef2f2;
+
     --danger-border: #fecaca;
+
     --focus: #3b82f6;
 
     /* Elevation Shadows */
+
     --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+
     --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+
     --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+
     --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.03);
 
     /* Radii & Motion */
+
     --radius-xl: 16px;
+
     --radius-lg: 12px;
+
     --radius-md: 9px;
+
     --radius-sm: 6px;
+
     --radius-pill: 999px;
+
     --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
   }
 
   :root[data-theme="dark"], body[data-theme="dark"] {
+
     color-scheme: dark;
+
     --ink: #f8fafc;
+
     --ink-secondary: #cbd5e1;
+
     --muted: #94a3b8;
+
     --subtle: #64748b;
+
     --line: rgba(255, 255, 255, 0.09);
+
     --line-strong: rgba(255, 255, 255, 0.18);
+
     --canvas: #0b0f19;
+
     --surface: #111827;
+
     --input-bg: #1e293b;
+
     --subtle-bg: #151d2f;
+
     --step-bg: #131b2e;
 
     /* TikTok Crimson & Gradients */
+
     --rose-tint: rgba(254, 44, 85, 0.16);
+
     --rose-border: rgba(254, 44, 85, 0.36);
 
     /* Neon Accents & Functional Colors */
+
     --cyan: #25f4ee;
+
     --cyan-tint: rgba(37, 244, 238, 0.14);
+
     --cyan-border: rgba(37, 244, 238, 0.35);
+
     --cyan-dark: #25f4ee;
 
     --success: #34d399;
+
     --success-tint: rgba(16, 185, 129, 0.16);
+
     --success-border: rgba(16, 185, 129, 0.35);
+
     --warning: #fbbf24;
+
     --warning-tint: rgba(245, 158, 11, 0.16);
+
     --warning-border: rgba(245, 158, 11, 0.35);
+
     --danger: #f87171;
+
     --danger-tint: rgba(239, 68, 68, 0.16);
+
     --danger-border: rgba(239, 68, 68, 0.35);
 
     /* Elevation Shadows */
+
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.35);
+
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.55), 0 2px 4px -2px rgba(0, 0, 0, 0.45);
+
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.65), 0 4px 6px -4px rgba(0, 0, 0, 0.35);
+
   }
 
   * { box-sizing: border-box; }
 
+  [hidden] { display: none !important; }
+
   ::selection { background: var(--rose-tint); color: var(--rose); }
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }
+
   ::-webkit-scrollbar-track { background: transparent; }
+
   ::-webkit-scrollbar-thumb {
+
     background: rgba(148, 163, 184, 0.35);
+
     border-radius: var(--radius-pill);
+
   }
+
   ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.55); }
 
   html, body {
+
     min-width: 310px;
+
     min-height: 100%;
+
     margin: 0;
+
     padding: 0;
+
     background: var(--canvas);
+
     color: var(--ink);
+
     font-family: "Anuphan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
     font-size: 13px;
+
     line-height: 1.5;
+
     -webkit-font-smoothing: antialiased;
+
     -moz-osx-font-smoothing: grayscale;
+
   }
 
   button, textarea, input, select {
+
     font-family: "Anuphan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
     font-size: inherit;
+
   }
+
   button { cursor: pointer; }
+
   button:disabled { cursor: not-allowed; }
+
   button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visible {
+
     outline: 2px solid var(--rose);
+
     outline-offset: 2px;
+
   }
 
   /* ---- HEADER: Deep Obsidian with Frosted Glass (Exact Match) ---- */
+
   .app-header, .studio-bar {
+
     position: relative;
+
     z-index: 20;
+
     color: #fff;
+
     background: #0b0f19;
+
     background-image: radial-gradient(circle at 100% 0%, rgba(37, 244, 238, 0.14) 0%, transparent 40%),
+
                       radial-gradient(circle at 0% 100%, rgba(254, 44, 85, 0.16) 0%, transparent 45%);
+
     padding: 14px 16px 13px;
+
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
   }
+
   .app-header::after, .studio-bar::after {
+
     content: "";
+
     position: absolute;
+
     bottom: 0;
+
     left: 0;
+
     width: 100%;
+
     height: 2px;
+
     background: linear-gradient(90deg, var(--cyan) 0%, #25f4ee 25%, #fe2c55 75%, #ff0050 100%);
+
     opacity: 0.9;
+
   }
 
   .brand-row {
+
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
+
     gap: 10px;
+
   }
+
   .brand-meta {
+
     display: flex;
+
     align-items: center;
+
     gap: 11px;
+
     min-width: 0;
+
   }
+
   .brand-logo-img, .brand-logo {
+
     width: 34px;
+
     height: 34px;
+
     object-fit: contain;
+
     flex-shrink: 0;
+
     filter: drop-shadow(0 2px 8px rgba(37, 244, 238, 0.45)) drop-shadow(0 4px 12px rgba(254, 44, 85, 0.35));
+
     transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+
   }
+
   .brand-logo-img:hover, .brand-logo:hover {
+
     transform: scale(1.08) rotate(-4deg);
+
   }
+
   .brand-copy, .brand-text {
+
     min-width: 0;
+
     display: flex;
+
     flex-direction: column;
+
   }
+
   .brand-kicker {
+
     display: inline-flex;
+
     align-items: center;
+
     gap: 5px;
+
     color: #94a3b8;
+
     font-size: 9.5px;
+
     font-weight: 700;
+
     letter-spacing: 0.08em;
+
     text-transform: uppercase;
+
   }
-  .brand-kicker::after {
-    content: "v0.2.0";
+
+  .brand-version-pill {
+
     background: rgba(254, 44, 85, 0.2);
+
     color: #ff6b87;
+
     border: 1px solid rgba(254, 44, 85, 0.35);
+
     font-size: 8.5px;
-    padding: 1px 5px;
+
+    font-weight: 700;
+
+    padding: 1px 6px;
+
     border-radius: 999px;
+
     letter-spacing: normal;
+
+    text-transform: none;
+
+    box-shadow: 0 0 8px rgba(254, 44, 85, 0.2);
+
   }
+
   .brand-title, .brand-copy h1 {
+
     margin: 1px 0 0;
+
     font-size: 15.5px;
+
     font-weight: 800;
+
     letter-spacing: -0.02em;
+
     color: #f8fafc;
+
     line-height: 1.25;
+
   }
+
   .brand-subtitle {
+
     display: none;
+
   }
 
   .header-actions {
+
     display: flex;
+
     align-items: center;
+
     gap: 7px;
+
     flex-shrink: 0;
+
   }
+
   .btn-header-tiktok {
+
     background: rgba(255, 255, 255, 0.08);
+
     border: 1px solid rgba(37, 244, 238, 0.45);
+
     color: #e0fefe;
+
     font-size: 11px;
+
     font-weight: 700;
+
     letter-spacing: 0.02em;
+
     padding: 5px 11px;
+
     border-radius: var(--radius-pill);
+
     cursor: pointer;
+
     display: flex;
+
     align-items: center;
+
     gap: 6px;
+
     transition: all 0.2s var(--ease-spring);
+
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+
   }
+
   .btn-header-tiktok:hover {
+
     background: rgba(37, 244, 238, 0.22);
+
     border-color: var(--cyan);
+
     color: #ffffff;
+
     box-shadow: 0 0 14px rgba(37, 244, 238, 0.4);
+
     transform: translateY(-1px);
+
   }
+
   .btn-header-tiktok:active { transform: translateY(0); }
 
   .status-pill {
+
     font-size: 10px;
+
     font-weight: 700;
+
     letter-spacing: 0.04em;
+
     text-transform: uppercase;
+
     padding: 4px 9px;
+
     border-radius: var(--radius-pill);
+
     background: rgba(16, 185, 129, 0.16);
+
     color: #34d399;
+
     border: 1px solid rgba(16, 185, 129, 0.35);
+
     display: flex;
+
     align-items: center;
+
     gap: 5px;
+
     cursor: pointer;
+
     transition: all 0.2s var(--ease-spring);
+
     user-select: none;
+
   }
+
   .status-pill.is-online {
+
     background: rgba(16, 185, 129, 0.16);
+
     color: #34d399;
+
     border-color: rgba(16, 185, 129, 0.35);
+
   }
+
   .status-pill.is-offline {
+
     background: rgba(239, 68, 68, 0.16);
+
     color: #f87171;
+
     border-color: rgba(239, 68, 68, 0.35);
+
   }
+
   .status-pill.is-checking {
+
     background: rgba(245, 158, 11, 0.16);
+
     color: #fbbf24;
+
     border-color: rgba(245, 158, 11, 0.35);
+
   }
+
   .status-dot-green, .pill-dot, .pill-dot.is-online {
+
     width: 6px;
+
     height: 6px;
+
     border-radius: var(--radius-pill);
+
     background: #10b981;
+
     box-shadow: 0 0 8px #10b981;
+
     transition: all 0.2s;
+
   }
+
   .status-pill.is-offline .pill-dot, .pill-dot.is-offline {
+
     background: #ef4444;
+
     box-shadow: 0 0 8px #ef4444;
+
   }
+
   .status-pill.is-checking .pill-dot, .pill-dot.is-checking {
+
     background: #f59e0b;
+
     box-shadow: 0 0 8px #f59e0b;
+
   }
+
   .btn-gear-settings {
+
     background: rgba(255, 255, 255, 0.06);
+
     border: 1px solid rgba(255, 255, 255, 0.14);
+
     color: #94a3b8;
+
     cursor: pointer;
+
     padding: 5px;
+
     border-radius: var(--radius-pill);
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     transition: all 0.2s;
+
   }
+
   .btn-gear-settings:hover {
+
     color: #ffffff;
+
     background: rgba(255, 255, 255, 0.15);
+
     border-color: rgba(255, 255, 255, 0.3);
+
   }
 
   /* ---- API Key settings drawer ---- */
+
   #apiKeySettingsRow {
+
     display: none;
+
     align-items: center;
+
     gap: 8px;
+
     padding: 10px 16px;
+
     background: #0f172a;
+
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
     animation: drawer-slide 0.2s var(--ease-spring);
+
   }
+
   #apiKeySettingsRow.is-open { display: flex; }
+
   @keyframes drawer-slide {
+
     from { opacity: 0; transform: translateY(-4px); }
+
     to { opacity: 1; transform: translateY(0); }
+
   }
+
   #apiKeyInput {
+
     flex: 1;
+
     background: #1e293b;
+
     border: 1px solid rgba(255, 255, 255, 0.14);
+
     color: #f8fafc;
+
     border-radius: var(--radius-sm);
+
     padding: 6px 10px;
+
     font-size: 11.5px;
+
     font-family: inherit;
+
   }
+
   #apiKeyInput:focus {
+
     outline: none;
+
     border-color: var(--cyan);
+
   }
 
   /* ---- Segmented Switch (Pill Navigation Tabs) ---- */
+
   .segmented-switch {
+
     display: grid;
+
     grid-template-columns: repeat(3, 1fr);
+
     gap: 4px;
+
     background: var(--surface);
+
     border: 1px solid var(--line);
+
     border-radius: var(--radius-pill);
+
     padding: 4px;
+
     margin: 14px 14px 12px;
+
     box-shadow: var(--shadow-sm);
+
   }
+
   .switch-btn {
+
     background: transparent;
+
     border: none;
+
     color: var(--muted);
+
     border-radius: var(--radius-pill);
+
     padding: 8px 10px;
+
     font-size: 12.5px;
+
     font-weight: 600;
+
     cursor: pointer;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     gap: 6px;
+
     transition: all 0.2s var(--ease-spring);
+
   }
+
   .switch-btn svg {
+
     transition: transform 0.2s var(--ease-spring);
+
     stroke: currentColor;
+
     flex-shrink: 0;
+
   }
+
   .switch-btn:hover:not(.active) {
+
     color: var(--ink);
+
     background: rgba(15, 23, 42, 0.04);
+
   }
+
   .switch-btn.active {
+
     color: #ffffff;
+
     background: var(--rose-gradient);
+
     box-shadow: var(--rose-glow);
+
     font-weight: 700;
+
   }
+
   .switch-btn.active svg {
+
     stroke: #ffffff;
+
   }
+
   @media (max-width: 365px) {
+
     .segmented-switch {
+
       margin: 10px 8px 10px;
+
       gap: 2px;
+
       padding: 3px;
+
     }
+
     .switch-btn {
+
       padding: 6px 4px;
+
       font-size: 11px;
+
       gap: 3px;
+
       letter-spacing: -0.01em;
+
     }
+
     .switch-btn svg {
+
       width: 12px;
+
       height: 12px;
+
     }
+
   }
 
   /* ---- Tab Panels Shell ---- */
+
   .tab-panel {
+
     display: none;
+
     padding: 0 14px 24px;
-  }
-  .tab-panel.active {
-    display: block;
-    animation: tab-fade 0.2s var(--ease-spring);
-  }
-  @keyframes tab-fade {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
+
   }
 
-  /* ---- Tab 1: Clip List View ---- */
-  .search-filter-bar {
+  .tab-panel.active {
+
+    display: block;
+
+    animation: tab-fade 0.2s var(--ease-spring);
+
+  }
+
+  @keyframes tab-fade {
+
+    from { opacity: 0; transform: translateY(4px); }
+
+    to { opacity: 1; transform: translateY(0); }
+
+  }
+
+  /* ---- Batch Auto-Post Hero Section (Ultra Pro Dark Glass) ---- */
+
+  .batch-quota-card {
+
+    background: rgba(15, 23, 42, 0.75);
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+
+    border-radius: var(--radius-sm);
+
+    padding: 8px 10px;
+
     display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
+
+    flex-direction: column;
+
+    gap: 7px;
+
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+
   }
-  .search-box {
-    flex: 1;
+
+  .batch-quota-header {
+
     display: flex;
+
     align-items: center;
-    background: var(--surface);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-pill);
-    padding: 0 12px;
-    box-shadow: var(--shadow-xs);
-    transition: border-color 0.2s, box-shadow 0.2s;
+
+    justify-content: space-between;
+
+    font-size: 11px;
+
+    font-weight: 600;
+
+    color: #94a3b8;
+
   }
-  .search-box:focus-within {
-    border-color: var(--rose);
-    box-shadow: 0 0 0 3px rgba(254, 44, 85, 0.12);
-  }
-  .search-box svg {
-    color: var(--muted);
-    flex-shrink: 0;
-    margin-right: 6px;
-  }
-  .search-box input {
-    width: 100%;
-    border: none;
-    outline: none;
-    background: transparent;
-    padding: 8px 0;
-    font-size: 12.5px;
-    color: var(--ink);
-  }
-  .clip-count-badge {
-    background: var(--rose-tint);
-    color: var(--rose);
-    border: 1px solid var(--rose-border);
-    font-size: 10px;
+
+  .batch-quota-title-row {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    color: #e2e8f0;
+
+    font-size: 11px;
+
     font-weight: 700;
-    padding: 2px 7px;
-    border-radius: var(--radius-pill);
-    margin-left: 6px;
-    flex-shrink: 0;
+
   }
-  .btn-icon-refresh {
-    width: 36px;
-    height: 36px;
+
+  .btn-check-quota {
+
+    background: rgba(37, 244, 238, 0.12);
+
+    color: #25f4ee;
+
+    border: 1px solid rgba(37, 244, 238, 0.35);
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    padding: 2.5px 8px;
+
     border-radius: var(--radius-pill);
-    background: var(--surface);
-    border: 1px solid var(--line-strong);
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+
     cursor: pointer;
-    box-shadow: var(--shadow-xs);
-    transition: all 0.2s var(--ease-spring);
-    flex-shrink: 0;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 4px;
+
+    transition: all 0.2s ease;
+
   }
-  .btn-icon-refresh:hover {
-    color: var(--rose);
-    border-color: var(--rose-border);
+
+  .btn-check-quota:hover {
+
+    background: rgba(37, 244, 238, 0.22);
+
+    border-color: #25f4ee;
+
+    box-shadow: 0 0 8px rgba(37, 244, 238, 0.3);
+
+  }
+
+  .btn-check-quota.loading svg {
+
+    animation: quota-spin 0.8s linear infinite;
+
+  }
+
+  @keyframes quota-spin {
+
+    from { transform: rotate(0deg); }
+
+    to { transform: rotate(360deg); }
+
+  }
+
+  .batch-quota-pills {
+
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 7px;
+
+  }
+
+  .quota-pill {
+
+    background: rgba(255, 255, 255, 0.03);
+
+    border: 1px solid rgba(255, 255, 255, 0.07);
+
+    border-radius: 6px;
+
+    padding: 5px 8px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 3px;
+
+  }
+
+  .quota-label {
+
+    font-size: 9.5px;
+
+    color: #94a3b8;
+
+    font-weight: 600;
+
+  }
+
+  .quota-val-row {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+  }
+
+  .quota-value {
+
+    font-size: 12px;
+
+    font-weight: 800;
+
+    color: #f8fafc;
+
+    font-variant-numeric: tabular-nums;
+
+  }
+
+  .quota-badge {
+
+    font-size: 9.5px;
+
+    font-weight: 700;
+
+    padding: 1px 6px;
+
+    border-radius: 999px;
+
+    letter-spacing: 0.02em;
+
+    font-variant-numeric: tabular-nums;
+
+  }
+
+  .quota-badge.success {
+
+    background: rgba(52, 211, 153, 0.18);
+
+    color: #34d399;
+
+    border: 1px solid rgba(52, 211, 153, 0.4);
+
+  }
+
+  .quota-badge.warning {
+
+    background: rgba(251, 191, 36, 0.18);
+
+    color: #fbbf24;
+
+    border: 1px solid rgba(251, 191, 36, 0.4);
+
+  }
+
+  .quota-badge.danger {
+
+    background: rgba(248, 113, 113, 0.2);
+
+    color: #f87171;
+
+    border: 1px solid rgba(248, 113, 113, 0.4);
+
+  }
+
+  .quota-badge.neutral {
+
+    background: rgba(148, 163, 184, 0.14);
+
+    color: #94a3b8;
+
+    border: 1px solid rgba(148, 163, 184, 0.3);
+
+  }
+
+  .batch-limit-info {
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    color: #25f4ee;
+
+  }
+
+  .batch-hero-card {
+
+    background: linear-gradient(145deg, rgba(17, 24, 39, 0.95) 0%, rgba(11, 15, 25, 0.98) 100%);
+
+    border: 1px solid rgba(254, 44, 85, 0.28);
+
+    border-radius: var(--radius-lg);
+
+    padding: 13px 15px;
+
+    margin-bottom: 14px;
+
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.65), 0 0 16px -4px rgba(254, 44, 85, 0.15);
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 11px;
+
+    transition: all 0.25s var(--ease-spring);
+
+    position: relative;
+
+    overflow: hidden;
+
+  }
+
+  .batch-hero-card::before {
+
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+
+    left: 0;
+
+    right: 0;
+
+    height: 1px;
+
+    background: linear-gradient(90deg, transparent, rgba(254, 44, 85, 0.5), rgba(37, 244, 238, 0.5), transparent);
+
+    pointer-events: none;
+
+  }
+
+  .batch-hero-card:focus-within {
+
+    border-color: rgba(37, 244, 238, 0.45);
+
+    box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.75), 0 0 20px -4px rgba(37, 244, 238, 0.2);
+
+  }
+
+  .batch-header-row {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+  }
+
+  .batch-title-group {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    min-width: 0;
+
+  }
+
+  .batch-badge {
+
+    white-space: nowrap;
+
+    flex-shrink: 0;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 4px;
+
+    background: rgba(254, 44, 85, 0.18);
+
+    color: #ff476d;
+
+    border: 1px solid rgba(254, 44, 85, 0.4);
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    padding: 2.5px 8px;
+
+    border-radius: var(--radius-pill);
+
+    letter-spacing: 0.04em;
+
+    text-transform: uppercase;
+
+    box-shadow: 0 0 10px rgba(254, 44, 85, 0.2);
+
+  }
+
+  .batch-title {
+
+    font-size: 12.5px;
+
+    font-weight: 700;
+
+    color: #f8fafc;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    letter-spacing: -0.01em;
+
+  }
+
+  .batch-engine-tag {
+
+    font-size: 9.5px;
+
+    font-weight: 700;
+
+    color: #25f4ee;
+
+    background: rgba(37, 244, 238, 0.12);
+
+    border: 1px solid rgba(37, 244, 238, 0.3);
+
+    padding: 2px 7px;
+
+    border-radius: var(--radius-pill);
+
+    letter-spacing: 0.03em;
+
+    white-space: nowrap;
+
+    flex-shrink: 0;
+
+  }
+
+  .batch-mode-container {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 5px;
+
+  }
+
+  .batch-mode-label-row {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    font-size: 11px;
+
+    font-weight: 600;
+
+    color: #94a3b8;
+
+  }
+
+  .batch-select-wrap {
+
+    position: relative;
+
+    width: 100%;
+
+  }
+
+  .batch-mode-select {
+
+    width: 100%;
+
+    appearance: none;
+
+    -webkit-appearance: none;
+
+    background: #0f172a;
+
+    border: 1px solid rgba(255, 255, 255, 0.12);
+
+    border-radius: var(--radius-sm);
+
+    color: #e2e8f0;
+
+    font-size: 11.5px;
+
+    font-weight: 500;
+
+    padding: 7px 32px 7px 10px;
+
+    cursor: pointer;
+
+    outline: none;
+
+    transition: all 0.2s ease;
+
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+
+  }
+
+  .batch-mode-select:hover {
+
+    border-color: rgba(37, 244, 238, 0.4);
+
+    background: #131d35;
+
+  }
+
+  .batch-mode-select:focus {
+
+    border-color: var(--cyan);
+
+    box-shadow: 0 0 0 2px rgba(37, 244, 238, 0.25);
+
+  }
+
+  .batch-select-arrow {
+
+    position: absolute;
+
+    right: 10px;
+
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    pointer-events: none;
+
+    color: #64748b;
+
+  }
+
+  .btn-batch-primary {
+
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 9px;
+
+    background: linear-gradient(135deg, #fe2c55 0%, #ff416c 60%, #ff6b8b 100%);
+
+    color: #ffffff;
+
+    border: 1px solid rgba(255, 255, 255, 0.2);
+
+    border-radius: var(--radius-sm);
+
+    padding: 10px 14px;
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    box-shadow: 0 3px 12px rgba(254, 44, 85, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  }
+
+  .btn-batch-primary:hover:not(:disabled) {
+
+    filter: brightness(1.1);
+
+    transform: translateY(-1.5px);
+
+    box-shadow: 0 6px 20px rgba(254, 44, 85, 0.55), 0 0 12px rgba(37, 244, 238, 0.35);
+
+  }
+
+  .btn-batch-primary:active:not(:disabled) {
+
+    transform: translateY(0.5px);
+
+    box-shadow: 0 2px 8px rgba(254, 44, 85, 0.4);
+
+  }
+
+  .btn-batch-primary:disabled {
+
+    opacity: 0.55;
+
+    cursor: not-allowed;
+
+    filter: grayscale(0.6);
+
+    box-shadow: none;
+
+  }
+
+  .batch-dashboard {
+
+    background: rgba(11, 15, 25, 0.92);
+
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    border-radius: var(--radius-sm);
+
+    padding: 11px 12px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 9px;
+
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+
+  }
+
+  .batch-dashboard[hidden],
+
+  .btn-batch-ctrl[hidden] {
+
+    display: none !important;
+
+  }
+
+  .batch-progress-header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    color: #f1f5f9;
+
+  }
+
+  .batch-progress-percent {
+
+    color: #25f4ee;
+
+    font-weight: 800;
+
+    font-variant-numeric: tabular-nums;
+
+    text-shadow: 0 0 8px rgba(37, 244, 238, 0.4);
+
+  }
+
+  .batch-progress-track {
+
+    width: 100%;
+
+    height: 7px;
+
+    background: rgba(255, 255, 255, 0.08);
+
+    border-radius: var(--radius-pill);
+
+    overflow: hidden;
+
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+
+  }
+
+  .batch-progress-bar {
+
+    height: 100%;
+
+    background: linear-gradient(90deg, #fe2c55 0%, #ff5277 50%, #25f4ee 100%);
+
+    border-radius: var(--radius-pill);
+
+    transition: width 0.3s ease;
+
+    box-shadow: 0 0 10px rgba(37, 244, 238, 0.4);
+
+  }
+
+  .batch-substatus-row {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    font-size: 11px;
+
+    gap: 8px;
+
+  }
+
+  .batch-step-chip {
+
+    background: rgba(37, 244, 238, 0.12);
+
+    border: 1px solid rgba(37, 244, 238, 0.3);
+
+    color: #25f4ee;
+
+    padding: 2.5px 9px;
+
+    border-radius: var(--radius-pill);
+
+    font-size: 10.5px;
+
+    font-weight: 600;
+
+  }
+
+  .batch-eta-text {
+
+    color: #94a3b8;
+
+    font-size: 10.5px;
+
+    font-variant-numeric: tabular-nums;
+
+  }
+
+  .batch-controls-row {
+
+    display: flex;
+
+    gap: 7px;
+
+  }
+
+  .btn-batch-ctrl {
+
+    flex: 1;
+
+    padding: 7px 10px;
+
+    font-size: 11.5px;
+
+    font-weight: 700;
+
+    border-radius: var(--radius-sm);
+
+    border: 1px solid rgba(255, 255, 255, 0.12);
+
+    background: rgba(255, 255, 255, 0.05);
+
+    color: #f1f5f9;
+
+    cursor: pointer;
+
+    transition: all 0.18s ease;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 5px;
+
+  }
+
+  .btn-batch-ctrl:hover {
+
+    background: rgba(255, 255, 255, 0.1);
+
+    transform: translateY(-1px);
+
+  }
+
+  .btn-batch-ctrl.btn-pause {
+
+    border-color: rgba(251, 191, 36, 0.4);
+
+    color: #fbbf24;
+
+    background: rgba(251, 191, 36, 0.08);
+
+  }
+
+  .btn-batch-ctrl.btn-pause:hover {
+
+    background: rgba(251, 191, 36, 0.18);
+
+  }
+
+  .btn-batch-ctrl.btn-resume {
+
+    border-color: rgba(52, 211, 153, 0.4);
+
+    color: #34d399;
+
+    background: rgba(52, 211, 153, 0.08);
+
+  }
+
+  .btn-batch-ctrl.btn-resume:hover {
+
+    background: rgba(52, 211, 153, 0.18);
+
+  }
+
+  .btn-batch-ctrl.btn-stop {
+
+    border-color: rgba(248, 113, 113, 0.4);
+
+    color: #f87171;
+
+    background: rgba(248, 113, 113, 0.08);
+
+  }
+
+  .btn-batch-ctrl.btn-stop:hover {
+
+    background: rgba(248, 113, 113, 0.18);
+
+  }
+
+  .batch-log-box {
+
+    max-height: 85px;
+
+    overflow-y: auto;
+
+    background: #050811;
+
+    color: #94a3b8;
+
+    font-family: 'Cascadia Code', Consolas, monospace;
+
+    font-size: 10px;
+
+    padding: 7px 9px;
+
+    border-radius: var(--radius-sm);
+
+    border: 1px solid rgba(255, 255, 255, 0.06);
+
+    line-height: 1.45;
+
+    white-space: pre-wrap;
+
+    word-break: break-all;
+
+  }
+
+  .batch-log-entry { margin-bottom: 2px; }
+
+  .batch-log-entry.info { color: #cbd5e1; }
+
+  .batch-log-entry.success { color: #34d399; font-weight: bold; }
+
+  .batch-log-entry.warn { color: #fbbf24; }
+
+  .batch-log-entry.error { color: #f87171; font-weight: bold; }
+
+  /* ---- Tab 1: Clip List View ---- */
+
+  .search-filter-bar {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    margin-bottom: 12px;
+
+  }
+
+  .search-box {
+
+    flex: 1;
+
+    display: flex;
+
+    align-items: center;
+
+    background: var(--surface);
+
+    border: 1px solid var(--line-strong);
+
+    border-radius: var(--radius-pill);
+
+    padding: 0 12px;
+
+    box-shadow: var(--shadow-xs);
+
+    transition: border-color 0.2s, box-shadow 0.2s;
+
+  }
+
+  .search-box:focus-within {
+
+    border-color: var(--rose);
+
+    box-shadow: 0 0 0 3px rgba(254, 44, 85, 0.12);
+
+  }
+
+  .search-box svg {
+
+    color: var(--muted);
+
+    flex-shrink: 0;
+
+    margin-right: 6px;
+
+  }
+
+  .search-box input {
+
+    width: 100%;
+
+    border: none;
+
+    outline: none;
+
+    background: transparent;
+
+    padding: 8px 0;
+
+    font-size: 12.5px;
+
+    color: var(--ink);
+
+  }
+
+  .clip-count-badge {
+
     background: var(--rose-tint);
+
+    color: var(--rose);
+
+    border: 1px solid var(--rose-border);
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    padding: 2px 7px;
+
+    border-radius: var(--radius-pill);
+
+    margin-left: 6px;
+
+    flex-shrink: 0;
+
+  }
+
+  .btn-icon-refresh {
+
+    width: 36px;
+
+    height: 36px;
+
+    border-radius: var(--radius-pill);
+
+    background: var(--surface);
+
+    border: 1px solid var(--line-strong);
+
+    color: var(--muted);
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    cursor: pointer;
+
+    box-shadow: var(--shadow-xs);
+
+    transition: all 0.2s var(--ease-spring);
+
+    flex-shrink: 0;
+
+  }
+
+  .btn-icon-refresh:hover {
+
+    color: var(--rose);
+
+    border-color: var(--rose-border);
+
+    background: var(--rose-tint);
+
     transform: rotate(45deg);
+
   }
 
   #list {
+
     display: flex;
+
     flex-direction: column;
+
     gap: 10px;
+
   }
 
   /* Clip Card */
+
   .card {
+
     display: flex;
+
     gap: 12px;
+
     background: var(--surface);
+
     border: 1px solid var(--line);
+
     border-radius: var(--radius-lg);
+
     padding: 12px;
+
     box-shadow: var(--shadow-sm);
+
     transition: all 0.2s var(--ease-spring);
+
     position: relative;
+
   }
+
   .card:hover {
+
     border-color: var(--line-strong);
+
     box-shadow: var(--shadow-md);
+
     transform: translateY(-1px);
+
   }
+
   .card-thumb-wrap {
+
     width: 78px;
+
     height: 116px;
+
     border-radius: 8px;
+
     overflow: hidden;
+
     background: #0f172a;
+
     position: relative;
+
     flex-shrink: 0;
+
     cursor: pointer;
+
     box-shadow: var(--shadow-xs);
+
   }
+
   .card-thumb-wrap img {
+
     width: 100%;
+
     height: 100%;
+
     object-fit: cover;
+
     display: block;
+
     transition: transform 0.25s var(--ease-spring);
+
   }
+
   .card-thumb-wrap:hover img {
+
     transform: scale(1.06);
+
   }
+
   .thumb-play-overlay {
+
     position: absolute;
+
     inset: 0;
+
     background: rgba(15, 23, 42, 0.45);
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     opacity: 0;
+
     transition: opacity 0.2s ease;
+
   }
+
   .card-thumb-wrap:hover .thumb-play-overlay {
+
     opacity: 1;
+
   }
+
   .thumb-play-icon {
+
     width: 28px;
+
     height: 28px;
+
     border-radius: var(--radius-pill);
+
     background: var(--rose-gradient);
+
     color: #ffffff;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+
   }
 
   .card-body {
+
     flex: 1;
+
     min-width: 0;
+
     display: flex;
+
     flex-direction: column;
+
     justify-content: space-between;
+
   }
+
   .card-product {
+
     font-size: 10px;
+
     font-weight: 700;
+
     color: var(--cyan-dark);
+
     background: var(--cyan-tint);
+
     border: 1px solid var(--cyan-border);
+
     padding: 2px 7px;
+
     border-radius: var(--radius-pill);
+
     display: inline-flex;
+
     align-items: center;
+
     gap: 4px;
+
     width: fit-content;
+
     margin-bottom: 3px;
+
     text-transform: uppercase;
+
     letter-spacing: 0.03em;
+
   }
+
   .card-hook {
+
     font-size: 13.5px;
+
     font-weight: 700;
+
     color: var(--ink);
+
     line-height: 1.35;
+
     margin-bottom: 4px;
+
     display: -webkit-box;
+
     -webkit-line-clamp: 2;
+
     -webkit-box-orient: vertical;
+
     overflow: hidden;
+
   }
+
   .card-status {
+
     font-size: 10px;
+
     font-weight: 600;
+
     padding: 2px 8px;
+
     border-radius: var(--radius-pill);
+
     width: fit-content;
+
     margin-bottom: 4px;
+
   }
+
   .card-status.scheduled {
+
     background: var(--warning-tint);
+
     color: #b45309;
+
     border: 1px solid var(--warning-border);
+
   }
+
   .card-status.ready {
+
     background: var(--success-tint);
+
     color: #047857;
+
     border: 1px solid var(--success-border);
+
   }
+
   .card-status.posted {
+
     background: #f1f5f9;
+
     color: var(--muted);
+
     border: 1px solid var(--line);
+
   }
+
   .card-status.error {
+
     background: var(--danger-tint);
+
     color: var(--danger);
+
     border: 1px solid var(--danger-border);
+
   }
+
   .card-meta {
+
     font-size: 11px;
+
     color: var(--muted);
+
     display: flex;
+
     align-items: center;
+
     gap: 4px;
+
     margin-bottom: 8px;
+
   }
+
   .btn-primary {
+
     background: var(--rose-gradient);
+
     color: #ffffff;
+
     border: none;
+
     border-radius: var(--radius-md);
+
     padding: 7px 13px;
+
     font-size: 12px;
+
     font-weight: 700;
+
     cursor: pointer;
+
     display: inline-flex;
+
     align-items: center;
+
     justify-content: center;
+
     gap: 6px;
+
     box-shadow: var(--rose-glow);
+
     transition: all 0.2s var(--ease-spring);
+
     text-decoration: none;
+
   }
+
   .btn-primary:hover:not(:disabled) {
+
     transform: translateY(-1px);
+
     filter: brightness(1.05);
+
     box-shadow: 0 6px 18px rgba(254, 44, 85, 0.38);
+
   }
+
   .btn-primary:active:not(:disabled) {
+
     transform: translateY(0);
+
   }
+
   .btn-primary:disabled {
+
     opacity: 0.55;
+
     cursor: not-allowed;
+
     box-shadow: none;
+
   }
 
   /* ---- Tab 2: Checklist & Post Helper View ---- */
+
   .studio-monitor {
+
     background: var(--surface);
+
     border: 1px solid var(--line);
+
     border-radius: var(--radius-lg);
+
     padding: 12px;
+
     margin-bottom: 12px;
+
     box-shadow: var(--shadow-sm);
+
   }
+
   .monitor-header-row {
+
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
+
     margin-bottom: 10px;
+
     padding-bottom: 8px;
+
     border-bottom: 1px solid var(--line);
+
   }
+
   .monitor-chip-live {
+
     font-size: 10px;
+
     font-weight: 700;
+
     letter-spacing: 0.04em;
+
     text-transform: uppercase;
+
     color: var(--rose);
+
     background: var(--rose-tint);
+
     border: 1px solid var(--rose-border);
+
     padding: 3px 8px;
+
     border-radius: var(--radius-pill);
+
     display: inline-flex;
+
     align-items: center;
+
     gap: 5px;
+
   }
+
   .monitor-chip-ratio {
+
     font-size: 10px;
+
     font-weight: 700;
+
     color: var(--muted);
+
     background: #f1f5f9;
+
     padding: 2px 7px;
+
     border-radius: 4px;
+
   }
+
   .monitor-stage {
+
     display: flex;
+
     align-items: stretch;
+
     gap: 12px;
+
   }
+
   .monitor-frame {
+
     flex-shrink: 0;
+
     width: 72px;
+
     height: 98px;
+
     border-radius: 8px;
+
     overflow: hidden;
+
     background: #0f172a;
+
     border: 1px solid var(--line-strong);
+
     box-shadow: var(--shadow-xs);
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
   }
+
   .monitor-frame:has(#activeCover[hidden]) { display: none; }
+
   #activeCover {
+
     width: 100%;
+
     height: 100%;
+
     object-fit: cover;
+
   }
+
   #activeClipBanner {
+
     flex: 1;
+
     min-width: 0;
+
     display: flex;
+
     flex-direction: column;
+
     justify-content: center;
+
   }
+
   #activeClipBanner.empty-state {
+
     padding: 14px 10px;
+
     border-radius: var(--radius-md);
+
     background: #f8fafc;
+
     border: 1.5px dashed var(--line-strong);
+
     color: var(--muted);
+
     text-align: center;
+
     display: flex;
+
     flex-direction: column;
+
     align-items: center;
+
     justify-content: center;
+
     gap: 6px;
+
     font-size: 11.5px;
+
     line-height: 1.45;
+
   }
+
   .active-badge {
+
     display: inline-flex;
+
     align-items: center;
+
     gap: 5px;
+
     font-size: 10px;
+
     font-weight: 700;
+
     text-transform: uppercase;
+
     letter-spacing: 0.05em;
+
     color: var(--rose);
+
     margin-bottom: 3px;
+
   }
+
   .active-badge .pulse-dot {
+
     width: 6px;
+
     height: 6px;
+
     border-radius: var(--radius-pill);
+
     background: var(--rose);
+
     box-shadow: 0 0 8px var(--rose);
+
   }
+
   .active-title {
+
     font-size: 13.5px;
+
     font-weight: 700;
+
     color: var(--ink);
+
     line-height: 1.35;
+
   }
 
   /* Inspector Card */
+
   .inspector-card {
+
     background: var(--surface);
+
     border: 1px solid var(--line);
+
     border-radius: var(--radius-lg);
+
     padding: 14px;
+
     margin-bottom: 12px;
+
     box-shadow: var(--shadow-sm);
+
   }
+
   .inspector-header {
+
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
+
     margin-bottom: 12px;
+
     padding-bottom: 8px;
+
     border-bottom: 1px solid var(--line);
+
   }
+
   .inspector-title {
+
     font-size: 13px;
+
     font-weight: 700;
+
     color: var(--ink);
+
     display: flex;
+
     align-items: center;
+
     gap: 6px;
+
   }
+
   .inspector-title svg { color: var(--rose); }
+
   .field-tag-badge {
+
     font-size: 9.5px;
+
     font-weight: 700;
+
     letter-spacing: 0.03em;
+
     background: var(--rose-tint);
+
     color: var(--rose);
+
     border: 1px solid var(--rose-border);
+
     padding: 2px 7px;
+
     border-radius: var(--radius-pill);
+
   }
+
   .field-group { margin-bottom: 11px; }
+
   .field-label-row {
+
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
+
     margin-bottom: 4px;
+
   }
+
   .field-label {
+
     font-size: 11.5px;
+
     font-weight: 600;
+
     color: var(--ink-secondary);
+
     display: flex;
+
     align-items: center;
+
     gap: 5px;
+
   }
+
   .field-label svg { color: var(--muted); }
 
   textarea, input[type="text"], input[type="date"], select {
+
     width: 100%;
+
     padding: 8px 11px;
+
     border-radius: var(--radius-sm);
+
     border: 1px solid var(--line-strong);
+
     background: var(--input-bg);
+
     color: var(--ink);
+
     font-size: 12.5px;
+
     line-height: 1.45;
+
     transition: all 0.18s var(--ease-spring);
+
   }
+
   textarea:focus, input[type="text"]:focus, input[type="date"]:focus, select:focus {
+
     outline: none;
+
     border-color: var(--rose);
+
     box-shadow: 0 0 0 3px rgba(254, 44, 85, 0.14);
+
   }
+
   textarea::placeholder, input[type="text"]::placeholder {
+
     color: var(--subtle);
+
   }
 
   .caption-counter-row {
+
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
+
     margin-top: 4px;
+
     font-size: 10.5px;
+
   }
+
   .caption-count-badge {
+
     color: var(--muted);
+
     font-family: 'Cascadia Code', Consolas, monospace;
+
     font-size: 10.5px;
+
   }
+
   .caption-count-badge.warning { color: var(--warning); font-weight: 700; }
+
   .caption-count-badge.danger { color: var(--danger); font-weight: 700; }
 
   .btn-copy-action {
+
     width: 100%;
+
     margin: 4px 0 12px;
+
     padding: 9px 14px;
+
     font-size: 12px;
+
     font-weight: 600;
+
     border-radius: var(--radius-md);
+
     background: var(--subtle-bg);
+
     border: 1px solid var(--line-strong);
+
     color: var(--ink);
+
     cursor: pointer;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     gap: 7px;
+
     transition: all 0.18s var(--ease-spring);
+
     box-shadow: var(--shadow-xs);
+
   }
+
   .btn-copy-action:hover:not(:disabled) {
+
     background: var(--rose-tint);
+
     border-color: var(--rose-border);
+
     color: var(--rose);
+
     box-shadow: var(--shadow-sm);
+
   }
+
   .btn-copy-action.copied {
+
     background: var(--success-tint) !important;
+
     border-color: var(--success-border) !important;
+
     color: var(--success) !important;
+
   }
 
   .affiliate-grid {
+
     display: grid;
+
     grid-template-columns: 1fr 1fr;
+
     gap: 10px;
+
     margin-bottom: 12px;
+
   }
+
   @media (max-width: 365px) {
+
     .affiliate-grid {
+
       grid-template-columns: 1fr;
+
       gap: 9px;
+
     }
+
   }
+
   .input-with-action {
+
     display: flex;
+
     align-items: center;
+
     position: relative;
+
   }
+
   .input-with-action input {
+
     padding-right: 32px !important;
+
   }
+
   .btn-input-mini {
+
     position: absolute;
+
     right: 4px;
+
     background: transparent;
+
     border: none;
+
     color: var(--muted);
+
     cursor: pointer;
+
     padding: 5px;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     border-radius: 4px;
+
     transition: color 0.15s;
+
   }
+
   .btn-input-mini:hover {
+
     color: var(--rose);
+
     background: var(--rose-tint);
+
   }
 
   /* Schedule Sub-Widget */
+
   .schedule-widget {
+
     background: var(--subtle-bg);
+
     border: 1px solid var(--line);
+
     border-radius: var(--radius-md);
+
     padding: 10px 12px;
+
     margin-top: 4px;
+
   }
+
   .schedule-widget-title {
+
     font-size: 11px;
+
     font-weight: 600;
+
     color: var(--ink-secondary);
+
     display: flex;
+
     align-items: center;
+
     gap: 6px;
+
     margin-bottom: 8px;
+
   }
+
   .schedule-widget-title svg { color: var(--rose); }
+
   .schedule-widget-inputs {
+
     display: grid;
+
     grid-template-columns: 1fr 1fr;
+
     gap: 8px;
+
   }
+
   .schedule-widget-group span {
+
     display: block;
+
     font-size: 10px;
+
     font-weight: 600;
+
     color: var(--muted);
+
     margin-bottom: 3px;
+
   }
 
   /* Command Card (Automation Center) */
+
   .command-card {
+
     background: var(--surface);
+
     border: 1px solid var(--line);
+
     border-radius: var(--radius-lg);
+
     padding: 14px;
+
     margin-bottom: 12px;
+
     box-shadow: var(--shadow-sm);
+
   }
+
   .hero-post-btn {
+
     width: 100%;
+
     background: var(--rose-gradient);
+
     color: #ffffff;
+
     border: none;
+
     border-radius: var(--radius-md);
+
     padding: 12px 16px;
+
     font-size: 13.5px;
+
     font-weight: 800;
+
     cursor: pointer;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     gap: 8px;
+
     box-shadow: var(--rose-glow);
+
     transition: all 0.2s var(--ease-spring);
+
     margin-bottom: 10px;
+
   }
+
   .hero-post-btn:hover:not(:disabled) {
+
     transform: translateY(-1px);
+
     filter: brightness(1.05);
+
     box-shadow: 0 6px 20px rgba(254, 44, 85, 0.4);
+
   }
+
   .hero-post-btn:disabled {
+
     opacity: 0.55;
+
     cursor: not-allowed;
+
     box-shadow: none;
+
   }
 
   .switch-row {
+
     display: flex;
+
     align-items: center;
+
     gap: 8px;
+
     font-size: 12px;
+
     color: var(--ink-secondary);
+
     margin-bottom: 14px;
+
     cursor: pointer;
+
     user-select: none;
+
   }
+
   .switch-row input[type="checkbox"] {
+
     width: 16px;
+
     height: 16px;
+
     accent-color: var(--rose);
+
     cursor: pointer;
+
   }
 
   /* Pipeline Meter */
+
   .pipeline-header {
+
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
+
     margin-bottom: 6px;
+
   }
+
   .pipeline-title {
+
     font-size: 11.5px;
+
     font-weight: 700;
+
     color: var(--ink);
+
   }
+
   .pipeline-meter-text {
+
     font-size: 11px;
+
     font-weight: 600;
+
     color: var(--muted);
+
   }
+
   .pipeline-track {
+
     width: 100%;
+
     height: 6px;
+
     background: var(--line);
+
     border-radius: 999px;
+
     overflow: hidden;
+
     margin-bottom: 12px;
+
   }
+
   .pipeline-fill {
+
     width: 0%;
+
     height: 100%;
+
     background: var(--rose-gradient);
+
     border-radius: 999px;
+
     transition: width 0.3s var(--ease-spring);
+
   }
 
   /* Stepper Checklist */
+
   .checklist {
+
     display: flex;
+
     flex-direction: column;
+
     gap: 7px;
+
   }
+
   .step-row {
+
     display: flex;
+
     align-items: center;
+
     gap: 10px;
+
     padding: 8px 10px;
+
     border: 1px solid var(--line);
+
     border-radius: var(--radius-md);
+
     background: var(--step-bg);
+
     transition: all 0.18s var(--ease-spring);
+
   }
+
   .step-row:hover {
+
     border-color: var(--line-strong);
+
     background: var(--subtle-bg);
+
   }
+
   .step-row.completed {
+
     border-color: var(--success-border);
+
     background: var(--success-tint);
+
   }
+
   .step-row input[type="checkbox"] {
+
     width: 16px;
+
     height: 16px;
+
     accent-color: var(--rose);
+
     cursor: pointer;
+
     flex-shrink: 0;
+
   }
+
   .step-num {
+
     width: 22px;
+
     height: 22px;
+
     border-radius: var(--radius-pill);
+
     background: var(--subtle-bg);
+
     color: var(--ink);
+
     font-weight: 700;
+
     font-size: 11px;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     border: 1px solid var(--line-strong);
+
     flex-shrink: 0;
+
     cursor: pointer;
+
   }
+
   .step-row.completed .step-num {
+
     background: var(--success);
+
     color: #ffffff;
+
     border-color: var(--success);
+
   }
+
   .step-label {
+
     flex: 1;
+
     min-width: 0;
+
   }
+
   .step-label strong {
+
     display: block;
+
     font-size: 12px;
+
     color: var(--ink);
+
     line-height: 1.25;
+
   }
+
   .step-label small {
+
     display: block;
+
     font-size: 10.5px;
+
     color: var(--muted);
+
     margin-top: 1px;
+
     line-height: 1.35;
+
   }
+
   .btn-step {
+
     background: var(--subtle-bg);
+
     border: 1px solid var(--line-strong);
+
     color: var(--ink);
+
     font-size: 11px;
+
     font-weight: 600;
+
     padding: 4px 10px;
+
     border-radius: var(--radius-pill);
+
     cursor: pointer;
+
     display: flex;
+
     align-items: center;
+
     gap: 4px;
+
     flex-shrink: 0;
+
     transition: all 0.15s;
+
   }
+
   .btn-step:hover:not(:disabled) {
+
     background: var(--rose);
+
     border-color: var(--rose);
+
     color: #ffffff;
+
   }
+
   .step-row.danger {
+
     border-color: var(--danger-border);
+
     background: var(--danger-tint);
+
   }
+
   .step-row.danger .step-label strong { color: #b91c1c; }
+
   .step-row.danger .btn-step {
+
     border-color: var(--danger-border);
+
     color: #b91c1c;
+
   }
+
   .step-row.danger .btn-step:hover:not(:disabled) {
+
     background: var(--danger);
+
     color: #ffffff;
+
   }
+
   .step-note {
+
     font-size: 10.5px;
+
     color: var(--muted);
+
     line-height: 1.45;
+
     margin: 10px 0 0;
+
   }
 
   /* Mark Posted Card */
+
   .mark-posted-card {
+
     background: var(--surface);
+
     border: 1px solid var(--line);
+
     border-radius: var(--radius-lg);
+
     padding: 14px;
+
     margin-bottom: 12px;
+
     box-shadow: var(--shadow-sm);
+
   }
+
   .mark-posted-card .label-row {
+
     font-size: 12.5px;
+
     font-weight: 700;
+
     color: var(--ink);
+
     display: flex;
+
     align-items: center;
+
     gap: 6px;
+
     margin-bottom: 6px;
+
   }
+
   .mark-posted-card .label-row svg { color: var(--success); }
+
   .mark-posted-card p {
+
     font-size: 11.5px;
+
     color: var(--muted);
+
     line-height: 1.45;
+
     margin: 0 0 10px;
+
   }
+
   .btn-mark-posted {
+
     width: 100%;
+
     background: var(--success);
+
     color: #ffffff;
+
     border: none;
+
     border-radius: var(--radius-md);
+
     padding: 10px 14px;
+
     font-size: 12.5px;
+
     font-weight: 700;
+
     cursor: pointer;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     gap: 6px;
+
     box-shadow: 0 2px 8px rgba(16, 185, 129, 0.28);
+
     transition: all 0.2s var(--ease-spring);
+
   }
+
   .btn-mark-posted:hover:not(:disabled) {
+
     background: #059669;
+
     transform: translateY(-1px);
+
   }
+
   .btn-mark-posted:disabled {
+
     opacity: 0.55;
+
     cursor: not-allowed;
+
     box-shadow: none;
+
   }
 
   /* ---- Tab 3: Tools View ---- */
+
   .monitor-avatar {
+
     width: 36px;
+
     height: 36px;
+
     border-radius: var(--radius-pill);
+
     background: var(--cyan-tint);
+
     border: 1px solid var(--cyan-border);
+
     color: var(--cyan-dark);
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     flex-shrink: 0;
+
     margin-right: 10px;
+
   }
+
   .monitor-name {
+
     font-size: 13.5px;
+
     font-weight: 700;
+
     color: var(--ink);
+
   }
+
   .monitor-sub {
+
     font-size: 11px;
+
     color: var(--muted);
+
     margin-top: 1px;
+
   }
+
   .tools-placeholder {
+
     border: 1.5px dashed var(--line-strong);
+
     border-radius: var(--radius-lg);
+
     padding: 14px;
+
     background: var(--subtle-bg);
+
     text-align: center;
+
     margin-top: 12px;
+
   }
+
   .tools-placeholder-text {
+
     font-size: 11px;
+
     color: var(--muted);
+
     margin: 0;
+
     line-height: 1.5;
+
   }
 
   /* ---- Status Toast Notifications ---- */
+
   #status {
+
     margin: 12px 14px;
+
     font-size: 12px;
+
     line-height: 1.5;
+
     white-space: pre-wrap;
+
     word-break: break-word;
+
     border-radius: var(--radius-md);
+
     box-shadow: var(--shadow-sm);
+
   }
+
   #status:empty { display: none; }
+
   #status.info, #status.error, #status.success {
+
     padding: 10px 14px;
+
     display: flex;
+
     align-items: center;
+
     gap: 8px;
+
     animation: toast-slide 0.2s var(--ease-spring);
+
   }
+
   @keyframes toast-slide {
+
     from { opacity: 0; transform: translateY(4px); }
+
     to { opacity: 1; transform: translateY(0); }
+
   }
+
   #status.info {
+
     background: var(--subtle-bg);
+
     border: 1px solid var(--line-strong);
+
     color: var(--ink);
+
   }
+
   #status.error {
+
     background: var(--danger-tint);
+
     border: 1px solid var(--danger-border);
+
     color: var(--danger);
+
   }
+
   #status.success {
+
     background: var(--success-tint);
+
     border: 1px solid var(--success-border);
+
     color: var(--success);
+
   }
 
   /* Empty & Error State */
+
   .empty, .error {
+
     font-size: 12px;
+
     color: var(--muted);
+
     padding: 36px 16px;
+
     text-align: center;
+
     background: var(--surface);
+
     border: 1.5px dashed var(--line-strong);
+
     border-radius: var(--radius-lg);
+
     line-height: 1.6;
+
   }
+
   .error {
+
     color: var(--danger);
+
     background: var(--danger-tint);
+
     border-color: var(--danger-border);
+
     border-style: solid;
+
   }
+
   .error-box-with-retry {
+
     display: flex;
+
     flex-direction: column;
+
     align-items: center;
+
     gap: 12px;
+
   }
+
   .error-box-with-retry p {
+
     margin: 0;
+
     line-height: 1.5;
+
   }
+
   .btn-retry-connection {
+
     background: var(--surface);
+
     border: 1px solid var(--danger-border);
+
     color: var(--danger);
+
     font-size: 11.5px;
+
     font-weight: 700;
+
     padding: 7px 14px;
+
     border-radius: var(--radius-pill);
+
     cursor: pointer;
+
     display: inline-flex;
+
     align-items: center;
+
     gap: 6px;
+
     box-shadow: var(--shadow-xs);
+
     transition: all 0.2s var(--ease-spring);
+
   }
+
   .btn-retry-connection:hover {
+
     background: var(--danger);
+
     color: #ffffff;
+
     transform: translateY(-1px);
+
     box-shadow: var(--shadow-sm);
+
   }
+
   .btn-retry-connection svg {
+
     stroke: currentColor;
+
     flex-shrink: 0;
+
   }
 
   /* ---- Video Preview Modal ---- */
+
   .preview-modal {
+
     position: fixed;
+
     inset: 0;
+
     z-index: 9999;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     padding: 16px;
+
   }
+
   .preview-modal[hidden] { display: none; }
+
   .preview-backdrop {
+
     position: absolute;
+
     inset: 0;
+
     background: rgba(15, 23, 42, 0.7);
+
     backdrop-filter: blur(6px);
+
   }
+
   .preview-dialog {
+
     position: relative;
+
     width: 100%;
+
     max-width: 320px;
+
     background: var(--surface);
+
     border: 1px solid var(--line);
+
     border-radius: var(--radius-xl);
+
     box-shadow: var(--shadow-lg);
+
     overflow: hidden;
+
     display: flex;
+
     flex-direction: column;
+
     animation: modal-pop 0.22s var(--ease-spring);
+
   }
+
   @keyframes modal-pop {
+
     from { opacity: 0; transform: scale(0.94); }
+
     to { opacity: 1; transform: scale(1); }
+
   }
+
   .preview-header {
+
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
+
     padding: 12px 14px;
+
     border-bottom: 1px solid var(--line);
+
     background: var(--surface);
+
   }
+
   .preview-title {
+
     font-size: 13px;
+
     font-weight: 700;
+
     color: var(--ink);
+
     white-space: nowrap;
+
     overflow: hidden;
+
     text-overflow: ellipsis;
+
   }
+
   .preview-close-btn {
+
     background: transparent;
+
     border: none;
+
     color: var(--muted);
+
     cursor: pointer;
+
     font-size: 15px;
+
     padding: 2px 6px;
+
     border-radius: var(--radius-sm);
+
     line-height: 1;
+
     transition: all 0.15s;
+
   }
+
   .preview-close-btn:hover {
+
     color: var(--ink);
+
     background: var(--subtle-bg);
+
   }
+
   .preview-video-container {
+
     width: 100%;
+
     height: 380px;
+
     background: #000;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
   }
+
   .preview-video-container video {
+
     width: 100%;
+
     height: 100%;
+
     object-fit: contain;
+
   }
+
   .preview-footer {
+
     padding: 12px 14px;
+
     border-top: 1px solid var(--line);
+
     display: flex;
+
     gap: 8px;
+
     background: var(--subtle-bg);
+
   }
+
   .preview-footer button { flex: 1; }
 
   /* ---- Confirm Modal ---- */
+
   #confirmOverlay {
+
     position: fixed;
+
     inset: 0;
+
     background: rgba(15, 23, 42, 0.7);
+
     backdrop-filter: blur(6px);
+
     display: none;
+
     align-items: center;
+
     justify-content: center;
+
     padding: 16px;
+
     z-index: 1000;
+
     animation: overlay-fade 0.15s;
+
   }
+
   #confirmOverlay.show { display: flex; }
+
   @keyframes overlay-fade { from { opacity: 0; } to { opacity: 1; } }
 
   #confirmBox {
+
     background: var(--surface);
+
     border: 1px solid var(--line);
+
     border-radius: var(--radius-xl);
+
     padding: 20px;
+
     font-size: 13px;
+
     max-width: 310px;
+
     width: 100%;
+
     box-shadow: var(--shadow-lg);
+
     animation: box-pop 0.2s var(--ease-spring);
+
   }
+
   @keyframes box-pop {
+
     from { opacity: 0; transform: scale(0.95) translateY(4px); }
+
     to { opacity: 1; transform: scale(1) translateY(0); }
+
   }
+
   .modal-orb {
+
     width: 40px;
+
     height: 40px;
+
     border-radius: var(--radius-pill);
+
     background: var(--rose-tint);
+
     border: 1px solid var(--rose-border);
+
     color: var(--rose);
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     margin-bottom: 12px;
+
   }
+
   #confirmBox p {
+
     color: var(--ink);
+
     margin: 0 0 16px;
+
     line-height: 1.5;
+
   }
+
   #confirmBox .row { display: flex; gap: 8px; }
+
   #confirmBox .row button {
+
     flex: 1;
+
     padding: 9px;
+
     font-size: 12px;
+
     border-radius: var(--radius-sm);
+
     cursor: pointer;
+
     font-weight: 700;
+
   }
+
   #confirmCancelBtn {
+
     background: var(--subtle-bg);
+
     border: 1px solid var(--line);
+
     color: var(--ink-secondary);
+
   }
+
   #confirmCancelBtn:hover { background: var(--line); }
+
   #confirmOkBtn {
+
     background: var(--rose-gradient);
+
     border: none;
+
     color: #ffffff;
+
     box-shadow: var(--rose-glow);
+
   }
+
   #confirmOkBtn:hover { filter: brightness(1.05); }
 
   @media (prefers-reduced-motion: reduce) {
+
     *, *::before, *::after {
+
       animation: none !important;
+
       transition: none !important;
+
     }
+
   }
+
   /* A side panel needs separate brand/action rows at narrow widths. */
+
   @media (max-width: 520px) {
+
     .brand-row { flex-direction: column; align-items: stretch; gap: 12px; }
+
     .brand-meta { width: 100%; }
+
     .header-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
+
     .header-actions button { min-height: 44px; }
+
     .header-actions .btn-gear-settings { min-width: 44px; }
+
     .header-actions .header-status-pill { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+
   }
+
 </style>
+
 </head>
+
 <body>
+
   <!-- Top Bar: Deep Obsidian with Frosted Glass -->
+
   <header class="app-header studio-bar">
+
     <div class="brand-row">
+
       <div class="brand-meta">
+
         <img src="icons/icon48.png" alt="OmniCut Studio Logo" class="brand-logo brand-logo-img" width="34" height="34" />
+
         <div class="brand-copy brand-text">
-          <span class="brand-kicker">OMNICUT PRO STUDIO</span>
+
+          <span class="brand-kicker">OMNICUT PRO STUDIO <span id="brandVersionPill" class="brand-version-pill">v0.3.0</span></span>
+
           <h1 class="brand-title">TikTok Post Helper</h1>
+
         </div>
+
       </div>
+
       <div class="header-actions">
+
         <button id="headerOpenTikTokBtn" type="button" class="btn-header-tiktok" title="เปิดหน้าอัปโหลด TikTok Studio">
+
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+
           <span>เปิด TikTok Studio</span>
+
         </button>
+
         <div id="headerStatusPill" class="status-pill header-status-pill is-checking" title="คลิกเพื่อรีเฟรชการเชื่อมต่อ OmniCut Backend">
+
           <span id="headerStatusDot" class="pill-dot is-checking"></span>
+
           <span id="headerStatusText">Checking</span>
+
         </div>
+
         <button id="themeToggleBtn" type="button" class="btn-gear-settings" title="สลับธีม สว่าง / มืด" aria-label="สลับธีม">
+
           <svg id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+
           <svg id="themeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+
         </button>
+
         <button id="apiKeySettingsBtn" type="button" class="btn-gear-settings" title="ตั้งค่า API Key ของ OmniCut backend">
+
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+
         </button>
+
       </div>
+
     </div>
+
   </header>
 
   <!-- API Key settings row -- toggled by apiKeySettingsBtn -->
+
   <div id="apiKeySettingsRow">
+
     <input type="password" id="apiKeyInput" placeholder="OMNICUT_API_KEY (ว่างไว้ถ้า backend ไม่ได้ตั้งรหัส)" />
+
     <button id="apiKeySaveBtn" type="button" class="btn-header-tiktok">บันทึก</button>
+
   </div>
 
   <!-- Segmented Switch (Pill Navigation Tabs) -->
+
   <div class="segmented-switch">
+
     <button type="button" id="tabBtnList" class="switch-btn active">
+
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M3 7.5h4"/><path d="M3 12h18"/><path d="M3 16.5h4"/><path d="M17 3v18"/><path d="M17 7.5h4"/><path d="M17 16.5h4"/></svg>
+
       <span>รายการคลิป</span>
+
     </button>
+
     <button type="button" id="tabBtnChecklist" class="switch-btn">
+
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+
       <span>ขั้นตอนโพสต์</span>
+
     </button>
+
     <button type="button" id="tabBtnTools" class="switch-btn">
+
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+
       <span>เครื่องมือ</span>
+
     </button>
+
   </div>
 
   <!-- Tab 1: Clip List -->
+
   <div id="panelList" class="tab-panel active">
-    <div class="search-filter-bar">
-      <div class="search-box">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" id="clipSearchInput" placeholder="ค้นหาคลิปหรือสินค้า..." autocomplete="off" />
-        <span id="clipCountBadge" class="clip-count-badge">0</span>
+
+    <!-- 🚀 1-Click Batch Auto-Post Section -->
+
+    <div id="batchHeroSection" class="batch-hero-card">
+
+      <div class="batch-header-row">
+
+        <div class="batch-title-group">
+
+          <span class="batch-badge">
+
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+
+            1-Click Batch
+
+          </span>
+
+          <span class="batch-title">อัปโหลดอัตโนมัติ</span>
+
+        </div>
+
+        <span class="batch-engine-tag">Engine v0.3.0</span>
+
       </div>
-      <button id="refreshBtn" type="button" class="btn-icon-refresh" title="รีเฟรชรายการคลิป">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+
+      <!-- 📊 Live TikTok Studio Quota Status Card -->
+
+      <div id="batchQuotaCard" class="batch-quota-card">
+
+        <div class="batch-quota-header">
+
+          <div class="batch-quota-title-row">
+
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+
+            <span>โควตา TikTok Studio สด:</span>
+
+          </div>
+
+          <button id="btnCheckQuota" type="button" class="btn-check-quota" title="ตรวจนับจำนวนโพสต์ตั้งเวลาและแบบร่างใน TikTok Studio สด">
+
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+
+            <span>เช็คโควตาสด</span>
+
+          </button>
+
+        </div>
+
+        <div class="batch-quota-pills">
+
+          <div class="quota-pill" id="scheduleQuotaPill" title="โควตาตั้งเวลาโพสต์วิดีโอล่วงหน้า (สูงสุด 30 รายการ)">
+
+            <span class="quota-label">🗓️ โพสต์ตั้งเวลา:</span>
+
+            <div class="quota-val-row">
+
+              <span id="quotaScheduleValue" class="quota-value">-- / 30</span>
+
+              <span id="quotaScheduleRemain" class="quota-badge neutral">สูงสุด 30</span>
+
+            </div>
+
+          </div>
+
+          <div class="quota-pill" id="draftQuotaPill" title="โควตาบันทึกคลิปเป็นแบบร่าง (สูงสุด 30 รายการ)">
+
+            <span class="quota-label">📝 แบบร่าง:</span>
+
+            <div class="quota-val-row">
+
+              <span id="quotaDraftValue" class="quota-value">-- / 30</span>
+
+              <span id="quotaDraftRemain" class="quota-badge neutral">สูงสุด 30</span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Mode Selection Row -->
+
+      <div class="batch-mode-container">
+
+        <div class="batch-mode-label-row">
+
+          <span>เลือกรูปแบบการรัน:</span>
+
+        </div>
+
+        <div class="batch-select-wrap">
+
+          <select id="batchModeSelect" class="batch-mode-select" title="เลือกรูปแบบการโพสต์">
+
+            <option value="smart">⚡ Smart Queue (ตั้งเวลาคลิปแรก + แบบร่างที่เหลือ)</option>
+
+            <option value="draft_only">📝 Draft Only (บันทึกเป็นแบบร่างทั้งหมด)</option>
+
+            <option value="schedule_only">🗓️ Schedule Only (ตั้งเวลาตามตารางเท่านั้น)</option>
+
+          </select>
+
+          <svg class="batch-select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+
+        </div>
+
+      </div>
+
+      <!-- 📦 Batch Limit Selector Row (Max 30 Per TikTok Quota) -->
+
+      <div class="batch-mode-container">
+
+        <div class="batch-mode-label-row">
+
+          <span>จำกัดจำนวนคลิปต่อรอบ:</span>
+
+          <span id="batchLimitInfo" class="batch-limit-info">จำกัดสูงสุด 30 คลิป</span>
+
+        </div>
+
+        <div class="batch-select-wrap">
+
+          <select id="batchLimitSelect" class="batch-mode-select" title="จำกัดจำนวนคลิปที่จะอัปโหลดในรอบนี้ ป้องกันการล้นโควตา TikTok Studio">
+
+            <option value="auto_quota" selected>🎯 อัตโนมัติตามโควตาที่เหลือ (แนะนำ - ป้องกันล้น)</option>
+
+            <option value="30">⚡ เต็มโควตา 30 คลิป (Max Cap)</option>
+
+            <option value="20">📦 20 คลิป</option>
+
+            <option value="10">📦 10 คลิป</option>
+
+            <option value="5">📦 5 คลิป</option>
+
+            <option value="all">⚠️ ทั้งหมดที่มีในคิว (ไม่จำกัด)</option>
+
+          </select>
+
+          <svg class="batch-select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+
+        </div>
+
+      </div>
+
+      <button id="batchStartBtn" type="button" class="btn-batch-primary">
+
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+
+        <span>เริ่มรันอัปโหลด (<span id="batchCappedCount">30</span> จาก <span id="batchCountBadge">0</span> คลิป)</span>
+
       </button>
+
+      <!-- Live Batch Progress Dashboard (Hidden until running) -->
+
+      <div id="batchDashboard" class="batch-dashboard" hidden>
+
+        <div class="batch-progress-header">
+
+          <span id="batchStatusText" class="batch-status-text">กำลังเตรียมคิว...</span>
+
+          <span id="batchProgressPercent" class="batch-progress-percent">0%</span>
+
+        </div>
+
+        <div class="batch-progress-track">
+
+          <div id="batchProgressBar" class="batch-progress-bar" style="width: 0%"></div>
+
+        </div>
+
+        <div class="batch-substatus-row">
+
+          <span id="batchCurrentStep" class="batch-step-chip">รอดำเนินการ</span>
+
+          <span id="batchEtaText" class="batch-eta-text">ETA: คำนวณ...</span>
+
+        </div>
+
+        <div class="batch-controls-row">
+
+          <button id="batchPauseBtn" type="button" class="btn-batch-ctrl btn-pause">⏸️ พักชั่วคราว</button>
+
+          <button id="batchResumeBtn" type="button" class="btn-batch-ctrl btn-resume" hidden>▶️ ทำต่อ</button>
+
+          <button id="batchStopBtn" type="button" class="btn-batch-ctrl btn-stop">⏹️ หยุด</button>
+
+        </div>
+
+        <div id="batchLogBox" class="batch-log-box"></div>
+
+      </div>
+
     </div>
+
+    <div class="search-filter-bar">
+
+      <div class="search-box">
+
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+
+        <input type="text" id="clipSearchInput" placeholder="ค้นหาคลิปหรือสินค้า..." autocomplete="off" />
+
+        <span id="clipCountBadge" class="clip-count-badge">0</span>
+
+      </div>
+
+      <button id="refreshBtn" type="button" class="btn-icon-refresh" title="รีเฟรชรายการคลิป">
+
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+
+      </button>
+
+    </div>
+
     <div id="list"></div>
+
   </div>
 
   <!-- Tab 2: Checklist & Post Helper -->
+
   <div id="panelChecklist" class="tab-panel">
+
     <!-- Active Clip Studio Monitor -->
+
     <div class="studio-monitor">
+
       <div class="monitor-header-row">
+
         <span class="monitor-chip-live">
+
           <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+
           Live Monitor
+
         </span>
+
         <span class="monitor-chip-ratio">9:16 HD</span>
+
       </div>
+
       <div class="monitor-stage">
+
         <div id="activeCoverWrapper" class="monitor-frame">
+
           <img id="activeCover" hidden alt="ปกที่บันทึกจาก Cover Studio" />
+
         </div>
+
         <div id="activeClipBanner" class="empty-state">
+
           ยังไม่ได้เลือกคลิป — ไปที่แท็บ "รายการคลิป" แล้วกด "เตรียมคลิปนี้" ก่อน
+
         </div>
+
       </div>
+
     </div>
 
     <!-- Post Details Inspector -->
+
     <div class="inspector-card">
+
       <div class="inspector-header">
+
         <span class="inspector-title">
+
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+
           แคปชัน & แท็กสินค้า
+
         </span>
+
         <span class="field-tag-badge">READY TO POST</span>
+
       </div>
 
       <div class="field-group">
+
         <div class="field-label-row">
+
           <span class="field-label">
+
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>
+
             คำอธิบายคลิป (Caption)
+
           </span>
+
         </div>
+
         <textarea id="captionInput" rows="2" placeholder="คำอธิบายคลิปรีวิว..."></textarea>
+
         <div class="caption-counter-row">
+
           <span id="captionCharCount" class="caption-count-badge">0 / 2,200</span>
+
           <span id="captionPolicyBadge" class="caption-count-badge" style="color:var(--success);font-weight:700">TikTok Safe ✓</span>
+
         </div>
+
       </div>
 
       <div class="field-group">
+
         <div class="field-label-row">
+
           <span class="field-label">
+
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></svg>
+
             แฮชแท็ก (Hashtags)
+
           </span>
+
         </div>
+
         <textarea id="hashtagsInput" rows="2" placeholder="#รีวิวของดี #พิกัดในตะกร้า..."></textarea>
+
       </div>
 
       <button id="copyAllBtn" type="button" class="btn-copy-action">
+
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+
         <span>คัดลอกคำอธิบาย + แฮชแท็ก</span>
+
       </button>
 
       <div class="affiliate-grid">
+
         <div>
+
           <div class="field-label-row">
+
             <span class="field-label">
+
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8 8a2 2 0 0 0 2.828 0l7.172-7.172a2 2 0 0 0 0-2.828z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+
               ID สินค้า
+
             </span>
+
           </div>
+
           <div class="input-with-action">
+
             <input type="text" id="productIdInput" placeholder="1737088044..." style="font-family: 'Cascadia Code', Consolas, monospace;" />
+
             <button id="copyProductIdBtn" type="button" class="btn-input-mini" title="คัดลอก ID สินค้า">
+
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+
             </button>
+
           </div>
+
         </div>
+
         <div>
+
           <div class="field-label-row">
+
             <span class="field-label">
+
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+
               ชื่อตะกร้า
+
             </span>
+
           </div>
+
           <input type="text" id="cartNameInput" maxlength="30" placeholder="ชื่อบนตะกร้า" />
+
         </div>
+
       </div>
 
       <!-- Schedule Widget -->
+
       <div class="schedule-widget">
+
         <div class="schedule-widget-title">
+
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+
           <span>วันและเวลาตั้งโพสต์ (เว้นว่างเพื่อเลือกบน TikTok)</span>
+
         </div>
+
         <div class="schedule-widget-inputs">
+
           <label class="schedule-widget-group">
+
             <span>วันที่</span>
+
             <input type="date" id="scheduleDateInput" />
+
           </label>
+
           <label class="schedule-widget-group">
+
             <span>เวลา (ทุก 5 นาที)</span>
+
             <select id="scheduleTimeInput" aria-label="เวลา (ทุก 5 นาที)">
+
               <option value="">เลือกเวลา</option>
+
             </select>
+
           </label>
+
         </div>
+
       </div>
+
     </div>
 
     <!-- Automation Command Center -->
+
     <div class="command-card">
+
       <button id="prepareDetailsBtn" type="button" class="hero-post-btn">
+
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+
         <span>ดำเนินการอัตโนมัติ (ขั้น 1 ถึง 5)</span>
+
       </button>
 
       <label class="switch-row">
+
         <input id="prepareSchedule" type="checkbox" />
+
         <span>สลับเป็นกำหนดเวลาหลังเตรียมครบ</span>
+
       </label>
 
       <!-- Stepper Pipeline -->
+
       <div class="pipeline-header">
+
         <span class="pipeline-title">ขั้นตอนการทำงาน (Pipeline)</span>
+
         <span id="stepProgressText" class="pipeline-meter-text">0 / 6 สำเร็จ</span>
+
       </div>
+
       <div class="pipeline-track">
+
         <div id="stepProgressFill" class="pipeline-fill"></div>
+
       </div>
 
       <div class="checklist">
+
         <div class="step-row">
+
           <input type="checkbox" id="chk1" />
+
           <label for="chk1" class="step-num">1</label>
+
           <div class="step-label">
+
             <strong>อัปโหลดไฟล์วิดีโอ</strong>
+
             <small>ตั้งไฟล์แล้ว detach ทันที ไม่รอ ไม่พิมพ์อะไรต่อ</small>
+
           </div>
+
           <button id="btn1" type="button" class="btn-step">
+
             <span>ทำ</span>
+
             <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+
           </button>
+
         </div>
 
         <div class="step-row">
+
           <input type="checkbox" id="chk2" />
+
           <label for="chk2" class="step-num">2</label>
+
           <div class="step-label">
+
             <strong>พิมพ์คำอธิบาย / แฮชแท็ก</strong>
+
             <small>ล้างชื่อไฟล์เดิม แล้วพิมพ์แคปชันแทน</small>
+
           </div>
+
           <button id="btn2" type="button" class="btn-step">
+
             <span>ทำ</span>
+
             <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+
           </button>
+
         </div>
 
         <div class="step-row">
+
           <input type="checkbox" id="chk3" />
+
           <label for="chk3" class="step-num">3</label>
+
           <div class="step-label">
+
             <strong>ปักตะกร้าสินค้า</strong>
+
             <small>ค้นหา + แนบลิงก์สินค้าตาม ID สินค้า</small>
+
           </div>
+
           <button id="btn3" type="button" class="btn-step">
+
             <span>ทำ</span>
+
             <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+
           </button>
+
         </div>
 
         <div class="step-row">
+
           <input type="checkbox" id="chk4" />
+
           <label for="chk4" class="step-num">4</label>
+
           <div class="step-label">
+
             <strong>สลับเป็นกำหนดเวลา</strong>
+
             <small>เปลี่ยนโหมดโพสต์ ไม่กดโพสต์จริง</small>
+
           </div>
+
           <button id="btn4" type="button" class="btn-step">
+
             <span>ทำ</span>
+
             <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+
           </button>
+
         </div>
 
         <div class="step-row">
+
           <input type="checkbox" id="chk6" />
+
           <label for="chk6" class="step-num">5</label>
+
           <div class="step-label">
+
             <strong>แนบภาพปกจากโปรแกรม</strong>
+
             <small>เปิดแก้ไขหน้าปก อัปโหลดรูป 3:4 แล้วบันทึกบน TikTok</small>
+
           </div>
+
           <button id="btn6" type="button" class="btn-step">
+
             <span>ทำ</span>
+
             <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+
           </button>
+
         </div>
 
         <div class="step-row danger">
+
           <input type="checkbox" id="chk5" />
+
           <label for="chk5" class="step-num">6</label>
+
           <div class="step-label">
+
             <strong>กด Post / กำหนดเวลา</strong>
+
             <small>คำเตือน: โพสต์ขึ้นจริงบน TikTok Studio</small>
+
           </div>
+
           <button id="btn5" type="button" class="btn-step">
+
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+
             <span>ทำ</span>
+
           </button>
+
         </div>
+
       </div>
 
       <p class="step-note">กดปุ่ม "ทำ" ให้ extension ดำเนินการให้อัตโนมัติ หรือกดตัวเลขวงกลมเพื่อมาร์คเมื่อทำเองนอกระบบ — ดำเนินการทีละขั้นและรอผลก่อนกดขั้นถัดไป</p>
+
     </div>
 
     <!-- Mark Posted Card -->
+
     <div class="mark-posted-card">
+
       <div class="label-row">
+
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+
         <span>มาร์คว่าโพสต์แล้ว</span>
+
       </div>
+
       <p>กดหลังจากที่คลิปโพสต์ขึ้นจริงบน TikTok เรียบร้อยแล้ว (ปุ่มนี้ไม่แตะ TikTok จะย้ายไฟล์และอัปเดตสถานะใน OmniCut เท่านั้น)</p>
+
       <button id="markPostedBtn" type="button" class="btn-mark-posted">
+
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+
         <span>มาร์คว่าโพสต์แล้ว</span>
+
       </button>
+
     </div>
+
   </div>
 
   <!-- Tab 3: Tools (เครื่องมือซิงก์ข้อมูล) -->
+
   <div id="panelTools" class="tab-panel">
+
     <div class="studio-monitor">
+
       <div class="monitor-header-row">
+
         <div class="monitor-avatar">
+
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+
         </div>
+
         <div>
+
           <div class="monitor-name">เครื่องมือซิงก์ข้อมูล</div>
+
           <div class="monitor-sub">อ่านข้อมูลจาก TikTok มาเก็บใน OmniCut — เครื่องมือใหม่จะมาเพิ่มในแท็บนี้</div>
+
         </div>
+
       </div>
+
     </div>
 
     <!-- Stats Sync Card -->
+
     <div class="mark-posted-card">
+
       <div class="label-row">
+
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 13l3 3 7-7"/></svg>
+
         <span>ซิงก์สถิติ TikTok</span>
+
       </div>
+
       <p>เปิดหน้า TikTok Studio แท็บ โพสต์ แล้วกดปุ่มนี้ — extension จะอ่านยอดดู/ถูกใจ/คอมเมนต์ส่งเข้า OmniCut เอง</p>
+
       <button id="syncStatsBtn" type="button" class="btn-mark-posted">
+
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+
         <span>ซิงก์สถิติจากหน้านี้</span>
+
       </button>
+
       <p id="buildTag" style="margin:6px 0 0;opacity:.55;font-size:11px"></p>
+
     </div>
 
     <!-- Placeholder -->
+
     <div class="tools-placeholder">
+
       <p class="tools-placeholder-text">มีเครื่องมือดึงข้อมูลตัวใหม่ จะเพิ่มการ์ดในแท็บนี้ (เช่น ยอดขาย/ค่าคอมมิชชัน TikTok Shop)</p>
+
     </div>
+
   </div>
 
   <div id="status"></div>
 
   <!-- Video Preview Modal -->
+
   <div id="videoPreviewModal" class="preview-modal" hidden>
+
     <div class="preview-backdrop" id="previewBackdrop"></div>
+
     <div class="preview-dialog">
+
       <div class="preview-header">
+
         <span class="preview-title" id="previewModalTitle">พรีวิววิดีโอ 9:16</span>
+
         <button type="button" class="preview-close-btn" id="previewCloseBtn" title="ปิด">✕</button>
+
       </div>
+
       <div class="preview-video-container">
+
         <video id="previewVideoPlayer" controls playsinline></video>
+
       </div>
+
       <div class="preview-footer">
+
         <button type="button" class="btn-primary" id="previewSelectBtn">เลือกคลิปนี้สำหรับโพสต์</button>
+
       </div>
+
     </div>
+
   </div>
 
   <!-- Confirm Modal -->
+
   <div id="confirmOverlay">
+
     <div id="confirmBox">
+
       <div class="modal-orb">
+
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+
       </div>
+
       <p id="confirmText"></p>
+
       <div class="row">
+
         <button id="confirmCancelBtn" type="button">ยกเลิก</button>
+
         <button id="confirmOkBtn" type="button">ยืนยัน เปลี่ยนคลิป</button>
+
       </div>
+
     </div>
+
   </div>
 
   <script src="clip_state.js"></script>
+
   <script src="auth_key.js"></script>
+
   <script src="stats_parser.js"></script>
+
+  <script src="quota_detector.js"></script>
+
+  <script src="batch_runner.js"></script>
+  <script src="batch_orchestrator.js"></script>
+
   <script src="sidepanel.js"></script>
+
 </body>
+
 </html>
+

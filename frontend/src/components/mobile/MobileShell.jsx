@@ -7,7 +7,6 @@ import {
   MoreHorizontal,
   Film,
   Sparkles,
-  Terminal,
   Settings,
   Monitor,
 } from 'lucide-react';

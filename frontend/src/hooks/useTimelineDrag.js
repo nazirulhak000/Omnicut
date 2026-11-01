@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { applyCaptionMagneticRipple } from '../lib/timelineTrackModel';
 import { resolveSnapCandidateLabel } from '../lib/timelineMath';
 import { withoutPlayheadCandidate } from '../lib/timelineTrimOps';
@@ -34,6 +34,14 @@ export function useTimelineDrag({
   onRippleTriggered,
 }) {
   const scrubbing = useRef(false);
+  const scrubRaf = useRef(null);
+  const pendingScrubTime = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (scrubRaf.current) cancelAnimationFrame(scrubRaf.current);
+    };
+  }, []);
   const captionDrag = useRef(null);
   const captionTrim = useRef(null);
   const textDrag = useRef(null);
@@ -45,8 +53,10 @@ export function useTimelineDrag({
   const effectDragRef = useRef(null);
   const bodyDrag = useRef(null);
 
-  const notifySnap = (rawTime, snappedTime) => {
-    if (!snapEnabled) {
+  const isSnapSuppressed = (e) => !snapEnabled || e?.ctrlKey || e?.metaKey || e?.shiftKey;
+
+  const notifySnap = (rawTime, snappedTime, e = null) => {
+    if (isSnapSuppressed(e)) {
       onSnapGuide?.(null);
       return;
     }
@@ -78,12 +88,12 @@ export function useTimelineDrag({
   // was, so snapping to it would freeze a slow scrub in place.
   const scrubTimeFromEvent = (e) => {
     const rawT = timeFromEvent(e);
-    if (!snapEnabled || e.shiftKey || !snapFunction) {
+    if (!snapEnabled || e.shiftKey || e.ctrlKey || e.metaKey || !snapFunction) {
       onSnapGuide?.(null);
       return rawT;
     }
     const snapped = snapFunction(rawT, withoutPlayheadCandidate(snapPoints, playhead));
-    notifySnap(rawT, snapped);
+    notifySnap(rawT, snapped, e);
     const maxT = Math.max(totalDuration, audioDuration || 0);
     return Math.max(0, maxT > 0 ? Math.min(maxT, snapped) : snapped);
   };
@@ -91,16 +101,34 @@ export function useTimelineDrag({
   const startScrub = (e) => {
     scrubbing.current = true;
     capturePointer(e);
+    if (scrubRaf.current) {
+      cancelAnimationFrame(scrubRaf.current);
+      scrubRaf.current = null;
+    }
     onSeek?.(scrubTimeFromEvent(e));
   };
 
   const moveScrub = (e) => {
-    if (scrubbing.current) onSeek?.(scrubTimeFromEvent(e));
+    if (!scrubbing.current) return;
+    pendingScrubTime.current = scrubTimeFromEvent(e);
+    if (!scrubRaf.current) {
+      scrubRaf.current = requestAnimationFrame(() => {
+        scrubRaf.current = null;
+        if (scrubbing.current && pendingScrubTime.current !== null) {
+          onSeek?.(pendingScrubTime.current);
+        }
+      });
+    }
+    if (!scrubbing.current) onSeek?.(scrubTimeFromEvent(e));
   };
 
   const endScrub = (e) => {
     const wasScrubbing = scrubbing.current;
     scrubbing.current = false;
+    if (scrubRaf.current) {
+      cancelAnimationFrame(scrubRaf.current);
+      scrubRaf.current = null;
+    }
     releasePointer(e);
     if (wasScrubbing) onSnapGuide?.(null);
   };
@@ -115,6 +143,10 @@ export function useTimelineDrag({
     deselectAll?.();
     scrubbing.current = true;
     capturePointer(e);
+    if (scrubRaf.current) {
+      cancelAnimationFrame(scrubRaf.current);
+      scrubRaf.current = null;
+    }
     onSeek?.(scrubTimeFromEvent(e));
   };
 
@@ -162,16 +194,16 @@ export function useTimelineDrag({
 
     if (d.edge === 'left') {
       const targetIdx = (d.initialCues || []).findIndex((c) => c._uid === d.uid || c.id === d.uid);
-      const minStart = (snapEnabled && targetIdx > 0) ? d.initialCues[targetIdx - 1].end : 0;
+      const minStart = (!isSnapSuppressed(e) && targetIdx > 0) ? d.initialCues[targetIdx - 1].end : 0;
       const rawStart = Math.max(minStart, Math.min(d.end - 0.2, d.start + delta));
-      const snapped = snapFunction(rawStart, snapPoints);
-      notifySnap(rawStart, snapped);
+      const snapped = isSnapSuppressed(e) ? rawStart : snapFunction(rawStart, snapPoints);
+      notifySnap(rawStart, snapped, e);
       const finalStart = Math.max(minStart, Math.round(snapped * 100) / 100);
       shiftCaption?.(d.uid, { start: finalStart });
     } else {
       const rawEnd = Math.max(d.start + 0.2, d.end + delta);
-      const snapped = snapFunction(rawEnd, snapPoints);
-      notifySnap(rawEnd, snapped);
+      const snapped = isSnapSuppressed(e) ? rawEnd : snapFunction(rawEnd, snapPoints);
+      notifySnap(rawEnd, snapped, e);
       const newEnd = Math.round(Math.max(d.start + 0.2, snapped) * 100) / 100;
 
       if (snapEnabled && (onCuesChange || onCaptionRippleShift)) {
@@ -217,11 +249,11 @@ export function useTimelineDrag({
 
     const targetIdx = (d.initialCues || []).findIndex((c) => c._uid === d.uid || c.id === d.uid);
     const dur = Math.round((d.end - d.start) * 100) / 100;
-    const minStart = (snapEnabled && targetIdx > 0) ? d.initialCues[targetIdx - 1].end : 0;
+    const minStart = (!isSnapSuppressed(e) && targetIdx > 0) ? d.initialCues[targetIdx - 1].end : 0;
 
     const rawStart = Math.max(minStart, d.start + delta);
-    const snappedStart = snapFunction(rawStart, snapPoints);
-    notifySnap(rawStart, snappedStart);
+    const snappedStart = isSnapSuppressed(e) ? rawStart : snapFunction(rawStart, snapPoints);
+    notifySnap(rawStart, snappedStart, e);
     const finalStart = Math.max(minStart, Math.round(snappedStart * 100) / 100);
     const finalEnd = Math.round((finalStart + dur) * 100) / 100;
 
@@ -276,8 +308,8 @@ export function useTimelineDrag({
       shiftTextOverlay?.(d.id, { start: Math.round(snapped * 100) / 100 });
     } else {
       const rawEnd = Math.max(d.start + 0.2, d.end + delta);
-      const snapped = snapFunction(rawEnd, snapPoints);
-      notifySnap(rawEnd, snapped);
+      const snapped = isSnapSuppressed(e) ? rawEnd : snapFunction(rawEnd, snapPoints);
+      notifySnap(rawEnd, snapped, e);
       shiftTextOverlay?.(d.id, { end: Math.round(snapped * 100) / 100 });
     }
   };
@@ -309,8 +341,8 @@ export function useTimelineDrag({
     if (!beginDragAfterThreshold(d, e.clientX, dragBegin)) return;
     const shift = Math.max(-d.start, delta);
     const rawStart = d.start + shift;
-    const snappedStart = snapFunction(rawStart, snapPoints);
-    notifySnap(rawStart, snappedStart);
+    const snappedStart = isSnapSuppressed(e) ? rawStart : snapFunction(rawStart, snapPoints);
+    notifySnap(rawStart, snappedStart, e);
     const correction = snappedStart - rawStart;
     shiftTextOverlay?.(item.id, {
       start: Math.round((d.start + shift + correction) * 100) / 100,
@@ -345,8 +377,8 @@ export function useTimelineDrag({
     const delta = (e.clientX - d.startX) / pxPerSec;
     if (!beginDragAfterThreshold(d, e.clientX, dragBegin)) return;
     const rawEnd = d.startEnd + delta;
-    const snapped = snapFunction(rawEnd, snapPoints);
-    notifySnap(rawEnd, snapped);
+    const snapped = isSnapSuppressed(e) ? rawEnd : snapFunction(rawEnd, snapPoints);
+    notifySnap(rawEnd, snapped, e);
     const minEnd = d.start + HOOK_MIN_DURATION;
     const maxEnd = d.start + HOOK_MAX_DURATION;
     const clamped = Math.max(minEnd, Math.min(maxEnd, Math.round(snapped * 10) / 10));
@@ -378,14 +410,14 @@ export function useTimelineDrag({
 
       if (d.edge === 'left') {
         const rawStart = Math.max(0, Math.min(d.end - 0.3, d.start + delta));
-        const snapped = snapFunction(rawStart, snapPoints);
-        notifySnap(rawStart, snapped);
+        const snapped = isSnapSuppressed(e) ? rawStart : snapFunction(rawStart, snapPoints);
+        notifySnap(rawStart, snapped, e);
         onTrimUpdate({ id: d.id, edge: 'left', value: Math.round(snapped * 10) / 10 });
       } else {
         const maxEnd = Math.max(totalDuration, audioDuration || 0) || 999;
         const rawEnd = Math.max(d.start + 0.3, Math.min(maxEnd, d.end + delta));
-        const snapped = snapFunction(rawEnd, snapPoints);
-        notifySnap(rawEnd, snapped);
+        const snapped = isSnapSuppressed(e) ? rawEnd : snapFunction(rawEnd, snapPoints);
+        notifySnap(rawEnd, snapped, e);
         onTrimUpdate({ id: d.id, edge: 'right', value: Math.round(snapped * 10) / 10 });
       }
     };
@@ -419,8 +451,8 @@ export function useTimelineDrag({
       const maxT = Math.max(totalDuration, audioDuration || 0) || 999;
       const maxStart = Math.max(0, maxT - d.duration);
       const rawStart = Math.max(0, Math.min(maxStart, d.start + delta));
-      const snappedStart = snapFunction(rawStart, snapPoints);
-      notifySnap(rawStart, snappedStart);
+      const snappedStart = isSnapSuppressed(e) ? rawStart : snapFunction(rawStart, snapPoints);
+      notifySnap(rawStart, snappedStart, e);
       const finalStart = Math.round(snappedStart * 10) / 10;
       const finalEnd = Math.round((finalStart + d.duration) * 10) / 10;
       onBodyUpdate({ id: d.id, start: finalStart, end: finalEnd });

@@ -24,9 +24,11 @@ import {
   packStickers,
   tickStep,
   indexFromX,
+  findOverlappingItems,
+  shiftLinkedItems,
 } from '../../lib/timelineTrackModel';
 import { CLIP_DRAG_TYPE, TEXT_TEMPLATE_DRAG_TYPE } from './AssetPanel';
-import { getAudioPeaks, MAX_DECODE_SECONDS } from '../../lib/audioPeaks';
+import { getAudioPeaks, getAudioPeaksForZoom, resolveWaveformLodColumns, MAX_DECODE_SECONDS } from '../../lib/audioPeaks';
 import { formatTimecode, FADE_DURATION } from '../../lib/timelineMath';
 import { voiceCutMarkers } from '../../lib/rippleUi';
 import { resolveBackgroundIsolationConfig, scopedArtifactCoversClip, subjectLayerForOverlay } from '../../lib/backgroundIsolationPreview.js';
@@ -223,6 +225,7 @@ export default function Timeline({
   snapCandidates: snapPoints = [],
   snapFunction = (t) => t,
   snapEnabled = true,
+  trackLinkageEnabled = true,
   onCuesChange,
   onCaptionRippleShift,
   overlays = [],
@@ -357,6 +360,49 @@ export default function Timeline({
     onClipChange?.(id, { transition_in: current !== 'cut' ? 'cut' : 'fade' });
   };
   const reorder = (id, dir, silent) => {
+    if (trackLinkageEnabled) {
+      const mySeg = segments.find((s) => s.clip.id === id);
+      const myIdx = segments.findIndex((s) => s.clip.id === id);
+      const targetIdx = myIdx + dir;
+      if (mySeg && targetIdx >= 0 && targetIdx < segments.length) {
+        const targetSeg = segments[targetIdx];
+        const deltaSec = dir > 0 ? targetSeg.dur : -targetSeg.dur;
+        const overlappingCues = findOverlappingItems(cues, mySeg.segStart, mySeg.segEnd);
+        if (overlappingCues.length > 0) {
+          const shiftedCues = shiftLinkedItems(cues, new Set(overlappingCues.map((c) => c._uid || c.id)), deltaSec);
+          (onCuesChange || onCaptionRippleShift)?.(shiftedCues);
+        }
+        if (overlays && overlays.length > 0) {
+          const overlappingOverlays = findOverlappingItems(overlays, mySeg.segStart, mySeg.segEnd);
+          for (const ov of overlappingOverlays) {
+            onUpdateOverlay?.(ov.id, {
+              start: Math.max(0, Math.round((ov.start + deltaSec) * 100) / 100),
+              end: Math.max(0.1, Math.round((ov.end + deltaSec) * 100) / 100),
+            });
+          }
+        }
+        if (stickers && stickers.length > 0) {
+          const overlappingStickers = findOverlappingItems(stickers, mySeg.segStart, mySeg.segEnd);
+          for (const st of overlappingStickers) {
+            onUpdateSticker?.({
+              id: st.id,
+              start: Math.max(0, Math.round((st.start + deltaSec) * 100) / 100),
+              end: Math.max(0.1, Math.round((st.end + deltaSec) * 100) / 100),
+            });
+          }
+        }
+        if (effects && effects.length > 0) {
+          const overlappingEffects = findOverlappingItems(effects, mySeg.segStart, mySeg.segEnd);
+          for (const ef of overlappingEffects) {
+            onUpdateEffect?.({
+              id: ef.id,
+              start: Math.max(0, Math.round((ef.start + deltaSec) * 100) / 100),
+              end: Math.max(0.1, Math.round((ef.end + deltaSec) * 100) / 100),
+            });
+          }
+        }
+      }
+    }
     if (silent && onReorderSilent) { onReorderSilent(id, dir); return true; }
     if (onReorder) { onReorder(id, dir); return true; }
     return false;
@@ -595,12 +641,12 @@ export default function Timeline({
         setStemPeaks((prev) => (prev[key] ? { ...prev, [key]: null } : prev));
         return;
       }
-      getAudioPeaks(url, WAVE_COLUMNS).then((info) => {
+      (getAudioPeaksForZoom ? getAudioPeaksForZoom(url, pxPerSec) : getAudioPeaks(url, WAVE_COLUMNS)).then((info) => {
         if (alive) setStemPeaks((prev) => ({ ...prev, [key]: info }));
       });
     });
     return () => { alive = false; };
-  }, [stemUrls.voice, stemUrls.bgm]);
+  }, [stemUrls.voice, stemUrls.bgm, pxPerSec]);
 
   useEffect(() => {
     STEMS.forEach(({ key, colour }) => {
@@ -612,7 +658,7 @@ export default function Timeline({
       ctx.fillStyle = colour;
       ctx.globalAlpha = 0.55;
       const mid = canvas.height / 2;
-      for (let i = 0; i < WAVE_COLUMNS; i++) {
+      const cols = Math.floor(info.peaks.length / 2) || WAVE_COLUMNS; if (canvas.width !== cols) canvas.width = cols; for (let i = 0; i < cols; i++) {
         const min = info.peaks[i * 2];
         const max = info.peaks[i * 2 + 1];
         const top = mid - max * mid;
@@ -1526,7 +1572,7 @@ export default function Timeline({
                         {info?.peaks && (
                           <canvas
                             ref={(el) => { stemCanvasRefs.current[key] = el; }}
-                            width={WAVE_COLUMNS}
+                            width={Math.floor(info.peaks.length / 2) || resolveWaveformLodColumns(pxPerSec)}
                             height={STEM_H}
                             className="pointer-events-none absolute inset-0 h-full w-full"
                           />

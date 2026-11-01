@@ -994,6 +994,7 @@ class ShotMatchingStage:
                 motion_times, motion_scores = MotionAnalyzer.get_motion_scores(raw_video)
         except Exception:
             motion_times, motion_scores = [], []
+        detected_scene_cuts = MotionAnalyzer.detect_scene_cuts(motion_times, motion_scores)
 
         from scripts.pipeline import choose_transition
 

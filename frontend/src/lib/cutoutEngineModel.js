@@ -1,11 +1,7 @@
 /**
  * Single place that decides which Cutout engine + model pair the editor sends.
  *
- * Older projects may carry a `model` without an `engine` (written before SAM 2
- * existed, when rembg was the only engine).  Resolving the two fields
- * independently turned `{ model: 'u2netp' }` into `sam2 + u2net`, which the
- * SAM 2 worker cannot run.  The pair is resolved together here so the model
- * always belongs to the engine.
+ * Upgraded with CapCut 7.1 Resolution-Independent Stroke Normalization (DilateErode.lua, E5).
  */
 
 export const CUTOUT_ENGINE_MODELS = Object.freeze({
@@ -42,4 +38,16 @@ export function resolveCutoutEngineModel(config) {
     ? requestedModel
     : defaultCutoutModel(engine);
   return { engine, model };
+}
+
+/**
+ * CapCut 7.1 Resolution-Independent Stroke / Feather Normalization (DilateErode.lua, E5)
+ * Formula: scaleNorm = min(width, height) / 720.0
+ * Effective Stroke = baseStroke * scaleNorm
+ */
+export const STROKE_NORM_BASE = 720.0;
+
+export function calculateNormalizedStroke(baseStroke = 14, width = 1080, height = 1920) {
+  const scaleNorm = Math.min(width, height) / STROKE_NORM_BASE;
+  return Math.round(baseStroke * scaleNorm);
 }

@@ -189,3 +189,93 @@ export function computeRippleClipMove(clips = [], movedClipId, newStart) {
   }
   return list;
 }
+
+
+/**
+ * CapCut 7.1 Linkage Types (globalSetting E11):
+ * linkageEnableTypes = text, effect, sticker, filter, adjust, sound, tts
+ */
+export const LINKAGE_ENABLE_TYPES = Object.freeze([
+  'text',
+  'effect',
+  'sticker',
+  'filter',
+  'adjust',
+  'sound',
+  'tts',
+]);
+
+export function isLinkageType(type) {
+  if (!type || typeof type !== 'string') return false;
+  const normalized = type.toLowerCase().trim();
+  return LINKAGE_ENABLE_TYPES.includes(normalized);
+}
+
+/**
+ * Finds all timed items (cues, overlays, stickers, effects) overlapping a time window [start, end].
+ */
+export function findOverlappingItems(items = [], start = 0, end = 0, { epsilon = 0.001 } = {}) {
+  if (!Array.isArray(items) || end <= start) return [];
+  return items.filter((item) => {
+    const iStart = Number(item.start ?? item.time ?? 0);
+    const iEnd = Number(item.end ?? (iStart + (item.duration ?? 0)));
+    return Math.max(start, iStart) < Math.min(end, iEnd) - epsilon;
+  });
+}
+
+/**
+ * Shifts linked items by deltaSec if trackLinkageEnabled is active.
+ */
+export function shiftLinkedItems(items = [], linkedIds = new Set(), deltaSec = 0) {
+  if (!Array.isArray(items) || !linkedIds.size || Math.abs(deltaSec) < 0.0001) {
+    return items;
+  }
+  return items.map((item) => {
+    const id = item.id;
+    if (!linkedIds.has(id)) return item;
+    const iStart = Number(item.start ?? 0);
+    const iEnd = Number(item.end ?? (iStart + (item.duration ?? 0)));
+    const nextStart = Math.max(0, Math.round((iStart + deltaSec) * 1000) / 1000);
+    const nextEnd = Math.max(nextStart + 0.1, Math.round((iEnd + deltaSec) * 1000) / 1000);
+    return {
+      ...item,
+      start: nextStart,
+      end: nextEnd,
+    };
+  });
+}
+
+/**
+ * Compound Sub-Tracks / Grouping (CapCut 7.1 Ctrl+G / Ctrl+Shift+G, E13).
+ */
+export function groupTimelineItems(items = [], selectedIds = [], existingGroupId = null) {
+  if (!Array.isArray(items) || !Array.isArray(selectedIds) || selectedIds.length < 2) {
+    return items;
+  }
+  const idSet = new Set(selectedIds);
+  const groupId = existingGroupId || `group_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  return items.map((item) => {
+    if (!idSet.has(item.id)) return item;
+    return { ...item, groupId };
+  });
+}
+
+export function ungroupTimelineItems(items = [], targetGroupIdOrItemId) {
+  if (!Array.isArray(items) || !targetGroupIdOrItemId) return items;
+  let effectiveGroupId = targetGroupIdOrItemId;
+  const itemWithId = items.find((i) => i.id === targetGroupIdOrItemId);
+  if (itemWithId && itemWithId.groupId) {
+    effectiveGroupId = itemWithId.groupId;
+  }
+  return items.map((item) => {
+    if (item.groupId !== effectiveGroupId) return item;
+    const copy = { ...item };
+    delete copy.groupId;
+    return copy;
+  });
+}
+
+export function findGroupMembers(items = [], groupId) {
+  if (!Array.isArray(items) || !groupId) return [];
+  return items.filter((item) => item.groupId === groupId);
+}

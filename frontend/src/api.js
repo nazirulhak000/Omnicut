@@ -2,7 +2,7 @@ import axios from 'axios';
 import { rememberProjectRevision, withProjectRevision } from './lib/projectRevision.js';
 import { sanitizeText, sanitizeScript } from './lib/sanitize.js';
 import { createChannelTransport, projectApiPath } from './lib/channelTransport.js';
-import { captureChannel, isCurrentChannel, channelSelectionError } from './lib/channelRuntime.js';
+import { activeChannel, captureChannel, isCurrentChannel, channelSelectionError } from './lib/channelRuntime.js';
 
 const api = axios.create({
   baseURL: '/api',
@@ -85,11 +85,66 @@ for (const method of ['post', 'put', 'patch']) {
   api[method] = (url, data, options = {}) => api.request({ ...options, method, url, data });
 }
 
-export const getChannels = () => api.get('/channels').then(response => response.data);
-export const createChannel = payload => api.post('/channels', payload).then(response => response.data);
-export const updateChannel = (id, payload) => api.patch(`/channels/${encodeURIComponent(id)}`, payload).then(response => response.data);
-export const activateChannelProfile = (id, expectedRevision) => api.post(`/channels/${encodeURIComponent(id)}/activate`, { expected_revision: expectedRevision }).then(response => response.data);
-export const archiveChannelProfile = (id, expectedRevision) => api.post(`/channels/${encodeURIComponent(id)}/archive`, { expected_revision: expectedRevision }).then(response => response.data);
+// ── In-Flight Request Deduplication & Memory Cache (Station 5 & 8) ──
+const _queryCache = new Map();
+const _inFlightRequests = new Map();
+
+export function cachedQuery(key, loader, maxAgeMs = 10000) {
+  const cached = _queryCache.get(key);
+  const now = Date.now();
+  if (cached && (now - cached.timestamp < maxAgeMs)) {
+    return Promise.resolve(cached.data);
+  }
+  if (_inFlightRequests.has(key)) {
+    return _inFlightRequests.get(key);
+  }
+  const promise = Promise.resolve()
+    .then(loader)
+    .then((data) => {
+      _queryCache.set(key, { data, timestamp: Date.now() });
+      _inFlightRequests.delete(key);
+      return data;
+    })
+    .catch((err) => {
+      _inFlightRequests.delete(key);
+      throw err;
+    });
+  _inFlightRequests.set(key, promise);
+  return promise;
+}
+
+export function invalidateApiCache(...keys) {
+  if (!keys.length) {
+    _queryCache.clear();
+    _inFlightRequests.clear();
+    return;
+  }
+  keys.forEach((k) => {
+    _queryCache.delete(k);
+    _inFlightRequests.delete(k);
+  });
+}
+
+export const getChannels = (force = false) => {
+  if (force) invalidateApiCache('channels');
+  return cachedQuery('channels', () => api.get('/channels').then(response => response.data), 10000);
+};
+export const createChannel = payload => {
+  invalidateApiCache('channels');
+  return api.post('/channels', payload).then(response => response.data);
+};
+export const updateChannel = (id, payload) => {
+  invalidateApiCache('channels');
+  return api.patch(`/channels/${encodeURIComponent(id)}`, payload).then(response => response.data);
+};
+export const activateChannelProfile = (id, expectedRevision) => {
+  invalidateApiCache('channels');
+  return api.post(`/channels/${encodeURIComponent(id)}/activate`, { expected_revision: expectedRevision }).then(response => response.data);
+};
+export const archiveChannelProfile = (id, expectedRevision) => {
+  invalidateApiCache('channels');
+  return api.post(`/channels/${encodeURIComponent(id)}/archive`, { expected_revision: expectedRevision }).then(response => response.data);
+};
 export const getChannelReadiness = id => api.get(`/channels/${encodeURIComponent(id)}/readiness`).then(response => response.data);
 
 // Authentication is injected by the same-origin Vite proxy/server boundary;
@@ -417,11 +472,18 @@ export const deleteProductAngle = (productId, angleId, batch = null) =>
   api.delete(`/products/${productId}/angles/${angleId}`, { params: batch !== null ? { batch } : {} }).then(r => r.data);
 export const deleteProduct = (id, force = false) => api.delete(`/products/${id}`, { params: { force } }).then(r => r.data);
 
-export const getProjects = () => api.get('/projects').then(r => r.data);
+
+export const getProjects = (force = false) => {
+  const cacheKey = `projects:${activeChannel()}`;
+  if (force) invalidateApiCache(cacheKey, 'projects');
+  return cachedQuery(cacheKey, () => api.get('/projects').then(r => r.data), 4000);
+};
 export const getProject = (name) => api.get(projectApiPath(name)).then(r => r.data);
 export const getProjectOrigin = (name) => api.get(`${projectApiPath(name)}/origin`).then(r => r.data);
-export const deleteProject = (name, scope = 'project') =>
-  api.delete(projectApiPath(name), { params: { scope } }).then(r => r.data);
+export const deleteProject = (name, scope = 'project') => {
+  invalidateApiCache('projects');
+  return api.delete(projectApiPath(name), { params: { scope } }).then(r => r.data);
+};
 export const updateProjectCues = (name, data) => api.patch(`${projectApiPath(name)}/cues`, data).then(r => r.data);
 export const updateProjectClips = (name, data) => api.patch(`${projectApiPath(name)}/clips`, data).then(r => r.data);
 export const updateProjectState = (name, data, channelToken = captureChannel()) =>
@@ -437,13 +499,22 @@ export const createPost = (data) => api.post('/posts', data).then(r => r.data);
 export const setPostMetrics = (id, metrics) => api.post(`/posts/${id}/metrics`, metrics).then(r => r.data);
 export const getPerformance = () => api.get('/posts/performance').then(r => r.data);
 
-export const getAllAssets = () => api.get('/assets/all').then(r => r.data);
-export const starAsset = (id, starred) => api.post('/assets/star', { id, starred }).then(r => r.data);
-export const getHookMotionPresets = () => api.get('/hook-motion-presets').then(r => r.data);
-export const uploadAsset = (formData) => api.post('/assets/upload', formData, {
-  headers: { 'Content-Type': 'multipart/form-data' },
-  timeout: 300000
-}).then(r => r.data);
+export const getAllAssets = (force = false) => {
+  if (force) invalidateApiCache('assets_all');
+  return cachedQuery('assets_all', () => api.get('/assets/all').then(r => r.data), 30000);
+};
+export const starAsset = (id, starred) => {
+  invalidateApiCache('assets_all');
+  return api.post('/assets/star', { id, starred }).then(r => r.data);
+};
+export const getHookMotionPresets = () => cachedQuery('hook_motion_presets', () => api.get('/hook-motion-presets').then(r => r.data), 60000);
+export const uploadAsset = (formData) => {
+  invalidateApiCache('assets_all');
+  return api.post('/assets/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 300000
+  }).then(r => r.data);
+};
 
 // ═══════════════════════════════════════════════════════════════════════
 // 📋 GLOBAL TASK & ACTIVITY MANAGEMENT APIS
@@ -774,3 +845,4 @@ export const restoreArchivedClip = (exportId) => api.post('/archive/restore', { 
 export const revealInExplorer = (targetPath) => api.post('/archive/reveal', { target_path: targetPath }).then(r => r.data);
 
 export default api;
+

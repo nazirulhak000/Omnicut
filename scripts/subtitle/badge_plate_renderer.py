@@ -307,3 +307,41 @@ def _hook_accent_events(
         f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{glow_tag}{draw}",
         f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{bar_tag}{draw}",
     ]
+
+
+def render_split_background_plates(
+    lines: List[str],
+    line_font_sizes: List[int],
+    line_ys: List[int],
+    x_center: int,
+    resolved_font: str,
+    fill_colour: str,
+    fill_opacity: float,
+    start_t: str,
+    end_t: str,
+    canvas_round_radius_scale: float = 0.5,
+    canvas_split_padding: float = 0.1,
+    pad_x_em: float = 0.35,
+    pad_y_em: float = 0.15,
+) -> List[str]:
+    """
+    Renders CapCut 7.1 Dynamic Split Background Plates (split_background, E9, E10).
+    Draws a tight per-line rounded rectangle behind each line with canvasRoundRadiusScale.
+    """
+    events = []
+    alpha_hex = f"&H{int(round((1.0 - fill_opacity) * 255)):02X}&"
+    for line, fs, y in zip(lines, line_font_sizes, line_ys):
+        if not line.strip():
+            continue
+        half_w = _hook_line_width_px(line, resolved_font, fs)
+        pad_x = round(fs * pad_x_em)
+        pad_y = round(fs * pad_y_em)
+        bw = (half_w + pad_x) * 2
+        bh = fs + pad_y * 2
+        r = min(28.0, bh * canvas_round_radius_scale)
+        draw = _ass_rounded_pill_path(bw, bh, r)
+        box_x = x_center - bw / 2
+        box_y = y - pad_y
+        tag = f"{{\\an7\\pos({box_x:.0f},{box_y:.0f})\\p1\\bord0\\shad0\\c{fill_colour}&\\alpha{alpha_hex}}}"
+        events.append(f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{draw}")
+    return events

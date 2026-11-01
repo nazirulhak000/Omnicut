@@ -145,7 +145,7 @@ globalThis.OmniAutomation = (() => {
       if (!status) return false;
       const text = status.innerText || status.textContent || '';
       return status.className.includes('success') && (text.includes('อัปโหลดแล้ว') || text.toLowerCase().includes('uploaded'));
-    })()`, 'TikTok ยังอัปโหลดวิดีโอไม่เสร็จ -- รอสักครู่แล้วลองใหม่', 90000);
+    })()`, 'TikTok ยังอัปโหลดวิดีโอไม่เสร็จ -- รอสักครู่แล้วลองใหม่', 900000);
   }
 
   async function uploadCover(send, coverPath) {

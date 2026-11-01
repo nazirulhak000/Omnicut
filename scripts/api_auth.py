@@ -187,6 +187,8 @@ def evaluate_access(
         return Decision(allow=True, method="exempt")
     if not is_ws and is_exempt_path(path):
         return Decision(allow=True, method="exempt")
+    if auth.is_auth_disabled():
+        return Decision(allow=True, method="local")
 
     kind = auth.classify_request(client_host, headers)
     origin = headers.get("origin", "")
@@ -351,6 +353,13 @@ def _cookie_kwargs(request: Request) -> dict:
 
 @router.get("/me")
 def auth_me(request: Request):
+    if auth.is_auth_disabled():
+        return {
+            "authenticated": True,
+            "auth_required": False,
+            "method": "local",
+            "password_configured": False,
+        }
     kind = auth.classify_request(_client_host(request), request.headers)
     local = kind == "local"
     method = credential_method(
@@ -420,6 +429,14 @@ def detect_runtime() -> str:
 
 @health_router.get("/api/health")
 def health(request: Request):
+    if auth.is_auth_disabled():
+        return {
+            "ok": True,
+            "version": getattr(request.app, "version", None),
+            "runtime": detect_runtime(),
+            "started_at": _STARTED_AT,
+            "auth_required": False,
+        }
     kind = auth.classify_request(_client_host(request), request.headers)
     return {
         "ok": True,

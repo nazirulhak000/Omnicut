@@ -3,6 +3,7 @@ import { Trash2, Smile, Move } from 'lucide-react';
 import OverlayTimingControls from './OverlayTimingControls';
 import OverlayScaleControl from './OverlayScaleControl';
 import OverlayInspectorHeader from './OverlayInspectorHeader';
+import { BLEND_MODE_OPTIONS } from '../../../lib/stickerAnimation';
 
 const STICKER_TITLES = {
   accent_sparkle_star_3d: 'ดาวเปล่งประกาย 3D',
@@ -85,13 +86,54 @@ export default function StickerInspector({
         <p className="text-[11px] text-slate-400 leading-relaxed">
           สามารถคลิกลากย้ายตำแหน่งและดึงขอบปรับขนาดบนหน้าจอวิดีโอได้อย่างอิสระ
         </p>
-        <button
-          type="button"
-          onClick={() => onUpdateSticker?.(sticker.id, { normX: 0.5, normY: 0.5 })}
-          className="w-full py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-medium border border-white/[0.06] transition-colors cursor-pointer"
-        >
-          จัดกึ่งกลางจอ
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => onUpdateSticker?.(sticker.id, { normX: 0.5, normY: 0.5 })}
+            className="py-1.5 px-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-medium border border-white/[0.06] transition-colors cursor-pointer"
+          >
+            จัดกึ่งกลางจอ
+          </button>
+          <button
+            type="button"
+            onClick={() => onUpdateSticker?.(sticker.id, { normX: 0.5, normY: 0.70 })}
+            className="py-1.5 px-2 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 text-[#25F4EE] text-xs font-bold border border-[#25F4EE]/30 transition-colors cursor-pointer"
+            title="วางสติกเกอร์ให้อยู่เหนือโซนซับไตเติลและแคปชัน TikTok (Safe Zone ล่าง 420px)"
+          >
+            จัดใน Safe Zone
+          </button>
+        </div>
+      </div>
+
+      {/* ─── CapCut 7.1 Spring Physics & Blend Mode ─── */}
+      <div className="space-y-2.5 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-xs">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-slate-300 font-semibold">ฟิสิกส์สปริง (Spring):</span>
+          <select
+            aria-label="แอนิเมชันสปริงสติกเกอร์"
+            value={sticker.anim || 'ease_out'}
+            onChange={(e) => onUpdateSticker?.(sticker.id, { anim: e.target.value })}
+            className="rounded-lg border border-white/[0.12] bg-black/60 px-2 py-1 text-xs text-white focus:border-[#25F4EE] focus:outline-none"
+          >
+            <option value="ease_out">นุ่มนวล (Ease Out)</option>
+            <option value="spring_bounce">สปริงเด้ง (Spring Bounce)</option>
+            <option value="elastic_out">ยืดหยุ่น (Elastic Out)</option>
+            <option value="back_out">ดึงกลับ (Back Out)</option>
+          </select>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-slate-300 font-semibold">โหมดผสานสี (Blend):</span>
+          <select
+            aria-label="โหมดผสานสีสติกเกอร์"
+            value={sticker.blend_mode || 'normal'}
+            onChange={(e) => onUpdateSticker?.(sticker.id, { blend_mode: e.target.value })}
+            className="rounded-lg border border-white/[0.12] bg-black/60 px-2 py-1 text-xs text-white focus:border-[#25F4EE] focus:outline-none"
+          >
+            {BLEND_MODE_OPTIONS.map((opt) => (
+              <option key={opt.id} value={opt.id}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* ─── Delete Sticker Action ─── */}

@@ -120,6 +120,16 @@ export default function CoverStudioModal({
 
   // File input ref
   const fileInputRef = useRef(null);
+  const uploadedBlobUrlRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (uploadedBlobUrlRef.current) {
+        try { URL.revokeObjectURL(uploadedBlobUrlRef.current); } catch (_) {}
+        uploadedBlobUrlRef.current = null;
+      }
+    };
+  }, []);
   const ownerRef = useRef(captureChannel());
   const initializedDraftRef = useRef(false);
   const userEditedRef = useRef(false);
@@ -326,7 +336,11 @@ export default function CoverStudioModal({
     const file = e.target.files?.[0];
     if (!file) return;
     setCustomImageFile(file);
+    if (uploadedBlobUrlRef.current) {
+      try { URL.revokeObjectURL(uploadedBlobUrlRef.current); } catch (_) {}
+    }
     const url = URL.createObjectURL(file);
+    uploadedBlobUrlRef.current = url;
     setCustomImage(url);
     setActiveSourceType('upload');
   };

@@ -166,7 +166,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
   const current = projectList.find((p) => p.project_name === projectName);
 
   return (
-    <div ref={wrapRef} className="relative min-w-0 flex-1 sm:max-w-[420px]">
+    <div ref={wrapRef} className="relative min-w-[160px] sm:min-w-[200px] flex-1 max-w-[420px]">
       <button
         ref={buttonRef}
         type="button"

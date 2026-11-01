@@ -1600,12 +1600,7 @@ export default function AssetPanel({
     <div className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0C1019]">
       {/* tab rail - horizontally scrollable without squeezing existing boxes */}
       <div
-        className="flex items-center overflow-x-auto no-scrollbar border-b border-white/[0.08] bg-black/40 p-1.5 gap-1.5 flex-shrink-0 scroll-smooth"
-        onWheel={(e) => {
-          if (e.deltaY !== 0) {
-            e.currentTarget.scrollLeft += e.deltaY;
-          }
-        }}
+        className="flex items-center border-b border-white/[0.08] bg-black/40 p-1 gap-1 flex-shrink-0"
       >
         {TABS.map(({ id, label, icon: Icon }) => {
           const isActive = tab === id || (id === 'clips' && tab === 'srt');
@@ -1616,7 +1611,7 @@ export default function AssetPanel({
               onClick={() => setTab(id)}
               title={label}
               aria-pressed={isActive}
-              className={`flex flex-col items-center justify-center py-2 px-2.5 min-w-[68px] flex-1 flex-shrink-0 rounded-xl transition-all focus:outline-none cursor-pointer ${
+              className={`flex flex-col items-center justify-center py-1.5 px-1 min-w-0 flex-1 rounded-xl transition-all focus:outline-none cursor-pointer ${
                 isActive
                   ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/40 shadow-[0_0_12px_rgba(37,244,238,0.15)] font-semibold'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent'

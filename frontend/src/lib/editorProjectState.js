@@ -232,6 +232,8 @@ export function manifestToEditorState(data, options = {}) {
         normY: Number(firstPresent(stk.normY, stk.norm_y, 0.2)),
         scale: Number(firstPresent(stk.scale, 1.0)),
         hidden: !!stk.hidden,
+        ...(stk.anim !== undefined ? { anim: stk.anim } : {}),
+        ...(stk.blend_mode !== undefined ? { blend_mode: stk.blend_mode } : {}),
         ...(requestedRecolor !== undefined ? {
           recolor: requestedRecolor,
           ...(stk.recolorSourceHue != null || stk.recolor_source_hue != null ? {
@@ -400,6 +402,7 @@ export function serializeStyle(style = {}) {
     // the English line off held only until the project was reopened.
     bilingual_subtitles: style.bilingualSubtitles !== false,
     bilingualSubtitles: style.bilingualSubtitles !== false,
+    ...(style.voiceClarity !== undefined ? { voice_clarity: !!style.voiceClarity, voiceClarity: !!style.voiceClarity } : {}),
   };
 }
 

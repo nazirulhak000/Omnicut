@@ -644,3 +644,25 @@ export function restyleOverlayFromTemplate(overlay, tpl) {
     template_id: dressed.template_id,
   };
 }
+
+
+/**
+ * CapCut 7.1 Text Template Dynamic Split Background Parameters (E9, E10)
+ */
+export const CANVAS_SPLIT_PADDING = 0.1;
+export const CANVAS_ROUND_RADIUS_SCALE = 0.5;
+
+export function calculateSplitPlateRects(lines = [], fontSizes = [], lineYs = [], xCenter = 540, ctx = null) {
+  return lines.map((line, i) => {
+    const fs = fontSizes[i] || 40;
+    const y = lineYs[i] || 0;
+    const textWidth = ctx ? ctx.measureText(line).width : line.length * fs * 0.6;
+    const padX = Math.round(fs * HOOK_PILL_PAD_X_EM);
+    const padY = Math.round(fs * HOOK_PILL_PAD_Y_EM);
+    const w = textWidth + padX * 2;
+    const h = fs + padY * 2;
+    const r = Math.min(PILL_RADIUS_MAX_PX / 2, h * CANVAS_ROUND_RADIUS_SCALE);
+    const x = xCenter - w / 2;
+    return { x, y: y - padY, w, h, r };
+  });
+}

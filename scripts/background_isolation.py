@@ -288,3 +288,11 @@ def deserialize_background_isolation(value: Any) -> dict[str, Any]:
     except (TypeError, ValueError, json.JSONDecodeError):
         return _no_op("invalid_serialized_config")
     return normalize_background_isolation(decoded)
+
+
+# CapCut 7.1 Resolution-Independent Stroke Normalization (DilateErode.lua, E5)
+STROKE_NORM_BASE = 720.0
+
+def calculate_normalized_stroke(base_stroke: float = 14.0, width: int = 1080, height: int = 1920) -> int:
+    scale_norm = min(width, height) / STROKE_NORM_BASE
+    return int(round(base_stroke * scale_norm))

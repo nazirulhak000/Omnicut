@@ -57,17 +57,35 @@ def _load_env_file() -> None:
 _load_env_file()
 
 
+def is_auth_disabled() -> bool:
+    """True when authentication is explicitly disabled by configuration.
+
+    Supports OMNICUT_AUTH_DISABLED=true/1/yes or OMNICUT_REQUIRE_AUTH=false/0/no.
+    """
+    val = os.environ.get("OMNICUT_AUTH_DISABLED", "").strip().lower()
+    if val in ("1", "true", "yes"):
+        return True
+    req = os.environ.get("OMNICUT_REQUIRE_AUTH", "").strip().lower()
+    if req in ("0", "false", "no"):
+        return True
+    return False
+
+
 def get_configured_api_key() -> str:
     """Return the configured shared secret, or '' if none is set.
 
     Re-reads os.environ each call (not cached at import time) so tests can
     monkeypatch os.environ / .env without reloading this module.
     """
+    if is_auth_disabled():
+        return ""
     return os.environ.get("OMNICUT_API_KEY", "").strip()
 
 
 def is_auth_enforced() -> bool:
     """True when a shared secret is configured and must be checked."""
+    if is_auth_disabled():
+        return False
     return bool(get_configured_api_key())
 
 
@@ -157,6 +175,8 @@ def _now() -> float:
 
 def get_app_password() -> str:
     """Return OMNICUT_APP_PASSWORD ('' when unset). Re-read on every call."""
+    if is_auth_disabled():
+        return ""
     val = os.environ.get("OMNICUT_APP_PASSWORD", "").strip()
     if val:
         return val
@@ -196,6 +216,8 @@ def get_app_password() -> str:
 
 
 def is_password_configured() -> bool:
+    if is_auth_disabled():
+        return False
     return bool(get_app_password())
 
 

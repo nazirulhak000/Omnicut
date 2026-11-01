@@ -135,8 +135,6 @@ testFn('MobileShell renders "more" tab with clean 44px action buttons (library, 
   assert.ok(html.includes('เปิดคลังคลิป'));
   assert.ok(html.includes('more-action-command'));
   assert.ok(html.includes('สั่งงาน AI'));
-  assert.ok(html.includes('more-action-agy'));
-  assert.ok(html.includes('เปิด AGY Terminal'));
   assert.ok(html.includes('more-action-settings'));
   assert.ok(html.includes('ตั้งค่าระบบ'));
   assert.ok(html.includes('more-action-desktop'));

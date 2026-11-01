@@ -39,6 +39,7 @@ import { toMediaUrl } from '../../../lib/mediaUrl';
 import { subjectLayerForOverlay } from '../../../lib/backgroundIsolationPreview.js';
 import { typingHistoryOptions } from '../../../lib/captionEdits.js';
 import { FONT_OPTIONS, PRESET_STYLES } from './CaptionInspector';
+import { BLEND_MODE_OPTIONS } from '../../../lib/stickerAnimation';
 
 const HOOK_TIER_LABELS = ['แบรนด์', 'รุ่น / จุดเด่น', 'หมวดหมู่ / คำโปรย'];
 const HOOK_MIN_DURATION = 1.0;
@@ -1484,6 +1485,21 @@ export default function OverlayInspector({
               </div>
             </div>
           )}
+        </div>
+
+        {/* 2.5 CapCut 7.1 Blend Mode */}
+        <div className="flex items-center justify-between pt-1 border-t border-white/[0.06]">
+          <span className="text-[11px] text-slate-400 font-medium">โหมดผสานสี (Blend Mode):</span>
+          <select
+            aria-label="โหมดผสานสีข้อความ"
+            value={selectedTextOverlay.blend_mode || 'normal'}
+            onChange={(e) => onUpdateOverlay?.(selectedTextOverlay.id, { blend_mode: e.target.value })}
+            className="rounded-lg border border-white/[0.12] bg-black/60 px-2 py-1 text-xs text-white focus:border-[#25F4EE] focus:outline-none cursor-pointer"
+          >
+            {BLEND_MODE_OPTIONS.map((opt) => (
+              <option key={opt.id} value={opt.id}>{opt.label}</option>
+            ))}
+          </select>
         </div>
 
         {/* 3. Linked Sound FX */}

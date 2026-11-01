@@ -3,6 +3,7 @@ import { FADE_DURATION, resolveSplitTarget, splitClipAt } from '../lib/timelineM
 import { resolveTrimHead, resolveTrimTail } from '../lib/timelineTrimOps.js';
 import { copyClipSettings, pasteClipSettingsInState, pasteClipSettingsToClips } from '../lib/clipSettingsClipboard.js';
 import { removeItemById } from '../lib/collectionOperations.js';
+import { findOverlappingItems, shiftLinkedItems } from '../lib/timelineTrackModel.js';
 import {
   applyRipplePlan,
   defaultRippleScope as defaultRippleScopeFor,
@@ -44,6 +45,7 @@ export function useEditorCommands({
   editorState = null,
   hasVoice = false,
   audioDuration = 0,
+  trackLinkageEnabled = false,
 }) {
   const markCuesDirty = useCallback(() => {
     if (cuesDirtyRef) cuesDirtyRef.current = true;
@@ -139,10 +141,23 @@ export function useEditorCommands({
       return;
     }
     const clipId = target.seg.clip.id;
-    set((prev) => patchClipInState(prev, clipId, target.patch));
+    const deltaSec = (target.patch?.duration ?? target.seg.effDur) - target.seg.effDur;
+    const pivotSec = edge === 'head' ? target.seg.start : target.seg.end;
+    if (trackLinkageEnabled && Math.abs(deltaSec) > 1e-4) markCuesDirty();
+    set((prev) => {
+      const next = patchClipInState(prev, clipId, target.patch);
+      if (!trackLinkageEnabled || Math.abs(deltaSec) <= 1e-4) return next;
+      return {
+        ...next,
+        cuesList: shiftLinkedItems(next.cuesList, pivotSec, deltaSec),
+        overlays: shiftLinkedItems(next.overlays, pivotSec, deltaSec),
+        stickers: shiftLinkedItems(next.stickers, pivotSec, deltaSec),
+        effects: shiftLinkedItems(next.effects, pivotSec, deltaSec),
+      };
+    });
     setSelection({ type: 'clip', id: clipId });
     if (target.seekTo !== null && target.seekTo !== undefined) onSeek?.(target.seekTo);
-  }, [onNotify, onSeek, playhead, segments, selectedSeg, set, setSelection]);
+  }, [markCuesDirty, onNotify, onSeek, playhead, segments, selectedSeg, set, setSelection, trackLinkageEnabled]);
   const trimHeadAtPlayhead = useCallback(() => trimEdgeAtPlayhead('head'), [trimEdgeAtPlayhead]);
   const trimTailAtPlayhead = useCallback(() => trimEdgeAtPlayhead('tail'), [trimEdgeAtPlayhead]);
 
@@ -200,7 +215,24 @@ export function useEditorCommands({
     if (selection?.type === 'clip') {
       // The whole multi-selection goes in ONE set(): one Ctrl+Z brings it back.
       const doomed = new Set(selectedClipIds.length > 1 ? selectedClipIds : [selection.id]);
-      set((prev) => ({ ...prev, clipList: prev.clipList.filter((c) => !doomed.has(c.id)) }));
+      const doomedSegs = segments.filter((s) => doomed.has(s.clip.id)).sort((a, b) => b.start - a.start);
+      if (trackLinkageEnabled && doomedSegs.length) markCuesDirty();
+      set((prev) => {
+        const nextClips = prev.clipList.filter((c) => !doomed.has(c.id));
+        if (!trackLinkageEnabled || !doomedSegs.length) return { ...prev, clipList: nextClips };
+        let cues = prev.cuesList || [];
+        let ovls = prev.overlays || [];
+        let stks = prev.stickers || [];
+        let effs = prev.effects || [];
+        for (const seg of doomedSegs) {
+          const overlappedCues = new Set(findOverlappingItems(cues, seg.start, seg.end));
+          cues = shiftLinkedItems(cues.filter((x) => !overlappedCues.has(x)), seg.end, -seg.effDur);
+          ovls = shiftLinkedItems(ovls, seg.start, -seg.effDur);
+          stks = shiftLinkedItems(stks, seg.start, -seg.effDur);
+          effs = shiftLinkedItems(effs, seg.start, -seg.effDur);
+        }
+        return { ...prev, clipList: nextClips, cuesList: cues, overlays: ovls, stickers: stks, effects: effs };
+      });
       setSelection(null);
     } else if (selection?.type === 'caption') {
       markCuesDirty();
@@ -238,7 +270,7 @@ export function useEditorCommands({
       }));
       setSelection(null);
     }
-  }, [handleDeleteOverlay, markCuesDirty, selectedClipIds, selection, set, setSelection]);
+  }, [handleDeleteOverlay, markCuesDirty, segments, selectedClipIds, selection, set, setSelection, trackLinkageEnabled]);
 
   // ──────────────── Ripple Delete (rippleRange.js) ────────────────
   // Not bound to any key or button yet. One ripple = ONE set(): clips, captions,
@@ -587,7 +619,45 @@ export function useEditorCommands({
     });
   }, [markCuesDirty, set]);
 
+
+  // CapCut 7.1 Compound Sub-Tracks / Grouping (Ctrl+G, Ctrl+Shift+G, E13)
+  const groupSelectedClips = useCallback(() => {
+    if (!selectedClipIds || selectedClipIds.length < 2) return;
+    const groupId = `grp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    set((prev) => {
+      const idSet = new Set(selectedClipIds);
+      return {
+        ...prev,
+        clipList: prev.clipList.map((c) => (idSet.has(c.id) ? { ...c, groupId } : c)),
+      };
+    });
+    onNotify?.(`จัดกลุ่ม ${selectedClipIds.length} คลิปสำเร็จ`);
+  }, [selectedClipIds, set, onNotify]);
+
+  const ungroupSelectedClips = useCallback(() => {
+    if (!selectedClipIds || !selectedClipIds.length) return;
+    set((prev) => {
+      const selectedClips = prev.clipList.filter((c) => selectedClipIds.includes(c.id));
+      const groupIds = new Set(selectedClips.map((c) => c.groupId).filter(Boolean));
+      if (!groupIds.size) return prev;
+      return {
+        ...prev,
+        clipList: prev.clipList.map((c) => {
+          if (c.groupId && groupIds.has(c.groupId)) {
+            const copy = { ...c };
+            delete copy.groupId;
+            return copy;
+          }
+          return c;
+        }),
+      };
+    });
+    onNotify?.('แยกกลุ่มสำเร็จ');
+  }, [selectedClipIds, set, onNotify]);
+
   return {
+    groupSelectedClips,
+    ungroupSelectedClips,
     addClip,
     patchClip,
     patchAllClips,
