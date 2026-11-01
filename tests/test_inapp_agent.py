@@ -13,6 +13,8 @@ from scripts.agent.agy_bridge import (
 )
 from scripts.agent.omnicut_agent_tools import (
     apply_action,
+    apply_pro_color_grade,
+    apply_viral_transitions,
     get_timeline_summary,
     load_project_manifest,
     propose_audio_mix,
@@ -123,3 +125,44 @@ def test_api_agent_fastapi_endpoints():
     # POST /api/agent/stream with empty message -> 400
     res_bad = client.post("/api/agent/stream", json={"message": ""})
     assert res_bad.status_code == 400
+
+def test_inapp_agent_pro_color_and_viral_transitions(tmp_path, monkeypatch):
+    fake_proj_name = "TEST_INAPP_PRO_SUITE"
+    fake_proj_dir = tmp_path / fake_proj_name
+    fake_proj_dir.mkdir(parents=True)
+    proj_json = fake_proj_dir / "project.json"
+
+    initial_data = {
+        "project_name": fake_proj_name,
+        "total_duration": 12.0,
+        "clip_list": [
+            {"id": "c1", "file_path": "shot1.mp4", "duration": 4.0, "target_start": 0.0, "target_end": 4.0},
+            {"id": "c2", "file_path": "shot2.mp4", "duration": 4.0, "target_start": 4.0, "target_end": 8.0},
+            {"id": "c3", "file_path": "shot3.mp4", "duration": 4.0, "target_start": 8.0, "target_end": 12.0},
+        ],
+    }
+    proj_json.write_text(json.dumps(initial_data, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr("scripts.agent.omnicut_agent_tools.PROJECTS_DIR", tmp_path)
+
+    # 1. Test Pro Color Grade
+    col_prop = apply_pro_color_grade(fake_proj_name, clip_index=0, shadows=0.35, highlights=-0.2, vibrance=0.45, vignette=0.3)
+    res_col = apply_action(col_prop)
+    assert res_col["success"] is True
+
+    # 2. Test Viral Transitions
+    trans_prop = apply_viral_transitions(fake_proj_name, transition_name="zoom_in_punch", duration=0.45)
+    res_trans = apply_action(trans_prop)
+    assert res_trans["success"] is True
+
+    # Verify updated manifest
+    updated = load_project_manifest(fake_proj_name)
+    assert updated["clip_list"][0]["shadows"] == 0.35
+    assert updated["clip_list"][0]["highlights"] == -0.2
+    assert updated["clip_list"][0]["vibrance"] == 0.45
+    assert updated["clip_list"][0]["vignette"] == 0.3
+    # Check transitions on subsequent clips
+    assert updated["clip_list"][1]["transition_in"] == "zoom_in_punch"
+    assert updated["clip_list"][1]["transition_duration"] == 0.45
+    assert updated["clip_list"][2]["transition_in"] == "zoom_in_punch"
+    assert updated["clip_list"][2]["transition_duration"] == 0.45
+
