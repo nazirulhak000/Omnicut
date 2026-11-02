@@ -4,7 +4,7 @@
 
 ## รอบปัจจุบัน
 
-- [x] Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-INAPP-SELF-CONTAINED-20261101 · ปฏิบัติการ Master Directive Wave 3 (100% Self-Contained In-App Studio): ถอนระบบส่งออก/นำเข้าดราฟต์ CapCut ออกจาก Header/API ให้ทุกขั้นตอนจบในแอป 100% + เจาะลึก REA Shader/Transition Extraction (W3.1–W3.7) เชื่อมครบ 4 ชั้น (UI + Preview + FFmpeg Render + In-App AI Agent) ผ่านการทดสอบ Pytest 305/305 (100%), Vitest 1,191/1,191 (100%), Extension 85/85 (100%), Vite Build 704ms (ดูรายงาน _Docs/Reports/REA_CAPCUT_7_1_WAVE3_COMPLETE_MASTERY_REPORT_20261101.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+- [x] Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-INAPP-SELF-CONTAINED-20261101 · ปฏิบัติการ Master Directive Wave 3 (100% Self-Contained In-App Studio): ถอนระบบส่งออก/นำเข้าดราฟต์ CapCut ออกจาก Header/API ให้ทุกขั้นตอนจบในแอป 100% + เจาะลึก REA Shader/Transition Extraction (W3.1–W3.7) เชื่อมครบ 4 ชั้น (UI + Preview + FFmpeg Render + In-App AI Agent) ผ่านการทดสอบ Pytest 306/306 (100%), Vitest 1,191/1,191 (100%), Parity 212/212, Vite Build 714ms (ดูรายงาน _Docs/Reports/REA_CAPCUT_7_1_WAVE3_INAPP_MASTERY_REPORT_20261101.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-4LAYER-MASTERY-20261101 · ปฏิบัติการ Master Directive Wave 3: เจาะลึก REA CapCut 7.1 Shader & Transition Extraction (W3.1–W3.7) + เชื่อมครบ 4 ชั้น (React UI + Live Canvas Preview + FFmpeg Render Engine + In-App AI Agent Ctrl+K) + Two-Way CapCut 7.1 Draft Bridge (Import/Export) ผ่านชุดทดสอบ Pytest 305/305 (100%), Vitest 1,191/1,191 (100%), Parity 212/212, Vite Build 890ms, และ Browser MCP Verified (ดูรายงาน _Docs/Reports/REA_CAPCUT_7_1_WAVE3_COMPLETE_MASTERY_REPORT_20261101.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 

@@ -11,7 +11,9 @@ from pathlib import Path
 from scripts.agent.omnicut_agent_tools import (
     apply_action,
     apply_capcut_color_grade,
+    apply_pro_color_grade,
     apply_smart_camera_9_16,
+    apply_viral_transitions,
     export_or_import_capcut_draft,
     load_project_manifest,
     normalize_project_audio_lufs,
@@ -242,7 +244,16 @@ def test_w3_6_in_app_ai_agent_capcut_7_1_tools_isolated(tmp_path, monkeypatch):
     res_lufs = apply_action(lufs_prop)
     assert res_lufs["success"] is True
 
-    # 4. Export & Import CapCut 7.1 Draft
+    # 4. In-App Pro Color Grade & Viral Transitions
+    pro_col = apply_pro_color_grade(proj_name, clip_index=0, shadows=0.35, highlights=-0.25, vibrance=0.45, vignette=0.3)
+    res_pro_col = apply_action(pro_col)
+    assert res_pro_col["success"] is True
+
+    viral_trans = apply_viral_transitions(proj_name, transition_name="whip_pan", duration=0.4)
+    res_trans = apply_action(viral_trans)
+    assert res_trans["success"] is True
+
+    # 5. Export & Import CapCut 7.1 Draft
     exp_prop = export_or_import_capcut_draft(proj_name, mode="export")
     res_exp = apply_action(exp_prop)
     assert res_exp["success"] is True

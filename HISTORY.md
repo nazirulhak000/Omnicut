@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-INAPP-SELF-CONTAINED-20261101 | ปฏิบัติการ Master Directive Wave 3 (100% Self-Contained In-App Studio): ถอนระบบส่งออก/นำเข้าดราฟต์ CapCut ออกจาก Header/API ให้ทุกขั้นตอนจบในแอป 100% + เจาะลึก REA Shader/Transition Extraction (W3.1–W3.7) เชื่อมครบ 4 ชั้น (React UI + Live Canvas Preview + FFmpeg Hardware Render + In-App AI Agent Ctrl+K) ผ่านชุดทดสอบ Pytest 306/306 (100%), Vitest 1,191/1,191 (100%), Parity 212/212, Vite Build 714ms, และ Browser MCP Verified (ดูรายงาน _Docs/Reports/REA_CAPCUT_7_1_WAVE3_INAPP_MASTERY_REPORT_20261101.md) | 2026-11-01 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-4LAYER-MASTERY-20261101 | ปฏิบัติการ Master Directive Wave 3: เจาะลึก REA CapCut 7.1 Shader & Transition Extraction (W3.1–W3.7) + เชื่อมครบ 4 ชั้น (React UI + Live Canvas Preview + FFmpeg Render Engine + In-App AI Agent Ctrl+K) + Two-Way CapCut 7.1 Draft Bridge (Import/Export) ผ่านชุดทดสอบ Pytest 305/305 (100%), Vitest 1,191/1,191 (100%), Parity 212/212, Vite Build 890ms, และ Browser MCP Verified (ดูรายงาน _Docs/Reports/REA_CAPCUT_7_1_WAVE3_COMPLETE_MASTERY_REPORT_20261101.md) | 2026-11-01 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-FIX-TIKTOK-SCRAPER-CHROME-SESSION-AND-CLEAN-DATA-20261101 | แก้ไขปัญหาระบบ Scraper ติด Puzzle/Login และจัดระเบียบข้อมูลสินค้า TikTok 100%: เพิ่มระบบ Tier 0.5 Desktop PDP Auto-Switch (shop.tiktok.com/th/pdp/{id}) ดึงข้อมูล SSR ครบถ้วนโดยไม่ต้องเปิดบราวเซอร์ ไม่ติด CAPTCHA/Puzzle, อัปเกรด Playwright Context ด้วย stealth flags (--disable-blink-features=AutomationControlled, ignoreDefaultArgs: ['--enable-automation']) ปลดล็อกแถบแจ้งเตือนบอต, พัฒนาระบบคัดกรอง _clean_rendered_description ตัดข้อความขยะ UI (Search, 1/9, Sold by, Legal, App CTA), พัฒนา _extract_specs_from_text สกัดสเปกจัดตาราง Key-Value, พัฒนา _deduplicate_and_filter_images คัดรูปซ้ำด้วย 32-hex hash และกรองไอคอน/โลโก้/อวาตาร์ออก, สร้างสคริปต์ tools/open_tiktok_browser.py สำหรับล็อกอินครั้งเดียว, พร้อมเขียนชุดทดสอบ tests/test_product_scraper_cleaning.py ผ่าน 47/47 tests 100% | 2026-11-01 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-IMPLEMENT-INAPP-AI-AGENT-PHASE1-20261101 | พัฒนาและเชื่อมต่อระบบ Native In-App AI Agent (Phase 1) เชื่อมต่อ Antigravity ในเครื่องผ่าน agentapi.bat และ Local GenAI SDK: สร้าง scripts/agent/omnicut_agent_tools.py, scripts/agent/agy_bridge.py, scripts/agent/api_agent.py, พัฒนา OmniCutAgentDock.jsx และ ActionApprovalCard.jsx ใน EditorShell พร้อมคีย์ลัด Ctrl+K และปุ่ม สั่งงาน AI Agent, ผ่านชุดทดสอบ 100% (Backend 166/166, Vitest 1,186/1,186, Vite Build 498ms) และยืนยันผ่าน Browser MCP | 2026-11-01 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -150,6 +151,30 @@
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 
 ---
+
+### Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-INAPP-SELF-CONTAINED-20261101
+- **เป้าหมาย:** ปฏิบัติการ Master Directive Wave 3 (100% Self-Contained In-App Studio): ถอนระบบส่งออก/นำเข้าดราฟต์ CapCut ภายนอกออกจากหน้าจอ Editor UI, Header, API Routes และ Client API ให้ทุกขั้นตอนการตัดต่อจบสมบูรณ์ภายใน OmniCut Pro Studio 100% ควบคู่กับการนำสูตรคณิตศาสตร์และเชเดอร์ระดับโปรจาก CapCut 7.1 เข้ามาฝังใน In-App Editor + FFmpeg Hardware Render + In-App AI Agent (`Ctrl+K`)
+- **การดำเนินการสำคัญครบ 7 ภารกิจ (M1–M7):**
+  1. *M1 (Purge External CapCut Export/Import):* ถอดปุ่ม `"ส่งออกดราฟต์ CapCut"` และ `"นำเข้าดราฟต์ CapCut"` ออกจาก `EditorHeader.jsx` และ Dropdown Menu, ถอดฟังก์ชัน `exportCapcutDraft` และ `importCapcutDraft` ออกจาก `frontend/src/api.js`, ถอด Endpoint `/export-capcut-draft` และ `/import-capcut-draft` ออกจาก `scripts/api_editor.py`, และปรับลดเส้นทางใน `scripts/channel_route_policy.json` จาก 347 เหลือ 345 เส้นทาง (Scope `channel` เหลือ 247 เส้นทาง) ผ่าน `test_channel_scope.py` 74/74 tests (100%)
+  2. *M2 (Shadows, Highlights & Dehaze In-App):* สกัดสมการ Dark-Channel Dehaze ($t(x) = 1.0 - \omega \min(I/A)$) และ Quadratic Shadow/Highlight Falloff ($W_{\text{shadow}} = (1.0 - L)^2$) จาก `colorAdjustBundle.frag` และ `dehaze.frag` ติดตั้งสไลเดอร์ใน `ClipInspector.jsx`, Canvas ใน `SequencePlayer.jsx`, และฟิลเตอร์ `curves=all=...` ใน FFmpeg `scripts/video_editor.py`
+  3. *M3 (Splendor Vibrance & Skin Protection In-App):* สกัดค่า HSL 8 Color Bands จาก `fshader.frag` และสูตร Vibrance บูสต์สีสดโดยล็อกสีผิว ($15^\circ \le H \le 45^\circ$, weight 0.35) จาก `pass0.frag` ติดตั้งสไลเดอร์ใน `ClipInspector.jsx`, Canvas ใน `SequencePlayer.jsx`, และ `scripts/tiktok_enhancer.py`
+  4. *M4 (Vignette & Film Particle Noise In-App):* สกัดสูตร Smoothstep Radial Falloff จาก `vignetting.frag` และสัญญาณรบกวนความถี่สูงจาก `noise.frag` ติดตั้งสไลเดอร์ใน `ClipInspector.jsx`, Canvas Gradient ใน `SequencePlayer.jsx`, และฟิลเตอร์ FFmpeg `vignette` ใน `scripts/video_editor.py`
+  5. *M5 (High-Speed Transitions & Shake In-App):* สกัด 4 ทรานซิชันความเร็วสูง (`whip_pan`, `zoom_in_punch`, `flash_white`, `glitch_shake`) และ Damped Camera Shake จาก `lumi_js_resources_video` เชื่อม `timelineMath.js`, `ClipInspector.jsx`, `SequencePlayer.jsx`, และ FFmpeg `xfade` ใน `scripts/video_editor.py`
+  6. *M6 (In-App AI Agent NLE Tooling Upgrade):* พัฒนาเครื่องมือ NLE ในแอปใหม่ใน `scripts/agent/omnicut_agent_tools.py`: `apply_pro_color_grade` และ `apply_viral_transitions` พร้อมปรับปรุง Quick Action Chips ใน `frontend/src/components/agent/OmniCutAgentDock.jsx` (`"ตั้งกล้องอัจฉริยะ 9:16"`, `"เกรดสีระดับโปรครบวงจร"`, `"ปรับเสียงมาตรฐาน -14 LUFS"`, `"ใส่ทรานซิชันไวรัล"`) ขึ้นต้นด้วยคำกริยาภาษาไทยตามกฎ 3.8/4.8
+  7. *M7 (Frame Budget & Balance Limit Guard):* สกัด `decode_balance_limit = (8, 4, 2, 1)` และ `frame_budget_ms = 12.0` จาก `vesdk.ini` มาตรการลดภาระการวาดเอฟเฟกต์ซ้อนชั่วคราวขณะ Scrubbing เร็วใน `SequencePlayer.jsx`
+- **ผลการทดสอบและความสมบูรณ์:**
+  - `tests/test_capcut_7_1_wave3_parity.py`: 7/7 tests passed (100%)
+  - `tests/test_capcut_7_1_wave2_parity.py`: 7/7 tests passed (100%)
+  - `tests/test_capcut_builder_7_1.py`: 1/1 test passed (100%)
+  - `tests/test_inapp_agent.py`: 6/6 tests passed (100%)
+  - `tests/test_preview_render_parity.py`: 212/212 tests passed (100%)
+  - `tests/test_channel_scope.py`: 74/74 tests passed (100% across 345 routes)
+  - Full Backend Pytest Suite: **306/306 passed in 40.17s (100%)**
+  - Frontend Native Node Tests: **1,191/1,191 passed in 2.19s (100%)**
+  - Vite Production Build: **Completed in 714ms (0 errors)**
+  - Browser MCP Live Verification: ตรวจสอบและยืนยันผ่านเบราว์เซอร์จริง 100%: ไม่มีปุ่มส่งออกดราฟต์ CapCut ค้างใน Header หรือเมนู, แผงควบคุม AI Dock (`Ctrl+K`) มีควิกแอ็กชันชิป 4 ตัวใหม่, สไลเดอร์ Shadows/Highlights/Vibrance/Vignette ควบคุมพรีวิวสดได้สมบูรณ์
+  - รายงานสรุปแม่บท: `_Docs/Reports/REA_CAPCUT_7_1_WAVE3_INAPP_MASTERY_REPORT_20261101.md`
+- **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
 
 ### Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-4LAYER-MASTERY-20261101
 - **เป้าหมาย:** ปฏิบัติการ Master Directive Wave 3: เจาะลึก REA CapCut 7.1 Shader & Transition Extraction (W3.1–W3.7) ในไดเรกทอรี `C:\Users\nazir\AppData\Local\CapCut\Apps\7.1.0.2890\Resources\` และ `vesdk.ini` + เชื่อมครบ 4 ชั้น (Strict 4-Layer Wiring): React Editor UI + Canvas 2D Live Preview + FFmpeg Render Pipeline + In-App AI Agent (`Ctrl+K`) + Two-Way CapCut 7.1 Draft Bridge
