@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Scissors, Loader2, Check, Sparkles, Save, PanelLeftOpen, PanelLeftClose,
   PanelRightOpen, PanelRightClose, Minimize2, Maximize2, Columns3, RefreshCw, Trash2,
-  Image as ImageIcon, AlertTriangle, BookOpen, Lightbulb, X, Tag, Keyboard,
+  Image as ImageIcon, AlertTriangle, BookOpen, Lightbulb, X, Tag, Keyboard, ShieldCheck, ShieldAlert,
 } from 'lucide-react';
 
 import { formatTimecode } from '../../lib/timelineMath.js';
@@ -54,6 +54,8 @@ export default function EditorHeader({
   onOpenShortcuts,
   isAgentOpen = false,
   onToggleAgent,
+  preflightReport = null,
+  onOpenPreflightModal = null,
 }) {
   const [showPlaybookModal, setShowPlaybookModal] = React.useState(false);
   const playbookNotes = React.useMemo(() => loadPlaybookNotes(), [showPlaybookModal]);
@@ -322,6 +324,38 @@ export default function EditorHeader({
             />
             <span className="font-medium">ลายน้ำ</span>
           </label>
+        )}
+
+        {projectName && preflightReport?.issues?.length > 0 && (
+          <button
+            type="button"
+            onClick={onOpenPreflightModal}
+            title="ตรวจแผนก่อนเรนเดอร์ & คะแนนไวรัล (คลิกเพื่อดูรายละเอียด)"
+            className={`flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition-all cursor-pointer ${
+              preflightReport.errors?.length > 0
+                ? 'border-red-500/50 bg-red-500/20 text-red-300 animate-pulse'
+                : 'border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+            }`}
+          >
+            {preflightReport.errors?.length > 0 ? (
+              <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+            ) : (
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+            )}
+            <span className="hidden xl:inline">ตรวจแผน</span>
+            {Number.isFinite(preflightReport.viralScore) && (
+              <span className="font-mono text-[11px] font-semibold">{preflightReport.viralScore}/100</span>
+            )}
+            {preflightReport.errors?.length > 0 ? (
+              <span className="rounded bg-red-500/30 px-1 py-0.2 text-[10px] text-red-200">
+                แก้ {preflightReport.errors.length}
+              </span>
+            ) : preflightReport.warnings?.length > 0 ? (
+              <span className="rounded bg-amber-500/20 px-1 py-0.2 text-[10px] text-amber-200">
+                {preflightReport.warnings.length}
+              </span>
+            ) : null}
+          </button>
         )}
 
         <RenderButton

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Volume2, VolumeX, Music } from 'lucide-react';
+import { AlertTriangle, Volume2, VolumeX, Music, ShieldCheck, ExternalLink } from 'lucide-react';
 import {
   BUS_VOLUME_MAX,
   BUS_VOLUME_MIN,
@@ -27,6 +27,8 @@ export default function ProjectInspector({
   trackMix = { mute: {}, solo: {} },
   onTrackMix,
   onStyleChange,
+  preflightReport = null,
+  onOpenPreflightModal = null,
 }) {
   const gap = (audioDuration || 0) - totalDuration;
 
@@ -217,6 +219,49 @@ export default function ProjectInspector({
           </button>
         </div>
       </div>
+
+      {/* Preflight & Viral Lint Overview Card */}
+      {preflightReport && (
+        <div className="rounded-2xl border border-white/[0.08] bg-black/40 p-3.5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-bold text-white">ตรวจแผนก่อนเรนเดอร์ & ไวรัล</span>
+            </div>
+            {Number.isFinite(preflightReport.viralScore) && (
+              <span className="font-mono text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                {preflightReport.viralScore}/100
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-center text-xs">
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2">
+              <span className="text-[10px] text-slate-400 block">ต้องแก้ไข</span>
+              <span className={`font-mono text-sm font-bold ${preflightReport.errors?.length ? 'text-red-400' : 'text-emerald-400'}`}>
+                {preflightReport.errors?.length || 0} รายการ
+              </span>
+            </div>
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2">
+              <span className="text-[10px] text-slate-400 block">ข้อสังเกต</span>
+              <span className="font-mono text-sm font-bold text-amber-300">
+                {preflightReport.warnings?.length || 0} รายการ
+              </span>
+            </div>
+          </div>
+
+          {onOpenPreflightModal && (
+            <button
+              type="button"
+              onClick={onOpenPreflightModal}
+              className="w-full py-2 px-3 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-xs font-bold text-amber-200 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <span>ดูรายละเอียดข้อสังเกตทั้งหมด</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Gap Warning */}
       {gap > 0.5 && (

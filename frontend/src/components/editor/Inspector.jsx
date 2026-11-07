@@ -105,6 +105,8 @@ export default function Inspector({
   subjectPickMode = false,
   onToggleSubjectPickMode = null,
   onClearSubjectPoints = null,
+  preflightReport = null,
+  onOpenPreflightModal = null,
 }) {
   const textOverlays = (overlays || []).filter((o) => o.kind === 'text');
 
@@ -323,6 +325,7 @@ export default function Inspector({
                 effectiveApplyToAll={effectiveApplyToAll}
                 toggleApplyToAll={toggleApplyToAll}
                 onStyleChange={onStyleChange}
+
                 onPatchAllCaptions={onPatchAllCaptions}
                 onCaptionChange={onCaptionChange}
                 onCloseAllCaptionGaps={onCloseAllCaptionGaps}
@@ -503,8 +506,11 @@ export default function Inspector({
             totalDuration={totalDuration}
             audioDuration={audioDuration}
             trackMix={trackMix}
+            preflightReport={preflightReport}
+            onOpenPreflightModal={onOpenPreflightModal}
             onTrackMix={onTrackMix}
             onStyleChange={onStyleChange}
+
           />
         )}
       </div>

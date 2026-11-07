@@ -4,6 +4,14 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-FIX-HOOK-LINE-CANVAS-OVERFLOW-DOUBLE-SCALE-20261107 · แก้ไขสาเหตุ Hook ต้นคลิป (0-1.8s) ล้นขอบบนจอใน Editor Preview: พบ `SequencePlayer.jsx` (`getOverlayGeometry`) มีการคูณ `masterScale` เบิ้ลซ้ำซ้อนกับ `tier.look.size_pct` ที่ inherit มาจาก `overlay.look` (เช่น `size_pct: 194%` ถูกคูณเบิ้ลเป็น `1.94 * 1.94 = 376%`) ส่งผลให้ข้อความขยายใหญ่ผิดธรรมชาติจนเกินความกว้าง `maxW` แล้วถูก `wrapCanvasText` ตัดทอนเป็น 3 บรรทัด และด้วย `anchor: middle` ทำให้บรรทัดแรกถูกดันขึ้นไปอยู่พิกัด Y ติดลบทะลุขอบบนจอ (ล้นจอ):
+  - [x] แก้ไข `SequencePlayer.jsx` ให้จำกัด `masterScale` เฉพาะ `overlay.kind === 'hook'` (Hook Header 3-Tier) เท่านั้น ส่วน `kind === 'text'` หรือ Overlay อื่นๆ ให้ใช้ `masterScale = 1`
+  - [x] ล็อก `overlay.layout_mode === 'line'` หรือ `overlay.role === 'hook_line'` ให้อยู่บรรทัดเดียวเสมอ และคำนวณ Auto-Fit font size หากความกว้างเกิน `maxW` เพื่อป้องกันการตัดบรรทัดล้นจอ 100%
+  - [x] ผ่านชุดทดสอบ Parity 212/212 (100%), Vitest 1,191/1,191 (100%), Pytest Hook Line 48/48 (100%), Vite Build ผ่านสมบูรณ์ (644ms)
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-RELOCATE-PREFLIGHT-BANNER-AND-ADD-DISMISS-20261107 · จัดการแถบตรวจแผนก่อนเรนเดอร์ (RenderPreflightNotice) ไม่ให้เกะกะบดบังพื้นที่ตัดต่อ: เพิ่มปุ่มปิดซ่อน (Dismiss X), ไม่แสดงแถบยาวใต้ Topbar เมื่อไม่มี Error ร้ายแรง, เพิ่ม Compact Preflight Badge บน Header พร้อม RenderPreflightModal และ Overview Card ใน Inspector ผ่าน Vitest 1,191/1,191 และ Pytest 322/322 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [x] Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-INAPP-SELF-CONTAINED-20261101 · ปฏิบัติการ Master Directive Wave 3 (100% Self-Contained In-App Studio): ถอนระบบส่งออก/นำเข้าดราฟต์ CapCut ออกจาก Header/API ให้ทุกขั้นตอนจบในแอป 100% + เจาะลึก REA Shader/Transition Extraction (W3.1–W3.7) เชื่อมครบ 4 ชั้น (UI + Preview + FFmpeg Render + In-App AI Agent) ผ่านการทดสอบ Pytest 306/306 (100%), Vitest 1,191/1,191 (100%), Parity 212/212, Vite Build 714ms (ดูรายงาน _Docs/Reports/REA_CAPCUT_7_1_WAVE3_INAPP_MASTERY_REPORT_20261101.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-4LAYER-MASTERY-20261101 · ปฏิบัติการ Master Directive Wave 3: เจาะลึก REA CapCut 7.1 Shader & Transition Extraction (W3.1–W3.7) + เชื่อมครบ 4 ชั้น (React UI + Live Canvas Preview + FFmpeg Render Engine + In-App AI Agent Ctrl+K) + Two-Way CapCut 7.1 Draft Bridge (Import/Export) ผ่านชุดทดสอบ Pytest 305/305 (100%), Vitest 1,191/1,191 (100%), Parity 212/212, Vite Build 890ms, และ Browser MCP Verified (ดูรายงาน _Docs/Reports/REA_CAPCUT_7_1_WAVE3_COMPLETE_MASTERY_REPORT_20261101.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)

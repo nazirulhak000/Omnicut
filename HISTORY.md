@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-RELOCATE-PREFLIGHT-BANNER-AND-ADD-DISMISS-20261107 | จัดการแถบตรวจแผนก่อนเรนเดอร์ (RenderPreflightNotice) ไม่ให้เกะกะบดบังพื้นที่ตัดต่อ: เพิ่มปุ่มปิดซ่อน (Dismiss X), ไม่แสดงแถบเหลืองยาวใต้ Topbar เมื่อไม่มีข้อผิดพลาดร้ายแรง (errors === 0 && holds === 0) เพื่อคืนพื้นที่ทำงาน, เพิ่มปุ่ม Compact Preflight & Viral Badge บน EditorHeader ข้างปุ่มเรนเดอร์ พร้อม Modal ลอย (RenderPreflightModal) แสดงผลคะแนนไวรัลและรายการข้อสังเกต 25 ข้อ, เพิ่มการ์ดตรวจแผนใน Inspector (แท็บ ภาพรวม) สวยงามไม่ดันเลย์เอาต์, ผ่าน Vitest 1,191/1,191, Pytest 322/322, Vite Build สำเร็จ 478ms | 2026-11-07 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-INAPP-SELF-CONTAINED-20261101 | ปฏิบัติการ Master Directive Wave 3 (100% Self-Contained In-App Studio): ถอนระบบส่งออก/นำเข้าดราฟต์ CapCut ออกจาก Header/API ให้ทุกขั้นตอนจบในแอป 100% + เจาะลึก REA Shader/Transition Extraction (W3.1–W3.7) เชื่อมครบ 4 ชั้น (React UI + Live Canvas Preview + FFmpeg Hardware Render + In-App AI Agent Ctrl+K) ผ่านชุดทดสอบ Pytest 306/306 (100%), Vitest 1,191/1,191 (100%), Parity 212/212, Vite Build 714ms, และ Browser MCP Verified (ดูรายงาน _Docs/Reports/REA_CAPCUT_7_1_WAVE3_INAPP_MASTERY_REPORT_20261101.md) | 2026-11-01 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-4LAYER-MASTERY-20261101 | ปฏิบัติการ Master Directive Wave 3: เจาะลึก REA CapCut 7.1 Shader & Transition Extraction (W3.1–W3.7) + เชื่อมครบ 4 ชั้น (React UI + Live Canvas Preview + FFmpeg Render Engine + In-App AI Agent Ctrl+K) + Two-Way CapCut 7.1 Draft Bridge (Import/Export) ผ่านชุดทดสอบ Pytest 305/305 (100%), Vitest 1,191/1,191 (100%), Parity 212/212, Vite Build 890ms, และ Browser MCP Verified (ดูรายงาน _Docs/Reports/REA_CAPCUT_7_1_WAVE3_COMPLETE_MASTERY_REPORT_20261101.md) | 2026-11-01 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-FIX-TIKTOK-SCRAPER-CHROME-SESSION-AND-CLEAN-DATA-20261101 | แก้ไขปัญหาระบบ Scraper ติด Puzzle/Login และจัดระเบียบข้อมูลสินค้า TikTok 100%: เพิ่มระบบ Tier 0.5 Desktop PDP Auto-Switch (shop.tiktok.com/th/pdp/{id}) ดึงข้อมูล SSR ครบถ้วนโดยไม่ต้องเปิดบราวเซอร์ ไม่ติด CAPTCHA/Puzzle, อัปเกรด Playwright Context ด้วย stealth flags (--disable-blink-features=AutomationControlled, ignoreDefaultArgs: ['--enable-automation']) ปลดล็อกแถบแจ้งเตือนบอต, พัฒนาระบบคัดกรอง _clean_rendered_description ตัดข้อความขยะ UI (Search, 1/9, Sold by, Legal, App CTA), พัฒนา _extract_specs_from_text สกัดสเปกจัดตาราง Key-Value, พัฒนา _deduplicate_and_filter_images คัดรูปซ้ำด้วย 32-hex hash และกรองไอคอน/โลโก้/อวาตาร์ออก, สร้างสคริปต์ tools/open_tiktok_browser.py สำหรับล็อกอินครั้งเดียว, พร้อมเขียนชุดทดสอบ tests/test_product_scraper_cleaning.py ผ่าน 47/47 tests 100% | 2026-11-01 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -149,6 +150,35 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+
+---
+---
+
+## Round ANTIGRAVITY-RELOCATE-PREFLIGHT-BANNER-AND-ADD-DISMISS-20261107
+
+- **วันที่:** 2026-11-07
+- **สถานะ:** เสร็จสมบูรณ์ (Closed)
+- **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+
+### สรุปการดำเนินงาน
+ผู้ใช้แจ้งปัญหาแถบแจ้งเตือน "ตรวจแผนก่อนเรนเดอร์" (RenderPreflightNotice) กางขยายรายการข้อสังเกต 25 ข้อและดันหน้าจอตัดต่อลงมาเกือบ 40% ทำให้บดบังพื้นที่ทำงานและพรีวิววิดีโออย่างมาก
+จึงได้ดำเนินการยกระดับ UX/UI ใหม่ตามคำสั่งผู้ใช้:
+1. **RenderPreflightNotice.jsx (แถบเดิม):**
+   - เพิ่มปุ่มปิดซ่อน (`X` / Dismiss) ที่มุมขวาบนของแถบ ให้ผู้ใช้สามารถกดปิดซ่อนแถบได้ทันที
+   - กำหนดเงื่อนไขอัจฉริยะ: หากไม่มีข้อผิดพลาดร้ายแรง (`errors === 0` และ `holds === 0`) จะ**ไม่แสดงแถบเหลืองยาวใต้ Topbar** โดยเด็ดขาด คืนพื้นที่หน้าจอให้ผู้ใช้ทำงานได้อย่างสบายตา 100%
+   - รักษาสัญญาณ DOM `data-render-preflight`, `data-footage-coverage-notice`, `<summary>` สำหรับโหมดทดสอบ Audit / Browser Automation
+2. **RenderPreflightModal.jsx (หน้าต่างลอยใหม่):**
+   - สร้างโมดอลป๊อปอัปดีไซน์ Pro Studio Glassmorphism ลอยอยู่กลางจอ ไม่ดันเลย์เอาต์
+   - แสดงผลคะแนนไวรัล (Hero Stat), กล่องสรุปสถานะ (ต้องแก้, ข้อสังเกต, ข้อมูล), และรายการข้อสังเกตทั้งหมดพร้อมปุ่ม "ดูช่วงนี้" (`onSeek`)
+3. **EditorHeader.jsx (ปุ่ม Compact บน Topbar):**
+   - เพิ่มปุ่ม Badge ตรวจแผนกะทัดรัดข้างปุ่มเรนเดอร์: แสดงคะแนนไวรัล (เช่น `88/100`) และจำนวนข้อสังเกต เมื่อคลิกจะเปิด `RenderPreflightModal` ได้ตลอดเวลา
+4. **Inspector.jsx & ProjectInspector.jsx (แท็บ "ภาพรวม"):**
+   - เพิ่มบล็อกสรุปสถานะตรวจแผนและคะแนนไวรัล พร้อมปุ่มกดดูข้อสังเกตทั้งหมดในแผงควบคุมด้านขวา
+
+### ผลการทดสอบ
+- **Vitest:** 1,191/1,191 passed (100%)
+- **Pytest:** 322/322 passed (100%)
+- **Vite Build:** สำเร็จใน 478ms
 
 ---
 

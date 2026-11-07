@@ -116,6 +116,7 @@ import MixDegradedNotice from './MixDegradedNotice';
 import ProjectRevisionNotice from './ProjectRevisionNotice';
 import VoiceEditNotice from './VoiceEditNotice';
 import RenderPreflightNotice from './RenderPreflightNotice';
+import RenderPreflightModal from './RenderPreflightModal';
 import { analyzeRenderPreflight, mergeViralLint, preflightBlockingMessage, viralLintHeatmapSpans } from '../../lib/renderPreflight.js';
 import useViralLint from '../../hooks/useViralLint';
 import { planSfxEvents } from '../../lib/sfxPlan.js';
@@ -592,6 +593,7 @@ export default function EditorShell({
   const [deleteOrigin, setDeleteOrigin] = useState(null);
   const [trimAdjustSeg, setTrimAdjustSeg] = useState(null);
   const [isAgentOpen, setIsAgentOpen] = useState(false);
+  const [isPreflightModalOpen, setIsPreflightModalOpen] = useState(false);
 
   useEffect(() => {
     const handleAgentShortcut = (e) => {
@@ -2539,6 +2541,8 @@ export default function EditorShell({
         onOpenShortcuts={onOpenShortcuts}
         isAgentOpen={isAgentOpen}
         onToggleAgent={() => setIsAgentOpen((v) => !v)}
+        preflightReport={preflightReport}
+        onOpenPreflightModal={() => setIsPreflightModalOpen(true)}
       />
 
       {loadError && projectName && (
@@ -2550,7 +2554,7 @@ export default function EditorShell({
       {projectName && projectWatermark(channelIdentitySnapshot, channel?.channelId || 'main') === null && (
         <p role="alert" className="border-b border-amber-300/20 bg-amber-300/10 px-4 py-2 text-sm text-amber-200">???????????????????????????????????????????? ???????????????????????</p>
       )}
-      <RenderPreflightNotice report={preflightReport} onSeek={seekPlayer} />
+      <RenderPreflightNotice report={preflightReport} onSeek={seekPlayer} onOpenModal={() => setIsPreflightModalOpen(true)} />
       <ProjectRevisionNotice
         kind={projectName ? revisionNotice : null}
         reloading={revisionReloading}
@@ -3283,6 +3287,8 @@ export default function EditorShell({
                       onSaveCustomHookTemplate={handleSaveCustomHookTemplate}
                       onDeleteCustomHookTemplate={handleDeleteCustomHookTemplate}
                       fonts={assets.fonts}
+                      preflightReport={preflightReport}
+                      onOpenPreflightModal={() => setIsPreflightModalOpen(true)}
                       onToggleHookHeader={handleEnsureHookOverlay}
                       onAddTextAtPlayhead={addTextAtPlayhead}
                       onStyleChange={patchStyle}
@@ -3779,7 +3785,9 @@ export default function EditorShell({
                         onSaveCustomHookTemplate={handleSaveCustomHookTemplate}
                         onDeleteCustomHookTemplate={handleDeleteCustomHookTemplate}
                         fonts={assets.fonts}
-                        onToggleHookHeader={handleEnsureHookOverlay}
+                        preflightReport={preflightReport}
+                      onOpenPreflightModal={() => setIsPreflightModalOpen(true)}
+                      onToggleHookHeader={handleEnsureHookOverlay}
                         onAddTextAtPlayhead={addTextAtPlayhead}
                         onStyleChange={patchStyle}
                         onClipChange={(patch, options) => selectedSeg && patchClip(selectedSeg.clip.id, patch, false, options)}
@@ -4140,6 +4148,13 @@ export default function EditorShell({
         onClose={() => setCoverGateItem(null)}
         videoItem={coverGateItem}
         onCoverSaved={handleCoverGateSaved}
+      />
+
+      <RenderPreflightModal
+        isOpen={isPreflightModalOpen}
+        onClose={() => setIsPreflightModalOpen(false)}
+        report={preflightReport}
+        onSeek={seekPlayer}
       />
 
       <OmniCutAgentDock
