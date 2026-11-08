@@ -53,3 +53,18 @@ test('ProductToClip mobile 1-tap paste button provides haptic feedback and >=44p
     'Mobile 1-tap paste button must trigger haptic feedback'
   );
 });
+
+test('ProductToClip supports double click on ProductCard to view full metadata details', () => {
+  assert.ok(
+    ptcSource.includes('onDoubleClick?.(product)') || ptcSource.includes('onDoubleClick(product)'),
+    'ProductCard must trigger onDoubleClick to view product details'
+  );
+  assert.ok(
+    ptcSource.includes('handleProductDoubleClick'),
+    'ProductToClip must define handleProductDoubleClick to select product and open ProductMetadataModal'
+  );
+  assert.ok(
+    ptcSource.includes('onDoubleClick={handleProductDoubleClick}'),
+    'ProductCard in carousel must receive handleProductDoubleClick'
+  );
+});

@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Package, Rocket, FolderOpen, X,
   Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
   ShoppingBag, ShieldCheck, Database, Zap, Layers, Eye, EyeOff, CheckCircle2, Tag,
-  Volume2, Mic, AlertTriangle, VolumeX, Scissors, MoreHorizontal
+  Volume2, Mic, AlertTriangle, VolumeX, Scissors, MoreHorizontal, Info
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
@@ -166,7 +166,7 @@ function defaultExtraBeatsForDuration(duration) {
 // ═══════════════════════════════════════════════════════════════════════
 // 📦 PRODUCT CARD (Horizontal Gallery Item)
 // ═══════════════════════════════════════════════════════════════════════
-function ProductCard({ product, isSelected, onSelect, onToggleHide }) {
+function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHide }) {
   const pAngles = product.angles || [];
   const pDone = pAngles.filter(a => a.status === 'posted' || a.status === 'rendered').length;
   const total = pAngles.length || 4;
@@ -181,10 +181,23 @@ function ProductCard({ product, isSelected, onSelect, onToggleHide }) {
     : (product.thumbnail ? toMediaUrl(product.thumbnail) : null);
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       data-product-id={product.id}
       onClick={() => onSelect(product)}
-      className={`flex-shrink-0 w-[130px] sm:w-[150px] rounded-xl border transition-all cursor-pointer group snap-center p-2.5 space-y-2 text-left relative ${
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onDoubleClick?.(product);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect(product);
+        }
+      }}
+      title={`${product.name} (คลิกเพื่อเลือก · ดับเบิลคลิกเพื่อดูรายละเอียดสินค้า)`}
+      className={`flex-shrink-0 w-[130px] sm:w-[150px] rounded-xl border transition-all cursor-pointer group snap-center p-2.5 space-y-2 text-left relative select-none ${
         isSelected
           ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-lg shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
           : 'bg-[#0B0F19] border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.03]'
@@ -193,15 +206,33 @@ function ProductCard({ product, isSelected, onSelect, onToggleHide }) {
       {/* Thumbnail or Placeholder */}
       <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/60 border border-white/[0.06] flex items-center justify-center relative">
         {thumbSrc ? (
-          <img src={thumbSrc} alt="" className="w-full h-full object-cover" />
+          <img src={thumbSrc} alt="" className="w-full h-full object-cover pointer-events-none" />
         ) : (
           <Package className={`w-7 h-7 ${isSelected ? 'text-[#25F4EE]' : 'text-slate-600'}`} />
+        )}
+
+        {/* Quick detail info button on hover/tap */}
+        {onDoubleClick && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDoubleClick(product);
+            }}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="absolute top-1.5 left-1.5 p-1 rounded-lg backdrop-blur-md border bg-black/60 hover:bg-[#25F4EE] hover:text-slate-950 border-white/20 hover:border-[#25F4EE] text-slate-300 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all cursor-pointer z-10"
+            title="ดูข้อมูลและรายละเอียดสินค้า"
+            aria-label="ดูข้อมูลและรายละเอียดสินค้า"
+          >
+            <Info className="w-3.5 h-3.5" />
+          </button>
         )}
 
         {onToggleHide && (
           <button
             type="button"
             onClick={(e) => onToggleHide(product, e)}
+            onDoubleClick={(e) => e.stopPropagation()}
             className={`absolute top-1.5 right-1.5 p-1 rounded-lg backdrop-blur-md border transition-all cursor-pointer z-10 ${
               product.is_hidden
                 ? 'bg-amber-500/80 border-amber-400 text-slate-950 opacity-100'
@@ -236,7 +267,7 @@ function ProductCard({ product, isSelected, onSelect, onToggleHide }) {
           {pDone}/{total}
         </span>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -2751,6 +2782,14 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     setSelectedImages([]);
   };
 
+  const handleProductDoubleClick = (item) => {
+    if (!item) return;
+    if (selectedHistoryIdRef.current !== item.id) {
+      selectProduct(item);
+    }
+    setShowMetadataModal(true);
+  };
+
   const [batchHiding, setBatchHiding] = useState(false);
 
   const handleToggleHideProduct = async (prod, e) => {
@@ -4310,6 +4349,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       product={p}
                       isSelected={selectedHistoryId === p.id}
                       onSelect={selectProduct}
+                      onDoubleClick={handleProductDoubleClick}
                       onToggleHide={handleToggleHideProduct}
                     />
                   ))}
@@ -5946,7 +5986,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   const total = pAngles.length || 4;
                   const pct = Math.round((pDone / total) * 100);
                   const thumb = p.images?.[0];
-                  const thumbSrc = thumb ? toMediaUrl(thumb.rel_path || thumb.local_path || thumb.url) : null;
+                  const thumbSrc = thumb
+                    ? toMediaUrl(thumb.rel_path || thumb.local_path || thumb.url)
+                    : (p.thumbnail ? toMediaUrl(p.thumbnail) : null);
                   const isSelected = selectedHistoryId === p.id;
 
                   return (
@@ -5956,6 +5998,12 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         selectProduct(p);
                         setShowCatalogModal(false);
                       }}
+                      onDoubleClick={() => {
+                        selectProduct(p);
+                        setShowCatalogModal(false);
+                        setShowMetadataModal(true);
+                      }}
+                      title={`${p.name} (คลิกเพื่อเลือก · ดับเบิลคลิกเพื่อดูรายละเอียดสินค้า)`}
                       className={`p-3 rounded-xl border transition-all cursor-pointer group relative flex flex-col justify-between space-y-2.5 ${
                         isSelected
                           ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE] shadow-lg shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'

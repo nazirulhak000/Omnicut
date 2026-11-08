@@ -4,6 +4,14 @@
 
 ## รอบปัจจุบัน
 
+- [ ] Round ANTIGRAVITY-UNSLOP-PHASE00-BASELINE-20261108 · ดำเนินการ Phase 00 (Baseline Capture & Visual Direction Confirmation) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
+  - [ ] Task 1: สแกนและเก็บภาพหน้าจอจริง (Live Baseline Snapshots) หน้าจอหลัก (Home/ProductToClip, Editor, ContentTracker, MediaAssets) ทั้งโหมด Desktop (1440x900) และ Mobile (390x844) จากระบบที่รันอยู่
+  - [ ] Task 2: จัดทำ State Matrix และวิเคราะห์ปัญหา Visual Slop ตามหน้าจอจริง (Gradients, Transitions, Text Contrast, Layout Clutter)
+  - [ ] Task 3: ร่างข้อเสนอ Visual Direction (Core Palette, Spacing Tokens, Typography Hierarchy, Functional Color vs Video Contract) เสนอเป็นรายงาน baseline พร้อมให้ตรวจสอบ
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-PRODUCT-CARD-DOUBLE-CLICK-DETAILS-20261108 · เพิ่มความสามารถดับเบิลคลิก (Double Click) และปุ่ม Info ลอยบนการ์ดสินค้า เพื่อเปิดดูรายละเอียดและเมทาดาต้า AI (ProductMetadataModal) ทันที พร้อมผูกทั้งบน Carousel และ Catalog Grid ผ่านการทดสอบ Vitest 1,199/1,199 (100%) และ Vite build สำเร็จ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
 - [x] Round ANTIGRAVITY-DESKTOP-PRODUCT-CAROUSEL-HORIZONTAL-SCROLL-20261108 · พัฒนาระบบเลื่อนซ้าย-ขวาสำหรับ Carousel เลือกสินค้าบน Desktop (เพิ่มปุ่มลูกศร ChevronLeft/ChevronRight, แปลง Mouse Wheel ให้เลื่อนแนวนอน, สกอลล์บาร์สลิม, Auto-Scroll กึ่งกลางจอ) พร้อมกู้คืนภาพ Thumbnail ของ GOO01 และ JEE01 ให้แสดงผลสมบูรณ์ 100% ผ่าน Vitest 1,198/1,198 และ Vite build สำเร็จ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-RULE-SHORT-LIVED-FEATURE-BRANCH-20261108 · บันทึกกฎเหล็ก Short-Lived Feature Branch & Clean Auto-Delete Standard ลงใน AGENTS.md (ข้อ 25) และ .agents/rules/work_loop.md (ข้อ 2.2.1 & 2.7) บังคับแตกกิ่งก่อนทำ รวมกลับเข้า main และลบกิ่งทิ้งทันที เพื่อคง repo สะอาดเหลือ main เดียว 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
