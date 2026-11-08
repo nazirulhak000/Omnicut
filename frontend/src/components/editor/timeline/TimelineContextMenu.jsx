@@ -24,13 +24,13 @@ export default function TimelineContextMenu({
     <div
       data-context-menu=""
       onClick={(e) => e.stopPropagation()}
-      className="fixed z-50 min-w-[190px] rounded-xl border border-[#4A4742] bg-[#1E1D1A]/95 p-1.5 shadow-2xl backdrop-blur-md text-xs text-[#EDE9E3] animate-in fade-in zoom-in-95 duration-100"
+      className="fixed z-50 min-w-[190px] rounded-lg border border-white/[0.12] bg-[#0D121F]/95 p-1.5 shadow-2xl backdrop-blur-md text-xs text-slate-200 animate-in fade-in zoom-in-95 duration-100"
       style={{
         left: Math.max(10, Math.min(typeof window !== 'undefined' ? window.innerWidth - 200 : 1000, contextMenu.x)),
         top: Math.max(10, Math.min(typeof window !== 'undefined' ? window.innerHeight - 300 : 800, contextMenu.y)),
       }}
     >
-      <div className="px-2 py-1 font-mono text-[10px] font-semibold text-[#9C968F] border-b border-[#363430] truncate">
+      <div className="px-2 py-1 font-mono text-[10px] font-semibold text-slate-400 border-b border-white/[0.08] truncate">
         {fileName}
       </div>
       <div className="py-1 space-y-0.5">
@@ -54,7 +54,7 @@ export default function TimelineContextMenu({
             onDuplicate?.();
             onClose?.();
           }}
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#2C2B27] transition-colors"
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.08] transition-colors"
         >
           <Copy className="h-3.5 w-3.5" />
           <span>ทำสำเนาคลิป</span>
@@ -65,7 +65,7 @@ export default function TimelineContextMenu({
             onToggleMirror?.();
             onClose?.();
           }}
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#2C2B27] transition-colors"
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.08] transition-colors"
         >
           <FlipHorizontal2 className="h-3.5 w-3.5" />
           <span>กลับด้านภาพ (Mirror)</span>
@@ -76,14 +76,14 @@ export default function TimelineContextMenu({
             onAdjustTrim?.();
             onClose?.();
           }}
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#2C2B27] transition-colors"
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.08] transition-colors"
         >
           <Crop className="h-3.5 w-3.5" />
           <span>ปรับช่วงตัด</span>
         </button>
       </div>
 
-      <div className="my-1 border-t border-[#363430]" />
+      <div className="my-1 border-t border-white/[0.08]" />
       <div className="px-2 py-1 text-[10px] text-[#9C968F] flex items-center gap-1">
         <Gauge className="h-3 w-3" />
         <span>ปรับความเร็ว:</span>
@@ -100,7 +100,7 @@ export default function TimelineContextMenu({
             className={`py-1 rounded text-center font-semibold transition-colors ${
               curSpeed === sp
                 ? 'bg-[#D97757] text-white'
-                : 'bg-[#282724] hover:bg-[#363430] text-[#C9C3BB]'
+                : 'bg-white/[0.06] hover:bg-white/[0.12] text-slate-300'
             }`}
           >
             {sp}x
@@ -110,7 +110,7 @@ export default function TimelineContextMenu({
 
       {(onCopySettings || onPasteSettings) && (
         <>
-          <div className="my-1 border-t border-[#363430]" />
+          <div className="my-1 border-t border-white/[0.08]" />
           <div className="py-1 space-y-0.5">
             <button
               type="button"
@@ -119,7 +119,7 @@ export default function TimelineContextMenu({
                 onClose?.();
               }}
               title="คัดลอกความเร็ว ซูม/แพน+คีย์เฟรมกล้อง สี และทรานซิชันของคลิปนี้"
-              className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[#2C2B27] transition-colors"
+              className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-white/[0.08] transition-colors"
             >
               <span className="flex items-center gap-2">
                 <ClipboardCopy className="h-3.5 w-3.5" />
@@ -136,7 +136,7 @@ export default function TimelineContextMenu({
               }}
               title={canPasteSettings ? 'วางการตั้งค่าที่คัดลอกไว้ลงคลิปที่เลือก' : 'ยังไม่ได้คัดลอกการตั้งค่าจากคลิปไหน'}
               className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg transition-colors ${
-                canPasteSettings ? 'hover:bg-[#2C2B27]' : 'cursor-not-allowed text-[#5A554F]'
+                canPasteSettings ? 'hover:bg-white/[0.08]' : 'cursor-not-allowed text-[#5A554F]'
               }`}
             >
               <span className="flex items-center gap-2">
@@ -149,7 +149,7 @@ export default function TimelineContextMenu({
         </>
       )}
 
-      <div className="my-1 border-t border-[#363430]" />
+      <div className="my-1 border-t border-white/[0.08]" />
       <button
         type="button"
         onClick={() => {

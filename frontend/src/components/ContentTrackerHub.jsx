@@ -176,7 +176,7 @@ const KanbanCard = memo(function KanbanCard({
           ? 'bg-[#120C05] border-amber-500/50 hover:border-amber-400/70 ring-1 ring-amber-500/25'
           : ang.qc_note
           ? 'bg-[#120A06] border-red-500/40 hover:border-red-400/60 ring-1 ring-red-500/20'
-          : 'glass-tile border-[#25F4EE]/30 hover:border-[#25F4EE]/60 shadow-[#25F4EE]/5'
+          : 'glass-tile bg-[#0E131E] border-white/[0.08] hover:border-white/20'
       }`}>
         {/* Left: Mini 9:16 Video or Cover Preview (~52px wide) */}
         <div
@@ -280,7 +280,7 @@ const KanbanCard = memo(function KanbanCard({
             {/* Row 2: 1-line Hook */}
             <div
               onClick={() => onInspectAngle(ang)}
-              className="pl-1.5 border-l-2 border-[#25F4EE] text-[11px] font-semibold text-cyan-200 truncate cursor-pointer hover:underline my-1"
+              className="pl-1.5 border-l-2 border-cyan-400/60 text-[11px] font-semibold text-slate-200 truncate cursor-pointer hover:underline my-1"
               title={ang.hook_title}
             >
               {ang.hook_title}
@@ -297,7 +297,7 @@ const KanbanCard = memo(function KanbanCard({
             <button
               type="button"
               onClick={() => onOpenTiktokModal && onOpenTiktokModal(ang)}
-              className="w-full py-1.5 px-2 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 transition-all"
+              className="w-full py-1.5 px-2 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 transition-all"
               title="ส่งคลิปไป TikTok Studio"
             >
               <Rocket className="w-3.5 h-3.5 flex-shrink-0" />
@@ -308,7 +308,7 @@ const KanbanCard = memo(function KanbanCard({
               <button
                 type="button"
                 onClick={() => onOpenCoverStudio && onOpenCoverStudio(ang)}
-                className="flex-1 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
+                className="flex-1 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 text-amber-300 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
                 title={ang.cover_url ? 'แก้ปก' : 'สร้างปก'}
               >
                 <ImageIcon className="w-3.5 h-3.5" />
@@ -316,7 +316,7 @@ const KanbanCard = memo(function KanbanCard({
               <button
                 type="button"
                 onClick={() => onOpenQrModal(ang)}
-                className="flex-1 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
+                className="flex-1 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
                 title="ดูตัวอย่างบนมือถือ (QR Code)"
               >
                 <QrCode className="w-3.5 h-3.5" />
@@ -324,7 +324,7 @@ const KanbanCard = memo(function KanbanCard({
               <button
                 type="button"
                 onClick={() => onQcFail(ang)}
-                className="flex-1 py-1.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
+                className="flex-1 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
                 title="QC ไม่ผ่าน -- ส่งตัดใหม่"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -350,10 +350,10 @@ const KanbanCard = memo(function KanbanCard({
         ang.qc_note
           ? 'bg-[#120A06] border-red-500/40 hover:border-red-400/60 ring-1 ring-red-500/20'
           : phaseId === 'rendered' && ang.qc_reviewed
-          ? 'bg-[#09111C] border-[#25F4EE]/30 hover:border-[#25F4EE]/60 shadow-[#25F4EE]/5'
+          ? 'glass-tile bg-[#0E131E] border-emerald-500/30 hover:border-emerald-400/50'
           : phaseId === 'rendered'
-          ? 'glass-tile border-amber-500/35 hover:border-amber-400/50'
-          : 'glass-tile border-white/[0.1] hover:border-[#25F4EE]/40'
+          ? 'glass-tile bg-[#0E131E] border-amber-500/30 hover:border-amber-400/50'
+          : 'glass-tile bg-[#0E131E] border-white/[0.08] hover:border-white/20'
       }`}
     >
       {/* Round BUG-3: Data Conflict Banner -- this angle's clip got auto-unlinked
@@ -388,7 +388,7 @@ const KanbanCard = memo(function KanbanCard({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); openQcReview(ang, onPreviewVideo, onInspectAngle); }}
-              className="min-h-11 sm:min-h-0 inline-flex items-center px-2 py-0.5 rounded-md bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 font-black text-[10px] cursor-pointer shadow-sm shadow-[#25F4EE]/20 whitespace-nowrap active:scale-95 transition-all"
+              className="min-h-11 sm:min-h-0 inline-flex items-center px-2 py-0.5 rounded-md bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-200 font-bold text-[10px] cursor-pointer whitespace-nowrap active:scale-95 transition-all"
               title="ดูคลิปก่อน แล้วค่อยตัดสินว่า QC ผ่านหรือไม่"
             >
               ดูคลิปแล้วตรวจ
@@ -396,9 +396,9 @@ const KanbanCard = memo(function KanbanCard({
           )}
         </div>
       ) : phaseId === 'rendered' && ang.qc_reviewed ? (
-        <div className="flex items-center justify-between py-0.5 px-2 rounded-lg bg-[#25F4EE]/10 border border-[#25F4EE]/25 text-[#25F4EE] text-xs font-bold">
+        <div className="flex items-center justify-between py-0.5 px-2 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-bold">
           <span className="flex items-center gap-1.5">
-            <Check className="w-3.5 h-3.5 text-[#25F4EE]" />
+            <Check className="w-3.5 h-3.5 text-emerald-400" />
             <span>QC ผ่าน (พร้อมใช้งาน)</span>
           </span>
         </div>
@@ -412,7 +412,7 @@ const KanbanCard = memo(function KanbanCard({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); openQcReview(ang, onPreviewVideo, onInspectAngle); }}
-              className="min-h-11 sm:min-h-0 inline-flex items-center px-2 py-0.5 rounded-md bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 font-black text-[10px] cursor-pointer shadow-sm shadow-[#25F4EE]/20 whitespace-nowrap active:scale-95 transition-all"
+              className="min-h-11 sm:min-h-0 inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-200 font-bold text-[10px] cursor-pointer whitespace-nowrap active:scale-95 transition-all"
               title="ดูคลิปก่อน แล้วค่อยกด QC ผ่านในหน้าพรีวิว"
             >
               ตรวจ QC
@@ -464,7 +464,7 @@ const KanbanCard = memo(function KanbanCard({
       {/* 2. Hook Title: Crisp 2-line with thin accent bar (Clickable to inspect) */}
       <div
         onClick={() => onInspectAngle(ang)}
-        className="pl-2 border-l-2 border-[#25F4EE] text-xs font-bold text-cyan-200 line-clamp-2 leading-snug cursor-pointer hover:underline"
+        className="pl-2 border-l-2 border-cyan-400/70 text-xs font-bold text-slate-200 line-clamp-2 leading-snug cursor-pointer hover:underline"
         title="คลิกเพื่อดูบทพูดและรายละเอียดเต็ม"
       >
         {ang.hook_title}
@@ -489,7 +489,7 @@ const KanbanCard = memo(function KanbanCard({
               <button
                 type="button"
                 onClick={() => onOpenTiktokModal && onOpenTiktokModal(ang)}
-                className="py-2 px-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#FE2C55]/20 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+                className="py-2 px-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#FE2C55]/20 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
                 title="ส่งคลิป แคปชัน และไอดีปักตะกร้าไปโพสต์บน TikTok Studio"
               >
                 <Rocket className="w-3.5 h-3.5 flex-shrink-0" />
@@ -499,7 +499,7 @@ const KanbanCard = memo(function KanbanCard({
               <button
                 type="button"
                 onClick={() => onOpenQrModal(ang)}
-                className="py-2 px-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap active:scale-95"
+                className="py-2 px-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap active:scale-95"
                 title="เปิด QR Code สแกนโหลดคลิปลงมือถือ"
               >
                 <QrCode className="w-3.5 h-3.5 flex-shrink-0" />
@@ -676,7 +676,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
   const captionText = `${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`.trim();
 
   return (
-    <div className="glass-panel p-3 rounded-2xl space-y-2.5 shadow-lg">
+    <div className="glass-panel bg-[#0B0F17] border border-white/[0.08] p-3 rounded-2xl space-y-2.5 shadow-md">
       {/* 1. Header Row */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -695,7 +695,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
       {/* 2. Hook Title */}
       <div
         onClick={() => onInspectAngle(ang)}
-        className="text-xs font-bold text-cyan-200 line-clamp-2 pl-2 border-l-2 border-[#25F4EE] cursor-pointer hover:underline"
+        className="text-xs font-bold text-slate-200 line-clamp-2 pl-2 border-l-2 border-cyan-400/70 cursor-pointer hover:underline"
       >
         {ang.hook_title}
       </div>
@@ -834,17 +834,17 @@ const TableRow = memo(function TableRow({
   const hasVideos = chosenVideos.length > 0;
 
   return (
-    <tr className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
+    <tr className="border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors">
       {/* 1. Media Preview */}
       <td className="py-2.5 px-3 w-16 text-center">
         {ang.video_url ? (
           <button
             onClick={() => onPreviewVideo(ang.video_url)}
-            className="w-10 h-13 rounded-lg overflow-hidden bg-black relative border border-white/[0.1] hover:border-[#25F4EE] inline-flex items-center justify-center group cursor-pointer shadow-sm"
+            className="w-10 h-13 rounded-lg overflow-hidden bg-black relative border border-white/[0.1] hover:border-white/30 inline-flex items-center justify-center group cursor-pointer shadow-sm"
           >
             <video src={toMediaUrl(ang.video_url)} className="w-full h-full object-cover" muted />
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/10">
-              <Play className="w-3 h-3 fill-current text-[#25F4EE]" />
+              <Play className="w-3 h-3 fill-current text-white/90" />
             </div>
           </button>
         ) : (
@@ -872,7 +872,7 @@ const TableRow = memo(function TableRow({
           </div>
           <p
             onClick={() => onInspectAngle(ang)}
-            className="text-xs text-cyan-200 font-bold line-clamp-1 cursor-pointer hover:underline"
+            className="text-xs text-slate-200 font-semibold line-clamp-1 cursor-pointer hover:underline"
           >
             {ang.hook_title}
           </p>
@@ -3181,13 +3181,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         actions={
           <>
             {/* View Mode Toggle Switcher */}
-            <div className="flex items-center p-0.5 rounded-xl bg-black/40 border border-white/[0.08]">
+            <div className="flex items-center p-0.5 rounded-xl bg-[#0B0F17] border border-white/[0.08]">
               <button
                 type="button"
                 onClick={() => handleSwitchViewMode('kanban')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   viewMode === 'kanban'
-                    ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                    ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                     : 'text-slate-400 hover:text-white'
                 }`}
                 title="มุมมองบอร์ด 4 เฟส (Kanban)"
@@ -3200,12 +3200,12 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 onClick={() => handleSwitchViewMode('schedule')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   viewMode === 'schedule'
-                    ? 'bg-gradient-to-r from-[#FE2C55]/20 to-[#25F4EE]/20 text-white border border-[#25F4EE]/40 shadow-sm'
+                    ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                     : 'text-slate-400 hover:text-white'
                 }`}
                 title="ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet)"
               >
-                <Calendar className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <Calendar className="w-3.5 h-3.5" />
                 <span>คิวประจำวัน</span>
               </button>
               <button
@@ -3213,7 +3213,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 onClick={() => handleSwitchViewMode('table')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   viewMode === 'table'
-                    ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                    ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                     : 'text-slate-400 hover:text-white'
                 }`}
                 title="มุมมองตารางข้อมูล (Table)"
@@ -3249,13 +3249,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           onClick={() => scrollToPhaseColumn('all')}
           className={`flex-shrink-0 snap-start min-w-[130px] sm:min-w-0 p-3 rounded-2xl border text-left transition-all relative cursor-pointer active:scale-95 ${
             activePhase === 'all'
-              ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 shadow-lg ring-1 ring-[#25F4EE]/30'
-              : 'glass-tile text-slate-300 hover:border-white/[0.25]'
+              ? 'glass-panel bg-[#121724] border-white/30 shadow-md ring-1 ring-white/20'
+              : 'glass-tile bg-[#0E131E] text-slate-300 border-white/[0.08] hover:border-white/20'
           }`}
         >
           <div className="flex items-center justify-between gap-1.5">
             <div className="flex items-center gap-2 min-w-0">
-              <Layers className={`w-4 h-4 flex-shrink-0 ${activePhase === 'all' ? 'text-[#25F4EE]' : 'text-slate-400'}`} />
+              <Layers className={`w-4 h-4 flex-shrink-0 ${activePhase === 'all' ? 'text-white' : 'text-slate-400'}`} />
               <span className={`text-xs font-bold truncate ${activePhase === 'all' ? 'text-white' : 'text-slate-300'}`}>
                 ทั้งหมด
               </span>
@@ -3269,8 +3269,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
             </span>
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-1">คลิปทุกสถานะ</div>
-          <div className={`h-1 w-full mt-2 rounded-full transition-all ${
-            activePhase === 'all' ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE]' : 'bg-white/[0.04]'
+          <div className={`h-0.5 w-full mt-2 rounded-full transition-all ${
+            activePhase === 'all' ? 'bg-white' : 'bg-transparent'
           }`} />
         </button>
 
@@ -3287,13 +3287,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               onClick={() => scrollToPhaseColumn(isActive && activePhase !== 'all' ? 'all' : p.id)}
               className={`flex-shrink-0 snap-start min-w-[140px] sm:min-w-0 p-3 rounded-2xl border text-left transition-all relative cursor-pointer active:scale-95 ${
                 isActive
-                  ? `${p.color} shadow-lg ring-1 ring-[#25F4EE]/30`
-                  : 'glass-tile text-slate-300 hover:border-white/[0.25]'
+                  ? `${p.color} shadow-md ring-1 ring-current/25`
+                  : 'glass-tile bg-[#0E131E] text-slate-300 border-white/[0.08] hover:border-white/20'
               }`}
             >
               <div className="flex items-center justify-between gap-1.5">
                 <div className="flex items-center gap-2 min-w-0">
-                  <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                  <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-current' : 'text-slate-400'}`} />
                   <span className={`text-xs font-bold truncate ${isActive ? 'text-white' : 'text-slate-300'}`}>
                     {p.label}
                   </span>
@@ -3307,8 +3307,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 </span>
               </div>
               <div className="text-[10px] text-slate-400 truncate mt-1">{p.short}</div>
-              <div className={`h-1 w-full mt-2 rounded-full transition-all ${
-                isActive ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE]' : 'bg-white/[0.04]'
+              <div className={`h-0.5 w-full mt-2 rounded-full transition-all ${
+                isActive ? p.dot : 'bg-transparent'
               }`} />
             </button>
           );
@@ -3316,7 +3316,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       </div>
 
       {/* ── 3. Streamlined Search & Filter Row ── */}
-      <div className="glass-panel p-2.5 sm:p-3 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
+      <div className="glass-panel bg-[#0B0F17] border border-white/[0.08] p-2.5 sm:p-3 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
         {/* Search Box */}
         <div className="relative flex-1 min-w-0">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -3411,7 +3411,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
             onClick={() => setSelectedProductFilter('all')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer active:scale-95 flex items-center gap-1.5 ${
               selectedProductFilter === 'all'
-                ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
+                ? 'bg-white/[0.12] text-white border border-white/25 shadow-sm'
                 : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
             }`}
           >
@@ -3430,7 +3430,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 onClick={() => setSelectedProductFilter(isSelected ? 'all' : p.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer active:scale-95 flex items-center gap-1.5 ${
                   isSelected
-                    ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
+                    ? 'bg-white/[0.12] text-white border border-white/25 shadow-sm'
                     : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
                 }`}
               >
@@ -3506,12 +3506,12 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 <div
                   key={phase.id}
                   ref={(el) => (colRefs.current[phase.id] = el)}
-                  className="w-[88vw] max-w-[390px] xl:w-auto xl:max-w-none flex-shrink-0 snap-center p-2.5 space-y-2 rounded-2xl glass-panel transition-colors hover:border-white/[0.25] flex flex-col"
+                  className="w-[88vw] max-w-[390px] xl:w-auto xl:max-w-none flex-shrink-0 snap-center p-2.5 space-y-2 rounded-2xl glass-panel bg-[#0B0F17] border border-white/[0.08] transition-colors hover:border-white/20 flex flex-col"
                 >
                   {/* Column Header */}
                   <div className="flex items-center justify-between pb-1.5 border-b border-white/[0.08]">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                      <phase.icon className="w-3.5 h-3.5 text-[#25F4EE]" />
+                      <phase.icon className={`w-3.5 h-3.5 ${phase.id === 'scripted' ? 'text-cyan-400' : phase.id === 'in_production' ? 'text-amber-400' : phase.id === 'rendered' ? 'text-blue-400' : 'text-emerald-400'}`} />
                       <span>{phase.label}</span>
                     </div>
 
@@ -3768,11 +3768,11 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           </div>
 
           {/* 💻 Desktop High-Density Pro Table */}
-          <div className="hidden md:block glass-panel rounded-2xl overflow-hidden shadow-xl">
+          <div className="hidden md:block glass-panel bg-[#0B0F17] border border-white/[0.08] rounded-2xl overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-white/[0.08] bg-black/70 text-slate-400 font-bold text-xs uppercase tracking-wider">
+                  <tr className="border-b border-white/[0.08] bg-[#0E131E] text-slate-400 font-bold text-xs uppercase tracking-wider">
                     <th className="py-3 px-3 w-16 text-center whitespace-nowrap">วิดีโอ</th>
                     <th className="py-3 px-3 min-w-[200px] max-w-sm">สินค้า & มุมขาย (Hook Title)</th>
                     <th className="py-3 px-3 w-40 whitespace-nowrap">สถานะขั้นตอน</th>

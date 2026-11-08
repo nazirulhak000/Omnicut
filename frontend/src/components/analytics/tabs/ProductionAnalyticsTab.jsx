@@ -21,14 +21,37 @@ function PipelineSnapshot({ stages, lifecycle, totalAngles }) {
           <div key={stage.key} className="rounded-xl border border-white/[0.1] bg-zinc-900/50 p-4 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-semibold text-zinc-300">{index + 1}. {stage.label}</span>
-              <span className="text-xs font-bold text-cyan-300">{stage.percentage}%</span>
+              <span
+                className={`text-xs font-bold font-mono ${
+                  stage.key === 'scripted'
+                    ? 'text-cyan-400'
+                    : stage.key === 'in_production'
+                    ? 'text-amber-400'
+                    : stage.key === 'rendered'
+                    ? 'text-blue-400'
+                    : 'text-emerald-400'
+                }`}
+              >
+                {stage.percentage}%
+              </span>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-white">{stage.count}</span>
               <span className="text-xs text-zinc-400">คลิปในสถานะนี้</span>
             </div>
             <div className="w-full bg-zinc-800/80 h-1.5 rounded-full overflow-hidden">
-              <div className="h-full rounded-full bg-cyan-400" style={{ width: `${Math.min(100, Math.max(stage.count > 0 ? 6 : 0, stage.percentage))}%` }} />
+              <div
+                className={`h-full rounded-full ${
+                  stage.key === 'scripted'
+                    ? 'bg-cyan-400'
+                    : stage.key === 'in_production'
+                    ? 'bg-amber-400'
+                    : stage.key === 'rendered'
+                    ? 'bg-blue-400'
+                    : 'bg-emerald-400'
+                }`}
+                style={{ width: `${Math.min(100, Math.max(stage.count > 0 ? 6 : 0, stage.percentage))}%` }}
+              />
             </div>
           </div>
         ))}

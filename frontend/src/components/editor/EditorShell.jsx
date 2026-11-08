@@ -3511,7 +3511,7 @@ export default function EditorShell({
                       }`}
                     >
                       <span className={`h-8 w-1 rounded-full transition-all duration-150 ${
-                        activeSplitter === 'asset' ? 'bg-[#25F4EE] shadow-[0_0_8px_#25F4EE]' : 'bg-white/20 group-hover:bg-[#25F4EE]/80'
+                        activeSplitter === 'asset' ? 'bg-[#25F4EE]' : 'bg-white/20 group-hover:bg-[#25F4EE]/80'
                       }`} />
                       {activeSplitter === 'asset' && (
                         <div className="absolute top-1/2 left-4 -translate-y-1/2 px-2 py-0.5 rounded bg-[#0A0D14]/95 border border-[#25F4EE]/40 text-[#25F4EE] text-[10px] font-mono tracking-wider shadow-lg pointer-events-none whitespace-nowrap z-30">
@@ -3743,7 +3743,7 @@ export default function EditorShell({
                       }`}
                     >
                       <span className={`h-8 w-1 rounded-full transition-all duration-150 ${
-                        activeSplitter === 'inspector' ? 'bg-[#D97757] shadow-[0_0_8px_#D97757]' : 'bg-white/20 group-hover:bg-[#D97757]/80'
+                        activeSplitter === 'inspector' ? 'bg-[#D97757]' : 'bg-white/20 group-hover:bg-[#D97757]/80'
                       }`} />
                       {activeSplitter === 'inspector' && (
                         <div className="absolute top-1/2 right-4 -translate-y-1/2 px-2 py-0.5 rounded bg-[#0A0D14]/95 border border-[#D97757]/40 text-[#D97757] text-[10px] font-mono tracking-wider shadow-lg pointer-events-none whitespace-nowrap z-30">
@@ -3910,7 +3910,7 @@ export default function EditorShell({
                   }`}
                 >
                   <span className={`h-1 w-12 rounded-full transition-all duration-150 ${
-                    activeSplitter === 'timeline' ? 'bg-[#25F4EE] shadow-[0_0_8px_#25F4EE]' : 'bg-slate-600 group-hover:bg-[#25F4EE]/80'
+                    activeSplitter === 'timeline' ? 'bg-[#25F4EE]' : 'bg-slate-600 group-hover:bg-[#25F4EE]/80'
                   }`} />
                   {activeSplitter === 'timeline' && (
                     <div className="absolute left-1/2 -top-6 -translate-x-1/2 px-2 py-0.5 rounded bg-[#0A0D14]/95 border border-[#25F4EE]/40 text-[#25F4EE] text-[10px] font-mono tracking-wider shadow-lg pointer-events-none whitespace-nowrap z-30">

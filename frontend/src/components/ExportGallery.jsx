@@ -151,16 +151,16 @@ const ExportCard = memo(function ExportCard({
 
   return (
     <div
-      className={`overflow-hidden transition-all duration-200 flex flex-col justify-between group relative rounded-2xl sm:rounded-3xl border glass-card shadow-lg ${
+      className={`overflow-hidden transition-all duration-200 flex flex-col justify-between group relative rounded-2xl sm:rounded-3xl border glass-panel bg-[#0E131E] shadow-md ${
         isSelected
-          ? 'border-[#25F4EE] ring-1 ring-[#25F4EE] bg-[#25F4EE]/5'
+          ? 'border-[#25F4EE] ring-1 ring-[#25F4EE] bg-[#0E131E]'
           : item.is_qc_rejected
-          ? 'border-red-500/50 hover:border-red-400 bg-red-950/10 hover:shadow-red-950/40 ring-1 ring-red-500/20'
+          ? 'border-red-500/40 hover:border-red-400/60 bg-[#120A06]'
           : item.is_previous_version
-          ? 'opacity-80 hover:opacity-100 border-amber-500/30 hover:border-amber-400/60 bg-amber-950/10 hover:shadow-amber-950/30 ring-1 ring-amber-500/20'
+          ? 'opacity-85 hover:opacity-100 border-amber-500/30 hover:border-amber-400/50 bg-[#120D08]'
           : item.is_unlinked
-          ? 'border-slate-700/60 hover:border-slate-500/60 bg-slate-900/40'
-          : 'border-emerald-500/30 hover:border-emerald-400/70 bg-emerald-950/5 hover:shadow-2xl ring-1 ring-emerald-500/20'
+          ? 'border-slate-700/60 hover:border-slate-500/60 bg-[#0D111A]'
+          : 'border-white/[0.08] hover:border-white/20 bg-[#0E131E]'
       }`}
     >
       {/* Card Top / Video Thumbnail Area */}
@@ -251,7 +251,7 @@ const ExportCard = memo(function ExportCard({
           <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all flex flex-col items-center justify-center gap-1.5 sm:gap-2 pointer-events-none">
             {item.is_qc_rejected ? (
               <>
-                <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-full bg-gradient-to-tr from-red-600 to-rose-600 text-white flex items-center justify-center shadow-xl shadow-red-600/50 ring-2 ring-red-400 ring-offset-2 ring-offset-black/50 transform group-hover:scale-110 transition-all">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-600/80 border border-red-400/50 text-white flex items-center justify-center shadow-lg transform group-hover:scale-105 transition-all">
                   <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current ml-0.5 text-white" />
                 </div>
                 <div className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-red-600/90 backdrop-blur-md text-white font-black text-[9px] sm:text-[11px] shadow-lg border border-red-400/60 tracking-wide flex items-center gap-1">
@@ -269,7 +269,7 @@ const ExportCard = memo(function ExportCard({
               </>
             ) : item.is_previous_version ? (
               <>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-amber-600 to-orange-500 text-white flex items-center justify-center shadow-xl transform group-hover:scale-105 transition-all">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-600/80 border border-amber-400/50 text-white flex items-center justify-center shadow-lg transform group-hover:scale-105 transition-all">
                   <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ml-0.5 text-white" />
                 </div>
                 <div className="px-2 py-0.5 rounded-full bg-amber-600/80 backdrop-blur-md text-white font-bold text-[9px] sm:text-[10px] shadow-md border border-amber-400/40 tracking-wide flex items-center gap-1">
@@ -282,7 +282,7 @@ const ExportCard = memo(function ExportCard({
               </>
             ) : (
               <>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] text-white flex items-center justify-center shadow-xl transform group-hover:scale-105 transition-all">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/60 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-lg transform group-hover:scale-105 transition-all">
                   <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ml-0.5 text-white" />
                 </div>
                 <span className="text-[10px] sm:text-xs font-bold text-white bg-black/80 px-2.5 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
@@ -374,8 +374,8 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
       onClick={onSelect}
       className={`p-2.5 rounded-xl border transition-all cursor-pointer text-left group relative active:scale-98 ${
         isActive
-          ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-md shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/30'
-          : 'glass-tile text-slate-300 hover:border-white/[0.25]'
+          ? 'bg-white/[0.08] border-[#25F4EE]/50 shadow-sm ring-1 ring-[#25F4EE]/30'
+          : 'glass-tile bg-[#0E131E] text-slate-300 border-white/[0.08] hover:border-white/20'
       }`}
     >
       {isActive && (
@@ -468,8 +468,8 @@ function ExportMobilePill({ item, isActive, onSelect }) {
       onClick={onSelect}
       className={`flex-shrink-0 snap-center px-2.5 py-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 max-w-[200px] active:scale-95 ${
         isActive
-          ? 'bg-[#25F4EE]/15 border-[#25F4EE] shadow-md shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/40'
-          : 'glass-tile text-slate-300 hover:border-white/[0.25]'
+          ? 'bg-white/[0.1] border-[#25F4EE]/60 shadow-sm ring-1 ring-[#25F4EE]/30'
+          : 'glass-tile bg-[#0E131E] text-slate-300 border-white/[0.08] hover:border-white/20'
       }`}
     >
       <div className="w-8 h-12 rounded-md overflow-hidden bg-black flex-shrink-0 border border-white/[0.1] relative">
@@ -665,7 +665,7 @@ function ExportActiveWorkbench({
   const relativeTime = getRelativeTimeDesc(video.timestamp, renderedTime);
 
   return (
-    <div className="glass-panel rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-4 animate-fadeIn">
+    <div className="glass-panel bg-[#0B0F17] border border-white/[0.08] rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-4 animate-fadeIn">
       {/* 1. Header with title & badges */}
       <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-3 border-b border-white/[0.08]">
         <div className="min-w-0 flex-1">
@@ -1684,10 +1684,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
       <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
 
       {/* ── Unified Media Center & Command Bar ── */}
-      <div className="rounded-2xl sm:rounded-3xl glass-panel p-3 sm:p-5 shadow-2xl relative overflow-hidden space-y-3 sm:space-y-4">
-        {/* Ambient Glow Aura */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-[#FE2C55]/10 via-[#25F4EE]/5 to-transparent rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-
+      <div className="rounded-2xl sm:rounded-3xl glass-panel bg-[#0B0F17] border border-white/[0.08] p-3 sm:p-5 shadow-xl relative overflow-hidden space-y-3 sm:space-y-4">
         {/* Row 1: Tab Switcher + Stats Badge + View Mode & Actions */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 relative z-10">
           {/* Media Switcher Tabs */}
@@ -1697,11 +1694,11 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
               onClick={() => setActiveMediaTab('exports')}
               className={`flex-1 md:flex-initial px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 activeMediaTab === 'exports'
-                  ? 'bg-[#FE2C55]/20 text-[#FE2C55] border border-[#FE2C55]/40 shadow-md shadow-[#FE2C55]/10'
+                  ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
               }`}
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-4 h-4 text-emerald-400" />
               <span>คลิปตัดเสร็จ ({exportsList?.length || 0})</span>
             </button>
 
@@ -1710,11 +1707,11 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
               onClick={() => setActiveMediaTab('raw_vault')}
               className={`flex-1 md:flex-initial px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 activeMediaTab === 'raw_vault'
-                  ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-md shadow-[#25F4EE]/10'
+                  ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
               }`}
             >
-              <Film className="w-4 h-4" />
+              <Film className="w-4 h-4 text-cyan-400" />
               <span>คลิปดิบ (Raw Vault)</span>
             </button>
           </div>
@@ -1726,7 +1723,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs font-mono text-slate-300">
                 <span className="text-white font-bold">{filteredExports.length}</span> คลิป
                 <span className="text-slate-600">•</span>
-                <span className="text-[#25F4EE] font-bold">{totalMB}</span> MB
+                <span className="text-cyan-400 font-bold">{totalMB}</span> MB
                 <span className="text-slate-600">•</span>
                 <span className="text-emerald-400 font-bold">9:16 FHD</span>
               </div>
@@ -1738,7 +1735,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   onClick={() => setViewMode('split')}
                   className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                     viewMode === 'split'
-                      ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                      ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                       : 'text-slate-400 hover:text-white'
                   }`}
                   title="โหมดสตูดิโอ 2 ฝั่ง (เลือกคลิปซ้าย ดู QC ขวา)"
@@ -1751,7 +1748,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   onClick={() => setViewMode('grid')}
                   className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                     viewMode === 'grid'
-                      ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                      ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                       : 'text-slate-400 hover:text-white'
                   }`}
                   title="โหมดตารางการ์ด 9:16 ทั้งหมด"
@@ -1868,11 +1865,11 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar touch-pan-x flex-nowrap">
                 {[
-                  { id: 'all',         label: 'ทั้งหมด',              count: counts.all,          color: 'text-slate-300 border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08]',   active: 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/40 shadow-sm shadow-[#25F4EE]/10' },
-                  { id: 'latest',      label: 'เวอร์ชันล่าสุด',        count: counts.latest,       color: 'text-emerald-300 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10', active: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm shadow-emerald-500/10' },
-                  { id: 'previous',    label: 'เวอร์ชันก่อนหน้า',       count: counts.previous,     color: 'text-amber-300 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10',   active: 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10' },
-                  { id: 'unlinked',    label: 'คลิปภายนอก',          count: counts.unlinked,     color: 'text-slate-400 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]',  active: 'bg-slate-500/20 text-slate-200 border-slate-500/40' },
-                  { id: 'qc_rejected', label: 'QC ปัดตก',            count: counts.qc_rejected,  color: 'text-red-300 border-red-500/20 bg-red-500/5 hover:bg-red-500/10',         active: 'bg-red-500/20 text-red-300 border-red-500/40 shadow-sm shadow-red-500/10' },
+                  { id: 'all',         label: 'ทั้งหมด',              count: counts.all,          color: 'text-slate-300 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]',   active: 'bg-white/[0.12] text-white border-white/25 shadow-sm' },
+                  { id: 'latest',      label: 'เวอร์ชันล่าสุด',        count: counts.latest,       color: 'text-emerald-300 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10', active: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35 shadow-sm' },
+                  { id: 'previous',    label: 'เวอร์ชันก่อนหน้า',       count: counts.previous,     color: 'text-amber-300 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10',   active: 'bg-amber-500/15 text-amber-300 border-amber-500/35 shadow-sm' },
+                  { id: 'unlinked',    label: 'คลิปภายนอก',          count: counts.unlinked,     color: 'text-slate-400 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]',  active: 'bg-slate-500/20 text-slate-200 border-slate-500/35' },
+                  { id: 'qc_rejected', label: 'QC ปัดตก',            count: counts.qc_rejected,  color: 'text-red-300 border-red-500/20 bg-red-500/5 hover:bg-red-500/10',         active: 'bg-red-500/15 text-red-300 border-red-500/35 shadow-sm' },
                 ].map(chip => (
                   <button
                     key={chip.id}
@@ -2116,7 +2113,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     <button
                       type="button"
                       onClick={() => handleCopyCaption(`${selectedDetailVideo.tiktok_caption}\n\n${selectedDetailVideo.tiktok_hashtags || ''}`)}
-                      className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 active:scale-[0.98] text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer transition-all"
+                      className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-emerald-600/25 hover:bg-emerald-600/40 border border-emerald-500/40 active:scale-[0.98] text-emerald-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all"
                     >
                       <Copy className="w-4 h-4 flex-shrink-0" />
                       <span>คัดลอกแคปชัน TikTok</span>
@@ -2125,7 +2122,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   <a
                     href={toMediaUrl(selectedDetailVideo.rel_path || selectedDetailVideo.path)}
                     download={selectedDetailVideo.name}
-                    className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#25F4EE]/90 active:scale-[0.98] text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/20 cursor-pointer transition-all"
+                    className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-[#FE2C55] hover:bg-[#FE2C55]/90 active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all"
                   >
                     <Download className="w-4 h-4 flex-shrink-0" />
                     <span>บันทึกคลิป MP4</span>
@@ -2521,7 +2518,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   {isCoarsePointer() ? (
                     <a
                       href={buildQuickPostUrl(mobileBaseUrl, selectedDetailVideo)}
-                      className="min-h-11 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-sm font-black flex items-center justify-center gap-2 shadow-lg"
+                      className="min-h-11 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm"
                     >
                       <ExternalLink className="w-4 h-4" />
                       <span>เปิดหน้าโพสต์</span>

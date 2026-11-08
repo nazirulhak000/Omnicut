@@ -24,7 +24,7 @@ export default function ViewToggleGroup({
     <div
       role="group"
       aria-label="ตัวควบคุมมุมมองพาเนล"
-      className={`inline-flex items-center gap-0.5 bg-black/40 border border-white/[0.08] p-0.5 rounded-xl ${className}`}
+      className={`inline-flex items-center gap-0.5 bg-[#0A0D14]/90 border border-white/[0.08] p-0.5 rounded-lg ${className}`}
     >
       {/* Left panel toggle */}
       <button
@@ -40,9 +40,9 @@ export default function ViewToggleGroup({
               ? 'เปิดแถบซ้าย (คลังสื่อ)'
               : 'ซ่อนแถบซ้าย'
         }
-        className={`h-7 w-7 sm:h-8 sm:w-8 rounded-lg flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+        className={`h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
           !leftSidebarCollapsed
-            ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/35 shadow-sm shadow-[#25F4EE]/10'
+            ? 'bg-[#25F4EE]/12 text-[#25F4EE] border border-[#25F4EE]/30'
             : 'text-slate-400 hover:text-white hover:bg-white/[0.06] border border-transparent'
         }`}
       >
@@ -67,9 +67,9 @@ export default function ViewToggleGroup({
               ? 'ออกจากโหมดโฟกัส (เปิดพาเนลข้าง)'
               : 'เข้าโหมดโฟกัส (ซ่อนพาเนลข้างทั้งหมด)'
         }
-        className={`h-7 w-7 sm:h-8 sm:w-8 rounded-lg flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+        className={`h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
           activeFocus
-            ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40 shadow-sm shadow-amber-400/10'
+            ? 'bg-amber-400/15 text-amber-300 border border-amber-400/30'
             : 'text-slate-400 hover:text-white hover:bg-white/[0.06] border border-transparent'
         }`}
       >
@@ -90,9 +90,9 @@ export default function ViewToggleGroup({
               ? 'เปิดแถบขวา (คำบรรยาย)'
               : 'ซ่อนแถบขวา'
         }
-        className={`h-7 w-7 sm:h-8 sm:w-8 rounded-lg flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+        className={`h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
           !rightSidebarCollapsed
-            ? 'bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/35 shadow-sm shadow-[#D97757]/10'
+            ? 'bg-[#D97757]/15 text-[#E08A6D] border border-[#D97757]/30'
             : 'text-slate-400 hover:text-white hover:bg-white/[0.06] border border-transparent'
         }`}
       >

@@ -1073,7 +1073,7 @@ export default function Timeline({
               {/* video track */}
               <div
                 data-testid="timeline-video-track"
-                className="relative rounded bg-[#181716]"
+                className="relative rounded bg-[#0D111A] border border-white/[0.04]"
                 style={rowStyle('video')}
                 onDragOver={onDragOverTrack}
                 onDragLeave={() => setDropIndex(null)}
@@ -1173,7 +1173,7 @@ export default function Timeline({
                           role="dialog"
                           aria-label="ตั้งค่ารอยต่อคลิป"
                           onClick={(e) => e.stopPropagation()}
-                          className="pointer-events-auto fixed z-[100] w-56 rounded-xl border border-[#4A4742] bg-[#1C1B19]/95 p-2.5 shadow-2xl backdrop-blur-md text-xs text-[#EDE9E3] animate-in fade-in zoom-in-95 duration-150"
+                          className="pointer-events-auto fixed z-[100] w-56 rounded-lg border border-white/[0.12] bg-[#0D121F]/95 p-2.5 shadow-xl backdrop-blur-md text-xs text-slate-200 animate-in fade-in zoom-in-95 duration-150"
                           style={{ ...transitionMenuPosition, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }}
                         >
                           <div className="flex items-center justify-between pb-1.5 border-b border-[#363430]">
@@ -1253,7 +1253,7 @@ export default function Timeline({
               </div>
 
               {/* hook header track */}
-              <div className="relative rounded bg-[#181716]" style={rowStyle('hook')}>
+              <div className="relative rounded bg-[#0D111A] border border-white/[0.04]" style={rowStyle('hook')}>
                 {(() => {
                   const tierTexts = (hookOverlay?.tiers || []).map((tier) => tier.text).filter(Boolean);
                   const hookText = tierTexts.join(' · ') || 'ป้ายฮุกพาดหัว (Hook Header)';
@@ -1281,7 +1281,7 @@ export default function Timeline({
                         !showHookHeader
                           ? 'opacity-40 bg-[#282724] text-[#9C968F] ring-1 ring-white/10'
                           : isSelected
-                            ? 'bg-[#3A3018] text-[#FFE600] ring-2 ring-[#E6C24A] shadow-[0_0_12px_rgba(230,194,74,0.3)]'
+                            ? 'bg-amber-500/20 text-[#FFE600] ring-1 ring-amber-400'
                             : 'bg-[#2A2415] text-[#E6C24A] ring-1 ring-[#594B22] hover:ring-[#8C7636]'
                       }`}
                       style={{ left: start * pxPerSec, width: w }}
@@ -1309,7 +1309,7 @@ export default function Timeline({
               {hasCutout && (
                 <div
                   data-testid="timeline-cutout-track"
-                  className="relative rounded bg-[#181716] transition-all duration-150"
+                  className="relative rounded bg-[#0D111A] border border-white/[0.04] transition-all duration-150"
                   style={rowStyle('cutout')}
                 >
                   {backgroundIsolation?.scope_mode === 'behind_text_windows'
@@ -1345,9 +1345,9 @@ export default function Timeline({
                           isCutoutHidden
                             ? 'opacity-30 bg-[#282724] text-[#9C968F] ring-1 ring-white/10'
                             : isProcessing
-                              ? 'bg-[#78350F]/90 text-[#FDE68A] border border-[#F59E0B] shadow-[0_0_12px_rgba(245,158,11,0.4)] animate-pulse'
+                              ? 'bg-amber-600/30 text-amber-200 border border-amber-500 animate-pulse'
                               : isIsoOn && isReady
-                                ? 'bg-[#2E1065]/80 text-[#C084FC] border border-[#7C3AED]/60 shadow-[0_0_8px_rgba(124,58,237,0.25)] hover:border-[#A855F7]'
+                                ? 'bg-purple-900/40 text-purple-300 border border-purple-500/50 hover:border-purple-400'
                                 : isIsoOn
                                   ? 'bg-[#3A2208]/80 text-[#FDBA74] border border-[#EA580C]/50'
                                   : 'bg-[#1C1917]/50 text-[#78716C] border border-white/5 opacity-50 hover:opacity-80'
@@ -1372,7 +1372,7 @@ export default function Timeline({
               {/* sticker track */}
               {hasSticker && (
                 <div
-                  className="relative rounded bg-[#181716] transition-all duration-150"
+                  className="relative rounded bg-[#0D111A] border border-white/[0.04] transition-all duration-150"
                   style={rowStyle('sticker')}
                 >
                   {packedStickers.map((item) => {
@@ -1406,7 +1406,7 @@ export default function Timeline({
                           isStickerHidden || item.hidden
                             ? 'opacity-40 bg-[#282724] text-[#9C968F] ring-1 ring-white/10'
                             : isSelected
-                              ? 'bg-[#14323B] text-[#25F4EE] ring-2 ring-[#25F4EE] shadow-[0_0_12px_rgba(37,244,238,0.3)] z-10'
+                              ? 'bg-cyan-950/60 text-cyan-300 ring-1 ring-cyan-400 z-10'
                               : 'bg-[#13272D] text-[#64D8D2] ring-1 ring-[#1E4D54] hover:ring-[#2FA0A8]'
                         }
                         style={{ left: start * pxPerSec, width: w, top: topPx, height: STICKER_LANE_ROW_H - 4 }}
@@ -1459,7 +1459,7 @@ export default function Timeline({
               )}
 
               {/* caption track */}
-              <div className="relative rounded bg-[#181716]" style={rowStyle('caption')}>
+              <div className="relative rounded bg-[#0D111A] border border-white/[0.04]" style={rowStyle('caption')}>
                 {(cues || []).map((cue) => {
                   const selected = selection?.type === 'caption' && selection.id === cue._uid;
                   const w = Math.max(14, (cue.end - cue.start) * pxPerSec);
@@ -1498,7 +1498,7 @@ export default function Timeline({
               {/* text overlay track (only shown when overlays exist, auto-stacked by lane) */}
               {hasTextOverlays && (
                 <div
-                  className="relative rounded bg-[#181716] transition-all duration-150"
+                  className="relative rounded bg-[#0D111A] border border-white/[0.04] transition-all duration-150"
                   style={rowStyle('text')}
                 >
                   {packedTextOverlays.map((item) => {
@@ -1512,7 +1512,7 @@ export default function Timeline({
                         onClick={(e) => { e.stopPropagation(); selectTextOverlay(item.id); }}
                         title={`${overlayLabel(item)} (${item.start.toFixed(2)}s - ${item.end.toFixed(2)}s)`}
                         className={`leading-[18px] ${selected
-                          ? 'bg-[#153434] text-[#25F4EE] ring-2 ring-[#25F4EE] shadow-[0_0_10px_rgba(37,244,238,0.25)] z-10'
+                          ? 'bg-cyan-950/60 text-cyan-300 ring-1 ring-cyan-400 z-10'
                           : 'bg-[#1C2626] text-[#A2CCCC] ring-1 ring-[#2E4848] hover:ring-[#477070]'}`}
                         style={{ left: item.start * pxPerSec, width: w, top: topPx, height: TEXT_LANE_ROW_H - 4 }}
                         handleClassName="hover:bg-[#25F4EE]"
@@ -1550,7 +1550,7 @@ export default function Timeline({
                 return (
                   <div
                     key={key}
-                    className="relative rounded bg-[#181716] transition-opacity duration-150"
+                    className="relative rounded bg-[#0D111A] border border-white/[0.04] transition-opacity duration-150"
                     style={{ ...rowStyle(key), opacity: silent ? 0.4 : 1 }}
                   >
                     {spanSecs > 0 && (
@@ -1636,7 +1636,7 @@ export default function Timeline({
                         style={{ left: mark.time * pxPerSec, width: 7 }}
                         title={mark.title}
                       >
-                        <span className="absolute inset-y-0.5 left-1/2 w-[2px] -translate-x-1/2 rounded-full bg-[#F08A4B] shadow-[0_0_4px_rgba(240,138,75,0.7)]" />
+                        <span className="absolute inset-y-0.5 left-1/2 w-[2px] -translate-x-1/2 rounded-full bg-[#F08A4B]" />
                       </div>
                     ))}
 

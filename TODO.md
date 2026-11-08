@@ -4,11 +4,11 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round ANTIGRAVITY-UNSLOP-PHASE04-EDITOR-PILOT-20261108 · ดำเนินการ Phase 04 (Editor Pilot: ปรับห้องตัดต่อเป็นหน้าต้นแบบ) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
-  - [ ] Task 1: ปรับ layout ของ EditorHeader, AssetPanel, Inspector, และ Timeline ให้คลีนระดับ Obsidian Pro Dark NLE
-  - [ ] Task 2: ให้ความสำคัญกับ Preview 9:16 Canvas โดดเด่น ลดทอนพื้นที่ของ Chrome และ Card Shadows
-  - [ ] Task 3: คงสัญญาระบบ Video Render Contract 100% (ห้ามแตะ SequencePlayer logic, subtitle_engine, fonts, coordinates, FFmpeg pipeline)
-  - [ ] Task 4: ตรวจสอบ unit tests และ build ผ่าน 100%
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE04-EDITOR-PILOT-20261108 · ดำเนินการ Phase 04 (Editor Pilot: ปรับห้องตัดต่อเป็นหน้าต้นแบบ) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
+  - [x] Task 1: ปรับ Chrome รอบข้างของ Editor (AssetPanel, Inspector, Timeline, Toolbar, ContextMenu, Splitters) ให้คลีนระดับ Obsidian Pro Dark NLE (#0A0D14, border-white/[0.08])
+  - [x] Task 2: ให้ความสำคัญกับ Preview 9:16 Canvas โดดเด่น ถอด outer glow, harsh gradient, neon shadows ส่วนเกินออกจากการ์ดและแท็บ
+  - [x] Task 3: คงสัญญาระบบ Video Render Contract 100% (ห้ามแตะ SequencePlayer logic, subtitle_engine, fonts, coordinates, FFmpeg pipeline)
+  - [x] Task 4: ตรวจสอบ unit tests (1,213/1,213 tests ผ่าน 100%) และ Vite build ผ่านสำเร็จ (0 errors)
   - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-UNSLOP-PHASE05-PRODUCT-SCRIPT-20261108 · ดำเนินการ Phase 05 (Product & Script Angles) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:

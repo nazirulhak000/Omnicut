@@ -1597,10 +1597,10 @@ export default function AssetPanel({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0C1019]">
+    <div className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0A0D14]">
       {/* tab rail - horizontally scrollable without squeezing existing boxes */}
       <div
-        className="flex items-center border-b border-white/[0.08] bg-black/40 p-1 gap-1 flex-shrink-0"
+        className="flex items-center border-b border-white/[0.08] bg-[#080B11] p-1 gap-1 flex-shrink-0"
       >
         {TABS.map(({ id, label, icon: Icon }) => {
           const isActive = tab === id || (id === 'clips' && tab === 'srt');
@@ -1611,9 +1611,9 @@ export default function AssetPanel({
               onClick={() => setTab(id)}
               title={label}
               aria-pressed={isActive}
-              className={`flex flex-col items-center justify-center py-1.5 px-1 min-w-0 flex-1 rounded-xl transition-all focus:outline-none cursor-pointer ${
+              className={`flex flex-col items-center justify-center py-1.5 px-1 min-w-0 flex-1 rounded-lg transition-all focus:outline-none cursor-pointer ${
                 isActive
-                  ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/40 shadow-[0_0_12px_rgba(37,244,238,0.15)] font-semibold'
+                  ? 'bg-[#25F4EE]/12 text-[#25F4EE] border border-[#25F4EE]/30 font-semibold'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent'
               }`}
             >
@@ -1635,7 +1635,7 @@ export default function AssetPanel({
               value={tab === 'text' ? textSearch : query}
               onChange={(e) => (tab === 'text' ? setTextSearch(e.target.value) : setQuery(e.target.value))}
               placeholder={tab === 'text' ? 'ค้นหาเทมเพลตข้อความ...' : tab === 'audio' ? 'ค้นหาเพลง หรือ SFX...' : 'ค้นหาคลิป...'}
-              className="w-full py-1.5 pl-8 pr-7 rounded-xl bg-black/50 border border-white/[0.08] text-white text-xs focus:outline-none focus:border-[#25F4EE] placeholder:text-slate-500 transition-colors"
+              className="w-full py-1.5 pl-8 pr-7 rounded-lg bg-black/40 border border-white/[0.08] text-white text-xs focus:outline-none focus:border-[#25F4EE]/60 placeholder:text-slate-500 transition-colors"
             />
             {Boolean(tab === 'text' ? textSearch : query) && (
               <button
@@ -1661,7 +1661,7 @@ export default function AssetPanel({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="w-full py-2 px-3 rounded-xl border border-dashed border-[#25F4EE]/30 hover:border-[#25F4EE] hover:bg-[#25F4EE]/5 text-slate-200 hover:text-[#25F4EE] text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 group"
+                className="w-full py-2 px-3 rounded-lg border border-dashed border-white/[0.12] hover:border-[#25F4EE]/40 hover:bg-[#25F4EE]/5 text-slate-200 hover:text-[#25F4EE] text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 group"
               >
                 {uploading ? (
                   <>
@@ -1734,7 +1734,7 @@ export default function AssetPanel({
         {tab === 'clips' && (
           <div className="space-y-2.5">
             {/* Quick Action: AI Auto-SRT banner */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-[#25F4EE]/10 via-blue-500/10 to-transparent border border-[#25F4EE]/20 hover:border-[#25F4EE]/40 transition-all">
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.08] hover:border-white/[0.15] transition-all">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="p-1.5 rounded-lg bg-[#25F4EE]/15 text-[#25F4EE] flex-shrink-0">
                   <Sparkles className="w-4 h-4" />
@@ -1750,7 +1750,7 @@ export default function AssetPanel({
               <button
                 type="button"
                 onClick={() => setTab('srt')}
-                className="py-1 px-2.5 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 text-xs font-bold transition-all cursor-pointer flex-shrink-0 active:scale-95 shadow-sm shadow-[#25F4EE]/20"
+                className="py-1 px-2.5 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 text-xs font-bold transition-all cursor-pointer flex-shrink-0 active:scale-95"
               >
                 เปิดใช้งาน
               </button>
@@ -1821,7 +1821,7 @@ export default function AssetPanel({
               </button>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-gradient-to-r from-[#25F4EE]/10 to-blue-500/10 border border-[#25F4EE]/20 space-y-1">
+            <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.08] space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-bold text-[#25F4EE]">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>AI Auto-SRT (ถอดซับแม่นยำ)</span>
@@ -1891,7 +1891,7 @@ export default function AssetPanel({
               type="button"
               onClick={handleTranscribe}
               disabled={transcribing}
-              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all disabled:opacity-50"
+              className="w-full py-2 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
             >
               {transcribing ? (
                 <>
@@ -1982,7 +1982,7 @@ export default function AssetPanel({
             {audioSubTab === 'bgm' && (
               <div className="space-y-2">
                 {/* ACTIVE AUDIO STATUS BANNER */}
-                <div className="rounded-xl border border-white/[0.1] bg-gradient-to-r from-[#141A22] via-[#101720] to-[#0D1219] p-3 shadow-md space-y-1.5">
+                <div className="rounded-lg border border-white/[0.08] bg-[#0A0D14] p-3 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="p-2 rounded-lg bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 flex-shrink-0 shadow-inner">
@@ -2089,7 +2089,7 @@ export default function AssetPanel({
                       </span>
                     </div>
                     {!activeBgmInfo.isExplicit && (
-                      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#25F4EE] text-slate-950 shadow-sm shadow-[#25F4EE]/25 flex-shrink-0">
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#25F4EE] text-slate-950 flex-shrink-0">
                         <Check className="h-3 w-3 stroke-[3]" />
                         กำลังใช้งาน
                       </span>
@@ -2123,7 +2123,7 @@ export default function AssetPanel({
                           {m.label_th || m.name}
                         </span>
                         {isActive && (
-                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#25F4EE] text-slate-950 shadow-sm shadow-[#25F4EE]/25 flex-shrink-0">
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#25F4EE] text-slate-950 flex-shrink-0">
                             <Check className="h-3 w-3 stroke-[3]" />
                             กำลังใช้งาน
                           </span>
@@ -2211,7 +2211,7 @@ export default function AssetPanel({
             {textSubTab === 'hook' && (
               <div className="flex flex-col gap-3">
                 {/* ACTIVE HOOK STATUS BANNER */}
-                <div className="rounded-xl border border-white/[0.1] bg-gradient-to-r from-[#18181B] via-[#1F1F24] to-[#121214] p-3 shadow-md space-y-2">
+                <div className="rounded-lg border border-white/[0.08] bg-[#0A0D14] p-3 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className={`p-2 rounded-lg flex-shrink-0 shadow-inner ${
@@ -2291,10 +2291,10 @@ export default function AssetPanel({
                             data-text-template-card="true"
                             onClick={() => onApplyHookTemplate?.(key)}
                             title={tpl.label_th}
-                            className={`group relative flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer ${
+                            className={`group relative flex flex-col gap-1.5 rounded-lg border p-2 text-left transition-all cursor-pointer ${
                               isActive
-                                ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-lg shadow-[#25F4EE]/25 ring-2 ring-[#25F4EE]/60'
-                                : 'border-[#25F4EE]/30 bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#25F4EE]'
+                                ? 'border-[#25F4EE] bg-[#25F4EE]/10 ring-1 ring-[#25F4EE]/50'
+                                : 'border-[#25F4EE]/30 bg-[#0A0D14] hover:border-[#25F4EE]'
                             }`}
                           >
                             <div className="relative flex h-20 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1.5">
@@ -2372,10 +2372,10 @@ export default function AssetPanel({
                             data-text-template-card="true"
                             onClick={() => onApplyHookTemplate?.(key)}
                             title={tpl.label_th}
-                            className={`group relative flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer ${
+                            className={`group relative flex flex-col gap-1.5 rounded-lg border p-2 text-left transition-all cursor-pointer ${
                               isActive
-                                ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-lg shadow-[#25F4EE]/25 ring-2 ring-[#25F4EE]/60'
-                                : 'border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#25F4EE]/40'
+                                ? 'border-[#25F4EE] bg-[#25F4EE]/10 ring-1 ring-[#25F4EE]/50'
+                                : 'border-white/[0.08] bg-[#0A0D14] hover:border-white/[0.20]'
                             }`}
                           >
                             <div className="relative flex h-20 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1.5">
@@ -2430,7 +2430,7 @@ export default function AssetPanel({
                 <button
                   type="button"
                   onClick={onAddTextAtPlayhead}
-                  className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D4FF] hover:brightness-110 text-black text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer transition-all active:scale-95"
+                  className="w-full py-2 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-black text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
                 >
                   <Plus className="w-4 h-4 text-black" />
                   <span>เพิ่มข้อความที่หัวอ่าน</span>
@@ -2492,12 +2492,12 @@ export default function AssetPanel({
                         onAddTextAtPlayhead();
                       }
                     }}
-                    className={`group relative flex flex-col items-center justify-between rounded-xl border p-2 cursor-pointer transition-all hover:-translate-y-0.5 ${
+                    className={`group relative flex flex-col items-center justify-between rounded-lg border p-2 cursor-pointer transition-all ${
                       isSelectedApplied
-                        ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-lg shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/50'
+                        ? 'border-[#25F4EE] bg-[#25F4EE]/10 ring-1 ring-[#25F4EE]/50'
                         : isPreviewing
-                        ? 'border-[#25F4EE] bg-gradient-to-b from-[#1c2e38] to-[#0E0E10] shadow-lg shadow-[#25F4EE]/20'
-                        : 'border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#25F4EE]/60 hover:shadow-lg hover:shadow-[#25F4EE]/10'
+                        ? 'border-[#25F4EE]/40 bg-[#0E1322]'
+                        : 'border-white/[0.08] bg-[#0A0D14] hover:border-white/[0.20]'
                     }`}
                     title={
                       isSelectedApplied
@@ -2748,14 +2748,14 @@ export default function AssetPanel({
                         }
                       }}
                       title={`${displayName} — คลิกเพื่อดูตัวอย่าง (กด + เพื่อเพิ่มลงไทม์ไลน์)`}
-                      className={`group relative aspect-square rounded-2xl border p-2 flex items-center justify-center transition-all cursor-pointer overflow-hidden select-none ${
+                      className={`group relative aspect-square rounded-xl border p-2 flex items-center justify-center transition-all cursor-pointer overflow-hidden select-none ${
                         isPreviewing
-                          ? 'border-[#25F4EE] bg-[#25F4EE]/15 ring-2 ring-[#25F4EE]/60 shadow-[0_0_18px_rgba(37,244,238,0.35)]'
+                          ? 'border-[#25F4EE] bg-[#25F4EE]/15 ring-1 ring-[#25F4EE]/50'
                           : isCurrentActive
                             ? 'border-[#25F4EE]/80 bg-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
                             : isInUse
                               ? 'border-[#25F4EE]/40 bg-[#25F4EE]/5'
-                              : 'border-white/[0.08] bg-black/40 hover:border-white/25 hover:bg-white/[0.06]'
+                              : 'border-white/[0.08] bg-[#0A0D14] hover:border-white/25 hover:bg-white/[0.06]'
                       }`}
                     >
                       {/* Ephemeral Preview Pill */}
@@ -2811,7 +2811,7 @@ export default function AssetPanel({
                         onStyleChange?.({ stickerBadge: previewSticker, stickerStartTime: playhead, stickerEndTime: playhead + 3.0 });
                       }
                     }}
-                    className="w-full py-2.5 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#25F4EE]/25 transition-all active:scale-[0.98]"
+                    className="w-full py-2.5 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
                   >
                     <Plus className="w-4 h-4" />
                     <span>เพิ่ม {STICKER_TITLES[previewSticker.replace(/\.[^.]+$/, '')] || 'สติกเกอร์'} ลงไทม์ไลน์</span>
@@ -2963,7 +2963,7 @@ export default function AssetPanel({
                   onAddClip(previewVideo);
                   setPreviewVideo(null);
                 }}
-                className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 text-slate-950 text-xs font-bold flex items-center gap-1.5 hover:brightness-110 transition-all cursor-pointer"
+                className="py-1.5 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>เพิ่มลงในไทม์ไลน์</span>

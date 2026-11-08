@@ -370,7 +370,8 @@ export default function MediaAssetsHub({ status }) {
       count: assetData.counts?.sfx || assetData.sfx?.length || 0,
       color: 'text-[#25F4EE]',
       borderColor: 'border-[#25F4EE]/40',
-      activeBg: 'bg-[#25F4EE]/10'
+      activeBg: 'bg-[#25F4EE]/10',
+      indicatorBg: 'bg-[#25F4EE]'
     },
     {
       id: 'music',
@@ -380,7 +381,8 @@ export default function MediaAssetsHub({ status }) {
       count: assetData.counts?.music || assetData.music?.length || 0,
       color: 'text-[#FE2C55]',
       borderColor: 'border-[#FE2C55]/40',
-      activeBg: 'bg-[#FE2C55]/10'
+      activeBg: 'bg-[#FE2C55]/10',
+      indicatorBg: 'bg-[#FE2C55]'
     },
     {
       id: 'fonts',
@@ -390,7 +392,8 @@ export default function MediaAssetsHub({ status }) {
       count: assetData.counts?.fonts || assetData.fonts?.length || 0,
       color: 'text-purple-400',
       borderColor: 'border-purple-500/40',
-      activeBg: 'bg-purple-500/10'
+      activeBg: 'bg-purple-500/10',
+      indicatorBg: 'bg-purple-400'
     },
     {
       id: 'stickers',
@@ -400,7 +403,8 @@ export default function MediaAssetsHub({ status }) {
       count: assetData.counts?.stickers || assetData.stickers?.length || 0,
       color: 'text-amber-400',
       borderColor: 'border-amber-500/40',
-      activeBg: 'bg-amber-500/10'
+      activeBg: 'bg-amber-500/10',
+      indicatorBg: 'bg-amber-400'
     },
     {
       id: 'luts',
@@ -410,7 +414,8 @@ export default function MediaAssetsHub({ status }) {
       count: assetData.counts?.luts || assetData.luts?.length || 0,
       color: 'text-emerald-400',
       borderColor: 'border-emerald-500/40',
-      activeBg: 'bg-emerald-500/10'
+      activeBg: 'bg-emerald-500/10',
+      indicatorBg: 'bg-emerald-400'
     },
     {
       id: 'effects',
@@ -420,7 +425,8 @@ export default function MediaAssetsHub({ status }) {
       count: assetData.counts?.effects || assetData.effects?.length || 0,
       color: 'text-fuchsia-400',
       borderColor: 'border-fuchsia-500/40',
-      activeBg: 'bg-fuchsia-500/10'
+      activeBg: 'bg-fuchsia-500/10',
+      indicatorBg: 'bg-fuchsia-400'
     },
     {
       id: 'system',
@@ -430,7 +436,8 @@ export default function MediaAssetsHub({ status }) {
       count: 6,
       color: 'text-cyan-400',
       borderColor: 'border-cyan-500/40',
-      activeBg: 'bg-cyan-500/10'
+      activeBg: 'bg-cyan-500/10',
+      indicatorBg: 'bg-cyan-400'
     },
   ], [assetData]);
 
@@ -536,7 +543,7 @@ export default function MediaAssetsHub({ status }) {
             {/* Upload Button */}
             {activeAssetTab !== 'system' && (
               <label
-                className={`relative flex items-center justify-center gap-2 flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-[#FE2C55]/20 transition-all cursor-pointer active:scale-95 ${
+                className={`relative flex items-center justify-center gap-2 flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 rounded-xl bg-[#FE2C55] hover:bg-[#e0244a] text-white text-xs font-bold shadow-sm transition-all cursor-pointer active:scale-95 ${
                   uploadingAsset ? 'opacity-50 pointer-events-none' : ''
                 }`}
               >
@@ -617,7 +624,7 @@ export default function MediaAssetsHub({ status }) {
                       {cat.sublabel}
                     </div>
                     <div className={`h-1 w-full mt-2 rounded-full transition-all ${
-                      isActive ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE]' : 'bg-white/[0.04]'
+                      isActive ? (cat.indicatorBg || 'bg-[#25F4EE]') : 'bg-white/[0.04]'
                     }`} />
                   </button>
                 );
@@ -808,6 +815,53 @@ export default function MediaAssetsHub({ status }) {
               </div>
             </div>
 
+            {/* AI Voice Cast & Personas (Rule 4.5 & Rule 20) */}
+            <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-xl space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
+                <Cpu className="w-4 h-4 text-[#25F4EE]" />
+                <h3 className="text-sm font-bold text-white">
+                  แคสต์เสียงพากย์ AI & คาแรกเตอร์ (AI Voice Cast)
+                </h3>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                โมเดลเสียง Gemini Flash TTS และ Edge-TTS ประจำสตูดิโอตามกฎเหล็กข้อ 4.5 และข้อ 20:
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-xs">Fenrir</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-mono">เสียงหลัก</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">ชายสตรอง คมเข้ม สไตล์ commercial_premium</p>
+                  <p className="text-[9px] text-cyan-400 font-mono">Gemini Flash TTS • รีวิวแกดเจ็ต 60s</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-xs">Aoede (น้องนุ้ย)</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-pink-500/10 text-pink-300 border border-pink-500/20 font-mono">คู่รัก #5</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">สาวใต้เสียงใส น่ารักแต่ดุ แก่นเซี้ยว จังหวะฉะฉาน</p>
+                  <p className="text-[9px] text-pink-400 font-mono">asetrate*1.10, atempo=1.20</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-xs">Puck (พี่บ่าว)</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20 font-mono">คู่รัก #5</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">หนุ่มใต้คนซื่อ ขี้เล่น ตกใจฮาๆ น้ำเสียงชัดเจน</p>
+                  <p className="text-[9px] text-blue-400 font-mono">Single-Take • atempo=1.32</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-xs">Edge-TTS Thai</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-500/10 text-slate-300 border border-slate-500/20 font-mono">สำรอง</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">Premwadee / Niwat ปรับสปีด +15%</p>
+                  <p className="text-[9px] text-slate-400 font-mono">Offline / Failover Support</p>
+                </div>
+              </div>
+            </div>
+
             {/* Video Engine & Subprocess Card */}
             <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-xl space-y-3">
               <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
@@ -832,7 +886,7 @@ export default function MediaAssetsHub({ status }) {
                     TTS Engine
                   </span>
                   <span className="font-mono text-xs px-2 py-0.5 rounded bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30">
-                    Edge-TTS (Premwadee/Niwat)
+                    Gemini Flash TTS + Edge-TTS
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
@@ -1082,7 +1136,7 @@ export default function MediaAssetsHub({ status }) {
                         <button
                           type="button"
                           onClick={() => playAudio(selectedAsset, selectedAsset.name)}
-                          className="min-h-[44px] px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-[#25F4EE]/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                          className="min-h-[44px] px-6 py-2.5 rounded-xl bg-[#25F4EE] hover:bg-[#1ee0da] text-slate-950 font-bold text-xs flex items-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
                         >
                           {currentlyPlayingAudio === selectedAsset.name ? (
                             <>
@@ -1161,7 +1215,7 @@ export default function MediaAssetsHub({ status }) {
                         style={{
                           fontSize: `${fontSizePreview}px`,
                           fontFamily: selectedAsset.family || selectedAsset.name,
-                          textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(37,244,238,0.3)'
+                          textShadow: '-2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 3px 6px rgba(0,0,0,0.9)'
                         }}
                         className="font-bold text-[#FFE600] tracking-wide break-words max-w-full leading-tight"
                       >
