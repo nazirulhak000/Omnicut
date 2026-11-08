@@ -4,6 +4,15 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-FIX-MOBILE-SHELL-TERMINAL-IMPORT-20261108 · แก้ไข ReferenceError: Terminal is not defined ใน MobileShell.jsx เมื่อเข้าแท็บ ?tab=more: นำเข้า Terminal จาก lucide-react พร้อมเพิ่มชุดทดสอบ mobileShellContract.test.js ผ่าน Vitest 1,200/1,200 (100%) และ Vite build สำเร็จ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE00-BASELINE-20261108 · ดำเนินการ Phase 00 (Baseline Capture & Visual Direction Confirmation) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
+  - [x] Task 1: สแกนและเก็บภาพหน้าจอจริง (Live Baseline Snapshots) หน้าจอหลัก (Home/ProductToClip, Editor, ContentTracker, MediaAssets, Analytics, Settings) ทั้งโหมด Desktop (1440x900) และ Mobile (390x844) จากระบบที่รันอยู่ บันทึก 11 ภาพลง _Docs/Reports/baseline_phase00/
+  - [x] Task 2: จัดทำ State Matrix และวิเคราะห์ปัญหา Visual Slop ตามหน้าจอจริง (พบ Root Cause: Default Theme ล็อกที่ Ultra-Realistic Glassmorphism + Orbs, Glow borders, และตรวจพบ Mobile Navbar Collision)
+  - [x] Task 3: ร่างข้อเสนอ Visual Direction 5 บรรทัด (สลับค่าเริ่มต้นสู่ Obsidian Pro Dark, Functional Colors, Flat & Clean Chrome, แก้ไข Mobile Navbar) จัดทำรายงานสมบูรณ์ที่ _Docs/Reports/UNSLOP_PHASE00_BASELINE_REPORT_20261108.md
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-PRODUCT-CARD-DOUBLE-CLICK-DETAILS-20261108 · เพิ่มความสามารถดับเบิลคลิก (Double Click) และปุ่ม Info ลอยบนการ์ดสินค้า เพื่อเปิดดูรายละเอียดและเมทาดาต้า AI (ProductMetadataModal) ทันที พร้อมผูกทั้งบน Carousel และ Catalog Grid ผ่านการทดสอบ Vitest 1,199/1,199 (100%) และ Vite build สำเร็จ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 - [x] Round ANTIGRAVITY-DESKTOP-PRODUCT-CAROUSEL-HORIZONTAL-SCROLL-20261108 · พัฒนาระบบเลื่อนซ้าย-ขวาสำหรับ Carousel เลือกสินค้าบน Desktop (เพิ่มปุ่มลูกศร ChevronLeft/ChevronRight, แปลง Mouse Wheel ให้เลื่อนแนวนอน, สกอลล์บาร์สลิม, Auto-Scroll กึ่งกลางจอ) พร้อมกู้คืนภาพ Thumbnail ของ GOO01 และ JEE01 ให้แสดงผลสมบูรณ์ 100% ผ่าน Vitest 1,198/1,198 และ Vite build สำเร็จ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-RULE-SHORT-LIVED-FEATURE-BRANCH-20261108 · บันทึกกฎเหล็ก Short-Lived Feature Branch & Clean Auto-Delete Standard ลงใน AGENTS.md (ข้อ 25) และ .agents/rules/work_loop.md (ข้อ 2.2.1 & 2.7) บังคับแตกกิ่งก่อนทำ รวมกลับเข้า main และลบกิ่งทิ้งทันที เพื่อคง repo สะอาดเหลือ main เดียว 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)

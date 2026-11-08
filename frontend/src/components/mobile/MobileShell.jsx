@@ -9,6 +9,7 @@ import {
   Sparkles,
   Settings,
   Monitor,
+  Terminal,
 } from 'lucide-react';
 import { TodayScreen } from './TodayScreen.jsx';
 import { ServerSleepingBanner } from './ServerSleepingBanner.jsx';

@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-FIX-MOBILE-SHELL-TERMINAL-IMPORT-20261108 | แก้ไข ReferenceError: Terminal is not defined ใน MobileShell.jsx เมื่อเข้าแท็บ ?tab=more: นำเข้า Terminal จาก lucide-react พร้อมเพิ่มชุดทดสอบ mobileShellContract.test.js ป้องกันแท็ก JSX ขาดหาย ผ่าน Vitest 1,200/1,200 (100%) และ Vite build สำเร็จ | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-DESKTOP-PRODUCT-CAROUSEL-HORIZONTAL-SCROLL-20261108 | พัฒนาระบบเลื่อนซ้าย-ขวาสำหรับ Carousel เลือกสินค้าบน Desktop (เพิ่มปุ่มลูกศร ChevronLeft/ChevronRight, แปลง Mouse Wheel ให้เลื่อนแนวนอน, สกอลล์บาร์สลิม, และ Auto-Scroll กึ่งกลางจอ) พร้อมกู้คืนภาพ Thumbnail ของ GOO01 และ JEE01 ให้แสดงผลสมบูรณ์ 100% ผ่าน Vitest 1,198/1,198 และ Vite build สำเร็จ | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-RULE-SHORT-LIVED-FEATURE-BRANCH-20261108 | บันทึกกฎเหล็ก Short-Lived Feature Branch & Clean Auto-Delete Standard ลงใน AGENTS.md (ข้อ 25) และ .agents/rules/work_loop.md (ข้อ 2.2.1 & 2.7) บังคับ AI ทุกตัวแตกกิ่งก่อนทำ รวมกลับเข้า main และลบทิ้งทันที เพื่อรักษา local repo ให้สะอาดเหลือ main กิ่งเดียว 100% | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round CODEX-UNSLOP-PHASES-MODELS-20261108 | แตกแผน UI เป็น 10 เฟส 00–09 พร้อมขอบเขต dependency เกณฑ์ผ่าน และ prompt; ตรวจเอกสารทางการประกอบคำแนะนำ GPT-6.1 Terra/Gemini 3.8 Flash; เอกสารอย่างเดียว | 2026-11-08 | ดำเนินการโดย: Codex (GPT-6.1-sol) |
