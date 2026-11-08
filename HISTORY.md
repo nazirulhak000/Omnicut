@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-TRIM-TTS-TAIL-GARBAGE-NOISE-20261108 | จัดการตัดเสียงขยะ/เสียงแตก/เสียงกระชาก (EOF digital noise spike & clipping burst) ท้ายคลิปเสียงพากย์ TTS ทั้งระบบ: พัฒนา `trim_silence_and_tail_artifacts_wav` ใน `scripts/gemini_tts_engine.py` สกัด buffer glitch และ noise spike ที่ตามหลังช่วงเงียบ พร้อม smooth 15ms linear fade-out ป้องกันเสียงป๊อกคลิก, ทำความสะอาดไฟล์เสียง `voiceover.wav` ใน `03_Projects/_ShotLists/` โดยเฉพาะ ESS04 (431165f167284094959bdf0f0e806899) ทุกมุม (tail_max ลดจาก 32,752 เหลือ 19-212, last sample = 0), ผ่านชุดทดสอบ 33/33 tests 100% | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-FIX-MOBILE-SHELL-TERMINAL-IMPORT-20261108 | แก้ไข ReferenceError: Terminal is not defined ใน MobileShell.jsx เมื่อเข้าแท็บ ?tab=more: นำเข้า Terminal จาก lucide-react พร้อมเพิ่มชุดทดสอบ mobileShellContract.test.js ป้องกันแท็ก JSX ขาดหาย ผ่าน Vitest 1,200/1,200 (100%) และ Vite build สำเร็จ | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-DESKTOP-PRODUCT-CAROUSEL-HORIZONTAL-SCROLL-20261108 | พัฒนาระบบเลื่อนซ้าย-ขวาสำหรับ Carousel เลือกสินค้าบน Desktop (เพิ่มปุ่มลูกศร ChevronLeft/ChevronRight, แปลง Mouse Wheel ให้เลื่อนแนวนอน, สกอลล์บาร์สลิม, และ Auto-Scroll กึ่งกลางจอ) พร้อมกู้คืนภาพ Thumbnail ของ GOO01 และ JEE01 ให้แสดงผลสมบูรณ์ 100% ผ่าน Vitest 1,198/1,198 และ Vite build สำเร็จ | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-RULE-SHORT-LIVED-FEATURE-BRANCH-20261108 | บันทึกกฎเหล็ก Short-Lived Feature Branch & Clean Auto-Delete Standard ลงใน AGENTS.md (ข้อ 25) และ .agents/rules/work_loop.md (ข้อ 2.2.1 & 2.7) บังคับ AI ทุกตัวแตกกิ่งก่อนทำ รวมกลับเข้า main และลบทิ้งทันที เพื่อรักษา local repo ให้สะอาดเหลือ main กิ่งเดียว 100% | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -159,6 +160,53 @@
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 
 ---
+---
+
+## Round ANTIGRAVITY-TRIM-TTS-TAIL-GARBAGE-NOISE-20261108
+
+- **วันที่:** 2026-11-08
+- **สถานะ:** เสร็จสมบูรณ์ (Closed)
+- **ดำเนินการโดย:** Antigravity (Gemini 2.5 Pro)
+
+### ปัญหาและบริบท
+ผู้ใช้ส่งภาพและแจ้งปัญหาเสียงพากย์ไกด์ (Guide Track) ของสินค้า ESS04 (`431165f167284094959bdf0f0e806899`) มุม 1 ("ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน") ใน `ShotListModal.jsx` (วินาทีที่ 0:25 / 0:26 จากความยาว 26.1s) ว่ามีเสียงขยะ/เสียงกระชากแตกท้ายคลิป: *"ลองเช็คเสียงให้หน่อย มันมีเสียงขยะท้ายคลิปอ่ะครับ ผมนึกว่าจัดการหมดแล้ว นายเช็คและจัดการให้หน่อยได้ไหมครับ ไม่เอาเสียงขยะ"*
+
+### การวิเคราะห์ทางเทคนิค (Root Cause)
+1. **การตรวจสอบไฟล์จริง:** ตรวจสอบ waveform ของ `03_Projects/_ShotLists/431165f167284094959bdf0f0e806899_pain_point/voiceover.wav`:
+   - คำพูดภาษาไทยคำสุดท้าย ("...ดูรายละเอียดได้เลยครับ") จบลงอย่างสมบูรณ์ที่ `t = 25.74s - 25.76s`
+   - ช่วง `t = 25.76s - 25.97s` (210ms): เป็นช่วงเงียบสนิท (Dead Silence, RMS ~1-15, sample amplitude <= 27)
+   - ช่วง `t = 25.98s - 26.104s` (124ms สุดท้าย): เกิด **EOF digital noise spike / clipping burst** อย่างรุนแรง (sample values พุ่งถึง 32,752 ชนเพดาน clipping limit ของ 16-bit PCM, RMS พุ่งถึง 24,444)
+2. **สาเหตุใน `scripts/gemini_tts_engine.py`:**
+   - มีเพียงฟังก์ชัน `trim_leading_silence_wav` ซึ่งตัดเฉพาะช่วงเงียบ "ต้นเสียง" (Leading Silence) เท่านั้น
+   - **ไม่มีการตัดช่วงเงียบหรือเสียงขยะท้ายเสียง (Trailing Silence & Tail Artifacts) เลยแม้แต่น้อย!**
+   - และหากใช้เงื่อนไขตรวจสอบแอมพลิจูดทั่วไป (`abs > threshold`) จะไม่สามารถตัดเสียงขยะนี้ได้ เพราะเสียงขยะมีความดังถึง 32,752 (ดังกว่าเสียงพูดจริง)
+   - สแกนพบไฟล์ใน `03_Projects/_ShotLists/` กว่า 32 ช็อตลิสต์ (รวม ESS04 ทุกมุม) ได้รับผลกระทบจากบั๊กนี้
+
+### การแก้ปัญหาและผลลัพธ์
+1. **พัฒนาระบบตัดเสียงขยะท้ายไฟล์แบบสองทิศทาง (Bidirectional Trim & Glitch Rejection):**
+   - พัฒนาฟังก์ชัน `trim_silence_and_tail_artifacts_wav(wav_path, threshold_db=-42.0, pad_head_s=0.040, pad_tail_s=0.080, fade_out_ms=15.0)` ใน `scripts/gemini_tts_engine.py`
+   - **กลไกตรวจจับ EOF Artifact Rejection:** สแกนย้อนหลังจากท้ายไฟล์ หากพบกลุ่มพลังงานเสียงช่วงท้าย (ภายใน 350ms สุดท้าย) ที่มีช่วงเงียบ (`< -42 dBFS` หรือ `< 4.5% peak`) คั่นอยู่ข้างหน้าเกิน 60ms ให้ระบุว่าเป็น EOF Glitch ทันทีและตัดทิ้ง
+   - **รักษาสระและหางเสียงธรรมชาติ:** คง `pad_tail_s = 80ms` หลังคำพูดจริงคำสุดท้าย เพื่อให้เสียงลม/เสียงวรรณยุกต์ท้ายประโยค (เช่น "ครับ", "นะคะ") นุ่มนวล ไม่ขาดห้วน
+   - **ป้องกันเสียงป๊อกคลิก (Zero-crossing Click Prevention):** เสริม Linear Micro Fade-Out 15ms ที่หางเสียง ท้ายสุดจะลดระดับลงสู่ 0 อย่างแนบเนียน 100%
+   - ผูกฟังก์ชันนี้เข้าสู่กระบวนการสร้างเสียง `GeminiFlashTTSEngine.generate_speech` ทุกครั้งอัตโนมัติ
+2. **ทำความสะอาดไฟล์เสียงเดิม 100%:**
+   - ทำความสะอาดไฟล์ `voiceover.wav` ของ ESS04 ทั้ง 7 มุม:
+     - `pain_point`: จาก dur 26.10s (tail_max 32,752) -> 25.82s (tail_max 184, last sample = 0)
+     - `spec_review`: จาก dur 30.32s (tail_max 32,731) -> 30.00s (tail_max 212, last sample = 0)
+     - `comparison`: จาก dur 22.52s (tail_max 32,752) -> 22.11s (tail_max 65, last sample = 0)
+     - `fomo_deal`: จาก dur 23.22s (tail_max 32,743) -> 22.88s (tail_max 72, last sample = 0)
+     - `life_hack`: จาก dur 22.77s (tail_max 32,704) -> 22.52s (tail_max 39, last sample = 0)
+     - `stop_scroll`: จาก dur 26.42s (tail_max 32,715) -> 25.99s (tail_max 83, last sample = 0)
+     - `unboxing`: จาก dur 24.15s (tail_max 32,751) -> 23.90s (tail_max 19, last sample = 0)
+   - สแกนและทำความสะอาดช็อตลิสต์อื่นๆ ในระบบที่ได้รับผลกระทบทั้งหมดอีก 24 ไฟล์
+   - อัปเดต `total_duration` และปรับขอบเขต `end` ของคิวสุดท้ายใน `ShotListsStore` ให้ตรงกับความยาวเสียงจริง
+3. **การทดสอบและการควบคุมคุณภาพ:**
+   - สร้างชุดทดสอบใหม่ `tests/test_gemini_tail_artifacts.py` ครอบคลุม 4 เคส (tail burst, trailing dead silence, combo head+tail, stereo alignment) ผ่าน 4/4 tests (100%)
+   - ชุดทดสอบ `tests/test_gemini_lead_silence.py` ผ่าน 4/4 tests (100%)
+   - ชุดทดสอบ `tests/test_gemini_tts_engine.py` ผ่าน 25/25 tests (100%)
+   - ชุดทดสอบ Audio Pytest ทั้งหมด 133/133 tests ผ่าน 100%
+   - ชุดทดสอบ Frontend Vitest 1,208/1,208 tests ผ่าน 100% และ Vite production build สำเร็จ
+
 ---
 
 ## Round ANTIGRAVITY-DESKTOP-PRODUCT-CAROUSEL-HORIZONTAL-SCROLL-20261108

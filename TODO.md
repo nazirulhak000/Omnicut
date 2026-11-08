@@ -4,12 +4,7 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round ANTIGRAVITY-TRIM-TTS-TAIL-GARBAGE-NOISE-20261108 · จัดการตัดเสียงขยะ/เสียงแตก/เสียงกระชาก (EOF digital noise spike & clipping burst) ท้ายคลิปเสียงพากย์ TTS ทั้งระบบ:
-  - [ ] Task 1: พัฒนาระบบตัดเสียงขยะท้ายไฟล์ใน `scripts/gemini_tts_engine.py` (เพิ่ม `trim_silence_and_tail_artifacts_wav` ตรวจจับและตัด buffer burst / EOF glitch ที่ตามหลังช่วงเงียบ พร้อม fade-out นุ่มนวล 15ms ป้องกันเสียงป๊อกคลิก)
-  - [ ] Task 2: ทำความสะอาดไฟล์เสียง `voiceover.wav` ใน `03_Projects/_ShotLists/` ที่ได้รับผลกระทบทั้งหมด โดยเฉพาะ ESS04 (`431165f167284094959bdf0f0e806899`) ทุกมุม พร้อมอัปเดต `total_duration` และ cues ใน `ShotListsStore`
-  - [ ] Task 3: เพิ่มและแก้ไขชุดทดสอบใน `tests/test_gemini_tts_engine.py` ให้ครอบคลุมการตัดเสียงขยะท้ายคลิป และรันผ่าน 100%
-  - [ ] Task 4: ตรวจสอบ waveform ท้ายเสียง ESS04 ให้ peak และ RMS ท้ายคลิปเงียบสนิท ไร้เสียงขยะ 100%
-  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-TRIM-TTS-TAIL-GARBAGE-NOISE-20261108 · จัดการตัดเสียงขยะ/เสียงแตก/เสียงกระชาก (EOF digital noise spike & clipping burst) ท้ายคลิปเสียงพากย์ TTS ทั้งระบบ: พัฒนา `trim_silence_and_tail_artifacts_wav` ใน `scripts/gemini_tts_engine.py` สกัด buffer glitch และ noise spike ที่ตามหลังช่วงเงียบ พร้อม smooth 15ms linear fade-out ป้องกันเสียงป๊อกคลิก, ทำความสะอาดไฟล์เสียง `voiceover.wav` ใน `03_Projects/_ShotLists/` โดยเฉพาะ ESS04 (`431165f167284094959bdf0f0e806899`) ทุกมุม (tail_max ลดจาก 32,752 เหลือ 19-212, last sample = 0), ผ่านชุดทดสอบ 33/33 tests 100% · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-UNSLOP-PHASE03-SHELL-NAV-20261108 · ดำเนินการ Phase 03 (Shell, Navigation & Header) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
   - [x] Task 1: ตรวจสอบและคง 72px icon rail ใน Sidebar.jsx พร้อม aria-label, tooltip, aria-current และ clean studio focus ring
