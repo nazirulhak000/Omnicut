@@ -178,23 +178,23 @@ export default function OmniCutAgentDock({
   return (
     <div
       data-testid="omnicut-agent-dock"
-      className="fixed bottom-4 right-4 z-50 flex h-[620px] w-[460px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-emerald-500/30 bg-[#0c1017]/95 shadow-[0_12px_40px_rgba(0,0,0,0.8),0_0_20px_rgba(16,185,129,0.15)] backdrop-blur-xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-200"
+      className="fixed bottom-4 right-4 z-50 flex h-[620px] w-[460px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-white/[0.08] bg-[#0A0D14]/95 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-4 duration-200"
     >
       {/* ── Dock Header ── */}
       <div className="flex items-center justify-between border-b border-white/[0.08] bg-white/[0.02] px-4 py-3 rounded-t-2xl">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
             <Sparkles className="h-4 w-4" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black tracking-wide text-white">Antigravity Co-Producer</span>
-              <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.2 text-[9px] font-bold text-emerald-400 border border-emerald-500/30">
+              <span className="text-xs font-bold tracking-wide text-white">Antigravity Co-Producer</span>
+              <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-400 border border-emerald-500/20">
                 LOCAL
               </span>
             </div>
             <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               <span>{projectName ? `Project: ${projectName}` : 'OmniCut Studio'}</span>
             </div>
           </div>
@@ -204,7 +204,7 @@ export default function OmniCutAgentDock({
           type="button"
           onClick={onClose}
           title="ปิดหน้าต่าง AI Agent (Ctrl+K)"
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white cursor-pointer"
         >
           <X className="h-4 w-4" />
         </button>
@@ -223,20 +223,20 @@ export default function OmniCutAgentDock({
                 <button
                   type="button"
                   onClick={() => toggleThought(msg.id)}
-                  className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-emerald-300 transition-colors cursor-pointer py-0.5"
+                  className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer py-0.5"
                 >
                   {expandedThoughts[msg.id] ? (
-                    <ChevronDown className="h-3 w-3" />
+                    <ChevronDown className="h-3 w-3 text-cyan-400" />
                   ) : (
-                    <ChevronRight className="h-3 w-3" />
+                    <ChevronRight className="h-3 w-3 text-cyan-400" />
                   )}
                   <span>กระบวนการคิดของ Antigravity ({msg.thoughts.length})</span>
                 </button>
                 {expandedThoughts[msg.id] && (
-                  <div className="mt-1 rounded-lg border border-white/[0.06] bg-black/40 p-2 text-[11px] font-mono text-slate-300 space-y-1">
+                  <div className="mt-1 rounded-lg border border-cyan-500/30 bg-[#0E131E]/80 p-2 text-[11px] font-mono text-slate-300 space-y-1">
                     {msg.thoughts.map((th, i) => (
                       <div key={i} className="flex items-start gap-1.5">
-                        <span className="text-emerald-400">›</span>
+                        <span className="text-cyan-400">›</span>
                         <span>{th}</span>
                       </div>
                     ))}
@@ -249,26 +249,30 @@ export default function OmniCutAgentDock({
             <div
               className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed whitespace-pre-wrap ${
                 msg.sender === 'user'
-                  ? 'bg-emerald-600 text-white font-medium rounded-tr-none shadow-md'
-                  : 'bg-white/[0.04] text-slate-200 border border-white/[0.08] rounded-tl-none'
+                  ? 'bg-white/[0.06] text-white border border-white/[0.08] rounded-tr-none'
+                  : 'bg-black/40 text-slate-200 border border-white/[0.05] rounded-tl-none'
               }`}
             >
               {msg.content || (isStreaming && msg.sender === 'agent' ? (
                 <span className="inline-flex items-center gap-1.5 text-slate-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
                   <span>กำลังคิดและเขียนคำตอบ...</span>
                 </span>
               ) : null)}
 
               {/* Action Approval Cards */}
               {msg.actions && msg.actions.length > 0 && (
-                <div className="mt-2 space-y-2">
+                <div className="mt-2 space-y-2 border-t border-white/[0.06] pt-2">
                   {msg.actions.map((act) => (
-                    <ActionApprovalCard
+                    <div
                       key={act.action_id}
-                      action={act}
-                      onApply={handleApplyAction}
-                    />
+                      className="rounded-xl border border-emerald-500/30 bg-[#0E131E]/90 p-0.5"
+                    >
+                      <ActionApprovalCard
+                        action={act}
+                        onApply={handleApplyAction}
+                      />
+                    </div>
                   ))}
                 </div>
               )}
@@ -279,14 +283,14 @@ export default function OmniCutAgentDock({
       </div>
 
       {/* ── Quick Suggestion Chips ── */}
-      <div className="px-3 py-1.5 flex gap-1.5 overflow-x-auto no-scrollbar border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 flex gap-1.5 overflow-x-auto no-scrollbar border-t border-white/[0.06]">
         {quickChips.map((chip, idx) => (
           <button
             key={idx}
             type="button"
             onClick={() => handleSend(chip)}
             disabled={isStreaming}
-            className="flex-shrink-0 text-[10px] font-medium text-slate-400 bg-white/[0.03] hover:bg-white/[0.08] hover:text-emerald-300 border border-white/[0.06] px-2.5 py-1 rounded-full transition-colors cursor-pointer disabled:opacity-50"
+            className="flex-shrink-0 text-[10px] font-medium text-slate-400 bg-white/[0.03] hover:bg-white/[0.08] hover:text-slate-200 border border-white/[0.08] px-2.5 py-1 rounded-full transition-colors cursor-pointer disabled:opacity-50"
           >
             {chip}
           </button>
@@ -299,9 +303,9 @@ export default function OmniCutAgentDock({
           e.preventDefault();
           handleSend();
         }}
-        className="p-3 border-t border-white/[0.08] bg-black/30 rounded-b-2xl"
+        className="p-3 border-t border-white/[0.08] bg-black/40 rounded-b-2xl"
       >
-        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-1.5 focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/50 transition-all">
+        <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 focus-within:border-cyan-500/40 focus-within:ring-1 focus-within:ring-cyan-500/40 transition-all">
           <input
             ref={inputRef}
             type="text"
@@ -315,7 +319,7 @@ export default function OmniCutAgentDock({
             type="submit"
             disabled={!input.trim() || isStreaming}
             title="ส่งคำสั่ง (Enter)"
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 disabled:opacity-40 transition-all cursor-pointer"
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/90 text-slate-950 font-bold hover:bg-emerald-400 disabled:opacity-40 transition-all cursor-pointer"
           >
             {isStreaming ? (
               <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />

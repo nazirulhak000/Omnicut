@@ -33,55 +33,55 @@ const HF_STUDIO_URL = 'http://127.0.0.1:3002/#project/_HyperFrames_Studio';
 // ── Rich Editorial Metas for the 4 Approved Styles ──
 const STYLE_EXTRAS = {
   vs_battle: {
-    accentBorder: 'hover:border-rose-500/70',
-    accentShadow: 'hover:shadow-[0_0_24px_rgba(244,63,94,0.18)]',
+    accentBorder: 'hover:border-rose-500/40',
+    accentShadow: '',
     tagColor: 'bg-rose-500/10 text-rose-300 border-rose-500/30',
     audioDetail: 'พากย์ Fenrir (1.0) + Upbeat BGM (0.14) + SFX ชก/ดาบ',
     rhythm: [
-      { time: '0-3s', label: 'เปิดศึก VS', desc: 'ตัดภาพแบ่ง 2 ฝั่ง ซาวด์เปิดศึก', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
-      { time: '3-10s', label: 'ยก 1: สปีด', desc: 'ชาร์จเทียบกัน HP บาร์ฝั่งเก่าลด', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-      { time: '10-17s', label: 'ยก 2: อุณหภูมิ', desc: 'วัดความร้อน 58°C vs 34°C', color: 'bg-red-500/20 text-red-300 border-red-500/30' },
-      { time: '17-22s', label: 'ยก 3: ความทนทาน', desc: 'เทียบความทนทานใช้งานจริง', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
-      { time: '22-25s', label: 'K.O. ตะกร้า', desc: 'K.O. จบศึก ปักตะกร้าเหลือง', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' }
+      { time: '0-3s', label: 'เปิดศึก VS', desc: 'ตัดภาพแบ่ง 2 ฝั่ง ซาวด์เปิดศึก', color: 'bg-rose-500/10 text-rose-300 border-rose-500/25' },
+      { time: '3-10s', label: 'ยก 1: สปีด', desc: 'ชาร์จเทียบกัน HP บาร์ฝั่งเก่าลด', color: 'bg-amber-500/10 text-amber-300 border-amber-500/25' },
+      { time: '10-17s', label: 'ยก 2: อุณหภูมิ', desc: 'วัดความร้อน 58°C vs 34°C', color: 'bg-red-500/10 text-red-300 border-red-500/25' },
+      { time: '17-22s', label: 'ยก 3: ความทนทาน', desc: 'เทียบความทนทานใช้งานจริง', color: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/25' },
+      { time: '22-25s', label: 'K.O. ตะกร้า', desc: 'K.O. จบศึก ปักตะกร้าเหลือง', color: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' }
     ]
   },
   tech_explainer: {
-    accentBorder: 'hover:border-cyan-500/70',
-    accentShadow: 'hover:shadow-[0_0_24px_rgba(6,182,212,0.18)]',
+    accentBorder: 'hover:border-cyan-500/40',
+    accentShadow: '',
     tagColor: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
     audioDetail: 'พากย์ Fenrir (1.0) สุขุม + Ambient Tech BGM (0.12)',
     rhythm: [
-      { time: '0-4s', label: 'ตั้งคำถาม', desc: 'เปิดข้อสงสัย ทำไมหัวชาร์จแรงไม่ร้อน', color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' },
-      { time: '4-15s', label: 'ผ่าโครงสร้าง', desc: 'Exploded View ชิป GaN III', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-      { time: '15-28s', label: 'เจาะสเปก', desc: 'เกจวัตต์และระบบระบายความร้อน', color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' },
-      { time: '28-35s', label: 'เทสจริง', desc: 'เสียบชาร์จจริง กราฟนิ่งอุณหภูมิต่ำ', color: 'bg-teal-500/20 text-teal-300 border-teal-500/30' },
-      { time: '35-40s', label: 'สรุปคุ้มค่า', desc: 'เหมาะกับคนใช้หลายอุปกรณ์ ปักตะกร้า', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' }
+      { time: '0-4s', label: 'ตั้งคำถาม', desc: 'เปิดข้อสงสัย ทำไมหัวชาร์จแรงไม่ร้อน', color: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/25' },
+      { time: '4-15s', label: 'ผ่าโครงสร้าง', desc: 'Exploded View ชิป GaN III', color: 'bg-blue-500/10 text-blue-300 border-blue-500/25' },
+      { time: '15-28s', label: 'เจาะสเปก', desc: 'เกจวัตต์และระบบระบายความร้อน', color: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/25' },
+      { time: '28-35s', label: 'เทสจริง', desc: 'เสียบชาร์จจริง กราฟนิ่งอุณหภูมิต่ำ', color: 'bg-teal-500/10 text-teal-300 border-teal-500/25' },
+      { time: '35-40s', label: 'สรุปคุ้มค่า', desc: 'เหมาะกับคนใช้หลายอุปกรณ์ ปักตะกร้า', color: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' }
     ]
   },
   meme_pas: {
-    accentBorder: 'hover:border-amber-500/70',
-    accentShadow: 'hover:shadow-[0_0_24px_rgba(245,158,11,0.18)]',
+    accentBorder: 'hover:border-amber-500/40',
+    accentShadow: '',
     tagColor: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
     audioDetail: 'พากย์ Fenrir (1.0) + มีม SFX แตรลม/Vine Boom + BGM (0.14)',
     rhythm: [
-      { time: '0-4s', label: 'ฮุกปัญหาจริง', desc: 'ค่าไฟพุ่ง ปรอทแตก เตือนแล้วนะ', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-      { time: '4-10s', label: 'มีมตกใจ + Pause', desc: 'มีมเหงื่อตก ค้าง 0.8s ดึงสายตา', color: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
-      { time: '10-14s', label: 'หักมุมแตรลม', desc: 'ซาวด์แตรลมเปิดตัวสินค้าแก้ปัญหา', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
-      { time: '14-38s', label: 'จุดขายคู่มีม', desc: 'ฟีเจอร์เด่น สลับ 1 มีม 1 SFX', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
-      { time: '38-45s', label: 'ปักตะกร้าเหลือง', desc: 'CTA ชี้ตะกร้าเหลืองซ้ายล่าง', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' }
+      { time: '0-4s', label: 'ฮุกปัญหาจริง', desc: 'ค่าไฟพุ่ง ปรอทแตก เตือนแล้วนะ', color: 'bg-amber-500/10 text-amber-300 border-amber-500/25' },
+      { time: '4-10s', label: 'มีมตกใจ + Pause', desc: 'มีมเหงื่อตก ค้าง 0.8s ดึงสายตา', color: 'bg-orange-500/10 text-orange-300 border-orange-500/25' },
+      { time: '10-14s', label: 'หักมุมแตรลม', desc: 'ซาวด์แตรลมเปิดตัวสินค้าแก้ปัญหา', color: 'bg-rose-500/10 text-rose-300 border-rose-500/25' },
+      { time: '14-38s', label: 'จุดขายคู่มีม', desc: 'ฟีเจอร์เด่น สลับ 1 มีม 1 SFX', color: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/25' },
+      { time: '38-45s', label: 'ปักตะกร้าเหลือง', desc: 'CTA ชี้ตะกร้าเหลืองซ้ายล่าง', color: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' }
     ]
   },
   pov_chat: {
-    accentBorder: 'hover:border-emerald-500/70',
-    accentShadow: 'hover:shadow-[0_0_24px_rgba(16,185,129,0.18)]',
+    accentBorder: 'hover:border-emerald-500/40',
+    accentShadow: '',
     tagColor: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
     audioDetail: 'ไม่มีเสียงพากย์ (ดนตรีสดใส + Sound Effect แชท LINE เด้ง)',
     rhythm: [
-      { time: '0-4s', label: 'แชทเด้งเตือน', desc: 'เสียงแชท LINE แฟนบ่นร้อน/แบตหมด', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
-      { time: '4-12s', label: 'บทสนทนาดราม่า', desc: 'คนดูอ่านตาม 100% สลับพิมพ์ตอบ', color: 'bg-teal-500/20 text-teal-300 border-teal-500/30' },
-      { time: '12-20s', label: 'ส่งของแก้ปัญหา', desc: 'ส่งรูป/ลิงก์แกดเจ็ตตัวช่วยเข้าแชท', color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' },
-      { time: '20-25s', label: 'แฟนปลื้มรอดตาย', desc: 'ตอบกลับว่ารอดแล้ว แบตเต็ม/เย็นเจี๊ยบ', color: 'bg-green-500/20 text-green-300 border-green-500/30' },
-      { time: '25-28s', label: 'แจกพิกัดในแชท', desc: 'ส่งสติกเกอร์ชี้ตะกร้าเหลืองซ้ายล่าง', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' }
+      { time: '0-4s', label: 'แชทเด้งเตือน', desc: 'เสียงแชท LINE แฟนบ่นร้อน/แบตหมด', color: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' },
+      { time: '4-12s', label: 'บทสนทนาดราม่า', desc: 'คนดูอ่านตาม 100% สลับพิมพ์ตอบ', color: 'bg-teal-500/10 text-teal-300 border-teal-500/25' },
+      { time: '12-20s', label: 'ส่งของแก้ปัญหา', desc: 'ส่งรูป/ลิงก์แกดเจ็ตตัวช่วยเข้าแชท', color: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/25' },
+      { time: '20-25s', label: 'แฟนปลื้มรอดตาย', desc: 'ตอบกลับว่ารอดแล้ว แบตเต็ม/เย็นเจี๊ยบ', color: 'bg-green-500/10 text-green-300 border-green-500/25' },
+      { time: '25-28s', label: 'แจกพิกัดในแชท', desc: 'ส่งสติกเกอร์ชี้ตะกร้าเหลืองซ้ายล่าง', color: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' }
     ]
   }
 };
@@ -505,32 +505,32 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
       case 'tech_explainer': return <BarChart3 className="w-5 h-5 text-cyan-400" />;
       case 'vs_battle': return <Swords className="w-5 h-5 text-rose-400" />;
       case 'pov_chat': return <MessageSquare className="w-5 h-5 text-emerald-400" />;
-      default: return <Sparkles className="w-5 h-5 text-[#25F4EE]" />;
+      default: return <Sparkles className="w-5 h-5 text-cyan-400" />;
     }
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#080B11] text-slate-100 p-6 space-y-6">
+    <div className="flex-1 overflow-y-auto bg-[#0A0D14] text-slate-100 p-6 space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <p className="min-w-0 flex-1 text-slate-300">ติดตามงานและขั้นตอนผลิตใน Tracker เดิม ผลงานที่ส่งออกแล้วอยู่ใน Gallery</p>
-        {onNavigateToTracker && <button type="button" onClick={onNavigateToTracker} className="rounded-lg border border-white/15 px-4 py-2 text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]">เปิด Tracker</button>}
-        {onNavigateToGallery && <button type="button" onClick={() => onNavigateToGallery()} className="rounded-lg border border-white/15 px-4 py-2 text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]">เปิด Gallery</button>}
+        {onNavigateToTracker && <button type="button" onClick={onNavigateToTracker} className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-slate-200 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40">เปิด Tracker</button>}
+        {onNavigateToGallery && <button type="button" onClick={() => onNavigateToGallery()} className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-slate-200 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40">เปิด Gallery</button>}
       </div>
-      <details className="rounded-xl border border-white/10 bg-[#0D111A]">
-        <summary className="cursor-pointer px-4 py-3 text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]">เปิดเครื่องมือเดิมและตัวอย่างสไตล์</summary>
+      <details className="rounded-xl border border-white/[0.08] bg-[#0E131E]">
+        <summary className="cursor-pointer px-4 py-3 text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40">เปิดเครื่องมือเดิมและตัวอย่างสไตล์</summary>
         <div className="space-y-6 border-t border-white/10 p-4">
           <p className="text-slate-400">ดูตัวอย่างสไตล์สำหรับสั่ง AI session และเปิด composition เดิมใน Studio ติดตามขั้นตอนผลิตผ่าน Tracker และตรวจผลงานที่ลงทะเบียนแล้วใน Gallery</p>
       {/* ── Header & Status Bar (OmniCut Pro Studio Branding) ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/[0.08] pb-5">
         <div>
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#25F4EE]/10 to-[#FE2C55]/10 border border-[#25F4EE]/20 shadow-[0_0_15px_rgba(37,244,238,0.1)]">
-              <Sparkles className="w-6 h-6 text-[#25F4EE]" />
+            <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-cyan-400">
+              <Sparkles className="w-6 h-6" />
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                 HyperFrames Creative Studio
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#FE2C55]/10 text-[#FE2C55] border border-[#FE2C55]/20 font-medium">
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-white/[0.06] text-slate-300 border border-white/[0.08] font-medium">
                   Web-Animation 9:16
                 </span>
               </h1>
@@ -543,7 +543,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
 
         <div className="flex items-center gap-3">
           {/* Health Pill */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0D111A] border border-white/[0.08] text-xs text-slate-300">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0A0D14] border border-white/[0.08] text-xs text-slate-300">
             <span className={`w-2 h-2 rounded-full ${status?.ready ? 'bg-cyan-400' : 'bg-amber-400'}`} />
             <span>{refreshing ? 'กำลังตรวจข้อมูลเครื่องมือเดิม' : status?.ready ? 'พบ dependencies เครื่องมือเดิม' : 'ยังไม่ยืนยันเครื่องมือเดิม'}</span>
           </div>
@@ -554,7 +554,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
               target="_blank"
               rel="noopener noreferrer"
               onClick={handleOpenStudio}
-              className="flex items-center gap-2 px-4 py-2 min-h-11 rounded-lg bg-gradient-to-r from-[#FE2C55] to-rose-600 hover:brightness-110 text-white font-semibold text-sm transition-all shadow-md shadow-[#FE2C55]/20"
+              className="flex items-center gap-2 px-4 py-2 min-h-11 rounded-lg bg-rose-600/90 hover:bg-rose-600 text-white font-semibold text-sm transition-all border border-rose-500/30"
             >
               <ExternalLink className="w-4 h-4" />
               เปิด HyperFrames Studio
@@ -567,7 +567,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
             type="button"
             onClick={loadData}
             disabled={refreshing}
-            className="p-2 rounded-lg bg-[#0D111A] border border-white/[0.08] hover:bg-white/[0.05] text-slate-300 transition-colors"
+            className="p-2 rounded-lg bg-[#0A0D14] border border-white/[0.08] hover:bg-white/[0.05] text-slate-300 transition-colors cursor-pointer"
             title="รีเฟรชข้อมูล"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -598,7 +598,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
           onClick={() => setActiveTab('styles')}
           className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 transition-all ${
             activeTab === 'styles'
-              ? 'border-[#25F4EE] text-[#25F4EE] bg-[#25F4EE]/5 font-semibold'
+              ? 'border-cyan-400 text-white bg-white/[0.03] font-semibold'
               : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
@@ -611,7 +611,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
           onClick={() => setActiveTab('compositions')}
           className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 transition-all ${
             activeTab === 'compositions'
-              ? 'border-[#25F4EE] text-[#25F4EE] bg-[#25F4EE]/5 font-semibold'
+              ? 'border-cyan-400 text-white bg-white/[0.03] font-semibold'
               : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
@@ -624,7 +624,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
           onClick={() => setActiveTab('create')}
           className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 transition-all ${
             activeTab === 'create'
-              ? 'border-[#25F4EE] text-[#25F4EE] bg-[#25F4EE]/5 font-semibold'
+              ? 'border-cyan-400 text-white bg-white/[0.03] font-semibold'
               : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
@@ -637,7 +637,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
       {activeTab === 'styles' && (
         <div className="space-y-5">
           {/* Channel Golden Rule Banner */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-[#0D111A] via-[#0D111A]/95 to-[#25F4EE]/5 border border-white/[0.08] text-sm text-slate-300 flex items-start gap-3 shadow-md">
+          <div className="p-4 rounded-xl bg-[#0E131E] border border-white/[0.08] text-sm text-slate-300 flex items-start gap-3">
             <span className="text-xl">⭐</span>
             <div>
               <span className="font-semibold text-white">กฎเหล็ก 4 สไตล์ไวรัลคุณภาพสูง:</span> ทุกสไตล์คราฟต์ภายใต้แนวคิด
@@ -659,7 +659,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
               return (
                 <div
                   key={st.id}
-                  className={`p-5 rounded-2xl bg-[#0D111A]/90 border border-white/[0.08] transition-all duration-300 flex flex-col sm:flex-row gap-5 shadow-lg group hover:border-[#25F4EE]/40 ${extras.accentShadow}`}
+                  className={`p-5 rounded-2xl bg-[#0E131E] border border-white/[0.08] transition-all duration-200 flex flex-col sm:flex-row gap-5 group hover:border-white/20 ${extras.accentBorder}`}
                 >
                   {/* Left Column: 9:16 Visual Poster Frame */}
                   <div className="w-full sm:w-44 md:w-48 shrink-0 flex flex-col items-center gap-2">
@@ -670,7 +670,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                     <button
                       type="button"
                       onClick={() => setSelectedStyleDetail(st)}
-                      className="text-[11px] text-slate-400 hover:text-[#25F4EE] font-medium transition-colors"
+                      className="text-[11px] text-slate-400 hover:text-cyan-300 font-medium transition-colors cursor-pointer"
                     >
                       เปิดดูตัวอย่างและโครงสร้าง
                     </button>
@@ -682,7 +682,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                       {/* Header: Title + Badge */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2.5">
-                          <div className="p-2 rounded-lg bg-[#080B11] border border-white/[0.08] shrink-0">
+                          <div className="p-2 rounded-lg bg-[#0A0D14] border border-white/[0.08] shrink-0">
                             {getStyleIcon(st.id)}
                           </div>
                           <div>
@@ -718,7 +718,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                       </div>
 
                       {/* Formula Detail Summary */}
-                      <div className="p-2.5 rounded-lg bg-[#080B11]/70 border border-white/[0.06] text-xs text-slate-300 leading-relaxed">
+                      <div className="p-2.5 rounded-lg bg-[#0A0D14] border border-white/[0.06] text-xs text-slate-300 leading-relaxed">
                         {st.formula}
                       </div>
 
@@ -732,7 +732,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                         </div>
                         <div className="col-span-2 truncate">
                           <span className="text-slate-500">คลิปตัวอย่าง:</span>{' '}
-                          <span className="text-[#25F4EE] font-mono text-[11px]">{st.reference}</span>
+                          <span className="text-cyan-400 font-mono text-[11px]">{st.reference}</span>
                         </div>
                       </div>
                     </div>
@@ -756,7 +756,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                             setSelectedStyle(st.id);
                             setActiveTab('create');
                           }}
-                          className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 text-xs font-bold text-slate-950 shadow-sm transition-all"
+                          className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-xs font-bold text-slate-950 transition-all cursor-pointer"
                         >
                           ดูแบบฟอร์มอ้างอิง
                         </button>
@@ -783,7 +783,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleOpenStudio}
-                className="min-h-11 text-xs text-[#25F4EE] hover:brightness-125 flex items-center gap-1 font-medium transition-all"
+                className="min-h-11 text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-medium transition-all"
               >
                 เปิดหน้าต่าง HyperFrames Studio Live Preview
                 <ExternalLink className="w-3 h-3" />
@@ -798,25 +798,25 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
               return (
                 <div
                   key={comp.id}
-                  className="p-4 rounded-xl bg-[#0D111A]/90 border border-white/[0.08] hover:border-[#25F4EE]/40 transition-all flex flex-col justify-between space-y-4 shadow-md"
+                  className="p-4 rounded-xl bg-[#0E131E] border border-white/[0.08] hover:border-white/20 transition-all flex flex-col justify-between space-y-4"
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-semibold text-white text-sm truncate" title={comp.id}>
                         {comp.id}
                       </h3>
-                      <span className="text-xs px-2 py-0.5 rounded bg-[#080B11] text-slate-300 font-mono border border-white/[0.08]">
+                      <span className="text-xs px-2 py-0.5 rounded bg-[#0A0D14] text-slate-300 font-mono border border-white/[0.08]">
                         {comp.duration}s
                       </span>
                     </div>
 
                     <p className="text-xs text-slate-400 truncate">
-                      สินค้า: <span className="text-[#25F4EE] uppercase font-semibold">{comp.product}</span>
+                      สินค้า: <span className="text-cyan-400 uppercase font-semibold">{comp.product}</span>
                     </p>
 
                     <div className="flex items-center gap-3 text-[11px] text-slate-500">
                       <span>อัปเดต: {comp.updated_at?.split('T')[0]}</span>
-                      {comp.has_vo && <span className="text-[#25F4EE]">• มีเสียงพากย์</span>}
+                      {comp.has_vo && <span className="text-cyan-400">• มีเสียงพากย์</span>}
                     </div>
                   </div>
 
@@ -832,24 +832,24 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
       {activeTab === 'create' && (
         <div className="max-w-3xl space-y-5">
           {/* ── AI Multi-Agent Workflow Explainer Card ── */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0D111A] via-[#080B11] to-[#25F4EE]/5 border border-white/[0.08] space-y-3 shadow-lg">
+          <div className="p-4 rounded-2xl bg-[#0E131E] border border-white/[0.08] space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Bot className="w-4 h-4 text-[#25F4EE]" />
+                <Bot className="w-4 h-4 text-cyan-400" />
                 <span className="text-xs font-bold text-white tracking-wide uppercase">
                   ขั้นตอนร่างงานของเครื่องมือเดิม
                 </span>
               </div>
-              <span className="text-[11px] text-[#25F4EE] font-mono font-medium">
+              <span className="text-[11px] text-cyan-400 font-mono font-medium">
                 แบบอ้างอิงเดิม
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
               {/* Step 1: Faster-Whisper */}
-              <div className="p-3 rounded-xl bg-[#080B11]/80 border border-white/[0.06] space-y-1">
+              <div className="p-3 rounded-xl bg-[#0A0D14] border border-white/[0.08] space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 flex items-center justify-center font-bold text-[10px]">
+                  <span className="w-5 h-5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 flex items-center justify-center font-bold text-[10px]">
                     1
                   </span>
                   <span className="font-semibold text-white">Faster-Whisper</span>
@@ -860,12 +860,12 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
               </div>
 
               {/* Step 2: Creative AI Agent */}
-              <div className="p-3 rounded-xl bg-[#080B11]/80 border border-[#25F4EE]/30 space-y-1 shadow-[0_0_12px_rgba(37,244,238,0.06)]">
+              <div className="p-3 rounded-xl bg-[#0A0D14] border border-cyan-500/30 space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-[#25F4EE] text-slate-950 flex items-center justify-center font-bold text-[10px]">
+                  <span className="w-5 h-5 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center font-bold text-[10px]">
                     2
                   </span>
-                  <span className="font-semibold text-[#25F4EE]">Creative AI Agent</span>
+                  <span className="font-semibold text-cyan-300">Creative AI Agent</span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
                   ให้ AI (Antigravity/Claude) เขียนแต่ง CSS โมชั่น หรือกด <kbd className="px-1 py-0.5 rounded bg-white/10 text-white font-mono text-[10px]">⌘K</kbd> ใน Studio จัดเลย์เอาต์สด
@@ -873,9 +873,9 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
               </div>
 
               {/* Step 3: Chrome Headless Renderer */}
-              <div className="p-3 rounded-xl bg-[#080B11]/80 border border-white/[0.06] space-y-1">
+              <div className="p-3 rounded-xl bg-[#0A0D14] border border-white/[0.08] space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-[#FE2C55]/10 text-[#FE2C55] border border-[#FE2C55]/30 flex items-center justify-center font-bold text-[10px]">
+                  <span className="w-5 h-5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/25 flex items-center justify-center font-bold text-[10px]">
                     3
                   </span>
                   <span className="font-semibold text-white">Chrome Headless</span>
@@ -888,10 +888,10 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
           </div>
 
           {/* ── Form Card ── */}
-          <div className="bg-[#0D111A]/90 border border-white/[0.08] p-6 rounded-2xl space-y-6 shadow-xl">
+          <div className="bg-[#0E131E] border border-white/[0.08] p-6 rounded-2xl space-y-6">
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Plus className="w-5 h-5 text-[#25F4EE]" />
+                <Plus className="w-5 h-5 text-cyan-400" />
                 แบบฟอร์มอ้างอิงของเครื่องมือเดิม
               </h2>
               <p className="text-xs text-slate-400 mt-1">
@@ -926,7 +926,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                     <button
                       type="button"
                       onClick={handleRegenerateId}
-                      className="text-[11px] px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-[#25F4EE] border border-white/[0.08] transition-colors flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-cyan-300 border border-white/[0.08] transition-colors flex items-center gap-1 cursor-pointer"
                       title="สุ่มรหัสใหม่ที่ไม่ซ้ำ"
                     >
                       <Shuffle className="w-3 h-3" />
@@ -944,10 +944,10 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                       setIsManualClipId(true);
                     }}
                     placeholder="เช่น hat01-meme-45s หรือ ess02-vs-25s-v2"
-                    className={`w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border text-slate-100 text-sm focus:outline-none transition-colors font-mono ${
+                    className={`w-full px-3.5 py-2.5 rounded-xl bg-[#0A0D14] border text-slate-100 text-sm focus:outline-none transition-colors font-mono ${
                       isDuplicateId
                         ? 'border-rose-500/80 focus:border-rose-500'
-                        : 'border-white/[0.1] focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/40'
+                        : 'border-white/[0.08] focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/40'
                     }`}
                     required
                   />
@@ -962,7 +962,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                         setNewClipId(suggestedUniqueId);
                         setIsManualClipId(false);
                       }}
-                      className="text-[#25F4EE] underline hover:no-underline font-mono cursor-pointer"
+                      className="text-cyan-400 underline hover:no-underline font-mono cursor-pointer"
                     >
                       คลิกเพื่อเปลี่ยนเป็น {suggestedUniqueId}
                     </button>
@@ -984,7 +984,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                       setSelectedAngleId('');
                       setSelectedScenarioId('');
                     }}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-sm focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/40 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#0A0D14] border border-white/[0.08] text-slate-100 text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/40 focus:outline-none"
                   >
                     <option value="hat01">HAT01 (Hatari T16M1 พัดลมตั้งโต๊ะ)</option>
                     <option value="ess02">ESS02 (Essager 30W/65W หัวชาร์จ GaN)</option>
@@ -1012,7 +1012,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                       setSelectedStyle(e.target.value);
                       setIsManualClipId(false);
                     }}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-sm focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/40 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#0A0D14] border border-white/[0.08] text-slate-100 text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/40 focus:outline-none"
                   >
                     <option value="meme_pas">Meme-PAS (รีวิวสายมีม 45s)</option>
                     <option value="tech_explainer">Tech Explainer (สาย Vox เจาะลึก 40s)</option>
@@ -1023,9 +1023,9 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
               </div>
 
               {/* ── Script Sourcing Tools: Product Angles & LINE Scenarios ── */}
-              <div className="p-4 rounded-xl bg-[#080B11]/90 border border-white/[0.08] space-y-3.5">
+              <div className="p-4 rounded-xl bg-[#0A0D14] border border-white/[0.08] space-y-3.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[#25F4EE] flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
                     <Wand2 className="w-3.5 h-3.5" />
                     แหล่งที่มาบทสคริปต์ (Script Sourcing & Smart Match)
                   </span>
@@ -1045,14 +1045,14 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                         <label className="block text-[11px] font-medium text-slate-300">
                           1) เลือกบทแชท LINE แนะนำตรงสินค้า (หมวด: {currentCategoryName})
                         </label>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/20 font-mono">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">
                           {activePOVScenarios.length} รูปแบบเฉพาะ {selectedProduct.toUpperCase()}
                         </span>
                       </div>
                       <select
                         value={selectedScenarioId}
                         onChange={(e) => handleSelectScenario(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-lg bg-[#0D111A] border border-white/[0.1] text-xs text-slate-200 focus:border-[#25F4EE] focus:outline-none"
+                        className="w-full px-3 py-2.5 rounded-lg bg-[#0E131E] border border-white/[0.08] text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
                       >
                         <option value="">-- เลือก Scenario บทแชท LINE เพื่อกรอกลงช่องข้อความ --</option>
                         {activePOVScenarios.map((sc) => (
@@ -1080,7 +1080,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                                 setActionSuccess(`แปลง Angle "${activeAngleObj?.angle_name || ''}" เป็นบทแชท LINE เรียบร้อยแล้ว`);
                                 setTimeout(() => setActionSuccess(null), 4000);
                               }}
-                              className="text-[11px] font-semibold text-[#25F4EE] hover:brightness-125 flex items-center gap-1 cursor-pointer"
+                              className="text-[11px] font-semibold text-cyan-300 hover:brightness-125 flex items-center gap-1 cursor-pointer"
                             >
                               <Wand2 className="w-3 h-3" />
                               แปลงเป็นแชท LINE
@@ -1102,7 +1102,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                               }
                             }
                           }}
-                          className="w-full px-3 py-2 rounded-lg bg-[#0D111A] border border-white/[0.1] text-xs text-slate-200 focus:border-[#25F4EE] focus:outline-none"
+                          className="w-full px-3 py-2 rounded-lg bg-[#0E131E] border border-white/[0.08] text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
                         >
                           <option value="">-- หรือเลือก Angle เพื่อแปลงเป็นบทสนทนาแชท LINE อัตโนมัติ --</option>
                           {availableAngles.map((ang, idx) => {
@@ -1127,7 +1127,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                     <select
                       value={selectedAngleId}
                       onChange={(e) => handleSelectAngle(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg bg-[#0D111A] border border-white/[0.1] text-xs text-slate-200 focus:border-[#25F4EE] focus:outline-none"
+                      className="w-full px-3 py-2.5 rounded-lg bg-[#0E131E] border border-white/[0.08] text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
                     >
                       <option value="">
                         {availableAngles.length > 0
@@ -1187,7 +1187,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                         <button
                           type="button"
                           onClick={handleAdaptScript}
-                          className="text-[11px] font-semibold text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer"
+                          className="text-[11px] font-semibold text-cyan-300 hover:underline flex items-center gap-1 cursor-pointer"
                         >
                           <Wand2 className="w-3 h-3" />
                           กดแปลงบทให้ตรงสไตล์
@@ -1210,7 +1210,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                   <button
                     type="button"
                     onClick={handleAdaptScript}
-                    className="text-[11px] px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE]/10 to-[#00D2C4]/10 hover:from-[#25F4EE]/20 hover:to-[#00D2C4]/20 text-[#25F4EE] border border-[#25F4EE]/30 font-medium transition-all flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-medium transition-all flex items-center gap-1 cursor-pointer"
                     title="ปรับประโยคและจังหวะของบทพูดให้ตรงกับสูตร Beat-by-Beat ของสไตล์นี้"
                   >
                     <Wand2 className="w-3 h-3" />
@@ -1222,7 +1222,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                   onChange={(e) => setScriptText(e.target.value)}
                   placeholder="แบบฟอร์มอ้างอิงเดิม ใช้บททางการและ flow ผลิตด้านบนสำหรับงานใหม่"
                   rows={5}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-sm focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/40 focus:outline-none resize-none leading-relaxed font-mono text-xs"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0A0D14] border border-white/[0.08] text-slate-100 text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/40 focus:outline-none resize-none leading-relaxed font-mono text-xs"
                 />
               </div>
 
@@ -1230,7 +1230,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                 <button
                   type="submit"
                   disabled={isCreating || isDuplicateId}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 disabled:opacity-50 text-slate-950 font-bold text-sm transition-all shadow-md shadow-[#25F4EE]/20 cursor-pointer"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-bold text-sm transition-all cursor-pointer"
                 >
                   {isCreating ? (
                     <>
@@ -1261,7 +1261,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-            <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[#0D111A] border border-white/[0.12] shadow-2xl p-6 flex flex-col md:flex-row gap-6">
+            <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[#0E131E] border border-white/[0.08] shadow-2xl p-6 flex flex-col md:flex-row gap-6">
               {/* Close Button */}
               <button
                 type="button"
@@ -1304,10 +1304,10 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                   {/* Beat-by-Beat Timeline Breakdown */}
                   <div className="space-y-2">
                     <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-[#25F4EE]" />
+                      <Clock className="w-3.5 h-3.5 text-cyan-400" />
                       สูตรจังหวะการตัดไทม์ไลน์ (Rhythm Blueprint):
                     </h4>
-                    <div className="space-y-1.5 bg-[#080B11]/80 p-3 rounded-xl border border-white/[0.06]">
+                    <div className="space-y-1.5 bg-[#0A0D14] p-3 rounded-xl border border-white/[0.06]">
                       {modalExtras.rhythm.map((step, idx) => (
                         <div key={idx} className="flex items-start gap-2.5 text-xs">
                           <span className={`px-2 py-0.5 rounded font-mono font-medium text-[11px] shrink-0 border ${step.color}`}>
@@ -1327,13 +1327,13 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                     <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
                       แนวทางการเล่าเรื่อง (Narrative Formula):
                     </h4>
-                    <p className="text-xs text-slate-300 leading-relaxed bg-[#080B11]/50 p-3 rounded-xl border border-white/[0.06]">
+                    <p className="text-xs text-slate-300 leading-relaxed bg-[#0A0D14] p-3 rounded-xl border border-white/[0.06]">
                       {selectedStyleDetail.formula}
                     </p>
                   </div>
 
                   {/* Technical DNA & Guidelines */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-[#080B11]/50 p-3 rounded-xl border border-white/[0.06]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-[#0A0D14] p-3 rounded-xl border border-white/[0.06]">
                     <div>
                       <span className="text-slate-500 block mb-0.5">ความยาวที่แนะนำ:</span>
                       <span className="font-semibold text-white font-mono">
@@ -1342,7 +1342,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                     </div>
                     <div>
                       <span className="text-slate-500 block mb-0.5">ระบบเสียง & พากย์:</span>
-                      <span className="font-semibold text-[#25F4EE]">
+                      <span className="font-semibold text-cyan-300">
                         {modalExtras.audioDetail}
                       </span>
                     </div>
@@ -1364,7 +1364,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                       setSelectedStyleDetail(null);
                       setActiveTab('create');
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 text-slate-950 font-bold text-sm transition-all shadow-md shadow-[#25F4EE]/20 text-center cursor-pointer"
+                    className="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm transition-all text-center cursor-pointer"
                   >
                     ดูแบบฟอร์มอ้างอิงของสไตล์นี้
                   </button>

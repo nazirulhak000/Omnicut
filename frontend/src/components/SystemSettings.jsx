@@ -320,7 +320,7 @@ export default function SystemSettings({
         return (
           <div className="space-y-4 sm:space-y-5 animate-fadeIn">
             {/* Section 0: UI Theme Presets */}
-            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
+            <div className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm space-y-3.5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400 flex-shrink-0">
@@ -337,7 +337,7 @@ export default function SystemSettings({
                 </div>
 
                 {/* Ambient Orbs Toggle Switch */}
-                <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl glass-tile self-start sm:self-auto">
+                <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/[0.08] self-start sm:self-auto">
                   <span className="text-xs font-medium text-slate-300">
                     แสงสะท้อนเบื้องหลัง (Ambient Orbs)
                   </span>
@@ -345,13 +345,13 @@ export default function SystemSettings({
                     type="button"
                     onClick={() => handleToggleOrbs(!currentOrbs)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer active:scale-95 ${
-                      currentOrbs ? 'bg-cyan-500' : 'bg-slate-700'
+                      currentOrbs ? 'bg-[#25F4EE]' : 'bg-black/60 border border-white/[0.1]'
                     }`}
                     aria-label="สลับการแสดงผลแสงสะท้อนเบื้องหลัง"
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        currentOrbs ? 'translate-x-6' : 'translate-x-1'
+                      className={`inline-block h-4 w-4 transform rounded-full transition-transform ${
+                        currentOrbs ? 'translate-x-6 bg-slate-950' : 'translate-x-1 bg-slate-400'
                       }`}
                     />
                   </button>
@@ -368,8 +368,8 @@ export default function SystemSettings({
                       onClick={() => handleSelectTheme(preset.id)}
                       className={`p-4 rounded-xl border transition-all cursor-pointer relative group active:scale-95 min-h-[48px] ${
                         isSelected
-                          ? 'bg-gradient-to-br from-cyan-500/10 to-pink-500/10 border-[#25F4EE] shadow-lg shadow-cyan-500/10 ring-1 ring-[#25F4EE]/40'
-                          : 'glass-tile text-slate-300 hover:border-white/[0.25]'
+                          ? 'bg-[#0D111A] border-[#25F4EE] ring-1 ring-[#25F4EE]/30 shadow-sm'
+                          : 'bg-[#0A0D14] border-white/[0.08] text-slate-300 hover:border-white/[0.2] hover:bg-white/[0.02]'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -416,7 +416,7 @@ export default function SystemSettings({
             </div>
 
             {/* Section 0.5: Pulse Hub Real Glass Finetuner */}
-            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+            <div className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-[#25F4EE] flex-shrink-0">
@@ -435,7 +435,7 @@ export default function SystemSettings({
                 <button
                   type="button"
                   onClick={handleResetGlass}
-                  className="px-3 py-1.5 rounded-xl glass-tile text-xs text-slate-300 hover:text-white hover:border-[#25F4EE]/40 transition-all self-start sm:self-auto cursor-pointer active:scale-95"
+                  className="px-3 py-1.5 rounded-xl bg-black/40 border border-white/[0.08] text-xs text-slate-300 hover:text-white hover:border-[#25F4EE]/40 transition-all self-start sm:self-auto cursor-pointer active:scale-95"
                 >
                   คืนค่ามาตรฐาน Pulse Hub
                 </button>
@@ -454,8 +454,8 @@ export default function SystemSettings({
                       onClick={() => handleApplyGlassPreset(preset)}
                       className={`p-3 rounded-xl text-left border transition-all cursor-pointer relative active:scale-95 ${
                         isActive
-                          ? 'bg-cyan-500/10 border-[#25F4EE] shadow-md shadow-cyan-500/10 ring-1 ring-[#25F4EE]/40'
-                          : 'glass-tile text-slate-300 hover:border-white/[0.25]'
+                          ? 'bg-[#25F4EE]/10 border-[#25F4EE] ring-1 ring-[#25F4EE]/30 text-white'
+                          : 'bg-black/40 border-white/[0.08] text-slate-300 hover:border-white/[0.2]'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -475,7 +475,7 @@ export default function SystemSettings({
               {/* 4 Interactive Sliders Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 {/* 1. Transparency / Opacity */}
-                <div className="p-3.5 rounded-xl glass-tile space-y-2">
+                <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-2">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-semibold text-slate-200">
                       ความใสของกระจก (Glass Transparency)
@@ -491,7 +491,7 @@ export default function SystemSettings({
                     step="1"
                     value={glassConfig.opacity}
                     onChange={(e) => handleUpdateGlassConfig('opacity', e.target.value)}
-                    className="w-full accent-cyan-400 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                    className="w-full accent-[#25F4EE] cursor-pointer h-2 bg-slate-800 rounded-lg"
                   />
                   <div className="flex justify-between text-[10px] text-slate-400">
                     <span>ใสแจ๋วแบบคริสตัล (5%)</span>
@@ -500,7 +500,7 @@ export default function SystemSettings({
                 </div>
 
                 {/* 2. Blur */}
-                <div className="p-3.5 rounded-xl glass-tile space-y-2">
+                <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-2">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-semibold text-slate-200">
                       ความเบลอของแสง (Glass Blur)
@@ -516,7 +516,7 @@ export default function SystemSettings({
                     step="1"
                     value={glassConfig.blur}
                     onChange={(e) => handleUpdateGlassConfig('blur', e.target.value)}
-                    className="w-full accent-cyan-400 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                    className="w-full accent-[#25F4EE] cursor-pointer h-2 bg-slate-800 rounded-lg"
                   />
                   <div className="flex justify-between text-[10px] text-slate-400">
                     <span>คมชัดสูง (4px)</span>
@@ -525,7 +525,7 @@ export default function SystemSettings({
                 </div>
 
                 {/* 3. Ambient Orbs Glow */}
-                <div className="p-3.5 rounded-xl glass-tile space-y-2">
+                <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-2">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-semibold text-slate-200">
                       ความสว่างแสงนีออนเบื้องหลัง (Orbs Glow)
@@ -550,7 +550,7 @@ export default function SystemSettings({
                 </div>
 
                 {/* 4. Glare Specular */}
-                <div className="p-3.5 rounded-xl glass-tile space-y-2">
+                <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-2">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-semibold text-slate-200">
                       ความคมของเส้นแสงสะท้อนขอบ (Rim Glare)
@@ -575,21 +575,21 @@ export default function SystemSettings({
                 </div>
               </div>
 
-              {/* Live Optical Refraction Preview Box */}
-              <div className="mt-3 p-4 rounded-xl border border-white/[0.12] bg-[#030509] relative overflow-hidden h-32 flex items-center justify-center">
+              {/* Live Studio Refraction Preview Box */}
+              <div className="mt-3 p-4 rounded-xl border border-white/[0.08] bg-black/60 relative overflow-hidden h-28 flex items-center justify-center">
                 <div
-                  className="absolute w-24 h-24 rounded-full bg-cyan-400/80 blur-xl pointer-events-none animate-pulse"
-                  style={{ top: '15%', left: '20%' }}
+                  className="absolute w-32 h-32 rounded-full bg-[#25F4EE]/10 blur-2xl pointer-events-none"
+                  style={{ top: '10%', left: '25%' }}
                 />
                 <div
-                  className="absolute w-28 h-28 rounded-full bg-pink-500/80 blur-xl pointer-events-none animate-pulse"
+                  className="absolute w-32 h-32 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none"
                   style={{ bottom: '10%', right: '25%' }}
                 />
 
-                <div className="glass-panel p-3.5 rounded-xl z-10 max-w-sm w-full text-center space-y-1">
+                <div className="bg-[#0A0D14]/90 border border-white/[0.08] p-3 rounded-xl z-10 max-w-sm w-full text-center space-y-1 backdrop-blur-sm">
                   <div className="text-xs font-bold text-white flex items-center justify-center gap-2">
                     <Sparkles className="w-3.5 h-3.5 text-[#25F4EE]" />
-                    <span>ตัวอย่างแสงหักเหทะลุกระจกสด (Live Refraction Preview)</span>
+                    <span>ตัวอย่างแสงหักเห (Live Refraction Preview)</span>
                   </div>
                   <p className="text-[11px] text-slate-300">
                     ความใส {100 - glassConfig.opacity}% · เบลอ {glassConfig.blur}px · แสงนีออน {glassConfig.orbsGlow}%
@@ -599,7 +599,7 @@ export default function SystemSettings({
             </div>
 
             {/* Section 1: UI Scale Control */}
-            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
+            <div className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm space-y-3.5">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-[#25F4EE] flex-shrink-0">
                   <Sliders className="w-5 h-5" />
@@ -627,8 +627,8 @@ export default function SystemSettings({
                       onClick={() => setUiScale && setUiScale(scale.id)}
                       className={`p-3.5 rounded-xl text-left border transition-all cursor-pointer relative active:scale-95 ${
                         isActive
-                          ? 'bg-cyan-500/10 border-[#25F4EE] shadow-lg shadow-cyan-500/10 ring-1 ring-[#25F4EE]/40'
-                          : 'glass-tile text-slate-300 hover:border-white/[0.25]'
+                          ? 'bg-[#25F4EE]/10 border-[#25F4EE] ring-1 ring-[#25F4EE]/30'
+                          : 'bg-black/40 border-white/[0.08] text-slate-300 hover:border-white/[0.2]'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -647,7 +647,7 @@ export default function SystemSettings({
             </div>
 
             {/* Section 2: Global UI Font Selector */}
-            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
+            <div className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm space-y-3.5">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 flex-shrink-0">
                   <Type className="w-5 h-5" />
@@ -683,8 +683,8 @@ export default function SystemSettings({
                       onClick={() => setUiFont && setUiFont(f.id)}
                       className={`p-3.5 rounded-xl border transition-all cursor-pointer relative group active:scale-95 ${
                         isSelected
-                          ? 'bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-[#25F4EE] shadow-md shadow-cyan-500/10 ring-1 ring-[#25F4EE]/40'
-                          : 'glass-tile text-slate-300 hover:border-white/[0.25]'
+                          ? 'bg-[#0D111A] border-[#25F4EE] ring-1 ring-[#25F4EE]/30 shadow-sm'
+                          : 'bg-[#0A0D14] border-white/[0.08] text-slate-300 hover:border-white/[0.2] hover:bg-white/[0.02]'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -724,7 +724,7 @@ export default function SystemSettings({
       case 'paths':
         return (
           <div className="space-y-4 animate-fadeIn">
-            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
+            <div className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm space-y-3.5">
               <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 pb-2.5 border-b border-white/[0.08]">
                 <Folder className="w-4 h-4 text-[#25F4EE]" />
                 ไดเรกทอรีโปรเจกต์มาตรฐาน (Project Workspace Directories)
@@ -736,7 +736,7 @@ export default function SystemSettings({
                   return (
                     <div
                       key={pf.id}
-                      className="p-3 sm:p-3.5 rounded-xl glass-tile flex items-center justify-between group hover:border-[#25F4EE]/30 transition-all gap-2"
+                      className="p-3 sm:p-3.5 rounded-xl bg-black/40 border border-white/[0.08] flex items-center justify-between group hover:border-[#25F4EE]/30 transition-all gap-2"
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
@@ -760,7 +760,7 @@ export default function SystemSettings({
 
               <button
                 onClick={() => handleOpen('root')}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-white/[0.06] to-white/[0.03] hover:from-white/[0.1] hover:to-white/[0.05] border border-white/[0.08] text-white text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2 mt-2 active:scale-95"
+                className="w-full py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2 mt-2 active:scale-95"
               >
                 <Folder className="w-4 h-4 text-[#25F4EE]" />
                 เปิดโฟลเดอร์รากของโปรเจกต์ (Project Root)
@@ -775,7 +775,7 @@ export default function SystemSettings({
             {/* AI Providers Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               {/* Box 1: Antigravity Pro */}
-              <div className="p-4 sm:p-5 rounded-2xl glass-panel space-y-3 relative overflow-hidden shadow-lg">
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#0A0D14] border border-white/[0.08] space-y-3 relative overflow-hidden shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <ShieldCheck className="w-5 h-5 text-[#25F4EE]" />
@@ -796,7 +796,7 @@ export default function SystemSettings({
               </div>
 
                 {/* Box 2: TypeSafe System One / Jev */}
-              <div className="p-4 sm:p-5 rounded-2xl glass-panel space-y-3 relative overflow-hidden shadow-lg">
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#0A0D14] border border-white/[0.08] space-y-3 relative overflow-hidden shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <Cpu className="w-5 h-5 text-violet-400" />
@@ -815,8 +815,8 @@ export default function SystemSettings({
                   <div>• Role: Decision / Ranking / Verification</div>
                 </div>
               </div>
-            {/* Box 2: Google AI Studio Vision */}
-              <div className="p-4 sm:p-5 rounded-2xl glass-panel space-y-3 relative overflow-hidden shadow-lg">
+            {/* Box 3: Google AI Studio Vision */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#0A0D14] border border-white/[0.08] space-y-3 relative overflow-hidden shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <Sparkles className="w-5 h-5 text-slate-300" />
@@ -839,7 +839,7 @@ export default function SystemSettings({
             </div>
 
             {/* System Environment Info */}
-            <div className="p-4 sm:p-5 space-y-3.5 glass-panel rounded-2xl shadow-lg">
+            <div className="p-4 sm:p-5 space-y-3.5 bg-[#0A0D14] border border-white/[0.08] rounded-2xl shadow-sm">
               <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08]">
                 <Settings className="w-4 h-4 text-[#25F4EE]" />
                 สถานะการเรนเดอร์และ CapCut PC Integration
@@ -895,7 +895,7 @@ export default function SystemSettings({
             </div>
 
             {/* Round POST-2: TikTok Auto-Post Extension (experimental, risky) */}
-            <div className="p-4 sm:p-5 space-y-3.5 glass-panel rounded-2xl border border-amber-500/30 shadow-lg">
+            <div className="p-4 sm:p-5 space-y-3.5 bg-[#0A0D14] rounded-2xl border border-amber-500/25 shadow-sm">
               <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/[0.08]">
                 <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                   <Bug className="w-4 h-4 text-amber-400" />
@@ -905,7 +905,7 @@ export default function SystemSettings({
                   type="button"
                   onClick={toggleAutopost}
                   className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
-                    autopostEnabled ? 'bg-emerald-500' : 'bg-white/[0.12]'
+                    autopostEnabled ? 'bg-emerald-500' : 'bg-black/60 border border-white/[0.1]'
                   }`}
                   title={autopostEnabled ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
                 >
@@ -954,7 +954,7 @@ export default function SystemSettings({
         return (
           <div className="space-y-4 animate-fadeIn">
             {/* Box 1: One-Click System Backup */}
-            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+            <div className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
                 <div>
                   <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
@@ -1051,7 +1051,7 @@ export default function SystemSettings({
             </div>
 
             {/* Box 2: Asset Deduplication Engine */}
-            <div className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+            <div className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
                 <div>
                   <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
@@ -1192,10 +1192,10 @@ export default function SystemSettings({
             <select
               value={activeTab}
               onChange={(e) => setActiveTab(e.target.value)}
-              className="bg-black/50 border border-white/[0.1] text-slate-200 text-xs font-bold py-1.5 px-2 rounded-xl focus:outline-none focus:border-[#25F4EE] cursor-pointer max-w-[125px] truncate"
+              className="bg-black/40 border border-white/[0.1] text-white focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/30 text-xs font-bold py-1.5 px-2 rounded-xl focus:outline-none cursor-pointer max-w-[125px] truncate"
             >
               {settingSections.map((s) => (
-                <option key={s.id} value={s.id} className="bg-[#080B11] text-white">
+                <option key={s.id} value={s.id} className="bg-[#0A0D14] text-white">
                   {s.name}
                 </option>
               ))}
@@ -1280,12 +1280,12 @@ export default function SystemSettings({
                 }}
                 className={`flex-shrink-0 snap-center min-h-[48px] px-3 py-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 max-w-[210px] active:scale-95 ${
                   isSelected
-                    ? 'bg-[#25F4EE]/15 border-[#25F4EE] shadow-md shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/40'
-                    : 'glass-tile text-slate-300 hover:border-white/[0.25]'
+                    ? 'bg-[#25F4EE]/10 border-[#25F4EE] ring-1 ring-[#25F4EE]/30'
+                    : 'bg-[#0A0D14] border-white/[0.08] text-slate-300 hover:border-white/[0.2]'
                 }`}
               >
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  isSelected ? 'bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] text-slate-950 font-bold' : 'bg-white/[0.06] text-slate-400'
+                  isSelected ? 'bg-[#25F4EE] text-slate-950 font-bold' : 'bg-white/[0.06] text-slate-400'
                 }`}>
                   <Icon className="w-3.5 h-3.5" />
                 </div>
@@ -1322,8 +1322,8 @@ export default function SystemSettings({
                   onClick={() => setActiveTab(s.id)}
                   className={`p-3 rounded-xl border transition-all cursor-pointer text-left group relative active:scale-98 ${
                     isSelected
-                      ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-md shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/30'
-                      : 'glass-tile text-slate-300 hover:border-white/[0.25]'
+                      ? 'bg-[#0D111A] border-[#25F4EE]/60 ring-1 ring-[#25F4EE]/30'
+                      : 'bg-[#0A0D14] border-white/[0.08] text-slate-300 hover:border-white/[0.2] hover:bg-white/[0.02]'
                   }`}
                 >
                   {/* Left Indicator */}
@@ -1334,7 +1334,7 @@ export default function SystemSettings({
                   <div className="flex items-start gap-3">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
                       isSelected
-                        ? 'bg-gradient-to-tr from-[#25F4EE] to-blue-500 text-slate-950 shadow-sm'
+                        ? 'bg-[#25F4EE] text-slate-950 font-bold shadow-sm'
                         : 'bg-white/[0.06] text-slate-400 border border-white/[0.08]'
                     }`}>
                       <Icon className="w-4 h-4" />
@@ -1371,7 +1371,7 @@ export default function SystemSettings({
       ) : (
         /* Classic View: Desktop Tabs Row + Full Width Content */
         <div className="space-y-4">
-          <div className="hidden lg:flex items-center gap-1.5 p-1 rounded-2xl glass-tile">
+          <div className="hidden lg:flex items-center gap-1.5 p-1 rounded-2xl bg-[#0A0D14] border border-white/[0.08]">
             {settingSections.map((t) => {
               const Icon = t.icon;
               const isActive = activeTab === t.id;
@@ -1379,10 +1379,10 @@ export default function SystemSettings({
                 <button
                   key={t.id}
                   onClick={() => setActiveTab(t.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex-1 justify-center ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex-1 justify-center border ${
                     isActive
-                      ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white shadow-md'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
+                      ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/40 shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border-transparent'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />

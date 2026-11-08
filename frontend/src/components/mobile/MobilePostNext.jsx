@@ -439,14 +439,14 @@ export default function MobilePostNext() {
     currentClip.minutes_until_due <= 10;
 
   return (
-    <div className="min-h-dvh bg-slate-950 text-slate-100 pb-28 px-4 pt-4 select-none">
+    <div className="min-h-dvh bg-[#0A0D14] text-slate-100 pb-[calc(80px+max(env(safe-area-inset-bottom,0px),16px))] px-3.5 sm:px-4 pt-[max(env(safe-area-inset-top,0px),12px)] select-none">
       {/* Toast Banner */}
       {toastMsg && (
         <div
           role="status"
-          className="fixed inset-x-3 bottom-20 z-50 rounded-xl bg-emerald-600/95 px-4 py-3 text-sm font-medium text-white shadow-lg flex items-center gap-2"
+          className="fixed inset-x-3 bottom-[calc(84px+max(env(safe-area-inset-bottom,0px),8px))] z-50 rounded-xl bg-emerald-600/95 border border-emerald-400/30 px-4 py-3 text-sm font-semibold text-white shadow-xl flex items-center gap-2 backdrop-blur-md"
         >
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-200" />
           <span>{toastMsg}</span>
         </div>
       )}
@@ -463,7 +463,7 @@ export default function MobilePostNext() {
             loadNextDue();
             loadAgenda();
           }}
-          className="min-h-11 min-w-11 px-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 flex items-center gap-1.5 text-xs font-medium active:scale-95 transition"
+          className="min-h-[44px] min-w-[44px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-slate-200 hover:bg-white/[0.08] flex items-center gap-1.5 text-xs font-semibold active:scale-95 transition"
         >
           <RefreshCw className="w-4 h-4" />
           <span>รีเฟรชคิว</span>
@@ -472,7 +472,7 @@ export default function MobilePostNext() {
 
       {/* Error Alert */}
       {errorMsg && (
-        <div className="mb-4 rounded-xl bg-rose-950/80 border border-rose-700/60 p-3 text-xs text-rose-200 flex items-start gap-2">
+        <div className="mb-4 rounded-xl bg-rose-950/70 border border-rose-500/30 p-3 text-xs text-rose-200 flex items-start gap-2">
           <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
           <span>{errorMsg}</span>
         </div>
@@ -482,7 +482,7 @@ export default function MobilePostNext() {
       {isDueWithin10Min && (
         <div
           data-testid="countdown-alert-banner"
-          className="mb-4 rounded-xl bg-amber-500/15 border border-amber-400/50 px-3.5 py-2.5 flex items-center justify-between gap-2 text-amber-200"
+          className="mb-4 rounded-xl bg-amber-500/10 border border-amber-400/30 px-3.5 py-2.5 flex items-center justify-between gap-2 text-amber-200"
         >
           <div className="flex items-center gap-2 text-xs font-semibold">
             <Clock className="w-4 h-4 text-amber-400 shrink-0" />
@@ -497,11 +497,11 @@ export default function MobilePostNext() {
 
       {/* Main Next-Due Clip Card */}
       {loadingClip ? (
-        <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 text-center text-sm text-slate-400">
+        <div className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-6 text-center text-sm text-slate-400">
           กำลังค้นหาคลิปถัดไปในคิว...
         </div>
       ) : !currentClip ? (
-        <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 text-center space-y-3">
+        <div className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-6 text-center space-y-3">
           <Film className="w-8 h-8 text-slate-500 mx-auto" />
           <div className="text-sm font-semibold text-slate-200">ยังไม่มีคลิปรอโพสต์ในคิว</div>
           <p className="text-xs text-slate-400">
@@ -511,16 +511,16 @@ export default function MobilePostNext() {
       ) : (
         <div className="space-y-4">
           {/* Step 1: เตรียมคลิปถัดไป */}
-          <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
+          <section className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/20 px-2.5 py-1 text-xs font-semibold text-indigo-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#25F4EE]/10 border border-[#25F4EE]/25 px-2.5 py-1 text-xs font-semibold text-[#25F4EE]">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>คลิปถัดไป</span>
               </span>
               <button
                 type="button"
                 onClick={() => openRescheduleSheet(currentClip)}
-                className="min-h-11 px-3 rounded-lg bg-slate-800/90 text-xs text-slate-200 flex items-center gap-1.5"
+                className="min-h-[44px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-slate-200 hover:bg-white/[0.08] flex items-center gap-1.5 transition active:scale-95"
               >
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
                 <span>{formatThaiSlotTime(currentClip.scheduled_at)}</span>
@@ -529,7 +529,7 @@ export default function MobilePostNext() {
 
             <div className="flex gap-3.5 items-start">
               {/* 9:16 Cover Preview */}
-              <div className="w-24 aspect-[9/16] rounded-xl bg-slate-800 overflow-hidden shrink-0 border border-slate-700/60 flex items-center justify-center">
+              <div className="w-20 sm:w-24 aspect-[9/16] rounded-xl bg-[#0A0D14] overflow-hidden shrink-0 border border-white/[0.08] flex items-center justify-center">
                 {currentClip.cover_9x16_url ? (
                   <img
                     src={resolveMedia(currentClip.cover_9x16_url)}
@@ -550,12 +550,12 @@ export default function MobilePostNext() {
                   {currentClip.product_name}
                 </h2>
                 {currentClip.tiktok_product_id && (
-                  <div className="text-xs text-emerald-300 font-mono truncate">
+                  <div className="text-xs text-[#25F4EE] font-mono truncate">
                     ID: {currentClip.tiktok_product_id}
                   </div>
                 )}
                 {fullCaptionText && (
-                  <p className="text-xs text-slate-300 line-clamp-3 bg-slate-950/70 rounded-lg p-2 border border-slate-800">
+                  <p className="text-xs text-slate-300 line-clamp-3 bg-[#0A0D14]/80 rounded-xl p-2.5 border border-white/[0.06]">
                     {fullCaptionText}
                   </p>
                 )}
@@ -566,7 +566,7 @@ export default function MobilePostNext() {
               type="button"
               disabled={preparingShare}
               onClick={handlePrepareShare}
-              className="w-full min-h-12 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md active:scale-[0.99] transition"
+              className="w-full min-h-[48px] rounded-xl bg-[#25F4EE] hover:bg-[#25F4EE]/90 disabled:opacity-60 text-[#0A0D14] font-bold text-sm flex items-center justify-center gap-2 shadow-md active:scale-[0.99] transition"
             >
               <Download className="w-4 h-4" />
               <span>
@@ -580,13 +580,13 @@ export default function MobilePostNext() {
           </section>
 
           {/* Step 2: แชร์เข้า TikTok */}
-          <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
+          <section className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-white">ขั้นตอนที่ 2: แชร์เข้าแอป TikTok</h3>
               <button
                 type="button"
                 onClick={handleCopyCaptionOnly}
-                className="min-h-11 px-3 rounded-lg bg-slate-800 text-xs text-slate-200 flex items-center gap-1.5"
+                className="min-h-[44px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-slate-200 hover:bg-white/[0.08] flex items-center gap-1.5 transition active:scale-95"
               >
                 {copiedCaption ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>คัดลอกแคปชัน</span>
@@ -596,7 +596,7 @@ export default function MobilePostNext() {
             <button
               type="button"
               onClick={handleShareToTikTok}
-              className="w-full min-h-12 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md active:scale-[0.99] transition"
+              className="w-full min-h-[48px] rounded-xl bg-[#FE2C55] hover:bg-[#FE2C55]/90 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md active:scale-[0.99] transition"
             >
               <Share2 className="w-4 h-4" />
               <span>แชร์เข้า TikTok ทันที</span>
@@ -604,7 +604,7 @@ export default function MobilePostNext() {
           </section>
 
           {/* Step 3: Checklist ปักตะกร้า */}
-          <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
+          <section className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4 space-y-3">
             <div className="flex items-center gap-2">
               <ShoppingBag className="w-4 h-4 text-amber-400" />
               <h3 className="text-sm font-bold text-white">ขั้นตอนที่ 3: Checklist ปักตะกร้าสินค้า</h3>
@@ -614,7 +614,7 @@ export default function MobilePostNext() {
               <button
                 type="button"
                 onClick={handleCopyProductId}
-                className="w-full min-h-11 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-left text-xs font-medium text-slate-100 flex items-center justify-between gap-2"
+                className="w-full min-h-[44px] px-3.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-left text-xs font-semibold text-slate-100 flex items-center justify-between gap-2 active:scale-[0.99] transition"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {copiedProductId ? (
@@ -631,7 +631,7 @@ export default function MobilePostNext() {
               <button
                 type="button"
                 onClick={handleCopyProductName}
-                className="w-full min-h-11 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-left text-xs font-medium text-slate-100 flex items-center justify-between gap-2"
+                className="w-full min-h-[44px] px-3.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-left text-xs font-semibold text-slate-100 flex items-center justify-between gap-2 active:scale-[0.99] transition"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {copiedProductName ? (
@@ -657,7 +657,7 @@ export default function MobilePostNext() {
                   onClick={() =>
                     setChecklistState((prev) => ({ ...prev, [item.key]: !prev[item.key] }))
                   }
-                  className="w-full min-h-11 px-3 rounded-lg bg-slate-950/60 border border-slate-800/80 flex items-center gap-2.5 text-xs text-slate-200"
+                  className="w-full min-h-[44px] px-3 rounded-xl bg-[#0A0D14]/80 border border-white/[0.08] flex items-center gap-2.5 text-xs text-slate-200 active:scale-[0.99] transition"
                 >
                   <CheckCircle2
                     className={`w-4 h-4 shrink-0 ${
@@ -672,7 +672,7 @@ export default function MobilePostNext() {
             <button
               type="button"
               onClick={() => setShowConfirmSheet(true)}
-              className="w-full min-h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-2"
+              className="w-full min-h-[44px] rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-[0.99] transition"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>เปิดหน้าต่างยืนยันผลโพสต์</span>
@@ -682,7 +682,7 @@ export default function MobilePostNext() {
       )}
 
       {/* 7-Day Agenda Strip (Touch-friendly, no drag-and-drop) */}
-      <section className="mt-6 rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
+      <section className="mt-6 rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div>
             <h3 className="text-sm font-bold text-white">ตารางโพสต์ 7 วัน</h3>
@@ -691,10 +691,10 @@ export default function MobilePostNext() {
           <button
             type="button"
             onClick={handleDownloadCalendarIcs}
-            className="min-h-11 px-3 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-200 text-xs font-semibold flex items-center gap-1.5"
+            className="min-h-[44px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-slate-200 hover:bg-white/[0.08] text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition"
           >
-            <Calendar className="w-4 h-4" />
-            <span>เพิ่มการแจ้งเตือนลงปฏิทิน (.ics)</span>
+            <Calendar className="w-4 h-4 text-[#25F4EE]" />
+            <span>แจ้งเตือน (.ics)</span>
           </button>
         </div>
 
@@ -709,14 +709,14 @@ export default function MobilePostNext() {
                   key={dayObj.date}
                   type="button"
                   onClick={() => setSelectedDayIndex(idx)}
-                  className={`min-h-11 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 flex flex-col items-center justify-center border transition ${
+                  className={`min-h-[44px] px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 flex flex-col items-center justify-center border transition active:scale-95 ${
                     isSelected
-                      ? 'bg-indigo-600 text-white border-indigo-400'
-                      : 'bg-slate-950 text-slate-300 border-slate-800'
+                      ? 'bg-[#25F4EE] text-[#0A0D14] border-[#25F4EE]'
+                      : 'bg-[#0A0D14] text-slate-300 border-white/[0.08] hover:bg-white/[0.04]'
                   }`}
                 >
                   <span>{formatShortDayLabel(dayObj.date)}</span>
-                  <span className="text-[11px] opacity-80">{scheduledCount} คลิป</span>
+                  <span className="text-[11px] opacity-90">{scheduledCount} คลิป</span>
                 </button>
               );
             })}
@@ -731,10 +731,10 @@ export default function MobilePostNext() {
               return (
                 <div
                   key={slot.time}
-                  className="min-h-11 rounded-xl bg-slate-950/80 border border-slate-800 px-3 py-2 flex items-center justify-between gap-2"
+                  className="min-h-[44px] rounded-xl bg-[#0A0D14]/80 border border-white/[0.08] px-3 py-2 flex items-center justify-between gap-2"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="px-2 py-1 rounded-md bg-slate-800 text-xs font-mono font-semibold text-amber-300">
+                    <span className="px-2 py-1 rounded-lg bg-white/[0.06] border border-white/[0.08] text-xs font-mono font-semibold text-amber-300">
                       {slot.time}
                     </span>
                     {slotItem ? (
@@ -755,9 +755,9 @@ export default function MobilePostNext() {
                     <button
                       type="button"
                       onClick={() => openRescheduleSheet(slotItem, activeDay.date)}
-                      className="min-h-11 px-3 rounded-lg bg-slate-800 text-xs text-slate-200 flex items-center gap-1"
+                      className="min-h-[44px] min-w-[44px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-slate-200 hover:bg-white/[0.08] flex items-center gap-1 active:scale-95 transition"
                     >
-                      <Clock className="w-3.5 h-3.5" />
+                      <Clock className="w-3.5 h-3.5 text-amber-400" />
                       <span>ย้ายรอบ</span>
                     </button>
                   )}
@@ -773,15 +773,15 @@ export default function MobilePostNext() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/75 flex items-end justify-center p-3"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end justify-center p-3 pb-[max(env(safe-area-inset-bottom,0px),16px)]"
         >
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-5 space-y-3 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-[#0A0D14] border border-white/[0.1] p-5 space-y-3 shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-white">ยืนยันผลการโพสต์ใน TikTok</h3>
               <button
                 type="button"
                 onClick={() => setShowConfirmSheet(false)}
-                className="min-h-11 min-w-11 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center"
+                className="min-h-[44px] min-w-[44px] rounded-xl bg-white/[0.06] border border-white/[0.08] text-slate-300 hover:bg-white/[0.1] flex items-center justify-center active:scale-95 transition"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -795,7 +795,7 @@ export default function MobilePostNext() {
                 type="button"
                 disabled={submittingConfirm}
                 onClick={() => handleConfirmOutcome('posted')}
-                className="w-full min-h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2"
+                className="w-full min-h-[48px] rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.99] transition shadow-md"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>โพสต์สำเร็จแล้ว</span>
@@ -805,7 +805,7 @@ export default function MobilePostNext() {
                 type="button"
                 disabled={submittingConfirm}
                 onClick={() => handleConfirmOutcome('scheduled_in_app')}
-                className="w-full min-h-12 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center justify-center gap-2"
+                className="w-full min-h-[48px] rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/35 text-[#25F4EE] font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.99] transition"
               >
                 <Clock className="w-4 h-4" />
                 <span>ตั้งเวลาในแอป TikTok แล้ว</span>
@@ -815,7 +815,7 @@ export default function MobilePostNext() {
                 type="button"
                 disabled={submittingConfirm}
                 onClick={handleAbandonClaim}
-                className="w-full min-h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm flex items-center justify-center gap-2"
+                className="w-full min-h-[48px] rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 font-medium text-sm flex items-center justify-center gap-2 active:scale-[0.99] transition"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>ยังไม่ได้โพสต์ (คืนเข้าคิว)</span>
@@ -830,27 +830,27 @@ export default function MobilePostNext() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/75 flex items-end justify-center p-3"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end justify-center p-3 pb-[max(env(safe-area-inset-bottom,0px),16px)]"
         >
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-5 space-y-4 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-[#0A0D14] border border-white/[0.1] p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-white">เลือกรอบเวลาโพสต์มาตรฐาน (7 รอบ)</h3>
               <button
                 type="button"
                 onClick={() => setRescheduleTarget(null)}
-                className="min-h-11 min-w-11 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center"
+                className="min-h-[44px] min-w-[44px] rounded-xl bg-white/[0.06] border border-white/[0.08] text-slate-300 hover:bg-white/[0.1] flex items-center justify-center active:scale-95 transition"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label className="text-xs text-slate-400">วันที่ต้องการโพสต์</label>
               <input
                 type="date"
                 value={rescheduleDate}
                 onChange={(e) => setRescheduleDate(e.target.value)}
-                className="w-full min-h-11 rounded-xl bg-slate-950 border border-slate-800 px-3 text-base text-white"
+                className="w-full min-h-[44px] rounded-xl bg-[#0A0D14] border border-white/[0.1] px-3 text-base text-white focus:outline-none focus:border-[#25F4EE]"
               />
             </div>
 
@@ -861,7 +861,7 @@ export default function MobilePostNext() {
                   type="button"
                   disabled={rescheduling}
                   onClick={() => handleSelectSlotChip(slotTime)}
-                  className="min-h-11 rounded-xl bg-slate-800 hover:bg-indigo-600 text-sm font-mono font-semibold text-white flex items-center justify-center gap-1.5"
+                  className="min-h-[44px] rounded-xl bg-white/[0.04] hover:bg-[#25F4EE] hover:text-[#0A0D14] border border-white/[0.08] text-sm font-mono font-semibold text-white flex items-center justify-center gap-1.5 transition active:scale-95"
                 >
                   <Clock className="w-3.5 h-3.5 text-amber-400" />
                   <span>{slotTime}</span>

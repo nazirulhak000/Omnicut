@@ -11,8 +11,8 @@ const fields = [
   ['follow_title', 'ข้อความชวนติดตาม', 'ข้อความที่ใช้กับคลิปใหม่'],
   ['avatar_asset_path', 'ไฟล์รูปประจำช่อง', 'พาธจากโปรเจกต์ เช่น 02_Assets/Brand/channel.jpg'],
 ];
-const inputStyle = 'min-h-11 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-slate-100 focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:opacity-50';
-const buttonStyle = 'min-h-11 rounded-lg border border-slate-600 px-4 py-2 focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:opacity-40';
+const inputStyle = 'min-h-11 w-full rounded-xl border border-white/[0.1] bg-black/40 px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/30 disabled:opacity-50 transition-all text-sm';
+const buttonStyle = 'min-h-11 rounded-xl border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 px-4 py-2 text-sm font-semibold transition-all disabled:opacity-40 cursor-pointer active:scale-95';
 const statusName = {active:'ใช้งาน',draft:'แบบร่าง',archived:'เก็บถาวร'};
 
 export default function ChannelSettings() {
@@ -128,9 +128,9 @@ export default function ChannelSettings() {
   const issues=[...(readiness?.issues || []),...(readiness?.posting_issues || [])];
 
   if (!context) return <p className="text-slate-400">โหลดทะเบียนช่องก่อนตั้งค่าตัวตน</p>;
-  return <section className="space-y-6 text-slate-100" aria-label="ตั้งค่าช่อง">
+  return <section className="space-y-6 text-slate-200" aria-label="ตั้งค่าช่อง">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h2 className="text-lg font-semibold">ตัวตนช่อง</h2><p className="mt-1 text-sm text-slate-400">{selected?.display_name || context.channelId} · {statusName[selected?.status] || 'กำลังโหลด'} · {selected?.id}</p></div>
+      <div><h2 className="text-lg font-bold text-white">ตัวตนช่อง</h2><p className="mt-1 text-sm text-slate-400">{selected?.display_name || context.channelId} · {statusName[selected?.status] || 'กำลังโหลด'} · <span className="font-mono text-xs">{selected?.id}</span></p></div>
       <button className={buttonStyle} disabled={busy || context.loading} onClick={() => {
         if (creating) {draftRef.current={id:'',...profileForm()};setDraft(draftRef.current);creatingRef.current=false;setCreating(false);}
         else {creatingRef.current=true;setCreating(true);}
@@ -138,38 +138,38 @@ export default function ChannelSettings() {
       }}>{creating?'ยกเลิกแบบร่าง':'สร้างช่องใหม่'}</button>
     </div>
     {context.error && <p role="alert" className="text-sm text-rose-300">{context.error}</p>}
-    {failure && <div role="alert" className="rounded-lg border border-rose-500/40 bg-rose-950/30 p-3 text-sm text-rose-200">{failure.message}{failure.code === 'revision_conflict' && <span> ทิ้งการแก้ไขแล้วโหลดข้อมูลล่าสุดก่อนลองใหม่</span>}</div>}
-    {notice && <p role="status" className="text-sm text-emerald-300">{notice}</p>}
-    {creating && <form className="space-y-4 rounded-xl border border-slate-600 bg-slate-900 p-4" onSubmit={event=>{event.preventDefault();saveDraft().catch(()=>{});}}>
-      <h3 className="font-semibold">สร้างช่องแบบร่าง</h3><p className="text-sm text-slate-400">รหัสช่องเปลี่ยนภายหลังไม่ได้ ช่องใหม่ยังไม่เปิดผลิตหรือโพสต์</p>
-      {[['id','รหัสช่อง'],['display_name','ชื่อช่อง'],['handle','TikTok handle (เติมภายหลังได้)']].map(([key,label])=><label className="block text-sm" key={key}><span>{label}</span><input className={`${inputStyle} mt-2`} value={draft[key]} disabled={busy} required={key!=='handle'} aria-invalid={failure?.field===key} onChange={event=>{const next={...draftRef.current,[key]:event.target.value};draftRef.current=next;setDraft(next);}} /></label>)}
-      <button className={`${buttonStyle} bg-cyan-300 text-slate-950`} disabled={busy || context.loading || !Number.isInteger(context.registryRevision)}>สร้างแบบร่าง</button>
+    {failure && <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-3.5 text-sm text-rose-200">{failure.message}{failure.code === 'revision_conflict' && <span> ทิ้งการแก้ไขแล้วโหลดข้อมูลล่าสุดก่อนลองใหม่</span>}</div>}
+    {notice && <div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3.5 text-sm text-emerald-300">{notice}</div>}
+    {creating && <form className="space-y-4 rounded-2xl border border-white/[0.08] bg-[#0A0D14] p-5 shadow-sm" onSubmit={event=>{event.preventDefault();saveDraft().catch(()=>{});}}>
+      <h3 className="font-bold text-white">สร้างช่องแบบร่าง</h3><p className="text-sm text-slate-400">รหัสช่องเปลี่ยนภายหลังไม่ได้ ช่องใหม่ยังไม่เปิดผลิตหรือโพสต์</p>
+      {[['id','รหัสช่อง'],['display_name','ชื่อช่อง'],['handle','TikTok handle (เติมภายหลังได้)']].map(([key,label])=><label className="block text-sm font-medium text-slate-300" key={key}><span>{label}</span><input className={`${inputStyle} mt-2`} value={draft[key]} disabled={busy} required={key!=='handle'} aria-invalid={failure?.field===key} onChange={event=>{const next={...draftRef.current,[key]:event.target.value};draftRef.current=next;setDraft(next);}} /></label>)}
+      <button className={`${buttonStyle} bg-[#25F4EE] hover:bg-[#25F4EE]/90 text-slate-950 font-bold border-transparent`} disabled={busy || context.loading || !Number.isInteger(context.registryRevision)}>สร้างแบบร่าง</button>
     </form>}
     {selected && <form className="space-y-4" onSubmit={event=>{event.preventDefault();saveProfile().catch(()=>{});}}>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{fields.map(([key,label,help])=><label key={key} className={`block text-sm ${key==='avatar_asset_path'?'md:col-span-2':''}`}>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{fields.map(([key,label,help])=><label key={key} className={`block text-sm font-medium text-slate-300 ${key==='avatar_asset_path'?'md:col-span-2':''}`}>
         <span>{label}</span><input aria-label={label} className={`${inputStyle} mt-2`} value={model.form[key]} disabled={readOnly} aria-describedby={`channel-${key}-help`} aria-invalid={failure?.field===key} onChange={event=>replaceModel({...modelRef.current,form:{...modelRef.current.form,[key]:event.target.value}})} />
         <span id={`channel-${key}-help`} className="mt-1 block text-xs text-slate-400">{help}</span>
       </label>)}</div>
-      <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 text-sm">
-        <p>บัญชี TikTok: {binding.status==='verified'?`ตรวจแล้ว ${binding.verified_handle}`:'ยังไม่ได้ตรวจบัญชีจริง'}</p>
-        <p className="mt-2 text-xs text-slate-400">ตรวจบัญชีจากหน้า TikTok Studio ก่อนเปิดโพสต์ เปลี่ยน handle แล้วต้องตรวจบัญชีใหม่</p>
-        <label className="mt-3 flex min-h-11 items-center gap-3"><input type="checkbox" checked={model.form.posting_enabled} disabled={readOnly || (!model.form.posting_enabled && !canEnablePosting)} onChange={event=>replaceModel({...modelRef.current,form:{...modelRef.current.form,posting_enabled:event.target.checked}})} /><span>เปิดโพสต์สำหรับช่องนี้</span></label>
+      <div className="rounded-2xl border border-white/[0.08] bg-[#0A0D14] p-5 text-sm space-y-2">
+        <p className="font-semibold text-white">บัญชี TikTok: <span className="font-normal text-slate-300">{binding.status==='verified'?`ตรวจแล้ว ${binding.verified_handle}`:'ยังไม่ได้ตรวจบัญชีจริง'}</span></p>
+        <p className="text-xs text-slate-400">ตรวจบัญชีจากหน้า TikTok Studio ก่อนเปิดโพสต์ เปลี่ยน handle แล้วต้องตรวจบัญชีใหม่</p>
+        <label className="mt-3 flex min-h-11 items-center gap-3 cursor-pointer"><input type="checkbox" className="accent-[#25F4EE] w-4 h-4 rounded cursor-pointer" checked={model.form.posting_enabled} disabled={readOnly || (!model.form.posting_enabled && !canEnablePosting)} onChange={event=>replaceModel({...modelRef.current,form:{...modelRef.current.form,posting_enabled:event.target.checked}})} /><span className="text-slate-200">เปิดโพสต์สำหรับช่องนี้</span></label>
       </div>
-      <div className="flex flex-wrap gap-3"><button disabled={readOnly || !dirty} className={`${buttonStyle} bg-cyan-300 text-slate-950`}>{busy?'กำลังบันทึก':'บันทึกตัวตนช่อง'}</button>
+      <div className="flex flex-wrap gap-3"><button disabled={readOnly || !dirty} className={`${buttonStyle} bg-[#25F4EE] hover:bg-[#25F4EE]/90 text-slate-950 font-bold border-transparent`}>{busy?'กำลังบันทึก':'บันทึกตัวตนช่อง'}</button>
         <button type="button" disabled={busy || !dirty} className={buttonStyle} onClick={()=>actionsRef.current.discard()}>ทิ้งการแก้ไข</button>
         <button type="button" disabled={busy} className={buttonStyle} onClick={async()=>{await context.refresh();loadReadiness(contextRef.current.selected);}}>ตรวจความพร้อมอีกครั้ง</button>
       </div>
     </form>}
-    <div className="rounded-xl border border-slate-700 p-4"><h3 className="font-semibold">ความพร้อมของช่อง</h3>
-      <p className="mt-2 text-sm text-slate-300">{selected?.status==='archived'?'ช่องเก็บถาวร อ่านข้อมูลได้เท่านั้น':!readiness?'กำลังตรวจความพร้อม':readiness.ready?(selected?.status==='draft'?'ตัวตนครบ เปิดใช้งานช่องเพื่อเริ่มงานใหม่ได้':'ตัวตนครบสำหรับการสร้างงาน'):'ยังมีข้อมูลที่ต้องเติมก่อนสร้างงาน'}</p>
+    <div className="rounded-2xl border border-white/[0.08] bg-[#0A0D14] p-5 space-y-2"><h3 className="font-bold text-white">ความพร้อมของช่อง</h3>
+      <p className="text-sm text-slate-300">{selected?.status==='archived'?'ช่องเก็บถาวร อ่านข้อมูลได้เท่านั้น':!readiness?'กำลังตรวจความพร้อม':readiness.ready?(selected?.status==='draft'?'ตัวตนครบ เปิดใช้งานช่องเพื่อเริ่มงานใหม่ได้':'ตัวตนครบสำหรับการสร้างงาน'):'ยังมีข้อมูลที่ต้องเติมก่อนสร้างงาน'}</p>
       {issues.length>0 && <ul className="mt-3 space-y-2 text-sm text-amber-200">{issues.map((issue,index)=><li key={`${issue.code}-${index}`}>{issue.message || issue.detail || issue.code}{issue.field?` (${issue.field})`:''}</li>)}</ul>}
       <div className="mt-4 flex flex-wrap gap-3">
         {selected?.status==='draft' && <button className={buttonStyle} disabled={busy || dirty || !readiness?.ready} onClick={()=>setConfirmation('activate')}>เปิดใช้งานช่อง</button>}
         {selected && selected.id!=='main' && selected.status!=='archived' && <button className={buttonStyle} disabled={busy || dirty} onClick={()=>setConfirmation('archive')}>เก็บช่องถาวร</button>}
       </div>
-      {confirmation && <div className="mt-4 rounded-lg border border-amber-400/40 p-3" role="alertdialog" aria-label="ยืนยันสถานะช่อง" onKeyDown={event=>{if(event.key==='Escape'&&!busy)setConfirmation(null);}}>
-        <p className="text-sm">{confirmation==='activate'?'เปิดช่องนี้ให้เริ่มสร้างงานใหม่ได้หรือไม่':'เก็บช่องนี้ถาวรหรือไม่ งานใหม่และโพสต์จะหยุด ข้อมูลเดิมยังอ่านได้'}</p>
-        <div className="mt-3 flex flex-wrap gap-3"><button autoFocus className={buttonStyle} disabled={busy} onClick={changeLifecycle}>ยืนยัน</button><button className={buttonStyle} disabled={busy} onClick={()=>setConfirmation(null)}>ยกเลิก</button></div>
+      {confirmation && <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4" role="alertdialog" aria-label="ยืนยันสถานะช่อง" onKeyDown={event=>{if(event.key==='Escape'&&!busy)setConfirmation(null);}}>
+        <p className="text-sm text-amber-200">{confirmation==='activate'?'เปิดช่องนี้ให้เริ่มสร้างงานใหม่ได้หรือไม่':'เก็บช่องนี้ถาวรหรือไม่ งานใหม่และโพสต์จะหยุด ข้อมูลเดิมยังอ่านได้'}</p>
+        <div className="mt-3 flex flex-wrap gap-3"><button autoFocus className={`${buttonStyle} bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30 font-bold`} disabled={busy} onClick={changeLifecycle}>ยืนยัน</button><button className={buttonStyle} disabled={busy} onClick={()=>setConfirmation(null)}>ยกเลิก</button></div>
       </div>}
     </div>
   </section>;

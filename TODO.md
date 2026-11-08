@@ -4,66 +4,18 @@
 
 ## รอบปัจจุบัน
 
-- [x] Round ANTIGRAVITY-UNSLOP-PHASE04-EDITOR-PILOT-20261108 · ดำเนินการ Phase 04 (Editor Pilot: ปรับห้องตัดต่อเป็นหน้าต้นแบบ) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
-  - [x] Task 1: ปรับ Chrome รอบข้างของ Editor (AssetPanel, Inspector, Timeline, Toolbar, ContextMenu, Splitters) ให้คลีนระดับ Obsidian Pro Dark NLE (#0A0D14, border-white/[0.08])
-  - [x] Task 2: ให้ความสำคัญกับ Preview 9:16 Canvas โดดเด่น ถอด outer glow, harsh gradient, neon shadows ส่วนเกินออกจากการ์ดและแท็บ
-  - [x] Task 3: คงสัญญาระบบ Video Render Contract 100% (ห้ามแตะ SequencePlayer logic, subtitle_engine, fonts, coordinates, FFmpeg pipeline)
-  - [x] Task 4: ตรวจสอบ unit tests (1,213/1,213 tests ผ่าน 100%) และ Vite build ผ่านสำเร็จ (0 errors)
-  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
-
-- [x] Round ANTIGRAVITY-UNSLOP-PHASE05-PRODUCT-SCRIPT-20261108 · ดำเนินการ Phase 05 (Product & Script Angles) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
-  - [x] Task 1: ปรับแต่ง ProductToClip.jsx ให้เข้าสู่ธีม Obsidian Pro Dark NLE (#0A0D14, border-white/[0.08]) ทั้ง ProductCard, Catalog Grid, AngleSidebar, และ Active Workbench
-  - [x] Task 2: จัดระเบียบการ์ดเลือกสินค้า (Product Selector Carousel & Grid) ให้ Hierarchy ของรูปภาพ, รหัสสินค้า (product_code เช่น BLU01, TTZ01), ชื่อสินค้า 2 บรรทัด, และ Functional Progress Bar คมชัดสบายตา
-  - [x] Task 3: ปรับแต่ง Angle List & Script Review ลดความฉูดฉาดของ ContentTypeBadges (ใช้โทนสุขุม professional), ถอน animate-ping ออกจาก PhaseDots, และจัดระเบียบข้อมูล Hook Header
-  - [x] Task 4: ปรับปุ่ม Action (สร้างคลิป/ดราฟต์ 1-Click, ดูสคริปต์, เปิดในไทม์ไลน์) ให้ใช้ Functional Colors (#25F4EE, emerald-500, amber-500) ขจัด multi-color gradient slop
-  - [x] Task 5: เพิ่มชุดทดสอบใน productToClipContract.test.js ผ่าน unit tests 1,213/1,213 tests (100%) และ Vite build ผ่านสมบูรณ์ (0 errors)
-  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
-
-- [x] Round ANTIGRAVITY-UNSLOP-PHASE06-TRACKER-GALLERY-20261108 · ดำเนินการ Phase 06 (Tracker, Gallery & Export) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
-  - [x] Task 1: ปรับแต่ง ContentTrackerHub.jsx แทร็กเกอร์ 4 เฟส ให้การ์ดสถานะ Pipeline (สคริปต์พร้อม, กำลังตัดต่อ, ตัดต่อเสร็จ/ตรวจ QC, โพสต์แล้ว) สะอาดตาในธีม Obsidian Pro Dark NLE (`#0A0D14`, `border-white/[0.08]`)
-  - [x] Task 2: ปรับแต่ง ExportGallery.jsx จัดแสดงคลังคลิป 9:16 ที่พร้อมโพสต์อย่างเป็นระเบียบ ทั้งโหมด Grid และ Split Studio Workbench ลบ ambient glow auras
-  - [x] Task 3: ตรวจสอบ QC Status, หน้าปก Cover 9:16, แคปชัน และปุ่ม Handoff ไปยังมือถือ / TikTok Helper ให้ชัดเจน เข้าถึงง่าย รวดเร็ว
-  - [x] Task 4: ตรวจสอบ unit tests (1,212/1,212 tests ผ่าน 100%) และ Vite build ผ่านสมบูรณ์ (0 errors)
-  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
-
-- [x] Round ANTIGRAVITY-UNSLOP-PHASE07-ASSETS-ANALYTICS-20261108 · ดำเนินการ Phase 07 (Assets & Analytics) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
-  - [x] Task 1: ปรับแต่ง MediaAssetsHub.jsx จัดระเบียบแท็บฟอนต์, เสียง AI (Gemini Flash Cast: Fenrir, Aoede, Puck), BGM, SFX และป้าย 3D Badges สู่ Obsidian Pro Dark NLE พร้อมลบ visual slop
-  - [x] Task 2: ปรับแต่ง AnalyticsHub.jsx เชื่อม PageHeader และอัปเกรด MetricKpiCard ให้แสดงข้อมูล KPI, Funnel, โทเคน AI และพื้นที่ดิสก์อย่างคมชัด สบายตา ชาร์ตอ่านได้ชัดเจน
-  - [x] Task 3: เพิ่ม assetsAndAnalyticsContract.test.js, ตรวจสอบ unit tests (1,212/1,212 tests ผ่าน 100%) และ Vite build สำเร็จ (0 errors)
-  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
-
-- [x] Round ANTIGRAVITY-TRIM-TTS-TAIL-GARBAGE-NOISE-20261108 · จัดการตัดเสียงขยะ/เสียงแตก/เสียงกระชาก (EOF digital noise spike & clipping burst) ท้ายคลิปเสียงพากย์ TTS ทั้งระบบ: พัฒนา `trim_silence_and_tail_artifacts_wav` ใน `scripts/gemini_tts_engine.py` สกัด buffer glitch และ noise spike ที่ตามหลังช่วงเงียบ พร้อม smooth 15ms linear fade-out ป้องกันเสียงป๊อกคลิก, ทำความสะอาดไฟล์เสียง `voiceover.wav` ใน `03_Projects/_ShotLists/` โดยเฉพาะ ESS04 (`431165f167284094959bdf0f0e806899`) ทุกมุม (tail_max ลดจาก 32,752 เหลือ 19-212, last sample = 0), ผ่านชุดทดสอบ 33/33 tests 100% · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
-
-- [x] Round ANTIGRAVITY-UNSLOP-PHASE03-SHELL-NAV-20261108 · ดำเนินการ Phase 03 (Shell, Navigation & Header) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
-  - [x] Task 1: ตรวจสอบและคง 72px icon rail ใน Sidebar.jsx พร้อม aria-label, tooltip, aria-current และ clean studio focus ring
-  - [x] Task 2: แก้ไขปัญหา Mobile Navbar Collision ใน EditorHeader / EditorChannelSelector / ProjectSelector เมื่อ viewport แคบ (< 640px)
-  - [x] Task 3: ปรับ Topbar และ PageHeader สู่ Obsidian Pro Dark NLE Chrome ลด visual clutter, slop glow, และ outer shadows
-  - [x] Task 4: เขียนชุดทดสอบ shellNavigationContract.test.js, ตรวจสอบ unit tests ทั้งหมด (1,208/1,208 tests ผ่าน 100%) และ Vite build สำเร็จ (0 errors)
-  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
-
-- [x] Round ANTIGRAVITY-UNSLOP-PHASE02-TOKENS-THEME-20261108 · ดำเนินการ Phase 02 (Semantic Tokens & Obsidian Default Theme) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
-  - [x] Task 1: สลับ DEFAULT_THEME_ID ใน themeManager.js เป็น 'obsidian' (Obsidian Pro Dark NLE Studio) ปิด ambient glowing orbs โดยเริ่มต้น
-  - [x] Task 2: ปรับปรุง Button.jsx ลดการใช้ harsh pink-cyan gradient ใน variant 'primary' ใช้ solid accent cyan #25F4EE พร้อม hover state สไตล์ Pro NLE
-  - [x] Task 3: แก้ไขขนาด font inverted ใน Badge.jsx (sm เป็น 11px, md เป็น 12px)
-  - [x] Task 4: ปรับลดความฉูดฉาดของ .glass-panel ใน index.css (ตัด outer pink border และ neon box-shadows ส่วนเกิน)
-  - [x] Task 5: อัปเดต unit tests ใน themeManager.test.js ผ่าน 1,204/1,204 tests (100%) และ Vite build ผ่าน
-  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
-
-- [x] Round ANTIGRAVITY-UNSLOP-PHASE01-STATE-SEMANTICS-20261108 · ดำเนินการ Phase 01 (State Semantics & Risk Audit) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
-  - [x] Task 1: สร้างโมดูล renderReadiness.js กำหนด state truth table 5 สถานะอย่างเคร่งครัด (loading, unknown, error, warning, ready)
-  - [x] Task 2: ปรับปรุง RenderReadinessChip.jsx ให้แสดงผลตามความจริง (แก้บั๊กแสดง "พร้อมเรนเดอร์ 100%" ทั้งที่ยังไม่ตรวจ coverStatus หรือกำลังโหลด)
-  - [x] Task 3: ปรับปรุง SaveStatusChip.jsx ถอน animate-pulse ออกจาก button wrapper (แก้ปัญหาข้อความกระพริบไม่หยุด) พร้อมจัดการสถานะ saving, saved, dirty, error
-  - [x] Task 4: ส่งต่อ preflightLoading จาก EditorShell สู่ EditorHeader
-  - [x] Task 5: เพิ่มชุดทดสอบใน editorHeaderDeclutter.test.js ผ่าน 1,204/1,204 tests (100%)
-  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
-
-- [x] Round ANTIGRAVITY-FIX-MOBILE-SHELL-TERMINAL-IMPORT-20261108 · แก้ไข ReferenceError: Terminal is not defined ใน MobileShell.jsx เมื่อเข้าแท็บ ?tab=more: นำเข้า Terminal จาก lucide-react พร้อมเพิ่มชุดทดสอบ mobileShellContract.test.js ผ่าน Vitest 1,200/1,200 (100%) และ Vite build สำเร็จ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
-
-- [x] Round ANTIGRAVITY-UNSLOP-PHASE00-BASELINE-20261108 · ดำเนินการ Phase 00 (Baseline Capture & Visual Direction Confirmation) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
-  - [x] Task 1: สแกนและเก็บภาพหน้าจอจริง (Live Baseline Snapshots) หน้าจอหลัก (Home/ProductToClip, Editor, ContentTracker, MediaAssets, Analytics, Settings) ทั้งโหมด Desktop (1440x900) และ Mobile (390x844) จากระบบที่รันอยู่ บันทึก 11 ภาพลง _Docs/Reports/baseline_phase00/
-  - [x] Task 2: จัดทำ State Matrix และวิเคราะห์ปัญหา Visual Slop ตามหน้าจอจริง (พบ Root Cause: Default Theme ล็อกที่ Ultra-Realistic Glassmorphism + Orbs, Glow borders, และตรวจพบ Mobile Navbar Collision)
-  - [x] Task 3: ร่างข้อเสนอ Visual Direction 5 บรรทัด (สลับค่าเริ่มต้นสู่ Obsidian Pro Dark, Functional Colors, Flat & Clean Chrome, แก้ไข Mobile Navbar) จัดทำรายงานสมบูรณ์ที่ _Docs/Reports/UNSLOP_PHASE00_BASELINE_REPORT_20261108.md
-  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE09-MOBILE-REGRESSION-20261108 · ดำเนินการ Phase 09 (Mobile Shell, Full Regression & Final Handover): ปรับ MobileShell, Safe-Area insets, Touch Targets >= 44px, ผ่าน Vitest 1,222/1,222 tests (100%), Parity 212/212 (100%), Build ผ่าน, บันทึก Live UI Snapshots สมบูรณ์ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE08-SECONDARY-20261108 · ดำเนินการ Phase 08 (Settings, Guide, Login & Secondary Surfaces): ปรับ SystemSettings, ChannelSettings, Guide, Login, AgentDock สู่ Obsidian Pro Dark NLE Studio (#0A0D14, border-white/[0.08]) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE07-ASSETS-ANALYTICS-20261108 · ดำเนินการ Phase 07 (Assets & Analytics) สู่ Obsidian Dark NLE พร้อม PageHeader และชาร์ตคมชัด · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE06-TRACKER-GALLERY-20261108 · ดำเนินการ Phase 06 (Tracker, Gallery & Export) ลบ ambient glow auras รอบการ์ด 9:16 · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE05-PRODUCT-SCRIPT-20261108 · ดำเนินการ Phase 05 (Product & Script Angles) จัดระเบียบ Product Carousel, ProductCode สุขุม · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE04-EDITOR-PILOT-20261108 · ดำเนินการ Phase 04 (Editor Pilot: ปรับห้องตัดต่อเป็นหน้าต้นแบบ) สู่ Obsidian Pro Dark NLE Studio · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE03-SHELL-NAV-20261108 · ดำเนินการ Phase 03 (Shell, Navigation & Header) ปรับ Sidebar 72px rail และแก้ Navbar Collision บนจอแคบ (<640px) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE02-TOKENS-THEME-20261108 · ดำเนินการ Phase 02 (Semantic Tokens & Obsidian Default Theme) สลับ DEFAULT_THEME_ID เป็น obsidian · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE01-STATE-SEMANTICS-20261108 · ดำเนินการ Phase 01 (State Semantics & Risk Audit) สร้าง renderReadiness.js และลบ animate-pulse ใน SaveStatusChip · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE00-BASELINE-20261108 · ดำเนินการ Phase 00 (Baseline Capture & Visual Direction) บันทึกภาพ Baseline 11 ภาพ · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+- [x] Round ANTIGRAVITY-TRIM-TTS-TAIL-GARBAGE-NOISE-20261108 · จัดการตัดเสียงขยะ/เสียงแตกท้ายคลิปเสียงพากย์ TTS ทั้งระบบ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-FIX-MOBILE-SHELL-TERMINAL-IMPORT-20261108 · แก้ไข ReferenceError ใน MobileShell.jsx · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-PRODUCT-CARD-DOUBLE-CLICK-DETAILS-20261108 · เพิ่มความสามารถดับเบิลคลิก (Double Click) และปุ่ม Info ลอยบนการ์ดสินค้า เพื่อเปิดดูรายละเอียดและเมทาดาต้า AI (ProductMetadataModal) ทันที พร้อมผูกทั้งบน Carousel และ Catalog Grid ผ่านการทดสอบ Vitest 1,199/1,199 (100%) และ Vite build สำเร็จ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 - [x] Round ANTIGRAVITY-DESKTOP-PRODUCT-CAROUSEL-HORIZONTAL-SCROLL-20261108 · พัฒนาระบบเลื่อนซ้าย-ขวาสำหรับ Carousel เลือกสินค้าบน Desktop (เพิ่มปุ่มลูกศร ChevronLeft/ChevronRight, แปลง Mouse Wheel ให้เลื่อนแนวนอน, สกอลล์บาร์สลิม, Auto-Scroll กึ่งกลางจอ) พร้อมกู้คืนภาพ Thumbnail ของ GOO01 และ JEE01 ให้แสดงผลสมบูรณ์ 100% ผ่าน Vitest 1,198/1,198 และ Vite build สำเร็จ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)

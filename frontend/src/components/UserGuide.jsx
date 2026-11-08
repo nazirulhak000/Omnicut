@@ -137,42 +137,42 @@ export default function UserGuide({ onNavigate }) {
         eyebrow="User Guide"
         title="คู่มือใช้งาน OmniCut Pro Studio"
         badges={<span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-300 border-emerald-500/30">อ่านจบทำคลิปแรกได้ทันที</span>}
-        actions={(<button onClick={() => go('flow')} className="min-h-[42px] flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-xs font-bold cursor-pointer active:scale-95">เริ่มสร้างคลิปแรก<ArrowRight className="w-3.5 h-3.5" /></button>)}
+        actions={(<button onClick={() => go('flow')} className="min-h-[42px] flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#25F4EE] hover:bg-[#25F4EE]/90 text-slate-950 text-xs font-bold cursor-pointer active:scale-95 transition-all shadow-sm">เริ่มสร้างคลิปแรก<ArrowRight className="w-3.5 h-3.5" /></button>)}
       />
       {/* ── สารบัญลอย: ติดบน + scrollspy ── */}
-      <nav className="sticky top-[52px] sm:top-[56px] z-10 glass-panel rounded-2xl px-2.5 py-2 shadow-lg">
+      <nav className="sticky top-[52px] sm:top-[56px] z-10 glass-panel bg-[#0A0D14]/90 backdrop-blur-md border border-white/[0.08] rounded-2xl px-2.5 py-2 shadow-sm">
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
           {TOC.map((t) => {
             const active = activeSection === t.href;
-            return (<button key={t.href} onClick={() => scrollTo(t.href)} className={`flex-shrink-0 px-3.5 py-2 min-h-[38px] flex items-center rounded-full border text-xs font-bold cursor-pointer whitespace-nowrap transition-colors active:scale-95 ${active ? 'bg-[#25F4EE]/15 border-[#25F4EE]/50 text-[#25F4EE]' : 'bg-white/[0.04] hover:bg-[#25F4EE]/15 border-white/[0.08] hover:border-[#25F4EE]/40 text-slate-300 hover:text-[#25F4EE]'}`}>{t.label}</button>);
+            return (<button key={t.href} onClick={() => scrollTo(t.href)} className={`flex-shrink-0 px-3.5 py-2 min-h-[38px] flex items-center rounded-full border text-xs font-bold cursor-pointer whitespace-nowrap transition-colors active:scale-95 ${active ? 'bg-[#25F4EE]/15 border-[#25F4EE]/50 text-[#25F4EE]' : 'bg-black/30 hover:bg-white/[0.05] border-white/[0.08] text-slate-400 hover:text-slate-200'}`}>{t.label}</button>);
           })}
         </div>
       </nav>
-      <section id="ug-flow" className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg scroll-mt-20">
+      <section id="ug-flow" className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm scroll-mt-20">
         <div className="flex items-center gap-2.5 mb-1">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#25F4EE]/20 to-[#FE2C55]/20 border border-white/[0.1] flex items-center justify-center"><Sparkles className="w-4 h-4 text-[#25F4EE]" /></div>
-          <div><h2 className="text-sm sm:text-base font-black text-white">โฟลว์การทำงานหลัก 7 ขั้น</h2><p className="text-[11px] sm:text-xs text-slate-400">จากสินค้าหนึ่งชิ้น กลายเป็นคลิปพร้อมโพสต์ กดที่การ์ดเพื่อกระโดดไปเมนูนั้นได้เลย</p></div>
+          <div className="w-8 h-8 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/20 flex items-center justify-center"><Sparkles className="w-4 h-4 text-[#25F4EE]" /></div>
+          <div><h2 className="text-sm sm:text-base font-bold text-white">โฟลว์การทำงานหลัก 7 ขั้น</h2><p className="text-[11px] sm:text-xs text-slate-400">จากสินค้าหนึ่งชิ้น กลายเป็นคลิปพร้อมโพสต์ กดที่การ์ดเพื่อกระโดดไปเมนูนั้นได้เลย</p></div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 2xl:grid-cols-7 gap-2 mt-3 items-start">
           {FLOW_STEPS.map((s) => { const Icon = s.icon; return (
-            <div key={s.no} className={`relative rounded-2xl border border-white/[0.08] bg-gradient-to-b ${s.grad} p-3 flex flex-col gap-1 min-h-[108px]`}>
-              <div className="flex items-center justify-between"><span className="w-6 h-6 rounded-full bg-black/50 border border-white/[0.15] text-[#25F4EE] text-xs font-black flex items-center justify-center font-mono">{s.no}</span><Icon className="w-5 h-5 text-white/70" /></div>
-              <div className="text-[13px] font-black text-white">{s.title}</div>
+            <div key={s.no} className="relative rounded-2xl border border-white/[0.08] bg-[#0D111A] hover:bg-[#111724] p-3 flex flex-col gap-1 min-h-[108px] transition-colors">
+              <div className="flex items-center justify-between"><span className="w-6 h-6 rounded-full bg-black/60 border border-white/[0.1] text-[#25F4EE] text-xs font-black flex items-center justify-center font-mono">{s.no}</span><Icon className="w-4 h-4 text-slate-400" /></div>
+              <div className="text-[13px] font-bold text-white">{s.title}</div>
               <div className="text-[11px] text-slate-300 leading-snug flex-1">{s.desc}</div>
               <button onClick={() => go(s.tab)} title={`เปิด${s.menu}ใช้งานจริง`} className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-[#25F4EE] hover:text-white cursor-pointer self-start transition-colors">{s.menu}<ArrowRight className="w-3 h-3" /></button>
             </div> ); })}
         </div>
-        <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-amber-500/[0.07] border border-amber-500/25"><AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" /><p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">จำง่าย เริ่มวันดูเมนู 0 สินค้าเข้าเมนู 1 งานค้างดูเมนู 2 ตัดต่อเรนเดอร์ที่เมนู 3 คลิปเสร็จรวมที่เมนู 4 ของส่วนกลางอยู่เมนู 5 ตัวเลขรวมอยู่เมนู 6 มีปัญหามาเมนู 7 ตั้งค่า</p></div>
-        <div className="mt-2 flex items-start gap-2 p-3 rounded-xl bg-cyan-500/[0.07] border border-cyan-500/25"><Cpu className="w-4 h-4 text-cyan-300 flex-shrink-0 mt-0.5" /><p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">งาน Gadget Media ไม่ได้ใช้โฟลว์นี้ ให้เข้าเมนู <span className="font-bold text-cyan-200">Gadget Media</span> แล้วทำตาม 6 ขั้น Brief → Sources → Evidence → Story → Cut → Review โดย 1 สินค้าได้ 1 มาสเตอร์ที่อนุมัติแล้ว</p></div>
+        <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-amber-500/[0.06] border border-amber-500/20"><AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" /><p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">จำง่าย เริ่มวันดูเมนู 0 สินค้าเข้าเมนู 1 งานค้างดูเมนู 2 ตัดต่อเรนเดอร์ที่เมนู 3 คลิปเสร็จรวมที่เมนู 4 ของส่วนกลางอยู่เมนู 5 ตัวเลขรวมอยู่เมนู 6 มีปัญหามาเมนู 7 ตั้งค่า</p></div>
+        <div className="mt-2 flex items-start gap-2 p-3 rounded-xl bg-cyan-500/[0.06] border border-cyan-500/20"><Cpu className="w-4 h-4 text-cyan-300 flex-shrink-0 mt-0.5" /><p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">งาน Gadget Media ไม่ได้ใช้โฟลว์นี้ ให้เข้าเมนู <span className="font-bold text-cyan-200">Gadget Media</span> แล้วทำตาม 6 ขั้น Brief → Sources → Evidence → Story → Cut → Review โดย 1 สินค้าได้ 1 มาสเตอร์ที่อนุมัติแล้ว</p></div>
       </section>
       <section id="ug-menus" className="scroll-mt-20">
-        <h2 className="text-sm sm:text-base font-black text-white px-1">วิธีใช้ละเอียดทุกเมนู กดชื่อเมนูเพื่อกระโดดไปใช้งานจริง</h2>
+        <h2 className="text-sm sm:text-base font-bold text-white px-1">วิธีใช้ละเอียดทุกเมนู กดชื่อเมนูเพื่อกระโดดไปใช้งานจริง</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-2.5 mt-2.5 items-start">
         {MENU_DETAIL.map((m) => { const meta = MENU_GUIDE.find((g) => g.id === m.id) || { icon: BookOpen, color: 'text-slate-300', chip: 'bg-slate-500/10 text-slate-300 border-slate-500/30', no: '' }; const Icon = meta.icon || BookOpen; const expanded = !!expandedMenus[m.id]; const visible = expanded ? m.points : m.points.slice(0, 3); return (
-          <article key={m.id} className="glass-panel rounded-2xl p-4 shadow-lg min-w-0">
+          <article key={m.id} className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 shadow-sm min-w-0 hover:border-white/[0.15] transition-all">
             <button onClick={() => go(m.id)} className="w-full flex items-center gap-2.5 text-left cursor-pointer group">
-              <div className="w-9 h-9 rounded-xl bg-white/[0.05] border border-white/[0.1] flex items-center justify-center flex-shrink-0"><Icon className={`w-5 h-5 ${meta.color}`} /></div>
-              <div className="flex-1 min-w-0"><div className="flex items-center gap-2 flex-wrap"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta.chip}`}>{meta.badge || `เมนู ${meta.no}`}</span><span className="text-sm font-black text-white group-hover:text-[#25F4EE]">{m.title}</span></div><p className="text-[11px] text-slate-400 mt-0.5">{m.sub}</p></div>
+              <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center flex-shrink-0"><Icon className={`w-5 h-5 ${meta.color}`} /></div>
+              <div className="flex-1 min-w-0"><div className="flex items-center gap-2 flex-wrap"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta.chip}`}>{meta.badge || `เมนู ${meta.no}`}</span><span className="text-sm font-bold text-white group-hover:text-[#25F4EE]">{m.title}</span></div><p className="text-[11px] text-slate-400 mt-0.5">{m.sub}</p></div>
               <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-[#25F4EE]">เปิดเมนู<ArrowRight className="w-3.5 h-3.5" /></span>
             </button>
             <ul className="mt-3 space-y-1.5">
@@ -181,58 +181,58 @@ export default function UserGuide({ onNavigate }) {
             {m.points.length > 3 && (
               <button onClick={() => setExpandedMenus((prev) => ({ ...prev, [m.id]: !prev[m.id] }))} className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-[#25F4EE] hover:text-white cursor-pointer transition-colors">{expanded ? 'ย่อลง' : `ดูเพิ่มอีก ${m.points.length - 3} ข้อ`}<ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} /></button>
             )}
-            <div className="mt-2.5 p-2.5 rounded-xl bg-[#25F4EE]/[0.06] border border-[#25F4EE]/20 text-[11px] text-slate-300 leading-relaxed">เคล็ดลับ {m.tip}</div>
+            <div className="mt-2.5 p-2.5 rounded-xl bg-[#25F4EE]/[0.05] border border-[#25F4EE]/20 text-[11px] text-slate-300 leading-relaxed">เคล็ดลับ {m.tip}</div>
           </article> ); })}
         </div>
       </section>
-      <section id="ug-quickstart" className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg scroll-mt-20">
-        <div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-500/20 to-[#25F4EE]/20 border border-white/[0.1] flex items-center justify-center"><Clock className="w-4 h-4 text-rose-400" /></div><h2 className="text-sm sm:text-base font-black text-white">คลิปแรกใน 10 นาที ทำตาม 5 ข้อนี้</h2></div>
+      <section id="ug-quickstart" className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm scroll-mt-20">
+        <div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center"><Clock className="w-4 h-4 text-cyan-300" /></div><h2 className="text-sm sm:text-base font-bold text-white">คลิปแรกใน 10 นาที ทำตาม 5 ข้อนี้</h2></div>
         <ol className="grid grid-cols-1 lg:grid-cols-2 gap-2 mt-3 items-start">
           {[['นาที 0-2 ใส่สินค้า', 'เปิดเมนู 1 วางลิงก์สินค้า กดดึงข้อมูล ตรวจชื่อ จุดขาย สเปกให้ครบ'], ['นาที 2-4 สร้างสคริปต์', 'เลือกมุมขาย 1 มุม กดสร้างสคริปต์ อ่าน Hook 3 วิแรกว่าหยุดนิ้วคนดูได้ไหม และกดจัดอันดับ Hook ด้วย TypeSafe AI เพื่อดูคะแนนตรึงคนดู'], ['นาที 4-6 ฟังเสียง', 'กดฟังเสียงพากย์ตัวอย่าง ถ้าโอเคกดส่งตัดต่อ ระบบสร้างโปรเจกต์ในเมนู 3 ให้'], ['นาที 6-8 ตรวจพรีวิว', 'ในเมนู 3 กดเล่นพรีวิว ดูซับ ป้าย Hook และ Safe Zone ว่าไม่โดนปุ่ม TikTok บัง'], ['นาที 8-10 เรนเดอร์', 'กดเรนเดอร์ รอไฟล์ 1080x1920 เสร็จที่เมนู 4 แล้วแชร์ QR เข้ามือถือโพสต์ได้เลย']].map(([t, d], i) => (
-            <li key={i} className="flex items-start gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-white/[0.06]"><span className="w-6 h-6 rounded-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-[11px] font-black flex items-center justify-center flex-shrink-0 font-mono">{i + 1}</span><div className="min-w-0"><div className="text-xs font-bold text-white">{t}</div><div className="text-[11px] text-slate-400 leading-relaxed mt-0.5">{d}</div></div></li>))}
+            <li key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-black/40 border border-white/[0.06]"><span className="w-6 h-6 rounded-full bg-[#25F4EE]/20 border border-[#25F4EE]/40 text-[#25F4EE] text-[11px] font-bold flex items-center justify-center flex-shrink-0 font-mono">{i + 1}</span><div className="min-w-0"><div className="text-xs font-bold text-white">{t}</div><div className="text-[11px] text-slate-400 leading-relaxed mt-0.5">{d}</div></div></li>))}
         </ol>
       </section>
-      <section id="ug-status" className="glass-panel rounded-2xl p-4 sm:p-5 shadow-lg scroll-mt-20">
-        <h2 className="text-sm sm:text-base font-black text-white">สถานะคลิป 4 เฟส ดูที่เมนู 2</h2>
+      <section id="ug-status" className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm scroll-mt-20">
+        <h2 className="text-sm sm:text-base font-bold text-white">สถานะคลิป 4 เฟส ดูที่เมนู 2</h2>
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mt-3 items-start">
           {[['scripted', 'ร่างสคริปต์', 'มีไอเดีย มีบท แต่ยังไม่เข้าไทม์ไลน์', 'bg-slate-500/10 text-slate-300 border-slate-500/30'], ['in_production', 'กำลังตัดต่อ', 'มีโปรเจกต์ในไทม์ไลน์ กำลังทำ', 'bg-amber-500/10 text-amber-300 border-amber-500/30'], ['rendered', 'ตัดต่อเสร็จ', 'มีไฟล์ MP4 ใน 04_Exports พร้อมโพสต์', 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'], ['posted', 'โพสต์แล้ว', 'ขึ้น TikTok พร้อมตะกร้าสินค้า', 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30']].map(([code, name, desc, chip]) => (
-            <div key={code} className="p-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] min-w-0"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border font-mono ${chip}`}>{code}</span><div className="text-xs font-bold text-white mt-1.5">{name}</div><div className="text-[11px] text-slate-400 leading-snug mt-0.5">{desc}</div></div>))}
+            <div key={code} className="p-3 rounded-xl bg-black/40 border border-white/[0.06] min-w-0"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border font-mono ${chip}`}>{code}</span><div className="text-xs font-bold text-white mt-1.5">{name}</div><div className="text-[11px] text-slate-400 leading-snug mt-0.5">{desc}</div></div>))}
         </div>
       </section>
-      <section id="ug-folders" className="glass-panel rounded-2xl p-4 shadow-lg scroll-mt-20">
-        <div className="flex items-center gap-2.5"><FolderOpen className="w-4 h-4 text-amber-400" /><h2 className="text-sm sm:text-base font-black text-white">โฟลเดอร์ 00-06 ไฟล์อยู่ไหน</h2></div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1.5 mt-2.5 items-start">
+      <section id="ug-folders" className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 shadow-sm scroll-mt-20">
+        <div className="flex items-center gap-2.5"><FolderOpen className="w-4 h-4 text-amber-400" /><h2 className="text-sm sm:text-base font-bold text-white">โฟลเดอร์ 00-06 ไฟล์อยู่ไหน</h2></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 mt-2.5 items-start">
           {[['00_Inbox', 'พักไฟล์ดิบจากมือถือ ยังไม่จัดหมวด'], ['01_Raw', 'ฟุตเทจต้นฉบับแยกตามวันและสินค้า ห้ามลบ'], ['02_Assets', 'เพลง ฟอนต์ SFX สติกเกอร์ส่วนกลาง ห้ามลบ'], ['03_Projects', 'ไฟล์โปรเจกต์และสคริปต์ของแต่ละคลิป'], ['04_Exports', 'คลิปเรนเดอร์เสร็จ Ready_to_post และ Posted'], ['05_Covers', 'ปกคลิป 9:16'], ['06_Archive', 'เก็บสำรองหลังโพสต์ครบ 30 วัน'], ['GadgetMedia/', 'โฟลเดอร์ย่อยของงานแกดเจ็ตใน 01_Raw / 03_Projects / 04_Exports และ _Docs/gadget_media'], ['CapCut Drafts', 'เปิดต่อใน CapCut PC เปิดจากเมนู 7']].map(([n, d]) => (
-          <div key={n} className="flex items-start gap-2 p-2 rounded-xl bg-white/[0.03] border border-white/[0.06] min-w-0"><span className="text-[11px] font-bold font-mono text-[#25F4EE] whitespace-nowrap">{n}</span><span className="text-[11px] text-slate-300 leading-snug">{d}</span></div>))}
+          <div key={n} className="flex items-start gap-2 p-2.5 rounded-xl bg-black/40 border border-white/[0.06] min-w-0"><span className="text-[11px] font-bold font-mono text-[#25F4EE] whitespace-nowrap">{n}</span><span className="text-[11px] text-slate-300 leading-snug">{d}</span></div>))}
         </div>
       </section>
-      <section id="ug-checklist" className="glass-panel rounded-2xl p-4 shadow-lg scroll-mt-20">
+      <section id="ug-checklist" className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 shadow-sm scroll-mt-20">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h2 className="text-sm sm:text-base font-black text-white">เช็กลิสต์ก่อนโพสต์ 6 ข้อ</h2>
+          <h2 className="text-sm sm:text-base font-bold text-white">เช็กลิสต์ก่อนโพสต์ 6 ข้อ</h2>
           <div className="flex items-center gap-2">
-            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${checked.length === CHECKLIST.length ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40' : 'bg-white/[0.04] text-slate-300 border-white/[0.1]'}`}>เช็คแล้ว {checked.length}/{CHECKLIST.length}</span>
+            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${checked.length === CHECKLIST.length ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40' : 'bg-black/40 text-slate-300 border-white/[0.1]'}`}>เช็คแล้ว {checked.length}/{CHECKLIST.length}</span>
             {checked.length > 0 && (<button onClick={resetChecklist} className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer">ล้าง</button>)}
           </div>
         </div>
         <div className="mt-2.5 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-300 ${checked.length === CHECKLIST.length ? 'bg-gradient-to-r from-emerald-400 to-emerald-300' : 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE]'}`} style={{ width: `${(checked.length / CHECKLIST.length) * 100}%` }} />
+          <div className={`h-full rounded-full transition-all duration-300 ${checked.length === CHECKLIST.length ? 'bg-emerald-400' : 'bg-[#25F4EE]'}`} style={{ width: `${(checked.length / CHECKLIST.length) * 100}%` }} />
         </div>
         {checked.length === CHECKLIST.length && (<p className="mt-2 text-[11px] font-bold text-emerald-300">ครบ 6 ข้อ พร้อมโพสต์ได้เลย</p>)}
-        <ul className="grid grid-cols-1 lg:grid-cols-2 gap-1.5 mt-2.5 items-start">
+        <ul className="grid grid-cols-1 lg:grid-cols-2 gap-2 mt-3 items-start">
           {CHECKLIST.map((c, i) => { const done = checked.includes(i); return (
-          <li key={i}><button onClick={() => toggleCheck(i)} className={`w-full flex items-start gap-2 p-2 rounded-xl border text-left cursor-pointer transition-colors ${done ? 'bg-emerald-500/[0.08] border-emerald-500/30' : 'bg-white/[0.03] border-white/[0.06] hover:border-white/[0.15]'}`}>{done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" /> : <Circle className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 mt-0.5" />}<span className={`text-[11px] sm:text-xs leading-relaxed ${done ? 'text-slate-200 line-through decoration-emerald-500/60' : 'text-slate-300'}`}>{c}</span></button></li> ); })}
+          <li key={i}><button onClick={() => toggleCheck(i)} className={`w-full flex items-start gap-2 p-2.5 rounded-xl border text-left cursor-pointer transition-colors ${done ? 'bg-emerald-500/[0.08] border-emerald-500/30' : 'bg-black/40 border-white/[0.06] hover:border-white/[0.15]'}`}>{done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" /> : <Circle className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 mt-0.5" />}<span className={`text-[11px] sm:text-xs leading-relaxed ${done ? 'text-slate-200 line-through decoration-emerald-500/60' : 'text-slate-300'}`}>{c}</span></button></li> ); })}
         </ul>
       </section>
-      <section id="ug-trouble" className="glass-panel rounded-2xl p-4 shadow-lg scroll-mt-20">
-        <h2 className="text-sm sm:text-base font-black text-white">แก้ปัญหาเบื้องต้น 4 อาการ</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1.5 mt-2.5 items-start">
+      <section id="ug-trouble" className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 shadow-sm scroll-mt-20">
+        <h2 className="text-sm sm:text-base font-bold text-white">แก้ปัญหาเบื้องต้น 4 อาการ</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 mt-3 items-start">
           {TROUBLES.map((item) => (
-          <div key={item.t} className="p-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] min-w-0 flex flex-col gap-1"><div className="text-xs font-bold text-white">{item.t}</div><div className="text-[11px] text-slate-400 leading-snug flex-1">{item.d}</div><button onClick={() => go(item.tab)} className="inline-flex items-center gap-1 text-[10px] font-bold text-[#25F4EE] hover:text-white cursor-pointer self-start transition-colors">{item.label}<ArrowRight className="w-3 h-3" /></button></div>))}
+          <div key={item.t} className="p-3 rounded-xl bg-black/40 border border-white/[0.06] min-w-0 flex flex-col gap-1"><div className="text-xs font-bold text-white">{item.t}</div><div className="text-[11px] text-slate-400 leading-snug flex-1">{item.d}</div><button onClick={() => go(item.tab)} className="inline-flex items-center gap-1 text-[10px] font-bold text-[#25F4EE] hover:text-white cursor-pointer self-start transition-colors">{item.label}<ArrowRight className="w-3 h-3" /></button></div>))}
         </div>
       </section>
-      <section id="ug-faq" className="glass-panel rounded-2xl p-4 shadow-lg scroll-mt-20">
+      <section id="ug-faq" className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 shadow-sm scroll-mt-20">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2.5"><CircleHelp className="w-4 h-4 text-[#25F4EE]" /><h2 className="text-sm sm:text-base font-black text-white">คำถามพบบ่อย</h2></div>
+          <div className="flex items-center gap-2.5"><CircleHelp className="w-4 h-4 text-[#25F4EE]" /><h2 className="text-sm sm:text-base font-bold text-white">คำถามพบบ่อย</h2></div>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setOpenFaq(filteredFaqs.map((f) => f.idx))} className="text-[11px] font-bold text-[#25F4EE] hover:text-white cursor-pointer">เปิดทั้งหมด</button>
             <span className="text-slate-600 text-[11px]">/</span>
@@ -241,19 +241,19 @@ export default function UserGuide({ onNavigate }) {
         </div>
         <div className="relative mt-2.5">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-          <input value={faqQuery} onChange={(e) => setFaqQuery(e.target.value)} placeholder="ค้นหาคำถาม เช่น เสียง ซับ เรนเดอร์" className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] focus:border-[#25F4EE]/50 focus:outline-none text-base sm:text-xs text-slate-200 placeholder:text-slate-500" />
+          <input value={faqQuery} onChange={(e) => setFaqQuery(e.target.value)} placeholder="ค้นหาคำถาม เช่น เสียง ซับ เรนเดอร์" className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-white/[0.1] focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/30 focus:outline-none text-base sm:text-xs text-white placeholder:text-slate-500" />
         </div>
         {faqQuery.trim() && (<p className="mt-2 text-[11px] text-slate-400">พบ {filteredFaqs.length} จาก {FAQS.length} คำถาม</p>)}
         {filteredFaqs.length === 0 ? (
-          <div className="mt-2.5 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
+          <div className="mt-2.5 p-4 rounded-2xl bg-black/40 border border-white/[0.06] text-center">
             <p className="text-xs font-bold text-white">ไม่พบคำถามที่ตรงกับ “{faqQuery.trim()}”</p>
             <p className="mt-1 text-[11px] text-slate-400">ลองค้นด้วยคำอื่น เช่น เสียง ซับ เรนเดอร์ ไฟล์ โพสต์</p>
             <button onClick={() => setFaqQuery('')} className="mt-2 text-[11px] font-bold text-[#25F4EE] hover:text-white cursor-pointer">ล้างคำค้นหา</button>
           </div>
         ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-1.5 mt-2.5 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 mt-3 items-start">
           {filteredFaqs.map((f) => { const open = openFaq.includes(f.idx); return (
-            <div key={f.idx} className="rounded-2xl glass-tile overflow-hidden min-w-0">
+            <div key={f.idx} className="rounded-xl bg-black/40 border border-white/[0.08] hover:border-white/[0.16] overflow-hidden min-w-0 transition-colors">
               <button
                 onClick={() => {
                   try { navigator.vibrate?.(10); } catch {}
@@ -264,13 +264,13 @@ export default function UserGuide({ onNavigate }) {
                 <span className="text-xs font-bold text-white leading-snug">{f.q}</span>
                 <ChevronDown className={`w-4 h-4 text-[#25F4EE] flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
               </button>
-              {open && (<p className="px-3 pb-3 text-[11px] sm:text-xs text-slate-300 leading-relaxed">{f.a}</p>)}
+              {open && (<p className="px-3 pb-3 text-[11px] sm:text-xs text-slate-300 leading-relaxed border-t border-white/[0.04] pt-2">{f.a}</p>)}
             </div> ); })}
         </div>
         )}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button onClick={() => go('flow')} className="min-h-[44px] flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-xs font-bold cursor-pointer active:scale-95">เริ่มสร้างคลิปแรก<ArrowRight className="w-3.5 h-3.5" /></button>
-          <button onClick={() => go('settings')} className="min-h-[44px] px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.1] text-xs font-bold text-slate-200 cursor-pointer active:scale-95">เปิดตั้งค่าระบบ</button>
+        <div className="mt-4 flex flex-wrap gap-2.5">
+          <button onClick={() => go('flow')} className="min-h-[44px] flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#25F4EE] hover:bg-[#25F4EE]/90 text-slate-950 text-xs font-bold cursor-pointer active:scale-95 transition-all shadow-sm">เริ่มสร้างคลิปแรก<ArrowRight className="w-3.5 h-3.5" /></button>
+          <button onClick={() => go('settings')} className="min-h-[44px] px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-xs font-semibold text-slate-200 cursor-pointer active:scale-95 transition-all">เปิดตั้งค่าระบบ</button>
         </div>
       </section>
     </div>

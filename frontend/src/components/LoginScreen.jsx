@@ -38,7 +38,7 @@ function FullScreen({ children, overlay = false }) {
       role={overlay ? 'dialog' : undefined}
       aria-modal={overlay ? 'true' : undefined}
       aria-labelledby={overlay ? 'login-title' : undefined}
-      className={`${overlay ? 'fixed inset-0 z-[10000]' : 'min-h-dvh'} w-full overflow-y-auto bg-[#07090E] text-slate-100 font-prompt flex items-center justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]`}
+      className={`${overlay ? 'fixed inset-0 z-[10000]' : 'min-h-dvh'} w-full overflow-y-auto bg-[#0A0D14] text-slate-100 font-prompt flex items-center justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]`}
     >
       <div className="w-full max-w-sm">{children}</div>
     </div>
@@ -47,7 +47,7 @@ function FullScreen({ children, overlay = false }) {
 
 function BrandMark() {
   return (
-    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center shadow-lg shadow-[#FE2C55]/20 text-white mx-auto">
+    <div className="w-14 h-14 rounded-2xl bg-[#0A0D14] border border-white/[0.1] flex items-center justify-center shadow-md shadow-black/50 text-[#25F4EE] mx-auto">
       <Sparkles className="w-7 h-7" aria-hidden="true" />
     </div>
   );
@@ -106,13 +106,13 @@ export default function LoginScreen({ onSuccess, notice = '', overlay = false, p
           <p
             id={noticeId}
             role="status"
-            className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 leading-relaxed"
+            className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 leading-relaxed"
           >
             {notice || 'ยังไม่ได้ตั้งรหัสผ่านแอปบนเซิร์ฟเวอร์ กรุณาตั้งค่าก่อนเข้าใช้งาน'}
           </p>
         )}
 
-        <form onSubmit={submit} noValidate className="rounded-3xl border border-white/[0.1] bg-[#0D111A] p-5 space-y-4 shadow-2xl">
+        <form onSubmit={submit} noValidate className="rounded-3xl border border-white/[0.08] bg-[#0A0D14] p-6 space-y-4 shadow-2xl">
           {/* Lets iOS Keychain / password managers save the credential pair. */}
           <input type="text" name="username" autoComplete="username" value="omnicut" readOnly tabIndex={-1} aria-hidden="true" className="sr-only" />
 
@@ -137,7 +137,7 @@ export default function LoginScreen({ onSuccess, notice = '', overlay = false, p
                 aria-invalid={error ? 'true' : 'false'}
                 aria-describedby={describedBy}
                 disabled={submitting}
-                className={`w-full min-h-12 rounded-2xl bg-black/50 border pl-4 pr-14 text-base text-white placeholder:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 disabled:opacity-60 ${error ? 'border-rose-500/70' : 'border-white/[0.12]'}`}
+                className={`w-full min-h-12 rounded-2xl bg-black/40 border pl-4 pr-14 text-base text-white placeholder:text-slate-500 focus:outline-none focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/30 disabled:opacity-60 transition-all ${error ? 'border-rose-500/70 ring-1 ring-rose-500/20' : 'border-white/[0.1]'}`}
                 placeholder="รหัสผ่านแอป"
               />
               <button
@@ -146,7 +146,7 @@ export default function LoginScreen({ onSuccess, notice = '', overlay = false, p
                 aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
                 aria-pressed={showPassword}
                 aria-controls="omnicut-password"
-                className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 cursor-pointer"
+                className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.06] focus:outline-none focus:border-[#25F4EE] cursor-pointer"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" aria-hidden="true" /> : <Eye className="w-5 h-5" aria-hidden="true" />}
               </button>
@@ -161,7 +161,7 @@ export default function LoginScreen({ onSuccess, notice = '', overlay = false, p
           <button
             type="submit"
             disabled={submitting}
-            className="w-full min-h-12 rounded-2xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-base font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/20 hover:opacity-95 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer transition"
+            className="w-full min-h-12 rounded-2xl bg-[#25F4EE] hover:bg-[#25F4EE]/90 text-slate-950 text-base font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer transition-all"
           >
             {submitting && <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />}
             <span>{submitting ? 'กำลังเข้าสู่ระบบ' : 'เข้าสู่ระบบ'}</span>
@@ -200,7 +200,7 @@ function UnreachableScreen({ onRetry, retrying }) {
           type="button"
           onClick={onRetry}
           disabled={retrying}
-          className="w-full min-h-12 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.12] text-white text-base font-bold flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+          className="w-full min-h-12 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-white text-base font-semibold flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer active:scale-95 transition-all"
         >
           {retrying ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" /> : <RefreshCw className="w-5 h-5" aria-hidden="true" />}
           <span>{retrying ? 'กำลังเชื่อมต่อ' : 'ลองเชื่อมต่ออีกครั้ง'}</span>

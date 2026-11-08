@@ -82,7 +82,7 @@ function buildCaptionText(item) {
 }
 
 /**
- * MobileClipLibrary — Mobile-first 3-column WebP clip gallery & vertical viewer (Phase 5.1).
+ * MobileClipLibrary — Mobile-first 3-column WebP clip gallery & vertical viewer (Obsidian Pro Dark).
  *
  * Strictly omits any price display (`price_deal` etc. never rendered per Rule 2.1).
  * Zero horizontal overflow at 360px (`overflow-x-hidden`, 3-column grid).
@@ -362,12 +362,12 @@ export function MobileClipLibrary({
   };
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-100 flex flex-col">
+    <div className="w-full max-w-full overflow-x-hidden bg-[#0A0D14] text-slate-100 flex flex-col">
       {/* Top Action & Filter Bar */}
-      <div className="px-3 pt-3 pb-2 space-y-2.5 border-b border-slate-800/80 bg-slate-950/95 sticky top-0 z-20">
+      <div className="px-3 pt-3 pb-2.5 space-y-2.5 border-b border-white/[0.08] bg-[#0A0D14]/95 backdrop-blur-md sticky top-0 z-20">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <Film className="w-5 h-5 text-cyan-400 shrink-0" />
+            <Film className="w-5 h-5 text-[#25F4EE] shrink-0" />
             <h1 className="text-base font-bold text-white truncate">
               คลังคลิปพร้อมโพสต์
             </h1>
@@ -377,14 +377,14 @@ export function MobileClipLibrary({
             <button
               type="button"
               onClick={handleToggleMultiSelectMode}
-              className={`min-h-11 px-3 inline-flex items-center gap-1.5 rounded-xl text-xs font-medium border transition ${
+              className={`min-h-[44px] px-3 inline-flex items-center gap-1.5 rounded-xl text-xs font-semibold border transition active:scale-95 ${
                 multiSelectMode
-                  ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
-                  : 'bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800'
+                  ? 'bg-[#25F4EE]/15 border-[#25F4EE]/40 text-[#25F4EE]'
+                  : 'bg-white/[0.03] border-white/[0.08] text-slate-300 hover:bg-white/[0.06]'
               }`}
             >
               {multiSelectMode ? (
-                <CheckSquare className="w-4 h-4 text-cyan-400" />
+                <CheckSquare className="w-4 h-4 text-[#25F4EE]" />
               ) : (
                 <Square className="w-4 h-4 text-slate-400" />
               )}
@@ -396,9 +396,9 @@ export function MobileClipLibrary({
               onClick={fetchClips}
               disabled={loading}
               aria-label="รีเฟรชคลังคลิป"
-              className="min-w-11 min-h-11 inline-flex items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+              className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-xl bg-white/[0.03] border border-white/[0.08] text-slate-200 hover:bg-white/[0.06] active:scale-95 disabled:opacity-50 transition"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#25F4EE]' : ''}`} />
             </button>
           </div>
         </div>
@@ -415,16 +415,16 @@ export function MobileClipLibrary({
                 role="tab"
                 aria-selected={active}
                 onClick={() => setActiveFilter(filter.id)}
-                className={`min-h-11 px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-1 border transition ${
+                className={`min-h-[44px] px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-1 border transition active:scale-[0.99] ${
                   active
-                    ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 shadow-sm'
-                    : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:bg-slate-800/80'
+                    ? 'bg-[#25F4EE]/15 border-[#25F4EE]/40 text-[#25F4EE]'
+                    : 'bg-white/[0.03] border-white/[0.08] text-slate-300 hover:bg-white/[0.06]'
                 }`}
               >
                 <span className="truncate">{filter.label}</span>
                 <span
                   className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 ${
-                    active ? 'bg-cyan-400 text-slate-950' : 'bg-slate-800 text-slate-400'
+                    active ? 'bg-[#25F4EE] text-[#0A0D14]' : 'bg-white/[0.08] text-slate-400'
                   }`}
                 >
                   {count}
@@ -437,8 +437,8 @@ export function MobileClipLibrary({
 
       {/* Error State */}
       {error && (
-        <div className="mx-3 mt-3 p-3 rounded-2xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+        <div className="mx-3 mt-3 p-3 rounded-2xl bg-rose-950/60 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
           <span className="flex-1">{error}</span>
         </div>
       )}
@@ -450,14 +450,14 @@ export function MobileClipLibrary({
             {[0, 1, 2, 3, 4, 5].map((n) => (
               <div
                 key={n}
-                className="aspect-[9/16] rounded-xl bg-slate-900 animate-pulse border border-slate-800"
+                className="aspect-[9/16] rounded-xl bg-white/[0.04] animate-pulse border border-white/[0.06]"
               />
             ))}
           </div>
         ) : filteredClips.length === 0 ? (
           <div className="py-12 px-4 text-center space-y-2">
             <Film className="w-8 h-8 text-slate-600 mx-auto" />
-            <p className="text-sm font-medium text-slate-300">ไม่มีคลิปในหมวดนี้</p>
+            <p className="text-sm font-semibold text-slate-300">ไม่มีคลิปในหมวดนี้</p>
             <p className="text-xs text-slate-500">
               ลองสลับตัวกรองด้านบน หรือกดรีเฟรชเพื่อโหลดข้อมูลล่าสุด
             </p>
@@ -482,10 +482,10 @@ export function MobileClipLibrary({
                   onPointerLeave={clearLongPressTimer}
                   onPointerCancel={clearLongPressTimer}
                   onClick={() => handleCardClick(item, idx)}
-                  className={`group relative aspect-[9/16] w-full rounded-xl overflow-hidden bg-slate-900 border text-left focus:outline-none transition ${
+                  className={`group relative aspect-[9/16] w-full rounded-xl overflow-hidden bg-[#0A0D14] border text-left focus:outline-none transition active:scale-[0.99] ${
                     isSelected
-                      ? 'border-cyan-400 ring-2 ring-cyan-400/70'
-                      : 'border-slate-800 hover:border-slate-600'
+                      ? 'border-[#25F4EE] ring-2 ring-[#25F4EE]/50'
+                      : 'border-white/[0.08] hover:border-white/[0.2]'
                   }`}
                 >
                   {thumbUrl ? (
@@ -496,7 +496,7 @@ export function MobileClipLibrary({
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-600">
+                    <div className="w-full h-full flex items-center justify-center bg-white/[0.02] text-slate-600">
                       <Play className="w-6 h-6" />
                     </div>
                   )}
@@ -504,11 +504,11 @@ export function MobileClipLibrary({
                   {/* Top status indicator */}
                   <div className="absolute top-1.5 inset-x-1.5 flex items-center justify-between gap-1 pointer-events-none">
                     {coverBound ? (
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-500/85 text-[10px] font-semibold text-slate-950 truncate">
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-500/90 text-[10px] font-bold text-slate-950 truncate">
                         ปกพร้อม
                       </span>
                     ) : (
-                      <span className="px-1.5 py-0.5 rounded bg-amber-500/85 text-[10px] font-semibold text-slate-950 truncate">
+                      <span className="px-1.5 py-0.5 rounded bg-amber-500/90 text-[10px] font-bold text-slate-950 truncate">
                         รอเลือกปก
                       </span>
                     )}
@@ -516,7 +516,7 @@ export function MobileClipLibrary({
                     {multiSelectMode && (
                       <span
                         className={`w-5 h-5 rounded-md flex items-center justify-center ${
-                          isSelected ? 'bg-cyan-400 text-slate-950' : 'bg-black/60 text-white border border-white/40'
+                          isSelected ? 'bg-[#25F4EE] text-[#0A0D14]' : 'bg-black/60 text-white border border-white/40'
                         }`}
                       >
                         {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
@@ -525,7 +525,7 @@ export function MobileClipLibrary({
                   </div>
 
                   {/* Bottom title overlay (strictly no price badge per Rule 2.1) */}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent p-1.5 pointer-events-none">
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0A0D14]/95 via-[#0A0D14]/60 to-transparent p-1.5 pointer-events-none">
                     <p className="text-[11px] font-medium text-white line-clamp-2 leading-tight">
                       {titleText}
                     </p>
@@ -540,18 +540,18 @@ export function MobileClipLibrary({
       {/* Full-Screen Vertical Viewer */}
       {activeClip && (
         <div
-          className="fixed inset-0 z-40 bg-black flex flex-col justify-between overflow-hidden"
+          className="fixed inset-0 z-40 bg-[#0A0D14] flex flex-col justify-between overflow-hidden"
           role="dialog"
           aria-modal="true"
           aria-label="ดูคลิปเต็มจอ"
         >
           {/* Viewer Top Bar */}
-          <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-gradient-to-b from-black/90 to-transparent z-10">
+          <div className="flex items-center justify-between gap-2 px-3 pt-[max(env(safe-area-inset-top,0px),8px)] pb-2.5 bg-gradient-to-b from-[#0A0D14]/95 to-transparent z-10">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-white truncate">
                 {activeClip.hook_title || activeClip.product_name || activeClip.name}
               </p>
-              <p className="text-xs text-slate-300 truncate">
+              <p className="text-xs text-slate-400 truncate">
                 {activeClip.product_name || activeClip.project_name || ''}
               </p>
             </div>
@@ -562,7 +562,7 @@ export function MobileClipLibrary({
                   type="button"
                   onClick={() => stepViewer(-1)}
                   aria-label="คลิปก่อนหน้า"
-                  className="min-w-11 min-h-11 inline-flex items-center justify-center rounded-full bg-slate-900/80 text-white border border-slate-700"
+                  className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-full bg-white/[0.06] text-white border border-white/[0.1] hover:bg-white/[0.1] active:scale-95 transition"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
@@ -572,7 +572,7 @@ export function MobileClipLibrary({
                   type="button"
                   onClick={() => stepViewer(1)}
                   aria-label="คลิปถัดไป"
-                  className="min-w-11 min-h-11 inline-flex items-center justify-center rounded-full bg-slate-900/80 text-white border border-slate-700"
+                  className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-full bg-white/[0.06] text-white border border-white/[0.1] hover:bg-white/[0.1] active:scale-95 transition"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -581,7 +581,7 @@ export function MobileClipLibrary({
                 type="button"
                 onClick={closeViewer}
                 aria-label="ปิดหน้าต่างดูคลิป"
-                className="min-w-11 min-h-11 inline-flex items-center justify-center rounded-full bg-slate-900/90 text-white border border-slate-700"
+                className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-full bg-white/[0.08] text-white border border-white/[0.1] hover:bg-white/[0.12] active:scale-95 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -601,25 +601,25 @@ export function MobileClipLibrary({
               preload="none"
               playsInline
               controls
-              className="max-h-full max-w-full aspect-[9/16] rounded-2xl bg-slate-950"
+              className="max-h-full max-w-full aspect-[9/16] rounded-2xl bg-[#0A0D14]"
             />
           </div>
 
           {/* Viewer Bottom Action Controls (all buttons >= 44px) */}
           <div
-            className="px-3 pt-2.5 pb-3 bg-slate-950/95 border-t border-slate-800 space-y-2"
-            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 8px) + 12px)' }}
+            className="px-3 pt-2.5 pb-[max(env(safe-area-inset-bottom,0px),16px)] bg-[#0A0D14]/95 border-t border-white/[0.08] space-y-2 backdrop-blur-md"
+            style={{ paddingBottom: 'calc(max(env(safe-area-inset-bottom, 0px), 8px) + 12px)' }}
           >
             {/* Feedback / Progress Bar */}
             {prefetching && prefetchProgress && (
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs text-cyan-300">
+                <div className="flex items-center justify-between text-xs text-[#25F4EE]">
                   <span>กำลังโหลดไฟล์แบบแบ่งส่วน...</span>
-                  <span>{prefetchProgress.percent}%</span>
+                  <span className="font-mono">{prefetchProgress.percent}%</span>
                 </div>
-                <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div className="w-full h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
                   <div
-                    className="h-full bg-cyan-400 transition-all duration-150"
+                    className="h-full bg-[#25F4EE] transition-all duration-150"
                     style={{ width: `${prefetchProgress.percent}%` }}
                   />
                 </div>
@@ -627,7 +627,7 @@ export function MobileClipLibrary({
             )}
 
             {(shareFeedback || copyFeedback) && (
-              <div className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-emerald-300 flex items-center gap-2">
+              <div className="px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-emerald-300 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span className="truncate">{shareFeedback || copyFeedback}</span>
               </div>
@@ -639,7 +639,7 @@ export function MobileClipLibrary({
                 <button
                   type="button"
                   onClick={handleSharePreparedFile}
-                  className="flex-1 min-h-11 px-4 rounded-2xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-sm inline-flex items-center justify-center gap-2 shadow-lg transition active:scale-[0.99]"
+                  className="flex-1 min-h-[44px] px-4 rounded-xl bg-[#25F4EE] hover:bg-[#25F4EE]/90 text-[#0A0D14] font-bold text-sm inline-flex items-center justify-center gap-2 shadow-md transition active:scale-[0.99]"
                 >
                   <Share2 className="w-4 h-4" />
                   <span>บันทึกหรือแชร์วิดีโอ</span>
@@ -649,7 +649,7 @@ export function MobileClipLibrary({
                   type="button"
                   disabled={prefetching}
                   onClick={handlePrepareFile}
-                  className="flex-1 min-h-11 px-4 rounded-2xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/60 text-cyan-200 font-semibold text-sm inline-flex items-center justify-center gap-2 transition disabled:opacity-60"
+                  className="flex-1 min-h-[44px] px-4 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/35 text-[#25F4EE] font-semibold text-sm inline-flex items-center justify-center gap-2 transition disabled:opacity-60 active:scale-[0.99]"
                 >
                   {prefetching ? (
                     <>
@@ -674,7 +674,7 @@ export function MobileClipLibrary({
                   setShareFeedback('เริ่มดาวน์โหลดวิดีโอลงเครื่องแล้ว');
                 }}
                 aria-label="ดาวน์โหลดไฟล์โดยตรง"
-                className="min-w-11 min-h-11 px-3 rounded-2xl bg-slate-900 border border-slate-700 text-slate-200 inline-flex items-center justify-center"
+                className="min-w-[44px] min-h-[44px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-slate-200 hover:bg-white/[0.08] inline-flex items-center justify-center active:scale-95 transition"
               >
                 <Download className="w-4 h-4" />
               </button>
@@ -685,7 +685,7 @@ export function MobileClipLibrary({
               <button
                 type="button"
                 onClick={() => setCoverSheetOpen(true)}
-                className="min-h-11 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 transition"
+                className="min-h-[44px] px-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 transition active:scale-[0.99]"
               >
                 <ImageIcon className="w-4 h-4 text-amber-400" />
                 <span>เลือกปกคลิป</span>
@@ -694,9 +694,9 @@ export function MobileClipLibrary({
               <button
                 type="button"
                 onClick={handleCopyCaption}
-                className="min-h-11 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 transition"
+                className="min-h-[44px] px-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 transition active:scale-[0.99]"
               >
-                <Copy className="w-4 h-4 text-cyan-400" />
+                <Copy className="w-4 h-4 text-[#25F4EE]" />
                 <span>คัดลอกแคปชัน</span>
               </button>
             </div>

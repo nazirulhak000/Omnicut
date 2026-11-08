@@ -178,7 +178,7 @@ export function MobileShell({
           type="button"
           onClick={() => handleMoreAction('library')}
           data-testid="more-action-library"
-          className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/[0.08]"
+          className="flex min-h-[48px] min-w-[44px] w-full items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-left text-sm font-semibold text-white transition hover:bg-white/[0.07] active:scale-[0.99]"
         >
           <Film className="h-5 w-5 shrink-0 text-[#25F4EE]" aria-hidden="true" />
           <span>เปิดคลังคลิป</span>
@@ -188,7 +188,7 @@ export function MobileShell({
           type="button"
           onClick={() => handleMoreAction('command')}
           data-testid="more-action-command"
-          className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/[0.08]"
+          className="flex min-h-[48px] min-w-[44px] w-full items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-left text-sm font-semibold text-white transition hover:bg-white/[0.07] active:scale-[0.99]"
         >
           <Sparkles className="h-5 w-5 shrink-0 text-amber-400" aria-hidden="true" />
           <span>สั่งงาน AI</span>
@@ -198,7 +198,7 @@ export function MobileShell({
           type="button"
           onClick={() => handleMoreAction('/agy')}
           data-testid="more-action-agy"
-          className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/[0.08]"
+          className="flex min-h-[48px] min-w-[44px] w-full items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-left text-sm font-semibold text-white transition hover:bg-white/[0.07] active:scale-[0.99]"
         >
           <Terminal className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden="true" />
           <span>เปิด AGY Terminal</span>
@@ -208,7 +208,7 @@ export function MobileShell({
           type="button"
           onClick={() => handleMoreAction('settings')}
           data-testid="more-action-settings"
-          className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/[0.08]"
+          className="flex min-h-[48px] min-w-[44px] w-full items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-left text-sm font-semibold text-white transition hover:bg-white/[0.07] active:scale-[0.99]"
         >
           <Settings className="h-5 w-5 shrink-0 text-slate-300" aria-hidden="true" />
           <span>ตั้งค่าระบบ</span>
@@ -224,7 +224,7 @@ export function MobileShell({
             }
           }}
           data-testid="more-action-desktop"
-          className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-left text-sm font-bold text-rose-200 transition hover:bg-rose-500/20"
+          className="flex min-h-[48px] min-w-[44px] w-full items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-left text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20 active:scale-[0.99]"
         >
           <Monitor className="h-5 w-5 shrink-0 text-rose-300" aria-hidden="true" />
           <span>สลับไปโหมดเดสก์ท็อป</span>
@@ -250,7 +250,7 @@ export function MobileShell({
         return typeof renderCreate === 'function' ? (
           renderCreate({ onNavigateTab: handleSelectTab })
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm text-slate-300" data-testid="mobile-tab-create-default">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 text-sm text-slate-300" data-testid="mobile-tab-create-default">
             สร้าง 20 คลิปจากลิงก์สินค้า
           </div>
         );
@@ -258,7 +258,7 @@ export function MobileShell({
         return typeof renderReview === 'function' ? (
           renderReview({ onNavigateTab: handleSelectTab })
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm text-slate-300" data-testid="mobile-tab-review-default">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 text-sm text-slate-300" data-testid="mobile-tab-review-default">
             คิวตรวจคลิปก่อนโพสต์
           </div>
         );
@@ -266,7 +266,7 @@ export function MobileShell({
         return typeof renderPost === 'function' ? (
           renderPost({ onNavigateTab: handleSelectTab })
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm text-slate-300" data-testid="mobile-tab-post-default">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 text-sm text-slate-300" data-testid="mobile-tab-post-default">
             คิวโพสต์คลิปถัดไป
           </div>
         );
@@ -279,7 +279,7 @@ export function MobileShell({
 
   return (
     <div
-      className="flex min-h-dvh w-full flex-col bg-[#07090E] text-slate-100"
+      className="flex min-h-dvh w-full flex-col bg-[#0A0D14] text-slate-100 pt-[env(safe-area-inset-top,0px)]"
       data-testid="mobile-shell"
       data-active-tab={currentTab}
     >
@@ -297,7 +297,7 @@ export function MobileShell({
       {/* Main Content Area */}
       <main
         className="flex-1 overflow-y-auto px-4 pt-4"
-        style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
+        style={{ paddingBottom: 'calc(76px + max(env(safe-area-inset-bottom, 0px), 12px))' }}
       >
         {renderActiveContent()}
       </main>
@@ -306,10 +306,10 @@ export function MobileShell({
       <nav
         aria-label="เมนูหลักมือถือ"
         data-testid="mobile-bottom-nav"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#07090E]/95 backdrop-blur-md"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-[#0A0D14]/95 backdrop-blur-md pb-[max(env(safe-area-inset-bottom,0px),12px)]"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}
       >
-        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1 px-2 py-1">
+        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1 px-2 pt-1.5">
           {MOBILE_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = currentTab === tab.id;
@@ -323,10 +323,10 @@ export function MobileShell({
                 aria-selected={isActive}
                 data-testid={`mobile-tab-${tab.id}`}
                 onClick={() => handleSelectTab(tab.id)}
-                className={`relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-xs font-bold transition ${
+                className={`relative flex min-h-[48px] min-w-[44px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-1 text-xs font-semibold transition ${
                   isActive
-                    ? 'bg-white/[0.08] text-[#25F4EE]'
-                    : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+                    ? 'border border-[#25F4EE]/20 bg-[#25F4EE]/10 text-[#25F4EE]'
+                    : 'border border-transparent text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
                 }`}
               >
                 <div className="relative flex items-center justify-center">
