@@ -4,6 +4,23 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-DESKTOP-PRODUCT-CAROUSEL-HORIZONTAL-SCROLL-20261108 · พัฒนาระบบเลื่อนซ้าย-ขวาสำหรับ Carousel เลือกสินค้าบน Desktop (เพิ่มปุ่มลูกศร ChevronLeft/ChevronRight, แปลง Mouse Wheel ให้เลื่อนแนวนอน, สกอลล์บาร์สลิม, Auto-Scroll กึ่งกลางจอ) พร้อมกู้คืนภาพ Thumbnail ของ GOO01 และ JEE01 ให้แสดงผลสมบูรณ์ 100% ผ่าน Vitest 1,198/1,198 และ Vite build สำเร็จ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-RULE-SHORT-LIVED-FEATURE-BRANCH-20261108 · บันทึกกฎเหล็ก Short-Lived Feature Branch & Clean Auto-Delete Standard ลงใน AGENTS.md (ข้อ 25) และ .agents/rules/work_loop.md (ข้อ 2.2.1 & 2.7) บังคับแตกกิ่งก่อนทำ รวมกลับเข้า main และลบกิ่งทิ้งทันที เพื่อคง repo สะอาดเหลือ main เดียว 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round CODEX-UNSLOP-PHASES-MODELS-20261108 · แตกแผนเป็น 10 เฟส 00–09 พร้อม scope/gate/prompt และคำแนะนำ Terra/Gemini: [_Docs/Plans/PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md](_Docs/Plans/PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md) · ดำเนินการโดย: Codex (GPT-6.1-sol)
+
+- [x] Round CODEX-UNSLOP-PLAN-10-ROUNDS-20261108 · จัดทำแผนปรับ UI ทั้งระบบจากการตรวจ 10 รอบ เอกสาร: [_Docs/Plans/PLAN_OMNICUT_UNSLOP_10_ROUNDS_20261108.md](_Docs/Plans/PLAN_OMNICUT_UNSLOP_10_ROUNDS_20261108.md) · ดำเนินการโดย: Codex (GPT-6.1-sol)
+
+- [x] Round ANTIGRAVITY-CLEAN-PRODUCT-TITLES-AND-INGESTION-LOGIC-20261108 · ปรับปรุงระบบตั้งชื่อสินค้าให้กระชับสอดคล้องกับสินค้าจริง และแก้ Logic การสกัดชื่อตั้งแต่ตอนต้นที่ดูดเข้ามา (`clean_product_title` ใน `scripts/product_scraper.py`, `api_intake.py`, `product_store.py`, คลีน 43 สินค้าเดิม 100%, tests 13/13 backend, 1,197/1,197 frontend) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-CLEAR-IN-PROGRESS-PROJECTS-TO-ARCHIVE-20261108 · เคลียร์โปรเจกต์ที่อยู่ระหว่างการตัดต่อ ("กำลังตัดต่อ") ทั้งหมดใน 03_Projects/ ออกไปยัง 06_Archive/Projects/ ตามคำขอของผู้ใช้เพื่อเริ่มนับ 1 ใหม่:
+  - [x] Task 1: ย้ายโปรเจกต์สถานะกำลังตัดต่อ (9 โปรเจกต์ที่ยังไม่ได้เรนเดอร์/โพสต์) + 5 โฟลเดอร์ scratch ชั่วคราว ไปยัง `06_Archive/Projects/` อย่างปลอดภัย (คงโปรเจกต์ "ตัดเสร็จแล้ว" 19 โปรเจกต์ และไฟล์ MP4 ใน `04_Exports/` ไว้ 100%)
+  - [x] Task 2: ตรวจสอบและยืนยันผ่าน API `GET /api/projects` และ `ProductStore` ว่าแท็บ "กำลังตัดต่อ" เป็น 0 โปรเจกต์เรียบร้อยสมบูรณ์
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-EDITOR-NAVBAR-DECLUTTER-20261108 · ออกแบบและจัดระเบียบ Navbar ห้องตัดต่อใหม่ (16 ตัวเหลือ 8 ตัวหลัก, 3 โซน, รวม ปก+ข้อเตือนใจ+ตรวจแผน เข้าสู่ RenderReadinessChip, และตัดแถบแบนเนอร์ตรวจแผนใต้ Navbar ออก) ผ่าน Node Test 1,198/1,198 และ Vite Build 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [x] Round ANTIGRAVITY-FIX-HOOK-LINE-CANVAS-OVERFLOW-DOUBLE-SCALE-20261107 · แก้ไขสาเหตุ Hook ต้นคลิป (0-1.8s) ล้นขอบบนจอใน Editor Preview: พบ `SequencePlayer.jsx` (`getOverlayGeometry`) มีการคูณ `masterScale` เบิ้ลซ้ำซ้อนกับ `tier.look.size_pct` ที่ inherit มาจาก `overlay.look` (เช่น `size_pct: 194%` ถูกคูณเบิ้ลเป็น `1.94 * 1.94 = 376%`) ส่งผลให้ข้อความขยายใหญ่ผิดธรรมชาติจนเกินความกว้าง `maxW` แล้วถูก `wrapCanvasText` ตัดทอนเป็น 3 บรรทัด และด้วย `anchor: middle` ทำให้บรรทัดแรกถูกดันขึ้นไปอยู่พิกัด Y ติดลบทะลุขอบบนจอ (ล้นจอ):
   - [x] แก้ไข `SequencePlayer.jsx` ให้จำกัด `masterScale` เฉพาะ `overlay.kind === 'hook'` (Hook Header 3-Tier) เท่านั้น ส่วน `kind === 'text'` หรือ Overlay อื่นๆ ให้ใช้ `masterScale = 1`
   - [x] ล็อก `overlay.layout_mode === 'line'` หรือ `overlay.role === 'hook_line'` ให้อยู่บรรทัดเดียวเสมอ และคำนวณ Auto-Fit font size หากความกว้างเกิน `maxW` เพื่อป้องกันการตัดบรรทัดล้นจอ 100%

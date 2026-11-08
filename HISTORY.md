@@ -7,6 +7,12 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-DESKTOP-PRODUCT-CAROUSEL-HORIZONTAL-SCROLL-20261108 | พัฒนาระบบเลื่อนซ้าย-ขวาสำหรับ Carousel เลือกสินค้าบน Desktop (เพิ่มปุ่มลูกศร ChevronLeft/ChevronRight, แปลง Mouse Wheel ให้เลื่อนแนวนอน, สกอลล์บาร์สลิม, และ Auto-Scroll กึ่งกลางจอ) พร้อมกู้คืนภาพ Thumbnail ของ GOO01 และ JEE01 ให้แสดงผลสมบูรณ์ 100% ผ่าน Vitest 1,198/1,198 และ Vite build สำเร็จ | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round ANTIGRAVITY-RULE-SHORT-LIVED-FEATURE-BRANCH-20261108 | บันทึกกฎเหล็ก Short-Lived Feature Branch & Clean Auto-Delete Standard ลงใน AGENTS.md (ข้อ 25) และ .agents/rules/work_loop.md (ข้อ 2.2.1 & 2.7) บังคับ AI ทุกตัวแตกกิ่งก่อนทำ รวมกลับเข้า main และลบทิ้งทันที เพื่อรักษา local repo ให้สะอาดเหลือ main กิ่งเดียว 100% | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round CODEX-UNSLOP-PHASES-MODELS-20261108 | แตกแผน UI เป็น 10 เฟส 00–09 พร้อมขอบเขต dependency เกณฑ์ผ่าน และ prompt; ตรวจเอกสารทางการประกอบคำแนะนำ GPT-6.1 Terra/Gemini 3.8 Flash; เอกสารอย่างเดียว | 2026-11-08 | ดำเนินการโดย: Codex (GPT-6.1-sol) |
+| Round CODEX-UNSLOP-PLAN-10-ROUNDS-20261108 | วางแผนปรับ UI ทั้งระบบจากการตรวจ 10 รอบ เน้น Editor/สินค้า มี semantic tokens, state matrix, file map, phased rollout และเกณฑ์ตรวจรับ; เอกสารอย่างเดียว ยังไม่ได้แก้ UI | 2026-11-08 | ดำเนินการโดย: Codex (GPT-6.1-sol) |
+| Round ANTIGRAVITY-CLEAN-PRODUCT-TITLES-AND-INGESTION-LOGIC-20261108 | ปรับปรุงระบบตั้งชื่อสินค้าให้กระชับสอดคล้องกับสินค้าจริง (Concise Canonical Product Naming) และแก้ Logic การสกัดชื่อตั้งแต่ตอนต้นที่ดูดเข้ามา (Ingestion / Scraper Title Sanitization): พัฒนา `clean_product_title` ใน `scripts/product_scraper.py` ตัดทิ้งวงเล็บสเปกการตลาด `(ตัดเสียงรบกวน / เบสแน่น / ...)`, ป้ายวงเล็บ `【...】`/`[...]`, ขยะ SEO keyword dumping, คอมม่าต่อยาว, เชื่อมโยงเข้าสู่ Intake & Scraper ทุกจุด (`api_intake.py`, `api_products.py`, `product_store.py`), ทำความสะอาดชื่อสินค้าเดิมในแคตตาล็อกทั้ง 43 รายการให้สอดคล้องกับสินค้าจริง 100% (COD01 กลายเป็น 'หูฟังเปิดหู MONSTER AC530'), เพิ่มชุดทดสอบ Unit test `tests/test_product_title_cleaning.py` ผ่าน 13/13 backend tests, 1,197/1,197 frontend tests และ Vite build 100% | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round ANTIGRAVITY-EDITOR-NAVBAR-DECLUTTER-20261108 | ออกแบบและจัดระเบียบ Navbar ห้องตัดต่อใหม่ (ลดความแออัดจาก 16 ตัวเหลือ 8 ตัวหลัก, แบ่ง 3 โซนชัดเจน, รวม ปก+ข้อเตือนใจ+ตรวจแผน เข้าสู่ RenderReadinessChip, และตัดแถบแบนเนอร์ตรวจแผนเต็มจอใต้ Navbar ออก): สร้าง Subcomponents ย่อย SaveStatusChip.jsx, ViewToggleGroup.jsx, RenderReadinessChip.jsx, เพิ่มปุ่ม "สร้างคลิปใหม่" ใน ProjectSelector.jsx, ปรับปรุง HeaderMenu.jsx รองรับกลุ่มและ Toggle สวิตช์ลายน้ำ, ตัดการแสดงแถบยาว RenderPreflightNotice ออกจากหน้าทำงานปกติ (คืนพื้นที่ 100%), ผ่าน Node Test 1,198/1,198 และ Vite Build 100% (669ms) | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-RELOCATE-PREFLIGHT-BANNER-AND-ADD-DISMISS-20261107 | จัดการแถบตรวจแผนก่อนเรนเดอร์ (RenderPreflightNotice) ไม่ให้เกะกะบดบังพื้นที่ตัดต่อ: เพิ่มปุ่มปิดซ่อน (Dismiss X), ไม่แสดงแถบเหลืองยาวใต้ Topbar เมื่อไม่มีข้อผิดพลาดร้ายแรง (errors === 0 && holds === 0) เพื่อคืนพื้นที่ทำงาน, เพิ่มปุ่ม Compact Preflight & Viral Badge บน EditorHeader ข้างปุ่มเรนเดอร์ พร้อม Modal ลอย (RenderPreflightModal) แสดงผลคะแนนไวรัลและรายการข้อสังเกต 25 ข้อ, เพิ่มการ์ดตรวจแผนใน Inspector (แท็บ ภาพรวม) สวยงามไม่ดันเลย์เอาต์, ผ่าน Vitest 1,191/1,191, Pytest 322/322, Vite Build สำเร็จ 478ms | 2026-11-07 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-INAPP-SELF-CONTAINED-20261101 | ปฏิบัติการ Master Directive Wave 3 (100% Self-Contained In-App Studio): ถอนระบบส่งออก/นำเข้าดราฟต์ CapCut ออกจาก Header/API ให้ทุกขั้นตอนจบในแอป 100% + เจาะลึก REA Shader/Transition Extraction (W3.1–W3.7) เชื่อมครบ 4 ชั้น (React UI + Live Canvas Preview + FFmpeg Hardware Render + In-App AI Agent Ctrl+K) ผ่านชุดทดสอบ Pytest 306/306 (100%), Vitest 1,191/1,191 (100%), Parity 212/212, Vite Build 714ms, และ Browser MCP Verified (ดูรายงาน _Docs/Reports/REA_CAPCUT_7_1_WAVE3_INAPP_MASTERY_REPORT_20261101.md) | 2026-11-01 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-REA-CAPCUT-7-1-WAVE3-4LAYER-MASTERY-20261101 | ปฏิบัติการ Master Directive Wave 3: เจาะลึก REA CapCut 7.1 Shader & Transition Extraction (W3.1–W3.7) + เชื่อมครบ 4 ชั้น (React UI + Live Canvas Preview + FFmpeg Render Engine + In-App AI Agent Ctrl+K) + Two-Way CapCut 7.1 Draft Bridge (Import/Export) ผ่านชุดทดสอบ Pytest 305/305 (100%), Vitest 1,191/1,191 (100%), Parity 212/212, Vite Build 890ms, และ Browser MCP Verified (ดูรายงาน _Docs/Reports/REA_CAPCUT_7_1_WAVE3_COMPLETE_MASTERY_REPORT_20261101.md) | 2026-11-01 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -154,6 +160,92 @@
 ---
 ---
 
+## Round ANTIGRAVITY-DESKTOP-PRODUCT-CAROUSEL-HORIZONTAL-SCROLL-20261108
+
+- **วันที่:** 2026-11-08
+- **สถานะ:** เสร็จสมบูรณ์ (Closed)
+- **ดำเนินการโดย:** Antigravity (Gemini 2.5 Pro)
+
+### สรุปการดำเนินงาน
+ผู้ใช้แจ้งปัญหา 2 จุดสำคัญบน UI Desktop:
+1. ภาพการ์ดสินค้า 2 ตัว (JEE01 Jeep EW011 และ GOO01 มินิพาวเวอร์แบงค์ GOOJODOQ 5000mAh) แสดงเป็นกล่องสี่เหลี่ยมสีดำ
+2. บนหน้าจอ Desktop ไม่สามารถเลื่อนซ้าย-ขวาเพื่อดูสินค้าตัวอื่นๆ ใน Carousel ได้อย่างสะดวก
+
+**การแก้ปัญหาและพัฒนา:**
+1. **กู้คืนภาพ Thumbnail ที่แสดงผลผิดพลาด:**
+   - ตรวจสอบลึกระดับฐานข้อมูล SQLite และไฟล์บนดิสก์ ยืนยันข้อมูลสคริปต์ 20 มุมมองของทั้ง 2 ตัวอยู่ครบ 100%
+   - พบ GOO01 ชี้ path เก่าที่ไม่มีอยู่จริง (/03_Projects/...) จึงรีลิงก์กลับไปยังวัตถุดิบจริงที่ 01_Raw/20261015_GOOJODOQ_Mini_PowerBank/goo01_img_01.webp พร้อมตั้งค่า gallery images ครบ 10 ภาพ
+   - พบ JEE01 ค่า thumbnail เป็นค่าว่าง จึงลบรายการ record จำลองที่ซ้ำซ้อน และผูกรูปหลักเข้ากับ 01_Raw/JEE01_Jeep_EW011/gallery_01.jpg พร้อมรูปภาพ 8 รูป
+   - เพิ่ม fallback ใน ProductCard.jsx ให้อ่านจาก product.thumbnail โดยตรงหาก product.images เป็น array ว่าง
+2. **พัฒนาระบบ Carousel Scrolling บน Desktop (frontend/src/components/ProductToClip.jsx):**
+   - **ปุ่มลูกศร Floating:** เพิ่มปุ่ม ChevronLeft และ ChevronRight สไตล์ Glassmorphism บริเวณหัว Carousel โดยตรวจจับสถานะ canScrollLeft และ canScrollRight อัตโนมัติ (ซ่อนเมื่ออยู่สุดขอบ)
+   - **Mouse Wheel to Horizontal Scroll:** ดักจับอีเวนต์ wheel บนเดสก์ท็อป แปลงค่าการหมุนลูกกลิ้งเมาส์แนวตั้ง (deltaY) เป็นการเลื่อนแนวนอนแบบ Smooth ทันที
+   - **Slim Scrollbar:** เปิดแสดงแถบสกอลล์บาร์แบบบางเฉียบ (scrollbar-thin) ให้ผู้ใช้สามารถคลิกแดรกเลื่อนตำแหน่งได้ตามต้องการ
+   - **Auto-Centering:** เมื่อมีการเลือกสินค้า (selectedHistoryId), ระบบจะคำนวณตำแหน่งและเลื่อนให้การ์ดสินค้านั้นอยู่กึ่งกลางสายตาอัตโนมัติ
+3. **การทดสอบ:** ผ่านชุดทดสอบ Vitest 1,198/1,198 ข้อ (100%) และ Vite production build สำเร็จสมบูรณ์ (736ms)
+
+---
+---
+
+## Round ANTIGRAVITY-RULE-SHORT-LIVED-FEATURE-BRANCH-20261108
+
+- **วันที่:** 2026-11-08
+- **สถานะ:** เสร็จสมบูรณ์ (Closed)
+- **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+
+### สรุปการดำเนินงาน
+ผู้ใช้มีคำสั่งให้ตั้งกฎมาตรฐานการแตกกิ่งและการลบกิ่งสำหรับ Solo Developer เพื่อไม่ให้กิ่งสะสมค้างในเครื่อง:
+1. **AGENTS.md:** เพิ่มกฎข้อที่ 25 ในหัวข้อ "4. กฎเหล็ก: สิ่งที่ต้องทำเสมอ (STRICT DOs)" กำหนดให้แตกกิ่ง `feat/<task-name>` หรือ `fix/<task-name>` ก่อนเริ่มงาน เมื่อเทสผ่านให้ merge เข้า `main` และต้องลบกิ่งฟีเจอร์ทิ้งทันที
+2. **.agents/rules/work_loop.md:** 
+   - เพิ่มขั้นตอนข้อ 2.2.1: `git checkout -b feat/<task_name>` ก่อนแตะโค้ด
+   - เพิ่มขั้นตอนข้อ 2.7: รวมกลับเข้า `main` (`git checkout main && git merge feat/<task_name>`) และลบกิ่งทิ้งทันที (`git branch -d feat/<task_name>`)
+3. **ผลลัพธ์:** ป้องกันปัญหากิ่งค้างสะสมเกะกะ และการันตีว่า Local Git Repository จะมีเฉพาะกิ่ง `main` ที่สะอาดและเสถียรอยู่เสมอ 100%
+
+---
+---
+
+## Round ANTIGRAVITY-EDITOR-NAVBAR-DECLUTTER-20261108
+
+- **วันที่:** 2026-11-08
+- **สถานะ:** เสร็จสมบูรณ์ (Closed)
+- **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+- **แผนงาน:** [_Docs/Plans/PLAN_EDITOR_NAVBAR_DECLUTTER_20261108.md](_Docs/Plans/PLAN_EDITOR_NAVBAR_DECLUTTER_20261108.md)
+
+### สรุปการดำเนินงาน
+ผู้ใช้ส่งภาพหน้าจอ navbar ห้องตัดต่อ (EditorHeader) ที่แออัดเกินไป มีการวางปุ่ม/ชิปมากถึง 16 ตัวในแถวเดียว จนดันปุ่มเรนเดอร์ตกขอบขวา
+ได้ดำเนินการออกแบบและปรับปรุงโครงสร้างตามแผน `PLAN_EDITOR_NAVBAR_DECLUTTER_20261108.md` ดังนี้:
+
+1. **ลดจำนวนองค์ประกอบที่มองเห็นจาก 16 ตัวเหลือ 8 ตัวหลัก** โดยจัดแบ่งเป็น 3 โซนชัดเจน:
+   - **Zone 1 (ซ้าย: ตัวตนโปรเจกต์ & บันทึก):**
+     - รวม Channel Selector + Project Selector
+     - เพิ่มปุ่ม "สร้างคลิปใหม่" (`<Plus /> สร้างคลิปใหม่`) เข้าไปใน dropdown ของ `ProjectSelector` เพื่อยุบปุ่มคลิปใหม่บนแถบ navbar
+     - รวมสถานะบันทึกกับปุ่มบันทึกเป็นคอมโพเนนต์เดียว: `SaveStatusChip.jsx` แสดงสถานะและคลิกเพื่อสั่งบันทึกได้ทันที (Ctrl+S)
+     - ตัดไอคอนกรรไกรตกแต่งที่ซ้ำซ้อน และตัด timecode บน navbar ออกเนื่องจากในตัวเล่น `SequencePlayer.jsx` มี timecode แสดงผลชัดเจนอยู่แล้ว
+   - **Zone 2 (กลาง: มุมมองพาเนล):**
+     - สร้าง `ViewToggleGroup.jsx` เป็น Segmented controller กะทัดรัด (ปุ่มเปิด-ปิด แถบซ้าย, โหมดโฟกัส, แถบขวา) แสดงด้วยไอคอนคลีนพร้อม `aria-pressed`, `aria-label` และ tooltip
+   - **Zone 3 (ขวา: AI, เครื่องมือ และการเรนเดอร์):**
+     - ปุ่มสั่งงาน AI Agent (`data-testid="toggle-ai-agent-btn"`) ป้ายคีย์ลัด Ctrl+K ย้ายเข้า tooltip
+     - ปุ่มศูนย์ติดตามกิจกรรม (`ActivityIndicatorButton`)
+     - เมนูเพิ่มเติม (`HeaderMenu.jsx`) ปรับปรุงให้รองรับ Section dividers และ Control toggles (ย้ายสวิตช์เปิด/ปิดลายน้ำช่อง และข้อเตือนใจเจ้านาย เข้าสู่เมนูนี้)
+     - ชิปพร้อมเรนเดอร์ (`RenderReadinessChip.jsx`): รวมสถานะภาพปก 9:16 + ผลตรวจแผนและคะแนนไวรัล + ข้อเตือนใจเจ้านาย เข้าสู่ชิปเดียว พร้อม interactive Popover checklist สรุป 3 ด้านครบถ้วน
+     - ปุ่มเรนเดอร์หลัก (`RenderButton.jsx`): คงเป็นปุ่มหลักเด่นชัดที่สุด ไม่โดนเบียดตกขอบอีกต่อไป
+
+2. **ไฟล์ที่สร้างใหม่และปรับปรุง:**
+   - สร้าง `frontend/src/components/editor/SaveStatusChip.jsx`
+   - สร้าง `frontend/src/components/editor/ViewToggleGroup.jsx`
+   - สร้าง `frontend/src/components/editor/RenderReadinessChip.jsx`
+   - ปรับปรุง `frontend/src/components/editor/ProjectSelector.jsx` (เพิ่ม `onNewProject` action)
+   - ปรับปรุง `frontend/src/components/editor/HeaderMenu.jsx` (รองรับ dividers, sections, switches, badges)
+   - รีแฟกเตอร์ `frontend/src/components/editor/EditorHeader.jsx` (ลดขนาดจาก 447 บรรทัดเหลือ 260 บรรทัด จัด 3 โซนลงตัว)
+   - ปรับปรุง `frontend/src/components/editor/RenderPreflightNotice.jsx` (ซ่อนแถบแบนเนอร์ยาวใต้ Navbar ออกจากโหมดตัดต่อปกติ 100% คืนพื้นที่ทำงาน ให้ดูผ่านชิป RenderReadinessChip หรือโหมดออดิต)
+   - สร้างชุดทดสอบ `frontend/src/lib/editorHeaderDeclutter.test.js` (7/7 tests passed)
+
+### ผลการทดสอบ
+- **Node Test:** 1,197/1,197 tests passed (100%)
+- **Vite Production Build:** สำเร็จ 100% (641ms)
+
+---
+
 ## Round ANTIGRAVITY-RELOCATE-PREFLIGHT-BANNER-AND-ADD-DISMISS-20261107
 
 - **วันที่:** 2026-11-07
@@ -179,6 +271,38 @@
 - **Vitest:** 1,191/1,191 passed (100%)
 - **Pytest:** 322/322 passed (100%)
 - **Vite Build:** สำเร็จใน 478ms
+
+---
+
+### Round ANTIGRAVITY-CLEAN-PRODUCT-TITLES-AND-INGESTION-LOGIC-20261108
+- **เป้าหมาย:** ปรับปรุงระบบตั้งชื่อสินค้าให้กระชับสอดคล้องกับสินค้าจริง (Concise Canonical Product Naming) และแก้ Logic การสกัดชื่อตั้งแต่ตอนต้นที่ดูดเข้ามา (Ingestion / Scraper Title Sanitization) ป้องกันปัญหาชื่อสินค้าในแคตตาล็อกยาวเกินไป หรือมีข้อความโฆษณา/สเปกในวงเล็บรกรุงรัง เช่น `(ตัดเสียงรบกวน / เบสแน่น / กันน้ำ IPX7 / แบตอึด 145 ชม.)`
+- **การดำเนินการสำคัญ:**
+  1. **สกัดและพัฒนาฟังก์ชัน `clean_product_title(title: str) -> str` (`scripts/product_scraper.py`):**
+     - ตัดทิ้งป้ายแพลตฟอร์ม/ร้านค้า: `- Shopee`, `- TikTok`, `- Lazada`
+     - ตัดทิ้งป้ายวงเล็บเอเชียและวงเล็บเหลี่ยม: `【...】`, `〔...〕`, `《...》`, `『...』`, `「...」`, `[...]` (เช่น `【พร้อมส่ง】`, `[New]`, `[COD]`)
+     - ตัดทิ้งวงเล็บกลมที่มีสเปกลิสต์หรือคำโฆษณา: `(...)` และ `（...）` ที่มีเครื่องหมาย `/` หรือคำโฆษณา `(ตัดเสียงรบกวน / เบสแน่น / กันน้ำ IPX7 / แบตอึด 145 ชม.)` หรือ `(Bluetooth 5.3 / HiFi Sound / IPX5)` หรือข้อความยาวเกิน 16 ตัวอักษร โดยคงรหัสรุ่นสั้นๆ ไว้ เช่น `(PS8M1)`, `(2300W)`
+     - ตัดทิ้งคำโฆษณาขายของ/คำการตลาด: `ของแท้ 100%`, `แท้ศูนย์`, `พร้อมส่งในไทย`, `จัดส่งจากไทย`, `ส่งไว`, `ส่งฟรี`, `เก็บเงินปลายทาง`, `COD`, `Flash Sale`, `รับประกันศูนย์...`
+     - ตัดทิ้งข้อความ SEO ท้ายประโยคและประโยครองรับอุปกรณ์: `เหมาะสำหรับ...`, `ใช้ได้กับ...`, `เข้ากันได้กับ...`, `รองรับการใช้งานกับ...`, `เป็นสายชาร์จแบบ...`
+     - จัดการสเปกที่คั่นด้วยคอมม่าหรือขีดขั้น: ดึงชื่อสินค้าหลักส่วนแรก และดึงเฉพาะรหัสสเปกสำคัญกระชับสั้นๆ (`9H`, `60W`, `100W`, `240W`, `2 in 1`)
+     - ตัดแต่งความยาวส่วนเกิน: กรณีชื่อสินค้ายาวเกิน 60 ตัวอักษร ตัดคำบรรยายฟุ่มเฟือยด้านท้ายออก
+     - รักษากฎ Rule 9 เคร่งครัด: คงชื่อแบรนด์และชื่อรุ่นภาษาอังกฤษแท้ 100% เช่น `MONSTER AC530`, `TRANYOO CC3`, `ESSAGER`, `Type-C`, `USB-C`
+  2. **เชื่อมโยงระบบตั้งชื่อเข้าสู่จุด Intake & Scraper ครบทุกเส้นทาง:**
+     - `ProductScraper.scrape_url`: ทำความสะอาดชื่อสินค้าผ่าน `clean_product_title` ทันทีหลังดึงข้อมูล SSR, Meta tags, หรือ DOM
+     - `ProductScraper.extract_metadata_from_images`: ส่งผลลัพธ์การสกัดชื่อสินค้าผ่าน `clean_product_title`
+     - `scripts/api_intake.py` (`preview_intake_product` และ `commit_intake_product`): บังคับใช้ `clean_product_title` ทั้งกรณีดูดอัตโนมัติและผู้ใช้พิมพ์เอง
+     - `scripts/api_products.py` (`create_or_plan_product` ทั้งแบบ Sync และ Async): ทำความสะอาดทั้ง `custom_keyword` และชื่อที่ดึงมา
+     - `ProductStore.add` และ `ProductStore.update` (`scripts/product_store.py`): ด่านสุดท้ายระดับฐานข้อมูล (Database Guard) ทำความสะอาดชื่อสินค้าอัตโนมัติก่อนบันทึกเสมอ
+  3. **ทำความสะอาดชื่อสินค้าเดิมในแคตตาล็อกทั้ง 43 รายการ:**
+     - อัปเดตชื่อสินค้าเดิมใน SQLite และ mirror `_Docs/products.json` ทั้ง 43 รายการ ให้กระชับ สละสลวย ตรงกับตัวสินค้าจริง 100%
+     - ตัวอย่าง: `[COD01]` จาก `หูฟังเปิดหู MONSTER AC530 (ตัดเสียงรบกวน / เบสแน่น / กันน้ำ IPX7 / แบตอึด 145 ชม.)` เหลือเพียง `หูฟังเปิดหู MONSTER AC530`
+     - ตัวอย่าง: `[TRA01]` จากคำอธิบาย 150 ตัวอักษร เหลือ `สายชาร์จเกมมิ่ง TRANYOO CC3 65W`
+     - ตัวอย่าง: `[ESS05]` จากฟิล์มกระจก 12 คอมม่า เหลือ `ฟิล์มกระจกนิรภัย ESSAGER 9H`
+  4. **ชุดทดสอบและการยืนยันผล:**
+     - สร้างชุดทดสอบ Unit test `tests/test_product_title_cleaning.py` (7 tests) ครอบคลุมการตัดวงเล็บสเปก, ป้ายการตลาด, คอมม่าต่อยาว, การคงแบรนด์อังกฤษ, และการทำงานร่วมกับ `ProductStore`
+     - ปรับปรุง `tests/test_product_scraper_cleaning.py` (6 tests) ให้ตรงกับมาตรฐานชื่อสินค้าแบบกระชับ (รวม 13/13 backend tests passed 100%)
+     - รันชุดทดสอบ Product & Channel tests (62/62 passed 100%)
+     - รัน Vitest frontend (1,197/1,197 passed 100%) และ Vite build ผ่านสมบูรณ์ (675ms)
+- ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 ---
 
@@ -17877,3 +18001,55 @@ Plan before code:
 - [x] Lead: `80f2270` preview ส่ง cutTimes เข้า SFX plan, `46571a1` requirements, `64ccda3` + `e8101f1` แก้เทสที่นับ route / fixture ซับที่ยาวเกินท่อนเดียว
 - [x] เทส: pytest ทั้งชุด @b607cd7 = 13 fail → 11 เดิมจาก main@5a1b4ca (hyperframes ×7, api_server_lifespan ×2 [`couple_jobs` key], channel_store_primitives, gemini multikey, tools_path_hygiene) + 2 regression จาก M8 (fixture ซับ 31 ตัวอักษรถูกแบ่ง 2 ท่อน) แก้แล้ว; npm 1174/1174; build ผ่าน
 - ค้าง: ดูคลิปจริง (ฟุตเทจจริง) ก่อน merge main สำหรับ M1/M8/M5; ติดตั้ง `faster-whisper` + น้ำหนัก `large-v3-turbo` แล้วลอง word alignment กับเสียงจริง; ทดสอบ batch 4 คลิปจริงบน NVENC; overlay ข้อความทั่วไปมีบั๊ก layout รายคำวัดแคบเกิน ~0.55–0.63× (ไทยถูกขอบคำข้างเคียงทับ — เฉพาะบรรทัด hook แก้แล้ว); `clipDuration` ฝั่ง JS ไม่บีบ speed 0.25–4 และตีความ `duration` ต่างจาก backend เมื่อไม่มี trim_end; EditorShell/OverlayInspector ยังใช้ duration 5.0 ตอนเพิ่ม nameplate มือ; `test_hook_generator`/`test_api_hooks` เรียก Gemini CLI จริงและค้างตอนออฟไลน์; SpecBar ไม่มีใน preview เลย (มีมาก่อน)
+
+## Round CODEX-UNSLOP-PLAN-10-ROUNDS-20261108 — แผนปรับ UI ทั้งระบบ 10 รอบ
+
+วันที่: 2026-11-08 · ดำเนินการโดย: Codex (GPT-6.1-sol) · สถานะ: เสร็จเฉพาะการวางแผน
+
+**เป้าหมาย:** จัดทำแผนละเอียดให้ OmniCut มีภาพจำจากงานผลิตคลิปจริง พร้อมลำดับลงมือและเกณฑ์ตรวจรับ โดยไม่เปลี่ยน application
+
+### Todo
+
+- [x] ตรวจผลิตภัณฑ์ โค้ด UI ปัจจุบัน และกฎโปรเจกต์ โดยใช้ unslop/impeccable/ui-ux-pro-max
+- [x] ขอและได้รับยืนยัน scope ทั้งระบบ เน้น Editor/สินค้า
+- [x] ทำบันทึก audit 10 รอบ พร้อมหลักฐาน ข้อเสนอ และข้อจำกัด
+- [x] บันทึกแผนที่ `_Docs/Plans/PLAN_OMNICUT_UNSLOP_10_ROUNDS_20261108.md`
+- [x] ตรวจหัวข้อหลัก 10 ส่วน รอบ 01–10 ไม่ซ้ำ และ path สำคัญ 5 รายการ
+
+### Gate และผลจริง
+
+- ตรวจ source 285 ไฟล์: gradient 295 จุด, transition-all 716 จุด, bold/black/extrabold 1,907 จุด, text 6–11px 1,323 จุด, backdrop 151 จุด, pulse/ping 55 จุด; เป็น pattern matches ไม่ใช่ defect count
+- ตรวจเอกสารพบครบ 10 รอบ, 10 หัวข้อหลัก, Unicode replacement characters 0; path ตัวอย่าง 5/5 พบจริง
+- `git diff --check -- TODO.md HISTORY.md _Docs/Plans/PLAN_OMNICUT_UNSLOP_10_ROUNDS_20261108.md` ใช้ตรวจ whitespace เอกสาร; ไม่มีการรัน application test/build/render เพราะเป็นงานแผน
+
+### Notes
+
+- ไม่มี application source, dist, raw/assets, manifest หรือข้อมูลสินค้าเปลี่ยนโดย Codex ในรอบนี้
+- Computer Use ยืนยัน URL Chrome ไม่ได้จึงหยุดการดูหน้าจอ; ภาพ HF เก่าวันที่ 2026-10-12 ใช้ได้เฉพาะบริบท shell ไม่ใช่ baseline ปัจจุบัน
+- Jev ก่อนเริ่ม: score 3.35/4, confidence 0.44, escalate; ผู้ใช้ยืนยันให้ทำแผนเอกสารต่อ
+- Jev หลังเอกสารจากคำสรุป: score 0.26/3, confidence 0.75, escalate; ไม่ใช่การอ่านเอกสารเต็มและไม่ใช้รับรองคุณภาพ ส่งมอบเป็นร่างและยังไม่ลงมือปรับ UI ตามคำสั่งเดิม
+- working tree มีงาน Antigravity ใน Editor header, product ingestion, TODO/HISTORY และ dist; บันทึกเอกสารเฉพาะรอบนี้โดยไม่ทับงาน application
+- พบภายหลังว่าการเพิ่มแผนเข้า TODO ครั้งแรกผ่าน Python stdin ไม่สำเร็จเนื่องจาก Unicode pipeline ทำให้ marker ไม่ตรง จึงแก้บันทึกด้วย patch UTF-8 ก่อนปิดรอบ; ไม่มี application code ถูกแก้ระหว่างนั้น
+- งาน Navbar/ชื่อสินค้าของ Antigravity ปิดระหว่างสำรวจ แผนระบุให้ตรวจ source ใหม่ก่อนลงมือ และไม่อ้างผลทดสอบของเอเจนต์นั้นเป็นของ Codex
+- ค้างสำหรับ implementation: baseline live, อนุมัติ direction/brand/theme/UI typography ตาม scope และพิสูจน์ source risks ก่อนแก้ behavior
+
+## Round CODEX-UNSLOP-PHASES-MODELS-20261108 — แตกเฟสและแนะนำโมเดล
+
+วันที่: 2026-11-08 · ดำเนินการโดย: Codex (GPT-6.1-sol) · สถานะ: เสร็จเฉพาะเอกสาร
+
+**เป้าหมาย:** ให้แผน UI ส่งต่อทำทีละเฟสได้ พร้อมคำแนะนำโมเดลที่อิงข้อมูลทางการ
+
+### Todo และ Gate
+
+- [x] เปิดเอกสารทางการของ GPT-6.1 Terra/Sol และ Gemini 3.8 Flash; แยก documented capabilities จากคำแนะนำของผู้จัดทำ
+- [x] จัดทำ `_Docs/Plans/PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md` มีเฟส 00–09 ครบ 10 เฟสไม่ซ้ำ แต่ละเฟสมี scope/files/output/gate/model และ prompt ร่วม
+- [x] เชื่อมเอกสารกับแผนหลักเดิม โดยไม่แก้ application
+- [x] ตรวจ Unicode replacement characters 0 และลิงก์แผนหลักพบจริง; ตรวจ whitespace ด้วย git diff --check เฉพาะเอกสาร
+
+### Notes
+
+- เสนอ Terra High เป็นค่าเริ่มต้นเชิงปฏิบัติ และ Gemini 3.8 Flash High เป็นตัวเลือกที่ใช้แผนเดียวกันได้; ยังไม่มี comparative benchmark บน OmniCut
+- ไม่สลับโมเดล ไม่ปรับ settings ไม่เปิด sub-agent และไม่เริ่ม UI implementation
+- Jev ก่อนเอกสาร: noul 0.66, confidence null; หลังส่ง excerpt จริง: noul 0.96, confidence null; ทั้งคู่ escalate ไม่ใช่หลักฐานอนุมัติ ใช้ขอบเขตทำเอกสารที่ผู้ใช้อนุญาตไว้ และส่งเป็นร่างก่อนลงมือ
+- ลบ `.tmp/jev_unslop_phase_doc_state.json` ที่สร้างเองหลังเรียก Jev; ไม่มี test/build/render เพราะไม่มี application change
+- working tree ของเอเจนต์อื่นยังอยู่เดิม; เพิ่มเฉพาะ runbook/link และบันทึกรอบนี้

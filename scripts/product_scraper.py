@@ -538,7 +538,7 @@ def _normalise_image_metadata(value: Any) -> Dict[str, Any]:
         return [item.strip() if isinstance(item, str) else item for item in raw if item not in (None, "")]
 
     return {
-        "name": text("name"),
+        "name": clean_product_title(text("name")),
         "description": text("description"),
         "raw_text": text("raw_text"),
         "specs": items("specs"),
@@ -646,18 +646,112 @@ def _looks_like_login_page(title: str, text: str, url: str = "") -> bool:
     ))
 
 
-def _clean_title(title: str) -> str:
+def clean_product_title(title: str) -> str:
+    """Sanitizes and condenses raw e-commerce product titles into clean, concise names.
+
+    Removes affiliate marketing fluff, parenthetical feature lists, bracket tags,
+    seller SEO dumping, and trailing compatibility clauses while strictly preserving
+    original English brand and model names (Rule 9).
+    """
     if not title:
         return ""
-    t = re.sub(r"【[^】]*】", "", title)
-    t = re.sub(r"\[[^\]]*\]", "", t)
-    t = re.sub(r"\([^\)]*COD[^\)]*\)", "", t, flags=re.I)
-    t = re.split(r'\s*[-|•]\s*(?:Shopee|TikTok).*$', t, flags=re.I)[0]
-    t = t.split("- Shopee")[0].split("- TikTok")[0].strip()
-    clean = re.sub(r'\s+', ' ', t).strip(" -|•")
-    if clean.lower() in ("log in", "sign in", "เข้าสู่ระบบ", "security check", "verify to continue", "tiktok"):
+    t = str(title).strip()
+    if t.lower() in ("log in", "sign in", "เข้าสู่ระบบ", "security check", "verify to continue", "tiktok"):
         return ""
-    return clean
+
+    # 1. Remove platform tags
+    t = re.split(r'\s*[-|•]\s*(?:Shopee|TikTok|Lazada).*$', t, flags=re.I)[0]
+    t = t.split('- Shopee')[0].split('- TikTok')[0].split('- Lazada')[0].strip()
+
+    # 2. Remove Asian and square brackets: 【...】, 〔...〕, 《...》, 『...』, 「...」, [...]
+    t = re.sub(r'【[^】]*】', ' ', t)
+    t = re.sub(r'〔[^〕]*〕', ' ', t)
+    t = re.sub(r'《[^》]*》', ' ', t)
+    t = re.sub(r'『[^』]*』', ' ', t)
+    t = re.sub(r'「[^」]*」', ' ', t)
+    t = re.sub(r'\[[^\]]*\]', ' ', t)
+
+    # 3. Remove parenthesized spec lists or marketing noise:
+    # E.g. (ตัดเสียงรบกวน / เบสแน่น / กันน้ำ IPX7 / แบตอึด 145 ชม.) or (Bluetooth 5.3 / HiFi Sound / IPX5)
+    def _clean_paren(m: re.Match) -> str:
+        content = m.group(1).strip()
+        lower = content.lower()
+        if '/' in content or any(w in lower for w in [
+            'cod', 'แท้', 'ส่งฟรี', 'ประกัน', 'แถม', 'ลด', 'ชาร์จเร็ว',
+            'bluetooth', 'ipx', 'hifi', 'เบส', 'ตัดเสียง', 'กันน้ำ', 'แบต', 'ชม.', 'ชั่วโมง',
+            'mah', 'ราคาพิเศษ', 'ของแท้', 'ส่งไว'
+        ]):
+            return ' '
+        if len(content) > 16:
+            return ' '
+        # Keep short model or spec identifier like (PS8M1) or (2300W)
+        return f' ({content}) '
+
+    t = re.sub(r'\(([^)]*)\)', _clean_paren, t)
+    t = re.sub(r'（([^）]*)）', _clean_paren, t)
+
+    # 4. Remove common marketing buzzwords
+    marketing_phrases = [
+        r'ของแท้\s*100%', r'แท้\s*100%', r'แท้ศูนย์', r'ศูนย์ไทย',
+        r'พร้อมส่งในไทย', r'พร้อมส่ง', r'จัดส่งจากไทย', r'ส่งไว', r'ส่งฟรี',
+        r'รับประกันศูนย์(?:\s*\d+\s*(?:ปี|เดือน))?', r'รับประกัน(?:\s*\d+\s*(?:ปี|เดือน))?',
+        r'ประกันศูนย์(?:\s*\d+\s*(?:ปี|เดือน))?', r'ประกัน(?:\s*\d+\s*(?:ปี|เดือน))?',
+        r'เก็บเงินปลายทาง', r'\bCOD\b', r'Flash\s*Sale', r'ยอดนิยม', r'ของขวัญ',
+        r'ลดล้างสต็อก', r'ราคาถูกที่สุด', r'ฮิตที่สุด',
+    ]
+    for p in marketing_phrases:
+        t = re.sub(p, ' ', t, flags=re.I)
+
+    # 5. Comma, pipe, or bullet separated spec dumps: extract core segment + key spec
+    if ',' in t or '，' in t or '|' in t:
+        parts = [p.strip() for p in re.split(r'[,，|]', t) if p.strip()]
+        if len(parts) > 1:
+            first_part = parts[0]
+            spec_additions = []
+            for part in parts[1:]:
+                spec_m = re.search(r'\b(\d+H|\d+W|\d+A|\d+mAh|2\s*ใน\s*1|\d+\s*นิ้ว|Type‑?C\s*(?:ถึง|to)\s*Type‑?C)\b', part, re.I)
+                if spec_m and spec_m.group(0) not in first_part and spec_m.group(0) not in spec_additions:
+                    spec_additions.append(spec_m.group(0))
+            if spec_additions:
+                t = f'{first_part} ' + ' '.join(spec_additions[:2])
+            else:
+                t = first_part
+
+    # 6. Remove trailing SEO dumping, compatibility dumps & feature tags
+    t = re.sub(r'\s*(?:เหมาะสำหรับ|ใช้ได้กับ|เข้ากันได้กับ|รองรับการใช้งานกับ|เป็นสายชาร์จแบบ|ใช้งานได้กับ).*$', '', t)
+    t = re.sub(r'\s+(?:สาย\s*ชาร์จ\s*(?:แบต|ไทป์\s*ซี)|ปลอกนิ้วโทรศัพท์มือถือ|ตัดเสียงรบกวน|เสียงเบสแน่น|เบสหนัก|แบตอึด)\s*$', '', t)
+
+    # 7. Long clause trimmer: if string > 60 chars, trim trailing descriptive clauses
+    if len(t) > 60:
+        trim_patterns = [
+            r'\s+สำหรับเล่นเกม.*$',
+            r'\s+ความยาว\s*\d+.*$',
+            r'\s+มีไฟ.*$',
+            r'\s+ดีไซน์.*$',
+            r'\s+ปรับแต่ง.*$',
+            r'\s+เส้นใย.*$',
+            r'\s+สัมผัสไว.*$',
+            r'\s+ปกป้อง.*$',
+            r'\s+ขนาดกะทัดรัด.*$',
+            r'\s+พร้อมหน้าจอ.*$',
+            r'\s+เพื่อการชาร์จ.*$',
+            r'\s+และ\s+65W.*$',
+        ]
+        for tp in trim_patterns:
+            if len(t) <= 60:
+                break
+            t = re.sub(tp, '', t)
+
+    # 8. Clean repetitive punctuation & whitespace
+    t = re.sub(r'[\s/|•,，\-–—]+', ' ', t).strip(' ,-|•/–—')
+    t = re.sub(r'^(?:ที่|แบบ|รุ่น|สำหรับ)\s+', '', t)
+
+    if t.lower() in ("log in", "sign in", "เข้าสู่ระบบ", "security check", "verify to continue", "tiktok"):
+        return ""
+    return t
+
+
+_clean_title = clean_product_title
 
 
 def _clean_rendered_description(text: str) -> str:

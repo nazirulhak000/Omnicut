@@ -23,7 +23,7 @@ from scripts.channel_store import ChannelError
 from scripts.config import BASE_DIR, RAW_DIR
 from scripts.product_scraper import (
     ProductScraper, DURATION_SPECS, DEFAULT_DURATION, EXTRA_BEAT_BLOCKS,
-    apply_angle_content_metadata,
+    apply_angle_content_metadata, clean_product_title,
 )
 from scripts.product_store import ProductStore
 from scripts.task_manager import TaskManager
@@ -1015,7 +1015,7 @@ def scrape_and_plan(payload: Dict[str, Any], scope: ChannelScope = Depends(get_c
         _apply_images_to_product_info(product_info, image_paths, custom_keyword, raw_text)
 
         if custom_keyword:
-            product_info["title"] = custom_keyword
+            product_info["title"] = clean_product_title(custom_keyword) or custom_keyword
         if raw_text and len(raw_text) > 10:
             product_info["description"] = raw_text
             product_info["raw_text"] = f"{product_info.get('title', '')}\n{raw_text}"
@@ -1127,7 +1127,7 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any], chann
         _apply_images_to_product_info(product_info, image_paths, custom_keyword, raw_text)
 
         if custom_keyword:
-            product_info["title"] = custom_keyword
+            product_info["title"] = clean_product_title(custom_keyword) or custom_keyword
         if raw_text and len(raw_text) > 10:
             product_info["description"] = raw_text
             product_info["raw_text"] = f"{product_info.get('title', '')}\n{raw_text}"

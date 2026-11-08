@@ -72,7 +72,9 @@ def test_clean_title_strips_badges_and_cod():
     clean = _clean_title(title)
     assert "【COD】" not in clean
     assert "- TikTok Shop" not in clean
-    assert clean == "หูฟังเปิดหู MONSTER AC530 ตัดเสียงรบกวน | เสียงเบสแน่น | กันน้ำ IPX7"
+    assert "ตัดเสียงรบกวน" not in clean
+    assert "IPX7" not in clean
+    assert clean == "หูฟังเปิดหู MONSTER AC530"
 
 def test_clean_title_rejects_login_or_challenge():
     assert _clean_title("Log in") == ""

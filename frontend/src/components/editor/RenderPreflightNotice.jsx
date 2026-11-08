@@ -29,9 +29,11 @@ export default function RenderPreflightNotice({ report, onSeek, onOpenModal }) {
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('renderAudit') === '1';
 
-  // If there are no errors and no footage holds (only advisory warnings/viral tips),
-  // do not intrude on the top workspace unless explicitly in audit mode.
-  if (!hasErrors && !hasHolds && !isAuditMode) {
+  // Preflight audits, viral scores, and blocker details are now unified into
+  // the Header's RenderReadinessChip, RenderPreflightModal, and the Inspector Overview card.
+  // The intrusive full-width top banner is completely hidden in normal editing,
+  // and only mounted when explicitly requested via automated test audit mode (?renderAudit=1).
+  if (!isAuditMode) {
     return null;
   }
 

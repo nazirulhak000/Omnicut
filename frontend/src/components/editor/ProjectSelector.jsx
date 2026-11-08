@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, CircleDot, FileEdit, Rocket, Search, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, CircleDot, FileEdit, Plus, Rocket, Search, Trash2, X } from 'lucide-react';
 import { getProducts } from '../../api';
 import { filterActiveProjects, filterProjectsByTab, countProjectsByTab } from '../../lib/editorEntry';
 import { getRelativeTime, formatFullDateTime } from '../../lib/dateUtils';
@@ -56,7 +56,7 @@ const STATUS_STYLE = {
  * list otherwise grows forever. "แสดงทั้งหมด" un-hides them for the rare
  * case of wanting to re-open or delete one on purpose.
  */
-export default function ProjectSelector({ projectName, projectList = [], loadProject, onRequestDelete }) {
+export default function ProjectSelector({ projectName, projectList = [], loadProject, onRequestDelete, onNewProject }) {
   const [open, setOpen] = useState(false);
   const [statusByProject, setStatusByProject] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -185,6 +185,20 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
           role="listbox"
           className="absolute left-0 top-full z-40 mt-1.5 flex max-h-[460px] w-full min-w-[340px] flex-col rounded-xl border border-white/[0.1] bg-[#0F1420] p-1.5 shadow-2xl backdrop-blur-xl"
         >
+          {/* Quick New Clip Action */}
+          {onNewProject && (
+            <div className="mb-1.5 flex-shrink-0 px-0.5">
+              <button
+                type="button"
+                onClick={() => { setOpen(false); onNewProject(); }}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 hover:text-emerald-200 text-xs font-bold transition-all cursor-pointer shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>สร้างคลิปใหม่</span>
+              </button>
+            </div>
+          )}
+
           {/* Quick Search Header */}
           <div className="mb-1.5 flex-shrink-0 px-0.5">
             <div className="relative flex items-center">

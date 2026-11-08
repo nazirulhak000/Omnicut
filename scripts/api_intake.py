@@ -25,6 +25,7 @@ from scripts.couple_script_generator import (
     generate_couple_20_scripts,
     generate_single_couple_angle,
 )
+from scripts.product_scraper import clean_product_title
 from scripts.product_store import ProductStore
 from scripts.script_rules import lint_couple_script, sanitize_text_for_rules
 
@@ -243,7 +244,7 @@ def preview_intake_product(
 
     # If user already provided manual name & specs, return clean preview immediately
     if payload.name and payload.name.strip():
-        clean_name = sanitize_text_for_rules(payload.name.strip(), speaker="bao")
+        clean_name = sanitize_text_for_rules(clean_product_title(payload.name.strip()), speaker="bao")
         return {
             "url": clean_url,
             "name": clean_name,
@@ -295,7 +296,10 @@ def preview_intake_product(
         elif isinstance(p, dict):
             photos.append({**p, "starred": bool(p.get("starred", idx == 0))})
 
-    clean_name = sanitize_text_for_rules(str(scraped.get("name") or scraped.get("title") or ""), speaker="bao")
+    clean_name = sanitize_text_for_rules(
+        clean_product_title(str(scraped.get("name") or scraped.get("title") or "")),
+        speaker="bao",
+    )
     return {
         "url": clean_url,
         "name": clean_name,
@@ -391,7 +395,7 @@ def commit_intake_product(
     payload: IntakeCommitRequest,
     scope: ChannelScope = Depends(get_channel_scope),
 ) -> Dict[str, Any]:
-    clean_name = sanitize_text_for_rules((payload.name or "").strip(), speaker="bao")
+    clean_name = sanitize_text_for_rules(clean_product_title((payload.name or "").strip()), speaker="bao")
     if not clean_name:
         raise HTTPException(status_code=422, detail="กรุณาระบุชื่อสินค้า")
 

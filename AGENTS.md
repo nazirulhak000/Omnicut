@@ -106,6 +106,15 @@
      - ต้องแนบแฟล็ก --gpu --browser-gpu ในคำสั่ง hyperframes render เพื่อให้ Chromium ใช้การ์ดจอทำ Layer Compositing, Drop-shadows และ Canvas Rasterization
      - ต้องใช้ **NVIDIA NVENC Hardware Encoder (h264_nvenc)** ใน scripts/tiktok_enhancer.py เสมอ เพื่อโยกการบีบอัดวิดีโอ 1080x1920 จาก CPU ไปยังการ์ดจอ RTX 4060 ลดเวลาแปลงไฟล์จาก 30s เหลือ 2-3s ต่อคลิป และป้องกัน CPU ตัน 100%
    - ✔️ **Thread-Safe File Lock (`threading.Lock`):** การอ่าน/เขียนไฟล์ทะเบียนกลาง (`export_registry.json`, `export_cover_bindings.json`, `products.json`) ต้องครอบด้วย Lock เสมอป้องกัน Race Condition หรือไฟล์เสียหาย
+25. ✔️ **กฎแตกกิ่งฟีเจอร์ชั่วคราวและลบทิ้งทันที (Short-Lived Feature Branch & Clean Auto-Delete Standard)**:
+   - เมื่อมีงานพัฒนาฟีเจอร์ใหม่, ปรับปรุงระบบ, หรือแก้บั๊กที่มีความเสี่ยง ให้แตกกิ่งชั่วคราวจาก main เสมอ:
+     `git checkout -b feat/<task-name>` (หรือ `fix/<task-name>`)
+   - พัฒนาโค้ดและรันชุดทดสอบ (Vitest, Pytest, Parity) บนกิ่งฟีเจอร์จนผ่าน 100%
+   - เมื่อตรวจสอบผ่านครบถ้วน ให้สลับกลับมารวมเข้า main:
+     `git checkout main && git merge feat/<task-name>`
+   - **ต้องลบกิ่งฟีเจอร์นั้นทิ้งทันทีก่อนจบงาน:**
+     `git branch -d feat/<task-name>`
+   - **เป้าหมาย:** คงสภาพ Local Git Repository ให้มีเฉพาะกิ่ง `main` กิ่งเดียวสะอาดอยู่ตลอดเวลา 100% ป้องกันปัญหากิ่งค้างสะสมเกะกะ
 
 ---
 

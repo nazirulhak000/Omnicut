@@ -39,6 +39,7 @@ from scripts.channel_store import ChannelError
 from scripts.db import DocumentTable
 from scripts import path_utils
 from scripts.export_registry import ExportRegistry, _normalise_path as _export_normalise_path
+from scripts.product_scraper import clean_product_title
 
 STORE_PATH = BASE_DIR / "_Docs" / "products.json"
 
@@ -648,6 +649,7 @@ class ProductStore:
         """
         if not name.strip():
             raise ValueError("ต้องมีชื่อสินค้า")
+        clean_name = clean_product_title(name) or name.strip()
         canonical = {
             "canonical_product_key": _clean_canonical_value("canonical_product_key", canonical_product_key),
             "source_product_id": _clean_canonical_value("source_product_id", source_product_id),
@@ -700,7 +702,7 @@ class ProductStore:
             product = {
                 "id": uuid.uuid4().hex,
                 OWNER_KEY: owner,
-                "name": name.strip(),
+                "name": clean_name,
                 "url": url.strip(),
                 "platform": platform or cls.detect_platform(url),
                 "category": category,
@@ -715,7 +717,7 @@ class ProductStore:
                 "metadata_source": metadata_source,
                 "source_warning": source_warning,
                 "tiktok_product_id": tiktok_product_id.strip() if (tiktok_product_id and tiktok_product_id.strip()) else None,
-                "product_code": (product_code.strip().upper() if (product_code and product_code.strip()) else cls._generate_product_code(name, code_universe)),
+                "product_code": (product_code.strip().upper() if (product_code and product_code.strip()) else cls._generate_product_code(clean_name, code_universe)),
                 "status": "scripted" if angles else "candidate",
                 "angles": angles or [],
                 "images": images or [],
@@ -765,6 +767,9 @@ class ProductStore:
 
                     if "product_code" in fields and fields["product_code"]:
                         fields["product_code"] = fields["product_code"].strip().upper()
+
+                    if "name" in fields and fields["name"]:
+                        fields["name"] = clean_product_title(str(fields["name"])) or str(fields["name"]).strip()
 
                     apply_to_angles = bool(fields.pop("apply_to_angles", False))
                     hook_brand = fields.get("hook_brand")

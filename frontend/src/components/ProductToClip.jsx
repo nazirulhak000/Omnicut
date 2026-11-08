@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   Link2, Sparkles, Clapperboard, Loader2, Check, Copy, CopyPlus,
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
-  ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
+  ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Package, Rocket, FolderOpen, X,
   Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
   ShoppingBag, ShieldCheck, Database, Zap, Layers, Eye, EyeOff, CheckCircle2, Tag,
   Volume2, Mic, AlertTriangle, VolumeX, Scissors, MoreHorizontal
@@ -175,10 +175,14 @@ function ProductCard({ product, isSelected, onSelect, onToggleHide }) {
   // A scraped product-page image only ever has .url (external CDN link);
   // a user-uploaded one only has .rel_path/.local_path -- toMediaUrl handles
   // both, including the http(s) passthrough a bare CDN link needs.
-  const thumbSrc = thumb ? toMediaUrl(thumb.rel_path || thumb.local_path || thumb.url) : null;
+  // Fallback to product.thumbnail if images array is empty or lacks primary image.
+  const thumbSrc = thumb
+    ? toMediaUrl(thumb.rel_path || thumb.local_path || thumb.url)
+    : (product.thumbnail ? toMediaUrl(product.thumbnail) : null);
 
   return (
     <button
+      data-product-id={product.id}
       onClick={() => onSelect(product)}
       className={`flex-shrink-0 w-[130px] sm:w-[150px] rounded-xl border transition-all cursor-pointer group snap-center p-2.5 space-y-2 text-left relative ${
         isSelected
@@ -2409,6 +2413,63 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     return list;
   }, [historyList, productSearch, productFilter]);
 
+  // Desktop Carousel Horizontal Scroll & Navigation
+  const carouselRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateCarouselScrollButtons = useCallback(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 10);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 10);
+  }, []);
+
+  const handleScrollCarousel = (direction) => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const amount = direction === 'left' ? -380 : 380;
+    el.scrollBy({ left: amount, behavior: 'smooth' });
+    setTimeout(updateCarouselScrollButtons, 350);
+  };
+
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+
+    updateCarouselScrollButtons();
+    const handleResize = () => updateCarouselScrollButtons();
+    window.addEventListener('resize', handleResize);
+
+    const onWheel = (e) => {
+      // If user scrolls vertically with standard mouse wheel, convert to horizontal scroll
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        const canScroll = (e.deltaY > 0 && el.scrollLeft < el.scrollWidth - el.clientWidth - 1) ||
+                          (e.deltaY < 0 && el.scrollLeft > 0);
+        if (canScroll) {
+          e.preventDefault();
+          el.scrollBy({ left: e.deltaY * 1.5, behavior: 'auto' });
+          updateCarouselScrollButtons();
+        }
+      }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, [updateCarouselScrollButtons, filteredHistory.length]);
+
+  useEffect(() => {
+    if (!selectedHistoryId || !carouselRef.current) return;
+    const card = carouselRef.current.querySelector(`[data-product-id="${selectedHistoryId}"]`);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      setTimeout(updateCarouselScrollButtons, 350);
+    }
+  }, [selectedHistoryId, updateCarouselScrollButtons]);
+
   // Angle Count Selection
   const [angleCount, setAngleCount] = useState(7); // Default: 7 (Sweet Spot)
   // Duration Selection (independent of angleCount -- both apply together)
@@ -4210,8 +4271,39 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           <>
             {/* Product cards: primary product switcher in the header. */}
             {historyList.length > 1 && (
-              <div className="pt-2 border-t border-white/[0.06] animate-fadeIn">
-                <div className="flex items-stretch gap-2.5 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory scroll-smooth pr-4" aria-label="เลือกสินค้า">
+              <div className="pt-2 border-t border-white/[0.06] animate-fadeIn relative group/carousel">
+                {/* Desktop Left navigation arrow */}
+                {canScrollLeft && (
+                  <button
+                    type="button"
+                    onClick={() => handleScrollCarousel('left')}
+                    className="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-slate-900/90 hover:bg-[#25F4EE] hover:text-slate-950 text-white border border-white/20 backdrop-blur-md shadow-2xl flex items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
+                    title="เลื่อนสินค้าก่อนหน้า"
+                    aria-label="เลื่อนสินค้าก่อนหน้า"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                )}
+
+                {/* Desktop Right navigation arrow */}
+                {canScrollRight && (
+                  <button
+                    type="button"
+                    onClick={() => handleScrollCarousel('right')}
+                    className="absolute -right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-slate-900/90 hover:bg-[#25F4EE] hover:text-slate-950 text-white border border-white/20 backdrop-blur-md shadow-2xl flex items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
+                    title="เลื่อนสินค้าถัดไป"
+                    aria-label="เลื่อนสินค้าถัดไป"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                )}
+
+                <div
+                  ref={carouselRef}
+                  onScroll={updateCarouselScrollButtons}
+                  className="flex items-stretch gap-2.5 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/20 hover:scrollbar-thumb-white/40 scrollbar-track-transparent snap-x snap-mandatory scroll-smooth pr-4 px-1"
+                  aria-label="เลือกสินค้า"
+                >
                   {filteredHistory.map((p) => (
                     <ProductCard
                       key={p.id}
