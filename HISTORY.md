@@ -7,7 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
-| Round ANTIGRAVITY-PRODUCT-CARD-DOUBLE-CLICK-DETAILS-20261108 | เพิ่มความสามารถดับเบิลคลิก (Double Click) และปุ่ม Info ลอยบนการ์ดสินค้า เพื่อเปิดดูรายละเอียดและเมทาดาต้า AI (ProductMetadataModal) ทันที พร้อมผูกทั้งบน Carousel และ Catalog Grid ผ่านการทดสอบ Vitest 1,199/1,199 (100%) และ Vite build สำเร็จ | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round ANTIGRAVITY-FIX-MOBILE-SHELL-TERMINAL-IMPORT-20261108 | แก้ไข ReferenceError: Terminal is not defined ใน MobileShell.jsx เมื่อเข้าแท็บ ?tab=more: นำเข้า Terminal จาก lucide-react พร้อมเพิ่มชุดทดสอบ mobileShellContract.test.js ป้องกันแท็ก JSX ขาดหาย ผ่าน Vitest 1,200/1,200 (100%) และ Vite build สำเร็จ | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-DESKTOP-PRODUCT-CAROUSEL-HORIZONTAL-SCROLL-20261108 | พัฒนาระบบเลื่อนซ้าย-ขวาสำหรับ Carousel เลือกสินค้าบน Desktop (เพิ่มปุ่มลูกศร ChevronLeft/ChevronRight, แปลง Mouse Wheel ให้เลื่อนแนวนอน, สกอลล์บาร์สลิม, และ Auto-Scroll กึ่งกลางจอ) พร้อมกู้คืนภาพ Thumbnail ของ GOO01 และ JEE01 ให้แสดงผลสมบูรณ์ 100% ผ่าน Vitest 1,198/1,198 และ Vite build สำเร็จ | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-RULE-SHORT-LIVED-FEATURE-BRANCH-20261108 | บันทึกกฎเหล็ก Short-Lived Feature Branch & Clean Auto-Delete Standard ลงใน AGENTS.md (ข้อ 25) และ .agents/rules/work_loop.md (ข้อ 2.2.1 & 2.7) บังคับ AI ทุกตัวแตกกิ่งก่อนทำ รวมกลับเข้า main และลบทิ้งทันที เพื่อรักษา local repo ให้สะอาดเหลือ main กิ่งเดียว 100% | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round CODEX-UNSLOP-PHASES-MODELS-20261108 | แตกแผน UI เป็น 10 เฟส 00–09 พร้อมขอบเขต dependency เกณฑ์ผ่าน และ prompt; ตรวจเอกสารทางการประกอบคำแนะนำ GPT-6.1 Terra/Gemini 3.8 Flash; เอกสารอย่างเดียว | 2026-11-08 | ดำเนินการโดย: Codex (GPT-6.1-sol) |
@@ -157,31 +157,6 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
-
----
----
-
-## Round ANTIGRAVITY-PRODUCT-CARD-DOUBLE-CLICK-DETAILS-20261108
-
-- **วันที่:** 2026-11-08
-- **สถานะ:** เสร็จสมบูรณ์ (Closed)
-- **ดำเนินการโดย:** Antigravity (Gemini 2.5 Pro)
-
-### สรุปการดำเนินงาน
-ผู้ใช้ขอเพิ่มความสามารถ: "อยากให้กด double click แล้วกดดูข้อมูลรายละเอียดสินค้าเพิ่มเติม"
-
-**การแก้ปัญหาและพัฒนา:**
-1. **เพิ่ม Double Click บน ProductCard ใน Carousel (`frontend/src/components/ProductToClip.jsx`):**
-   - อัปเกรด `ProductCard` ให้รองรับ prop `onDoubleClick` โดยผูก `onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick?.(product); }}`
-   - แปลง Root element ของ `ProductCard` เป็น `<div role="button" tabIndex={0} ...>` เพื่อป้องกัน invalid nested `<button>` ใน HTML5 และรองรับคีย์บอร์ด (Enter/Space) ได้อย่างถูกต้อง
-   - เพิ่มปุ่มไอคอนลอย `Info` (`<Info className="w-3.5 h-3.5" />`) ที่มุมซ้ายบนของการ์ดสินค้า ซึ่งจะปรากฏขึ้นเมื่อ Hover (หรือแตะบนหน้าจอมือถือ) สำหรับเปิดดูรายละเอียดสินค้าได้ใน 1 คลิก
-   - เพิ่ม tooltip และ title บนการ์ด: `"{ชื่อสินค้า} (คลิกเพื่อเลือก · ดับเบิลคลิกเพื่อดูรายละเอียดสินค้า)"`
-2. **พัฒนาฟังก์ชัน `handleProductDoubleClick`:**
-   - เมื่อผู้ใช้ดับเบิลคลิกที่การ์ดสินค้า ระบบจะตรวจสอบว่าสินค้าดังกล่าวถูกเลือกอยู่หรือไม่ หากยังไม่ได้เลือกจะเรียก `selectProduct(item)` เพื่อสลับไปยังสินค้านั้นทันที
-   - เปิดหน้าต่าง `ProductMetadataModal` (`setShowMetadataModal(true)`) แสดงข้อมูลสเปก, ราคา, จุดเด่น, จุดเจ็บ, ลิงก์ต้นทาง, คลังรูปภาพ 20 รูป และคำอธิบายสำหรับ AI
-3. **ผูก Double Click บน Catalog Modal Grid:**
-   - รองรับการดับเบิลคลิกบนการ์ดสินค้าในหน้าต่างเลือกสินค้าจากแคตตาล็อก (`ShowCatalogModal`) เพื่อเลือกสินค้า ปิดหน้าต่างแคตตาล็อก และเปิดหน้าต่างรายละเอียดสินค้าขึ้นมาทันที
-4. **การทดสอบ:** เพิ่มชุดทดสอบใน `frontend/src/lib/productToClipContract.test.js` ตรวจสอบ contract การทำงานของ `onDoubleClick`, `handleProductDoubleClick` ครบถ้วน ผ่านการทดสอบ Vitest 1,199/1,199 ข้อ (100%) และ Vite build สำเร็จ (494ms)
 
 ---
 ---
