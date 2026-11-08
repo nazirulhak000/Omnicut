@@ -548,7 +548,9 @@ class VoiceStage:
             src_audio = Path(shot_list_record["voice_audio_path"])
             ctx.guard_media(src_audio)
             shutil.copy2(str(src_audio), str(voice_audio_path))
-            total_duration = shot_list_record.get("total_duration") or _probe_audio_duration(voice_audio_path)
+            from scripts.gemini_tts_engine import trim_silence_and_tail_artifacts_wav
+            trim_silence_and_tail_artifacts_wav(voice_audio_path)
+            total_duration = _probe_audio_duration(voice_audio_path)
             cues = shot_list_record.get("cues") or shot_list_record.get("beat_cues") or []
             beat_cues = shot_list_record.get("beat_cues") or cues
             voice_engine_used = (shot_list_record.get("voice_params") or {}).get("voice_engine_type") or "gemini_tts"
@@ -667,6 +669,11 @@ class VoiceStage:
             total_duration = cls._apply_voice_edit(ctx, voice_audio_path, total_duration)
         else:
             cls._drop_voice_edit(ctx)
+
+        if voice_audio_path and voice_audio_path.exists():
+            from scripts.gemini_tts_engine import trim_silence_and_tail_artifacts_wav
+            if trim_silence_and_tail_artifacts_wav(voice_audio_path):
+                total_duration = _probe_audio_duration(voice_audio_path)
 
         ctx.voice_audio_path = voice_audio_path
         ctx.cues = cues

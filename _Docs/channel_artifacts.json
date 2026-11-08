@@ -16,5 +16,29 @@
     "channel_id": "main",
     "path_key": "05_covers_thumbnails/main/0cceebe9eb2e45c9b80350284ec21e80/20261013_ess02-pov6-paper_v1_cover_3x4.jpg",
     "path": "05_Covers_Thumbnails/main/0cceebe9eb2e45c9b80350284ec21e80/20261013_ess02-pov6-paper_v1_cover_3x4.jpg"
+  },
+  {
+    "id": "b1da12ff55681d3772506b528f7729a99b17711f74cfe9a183c9a7963c99e4d2",
+    "channel_id": "main",
+    "path_key": "05_covers_thumbnails/main/e608db87f2494259a51b3df7a7698bb7/ess04-ปัญหาก่อนใช้_1_cover.jpg",
+    "path": "05_Covers_Thumbnails/main/e608db87f2494259a51b3df7a7698bb7/ESS04-ปัญหาก่อนใช้_1_cover.jpg"
+  },
+  {
+    "id": "91657c97fb493e49b464c410222bda6c894d3336d4b7bf593b592581a19d1388",
+    "channel_id": "main",
+    "path_key": "05_covers_thumbnails/main/e608db87f2494259a51b3df7a7698bb7/ess04-ปัญหาก่อนใช้_1_cover_3x4.jpg",
+    "path": "05_Covers_Thumbnails/main/e608db87f2494259a51b3df7a7698bb7/ESS04-ปัญหาก่อนใช้_1_cover_3x4.jpg"
+  },
+  {
+    "id": "ce61663486a46e48b44f25261ab49e3dd4e99aacd5eadfc55e5bca0fd546e03c",
+    "channel_id": "main",
+    "path_key": "05_covers_thumbnails/main/9f935ee90e5f4bac86d67e02ea976e72/ess04-รีวิวสเปก_1_cover.jpg",
+    "path": "05_Covers_Thumbnails/main/9f935ee90e5f4bac86d67e02ea976e72/ESS04-รีวิวสเปก_1_cover.jpg"
+  },
+  {
+    "id": "318d3f33d05f890bdfe1a366b06813b4405cdcc140957e8b81e14b6b66760028",
+    "channel_id": "main",
+    "path_key": "05_covers_thumbnails/main/9f935ee90e5f4bac86d67e02ea976e72/ess04-รีวิวสเปก_1_cover_3x4.jpg",
+    "path": "05_Covers_Thumbnails/main/9f935ee90e5f4bac86d67e02ea976e72/ESS04-รีวิวสเปก_1_cover_3x4.jpg"
   }
 ]
