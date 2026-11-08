@@ -365,7 +365,7 @@ function BackgroundIsolationControls({
                         : 'border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    🟢 เก็บสินค้า (บวก)
+                    เก็บสินค้า (บวก)
                   </button>
                   <button
                     type="button"
@@ -376,7 +376,7 @@ function BackgroundIsolationControls({
                         : 'border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    🔴 ตัดพื้นหลัง (ลบ)
+                    ตัดพื้นหลัง (ลบ)
                   </button>
                 </div>
               )}
@@ -386,11 +386,11 @@ function BackgroundIsolationControls({
               </p>
               {subjectPickMode && (
                 <div className="rounded-lg bg-emerald-950/30 border border-emerald-500/20 p-2 text-[10px] leading-relaxed text-emerald-200/90 space-y-1">
-                  <p className="font-semibold text-emerald-300 text-[10.5px]">💡 วิธีจิ้มจุดให้ AI ไดคัทแม่นยำ:</p>
+                  <p className="font-semibold text-emerald-300 text-[10.5px]">วิธีจิ้มจุดให้ AI ไดคัทแม่นยำ:</p>
                   <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[9.5px]">
                     <li>จิ้มจุดสีเขียว <strong>บนตัวสินค้าตรงกลาง 1-3 จุด</strong></li>
                     <li><span className="text-amber-300 font-medium">ห้ามจิ้มล้อมรอบขอบ</span> หรือจิ้มบนพื้นหลัง/กระดาษ เพราะ AI จะนึกว่าต้องเก็บกระดาษ</li>
-                    <li>หากต้องการตัดพื้นหลังส่วนเกิน ให้เลือก <strong>🔴 ตัดพื้นหลัง</strong> หรือกด <strong>Shift+คลิก</strong></li>
+                    <li>หากต้องการตัดพื้นหลังส่วนเกิน ให้เลือก <strong>ตัดพื้นหลัง</strong> หรือกด <strong>Shift+คลิก</strong></li>
                   </ul>
                 </div>
               )}
@@ -1994,7 +1994,7 @@ export default function AssetPanel({
                           <span className="text-[#25F4EE] truncate">{activeBgmInfo.label}</span>
                           {activeBgmInfo.isExplicit ? (
                             <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex-shrink-0">
-                              🎵 กำหนดเอง
+                              กำหนดเอง
                             </span>
                           ) : (
                             <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 flex-shrink-0">
@@ -2231,11 +2231,11 @@ export default function AssetPanel({
                           </span>
                           {hookCustomizationInfo.isModified ? (
                             <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 flex-shrink-0">
-                              ✏️ คัสตอม/ปรับแต่งเอง
+                              คัสตอม/ปรับแต่งเอง
                             </span>
                           ) : hookCustomizationInfo.isCustomTemplate ? (
                             <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 flex-shrink-0">
-                              🌟 แม่แบบของฉัน
+                              แม่แบบของฉัน
                             </span>
                           ) : hookCustomizationInfo.exists ? (
                             <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex-shrink-0">
@@ -2677,7 +2677,7 @@ export default function AssetPanel({
                   </div>
 
                   <div className="text-[10px] text-slate-400/80 leading-relaxed bg-[#25F4EE]/[0.04] p-2 rounded-lg border border-[#25F4EE]/10">
-                    💡 ลากตำแหน่งและดึงขอบปรับขนาดได้โดยตรงบนพรีวิว หรือเลื่อนปรับเวลาได้บนไทม์ไลน์
+                    ลากตำแหน่งและดึงขอบปรับขนาดได้โดยตรงบนพรีวิว หรือเลื่อนปรับเวลาได้บนไทม์ไลน์
                   </div>
                 </div>
               ) : null}

@@ -1331,7 +1331,7 @@ export default function ManualStoryboardModal({
                 <div className="flex items-center justify-between gap-2 pt-1 text-xs">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[11px] text-slate-400 font-medium">เริ่ม:</span>
-                    <span className="font-mono text-cyan-300 text-xs font-bold">{formatTimecode(trimStart)}</span>
+                    <span className="font-mono tabular-nums text-cyan-300 text-xs font-bold">{formatTimecode(trimStart)}</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -1378,7 +1378,7 @@ export default function ManualStoryboardModal({
 
                   <div className="flex items-center gap-1.5">
                     <span className="text-[11px] text-slate-400 font-medium">จบ:</span>
-                    <span className="font-mono text-cyan-300 text-xs font-bold">{formatTimecode(trimEnd)}</span>
+                    <span className="font-mono tabular-nums text-cyan-300 text-xs font-bold">{formatTimecode(trimEnd)}</span>
                     <button
                       type="button"
                       onClick={() => {

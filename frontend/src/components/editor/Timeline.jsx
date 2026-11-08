@@ -1709,7 +1709,7 @@ export default function Timeline({
                   <div className="sticky top-0 z-50 mb-0.5 flex items-center gap-1 rounded bg-[#FFE600] px-1.5 py-0.5 text-[10px] font-bold text-black shadow-[0_2px_8px_rgba(0,0,0,0.8)] whitespace-nowrap">
                     <Magnet className="h-3 w-3 text-black stroke-[2.5]" />
                     <span>{activeSnapGuide.label}</span>
-                    <span className="font-mono font-semibold opacity-85">({formatTimecode(activeSnapGuide.time)})</span>
+                    <span className="font-mono font-semibold tabular-nums opacity-85">({formatTimecode(activeSnapGuide.time)})</span>
                   </div>
                   <div className="w-[2px] flex-1 bg-[#FFE600] shadow-[0_0_10px_#FFE600,0_0_20px_rgba(255,230,0,0.7)]" />
                 </div>

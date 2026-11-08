@@ -605,11 +605,11 @@ export default function CoverStudioModal({
 
   return createPortal(
     <div role="dialog" aria-label="สตูดิโอสร้างปก" onChangeCapture={() => { userEditedRef.current = true; }} className="fixed inset-0 z-[10000] flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="bg-[#0A0D14] border border-white/[0.08] rounded-2xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-800 bg-slate-950/60">
+        <div className="flex items-center justify-between px-6 py-3.5 border-b border-white/[0.08] bg-[#0A0D14]/90">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
               <ImageIcon className="w-5 h-5" />
             </div>
             <div>
@@ -628,7 +628,7 @@ export default function CoverStudioModal({
             onClick={handleClose}
             aria-label="ปิดสตูดิโอสร้างปก"
             disabled={saving || generatingAi}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -637,16 +637,16 @@ export default function CoverStudioModal({
         {/* Body Content */}
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-0">
           {/* Left Column: Live Canvas Preview (5 cols) */}
-          <div className="lg:col-span-5 bg-slate-950/90 p-5 flex flex-col items-center justify-center border-r border-slate-800/80 relative select-none">
+          <div className="lg:col-span-5 bg-[#07090E] p-5 flex flex-col items-center justify-center border-r border-white/[0.08] relative select-none">
             {/* Aspect Ratio Preview Mode Switcher */}
-            <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 mb-2.5 text-xs">
+            <div className="flex items-center gap-1 bg-[#0F131D] p-1 rounded-xl border border-white/[0.08] mb-2.5 text-xs">
               <button
                 type="button"
                 onClick={() => setPreviewMode('9:16')}
                 className={`px-3 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
                   previewMode === '9:16'
-                    ? 'bg-amber-500 text-slate-950 shadow'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                 }`}
               >
                 9:16 เต็มจอ (กรอบ 3:4)
@@ -656,8 +656,8 @@ export default function CoverStudioModal({
                 onClick={() => setPreviewMode('3:4')}
                 className={`px-3 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
                   previewMode === '3:4'
-                    ? 'bg-amber-500 text-slate-950 shadow'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                 }`}
               >
                 3:4 การ์ดหน้าโปรไฟล์
@@ -668,7 +668,7 @@ export default function CoverStudioModal({
             {previewMode === '9:16' ? (
               /* 9:16 Full Screen Preview with 3:4 Red Outline Guide & Interactive Drag */
               <div
-                className="relative w-[270px] h-[480px] rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-700/80 bg-slate-900 flex items-center justify-center cursor-grab active:cursor-grabbing group"
+                className="relative w-[270px] h-[480px] rounded-2xl overflow-hidden shadow-2xl border-2 border-white/[0.12] bg-[#0A0D14] flex items-center justify-center cursor-grab active:cursor-grabbing group"
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -893,7 +893,7 @@ export default function CoverStudioModal({
             ) : (
               /* 3:4 Direct Profile Card Preview */
               <div
-                className="relative w-[270px] h-[360px] rounded-2xl overflow-hidden shadow-2xl border-2 border-red-500/80 bg-slate-900 flex items-center justify-center cursor-grab active:cursor-grabbing group"
+                className="relative w-[270px] h-[360px] rounded-2xl overflow-hidden shadow-2xl border-2 border-red-500/80 bg-[#0A0D14] flex items-center justify-center cursor-grab active:cursor-grabbing group"
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -1030,7 +1030,7 @@ export default function CoverStudioModal({
                       className={`px-1.5 py-0.2 rounded text-[10px] cursor-pointer transition-colors ${
                         zoom === preset.val
                           ? 'bg-amber-500 text-slate-950 font-bold'
-                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                          : 'bg-white/[0.05] text-slate-400 hover:text-white border border-white/[0.06]'
                       }`}
                     >
                       {preset.label}
@@ -1039,7 +1039,7 @@ export default function CoverStudioModal({
                   <button
                     type="button"
                     onClick={handleResetPanZoom}
-                    className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    className="p-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white border border-white/[0.06] transition-colors cursor-pointer"
                     title="รีเซ็ตการซูมและตำแหน่ง"
                   >
                     <RotateCcw className="w-2.5 h-2.5" />
@@ -1054,7 +1054,7 @@ export default function CoverStudioModal({
                 step="0.05"
                 value={zoom}
                 onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="w-full accent-amber-400 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                className="w-full accent-amber-400 h-1.5 bg-white/[0.08] rounded-lg cursor-pointer"
               />
 
               <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
@@ -1063,7 +1063,7 @@ export default function CoverStudioModal({
                     type="checkbox"
                     checked={showSafeZone}
                     onChange={(e) => setShowSafeZone(e.target.checked)}
-                    className="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0 w-3 h-3 cursor-pointer"
+                    className="rounded bg-[#0A0D14] border-white/[0.15] text-cyan-500 focus:ring-0 w-3 h-3 cursor-pointer"
                   />
                   <span>Safe Zone ล่างจอ</span>
                 </label>
@@ -1076,9 +1076,9 @@ export default function CoverStudioModal({
           </div>
 
           {/* Right Column: Controls & Customization (7 cols) */}
-          <div className="lg:col-span-7 p-6 overflow-y-auto max-h-[calc(94vh-130px)] space-y-5">
+          <div className="lg:col-span-7 bg-[#0A0D14] p-6 overflow-y-auto max-h-[calc(94vh-130px)] space-y-5">
             {/* Section 1: Image Source & Frame Selection */}
-            <div className="bg-slate-800/40 border border-slate-800 rounded-xl p-4 space-y-3">
+            <div className="bg-[#0F131D] border border-white/[0.08] rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                   <Film className="w-4 h-4" />
@@ -1096,14 +1096,14 @@ export default function CoverStudioModal({
               </div>
 
               {/* Source Type Selector Tabs */}
-              <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+              <div className="flex items-center gap-1.5 bg-[#07090E] p-1 rounded-xl border border-white/[0.08] text-xs">
                 {timelineSnapshotDataUrl && (
                   <button
                     type="button"
                     onClick={handleSwitchToTimeline}
                     className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-all text-center cursor-pointer ${
                       activeSourceType === 'timeline'
-                        ? 'bg-cyan-500/20 text-cyan-300 shadow border border-cyan-500/40'
+                        ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -1116,7 +1116,7 @@ export default function CoverStudioModal({
                   disabled={!videoPath}
                   className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-all text-center cursor-pointer ${
                     activeSourceType === 'exported'
-                      ? 'bg-slate-800 text-white shadow border border-slate-700'
+                      ? 'bg-white/[0.08] text-white border border-white/[0.12]'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -1129,7 +1129,7 @@ export default function CoverStudioModal({
                     onClick={() => handleSwitchToRawSource(rawSources[0].path)}
                     className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-all text-center cursor-pointer ${
                       activeSourceType === 'raw'
-                        ? 'bg-emerald-500/20 text-emerald-300 shadow border border-emerald-500/40'
+                        ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -1143,7 +1143,7 @@ export default function CoverStudioModal({
                     onClick={handleSwitchToProductRef}
                     className={`py-1.5 px-3 rounded-lg font-bold transition-all text-center cursor-pointer flex items-center gap-1.5 ${
                       activeSourceType === 'product_ref'
-                        ? 'bg-amber-500/25 text-amber-300 shadow border border-amber-500/50 ring-1 ring-amber-400/30'
+                        ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                         : 'text-amber-400/80 hover:text-amber-200'
                     }`}
                   >
@@ -1157,7 +1157,7 @@ export default function CoverStudioModal({
                   onClick={() => fileInputRef.current?.click()}
                   className={`py-1.5 px-3 rounded-lg font-bold transition-all text-center cursor-pointer flex items-center gap-1 ${
                     activeSourceType === 'upload'
-                      ? 'bg-cyan-500/20 text-cyan-300 shadow border border-cyan-500/40'
+                      ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -1170,7 +1170,7 @@ export default function CoverStudioModal({
                   onClick={handleSwitchToAiGen}
                   className={`py-1.5 px-3 rounded-lg font-bold transition-all text-center cursor-pointer flex items-center gap-1 ${
                     activeSourceType === 'ai_gen'
-                      ? 'bg-purple-500/25 text-purple-300 shadow border border-purple-500/50 ring-1 ring-purple-400/30'
+                      ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
                       : 'text-purple-400 hover:text-purple-200'
                   }`}
                 >
@@ -1188,7 +1188,7 @@ export default function CoverStudioModal({
 
               {/* TikTok Shop Scraped Reference Images Panel */}
               {activeSourceType === 'product_ref' && (
-                <div className="p-3.5 rounded-xl bg-gradient-to-br from-amber-950/30 via-slate-900 to-slate-950 border border-amber-500/30 space-y-3">
+                <div className="p-3.5 rounded-xl bg-[#07090E] border border-amber-500/20 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <ShoppingBag className="w-4 h-4 text-amber-400" />
@@ -1210,8 +1210,8 @@ export default function CoverStudioModal({
                           onClick={() => handleSelectProductRefImage(img)}
                           className={`group relative aspect-square rounded-lg overflow-hidden border transition-all cursor-pointer ${
                             isSelected
-                              ? 'border-amber-400 ring-2 ring-amber-400/60 shadow-lg scale-95'
-                              : 'border-white/10 hover:border-amber-400/50 hover:scale-100'
+                              ? 'border-amber-400 ring-1 ring-amber-400/50 shadow scale-95'
+                              : 'border-white/[0.08] hover:border-amber-400/40 hover:scale-100'
                           }`}
                         >
                           <img src={toMediaUrl(img.url, ownerRef.current.channel_id)} alt={img.name} className="w-full h-full object-cover" />
@@ -1232,7 +1232,7 @@ export default function CoverStudioModal({
                     <button
                       type="button"
                       onClick={handleSwitchToAiGen}
-                      className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-md text-xs font-bold transition-all flex items-center gap-1 shadow cursor-pointer"
+                      className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-md text-xs font-bold transition-all flex items-center gap-1 shadow-sm cursor-pointer"
                     >
                       <Sparkles className="w-3 h-3" />
                       ส่งรูปนี้ให้ AI ผสานฉาก
@@ -1243,7 +1243,7 @@ export default function CoverStudioModal({
 
               {/* AI Image Generator Panel */}
               {activeSourceType === 'ai_gen' && (
-                <div className="p-3.5 rounded-xl bg-gradient-to-br from-purple-950/40 via-slate-900 to-slate-950 border border-purple-500/30 space-y-3">
+                <div className="p-3.5 rounded-xl bg-[#07090E] border border-purple-500/20 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-purple-400" />
@@ -1252,21 +1252,21 @@ export default function CoverStudioModal({
                       </span>
                     </div>
                     {aiGenMethod && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/25 font-mono">
                         {aiGenMethod.includes('cutout')
-                          ? '✨ ช็อตสินค้าจริง + ฉาก AI Studio'
+                          ? 'ช็อตสินค้าจริง + ฉาก AI Studio'
                           : aiGenMethod === 'imagen_3'
-                          ? '⚡ Imagen 3 (9:16)'
+                          ? 'Imagen 3 (9:16)'
                           : aiGenMethod === 'ai_free'
-                          ? '✨ AI Studio (9:16)'
-                          : '🎯 Smart Studio'}
+                          ? 'AI Studio (9:16)'
+                          : 'Smart Studio'}
                       </span>
                     )}
                   </div>
 
                   {/* AI Generated Covers Gallery (เก็บทุกรูปที่สร้างในรอบนี้ ไม่ถูกทับ สลับเลือกได้ตลอด) */}
                   {(aiHistory.length > 0 || lastAiCover?.url) && (
-                    <div className="p-2.5 rounded-lg bg-purple-950/60 border border-purple-500/40 space-y-2 shadow-inner">
+                    <div className="p-2.5 rounded-lg bg-[#0F131D] border border-purple-500/20 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-[11px] font-bold text-purple-200">
                           <History className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -1290,8 +1290,8 @@ export default function CoverStudioModal({
                               }}
                               className={`group relative shrink-0 w-16 h-28 rounded-lg overflow-hidden border-2 transition-all cursor-pointer flex flex-col ${
                                 isActive
-                                  ? 'border-amber-400 ring-2 ring-amber-400/50 scale-105 shadow-lg'
-                                  : 'border-purple-800/80 opacity-75 hover:opacity-100 hover:border-purple-400'
+                                  ? 'border-amber-400 ring-1 ring-amber-400/50 scale-105 shadow-sm'
+                                  : 'border-white/[0.08] opacity-75 hover:opacity-100 hover:border-purple-400/60'
                               }`}
                               title={`ภาพ AI รอบที่ ${idx + 1}`}
                             >
@@ -1320,14 +1320,14 @@ export default function CoverStudioModal({
                   )}
 
                   {/* Brand & Product Title Hook Toggle Card */}
-                  <div className="p-2.5 rounded-lg bg-slate-950/80 border border-purple-500/30 space-y-2">
+                  <div className="p-2.5 rounded-lg bg-[#0F131D] border border-white/[0.08] space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Type className="w-4 h-4 text-amber-400" />
                         <div>
                           <div className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                             <span>หัวข้อ & ชื่อสินค้าบนหน้าปก</span>
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-medium">
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium">
                               แนะนำสำหรับ TikTok
                             </span>
                           </div>
@@ -1345,7 +1345,7 @@ export default function CoverStudioModal({
                           onChange={(e) => setEnableHookText(e.target.checked)}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                        <div className="w-9 h-5 bg-white/[0.1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
                       </label>
                     </div>
 
@@ -1364,9 +1364,9 @@ export default function CoverStudioModal({
                               setTemplate('tech_neon');
                               setEnableHookText(true);
                             }}
-                            className="px-2 py-0.5 text-[10px] rounded bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/60 font-bold cursor-pointer shadow flex items-center gap-1"
+                            className="px-2 py-0.5 text-[10px] rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-bold cursor-pointer transition-colors flex items-center gap-1"
                           >
-                            <span>🔥 สไตล์ Tech Reviewer (ตามเรฟ)</span>
+                            <span>สไตล์ Tech Reviewer (ตามเรฟ)</span>
                           </button>
                           <button
                             type="button"
@@ -1374,9 +1374,9 @@ export default function CoverStudioModal({
                               setHookText(productName || 'สินค้าพรีเมียม');
                               setSubText('รีวิวการใช้งานจริง');
                             }}
-                            className="px-2 py-0.5 text-[10px] rounded bg-purple-900/50 hover:bg-purple-800 text-purple-200 border border-purple-700/60 cursor-pointer"
+                            className="px-2 py-0.5 text-[10px] rounded bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 border border-white/[0.08] cursor-pointer transition-colors"
                           >
-                            🏷️ ชื่อสินค้าล้วน: {productName || 'สินค้า'}
+                            ชื่อสินค้า: {productName || 'สินค้า'}
                           </button>
                           <button
                             type="button"
@@ -1384,9 +1384,9 @@ export default function CoverStudioModal({
                               setHookText(`อย่าเพิ่งซื้อ ${productName || 'สินค้านี้'}\nถ้ายังไม่รู้สิ่งนี้!`);
                               setSubText('พิกัดในตะกร้าลดพิเศษ');
                             }}
-                            className="px-2 py-0.5 text-[10px] rounded bg-amber-900/40 hover:bg-amber-800/60 text-amber-200 border border-amber-700/60 cursor-pointer"
+                            className="px-2 py-0.5 text-[10px] rounded bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 cursor-pointer transition-colors"
                           >
-                            🔥 สไตล์ Hook ดึงดูด
+                            สไตล์ Hook ดึงดูด
                           </button>
                           <button
                             type="button"
@@ -1394,9 +1394,9 @@ export default function CoverStudioModal({
                               setHookText(`รีวิวชัดๆ ${productName || 'สินค้า'}\nคุ้มไหมกับราคานี้?`);
                               setSubText('ดูคลิปจบตัดสินใจได้เลย');
                             }}
-                            className="px-2 py-0.5 text-[10px] rounded bg-cyan-900/40 hover:bg-cyan-800/60 text-cyan-200 border border-cyan-700/60 cursor-pointer"
+                            className="px-2 py-0.5 text-[10px] rounded bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 cursor-pointer transition-colors"
                           >
-                            🎯 สไตล์ Review คุ้มไหม
+                            สไตล์ Review คุ้มไหม
                           </button>
                         </div>
                         <input
@@ -1404,7 +1404,7 @@ export default function CoverStudioModal({
                           value={hookText}
                           onChange={(e) => setHookText(e.target.value)}
                           placeholder="พิมพ์ข้อความหัวข้อบนปก..."
-                          className="w-full text-xs px-2.5 py-1.5 rounded bg-slate-900 border border-slate-700 text-amber-300 font-semibold focus:outline-none focus:border-amber-400"
+                          className="w-full text-xs px-2.5 py-1.5 rounded bg-[#0A0D14] border border-white/[0.08] text-amber-300 font-semibold focus:outline-none focus:border-amber-400/60"
                         />
                       </div>
                     )}
@@ -1412,7 +1412,7 @@ export default function CoverStudioModal({
 
                   {/* Product Reference Shot Selector for AI */}
                   {productRefImages.length > 0 && (
-                    <div className="p-2.5 rounded-lg bg-slate-950/70 border border-purple-500/20 space-y-1.5">
+                    <div className="p-2.5 rounded-lg bg-[#0F131D] border border-white/[0.08] space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-purple-200 font-semibold flex items-center gap-1.5">
                           <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />
@@ -1442,8 +1442,8 @@ export default function CoverStudioModal({
                           }}
                           className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium transition-all cursor-pointer ${
                             !selectedRefImage
-                              ? 'bg-purple-600/30 border-purple-400 text-purple-200 shadow'
-                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                              ? 'bg-purple-600/25 border-purple-400 text-purple-200 shadow-sm'
+                              : 'bg-[#0A0D14] border-white/[0.08] text-slate-400 hover:text-slate-200'
                           }`}
                         >
                           <Film className="w-3 h-3 text-purple-400" />
@@ -1462,8 +1462,8 @@ export default function CoverStudioModal({
                               }}
                               className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-medium transition-all cursor-pointer ${
                                 isSel
-                                  ? 'bg-amber-500/20 border-amber-400 text-amber-200 ring-1 ring-amber-400/50 shadow'
-                                  : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:border-amber-400/40'
+                                  ? 'bg-amber-500/20 border-amber-400 text-amber-200 ring-1 ring-amber-400/50 shadow-sm'
+                                  : 'bg-[#0A0D14] border-white/[0.08] text-slate-400 hover:border-amber-400/40'
                               }`}
                             >
                               <img src={toMediaUrl(img.url, ownerRef.current.channel_id)} alt="" className="w-4 h-4 object-cover rounded" />
@@ -1493,7 +1493,7 @@ export default function CoverStudioModal({
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
                       placeholder="อธิบายสไตล์ฉากสตูดิโอ โทนแสง โพเดียม และบรรยากาศ..."
-                      className="w-full text-xs p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 focus:outline-none focus:border-purple-500 transition-colors resize-none placeholder-slate-600"
+                      className="w-full text-xs p-2.5 rounded-lg bg-[#0A0D14] border border-white/[0.08] text-slate-200 focus:outline-none focus:border-purple-500/60 transition-colors resize-none placeholder-slate-600"
                     />
                   </div>
 
@@ -1503,23 +1503,23 @@ export default function CoverStudioModal({
                     <div className="flex flex-wrap gap-1.5">
                       {[
                         {
-                          label: '🎯 แผ่นรองตัดโมเดล (Dark Grid)',
+                          label: 'แผ่นรองตัดโมเดล (Dark Grid)',
                           prompt: `Commercial 8k product hero photography of ${productName || 'product'}, placed flat at center on a dark charcoal gray precision model cutting mat with sharp white metric millimeter grid lines, ruler centimeter numbers, and alignment crosshair markings, professional tech reviewer desk setup, 45-degree high-angle view, clean diffused top softbox light casting subtle soft contact shadows under product edges, ultra-crisp macro texture, minimal modern gadget aesthetic, no people, no human, 9:16 vertical`,
                         },
                         {
-                          label: '⚡ ผนังระแนงเทค + ไฟคู่ ส้ม/ฟ้า',
+                          label: 'ผนังระแนงเทค + ไฟคู่ ส้ม/ฟ้า',
                           prompt: `Commercial 8k product showcase of ${productName || 'product'}, centered on a sleek matte dark stage in front of a modern vertical acoustic wooden slat wall, vibrant dual studio rim lighting with warm golden-amber backlight on one side and cool electric cyan backlight on the other side, dramatic contrast outlining product contours, clean high-end tech YouTuber backdrop, no people, no human, 9:16 vertical`,
                         },
                         {
-                          label: '🖐️ มือโปรจับสินค้าจริง (Handheld)',
+                          label: 'มือโปรจับสินค้าจริง (Handheld)',
                           prompt: `Commercial 8k close-up shot of a clean human hand holding ${productName || 'product'} firmly and neatly at center, fingers gripping sides naturally without obstructing logo or buttons, dark minimalist studio background with subtle warm orange and cool blue accent lights, sharp macro focus on the product, professional tech unboxing aesthetic, 9:16 vertical`,
                         },
                         {
-                          label: '🏆 แท่นโชว์ดาร์กมินิมอล',
+                          label: 'แท่นโชว์ดาร์กมินิมอล',
                           prompt: `Ultra-clean commercial 8k product showcase, empty dark graphite round podium pedestal for ${productName || 'product'}, subtle overhead focused spotlight creating a smooth vignette shadow gradient, premium minimal matte surface with faint reflection, moody aesthetic, no people, no human, 9:16 vertical`,
                         },
                         {
-                          label: '✨ คลีนมินิมอลเกรย์ (Clean Studio)',
+                          label: 'คลีนมินิมอลเกรย์ (Clean Studio)',
                           prompt: `High-end commercial 8k product catalog photography for ${productName || 'product'}, centered on a smooth light gray seamless cyclorama curve background, bright balanced diffused softbox studio illumination, delicate natural contact shadow, ultra-clean Scandinavian minimal tech aesthetic, razor-sharp details, no people, no human, 9:16 vertical`,
                         },
                       ].map((preset, pIdx) => (
@@ -1531,7 +1531,7 @@ export default function CoverStudioModal({
                             handleGenerateAiCover(preset.prompt);
                           }}
                           disabled={generatingAi}
-                          className="px-2.5 py-1 text-[11px] rounded-md bg-purple-950/60 hover:bg-purple-900 text-purple-200 border border-purple-800/60 transition-colors disabled:opacity-50 cursor-pointer"
+                          className="px-2.5 py-1 text-[11px] rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] hover:text-white transition-colors disabled:opacity-50 cursor-pointer"
                         >
                           {preset.label}
                         </button>
@@ -1545,7 +1545,7 @@ export default function CoverStudioModal({
                       type="button"
                       onClick={() => handleGenerateAiCover()}
                       disabled={generatingAi || !aiPrompt.trim()}
-                      className="w-full sm:w-auto px-4 py-2 rounded-lg font-bold text-xs bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full sm:w-auto px-4 py-2 rounded-lg font-bold text-xs bg-purple-600 hover:bg-purple-500 text-white border border-purple-500/30 disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {generatingAi ? (
                         <>
@@ -1570,7 +1570,7 @@ export default function CoverStudioModal({
                   <select
                     value={selectedRawPath}
                     onChange={(e) => handleSwitchToRawSource(e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none"
+                    className="w-full text-xs px-2.5 py-1.5 rounded-lg bg-[#0A0D14] border border-white/[0.08] text-slate-200 focus:outline-none"
                   >
                     {rawSources.map((r, i) => (
                       <option key={i} value={r.path}>
@@ -1594,11 +1594,11 @@ export default function CoverStudioModal({
                         onClick={() => handleSelectCandidate(cand)}
                         className={`group relative rounded-lg overflow-hidden border transition-all text-left flex flex-col cursor-pointer ${
                           isSelected
-                            ? 'border-amber-400 ring-2 ring-amber-400/30 shadow-md scale-102'
-                            : 'border-slate-700 hover:border-slate-500 opacity-80 hover:opacity-100'
+                            ? 'border-amber-400 ring-1 ring-amber-400/40 shadow-sm'
+                            : 'border-white/[0.08] hover:border-white/[0.2] opacity-80 hover:opacity-100'
                         }`}
                       >
-                        <div className="aspect-[9/16] w-full bg-slate-950 relative overflow-hidden">
+                        <div className="aspect-[9/16] w-full bg-[#05070A] relative overflow-hidden">
                           <img
                             src={toMediaUrl(cand.thumb_url, ownerRef.current.channel_id)}
                             alt={cand.label}
@@ -1608,7 +1608,7 @@ export default function CoverStudioModal({
                             {cand.timestamp.toFixed(1)}s
                           </span>
                         </div>
-                        <div className="p-1 bg-slate-900/90 text-center">
+                        <div className="p-1 bg-[#0A0D14] text-center">
                           <p className="text-[10px] font-medium text-slate-300 truncate">
                             {cand.label}
                           </p>
@@ -1640,7 +1640,7 @@ export default function CoverStudioModal({
                       setCustomImage(null);
                       setCustomImageFile(null);
                     }}
-                    className="w-full accent-cyan-400 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    className="w-full accent-cyan-400 h-1.5 bg-white/[0.08] rounded-lg cursor-pointer"
                   />
                 </div>
 
@@ -1661,30 +1661,30 @@ export default function CoverStudioModal({
                     step="5"
                     value={panY}
                     onChange={(e) => setPanY(parseInt(e.target.value))}
-                    className="w-full accent-amber-400 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    className="w-full accent-amber-400 h-1.5 bg-white/[0.08] rounded-lg cursor-pointer"
                   />
                 </div>
               </div>
             </div>
 
             {/* Section 2: Hook Copy & Positioning (Default OFF / unchecked) */}
-            <div className="bg-slate-800/40 border border-slate-800 rounded-xl p-4 space-y-3">
+            <div className="bg-[#0F131D] border border-white/[0.08] rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={enableHookText}
                     onChange={(e) => setEnableHookText(e.target.checked)}
-                    className="rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-0 w-4 h-4 cursor-pointer"
+                    className="rounded bg-[#0A0D14] border-white/[0.15] text-cyan-500 focus:ring-0 w-4 h-4 cursor-pointer"
                   />
-                  <Sparkles className="w-4 h-4" />
-                  2. ข้อความ Hook บนปก (AI Copy & Positioning)
+                  <Type className="w-4 h-4" />
+                  2. ข้อความ Hook บนปก (Copy & Positioning)
                 </label>
                 <span
                   className={`text-[11px] font-bold px-2 py-0.5 rounded-full transition-colors ${
                     enableHookText
                       ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
-                      : 'bg-slate-800 text-slate-400'
+                      : 'bg-white/[0.04] text-slate-400 border border-white/[0.06]'
                   }`}
                 >
                   {enableHookText ? 'เปิดใช้งาน' : 'ปิดข้อความ (ภาพคลีน)'}
@@ -1692,7 +1692,7 @@ export default function CoverStudioModal({
               </div>
 
               {!enableHookText ? (
-                <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-slate-300 text-xs flex items-center gap-2.5">
+                <div className="p-3 rounded-xl bg-[#07090E] border border-white/[0.08] text-slate-300 text-xs flex items-center gap-2.5">
                   <div className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
                     <Check className="w-3.5 h-3.5" />
                   </div>
@@ -1717,8 +1717,8 @@ export default function CoverStudioModal({
                             onClick={() => setHookText(h.text)}
                             className={`text-xs px-2.5 py-1 rounded-lg border transition-all text-left cursor-pointer ${
                               hookText === h.text
-                                ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 font-semibold'
-                                : 'bg-slate-800/80 border-slate-700 hover:border-slate-500 text-slate-300'
+                                ? 'bg-cyan-500/15 border-cyan-400 text-cyan-300 font-semibold'
+                                : 'bg-white/[0.03] border-white/[0.08] hover:border-white/[0.18] text-slate-300'
                             }`}
                           >
                             <span className="text-[10px] text-cyan-400/80 mr-1.5">
@@ -1743,7 +1743,7 @@ export default function CoverStudioModal({
                         value={hookText}
                         onChange={(e) => setHookText(e.target.value)}
                         placeholder="ใส่ข้อความ Hook บนปก..."
-                        className="w-full px-3 py-2 text-sm bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-cyan-400 font-semibold"
+                        className="w-full px-3 py-2 text-sm bg-[#07090E] border border-white/[0.08] rounded-lg text-white focus:outline-none focus:border-cyan-400/60 font-semibold"
                       />
                     </div>
 
@@ -1757,7 +1757,7 @@ export default function CoverStudioModal({
                           value={subText}
                           onChange={(e) => setSubText(e.target.value)}
                           placeholder="เช่น พิกัดในตะกร้าลด 50%"
-                          className="w-full px-3 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-cyan-400"
+                          className="w-full px-3 py-1.5 text-xs bg-[#07090E] border border-white/[0.08] rounded-lg text-white focus:outline-none focus:border-cyan-400/60"
                         />
                       </div>
 
@@ -1765,7 +1765,7 @@ export default function CoverStudioModal({
                         <label className="block text-xs text-slate-400 mb-1">
                           ตำแหน่งวางข้อความ (Hook Zone)
                         </label>
-                        <div className="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-lg border border-slate-700">
+                        <div className="grid grid-cols-3 gap-1 bg-[#07090E] p-1 rounded-lg border border-white/[0.08]">
                           {[
                             { id: 'top', label: 'บน ~25%' },
                             { id: 'center', label: 'กลาง ~50%' },
@@ -1793,7 +1793,7 @@ export default function CoverStudioModal({
             </div>
 
             {/* Section 3: Template Style & 3D Badges */}
-            <div className="bg-slate-800/40 border border-slate-800 rounded-xl p-4 space-y-4">
+            <div className="bg-[#0F131D] border border-white/[0.08] rounded-xl p-4 space-y-4">
               <label className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                 <Layers className="w-4 h-4" />
                 3. สไตล์แม่แบบ & ป้าย 3D (TikTok Templates)
@@ -1805,7 +1805,7 @@ export default function CoverStudioModal({
                   {[
                     {
                       id: 'tech_neon',
-                      name: '🔥 Tech Reviewer',
+                      name: 'Tech Reviewer',
                       desc: 'แบรนด์ขาว + รุ่นนีออน (ตามเรฟ)',
                       badgeBg: 'bg-black border border-[#39FF14] text-[#39FF14] font-black',
                     },
@@ -1825,7 +1825,7 @@ export default function CoverStudioModal({
                       id: 'modern_box',
                       name: 'กล่องโมเดิร์น',
                       desc: 'กระจกเงา ขอบฟ้าเรืองแสง',
-                      badgeBg: 'bg-slate-900 border border-[#25F4EE] text-white',
+                      badgeBg: 'bg-[#0A0D14] border border-[#25F4EE] text-white',
                     },
                     {
                       id: 'minimal_bold',
@@ -1842,8 +1842,8 @@ export default function CoverStudioModal({
                         onClick={() => setTemplate(t.id)}
                         className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
                           isSel
-                            ? 'border-emerald-400 bg-emerald-500/10 ring-2 ring-emerald-400/20'
-                            : 'border-slate-700 bg-slate-900/60 hover:border-slate-600'
+                            ? 'border-emerald-500 bg-emerald-500/10 text-white shadow-sm'
+                            : 'border-white/[0.08] bg-[#07090E] hover:border-white/[0.18]'
                         }`}
                       >
                         <div>
@@ -1872,13 +1872,13 @@ export default function CoverStudioModal({
                       type="checkbox"
                       checked={enableBadge}
                       onChange={(e) => setEnableBadge(e.target.checked)}
-                      className="rounded bg-slate-900 border-slate-700 text-amber-500 focus:ring-0 w-4 h-4 cursor-pointer"
+                      className="rounded bg-[#07090E] border-white/[0.12] text-amber-500 focus:ring-0 w-4 h-4 cursor-pointer"
                     />
                     <span>เลือกป้ายสติกเกอร์ 3D (3D Badges)</span>
                   </label>
 
                   {enableBadge && (
-                    <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-700 text-[11px]">
+                    <div className="flex items-center gap-1 bg-[#07090E] p-0.5 rounded-lg border border-white/[0.08] text-[11px]">
                       {[
                         { id: 'top_left', label: 'มุมซ้ายบน' },
                         { id: 'top_right', label: 'มุมขวาบน' },
@@ -1890,7 +1890,7 @@ export default function CoverStudioModal({
                           onClick={() => setBadgePosition(bp.id)}
                           className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
                             badgePosition === bp.id
-                              ? 'bg-slate-700 text-white font-bold'
+                              ? 'bg-white/[0.1] text-white font-bold'
                               : 'text-slate-400 hover:text-slate-200'
                           }`}
                         >
@@ -1912,8 +1912,8 @@ export default function CoverStudioModal({
                           onClick={() => setSelectedBadge(b.id)}
                           className={`p-1 rounded-lg border transition-all flex flex-col items-center justify-center cursor-pointer ${
                             isBActive
-                              ? 'border-amber-400 bg-amber-500/10 ring-1 ring-amber-400/40 shadow'
-                              : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'
+                              ? 'border-amber-400 bg-amber-500/10 shadow-sm'
+                              : 'border-white/[0.08] bg-[#07090E] hover:border-white/[0.18]'
                           }`}
                           title={b.title}
                         >
@@ -1930,7 +1930,7 @@ export default function CoverStudioModal({
                     })}
                   </div>
                 ) : !enableBadge ? (
-                  <div className="p-2.5 rounded-xl bg-slate-900/40 border border-slate-800 text-slate-400 text-xs">
+                  <div className="p-2.5 rounded-xl bg-[#07090E] border border-white/[0.08] text-slate-400 text-xs">
                     <span>ปิดการแปะป้าย 3D แล้ว</span>
                   </div>
                 ) : null}
@@ -1939,13 +1939,13 @@ export default function CoverStudioModal({
 
             {/* Feedback messages */}
             {error && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
             {savedResult && (
-              <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 space-y-2 animate-fadeIn">
+              <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-500/30 space-y-2 animate-fadeIn">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-emerald-300 font-bold text-xs">
                     <Check className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -1954,13 +1954,13 @@ export default function CoverStudioModal({
                   <button
                     type="button"
                     onClick={() => revealFile(savedResult.cover_path)}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                    className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
                   >
                     <Folder className="w-3.5 h-3.5" />
                     <span>เปิดไฟล์ใน Explorer</span>
                   </button>
                 </div>
-                <div className="text-[11px] text-slate-300 bg-black/40 p-2 rounded-lg border border-white/[0.05] font-mono select-all break-all space-y-1">
+                <div className="text-[11px] text-slate-300 bg-[#07090E] p-2 rounded-lg border border-white/[0.08] font-mono select-all break-all space-y-1">
                   <div>
                     <span className="text-slate-500">ไฟล์ 9:16: </span>
                     <span className="text-emerald-300">{savedResult.cover_path}</span>
@@ -1978,11 +1978,11 @@ export default function CoverStudioModal({
         </div>
 
         {/* Footer with Dual Export Options */}
-        <div className="px-6 py-3.5 border-t border-slate-800 bg-slate-950 flex flex-wrap items-center justify-between gap-3">
+        <div className="px-6 py-3.5 border-t border-white/[0.08] bg-[#0A0D14] flex flex-wrap items-center justify-between gap-3">
           {/* Aspect Ratio Selector Pills */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400 font-semibold">ขนาดภาพที่บันทึก:</span>
-            <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
+            <div className="flex items-center gap-1 bg-[#07090E] p-1 rounded-xl border border-white/[0.08] text-xs">
               {[
                 { id: 'both', label: 'ทั้งสองขนาด (9:16 + 3:4)' },
                 { id: '3:4', label: '3:4 หน้าช่อง TikTok' },
@@ -1994,7 +1994,7 @@ export default function CoverStudioModal({
                   onClick={() => setAspectRatio(r.id)}
                   className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
                     aspectRatio === r.id
-                      ? 'bg-amber-500 text-slate-950 shadow'
+                      ? 'bg-amber-500 text-slate-950 shadow-sm'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -2009,7 +2009,7 @@ export default function CoverStudioModal({
               <button
                 type="button"
                 onClick={() => revealFile(savedResult.cover_path)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-200 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
               >
                 <Folder className="w-3.5 h-3.5" />
                 <span>เปิดโฟลเดอร์ไฟล์ปก</span>
@@ -2019,7 +2019,7 @@ export default function CoverStudioModal({
               type="button"
               onClick={handleClose}
               disabled={saving || generatingAi}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
             >
               {savedResult ? 'เสร็จสิ้น' : 'ยกเลิก'}
             </button>
@@ -2027,7 +2027,7 @@ export default function CoverStudioModal({
               type="button"
               onClick={handleSaveCover}
               disabled={saving}
-              className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+              className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
             >
               {saving ? (
                 <>

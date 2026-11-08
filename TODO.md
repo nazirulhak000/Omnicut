@@ -4,6 +4,29 @@
 
 ## รอบปัจจุบัน
 
+- [ ] Round ANTIGRAVITY-UI-UX-FLOW-OVERHAUL-MENU-1-TO-4-20261109 · แผนงานปรับปรุงสถาปัตยกรรม UI/UX และความต่อเนื่องของลูปงาน (เมนู 1 → 2 → 3 → 4) ตามเกณฑ์ /impeccable + /ui-ux-pro-max + /unslop (เอกสาร: _Docs/Plans/PLAN_UI_UX_FLOW_OVERHAUL_MENU_1_TO_4_20261109.md):
+  - [ ] Phase 1: Role Decoupling — ถอด Quick Post QR ออกจาก Tracker (เมนู 2) สถาปนา Export Gallery (เมนู 4) เป็น Single Source of Truth
+  - [ ] Phase 2: Flow Continuity Bridges — ทำ Sticky Primary CTA 1→2 (ส่งเข้า Tracker) และ Post-Render CTA 3→4 (ไป Export Gallery)
+  - [ ] Phase 3: Unslopping เมนู 1 (สินค้า → คลิป) — ล้างสีรุ้งใน CONTENT_TYPE_CATALOG สู่ Monochromatic Neutral, กำจัด Emojis ในปุ่ม/Labels, ควบรวม Modals
+  - [ ] Phase 4: Tracker Ergonomics เมนู 2 (แทร็กเกอร์ 4 เฟส) — ยุบปุ่มบนการ์ด Kanban เหลือ 2 ปุ่มหลัก + ••• Dropdown, ปรับ Quiet Header พร้อม Status Dot 6px
+  - [ ] Phase 5: Editor Polish & Safe Zone เมนู 3 (ตัดต่อ & สร้างคลิป) — เพิ่ม TikTok Safe Zone Overlay (420px ล่าง / 120px ขวา), Smart Auto-Collapse Asset Panel, Tabular Nums บน Timecode
+  - [ ] Phase 6: Gallery Craft เมนู 4 (Export Gallery) — ปรับการ์ดวิดีโอสู่ Quiet Chrome (1 Bright Action: สแกนโพสต์), เพิ่ม Dimmed State สำหรับคลิปที่โพสต์แล้ว
+  - [ ] Phase 7: Full System Regression & Verification — รัน Vitest unit tests, parity check, และ production build ผ่าน 100%
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-UNSLOP-PASS2-10-ROUNDS-AUDIT-20261109 · ลูปตรวจเช็กความประณีตระดับงานฝีมือ 10 รอบ (Pass 2) ตามสกิล /unslop:
+  - [x] Round 01: Modals Deep Clean (HookVariation, CloudArchive, ProductMetadata, SceneCatalog, ShotList)
+  - [x] Round 02: Studio Agenda & Schedule Hub (ScheduleAgenda, ScheduleDetailModal)
+  - [x] Round 03: Activity Center & Notification Stream (ActivityCenter)
+  - [x] Round 04: Cover Studio & Thumbnail Lab (CoverStudioModal)
+  - [x] Round 05: Typography & Tabular Numbers (ลบ uppercase tracking กว้าง, จัด tabular-nums เวลา/สถิติ)
+  - [x] Round 06: Emoji-to-Icon Sanitation Pass (แปลง emojis ในปุ่มและชิปเป็น Uniform Line Icons)
+  - [x] Round 07: 4px Spacing Grid Alignment (จัดระเบียบ Padding/Margin ให้อยู่บนระบบ 4px)
+  - [x] Round 08: Micro-Interactions & Animation Pruning (ลบ animate-ping/bounce ส่วนเกิน)
+  - [x] Round 09: Toast & Feedback System Sanitation (ปรับสำนวนแจ้งเตือนและกล่องยืนยันให้สุภาพ กระชับ ไร้ hype words)
+  - [x] Round 10: Full System Regression, Parity 100% & Live Visual Diff Sign-Off
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
 - [x] Round ANTIGRAVITY-UNSLOP-PHASE09-MOBILE-REGRESSION-20261108 · ดำเนินการ Phase 09 (Mobile Shell, Full Regression & Final Handover): ปรับ MobileShell, Safe-Area insets, Touch Targets >= 44px, ผ่าน Vitest 1,222/1,222 tests (100%), Parity 212/212 (100%), Build ผ่าน, บันทึก Live UI Snapshots สมบูรณ์ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 - [x] Round ANTIGRAVITY-UNSLOP-PHASE08-SECONDARY-20261108 · ดำเนินการ Phase 08 (Settings, Guide, Login & Secondary Surfaces): ปรับ SystemSettings, ChannelSettings, Guide, Login, AgentDock สู่ Obsidian Pro Dark NLE Studio (#0A0D14, border-white/[0.08]) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 - [x] Round ANTIGRAVITY-UNSLOP-PHASE07-ASSETS-ANALYTICS-20261108 · ดำเนินการ Phase 07 (Assets & Analytics) สู่ Obsidian Dark NLE พร้อม PageHeader และชาร์ตคมชัด · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)

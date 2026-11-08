@@ -99,7 +99,7 @@ export default function ShotListModal({
     >
       <div className="space-y-4">
         {error && (
-          <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs flex items-start gap-2.5 shadow-lg">
+          <div className="p-3.5 rounded-xl bg-[#0D111A] border border-rose-500/30 text-rose-200 text-xs flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
               <strong className="font-bold text-rose-300 block">สังเคราะห์เสียงพากย์ไม่สำเร็จ:</strong>
@@ -109,15 +109,15 @@ export default function ShotListModal({
         )}
 
         {onRegenerate && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-[#0D111A] border border-white/[0.08]">
             <div className="flex items-center gap-2">
-              <Mic className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+              <Mic className="w-4 h-4 text-[#25F4EE] flex-shrink-0" />
               <span className="text-xs text-slate-300 font-medium">เสียงพากย์ Gemini TTS:</span>
               <select
                 value={selectedVoice}
                 onChange={(e) => setSelectedVoice(e.target.value)}
                 disabled={regenerating}
-                className="bg-[#0f172a] border border-white/10 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                className="bg-black/40 border border-white/[0.1] rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#25F4EE] transition-colors cursor-pointer"
               >
                 {GEMINI_VOICE_OPTIONS.map((opt) => (
                   <option key={opt.id} value={opt.id}>
@@ -131,7 +131,7 @@ export default function ShotListModal({
               onClick={handleTriggerRegenerate}
               disabled={regenerating}
               title="สังเคราะห์เสียงพากย์ Gemini Flash และคำนวณจังหวะ beat ใหม่"
-              className="px-3 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/30 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-all whitespace-nowrap"
+              className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-white border border-white/[0.1] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors whitespace-nowrap"
             >
               {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCw className="w-3.5 h-3.5" />}
               <span>{regenerating ? 'กำลังสร้าง...' : 'สร้างใหม่ด้วยเสียงนี้'}</span>
@@ -140,7 +140,7 @@ export default function ShotListModal({
         )}
 
         {result.is_stale && (
-          <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs flex items-center justify-between gap-3 shadow-lg animate-pulse">
+          <div className="p-3 rounded-xl bg-[#0D111A] border border-rose-500/40 text-rose-200 text-xs flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
               <span>
@@ -152,7 +152,7 @@ export default function ShotListModal({
                 type="button"
                 onClick={handleTriggerRegenerate}
                 disabled={regenerating}
-                className="px-2.5 py-1 rounded-lg bg-rose-500/30 hover:bg-rose-500/40 text-rose-100 text-xs font-bold whitespace-nowrap cursor-pointer transition-all border border-rose-400/40"
+                className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-100 text-xs font-bold whitespace-nowrap cursor-pointer transition-colors border border-rose-500/30"
               >
                 {regenerating ? 'กำลังสร้างใหม่...' : 'อัปเดตแผนถ่าย'}
               </button>
@@ -161,24 +161,26 @@ export default function ShotListModal({
         )}
 
         {voiceAudioPath && (
-          <div className="p-3 rounded-xl bg-white/[0.05] border border-white/[0.08] space-y-2">
+          <div className="p-3 rounded-xl bg-[#0D111A] border border-white/[0.08] space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5" /> เสียงนำถ่าย (GUIDE TRACK) — เปิดฟังคลอตอนถ่ายได้เลย
               </span>
               {isEdgeTts ? (
-                <span className="text-[10px] text-amber-300 font-bold bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/40 flex items-center gap-1">
-                  ⚠️ Edge-TTS (เสียงเดิม)
+                <span className="text-[10px] text-amber-300 font-bold bg-amber-500/15 px-2.5 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3 text-amber-400" />
+                  <span>Edge-TTS (เสียงเดิม)</span>
                 </span>
               ) : (
-                <span className="text-[10px] text-indigo-300 font-medium bg-indigo-500/15 px-2 py-0.5 rounded-full border border-indigo-500/20">
-                  ✨ Gemini: {currentVoiceOption.label.split('—')[0].trim()}
+                <span className="text-[10px] text-cyan-300 font-medium bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/25 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-[#25F4EE]" />
+                  <span>Gemini: {currentVoiceOption.label.split('—')[0].trim()}</span>
                 </span>
               )}
             </div>
             <audio controls className="w-full h-9" src={toMediaUrl(voiceAudioPath)} />
             {isEdgeTts && (
-              <div className="p-2.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
+              <div className="p-2.5 rounded-lg bg-black/40 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
                 <span>
                   ไฟล์เสียงนี้ถูกสร้างด้วย <strong className="text-white">Edge-TTS (เสียงเก่า)</strong> — แนะนำให้แตะปุ่ม <strong>"สร้างใหม่ด้วยเสียงนี้"</strong> ด้านบนเพื่อเปลี่ยนเป็นเสียง Gemini TTS
@@ -204,7 +206,7 @@ export default function ShotListModal({
             return (
               <div
                 key={beat.beat_index}
-                className="p-3.5 rounded-xl bg-[#0B0F19] border border-white/[0.08] space-y-2 hover:border-white/[0.15] transition-colors"
+                className="p-3.5 rounded-xl bg-[#0D111A] border border-white/[0.08] space-y-2 hover:border-white/[0.15] transition-colors"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -219,15 +221,15 @@ export default function ShotListModal({
                   </span>
                 </div>
 
-                <div className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05]">
+                <div className="p-2 rounded-lg bg-black/40 border border-white/[0.08]">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">บทพูด / เสียงพากย์</span>
                   <p className="text-xs text-slate-200 leading-snug">{beat.text}</p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
                   {cameraAngle && (
-                    <div className="p-2 rounded-lg bg-cyan-950/20 border border-cyan-500/20 text-cyan-200/95 space-y-0.5">
-                      <div className="flex items-center gap-1 text-[10px] font-bold text-cyan-400 uppercase tracking-wider">
+                    <div className="p-2 rounded-lg bg-black/40 border border-cyan-500/20 text-cyan-200/95 space-y-0.5">
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-[#25F4EE] uppercase tracking-wider">
                         <Camera className="w-3 h-3" />
                         <span>มุมกล้อง</span>
                       </div>
@@ -235,7 +237,7 @@ export default function ShotListModal({
                     </div>
                   )}
 
-                  <div className="p-2 rounded-lg bg-amber-950/20 border border-amber-500/20 text-amber-200/95 space-y-0.5">
+                  <div className="p-2 rounded-lg bg-black/40 border border-amber-500/20 text-amber-200/95 space-y-0.5">
                     <div className="flex items-center gap-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
                       <Clapperboard className="w-3 h-3" />
                       <span>แอคชั่นการถ่าย</span>
@@ -250,8 +252,8 @@ export default function ShotListModal({
 
         <div className="pt-3 border-t border-white/[0.08] space-y-3">
           {filmingUrl ? (
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.05] border border-white/[0.08]">
-              <div className="p-2 bg-white rounded-xl shadow-lg">
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-[#0D111A] border border-white/[0.08]">
+              <div className="p-2 bg-white rounded-xl border border-white/20">
                 <SafeQRCode value={filmingUrl} size={150} level="M" />
               </div>
               <p className="text-[11px] text-slate-400 text-center">
@@ -260,7 +262,7 @@ export default function ShotListModal({
               <button
                 type="button"
                 onClick={() => window.open(filmingUrl, '_blank', 'noopener')}
-                className="text-xs text-cyan-300 hover:text-cyan-200 flex items-center gap-1.5 font-bold cursor-pointer"
+                className="text-xs text-[#25F4EE] hover:text-[#25F4EE]/80 flex items-center gap-1.5 font-bold cursor-pointer transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 หรือเปิดหน้ากล้องบนเครื่องนี้เลย (ไม่ต้องสแกน)
@@ -279,7 +281,7 @@ export default function ShotListModal({
                       onClose();
                       onOpenStoryboard(angle);
                     }}
-                    className="px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                    className="px-3 py-1.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
                     <Scissors className="w-3.5 h-3.5" />
                     วางแผนช็อตด้วยตนเอง (Storyboard)
@@ -289,7 +291,7 @@ export default function ShotListModal({
                   type="button"
                   onClick={handleStartSession}
                   disabled={creatingSession}
-                  className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-all"
+                  className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors"
                 >
                   {creatingSession ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <QrCode className="w-3.5 h-3.5" />}
                   เริ่มเซสชันถ่ายทำ (QR)

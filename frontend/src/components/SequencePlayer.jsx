@@ -2220,13 +2220,25 @@ function getOverlayGeometry(ctx, overlay, tiers, baseFontSize, maxW, normY, moti
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
-  const masterScale = ((resolveLook(overlay.look, null).size_pct ?? 100) / 100);
+  const isHookKind = overlay.kind === 'hook';
+  const isHookLine = overlay.role === 'hook_line' || overlay.layout_mode === 'line';
+  const masterScale = (isHookKind && !isHookLine)
+    ? ((resolveLook(overlay.look, null).size_pct ?? 100) / 100)
+    : 1.0;
   const wrapped = [];
   for (const tier of tiers) {
-    const tierFs = Math.max(10, Math.round(((baseFontSize * (tier.look.size_pct ?? 100)) / 100) * masterScale));
+    let tierFs = Math.max(10, Math.round(((baseFontSize * (tier.look.size_pct ?? 100)) / 100) * masterScale));
     ctx.font = overlayFont(tier.look, tierFs);
-    for (const line of wrapCanvasText(tier.text, ctx, maxW)) {
-      wrapped.push({ line, fontSize: tierFs, look: tier.look, color: tier.color, tierIdx: tier.tierIdx });
+    if (isHookLine) {
+      while (ctx.measureText(tier.text).width > maxW && tierFs > 24) {
+        tierFs -= 2;
+        ctx.font = overlayFont(tier.look, tierFs);
+      }
+      wrapped.push({ line: tier.text, fontSize: tierFs, look: tier.look, color: tier.color, tierIdx: tier.tierIdx });
+    } else {
+      for (const line of wrapCanvasText(tier.text, ctx, maxW)) {
+        wrapped.push({ line, fontSize: tierFs, look: tier.look, color: tier.color, tierIdx: tier.tierIdx });
+      }
     }
   }
 
@@ -2247,9 +2259,12 @@ function getOverlayGeometry(ctx, overlay, tiers, baseFontSize, maxW, normY, moti
     blockH += w.accentReserve;
   }
 
-  const blockTop = overlay.anchor === ANCHOR_TOP
+  let blockTop = (overlay.anchor === ANCHOR_TOP || overlay.anchor === 'top')
     ? CANVAS_H * normY
     : CANVAS_H * normY - blockH / 2;
+  if (normY < 0.25 || overlay.position === 'top' || isHookLine) {
+    blockTop = Math.max(120, blockTop);
+  }
 
   let cursor = blockTop;
   let maxLineW = 0;

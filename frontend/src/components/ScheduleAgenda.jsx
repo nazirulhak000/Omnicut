@@ -960,7 +960,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
 
   return (
     <div className="space-y-5">
-      <div className="obsidian-card px-4 sm:px-5 py-3.5 rounded-2xl border border-cyan-400/20 bg-gradient-to-r from-cyan-950/20 via-slate-900/40 to-slate-950/80">
+      <div className="obsidian-card px-4 sm:px-5 py-3.5 rounded-2xl border border-white/[0.08] bg-[#0A0D14]">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
           <span className="text-slate-400">คลิปพร้อมจัด <strong className="text-white font-black">{capacityEstimate.readyCount}</strong> คลิป</span>
           <span className="text-cyan-200">รองรับอีก <strong className="text-white font-black">{capacityEstimate.coveredDays}</strong> วันโพสต์</span>
@@ -970,11 +970,11 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
         </div>
         <p className="mt-1.5 text-[10px] text-slate-500">อิงเทมเพลตสัปดาห์ปัจจุบันและการหมุนเวียนสินค้า (Fair Round-Robin) · คิวที่วางไว้ถึง {queueEndDate || 'ยังไม่มีคิว'}{queueEndDate ? ` · สัปดาห์เริ่ม ${queueEndWeekStart}` : ''}</p>
       </div>
-      <div className="obsidian-card rounded-3xl border border-white/[0.1] bg-[#07090E]/95 shadow-2xl overflow-hidden backdrop-blur-xl">
-        <div className="px-5 py-5 border-b border-white/[0.08] bg-gradient-to-r from-cyan-500/[0.08] via-transparent to-purple-500/[0.05]">
+      <div className="obsidian-card rounded-3xl border border-white/[0.08] bg-[#0A0D14] shadow-2xl overflow-hidden">
+        <div className="px-5 py-5 border-b border-white/[0.08] bg-white/[0.02]">
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-2xl bg-cyan-400/10 text-cyan-300 border border-cyan-400/20 shadow-[0_0_15px_rgba(34,211,238,0.15)]"><CalendarDays className="w-5 h-5" /></div>
+              <div className="p-2.5 rounded-2xl bg-cyan-400/10 text-cyan-300 border border-cyan-400/20"><CalendarDays className="w-5 h-5" /></div>
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-base sm:text-lg font-black text-white tracking-tight">คิวเผยแพร่วิดีโอ</h2>
@@ -1186,12 +1186,12 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                   onDrop={() => onDropDate(day.date)}
                   className={`rounded-2xl border transition-all flex flex-col min-h-[340px] overflow-hidden ${
                     day.isToday
-                      ? 'border-cyan-400/40 bg-cyan-500/[0.03] shadow-[0_0_20px_rgba(37,244,238,0.04)]'
-                      : 'border-white/[0.08] bg-black/20'
+                      ? 'border-cyan-400/40 bg-cyan-400/[0.04]'
+                      : 'border-white/[0.08] bg-[#0A0D14]'
                   }`}
                 >
                   <div className={`p-3 border-b flex items-center justify-between ${
-                    day.isToday ? 'border-cyan-400/25 bg-cyan-400/[0.08]' : 'border-white/[0.06] bg-white/[0.02]'
+                    day.isToday ? 'border-cyan-400/20 bg-cyan-400/[0.06]' : 'border-white/[0.06] bg-white/[0.02]'
                   }`}>
                     <div>
                       <div className="flex items-center gap-1.5">
@@ -1202,7 +1202,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                           </span>
                         )}
                         {day.analysis?.hasTimeConflict && (
-                          <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" title={`มีเวลาชนกันในวันนี้: ${Array.from(day.analysis.duplicateTimes).join(', ')}`} />
+                          <span className="w-2 h-2 rounded-full bg-red-400" title={`มีเวลาชนกันในวันนี้: ${Array.from(day.analysis.duplicateTimes).join(', ')}`} />
                         )}
                         {day.analysis?.hasProductConflict && (
                           <span className="w-2 h-2 rounded-full bg-amber-400" title="มีสินค้าซ้ำในวันนี้" />
@@ -1215,7 +1215,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                             {day.analysis.uniqueColors.map((c) => (
                               <span
                                 key={c}
-                                className="w-1.5 h-1.5 rounded-full inline-block shadow-[0_0_4px_currentColor]"
+                                className="w-1.5 h-1.5 rounded-full inline-block"
                                 style={{ backgroundColor: c }}
                                 title={`สี Hook: ${c}`}
                               />
@@ -1246,8 +1246,8 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                           key={item.id}
                           draggable={item.status === 'planned'}
                           onDragStart={() => setDraggedId(item.id)}
-                          className={`p-2.5 rounded-xl border bg-slate-900/90 shadow-sm transition-all text-left group ${
-                            item.status === 'planned' ? 'cursor-grab hover:border-cyan-400/40 hover:bg-slate-900' : 'cursor-default'
+                          className={`p-2.5 rounded-xl border bg-[#10141D] transition-colors text-left group ${
+                            item.status === 'planned' ? 'cursor-grab hover:border-cyan-400/30 hover:bg-[#141925]' : 'cursor-default'
                           } ${overdue ? 'border-red-500/40' : 'border-white/[0.08]'}`}
                         >
                           <div className="flex items-center justify-between gap-1 mb-1.5">
@@ -1256,7 +1256,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                               {parts.time}
                               {itemHookColor && (
                                 <span
-                                  className="w-2 h-2 rounded-full inline-block shadow-[0_0_5px_currentColor] ml-0.5"
+                                  className="w-2 h-2 rounded-full inline-block ml-0.5"
                                   style={{ backgroundColor: itemHookColor }}
                                   title={`Hook Color: ${itemHookColor}${itemPreset?.label ? ` (${itemPreset.label})` : ''}`}
                                 />
@@ -1445,7 +1445,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
               const dayItems = grouped[date];
               const analysis = dailyAnalysis[date];
               return (
-                <section key={date} onDragOver={(event) => event.preventDefault()} onDrop={() => onDropDate(date)} className="rounded-2xl border border-white/[0.08] bg-black/20 overflow-hidden">
+                <section key={date} onDragOver={(event) => event.preventDefault()} onDrop={() => onDropDate(date)} className="rounded-2xl border border-white/[0.08] bg-[#0A0D14] overflow-hidden">
                   <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-2 bg-white/[0.035] border-b border-white/[0.08]">
                     <div>
                       <h3 className="text-sm font-black text-white">{thaiDate(date)}</h3>
@@ -1457,7 +1457,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                             {analysis.uniqueColors.map((c) => (
                               <span
                                 key={c}
-                                className="w-2 h-2 rounded-full inline-block shadow-[0_0_5px_currentColor]"
+                                className="w-2 h-2 rounded-full inline-block"
                                 style={{ backgroundColor: c }}
                                 title={`สี Hook วันนี้: ${c}`}
                               />
@@ -1534,7 +1534,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                                     }}
                                     title={`Hook Color: ${itemHookColor}${itemPreset?.label ? ` (${itemPreset.label})` : ''}`}
                                   >
-                                    <span className="w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor]" style={{ backgroundColor: itemHookColor }} />
+                                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: itemHookColor }} />
                                     <span>{itemPreset?.label || itemHookColor}</span>
                                   </span>
                                 )}
@@ -1547,8 +1547,8 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                             <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><CalendarDays className="w-3.5 h-3.5" /><input type="date" value={scheduleDrafts.current.get(item.id)?.date || parts.date} disabled={item.status !== 'planned'} onChange={(event) => updateScheduleField(item, 'date', event.target.value)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white" /></label>
                             <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><Clock className="w-3.5 h-3.5 text-cyan-300" /><select value={scheduleDrafts.current.get(item.id)?.time || parts.time} disabled={item.status !== 'planned'} onChange={(event) => updateScheduleField(item, 'time', event.target.value)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white font-mono">{timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
                             {overdue && item.status === 'planned' && <button type="button" onClick={() => openRequeue(item)} className="px-2.5 py-1.5 rounded-lg border border-red-400/30 text-red-200 text-[11px]">จัดคิวใหม่</button>}
-                            {item.status === 'planned' || item.status === 'failed' ? <button type="button" onClick={() => prepareItem(item)} className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-[11px] font-bold flex items-center gap-1"><Rocket className="w-3.5 h-3.5" />เตรียมให้ Extension</button> : item.status === 'ready_for_extension' ? <button type="button" onClick={() => resetForMove(item)} className="px-2.5 py-1.5 rounded-lg border border-amber-400/25 text-amber-200 text-[11px]">รีเซ็ตเพื่อย้าย</button> : null}
-                            {clip && onOpenCoverStudio ? <button type="button" data-cover-state={hasCover ? 'ready' : 'missing'} onClick={() => onOpenCoverStudio(clip)} className={`p-1.5 rounded-lg border transition-colors ${hasCover ? 'border-emerald-400/45 bg-emerald-400/10 text-white shadow-[0_0_12px_rgba(52,211,153,0.16)] hover:bg-emerald-400/20' : 'border-white/[0.1] text-slate-600 hover:text-white hover:border-white/[0.2]'}`} title={hasCover ? 'มีภาพปกแล้ว · คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก · คลิกเพื่อสร้าง'} aria-label={hasCover ? 'มีภาพปกแล้ว คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก คลิกเพื่อสร้าง'}><ImageIcon className="w-3.5 h-3.5" /></button> : <span role="img" data-cover-state={hasCover ? 'ready' : 'missing'} className={`p-1.5 rounded-lg border ${hasCover ? 'border-emerald-400/45 bg-emerald-400/10 text-white' : 'border-white/[0.08] text-slate-700'}`} title={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'} aria-label={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'}><ImageIcon className="w-3.5 h-3.5" /></span>}
+                            {item.status === 'planned' || item.status === 'failed' ? <button type="button" onClick={() => prepareItem(item)} className="px-2.5 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-[11px] font-bold flex items-center gap-1 transition-colors"><Rocket className="w-3.5 h-3.5" />เตรียมให้ Extension</button> : item.status === 'ready_for_extension' ? <button type="button" onClick={() => resetForMove(item)} className="px-2.5 py-1.5 rounded-lg border border-amber-400/25 text-amber-200 text-[11px]">รีเซ็ตเพื่อย้าย</button> : null}
+                            {clip && onOpenCoverStudio ? <button type="button" data-cover-state={hasCover ? 'ready' : 'missing'} onClick={() => onOpenCoverStudio(clip)} className={`p-1.5 rounded-lg border transition-colors ${hasCover ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20' : 'border-white/[0.1] text-slate-600 hover:text-white hover:border-white/[0.2]'}`} title={hasCover ? 'มีภาพปกแล้ว · คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก · คลิกเพื่อสร้าง'} aria-label={hasCover ? 'มีภาพปกแล้ว คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก คลิกเพื่อสร้าง'}><ImageIcon className="w-3.5 h-3.5" /></button> : <span role="img" data-cover-state={hasCover ? 'ready' : 'missing'} className={`p-1.5 rounded-lg border ${hasCover ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300' : 'border-white/[0.08] text-slate-700'}`} title={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'} aria-label={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'}><ImageIcon className="w-3.5 h-3.5" /></span>}
                             {item.status === 'planned' ? <button type="button" onClick={() => removeItem(item)} className="p-1.5 rounded-lg border border-white/[0.1] text-slate-500 hover:text-red-300" title="นำออกจากคิว"><Trash2 className="w-3.5 h-3.5" /></button> : null}
                           </div>
                         </article>
@@ -1650,7 +1650,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
           </div>
 
           {/* Quick Auto-Pick Control Bar */}
-          <div className="p-3 rounded-2xl bg-gradient-to-r from-cyan-950/30 via-slate-900/60 to-purple-950/20 border border-cyan-400/20 space-y-2.5">
+          <div className="p-3 rounded-2xl bg-[#0A0D14] border border-white/[0.08] space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-bold text-white flex items-center gap-1.5">
                 <Shuffle className="w-3.5 h-3.5 text-cyan-300" />
@@ -1717,7 +1717,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                 type="button"
                 onClick={() => autoSelectClips(bulkDraft.autoCount, bulkDraft.filterProduct)}
                 disabled={!availableClips.length}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md hover:brightness-110 disabled:opacity-50"
+                className="px-3.5 py-1.5 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 font-bold text-xs flex items-center gap-1.5 disabled:opacity-50 transition-colors"
               >
                 <Shuffle className="w-3.5 h-3.5" />
                 สุ่มเลือก {bulkDraft.autoCount || 5} คลิป (หมุนเวียนสินค้า)

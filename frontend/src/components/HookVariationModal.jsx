@@ -5,7 +5,7 @@ import { generateHookVariations, applyAngleHook } from '../api';
 
 const STYLE_COLORS = {
   curiosity: 'text-amber-300 border-amber-500/30 bg-amber-500/10',
-  warning: 'text-red-300 border-red-500/30 bg-red-500/10',
+  warning: 'text-rose-300 border-rose-500/30 bg-rose-500/10',
   social_proof: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10',
   deal_promo: 'text-cyan-300 border-cyan-500/30 bg-cyan-500/10',
   pain_point: 'text-purple-300 border-purple-500/30 bg-purple-500/10',
@@ -111,14 +111,14 @@ export default function HookVariationModal({
     >
       <div className="space-y-4">
         {/* Top Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.08]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#0D111A] border border-white/[0.08]">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-300">สินค้า:</span>
-            <span className="text-xs font-black text-cyan-200 truncate max-w-xs">
+            <span className="text-xs font-black text-[#25F4EE] truncate max-w-xs">
               {angle?.product_name || product?.title || 'สินค้า'}
             </span>
             {angle?.angle_name && (
-              <span className="text-[11px] text-slate-400 bg-white/[0.06] px-2 py-0.5 rounded-md">
+              <span className="text-[11px] text-slate-400 bg-white/[0.06] px-2 py-0.5 rounded-md border border-white/[0.06]">
                 {angle.angle_name}
               </span>
             )}
@@ -130,7 +130,7 @@ export default function HookVariationModal({
                 type="checkbox"
                 checked={updateFirstLine}
                 onChange={(e) => setUpdateFirstLine(e.target.checked)}
-                className="w-4 h-4 rounded border-white/20 bg-black/40 text-cyan-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                className="w-4 h-4 rounded border-white/[0.1] bg-black/40 text-[#25F4EE] accent-[#25F4EE] focus:ring-0 focus:ring-offset-0 cursor-pointer"
               />
               <span className="text-xs text-slate-300 font-medium">อัปเดตประโยคแรกในสคริปต์ด้วย</span>
             </label>
@@ -139,7 +139,7 @@ export default function HookVariationModal({
               type="button"
               disabled={loading}
               onClick={loadVariations}
-              className="px-3 py-1.5 rounded-xl border border-cyan-400/30 bg-cyan-400/[0.08] hover:bg-cyan-400/[0.15] text-cyan-300 text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              className="px-3 py-1.5 rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 text-[#25F4EE] text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               สร้างใหม่
@@ -149,7 +149,7 @@ export default function HookVariationModal({
 
         {loading ? (
           <div className="py-16 text-center space-y-3">
-            <div className="w-8 h-8 mx-auto rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
+            <div className="w-8 h-8 mx-auto rounded-full border-2 border-[#25F4EE] border-t-transparent animate-spin" />
             <p className="text-sm font-bold text-slate-300">กำลังคิด Hook โดนๆ 5 สไตล์...</p>
             <p className="text-xs text-slate-500">วิเคราะห์ตามจิตวิทยาหยุดสายตาคนดู 3 วินาทีแรก</p>
           </div>
@@ -171,8 +171,8 @@ export default function HookVariationModal({
                     onClick={() => setSelectedIdx(idx)}
                     className={`p-3.5 rounded-2xl border transition-all cursor-pointer text-left ${
                       isSelected
-                        ? 'border-cyan-400/60 bg-cyan-500/[0.08] shadow-[0_0_20px_rgba(37,244,238,0.08)]'
-                        : 'border-white/[0.08] bg-black/25 hover:border-white/[0.2] hover:bg-white/[0.02]'
+                        ? 'border-[#25F4EE]/50 bg-[#25F4EE]/[0.06]'
+                        : 'border-white/[0.08] bg-[#0D111A] hover:border-white/[0.15] hover:bg-white/[0.02]'
                     }`}
                   >
                     {/* Header: Style + Tag + Actions */}
@@ -181,7 +181,7 @@ export default function HookVariationModal({
                         <span className={`px-2 py-0.5 rounded-lg border text-[10px] font-black ${styleClass}`}>
                           {item.style_name}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-bold bg-white/[0.05] px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] text-slate-400 font-bold bg-white/[0.05] px-2 py-0.5 rounded-md border border-white/[0.06]">
                           {item.tag}
                         </span>
                       </div>
@@ -190,7 +190,7 @@ export default function HookVariationModal({
                         <button
                           type="button"
                           onClick={() => handleCopy(item, idx)}
-                          className="p-1 rounded-lg border border-white/[0.1] text-slate-400 hover:text-white"
+                          className="p-1 rounded-lg border border-white/[0.08] bg-white/[0.02] text-slate-400 hover:text-white hover:border-white/[0.15] transition-colors cursor-pointer"
                           title="คัดลอกข้อความ"
                           aria-label="คัดลอกข้อความ"
                         >
@@ -200,7 +200,7 @@ export default function HookVariationModal({
                           type="button"
                           disabled={applying}
                           onClick={() => handleApply(item)}
-                          className="px-2.5 py-1 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-[11px] font-black flex items-center gap-1 transition-colors"
+                          className="px-2.5 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-[11px] font-black flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
                         >
                           <Check className="w-3 h-3" />
                           ใช้ Hook นี้
@@ -215,8 +215,8 @@ export default function HookVariationModal({
 
                     {/* Opening Voice Line */}
                     {item.opening_line && (
-                      <div className="flex items-start gap-1.5 text-[11px] text-slate-300 bg-black/40 rounded-xl p-2 border border-white/[0.05]">
-                        <Volume2 className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex items-start gap-1.5 text-[11px] text-slate-300 bg-black/40 rounded-xl p-2 border border-white/[0.08]">
+                        <Volume2 className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0 mt-0.5" />
                         <span className="line-clamp-2 leading-relaxed">
                           "{item.opening_line}"
                         </span>
@@ -228,17 +228,17 @@ export default function HookVariationModal({
             </div>
 
             {/* Right: Live 9:16 Mock Preview (5 cols) */}
-            <div className="lg:col-span-5 flex flex-col items-center justify-center p-4 rounded-2xl border border-white/[0.08] bg-black/40">
+            <div className="lg:col-span-5 flex flex-col items-center justify-center p-4 rounded-2xl border border-white/[0.08] bg-[#0D111A]">
               <div className="w-full flex items-center justify-between mb-3 px-1">
                 <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
-                  <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                  <Eye className="w-3.5 h-3.5 text-[#25F4EE]" />
                   จำลองบนหน้าจอ 9:16
                 </span>
                 <span className="text-[10px] text-slate-500">Safe Zone บน-ล่าง</span>
               </div>
 
               {/* 9:16 Frame */}
-              <div className="relative w-[210px] h-[373px] rounded-2xl border-2 border-white/20 bg-slate-950 overflow-hidden shadow-2xl flex flex-col justify-between p-3 select-none">
+              <div className="relative w-[210px] h-[373px] rounded-2xl border border-white/[0.15] bg-[#0A0D14] overflow-hidden flex flex-col justify-between p-3 select-none">
                 {/* Safe Zone Header Guide */}
                 <div className="text-[8px] text-slate-600 text-center border-b border-dashed border-white/10 pb-1">
                   TikTok Safe Zone
@@ -246,10 +246,10 @@ export default function HookVariationModal({
 
                 {/* Top Hook Banner Mock */}
                 <div className="space-y-1.5 mt-2">
-                  <div className="p-2.5 rounded-xl bg-gradient-to-b from-slate-900/90 to-slate-900/70 border border-cyan-400/40 backdrop-blur-md shadow-lg text-center">
+                  <div className="p-2.5 rounded-xl bg-[#0D111A]/95 border border-[#25F4EE]/40 backdrop-blur-md text-center">
                     {/* Tier 1: Brand */}
                     {selectedVariant?.hook_brand && (
-                      <div className="text-[8px] font-black uppercase tracking-widest text-cyan-300 truncate">
+                      <div className="text-[8px] font-black uppercase tracking-widest text-[#25F4EE] truncate">
                         {selectedVariant.hook_brand}
                       </div>
                     )}
@@ -261,7 +261,7 @@ export default function HookVariationModal({
                     )}
                     {/* Tier 3: Label */}
                     {selectedVariant?.hook_label && (
-                      <div className="mt-1 px-2 py-0.5 rounded-full bg-cyan-400 text-slate-950 text-[8px] font-black inline-block max-w-full truncate">
+                      <div className="mt-1 px-2 py-0.5 rounded-full bg-[#25F4EE] text-slate-950 text-[8px] font-black inline-block max-w-full truncate">
                         {selectedVariant.hook_label}
                       </div>
                     )}
@@ -275,7 +275,7 @@ export default function HookVariationModal({
 
                 {/* Spoken subtitle preview at bottom */}
                 <div className="space-y-2 mb-2">
-                  <div className="bg-black/80 rounded-lg p-1.5 border border-white/10 text-center">
+                  <div className="bg-black/80 rounded-lg p-1.5 border border-white/[0.08] text-center">
                     <p className="text-[8px] text-amber-300 font-bold leading-tight line-clamp-2">
                       {selectedVariant?.opening_line || selectedVariant?.hook_title}
                     </p>

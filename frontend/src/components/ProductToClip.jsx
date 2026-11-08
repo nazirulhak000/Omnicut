@@ -1080,7 +1080,7 @@ function AngleActiveWorkbench({
       {angle.hook_title && !isEditing && (
         <div className="hidden p-3 rounded-xl bg-gradient-to-r from-[#FE2C55]/15 via-black/40 to-[#25F4EE]/10 border border-[#FE2C55]/30 items-center justify-between gap-2.5 text-xs sm:text-sm font-bold text-white shadow-sm">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <span className="text-lg">🎯</span>
+            <span className="text-xs font-bold text-cyan-400">TARGET</span>
             <div className="min-w-0 flex-1 leading-snug">
               <span className="text-xs text-rose-400 font-semibold block">Hook พาดหัวเปิดคลิป:</span>
               <span className="block whitespace-normal break-words">"{angle.hook_title}"</span>
@@ -1126,7 +1126,7 @@ function AngleActiveWorkbench({
             <div className="flex items-center gap-2.5 flex-wrap">
               <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-cyan-300 font-bold text-xs flex items-center gap-1.5 border border-indigo-400/30 flex-shrink-0">
                 <Mic className="w-3.5 h-3.5 text-cyan-300" />
-                🎙️ เสียงนำถ่าย: Gemini TTS ({getVoicePresetFullLabel(shotListInfo?.voice_preset)})
+                เสียงนำถ่าย: Gemini TTS ({getVoicePresetFullLabel(shotListInfo?.voice_preset)})
               </span>
               <span className="text-xs text-slate-400 leading-tight">
                 {shotListInfo?.is_stale
@@ -1869,7 +1869,7 @@ function ScriptAccordionItem({
                   placeholder="พิมพ์บทพูดแต่ละท่อน เว้น 1 บรรทัดต่อ 1 ท่อน..."
                 />
                 <p className="text-[10px] text-slate-500">
-                  💡 แต่ละบรรทัดจะกลายเป็นซับไตเติล 1 ท่อน · กด Enter เพื่อเพิ่มบรรทัดใหม่ได้
+                  แต่ละบรรทัดจะกลายเป็นซับไตเติล 1 ท่อน · กด Enter เพื่อเพิ่มบรรทัดใหม่ได้
                 </p>
               </div>
 
@@ -3070,7 +3070,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       if (res.success && res.task_id) {
         pendingRerollAngleIdRef.current = { angle_id: targetAngle.angle_id, batch: targetBatch };
         setRerollModalAngleIdx(null);
-        showToast(`🚀 กำลังรีสคริปต์มุม "${targetAngle.angle_name || ''}" ด้วย AI ในเบื้องหลัง...`);
+        showToast(`กำลังรีสคริปต์มุม "${targetAngle.angle_name || ''}" ด้วย AI ในเบื้องหลัง...`);
       } else {
         showToast('ไม่สามารถเริ่มรีสคริปต์ได้', 'error');
       }
@@ -3349,7 +3349,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         setRawText('');
         setTiktokProductId('');
         setSelectedImages([]);
-        showToast(`🚀 เริ่มวิเคราะห์สินค้า & สร้าง ${angleCount} สคริปต์ในเบื้องหลังแล้ว — สามารถเปลี่ยนหน้าหรือทำงานต่อได้ทันที`);
+        showToast(`เริ่มวิเคราะห์สินค้า & สร้าง ${angleCount} สคริปต์ในเบื้องหลังแล้ว — สามารถเปลี่ยนหน้าหรือทำงานต่อได้ทันที`);
       } else {
         // Fallback to sync if async did not return task_id
         const syncRes = await scrapeAndPlanProduct(payload);
@@ -3960,7 +3960,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       });
       if (res.success && res.task_id) {
         setShowBatchModal(false);
-        showToast(`🚀 เริ่มสร้างสคริปต์ล็อตใหม่ ${batchAngleCount} มุมในเบื้องหลังแล้ว`);
+        showToast(`เริ่มสร้างสคริปต์ล็อตใหม่ ${batchAngleCount} มุมในเบื้องหลังแล้ว`);
       }
     } catch (err) {
       console.error('Generate batch failed:', err);
@@ -4084,7 +4084,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     if (!productData?.id) return;
     setIsScanningScenes(true);
     try {
-      showToast('👁️ สั่งวิเคราะห์แบ่งสารบัญฉากในเบื้องหลังแล้ว ติดตามที่เมนูกิจกรรมได้สดๆ', 'info');
+      showToast('สั่งวิเคราะห์แบ่งสารบัญฉากในเบื้องหลังแล้ว ติดตามที่เมนูกิจกรรมได้สดๆ', 'info');
       const res = await indexSceneCatalogs(productData.id, { video_path: videoPath, force });
       if (res?.task_id) {
         pollTasks();
@@ -4182,7 +4182,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         if (current) selectProduct(current);
       }).catch(() => {});
       workspaceData?.invalidateTrackerData?.();
-      showToast('🎉 สร้างดราฟต์ไทม์ไลน์เสร็จสมบูรณ์ ทุกมุมพร้อมเปิดทำต่อในไทม์ไลน์แล้ว!', 'success');
+      showToast('สร้างดราฟต์ไทม์ไลน์เสร็จสมบูรณ์ ทุกมุมพร้อมเปิดทำต่อในไทม์ไลน์แล้ว!', 'success');
     }
     prevBatchDraftTaskStatusRef.current = batchDraftTask ? 'running' : null;
   }, [batchDraftTask, productData?.id]);
@@ -4219,7 +4219,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       };
       const res = await startBatchDraft(payload);
       if (res.batch_id) {
-        showToast(`🚀 เริ่มสร้างดราฟต์ไทม์ไลน์ ${res.total_items ?? readyForDraftAngles.length} มุมมองในเบื้องหลังแล้ว (พร้อมเปิดตรวจในไม่กี่วินาที)`, 'info');
+        showToast(`เริ่มสร้างดราฟต์ไทม์ไลน์ ${res.total_items ?? readyForDraftAngles.length} มุมมองในเบื้องหลังแล้ว (พร้อมเปิดตรวจในไม่กี่วินาที)`, 'info');
       }
     } catch (err) {
       console.error('Batch draft creation failed:', err);
@@ -4285,7 +4285,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       if (draftProjectName) {
         targetAngle = { ...targetAngle, project_name: draftProjectName };
         handleOpenInTimeline(targetAngle, index);
-        showToast('🎉 สร้างดราฟต์ไทม์ไลน์เรียบร้อย เปิดเข้าสู่ไทม์ไลน์แล้ว!', 'success');
+        showToast('สร้างดราฟต์ไทม์ไลน์เรียบร้อย เปิดเข้าสู่ไทม์ไลน์แล้ว!', 'success');
       } else {
         showToast('⏳ กำลังประกอบดราฟต์ในพื้นหลัง สามารถกดเปิดไทม์ไลน์จากศูนย์กิจกรรมด้านบนเมื่อเสร็จสิ้นได้ครับ', 'info');
       }
@@ -4807,7 +4807,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               placeholder="เช่น 1737088044189583209 หรือวางลิงก์แชร์ vt.tiktok.com..."
             />
             <p className="text-[11px] text-slate-400">
-              💡 ใส่ไอดีเป็นหลักสำหรับปักตะกร้าอัตโนมัติ (หรือวางลิงก์แชร์เพื่อดึงไอดี) หากไม่มีระบบจะค้นหาด้วยชื่อสินค้าแทนให้ตรงที่สุด
+              ใส่ไอดีเป็นหลักสำหรับปักตะกร้าอัตโนมัติ (หรือวางลิงก์แชร์เพื่อดึงไอดี) หากไม่มีระบบจะค้นหาด้วยชื่อสินค้าแทนให้ตรงที่สุด
             </p>
           </div>
 
@@ -4866,12 +4866,12 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             </div>
             {angleCount === 4 && (
               <p className="text-slate-400 leading-relaxed">
-                1. 😫 ปัญหาก่อนใช้ • 2. ⚙️ <strong className="text-cyan-300">รีวิวสเปกเจาะลึก</strong> • 3. 🛍️ แกะกล่องว้าว • 4. 🔥 FOMO ดีลโปร
+                1. ปัญหาก่อนใช้ • 2. <strong className="text-cyan-300">รีวิวสเปกเจาะลึก</strong> • 3. 🛍️ แกะกล่องว้าว • 4. 🔥 FOMO ดีลโปร
               </p>
             )}
             {angleCount === 7 && (
               <p className="text-slate-400 leading-relaxed">
-                4 มุมหลัก (รวม ⚙️ <strong className="text-cyan-300">รีวิวสเปกเจาะลึก</strong>) + 🆚 เทียบของเดิม + 🤫 ทริกลึก + ⚠️ เตือนภัยก่อนซื้อ
+                4 มุมหลัก (รวม <strong className="text-cyan-300">รีวิวสเปกเจาะลึก</strong>) + 🆚 เทียบของเดิม + 🤫 ทริกลึก + ⚠️ เตือนภัยก่อนซื้อ
               </p>
             )}
             {angleCount === 10 && (
@@ -6308,7 +6308,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             )}
 
             <p className="text-[11px] text-slate-500">
-              💡 รองรับทั้งรหัสตัวเลข 15–19 หลัก, ลิงก์สินค้า TikTok Shop หรือลิงก์แชร์สั้น (vt.tiktok.com)
+              รองรับทั้งรหัสตัวเลข 15–19 หลัก, ลิงก์สินค้า TikTok Shop หรือลิงก์แชร์สั้น (vt.tiktok.com)
               <br />
               หากเว้นว่างไว้ ระบบจะใช้ชื่อสินค้าในการค้นหาเพื่อปักตะกร้าแทน
             </p>

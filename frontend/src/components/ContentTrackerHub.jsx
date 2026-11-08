@@ -1706,7 +1706,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       true,     // markQcPassed -- a human actually clicked this button
     );
     if (!saved) return;
-    showToast('🎉 QC ผ่านเรียบร้อยแล้ว! ล้างข้อความไม่ผ่านออก และการ์ดเป็นสีฟ้าพร้อมใช้งาน');
+    showToast('QC ผ่านเรียบร้อยแล้ว! ล้างข้อความไม่ผ่านออก และการ์ดเป็นสีฟ้าพร้อมใช้งาน');
     setPreviewVideoUrl(null);
     setPreviewVideoAngle(null);
   }, [handleAngleStatusChange, showToast]);

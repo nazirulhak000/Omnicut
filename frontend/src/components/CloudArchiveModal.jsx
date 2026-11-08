@@ -169,15 +169,12 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-3xl rounded-3xl bg-[#070b14] border border-white/[0.12] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden relative">
-        {/* Ambient Glow */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-500/10 via-cyan-500/10 to-transparent rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-3xl rounded-3xl bg-[#0A0D14]/95 backdrop-blur-md border border-white/[0.08] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden relative">
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20 text-black">
+            <div className="w-10 h-10 rounded-2xl bg-[#25F4EE]/10 border border-[#25F4EE]/20 flex items-center justify-center text-[#25F4EE]">
               <Cloud className="w-5 h-5 font-bold" />
             </div>
             <div>
@@ -185,7 +182,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
                 <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
                   ศูนย์สำรองข้อมูล Google Drive & คืนพื้นที่ดิสก์
                 </h2>
-                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-mono border border-blue-500/30">
+                <span className="px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 text-[10px] font-mono border border-white/[0.08]">
                   Smart Breadcrumbs
                 </span>
               </div>
@@ -196,7 +193,8 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-white/[0.06]"
+            aria-label="ปิดหน้าต่าง"
           >
             <X className="w-4 h-4" />
           </button>
@@ -207,20 +205,20 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
           {/* Top Banner: Google Drive Health & Reclaimable Space */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Google Drive Status Card */}
-            <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.08] flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0 mt-0.5">
+            <div className="p-3.5 rounded-2xl bg-[#0D111A] border border-white/[0.08] flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/20 flex items-center justify-center text-[#25F4EE] flex-shrink-0 mt-0.5">
                 <HardDrive className="w-4 h-4" />
               </div>
               <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-bold text-white">Google Drive Desktop</span>
                   {statusData?.gdrive_available ? (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 text-[9px]">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 text-[9px] border border-emerald-500/30">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       เชื่อมต่อแล้ว (G:)
                     </span>
                   ) : (
-                    <span className="text-[10px] text-red-400">ไม่พบไดรฟ์ G:</span>
+                    <span className="text-[10px] text-rose-400">ไม่พบไดรฟ์ G:</span>
                   )}
                 </div>
                 <p className="text-[11px] text-slate-400 truncate" title={statusData?.gdrive_root || ''}>
@@ -230,14 +228,14 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
             </div>
 
             {/* Reclaimable Space Card */}
-            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-blue-950/40 to-cyan-950/40 border border-cyan-500/30 flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-300 flex-shrink-0 mt-0.5">
+            <div className="p-3.5 rounded-2xl bg-[#0D111A] border border-[#25F4EE]/30 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/20 flex items-center justify-center text-[#25F4EE] flex-shrink-0 mt-0.5">
                 <ArrowDownToLine className="w-4 h-4" />
               </div>
               <div className="space-y-0.5">
                 <span className="text-xs font-bold text-slate-300">พื้นที่พร้อมคืนลงไดรฟ์หลัก</span>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-lg font-black text-cyan-300">
+                  <span className="text-lg font-black text-[#25F4EE]">
                     {statusData?.total_reclaimable_formatted || '0 GB'}
                   </span>
                   <span className="text-[11px] text-slate-400">
@@ -249,17 +247,17 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
           </div>
 
           {/* Backup Scope Options (Radio buttons) */}
-          <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-2.5">
+          <div className="p-3.5 rounded-2xl bg-[#0D111A] border border-white/[0.08] space-y-2.5">
             <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-cyan-400" />
+              <Layers className="w-3.5 h-3.5 text-[#25F4EE]" />
               <span>เลือกระดับความลึกในการสำรองข้อมูล:</span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label
                 className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                   scope === 'video_only'
-                    ? 'bg-blue-500/10 border-blue-500/50 shadow-sm'
-                    : 'bg-black/30 border-white/[0.06] hover:bg-white/[0.02]'
+                    ? 'bg-[#25F4EE]/[0.06] border-[#25F4EE]/40'
+                    : 'bg-black/40 border-white/[0.08] hover:bg-white/[0.02]'
                 }`}
               >
                 <input
@@ -268,7 +266,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
                   value="video_only"
                   checked={scope === 'video_only'}
                   onChange={() => setScope('video_only')}
-                  className="mt-0.5 accent-blue-400"
+                  className="mt-0.5 accent-[#25F4EE] cursor-pointer"
                 />
                 <div className="space-y-0.5">
                   <span className="text-xs font-bold text-white block">
@@ -283,8 +281,8 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
               <label
                 className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                   scope === 'full'
-                    ? 'bg-blue-500/10 border-blue-500/50 shadow-sm'
-                    : 'bg-black/30 border-white/[0.06] hover:bg-white/[0.02]'
+                    ? 'bg-[#25F4EE]/[0.06] border-[#25F4EE]/40'
+                    : 'bg-black/40 border-white/[0.08] hover:bg-white/[0.02]'
                 }`}
               >
                 <input
@@ -293,7 +291,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
                   value="full"
                   checked={scope === 'full'}
                   onChange={() => setScope('full')}
-                  className="mt-0.5 accent-blue-400"
+                  className="mt-0.5 accent-[#25F4EE] cursor-pointer"
                 />
                 <div className="space-y-0.5">
                   <span className="text-xs font-bold text-white block">
@@ -317,7 +315,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
                 <button
                   type="button"
                   onClick={selectAll}
-                  className="text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                  className="text-[#25F4EE] hover:text-[#25F4EE]/80 cursor-pointer font-medium"
                 >
                   เลือกทั้งหมด
                 </button>
@@ -325,7 +323,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
                 <button
                   type="button"
                   onClick={deselectAll}
-                  className="text-slate-400 hover:text-slate-300 cursor-pointer"
+                  className="text-slate-400 hover:text-slate-300 cursor-pointer font-medium"
                 >
                   ยกเลิกทั้งหมด
                 </button>
@@ -335,11 +333,11 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
               {loading ? (
                 <div className="p-8 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
-                  <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+                  <RefreshCw className="w-4 h-4 animate-spin text-[#25F4EE]" />
                   <span>กำลังสแกนคลิปที่โพสต์แล้ว...</span>
                 </div>
               ) : (statusData?.products || []).length === 0 ? (
-                <div className="p-6 text-center text-slate-400 text-xs rounded-xl bg-black/30 border border-white/[0.06]">
+                <div className="p-6 text-center text-slate-400 text-xs rounded-xl bg-[#0D111A] border border-white/[0.08]">
                   ยังไม่มีคลิปที่โพสต์แล้ว หรือคลิปทั้งหมดถูกสำรองขึ้น Google Drive เรียบร้อยแล้วครับ
                 </div>
               ) : (
@@ -353,10 +351,10 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
                       onClick={() => !isArchived && toggleProduct(prod.product_id)}
                       className={`p-2.5 rounded-xl border flex items-center gap-3 transition-colors ${
                         isArchived
-                          ? 'bg-blue-950/20 border-blue-500/20 opacity-70 cursor-default'
+                          ? 'bg-white/[0.02] border-white/[0.06] opacity-70 cursor-default'
                           : isSelected
-                          ? 'bg-blue-500/10 border-blue-500/40 cursor-pointer'
-                          : 'bg-black/30 border-white/[0.06] hover:bg-white/[0.02] cursor-pointer'
+                          ? 'bg-[#25F4EE]/[0.06] border-[#25F4EE]/40 cursor-pointer'
+                          : 'bg-[#0D111A] border-white/[0.08] hover:border-white/[0.15] hover:bg-white/[0.02] cursor-pointer'
                       }`}
                     >
                       <input
@@ -364,7 +362,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
                         checked={isSelected || isArchived}
                         disabled={isArchived}
                         onChange={() => toggleProduct(prod.product_id)}
-                        className="accent-blue-400 w-4 h-4 rounded cursor-pointer"
+                        className="accent-[#25F4EE] w-4 h-4 rounded cursor-pointer"
                         onClick={(e) => e.stopPropagation()}
                       />
 
@@ -388,15 +386,16 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
                             {prod.product_name}
                           </span>
                           {isArchived && (
-                            <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 text-[9px] font-mono">
-                              ☁️ อยู่ใน Drive แล้ว
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 text-[9px] font-mono border border-cyan-500/20">
+                              <Cloud className="w-2.5 h-2.5" />
+                              <span>อยู่ใน Drive แล้ว</span>
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-0.5">
                           <span>{prod.clips?.length || 0} คลิป</span>
                           <span>•</span>
-                          <span className="text-cyan-300 font-mono">
+                          <span className="text-[#25F4EE] font-mono">
                             {formatReclaim(prod.eligible_bytes || prod.total_bytes)}
                           </span>
                         </div>
@@ -409,39 +408,39 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
           </div>
 
           {/* Safety Notice */}
-          <div className="p-3 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-start gap-2.5">
-            <ShieldCheck className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-blue-200 leading-relaxed">
+          <div className="p-3 rounded-xl bg-[#0D111A] border border-white/[0.08] flex items-start gap-2.5">
+            <ShieldCheck className="w-4 h-4 text-[#25F4EE] flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-slate-300 leading-relaxed">
               <strong>นโยบาย Smart Breadcrumbs:</strong> ระบบจะเก็บภาพปก 3:4 ในโฟลเดอร์{' '}
-              <code className="text-cyan-300 font-mono">05_Covers_Thumbnails/</code> และประวัติการโพสต์ไว้ในแอปเสมอ
+              <code className="text-[#25F4EE] font-mono">05_Covers_Thumbnails/</code> และประวัติการโพสต์ไว้ในแอปเสมอ
               หน้า Gallery จะยังเห็นรูปปกและสถิติครบถ้วน ไม่ว่างเปล่าแน่นอนครับ
             </p>
           </div>
 
           {/* Live Progress Bar Box */}
           {archiving && (
-            <div className="p-4 rounded-2xl bg-blue-950/40 border border-blue-400/40 space-y-3 animate-in fade-in">
+            <div className="p-4 rounded-2xl bg-[#0D111A] border border-[#25F4EE]/30 space-y-3 animate-in fade-in">
               <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-cyan-300 font-bold">
-                  <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+                <div className="flex items-center gap-2 text-[#25F4EE] font-bold">
+                  <RefreshCw className="w-4 h-4 animate-spin text-[#25F4EE]" />
                   <span>กำลังสำรองข้อมูลขึ้น Google Drive...</span>
                 </div>
-                <span className="font-mono font-bold text-sm text-cyan-300">
+                <span className="font-mono font-bold text-sm text-[#25F4EE]">
                   {progress?.percent ?? 0}%
                 </span>
               </div>
 
               {/* Progress Track */}
-              <div className="w-full bg-slate-900/80 rounded-full h-3 overflow-hidden border border-white/10 p-0.5">
+              <div className="w-full bg-black/60 rounded-full h-2.5 overflow-hidden border border-white/[0.08] p-0.5">
                 <div
-                  className="bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-300 shadow-md shadow-cyan-500/30"
+                  className="bg-[#25F4EE] h-full rounded-full transition-all duration-300"
                   style={{ width: `${Math.max(3, progress?.percent ?? 0)}%` }}
                 />
               </div>
 
               <div className="flex items-center justify-between text-[11px] text-slate-300">
                 <div className="flex items-center gap-1.5 truncate max-w-md">
-                  <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono text-[10px]">
+                  <span className="px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-300 font-mono text-[10px] border border-white/[0.08]">
                     {progress?.current_index ?? 0} / {progress?.total_items ?? selectedProductIds.size} รายการ
                   </span>
                   <span className="truncate text-slate-300 font-medium">
@@ -457,33 +456,35 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
 
           {/* Archive Result Box */}
           {archiveResult && (
-            <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-400/50 space-y-2 animate-in fade-in">
-              <div className="flex items-center gap-2 text-emerald-300 font-bold text-sm">
+            <div className="p-4 rounded-2xl bg-[#0D111A] border border-emerald-500/30 space-y-2.5 animate-in fade-in">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
                 <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                 <span>สำรองขึ้น Google Drive และคืนพื้นที่ดิสก์สำเร็จ!</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs pt-1 text-slate-200">
-                <div className="p-2 rounded-lg bg-black/40">
+                <div className="p-2 rounded-xl bg-black/40 border border-white/[0.06]">
                   <span className="text-slate-400 block text-[10px]">จำนวนคลิปที่สำรอง</span>
                   <span className="font-bold text-emerald-400 text-sm">
                     {archiveResult.archived_count} คลิป
                   </span>
                 </div>
-                <div className="p-2 rounded-lg bg-black/40">
+                <div className="p-2 rounded-xl bg-black/40 border border-white/[0.06]">
                   <span className="text-slate-400 block text-[10px]">พื้นที่ที่ได้คืนทันที</span>
-                  <span className="font-bold text-cyan-300 text-sm">
+                  <span className="font-bold text-[#25F4EE] text-sm">
                     {archiveResult.reclaimed_formatted}
                   </span>
                 </div>
               </div>
               <div className="pt-1 flex items-center justify-between">
-                <span className="text-[11px] text-slate-300 truncate max-w-sm" title={archiveResult.gdrive_vault}>
-                  📁 เก็บที่: <code className="text-cyan-300">{archiveResult.gdrive_vault}</code>
+                <span className="text-[11px] text-slate-300 truncate max-w-sm flex items-center gap-1.5" title={archiveResult.gdrive_vault}>
+                  <FolderOpen className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0" />
+                  <span>เก็บที่:</span>
+                  <code className="text-[#25F4EE]">{archiveResult.gdrive_vault}</code>
                 </span>
                 <button
                   type="button"
                   onClick={() => handleOpenFolder(archiveResult.gdrive_vault)}
-                  className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                  className="px-3 py-1 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/[0.1] text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
                 >
                   <FolderOpen className="w-3.5 h-3.5" />
                   <span>เปิดโฟลเดอร์ใน Drive</span>
@@ -492,17 +493,16 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
             </div>
           )}
 
-          {/* Error Box */}
           {error && (
-            <div className="p-3 rounded-xl bg-red-950/50 border border-red-500/40 text-xs text-red-200 flex items-center justify-between">
+            <div className="p-3 rounded-xl bg-[#0D111A] border border-rose-500/30 text-xs text-rose-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
                 <span>{error}</span>
               </div>
               <button
                 type="button"
                 onClick={fetchStatus}
-                className="px-2.5 py-1 rounded-lg bg-red-800/60 hover:bg-red-700 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
               >
                 <RefreshCw className="w-3 h-3" />
                 <span>ลองใหม่</span>
@@ -512,9 +512,9 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
         </div>
 
         {/* Modal Footer */}
-        <div className="px-5 py-3 border-t border-white/[0.08] bg-black/50 flex items-center justify-between relative z-10">
+        <div className="px-5 py-3 border-t border-white/[0.08] bg-[#0A0D14] flex items-center justify-between relative z-10">
           <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <Sparkles className="w-4 h-4 text-[#25F4EE]" />
             <span>
               คืนพื้นที่ดิสก์:{' '}
               <strong className="text-white font-mono">{formatReclaim(totalEligibleBytesSelected)}</strong>
@@ -534,7 +534,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
               disabled={selectedProductIds.size === 0 || archiving || !statusData?.gdrive_available}
               variant="primary"
               size="sm"
-              className="px-5 py-1.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-400 hover:to-cyan-300 text-black font-bold shadow-lg shadow-blue-500/20 cursor-pointer flex items-center gap-1.5"
+              className="px-5 py-1.5 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 font-bold cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {archiving ? (
                 <>

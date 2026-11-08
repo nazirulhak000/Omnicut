@@ -65,8 +65,8 @@ function DataRow({ label, value, multiline = false }) {
 
 function Section({ icon: Icon, title, hint, children }) {
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-white/[0.025] overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.07]">
+    <section className="rounded-2xl border border-white/[0.08] bg-[#0D111A] overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.08]">
         <div className="flex items-center gap-2 min-w-0">
           <Icon className="w-4 h-4 text-[#25F4EE] flex-shrink-0" />
           <h4 className="text-sm font-bold text-white truncate">{title}</h4>
@@ -178,7 +178,7 @@ export default function ProductMetadataModal({
       {!product ? null : (
         <div className="space-y-4">
           {Boolean(product.metadata_source === 'slug_fallback' || product.source_warning) && (
-            <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-start gap-2.5">
                 <RefreshCw className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
                 <div>
@@ -195,7 +195,7 @@ export default function ProductMetadataModal({
                   type="button"
                   onClick={() => onPreviewSource({ url: draft.url || product.url })}
                   disabled={refreshingSource}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-400 px-3.5 py-2 text-xs font-bold text-slate-950 transition hover:bg-amber-300 disabled:cursor-wait disabled:opacity-60 flex-shrink-0 cursor-pointer shadow-sm"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-400 px-3.5 py-2 text-xs font-bold text-slate-950 transition hover:bg-amber-300 disabled:cursor-wait disabled:opacity-60 flex-shrink-0 cursor-pointer"
                 >
                   <RefreshCw className={`h-3.5 w-3.5 ${refreshingSource ? 'animate-spin' : ''}`} />
                   <span>{refreshingSource ? 'กำลังอ่านหน้าเว็บ...' : 'ดึงข้อมูลใหม่จาก URL ทันที'}</span>
@@ -209,7 +209,13 @@ export default function ProductMetadataModal({
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="sm:col-span-2 text-xs font-semibold text-slate-300">
                   ชื่อสินค้า / หัวข้อสั้น
-                  <input value={draft.name || ''} onChange={(event) => updateDraft('name', event.target.value)} maxLength={180} className="mt-1 w-full rounded-xl border border-white/[0.1] bg-black/30 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-300/60" placeholder="เช่น GoChek GC-ULTRA S24" />
+                  <input
+                    value={draft.name || ''}
+                    onChange={(event) => updateDraft('name', event.target.value)}
+                    maxLength={180}
+                    className="mt-1 w-full rounded-xl border border-white/[0.1] bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-[#25F4EE]"
+                    placeholder="เช่น GoChek GC-ULTRA S24"
+                  />
                 </label>
                 <label className="sm:col-span-2 text-xs font-semibold text-slate-300">
                   <div className="flex items-center justify-between mb-1">
@@ -219,35 +225,57 @@ export default function ProductMetadataModal({
                         type="button"
                         onClick={() => onPreviewSource({ url: draft.url || product.url })}
                         disabled={refreshingSource}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-cyan-300 hover:text-cyan-200 cursor-pointer disabled:opacity-50"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#25F4EE] hover:text-[#25F4EE]/80 cursor-pointer disabled:opacity-50"
                       >
                         <RefreshCw className={`h-3 w-3 ${refreshingSource ? 'animate-spin' : ''}`} />
                         <span>{refreshingSource ? 'กำลังดึง...' : 'ดึงข้อมูลจาก URL นี้'}</span>
                       </button>
                     )}
                   </div>
-                  <input type="url" value={draft.url || ''} onChange={(event) => updateDraft('url', event.target.value)} className="w-full rounded-xl border border-white/[0.1] bg-black/30 px-3 py-2.5 text-xs text-white outline-none transition focus:border-cyan-300/60" placeholder="https://shop.tiktok.com/..." />
+                  <input
+                    type="url"
+                    value={draft.url || ''}
+                    onChange={(event) => updateDraft('url', event.target.value)}
+                    className="w-full rounded-xl border border-white/[0.1] bg-black/40 px-3 py-2.5 text-xs text-white outline-none transition focus:border-[#25F4EE]"
+                    placeholder="https://shop.tiktok.com/..."
+                  />
                 </label>
                 <label className="text-xs font-semibold text-slate-300">
                   ราคา / โปรโมชั่น
-                  <input value={draft.price_note || ''} onChange={(event) => updateDraft('price_note', event.target.value)} maxLength={240} className="mt-1 w-full rounded-xl border border-white/[0.1] bg-black/30 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-300/60" />
+                  <input
+                    value={draft.price_note || ''}
+                    onChange={(event) => updateDraft('price_note', event.target.value)}
+                    maxLength={240}
+                    className="mt-1 w-full rounded-xl border border-white/[0.1] bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-[#25F4EE]"
+                  />
                 </label>
                 <label className="text-xs font-semibold text-slate-300">
                   รหัสสินค้าสำหรับปักตะกร้า (TikTok Product ID)
-                  <input value={draft.tiktok_product_id || ''} onChange={(event) => updateDraft('tiktok_product_id', event.target.value)} maxLength={60} className="mt-1 w-full rounded-xl border border-white/[0.1] bg-black/30 px-3 py-2.5 text-sm text-white font-mono outline-none transition focus:border-cyan-300/60" placeholder="เช่น 1737230577125983588" />
+                  <input
+                    value={draft.tiktok_product_id || ''}
+                    onChange={(event) => updateDraft('tiktok_product_id', event.target.value)}
+                    maxLength={60}
+                    className="mt-1 w-full rounded-xl border border-white/[0.1] bg-black/40 px-3 py-2.5 text-sm text-white font-mono outline-none transition focus:border-[#25F4EE]"
+                    placeholder="เช่น 1737230577125983588"
+                  />
                 </label>
                 <div className="sm:col-span-2 flex items-end justify-end">
-                  <button type="button" onClick={() => onSaveMetadata({
-                    name: String(draft.name || '').trim(),
-                    url: String(draft.url || '').trim(),
-                    tiktok_product_id: String(draft.tiktok_product_id || '').trim() || null,
-                    price_note: String(draft.price_note || '').trim(),
-                    description: String(draft.description || '').trim(),
-                    raw_text: String(draft.raw_text || '').trim(),
-                    specs: lines(draft.specs),
-                    selling_points: lines(draft.selling_points),
-                    pain_points: lines(draft.pain_points),
-                  })} disabled={savingMetadata || !String(draft.name || '').trim()} className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-4 py-2.5 text-xs font-bold text-[#07151d] transition hover:bg-cyan-300 disabled:cursor-wait disabled:opacity-50">
+                  <button
+                    type="button"
+                    onClick={() => onSaveMetadata({
+                      name: String(draft.name || '').trim(),
+                      url: String(draft.url || '').trim(),
+                      tiktok_product_id: String(draft.tiktok_product_id || '').trim() || null,
+                      price_note: String(draft.price_note || '').trim(),
+                      description: String(draft.description || '').trim(),
+                      raw_text: String(draft.raw_text || '').trim(),
+                      specs: lines(draft.specs),
+                      selling_points: lines(draft.selling_points),
+                      pain_points: lines(draft.pain_points),
+                    })}
+                    disabled={savingMetadata || !String(draft.name || '').trim()}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] px-4 py-2.5 text-xs font-bold text-slate-950 transition disabled:cursor-wait disabled:opacity-50 cursor-pointer"
+                  >
                     {savingMetadata ? 'กำลังบันทึก' : 'บันทึก metadata ที่แก้ไข'}
                   </button>
                 </div>
@@ -260,7 +288,12 @@ export default function ProductMetadataModal({
                 ].map(([field, label, rows]) => (
                   <label key={field} className="sm:col-span-2 text-xs font-semibold text-slate-300">
                     {label}
-                    <textarea value={draft[field] || ''} onChange={(event) => updateDraft(field, event.target.value)} rows={rows} className="mt-1 w-full resize-y rounded-xl border border-white/[0.1] bg-black/30 px-3 py-2.5 text-xs leading-relaxed text-white outline-none transition focus:border-cyan-300/60" />
+                    <textarea
+                      value={draft[field] || ''}
+                      onChange={(event) => updateDraft(field, event.target.value)}
+                      rows={rows}
+                      className="mt-1 w-full resize-y rounded-xl border border-white/[0.1] bg-black/40 px-3 py-2.5 text-xs leading-relaxed text-white outline-none transition focus:border-[#25F4EE]"
+                    />
                   </label>
                 ))}
               </div>
@@ -268,22 +301,33 @@ export default function ProductMetadataModal({
           )}
 
           {sourcePreview && onApplySource && (
-            <section className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.06] overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-300/15 px-4 py-3">
+            <section className="rounded-2xl border border-amber-500/30 bg-[#0D111A] overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] px-4 py-3">
                 <div>
                   <h4 className="text-sm font-bold text-white">ตรวจข้อมูลใหม่ก่อนบันทึก</h4>
-                  <p className="mt-1 text-[11px] text-amber-100/75">ข้อมูลเดิมจะไม่เปลี่ยนจนกว่าจะกดยืนยัน เลือกเฉพาะฟิลด์ที่ต้องการรับเข้า</p>
+                  <p className="mt-1 text-[11px] text-amber-200/80">ข้อมูลเดิมจะไม่เปลี่ยนจนกว่าจะกดยืนยัน เลือกเฉพาะฟิลด์ที่ต้องการรับเข้า</p>
                 </div>
-                <button type="button" onClick={() => setSelectedPreviewFields(Object.fromEntries((sourcePreview.changed_fields || []).map((field) => [field, true])))} className="rounded-lg border border-amber-200/25 px-2.5 py-1.5 text-[11px] font-bold text-amber-100 transition hover:bg-amber-200/10">เลือกทั้งหมดที่เปลี่ยน</button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPreviewFields(Object.fromEntries((sourcePreview.changed_fields || []).map((field) => [field, true])))}
+                  className="rounded-lg border border-amber-400/30 px-2.5 py-1.5 text-[11px] font-bold text-amber-200 transition hover:bg-amber-400/10 cursor-pointer"
+                >
+                  เลือกทั้งหมดที่เปลี่ยน
+                </button>
               </div>
               <div className="space-y-2 p-4">
                 {(sourcePreview.changed_fields || []).map((field) => {
                   const definition = previewFields.find(([key]) => key === field);
                   const label = definition?.[1] || field;
                   return (
-                    <div key={field} className="rounded-xl border border-white/[0.08] bg-black/20 p-3">
-                      <label className="flex items-center gap-2 text-xs font-bold text-white">
-                        <input type="checkbox" checked={Boolean(selectedPreviewFields[field])} onChange={(event) => setSelectedPreviewFields((current) => ({ ...current, [field]: event.target.checked }))} className="h-4 w-4 accent-cyan-300" />
+                    <div key={field} className="rounded-xl border border-white/[0.08] bg-black/40 p-3">
+                      <label className="flex items-center gap-2 text-xs font-bold text-white cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(selectedPreviewFields[field])}
+                          onChange={(event) => setSelectedPreviewFields((current) => ({ ...current, [field]: event.target.checked }))}
+                          className="h-4 w-4 accent-[#25F4EE] cursor-pointer"
+                        />
                         {label}
                       </label>
                       {field === 'images' ? (
@@ -298,42 +342,62 @@ export default function ProductMetadataModal({
                         </div>
                       ) : (field === 'description' || field === 'raw_text') ? (
                         <label className="mt-2 block">
-                          <span className="mb-1 block text-[10px] font-bold text-cyan-300">
+                          <span className="mb-1 block text-[10px] font-bold text-[#25F4EE]">
                             ใหม่ · แก้ไขได้ก่อนบันทึก
                           </span>
                           <textarea
                             value={previewDraft[field] || ''}
                             onChange={(event) => setPreviewDraft((current) => ({ ...current, [field]: event.target.value }))}
                             rows={field === 'description' ? 6 : 8}
-                            className="w-full resize-y rounded-lg border border-cyan-300/20 bg-cyan-300/[0.06] p-2 text-[11px] leading-relaxed text-cyan-50 outline-none transition focus:border-cyan-300/60"
+                            className="w-full resize-y rounded-lg border border-[#25F4EE]/30 bg-black/40 p-2 text-[11px] leading-relaxed text-cyan-50 outline-none transition focus:border-[#25F4EE]"
                           />
                         </label>
                       ) : (
                         <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                          <div className="min-w-0"><div className="mb-1 text-[10px] font-bold text-slate-500">เดิม</div><pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/25 p-2 text-[11px] leading-relaxed text-slate-400">{previewValue(sourcePreview.current?.[field])}</pre></div>
-                          <div className="min-w-0"><div className="mb-1 text-[10px] font-bold text-cyan-300">ใหม่</div><pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-cyan-300/[0.06] p-2 text-[11px] leading-relaxed text-cyan-50">{previewValue(sourcePreview.incoming?.[field])}</pre></div>
+                          <div className="min-w-0">
+                            <div className="mb-1 text-[10px] font-bold text-slate-500">เดิม</div>
+                            <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/40 border border-white/[0.06] p-2 text-[11px] leading-relaxed text-slate-400">{previewValue(sourcePreview.current?.[field])}</pre>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="mb-1 text-[10px] font-bold text-[#25F4EE]">ใหม่</div>
+                            <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/40 border border-[#25F4EE]/20 p-2 text-[11px] leading-relaxed text-cyan-50">{previewValue(sourcePreview.incoming?.[field])}</pre>
+                          </div>
                         </div>
                       )}
                     </div>
                   );
                 })}
-                {(sourcePreview.changed_fields || []).length === 0 && <p className="rounded-xl bg-black/20 p-3 text-xs text-slate-400">ไม่พบข้อมูลที่ต่างจากเดิม</p>}
+                {(sourcePreview.changed_fields || []).length === 0 && <p className="rounded-xl bg-black/40 border border-white/[0.06] p-3 text-xs text-slate-400">ไม่พบข้อมูลที่ต่างจากเดิม</p>}
                 <div className="flex flex-wrap justify-end gap-2 pt-2">
-                  <button type="button" onClick={onCancelPreview} className="rounded-xl border border-white/[0.12] px-3 py-2 text-xs font-bold text-slate-300 transition hover:bg-white/[0.06]">ยกเลิก preview</button>
-                  <button type="button" onClick={() => {
-                    const fields = Object.keys(selectedPreviewFields).filter((field) => selectedPreviewFields[field]);
-                    const overrides = Object.fromEntries(
-                      ['description', 'raw_text']
-                        .filter((field) => fields.includes(field))
-                        .map((field) => [field, String(previewDraft[field] || '').trim()])
-                    );
-                    onApplySource({ url: sourcePreview.url, fields, overrides });
-                  }} disabled={refreshingSource || !Object.values(selectedPreviewFields).some(Boolean)} className="rounded-xl bg-amber-300 px-4 py-2 text-xs font-bold text-[#1b1304] transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-50">{refreshingSource ? 'กำลังบันทึกข้อมูล' : 'ยืนยันและบันทึกข้อมูลที่เลือก'}</button>
+                  <button
+                    type="button"
+                    onClick={onCancelPreview}
+                    className="rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] px-3 py-2 text-xs font-bold text-slate-300 transition cursor-pointer"
+                  >
+                    ยกเลิก preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const fields = Object.keys(selectedPreviewFields).filter((field) => selectedPreviewFields[field]);
+                      const overrides = Object.fromEntries(
+                        ['description', 'raw_text']
+                          .filter((field) => fields.includes(field))
+                          .map((field) => [field, String(previewDraft[field] || '').trim()])
+                      );
+                      onApplySource({ url: sourcePreview.url, fields, overrides });
+                    }}
+                    disabled={refreshingSource || !Object.values(selectedPreviewFields).some(Boolean)}
+                    className="rounded-xl bg-amber-400 hover:bg-amber-300 px-4 py-2 text-xs font-bold text-slate-950 transition disabled:cursor-wait disabled:opacity-50 cursor-pointer"
+                  >
+                    {refreshingSource ? 'กำลังบันทึกข้อมูล' : 'ยืนยันและบันทึกข้อมูลที่เลือก'}
+                  </button>
                 </div>
               </div>
             </section>
           )}
-          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.06] p-4">
+
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0D111A] p-4">
             <div className="flex items-start gap-3">
               <Database className="w-5 h-5 text-[#25F4EE] mt-0.5 flex-shrink-0" />
               <div className="min-w-0">
@@ -347,7 +411,7 @@ export default function ProductMetadataModal({
                     type="button"
                     onClick={() => onPreviewSource({ url: draft.url || product.url })}
                     disabled={refreshingSource}
-                    className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs font-bold text-cyan-200 transition hover:bg-cyan-300/20 disabled:cursor-wait disabled:opacity-60"
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/10 px-3 py-2 text-xs font-bold text-[#25F4EE] transition hover:bg-[#25F4EE]/20 disabled:cursor-wait disabled:opacity-60 cursor-pointer"
                   >
                     <RefreshCw className={`h-3.5 w-3.5 ${refreshingSource ? 'animate-spin' : ''}`} />
                     {refreshingSource ? 'กำลังอ่านหน้าเว็บจริง' : 'ดึงรายละเอียดจาก URL ใหม่'}
@@ -358,7 +422,7 @@ export default function ProductMetadataModal({
                     type="button"
                     onClick={onPreviewImages}
                     disabled={refreshingSource}
-                    className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded-xl border border-violet-300/30 bg-violet-300/10 px-3 py-2 text-xs font-bold text-violet-200 transition hover:bg-violet-300/20 disabled:cursor-wait disabled:opacity-60"
+                    className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded-xl border border-violet-400/30 bg-violet-400/10 px-3 py-2 text-xs font-bold text-violet-300 transition hover:bg-violet-400/20 disabled:cursor-wait disabled:opacity-60 cursor-pointer"
                   >
                     <ImagePlus className="h-3.5 w-3.5" />
                     {refreshingSource ? 'กำลังอ่านรูปอ้างอิง' : 'อ่านสรรพคุณจากรูป'}
@@ -400,7 +464,7 @@ export default function ProductMetadataModal({
               <p className="text-[11px] text-slate-400 leading-relaxed">
                 รูปจาก URL ใช้เป็นภาพที่ scraper พบจากหน้าเว็บ ส่วนรูปที่แนบเพิ่มจะถูกเก็บเป็นไฟล์ในเครื่องและส่งให้ Vision ตอนสร้างหรือรีสคริปต์
               </p>
-              <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold cursor-pointer flex-shrink-0">
+              <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold cursor-pointer flex-shrink-0 transition-colors">
                 <Upload className="w-3.5 h-3.5" />
                 <span>{uploading ? 'กำลังอัปโหลด' : 'เพิ่มรูป'}</span>
                 <input
@@ -420,7 +484,7 @@ export default function ProductMetadataModal({
                 {images.map((image, index) => {
                   const reference = getImageReference(image);
                   return (
-                    <div key={`${reference}-${index}`} className="group relative overflow-hidden rounded-xl border border-white/[0.1] bg-black/40">
+                    <div key={`${reference}-${index}`} className="group relative overflow-hidden rounded-xl border border-white/[0.08] bg-black/40">
                       <div className="aspect-square">
                         {reference ? (
                           <img src={toMediaUrl(reference)} alt={getImageName(image, index)} className="w-full h-full object-cover" />
@@ -438,7 +502,7 @@ export default function ProductMetadataModal({
                         disabled={removingIndex === index}
                         title="เอารูปนี้ออกจากข้อมูลสินค้า"
                         aria-label={`เอารูป ${index + 1} ออกจากข้อมูลสินค้า`}
-                        className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-lg bg-black/75 text-rose-300 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-rose-500/80 hover:text-white disabled:cursor-wait disabled:opacity-100"
+                        className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-lg bg-black/75 text-rose-300 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-rose-500/80 hover:text-white disabled:cursor-wait disabled:opacity-100 cursor-pointer"
                       >
                         {removingIndex === index ? <span className="text-[10px]">รอ</span> : <Trash2 className="w-3.5 h-3.5" />}
                       </button>
@@ -463,25 +527,29 @@ export default function ProductMetadataModal({
                 ['รูปอ้างอิง', `${images.length} รูป (${images.map(imageOrigin).join(', ') || 'ไม่มี'})`],
                 ['การสร้างสคริปต์', 'Content Matrix หรือรีสคริปต์มุมเดิม โดยอ่าน source ชุดนี้'],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-xl border border-white/[0.07] bg-black/20 p-3">
-                  <div className="text-[10px] font-bold text-cyan-300 mb-1">{label}</div>
+                <div key={label} className="rounded-xl border border-white/[0.08] bg-black/40 p-3">
+                  <div className="text-[10px] font-bold text-[#25F4EE] mb-1">{label}</div>
                   <div className="text-xs text-slate-300 whitespace-pre-wrap break-words">{displayValue(value)}</div>
                 </div>
               ))}
             </div>
           </Section>
 
-          <details className="rounded-2xl border border-white/[0.08] bg-black/20">
+          <details className="rounded-2xl border border-white/[0.08] bg-[#0D111A]">
             <summary className="cursor-pointer list-none px-4 py-3 text-xs font-bold text-slate-300 hover:text-white">
               เปิดดู JSON metadata เต็มของ source
             </summary>
-            <pre className="max-h-80 overflow-auto border-t border-white/[0.07] p-4 text-[10px] leading-relaxed text-slate-400 whitespace-pre-wrap break-all">
+            <pre className="max-h-80 overflow-auto border-t border-white/[0.08] p-4 text-[10px] leading-relaxed text-slate-400 whitespace-pre-wrap break-all">
               {JSON.stringify(sourceSnapshot, null, 2)}
             </pre>
           </details>
 
           <div className="flex items-center justify-end border-t border-white/[0.08] pt-3">
-            <button type="button" onClick={onClose} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-slate-200 text-xs font-bold cursor-pointer">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-slate-200 text-xs font-bold cursor-pointer transition-colors border border-white/[0.08]"
+            >
               <X className="w-3.5 h-3.5" />
               ปิดรายละเอียด
             </button>

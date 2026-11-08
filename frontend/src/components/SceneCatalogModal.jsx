@@ -61,22 +61,23 @@ export default function SceneCatalogModal({
     >
       <div className="space-y-4 p-1">
         {/* Top Summary Banner */}
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-500/10 via-slate-900/60 to-emerald-500/10 border border-white/[0.1] space-y-3">
+        <div className="p-4 rounded-2xl bg-[#0D111A] border border-white/[0.08] space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 flex-wrap">
               {isSpin ? (
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 shadow-sm">
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
                   <RotateCw className="w-3.5 h-3.5" />
                   <span>หมุนสินค้า 360 (Turntable Showcase)</span>
                 </span>
               ) : (
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5 shadow-sm">
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 flex items-center gap-1.5">
                   <Film className="w-3.5 h-3.5" />
                   <span>หลากหลายแอ็กชัน (Multi-Action Footage)</span>
                 </span>
               )}
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-slate-200 border border-white/20">
-                ⚡ สแกนพบ {scenes.length} ฉาก
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/[0.06] text-slate-200 border border-white/[0.08] flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-[#25F4EE]" />
+                <span>สแกนพบ {scenes.length} ฉาก</span>
               </span>
             </div>
 
@@ -96,7 +97,7 @@ export default function SceneCatalogModal({
           </div>
 
           {summary ? (
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed bg-black/40 p-3 rounded-xl border border-white/[0.06]">
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed bg-black/40 p-3 rounded-xl border border-white/[0.08]">
               {summary}
             </p>
           ) : (
@@ -125,12 +126,12 @@ export default function SceneCatalogModal({
               return (
                 <div
                   key={sc.id || idx}
-                  className="p-3 sm:p-3.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] transition-all space-y-2.5"
+                  className="p-3 sm:p-3.5 rounded-xl bg-[#0D111A] hover:bg-[#121724] border border-white/[0.08] transition-colors space-y-2.5"
                 >
                   {/* Scene Header */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="w-6 h-6 rounded-lg bg-white/10 font-mono text-xs font-bold text-white flex items-center justify-center">
+                      <span className="w-6 h-6 rounded-lg bg-white/[0.06] font-mono text-xs font-bold text-white flex items-center justify-center border border-white/[0.08]">
                         #{idx + 1}
                       </span>
 
@@ -149,15 +150,15 @@ export default function SceneCatalogModal({
 
                     <div className="flex items-center gap-2 flex-wrap text-xs">
                       {/* Angle Phase */}
-                      <span className="px-2 py-0.5 rounded-md bg-white/[0.05] text-slate-300 border border-white/[0.1] flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-md bg-white/[0.04] text-slate-300 border border-white/[0.08] flex items-center gap-1">
                         <Compass className="w-3 h-3 text-slate-400" />
                         <span>{angleText}</span>
                       </span>
 
                       {/* Punch Zoom */}
                       {sc.punch_zoom && (
-                        <span className="px-2 py-0.5 rounded-md bg-white/[0.05] text-slate-300 border border-white/[0.1] flex items-center gap-1 font-mono">
-                          <ZoomIn className="w-3 h-3 text-cyan-400" />
+                        <span className="px-2 py-0.5 rounded-md bg-white/[0.04] text-slate-300 border border-white/[0.08] flex items-center gap-1 font-mono">
+                          <ZoomIn className="w-3 h-3 text-[#25F4EE]" />
                           <span>{Number(sc.punch_zoom).toFixed(2)}x</span>
                         </span>
                       )}
@@ -178,7 +179,7 @@ export default function SceneCatalogModal({
                       {sc.keywords.map((kw, kIdx) => (
                         <span
                           key={kIdx}
-                          className="px-2 py-0.5 rounded-md bg-white/[0.04] text-[11px] text-slate-400 border border-white/[0.06]"
+                          className="px-2 py-0.5 rounded-md bg-black/40 text-[11px] text-slate-400 border border-white/[0.08]"
                         >
                           #{kw}
                         </span>
