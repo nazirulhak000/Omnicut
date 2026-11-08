@@ -28,7 +28,7 @@ export const Button = forwardRef(function Button(
   };
 
   const variantStyles = {
-    primary: 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white hover:opacity-95 shadow-md shadow-[#FE2C55]/20',
+    primary: 'bg-[#25F4EE] text-slate-950 font-bold hover:bg-[#1ee0da] shadow-sm shadow-[#25F4EE]/20',
     neon: 'bg-[#25F4EE] hover:brightness-110 text-slate-950 shadow-lg shadow-[#25F4EE]/30',
     tiktok: 'bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white shadow-lg shadow-[#FE2C55]/25',
     secondary: 'bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 hover:text-white',

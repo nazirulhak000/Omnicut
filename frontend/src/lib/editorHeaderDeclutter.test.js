@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { getRenderReadinessState, READINESS_STATES, normalizeSaveStatus } from './renderReadiness.js';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
@@ -85,4 +86,136 @@ test('RenderPreflightNotice is hidden in normal editing to prevent intrusive top
     preflightNoticeSource.includes('if (!isAuditMode)'),
     'RenderPreflightNotice must return null unless explicitly in audit mode'
   );
+});
+
+test('RenderReadinessChip implements 5-state truth table without false ready states', () => {
+  // 1) loading: coverChecking || preflightLoading
+  assert.equal(
+    getRenderReadinessState({ coverChecking: true }),
+    READINESS_STATES.LOADING,
+    'coverChecking must yield loading'
+  );
+  assert.equal(
+    getRenderReadinessState({ preflightLoading: true }),
+    READINESS_STATES.LOADING,
+    'preflightLoading must yield loading'
+  );
+  assert.equal(
+    getRenderReadinessState({ coverChecking: true, preflightLoading: true }),
+    READINESS_STATES.LOADING,
+    'both loading must yield loading'
+  );
+
+  // 2) unknown / unchecked: (coverStatus === null || coverStatus === undefined) && !preflightReport
+  assert.equal(
+    getRenderReadinessState({ coverStatus: null, preflightReport: null }),
+    READINESS_STATES.UNKNOWN,
+    'null cover and null preflight must yield unknown (not ready!)'
+  );
+  assert.equal(
+    getRenderReadinessState({ coverStatus: undefined, preflightReport: null }),
+    READINESS_STATES.UNKNOWN,
+    'undefined cover and null preflight must yield unknown'
+  );
+  assert.equal(
+    getRenderReadinessState({ coverStatus: null, preflightReport: { errors: [], warnings: [] } }),
+    READINESS_STATES.UNKNOWN,
+    'null cover with empty preflight must remain unknown (cannot be ready without cover)'
+  );
+  assert.equal(
+    getRenderReadinessState({ coverStatus: true, preflightReport: null }),
+    READINESS_STATES.UNKNOWN,
+    'true cover with null preflight must remain unknown (cannot be ready without preflight audit)'
+  );
+
+  // 3) blocked / error: errors.length > 0 || coverStatus === false
+  assert.equal(
+    getRenderReadinessState({ coverStatus: false, preflightReport: null }),
+    READINESS_STATES.ERROR,
+    'explicit missing cover (false) must yield error / blocker'
+  );
+  assert.equal(
+    getRenderReadinessState({ coverStatus: true, preflightReport: { errors: ['Missing audio source'] } }),
+    READINESS_STATES.ERROR,
+    'preflight errors must yield error / blocker'
+  );
+  assert.equal(
+    getRenderReadinessState({ coverStatus: false, preflightReport: { errors: ['Timeline empty'] } }),
+    READINESS_STATES.ERROR,
+    'missing cover and errors must both yield error / blocker'
+  );
+
+  // 4) warnings: warnings.length > 0 && !hasErrors
+  assert.equal(
+    getRenderReadinessState({
+      coverStatus: true,
+      preflightReport: { errors: [], warnings: ['Pacing slow on shot 2'] },
+    }),
+    READINESS_STATES.WARNING,
+    'warnings without errors when cover is true must yield warning'
+  );
+
+  // 5) ready: coverStatus === true && errors.length === 0 && warnings.length === 0
+  assert.equal(
+    getRenderReadinessState({
+      coverStatus: true,
+      preflightReport: { errors: [], warnings: [] },
+    }),
+    READINESS_STATES.READY,
+    'ready is only achieved when cover is true AND errors === 0 AND warnings === 0'
+  );
+});
+
+test('RenderReadinessChip JSX satisfies visual and accessibility contract for all 5 states', () => {
+  // State 1: loading
+  assert.ok(readinessChipSource.includes('กำลังตรวจ...'), 'Must render "กำลังตรวจ..." text on loading');
+  assert.ok(readinessChipSource.includes('กำลังตรวจสอบความพร้อม'), 'Must set accessible aria-label on loading');
+  assert.ok(readinessChipSource.includes('Loader2'), 'Must render Loader2 spinner during loading');
+
+  // State 2: unknown
+  assert.ok(readinessChipSource.includes('ยังไม่ตรวจ'), 'Must render "ยังไม่ตรวจ" chip text when unchecked');
+  assert.ok(readinessChipSource.includes('ยังไม่ได้ตรวจ'), 'Must render "ยังไม่ได้ตรวจ" badge');
+  assert.ok(readinessChipSource.includes('ยังไม่ได้ตรวจสอบ'), 'Must set accessible aria-label on unknown');
+  assert.ok(readinessChipSource.includes('border-slate-700/60'), 'Must use neutral slate styling for unknown state');
+
+  // State 3: blocked / error
+  assert.ok(readinessChipSource.includes('ตรวจแก้'), 'Must render "ตรวจแก้" chip text on error');
+  assert.ok(readinessChipSource.includes('แก้ {totalBlockers}'), 'Must render totalBlockers badge on error');
+  assert.ok(readinessChipSource.includes('ShieldAlert'), 'Must render ShieldAlert on error');
+  assert.ok(readinessChipSource.includes('border-red-500/40'), 'Must use red styling for error state');
+
+  // State 4: warnings
+  assert.ok(readinessChipSource.includes('เตือน'), 'Must render "เตือน" chip text on warning');
+  assert.ok(readinessChipSource.includes('{warnings.length}'), 'Must render warning count badge');
+
+  // State 5: ready
+  assert.ok(readinessChipSource.includes('พร้อม'), 'Must render "พร้อม" text on ready');
+  assert.ok(readinessChipSource.includes('พร้อมเรนเดอร์ 100%'), 'Must render 100% ready badge in popover');
+  assert.ok(readinessChipSource.includes('border-emerald-500/35'), 'Must use emerald styling for ready state');
+
+  // Popover accessibility & dialog role
+  assert.ok(readinessChipSource.includes('role="dialog"'), 'Popover must have role="dialog"');
+  assert.ok(readinessChipSource.includes("e.key === 'Escape'"), 'Popover must close on Escape key');
+  assert.ok(readinessChipSource.includes('aria-haspopup="dialog"'), 'Trigger button must declare aria-haspopup="dialog"');
+});
+
+test('SaveStatusChip supports saving, saved, unsaved/dirty, and error states without flickering', () => {
+  assert.equal(normalizeSaveStatus('saving'), 'saving');
+  assert.equal(normalizeSaveStatus('saved'), 'saved');
+  assert.equal(normalizeSaveStatus('dirty'), 'unsaved');
+  assert.equal(normalizeSaveStatus('unsaved'), 'unsaved');
+  assert.equal(normalizeSaveStatus('error'), 'error');
+  assert.equal(normalizeSaveStatus(undefined), 'saved');
+
+  // Verify JSX handles 'unsaved' alongside 'dirty'
+  assert.ok(saveStatusChipSource.includes("saveStatus === 'unsaved'"), 'Must handle unsaved state prop');
+
+  // Verify no flickering text: container button must NOT have animate-pulse
+  const errorButtonPulseRegex = /isError\s*\?[\s\S]*?animate-pulse[\s\S]*?:/;
+  assert.ok(!errorButtonPulseRegex.test(saveStatusChipSource), 'Error state must not animate-pulse the entire button (prevents flickering text)');
+
+  // Accessibility checks
+  assert.ok(saveStatusChipSource.includes('กำลังบันทึกโปรเจกต์'), 'Must have aria-label for saving');
+  assert.ok(saveStatusChipSource.includes('บันทึกไม่สำเร็จ'), 'Must have aria-label for error');
+  assert.ok(saveStatusChipSource.includes('บันทึกแล้ว'), 'Must have aria-label for saved');
 });

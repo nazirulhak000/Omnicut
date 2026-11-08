@@ -124,18 +124,13 @@
   background-color: rgba(10, 16, 30, var(--glass-opacity, 0.16)) !important;
   backdrop-filter: blur(var(--glass-blur, 14px)) saturate(var(--glass-saturate, 210%)) !important;
   -webkit-backdrop-filter: blur(var(--glass-blur, 14px)) saturate(var(--glass-saturate, 210%)) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.75) !important;
-  border-left: 1px solid rgba(255, 255, 255, 0.28) !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.28) !important;
-  border-bottom: 1px solid rgba(236, 72, 153, 0.40) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
   box-shadow: 
-    0 25px 50px -12px rgba(14, 116, 144, 0.4),
-    0 0 25px -5px rgba(236, 72, 153, 0.25),
-    inset 0 2px 3px 0 rgba(255, 255, 255, 0.95),
-    inset 2px 0 3px 0 rgba(255, 255, 255, 0.75),
-    inset -2.5px 0 5px 0 rgba(6, 182, 212, 0.55),
-    inset 0 -2.5px 6px 0 rgba(236, 72, 153, 0.55),
-    inset 0 0 22px 0 rgba(255, 255, 255, 0.18) !important;
+    0 12px 32px -4px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.15) !important;
   position: relative;
   overflow: hidden;
   border-radius: 24px;

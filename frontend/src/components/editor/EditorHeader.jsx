@@ -65,6 +65,7 @@ export default function EditorHeader({
   isAgentOpen = false,
   onToggleAgent,
   preflightReport = null,
+  preflightLoading = false,
   onOpenPreflightModal = null,
 }) {
   const [showPlaybookModal, setShowPlaybookModal] = React.useState(false);
@@ -252,6 +253,7 @@ export default function EditorHeader({
           <RenderReadinessChip
             coverStatus={coverStatus}
             coverChecking={coverChecking}
+            preflightLoading={preflightLoading}
             onOpenCoverStudio={onOpenCoverStudio}
             preflightReport={preflightReport}
             onOpenPreflightModal={onOpenPreflightModal}

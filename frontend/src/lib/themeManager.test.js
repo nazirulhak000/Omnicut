@@ -22,7 +22,7 @@ import {
 test('themeManager exposes 4 premier presets including glassmorphism, obsidian, cyberpunk, and slate', () => {
   assert.equal(THEME_PRESETS.length, 4);
   assert.deepEqual(VALID_THEME_IDS, ['glassmorphism', 'obsidian', 'cyberpunk', 'slate']);
-  assert.equal(DEFAULT_THEME_ID, 'glassmorphism');
+  assert.equal(DEFAULT_THEME_ID, 'obsidian');
 
   for (const preset of THEME_PRESETS) {
     assert.ok(preset.id, 'Preset must have an id');
@@ -39,9 +39,9 @@ test('normalizeThemeId validates inputs and safely falls back to default', () =>
   assert.equal(normalizeThemeId('OBSIDIAN'), 'obsidian');
   assert.equal(normalizeThemeId('  cyberpunk  '), 'cyberpunk');
   assert.equal(normalizeThemeId('slate'), 'slate');
-  assert.equal(normalizeThemeId('unknown-theme'), 'glassmorphism');
-  assert.equal(normalizeThemeId(null), 'glassmorphism');
-  assert.equal(normalizeThemeId(undefined), 'glassmorphism');
+  assert.equal(normalizeThemeId('unknown-theme'), 'obsidian');
+  assert.equal(normalizeThemeId(null), 'obsidian');
+  assert.equal(normalizeThemeId(undefined), 'obsidian');
 });
 
 test('applyTheme and getStoredTheme manage localStorage and DOM data-theme attribute', () => {
@@ -68,7 +68,7 @@ test('applyTheme and getStoredTheme manage localStorage and DOM data-theme attri
   };
 
   // Initial without stored
-  assert.equal(getStoredTheme(), 'glassmorphism');
+  assert.equal(getStoredTheme(), 'obsidian');
 
   // Apply obsidian
   const applied = applyTheme('obsidian');
@@ -79,9 +79,9 @@ test('applyTheme and getStoredTheme manage localStorage and DOM data-theme attri
 
   // Apply invalid theme
   const fallback = applyTheme('invalid');
-  assert.equal(fallback, 'glassmorphism');
-  assert.equal(storage[STORAGE_KEY_THEME], 'glassmorphism');
-  assert.equal(attributes['data-theme'], 'glassmorphism');
+  assert.equal(fallback, 'obsidian');
+  assert.equal(storage[STORAGE_KEY_THEME], 'obsidian');
+  assert.equal(attributes['data-theme'], 'obsidian');
 
   // Orbs toggling
   assert.equal(getStoredOrbsEnabled('obsidian'), false); // default for obsidian is false

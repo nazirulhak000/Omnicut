@@ -4,6 +4,29 @@
 
 ## รอบปัจจุบัน
 
+- [ ] Round ANTIGRAVITY-UNSLOP-PHASE03-SHELL-NAV-20261108 · ดำเนินการ Phase 03 (Shell, Navigation & Header) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
+  - [ ] Task 1: ตรวจสอบและคง 72px icon rail ใน Sidebar.jsx พร้อม aria-label, tooltip, และ clean focus ring
+  - [ ] Task 2: แก้ไขปัญหา Mobile Navbar Collision ใน EditorHeader / Topbar เมื่อ viewport แคบ (< 640px)
+  - [ ] Task 3: ปรับ Topbar และ PageHeader ลด visual clutter และข้อมูลซ้ำซ้อน
+  - [ ] Task 4: ตรวจสอบ unit tests (1,200+) และ build ผ่าน 100%
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE02-TOKENS-THEME-20261108 · ดำเนินการ Phase 02 (Semantic Tokens & Obsidian Default Theme) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
+  - [x] Task 1: สลับ DEFAULT_THEME_ID ใน themeManager.js เป็น 'obsidian' (Obsidian Pro Dark NLE Studio) ปิด ambient glowing orbs โดยเริ่มต้น
+  - [x] Task 2: ปรับปรุง Button.jsx ลดการใช้ harsh pink-cyan gradient ใน variant 'primary' ใช้ solid accent cyan #25F4EE พร้อม hover state สไตล์ Pro NLE
+  - [x] Task 3: แก้ไขขนาด font inverted ใน Badge.jsx (sm เป็น 11px, md เป็น 12px)
+  - [x] Task 4: ปรับลดความฉูดฉาดของ .glass-panel ใน index.css (ตัด outer pink border และ neon box-shadows ส่วนเกิน)
+  - [x] Task 5: อัปเดต unit tests ใน themeManager.test.js ผ่าน 1,204/1,204 tests (100%) และ Vite build ผ่าน
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE01-STATE-SEMANTICS-20261108 · ดำเนินการ Phase 01 (State Semantics & Risk Audit) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
+  - [x] Task 1: สร้างโมดูล renderReadiness.js กำหนด state truth table 5 สถานะอย่างเคร่งครัด (loading, unknown, error, warning, ready)
+  - [x] Task 2: ปรับปรุง RenderReadinessChip.jsx ให้แสดงผลตามความจริง (แก้บั๊กแสดง "พร้อมเรนเดอร์ 100%" ทั้งที่ยังไม่ตรวจ coverStatus หรือกำลังโหลด)
+  - [x] Task 3: ปรับปรุง SaveStatusChip.jsx ถอน animate-pulse ออกจาก button wrapper (แก้ปัญหาข้อความกระพริบไม่หยุด) พร้อมจัดการสถานะ saving, saved, dirty, error
+  - [x] Task 4: ส่งต่อ preflightLoading จาก EditorShell สู่ EditorHeader
+  - [x] Task 5: เพิ่มชุดทดสอบใน editorHeaderDeclutter.test.js ผ่าน 1,204/1,204 tests (100%)
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
 - [x] Round ANTIGRAVITY-FIX-MOBILE-SHELL-TERMINAL-IMPORT-20261108 · แก้ไข ReferenceError: Terminal is not defined ใน MobileShell.jsx เมื่อเข้าแท็บ ?tab=more: นำเข้า Terminal จาก lucide-react พร้อมเพิ่มชุดทดสอบ mobileShellContract.test.js ผ่าน Vitest 1,200/1,200 (100%) และ Vite build สำเร็จ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-UNSLOP-PHASE00-BASELINE-20261108 · ดำเนินการ Phase 00 (Baseline Capture & Visual Direction Confirmation) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:

@@ -55,7 +55,7 @@ export const THEME_PRESETS = [
 ];
 
 export const VALID_THEME_IDS = THEME_PRESETS.map(t => t.id);
-export const DEFAULT_THEME_ID = 'glassmorphism';
+export const DEFAULT_THEME_ID = 'obsidian';
 
 export const DEFAULT_GLASS_CONFIG = {
   opacity: 16,    // % (0.16)

@@ -1,25 +1,25 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
+  Shield,
   ShieldCheck,
   ShieldAlert,
-  AlertTriangle,
-  Check,
   Loader2,
   Image as ImageIcon,
   BookOpen,
   ChevronDown,
-  X,
-  ExternalLink,
 } from 'lucide-react';
+import { getRenderReadinessState, READINESS_STATES } from '../../lib/renderReadiness.js';
 
 /**
  * RenderReadinessChip
  * Unifies Cover Status, Preflight Audit & Viral Score, and Boss Playbook Tips into
  * one high-signal chip with an interactive Popover checklist.
+ * Implements strict 5-state truth table: loading, unknown, error, warning, ready.
  */
 export default function RenderReadinessChip({
   coverStatus = null,
   coverChecking = false,
+  preflightLoading = false,
   onOpenCoverStudio,
   preflightReport = null,
   onOpenPreflightModal,
@@ -58,11 +58,20 @@ export default function RenderReadinessChip({
   const warnings = preflightReport?.warnings || [];
   const viralScore = Number.isFinite(preflightReport?.viralScore) ? preflightReport.viralScore : null;
 
-  const isCoverMissing = coverStatus === false;
-  const hasErrors = errors.length > 0 || isCoverMissing;
-  const hasWarnings = warnings.length > 0 && !hasErrors;
-  const isReady = !hasErrors && !hasWarnings;
+  const readinessState = getRenderReadinessState({
+    coverStatus,
+    coverChecking,
+    preflightLoading,
+    preflightReport,
+  });
 
+  const isLoading = readinessState === READINESS_STATES.LOADING;
+  const isUnknown = readinessState === READINESS_STATES.UNKNOWN;
+  const hasErrors = readinessState === READINESS_STATES.ERROR;
+  const hasWarnings = readinessState === READINESS_STATES.WARNING;
+  const isReady = readinessState === READINESS_STATES.READY;
+
+  const isCoverMissing = coverStatus === false;
   const totalBlockers = errors.length + (isCoverMissing ? 1 : 0);
 
   return (
@@ -75,21 +84,49 @@ export default function RenderReadinessChip({
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`สถานะความพร้อมเรนเดอร์: ${hasErrors ? 'ต้องแก้ไข' : hasWarnings ? 'มีคำเตือน' : 'พร้อม'}`}
-        title="ตรวจเช็กความพร้อมก่อนเรนเดอร์ (ปก, ตรวจแผน, ข้อเตือนใจ)"
+        aria-label={
+          isLoading
+            ? 'กำลังตรวจสอบความพร้อม'
+            : isUnknown
+              ? 'ยังไม่ได้ตรวจสอบ'
+              : hasErrors
+                ? `สถานะความพร้อมเรนเดอร์: ต้องแก้ไข (พบข้อผิดพลาด ${totalBlockers} จุด)`
+                : hasWarnings
+                  ? `สถานะความพร้อมเรนเดอร์: มีคำเตือน (${warnings.length} จุด)`
+                  : 'สถานะความพร้อมเรนเดอร์: พร้อม'
+        }
+        title={
+          isLoading
+            ? 'กำลังตรวจสอบความพร้อมของโปรเจกต์...'
+            : isUnknown
+              ? 'ยังไม่ได้ตรวจสอบความพร้อมก่อนเรนเดอร์ — คลิกเพื่อเปิดเช็กลิสต์'
+              : hasErrors
+                ? `มีจุดที่ต้องแก้ไขก่อนเรนเดอร์ (${totalBlockers} จุด)`
+                : hasWarnings
+                  ? `มีข้อแนะนำในการปรับปรุง (${warnings.length} จุด)`
+                  : isReady
+                    ? 'ความพร้อมสมบูรณ์ พร้อมเรนเดอร์ 100%'
+                    : 'ความพร้อมก่อนเรนเดอร์'
+        }
         className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-2 sm:px-2.5 text-xs font-bold transition-all cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed ${
-          open
-            ? 'ring-2 ring-white/20'
-            : ''
+          open ? 'ring-2 ring-white/20' : ''
         } ${
-          hasErrors
-            ? 'border-red-500/40 bg-red-500/15 text-red-300 hover:bg-red-500/25 shadow-sm shadow-red-500/10'
-            : hasWarnings
-              ? 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 shadow-sm shadow-amber-500/10'
-              : 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 shadow-sm shadow-emerald-500/10'
+          isLoading
+            ? 'border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 shadow-sm'
+            : isUnknown
+              ? 'border-slate-700/60 bg-slate-800/40 text-slate-300 hover:bg-slate-800/60 shadow-sm'
+              : hasErrors
+                ? 'border-red-500/40 bg-red-500/15 text-red-300 hover:bg-red-500/25 shadow-sm shadow-red-500/10'
+                : hasWarnings
+                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 shadow-sm shadow-amber-500/10'
+                  : 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 shadow-sm shadow-emerald-500/10'
         }`}
       >
-        {hasErrors ? (
+        {isLoading ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400 flex-shrink-0" />
+        ) : isUnknown ? (
+          <Shield className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+        ) : hasErrors ? (
           <ShieldAlert className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
         ) : hasWarnings ? (
           <ShieldCheck className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
@@ -98,7 +135,15 @@ export default function RenderReadinessChip({
         )}
 
         <span className="hidden xl:inline tracking-tight">
-          {hasErrors ? 'ตรวจแก้' : hasWarnings ? 'เตือน' : 'พร้อม'}
+          {isLoading
+            ? 'กำลังตรวจ...'
+            : isUnknown
+              ? 'ยังไม่ตรวจ'
+              : hasErrors
+                ? 'ตรวจแก้'
+                : hasWarnings
+                  ? 'เตือน'
+                  : 'พร้อม'}
         </span>
 
         {viralScore !== null && (
@@ -107,7 +152,11 @@ export default function RenderReadinessChip({
           </span>
         )}
 
-        {totalBlockers > 0 ? (
+        {isLoading ? null : isUnknown ? (
+          <span className="rounded bg-slate-700/50 px-1 py-0.2 text-[10px] font-semibold text-slate-300">
+            ยังไม่ได้ตรวจ
+          </span>
+        ) : totalBlockers > 0 ? (
           <span className="rounded bg-red-500/30 px-1 py-0.2 text-[10px] font-bold text-red-200">
             แก้ {totalBlockers}
           </span>
@@ -139,14 +188,26 @@ export default function RenderReadinessChip({
             </div>
             <span
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                hasErrors
-                  ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                  : hasWarnings
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                isLoading
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  : isUnknown
+                    ? 'bg-slate-700/40 text-slate-300 border border-slate-600/40'
+                    : hasErrors
+                      ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                      : hasWarnings
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
               }`}
             >
-              {hasErrors ? 'ต้องแก้ไขก่อนเรนเดอร์' : hasWarnings ? 'มีข้อแนะนำ' : 'พร้อมเรนเดอร์ 100%'}
+              {isLoading
+                ? 'กำลังตรวจสอบ...'
+                : isUnknown
+                  ? 'ยังไม่ได้ตรวจสอบ'
+                  : hasErrors
+                    ? 'ต้องแก้ไขก่อนเรนเดอร์'
+                    : hasWarnings
+                      ? 'มีข้อแนะนำ'
+                      : 'พร้อมเรนเดอร์ 100%'}
             </span>
           </div>
 
@@ -157,11 +218,13 @@ export default function RenderReadinessChip({
               <div className="flex items-center gap-2 min-w-0">
                 <div
                   className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    coverStatus === true
-                      ? 'bg-emerald-500/15 text-emerald-400'
-                      : isCoverMissing
-                        ? 'bg-red-500/15 text-red-400'
-                        : 'bg-white/[0.06] text-slate-400'
+                    coverChecking
+                      ? 'bg-amber-500/15 text-amber-400'
+                      : coverStatus === true
+                        ? 'bg-emerald-500/15 text-emerald-400'
+                        : isCoverMissing
+                          ? 'bg-red-500/15 text-red-400'
+                          : 'bg-white/[0.06] text-slate-400'
                   }`}
                 >
                   <ImageIcon className="w-3.5 h-3.5" />
@@ -207,17 +270,27 @@ export default function RenderReadinessChip({
               <div className="flex items-center gap-2 min-w-0">
                 <div
                   className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    errors.length > 0
-                      ? 'bg-red-500/15 text-red-400'
-                      : warnings.length > 0
-                        ? 'bg-amber-500/15 text-amber-400'
-                        : 'bg-emerald-500/15 text-emerald-400'
+                    preflightLoading
+                      ? 'bg-amber-500/15 text-amber-400'
+                      : errors.length > 0
+                        ? 'bg-red-500/15 text-red-400'
+                        : warnings.length > 0
+                          ? 'bg-amber-500/15 text-amber-400'
+                          : preflightReport
+                            ? 'bg-emerald-500/15 text-emerald-400'
+                            : 'bg-white/[0.06] text-slate-400'
                   }`}
                 >
-                  {errors.length > 0 ? (
+                  {preflightLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : errors.length > 0 ? (
                     <ShieldAlert className="w-3.5 h-3.5" />
-                  ) : (
+                  ) : warnings.length > 0 ? (
                     <ShieldCheck className="w-3.5 h-3.5" />
+                  ) : preflightReport ? (
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                  ) : (
+                    <Shield className="w-3.5 h-3.5" />
                   )}
                 </div>
                 <div className="min-w-0">
@@ -230,12 +303,18 @@ export default function RenderReadinessChip({
                     )}
                   </div>
                   <div className="text-[11px] text-slate-400 truncate">
-                    {errors.length > 0 ? (
+                    {preflightLoading ? (
+                      <span className="text-amber-300 flex items-center gap-1">
+                        <Loader2 className="w-2.5 h-2.5 animate-spin" /> กำลังตรวจสอบแผน...
+                      </span>
+                    ) : errors.length > 0 ? (
                       <span className="text-red-400 font-semibold">พบข้อผิดพลาด {errors.length} จุด</span>
                     ) : warnings.length > 0 ? (
                       <span className="text-amber-300 font-medium">มีข้อแนะนำ {warnings.length} จุด</span>
-                    ) : (
+                    ) : preflightReport ? (
                       <span className="text-emerald-400 font-medium">ผ่านเกณฑ์สมบูรณ์</span>
+                    ) : (
+                      'ยังไม่ได้ตรวจสอบ'
                     )}
                   </div>
                 </div>
