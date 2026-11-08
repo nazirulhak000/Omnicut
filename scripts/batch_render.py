@@ -314,28 +314,36 @@ class BatchRenderManager:
     @classmethod
     def _dispatch_pending_batches(cls) -> None:
         global _DISPATCHER_THREAD
-        while True:
-            if maintenance_lock.is_blocked(_maintenance_root()):
-                # Maintenance mode: start no new batch; queued ones stay
-                # queued and are picked up again by recovery after it ends.
-                with _DISPATCHER_LOCK:
-                    if _DISPATCHER_THREAD is threading.current_thread():
-                        _DISPATCHER_THREAD = None
-                logger.warning("[BatchRender] maintenance mode: หยุดเริ่ม batch ใหม่ชั่วคราว")
-                return
-            batch_id = cls._next_queued_batch_id()
-            if not batch_id:
-                # `_ensure_dispatcher()` can see this thread alive between
-                # the empty lookup above and `return`, then leave a newly
-                # enqueued batch with no worker. Recheck while holding the
-                # same lock used by the starter before declaring idle.
-                with _DISPATCHER_LOCK:
-                    batch_id = cls._next_queued_batch_id()
-                    if not batch_id:
-                        if _DISPATCHER_THREAD is threading.current_thread():
-                            _DISPATCHER_THREAD = None
-                        return
-            cls._run_batch_worker(batch_id)
+        try:
+            while True:
+                if maintenance_lock.is_blocked(_maintenance_root()):
+                    logger.warning("[BatchRender] maintenance mode: หยุดเริ่ม batch ใหม่ชั่วคราว")
+                    return
+                batch_id = cls._next_queued_batch_id()
+                if not batch_id:
+                    with _DISPATCHER_LOCK:
+                        batch_id = cls._next_queued_batch_id()
+                        if not batch_id:
+                            return
+                try:
+                    cls._run_batch_worker(batch_id)
+                except Exception as exc:
+                    logger.exception("[BatchRender] Batch %s worker crashed unexpectedly: %s", batch_id, exc)
+                    try:
+                        batch = cls.get_batch(batch_id)
+                        if batch and batch.get("status") not in ("completed", "failed", "cancelled"):
+                            batch["status"] = "failed"
+                            for it in batch.get("items", []):
+                                if it.get("status") in ("queued", "in_production"):
+                                    it["status"] = "failed"
+                                    it["error"] = str(exc)
+                            cls._persist_batch(batch)
+                    except Exception:
+                        pass
+        finally:
+            with _DISPATCHER_LOCK:
+                if _DISPATCHER_THREAD is threading.current_thread():
+                    _DISPATCHER_THREAD = None
 
     @classmethod
     def recover_pending_batches(cls) -> int:

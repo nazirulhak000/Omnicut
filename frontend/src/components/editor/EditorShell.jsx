@@ -7,7 +7,7 @@ import {
   RefreshCw, Rocket, Scissors, Film, Layers, Sliders, Sparkles, Trash2,
   FolderOpen, Play, Copy, Check, X, Save,
   ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Columns3,
-  ArrowRight,
+  ArrowRight, ShieldCheck,
 } from 'lucide-react';
 import {
   deleteProject, getAllAssets, getBackgroundIsolationManifest, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, getTaskStatus, preflightBackgroundIsolation, startBackgroundIsolation, interactiveSegment, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
@@ -1342,7 +1342,7 @@ export default function EditorShell({
           checkerboard: 'ตารางหมากรุก (Checkerboard)',
           matte: 'มาสก์ขาวดำ (Alpha Matte)',
         };
-        showToast(`✂️ โหมดตรวจเช็ก Cutout: ${titles[next]}`);
+        showToast(`โหมดตรวจเช็ก Cutout: ${titles[next]}`);
         return next;
       });
     },
@@ -1423,7 +1423,7 @@ export default function EditorShell({
     setSilencePlan(null);
     setSelection(null);
     if (plan && plan.changed && !plan.blocked) {
-      showToast('✂️ ตัดช่วงเงียบสำเร็จ (ขยับภาพ เสียง และซับครบ)');
+      showToast('ตัดช่วงเงียบสำเร็จ (ขยับภาพ เสียง และซับครบ)');
     }
   }, [silencePlan, rippleRanges, setSelection, showToast]);
 
@@ -2703,7 +2703,8 @@ export default function EditorShell({
                     {!origin && <p className="text-sm text-slate-400">กำลังตรวจว่าผูกกับอะไรอยู่...</p>}
                     {isAnglePosted && (
                       <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-300 leading-relaxed">
-                        🛡️ <strong>โปรเจกต์นี้โพสต์ลง TikTok แล้ว:</strong> สามารถลบเฉพาะไฟล์ตัดต่อเพื่อคืนพื้นที่ดิสก์ได้ โดยวิดีโอที่โพสต์แล้วใน Export และประวัติสคริปต์ใน Tracker จะยังคงอยู่ครบถ้วน 100%
+                        <ShieldCheck className="w-4 h-4 inline mr-1 text-emerald-400" />
+                        <strong>โปรเจกต์นี้โพสต์ลง TikTok แล้ว:</strong> สามารถลบเฉพาะไฟล์ตัดต่อเพื่อคืนพื้นที่ดิสก์ได้ โดยวิดีโอที่โพสต์แล้วใน Export และประวัติสคริปต์ใน Tracker จะยังคงอยู่ครบถ้วน 100%
                       </div>
                     )}
                     {OPTIONS.map((o) => (

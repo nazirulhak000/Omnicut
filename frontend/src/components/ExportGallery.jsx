@@ -202,7 +202,7 @@ const ExportCard = memo(function ExportCard({
           {isPosted && (
             <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold text-[9px] sm:text-[10px] shadow-sm tracking-wider flex items-center gap-1 border border-emerald-500/30 backdrop-blur-md" title={`โพสต์แล้ว ${item.posted_at || ''}`}>
               <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-400" />
-              <span>✓ โพสต์แล้ว</span>
+              <span>โพสต์แล้ว</span>
             </span>
           )}
 

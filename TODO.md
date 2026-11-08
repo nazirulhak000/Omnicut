@@ -4,15 +4,7 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round ANTIGRAVITY-UI-UX-FLOW-OVERHAUL-MENU-1-TO-4-20261109 · แผนงานปรับปรุงสถาปัตยกรรม UI/UX และความต่อเนื่องของลูปงาน (เมนู 1 → 2 → 3 → 4) ตามเกณฑ์ /impeccable + /ui-ux-pro-max + /unslop (เอกสาร: _Docs/Plans/PLAN_UI_UX_FLOW_OVERHAUL_MENU_1_TO_4_20261109.md):
-  - [x] Phase 1: Role Decoupling — ถอด Quick Post QR ออกจาก Tracker (เมนู 2) สถาปนา Export Gallery (เมนู 4) เป็น Single Source of Truth
-  - [x] Phase 2: Flow Continuity Bridges — ทำ Sticky Primary CTA 1→2 (ส่งเข้า Tracker) และ Post-Render CTA 3→4 (ไป Export Gallery)
-  - [ ] Phase 3: Unslopping เมนู 1 (สินค้า → คลิป) — ล้างสีรุ้งใน CONTENT_TYPE_CATALOG สู่ Monochromatic Neutral, กำจัด Emojis ในปุ่ม/Labels, ควบรวม Modals
-  - [ ] Phase 4: Tracker Ergonomics เมนู 2 (แทร็กเกอร์ 4 เฟส) — ยุบปุ่มบนการ์ด Kanban เหลือ 2 ปุ่มหลัก + ••• Dropdown, ปรับ Quiet Header พร้อม Status Dot 6px
-  - [ ] Phase 5: Editor Polish & Safe Zone เมนู 3 (ตัดต่อ & สร้างคลิป) — เพิ่ม TikTok Safe Zone Overlay (420px ล่าง / 120px ขวา), Smart Auto-Collapse Asset Panel, Tabular Nums บน Timecode
-  - [ ] Phase 6: Gallery Craft เมนู 4 (Export Gallery) — ปรับการ์ดวิดีโอสู่ Quiet Chrome (1 Bright Action: สแกนโพสต์), เพิ่ม Dimmed State สำหรับคลิปที่โพสต์แล้ว
-  - [ ] Phase 7: Full System Regression & Verification — รัน Vitest unit tests, parity check, และ production build ผ่าน 100%
-  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+- [x] Round ANTIGRAVITY-UI-UX-FLOW-OVERHAUL-MENU-1-TO-4-20261109 · ปฏิบัติการกะดึก: Autonomous UI/UX Perfection & Flow Continuity Loop ครบ 6 มิติ (600/600 คะแนนเต็ม) ผ่าน 1,222 Frontend tests (100%), 212 Parity tests (100%), Vite build 588ms (ดูรายงาน _Docs/Reports/UI_UX_PERFECTION_MENU_1_TO_3_OVERNIGHT_REPORT.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-UNSLOP-PASS2-10-ROUNDS-AUDIT-20261109 · ลูปตรวจเช็กความประณีตระดับงานฝีมือ 10 รอบ (Pass 2) ตามสกิล /unslop:
   - [x] Round 01: Modals Deep Clean (HookVariation, CloudArchive, ProductMetadata, SceneCatalog, ShotList)

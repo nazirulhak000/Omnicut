@@ -5,27 +5,26 @@ import { readTrackerDraft, writeTrackerDraft, clearTrackerDraft } from '../lib/t
 import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import {
   Layers, Clapperboard, Check, Trash2, ArrowRight, Play,
-  RefreshCw, Search, QrCode, ArrowLeft, Copy,
+  RefreshCw, Search, ArrowLeft, Copy,
   Kanban, Table, Sparkles, CheckCircle2, Clock,
   ExternalLink, ChevronRight, ChevronLeft, Filter, AlertCircle,
-  Video, Eye, Flame, TrendingUp, Plus, X, FileText, Scissors,
+  Video, Eye, TrendingUp, Plus, X, FileText, Scissors,
   FolderDown, Info, Film, RotateCcw, MoreHorizontal, ShieldAlert, AlertTriangle,
-  Rocket, Calendar, Sun, Moon, Sunrise, Sunset, Shuffle, ChevronDown, ChevronUp,
+  Calendar, Sun, Moon, Sunrise, Sunset, Shuffle, ChevronDown, ChevronUp,
   Archive, Image as ImageIcon
 } from 'lucide-react';
 import {
-  getProducts, getScheduleQueue, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost, markPosted,
+  getProducts, getScheduleQueue, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, markPosted,
   generateShotList, getShotList, getTaskStatus, renderHyperFramesComposition
 } from '../api';
 import CoverStudioModal from './CoverStudioModal';
 import ShotListModal from './ShotListModal';
 import ScheduleAgenda from './ScheduleAgenda';
-import { Modal, Toast, Button, Badge, Input, Textarea, SafeQRCode, PageHeader } from './ui';
+import { Modal, Toast, Button, Badge, Input, Textarea, PageHeader } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import { guessBrandModel } from '../lib/overlayModel';
 import { applyCoverResult, getCoverVariant } from '../lib/coverVariant';
 import { withEditorProjectAction } from '../lib/editorEntry';
-import { localParts } from '../lib/scheduleQueue';
 import { getRelativeTime, formatFullDateTime } from '../lib/dateUtils';
 import PaginationControls from './PaginationControls';
 import { LOCAL_STUDIO_HINT, isCoarsePointer, publicAppOrigin, reachableStudioUrl } from '../lib/mobileLinks.js';
@@ -1122,14 +1121,7 @@ export default function ContentTrackerHub({
   const [copiedAngleId, setCopiedAngleId] = useState(null);
   const [previewVideoUrl, setPreviewVideoUrl] = useState(null);
   const [previewVideoAngle, setPreviewVideoAngle] = useState(null);
-  const [qrModalItem, setQrModalItem] = useState(null);
-  const [tiktokModalItem, setTiktokModalItem] = useState(null);
   const [coverPreviewItem, setCoverPreviewItem] = useState(null);
-  const [tiktokCaption, setTiktokCaption] = useState('');
-  const [tiktokHashtags, setTiktokHashtags] = useState('');
-  const [tiktokProductId, setTiktokProductId] = useState('');
-  const [tiktokScheduleDate, setTiktokScheduleDate] = useState('');
-  const [tiktokScheduleTime, setTiktokScheduleTime] = useState('');
   const failedDraftWrites = useRef(new Map());
   useEffect(() => registerChannelSwitchParticipant({
     isDirty: () => failedDraftWrites.current.size > 0,
@@ -1151,18 +1143,6 @@ export default function ContentTrackerHub({
       showToast('เก็บแบบร่างไม่สำเร็จ ระบบจะให้บันทึกอีกครั้งก่อนสลับช่อง', 'error');
     }
   }
-  function editTiktokDraft(field, value) {
-    const draft = { caption: tiktokCaption, hashtags: tiktokHashtags, product: tiktokProductId,
-      date: tiktokScheduleDate, time: tiktokScheduleTime, [field]: value };
-    ({ caption: setTiktokCaption, hashtags: setTiktokHashtags, product: setTiktokProductId,
-      date: setTiktokScheduleDate, time: setTiktokScheduleTime })[field](value);
-    persistManualDraft('post', tiktokModalItem, draft);
-  }
-  // Cross-referenced against by export_id when opening the TikTok Studio
-  // modal, so a clip that's already sitting in ScheduleAgenda's queue shows
-  // that date/time here instead of a blank field the user has to re-enter.
-  const [scheduleQueueItems, setScheduleQueueItems] = useState([]);
-  const [isSubmittingTiktok, setIsSubmittingTiktok] = useState(false);
   const [inspectAngle, setInspectAngle] = useState(null); // Deep-Dive Inspection state
   const [shotListModalAngle, setShotListModalAngle] = useState(null);
   const [shotListResult, setShotListResult] = useState(null);
@@ -1330,73 +1310,6 @@ export default function ContentTrackerHub({
 
   const [coverStudioItem, setCoverStudioItem] = useState(null);
 
-  const handleOpenTiktokModal = useCallback((ang, scheduleDate = '', scheduleTime = '') => {
-    if (!ang) return;
-    const targetPid = ang?.parentProduct?.tiktok_product_id || ang?.parentProduct?.name || '';
-    const cover = getCoverVariant(ang);
-    setTiktokModalItem({
-      ...ang,
-      cover_url: cover.url || ang.cover_url || '',
-      cover_path: cover.path || ang.cover_path || '',
-    });
-    const savedDraft = readTrackerDraft(workspaceStorage, 'post', ang);
-    setTiktokCaption(savedDraft?.caption ?? ang.tiktok_caption ?? ang.hook_title ?? '');
-    setTiktokHashtags(savedDraft?.hashtags ?? ang.tiktok_hashtags ?? '#รีวิว #ของดีบอกต่อ');
-    setTiktokProductId(savedDraft?.product ?? targetPid);
-
-    // Caller didn't pin a date/time explicitly -- if this exact clip is
-    // already sitting in ScheduleAgenda's queue (matched by export_id, or
-    // by video path when there's no export_id yet), show that instead of
-    // making the user retype a schedule they already picked. Prefer a
-    // still-pending match over a posted one.
-    let date = scheduleDate;
-    let time = scheduleTime;
-    if (!date && !time) {
-      const matches = scheduleQueueItems.filter((item) => (
-        (ang.export_id && item.export_id === ang.export_id)
-        || (!ang.export_id && ang.video_url && item.video_path === ang.video_url)
-      ));
-      const match = matches.find((item) => item.status !== 'posted') || matches[0];
-      if (match?.scheduled_at) {
-        const parts = localParts(match.scheduled_at);
-        date = parts.date;
-        time = parts.time;
-      }
-    }
-    setTiktokScheduleDate(savedDraft?.date ?? date ?? '');
-    setTiktokScheduleTime(savedDraft?.time ?? time ?? '');
-  }, [scheduleQueueItems, workspaceStorage]);
-
-  const handleConfirmTiktokAutopost = useCallback(async () => {
-    if (!tiktokModalItem) return;
-    if (!tiktokModalItem.video_url) {
-      showToast('ยังไม่มีไฟล์วิดีโอที่ตัดเสร็จสำหรับคลิปนี้', 'error');
-      return;
-    }
-    setIsSubmittingTiktok(true);
-    try {
-      await prepareTiktokAutopost(
-        tiktokModalItem.video_url,
-        tiktokModalItem.cover_path || tiktokModalItem.cover_url || null,
-        tiktokCaption,
-        tiktokHashtags,
-        tiktokModalItem.parentProduct?.id,
-        tiktokModalItem.angle_id,
-        tiktokProductId.trim() || undefined,
-        tiktokScheduleDate.trim() || undefined,
-        tiktokScheduleTime.trim() || undefined,
-        tiktokModalItem.export_id || null,
-      );
-      clearTrackerDraft(workspaceStorage, 'post', tiktokModalItem);
-      showToast('ส่งข้อมูลให้ Extension แล้ว! กำลังเปิด TikTok Studio...');
-      window.open('https://www.tiktok.com/tiktokstudio/upload', '_blank');
-    } catch (err) {
-      showToast('ส่งข้อมูลไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
-    } finally {
-      setIsSubmittingTiktok(false);
-    }
-  }, [tiktokModalItem, tiktokCaption, tiktokHashtags, tiktokProductId, tiktokScheduleDate, tiktokScheduleTime, showToast, workspaceStorage]);
-
   const handlePreviewVideo = useCallback((url, ang = null) => {
     setPreviewVideoUrl(url);
     setPreviewVideoAngle(ang);
@@ -1513,7 +1426,6 @@ export default function ContentTrackerHub({
         // this tracker board.
         setProducts(res.products);
       }
-      setScheduleQueueItems(queueRes.items || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -1575,9 +1487,6 @@ export default function ContentTrackerHub({
 
   const handleCoverSaved = useCallback(async (res, channelToken) => {
     showToast('สร้างภาพปก 3:4 สำเร็จแล้ว!');
-    if (tiktokModalItem) {
-      setTiktokModalItem((prev) => (prev ? applyCoverResult(prev, res) : null));
-    }
     const productId = coverStudioItem?.parentProduct?.id;
     const angleId = coverStudioItem?.angle_id;
     if (productId && angleId && (res?.cover_path || res?.cover_3x4_path || res?.cover_9x16_path)) {
@@ -1594,7 +1503,7 @@ export default function ContentTrackerHub({
     }
     workspaceData?.invalidateTrackerData?.();
     await fetchProductsData({ force: true });
-  }, [coverStudioItem, tiktokModalItem, showToast, fetchProductsData, workspaceData]);
+  }, [coverStudioItem, showToast, fetchProductsData, workspaceData]);
 
   const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null, qcNote = null, clearQcNote = false, clearConflictNote = false, exportId = null, markQcPassed = false) => {
     try {
@@ -1721,36 +1630,6 @@ export default function ContentTrackerHub({
       showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
     }
   }, [inspectAngle, showToast]);
-
-  // Same prepare -> extension flow as ExportGallery's Post Studio panel --
-  // hands the clip off to tiktok_autopost_extension/, which the user
-  // triggers from its own popup on a real, already-logged-in TikTok Studio
-  // upload tab (see scripts/api_tiktok_autopost.py's docstring for why the
-  // app can't message the extension directly).
-  const handlePrepareAutopost = useCallback(async (ang) => {
-    const targetPid = ang?.parentProduct?.tiktok_product_id || ang?.parentProduct?.name || '';
-    if (!targetPid) {
-      showToast('สินค้านี้ยังไม่มี TikTok Product ID หรือชื่อสินค้า -- ใส่ก่อนถึงจะปักตะกร้าได้', 'error');
-      return;
-    }
-    if (!ang.video_url) {
-      showToast('มุมนี้ยังไม่มีคลิปที่เรนเดอร์แล้ว', 'error');
-      return;
-    }
-    try {
-      await prepareTiktokAutopost(
-        ang.video_url, null,
-        ang.tiktok_caption || '', ang.tiktok_hashtags || '',
-        ang.parentProduct.id, ang.angle_id,
-        targetPid,
-        null, null,
-        ang.export_id || null,
-      );
-      showToast('เตรียมคลิปให้ extension แล้ว -- ไปคลิกไอคอน extension บนแท็บ TikTok Studio ที่เปิดไว้');
-    } catch (err) {
-      showToast('เตรียมคลิปไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
-    }
-  }, [showToast]);
 
   // ── QC Fail Modal state ──────────────────────────────────────────────────
   const [qcFailTarget, setQcFailTarget] = useState(null); // angle object
@@ -2137,13 +2016,17 @@ export default function ContentTrackerHub({
                 </div>
                 <button
                   type="button"
-                  onClick={() => handlePrepareAutopost(inspectAngle)}
-                  disabled={(!inspectAngle.parentProduct?.tiktok_product_id && !inspectAngle.parentProduct?.name) || !inspectAngle.video_url}
-                  title={(!inspectAngle.parentProduct?.tiktok_product_id && !inspectAngle.parentProduct?.name) ? 'ใส่ TikTok Product ID หรือชื่อสินค้าก่อน' : (!inspectAngle.video_url ? 'ยังไม่มีคลิปที่เรนเดอร์แล้ว' : 'เตรียมคลิปให้ extension ปักตะกร้า')}
-                  className="w-full py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  onClick={() => {
+                    const targetVideo = inspectAngle.export_id || inspectAngle.video_url || inspectAngle.project_name;
+                    setInspectAngle(null);
+                    if (onGoToGallery) onGoToGallery(targetVideo);
+                  }}
+                  disabled={!inspectAngle.video_url}
+                  title={!inspectAngle.video_url ? 'ยังไม่มีคลิปที่เรนเดอร์แล้ว' : 'เปิดใน Export Gallery (เมนู 4) เพื่อโพสต์'}
+                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <Flame className="w-3.5 h-3.5" />
-                  <span>ส่ง TikTok ปักตะกร้า</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>เปิดใน Export Gallery เพื่อโพสต์คลิป</span>
                 </button>
               </div>
 
@@ -2503,298 +2386,6 @@ export default function ContentTrackerHub({
                 </div>
               </div>
             )}
-          </div>
-        )}
-      </Modal>
-
-      {/* QR Code Modal for Mobile Quick Post Transfer */}
-      <Modal
-        isOpen={!!qrModalItem}
-        onClose={() => setQrModalItem(null)}
-        title={touchDevice ? 'เปิดตัวช่วยโพสต์' : 'สแกนเพื่อเปิดตัวช่วยโพสต์บนมือถือ'}
-        subtitle={qrModalItem?.hook_title}
-        maxWidth="max-w-sm"
-      >
-        {qrModalItem && (() => {
-          // caption/hashtags deliberately omitted from the QR-encoded URL --
-          // MobileQuickPostPage fetches the live product/angle via pid+aid
-          // and reads tiktok_caption/tiktok_hashtags straight off that, so
-          // embedding the full text here too just risks a long AI-written
-          // caption + hashtag list pushing the URL past a QR code's payload
-          // ceiling ("RangeError: Data too long" from QRCodeSVG).
-          const quickPostUrl = `${mobileBaseUrl}/?quick_post=1&channel=${encodeURIComponent(activeChannel())}&pid=${encodeURIComponent(qrModalItem.parentProduct?.id || '')}&aid=${encodeURIComponent(qrModalItem.angle_id || '')}&eid=${encodeURIComponent(qrModalItem.export_id || '')}&video=${encodeURIComponent(qrModalItem.video_url || '')}&product=${encodeURIComponent(qrModalItem.parentProduct?.name || '')}&hook=${encodeURIComponent(qrModalItem.hook_title || '')}`;
-
-          return (
-            <div className="text-center space-y-3.5">
-              <div className="p-3 rounded-2xl bg-gradient-to-tr from-[#FE2C55]/15 to-[#25F4EE]/15 border border-[#25F4EE]/30 text-center space-y-1">
-                <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#25F4EE]">
-                  <Sparkles className="w-4 h-4" />
-                  <span>Quick Post Companion 4 สเต็ป</span>
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  {touchDevice
-                    ? 'เปิดหน้าโพสต์เพื่อโหลดคลิป, ก็อปแคปชัน, ก็อปชื่อปักตะกร้า และเปิด TikTok ทันที'
-                    : 'สแกนด้วย iPhone / Android เพื่อโหลดคลิป, ก็อปแคปชัน, ก็อปชื่อปักตะกร้า และเปิด TikTok ทันที'}
-                </p>
-              </div>
-
-              {touchDevice ? (
-                <a
-                  href={quickPostUrl}
-                  className="min-h-11 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-sm font-black flex items-center justify-center gap-2 shadow-lg"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>เปิดหน้าโพสต์</span>
-                </a>
-              ) : (
-                <div className="bg-white p-3 rounded-2xl inline-block shadow-xl">
-                  <SafeQRCode value={quickPostUrl} size={180} level="M" />
-                </div>
-              )}
-
-              {/* Caption Preview & Copy inside Modal */}
-              <div className="p-3 rounded-xl bg-black/40 border border-white/[0.08] text-left space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-200">
-                  <span>แคปชัน & แฮชแท็กพร้อมโพสต์:</span>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyCaption(`${qrModalItem.tiktok_caption || ''}\n\n${qrModalItem.tiktok_hashtags || ''}`, 'modal')}
-                    className="text-xs font-bold text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    {copiedAngleId === 'modal' ? <><Check className="w-3.5 h-3.5 text-emerald-400" /> คัดลอกแล้ว</> : <><Copy className="w-3.5 h-3.5" /> คัดลอก</>}
-                  </button>
-                </div>
-                <p className="text-xs text-slate-300 line-clamp-2 font-mono leading-relaxed select-all">
-                  {qrModalItem.tiktok_caption} {qrModalItem.tiktok_hashtags}
-                </p>
-              </div>
-
-              <div className="space-y-2 pt-1">
-                {!touchDevice && (
-                  <a
-                    href={quickPostUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block text-[11px] text-slate-400 hover:text-[#25F4EE] hover:underline pt-1"
-                  >
-                    ทดสอบเปิดหน้านี้บนเบราว์เซอร์นี้
-                  </a>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-      </Modal>
-
-      {/* ── TikTok Studio Post Modal (Preview, Edit Caption & Product ID) ── */}
-      <Modal
-        isOpen={!!tiktokModalItem}
-        onClose={() => !isSubmittingTiktok && setTiktokModalItem(null)}
-        title="เตรียมโพสต์ TikTok Studio (พร้อมปักตะกร้า)"
-        subtitle={tiktokModalItem?.parentProduct?.name ? `${tiktokModalItem.parentProduct.name} — ${tiktokModalItem.hook_title || ''}` : tiktokModalItem?.hook_title}
-        maxWidth="max-w-lg"
-      >
-        {tiktokModalItem && (
-          <div className="space-y-4 pt-1">
-            {/* Top Video Preview & Info Banner */}
-            <div className="flex items-center gap-3 p-3 rounded-2xl glass-tile">
-              {tiktokModalItem.video_url ? (
-                <div className="w-16 aspect-[9/16] rounded-xl overflow-hidden bg-black border border-white/[0.1] flex-shrink-0 shadow-md">
-                  <video
-                    src={toMediaUrl(tiktokModalItem.video_url)}
-                    className="w-full h-full object-cover"
-                    controls={false}
-                    muted
-                  />
-                </div>
-              ) : null}
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-bold text-white truncate">
-                    {tiktokModalItem.parentProduct?.name}
-                  </span>
-                  {tiktokModalItem.badge && (
-                    <Badge variant="cyan" size="sm">{tiktokModalItem.badge}</Badge>
-                  )}
-                </div>
-                <p className="text-xs font-bold text-[#25F4EE] line-clamp-1">
-                  {tiktokModalItem.hook_title}
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  ระบบจะส่งข้อมูลคลิป แคปชัน และรหัสสินค้าให้ TikTok Studio Auto-post Extension
-                </p>
-              </div>
-            </div>
-
-            {/* TikTok cover uses the dedicated 3:4 crop when available. */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0B101B] border border-white/[0.08]">
-              <div className="flex items-center gap-3 min-w-0">
-                {tiktokModalItem.cover_url ? (
-                  <button
-                    type="button"
-                    onClick={() => setCoverPreviewItem(tiktokModalItem)}
-                    className="group relative w-12 aspect-[3/4] rounded-lg overflow-hidden border border-amber-500/40 flex-shrink-0 shadow-md cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-[#25F4EE]"
-                    aria-label="เปิดพรีวิวภาพปก 3:4"
-                    title="เปิดพรีวิวภาพปกขนาดใหญ่"
-                  >
-                    <img
-                      src={toMediaUrl(tiktokModalItem.cover_url)}
-                      alt="Cover 3:4"
-                      className="w-full h-full object-cover"
-                    />
-                    <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/35 transition-colors">
-                      <Eye className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 drop-shadow-md transition-opacity" />
-                    </span>
-                  </button>
-                ) : (
-                  <div className="w-12 aspect-[3/4] rounded-lg bg-slate-900 border border-slate-800 flex flex-col items-center justify-center text-slate-500 flex-shrink-0">
-                    <ImageIcon className="w-4 h-4 opacity-40" />
-                    <span className="text-[8px] mt-0.5">ยังไม่มีปก</span>
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-white">ภาพปกคลิป 3:4 (TikTok Cover)</span>
-                    {tiktokModalItem.cover_url ? (
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30">
-                        พร้อมส่ง
-                      </span>
-                    ) : (
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 font-bold border border-amber-500/30">
-                        แนะนำทำปก
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                    {tiktokModalItem.cover_url ? 'มีภาพปกพร้อมแนบไปกับคลิปแล้ว' : 'เพิ่มยอดคลิกด้วยการเลือกช็อตเด่น + Hook AI'}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleOpenCoverStudio(tiktokModalItem)}
-                className="py-1.5 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95 transition-all flex-shrink-0"
-              >
-                <ImageIcon className="w-3.5 h-3.5" />
-                <span>{tiktokModalItem.cover_url ? 'เปลี่ยนภาพปก' : 'สร้างปก 3:4'}</span>
-              </button>
-            </div>
-
-            {/* Caption & Hashtag Inputs */}
-            <div className="space-y-3">
-              <p className="text-xs text-slate-400">แบบร่างเก็บแยกตามช่องบนอุปกรณ์นี้ จนกว่าจะส่งข้อมูลให้ Extension</p>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">
-                  คำอธิบายคลิป (Caption):
-                </label>
-                <Textarea
-                  value={tiktokCaption}
-                  onChange={(e) => editTiktokDraft('caption', e.target.value)}
-                  placeholder="เขียนแคปชั่นดึงดูดใจ..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">
-                  แฮชแท็ก (Hashtags):
-                </label>
-                <Input
-                  value={tiktokHashtags}
-                  onChange={(e) => editTiktokDraft('hashtags', e.target.value)}
-                  placeholder="#รีวิว #ของดีบอกต่อ..."
-                />
-              </div>
-
-              <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
-                <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                  <span>รหัสสินค้าปักตะกร้า (TikTok Product ID):</span>
-                  <span className="text-[10px] text-slate-400">เว้นว่างไว้จะใช้ชื่อสินค้าค้นหาแทน</span>
-                </label>
-                <Input
-                  value={tiktokProductId}
-                  onChange={(e) => editTiktokDraft('product', e.target.value)}
-                  placeholder="เช่น 1737088044189583209 หรือชื่อสินค้า"
-                />
-              </div>
-
-              <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
-                <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-[#25F4EE]" />
-                    <span>วันและเวลาตั้งโพสต์ล่วงหน้า (Schedule Date/Time):</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400">เว้นว่างไว้หากต้องการโพสต์ทันที</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="date"
-                    value={tiktokScheduleDate}
-                    onChange={(e) => editTiktokDraft('date', e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]/50"
-                  />
-                  <input
-                    type="time"
-                    value={tiktokScheduleTime}
-                    onChange={(e) => editTiktokDraft('time', e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]/50"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Actions Bar */}
-            <div className="flex items-center justify-between pt-3 border-t border-white/[0.08] gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const pid = tiktokModalItem.parentProduct?.id;
-                  const aid = tiktokModalItem.angle_id;
-                  if (pid && aid) {
-                    markPosted(
-                      tiktokModalItem.video_url,
-                      pid,
-                      aid,
-                      tiktokModalItem.export_id || null,
-                    ).then(async () => {
-                      setTiktokModalItem(null);
-                      showToast('มาร์กว่าโพสต์แล้วสำเร็จ');
-                      workspaceData?.invalidateTrackerData?.();
-                      await fetchProductsData({ force: true });
-                    }).catch((err) => {
-                      showToast('ไม่สามารถมาร์กว่าโพสต์แล้วได้: ' + (err.response?.data?.detail || err.message), 'error');
-                    });
-                    return;
-                  }
-                  showToast('ไม่พบสินค้าหรือมุมคลิปของรายการนี้ จึงมาร์กว่าโพสต์แล้วไม่ได้', 'error');
-                }}
-                className="text-xs text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer flex items-center gap-1"
-                title="คลิกหากโพสต์คลิปนี้บน TikTok เสร็จสิ้นแล้ว"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>มาร์กว่าโพสต์แล้ว</span>
-              </button>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => setTiktokModalItem(null)}
-                  disabled={isSubmittingTiktok}
-                >
-                  ยกเลิก
-                </Button>
-                <button
-                  type="button"
-                  onClick={handleConfirmTiktokAutopost}
-                  disabled={isSubmittingTiktok}
-                  className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
-                >
-                  <Rocket className="w-3.5 h-3.5" />
-                  <span>{isSubmittingTiktok ? 'กำลังส่งข้อมูล...' : 'ส่งไป TikTok Studio'}</span>
-                </button>
-              </div>
-            </div>
           </div>
         )}
       </Modal>
