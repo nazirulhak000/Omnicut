@@ -111,33 +111,36 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
   return (
     <>
       {/* ── Desktop Sidebar ── */}
-      <aside className="hidden md:flex flex-col w-[72px] flex-shrink-0 h-dvh bg-[#050811]/75 backdrop-blur-2xl border-r border-white/[0.12] z-30">
+      <aside className="hidden md:flex flex-col w-[72px] flex-shrink-0 h-dvh bg-[#0A0D14] border-r border-white/[0.08] z-30">
         {/* Brand mark */}
         <div className="flex items-center justify-center h-[56px] border-b border-white/[0.08]">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center shadow-lg shadow-[#FE2C55]/20 text-white font-extrabold text-sm">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FE2C55]/90 to-[#25F4EE]/90 border border-white/10 flex items-center justify-center shadow-sm text-white font-extrabold text-sm">
             <Sparkles className="w-5 h-5" />
           </div>
         </div>
 
         {/* Navigation icons */}
-        <nav className="flex-1 flex flex-col items-center pt-3.5 gap-2">
+        <nav aria-label="แถบเมนูหลัก" className="flex-1 flex flex-col items-center pt-3.5 gap-2">
           {DESKTOP_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id || (item.id === 'settings' && activeTab === 'dashboard');
             return (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => { try { navigator.vibrate?.(10); } catch {} setActiveTab(item.id); }}
                 title={item.label}
-                className={`group relative w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-150 cursor-pointer
+                aria-label={item.label}
+                aria-current={isActive ? 'page' : undefined}
+                className={`group relative w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70
                   ${isActive
-                    ? 'bg-gradient-to-b from-[#25F4EE]/20 to-blue-500/10 text-[#25F4EE] border border-[#25F4EE]/40 shadow-md shadow-[#25F4EE]/10'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
+                    ? 'bg-white/[0.08] text-[#25F4EE] border border-white/[0.12]'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent'
                   }`}
               >
                 {/* Active left accent bar */}
                 {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-[#25F4EE] shadow-[0_0_8px_#25F4EE]" />
+                  <span aria-hidden="true" className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-[#25F4EE] shadow-[0_0_8px_#25F4EE]" />
                 )}
                 <Icon className="w-5 h-5" strokeWidth={isActive ? 2.3 : 1.8} />
 
@@ -153,16 +156,20 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
         {/* Bottom utilities */}
         <div className="flex flex-col items-center gap-2 pb-4 border-t border-white/[0.08] pt-3">
           <button
+            type="button"
             onClick={() => setShowMobileModal(true)}
+            aria-label="อัปโหลดผ่านมือถือ (QR Code)"
             title="อัปโหลดผ่านมือถือ (QR Code)"
-            className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-[#25F4EE] hover:bg-white/[0.05] transition-all cursor-pointer"
+            className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-[#25F4EE] hover:bg-white/[0.05] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
           >
             <Smartphone className="w-5 h-5" strokeWidth={1.8} />
           </button>
           <button
+            type="button"
             onClick={toggleFullscreen}
+            aria-label={isFullscreen ? 'ย่อจอ' : 'เต็มจอ'}
             title={isFullscreen ? 'ย่อจอ' : 'เต็มจอ'}
-            className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.05] transition-all cursor-pointer"
+            className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.05] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
           >
             {isFullscreen
               ? <Minimize className="w-5 h-5" strokeWidth={1.8} />
@@ -460,7 +467,7 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
             </button>
 
             <div className="space-y-1.5">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#25F4EE]/20 to-blue-500/20 border border-[#25F4EE]/30 flex items-center justify-center mx-auto text-[#25F4EE] shadow-md shadow-[#25F4EE]/10">
+              <div className="w-12 h-12 rounded-2xl bg-white/[0.06] border border-white/[0.12] flex items-center justify-center mx-auto text-[#25F4EE]">
                 <Smartphone className="w-6 h-6" />
               </div>
               <h3 id="mobile-qr-title" className="text-base font-bold text-white">สแกน QR เปิดบนมือถือ</h3>

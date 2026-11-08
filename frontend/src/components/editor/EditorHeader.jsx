@@ -180,7 +180,7 @@ export default function EditorHeader({
   ]);
 
   return (
-    <header className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-white/[0.08] bg-[#0F1420] px-2.5 sm:px-4 py-1.5 sm:py-2 select-none">
+    <header className="flex flex-shrink-0 items-center justify-between gap-1.5 sm:gap-2 border-b border-white/[0.08] bg-[#0A0D14] px-2 sm:px-4 py-1.5 sm:py-2 select-none">
       {/* ── Zone 1 (Left): Project Identity & Quick Save ── */}
       <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
         <EditorChannelSelector />
@@ -232,7 +232,7 @@ export default function EditorHeader({
           data-testid="toggle-ai-agent-btn"
           title="สั่งงาน Antigravity AI Agent (Ctrl+K)"
           aria-label="สั่งงาน AI Agent"
-          className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-2 sm:px-2.5 text-xs font-bold transition-all cursor-pointer ${
+          className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-1.5 sm:px-2.5 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
             isAgentOpen
               ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
               : 'border-white/[0.08] bg-white/[0.04] text-slate-300 hover:border-emerald-500/40 hover:text-white'

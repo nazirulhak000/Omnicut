@@ -358,10 +358,11 @@ def test_multikey_failover_tries_primary_model_on_key2_when_key1_rate_limited(mo
             text="test multikey", output_path=_out_path(tmp_path), speed=1.0,
         )
 
-    # Verify Key 1 on 3.1 was attempted first
-    assert any("gemini-3.1-flash-tts-preview" in u and "key=key-alpha" in u for u in called_urls)
-    # Verify Key 2 on 3.1 was attempted immediately next (before falling back to 2.5)
-    assert any("gemini-3.1-flash-tts-preview" in u and "key=key-beta" in u for u in called_urls)
+    # Verify Key 1 on primary model was attempted first
+    primary = GeminiFlashTTSEngine.MODEL_CANDIDATES[0]
+    assert any(primary in u and "key=key-alpha" in u for u in called_urls)
+    # Verify Key 2 on primary model was attempted immediately next (before falling back to 2.5)
+    assert any(primary in u and "key=key-beta" in u for u in called_urls)
     # Verify alert was recorded
     assert any(a.get("error_type") == "RATE_LIMIT_429" and "-alpha" in a.get("key_tag", "") for a in recorded_alerts)
     assert any(a.get("error_type") == "KEY_FAILOVER_SUCCESS" and "-beta" in a.get("key_tag", "") for a in recorded_alerts)

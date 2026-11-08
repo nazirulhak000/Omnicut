@@ -128,11 +128,11 @@ export default memo(function Topbar({
   }, [handleRefreshWithPing]);
 
   return (
-    <header className="h-[calc(44px+env(safe-area-inset-top))] md:h-[56px] flex-shrink-0 bg-[#050811]/75 backdrop-blur-2xl border-b border-white/[0.12] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] flex flex-nowrap md:flex-wrap items-center justify-between gap-2 px-2.5 sm:px-6 pt-[env(safe-area-inset-top)] md:pt-0 z-20 sticky top-0 w-full min-w-0 transition-colors">
+    <header className="h-[calc(44px+env(safe-area-inset-top))] md:h-[56px] flex-shrink-0 bg-[#0A0D14]/90 backdrop-blur-md border-b border-white/[0.08] shadow-sm flex flex-nowrap md:flex-wrap items-center justify-between gap-2 px-2.5 sm:px-6 pt-[env(safe-area-inset-top)] md:pt-0 z-20 sticky top-0 w-full min-w-0 transition-colors">
       {/* ── Left: Context-Aware Section Title & Badges ── */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
         {/* Menu Icon with Cyan Glow Pill */}
-        <div className="w-8 h-8 rounded-xl bg-white/[0.05] border border-white/[0.12] text-[#25F4EE] flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] flex-shrink-0">
+        <div className="w-8 h-8 rounded-xl bg-white/[0.06] border border-white/[0.10] text-[#25F4EE] flex items-center justify-center flex-shrink-0">
           <Icon className="w-4 h-4" />
         </div>
 
@@ -150,7 +150,7 @@ export default memo(function Topbar({
           {/* Active Product Indicator in Studio / Flow */}
           {activeProductContext?.productName && (activeTab === 'editor' || activeTab === 'flow') && (
             <>
-              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold truncate max-w-[200px] shadow-[inset_0_1px_0_rgba(0,242,254,0.2)]">
+              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold truncate max-w-[200px]">
                 <Package className="w-3 h-3 flex-shrink-0" />
                 <span className="truncate">{activeProductContext.productName}</span>
               </div>
@@ -177,7 +177,7 @@ export default memo(function Topbar({
             type="button"
             onClick={onSwitchToMobile}
             aria-label="สลับไปโหมดสตูดิโอมือถือ"
-            className="hidden md:flex min-h-11 min-w-11 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-sm"
+            className="hidden md:flex min-h-11 min-w-11 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
             title="สลับไปโหมด OmniCut Mobile Studio"
           >
             <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
@@ -192,7 +192,7 @@ export default memo(function Topbar({
             onClick={handleRefreshWithPing}
             aria-label="รีเฟรชข้อมูลทั้งระบบ"
             disabled={isRefreshing}
-            className="min-h-11 min-w-11 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] active:scale-95 border border-white/[0.10] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-sm"
+            className="min-h-11 min-w-11 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] active:scale-95 border border-white/[0.10] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
             title="รีเฟรชข้อมูลทั้งระบบ"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-[#25F4EE] ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -205,7 +205,7 @@ export default memo(function Topbar({
           type="button"
           onClick={onOpenShortcuts}
           aria-label="เปิดหน้าต่างคีย์ลัดด่วน"
-          className="hidden md:flex items-center gap-1.5 min-h-11 bg-white/[0.04] hover:bg-white/[0.08] px-2.5 py-1 rounded-xl border border-white/[0.10] text-xs text-slate-300 hover:text-white cursor-pointer transition-colors shadow-sm"
+          className="hidden md:flex items-center gap-1.5 min-h-11 bg-white/[0.04] hover:bg-white/[0.08] px-2.5 py-1 rounded-xl border border-white/[0.10] text-xs text-slate-300 hover:text-white cursor-pointer transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
           title="คีย์ลัดด่วน (กด ? เพื่อเปิดดู)"
         >
           <Keyboard className="w-3.5 h-3.5 text-[#25F4EE]" />
@@ -220,10 +220,10 @@ export default memo(function Topbar({
           tabIndex={0}
           aria-label={isOnline ? `สถานะเซิร์ฟเวอร์ออนไลน์ ${latencyMs ? `ความหน่วง ${latencyMs} มิลลิวินาที` : ''} แตะเพื่อรีเฟรช` : 'ขาดการเชื่อมต่อเซิร์ฟเวอร์ แตะเพื่อเชื่อมต่อใหม่'}
           title={isOnline ? `ระบบออนไลน์พร้อมใช้งาน ${latencyMs ? `(${latencyMs}ms)` : ''} (แตะเพื่อรีเฟรช)` : "ขาดการเชื่อมต่อ (แตะเพื่อรีเฟรชเชื่อมต่อใหม่)"}
-          className={`flex items-center justify-center gap-1.5 min-h-11 sm:min-h-[36px] px-2.5 sm:px-3 py-1 rounded-xl text-xs font-semibold border cursor-pointer active:scale-95 transition-all shadow-sm ${
+          className={`flex items-center justify-center gap-1.5 min-h-11 sm:min-h-[36px] px-2.5 sm:px-3 py-1 rounded-xl text-xs font-semibold border cursor-pointer active:scale-95 transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 ${
           isOnline
-            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 shadow-[inset_0_1px_0_rgba(16,185,129,0.2)]'
-            : 'bg-rose-500/15 text-rose-300 border-rose-500/30 shadow-[inset_0_1px_0_rgba(244,63,94,0.2)]'
+            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+            : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
         }`}>
           {isOnline ? (
             <>

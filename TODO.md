@@ -4,11 +4,18 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round ANTIGRAVITY-UNSLOP-PHASE03-SHELL-NAV-20261108 · ดำเนินการ Phase 03 (Shell, Navigation & Header) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
-  - [ ] Task 1: ตรวจสอบและคง 72px icon rail ใน Sidebar.jsx พร้อม aria-label, tooltip, และ clean focus ring
-  - [ ] Task 2: แก้ไขปัญหา Mobile Navbar Collision ใน EditorHeader / Topbar เมื่อ viewport แคบ (< 640px)
-  - [ ] Task 3: ปรับ Topbar และ PageHeader ลด visual clutter และข้อมูลซ้ำซ้อน
-  - [ ] Task 4: ตรวจสอบ unit tests (1,200+) และ build ผ่าน 100%
+- [ ] Round ANTIGRAVITY-TRIM-TTS-TAIL-GARBAGE-NOISE-20261108 · จัดการตัดเสียงขยะ/เสียงแตก/เสียงกระชาก (EOF digital noise spike & clipping burst) ท้ายคลิปเสียงพากย์ TTS ทั้งระบบ:
+  - [ ] Task 1: พัฒนาระบบตัดเสียงขยะท้ายไฟล์ใน `scripts/gemini_tts_engine.py` (เพิ่ม `trim_silence_and_tail_artifacts_wav` ตรวจจับและตัด buffer burst / EOF glitch ที่ตามหลังช่วงเงียบ พร้อม fade-out นุ่มนวล 15ms ป้องกันเสียงป๊อกคลิก)
+  - [ ] Task 2: ทำความสะอาดไฟล์เสียง `voiceover.wav` ใน `03_Projects/_ShotLists/` ที่ได้รับผลกระทบทั้งหมด โดยเฉพาะ ESS04 (`431165f167284094959bdf0f0e806899`) ทุกมุม พร้อมอัปเดต `total_duration` และ cues ใน `ShotListsStore`
+  - [ ] Task 3: เพิ่มและแก้ไขชุดทดสอบใน `tests/test_gemini_tts_engine.py` ให้ครอบคลุมการตัดเสียงขยะท้ายคลิป และรันผ่าน 100%
+  - [ ] Task 4: ตรวจสอบ waveform ท้ายเสียง ESS04 ให้ peak และ RMS ท้ายคลิปเงียบสนิท ไร้เสียงขยะ 100%
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE03-SHELL-NAV-20261108 · ดำเนินการ Phase 03 (Shell, Navigation & Header) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
+  - [x] Task 1: ตรวจสอบและคง 72px icon rail ใน Sidebar.jsx พร้อม aria-label, tooltip, aria-current และ clean studio focus ring
+  - [x] Task 2: แก้ไขปัญหา Mobile Navbar Collision ใน EditorHeader / EditorChannelSelector / ProjectSelector เมื่อ viewport แคบ (< 640px)
+  - [x] Task 3: ปรับ Topbar และ PageHeader สู่ Obsidian Pro Dark NLE Chrome ลด visual clutter, slop glow, และ outer shadows
+  - [x] Task 4: เขียนชุดทดสอบ shellNavigationContract.test.js, ตรวจสอบ unit tests ทั้งหมด (1,208/1,208 tests ผ่าน 100%) และ Vite build สำเร็จ (0 errors)
   - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-UNSLOP-PHASE02-TOKENS-THEME-20261108 · ดำเนินการ Phase 02 (Semantic Tokens & Obsidian Default Theme) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:

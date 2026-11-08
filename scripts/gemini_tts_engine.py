@@ -21,13 +21,155 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.error_handler import AppError, ErrorCategory
 
-# Gemini takes open with ~0.1-0.4 s of silence before the first word; Edge
-# takes are trimmed to start within 15 ms (voice_engine._trim_silence). Same
-# -42 dBFS speech threshold as Edge, but a 40 ms head pad so a soft onset
-# (fricative, breathy vowel) that ramps up under the threshold is never cut.
+# Gemini takes open with ~0.1-0.4 s of silence before the first word, and may
+# contain trailing silence or end-of-stream digital noise spikes (buffer clipping
+# bursts / EOF glitch). Same -42 dBFS speech threshold as Edge, with:
+# - 40ms head pad to preserve soft onsets (fricatives, breathy vowels)
+# - 80ms tail pad to preserve natural acoustic speech decay
+# - Tail artifact rejection: detects and removes isolated digital noise bursts
+#   (short energy spikes within the last 350ms preceded by silence)
+# - 15ms smooth linear fade-out to prevent zero-crossing clicks
 GEMINI_LEAD_SILENCE_THRESHOLD_DB = -42.0
 GEMINI_LEAD_SILENCE_PAD_S = 0.040
 GEMINI_LEAD_SILENCE_MAX_S = 0.050
+GEMINI_TAIL_SILENCE_PAD_S = 0.080
+GEMINI_FADE_OUT_MS = 15.0
+
+
+def trim_silence_and_tail_artifacts_wav(
+    wav_path: Path,
+    threshold_db: float = GEMINI_LEAD_SILENCE_THRESHOLD_DB,
+    pad_head_s: float = GEMINI_LEAD_SILENCE_PAD_S,
+    pad_tail_s: float = GEMINI_TAIL_SILENCE_PAD_S,
+    fade_out_ms: float = GEMINI_FADE_OUT_MS,
+    trim_tail: bool = True,
+) -> tuple[float, float]:
+    """Trim a 16-bit PCM WAV in place: removes leading silence, trailing dead silence,
+    and eliminates isolated EOF digital noise bursts (buffer pop/buzz glitches).
+
+    Guarantees:
+    - Soft speech onsets (fricatives, breathy vowels) are preserved via ``pad_head_s``.
+    - Natural acoustic speech decay is preserved via ``pad_tail_s``.
+    - Isolated tail artifacts (short noise bursts occurring after silence) are cleanly stripped.
+    - Tail ends on a gentle linear fade-out to guarantee zero zero-crossing clicks.
+
+    Returns ``(head_trimmed_s, tail_trimmed_s)``.
+    """
+    import numpy as np
+
+    wav_path = Path(wav_path)
+    if not wav_path.exists() or wav_path.stat().st_size < 44:
+        return 0.0, 0.0
+
+    with wave.open(str(wav_path), "rb") as wf:
+        channels = wf.getnchannels()
+        sampwidth = wf.getsampwidth()
+        rate = wf.getframerate()
+        frames = wf.readframes(wf.getnframes())
+
+    if sampwidth != 2 or rate <= 0 or channels <= 0:
+        return 0.0, 0.0
+
+    samples = np.frombuffer(frames, dtype="<i2")
+    n_frames = len(samples) // channels
+    if n_frames == 0:
+        return 0.0, 0.0
+
+    # Reshape samples to (n_frames, channels)
+    samples_2d = samples[: n_frames * channels].reshape(n_frames, channels)
+    per_frame_max = np.abs(samples_2d.astype(np.int32)).max(axis=1)
+    threshold = (10.0 ** (threshold_db / 20.0)) * 32768.0
+
+    loud = np.flatnonzero(per_frame_max > threshold)
+    if len(loud) == 0:
+        return 0.0, 0.0
+
+    # 1. Leading silence boundary
+    first_loud_frame = int(loud[0])
+    start_frame = max(0, first_loud_frame - int(round(pad_head_s * rate)))
+
+    # 2. Trailing boundary with EOF artifact rejection
+    if not trim_tail:
+        end_frame = n_frames
+    else:
+        hop = max(1, int(0.01 * rate))  # 10ms energy hops
+        n_hops = n_frames // hop
+        if n_hops > 0:
+            samples_float = samples_2d[: n_hops * hop].astype(np.float32) / 32768.0
+            hop_matrix = samples_float.reshape(n_hops, hop, channels)
+            hop_rms = np.sqrt(np.mean(hop_matrix ** 2, axis=(1, 2)))
+            peak_rms = float(np.max(hop_rms)) if len(hop_rms) > 0 else 1.0
+            speech_thresh = max(0.003, peak_rms * 0.045)
+            is_speech = hop_rms >= speech_thresh
+
+            curr_hop = n_hops - 1
+            # Check if take ends with high energy (possible EOF digital artifact)
+            if curr_hop >= 0 and (is_speech[curr_hop] or (curr_hop > 0 and is_speech[curr_hop - 1])):
+                burst_hops = 0
+                while curr_hop >= 0 and is_speech[curr_hop]:
+                    burst_hops += 1
+                    curr_hop -= 1
+                silence_gap_hops = 0
+                while curr_hop >= 0 and not is_speech[curr_hop]:
+                    silence_gap_hops += 1
+                    curr_hop -= 1
+
+                # An isolated EOF glitch is typically <= 350ms (35 hops) preceded by >= 60ms (6 hops) silence
+                if burst_hops <= 35 and silence_gap_hops >= 6:
+                    pass  # Discard glitch, curr_hop is now before silence gap
+                else:
+                    curr_hop = n_hops - 1
+
+            last_speech_hop = 0
+            for j in range(curr_hop, -1, -1):
+                if is_speech[j]:
+                    last_speech_hop = j
+                    break
+
+            end_frame = min(n_frames, (last_speech_hop + 1) * hop + int(round(pad_tail_s * rate)))
+        else:
+            last_loud_frame = int(loud[-1])
+            end_frame = min(n_frames, last_loud_frame + 1 + int(round(pad_tail_s * rate)))
+
+    if end_frame <= start_frame:
+        return 0.0, 0.0
+
+    # If already tight at both ends, nothing to trim
+    if start_frame == 0 and end_frame == n_frames:
+        return 0.0, 0.0
+
+    out_samples = samples[start_frame * channels : end_frame * channels].copy()
+
+    # Apply smooth micro-fadeout at the end only if tail was trimmed
+    fade_samples = int(round((fade_out_ms / 1000.0) * rate))
+    out_frame_count = len(out_samples) // channels
+    if trim_tail and end_frame < n_frames and out_frame_count > fade_samples > 0:
+        fade_curve = np.linspace(1.0, 0.0, fade_samples, dtype=np.float32)
+        for c in range(channels):
+            tail_slice = out_samples[
+                (out_frame_count - fade_samples) * channels + c :: channels
+            ]
+            faded = (tail_slice.astype(np.float32) * fade_curve).astype("<i2")
+            out_samples[(out_frame_count - fade_samples) * channels + c :: channels] = faded
+
+    tmp_path = wav_path.with_suffix(".trim.tmp.wav")
+    try:
+        with wave.open(str(tmp_path), "wb") as out:
+            out.setnchannels(channels)
+            out.setsampwidth(sampwidth)
+            out.setframerate(rate)
+            out.writeframes(out_samples.tobytes())
+        os.replace(tmp_path, wav_path)
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+
+    head_trimmed_s = start_frame / rate
+    tail_trimmed_s = (n_frames - end_frame) / rate
+    return head_trimmed_s, tail_trimmed_s
 
 
 def trim_leading_silence_wav(
@@ -41,44 +183,15 @@ def trim_leading_silence_wav(
     ``threshold_db`` (plus the ``pad_s`` before it) is touched, so the speech
     onset is never clipped. Returns the seconds removed (0.0 when the file is
     already tight, entirely silent, or not 16-bit PCM).
+    Backward-compatible wrapper around ``trim_silence_and_tail_artifacts_wav``.
     """
-    import numpy as np
-
-    wav_path = Path(wav_path)
-    with wave.open(str(wav_path), "rb") as wf:
-        channels = wf.getnchannels()
-        sampwidth = wf.getsampwidth()
-        rate = wf.getframerate()
-        frames = wf.readframes(wf.getnframes())
-    if sampwidth != 2 or rate <= 0 or channels <= 0:
-        return 0.0
-    samples = np.frombuffer(frames, dtype="<i2")
-    n_frames = len(samples) // channels
-    if n_frames == 0:
-        return 0.0
-    per_frame = np.abs(samples[: n_frames * channels].astype(np.int32)).reshape(n_frames, channels).max(axis=1)
-    threshold = (10.0 ** (threshold_db / 20.0)) * 32768.0
-    loud = np.flatnonzero(per_frame > threshold)
-    if len(loud) == 0:
-        return 0.0
-    start_frame = max(0, int(loud[0]) - int(round(pad_s * rate)))
-    if start_frame == 0:
-        return 0.0
-    tmp_path = wav_path.with_suffix(".trim.tmp.wav")
-    try:
-        with wave.open(str(tmp_path), "wb") as out:
-            out.setnchannels(channels)
-            out.setsampwidth(sampwidth)
-            out.setframerate(rate)
-            out.writeframes(frames[start_frame * channels * sampwidth:])
-        os.replace(tmp_path, wav_path)
-    finally:
-        if tmp_path.exists():
-            try:
-                tmp_path.unlink()
-            except Exception:
-                pass
-    return start_frame / rate
+    head_s, _ = trim_silence_and_tail_artifacts_wav(
+        wav_path=wav_path,
+        threshold_db=threshold_db,
+        pad_head_s=pad_s,
+        trim_tail=False,
+    )
+    return head_s
 
 
 class GeminiTTSError(AppError, RuntimeError):
@@ -155,6 +268,10 @@ VALID_VOICES = ("Puck", "Charon", "Kore", "Aoede", "Fenrir")
 
 class GeminiFlashTTSEngine:
     """Google Gemini 3.1 Flash Speech Generation Engine."""
+    MODEL_CANDIDATES = [
+        "gemini-3.8-flash-tts",
+        "gemini-2.5-flash-preview-tts",
+    ]
 
     @classmethod
     def get_api_keys(cls) -> list[str]:
@@ -294,10 +411,7 @@ class GeminiFlashTTSEngine:
 
         # Models supporting Thai audio generation in Google Gemini API
         # Priority: gemini-3.8-flash-tts (best & active), gemini-2.5-flash-preview-tts
-        model_candidates = [
-            "gemini-3.8-flash-tts",
-            "gemini-2.5-flash-preview-tts",
-        ]
+        model_candidates = list(cls.MODEL_CANDIDATES)
 
         import time
         data = None
@@ -537,14 +651,20 @@ class GeminiFlashTTSEngine:
                             except Exception:
                                 pass
 
-                # Speech starts within GEMINI_LEAD_SILENCE_MAX_S, like Edge takes.
+                # Speech starts within GEMINI_LEAD_SILENCE_MAX_S, with trailing silence and
+                # EOF digital noise bursts eliminated cleanly.
                 # A trim failure keeps the untrimmed (still valid) take.
                 try:
-                    trimmed_s = trim_leading_silence_wav(out_wav)
-                    if trimmed_s > 0:
-                        print(f"   [Gemini Flash TTS] ตัดช่วงเงียบต้นเสียง {trimmed_s * 1000:.0f}ms")
+                    head_s, tail_s = trim_silence_and_tail_artifacts_wav(out_wav)
+                    if head_s > 0 or tail_s > 0:
+                        parts = []
+                        if head_s > 0:
+                            parts.append(f"ตัดช่วงเงียบต้นเสียง {head_s * 1000:.0f}ms")
+                        if tail_s > 0:
+                            parts.append(f"ตัดช่วงเงียบ/เสียงขยะท้ายเสียง {tail_s * 1000:.0f}ms")
+                        print(f"   [Gemini Flash TTS] {', '.join(parts)}")
                 except Exception as trim_err:
-                    print(f"⚠️ [Gemini Flash TTS] ตัดช่วงเงียบต้นเสียงไม่สำเร็จ ใช้ไฟล์เดิม: {trim_err}")
+                    print(f"⚠️ [Gemini Flash TTS] ตัดเสียงส่วนเกินไม่สำเร็จ ใช้ไฟล์เดิม: {trim_err}")
 
                 print(f"✨ [Gemini Flash TTS] Generated successfully with voice '{target_voice}' -> {out_wav}")
 
