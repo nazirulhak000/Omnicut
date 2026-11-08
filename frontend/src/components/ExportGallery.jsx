@@ -10,7 +10,7 @@ import {
   Smartphone, CheckSquare, Square, Share2, Copy, FileText, QrCode, Sparkles, HardDrive,
   ShieldAlert, XCircle, CheckCircle2, History, FileQuestion, Link2,
   Columns, List, LayoutGrid, Clock, Calendar, Tag, Layers, ChevronDown, ChevronUp, Zap, ShieldCheck,
-  Image as ImageIcon, FolderOpen, ExternalLink, Cloud, CloudCheck
+  Image as ImageIcon, FolderOpen, ExternalLink, Cloud, CloudCheck, MoreHorizontal
 } from 'lucide-react';
 import {
   openFolder, deleteFile, getProducts, linkExportToAngle,
@@ -139,7 +139,8 @@ const ExportCard = memo(function ExportCard({
   isSelected,
   onToggleSelect,
   onOpenDetail,
-  onOpenDelete
+  onOpenDelete,
+  onCopyCaption
 }) {
   const nameLow = (item.name || '').toLowerCase();
   const isEsseger = nameLow.includes('esseger') || nameLow.includes('สายชาร์จ');
@@ -148,12 +149,28 @@ const ExportCard = memo(function ExportCard({
   // Grid thumbnail: the small sibling .webp first; the 1080x1920 JPG cover
   // is only a fallback (dozens of full-size JPGs stall a phone on cellular).
   const displayThumb = toMediaUrl(item.thumbnail_url || cover.url);
+  const isPosted = item.is_posted || item.status === 'posted' || !!item.posted_at;
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
+  }, [showMenu]);
 
   return (
     <div
       className={`overflow-hidden transition-all duration-200 flex flex-col justify-between group relative rounded-2xl sm:rounded-3xl border glass-panel bg-[#0E131E] shadow-md ${
         isSelected
           ? 'border-[#25F4EE] ring-1 ring-[#25F4EE] bg-[#0E131E]'
+          : isPosted
+          ? 'opacity-65 hover:opacity-100 transition-opacity border-emerald-500/30 bg-[#0E131E]'
           : item.is_qc_rejected
           ? 'border-red-500/40 hover:border-red-400/60 bg-[#120A06]'
           : item.is_previous_version
@@ -179,6 +196,13 @@ const ExportCard = memo(function ExportCard({
             <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-amber-500/25 text-amber-200 font-black text-[9px] sm:text-[10px] shadow-sm tracking-wider flex items-center gap-1 border border-amber-400/50 backdrop-blur-md" title="มีรูปปก 9:16 ที่บันทึกไว้">
               <ImageIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-300" />
               <span>มีปก</span>
+            </span>
+          )}
+
+          {isPosted && (
+            <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold text-[9px] sm:text-[10px] shadow-sm tracking-wider flex items-center gap-1 border border-emerald-500/30 backdrop-blur-md" title={`โพสต์แล้ว ${item.posted_at || ''}`}>
+              <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-400" />
+              <span>✓ โพสต์แล้ว</span>
             </span>
           )}
 
@@ -320,43 +344,92 @@ const ExportCard = memo(function ExportCard({
         </div>
       </div>
 
-      {/* Card Action Buttons */}
-      <div className="p-2 sm:p-3 pt-0 flex items-center gap-1.5 border-t border-white/[0.08] mt-1 sm:mt-2">
+      {/* Card Action Buttons (Quiet Chrome: 1 Bright Action + 1 Secondary Action + More Menu) */}
+      <div className="p-2 sm:p-2.5 pt-0 flex items-center gap-1.5 border-t border-white/[0.08] mt-1 sm:mt-2">
+        {/* Bright Action 1 เดียว: สแกน QR โพสต์ TikTok */}
         <button
+          type="button"
           onClick={() => onOpenDetail(item)}
-          className="flex-1 min-h-[38px] py-1.5 sm:py-2 px-1.5 sm:px-2.5 rounded-lg sm:rounded-xl bg-white/[0.05] hover:bg-white/[0.1] active:scale-[0.98] border border-white/[0.08] text-white text-[11px] sm:text-xs font-bold flex items-center justify-center cursor-pointer transition-colors"
+          className="flex-1 min-h-[38px] py-1.5 sm:py-2 px-2 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00DF89] hover:brightness-110 active:scale-[0.98] text-slate-950 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/15 cursor-pointer transition-all truncate"
+          title="เปิด QR Code เพื่อสแกนโพสต์ลง TikTok ทันที"
         >
-          ดูรายละเอียด
+          <QrCode className="w-3.5 h-3.5 flex-shrink-0 text-slate-950" />
+          <span className="truncate">สแกน QR โพสต์ TikTok</span>
         </button>
 
-        <a
-          href={toMediaUrl(item.rel_path || item.path)}
-          download={item.name}
-          className="min-h-[38px] min-w-[38px] p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-white/[0.05] hover:bg-white/[0.1] active:scale-[0.98] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-bold transition-colors cursor-pointer flex items-center justify-center flex-shrink-0"
-          title="ดาวน์โหลด .MP4"
+        {/* Secondary Action: คัดลอกแคปชัน & แท็ก */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onCopyCaption) {
+              const cap = `${item.tiktok_caption || ''}\n\n${item.tiktok_hashtags || ''}`.trim() || item.name;
+              onCopyCaption(cap);
+            }
+          }}
+          className="min-h-[38px] py-1.5 sm:py-2 px-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] active:scale-[0.98] border border-white/[0.08] text-slate-200 text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors flex-shrink-0"
+          title="คัดลอกแคปชันและแฮชแท็กของคลิปนี้"
         >
-          <Download className="w-3.5 h-3.5" />
-        </a>
+          <Copy className="w-3.5 h-3.5 text-[#25F4EE]" />
+          <span className="hidden sm:inline">คัดลอกแคปชัน</span>
+        </button>
 
-        {item.is_posted || item.status === 'posted' || item.posted_at ? (
+        {/* More Actions Dropdown Menu */}
+        <div className="relative inline-block" ref={menuRef}>
           <button
             type="button"
-            disabled
-            className="min-h-[38px] min-w-[38px] p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold opacity-60 cursor-not-allowed flex items-center justify-center flex-shrink-0"
-            title="โพสต์แล้ว (เก็บเป็นหลักฐาน ห้ามลบ)"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu((v) => !v);
+            }}
+            className="min-h-[38px] min-w-[38px] p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white transition-colors cursor-pointer flex items-center justify-center flex-shrink-0"
+            title="เมนูเพิ่มเติม (More Actions)"
           >
-            <ShieldCheck className="w-3.5 h-3.5" />
+            <MoreHorizontal className="w-3.5 h-3.5" />
           </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onOpenDelete(item)}
-            className="min-h-[38px] min-w-[38px] p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:scale-[0.98] text-rose-400 border border-rose-500/20 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center flex-shrink-0"
-            title="ลบวิดีโอ"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
+
+          {showMenu && (
+            <div className="absolute right-0 bottom-full mb-1.5 z-40 w-44 rounded-xl bg-[#0E131E] border border-white/[0.15] p-1 shadow-2xl space-y-0.5 animate-in fade-in zoom-in-95 duration-100 text-left">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMenu(false);
+                  onOpenDetail(item);
+                }}
+                className="w-full px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08] text-slate-200 hover:text-white text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <Play className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                <span>ดูรายละเอียด</span>
+              </button>
+
+              <a
+                href={toMediaUrl(item.rel_path || item.path)}
+                download={item.name}
+                onClick={() => setShowMenu(false)}
+                className="w-full px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08] text-slate-200 hover:text-white text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                <span>ดาวน์โหลด .MP4</span>
+              </a>
+
+              {!(item.is_posted || item.status === 'posted' || item.posted_at) && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(false);
+                    onOpenDelete(item);
+                  }}
+                  className="w-full px-2.5 py-1.5 rounded-lg hover:bg-rose-500/15 text-rose-300 hover:text-rose-200 text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors border-t border-white/[0.06] mt-0.5 pt-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+                  <span>ลบวิดีโอ</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1210,7 +1283,7 @@ function ExportActiveWorkbench({
   );
 }
 
-export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, initialHighlightVideo, onClearHighlightVideo, status }) {
+export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, initialHighlightVideo, onClearHighlightVideo, status, workspaceData }) {
   const [showSSDSyncModal, setShowSSDSyncModal] = useState(false);
   const [showCloudArchiveModal, setShowCloudArchiveModal] = useState(false);
   const [activeMediaTab, setActiveMediaTab] = useState('exports');
@@ -1440,11 +1513,12 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
     try {
       await markPosted(video.rel_path || video.path, video.product_id || null, video.angle_id || null, video.export_id || null);
       showToast(`มาร์ค "${video.hook_title || video.name}" ว่าโพสต์แล้ว — ย้ายไฟล์ไป Posted/ แล้ว`);
+      workspaceData?.invalidateTrackerData?.();
       if (onRefresh) onRefresh({ includeExports: true, force: true });
     } catch (err) {
       showToast('มาร์คว่าโพสต์แล้วไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
     }
-  }, [showToast, onRefresh]);
+  }, [showToast, onRefresh, workspaceData]);
 
   const handlePrepareAutopost = useCallback(async (video, coverPath) => {
     if (video.source_review_required && !video.source_review_ready) {
@@ -2036,6 +2110,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     onToggleSelect={toggleSelectVideo}
                     onOpenDetail={setSelectedDetailVideo}
                     onOpenDelete={setDeleteTarget}
+                    onCopyCaption={handleCopyCaption}
                   />
                 ))}
               </div>

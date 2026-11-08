@@ -489,6 +489,23 @@ class VoiceStage:
                             norm_recorded = "".join(recorded_script_raw.split())
                             script_matches = not norm_current or not norm_recorded or (norm_current == norm_recorded)
 
+                            if not script_matches:
+                                # When an angle has both script_lines (display) and tts_lines (legacy phonetic),
+                                # both represent the exact same script of this angle -- do NOT force re-synthesis.
+                                try:
+                                    from scripts.product_store import ProductStore
+                                    prod = ProductStore.get(p_id, **ctx.store_kwargs())
+                                    if prod:
+                                        for a in prod.get("angles", []):
+                                            if (a.get("angle_id") or a.get("id")) == a_id:
+                                                sl_norm = "".join("\n".join(a.get("script_lines") or []).split())
+                                                tl_norm = "".join("\n".join(a.get("tts_lines") or []).split())
+                                                if (norm_current in (sl_norm, tl_norm)) and (norm_recorded in (sl_norm, tl_norm)):
+                                                    script_matches = True
+                                                    break
+                                except Exception as match_err:
+                                    print(f"[VoiceStage] Note: Could not check angle script variants: {match_err}")
+
                             if preset_matches and engine_matches and script_matches:
                                 shot_list_record = rec
                             elif not script_matches:
@@ -549,8 +566,11 @@ class VoiceStage:
             ctx.guard_media(src_audio)
             shutil.copy2(str(src_audio), str(voice_audio_path))
             from scripts.gemini_tts_engine import trim_silence_and_tail_artifacts_wav
-            trim_silence_and_tail_artifacts_wav(voice_audio_path)
-            total_duration = _probe_audio_duration(voice_audio_path)
+            head_t, tail_t = trim_silence_and_tail_artifacts_wav(voice_audio_path)
+            if head_t > 0 or tail_t > 0:
+                total_duration = _probe_audio_duration(voice_audio_path)
+            else:
+                total_duration = shot_list_record.get('total_duration') or _probe_audio_duration(voice_audio_path)
             cues = shot_list_record.get("cues") or shot_list_record.get("beat_cues") or []
             beat_cues = shot_list_record.get("beat_cues") or cues
             voice_engine_used = (shot_list_record.get("voice_params") or {}).get("voice_engine_type") or "gemini_tts"
@@ -672,7 +692,8 @@ class VoiceStage:
 
         if voice_audio_path and voice_audio_path.exists():
             from scripts.gemini_tts_engine import trim_silence_and_tail_artifacts_wav
-            if trim_silence_and_tail_artifacts_wav(voice_audio_path):
+            head_t, tail_t = trim_silence_and_tail_artifacts_wav(voice_audio_path)
+            if head_t > 0 or tail_t > 0:
                 total_duration = _probe_audio_duration(voice_audio_path)
 
         ctx.voice_audio_path = voice_audio_path

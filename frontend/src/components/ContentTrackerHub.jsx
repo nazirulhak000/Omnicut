@@ -9,7 +9,7 @@ import {
   Kanban, Table, Sparkles, CheckCircle2, Clock,
   ExternalLink, ChevronRight, ChevronLeft, Filter, AlertCircle,
   Video, Eye, Flame, TrendingUp, Plus, X, FileText, Scissors,
-  FolderDown, Info, Film, RotateCcw, ShieldAlert, AlertTriangle,
+  FolderDown, Info, Film, RotateCcw, MoreHorizontal, ShieldAlert, AlertTriangle,
   Rocket, Calendar, Sun, Moon, Sunrise, Sunset, Shuffle, ChevronDown, ChevronUp,
   Archive, Image as ImageIcon
 } from 'lucide-react';
@@ -136,14 +136,134 @@ const openQcReview = (ang, onPreviewVideo, onInspectAngle) => {
 // ═══════════════════════════════════════════════════════════════════════
 // 📌 MEMOIZED KANBAN CARD (Ultra High-Density & Deep-Dive Trigger)
 // ═══════════════════════════════════════════════════════════════════════
+// ── Tier 2 More Actions Dropdown Menu for Kanban Cards ──
+function CardActionsMenu({
+  ang,
+  phaseId,
+  onOpenCoverStudio,
+  onInspectAngle,
+  onCopyCaption,
+  onQcFail,
+  onStatusChange,
+  captionText
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
+  }, [open]);
+
+  return (
+    <div className="relative inline-block text-left" ref={menuRef}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="p-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.12] border border-white/[0.08] text-slate-400 hover:text-white transition-colors cursor-pointer"
+        title="เมนูเพิ่มเติม (More Actions)"
+      >
+        <MoreHorizontal className="w-3.5 h-3.5" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 bottom-full mb-1.5 z-40 w-48 rounded-xl bg-[#0E131E] border border-white/[0.15] p-1 shadow-2xl space-y-0.5 animate-in fade-in zoom-in-95 duration-100 text-left">
+          {onOpenCoverStudio && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onOpenCoverStudio(ang);
+              }}
+              className="w-full px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08] text-slate-200 hover:text-white text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <ImageIcon className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+              <span>{ang.cover_url ? 'แก้ไขภาพปก 9:16' : 'สร้างภาพปก 9:16'}</span>
+            </button>
+          )}
+
+          {onInspectAngle && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onInspectAngle(ang);
+              }}
+              className="w-full px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08] text-slate-200 hover:text-white text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <Info className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+              <span>ดูสคริปต์/รายละเอียด</span>
+            </button>
+          )}
+
+          {captionText && onCopyCaption && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onCopyCaption(captionText, ang.angle_id);
+              }}
+              className="w-full px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08] text-slate-200 hover:text-white text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <Copy className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              <span>คัดลอกแคปชัน & แท็ก</span>
+            </button>
+          )}
+
+          {phaseId === 'rendered' && onQcFail && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onQcFail(ang);
+              }}
+              className="w-full px-2.5 py-1.5 rounded-lg hover:bg-rose-500/15 text-rose-300 hover:text-rose-200 text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors border-t border-white/[0.06] mt-0.5 pt-1"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+              <span>QC ไม่ผ่าน — ส่งตัดใหม่</span>
+            </button>
+          )}
+
+          {phaseId === 'rendered' && onStatusChange && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onStatusChange(ang.parentProduct?.id, ang.angle_id, 'posted', null, null, true);
+              }}
+              className="w-full px-2.5 py-1.5 rounded-lg hover:bg-emerald-500/15 text-emerald-300 hover:text-emerald-200 text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              <span>มาร์กว่าโพสต์แล้ว</span>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const KanbanCard = memo(function KanbanCard({
   ang,
   phaseId,
   onSendToStudio,
   onStatusChange,
   onPreviewVideo,
-  onOpenQrModal,
-  onOpenTiktokModal,
+  onGoToGallery,
   onOpenCoverStudio,
   onInspectAngle,
   onCopyCaption,
@@ -293,51 +413,29 @@ const KanbanCard = memo(function KanbanCard({
               was redundant with clicking the thumbnail itself (identical
               onPreviewVideo call), so it's gone as a button, not as a
               capability: the thumbnail is still the review entry point. */}
-          <div className="pt-1.5 mt-1 border-t border-white/[0.06] space-y-1">
+          <div className="pt-1.5 mt-1 border-t border-white/[0.06] flex items-center gap-1.5">
+            {/* Tier 1 Primary: Export Gallery Bridge */}
             <button
               type="button"
-              onClick={() => onOpenTiktokModal && onOpenTiktokModal(ang)}
-              className="w-full py-1.5 px-2 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 transition-all"
-              title="ส่งคลิปไป TikTok Studio"
+              onClick={() => onGoToGallery && onGoToGallery(ang.export_id || ang.video_url || ang.project_name)}
+              className="flex-1 py-1.5 px-2 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 transition-all truncate"
+              title="เปิดคลิปนี้ใน Export Gallery (เมนู 4) เพื่อเตรียมโพสต์"
             >
-              <Rocket className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>ส่งต่อไปยัง TikTok</span>
+              <span className="truncate">เปิดใน Export Gallery (เมนู 4)</span>
+              <ArrowRight className="w-3.5 h-3.5 flex-shrink-0" />
             </button>
 
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => onOpenCoverStudio && onOpenCoverStudio(ang)}
-                className="flex-1 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 text-amber-300 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
-                title={ang.cover_url ? 'แก้ปก' : 'สร้างปก'}
-              >
-                <ImageIcon className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onOpenQrModal(ang)}
-                className="flex-1 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
-                title="ดูตัวอย่างบนมือถือ (QR Code)"
-              >
-                <QrCode className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onQcFail(ang)}
-                className="flex-1 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
-                title="QC ไม่ผ่าน -- ส่งตัดใหม่"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onStatusChange(ang.parentProduct?.id, ang.angle_id, 'posted', null, null, true)}
-                className="flex-1 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-300 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
-                title="มาร์กว่าโพสต์แล้ว"
-              >
-                <Check className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            {/* Tier 2 Secondary: More Actions Dropdown */}
+            <CardActionsMenu
+              ang={ang}
+              phaseId={phaseId}
+              onOpenCoverStudio={onOpenCoverStudio}
+              onInspectAngle={onInspectAngle}
+              onCopyCaption={onCopyCaption}
+              onQcFail={onQcFail}
+              onStatusChange={onStatusChange}
+              captionText={captionText}
+            />
           </div>
         </div>
       </div>
@@ -484,64 +582,42 @@ const KanbanCard = memo(function KanbanCard({
       <div className="pt-1.5 border-t border-white/[0.06]">
         {phaseId === 'rendered' ? (
           <div className="space-y-1.5 w-full">
-            {/* Row 1 (Publishing Channels): [ส่ง TikTok] + [ส่งมือถือ] */}
-            <div className="grid grid-cols-2 gap-1.5 w-full">
+            {/* Tier 1 Primary: Export Gallery Bridge & QC Review */}
+            <div className="flex items-center gap-1.5 w-full">
               <button
                 type="button"
-                onClick={() => onOpenTiktokModal && onOpenTiktokModal(ang)}
-                className="py-2 px-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#FE2C55]/20 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
-                title="ส่งคลิป แคปชัน และไอดีปักตะกร้าไปโพสต์บน TikTok Studio"
+                onClick={() => onGoToGallery && onGoToGallery(ang.export_id || ang.video_url || ang.project_name)}
+                className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all active:scale-95 truncate"
+                title="เปิดคลิปนี้ใน Export Gallery (เมนู 4) เพื่อเตรียมโพสต์"
               >
-                <Rocket className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>ส่ง TikTok</span>
+                <span className="truncate">เปิดใน Export Gallery (เมนู 4)</span>
+                <ArrowRight className="w-3.5 h-3.5 flex-shrink-0" />
               </button>
 
-              <button
-                type="button"
-                onClick={() => onOpenQrModal(ang)}
-                className="py-2 px-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap active:scale-95"
-                title="เปิด QR Code สแกนโหลดคลิปลงมือถือ"
-              >
-                <QrCode className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>ส่งมือถือ</span>
-              </button>
-            </div>
-
-            {/* Row 2 (QC & Editing Tools): [ตรวจ QC] + [ตัดใหม่] */}
-            <div className="grid grid-cols-2 gap-1.5 w-full">
-              {ang.video_url ? (
+              {ang.video_url && (
                 <button
                   type="button"
                   onClick={() => onPreviewVideo(ang.video_url, ang)}
-                  className="py-1.5 px-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                  className="py-1.5 px-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors flex-shrink-0"
                   title="พรีวิวตรวจคลิปเต็มจอ"
                 >
                   <Play className="w-3 h-3 fill-current text-[#25F4EE]" />
-                  <span>ตรวจ QC</span>
+                  <span>ตรวจคลิป</span>
                 </button>
-              ) : <div />}
+              )}
 
-              <button
-                type="button"
-                onClick={() => onQcFail(ang)}
-                className="py-1.5 px-2 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
-                title="QC ไม่ผ่าน — ส่งตัดใหม่"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>ตัดใหม่</span>
-              </button>
+              {/* Tier 2 Secondary: More Actions Menu */}
+              <CardActionsMenu
+                ang={ang}
+                phaseId={phaseId}
+                onOpenCoverStudio={onOpenCoverStudio}
+                onInspectAngle={onInspectAngle}
+                onCopyCaption={onCopyCaption}
+                onQcFail={onQcFail}
+                onStatusChange={onStatusChange}
+                captionText={captionText}
+              />
             </div>
-
-            {/* Row 3: Quick Mark As Posted button */}
-            <button
-              type="button"
-              onClick={() => onStatusChange(ang.parentProduct?.id, ang.angle_id, 'posted', null, null, true)}
-              className="w-full py-1 px-2 rounded-lg bg-white/[0.03] hover:bg-emerald-500/15 hover:border-emerald-500/30 border border-white/[0.06] text-slate-400 hover:text-emerald-300 text-[11px] font-medium flex items-center justify-center gap-1 cursor-pointer transition-colors"
-              title="คลิกเมื่อโพสต์คลิปนี้บน TikTok สำเร็จแล้ว เพื่อย้ายไปช่องโพสต์แล้ว"
-            >
-              <Check className="w-3 h-3 text-emerald-400" />
-              <span>มาร์กว่าโพสต์แล้ว</span>
-            </button>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-1.5">
@@ -632,17 +708,18 @@ const KanbanCard = memo(function KanbanCard({
           )}
         </div>
 
-        {/* Right: Caption Quick Copy Only (เฉพาะเมื่อคลิปพร้อมส่งเข้ามือถือ หรือ โพสต์แล้ว) */}
+        {/* Right: Tier 2 More Actions Menu */}
         <div className="flex items-center gap-1 flex-shrink-0">
-          {captionText && (phaseId === 'rendered' || phaseId === 'posted') && (
-            <button
-              onClick={() => onCopyCaption(captionText, ang.angle_id)}
-              className="p-1.5 rounded-lg bg-black/40 hover:bg-white/[0.08] border border-white/[0.08] text-slate-400 hover:text-white cursor-pointer transition-colors"
-              title="คัดลอกแคปชัน & แฮชแท็ก"
-            >
-              {copiedAngleId === ang.angle_id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-[#25F4EE]" />}
-            </button>
-          )}
+          <CardActionsMenu
+            ang={ang}
+            phaseId={phaseId}
+            onOpenCoverStudio={onOpenCoverStudio}
+            onInspectAngle={onInspectAngle}
+            onCopyCaption={onCopyCaption}
+            onQcFail={onQcFail}
+            onStatusChange={onStatusChange}
+            captionText={captionText}
+          />
         </div>
       </div>
     )}
@@ -659,8 +736,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
   onSendToStudio,
   onStatusChange,
   onPreviewVideo,
-  onOpenQrModal,
-  onOpenTiktokModal,
+  onGoToGallery,
   onInspectAngle,
   onCopyCaption,
   onQcPass,
@@ -797,13 +873,17 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
           </button>
         )}
 
-        <button
-          onClick={() => onOpenQrModal(ang)}
-          className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 cursor-pointer active:scale-95 flex-shrink-0"
-          title="สแกน QR Code เข้ามือถือ"
-        >
-          <QrCode className="w-4 h-4" />
-        </button>
+        {ang.status === 'rendered' && onGoToGallery && (
+          <button
+            type="button"
+            onClick={() => onGoToGallery(ang.export_id || ang.video_url || ang.project_name)}
+            className="min-h-11 py-2 px-3 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 whitespace-nowrap flex-shrink-0"
+            title="เปิดใน Export Gallery (เมนู 4) เพื่อเตรียมโพสต์"
+          >
+            <span>เปิดใน Gallery</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -817,8 +897,7 @@ const TableRow = memo(function TableRow({
   onSendToStudio,
   onStatusChange,
   onPreviewVideo,
-  onOpenQrModal,
-  onOpenTiktokModal,
+  onGoToGallery,
   onInspectAngle,
   onCopyCaption,
   onQcPass,
@@ -960,14 +1039,15 @@ const TableRow = memo(function TableRow({
             </button>
           )}
 
-          {ang.video_url && onOpenTiktokModal && (
+          {ang.status === 'rendered' && onGoToGallery && (
             <button
-              onClick={() => onOpenTiktokModal(ang)}
-              className="py-1.5 px-2.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 whitespace-nowrap flex-shrink-0 shadow-sm"
-              title="ส่งคลิปไป TikTok Studio พร้อมปักตะกร้า"
+              type="button"
+              onClick={() => onGoToGallery(ang.export_id || ang.video_url || ang.project_name)}
+              className="py-1.5 px-2.5 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 whitespace-nowrap flex-shrink-0"
+              title="เปิดใน Export Gallery (เมนู 4) เพื่อเตรียมโพสต์"
             >
-              <Rocket className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>ส่ง TikTok</span>
+              <span>เปิดใน Gallery</span>
+              <ArrowRight className="w-3.5 h-3.5 flex-shrink-0" />
             </button>
           )}
 
@@ -982,14 +1062,6 @@ const TableRow = memo(function TableRow({
               <span className="whitespace-nowrap">ตรวจ QC</span>
             </button>
           )}
-
-          <button
-            onClick={() => onOpenQrModal(ang)}
-            className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-white cursor-pointer flex-shrink-0 transition-colors"
-            title="สแกน QR Code เข้ามือถือ"
-          >
-            <QrCode className="w-3.5 h-3.5" />
-          </button>
         </div>
       </td>
     </tr>
@@ -999,7 +1071,17 @@ const TableRow = memo(function TableRow({
 // ═══════════════════════════════════════════════════════════════════════
 // 🌟 MAIN CONTENT TRACKER HUB COMPONENT (True Deep-Dive Tracking)
 // ═══════════════════════════════════════════════════════════════════════
-export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, onGoToGallery, onGoToEditor, onGoToFlow, workspaceData }) {
+export default function ContentTrackerHub({
+  status,
+  onApplyToStudio,
+  onRefresh,
+  onGoToGallery,
+  onGoToEditor,
+  onGoToFlow,
+  workspaceData,
+  initialProductId,
+  selectedProductId,
+}) {
   const [workspaceStorage] = useState(channelLocalStorage);
 
   // Phone-reachable base for quick-post links: this page's own origin when it
@@ -1018,7 +1100,17 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 250);
-  const [selectedProductFilter, setSelectedProductFilter] = useState('all');
+  const [selectedProductFilter, setSelectedProductFilter] = useState(
+    () => selectedProductId || initialProductId || 'all'
+  );
+
+  useEffect(() => {
+    if (selectedProductId) {
+      setSelectedProductFilter(selectedProductId);
+    } else if (initialProductId) {
+      setSelectedProductFilter(initialProductId);
+    }
+  }, [selectedProductId, initialProductId]);
   const [activePhase, setActivePhase] = useState('all'); // 'all' | 'scripted' | 'in_production' | ...
   const [viewMode, setViewMode] = useState(() => {
     try {
@@ -2265,19 +2357,20 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   </button>
                 )}
 
-                {/* Button 4: TikTok Studio Post */}
+                {/* Button: Open in Export Gallery (Menu 4) */}
                 {isRenderedOrBeyond && inspectAngle.video_url && (
                   <button
                     onClick={() => {
                       const ang = inspectAngle;
+                      const targetVideo = ang.export_id || ang.video_url || ang.project_name;
                       setInspectAngle(null);
-                      handleOpenTiktokModal(ang);
+                      if (onGoToGallery) onGoToGallery(targetVideo);
                     }}
-                    className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap shadow-md shadow-[#FE2C55]/20 active:scale-95"
-                    title="ส่งคลิปไป TikTok Studio พร้อมปักตะกร้า"
+                    className="py-2.5 px-3.5 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap shadow-md active:scale-95"
+                    title="เปิดคลิปนี้ใน Export Gallery (เมนู 4) เพื่อเตรียมโพสต์"
                   >
-                    <Rocket className="w-3.5 h-3.5" />
-                    <span>ส่ง TikTok</span>
+                    <span>เปิดใน Export Gallery (เมนู 4)</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-[#25F4EE]" />
                   </button>
                 )}
 
@@ -2296,19 +2389,6 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     <span>สร้างปก 9:16</span>
                   </button>
                 )}
-
-                {/* Button 5: Mobile QR */}
-                <button
-                  onClick={() => {
-                    setInspectAngle(null);
-                    setQrModalItem(inspectAngle);
-                  }}
-                  className="py-2.5 px-3.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
-                  title={touchDevice ? 'เปิดหน้าโพสต์บนเครื่องนี้' : 'สแกน QR โหลดเข้ามือถือ'}
-                >
-                  <QrCode className="w-3.5 h-3.5 text-[#25F4EE]" />
-                  <span>{touchDevice ? 'เปิดหน้าโพสต์' : 'ส่งมือถือ (QR)'}</span>
-                </button>
               </div>
             </div>
           );
@@ -3149,12 +3229,15 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                         )}
                         <button
                           type="button"
-                          onClick={() => handleOpenTiktokModal && handleOpenTiktokModal(ang)}
-                          className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer active:scale-95 whitespace-nowrap"
-                          title="ส่งคลิปไป TikTok Studio อีกครั้ง"
+                          onClick={() => {
+                            setShowArchiveModal(false);
+                            if (onGoToGallery) onGoToGallery(ang.export_id || ang.video_url || ang.project_name);
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 whitespace-nowrap"
+                          title="เปิดคลิปนี้ใน Export Gallery (เมนู 4)"
                         >
-                          <Rocket className="w-3 h-3 flex-shrink-0" />
-                          <span>ส่ง TikTok</span>
+                          <span>เปิดใน Export Gallery</span>
+                          <ArrowRight className="w-3 h-3 flex-shrink-0" />
                         </button>
                       </div>
                     </div>
@@ -3508,10 +3591,11 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   ref={(el) => (colRefs.current[phase.id] = el)}
                   className="w-[88vw] max-w-[390px] xl:w-auto xl:max-w-none flex-shrink-0 snap-center p-2.5 space-y-2 rounded-2xl glass-panel bg-[#0B0F17] border border-white/[0.08] transition-colors hover:border-white/20 flex flex-col"
                 >
-                  {/* Column Header */}
-                  <div className="flex items-center justify-between pb-1.5 border-b border-white/[0.08]">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                      <phase.icon className={`w-3.5 h-3.5 ${phase.id === 'scripted' ? 'text-cyan-400' : phase.id === 'in_production' ? 'text-amber-400' : phase.id === 'rendered' ? 'text-blue-400' : 'text-emerald-400'}`} />
+                  {/* Quiet Column Header */}
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-[#0E131E] border border-white/[0.06] mb-1">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
+                      <span className={`w-1.5 h-1.5 rounded-full ${phase.dot} flex-shrink-0 shadow-sm`} />
+                      <phase.icon className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                       <span>{phase.label}</span>
                     </div>
 
@@ -3627,8 +3711,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                                     onSendToStudio={handleSendToStudio}
                                     onStatusChange={handleAngleStatusChange}
                                     onPreviewVideo={handlePreviewVideo}
-                                    onOpenQrModal={setQrModalItem}
-                                    onOpenTiktokModal={handleOpenTiktokModal}
+                                    onGoToGallery={onGoToGallery}
                                     onOpenCoverStudio={handleOpenCoverStudio}
                                     onInspectAngle={setInspectAngle}
                                     onCopyCaption={handleCopyCaption}
@@ -3665,8 +3748,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                             onSendToStudio={handleSendToStudio}
                             onStatusChange={handleAngleStatusChange}
                             onPreviewVideo={handlePreviewVideo}
-                            onOpenQrModal={setQrModalItem}
-                            onOpenTiktokModal={handleOpenTiktokModal}
+                            onGoToGallery={onGoToGallery}
                             onOpenCoverStudio={handleOpenCoverStudio}
                             onInspectAngle={setInspectAngle}
                             onCopyCaption={handleCopyCaption}
@@ -3754,8 +3836,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   onSendToStudio={handleSendToStudio}
                   onStatusChange={handleAngleStatusChange}
                   onPreviewVideo={handlePreviewVideo}
-                  onOpenQrModal={setQrModalItem}
-                  onOpenTiktokModal={handleOpenTiktokModal}
+                  onGoToGallery={onGoToGallery}
                   onInspectAngle={setInspectAngle}
                   onCopyCaption={handleCopyCaption}
                   onQcPass={handleQcPass}
@@ -3795,8 +3876,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                         onSendToStudio={handleSendToStudio}
                         onStatusChange={handleAngleStatusChange}
                         onPreviewVideo={handlePreviewVideo}
-                        onOpenQrModal={setQrModalItem}
-                        onOpenTiktokModal={handleOpenTiktokModal}
+                        onGoToGallery={onGoToGallery}
                         onInspectAngle={setInspectAngle}
                         onCopyCaption={handleCopyCaption}
                         onQcPass={handleQcPass}

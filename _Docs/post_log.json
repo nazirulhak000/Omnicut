@@ -2905,5 +2905,35 @@
     "source": "mark_posted",
     "product_id": "7d2fa34272ef4404a5784a9c6e627fb0",
     "export_id": "exp_cff3cbd0b2c0481ab17e0cafaaada0c2"
+  },
+  {
+    "id": "f131e20410e34a3898bfe2d0730d15ae",
+    "channel_id": "main",
+    "product_name": "สายชาร์จเร็ว Essager 100W E Marker",
+    "product_url": "",
+    "angle_key": "spec_review",
+    "angle_title": "⚙️ รีวิวสเปกเจาะลึก / ฟังก์ชันจัดเต็ม",
+    "hook": "⚙️ เจาะลึกสายชาร์จเทพ Essager PD 100W สเปกโหดเกินตัว!",
+    "clip_file": "ESS04-รีวิวสเปก_1_20261109_001645.mp4",
+    "platform": "tiktok",
+    "caption": "เจาะลึกสเปกสายชาร์จ Essager PD 100W 5A มีชิป E-Marker คุมไฟ ถ่ายโอนข้อมูลไว 480Mbps สนใจกดดูในตะกร้าเลย 👇",
+    "hashtags": [
+      "#Essager100W",
+      "#EMarker",
+      "#ชาร์จไว",
+      "#สายชาร์จ",
+      "#รีวิวของดี",
+      "#ของดีบอกต่อ"
+    ],
+    "posted_at": "2026-11-09T00:44:13",
+    "metrics": null,
+    "metrics_filled_at": null,
+    "source": "mark_posted",
+    "product_id": "431165f167284094959bdf0f0e806899",
+    "style_preset": "clean_tech_review",
+    "export_id": "exp_dd33beb5a42047498429599e61f8f953",
+    "story_format": "classic",
+    "duration_sec": 24.58,
+    "hook_text": "สายไอทีต้องชอบสิ่งนี้ครับ นี่คือสายชาร์จ Essager PD 100W จ่ายกระแสไฟได้สูงถึง 5A"
   }
 ]

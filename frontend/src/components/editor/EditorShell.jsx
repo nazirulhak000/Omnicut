@@ -7,6 +7,7 @@ import {
   RefreshCw, Rocket, Scissors, Film, Layers, Sliders, Sparkles, Trash2,
   FolderOpen, Play, Copy, Check, X, Save,
   ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Columns3,
+  ArrowRight,
 } from 'lucide-react';
 import {
   deleteProject, getAllAssets, getBackgroundIsolationManifest, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, getTaskStatus, preflightBackgroundIsolation, startBackgroundIsolation, interactiveSegment, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
@@ -218,6 +219,7 @@ export default function EditorShell({
   initialProjectName = null,
   onAngleChange,
   onGoToProductFlow,
+  onGoToGallery,
   onVideoUploaded,
   onProductContextChange,
   workspaceData,
@@ -2953,6 +2955,20 @@ export default function EditorShell({
                     </button>
                   </div>
                   <MixDegradedNotice result={applyResult} />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onGoToGallery) {
+                        const target = applyResult.export_id || applyResult.mp4_video || applyResult.video_url || applyResult.project_name;
+                        onGoToGallery(target);
+                      }
+                    }}
+                    className="w-full py-2 px-2.5 rounded-xl bg-[#25F4EE]/20 hover:bg-[#25F4EE]/30 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
+                    title="ไปที่ Export Gallery เพื่อโพสต์คลิป TikTok"
+                  >
+                    <span>ไปที่ Export Gallery เพื่อโพสต์คลิป</span>
+                    <ArrowRight className="h-3.5 w-3.5 flex-shrink-0" />
+                  </button>
                   <div className="flex gap-1.5 pt-0.5">
                     {(applyResult.video_url || applyResult.mp4_video) && (
                       <button
@@ -3639,6 +3655,20 @@ export default function EditorShell({
                       </button>
                     </div>
                     <MixDegradedNotice result={applyResult} />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onGoToGallery) {
+                          const target = applyResult.export_id || applyResult.mp4_video || applyResult.video_url || applyResult.project_name;
+                          onGoToGallery(target);
+                        }
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-[#25F4EE]/20 hover:bg-[#25F4EE]/30 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
+                      title="ไปที่ Export Gallery เพื่อโพสต์คลิป TikTok"
+                    >
+                      <span>ไปที่ Export Gallery เพื่อโพสต์คลิป</span>
+                      <ArrowRight className="h-3.5 w-3.5 flex-shrink-0" />
+                    </button>
                     <div className="flex gap-2">
                       {(applyResult.video_url || applyResult.mp4_video) && (
                         <button
@@ -3656,7 +3686,7 @@ export default function EditorShell({
                         className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.1] text-slate-200 text-xs font-bold transition-all cursor-pointer"
                       >
                         <FolderOpen className="h-3.5 w-3.5 text-amber-400" />
-                        <span>04_Exports</span>
+                        <span>เปิดโฟลเดอร์</span>
                       </button>
                     </div>
                   </div>

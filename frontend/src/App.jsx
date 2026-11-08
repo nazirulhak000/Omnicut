@@ -1041,6 +1041,7 @@ export default function App() {
 
 
   const [highlightExportVideo, setHighlightExportVideo] = useState(null);
+  const [selectedProductIdForTracker, setSelectedProductIdForTracker] = useState(null);
 
 
 
@@ -1057,6 +1058,14 @@ export default function App() {
       pendingFlowImageMetadataRef.current = isImageMetadataTask ? extra?.taskResult || null : null;
 
       if (isImageMetadataTask) setFlowTaskNavigationVersion(prev => prev + 1);
+
+    } else if (tab === 'tracker') {
+
+      if (extra?.productId) {
+
+        setSelectedProductIdForTracker(extra.productId);
+
+      }
 
     } else if (tab === 'gallery') {
 
@@ -1349,6 +1358,20 @@ export default function App() {
 
                     onGoToProductFlow={() => setActiveTab('flow')}
 
+                    onGoToGallery={(target) => {
+
+                      if (target) {
+
+                        handleNavigateTab('gallery', typeof target === 'string' ? { targetId: target } : target);
+
+                      } else {
+
+                        setActiveTab('gallery');
+
+                      }
+
+                    }}
+
                     onVideoUploaded={handleVideoUploaded}
 
                     onProductContextChange={setActiveProductContext}
@@ -1388,6 +1411,14 @@ export default function App() {
                       onApplyToStudio={handleApplyScriptFromLab}
 
                       onGoToGallery={() => setActiveTab('gallery')}
+
+                      onGoToTracker={(productId) => {
+
+                        if (productId) setSelectedProductIdForTracker(productId);
+
+                        setActiveTab('tracker');
+
+                      }}
 
                       selectedProductId={selectedProductIdForFlow}
 
@@ -1449,7 +1480,21 @@ export default function App() {
 
                       }}
 
-                      onGoToGallery={() => setActiveTab('gallery')}
+                      onGoToGallery={(target) => {
+
+                        if (target) {
+
+                          handleNavigateTab('gallery', typeof target === 'string' ? { targetId: target } : target);
+
+                        } else {
+
+                          setActiveTab('gallery');
+
+                        }
+
+                      }}
+
+                      selectedProductId={selectedProductIdForTracker}
 
                     />
 
@@ -1480,6 +1525,8 @@ export default function App() {
                       onClearHighlightVideo={() => setHighlightExportVideo(null)}
 
                       status={status}
+
+                      workspaceData={workspaceDataRef.current}
 
                     />
 

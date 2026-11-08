@@ -5,8 +5,8 @@
 ## รอบปัจจุบัน
 
 - [ ] Round ANTIGRAVITY-UI-UX-FLOW-OVERHAUL-MENU-1-TO-4-20261109 · แผนงานปรับปรุงสถาปัตยกรรม UI/UX และความต่อเนื่องของลูปงาน (เมนู 1 → 2 → 3 → 4) ตามเกณฑ์ /impeccable + /ui-ux-pro-max + /unslop (เอกสาร: _Docs/Plans/PLAN_UI_UX_FLOW_OVERHAUL_MENU_1_TO_4_20261109.md):
-  - [ ] Phase 1: Role Decoupling — ถอด Quick Post QR ออกจาก Tracker (เมนู 2) สถาปนา Export Gallery (เมนู 4) เป็น Single Source of Truth
-  - [ ] Phase 2: Flow Continuity Bridges — ทำ Sticky Primary CTA 1→2 (ส่งเข้า Tracker) และ Post-Render CTA 3→4 (ไป Export Gallery)
+  - [x] Phase 1: Role Decoupling — ถอด Quick Post QR ออกจาก Tracker (เมนู 2) สถาปนา Export Gallery (เมนู 4) เป็น Single Source of Truth
+  - [x] Phase 2: Flow Continuity Bridges — ทำ Sticky Primary CTA 1→2 (ส่งเข้า Tracker) และ Post-Render CTA 3→4 (ไป Export Gallery)
   - [ ] Phase 3: Unslopping เมนู 1 (สินค้า → คลิป) — ล้างสีรุ้งใน CONTENT_TYPE_CATALOG สู่ Monochromatic Neutral, กำจัด Emojis ในปุ่ม/Labels, ควบรวม Modals
   - [ ] Phase 4: Tracker Ergonomics เมนู 2 (แทร็กเกอร์ 4 เฟส) — ยุบปุ่มบนการ์ด Kanban เหลือ 2 ปุ่มหลัก + ••• Dropdown, ปรับ Quiet Header พร้อม Status Dot 6px
   - [ ] Phase 5: Editor Polish & Safe Zone เมนู 3 (ตัดต่อ & สร้างคลิป) — เพิ่ม TikTok Safe Zone Overlay (420px ล่าง / 120px ขวา), Smart Auto-Collapse Asset Panel, Tabular Nums บน Timecode

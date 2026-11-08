@@ -158,7 +158,7 @@ def get_shot_list(product_id: str, angle_id: str, batch: Optional[int] = None, s
                 None,
             )
         if angle:
-            lines = angle.get("tts_lines") or angle.get("script_lines") or []
+            lines = angle.get("script_lines") or angle.get("tts_lines") or []
             current_script = "\n".join(str(l).strip() for l in lines if str(l).strip())
             cached_script = str(record.get("custom_script") or "").strip()
             if current_script and cached_script and current_script != cached_script:
@@ -189,7 +189,7 @@ def get_shot_list_status(product_id: str, scope: ChannelScope = Depends(get_work
         if not record and batch == 1:
             record = ShotListsStore.get(product_id, angle_id, **_scope_kwargs(scope))
         if record:
-            lines = angle.get("tts_lines") or angle.get("script_lines") or []
+            lines = angle.get("script_lines") or angle.get("tts_lines") or []
             current_script = "\n".join(str(l).strip() for l in lines if str(l).strip())
             cached_script = str(record.get("custom_script") or "").strip()
             is_stale = bool(current_script and cached_script and current_script != cached_script)
@@ -253,7 +253,7 @@ def _execute_batch_generate_audio_worker(
         for a in angles:
             if a.get("status") in ("rendered", "posted") or a.get("posted_at"):
                 continue
-            lines = a.get("tts_lines") or a.get("script_lines") or []
+            lines = a.get("script_lines") or a.get("tts_lines") or []
             if any(str(l).strip() for l in lines):
                 valid_angles.append(a)
 
@@ -304,7 +304,7 @@ def _execute_batch_generate_audio_worker(
                 if rec and rec.get("voice_audio_path"):
                     audio_p = Path(rec["voice_audio_path"])
                     if audio_p.exists() and audio_p.stat().st_size > 0:
-                        lines = angle.get("tts_lines") or angle.get("script_lines") or []
+                        lines = angle.get("script_lines") or angle.get("tts_lines") or []
                         current_script = "\n".join(str(l).strip() for l in lines if str(l).strip())
                         cached_script = str(rec.get("custom_script") or "").strip()
                         rec_params = rec.get("voice_params") or {}

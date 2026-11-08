@@ -233,7 +233,7 @@ def generate_shot_list_for_angle(
         raise ValueError(f"ไม่พบมุม '{angle_id}' ในสินค้านี้")
     assigned_batch = angle.get("batch") or batch or 1
 
-    lines = angle.get("tts_lines") or angle.get("script_lines") or []
+    lines = angle.get("script_lines") or angle.get("tts_lines") or []
     lines = [str(line).strip() for line in lines if str(line).strip()]
     if not lines:
         raise ValueError(f"มุม '{angle_id}' ยังไม่มีสคริปต์ให้สร้างแผนถ่าย")

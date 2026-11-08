@@ -5969,7 +5969,7 @@ function SequencePlayer({
 
               {/* Timecode lives here on non-compact */}
               {!compact && (
-                <div className="pointer-events-none absolute bottom-2 right-2 z-20 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-mono font-bold text-white/90 backdrop-blur-sm">
+                <div className="pointer-events-none absolute bottom-2 right-2 z-20 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-mono font-bold tabular-nums text-white/90 backdrop-blur-sm">
                   {formatTimecode(playhead, { frames: true })} / {formatTimecode(totalDuration, { frames: true })}
                 </div>
               )}

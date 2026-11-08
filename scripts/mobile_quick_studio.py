@@ -40,7 +40,7 @@ def _angle_id(angle, index=0):
 
 
 def _script_text(angle):
-    lines = angle.get("tts_lines") or angle.get("script_lines")
+    lines = angle.get("script_lines") or angle.get("tts_lines")
     if lines:
         return "\n".join(str(line).strip() for line in lines if str(line).strip())
     return str(angle.get("script_text") or angle.get("script") or "").strip()

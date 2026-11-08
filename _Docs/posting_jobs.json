@@ -7753,5 +7753,124 @@
         "forced": false
       }
     ]
+  },
+  {
+    "video_path": "D:\\Programmer\\All Project\\Omnicut\\04_Exports\\Ready_to_post\\ESS04-รีวิวสเปก_1_20261109_001645.mp4",
+    "export_id": "exp_dd33beb5a42047498429599e61f8f953",
+    "cover_path": null,
+    "caption": "เจาะลึกสเปกสายชาร์จ Essager PD 100W 5A มีชิป E-Marker คุมไฟ ถ่ายโอนข้อมูลไว 480Mbps สนใจกดดูในตะกร้าเลย 👇",
+    "hashtags": "#Essager100W #EMarker #ชาร์จไว #สายชาร์จ TypeC #รีวิวของดี #ของดีบอกต่อ",
+    "product_id": "431165f167284094959bdf0f0e806899",
+    "angle_id": "spec_review",
+    "tiktok_product_id": "1737708573753443451",
+    "product_name": "สายชาร์จเร็ว Essager 100W E Marker",
+    "schedule_date": null,
+    "schedule_time": null,
+    "queue_id": null,
+    "target_handle": "@rizanntry",
+    "channel_revision": 4,
+    "account_binding": {
+      "status": "verified",
+      "verified_handle": "@rizanntry",
+      "verified_at": "2026-10-10T18:23:52Z"
+    },
+    "strict_mode": false,
+    "video_sha256": "049c47de2efb99fee334df048862da6945b5332c0d748bd40b928c6141526aed",
+    "cover_sha256": null,
+    "id": "31c30809459f783b62ac051109b35cd6",
+    "job_id": "31c30809459f783b62ac051109b35cd6",
+    "channel_id": "main",
+    "protocol_version": 2,
+    "payload_hash": "ab3bbcf2d25036caa83277fd4056283e845e9568ac847a6aa83669e1583676ce",
+    "prepared_payload_hash": "ab3bbcf2d25036caa83277fd4056283e845e9568ac847a6aa83669e1583676ce",
+    "payload_fields": [
+      "video_path",
+      "export_id",
+      "cover_path",
+      "caption",
+      "hashtags",
+      "product_id",
+      "angle_id",
+      "tiktok_product_id",
+      "product_name",
+      "schedule_date",
+      "schedule_time",
+      "queue_id",
+      "target_handle",
+      "channel_revision",
+      "account_binding",
+      "strict_mode",
+      "video_sha256",
+      "cover_sha256"
+    ],
+    "idempotency_key": "ab3bbcf2d25036caa83277fd4056283e845e9568ac847a6aa83669e1583676ce",
+    "status": "published",
+    "revision": 7,
+    "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2",
+    "lease_token": "WkmRXzBbjf-t0UBZmIdzT8O0lQa7vjJrb3M768KGoJI",
+    "lease_expires_at": 1794160068.1271346,
+    "attempt": 1,
+    "created_at": 1794159642.7391326,
+    "updated_at": 1794159852.3790717,
+    "effects_applied": true,
+    "prepare_effects_applied": true,
+    "audit": [
+      {
+        "event": "prepare",
+        "at": 1794159642.7391477
+      },
+      {
+        "event": "claim",
+        "at": 1794159643.0422654,
+        "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2"
+      },
+      {
+        "event": "account_check",
+        "at": 1794159706.5898678,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794159736.1982374,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794159744.7719882,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794159768.127139,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "reconcile",
+        "at": 1794159852.3790796,
+        "outcome": "published",
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      }
+    ],
+    "receipt": {
+      "outcome": "published",
+      "source_account": "@rizanntry",
+      "proof": {
+        "kind": "manual_user_confirmation",
+        "notice": "User confirmed posting on TikTok Studio"
+      }
+    },
+    "receipt_hash": "004492626e50f229545ba3a2a9a61c1e68651b752a250526dcb18366cf9f6071",
+    "publish_attempted_at": 1794159852.3790717,
+    "attempted_source_account": "@rizanntry"
   }
 ]
