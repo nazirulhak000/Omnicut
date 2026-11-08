@@ -68,3 +68,22 @@ test('ProductToClip supports double click on ProductCard to view full metadata d
     'ProductCard in carousel must receive handleProductDoubleClick'
   );
 });
+
+test('ProductToClip Phase 05: adheres to Obsidian Pro Dark tokens and product hierarchy', () => {
+  assert.ok(
+    ptcSource.includes('productCode') && ptcSource.includes('product.product_code || product.code'),
+    'ProductCard must extract and display productCode hierarchy'
+  );
+  assert.ok(
+    ptcSource.includes('bg-[#0A0D14]'),
+    'ProductToClip must use Obsidian Pro Dark NLE surface tokens (#0A0D14)'
+  );
+  assert.ok(
+    !ptcSource.includes('bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] rounded-full transition-all'),
+    'ProductCard progress bar must not use harsh rainbow gradient'
+  );
+  assert.ok(
+    !ptcSource.includes('animate-ping'),
+    'PhaseDots must avoid distracting pulsing animation'
+  );
+});

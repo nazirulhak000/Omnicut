@@ -84,18 +84,18 @@ const EXTRA_BEAT_OPTIONS = [
 // Stable keys returned by the backend. A topic can have more than one badge
 // when extra content beats were selected for the same angle.
 const CONTENT_TYPE_CATALOG = {
-  problem_solution: { label: 'ปัญหา → ทางออก', className: 'text-rose-200 bg-rose-500/10 border-rose-400/25' },
-  specs: { label: 'สเปก/สรรพคุณ', className: 'text-cyan-200 bg-cyan-500/10 border-cyan-400/25' },
-  unboxing: { label: 'แกะกล่อง / First Impression', className: 'text-violet-200 bg-violet-500/10 border-violet-400/25' },
-  promotion: { label: 'ห้ามพลาด / เหตุผลที่ควรมี', className: 'text-amber-200 bg-amber-500/10 border-amber-400/25' },
-  comparison: { label: 'เปรียบเทียบ', className: 'text-blue-200 bg-blue-500/10 border-blue-400/25' },
-  tips: { label: 'ทริก / How-to', className: 'text-lime-200 bg-lime-500/10 border-lime-400/25' },
-  warning: { label: 'ข้อควรระวัง', className: 'text-orange-200 bg-orange-500/10 border-orange-400/25' },
-  target_audience: { label: 'เจาะกลุ่มผู้ใช้', className: 'text-fuchsia-200 bg-fuchsia-500/10 border-fuchsia-400/25' },
-  experience: { label: 'ประสบการณ์ใช้งานจริง', className: 'text-emerald-200 bg-emerald-500/10 border-emerald-400/25' },
-  use_cases: { label: 'การใช้งานจริง', className: 'text-teal-200 bg-teal-500/10 border-teal-400/25' },
-  faq: { label: 'FAQ / ข้อกังวล', className: 'text-sky-200 bg-sky-500/10 border-sky-400/25' },
-  value: { label: 'คุ้มค่าการใช้งาน', className: 'text-yellow-200 bg-yellow-500/10 border-yellow-400/25' },
+  problem_solution: { label: 'ปัญหา → ทางออก', className: 'text-rose-300/90 bg-rose-500/[0.08] border-rose-500/20' },
+  specs: { label: 'สเปก/สรรพคุณ', className: 'text-cyan-300/90 bg-cyan-500/[0.08] border-cyan-500/20' },
+  unboxing: { label: 'แกะกล่อง / First Impression', className: 'text-slate-300 bg-white/[0.04] border-white/10' },
+  promotion: { label: 'ห้ามพลาด / เหตุผลที่ควรมี', className: 'text-amber-300/90 bg-amber-500/[0.08] border-amber-500/20' },
+  comparison: { label: 'เปรียบเทียบ', className: 'text-sky-300/90 bg-sky-500/[0.08] border-sky-500/20' },
+  tips: { label: 'ทริก / How-to', className: 'text-emerald-300/90 bg-emerald-500/[0.08] border-emerald-500/20' },
+  warning: { label: 'ข้อควรระวัง', className: 'text-orange-300/90 bg-orange-500/[0.08] border-orange-500/20' },
+  target_audience: { label: 'เจาะกลุ่มผู้ใช้', className: 'text-slate-300 bg-white/[0.04] border-white/10' },
+  experience: { label: 'ประสบการณ์ใช้งานจริง', className: 'text-teal-300/90 bg-teal-500/[0.08] border-teal-500/20' },
+  use_cases: { label: 'การใช้งานจริง', className: 'text-slate-300 bg-white/[0.04] border-white/10' },
+  faq: { label: 'FAQ / ข้อกังวล', className: 'text-slate-300 bg-white/[0.04] border-white/10' },
+  value: { label: 'คุ้มค่าการใช้งาน', className: 'text-amber-300/90 bg-amber-500/[0.08] border-amber-500/20' },
 };
 
 const ANGLE_CONTENT_TYPES = {
@@ -139,13 +139,13 @@ function ContentTypeBadges({ angle, compact = false }) {
       {types.map(type => {
         const meta = CONTENT_TYPE_CATALOG[type] || {
           label: type,
-          className: 'text-slate-300 bg-white/[0.05] border-white/[0.12]',
+          className: 'text-slate-300 bg-white/[0.04] border-white/[0.08]',
         };
         return (
           <span
             key={type}
             title={meta.label}
-            className={`${compact ? 'text-[9px] px-1.5 py-0.5' : 'text-[10px] px-2 py-0.5'} inline-flex items-center rounded-full border font-semibold leading-tight ${meta.className}`}
+            className={`${compact ? 'text-[9px] px-1.5 py-0.5' : 'text-[10px] px-2 py-0.5'} inline-flex items-center rounded-md border font-medium leading-tight ${meta.className}`}
           >
             {meta.label}
           </span>
@@ -172,13 +172,10 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
   const total = pAngles.length || 4;
   const pct = Math.round((pDone / total) * 100);
   const thumb = product.images?.[0];
-  // A scraped product-page image only ever has .url (external CDN link);
-  // a user-uploaded one only has .rel_path/.local_path -- toMediaUrl handles
-  // both, including the http(s) passthrough a bare CDN link needs.
-  // Fallback to product.thumbnail if images array is empty or lacks primary image.
   const thumbSrc = thumb
     ? toMediaUrl(thumb.rel_path || thumb.local_path || thumb.url)
     : (product.thumbnail ? toMediaUrl(product.thumbnail) : null);
+  const productCode = product.product_code || product.code || '';
 
   return (
     <div
@@ -197,14 +194,14 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
         }
       }}
       title={`${product.name} (คลิกเพื่อเลือก · ดับเบิลคลิกเพื่อดูรายละเอียดสินค้า)`}
-      className={`flex-shrink-0 w-[130px] sm:w-[150px] rounded-xl border transition-all cursor-pointer group snap-center p-2.5 space-y-2 text-left relative select-none ${
+      className={`flex-shrink-0 w-[136px] sm:w-[156px] rounded-xl border transition-all cursor-pointer group snap-center p-2.5 space-y-2 text-left relative select-none ${
         isSelected
           ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-lg shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
-          : 'bg-[#0B0F19] border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.03]'
+          : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.18] hover:bg-white/[0.02]'
       }`}
     >
       {/* Thumbnail or Placeholder */}
-      <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/60 border border-white/[0.06] flex items-center justify-center relative">
+      <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/70 border border-white/[0.06] flex items-center justify-center relative">
         {thumbSrc ? (
           <img src={thumbSrc} alt="" className="w-full h-full object-cover pointer-events-none" />
         ) : (
@@ -250,20 +247,36 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
         )}
       </div>
 
-      {/* Name */}
-      <div className={`text-xs font-bold truncate leading-tight ${isSelected ? 'text-white' : 'text-slate-300'}`}>
-        {product.name}
+      {/* Code + Name Hierarchy */}
+      <div className="space-y-1 min-w-0">
+        {productCode && (
+          <span className={`inline-flex items-center text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border leading-none ${
+            isSelected
+              ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/30'
+              : 'bg-white/[0.04] text-slate-300 border-white/[0.08]'
+          }`}>
+            {productCode}
+          </span>
+        )}
+        <div
+          className={`text-xs font-semibold line-clamp-2 leading-tight ${isSelected ? 'text-white' : 'text-slate-200'}`}
+          title={product.name}
+        >
+          {product.name}
+        </div>
       </div>
 
       {/* Progress Mini Bar */}
-      <div className="flex items-center gap-1.5">
-        <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+      <div className="flex items-center gap-1.5 pt-0.5">
+        <div className="flex-1 h-1 bg-slate-800/80 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] rounded-full transition-all"
+            className={`h-full rounded-full transition-all duration-300 ${
+              pct === 100 ? 'bg-emerald-400' : 'bg-[#25F4EE]'
+            }`}
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className={`text-sm font-mono font-bold flex-shrink-0 ${isSelected ? 'text-[#25F4EE]' : 'text-slate-500'}`}>
+        <span className={`text-[11px] font-mono font-bold flex-shrink-0 ${isSelected ? 'text-[#25F4EE]' : pct === 100 ? 'text-emerald-400' : 'text-slate-400'}`}>
           {pDone}/{total}
         </span>
       </div>
@@ -319,13 +332,10 @@ function PhaseDots({ angle, compact = false }) {
               )}
               {/* Dot */}
               <div className="relative flex items-center justify-center">
-                {isCurrent && (
-                  <span className="absolute w-3.5 h-3.5 rounded-full bg-emerald-400/30 animate-ping opacity-75" />
-                )}
                 <span
                   className={`rounded-full transition-all duration-300 ${
                     isCurrent
-                      ? 'w-2 h-2 bg-emerald-400 ring-2 ring-emerald-400/40 shadow-sm shadow-emerald-400/60 scale-110 z-10'
+                      ? 'w-2 h-2 bg-emerald-400 ring-2 ring-emerald-400/30 scale-110 z-10'
                       : isPassed
                       ? 'w-1.5 h-1.5 bg-emerald-500/80'
                       : 'w-1.5 h-1.5 bg-white/[0.12]'
@@ -390,7 +400,7 @@ function AngleSidebarItem({
       className={`p-2.5 rounded-xl border transition-all cursor-pointer text-left group relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
         isSelected
           ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-md shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/30'
-          : 'bg-[#080B11] border-white/[0.06] hover:border-white/[0.18] hover:bg-white/[0.02]'
+          : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.16] hover:bg-white/[0.02]'
       }`}
     >
       {/* Active Indicator Bar on left edge */}
@@ -402,8 +412,8 @@ function AngleSidebarItem({
         {/* Number Badge */}
         <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
           isSelected
-            ? 'bg-gradient-to-tr from-[#25F4EE] to-blue-500 text-slate-950 shadow-sm'
-            : 'bg-white/[0.06] text-slate-400 border border-white/[0.08]'
+            ? 'bg-[#25F4EE] text-slate-950 font-bold shadow-sm'
+            : 'bg-white/[0.05] text-slate-400 border border-white/[0.08]'
         }`}>
           {index + 1}
         </span>
@@ -582,12 +592,12 @@ function AngleMobilePill({ angle, index, isSelected, onSelect, shotListInfo }) {
       className={`w-full min-h-[50px] px-3.5 py-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
         isSelected
           ? 'bg-[#25F4EE]/15 border-[#25F4EE] shadow-md shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/40'
-          : 'bg-[#080B11] border-white/[0.08] hover:border-white/[0.2] text-slate-300'
+          : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.16] text-slate-300'
       }`}
     >
       <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
         isSelected
-          ? 'bg-gradient-to-tr from-[#25F4EE] to-blue-500 text-slate-950 shadow-sm'
+          ? 'bg-[#25F4EE] text-slate-950 font-bold shadow-sm'
           : 'bg-white/[0.08] text-slate-400'
       }`}>
         {index + 1}
@@ -730,8 +740,8 @@ function AngleActiveWorkbench({
   return (
     <div className={`border rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-3.5 sm:space-y-4 animate-fadeIn transition-colors ${
       isLocked
-        ? 'bg-[#090C14]/90 border-white/[0.06]'
-        : 'bg-[#0B0F19] border-white/[0.1]'
+        ? 'bg-[#080B11]/90 border-white/[0.06]'
+        : 'bg-[#0A0D14] border-white/[0.08]'
     }`}>
       {/* 1. Header Bar */}
       <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2.5 pb-3 border-b border-white/[0.08]">
@@ -739,7 +749,7 @@ function AngleActiveWorkbench({
           <span className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl font-bold text-xs flex items-center justify-center shadow-sm flex-shrink-0 ${
             isLocked
               ? 'bg-slate-800 text-slate-400 border border-white/[0.08]'
-              : 'bg-gradient-to-tr from-[#25F4EE] to-blue-500 text-slate-950'
+              : 'bg-[#25F4EE] text-slate-950 font-bold'
           }`}>
             {index + 1}
           </span>
@@ -880,10 +890,10 @@ function AngleActiveWorkbench({
                     )}
                     <span className="hidden xs:inline sm:inline">
                       {shotListInfo?.is_edge_tts
-                        ? '⚠️ แผนถ่าย (Edge-TTS เดิม)'
+                        ? 'แผนถ่าย (Edge-TTS เดิม)'
                         : shotListInfo?.has_shot_list
-                          ? `🎙️ แผนถ่าย (${getVoicePresetShortName(shotListInfo?.voice_preset)})`
-                          : '+ แผนถ่าย'}
+                          ? `แผนถ่าย (${getVoicePresetShortName(shotListInfo?.voice_preset)})`
+                          : 'สร้างแผนถ่าย'}
                     </span>
                   </button>
                 </>
@@ -1146,9 +1156,10 @@ function AngleActiveWorkbench({
                   type="button"
                   onClick={() => onGenerateShotList && onGenerateShotList(index)}
                   disabled={isGeneratingShotList}
-                  className="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400/30 text-cyan-300 text-xs font-bold transition-all cursor-pointer flex-shrink-0 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold transition-all cursor-pointer flex-shrink-0 disabled:opacity-50"
                 >
-                  + สร้างเสียงพากย์ & แผนถ่าย
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>สร้างเสียงพากย์และแผนถ่าย</span>
                 </button>
               </div>
             )}
@@ -1401,7 +1412,7 @@ function AngleActiveWorkbench({
                   e.stopPropagation();
                   onPreviewExportVideo && onPreviewExportVideo(angle);
                 }}
-                className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-400/40 text-cyan-300 hover:text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer active:scale-95 transition-all"
+                className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-4 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
                 title="เปิดดูวิดีโอที่โพสต์แล้วบน TikTok"
               >
                 <Film className="w-4 h-4 text-cyan-400" />
@@ -1430,7 +1441,7 @@ function AngleActiveWorkbench({
                   e.stopPropagation();
                   onPreviewExportVideo && onPreviewExportVideo(angle);
                 }}
-                className="py-3 sm:py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-400/40 text-cyan-300 hover:text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer active:scale-95 transition-all"
+                className="py-3 sm:py-2.5 px-4 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
               >
                 <Film className="w-4 h-4 text-cyan-400" />
                 <span>ดูคลิปที่ Export แล้ว</span>
@@ -1447,11 +1458,11 @@ function AngleActiveWorkbench({
                     onSendToStudio(angle, index);
                   }
                 }}
-                className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all"
+                className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md shadow-emerald-500/15 cursor-pointer active:scale-95 transition-all"
               >
-                <Play className="w-4 h-4 fill-white text-white" />
+                <Play className="w-4 h-4 fill-slate-950 text-slate-950" />
                 <span>เปิดดูในไทม์ไลน์</span>
-                <ArrowRight className="w-3.5 h-3.5 text-white/80" />
+                <ArrowRight className="w-3.5 h-3.5 text-slate-950/80" />
               </button>
               <button
                 type="button"
@@ -1475,11 +1486,11 @@ function AngleActiveWorkbench({
                   onSendToStudio(angle, index);
                 }
               }}
-              className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 cursor-pointer active:scale-95 transition-all"
+              className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md shadow-amber-500/15 cursor-pointer active:scale-95 transition-all"
             >
-              <Play className="w-4 h-4 fill-white text-white" />
+              <Play className="w-4 h-4 fill-slate-950 text-slate-950" />
               <span>เปิดทำต่อในไทม์ไลน์</span>
-              <ArrowRight className="w-3.5 h-3.5 text-white/80" />
+              <ArrowRight className="w-3.5 h-3.5 text-slate-950/80" />
             </button>
             <button
               type="button"
@@ -1658,8 +1669,8 @@ function ScriptAccordionItem({
   return (
     <div className={`rounded-xl border transition-all ${
       isOpen
-        ? isLocked ? 'bg-[#090C14] border-white/[0.12] shadow-md' : 'bg-[#0B0F19] border-[#25F4EE]/30 shadow-md'
-        : 'bg-[#080B11] border-white/[0.06] hover:border-white/[0.15]'
+        ? isLocked ? 'bg-[#080B11] border-white/[0.12] shadow-md' : 'bg-[#0A0D14] border-[#25F4EE]/30 shadow-md'
+        : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.16] hover:bg-white/[0.02]'
     }`}>
       {/* Collapsed Header Row */}
       <button
@@ -2110,7 +2121,7 @@ function ScriptAccordionItem({
                       e.stopPropagation();
                       onPreviewExportVideo && onPreviewExportVideo(angle);
                     }}
-                    className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-400/40 text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-500/10 cursor-pointer active:scale-95 transition-all"
+                    className="py-2 px-3.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
                     title="เปิดดูวิดีโอที่โพสต์แล้วบน TikTok (หลักฐาน)"
                   >
                     <Film className="w-3.5 h-3.5 text-cyan-400" />
@@ -2139,7 +2150,7 @@ function ScriptAccordionItem({
                       e.stopPropagation();
                       onPreviewExportVideo && onPreviewExportVideo(angle);
                     }}
-                    className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-400/40 text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-500/10 cursor-pointer active:scale-95 transition-all"
+                    className="py-2 px-3.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
                     title="เปิดดูวิดีโอที่ตัดต่อและ Export เสร็จแล้ว (ตรวจ QC)"
                   >
                     <Film className="w-3.5 h-3.5 text-cyan-400" />
@@ -2156,12 +2167,12 @@ function ScriptAccordionItem({
                       onSendToStudio(angle, index);
                     }
                   }}
-                  className="py-2 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all"
+                  className="py-2 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/15 cursor-pointer active:scale-95 transition-all"
                   title="เปิดดูวิดีโอที่ตัดเสร็จแล้วในไทม์ไลน์ทันที"
                 >
-                  <Play className="w-3.5 h-3.5 fill-white text-white" />
+                  <Play className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
                   <span>เปิดดูในไทม์ไลน์</span>
-                  <ArrowRight className="w-3 h-3 text-white/80" />
+                  <ArrowRight className="w-3 h-3 text-slate-950/80" />
                 </button>
                 <button
                   type="button"
@@ -2185,12 +2196,12 @@ function ScriptAccordionItem({
                       onSendToStudio(angle, index);
                     }
                   }}
-                  className="py-2 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-amber-500/25 cursor-pointer active:scale-95 transition-all"
+                  className="py-2 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/15 cursor-pointer active:scale-95 transition-all"
                   title="เปิดตัดต่อในไทม์ไลน์"
                 >
-                  <Play className="w-3.5 h-3.5 fill-white text-white" />
+                  <Play className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
                   <span>เปิดทำต่อในไทม์ไลน์</span>
-                  <ArrowRight className="w-3 h-3 text-white/80" />
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-950/80" />
                 </button>
                 <button
                   type="button"
@@ -4299,7 +4310,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         eyebrow={productData ? 'สินค้าปัจจุบัน' : 'Step 1 — เลือกสินค้า'}
         titlePrefix={
           productData?.product_code && (
-            <span className="px-2 py-0.5 rounded-lg bg-fuchsia-500/20 border border-fuchsia-500/35 text-fuchsia-300 font-bold text-xs sm:text-sm flex-shrink-0">
+            <span className="px-2.5 py-0.5 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-[#25F4EE] font-mono font-bold text-xs sm:text-sm flex-shrink-0">
               {productData.product_code}
             </span>
           )
@@ -4400,8 +4411,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <div className="flex items-center gap-1.5 sm:gap-2 bg-black/40 px-2.5 py-1.5 rounded-xl border border-white/[0.08] flex-shrink-0">
                   <span className="text-[11px] sm:text-xs text-slate-400 font-medium">คืบหน้า</span>
                   <span className="text-[11px] sm:text-xs text-white font-bold font-mono">{postedAngles}/{totalAngles}</span>
-                  <div className="w-12 sm:w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }} />
+                  <div className="w-12 sm:w-16 h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-500 ${progressPercent === 100 ? 'bg-emerald-400' : 'bg-[#25F4EE]'}`} style={{ width: `${progressPercent}%` }} />
                   </div>
                 </div>
               )}
@@ -5132,7 +5143,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <button
                   type="button"
                   onClick={() => setBatchRenderOpen(true)}
-                  className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 hover:from-cyan-500/30 hover:to-emerald-500/30 border border-cyan-500/40 text-xs font-bold text-cyan-200 cursor-pointer flex items-center gap-1.5 transition-all shadow-sm"
+                  className="px-2.5 py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-xs font-bold text-cyan-200 cursor-pointer flex items-center gap-1.5 transition-all"
                   title="เปิดหน้าต่างเรนเดอร์หลายมุมมองพร้อมกันในคิวเบื้องหลัง"
                 >
                   <Zap className="w-3.5 h-3.5 text-cyan-400" />
@@ -5313,7 +5324,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         activeBatchAngles.length === 0
                           ? 'bg-white/[0.04] text-slate-500 border border-white/[0.06]'
                           : missingAudioCount > 0
-                            ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white border border-indigo-400/40 hover:shadow-indigo-500/20'
+                            ? 'bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 font-bold shadow-md shadow-[#25F4EE]/10'
                             : 'bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 border border-white/[0.1]'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                       title={activeBatchAngles.length === 0
@@ -5366,7 +5377,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       type="button"
                       onClick={handleBatchCreateDraft}
                       disabled={isStartingBatchDraft || isStartingBatchAudio || Boolean(batchAudioTask)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400/40 hover:shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold shadow-md shadow-emerald-500/15 disabled:opacity-50 disabled:cursor-not-allowed"
                       title={`สร้างโปรเจกต์ดราฟต์ไทม์ไลน์สำหรับ ${readyForDraftAngles.length} มุมมองที่เตรียมเสียงแล้ว (ไม่เรนเดอร์ MP4 เสร็จในไม่กี่วินาที พร้อมเปิดตรวจปกและคัตติ้ง)`}
                     >
                       {isStartingBatchDraft ? (
@@ -5396,7 +5407,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       disabled={isScanningScenes}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 ${
                         unindexedVideosCount > 0
-                          ? 'bg-gradient-to-r from-amber-500/25 to-emerald-500/25 hover:from-amber-500/35 hover:to-emerald-500/35 text-emerald-300 border border-emerald-500/50'
+                          ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/35'
                           : 'bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 border border-white/[0.1]'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                       title={unindexedVideosCount > 0
@@ -5425,7 +5436,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   <button
                     type="button"
                     onClick={() => setFilmingRecipeModalOpen(true)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 bg-gradient-to-r from-rose-500/20 to-purple-500/20 hover:from-rose-500/30 hover:to-purple-500/30 text-rose-300 border border-rose-500/40 hover:border-rose-400"
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 border border-white/[0.1]"
                     title="เปิดดูสูตรถ่ายทำ 5 ช็อตมาตรฐานสำหรับสินค้านี้ (Hook, 360°, Macro, Action, CTA) พร้อม QR สแกนขึ้นมือถือ"
                   >
                     <Clapperboard className="w-3.5 h-3.5 text-rose-400" />
@@ -5744,7 +5755,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           ══════════════════════════════════════════════════════════ */
         <div className="p-8 sm:p-12 text-center space-y-5 rounded-2xl glass-card shadow-2xl border border-white/[0.08]">
           {/* Hero Icon */}
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#FE2C55]/20 to-[#25F4EE]/20 border border-white/[0.1] flex items-center justify-center mx-auto shadow-lg">
+          <div className="w-16 h-16 rounded-2xl bg-[#25F4EE]/10 border border-[#25F4EE]/25 flex items-center justify-center mx-auto shadow-lg">
             <Rocket className="w-8 h-8 text-[#25F4EE]" />
           </div>
 
@@ -5775,9 +5786,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="mx-auto py-3 px-6 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-sm font-bold flex items-center gap-2 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
+            className="mx-auto py-3 px-6 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-sm font-bold flex items-center gap-2 shadow-md shadow-[#25F4EE]/15 cursor-pointer active:scale-95 transition-all"
           >
-            <Plus className="w-4 h-4 text-white" />
+            <Plus className="w-4 h-4 text-slate-950" />
             <span>วิเคราะห์สินค้าแรกของคุณ</span>
           </button>
         </div>
@@ -5966,7 +5977,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   onClick={() => setProductFilter(tab.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     productFilter === tab.id
-                      ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white shadow-sm'
+                      ? 'bg-[#25F4EE] text-slate-950 font-bold shadow-sm'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -6007,11 +6018,11 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       className={`p-3 rounded-xl border transition-all cursor-pointer group relative flex flex-col justify-between space-y-2.5 ${
                         isSelected
                           ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE] shadow-lg shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
-                          : 'bg-[#0B0F19] border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.03]'
+                          : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.18] hover:bg-white/[0.02]'
                       }`}
                     >
                       {/* Image Preview */}
-                      <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/60 border border-white/[0.06] flex items-center justify-center relative">
+                      <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/70 border border-white/[0.06] flex items-center justify-center relative">
                         {thumbSrc ? (
                           <img src={thumbSrc} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                         ) : (
@@ -6037,29 +6048,42 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         </button>
                       </div>
 
-                      {/* Info */}
-                      <div className="space-y-1">
-                        <div className={`text-xs font-bold truncate leading-tight ${isSelected ? 'text-white' : 'text-slate-200'}`}>
+                      {/* Info & Code Hierarchy */}
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {(p.product_code || p.code) && (
+                            <span className={`inline-flex items-center text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border leading-none ${
+                              isSelected
+                                ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/30'
+                                : 'bg-white/[0.04] text-slate-300 border-white/[0.08]'
+                            }`}>
+                              {p.product_code || p.code}
+                            </span>
+                          )}
+                          {p.price && (
+                            <span className="text-[11px] font-mono font-semibold text-amber-300/90 ml-auto">
+                              {p.price}
+                            </span>
+                          )}
+                        </div>
+                        <div className={`text-xs font-semibold line-clamp-2 leading-tight ${isSelected ? 'text-white' : 'text-slate-200'}`} title={p.name}>
                           {p.name}
                         </div>
-                        {p.price && (
-                          <div className="text-xs font-mono font-bold text-amber-400">
-                            {p.price}
-                          </div>
-                        )}
                       </div>
 
                       {/* Progress Bar & Angle Count */}
                       <div className="space-y-1 pt-1 border-t border-white/[0.06]">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-400">สคริปต์</span>
-                          <span className="font-mono font-bold text-[#25F4EE]">
+                          <span className={`font-mono font-bold ${pct === 100 ? 'text-emerald-400' : 'text-[#25F4EE]'}`}>
                             {pDone}/{total} มุม
                           </span>
                         </div>
-                        <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-1 bg-slate-800/80 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] rounded-full"
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              pct === 100 ? 'bg-emerald-400' : 'bg-[#25F4EE]'
+                            }`}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -6186,10 +6210,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     setPreviewExportAngle(null);
                     handleOpenInTimeline(ang, openAngleIdx >= 0 ? openAngleIdx : 0);
                   }}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/15 active:scale-95 transition-all"
                   title="เปิดดูในไทม์ไลน์"
                 >
-                  <Play className="w-3.5 h-3.5 fill-white text-white" />
+                  <Play className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
                   <span>เปิดดูในไทม์ไลน์</span>
                 </button>
               )}
@@ -6313,7 +6337,6 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 variant="primary"
                 onClick={handleSaveTiktokId}
                 disabled={savingTiktokId || resolvingTiktokId}
-                className="bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white font-bold"
               >
                 {savingTiktokId ? (
                   <span className="flex items-center gap-1.5">
@@ -6512,7 +6535,6 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               variant="primary"
               onClick={handleGenerateBatch}
               disabled={isGeneratingBatch}
-              className="bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white font-bold"
             >
               {isGeneratingBatch ? (
                 <span className="flex items-center gap-1.5">

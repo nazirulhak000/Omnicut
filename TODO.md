@@ -4,6 +4,34 @@
 
 ## รอบปัจจุบัน
 
+- [ ] Round ANTIGRAVITY-UNSLOP-PHASE04-EDITOR-PILOT-20261108 · ดำเนินการ Phase 04 (Editor Pilot: ปรับห้องตัดต่อเป็นหน้าต้นแบบ) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
+  - [ ] Task 1: ปรับ layout ของ EditorHeader, AssetPanel, Inspector, และ Timeline ให้คลีนระดับ Obsidian Pro Dark NLE
+  - [ ] Task 2: ให้ความสำคัญกับ Preview 9:16 Canvas โดดเด่น ลดทอนพื้นที่ของ Chrome และ Card Shadows
+  - [ ] Task 3: คงสัญญาระบบ Video Render Contract 100% (ห้ามแตะ SequencePlayer logic, subtitle_engine, fonts, coordinates, FFmpeg pipeline)
+  - [ ] Task 4: ตรวจสอบ unit tests และ build ผ่าน 100%
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE05-PRODUCT-SCRIPT-20261108 · ดำเนินการ Phase 05 (Product & Script Angles) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
+  - [x] Task 1: ปรับแต่ง ProductToClip.jsx ให้เข้าสู่ธีม Obsidian Pro Dark NLE (#0A0D14, border-white/[0.08]) ทั้ง ProductCard, Catalog Grid, AngleSidebar, และ Active Workbench
+  - [x] Task 2: จัดระเบียบการ์ดเลือกสินค้า (Product Selector Carousel & Grid) ให้ Hierarchy ของรูปภาพ, รหัสสินค้า (product_code เช่น BLU01, TTZ01), ชื่อสินค้า 2 บรรทัด, และ Functional Progress Bar คมชัดสบายตา
+  - [x] Task 3: ปรับแต่ง Angle List & Script Review ลดความฉูดฉาดของ ContentTypeBadges (ใช้โทนสุขุม professional), ถอน animate-ping ออกจาก PhaseDots, และจัดระเบียบข้อมูล Hook Header
+  - [x] Task 4: ปรับปุ่ม Action (สร้างคลิป/ดราฟต์ 1-Click, ดูสคริปต์, เปิดในไทม์ไลน์) ให้ใช้ Functional Colors (#25F4EE, emerald-500, amber-500) ขจัด multi-color gradient slop
+  - [x] Task 5: เพิ่มชุดทดสอบใน productToClipContract.test.js ผ่าน unit tests 1,213/1,213 tests (100%) และ Vite build ผ่านสมบูรณ์ (0 errors)
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE06-TRACKER-GALLERY-20261108 · ดำเนินการ Phase 06 (Tracker, Gallery & Export) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
+  - [x] Task 1: ปรับแต่ง ContentTrackerHub.jsx แทร็กเกอร์ 4 เฟส ให้การ์ดสถานะ Pipeline (สคริปต์พร้อม, กำลังตัดต่อ, ตัดต่อเสร็จ/ตรวจ QC, โพสต์แล้ว) สะอาดตาในธีม Obsidian Pro Dark NLE (`#0A0D14`, `border-white/[0.08]`)
+  - [x] Task 2: ปรับแต่ง ExportGallery.jsx จัดแสดงคลังคลิป 9:16 ที่พร้อมโพสต์อย่างเป็นระเบียบ ทั้งโหมด Grid และ Split Studio Workbench ลบ ambient glow auras
+  - [x] Task 3: ตรวจสอบ QC Status, หน้าปก Cover 9:16, แคปชัน และปุ่ม Handoff ไปยังมือถือ / TikTok Helper ให้ชัดเจน เข้าถึงง่าย รวดเร็ว
+  - [x] Task 4: ตรวจสอบ unit tests (1,212/1,212 tests ผ่าน 100%) และ Vite build ผ่านสมบูรณ์ (0 errors)
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-UNSLOP-PHASE07-ASSETS-ANALYTICS-20261108 · ดำเนินการ Phase 07 (Assets & Analytics) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
+  - [x] Task 1: ปรับแต่ง MediaAssetsHub.jsx จัดระเบียบแท็บฟอนต์, เสียง AI (Gemini Flash Cast: Fenrir, Aoede, Puck), BGM, SFX และป้าย 3D Badges สู่ Obsidian Pro Dark NLE พร้อมลบ visual slop
+  - [x] Task 2: ปรับแต่ง AnalyticsHub.jsx เชื่อม PageHeader และอัปเกรด MetricKpiCard ให้แสดงข้อมูล KPI, Funnel, โทเคน AI และพื้นที่ดิสก์อย่างคมชัด สบายตา ชาร์ตอ่านได้ชัดเจน
+  - [x] Task 3: เพิ่ม assetsAndAnalyticsContract.test.js, ตรวจสอบ unit tests (1,212/1,212 tests ผ่าน 100%) และ Vite build สำเร็จ (0 errors)
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
 - [x] Round ANTIGRAVITY-TRIM-TTS-TAIL-GARBAGE-NOISE-20261108 · จัดการตัดเสียงขยะ/เสียงแตก/เสียงกระชาก (EOF digital noise spike & clipping burst) ท้ายคลิปเสียงพากย์ TTS ทั้งระบบ: พัฒนา `trim_silence_and_tail_artifacts_wav` ใน `scripts/gemini_tts_engine.py` สกัด buffer glitch และ noise spike ที่ตามหลังช่วงเงียบ พร้อม smooth 15ms linear fade-out ป้องกันเสียงป๊อกคลิก, ทำความสะอาดไฟล์เสียง `voiceover.wav` ใน `03_Projects/_ShotLists/` โดยเฉพาะ ESS04 (`431165f167284094959bdf0f0e806899`) ทุกมุม (tail_max ลดจาก 32,752 เหลือ 19-212, last sample = 0), ผ่านชุดทดสอบ 33/33 tests 100% · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-UNSLOP-PHASE03-SHELL-NAV-20261108 · ดำเนินการ Phase 03 (Shell, Navigation & Header) ตามแผนรันบุ๊ก PLAN_OMNICUT_UNSLOP_PHASE_RUNBOOK_20261108.md:
