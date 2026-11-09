@@ -57,6 +57,8 @@ def test_secondary_gallery_preview_download_cover_and_qr_keep_channel(motion_fix
             except AssertionError:
                 raise AssertionError({"errors": errors, "body": page.locator("body").inner_text()[:3000]})
             gallery.click()
+            # "ดูรายละเอียด" lives in the card More Actions dropdown.
+            page.get_by_title("เมนูเพิ่มเติม (More Actions)", exact=True).first.click()
             page.get_by_role("button", name="ดูรายละเอียด", exact=True).click()
             dialog = page.get_by_role("dialog").filter(has=page.get_by_role("heading", name="Fixture hook", exact=True))
             expect(dialog.locator("video")).to_have_count(1)
