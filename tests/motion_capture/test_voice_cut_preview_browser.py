@@ -41,6 +41,7 @@ CUTS = [
     {"id": "cut-b", "start": 10.0, "end": 11.0, "reason": "manual"},
 ]
 FADE = 0.008
+MASTER_DECLICK = 0.012  # SequencePlayer startStems(): master gain 0 -> 1 on play
 CLIP_SECONDS = 4.0
 CLIP_COPIES = 9  # 36 s of picture: longer than the 32.5 s cut voice
 
@@ -68,6 +69,18 @@ PROBE = r"""
     node.stop = (...args) => { rec.stopped = true; return stop(...args); };
     return node;
   };
+  // The playback loop is SequencePlayer's `tick` rAF callback: it reads the
+  // audio clock once at its start, paints, then publishes that time. Record
+  // the context time each tick started at, so the shown playhead can be
+  // compared with the clock reading it was derived from rather than with
+  // "now" (which adds the tick's own paint time -- 30-100 ms in headless
+  // software rendering -- and is not clock drift).
+  probe.tickCtx = null;
+  const raf = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = (cb) => raf((ts) => {
+    if (cb && cb.name === 'tick' && probe.ctx) probe.tickCtx = probe.ctx.currentTime;
+    return cb(ts);
+  });
   ['setValueAtTime', 'linearRampToValueAtTime'].forEach((name) => {
     const orig = AudioParam.prototype[name];
     AudioParam.prototype[name] = function (value, time) {
@@ -192,21 +205,50 @@ def _voice_sources(state):
     return [s for s in state["sources"] if s["bufferDuration"] and abs(s["bufferDuration"] - VOICE_SECONDS) < 0.01]
 
 
-def _sync_offset(page, samples: int = 24) -> float:
-    """Smallest (audio-clock program time - shown playhead) over a burst of samples.
+SYNC_SAMPLER = r"""
+(windowMs) => new Promise((resolve) => {
+  // The shown playhead is the editor clock text (rounded to 30 fps frames),
+  // refreshed once per playback tick -- ~10-15 fps in headless Chromium on
+  // this page, each tick painting for tens of ms before it publishes. Polling
+  // "now" at fixed intervals therefore measured readout age plus paint time
+  // (0.05-0.13 s on a loaded machine), not clock sync. Sample at the first
+  // macrotask after the text changes and compare it with the audio program
+  // time at the clock reading the publishing tick started from (tickCtx).
+  const probe = window.__voiceProbe;
+  const voice = probe.sources.find((s) => s.started && !s.stopped
+    && s.bufferDuration && Math.abs(s.bufferDuration - %VOICE_SECONDS%) < 0.01);
+  const offsets = [];
+  let last = window.__voiceState().playhead;
+  const end = performance.now() + windowMs;
+  const channel = new MessageChannel();
+  channel.port1.onmessage = () => {
+    const state = window.__voiceState();
+    if (state.playhead !== last && probe.tickCtx !== null) {
+      last = state.playhead;
+      // first kept range starts at source 0 = program 0
+      offsets.push(voice.offset + (probe.tickCtx - voice.when) - state.playhead);
+    }
+    if (performance.now() < end) channel.port2.postMessage(0);
+    else resolve(offsets);
+  };
+  channel.port2.postMessage(0);
+})
+""".replace("%VOICE_SECONDS%", str(VOICE_SECONDS))
 
-    The shown playhead is published at most every 33 ms, so a single sample can
-    lag by up to a frame; the minimum over a burst is the true offset.
+
+def _sync_offset(page, window_ms: int = 1500) -> float:
+    """Median (audio program time at the tick's clock read - shown playhead).
+
+    A sample normally differs from the true offset only by the readout's
+    rounding to a 30 fps frame (+-1/60 s). On a starved main thread React can
+    commit the readout after the NEXT tick has already started, so a sample is
+    occasionally one tick interval (~0.1-0.2 s) off; the median ignores those.
+    Kept short: the pause below must land before the 36 s picture ends, or the
+    click restarts playback.
     """
-    offsets = []
-    for _ in range(samples):
-        state = _state(page)
-        first = _voice_sources(state)[0]
-        t0 = first["offset"]  # first kept range starts at source 0 = program 0
-        audio_program = t0 + (state["ctxTime"] - first["when"])
-        offsets.append(audio_program - state["playhead"])
-        page.wait_for_timeout(17)
-    return min(offsets, key=abs)
+    offsets = sorted(page.evaluate(SYNC_SAMPLER, window_ms))
+    assert len(offsets) >= 5, f"the playhead readout barely moved: {offsets}"
+    return offsets[len(offsets) // 2]
 
 
 def test_voice_cuts_schedule_kept_ranges_on_the_audio_clock(motion_fixture_url):
@@ -280,8 +322,15 @@ def test_voice_cuts_schedule_kept_ranges_on_the_audio_clock(motion_fixture_url):
                 assert _state(page)["playhead"] > 30
 
                 # Pause stops every scheduled voice node.
+                # A fixed 200 ms was shorter than one busy headless tick on a
+                # loaded machine; wait for the pause to land (bounded) instead.
                 _pause_button(page).click()
-                page.wait_for_timeout(200)
+                page.wait_for_function(
+                    f"""() => window.__voiceState().sources
+                      .filter((s) => s.bufferDuration && Math.abs(s.bufferDuration - {VOICE_SECONDS}) < 0.01)
+                      .every((s) => s.stopped)""",
+                    timeout=5000,
+                )
                 assert all(n["stopped"] for n in _voice_sources(_state(page)))
                 assert page_errors == []
             finally:
@@ -310,7 +359,18 @@ def test_no_cuts_keeps_the_audio_element_path(motion_fixture_url):
                 state = _state(page)
                 assert state["audioPaused"] is False
                 assert _voice_sources(state) == [], "no AudioBufferSourceNode may carry the voice without cuts"
-                assert not [p for p in state["params"] if p["name"] == "linearRampToValueAtTime"]
+                # startStems() fades the MASTER bus in over 12 ms on every play
+                # (de-click, setValueAtTime(0, now) -> ramp(1, now + 0.012));
+                # that is not a voice-cut edge. Any other ramp -- the 8 ms cut
+                # fades in particular -- must not exist without cuts.
+                params = state["params"]
+                declick = {
+                    round(p["time"] + MASTER_DECLICK, 6) for p in params
+                    if p["name"] == "setValueAtTime" and p["value"] == 0
+                }
+                ramps = [p for p in params if p["name"] == "linearRampToValueAtTime"
+                         and not (p["value"] == 1 and round(p["time"], 6) in declick)]
+                assert not ramps, ramps
                 _pause_button(page).click()
                 assert page_errors == []
             finally:
