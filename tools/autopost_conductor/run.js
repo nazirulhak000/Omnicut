@@ -55,7 +55,7 @@ async function ensureChrome({ port, noLaunch }) {
   const child = spawn(CHROME_EXE, [
     `--remote-debugging-port=${port}`, `--user-data-dir=${PROFILE_DIR}`,
     '--no-first-run', '--no-default-browser-check', '--lang=th-TH', '--window-size=1280,1000',
-    '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling',
+    '--disable-session-crashed-bubble', '--hide-crash-restore-bubble', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling',
     UPLOAD_URL,
   ], { detached: true, stdio: 'ignore' });
   child.unref();

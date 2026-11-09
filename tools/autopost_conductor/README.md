@@ -29,6 +29,11 @@ If it lands on the login page, **log in by hand once** in that window, then run 
 (`Extensions.loadUnpacked`, needs `--enable-unsafe-extension-debugging`), opens the real `sidepanel.html`, sets the API key,
 filters the list to ONE queue clip and presses the real batch button. The final post click is stubbed (nothing is published)
 unless you pass `--real-post`. `--kill-worker-at=30` stops the MV3 service worker 30 s into the run.
+Other modes: `--clips=5` (5 clips in a row, live progress printed) · `--verify-probe` (Content-page check against clips that were
+really scheduled + one that was not) · `--leave-probe` (reset a page that has a real beforeunload handler: must not hang).
+The extension is always loaded from a FRESH COPY (`.tmp/e2e_ext/`): Chrome caches the service-worker script per extension id +
+manifest version, so reloading the same path can silently run OLD worker code. **In your own Chrome, reload the extension at
+`chrome://extensions` after updating it (the manifest version is bumped for exactly this reason).**
 Evidence: `.tmp/extension_e2e/<run>/` (`panel_log.txt`, `panel.png`, `upload_tab.png`).
 
 ## Safety rules (built in)

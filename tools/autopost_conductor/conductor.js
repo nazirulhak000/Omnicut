@@ -1,11 +1,11 @@
 'use strict';
+// One source of truth shared with the extension (price rule, Content-page row matching).
+const { PRICE_RE, rowMatchesClip } = require('../../tiktok_autopost_extension/post_guard.js');
 // Sequential, unattended TikTok posting. One clip at a time, per channel.
 // All TikTok DOM work is delegated to the verified extension worker through
 // `worker.send(action)`; this module owns ordering, safety stops and results.
 
 const FATAL_RE = /captcha|verify it'?s you|ยืนยันตัวตน|account_handle_mismatch|source_account_required|posting_receipt_unsent|posting_instance_busy|login_required|\b401\b/i;
-// Channel rule: never publish price / discount text (breaks TikTok rules).
-const PRICE_RE = /฿|\bTHB\b|\d[\d,]*\s*บาท|ราคา|ลดราคา|ส่วนลด|ลด\s*\d+\s*%|\d+\s*%\s*off|\$\s*\d/i;
 const MIN_LEAD_MS = 15 * 60 * 1000;
 const READY_STATUSES = ['planned', 'ready_for_extension'];
 
@@ -98,28 +98,6 @@ function expectOk(reply, what) {
     throw new Error(reply?.error || reply?.reason || `${what} ไม่สำเร็จ`);
   }
   return reply;
-}
-
-const alnum = text => String(text || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
-
-// Does one Content-page row (its visible text) belong to this clip? Needs the caption
-// start; a scheduled clip must also show its day number and time (12h or 24h).
-function rowMatchesClip(rowText, clip) {
-  const row = alnum(rowText);
-  const key = alnum(clip.caption).slice(0, 20);
-  if (key.length < 8 || !row.includes(key)) return { ok: false, reason: 'caption_not_found' };
-  if (clip.schedule_date && clip.schedule_time) {
-    const [hh, mm] = clip.schedule_time.split(':').map(Number);
-    const h12 = hh % 12 === 0 ? 12 : hh % 12;
-    const time12 = `${h12}:${String(mm).padStart(2, '0')}${hh >= 12 ? 'pm' : 'am'}`;
-    const time24 = clip.schedule_time;
-    const flat = String(rowText).toLowerCase().replace(/\s+/g, '');
-    const day = Number(clip.schedule_date.slice(8, 10));
-    const hasTime = flat.includes(time12) || flat.includes(time24);
-    const hasDay = new RegExp(`(^|[^0-9])${day}([^0-9]|$)`).test(String(rowText).replace(/\d{1,2}:\d{2}/g, ' '));
-    if (!hasTime || !hasDay) return { ok: false, reason: 'schedule_badge_mismatch' };
-  }
-  return { ok: true };
 }
 
 function shouldReconcile(outcome, result) {

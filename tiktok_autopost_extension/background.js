@@ -34,7 +34,7 @@
 
 // its own tab and deleted -- one UI surface instead of two).
 
-importScripts('automation.js', 'auth_key.js');
+importScripts('automation.js', 'auth_key.js', 'post_guard.js');
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
 
@@ -3466,6 +3466,55 @@ async function dismissDiscardDialogIfPresent(send, timeoutMs = 300) {
 
 }
 
+// Leaving a half-filled upload form makes Chrome ask "Leave site?" with its OWN dialog. In current
+// Chrome (verified on 156) that prompt is not reported to the debugger, so no extension script can
+// click it and the navigation just hangs until a human answers. The prompt must never be raised:
+// Chrome shows it only when a beforeunload handler calls preventDefault() or sets returnValue on the
+// BeforeUnloadEvent, so before leaving we make exactly those two operations inert for that event
+// (everything else on the page keeps working), then navigate normally. Adding a capture listener
+// that stops the page's handlers does NOT work -- tried on the real page, the prompt still appears.
+const NEUTRALIZE_LEAVE_PROMPT = `(() => {
+  try {
+    const original = Event.prototype.preventDefault;
+    Event.prototype.preventDefault = function () {
+      if (typeof BeforeUnloadEvent !== 'undefined' && this instanceof BeforeUnloadEvent) return;
+      return original.apply(this, arguments);
+    };
+  } catch (e) {}
+  try { Object.defineProperty(BeforeUnloadEvent.prototype, 'returnValue', { configurable: true, get() { return ''; }, set(v) {} }); } catch (e) {}
+  try { Object.defineProperty(window, 'onbeforeunload', { configurable: true, get() { return null; }, set(v) {} }); } catch (e) {}
+  return true;
+})()`;
+
+function withTimeout(promise, ms, label = 'timeout') {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(label)), ms); }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+async function navigateAcceptingLeave(tabId, url) {
+  let attachedHere = false;
+  let neutralized = false;
+  try {
+    try {
+      await chrome.debugger.attach({ tabId }, '1.3');
+      attachedHere = true;
+    } catch (e) {
+      if (!/already attached/i.test(String(e?.message || e))) throw e;
+    }
+    await withTimeout(chrome.debugger.sendCommand({ tabId }, 'Runtime.evaluate', { expression: NEUTRALIZE_LEAVE_PROMPT, returnByValue: true }), 5000, 'neutralize_timeout');
+    neutralized = true;
+  } catch (e) {
+    // Could not attach (DevTools open, tab gone, page hung): navigate anyway; a person may have to confirm.
+  } finally {
+    if (attachedHere) { try { await chrome.debugger.detach({ tabId }); } catch (_) {} }
+  }
+  try { await chrome.tabs.update(tabId, { url }); } catch (_) { return false; }
+  return neutralized;
+}
+
 async function cleanResetUploadTab() {
 
   const tab = await findUploadTab();
@@ -3474,7 +3523,8 @@ async function cleanResetUploadTab() {
 
     try {
 
-      await chrome.tabs.update(tab.id, { url: 'https://www.tiktok.com/tiktokstudio/upload', active: true });
+      await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/upload');
+      try { await chrome.tabs.update(tab.id, { active: true }); } catch (_) {}
 
       await sleep(2500);
 
@@ -4881,6 +4931,47 @@ async function runPrepareDetails(message) {
 
 }
 
+// Second, independent proof that a post is really on TikTok: open Studio > Content (reloading while the
+// list lags behind the success toast) and find the row with this clip's caption and, for a scheduled
+// post, its day and time. Returns {verified, reason}; always leaves the tab on the upload page.
+async function runVerifyPostOnContent({caption = '', scheduleDate = '', scheduleTime = '', attempts = 6} = {}) {
+  const tab = await findUploadTab();
+  const send = cdp(tab.id);
+  const clip = {caption, schedule_date: scheduleDate || '', schedule_time: scheduleTime || ''};
+  let verdict = {ok: false, reason: 'row_not_found'};
+  try {
+    for (let attempt = 0; attempt < attempts && !verdict.ok; attempt += 1) {
+      if (attempt) await sleep(8000);
+      await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/content');
+      await sleep(6000);
+      let text = '';
+      await chrome.debugger.attach({tabId: tab.id}, '1.3');
+      try {
+        await send('Runtime.enable');
+        for (let i = 0; i < 8; i += 1) {
+          const out = await send('Runtime.evaluate', {expression: 'document.body ? document.body.innerText : ""', returnByValue: true});
+          text = out?.result?.value || '';
+          if (/\d{2}:\d{2}\n/.test(text)) break;
+          await sleep(1500);
+        }
+      } finally {
+        try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+      }
+      // Each post row starts with its video duration (mm:ss) on its own line.
+      const rows = String(text).split(/\n(?=\d{2}:\d{2}\n)/).slice(0, 15);
+      verdict = {ok: false, reason: 'row_not_found'};
+      for (const row of rows) {
+        const result = OmniPostGuard.rowMatchesClip(row, clip);
+        if (result.ok) { verdict = result; break; }
+        if (result.reason === 'schedule_badge_mismatch') verdict = result;
+      }
+    }
+  } finally {
+    try { await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/upload'); await sleep(2500); } catch (e) {}
+  }
+  return {success: true, verified: verdict.ok, reason: verdict.ok ? '' : verdict.reason};
+}
+
 // Cancels the "Edit cover" modal and confirms TikTok's "Discard this edit?" prompt.
 // Returns true when no Edit cover dialog is left on the page.
 async function runDismissCoverModal() {
@@ -5072,6 +5163,7 @@ const actions = {
   'click-post-only': () => runClickPostOnly(),
 
   'upload-cover-only': message => runUploadCoverOnly(message),
+  'verify-post-content': message => runVerifyPostOnContent(message),
 
   'prepare-details': message => runPrepareDetails(message),
 

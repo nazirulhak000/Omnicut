@@ -51,6 +51,7 @@ function createChromeShim({ port, storageFile, secrets = {}, WebSocketImpl = glo
   let nextTabId = 1;
   const sessions = new Map();
   const detachListeners = [];
+  const eventListeners = [];
   const messageListeners = [];
 
   const tabFor = (target, active = false) => {
@@ -77,6 +78,7 @@ function createChromeShim({ port, storageFile, secrets = {}, WebSocketImpl = glo
       ws.addEventListener('error', () => reject(new Error('Cannot attach to the target tab')));
       ws.addEventListener('message', event => {
         const msg = JSON.parse(typeof event.data === 'string' ? event.data : String(event.data));
+        if (!msg.id && msg.method && session.onEvent) { session.onEvent(msg.method, msg.params || {}); return; }
         const waiter = msg.id && session.pending.get(msg.id);
         if (!waiter) return;
         session.pending.delete(msg.id);
@@ -163,6 +165,7 @@ function createChromeShim({ port, storageFile, secrets = {}, WebSocketImpl = glo
     async attach({ tabId }) {
       if (sessions.has(tabId)) throw new Error(`Another debugger is already attached to the tab with id: ${tabId}.`);
       const session = await openSession(await targetOf(tabId));
+      session.onEvent = (method, params) => eventListeners.slice().forEach(fn => fn({ tabId }, method, params));
       session.onClose = () => {
         if (sessions.get(tabId) !== session) return;
         sessions.delete(tabId);
@@ -184,6 +187,10 @@ function createChromeShim({ port, storageFile, secrets = {}, WebSocketImpl = glo
     },
     // Only the newest worker is live: a replaced (zombie) worker must not keep answering.
     onDetach: { addListener: fn => { detachListeners.length = 0; detachListeners.push(fn); } },
+    onEvent: {
+      addListener: fn => { eventListeners.push(fn); },
+      removeListener: fn => { const i = eventListeners.indexOf(fn); if (i >= 0) eventListeners.splice(i, 1); },
+    },
   };
 
   const runtime = {

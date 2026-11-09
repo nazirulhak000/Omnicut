@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OmniCut TikTok Post Helper",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "ระบบช่วยกรอกไฟล์วิดีโอ ปก และแคปชั่นลงหน้า TikTok Studio อัตโนมัติในคลิกเดียว สำหรับ OmniCut Pro Studio",
   "icons": {
     "16": "icons/icon16.png",

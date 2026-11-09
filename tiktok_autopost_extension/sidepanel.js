@@ -719,6 +719,8 @@ const previewVideoPlayer = document.getElementById('previewVideoPlayer');
 const previewSelectBtn = document.getElementById('previewSelectBtn');
 
 let allClips = [];
+// export_id -> /api/exports row (null when the registry could not be read)
+let exportRecordIndex = null;
 
 function updateCaptionCounter() {
 
@@ -1261,6 +1263,7 @@ async function loadExports() {
     const data = await res.json();
 
     items = Array.isArray(data) ? data : (data.exports || data.items || []);
+    exportRecordIndex = new Map(items.map((e) => [e.export_id || e.id, e]));
 
     updateHeaderBackendStatus('online');
 
@@ -2748,13 +2751,30 @@ function appendBatchLog(msg, kind = 'info') {
 
 }
 
+// Drops clips that must not be posted unattended (stale/posted/QC-rejected export, price text in the
+// caption, a schedule slot that already passed) and reports why, so nothing is skipped silently.
+function guardBatchClips(clips) {
+  const guard = globalThis.OmniPostGuard;
+  if (!guard) return { kept: clips, skipped: [] };
+  const kept = [];
+  const skipped = [];
+  const now = Date.now();
+  for (const clip of clips) {
+    const record = exportRecordIndex ? exportRecordIndex.get(clip.export_id) : undefined;
+    const reason = guard.clipSkipReason(clip, record, now, { exportsKnown: Boolean(exportRecordIndex) });
+    if (reason) skipped.push({ title: clip.hook_title || clip.name || clip.id, reason });
+    else kept.push(clip);
+  }
+  return { kept, skipped };
+}
+
 batchStartBtn?.addEventListener('click', async () => {
 
   if (busy) return;
 
   const query = clipSearchInput ? clipSearchInput.value.trim().toLowerCase() : '';
 
-  const targetClips = query
+  const searchedClips = query
 
     ? allClips.filter((c) =>
 
@@ -2767,6 +2787,8 @@ batchStartBtn?.addEventListener('click', async () => {
       )
 
     : allClips;
+
+  const { kept: targetClips, skipped: guardSkipped } = guardBatchClips(searchedClips);
 
   if (!targetClips.length) {
 
@@ -2812,6 +2834,8 @@ batchStartBtn?.addEventListener('click', async () => {
   startKeepAlive();
 
   const selectedMode = batchModeSelect?.value || 'smart';
+  guardSkipped.forEach((item) => appendBatchLog(`ข้ามคลิป "${item.title}": ${item.reason}`, 'warn'));
+  if (guardSkipped.length) appendBatchLog(`ข้ามทั้งหมด ${guardSkipped.length} คลิปที่ยังไม่ควรโพสต์อัตโนมัติ (เหตุผลข้างบน)`, 'warn');
 
   const batchActions = {
     prepareClip: async (clip, mode) => {
@@ -2987,6 +3011,26 @@ batchStartBtn?.addEventListener('click', async () => {
       return outcome || { success: true };
     },
 
+    // Second proof, independent of the success toast: the clip must be listed on Studio > Content.
+    verifySuccessToast: async (clip, _mode, submitResult) => {
+      if (!['published', 'scheduled_on_platform'].includes(submitResult?.outcome)) return submitResult;
+      const scheduled = submitResult.outcome === 'scheduled_on_platform';
+      const caption = globalThis.OmniPostGuard?.clipCaptionText(clip).caption || '';
+      let verdict;
+      try {
+        verdict = await panelWorkerRequest({
+          action: 'verify-post-content',
+          caption,
+          scheduleDate: scheduled ? (clip.schedule_date || '') : '',
+          scheduleTime: scheduled ? (clip.schedule_time || '') : '',
+        });
+      } catch (err) {
+        verdict = { verified: false, reason: err.message };
+      }
+      if (verdict?.verified) return { ...submitResult, verified: true };
+      appendBatchLog(`ตรวจหน้า Content แล้วไม่ยืนยัน (${verdict?.reason || 'ไม่ทราบสาเหตุ'}) — ถือว่ายังไม่แน่ใจ`, 'warn');
+      return { ...submitResult, outcome: 'confirmation_unknown', verified: false, verifyReason: verdict?.reason };
+    },
     checkQuota: async () => {
       try {
         await checkTikTokQuota(true);

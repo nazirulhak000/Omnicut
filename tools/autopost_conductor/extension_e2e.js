@@ -32,7 +32,7 @@ async function launchChrome() {
     `--remote-debugging-port=${PORT}`, `--user-data-dir=${PROFILE_DIR}`,
     '--enable-unsafe-extension-debugging', '--no-first-run', '--no-default-browser-check',
     '--lang=th-TH', '--window-size=1440,960',
-    '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling',
+    '--disable-session-crashed-bubble', '--hide-crash-restore-bubble', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling',
     UPLOAD_URL,
   ], { detached: true, stdio: 'ignore' });
   child.unref();
@@ -60,8 +60,8 @@ class Cdp {
       this.ws.send(JSON.stringify({ id, method, params }));
     });
   }
-  async eval(expression, awaitPromise = true) {
-    const r = await this.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise });
+  async eval(expression, awaitPromise = true, timeout = 60000) {
+    const r = await this.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise }, timeout);
     if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
     return r.result?.value;
   }
@@ -73,11 +73,24 @@ async function browser() {
   return new Cdp(v.webSocketDebuggerUrl).open();
 }
 
+// Chrome keeps the extension's service-worker script in the profile cache keyed by extension id +
+// manifest version, so loading the SAME path again can silently run OLD worker code (seen: new
+// functions missing from the live worker). Load a fresh copy from a new path => new id => no cache.
+function freshExtensionCopy() {
+  const root = path.join(ROOT, '.tmp', 'e2e_ext');
+  fs.mkdirSync(root, { recursive: true });
+  for (const old of fs.readdirSync(root)) fs.rmSync(path.join(root, old), { recursive: true, force: true });
+  const dest = path.join(root, `run_${Date.now()}`);
+  fs.cpSync(EXT_DIR, dest, { recursive: true });
+  return dest;
+}
+
 async function loadExtension() {
+  const extPath = freshExtensionCopy();
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const b = await browser();
     try {
-      const { id } = await b.call('Extensions.loadUnpacked', { path: EXT_DIR });
+      const { id } = await b.call('Extensions.loadUnpacked', { path: extPath });
       b.close();
       return id;
     } catch (error) {
@@ -104,6 +117,9 @@ async function pageTarget(urlPrefix) {
 
 async function main() {
   const realPost = process.argv.includes('--real-post');
+  const verifyProbe = process.argv.includes('--verify-probe');
+  const leaveProbe = process.argv.includes('--leave-probe');
+  const clipCount = Number((process.argv.find(a => a.startsWith('--clips=')) || '').split('=')[1]) || 1;
   const apiKey = readApiKey();
   const api = createApi({ apiKey, channelId: 'main' });
   const outDir = path.join(ROOT, '.tmp', 'extension_e2e', new Date().toISOString().replace(/[:.]/g, '-'));
@@ -112,12 +128,18 @@ async function main() {
   const step = (name, detail = '') => { console.log(`[step] ${name} ${detail}`); report.steps.push({ name, detail }); };
 
   // 1) pick ONE eligible clip so the panel's search filter leaves exactly one
-  const { clips } = await pickClips(api, { limit: 1 });
-  if (!clips.length) throw new Error('ไม่มีคลิปพร้อมโพสต์ในคิว (ตรวจเวลา/export)');
-  const clip = clips[0];
-  step('clip', clip.title);
+  const { clips } = await pickClips(api, { limit: clipCount });
+  if (!verifyProbe && !clips.length) throw new Error('ไม่มีคลิปพร้อมโพสต์ในคิว (ตรวจเวลา/export)');
+  const clip = clips[0] || { title: '' };
+  step('clips eligible', `${clips.length} (asked ${clipCount})`);
 
   // 2) Chrome + extension
+  // Always start from a fresh Chrome: loadUnpacked into a browser that already loaded this extension
+  // keeps the OLD background.js, which would silently test stale code.
+  if (!process.argv.includes('--keep-chrome')) {
+    killConductorChrome();
+    await sleep(2500);
+  }
   if (!(await portUp())) await launchChrome();
   const extId = await loadExtension();
   step('extension loaded', extId);
@@ -142,6 +164,82 @@ async function main() {
   step('panel open');
 
   try {
+    if (leaveProbe) {
+      // Chrome's own "Leave site?" prompt: give the page a real beforeunload handler plus user
+      // activation (as the automation's clicks do), then reset through the real worker action.
+      await tt.eval(`window.__marker = 'alive'; window.addEventListener('beforeunload', e => { e.preventDefault(); e.returnValue = 'x'; }); true`, false);
+      for (const type of ['mousePressed', 'mouseReleased']) await tt.call('Input.dispatchMouseEvent', { type, x: 300, y: 300, button: 'left', clickCount: 1 });
+      if (process.argv.includes('--manual')) {
+        // Same steps as the worker, one at a time, from an extension page: where does it go wrong?
+        const src = fs.readFileSync(path.join(EXT_DIR, 'background.js'), 'utf8');
+        const neutralizer = /const NEUTRALIZE_LEAVE_PROMPT = `([\s\S]*?)`;/.exec(src)[1];
+        const steps = await panel.eval(`(async () => {
+          const out = {};
+          const [tab] = await chrome.tabs.query({url: '*://www.tiktok.com/*'});
+          out.tabId = tab.id;
+          try { await chrome.debugger.attach({tabId: tab.id}, '1.3'); out.attach = 'ok'; } catch (e) { out.attach = String(e.message || e); }
+          try { out.evaluate = JSON.stringify(await chrome.debugger.sendCommand({tabId: tab.id}, 'Runtime.evaluate', {expression: ${JSON.stringify(neutralizer)}, returnByValue: true})); } catch (e) { out.evaluate = 'ERR ' + String(e.message || e); }
+          try { await chrome.debugger.detach({tabId: tab.id}); out.detach = 'ok'; } catch (e) { out.detach = String(e.message || e); }
+          try { await chrome.tabs.update(tab.id, {url: 'https://www.tiktok.com/tiktokstudio/upload?manual=' + Date.now()}); out.update = 'ok'; } catch (e) { out.update = 'ERR ' + String(e.message || e); }
+          return out; })()`, true, 30000).catch(e => ({ error: e.message }));
+        console.log('[leave] manual steps', JSON.stringify(steps));
+        await sleep(6000);
+        const tabs0 = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+        const page0 = tabs0.find(x => x.type === 'page' && /tiktok\.com/.test(x.url));
+        const alive0 = await new Cdp(page0.webSocketDebuggerUrl).open().then(c => c.eval('typeof window.__marker', false, 3000).finally(() => c.close())).catch(() => 'HUNG');
+        console.log(`[leave] manual result url=${page0.url.slice(0, 70)} marker=${alive0}`);
+        report.ok = alive0 === 'undefined';
+        console.log(report.ok ? '[E2E PASS] manual leave' : '[E2E FAIL] manual leave');
+        process.exitCode = report.ok ? 0 : 1;
+        return;
+      }
+      const t = Date.now();
+      const pending = panel.eval(`new Promise(r => chrome.runtime.sendMessage({action: 'reset-upload-page'}, r))`, true, 90000).catch(e => ({ error: e.message }));
+      // watch what the page does while the worker works (is it navigating, is it hung?)
+      let settled = false;
+      pending.then(() => { settled = true; });
+      for (let i = 0; i < 12 && !settled; i += 1) {
+        await sleep(3000);
+        const tabs = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+        const page = tabs.find(x => x.type === 'page' && /tiktok\.com/.test(x.url));
+        const alive = await new Cdp(page.webSocketDebuggerUrl).open().then(c => c.eval('typeof window.__marker + "|" + document.readyState', false, 2500).finally(() => c.close())).catch(() => 'HUNG');
+        console.log(`[leave] +${(i + 1) * 3}s url=${page.url.slice(0, 60)} state=${alive}`);
+      }
+      const reply = await pending;
+      const seconds = Math.round((Date.now() - t) / 1000);
+      const marker = await tt.eval('typeof window.__marker', false, 15000).catch(() => 'UNRESPONSIVE');
+      const ok = Boolean(reply?.success) && seconds < 45 && marker === 'undefined';
+      console.log(`[leave] reply=${JSON.stringify(reply)} ${seconds}s page-marker=${marker}`);
+      report.ok = ok;
+      console.log(ok ? '[E2E PASS] leave probe: รีเซ็ตหน้าที่มี beforeunload ได้เองไม่ค้าง' : '[E2E FAIL] leave probe: หน้ายังค้าง/ไม่ได้นำทาง');
+      process.exitCode = ok ? 0 : 1;
+      return;
+    }
+    if (verifyProbe) {
+      // Real Content-page verification against clips that were really scheduled (must be true),
+      // and against one that was never posted (must be false).
+      const q = await api.get('/api/schedule-queue');
+      const items = q.data.items || [];
+      const cases = [
+        ...items.filter(i => i.status === 'scheduled_on_platform').map(i => ({ i, expect: true })),
+        ...items.filter(i => i.status === 'planned').slice(0, 1).map(i => ({ i, expect: false })),
+      ];
+      let allGood = cases.length > 0;
+      for (const { i, expect } of cases) {
+        const at = String(i.scheduled_at || '');
+        const message = { action: 'verify-post-content', caption: i.caption || i.hook_title || '', scheduleDate: at.slice(0, 10), scheduleTime: (/T(\d{2}:\d{2})/.exec(at) || [])[1] || '' };
+        const t = Date.now();
+        const verdict = await panel.eval(`new Promise(r => chrome.runtime.sendMessage(${JSON.stringify(message)}, r))`, true, 6 * 60 * 1000);
+        const good = Boolean(verdict?.verified) === expect;
+        allGood = allGood && good;
+        console.log(`[verify] ${good ? 'OK ' : 'BAD'} expect=${expect} reply=${JSON.stringify(verdict)} (${Math.round((Date.now() - t) / 1000)}s) @ ${at}`);
+        step('verify probe', `${good ? 'ok' : 'BAD'} ${at}`);
+      }
+      report.ok = allGood;
+      console.log(allGood ? '[E2E PASS] verify probe: ตรวจหน้า Content ถูกทั้งคลิปที่โพสต์แล้วและคลิปที่ยังไม่โพสต์' : '[E2E FAIL] verify probe');
+      process.exitCode = allGood ? 0 : 1;
+      return;
+    }
     // 5) wait for the clip list, filter to the one clip, choose options
     let count = 0;
     for (let i = 0; i < 40 && count < 1; i += 1) {
@@ -153,9 +251,9 @@ async function main() {
     const title = clip.title.slice(0, 40);
     await panel.eval(`(() => {
       const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true})); };
-      set('clipSearchInput', ${JSON.stringify(title)});
+      ${clipCount === 1 ? `set('clipSearchInput', ${JSON.stringify(title)});` : ''}
       set('batchModeSelect', 'schedule_only');
-      set('batchLimitSelect', 'all');
+      set('batchLimitSelect', ${JSON.stringify(['5', '10', '20', '30'].includes(String(clipCount)) ? String(clipCount) : 'all')});
       const cf = document.getElementById('coverFallbackToggle'); if (cf && !cf.checked) cf.click();
       return true;
     })()`, false);
@@ -172,11 +270,16 @@ async function main() {
             setTimeout(() => cb && cb({ success: true, clicked: false, outcome: 'scheduled_on_platform', stubbed: true }), 300);
             return;
           }
+          // nothing was really posted, so the Content-page check would (rightly) fail: stub it too
+          if (message && message.action === 'verify-post-content') {
+            setTimeout(() => cb && cb({ success: true, verified: true, stubbed: true }), 300);
+            return;
+          }
           return original(message, cb);
         };
         window.__e2eStubbed = true;
       })()`, false);
-      step('post click stubbed');
+      step('post click + content verify stubbed');
     }
 
     // 6) press the REAL start button and confirm
@@ -205,9 +308,13 @@ async function main() {
     // 7) wait for the panel's own log to finish
     const t0 = Date.now();
     let log = '';
-    while (Date.now() - t0 < 15 * 60 * 1000) {
+    let printed = 0;
+    while (Date.now() - t0 < Math.max(15, clipCount * 6) * 60 * 1000) {
       await sleep(5000);
       log = await panel.eval(`document.getElementById('batchLogBox')?.innerText || ''`, false).catch(() => '');
+      // live progress: print each new panel log entry as it appears
+      const entries = log.split(/(?=\[\d\d:\d\d:\d\d\])/).map(x => x.trim()).filter(Boolean);
+      for (; printed < entries.length; printed += 1) console.log(`[panel] ${entries[printed].slice(0, 200)}`);
       if (/อัปโหลดครบชุด|สรุปผลลัพธ์|ระบบลูปหยุดทำงาน|หยุดลูป/.test(log)) break;
     }
     fs.writeFileSync(path.join(outDir, 'panel_log.txt'), log);
@@ -215,7 +322,9 @@ async function main() {
     const shot = await panel.call('Page.captureScreenshot', { format: 'png' });
     fs.writeFileSync(path.join(outDir, 'panel.png'), Buffer.from(shot.data, 'base64'));
     console.log('---- panel log ----\n' + log.split('\n').slice(-14).join('\n'));
-    report.ok = /สำเร็จ:/.test(log) && !/ล้มเหลวที่ขั้น/.test(log);
+    const doneCount = (log.match(/✅ \[/g) || []).length;
+    report.done = doneCount;
+    report.ok = doneCount === Math.min(clipCount, clips.length) && !/ล้มเหลวที่ขั้น|หยุดอัตโนมัติ/.test(log);
     report.log_tail = log.split('\n').slice(-14);
   } finally {
     // 8) leave nothing claimed behind

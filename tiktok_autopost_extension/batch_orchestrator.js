@@ -109,6 +109,8 @@
       autoSkipOnError = true,
       maxRetriesPerStage = 2,
       maxClipAttempts = 2,
+      maxConsecutiveFailures = 3,
+      maxConsecutiveUnknown = 2,
       retryDelayMs = 250,
       rng = Math.random,
     } = options;
@@ -119,6 +121,10 @@
     let currentIndex = 0;
     let successful = 0;
     let failed = 0;
+    let unknown = 0;
+    let consecutiveFailures = 0;
+    let consecutiveUnknown = 0;
+    let circuitReason = '';
     let scheduleUsed = currentScheduleCount;
     let draftUsed = currentDraftCount;
     let quotaInfo = null;
@@ -138,7 +144,7 @@
       const stageFraction = state === ORCHESTRATOR_STATES.LOOP_CYCLE
         ? (stageIdx / stageOrder.length)
         : 0;
-      const completedUnits = Math.min(total, successful + failed + stageFraction);
+      const completedUnits = Math.min(total, successful + failed + unknown + stageFraction);
       return Math.min(100, Math.round((completedUnits / total) * 100));
     }
 
@@ -161,7 +167,7 @@
 
     function getStats() {
       const total = batchClips.length;
-      const remainingClips = Math.max(0, total - (successful + failed));
+      const remainingClips = Math.max(0, total - (successful + failed + unknown));
       const estSecPerClip = 45 + (cooldownSeconds || 0);
       const etaSeconds = remainingClips * estSecPerClip;
 
@@ -174,9 +180,10 @@
         total,
         currentIndex,
         clipNumber: total > 0 ? Math.min(total, currentIndex + 1) : 0,
-        processed: successful + failed,
+        processed: successful + failed + unknown,
         successful,
         failed,
+        unknown,
         scheduleUsed,
         draftUsed,
         quotaInfo,
@@ -388,9 +395,19 @@
       } else {
         draftUsed += 1;
       }
-      successful += 1;
-      results.push({ clipId: clip.id, clipTitle, mode: targetMode, outcome: finalOutcome, success: true });
-      log(`✅ [${index + 1}/${total}] สำเร็จ: "${clipTitle}" (${finalOutcome})`, 'success');
+      consecutiveFailures = 0;
+      if (finalOutcome === 'confirmation_unknown') {
+        // The post may or may not be live: never count it as a success, never retry it.
+        unknown += 1;
+        consecutiveUnknown += 1;
+        results.push({ clipId: clip.id, clipTitle, mode: targetMode, outcome: finalOutcome, success: false, unknown: true });
+        log(`⚠️ [${index + 1}/${total}] ยืนยันผลไม่ได้: "${clipTitle}" — ตรวจที่ TikTok Studio > Content ก่อนส่งซ้ำ`, 'warn');
+      } else {
+        consecutiveUnknown = 0;
+        successful += 1;
+        results.push({ clipId: clip.id, clipTitle, mode: targetMode, outcome: finalOutcome, success: true });
+        log(`✅ [${index + 1}/${total}] สำเร็จ: "${clipTitle}" (${finalOutcome})`, 'success');
+      }
 
       // 10. CALCULATED_JITTER
       if (index + 1 < total) {
@@ -491,6 +508,10 @@
           const clip = batchClips[currentIndex];
           try {
             await executeSingleClipStages(clip, currentIndex);
+            if (consecutiveUnknown >= maxConsecutiveUnknown) {
+              circuitReason = `ยืนยันผลไม่ได้ติดกัน ${consecutiveUnknown} คลิป`;
+              break;
+            }
           } catch (err) {
             if (err?.code === 'BATCH_ABORTED' || err?.message === 'BATCH_ABORTED' || err?.message === 'BATCH_STOPPED') {
               break;
@@ -523,6 +544,12 @@
               throw err;
             }
 
+            consecutiveFailures += 1;
+            consecutiveUnknown = 0;
+            if (consecutiveFailures >= maxConsecutiveFailures) {
+              circuitReason = `ล้มเหลวติดกัน ${consecutiveFailures} คลิป`;
+              break;
+            }
             log(`⏭️ ข้ามไปทำคลิปถัดไปอัตโนมัติ (Resilient Auto-Skip)...`, 'warn');
             if (actions.resetUploadPage) {
               try { await actions.resetUploadPage(); } catch (_) {}
@@ -532,7 +559,10 @@
         }
 
         stage = null;
-        if (isAborted) {
+        if (circuitReason) {
+          setState(ORCHESTRATOR_STATES.ERROR);
+          log(`🛑 หยุดอัตโนมัติ: ${circuitReason} (สำเร็จ ${successful}, ล้มเหลว ${failed}, ยืนยันไม่ได้ ${unknown}) — ตรวจสาเหตุก่อนรันต่อ`, 'error');
+        } else if (isAborted) {
           setState(ORCHESTRATOR_STATES.ABORTED);
           log(`⏹️ หยุดลูปการอัปโหลดแล้ว (สำเร็จ ${successful}/${batchClips.length} คลิป)`, 'warn');
         } else {

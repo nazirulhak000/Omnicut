@@ -633,7 +633,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.3.2');
+  assert.equal(manifest.version, '0.3.3');
   assert.match(sideHtml, /id="buildTag"/);
   assert.match(sideJs, /getManifest/);
   // The strict domain banner must never come back: resolution is a loose
@@ -1138,4 +1138,77 @@ test('upload resets a leftover (non-fresh) page once and then finds the file inp
   assert.equal(res.resetFirst, true);
   assert.equal(resets, 1);
   assert.equal(setFiles, 1);
+});
+
+test('verify-post-content finds the row (after reload retries) and always returns to the upload page', async () => {
+  const nl = String.fromCharCode(10);
+  const rowText = ['00:35', 'เล่นเกมนานแค่ไหนเครื่องก็ไม่ร้อน HOYAUP พัดลมระบายความร้อน', 'Nov 10, 7:00 AM (GMT+7) Bangkok', 'Everyone'].join(nl) + nl;
+  const urls = [];
+  let evaluations = 0;
+  const ctx = worker({
+    tabs: {update: async (_id, props) => { urls.push(props.url); return {id: 7}; }, get: async () => ({id: 7, url: 'https://www.tiktok.com/tiktokstudio/upload'}), query: async () => []},
+    debugger: {
+      attach: async () => {}, detach: async () => {},
+      sendCommand: async (_t, method, params) => {
+        if (method !== 'Runtime.evaluate') return {};
+        if (/BeforeUnloadEvent/.test(params.expression)) return {result: {value: true}}; // prompt disarm, not a page read
+        evaluations += 1;
+        // first two page loads still show the old list, the third shows the new row
+        return {result: {value: evaluations < 3 ? ['00:25', 'อย่างอื่น', 'Pinned'].join(nl) + nl : rowText}};
+      },
+    },
+  });
+  ctx.findUploadTab = async () => ({id: 7, url: 'https://www.tiktok.com/tiktokstudio/upload'});
+  const found = await ctx.runVerifyPostOnContent({caption: 'เล่นเกมนานแค่ไหนเครื่องก็ไม่ร้อน HOYAUP พัดลม', scheduleDate: '2026-11-10', scheduleTime: '07:00'});
+  assert.equal(found.verified, true);
+  assert.equal(urls[urls.length - 1], 'https://www.tiktok.com/tiktokstudio/upload');
+  assert.ok(urls.filter(u => u.endsWith('/content')).length >= 3, 'reloaded until the list caught up');
+
+  evaluations = 0;
+  urls.length = 0;
+  const missing = await ctx.runVerifyPostOnContent({caption: 'คลิปที่ไม่เคยโพสต์เลยสักครั้ง', attempts: 2});
+  assert.equal(missing.verified, false);
+  assert.equal(missing.reason, 'row_not_found');
+  assert.equal(urls[urls.length - 1], 'https://www.tiktok.com/tiktokstudio/upload');
+});
+
+test('leaving the upload page first disarms its beforeunload prompt, then navigates normally', async () => {
+  const commands = [];
+  const urls = [];
+  let detached = 0;
+  // the worker harness fakes setTimeout as 'run now'; give withTimeout a real timer for this test
+  const realWithTimeout = (p, ms, label) => Promise.race([Promise.resolve(p), new Promise((_, rej) => setTimeout(() => rej(new Error(label || 'timeout')), ms))]);
+  const ctx = worker({
+    tabs: {update: async (_id, props) => { urls.push(props.url); return {id: 7}; }},
+    debugger: {
+      attach: async () => {}, detach: async () => { detached += 1; },
+      sendCommand: async (_target, method, params) => { commands.push([method, params && params.expression]); return {result: {value: true}}; },
+    },
+  });
+  ctx.withTimeout = realWithTimeout;
+  assert.equal(await ctx.navigateAcceptingLeave(7, 'https://www.tiktok.com/tiktokstudio/upload'), true);
+  const evaluate = commands.find(c => c[0] === 'Runtime.evaluate');
+  assert.ok(evaluate && /BeforeUnloadEvent/.test(evaluate[1]) && /preventDefault/.test(evaluate[1]) && /returnValue/.test(evaluate[1]), 'prompt disarmed before leaving');
+  assert.deepEqual(Array.from(urls), ['https://www.tiktok.com/tiktokstudio/upload']);
+  assert.equal(detached, 1);
+  assert.ok(!commands.some(c => c[0] === 'Page.navigate'), 'no hanging debugger navigation');
+
+  // debugger unavailable (DevTools open ...): still navigates, reports not-neutralized, never throws
+  const fallbackUrls = [];
+  const fallback = worker({
+    tabs: {update: async (_id, props) => { fallbackUrls.push(props.url); }},
+    debugger: {attach: async () => { throw new Error('Cannot attach to this target'); }, detach: async () => {}, sendCommand: async () => ({})},
+  });
+  assert.equal(await fallback.navigateAcceptingLeave(7, 'https://x.test/'), false);
+  assert.deepEqual(Array.from(fallbackUrls), ['https://x.test/']);
+
+  // a hung page (debugger never answers) must not hang the reset: bounded by a timeout
+  const hung = worker({
+    tabs: {update: async () => ({id: 7})},
+    debugger: {attach: async () => {}, detach: async () => {}, sendCommand: () => new Promise(() => {})},
+  });
+  hung.withTimeout = (p, ms, label) => realWithTimeout(p, 50, label);
+  const started = Date.now();
+  assert.equal(await Promise.race([hung.navigateAcceptingLeave(7, 'https://x.test/'), new Promise(r => setTimeout(() => r('HUNG'), 8000))]), false);
+  assert.ok(Date.now() - started < 8000);
 });

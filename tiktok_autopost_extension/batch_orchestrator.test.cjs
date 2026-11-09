@@ -369,3 +369,45 @@ test('worker channel errors (port closed / context invalidated) are retried as t
   assert.equal(res.successful, 1);
   assert.equal(waits, 2);
 });
+
+test('3 failed clips in a row open the circuit breaker instead of grinding through the whole batch', async () => {
+  let injects = 0;
+  const o = createBatchOrchestrator({
+    clips: ['a', 'b', 'c', 'd', 'e'].map(id => ({ id, hook_title: `คลิป ${id}` })),
+    options: { cooldownSeconds: 0, maxRetriesPerStage: 0, maxClipAttempts: 1, retryDelayMs: 1 },
+    actions: { injectFile: async () => { injects += 1; throw new Error('selector missing'); }, resetUploadPage: async () => {} },
+  });
+  const res = await o.start();
+  assert.equal(res.state, ORCHESTRATOR_STATES.ERROR);
+  assert.equal(res.failed, 3);
+  assert.equal(injects, 3);
+});
+
+test('an unconfirmed post is counted as unknown (never success); two in a row stop the run', async () => {
+  const o = createBatchOrchestrator({
+    clips: ['a', 'b', 'c', 'd'].map(id => ({ id, hook_title: `คลิป ${id}` })),
+    options: { cooldownSeconds: 0, maxRetriesPerStage: 0, maxClipAttempts: 1, retryDelayMs: 1 },
+    actions: {
+      submitPost: async () => ({ success: true, outcome: 'confirmation_unknown' }),
+      resetUploadPage: async () => {},
+    },
+  });
+  const res = await o.start();
+  assert.equal(res.successful, 0);
+  assert.equal(res.unknown, 2);
+  assert.equal(res.state, ORCHESTRATOR_STATES.ERROR);
+  assert.ok(res.results.every(r => r.success === false && r.unknown === true));
+
+  const mixed = createBatchOrchestrator({
+    clips: ['a', 'b', 'c'].map(id => ({ id, hook_title: `คลิป ${id}` })),
+    options: { cooldownSeconds: 0, maxRetriesPerStage: 0, maxClipAttempts: 1, retryDelayMs: 1 },
+    actions: {
+      submitPost: async clip => ({ success: true, outcome: clip.id === 'b' ? 'confirmation_unknown' : 'scheduled_on_platform' }),
+      resetUploadPage: async () => {},
+    },
+  });
+  const ok = await mixed.start();
+  assert.equal(ok.successful, 2);
+  assert.equal(ok.unknown, 1);
+  assert.equal(ok.state, ORCHESTRATOR_STATES.COMPLETED);
+});
