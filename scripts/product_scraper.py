@@ -940,38 +940,97 @@ def _extract_specs_from_text(text: Optional[str]) -> List[str]:
     return specs
 
 
+# Product images are only ever served from the marketplaces' own image CDNs.
+# Anything else on a product page (other brands' banners, ad pixels, a
+# "recommended products" carousel hosted elsewhere) is dropped (S1-04).
+PRODUCT_IMAGE_HOSTS = (
+    "ibyteimg.com",
+    "byteimg.com",
+    "tiktokcdn.com",
+    "tiktokcdn-us.com",
+    "tiktokcdn-eu.com",
+    "susercontent.com",
+    "shopee.co.th",
+    "shopeemobile.com",
+)
+# Whole path tokens (S1-18): "star" must not drop ".../starlight_case.jpg".
+_IMAGE_SKIP_TOKENS = {"icon", "icons", "star", "stars", "arrow", "avatar", "logo", "favicon", "sprite"}
+# Path fragments that identify non-product assets wherever they appear.
+_IMAGE_SKIP_FRAGMENTS = ("tts_logo", "tiktok_shop_web_mono", "tos-alisg-avt")
+_IMAGE_MIN_DIM = 600
+_IMAGE_TARGET_DIM = 800
+_TPLV_DIMS_RE = re.compile(r"(~tplv-[a-z0-9]+-[a-z0-9-]+):(\d{2,4}):(\d{2,4})", re.I)
+_DIMS_RE = re.compile(r"[:x_](\d{2,4})[:x](\d{2,4})(?=[._?~/]|$)", re.I)
+
+
+def _image_host_allowed(url: str) -> bool:
+    host = (urllib.parse.urlparse(url).hostname or "").lower()
+    return any(host == allowed or host.endswith("." + allowed) for allowed in PRODUCT_IMAGE_HOSTS)
+
+
+def _image_is_ui_asset(url: str) -> bool:
+    path = urllib.parse.unquote(urllib.parse.urlparse(url).path).lower()
+    if path.endswith(".svg"):
+        return True
+    if any(fragment in path for fragment in _IMAGE_SKIP_FRAGMENTS):
+        return True
+    # Only the file name and directory names count, split into word tokens;
+    # a hash or host that merely contains "star"/"icon" is not a match.
+    tokens = set(re.split(r"[^a-z0-9]+", path))
+    return bool(tokens & _IMAGE_SKIP_TOKENS)
+
+
+def _upgrade_image_variant(url: str) -> str:
+    """Ask the CDN for the full-size variant of a thumbnail URL when it has one.
+
+    TikTok CDN templates carry the size in the URL (``~tplv-<ns>-crop-webp:260:260``);
+    the same template at 800:800 is the gallery size. Shopee thumbnails end
+    in ``_tn``; without it the CDN serves the original.
+    """
+    def _bump(m: re.Match) -> str:
+        if max(int(m.group(2)), int(m.group(3))) >= _IMAGE_MIN_DIM:
+            return m.group(0)
+        return f"{m.group(1)}:{_IMAGE_TARGET_DIM}:{_IMAGE_TARGET_DIM}"
+
+    host = (urllib.parse.urlparse(url).hostname or "").lower()
+    if "susercontent.com" in host or "shopee" in host:
+        return re.sub(r"_tn(?=$|[?#.])", "", url)
+    return _TPLV_DIMS_RE.sub(_bump, url)
+
+
+def _image_quality(url: str) -> tuple:
+    """(tier, size): tier 2 = gallery size, 1 = size unknown, -1 = known
+    thumbnail (< 600px); size breaks ties so the largest variant wins."""
+    dims = _TPLV_DIMS_RE.search(url)
+    pair = (int(dims.group(2)), int(dims.group(3))) if dims else None
+    if pair is None:
+        generic = _DIMS_RE.search(urllib.parse.urlparse(url).path)
+        pair = (int(generic.group(1)), int(generic.group(2))) if generic else None
+    if pair is None:
+        return (1, 0)
+    if min(pair) >= _IMAGE_TARGET_DIM:
+        return (2, min(pair))
+    if max(pair) < _IMAGE_MIN_DIM:
+        return (-1, max(pair))
+    return (1, min(pair))
+
+
 def _deduplicate_and_filter_images(urls: List[str]) -> List[str]:
-    seen_hashes = {}
-    skip_markers = [
-        "tts_logo",
-        "tiktok_shop_web_mono",
-        "avatar",
-        "tos-alisg-avt",
-        "icon",
-        ".svg",
-        "star",
-        "arrow",
-    ]
+    """Keep only full-size product photos from the marketplace CDNs, once each."""
+    seen_hashes: Dict[str, tuple] = {}
     for url in urls:
-        if not url or not url.startswith("http"):
+        if not isinstance(url, str) or not url.startswith("http"):
             continue
-        lowered = url.lower()
-        if any(marker in lowered for marker in skip_markers):
+        if not _image_host_allowed(url) or _image_is_ui_asset(url):
             continue
+        url = _upgrade_image_variant(url)
+        quality = _image_quality(url)
+        if quality[0] < 0:
+            continue  # thumbnail with no full-size variant -- unusable (>=1080p rule)
         m = re.search(r"([a-f0-9]{32})", url)
         img_hash = m.group(1) if m else url.split("?")[0]
-        quality = 0
-        if "800:800" in url or "800:1600" in url:
-            quality = 2
-        elif "crop" in url or "300:300" in url or "100:100" in url:
-            quality = -1
-        else:
-            quality = 1
-        if img_hash not in seen_hashes:
+        if img_hash not in seen_hashes or quality > seen_hashes[img_hash][0]:
             seen_hashes[img_hash] = (quality, url)
-        else:
-            if quality > seen_hashes[img_hash][0]:
-                seen_hashes[img_hash] = (quality, url)
     return [u for q, u in seen_hashes.values()]
 
 
@@ -997,11 +1056,14 @@ def _scrape_rendered_page(url: str) -> Dict[str, Any]:
             if m_price:
                 dom_price = f"฿{m_price.group(1)}"
 
-        raw_imgs = page.locator("img").evaluate_all(
-            """imgs => imgs.map(img => img.currentSrc || img.src || '')
-                .filter(src => /^https?:\\/\\//i.test(src))"""
-        )
-        images = _deduplicate_and_filter_images(raw_imgs)
+        # S1-04: gallery JSON + og:image only, never every <img> in the DOM
+        # (the "recommended products" carousel lives there too).
+        page_html = page.content() or ""
+        gallery = list(_extract_tiktok_modern_data(page_html).get("images") or [])
+        og_image = _extract_meta(page_html, "og:image")
+        if og_image:
+            gallery.append(og_image)
+        images = _deduplicate_and_filter_images(gallery)
 
         challenge = _looks_like_browser_challenge(body_text)
         login_required = _looks_like_login_page(dom_title, body_text, page.url)
@@ -1257,10 +1319,9 @@ class ProductScraper:
                 if og_img and og_img.startswith("http") and og_img not in images:
                     images.append(og_img)
 
-                img_matches = re.findall(r'<img[^>]+src=[\'"](https?://[^\'"]+\.(?:jpg|jpeg|png|webp)[^\'"]*)[\'"]', raw_html, re.I)
-                for img in img_matches[:8]:
-                    if img not in images and "icon" not in img.lower() and "logo" not in img.lower():
-                        images.append(img)
+                # S1-04: no generic <img> harvesting -- a product page also
+                # renders other products (carousels, ads, shop banners). Images
+                # come only from the PDP gallery JSON (above) and og:image.
 
                 if html_product_text:
                     if not selling_points:
