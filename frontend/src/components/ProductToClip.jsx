@@ -201,14 +201,14 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
         }
       }}
       title={`${product.name} (คลิกเพื่อเลือก · ดับเบิลคลิกเพื่อดูรายละเอียดสินค้า)`}
-      className={`flex-shrink-0 w-[136px] sm:w-[156px] rounded-xl border transition-all cursor-pointer group snap-center p-2.5 space-y-2 text-left relative select-none ${
+      className={`flex-shrink-0 w-[136px] sm:w-[156px] flex flex-col rounded-xl border transition-all cursor-pointer group snap-center p-2.5 text-left relative select-none ${
         isSelected
           ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-lg shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
           : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.18] hover:bg-white/[0.02]'
       }`}
     >
       {/* Thumbnail or Placeholder */}
-      <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/70 border border-white/[0.06] flex items-center justify-center relative">
+      <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/70 border border-white/[0.06] flex items-center justify-center relative mb-2 flex-shrink-0">
         {thumbSrc ? (
           <img src={thumbSrc} alt="" className="w-full h-full object-cover pointer-events-none" />
         ) : (
@@ -254,27 +254,33 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
         )}
       </div>
 
-      {/* Code + Name Hierarchy */}
-      <div className="space-y-1 min-w-0">
-        {productCode && (
-          <span className={`inline-flex items-center text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border leading-none ${
-            isSelected
-              ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/30'
-              : 'bg-white/[0.04] text-slate-300 border-white/[0.08]'
-          }`}>
-            {productCode}
-          </span>
-        )}
+      {/* Code + Name Hierarchy (Fixed uniform height to guarantee horizontal baseline alignment across all cards) */}
+      <div className="flex-1 flex flex-col justify-start min-w-0 space-y-1 mb-2">
+        <div className="h-[18px] flex items-center">
+          {productCode ? (
+            <span className={`inline-flex items-center text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border leading-none ${
+              isSelected
+                ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/30'
+                : 'bg-white/[0.04] text-slate-300 border-white/[0.08]'
+            }`}>
+              {productCode}
+            </span>
+          ) : (
+            <span className="text-[10px] font-mono text-transparent select-none leading-none px-1.5 py-0.5">
+              -
+            </span>
+          )}
+        </div>
         <div
-          className={`text-xs font-semibold line-clamp-2 leading-tight ${isSelected ? 'text-white' : 'text-slate-200'}`}
+          className={`text-xs font-semibold line-clamp-2 leading-tight h-[2.25rem] flex items-start ${isSelected ? 'text-white' : 'text-slate-200'}`}
           title={product.name}
         >
           {product.name}
         </div>
       </div>
 
-      {/* Progress Mini Bar */}
-      <div className="flex items-center gap-1.5 pt-0.5">
+      {/* Progress Mini Bar (Pinned to bottom baseline) */}
+      <div className="mt-auto flex items-center gap-1.5 pt-1.5 border-t border-white/[0.04]">
         <div className="flex-1 h-1 bg-slate-800/80 rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-300 ${
