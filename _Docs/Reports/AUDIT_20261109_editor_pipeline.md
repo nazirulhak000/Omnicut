@@ -407,8 +407,14 @@ Flow จริง: `api_intake.preview` / `api_products.scrape_and_plan` → `Pr
 
 ### งานค้างหลังรอบนี้
 
-1. `frame_pair` ×14 — หัวข้อ hook ใน Canvas ต่ำกว่า libass ~30px ที่ 540x960 (~60px ที่ 1080x1920), ASS กว้างกว่า ~1.3%; ผลเหมือนเดิมกับโค้ดก่อน `3a48f08`/`bfbd63a` จึงไม่ใช่ regression ของรอบนี้; สงสัย `ass_top_anchor_offset` หรือ anchor ของ Canvas หรือ libass/ffmpeg build ของเครื่อง
-2. `cutout_video_preview` 7 ข้อ — `seeks` 5–27 ใน 60 เฟรม (เกณฑ์ 2) ผลเหมือนกันกับ `SequencePlayer.jsx` ก่อน `3a48f08`; `multisource_av_preview` p95 ขึ้นอยู่กับโหลดเครื่อง (168–341ms vs เกณฑ์ 200ms)
+1. ~~`frame_pair` ×14~~ **แก้แล้ว (`bf3dae0`) เป็นบั๊ก Preview≠Render จริง ไม่ใช่เรื่อง libass/เครื่อง**: commit `d0a490b` (unslop 2026-11-09) เพิ่ม `blockTop = Math.max(120, blockTop)` ใน `getOverlayGeometry()` ของ `SequencePlayer.jsx` — canvas เป็นครึ่งหนึ่งของ render ดังนั้น 120 = 240px ใน render ทำให้ overlay ที่ยึดด้านบนทุกอันและ hook line ถูกดันลงต่ำกว่าไฟล์จริง ~58px (สัญญาคือ 180px); ลบ clamp แล้ว `bbox_edge_delta` 30→4px, `mask_iou` 0.35→0.93, `test_frame_pair.py` 20/20 · ข้อสังเกตเชิงกระบวนการ: รายงานรอบก่อนสรุปว่า "ไม่ใช่ regression" เพราะเทียบแค่ `3a48f08`/`bfbd63a` — commit ที่เป็นต้นเหตุเก่ากว่านั้น `three_lines` (`FramePairUnavailable`) ผ่านทุกรอบที่รันซ้ำ แต่ยังเสี่ยงเป็น fixture ไม่นิ่ง
+2. `cutout_video_preview` 7 ข้อ — **ไม่ใช่ regression** วัดแล้ว: rAF ของ canvas 1080x1920 ใน headless Chromium (software raster) อยู่ที่ 30Hz มี stall 83–100ms ทำให้ seek 6–11 ครั้ง/60 เฟรม (เกณฑ์ 2) เฉพาะเคส `master1080`; `smooth540` ปกติ (60Hz, 1 seek); `cutoutVideoPlayback.js` ไม่ถูกแตะตั้งแต่ 2026-10-12; ใช้ `SequencePlayer.jsx` เวอร์ชัน 3a95925 ผลเท่ากัน; ลองเปลี่ยนไปตัดสินจากเฟรมที่แสดงจริงแล้วไม่ช่วย (revert) — ตัวเลือก: เปิด GPU ใน Chromium ของเทสสำหรับ `master1080` หรือตั้งงบ seek เฉพาะ 1080 จากการวัดบนเครื่องว่าง; `multisource_av_preview` p95 ขึ้นกับโหลดเครื่อง (168–341ms vs 200ms)
 3. mobile studio ×6 รอผู้ใช้: ถ้าตัด mobile shell ก็ลบเทสทิ้ง ถ้าคงไว้ต้องคืน `?mobile_session=` restore
 4. `ARCHITECTURE.md` ล้าสมัย: ยังเขียนว่าเมนู 0 ใช้ `ProducerHub`
 5. ยังรอผู้ใช้: ถ้อยคำเตือนลายน้ำ (S4-11), เว้นวรรค Ghost Reveal, ลอง editor จริง, ตรวจ `kit.js applyChannel`, migration path `Capcut` ในข้อมูล, push origin
+
+### ผลเทสหลังรอบต่อเนื่อง (กิ่ง `fix/followup-20261109`)
+
+- `pytest tests --ignore=tests/motion_capture`: **5,066 ผ่าน / 0 ไม่ผ่าน / 25 ข้าม** (เดิม 4,965 / 15 / 25)
+- `npm test`: **1,260/1,260**
+- browser: ซ่อม/ข้ามพร้อมเหตุผล 40 + `frame_pair` 14 ผ่าน → เหลือ `cutout_video_preview` 7 (สภาพแวดล้อม) + `multisource_av_preview` 1 (flaky) ที่ไม่ผ่าน (ยังไม่ได้รันทั้งโฟลเดอร์ซ้ำหลังรวม — รันทีละไฟล์ตอนแก้)
