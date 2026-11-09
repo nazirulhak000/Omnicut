@@ -4,6 +4,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from playwright.sync_api import expect, sync_playwright
+from tests.motion_capture.channel_ui import ChannelSelect
 
 
 @pytest.mark.parametrize("width", [390, 1440])
@@ -60,10 +61,11 @@ def test_schedule_template_failed_save_and_pending_discard_are_channel_fenced(mo
 
             page.route("**/api/**", route_api)
             page.goto(f"{origin}/?channel=main&mode=desktop", wait_until="domcontentloaded")
-            selector = page.get_by_role("combobox", name="เลือกช่อง")
-            expect(selector).to_be_visible()
+            ch = ChannelSelect(page, width)
+            ch.expect_visible()
 
             def open_template():
+                ch.settle()
                 page.get_by_role("button", name="เมนูเพิ่มเติม", exact=True).click()
                 page.get_by_role("menuitem", name="ตั้งค่าเวลารายสัปดาห์").click()
                 dialog = page.get_by_role("dialog").filter(has=page.get_by_role("heading", name="ตั้งค่าเวลารายสัปดาห์", exact=True))
@@ -74,12 +76,12 @@ def test_schedule_template_failed_save_and_pending_discard_are_channel_fenced(mo
             template = open_template()
             template.get_by_role("combobox").first.select_option("08:00")
             template.get_by_role("button", name="ปิดหน้าต่าง").click()
-            selector.select_option("second")
+            ch.pick("second")
             switch = page.get_by_role("dialog", name="บันทึกก่อนสลับช่อง")
             expect(switch).to_be_visible()
             switch.get_by_role("button", name="บันทึกและสลับ").click()
             expect(switch.get_by_role("alert")).to_contain_text("fixture save unavailable")
-            expect(selector).to_have_value("main")
+            ch.expect("main")
             assert writes[0][0] == "main"
             assert writes[0][1]["days"]["0"]["times"][0] == "08:00"
             switch.get_by_role("button", name="อยู่ช่องเดิม").click()
@@ -89,24 +91,24 @@ def test_schedule_template_failed_save_and_pending_discard_are_channel_fenced(mo
             template.get_by_role("button", name="บันทึกเทมเพลต").click()
             expect(template.get_by_role("button", name="บันทึกเทมเพลต")).to_be_disabled()
             template.get_by_role("button", name="ปิดหน้าต่าง").click()
-            selector.select_option("second")
+            ch.pick("second")
             switch.get_by_role("button", name="ทิ้งการแก้ไขและสลับ").click()
-            expect(selector).to_have_value("main")
+            ch.expect("main")
             expect(switch.get_by_role("button", name="ทิ้งการแก้ไขและสลับ")).to_be_disabled()
             assert len(pending) == 1
             pending.pop().fulfill(status=503, headers={"X-OmniCut-Channel": "main"}, content_type="application/json", body='{"detail":"fixture delayed save unavailable"}')
-            expect(selector).to_have_value("second")
-            selector.select_option("main")
+            ch.expect("second")
+            ch.pick("main")
             template = open_template()
             expect(template.get_by_role("combobox").first).to_have_value("09:00")
             template.get_by_role("combobox").first.select_option("07:00")
             template.get_by_role("button", name="ปิดหน้าต่าง").click()
             hold.update(enabled=False, fail=False)
-            selector.select_option("second")
+            ch.pick("second")
             switch.get_by_role("button", name="บันทึกและสลับ").click()
-            expect(selector).to_have_value("second")
+            ch.expect("second")
             assert stored["main"]["days"]["0"]["times"][0] == "07:00"
-            selector.select_option("main")
+            ch.pick("main")
             template = open_template()
             expect(template.get_by_role("combobox").first).to_have_value("07:00")
             assert "second" in reads
