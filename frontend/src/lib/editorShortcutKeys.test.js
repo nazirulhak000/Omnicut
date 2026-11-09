@@ -228,7 +228,8 @@ test('SHORTCUT_GROUPS: every probed row is what classifyShortcut really returns'
   }
   // 32 before keyframe shortcuts; + D, comma, dot keyframe navigation; + Shift+Z zoomFit.
   // 37 before CapCut 7.1 shortcuts; + Ctrl+L linkage (2 probes); + Ctrl+G / Ctrl+Shift+G compound (2 probes).
-  assert.equal(probed, 41, 'every classifyShortcut-backed row keeps its probes');
+  // + capital F fade, Esc exitImmersive, Shift+F toggleImmersive (D12).
+  assert.equal(probed, 44, 'every classifyShortcut-backed row keeps its probes');
 });
 
 test('SHORTCUT_GROUPS: rows are well formed, keys are unique, and there is no tab 6', () => {
@@ -295,4 +296,52 @@ test('the shortcuts table lists I / O, Shift+Del and Esc with probes (the dialog
   const esc = rows.find((r) => r.keys === 'Esc');
   assert.ok(esc.probes.some((p) => p.action === 'clearRange'), 'Esc probes the range clear');
   assert.match(esc.desc, /จุดเข้า/);
+});
+
+// D12 / S4-06: the immersive studio moved off plain F, which is the clip fade
+// toggle. One key must never drive both a timeline edit and the navbars.
+test('F is toggleFade only; Shift+F is the immersive toggle', () => {
+  assert.equal(classifyShortcut({ key: 'f' }).action, 'toggleFade');
+  assert.equal(classifyShortcut({ key: 'F' }).action, 'toggleFade', 'Caps Lock F is still the fade');
+  assert.equal(classifyShortcut({ key: 'F' }, { immersive: true }).action, 'toggleFade');
+  assert.deepEqual(classifyShortcut({ key: 'F', shiftKey: true }), { action: 'toggleImmersive', preventDefault: true });
+  assert.equal(classifyShortcut({ key: 'f', shiftKey: true }).action, 'toggleImmersive');
+  // Modified F belongs to the browser (Ctrl+F find, Alt+F menu).
+  for (const mods of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }, { ctrlKey: true, shiftKey: true }]) {
+    assert.equal(classifyShortcut({ key: 'F', ...mods }).action, 'none', JSON.stringify(mods));
+  }
+});
+
+test('no key maps to both an editor action and the immersive toggle', () => {
+  const keys = 'abcdefghijklmnopqrstuvwxyz'.split('');
+  for (const k of keys) {
+    const plain = classifyShortcut({ key: k }).action;
+    assert.notEqual(plain, 'toggleImmersive', `plain ${k}`);
+    assert.notEqual(plain, 'exitImmersive', `plain ${k}`);
+  }
+  const owners = keys.filter((k) => classifyShortcut({ key: k.toUpperCase(), shiftKey: true }).action === 'toggleImmersive');
+  assert.deepEqual(owners, ['f']);
+});
+
+test('Escape order: zen > range > multi-select > immersive, one layer per press', () => {
+  const esc = (context) => classifyShortcut({ key: 'Escape' }, context).action;
+  assert.equal(esc({ immersive: true }), 'exitImmersive');
+  assert.equal(esc({ immersive: true, multiSelect: true }), 'clearSelection');
+  assert.equal(esc({ immersive: true, hasRange: true }), 'clearRange');
+  assert.equal(esc({ immersive: true, zen: true }), 'exitZen');
+  assert.equal(esc({ immersive: false }), 'none');
+  assert.equal(classifyShortcut({ key: 'Escape' }, { immersive: true }).preventDefault, true);
+  assert.equal(classifyShortcut({ key: 'Escape', ctrlKey: true }, { immersive: true }).action, 'none');
+  assert.equal(classifyShortcut({ key: 'Escape', altKey: true }, { immersive: true }).action, 'none');
+});
+
+test('the shortcuts dialog advertises Shift+F for immersive and F for fade only', () => {
+  const rows = SHORTCUT_GROUPS.flatMap((group) => group.shortcuts);
+  const f = rows.find((r) => r.keys === 'F');
+  assert.ok(f.probes.every((p) => p.action === 'toggleFade'));
+  const shiftF = rows.find((r) => r.keys === 'Shift+F');
+  assert.ok(shiftF, 'Shift+F row');
+  assert.ok(shiftF.probes.some((p) => p.action === 'toggleImmersive'));
+  const esc = rows.find((r) => r.keys === 'Esc');
+  assert.ok(esc.probes.some((p) => p.action === 'exitImmersive'));
 });
