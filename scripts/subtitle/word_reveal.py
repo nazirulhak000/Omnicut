@@ -39,6 +39,12 @@ _THAI_COMBINING_RANGES = (
 # Below this, a word is too short to read even if it were spoken instantly.
 MIN_WORD_DUR = 0.06
 
+# The hold after the last word, with the whole line white, so the viewer can
+# finish reading it (SOP Phase 3 "Settle Duration", rule 17). The last word's
+# green ends at its real spoken end, and never later than this before the cue
+# leaves -- it used to stay green until the caption disappeared (audit S5-05).
+SETTLE_SEC = 0.2
+
 
 def _is_combining(ch: str) -> bool:
     cp = ord(ch)
@@ -126,8 +132,10 @@ def _spans_from_real_timings(
         prev_end = w_end
 
     if spans:
+        # The first word owns the head of the cue. The last word keeps its
+        # REAL spoken end: the remainder of the cue is the settle, not more of
+        # that word (build_word_reveal applies the SETTLE_SEC ceiling).
         spans[0] = (start, spans[0][1])
-        spans[-1] = (spans[-1][0], end)
     return spans
 
 
@@ -175,10 +183,15 @@ def build_word_reveal(
             "end": round(max(w_start, w_end), 3),
         })
 
-    # The last word owns the tail of the cue: the line stays fully white until
-    # the caption leaves, which is the "settle" the SOP asks for.
+    # The settle: the last word stops being "spoken" at its real end (or
+    # SETTLE_SEC before the cue leaves, whichever is first), so the finished
+    # line holds fully white until the caption leaves. A cue too short for
+    # both keeps MIN_WORD_DUR of highlight and gives up the settle.
     if reveal:
-        reveal[-1]["end"] = round(max(reveal[-1]["start"], end), 3)
+        last = reveal[-1]
+        last_end = min(float(last["end"]), end - SETTLE_SEC)
+        last_end = min(end, max(float(last["start"]) + MIN_WORD_DUR, last_end))
+        last["end"] = round(max(float(last["start"]), last_end), 3)
     return reveal
 
 

@@ -59,3 +59,26 @@ export function reconcileEffectPlayback({
   }
   return { action: 'hold', targetTime: null, playbackRate: 1 };
 }
+
+/**
+ * Stop and release every effect <video> in `videosMap`, then empty it.
+ *
+ * The map stores the elements themselves (see SequencePlayer's effect preload
+ * effect). The unmount teardown used to read `item.video`, which is undefined
+ * on a bare element, so looping .webm effects kept decoding after the editor
+ * closed (audit S4-07). `item.video ?? item` still accepts a wrapper object.
+ */
+export function disposeEffectVideos(videosMap) {
+  if (!videosMap) return;
+  videosMap.forEach((item) => {
+    const video = item?.video ?? item;
+    try {
+      video?.pause?.();
+      video?.removeAttribute?.('src');
+      video?.load?.();
+    } catch {
+      /* already detached */
+    }
+  });
+  videosMap.clear?.();
+}

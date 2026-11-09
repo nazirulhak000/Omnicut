@@ -11,7 +11,6 @@ from scripts.editorial_pacing import build_pacing_plan_from_cues
 from scripts.hook_line import apply_hook_line, merge_adjacent_spans
 from scripts.overlay_model import HOOK_NAMEPLATE_DEFAULT_SEC, guess_brand_model, migrate_to_overlays
 from scripts.pipeline_context import PipelineContext
-from scripts.product_callout_builder import build_product_callouts
 from scripts.project_manifest import ProjectManifest
 
 

@@ -87,6 +87,8 @@ from scripts.subtitle import (
     _force_highlight,
 )
 from scripts.subtitle.ghost_reveal_ass import (
+    ACTIVE_COLOUR as GHOST_ACTIVE_COLOUR,
+    _ass_time,
     anchor_tags,
     build_ghost_reveal_events,
     build_multiline_reveal_events,
@@ -140,7 +142,10 @@ def strip_caption_emoji(text: str) -> str:
     cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
     return "\n".join(line.strip() for line in cleaned.split("\n")).strip()
 
-SUBTITLE_RENDER_CONTRACT_VERSION = "v8"
+# v9 (audit 20261109 S5-03/04/05/10/11/14): SpecBar box colour + margin,
+# reveal tone companions (colour, wrapped lines), last-word settle, fixed
+# watermark face, rounded timestamps -- older .ass files must be regenerated.
+SUBTITLE_RENDER_CONTRACT_VERSION = "v9"
 SUBTITLE_RENDER_CONTRACT_MARKER = (
     f"; OmniCutSubtitleContract: {SUBTITLE_RENDER_CONTRACT_VERSION}"
 )
@@ -185,6 +190,22 @@ CAPTION_POSITIONS = {
     "top": (8, 180),
 }
 
+# Legacy sentence-level SpecBar (cue `on_screen`). BorderStyle 3 paints its box
+# with OutlineColour, not BackColour -- with a black OutlineColour the box and
+# the black text were the same colour (audit S5-03). MarginR keeps the box left
+# of TikTok's right button rail (x >= 960 of 1080, audit S5-14).
+SPECBAR_BOX_COLOUR = "&H0000E6FF"   # #FFE600 in ASS &HAABBGGRR
+SPECBAR_TEXT_COLOUR = "&H00000000"  # black ink on the yellow box
+SPECBAR_BOX_PAD = 10                # BorderStyle 3 outline = box padding
+SPECBAR_MARGIN_R = 140              # box right edge <= 1080 - 140 + 10 = 950
+SPECBAR_MARGIN_V = 380
+
+# The watermark is a fixed channel mark, not a caption: it always uses the
+# IBM Plex SemiBold cut the preview draws (SequencePlayer.jsx drawWatermark),
+# whatever font the captions use (audit S5-10).
+WATERMARK_FONT_FAMILY = "IBM Plex Sans Thai"
+WATERMARK_OUTLINE_RATIO = 0.05      # of the boosted watermark Fontsize, min 2.0
+
 TEXT_OVERLAY_POSITIONS = {
     "top": 0.20,
     "middle": 0.50,
@@ -197,13 +218,14 @@ class SubtitleEngine:
 
     @staticmethod
     def _format_ass_time(seconds: float) -> str:
-        """Convert float seconds to ASS timestamp format: H:MM:SS.cs"""
-        seconds = max(0.0, seconds)
-        h = int(seconds // 3600)
-        m = int((seconds % 3600) // 60)
-        s = seconds % 60
-        cs = int((s - int(s)) * 100)
-        return f"{h}:{m:02d}:{int(s):02d}.{cs:02d}"
+        """Convert float seconds to ASS timestamp format: H:MM:SS.cs
+
+        Delegates to ghost_reveal_ass._ass_time so every event in the file
+        rounds the same way. This one used to truncate through float maths
+        (0.29 -> "0.28"), ending a word and its tone companion a centisecond
+        apart (audit S5-11).
+        """
+        return _ass_time(seconds)
 
     @staticmethod
     def _tokenize_long_part_th(part: str, max_line_len: int) -> List[str]:
@@ -341,6 +363,41 @@ class SubtitleEngine:
 
         return final_lines if final_lines else [clean_text]
 
+    @staticmethod
+    def _is_single_word(clause: str) -> bool:
+        """True when `clause` is one word (newmm), e.g. a lone "กล้อง"."""
+        clause = clause.strip()
+        if not clause or " " in clause:
+            return False
+        try:
+            from pythainlp.tokenize import word_tokenize
+
+            tokens = [t for t in word_tokenize(clause, engine="newmm") if t.strip()]
+        except Exception:
+            return False
+        return len(tokens) == 1
+
+    @classmethod
+    def _merge_single_word_bursts(cls, clauses: List[str], max_line_len: int) -> List[str]:
+        """Fold a one-word caption burst into its neighbour when the line still fits.
+
+        subtitle_kinetic_rules.md asks for 2-4 words per burst. The orphan
+        merge in split_into_smart_clauses only catches <= 4 characters or known
+        particles, so a lone 5+ character word ("กล้อง", 0.56s) still flashed
+        on its own (audit S5-15). Captions only -- the voice stage's TTS
+        clauses keep using split_into_smart_clauses unchanged.
+        """
+        out: List[str] = []
+        for clause in clauses:
+            if out and cls._is_single_word(clause) and len(out[-1]) + 1 + len(clause) <= max_line_len:
+                out[-1] = f"{out[-1]} {clause}"
+            else:
+                out.append(clause)
+        if len(out) > 1 and cls._is_single_word(out[0]) and len(out[0]) + 1 + len(out[1]) <= max_line_len:
+            out[1] = f"{out[0]} {out[1]}"
+            out.pop(0)
+        return out
+
     @classmethod
     def split_into_short_bursts(cls, text: str, max_chars: int = 34, max_words: int = 2) -> List[str]:
         """Backward-compatible alias for split_into_smart_clauses."""
@@ -403,7 +460,10 @@ class SubtitleEngine:
 
     @classmethod
     def generate_micro_cues(
-        cls, cues: List[Dict], max_line_len: Optional[int] = None
+        cls,
+        cues: List[Dict],
+        max_line_len: Optional[int] = None,
+        translate: bool = True,
     ) -> List[Dict]:
         """
         Converts sentence-level cues into smart clause cues, translating each into English.
@@ -442,8 +502,11 @@ class SubtitleEngine:
             else:
                 # Unset means "the micro-burst bound", not the splitter's own
                 # 34 default, which the voice stage still uses for TTS clauses.
-                clauses = cls.split_into_smart_clauses(
-                    text, max_line_len=max_line_len or MICRO_BURST_MAX_CHARS
+                clauses = cls._merge_single_word_bursts(
+                    cls.split_into_smart_clauses(
+                        text, max_line_len=max_line_len or MICRO_BURST_MAX_CHARS
+                    ),
+                    max_line_len or MICRO_BURST_MAX_CHARS,
                 )
             real_boundaries = cls._clause_boundaries_from_word_timings(
                 clauses, c.get("word_timings") or []
@@ -537,7 +600,12 @@ class SubtitleEngine:
                 cue_id += 1
                 current_t = cl_end
 
-        # Batch translate all smart clauses into English automatically
+        # Batch translate all smart clauses into English automatically --
+        # only when an English line will actually be drawn. A Thai-only render
+        # used to hit the network translator anyway, adding latency and making
+        # the micro-cues nondeterministic offline (audit S5-12).
+        if not translate:
+            return micro_cues
         try:
             from scripts.translator import SubtitleTranslator
             texts_to_trans = [mc["text"] for mc in micro_cues if not mc.get("translation")]
@@ -620,7 +688,10 @@ class SubtitleEngine:
         cls,
         cues: List[Dict],
         output_ass_path: str,
-        font_name: str = "Kanit",
+        # The pipeline/editor default (PipelineContext.font_name, api schemas);
+        # this used to say "Kanit", so direct callers silently drifted from the
+        # IBM Plex golden master (audit S5-16).
+        font_name: str = "IBMPlex",
         font_size: int = 78,
         hook_brand: str = None,
         hook_model: str = None,
@@ -669,6 +740,7 @@ class SubtitleEngine:
         micro_cues = cls.generate_micro_cues(
             cues,
             max_line_len=min(MICRO_BURST_MAX_CHARS, cls._max_line_chars(_caption_fs)),
+            translate=bool(bilingual),
         )
 
 
@@ -781,11 +853,12 @@ class SubtitleEngine:
         base_fs_boosted = int(round(base_fs * TEXT_SCALE_BOOST))
         hook_fs_boosted = int(round(hook_fs * HOOK_SCALE_BOOST))
         watermark_fs = max(14, int(round(video_width * WATERMARK_FS_RATIO)))
-        watermark_fs_boosted = int(round(watermark_fs * TEXT_SCALE_BOOST))
+        watermark_font, _ = ass_caption_face(WATERMARK_FONT_FAMILY)
+        watermark_fs_boosted = int(round(watermark_fs / ass_glyph_scale(WATERMARK_FONT_FAMILY)))
         # A fixed 1.2px outline read as blurry once alpha-faded at this font
         # size -- scale it with the glyph like the caption styles' own
         # front_outline does, instead of a flat constant.
-        watermark_outline = round(max(2.0, watermark_fs_boosted * 0.05), 1)
+        watermark_outline = round(max(2.0, watermark_fs_boosted * WATERMARK_OUTLINE_RATIO), 1)
 
         def repair_caption_text(value: str) -> Tuple[str, List[Tuple[str, str, str]]]:
             # Every upper-vowel/tone pair is repaired for every face.
@@ -842,18 +915,64 @@ class SubtitleEngine:
             margin_r = shadow_margin_r if shadow else 60
             return f"\\an{alignment}\\marginv{raised}\\marginl{margin_l}\\marginr{margin_r}"
 
-        def caption_mark_overlay(parts: Tuple[str, str, str], *, shadow: bool) -> str:
-            """Expose one detached tone while all layout-preserving text stays hidden."""
+        def caption_mark_overlay(
+            parts: Tuple[str, str, str],
+            *,
+            shadow: bool,
+            colour: Optional[str] = None,
+            fade_in: bool = True,
+        ) -> str:
+            """Expose one detached tone while all layout-preserving text stays hidden.
+
+            `colour` overrides the colour of the tone only -- the ghost reveal
+            passes its active green while the tone's word is being spoken, so
+            the tone is not left white on a green word (audit S5-04).
+            `fade_in=False` is for the white phase that directly continues a
+            green one: fading in a second time would blink the tone.
+            """
             before, tone, after = parts
             settled_alpha = "38" if shadow else "00"
             blur_tag = f"\\blur{shadow_blur}" if shadow else ""
-            visible = (
-                "{" + blur_tag + r"\bord1\shad1"
-                + r"\1a&HFF&\3a&HFF&\4a&HFF&"
-                + rf"\t(0,70,\1a&H{settled_alpha}&\3a&H{settled_alpha}&\4a&H{settled_alpha}&)"
-                + "}"
-            )
+            colour_tag = f"\\c{colour}" if colour else ""
+            if fade_in:
+                alpha_tags = (
+                    r"\1a&HFF&\3a&HFF&\4a&HFF&"
+                    + rf"\t(0,70,\1a&H{settled_alpha}&\3a&H{settled_alpha}&\4a&H{settled_alpha}&)"
+                )
+            else:
+                alpha_tags = rf"\1a&H{settled_alpha}&\3a&H{settled_alpha}&\4a&H{settled_alpha}&"
+            visible = "{" + blur_tag + colour_tag + r"\bord1\shad1" + alpha_tags + "}"
             return f"{hidden_mark_components}{before}{visible}{tone}{hidden_mark_components}{after}"
+
+        def reveal_mark_events(
+            anchor: str,
+            parts: Tuple[str, str, str],
+            word_start: float,
+            word_end: float,
+            cue_end: float,
+            style_name: str,
+        ) -> List[str]:
+            """A ghost-reveal tone companion: green while its word is spoken, then white.
+
+            Mirrors its body word, which is green (at 100% -- see
+            ghost_reveal_ass.word_pops) from its start to its end and white
+            from then until the cue leaves.
+            """
+            green_end = min(max(word_start, word_end), cue_end)
+            out: List[str] = []
+            if green_end > word_start:
+                out.append(
+                    f"Dialogue: 1,{cls._format_ass_time(word_start)},{cls._format_ass_time(green_end)},"
+                    f"{style_name},,0,0,0,,{anchor}"
+                    f"{caption_mark_overlay(parts, shadow=False, colour=GHOST_ACTIVE_COLOUR)}"
+                )
+            if cue_end > green_end:
+                out.append(
+                    f"Dialogue: 1,{cls._format_ass_time(green_end)},{cls._format_ass_time(cue_end)},"
+                    f"{style_name},,0,0,0,,{anchor}"
+                    f"{caption_mark_overlay(parts, shadow=False, fade_in=green_end <= word_start)}"
+                )
+            return out
 
         # PlayRes remains the project's full export raster. SequencePlayer's
         # Master playback and paused inspection both rasterize at 1080x1920;
@@ -880,10 +999,10 @@ Style: TikTokMinimalPill,{caption_font},{int(round((font_size - 6) * TEXT_SCALE_
 Style: HookHeader,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,1,6.0,0,8,60,60,180,1
 Style: HookHeaderShadow,{hook_font},{hook_fs_boosted},&H00000000,&H00000000,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,1,7.0,0,8,62,58,177,1
 Style: HookHeaderPill,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,3,12,0,8,60,60,180,1
-Style: SpecBar,{resolved_font},{int(round((font_size - 12) * TEXT_SCALE_BOOST))},&H00000000,&H000000FF,&H00000000,&H0000E6FF,{resolved_bold},0,0,0,100,100,0,0,3,10,0,9,50,50,380,1
+Style: SpecBar,{resolved_font},{int(round((font_size - 12) * TEXT_SCALE_BOOST))},{SPECBAR_TEXT_COLOUR},&H000000FF,{SPECBAR_BOX_COLOUR},{SPECBAR_BOX_COLOUR},{resolved_bold},0,0,0,100,100,0,0,3,{SPECBAR_BOX_PAD},0,9,50,{SPECBAR_MARGIN_R},{SPECBAR_MARGIN_V},1
 Style: TextOverlayMain,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
 Style: TextOverlayPill,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
-Style: Watermark,{caption_font},{watermark_fs_boosted},{WATERMARK_COLOR},&H000000FF,&H00FFFFFF,&H00000000,0,0,0,0,100,100,0,0,1,{watermark_outline},0,5,0,0,0,1
+Style: Watermark,{watermark_font},{watermark_fs_boosted},{WATERMARK_COLOR},&H000000FF,&H00FFFFFF,&H00000000,0,0,0,0,100,100,0,0,1,{watermark_outline},0,5,0,0,0,1
 Style: SourceCredit,{resolved_font},26,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,1.5,1,2,0,0,32,1
 Style: ChannelBadge,{resolved_font},26,&H00FFFFFF,&H000000FF,&H00000000,&H000055FF,1,0,0,0,100,100,0,0,3,8,0,9,30,30,50,1
 
@@ -1176,8 +1295,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         # Without this a caption containing a literal override
                         # block reaches libass as markup and can recolour or
                         # reposition itself.
-                        w_body, _ = repair_caption_text(ass_escape_text(word["text"]))
-                        repaired_reveal.append({**word, "text": w_body})
+                        w_body, w_detached = repair_caption_text(ass_escape_text(word["text"]))
+                        # A word whose tone is redrawn by a companion does not
+                        # pop to 114%: the companion is laid out at 100%, so a
+                        # scaled body would leave its tone off-glyph (S5-04).
+                        repaired_reveal.append({**word, "text": w_body, "pop": not w_detached})
 
                     # The companions, though, are built from the WHOLE line at
                     # once. Each one carries the entire caption and hides all of
@@ -1185,22 +1307,29 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     # right glyph -- a companion built from one word has nothing
                     # in front of it, so libass draws its tone at the start of
                     # the line instead of above the word it belongs to.
+                    # Built from the reveal's own words, exactly as the body is
+                    # drawn: the reveal drops whitespace-only tokens, so a
+                    # companion laid out from the cue text (spaces kept) put
+                    # every tone after a space one space-width to the right
+                    # of its glyph (audit S5-04 frames).
                     _, line_marks = repair_caption_text(
-                        ass_escape_text(cue_source_text.replace("\n", ""))
+                        "".join(ass_escape_text(w["text"]) for w in reveal)
                     )
                     # A companion appears with the word that owns its tone, so a
                     # mark is timed to the word whose text contains it.
-                    reveal_marks: List[Tuple[float, Tuple[str, str, str]]] = []
+                    reveal_marks: List[Tuple[float, float, Tuple[str, str, str]]] = []
                     for parts in line_marks:
-                        prefix_len = len(parts[0])
+                        prefix_len = len(parts[0].replace(" ", ""))
                         consumed = 0
                         owner_start = float(reveal[0]["start"])
+                        owner_end = float(reveal[0]["end"])
                         for word in reveal:
-                            consumed += len(ass_escape_text(word["text"]))
+                            consumed += len(repair_caption_text(ass_escape_text(word["text"]))[0].replace(" ", ""))
                             if consumed > prefix_len:
                                 owner_start = float(word["start"])
+                                owner_end = float(word["end"])
                                 break
-                        reveal_marks.append((owner_start, parts))
+                        reveal_marks.append((owner_start, owner_end, parts))
 
                     # libass centres a line on the ink it actually paints, and a
                     # ghosted word paints none -- so the reveal has to carry its
@@ -1307,28 +1436,49 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         # it, raised by the same tone_raise. It is re-derived
                         # per line because the overlay draws the whole line and
                         # hides everything but the tone, to keep the layout.
-                        for li, line in enumerate(reveal_lines):
+                        #
+                        # The marks are found on the UNrepaired line (raw_lines):
+                        # the repaired words have already lost their tones, so
+                        # scanning them found none and every wrapped reveal
+                        # caption rendered without its stacked tones. Each
+                        # companion carries the whole line, so its tone lands
+                        # over its own glyph (same reason as the single-line
+                        # path below).
+                        for li, (line, raw_line) in enumerate(zip(reveal_lines, raw_lines)):
                             line_y = first_y + li * step
-                            for word in line:
-                                _, w_marks = repair_caption_text(
-                                    ass_escape_text(word["text"])
+                            _, l_marks = repair_caption_text(
+                                "".join(w["text"] for w in raw_line)
+                            )
+                            if not l_marks:
+                                continue
+                            mark_anchor = anchor_tags(
+                                "".join(w["text"] for w in line),
+                                caption_font,
+                                font_size_boosted,
+                                centre_x=reveal_x,
+                                baseline_y=line_y - tone_raise,
+                                video_w=video_width,
+                                vertical_align=reveal_align,
+                            )
+                            for parts in l_marks:
+                                prefix_len = len(parts[0].replace(" ", ""))
+                                consumed = 0
+                                owner = raw_line[0]
+                                for word in raw_line:
+                                    consumed += len(repair_caption_text(word["text"])[0].replace(" ", ""))
+                                    if consumed > prefix_len:
+                                        owner = word
+                                        break
+                                reveal_events.extend(
+                                    reveal_mark_events(
+                                        mark_anchor,
+                                        parts,
+                                        float(owner["start"]),
+                                        float(owner["end"]),
+                                        float(cue["end"]),
+                                        style,
+                                    )
                                 )
-                                for parts in w_marks:
-                                    mark_anchor = anchor_tags(
-                                        "".join(w["text"] for w in line),
-                                        caption_font,
-                                        font_size_boosted,
-                                        centre_x=reveal_x,
-                                        baseline_y=line_y - tone_raise,
-                                        video_w=video_width,
-                                        vertical_align=reveal_align,
-                                    )
-                                    reveal_events.append(
-                                        f"Dialogue: 1,{cls._format_ass_time(word['start'])},"
-                                        f"{cls._format_ass_time(float(cue['end']))},"
-                                        f"{style},,0,0,0,,{mark_anchor}"
-                                        f"{caption_mark_overlay(parts, shadow=False)}"
-                                    )
                     else:
                         body_anchor_text = "".join(w["text"] for w in repaired_reveal)
                         anchor = _anchor_for(body_anchor_text, reveal_y)
@@ -1360,11 +1510,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                             video_w=video_width,
                             vertical_align=reveal_align,
                         )
-                        for m_start, parts in reveal_marks:
-                            reveal_events.append(
-                                f"Dialogue: 1,{cls._format_ass_time(m_start)},{cls._format_ass_time(float(cue['end']))},"
-                                f"{style},,0,0,0,,{mark_anchor}"
-                                f"{caption_mark_overlay(parts, shadow=False)}"
+                        for m_start, m_end, parts in reveal_marks:
+                            reveal_events.extend(
+                                reveal_mark_events(
+                                    mark_anchor, parts, m_start, m_end, float(cue["end"]), style
+                                )
                             )
 
                     # The English line gets its own event, centred normally.

@@ -125,8 +125,10 @@ MAX_SHOT_DURATION = 2.5  # seconds per cut
 J_CUT_OFFSET_SECONDS = 0.18  # J-Cut timing: เสียงประโยคใหม่มาก่อนภาพ 180ms เพื่อความลื่นไหลและเร่ง Retention
 
 # Subtitle & Font Settings (TikTok Standard)
-DEFAULT_FONT_PATH = FONTS_DIR / "Kanit-Black.ttf"
-DEFAULT_FONT_NAME = "Kanit"
+# The caption font default is "IBMPlex" (PipelineContext.font_name /
+# SubtitleEngine.generate_ass); metrics come from the real files in FONTS_DIR via
+# scripts/subtitle/font_metrics.py. The unused Kanit DEFAULT_FONT_* constants
+# that contradicted it were removed (audit S5-16).
 
 # Edge-TTS Voices
 VOICES = {

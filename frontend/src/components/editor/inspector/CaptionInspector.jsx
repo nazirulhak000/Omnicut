@@ -44,6 +44,10 @@ export const PRESET_STYLES = [
   },
 ];
 
+// The pipeline's caption font (PipelineContext.font_name = "IBMPlex"), which
+// the IBM Plex golden master in font_text_visual_contract.md is measured on.
+export const CAPTION_DEFAULT_FONT = 'IBMPlex';
+
 export const FONT_OPTIONS = [
   { id: 'Kanit', name: 'Kanit (คานิท - ค่ามาตรฐาน TikTok)' },
   { id: 'IBMPlex', name: 'IBM Plex Sans Thai (โมเดิร์น คมชัด)' },
@@ -95,10 +99,15 @@ export default function CaptionInspector({
 }) {
   if (!selectedCaption) return null;
 
-  const currentFont = selectedCaption.fontName || style?.fontName || 'Kanit';
-  const currentScale = selectedCaption.scale ?? style?.captionScale ?? 1.0;
-  const currentColor = selectedCaption.color || style?.captionColor || '#FFFFFF';
-  const currentPosition = selectedCaption.position || style?.captionPosition || 'bottom';
+  // Font, size, position and colour are clip-wide: subtitle_engine.generate_ass
+  // reads them once for the whole clip and never per caption, and the preview
+  // mirrors that (audit S5-06). So they show the clip's values and are only
+  // offered in "ปรับทั้งแผง" mode -- a per-caption edit would show nowhere.
+  const currentFont = style?.fontName || CAPTION_DEFAULT_FONT;
+  const currentScale = style?.captionScale ?? 1.0;
+  const currentColor = style?.captionColor || '#FFFFFF';
+  const currentPosition = style?.captionPosition || 'bottom';
+  const clipWideControls = !!effectiveApplyToAll;
   const currentTranslation = selectedCaption.translation;
 
   const handleFontChange = (fontName) => {
@@ -146,7 +155,7 @@ export default function CaptionInspector({
     if (effectiveApplyToAll) {
       onStyleChange?.({
         captionScale: 1.0,
-        fontName: 'Kanit',
+        fontName: CAPTION_DEFAULT_FONT,
         captionColor: '#FFFFFF',
         captionPosition: 'bottom',
         captionX: 0.5,
@@ -217,7 +226,7 @@ export default function CaptionInspector({
               type="button"
               onClick={handleResetFormat}
               className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-[11px] font-semibold text-slate-300 hover:text-white flex items-center gap-1 transition-all cursor-pointer"
-              title="คืนค่าขนาด 100%, ฟอนต์ Kanit, สีขาว และตำแหน่งกึ่งกลางล่าง"
+              title="คืนค่าขนาด 100%, ฟอนต์ IBM Plex Sans Thai, สีขาว และตำแหน่งกึ่งกลางล่าง"
             >
               <RotateCcw className="w-3 h-3 text-slate-400" />
               <span>รีเซ็ตค่าเริ่มต้น</span>
@@ -280,7 +289,14 @@ export default function CaptionInspector({
 
       {/* Typography Controls Card */}
       <div className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] space-y-3">
+        {!clipWideControls && (
+          <p className="text-[11px] leading-relaxed text-amber-300/90">
+            ฟอนต์ ขนาด ตำแหน่ง และสี ใช้ค่าเดียวกันทั้งคลิปในไฟล์ที่เรนเดอร์ เลือก “ปรับทั้งแผง” เพื่อแก้ค่าเหล่านี้
+          </p>
+        )}
+
         {/* Font dropdown */}
+        {clipWideControls && (
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-slate-400 font-medium w-14 flex-shrink-0">ฟอนต์:</span>
           <select
@@ -296,6 +312,7 @@ export default function CaptionInspector({
             ))}
           </select>
         </div>
+        )}
 
         {/* Progressive Ghost Reveal -- SOP Phase 3 */}
         <CaptionToggle
@@ -314,6 +331,7 @@ export default function CaptionInspector({
         />
 
         {/* Font size slider & number input */}
+        {clipWideControls && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-xs text-slate-400 font-medium">ขนาดตัวอักษร:</span>
@@ -358,8 +376,10 @@ export default function CaptionInspector({
             className="w-full accent-[#25F4EE] cursor-pointer"
           />
         </div>
+        )}
 
         {/* Position on screen */}
+        {clipWideControls && (
         <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
           <span className="text-[11px] text-slate-400 font-medium">ตำแหน่งบนจอ:</span>
           <div className="grid grid-cols-3 gap-1.5">
@@ -383,8 +403,10 @@ export default function CaptionInspector({
             ))}
           </div>
         </div>
+        )}
 
         {/* Color picker */}
+        {clipWideControls && (
         <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-slate-400 font-medium">สีตัวอักษร:</span>
@@ -402,9 +424,11 @@ export default function CaptionInspector({
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* Preset Styles */}
+      {clipWideControls && (
       <div className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] space-y-2.5">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-slate-300">สไตล์สำเร็จรูป (Preset Styles)</span>
@@ -444,6 +468,7 @@ export default function CaptionInspector({
           })}
         </div>
       </div>
+      )}
 
       {/* Quick Actions for Selected Caption */}
       <div className="grid grid-cols-2 gap-2 pt-1">
