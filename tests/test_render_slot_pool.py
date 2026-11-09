@@ -376,11 +376,23 @@ class _FakeRun:
                 self.active -= 1
         if codec == "h264_nvenc" and self.nvenc_fails:
             return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="OpenEncodeSessionEx failed: out of memory (10)")
+        from pathlib import Path
+        Path(cmd[-1]).write_bytes(b"encoded")  # the .partial.mp4 target
         return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+
+def _skip_media_checks(monkeypatch):
+    """These tests exercise session accounting with a fake ffmpeg; the real
+    integrity gate is covered by tests/test_tiktok_enhancer.py."""
+    from scripts import media_validation
+    monkeypatch.setattr(tiktok_enhancer, "check_enhancer_source",
+                        lambda path: media_validation.MediaCheck(True, "", {"duration": 1.0}))
+    monkeypatch.setattr(tiktok_enhancer, "verify_enhanced_output", lambda src_check, partial: None)
 
 
 def test_enhancer_caps_concurrent_nvenc_sessions(tmp_path, monkeypatch):
     fake = _FakeRun()
+    _skip_media_checks(monkeypatch)
     monkeypatch.setattr(tiktok_enhancer, "HAS_NVENC", True)
     monkeypatch.setattr(tiktok_enhancer, "_NVENC_SESSIONS", threading.BoundedSemaphore(2))
     monkeypatch.setattr(tiktok_enhancer.subprocess, "run", fake)
@@ -400,10 +412,13 @@ def test_enhancer_caps_concurrent_nvenc_sessions(tmp_path, monkeypatch):
 
 def test_enhancer_falls_back_to_libx264_when_nvenc_session_fails(tmp_path, monkeypatch):
     fake = _FakeRun(nvenc_fails=True)
+    _skip_media_checks(monkeypatch)
     monkeypatch.setattr(tiktok_enhancer, "HAS_NVENC", True)
     monkeypatch.setattr(tiktok_enhancer.subprocess, "run", fake)
     src = tmp_path / "in.mp4"
     src.write_bytes(b"x")
     out = tiktok_enhancer.enhance_video_for_tiktok(src)
     assert out.name == "in_tiktok_sharp.mp4"
+    assert out.read_bytes() == b"encoded"
+    assert not list(tmp_path.glob("*.partial.mp4"))
     assert fake.codecs == ["h264_nvenc", "libx264"]

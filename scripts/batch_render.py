@@ -15,10 +15,7 @@ the lock is never held while a clip renders.
 """
 
 import glob
-import json
 import re
-import shutil
-import subprocess
 import sys
 import uuid
 import time
@@ -41,6 +38,7 @@ from scripts.task_manager import TaskManager
 from scripts.batch_queue_store import BatchQueueStore
 from scripts import batch_queue_store as _batch_queue_store
 from scripts import maintenance_lock
+from scripts import media_validation
 from scripts import render_jobs
 from scripts.render_jobs import RenderCancelled
 from scripts.pipeline import TikTokAutoCutterPipeline
@@ -53,7 +51,7 @@ logger = logging.getLogger("batch_render")
 # AGENTS rule 24: batch work runs on 4 concurrent workers by default.
 BATCH_MAX_WORKERS = 4
 # An output smaller than this is treated as truncated/broken.
-MIN_VALID_MP4_BYTES = 1024 * 1024
+MIN_VALID_MP4_BYTES = media_validation.MIN_VALID_MP4_BYTES
 DEFAULT_BATCH_STYLE = "clean_tech_review"
 # Batch picker values that mean "no explicit choice, use each angle's default".
 AUTO_STYLE_VALUES = frozenset({"", "auto"})
@@ -125,67 +123,19 @@ def resolve_batch_style_preset(angle_data: Dict[str, Any], options: Dict[str, An
     )
 
 
-def _ffprobe_binary() -> Optional[str]:
-    return shutil.which("ffprobe")
-
-
-def _run_ffprobe(command: List[str]) -> subprocess.CompletedProcess:
-    return subprocess.run(command, capture_output=True, text=True, timeout=30)
-
-
-def _has_mp4_atoms(path: Path) -> bool:
-    """Fallback when ffprobe is unavailable: ISO BMFF header plus a moov atom."""
-    try:
-        size = path.stat().st_size
-        window = 4 * 1024 * 1024
-        with open(path, "rb") as handle:
-            head = handle.read(window)
-            if b"ftyp" not in head[:64]:
-                return False
-            if b"moov" in head:
-                return True
-            handle.seek(max(0, size - window))
-            return b"moov" in handle.read(window)
-    except OSError:
-        return False
-
-
 def is_valid_mp4(path: Any) -> bool:
-    """True when ``path`` is a finished MP4: > 1MB, has a video stream, duration > 0.
+    """True when ``path`` is a finished export (resume gate).
 
-    Uses ffprobe; if ffprobe is not installed it falls back to an MP4 atom
-    check instead of failing, so a missing tool never blocks a batch.
+    Delegates to the single central gate ``scripts.media_validation``:
+    ffprobe streams with no error output + 1080x1920 + 30 FPS + a clean
+    decode of the last second. A +faststart file cut in half (moov intact,
+    tail missing) or a missing ffprobe both count as invalid, so the item is
+    re-rendered instead of being marked ``rendered`` (audit S6-03).
     """
-    try:
-        p = Path(path)
-        if not p.is_file() or p.stat().st_size <= MIN_VALID_MP4_BYTES:
-            return False
-    except (OSError, TypeError, ValueError):
-        return False
-
-    ffprobe = _ffprobe_binary()
-    if not ffprobe:
-        logger.warning("[BatchRender] ไม่พบ ffprobe ตรวจไฟล์ %s ด้วยโครงสร้าง MP4 แทน", p.name)
-        return _has_mp4_atoms(p)
-    command = [
-        ffprobe, "-v", "error", "-select_streams", "v:0",
-        "-show_entries", "stream=codec_type:format=duration",
-        "-of", "json", str(p),
-    ]
-    try:
-        proc = _run_ffprobe(command)
-    except (OSError, subprocess.SubprocessError) as exc:
-        logger.warning("[BatchRender] ffprobe ตรวจไฟล์ %s ไม่สำเร็จ: %s", p.name, exc)
-        return False
-    if proc.returncode != 0:
-        return False
-    try:
-        data = json.loads(proc.stdout or "{}")
-        duration = float((data.get("format") or {}).get("duration") or 0)
-    except (ValueError, TypeError, AttributeError):
-        return False
-    has_video = any((s or {}).get("codec_type") == "video" for s in (data.get("streams") or []))
-    return has_video and duration > 0
+    check = media_validation.validate_mp4(path)
+    if not check.ok and check.reason and Path(str(path)).exists():
+        logger.warning("[BatchRender] ไฟล์ %s ใช้ resume ไม่ได้: %s", Path(str(path)).name, check.reason)
+    return check.ok
 
 ANGLE_SLUG_MAP: Dict[str, str] = {
     "spec_review": "รีวิวสเปก",
@@ -616,6 +566,8 @@ class BatchRenderManager:
             path = Path(candidate)
             if not path.is_absolute():
                 path = BASE_DIR / path
+            if media_validation.is_partial_name(path):
+                continue  # an unfinished encode is never a resumable export
             try:
                 mtime = path.stat().st_mtime
             except OSError:

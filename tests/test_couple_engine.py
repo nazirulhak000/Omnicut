@@ -42,7 +42,30 @@ from scripts.couple_engine import (
     verify_clip_transcript,
 )
 from scripts.couple_engine.audio import _read_wav_mono, _write_wav_mono
-from scripts.couple_engine.render import _write_synthetic_valid_mp4
+
+
+def _write_synthetic_valid_mp4(path: Path, size_bytes: int = 128 * 1024) -> Path:
+    """Placeholder bytes for tests that only need *a file* (finalize/registry).
+
+    Not a playable MP4: the central gate (scripts.media_validation) rejects it.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    header = b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom\x00\x00\x00\x08mdat"
+    path.write_bytes(header + (b"\x00" * max(0, size_bytes - len(header))))
+    return path
+
+
+def _real_mp4(path: Path, seconds: float = 0.5) -> Path:
+    """Tiny real 1080x1920@30 MP4 that passes the central integrity gate."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run([
+        "ffmpeg", "-y", "-v", "error",
+        "-f", "lavfi", "-i", f"color=c=gray:s=1080x1920:r=30:d={seconds}",
+        "-f", "lavfi", "-i", f"sine=frequency=700:duration={seconds}",
+        "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-shortest", "-movflags", "+faststart", str(path),
+    ], check=True, capture_output=True, timeout=120)
+    return path
 from tools.couple_produce import main as cli_main, parse_clip_selection, run_couple_production
 
 
@@ -435,14 +458,18 @@ def test_is_valid_mp4_and_parallel_render_resume(tmp_path: Path):
     bad_header.write_bytes(b"NOT_AN_MP4_HEADER" + b"\x00" * (120 * 1024))
     assert is_valid_mp4(bad_header) is False
 
-    pre_existing = _write_synthetic_valid_mp4(tmp_path / "20261030_red01-pov-s01_v1.mp4")
+    fake_ftyp = _write_synthetic_valid_mp4(tmp_path / "fake.mp4")
+    assert is_valid_mp4(fake_ftyp) is False  # S6-02: header + zeros is not a video
+
+    pre_existing = _real_mp4(tmp_path / "20261030_red01-pov-s01_v1.mp4")
     assert is_valid_mp4(pre_existing) is True
+    template = _real_mp4(tmp_path / "template.mp4")
 
     rendered_calls: List[str] = []
 
     def mock_render(task: Dict[str, Any], output_mp4: Path):
         rendered_calls.append(task["clip_id"])
-        _write_synthetic_valid_mp4(output_mp4)
+        output_mp4.write_bytes(template.read_bytes())
 
     tasks = [
         {"clip_id": "red01-pov-s01", "output_mp4": pre_existing},
@@ -461,7 +488,7 @@ def test_is_valid_mp4_and_parallel_render_resume(tmp_path: Path):
 
 
 def test_nvenc_runtime_fallback_to_libx264(tmp_path: Path):
-    src = _write_synthetic_valid_mp4(tmp_path / "raw.mp4")
+    src = _real_mp4(tmp_path / "raw.mp4")
     dst = tmp_path / "enhanced.mp4"
     commands_tried: List[List[str]] = []
 
@@ -469,13 +496,38 @@ def test_nvenc_runtime_fallback_to_libx264(tmp_path: Path):
         commands_tried.append(cmd)
         if "h264_nvenc" in cmd:
             return subprocess.CompletedProcess(cmd, returncode=1, stdout="", stderr="No NVENC device")
-        _write_synthetic_valid_mp4(Path(cmd[-1]))
+        Path(cmd[-1]).write_bytes(src.read_bytes())
         return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
 
     res = encode_with_nvenc_fallback(src, dst, runner_fn=fake_ffmpeg_runner)
     assert res["encoder"] == "libx264"
     assert res["fallback_used"] is True
     assert len(commands_tried) == 2
+    assert commands_tried[-1][-1].endswith(".partial.mp4")  # never encodes onto the final name
+    assert is_valid_mp4(dst) is True
+
+
+def test_encoder_rejects_fake_or_short_output(tmp_path: Path):
+    src = _real_mp4(tmp_path / "raw.mp4", seconds=1.0)
+    short = _real_mp4(tmp_path / "short.mp4", seconds=0.5)
+    dst = tmp_path / "enhanced.mp4"
+
+    def writes_fake(cmd: List[str]) -> subprocess.CompletedProcess:
+        _write_synthetic_valid_mp4(Path(cmd[-1]))
+        return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
+
+    with pytest.raises(RuntimeError):
+        encode_with_nvenc_fallback(src, dst, runner_fn=writes_fake)
+    assert not dst.exists()
+
+    def writes_short(cmd: List[str]) -> subprocess.CompletedProcess:
+        Path(cmd[-1]).write_bytes(short.read_bytes())
+        return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
+
+    with pytest.raises(RuntimeError):
+        encode_with_nvenc_fallback(src, dst, runner_fn=writes_short)  # S6-05: 0.5s != 1.0s
+    assert not dst.exists()
+    assert not list(tmp_path.glob("*.partial.mp4"))
 
 
 def test_finalize_clip_export_concurrent_20_clips_and_gdrive_sync(tmp_path: Path):

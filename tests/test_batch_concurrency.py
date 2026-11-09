@@ -6,6 +6,7 @@ written to 04_Exports.
 """
 
 import json
+from pathlib import Path
 import subprocess
 import threading
 import time
@@ -140,21 +141,30 @@ def test_concurrent_items_never_share_a_project_name(tmp_path):
     assert len(set(names)) == len(names)
 
 
-def _fake_ffprobe_ok(command):
-    return subprocess.CompletedProcess(
-        command, 0, stdout=json.dumps({"streams": [{"codec_type": "video"}], "format": {"duration": "31.5"}}), stderr=""
-    )
+_REAL_CLIP_CACHE = {}
 
 
-def _write_mp4(path, size=batch_render.MIN_VALID_MP4_BYTES + 1):
-    with open(path, "wb") as handle:
-        handle.write(b"\x00\x00\x00\x18ftypisom")
-        handle.truncate(size)
+def _real_clip_bytes():
+    """Bytes of a tiny real 1080x1920@30 MP4 (passes the central gate)."""
+    if "data" not in _REAL_CLIP_CACHE:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "clip.mp4"
+            subprocess.run([
+                "ffmpeg", "-y", "-v", "error",
+                "-f", "lavfi", "-i", "color=c=gray:s=1080x1920:r=30:d=0.5",
+                "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+                "-movflags", "+faststart", str(out),
+            ], check=True, capture_output=True, timeout=120)
+            _REAL_CLIP_CACHE["data"] = out.read_bytes()
+    return _REAL_CLIP_CACHE["data"]
+
+
+def _write_mp4(path):
+    Path(path).write_bytes(_real_clip_bytes())
 
 
 def test_resume_skips_items_with_a_valid_output_from_this_batch(tmp_path, monkeypatch):
-    monkeypatch.setattr(batch_render, "_ffprobe_binary", lambda: "ffprobe")
-    monkeypatch.setattr(batch_render, "_run_ffprobe", _fake_ffprobe_ok)
     product = _product(tmp_path, 4)
     fake = FakePipeline(seconds=0.05)
     with patch.object(ProductStore, "get", return_value=product), \
@@ -185,8 +195,6 @@ def test_resume_skips_items_with_a_valid_output_from_this_batch(tmp_path, monkey
 
 
 def test_resume_ignores_exports_older_than_the_batch(tmp_path, monkeypatch):
-    monkeypatch.setattr(batch_render, "_ffprobe_binary", lambda: "ffprobe")
-    monkeypatch.setattr(batch_render, "_run_ffprobe", _fake_ffprobe_ok)
     product = _product(tmp_path, 1)
     old = batch_render.EXPORTS_DIR / f"{product['angles'][0]['project_name']}_20250101_000000.mp4"
     _write_mp4(old)
@@ -231,61 +239,21 @@ def test_cancel_stops_running_wave_and_skips_remaining_items(tmp_path):
     assert batch["completed_items"] == 0
 
 
-def test_is_valid_mp4_checks_size_stream_and_duration(tmp_path, monkeypatch):
-    monkeypatch.setattr(batch_render, "_ffprobe_binary", lambda: "ffprobe")
-    monkeypatch.setattr(batch_render, "_run_ffprobe", _fake_ffprobe_ok)
+def test_resume_gate_rejects_truncated_and_partial_outputs(tmp_path):
+    """S6-03: the resume gate is the central validator, not a size/duration check."""
     good = tmp_path / "good.mp4"
     _write_mp4(good)
-    small = tmp_path / "small.mp4"
-    _write_mp4(small, size=1024)
     assert is_valid_mp4(good) is True
-    assert is_valid_mp4(small) is False
+    half = tmp_path / "half.mp4"
+    data = good.read_bytes()
+    half.write_bytes(data[: len(data) // 2])
+    assert is_valid_mp4(half) is False
+    fake = tmp_path / "fake.mp4"
+    with open(fake, "wb") as handle:
+        handle.write(b"\x00\x00\x00\x18ftypisom")
+        handle.truncate(2 * 1024 * 1024)
+    assert is_valid_mp4(fake) is False
     assert is_valid_mp4(tmp_path / "missing.mp4") is False
-
-    monkeypatch.setattr(
-        batch_render, "_run_ffprobe",
-        lambda cmd: subprocess.CompletedProcess(cmd, 0, stdout=json.dumps({"streams": [], "format": {"duration": "3"}}), stderr=""),
-    )
-    assert is_valid_mp4(good) is False  # no video stream
-
-    monkeypatch.setattr(
-        batch_render, "_run_ffprobe",
-        lambda cmd: subprocess.CompletedProcess(cmd, 0, stdout=json.dumps({"streams": [{"codec_type": "video"}], "format": {"duration": "0"}}), stderr=""),
-    )
-    assert is_valid_mp4(good) is False  # zero duration
-
-    monkeypatch.setattr(batch_render, "_run_ffprobe", lambda cmd: subprocess.CompletedProcess(cmd, 1, stdout="", stderr="moov atom not found"))
-    assert is_valid_mp4(good) is False  # undecodable
-
-
-def test_is_valid_mp4_without_ffprobe_falls_back_to_atom_check(tmp_path, monkeypatch):
-    monkeypatch.setattr(batch_render, "_ffprobe_binary", lambda: None)
-
-    def fail_if_called(cmd):
-        raise AssertionError("ffprobe must not run when it is missing")
-
-    monkeypatch.setattr(batch_render, "_run_ffprobe", fail_if_called)
-    with_moov = tmp_path / "with_moov.mp4"
-    _write_mp4(with_moov)
-    with open(with_moov, "r+b") as handle:
-        handle.seek(64)
-        handle.write(b"\x00\x00\x00\x08moov")
-    without_moov = tmp_path / "without_moov.mp4"
-    _write_mp4(without_moov)
-    assert is_valid_mp4(with_moov) is True
-    assert is_valid_mp4(without_moov) is False
-
-
-def test_ffprobe_oserror_is_handled(tmp_path, monkeypatch):
-    monkeypatch.setattr(batch_render, "_ffprobe_binary", lambda: "ffprobe")
-
-    def boom(cmd):
-        raise FileNotFoundError("ffprobe vanished")
-
-    monkeypatch.setattr(batch_render, "_run_ffprobe", boom)
-    good = tmp_path / "good.mp4"
-    _write_mp4(good)
-    assert is_valid_mp4(good) is False
 
 
 # --------------------------------------------------------- shared slot pool
