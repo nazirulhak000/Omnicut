@@ -102,6 +102,28 @@ function createChromeShim({ port, storageFile, secrets = {}, WebSocketImpl = glo
     try { return await fn((m, p) => sendOn(session, m, p)); } finally { session.closing = true; session.ws.close(); }
   }
 
+  // A half-filled upload form makes Chrome raise a native "Leave site?"
+  // (beforeunload) prompt that blocks Page.navigate until someone answers.
+  // In a real browser a person clicks it; the unattended host accepts it.
+  async function navigate(tabId, url) {
+    const session = await openSession(await targetOf(tabId));
+    try {
+      session.ws.addEventListener('message', event => {
+        let msg;
+        try { msg = JSON.parse(typeof event.data === 'string' ? event.data : String(event.data)); } catch (_) { return; }
+        if (msg.method === 'Page.javascriptDialogOpening' && msg.params?.type === 'beforeunload') {
+          sendOn(session, 'Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
+        }
+      });
+      await sendOn(session, 'Page.enable');
+      await sendOn(session, 'Page.navigate', { url });
+      await new Promise(resolve => setTimeout(resolve, 1200));
+    } finally {
+      session.closing = true;
+      session.ws.close();
+    }
+  }
+
   const tabs = {
     async query(info = {}) {
       const targets = await listTargets();
@@ -113,7 +135,7 @@ function createChromeShim({ port, storageFile, secrets = {}, WebSocketImpl = glo
     async get(tabId) { return tabFor(await targetOf(tabId)); },
     async update(tabId, props = {}) {
       const target = await targetOf(tabId);
-      if (props.url) await withTarget(tabId, send => send('Page.navigate', { url: props.url }));
+      if (props.url) await navigate(tabId, props.url);
       if (props.active) await fetchImpl(`${base}/json/activate/${target.id}`);
       return { ...tabFor(target, !!props.active), url: props.url || target.url };
     },

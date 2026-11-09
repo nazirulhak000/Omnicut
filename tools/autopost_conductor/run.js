@@ -17,13 +17,14 @@ const CHROME_EXE = process.env.OMNICUT_CHROME || 'C:\\Program Files\\Google\\Chr
 const PROFILE_DIR = path.join(ROOT, 'tools', 'tiktok_browser_profile');
 
 function parseArgs(argv) {
-  const args = { channel: 'main', limit: 10, port: 9333, dryRun: false, health: false, noLaunch: false, queueId: null, allowPriceCaption: false };
+  const args = { channel: 'main', limit: 10, port: 9333, dryRun: false, health: false, noLaunch: false, queueId: null, allowPriceCaption: false, coverFallback: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
     else if (a === '--health') args.health = true;
     else if (a === '--no-launch') args.noLaunch = true;
     else if (a === '--allow-price-caption') args.allowPriceCaption = true;
+    else if (a === '--cover-fallback') args.coverFallback = true;
     else if (a === '--channel') args.channel = argv[++i];
     else if (a === '--limit') args.limit = Number(argv[++i]);
     else if (a === '--port') args.port = Number(argv[++i]);
@@ -72,20 +73,29 @@ async function findStudioTab(shim) {
   return tabs.find(t => /\/tiktokstudio/.test(t.url)) || tabs[0] || null;
 }
 
-async function checkStudioReady(shim, port) {
+// `worker` is optional: with it, a page left in a half-filled state by an earlier
+// run is reset through the extension's own dialog-aware reset before checking.
+async function checkStudioReady(shim, worker) {
   let tab = await findStudioTab(shim);
   if (!tab) tab = await shim.chrome.tabs.create({ url: UPLOAD_URL });
   else if (!/\/tiktokstudio\/upload/.test(tab.url)) tab = await shim.chrome.tabs.update(tab.id, { url: UPLOAD_URL, active: true });
   const checks = { login: false, file_input: false, url: '' };
-  for (let i = 0; i < 30; i += 1) {
+  let reset = false;
+  for (let i = 0; i < 40; i += 1) {
     await sleep(1000);
     const now = await shim.chrome.tabs.get(tab.id);
     checks.url = now.url;
     if (/login|passport/.test(now.url)) break;
+    if (!/\/tiktokstudio/.test(now.url)) continue;
+    checks.login = true;
     checks.file_input = Boolean(await shim.evaluate(tab.id, `!!document.querySelector('input[type="file"]')`).catch(() => false));
-    if (/\/tiktokstudio\/upload/.test(now.url) && checks.file_input) { checks.login = true; break; }
+    if (checks.file_input) break;
+    if (worker && !reset && i >= 6) {
+      reset = true;
+      await worker.send('reset-upload-page').catch(() => {});
+    }
   }
-  return { tab, checks };
+  return { tab, checks: { ...checks, reset } };
 }
 
 async function main() {
@@ -116,17 +126,22 @@ async function main() {
       port: args.port, storageFile: path.join(ROOT, '.tmp', 'autopost_state.json'),
       secrets: { omnicutApiKey: apiKey },
     });
-    const { tab, checks } = await checkStudioReady(shim, args.port);
+    const worker = loadWorker({ shim });
+    const { tab, checks } = await checkStudioReady(shim, worker);
+    const healthy = checks.login && checks.file_input;
     fs.writeFileSync(path.join(ROOT, '.tmp', 'autopost_health.json'),
-      JSON.stringify({ ok: checks.login, checked_at: new Date().toISOString(), checks }, null, 2));
+      JSON.stringify({ ok: healthy, checked_at: new Date().toISOString(), checks }, null, 2));
     if (!checks.login) {
       alert(`TikTok Studio ยังไม่พร้อม (url=${checks.url}) — login มือในหน้าต่าง Chrome นี้หนึ่งครั้ง แล้วรันใหม่`);
+      process.exit(3);
+    }
+    if (!healthy) {
+      alert(`login แล้วแต่ไม่พบช่องเลือกไฟล์บนหน้าอัปโหลด (url=${checks.url}) — TikTok อาจเปลี่ยนหน้า หรือมี dialog ค้าง`);
       process.exit(3);
     }
     log('info', 'TikTok Studio พร้อม (login แล้ว, พบ input อัปโหลดไฟล์)');
     if (args.health) { log('info', 'health ok'); return; }
 
-    const worker = loadWorker({ shim });
     const { clips, skipped } = await pickClips(api, args);
     skipped.forEach(s => log('warn', `ข้าม ${s.title}: ${s.reason}`));
     if (!clips.length) { log('info', 'ไม่มีคลิปพร้อมโพสต์ในคิว'); return; }
@@ -136,6 +151,26 @@ async function main() {
     const tabId = async () => (await findStudioTab(shim))?.id ?? tab.id;
     const deps = {
       worker, api, log, sleep,
+      // Closes the "Edit cover" modal (Cancel) when no custom-cover upload exists.
+      dismissCoverModal: async () => {
+        await shim.evaluate(await tabId(), `(() => {
+          const dialogs = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"]')];
+          const d = dialogs.find(x => /Edit cover|แก้ไขหน้าปก|แก้ไขปก/.test(x.innerText || ''));
+          const b = d && [...d.querySelectorAll('button,[role="button"]')].find(x => ['Cancel', 'ยกเลิก'].includes((x.innerText || '').trim()));
+          if (b) b.click();
+          return !!b;
+        })()`).catch(() => false);
+        await sleep(900);
+        // TikTok then asks "Discard this edit?" — confirm, or it blocks the post button.
+        await shim.evaluate(await tabId(), `(() => {
+          const dialogs = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"]')];
+          const d = dialogs.find(x => /Discard this edit|ละทิ้งการแก้ไข|ทิ้งการแก้ไข/.test(x.innerText || ''));
+          const b = d && [...d.querySelectorAll('button,[role="button"]')].find(x => ['Discard', 'ละทิ้ง', 'ทิ้ง'].includes((x.innerText || '').trim()));
+          if (b) b.click();
+          return !!b;
+        })()`).catch(() => false);
+        await sleep(900);
+      },
       shot: async label => shim.screenshot(await tabId(), path.join(runDir, `${label}.png`)).catch(e => log('warn', `screenshot: ${e.message}`)),
       dumpDom: async label => {
         const html = await shim.evaluate(await tabId(), 'document.documentElement.outerHTML').catch(() => '');
@@ -146,7 +181,7 @@ async function main() {
         }
       },
     };
-    const summary = await runBatch(deps, { clips, dryRun: args.dryRun, channelId: args.channel, shouldStop: () => stopRequested });
+    const summary = await runBatch(deps, { clips, dryRun: args.dryRun, channelId: args.channel, coverFallback: args.coverFallback, shouldStop: () => stopRequested });
     fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify(summary, null, 2));
     log('info', `สรุป: โพสต์ ${summary.posted} · ตั้งเวลา ${summary.scheduled} · dry-run ${summary.dry_run_ok} · ข้าม ${summary.skipped} · ล้ม ${summary.failed} · ไม่ชัด ${summary.unknown}`);
     if (summary.aborted) { alert(summary.aborted); process.exitCode = 2; }

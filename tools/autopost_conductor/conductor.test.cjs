@@ -193,3 +193,43 @@ test('host loads the real extension worker and answers actions through the shim'
     assert.ok(!fs.readFileSync(path.join(dir, 's.json'), 'utf8').includes('"omnicutApiKey":"k"'));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('dry-run replaces a passed slot with a synthetic future one; real run still skips it', async () => {
+  const past = item({ scheduled_at: '2020-01-01T10:00' });
+  const api = { get: async () => ({ ok: true, data: { items: [past] } }) };
+  const now = new Date('2026-11-09T10:00:00').getTime();
+  const real = await pickClips(api, { now });
+  assert.equal(real.clips.length, 0);
+  assert.equal(real.skipped[0].reason, 'slot_passed_or_too_close');
+  const dry = await pickClips(api, { now, dryRun: true });
+  assert.equal(dry.clips.length, 1);
+  assert.equal(dry.clips[0].schedule_date, '2026-11-11');
+  assert.equal(dry.clips[0].schedule_overridden, true);
+});
+
+test('no custom-cover upload: dry-run keeps going with TikTok auto cover; real run fails unless allowed', async () => {
+  const noCover = { success: false, step: 'cover', completed: ['caption', 'product', 'schedule'], error: 'ไม่พบ node ของช่องอัปโหลดปก' };
+  const dry = fakeDeps({ replies: { 'prepare-details': noCover } });
+  let dismissed = 0;
+  dry.deps.dismissCoverModal = async () => { dismissed += 1; };
+  const r1 = await runClip(dry.deps, clipFromQueueItem(item()), { dryRun: true });
+  assert.equal(r1.status, 'dry_run_ok');
+  assert.equal(r1.cover_fallback, true);
+  assert.equal(dismissed, 1);
+
+  const strict = fakeDeps({ replies: { 'prepare-details': noCover } });
+  const r2 = await runClip(strict.deps, clipFromQueueItem(item()), {});
+  assert.equal(r2.status, 'failed');
+  assert.ok(!strict.calls.includes('click-post-only'));
+
+  const allowed = fakeDeps({ replies: { 'prepare-details': noCover, 'click-post-only': { success: true, outcome: 'scheduled_on_platform' } } });
+  allowed.deps.dismissCoverModal = async () => {};
+  const r3 = await runClip(allowed.deps, clipFromQueueItem(item()), { coverFallback: true });
+  assert.equal(r3.status, 'scheduled');
+  assert.equal(r3.cover_fallback, true);
+
+  // a failure BEFORE the cover step is never excused by the fallback
+  const early = fakeDeps({ replies: { 'prepare-details': { success: false, step: 'product', completed: ['caption'], error: 'x' } } });
+  const r4 = await runClip(early.deps, clipFromQueueItem(item()), { coverFallback: true, dryRun: true });
+  assert.equal(r4.status, 'failed');
+});

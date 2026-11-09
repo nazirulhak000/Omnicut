@@ -230,11 +230,24 @@ function postingFence(job, sourceAccount) {
 
 }
 
-async function readStudioAccount(send) {
+// The Studio header (with the profile link) renders a moment after navigation.
+// A single early read returns null and would abort a perfectly good post, so
+// poll briefly; a genuinely unreadable/multiple account still stops the post.
+async function readStudioAccount(send, attempts = 20) {
+  for (let i = 0; i < attempts; i += 1) {
+    const handle = await readStudioAccountOnce(send);
+    if (handle) return handle;
+    await sleep(700);
+  }
+  return null;
+}
+
+async function readStudioAccountOnce(send) {
 
   const response = await send('Runtime.evaluate', {
 
-    expression: `(() => {
+    awaitPromise: true,
+    expression: `(async () => {
 
       const handles = [];
 
@@ -255,6 +268,10 @@ async function readStudioAccount(send) {
         const btn = document.querySelector('[data-tt="Header_NewHeader_Clickable"], button:has([data-tt*="Avatar"]), [data-tt*="Avatar"]');
         if (btn) {
           btn.click();
+          // The profile menu renders asynchronously; read it only once it exists.
+          for (let i = 0; i < 8 && !document.querySelector('a[href*="/@"]'); i += 1) {
+            await new Promise(resolve => setTimeout(resolve, 150));
+          }
           const more = Array.from(document.querySelectorAll('a[href*="/@"], [role="dialog"] a[href*="/@"]'));
           for (const el of more) {
             const val = el.getAttribute('href') || (el.textContent || '').trim();
@@ -1953,7 +1970,13 @@ async function attachProductLink(send, productId, cartName = '') {
 
       expression: `(() => {
 
-        const root = document.querySelector('[role="dialog"], [aria-modal="true"]') || document;
+        // Several dialogs can coexist (profile menu, "new feature" popover): use the
+        // add-link step itself, else any dialog that has a Next button.
+        const isNext = b => ['ถัดไป', 'Next'].includes((b.innerText || b.textContent || '').trim());
+        const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"]'));
+        const root = dialogs.find(d => /เพิ่มลิงก์|ประเภทลิงก์|Add link|Link type/i.test(d.innerText || d.textContent || ''))
+          || dialogs.find(d => Array.from(d.querySelectorAll('button, div[role="button"]')).some(isNext))
+          || document;
 
         const buttons = Array.from(root.querySelectorAll('button, div[role="button"]'));
 

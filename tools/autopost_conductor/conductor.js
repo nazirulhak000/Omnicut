@@ -45,7 +45,15 @@ function skipReason(clip, { now = Date.now(), allowPriceCaption = false } = {}) 
   return '';
 }
 
-async function pickClips(api, { queueId = null, limit = 10, now = Date.now(), allowPriceCaption = false } = {}) {
+// Dry-run never posts, so a slot that already passed is replaced by a synthetic
+// one (2 days ahead, 12:00) just to exercise the TikTok schedule picker.
+function dryRunSlot(now) {
+  const d = new Date(now + 2 * 24 * 3600 * 1000);
+  const pad = n => String(n).padStart(2, '0');
+  return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: '12:00' };
+}
+
+async function pickClips(api, { queueId = null, limit = 10, now = Date.now(), allowPriceCaption = false, dryRun = false } = {}) {
   const res = await api.get('/api/schedule-queue');
   if (!res.ok) throw new Error(`schedule-queue ${res.status}: ${res.data?.detail || ''}`);
   const items = (res.data.items || [])
@@ -55,7 +63,14 @@ async function pickClips(api, { queueId = null, limit = 10, now = Date.now(), al
   const clips = [];
   const skipped = [];
   for (const clip of items) {
-    const reason = skipReason(clip, { now, allowPriceCaption });
+    let reason = skipReason(clip, { now, allowPriceCaption });
+    if (reason === 'slot_passed_or_too_close' && dryRun) {
+      const slot = dryRunSlot(now);
+      clip.schedule_date = slot.date;
+      clip.schedule_time = slot.time;
+      clip.schedule_overridden = true;
+      reason = skipReason(clip, { now, allowPriceCaption });
+    }
     if (reason) skipped.push({ id: clip.id, title: clip.title, reason });
     else if (clips.length < limit) clips.push(clip);
   }
@@ -73,7 +88,7 @@ function shouldReconcile(outcome, result) {
   return outcome === 'confirmation_unknown' || result?.outcome === 'confirmation_unknown' || Boolean(result?.markError);
 }
 
-async function runClip(deps, clip, { dryRun = false, channelId = 'main' } = {}) {
+async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFallback = false } = {}) {
   const { worker, api, log, shot, dumpDom, sleep } = deps;
   const send = (action, payload) => worker.send(action, payload);
   let step = 'prepare';
@@ -111,12 +126,25 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main' } = {}) 
     step = 'wait_upload';
     expectOk(await send('wait-for-upload-only'), 'รออัปโหลดวิดีโอ');
     step = 'details';
-    expectOk(await send('prepare-details', {
+    const details = await send('prepare-details', {
       caption: clip.caption, hashtags: clip.hashtags, productId: clip.tiktok_product_id,
       scheduleMode: true, cartName: clip.product_name || '',
       scheduleDate: clip.schedule_date, scheduleTime: clip.schedule_time,
       coverPath: prepared.cover_path || clip.cover_path || '',
-    }), 'กรอกรายละเอียด');
+    });
+    let coverFallbackUsed = false;
+    // This Studio build may offer no custom-cover upload (only frame/sticker/text).
+    // Everything before the cover step must have succeeded; then, only when the
+    // operator allowed it (or in dry-run), keep TikTok's automatic cover.
+    const beforeCover = ['caption', 'product', 'schedule'];
+    if (details?.success === false && details.step === 'cover' && (coverFallback || dryRun)
+        && beforeCover.every(k => details.completed?.includes(k))) {
+      log('warn', 'หน้า TikTok ไม่มีช่องอัปโหลดปกเอง — ใช้ปกอัตโนมัติของ TikTok แทน');
+      await deps.dismissCoverModal?.();
+      coverFallbackUsed = true;
+    } else {
+      expectOk(details, 'กรอกรายละเอียด');
+    }
 
     if (dryRun) {
       await shot(`${clip.id}_filled`);
@@ -124,7 +152,7 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main' } = {}) 
       step = 'dry_release';
       expectOk(await send('release-posting-job', { park: true }), 'ปล่อยงาน dry-run');
       await send('reset-upload-page');
-      return { status: 'dry_run_ok' };
+      return { status: 'dry_run_ok', cover_fallback: coverFallbackUsed };
     }
 
     step = 'post';
@@ -136,7 +164,7 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main' } = {}) 
     if (shouldReconcile(outcome, result)) await send('reconcile-posting-result', { manual: false }).catch(() => {});
     await send('retry-posting-receipt').catch(() => {});
     const status = outcome === 'published' ? 'posted' : outcome === 'scheduled_on_platform' ? 'scheduled' : 'unknown';
-    return { status, outcome, job_id: prepared.job_id };
+    return { status, outcome, job_id: prepared.job_id, cover_fallback: coverFallbackUsed };
   } catch (error) {
     const message = error?.message || String(error);
     if (FATAL_RE.test(message)) throw new FatalError(message, step);
@@ -155,7 +183,7 @@ async function betweenClips(deps) {
   await worker.send('reset-upload-page').catch(e => log('warn', `reset หน้าอัปโหลดไม่สำเร็จ: ${e.message}`));
 }
 
-async function runBatch(deps, { clips, dryRun = false, channelId = 'main', cooldownSec = [20, 40],
+async function runBatch(deps, { clips, dryRun = false, channelId = 'main', coverFallback = false, cooldownSec = [20, 40],
   maxConsecutiveFailures = 3, maxConsecutiveUnknown = 2, shouldStop = () => false, random = Math.random } = {}) {
   const { log, sleep } = deps;
   const results = [];
@@ -169,7 +197,7 @@ async function runBatch(deps, { clips, dryRun = false, channelId = 'main', coold
     let result;
     try {
       await betweenClips(deps);
-      result = await runClip(deps, clip, { dryRun, channelId });
+      result = await runClip(deps, clip, { dryRun, channelId, coverFallback });
     } catch (error) {
       aborted = `fatal@${error.step || '?'}: ${error.message}`;
       results.push({ id: clip.id, title: clip.title, status: 'fatal', error: error.message, step: error.step });

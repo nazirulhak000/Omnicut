@@ -11,7 +11,7 @@ const EXT_DIR = path.resolve(__dirname, '..', '..', 'tiktok_autopost_extension')
 function loadWorker({ shim, extDir = EXT_DIR, extraGlobals = {} }) {
   const ctx = vm.createContext({
     console, URL, URLSearchParams, setTimeout, clearTimeout, setInterval, clearInterval,
-    fetch: globalThis.fetch, Date, Math, JSON, Promise, TextEncoder, TextDecoder, AbortController,
+    fetch: globalThis.fetch, Headers, Request, Response, FormData, Blob, Date, Math, JSON, Promise, TextEncoder, TextDecoder, AbortController,
     crypto: globalThis.crypto, structuredClone, performance, queueMicrotask, atob, btoa,
     chrome: shim.chrome, ...extraGlobals,
   });

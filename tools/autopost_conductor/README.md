@@ -11,10 +11,17 @@ tools\start_autopost.bat --health            # open Studio, check login + upload
 tools\start_autopost.bat --dry-run --limit 3 # fill everything, screenshot, DO NOT click post, release job
 tools\start_autopost.bat --limit 10          # real posting of queue items (status planned/ready_for_extension)
 ```
-Options: `--channel main` `--queue-id ID` `--port 9333` `--no-launch` `--allow-price-caption`
+Options: `--channel main` `--queue-id ID` `--port 9333` `--no-launch` `--allow-price-caption` `--cover-fallback`
 
 First time: run `--health`. It opens Chrome with profile `tools/tiktok_browser_profile`.
 If it lands on the login page, **log in by hand once** in that window, then run again.
+
+## Known facts from the live check (2026-11-09)
+- This account's Studio build has **no custom-cover upload** in "Edit cover" (only frame / Sticker / Text), so the
+  prepared 3:4 cover cannot be applied. A real run **fails the clip** unless you pass `--cover-fallback`
+  (keeps TikTok's automatic cover, first frame). `--dry-run` always falls back so the rest can be verified.
+- Studio runs in English here; the extension selectors are bilingual and worked.
+- Queue clips whose slot already passed (or < 15 min ahead) are skipped. In `--dry-run` a synthetic slot (+2 days) is used instead.
 
 ## Safety rules (built in)
 - Sequential only; random 20–40 s cooldown between clips. Never concurrent (account-ban risk).

@@ -212,4 +212,5 @@ Gate: pytest ใหม่ผ่าน 100%, dry_run 5 คลิปจริง�
 | Phase 2: Task Scheduler | มี `install_task.ps1` (preview เป็นค่าเริ่มต้น ยังไม่ register) |
 | Phase 2: ปุ่ม Start ในแอป / auto-detect quota 30 | **ยังไม่ทำ** — ต้องแตะ route policy + frontend ที่ agent อื่นแก้ค้างอยู่ |
 | Phase 4: health check | `--health` เขียน `.tmp/autopost_health.json` + task รายวัน (ยังไม่ register) |
-| Phase 3: ทดสอบจริง | **ติด**: โปรไฟล์ `tools/tiktok_browser_profile` ยังไม่ login TikTok (health ยืนยัน ตกหน้า login) ต้องให้ผู้ใช้ login มือ 1 ครั้ง |
+| Phase 3: health + dry-run บนหน้าจริง | **ผ่าน** (ผู้ใช้ login แล้ว): `--health` ok · `--dry-run --limit 1` ผ่านครบ upload → รอ 100% → แคปชัน → ตะกร้า → ตั้งเวลา → ปก(auto) แล้วคืนงาน คิวไม่ค้าง (planned 42) · พบ+แก้ 6 จุดจากหน้าจริง: `Headers` ไม่มีใน vm · อ่านบัญชีแข่งกับเมนูโปรไฟล์ · เลือก dialog ผิดอัน (Add link) · native beforeunload บล็อก reset · readiness ตอนหน้าค้างฟอร์ม · Discard-this-edit หลังปิด Cover |
+| Phase 3: โพสต์จริง / ตั้งเวลาจริง / รันข้ามคืน | **ยังไม่ทำ** — (1) คิวทุกคลิปเลยเวลาแล้ว ต้อง re-plan ในแอป (2) ปกเองใช้ไม่ได้ ต้องให้ผู้ใช้ตัดสิน `--cover-fallback` (3) สัญญาไว้ว่าจะถามก่อนโพสต์จริงคลิปแรก |

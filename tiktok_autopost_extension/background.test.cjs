@@ -1063,3 +1063,13 @@ test('schedule window rejects past or too-close slots and accepts a future one',
   assert.equal(ctx.scheduleWindowProblem('2026-11-09', '10:30', now), '');
   assert.equal(ctx.scheduleWindowProblem('', '', now), '');
 });
+
+test('account read waits for the Studio header instead of failing on the first empty read', async () => {
+  const ctx = worker();
+  let calls = 0;
+  const send = async () => ({result: {value: {handles: ++calls < 4 ? [] : ['@mainuser']}}});
+  assert.equal(await ctx.readStudioAccount(send), '@mainuser');
+  assert.equal(calls, 4);
+  const never = async () => ({result: {value: {handles: []}}});
+  assert.equal(await ctx.readStudioAccount(never, 3), null);
+});
