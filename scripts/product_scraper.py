@@ -25,7 +25,18 @@ RENDERED_PAGE_WAIT_MS = 1800
 RENDERED_PAGE_TIMEOUT_MS = 30000
 RENDERED_CHALLENGE_WAIT_SECONDS = 60
 RENDERED_PROFILE_DIR = BASE_DIR / "tools" / "tiktok_browser_profile"
-RENDERED_SOURCE_FALLBACK = "สินค้าคุณภาพยอดนิยม การันตีของแท้"
+# S1-06: never invent product copy. When the page yields no description the
+# result carries an EMPTY description plus ``source_missing`` -- a placeholder
+# claim ("การันตีของแท้") used to become the AI's only source text.
+RENDERED_SOURCE_FALLBACK = ""
+SOURCE_MISSING_WARNING = (
+    "ไม่พบคำอธิบายสินค้าจากหน้าเว็บ (อาจติดระบบป้องกันหรือลิงก์หมดอายุ) "
+    "กรุณาตรวจและกรอกรายละเอียดสินค้าเอง"
+)
+DIRECT_CHALLENGE_WARNING = (
+    "หน้าเว็บติดระบบตรวจสอบความปลอดภัย (Captcha/WAF) จึงอ่านข้อมูลสินค้าไม่ได้ "
+    "กรุณากรอกรายละเอียดสินค้าเอง"
+)
 
 STEALTH_ARGS = [
     "--disable-blink-features=AutomationControlled",
@@ -624,9 +635,27 @@ def _looks_like_browser_challenge(text: str) -> bool:
         "verify to continue",
         "drag the puzzle",
         "security check",
+        "security verification",
         "ตรวจสอบความปลอดภัย",
         "please verify",
+        "verify you are human",
+        "are you a robot",
+        "captcha",
+        "just a moment...",
+        "attention required",
+        "access denied",
+        "ไม่ใช่หุ่นยนต์",
+        "ไม่ใช่โปรแกรมอัตโนมัติ",
     ))
+
+
+def _extract_html_title(raw_html: str) -> str:
+    m = re.search(r"<title[^>]*>(.*?)</title>", raw_html or "", re.I | re.S)
+    return html_lib.unescape(m.group(1)).strip() if m else ""
+
+
+class _DirectFetchChallenge(Exception):
+    """Raised inside the direct-fetch block when the page is a captcha/WAF wall."""
 
 
 def _looks_like_login_page(title: str, text: str, url: str = "") -> bool:
@@ -831,7 +860,9 @@ def _clean_rendered_description(text: str) -> str:
     return res if res else text.strip()
 
 
-def _extract_specs_from_text(text: str) -> List[str]:
+def _extract_specs_from_text(text: Optional[str]) -> List[str]:
+    if not text:
+        return []
     specs = []
     seen_keys = set()
     lines = [l.strip() for l in text.replace("\r\n", "\n").split("\n") if l.strip()]
@@ -1052,6 +1083,8 @@ class ProductScraper:
         selling_points = []
         metadata_source = "slug_fallback"
         source_warning = ""
+        challenge = False
+        login_required = False
 
         # Tier 0: Extract metadata embedded in URL query parameters (e.g. TikTok mobile share links)
         url_param_meta = _extract_url_params_metadata(resolved_url) or _extract_url_params_metadata(url)
@@ -1106,6 +1139,18 @@ class ProductScraper:
             with _build_safe_opener().open(req, timeout=20) as resp:
                 raw_html = resp.read(600_000).decode("utf-8", errors="ignore")
 
+                # S1-05: a captcha/WAF wall served over plain HTTP must not be
+                # read as a product page (its <title> used to become the
+                # product name). Only the page titles and the first visible
+                # text are probed so product copy cannot trigger it.
+                challenge_probe = "\n".join(part for part in (
+                    _extract_meta(raw_html, "og:title") or "",
+                    _extract_html_title(raw_html),
+                    _extract_html_product_text(raw_html)[:1500],
+                ) if part)
+                if "__MODERN_ROUTER_DATA__" not in raw_html and _looks_like_browser_challenge(challenge_probe):
+                    raise _DirectFetchChallenge()
+
                 # Check TikTok SSR JSON data first (highest fidelity structured data)
                 if platform == "tiktok" and not description:
                     modern_data = _extract_tiktok_modern_data(raw_html)
@@ -1140,7 +1185,7 @@ class ProductScraper:
                 )
                 html_product_text = _extract_html_product_text(raw_html)
                 if not description:
-                    description = html_product_text or meta_description
+                    description = html_product_text or meta_description or ""
 
                 if not price:
                     price = _extract_meta(raw_html, "product:price:amount") or _extract_meta(raw_html, "og:price:amount")
@@ -1184,6 +1229,10 @@ class ProductScraper:
                     raw_text = f"{title}\n{description}"
                     if metadata_source in ("slug_fallback", "url_param_og_info"):
                         metadata_source = "html_meta"
+        except _DirectFetchChallenge:
+            challenge = True
+            source_warning = DIRECT_CHALLENGE_WARNING
+            print("[ProductScraper] หน้าเว็บติด Captcha/WAF ข้ามการอ่านข้อมูลจากหน้านี้")
         except Exception as e:
             print(f"[ProductScraper] Direct fetch note ({e}), using proxy/slug extraction...")
 
@@ -1214,12 +1263,17 @@ class ProductScraper:
 
                 raw_text = f"{title}\n{description}".strip()
                 metadata_source = "browser_dom"
+                # The real browser got past whatever wall the direct fetch hit.
+                challenge = False
+                source_warning = ""
                 images = _deduplicate_and_filter_images(images + rendered.get("images", []))[:20]
             else:
+                challenge = challenge or bool(rendered.get("challenge"))
+                login_required = bool(rendered.get("login_required"))
                 raw_warn = rendered.get("warning", "")
                 if raw_warn and ("Target page" in raw_warn or "exitCode" in raw_warn or "launch_persistent_context" in raw_warn):
                     raw_warn = "เปิด browser เพื่ออ่านรายละเอียดสินค้าไม่สำเร็จ (เบราว์เซอร์ไม่พร้อมทำงาน)"
-                source_warning = raw_warn
+                source_warning = raw_warn or source_warning
 
         # Extract additional structured specs from description text
         desc_specs = _extract_specs_from_text(description)
@@ -1240,6 +1294,18 @@ class ProductScraper:
         if not raw_text or re.fullmatch(r'[\d_]+', raw_text):
             raw_text = f"{clean_title}\n{description}".strip() if description else clean_title
 
+        # S1-05/S1-06: an empty or blocked scrape is reported as such instead of
+        # passing for success -- the caller must ask the user for the details.
+        source_missing = not description
+        needs_manual = bool(
+            challenge
+            or login_required
+            or (source_missing and not final_images)
+            or clean_title == "สินค้าแนะนำ"
+        )
+        if source_missing and not source_warning:
+            source_warning = SOURCE_MISSING_WARNING
+
         return {
             "title": clean_title,
             "url": resolved_url,
@@ -1251,6 +1317,9 @@ class ProductScraper:
             "selling_points": selling_points,
             "raw_text": raw_text,
             "metadata_source": metadata_source,
+            "source_missing": source_missing,
+            "needs_manual": needs_manual,
+            **({"challenge": True} if challenge else {}),
             **({"source_warning": source_warning} if source_warning else {}),
         }
 

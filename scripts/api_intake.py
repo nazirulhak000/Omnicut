@@ -285,6 +285,7 @@ def preview_intake_product(
             "duplicate": False,
             "existing_product_id": None,
             "warning": scraped.get("warning")
+            or scraped.get("source_warning")
             or "เว็บไซต์ติดระบบป้องกัน (WAF/Challenge) กรุณากรอกสเปกหรือจุดเด่นสินค้าด้วยตนเอง",
         }
 
