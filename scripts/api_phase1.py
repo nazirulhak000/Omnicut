@@ -17,7 +17,7 @@ from collections.abc import Mapping
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from scripts.ai_bridge import AIBridge, ManualModeRequired
 from scripts.quota import is_quota_error
@@ -843,9 +843,84 @@ def update_project_cues(project_name: str, req: UpdateCuesRequest, channel_scope
     return {"success": True, "cues": updated.get("cues"), "micro_cues": updated.get("micro_cues")}
 
 
+# == video_editor.py: speed = min(4.0, max(0.25, float(clip.get("speed") or 1.0)))
+CLIP_SPEED_RANGE = (0.25, 4.0)
+
+
+def _validate_clip_list(clip_list: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:
+    """Audit S3-08: the editor could save any speed while the render clamps
+    to 0.25-4x, so preview and export disagreed on clip length. Clamp here to
+    what the render plays; reject a speed that is not a number at all."""
+    if clip_list is None:
+        return None
+    import math
+    for index, clip in enumerate(clip_list):
+        if "speed" not in clip or clip["speed"] is None:
+            continue
+        raw = clip["speed"]
+        try:
+            if isinstance(raw, bool):
+                raise TypeError
+            value = float(raw)
+        except (TypeError, ValueError):
+            raise ValueError(f"ความเร็วของคลิปที่ {index + 1} ต้องเป็นตัวเลข (ได้รับ {raw!r})")
+        if not math.isfinite(value):
+            raise ValueError(f"ความเร็วของคลิปที่ {index + 1} ต้องเป็นตัวเลขจำกัด (ได้รับ {raw!r})")
+        value = value or 1.0
+        clip["speed"] = min(CLIP_SPEED_RANGE[1], max(CLIP_SPEED_RANGE[0], value))
+    return clip_list
+
+
+# Keys the editor adds or rewrites on load/save without the user touching the
+# cut plan; they never decide whether a clip was edited.
+_AUTO_PLAN_IGNORED_KEYS = frozenset({
+    "id", "track_id", "transition_in", "transition_duration", "transition_easing", "auto_generated",
+})
+
+
+def _clip_plan_signature(clip: Dict[str, Any]) -> str:
+    def norm(value: Any) -> Any:
+        if isinstance(value, bool) or value is None:
+            return value
+        if isinstance(value, (int, float)):
+            return round(float(value), 4)
+        if isinstance(value, dict):
+            return {k: norm(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [norm(v) for v in value]
+        return value
+
+    kept = {
+        key: norm(value) for key, value in clip.items()
+        if key not in _AUTO_PLAN_IGNORED_KEYS and value not in (None, False, "", [], {})
+    }
+    return json.dumps(kept, sort_keys=True, ensure_ascii=False, default=str)
+
+
+def _carry_auto_generated_flags(incoming: List[Dict[str, Any]], stored: Any) -> List[Dict[str, Any]]:
+    """Audit S3-07: an auto-generated cut plan stays marked ``auto_generated``
+    only while the editor saves it back unchanged. Any real edit makes the
+    clip user-authored, which a voice/script reroll then keeps (with a warning)
+    instead of replacing it with a plan cut to the new narration."""
+    stored = stored if isinstance(stored, list) else []
+    same_shape = len(stored) == len(incoming)
+    for index, clip in enumerate(incoming):
+        before = stored[index] if same_shape and isinstance(stored[index], dict) else None
+        if before is not None and before.get("auto_generated") and _clip_plan_signature(before) == _clip_plan_signature(clip):
+            clip["auto_generated"] = True
+        else:
+            clip.pop("auto_generated", None)
+    return incoming
+
+
 class UpdateClipsRequest(BaseModel):
     clip_list: List[Dict[str, Any]]
     transitions: Optional[List[Any]] = None
+
+    @field_validator("clip_list")
+    @classmethod
+    def _clip_speeds(cls, value):
+        return _validate_clip_list(value)
 
 
 @router.patch("/projects/{project_name}/clips")
@@ -861,11 +936,12 @@ def update_project_clips(project_name: str, req: UpdateClipsRequest, channel_sco
         if not current:
             raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
 
+        clip_list = _carry_auto_generated_flags(req.clip_list, current.get("clip_list"))
         fields: Dict[str, Any] = {
-            "clip_list": req.clip_list,
+            "clip_list": clip_list,
         }
         render_params = dict(current.get("render_params") or {})
-        render_params["clip_list"] = req.clip_list
+        render_params["clip_list"] = clip_list
         if req.transitions is not None:
             fields["transitions"] = req.transitions
             render_params["transitions"] = req.transitions
@@ -881,6 +957,11 @@ class UpdateProjectStateRequest(BaseModel):
     cues: Optional[List[Dict[str, Any]]] = None
     micro_cues: Optional[List[Dict[str, Any]]] = None
     clip_list: Optional[List[Dict[str, Any]]] = None
+
+    @field_validator("clip_list")
+    @classmethod
+    def _clip_speeds(cls, value):
+        return _validate_clip_list(value)
     transitions: Optional[List[Any]] = None
     style_preset: Optional[str] = None
     style: Optional[Dict[str, Any]] = None
@@ -1031,8 +1112,9 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest, chan
         if req.micro_cues is not None:
             fields["micro_cues"] = req.micro_cues
         if req.clip_list is not None:
-            fields["clip_list"] = req.clip_list
-            render_params["clip_list"] = req.clip_list
+            clip_list = _carry_auto_generated_flags(req.clip_list, current.get("clip_list"))
+            fields["clip_list"] = clip_list
+            render_params["clip_list"] = clip_list
         if req.transitions is not None:
             fields["transitions"] = req.transitions
             render_params["transitions"] = req.transitions
@@ -1195,6 +1277,25 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
         # (None = clear the target), unlike the `is not None` merge above.
         params.update(retention_overrides)
 
+        # Audit S3-07 / X-04: a script or voice reroll changes the narration,
+        # so the stored cut plan no longer matches it. A plan the planner
+        # generated (every clip still tagged auto_generated) is dropped so
+        # ShotMatching cuts a new one to the new voice; a plan the user edited
+        # is kept, but the job log says its cuts may now be off.
+        stale_plan_warning = None
+        if stage in (REROLL_STAGE["script"], REROLL_STAGE["voice"]) and overrides.get("clip_list") is None:
+            stored_clips = params.get("clip_list")
+            if isinstance(stored_clips, list) and stored_clips:
+                if all(isinstance(c, dict) and c.get("auto_generated") for c in stored_clips):
+                    params["clip_list"] = None
+                    if overrides.get("transitions") is None:
+                        params["transitions"] = None
+                else:
+                    stale_plan_warning = (
+                        "⚠️ ใช้แผนตัดต่อที่คุณแก้ไว้เดิม — เสียงหรือสคริปต์ใหม่อาจทำให้จุดตัดไม่ตรงประโยค "
+                        "ตรวจใน Editor หลังเรนเดอร์เสร็จ"
+                    )
+
         # Ensure raw_video_path is resolved
         raw_video = params.get("raw_video_path")
         if not raw_video and manifest.get("clip_list"):
@@ -1321,6 +1422,10 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
         def on_progress(msg: str, progress: float):
             base_progress(msg, progress)
             TaskManager.update_progress(job_id, progress, step_label=msg)
+
+        if stale_plan_warning:
+            print(f"   {stale_plan_warning}")
+            on_progress(stale_plan_warning, 0.01)
 
         with render_jobs.render_slot(job_id):
             result = TikTokAutoCutterPipeline.run(

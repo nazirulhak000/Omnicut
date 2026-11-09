@@ -49,7 +49,15 @@ VOICE_VALLEY_WINDOW = 0.01  # loudness measured over 10 ms
 
 
 def _j_lead(j_lead: float, prev_dur: float, curr_dur: float) -> float:
-    """The lead the legacy path has always used: shortened for short shots."""
+    """The lead the legacy path has always used: shortened for short shots.
+
+    Deliberate exception to the 150-250 ms voice J-cut (audit S2-18): a cue
+    shorter than 0.6 s gets less than 150 ms (25% of the cue), following the
+    short-shot safe margin in .agents/rules/j_cut_rules.md section 3 (shots
+    under 0.8 s: lead <= 100 ms) so a short line is not swallowed by the
+    previous picture. Flooring this at 150 ms would break that margin and
+    shift every short-cue cut, so it is documented rather than changed.
+    """
     return min(j_lead, prev_dur * 0.25, curr_dur * 0.25, 0.25)
 
 
@@ -583,7 +591,19 @@ class ShotMatchingStage:
                 shifted = (raw_offset + 2.5) % max_start
                 raw_offset = shifted
 
-        return max(0.0, min(max_start, round(raw_offset, 2)))
+        result = max(0.0, min(max_start, round(raw_offset, 2)))
+        # Audit S3-02: never repeat the previous shot's exact span back to
+        # back (the anti-collision above only runs for max_start >= 4).
+        if previous_offsets and abs(result - previous_offsets[-1]) < 1 / 30:
+            last = previous_offsets[-1]
+            forward = last + c_dur
+            if forward <= max_start:
+                result = round(forward, 2)
+            elif last >= c_dur:
+                result = round(max(0.0, last - c_dur), 2)
+            else:
+                result = round(max_start if abs(max_start - last) >= 1 / 30 else 0.0, 2)
+        return result
 
     @classmethod
     def calculate_contiguous_beat_durations(
@@ -629,21 +649,66 @@ class ShotMatchingStage:
 
         return durations
 
-    @staticmethod
-    def _beat_slot_durations(beat_cues):
-        """Return each cue's actual voice-track slot without extending it.
+    @classmethod
+    def _beat_slot_durations(cls, beat_cues):
+        """Each beat's on-screen slot, laid end to end from t=0.
 
         Guided takes and proportional mappings use the beat boundaries as
-        their timing contract.  They must not reuse the contiguous timeline
-        helper above, whose separate purpose is to absorb lead-in/trailing
-        gaps into a render that fills ``total_duration``.
+        their timing contract. The clips are concatenated from t=0, so a
+        slot of ``end - start`` dropped every silence between beats and each
+        later picture ran ahead of its line (audit S3-06: beats 0.3-2.0 /
+        2.5-4.0 / 4.6-6.0 played at 0-1.7 / 1.7-3.2 / 3.2-4.6). Each slot now
+        runs from its beat's voice onset to the next one -- the lead-in
+        belongs to the first beat, a gap to the beat before it -- and the
+        last slot ends at the last beat's end. It is NOT stretched to
+        ``total_duration``: the trailing tail stays the renderer's hold.
         """
-        slots = []
-        for cue in beat_cues or []:
-            start = float(cue.get("start", 0.0))
-            end = float(cue.get("end", start))
-            slots.append(max(0.1, round(end - start, 3)))
-        return slots
+        cues = list(beat_cues or [])
+        if not cues:
+            return []
+        last_end = max(float(cues[-1].get("end", 0.0)), float(cues[-1].get("start", 0.0)))
+        return cls.calculate_contiguous_beat_durations(cues, last_end)
+
+    @staticmethod
+    def _manual_pin_timing(pin: Dict[str, Any], resolved_path: str, target_duration: float, beat_index: int) -> Dict[str, Any]:
+        """trim/speed/freeze for a pinned shot so it fills exactly its beat.
+
+        Audit S3-05: speed is clamped to the renderer's 0.25-4x, so a pin
+        shorter than a quarter of its beat used to render short (and one
+        longer than 4x its beat long) while the plan said ``duration`` --
+        every later beat drifted. The shortfall is now held as freeze_tail
+        and an over-long pin is trimmed to what 4x can play. A pin with no
+        usable end uses the rest of its file; an empty span is rejected.
+        """
+        trim_start = round(float(pin.get("trim_start") or 0.0), 3)
+        trim_end = round(float(pin.get("trim_end") or 0.0), 3)
+        if trim_end <= trim_start:
+            try:
+                probed = float((VideoEditor.get_media_info(str(resolved_path)) or {}).get("duration") or 0.0)
+            except Exception:
+                probed = 0.0
+            if probed <= trim_start + 1 / CUT_FRAME_RATE:
+                raise AppError(
+                    category=ErrorCategory.USER_CORRECTABLE,
+                    code="MANUAL_PIN_EMPTY_SPAN",
+                    message_th=f"ช็อตที่ปักหมุดไว้ของบีตที่ {beat_index + 1} ไม่มีช่วงภาพ (จุดจบต้องมากกว่าจุดเริ่ม)",
+                    suggestion_th="เปิด Manual Storyboard แล้วเลือกช่วงเริ่ม-จบของคลิปบีตนี้ใหม่",
+                    details=f"video_path={pin.get('video_path')}; trim_start={trim_start}; trim_end={trim_end}; probed={probed}",
+                )
+            trim_end = round(probed, 3)
+        target = max(0.1, float(target_duration))
+        span = trim_end - trim_start
+        if span > target * 4.0:
+            trim_end = round(trim_start + target * 4.0, 3)
+            span = trim_end - trim_start
+        speed = round(min(4.0, max(0.25, span / target)), 4)
+        freeze_tail = round(target - span / speed, 3)
+        timing = {"trim_start": trim_start, "trim_end": trim_end, "speed": speed}
+        if freeze_tail > 1e-3:
+            timing["freeze_tail"] = freeze_tail
+            if freeze_tail > MAX_FREEZE_HOLD_SEC + 1e-6:
+                timing["hold_reason"] = "manual_pin_too_short"
+        return timing
 
     @classmethod
     def _build_guided_take_clip_list(cls, ctx: PipelineContext, raw_video) -> List[dict]:
@@ -783,18 +848,14 @@ class ShotMatchingStage:
                 abs_p = _path_utils.to_absolute(raw_p)
                 resolved = str(abs_p) if (abs_p and abs_p.exists()) else raw_p
 
-                trim_start = round(float(pin.get("trim_start") or 0.0), 3)
-                trim_end = round(float(pin.get("trim_end") or 0.0), 3)
-                trim_span = max(0.05, trim_end - trim_start)
-                speed = round(min(4.0, max(0.25, trim_span / target_duration)), 4)
+                timing = cls._manual_pin_timing(pin, resolved, target_duration, i)
+                trim_start, trim_end, speed = timing["trim_start"], timing["trim_end"], timing["speed"]
 
                 clip_entry = {
                     "id": f"clip_{i}",
                     "source_path": resolved,
-                    "trim_start": trim_start,
-                    "trim_end": trim_end,
+                    **timing,
                     "duration": round(target_duration, 3),
-                    "speed": speed,
                     "zoom": zoom,
                     "shot_index": i,
                     "manual_pinned": True,
@@ -893,6 +954,7 @@ class ShotMatchingStage:
             )
         actual_clip_list = ctx.clip_list if has_manual_clips else None
         is_newly_generated_clips = False
+        auto_plan = False
 
         # Guided-take / proportional mapping (scripts/recording_sessions.py,
         # scripts/shot_list_builder.py) -- takes priority over AI Vision and
@@ -902,6 +964,7 @@ class ShotMatchingStage:
         if not actual_clip_list and raw_video and ctx.guided_take_meta:
             actual_clip_list = cls._build_guided_take_clip_list(ctx, raw_video)
             is_newly_generated_clips = True
+            auto_plan = True
         elif not actual_clip_list and ctx.manual_shot_map and ctx.beat_cues:
             actual_clip_list = cls._build_manual_storyboard_clip_list(ctx, raw_video, raw_duration)
             is_newly_generated_clips = True
@@ -1399,6 +1462,25 @@ class ShotMatchingStage:
 
                     auto_transitions = []
                     source_ledger = SourceWindowLedger()
+                    # Audit S3-02: raw footage too short to give each shot its
+                    # own window (the fallback below returned 0.0 for every
+                    # shot, replaying the same span back to back and asking
+                    # for footage past the end of the file). Unmatched shots
+                    # then play the raw once, in order, and hold its last
+                    # frame -- the same ledger the AI windows use.
+                    longest_shot = max(
+                        (b - a for a, b in zip(boundary_times, boundary_times[1:])), default=0.0
+                    )
+                    short_raw_match = None
+                    if 0 < raw_duration <= longest_shot + 1.0 + 1e-6:
+                        short_raw_match = {
+                            "source_path": str(raw_video), "scene_id": "short_raw",
+                            "start_time": 0.0, "end_time": raw_duration,
+                        }
+                        print(
+                            f"   ⚠️  วิดีโอดิบยาวแค่ {raw_duration:.2f}s สั้นกว่าที่ต้องใช้ — "
+                            "เล่นครั้งเดียวตามลำดับแล้วค้างภาพสุดท้าย ไม่วนช่วงเดิมซ้ำ"
+                        )
                     for g_idx, group in enumerate(groups):
                         v_start = boundary_times[g_idx]
                         v_end = boundary_times[g_idx + 1]
@@ -1411,6 +1493,19 @@ class ShotMatchingStage:
                         in_hook = HOOK_WINDOW > 0 and v_start < HOOK_WINDOW - 1e-6
                         split_continuation = g_idx > 0 and groups[g_idx - 1] is group
                         previous_offsets = [s["raw_offset"] for s in shots]
+                        # Audit S3-01 (Strict Topic Hold): a piece split off
+                        # the same sentence keeps playing forward from where
+                        # the previous piece stopped, instead of each piece
+                        # getting its own spread-out fallback offset. A piece
+                        # whose predecessor opened on the hook-hero footage
+                        # follows that footage, not the rejected match.
+                        continue_from_previous = bool(
+                            split_continuation and shots
+                            and (ai_shot is None or shots[-1].get("hook_hero"))
+                        )
+                        if continue_from_previous:
+                            ai_shot = None
+                        use_short_raw = short_raw_match is not None and ai_shot is None
 
                         base_scale = effective_shot_scales[g_idx % len(effective_shot_scales)]
                         max_scale = effective_shot_scales[emphasis_scale_idx]
@@ -1422,7 +1517,7 @@ class ShotMatchingStage:
                         # A catalog hero fallback is already a deliberate
                         # hero pick and is kept.
                         hook_hero = None
-                        if in_hook and motion_times and not split_continuation:
+                        if in_hook and motion_times and not split_continuation and short_raw_match is None:
                             confidence = _match_confidence(ai_shot)
                             low_confidence = ai_shot is None or (
                                 confidence is not None and confidence < LOW_MATCH_CONFIDENCE
@@ -1467,6 +1562,19 @@ class ShotMatchingStage:
                         elif hook_hero is not None:
                             scale = None
                             raw_offset = round(hook_hero[0], 3)
+                        elif use_short_raw:
+                            scale = None
+                            raw_offset = 0.0  # replaced by the ledger allocation below
+                        elif continue_from_previous:
+                            scale = None
+                            previous_shot = shots[-1]
+                            previous_end = float(previous_shot.get(
+                                "source_end",
+                                previous_shot["raw_offset"] + (previous_shot["end"] - previous_shot["start"]),
+                            ))
+                            # Past the end of the raw the clip-build cap
+                            # below holds the last frame (hold_reason).
+                            raw_offset = round(min(previous_end, max(0.0, raw_duration - 1 / CUT_FRAME_RATE)), 3)
                         else:
                             scale = None
                             raw_offset = cls._compute_smart_fallback_offset(
@@ -1484,7 +1592,7 @@ class ShotMatchingStage:
                         # near where this shot's footage ends, then translate
                         # it back to timeline time.
                         if (
-                            motion_times and not pacing_boundaries
+                            motion_times and not pacing_boundaries and not use_short_raw
                             and g_idx < len(groups) - 1 and (g_idx + 1) not in beat_snapped and (g_idx + 1) not in locked_holds
                         ):
                             raw_end = raw_offset + (v_end - v_start)
@@ -1530,6 +1638,12 @@ class ShotMatchingStage:
                                 if alt and alt[1] >= HOOK_MOTION_THRESHOLD:
                                     ai_start = alt[0]
                         allocation = source_ledger.allocate(ai_shot, raw_duration, ai_start, c_dur) if bounded else None
+                        reuse_match = ai_shot if allocation else None
+                        if allocation is None and use_short_raw:
+                            allocation = source_ledger.allocate(short_raw_match, raw_duration, 0.0, c_dur)
+                            if allocation:
+                                reuse_match = short_raw_match
+                                allocation["shortage_reason"] = "raw_footage_too_short"
                         if allocation:
                             raw_offset = allocation["raw_offset"]
                         motion_score = (
@@ -1575,7 +1689,10 @@ class ShotMatchingStage:
                             "scale": scale,
                             "raw_offset": raw_offset,
                             **(allocation or {}),
-                            "source_reuse_key": scene_window_key(ai_shot) if allocation else None,
+                            "source_reuse_key": scene_window_key(reuse_match) if allocation else None,
+                            "hook_hero": hook_hero is not None or bool(
+                                continue_from_previous and shots and shots[-1].get("hook_hero")
+                            ),
                         })
 
                         if g_idx > 0:
@@ -1634,6 +1751,15 @@ class ShotMatchingStage:
                     s_dur = max(0.2, shot["end"] - shot["start"])
                     raw_start_offset = float(shot.get("raw_offset", 0.0))
                     trim_end = shot.get("source_end", round(raw_start_offset + s_dur, 3))
+                    if "source_window" not in shot and raw_duration > 0 and trim_end > raw_duration + 1e-6:
+                        # Audit S3-02/S3-03: never ask the renderer for footage
+                        # past the end of the raw (it silently came out short
+                        # and every later cut ran early). Play to the end and
+                        # hold the last frame for the rest of the shot.
+                        raw_start_offset = round(min(raw_start_offset, max(0.0, raw_duration - 1 / CUT_FRAME_RATE)), 3)
+                        trim_end = round(raw_duration, 3)
+                        shot["freeze_tail"] = round(max(0.0, s_dur - (trim_end - raw_start_offset)), 3)
+                        shot.setdefault("shortage_reason", "raw_footage_too_short")
                     boundary = ctx.transitions[idx - 1] if (idx > 0 and ctx.transitions and idx - 1 < len(ctx.transitions)) else None
                     if (
                         idx > 0
@@ -1671,7 +1797,10 @@ class ShotMatchingStage:
                         clip_entry["source_window"] = shot["source_window"]
                     if freeze_tail > 1e-6:
                         clip_entry["freeze_tail"] = freeze_tail
-                        clip_entry["footage_shortage"] = {"missing_seconds": round(freeze_tail, 3), "reason": "source_window_exhausted"}
+                        clip_entry["footage_shortage"] = {
+                            "missing_seconds": round(freeze_tail, 3),
+                            "reason": shot.get("shortage_reason", "source_window_exhausted"),
+                        }
                         ctx.notify(f"ภาพช็อต {idx + 1} ไม่พอ {freeze_tail:.2f} วินาที — ค้างภาพสุดท้ายแทน", .85)
                     camera_keyframes = camera_keyframes_for_clip(
                         clip_entry["zoom"],
@@ -1695,7 +1824,7 @@ class ShotMatchingStage:
                     if freeze_tail > MAX_FREEZE_HOLD_SEC + 1e-6 or shot.get("hold_only"):
                         # Q2: the only clips allowed past the shot cap / the
                         # 1 s freeze limit -- no other footage existed.
-                        clip_entry["hold_reason"] = "source_window_exhausted"
+                        clip_entry["hold_reason"] = shot.get("shortage_reason", "source_window_exhausted")
                     generated_clips.append(clip_entry)
                 # M2 interrupt guard: no span may stay static longer than the
                 # style's max_static_sec (camera punch, existing keyframes).
@@ -1706,6 +1835,7 @@ class ShotMatchingStage:
                     print(f"   🎥 [Interrupt Guard] เพิ่ม camera punch {punches} จุด กันช่วงภาพนิ่งนานเกิน")
                 actual_clip_list = generated_clips
                 is_newly_generated_clips = True
+                auto_plan = True
             except AppError:
                 raise
             except Exception as shot_err:
@@ -1769,14 +1899,13 @@ class ShotMatchingStage:
                     abs_p = _path_utils.to_absolute(raw_p)
                     resolved = str(abs_p) if (abs_p and abs_p.exists()) else raw_p
 
-                    trim_start = round(float(pin.get("trim_start") or 0.0), 3)
-                    trim_end = round(float(pin.get("trim_end") or 0.0), 3)
-                    trim_span = max(0.05, trim_end - trim_start)
+                    timing = cls._manual_pin_timing(pin, resolved, target_duration, i)
+                    trim_start, trim_end = timing["trim_start"], timing["trim_end"]
 
                     clip["source_path"] = resolved
-                    clip["trim_start"] = trim_start
-                    clip["trim_end"] = trim_end
-                    clip["speed"] = round(min(4.0, max(0.25, trim_span / target_duration)), 4)
+                    for stale_key in ("freeze_tail", "hold_reason", "source_window", "held_source_time", "footage_shortage"):
+                        clip.pop(stale_key, None)
+                    clip.update(timing)
                     clip["manual_pinned"] = True
                     print(
                         f"   📌 [ManualShotMap] Beat {i} ({target_duration:.2f}s) → "
@@ -1787,3 +1916,53 @@ class ShotMatchingStage:
                     ctx.transitions = ctx.transitions[:max(0, len(actual_clip_list) - 1)]
 
                 ctx.actual_clip_list = actual_clip_list
+
+        if is_newly_generated_clips and ctx.actual_clip_list:
+            cls._fit_landscape_sources(ctx, raw_video, raw_info)
+            # Audit S3-07: mark a plan the planner made on its own so a
+            # voice/script reroll can replace it with one cut to the new
+            # narration. Pinned clips are the user's choice and never tagged.
+            if auto_plan and not any(c.get("manual_pinned") for c in ctx.actual_clip_list):
+                for clip in ctx.actual_clip_list:
+                    clip["auto_generated"] = True
+
+    @staticmethod
+    def _fit_landscape_sources(ctx: PipelineContext, raw_video, raw_info: Dict[str, Any]) -> None:
+        """Audit S3-09: landscape raw in an auto plan was centre-cropped to
+        9:16, losing ~68% of the width (product off-centre got cut). Newly
+        generated clips from a landscape source use the blurred-canvas fit
+        that the editor/preview already support (``fit_mode: "blur"``).
+        Skipped when Background Cutout is on (the renderer refuses cutout +
+        blur on one clip) or when the clip already chose a fit."""
+        try:
+            isolation = ctx.resolve_background_isolation_contract()
+        except Exception:
+            isolation = getattr(ctx, "background_isolation", None)
+        if isinstance(isolation, dict) and isolation.get("enabled") is True:
+            return
+        infos: Dict[str, Dict[str, Any]] = {}
+        if raw_video:
+            infos[str(raw_video)] = raw_info or {}
+
+        def is_landscape(source: str) -> bool:
+            if source not in infos:
+                try:
+                    infos[source] = VideoEditor.get_media_info(source) or {}
+                except Exception:
+                    infos[source] = {}
+            info = infos[source]
+            try:
+                width, height = int(info.get("width") or 0), int(info.get("height") or 0)
+                rotation = int(info.get("rotation") or 0) % 180
+            except (TypeError, ValueError):
+                return False
+            if rotation == 90:
+                width, height = height, width
+            return width > 0 and height > 0 and width > height
+
+        for clip in ctx.actual_clip_list:
+            source = str(clip.get("source_path") or "")
+            if not source or clip.get("fit_mode") or clip.get("bg_blur"):
+                continue
+            if is_landscape(source):
+                clip["fit_mode"] = "blur"
