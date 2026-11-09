@@ -24,6 +24,7 @@ import re
 import time
 import uuid
 import datetime
+import urllib.parse
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -311,6 +312,55 @@ _TABLE = DocumentTable("products", _store_db_path, _store_json_path)
 # clone workflow exists (not approved) -- they only label "same model".
 CANONICAL_KEY_FIELDS = ("canonical_product_key", "source_product_id")
 _CANONICAL_MAX_LEN = 200
+
+
+_MARKETPLACE_HOSTS = ("tiktok.com", "shopee.co.th", "shp.ee")
+_TRACKING_QUERY_PREFIXES = ("utm_", "share_", "sender_", "af_")
+_TRACKING_QUERY_KEYS = {
+    "source", "_d", "_r", "_svg", "checksum", "sec_user_id", "u_code",
+    "timestamp", "og_info", "ec_search_share_params", "gclid", "fbclid",
+    "smid", "sp_atk", "xptdk", "is_from_webapp", "region", "refer", "ref",
+}
+
+
+def product_url_key(url: Any) -> str:
+    """Identity key of a product link for duplicate detection (S1-14).
+
+    The same product shared twice differs only in tracking query params
+    (``?source=share``, ``utm_*``, ``og_info`` ...). TikTok/Shopee links key on
+    the product id in the path; other links on host + path + the non-tracking
+    query. The stored ``url`` itself is never rewritten.
+    """
+    raw = str(url or "").strip()
+    if not raw:
+        return ""
+    try:
+        parsed = urllib.parse.urlparse(raw)
+    except ValueError:
+        return raw
+    host = (parsed.hostname or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    path = urllib.parse.unquote(parsed.path or "").rstrip("/")
+    if any(host == h or host.endswith("." + h) for h in _MARKETPLACE_HOSTS):
+        if "tiktok" in host:
+            m = re.search(r"/(?:view/product|pdp|product)/(?:[^/]+/)*?(\d{3,})$", path)
+            if m:
+                return f"tiktok:{m.group(1)}"
+        else:
+            m = re.search(r"-i\.(\d+)\.(\d+)$", path) or re.search(r"/product/(\d+)/(\d+)$", path)
+            if m:
+                return f"shopee:{m.group(1)}.{m.group(2)}"
+    query = [
+        (k, v)
+        for k, v in urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+        if k.lower() not in _TRACKING_QUERY_KEYS
+        and not k.lower().startswith(_TRACKING_QUERY_PREFIXES)
+    ]
+    key = f"{host}{path}"
+    if query:
+        key += "?" + urllib.parse.urlencode(sorted(query))
+    return key
 
 
 def _clean_product_name(name: str) -> str:
@@ -686,9 +736,13 @@ class ProductStore:
         # transaction across the whole read-modify-write.
         with cls._scoped_mutate(write_scope) as products:
             code_universe = cls._code_universe(products)
-            if url.strip():
+            url_key = product_url_key(url)
+            pid_key = (tiktok_product_id or "").strip()
+            if url_key or pid_key:
                 for existing in products:
-                    if existing.get("url", "").strip() == url.strip():
+                    same_url = bool(url_key) and product_url_key(existing.get("url")) == url_key
+                    same_pid = bool(pid_key) and str(existing.get("tiktok_product_id") or "").strip() == pid_key
+                    if same_url or same_pid:
                         _check_children_owner(existing.get(OWNER_KEY), angles)
                         if angles:
                             existing["angles"] = angles
