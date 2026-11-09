@@ -15,7 +15,7 @@ import hashlib
 import os
 from pathlib import Path
 import threading
-from typing import Any, Callable, Dict, Iterator, List, Optional, Set
+from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple
 
 from scripts.config import BASE_DIR, INBOX_DIR, RAW_DIR, ARCHIVE_DIR, DEFAULT_CHANNEL_ID
 
@@ -64,25 +64,71 @@ def _reference_keys(value: str) -> List[str]:
     return [_path_key(root / cleaned) for root in (BASE_DIR, RAW_DIR, INBOX_DIR)]
 
 
+class ReferenceLoadError(RuntimeError):
+    """A store that may reference media could not be read, so nothing is safe to remove."""
+
+
+def _load_products() -> List[Dict[str, Any]]:
+    from scripts.product_store import ProductStore
+
+    return ProductStore._load()
+
+
+def _load_recording_sessions() -> List[Dict[str, Any]]:
+    from scripts.recording_sessions import _TABLE
+
+    return _TABLE.load()
+
+
+def _load_shot_lists() -> List[Dict[str, Any]]:
+    from scripts.shot_lists_store import _TABLE
+
+    return _TABLE.load()
+
+
+def _load_export_registry() -> List[Dict[str, Any]]:
+    from scripts.export_registry import ExportRegistry
+
+    return ExportRegistry._load()
+
+
+# Every store whose records may point at a file in 00_Inbox / 01_Raw (S1-12).
+# (Thai label for errors, loader). A loader that raises makes the whole
+# reference scan fail -- a file is never judged "unreferenced" on partial data.
+REFERENCE_SOURCES: Tuple[Tuple[str, Callable[[], List[Dict[str, Any]]]], ...] = (
+    ("สินค้า", _load_products),
+    ("เซสชันอัดคลิป", _load_recording_sessions),
+    ("shot list", _load_shot_lists),
+    ("ทะเบียนส่งออก", _load_export_registry),
+)
+
+
 class AssetDedupEngine:
     """Detects and safely cleans duplicate media assets across inbox and raw folders."""
 
     @classmethod
     def referenced_path_owners(cls) -> Dict[str, Set[Optional[str]]]:
-        """Path key -> channel ids of every product (any channel) that references it.
+        """Path key -> channel ids of every record (any channel) that references it.
 
         Every string in a product record (videos, images, thumbnail, angle
-        selected_videos / raw_video / manual_shot_map ...) that looks like a
-        local media path counts as a reference (S1-12).
+        selected_videos / raw_video / manual_shot_map ...), recording session,
+        shot list or export-registry row that looks like a local media path
+        counts as a reference (S1-12). Raises :class:`ReferenceLoadError`
+        naming the store when any of them cannot be loaded (fail closed).
         """
-        from scripts.product_store import ProductStore
-
         owners: Dict[str, Set[Optional[str]]] = {}
-        for product in ProductStore._load():
-            owner = product.get("channel_id")
-            for value in _iter_strings(product):
-                for key in _reference_keys(value):
-                    owners.setdefault(key, set()).add(owner)
+        for label, loader in REFERENCE_SOURCES:
+            try:
+                rows = loader()
+            except Exception as exc:  # noqa: BLE001 - any failure must stop a delete
+                raise ReferenceLoadError(f"อ่านข้อมูล{label}ไม่ได้: {exc}") from exc
+            for row in rows or []:
+                if not isinstance(row, dict):
+                    continue
+                owner = row.get("channel_id")
+                for value in _iter_strings(row):
+                    for key in _reference_keys(value):
+                        owners.setdefault(key, set()).add(owner)
         return owners
 
     @classmethod
@@ -133,10 +179,9 @@ class AssetDedupEngine:
         not see. A copy referenced by a product is always chosen as the
         original, so it is never suggested for deletion.
         """
-        try:
-            referenced = set(cls.referenced_path_owners())
-        except Exception:
-            referenced = set()
+        # Fail closed (S1-12): if a reference store cannot be read the scan stops
+        # rather than offering a referenced copy for deletion.
+        referenced = set(cls.referenced_path_owners())
         with _DEDUP_LOCK:
             target_dirs = search_dirs or [INBOX_DIR, RAW_DIR]
             candidates_by_size: Dict[int, List[Path]] = {}
@@ -287,12 +332,12 @@ class AssetDedupEngine:
                 referenced = cls.referenced_path_owners()
             except Exception as exc:
                 for original in requested.values():
-                    errors.append(f"อ่านรายการสินค้าไม่ได้ จึงไม่ลบ '{original}': {exc}")
+                    errors.append(f"อ่านรายการอ้างอิงไม่ได้ จึงไม่ลบ '{original}': {exc}")
                     skipped.append(original)
                 return cls._clean_result(cleaned_count, freed_bytes, errors, skipped)
             for p in list(requested):
                 if _path_key(p) in referenced:
-                    errors.append(f"ไฟล์นี้ถูกใช้งานอยู่ในสินค้า จึงไม่ลบ: '{requested[p]}'")
+                    errors.append(f"ไฟล์นี้ถูกใช้งานอยู่ (สินค้า/เซสชันอัดคลิป/shot list/ทะเบียนส่งออก) จึงไม่ลบ: '{requested[p]}'")
                     skipped.append(requested.pop(p))
             if not requested:
                 return cls._clean_result(cleaned_count, freed_bytes, errors, skipped)
