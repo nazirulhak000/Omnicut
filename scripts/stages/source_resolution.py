@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List
 
 from scripts.config import BASE_DIR, RAW_DIR, INBOX_DIR, PROJECTS_DIR
+from scripts.error_handler import AppError, ErrorCategory
 from scripts.project_manifest import ProjectManifest
 from scripts.pipeline_context import PipelineContext, channel_project_name
 
@@ -32,14 +33,22 @@ class SourceResolutionStage:
             elif (INBOX_DIR / p.name).exists():
                 raw_video = (INBOX_DIR / p.name).resolve()
             else:
-                matched_raw = list(RAW_DIR.glob(f"**/{p.name}"))
-                matched_inbox = list(INBOX_DIR.glob(f"**/{p.name}"))
-                if matched_raw:
-                    raw_video = matched_raw[0].resolve()
-                elif matched_inbox:
-                    raw_video = matched_inbox[0].resolve()
-                else:
-                    raw_video = p.resolve()
+                # Audit S3-14: a stale path is looked up by file name only.
+                # Taking the first hit could pick another product's footage
+                # with the same name (rule 13), so more than one hit stops.
+                matched_raw = sorted(RAW_DIR.glob(f"**/{p.name}"))
+                matched_inbox = sorted(INBOX_DIR.glob(f"**/{p.name}"))
+                matches = matched_raw or matched_inbox
+                if len(matches) > 1:
+                    candidates = ", ".join(str(m.relative_to(BASE_DIR)) if m.is_relative_to(BASE_DIR) else str(m) for m in matches[:5])
+                    raise AppError(
+                        category=ErrorCategory.USER_CORRECTABLE,
+                        code="RAW_VIDEO_AMBIGUOUS",
+                        message_th=f"หาไฟล์วิดีโอดิบ '{p.name}' ตามที่อยู่เดิมไม่เจอ และพบไฟล์ชื่อเดียวกันหลายตัว ({len(matches)} ไฟล์) ระบบไม่เดาเลือกให้เพราะอาจเป็นสินค้าคนละรุ่น",
+                        suggestion_th="เลือกไฟล์วิดีโอดิบใหม่ให้ตรงสินค้า หรือเปลี่ยนชื่อไฟล์ที่ซ้ำกันใน 01_Raw",
+                        details=f"raw_video_path={raw_video_path}; candidates={candidates}",
+                    )
+                raw_video = matches[0].resolve() if matches else p.resolve()
 
         image_extensions = ('.jpg', '.jpeg', '.png', '.webp')
         if ctx.channel_id is not None:
@@ -67,7 +76,8 @@ class SourceResolutionStage:
         image_files: List[str] = []
 
         if raw_video and raw_video.is_dir():
-            image_files = [str(f) for f in raw_video.iterdir() if f.suffix.lower() in image_extensions]
+            # Sorted: slideshow order must not depend on the filesystem (S3-15).
+            image_files = [str(f) for f in sorted(raw_video.iterdir()) if f.suffix.lower() in image_extensions]
             if image_files:
                 is_image_source = True
         elif raw_video and raw_video.is_file() and raw_video.suffix.lower() in image_extensions:
@@ -87,7 +97,14 @@ class SourceResolutionStage:
                     c_path = Path(c_src)
                     if not c_path.is_absolute():
                         c_path = BASE_DIR / c_src
-                    if c_path.exists() and c_path.is_file() and c_path.stat().st_size < 1024:
+                    if not c_path.is_file():
+                        # Audit S3-14: a missing clip was skipped here and only
+                        # failed later inside ffmpeg with an English error.
+                        raise FileNotFoundError(
+                            f"ไม่พบไฟล์ของคลิปที่ {c_idx + 1} ('{c_path.name}') ในแผนตัดต่อ "
+                            "กรุณาเลือกไฟล์ใหม่ใน Editor หรือลบคลิปนี้ออกก่อนเรนเดอร์"
+                        )
+                    if c_path.stat().st_size < 1024:
                         raise ValueError(f"คลิปที่ {c_idx + 1} ('{c_path.name}') มีขนาด 0 bytes หรือเสียหาย")
 
         # Guided-take detection is filesystem-only (a sidecar next to the raw

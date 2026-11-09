@@ -5,6 +5,7 @@ J-Cut micro-cue grouping, acoustic/motion-guided zoom emphasis, and beat snappin
 """
 
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from scripts.video_editor import VideoEditor
@@ -868,15 +869,28 @@ class ShotMatchingStage:
             ctx.raw_video = raw_video
             ctx.use_ai_vision = False
 
-        raw_duration = 60.0
+        raw_duration = 0.0
+        raw_info: Dict[str, Any] = {}
         if raw_video:
             try:
-                raw_info = VideoEditor.get_media_info(str(raw_video))
-                raw_duration = float(raw_info.get("duration", 60.0))
-            except Exception:
-                raw_duration = 60.0
+                raw_info = VideoEditor.get_media_info(str(raw_video)) or {}
+                raw_duration = float(raw_info.get("duration") or 0.0)
+            except Exception as probe_err:
+                raw_info = {"probe_failed": True, "probe_error": f"{type(probe_err).__name__}: {probe_err}"}
+                raw_duration = 0.0
 
         has_manual_clips = bool(ctx.clip_list and len(ctx.clip_list) > 0)
+        if raw_video and not has_manual_clips and raw_duration <= 0:
+            # Audit S3-04: an unreadable/truncated raw used to be planned as
+            # 60 s (probe fallback) or 0 s of footage and fail later inside
+            # ffmpeg. Stop here with a Thai message instead.
+            raise AppError(
+                category=ErrorCategory.USER_CORRECTABLE,
+                code="RAW_VIDEO_UNREADABLE",
+                message_th=f"อ่านความยาวไฟล์วิดีโอดิบ '{Path(str(raw_video)).name}' ไม่ได้ ไฟล์อาจเสีย ถูกตัดกลางทาง หรืออยู่บนไดรฟ์ที่เข้าถึงไม่ได้",
+                suggestion_th="เปิดไฟล์นี้ในโปรแกรมเล่นวิดีโอเพื่อตรวจสอบ แล้วอัปโหลดหรือเลือกไฟล์ใหม่",
+                details=str(raw_info.get("probe_error") or f"duration={raw_duration}"),
+            )
         actual_clip_list = ctx.clip_list if has_manual_clips else None
         is_newly_generated_clips = False
 

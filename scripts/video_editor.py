@@ -1712,7 +1712,12 @@ class VideoEditor:
                 "codec_name": codec_name
             }
         except Exception as e:
-            return {"duration": 60.0, "width": 1080, "height": 1920, "rotation": 0, "fps": 30, "has_audio": False, "codec_name": ""}
+            # Audit S3-04: a failed probe used to report a made-up 60.0s, so a
+            # broken or hung source was planned as if it had a minute of
+            # footage. Report 0.0 (same as a truncated file already did) and
+            # flag the failure so callers can reject it with a Thai message.
+            return {"duration": 0.0, "width": 1080, "height": 1920, "rotation": 0, "fps": 30, "has_audio": False, "codec_name": "",
+                    "probe_failed": True, "probe_error": f"{type(e).__name__}: {e}"}
 
     @classmethod
     def assemble_tiktok_video(
