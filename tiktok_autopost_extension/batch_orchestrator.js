@@ -590,7 +590,19 @@
     };
   }
 
+  // The orchestrator hands reconcile the outcome as a string plus the raw
+  // submit/toast result; accept either shape so an unconfirmed post is never
+  // silently treated as done.
+  function shouldReconcileAfterPost(outcome, result) {
+    const outcomeName = typeof outcome === 'string' ? outcome : outcome?.outcome;
+    const raw = (outcome && typeof outcome === 'object') ? outcome : result;
+    return outcomeName === 'confirmation_unknown'
+      || raw?.outcome === 'confirmation_unknown'
+      || Boolean(raw?.markError);
+  }
+
   return {
+    shouldReconcileAfterPost,
     ORCHESTRATOR_STATES,
     BATCH_STATES: ORCHESTRATOR_STATES,
     CLIP_STAGES,

@@ -316,3 +316,13 @@ test('Phase 2: Content Script Live Selectors, Event-Driven waitForSelector, and 
   assert.equal(sanity.ok, true);
   assert.equal(sanity.report.submitPostButton.matched, true);
 });
+
+test('B2: shouldReconcileAfterPost reads the string outcome and the result object', () => {
+  const { shouldReconcileAfterPost } = require('./batch_orchestrator.js');
+  assert.equal(shouldReconcileAfterPost('confirmation_unknown', null), true);
+  assert.equal(shouldReconcileAfterPost('scheduled', {markError: 'ack failed'}), true);
+  assert.equal(shouldReconcileAfterPost('scheduled', {outcome: 'confirmation_unknown'}), true);
+  assert.equal(shouldReconcileAfterPost({outcome: 'confirmation_unknown'}), true);
+  assert.equal(shouldReconcileAfterPost('published', {success: true, outcome: 'published'}), false);
+  assert.equal(shouldReconcileAfterPost('scheduled', undefined), false);
+});

@@ -529,7 +529,8 @@ test('cover upload retries once when TikTok replaces the hidden input during fil
 test('schedule time follows TikTok five-minute increments', () => {
   const ctx = worker();
   assert.equal(ctx.normalizeScheduleTime('16:08'), '16:10');
-  assert.equal(ctx.normalizeScheduleTime('23:58'), '00:00');
+  assert.equal(ctx.normalizeScheduleTime('23:58'), '23:55');
+  assert.equal(ctx.normalizeScheduleTime('10:58'), '11:00');
   assert.equal(ctx.normalizeScheduleTime('09:35'), '09:35');
   assert.equal(ctx.normalizeScheduleTime('24:00'), '');
 });
@@ -927,3 +928,138 @@ test('waitForPostConfirmation: fast-path breaks quickly when tab navigated to /c
   assert.ok(elapsed < 2000, `Expected elapsed < 2000ms on /content navigation fast-path, got ${elapsed}ms`);
 });
 
+
+test('B1: wait-for-upload-only resolves a success object so the side panel can continue', async () => {
+  const calls = [];
+  const ctx = worker({debugger: {
+    attach: async () => { calls.push('attach'); },
+    detach: async () => { calls.push('detach'); },
+    sendCommand: async (_target, method) => method === 'Runtime.evaluate' ? {result:{value:true}} : {},
+  }});
+  ctx.findUploadTab = async () => ({id: 7});
+  const result = await ctx.runWaitForUploadOnly();
+  assert.equal(result?.success, true);
+  assert.deepEqual(calls, ['attach', 'detach']);
+});
+
+test('B1: wait-for-upload-only failure still detaches and rejects with the TikTok message', async () => {
+  const calls = [];
+  const ctx = worker({debugger: {
+    attach: async () => { calls.push('attach'); },
+    detach: async () => { calls.push('detach'); },
+    sendCommand: async () => ({exceptionDetails: {text: 'boom'}}),
+  }});
+  ctx.findUploadTab = async () => ({id: 7});
+  await assert.rejects(() => ctx.runWaitForUploadOnly(), /boom/);
+  assert.deepEqual(calls, ['attach', 'detach']);
+});
+
+test('B3: a percent sign typed in the caption is not mistaken for upload progress', async () => {
+  const ctx = worker();
+  ctx.sleep = async () => {};
+  const editor = {innerText: 'พัดลมพกพา ลด 50% วันนี้ #fan'};
+  const makeDom = (bodyText) => vm.createContext({document: {
+    body: {innerText: bodyText},
+    querySelectorAll: (sel) => sel.includes('contenteditable') ? [editor] : [],
+  }});
+  const sendFor = (dom) => async (_m, params) => ({result: {value: vm.runInContext(params.expression, dom)}});
+  const done = await ctx.waitForUploadComplete(sendFor(makeDom('อัปโหลดแล้ว\nพัดลมพกพา ลด 50% วันนี้ #fan\nโพสต์')), 50);
+  assert.equal(done, true);
+  const uploading = await ctx.waitForUploadComplete(sendFor(makeDom('42%\nพัดลมพกพา ลด 50% วันนี้ #fan')), 1);
+  assert.equal(uploading, false);
+});
+
+test('B4: batch park never cancels an attempted job (no duplicate post) and frees the worker', async () => {
+  const saved = {}, ctx = durableWorker(saved);
+  const job = await seedJob(ctx, protocolJob({status: 'confirmation_unknown', publish_attempted_at: 1}));
+  const routes = [];
+  ctx.postingRequest = async (route) => { routes.push(route); if (route.startsWith('/jobs/')) return {...job}; throw new Error('unexpected ' + route); };
+  const res = await ctx.releasePostingJob({park: true});
+  assert.equal(res.parked, true);
+  assert.ok(!routes.includes('/release'));
+  assert.equal(saved.omnicutPostingProtocolV2.activeJob, null);
+  assert.equal(saved.omnicutPostingProtocolV2.unresolvedJobs[0].job_id, 'job-1');
+  await ctx.selectPostingChannel('main');
+});
+
+test('B4: batch park releases a claimed job that was never attempted', async () => {
+  const saved = {}, ctx = durableWorker(saved);
+  const job = await seedJob(ctx);
+  const bodies = [];
+  ctx.postingRequest = async (route, _ch, body) => {
+    if (route.startsWith('/jobs/')) return {...job};
+    if (route === '/release') { bodies.push(body); return {...job, status: 'cancelled', revision: 3}; }
+    throw new Error('unexpected ' + route);
+  };
+  const res = await ctx.releasePostingJob({park: true});
+  assert.equal(res.success, true);
+  assert.equal(bodies.length, 1);
+  assert.equal(saved.omnicutPostingProtocolV2.activeJob, null);
+});
+
+test('B4: batch park retries a stuck receipt and keeps it if the backend still fails', async () => {
+  const saved = {}, ctx = durableWorker(saved);
+  const job = await seedJob(ctx, protocolJob({status: 'publishing', publish_attempted_at: 1}));
+  const state = await ctx.postingState();
+  state.pendingReceipt = {channelId: 'main', body: {job_id: job.job_id, outcome: 'published'}, reconcile: false};
+  await ctx.persistPostingState(state);
+  let acks = 0;
+  ctx.postingRequest = async (route) => { if (route === '/ack') { acks += 1; throw new Error('backend down'); } return {...job}; };
+  await assert.rejects(() => ctx.releasePostingJob({park: true}), /posting_receipt_unsent/);
+  assert.equal(acks, 3);
+  assert.ok(saved.omnicutPostingProtocolV2.pendingReceipt);
+});
+
+test('B4: batch park succeeds once a stuck receipt goes through on retry', async () => {
+  const saved = {}, ctx = durableWorker(saved);
+  const job = await seedJob(ctx, protocolJob({status: 'publishing', publish_attempted_at: 1}));
+  const state = await ctx.postingState();
+  state.pendingReceipt = {channelId: 'main', body: {job_id: job.job_id, outcome: 'published'}, reconcile: false};
+  await ctx.persistPostingState(state);
+  let acks = 0;
+  ctx.postingRequest = async (route) => {
+    if (route === '/ack') { acks += 1; if (acks < 2) throw new Error('blip'); return {...job, status: 'published'}; }
+    return {...job, status: 'published'};
+  };
+  const res = await ctx.releasePostingJob({park: true});
+  assert.equal(res.success, true);
+  assert.equal(saved.omnicutPostingProtocolV2.pendingReceipt, null);
+  assert.equal(saved.omnicutPostingProtocolV2.activeJob, null);
+});
+
+test('B5: side panel batch never force-cancels backend jobs directly', () => {
+  const panel = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  assert.ok(!panel.includes('tiktok-autopost/release'), 'raw /release from the panel can cancel an attempted job');
+  const batchStart = panel.indexOf('const batchActions = {');
+  const batchEnd = panel.indexOf('const orchestratorModule', batchStart);
+  const batchBlock = panel.slice(batchStart, batchEnd);
+  assert.ok(!/release-posting-job',\s*force:\s*true/.test(batchBlock), 'batch must park, not force-release');
+});
+
+test('stray TikTok Content tab does not replace the real post click for an unattempted job', async () => {
+  const ctx = worker({tabs: {query: async () => [{id: 3, url: 'https://www.tiktok.com/tiktokstudio/content'}]}});
+  let reconciled = 0;
+  ctx.fetchPendingJob = async () => protocolJob();
+  ctx.runReconcilePostingResult = async () => { reconciled += 1; return {outcome: 'published'}; };
+  ctx.findUploadTab = async () => { throw new Error('went-to-upload-tab'); };
+  await assert.rejects(() => ctx.runClickPostOnly(), /went-to-upload-tab/);
+  assert.equal(reconciled, 0);
+});
+
+test('Content tab after a real click reconciles instead of clicking again', async () => {
+  const ctx = worker({tabs: {query: async () => [{id: 3, url: 'https://www.tiktok.com/tiktokstudio/content'}]}});
+  ctx.fetchPendingJob = async () => protocolJob({status: 'confirmation_unknown', publish_attempted_at: 1});
+  ctx.runReconcilePostingResult = async () => ({outcome: 'published'});
+  ctx.findUploadTab = async () => { throw new Error('must not click again'); };
+  const res = await ctx.runClickPostOnly();
+  assert.equal(res.posted, true);
+});
+
+test('schedule window rejects past or too-close slots and accepts a future one', () => {
+  const ctx = worker();
+  const now = new Date('2026-11-09T10:00:00').getTime();
+  assert.match(ctx.scheduleWindowProblem('2026-11-09', '09:00', now), /ผ่านไปแล้ว/);
+  assert.match(ctx.scheduleWindowProblem('2026-11-09', '10:10', now), /15 นาที/);
+  assert.equal(ctx.scheduleWindowProblem('2026-11-09', '10:30', now), '');
+  assert.equal(ctx.scheduleWindowProblem('', '', now), '');
+});

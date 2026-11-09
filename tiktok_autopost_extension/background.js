@@ -521,7 +521,48 @@ async function clearPendingJob() {
 
 }
 
+// Batch-only cleanup between clips. Unlike `force`, it never cancels a job
+// whose post button was already clicked: cancelling would make the export
+// preparable again and the next batch would post the same clip twice. Such a
+// job is parked locally (backend keeps it attempted, which blocks the export)
+// and left for reconcile; the worker is freed for the next clip.
+async function parkPostingJob() {
+  let state = await postingState();
+  if (state.pendingReceipt) {
+    let lastError = null;
+    for (let attempt = 0; attempt < 3 && state.pendingReceipt; attempt += 1) {
+      try {
+        await retryPostingReceipt();
+      } catch (error) {
+        lastError = error;
+        await sleep(1500 * (attempt + 1));
+      }
+      state = await postingState();
+    }
+    if (state.pendingReceipt) {
+      throw new Error('posting_receipt_unsent: ส่งผลโพสต์เดิมเข้า Backend ไม่สำเร็จ ' + (lastError?.message || ''));
+    }
+  }
+  const job = state.activeJob;
+  if (!job) return {success: true, parked: false};
+  try {
+    const current = await postingRequest(`/jobs/${encodeURIComponent(job.job_id)}`, job.channel_id);
+    if (current) Object.assign(job, current);
+  } catch (_) {}
+  const attempted = Boolean(job.publish_attempted_at)
+    || !['prepared', 'claimed', 'cancelled', 'published'].includes(job.status);
+  if (!attempted) return releasePostingJob({force: true});
+  const parked = {job_id: job.job_id, channel_id: job.channel_id, status: job.status, parked_at: Date.now()};
+  state.unresolvedJobs = [...(state.unresolvedJobs || []).filter(item => item.job_id !== job.job_id), parked].slice(-50);
+  state.activeJob = null;
+  state.tabId = null;
+  state.accountWarning = null;
+  await persistPostingState(state);
+  return {success: true, parked: true, job_id: job.job_id, status: job.status};
+}
+
 async function releasePostingJob(options = {}) {
+  if (options?.park) return parkPostingJob();
 
   const state = await postingState();
 
@@ -1449,7 +1490,16 @@ async function waitForUploadComplete(send, timeoutMs = 900_000) {
 
       expression: `(() => {
 
-        const allText = document.body ? (document.body.innerText || '') : '';
+        let allText = document.body ? (document.body.innerText || '') : '';
+
+        // Text the user typed (caption/hashtags, e.g. "ลด 50%") must not be
+        // read as upload progress -- strip every editable field's own text
+        // before matching. Keeps the innerText (visible-only) semantics.
+        const editables = Array.from(document.querySelectorAll('[contenteditable="true"], [contenteditable=""], textarea, input'));
+        for (const el of editables) {
+          const typed = (el.innerText || el.value || el.textContent || '').trim();
+          if (typed) allText = allText.split(typed).join(' ');
+        }
 
         // 1. Check for active upload percentage (e.g. 29.36%, 70%)
 
@@ -2872,17 +2922,28 @@ function normalizeScheduleTime(rawTime) {
   if (hour > 23 || minute > 59) return '';
 
   minute = Math.round(minute / 5) * 5;
-
   if (minute === 60) {
-
-    hour = (hour + 1) % 24;
-
-    minute = 0;
-
+    if (hour === 23) {
+      // Rounding up would wrap to 00:00 of the SAME date (a day early in
+      // effect). Round down instead so the date the user picked stays true.
+      minute = 55;
+    } else {
+      hour += 1;
+      minute = 0;
+    }
   }
-
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
 
+// TikTok rejects schedules less than ~15 minutes ahead; a past or too-close
+// slot must fail loudly instead of letting the picker fall back to a default.
+const MIN_SCHEDULE_LEAD_MS = 15 * 60 * 1000;
+function scheduleWindowProblem(date, time, nowMs = Date.now()) {
+  if (!date || !time) return '';
+  const target = new Date(`${date}T${time}:00`).getTime();
+  if (!Number.isFinite(target)) return 'วันที่/เวลานัดโพสต์อ่านไม่ได้';
+  if (target - nowMs < MIN_SCHEDULE_LEAD_MS) return `เวลานัดโพสต์ ${date} ${time} ผ่านไปแล้วหรือใกล้เกิน 15 นาที`;
+  return '';
 }
 
 async function waitForScheduleValues(sendEval, requestedDate, requestedTime, timeoutMs = 5000) {
@@ -2936,6 +2997,8 @@ async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
   if (rawTime && !requestedTime) return {success: false, changed: false, reason: 'เวลาต้องอยู่ในรูปแบบ HH:mm และอยู่ระหว่าง 00:00-23:59'};
 
   if (!requestedDate && !requestedTime) return {success: true, changed: false};
+  const windowProblem = scheduleWindowProblem(requestedDate, requestedTime);
+  if (windowProblem) return {success: false, changed: false, reason: windowProblem};
 
   const sendEval = expression => send('Runtime.evaluate', {expression, returnByValue: true});
 
@@ -4464,8 +4527,10 @@ async function runClickPostOnly() {
   const tabs = typeof chrome?.tabs?.query === 'function' ? await chrome.tabs.query({url: '*://*.tiktok.com/*'}) : [];
 
   const contentTab = tabs.find(t => (t.url || '').includes('/content') || (t.url || '').includes('/manage'));
-
-  if (contentTab) {
+  // A /content tab only means "already posted, just verify" when THIS job was
+  // actually clicked. A stray Content tab must never replace the real click.
+  const alreadyAttempted = Boolean(job.publish_attempted_at) || ['publishing', 'confirmation_unknown'].includes(job.status);
+  if (contentTab && alreadyAttempted) {
 
     const reconciled = await runReconcilePostingResult();
 
@@ -4670,6 +4735,9 @@ async function runWaitForUploadOnly() {
     await send('Runtime.enable');
 
     await OmniAutomation.waitForUploadStatusBadge(send);
+
+    // The side panel treats an empty reply as a dead worker; always answer.
+    return { success: true };
 
   } finally {
 
