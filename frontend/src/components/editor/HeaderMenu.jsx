@@ -95,7 +95,7 @@ export default function HeaderMenu({ items = [], label = 'เมนูเพิ�
     }
 
     const Icon = item.icon;
-    return (
+    const button = (
       <button
         key={item.id}
         type="button"
@@ -124,6 +124,11 @@ export default function HeaderMenu({ items = [], label = 'เมนูเพิ�
         )}
       </button>
     );
+    // wrapClassName limits an item to some viewports (e.g. a fallback for a
+    // header control that is hidden at that width).
+    return item.wrapClassName
+      ? <div key={item.id} className={item.wrapClassName}>{button}</div>
+      : button;
   };
 
   return (
