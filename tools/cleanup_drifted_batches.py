@@ -10,7 +10,6 @@ CRITICAL SAFETY MANDATE:
   in 03_Projects/_HyperFrames_Studio/assets/clips/ and 03_Projects/_HyperFrames_Studio/clips/.
 - ZERO PRODUCT ASSET DELETION: Preserves 100% of images, cutouts, and briefs.
 """
-import json
 import os
 from pathlib import Path
 import sys
@@ -28,6 +27,9 @@ EXPORTS_DIR = ROOT / "04_Exports" / "Ready_to_post"
 COVERS_DIR = ROOT / "05_Covers_Thumbnails"
 COMPS_DIR = ROOT / "03_Projects" / "_HyperFrames_Studio" / "compositions"
 DOCS_DIR = ROOT / "_Docs"
+
+sys.path.insert(0, str(ROOT))
+from scripts import store_io  # noqa: E402
 
 def main():
     print("=== STARTING CLEANUP OF DRIFTED BATCHES (GOO01, HAT01, RED01) ===")
@@ -82,71 +84,41 @@ def main():
 
     print(f"[3] Deleted {len(deleted_comps)} drifted composition HTML files from {COMPS_DIR}")
 
-    # 4. Clean _Docs/export_registry.json
-    reg_path = DOCS_DIR / "export_registry.json"
-    removed_reg_count = 0
-    if reg_path.exists():
-        with open(reg_path, "r", encoding="utf-8") as f:
-            reg = json.load(f)
-        
-        filtered_reg = []
-        for r in reg:
-            p = r.get("path", "")
-            is_target = (
-                ("goo01" in p and "20261020" in p) or
-                ("hat01" in p and "20261020" in p) or
-                ("red01" in p and "20261020" in p)
-            )
-            if is_target:
-                removed_reg_count += 1
-            else:
-                filtered_reg.append(r)
-        
-        with open(reg_path, "w", encoding="utf-8") as f:
-            json.dump(filtered_reg, f, ensure_ascii=False, indent=2)
+    # 4-6 go through the SQLite-backed stores (scripts.store_io, audit
+    # S6-01): rows are removed inside one store transaction each, so the
+    # deletion really reaches SQLite (a JSON mirror edit no longer deletes
+    # rows) and a read error raises instead of rewriting a partial list.
+    def _is_drifted(path_text: str) -> bool:
+        return (
+            ("goo01" in path_text and "20261020" in path_text) or
+            ("hat01" in path_text and "20261020" in path_text) or
+            ("red01" in path_text and "20261020" in path_text)
+        )
+
+    # 4. Clean the export registry
+    with store_io.mutate_export_registry(DOCS_DIR) as reg:
+        kept = [r for r in reg if not _is_drifted(r.get("path", ""))]
+        removed_reg_count = len(reg) - len(kept)
+        reg[:] = kept
 
     print(f"[4] Removed {removed_reg_count} entries from export_registry.json")
 
-    # 5. Clean _Docs/export_cover_bindings.json
-    bindings_path = DOCS_DIR / "export_cover_bindings.json"
-    removed_bindings_count = 0
-    if bindings_path.exists():
-        with open(bindings_path, "r", encoding="utf-8") as f:
-            bindings = json.load(f)
-        
-        filtered_bindings = []
-        for b in bindings:
-            vp = b.get("video_path", "")
-            is_target = (
-                ("goo01" in vp and "20261020" in vp) or
-                ("hat01" in vp and "20261020" in vp) or
-                ("red01" in vp and "20261020" in vp)
-            )
-            if is_target:
-                removed_bindings_count += 1
-            else:
-                filtered_bindings.append(b)
-        
-        with open(bindings_path, "w", encoding="utf-8") as f:
-            json.dump(filtered_bindings, f, ensure_ascii=False, indent=2)
+    # 5. Clean the export cover bindings
+    with store_io.mutate_cover_bindings(DOCS_DIR) as bindings:
+        kept = [b for b in bindings if not _is_drifted(b.get("video_path", ""))]
+        removed_bindings_count = len(bindings) - len(kept)
+        bindings[:] = kept
 
     print(f"[5] Removed {removed_bindings_count} entries from export_cover_bindings.json")
 
-    # 6. Update _Docs/products.json status to 'scripted'
-    prod_path = DOCS_DIR / "products.json"
+    # 6. Update product status to 'scripted'
     updated_prods = []
-    if prod_path.exists():
-        with open(prod_path, "r", encoding="utf-8") as f:
-            prods = json.load(f)
-        
+    with store_io.mutate_products(DOCS_DIR) as prods:
         for p in prods:
             code = p.get("product_code", "")
             if code in ["GOO01", "HAT01", "RED01"]:
                 p["status"] = "scripted"
                 updated_prods.append(code)
-        
-        with open(prod_path, "w", encoding="utf-8") as f:
-            json.dump(prods, f, ensure_ascii=False, indent=2)
 
     print(f"[6] Reset status to 'scripted' for products: {updated_prods}")
 

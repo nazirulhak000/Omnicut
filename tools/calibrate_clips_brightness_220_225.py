@@ -22,6 +22,9 @@ ROOT = Path(__file__).resolve().parent.parent
 EXPORTS_DIR = ROOT / "04_Exports" / "Ready_to_post"
 COVERS_DIR = ROOT / "05_Covers_Thumbnails"
 DOCS_DIR = ROOT / "_Docs"
+
+sys.path.insert(0, str(ROOT))
+from scripts import store_io  # noqa: E402
 TMP_DIR = ROOT / ".tmp"
 TMP_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -102,14 +105,9 @@ def extract_covers(mp4_path: Path, seek_sec: float = 45.0) -> dict:
 
 
 def update_cover_bindings(mp4_path: Path, covers: dict):
-    bindings_file = DOCS_DIR / "export_cover_bindings.json"
-    if not bindings_file.exists():
-        return
-    try:
-        bindings = json.loads(bindings_file.read_text(encoding="utf-8"))
-    except Exception:
-        return
-
+    """Refresh the cover selections of an existing binding through the
+    cover-binding store (scripts.store_io, audit S6-01): no direct JSON
+    mirror write, and a read error raises instead of being skipped."""
     rel_mp4 = f"04_Exports/Ready_to_post/{mp4_path.name}"
     c916 = covers.get("cover_916")
     c34 = covers.get("cover_34")
@@ -121,12 +119,13 @@ def update_cover_bindings(mp4_path: Path, covers: dict):
     rel_916 = str(c916.relative_to(ROOT)).replace("\\", "/")
     rel_34 = str(c34.relative_to(ROOT)).replace("\\", "/")
 
-    entry = next((b for b in bindings if b.get("video_path") == rel_mp4), None)
-    if entry:
-        entry["selections"]["9:16"] = {"path": rel_916, "sha256": sha_916, "format": "9:16"}
-        entry["selections"]["3:4"] = {"path": rel_34, "sha256": sha_34, "format": "3:4"}
-        entry["updated_at"] = time.time()
-        bindings_file.write_text(json.dumps(bindings, ensure_ascii=False, indent=2), encoding="utf-8")
+    with store_io.mutate_cover_bindings(DOCS_DIR) as bindings:
+        entry = next((b for b in bindings if b.get("video_path") == rel_mp4), None)
+        if entry:
+            entry.setdefault("selections", {})
+            entry["selections"]["9:16"] = {"path": rel_916, "sha256": sha_916, "format": "9:16"}
+            entry["selections"]["3:4"] = {"path": rel_34, "sha256": sha_34, "format": "3:4"}
+            entry["updated_at"] = time.time()
 
 
 def calibrate_single_clip(mp4_path: Path) -> dict:

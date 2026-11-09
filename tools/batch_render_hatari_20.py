@@ -48,6 +48,7 @@ DATE_STR = datetime.datetime.now().strftime("%Y%m%d")
 
 sys.path.insert(0, str(ROOT))
 from scripts.tiktok_enhancer import enhance_video_for_tiktok
+from scripts import store_io  # noqa: E402
 
 
 def get_cta_seek_time(comp_path: Path) -> float:
@@ -124,127 +125,71 @@ def compute_sha256(path: Path) -> str:
 
 
 def register_export_and_cover(mp4_path: Path, covers: dict, comp_stem: str, angle_idx: int) -> str:
-    """Register export in export_registry.json and export_cover_bindings.json."""
-    registry_file = DOCS_DIR / "export_registry.json"
-    bindings_file = DOCS_DIR / "export_cover_bindings.json"
-
-    entries = []
-    if registry_file.exists():
-        try:
-            entries = json.loads(registry_file.read_text(encoding="utf-8"))
-        except Exception:
-            entries = []
-
+    """Register into the export registry and cover bindings through the
+    SQLite-backed stores (scripts.store_io, audit S6-01): no direct JSON
+    mirror writes, and a read error raises instead of becoming []."""
     rel_mp4 = f"04_Exports/Ready_to_post/{mp4_path.name}"
     angle_id = f"ang_hat02_{angle_idx:02d}"
-    try:
-        products_file = DOCS_DIR / "products.json"
-        if products_file.exists():
-            prods = json.loads(products_file.read_text(encoding="utf-8"))
-            p_found = next((p for p in prods if p.get("id") == PRODUCT_ID or p.get("product_code") == PRODUCT_CODE), None)
-            if p_found:
-                a_found = next((a for a in p_found.get("angles", []) if a.get("clip_id") == comp_stem), None)
-                if a_found and a_found.get("angle_id"):
-                    angle_id = a_found.get("angle_id")
-    except Exception:
-        pass
 
-    existing = next((e for e in entries if e.get("path") == rel_mp4 or e.get("path_key") == rel_mp4), None)
-    now_iso = datetime.datetime.now().isoformat()
+    prods = store_io.load_products(DOCS_DIR)
+    p_found = next((p for p in prods if p.get("id") == PRODUCT_ID or p.get("product_code") == PRODUCT_CODE), None)
+    if p_found:
+        a_found = next((a for a in p_found.get("angles", []) if a.get("clip_id") == comp_stem), None)
+        if a_found and a_found.get("angle_id"):
+            angle_id = a_found.get("angle_id")
+
     now_ts = time.time()
-
-    if existing:
-        export_id = existing.get("id")
-        existing["product_id"] = PRODUCT_ID
-        existing["angle_id"] = angle_id
-        existing["status"] = "rendered"
-        existing["updated_at"] = now_iso
-    else:
-        export_id = f"exp_{uuid.uuid4().hex}"
-        entry = {
-            "id": export_id,
-            "channel_id": "main",
-            "path": rel_mp4,
-            "path_key": rel_mp4,
-            "product_id": PRODUCT_ID,
-            "angle_id": angle_id,
-            "project_name": f"_HyperFrames_Studio/{comp_stem}",
-            "status": "rendered",
-            "created_at": now_iso,
-            "updated_at": now_iso,
-            "posted_at": None,
-        }
-        entries.append(entry)
-
-    registry_file.write_text(json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8")
+    export_id = store_io.upsert_rendered_export(
+        rel_mp4,
+        product_id=PRODUCT_ID,
+        angle_id=angle_id,
+        project_name=f"_HyperFrames_Studio/{comp_stem}",
+        docs_dir=DOCS_DIR,
+    )
 
     # Cover bindings
-    bindings = []
-    if bindings_file.exists():
-        try:
-            bindings = json.loads(bindings_file.read_text(encoding="utf-8"))
-        except Exception:
-            bindings = []
-
-    c916 = covers.get("cover_916")
-    c34 = covers.get("cover_34")
-    if c916 and c34 and c916.exists() and c34.exists():
-        sha_916 = compute_sha256(c916)
-        sha_34 = compute_sha256(c34)
-        rel_916 = str(c916.relative_to(ROOT)).replace("\\", "/")
-        rel_34 = str(c34.relative_to(ROOT)).replace("\\", "/")
-
-        b_entry = next((b for b in bindings if b.get("export_id") == export_id), None)
-        if not b_entry:
-            b_entry = {
-                "id": f"cover_{sha_916}",
-                "channel_id": "main",
-                "export_id": export_id,
-                "video_path": rel_mp4,
-                "selections": {
-                    "9:16": {"path": rel_916, "sha256": sha_916, "format": "9:16"},
-                    "3:4": {"path": rel_34, "sha256": sha_34, "format": "3:4"}
-                },
-                "revision": 1,
-                "updated_at": now_ts,
-            }
-            bindings.append(b_entry)
-        else:
-            b_entry["video_path"] = rel_mp4
-            b_entry["selections"]["9:16"] = {"path": rel_916, "sha256": sha_916, "format": "9:16"}
-            b_entry["selections"]["3:4"] = {"path": rel_34, "sha256": sha_34, "format": "3:4"}
-            b_entry["updated_at"] = now_ts
-
-        bindings_file.write_text(json.dumps(bindings, ensure_ascii=False, indent=2), encoding="utf-8")
+    p_916 = covers.get("cover_916")
+    p_34 = covers.get("cover_34")
+    if p_916 and p_916.exists() and p_34 and p_34.exists():
+        rel_916 = str(p_916.relative_to(ROOT)).replace("\\", "/")
+        rel_34 = str(p_34.relative_to(ROOT)).replace("\\", "/")
+        sha_916 = compute_sha256(p_916)
+        sha_34 = compute_sha256(p_34)
+        store_io.upsert_cover_binding(
+            export_id,
+            rel_mp4,
+            {
+                "9:16": {"path": rel_916, "sha256": sha_916, "format": "9:16"},
+                "3:4": {"path": rel_34, "sha256": sha_34, "format": "3:4"},
+            },
+            binding_id=f"cover_{sha_916}",
+            docs_dir=DOCS_DIR,
+            clock=lambda: now_ts,
+        )
 
     return export_id
 
 
 def sync_products_json(export_mappings: dict):
-    """Update angles in _Docs/products.json with rendered status."""
-    products_file = DOCS_DIR / "products.json"
-    if not products_file.exists():
-        return
-    products = json.loads(products_file.read_text(encoding="utf-8"))
+    """Update angles in the product store with rendered status (via
+    scripts.store_io, audit S1-01 -- no direct products.json write)."""
+    with store_io.mutate_products(DOCS_DIR) as products:
+        p_target = next((p for p in products if p.get("id") == PRODUCT_ID or p.get("product_code") == PRODUCT_CODE), None)
+        if not p_target:
+            print("  [Warn] Hatari Cyclone Max product not found in products.json")
+            return
 
-    p_target = next((p for p in products if p.get("id") == PRODUCT_ID or p.get("product_code") == PRODUCT_CODE), None)
-    if not p_target:
-        print("  [Warn] Hatari Cyclone Max product not found in products.json")
-        return
-
-    updated_count = 0
-    for a in p_target.get("angles", []):
-        cid = a.get("clip_id")
-        if cid in export_mappings:
-            info = export_mappings[cid]
-            a["status"] = "rendered"
-            a["video_url"] = str(info["mp4_path"])
-            a["export_id"] = info["export_id"]
-            if info.get("webp_path"):
-                a["cover_url"] = str(info["webp_path"])
-            updated_count += 1
-
-    products_file.write_text(json.dumps(products, ensure_ascii=False, indent=2), encoding="utf-8")
+        updated_count = 0
+        for a in p_target.get("angles", []):
+            cid = a.get("clip_id")
+            if cid in export_mappings:
+                info = export_mappings[cid]
+                a["status"] = "rendered"
+                a["video_url"] = str(info["mp4_path"])
+                a["export_id"] = info["export_id"]
+                if info.get("webp_path"):
+                    a["cover_url"] = str(info["webp_path"])
+                updated_count += 1
     print(f"  -> Synced {updated_count} angles in _Docs/products.json to status='rendered'")
 
 
