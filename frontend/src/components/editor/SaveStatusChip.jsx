@@ -26,6 +26,10 @@ export default function SaveStatusChip({
   return (
     <button
       type="button"
+      // Stable hook for E2E tests: the visible label and tooltip change with
+      // the save state and the wording gets revised (X-07).
+      data-testid="editor-save-button"
+      data-save-status={saveStatus}
       onClick={handleClick}
       disabled={disabled || isSaving}
       aria-label={

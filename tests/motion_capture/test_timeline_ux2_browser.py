@@ -22,6 +22,8 @@ from tests.motion_capture.clip_pair import create_clip_source
 from tests.motion_capture.overlay_pair import vite_fs_url
 
 CLIP_SECONDS = 2.0
+# Stable hook on the save chip (its title follows the save state).
+SAVE_TEST_ID = "editor-save-button"
 PRESETS = (10, 25, 50, 100, 200, 400, 800)
 TILE_COLORS = ((200, 60, 60), (60, 200, 60), (60, 60, 200), (200, 200, 60), (60, 200, 200), (200, 60, 200))
 
@@ -133,7 +135,7 @@ def _ruler(page):
 
 def _save(page, manifest):
     with page.expect_response(lambda r: "/api/projects/editor-audit/state" in r.url and r.request.method == "PATCH"):
-        page.get_by_title("บันทึกการแก้ไขลงโปรเจกต์ (Ctrl+S)").click()
+        page.get_by_test_id(SAVE_TEST_ID).locator("visible=true").first.click()
     return [(c["trim_start"], c["trim_end"]) for c in manifest["clip_list"]]
 
 
