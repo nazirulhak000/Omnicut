@@ -4,14 +4,7 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round CLAUDE-FOLLOWUP-AUDIT-20261109 · ทำงานค้างจากรายงาน AUDIT_20261109 หัวข้อ 10 (เปิด agent ทีละ 3 ตัวกัน rate limit) · ผู้ใช้สั่ง "จัดการทั้งหมด" 2026-11-09
-  - [ ] `fix/legacy-writers` — 17 ไฟล์ที่ยังเขียน JSON mirror ตรง → store API, X-04 ผูกเสียง cut ด้วย content hash, ใส่ `filelock`/`python-dotenv` ใน requirements
-  - [ ] `fix/preexisting-pytest` — 14 เทส pytest ที่ fail อยู่ก่อนแก้ (แยกว่าเทสเก่าหรือบั๊กจริง)
-  - [ ] `fix/render-qa` — S3-11 blackdetect/freezedetect, S5-06 render รองรับ scale/position/font ต่อซับ, S1-04 gate ภาพตามขนาด, S1-12 เช็ค reference ครบทุก store
-  - [ ] `fix/browser-tests` — เทส browser 62 ข้อ (frame_pair, hyperframes_workflow, channel/gadget/cover/mobile)
-  - [ ] วัด S2-13 กับไฟล์เสียง Gemini จริงใน 02_Assets (อ่านอย่างเดียว)
-  - ไม่ทำ (ต้องให้ผู้ใช้): ถ้อยคำเตือนลายน้ำ S4-11, เว้นวรรค Ghost Reveal, ลอง editor จริง, migration path `Capcut` ในข้อมูล (แตะ `_Docs/*.json`/`store.db` ต้องอนุมัติแยก), push origin
-  - ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + fix sub-agents
+- [x] Round CLAUDE-FOLLOWUP-AUDIT-20261109 · ทำงานค้างจากรายงาน AUDIT_20261109 ครบ 5 กิ่ง → [รายงานหัวข้อ 11](_Docs/Reports/AUDIT_20261109_editor_pipeline.md) · ดู HISTORY · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + fix sub-agents 5 ตัว (Claude Sonnet 5.5)
 
 - [ ] Round CLAUDE-PLAN-TIKTOK-AUTOPOST-100-AUTONOMOUS-20261109 · ตรวจ extension autopost ว่าทำไมโพสต์ออโต้ไม่จบ 100% + วางแผนแก้ (แผนเท่านั้น ห้ามแก้โค้ดจนผู้ใช้ตอบ "อนุมัติแผน") → แผน+พรอมพ์: `_Docs/Plans/TIKTOK_AUTOPOST_100_AUTONOMOUS_PLAN.md`
   - [x] ตรวจโค้ด: พบ hard blocker 5 จุด (B1 `runWaitForUploadOnly` ไม่ return → ทุกคลิปพังขั้น 2 · B2 reconcile ไม่เคยรัน · B3 `%` ในแคปชันทำค้าง · B4 receipt ค้างล็อกทั้ง batch · B5 lease_token ถูกตัด) — B1–B3 ยืนยันกับโค้ดเอง

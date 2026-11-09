@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-FOLLOWUP-AUDIT-20261109 | ทำงานค้างจาก AUDIT_20261109 5 กิ่ง: writer JSON เดิม→store, เทส pytest 14 ข้อ, QA ตอน render, เทส browser, บั๊ก preview hook | ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + fix sub-agents 5 ตัว (Claude Sonnet 5.5) |
 | Round CLAUDE-FIX-AUDIT-20261109 | แก้ตาม AUDIT_20261109 ผ่าน 7 กิ่ง fix/* (P0 ทั้ง 5 แก้แล้ว) | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + fix sub-agents 7 ตัว (Claude Opus 5.5) |
 | Round CLAUDE-AUDIT-EDITOR-PIPELINE-20261109 | ตรวจทั้งสาย 6 ด่าน 106 ข้อ + แผนแก้ | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + read-only sub-agents 6 ตัว (Claude Opus 5.5) |
 | Round ANTIGRAVITY-FULL-PREVIEW-AND-NAVBAR-IMMERSIVE-SYNC-20261109 | ปฏิบัติการผสานการย่อ/ขยายพรีวิวกับการซ่อน Navbar สู่ระบบเดียวกัน 100% (Synchronized Full Preview & Immersive Navbar Collapse): แก้ปัญหาผู้ใช้กดย่อพรีวิวแล้ว Navbar ด้านบนไม่ยอมย่อตาม โดยเชื่อมโยง toggleMobileFullPreview เข้ากับ isImmersive และ onToggleImmersive ขยายและคืนค่าทั้งขนาดพรีวิว แถบนำทาง และแถบล่างพร้อมกันทุกจุด (ปุ่มแท็บ, ดับเบิลคลิกแถบลาก, ปุ่มแสดงแถบ, คีย์ลัด Esc/F) ผ่าน Vitest 1,226/1,226 (100%), Parity 212/212 (100%) และ Vite Build สมบูรณ์ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -181,6 +182,17 @@
 
 ---
 ---
+
+## Round CLAUDE-FOLLOWUP-AUDIT-20261109 · ทำงานค้างจากรายงาน AUDIT_20261109 หัวข้อ 10 (เปิด agent ทีละ 3 ตัวกัน rate limit) · ผู้ใช้สั่ง "จัดการทั้งหมด" 2026-11-09
+  - [x] `fix/legacy-writers` — 17 ไฟล์ที่ยังเขียน JSON mirror ตรง → store API, X-04 ผูกเสียง cut ด้วย content hash, ใส่ `filelock`/`python-dotenv` ใน requirements
+  - [x] `fix/preexisting-pytest` — 14 เทส pytest ที่ fail อยู่ก่อนแก้ (แยกว่าเทสเก่าหรือบั๊กจริง)
+  - [x] `fix/render-qa` — S3-11 blackdetect/freezedetect, S5-06 render รองรับ scale/position/font ต่อซับ, S1-04 gate ภาพตามขนาด, S1-12 เช็ค reference ครบทุก store
+  - [x] `fix/browser-tests` — เทส browser 62 ข้อ (frame_pair, hyperframes_workflow, channel/gadget/cover/mobile)
+  - [x] วัด S2-13 กับไฟล์เสียง Gemini จริงใน 02_Assets (อ่านอย่างเดียว)
+  - [x] ผล: merge 5 กิ่ง (`legacy-writers`, `preexisting-pytest`, `render-qa`, `browser-tests`, `frame-parity`) เข้า `fix/followup-20261109` · pytest (ไม่รวม browser) 5,066 ผ่าน / 0 ไม่ผ่าน · npm 1,260/1,260 · `frame_pair` 20/20 (บั๊ก Preview≠Render จริง: clamp `Math.max(120)` ดัน hook ลง 58px) · S2-13 วัดกับเสียงจริงแล้ว ปลอดภัย · รายละเอียดรายงานหัวข้อ 11
+  - [x] ไม่ทำ/รอผู้ใช้: ถ้อยคำเตือนลายน้ำ S4-11, เว้นวรรค Ghost Reveal, ลอง editor จริง, ตรวจ `kit.js applyChannel` (เขียนคืนจากเทส), migration path `Capcut`, push origin, mobile studio ×6 (คงหรือตัด mobile shell), `cutout_video_preview` ×7 / `multisource` ×1 (สภาพแวดล้อม), `ARCHITECTURE.md` เมนู 0 ล้าสมัย
+  - ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + fix sub-agents
+
 
 ## Round CLAUDE-FIX-AUDIT-20261109 · แก้ตามรายงาน AUDIT_20261109 (หัวข้อ 8) — แต่ละก้อนทำใน worktree `.claude/worktrees/fix-*` กิ่ง `fix/*` แตกจากกิ่งรวม `fix/audit-20261109` (base `0da279c`) → merge เข้ากิ่งรวม → merge เข้า main → ลบกิ่ง. หมายเหตุ: `89b7d67`+`0da279c` ไปลงกิ่ง `fix/tiktok-autopost-blockers` ของ agent อื่นโดยบังเอิญ (agent นั้นสลับกิ่งใน working tree หลักก่อนผม commit)
   - ชุดตัดสินใจ: D1 คงสเปกซับตามโค้ด แก้ AGENTS ข้อ 17 · D2 คง Ghost Reveal · D3 callout 2 ชั้น = legacy (บันทึกเอกสาร) · D4 Fenrir + `commercial_premium` ค่าเดียว BE+FE · D5 BGM 0.12 ทุก path · D6 dist track ต่อ commit แยก · D7 `db.py` upsert ทีละแถว ห้าม DELETE ทั้งตาราง · D8 rebase path `Capcut` เก่าในโค้ด + font cache rebuild เอง · D9 ขยะเทสย้าย `06_Archive` + ถอดแถวเทสจาก registry (backup) · D10 กฎ 01_Raw = UUID · D11 แก้บั๊ก UNC ในกิ่ง fix · D12 immersive = Shift+F · D13 Jev noul conf = max(p,1-p)
