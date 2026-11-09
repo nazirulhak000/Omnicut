@@ -11,6 +11,8 @@ import {
   Tag,
   Keyboard,
   BookOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 
 import HeaderMenu from './HeaderMenu.jsx';
@@ -93,7 +95,7 @@ export default function EditorHeader({
       { id: 'sec-view', type: 'section', label: 'มุมมอง' },
       {
         id: 'immersive',
-        label: isImmersive ? 'ออกจากโหมดตัดต่อเต็มจอ (Esc)' : 'โหมดตัดต่อเต็มจอ (ซ่อนแถบนำทาง) (F)',
+        label: isImmersive ? 'ออกจากโหมดตัดต่อเต็มจอ (Esc)' : 'โหมดตัดต่อเต็มจอ (ซ่อนแถบนำทาง) (Shift+F)',
         icon: isImmersive ? Minimize2 : Maximize2,
         onSelect: () => onToggleImmersive?.(),
       },
@@ -103,6 +105,16 @@ export default function EditorHeader({
         icon: zen ? Minimize2 : Maximize2,
         disabled: !projectName,
         onSelect: () => setZen?.((v) => !v),
+      },
+      {
+        // The view toggles in the header centre only show from xl (1280px);
+        // between lg and xl this is the way into focus mode.
+        id: 'focus-mode',
+        label: isFocusMode ? 'ออกจากโหมดโฟกัส (เปิดพาเนลข้าง)' : 'เข้าโหมดโฟกัส (ซ่อนพาเนลข้างทั้งหมด)',
+        icon: isFocusMode ? PanelLeftOpen : PanelLeftClose,
+        disabled: !projectName || zen || !toggleFocusMode,
+        onSelect: () => toggleFocusMode?.(),
+        wrapClassName: 'hidden lg:block xl:hidden',
       },
       {
         id: 'reset-panels',
@@ -175,6 +187,8 @@ export default function EditorHeader({
   }, [
     isImmersive,
     onToggleImmersive,
+    isFocusMode,
+    toggleFocusMode,
     zen,
     projectName,
     setZen,
@@ -241,7 +255,7 @@ export default function EditorHeader({
             type="button"
             onClick={() => onToggleImmersive?.()}
             data-testid="toggle-immersive-studio-btn"
-            title={isImmersive ? "ออกจากโหมดตัดต่อเต็มจอ (Esc)" : "โหมดตัดต่อเต็มจอ (ซ่อนแถบนำทาง) (F)"}
+            title={isImmersive ? "ออกจากโหมดตัดต่อเต็มจอ (Esc)" : "โหมดตัดต่อเต็มจอ (ซ่อนแถบนำทาง) (Shift+F)"}
             aria-label={isImmersive ? "ออกจากโหมดตัดต่อเต็มจอ" : "โหมดตัดต่อเต็มจอ"}
             className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-2 sm:px-2.5 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70 ${
               isImmersive

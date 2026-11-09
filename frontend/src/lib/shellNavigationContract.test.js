@@ -68,11 +68,13 @@ test('Mobile collision guard: EditorChannelSelector, ProjectSelector, and Editor
     'EditorChannelSelector must use compact mobile padding'
   );
 
-  // ProjectSelector min-width scales down to 100px on narrow viewports
+  // ProjectSelector min-width scales down to 100px on narrow viewports and
+  // only ever grows with the viewport (640-767px was wider than 768px+).
   assert.ok(
-    projectSelectorSource.includes('min-w-[100px] sm:min-w-[200px]'),
-    'ProjectSelector must use min-w-[100px] on mobile to prevent navbar collision'
+    projectSelectorSource.includes('min-w-[100px] sm:min-w-[160px] lg:min-w-[180px]'),
+    'ProjectSelector must use min-w-[100px] on mobile and a non-shrinking min-width ladder'
   );
+  assert.ok(!projectSelectorSource.includes('md:min-w-[110px]'), 'no breakpoint may shrink the selector');
 
   // EditorHeader AI Agent text is hidden on small screens
   assert.ok(

@@ -59,7 +59,7 @@ const act = (action, extra = {}) => ({ action, preventDefault: true, ...extra })
 
 /**
  * @param {{ key?: string, ctrlKey?: boolean, metaKey?: boolean, altKey?: boolean, shiftKey?: boolean }} event
- * @param {{ zen?: boolean, multiSelect?: boolean, hasRange?: boolean }} [context]
+ * @param {{ zen?: boolean, multiSelect?: boolean, hasRange?: boolean, immersive?: boolean }} [context]
  * @returns {{ action: string, preventDefault: boolean, delta?: number }}
  */
 export function classifyShortcut(event, context = {}) {
@@ -89,11 +89,14 @@ export function classifyShortcut(event, context = {}) {
   if (event.altKey) return NONE;
 
   // Zen mode takes Escape first, then a marked In/Out range, then a multi-clip
-  // selection (and nothing -- NONE -- when only one thing is selected).
+  // selection, and only then the immersive studio (nothing -- NONE -- when only
+  // one thing is selected and the navbars are showing). Each press undoes one
+  // layer, so Esc never both clears a selection and restores the navbars.
   if (key === 'Escape') {
     if (context.zen) return act('exitZen');
     if (context.hasRange) return act('clearRange');
-    return context.multiSelect ? act('clearSelection') : NONE;
+    if (context.multiSelect) return act('clearSelection');
+    return context.immersive ? act('exitImmersive') : NONE;
   }
 
   switch (key) {
@@ -125,8 +128,12 @@ export function classifyShortcut(event, context = {}) {
     case 'z': case 'Z':
       if (event.shiftKey) return act('zoomFit');
       return NONE;
-    // preventDefault is decided by the hook (needs a selected, non-first clip).
-    case 'f': case 'F': return { action: 'toggleFade', preventDefault: false };
+    // Shift+F hides / shows the navbars (immersive studio). Plain F stays the
+    // clip fade toggle only -- one key never drives two actions.
+    // preventDefault for F is decided by the hook (needs a selected, non-first clip).
+    case 'f': case 'F':
+      if (event.shiftKey) return act('toggleImmersive');
+      return { action: 'toggleFade', preventDefault: false };
     case 'n': case 'N': return act('toggleSnap');
     case 'm': case 'M': return act('cycleCutout');
     // Camera keyframes of the selected clip: D toggles a diamond at the
@@ -211,7 +218,7 @@ export const SHORTCUT_GROUPS = Object.freeze([
       {
         keys: 'F',
         desc: 'เปิด / ปิด เฟดเข้าที่คลิปที่เลือก (ไม่รวมคลิปแรก)',
-        probes: [{ event: { key: 'f' }, action: 'toggleFade' }],
+        probes: [{ event: { key: 'f' }, action: 'toggleFade' }, { event: { key: 'F' }, action: 'toggleFade' }],
       },
       { keys: 'Ctrl / Shift + คลิก', desc: 'เลือกหลายคลิปบนไทม์ไลน์: Ctrl สลับทีละคลิป, Shift เลือกเป็นช่วง' }, // TimelineClip click
       { keys: '[ / ]', desc: 'ย้ายคลิปที่โฟกัสอยู่ไปก่อน / หลัง 1 ลำดับ' }, // TimelineClip onKeyDown
@@ -306,12 +313,18 @@ export const SHORTCUT_GROUPS = Object.freeze([
     shortcuts: [
       {
         keys: 'Esc',
-        desc: 'ปิดหน้าต่างป๊อปอัป / ออกจากโหมดพรีวิวเต็มพื้นที่ / ล้างจุดเข้า-จุดออก / ยกเลิกการเลือกหลายคลิป',
+        desc: 'ปิดหน้าต่างป๊อปอัป / ออกจากโหมดพรีวิวเต็มพื้นที่ / ล้างจุดเข้า-จุดออก / ยกเลิกการเลือกหลายคลิป / แสดงแถบนำทางกลับ (ทีละขั้น กดหนึ่งครั้งทำอย่างเดียว)',
         probes: [
           { event: { key: 'Escape' }, context: { zen: true }, action: 'exitZen' },
           { event: { key: 'Escape' }, context: { hasRange: true }, action: 'clearRange' },
           { event: { key: 'Escape' }, context: { multiSelect: true }, action: 'clearSelection' },
+          { event: { key: 'Escape' }, context: { immersive: true }, action: 'exitImmersive' },
         ],
+      },
+      {
+        keys: 'Shift+F',
+        desc: 'โหมดตัดต่อเต็มจอ: ซ่อน / แสดงแถบนำทาง (มือถือ: ขยายพรีวิวเต็มจอ)',
+        probes: [{ event: { key: 'F', shiftKey: true }, action: 'toggleImmersive' }],
       },
       { keys: 'Ctrl + S', desc: 'บันทึกโปรเจกต์' }, // EditorShell
       { keys: '?', desc: 'เปิดหน้าต่างคีย์ลัด' }, // useKeyboardShortcuts

@@ -1150,6 +1150,9 @@ export const STICKER_TITLES = {
 };
 
 export default function AssetPanel({
+  // Desktop overlays a "hide left panel" button on the rail's right end; keep
+  // the last tab out from under it so it stays clickable.
+  reserveRailEnd = false,
   videos = [],
   clipList = [],
   durations = {},
@@ -1600,7 +1603,7 @@ export default function AssetPanel({
     <div className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0A0D14]">
       {/* tab rail - horizontally scrollable without squeezing existing boxes */}
       <div
-        className="flex items-center border-b border-white/[0.08] bg-[#080B11] p-1 gap-1 flex-shrink-0"
+        className={`flex items-center border-b border-white/[0.08] bg-[#080B11] p-1 gap-1 flex-shrink-0 ${reserveRailEnd ? 'pr-9' : ''}`}
       >
         {TABS.map(({ id, label, icon: Icon }) => {
           const isActive = tab === id || (id === 'clips' && tab === 'srt');

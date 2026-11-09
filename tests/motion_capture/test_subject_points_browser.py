@@ -29,7 +29,8 @@ from tests.motion_capture.capture import temp_capture_dir
 from tests.motion_capture.vite_fixture import ViteFixtureUnavailable
 
 PROJECT = "editor-audit"
-SAVE_TITLE = "บันทึกการแก้ไขลงโปรเจกต์ (Ctrl+S)"
+# The save chip's title/label follow the save state; the test id is stable.
+SAVE_TEST_ID = "editor-save-button"
 STYLE_TAB_TITLE = "สไตล์"
 CUTOUT_CHECKBOX = "เปิดใช้งานการตัดพื้นหลังสินค้า"
 PICK_BUTTON = "เลือกจุดสินค้า"  # label flips to "เสร็จสิ้นการเลือกจุด" while pick mode is on
@@ -86,7 +87,7 @@ def _save(page, manifest: dict) -> dict:
     with page.expect_response(lambda response: (
         f"/api/projects/{PROJECT}/state" in response.url and response.request.method == "PATCH"
     )):
-        page.get_by_title(SAVE_TITLE).click()
+        page.get_by_test_id(SAVE_TEST_ID).locator("visible=true").first.click()
     return manifest.get("background_isolation") or {}
 
 

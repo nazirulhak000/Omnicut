@@ -53,6 +53,12 @@ export function useEditorShortcuts({
   onToggleLinkage,
   onGroup,
   onUngroup,
+  // Immersive studio (navbars hidden): Shift+F toggles it, Escape leaves it
+  // only once no higher-priority Escape action (zen, range, multi-select,
+  // dialog, context menu, another handler) is pending.
+  immersive = false,
+  onToggleImmersive,
+  onExitImmersive,
 } = {}) {
   const keyHandlerRef = useRef(null);
 
@@ -75,12 +81,17 @@ export function useEditorShortcuts({
         zen,
         multiSelect: multiSelectCount > 1,
         hasRange,
+        immersive,
       });
       if (action === 'none') return;
       if (shouldIgnoreShortcutTarget(e.target, action)) return;
       // Escape also closes the clip context menu (useTimelineKeyboard): that
       // press only closes the menu and keeps the selection (or range) it belongs to.
-      if ((action === 'clearSelection' || action === 'clearRange') && document.querySelector('[data-context-menu]')) return;
+      if ((action === 'clearSelection' || action === 'clearRange' || action === 'exitImmersive')
+        && document.querySelector('[data-context-menu]')) return;
+      // A menu or popover that already consumed this key (preventDefault on its
+      // own listener) wins: the navbars stay as they are.
+      if ((action === 'exitImmersive' || action === 'toggleImmersive') && e.defaultPrevented) return;
       if (preventDefault) e.preventDefault();
 
       const jump = (d) => {
@@ -133,6 +144,8 @@ export function useEditorShortcuts({
             });
           }
           break;
+        case 'toggleImmersive': onToggleImmersive?.(); break;
+        case 'exitImmersive': onExitImmersive?.(); break;
         case 'toggleSnap': onToggleSnap?.(); break;
         case 'toggleLinkage': onToggleLinkage?.(); break;
         case 'group': onGroup?.(); break;

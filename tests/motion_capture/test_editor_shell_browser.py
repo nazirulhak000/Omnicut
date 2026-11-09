@@ -122,7 +122,7 @@ def test_editor_shell_save_reload_preview_matches_render(motion_fixture_url, mon
                     assert "clip_source_0_" in clips.first.get_attribute("aria-label")
                 trim_in = page.locator('input[aria-label="Trim เข้า (วิ)"]:visible').first
                 trim_in.fill("0.5")
-                save_button = page.get_by_title("บันทึกการแก้ไขลงโปรเจกต์ (Ctrl+S)")
+                save_button = page.get_by_test_id("editor-save-button").locator("visible=true").first
                 with page.expect_response(lambda response: (
                     "/api/projects/editor-audit/state" in response.url
                     and response.request.method == "PATCH"

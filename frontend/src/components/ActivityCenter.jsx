@@ -7,6 +7,7 @@ import {
 import { useTaskManager } from '../context/TaskContext';
 import { getRenderStatus } from '../api';
 import { ACTIVE_RENDER_STORAGE_KEY } from '../lib/renderJobModel';
+import { startRenderStatusPoller } from '../lib/renderStatusPoller.js';
 import PaginationControls from './PaginationControls';
 import { useBackToClose } from '../hooks/useBackToClose';
 
@@ -997,34 +998,40 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
   const [liveStatus, setLiveStatus] = useState(null);
   const [dismissedKey, setDismissedKey] = useState(null);
   const isCompact = useCompactViewport();
-  const timerRef = React.useRef(null);
+  const pollerRef = React.useRef(null);
 
-  // Poll /api/render/status/{jobId} directly — this gives the SAME data as terminal output
+  // Poll /api/render/status/{jobId} directly — this gives the SAME data as terminal output.
+  // Self-scheduling (lib/renderStatusPoller.js): one request in flight at a
+  // time, retry with backoff on errors, every timer cleared on unmount.
   React.useEffect(() => {
+    function stopPolling() {
+      pollerRef.current?.poller.stop();
+      pollerRef.current = null;
+    }
+
     function startPolling(jobId) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(async () => {
-        // Locked phone / background tab: skip the tick, resume when visible.
-        if (typeof document !== 'undefined' && document.hidden) return;
-        try {
-          const data = await getRenderStatus(jobId);
-          setLiveStatus(data);
-          if (['completed', 'done', 'failed', 'error', 'cancelled'].includes(data.status)) {
-            clearInterval(timerRef.current);
-            setTimeout(() => setLiveStatus(null), 4000); // linger 4s after done
-          }
-        } catch {
-          clearInterval(timerRef.current);
-          setLiveStatus(null);
-        }
-      }, 1000);
+      const current = pollerRef.current;
+      if (current && current.jobId === jobId && !current.poller.isStopped()) return;
+      stopPolling();
+      pollerRef.current = {
+        jobId,
+        poller: startRenderStatusPoller({
+          jobId,
+          fetchStatus: getRenderStatus,
+          onStatus: setLiveStatus,
+          onFinished: () => setLiveStatus(null), // linger 4s after done
+          onGiveUp: () => setLiveStatus(null),
+          // Locked phone / background tab: skip the request, resume when visible.
+          isHidden: () => typeof document !== 'undefined' && document.hidden,
+        }),
+      };
     }
 
     // Watch localStorage for active render job
     function checkStorage() {
       try {
         const raw = workspaceStorage.getItem(ACTIVE_RENDER_STORAGE_KEY);
-        if (!raw) { clearInterval(timerRef.current); setLiveStatus(null); return; }
+        if (!raw) { stopPolling(); setLiveStatus(null); return; }
         const { jobId } = JSON.parse(raw);
         if (jobId) startPolling(jobId);
       } catch { setLiveStatus(null); }
@@ -1035,7 +1042,7 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
     window.addEventListener('storage', checkStorage);
     return () => {
       window.removeEventListener('storage', checkStorage);
-      if (timerRef.current) clearInterval(timerRef.current);
+      stopPolling();
     };
   }, []);
 
