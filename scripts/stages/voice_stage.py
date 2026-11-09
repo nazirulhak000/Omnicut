@@ -17,7 +17,12 @@ from scripts.pipeline_context import PipelineContext
 from scripts.error_handler import AppError, ErrorCategory
 from scripts.quota import is_quota_error, is_retry_futile
 from scripts.project_manifest import ProjectManifest
-from scripts.voice_cut_map import effective_duration, resolve_voice_cuts, voice_file_identity
+from scripts.voice_cut_map import (
+    effective_duration,
+    resolve_voice_cuts,
+    upgrade_voice_edit_source,
+    voice_file_identity,
+)
 
 
 def _probe_audio_duration(audio_path: Path) -> float:
@@ -421,8 +426,15 @@ class VoiceStage:
         edit = manifest.get("voice_edit")
         if not edit:
             return total_duration
-        cuts, problem, source_duration = resolve_voice_cuts(edit, voice_file_identity(voice_audio_path))
+        identity = voice_file_identity(voice_audio_path)
+        cuts, problem, source_duration = resolve_voice_cuts(edit, identity)
         if cuts:
+            # X-04: an edit saved with the old (path,size,mtime) identity still
+            # fits this file -> re-save it bound to the content hash.
+            upgraded = upgrade_voice_edit_source(edit, identity)
+            if upgraded is not None:
+                edit = upgraded
+                cls._persist_voice_edit_fields(ctx, voice_edit=upgraded)
             ctx.voice_edit = edit
             ctx.voice_cuts = cuts
             ctx.voice_source_duration = source_duration
