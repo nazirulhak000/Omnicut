@@ -2807,7 +2807,7 @@ batchStartBtn?.addEventListener('click', async () => {
 
   const batchActions = {
     prepareClip: async (clip, mode) => {
-      await panelWorkerRequest({ action: 'release-posting-job', force: true }).catch(() => {});
+      await panelWorkerRequest({ action: 'release-posting-job', park: true }).catch((err) => appendBatchLog(`พักงานเดิมไม่สำเร็จ: ${err.message}`, 'warn'));
       await panelWorkerRequest({ action: 'select-posting-channel', channelId: activeChannelId });
 
       const isDraftMode = mode === 'draft';
@@ -2844,21 +2844,11 @@ batchStartBtn?.addEventListener('click', async () => {
             const pendingRes = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/pending`);
             if (pendingRes.ok) {
               const pendingData = await pendingRes.json();
-              if (pendingData?.job_id) {
-                if (pendingData.status !== 'prepared') {
-                  await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/release`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      protocol_version: 2,
-                      job_id: pendingData.job_id,
-                      lease_token: pendingData.lease_token || '',
-                      expected_revision: pendingData.revision || 1,
-                      payload_hash: pendingData.payload_hash || '',
-                      force: true,
-                    }),
-                  }).catch(() => {});
-                }
+              // Only a never-claimed ('prepared') job may be cleared here. A job
+              // that was claimed/attempted is resolved by the worker's park +
+              // reconcile path; force-cancelling it from the panel would let
+              // the same export be posted twice.
+              if (pendingData?.job_id && pendingData.status === 'prepared') {
                 await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/clear`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -2980,8 +2970,8 @@ batchStartBtn?.addEventListener('click', async () => {
       return response;
     },
 
-    reconcile: async (_clip, outcome) => {
-      if (outcome?.markError || outcome?.outcome === 'confirmation_unknown') {
+    reconcile: async (_clip, outcome, result) => {
+      if (globalThis.OmniBatchOrchestrator?.shouldReconcileAfterPost?.(outcome, result)) {
         await panelWorkerRequest({ action: 'reconcile-posting-result', manual: false }).catch(() => ({}));
       }
       loadExports().catch(() => {});
@@ -3002,7 +2992,7 @@ batchStartBtn?.addEventListener('click', async () => {
       } catch (_) {}
     },
     resetUploadPage: async () => {
-      await panelWorkerRequest({ action: 'release-posting-job', force: true }).catch(() => {});
+      await panelWorkerRequest({ action: 'release-posting-job', park: true }).catch((err) => appendBatchLog(`พักงานเดิมไม่สำเร็จ: ${err.message}`, 'warn'));
       const res = await new Promise((resolve) => {
         chrome.runtime.sendMessage({ action: 'reset-upload-page' }, (r) => resolve(r || {}));
       });

@@ -1,0 +1,29 @@
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+
+const ROOT = path.resolve(__dirname, '..', '..');
+
+function readApiKey(env = process.env, envFile = path.join(ROOT, '.env')) {
+  if (env.OMNICUT_API_KEY) return env.OMNICUT_API_KEY;
+  try {
+    const line = fs.readFileSync(envFile, 'utf8').split(/\r?\n/).find(l => /^\s*OMNICUT_API_KEY\s*=/.test(l));
+    if (line) return line.slice(line.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '');
+  } catch (_) {}
+  return '';
+}
+
+function createApi({ base = 'http://127.0.0.1:8000', apiKey = '', channelId = 'main', fetchImpl = globalThis.fetch } = {}) {
+  async function call(method, route, body) {
+    const res = await fetchImpl(base + route, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey, 'X-OmniCut-Channel': channelId },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
+  }
+  return { get: route => call('GET', route), post: (route, body) => call('POST', route, body) };
+}
+
+module.exports = { readApiKey, createApi, ROOT };
