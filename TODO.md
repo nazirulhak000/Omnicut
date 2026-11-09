@@ -17,7 +17,7 @@
 
 - [x] Round CLAUDE-AUDIT-EDITOR-PIPELINE-20261109 · ตรวจทั้งสาย 6 ด่าน 106 ข้อ → [รายงาน](_Docs/Reports/AUDIT_20261109_editor_pipeline.md) · ดู HISTORY · ดำเนินการโดย: Claude Code (Claude Opus 5.5)
 
-- [x] Round CLAUDE-FIX-AUDIT-20261109 · แก้ตามรายงาน 7 กิ่ง merge เข้า main · ต้อง restart backend (font cache rebuild + `.ass` v9) · ดู HISTORY · ดำเนินการโดย: Claude Code (Claude Opus 5.5) + fix sub-agents 7 ตัว (Claude Opus 5.5)
+- [x] Round CLAUDE-FIX-AUDIT-20261109 · แก้ตามรายงาน 7 กิ่ง merge เข้า main · restart backend แล้ว 2026-11-09 22:32 (`/api/health` 200, font cache rebuild ไม่มี path `Capcut` เหลือ, IBM Plex scale 0.606 → ASS 82) · ดู HISTORY · ดำเนินการโดย: Claude Code (Claude Opus 5.5) + fix sub-agents 7 ตัว (Claude Opus 5.5)
 
 - [x] Round ANTIGRAVITY-FULL-PREVIEW-AND-NAVBAR-IMMERSIVE-SYNC-20261109 · ปฏิบัติการผสานการย่อ/ขยายพรีวิวกับการซ่อน Navbar สู่ระบบเดียวกัน 100% (Synchronized Full Preview & Immersive Navbar Collapse): กดขยายพรีวิวจะซ่อน Navbar สู่ Floating Capsule และล่างจออัตโนมัติ และกดย่อพรีวิว/กดแสดงแถบ/กด Esc จะคืนค่าทั้งขนาดพรีวิวและ Navbar พร้อมกัน ผ่าน Vitest 1,226/1,226 tests (100%), Parity 212/212 (100%), Vite Build สมบูรณ์ · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
