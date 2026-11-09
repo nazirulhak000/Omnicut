@@ -47,13 +47,20 @@ def test_removed_creative_menu_migrates_saved_tab_and_preserves_tracker_gallery(
             expect(page.get_by_title("Gadget Media", exact=True)).to_have_count(0)
             expect(page.get_by_text("Gadget Media", exact=True)).to_have_count(0)
             expect(page.get_by_text("3.1 HyperFrames Motion", exact=True)).to_have_count(0)
-            assert page.evaluate("localStorage.getItem('capcut_active_tab')") == "tracker"
+            # appNav.LEGACY_TAB_MAP folds the removed creative/gadget tabs into "flow"
+            # (frontend/src/lib/appNav.test.js guards the same contract).
+            assert page.evaluate("localStorage.getItem('capcut_active_tab')") == "flow"
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
             if width == 390:
                 page.get_by_role("button", name="อื่นๆ", exact=True).click()
                 expect(page.get_by_text("เมนูเพิ่มเติม", exact=True)).to_be_visible()
                 expect(page.get_by_text("Creative", exact=True)).to_have_count(0)
                 page.get_by_text("เมนูเพิ่มเติม", exact=True).locator("..").locator("..").get_by_role("button").click()
+            if not via_activity:
+                if width == 390:
+                    page.get_by_role("button", name="Tracker", exact=True).click()
+                else:
+                    page.get_by_title("2. แทร็กเกอร์ 4 เฟส", exact=True).click()
             if via_activity:
                 page.get_by_title("คลิกเพื่อเปิดศูนย์ติดตามกิจกรรม (Activity Center)", exact=True).click()
                 expect(page.get_by_text("Existing HF job", exact=True).first).to_be_visible()
@@ -73,6 +80,8 @@ def test_removed_creative_menu_migrates_saved_tab_and_preserves_tracker_gallery(
                 page.get_by_title("โหมดสตูดิโอ 2 ฝั่ง (เลือกคลิปซ้าย ดู QC ขวา)", exact=True).click()
                 expect(page.get_by_text("Gallery regression clip.mp4", exact=True).locator("visible=true").first).to_be_visible()
                 page.get_by_title("โหมดตารางการ์ด 9:16 ทั้งหมด", exact=True).click()
+                # "ดูรายละเอียด" moved into the card's "More Actions" dropdown.
+                page.get_by_title("เมนูเพิ่มเติม (More Actions)", exact=True).first.click()
                 page.get_by_role("button", name="ดูรายละเอียด", exact=True).first.click()
                 expect(page.get_by_role("dialog")).to_be_visible()
             else:
