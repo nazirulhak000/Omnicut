@@ -15,6 +15,7 @@ from scripts.shot_list_builder import generate_shot_list_for_angle
 from scripts.shot_lists_store import ShotListsStore
 from scripts.gemini_tts_engine import GeminiTTSError
 from scripts.quota import is_quota_error
+from scripts.config import DEFAULT_AD_TONE, DEFAULT_VOICE_PRESET
 
 from scripts.product_store import ProductStore
 from scripts import path_utils
@@ -238,8 +239,8 @@ def _execute_batch_generate_audio_worker(
         if not product:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
-        voice_preset = payload.get("voice_preset") or "gemini_fenrir_male_strong"
-        ad_tone = payload.get("ad_tone") or "commercial_hype"
+        voice_preset = payload.get("voice_preset") or DEFAULT_VOICE_PRESET
+        ad_tone = payload.get("ad_tone") or DEFAULT_AD_TONE
         batch_index = payload.get("batch_index")
         force_regenerate = payload.get("force_regenerate", False)
 

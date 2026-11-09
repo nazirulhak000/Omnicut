@@ -12,7 +12,7 @@ import {
   STYLE_PRESET_STORAGE_VERSION,
   getSavedStudioForm,
 } from '../../lib/studioDefaults';
-import { angleToForm, angleLabel } from '../../lib/angleToForm';
+import { DEFAULT_AD_TONE, angleToForm, angleLabel } from '../../lib/angleToForm';
 import { isSameVideo, getMediaName } from '../../lib/mediaUrl';
 import { buildProjectName, extractShortProductName, cleanAngleSlug } from '../../lib/projectName';
 import { useRenderJob } from '../../hooks/useRenderJob';
@@ -461,7 +461,7 @@ export default function NewClipPanel({
       voice_gender: form.voiceGender,
       voice_preset: form.voicePreset,
       voice_rate: form.voiceSpeed,
-      ad_tone: form.adTone || 'commercial_hype',
+      ad_tone: form.adTone || DEFAULT_AD_TONE,
       style_preset: normalizeStylePreset(form.stylePreset),
       // target_duration (null = length follows the script) + story_format.
       ...clipFormatPayload(form),
@@ -678,7 +678,7 @@ export default function NewClipPanel({
                         <span>เลือกเสียงต่างจากแผนถ่าย: จะสังเคราะห์เสียงใหม่</span>
                       </div>
                     ) : (
-                      <p className="mt-1 text-[10px] text-slate-500">โทน: {AD_TONES.find(t => t.id === (form.adTone || 'commercial_hype'))?.label || '—'}</p>
+                      <p className="mt-1 text-[10px] text-slate-500">โทน: {AD_TONES.find(t => t.id === (form.adTone || DEFAULT_AD_TONE))?.label || '—'}</p>
                     )}
                   </label>
 
@@ -1074,7 +1074,7 @@ export default function NewClipPanel({
         isOpen={voicePickerOpen}
         onClose={() => setVoicePickerOpen(false)}
         selectedVoice={form.voicePreset}
-        selectedTone={form.adTone || 'commercial_hype'}
+        selectedTone={form.adTone || DEFAULT_AD_TONE}
         onSelect={({ voiceId, toneId }) => patch({ voicePreset: voiceId, adTone: toneId })}
       />
     </div>

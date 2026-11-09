@@ -171,7 +171,7 @@ def test_shot_list_builder_gemini_defaults(tmp_path, monkeypatch):
         assert ctx.voice_engine_type == "gemini_tts"
         assert ctx.voice_preset == "gemini_fenrir_male_strong"
         assert ctx.voice_rate == "+15%"
-        assert ctx.ad_tone == "commercial_hype"
+        assert ctx.ad_tone == "commercial_premium"
 
         # Check that cues and beat_cues were stored
         mock_upsert.assert_called_once()
@@ -187,7 +187,7 @@ def test_shot_list_builder_gemini_defaults(tmp_path, monkeypatch):
             "ang_1",
             voice_preset="gemini_fenrir_male_strong",
             voice_engine_type="gemini_tts",
-            ad_tone="commercial_hype",
+            ad_tone="commercial_premium",
             batch=1,
         )
 

@@ -3,6 +3,7 @@ import { Play, Check, AlertCircle, RefreshCw, X, Film, CheckSquare, Square, Zap,
 import { Modal, Button, Badge } from './ui';
 import { startBatchRender, getBatchRenderStatus, cancelBatchRender } from '../api';
 import { AUTO_STYLE_PRESET, STYLE_PRESET_CATALOG, getStylePreset } from '../lib/stylePresetCatalog';
+import { DEFAULT_AD_TONE, DEFAULT_VOICE_PRESET } from '../lib/angleToForm.js';
 
 const GEMINI_VOICE_OPTIONS = [
   { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง TikTok', gender: 'male' },
@@ -17,7 +18,7 @@ export default function BatchRenderModal({
   onClose,
   product,
   angles: propAngles,
-  voicePreset: selectedVoicePreset = 'gemini_fenrir_male_strong',
+  voicePreset: selectedVoicePreset = DEFAULT_VOICE_PRESET,
   onBatchCompleted,
   showToast,
 }) {
@@ -94,7 +95,7 @@ export default function BatchRenderModal({
         voice_rate: voiceRate,
         voice_mode: 'gemini_tts',
         voice_preset: selectedVoicePreset,
-        ad_tone: 'commercial_hype',
+        ad_tone: DEFAULT_AD_TONE,
         style_preset: stylePreset,
         font_name: 'IBMPlex',
         bilingual_subtitles: true,
