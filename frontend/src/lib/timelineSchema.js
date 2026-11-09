@@ -7,6 +7,7 @@
  */
 
 import { normalizeBackgroundIsolation } from './backgroundIsolationConfig.js';
+import { clampClipSpeed } from './timelineMath.js';
 import {
   normalizeProductCallout,
   PRODUCT_CALLOUT_ROLE,
@@ -314,7 +315,7 @@ export function serializeTimelineV2ToManifest(timelineV2, baseManifest = {}) {
       duration: c.duration,
       trim_start: c.trim_start ?? 0,
       trim_end: c.trim_end ?? 0,
-      speed: c.speed ?? 1.0,
+      speed: clampClipSpeed(c.speed ?? 1.0),
       volume: c.volume ?? 1.0,
       transition_in: c.transition_in || 'cut',
       transition_duration: c.transition_duration ?? 0.5,

@@ -477,3 +477,14 @@ test('background isolation persistence clones nested config and does not mutate 
   payload.background_isolation.artifact.future.keep = false;
   assert.equal(backgroundIsolation.artifact.future.keep, true);
 });
+
+test('out-of-range clip speed is clamped on load to what the render plays (audit S3-08)', () => {
+  const state = manifestToEditorState({
+    clip_list: [
+      { id: 'a', source_path: 'a.mp4', trim_start: 0, trim_end: 8, speed: 8 },
+      { id: 'b', source_path: 'b.mp4', trim_start: 0, trim_end: 8, speed: 0.1 },
+      { id: 'c', source_path: 'c.mp4', trim_start: 0, trim_end: 8 },
+    ],
+  });
+  assert.deepEqual(state.clipList.map((clip) => clip.speed), [4, 0.25, 1]);
+});
