@@ -23,6 +23,7 @@ import ScheduleAgenda from './ScheduleAgenda';
 import { Modal, Toast, Button, Badge, Input, Textarea, PageHeader } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import { guessBrandModel } from '../lib/overlayModel';
+import { DEFAULT_AD_TONE, DEFAULT_VOICE_PRESET } from '../lib/angleToForm.js';
 import { applyCoverResult, getCoverVariant } from '../lib/coverVariant';
 import { withEditorProjectAction } from '../lib/editorEntry';
 import { getRelativeTime, formatFullDateTime } from '../lib/dateUtils';
@@ -1331,9 +1332,9 @@ export default function ContentTrackerHub({
     try {
       const overrides = {
         voice_engine_type: 'gemini_tts',
-        voice_preset: targetAngle.voice_preset || 'gemini_fenrir_male_strong',
+        voice_preset: targetAngle.voice_preset || DEFAULT_VOICE_PRESET,
         voice_rate: '+15%',
-        ad_tone: targetAngle.ad_tone || 'commercial_hype',
+        ad_tone: targetAngle.ad_tone || DEFAULT_AD_TONE,
         ...voiceOverrides,
       };
       const res = await generateShotList(targetProduct.id, targetAngle.angle_id, overrides);
@@ -1734,8 +1735,8 @@ export default function ContentTrackerHub({
       keyFeatures: angle.key_features || product.description || '',
       painPoint: angle.pain_point || '',
       priceDeal: angle.price_deal || '',
-      adTone: angle.ad_tone || 'commercial_hype',
-      voicePreset: angle.voice_preset || 'gemini_fenrir_male_strong',
+      adTone: angle.ad_tone || DEFAULT_AD_TONE,
+      voicePreset: angle.voice_preset || DEFAULT_VOICE_PRESET,
       voiceGender: 'male',
       selectedVideo: chosenVideos[0] || '',
       selectedVideos: chosenVideos,

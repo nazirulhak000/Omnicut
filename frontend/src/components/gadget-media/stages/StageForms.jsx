@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 
 import { toMediaUrl } from '../../../lib/mediaUrl.js';
+import { DEFAULT_AD_TONE, DEFAULT_VOICE_PRESET } from '../../../lib/angleToForm.js';
 import {
   canRenderProject,
   FACT_TYPE_OPTIONS,
@@ -27,7 +28,7 @@ export function BriefStage({ project, busy, onSave }) {
     audience: project.audience || '',
     editorial_promise: project.editorial_promise || '',
     presentation: {
-      mode: 'gemini_tts', voice: 'gemini_fenrir_male_strong', ad_tone: 'commercial_expert', speed: 1.15,
+      mode: 'gemini_tts', voice: DEFAULT_VOICE_PRESET, ad_tone: DEFAULT_AD_TONE, speed: 1.15,
       ...(project.presentation || {}),
     },
   });
@@ -55,7 +56,7 @@ export function BriefStage({ project, busy, onSave }) {
         </label>
         {draft.presentation.mode === 'gemini_tts' ? (
           <label className="text-xs font-bold text-slate-300">Gemini Voice
-            <select value={draft.presentation.voice || 'gemini_fenrir_male_strong'} onChange={(event) => setDraft((current) => ({ ...current, presentation: { ...current.presentation, voice: event.target.value } }))} className="mt-1.5 h-10 w-full rounded-xl bg-[#111827] px-3 text-sm text-white outline-none ring-1 ring-white/[0.1] focus:ring-cyan-300/70">
+            <select value={draft.presentation.voice || DEFAULT_VOICE_PRESET} onChange={(event) => setDraft((current) => ({ ...current, presentation: { ...current.presentation, voice: event.target.value } }))} className="mt-1.5 h-10 w-full rounded-xl bg-[#111827] px-3 text-sm text-white outline-none ring-1 ring-white/[0.1] focus:ring-cyan-300/70">
               <option value="gemini_puck_male_hype">Puck · ชายพลังสูง</option>
               <option value="gemini_charon_male_pro">Charon · ชายทุ้มน่าเชื่อถือ</option>
               <option value="gemini_kore_female_bright">Kore · หญิงสดใส</option>
@@ -68,7 +69,7 @@ export function BriefStage({ project, busy, onSave }) {
       {draft.presentation.mode === 'gemini_tts' && (
         <div className="grid gap-3 md:grid-cols-2">
           <label className="text-xs font-bold text-slate-300">น้ำเสียงโฆษณา
-            <select value={draft.presentation.ad_tone || 'commercial_expert'} onChange={(event) => setDraft((current) => ({ ...current, presentation: { ...current.presentation, ad_tone: event.target.value } }))} className="mt-1.5 h-10 w-full rounded-xl bg-[#111827] px-3 text-sm text-white outline-none ring-1 ring-white/[0.1] focus:ring-cyan-300/70">
+            <select value={draft.presentation.ad_tone || DEFAULT_AD_TONE} onChange={(event) => setDraft((current) => ({ ...current, presentation: { ...current.presentation, ad_tone: event.target.value } }))} className="mt-1.5 h-10 w-full rounded-xl bg-[#111827] px-3 text-sm text-white outline-none ring-1 ring-white/[0.1] focus:ring-cyan-300/70">
               <option value="commercial_expert">Tech Expert</option>
               <option value="commercial_premium">Premium</option>
               <option value="commercial_hype">Viral Hype</option>

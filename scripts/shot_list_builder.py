@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from scripts.config import PROJECTS_DIR, DEFAULT_VOICE, DEFAULT_VOICE_RATE
+from scripts.config import PROJECTS_DIR, DEFAULT_AD_TONE, DEFAULT_VOICE, DEFAULT_VOICE_PRESET, DEFAULT_VOICE_RATE
 from scripts.pipeline_context import PipelineContext
 from scripts.stages.script_stage import ScriptStage
 from scripts.stages.voice_stage import VoiceStage
@@ -248,9 +248,9 @@ def generate_shot_list_for_angle(
     project_dir.mkdir(parents=True, exist_ok=True)
 
     voice_engine_type = voice_overrides.get("voice_engine_type") or angle.get("voice_engine_type") or "gemini_tts"
-    voice_preset = voice_overrides.get("voice_preset") or angle.get("voice_preset") or "gemini_fenrir_male_strong"
+    voice_preset = voice_overrides.get("voice_preset") or angle.get("voice_preset") or DEFAULT_VOICE_PRESET
     voice_rate = voice_overrides.get("voice_rate") or angle.get("voice_rate") or "+15%"
-    ad_tone = voice_overrides.get("ad_tone") or angle.get("ad_tone") or "commercial_hype"
+    ad_tone = voice_overrides.get("ad_tone") or angle.get("ad_tone") or DEFAULT_AD_TONE
 
     ctx = PipelineContext(
         product_name=product_name,

@@ -46,3 +46,22 @@ test('angleToForm no longer coerces premium to hype and defaults to Fenrir', () 
   const bare = angleToForm({ script_lines: ['a'] });
   assert.equal(bare.adTone, DEFAULT_AD_TONE);
 });
+
+test('no component falls back to a hard-coded hype tone or coerces premium', async () => {
+  const { readFileSync } = await import('node:fs');
+  const files = [
+    '../components/ProductToClip.jsx',
+    '../components/ContentTrackerHub.jsx',
+    '../components/editor/NewClipPanel.jsx',
+    '../components/BatchRenderModal.jsx',
+    '../components/gadget-media/stages/StageForms.jsx',
+    '../components/VoicePickerModal.jsx',
+    '../components/ShotListModal.jsx',
+  ];
+  for (const rel of files) {
+    const src = readFileSync(new URL(rel, import.meta.url), 'utf8');
+    assert.ok(!/\|\|\s*'commercial_hype'/.test(src), `${rel}: hype fallback`);
+    assert.ok(!/ad_tone:\s*'commercial_(hype|expert)'/.test(src), `${rel}: hard-coded tone`);
+    assert.ok(!/!==\s*'commercial_premium'/.test(src), `${rel}: premium coercion`);
+  }
+});

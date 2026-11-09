@@ -13,8 +13,9 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 from scripts import compliance_lint as _compliance_lint
+from scripts.config import DEFAULT_AD_TONE
 
-BASE_DIR =Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -1819,7 +1820,7 @@ class ProductScraper:
   "pain_point": "ปัญหาหลักที่คนดูเจอ",
   "key_features": "จุดเด่น 3-4 ข้อที่ตอบโจทย์",
   "price_deal": "CTA กลางๆ ชวนกดตะกร้าดูรายละเอียด (ห้ามมีราคา ตัวเลขเงิน ส่วนลด โปร คูปอง)",
-  "ad_tone": "commercial_hype",
+  "ad_tone": "{DEFAULT_AD_TONE}",
   "script_lines": {example_script_lines_json},
   "tiktok_caption": "บอกลาอาการปวดข้อมือ! อัปเกรดชีวิตด้วย {{product_name}} คีย์บอร์ดเพื่อสุขภาพที่นุ่มสบายที่สุด พิกัดในตะกร้าเลย 👇",
   "tiktok_hashtags": "#นายหน้าtiktok #รีวิวของดี #ของมันต้องมี #tiktokป้ายยา #พิกัดในตะกร้า"
@@ -1935,7 +1936,7 @@ class ProductScraper:
                 "pain_point": "ของเดิมพังง่าย ใช้ยาก ไม่ตอบโจทย์",
                 "key_features": "ดูสเปกและรายละเอียดจริงในตะกร้า",
                 "price_deal": "กดตะกร้าดูรายละเอียดได้เลย",
-                "ad_tone": "commercial_hype",
+                "ad_tone": DEFAULT_AD_TONE,
                 "script_lines": [
                     "ทุกคน ใครที่เบื่อกับปัญหาเดิมๆ ลองดูคลิปนี้ด่วนเลยครับ",
                     f"นี่เลย {base_name} ตัวช่วยใหม่ล่าสุด",
@@ -1955,7 +1956,7 @@ class ProductScraper:
                 "pain_point": "กลัวซื้อมาแล้วไม่ตรงปก",
                 "key_features": "แกะกล่องให้ดูของจริงในคลิป",
                 "price_deal": "กดตะกร้าดูรายละเอียดได้เลย",
-                "ad_tone": "commercial_hype",
+                "ad_tone": DEFAULT_AD_TONE,
                 "script_lines": [
                     "ทุกคนครับ ในที่สุดของที่สั่งไว้ก็มาส่งแล้ว",
                     f"ตัวนี้คือ {base_name} มาดูกันว่าในกล่องมีอะไร",
@@ -1975,7 +1976,7 @@ class ProductScraper:
                 "pain_point": "อยากรู้ว่าใช้งานจริงเป็นยังไง",
                 "key_features": "ลองใช้งานให้ดูในคลิป",
                 "price_deal": "กดตะกร้าดูรายละเอียดได้เลย",
-                "ad_tone": "commercial_hype",
+                "ad_tone": DEFAULT_AD_TONE,
                 "script_lines": [
                     "วันนี้ผมจะมาเทสให้ดูแบบไม่ออมมือเลยว่าทนจริงไหม",
                     f"{base_name} ตัวนี้ลองใช้งานให้ดูกันตรงๆ",
@@ -1995,7 +1996,7 @@ class ProductScraper:
                 "pain_point": "กลัวพลาดของดีที่ใครๆ ก็ใช้กัน",
                 "key_features": "ดูรายละเอียดสินค้าในตะกร้า",
                 "price_deal": "กดตะกร้าดูรายละเอียดได้เลย",
-                "ad_tone": "commercial_hype",
+                "ad_tone": DEFAULT_AD_TONE,
                 "script_lines": [
                     "หยุดก่อนครับ ของดีแบบนี้ต้องบอกต่อ",
                     f"{base_name} ตัวนี้น่าสนใจ ลองดูรายละเอียดกัน",
@@ -2015,7 +2016,7 @@ class ProductScraper:
                 "pain_point": "ไม่แน่ใจว่าเปลี่ยนแล้วจะดีขึ้นจริงไหม",
                 "key_features": "เทียบให้ดูตามสเปกจริง",
                 "price_deal": "กดตะกร้าดูรายละเอียดได้เลย",
-                "ad_tone": "commercial_hype",
+                "ad_tone": DEFAULT_AD_TONE,
                 "script_lines": [
                     "ใครที่กำลังลังเลว่าจะเปลี่ยนดีไหม ดูคลิปนี้เลยครับ",
                     "ฝั่งซ้ายคือแบบเดิมที่เคยใช้",
@@ -2035,7 +2036,7 @@ class ProductScraper:
                 "pain_point": "เสียเวลาทำอะไรยากๆ มาตั้งนาน",
                 "key_features": "ไอเทมที่หลายคนยังไม่รู้จัก",
                 "price_deal": "กดตะกร้าดูรายละเอียดได้เลย",
-                "ad_tone": "commercial_hype",
+                "ad_tone": DEFAULT_AD_TONE,
                 "script_lines": [
                     "ทุกคน ใครชอบทริกช่วยให้ชีวิตง่ายขึ้น ดูนี่ด่วนเลยครับ",
                     f"นี่คือ {base_name} ไอเทมที่หลายคนยังไม่รู้จัก",
@@ -2055,7 +2056,7 @@ class ProductScraper:
                 "pain_point": "กลัวโดนหลอก ซื้อของไม่มีคุณภาพ",
                 "key_features": "เช็กลิสต์ก่อนซื้อ",
                 "price_deal": "กดตะกร้าดูรายละเอียดได้เลย",
-                "ad_tone": "commercial_hype",
+                "ad_tone": DEFAULT_AD_TONE,
                 "script_lines": [
                     "หยุดเลื่อนก่อนครับ ใครกำลังจะซื้อของประเภทนี้ ฟังด่วนเลย",
                     "ก่อนซื้อ เช็กสเปกกับการใช้งานของเราให้ตรงก่อน",
@@ -2075,7 +2076,7 @@ class ProductScraper:
                 "pain_point": "โต๊ะรก นั่งทำงานนานๆ แล้วล้า",
                 "key_features": "ไอเทมสำหรับโต๊ะทำงาน",
                 "price_deal": "กดตะกร้าดูรายละเอียดได้เลย",
-                "ad_tone": "commercial_hype",
+                "ad_tone": DEFAULT_AD_TONE,
                 "script_lines": [
                     "ชาวออฟฟิศและสายจัดโต๊ะคอม ต้องดูคลิปนี้เลยครับ",
                     f"นี่คือ {base_name} ไอเทมสำหรับโต๊ะทำงาน",
@@ -2095,7 +2096,7 @@ class ProductScraper:
                 "pain_point": "กลัวใช้ได้แค่ไม่กี่วันก็พัง",
                 "key_features": "สรุปสิ่งที่ควรรู้ก่อนซื้อ",
                 "price_deal": "กดตะกร้าดูรายละเอียดได้เลย",
-                "ad_tone": "commercial_hype",
+                "ad_tone": DEFAULT_AD_TONE,
                 "script_lines": [
                     "มาสรุปแบบไม่อวยว่าก่อนซื้อควรดูอะไรครับ",
                     f"{base_name} ตัวนี้ ดูสเปกกับการใช้งานของเราให้ตรง",
@@ -2115,7 +2116,7 @@ class ProductScraper:
                 "pain_point": "ซื้อของที่ใช้ไม่นานก็พัง ต้องเปลี่ยนบ่อย",
                 "key_features": "ดูว่าเหมาะกับการใช้งานแบบไหน",
                 "price_deal": "กดตะกร้าดูรายละเอียดได้เลย",
-                "ad_tone": "commercial_hype",
+                "ad_tone": DEFAULT_AD_TONE,
                 "script_lines": [
                     "มาดูกันว่าตัวนี้เหมาะกับใครครับ",
                     f"{base_name} ดูสเปกจริงในตะกร้า",

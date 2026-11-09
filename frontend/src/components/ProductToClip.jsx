@@ -31,6 +31,7 @@ import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
 import { guessBrandModel } from '../lib/overlayModel';
+import { DEFAULT_VOICE_PRESET, normalizeAdTone } from '../lib/angleToForm.js';
 import { getRecommendedStyleForAngle } from '../lib/stylePresetCatalog';
 import { resolveHistoryTargetId, resolveSelectedProduct } from '../lib/productSelection';
 import { buildProjectName } from '../lib/projectName';
@@ -3273,7 +3274,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   // Runs the actual generate-task + poll cycle. Only called when there's no
   // existing shot list yet, or the user explicitly asks to regenerate one
   // (via the modal's "สร้างใหม่" action) -- never as the default click
-  const resolveAdTone = (tone) => (tone && tone !== 'commercial_premium' && ['commercial_hype', 'commercial_aesthetic', 'commercial_expert'].includes(tone)) ? tone : 'commercial_hype';
+  // A stored tone is kept as-is (premium included); unknown/empty -> canonical default (D4).
+  const resolveAdTone = normalizeAdTone;
 
   // behavior, since re-running this re-synthesizes the voiceover from
   // scratch every time.
@@ -3284,7 +3286,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     try {
       const overrides = {
         voice_engine_type: 'gemini_tts',
-        voice_preset: targetAngle.voice_preset || 'gemini_fenrir_male_strong',
+        voice_preset: targetAngle.voice_preset || DEFAULT_VOICE_PRESET,
         voice_rate: '+15%',
         ad_tone: resolveAdTone(targetAngle.ad_tone),
         batch: targetAngle.batch || 1,
@@ -3932,7 +3934,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       painPoint: angle.pain_point || '',
       priceDeal: angle.price_deal || '',
       adTone: resolveAdTone(angle.ad_tone),
-      voicePreset: angle.voice_preset || 'gemini_fenrir_male_strong',
+      voicePreset: angle.voice_preset || DEFAULT_VOICE_PRESET,
       voiceGender: 'male',
       voiceMode: 'gemini_tts',
       voiceSpeed: '+15%',
@@ -3999,7 +4001,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       painPoint: angle.pain_point || '',
       priceDeal: angle.price_deal || '',
       adTone: resolveAdTone(angle.ad_tone),
-      voicePreset: angle.voice_preset || 'gemini_fenrir_male_strong',
+      voicePreset: angle.voice_preset || DEFAULT_VOICE_PRESET,
       voiceGender: 'male',
       selectedVideo: primaryVideo,
       selectedVideos: chosenVideos,
@@ -4141,7 +4143,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
-  const [selectedVoicePreset, setSelectedVoicePreset] = useState('gemini_fenrir_male_strong');
+  const [selectedVoicePreset, setSelectedVoicePreset] = useState(DEFAULT_VOICE_PRESET);
   const [isStartingBatchAudio, setIsStartingBatchAudio] = useState(false);
 
   // Active batch audio background task for this product

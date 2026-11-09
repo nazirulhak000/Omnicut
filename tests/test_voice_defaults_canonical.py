@@ -35,10 +35,12 @@ def test_backend_defaults_all_read_the_constants():
 
 def test_owned_call_sites_have_no_hype_literal_fallback():
     for rel in ("scripts/api_render.py", "scripts/api_voice.py", "scripts/stages/voice_stage.py",
-                "scripts/pipeline_context.py", "scripts/api_schemas.py"):
+                "scripts/pipeline_context.py", "scripts/api_schemas.py", "scripts/shot_list_builder.py",
+                "scripts/api_shot_lists.py", "scripts/pipeline.py", "scripts/product_scraper.py"):
         src = (ROOT / rel).read_text(encoding="utf-8")
         assert 'or "commercial_hype"' not in src, rel
         assert '= "commercial_hype"' not in src, rel
+        assert '"ad_tone": "commercial_hype"' not in src, rel
 
 
 def test_unknown_preset_falls_back_to_fenrir_not_kore():

@@ -22,7 +22,8 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 
 from scripts.config import (
     BASE_DIR, INBOX_DIR, RAW_DIR, PROJECTS_DIR, EXPORTS_DIR, LUTS_DIR,
-    DEFAULT_VOICE, DEFAULT_VOICE_RATE, DEFAULT_VOICE_PITCH
+    DEFAULT_VOICE, DEFAULT_VOICE_RATE, DEFAULT_VOICE_PITCH,
+    DEFAULT_VOICE_PRESET, DEFAULT_AD_TONE,
 )
 from scripts.script_generator import ScriptGenerator
 from scripts.voice_engine import VoiceEngine
@@ -109,8 +110,8 @@ class TikTokAutoCutterPipeline:
         voice: str = DEFAULT_VOICE,
         voice_rate: str = DEFAULT_VOICE_RATE,
         voice_engine_type: str = "gemini_tts",
-        voice_preset: Optional[str] = "gemini_fenrir_male_strong",
-        ad_tone: str = "commercial_hype",
+        voice_preset: Optional[str] = DEFAULT_VOICE_PRESET,
+        ad_tone: str = DEFAULT_AD_TONE,
         style_preset: str = "clean_tech_review",
         human_voice_audio_path: Optional[str] = None,
         hook_brand: Optional[str] = None,
