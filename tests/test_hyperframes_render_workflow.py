@@ -180,6 +180,7 @@ def test_sdk_worker_receives_exact_snapshot_and_never_runs_cli_check(tmp_path, m
         return Process()
     jobs = store(tmp_path)
     monkeypatch.setattr(module.shutil, "which", lambda name: "node")
+    monkeypatch.setattr(module, "_sdk_runtime_dir", lambda worker: tmp_path)  # Popen is faked; no npm install needed
     monkeypatch.setattr(module.subprocess, "Popen", spawn)
     monkeypatch.setattr(jobs, "get", lambda *args: {"executor_token": "token", "cancel_requested": False})
     root = tmp_path / "composition"
@@ -348,6 +349,7 @@ def test_windows_cancel_targets_only_current_job_subtree(tmp_path, monkeypatch):
     monkeypatch.setattr(module.subprocess, "run", stop)
     monkeypatch.setattr(module.subprocess, "Popen", lambda *args, **kwargs: process)
     monkeypatch.setattr(module.shutil, "which", lambda *args: "npx.cmd")
+    monkeypatch.setattr(module, "_sdk_runtime_dir", lambda worker: tmp_path)  # Popen is faked; no npm install needed
     observed = iter([False, True])
     monkeypatch.setattr(jobs, "get", lambda *args: {"executor_token": "t", "cancel_requested": next(observed)})
     foreign_key = (str(jobs.root), "foreign-job")

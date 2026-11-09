@@ -25,6 +25,11 @@ _processes = {}
 _process_lock = threading.Lock()
 
 
+def _sdk_runtime_dir(worker: Path) -> Path:
+    """Installed pinned SDK engine (tools/hyperframes-runtime lockfile); a seam so tests need no npm install."""
+    return worker.parent / "hyperframes-runtime" / "node_modules" / "@hyperframes" / "engine"
+
+
 class _CLIStopError(RuntimeError):
     pass
 
@@ -396,7 +401,7 @@ class HyperFramesRenderJobs:
             raise ChannelError(422, "hyperframes_runtime_version_unsupported", "This guarded worker supports the pinned SDK 0.8.143 only")
         node = shutil.which("node")
         worker = Path(__file__).resolve().parents[1] / "tools" / "hyperframes_render_worker.mjs"
-        runtime = worker.parent / "hyperframes-runtime" / "node_modules" / "@hyperframes" / "engine"
+        runtime = _sdk_runtime_dir(worker)
         if not node or not runtime.is_dir():
             raise RuntimeError("Guarded HyperFrames SDK runtime is unavailable; install the pinned tools/hyperframes-runtime lockfile")
         spec = {"project_dir": str(revision_dir), "output_path": str(target),
