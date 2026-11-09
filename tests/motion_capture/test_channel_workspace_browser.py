@@ -72,9 +72,20 @@ def test_channel_switch_preserves_unsaved_owner_and_mobile_context(motion_fixtur
 
             page.route("**/api/**", route_api)
             page.goto(f"{origin}/?channel=main&project=same&mode=desktop", wait_until="domcontentloaded")
-            selector = page.get_by_role("combobox", name="เลือกช่อง")
+            # The editor header replaced the native <select> with a listbox pill
+            # (EditorChannelSelector, data-testid="editor-channel-selector").
+            pill = page.get_by_test_id("editor-channel-selector").get_by_role("button").first
+            labels = {"main": "Main fixture", "second": "Second fixture"}
+
+            def switch_to(channel_id):
+                pill.click()
+                page.get_by_role("listbox", name="รายชื่อช่องการทำงาน").get_by_role("option", name=labels[channel_id]).click()
+
+            def expect_channel(channel_id):
+                expect(pill).to_have_attribute("aria-label", f"สลับช่องทำงาน ปัจจุบันเลือกช่อง {labels[channel_id]}")
+
             try:
-                expect(selector).to_be_visible()
+                expect(pill).to_be_visible()
             except AssertionError:
                 raise AssertionError({"runtime": errors, "console": console_errors[-6:], "body": page.locator("body").inner_text()[:1500]})
             timeline = page.locator('[data-timeline-item="clip"]:visible').first
@@ -83,21 +94,21 @@ def test_channel_switch_preserves_unsaved_owner_and_mobile_context(motion_fixtur
             page.evaluate("document.activeElement.blur()")
             page.keyboard.press("Shift+ArrowRight")
             page.keyboard.press("w")
-            selector.select_option("second")
+            switch_to("second")
             dialog = page.get_by_role("dialog", name="บันทึกก่อนสลับช่อง")
             expect(dialog).to_be_visible()
             dialog.get_by_role("button", name="อยู่ช่องเดิม").click()
-            expect(selector).to_have_value("main")
-            selector.select_option("second")
+            expect_channel("main")
+            switch_to("second")
             expect(dialog).to_be_visible()
             dialog.get_by_role("button", name="บันทึกและสลับ").click()
             expect(dialog.get_by_role("alert")).to_be_visible()
-            expect(selector).to_have_value("main")
+            expect_channel("main")
             dialog.get_by_role("button", name="อยู่ช่องเดิม").focus()
             page.keyboard.press("Tab")
             assert page.evaluate("document.activeElement.closest('[role=dialog]') !== null")
             dialog.get_by_role("button", name="ทิ้งการแก้ไขและสลับ").click()
-            expect(selector).to_have_value("second")
+            expect_channel("second")
             expect(dialog).not_to_be_visible()
             expect(timeline).to_be_visible()
             assert "second" in reads
@@ -131,6 +142,8 @@ def test_invalid_explicit_channel_never_dispatches_main_work_before_recovery(mot
                     return
                 if path == "/api/channels":
                     data = {"revision": 1, "channels": [{"id": "main", "display_name": "Main fixture", "status": "active", "revision": 1}]}
+                elif path.startswith("/api/auth/"):
+                    data = {"authenticated": True, "auth_required": False}
                 else:
                     work.append(path)
                     data = {"products": [], "videos": [], "tasks": [], "exports": [], "catalog": [], "items": []}
@@ -144,6 +157,10 @@ def test_invalid_explicit_channel_never_dispatches_main_work_before_recovery(mot
             expect(page.get_by_role("combobox", name="เลือกช่อง")).to_have_value("main")
             page.wait_for_function("new URL(location.href).searchParams.get('channel') === 'main'")
             assert "mobile_session=" not in page.url
+            # MobileAppRoot now opens on the "today" tab; the product catalog lives in
+            # the classic studio sub-view reached through this explicit button.
+            page.get_by_test_id("mobile-tab-create").click()
+            page.get_by_role("button", name="สลับไปใช้สตูดิโอแบบเดิม (โหมดอัปโหลดฟุตเทจตัดต่อ)").click()
             expect(page.get_by_text("ยังไม่มีสินค้าในคลัง เพิ่มสินค้าใหม่เพื่อเริ่มผลิตคลิป", exact=True)).to_be_visible()
             assert any(path.startswith("/api/mobile-studio") for path in work)
         finally:
