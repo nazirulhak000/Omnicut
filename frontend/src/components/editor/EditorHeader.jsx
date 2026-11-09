@@ -234,7 +234,7 @@ export default function EditorHeader({
           aria-label="สั่งงาน AI Agent"
           className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-1.5 sm:px-2.5 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
             isAgentOpen
-              ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+              ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20'
               : 'border-white/[0.08] bg-white/[0.04] text-slate-300 hover:border-emerald-500/40 hover:text-white'
           }`}
         >

@@ -18,16 +18,16 @@ export default function CutoutInspector({
   const negPoints = subjectPoints.filter((p) => p.label === 0);
 
   return (
-    <div className="space-y-3 rounded-2xl border border-violet-500/20 bg-gradient-to-b from-violet-950/20 to-black/40 p-3 shadow-lg">
+    <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#0E131E] p-3 shadow-md">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-violet-500/20 text-violet-300 border border-violet-500/30">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.04] text-slate-300 border border-white/[0.08]">
             <Layers className="h-4 w-4" />
           </div>
           <div>
             <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
               <span>ตัดพื้นหลัง / แยกวัตถุ</span>
-              <span className="text-[10px] text-violet-400 font-normal">SAM 2</span>
+              <span className="text-[10px] font-mono text-slate-400 font-semibold px-1.5 py-0.2 rounded bg-white/[0.04] border border-white/[0.06]">SAM 2</span>
             </h4>
             <p className="text-[10px] text-slate-400">วางข้อความ/ซับไตเติลไว้ด้านหลังวัตถุ</p>
           </div>
@@ -59,8 +59,8 @@ export default function CutoutInspector({
         onClick={() => onToggleBackgroundIsolation?.(!isEnabled)}
         className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border ${
           isEnabled
-            ? 'bg-violet-600/30 hover:bg-violet-600/40 border-violet-400/50 text-violet-200 shadow-[0_0_12px_rgba(139,92,246,0.25)]'
-            : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
+            ? 'bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border-[#25F4EE]/40 text-[#25F4EE]'
+            : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.08] text-slate-300'
         }`}
       >
         <Layers className="h-3.5 w-3.5" />
@@ -79,7 +79,7 @@ export default function CutoutInspector({
                 title="แสดงคลิปแยกพื้นหลังปกติ พร้อมข้อความด้านหลัง"
                 className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
                   cutoutPreviewMode === 'composite'
-                    ? 'bg-violet-600 text-white shadow-sm'
+                    ? 'bg-white/[0.12] text-white border border-white/[0.16] shadow-sm'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -91,7 +91,7 @@ export default function CutoutInspector({
                 title="แสดงพื้นหลังตารางหมากรุก เพื่อตรวจเช็กความโปร่งใสและขอบไดคัท"
                 className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
                   cutoutPreviewMode === 'checkerboard'
-                    ? 'bg-violet-600 text-white shadow-sm'
+                    ? 'bg-white/[0.12] text-white border border-white/[0.16] shadow-sm'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -103,7 +103,7 @@ export default function CutoutInspector({
                 title="แสดงมาสก์ขาวดำ (Alpha Matte) เพื่อตรวจเช็กรอยรั่วและรูโหว่"
                 className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
                   cutoutPreviewMode === 'matte'
-                    ? 'bg-violet-600 text-white shadow-sm'
+                    ? 'bg-white/[0.12] text-white border border-white/[0.16] shadow-sm'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >

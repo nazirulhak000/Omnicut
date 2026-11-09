@@ -1733,16 +1733,16 @@ export default function AssetPanel({
         {/* TAB 1: CLIPS */}
         {tab === 'clips' && (
           <div className="space-y-2.5">
-            {/* Quick Action: AI Auto-SRT banner */}
+            {/* Quick Action: AI Auto-SRT banner (Quiet Chrome) */}
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.08] hover:border-white/[0.15] transition-all">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="p-1.5 rounded-lg bg-[#25F4EE]/15 text-[#25F4EE] flex-shrink-0">
-                  <Sparkles className="w-4 h-4" />
+                <div className="p-1.5 rounded-lg bg-white/[0.04] text-slate-300 border border-white/[0.06] flex-shrink-0">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-white flex items-center gap-1.5">
                     <span>AI Auto-SRT</span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#25F4EE]/20 text-[#25F4EE] font-mono font-semibold">WHISPER</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/[0.04] text-slate-400 border border-white/[0.06] font-mono font-semibold">WHISPER</span>
                   </div>
                   <p className="text-[10.5px] text-slate-400 truncate">ถอดเสียงคำบรรยายอัตโนมัติลงไทม์ไลน์</p>
                 </div>
@@ -1750,7 +1750,7 @@ export default function AssetPanel({
               <button
                 type="button"
                 onClick={() => setTab('srt')}
-                className="py-1 px-2.5 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 text-xs font-bold transition-all cursor-pointer flex-shrink-0 active:scale-95"
+                className="py-1 px-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold transition-all cursor-pointer flex-shrink-0 active:scale-95"
               >
                 เปิดใช้งาน
               </button>

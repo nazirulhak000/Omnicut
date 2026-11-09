@@ -284,8 +284,8 @@ export default function TimelineClip({
       {(speed !== 1 || clip.mirror || clip.rotation || (clip.volume || 0) > 0) && (
         <div className="absolute bottom-0.5 left-1.5 flex items-center gap-1 pointer-events-none">
           {speed !== 1 && (
-            <span className="flex items-center gap-0.5 rounded bg-[#181716]/80 px-1 text-xs font-semibold text-[#E89274]">
-              <Gauge className="h-2.5 w-2.5" />{speed}x
+            <span className="flex items-center gap-0.5 rounded bg-black/80 border border-white/[0.08] px-1 text-[10px] font-mono tabular-nums font-semibold text-amber-300/90">
+              <Gauge className="h-2.5 w-2.5" />{Number(speed.toFixed(2))}x
             </span>
           )}
           {clip.mirror && (

@@ -434,7 +434,7 @@ export default function Inspector({
                     <SlidersHorizontal className="w-5 h-5" />
                   </div>
                   <div className="space-y-1">
-                    <h4 className="text-xs font-bold text-white">แผงควบคุมคุณสมบัติ (Inspector)</h4>
+                    <h4 className="text-xs font-semibold text-slate-200">แผงควบคุมคุณสมบัติ (Inspector)</h4>
                     <p className="text-[11px] text-slate-400 max-w-[260px] mx-auto leading-relaxed">
                       คลิกเลือกคำบรรยาย, ข้อความ, คลิป หรือเสียง บนไทม์ไลน์เพื่อปรับแต่งคุณสมบัติเฉพาะตัว
                     </p>

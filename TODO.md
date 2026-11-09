@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-UNSLOP-EDITOR-SCREEN-AND-CLIP-BADGES-20261109 · ปฏิบัติการ Unslopping Pass หน้าจอตัดต่อ (Editor UI & Inspector Deep Clean): ขจัดสีม่วงไล่เฉดและเงาเรืองแสงบนการ์ด SAM 2 Cutout สู่ Obsidian Pro Dark NLE (#0E131E, border-white/[0.08]), ปรับปุ่มโหมดพรีวิวสู่ Quiet Studio Buttons, จัดระเบียบป้ายความเร็วคลิปบนไทม์ไลน์เป็น 2 ตำแหน่งทศนิยม tabular-nums (font-mono text-[10px]), ปรับ Quiet Chrome บนปุ่ม AI Auto-SRT และปลดเงาเรืองแสงของปุ่ม AI Agent บน Header, ผ่าน Vitest 1,222/1,222 tests (100%), Parity 212/212 tests (100%), Vite Build สำเร็จ 463ms ไร้ข้อผิดพลาด · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
 - [x] Round ANTIGRAVITY-EDITOR-TOOLBAR-ICON-MINIMAL-AND-TIMELINE-VERTICAL-SCROLL-20261109 · ปฏิบัติการ Editor Toolbar Icon Minimal & Timeline Vertical Scroll: แปลงปุ่มแถบเครื่องมือไทม์ไลน์สู่ Icon-Only สไตล์ Pro NLE คลีนตา ไร้ตัวหนังสือหัก 2 บรรทัด พร้อม Tooltip ครบถ้วน + ปลดล็อก Wheel Scroll ให้เลื่อนขึ้น-ลงแทร็กไทม์ไลน์ได้อย่างลื่นไหลเป็นธรรมชาติ (Shift+Wheel สำหรับแนวนอน), ผ่าน Vitest 1,222 tests (100%), Parity 212 tests (100%), Vite Build 456ms · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-UI-PRECISION-AND-BASELINE-ALIGNMENT-AUDIT-20261109 · ปฏิบัติการ UI Precision & Baseline Alignment Audit (Pixel-Perfect Craftsmanship) ครบ 5 มิติ 100/100 คะแนนเต็ม: ล็อก Uniform Height และ mt-auto ตรึงเส้นระนาบ Progress/Footer เท่ากัน 100% ทุกการ์ด (ProductCard Carousel, Catalog Grid, KanbanCard, ExportCard), จองพื้นที่คงที่ line-clamp-2 h-[2.25rem] สำหรับชื่อสินค้าและสคริปต์, จัด tabular-nums ทุกตัวเลข, ผ่าน Vitest 1,222 tests (100%), Parity 212 tests (100%), Vite Build 467ms ไร้ข้อผิดพลาด · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
