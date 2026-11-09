@@ -456,9 +456,7 @@
 
     background: #0b0f19;
 
-    background-image: radial-gradient(circle at 100% 0%, rgba(37, 244, 238, 0.14) 0%, transparent 40%),
-
-                      radial-gradient(circle at 0% 100%, rgba(254, 44, 85, 0.16) 0%, transparent 45%);
+    /* quiet obsidian */
 
     padding: 14px 16px 13px;
 
@@ -466,25 +464,7 @@
 
   }
 
-  .app-header::after, .studio-bar::after {
-
-    content: "";
-
-    position: absolute;
-
-    bottom: 0;
-
-    left: 0;
-
-    width: 100%;
-
-    height: 2px;
-
-    background: linear-gradient(90deg, var(--cyan) 0%, #25f4ee 25%, #fe2c55 75%, #ff0050 100%);
-
-    opacity: 0.9;
-
-  }
+  .app-header::after, .studio-bar::after { display: none; }
 
   .brand-row {
 
@@ -520,7 +500,7 @@
 
     flex-shrink: 0;
 
-    filter: drop-shadow(0 2px 8px rgba(37, 244, 238, 0.45)) drop-shadow(0 4px 12px rgba(254, 44, 85, 0.35));
+    filter: none;
 
     transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 
@@ -582,7 +562,7 @@
 
     text-transform: none;
 
-    box-shadow: 0 0 8px rgba(254, 44, 85, 0.2);
+    box-shadow: none;
 
   }
 
@@ -621,49 +601,25 @@
   }
 
   .btn-header-tiktok {
-
-    background: rgba(255, 255, 255, 0.08);
-
-    border: 1px solid rgba(37, 244, 238, 0.45);
-
-    color: #e0fefe;
-
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #f1f5f9;
     font-size: 11px;
-
     font-weight: 700;
-
     letter-spacing: 0.02em;
-
     padding: 5px 11px;
-
     border-radius: var(--radius-pill);
-
     cursor: pointer;
-
     display: flex;
-
     align-items: center;
-
     gap: 6px;
-
-    transition: all 0.2s var(--ease-spring);
-
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-
+    transition: all 0.15s ease;
   }
 
   .btn-header-tiktok:hover {
-
-    background: rgba(37, 244, 238, 0.22);
-
-    border-color: var(--cyan);
-
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.24);
     color: #ffffff;
-
-    box-shadow: 0 0 14px rgba(37, 244, 238, 0.4);
-
-    transform: translateY(-1px);
-
   }
 
   .btn-header-tiktok:active { transform: translateY(0); }
@@ -742,7 +698,7 @@
 
     background: #10b981;
 
-    box-shadow: 0 0 8px #10b981;
+    box-shadow: none;
 
     transition: all 0.2s;
 
@@ -752,7 +708,7 @@
 
     background: #ef4444;
 
-    box-shadow: 0 0 8px #ef4444;
+    box-shadow: none;
 
   }
 
@@ -760,7 +716,7 @@
 
     background: #f59e0b;
 
-    box-shadow: 0 0 8px #f59e0b;
+    box-shadow: none;
 
   }
 
@@ -1061,41 +1017,24 @@
   }
 
   .btn-check-quota {
-
-    background: rgba(37, 244, 238, 0.12);
-
-    color: #25f4ee;
-
-    border: 1px solid rgba(37, 244, 238, 0.35);
-
+    background: rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.12);
     font-size: 10px;
-
     font-weight: 700;
-
     padding: 2.5px 8px;
-
     border-radius: var(--radius-pill);
-
     cursor: pointer;
-
     display: inline-flex;
-
     align-items: center;
-
     gap: 4px;
-
-    transition: all 0.2s ease;
-
+    transition: all 0.15s ease;
   }
 
   .btn-check-quota:hover {
-
-    background: rgba(37, 244, 238, 0.22);
-
-    border-color: #25f4ee;
-
-    box-shadow: 0 0 8px rgba(37, 244, 238, 0.3);
-
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
   }
 
   .btn-check-quota.loading svg {
@@ -1161,6 +1100,7 @@
   }
 
   .quota-value {
+    font-variant-numeric: tabular-nums;
 
     font-size: 12px;
 
@@ -1173,6 +1113,7 @@
   }
 
   .quota-badge {
+    font-variant-numeric: tabular-nums;
 
     font-size: 9.5px;
 
@@ -1348,7 +1289,7 @@
 
     text-transform: uppercase;
 
-    box-shadow: 0 0 10px rgba(254, 44, 85, 0.2);
+    box-shadow: none;
 
   }
 
@@ -1371,27 +1312,16 @@
   }
 
   .batch-engine-tag {
-
     font-size: 9.5px;
-
     font-weight: 700;
-
-    color: #25f4ee;
-
-    background: rgba(37, 244, 238, 0.12);
-
-    border: 1px solid rgba(37, 244, 238, 0.3);
-
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 2px 7px;
-
     border-radius: var(--radius-pill);
-
     letter-spacing: 0.03em;
-
     white-space: nowrap;
-
     flex-shrink: 0;
-
   }
 
   .batch-mode-container {
@@ -1472,7 +1402,7 @@
 
     border-color: var(--cyan);
 
-    box-shadow: 0 0 0 2px rgba(37, 244, 238, 0.25);
+    box-shadow: none;
 
   }
 
@@ -1504,7 +1434,7 @@
 
     gap: 9px;
 
-    background: linear-gradient(135deg, #fe2c55 0%, #ff416c 60%, #ff6b8b 100%);
+    background: var(--rose);
 
     color: #ffffff;
 
@@ -1520,7 +1450,7 @@
 
     cursor: pointer;
 
-    box-shadow: 0 3px 12px rgba(254, 44, 85, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 
     transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 
@@ -1532,7 +1462,7 @@
 
     transform: translateY(-1.5px);
 
-    box-shadow: 0 6px 20px rgba(254, 44, 85, 0.55), 0 0 12px rgba(37, 244, 238, 0.35);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 
   }
 
@@ -1601,14 +1531,13 @@
   }
 
   .batch-progress-percent {
-
-    color: #25f4ee;
+    color: #f8fafc;
 
     font-weight: 800;
 
     font-variant-numeric: tabular-nums;
 
-    text-shadow: 0 0 8px rgba(37, 244, 238, 0.4);
+    text-shadow: none;
 
   }
 
@@ -1632,13 +1561,13 @@
 
     height: 100%;
 
-    background: linear-gradient(90deg, #fe2c55 0%, #ff5277 50%, #25f4ee 100%);
+    background: var(--rose);
 
     border-radius: var(--radius-pill);
 
     transition: width 0.3s ease;
 
-    box-shadow: 0 0 10px rgba(37, 244, 238, 0.4);
+    box-shadow: none;
 
   }
 
@@ -1657,21 +1586,13 @@
   }
 
   .batch-step-chip {
-
-    background: rgba(37, 244, 238, 0.12);
-
-    border: 1px solid rgba(37, 244, 238, 0.3);
-
-    color: #25f4ee;
-
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
     padding: 2.5px 9px;
-
     border-radius: var(--radius-pill);
-
     font-size: 10.5px;
-
     font-weight: 600;
-
   }
 
   .batch-eta-text {
@@ -1891,6 +1812,7 @@
   }
 
   .clip-count-badge {
+    font-variant-numeric: tabular-nums;
 
     background: var(--rose-tint);
 
@@ -2490,7 +2412,7 @@
 
     background: var(--rose);
 
-    box-shadow: 0 0 8px var(--rose);
+    box-shadow: none;
 
   }
 
@@ -2663,6 +2585,7 @@
   }
 
   .caption-count-badge {
+    font-variant-numeric: tabular-nums;
 
     color: var(--muted);
 
@@ -3950,6 +3873,77 @@
 
   }
 
+
+  /* Filter Chips Bar (Tab 1) */
+  .filter-chips-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 0 10px;
+    overflow-x: auto;
+  }
+  .filter-chip {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    padding: 3px 9px;
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+  }
+  .filter-chip:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f1f5f9;
+  }
+  .filter-chip.active {
+    background: rgba(254, 44, 85, 0.14);
+    border-color: rgba(254, 44, 85, 0.35);
+    color: #fe2c55;
+  }
+  .filter-chip span {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Batch Log Toolbar */
+  .batch-log-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+    margin-bottom: 3px;
+  }
+  .batch-log-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .batch-log-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .btn-log-action {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    font-size: 9.5px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    transition: all 0.15s ease;
+  }
+  .btn-log-action:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #f1f5f9;
+  }
 </style>
 
 </head>
@@ -3968,7 +3962,7 @@
 
         <div class="brand-copy brand-text">
 
-          <span class="brand-kicker">OMNICUT PRO STUDIO <span id="brandVersionPill" class="brand-version-pill">v0.3.0</span></span>
+          <span class="brand-kicker">OMNICUT PRO STUDIO <span id="brandVersionPill" class="brand-version-pill">v0.3.2</span></span>
 
           <h1 class="brand-title">TikTok Post Helper</h1>
 
@@ -4078,7 +4072,7 @@
 
         </div>
 
-        <span class="batch-engine-tag">Engine v0.3.0</span>
+        <span class="batch-engine-tag">Engine v0.3.2</span>
 
       </div>
 
@@ -4110,7 +4104,7 @@
 
           <div class="quota-pill" id="scheduleQuotaPill" title="โควตาตั้งเวลาโพสต์วิดีโอล่วงหน้า (สูงสุด 30 รายการ)">
 
-            <span class="quota-label">🗓️ โพสต์ตั้งเวลา:</span>
+            <span class="quota-label">โพสต์ตั้งเวลา:</span>
 
             <div class="quota-val-row">
 
@@ -4124,7 +4118,7 @@
 
           <div class="quota-pill" id="draftQuotaPill" title="โควตาบันทึกคลิปเป็นแบบร่าง (สูงสุด 30 รายการ)">
 
-            <span class="quota-label">📝 แบบร่าง:</span>
+            <span class="quota-label">แบบร่าง:</span>
 
             <div class="quota-val-row">
 
@@ -4154,11 +4148,11 @@
 
           <select id="batchModeSelect" class="batch-mode-select" title="เลือกรูปแบบการโพสต์">
 
-            <option value="smart">⚡ Smart Queue (ตั้งเวลาคลิปแรก + แบบร่างที่เหลือ)</option>
+            <option value="smart">Smart Queue (ตั้งเวลาคลิปแรก + แบบร่างที่เหลือ)</option>
 
-            <option value="draft_only">📝 Draft Only (บันทึกเป็นแบบร่างทั้งหมด)</option>
+            <option value="draft_only">Draft Only (บันทึกเป็นแบบร่างทั้งหมด)</option>
 
-            <option value="schedule_only">🗓️ Schedule Only (ตั้งเวลาตามตารางเท่านั้น)</option>
+            <option value="schedule_only">Schedule Only (ตั้งเวลาตามตารางเท่านั้น)</option>
 
           </select>
 
@@ -4184,17 +4178,17 @@
 
           <select id="batchLimitSelect" class="batch-mode-select" title="จำกัดจำนวนคลิปที่จะอัปโหลดในรอบนี้ ป้องกันการล้นโควตา TikTok Studio">
 
-            <option value="auto_quota" selected>🎯 อัตโนมัติตามโควตาที่เหลือ (แนะนำ - ป้องกันล้น)</option>
+            <option value="auto_quota" selected>อัตโนมัติตามโควตาที่เหลือ (แนะนำ - ป้องกันล้น)</option>
 
-            <option value="30">⚡ เต็มโควตา 30 คลิป (Max Cap)</option>
+            <option value="30">เต็มโควตา 30 คลิป (Max Cap)</option>
 
-            <option value="20">📦 20 คลิป</option>
+            <option value="20">20 คลิป</option>
 
-            <option value="10">📦 10 คลิป</option>
+            <option value="10">10 คลิป</option>
 
-            <option value="5">📦 5 คลิป</option>
+            <option value="5">5 คลิป</option>
 
-            <option value="all">⚠️ ทั้งหมดที่มีในคิว (ไม่จำกัด)</option>
+            <option value="all">ทั้งหมดที่มีในคิว (ไม่จำกัด)</option>
 
           </select>
 
@@ -4202,6 +4196,14 @@
 
         </div>
 
+      </div>
+
+      
+      <div class="batch-mode-container" style="margin-top: 2px; margin-bottom: 10px;">
+        <label class="switch-row" style="cursor: pointer; user-select: none;">
+          <input id="coverFallbackToggle" type="checkbox" checked />
+          <span>ใช้ปกอัตโนมัติหาก TikTok ไม่มีปุ่มอัปโหลดปก (Cover Fallback)</span>
+        </label>
       </div>
 
       <button id="batchStartBtn" type="button" class="btn-batch-primary">
@@ -4240,14 +4242,25 @@
 
         <div class="batch-controls-row">
 
-          <button id="batchPauseBtn" type="button" class="btn-batch-ctrl btn-pause">⏸️ พักชั่วคราว</button>
+          <button id="batchPauseBtn" type="button" class="btn-batch-ctrl btn-pause"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg><span>พักชั่วคราว</span></button>
 
-          <button id="batchResumeBtn" type="button" class="btn-batch-ctrl btn-resume" hidden>▶️ ทำต่อ</button>
+          <button id="batchResumeBtn" type="button" class="btn-batch-ctrl btn-resume" hidden><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>ทำต่อ</span></button>
 
-          <button id="batchStopBtn" type="button" class="btn-batch-ctrl btn-stop">⏹️ หยุด</button>
+          <button id="batchStopBtn" type="button" class="btn-batch-ctrl btn-stop"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16"/></svg><span>หยุด</span></button>
 
         </div>
 
+        
+        <div class="batch-log-toolbar">
+          <span class="batch-log-title">บันทึกการทำงาน (Log)</span>
+          <div class="batch-log-actions">
+            <button id="batchCopyLogBtn" type="button" class="btn-log-action" title="คัดลอกบันทึกการทำงานทั้งหมด">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              <span>คัดลอก</span>
+            </button>
+            <button id="batchClearLogBtn" type="button" class="btn-log-action" title="ล้างข้อความในกล่อง">ล้าง</button>
+          </div>
+        </div>
         <div id="batchLogBox" class="batch-log-box"></div>
 
       </div>
@@ -4272,6 +4285,14 @@
 
       </button>
 
+    </div>
+
+    
+    <div class="filter-chips-bar" id="filterChipsBar">
+      <button type="button" class="filter-chip active" data-filter="all">ทั้งหมด (<span id="filterCountAll">0</span>)</button>
+      <button type="button" class="filter-chip" data-filter="ready">รอโพสต์ (<span id="filterCountReady">0</span>)</button>
+      <button type="button" class="filter-chip" data-filter="scheduled">กำหนดเวลาแล้ว (<span id="filterCountScheduled">0</span>)</button>
+      <button type="button" class="filter-chip" data-filter="unscheduled">ไม่มีเวลา (<span id="filterCountUnscheduled">0</span>)</button>
     </div>
 
     <div id="list"></div>

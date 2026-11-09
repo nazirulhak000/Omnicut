@@ -198,7 +198,11 @@ async function postingRequest(path, channelId, body) {
 
   const apiKey = await getStoredApiKey();
 
+  // A backend that accepts the connection but never answers must not hang a posting step forever.
+  const timeout = (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function')
+    ? {signal: AbortSignal.timeout(30_000)} : {};
   const response = await authedFetch(`${BACKEND}/api/tiktok-autopost${path}`, apiKey, {
+    ...timeout,
 
     method: body === undefined ? 'GET' : 'POST',
 
@@ -1100,6 +1104,7 @@ function isUploadTab(tab) {
 async function focusTikTokTab(tab) {
 
   if (!tab?.id) return tab;
+  await ensureWorkableWindow(tab);
 
   try { await chrome.tabs.update(tab.id, {active: true}); } catch (e) {}
 
@@ -4360,13 +4365,25 @@ async function runUploadFileOnly() {
   try {
 
     await send('DOM.enable');
-
-    const fileNodeId = await findFileInputNodeId(send);
-
+    let fileNodeId;
+    try {
+      fileNodeId = await findFileInputNodeId(send);
+    } catch (firstError) {
+      // The page is not a fresh upload form (video from an earlier run, a leftover dialog, a
+      // reload in progress). Reset it the dialog-aware way once, then look again.
+      try { await chrome.debugger.detach({ tabId: tab.id }); } catch (e) {}
+      await cleanResetUploadTab();
+      await sleep(1500);
+      tab = await attachDebuggerWithCleanTabFallback(await findUploadTab());
+      const send2 = cdp(tab.id);
+      await send2('DOM.enable');
+      fileNodeId = await findFileInputNodeId(send2);
+      await guardPostingAction(job, send2, tab.id);
+      await setFileInput(send2, fileNodeId, job.video_path);
+      return { success: true, resetFirst: true };
+    }
     await guardPostingAction(job, send, tab.id);
-
     await setFileInput(send, fileNodeId, job.video_path);
-
     return { success: true };
 
   } finally {
@@ -4840,9 +4857,19 @@ async function runPrepareDetails(message) {
 
     step = 'cover';
 
-    await runUploadCoverOnly({coverPath: message.coverPath});
-
-    completed.push('cover');
+    try {
+      await runUploadCoverOnly({coverPath: message.coverPath});
+      completed.push('cover');
+    } catch (coverErr) {
+      if (message.coverFallback) {
+        console.warn('Cover upload failed, using TikTok auto cover fallback:', coverErr.message);
+        // The Edit cover modal is still open (and TikTok asks "Discard this edit?"):
+        // it must be closed or it covers the post button.
+        const coverModalClosed = await runDismissCoverModal().catch(() => false);
+        return {success:true, completed, coverFallbackUsed:true, coverModalClosed};
+      }
+      throw coverErr;
+    }
 
     return {success:true, completed};
 
@@ -4852,6 +4879,64 @@ async function runPrepareDetails(message) {
 
   }
 
+}
+
+// Cancels the "Edit cover" modal and confirms TikTok's "Discard this edit?" prompt.
+// Returns true when no Edit cover dialog is left on the page.
+async function runDismissCoverModal() {
+  const tab = await findUploadTab();
+  const send = cdp(tab.id);
+  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  try {
+    await send('DOM.enable');
+    await send('Runtime.enable');
+    const coverDialogOpen = `(() => Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"]'))
+      .some(d => /Edit cover|แก้ไขหน้าปก|แก้ไขปก/.test(d.innerText || d.textContent || '')))()`;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const clicked = await send('Runtime.evaluate', {
+        expression: `(() => {
+          const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"]'));
+          const d = dialogs.find(x => /Edit cover|แก้ไขหน้าปก|แก้ไขปก/.test(x.innerText || x.textContent || ''));
+          const b = d && Array.from(d.querySelectorAll('button, [role="button"]'))
+            .find(x => ['Cancel', 'ยกเลิก'].includes((x.innerText || x.textContent || '').trim()));
+          if (b) { b.click(); return true; }
+          return false;
+        })()`, returnByValue: true,
+      });
+      if (!clicked?.result?.value) break;
+      await sleep(900);
+      await dismissDiscardDialogIfPresent(send, 2500);
+      await sleep(600);
+      const still = await send('Runtime.evaluate', { expression: coverDialogOpen, returnByValue: true });
+      if (!still?.result?.value) return true;
+    }
+    const left = await send('Runtime.evaluate', { expression: coverDialogOpen, returnByValue: true });
+    return !left?.result?.value;
+  } finally {
+    try { await chrome.debugger.detach({ tabId: tab.id }); } catch (e) {}
+  }
+}
+
+// TikTok's modals (e.g. "Add product links") are not responsive and get clipped
+// below ~1200 px, which makes product selection fail. Enlarge a too-small window
+// once; a maximized/fullscreen window is left alone (nothing better is possible).
+const MIN_WORKABLE_WINDOW_WIDTH = 1300;
+const MIN_WORKABLE_WINDOW_HEIGHT = 700;
+async function ensureWorkableWindow(tab) {
+  if (!tab?.windowId || typeof chrome?.windows?.get !== 'function' || typeof chrome?.windows?.update !== 'function') return false;
+  try {
+    const win = await chrome.windows.get(tab.windowId);
+    if (!win || win.state === 'maximized' || win.state === 'fullscreen') return false;
+    if ((win.width || 0) >= MIN_WORKABLE_WINDOW_WIDTH && (win.height || 0) >= MIN_WORKABLE_WINDOW_HEIGHT) return false;
+    await chrome.windows.update(tab.windowId, {
+      state: 'normal',
+      width: Math.max(win.width || 0, 1440),
+      height: Math.max(win.height || 0, 960),
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 async function runDetectTikTokQuota() {

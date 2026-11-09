@@ -17,7 +17,7 @@ function timedFetch(url, options = {}) {
 function loadWorker({ shim, extDir = EXT_DIR, extraGlobals = {} }) {
   const ctx = vm.createContext({
     console, URL, URLSearchParams, setTimeout, clearTimeout, setInterval, clearInterval,
-    fetch: timedFetch, Headers, Request, Response, FormData, Blob, Date, Math, JSON, Promise, TextEncoder, TextDecoder, AbortController,
+    fetch: timedFetch, Headers, Request, Response, FormData, Blob, Date, Math, JSON, Promise, TextEncoder, TextDecoder, AbortController, AbortSignal,
     crypto: globalThis.crypto, structuredClone, performance, queueMicrotask, atob, btoa,
     chrome: shim.chrome, ...extraGlobals,
   });
