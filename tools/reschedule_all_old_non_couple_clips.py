@@ -28,6 +28,7 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
+from scripts import store_io
 from scripts.config import BASE_DIR
 from scripts.schedule_store import ScheduleQueueStore
 
@@ -154,24 +155,21 @@ def main():
     target_filenames = {f.name for f in target_files}
 
     # 1. Update export_registry.json for any target files that have status == 'posted'
-    exp_reg_path = BASE_DIR / "_Docs" / "export_registry.json"
-    exports_list = json.loads(exp_reg_path.read_text(encoding="utf-8")) if exp_reg_path.exists() else []
 
     now_iso = dt.datetime.now(BANGKOK_TZ).isoformat()
     reg_modified = False
-    for exp in exports_list:
-        p = exp.get("path")
-        if p and Path(p).name in target_filenames:
-            if exp.get("status") == "posted" or exp.get("posted_at") is not None:
-                print(f"  Resetting export_registry status -> rendered for: {Path(p).name}")
-                exp["status"] = "rendered"
-                exp["posted_at"] = None
-                exp["updated_at"] = now_iso
-                reg_modified = True
-
+    with store_io.mutate_export_registry() as exports_list:
+        for exp in exports_list:
+            p = exp.get("path")
+            if p and Path(p).name in target_filenames:
+                if exp.get("status") == "posted" or exp.get("posted_at") is not None:
+                    print(f"  Resetting export_registry status -> rendered for: {Path(p).name}")
+                    exp["status"] = "rendered"
+                    exp["posted_at"] = None
+                    exp["updated_at"] = now_iso
+                    reg_modified = True
     if reg_modified:
-        exp_reg_path.write_text(json.dumps(exports_list, indent=2, ensure_ascii=False), encoding="utf-8")
-        print("  Updated _Docs/export_registry.json successfully.")
+        print("Updated _Docs/export_registry.json successfully.")
 
     # Build lookup by filename
     exp_by_name = {}
@@ -183,8 +181,7 @@ def main():
                 exp_by_name[fn] = exp
 
     # Load products
-    products_path = BASE_DIR / "_Docs" / "products.json"
-    products_list = json.loads(products_path.read_text(encoding="utf-8")) if products_path.exists() else []
+    products_list = store_io.load_products()
     prod_by_id = {p["id"]: p for p in products_list if isinstance(p, dict) and "id" in p}
 
     # 2. Load existing queue

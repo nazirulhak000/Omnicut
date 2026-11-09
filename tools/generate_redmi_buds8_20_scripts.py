@@ -21,6 +21,9 @@ if sys.platform == "win32":
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "_Docs"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts import store_io  # noqa: E402
 IMG_BASE = "03_Projects/_HyperFrames_Studio/assets/red01/img"
 
 SCRIPTS = [
@@ -608,107 +611,100 @@ def validate_scripts(scripts):
     return errors == 0
 
 def sync_to_products_json(scripts):
-    products_file = DOCS / "products.json"
-    if not products_file.exists():
-        print("❌ products.json not found!")
-        return
-    with open(products_file, "r", encoding="utf-8") as f:
-        products = json.load(f)
+    with store_io.mutate_products(DOCS) as products:
     
-    # Target RED01 product
-    p_target = next((p for p in products if p.get("product_code") == "RED01"), None)
-    now_str = datetime.now().isoformat(timespec="seconds")
+        # Target RED01 product
+        p_target = next((p for p in products if p.get("product_code") == "RED01"), None)
+        now_str = datetime.now().isoformat(timespec="seconds")
     
-    if not p_target:
-        print("Creating new product RED01 in products.json...")
-        p_target = {
-            "id": uuid.uuid4().hex,
-            "name": "[New] Redmi Buds 8 Active",
-            "url": "https://shop.tiktok.com/th/pdp/1734226045478406079",
-            "tiktok_product_id": "1734226045478406079",
-            "product_code": "RED01",
-            "platform": "tiktok",
-            "category": "IT / Gadget",
-            "specs": [
-                "หูฟังกึ่งอินเอียร์ Semi-in-Ear สรีระศาสตร์ ใส่ง่าย สบายหู ไม่เจ็บ",
-                "ไดรเวอร์ไทเทเนียมขนาดใหญ่ 14.2mm Titanium Dynamic Driver เบสแน่น",
-                "ไมโครโฟนคู่ Dual-Mic AI ENC ตัดเสียงรบกวนรอบข้าง และตัดเสียงลม 4m/s",
-                "แบตเตอรี่รวมเคสชาร์จสูงสุด 37 ชั่วโมง (หูฟังฟังต่อเนื่อง 6-7 ชม.)",
-                "เคสชาร์จโปร่งใส สไตล์โมเดิร์น ดีไซน์มินิมอล พกพาสะดวก",
-                "ชิป Bluetooth 5.4 เสถียร ไม่ดีเลย์ รองรับ Google Fast Pair",
-                "ปรับแต่งเสียง EQ ได้ 5 สไตล์ผ่านแอป Xiaomi Earbuds",
-                "มาตรฐานกันน้ำกันเหงื่อ IPX4"
-            ],
-            "pain_points": [
-                "ใส่หูฟังอินเอียร์จุกยางแล้วเจ็บรูหู ปวดศีรษะ รูหูอักเสบ อุดอู้",
-                "หูฟังราคาประหยัดทั่วไปเสียงแบน เบสหาย ฟังเพลงไม่สะใจ",
-                "คุยสายโทรศัพท์นอกบ้านหรือนั่งมอเตอร์ไซค์แล้วเสียงลมตี ปลายสายฟังไม่รู้เรื่อง",
-                "แบตหมดไว ต้องคอยหาที่ชาร์จตลอดเวลา ดูซีรีส์ไม่จบตอน",
-                "ดีไซน์หูฟังเชยๆ เคสทึบ บลูทูธเวอร์ชันเก่า สัญญาณหลุดบ่อย"
-            ],
-            "selling_points": [
-                "ดีไซน์กึ่งอินเอียร์ เบาสบาย แนบกระชับ ไม่ดันรูหู",
-                "ไดรเวอร์ 14.2mm Titanium เบสลึกกระหึ่ม ปรับ EQ ได้ 5 โหมด",
-                "Dual-Mic AI ENC ตัดเสียงรบกวนและเสียงลม คุยชัดทุกสถานการณ์",
-                "แบตอึดยาวนาน 37 ชั่วโมง ชาร์จไว Type-C",
-                "ดีไซน์เคสฝาใสสุดเท่ Bluetooth 5.4 ต่อติดไวทันใจ",
-                "แบรนด์ระดับโลก REDMI ในราคาสบายกระเป๋าหลักร้อย"
-            ],
-            "price_note": "฿781.00 (ปกติ ฿1,059.00)",
-            "target_buyer": "คนชอบฟังเพลง ดูซีรีส์ คุยโทรศัพท์บ่อย ออกกำลังกาย นักเรียน นักศึกษา คนทำงาน",
-            "thumbnail": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/94523b7e1ec24dbb85e9d47438dd19b9~tplv-aphluv4xwc-resize-webp:800:800.webp",
-            "description": "[New] Redmi Buds 8 Active | ออกแบบกึ่งอินเอียร์ตามหลักสรีระศาสตร์เพื่อความสบายยิ่งขึ้น ไดรเวอร์ไดนามิก 14.2 มม. ไมค์คู่ AI ENC แบตเตอรี่ 37 ชั่วโมง",
-            "status": "scripted",
-            "channel_id": "main",
-            "hook_brand": "Redmi",
-            "hook_model": "Buds 8 Active",
-            "total_angles": 20,
-            "angles": [],
-            "created_at": now_str,
-            "updated_at": now_str
-        }
-        products.append(p_target)
+        if not p_target:
+            print("Creating new product RED01 in products.json...")
+            p_target = {
+                "id": uuid.uuid4().hex,
+                "name": "[New] Redmi Buds 8 Active",
+                "url": "https://shop.tiktok.com/th/pdp/1734226045478406079",
+                "tiktok_product_id": "1734226045478406079",
+                "product_code": "RED01",
+                "platform": "tiktok",
+                "category": "IT / Gadget",
+                "specs": [
+                    "หูฟังกึ่งอินเอียร์ Semi-in-Ear สรีระศาสตร์ ใส่ง่าย สบายหู ไม่เจ็บ",
+                    "ไดรเวอร์ไทเทเนียมขนาดใหญ่ 14.2mm Titanium Dynamic Driver เบสแน่น",
+                    "ไมโครโฟนคู่ Dual-Mic AI ENC ตัดเสียงรบกวนรอบข้าง และตัดเสียงลม 4m/s",
+                    "แบตเตอรี่รวมเคสชาร์จสูงสุด 37 ชั่วโมง (หูฟังฟังต่อเนื่อง 6-7 ชม.)",
+                    "เคสชาร์จโปร่งใส สไตล์โมเดิร์น ดีไซน์มินิมอล พกพาสะดวก",
+                    "ชิป Bluetooth 5.4 เสถียร ไม่ดีเลย์ รองรับ Google Fast Pair",
+                    "ปรับแต่งเสียง EQ ได้ 5 สไตล์ผ่านแอป Xiaomi Earbuds",
+                    "มาตรฐานกันน้ำกันเหงื่อ IPX4"
+                ],
+                "pain_points": [
+                    "ใส่หูฟังอินเอียร์จุกยางแล้วเจ็บรูหู ปวดศีรษะ รูหูอักเสบ อุดอู้",
+                    "หูฟังราคาประหยัดทั่วไปเสียงแบน เบสหาย ฟังเพลงไม่สะใจ",
+                    "คุยสายโทรศัพท์นอกบ้านหรือนั่งมอเตอร์ไซค์แล้วเสียงลมตี ปลายสายฟังไม่รู้เรื่อง",
+                    "แบตหมดไว ต้องคอยหาที่ชาร์จตลอดเวลา ดูซีรีส์ไม่จบตอน",
+                    "ดีไซน์หูฟังเชยๆ เคสทึบ บลูทูธเวอร์ชันเก่า สัญญาณหลุดบ่อย"
+                ],
+                "selling_points": [
+                    "ดีไซน์กึ่งอินเอียร์ เบาสบาย แนบกระชับ ไม่ดันรูหู",
+                    "ไดรเวอร์ 14.2mm Titanium เบสลึกกระหึ่ม ปรับ EQ ได้ 5 โหมด",
+                    "Dual-Mic AI ENC ตัดเสียงรบกวนและเสียงลม คุยชัดทุกสถานการณ์",
+                    "แบตอึดยาวนาน 37 ชั่วโมง ชาร์จไว Type-C",
+                    "ดีไซน์เคสฝาใสสุดเท่ Bluetooth 5.4 ต่อติดไวทันใจ",
+                    "แบรนด์ระดับโลก REDMI ในราคาสบายกระเป๋าหลักร้อย"
+                ],
+                "price_note": "฿781.00 (ปกติ ฿1,059.00)",
+                "target_buyer": "คนชอบฟังเพลง ดูซีรีส์ คุยโทรศัพท์บ่อย ออกกำลังกาย นักเรียน นักศึกษา คนทำงาน",
+                "thumbnail": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/94523b7e1ec24dbb85e9d47438dd19b9~tplv-aphluv4xwc-resize-webp:800:800.webp",
+                "description": "[New] Redmi Buds 8 Active | ออกแบบกึ่งอินเอียร์ตามหลักสรีระศาสตร์เพื่อความสบายยิ่งขึ้น ไดรเวอร์ไดนามิก 14.2 มม. ไมค์คู่ AI ENC แบตเตอรี่ 37 ชั่วโมง",
+                "status": "scripted",
+                "channel_id": "main",
+                "hook_brand": "Redmi",
+                "hook_model": "Buds 8 Active",
+                "total_angles": 20,
+                "angles": [],
+                "created_at": now_str,
+                "updated_at": now_str
+            }
+            products.append(p_target)
         
-    p_target["status"] = "scripted"
-    p_target["updated_at"] = now_str
-    existing_aids = {a.get("angle_id") for a in p_target.get("angles", [])}
-    added = 0
+        p_target["status"] = "scripted"
+        p_target["updated_at"] = now_str
+        existing_aids = {a.get("angle_id") for a in p_target.get("angles", [])}
+        added = 0
     
-    for s in scripts:
-        aid = s["id"]
-        if aid in existing_aids:
-            continue
-        script_text = "\n".join([
-            f"{'น้องนุ้ย (F)' if t[0]=='F' else 'พี่บ่าว (M)'}: {' '.join(p[1] for p in t[1])}"
-            for t in s["turns"]
-        ])
-        new_angle = {
-            "angle_id": aid,
-            "angle_name": f"💬 ละครคู่รัก: {s['title']}",
-            "title": s["title"],
-            "hook_title": s["hook_title"],
-            "status": "script_ready",
-            "draft_type": "hyperframes",
-            "style": "couple_paper_chat",
-            "category": s["category"],
-            "scenario": s["scenario"],
-            "duration": "48-55s",
-            "turns_count": len(s["turns"]),
-            "script_text": script_text,
-            "script_lines": [p[0] for t in s["turns"] for p in t[1]],
-            "headlines": s["headlines"],
-            "turns": s["turns"],
-            "cta": s["cta"],
-            "tiktok_caption": f"{s['hook_title']} หูฟังไร้สาย Redmi Buds 8 Active ทรงกึ่งอินเอียร์เบาสบาย ไดรเวอร์ 14.2mm ไมค์คู่ AI แบต 37 ชม. พิกัดในตะกร้าเหลืองเลย 👇",
-            "tiktok_hashtags": "#RedmiBuds8Active #หูฟังบลูทูธ #หูฟังไร้สาย #หูฟังไม่เจ็บหู #TikTokป้ายยา #พิกัดในตะกร้า",
-            "created_at": now_str,
-            "updated_at": now_str
-        }
-        p_target.setdefault("angles", []).append(new_angle)
-        added += 1
+        for s in scripts:
+            aid = s["id"]
+            if aid in existing_aids:
+                continue
+            script_text = "\n".join([
+                f"{'น้องนุ้ย (F)' if t[0]=='F' else 'พี่บ่าว (M)'}: {' '.join(p[1] for p in t[1])}"
+                for t in s["turns"]
+            ])
+            new_angle = {
+                "angle_id": aid,
+                "angle_name": f"💬 ละครคู่รัก: {s['title']}",
+                "title": s["title"],
+                "hook_title": s["hook_title"],
+                "status": "script_ready",
+                "draft_type": "hyperframes",
+                "style": "couple_paper_chat",
+                "category": s["category"],
+                "scenario": s["scenario"],
+                "duration": "48-55s",
+                "turns_count": len(s["turns"]),
+                "script_text": script_text,
+                "script_lines": [p[0] for t in s["turns"] for p in t[1]],
+                "headlines": s["headlines"],
+                "turns": s["turns"],
+                "cta": s["cta"],
+                "tiktok_caption": f"{s['hook_title']} หูฟังไร้สาย Redmi Buds 8 Active ทรงกึ่งอินเอียร์เบาสบาย ไดรเวอร์ 14.2mm ไมค์คู่ AI แบต 37 ชม. พิกัดในตะกร้าเหลืองเลย 👇",
+                "tiktok_hashtags": "#RedmiBuds8Active #หูฟังบลูทูธ #หูฟังไร้สาย #หูฟังไม่เจ็บหู #TikTokป้ายยา #พิกัดในตะกร้า",
+                "created_at": now_str,
+                "updated_at": now_str
+            }
+            p_target.setdefault("angles", []).append(new_angle)
+            added += 1
         
-    with open(products_file, "w", encoding="utf-8") as f:
-        json.dump(products, f, ensure_ascii=False, indent=2)
     print(f"Synced {added} new angles into _Docs/products.json for RED01 (Total angles: {len(p_target['angles'])})")
 
 def main():

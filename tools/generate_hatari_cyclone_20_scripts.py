@@ -7,6 +7,9 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = ROOT / "_Docs"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts import store_io  # noqa: E402
 
 SCRIPTS = [
     # Category 1: Pain Point Drama (s01-s04)
@@ -615,37 +618,35 @@ def main():
     print(f"✅ Saved {md_path}")
 
     # 3. Sync into _Docs/products.json under cde38b1c07e54ea69a3d50a6c1bb3f18
-    products_file = DOCS_DIR / "products.json"
-    products = json.loads(products_file.read_text(encoding="utf-8"))
-    p = next((prod for prod in products if prod.get("id") == "cde38b1c07e54ea69a3d50a6c1bb3f18"), None)
-    if p:
-        p["product_code"] = "HAT02"
-        new_angles = []
-        for s in SCRIPTS:
-            num = s["num"]
-            cid = f"hat02-pov-s{num:02d}"
-            angle = {
-                "angle_id": f"ang_hat02_{num:02d}",
-                "internal_id": f"angle_{num}",
-                "clip_id": cid,
-                "angle_name": s["title"],
-                "badge": "ขายดีอันดับ 1" if num == 1 else ("แนะนำ" if num in [5, 9, 13, 17] else "ฮิตใน TikTok"),
-                "product_name": "Hatari Cyclone Max 8 นิ้ว (PS8M1)",
-                "hook_title": s["hook_title"],
-                "pain_point": s["scenario"],
-                "key_features": "พลังลมไซโคลน 3 ระดับ, ก้มเงย 90 องศา, มอเตอร์ Ball Bearing เงียบทน, ตัดไฟอัตโนมัติ Thermal Fuse, ตะแกรงถอดล้างง่าย, แขวนผนังได้",
-                "price_deal": "โปรโมชั่นราคาพิเศษในตะกร้าสีเหลือง",
-                "ad_tone": "couple_paper_chat",
-                "script_lines": [p[1] for turn in s["turns"] for p in turn[1]],
-                "script_text": "\n".join(" ".join(p[1] for p in turn[1]) for turn in s["turns"]),
-                "tts_lines": [p[1] for turn in s["turns"] for p in turn[1]],
-                "status": "scripted",
-                "duration": "48s"
-            }
-            new_angles.append(angle)
-        p["angles"] = new_angles
-        products_file.write_text(json.dumps(products, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"✅ Synced 20 angles into _Docs/products.json for Hatari Cyclone Max (HAT02)")
+    with store_io.mutate_products(DOCS_DIR) as products:
+        p = next((prod for prod in products if prod.get("id") == "cde38b1c07e54ea69a3d50a6c1bb3f18"), None)
+        if p:
+            p["product_code"] = "HAT02"
+            new_angles = []
+            for s in SCRIPTS:
+                num = s["num"]
+                cid = f"hat02-pov-s{num:02d}"
+                angle = {
+                    "angle_id": f"ang_hat02_{num:02d}",
+                    "internal_id": f"angle_{num}",
+                    "clip_id": cid,
+                    "angle_name": s["title"],
+                    "badge": "ขายดีอันดับ 1" if num == 1 else ("แนะนำ" if num in [5, 9, 13, 17] else "ฮิตใน TikTok"),
+                    "product_name": "Hatari Cyclone Max 8 นิ้ว (PS8M1)",
+                    "hook_title": s["hook_title"],
+                    "pain_point": s["scenario"],
+                    "key_features": "พลังลมไซโคลน 3 ระดับ, ก้มเงย 90 องศา, มอเตอร์ Ball Bearing เงียบทน, ตัดไฟอัตโนมัติ Thermal Fuse, ตะแกรงถอดล้างง่าย, แขวนผนังได้",
+                    "price_deal": "โปรโมชั่นราคาพิเศษในตะกร้าสีเหลือง",
+                    "ad_tone": "couple_paper_chat",
+                    "script_lines": [p[1] for turn in s["turns"] for p in turn[1]],
+                    "script_text": "\n".join(" ".join(p[1] for p in turn[1]) for turn in s["turns"]),
+                    "tts_lines": [p[1] for turn in s["turns"] for p in turn[1]],
+                    "status": "scripted",
+                    "duration": "48s"
+                }
+                new_angles.append(angle)
+            p["angles"] = new_angles
+            print(f"✅ Synced 20 angles into _Docs/products.json for Hatari Cyclone Max (HAT02)")
 
 if __name__ == "__main__":
     main()

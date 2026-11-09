@@ -21,6 +21,9 @@ if sys.platform == "win32":
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "_Docs"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts import store_io  # noqa: E402
 IMG_BASE = "03_Projects/_HyperFrames_Studio/assets/ttz01/img"
 
 SCRIPTS = [
@@ -595,19 +598,7 @@ def validate_and_save():
     print(f"  [Saved] {md_path}")
 
     # 5. Register TTZ01 into _Docs/products.json
-    prod_path = DOCS / "products.json"
-    products = []
-    if prod_path.exists():
-        with open(prod_path, "r", encoding="utf-8") as f:
-            products = json.load(f)
-
     # Check if TTZ01 exists, else add
-    ttz_prod = None
-    for p in products:
-        if p.get("id") == "TTZ01" or p.get("tiktok_product_id") == "1734519304293746340":
-            ttz_prod = p
-            break
-
     angles = []
     for sc in SCRIPTS:
         angles.append({
@@ -619,30 +610,34 @@ def validate_and_save():
             "status": "draft_ready"
         })
 
-    if not ttz_prod:
-        ttz_prod = {
-            "id": "TTZ01",
-            "name": "TTZ K106 Magnetic Wireless Power Bank 30000mAh",
-            "tiktok_product_id": "1734519304293746340",
-            "category": "Mobile Accessories",
-            "description": "พาวเวอร์แบงค์แม่เหล็กไร้สาย 30000mAh ชาร์จเร็ว 22.5W / PD 20W มีสายในตัว 2 เส้น (Lightning & Type-C) พร้อมขาตั้งพับในตัวและมาตรฐาน มอก. 2879-2560",
-            "status": "draft_ready",
-            "angles": angles,
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat()
-        }
-        products.append(ttz_prod)
-        print("  [Registered] Added TTZ01 to _Docs/products.json")
-    else:
-        ttz_prod["id"] = "TTZ01"
-        ttz_prod["tiktok_product_id"] = "1734519304293746340"
-        ttz_prod["angles"] = angles
-        ttz_prod["status"] = "draft_ready"
-        ttz_prod["updated_at"] = datetime.now().isoformat()
-        print("  [Updated] Synchronized TTZ01 angles in _Docs/products.json")
+    with store_io.mutate_products(DOCS) as products:
+        ttz_prod = None
+        for p in products:
+            if p.get("id") == "TTZ01" or p.get("tiktok_product_id") == "1734519304293746340":
+                ttz_prod = p
+                break
 
-    with open(prod_path, "w", encoding="utf-8") as f:
-        json.dump(products, f, ensure_ascii=False, indent=2)
+        if not ttz_prod:
+            ttz_prod = {
+                "id": "TTZ01",
+                "name": "TTZ K106 Magnetic Wireless Power Bank 30000mAh",
+                "tiktok_product_id": "1734519304293746340",
+                "category": "Mobile Accessories",
+                "description": "พาวเวอร์แบงค์แม่เหล็กไร้สาย 30000mAh ชาร์จเร็ว 22.5W / PD 20W มีสายในตัว 2 เส้น (Lightning & Type-C) พร้อมขาตั้งพับในตัวและมาตรฐาน มอก. 2879-2560",
+                "status": "draft_ready",
+                "angles": angles,
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat()
+            }
+            products.append(ttz_prod)
+            print("  [Registered] Added TTZ01 to _Docs/products.json")
+        else:
+            ttz_prod["id"] = "TTZ01"
+            ttz_prod["tiktok_product_id"] = "1734519304293746340"
+            ttz_prod["angles"] = angles
+            ttz_prod["status"] = "draft_ready"
+            ttz_prod["updated_at"] = datetime.now().isoformat()
+            print("  [Updated] Synchronized TTZ01 angles in _Docs/products.json")
 
     print("=== Scripts generation and registration complete 100% ===")
 

@@ -25,6 +25,7 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
+from scripts import store_io
 from scripts.config import BASE_DIR
 from scripts.schedule_store import ScheduleQueueStore, ScheduleTemplateStore
 
@@ -133,24 +134,21 @@ def main():
         print(f"WARNING: Expected 84 non-couple clips, found {len(non_couple_files)}!")
 
     # 2. Load export registry and update 'posted' status for ready files
-    exp_reg_path = BASE_DIR / "_Docs" / "export_registry.json"
-    exports_list = json.loads(exp_reg_path.read_text(encoding="utf-8")) if exp_reg_path.exists() else []
     
     # Check and update status to 'rendered' if files are in Ready_to_post
     ready_filenames = {f.name for f in non_couple_files}
     exp_modified = False
-    for exp in exports_list:
-        p = exp.get("path")
-        if p and Path(p).name in ready_filenames:
-            if exp.get("status") == "posted" or exp.get("posted_at") is not None:
-                print(f"Resetting status from posted to rendered for {Path(p).name}")
-                exp["status"] = "rendered"
-                exp["posted_at"] = None
-                exp["updated_at"] = datetime.now(BANGKOK_TZ).isoformat()
-                exp_modified = True
-
+    with store_io.mutate_export_registry() as exports_list:
+        for exp in exports_list:
+            p = exp.get("path")
+            if p and Path(p).name in ready_filenames:
+                if exp.get("status") == "posted" or exp.get("posted_at") is not None:
+                    print(f"Resetting status from posted to rendered for {Path(p).name}")
+                    exp["status"] = "rendered"
+                    exp["posted_at"] = None
+                    exp["updated_at"] = datetime.now(BANGKOK_TZ).isoformat()
+                    exp_modified = True
     if exp_modified:
-        exp_reg_path.write_text(json.dumps(exports_list, indent=2, ensure_ascii=False), encoding="utf-8")
         print("Updated _Docs/export_registry.json successfully.")
 
     # Build lookup by filename (preferring linked entries with product_id)
@@ -164,8 +162,7 @@ def main():
             exp_by_name[fn] = exp
 
     # 3. Load product store
-    products_path = BASE_DIR / "_Docs" / "products.json"
-    products_list = json.loads(products_path.read_text(encoding="utf-8")) if products_path.exists() else []
+    products_list = store_io.load_products()
     prod_by_id = {p["id"]: p for p in products_list if isinstance(p, dict) and "id" in p}
 
     # 4. Prepare candidate data for each of the 84 clips

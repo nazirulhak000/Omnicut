@@ -40,6 +40,7 @@ TMP_DIR = ROOT / ".tmp"
 DOCS_DIR = ROOT / "_Docs"
 
 sys.path.insert(0, str(ROOT))
+from scripts import store_io
 from scripts.tiktok_enhancer import enhance_video_for_tiktok
 
 CID = "hat01-pov-s01"
@@ -344,52 +345,35 @@ def extract_covers(mp4_path: Path, seek_sec: float):
     return webp_path, cover_916, cover_34
 
 def sync_registry_and_bindings(enhanced_mp4: Path, cover_916: Path, cover_34: Path):
-    reg_path = DOCS_DIR / "export_registry.json"
-    bindings_path = DOCS_DIR / "export_cover_bindings.json"
-    prod_path = DOCS_DIR / "products.json"
-
+    # ทุกการเขียนผ่าน scripts.store_io (ทรานแซกชันของ store) ห้ามเขียน JSON mirror ตรง
     # 1. Update export_cover_bindings
-    if bindings_path.exists():
-        try:
-            b_data = json.loads(bindings_path.read_text(encoding="utf-8"))
-            bindings = b_data if isinstance(b_data, list) else b_data.get("bindings", [])
+    try:
+        sha_916 = compute_sha256(cover_916)
+        sha_34 = compute_sha256(cover_34)
+        with store_io.mutate_cover_bindings(DOCS_DIR) as bindings:
             for b in bindings:
                 if "hat01-pov-s01" in b.get("video_path", ""):
-                    b["selections"]["9:16"]["sha256"] = compute_sha256(cover_916)
-                    b["selections"]["3:4"]["sha256"] = compute_sha256(cover_34)
+                    b["selections"]["9:16"]["sha256"] = sha_916
+                    b["selections"]["3:4"]["sha256"] = sha_34
                     b["updated_at"] = datetime.datetime.now().timestamp()
-            if isinstance(b_data, list):
-                bindings_path.write_text(json.dumps(bindings, indent=2, ensure_ascii=False), encoding="utf-8")
-            else:
-                b_data["bindings"] = bindings
-                bindings_path.write_text(json.dumps(b_data, indent=2, ensure_ascii=False), encoding="utf-8")
-            print("  -> Synced export_cover_bindings.json")
-        except Exception as e:
-            print(f"  -> Error syncing bindings: {e}")
+        print("  -> Synced export_cover_bindings")
+    except Exception as e:
+        print(f"  -> Error syncing bindings: {e}")
 
     # 2. Update export_registry
-    if reg_path.exists():
-        try:
-            r_data = json.loads(reg_path.read_text(encoding="utf-8"))
-            items = r_data if isinstance(r_data, list) else r_data.get("exports", [])
+    try:
+        with store_io.mutate_export_registry(DOCS_DIR) as items:
             for item in items:
                 if item.get("composition_id") == CID or "hat01-pov-s01" in str(item.get("path", "")):
                     item["status"] = "rendered"
                     item["updated_at"] = datetime.datetime.now().isoformat()
-            if isinstance(r_data, list):
-                reg_path.write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
-            else:
-                r_data["exports"] = items
-                reg_path.write_text(json.dumps(r_data, indent=2, ensure_ascii=False), encoding="utf-8")
-            print("  -> Synced export_registry.json")
-        except Exception as e:
-            print(f"  -> Error syncing registry: {e}")
+        print("  -> Synced export_registry")
+    except Exception as e:
+        print(f"  -> Error syncing registry: {e}")
 
-    # 3. Update products.json status
-    if prod_path.exists():
-        try:
-            p_data = json.loads(prod_path.read_text(encoding="utf-8"))
-            products = p_data if isinstance(p_data, list) else p_data.get("products", [])
+    # 3. Update products status
+    try:
+        with store_io.mutate_products(DOCS_DIR) as products:
             for p in products:
                 if p.get("id") == PRODUCT_ID:
                     content_tracker = p.get("content_tracker", {})
@@ -398,14 +382,9 @@ def sync_registry_and_bindings(enhanced_mp4: Path, cover_916: Path, cover_34: Pa
                             slot["status"] = "rendered"
                             slot["video_filename"] = enhanced_mp4.name
                             slot["cover_image"] = f"05_Covers_Thumbnails/{cover_916.name}"
-            if isinstance(p_data, list):
-                prod_path.write_text(json.dumps(products, indent=2, ensure_ascii=False), encoding="utf-8")
-            else:
-                p_data["products"] = products
-                prod_path.write_text(json.dumps(p_data, indent=2, ensure_ascii=False), encoding="utf-8")
-            print("  -> Synced products.json")
-        except Exception as e:
-            print(f"  -> Error syncing products: {e}")
+        print("  -> Synced products")
+    except Exception as e:
+        print(f"  -> Error syncing products: {e}")
 
 def main():
     print("=================================================================")

@@ -7,12 +7,15 @@ and handles SSD retention (Archive to Posted_Archive, Delete, or Keep).
 """
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 import shutil
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from scripts import store_io
 from scripts.config import BASE_DIR, EXPORTS_DIR
 
 VAULT_DIR_NAME = "OmniCut_Portable_Vault"
@@ -79,33 +82,14 @@ class SSDReconcileEngine:
         queue_lookup = {q["id"]: q for q in vault_queue}
 
         # 1. Load Home PC registries
-        home_schedule_file = docs_dir / "schedule_queue.json"
-        home_export_file = docs_dir / "export_registry.json"
-        home_post_log_file = docs_dir / "post_log.json"
-
-        home_schedule = []
-        if home_schedule_file.exists():
-            try:
-                with open(home_schedule_file, "r", encoding="utf-8") as f:
-                    home_schedule = json.load(f)
-            except Exception:
-                home_schedule = []
-
-        home_exports = []
-        if home_export_file.exists():
-            try:
-                with open(home_export_file, "r", encoding="utf-8") as f:
-                    home_exports = json.load(f)
-            except Exception:
-                home_exports = []
-
-        home_post_log = []
-        if home_post_log_file.exists():
-            try:
-                with open(home_post_log_file, "r", encoding="utf-8") as f:
-                    home_post_log = json.load(f)
-            except Exception:
-                home_post_log = []
+        # อ่านผ่าน store (อ่านพังต้อง raise ไม่กลายเป็น []) แล้วแก้บนสำเนา
+        # จากนั้นเขียนกลับเฉพาะ field ที่เปลี่ยนผ่านทรานแซกชันของ store
+        home_schedule = store_io.load_schedule_queue(docs_dir)
+        home_exports = store_io.load_export_registry(docs_dir)
+        home_post_log = store_io.load_posts(docs_dir)
+        baseline_schedule = copy.deepcopy(home_schedule)
+        baseline_exports = copy.deepcopy(home_exports)
+        baseline_post_ids = {id(e) for e in home_post_log}
 
         existing_log_export_ids = {entry.get("export_id") for entry in home_post_log if entry.get("export_id")}
 
@@ -166,6 +150,7 @@ class SSDReconcileEngine:
             # Update post_log.json if not logged
             if export_id and export_id not in existing_log_export_ids:
                 log_entry = {
+                    "id": uuid.uuid4().hex,  # store rows ต้องมี id (PostLog ใช้ uuid4 hex)
                     "export_id": export_id,
                     "queue_id": item_id,
                     "product_id": q_info.get("product_id"),
@@ -181,16 +166,16 @@ class SSDReconcileEngine:
 
             reconciled_items.append(item_id)
 
-        # 3. Save Home PC registries atomically
-        docs_dir.mkdir(parents=True, exist_ok=True)
-        with open(home_schedule_file, "w", encoding="utf-8") as f:
-            json.dump(home_schedule, f, indent=2, ensure_ascii=False)
-
-        with open(home_export_file, "w", encoding="utf-8") as f:
-            json.dump(home_exports, f, indent=2, ensure_ascii=False)
-
-        with open(home_post_log_file, "w", encoding="utf-8") as f:
-            json.dump(home_post_log, f, indent=2, ensure_ascii=False)
+        # 3. Save Home PC registries through the stores (merge changed fields by id)
+        store_io.apply_row_changes(store_io.SCHEDULE_QUEUE, baseline_schedule, home_schedule, docs_dir)
+        store_io.apply_row_changes(store_io.EXPORT_REGISTRY, baseline_exports, home_exports, docs_dir)
+        new_log_entries = [e for e in home_post_log if id(e) not in baseline_post_ids]
+        if new_log_entries:
+            with store_io.mutate_posts(docs_dir) as live_log:
+                live_ids = {e.get("export_id") for e in live_log if e.get("export_id")}
+                for entry in new_log_entries:
+                    if entry.get("export_id") not in live_ids:
+                        live_log.append(entry)
 
         # 4. Handle SSD Media Retention (Archive to Posted_Archive, Delete, or Keep)
         cleaned_media_count = 0
