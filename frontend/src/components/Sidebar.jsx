@@ -189,6 +189,10 @@ export default function Sidebar({
       {/* ── Mobile Bottom Tab Bar (Strict 5 items limit) ── */}
       <nav
         aria-label="เมนูหลัก"
+        // Hidden off-screen in immersive mode: also out of the Tab order and
+        // the accessibility tree, not just invisible.
+        inert={isImmersive || undefined}
+        aria-hidden={isImmersive || undefined}
         className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#050811]/80 backdrop-blur-2xl border-t border-white/[0.12] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] shadow-2xl transition-all duration-300 ${
           isImmersive ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}

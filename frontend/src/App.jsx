@@ -1362,7 +1362,7 @@ export default function App() {
             {activeTab === 'editor' ? (
 
               <main className={`min-h-0 flex-1 overflow-hidden p-0 md:p-1.5 md:pb-1.5 transition-all duration-300 ${
-                activeTab === 'editor' && isEditorImmersive ? 'pb-0' : 'pb-[var(--nav-h)]'
+                activeTab === 'editor' && isEditorImmersive ? 'pb-[env(safe-area-inset-bottom)]' : 'pb-[var(--nav-h)]'
               }`}>
 
                 <Suspense fallback={<LoadingSpinner message="กำลังโหลด Video Editor..." />}>

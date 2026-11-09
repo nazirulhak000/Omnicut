@@ -48,6 +48,14 @@ import {
   MOBILE_PREVIEW_MIN_H,
   MOBILE_PREVIEW_DEFAULT,
 } from '../../hooks/usePanelLayout';
+import { saveStatusDot } from '../../lib/saveStatusIndicator.js';
+import {
+  MOBILE_PREVIEW_KEY_STEP,
+  isPreviewEnlarged,
+  mobilePanelStyles,
+  mobilePreviewMaxH,
+  nextPreviewMode,
+} from '../../lib/panelLayoutPreview.js';
 import { useEditorSelection } from '../../hooks/useEditorSelection';
 import { useEditorCommands } from '../../hooks/useEditorCommands';
 import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
@@ -184,8 +192,6 @@ const LAYOUT_BREAKPOINT = 1024;
 // The stems the preview mixes, in the order the timeline lanes show them.
 // The Toolbar row inside the phone's timeline tab.
 const MOBILE_TOOLBAR_H = 44;
-// The timeline/assets/inspector tab strip above it.
-const MOBILE_TAB_ROW_H = 48;
 
 // Mirrors asset_registry.py's LEGACY_SFX_ALIASES: an old manifest's cue can
 // still say "whoosh" where the registry id is "sfx_whoosh_fast".
@@ -1296,7 +1302,17 @@ export default function EditorShell({
     if (fitted) setPxPerSec(fitted);
   }, [totalDuration]);
 
+  // Shift+F / Esc reach the immersive handlers through a ref: those handlers
+  // need the mobile full-preview state from usePanelLayout, which is set up
+  // further down this component.
+  const immersiveKeysRef = useRef({ toggle: null, exit: null });
+  const toggleImmersiveFromKeys = useCallback(() => immersiveKeysRef.current.toggle?.(), []);
+  const exitImmersiveFromKeys = useCallback(() => immersiveKeysRef.current.exit?.(), []);
+
   useEditorShortcuts({
+    immersive: Boolean(isImmersive && onToggleImmersive),
+    onToggleImmersive: toggleImmersiveFromKeys,
+    onExitImmersive: exitImmersiveFromKeys,
     undo,
     redo,
     splitAtPlayhead,
@@ -1756,33 +1772,20 @@ export default function EditorShell({
     showToast('ดูดกล่องคำบรรยายให้เรียงชิดติดกันเรียบร้อยแล้ว');
   }, [set, showToast]);
 
+  // Ctrl+S only. Shift+F (immersive) and Esc go through useEditorShortcuts so
+  // they share its editable-target, dialog and Escape-priority guards.
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      if ((e.ctrlKey || e.metaKey) && e.key?.toLowerCase() === 's') {
         e.preventDefault();
-        handleManualSave();
-      } else if (e.key === 'Escape' && isImmersive) {
-        e.preventDefault();
-        onToggleImmersive?.(false);
-        if (mobilePreviewH >= (window.innerHeight * 0.55)) {
-          toggleMobileFullPreview();
-        }
-      } else if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const tag = document.activeElement?.tagName?.toLowerCase();
-        const isEditable = document.activeElement?.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select';
-        if (!isEditable) {
-          e.preventDefault();
-          if (isMobileView) {
-            handleToggleMobileFullPreview();
-          } else {
-            onToggleImmersive?.();
-          }
-        }
+        // A failed save (network, 409) is already shown by saveStatus; do not
+        // leave an unhandled promise rejection behind.
+        Promise.resolve(handleManualSave?.()).catch(() => {});
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleManualSave, isImmersive, onToggleImmersive]);
+  }, [handleManualSave]);
 
   // `options` as in handleUpdateOverlay: { silent: true } inside a canvas drag.
   const patchStyle = useCallback((patch, options) => {
@@ -2506,33 +2509,52 @@ export default function EditorShell({
     isTimelineCollapsed,
     setIsTimelineCollapsed,
     toggleTimelineCollapse,
-    toggleMobileFullPreview,
+    mobilePreviewBounds,
+    isMobileFullPreview,
+    setIsMobileFullPreview,
   } = usePanelLayout({ mobileTimelineH });
 
-  const isMobilePreviewEnlarged = mobilePreviewH >= (typeof window !== 'undefined' ? window.innerHeight * 0.55 : 450);
+  // One rule (lib/panelLayoutPreview.js) for what the phone's preview toggle
+  // shows and what it does, so its icon and its effect never disagree.
+  const previewMode = { full: isMobileFullPreview, immersive: Boolean(isImmersive) };
+  const isMobilePreviewEnlarged = isPreviewEnlarged(previewMode);
+  const mobileStyles = mobilePanelStyles({
+    full: isMobileFullPreview,
+    previewH: mobilePreviewH,
+    panelH: mobileTab === 'timeline' ? mobileTimelineH : null,
+  });
 
   const handleToggleMobileFullPreview = useCallback(() => {
-    const isEnlarged = mobilePreviewH >= (typeof window !== 'undefined' ? window.innerHeight * 0.55 : 450);
-    toggleMobileFullPreview();
-    if (!isEnlarged) {
-      if (!isImmersive && onToggleImmersive) {
-        onToggleImmersive(true);
-      }
-    } else {
-      if (isImmersive && onToggleImmersive) {
-        onToggleImmersive(false);
-      }
-    }
-  }, [mobilePreviewH, toggleMobileFullPreview, isImmersive, onToggleImmersive]);
+    const next = nextPreviewMode({ full: isMobileFullPreview, immersive: Boolean(isImmersive) });
+    setIsMobileFullPreview(next.full);
+    if (onToggleImmersive && next.immersive !== Boolean(isImmersive)) onToggleImmersive(next.immersive);
+  }, [isMobileFullPreview, isImmersive, onToggleImmersive, setIsMobileFullPreview]);
+
+  // Leaving immersive (Esc, "แสดงแถบ", double-click on the mini capsule) also
+  // leaves full preview: the timeline comes back with the navbars.
+  const exitImmersiveMode = useCallback(() => {
+    setIsMobileFullPreview(false);
+    onToggleImmersive?.(false);
+  }, [onToggleImmersive, setIsMobileFullPreview]);
+
+  // Shift+F: on the phone layout it is the full-preview toggle, on desktop the
+  // navbar toggle.
+  const toggleImmersiveMode = useCallback(() => {
+    if (isMobileView) handleToggleMobileFullPreview();
+    else onToggleImmersive?.();
+  }, [isMobileView, handleToggleMobileFullPreview, onToggleImmersive]);
+
+  useEffect(() => {
+    immersiveKeysRef.current = { toggle: toggleImmersiveMode, exit: exitImmersiveMode };
+  }, [toggleImmersiveMode, exitImmersiveMode]);
 
   const [isCapsuleExpanded, setIsCapsuleExpanded] = useState(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) return false;
     return true;
   });
 
-  // The drag clamp has to reserve the timeline's real height, not a guess.
   const splitterRafRef = useRef(null);
-  const reserve = MOBILE_TAB_ROW_H + (Number.isFinite(mobileTimelineH) ? mobileTimelineH : 0);
+  const saveDot = saveStatusDot(saveStatus);
 
   const progress = Math.round((jobStatus?.progress || 0) * 100);
   const bgmLabel = useMemo(() => {
@@ -2603,7 +2625,7 @@ export default function EditorShell({
           <aside
             role="toolbar"
             aria-label="แถบควบคุมสตูดิโอเต็มจอ"
-            className="fixed top-2.5 right-2.5 sm:top-3 sm:right-4 z-50 flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-full bg-[#0A0D14]/95 backdrop-blur-xl border border-white/[0.14] shadow-2xl animate-fadeIn select-none transition-all duration-200"
+            className="fixed top-[calc(env(safe-area-inset-top)+0.625rem)] right-[calc(env(safe-area-inset-right)+0.625rem)] sm:top-[calc(env(safe-area-inset-top)+0.75rem)] sm:right-[calc(env(safe-area-inset-right)+1rem)] z-50 flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-full bg-[#0A0D14]/95 backdrop-blur-xl border border-white/[0.14] shadow-2xl animate-fadeIn select-none transition-all duration-200"
           >
             {/* Collapse to Mini Island */}
             <button
@@ -2619,7 +2641,13 @@ export default function EditorShell({
             {/* Project Name Badge */}
             {projectName && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-xs font-bold text-slate-200 max-w-[100px] sm:max-w-[180px] truncate">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 animate-pulse" />
+                <span
+                  role="img"
+                  aria-label={saveDot.label}
+                  title={saveDot.label}
+                  data-save-tone={saveDot.tone}
+                  className={`w-2 h-2 rounded-full flex-shrink-0 ${saveDot.className}`}
+                />
                 <span className="truncate">{projectName}</span>
               </div>
             )}
@@ -2649,14 +2677,9 @@ export default function EditorShell({
             {/* Restore Navbars Button */}
             <button
               type="button"
-              onClick={() => {
-                onToggleImmersive?.(false);
-                if (mobilePreviewH >= (window.innerHeight * 0.55)) {
-                  toggleMobileFullPreview();
-                }
-              }}
+              onClick={exitImmersiveMode}
               aria-label="แสดงแถบนำทาง (Esc)"
-              title="แสดงแถบนำทางและเครื่องมือหลัก (Esc / F)"
+              title="แสดงแถบนำทางและเครื่องมือหลัก (Esc / Shift+F)"
               className="flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold transition-all cursor-pointer shadow-md active:scale-95"
             >
               <Minimize2 className="w-3.5 h-3.5 flex-shrink-0" />
@@ -2667,24 +2690,19 @@ export default function EditorShell({
           <aside
             role="toolbar"
             aria-label="แถบควบคุมสตูดิโอเต็มจอ (ย่อ)"
-            onDoubleClick={() => {
-              onToggleImmersive?.(false);
-              if (mobilePreviewH >= (window.innerHeight * 0.55)) {
-                toggleMobileFullPreview();
-              }
-            }}
+            onDoubleClick={exitImmersiveMode}
             title="ดับเบิลคลิกเพื่อแสดงแถบนำทาง (Esc)"
-            className="fixed top-2.5 right-2.5 sm:top-3 sm:right-4 z-50 flex items-center gap-1 p-1 rounded-full bg-[#0A0D14]/92 backdrop-blur-xl border border-white/[0.14] shadow-2xl select-none transition-all duration-200 hover:border-[#25F4EE]/40 cursor-pointer"
+            className="fixed top-[calc(env(safe-area-inset-top)+0.625rem)] right-[calc(env(safe-area-inset-right)+0.625rem)] sm:top-[calc(env(safe-area-inset-top)+0.75rem)] sm:right-[calc(env(safe-area-inset-right)+1rem)] z-50 flex items-center gap-1 p-1 rounded-full bg-[#0A0D14]/92 backdrop-blur-xl border border-white/[0.14] shadow-2xl select-none transition-all duration-200 hover:border-[#25F4EE]/40 cursor-pointer"
           >
             {/* Mini Project Badge & Trigger */}
             <button
               type="button"
               onClick={() => setIsCapsuleExpanded(true)}
-              title="คลิกเพื่อขยายแถบควบคุมสตูดิโอ"
-              aria-label="ขยายแถบควบคุมสตูดิโอ"
+              title={`คลิกเพื่อขยายแถบควบคุมสตูดิโอ · ${saveDot.label}`}
+              aria-label={`ขยายแถบควบคุมสตูดิโอ · ${saveDot.label}`}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-colors cursor-pointer max-w-[120px] truncate"
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 animate-pulse" />
+              <span aria-hidden="true" data-save-tone={saveDot.tone} className={`w-2 h-2 rounded-full flex-shrink-0 ${saveDot.className}`} />
               <span className="truncate text-[11px] font-mono">{projectName || 'OmniCut'}</span>
             </button>
 
@@ -2721,7 +2739,7 @@ export default function EditorShell({
       )}
 
       {projectName && projectWatermark(channelIdentitySnapshot, channel?.channelId || 'main') === null && (
-        <p role="alert" className="border-b border-amber-300/20 bg-amber-300/10 px-4 py-2 text-sm text-amber-200">???????????????????????????????????????????? ???????????????????????</p>
+        <p role="alert" className="border-b border-amber-300/20 bg-amber-300/10 px-4 py-2 text-sm text-amber-200">โปรเจกต์นี้ยังไม่มีลายน้ำของช่องที่บันทึกไว้ ลายน้ำจะไม่แสดงในพรีวิว</p>
       )}
       <RenderPreflightNotice report={preflightReport} onSeek={seekPlayer} onOpenModal={() => setIsPreflightModalOpen(true)} />
       <ProjectRevisionNotice
@@ -2997,7 +3015,7 @@ export default function EditorShell({
             {/* Top: 9:16 Video Player Preview (Expands to fill top area, zero wasted space) */}
             <div
               className="relative flex w-full min-h-0 flex-col items-center justify-center bg-black/60 p-2"
-              style={{ flex: '1 1 auto', height: mobilePreviewH, minHeight: MOBILE_PREVIEW_MIN_H }}
+              style={mobileStyles.preview}
             >
               {isMobileView && (
                 <SequencePlayer
@@ -3157,31 +3175,60 @@ export default function EditorShell({
             </div>
 
             {/* Drag to trade preview height against the panel below;
-                double-tap to toggle between full preview and default mode. */}
+                double-tap to toggle between full preview and default mode.
+                Arrow keys step it for keyboard users. */}
             <div
               role="separator"
               tabIndex={0}
               aria-orientation="horizontal"
-              aria-label="ปรับขนาดพรีวิว"
+              aria-label="ปรับขนาดพรีวิว 9:16"
+              aria-valuenow={Math.round(mobilePreviewH)}
+              aria-valuemin={MOBILE_PREVIEW_MIN_H}
+              aria-valuemax={mobilePreviewMaxH(mobilePreviewBounds())}
               title="ลากขึ้น-ลงเพื่อปรับขนาดพรีวิว · ดับเบิลคลิกเพื่อสลับพรีวิวเต็มจอ"
+              onKeyDown={(e) => {
+                const step = e.shiftKey ? MOBILE_PREVIEW_KEY_STEP * 3 : MOBILE_PREVIEW_KEY_STEP;
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  if (isMobileFullPreview) setIsMobileFullPreview(false);
+                  applyMobilePreviewH(mobilePreviewH + (e.key === 'ArrowDown' ? step : -step));
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleToggleMobileFullPreview();
+                }
+              }}
               onPointerDown={(e) => {
-                mobileResizeRef.current = { startY: e.clientY, startH: mobilePreviewH };
+                mobileResizeRef.current = { startY: e.clientY, startH: mobilePreviewH, fromFull: isMobileFullPreview };
+                setActiveSplitter('mobilePreview');
                 try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag still works */ }
               }}
               onPointerMove={(e) => {
                 const d = mobileResizeRef.current;
                 if (!d) return;
+                if (d.fromFull) {
+                  // A real drag (not a tap or the first half of a double-tap)
+                  // out of full preview brings the panel back and resumes from
+                  // the tallest normal-mode height.
+                  if (Math.abs(e.clientY - d.startY) < 6) return;
+                  setIsMobileFullPreview(false);
+                  d.fromFull = false;
+                  d.startH = applyMobilePreviewH(Number.POSITIVE_INFINITY);
+                  d.startY = e.clientY;
+                  return;
+                }
                 applyMobilePreviewH(d.startH + (e.clientY - d.startY));
               }}
               onPointerUp={(e) => {
                 mobileResizeRef.current = null;
+                setActiveSplitter(null);
                 try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
               }}
-              onPointerCancel={() => { mobileResizeRef.current = null; }}
+              onPointerCancel={() => {
+                mobileResizeRef.current = null;
+                setActiveSplitter(null);
+              }}
               onDoubleClick={handleToggleMobileFullPreview}
-              title="ลากขึ้น-ลงเพื่อปรับขนาดพรีวิว · ดับเบิลคลิกเพื่อสลับเต็มจอ"
-              aria-label="ลากเพื่อปรับขนาดพรีวิว 9:16"
-              className={`group flex h-3.5 flex-shrink-0 cursor-ns-resize touch-none items-center justify-center border-b border-white/[0.08] transition-colors ${
+              className={`group flex h-3.5 flex-shrink-0 cursor-ns-resize touch-none items-center justify-center border-b border-white/[0.08] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[#25F4EE] ${
                 activeSplitter === 'mobilePreview' ? 'bg-[#25F4EE]/20' : 'bg-[#0B0E17] hover:bg-[#151A28]'
               }`}
             >
@@ -3224,15 +3271,15 @@ export default function EditorShell({
               <button
                 type="button"
                 onClick={handleToggleMobileFullPreview}
-                aria-label={isMobilePreviewEnlarged || isImmersive ? "ย่อพรีวิวกลับ" : "ขยายพรีวิวเต็มจอ"}
-                title={isMobilePreviewEnlarged || isImmersive ? "ย่อพรีวิวกลับและแสดงแถบนำทาง (หรือดับเบิลคลิกที่แถบลาก)" : "ขยายพรีวิว 9:16 เต็มจอและซ่อนแถบนำทาง (หรือดับเบิลคลิกที่แถบลาก)"}
+                aria-label={isMobilePreviewEnlarged ? "ย่อพรีวิวกลับ" : "ขยายพรีวิวเต็มจอ"}
+                title={isMobilePreviewEnlarged ? "ย่อพรีวิวกลับและแสดงแถบนำทาง (Shift+F หรือดับเบิลคลิกที่แถบลาก)" : "ขยายพรีวิว 9:16 เต็มจอและซ่อนแถบนำทาง (Shift+F หรือดับเบิลคลิกที่แถบลาก)"}
                 className={`min-h-[44px] min-w-[44px] px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer border ${
-                  isMobilePreviewEnlarged || isImmersive
+                  isMobilePreviewEnlarged
                     ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/30 shadow-sm'
                     : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:text-white hover:bg-white/[0.08]'
                 }`}
               >
-                {isMobilePreviewEnlarged || isImmersive ? <Minimize2 className="w-4 h-4 text-[#25F4EE]" /> : <Maximize2 className="w-4 h-4" />}
+                {isMobilePreviewEnlarged ? <Minimize2 className="w-4 h-4 text-[#25F4EE]" /> : <Maximize2 className="w-4 h-4" />}
               </button>
             </div>
 
@@ -3240,7 +3287,8 @@ export default function EditorShell({
             {mobileTab === 'timeline' ? (
               <div
                 className="flex min-h-0 flex-1 flex-col border-t border-white/[0.08] bg-[#0F1420]"
-                style={{ flex: '0 1 auto', height: mobileTimelineH, maxHeight: mobileTimelineH }}
+                style={mobileStyles.panel}
+                aria-hidden={isMobileFullPreview || undefined}
               >
                 <Toolbar
                   playhead={playhead}
@@ -3391,7 +3439,7 @@ export default function EditorShell({
               </div>
             ) : (
               /* TAB 2 & 3: ASSETS / INSPECTOR (Scrollable full height) */
-              <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="flex-1 min-h-0 overflow-y-auto" style={mobileStyles.panel} aria-hidden={isMobileFullPreview || undefined}>
                 {mobileTab === 'assets' && (
                   <div className="h-full">
                     <AssetPanel
@@ -4062,7 +4110,11 @@ export default function EditorShell({
             {/* Bottom Row: Multi-track Timeline */}
             {!zen && (
               <div
-                className="flex flex-shrink-0 flex-col border-t border-white/[0.08] transition-all duration-150"
+                className={`flex flex-shrink-0 flex-col border-t border-white/[0.08] ${
+                  // Animate collapse / expand only: a transition while dragging
+                  // makes the panel trail the pointer by 150ms every frame.
+                  activeSplitter === 'timeline' ? '' : 'transition-[height] duration-150'
+                }`}
                 style={{ height: isTimelineCollapsed ? TIMELINE_COLLAPSED_H : timelineH }}
               >
                 {/* Timeline Bottom Resizer with Specular Rim & Pill Handle */}
@@ -4133,6 +4185,10 @@ export default function EditorShell({
                   {isTimelineCollapsed && (
                     <button
                       type="button"
+                      // The separator captures the pointer on pointerdown, which
+                      // would swallow this button's click: keep the press here.
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleTimelineCollapse();

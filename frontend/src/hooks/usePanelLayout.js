@@ -1,5 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
 import { tracksFitHeight } from '../components/editor/Timeline.jsx';
+import {
+  MOBILE_PREVIEW_DEFAULT,
+  MOBILE_PREVIEW_MIN_H,
+  MOBILE_TAB_ROW_H,
+  clampMobilePreviewH,
+  isPreviewEnlarged,
+  nextPreviewMode,
+} from '../lib/panelLayoutPreview.js';
+
+export { MOBILE_PREVIEW_DEFAULT, MOBILE_PREVIEW_MIN_H, MOBILE_TAB_ROW_H, isPreviewEnlarged, nextPreviewMode };
 
 export const TIMELINE_CHROME_H = 8 + 44;
 export const TIMELINE_COLLAPSED_H = 44;
@@ -14,10 +24,6 @@ export const ASSET_DEFAULT_W = 260;
 export const INSPECTOR_MIN_W = 280;
 export const INSPECTOR_MAX_W = 760;
 export const INSPECTOR_DEFAULT_W = 380;
-
-export const MOBILE_PREVIEW_MIN_H = 130;
-export const MOBILE_PREVIEW_DEFAULT = 0.32;
-export const MOBILE_TAB_ROW_H = 44;
 
 /**
  * Hook for managing panel widths, timeline heights, and collapse states across desktop & mobile.
@@ -141,28 +147,25 @@ export function usePanelLayout({ mobileTimelineH = 0 } = {}) {
     }
   });
 
+  // Normal-mode clamp reserves the timeline's real height (plus tab row and
+  // drag handle), so dragging never squeezes the tracks.
+  const mobilePreviewBounds = useCallback(() => ({
+    boxH: mobileWrapRef.current?.getBoundingClientRect?.().height,
+    innerHeight: typeof window !== 'undefined' ? window.innerHeight : 0,
+    reserve: Number.isFinite(mobileTimelineH) ? mobileTimelineH : 0,
+  }), [mobileTimelineH]);
+
   const applyMobilePreviewH = useCallback((px) => {
-    const box = mobileWrapRef.current?.getBoundingClientRect();
-    // Reserve only tab bar + padding so preview can expand smoothly up to ~90% height
-    const minBottomReserve = MOBILE_TAB_ROW_H + 8;
-    const max = box ? Math.max(MOBILE_PREVIEW_MIN_H, box.height - minBottomReserve) : Math.round(window.innerHeight * 0.9);
-    const clamped = Math.min(max, Math.max(MOBILE_PREVIEW_MIN_H, Math.round(px)));
+    const clamped = clampMobilePreviewH(px, mobilePreviewBounds());
     setMobilePreviewH(clamped);
     try { localStorage.setItem('editor.mobilePreviewH', String(clamped)); } catch (_) {}
-  }, []);
+    return clamped;
+  }, [mobilePreviewBounds]);
 
-  const toggleMobileFullPreview = useCallback(() => {
-    const box = mobileWrapRef.current?.getBoundingClientRect();
-    const minBottomReserve = MOBILE_TAB_ROW_H + 8;
-    const maxH = box ? Math.max(MOBILE_PREVIEW_MIN_H, box.height - minBottomReserve) : Math.round(window.innerHeight * 0.88);
-    const defaultH = Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT);
-
-    setMobilePreviewH((prev) => {
-      const next = prev >= maxH * 0.75 ? defaultH : maxH;
-      try { localStorage.setItem('editor.mobilePreviewH', String(next)); } catch (_) {}
-      return next;
-    });
-  }, []);
+  // Full preview is a mode, not a height: the bottom panel collapses and the
+  // preview fills the column. The normal-mode height above is kept untouched,
+  // so leaving full preview returns to what the user had dragged.
+  const [isMobileFullPreview, setIsMobileFullPreview] = useState(false);
 
   const resetPanelSizes = useCallback(() => {
     setTimelineH(TIMELINE_DEFAULT_H);
@@ -170,6 +173,7 @@ export function usePanelLayout({ mobileTimelineH = 0 } = {}) {
     setAssetW(ASSET_DEFAULT_W);
     setInspectorW(INSPECTOR_DEFAULT_W);
     setMobilePreviewH(Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT));
+    setIsMobileFullPreview(false);
     setLeftSidebarCollapsed(false);
     setRightSidebarCollapsed(false);
     const keys = [
@@ -217,6 +221,8 @@ export function usePanelLayout({ mobileTimelineH = 0 } = {}) {
     isTimelineCollapsed,
     setIsTimelineCollapsed,
     toggleTimelineCollapse,
-    toggleMobileFullPreview,
+    mobilePreviewBounds,
+    isMobileFullPreview,
+    setIsMobileFullPreview,
   };
 }
