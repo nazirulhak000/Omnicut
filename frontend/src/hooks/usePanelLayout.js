@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { tracksFitHeight } from '../components/editor/Timeline.jsx';
 
 export const TIMELINE_CHROME_H = 8 + 44;
+export const TIMELINE_COLLAPSED_H = 44;
 export const TIMELINE_DEFAULT_H = TIMELINE_CHROME_H + tracksFitHeight();
 export const TIMELINE_MIN_H = TIMELINE_CHROME_H + tracksFitHeight({ audioCollapsed: true });
 export const TIMELINE_MAX_H = 680;
@@ -39,7 +40,14 @@ export function usePanelLayout({ mobileTimelineH = 0 } = {}) {
     }
   });
 
+  // Desktop timeline collapse state (for full preview view)
+  const [isTimelineCollapsed, setIsTimelineCollapsed] = useState(false);
+  const toggleTimelineCollapse = useCallback(() => {
+    setIsTimelineCollapsed((prev) => !prev);
+  }, []);
+
   const applyTimelineH = useCallback((nextH) => {
+    setIsTimelineCollapsed(false);
     const clamped = Math.max(TIMELINE_MIN_H, Math.min(TIMELINE_MAX_H, nextH));
     setTimelineH(clamped);
     try { localStorage.setItem('capcut_timeline_h', String(clamped)); } catch (_) {}
@@ -135,15 +143,30 @@ export function usePanelLayout({ mobileTimelineH = 0 } = {}) {
 
   const applyMobilePreviewH = useCallback((px) => {
     const box = mobileWrapRef.current?.getBoundingClientRect();
-    const reserve = MOBILE_TAB_ROW_H + (Number.isFinite(mobileTimelineH) ? mobileTimelineH : 0);
-    const max = box ? Math.max(MOBILE_PREVIEW_MIN_H, box.height - reserve) : 640;
+    // Reserve only tab bar + padding so preview can expand smoothly up to ~90% height
+    const minBottomReserve = MOBILE_TAB_ROW_H + 8;
+    const max = box ? Math.max(MOBILE_PREVIEW_MIN_H, box.height - minBottomReserve) : Math.round(window.innerHeight * 0.9);
     const clamped = Math.min(max, Math.max(MOBILE_PREVIEW_MIN_H, Math.round(px)));
     setMobilePreviewH(clamped);
     try { localStorage.setItem('editor.mobilePreviewH', String(clamped)); } catch (_) {}
-  }, [mobileTimelineH]);
+  }, []);
+
+  const toggleMobileFullPreview = useCallback(() => {
+    const box = mobileWrapRef.current?.getBoundingClientRect();
+    const minBottomReserve = MOBILE_TAB_ROW_H + 8;
+    const maxH = box ? Math.max(MOBILE_PREVIEW_MIN_H, box.height - minBottomReserve) : Math.round(window.innerHeight * 0.88);
+    const defaultH = Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT);
+
+    setMobilePreviewH((prev) => {
+      const next = prev >= maxH * 0.75 ? defaultH : maxH;
+      try { localStorage.setItem('editor.mobilePreviewH', String(next)); } catch (_) {}
+      return next;
+    });
+  }, []);
 
   const resetPanelSizes = useCallback(() => {
     setTimelineH(TIMELINE_DEFAULT_H);
+    setIsTimelineCollapsed(false);
     setAssetW(ASSET_DEFAULT_W);
     setInspectorW(INSPECTOR_DEFAULT_W);
     setMobilePreviewH(Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT));
@@ -191,5 +214,9 @@ export function usePanelLayout({ mobileTimelineH = 0 } = {}) {
     resetPanelSizes,
     isFocusMode,
     toggleFocusMode,
+    isTimelineCollapsed,
+    setIsTimelineCollapsed,
+    toggleTimelineCollapse,
+    toggleMobileFullPreview,
   };
 }

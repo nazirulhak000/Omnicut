@@ -157,7 +157,7 @@ export function ActivityIndicatorButton({ className = '' }) {
       ) : (
         <Layers className="w-3.5 h-3.5 text-[#25F4EE]" />
       )}
-      <span className="hidden sm:inline">กิจกรรม</span>
+      <span className="hidden xl:inline">กิจกรรม</span>
       {tasks.length > 0 && (
         <span className="px-1.5 py-0.2 rounded-full bg-white/[0.08] text-[10px] font-mono text-slate-400">
           {tasks.length}

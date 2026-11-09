@@ -7,6 +7,10 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-FULL-PREVIEW-AND-NAVBAR-IMMERSIVE-SYNC-20261109 | ปฏิบัติการผสานการย่อ/ขยายพรีวิวกับการซ่อน Navbar สู่ระบบเดียวกัน 100% (Synchronized Full Preview & Immersive Navbar Collapse): แก้ปัญหาผู้ใช้กดย่อพรีวิวแล้ว Navbar ด้านบนไม่ยอมย่อตาม โดยเชื่อมโยง toggleMobileFullPreview เข้ากับ isImmersive และ onToggleImmersive ขยายและคืนค่าทั้งขนาดพรีวิว แถบนำทาง และแถบล่างพร้อมกันทุกจุด (ปุ่มแท็บ, ดับเบิลคลิกแถบลาก, ปุ่มแสดงแถบ, คีย์ลัด Esc/F) ผ่าน Vitest 1,226/1,226 (100%), Parity 212/212 (100%) และ Vite Build สมบูรณ์ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-10-ROUNDS-EDITOR-UI-UX-PERFECTION-AND-REDUNDANCY-AUDIT-20261109 | ปฏิบัติการลูปตรวจเช็กความสมเหตุสมผลและสมดุล UI/UX สตูดิโอตัดต่อ 10 รอบ (10-Round Master UI/UX & Redundancy Audit) ตามสกิล /impeccable และ /ui-ux-pro-max: กำจัดปุ่มย่อ/ขยายซ้ำซ้อนสองอันติดกันในแถบแท็บมือถือ, ปรับแต่ง Floating Capsule โหมดเต็มจอและปุ่มจรวดเรนเดอร์สู่ Copper #D97757, อัปเกรดตัวจับลากพรีวิวให้เรืองแสง Cyan ขณะลาก, ปรับชื่อแท็บมือถือให้กระชับสมดุล, ปรับแต่งปุ่ม Safe Zone ให้คมชัดมีขอบ ผ่าน Vitest 1,226/1,226 tests (100%), Parity 212/212 (100%) และ Vite Build สมบูรณ์ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-NAVBAR-RESPONSIVE-ALL-SIZES-20261109 | ปฏิบัติการแก้ปัญหา Navbar ชนกันและไม่ Responsive ทุกขนาดหน้าจอ (EditorHeader Multi-Breakpoint Ergonomics & Zero-Collision Layout): ปลดล็อก min-w บน ProjectSelector, ปรับ SaveStatusChip และ Activity Center เป็น Icon-Only บนจอแคบ, จัดการ ViewToggleGroup บนจอใหญ่, ตัดคำ truncate นุ่มนวล ไร้การเกยทับข้ามโซน 100% ผ่าน Vitest 1,226/1,226 (100%), Parity 212/212 (100%) และ Vite Build สมบูรณ์ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-IMMERSIVE-NAVBAR-COLLAPSIBLE-AND-FULL-PREVIEW-RESIZER-20261109 | ปฏิบัติการ Floating Studio Capsule ย่อ/ขยายอัจฉริยะ (Collapsible Dynamic Capsule) ไม่บดบังหัววิดีโอ 9:16 บนมือถือ & ปลดล็อกการลากปรับขนาด Editor เพื่อเปิดพรีวิว 9:16 เต็มจอ (Full-Screen Preview Resizer) พร้อม One-Tap / Double-Click Toggle ทั้งบน Mobile และ Desktop ผ่าน Vitest 1,226/1,226 (100%), Parity 212/212 (100%) และ Vite Build สมบูรณ์ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-EDITOR-TOOLBAR-ICON-MINIMAL-AND-TIMELINE-VERTICAL-SCROLL-20261109 | ปรับปรุง Editor Toolbar สู่ Minimal Icons ไร้ข้อความหัก 2 บรรทัด พร้อม Tooltip ละเอียดครบถ้วน + แก้ไขระบบ Mouse Wheel ให้เลื่อนขึ้น-ลงแทร็กไทม์ไลน์ได้ลื่นไหลสมบูรณ์ 100% | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-UI-PRECISION-AND-BASELINE-ALIGNMENT-AUDIT-20261109 | ปฏิบัติการ UI Precision & Baseline Alignment Audit (Pixel-Perfect Craftsmanship) ครบ 5 มิติ 100/100 คะแนนเต็ม: ล็อก Uniform Height และ mt-auto ตรึงเส้นระนาบ Progress/Footer เท่ากัน 100% ทุกการ์ด (ProductCard Carousel, Catalog Grid, KanbanCard, ExportCard), จองพื้นที่คงที่ line-clamp-2 h-[2.25rem] สำหรับชื่อสินค้าและสคริปต์, จัด tabular-nums ทุกตัวเลข, ผ่าน Vitest 1,222 tests (100%), Parity 212 tests (100%), Vite Build 467ms ไร้ข้อผิดพลาด | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-10-ROUNDS-AUDIT-PASS3-20261109 | ปฏิบัติการ 10-Round Master Audit & Refinement Loop (Pass 3: Full-Stack NLE & Architecture Perfection) ครบ 10 รอบ 1,000 คะแนนเต็ม: ผ่าตัด Chunk Splitting (EditorShell ลดเหลือ 415kB, editor-player 325kB, editor-timeline 247kB ไร้คำเตือน build 471ms), ล้างอิโมจิในปุ่ม/ชาร์ต/เซฟโซนสู่ Lucide Icons 100%, ปรับ tracking สุขุม, ผ่าน 1,222 Vitest tests (100%), 212 Parity tests (100%) (ดูรายงาน _Docs/Reports/OMNICUT_10_ROUNDS_AUDIT_PASS3_REPORT.md) | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -176,12 +180,34 @@
 ---
 ---
 
+## Round ANTIGRAVITY-IMMERSIVE-NAVBAR-COLLAPSIBLE-AND-FULL-PREVIEW-RESIZER-20261109 · ปฏิบัติการ Floating Studio Capsule ย่อ/ขยายอัจฉริยะ (Collapsible Dynamic Capsule) & ปลดล็อกการลากปรับขนาด Editor เพื่อเปิดพรีวิว 9:16 เต็มจอ (Full-Screen Preview Resizer)
+- **วันที่:** 2026-11-09
+- **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+- **สถานะ:** สำเร็จ 100% (Closed)
+- **ผลงานหลัก:**
+  1. **Floating Studio Capsule ย่อ/ขยายอัจฉริยะ (Collapsible Dynamic Capsule):**
+     - บนจอมือถือ/จอแคบ (< 768px): เริ่มต้นด้วยโหมด Compact Mini-Pill (กว้างเพียง ~120px) แสดงสถานะไฟเขียว จุดกะพริบ, รหัสโปรเจกต์สั้น, ปุ่มลัดเรนเดอร์ 1-Tap และปุ่ม Chevron ขยายแถบ ไม่บดบังพื้นที่ส่วนหัวของวิดีโอ 9:16 เด็ดขาด (แก้ปัญหาภาพ Image 2 ที่แถบเดิมกินพื้นที่ไปกว่า 400px บังวิดีโอ)
+     - บน Desktop หรือเมื่อกดขยาย: คลี่เป็นแถบเต็มพร้อมปุ่มพับเก็บ (ChevronRight), ชื่อโปรเจกต์, สถานะบันทึก, ปุ่มเลือก Preset เรนเดอร์ และปุ่มกู้คืนแถบนำทาง (แสดงแถบ)
+  2. **ปลดล็อกการปรับขนาดพรีวิวบนจอมือถือ (Mobile Full-Screen Preview Resizer):**
+     - ใน usePanelLayout.js: ปรับสูตรคำนวณ applyMobilePreviewH ลดการสำรองพื้นที่จากเดิมที่บังคับล็อกไทม์ไลน์เต็มความสูง (~440px) ให้สำรองเพียง Tab Bar และช่องว่างสัมผัส ทำให้ผู้ใช้สามารถลากเลื่อนพรีวิวขึ้น-ลงได้อย่างอิสระ ขยายได้สูงสุดถึง 90% ของความสูงหน้าจอ
+     - ใน EditorShell.jsx: เพิ่มปุ่มลัด One-Tap Fullscreen Preview (Maximize2 / Minimize2) บนแถบแท็บมือถือ และรองรับ Double-Tap บนตัวจับลาก (Separator Handle) เพื่อสลับระหว่างพรีวิวเต็มจอกับขนาดมาตรฐานทันที
+  3. **ปลดล็อกการย่อ/ขยายไทม์ไลน์และเปิดพรีวิวเต็มจอบน Desktop:**
+     - ใน usePanelLayout.js: เพิ่ม isTimelineCollapsed, toggleTimelineCollapse และ TIMELINE_COLLAPSED_H = 44px
+     - ใน EditorShell.jsx: รองรับ Double-Click บน Splitter เพื่อสลับพับไทม์ไลน์เหลือเพียงด็อกบาง 44px คืนพื้นที่ความสูงจอ 100% ให้ตัวเล่น SequencePlayer ขยายเต็มตา พร้อมปุ่ม ขยายไทม์ไลน์ สำหรับคลิกกู้คืนทันที
+  4. **การทดสอบและการควบคุมคุณภาพ:**
+     - ผ่าน Vitest 1,226/1,226 tests (100%)
+     - ผ่าน Pytest Preview-Render Parity 212/212 tests (100%)
+     - ผ่าน Vite Production Build 100% (1.39s ไร้ข้อผิดพลาด)
+
+---
+
 ## Round ANTIGRAVITY-10-ROUNDS-AUDIT-PASS3-20261109 · ปฏิบัติการ 10-Round Master Audit & Refinement Loop (Pass 3: Full-Stack NLE & Architecture Perfection)
 - **วันที่:** 2026-11-09
 - **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
 - **สถานะ:** สำเร็จ 100% (1,000/1,000 คะแนนเต็ม)
 - **ผลงานหลัก:**
-  1. ผ่าตัด Code Splitting ใน ite.config.js: แยก editor-player (325 kB) และ editor-timeline (247 kB) ทำให้ EditorShell ลดขนาดลงจาก 826 kB เหลือเพียง 415 kB กำจัดคำเตือน Vite Chunk Size เกิน 600 kB ได้ 100% (Build time 471ms)
+  1. ผ่าตัด Code Splitting ใน 
+ite.config.js: แยก editor-player (325 kB) และ editor-timeline (247 kB) ทำให้ EditorShell ลดขนาดลงจาก 826 kB เหลือเพียง 415 kB กำจัดคำเตือน Vite Chunk Size เกิน 600 kB ได้ 100% (Build time 471ms)
   2. กำจัดอิโมจิในคอมเมนต์ ปุ่ม Safe Zone Grid และชาร์ต Tooltip ทั้งหมด สู่ Lucide Icons (Crosshair, User, Heart, MessageSquare, Share2, AlertTriangle, X)
   3. ปรับลด 	racking-widest สู่ 	racking-wider เพื่อความสุขุมและอ่านง่ายตามมาตรฐาน Unslop
   4. ผ่านชุดทดสอบครบถ้วน: Vitest 1,222/1,222 tests (100%), Parity tests 212/212 tests (100%), Vite Production Build สำเร็จ 0 errors
@@ -1008,7 +1034,8 @@ aw_text, script_text คงเหลือเฉพาะ metadata และม�
   - เพิ่มพารามิเตอร์ lite และ 
 econcile ใน GET /api/products (scripts/api_phase1.py & scripts/channel_route_policy.json)
   - ขยาย _RECONCILE_MIN_INTERVAL_S จาก 3.0s เป็น 30.0s ลดภาระ I/O สแกนฮาร์ดดิสก์
-  - อัปเดต rontend/src/api.js และปรับแต่ง MobileQuickPostPage.jsx ให้ดึงข้อมูลแบบ compact
+  - อัปเดต 
+rontend/src/api.js และปรับแต่ง MobileQuickPostPage.jsx ให้ดึงข้อมูลแบบ compact
   - สร้างสคริปต์รัน 1-คลิก 
 un_studio_pc.bat และ 	ools/run_studio_pc.py ตรวจจับ IP วง LAN อัตโนมัติ พร้อมแสดง **ASCII QR Code** บนหน้าจอคอนโซล ให้ผู้ใช้เปิดกล้องมือถือสแกนเข้าใช้งานผ่าน Wi-Fi ในบ้านด้วยความเร็วระดับ LAN (300-800 Mbps) โดยไม่ใช้อินเทอร์เน็ตของบ้าน 100%
   - เพิ่มชุดทดสอบ 	ests/test_product_store_lite.py (ผ่าน 6/6) รวมกับ 	ests/test_channel_scope.py ผ่าน 80/80

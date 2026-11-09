@@ -7,7 +7,7 @@ import {
   RefreshCw, Rocket, Scissors, Film, Layers, Sliders, Sparkles, Trash2,
   FolderOpen, Play, Copy, Check, X, Save,
   ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Columns3,
-  ArrowRight, ShieldCheck,
+  ArrowRight, ShieldCheck, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import {
   deleteProject, getAllAssets, getBackgroundIsolationManifest, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, getTaskStatus, preflightBackgroundIsolation, startBackgroundIsolation, interactiveSegment, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
@@ -44,6 +44,7 @@ import {
   INSPECTOR_MAX_W,
   INSPECTOR_DEFAULT_W,
   TIMELINE_MAX_H,
+  TIMELINE_COLLAPSED_H,
   MOBILE_PREVIEW_MIN_H,
   MOBILE_PREVIEW_DEFAULT,
 } from '../../hooks/usePanelLayout';
@@ -1763,12 +1764,19 @@ export default function EditorShell({
       } else if (e.key === 'Escape' && isImmersive) {
         e.preventDefault();
         onToggleImmersive?.(false);
+        if (mobilePreviewH >= (window.innerHeight * 0.55)) {
+          toggleMobileFullPreview();
+        }
       } else if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const tag = document.activeElement?.tagName?.toLowerCase();
         const isEditable = document.activeElement?.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select';
         if (!isEditable) {
           e.preventDefault();
-          onToggleImmersive?.();
+          if (isMobileView) {
+            handleToggleMobileFullPreview();
+          } else {
+            onToggleImmersive?.();
+          }
         }
       }
     };
@@ -2495,7 +2503,32 @@ export default function EditorShell({
     mobileResizeRef,
     activeSplitter,
     setActiveSplitter,
+    isTimelineCollapsed,
+    setIsTimelineCollapsed,
+    toggleTimelineCollapse,
+    toggleMobileFullPreview,
   } = usePanelLayout({ mobileTimelineH });
+
+  const isMobilePreviewEnlarged = mobilePreviewH >= (typeof window !== 'undefined' ? window.innerHeight * 0.55 : 450);
+
+  const handleToggleMobileFullPreview = useCallback(() => {
+    const isEnlarged = mobilePreviewH >= (typeof window !== 'undefined' ? window.innerHeight * 0.55 : 450);
+    toggleMobileFullPreview();
+    if (!isEnlarged) {
+      if (!isImmersive && onToggleImmersive) {
+        onToggleImmersive(true);
+      }
+    } else {
+      if (isImmersive && onToggleImmersive) {
+        onToggleImmersive(false);
+      }
+    }
+  }, [mobilePreviewH, toggleMobileFullPreview, isImmersive, onToggleImmersive]);
+
+  const [isCapsuleExpanded, setIsCapsuleExpanded] = useState(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return false;
+    return true;
+  });
 
   // The drag clamp has to reserve the timeline's real height, not a guess.
   const splitterRafRef = useRef(null);
@@ -2566,53 +2599,119 @@ export default function EditorShell({
 
       {/* ── FLOATING STUDIO CAPSULE (Active in Immersive Studio Mode) ── */}
       {isImmersive && (
-        <aside
-          role="toolbar"
-          aria-label="แถบควบคุมสตูดิโอเต็มจอ"
-          className="fixed top-2.5 right-2.5 sm:top-3 sm:right-4 z-50 flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 rounded-full bg-[#0A0D14]/90 backdrop-blur-xl border border-white/[0.14] shadow-2xl animate-fadeIn select-none"
-        >
-          {/* Project Name Badge */}
-          {projectName && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-xs font-bold text-slate-200 max-w-[120px] sm:max-w-[180px] truncate">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 animate-pulse" />
-              <span className="truncate">{projectName}</span>
-            </div>
-          )}
-
-          {/* Quick Save */}
-          {projectName && (
-            <SaveStatusChip
-              saveStatus={saveStatus}
-              onSave={() => handleManualSave?.()?.catch(() => {})}
-              disabled={applying || coverGateChecking}
-            />
-          )}
-
-          {/* Quick Render */}
-          <RenderButton
-            presets={EXPORT_PRESETS}
-            value={exportPreset}
-            onChange={setExportPreset}
-            onRender={handleApply}
-            busy={applying || coverGateChecking}
-            progress={progress}
-            disabled={!projectName || isProjectPosted || (coverStatus !== true)}
-            needsCover={coverStatus !== true}
-            isPosted={isProjectPosted}
-          />
-
-          {/* Restore Navbars Button */}
-          <button
-            type="button"
-            onClick={() => onToggleImmersive?.(false)}
-            aria-label="แสดงแถบนำทาง (Esc)"
-            title="แสดงแถบนำทางและเครื่องมือหลัก (Esc / F)"
-            className="flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold transition-all cursor-pointer shadow-md active:scale-95"
+        isCapsuleExpanded ? (
+          <aside
+            role="toolbar"
+            aria-label="แถบควบคุมสตูดิโอเต็มจอ"
+            className="fixed top-2.5 right-2.5 sm:top-3 sm:right-4 z-50 flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-full bg-[#0A0D14]/95 backdrop-blur-xl border border-white/[0.14] shadow-2xl animate-fadeIn select-none transition-all duration-200"
           >
-            <Minimize2 className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="text-[11px] sm:text-xs">แสดงแถบ</span>
-          </button>
-        </aside>
+            {/* Collapse to Mini Island */}
+            <button
+              type="button"
+              onClick={() => setIsCapsuleExpanded(false)}
+              aria-label="ย่อแถบควบคุม (ซ่อนไม่ให้บังจอ)"
+              title="ย่อแถบควบคุมเป็นขนาดมินิ (ไม่บังจอ)"
+              className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.14] text-slate-300 hover:text-white transition-colors cursor-pointer flex-shrink-0"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Project Name Badge */}
+            {projectName && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-xs font-bold text-slate-200 max-w-[100px] sm:max-w-[180px] truncate">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 animate-pulse" />
+                <span className="truncate">{projectName}</span>
+              </div>
+            )}
+
+            {/* Quick Save */}
+            {projectName && (
+              <SaveStatusChip
+                saveStatus={saveStatus}
+                onSave={() => handleManualSave?.()?.catch(() => {})}
+                disabled={applying || coverGateChecking}
+              />
+            )}
+
+            {/* Quick Render */}
+            <RenderButton
+              presets={EXPORT_PRESETS}
+              value={exportPreset}
+              onChange={setExportPreset}
+              onRender={handleApply}
+              busy={applying || coverGateChecking}
+              progress={progress}
+              disabled={!projectName || isProjectPosted || (coverStatus !== true)}
+              needsCover={coverStatus !== true}
+              isPosted={isProjectPosted}
+            />
+
+            {/* Restore Navbars Button */}
+            <button
+              type="button"
+              onClick={() => {
+                onToggleImmersive?.(false);
+                if (mobilePreviewH >= (window.innerHeight * 0.55)) {
+                  toggleMobileFullPreview();
+                }
+              }}
+              aria-label="แสดงแถบนำทาง (Esc)"
+              title="แสดงแถบนำทางและเครื่องมือหลัก (Esc / F)"
+              className="flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold transition-all cursor-pointer shadow-md active:scale-95"
+            >
+              <Minimize2 className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="text-[11px] sm:text-xs">แสดงแถบ</span>
+            </button>
+          </aside>
+        ) : (
+          <aside
+            role="toolbar"
+            aria-label="แถบควบคุมสตูดิโอเต็มจอ (ย่อ)"
+            onDoubleClick={() => {
+              onToggleImmersive?.(false);
+              if (mobilePreviewH >= (window.innerHeight * 0.55)) {
+                toggleMobileFullPreview();
+              }
+            }}
+            title="ดับเบิลคลิกเพื่อแสดงแถบนำทาง (Esc)"
+            className="fixed top-2.5 right-2.5 sm:top-3 sm:right-4 z-50 flex items-center gap-1 p-1 rounded-full bg-[#0A0D14]/92 backdrop-blur-xl border border-white/[0.14] shadow-2xl select-none transition-all duration-200 hover:border-[#25F4EE]/40 cursor-pointer"
+          >
+            {/* Mini Project Badge & Trigger */}
+            <button
+              type="button"
+              onClick={() => setIsCapsuleExpanded(true)}
+              title="คลิกเพื่อขยายแถบควบคุมสตูดิโอ"
+              aria-label="ขยายแถบควบคุมสตูดิโอ"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-colors cursor-pointer max-w-[120px] truncate"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 animate-pulse" />
+              <span className="truncate text-[11px] font-mono">{projectName || 'OmniCut'}</span>
+            </button>
+
+            {/* Quick 1-Click Render in Mini Mode */}
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={!projectName || isProjectPosted || (coverStatus !== true) || applying || coverGateChecking}
+              title="เรนเดอร์ทันที (หรือขยายเพื่อเลือกความละเอียด)"
+              aria-label="เรนเดอร์ทันที"
+              className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#D97757] hover:bg-[#C2683D] text-white transition-all cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 flex-shrink-0"
+            >
+              {applying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />}
+            </button>
+
+            {/* Expand Chevron */}
+            <button
+              type="button"
+              onClick={() => setIsCapsuleExpanded(true)}
+              title="ขยายแถบเครื่องมือสตูดิโอ (บันทึก / พรีเซ็ต / แสดงแถบ)"
+              aria-label="ขยายแถบเครื่องมือสตูดิโอ"
+              className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white transition-colors cursor-pointer flex-shrink-0"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+          </aside>
+        )
       )}
 
       {loadError && projectName && (
@@ -2897,11 +2996,6 @@ export default function EditorShell({
           <div ref={mobileWrapRef} className="lg:hidden flex flex-col flex-1 min-h-0 overflow-hidden bg-[#07090E]">
             {/* Top: 9:16 Video Player Preview (Expands to fill top area, zero wasted space) */}
             <div
-              // Grows into whatever the timeline's rows do not need, so no black
-              // band sits between the two, and shrinks with the window down to
-              // its own floor. `1 0` here starved the timeline instead: a
-              // preview height saved on a tall window refused to give any of it
-              // back and crushed the tracks to 82px.
               className="relative flex w-full min-h-0 flex-col items-center justify-center bg-black/60 p-2"
               style={{ flex: '1 1 auto', height: mobilePreviewH, minHeight: MOBILE_PREVIEW_MIN_H }}
             >
@@ -3063,12 +3157,13 @@ export default function EditorShell({
             </div>
 
             {/* Drag to trade preview height against the panel below;
-                double-tap to go back to the default third. */}
+                double-tap to toggle between full preview and default mode. */}
             <div
               role="separator"
+              tabIndex={0}
               aria-orientation="horizontal"
               aria-label="ปรับขนาดพรีวิว"
-              title="ลากขึ้น-ลงเพื่อปรับขนาดพรีวิว · แตะสองครั้งเพื่อรีเซ็ต"
+              title="ลากขึ้น-ลงเพื่อปรับขนาดพรีวิว · ดับเบิลคลิกเพื่อสลับพรีวิวเต็มจอ"
               onPointerDown={(e) => {
                 mobileResizeRef.current = { startY: e.clientY, startH: mobilePreviewH };
                 try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag still works */ }
@@ -3083,10 +3178,18 @@ export default function EditorShell({
                 try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
               }}
               onPointerCancel={() => { mobileResizeRef.current = null; }}
-              onDoubleClick={() => applyMobilePreviewH(Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT))}
-              className="group flex h-3 flex-shrink-0 cursor-ns-resize touch-none items-center justify-center border-b border-white/[0.08] bg-[#0B0E17]"
+              onDoubleClick={handleToggleMobileFullPreview}
+              title="ลากขึ้น-ลงเพื่อปรับขนาดพรีวิว · ดับเบิลคลิกเพื่อสลับเต็มจอ"
+              aria-label="ลากเพื่อปรับขนาดพรีวิว 9:16"
+              className={`group flex h-3.5 flex-shrink-0 cursor-ns-resize touch-none items-center justify-center border-b border-white/[0.08] transition-colors ${
+                activeSplitter === 'mobilePreview' ? 'bg-[#25F4EE]/20' : 'bg-[#0B0E17] hover:bg-[#151A28]'
+              }`}
             >
-              <span className="h-1 w-12 rounded-full bg-[#4A4742] transition-colors duration-150 group-hover:bg-[#D97757]" />
+              <span className={`h-1 w-12 rounded-full transition-all duration-150 ${
+                activeSplitter === 'mobilePreview'
+                  ? 'bg-[#25F4EE] shadow-[0_0_8px_rgba(37,244,238,0.6)] w-16'
+                  : 'bg-white/25 group-hover:bg-[#25F4EE]'
+              }`} />
             </div>
 
             {/* Mobile Mode Switcher Tabs */}
@@ -3094,8 +3197,8 @@ export default function EditorShell({
               <div className="flex-1 flex items-center justify-around gap-1">
                 {[
                   { id: 'timeline', label: 'ไทม์ไลน์', icon: Layers },
-                  { id: 'assets', label: 'คลังวัตถุดิบ & ซับ', icon: Sparkles },
-                  { id: 'inspector', label: 'แก้ไขคำบรรยาย', icon: Sliders },
+                  { id: 'assets', label: 'คลังสื่อ & ซับ', icon: Sparkles },
+                  { id: 'inspector', label: 'ปรับแต่ง', icon: Sliders },
                 ].map((tab) => {
                   const Icon = tab.icon;
                   const isActive = mobileTab === tab.id;
@@ -3117,34 +3220,26 @@ export default function EditorShell({
                 })}
               </div>
 
-              {/* Mobile Quick Immersive Studio Toggle */}
-              {onToggleImmersive && (
-                <button
-                  type="button"
-                  onClick={() => onToggleImmersive?.()}
-                  aria-label={isImmersive ? "ย่อแถบกลับ" : "โหมดตัดต่อเต็มจอ"}
-                  title={isImmersive ? "ย่อแถบกลับ (แสดงแถบนำทาง) (Esc)" : "โหมดตัดต่อเต็มจอ (ซ่อนแถบนำทางเหมือน CapCut) (F)"}
-                  className={`min-h-[44px] min-w-[44px] px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer border ${
-                    isImmersive
-                      ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/30 shadow-sm'
-                      : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:text-white hover:bg-white/[0.08]'
-                  }`}
-                >
-                  {isImmersive ? <Minimize2 className="w-4 h-4 text-[#25F4EE]" /> : <Maximize2 className="w-4 h-4" />}
-                </button>
-              )}
+              {/* Mobile Quick Fullscreen Preview & Immersive Toggle (Single Clean Action) */}
+              <button
+                type="button"
+                onClick={handleToggleMobileFullPreview}
+                aria-label={isMobilePreviewEnlarged || isImmersive ? "ย่อพรีวิวกลับ" : "ขยายพรีวิวเต็มจอ"}
+                title={isMobilePreviewEnlarged || isImmersive ? "ย่อพรีวิวกลับและแสดงแถบนำทาง (หรือดับเบิลคลิกที่แถบลาก)" : "ขยายพรีวิว 9:16 เต็มจอและซ่อนแถบนำทาง (หรือดับเบิลคลิกที่แถบลาก)"}
+                className={`min-h-[44px] min-w-[44px] px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer border ${
+                  isMobilePreviewEnlarged || isImmersive
+                    ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/30 shadow-sm'
+                    : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:text-white hover:bg-white/[0.08]'
+                }`}
+              >
+                {isMobilePreviewEnlarged || isImmersive ? <Minimize2 className="w-4 h-4 text-[#25F4EE]" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
             </div>
 
             {/* Bottom: Adaptive Workspace Panel */}
             {mobileTab === 'timeline' ? (
-              /* TAB 1: TIMELINE, sized to the rows it has to show rather than
-                 to a fixed 215px. That height showed three rows and clipped the
-                 other four once the audio lanes existed, and left a black void
-                 under itself; filling the space instead only moved the void
-                 below the tracks. It shrinks when the preview leaves less, and
-                 the tracks scroll rather than clip. */
               <div
-                className="flex min-h-0 flex-col border-t border-white/[0.08] bg-[#0F1420]"
+                className="flex min-h-0 flex-1 flex-col border-t border-white/[0.08] bg-[#0F1420]"
                 style={{ flex: '0 1 auto', height: mobileTimelineH, maxHeight: mobileTimelineH }}
               >
                 <Toolbar
@@ -3967,8 +4062,8 @@ export default function EditorShell({
             {/* Bottom Row: Multi-track Timeline */}
             {!zen && (
               <div
-                className="flex flex-shrink-0 flex-col border-t border-white/[0.08]"
-                style={{ height: timelineH }}
+                className="flex flex-shrink-0 flex-col border-t border-white/[0.08] transition-all duration-150"
+                style={{ height: isTimelineCollapsed ? TIMELINE_COLLAPSED_H : timelineH }}
               >
                 {/* Timeline Bottom Resizer with Specular Rim & Pill Handle */}
                 <div
@@ -3979,7 +4074,7 @@ export default function EditorShell({
                   aria-valuenow={Math.round(timelineH)}
                   aria-valuemin={TIMELINE_MIN_H}
                   aria-valuemax={TIMELINE_MAX_H}
-                  title="ลากขึ้น-ลงเพื่อปรับความสูงไทม์ไลน์ · ดับเบิลคลิกเพื่อรีเซ็ต · ลูกศรขึ้น/ลงเพื่อปรับ"
+                  title="ลากขึ้น-ลงเพื่อปรับความสูงไทม์ไลน์ · ดับเบิลคลิกเพื่อสลับย่อ/ขยายพรีวิวเต็มจอ"
                   onKeyDown={(e) => {
                     const step = e.shiftKey ? 30 : 10;
                     if (e.key === 'ArrowUp') { e.preventDefault(); applyTimelineH(timelineH + step); }
@@ -3988,7 +4083,7 @@ export default function EditorShell({
                     else if (e.key === 'End') { e.preventDefault(); applyTimelineH(TIMELINE_MAX_H); }
                   }}
                   onPointerDown={(e) => {
-                    resizeRef.current = { startY: e.clientY, startH: timelineH };
+                    resizeRef.current = { startY: e.clientY, startH: isTimelineCollapsed ? TIMELINE_COLLAPSED_H : timelineH };
                     setActiveSplitter('timeline');
                     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag */ }
                   }}
@@ -4020,8 +4115,8 @@ export default function EditorShell({
                     resizeRef.current = null;
                     setActiveSplitter(null);
                   }}
-                  onDoubleClick={() => applyTimelineH(TIMELINE_DEFAULT_H)}
-                  className={`group relative flex h-2.5 flex-shrink-0 cursor-ns-resize touch-none select-none items-center justify-center transition-colors focus:outline-none focus:ring-1 focus:ring-[#25F4EE] z-20 ${
+                  onDoubleClick={toggleTimelineCollapse}
+                  className={`group relative flex h-3 flex-shrink-0 cursor-ns-resize touch-none select-none items-center justify-center transition-colors focus:outline-none focus:ring-1 focus:ring-[#25F4EE] z-20 ${
                     activeSplitter === 'timeline'
                       ? 'bg-[#25F4EE]/30'
                       : 'bg-[#0F1420] hover:bg-white/[0.06]'
@@ -4034,6 +4129,20 @@ export default function EditorShell({
                     <div className="absolute left-1/2 -top-6 -translate-x-1/2 px-2 py-0.5 rounded bg-[#0A0D14]/95 border border-[#25F4EE]/40 text-[#25F4EE] text-[10px] font-mono tracking-wider shadow-lg pointer-events-none whitespace-nowrap z-30">
                       {Math.round(timelineH)}px
                     </div>
+                  )}
+                  {isTimelineCollapsed && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleTimelineCollapse();
+                      }}
+                      className="absolute right-4 px-2 py-0.5 rounded-full bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/30 text-[#25F4EE] text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                      title="คืนค่าความสูงไทม์ไลน์ (ดับเบิลคลิกที่แถบลากได้เช่นกัน)"
+                    >
+                      <ChevronUp className="w-3 h-3" />
+                      <span>ขยายไทม์ไลน์</span>
+                    </button>
                   )}
                 </div>
                 <Toolbar

@@ -190,7 +190,7 @@ export default function EditorHeader({
   ]);
 
   return (
-    <header className="flex flex-shrink-0 items-center justify-between gap-1.5 sm:gap-2 border-b border-white/[0.08] bg-[#0A0D14] px-2 sm:px-4 py-1.5 sm:py-2 select-none">
+    <header className="flex flex-shrink-0 items-center justify-between gap-1 sm:gap-2 border-b border-white/[0.08] bg-[#0A0D14] px-2 sm:px-3 lg:px-4 py-1.5 select-none min-w-0">
       {/* ── Zone 1 (Left): Project Identity & Quick Save ── */}
       <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
         <EditorChannelSelector />
@@ -220,7 +220,7 @@ export default function EditorHeader({
       </div>
 
       {/* ── Zone 2 (Center): Viewport Panel Controllers ── */}
-      <div className="hidden md:flex items-center justify-center flex-shrink-0">
+      <div className="hidden xl:flex items-center justify-center flex-shrink-0">
         <ViewToggleGroup
           projectName={projectName}
           zen={zen}
@@ -250,7 +250,7 @@ export default function EditorHeader({
             }`}
           >
             {isImmersive ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">{isImmersive ? 'ย่อแถบ' : 'เต็มจอ'}</span>
+            <span className="hidden lg:inline">{isImmersive ? 'ย่อแถบ' : 'เต็มจอ'}</span>
           </button>
         )}
 
