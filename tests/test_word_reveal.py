@@ -5,6 +5,7 @@ import pytest
 
 from scripts.subtitle.word_reveal import (
     MIN_WORD_DUR,
+    SETTLE_SEC,
     build_word_reveal,
     reveal_is_usable,
     spoken_weight,
@@ -37,7 +38,9 @@ class TestProportionalFallback:
         r = build_word_reveal("กล้องคมชัดมาก", 2.0, 5.0)
         assert r
         assert r[0]["start"] == 2.0
-        assert r[-1]["end"] == 5.0
+        # The tail of the cue is the white settle, not more of the last word
+        # (audit S5-05).
+        assert r[-1]["end"] == pytest.approx(5.0 - SETTLE_SEC)
 
     def test_words_advance_without_gaps_or_overlap(self):
         r = build_word_reveal("นี่คือสมาร์ทโฟนรุ่นใหม่", 0.0, 4.0)
@@ -70,7 +73,8 @@ class TestRealTimings:
         ]
         r = build_word_reveal("นี่คือกล้อง", 0.1, 1.2, timings)
         assert r[0]["start"] == pytest.approx(0.1)
-        assert r[-1]["end"] == pytest.approx(1.2)
+        # Speech runs to the cue's end, so the settle takes SETTLE_SEC of it.
+        assert r[-1]["end"] == pytest.approx(1.2 - SETTLE_SEC)
         # The middle boundary should land near the TTS one, not at the midpoint.
         assert 0.2 < r[0]["end"] < 0.6
 
@@ -80,12 +84,12 @@ class TestRealTimings:
         timings = [{"text": "ก" * 200, "start": 0.0, "end": 1.0}]
         r = build_word_reveal("สั้น", 0.0, 1.0, timings)
         assert r[0]["start"] == 0.0
-        assert r[-1]["end"] == 1.0
+        assert r[-1]["end"] == pytest.approx(1.0 - SETTLE_SEC)
 
     def test_empty_timings_fall_back_silently(self):
         r = build_word_reveal("กล้องคมชัด", 0.0, 2.0, [])
         assert r
-        assert r[-1]["end"] == 2.0
+        assert r[-1]["end"] == pytest.approx(2.0 - SETTLE_SEC)
 
     def test_spans_stay_inside_the_cue(self):
         # A TTS end past the cue's own end must be clamped, or the caption would
@@ -106,7 +110,7 @@ class TestEdgeCases:
     def test_reversed_bounds_are_normalised(self):
         r = build_word_reveal("กล้องชัด", 3.0, 1.0)
         assert r[0]["start"] == 1.0
-        assert r[-1]["end"] == 3.0
+        assert r[-1]["end"] == pytest.approx(3.0 - SETTLE_SEC)
 
     def test_zero_length_cue_still_yields_words(self):
         r = build_word_reveal("กล้องชัด", 2.0, 2.0)

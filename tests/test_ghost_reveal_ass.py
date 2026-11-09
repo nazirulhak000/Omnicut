@@ -206,7 +206,8 @@ class TestEndToEnd:
     def test_real_thai_line_reveals_word_by_word(self):
         reveal = build_word_reveal("นี่คือสมาร์ทโฟนรุ่นใหม่", 0.0, 3.0)
         events = build_ghost_reveal_events(reveal, cue_end=3.0)
-        assert len(events) == len(reveal)
+        # One event per word plus the white settle after the last word (S5-05).
+        assert len(events) == len(reveal) + 1
         # Each successive event should have one fewer ghost than the last.
         ghost_counts = [ev.count(GHOST_ALPHA) for ev in events]
         assert ghost_counts == sorted(ghost_counts, reverse=True)
@@ -491,5 +492,9 @@ class TestEnglishPositionedForBothCueKinds:
             assert len(bands) >= 2, (
                 f"case {extra}: Thai and English ran together, bands={bands}"
             )
-            gap = bands[1][0] - bands[0][1]
+            # English is the lowest band; the Thai line's lowest ink is the band
+            # right above it. (At 1.9 s the line is in its white settle, unpopped,
+            # so Thai upper marks can form their own band above the body -- the
+            # first two bands are not necessarily Thai and English.)
+            gap = bands[-1][0] - bands[-2][1]
             assert gap >= 20, f"case {extra}: only {gap}px between the lines"
