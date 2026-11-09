@@ -93,6 +93,9 @@ def test_path_index_refreshes_after_external_json_mirror_edit(monkeypatch, tmp_p
     rows = json.loads(registry_path.read_text(encoding="utf-8"))
     rows[0]["path"] = str(replacement)
     rows[0]["path_key"] = export_registry._normalise_path(replacement)
+    # Per-row mirror merge (audit X-01 / D7): an external edit wins only
+    # when it carries a newer updated_at than the committed row.
+    rows[0]["updated_at"] = "9999-12-31T23:59:59"
     registry_path.write_text(json.dumps(rows), encoding="utf-8")
 
     replacement_key = rows[0]["path_key"]

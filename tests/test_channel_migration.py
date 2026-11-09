@@ -683,7 +683,7 @@ def test_pending_mirror_edit_blocks_apply(root):
     assert not maintenance_lock.is_locked(root)
 
 
-def test_json_reimport_after_cutover_is_caught_and_rerun(root):
+def test_stale_json_mirror_after_cutover_cannot_strip_channel_ids(root):
     apply(root)
     # an old tool rewrites the mirror from a pre-migration copy (no channel_id)
     mirror = root / "_Docs" / "products.json"
@@ -691,10 +691,13 @@ def test_json_reimport_after_cutover_is_caught_and_rerun(root):
     mirror.write_text(json.dumps(legacy, ensure_ascii=False, indent=2), encoding="utf-8")
     loaded = _table(root, cm.TABLE_BY_NAME["products"]).load()  # auto-import
     cm._close_cached_connections(root)
-    assert all("channel_id" not in r for r in loaded)
+    # Per-row merge (audit X-01 / D7): the stale copy carries no newer
+    # updated_at, so it cannot overwrite the migrated rows; the mirror is
+    # re-published from the database instead.
+    assert all(r.get("channel_id") == "main" for r in loaded)
+    assert all(r.get("channel_id") == "main" for r in json.loads(mirror.read_text(encoding="utf-8")))
     plan = cm.Migrator(root).dry_run()["plan"]
-    assert {a["id"] for a in plan["actions"]} == {"p1", "p2"}
-    apply(root)
+    assert not {a["id"] for a in plan["actions"]} & {"p1", "p2"}
     world = cm.load_world(cm.MigrationPaths.for_root(root))
     assert {r["channel_id"] for r in world.rows("products")} == {"main"}
     assert len(world.rows("products")) == len(PRODUCTS)

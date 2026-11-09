@@ -32,10 +32,15 @@ def test_invalid_mirror_never_replaces_committed_records(tmp_path, invalid):
 
     assert table.load() == original
     assert mirror.read_text(encoding="utf-8") == invalid
-    # A later complete external edit must still be picked up.
+    # A later complete external edit must still be picked up -- merged per
+    # row (audit X-01 / D7): the new row is added, the committed row that
+    # the hand edit omits is kept (no whole-table replace).
     mirror.write_text('[{"id":"repaired"}]', encoding="utf-8")
     os.utime(mirror, ns=(stamp + 2_000_000, stamp + 2_000_000))
-    assert table.load() == [{"id": "repaired"}]
+    assert sorted(table.load(), key=lambda r: r["id"]) == [
+        {"id": "original", "name": "preserve"},
+        {"id": "repaired"},
+    ]
 
 
 def test_explicit_empty_snapshot_and_store_clear_remain_supported(tmp_path):
@@ -45,7 +50,11 @@ def test_explicit_empty_snapshot_and_store_clear_remain_supported(tmp_path):
     stamp = mirror.stat().st_mtime_ns
     mirror.write_text("[]", encoding="utf-8")
     os.utime(mirror, ns=(stamp + 1_000_000, stamp + 1_000_000))
-    assert table.load() == []
+    # An external "[]" no longer clears the table (per-row merge, audit
+    # X-01 / D7): rows missing from the mirror stay. Clearing is an
+    # explicit store operation (save([])) below.
+    assert table.load() == [{"id": "one"}]
+    assert json.loads(mirror.read_text(encoding="utf-8")) == [{"id": "one"}]
     table.save([{"id": "two"}])
     table.save([])
     assert table.load() == []

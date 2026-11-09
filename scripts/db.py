@@ -29,7 +29,9 @@ Several existing tests seed data by writing straight to `products.json` /
 and later assert against that same file's contents. To keep that contract
 alive without special-casing tests, `_load()` re-imports the JSON file into
 SQLite whenever the file's mtime is newer than the last import recorded in
-the DB (see `sync_from_json_if_newer`), and `_save()` writes the DB AND
+the DB (see `sync_from_json_if_newer`) -- merged per row by `updated_at`,
+never replacing the whole table (rows absent from the JSON are kept) --
+and `_save()` writes the DB AND
 re-serializes the full JSON file (atomic tmp+replace, exactly as before)
 in the same call. So: SQLite is the real transactional store (source of
 truth for concurrent writers), the JSON file is a live mirror kept for
@@ -394,7 +396,7 @@ class DocumentTable:
         if not json_path.exists():
             return
         if _maintenance.is_blocked_db(self._db_path_fn()):
-            # Maintenance mode: an import is a write (DELETE + re-INSERT).
+            # Maintenance mode: an import is a write (per-row upsert).
             # Serve the database as-is; the next load after the lock is
             # released re-checks the mirror.
             return
@@ -498,13 +500,38 @@ class DocumentTable:
                     return
                 seen_ids.add(str(record_id))
 
-            conn.execute(f"DELETE FROM {self._table}")
+            # Per-row merge, never a whole-table replace (audit X-01 / D7):
+            # a mirror edited outside the store is often a stale snapshot
+            # (read -> work -> write back) that lacks rows the server
+            # committed meanwhile.  A JSON row only wins when its
+            # updated_at is strictly newer than the DB row's (or the row
+            # is new); rows missing from the JSON stay in the DB.
+            existing_rows = {
+                str(row[0]): (row[1] or "", row[2])
+                for row in conn.execute(
+                    f"SELECT id, updated_at, data FROM {self._table}"
+                ).fetchall()
+            }
+            # The file equals the merged DB state only if it already holds
+            # every DB row and no DB row was kept over a differing JSON row.
+            mirror_matches_db = set(existing_rows) <= seen_ids
             for record in records:
-                conn.execute(
-                    f"INSERT OR REPLACE INTO {self._table} (id, updated_at, data) VALUES (?, ?, ?)",
-                    (_id_of(record), _updated_at_of(record), json.dumps(record, ensure_ascii=False)),
-                )
-            _upsert_mirror_marker(conn, source_key, self._table, fresh_mtime_ns)
+                record_id = _id_of(record)
+                existing = existing_rows.get(record_id)
+                incoming_updated_at = _updated_at_of(record)
+                if existing is None or incoming_updated_at > existing[0]:
+                    conn.execute(
+                        f"INSERT OR REPLACE INTO {self._table} (id, updated_at, data) VALUES (?, ?, ?)",
+                        (record_id, incoming_updated_at, json.dumps(record, ensure_ascii=False)),
+                    )
+                elif json.loads(existing[1]) != record:
+                    mirror_matches_db = False
+            if mirror_matches_db:
+                _upsert_mirror_marker(conn, source_key, self._table, fresh_mtime_ns)
+            else:
+                # The file now trails the merged DB state: re-publish it
+                # (records the marker) so readers of the mirror see truth.
+                self._publish_mirror_in_transaction(conn)
             conn.execute("COMMIT")
         except BaseException:
             _rollback_quietly(conn)
