@@ -360,7 +360,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
         <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-lg">
           <div className="flex items-center gap-2.5 mb-2">
             <Trophy className="w-5 h-5 text-amber-400" />
-            <h3 className="text-sm font-black text-amber-200">ยินดีด้วย! มีคลิปปังทะลุเป้า 10,000 วิว 🔥</h3>
+            <h3 className="text-sm font-black text-amber-200">ยินดีด้วย! มีคลิปปังทะลุเป้า 10,000 วิว</h3>
           </div>
           <div className="text-xs text-slate-300 leading-relaxed">
             พบคลิปที่ทำยอดวิวเกิน 10,000 วิว จำนวน {richPosts.filter(p => p.views >= 10000).length} คลิป — แนะนำให้ถอดรหัส Hook และโครงสร้างคลิปเหล่านี้เพื่อนำไปต่อยอดเป็นซีรีส์คลิปใหม่

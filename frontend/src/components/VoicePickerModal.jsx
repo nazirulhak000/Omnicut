@@ -200,7 +200,7 @@ export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selec
           {['male', 'female'].map((gender) => (
             <div key={gender}>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-xs font-bold uppercase tracking-widest" style={{ color: VOICE_GROUPS[gender].accent }}>
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: VOICE_GROUPS[gender].accent }}>
                   {VOICE_GROUPS[gender].label}
                 </span>
                 <div className="flex-1 h-px bg-white/[0.05]" />

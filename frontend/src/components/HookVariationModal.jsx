@@ -330,7 +330,7 @@ export default function HookVariationModal({
                     <div className="space-y-1.5 mt-2">
                       <div className="p-2.5 rounded-xl bg-[#0D111A]/95 border border-[#25F4EE]/40 backdrop-blur-md text-center">
                         {selectedVariant?.hook_brand && (
-                          <div className="text-[8px] font-black uppercase tracking-widest text-[#25F4EE] truncate">
+                          <div className="text-[8px] font-black uppercase tracking-wider text-[#25F4EE] truncate">
                             {selectedVariant.hook_brand}
                           </div>
                         )}
@@ -385,7 +385,7 @@ export default function HookVariationModal({
               </div>
 
               <div className="relative mx-auto max-w-[280px] p-3 rounded-xl bg-gradient-to-b from-black/80 to-slate-950 border border-white/[0.12] text-center shadow-lg">
-                <div className="text-[10px] text-[#25F4EE] font-bold tracking-widest uppercase">
+                <div className="text-[10px] text-[#25F4EE] font-bold tracking-wider uppercase">
                   {brand.trim() || 'ชื่อแบรนด์'}
                 </div>
                 <div className="text-sm font-black text-white tracking-tight drop-shadow-md truncate">

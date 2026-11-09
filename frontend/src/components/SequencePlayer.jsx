@@ -2,7 +2,7 @@ import { projectWatermark } from '../lib/channelIdentity.js';
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   Play, Pause, Eye, Shield, Trash2, Move, RotateCcw, Plus,
-  AlertTriangle, CheckCircle2, Loader2, Layers,
+  AlertTriangle, CheckCircle2, Loader2, Layers, Crosshair, User, Heart, MessageSquare, Share2,
 } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { shouldShowHighResolutionStillPreview } from '../lib/highResolutionStillPreview.js';
@@ -5765,10 +5765,10 @@ function SequencePlayer({
                     <div className="text-[7.5px] font-bold text-rose-300 rotate-90 whitespace-nowrap bg-black/80 px-1 py-0.5 rounded border border-rose-500/30">
                       หลบปุ่ม Like / Share
                     </div>
-                    <div className="w-4 h-4 rounded-full border border-white/25 bg-white/10 flex items-center justify-center text-[8px] text-white/50">👤</div>
-                    <div className="w-4 h-4 rounded-full border border-rose-500/30 bg-rose-500/10 flex items-center justify-center text-[8px] text-rose-300">♥</div>
-                    <div className="w-4 h-4 rounded-full border border-white/25 bg-white/10 flex items-center justify-center text-[8px] text-white/50">💬</div>
-                    <div className="w-4 h-4 rounded-full border border-white/25 bg-white/10 flex items-center justify-center text-[8px] text-white/50">↗</div>
+                    <div className="w-4 h-4 rounded-full border border-white/25 bg-white/10 flex items-center justify-center text-[8px] text-white/50"><User className="w-2.5 h-2.5 text-white/60" /></div>
+                    <div className="w-4 h-4 rounded-full border border-rose-500/30 bg-rose-500/10 flex items-center justify-center text-[8px] text-rose-300"><Heart className="w-2.5 h-2.5 text-rose-400 fill-rose-500" /></div>
+                    <div className="w-4 h-4 rounded-full border border-white/25 bg-white/10 flex items-center justify-center text-[8px] text-white/50"><MessageSquare className="w-2.5 h-2.5 text-white/60" /></div>
+                    <div className="w-4 h-4 rounded-full border border-white/25 bg-white/10 flex items-center justify-center text-[8px] text-white/50"><Share2 className="w-2.5 h-2.5 text-white/60" /></div>
                   </div>
 
                   {/* Bottom Danger Zone (420px / 1920 = 21.9%) */}
@@ -5995,7 +5995,7 @@ function SequencePlayer({
               </button>
             ) : (
               <span className="flex items-center gap-1 text-[10.5px] font-bold text-violet-300 px-1 select-none">
-                🎯 เลือกจุด
+                <Crosshair className="w-3 h-3 text-violet-400 inline-block" /> เลือกจุด
               </span>
             )}
 

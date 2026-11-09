@@ -2824,7 +2824,7 @@ export default function EditorShell({
           )}
 
           {/* ══════════════════════════════════════════════════════════
-              📱 MOBILE LAYOUT (< md breakpoint) - CapCut Mobile UX
+              [MOBILE LAYOUT] (< md breakpoint) - CapCut Mobile UX
              ══════════════════════════════════════════════════════════ */}
           <div ref={mobileWrapRef} className="lg:hidden flex flex-col flex-1 min-h-0 overflow-hidden bg-[#07090E]">
             {/* Top: 9:16 Video Player Preview (Expands to fill top area, zero wasted space) */}
@@ -3366,7 +3366,7 @@ export default function EditorShell({
           </div>
 
           {/* ══════════════════════════════════════════════════════════
-              🖥️ DESKTOP PRO LAYOUT (>= md breakpoint) - 3 Columns
+              [DESKTOP PRO LAYOUT] (>= md breakpoint) - 3 Columns
              ══════════════════════════════════════════════════════════ */}
           <div className={`hidden lg:flex flex-col flex-1 min-h-0 ${activeSplitter ? 'select-none' : ''}`}>
             {/* Middle Row (AssetPanel + Video + Inspector) */}
@@ -4102,7 +4102,7 @@ export default function EditorShell({
       )}
 
       {/* ══════════════════════════════════════════════════════════
-          🎬 FULL RENDERED VIDEO PREVIEW MODAL
+          [FULL RENDERED VIDEO PREVIEW MODAL]
          ══════════════════════════════════════════════════════════ */}
       {previewModalVideo && (
         <div

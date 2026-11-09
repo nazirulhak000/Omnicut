@@ -40,7 +40,7 @@ const PIPELINE_PHASES = [
 const PHASE_ORDER = ['scripted', 'in_production', 'rendered', 'posted'];
 
 // ═══════════════════════════════════════════════════════════════════════
-// 🎬 HOVER VIDEO PREVIEW THUMBNAIL (Memory Safe & Fast)
+// [HOVER VIDEO PREVIEW THUMBNAIL] (Memory Safe & Fast)
 // ═══════════════════════════════════════════════════════════════════════
 const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
   const [isHovered, setIsHovered] = useState(false);
@@ -133,7 +133,7 @@ const openQcReview = (ang, onPreviewVideo, onInspectAngle) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════
-// 📌 MEMOIZED KANBAN CARD (Ultra High-Density & Deep-Dive Trigger)
+// [MEMOIZED KANBAN CARD] (Ultra High-Density & Deep-Dive Trigger)
 // ═══════════════════════════════════════════════════════════════════════
 // ── Tier 2 More Actions Dropdown Menu for Kanban Cards ──
 function CardActionsMenu({
@@ -728,7 +728,7 @@ const KanbanCard = memo(function KanbanCard({
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// 📱 MOBILE CARD VIEW COMPONENT (Clean & Thumb-Friendly for iPhone 15 PM)
+// [MOBILE CARD VIEW COMPONENT] (Clean & Thumb-Friendly for iPhone 15 PM)
 // ═══════════════════════════════════════════════════════════════════════
 const MobileTableRowCard = memo(function MobileTableRowCard({
   ang,
@@ -889,7 +889,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// 📋 TABLE VIEW COMPONENT (High-Density True Table Style)
+// [TABLE VIEW COMPONENT] (High-Density True Table Style)
 // ═══════════════════════════════════════════════════════════════════════
 const TableRow = memo(function TableRow({
   ang,
@@ -1068,7 +1068,7 @@ const TableRow = memo(function TableRow({
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// 🌟 MAIN CONTENT TRACKER HUB COMPONENT (True Deep-Dive Tracking)
+// [MAIN CONTENT TRACKER HUB] COMPONENT (True Deep-Dive Tracking)
 // ═══════════════════════════════════════════════════════════════════════
 export default function ContentTrackerHub({
   status,
@@ -1873,7 +1873,7 @@ export default function ContentTrackerHub({
       <Toast message={toastMessage} type={toastType} duration={toastDuration} onClose={hideToast} />
 
       {/* ══════════════════════════════════════════════════════════
-          🎯 DEEP-DIVE JOB INSPECTOR MODAL (ติดตามงานจริงเชิงลึก)
+          [DEEP-DIVE JOB INSPECTOR] MODAL (ติดตามงานจริงเชิงลึก)
          ══════════════════════════════════════════════════════════ */}
       <Modal
         isOpen={!!inspectAngle}
@@ -3413,7 +3413,7 @@ export default function ContentTrackerHub({
          ══════════════════════════════════════════════════════════ */}
       {viewMode === 'table' && (
         <div className="space-y-3">
-          {/* 📱 Mobile Card Feed for iPhone 15 Pro Max and Narrow Screens */}
+          {/* [Mobile Card Feed] for iPhone 15 Pro Max and Narrow Screens */}
           <div className="block md:hidden space-y-2.5">
             {filteredAngles.length === 0 ? (
               <div className="py-12 text-center text-xs text-slate-500 rounded-2xl glass-panel">
@@ -3439,7 +3439,7 @@ export default function ContentTrackerHub({
             )}
           </div>
 
-          {/* 💻 Desktop High-Density Pro Table */}
+          {/* [Desktop High-Density Pro Table] */}
           <div className="hidden md:block glass-panel bg-[#0B0F17] border border-white/[0.08] rounded-2xl overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">

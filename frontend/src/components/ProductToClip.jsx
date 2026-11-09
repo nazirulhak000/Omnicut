@@ -170,7 +170,7 @@ function defaultExtraBeatsForDuration(duration) {
   return [];
 }
 // ═══════════════════════════════════════════════════════════════════════
-// 📦 PRODUCT CARD (Horizontal Gallery Item)
+// [PRODUCT CARD] (Horizontal Gallery Item)
 // ═══════════════════════════════════════════════════════════════════════
 
 function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHide }) {
@@ -291,7 +291,7 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
   );
 }
 // ═══════════════════════════════════════════════════════════════════════
-// 📑 ANGLE SIDEBAR ITEM (Left Column in Split Studio View)
+// [ANGLE SIDEBAR ITEM] (Left Column in Split Studio View)
 // ═══════════════════════════════════════════════════════════════════════
 // 4-phase pipeline definition for sidebar dot indicators
 // 4-phase pipeline definition for sidebar dot indicators
@@ -584,7 +584,7 @@ function AngleSidebarItem({
   );
 }
 // ═══════════════════════════════════════════════════════════════════════
-// 📱 ANGLE MOBILE PILL (Horizontal Swipeable Tab for iPhone 15 PM)
+// [ANGLE MOBILE PILL] (Horizontal Swipeable Tab for iPhone 15 PM)
 // ═══════════════════════════════════════════════════════════════════════
 
 function AngleMobilePill({ angle, index, isSelected, onSelect, shotListInfo }) {
@@ -648,7 +648,7 @@ function AngleMobilePill({ angle, index, isSelected, onSelect, shotListInfo }) {
   );
 }
 // ═══════════════════════════════════════════════════════════════════════
-// 🎬 ANGLE ACTIVE WORKBENCH (Right Column Studio in Split View)
+// [ANGLE ACTIVE WORKBENCH] (Right Column Studio in Split View)
 // ═══════════════════════════════════════════════════════════════════════
 
 function AngleActiveWorkbench({
@@ -1715,7 +1715,7 @@ function AngleActiveWorkbench({
   );
 }
 // ═══════════════════════════════════════════════════════════════════════
-// 📝 ACCORDION SCRIPT ITEM (with Angle-Specific Footage Selector)
+// [ACCORDION SCRIPT ITEM] (with Angle-Specific Footage Selector)
 // ═══════════════════════════════════════════════════════════════════════
 
 function ScriptAccordionItem({
@@ -2114,7 +2114,7 @@ function ScriptAccordionItem({
             </div>
           )}
 
-          {/* 🎬 Angle-Specific Footage Selector */}
+          {/* [Angle-Specific Footage Selector] */}
           <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
             <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
               <span className="flex items-center gap-1.5 text-slate-300">
@@ -2458,7 +2458,7 @@ function ScriptAccordionItem({
   );
 }
 // ═══════════════════════════════════════════════════════════════════════
-// 🌟 MAIN: ProductToClip Component (Redesigned Guided Workflow)
+// [MAIN]: ProductToClip Component (Redesigned Guided Workflow)
 // ═══════════════════════════════════════════════════════════════════════
 
 export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio, onGoToGallery, onGoToTracker, selectedProductId, pendingFlowTaskVersion, consumePendingAngleId, consumePendingImageMetadataPreview, workspaceData }) {
@@ -5918,7 +5918,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         </div>
       ) : (
         /* ══════════════════════════════════════════════════════════
-           🌟 EMPTY STATE / ONBOARDING (First-Run Experience)
+           [EMPTY STATE] / ONBOARDING (First-Run Experience)
           ══════════════════════════════════════════════════════════ */
         <div className="p-8 sm:p-12 text-center space-y-5 rounded-2xl glass-card shadow-2xl border border-white/[0.08]">
           {/* Hero Icon */}

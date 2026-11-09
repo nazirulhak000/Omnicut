@@ -5,7 +5,7 @@ import { channelLocalStorage } from '../lib/channelStorage.js';
 import { useChannelDraft } from '../hooks/useChannelDraft.js';
 import { isCoarsePointer, publicAppOrigin } from '../lib/mobileLinks.js';
 import {
-  Film, Download, Folder, RefreshCw, Trash2,
+  Film, Download, Folder, RefreshCw, Trash2, X,
   AlertTriangle, Check, Play, Search, Filter, ArrowUpDown,
   Smartphone, CheckSquare, Square, Share2, Copy, FileText, QrCode, Sparkles, HardDrive,
   ShieldAlert, XCircle, CheckCircle2, History, FileQuestion, Link2,
@@ -436,7 +436,7 @@ const ExportCard = memo(function ExportCard({
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// 🎬 EXPORT SIDEBAR ITEM (Left Column Playlist in Split View)
+//  EXPORT SIDEBAR ITEM (Left Column Playlist in Split View)
 // ═══════════════════════════════════════════════════════════════════════
 function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck }) {
   const cover = getCoverVariant(item, '9:16');
@@ -529,7 +529,7 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 📱 EXPORT MOBILE PILL (Horizontal Swipeable Tab for iPhone 15 PM)
+// [EXPORT MOBILE PILL] (Horizontal Swipeable Tab for iPhone 15 PM)
 // ═══════════════════════════════════════════════════════════════════════
 function ExportMobilePill({ item, isActive, onSelect }) {
   const cover = getCoverVariant(item, '9:16');
@@ -571,10 +571,10 @@ function ExportMobilePill({ item, isActive, onSelect }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 🎬 EXPORT ACTIVE WORKBENCH (Right Column Studio QC Panel in Split View)
+//  EXPORT ACTIVE WORKBENCH (Right Column Studio QC Panel in Split View)
 // ═══════════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════════
-// 🎬 EXPORT ACTIVE WORKBENCH (Studio QC & Deep Insights Panel)
+//  EXPORT ACTIVE WORKBENCH (Studio QC & Deep Insights Panel)
 // ═══════════════════════════════════════════════════════════════════════
 function ExportActiveWorkbench({
   video,
@@ -1000,7 +1000,7 @@ function ExportActiveWorkbench({
               </p>
             ) : (
               <p className="text-xs text-amber-400/90 bg-amber-950/20 p-2.5 rounded-lg border border-amber-500/20">
-                ⚠ คลิปนี้ยังไม่ได้ผูกกับ Angle สินค้า — ยังไม่มีแคปชันจริงให้คัดลอก
+                คลิปนี้ยังไม่ได้ผูกกับ Angle สินค้า — ยังไม่มีแคปชันจริงให้คัดลอก
                 (เดิมจะเผลอคัดลอกข้อความตัวอย่างไปโพสต์แทน)
               </p>
             )}
@@ -1900,7 +1900,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition-colors cursor-pointer"
                     title="ล้างคำค้นหา"
                   >
-                    ✕
+                    
                   </button>
                 )}
               </div>
@@ -2496,7 +2496,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     </p>
                   ) : (
                     <p className="text-xs text-amber-400/90 bg-amber-950/20 p-2.5 rounded-xl border border-amber-500/20">
-                      ⚠ คลิปนี้ยังไม่ได้ผูกกับ Angle สินค้า — ยังไม่มีแคปชันจริงให้คัดลอก
+                      คลิปนี้ยังไม่ได้ผูกกับ Angle สินค้า — ยังไม่มีแคปชันจริงให้คัดลอก
                       (เดิมจะเผลอคัดลอกข้อความตัวอย่างไปโพสต์แทน)
                     </p>
                   )}

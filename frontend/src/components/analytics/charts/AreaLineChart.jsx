@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
+import { Heart, MessageSquare, Share2 } from 'lucide-react';
 import {
   computeAreaLineChart,
   findClosestChartPoint,
@@ -305,9 +306,9 @@ export default function AreaLineChart({
 
               {(activePoint.data.likes != null || activePoint.data.comments != null) && (
                 <div className="text-[10px] text-slate-400 flex items-center gap-2 pt-0.5 border-t border-white/[0.06]">
-                  {activePoint.data.likes != null && <span>❤️ {activePoint.data.likes}</span>}
-                  {activePoint.data.comments != null && <span>💬 {activePoint.data.comments}</span>}
-                  {activePoint.data.shares != null && <span>🔗 {activePoint.data.shares}</span>}
+                  {activePoint.data.likes != null && <span className="flex items-center gap-1"><Heart className="w-2.5 h-2.5 text-rose-400 fill-rose-500" /> {activePoint.data.likes}</span>}
+                  {activePoint.data.comments != null && <span className="flex items-center gap-1"><MessageSquare className="w-2.5 h-2.5 text-sky-400" /> {activePoint.data.comments}</span>}
+                  {activePoint.data.shares != null && <span className="flex items-center gap-1"><Share2 className="w-2.5 h-2.5 text-emerald-400" /> {activePoint.data.shares}</span>}
                 </div>
               )}
             </div>

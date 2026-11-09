@@ -100,6 +100,13 @@ export default defineConfig(({ mode }) => {
     rollupOptions: {
       output: {
         manualChunks(id) {
+          const norm = id.split('\\').join('/');
+          if (norm.includes('/components/SequencePlayer.')) {
+            return 'editor-player';
+          }
+          if (norm.includes('/components/editor/Timeline.') || norm.includes('/components/editor/timeline/')) {
+            return 'editor-timeline';
+          }
           if (id.includes('node_modules')) {
             // Specific packages first: "lucide-react" and "qrcode.react" both
             // contain "react" and used to fall into vendor-react.
