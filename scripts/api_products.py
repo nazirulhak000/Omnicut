@@ -1138,7 +1138,9 @@ def scrape_and_plan(payload: Dict[str, Any], scope: ChannelScope = Depends(get_c
             "saved_product": saved_prod,
             "angles": angles
         }
-    except ChannelError:
+    except (ChannelError, HTTPException):
+        # Deliberate 4xx (bad duration/extra_beats, ...) must keep its status
+        # instead of being folded into a 500 below.
         raise
     except Exception as e:
         # A quota hit is the user's own daily cap, not a scrape failure; 500
