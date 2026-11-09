@@ -48,6 +48,10 @@ ALL_CHANNELS_ALLOWED_MODULES = frozenset(
         "scripts/migrate_json_to_sqlite.py",
         "scripts/migrate_compound_angle_ids.py",
         "tools/migrate_channels.py",
+        # operator maintenance scripts (never imported by routes)
+        "tools/check_planned.py",
+        "tools/reschedule_47_unposted_clips.py",
+        "tools/sync_scripts_to_products.py",
     }
 )
 

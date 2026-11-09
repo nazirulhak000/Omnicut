@@ -202,7 +202,8 @@ def atomic_write_bytes(path: Path, data: bytes, *, allowed_roots: Sequence[Path]
     if not any(_is_within(path, root) for root in allowed_roots):
         raise RootViolation(f"ปฏิเสธการเขียนนอก root: {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex[:10]}.migtmp")
+    # Short sibling name: deep restore trees must stay under Windows MAX_PATH.
+    tmp = path.with_name(f".{uuid.uuid4().hex[:10]}.migtmp")
     try:
         with open(tmp, "wb") as handle:
             handle.write(data)

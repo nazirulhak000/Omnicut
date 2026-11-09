@@ -332,7 +332,7 @@ def workspace(tmp_path, tmp_path_factory, monkeypatch):
     monkeypatch.setattr(backup, "DOCS_DIR", docs)
     monkeypatch.setattr(backup, "PROJECTS_DIR", projects)
     monkeypatch.setattr(backup, "BACKUP_DIR", root / "06_Archive/Backups")
-    yield root, table, row, [video, thumbnail, cover], tmp_path / "relocated"
+    yield root, table, row, [video, thumbnail, cover], tmp_path / "rel"  # short: Windows MAX_PATH (260) is hit by the deep overlay_inputs/<sha256> tree
     # Remove only this test's explicitly verified directory, including relocated
     # media and approved-master backups. Keep every other session's Temp intact.
     owned, base = tmp_path.resolve(), tmp_path_factory.getbasetemp().resolve()

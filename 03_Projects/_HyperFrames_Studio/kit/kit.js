@@ -46,4 +46,44 @@ window.HF = {
     el.style.strokeDasharray = `${len} ${len + 4}`;
     return len + 2;
   },
+
+  // Channel identity: the frozen snapshot (<script id="omnicut-channel-identity">, written by
+  // scripts/api_hyperframes.py) is the only source. A live profile or window.HF_CHANNELS never wins,
+  // and a missing / mismatched snapshot throws so a clip cannot silently render with another channel.
+  applyChannel() {
+    const frozen = document.getElementById("omnicut-channel-identity");
+    if (!frozen) throw new Error("HF.applyChannel: missing frozen channel identity");
+    const identity = JSON.parse(frozen.textContent);
+    const root = document.getElementById("root");
+    const owner = (root && root.dataset && root.dataset.channel) || "main";
+    if ((identity.channel_id || identity.id) !== owner) {
+      throw new Error(`HF.applyChannel: identity conflict (clip=${owner}, snapshot=${identity.channel_id || identity.id})`);
+    }
+    const setText = (selector, value) => {
+      if (value == null) return;
+      document.querySelectorAll(selector).forEach((el) => (el.textContent = value));
+    };
+    setText("#wm span", identity.watermark_text);
+    setText("#fl-card .fl-who b", identity.display_name);
+    setText("#fl-title", identity.follow_title);
+    if (identity.hyperframes_avatar_path) {
+      document.querySelectorAll("#fl-card .fl-ava img").forEach((img) => img.setAttribute("src", identity.hyperframes_avatar_path));
+    }
+    return identity;
+  },
 };
+
+// Auto-run once the DOM is ready. Clips authored before channel freezing have no snapshot (the render
+// endpoint freezes them on the fly), so a missing snapshot only warns here; a conflict still throws.
+{
+  const run = () => {
+    try {
+      window.HF.applyChannel();
+    } catch (err) {
+      if (/missing frozen/.test(err.message)) console.warn(err.message);
+      else throw err;
+    }
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
+  else run();
+}

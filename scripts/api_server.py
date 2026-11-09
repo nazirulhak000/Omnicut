@@ -128,9 +128,7 @@ def recover_startup_work() -> dict[str, int]:
                 import json
                 seed_data = json.loads(seed_file.read_text(encoding="utf-8"))
                 if isinstance(seed_data, list) and seed_data:
-                    scope = ProductStore._scope(None, all_channels=True)
-                    with ProductStore._scoped_mutate(scope) as prods:
-                        prods.extend(seed_data)
+                    ProductStore.seed_products(seed_data)
                     print(f"[ProductStore] Auto-seeded {len(seed_data)} products and scripts from products_seed.json")
     except Exception as exc:
         print(f"[ProductStore] Auto-seed skipped: {exc}")

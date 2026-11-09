@@ -25,6 +25,30 @@ from scripts.agent.omnicut_agent_tools import (
 from scripts.api_server import app
 
 
+PROJECT = "TEST_INAPP_FIXTURE_1"
+
+
+@pytest.fixture
+def fixture_project(tmp_path, monkeypatch):
+    """Isolated project so the tests never depend on production 03_Projects data."""
+    proj_dir = tmp_path / PROJECT
+    proj_dir.mkdir()
+    (proj_dir / "project.json").write_text(json.dumps({
+        "project_name": PROJECT,
+        "total_duration": 10.0,
+        "voice_volume": 1.0,
+        "sfx_volume": 0.28,
+        "bgm_volume": 0.12,
+        "font_name": "Mali-Bold",
+        "clip_list": [
+            {"file_path": "clip1.mp4", "duration": 5.0, "target_start": 0.0, "target_end": 5.0},
+            {"file_path": "clip2.mp4", "duration": 5.0, "target_start": 5.0, "target_end": 10.0},
+        ],
+    }), encoding="utf-8")
+    monkeypatch.setattr("scripts.agent.omnicut_agent_tools.PROJECTS_DIR", tmp_path)
+    return PROJECT
+
+
 def test_agent_bridge_status():
     status = get_bridge_status()
     assert "status" in status
@@ -33,18 +57,18 @@ def test_agent_bridge_status():
     assert status["engine_mode"] == "antigravity_hybrid"
 
 
-def test_timeline_summary_and_inspection():
-    summary = get_timeline_summary("HAT01-คำนวณคุ้มค่า_1")
-    assert summary["project_name"] == "HAT01-คำนวณคุ้มค่า_1"
+def test_timeline_summary_and_inspection(fixture_project):
+    summary = get_timeline_summary(fixture_project)
+    assert summary["project_name"] == fixture_project
     assert summary["total_duration"] > 0
     assert "clip_count" in summary
     assert "audio_levels" in summary
     assert "style" in summary
 
 
-def test_action_proposal_parsing():
+def test_action_proposal_parsing(fixture_project):
     text = "ผมขอเสนอให้ [ACTION:split_clip split_time=5.5] และ [ACTION:audio_mix voice=1.0 sfx=0.25 bgm=0.10] ครับ"
-    proposals = parse_action_proposals(text, "HAT01-คำนวณคุ้มค่า_1")
+    proposals = parse_action_proposals(text, fixture_project)
     assert len(proposals) >= 2
 
     types = [p["action_type"] for p in proposals]
@@ -107,7 +131,7 @@ def test_propose_and_apply_actions_isolated(tmp_path, monkeypatch):
     assert updated_sub["caption_scale"] == 1.2
 
 
-def test_api_agent_fastapi_endpoints():
+def test_api_agent_fastapi_endpoints(fixture_project):
     client = TestClient(app)
 
     # GET /api/agent/status
@@ -117,10 +141,10 @@ def test_api_agent_fastapi_endpoints():
     assert "status" in data
     assert data["engine_mode"] == "antigravity_hybrid"
 
-    # GET /api/agent/timeline/HAT01-คำนวณคุ้มค่า_1
-    res_tl = client.get("/api/agent/timeline/HAT01-คำนวณคุ้มค่า_1")
+    # GET /api/agent/timeline/<project>
+    res_tl = client.get(f"/api/agent/timeline/{fixture_project}")
     assert res_tl.status_code == 200
-    assert res_tl.json()["project_name"] == "HAT01-คำนวณคุ้มค่า_1"
+    assert res_tl.json()["project_name"] == fixture_project
 
     # POST /api/agent/stream with empty message -> 400
     res_bad = client.post("/api/agent/stream", json={"message": ""})

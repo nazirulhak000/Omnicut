@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-WORKSPACE = Path(r"D:\Programmer\All Project\Omnicut")
+WORKSPACE = Path(__file__).resolve().parent.parent
 STUDIO_DIR = WORKSPACE / "03_Projects" / "_HyperFrames_Studio"
 COMPS_DIR = STUDIO_DIR / "compositions"
 CLIPS_DIR = STUDIO_DIR / "clips"
