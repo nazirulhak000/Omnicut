@@ -27,6 +27,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -366,3 +367,150 @@ def encode_timeout_for(duration_sec: Optional[float], *, floor: float = 180.0, p
     except (TypeError, ValueError):
         d = 0.0
     return max(floor, d * per_second + 60.0)
+
+
+# ------------------------------------------------- post-render QA (S3-11)
+# A finished clip is scanned once for black spans and frozen spans. The scan is
+# advisory: it never raises and never fails a render -- findings come back as
+# Thai warnings that the job log / result (`qa_warnings`) carries.
+QA_BLACK_MIN_SEC = 0.3
+QA_BLACK_PIXEL_THRESHOLD = 0.10
+QA_FREEZE_MIN_SEC = 1.5
+QA_FREEZE_NOISE_DB = -60
+QA_SCAN_TIMEOUT_SEC = 240
+# A frozen span is excused when at least this share of it lies inside clips that
+# were deliberately held (clip ``hold_reason``), allowing a few frames of slack.
+QA_HOLD_COVERAGE = 0.8
+QA_HOLD_SLACK_SEC = 0.15
+
+_BLACK_RE = re.compile(r"black_start:\s*(-?[\d.]+)\s+black_end:\s*(-?[\d.]+)")
+_FREEZE_START_RE = re.compile(r"lavfi\.freezedetect\.freeze_start:\s*(-?[\d.]+)")
+_FREEZE_END_RE = re.compile(r"lavfi\.freezedetect\.freeze_end:\s*(-?[\d.]+)")
+
+Span = Tuple[float, float]
+
+
+def parse_qa_scan_output(stderr: str, duration: Optional[float] = None) -> Dict[str, Any]:
+    """Pull black / frozen spans out of ``blackdetect`` + ``freezedetect`` logs.
+
+    A freeze that runs to the end of the file never prints ``freeze_end``; it is
+    closed at ``duration`` when that is known.
+    """
+    black: list = []
+    frozen: list = []
+    open_start: Optional[float] = None
+    for line in (stderr or "").splitlines():
+        m = _BLACK_RE.search(line)
+        if m:
+            black.append((float(m.group(1)), float(m.group(2))))
+            continue
+        m = _FREEZE_START_RE.search(line)
+        if m:
+            open_start = float(m.group(1))
+            continue
+        m = _FREEZE_END_RE.search(line)
+        if m and open_start is not None:
+            frozen.append((open_start, float(m.group(1))))
+            open_start = None
+    if open_start is not None and duration and duration > open_start:
+        frozen.append((open_start, float(duration)))
+    return {"black": black, "frozen": frozen}
+
+
+def scan_black_and_frozen(
+    path: PathLike,
+    *,
+    black_min: float = QA_BLACK_MIN_SEC,
+    freeze_min: float = QA_FREEZE_MIN_SEC,
+    timeout: float = QA_SCAN_TIMEOUT_SEC,
+) -> Dict[str, Any]:
+    """Run ``blackdetect`` + ``freezedetect`` over ``path`` in one decode pass.
+
+    Returns ``{"black": [(s, e)], "frozen": [(s, e)], "error": str | None}``;
+    ``error`` is a Thai message when the scan could not run (ffmpeg missing,
+    timeout ...), in which case the span lists are empty.
+    """
+    result: Dict[str, Any] = {"black": [], "frozen": [], "error": None}
+    ffmpeg = _ffmpeg_binary()
+    if not ffmpeg:
+        result["error"] = "ไม่พบ ffmpeg ในเครื่อง — ข้ามการตรวจเฟรมดำ/ภาพค้าง"
+        return result
+    target = Path(path)
+    if not target.exists():
+        result["error"] = f"ไม่พบไฟล์ที่จะตรวจ: {target.name}"
+        return result
+    vf = (
+        f"blackdetect=d={black_min:g}:pix_th={QA_BLACK_PIXEL_THRESHOLD:g},"
+        f"freezedetect=n={QA_FREEZE_NOISE_DB}dB:d={freeze_min:g}"
+    )
+    cmd = [ffmpeg, "-nostdin", "-hide_banner", "-v", "info", "-i", str(target), "-vf", vf, "-an", "-f", "null", "-"]
+    try:
+        proc = _run(cmd, timeout)
+    except subprocess.TimeoutExpired:
+        result["error"] = f"ตรวจเฟรมดำ/ภาพค้างเกิน {timeout:.0f} วินาที — ข้าม"
+        return result
+    except OSError as exc:
+        result["error"] = f"เรียก ffmpeg ตรวจเฟรมดำ/ภาพค้างไม่สำเร็จ: {exc}"
+        return result
+    if proc.returncode != 0:
+        result["error"] = f"ffmpeg ตรวจเฟรมดำ/ภาพค้างจบด้วย exit {proc.returncode} — ข้าม"
+        return result
+    parsed = parse_qa_scan_output(proc.stderr or "", probe_duration(target))
+    result["black"] = parsed["black"]
+    result["frozen"] = parsed["frozen"]
+    return result
+
+
+def _overlap(a: Span, b: Span) -> float:
+    return max(0.0, min(a[1], b[1]) - max(a[0], b[0]))
+
+
+def _covered_share(span: Span, ranges) -> float:
+    length = span[1] - span[0]
+    if length <= 0:
+        return 0.0
+    merged: list = []
+    for lo, hi in sorted((float(r[0]) - QA_HOLD_SLACK_SEC, float(r[1]) + QA_HOLD_SLACK_SEC) for r in ranges or []):
+        if merged and lo <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], hi)
+        else:
+            merged.append([lo, hi])
+    return min(1.0, sum(_overlap(span, (lo, hi)) for lo, hi in merged) / length)
+
+
+def build_qa_warnings(
+    scan: Dict[str, Any],
+    hold_ranges=None,
+    *,
+    black_min: float = QA_BLACK_MIN_SEC,
+    freeze_min: float = QA_FREEZE_MIN_SEC,
+) -> list:
+    """Thai warnings for black spans >= ``black_min`` and frozen spans >=
+    ``freeze_min`` that are not intentional holds (``hold_ranges``)."""
+    warnings: list = []
+    if scan.get("error"):
+        warnings.append(str(scan["error"]))
+    black = [(s, e) for s, e in scan.get("black") or [] if e - s >= black_min - 1e-6]
+    for s, e in black:
+        warnings.append(f"เฟรมดำ {e - s:.1f} วินาที ช่วง {s:.1f}-{e:.1f}s — ตรวจว่าตัดผิดจุดหรือแหล่งภาพหมด")
+    for s, e in scan.get("frozen") or []:
+        if e - s < freeze_min - 1e-6:
+            continue
+        # A black stretch is also "frozen"; it is already reported above.
+        if black and sum(_overlap((s, e), b) for b in black) >= 0.5 * (e - s):
+            continue
+        if hold_ranges and _covered_share((s, e), hold_ranges) >= QA_HOLD_COVERAGE:
+            continue
+        warnings.append(
+            f"ภาพค้างนิ่ง {e - s:.1f} วินาที ช่วง {s:.1f}-{e:.1f}s ที่ไม่ได้ตั้งใจค้าง — ฟุตเทจอาจไม่พอหรือซ้ำจุดเดิม"
+        )
+    return warnings
+
+
+def qa_scan_render(path: PathLike, hold_ranges=None, **kwargs: Any) -> list:
+    """Never-raising wrapper: scan a finished render and return Thai warnings."""
+    try:
+        return build_qa_warnings(scan_black_and_frozen(path, **kwargs), hold_ranges)
+    except Exception as exc:  # advisory pass must never fail a render
+        logger.warning("qa_scan_render failed: %s", exc)
+        return [f"ตรวจเฟรมดำ/ภาพค้างไม่สำเร็จ: {exc}"]

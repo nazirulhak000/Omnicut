@@ -99,14 +99,14 @@ export default function CaptionInspector({
 }) {
   if (!selectedCaption) return null;
 
-  // Font, size, position and colour are clip-wide: subtitle_engine.generate_ass
-  // reads them once for the whole clip and never per caption, and the preview
-  // mirrors that (audit S5-06). So they show the clip's values and are only
-  // offered in "ปรับทั้งแผง" mode -- a per-caption edit would show nowhere.
-  const currentFont = style?.fontName || CAPTION_DEFAULT_FONT;
-  const currentScale = style?.captionScale ?? 1.0;
+  // Font, size and position may be set per caption: subtitle_engine.generate_ass
+  // reads them per cue (cue_caption_variant) and the preview draws the same
+  // fields (audit S5-06). Colour and the colour presets are still clip-wide in
+  // the render, so they are only offered in "ปรับทั้งแผง" mode.
+  const currentFont = selectedCaption.fontName || style?.fontName || CAPTION_DEFAULT_FONT;
+  const currentScale = selectedCaption.scale ?? style?.captionScale ?? 1.0;
   const currentColor = style?.captionColor || '#FFFFFF';
-  const currentPosition = style?.captionPosition || 'bottom';
+  const currentPosition = selectedCaption.position || style?.captionPosition || 'bottom';
   const clipWideControls = !!effectiveApplyToAll;
   const currentTranslation = selectedCaption.translation;
 
@@ -291,12 +291,11 @@ export default function CaptionInspector({
       <div className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] space-y-3">
         {!clipWideControls && (
           <p className="text-[11px] leading-relaxed text-amber-300/90">
-            ฟอนต์ ขนาด ตำแหน่ง และสี ใช้ค่าเดียวกันทั้งคลิปในไฟล์ที่เรนเดอร์ เลือก “ปรับทั้งแผง” เพื่อแก้ค่าเหล่านี้
+            สีตัวอักษรและสไตล์สำเร็จรูปใช้ค่าเดียวกันทั้งคลิปในไฟล์ที่เรนเดอร์ เลือก “ปรับทั้งแผง” เพื่อแก้ค่าเหล่านี้
           </p>
         )}
 
         {/* Font dropdown */}
-        {clipWideControls && (
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-slate-400 font-medium w-14 flex-shrink-0">ฟอนต์:</span>
           <select
@@ -312,7 +311,6 @@ export default function CaptionInspector({
             ))}
           </select>
         </div>
-        )}
 
         {/* Progressive Ghost Reveal -- SOP Phase 3 */}
         <CaptionToggle
@@ -331,7 +329,6 @@ export default function CaptionInspector({
         />
 
         {/* Font size slider & number input */}
-        {clipWideControls && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-xs text-slate-400 font-medium">ขนาดตัวอักษร:</span>
@@ -376,10 +373,8 @@ export default function CaptionInspector({
             className="w-full accent-[#25F4EE] cursor-pointer"
           />
         </div>
-        )}
 
         {/* Position on screen */}
-        {clipWideControls && (
         <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
           <span className="text-[11px] text-slate-400 font-medium">ตำแหน่งบนจอ:</span>
           <div className="grid grid-cols-3 gap-1.5">
@@ -403,7 +398,6 @@ export default function CaptionInspector({
             ))}
           </div>
         </div>
-        )}
 
         {/* Color picker */}
         {clipWideControls && (

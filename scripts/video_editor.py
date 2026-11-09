@@ -1669,6 +1669,29 @@ def frames_to_seconds(frames: int, fps: int = FPS) -> float:
     return round(frames / fps, 6)
 
 
+_QA_WARNINGS_LOCK = threading.Lock()
+_QA_WARNINGS: Dict[str, List[str]] = {}
+
+
+def hold_ranges_from_clips(clip_list, clip_starts, clip_durations) -> List[Tuple[float, float]]:
+    """Timeline spans of clips that are deliberate holds (``hold_reason``).
+
+    Used by the post-render QA scan so an intentional freeze is not reported as
+    a defect. Returns [] when timeline data is missing.
+    """
+    ranges: List[Tuple[float, float]] = []
+    if not clip_list or not clip_starts or not clip_durations:
+        return ranges
+    for idx, entry in enumerate(clip_list):
+        if idx >= len(clip_starts) or idx >= len(clip_durations) or not isinstance(entry, dict):
+            continue
+        # QA bookkeeping only (not a render input), hence ``entry`` not ``clip``.
+        if entry.get("hold_reason") or entry.get("held_source_time") is not None:
+            start = float(clip_starts[idx])
+            ranges.append((start, start + float(clip_durations[idx])))
+    return ranges
+
+
 class VideoEditor:
     """Automates rhythmic cutting, dynamic zoom motion, subtitle burning, and rendering."""
 
@@ -3087,11 +3110,40 @@ class VideoEditor:
             print(f"❌ {gate_err}")
             raise RuntimeError(str(gate_err)) from gate_err
 
+        # Audit S3-11: advisory black-frame / frozen-frame scan of the finished
+        # clip. Never fails the render; findings are handed to the job via
+        # VideoEditor.pop_qa_warnings(output path).
+        try:
+            hold_ranges = hold_ranges_from_clips(clip_list, locals().get("clip_starts"), locals().get("clip_durations"))
+            qa_warnings = media_validation.qa_scan_render(out_file, hold_ranges)
+        except Exception as qa_err:  # noqa: BLE001 - advisory only
+            qa_warnings = [f"ตรวจเฟรมดำ/ภาพค้างไม่สำเร็จ: {qa_err}"]
+        cls._store_qa_warnings(out_file, qa_warnings)
+        for qa_line in qa_warnings:
+            print(f"⚠️ [QA หลังเรนเดอร์] {qa_line}")
+
         # Automatically generate ultra-lightweight WebP poster thumbnail for instant 0.05s gallery display
         cls.generate_poster_thumbnail(out_file)
 
         print(f"✅ เรนเดอร์วิดีโอสำเร็จ: {out_file}")
         return str(out_file)
+
+    @classmethod
+    def _store_qa_warnings(cls, out_file: Path, warnings: List[str]) -> None:
+        with _QA_WARNINGS_LOCK:
+            _QA_WARNINGS[str(Path(out_file).resolve())] = list(warnings)
+            while len(_QA_WARNINGS) > 64:  # renders nobody collected (reroll, CLI)
+                _QA_WARNINGS.pop(next(iter(_QA_WARNINGS)))
+
+    @classmethod
+    def pop_qa_warnings(cls, output_path) -> List[str]:
+        """Thai post-render QA warnings recorded for a finished render (once)."""
+        try:
+            key = str(Path(output_path).resolve())
+        except (OSError, TypeError, ValueError):
+            return []
+        with _QA_WARNINGS_LOCK:
+            return _QA_WARNINGS.pop(key, [])
 
     @classmethod
     def generate_poster_thumbnail(cls, video_path: Path, poster_path: Optional[Path] = None) -> Optional[Path]:

@@ -109,7 +109,10 @@ def test_ghost_reveal_has_no_shadow_on_either_side(tmp_path):
 
 
 # --------------------------------------------------------------- S5-06
-def test_per_cue_scale_position_font_are_clip_wide_on_both_sides(tmp_path):
+def test_per_cue_scale_position_font_reach_the_render_and_the_preview(tmp_path):
+    """S5-06 follow-up: the render now honours per-caption scale / position /
+    fontName and the preview draws the same fields (details and pixel check in
+    test_caption_cue_overrides.py)."""
     from scripts.subtitle_engine import SubtitleEngine
 
     base = {"start": 0.0, "end": 1.5, "text": "ชาร์จไวมาก", "translation": ""}
@@ -119,18 +122,12 @@ def test_per_cue_scale_position_font_are_clip_wide_on_both_sides(tmp_path):
         cues=[{**base, "scale": 1.6, "position": "top", "fontName": "Kanit"}],
         output_ass_path=str(overridden), font_name="IBMPlex", bilingual=False,
     )
-    # The render does not read these per-cue fields...
-    assert plain.read_text(encoding="utf-8") == overridden.read_text(encoding="utf-8")
-    # ...so the preview must not draw them either,
+    assert plain.read_text(encoding="utf-8") != overridden.read_text(encoding="utf-8")
     start = JS_SRC.index("function drawSingleCue(")
     body = JS_SRC[start:JS_SRC.index("// Draw English lines", start)]
-    body = re.sub(r"//[^\n]*", "", body)  # code only, not the comments explaining it
+    body = re.sub(r"//[^\n]*", "", body)
     for field in ("cue.scale", "cue.fontName", "cue.position"):
-        assert field not in body, f"preview still draws per-cue {field}"
-    # ...and the editor does not offer them per caption.
-    assert "if (selectedBox.type === 'caption' && !(applyToAllCaptions && onUpdateAllCaptions)) return;" in JS_SRC
-    assert "const clipWideControls = !!effectiveApplyToAll;" in INSPECTOR_SRC
-    assert INSPECTOR_SRC.count("{clipWideControls && (") == 5  # font, size, position, colour, presets
+        assert field in body, f"preview does not draw per-cue {field}"
 
 
 # --------------------------------------------------------------- S5-11

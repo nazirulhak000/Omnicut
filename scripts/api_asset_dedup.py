@@ -9,7 +9,7 @@ from scripts.channel_workflows import get_workflow_scope
 from scripts.api_videos import _guard_write, _guard_raw_mutation, _resolve_allowed_video_path
 from scripts import asset_dedup
 from pathlib import Path
-from scripts.asset_dedup import AssetDedupEngine
+from scripts.asset_dedup import AssetDedupEngine, ReferenceLoadError
 
 router = APIRouter(prefix="/api/assets/duplicates", tags=["asset-dedup"])
 
@@ -33,6 +33,8 @@ def scan_duplicates(min_size_kb: int = 10, scope: ChannelScope = Depends(get_wor
         return {"status": "ok", **results}
     except (HTTPException, ChannelError):
         raise
+    except ReferenceLoadError as e:
+        raise HTTPException(status_code=503, detail=f"สแกนไฟล์ซ้ำไม่ได้ เพราะตรวจรายการอ้างอิงไม่ครบ: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Deduplication scan failed: {str(e)}")
 

@@ -14,6 +14,7 @@ from pathlib import Path
 
 from scripts import compliance_lint as _compliance_lint
 from scripts.config import DEFAULT_AD_TONE
+from scripts.image_quality_gate import ImageHashRegistry
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 BROWSER_UA = (
@@ -379,12 +380,16 @@ def _safe_local_image_path(image_path: Any) -> Path:
     raise ValueError("ไฟล์ภาพอ้างอิงอยู่นอกโฟลเดอร์โปรเจกต์")
 
 
-def _download_image_bytes(url: str) -> "tuple[bytes, str]":
+def _download_image_bytes(url: str, *, enforce_quality: bool = True) -> "tuple[bytes, str]":
     """Downloads a scraped product-image URL for Gemini vision input.
 
     Returns (data, mime_type). Raises ValueError/OSError on any failure --
     callers already wrap each reference image in try/except so one bad URL
     is skipped rather than failing the whole generation call.
+
+    Audit S1-04: this is where an image is really fetched, so the
+    asset-sourcing quality gate lives here -- a short edge under 1080 px with
+    a file under 100 KB (a thumbnail / icon) is refused (image_quality_gate).
     """
     _validate_image_url(url)
     req = urllib.request.Request(url, headers={
@@ -396,6 +401,12 @@ def _download_image_bytes(url: str) -> "tuple[bytes, str]":
         data = resp.read(MAX_REFERENCE_IMAGE_BYTES + 1)
     if len(data) > MAX_REFERENCE_IMAGE_BYTES:
         raise ValueError(f"Image at {url} exceeds {MAX_REFERENCE_IMAGE_BYTES} byte cap")
+    if enforce_quality:
+        from scripts.image_quality_gate import evaluate_image_bytes
+
+        verdict = evaluate_image_bytes(data)
+        if not verdict.ok:
+            raise ValueError(f"{verdict.reason}: {url}")
 
     mime_by_type = {
         "image/jpeg": "image/jpeg", "image/jpg": "image/jpeg",
@@ -1551,6 +1562,7 @@ class ProductScraper:
         from google import genai
         from google.genai import types
         image_parts = []
+        seen_images = ImageHashRegistry()
         for image_path in paths:
             try:
                 if isinstance(image_path, str) and image_path.lower().startswith(("http://", "https://")):
@@ -1563,6 +1575,9 @@ class ProductScraper:
                         ".png": "image/png", ".webp": "image/webp",
                         ".heic": "image/heic", ".heif": "image/heif",
                     }.get(path.suffix.lower(), "image/jpeg")
+                if not seen_images.register(data):
+                    print(f"[ProductScraper] ข้ามภาพซ้ำ (SHA-256 เหมือนกัน): {ascii(image_path)}")
+                    continue
                 image_parts.append(types.Part.from_bytes(data=data, mime_type=mime))
             except Exception as image_error:
                 print(
@@ -1849,10 +1864,14 @@ class ProductScraper:
                 # that's since moved or is unreadable is skipped rather than
                 # failing the whole request; the text prompt still carries.
                 image_parts = []
+                seen_images = ImageHashRegistry()
                 for img_path in (image_paths or []):
                     try:
                         if isinstance(img_path, str) and img_path.lower().startswith(("http://", "https://")):
                             data, mime = _download_image_bytes(img_path)
+                            if not seen_images.register(data):
+                                print(f"[ProductScraper] ข้ามภาพซ้ำ (SHA-256 เหมือนกัน): {ascii(img_path)}")
+                                continue
                             image_parts.append(types.Part.from_bytes(data=data, mime_type=mime))
                             continue
                         p = _safe_local_image_path(img_path)
@@ -1862,7 +1881,11 @@ class ProductScraper:
                             "png": "image/png", "webp": "image/webp",
                             "heic": "image/heic", "heif": "image/heif",
                         }.get(ext, "image/jpeg")
-                        image_parts.append(types.Part.from_bytes(data=p.read_bytes(), mime_type=mime))
+                        local_bytes = p.read_bytes()
+                        if not seen_images.register(local_bytes):
+                            print(f"[ProductScraper] ข้ามภาพซ้ำ (SHA-256 เหมือนกัน): {ascii(img_path)}")
+                            continue
+                        image_parts.append(types.Part.from_bytes(data=local_bytes, mime_type=mime))
                     except Exception as img_err:
                         print(f"[ProductScraper] Skipping unreadable reference image {img_path}: {img_err}")
 

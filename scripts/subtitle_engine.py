@@ -145,7 +145,9 @@ def strip_caption_emoji(text: str) -> str:
 # v9 (audit 20261109 S5-03/04/05/10/11/14): SpecBar box colour + margin,
 # reveal tone companions (colour, wrapped lines), last-word settle, fixed
 # watermark face, rounded timestamps -- older .ass files must be regenerated.
-SUBTITLE_RENDER_CONTRACT_VERSION = "v9"
+# v10 (audit 20261109 S5-06): per-caption scale / position / fontName are drawn
+# by the render -- an .ass written before that ignored them and must be rebuilt.
+SUBTITLE_RENDER_CONTRACT_VERSION = "v10"
 SUBTITLE_RENDER_CONTRACT_MARKER = (
     f"; OmniCutSubtitleContract: {SUBTITLE_RENDER_CONTRACT_VERSION}"
 )
@@ -211,6 +213,56 @@ TEXT_OVERLAY_POSITIONS = {
     "middle": 0.50,
     "bottom": 0.72,
 }
+
+
+
+def caption_metrics(
+    font_key: str,
+    scale_value: Any,
+    position_key: str,
+    *,
+    video_width: int,
+    font_map: Dict[str, str],
+    default_family: str = DEFAULT_FONT_FAMILY,
+) -> Dict[str, Any]:
+    """Everything in a caption's ASS styles that depends on its font, scale and
+    position, with the exact formulas generate_ass uses for the clip-wide
+    caption (so a per-caption override of any of the three is laid out by the
+    same geometry -- audit S5-06). ``tests/test_caption_cue_overrides.py`` pins
+    this against the header the clip-wide path writes.
+    """
+    resolved_font = font_map.get(font_key, default_family)
+    caption_font, caption_bold = ass_caption_face(resolved_font)
+    boost = 1.0 / ass_glyph_scale(resolved_font)
+    try:
+        scale = min(2.5, max(0.4, float(scale_value or 1.0)))
+    except (TypeError, ValueError):
+        scale = 1.0
+    base_fs = int(round(video_width * 0.0463))
+    font_size = max(20, int(round(base_fs * scale)))
+    font_size_boosted = int(round(font_size * boost))
+    alignment, margin_v = CAPTION_POSITIONS.get(position_key, CAPTION_POSITIONS["bottom"])
+    shadow_dx = int(round(max(1.0, font_size * 0.030)))
+    shadow_dy = int(round(max(1.5, font_size * 0.045)))
+    return {
+        "resolved_font": resolved_font,
+        "caption_font": caption_font,
+        "caption_bold": caption_bold,
+        "TEXT_SCALE_BOOST": boost,
+        "font_size": font_size,
+        "font_size_boosted": font_size_boosted,
+        "front_outline": round(max(1.8, font_size * 0.040), 1),
+        "shadow_outline": round(max(2.2, font_size * 0.050), 1),
+        "shadow_blur": round(max(2.5, font_size * 0.055), 1),
+        "shadow_dx": shadow_dx,
+        "shadow_dy": shadow_dy,
+        "alignment": alignment,
+        "margin_v": margin_v,
+        "shadow_margin_l": 60 + shadow_dx,
+        "shadow_margin_r": 60 - shadow_dx,
+        "shadow_margin_v": margin_v - shadow_dy if alignment in (1, 2, 3) else margin_v + shadow_dy,
+        "tone_raise": max(6, int(round(font_size_boosted * THAI_STACKED_MARK_RAISE_EM))),
+    }
 
 
 class SubtitleEngine:
@@ -593,7 +645,7 @@ class SubtitleEngine:
                     ),
                     **{
                         key: c[key]
-                        for key in ("x", "y", "position", "scale", "auto_emoji")
+                        for key in ("x", "y", "position", "scale", "fontName", "auto_emoji")
                         if key in c and c[key] is not None
                     },
                 })
@@ -879,6 +931,66 @@ class SubtitleEngine:
         shadow_margin_v = margin_v - shadow_dy if alignment in (1, 2, 3) else margin_v + shadow_dy
 
         tone_raise = max(6, int(round(font_size_boosted * THAI_STACKED_MARK_RAISE_EM)))
+        # Per-caption font / scale / position (audit S5-06). The caption styles
+        # and every helper below read these names at call time, so a caption
+        # with its own override rebinds them for the length of that one cue and
+        # draws on an extra style of its own; the next cue (and everything
+        # after the loop) starts again from the clip-wide values captured here.
+        _STATE_KEYS = (
+            "resolved_font", "caption_font", "caption_bold", "TEXT_SCALE_BOOST",
+            "font_size", "font_size_boosted", "front_outline", "shadow_outline",
+            "shadow_blur", "shadow_dx", "shadow_dy", "alignment", "margin_v",
+            "shadow_margin_l", "shadow_margin_r", "shadow_margin_v", "tone_raise",
+        )
+        clip_state = {
+            "resolved_font": resolved_font, "caption_font": caption_font,
+            "caption_bold": caption_bold, "TEXT_SCALE_BOOST": TEXT_SCALE_BOOST,
+            "font_size": font_size, "font_size_boosted": font_size_boosted,
+            "front_outline": front_outline, "shadow_outline": shadow_outline,
+            "shadow_blur": shadow_blur, "shadow_dx": shadow_dx, "shadow_dy": shadow_dy,
+            "alignment": alignment, "margin_v": margin_v,
+            "shadow_margin_l": shadow_margin_l, "shadow_margin_r": shadow_margin_r,
+            "shadow_margin_v": shadow_margin_v, "tone_raise": tone_raise,
+        }
+        override_states: Dict[Tuple[str, float, str], Tuple[str, Dict[str, Any]]] = {}
+        override_style_lines: List[str] = []
+
+        def cue_caption_variant(cue_data: Dict[str, Any]) -> Optional[Tuple[str, Dict[str, Any]]]:
+            """(style suffix, metrics) for a cue whose font/scale/position differs
+            from the clip's, else None. An unknown font is reported, not guessed."""
+            cue_font = cue_data.get("fontName")
+            if cue_font and cue_font not in font_map:
+                print(f"⚠️ [ซับ] ไม่รู้จักฟอนต์ '{cue_font}' ของซับกล่องนี้ — ใช้ฟอนต์ของทั้งคลิปแทน")
+                cue_font = None
+            eff_font = cue_font or font_name
+            raw_scale = cue_data.get("scale")
+            try:
+                eff_scale = min(2.5, max(0.4, float(raw_scale))) if raw_scale else scale
+            except (TypeError, ValueError):
+                eff_scale = scale
+            cue_pos = cue_data.get("position")
+            eff_pos = cue_pos if cue_pos in CAPTION_POSITIONS else caption_position
+            if (
+                font_map.get(eff_font, DEFAULT_FONT_FAMILY) == clip_state["resolved_font"]
+                and abs(eff_scale - scale) < 1e-9
+                and CAPTION_POSITIONS.get(eff_pos, CAPTION_POSITIONS["bottom"])
+                == CAPTION_POSITIONS.get(caption_position, CAPTION_POSITIONS["bottom"])
+            ):
+                return None
+            key = (eff_font, round(eff_scale, 4), eff_pos)
+            if key not in override_states:
+                metrics = caption_metrics(
+                    eff_font, eff_scale, eff_pos, video_width=video_width, font_map=font_map,
+                )
+                suffix = f"_c{len(override_states) + 1}"
+                override_states[key] = (suffix, metrics)
+                override_style_lines.extend([
+                    f"Style: TikTokSoftShadow{suffix},{metrics['caption_font']},{metrics['font_size_boosted']},&H00000000,&H00000000,&H00000000,&H00000000,{metrics['caption_bold']},0,0,0,100,100,0,0,1,{metrics['shadow_outline']},0,{metrics['alignment']},{metrics['shadow_margin_l']},{metrics['shadow_margin_r']},{metrics['shadow_margin_v']},1",
+                    f"Style: TikTokWhite{suffix},{metrics['caption_font']},{metrics['font_size_boosted']},{primary},&H000000FF,&H00000000,&H00000000,{metrics['caption_bold']},0,0,0,100,100,0,0,1,{metrics['front_outline']},0,{metrics['alignment']},60,60,{metrics['margin_v']},1",
+                    f"Style: TikTokMinimalPill{suffix},{metrics['caption_font']},{int(round((metrics['font_size'] - 6) * metrics['TEXT_SCALE_BOOST']))},{primary},&H000000FF,&H00000000,&HCC000000,{metrics['caption_bold']},0,0,0,100,100,0,0,3,6,0,{metrics['alignment']},60,60,{metrics['margin_v']},1",
+                ])
+            return override_states[key]
+
         hidden_mark_components = r"{\1a&HFF&\3a&HFF&\4a&HFF&}"
 
         def caption_mark_position(*, shadow: bool) -> str:
@@ -1112,6 +1224,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         # 2. Add Rapid-Fire Micro-Cues with Stacked Bilingual Support & 2-Layer Soft Shadow
         for idx, cue in enumerate(micro_cues):
+            variant = cue_caption_variant(cue)
+            _state = variant[1] if variant else clip_state
+            style_suffix = variant[0] if variant else ""
+            (
+                resolved_font, caption_font, caption_bold, TEXT_SCALE_BOOST,
+                font_size, font_size_boosted, front_outline, shadow_outline,
+                shadow_blur, shadow_dx, shadow_dy, alignment, margin_v,
+                shadow_margin_l, shadow_margin_r, shadow_margin_v, tone_raise,
+            ) = tuple(_state[k] for k in _STATE_KEYS)
+            soft_shadow_style = f"TikTokSoftShadow{style_suffix}"
             start_t = cls._format_ass_time(cue["start"])
             end_t = cls._format_ass_time(cue["end"])
             # Exact line wrap calibration matching SequencePlayer.jsx maxLineW = 464px (86% of 1080w = 928px)
@@ -1190,7 +1312,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 highlighted_text = cls.apply_kinetic_highlighting(text, primary_color_ass=primary, custom_keywords=proj_keywords)
                 en_sub = ""
 
-            style = "TikTokMinimalPill" if is_pill_mode else "TikTokWhite"
+            style = ("TikTokMinimalPill" if is_pill_mode else "TikTokWhite") + style_suffix
             # A Canvas caption uses the em-sized font for line advance.  The
             # boosted ASS style above is necessary for a single line's glyph
             # ink, but its line box becomes too tall when explicit `\\N` lines
@@ -1234,11 +1356,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 # it exists once, in the body, and never in an overlay.
                 shadow_text, shadow_marks = repair_caption_text(text)
                 shadow_text += en_sub_shadow
-                shadow_entry = f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{shadow_pos}{shadow_tag}{multi_line_metric_tag}{caption_anim}{shadow_text}"
+                shadow_entry = f"Dialogue: 0,{start_t},{end_t},{soft_shadow_style},,0,0,0,,{shadow_pos}{shadow_tag}{multi_line_metric_tag}{caption_anim}{shadow_text}"
                 shadow_events.append(shadow_entry)
                 for mark_parts in shadow_marks:
                     shadow_events.append(
-                        f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,"
+                        f"Dialogue: 0,{start_t},{end_t},{soft_shadow_style},,0,0,0,,"
                         f"{{{caption_mark_position(shadow=True)}}}"
                         f"{caption_mark_overlay(mark_parts, shadow=True)}"
                     )
@@ -1595,6 +1717,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         f"{{{caption_mark_position(shadow=False)}}}"
                         f"{caption_mark_overlay(mark_parts, shadow=False)}"
                     )
+
+        # Back to the clip-wide caption values for everything drawn after the
+        # caption loop (spec bars, custom overlays), and register the extra
+        # styles the overridden captions drew on.
+        (
+            resolved_font, caption_font, caption_bold, TEXT_SCALE_BOOST,
+            font_size, font_size_boosted, front_outline, shadow_outline,
+            shadow_blur, shadow_dx, shadow_dy, alignment, margin_v,
+            shadow_margin_l, shadow_margin_r, shadow_margin_v, tone_raise,
+        ) = tuple(clip_state[k] for k in _STATE_KEYS)
+        if override_style_lines:
+            header = header.replace(
+                "\n\n[Events]", "\n" + "\n".join(override_style_lines) + "\n\n[Events]", 1
+            )
 
         # 3. Spec-Bar Overlays (IT vertical: the number goes on screen, not
         # just in the voiceover). These read from the original sentence-level

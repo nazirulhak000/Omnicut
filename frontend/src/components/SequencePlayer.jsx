@@ -1354,18 +1354,21 @@ function drawProductCalloutText(ctx, text, x, y, fontSize, drawText, repairThaiM
 
 function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   if (!cue || !cue.text) return;
-  // Scale, font and top/middle/bottom are clip-wide: the render
-  // (subtitle_engine.generate_ass) reads them once per clip and never from a
-  // cue, so a per-cue cue.scale / cue.fontName / cue.position left in an older
-  // project must not be drawn either (audit S5-06). Clamp = the render's.
-  const effectiveScale = Math.min(2.5, Math.max(0.4, style.captionScale ?? 1.0));
+  // A caption may carry its own scale, font and top/middle/bottom; the render
+  // (subtitle_engine.generate_ass, cue_caption_variant) reads the same three
+  // fields per cue and falls back to the clip-wide value when a cue has none
+  // (audit S5-06). The clamp (0.4-2.5) is the render's.
+  const clipScale = Math.min(2.5, Math.max(0.4, style.captionScale ?? 1.0));
+  const effectiveScale = typeof cue.scale === 'number' && cue.scale > 0
+    ? Math.min(2.5, Math.max(0.4, cue.scale))
+    : clipScale;
   // Standard TikTok Subtitle Size: 100% (scale=1.0) is calibrated to 50pt on 1080w
   // (25px on 540w Canvas), exactly matching the user's preferred visual proportion.
   const baseFs = Math.round(CANVAS_W * 0.0463);
   const fontSize = Math.max(14, Math.round(baseFs * effectiveScale));
   
   // Unset means the pipeline default, IBMPlex (PipelineContext.font_name).
-  const fontFamName = style.fontName || 'IBMPlex';
+  const fontFamName = cue.fontName || style.fontName || 'IBMPlex';
   // Kanit/Prompt render through ass_caption_face() with Bold=1, i.e. their
   // real Bold (700) cut -- 900/800 here drew a heavier face than the export
   // (audit S5-08).
@@ -1434,7 +1437,7 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
 
   // Vertical anchoring: support per-cue position override (top / middle / bottom) or custom normalized y
   const totalBlockH = (thaiLines.length + enLines.length) * fontSize;
-  const pos = style.captionPosition || 'bottom';
+  const pos = (cue.position in CAPTION_Y ? cue.position : null) || style.captionPosition || 'bottom';
   const anchorY = CANVAS_H * (CAPTION_Y[pos] ?? CAPTION_Y.bottom);
   let blockTop;
   if (typeof cue.y === 'number') {
@@ -3722,10 +3725,6 @@ function SequencePlayer({
     const startMouseY = e.clientY;
     // Captions still carry a bare multiplier; an overlay's size is a percent
     // on its look, which is the number its tier editor shows.
-    // Caption size is clip-wide in the render (audit S5-06): resizing one
-    // caption on its own would change nothing in the export, so it is only
-    // offered while "apply to all captions" is on.
-    if (selectedBox.type === 'caption' && !(applyToAllCaptions && onUpdateAllCaptions)) return;
     const initialScale = selectedBox.sizePct != null
       ? selectedBox.sizePct / 100
       : (selectedBox.scale || 1.0);
