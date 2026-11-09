@@ -88,6 +88,7 @@ Entry point คือ `scripts/api_server.py` ทำหน้าที่สร�
 | 5 | `scripts/api_videos.py` | Raw video library, upload multipart, file reveal |
 | 6 | `scripts/api_covers.py` | Post Studio Cover generation (3:4, 9:16 jpg export) |
 | 7 | `scripts/api_tiktok_autopost.py` | TikTok auto-post extension bridge & upload queue |
+| 7b | `tools/autopost_conductor/` | Unattended auto-post: รัน worker จริงของ extension แบบ headless ผ่าน CDP + chrome shim, ทีละคลิป, ใช้ posting_jobs protocol เดิม (ดู README ในโฟลเดอร์) |
 | 8 | `scripts/api_schedule_queue.py` | Schedule agenda & auto-queue slots |
 | 9 | `scripts/api_products.py` | Product queue, scraping, TikTok Product ID extraction/resolution |
 | 10 | `scripts/api_exports.py` | Export gallery scan, mark posted, media info probe |

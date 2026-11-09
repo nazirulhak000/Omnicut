@@ -194,3 +194,22 @@ Gate: pytest ใหม่ผ่าน 100%, dry_run 5 คลิปจริง�
 รายงานผลแต่ละขั้น: จำนวนคลิป, สำเร็จ/ล้ม, ซ้ำ, สถานะ OmniCut vs หน้า Content, ลิงก์รูปหลักฐานใน .tmp/autopost_runs/
 ลบไฟล์ทดสอบและถอดรายการทดสอบออกจาก registry ทันทีหลังจบ (กฎ 11/15)
 ```
+
+
+---
+
+## 7. สถานะการทำงานจริง (อัปเดต 2026-11-09 — Claude Code / Claude Sonnet 5.5)
+
+**ปรับแผน Phase 2:** ไม่เขียน selector ใหม่เป็น Python/Playwright — ใช้ **Node host** (`tools/autopost_conductor/`) โหลด `background.js` เดิมที่ผ่านหน้าจริงมาแล้ว รันผ่าน CDP ตรง (chrome shim) ได้ครบเรื่อง headless/ไม่มี infobar/resume โดยไม่ต้องย้าย selector ซ้ำ
+
+| รายการ | สถานะ |
+| :--- | :--- |
+| Phase 1: B1–B5, /content ค้าง, ปัดเวลา, กันเวลาผ่านแล้ว | ทำแล้ว (commit 2c3132a) |
+| Phase 1: `scheduled_on_platform` วนซ้ำ | แก้ฝั่ง conductor: ข้าม export ที่มี job อยู่แล้ว (เดิมของ backend กันโพสต์ซ้ำถูกต้องอยู่แล้ว ไม่แก้) |
+| Phase 1: draft mode / debugger session เดียว / dismissInterrupts ใน extension | **ตัดออก** — conductor แทนที่ทางนี้ (ไม่ใช้ batch/draft; worker ตัวเดิมมี dismiss dialog ของตัวเองในแต่ละขั้น) |
+| Phase 0: step log + screenshot + `dry_run` + DOM dump | ทำใน conductor (`--dry-run`) |
+| Phase 2: conductor (sequential, resume, park, stop+ALERT, keep-awake, price-caption guard) | ทำแล้ว · เทส offline 15 ข้อ |
+| Phase 2: Task Scheduler | มี `install_task.ps1` (preview เป็นค่าเริ่มต้น ยังไม่ register) |
+| Phase 2: ปุ่ม Start ในแอป / auto-detect quota 30 | **ยังไม่ทำ** — ต้องแตะ route policy + frontend ที่ agent อื่นแก้ค้างอยู่ |
+| Phase 4: health check | `--health` เขียน `.tmp/autopost_health.json` + task รายวัน (ยังไม่ register) |
+| Phase 3: ทดสอบจริง | **ติด**: โปรไฟล์ `tools/tiktok_browser_profile` ยังไม่ login TikTok (health ยืนยัน ตกหน้า login) ต้องให้ผู้ใช้ login มือ 1 ครั้ง |
