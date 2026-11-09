@@ -588,7 +588,8 @@ async def render_composition(payload: RenderCompositionRequest, scope: ChannelSc
                             for a in prod.get("angles", []):
                                 if (a.get("angle_id") or a.get("id")) == angle_id or a.get("clip_id") == comp_id:
                                     a["status"] = "rendered"
-                                    a["video_url"] = str(target)
+                                    # BASE_DIR-relative (audit S6-12, AGENTS rule 2)
+                                    a["video_url"] = rel_path
                                     if export_id:
                                         a["export_id"] = export_id
                                     break
