@@ -1548,12 +1548,20 @@ def test_the_phone_timeline_is_sized_by_its_rows_not_by_a_literal():
     assert "h-[215px]" not in SHELL_SRC
     # The dock takes that height but may shrink, and the preview grows into
     # whatever the rows do not need while keeping a floor of its own.
-    assert "style={{ flex: '0 1 auto', height: mobileTimelineH, maxHeight: mobileTimelineH }}" in SHELL_SRC
-    assert "style={{ flex: '1 1 auto', height: mobilePreviewH, minHeight: MOBILE_PREVIEW_MIN_H }}" in SHELL_SRC
+    # Since audit S4-02/S4-03 the flex rules live in one pure helper
+    # (lib/panelLayoutPreview.js mobilePanelStyles) that the shell applies.
+    panel_src = (ROOT / "frontend" / "src" / "lib" / "panelLayoutPreview.js").read_text(encoding="utf-8")
+    hook_src = (ROOT / "frontend" / "src" / "hooks" / "usePanelLayout.js").read_text(encoding="utf-8")
+    assert "panelH: mobileTab === 'timeline' ? mobileTimelineH : null," in SHELL_SRC
+    assert "style={mobileStyles.preview}" in SHELL_SRC and "style={mobileStyles.panel}" in SHELL_SRC
+    assert "{ flex: '0 1 auto', height: panelH, maxHeight: panelH }" in panel_src
+    assert "preview: { flex: '1 1000 auto', height: previewH, minHeight: MOBILE_PREVIEW_MIN_H }," in panel_src
     assert "flex: `1 0 ${mobilePreviewH}px`" not in SHELL_SRC, \
         "an unshrinkable preview crushed the tracks to 82px on a shorter window"
-    # The drag clamp has to reserve the timeline's real height, not a guess.
-    assert "const reserve = MOBILE_TAB_ROW_H + (Number.isFinite(mobileTimelineH) ? mobileTimelineH : 0);" in SHELL_SRC
+    # The drag clamp has to reserve the timeline's real height (plus the tab
+    # row), not a guess.
+    assert "reserve: Number.isFinite(mobileTimelineH) ? mobileTimelineH : 0," in hook_src
+    assert "- MOBILE_TAB_ROW_H - Math.max(0, Number(reserve) || 0)" in panel_src
 
 
 def test_a_phone_starts_with_the_audio_group_folded():
