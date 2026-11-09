@@ -23,7 +23,13 @@ class CleanDuplicatesRequest(BaseModel):
 def scan_duplicates(min_size_kb: int = 10, scope: ChannelScope = Depends(get_workflow_scope)) -> Dict[str, Any]:
     """Scans inbox and raw directories for duplicate media assets."""
     try:
-        results = AssetDedupEngine.scan_duplicates(min_file_size_bytes=min_size_kb * 1024)
+        # S1-12: a channel only sees its own (or shared, unreferenced) media.
+        path_filter = AssetDedupEngine.channel_path_filter(
+            scope.channel_id, allow_legacy_main=not scope.strict,
+        )
+        results = AssetDedupEngine.scan_duplicates(
+            min_file_size_bytes=min_size_kb * 1024, path_filter=path_filter,
+        )
         return {"status": "ok", **results}
     except (HTTPException, ChannelError):
         raise

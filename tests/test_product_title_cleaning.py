@@ -96,3 +96,66 @@ def test_product_store_automatically_cleans_names():
     finally:
         # Cleanup test product
         ProductStore.delete(prod["id"], channel_id="main")
+
+
+# ---------------------------------------------------------------------------
+# Audit S1-02: model-name hyphens survive (Rule 9)
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("raw, token", [
+    ("หูฟัง Sony WH-1000XM5 ตัดเสียงรบกวน", "WH-1000XM5"),
+    ("สายชาร์จ USB-C to USB-C 60W", "USB-C"),
+    ("หัวชาร์จ Type-C 20W", "Type-C"),
+    ("ลำโพง Sony HT-PF01 - Shopee Thailand", "HT-PF01"),
+    ("หัวชาร์จ Type\u2011C 20W", "Type-C"),  # U+2011 non-breaking hyphen
+    ("หูฟัง Sony WH\u20131000XM5", "WH-1000XM5"),  # en dash inside a model
+])
+def test_clean_product_title_keeps_model_hyphens(raw, token):
+    assert token in clean_product_title(raw)
+
+
+def test_clean_product_title_drops_separator_dashes():
+    assert clean_product_title("Anker Soundcore — R50i - สีดำ") == "Anker Soundcore R50i สีดำ"
+
+
+# ---------------------------------------------------------------------------
+# Audit S1-03: price / discount / promo / emoji never survive cleaning
+# ---------------------------------------------------------------------------
+from scripts.compliance_lint import find_price_term  # noqa: E402
+
+
+@pytest.mark.parametrize("raw, expected", [
+    ("🔥ลดราคา 50%🔥 หูฟัง Sony WH-1000XM5 ราคา 299 บาท ฿299", "หูฟัง Sony WH-1000XM5"),
+    ("Flash Sale ⚡ เมาส์ Logitech G304 ลด 30% เหลือ ฿890", "เมาส์ Logitech G304"),
+    ("Xiaomi Redmi Buds 6 Pro โปรแรง ส่งฟรี คูปอง", "Xiaomi Redmi Buds 6 Pro"),
+    ("Big Sale!! พัดลม Hatari 16 นิ้ว ไม่แพง", "พัดลม Hatari 16 นิ้ว"),
+    ("Mega Sale หูฟัง Jeep EW011 -50% THB 199", "หูฟัง Jeep EW011"),
+])
+def test_clean_product_title_strips_price_promo_emoji(raw, expected):
+    cleaned = clean_product_title(raw)
+    assert cleaned == expected
+    assert find_price_term(cleaned) is None
+    for junk in ("฿", "บาท", "%", "Sale", "🔥", "⚡"):
+        assert junk not in cleaned
+
+
+def test_clean_product_title_keeps_noise_reduction_wording():
+    # "ลดเสียงรบกวน" is a feature, not a discount.
+    cleaned = clean_product_title("หูฟัง ลดเสียงรบกวน ANC Soundcore Q20i")
+    assert "ลดเสียงรบกวน" in cleaned
+    assert "Soundcore Q20i" in cleaned
+
+
+def test_product_store_add_strips_price_from_name():
+    prod = ProductStore.add(name="🔥ลดราคา 50%🔥 หูฟัง Sony WH-1000XM5 ราคา 299 บาท ฿299")
+    try:
+        assert prod["name"] == "หูฟัง Sony WH-1000XM5"
+        assert find_price_term(prod["name"]) is None
+        updated = ProductStore.update(prod["id"], name="Sony WH-1000XM5 ลด 20% เหลือ 9,990 บาท")
+        assert updated["name"] == "Sony WH-1000XM5"
+    finally:
+        ProductStore.delete(prod["id"])
+
+
+def test_product_store_rejects_name_that_is_only_a_price():
+    with pytest.raises(ValueError, match="ชื่อสินค้า"):
+        ProductStore.add(name="ราคา 299 บาท")

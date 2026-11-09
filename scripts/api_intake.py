@@ -26,7 +26,7 @@ from scripts.couple_script_generator import (
     generate_single_couple_angle,
 )
 from scripts.product_scraper import clean_product_title
-from scripts.product_store import ProductStore
+from scripts.product_store import ProductStore, product_url_key
 from scripts.script_rules import lint_couple_script, sanitize_text_for_rules
 
 router = APIRouter(tags=["MobileIntake"])
@@ -85,14 +85,15 @@ def _find_duplicate_product(
 ) -> Optional[Dict[str, Any]]:
     """Find an existing product in the channel scope by tiktok_product_id or URL."""
     products = ProductStore.snapshot(channel_id=channel_id)
-    norm_url = (url or "").strip().rstrip("/")
+    # S1-14: same link with different tracking query params is one product.
+    norm_url = product_url_key(url)
     norm_pid = (tiktok_product_id or "").strip()
 
     for prod in products:
         existing_pid = str(prod.get("tiktok_product_id") or "").strip()
         if norm_pid and existing_pid and existing_pid == norm_pid:
             return prod
-        existing_url = str(prod.get("url") or "").strip().rstrip("/")
+        existing_url = product_url_key(prod.get("url"))
         if norm_url and existing_url and existing_url == norm_url:
             return prod
     return None
@@ -285,6 +286,7 @@ def preview_intake_product(
             "duplicate": False,
             "existing_product_id": None,
             "warning": scraped.get("warning")
+            or scraped.get("source_warning")
             or "เว็บไซต์ติดระบบป้องกัน (WAF/Challenge) กรุณากรอกสเปกหรือจุดเด่นสินค้าด้วยตนเอง",
         }
 

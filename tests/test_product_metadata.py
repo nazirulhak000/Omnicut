@@ -252,7 +252,7 @@ def test_scraper_uses_rendered_source_when_shallow_html_has_no_description(monke
         lambda _url: {
             "title": "GoChek GC-ULTRA S24",
             "raw_text": "คำอธิบายสินค้า\nระบบ Smart CSC 2.0 ลดเสียงรบกวน\nแบตเตอรี่ 35 ชั่วโมง",
-            "images": ["https://cdn.example.test/detail.jpg"],
+            "images": ["https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/0123456789abcdef0123456789abcdef~tplv-aphluv4xwc-crop-webp:800:800.webp"],
         },
     )
 
@@ -261,7 +261,8 @@ def test_scraper_uses_rendered_source_when_shallow_html_has_no_description(monke
     assert result["metadata_source"] == "browser_dom"
     assert "Smart CSC 2.0" in result["description"]
     assert "แบตเตอรี่ 35 ชั่วโมง" in result["raw_text"]
-    assert result["images"] == ["https://cdn.example.test/detail.jpg"]
+    # S1-04: only marketplace-CDN gallery images are kept.
+    assert result["images"] == ["https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/0123456789abcdef0123456789abcdef~tplv-aphluv4xwc-crop-webp:800:800.webp"]
 
 
 def test_scraper_extracts_html_body_specs_before_browser_fallback(monkeypatch):
@@ -710,7 +711,7 @@ def test_tiktok_share_url_fallback_when_http_fails(monkeypatch):
     from scripts.product_scraper import ProductScraper
     url = (
         "https://shop.tiktok.com/th/pdp/1730141014176663748?_d=eed51"
-        "&og_info=%7B%22title%22%3A%22Hatari+Cyclone+Max%22%2C%22image%22%3A%22https%3A%2F%2Fcdn.test%2Ffan.jpg%22%7D"
+        "&og_info=%7B%22title%22%3A%22Hatari+Cyclone+Max%22%2C%22image%22%3A%22https%3A%2F%2Fp16-oec-sg.ibyteimg.com%2Ffan.jpg%22%7D"
     )
     # Simulate urllib raising network error / 403
     def fake_open(*args, **kwargs):
@@ -721,7 +722,7 @@ def test_tiktok_share_url_fallback_when_http_fails(monkeypatch):
 
     res = ProductScraper.scrape_url(url)
     assert res["title"] == "Hatari Cyclone Max"
-    assert "https://cdn.test/fan.jpg" in res["images"]
+    assert "https://p16-oec-sg.ibyteimg.com/fan.jpg" in res["images"]
     assert res["metadata_source"] == "url_param_og_info"
 
 

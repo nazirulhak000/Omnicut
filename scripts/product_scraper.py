@@ -1,6 +1,7 @@
 import re
 import json
 import os
+import threading
 import time
 import html as html_lib
 import socket
@@ -11,7 +12,9 @@ from html.parser import HTMLParser
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+from scripts import compliance_lint as _compliance_lint
+
+BASE_DIR =Path(__file__).resolve().parent.parent
 BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -25,7 +28,18 @@ RENDERED_PAGE_WAIT_MS = 1800
 RENDERED_PAGE_TIMEOUT_MS = 30000
 RENDERED_CHALLENGE_WAIT_SECONDS = 60
 RENDERED_PROFILE_DIR = BASE_DIR / "tools" / "tiktok_browser_profile"
-RENDERED_SOURCE_FALLBACK = "สินค้าคุณภาพยอดนิยม การันตีของแท้"
+# S1-06: never invent product copy. When the page yields no description the
+# result carries an EMPTY description plus ``source_missing`` -- a placeholder
+# claim ("การันตีของแท้") used to become the AI's only source text.
+RENDERED_SOURCE_FALLBACK = ""
+SOURCE_MISSING_WARNING = (
+    "ไม่พบคำอธิบายสินค้าจากหน้าเว็บ (อาจติดระบบป้องกันหรือลิงก์หมดอายุ) "
+    "กรุณาตรวจและกรอกรายละเอียดสินค้าเอง"
+)
+DIRECT_CHALLENGE_WARNING = (
+    "หน้าเว็บติดระบบตรวจสอบความปลอดภัย (Captcha/WAF) จึงอ่านข้อมูลสินค้าไม่ได้ "
+    "กรุณากรอกรายละเอียดสินค้าเอง"
+)
 
 STEALTH_ARGS = [
     "--disable-blink-features=AutomationControlled",
@@ -330,6 +344,40 @@ def _build_safe_image_opener(*handlers):
 MAX_REFERENCE_IMAGE_BYTES = 8 * 1024 * 1024  # 8 MB cap per reference image
 
 
+_LOCAL_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+
+
+def _safe_local_image_path(image_path: Any) -> Path:
+    """Resolve a local reference image and refuse anything outside the project.
+
+    S1-09 defence in depth: only image files inside the project/data root are
+    ever read and sent to Gemini (never ``.env`` or a file elsewhere on disk).
+    Raises ValueError -- callers skip that image.
+    """
+    roots = [BASE_DIR.resolve()]
+    try:
+        from scripts import config as _config
+        data_root = Path(_config.BASE_DIR).resolve()
+        if data_root not in roots:
+            roots.insert(0, data_root)
+    except Exception:
+        pass
+    path = Path(str(image_path))
+    if not path.is_absolute():
+        candidates = [root / path for root in roots]
+        path = next((c for c in candidates if c.exists()), candidates[0])
+    resolved = path.resolve()
+    if resolved.suffix.lower() not in _LOCAL_IMAGE_SUFFIXES:
+        raise ValueError("ไฟล์อ้างอิงไม่ใช่ไฟล์ภาพ")
+    for root in roots:
+        try:
+            resolved.relative_to(root)
+            return resolved
+        except ValueError:
+            continue
+    raise ValueError("ไฟล์ภาพอ้างอิงอยู่นอกโฟลเดอร์โปรเจกต์")
+
+
 def _download_image_bytes(url: str) -> "tuple[bytes, str]":
     """Downloads a scraped product-image URL for Gemini vision input.
 
@@ -624,9 +672,27 @@ def _looks_like_browser_challenge(text: str) -> bool:
         "verify to continue",
         "drag the puzzle",
         "security check",
+        "security verification",
         "ตรวจสอบความปลอดภัย",
         "please verify",
+        "verify you are human",
+        "are you a robot",
+        "captcha",
+        "just a moment...",
+        "attention required",
+        "access denied",
+        "ไม่ใช่หุ่นยนต์",
+        "ไม่ใช่โปรแกรมอัตโนมัติ",
     ))
+
+
+def _extract_html_title(raw_html: str) -> str:
+    m = re.search(r"<title[^>]*>(.*?)</title>", raw_html or "", re.I | re.S)
+    return html_lib.unescape(m.group(1)).strip() if m else ""
+
+
+class _DirectFetchChallenge(Exception):
+    """Raised inside the direct-fetch block when the page is a captcha/WAF wall."""
 
 
 def _looks_like_login_page(title: str, text: str, url: str = "") -> bool:
@@ -646,6 +712,47 @@ def _looks_like_login_page(title: str, text: str, url: str = "") -> bool:
     ))
 
 
+_UNICODE_HYPHENS_RE = re.compile("[‐‑‒−]")
+_TITLE_EMOJI_RE = _compliance_lint.EMOJI_RE
+
+_NUM = r"\d[\d,]*(?:\.\d+)?"
+# Ordered: percent-with-discount before bare percent, currency+number before
+# the bare keyword, so no orphan digits/"%" are left behind.
+_TITLE_PROMO_PATTERNS = [
+    re.compile(rf"ลด(?:ราคา|เหลือ|แรง|พิเศษ|กระหน่ำ|ล้าง|สูงสุด)?\s*[-−]?{_NUM}\s*%(?:\s*off\b)?", re.I),
+    re.compile(rf"[-−]?{_NUM}\s*%(?:\s*off\b)?", re.I),
+    re.compile(rf"(?:ลด)?เหลือ(?:เพียง)?\s*(?:฿|THB)\s*{_NUM}", re.I),
+    re.compile(rf"(?:ลด)?เหลือ(?:เพียง)?\s*{_NUM}\s*(?:บาท|฿|บ\.)"),
+    re.compile(rf"(?:฿|THB)\s*{_NUM}(?:\s*[-~]\s*(?:฿|THB)?\s*{_NUM})?", re.I),
+    re.compile(rf"{_NUM}\s*(?:บาท|฿|บ\.|\.-)"),
+    re.compile(rf"{_NUM}\s*(?:THB|baht)\b", re.I),
+    re.compile(rf"ราคา(?:พิเศษ|ถูก|ส่ง|โปร|ดี|เพียง)?(?:\s*{_NUM})?"),
+    re.compile(rf"ลด(?:ราคา|เหลือ|แรง|พิเศษ|กระหน่ำ|ล้าง|สูงสุด)(?:สต็อก)?(?:\s*{_NUM})?"),
+    re.compile(rf"ส่วนลด(?:\s*{_NUM})?"),
+    re.compile(r"โปรโมชั่น|โปรโมชัน|คูปอง|ถูกมาก|ส่งฟรี"),
+    re.compile(r"\b(?:mega|big|super|flash|hot|great)?\s*sale\b", re.I),
+    re.compile(r"\b(?:off|discount|promo(?:tion)?|voucher|coupon)\b", re.I),
+    re.compile(r"บาท|฿|\bTHB\b", re.I),
+]
+
+
+def _strip_title_promo(text: str) -> str:
+    for pattern in _TITLE_PROMO_PATTERNS:
+        text = pattern.sub(" ", text)
+    return text
+
+
+def _strip_central_price_terms(text: str) -> str:
+    """Cut every span the central price lint (compliance_lint) still flags."""
+    for _ in range(4):
+        if not _compliance_lint.find_price_term(text):
+            break
+        for pattern, _label in _compliance_lint._PRICE_PATTERNS:
+            text = pattern.sub(" ", text)
+        text = re.sub(r"\s{2,}", " ", text).strip(" ,-|•/")
+    return re.sub(r"\s{2,}", " ", text).strip()
+
+
 def clean_product_title(title: str) -> str:
     """Sanitizes and condenses raw e-commerce product titles into clean, concise names.
 
@@ -658,6 +765,12 @@ def clean_product_title(title: str) -> str:
     t = str(title).strip()
     if t.lower() in ("log in", "sign in", "เข้าสู่ระบบ", "security check", "verify to continue", "tiktok"):
         return ""
+
+    # 0. Unicode hyphen look-alikes (U+2010/2011/2012/2212) -> ASCII "-" so
+    #    model names such as "Type‑C" / "WH‑1000XM5" match the rules below.
+    t = _UNICODE_HYPHENS_RE.sub("-", t)
+    # Seller emoji ("🔥", "⚡") never belong in a product name (Zero-Emoji).
+    t = _TITLE_EMOJI_RE.sub(" ", t)
 
     # 1. Remove platform tags
     t = re.split(r'\s*[-|•]\s*(?:Shopee|TikTok|Lazada).*$', t, flags=re.I)[0]
@@ -702,6 +815,11 @@ def clean_product_title(title: str) -> str:
     for p in marketing_phrases:
         t = re.sub(p, ' ', t, flags=re.I)
 
+    # 4b. Price / discount / promo noise must never reach a product name (and
+    #     from there the AI prompt and the clip): "ลดราคา 50%", "฿299",
+    #     "299 บาท", "Sale", "คูปอง" ...
+    t = _strip_title_promo(t)
+
     # 5. Comma, pipe, or bullet separated spec dumps: extract core segment + key spec
     if ',' in t or '，' in t or '|' in t:
         parts = [p.strip() for p in re.split(r'[,，|]', t) if p.strip()]
@@ -709,7 +827,7 @@ def clean_product_title(title: str) -> str:
             first_part = parts[0]
             spec_additions = []
             for part in parts[1:]:
-                spec_m = re.search(r'\b(\d+H|\d+W|\d+A|\d+mAh|2\s*ใน\s*1|\d+\s*นิ้ว|Type‑?C\s*(?:ถึง|to)\s*Type‑?C)\b', part, re.I)
+                spec_m = re.search(r'\b(\d+H|\d+W|\d+A|\d+mAh|2\s*ใน\s*1|\d+\s*นิ้ว|Type-?C\s*(?:ถึง|to)\s*Type-?C)\b', part, re.I)
                 if spec_m and spec_m.group(0) not in first_part and spec_m.group(0) not in spec_additions:
                     spec_additions.append(spec_m.group(0))
             if spec_additions:
@@ -742,9 +860,18 @@ def clean_product_title(title: str) -> str:
                 break
             t = re.sub(tp, '', t)
 
-    # 8. Clean repetitive punctuation & whitespace
-    t = re.sub(r'[\s/|•,，\-–—]+', ' ', t).strip(' ,-|•/–—')
+    # 8. Clean repetitive punctuation & whitespace. A dash INSIDE a token is
+    #    part of a model name (WH-1000XM5, USB-C, HT-PF01 -- Rule 9) and is
+    #    kept; only dashes used as separators (spaced or at a token edge) go.
+    t = re.sub(r'(?<=[A-Za-z0-9])[–—](?=[A-Za-z0-9])', '-', t)
+    t = re.sub(r'[–—]+', ' ', t)
+    t = re.sub(r'(?:^|(?<=\s))-+|-+(?=\s|$)', ' ', t)
+    t = re.sub(r'[\s/|•,，!！]+', ' ', t).strip(' ,-|•/')
     t = re.sub(r'^(?:ที่|แบบ|รุ่น|สำหรับ)\s+', '', t)
+
+    # 9. Last line of defence: whatever the central price lint still flags
+    #    is cut out, so find_price_term(clean_product_title(x)) is None.
+    t = _strip_central_price_terms(t)
 
     if t.lower() in ("log in", "sign in", "เข้าสู่ระบบ", "security check", "verify to continue", "tiktok"):
         return ""
@@ -831,7 +958,9 @@ def _clean_rendered_description(text: str) -> str:
     return res if res else text.strip()
 
 
-def _extract_specs_from_text(text: str) -> List[str]:
+def _extract_specs_from_text(text: Optional[str]) -> List[str]:
+    if not text:
+        return []
     specs = []
     seen_keys = set()
     lines = [l.strip() for l in text.replace("\r\n", "\n").split("\n") if l.strip()]
@@ -846,42 +975,122 @@ def _extract_specs_from_text(text: str) -> List[str]:
     return specs
 
 
+# Product images are only ever served from the marketplaces' own image CDNs.
+# Anything else on a product page (other brands' banners, ad pixels, a
+# "recommended products" carousel hosted elsewhere) is dropped (S1-04).
+PRODUCT_IMAGE_HOSTS = (
+    "ibyteimg.com",
+    "byteimg.com",
+    "tiktokcdn.com",
+    "tiktokcdn-us.com",
+    "tiktokcdn-eu.com",
+    "susercontent.com",
+    "shopee.co.th",
+    "shopeemobile.com",
+)
+# Whole path tokens (S1-18): "star" must not drop ".../starlight_case.jpg".
+_IMAGE_SKIP_TOKENS = {"icon", "icons", "star", "stars", "arrow", "avatar", "logo", "favicon", "sprite"}
+# Path fragments that identify non-product assets wherever they appear.
+_IMAGE_SKIP_FRAGMENTS = ("tts_logo", "tiktok_shop_web_mono", "tos-alisg-avt")
+_IMAGE_MIN_DIM = 600
+_IMAGE_TARGET_DIM = 800
+_TPLV_DIMS_RE = re.compile(r"(~tplv-[a-z0-9]+-[a-z0-9-]+):(\d{2,4}):(\d{2,4})", re.I)
+_DIMS_RE = re.compile(r"[:x_](\d{2,4})[:x](\d{2,4})(?=[._?~/]|$)", re.I)
+
+
+def _image_host_allowed(url: str) -> bool:
+    host = (urllib.parse.urlparse(url).hostname or "").lower()
+    return any(host == allowed or host.endswith("." + allowed) for allowed in PRODUCT_IMAGE_HOSTS)
+
+
+def _image_is_ui_asset(url: str) -> bool:
+    path = urllib.parse.unquote(urllib.parse.urlparse(url).path).lower()
+    if path.endswith(".svg"):
+        return True
+    if any(fragment in path for fragment in _IMAGE_SKIP_FRAGMENTS):
+        return True
+    # Only the file name and directory names count, split into word tokens;
+    # a hash or host that merely contains "star"/"icon" is not a match.
+    tokens = set(re.split(r"[^a-z0-9]+", path))
+    return bool(tokens & _IMAGE_SKIP_TOKENS)
+
+
+def _upgrade_image_variant(url: str) -> str:
+    """Ask the CDN for the full-size variant of a thumbnail URL when it has one.
+
+    TikTok CDN templates carry the size in the URL (``~tplv-<ns>-crop-webp:260:260``);
+    the same template at 800:800 is the gallery size. Shopee thumbnails end
+    in ``_tn``; without it the CDN serves the original.
+    """
+    def _bump(m: re.Match) -> str:
+        if max(int(m.group(2)), int(m.group(3))) >= _IMAGE_MIN_DIM:
+            return m.group(0)
+        return f"{m.group(1)}:{_IMAGE_TARGET_DIM}:{_IMAGE_TARGET_DIM}"
+
+    host = (urllib.parse.urlparse(url).hostname or "").lower()
+    if "susercontent.com" in host or "shopee" in host:
+        return re.sub(r"_tn(?=$|[?#.])", "", url)
+    return _TPLV_DIMS_RE.sub(_bump, url)
+
+
+def _image_quality(url: str) -> tuple:
+    """(tier, size): tier 2 = gallery size, 1 = size unknown, -1 = known
+    thumbnail (< 600px); size breaks ties so the largest variant wins."""
+    dims = _TPLV_DIMS_RE.search(url)
+    pair = (int(dims.group(2)), int(dims.group(3))) if dims else None
+    if pair is None:
+        generic = _DIMS_RE.search(urllib.parse.urlparse(url).path)
+        pair = (int(generic.group(1)), int(generic.group(2))) if generic else None
+    if pair is None:
+        return (1, 0)
+    if min(pair) >= _IMAGE_TARGET_DIM:
+        return (2, min(pair))
+    if max(pair) < _IMAGE_MIN_DIM:
+        return (-1, max(pair))
+    return (1, min(pair))
+
+
 def _deduplicate_and_filter_images(urls: List[str]) -> List[str]:
-    seen_hashes = {}
-    skip_markers = [
-        "tts_logo",
-        "tiktok_shop_web_mono",
-        "avatar",
-        "tos-alisg-avt",
-        "icon",
-        ".svg",
-        "star",
-        "arrow",
-    ]
+    """Keep only full-size product photos from the marketplace CDNs, once each."""
+    seen_hashes: Dict[str, tuple] = {}
     for url in urls:
-        if not url or not url.startswith("http"):
+        if not isinstance(url, str) or not url.startswith("http"):
             continue
-        lowered = url.lower()
-        if any(marker in lowered for marker in skip_markers):
+        if not _image_host_allowed(url) or _image_is_ui_asset(url):
             continue
+        url = _upgrade_image_variant(url)
+        quality = _image_quality(url)
+        if quality[0] < 0:
+            continue  # thumbnail with no full-size variant -- unusable (>=1080p rule)
         m = re.search(r"([a-f0-9]{32})", url)
         img_hash = m.group(1) if m else url.split("?")[0]
-        quality = 0
-        if "800:800" in url or "800:1600" in url:
-            quality = 2
-        elif "crop" in url or "300:300" in url or "100:100" in url:
-            quality = -1
-        else:
-            quality = 1
-        if img_hash not in seen_hashes:
+        if img_hash not in seen_hashes or quality > seen_hashes[img_hash][0]:
             seen_hashes[img_hash] = (quality, url)
-        else:
-            if quality > seen_hashes[img_hash][0]:
-                seen_hashes[img_hash] = (quality, url)
     return [u for q, u in seen_hashes.values()]
 
 
-def _scrape_rendered_page(url: str) -> Dict[str, Any]:
+# One Chromium persistent profile can only be opened by one context at a
+# time; concurrent scrapes used to collide on it (S1-15).
+_RENDERED_PROFILE_LOCK = threading.Lock()
+RENDERED_PROFILE_LOCK_WAIT_SECONDS = 45
+
+
+def _scrape_rendered_page(url: str, allow_headed: bool = False) -> Dict[str, Any]:
+    """Read the post-JavaScript product page (serialised on the shared profile).
+
+    ``allow_headed`` (default False) is the only way a visible Chrome window
+    may open to let a person solve a challenge. API requests never pass it:
+    a server must not pop a window and block the request for a minute.
+    """
+    if not _RENDERED_PROFILE_LOCK.acquire(timeout=RENDERED_PROFILE_LOCK_WAIT_SECONDS):
+        return {"warning": "มีการอ่านหน้าเว็บด้วย browser ค้างอยู่ กรุณาลองใหม่อีกครั้ง"}
+    try:
+        return _scrape_rendered_page_unlocked(url, allow_headed=allow_headed)
+    finally:
+        _RENDERED_PROFILE_LOCK.release()
+
+
+def _scrape_rendered_page_unlocked(url: str, allow_headed: bool = False) -> Dict[str, Any]:
     """Read the post-JavaScript product page with persistent session and anti-detection."""
     try:
         from playwright.sync_api import sync_playwright
@@ -903,11 +1112,14 @@ def _scrape_rendered_page(url: str) -> Dict[str, Any]:
             if m_price:
                 dom_price = f"฿{m_price.group(1)}"
 
-        raw_imgs = page.locator("img").evaluate_all(
-            """imgs => imgs.map(img => img.currentSrc || img.src || '')
-                .filter(src => /^https?:\\/\\//i.test(src))"""
-        )
-        images = _deduplicate_and_filter_images(raw_imgs)
+        # S1-04: gallery JSON + og:image only, never every <img> in the DOM
+        # (the "recommended products" carousel lives there too).
+        page_html = page.content() or ""
+        gallery = list(_extract_tiktok_modern_data(page_html).get("images") or [])
+        og_image = _extract_meta(page_html, "og:image")
+        if og_image:
+            gallery.append(og_image)
+        images = _deduplicate_and_filter_images(gallery)
 
         challenge = _looks_like_browser_challenge(body_text)
         login_required = _looks_like_login_page(dom_title, body_text, page.url)
@@ -953,7 +1165,7 @@ def _scrape_rendered_page(url: str) -> Dict[str, Any]:
             page.goto(url, wait_until="domcontentloaded", timeout=RENDERED_PAGE_TIMEOUT_MS)
             snapshot = read_page(page)
 
-            if snapshot["challenge"] or snapshot["login_required"]:
+            if allow_headed and (snapshot["challenge"] or snapshot["login_required"]):
                 context.close()
                 context = None
                 try:
@@ -1010,7 +1222,7 @@ class ProductScraper:
     """Intelligent multi-tier scraper supporting both Long & Short Shopee/TikTok URLs."""
 
     @classmethod
-    def scrape_url(cls, url: str) -> Dict[str, Any]:
+    def scrape_url(cls, url: str, allow_headed: bool = False) -> Dict[str, Any]:
         url = url.strip()
         _validate_scrape_url(url)
 
@@ -1052,6 +1264,8 @@ class ProductScraper:
         selling_points = []
         metadata_source = "slug_fallback"
         source_warning = ""
+        challenge = False
+        login_required = False
 
         # Tier 0: Extract metadata embedded in URL query parameters (e.g. TikTok mobile share links)
         url_param_meta = _extract_url_params_metadata(resolved_url) or _extract_url_params_metadata(url)
@@ -1106,6 +1320,18 @@ class ProductScraper:
             with _build_safe_opener().open(req, timeout=20) as resp:
                 raw_html = resp.read(600_000).decode("utf-8", errors="ignore")
 
+                # S1-05: a captcha/WAF wall served over plain HTTP must not be
+                # read as a product page (its <title> used to become the
+                # product name). Only the page titles and the first visible
+                # text are probed so product copy cannot trigger it.
+                challenge_probe = "\n".join(part for part in (
+                    _extract_meta(raw_html, "og:title") or "",
+                    _extract_html_title(raw_html),
+                    _extract_html_product_text(raw_html)[:1500],
+                ) if part)
+                if "__MODERN_ROUTER_DATA__" not in raw_html and _looks_like_browser_challenge(challenge_probe):
+                    raise _DirectFetchChallenge()
+
                 # Check TikTok SSR JSON data first (highest fidelity structured data)
                 if platform == "tiktok" and not description:
                     modern_data = _extract_tiktok_modern_data(raw_html)
@@ -1140,7 +1366,7 @@ class ProductScraper:
                 )
                 html_product_text = _extract_html_product_text(raw_html)
                 if not description:
-                    description = html_product_text or meta_description
+                    description = html_product_text or meta_description or ""
 
                 if not price:
                     price = _extract_meta(raw_html, "product:price:amount") or _extract_meta(raw_html, "og:price:amount")
@@ -1149,10 +1375,9 @@ class ProductScraper:
                 if og_img and og_img.startswith("http") and og_img not in images:
                     images.append(og_img)
 
-                img_matches = re.findall(r'<img[^>]+src=[\'"](https?://[^\'"]+\.(?:jpg|jpeg|png|webp)[^\'"]*)[\'"]', raw_html, re.I)
-                for img in img_matches[:8]:
-                    if img not in images and "icon" not in img.lower() and "logo" not in img.lower():
-                        images.append(img)
+                # S1-04: no generic <img> harvesting -- a product page also
+                # renders other products (carousels, ads, shop banners). Images
+                # come only from the PDP gallery JSON (above) and og:image.
 
                 if html_product_text:
                     if not selling_points:
@@ -1184,6 +1409,10 @@ class ProductScraper:
                     raw_text = f"{title}\n{description}"
                     if metadata_source in ("slug_fallback", "url_param_og_info"):
                         metadata_source = "html_meta"
+        except _DirectFetchChallenge:
+            challenge = True
+            source_warning = DIRECT_CHALLENGE_WARNING
+            print("[ProductScraper] หน้าเว็บติด Captcha/WAF ข้ามการอ่านข้อมูลจากหน้านี้")
         except Exception as e:
             print(f"[ProductScraper] Direct fetch note ({e}), using proxy/slug extraction...")
 
@@ -1193,7 +1422,11 @@ class ProductScraper:
         # provide a usable description. The browser helper deliberately stops
         # at the site's own challenge instead of bypassing it.
         if platform == "tiktok" and not description:
-            rendered = _scrape_rendered_page(resolved_url)
+            rendered = (
+                _scrape_rendered_page(resolved_url, allow_headed=True)
+                if allow_headed
+                else _scrape_rendered_page(resolved_url)
+            )
             rendered_text = rendered.get("raw_text", "")
             if rendered_text and not rendered.get("login_required") and not rendered.get("challenge"):
                 rendered_title = rendered.get("title", "")
@@ -1214,12 +1447,17 @@ class ProductScraper:
 
                 raw_text = f"{title}\n{description}".strip()
                 metadata_source = "browser_dom"
+                # The real browser got past whatever wall the direct fetch hit.
+                challenge = False
+                source_warning = ""
                 images = _deduplicate_and_filter_images(images + rendered.get("images", []))[:20]
             else:
+                challenge = challenge or bool(rendered.get("challenge"))
+                login_required = bool(rendered.get("login_required"))
                 raw_warn = rendered.get("warning", "")
                 if raw_warn and ("Target page" in raw_warn or "exitCode" in raw_warn or "launch_persistent_context" in raw_warn):
                     raw_warn = "เปิด browser เพื่ออ่านรายละเอียดสินค้าไม่สำเร็จ (เบราว์เซอร์ไม่พร้อมทำงาน)"
-                source_warning = raw_warn
+                source_warning = raw_warn or source_warning
 
         # Extract additional structured specs from description text
         desc_specs = _extract_specs_from_text(description)
@@ -1240,6 +1478,18 @@ class ProductScraper:
         if not raw_text or re.fullmatch(r'[\d_]+', raw_text):
             raw_text = f"{clean_title}\n{description}".strip() if description else clean_title
 
+        # S1-05/S1-06: an empty or blocked scrape is reported as such instead of
+        # passing for success -- the caller must ask the user for the details.
+        source_missing = not description
+        needs_manual = bool(
+            challenge
+            or login_required
+            or (source_missing and not final_images)
+            or clean_title == "สินค้าแนะนำ"
+        )
+        if source_missing and not source_warning:
+            source_warning = SOURCE_MISSING_WARNING
+
         return {
             "title": clean_title,
             "url": resolved_url,
@@ -1251,6 +1501,9 @@ class ProductScraper:
             "selling_points": selling_points,
             "raw_text": raw_text,
             "metadata_source": metadata_source,
+            "source_missing": source_missing,
+            "needs_manual": needs_manual,
+            **({"challenge": True} if challenge else {}),
             **({"source_warning": source_warning} if source_warning else {}),
         }
 
@@ -1302,9 +1555,7 @@ class ProductScraper:
                 if isinstance(image_path, str) and image_path.lower().startswith(("http://", "https://")):
                     data, mime = _download_image_bytes(image_path)
                 else:
-                    path = Path(image_path)
-                    if not path.is_absolute():
-                        path = BASE_DIR / path
+                    path = _safe_local_image_path(image_path)
                     data = path.read_bytes()
                     mime = {
                         ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
@@ -1603,9 +1854,7 @@ class ProductScraper:
                             data, mime = _download_image_bytes(img_path)
                             image_parts.append(types.Part.from_bytes(data=data, mime_type=mime))
                             continue
-                        p = Path(img_path)
-                        if not p.is_absolute():
-                            p = BASE_DIR / p
+                        p = _safe_local_image_path(img_path)
                         ext = p.suffix.lower().lstrip(".")
                         mime = {
                             "jpg": "image/jpeg", "jpeg": "image/jpeg",
