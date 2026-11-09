@@ -19,7 +19,7 @@ import soundfile as sf
 
 from scripts import word_alignment as wa
 from scripts.editorial_pacing import build_pacing_plan_from_cues, resolve_pacing_boundaries
-from scripts.gemini_tts_engine import GeminiFlashTTSEngine
+from scripts.gemini_tts_engine import GEMINI_LEAD_SILENCE_PAD_S, GeminiFlashTTSEngine
 from scripts.pipeline_context import PipelineContext
 from scripts.product_callout_builder import build_product_callouts
 from scripts.stages import voice_stage
@@ -104,9 +104,16 @@ def _ass_seconds(stamp: str) -> float:
 
 
 def _number_truth(fx, on_screen):
+    """When the number is spoken, on the clock of the file that PLAYS.
+
+    The fake TTS writes the fixture's untrimmed take; VoiceStage then trims
+    its lead silence (keeping a 40ms pad) and moves every cue/word with the
+    audio (audit S2-01). So the truth is the fixture time minus that head.
+    """
+    head_trimmed = max(0.0, fx["truth"][0][0]["start"] - GEMINI_LEAD_SILENCE_PAD_S)
     for cue, truth in zip(fx["cues"], fx["truth"]):
         if cue["on_screen"] == on_screen:
-            return next(t["start"] for t in truth if any(ch.isdigit() for ch in t["text"]))
+            return next(t["start"] for t in truth if any(ch.isdigit() for ch in t["text"])) - head_trimmed
     raise KeyError(on_screen)
 
 
