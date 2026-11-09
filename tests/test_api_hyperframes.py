@@ -119,7 +119,7 @@ def test_render_composition_not_found():
     assert resp.status_code == 404
 
 
-def test_render_composition_test_mode(tmp_path, monkeypatch):
+def test_render_composition_test_mode(tmp_path, monkeypatch, studio_fixture):
     """Render in test mode places output in tmp directory and does not register in export registry."""
     from scripts import api_hyperframes
 
@@ -139,9 +139,10 @@ def test_render_composition_test_mode(tmp_path, monkeypatch):
     monkeypatch.setattr(api_hyperframes, "TMP_DIR", tmp_path)
 
     # Patch COMPOSITIONS_DIR so it finds a mock composition
-    mock_comp = tmp_path / "mock-clip-10s.html"
+    # Legacy compositions are cloned beside the source and addressed relative
+    # to STUDIO_DIR, so the mock composition must live inside the studio root.
+    mock_comp = studio_fixture / "compositions" / "mock-clip-10s.html"
     mock_comp.write_text('<html><head></head><body data-duration="10">Mock</body></html>', encoding="utf-8")
-    monkeypatch.setattr(api_hyperframes, "COMPOSITIONS_DIR", tmp_path)
 
     resp = client.post(
         "/api/hyperframes/render",
@@ -150,7 +151,7 @@ def test_render_composition_test_mode(tmp_path, monkeypatch):
             "is_test": True,
         },
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["status"] == "rendered"
     assert data["is_test"] is True
@@ -171,7 +172,7 @@ def test_open_studio_endpoint(monkeypatch):
     assert "3100" in data["url"]
 
 
-def test_render_composition_final_registers_export(tmp_path, monkeypatch):
+def test_render_composition_final_registers_export(tmp_path, monkeypatch, studio_fixture):
     """Final render registers export in ExportRegistry and cleans up."""
     from scripts import api_hyperframes
 
@@ -187,9 +188,8 @@ def test_render_composition_final_registers_export(tmp_path, monkeypatch):
     monkeypatch.setattr(api_hyperframes.subprocess, "run", mock_run)
     monkeypatch.setattr(api_hyperframes, "EXPORTS_DIR", tmp_path)
 
-    mock_comp = tmp_path / "mock-final-30s.html"
+    mock_comp = studio_fixture / "compositions" / "mock-final-30s.html"
     mock_comp.write_text('<html><head></head><body data-duration="30">Mock Final</body></html>', encoding="utf-8")
-    monkeypatch.setattr(api_hyperframes, "COMPOSITIONS_DIR", tmp_path)
 
     # Mock ExportRegistry.ensure_many
     mock_ensure = MagicMock(return_value=[{"id": "exp_mock_123"}])
@@ -204,7 +204,7 @@ def test_render_composition_final_registers_export(tmp_path, monkeypatch):
             "product_id": product["id"],
         },
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["status"] == "rendered"
     assert data["is_test"] is False
