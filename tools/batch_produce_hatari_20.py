@@ -7,7 +7,7 @@ Dual-speaker Southern Couple (#5 Couple Paper Chat):
   - Whisper: single in-memory instance of large-v3-turbo for turn verification
   - Audio sanitization: cosine tail fade-out 120ms, clean_isolated_bursts_in_vo, clean_vo_wav
   - Composition: Couple Paper Chat (#5) on assets/shared/paper_bg.mp4
-  - Brand-First CTA Outro: Hatari · Cyclone Max 8 นิ้ว, hero cutout 630px, zero emoji, red curved arrow
+  - Brand-First CTA Outro: Hatari · Cyclone Max 8 นิ้ว, hero cutout 630px, zero emoji, zero arrow (rule 23)
 """
 import argparse
 import base64
@@ -570,18 +570,6 @@ HATARI_TEMPLATE = r"""<!DOCTYPE html>
         color: #111111;
         white-space: nowrap;
       }
-      #cta-arrow {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-      }
-      #cta-arrow path {
-        fill: none;
-        stroke: var(--line-red);
-        stroke-width: 18;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
       #wm {
         left: 0 !important;
         right: 0;
@@ -631,10 +619,6 @@ HATARI_TEMPLATE = r"""<!DOCTYPE html>
             <span class="spec-tag">ตั้งโต๊ะหรือแขวนผนัง</span>
           </div>
         </div>
-        <svg class="fx" id="cta-arrow" viewBox="0 0 1080 1920">
-          <path id="cta-shaft" d="M 220 700 C 120 900 80 1190 140 1460" stroke-dasharray="1000" stroke-dashoffset="1000" />
-          <path id="cta-head" d="M 60 1380 L 140 1470 L 230 1390" stroke-dasharray="400" stroke-dashoffset="400" />
-        </svg>
       </div>
       <div id="wm"><span>rizannTry</span></div>
 
@@ -682,8 +666,6 @@ HATARI_TEMPLATE = r"""<!DOCTYPE html>
       tl.fromTo("#cta-1", { opacity: 0, scale: 0.82, rotate: -3 }, { opacity: 1, scale: 1, rotate: 0, duration: 0.35, ease: "back.out(2.2)" }, CTA_T + 0.05);
       tl.fromTo("#cta-model", { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.28, ease: "power2.out" }, CTA_T + 0.18);
       tl.fromTo("#cta-hero", { opacity: 0, scale: 0.65, rotate: 6 }, { opacity: 1, scale: 1, rotate: 0, duration: 0.45, ease: "back.out(1.8)" }, CTA_T + 0.25);
-      tl.to("#cta-shaft", { strokeDashoffset: 0, duration: 0.55, ease: "power2.out" }, CTA_T + 0.55);
-      tl.to("#cta-head", { strokeDashoffset: 0, duration: 0.25, ease: "power2.out" }, CTA_T + 0.95);
 
       if (window.__timelines) {
         window.__timelines["__CID__"] = tl;
