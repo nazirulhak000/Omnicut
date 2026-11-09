@@ -11,6 +11,9 @@ from tests.motion_capture.clip_pair import create_clip_source
 from tests.motion_capture.overlay_pair import vite_fs_url
 
 
+SKIP_PRODUCER = pytest.mark.skip(reason="ProducerHub is no longer rendered anywhere in the app (removed in a8862ba, remove obsolete gadget and producer hubs; appNav maps the old producer tab to flow). Delete this test together with ProducerHub.jsx once the owner confirms the removal.")
+
+
 def _setup(page, owner, project, timeline=None, tab="gadget"):
     page.set_default_timeout(10000)
     writes = []
@@ -142,6 +145,7 @@ def _manual_hub(page, tab, hf_state=None):
     return writes
 
 
+@SKIP_PRODUCER
 @pytest.mark.parametrize("tab", ["producer"])
 def test_manual_hub_failed_write_retains_draft_across_channel_switch(motion_fixture_url, tab):
     parsed = urlsplit(motion_fixture_url)
@@ -231,6 +235,7 @@ def test_manual_hub_failed_write_retains_draft_across_channel_switch(motion_fixt
             browser.close()
 
 
+@SKIP_PRODUCER
 @pytest.mark.parametrize("form", ["note", "proposal"])
 def test_producer_modal_drafts_retain_owner_and_edit_revision(motion_fixture_url, form):
     parsed = urlsplit(motion_fixture_url)
@@ -273,6 +278,7 @@ def test_producer_modal_drafts_retain_owner_and_edit_revision(motion_fixture_url
             browser.close()
 
 
+@SKIP_PRODUCER
 @pytest.mark.parametrize("action", ["note", "upload"])
 def test_producer_pending_save_fences_switch_and_retains_newer_edit(motion_fixture_url, action):
     parsed = urlsplit(motion_fixture_url)
