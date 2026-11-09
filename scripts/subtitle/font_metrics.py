@@ -79,15 +79,44 @@ def _load_font_family_map() -> Dict[str, str]:
 _FAMILY_FONT_PATH_CACHE: Dict[str, Optional[str]] = {}
 
 
+class FontAssetMissingError(RuntimeError):
+    """A font the render contract needs has no readable file on disk.
+
+    Raised instead of silently falling back to scale 1.0 / estimated widths
+    (font_text_visual_contract.md section 3/5.3, audit S5-01/S5-02): a
+    fallback renders captions ~40% smaller and drops the hook line without
+    any error.
+    """
+
+
+def _missing_font_error(resolved_font: str, path: Optional[str] = None) -> FontAssetMissingError:
+    if path:
+        detail = f"ไม่พบไฟล์ฟอนต์ '{resolved_font}' ที่ {path}"
+    else:
+        detail = f"ไม่พบไฟล์ฟอนต์ของตระกูล '{resolved_font}' ใน asset registry"
+    return FontAssetMissingError(
+        f"{detail} — หยุดเรนเดอร์ซับเพื่อกันขนาดตัวอักษรผิด "
+        "(ตรวจโฟลเดอร์ 02_Assets/Fonts แล้วสร้าง asset registry ใหม่ด้วย "
+        "python -m scripts.asset_registry)"
+    )
+
+
 def _resolve_family_font_path(resolved_font: str) -> Optional[str]:
     """
     Finds the most suitable font file path for a given font family.
     Prioritizes standard Bold (-Bold.ttf / Bold) to match CSS font-weight 700
     and libass defaults, preventing ExtraBold or Black variants from inflating
     text advance widths.
+
+    Returns None only when the registry has no face for this family at all.
+    A face the registry lists but that is missing on disk raises
+    FontAssetMissingError (never a silent fallback).
     """
-    if resolved_font in _FAMILY_FONT_PATH_CACHE:
-        return _FAMILY_FONT_PATH_CACHE[resolved_font]
+    cached = _FAMILY_FONT_PATH_CACHE.get(resolved_font)
+    if cached and Path(cached).is_file():
+        return cached
+    if resolved_font in _FAMILY_FONT_PATH_CACHE and cached is None:
+        return None
 
     fonts = [f for f in AssetRegistry.fonts() if f.get("family") == resolved_font]
     if not fonts:
@@ -105,6 +134,10 @@ def _resolve_family_font_path(resolved_font: str) -> Optional[str]:
     if not chosen:
         chosen = fonts[0]["path"]
 
+    if not chosen or not Path(chosen).is_file():
+        _FAMILY_FONT_PATH_CACHE.pop(resolved_font, None)
+        raise _missing_font_error(resolved_font, chosen)
+
     _FAMILY_FONT_PATH_CACHE[resolved_font] = chosen
     return chosen
 
@@ -120,14 +153,14 @@ def _measure_text_width_px(text: str, resolved_font: str, font_size_px: int) -> 
         from PIL import ImageFont
     except ImportError:
         return None
-    try:
-        font_path = _resolve_family_font_path(resolved_font)
-        if not font_path:
-            return None
-        font = ImageFont.truetype(font_path, font_size_px)
-        return int(round(font.getlength(text)))
-    except Exception:
+    font_path = _resolve_family_font_path(resolved_font)
+    if not font_path:
         return None
+    try:
+        font = ImageFont.truetype(font_path, font_size_px)
+    except OSError as exc:
+        raise _missing_font_error(resolved_font, font_path) from exc
+    return int(round(font.getlength(text)))
 
 
 def prefix_advances(text_tokens: List[str], resolved_font: str, font_size_px: int) -> Optional[List[float]]:
@@ -139,19 +172,19 @@ def prefix_advances(text_tokens: List[str], resolved_font: str, font_size_px: in
         from PIL import ImageFont
     except ImportError:
         return None
-    try:
-        font_path = _resolve_family_font_path(resolved_font)
-        if not font_path:
-            return None
-        font = ImageFont.truetype(font_path, font_size_px)
-        advances = [0.0]
-        cumulative = ""
-        for token in text_tokens:
-            cumulative += token
-            advances.append(float(font.getlength(cumulative)))
-        return advances
-    except Exception:
+    font_path = _resolve_family_font_path(resolved_font)
+    if not font_path:
         return None
+    try:
+        font = ImageFont.truetype(font_path, font_size_px)
+    except OSError as exc:
+        raise _missing_font_error(resolved_font, font_path) from exc
+    advances = [0.0]
+    cumulative = ""
+    for token in text_tokens:
+        cumulative += token
+        advances.append(float(font.getlength(cumulative)))
+    return advances
 
 
 _ASS_GLYPH_SCALE_CACHE: Dict[str, float] = {}
@@ -220,15 +253,14 @@ def ass_glyph_scale(resolved_font: str) -> float:
     """
     if resolved_font in _ASS_GLYPH_SCALE_CACHE:
         return _ASS_GLYPH_SCALE_CACHE[resolved_font]
-    scale = 1.0
-    try:
-        path = _resolve_family_font_path(resolved_font)
-        if path:
-            parsed_scale = _sfnt_ass_glyph_scale(Path(path))
-            if parsed_scale is not None:
-                scale = parsed_scale
-    except Exception:
-        scale = 1.0
+    # No silent 1.0 (font_text_visual_contract.md section 3): an unresolvable
+    # face would render every caption ~40% smaller without any error.
+    path = _resolve_family_font_path(resolved_font)
+    if not path:
+        raise _missing_font_error(resolved_font)
+    scale = _sfnt_ass_glyph_scale(Path(path))
+    if scale is None:
+        raise _missing_font_error(resolved_font, path)
     _ASS_GLYPH_SCALE_CACHE[resolved_font] = scale
     return scale
 
@@ -251,12 +283,9 @@ def ass_top_anchor_offset(resolved_font: str, em_size_px: float) -> int:
         return 0
     if resolved_font not in _ASS_VERTICAL_METRICS_CACHE:
         metrics = None
-        try:
-            path = _resolve_family_font_path(resolved_font)
-            if path:
-                metrics = _sfnt_ass_vertical_metrics(Path(path))
-        except Exception:
-            metrics = None
+        path = _resolve_family_font_path(resolved_font)
+        if path:
+            metrics = _sfnt_ass_vertical_metrics(Path(path))
         _ASS_VERTICAL_METRICS_CACHE[resolved_font] = metrics
     metrics = _ASS_VERTICAL_METRICS_CACHE[resolved_font]
     if metrics is None:
@@ -296,6 +325,8 @@ def has_true_bold_face(resolved_font: str) -> bool:
             weight_bold = int(getattr(os2, "usWeightClass", 400) or 400) >= 600
             name_says_bold = "bold" in subfamily
             result = fs_selection_bold or mac_style_bold or weight_bold or name_says_bold
+    except FontAssetMissingError:
+        raise
     except Exception:
         result = True
     _HAS_TRUE_BOLD_CACHE[resolved_font] = result

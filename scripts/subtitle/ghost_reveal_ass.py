@@ -29,7 +29,7 @@ without touching anything else.
 
 from __future__ import annotations
 
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 from scripts.subtitle.badge_plate_renderer import ass_colour
 from scripts.subtitle.word_layout import layout_line
@@ -49,27 +49,47 @@ ACTIVE_SCALE_PCT = 114
 
 
 def _ass_time(t: float) -> str:
-    """ASS timestamps are H:MM:SS.cc, centiseconds, single-digit hour."""
-    t = max(0.0, float(t))
-    h = int(t // 3600)
-    m = int((t % 3600) // 60)
-    s = t % 60
-    return f"{h:d}:{m:02d}:{s:05.2f}"
+    """ASS timestamps are H:MM:SS.cc, centiseconds, single-digit hour.
+
+    The one formatter every caption event uses (SubtitleEngine._format_ass_time
+    delegates here).  Rounds once to whole centiseconds in integer space: two
+    formatters that disagreed (truncate vs round) ended a word and its detached
+    tone companion one centisecond apart, flashing for a frame (audit S5-11).
+    """
+    total_cs = int(round(max(0.0, float(t)) * 100))
+    h, rem = divmod(total_cs, 360000)
+    m, rem = divmod(rem, 6000)
+    sec, cs = divmod(rem, 100)
+    return f"{h:d}:{m:02d}:{sec:02d}.{cs:02d}"
 
 
-def _state_tags(state: str) -> str:
+def word_pops(word: Dict) -> bool:
+    """Whether the active word is drawn at ACTIVE_SCALE_PCT.
+
+    A word whose tone mark was detached from its upper vowel (``ที่``, ``นั่ง``)
+    stays at 100%: the tone is redrawn by a full-line companion event laid out
+    at 100%, so a popped body left the tone white, off its glyph and sunk into
+    the vowel (audit S5-04).  The caller marks such words ``pop: False``; the
+    preview mirrors the rule in SequencePlayer.jsx's ghostRevealSegments.
+    """
+    return bool(word.get("pop", True))
+
+
+def _state_tags(state: str, pop: bool = True) -> str:
     if state == "spoken":
         return f"{{\\c{SPOKEN_COLOUR}\\alpha&H00&\\fscx100\\fscy100}}"
     if state == "active":
         scale = ""
-        if ACTIVE_SCALE_PCT != 100:
+        if pop and ACTIVE_SCALE_PCT != 100:
             scale = f"\\fscx{ACTIVE_SCALE_PCT}\\fscy{ACTIVE_SCALE_PCT}"
         return f"{{\\c{ACTIVE_COLOUR}\\alpha&H00&{scale}}}"
     # ghost: still drawn, so it holds its width and the line cannot reflow.
     return f"{{\\alpha{GHOST_ALPHA}}}"
 
 
-def build_reveal_line(words: Sequence[str], active_idx: int) -> str:
+def build_reveal_line(
+    words: Sequence[str], active_idx: int, pops: Optional[Sequence[bool]] = None
+) -> str:
     """
     The whole line as ASS text, with word `active_idx` lit.
 
@@ -86,7 +106,8 @@ def build_reveal_line(words: Sequence[str], active_idx: int) -> str:
             state = "active"
         else:
             state = "ghost"
-        parts.append(f"{_state_tags(state)}{w}")
+        pop = True if pops is None else bool(pops[i])
+        parts.append(f"{_state_tags(state, pop)}{w}")
     return "".join(parts)
 
 
@@ -166,7 +187,9 @@ def build_multiline_reveal_events(
             if other_li < li:
                 text = build_settle_line(words)          # already said
             elif other_li == li:
-                text = build_reveal_line(words, wi)      # holds the active word
+                text = build_reveal_line(                # holds the active word
+                    words, wi, [word_pops(w) for w in other_line]
+                )
             else:
                 text = _ghost_line(words)                # still to come
             # The English line stacks under the caption as a whole, so it hangs
@@ -231,7 +254,7 @@ def build_ghost_reveal_events(
             # A zero-width span would be a Dialogue libass drops; letting it
             # through would make that word never light up at all.
             continue
-        text = build_reveal_line(words, i)
+        text = build_reveal_line(words, i, [word_pops(w) for w in reveal])
         events.append(
             f"Dialogue: {layer},{_ass_time(start)},{_ass_time(end)},{style},,0,0,0,,"
             f"{prefix_tags}{text}{suffix}"

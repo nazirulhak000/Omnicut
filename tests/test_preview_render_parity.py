@@ -2979,7 +2979,8 @@ def test_reveal_companions_are_built_from_the_whole_line():
     assert "_, line_marks = repair_caption_text(" in block, (
         "the reveal must repair the whole line for its companions"
     )
-    assert "w_body, _ = repair_caption_text(ass_escape_text(word[\"text\"]))" in block, (
+    # w_detached also drives the no-pop rule for that word (audit S5-04).
+    assert "w_body, w_detached = repair_caption_text(ass_escape_text(word[\"text\"]))" in block, (
         "the body still repairs per word, since each word is drawn separately"
     )
 
@@ -3076,6 +3077,7 @@ const code = `
 ${grab(/const GHOST_SPOKEN_COLOR = [^\n]*/, 'spoken')}
 ${grab(/const GHOST_ACTIVE_COLOR = [^\n]*/, 'active')}
 ${grab(/const GHOST_ACTIVE_SCALE = [^\n]*/, 'scale')}
+${grab(/const GHOST_NO_POP_RE = [^\n]*/, 'noPop')}
 ${grab(/function splitRevealByLines\([\s\S]*?\n\}/, 'splitRevealByLines')}
 ${grab(/function ghostRevealSegments\([\s\S]*?\n\}/, 'ghostRevealSegments')}
 export const ACTIVE = GHOST_ACTIVE_COLOR;

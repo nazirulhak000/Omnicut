@@ -55,7 +55,7 @@ import {
 } from '../lib/overlayBoxGeometry.js';
 import { bindWindowPointerLifecycle } from '../lib/pointerDragLifecycle.js';
 import { drawMediaWithAccentRecolor } from '../lib/overlayRecolor.js';
-import { reconcileEffectPlayback } from '../lib/effectPlayback.js';
+import { disposeEffectVideos, reconcileEffectPlayback } from '../lib/effectPlayback.js';
 import { createPreviewTimelineIndex, pauseInactivePreviewVideos } from '../lib/previewTimelineScheduler.js';
 import { overlayAnimState, resolveCanvasCompositeOp } from '../lib/stickerAnimation.js';
 import { createCutoutVideoPlayback } from '../lib/cutoutVideoPlayback.js';
@@ -365,7 +365,12 @@ const WATERMARK_X_RATIO = 0.945;
 const WATERMARK_Y_RATIO = 0.72;
 const WATERMARK_FS_RATIO = 0.038;
 const WATERMARK_COLOR = '#FF0000';
-const WATERMARK_ALPHA = 0.4;
+// ASS `\alpha&HA0&` is 0xA0/255 transparent, i.e. (255 - 160) / 255 opaque.
+const WATERMARK_ALPHA = (255 - 0xA0) / 255;
+// Render outline in PlayRes px: max(2.0, round(68 * 0.05, 1)) where 68 is the
+// IBM Plex watermark Fontsize (41 / 0.6060606). Canvas lineWidth carries the
+// render-px outline, same convention as captionOutlineWidth (audit S5-10).
+const WATERMARK_OUTLINE_PX = 3.4;
 // Canvas playback remains frame-paced, but React only needs enough playhead
 // updates to keep the editor chrome and selection box visually current. The
 // preview/render contract is 30 FPS, so this caps React state publication at
@@ -1037,9 +1042,10 @@ function BackgroundIsolationStatusBadge({ status = 'off' }) {
 
 // Mirrors the .ass style the renderer burns: CAPTION_POSITIONS in
 // subtitle_engine.py puts the block at the bottom (margin 420 of 1920),
-// centre, or top (margin 260). Same fractions here so the preview does not
-// promise a placement the file will not have.
-const CAPTION_Y = { bottom: 1 - 420 / 1920, middle: 0.5, top: 260 / 1920 };
+// centre, or top (margin 180). Same fractions here so the preview does not
+// promise a placement the file will not have -- top used to say 260, 80px
+// below the render (audit S5-07); test_preview_render_parity pins both.
+const CAPTION_Y = { bottom: 1 - 420 / 1920, middle: 0.5, top: 180 / 1920 };
 const CAPTION_COLORS = { white: '#fff', yellow: '#FFE600' };
 
 // Progressive Ghost Reveal (SOP Phase 3), mirrored from
@@ -1049,6 +1055,10 @@ const CAPTION_COLORS = { white: '#fff', yellow: '#FFE600' };
 const GHOST_SPOKEN_COLOR = '#FFFFFF';
 const GHOST_ACTIVE_COLOR = '#66FF00';
 const GHOST_ACTIVE_SCALE = 1.14;
+// A word whose tone is detached from its upper vowel (ที่, นั่ง) is drawn at
+// 100% while active: ghost_reveal_ass.word_pops keeps it unscaled because the
+// render redraws that tone from a companion laid out at 100% (audit S5-04).
+const GHOST_NO_POP_RE = /[\u0E31\u0E34-\u0E37][\u0E48-\u0E4B]/;
 
 /**
  * The line as coloured segments at time `t`, one per word.
@@ -1112,7 +1122,8 @@ function ghostRevealSegments(reveal, t, lineWords = null) {
       return { text: word.text, color: GHOST_SPOKEN_COLOR, scale: 1 };
     }
     if (globalIdx === activeIdx) {
-      return { text: word.text, color: GHOST_ACTIVE_COLOR, scale: GHOST_ACTIVE_SCALE };
+      const scale = GHOST_NO_POP_RE.test(word.text) ? 1 : GHOST_ACTIVE_SCALE;
+      return { text: word.text, color: GHOST_ACTIVE_COLOR, scale };
     }
     return { text: word.text, color: GHOST_SPOKEN_COLOR, scale: 1, ghost: true };
   });
@@ -1343,18 +1354,23 @@ function drawProductCalloutText(ctx, text, x, y, fontSize, drawText, repairThaiM
 
 function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   if (!cue || !cue.text) return;
-  const globalScale = Math.min(2.5, Math.max(0.5, style.captionScale ?? 1.0));
-  const effectiveScale = typeof cue.scale === 'number' && cue.scale > 0
-    ? Math.min(3.0, Math.max(0.4, cue.scale))
-    : globalScale;
+  // Scale, font and top/middle/bottom are clip-wide: the render
+  // (subtitle_engine.generate_ass) reads them once per clip and never from a
+  // cue, so a per-cue cue.scale / cue.fontName / cue.position left in an older
+  // project must not be drawn either (audit S5-06). Clamp = the render's.
+  const effectiveScale = Math.min(2.5, Math.max(0.4, style.captionScale ?? 1.0));
   // Standard TikTok Subtitle Size: 100% (scale=1.0) is calibrated to 50pt on 1080w
   // (25px on 540w Canvas), exactly matching the user's preferred visual proportion.
   const baseFs = Math.round(CANVAS_W * 0.0463);
   const fontSize = Math.max(14, Math.round(baseFs * effectiveScale));
   
-  const fontFamName = cue.fontName || style.fontName || 'Kanit';
+  // Unset means the pipeline default, IBMPlex (PipelineContext.font_name).
+  const fontFamName = style.fontName || 'IBMPlex';
+  // Kanit/Prompt render through ass_caption_face() with Bold=1, i.e. their
+  // real Bold (700) cut -- 900/800 here drew a heavier face than the export
+  // (audit S5-08).
   let fontFam = "'Kanit', sans-serif";
-  let fontWeight = '900';
+  let fontWeight = '700';
   if (fontFamName === 'IBMPlex' || fontFamName === 'IBM Plex Sans Thai') {
     fontFam = "'IBM Plex Sans Thai', sans-serif";
     // Keep body captions on the same physical cut as ASS/libass.  The IBM
@@ -1363,7 +1379,7 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
     fontWeight = '600';
   } else if (fontFamName === 'Prompt') {
     fontFam = "'Prompt', sans-serif";
-    fontWeight = '800';
+    fontWeight = '700';
   } else if (fontFamName === 'Mali') {
     // Only Mali-Bold is embedded, and ass_caption_face() resolves the render
     // to that same cut -- asking for 900 here would let the browser synthesise
@@ -1418,7 +1434,7 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
 
   // Vertical anchoring: support per-cue position override (top / middle / bottom) or custom normalized y
   const totalBlockH = (thaiLines.length + enLines.length) * fontSize;
-  const pos = cue.position || style.captionPosition || 'bottom';
+  const pos = style.captionPosition || 'bottom';
   const anchorY = CANVAS_H * (CAPTION_Y[pos] ?? CAPTION_Y.bottom);
   let blockTop;
   if (typeof cue.y === 'number') {
@@ -1510,11 +1526,13 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
     });
     const totalLineW = segmentWidths.reduce((sum, w) => sum + w, 0);
 
-    // Pass 1: Outline / Stroke with crisp shadow
+    // Pass 1: Outline / Stroke with crisp shadow. A ghost-reveal caption has
+    // no shadow in the render (subtitle_engine drops TikTokSoftShadow for
+    // reveal cues), so none is drawn here either (audit S5-09).
     ctx.textAlign = 'left';
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = captionOutlineWidth(fontSize);
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+    ctx.shadowColor = revealSegments ? 'transparent' : 'rgba(0, 0, 0, 0.9)';
     ctx.shadowBlur = 3;
     ctx.shadowOffsetX = 2;
     ctx.shadowOffsetY = 3;
@@ -2395,7 +2413,7 @@ function drawWatermark(ctx, watermarkText) {
   ctx.font = `600 ${fontSize}px 'IBM Plex Sans Thai', sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.lineWidth = Math.max(1.5, fontSize * 0.1);
+  ctx.lineWidth = WATERMARK_OUTLINE_PX;
   ctx.globalAlpha = WATERMARK_ALPHA;
   ctx.strokeStyle = '#FFFFFF';
   ctx.fillStyle = WATERMARK_COLOR;
@@ -3704,6 +3722,10 @@ function SequencePlayer({
     const startMouseY = e.clientY;
     // Captions still carry a bare multiplier; an overlay's size is a percent
     // on its look, which is the number its tier editor shows.
+    // Caption size is clip-wide in the render (audit S5-06): resizing one
+    // caption on its own would change nothing in the export, so it is only
+    // offered while "apply to all captions" is on.
+    if (selectedBox.type === 'caption' && !(applyToAllCaptions && onUpdateAllCaptions)) return;
     const initialScale = selectedBox.sizePct != null
       ? selectedBox.sizePct / 100
       : (selectedBox.scale || 1.0);
@@ -4843,16 +4865,7 @@ function SequencePlayer({
     cutoutSourcePairsRef.current.forEach(({ clock }) => clock.dispose());
     cutoutSourcePairsRef.current.clear();
     videoElsRef.current = {};
-    effectVideosRef.current.forEach((item) => {
-      try {
-        if (item?.video) {
-          item.video.pause();
-          item.video.removeAttribute('src');
-          item.video.load();
-        }
-      } catch (_) {}
-    });
-    effectVideosRef.current.clear();
+    disposeEffectVideos(effectVideosRef.current);
     mediaSourcesRef.current = new Map();
     clipGainsRef.current = new Map();
     audioCtxRef.current?.close().catch(() => {});

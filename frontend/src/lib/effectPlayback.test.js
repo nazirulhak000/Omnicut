@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   EFFECT_PLAYBACK,
+  disposeEffectVideos,
   reconcileEffectPlayback,
   wrapEffectTime,
 } from './effectPlayback.js';
@@ -59,4 +60,33 @@ test('large effect drift hard-seeks instead of showing a stale frame', () => {
   assert.equal(decision.action, 'seek');
   assert.ok(Math.abs(decision.targetTime - 0.2) < 1e-9);
   assert.equal(decision.playbackRate, 1);
+});
+
+function fakeVideo() {
+  const calls = [];
+  return {
+    calls,
+    pause: () => calls.push('pause'),
+    removeAttribute: (name) => calls.push(`removeAttribute:${name}`),
+    load: () => calls.push('load'),
+  };
+}
+
+test('disposeEffectVideos stops the bare <video> elements the map stores (S4-07)', () => {
+  const a = fakeVideo();
+  const b = fakeVideo();
+  const map = new Map([['fx_a', a], ['fx_b', b]]);
+  disposeEffectVideos(map);
+  for (const v of [a, b]) {
+    assert.deepEqual(v.calls, ['pause', 'removeAttribute:src', 'load']);
+  }
+  assert.equal(map.size, 0);
+});
+
+test('disposeEffectVideos still accepts a { video } wrapper and tolerates a missing map', () => {
+  const v = fakeVideo();
+  const map = new Map([['fx', { video: v }]]);
+  disposeEffectVideos(map);
+  assert.deepEqual(v.calls, ['pause', 'removeAttribute:src', 'load']);
+  assert.doesNotThrow(() => disposeEffectVideos(null));
 });

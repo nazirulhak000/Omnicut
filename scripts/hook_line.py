@@ -230,8 +230,11 @@ def _fit_size_pct(text: str, look: Mapping[str, Any], tier_px: float) -> Optiona
         render_px = max(16, int(round(size_px)))
         width = measure_text_width_px(text, family, render_px)
         if width is None:
-            # No metrics for this face -- fall back to a conservative advance.
-            width = int(len(text) * render_px * 0.62)
+            # No metrics for this face: fail loudly instead of guessing a
+            # width and silently dropping the hook line (audit S5-02).
+            from scripts.subtitle.font_metrics import _missing_font_error
+
+            raise _missing_font_error(family)
         if width + outline <= HOOK_LINE_MAX_WIDTH_PX:
             break
         if size_px <= floor_px:

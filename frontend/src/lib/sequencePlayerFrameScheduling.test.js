@@ -47,9 +47,15 @@ test('frame scheduling keeps the audio clock, drift correction, and selection-bo
 });
 
 test('video effect overlays are synchronised to the master timeline before paint', () => {
-  assert.match(sequencePlayerSource, /import \{ reconcileEffectPlayback \} from '\.\.\/lib\/effectPlayback\.js';/);
+  assert.match(sequencePlayerSource, /import \{ disposeEffectVideos, reconcileEffectPlayback \} from '\.\.\/lib\/effectPlayback\.js';/);
   assert.match(sequencePlayerSource, /function syncEffectVideos\(videosMap, timelineTime, effectsList = \[\], isPlaying = true\)/);
   assert.match(playbackTickSource, /syncEffectVideos\(effectVideosRef\.current, t, effects\);/);
+});
+
+test('effect <video> elements are released on teardown, not left decoding (S4-07)', () => {
+  // The map stores bare elements; the old teardown read item.video (undefined).
+  assert.match(sequencePlayerSource, /disposeEffectVideos\(effectVideosRef\.current\);/);
+  assert.doesNotMatch(sequencePlayerSource, /if \(item\?\.video\) \{/);
 });
 
 test('Canvas motion contracts are opt-in and preserve the legacy overlay fallback', () => {
