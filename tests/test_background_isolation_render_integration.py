@@ -118,8 +118,9 @@ def _make_sequence(
     return config, artifact_id, sequence_dir
 
 
-def _assemble(monkeypatch, tmp_path, *, clip_list, background_isolation=None, transitions=None):
-    calls = _stub_editor(monkeypatch)
+def _assemble(monkeypatch, tmp_path, *, clip_list, background_isolation=None, transitions=None,
+              media_duration=4.0):
+    calls = _stub_editor(monkeypatch, duration=media_duration)
     source_bytes = b"source-must-not-be-mutated"
     sources = []
     for index, clip in enumerate(clip_list):
@@ -290,6 +291,7 @@ def test_windowed_rgba_sequence_starts_from_artifact_local_frame_zero(monkeypatc
             "trim_end": 10.0,
         }],
         background_isolation=config,
+        media_duration=12.0,  # trim must lie inside the probed source (audit S3-03)
     )
 
     assert command[command.index("-start_number") + 1] == "0"
@@ -333,6 +335,7 @@ def test_video_cutout_render_uses_alpha_decoder_and_artifact_local_seek(monkeypa
         clip_list=[{"source_path": str(tmp_path / "source.mp4"),
                     "trim_start": 9.0, "trim_end": 11.0}],
         background_isolation=config,
+        media_duration=12.0,  # trim must lie inside the probed source (audit S3-03)
     )
     assert str(video) in command
     video_index = command.index(str(video))

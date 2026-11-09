@@ -13,6 +13,8 @@ import hashlib
 import json
 import os
 import re
+import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Dict, List
@@ -20,6 +22,9 @@ from typing import Dict, List
 from scripts.config import ASSETS_DIR
 
 TONE_CACHE_FILE = ASSETS_DIR / ".tone_cache.json"
+# Parallel renders share this cache file: read-modify-write happens under the
+# lock and the file is published atomically (audit S3-16).
+_CACHE_LOCK = threading.Lock()
 
 # Load .env if present -- same pattern as gemini_vision_matcher.py, needed
 # when this module is imported before anything else has loaded it.
@@ -48,18 +53,40 @@ class ScriptToneAnalyzer:
     def _load_cache(cls) -> Dict[str, list]:
         if TONE_CACHE_FILE.exists():
             try:
-                return json.loads(TONE_CACHE_FILE.read_text(encoding="utf-8"))
+                cache = json.loads(TONE_CACHE_FILE.read_text(encoding="utf-8"))
+                return cache if isinstance(cache, dict) else {}
             except Exception:
                 return {}
         return {}
 
     @classmethod
     def _save_cache(cls, cache: Dict[str, list]) -> None:
+        tmp_path = None
         try:
             TONE_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            TONE_CACHE_FILE.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+            payload = json.dumps(cache, ensure_ascii=False, indent=2)
+            fd, tmp_path = tempfile.mkstemp(
+                prefix=TONE_CACHE_FILE.name + ".", suffix=".tmp", dir=str(TONE_CACHE_FILE.parent)
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(payload)
+            os.replace(tmp_path, TONE_CACHE_FILE)
+            tmp_path = None
         except Exception:
             pass
+        finally:
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+
+    @classmethod
+    def _store_cache_entry(cls, key: str, value: list) -> None:
+        with _CACHE_LOCK:
+            cache = cls._load_cache()
+            cache[key] = value
+            cls._save_cache(cache)
 
     @classmethod
     def classify_tone_shifts(cls, group_texts: List[str]) -> List[str]:
@@ -170,8 +197,7 @@ class ScriptToneAnalyzer:
             print(f"   ⚠️ Tone-shift analysis skipped ({e}) — transitions stay heuristic-only.")
             return []
 
-        cache[cache_key] = result
-        cls._save_cache(cache)
+        cls._store_cache_entry(cache_key, result)
         return result
 
 

@@ -14,6 +14,7 @@ import json
 import math
 import os
 import tempfile
+import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -25,6 +26,10 @@ ANALYSIS_WIDTH = 160
 ANALYSIS_HEIGHT = 284
 SMOOTH_WINDOW = 3
 MAX_FRAMES_SAFETY = 30 * 60 * 60  # ~1h at 30fps -- a raw TikTok source never gets close
+# Up to four renders plan shots in parallel threads; the shared cache file in
+# 02_Assets is read-modify-written under this lock so one render's entry is
+# never overwritten by another's stale copy (audit S3-16).
+_CACHE_LOCK = threading.Lock()
 
 
 def _valid_motion_entry(value) -> bool:
@@ -143,7 +148,7 @@ class MotionAnalyzer:
                     if prev_gray is not None:
                         diff = cv2.absdiff(prev_gray, gray)
                         raw_scores.append(float(diff.mean()))
-                        times.append(round(frame_idx / fps, 3))
+                        times.append(round(cls._frame_time(cap, cv2, frame_idx, fps, times), 3))
                     prev_gray = gray
                 frame_idx += 1
             cap.release()
@@ -166,9 +171,34 @@ class MotionAnalyzer:
             print(f"   ⚠️ Motion analysis skipped for {path.name} ({e}) — cut/zoom stay audio-timed.")
             return [], []
 
-        cache[key] = {"times": times, "scores": smoothed}
-        cls._save_cache(cache)
+        with _CACHE_LOCK:
+            # Re-read under the lock: another render may have added its own
+            # entry since this one loaded the cache above.
+            cache = cls._load_cache()
+            cache[key] = {"times": times, "scores": smoothed}
+            cls._save_cache(cache)
         return times, smoothed
+
+    @staticmethod
+    def _frame_time(cap, cv2, frame_idx: int, fps: float, previous: List[float]) -> float:
+        """Presentation time of the frame just read (audit S3-10).
+
+        Phone footage is often variable frame rate, where frame_idx / fps
+        drifts by seconds (CAP_PROP_FPS is only an average). OpenCV reports
+        the decoded frame's own timestamp in CAP_PROP_POS_MSEC; the index
+        estimate is kept only when that value is missing or goes backwards.
+        """
+        estimate = frame_idx / fps
+        try:
+            msec = float(cap.get(cv2.CAP_PROP_POS_MSEC))
+        except Exception:
+            return estimate
+        if not math.isfinite(msec) or msec < 0 or (frame_idx > 0 and msec == 0):
+            return estimate
+        seconds = msec / 1000.0
+        if previous and seconds < previous[-1]:
+            return estimate
+        return seconds
 
     @staticmethod
     def segment_mean_score(times: List[float], scores: List[float], t0: float, t1: float) -> Optional[float]:

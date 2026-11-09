@@ -147,6 +147,21 @@ export function resolveClipTransforms(clip = {}, localTime = 0) {
 export const ZOOM_LEVELS = [10, 25, 50, 100, 200];
 export const DEFAULT_ZOOM_INDEX = 2;
 
+// == video_editor.py: `speed = min(4.0, max(0.25, float(clip.get("speed") or 1.0)))`.
+export const RENDER_MIN_SPEED = 0.25;
+export const RENDER_MAX_SPEED = 4.0;
+
+/**
+ * The playback speed the renderer actually uses. ffmpeg clamps to 0.25-4x, so
+ * an unclamped preview made a speed-8 clip half as long as the render and a
+ * speed-0.1 clip 2.5x longer (audit S3-08). Missing/zero/NaN means 1x, as in
+ * Python's `or 1.0`.
+ */
+export function clampClipSpeed(speed) {
+  const value = Number(speed) || 1;
+  return Math.min(RENDER_MAX_SPEED, Math.max(RENDER_MIN_SPEED, value));
+}
+
 /**
  * Kept length of a clip on the sequence timeline, after trim, speed and the
  * freeze tail. The tail has to be counted here for the same reason
@@ -157,7 +172,7 @@ export const DEFAULT_ZOOM_INDEX = 2;
 export function clipDuration(clip, srcDuration) {
   const end = clip.trim_end ?? srcDuration ?? 0;
   const raw = end - (clip.trim_start || 0);
-  const speed = clip.speed || 1;
+  const speed = clampClipSpeed(clip.speed);
   const freezeTail = Math.min(10, Math.max(0, Number(clip.freeze_tail) || 0));
   return Math.max(MIN_CLIP_DURATION, raw / speed + freezeTail);
 }
@@ -277,7 +292,7 @@ export function totalDuration(segments) {
  */
 export function localTimeAt(seg, t) {
   const clip = seg.clip;
-  const speed = clip.speed || 1;
+  const speed = clampClipSpeed(clip.speed);
   const start = clip.trim_start || 0;
   if (clip.freeze_tail > 0 && Number.isFinite(clip.held_source_time)) return clip.held_source_time;
   const playedSpan = ((clip.trim_end ?? seg.srcDur ?? 0) - start) / speed;
@@ -290,7 +305,7 @@ export function localTimeAt(seg, t) {
 /** Played local time used by visual keyframes (freeze holds the final value). */
 export function motionTimeAt(seg, t) {
   const clip = seg.clip;
-  const speed = clip.speed || 1;
+  const speed = clampClipSpeed(clip.speed);
   const playedSpan = ((clip.trim_end ?? seg.srcDur ?? 0) - (clip.trim_start || 0)) / speed;
   return Math.max(0, Math.min(playedSpan, t - seg.segStart));
 }

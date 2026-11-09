@@ -81,6 +81,28 @@ def test_successful_probe_cache_does_not_mutate_shared_report(monkeypatch, isola
     assert len(calls) == 1
 
 
+def test_failed_probe_is_not_cached_until_restart(monkeypatch, isolated):
+    """Audit S3-13: a timed-out CUDA probe must be retried on the next call."""
+    interpreter = runtime.sam2_python()
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_bytes(b"fake")
+    calls = []
+
+    def flaky(*args, **kwargs):
+        calls.append(args)
+        if len(calls) == 1:
+            raise subprocess.TimeoutExpired(cmd="python", timeout=20)
+        return SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
+            "sam2_runtime": True, "cuda": True, "device_name": "test GPU"}))
+
+    monkeypatch.setattr(runtime.subprocess, "run", flaky)
+    first = runtime.probe_sam2_runtime()
+    assert first["cuda"] is False and "probe failed" in first["error"]
+    assert runtime.probe_sam2_runtime()["cuda"] is True
+    assert runtime.probe_sam2_runtime()["cuda"] is True
+    assert len(calls) == 2
+
+
 @pytest.mark.parametrize("report,code", [
     ({"sam2_runtime": False, "cuda": False}, "sam2_runtime_missing"),
     ({"sam2_runtime": True, "cuda": False, "error": "no NVIDIA GPU"}, "sam2_cuda_unavailable"),

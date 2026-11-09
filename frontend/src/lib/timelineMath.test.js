@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   clipDuration,
+  clampClipSpeed,
   buildSegments,
   totalDuration,
   localTimeAt,
@@ -484,3 +485,17 @@ test('resolveSnapCandidateLabel identifies candidate origins accurately', () => 
   assert.equal(resolveSnapCandidateLabel(99.9, { playhead: 1.0 }), 'จุดตัด (Snap)');
 });
 
+
+test('clipDuration clamps speed to the render range 0.25-4x (audit S3-08)', () => {
+  // video_editor.py: speed = min(4.0, max(0.25, float(speed or 1.0)))
+  assert.equal(clipDuration({ trim_start: 0, trim_end: 8, speed: 8 }), 2);
+  assert.equal(clipDuration({ trim_start: 0, trim_end: 8, speed: 0.1 }), 32);
+  assert.equal(clipDuration({ trim_start: 0, trim_end: 8, speed: -2 }), 32);
+  assert.equal(clipDuration({ trim_start: 0, trim_end: 8, speed: 0 }), 8);
+  assert.equal(clipDuration({ trim_start: 0, trim_end: 8, speed: 'abc' }), 8);
+  assert.equal(clampClipSpeed(undefined), 1);
+  assert.equal(clampClipSpeed(2.5), 2.5);
+  const seg = { clip: { trim_start: 0, trim_end: 8, speed: 8 }, segStart: 0, srcDur: 8 };
+  assert.equal(localTimeAt(seg, 1), 4);
+  assert.equal(motionTimeAt(seg, 5), 2);
+});

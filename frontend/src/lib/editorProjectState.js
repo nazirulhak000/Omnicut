@@ -5,7 +5,7 @@ import {
   normalizeProductCallout,
   PRODUCT_CALLOUT_ROLE,
 } from './productCallout.js';
-import { FADE_DURATION } from './timelineMath.js';
+import { clampClipSpeed, FADE_DURATION } from './timelineMath.js';
 import { effectiveAudioMutes } from './trackMix.js';
 import { busVolumesFromManifest, clampBusVolume, SFX_VOLUME_DEFAULT, VOICE_VOLUME_DEFAULT } from './audioBusLevels.js';
 import { effectiveDuration, normalizeCuts } from './voiceCutMap.js';
@@ -139,7 +139,8 @@ export function manifestToEditorState(data, options = {}) {
       trim_start: Number(clip.trim_start) || 0,
       trim_end: clip.trim_end !== null && clip.trim_end !== undefined ? Number(clip.trim_end) : null,
       duration: Number(clip.duration) || 0,
-      speed: Number(clip.speed) || 1,
+      // Clamped on load to the render's 0.25-4x so preview == render (S3-08).
+      speed: clampClipSpeed(clip.speed),
       transition_in: clip.transition_in || boundary.type || 'cut',
       transition_duration: clip.transition_duration ?? boundary.duration ?? undefined,
       // Optional eased transition progress (R2 lane TM); absent == linear.

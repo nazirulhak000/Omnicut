@@ -190,12 +190,24 @@ def test_video_cutout_is_one_seekable_alpha_artifact_and_render_reads_it(tmp_pat
         rotation=0, rembg_worker=_Worker(),
     )["cache_hit"] is True
     (directory / "cutout.webm").write_bytes(b"damaged")
-    with pytest.raises(RuntimeError, match="checksum mismatch"):
-        video_worker.process_background_isolation_video(
-            source, cache, {"enabled": True}, source_fingerprint=fingerprint,
-            start=0.0, duration=1.0, fps=2, timebase="1/2", width=16, height=16,
-            rotation=0, rembg_worker=_Worker(),
-        )
+    # Audit S3-12: a damaged cache entry is quarantined (kept, not deleted)
+    # and rebuilt instead of failing every attempt forever.
+    rebuilt = video_worker.process_background_isolation_video(
+        source, cache, {"enabled": True}, source_fingerprint=fingerprint,
+        start=0.0, duration=1.0, fps=2, timebase="1/2", width=16, height=16,
+        rotation=0, rembg_worker=_Worker(),
+    )
+    assert rebuilt["artifact_id"] == result["artifact_id"]
+    assert rebuilt.get("cache_hit") is not True
+    assert (directory / "cutout.webm").read_bytes() != b"damaged"
+    quarantined = [p for p in directory.parent.iterdir() if ".corrupt-" in p.name]
+    assert len(quarantined) == 1
+    assert (quarantined[0] / "cutout.webm").read_bytes() == b"damaged"
+    assert video_worker.process_background_isolation_video(
+        source, cache, {"enabled": True}, source_fingerprint=fingerprint,
+        start=0.0, duration=1.0, fps=2, timebase="1/2", width=16, height=16,
+        rotation=0, rembg_worker=_Worker(),
+    )["cache_hit"] is True
 
 
 @pytest.mark.render_regression
