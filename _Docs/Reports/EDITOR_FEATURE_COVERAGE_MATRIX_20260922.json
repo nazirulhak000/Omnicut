@@ -433,13 +433,19 @@
     },
     {
       "id": "clip_color",
-      "label": "Brightness/contrast/saturation",
+      "label": "Brightness/contrast/saturation + CapCut color finish (temperature, gamma, shadows, highlights, vibrance, vignette)",
       "renderability": "rendered",
       "readiness": "APPROXIMATION",
       "clip_fields": [
         "brightness",
         "contrast",
-        "saturation"
+        "saturation",
+        "temperature",
+        "gamma",
+        "shadows",
+        "highlights",
+        "vibrance",
+        "vignette"
       ],
       "consumers": {
         "ui": [
@@ -521,7 +527,9 @@
       "label": "Cut/fade/wipe/slide/circle/dissolve",
       "renderability": "rendered",
       "readiness": "APPROXIMATION",
-      "clip_fields": [],
+      "clip_fields": [
+        "capcut_transition_preset"
+      ],
       "consumers": {
         "ui": [
           {
