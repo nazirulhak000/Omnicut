@@ -15,9 +15,9 @@ import hashlib
 import os
 from pathlib import Path
 import threading
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterator, List, Optional, Set
 
-from scripts.config import BASE_DIR, INBOX_DIR, RAW_DIR, ARCHIVE_DIR
+from scripts.config import BASE_DIR, INBOX_DIR, RAW_DIR, ARCHIVE_DIR, DEFAULT_CHANNEL_ID
 
 MEDIA_EXTENSIONS = {
     ".mp4", ".mov", ".avi", ".mkv", ".webm",
@@ -27,18 +27,116 @@ MEDIA_EXTENSIONS = {
 
 TRASH_DIR = ARCHIVE_DIR / ".trash"
 _DEDUP_LOCK = threading.Lock()
+_MEDIA_URL_PREFIXES = ("/api/media/", "api/media/")
+
+
+def _path_key(path: Path) -> str:
+    """Comparable key for a filesystem path (case-insensitive on Windows)."""
+    return os.path.normcase(os.path.abspath(str(path)))
+
+
+def _iter_strings(value: Any) -> Iterator[str]:
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _iter_strings(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _iter_strings(item)
+
+
+def _reference_keys(value: str) -> List[str]:
+    """Path keys a stored media reference may point at (abs, BASE/RAW/INBOX-relative)."""
+    raw = value.strip().split("?", 1)[0].replace("\\", "/")
+    if not raw or raw.lower().startswith(("http://", "https://", "data:")):
+        return []
+    for prefix in _MEDIA_URL_PREFIXES:
+        if raw.startswith(prefix):
+            raw = raw[len(prefix):]
+            break
+    if Path(raw).suffix.lower() not in MEDIA_EXTENSIONS:
+        return []
+    supplied = Path(raw)
+    if supplied.is_absolute():
+        return [_path_key(supplied)]
+    cleaned = raw.lstrip("/")
+    return [_path_key(root / cleaned) for root in (BASE_DIR, RAW_DIR, INBOX_DIR)]
 
 
 class AssetDedupEngine:
     """Detects and safely cleans duplicate media assets across inbox and raw folders."""
 
     @classmethod
+    def referenced_path_owners(cls) -> Dict[str, Set[Optional[str]]]:
+        """Path key -> channel ids of every product (any channel) that references it.
+
+        Every string in a product record (videos, images, thumbnail, angle
+        selected_videos / raw_video / manual_shot_map ...) that looks like a
+        local media path counts as a reference (S1-12).
+        """
+        from scripts.product_store import ProductStore
+
+        owners: Dict[str, Set[Optional[str]]] = {}
+        for product in ProductStore._load():
+            owner = product.get("channel_id")
+            for value in _iter_strings(product):
+                for key in _reference_keys(value):
+                    owners.setdefault(key, set()).add(owner)
+        return owners
+
+    @classmethod
+    def channel_path_filter(
+        cls, channel_id: str, *, allow_legacy_main: bool = False,
+    ) -> Callable[[Path], bool]:
+        """Predicate: may ``channel_id`` see this media file in a duplicate scan?
+
+        Hidden: files referenced only by other channels' products, and files in
+        ``01_Raw/<product_id>/`` of another channel's product. Unreferenced
+        inbox/raw files stay visible (shared intake).
+        """
+        from scripts.product_store import ProductStore
+
+        def visible(owner: Optional[str]) -> bool:
+            if owner == channel_id:
+                return True
+            return owner is None and allow_legacy_main and channel_id == DEFAULT_CHANNEL_ID
+
+        refs = cls.referenced_path_owners()
+        product_owner = {str(p.get("id")): p.get("channel_id") for p in ProductStore._load() if p.get("id")}
+        raw_root = RAW_DIR.resolve()
+
+        def allowed(path: Path) -> bool:
+            owners = refs.get(_path_key(path))
+            if owners:
+                return any(visible(o) for o in owners)
+            try:
+                rel = path.resolve().relative_to(raw_root)
+            except (OSError, ValueError):
+                return True
+            if len(rel.parts) > 1 and rel.parts[0] in product_owner:
+                return visible(product_owner[rel.parts[0]])
+            return True
+
+        return allowed
+
+    @classmethod
     def scan_duplicates(
         cls,
         search_dirs: Optional[List[Path]] = None,
         min_file_size_bytes: int = 1024,
+        path_filter: Optional[Callable[[Path], bool]] = None,
     ) -> Dict[str, Any]:
-        """Scans specified directories and returns groups of duplicate media assets."""
+        """Scans specified directories and returns groups of duplicate media assets.
+
+        ``path_filter`` (e.g. channel_path_filter) hides files the caller may
+        not see. A copy referenced by a product is always chosen as the
+        original, so it is never suggested for deletion.
+        """
+        try:
+            referenced = set(cls.referenced_path_owners())
+        except Exception:
+            referenced = set()
         with _DEDUP_LOCK:
             target_dirs = search_dirs or [INBOX_DIR, RAW_DIR]
             candidates_by_size: Dict[int, List[Path]] = {}
@@ -52,6 +150,8 @@ class AssetDedupEngine:
                     for fname in files:
                         p = Path(root) / fname
                         if p.is_file() and p.suffix.lower() in MEDIA_EXTENSIONS:
+                            if path_filter is not None and not path_filter(p):
+                                continue
                             try:
                                 sz = p.stat().st_size
                                 if sz >= min_file_size_bytes:
@@ -93,7 +193,7 @@ class AssetDedupEngine:
                         # Sort: Oldest file is original/master
                         sorted_files = sorted(
                             matched_files,
-                            key=lambda p: (p.stat().st_mtime, len(str(p)))
+                            key=lambda p: (_path_key(p) not in referenced, p.stat().st_mtime, len(str(p)))
                         )
                         original = sorted_files[0]
                         duplicates = sorted_files[1:]
@@ -108,6 +208,7 @@ class AssetDedupEngine:
                                 "size_bytes": sz,
                                 "size_mb": round(sz / (1024 * 1024), 2),
                                 "modified_at": dup.stat().st_mtime,
+                                "referenced": _path_key(dup) in referenced,
                             })
                             reclaimable_bytes += sz
 
@@ -177,6 +278,22 @@ class AssetDedupEngine:
                     continue
                 requested.setdefault(p, path_str)
 
+            if not requested:
+                return cls._clean_result(cleaned_count, freed_bytes, errors, skipped)
+
+            # Step 1b (S1-12): never remove a file a product/angle still points
+            # at -- the link would break. Fail closed if references can't load.
+            try:
+                referenced = cls.referenced_path_owners()
+            except Exception as exc:
+                for original in requested.values():
+                    errors.append(f"อ่านรายการสินค้าไม่ได้ จึงไม่ลบ '{original}': {exc}")
+                    skipped.append(original)
+                return cls._clean_result(cleaned_count, freed_bytes, errors, skipped)
+            for p in list(requested):
+                if _path_key(p) in referenced:
+                    errors.append(f"ไฟล์นี้ถูกใช้งานอยู่ในสินค้า จึงไม่ลบ: '{requested[p]}'")
+                    skipped.append(requested.pop(p))
             if not requested:
                 return cls._clean_result(cleaned_count, freed_bytes, errors, skipped)
 
