@@ -27,7 +27,7 @@ from scripts.subtitle_engine import DEFAULT_HOOK_MOTION
 from scripts.post_log import METRIC_FIELDS, PostLog
 from scripts.product_store import STATUSES, ProductStore
 from scripts.product_scraper import _build_safe_image_opener, _validate_public_http_url
-from scripts.config import BASE_DIR, COVERS_DIR, STICKERS_DIR
+from scripts.config import BASE_DIR, COVERS_DIR, DEFAULT_AD_TONE, DEFAULT_VOICE_PRESET, STICKERS_DIR
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest, project_revision
 from scripts.channel_scope import ChannelScope
 from scripts.channel_store import ChannelError
@@ -1336,8 +1336,8 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 voice=params.get("voice", "male"),
                 voice_rate=params.get("voice_rate", "+15%"),
                 voice_engine_type=params.get("voice_engine_type", "gemini_tts"),
-                voice_preset=params.get("voice_preset", "gemini_fenrir_male_strong"),
-                ad_tone=params.get("ad_tone", "commercial_hype"),
+                voice_preset=params.get("voice_preset") or DEFAULT_VOICE_PRESET,
+                ad_tone=params.get("ad_tone") or DEFAULT_AD_TONE,
                 style_preset=params.get("style_preset", "clean_tech_review"),
                 human_voice_audio_path=params.get("human_voice_audio_path"),
                 overlays=params.get("overlays"),

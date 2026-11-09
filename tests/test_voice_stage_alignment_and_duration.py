@@ -275,19 +275,33 @@ def test_voice_stage_human_voice_path_uses_rms_alignment(monkeypatch, tmp_path):
             _write_synthetic_speech_wav(voice_audio_path, speech_specs=specs, total_dur=6.0)
             return _fake_completed(stdout="", stderr="", returncode=0)
         if cmd[0] == "ffprobe":
-            return _fake_completed(stdout="6.0", stderr="", returncode=0)
+            # Report the file's real length: the stage trims dead air off the
+            # file, so a fixed answer would hide the trim.
+            return _fake_completed(stdout=str(sf.info(cmd[-1]).duration), stderr="", returncode=0)
         raise AssertionError(f"unexpected subprocess call: {cmd}")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     VoiceStage.run(ctx)
 
-    assert ctx.total_duration == pytest.approx(6.0)
+    # Corrected contract (S2-01): the 0.3s lead silence is trimmed off the
+    # file BEFORE alignment, so the cues are timed on the file that plays.
+    # (The old assert -- cues[0].start != 0 with total_duration still 6.0 --
+    # locked in the bug: subtitles late by the trimmed lead.)
+    real_duration = sf.info(str(voice_audio_path)).duration
+    assert ctx.total_duration == pytest.approx(real_duration, abs=1e-3)
+    assert ctx.total_duration < 6.0 - 0.2  # lead + dead tail were trimmed
+    head_trimmed = specs[0][0] - 0.04  # trim keeps a 40ms pad before speech
     assert len(ctx.cues) == 3
-    # Aligned to the real (synthetic) speech block, not an even 2.0s/line split.
-    assert ctx.cues[0]["start"] == pytest.approx(specs[0][0], abs=0.2)
-    assert ctx.cues[0]["start"] != pytest.approx(0.0, abs=0.05)
-    assert ctx.cues[-1]["end"] == pytest.approx(6.0, abs=1e-6)
+    # The first subtitle starts with the first sound on the trimmed clock
+    # (audit: within 0.06s of the onset).
+    assert ctx.cues[0]["start"] == pytest.approx(specs[0][0] - head_trimmed, abs=0.06)
+    # Still acoustic alignment, not the even/proportional fallback split.
+    split_items = [{"text": l["text"], "sfx": l["sfx"], "on_screen": l["on_screen"]} for l in ctx.script_data["lines"]]
+    fallback = _proportional_fallback_cues(split_items, ctx.total_duration)
+    assert [c["end"] for c in ctx.cues] != [c["end"] for c in fallback]
+    # No cue runs past the end of the audio.
+    assert ctx.cues[-1]["end"] <= ctx.total_duration + 1e-3  # cue times carry ms precision
 
 
 def test_voice_stage_human_voice_path_raises_on_ffprobe_failure(monkeypatch, tmp_path):

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from scripts.config import (
-    BASE_DIR, EXPORTS_DIR, RAW_DIR, INBOX_DIR, COVERS_DIR
+    BASE_DIR, BGM_VOLUME, EXPORTS_DIR, RAW_DIR, INBOX_DIR, COVERS_DIR
 )
 from scripts.product_store import ProductStore
 from scripts.shot_lists_store import ShotListsStore
@@ -658,7 +658,7 @@ class MobileQuickStudioService:
                         "font_name": "Mali",
                         "ghost_reveal": True,
                         "bgm_name": DEFAULT_BGM if bgm_enabled else None,
-                        "bgm_volume": 0.14 if bgm_enabled else 0.0,
+                        "bgm_volume": BGM_VOLUME if bgm_enabled else 0.0,  # one mix level everywhere (config, AGENTS §4.5)
                         "export_mp4": True,
                         "export_preset": "post",
                         "product_id": product_id,

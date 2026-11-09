@@ -213,6 +213,14 @@ class VoiceEngine:
 
             return asyncio.run(_run())
         except Exception:
+            # A stream that died mid-line leaves a truncated MP3 behind. The
+            # caller only falls back to the CLI when the file is missing or
+            # empty, so the partial take must go -- otherwise half a line is
+            # used as if it were the whole take (S2-10).
+            try:
+                Path(out_mp3).unlink(missing_ok=True)
+            except OSError:
+                pass
             return None
 
     @classmethod
@@ -240,7 +248,7 @@ class VoiceEngine:
             for item in line_items:
                 orig_t = item.get("text", "")
                 item["display_text"] = orig_t
-                item["tts_text"] = TTSSanitizer.clean(orig_t) if orig_t else ""
+                item["tts_text"] = TTSSanitizer.clean(orig_t, gender=voice_gender) if orig_t else ""
         except ImportError:
             for item in line_items:
                 item["display_text"] = item.get("text", "")
@@ -253,7 +261,9 @@ class VoiceEngine:
         # Male: th-TH-NiwatNeural (High energy, punchy)
         # Female: th-TH-PremwadeeNeural (Bright, clear, friendly)
         voice_name = "th-TH-NiwatNeural" if voice_gender == "male" else "th-TH-PremwadeeNeural"
-        base_rate_pct = int((speed - 1.0) * 100) if speed >= 1.0 else int((speed - 1.0) * 100)
+        # round(), not int(): (1.15 - 1.0) * 100 is 14.999... and int() sent
+        # "+14%" for a requested "+15%" (S2-09).
+        base_rate_pct = int(round((speed - 1.0) * 100))
 
         cues = []
         audio_segments = []
@@ -261,6 +271,7 @@ class VoiceEngine:
         current_time = 0.0
         total_lines = len(line_items)
         substituted_lines = []  # idx of lines that got a silence stand-in instead of real audio
+        gtts_lines = []  # idx of lines read by the gTTS fallback (different voice) -- S2-11
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             for idx, item in enumerate(line_items):
@@ -335,12 +346,16 @@ class VoiceEngine:
                             + (f", stderr={stderr_txt[-500:]}" if stderr_txt else "")
                         )
 
-                # Fallback to gTTS if needed
+                # Fallback to gTTS if needed. gTTS is a different (female,
+                # normal-rate Google) voice, so the line is flagged and the
+                # caller tells the user instead of mixing it in silently.
+                used_gtts = False
                 if not raw_mp3.exists() or raw_mp3.stat().st_size == 0:
                     try:
                         from gtts import gTTS
                         tts = gTTS(text=line_text, lang='th')
                         tts.save(str(raw_mp3))
+                        used_gtts = raw_mp3.exists() and raw_mp3.stat().st_size > 0
                     except Exception as gtts_err:
                         tts_errors.append(f"gTTS: {type(gtts_err).__name__}: {gtts_err}")
 
@@ -402,7 +417,12 @@ class VoiceEngine:
                         "word_timings": word_timings,
                         "substituted": False,
                         "line_idx": item.get("line_idx"),
+                        **({"fallback_engine": "gtts"} if used_gtts else {}),
                     })
+                    if used_gtts:
+                        gtts_lines.append(idx)
+                        print(f"⚠️ [VoiceEngine] บรรทัด {idx + 1}/{total_lines} ใช้เสียงสำรอง gTTS "
+                              f"(เสียงคนละแบบกับ Edge-TTS) เพราะ Edge-TTS สร้างเสียงไม่สำเร็จ")
 
                     # Guarantee 1-D float32 before appending (guards against edge-cases
                     # where sf.read or _trim_silence returns a multi-channel view)
@@ -482,6 +502,16 @@ class VoiceEngine:
             # audio and got a timed silence stand-in instead.
             "substituted_line_count": len(substituted_lines),
             "substituted_line_indices": substituted_lines,
+            # Lines read by the gTTS fallback voice (S2-11) -- the caller
+            # surfaces gtts_warning_th to the user.
+            "gtts_line_count": len(gtts_lines),
+            "gtts_line_indices": gtts_lines,
+            "gtts_warning_th": (
+                f"Edge-TTS สร้างเสียงไม่สำเร็จ {len(gtts_lines)} บรรทัด ระบบใช้เสียงสำรอง gTTS "
+                f"(เสียงผู้หญิงของ Google ความเร็วปกติ) แทน เสียงในคลิปจะไม่เหมือนกันทั้งคลิป "
+                f"แนะนำให้สร้างเสียงพากย์ใหม่"
+                if gtts_lines else ""
+            ),
         }
 
     @classmethod
@@ -519,7 +549,8 @@ if __name__ == "__main__":
 
     res = VoiceEngine.generate_crystal_voice(
         text_or_lines=sample_text,
-        output_audio_path="02_Assets/Voiceover/sample_human_reviewer_voice.wav",
+        # Demo output goes to .tmp/, never the real asset library (S2-20).
+        output_audio_path=str(Path(__file__).resolve().parent.parent / ".tmp" / "sample_human_reviewer_voice.wav"),
         speed=1.20,
         voice_gender="male"
     )

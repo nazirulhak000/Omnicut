@@ -84,9 +84,12 @@ class HookVariationEngine:
         # Banner title is on-screen text: zero-emoji like every other field.
         title = cls.clean_text(strip_emoji(variant.get("hook_title", "")))
         
-        # Spoken opening line must not have emojis (Rule: no emojis in speech)
+        # The opening line is applied as script_lines[0] -- i.e. it becomes a
+        # subtitle -- so it is display text (Rule 9: "Bluetooth", not
+        # "บลูทูธ"). The phonetic spoken form is kept separately for TTS.
         raw_opening = variant.get("opening_line") or title
-        clean_opening = cls.clean_text(TTSSanitizer.clean(raw_opening))
+        clean_opening = cls.clean_text(TTSSanitizer.clean_display_text(strip_emoji(raw_opening)))
+        tts_opening = cls.clean_text(TTSSanitizer.clean(raw_opening))
 
         return {
             "style_id": meta["style_id"],
@@ -98,6 +101,7 @@ class HookVariationEngine:
             "hook_label": label,
             "hook_title": title,
             "opening_line": clean_opening,
+            "tts_opening_line": tts_opening,
         }
 
     @classmethod

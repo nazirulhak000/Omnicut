@@ -366,3 +366,77 @@ def test_mix_stage_without_cuts_calls_the_mixer_exactly_as_before(project, mix_c
 
     assert len(mix_calls) == 1
     assert "voice_cuts" not in mix_calls[0] and "voice_source_duration" not in mix_calls[0]
+
+
+# ---------------------------------------------------------------------------
+# S2-02 / X-04: a reused voice is never re-trimmed, so saved cuts survive
+# ---------------------------------------------------------------------------
+
+def _write_speech_wav(path, lead_s=0.6, speech_s=4.0, tail_s=1.4):
+    """Lead silence + a loud tone + dead tail: a take the silence trim WOULD cut."""
+    import numpy as np
+
+    n_lead, n_speech, n_tail = (int(RATE * s) for s in (lead_s, speech_s, tail_s))
+    t = np.arange(n_speech) / RATE
+    speech = (0.6 * np.sin(2 * np.pi * 220 * t) * 32767).astype("<i2")
+    pcm = np.concatenate([np.zeros(n_lead, "<i2"), speech, np.zeros(n_tail, "<i2")])
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(RATE)
+        w.writeframes(pcm.tobytes())
+
+
+def test_reused_untrimmed_voice_keeps_its_cuts_file_and_post_cut_duration(project):
+    # The user's take still has dead air the trim would remove -- before the
+    # fix the stage re-trimmed the reused file AFTER applying the cuts: the
+    # duration snapped back to the full trimmed length and the rewrite changed
+    # the file identity, so the next render dropped the cuts as stale.
+    _write_speech_wav(project.voice)
+    manifest = ProjectManifest.load(PROJECT)
+    ProjectManifest.save(PROJECT, incremental_render=build_incremental_render_metadata(manifest))
+    ProjectManifest.save(PROJECT, voice_edit=_voice_edit(project, [_cut(2.0, 2.5)]))
+    before = voice_file_identity(project.voice)
+
+    for _ in range(2):  # two renders in a row: the edit must survive both
+        ctx = _ctx(project)
+        assert ctx.should_run("voice") is False
+        VoiceStage.run(ctx)
+
+        assert ctx.voice_cuts == [_cut(2.0, 2.5)]
+        assert ctx.voice_edit_stale is False
+        assert ctx.total_duration == pytest.approx(VOICE_SECONDS - 0.5)
+        assert voice_file_identity(project.voice) == before   # file never rewritten
+
+    assert ProjectManifest.load(PROJECT)["voice_edit"]["cuts"]
+
+
+def test_freshly_generated_voice_is_trimmed_and_its_cues_shifted(project):
+    # S2-01 on the Edge path: cues come from the untrimmed file, the trim
+    # afterwards must move them with the audio and keep them inside it.
+    ctx = _ctx(project, resume_from="voice", voice_engine_type="edge_tts")
+    lead = 0.6
+
+    def fake_voiceover(**kw):
+        _write_speech_wav(kw["output_audio_path"], lead_s=lead, speech_s=4.0, tail_s=1.4)
+        return {
+            "cues": [
+                {"start": 0.6, "end": 2.6, "text": "hello", "line_idx": 0,
+                 "word_timings": [{"text": "he", "start": 0.6, "end": 1.0}]},
+                {"start": 2.6, "end": 6.0, "text": "world", "line_idx": 1, "word_timings": []},
+            ],
+            "duration": 6.0,
+        }
+
+    with patch("scripts.voice_engine.VoiceEngine.generate_voiceover", side_effect=fake_voiceover), \
+            patch("scripts.stages.voice_stage._probe_audio_duration",
+                  side_effect=lambda p: wave.open(str(p)).getnframes() / RATE):
+        VoiceStage.run(ctx)
+
+    head = lead - 0.04  # trim keeps a 40ms pad before the first sound
+    assert ctx.total_duration < 6.0 - head
+    assert ctx.cues[0]["start"] == pytest.approx(0.04, abs=0.02)
+    assert ctx.cues[0]["word_timings"][0]["start"] == pytest.approx(0.04, abs=0.02)
+    assert ctx.cues[1]["start"] == pytest.approx(2.6 - head, abs=0.02)
+    assert ctx.cues[-1]["end"] <= ctx.total_duration + 1e-6
+    assert all(c["end"] <= ctx.total_duration + 1e-6 for c in ctx.beat_cues)

@@ -19,7 +19,7 @@ from scripts.channel_store import ChannelError
 from scripts.channel_workflows import get_workflow_scope, require_media_owner
 from scripts.channel_artifacts import register as register_artifact
 from scripts.config import (
-    BASE_DIR, ASSETS_DIR, VOICES, DEFAULT_VOICE, DEFAULT_VOICE_RATE
+    BASE_DIR, ASSETS_DIR, VOICES, DEFAULT_AD_TONE, DEFAULT_VOICE, DEFAULT_VOICE_RATE
 )
 from scripts.script_generator import ScriptGenerator
 from scripts.voice_engine import VoiceEngine
@@ -148,7 +148,7 @@ def preview_voice(req: VoicePreviewRequest, request: Request = None):
     text = req.text or "สวัสดีครับ นี่คือเสียงตัวอย่างสำหรับคลิปรีวิวสินค้า"
     voice_gender = req.voice_gender or "male"
     speed = req.speed or 1.15
-    ad_tone = req.ad_tone or "commercial_hype"
+    ad_tone = req.ad_tone or DEFAULT_AD_TONE
 
     if voice_gender and "gemini" in voice_gender:
         gemini_voice = GeminiFlashTTSEngine.resolve_voice(preset=voice_gender)
@@ -190,6 +190,9 @@ def preview_voice(req: VoicePreviewRequest, request: Request = None):
     return {
         "audio_url": sample_url(),
         "duration": measure_wav_duration(sample_file),
+        # Non-empty when part of the sample was read by the gTTS fallback
+        # voice instead of Edge-TTS (S2-11).
+        "fallback_warning": res.get("gtts_warning_th", "") if isinstance(res, dict) else "",
         "voice_name": voice_gender
     }
 
@@ -205,6 +208,33 @@ def generate_script(req: ScriptGenerateRequest):
         template_key=req.template_key
     )
     return data
+
+
+def _display_lines(text: str) -> list:
+    return [TTSSanitizer.clean_display_text(line) for line in str(text).split("\n") if line.strip()]
+
+
+def sanitize_generated_angle(ang: dict) -> dict:
+    """Sanitize one AI-generated angle in place, keeping display and TTS apart.
+
+    ``script_text`` / ``hook_title`` / ``caption`` are what the UI, subtitles
+    and the TikTok post show, so they go through ``clean_display_text`` (Rule 9
+    official English, hashtags kept). The spoken form -- with "Bluetooth"
+    expanded to Thai phonetics -- is stored separately in ``tts_lines`` and
+    ``tts_hook_title``. Running ``TTSSanitizer.clean()`` on the display fields
+    (as before) burned "บลูทูธ" into the subtitles and dropped hashtags.
+    """
+    if "script_text" in ang and isinstance(ang["script_text"], str):
+        lines = _display_lines(ang["script_text"])
+        ang["script_text"] = "\n".join(lines)
+        ang["tts_lines"] = TTSSanitizer.clean_script_lines(lines)
+    if "hook_title" in ang and isinstance(ang["hook_title"], str):
+        raw_hook = ang["hook_title"]
+        ang["hook_title"] = TTSSanitizer.clean_display_text(raw_hook)
+        ang["tts_hook_title"] = TTSSanitizer.clean(raw_hook)
+    if "caption" in ang and isinstance(ang["caption"], str):
+        ang["caption"] = "\n".join(_display_lines(ang["caption"]))
+    return ang
 
 
 @router.post("/api/script/ai-generate")
@@ -325,14 +355,10 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
 
         parsed = json.loads(res_text)
 
-        # Validate sanitizer
+        # Display fields stay display text (Rule 9: Bluetooth / USB-C, caption
+        # hashtags kept); the phonetic TTS form goes into separate tts_* keys.
         for ang in parsed.get("angles", []):
-            if "script_text" in ang:
-                ang["script_text"] = TTSSanitizer.clean(ang["script_text"])
-            if "hook_title" in ang:
-                ang["hook_title"] = TTSSanitizer.clean(ang["hook_title"])
-            if "caption" in ang:
-                ang["caption"] = TTSSanitizer.clean(ang["caption"])
+            sanitize_generated_angle(ang)
 
         # Auto-enrich each angle with TypeSafe Jev hook retention scoring
         try:
