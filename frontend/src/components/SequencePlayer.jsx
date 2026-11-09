@@ -2283,9 +2283,10 @@ function getOverlayGeometry(ctx, overlay, tiers, baseFontSize, maxW, normY, moti
   let blockTop = (overlay.anchor === ANCHOR_TOP || overlay.anchor === 'top')
     ? CANVAS_H * normY
     : CANVAS_H * normY - blockH / 2;
-  if (normY < 0.25 || overlay.position === 'top' || isHookLine) {
-    blockTop = Math.max(120, blockTop);
-  }
+  // No clamp here: the render anchors the block at normY * 1920 (HookHeader top
+  // anchor 180 px, hook line centre 225 px). A `Math.max(120, ...)` clamp, in
+  // canvas units, pushed every top overlay >= 240 render px and the preview
+  // drew ~60 px lower than the file (preview_render_parity.md rule 2.8).
 
   let cursor = blockTop;
   let maxLineW = 0;
