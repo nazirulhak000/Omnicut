@@ -22,6 +22,20 @@ from scripts import product_scraper as ps
 from scripts.product_scraper import ProductScraper, _validate_image_url, _download_image_bytes
 
 
+
+def _png_bytes(side: int) -> bytes:
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (side, side), (30, 90, 160)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+# a real 1200x1200 image: passes the S1-04 quality gate (short edge >= 1080)
+_REAL_IMAGE = _png_bytes(1200)
+
 def test_validate_image_url_rejects_private_ip(monkeypatch):
     """CDN image URLs don't need the page-domain allowlist, but still must
     not be usable as an SSRF vector against internal addresses."""
@@ -57,7 +71,7 @@ def test_download_image_bytes_returns_data_and_mime(monkeypatch):
         headers = FakeHeaders()
 
         def read(self, n):
-            return b"fake-image-bytes"
+            return _REAL_IMAGE
 
         def __enter__(self):
             return self
@@ -75,7 +89,7 @@ def test_download_image_bytes_returns_data_and_mime(monkeypatch):
     monkeypatch.setattr(ps, "_build_safe_image_opener", lambda *h: FakeOpener())
 
     data, mime = _download_image_bytes("https://p16-oec-sg.ibyteimg.com/tos-alisg/example.webp")
-    assert data == b"fake-image-bytes"
+    assert data == _REAL_IMAGE
     assert mime == "image/webp"
 
 
