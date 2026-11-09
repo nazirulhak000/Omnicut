@@ -47,6 +47,7 @@ from scripts.ffmpeg_graph import cleanup_graph_file, externalize_filter_graph
 # minterpolate's cost, so the smooth-slowmo flag is ignored.
 SMOOTH_SLOWMO_MAX_SPEED = 0.7
 from scripts.media_probe_cache import MediaProbeCache
+from scripts.error_handler import AppError, ErrorCategory
 from scripts.style_motion_policy import STYLE_MOTION_POLICIES
 from scripts.background_isolation_compositor import (
     build_alpha_composite_filter_fragment,
@@ -1858,6 +1859,32 @@ class VideoEditor:
                     trim_end = media_info["duration"]
                 minimum_source_span = 1 / FPS if isinstance(clip.get("source_window"), Mapping) else 0.2
                 source_span = max(minimum_source_span, float(trim_end) - trim_start)
+                # Audit S3-03: the planned span sets the clip's place on the
+                # timeline; only what the file really holds is decoded. A
+                # source that runs out early is padded to the planned frame
+                # count below (last frame held) instead of ending early and
+                # pulling every later cut ahead of the voice.
+                planned_span = source_span
+                probed_duration = float(media_info.get("duration") or 0.0)
+                if probed_duration > 0 and not media_info.get("probe_failed"):
+                    if trim_start >= probed_duration - 0.5 / FPS:
+                        raise AppError(
+                            category=ErrorCategory.USER_CORRECTABLE,
+                            code="CLIP_TRIM_BEYOND_SOURCE",
+                            message_th=(
+                                f"คลิปที่ {idx + 1} ('{source_path.name}') เริ่มที่ {trim_start:.2f} วินาที "
+                                f"แต่ไฟล์ยาวแค่ {probed_duration:.2f} วินาที จึงไม่มีภาพให้ใช้"
+                            ),
+                            suggestion_th="เปิด Editor แล้วตั้งจุดเริ่มของคลิปนี้ใหม่ให้อยู่ในความยาวไฟล์",
+                            details=f"source={source_path}; trim_start={trim_start}; trim_end={trim_end}; duration={probed_duration}",
+                        )
+                    available_span = probed_duration - trim_start
+                    if source_span > available_span + 1 / FPS:
+                        print(
+                            f"   ⚠️ คลิปที่ {idx + 1} ('{source_path.name}') ภาพต้นฉบับหมดก่อน "
+                            f"{source_span - available_span:.2f} วินาที — ค้างเฟรมสุดท้ายให้ครบเวลาที่วางแผนไว้"
+                        )
+                        source_span = max(minimum_source_span, available_span)
                 # FFmpeg can round a decimal frame-edge seek up to the next
                 # frame. Start halfway before a bounded frame; decoding still
                 # emits its intended first frame and excludes the next topic.
@@ -1871,7 +1898,7 @@ class VideoEditor:
                 # xfade offset after this clip lands in the wrong place.
                 speed = float(clip.get("speed") or 1.0)
                 speed = min(4.0, max(0.25, speed))
-                duration = max(minimum_source_span, source_span / speed)
+                duration = max(minimum_source_span, planned_span / speed)
 
                 # Freeze tail: hold the clip's last frame for N more seconds.
                 # It has to be added to `duration` as well, or every xfade
@@ -2248,7 +2275,10 @@ class VideoEditor:
                 name = inp.strip("[]")
                 frames = frame_plan["end"][i] - frame_plan["start"][i]
                 filter_complex.append(
-                    f"[{name}]tpad=stop_mode=clone:stop=3,trim=end_frame={frames}[{name}_grid];"
+                    # stop=-1: clone the last frame for as long as needed,
+                    # then cut at the planned count (audit S3-03; the old 3
+                    # frame pad let a short source end the clip early).
+                    f"[{name}]tpad=stop_mode=clone:stop=-1,trim=end_frame={frames}[{name}_grid];"
                 )
                 gridded_inputs.append(f"[{name}_grid]")
             concat_inputs = gridded_inputs
