@@ -53,6 +53,17 @@ function dryRunSlot(now) {
   return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: '12:00' };
 }
 
+// id -> export record, or null when the registry cannot be read (then prepare is the judge).
+async function loadExportIndex(api) {
+  try {
+    const res = await api.get('/api/exports');
+    if (!res.ok) return null;
+    const list = Array.isArray(res.data) ? res.data : (res.data?.exports || res.data?.items);
+    if (!Array.isArray(list)) return null;
+    return new Map(list.map(e => [e.id || e.export_id, e]));
+  } catch (_) { return null; }
+}
+
 async function pickClips(api, { queueId = null, limit = 10, now = Date.now(), allowPriceCaption = false, dryRun = false } = {}) {
   const res = await api.get('/api/schedule-queue');
   if (!res.ok) throw new Error(`schedule-queue ${res.status}: ${res.data?.detail || ''}`);
@@ -60,9 +71,14 @@ async function pickClips(api, { queueId = null, limit = 10, now = Date.now(), al
     .filter(item => READY_STATUSES.includes(item.status) && (!queueId || item.id === queueId))
     .map(clipFromQueueItem)
     .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
+  const exportIndex = await loadExportIndex(api);
   const clips = [];
   const skipped = [];
   for (const clip of items) {
+    const record = exportIndex?.get(clip.export_id);
+    if (exportIndex && !record) { skipped.push({ id: clip.id, title: clip.title, reason: 'export_missing' }); continue; }
+    if (record?.is_posted || record?.export_status === 'posted') { skipped.push({ id: clip.id, title: clip.title, reason: 'export_already_posted' }); continue; }
+    if (record?.is_qc_rejected) { skipped.push({ id: clip.id, title: clip.title, reason: 'export_qc_rejected' }); continue; }
     let reason = skipReason(clip, { now, allowPriceCaption });
     if (reason === 'slot_passed_or_too_close' && dryRun) {
       const slot = dryRunSlot(now);
@@ -82,6 +98,28 @@ function expectOk(reply, what) {
     throw new Error(reply?.error || reply?.reason || `${what} ไม่สำเร็จ`);
   }
   return reply;
+}
+
+const alnum = text => String(text || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
+
+// Does one Content-page row (its visible text) belong to this clip? Needs the caption
+// start; a scheduled clip must also show its day number and time (12h or 24h).
+function rowMatchesClip(rowText, clip) {
+  const row = alnum(rowText);
+  const key = alnum(clip.caption).slice(0, 20);
+  if (key.length < 8 || !row.includes(key)) return { ok: false, reason: 'caption_not_found' };
+  if (clip.schedule_date && clip.schedule_time) {
+    const [hh, mm] = clip.schedule_time.split(':').map(Number);
+    const h12 = hh % 12 === 0 ? 12 : hh % 12;
+    const time12 = `${h12}:${String(mm).padStart(2, '0')}${hh >= 12 ? 'pm' : 'am'}`;
+    const time24 = clip.schedule_time;
+    const flat = String(rowText).toLowerCase().replace(/\s+/g, '');
+    const day = Number(clip.schedule_date.slice(8, 10));
+    const hasTime = flat.includes(time12) || flat.includes(time24);
+    const hasDay = new RegExp(`(^|[^0-9])${day}([^0-9]|$)`).test(String(rowText).replace(/\d{1,2}:\d{2}/g, ' '));
+    if (!hasTime || !hasDay) return { ok: false, reason: 'schedule_badge_mismatch' };
+  }
+  return { ok: true };
 }
 
 function shouldReconcile(outcome, result) {
@@ -111,6 +149,11 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
       } else {
         return { status: 'skipped', reason: 'export_already_has_job' };
       }
+    }
+    if (!res.ok && [404, 409, 422].includes(res.status)) {
+      // A data problem with this clip (stale export, not ready, ...): nothing was
+      // prepared, so skip it with the reason instead of counting a failure.
+      return { status: 'skipped', reason: `prepare_${res.status}: ${res.data?.detail || res.data?.code || ''}` };
     }
     if (!res.ok) throw new Error(`prepare ${res.status}: ${res.data?.detail || res.data?.code || ''}`);
     const prepared = res.data;
@@ -163,10 +206,24 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
     step = 'reconcile';
     if (shouldReconcile(outcome, result)) await send('reconcile-posting-result', { manual: false }).catch(() => {});
     await send('retry-posting-receipt').catch(() => {});
-    const status = outcome === 'published' ? 'posted' : outcome === 'scheduled_on_platform' ? 'scheduled' : 'unknown';
-    return { status, outcome, job_id: prepared.job_id, cover_fallback: coverFallbackUsed };
+    let status = outcome === 'published' ? 'posted' : outcome === 'scheduled_on_platform' ? 'scheduled' : 'unknown';
+    // Second, independent proof: the clip must really be listed on TikTok Studio > Content.
+    let verified = null;
+    if (status !== 'unknown' && deps.verifyOnContentPage) {
+      step = 'verify';
+      verified = await deps.verifyOnContentPage(clip).catch(e => ({ ok: false, reason: e.message }));
+      if (!verified.ok) {
+        log('warn', `ตรวจหน้า Content แล้วไม่ยืนยัน: ${verified.reason} — ถือว่ายังไม่แน่ใจ`);
+        status = 'unknown';
+      }
+    }
+    return { status, outcome, job_id: prepared.job_id, cover_fallback: coverFallbackUsed, verified: verified ? verified.ok : null,
+      ...(verified && !verified.ok ? { error: `content_page_not_verified: ${verified.reason}` } : {}) };
   } catch (error) {
     const message = error?.message || String(error);
+    // Evidence first: what did the page look like when this step failed?
+    await Promise.resolve(shot?.(`${clip.id}_FAIL_${step}`)).catch(() => {});
+    await Promise.resolve(dumpDom?.(`${clip.id}_FAIL_${step}`)).catch(() => {});
     if (FATAL_RE.test(message)) throw new FatalError(message, step);
     return { status: 'failed', step, error: message };
   }
@@ -174,6 +231,15 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
 
 async function betweenClips(deps) {
   const { worker, log } = deps;
+  // The browser may have died or hung since the last clip: bring it back first.
+  if (deps.ensureBrowser) {
+    try { await deps.ensureBrowser(); }
+    catch (error) {
+      const message = error?.message || String(error);
+      if (FATAL_RE.test(message)) throw new FatalError(message, 'browser');
+      log('warn', `ตรวจ/เปิดเบราว์เซอร์ไม่สำเร็จ: ${message}`);
+    }
+  }
   const parked = await worker.send('release-posting-job', { park: true }).catch(e => ({ success: false, error: e.message }));
   if (parked.success === false) {
     const message = parked.error || 'park failed';
@@ -183,7 +249,31 @@ async function betweenClips(deps) {
   await worker.send('reset-upload-page').catch(e => log('warn', `reset หน้าอัปโหลดไม่สำเร็จ: ${e.message}`));
 }
 
-async function runBatch(deps, { clips, dryRun = false, channelId = 'main', coverFallback = false, cooldownSec = [20, 40],
+const PRE_POST_STEPS = new Set(['prepare', 'claim', 'upload', 'wait_upload', 'details', 'dry_release']);
+
+class ClipTimeout extends Error {
+  constructor(ms) { super(`clip_timeout: เกินเวลาต่อคลิป ${Math.round(ms / 60000)} นาที`); this.name = 'ClipTimeout'; }
+}
+
+// Races a clip against its time budget. On timeout the zombie browser actions are
+// killed (deps.recover) so the next clip starts from a clean worker.
+async function runClipGuarded(deps, clip, options, budgetMs) {
+  let timer;
+  const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new ClipTimeout(budgetMs)), budgetMs); });
+  try {
+    return await Promise.race([runClip(deps, clip, options), timeout]);
+  } catch (error) {
+    if (error instanceof ClipTimeout) {
+      await deps.recover?.();
+      return { status: 'failed', step: 'timeout', error: error.message };
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function runBatch(deps, { clips, dryRun = false, channelId = 'main', coverFallback = false, clipBudgetMs = 25 * 60 * 1000, maxClipAttempts = 2, cooldownSec = [20, 40],
   maxConsecutiveFailures = 3, maxConsecutiveUnknown = 2, shouldStop = () => false, random = Math.random } = {}) {
   const { log, sleep } = deps;
   const results = [];
@@ -197,7 +287,15 @@ async function runBatch(deps, { clips, dryRun = false, channelId = 'main', cover
     let result;
     try {
       await betweenClips(deps);
-      result = await runClip(deps, clip, { dryRun, channelId, coverFallback });
+      result = await runClipGuarded(deps, clip, { dryRun, channelId, coverFallback }, clipBudgetMs);
+      // A transient hiccup BEFORE the post click (caption not accepted, slow list, ...) is
+      // retried once from a clean page. Never after the click: that could post twice.
+      if (result.status === 'failed' && PRE_POST_STEPS.has(result.step) && maxClipAttempts > 1) {
+        log('warn', `พลาดที่ขั้น ${result.step} (${result.error}) — ลองใหม่อีกครั้งจากหน้าสะอาด`);
+        await betweenClips(deps);
+        result = await runClipGuarded(deps, clip, { dryRun, channelId, coverFallback }, clipBudgetMs);
+        result.retried = true;
+      }
     } catch (error) {
       aborted = `fatal@${error.step || '?'}: ${error.message}`;
       results.push({ id: clip.id, title: clip.title, status: 'fatal', error: error.message, step: error.step });
@@ -223,4 +321,4 @@ async function runBatch(deps, { clips, dryRun = false, channelId = 'main', cover
   };
 }
 
-module.exports = { FATAL_RE, PRICE_RE, FatalError, clipFromQueueItem, skipReason, pickClips, runClip, runBatch, shouldReconcile };
+module.exports = { runClipGuarded, ClipTimeout, rowMatchesClip, FATAL_RE, PRICE_RE, FatalError, clipFromQueueItem, skipReason, pickClips, runClip, runBatch, shouldReconcile };

@@ -18,6 +18,9 @@ from scripts.db import DocumentTable
 from scripts.channel_store import ChannelError, normalize_handle
 
 PROTOCOL_VERSION = 2
+_PUBLISHED_NOTICE = r"(?:(?:video|post) (?:posted|published)(?: successfully)?|(?:posted|published) successfully|(?:โพสต์|เผยแพร่)(?:วิดีโอ)?สำเร็จ)[.!]?"
+_SCHEDULED_NOTICE = r"(?:(?:video|post) scheduled(?: successfully)?|scheduled successfully|(?:ตั้งเวลา|กำหนดเวลา)(?:โพสต์|วิดีโอ)?สำเร็จ)[.!]?"
+
 FINAL_OUTCOMES = {"published", "scheduled_on_platform", "confirmation_unknown"}
 
 
@@ -176,16 +179,26 @@ class PostingJobStore:
             if kind not in allowed_kinds:
                 raise ChannelError(422, "posting_confirmation_required", "ต้องมีข้อความยืนยันผลที่ตรงจาก TikTok ก่อนบันทึกผลสำเร็จ")
             if kind == "platform_success_notice":
+                # TikTok Studio shows a bare "Video published" toast (no "successfully"),
+                # and shows it for scheduled posts too -- so the bare form is accepted for
+                # `published`, and for `scheduled_on_platform` only when the job really had
+                # a schedule (checked against the row below).
                 patterns = {
-                    "published": r"(?:(?:video |post )?(?:posted|published) successfully|(?:โพสต์|เผยแพร่)(?:วิดีโอ)?สำเร็จ)[.!]?",
-                    "scheduled_on_platform": r"(?:(?:video |post )?scheduled successfully|(?:ตั้งเวลา|กำหนดเวลา)(?:โพสต์|วิดีโอ)?สำเร็จ)[.!]?",
+                    "published": _PUBLISHED_NOTICE,
+                    "scheduled_on_platform": _SCHEDULED_NOTICE,
                 }
-                if not isinstance(notice, str) or not re.fullmatch(patterns[outcome], notice.strip(), flags=re.I):
+                notice_text = notice.strip() if isinstance(notice, str) else ""
+                bare_ok = outcome == "scheduled_on_platform" and re.fullmatch(_PUBLISHED_NOTICE, notice_text, flags=re.I)
+                if not notice_text or not (re.fullmatch(patterns[outcome], notice_text, flags=re.I) or bare_ok):
                     raise ChannelError(422, "posting_confirmation_required", "ต้องมีข้อความยืนยันผลที่ตรงจาก TikTok ก่อนบันทึกผลสำเร็จ")
         receipt = {"outcome": outcome, "source_account": source_account, "proof": deepcopy(proof)}
         receipt_hash = fingerprint(receipt)
         with self.table.scoped_mutate(channel_id) as rows:
             row = self._find(rows, job_id)
+            if (outcome == "scheduled_on_platform" and kind == "platform_success_notice"
+                    and not re.fullmatch(_SCHEDULED_NOTICE, str(proof.get("notice") or "").strip(), flags=re.I)
+                    and not (row.get("schedule_date") and row.get("schedule_time"))):
+                raise ChannelError(422, "posting_confirmation_required", "ข้อความ 'published' ใช้ยืนยันงานตั้งเวลาได้เฉพาะงานที่มีเวลานัดโพสต์")
             if outcome != "confirmation_unknown" and row.get("confirmation_token") and proof.get("confirmation_token") != row["confirmation_token"]:
                 if kind not in {"manual_user_confirmation", "user_confirmed", "content_page_reconciled"}:
                     raise ChannelError(422, "posting_confirmation_required", "ข้อความยืนยันไม่ตรงกับการกดโพสต์ของงานนี้")

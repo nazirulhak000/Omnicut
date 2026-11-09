@@ -597,3 +597,43 @@ def test_content_page_reconciled_ack(api_env):
     assert data["effects_applied"] is True
     assert registry.get(export["id"], channel_id="main")["status"] == "posted"
 
+
+
+def _ack_args(row):
+    return ("main", row["job_id"], row["lease_owner"], row["lease_token"], row["revision"], "@mainuser")
+
+
+def test_real_tiktok_bare_video_published_toast_is_accepted_for_published(store):
+    jobs, _ = store
+    row = attempt(jobs, claimed(jobs))
+    done = jobs.acknowledge(*_ack_args(row), "published", {"kind": "platform_success_notice", "notice": "Video published"})
+    assert done["status"] == "published"
+
+
+def test_bare_published_toast_is_rejected_as_scheduled_for_unscheduled_job(store):
+    jobs, _ = store
+    unscheduled = attempt(jobs, claimed(jobs))
+    with pytest.raises(ChannelError) as exc:
+        jobs.acknowledge(*_ack_args(unscheduled), "scheduled_on_platform",
+                         {"kind": "platform_success_notice", "notice": "Video published"})
+    assert exc.value.code == "posting_confirmation_required"
+    assert jobs.get("main", unscheduled["job_id"])["status"] == "publishing"
+
+
+def test_bare_published_toast_confirms_scheduled_job(store):
+    jobs, _ = store
+    data = payload()
+    data.update(schedule_date="2026-11-10", schedule_time="07:00")
+    row = jobs.prepare("main", data)
+    row = attempt(jobs, jobs.claim("main", row["job_id"], "extension-a"))
+    done = jobs.acknowledge(*_ack_args(row), "scheduled_on_platform",
+                            {"kind": "platform_success_notice", "notice": "Video published"})
+    assert done["status"] == "scheduled_on_platform"
+
+
+def test_notice_must_still_be_a_platform_sentence(store):
+    jobs, _ = store
+    row = attempt(jobs, claimed(jobs))
+    for notice in ["Video published by someone", "published", "Draft saved", ""]:
+        with pytest.raises(ChannelError):
+            jobs.acknowledge(*_ack_args(row), "published", {"kind": "platform_success_notice", "notice": notice})
