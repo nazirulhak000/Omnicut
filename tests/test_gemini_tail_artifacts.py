@@ -127,3 +127,36 @@ def test_stereo_tail_artifact_trimmed_cleanly(tmp_path):
     assert len(out) / rate <= 0.8 + GEMINI_TAIL_SILENCE_PAD_S + 0.02
     assert out[-1, 0] == 0.0
     assert out[-1, 1] == 0.0
+
+
+def test_short_final_word_after_gap_is_kept(tmp_path):
+    """S2-13: a real short last word ("ครับ", ~300ms at -12dB) after an 80ms
+    breath, with no trailing silence, is speech -- not an EOF glitch."""
+    wav = tmp_path / "final_word.wav"
+    t = np.linspace(0, 2.0, int(2.0 * RATE), endpoint=False)
+    speech = 0.6 * np.sin(2 * np.pi * 220 * t)
+    gap = np.zeros(int(0.08 * RATE))
+    tw = np.linspace(0, 0.30, int(0.30 * RATE), endpoint=False)
+    final_word = 0.6 * (10 ** (-12 / 20)) * np.sin(2 * np.pi * 260 * tw)
+    _write_wav(wav, np.concatenate([speech, gap, final_word]))
+
+    head_s, tail_s = trim_silence_and_tail_artifacts_wav(wav)
+    out, rate = _read_wav(wav)
+
+    assert tail_s == 0.0
+    assert len(out) / rate == pytest.approx(2.38, abs=0.005)
+
+
+def test_trim_is_idempotent(tmp_path):
+    """S2-02: a second pass over a trimmed take changes nothing (same bytes, same mtime)."""
+    wav = tmp_path / "take.wav"
+    t = np.linspace(0, 1.3, int(1.3 * RATE), endpoint=False)
+    speech = 0.5 * np.sin(2 * np.pi * 300 * t) * np.sin(np.pi * t / 1.3)
+    _write_wav(wav, np.concatenate([np.zeros(int(0.37 * RATE)), speech, np.zeros(int(0.43 * RATE))]))
+
+    first = trim_silence_and_tail_artifacts_wav(wav)
+    assert first[0] > 0 and first[1] > 0
+    data, mtime = wav.read_bytes(), wav.stat().st_mtime_ns
+
+    assert trim_silence_and_tail_artifacts_wav(wav) == (0.0, 0.0)
+    assert wav.read_bytes() == data and wav.stat().st_mtime_ns == mtime

@@ -10,11 +10,12 @@ import subprocess
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
 
+from scripts.config import DEFAULT_AD_TONE
 from scripts.voice_engine import VoiceEngine
 from scripts.subtitle_engine import SubtitleEngine
 from scripts.pipeline_context import PipelineContext
 from scripts.error_handler import AppError, ErrorCategory
-from scripts.quota import is_quota_error
+from scripts.quota import is_quota_error, is_retry_futile
 from scripts.project_manifest import ProjectManifest
 from scripts.voice_cut_map import effective_duration, resolve_voice_cuts, voice_file_identity
 
@@ -346,6 +347,44 @@ def _attach_aligned_word_timings(
         return cues
 
 
+def _shift_cues(cues: List[Dict[str, Any]], delta: float, total_duration: float) -> List[Dict[str, Any]]:
+    """Return copies of ``cues`` moved by ``delta`` seconds and clamped to
+    ``[0, total_duration]`` -- cue bounds and their absolute ``word_timings``
+    alike. Used after the head of the voice file was trimmed away."""
+    def _clamp(value: Any) -> Any:
+        if not isinstance(value, (int, float)):
+            return value
+        # round first, clamp last: rounding after the clamp could step past the end
+        return min(round(max(0.0, float(value) + delta), 3), float(total_duration))
+
+    shifted: List[Dict[str, Any]] = []
+    for cue in cues or []:
+        if not isinstance(cue, dict):
+            shifted.append(cue)
+            continue
+        new_cue = dict(cue)
+        if "start" in new_cue:
+            new_cue["start"] = _clamp(new_cue["start"])
+        if "end" in new_cue:
+            new_cue["end"] = _clamp(new_cue["end"])
+            if isinstance(new_cue.get("start"), float) and new_cue["end"] < new_cue["start"]:
+                new_cue["end"] = new_cue["start"]
+        words = new_cue.get("word_timings")
+        if isinstance(words, list):
+            new_words = []
+            for word in words:
+                if isinstance(word, dict):
+                    word = dict(word)
+                    if "start" in word:
+                        word["start"] = _clamp(word["start"])
+                    if "end" in word:
+                        word["end"] = _clamp(word["end"])
+                new_words.append(word)
+            new_cue["word_timings"] = new_words
+        shifted.append(new_cue)
+    return shifted
+
+
 class VoiceStage:
     """Synthesizes or processes voiceover audio and derives timing cues."""
 
@@ -483,13 +522,26 @@ class VoiceStage:
                             )
                             # Also ensure the script text has not changed. If user provided a new or modified script,
                             # we must synthesize new audio rather than reusing old speech.
-                            current_script_raw = ctx.custom_script or script_data.get("full_text") or ""
+                            current_script_raw = (
+                                ctx.custom_script
+                                or script_data.get("full_text")
+                                or " ".join(str(l.get("text", "")) for l in script_data.get("lines") or [] if isinstance(l, dict))
+                            )
                             recorded_script_raw = rec.get("custom_script") or " ".join(c.get("text", "") for c in rec.get("cues", []))
                             norm_current = "".join(current_script_raw.split())
                             norm_recorded = "".join(recorded_script_raw.split())
-                            script_matches = not norm_current or not norm_recorded or (norm_current == norm_recorded)
+                            # An empty script on either side proves nothing --
+                            # it is a mismatch, not a wildcard (S2-15).
+                            script_matches = bool(norm_current) and bool(norm_recorded) and (norm_current == norm_recorded)
+                            # Speaking rate and acting direction change the
+                            # audio as much as the preset does (S2-15).
+                            recorded_params = rec.get("voice_params") or {}
+                            recorded_rate = recorded_params.get("voice_rate")
+                            recorded_tone = recorded_params.get("ad_tone")
+                            rate_matches = not recorded_rate or (ctx.voice_rate or "").strip() == str(recorded_rate).strip()
+                            tone_matches = not recorded_tone or (ctx.ad_tone or DEFAULT_AD_TONE) == recorded_tone
 
-                            if not script_matches:
+                            if not script_matches and norm_current and norm_recorded:
                                 # When an angle has both script_lines (display) and tts_lines (legacy phonetic),
                                 # both represent the exact same script of this angle -- do NOT force re-synthesis.
                                 try:
@@ -506,10 +558,12 @@ class VoiceStage:
                                 except Exception as match_err:
                                     print(f"[VoiceStage] Note: Could not check angle script variants: {match_err}")
 
-                            if preset_matches and engine_matches and script_matches:
+                            if preset_matches and engine_matches and script_matches and rate_matches and tone_matches:
                                 shot_list_record = rec
                             elif not script_matches:
                                 print(f"[VoiceStage] Script text changed ({len(norm_current)} chars vs {len(norm_recorded)} chars in shot list) -- will synthesize new voiceover.")
+                            elif not (rate_matches and tone_matches):
+                                print(f"[VoiceStage] ความเร็วเสียง/โทนที่ขอ ({ctx.voice_rate}, {ctx.ad_tone}) ไม่ตรงกับแผนถ่าย ({recorded_rate}, {recorded_tone}) -- สร้างเสียงพากย์ใหม่")
                             else:
                                 print(f"[VoiceStage] Voice preset requested ({ctx.voice_preset}) differs from shot list ({recorded_preset}) -- will synthesize newly chosen voice.")
                 except Exception as e:
@@ -537,7 +591,22 @@ class VoiceStage:
                 "-ac", "2", "-ar", "44100", "-b:a", "192k",
                 str(voice_audio_path)
             ]
-            subprocess.run(conv_cmd, capture_output=True, encoding="utf-8", errors="ignore")
+            conv_res = subprocess.run(conv_cmd, capture_output=True, encoding="utf-8", errors="ignore")
+            if getattr(conv_res, "returncode", 0) != 0:
+                stderr_tail = (getattr(conv_res, "stderr", "") or "").strip()[-500:]
+                raise AppError(
+                    category=ErrorCategory.FFMPEG,
+                    code="HUMAN_VOICE_CONVERT_FAILED",
+                    message_th="แปลงไฟล์เสียงคนพูดจริงไม่สำเร็จ",
+                    suggestion_th="ตรวจสอบว่าไฟล์เสียงไม่เสียหายและเป็นไฟล์เสียงที่รองรับ (เช่น .wav .mp3 .m4a) แล้วอัปโหลดใหม่",
+                    details=f"file={human_src}, returncode={conv_res.returncode}, stderr={stderr_tail}",
+                )
+
+            # Trim the dead air BEFORE aligning, so the cues are timed on the
+            # same file the render plays (S2-01: aligning first and trimming
+            # afterwards left every subtitle late by the trimmed lead).
+            from scripts.gemini_tts_engine import trim_silence_and_tail_artifacts_wav
+            trim_silence_and_tail_artifacts_wav(voice_audio_path)
 
             total_duration = _probe_audio_duration(voice_audio_path)
 
@@ -565,12 +634,9 @@ class VoiceStage:
             src_audio = Path(shot_list_record["voice_audio_path"])
             ctx.guard_media(src_audio)
             shutil.copy2(str(src_audio), str(voice_audio_path))
-            from scripts.gemini_tts_engine import trim_silence_and_tail_artifacts_wav
-            head_t, tail_t = trim_silence_and_tail_artifacts_wav(voice_audio_path)
-            if head_t > 0 or tail_t > 0:
-                total_duration = _probe_audio_duration(voice_audio_path)
-            else:
-                total_duration = shot_list_record.get('total_duration') or _probe_audio_duration(voice_audio_path)
+            # Trimmed (and its cues shifted to match) once, below, with every
+            # other freshly produced file.
+            total_duration = shot_list_record.get('total_duration') or _probe_audio_duration(voice_audio_path)
             cues = shot_list_record.get("cues") or shot_list_record.get("beat_cues") or []
             beat_cues = shot_list_record.get("beat_cues") or cues
             voice_engine_used = (shot_list_record.get("voice_params") or {}).get("voice_engine_type") or "gemini_tts"
@@ -602,21 +668,22 @@ class VoiceStage:
                             text=full_script_text,
                             output_path=str(voice_audio_path),
                             voice_name=gemini_voice,
-                            ad_tone=ctx.ad_tone or "commercial_hype",
+                            ad_tone=ctx.ad_tone or DEFAULT_AD_TONE,
                             speed=speed_val
                         )
                         last_tts_error = None
                         break
                     except Exception as tts_err:
                         last_tts_error = tts_err
-                        # A quota hit is the user's own daily cap -- it will
-                        # not clear a second later, so retrying just wastes
-                        # time before falling back the same way anyway.
-                        if attempt == 0 and not is_quota_error(tts_err):
+                        # A quota hit (the user's own daily cap) or a 429 that
+                        # already went through every key x model will not
+                        # clear a second later -- retrying only re-sends the
+                        # whole matrix against a spent quota (S2-12).
+                        if is_retry_futile(tts_err):
+                            break
+                        if attempt == 0:
                             print(f"⚠️ [Gemini Flash TTS] ล้มเหลว ({tts_err}) — ลองใหม่อีกครั้ง...")
                             time.sleep(1.0)
-                        elif is_quota_error(tts_err):
-                            break
                 if last_tts_error is not None:
                     raise last_tts_error
 
@@ -678,6 +745,11 @@ class VoiceStage:
             cues = voice_res["cues"]
             beat_cues = _fold_cues_by_line_idx(cues, script_data["lines"])
             total_duration = voice_res["duration"]
+            # Lines read by the gTTS fallback are a different voice -- tell
+            # the user instead of mixing them in silently (S2-11).
+            if voice_res.get("gtts_line_count"):
+                gtts_warning = voice_res.get("gtts_warning_th") or "บางบรรทัดใช้เสียงสำรอง gTTS แทน Edge-TTS"
+                ctx.notify(f"⚠️ {gtts_warning}", 0.30)
             print(f"   Edge-TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
         else:
             raise ValueError(f"Unknown or unsupported voice engine: {ctx.voice_engine_type}")
@@ -685,16 +757,25 @@ class VoiceStage:
         # Saved ripple cuts survive only a REUSED voice file; every path that
         # produced a new file (human voice, shot-list copy, Gemini, Edge-TTS)
         # invalidates them.
+        #
+        # The silence trim runs once, on a freshly produced file only. A reused
+        # voice was trimmed when it was made; trimming it again rewrote the
+        # file (new mtime -> the user's saved ripple cuts judged stale and
+        # dropped) and the re-probe overwrote the post-cut duration (S2-02).
         if voice_reused:
             total_duration = cls._apply_voice_edit(ctx, voice_audio_path, total_duration)
         else:
             cls._drop_voice_edit(ctx)
-
-        if voice_audio_path and voice_audio_path.exists():
-            from scripts.gemini_tts_engine import trim_silence_and_tail_artifacts_wav
-            head_t, tail_t = trim_silence_and_tail_artifacts_wav(voice_audio_path)
-            if head_t > 0 or tail_t > 0:
-                total_duration = _probe_audio_duration(voice_audio_path)
+            if voice_audio_path and voice_audio_path.exists():
+                from scripts.gemini_tts_engine import trim_silence_and_tail_artifacts_wav
+                head_t, tail_t = trim_silence_and_tail_artifacts_wav(voice_audio_path)
+                if head_t > 0 or tail_t > 0:
+                    total_duration = _probe_audio_duration(voice_audio_path)
+                    # The cues were timed on the untrimmed file: move them
+                    # with the audio and keep them inside it (S2-01).
+                    same_list = beat_cues is cues
+                    cues = _shift_cues(cues, -head_t, total_duration)
+                    beat_cues = cues if same_list else _shift_cues(beat_cues, -head_t, total_duration)
 
         ctx.voice_audio_path = voice_audio_path
         ctx.cues = cues

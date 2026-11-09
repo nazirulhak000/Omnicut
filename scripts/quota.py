@@ -107,6 +107,22 @@ def is_quota_error(exc: BaseException) -> bool:
     return isinstance(exc, AppError) and exc.code == QUOTA_ERROR_CODE
 
 
+# Raised by GeminiFlashTTSEngine.generate_speech after EVERY key x model
+# already answered 429 -- the matrix retry is inside that call.
+PROVIDER_RATE_LIMIT_CODES = frozenset({"GEMINI_TTS_RATE_LIMITED"})
+
+
+def is_retry_futile(exc: BaseException) -> bool:
+    """True when retrying the same paid call right away cannot succeed: the
+    user's own daily cap (``is_quota_error``) or a provider rate limit that
+    already exhausted every configured key and model. An outer retry on
+    either just sends the whole request matrix again against a quota that is
+    still spent (S2-12)."""
+    if is_quota_error(exc):
+        return True
+    return isinstance(exc, AppError) and exc.code in PROVIDER_RATE_LIMIT_CODES
+
+
 def _quota_error(reason: str, usage: dict, limit_desc: str) -> AppError:
     return AppError(
         category=ErrorCategory.AI_PROVIDER,

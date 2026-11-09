@@ -20,6 +20,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.error_handler import AppError, ErrorCategory
+from scripts.config import DEFAULT_AD_TONE, DEFAULT_VOICE_PRESET
 
 # Gemini takes open with ~0.1-0.4 s of silence before the first word, and may
 # contain trailing silence or end-of-stream digital noise spikes (buffer clipping
@@ -34,6 +35,18 @@ GEMINI_LEAD_SILENCE_PAD_S = 0.040
 GEMINI_LEAD_SILENCE_MAX_S = 0.050
 GEMINI_TAIL_SILENCE_PAD_S = 0.080
 GEMINI_FADE_OUT_MS = 15.0
+# Trims smaller than this are skipped so a second pass over an already
+# trimmed file is a no-op (returns (0.0, 0.0) and leaves the file -- and its
+# mtime -- untouched). Without it the 10ms hop grid shifted after the first
+# trim and every re-run shaved another 1-5ms, rewriting the file (S2-02).
+GEMINI_MIN_TRIM_S = 0.020
+# EOF glitch classification (S2-13): a tail burst after a silence gap is only
+# discarded when it is very short, much quieter than the speech, or clipping
+# -- a real short final word ("ครับ", ~300ms at -12dB) is none of those.
+GEMINI_GLITCH_MAX_SHORT_HOPS = 15       # <=150ms: too short to be a word
+GEMINI_GLITCH_MAX_HOPS = 35             # <=350ms: longest burst ever treated as a glitch
+GEMINI_GLITCH_QUIET_RATIO = 0.10        # burst RMS < -20dB of the loudest speech
+GEMINI_GLITCH_CLIP_LEVEL = 32000        # int16 peak at/near full scale = buffer clip
 
 
 def trim_silence_and_tail_artifacts_wav(
@@ -114,10 +127,21 @@ def trim_silence_and_tail_artifacts_wav(
                     silence_gap_hops += 1
                     curr_hop -= 1
 
-                # An isolated EOF glitch is typically <= 350ms (35 hops) preceded by >= 60ms (6 hops) silence
-                if burst_hops <= 35 and silence_gap_hops >= 6:
-                    pass  # Discard glitch, curr_hop is now before silence gap
-                else:
+                # An isolated EOF glitch is <= 350ms preceded by >= 60ms
+                # silence AND looks like a glitch: very short, much quieter
+                # than the speech, or clipping. A short final word after a
+                # breath (e.g. "ครับ") must survive.
+                is_glitch = False
+                if silence_gap_hops >= 6 and 0 < burst_hops <= GEMINI_GLITCH_MAX_HOPS:
+                    burst_start = (n_hops - burst_hops) * hop
+                    burst_rms = float(np.mean(hop_rms[n_hops - burst_hops:]))
+                    burst_peak = int(per_frame_max[burst_start:].max()) if burst_start < n_frames else 0
+                    is_glitch = (
+                        burst_hops <= GEMINI_GLITCH_MAX_SHORT_HOPS
+                        or burst_rms < peak_rms * GEMINI_GLITCH_QUIET_RATIO
+                        or burst_peak >= GEMINI_GLITCH_CLIP_LEVEL
+                    )
+                if not is_glitch:
                     curr_hop = n_hops - 1
 
             last_speech_hop = 0
@@ -133,6 +157,17 @@ def trim_silence_and_tail_artifacts_wav(
 
     if end_frame <= start_frame:
         return 0.0, 0.0
+
+    # Sub-threshold trims are noise from the hop grid, not real silence --
+    # skipping them keeps the trim idempotent.
+    # The head tolerance is capped so a skipped head trim still leaves the
+    # first sound within GEMINI_LEAD_SILENCE_MAX_S.
+    min_head_frames = int(round(min(GEMINI_MIN_TRIM_S, max(0.0, GEMINI_LEAD_SILENCE_MAX_S - pad_head_s)) * rate))
+    min_tail_frames = int(round(GEMINI_MIN_TRIM_S * rate))
+    if start_frame < min_head_frames:
+        start_frame = 0
+    if n_frames - end_frame < min_tail_frames:
+        end_frame = n_frames
 
     # If already tight at both ends, nothing to trim
     if start_frame == 0 and end_frame == n_frames:
@@ -264,6 +299,9 @@ AD_TONE_PRESETS = {
 }
 
 VALID_VOICES = ("Puck", "Charon", "Kore", "Aoede", "Fenrir")
+_FEMALE_VOICES = frozenset(
+    p["voice"] for p in GEMINI_VOICE_PRESETS.values() if p.get("gender") == "female"
+)
 
 
 class GeminiFlashTTSEngine:
@@ -339,9 +377,9 @@ class GeminiFlashTTSEngine:
         cls,
         text: str,
         output_path: str,
-        voice_preset: str = "gemini_fenrir_male_strong",
+        voice_preset: str = DEFAULT_VOICE_PRESET,
         voice_name: Optional[str] = None,
-        ad_tone: str = "commercial_hype",
+        ad_tone: str = DEFAULT_AD_TONE,
         speed: float = 1.15
     ) -> str:
         """
@@ -359,14 +397,11 @@ class GeminiFlashTTSEngine:
         from scripts.quota import check_budget
         check_budget(task="tts")
 
-        # Determine Gemini Voice Name
-        target_voice = "Kore"
-        if voice_name:
-            target_voice = voice_name
-        elif voice_preset in GEMINI_VOICE_PRESETS:
-            target_voice = GEMINI_VOICE_PRESETS[voice_preset]["voice"]
-        elif voice_preset in ["Puck", "Charon", "Kore", "Aoede", "Fenrir"]:
-            target_voice = voice_preset
+        # Determine Gemini Voice Name. An unknown preset falls back through
+        # resolve_voice() to the canonical male voice (Fenrir), the same
+        # answer preview gives -- it used to fall back to the female Kore.
+        target_voice = voice_name or cls.resolve_voice(preset=voice_preset)
+        voice_gender = "female" if target_voice in _FEMALE_VOICES else "male"
 
         out_wav = Path(output_path).resolve()
         out_wav.parent.mkdir(parents=True, exist_ok=True)
@@ -379,7 +414,7 @@ class GeminiFlashTTSEngine:
         # Sanitize for TTS — strip emoji, expand abbreviations, remove hashtags
         try:
             from scripts.tts_sanitizer import TTSSanitizer
-            clean_text = TTSSanitizer.clean(clean_text)
+            clean_text = TTSSanitizer.clean(clean_text, gender=voice_gender)
         except ImportError:
             pass  # Graceful fallback if sanitizer not available
 
@@ -693,11 +728,12 @@ class GeminiFlashTTSEngine:
 
 if __name__ == "__main__":
     if GeminiFlashTTSEngine.is_available():
-        test_out = PROJECT_ROOT / "02_Assets" / "Voiceover" / "test_gemini_cli.wav"
+        # Self-test output goes to .tmp/, never the real asset library (S2-20).
+        test_out = PROJECT_ROOT / ".tmp" / "test_gemini_cli.wav"
         res = GeminiFlashTTSEngine.generate_speech(
             text="สวัสดีครับ สายชาร์จแม่เหล็กตัวนี้แรงดูดดีมาก ชาร์จไวสุดๆ ลองใช้แล้วจะติดใจครับ",
             output_path=str(test_out),
-            voice_preset="gemini_fenrir_male_strong",
+            voice_preset=DEFAULT_VOICE_PRESET,
             speed=1.15
         )
         print("Self-test completed:", res)
