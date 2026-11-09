@@ -1,11 +1,11 @@
-"""Tracker draft retention and native file carriers in the real App."""
+"""Tracker QC note drafts per channel, QC server-failure retention and storage-blocked switch guard in the real App."""
 import json
 from urllib.parse import urlsplit, parse_qs
 
 from playwright.sync_api import sync_playwright, expect
 
 
-def test_tracker_post_draft_survives_channel_switch_and_qr_keeps_owner(motion_fixture_url):
+def test_tracker_qc_draft_survives_channel_switch_and_storage_block(motion_fixture_url):
     url = urlsplit(motion_fixture_url)
     origin = f"{url.scheme}://{url.netloc}"
     with sync_playwright() as playwright:
@@ -36,29 +36,15 @@ def test_tracker_post_draft_survives_channel_switch_and_qr_keeps_owner(motion_fi
             page.route("**/api/**", api)
             page.goto(f"{origin}/?channel=main&mode=desktop", wait_until="domcontentloaded")
             selector = page.get_by_role("combobox", name="เลือกช่อง")
-            post = page.get_by_role("button", name="ส่ง TikTok", exact=True).first
-            try:
-                expect(post).to_be_visible(timeout=15000)
-            except AssertionError:
-                raise AssertionError({"errors": errors, "body": page.locator("body").inner_text()[:3000]})
-            post.click()
-            caption = page.get_by_placeholder("เขียนแคปชั่นดึงดูดใจ...")
-            caption.fill("Main private draft")
-            selector.select_option("second")
-            page.get_by_role("button", name="ส่ง TikTok", exact=True).first.click()
-            expect(caption).not_to_have_value("Main private draft")
-            caption.fill("Second private draft")
-            page.get_by_role("button",name="ปิดหน้าต่าง",exact=True).click()
-            page.get_by_title("ดูตัวอย่างบนมือถือ (QR Code)",exact=True).first.click()
-            href=page.get_by_role("link",name="ทดสอบเปิดหน้านี้บนเบราว์เซอร์นี้").get_attribute("href")
-            qr=parse_qs(urlsplit(href).query)
-            assert qr["channel"]==["second"] and qr["eid"]==["same-export"] and qr["pid"]==["prod"]
-            assert qr["video"]==["04_Exports/second/clip.mp4"]
-            page.get_by_role("button",name="ปิดหน้าต่าง",exact=True).click()
-            selector.select_option("main")
-            page.get_by_role("button", name="ส่ง TikTok", exact=True).first.click()
-            expect(caption).to_have_value("Main private draft")
-            page.get_by_role("button",name="ปิดหน้าต่าง",exact=True).click()
+
+            def open_qc_fail():
+                # QC-fail lives in the card's "More Actions" dropdown (unslop rounds).
+                page.get_by_title("เมนูเพิ่มเติม (More Actions)", exact=True).first.click()
+                page.get_by_role("button", name="QC ไม่ผ่าน — ส่งตัดใหม่", exact=True).click()
+
+            # The Tracker "ส่ง TikTok" caption draft + mobile-QR were removed in 6c8c9af (posting is
+            # prepared from Export Gallery, whose QR owner is covered by test_channel_gallery_browser.py).
+            expect(page.get_by_title("เมนูเพิ่มเติม (More Actions)", exact=True).first).to_be_visible(timeout=15000)
             page.get_by_title("คลิกเพื่อพรีวิวคลิปเต็ม",exact=True).first.click()
             page.get_by_role("button",name="QC ผ่าน (เป็นสีฟ้า)",exact=True).click()
             expect(page.get_by_text("ไม่สามารถอัปเดตสถานะได้:",exact=False)).to_be_visible()
@@ -66,7 +52,7 @@ def test_tracker_post_draft_survives_channel_switch_and_qr_keeps_owner(motion_fi
             expect(page.get_by_text("QC ผ่านเรียบร้อยแล้ว!",exact=False)).to_have_count(0)
             page.get_by_role("button",name="ปิดหน้าต่าง",exact=True).click()
             # Server failure retains the QC note/modal and channel-owned draft.
-            page.get_by_title("QC ไม่ผ่าน -- ส่งตัดใหม่",exact=True).first.click()
+            open_qc_fail()
             note=page.get_by_placeholder("เช่น เสียงพากย์เร็วเกินไป, ตัดจังหวะไม่เรียบร้อย, ข้อความตกขอบจอ")
             note.fill("Main failed QC private note")
             page.get_by_role("button",name="ยืนยันส่งตัดใหม่",exact=True).click()
@@ -75,11 +61,11 @@ def test_tracker_post_draft_survives_channel_switch_and_qr_keeps_owner(motion_fi
             assert writes[-1][0]=="main" and writes[-1][2]["qc_note"]=="Main failed QC private note"
             page.get_by_role("button",name="ปิดหน้าต่าง",exact=True).click()
             selector.select_option("second");expect(selector).to_have_value("second")
-            page.get_by_title("QC ไม่ผ่าน -- ส่งตัดใหม่",exact=True).first.click()
+            open_qc_fail()
             expect(note).to_have_value("")
             page.get_by_role("button",name="ปิดหน้าต่าง",exact=True).click()
             selector.select_option("main");expect(selector).to_have_value("main")
-            page.get_by_title("QC ไม่ผ่าน -- ส่งตัดใหม่",exact=True).first.click()
+            open_qc_fail()
             expect(note).to_have_value("Main failed QC private note")
             page.get_by_role("button",name="ปิดหน้าต่าง",exact=True).click()
             # Browser storage denial keeps a volatile draft and blocks save-switch.
@@ -88,8 +74,8 @@ def test_tracker_post_draft_survives_channel_switch_and_qr_keeps_owner(motion_fi
                     if(this===localStorage && key.endsWith(':tracker.manualDrafts')) throw new Error('fixture draft storage blocked');
                     return window.trackerSetItem.call(this,key,value);
                 }; }""")
-            page.get_by_role("button",name="ส่ง TikTok",exact=True).first.click()
-            caption.fill("Main volatile storage-blocked draft")
+            open_qc_fail()
+            note.fill("Main volatile storage-blocked draft")
             page.get_by_role("button",name="ปิดหน้าต่าง",exact=True).click()
             selector.select_option("second")
             switch=page.get_by_role("dialog",name="บันทึกก่อนสลับช่อง")
@@ -99,8 +85,9 @@ def test_tracker_post_draft_survives_channel_switch_and_qr_keeps_owner(motion_fi
             switch.get_by_role("button",name="ทิ้งการแก้ไขและสลับ",exact=True).click()
             expect(selector).to_have_value("second")
             page.evaluate("() => { Storage.prototype.setItem=window.trackerSetItem; }")
-            page.get_by_role("button",name="ส่ง TikTok",exact=True).first.click()
-            expect(caption).to_have_value("Second private draft")
+            open_qc_fail()
+            expect(note).to_have_value("")
+            page.get_by_role("button",name="ปิดหน้าต่าง",exact=True).click()
             assert not errors
             assert all(parse_qs(urlsplit(src).query).get("channel") == ["second"] for src in page.locator("video").evaluate_all("els=>els.map(el=>el.getAttribute('src'))"))
         finally:

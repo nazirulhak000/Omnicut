@@ -101,6 +101,8 @@ def test_quick_post_status_requires_exact_export_and_confirmed_server_effect(mot
             else:
                 expect(button).to_be_enabled()
                 button.click()
+                # a1cc961 added an explicit confirmation step before the mark-posted write.
+                page.get_by_role("button",name="ยืนยันว่าโพสต์แล้ว",exact=True).click()
                 expect(page.get_by_text("ไม่สามารถอัปเดตสถานะได้:",exact=False)).to_be_visible()
                 expect(button).to_be_enabled()
                 assert writes[0][0]=="second" and writes[0][1]["export_id"]=="export"

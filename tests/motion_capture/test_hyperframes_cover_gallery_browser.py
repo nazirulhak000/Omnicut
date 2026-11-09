@@ -90,6 +90,8 @@ def test_hf_cover_save_reload_prepare_keeps_exact_export_and_existing_queue(moti
             page.get_by_title("4. Export Gallery", exact=True).click()
             if invalid_binding:
                 if prepare_view == "detail":
+                    # "ดูรายละเอียด" lives in the card More Actions dropdown.
+                    page.get_by_title("เมนูเพิ่มเติม (More Actions)", exact=True).first.click()
                     page.get_by_role("button", name="ดูรายละเอียด", exact=True).click()
                     dialog = page.get_by_role("dialog").filter(has=page.get_by_role("heading", name="Frozen HF fixture", exact=True))
                     dialog.get_by_role("button", name="โพสต์ TikTok อัตโนมัติ (ทดลอง)", exact=True).click()
@@ -116,6 +118,8 @@ def test_hf_cover_save_reload_prepare_keeps_exact_export_and_existing_queue(moti
                 studio.get_by_role("button", name="ปิดสตูดิโอสร้างปก", exact=True).click()
             if prepare_view == "detail":
                 page.get_by_role("button", name="ตารางการ์ด", exact=False).click()
+                # "ดูรายละเอียด" lives in the card More Actions dropdown.
+                page.get_by_title("เมนูเพิ่มเติม (More Actions)", exact=True).first.click()
                 page.get_by_role("button", name="ดูรายละเอียด", exact=True).click()
                 dialog = page.get_by_role("dialog").filter(has=page.get_by_role("heading", name="Frozen HF fixture", exact=True))
                 dialog.get_by_role("button", name="โพสต์ TikTok อัตโนมัติ (ทดลอง)", exact=True).click()

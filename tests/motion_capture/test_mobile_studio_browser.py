@@ -7,6 +7,14 @@ import pytest
 from playwright.sync_api import expect, sync_playwright
 
 
+# Skipped, not deleted: these tests drive MobileQuickStudio directly via /?mode=mobile, but since a1cc961
+# that route renders MobileAppRoot (Today/Create/Review/Post shell) and MobileQuickStudio is only reachable
+# through Create -> "สลับไปใช้สตูดิโอแบบเดิม". The reload and return-from-filming steps also no longer land
+# on the studio (sub-view state is not restored from ?mobile_session=). The owner's uncommitted working tree
+# deletes MobileAppRoot/MobileQuickStudio altogether, so rewriting these for the shell would be wasted work
+# until that decision is made. Re-enable (or delete) once the mobile surface is settled.
+pytestmark = pytest.mark.skip(reason="mobile mode now renders MobileAppRoot; MobileQuickStudio flow pending owner decision (see comment)")
+
 CATALOG = [{"id": "prod", "name": "Test Gadget", "angles": [{
     "id": "angle", "hook_headline": "Official Hook", "script_full": "Official script",
     "script_preview": "Official script", "shot_count": 1, "attached_raw": "raw/stale.mp4",

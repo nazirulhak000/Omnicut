@@ -9,6 +9,10 @@ import pytest
 from playwright.sync_api import expect, sync_playwright
 
 
+SKIP_PRODUCER = pytest.mark.skip(reason="ProducerHub is no longer rendered anywhere in the app (removed in a8862ba, remove obsolete gadget and producer hubs; appNav maps the old producer tab to flow). Delete this test together with ProducerHub.jsx once the owner confirms the removal.")
+
+
+@SKIP_PRODUCER
 @pytest.mark.parametrize("width", [390, 1440])
 def test_idea_vault_only_save_image_reload_and_channel_isolation(motion_fixture_url, width):
     parsed = urlsplit(motion_fixture_url)

@@ -50,6 +50,8 @@ def test_cover_studio_draft_blocks_switch_without_rendering(motion_fixture_url, 
             selector = page.get_by_role("combobox", name="เลือกช่อง")
             expect(selector).to_have_value("second")
             page.get_by_title("4. Export Gallery", exact=True).click()
+            # "ดูรายละเอียด" lives in the card More Actions dropdown.
+            page.get_by_title("เมนูเพิ่มเติม (More Actions)", exact=True).first.click()
             page.get_by_role("button", name="ดูรายละเอียด", exact=True).click()
             page.get_by_role("button", name="ปิดหน้าต่าง", exact=True).click()
             page.get_by_role("button", name="สตูดิโอ 2 ฝั่ง", exact=False).click()
@@ -57,7 +59,7 @@ def test_cover_studio_draft_blocks_switch_without_rendering(motion_fixture_url, 
             expect(page.get_by_role("img", name="Fixture candidate", exact=True)).to_be_visible()
             candidate = page.get_by_role("img", name="Fixture candidate", exact=True).get_attribute("src")
             assert parse_qs(urlsplit(candidate).query)["channel"] == ["second"]
-            page.get_by_label("2. ข้อความ Hook บนปก (AI Copy & Positioning)").check()
+            page.get_by_label("2. ข้อความ Hook บนปก (Copy & Positioning)").check()
             note = page.get_by_placeholder("ใส่ข้อความ Hook บนปก...")
             note.fill("Second unsaved cover")
             if outcome != "unsaved":

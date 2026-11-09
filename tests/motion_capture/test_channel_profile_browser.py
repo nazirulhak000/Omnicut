@@ -88,6 +88,28 @@ def run_profile_browser(motion_fixture_url, width, screenshot_path, busy_screens
             name = section.get_by_label("ชื่อช่อง", exact=True)
             save = section.get_by_role("button", name="บันทึกตัวตนช่อง", exact=True)
             selector = page.get_by_role("combobox", name="เลือกช่อง")
+            phone = width < 768  # Topbar hides the selector below md; it lives in the "อื่นๆ" sheet (Sidebar)
+
+            def open_sheet():
+                if phone and page.get_by_role("dialog", name="เมนูเพิ่มเติม").count() == 0:
+                    page.get_by_role("button", name="อื่นๆ", exact=True).click()
+                    expect(page.get_by_role("dialog", name="เมนูเพิ่มเติม")).to_be_visible()
+
+            def settle():
+                # close the sheet before touching page content (its overlay blocks pointer events)
+                if phone and page.get_by_role("dialog", name="เมนูเพิ่มเติม").count():
+                    page.get_by_role("button", name="ปิดเมนูเพิ่มเติม", exact=True).click()
+                    expect(page.get_by_role("dialog", name="เมนูเพิ่มเติม")).to_have_count(0)
+
+            def pick(channel_id):
+                open_sheet()
+                selector.select_option(channel_id)
+
+            def expect_channel(channel_id):
+                if phone:  # do not open the sheet while a switch is still settling
+                    page.wait_for_function("id => new URL(location.href).searchParams.get('channel') === id", arg=channel_id)
+                open_sheet()
+                expect(selector).to_have_value(channel_id)
             expect(name).to_have_value("Main fixture")
             expect(save).to_be_disabled()
             expect(section.get_by_label("เปิดโพสต์สำหรับช่องนี้")).to_be_disabled()
@@ -101,12 +123,12 @@ def run_profile_browser(motion_fixture_url, width, screenshot_path, busy_screens
             defer_patch[0] = True
             name.fill("Main slow"); save.click()
             expect(section.get_by_role("button", name="กำลังบันทึก", exact=True)).to_be_visible()
-            selector.select_option("second")
+            pick("second")
             dialog = page.get_by_role("dialog", name="บันทึกก่อนสลับช่อง")
             expect(dialog).to_be_visible()
             dialog.get_by_role("button", name="ทิ้งการแก้ไขและสลับ").click()
             expect(dialog.get_by_role("alert")).to_contain_text("กำลังบันทึกช่อง")
-            expect(selector).to_have_value("main")
+            expect_channel("main")
             if busy_screenshot_path:
                 busy_screenshot_path.parent.mkdir(parents=True, exist_ok=True)
                 page.screenshot(path=str(busy_screenshot_path), full_page=True)
@@ -115,18 +137,21 @@ def run_profile_browser(motion_fixture_url, width, screenshot_path, busy_screens
             complete_patch(*held.pop())
             expect(section.get_by_role("button", name="บันทึกตัวตนช่อง", exact=True)).to_be_disabled()
             dialog.get_by_role("button", name="อยู่ช่องเดิม").click()
+            settle()
 
             name.fill("Main switch")
-            selector.select_option("second")
+            pick("second")
             dialog.get_by_role("button", name="บันทึกและสลับ").click()
-            expect(selector).to_have_value("second")
+            expect_channel("second")
+            settle()
             open_profiles()
             expect(name).to_have_value("Second fixture")
             assert writes[-1] == ("main", {"display_name": "Main switch", "expected_revision": 3})
             name.fill("Second discarded")
-            selector.select_option("main")
+            pick("main")
             dialog.get_by_role("button", name="ทิ้งการแก้ไขและสลับ").click()
-            expect(selector).to_have_value("main")
+            expect_channel("main")
+            settle()
             open_profiles()
             expect(name).to_have_value("Main switch")
             assert profiles[1]["display_name"] == "Second fixture"
@@ -135,12 +160,15 @@ def run_profile_browser(motion_fixture_url, width, screenshot_path, busy_screens
             section.get_by_label("รหัสช่อง", exact=True).fill("new-channel")
             section.get_by_label("ชื่อช่อง", exact=True).first.fill("New draft")
             section.get_by_role("button", name="สร้างแบบร่าง", exact=True).click()
+            open_sheet()
             expect(selector.locator('option[value="new-channel"]')).to_have_count(1)
+            settle()
             create = next(payload for target, payload in writes if target == "create")
             assert create["expected_registry_revision"] == 10
 
-            selector.select_option("second")
-            expect(selector).to_have_value("second")
+            pick("second")
+            expect_channel("second")
+            settle()
             open_profiles()
             expect(name).to_have_value("Second fixture")
             activation = section.get_by_role("button", name="เปิดใช้งานช่อง", exact=True)
@@ -165,6 +193,13 @@ def run_profile_browser(motion_fixture_url, width, screenshot_path, busy_screens
             page.evaluate("for (const node of document.querySelectorAll('*')) if (node.scrollTop) node.scrollTop = 0")
             page.screenshot(path=str(screenshot_path), full_page=True)
             assert not errors, errors
+            if phone:
+                # Selector is not in the phone header any more: just guard the header actions against overflow.
+                actions = page.evaluate("""() => [...document.querySelectorAll('header button,header select')]
+                    .filter(el => el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0)
+                    .map(el => { const r = el.getBoundingClientRect(); return {left: r.left, right: r.right}; })""")
+                assert all(row["left"] >= 0 and row["right"] <= width for row in actions), actions
+                return writes
             geometry = selector.evaluate("""node => {
                 const header=node.closest('header');
                 const bounds=element=>{const r=element.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};};
