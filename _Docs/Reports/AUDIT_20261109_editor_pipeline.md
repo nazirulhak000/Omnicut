@@ -387,3 +387,28 @@ Flow จริง: `api_intake.preview` / `api_products.scrape_and_plan` → `Pr
 4. writer JSON mirror ตรง 17 ไฟล์นอก scope (`tools/generate_*_scripts.py`, `gdrive_archive_engine.py`, `ssd_reconcile_engine.py` ฯลฯ) — lint test ล็อกรายการไว้ ห้ามเพิ่ม
 5. 14 เทสที่ fail อยู่ก่อนแล้ว (hyperframes/lifespan/inapp_agent/allowlist) + venv ขาด `filelock`, `dotenv` — แยกรอบ
 6. S4-11 ข้อความเตือนลายน้ำเขียนใหม่ — ผู้ใช้ตรวจถ้อยคำ
+
+---
+
+## 11. รอบต่อเนื่อง — Round CLAUDE-FOLLOWUP-AUDIT-20261109
+
+ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + fix sub-agents 4 ตัว (Claude Sonnet 5.5) · กิ่งรวม `fix/followup-20261109` · เปิด agent ทีละ 3 ตัวกัน rate limit
+
+| ก้อน | ผล | หมายเหตุ |
+|---|---|---|
+| `fix/legacy-writers` | writer JSON mirror เดิม 17 ไฟล์ → `store_io` ✅ (PENDING ว่าง lint บังคับ 0) · X-04 ผูกเสียง cut ด้วย content hash ✅ · `filelock`, `python-dotenv` ใน requirements ✅ · **path traversal ใน `gdrive_archive_engine.py` ยืนยันจริงและแก้แล้ว** (`project_name=".."` เคยลบรากโปรเจกต์ได้) | `store_io` เพิ่ม `apply_row_changes`, ตาราง `schedule_queue`/`posts`; แถวที่ app เพิ่มระหว่าง `ssd_reconcile` รันไม่หาย; cut เก่าที่ไม่มี hash ยังจับคู่ด้วย path/size/mtime แล้ว re-save พร้อม hash; `requirements.txt` ยังไม่มี `httpx`, `psutil`, `qrcode` |
+| `fix/preexisting-pytest` | 14 เทสที่ fail ก่อนแก้ → ผ่านหมด | stale-test 7, env 3 (MAX_PATH 266 ตัวอักษร, ไม่มี `tools/hyperframes-runtime/node_modules`), real-bug 3: `api_server.py` เรียก `ProductStore.seed_products()` แทน `all_channels=True`, `HF.applyChannel()` ใน `kit/kit.js` **เขียนคืนจากเทส+เอกสาร (commit 96798bd ทับของจริงที่ไม่เคย commit) — ต้องให้ผู้ใช้ตรวจ**, hardcoded path ใน `tools/apply_brand_first_cta_all.py`; matrix `_Docs/Reports/EDITOR_FEATURE_COVERAGE_MATRIX_20260922.json` เพิ่ม 7 field |
+| `fix/render-qa` | S3-11 ✅ · S5-06 ✅ (render รองรับ scale/position/fontName ต่อซับ, เปิดปุ่มคืน, ตรวจ PNG จริง) · S1-04 ✅ · S1-12 ✅ | S3-11: black ≥0.3s / freeze ≥1.5s (ยกเว้นช่วง hold) เป็น `qa_warnings` ภาษาไทย ไม่ทำ render ล้ม — **ยังไม่ครอบคลุมเส้น reroll**; S5-06: `SUBTITLE_RENDER_CONTRACT_VERSION` v9→v10, สีซับยังเป็นระดับทั้งกล่อง; S1-04: gate ที่จุดโหลดภาพจริงจุดเดียว (`_download_image_bytes` ส่งเข้า Gemini) ภาพ URL ความละเอียดต่ำจะไม่ถูกส่ง Gemini อีก; S1-12: อ่าน reference จาก products+recording sessions+shot lists+export registry, โหลด store ไม่ได้ = ปฏิเสธลบทั้งหมด |
+| `fix/browser-tests` | 62 → ซ่อม/ข้ามพร้อมเหตุผล 40, เหลือ 22 (frame_pair 14, cutout_video_preview 7, multisource 1) | drift หลัง unslop/ConfirmModal/More Actions/`LEGACY_TAB_MAP`; ข้าม 11: ProducerHub (tab `producer`→`flow` ที่ `App.jsx:970` ยืนยันแล้วว่าเข้าไม่ถึง), mobile_studio ×6 (รอ owner ตัดสินใจ — working tree หลักมีการลบ `MobileQuickStudio` ที่ยังไม่ commit); เพิ่ม `tests/motion_capture/channel_ui.py` |
+
+### วัด S2-13 กับเสียงจริง (อ่านอย่างเดียว คัดลอกไปสแครชแพด)
+
+ไฟล์ wav จริง 361 ไฟล์ใน `02_Assets/Voiceover` + `03_Projects` (ทั้ง preview Gemini, voiceover, mixed_audio) → ตัวตัดหางทำงานกับ 338 ไฟล์; ส่วนที่ถูกตัดทิ้ง peak > −30 dBFS แค่ 4 ไฟล์ และทุกไฟล์ RMS ≤ −44 dBFS (เสียงพูดปกติ −20..−30) → ไม่พบการตัดคำพูดจริง เกณฑ์ผ่าน ข้อจำกัด: กลุ่มตัวอย่างมี mixed_audio ที่ผสม BGM ปนอยู่
+
+### งานค้างหลังรอบนี้
+
+1. `frame_pair` ×14 — หัวข้อ hook ใน Canvas ต่ำกว่า libass ~30px ที่ 540x960 (~60px ที่ 1080x1920), ASS กว้างกว่า ~1.3%; ผลเหมือนเดิมกับโค้ดก่อน `3a48f08`/`bfbd63a` จึงไม่ใช่ regression ของรอบนี้; สงสัย `ass_top_anchor_offset` หรือ anchor ของ Canvas หรือ libass/ffmpeg build ของเครื่อง
+2. `cutout_video_preview` 7 ข้อ — `seeks` 5–27 ใน 60 เฟรม (เกณฑ์ 2) ผลเหมือนกันกับ `SequencePlayer.jsx` ก่อน `3a48f08`; `multisource_av_preview` p95 ขึ้นอยู่กับโหลดเครื่อง (168–341ms vs เกณฑ์ 200ms)
+3. mobile studio ×6 รอผู้ใช้: ถ้าตัด mobile shell ก็ลบเทสทิ้ง ถ้าคงไว้ต้องคืน `?mobile_session=` restore
+4. `ARCHITECTURE.md` ล้าสมัย: ยังเขียนว่าเมนู 0 ใช้ `ProducerHub`
+5. ยังรอผู้ใช้: ถ้อยคำเตือนลายน้ำ (S4-11), เว้นวรรค Ghost Reveal, ลอง editor จริง, ตรวจ `kit.js applyChannel`, migration path `Capcut` ในข้อมูล, push origin
