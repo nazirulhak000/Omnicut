@@ -1682,10 +1682,11 @@ def hold_ranges_from_clips(clip_list, clip_starts, clip_durations) -> List[Tuple
     ranges: List[Tuple[float, float]] = []
     if not clip_list or not clip_starts or not clip_durations:
         return ranges
-    for idx, clip in enumerate(clip_list):
-        if idx >= len(clip_starts) or idx >= len(clip_durations) or not isinstance(clip, dict):
+    for idx, entry in enumerate(clip_list):
+        if idx >= len(clip_starts) or idx >= len(clip_durations) or not isinstance(entry, dict):
             continue
-        if clip.get("hold_reason") or clip.get("held_source_time") is not None:
+        # QA bookkeeping only (not a render input), hence ``entry`` not ``clip``.
+        if entry.get("hold_reason") or entry.get("held_source_time") is not None:
             start = float(clip_starts[idx])
             ranges.append((start, start + float(clip_durations[idx])))
     return ranges
