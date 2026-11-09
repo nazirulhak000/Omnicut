@@ -119,7 +119,14 @@ def generate_multi_speaker_vo():
 def transcribe_vo():
     from faster_whisper import WhisperModel
     print("Running faster-whisper word-level transcription...")
-    model = WhisperModel("large-v3-turbo", device="cpu", compute_type="int8")
+    try:
+        import ctranslate2  # GPU-first (AGENTS rule 21)
+        if ctranslate2.get_cuda_device_count() <= 0:
+            raise RuntimeError("ไม่พบการ์ดจอ CUDA")
+        model = WhisperModel("large-v3-turbo", device="cuda", compute_type="float16")
+    except Exception as cuda_err:  # CPU only after CUDA itself fails
+        print(f"  ⚠️ ใช้ CUDA ไม่ได้ ({cuda_err}) — สลับไป CPU int8 (ช้ากว่ามาก)")
+        model = WhisperModel("large-v3-turbo", device="cpu", compute_type="int8")
     segments, _ = model.transcribe(
         str(OUT_VO),
         language="th",

@@ -252,10 +252,28 @@ def split_by_longest_gaps(take_wav: Path, n: int) -> Tuple[int, List[np.ndarray]
     return sr, parts
 
 
+def _resolve_whisper_device(device: Optional[str]) -> Tuple[str, str]:
+    """GPU-first (AGENTS rule 21): cuda/float16 when a CUDA device exists."""
+    if device:
+        return device, ("float16" if device == "cuda" else "int8")
+    try:
+        from scripts.word_alignment import resolve_device
+        return resolve_device()
+    except Exception:
+        pass
+    try:
+        import ctranslate2  # type: ignore
+        if ctranslate2.get_cuda_device_count() > 0:
+            return "cuda", "float16"
+    except Exception:
+        pass
+    return "cpu", "int8"
+
+
 def verify_turns_with_whisper(
     turn_files: List[Path],
     turns_data: List[tuple],
-    device: str = "cpu",
+    device: Optional[str] = None,
     log_callback: Optional[Callable[[str], None]] = None,
 ) -> List[dict]:
     """Transcribes each turn with faster_whisper to verify timestamps and text alignment."""
@@ -270,14 +288,27 @@ def verify_turns_with_whisper(
         log("⚠️ faster-whisper not installed. Skipping Whisper verification.")
         return []
 
-    log(f"🔎 [Faster-Whisper] Verifying {len(turn_files)} turns on {device}...")
-    compute_type = "float16" if device == "cuda" else "int8"
+    device, compute_type = _resolve_whisper_device(device)
+    log(f"🔎 [Faster-Whisper] ตรวจ {len(turn_files)} เทิร์นบน {device} ({compute_type})...")
+
+    def _load(name: str):
+        nonlocal device, compute_type
+        try:
+            return WhisperModel(name, device=device, compute_type=compute_type, local_files_only=False)
+        except Exception as cuda_err:
+            if device != "cuda":
+                raise
+            # CPU only after CUDA itself failed (missing cuDNN/cuBLAS, VRAM).
+            log(f"   ⚠️ โหลด Whisper บน CUDA ไม่สำเร็จ ({cuda_err}) — ใช้ CPU int8 แทน")
+            device, compute_type = "cpu", "int8"
+            return WhisperModel(name, device=device, compute_type=compute_type, local_files_only=False)
+
     try:
-        model = WhisperModel("large-v3-turbo", device=device, compute_type=compute_type, local_files_only=False)
+        model = _load("large-v3-turbo")
     except Exception:
         # Fallback to base model if large model cannot be loaded
-        log("   Falling back to base Whisper model...")
-        model = WhisperModel("base", device=device, compute_type=compute_type, local_files_only=False)
+        log("   ใช้โมเดล Whisper base แทน large-v3-turbo...")
+        model = _load("base")
 
     report = []
     for i, wav_path in enumerate(turn_files):
@@ -770,7 +801,7 @@ def build_and_render_couple_chat_clip(
     cta_title: str = "กดตะกร้าเหลือง",
     cta_model: str = "ชี้เป้าสินค้า · ของแท้แน่นอน",
     output_dir: Optional[Path] = None,
-    device: str = "cpu",
+    device: Optional[str] = None,
     quality: str = "looks",
     log_callback: Optional[Callable[[str], None]] = None,
 ) -> Path:
