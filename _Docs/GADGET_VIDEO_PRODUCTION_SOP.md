@@ -1,4 +1,6 @@
 # 📖 คู่มือปฏิบัติงานมาตรฐาน: การผลิตคลิปวิดีโอรีวิวแกดเจ็ตแนวตั้ง
+
+> **อัปเดต 2026-11-09 (ผู้ใช้อนุมัติ D1/D2/D3/D5 จาก [AUDIT_20261109](_Docs/Reports/AUDIT_20261109_editor_pipeline.md)):** สเปกซับ canonical = ค่าในโค้ด/`font_text_visual_contract.md` (IBM Plex Sans Thai SemiBold em 50px · ASS 82 / Mali 106 · outline `max(1.8, 0.04·fs)` · MarginV 420) + Ghost Reveal `#66FF00`→`#FFFFFF` · ตัวเลข Mali-Bold 88 / outline 5.2 / MarginV 380 ด้านล่างเป็นของ tools one-off ไม่ใช่สเปก pipeline · Callout 2 ชั้น Prompt 76/94 = legacy (ยังไม่มีใน pipeline) · BGM = **0.12** ค่าเดียวตาม `scripts/config.py`
 # (Standard Operating Procedure: Vertical Gadget Video Production SOP)
 
 > **เอกสารควบคุมฉบับหลัก (Master Reference):** รวบรวมขั้นตอนตั้งแต่เริ่มต้นจนจบ (End-to-End) สำหรับการตัดต่อคลิปรีวิวแกดเจ็ต 9:16 (1080x1920) ความยาว 60 วินาที  
@@ -148,7 +150,7 @@
 4. **การมิกซ์เสียงเพลงประกอบ (Upbeat IT BGM Mix)**:
    - **เพลงประกอบ (BGM)**: บังคับใช้เพลงสนุกสนาน คึกคัก จังหวะทันสมัย เหมาะกับช่องรีวิวไอที เช่น **`02_Assets/Music/tiktok_upbeat_bgm.wav`** (❌ ห้ามใช้ Lo-Fi ชวนง่วง)
    - เสียงพากย์ (Voice - Fenrir): **1.0** (ดัง คม ชัด ไม่แตก)
-   - เพลงพื้นหลัง (BGM): **0.14** (ระดับความดังพอดี เสริมความมันส์ ไม่กลบเสียงพูด)
+   - เพลงพื้นหลัง (BGM): **0.12** (ระดับความดังพอดี เสริมความมันส์ ไม่กลบเสียงพูด)
    - เสียงช่วงท้าย (58.5s – 60.0s): ทำ Fade-out ดนตรีลงนุ่มนวลก่อนจบคลิป
 
 5. **จังหวะตัดต่อ, J-Cut, Easing และกริดเฟรม (Cut Rhythm & Motion Curves — เพิ่ม 2026-10-04)** *(ไม่เปลี่ยนค่าฟอนต์/ซับ/มิกซ์เสียงด้านบน)*:

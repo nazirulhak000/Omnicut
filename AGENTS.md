@@ -22,7 +22,7 @@
 
 ---
 
-## 📁 2. โครงสร้างโฟลเดอร์ — ห้ามวางไฟล์นอกที่กำหนด: `00_Inbox/` ดิบ / `01_Raw/` วัตถุดิบ (`YYYYMMDD_ชื่อสินค้า-ประเด็น/`) / `02_Assets/` ของใช้ซ้ำ (Fonts/Music/SFX/Stickers/LUTs) / `03_Projects/` สคริปต์+ดราฟต์ / `04_Exports/` คลิปเสร็จ / `05_Covers_Thumbnails/` ปก 9:16 / `06_Archive/` เก็บเก่า (ถูก gitignore) / `scripts/` backend / `tools/` utility / `frontend/` UI / `_Docs/` PRD·prompt·คู่มือ SOP (รวมโฟลเดอร์ย่อย `_Docs/Plans/` เก็บแผนงาน และ `_Docs/Reports/` เก็บรายงานผล/Audit ห้ามวางเกลื่อนกลาดที่รากโปรเจกต์) / `.tmp/` ของชั่วคราวจากเทส (ถูก gitignore) / `.agents/rules/` กฎเฉพาะทาง — **ที่รากโปรเจกต์คงไว้เฉพาะไฟล์ระบบหลัก 5 ไฟล์เท่านั้น (`README.md`, `TODO.md`, `HISTORY.md`, `ARCHITECTURE.md`, `AGENTS.md`)**
+## 📁 2. โครงสร้างโฟลเดอร์ — ห้ามวางไฟล์นอกที่กำหนด: `00_Inbox/` ดิบ / `01_Raw/` วัตถุดิบ (`<product_id UUID>/`) / `02_Assets/` ของใช้ซ้ำ (Fonts/Music/SFX/Stickers/LUTs) / `03_Projects/` สคริปต์+ดราฟต์ / `04_Exports/` คลิปเสร็จ / `05_Covers_Thumbnails/` ปก 9:16 / `06_Archive/` เก็บเก่า (ถูก gitignore) / `scripts/` backend / `tools/` utility / `frontend/` UI / `_Docs/` PRD·prompt·คู่มือ SOP (รวมโฟลเดอร์ย่อย `_Docs/Plans/` เก็บแผนงาน และ `_Docs/Reports/` เก็บรายงานผล/Audit ห้ามวางเกลื่อนกลาดที่รากโปรเจกต์) / `.tmp/` ของชั่วคราวจากเทส (ถูก gitignore) / `.agents/rules/` กฎเฉพาะทาง — **ที่รากโปรเจกต์คงไว้เฉพาะไฟล์ระบบหลัก 5 ไฟล์เท่านั้น (`README.md`, `TODO.md`, `HISTORY.md`, `ARCHITECTURE.md`, `AGENTS.md`)**
 
 ---
 
@@ -47,7 +47,7 @@
 ## ✅ 4. กฎเหล็ก: สิ่งที่ "ต้องทำเสมอ" (STRICT DOs)
 
 1. ✔️ **สเปกวิดีโอ 9:16** — `1080x1920`, `30 FPS`, ข้อความ/สติกเกอร์ห้ามชิดขอบขวา-ล่าง (กันปุ่ม TikTok บัง)
-2. ✔️ **Naming Convention** — Raw: `YYYYMMDD_ชื่อสินค้า-ประเด็น` / Export: `YYYYMMDD_ชื่อสินค้า_hook_vN.mp4` / Draft ตรงชื่อโฟลเดอร์
+2. ✔️ **Naming Convention** — Raw: `01_Raw/<product_id UUID>/` (ระบบสร้างเอง ปลอดภัยต่อ path — D10, 2026-11-09) / Export: `YYYYMMDD_ชื่อสินค้า_hook_vN.mp4` / Draft ตรงชื่อโฟลเดอร์
 3. ✔️ **ซับไทย Micro-Burst/Kinetic** — burst 2–4 คำ, ไฮไลต์ `#FFE600`, safe zone ล่าง 420px (ดู [.agents/rules/subtitle_kinetic_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/subtitle_kinetic_rules.md))
 4. ✔️ **สติกเกอร์** — เฉพาะ Universal Badges 6 แบบ, พื้นขาว `#FFFFFF` + ขอบ die-cut (ดู [.agents/rules/sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md))
 5. ✔️ **TTS/Audio** — Gemini Flash TTS เสียงมาตรฐาน: `Fenrir` (ชายสตรอง คมเข้ม) + สไตล์ `commercial_premium` (โฆษณาพรีเมียม), Edge-TTS ไทย `+15%`, ระดับเสียง Voice 1.0 / SFX 0.28 / BGM 0.12 ที่ `scripts/config.py`
@@ -69,16 +69,17 @@
 15. ✔️ **Test Cleanup 100% (ลบขยะทดสอบทันที)** — ทุกไฟล์วิดีโอ/ภาพ/ดราฟต์ที่ถูกสร้างขึ้นเพื่อการทดสอบ (Demo/Test/Probe/Verify) ต้องถูกลบทิ้งอย่างเด็ดขาดหลังทดสอบเสร็จ ทั้งใน `04_Exports/`, `03_Projects/`, `05_Covers_Thumbnails/` และต้องถอดออกจาก `_Docs/export_registry.json` ด้วยเสมอ
 16. ✔️ **คลังวัตถุดิบแยกรายรุ่นสินค้า (Organized Product Assets)** — จัดระเบียบวัตถุดิบแยกโฟลเดอร์ตามรุ่นสินค้า ประกอบด้วยคลิป Clean 1080p ไร้ซับต่างชาติ, ภาพสินค้า High-Res, และข้อมูลสเปก/Hook พร้อมใช้งาน
 17. ✔️ **สไตล์ซับและเลย์เอาต์คลิปรีวิวแกดเจ็ตระดับโปร (Supersub & Clean Presentation Standard)**:
-   - **ซับไตเติล**: ฟอนต์ `Mali-Bold` ขนาด 88px ขอบดำ Outline 5.2px MarginV 380, ใช้บทสคริปต์ทางการ 100% ห้ามใช้ผลลัพธ์ดิบจาก Whisper, รวมกลุ่มพยางค์ภาษาไทยสมบูรณ์ (Syllable Clustering) สระและวรรณยุกต์ไม่ฉีกขาด, เทคนิค Progressive Ghost Reveal คำข้างหน้าซ่อนโปร่งใส ค่อยๆ เด้งทีละพยางค์ขยาย 114% สีเขียวนีออน (`#66FF00`), คำที่พูดแล้วเป็นสีขาวบริสุทธิ์ (`#FFFFFF`), จัดแสดงบรรทัดเดียวสั้นกระชับ (ดู [.agents/rules/gadget_editing_style_checklist.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/gadget_editing_style_checklist.md))
-   - **กล่องสเปก (Callouts)**: หัวข้อบนสีขาว (`Prompt-Bold` 76px MarginV 250) + สเปกล่างสีส้มไฟนีออน (`Prompt-Black` 94px `#FF6622` MarginV 530) ไม่มีเส้นขีดเขียว
+   - **ซับไตเติล** (ค่าจริงในโค้ด = canonical ตาม font_text_visual_contract.md, ยืนยันโดยผู้ใช้ 2026-11-09 D1): IBM Plex Sans Thai SemiBold (default pipeline) em 50px (ASS 82 / Mali 106), outline `max(1.8, 0.04·fs)`, MarginV 420 (render 410 optical), EN 68% `#EAEAEA`, ใช้บทสคริปต์ทางการ 100% ห้ามใช้ผลลัพธ์ดิบจาก Whisper (whisper ให้แค่ timing), รวมกลุ่มพยางค์ไทย (Syllable Clustering) สระ/วรรณยุกต์ไม่ฉีก, Progressive Ghost Reveal: คำข้างหน้าโปร่งใส คำที่กำลังพูดสีเขียวนีออน `#66FF00` ขยาย 114% คำที่พูดแล้วขาว `#FFFFFF` (Ghost Reveal แทนไฮไลต์ keyword `#FFE600` — D2), บรรทัดเดียวสั้นกระชับ. ค่า Mali-Bold 88 / outline 5.2 / MarginV 380 เดิมเป็นของ tools one-off เท่านั้น ไม่ใช่สเปก pipeline (ดู [.agents/rules/gadget_editing_style_checklist.md](file:///d:/Winona/Programmer/Omnicut/.agents/rules/gadget_editing_style_checklist.md))
+   - **กล่องสเปก (Callouts)**: สเปก 2 ชั้น (Prompt-Bold 76px ขาว MarginV 250 + Prompt-Black 94px `#FF6622` MarginV 530) เป็น **legacy ของ tools one-off — ยังไม่มีใน pipeline** (D3, 2026-11-09); pipeline ใช้ product callout ชั้นเดียว (ปิด auto) และ SpecBar. ห้ามมีเส้นขีดเขียว
    - **การค้างภาพ (Strict Topic Hold)**: ภาพต้องตรงกับสิ่งที่เสียงพากย์กำลังพูดตลอดทั้งประโยค ไม่ตัดสลับหนีฟีเจอร์ก่อนพูดจบ
-   - **ดนตรีและมิกซ์เสียง**: เพลงไอทีสนุกสนานคึกคัก (`tiktok_upbeat_bgm.wav` 0.14) + เสียงพากย์ Fenrir (1.0)
+   - **ดนตรีและมิกซ์เสียง**: เพลงไอทีสนุกสนานคึกคัก (`tiktok_upbeat_bgm.wav`) BGM **0.12** ค่าเดียวทุก path ตาม `scripts/config.py` (D5, 2026-11-09) + เสียงพากย์ Fenrir (1.0)
    - **ความคลีน**: ลายน้ำ/เครดิตระบุเฉพาะแหล่งที่มาจริง (Source Attribution ที่ MarginV 36) ห้ามใส่โลโก้หรือป้ายแปลกปลอม (เช่น TECH MX)
 18. ✔️ **ปฏิบัติตามคู่มือปฏิบัติงานมาตรฐานและเช็กลิสต์ (Master Gadget SOP & Checklist Compliance)**: ทุกขั้นตอนการผลิตคลิปวิดีโอรีวิวแกดเจ็ต 60 วินาที ต้องยึดถือและปฏิบัติตาม **[_Docs/GADGET_VIDEO_PRODUCTION_SOP.md](file:///d:/Winona/Programmer/Capcut/_Docs/GADGET_VIDEO_PRODUCTION_SOP.md)** และตรวจผ่าน **[.agents/rules/gadget_editing_style_checklist.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/gadget_editing_style_checklist.md)** ก่อนส่งมอบงานทุกครั้ง หากมีการปรับปรุงสไตล์การตัดต่อ, ฟอนต์ หรือมิกซ์เสียง ต้องอัปเดตลงใน SOP และ Checklist เสมอ
 19. ✔️ **ใช้ Jev (TypeSafe System One) ตัดสินใจร่วมกับ AI ทุกตัว** — ทุก session/ทุก agent ที่ทำงานในโปรเจกต์นี้ ใช้ `tools/jev_advisor.py` เป็นผู้ตรวจร่วมตัดสินใจตาม **[.agents/rules/jev_decision_layer.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/jev_decision_layer.md)**
    - เรียกผ่าน `tools/jev_advisor.py` เท่านั้น — **ห้ามเขียน one-off script ใหม่ใน `.tmp/`**
    - 6 จุดบังคับ: ก่อนเริ่มงานใหม่ · เจอทางเลือก 3–7 อัน · ก่อน commit · ก่อนรัน FFmpeg · เขียนสคริปต์/เอกสารเสร็จ · เทียบก่อน-หลัง
    - **Confidence gate:** `>= 0.80` ทำต่อได้ (รายงานตัวเลขให้ผู้ใช้เห็น) · `< 0.80` หรือ `null` = **หยุดถามผู้ใช้ ห้ามตัดสินใจแทนเงียบ ๆ**
+   - **คำถามแบบ `noul` คืน confidence `null` เสมอ (SDK) → escalate ทุกครั้งโดยตั้งใจ** — คำถามที่ใช้เป็น gate ให้ใช้ `choice`/`score` (D13, 2026-11-09)
    - Jev อ่านได้**แค่ข้อความ** — ห้ามใช้ตรวจเฟรมวิดีโอ ซับจริง ฟอนต์เรนเดอร์ (ใช้ FFmpeg probe / Gemini vision ตามกฎเดิม)
    - คำตอบ Jev **ไม่ใช่สิทธิ์อนุมัติ** — ไม่พบปัญหา ≠ อนุญาตให้ละเมิดกฎข้อ 1–18 · ห้ามอ้างผล Jev เป็น "หลักฐาน"
    - Jev ล่ม/ไม่มี key → degrade เงียบ ๆ ทำงานต่อ ห้ามบล็อกงาน
