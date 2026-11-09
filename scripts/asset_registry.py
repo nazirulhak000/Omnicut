@@ -288,9 +288,63 @@ class AssetRegistry:
         cls._freshness_checked_at = now
         return fresh
 
+    @staticmethod
+    def _category_roots() -> Dict[str, List[Path]]:
+        """Directory each cached category must live under *right now*.
+
+        Read at call time (not import time) so a moved workspace or a test
+        data root is always judged against the current layout.
+        """
+        return {
+            "sfx": [SFX_DIR],
+            "bgm": [MUSIC_DIR],
+            "fonts": [FONTS_DIR],
+            "stickers": [STICKERS_DIR, ASSETS_DIR / "Stickers"],
+            "luts": [LUTS_DIR],
+            "effects": [EFFECTS_DIR],
+        }
+
+    @staticmethod
+    def _norm(path: Path | str) -> str:
+        return os.path.normcase(os.path.abspath(os.fspath(path)))
+
+    @classmethod
+    def _cached_paths_are_current(cls, data: Any) -> bool:
+        """Every cached `path` exists and sits under its category's current dir.
+
+        The cache stores absolute paths.  After the workspace moved (e.g.
+        ``...\\Capcut`` -> ``...\\Omnicut``) every entry still pointed at the
+        old root while the mtime check kept calling the cache fresh, so font
+        metrics silently fell back to scale 1.0 (audit S5-01).  A cache whose
+        paths are foreign or missing is stale and must be rebuilt.
+        """
+        if not isinstance(data, dict):
+            return False
+        for category, roots in cls._category_roots().items():
+            entries = data.get(category)
+            if entries is None:
+                return False
+            prefixes = [cls._norm(root).rstrip("\\/") + os.sep for root in roots]
+            for entry in entries:
+                raw = entry.get("path") if isinstance(entry, dict) else None
+                if not raw:
+                    return False
+                normalized = cls._norm(raw)
+                if not any(normalized.startswith(prefix) for prefix in prefixes):
+                    return False
+                if not os.path.isfile(raw):
+                    return False
+        return True
+
     @classmethod
     def _compute_cache_is_fresh(cls) -> bool:
         if not REGISTRY_PATH.exists():
+            return False
+        try:
+            cached = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return False
+        if not cls._cached_paths_are_current(cached):
             return False
         cache_mtime = REGISTRY_PATH.stat().st_mtime
         watched_dirs = [SFX_DIR, MUSIC_DIR, FONTS_DIR, STICKERS_DIR, ASSETS_DIR / "Stickers", LUTS_DIR, EFFECTS_DIR]

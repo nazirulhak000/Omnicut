@@ -5,6 +5,7 @@ Modularized components for font metrics, motion effects, vector drawing/badges, 
 
 from scripts.subtitle.font_metrics import (
     TYPOGRAPHY_PRESETS_PATH,
+    FontAssetMissingError,
     DEFAULT_FONT_FAMILY,
     _LEGACY_FONT_ALIASES,
     _load_font_family_map,
@@ -78,6 +79,7 @@ from scripts.subtitle.translation_service import (
 
 __all__ = [
     "TYPOGRAPHY_PRESETS_PATH",
+    "FontAssetMissingError",
     "DEFAULT_FONT_FAMILY",
     "_LEGACY_FONT_ALIASES",
     "_load_font_family_map",

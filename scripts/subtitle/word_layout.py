@@ -15,6 +15,7 @@ from scripts.asset_registry import AssetRegistry
 from scripts.subtitle.font_metrics import (
     DEFAULT_FONT_FAMILY,
     _load_font_family_map,
+    _missing_font_error,
     ass_glyph_scale,
 )
 
@@ -82,15 +83,17 @@ def get_scaled_font(font_name: str, font_size_px: float) -> Tuple[Optional[Image
         resolved_font = DEFAULT_FONT_FAMILY
         path = family_to_path.get(resolved_font)
     if not path:
-        return None, 1.0
+        # No silent width estimate (audit S5-02): word positions drive the
+        # ghost-reveal anchor, so a guess shifts every caption sideways.
+        raise _missing_font_error(resolved_font)
 
     scale = ass_glyph_scale(resolved_font)
     scaled_fs = max(1.0, float(font_size_px) * scale)
     try:
         font = ImageFont.truetype(path, scaled_fs)
-        return font, scale
-    except Exception:
-        return None, scale
+    except OSError as exc:
+        raise _missing_font_error(resolved_font, path) from exc
+    return font, scale
 
 
 def layout_line(
