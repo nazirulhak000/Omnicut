@@ -1,6 +1,7 @@
 import re
 import json
 import os
+import threading
 import time
 import html as html_lib
 import socket
@@ -1034,7 +1035,28 @@ def _deduplicate_and_filter_images(urls: List[str]) -> List[str]:
     return [u for q, u in seen_hashes.values()]
 
 
-def _scrape_rendered_page(url: str) -> Dict[str, Any]:
+# One Chromium persistent profile can only be opened by one context at a
+# time; concurrent scrapes used to collide on it (S1-15).
+_RENDERED_PROFILE_LOCK = threading.Lock()
+RENDERED_PROFILE_LOCK_WAIT_SECONDS = 45
+
+
+def _scrape_rendered_page(url: str, allow_headed: bool = False) -> Dict[str, Any]:
+    """Read the post-JavaScript product page (serialised on the shared profile).
+
+    ``allow_headed`` (default False) is the only way a visible Chrome window
+    may open to let a person solve a challenge. API requests never pass it:
+    a server must not pop a window and block the request for a minute.
+    """
+    if not _RENDERED_PROFILE_LOCK.acquire(timeout=RENDERED_PROFILE_LOCK_WAIT_SECONDS):
+        return {"warning": "มีการอ่านหน้าเว็บด้วย browser ค้างอยู่ กรุณาลองใหม่อีกครั้ง"}
+    try:
+        return _scrape_rendered_page_unlocked(url, allow_headed=allow_headed)
+    finally:
+        _RENDERED_PROFILE_LOCK.release()
+
+
+def _scrape_rendered_page_unlocked(url: str, allow_headed: bool = False) -> Dict[str, Any]:
     """Read the post-JavaScript product page with persistent session and anti-detection."""
     try:
         from playwright.sync_api import sync_playwright
@@ -1109,7 +1131,7 @@ def _scrape_rendered_page(url: str) -> Dict[str, Any]:
             page.goto(url, wait_until="domcontentloaded", timeout=RENDERED_PAGE_TIMEOUT_MS)
             snapshot = read_page(page)
 
-            if snapshot["challenge"] or snapshot["login_required"]:
+            if allow_headed and (snapshot["challenge"] or snapshot["login_required"]):
                 context.close()
                 context = None
                 try:
@@ -1166,7 +1188,7 @@ class ProductScraper:
     """Intelligent multi-tier scraper supporting both Long & Short Shopee/TikTok URLs."""
 
     @classmethod
-    def scrape_url(cls, url: str) -> Dict[str, Any]:
+    def scrape_url(cls, url: str, allow_headed: bool = False) -> Dict[str, Any]:
         url = url.strip()
         _validate_scrape_url(url)
 
@@ -1366,7 +1388,11 @@ class ProductScraper:
         # provide a usable description. The browser helper deliberately stops
         # at the site's own challenge instead of bypassing it.
         if platform == "tiktok" and not description:
-            rendered = _scrape_rendered_page(resolved_url)
+            rendered = (
+                _scrape_rendered_page(resolved_url, allow_headed=True)
+                if allow_headed
+                else _scrape_rendered_page(resolved_url)
+            )
             rendered_text = rendered.get("raw_text", "")
             if rendered_text and not rendered.get("login_required") and not rendered.get("challenge"):
                 rendered_title = rendered.get("title", "")
