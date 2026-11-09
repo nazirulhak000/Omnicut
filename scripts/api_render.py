@@ -17,7 +17,7 @@ from scripts.project_manifest import ProjectManifest
 
 from scripts.config import (
     BASE_DIR, INBOX_DIR, RAW_DIR, EXPORTS_DIR, ASSETS_DIR,
-    STICKERS_DIR, CAPCUT_DRAFT_DIR
+    STICKERS_DIR, CAPCUT_DRAFT_DIR, DEFAULT_AD_TONE, DEFAULT_VOICE_PRESET
 )
 from scripts.pipeline import TikTokAutoCutterPipeline
 from scripts.product_store import ProductStore
@@ -182,8 +182,8 @@ def execute_render_job(job_id: str, req_data: RenderRequest, job_scope: Optional
                 voice=req_data.voice_gender,
                 voice_rate=req_data.voice_rate,
                 voice_engine_type=voice_engine_type,
-                voice_preset=req_data.voice_preset or "gemini_fenrir_male_strong",
-                ad_tone=req_data.ad_tone or "commercial_hype",
+                voice_preset=req_data.voice_preset or DEFAULT_VOICE_PRESET,
+                ad_tone=req_data.ad_tone or DEFAULT_AD_TONE,
                 style_preset=req_data.style_preset,
                 human_voice_audio_path=human_voice_path,
                 overlays=req_data.overlays,

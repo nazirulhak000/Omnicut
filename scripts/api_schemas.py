@@ -5,6 +5,8 @@ Pydantic Request and Response Schemas for OmniCut Pro Studio API.
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, field_validator
 
+from scripts.config import DEFAULT_AD_TONE, DEFAULT_VOICE_PRESET
+
 
 def _coerce_target_duration(value: Any) -> Optional[int]:
     # Lazy import: keeps this schema module light. Unsupported lengths fall
@@ -30,7 +32,7 @@ class VoicePreviewRequest(BaseModel):
     text: Optional[str] = None
     voice_gender: Optional[str] = "male"
     speed: Optional[float] = 1.20
-    ad_tone: Optional[str] = "commercial_hype"
+    ad_tone: Optional[str] = DEFAULT_AD_TONE
 
 
 class RenderRequest(BaseModel):
@@ -51,8 +53,8 @@ class RenderRequest(BaseModel):
     voice_mode: str = "gemini_tts"
     voice_gender: str = "male"
     voice_rate: str = "+15%"
-    voice_preset: Optional[str] = "gemini_fenrir_male_strong"
-    ad_tone: Optional[str] = "commercial_hype"
+    voice_preset: Optional[str] = DEFAULT_VOICE_PRESET
+    ad_tone: Optional[str] = DEFAULT_AD_TONE
     style_preset: str = "clean_tech_review"
     human_voice_audio: Optional[str] = None
     product_id: Optional[str] = None

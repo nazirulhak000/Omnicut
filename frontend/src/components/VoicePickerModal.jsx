@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, X, CheckCircle2, Play, Square, Mic2, Wand2, Info } from 'lucide-react';
 import { getVoicePresets, previewVoice } from '../api.js';
+import { normalizeAdTone, normalizeVoicePreset } from '../lib/angleToForm.js';
 
 /**
  * VoicePickerModal
@@ -29,18 +30,11 @@ const TONE_ICONS = {
   commercial_expert:    '🎙️',
 };
 
-const VALID_AD_TONES = ['commercial_premium', 'commercial_hype', 'commercial_aesthetic', 'commercial_expert'];
-
-function normalizeVoice(voiceId) {
-  return voiceId || 'gemini_puck_male_hype';
-}
-
-function normalizeTone(toneId) {
-  if (!toneId || !VALID_AD_TONES.includes(toneId) || toneId === 'commercial_premium') {
-    return 'commercial_hype';
-  }
-  return toneId;
-}
+// Defaults + normalization live in one place (lib/angleToForm.js). A stored
+// commercial_premium is no longer coerced to hype; an unknown tone still
+// falls back to the default.
+const normalizeVoice = normalizeVoicePreset;
+const normalizeTone = normalizeAdTone;
 
 export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selectedTone, onSelect }) {
   const [manifest, setManifest]     = useState(null);

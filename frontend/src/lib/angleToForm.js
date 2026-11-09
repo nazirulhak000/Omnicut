@@ -6,8 +6,26 @@
 // editor and the old Studio tab each did their own translation, picking the
 // same angle in two places would start two different renders.
 
-import { guessBrandModel } from './overlayModel';
-import { getRecommendedStyleForAngle } from './stylePresetCatalog';
+import { guessBrandModel } from './overlayModel.js';
+import { getRecommendedStyleForAngle } from './stylePresetCatalog.js';
+
+// Canonical voice defaults (AGENTS.md §4.5): Gemini Fenrir + commercial_premium.
+// Mirrors DEFAULT_VOICE_PRESET / DEFAULT_AD_TONE in scripts/config.py. Every
+// frontend fallback reads these instead of repeating a literal; values
+// already stored on an angle/project are kept as they are.
+export const DEFAULT_VOICE_PRESET = 'gemini_fenrir_male_strong';
+export const DEFAULT_AD_TONE = 'commercial_premium';
+export const VALID_AD_TONES = ['commercial_premium', 'commercial_hype', 'commercial_aesthetic', 'commercial_expert'];
+
+/** A known tone is kept as-is (premium included); anything else -> default. */
+export function normalizeAdTone(toneId) {
+  return toneId && VALID_AD_TONES.includes(toneId) ? toneId : DEFAULT_AD_TONE;
+}
+
+/** Empty voice preset -> the canonical default. */
+export function normalizeVoicePreset(voiceId) {
+  return voiceId || DEFAULT_VOICE_PRESET;
+}
 
 /**
  * @param {object} angle    one entry of productContext.angles
@@ -56,11 +74,8 @@ export function angleToForm(angle, context = {}) {
   const recommendedStyle = angleId ? getRecommendedStyleForAngle(angleId) : null;
   patch.stylePreset = angle.style_preset || recommendedStyle || 'viral_punch';
 
-  const VALID_AD_TONES = ['commercial_premium', 'commercial_hype', 'commercial_aesthetic', 'commercial_expert'];
-  patch.adTone = (angle.ad_tone && VALID_AD_TONES.includes(angle.ad_tone) && angle.ad_tone !== 'commercial_premium')
-    ? angle.ad_tone
-    : 'commercial_hype';
-  patch.voicePreset = angle.voice_preset || 'gemini_puck_male_hype';
+  patch.adTone = normalizeAdTone(angle.ad_tone);
+  patch.voicePreset = normalizeVoicePreset(angle.voice_preset);
   patch.voiceGender = 'male';
   patch.voiceMode = angle.voice_mode || 'gemini_tts';
 

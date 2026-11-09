@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { AlertTriangle, Camera, Clapperboard, Clock, ExternalLink, Film, Loader2, Mic, QrCode, RotateCw, Sparkles, Scissors } from 'lucide-react';
 import { Modal, Badge, SafeQRCode } from './ui';
 import { toMediaUrl } from '../lib/mediaUrl';
+import { DEFAULT_AD_TONE, DEFAULT_VOICE_PRESET } from '../lib/angleToForm';
 import { createRecordingSession } from '../api';
 
 const GEMINI_VOICE_OPTIONS = [
@@ -44,7 +45,7 @@ export default function ShotListModal({
 
   const engineType = result?.voice_params?.voice_engine_type || result?.angle?.voice_engine_type;
   const isEdgeTts = engineType === 'edge_tts' || (!result?.voice_params?.voice_preset && !result?.angle?.voice_preset);
-  const activeVoicePreset = result?.voice_params?.voice_preset || result?.angle?.voice_preset || 'gemini_puck_male_hype';
+  const activeVoicePreset = result?.voice_params?.voice_preset || result?.angle?.voice_preset || DEFAULT_VOICE_PRESET;
   const [selectedVoice, setSelectedVoice] = useState(activeVoicePreset);
 
   useEffect(() => {
@@ -63,7 +64,7 @@ export default function ShotListModal({
       voice_engine_type: 'gemini_tts',
       voice_preset: selectedVoice,
       voice_rate: '+15%',
-      ad_tone: result?.voice_params?.ad_tone || result?.angle?.ad_tone || 'commercial_hype',
+      ad_tone: result?.voice_params?.ad_tone || result?.angle?.ad_tone || DEFAULT_AD_TONE,
     });
   };
 

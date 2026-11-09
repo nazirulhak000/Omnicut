@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from scripts.config import (
-    BASE_DIR, DEFAULT_VOICE, DEFAULT_VOICE_RATE, SFX_VOLUME, VOICE_VOLUME
+    BASE_DIR, DEFAULT_AD_TONE, DEFAULT_VOICE, DEFAULT_VOICE_PRESET, DEFAULT_VOICE_RATE,
+    SFX_VOLUME, VOICE_VOLUME,
 )
 from scripts.project_manifest import ProjectManifest, REROLL_STAGE
 from scripts.color_theme import extract_explicit_theme, is_color_theme, normalize_hex, resolve_color_theme
@@ -605,8 +606,8 @@ class PipelineContext:
     voice: str = DEFAULT_VOICE
     voice_rate: str = DEFAULT_VOICE_RATE
     voice_engine_type: str = "gemini_tts"
-    voice_preset: Optional[str] = "gemini_fenrir_male_strong"
-    ad_tone: str = "commercial_hype"
+    voice_preset: Optional[str] = DEFAULT_VOICE_PRESET
+    ad_tone: str = DEFAULT_AD_TONE
     style_preset: str = "clean_tech_review"
     human_voice_audio_path: Optional[str] = None
     hook_brand: Optional[str] = None
