@@ -53,23 +53,33 @@ DATE_STR = datetime.datetime.now().strftime("%Y%m%d")
 
 sys.path.insert(0, str(ROOT))
 from scripts.tiktok_enhancer import enhance_video_for_tiktok
+from scripts import media_validation
+
+# S6-10: a hung HyperFrames/Chromium render must not block a worker forever.
+HF_RENDER_TIMEOUT_SEC = 1800
+_REGISTRY_LOCK = threading.Lock()
+
+
+def _run_hf_render(cmd, raw_out: Path):
+    """HyperFrames CLI with a disk guard (S6-11) and a timeout (S6-10).
+
+    Never raises: a hung render or a full disk comes back as a failed result,
+    and the half-written raw file is removed."""
+    try:
+        media_validation.require_disk_space(EXPORTS_DIR)
+        return subprocess.run(cmd, cwd=str(STUDIO), capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", check=False, timeout=HF_RENDER_TIMEOUT_SEC)
+    except (subprocess.TimeoutExpired, media_validation.InsufficientDiskSpace) as exc:
+        raw_out.unlink(missing_ok=True)
+        return subprocess.CompletedProcess(cmd, -1, stdout="", stderr=f"เรนเดอร์ไม่สำเร็จ: {exc}")
 from filelock import FileLock
 
 FILE_LOCK = FileLock(str(TMP_DIR / "export_db.lock"), timeout=60)
 
 
 def is_valid_mp4(path: Path) -> bool:
-    """Validate MP4 file integrity using ffprobe duration and file size."""
-    if not path.exists() or path.stat().st_size < 1024 * 1024:
-        return False
-    try:
-        res = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
-            capture_output=True, text=True, check=False, timeout=10
-        )
-        return res.returncode == 0 and float(res.stdout.strip()) > 5.0
-    except Exception:
-        return False
+    """Central gate (S6-03): ffprobe streams + 1080x1920 + 30fps + tail decode."""
+    return media_validation.is_valid_mp4(path)
 
 
 def get_cta_seek_time(comp_path: Path) -> float:
@@ -312,8 +322,8 @@ def render_one(idx: int, skip_existing: bool = True) -> tuple:
         "--browser-gpu",
         "-o", str(temp_raw)
     ]
-    res = subprocess.run(cmd, cwd=str(STUDIO), capture_output=True, text=True, check=False)
-    if res.returncode != 0 or not temp_raw.exists() or temp_raw.stat().st_size == 0:
+    res = _run_hf_render(cmd, temp_raw)
+    if res.returncode != 0 or not is_valid_mp4(temp_raw):
         err_snippet = res.stderr[-250:] if res.stderr else "Unknown render error"
         print(f"   ❌ [RENDER FAILED] {comp_file.name}: {err_snippet}")
         return False, None, None
@@ -324,10 +334,12 @@ def render_one(idx: int, skip_existing: bool = True) -> tuple:
     print(f"   ⚡ Enhancing {stem} with TikTok Pro Sharpness Engine (brightness=-0.031, unsharp, BT.709) ...")
     try:
         enhance_video_for_tiktok(temp_raw, output_path=out_mp4, brightness=-0.031)
-        temp_raw.unlink(missing_ok=True)
     except Exception as e:
-        print(f"   ⚠️ Enhancer error ({e}), keeping raw MP4.")
-        shutil.move(str(temp_raw), str(out_mp4))
+        # S6-05: never ship the raw, unenhanced MP4 -- the clip fails instead.
+        print(f"   ❌ [ENHANCE FAILED] {out_mp4.name}: {e}")
+        return False, None, None
+    finally:
+        temp_raw.unlink(missing_ok=True)
 
     total_dur = round(time.time() - t0, 1)
     size_mb = round(out_mp4.stat().st_size / (1024 * 1024), 2)

@@ -54,23 +54,33 @@ DATE_STR = datetime.datetime.now().strftime("%Y%m%d")
 
 sys.path.insert(0, str(ROOT))
 from scripts.tiktok_enhancer import enhance_video_for_tiktok
+from scripts import media_validation
+
+# S6-10: a hung HyperFrames/Chromium render must not block a worker forever.
+HF_RENDER_TIMEOUT_SEC = 1800
+_REGISTRY_LOCK = threading.Lock()
+
+
+def _run_hf_render(cmd, raw_out: Path):
+    """HyperFrames CLI with a disk guard (S6-11) and a timeout (S6-10).
+
+    Never raises: a hung render or a full disk comes back as a failed result,
+    and the half-written raw file is removed."""
+    try:
+        media_validation.require_disk_space(EXPORTS_DIR)
+        return subprocess.run(cmd, cwd=str(STUDIO), capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", check=False, timeout=HF_RENDER_TIMEOUT_SEC)
+    except (subprocess.TimeoutExpired, media_validation.InsufficientDiskSpace) as exc:
+        raw_out.unlink(missing_ok=True)
+        return subprocess.CompletedProcess(cmd, -1, stdout="", stderr=f"เรนเดอร์ไม่สำเร็จ: {exc}")
 from filelock import FileLock
 
 FILE_LOCK = FileLock(str(TMP_DIR / "export_db.lock"), timeout=60)
 
 
 def is_valid_mp4(path: Path) -> bool:
-    """Validate MP4 file integrity using ffprobe duration and file size."""
-    if not path.exists() or path.stat().st_size < 1024 * 1024:
-        return False
-    try:
-        res = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
-            capture_output=True, text=True, check=False, timeout=10
-        )
-        return res.returncode == 0 and float(res.stdout.strip()) > 5.0
-    except Exception:
-        return False
+    """Central gate (S6-03): ffprobe streams + 1080x1920 + 30fps + tail decode."""
+    return media_validation.is_valid_mp4(path)
 
 
 def get_cta_seek_time(comp_path: Path) -> float:
@@ -317,7 +327,7 @@ def render_single_clip(angle_idx: int, force: bool = False) -> dict:
             "--browser-gpu",
             "-o", str(raw_mp4)
         ]
-        p_render = subprocess.run(cmd_render, cwd=str(STUDIO), capture_output=True, text=True, check=False)
+        p_render = _run_hf_render(cmd_render, raw_mp4)
         if p_render.returncode != 0 or not is_valid_mp4(raw_mp4):
             err = p_render.stderr[-300:] if p_render.stderr else "Unknown render error"
             print(f"❌ [Error] Render failed for {comp_stem}: {err}")
@@ -329,13 +339,13 @@ def render_single_clip(angle_idx: int, force: bool = False) -> dict:
     print(f"  ✨ [Enhance] {comp_stem} via TikTok Pro Sharpness Engine...")
     try:
         enhance_video_for_tiktok(raw_mp4, output_path=final_mp4, brightness=-0.031)
-        if is_valid_mp4(final_mp4):
-            raw_mp4.unlink(missing_ok=True)
-        else:
-            raise RuntimeError("Enhanced MP4 failed integrity check")
+        if not is_valid_mp4(final_mp4):
+            raise RuntimeError("ไฟล์หลังปรับความคมชัดไม่ผ่านการตรวจ")
     except Exception as e:
-        print(f"  ⚠️ [Fallback] Enhancer error ({e}), copying raw MP4...")
-        shutil.copy2(raw_mp4, final_mp4)
+        # S6-05: never ship the raw, unenhanced MP4 -- the clip fails instead.
+        print(f"  ❌ [Enhance Failed] {comp_stem}: {e}")
+        return {"idx": angle_idx, "stem": comp_stem, "status": "enhance_failed", "error": str(e)}
+    finally:
         raw_mp4.unlink(missing_ok=True)
 
     # Step 3: Extract WebP and Dual JPG covers

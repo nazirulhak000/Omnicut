@@ -10,6 +10,8 @@ Pipeline:
   5. Sync status = 'rendered' in _Docs/products.json
 """
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 import datetime
 import hashlib
 import json
@@ -47,6 +49,30 @@ DATE_STR = datetime.datetime.now().strftime("%Y%m%d")
 
 sys.path.insert(0, str(ROOT))
 from scripts.tiktok_enhancer import enhance_video_for_tiktok
+from scripts import media_validation
+
+# S6-10: a hung HyperFrames/Chromium render must not block a worker forever.
+HF_RENDER_TIMEOUT_SEC = 1800
+_REGISTRY_LOCK = threading.Lock()
+
+
+def _run_hf_render(cmd, raw_out: Path):
+    """HyperFrames CLI with a disk guard (S6-11) and a timeout (S6-10).
+
+    Never raises: a hung render or a full disk comes back as a failed result,
+    and the half-written raw file is removed."""
+    try:
+        media_validation.require_disk_space(EXPORTS_DIR)
+        return subprocess.run(cmd, cwd=str(STUDIO), capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", check=False, timeout=HF_RENDER_TIMEOUT_SEC)
+    except (subprocess.TimeoutExpired, media_validation.InsufficientDiskSpace) as exc:
+        raw_out.unlink(missing_ok=True)
+        return subprocess.CompletedProcess(cmd, -1, stdout="", stderr=f"เรนเดอร์ไม่สำเร็จ: {exc}")
+
+
+def is_valid_mp4(path: Path) -> bool:
+    """Central gate (S6-03): ffprobe streams + 1080x1920 + 30fps + tail decode."""
+    return media_validation.is_valid_mp4(path)
 
 
 def get_cta_seek_time(comp_path: Path) -> float:
@@ -259,10 +285,11 @@ def render_one(idx: int, skip_existing: bool = True) -> tuple:
     temp_raw = TMP_DIR / f"raw_{DATE_STR}_{stem}.mp4"
     seek_sec = get_cta_seek_time(comp_file)
 
-    if out_mp4.exists() and out_mp4.stat().st_size > 1024 * 1024 and skip_existing:
+    if skip_existing and is_valid_mp4(out_mp4):
         print(f"[{idx:02d}/20] MP4 already exists: {out_mp4.name} ({round(out_mp4.stat().st_size / 1024 / 1024, 2)} MB)")
-        covers = extract_covers(out_mp4, stem, seek_sec)
-        exp_id = register_export_and_cover(out_mp4, covers, stem, idx)
+        with _REGISTRY_LOCK:
+            covers = extract_covers(out_mp4, stem, seek_sec)
+            exp_id = register_export_and_cover(out_mp4, covers, stem, idx)
         return True, out_mp4, exp_id
 
     print(f"[{idx:02d}/20] 🎥 Rendering {stem}.html ... (CTA seek: {seek_sec:.2f}s)")
@@ -272,10 +299,12 @@ def render_one(idx: int, skip_existing: bool = True) -> tuple:
     cmd = [
         "npx.cmd", "--yes", "hyperframes@0.8.149", "render", ".",
         "-c", f"compositions/{comp_file.name}",
+        "--gpu",
+        "--browser-gpu",
         "-o", str(temp_raw)
     ]
-    res = subprocess.run(cmd, cwd=str(STUDIO), capture_output=True, text=True, check=False)
-    if res.returncode != 0 or not temp_raw.exists() or temp_raw.stat().st_size == 0:
+    res = _run_hf_render(cmd, temp_raw)
+    if res.returncode != 0 or not is_valid_mp4(temp_raw):
         print(f"   ❌ [RENDER FAILED] {comp_file.name}: {res.stderr[:200]}")
         return False, None, None
 
@@ -285,18 +314,21 @@ def render_one(idx: int, skip_existing: bool = True) -> tuple:
     print(f"   ⚡ Enhancing with TikTok Pro Sharpness Engine (brightness=-0.031, unsharp, BT.709) ...")
     try:
         enhance_video_for_tiktok(temp_raw, output_path=out_mp4, brightness=-0.031)
-        temp_raw.unlink(missing_ok=True)
     except Exception as e:
-        print(f"   ⚠️ Enhancer error ({e}), keeping raw MP4.")
-        shutil.move(str(temp_raw), str(out_mp4))
+        # S6-05: never ship the raw, unenhanced MP4 -- the clip fails instead.
+        print(f"   ❌ [ENHANCE FAILED] {out_mp4.name}: {e}")
+        return False, None, None
+    finally:
+        temp_raw.unlink(missing_ok=True)
 
     total_dur = round(time.time() - t0, 1)
     size_mb = round(out_mp4.stat().st_size / (1024 * 1024), 2)
     print(f"   ✅ [SUCCESS] {out_mp4.name} ({size_mb} MB in {total_dur}s)")
 
     # Step 3: Extract covers and register
-    covers = extract_covers(out_mp4, stem, seek_sec)
-    exp_id = register_export_and_cover(out_mp4, covers, stem, idx)
+    with _REGISTRY_LOCK:
+        covers = extract_covers(out_mp4, stem, seek_sec)
+        exp_id = register_export_and_cover(out_mp4, covers, stem, idx)
 
     return True, out_mp4, exp_id
 
@@ -306,6 +338,7 @@ def main():
     parser.add_argument("--start", type=int, default=1, help="Start index (1-20)")
     parser.add_argument("--end", type=int, default=20, help="End index (1-20)")
     parser.add_argument("--force", action="store_true", help="Re-render even if mp4 exists")
+    parser.add_argument("--workers", type=int, default=4, help="Concurrent worker threads (default: 4 as per Rule 24)")
     args = parser.parse_args()
 
     print("=" * 65)
@@ -318,8 +351,23 @@ def main():
     failures = []
     t_start = time.time()
 
-    for idx in range(args.start, args.end + 1):
-        ok, mp4_path, exp_id = render_one(idx, skip_existing=(not args.force))
+    indices = list(range(args.start, args.end + 1))
+    outcomes = {}
+    # AGENTS rule 24 / S6-07: 4 concurrent workers, GPU render + NVENC encode,
+    # per-clip resume gate -- never one clip at a time.
+    print(f"Concurrency: {args.workers} workers (Rule 24)")
+    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as executor:
+        future_to_idx = {executor.submit(render_one, idx, not args.force): idx for idx in indices}
+        for future in as_completed(future_to_idx):
+            idx = future_to_idx[future]
+            try:
+                outcomes[idx] = future.result()
+            except Exception as exc:
+                print(f"   ❌ [CRASH] index {idx:02d}: {exc}")
+                outcomes[idx] = (False, None, None)
+
+    for idx in indices:
+        ok, mp4_path, exp_id = outcomes[idx]
         cid = f"hoy01-pov-s{idx:02d}"
         if ok and mp4_path:
             webp = EXPORTS_DIR / f"{DATE_STR}_{cid}_v1.webp"
