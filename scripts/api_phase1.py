@@ -39,6 +39,7 @@ from scripts.voice_cut_map import (
     source_matches,
     validate_voice_edit,
     voice_file_identity,
+    _resolve as voice_resolve_path,
 )
 from scripts import render_jobs
 from scripts.render_jobs import RenderCancelled
@@ -1013,7 +1014,7 @@ def _retention_controls(present, source) -> Dict[str, Any]:
 
 
 def _voice_edit_stamp(current: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """`{path, size, mtime_ns}` of the project's CURRENT voice file, or None.
+    """`{path, size, mtime_ns, sha256}` of the project's CURRENT voice file, or None.
 
     `path` stays in the manifest's own (BASE_DIR-relative) spelling so the
     stored voice_edit.source compares equal to the artifact entry later.
@@ -1022,7 +1023,14 @@ def _voice_edit_stamp(current: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     identity = voice_file_identity(entry.get("path"))
     if not identity:
         return None
-    return {"path": entry.get("path"), "size": identity["size"], "mtime_ns": identity["mtime_ns"]}
+    stamp = {"path": entry.get("path"), "size": identity["size"], "mtime_ns": identity["mtime_ns"]}
+    if identity.get("sha256"):
+        stamp["sha256"] = identity["sha256"]  # X-04: cuts bind to the audio content
+    return stamp
+
+
+def _voice_paths_equal(left: Any, right: Any) -> bool:
+    return voice_resolve_path(left) is not None and voice_resolve_path(left) == voice_resolve_path(right)
 
 
 def _apply_voice_edit_fields(
@@ -1059,6 +1067,19 @@ def _apply_voice_edit_fields(
         return
 
     source = edit["source"]
+    if (
+        source.get("sha256") is None
+        and stamp
+        and stamp.get("sha256")
+        and old_cuts
+        and isinstance(current.get("voice_edit"), dict)
+        and (current["voice_edit"].get("source") or {}).get("sha256") == stamp["sha256"]
+        and source.get("path")
+        and _voice_paths_equal(source.get("path"), stamp.get("path"))
+    ):
+        # The editor echoed an older source without sha256 (and a touched mtime),
+        # but the stored cuts were bound to exactly this audio content: keep the hash.
+        source["sha256"] = stamp["sha256"]
     if source.get("path") in (None, "") or source.get("size") is None or source.get("mtime_ns") is None:
         raise HTTPException(
             status_code=422,

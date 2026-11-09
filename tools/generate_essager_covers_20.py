@@ -28,6 +28,10 @@ COVERS_DIR = ROOT / "05_Covers_Thumbnails"
 COMPS_ARCHIVE = ROOT / "06_Archive" / "HyperFrames_Studio" / "compositions"
 DOCS_DIR = ROOT / "_Docs"
 
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts import store_io  # noqa: E402
+
 COVERS_DIR.mkdir(parents=True, exist_ok=True)
 
 PRODUCT_ID = "9505b042d58640f5aa58015bb86be097"
@@ -54,34 +58,15 @@ def get_cta_time(comp_path: Path) -> float:
 def main():
     print("=== Generating Official Covers for 20 Essager Clips ===")
 
-    # Load export registry to find export_ids
-    registry_file = DOCS_DIR / "export_registry.json"
+    # Load export registry to find export_ids (อ่านผ่าน store: error ต้อง raise ไม่กลายเป็น [])
     exports_map = {}
-    if registry_file.exists():
-        with open(registry_file, "r", encoding="utf-8") as f:
-            for entry in json.load(f):
-                p = entry.get("path") or ""
-                if p:
-                    exports_map[Path(p).name] = entry.get("id")
+    for entry in store_io.load_export_registry(DOCS_DIR):
+        p = entry.get("path") or ""
+        if p:
+            exports_map[Path(p).name] = entry.get("id")
 
-    # Load existing cover bindings
-    bindings_file = DOCS_DIR / "export_cover_bindings.json"
-    bindings = []
-    if bindings_file.exists():
-        try:
-            with open(bindings_file, "r", encoding="utf-8") as f:
-                bindings = json.load(f)
-                if not isinstance(bindings, list):
-                    bindings = []
-        except Exception:
-            bindings = []
-
-    # Load products.json
-    products_file = DOCS_DIR / "products.json"
-    products = []
-    if products_file.exists():
-        with open(products_file, "r", encoding="utf-8") as f:
-            products = json.load(f)
+    # Load products (read-only snapshot; the writes below go through the store)
+    products = store_io.load_products(DOCS_DIR)
 
     target_product = next((p for p in products if p.get("id") == PRODUCT_ID), None)
     angles_map = {}
@@ -92,6 +77,8 @@ def main():
                 angles_map[aid] = a
 
     generated_count = 0
+    binding_updates = []   # binding_data ที่จะ upsert ผ่าน store หลังสร้างภาพครบ
+    angle_updates = {}     # angle_id -> {cover_path, cover_3x4_path, cover_url}
 
     for i in range(1, 21):
         stem = f"20261013_ess02-pov-s{i:02d}_v1"
@@ -149,8 +136,6 @@ def main():
         rel_3x4 = f"05_Covers_Thumbnails/{out_3x4.name}"
         exp_id = exports_map.get(mp4_path.name) or f"exp_ess30w_s{i:02d}"
 
-        # Update or append binding
-        existing_binding = next((b for b in bindings if b.get("export_id") == exp_id or b.get("video_path") == rel_video), None)
         binding_data = {
             "id": f"cover_{sha_916[:32]}",
             "channel_id": "main",
@@ -171,32 +156,46 @@ def main():
             "revision": 1,
             "updated_at": 1791830000.0 + i
         }
-        if existing_binding:
-            existing_binding.update(binding_data)
-        else:
-            bindings.append(binding_data)
+        binding_updates.append(binding_data)
 
         # Update product angle in products.json
         angle_id = f"ang_ess30w_{i:02d}"
         if angle_id in angles_map:
-            ang = angles_map[angle_id]
-            ang["cover_path"] = rel_916
-            ang["cover_3x4_path"] = rel_3x4
-            ang["cover_url"] = f"/api/media/{rel_3x4}"
+            angle_updates[angle_id] = {
+                "cover_path": rel_916,
+                "cover_3x4_path": rel_3x4,
+                "cover_url": f"/api/media/{rel_3x4}",
+            }
 
         generated_count += 1
         print(f"[{i:02d}/20] Created covers for {stem}: 9:16 ({out_916.stat().st_size // 1024} KB), 3:4 ({out_3x4.stat().st_size // 1024} KB)")
 
-    # Save bindings
-    with open(bindings_file, "w", encoding="utf-8") as f:
-        json.dump(bindings, f, ensure_ascii=False, indent=2)
-    print(f"Updated {bindings_file.name} with {len(bindings)} total bindings")
+    # Save bindings (ทรานแซกชันเดียวของ ExportCoverBindingStore)
+    with store_io.mutate_cover_bindings(DOCS_DIR) as bindings:
+        for binding_data in binding_updates:
+            existing_binding = next(
+                (b for b in bindings
+                 if b.get("export_id") == binding_data["export_id"]
+                 or b.get("video_path") == binding_data["video_path"]),
+                None,
+            )
+            if existing_binding:
+                existing_binding.update(binding_data)
+            else:
+                bindings.append(binding_data)
+        total_bindings = len(bindings)
+    print(f"Updated export_cover_bindings with {total_bindings} total bindings")
 
-    # Save products.json
+    # Save products (ทรานแซกชันเดียวของ ProductStore)
     if target_product:
-        with open(products_file, "w", encoding="utf-8") as f:
-            json.dump(products, f, ensure_ascii=False, indent=2)
-        print(f"Updated {products_file.name} with covers for 20 Essager angles")
+        with store_io.mutate_products(DOCS_DIR) as rows:
+            target = next((p for p in rows if p.get("id") == PRODUCT_ID), None)
+            if target is not None:
+                for ang in target.get("angles", []):
+                    aid = ang.get("angle_id") or ang.get("id")
+                    if aid in angle_updates:
+                        ang.update(angle_updates[aid])
+        print("Updated products with covers for 20 Essager angles")
 
     print(f"\nSUCCESS: Generated official 9:16 & 3:4 covers for all {generated_count} clips!")
 

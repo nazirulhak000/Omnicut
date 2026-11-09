@@ -136,22 +136,20 @@ LOGITECH_ANGLES_SCRIPTS = {
 }
 
 def clean_products_json():
-    if not PRODUCTS_FILE.exists():
-        print(f"File not found: {PRODUCTS_FILE}")
-        return
     import sys
     sys.path.insert(0, str(BASE_DIR))
+    from scripts import store_io
     from scripts.tts_sanitizer import TTSSanitizer
 
-    data = json.loads(PRODUCTS_FILE.read_text(encoding="utf-8"))
-    for prod in data:
-        prod["name"] = TTSSanitizer.clean_display_text(prod.get("name", ""))
-        cleaned_angles = []
-        for angle in prod.get("angles", []):
-            cleaned_angles.append(TTSSanitizer.process_angle(angle))
-        prod["angles"] = cleaned_angles
+    # อ่าน-แก้-เขียนในทรานแซกชันเดียวของ ProductStore (ห้ามเขียน products.json ตรง)
+    with store_io.mutate_products(PRODUCTS_FILE.parent) as data:
+        for prod in data:
+            prod["name"] = TTSSanitizer.clean_display_text(prod.get("name", ""))
+            cleaned_angles = []
+            for angle in prod.get("angles", []):
+                cleaned_angles.append(TTSSanitizer.process_angle(angle))
+            prod["angles"] = cleaned_angles
 
-    PRODUCTS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Successfully cleaned and updated {PRODUCTS_FILE}")
 
 def clean_active_project():

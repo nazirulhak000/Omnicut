@@ -33,7 +33,12 @@ from scripts.db import DocumentTable
 PRODUCTS = "products"
 EXPORT_REGISTRY = "export_registry"
 COVER_BINDINGS = "export_cover_bindings"
-_TABLE_NAMES = (PRODUCTS, EXPORT_REGISTRY, COVER_BINDINGS)
+# Sibling stores that batch / reconcile tools also touch next to the three
+# mirrors above (same SQLite-backed ``DocumentTable`` contract).
+SCHEDULE_QUEUE = "schedule_queue"
+POSTS = "posts"
+_TABLE_NAMES = (PRODUCTS, EXPORT_REGISTRY, COVER_BINDINGS, SCHEDULE_QUEUE, POSTS)
+_MIRROR_FILES = {POSTS: "post_log.json"}
 
 PathLike = Union[str, Path]
 
@@ -61,11 +66,18 @@ def _table(name: str, docs_dir: Optional[PathLike]) -> DocumentTable:
         if name == EXPORT_REGISTRY:
             from scripts.export_registry import _TABLE as registry_table
             return registry_table
+        if name == SCHEDULE_QUEUE:
+            from scripts.schedule_store import _TABLE as schedule_table
+            return schedule_table
+        if name == POSTS:
+            from scripts.post_log import _TABLE as posts_table
+            return posts_table
         from scripts.export_cover_bindings import ExportCoverBindingStore
         return ExportCoverBindingStore(BASE_DIR).table
     folder = Path(docs_dir)  # type: ignore[arg-type]
     folder.mkdir(parents=True, exist_ok=True)
-    return DocumentTable(name, lambda: folder / "store.db", lambda: folder / f"{name}.json")
+    mirror_name = _MIRROR_FILES.get(name, f"{name}.json")
+    return DocumentTable(name, lambda: folder / "store.db", lambda: folder / mirror_name)
 
 
 def load(name: str, docs_dir: Optional[PathLike] = None) -> List[Dict[str, Any]]:
@@ -115,6 +127,57 @@ def load_cover_bindings(docs_dir: Optional[PathLike] = None) -> List[Dict[str, A
 
 def mutate_cover_bindings(docs_dir: Optional[PathLike] = None):
     return mutate(COVER_BINDINGS, docs_dir)
+
+
+def load_schedule_queue(docs_dir: Optional[PathLike] = None) -> List[Dict[str, Any]]:
+    return load(SCHEDULE_QUEUE, docs_dir)
+
+
+def mutate_schedule_queue(docs_dir: Optional[PathLike] = None):
+    return mutate(SCHEDULE_QUEUE, docs_dir)
+
+
+def load_posts(docs_dir: Optional[PathLike] = None) -> List[Dict[str, Any]]:
+    return load(POSTS, docs_dir)
+
+
+def mutate_posts(docs_dir: Optional[PathLike] = None):
+    return mutate(POSTS, docs_dir)
+
+
+def apply_row_changes(
+    name: str,
+    baseline: List[Dict[str, Any]],
+    working: List[Dict[str, Any]],
+    docs_dir: Optional[PathLike] = None,
+) -> int:
+    """Persist only what a tool changed on a *snapshot* of a table.
+
+    A tool that loaded ``baseline`` and edited a copy (``working``) must not
+    write the whole snapshot back (that is the lost-update bug); instead the
+    changed fields of each edited row are merged by ``id`` into the live rows
+    inside one store transaction, so rows added by the app meanwhile survive.
+    Returns the number of rows that were updated.
+    """
+    before = {r.get("id"): r for r in baseline if isinstance(r, dict)}
+    changes: Dict[Any, Dict[str, Any]] = {}
+    for row in working:
+        old = before.get(row.get("id"))
+        if old is None:
+            continue
+        diff = {k: v for k, v in row.items() if k not in old or old[k] != v}
+        if diff:
+            changes[row.get("id")] = diff
+    if not changes:
+        return 0
+    updated = 0
+    with mutate(name, docs_dir) as live_rows:
+        for live in live_rows:
+            diff = changes.get(live.get("id"))
+            if diff:
+                live.update(diff)
+                updated += 1
+    return updated
 
 
 def upsert_rendered_export(

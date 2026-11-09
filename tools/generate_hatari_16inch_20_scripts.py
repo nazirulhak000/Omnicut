@@ -17,6 +17,9 @@ if sys.platform == "win32":
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "_Docs"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts import store_io  # noqa: E402
 IMG_BASE = "assets/hatari01/cutouts"
 
 SCRIPTS = [
@@ -660,51 +663,45 @@ def save_json_and_md():
 
 def sync_products_json():
     """Sync all 20 angles into _Docs/products.json under HAT01."""
-    products_file = DOCS / "products.json"
-    if not products_file.exists():
-        print("❌ products.json not found!")
-        return
+    with store_io.mutate_products(DOCS) as prods:
+        hat = next((p for p in prods if p.get("product_code") == "HAT01"), None)
+        if not hat:
+            print("❌ Product HAT01 not found in products.json!")
+            return
 
-    prods = json.loads(products_file.read_text(encoding="utf-8"))
-    hat = next((p for p in prods if p.get("product_code") == "HAT01"), None)
-    if not hat:
-        print("❌ Product HAT01 not found in products.json!")
-        return
-
-    # Existing angles
-    existing_angles = hat.get("angles", [])
+        # Existing angles
+        existing_angles = hat.get("angles", [])
     
-    # We will build 20 angles for hat01-pov-s01 .. s20
-    # Keep benchmark s01 as rendered, set s02..s20 as planned
-    new_angles = []
+        # We will build 20 angles for hat01-pov-s01 .. s20
+        # Keep benchmark s01 as rendered, set s02..s20 as planned
+        new_angles = []
     
-    for idx, s in enumerate(SCRIPTS, start=1):
-        cid = f"hat01-pov-s{idx:02d}"
-        aid = f"ang_hat16_{idx:02d}"
+        for idx, s in enumerate(SCRIPTS, start=1):
+            cid = f"hat01-pov-s{idx:02d}"
+            aid = f"ang_hat16_{idx:02d}"
         
-        # Check if s01 was already rendered
-        is_s01 = (idx == 1)
-        prev_a = next((a for a in existing_angles if a.get("clip_id") == cid or a.get("angle_id") == aid), None)
+            # Check if s01 was already rendered
+            is_s01 = (idx == 1)
+            prev_a = next((a for a in existing_angles if a.get("clip_id") == cid or a.get("angle_id") == aid), None)
         
-        angle_entry = {
-            "angle_id": aid,
-            "clip_id": cid,
-            "title": s["title"],
-            "hook_title": s["hook_title"],
-            "category": s["category"],
-            "status": "rendered" if (prev_a and prev_a.get("status") == "rendered") or is_s01 else "planned",
-            "video_url": f"04_Exports/Ready_to_post/20261014_{cid}_v1.mp4" if is_s01 else None,
-            "cover_url": f"04_Exports/Ready_to_post/20261014_{cid}_v1.webp" if is_s01 else None,
-            "export_id": prev_a.get("export_id") if prev_a else None,
-            "turns_count": len(s["turns"]),
-            "cta": s["cta"]
-        }
-        new_angles.append(angle_entry)
+            angle_entry = {
+                "angle_id": aid,
+                "clip_id": cid,
+                "title": s["title"],
+                "hook_title": s["hook_title"],
+                "category": s["category"],
+                "status": "rendered" if (prev_a and prev_a.get("status") == "rendered") or is_s01 else "planned",
+                "video_url": f"04_Exports/Ready_to_post/20261014_{cid}_v1.mp4" if is_s01 else None,
+                "cover_url": f"04_Exports/Ready_to_post/20261014_{cid}_v1.webp" if is_s01 else None,
+                "export_id": prev_a.get("export_id") if prev_a else None,
+                "turns_count": len(s["turns"]),
+                "cta": s["cta"]
+            }
+            new_angles.append(angle_entry)
 
-    hat["angles"] = new_angles
-    hat["total_angles"] = len(new_angles)
+        hat["angles"] = new_angles
+        hat["total_angles"] = len(new_angles)
     
-    products_file.write_text(json.dumps(prods, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"✅ Synced {len(new_angles)} angles in _Docs/products.json for Hatari 16 นิ้ว (HAT01)!")
 
 

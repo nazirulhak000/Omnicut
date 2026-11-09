@@ -32,7 +32,9 @@ manifest ฝั่ง backend เท่านั้น ไม่มีคู่ 
 
 from __future__ import annotations
 
+import hashlib
 import math
+import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
@@ -320,8 +322,31 @@ def _resolve(value: Any) -> Optional[Path]:
         return path.absolute()
 
 
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+def _sha256_of(resolved: Path) -> Optional[str]:
+    """SHA-256 ของเนื้อไฟล์ (อ่านเป็นก้อน) — None ถ้าอ่านไม่ได้
+
+    ไม่แคชตาม (path,size,mtime): ไฟล์ที่ถูกเขียนทับด้วยเนื้ออื่นแต่ขนาด/mtime เท่าเดิม
+    ต้องได้แฮชใหม่เสมอ (ไฟล์พากย์ไม่กี่ MB อ่านไม่กี่ ms)
+    """
+    digest = hashlib.sha256()
+    try:
+        with resolved.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError:
+        return None
+    return digest.hexdigest()
+
+
 def voice_file_identity(path: Any) -> Optional[Dict[str, Any]]:
-    """`{path, size, mtime_ns}` ของไฟล์เสียงปัจจุบัน (None ถ้าไม่มี/ไม่ใช่ไฟล์)"""
+    """`{path, size, mtime_ns, sha256}` ของไฟล์เสียงปัจจุบัน (None ถ้าไม่มี/ไม่ใช่ไฟล์)
+
+    `sha256` คือแฮชเนื้อไฟล์ ใช้ผูก voice_edit กับ "เนื้อเสียง" (X-04): แค่ถูก touch /
+    เขียนทับด้วยไบต์เดิม mtime เปลี่ยนแต่เนื้อเหมือนเดิม ก็ยังใช้ cut ที่บันทึกไว้ได้
+    (อ่านไฟล์ไม่ได้ → ไม่มีคีย์ `sha256` แล้วไปเทียบแบบเดิม)
+    """
     resolved = _resolve(path)
     if resolved is None:
         return None
@@ -331,18 +356,60 @@ def voice_file_identity(path: Any) -> Optional[Dict[str, Any]]:
         return None
     if not resolved.is_file():
         return None
-    return {"path": str(resolved), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
+    identity: Dict[str, Any] = {"path": str(resolved), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
+    digest = _sha256_of(resolved)
+    if digest:
+        identity["sha256"] = digest
+    return identity
+
+
+def _current_sha256(current: Mapping[str, Any]) -> Optional[str]:
+    """แฮชเนื้อไฟล์ของ `current` — ใช้ค่าที่มีมาให้ ไม่มีก็คำนวณจาก path"""
+    given = current.get("sha256")
+    if isinstance(given, str) and _SHA256_RE.match(given):
+        return given
+    resolved = _resolve(current.get("path"))
+    if resolved is None:
+        return None
+    try:
+        stat = resolved.stat()
+        if not resolved.is_file():
+            return None
+    except OSError:
+        return None
+    return _sha256_of(resolved)
 
 
 def source_matches(source: Any, current: Any) -> bool:
-    """`voice_edit.source` ยังตรงกับไฟล์เสียงปัจจุบันไหม (path + size + mtime_ns)
+    """`voice_edit.source` ยังตรงกับไฟล์เสียงปัจจุบันไหม
+
+    ถ้า `source` มี `sha256` (บันทึกใหม่) เทียบ **แฮชเนื้อไฟล์** — mtime/ชื่อ/ที่อยู่
+    เปลี่ยนแต่เนื้อเหมือนเดิมยังใช้ได้ เนื้อเปลี่ยน (แม้ขนาด/mtime เท่าเดิม) = ไม่ตรง
+    ถ้า `source` ไม่มี `sha256` (ที่บันทึกไว้ก่อน X-04) ใช้ตัวตนเดิม path + size + mtime_ns
 
     `current` เป็น dict ที่มี `path` และ `size` (หรือ `size_bytes`) และ `mtime_ns`
     — รับได้ทั้งผล `voice_file_identity` และ fingerprint ของ pipeline_context
-    ขาดคีย์ใดคีย์หนึ่ง = ตรวจไม่ได้ = ไม่ตรง (ห้ามใช้ cut)
+    ขาดข้อมูลที่ต้องใช้ = ตรวจไม่ได้ = ไม่ตรง (ห้ามใช้ cut)
     """
     if not isinstance(source, Mapping) or not isinstance(current, Mapping):
         return False
+    src_sha = source.get("sha256")
+    if src_sha is not None:
+        if not isinstance(src_sha, str) or not _SHA256_RE.match(src_sha):
+            return False
+        cur_sha = _current_sha256(current)
+        if cur_sha is None or cur_sha != src_sha:
+            return False
+        src_size = source.get("size")
+        cur_size = current.get("size", current.get("size_bytes"))
+        if src_size is not None and cur_size is not None and src_size != cur_size:
+            return False
+        return True
+    return _legacy_source_matches(source, current)
+
+
+def _legacy_source_matches(source: Mapping[str, Any], current: Mapping[str, Any]) -> bool:
+    """ตัวตนเดิมของ voice_edit ที่บันทึกก่อนมี sha256: path + size + mtime_ns"""
     src_path = _resolve(source.get("path"))
     cur_path = _resolve(current.get("path"))
     if src_path is None or cur_path is None or src_path != cur_path:
@@ -384,12 +451,35 @@ def resolve_voice_cuts(
     return edit["cuts"], None, duration
 
 
+def upgrade_voice_edit_source(voice_edit: Any, current: Any) -> Optional[Dict[str, Any]]:
+    """voice_edit ที่บันทึกด้วยตัวตนเดิม (ไม่มี sha256) และยังตรงไฟล์ปัจจุบัน →
+    คืนสำเนาที่เติม `source.sha256` ให้เรียกบันทึกซ้ำ (ย้ายไปผูกด้วยเนื้อไฟล์)
+
+    คืน None เมื่อไม่ต้อง/ทำไม่ได้: ไม่มี voice_edit, มี sha256 อยู่แล้ว, ไม่ตรงไฟล์
+    ปัจจุบันตามตัวตนเดิม (stale ห้ามผูกแฮชใหม่ให้ cut ของไฟล์อื่น) หรืออ่านแฮชไม่ได้
+    """
+    if not isinstance(voice_edit, Mapping) or not isinstance(current, Mapping):
+        return None
+    source = voice_edit.get("source")
+    if not isinstance(source, Mapping) or source.get("sha256") is not None:
+        return None
+    if not _legacy_source_matches(source, current):
+        return None
+    digest = _current_sha256(current)
+    if digest is None:
+        return None
+    upgraded = dict(voice_edit)
+    upgraded["source"] = {**source, "sha256": digest}
+    return upgraded
+
+
 def validate_voice_edit(raw: Any, *, stamp: Optional[Mapping[str, Any]] = None) -> Optional[Dict[str, Any]]:
     """ตรวจ + ทำให้เป็นมาตรฐาน `voice_edit` ที่ client ส่งมา (ผิด → `VoiceEditError`)
 
     รูปแบบ (plan §3.1):
         {"schema_version": 1,
-         "source": {"path": str, "size": int, "mtime_ns": int, "duration": float},
+         "source": {"path": str, "size": int, "mtime_ns": int, "duration": float,
+                    "sha256": str?},   # แฮชเนื้อไฟล์เสียง (X-04) server เติมให้เมื่อตัวตนตรงไฟล์ปัจจุบัน
          "cuts": [{"id": str, "start": float, "end": float, "reason": str?}, ...]}
     กติกา:
       - `raw` เป็น None หรือไม่มี cut → คืน None (ล้าง voice_edit)
@@ -446,6 +536,24 @@ def validate_voice_edit(raw: Any, *, stamp: Optional[Mapping[str, Any]] = None) 
             for key in ("size", "mtime_ns"):
                 if out_source[key] is None:
                     out_source[key] = stamp.get(key)
+    sha = source.get("sha256")
+    if sha is not None and not (isinstance(sha, str) and _SHA256_RE.match(sha)):
+        raise VoiceEditError("voice_edit.source.sha256 ต้องเป็นรหัส SHA-256 แบบเลขฐานสิบหกตัวพิมพ์เล็ก 64 ตัว")
+    if (
+        sha is None
+        and stamp
+        and stamp.get("sha256")
+        and _resolve(out_source["path"]) is not None
+        and _resolve(out_source["path"]) == _resolve(stamp.get("path"))
+        and out_source["size"] is not None
+        and out_source["size"] == stamp.get("size")
+        and out_source["mtime_ns"] is not None
+        and out_source["mtime_ns"] == stamp.get("mtime_ns")
+    ):
+        # ตัวตน (path,size,mtime) ตรงไฟล์ปัจจุบัน = ผู้ใช้ตัดจากไฟล์นี้ → ผูกกับเนื้อไฟล์
+        sha = stamp.get("sha256")
+    if sha is not None:
+        out_source["sha256"] = sha
     for key, kind in (("size", int), ("mtime_ns", int)):
         value = out_source[key]
         if value is not None and (isinstance(value, bool) or not isinstance(value, kind)):

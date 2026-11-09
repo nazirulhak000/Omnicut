@@ -21,6 +21,9 @@ if sys.platform == "win32":
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "_Docs"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts import store_io  # noqa: E402
 IMG_BASE = "03_Projects/_HyperFrames_Studio/assets/jee01/img"
 
 SCRIPTS = [
@@ -602,45 +605,41 @@ def validate_scripts(scripts):
 
 def sync_to_products_json(scripts):
     """Register JEE01 and sync all 20 angles into _Docs/products.json."""
-    products_file = DOCS / "products.json"
-    with open(products_file, "r", encoding="utf-8") as f:
-        products = json.load(f)
+    with store_io.mutate_products(DOCS) as products:
         
-    p_target = None
-    for p in products:
-        if p.get("id") == "jee01" or "Jeep EW011" in p.get("name", ""):
-            p_target = p
-            break
+        p_target = None
+        for p in products:
+            if p.get("id") == "jee01" or "Jeep EW011" in p.get("name", ""):
+                p_target = p
+                break
             
-    if not p_target:
-        p_target = {
-            "id": "jee01",
-            "name": "หูฟังบลูทูธไร้สาย Jeep EW011 TWS (Bluetooth 5.3 / HiFi Sound / IPX5)",
-            "category": "หูฟังบลูทูธ",
-            "price": "หลักร้อยต้นๆ",
-            "raw_dir": "01_Raw/JEE01_Jeep_EW011",
-            "angles": []
-        }
-        products.append(p_target)
-        print("Created new product entry for JEE01 in products.json")
+        if not p_target:
+            p_target = {
+                "id": "jee01",
+                "name": "หูฟังบลูทูธไร้สาย Jeep EW011 TWS (Bluetooth 5.3 / HiFi Sound / IPX5)",
+                "category": "หูฟังบลูทูธ",
+                "price": "หลักร้อยต้นๆ",
+                "raw_dir": "01_Raw/JEE01_Jeep_EW011",
+                "angles": []
+            }
+            products.append(p_target)
+            print("Created new product entry for JEE01 in products.json")
         
-    existing_angle_ids = {a.get("id") for a in p_target.get("angles", [])}
-    added = 0
-    for idx, s in enumerate(scripts):
-        ang_id = s["id"]
-        if ang_id not in existing_angle_ids:
-            p_target["angles"].append({
-                "id": ang_id,
-                "name": f"s{idx+1:02d} - {s['title']}",
-                "category": s["category"],
-                "status": "scripted",
-                "hook_title": s["hook_title"],
-                "created_at": datetime.now().isoformat()
-            })
-            added += 1
+        existing_angle_ids = {a.get("id") for a in p_target.get("angles", [])}
+        added = 0
+        for idx, s in enumerate(scripts):
+            ang_id = s["id"]
+            if ang_id not in existing_angle_ids:
+                p_target["angles"].append({
+                    "id": ang_id,
+                    "name": f"s{idx+1:02d} - {s['title']}",
+                    "category": s["category"],
+                    "status": "scripted",
+                    "hook_title": s["hook_title"],
+                    "created_at": datetime.now().isoformat()
+                })
+                added += 1
         
-    with open(products_file, "w", encoding="utf-8") as f:
-        json.dump(products, f, ensure_ascii=False, indent=2)
     print(f"Synced {added} new angles into _Docs/products.json for JEE01 (Total angles: {len(p_target['angles'])})")
 
 def main():

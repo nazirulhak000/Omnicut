@@ -5,12 +5,16 @@ and syncs into _Docs/products.json with product_id '37521e0dae1a419e8037e159254d
 """
 import json
 import re
+import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "_Docs"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts import store_io  # noqa: E402
 IMG_BASE = "assets/ors01/img"
 
 # 20 Scripts data definition
@@ -657,58 +661,53 @@ def main():
     print(f"Saved: {md_path}")
 
     # 4. Sync into _Docs/products.json
-    products_file = DOCS / "products.json"
-    with open(products_file, "r", encoding="utf-8") as f:
-        products = json.load(f)
+    with store_io.mutate_products(DOCS) as products:
 
-    p_target = next((p for p in products if p.get("id") == "37521e0dae1a419e8037e159254d4fdf"), None)
-    if not p_target:
-        raise ValueError("Product 37521e0dae1a419e8037e159254d4fdf not found in products.json!")
+        p_target = next((p for p in products if p.get("id") == "37521e0dae1a419e8037e159254d4fdf"), None)
+        if not p_target:
+            raise ValueError("Product 37521e0dae1a419e8037e159254d4fdf not found in products.json!")
 
-    # Set product_code to ORS01
-    p_target["product_code"] = "ORS01"
-    p_target["raw_folder"] = "01_Raw/37521e0dae1a419e8037e159254d4fdf"
+        # Set product_code to ORS01
+        p_target["product_code"] = "ORS01"
+        p_target["raw_folder"] = "01_Raw/37521e0dae1a419e8037e159254d4fdf"
 
-    existing_aids = {a.get("angle_id") for a in p_target.get("angles", [])}
-    now_str = datetime.now().isoformat(timespec="seconds")
-    added = 0
-    for s in SCRIPTS:
-        aid = s["angle_id"]
-        if aid in existing_aids:
-            continue
-        script_text = "\n".join([
-            f"{'น้องนุ้ย (F)' if t[0]=='F' else 'พี่บ่าว (M)'}: {' '.join(p[1] for p in t[1])}"
-            for t in s["turns"]
-        ])
-        new_angle = {
-            "angle_id": aid,
-            "product_id": "37521e0dae1a419e8037e159254d4fdf",
-            "internal_id": s["id"],
-            "angle_name": f"💬 ละครคู่รัก: {s['title']}",
-            "title": s["title"],
-            "hook_title": s["hook_title"],
-            "status": "script_ready",
-            "draft_type": "hyperframes",
-            "style": "couple_paper_chat",
-            "category": s["category"],
-            "scenario": s["scenario"],
-            "duration": "42-50s",
-            "turns_count": len(s["turns"]),
-            "script_text": script_text,
-            "script_lines": [p[0] for t in s["turns"] for p in t[1]],
-            "headlines": s["headlines"],
-            "turns": s["turns"],
-            "cta": s["cta"],
-            "tiktok_caption": f"{s['hook_title']} ชาร์จเร็วแรงสะใจด้วย Orsen by Eloop S6 สายชาร์จ 240W ชิป E-MARK แท้ สายถักไนลอนเหนียวทนทาน พิกัดในตะกร้าเหลืองเลย 👇",
-            "tiktok_hashtags": "#Orsen #EloopS6 #สายชาร์จ240W #สายชาร์จเร็ว #สายชาร์จโน้ตบุ๊ก #TikTokป้ายยา #พิกัดในตะกร้า",
-            "created_at": now_str,
-            "updated_at": now_str
-        }
-        p_target.setdefault("angles", []).append(new_angle)
-        added += 1
-
-    with open(products_file, "w", encoding="utf-8") as f:
-        json.dump(products, f, ensure_ascii=False, indent=2)
+        existing_aids = {a.get("angle_id") for a in p_target.get("angles", [])}
+        now_str = datetime.now().isoformat(timespec="seconds")
+        added = 0
+        for s in SCRIPTS:
+            aid = s["angle_id"]
+            if aid in existing_aids:
+                continue
+            script_text = "\n".join([
+                f"{'น้องนุ้ย (F)' if t[0]=='F' else 'พี่บ่าว (M)'}: {' '.join(p[1] for p in t[1])}"
+                for t in s["turns"]
+            ])
+            new_angle = {
+                "angle_id": aid,
+                "product_id": "37521e0dae1a419e8037e159254d4fdf",
+                "internal_id": s["id"],
+                "angle_name": f"💬 ละครคู่รัก: {s['title']}",
+                "title": s["title"],
+                "hook_title": s["hook_title"],
+                "status": "script_ready",
+                "draft_type": "hyperframes",
+                "style": "couple_paper_chat",
+                "category": s["category"],
+                "scenario": s["scenario"],
+                "duration": "42-50s",
+                "turns_count": len(s["turns"]),
+                "script_text": script_text,
+                "script_lines": [p[0] for t in s["turns"] for p in t[1]],
+                "headlines": s["headlines"],
+                "turns": s["turns"],
+                "cta": s["cta"],
+                "tiktok_caption": f"{s['hook_title']} ชาร์จเร็วแรงสะใจด้วย Orsen by Eloop S6 สายชาร์จ 240W ชิป E-MARK แท้ สายถักไนลอนเหนียวทนทาน พิกัดในตะกร้าเหลืองเลย 👇",
+                "tiktok_hashtags": "#Orsen #EloopS6 #สายชาร์จ240W #สายชาร์จเร็ว #สายชาร์จโน้ตบุ๊ก #TikTokป้ายยา #พิกัดในตะกร้า",
+                "created_at": now_str,
+                "updated_at": now_str
+            }
+            p_target.setdefault("angles", []).append(new_angle)
+            added += 1
     print(f"Synced {added} new angles into _Docs/products.json for ORS01 (Total angles: {len(p_target['angles'])})")
 
 if __name__ == "__main__":

@@ -45,5 +45,9 @@ librosa==0.10.2.post1      # BGM beat detection (scripts/beat_sync.py) -- option
 opencv-python-headless==4.10.0.84  # raw-footage motion detection (scripts/motion_analyzer.py)
                             # -- optional, pipeline.py degrades to audio-only emphasis if absent
 
+# --- Batch tools / dev helpers (imported without a guard) ---
+filelock==3.32.7          # tools/batch_render_*_20.py serialise their own tmp render locks
+python-dotenv==1.2.4      # scripts/gemini_vision_matcher.py + live-API tests load .env keys
+
 # --- Testing ---
 pytest==9.1.0

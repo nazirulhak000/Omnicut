@@ -19,10 +19,37 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from scripts import store_io
 from scripts.config import BASE_DIR, EXPORTS_DIR, COVERS_DIR, RAW_DIR, PROJECTS_DIR
 
 # Default Google Drive Desktop archive directory
 DEFAULT_GDRIVE_ARCHIVE_PATH = Path("G:/My Drive/Omnicut_Exports/02_Posted_Archive")
+
+
+def _safe_component(name: Any) -> str:
+    """ชื่อโฟลเดอร์ที่มาจากข้อมูล (project_name / product_id) ต้องเป็นชื่อเดียว
+    ห้าม ``..`` / path แบบ absolute / ตัวคั่นโฟลเดอร์ — กัน path traversal ก่อน
+    นำไปต่อ path แล้ว copytree/rmtree/unlink."""
+    text = str(name or "")
+    if (
+        not text
+        or text in (".", "..")
+        or text != text.strip()
+        or any(sep in text for sep in ("/", "\\", ":", "\x00"))
+        or Path(text).name != text
+    ):
+        raise ValueError(f"ชื่อโฟลเดอร์ไม่ปลอดภัย ห้ามใช้เป็น path: {text!r}")
+    return text
+
+
+def _resolve_under(base: Path, child: Any) -> Path:
+    """ต่อ ``child`` ใต้ ``base`` แล้ว resolve; ต้องอยู่ภายใน ``base`` จริง ๆ
+    (และไม่ใช่ ``base`` เอง) ไม่งั้นโยน ValueError."""
+    root = Path(base).resolve()
+    target = (root / str(child)).resolve()
+    if target == root or root not in target.parents:
+        raise ValueError(f"path อยู่นอกโฟลเดอร์ที่อนุญาต ({root}): {child!r}")
+    return target
 
 
 def compute_file_sha256(path: Path) -> str:
@@ -80,17 +107,11 @@ class GDriveArchiveEngine:
         """Inspect all posted exports, calculate reclaimable space, and group by product."""
         root = base_dir or BASE_DIR
         docs_dir = root / "_Docs"
-        export_file = docs_dir / "export_registry.json"
         post_log_file = docs_dir / "post_log.json"
         archive_root = GDriveArchiveEngine.get_archive_root(custom_gdrive_root)
 
-        exports = []
-        if export_file.exists():
-            try:
-                with open(export_file, "r", encoding="utf-8") as f:
-                    exports = json.load(f)
-            except Exception:
-                exports = []
+        # อ่านผ่าน store: อ่านพังต้อง raise ไม่ใช่กลายเป็นรายการว่าง
+        exports = store_io.load_export_registry(docs_dir)
 
         post_logs = []
         if post_log_file.exists():
@@ -207,7 +228,6 @@ class GDriveArchiveEngine:
         """
         root = base_dir or BASE_DIR
         docs_dir = root / "_Docs"
-        export_file = docs_dir / "export_registry.json"
         post_log_file = docs_dir / "post_log.json"
 
         archive_root = GDriveArchiveEngine.get_archive_root(custom_gdrive_root)
@@ -217,17 +237,16 @@ class GDriveArchiveEngine:
                 "กรุณาตรวจสอบว่าเปิดโปรแกรม Google Drive for Desktop หรือยังครับ"
             )
 
-        if not export_file.exists():
+        exports = store_io.load_export_registry(docs_dir)
+        if not exports and not (docs_dir / "export_registry.json").exists():
             return {"status": "error", "message": "ไม่พบ export_registry.json"}
-
-        with open(export_file, "r", encoding="utf-8") as f:
-            exports = json.load(f)
 
         target_exp_ids = set(export_ids) if export_ids else None
         target_prod_ids = set(product_ids) if product_ids else None
 
         # Pre-scan eligible candidates
         eligible_candidates = []
+        skipped_unsafe: List[Dict[str, Any]] = []
         total_target_bytes = 0
         for exp in exports:
             exp_id = exp.get("id")
@@ -244,7 +263,12 @@ class GDriveArchiveEngine:
             if not is_posted:
                 continue
 
-            local_video_path = root / rel_path
+            try:
+                local_video_path = _resolve_under(root, rel_path)
+                _safe_component(exp.get("project_name") or prod_id)
+            except ValueError as err:
+                skipped_unsafe.append({"export_id": exp_id, "reason": str(err)})
+                continue
             if not local_video_path.exists() or not local_video_path.is_file():
                 continue
 
@@ -276,6 +300,7 @@ class GDriveArchiveEngine:
                 "reclaimed_bytes": 0,
                 "reclaimed_formatted": "0 B",
                 "records": [],
+                "skipped_unsafe": skipped_unsafe,
                 "gdrive_vault": str(archive_root),
             }
 
@@ -283,13 +308,13 @@ class GDriveArchiveEngine:
             exp_id = exp.get("id")
             prod_id = exp.get("product_id") or "unassigned"
             rel_path = exp.get("path") or ""
-            local_video_path = root / rel_path
+            local_video_path = _resolve_under(root, rel_path)
             if not local_video_path.exists() or not local_video_path.is_file():
                 continue
 
             file_size = local_video_path.stat().st_size
-            safe_prod_name = exp.get("project_name") or prod_id
-            product_archive_dir = archive_root / safe_prod_name
+            safe_prod_name = _safe_component(exp.get("project_name") or prod_id)
+            product_archive_dir = _resolve_under(archive_root, safe_prod_name)
             videos_archive_dir = product_archive_dir / "Videos"
             covers_archive_dir = product_archive_dir / "Covers"
             videos_archive_dir.mkdir(parents=True, exist_ok=True)
@@ -335,8 +360,11 @@ class GDriveArchiveEngine:
             # Also backup cover to Google Drive (BUT KEEP LOCAL COVER INTACT)
             cover_rel = exp.get("cover_path")
             if cover_rel:
-                local_cover_path = root / cover_rel
-                if local_cover_path.exists():
+                try:
+                    local_cover_path = _resolve_under(root, cover_rel)
+                except ValueError:
+                    local_cover_path = None
+                if local_cover_path is not None and local_cover_path.exists():
                     dest_cover_path = covers_archive_dir / local_cover_path.name
                     if not (dest_cover_path.exists() and dest_cover_path.stat().st_size == local_cover_path.stat().st_size):
                         shutil.copy2(local_cover_path, dest_cover_path)
@@ -356,15 +384,15 @@ class GDriveArchiveEngine:
             # If full scope requested, optionally archive raw & project folders
             if scope == "full":
                 # Raw folder
-                raw_prod_dir = root / "01_Raw" / safe_prod_name
-                if raw_prod_dir.exists():
+                raw_prod_dir = _resolve_under(root / "01_Raw", safe_prod_name)
+                if raw_prod_dir.is_dir():
                     dest_raw_dir = product_archive_dir / "Sources" / "Raw"
                     shutil.copytree(raw_prod_dir, dest_raw_dir, dirs_exist_ok=True)
                     shutil.rmtree(raw_prod_dir)
 
                 # Project folder
-                proj_prod_dir = root / "03_Projects" / safe_prod_name
-                if proj_prod_dir.exists():
+                proj_prod_dir = _resolve_under(root / "03_Projects", safe_prod_name)
+                if proj_prod_dir.is_dir():
                     dest_proj_dir = product_archive_dir / "Sources" / "Projects"
                     shutil.copytree(proj_prod_dir, dest_proj_dir, dirs_exist_ok=True)
                     shutil.rmtree(proj_prod_dir)
@@ -374,11 +402,20 @@ class GDriveArchiveEngine:
             reclaimed_bytes += file_size
 
             # Update export registry entry with cloud metadata (Smart Breadcrumbs)
-            exp["cloud_status"] = "archived_gdrive"
-            exp["cloud_path"] = str(dest_video_path).replace("\\", "/")
-            exp["archived_at"] = now_iso
-            exp["archived_size"] = file_size
-            exp["archived_sha256"] = local_hash
+            # ทันทีหลังลบไฟล์ local (ผ่าน store ทีละรายการ): ถ้าล้มกลางทาง breadcrumb
+            # ของไฟล์ที่ลบไปแล้วยังอยู่ และไม่เขียนทับแถวที่ app เพิ่มระหว่างคัดลอก
+            breadcrumb = {
+                "cloud_status": "archived_gdrive",
+                "cloud_path": str(dest_video_path).replace("\\", "/"),
+                "archived_at": now_iso,
+                "archived_size": file_size,
+                "archived_sha256": local_hash,
+            }
+            exp.update(breadcrumb)
+            with store_io.mutate_export_registry(docs_dir) as live_rows:
+                for live in live_rows:
+                    if live.get("id") == exp_id:
+                        live.update(breadcrumb)
 
             archived_records.append({
                 "export_id": exp_id,
@@ -400,12 +437,6 @@ class GDriveArchiveEngine:
                     "total_bytes": total_target_bytes,
                     "percent": round(((i + 1) / total_targets) * 100, 1),
                 })
-
-        # Atomic write back to export_registry.json
-        tmp_export = export_file.with_suffix(".tmp")
-        with open(tmp_export, "w", encoding="utf-8") as f:
-            json.dump(exports, f, indent=2, ensure_ascii=False)
-        tmp_export.replace(export_file)
 
         # Update post_log.json if exists
         if post_log_file.exists():
@@ -444,6 +475,7 @@ class GDriveArchiveEngine:
             "reclaimed_bytes": reclaimed_bytes,
             "reclaimed_formatted": format_bytes(reclaimed_bytes),
             "records": archived_records,
+            "skipped_unsafe": skipped_unsafe,
             "gdrive_vault": str(archive_root),
         }
 
@@ -452,13 +484,10 @@ class GDriveArchiveEngine:
         """Restore an archived video clip from Google Drive back to local storage."""
         root = base_dir or BASE_DIR
         docs_dir = root / "_Docs"
-        export_file = docs_dir / "export_registry.json"
 
-        if not export_file.exists():
+        exports = store_io.load_export_registry(docs_dir)
+        if not exports and not (docs_dir / "export_registry.json").exists():
             raise FileNotFoundError("ไม่พบ export_registry.json")
-
-        with open(export_file, "r", encoding="utf-8") as f:
-            exports = json.load(f)
 
         target_exp = None
         for exp in exports:
@@ -478,17 +507,16 @@ class GDriveArchiveEngine:
             raise FileNotFoundError(f"ไม่พบไฟล์บน Google Drive: {cloud_path}")
 
         orig_rel_path = target_exp.get("path")
-        dest_local_path = root / orig_rel_path
+        dest_local_path = _resolve_under(root, orig_rel_path or "")
         dest_local_path.parent.mkdir(parents=True, exist_ok=True)
 
         shutil.copy2(cloud_path, dest_local_path)
 
-        # Update export entry
-        target_exp["cloud_status"] = "restored_local"
-        tmp_export = export_file.with_suffix(".tmp")
-        with open(tmp_export, "w", encoding="utf-8") as f:
-            json.dump(exports, f, indent=2, ensure_ascii=False)
-        tmp_export.replace(export_file)
+        # Update export entry (ผ่าน store ทรานแซกชันเดียว)
+        with store_io.mutate_export_registry(docs_dir) as live_rows:
+            for live in live_rows:
+                if live.get("id") == export_id:
+                    live["cloud_status"] = "restored_local"
 
         return {
             "status": "ok",

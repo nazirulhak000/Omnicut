@@ -28,31 +28,6 @@ OWNERS = {
     "scripts/channel_migration.py",
 }
 
-# Known direct writers outside the scope of fix/store-single-writer (other
-# owners). Pending migration to scripts.store_io -- this list may only
-# shrink: an entry that no longer writes directly fails the test so it is
-# removed here.
-PENDING = {
-    "scripts/gdrive_archive_engine.py",
-    "scripts/ssd_reconcile_engine.py",
-    "tools/batch_schedule_non_couple_exports.py",
-    "tools/clean_products_data.py",
-    "tools/generate_essager_20_scripts.py",
-    "tools/generate_essager_covers_20.py",
-    "tools/generate_goojodoq_20_scripts.py",
-    "tools/generate_hatari_16inch_20_scripts.py",
-    "tools/generate_hatari_cyclone_20_scripts.py",
-    "tools/generate_hoyaup_20_scripts.py",
-    "tools/generate_jeep_ew011_20_scripts.py",
-    "tools/generate_orsen_20_scripts.py",
-    "tools/generate_redmi_buds8_20_scripts.py",
-    "tools/generate_ttz_k106_20_scripts.py",
-    "tools/produce_hatari16_benchmark.py",
-    "tools/reschedule_all_old_non_couple_clips.py",
-    "tools/upgrade_hat01_cta_and_cover.py",
-}
-
-
 def _direct_mirror_writes(source: str) -> list[str]:
     """Heuristic: names bound to a mirror path, then written to directly."""
     names = set(re.findall(
@@ -87,12 +62,9 @@ def test_no_new_direct_json_mirror_writers():
         hits = _direct_mirror_writes(path.read_text(encoding="utf-8", errors="replace"))
         if hits:
             offenders[rel] = hits
-    unexpected = sorted(set(offenders) - PENDING)
-    assert unexpected == [], (
+    assert offenders == {}, (
         "เขียน products.json / export_registry.json / export_cover_bindings.json ตรง "
-        f"ต้องผ่าน scripts.store_io แทน: {unexpected}")
-    resolved = sorted(PENDING - set(offenders))
-    assert resolved == [], f"ไฟล์เหล่านี้ไม่เขียนตรงแล้ว ให้ลบออกจาก PENDING: {resolved}"
+        f"ต้องผ่าน scripts.store_io แทน (ไม่มีข้อยกเว้นเหลือแล้ว): {sorted(offenders)}")
 
 
 def test_lint_heuristic_catches_the_old_tool_pattern():

@@ -58,6 +58,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(CLIPS_DIR))
 sys.path.insert(0, str(STUDIO / "kit"))
 
+from scripts import store_io
 from scripts.config import get_gemini_api_keys
 from scripts.tiktok_enhancer import enhance_video_for_tiktok
 from tools.clean_all_inter_turn_audio_glitches import clean_isolated_bursts_in_vo
@@ -806,62 +807,56 @@ def main():
     rel_mp4 = str(enhanced_mp4.relative_to(ROOT)).replace("\\", "/")
     export_id = f"exp_{get_sha256(enhanced_mp4)}"
 
-    # 1. export_registry.json
-    reg_file = DOCS_DIR / "export_registry.json"
-    registry = json.loads(reg_file.read_text(encoding="utf-8")) if reg_file.exists() else []
-    entry = next((e for e in registry if e.get("composition_id") == cid), None)
-    if not entry:
-        entry = {
-            "id": export_id,
-            "composition_id": cid,
-            "product_id": PRODUCT_ID,
-            "product_code": PRODUCT_CODE,
-            "file_path": rel_mp4,
-            "format": "mp4",
-            "resolution": "1080x1920",
-            "fps": 30,
-            "created_at": now_ts,
-            "status": "ready"
-        }
-        registry.append(entry)
-    else:
-        entry["file_path"] = rel_mp4
-        entry["created_at"] = now_ts
-    reg_file.write_text(json.dumps(registry, ensure_ascii=False, indent=2), encoding="utf-8")
+    # 1. export_registry (ทรานแซกชันเดียวของ ExportRegistry — ห้ามเขียน JSON ตรง)
+    with store_io.mutate_export_registry(DOCS_DIR) as registry:
+        entry = next((e for e in registry if e.get("composition_id") == cid), None)
+        if not entry:
+            entry = {
+                "id": export_id,
+                "composition_id": cid,
+                "product_id": PRODUCT_ID,
+                "product_code": PRODUCT_CODE,
+                "file_path": rel_mp4,
+                "format": "mp4",
+                "resolution": "1080x1920",
+                "fps": 30,
+                "created_at": now_ts,
+                "status": "ready"
+            }
+            registry.append(entry)
+        else:
+            entry["file_path"] = rel_mp4
+            entry["created_at"] = now_ts
 
-    # 2. export_cover_bindings.json
-    bind_file = DOCS_DIR / "export_cover_bindings.json"
-    bindings = json.loads(bind_file.read_text(encoding="utf-8")) if bind_file.exists() else []
-    b_entry = next((b for b in bindings if b.get("export_id") == export_id), None)
+    # 2. export_cover_bindings (ทรานแซกชันเดียวของ ExportCoverBindingStore)
     rel_916 = str(Path(covers["cover_916"]).relative_to(ROOT)).replace("\\", "/")
     rel_34 = str(Path(covers["cover_34"]).relative_to(ROOT)).replace("\\", "/")
     sha_916 = get_sha256(covers["cover_916"])
     sha_34 = get_sha256(covers["cover_34"])
-    if not b_entry:
-        b_entry = {
-            "id": f"cover_{sha_916}",
-            "channel_id": "main",
-            "export_id": export_id,
-            "video_path": rel_mp4,
-            "selections": {
-                "9:16": {"path": rel_916, "sha256": sha_916, "format": "9:16"},
-                "3:4": {"path": rel_34, "sha256": sha_34, "format": "3:4"}
-            },
-            "revision": 1,
-            "updated_at": now_ts,
-        }
-        bindings.append(b_entry)
-    else:
-        b_entry["video_path"] = rel_mp4
-        b_entry["selections"]["9:16"] = {"path": rel_916, "sha256": sha_916, "format": "9:16"}
-        b_entry["selections"]["3:4"] = {"path": rel_34, "sha256": sha_34, "format": "3:4"}
-        b_entry["updated_at"] = now_ts
-    bind_file.write_text(json.dumps(bindings, ensure_ascii=False, indent=2), encoding="utf-8")
+    with store_io.mutate_cover_bindings(DOCS_DIR) as bindings:
+        b_entry = next((b for b in bindings if b.get("export_id") == export_id), None)
+        if not b_entry:
+            b_entry = {
+                "id": f"cover_{sha_916}",
+                "channel_id": "main",
+                "export_id": export_id,
+                "video_path": rel_mp4,
+                "selections": {
+                    "9:16": {"path": rel_916, "sha256": sha_916, "format": "9:16"},
+                    "3:4": {"path": rel_34, "sha256": sha_34, "format": "3:4"}
+                },
+                "revision": 1,
+                "updated_at": now_ts,
+            }
+            bindings.append(b_entry)
+        else:
+            b_entry["video_path"] = rel_mp4
+            b_entry["selections"]["9:16"] = {"path": rel_916, "sha256": sha_916, "format": "9:16"}
+            b_entry["selections"]["3:4"] = {"path": rel_34, "sha256": sha_34, "format": "3:4"}
+            b_entry["updated_at"] = now_ts
 
-    # 3. products.json
-    prod_file = DOCS_DIR / "products.json"
-    if prod_file.exists():
-        prods = json.loads(prod_file.read_text(encoding="utf-8"))
+    # 3. products (ทรานแซกชันเดียวของ ProductStore)
+    with store_io.mutate_products(DOCS_DIR) as prods:
         p_target = next((p for p in prods if p.get("id") == PRODUCT_ID or p.get("product_code") == PRODUCT_CODE), None)
         if p_target:
             p_target["status"] = "rendered"
@@ -872,7 +867,6 @@ def main():
                 angles[0]["video_url"] = rel_mp4
                 angles[0]["export_id"] = export_id
                 angles[0]["cover_url"] = str(Path(covers["webp"]).relative_to(ROOT)).replace("\\", "/")
-            prod_file.write_text(json.dumps(prods, ensure_ascii=False, indent=2), encoding="utf-8")
             print("  -> Synced into products.json (HAT01 status='rendered')")
 
     # Clean temp files
