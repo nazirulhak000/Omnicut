@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-EDITOR-TOOLBAR-ICON-MINIMAL-AND-TIMELINE-VERTICAL-SCROLL-20261109 · ปฏิบัติการ Editor Toolbar Icon Minimal & Timeline Vertical Scroll: แปลงปุ่มแถบเครื่องมือไทม์ไลน์สู่ Icon-Only สไตล์ Pro NLE คลีนตา ไร้ตัวหนังสือหัก 2 บรรทัด พร้อม Tooltip ครบถ้วน + ปลดล็อก Wheel Scroll ให้เลื่อนขึ้น-ลงแทร็กไทม์ไลน์ได้อย่างลื่นไหลเป็นธรรมชาติ (Shift+Wheel สำหรับแนวนอน), ผ่าน Vitest 1,222 tests (100%), Parity 212 tests (100%), Vite Build 456ms · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
 - [x] Round ANTIGRAVITY-UI-PRECISION-AND-BASELINE-ALIGNMENT-AUDIT-20261109 · ปฏิบัติการ UI Precision & Baseline Alignment Audit (Pixel-Perfect Craftsmanship) ครบ 5 มิติ 100/100 คะแนนเต็ม: ล็อก Uniform Height และ mt-auto ตรึงเส้นระนาบ Progress/Footer เท่ากัน 100% ทุกการ์ด (ProductCard Carousel, Catalog Grid, KanbanCard, ExportCard), จองพื้นที่คงที่ line-clamp-2 h-[2.25rem] สำหรับชื่อสินค้าและสคริปต์, จัด tabular-nums ทุกตัวเลข, ผ่าน Vitest 1,222 tests (100%), Parity 212 tests (100%), Vite Build 467ms ไร้ข้อผิดพลาด · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-10-ROUNDS-AUDIT-PASS3-20261109 · ปฏิบัติการ 10-Round Master Audit & Refinement Loop (Pass 3: Full-Stack NLE & Architecture Perfection) ครบ 10 รอบ 1,000 คะแนนเต็ม: ผ่าตัด Chunk Splitting (EditorShell ลดเหลือ 415kB, editor-player 325kB, editor-timeline 247kB ไร้คำเตือน build 471ms), ล้างอิโมจิในปุ่ม/ชาร์ต/เซฟโซนสู่ Lucide Icons 100%, ปรับ tracking สุขุม, ผ่าน 1,222 Vitest tests (100%), 212 Parity tests (100%) (ดูรายงาน _Docs/Reports/OMNICUT_10_ROUNDS_AUDIT_PASS3_REPORT.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)

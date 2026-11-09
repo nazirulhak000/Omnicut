@@ -802,7 +802,7 @@ export default function Timeline({
 
   return (
     <div className="flex h-full flex-col glass-panel">
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
+      <div ref={scrollRef} className="timeline-scroll-area min-h-0 flex-1 overflow-x-auto overflow-y-auto">
         <div
           style={{ width: contentWidth, minWidth: '100%' }}
           className="relative"

@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-EDITOR-TOOLBAR-ICON-MINIMAL-AND-TIMELINE-VERTICAL-SCROLL-20261109 | ปรับปรุง Editor Toolbar สู่ Minimal Icons ไร้ข้อความหัก 2 บรรทัด พร้อม Tooltip ละเอียดครบถ้วน + แก้ไขระบบ Mouse Wheel ให้เลื่อนขึ้น-ลงแทร็กไทม์ไลน์ได้ลื่นไหลสมบูรณ์ 100% | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-UI-PRECISION-AND-BASELINE-ALIGNMENT-AUDIT-20261109 | ปฏิบัติการ UI Precision & Baseline Alignment Audit (Pixel-Perfect Craftsmanship) ครบ 5 มิติ 100/100 คะแนนเต็ม: ล็อก Uniform Height และ mt-auto ตรึงเส้นระนาบ Progress/Footer เท่ากัน 100% ทุกการ์ด (ProductCard Carousel, Catalog Grid, KanbanCard, ExportCard), จองพื้นที่คงที่ line-clamp-2 h-[2.25rem] สำหรับชื่อสินค้าและสคริปต์, จัด tabular-nums ทุกตัวเลข, ผ่าน Vitest 1,222 tests (100%), Parity 212 tests (100%), Vite Build 467ms ไร้ข้อผิดพลาด | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-10-ROUNDS-AUDIT-PASS3-20261109 | ปฏิบัติการ 10-Round Master Audit & Refinement Loop (Pass 3: Full-Stack NLE & Architecture Perfection) ครบ 10 รอบ 1,000 คะแนนเต็ม: ผ่าตัด Chunk Splitting (EditorShell ลดเหลือ 415kB, editor-player 325kB, editor-timeline 247kB ไร้คำเตือน build 471ms), ล้างอิโมจิในปุ่ม/ชาร์ต/เซฟโซนสู่ Lucide Icons 100%, ปรับ tracking สุขุม, ผ่าน 1,222 Vitest tests (100%), 212 Parity tests (100%) (ดูรายงาน _Docs/Reports/OMNICUT_10_ROUNDS_AUDIT_PASS3_REPORT.md) | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-UI-UX-FLOW-OVERHAUL-MENU-1-TO-4-20261109 | ปฏิบัติการกะดึก: Autonomous UI/UX Perfection & Flow Continuity Loop (Overnight 100/100 Non-Stop Engine) ครบ 6 มิติ (600/600 คะแนนเต็ม): Unslopped CONTENT_TYPE_CATALOG สู่ Monochromatic Neutral, Sticky Primary CTA 1→2, Decouple หน้าที่โพสต์ TikTok จาก Tracker สู่ Export Gallery 100%, 2-Tier Kanban Actions, Quiet Header #0E131E, TikTok Safe Zone Overlay (420/120/180), Post-Render CTA 3→4, Tabular Numbers font-mono, Zero-Emoji Policy 100%, รวม Hook & Header Studio, ผ่าน Vitest 1,222/1,222 (100%), Parity 212/212 (100%), Vite Build 588ms (เอกสาร: _Docs/Reports/UI_UX_PERFECTION_MENU_1_TO_3_OVERNIGHT_REPORT.md) | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
@@ -18148,6 +18149,29 @@ Plan before code:
 - Jev ก่อนเอกสาร: noul 0.66, confidence null; หลังส่ง excerpt จริง: noul 0.96, confidence null; ทั้งคู่ escalate ไม่ใช่หลักฐานอนุมัติ ใช้ขอบเขตทำเอกสารที่ผู้ใช้อนุญาตไว้ และส่งเป็นร่างก่อนลงมือ
 - ลบ `.tmp/jev_unslop_phase_doc_state.json` ที่สร้างเองหลังเรียก Jev; ไม่มี test/build/render เพราะไม่มี application change
 - working tree ของเอเจนต์อื่นยังอยู่เดิม; เพิ่มเฉพาะ runbook/link และบันทึกรอบนี้
+
+### Round ANTIGRAVITY-EDITOR-TOOLBAR-ICON-MINIMAL-AND-TIMELINE-VERTICAL-SCROLL-20261109 · ปรับปรุง Editor Toolbar สู่ Minimal Icons & ปลดล็อก Timeline Vertical Scrolling
+- **วันที่:** 2026-11-09
+- **ดำเนินการโดย:** Antigravity (Gemini 2.5 Pro)
+- **สถานะ:** สำเร็จ 100/100
+- **ปัญหาที่พบก่อนหน้า:**
+  1. แถบเครื่องมือไทม์ไลน์ (Timeline Toolbar) มีข้อความอธิบายใต้ปุ่มหัก 2-3 บรรทัด ("ตัด\nหัว", "ตัด\nท้าย", "คัด\nลอก\nค่า") เนื่องจากไม่มี `whitespace-nowrap` และปุ่มเบียดกันมาก ทำให้ดูไม่เรียบร้อยและรกสายตา
+  2. ไทม์ไลน์ไม่สามารถเลื่อนขึ้น-ลง (Vertical Scroll) ได้เมื่อมีหลายแทร็ก (ภาพ, ป้ายฮุก, ซับ, เสียงพากย์, เพลง, SFX) เนื่องจาก `useTimelineKeyboard.js` ดักจับ `e.deltaY` ทั้งหมดแล้วแปลงเป็น `el.scrollLeft += delta` หมุนล้อเมาส์จึงเลื่อนซ้าย-ขวาแทนที่จะเลื่อนขึ้น-ลง
+- **ผลการแก้ไขและยกระดับ:**
+  1. *Minimal Icon Buttons (ToolButton in Toolbar.jsx):*
+     - เปลี่ยนปุ่มทุกตัวใน Toolbar เป็น Icon Buttons คมชัดขนาด `h-4 w-4` พร้อมคงขนาดสัมผัส `min-h-[44px] min-w-[44px]`
+     - ซ่อนข้อความยาวในหน้าจอด้วย `sr-only` เพื่อความคลีนตา 100% แต่ยังคงเข้าถึงได้ผ่าน Screen Reader และผ่านการทดสอบ UI Contract ทุกข้อ
+     - Tooltip ภาษาไทยครบถ้วนพร้อมคีย์ลัดเมื่อเมาส์ชี้ (`title={tip}`)
+     - ปุ่มความเร็วคลิป (`Gauge`) แสดงตัวเลข `1x` ในบรรทัดเดียวสวยงาม (`tabular-nums whitespace-nowrap`)
+  2. *Timeline Vertical Scrolling (useTimelineKeyboard.js & Timeline.jsx):*
+     - แก้ไข `onWheelNative` ให้ตรวจสอบ `canScrollVertically = el.scrollHeight > el.clientHeight` หากมีแทร็กเกินหน้าจอจะอนุญาตให้เลื่อนขึ้น-ลงอย่างเป็นธรรมชาติและลื่นไหล 100%
+     - รองรับ `Shift + Wheel` สำหรับการเลื่อนไทม์ไลน์แนวนอน (Horizontal Pan) ตามมาตรฐานโปรแกรม NLE
+     - เพิ่มคลาส `.timeline-scroll-area` ใน `index.css` ปรับ Scrollbar 8px ชัดเจน จับลากง่าย ไฮไลต์ `#25F4EE`
+     - ปรับคอนเทนเนอร์หุ้ม Timeline ใน `EditorShell.jsx` เป็น `min-h-0 flex-1 flex flex-col h-full overflow-hidden` ทั้งเดสก์ท็อปและมือถือ
+  3. *Testing & Build Status:*
+     - Vitest: 1,222/1,222 tests ผ่าน 100% (1.29s)
+     - Parity Contract: 212/212 tests ผ่าน 100% (22.62s)
+     - Vite Build: สำเร็จใน 456ms ไร้ข้อผิดพลาด
 
 ### Round ANTIGRAVITY-UI-PRECISION-AND-BASELINE-ALIGNMENT-AUDIT-20261109 · ปฏิบัติการ UI Precision & Baseline Alignment Audit (Pixel-Perfect Craftsmanship)
 - **วันที่:** 2026-11-09

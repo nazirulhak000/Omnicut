@@ -10,7 +10,7 @@ import { pxPerSecToSlider, sliderToPxPerSec, zoomPercentageLabel } from '../../l
 
 const SPEEDS = [0.5, 1, 1.5, 2];
 
-function ToolButton({ icon: Icon, label, hint, shortcut, onClick, disabled, active }) {
+function ToolButton({ icon: Icon, label, hint, shortcut, onClick, disabled, active, children }) {
   const tip = [hint || label, shortcut && `(${shortcut})`].filter(Boolean).join(' ');
   return (
     <button
@@ -22,16 +22,16 @@ function ToolButton({ icon: Icon, label, hint, shortcut, onClick, disabled, acti
       disabled={disabled}
       title={tip}
       aria-label={label}
-      className={`flex h-11 sm:h-9 min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-lg px-2.5 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#D97757] active:scale-[0.96] ${
+      className={`group relative flex h-11 sm:h-9 min-h-[44px] min-w-[44px] items-center justify-center gap-1 rounded-lg px-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#25F4EE] active:scale-[0.96] ${
         disabled
           ? 'cursor-not-allowed text-[#5A554F]'
           : active
-            ? 'cursor-pointer bg-[#D97757]/20 text-[#E89274]'
+            ? 'cursor-pointer bg-[#25F4EE]/15 text-[#25F4EE] ring-1 ring-[#25F4EE]/30'
             : 'cursor-pointer text-slate-300 hover:bg-white/[0.08] hover:text-white'
       }`}
     >
-      <Icon className="h-3.5 w-3.5" />
-      <span className="hidden sm:inline">{label}</span>
+      <Icon className="h-4 w-4 flex-shrink-0" />
+      {children ? children : <span className="sr-only">{label}</span>}
     </button>
   );
 }
@@ -185,7 +185,10 @@ export default function Toolbar({
         onClick={onCycleSpeed}
         disabled={!hasClipSelected}
         active={speed !== 1}
-      />
+      >
+        <span className="text-xs font-mono font-bold tabular-nums whitespace-nowrap text-slate-300">{speed}x</span>
+        <span className="sr-only">ความเร็ว {speed}x</span>
+      </ToolButton>
       <ToolButton
         icon={RotateCcw}
         label="รีเซ็ตซูม"

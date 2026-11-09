@@ -67,8 +67,24 @@ export function useTimelineKeyboard({
         return;
       }
 
-      // Normal wheel: scroll timeline horizontally on desktop
+      // Horizontal scroll: Shift + vertical wheel, or native horizontal gesture
+      if (e.shiftKey && e.deltaY !== 0) {
+        e.preventDefault();
+        const delta = e.deltaMode === 1 ? e.deltaY * 32 : e.deltaY;
+        el.scrollLeft += delta;
+        return;
+      }
+
+      // Normal vertical wheel (e.deltaY !== 0, without Shift/Ctrl/Meta):
+      // If the timeline has vertical overflow (more tracks than fit in viewport),
+      // allow smooth natural vertical scrolling up and down through all tracks.
       if (e.deltaY !== 0 && e.deltaX === 0) {
+        const canScrollVertically = el.scrollHeight > el.clientHeight;
+        if (canScrollVertically) {
+          // Allow natural vertical scroll through all tracks
+          return;
+        }
+        // If all tracks fit vertically, allow horizontal timeline pan
         e.preventDefault();
         const delta = e.deltaMode === 1 ? e.deltaY * 32 : e.deltaY;
         el.scrollLeft += delta;

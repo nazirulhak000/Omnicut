@@ -3121,7 +3121,7 @@ export default function EditorShell({
                   highResStillEnabled={highResStillEnabled}
                   onToggleHighResStill={() => setHighResStillEnabled((v) => !v)}
                 />
-                <div className="min-h-0 flex-1">
+                <div className="min-h-0 flex-1 flex flex-col h-full overflow-hidden">
                   <Timeline
                     segments={segments}
                     backgroundIsolation={backgroundIsolation}
@@ -4010,7 +4010,7 @@ export default function EditorShell({
                   highResStillEnabled={highResStillEnabled}
                   onToggleHighResStill={() => setHighResStillEnabled((v) => !v)}
                 />
-                <div className="min-h-0 flex-1">
+                <div className="min-h-0 flex-1 flex flex-col h-full overflow-hidden">
                   <Timeline
                     segments={segments}
                     backgroundIsolation={backgroundIsolation}
