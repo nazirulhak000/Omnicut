@@ -67,6 +67,8 @@ export default function EditorHeader({
   preflightReport = null,
   preflightLoading = false,
   onOpenPreflightModal = null,
+  isImmersive = false,
+  onToggleImmersive = null,
 }) {
   const [showPlaybookModal, setShowPlaybookModal] = React.useState(false);
   const playbookNotes = React.useMemo(() => loadPlaybookNotes(), [showPlaybookModal]);
@@ -89,6 +91,12 @@ export default function EditorHeader({
   const headerMenuItems = React.useMemo(() => {
     const list = [
       { id: 'sec-view', type: 'section', label: 'มุมมอง' },
+      {
+        id: 'immersive',
+        label: isImmersive ? 'ออกจากโหมดตัดต่อเต็มจอ (Esc)' : 'โหมดตัดต่อเต็มจอ (ซ่อนแถบนำทาง) (F)',
+        icon: isImmersive ? Minimize2 : Maximize2,
+        onSelect: () => onToggleImmersive?.(),
+      },
       {
         id: 'zen',
         label: zen ? 'ย่อพรีวิวกลับ' : 'ขยายพรีวิวเต็มพื้นที่',
@@ -165,6 +173,8 @@ export default function EditorHeader({
 
     return list;
   }, [
+    isImmersive,
+    onToggleImmersive,
     zen,
     projectName,
     setZen,
@@ -225,6 +235,25 @@ export default function EditorHeader({
 
       {/* ── Zone 3 (Right): AI Tools, Overflow Menu & Render Flow ── */}
       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+        {/* Immersive Studio Toggle Button (Like CapCut Fullscreen/Collapse Bars) */}
+        {onToggleImmersive && (
+          <button
+            type="button"
+            onClick={() => onToggleImmersive?.()}
+            data-testid="toggle-immersive-studio-btn"
+            title={isImmersive ? "ออกจากโหมดตัดต่อเต็มจอ (Esc)" : "โหมดตัดต่อเต็มจอ (ซ่อนแถบนำทาง) (F)"}
+            aria-label={isImmersive ? "ออกจากโหมดตัดต่อเต็มจอ" : "โหมดตัดต่อเต็มจอ"}
+            className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-2 sm:px-2.5 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70 ${
+              isImmersive
+                ? 'border-[#25F4EE]/50 bg-[#25F4EE]/15 text-[#25F4EE] shadow-sm'
+                : 'border-white/[0.08] bg-white/[0.04] text-slate-300 hover:border-white/[0.2] hover:text-white'
+            }`}
+          >
+            {isImmersive ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">{isImmersive ? 'ย่อแถบ' : 'เต็มจอ'}</span>
+          </button>
+        )}
+
         {/* In-App AI Agent Trigger */}
         <button
           type="button"

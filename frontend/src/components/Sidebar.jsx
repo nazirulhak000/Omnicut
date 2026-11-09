@@ -33,7 +33,14 @@ const MOBILE_PRIMARY_TABS = [
   { id: 'gallery', icon: FolderDown, label: 'Gallery' },
 ];
 
-export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMobile }) {
+export default function Sidebar({
+  activeTab,
+  setActiveTab,
+  status,
+  onSwitchToMobile,
+  isImmersive = false,
+  onToggleImmersive,
+}) {
   const [showMobileModal, setShowMobileModal] = useState(false);
   const [showMoreDrawer, setShowMoreDrawer] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -182,7 +189,9 @@ export default function Sidebar({ activeTab, setActiveTab, status, onSwitchToMob
       {/* ── Mobile Bottom Tab Bar (Strict 5 items limit) ── */}
       <nav
         aria-label="เมนูหลัก"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#050811]/80 backdrop-blur-2xl border-t border-white/[0.12] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] shadow-2xl"
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#050811]/80 backdrop-blur-2xl border-t border-white/[0.12] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] shadow-2xl transition-all duration-300 ${
+          isImmersive ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+        }`}
       >
         {MOBILE_PRIMARY_TABS.map((item) => {
           const Icon = item.icon;

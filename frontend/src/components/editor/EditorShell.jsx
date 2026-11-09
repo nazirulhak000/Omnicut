@@ -113,6 +113,7 @@ import { ActivityIndicatorButton } from '../ActivityCenter';
 import { useTaskManager } from '../../context/TaskContext';
 import HeaderMenu from './HeaderMenu';
 import RenderButton from './RenderButton';
+import SaveStatusChip from './SaveStatusChip';
 import MixDegradedNotice from './MixDegradedNotice';
 import ProjectRevisionNotice from './ProjectRevisionNotice';
 import VoiceEditNotice from './VoiceEditNotice';
@@ -224,6 +225,8 @@ export default function EditorShell({
   onProductContextChange,
   workspaceData,
   onOpenShortcuts,
+  isImmersive = false,
+  onToggleImmersive = null,
 }) {
   const [workspaceStorage] = useState(channelLocalStorage);
   const channel = useChannel();
@@ -1757,11 +1760,21 @@ export default function EditorShell({
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         handleManualSave();
+      } else if (e.key === 'Escape' && isImmersive) {
+        e.preventDefault();
+        onToggleImmersive?.(false);
+      } else if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const tag = document.activeElement?.tagName?.toLowerCase();
+        const isEditable = document.activeElement?.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select';
+        if (!isEditable) {
+          e.preventDefault();
+          onToggleImmersive?.();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleManualSave]);
+  }, [handleManualSave, isImmersive, onToggleImmersive]);
 
   // `options` as in handleUpdateOverlay: { silent: true } inside a canvas drag.
   const patchStyle = useCallback((patch, options) => {
@@ -2502,50 +2515,105 @@ export default function EditorShell({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl glass-panel">
-      {/* ── HEADER / TOPBAR ── */}
-      <EditorHeader
-        projectName={projectName}
-        setProjectName={setProjectName}
-        projectList={projectList}
-        loadProject={loadProject}
-        loading={loading}
-        playhead={playhead}
-        totalDuration={totalDuration}
-        audioDuration={audioDuration}
-        saveStatus={saveStatus}
-        handleManualSave={handleManualSave}
-        leftSidebarCollapsed={leftSidebarCollapsed}
-        toggleLeftSidebar={toggleLeftSidebar}
-        rightSidebarCollapsed={rightSidebarCollapsed}
-        toggleRightSidebar={toggleRightSidebar}
-        isFocusMode={isFocusMode}
-        toggleFocusMode={toggleFocusMode}
-        zen={zen}
-        setZen={setZen}
-        resetPanelSizes={resetPanelSizes}
-        setSelection={setSelection}
-        applying={applying || coverGateChecking}
-        handleApply={handleApply}
-        exportPreset={exportPreset}
-        setExportPreset={setExportPreset}
-        exportPresets={EXPORT_PRESETS}
-        progress={progress}
-        isPosted={isProjectPosted}
-        setDeleteError={setDeleteError}
-        setDeleteScope={setDeleteScope}
-        setDeleteOrigin={setDeleteOrigin}
-        setPendingDelete={setPendingDelete}
-        coverStatus={coverStatus}
-        coverChecking={coverGateChecking}
-        onOpenCoverStudio={openCoverStudioManually}
-        showWatermark={style.showWatermark !== false}
-        onToggleWatermark={(val) => patchStyle({ showWatermark: val })}
-        onOpenShortcuts={onOpenShortcuts}
-        isAgentOpen={isAgentOpen}
-        onToggleAgent={() => setIsAgentOpen((v) => !v)}
-        preflightReport={preflightReport}
-        onOpenPreflightModal={() => setIsPreflightModalOpen(true)}
-      />
+      {/* ── HEADER / TOPBAR (Hidden in Immersive Studio mode) ── */}
+      {!isImmersive && (
+        <EditorHeader
+          projectName={projectName}
+          setProjectName={setProjectName}
+          projectList={projectList}
+          loadProject={loadProject}
+          loading={loading}
+          playhead={playhead}
+          totalDuration={totalDuration}
+          audioDuration={audioDuration}
+          saveStatus={saveStatus}
+          handleManualSave={handleManualSave}
+          leftSidebarCollapsed={leftSidebarCollapsed}
+          toggleLeftSidebar={toggleLeftSidebar}
+          rightSidebarCollapsed={rightSidebarCollapsed}
+          toggleRightSidebar={toggleRightSidebar}
+          isFocusMode={isFocusMode}
+          toggleFocusMode={toggleFocusMode}
+          zen={zen}
+          setZen={setZen}
+          resetPanelSizes={resetPanelSizes}
+          setSelection={setSelection}
+          applying={applying || coverGateChecking}
+          handleApply={handleApply}
+          exportPreset={exportPreset}
+          setExportPreset={setExportPreset}
+          exportPresets={EXPORT_PRESETS}
+          progress={progress}
+          isPosted={isProjectPosted}
+          setDeleteError={setDeleteError}
+          setDeleteScope={setDeleteScope}
+          setDeleteOrigin={setDeleteOrigin}
+          setPendingDelete={setPendingDelete}
+          coverStatus={coverStatus}
+          coverChecking={coverGateChecking}
+          onOpenCoverStudio={openCoverStudioManually}
+          showWatermark={style.showWatermark !== false}
+          onToggleWatermark={(val) => patchStyle({ showWatermark: val })}
+          onOpenShortcuts={onOpenShortcuts}
+          isAgentOpen={isAgentOpen}
+          onToggleAgent={() => setIsAgentOpen((v) => !v)}
+          preflightReport={preflightReport}
+          onOpenPreflightModal={() => setIsPreflightModalOpen(true)}
+          isImmersive={isImmersive}
+          onToggleImmersive={onToggleImmersive}
+        />
+      )}
+
+      {/* ── FLOATING STUDIO CAPSULE (Active in Immersive Studio Mode) ── */}
+      {isImmersive && (
+        <aside
+          role="toolbar"
+          aria-label="แถบควบคุมสตูดิโอเต็มจอ"
+          className="fixed top-2.5 right-2.5 sm:top-3 sm:right-4 z-50 flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 rounded-full bg-[#0A0D14]/90 backdrop-blur-xl border border-white/[0.14] shadow-2xl animate-fadeIn select-none"
+        >
+          {/* Project Name Badge */}
+          {projectName && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-xs font-bold text-slate-200 max-w-[120px] sm:max-w-[180px] truncate">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 animate-pulse" />
+              <span className="truncate">{projectName}</span>
+            </div>
+          )}
+
+          {/* Quick Save */}
+          {projectName && (
+            <SaveStatusChip
+              saveStatus={saveStatus}
+              onSave={() => handleManualSave?.()?.catch(() => {})}
+              disabled={applying || coverGateChecking}
+            />
+          )}
+
+          {/* Quick Render */}
+          <RenderButton
+            presets={EXPORT_PRESETS}
+            value={exportPreset}
+            onChange={setExportPreset}
+            onRender={handleApply}
+            busy={applying || coverGateChecking}
+            progress={progress}
+            disabled={!projectName || isProjectPosted || (coverStatus !== true)}
+            needsCover={coverStatus !== true}
+            isPosted={isProjectPosted}
+          />
+
+          {/* Restore Navbars Button */}
+          <button
+            type="button"
+            onClick={() => onToggleImmersive?.(false)}
+            aria-label="แสดงแถบนำทาง (Esc)"
+            title="แสดงแถบนำทางและเครื่องมือหลัก (Esc / F)"
+            className="flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold transition-all cursor-pointer shadow-md active:scale-95"
+          >
+            <Minimize2 className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="text-[11px] sm:text-xs">แสดงแถบ</span>
+          </button>
+        </aside>
+      )}
 
       {loadError && projectName && (
         <div className="flex flex-shrink-0 items-center gap-2 border-b border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-300">
@@ -3022,30 +3090,49 @@ export default function EditorShell({
             </div>
 
             {/* Mobile Mode Switcher Tabs */}
-            <div className="flex-shrink-0 flex items-center justify-around border-b border-white/[0.08] glass-panel p-1">
-              {[
-                { id: 'timeline', label: 'ไทม์ไลน์', icon: Layers },
-                { id: 'assets', label: 'คลังวัตถุดิบ & ซับ', icon: Sparkles },
-                { id: 'inspector', label: 'แก้ไขคำบรรยาย', icon: Sliders },
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const isActive = mobileTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setMobileTab(tab.id)}
-                    className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] ${
-                      isActive
-                        ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
+            <div className="flex-shrink-0 flex items-center justify-between border-b border-white/[0.08] glass-panel p-1 gap-1">
+              <div className="flex-1 flex items-center justify-around gap-1">
+                {[
+                  { id: 'timeline', label: 'ไทม์ไลน์', icon: Layers },
+                  { id: 'assets', label: 'คลังวัตถุดิบ & ซับ', icon: Sparkles },
+                  { id: 'inspector', label: 'แก้ไขคำบรรยาย', icon: Sliders },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = mobileTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setMobileTab(tab.id)}
+                      className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] ${
+                        isActive
+                          ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Mobile Quick Immersive Studio Toggle */}
+              {onToggleImmersive && (
+                <button
+                  type="button"
+                  onClick={() => onToggleImmersive?.()}
+                  aria-label={isImmersive ? "ย่อแถบกลับ" : "โหมดตัดต่อเต็มจอ"}
+                  title={isImmersive ? "ย่อแถบกลับ (แสดงแถบนำทาง) (Esc)" : "โหมดตัดต่อเต็มจอ (ซ่อนแถบนำทางเหมือน CapCut) (F)"}
+                  className={`min-h-[44px] min-w-[44px] px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer border ${
+                    isImmersive
+                      ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/30 shadow-sm'
+                      : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:text-white hover:bg-white/[0.08]'
+                  }`}
+                >
+                  {isImmersive ? <Minimize2 className="w-4 h-4 text-[#25F4EE]" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+              )}
             </div>
 
             {/* Bottom: Adaptive Workspace Panel */}

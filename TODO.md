@@ -4,6 +4,16 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-IMMERSIVE-STUDIO-AND-NAVBAR-TOGGLE-20261109 · ปฏิบัติการ Immersive Studio & Navbar/Bottom Bar Auto-Hide Mode (เหมือน CapCut Mobile/Desktop):
+  - [x] ออกแบบและเพิ่มสถานะ `isEditorImmersive` ใน `App.jsx` และส่งต่อไปยัง `Sidebar.jsx` และ `EditorShell.jsx`
+  - [x] ปรับ `Sidebar.jsx` บน Mobile ให้ซ่อนแถบนำทางล่างอย่างนุ่มนวล (`translate-y-full opacity-0 pointer-events-none transition-all duration-300`) เมื่ออยู่ในโหมด Immersive หรือตัดต่อ
+  - [x] ปรับ `main` ใน `App.jsx` ให้ปลด `pb-[var(--nav-h)]` เป็น `pb-0` เมื่อเข้าสู่โหมด Immersive คืนพื้นที่ความสูงจอให้ไทม์ไลน์ 100%
+  - [x] ใน `EditorHeader.jsx`: เพิ่มปุ่ม Quick Toggle เข้า/ออกจากโหมด Immersive Studio (`<Maximize2 />` / `<Minimize2 />`) พร้อมระบุ Tooltip ชัดเจน
+  - [x] ใน `EditorShell.jsx`: รองรับการซ่อน `EditorHeader` เมื่อเปิด Immersive Mode พร้อมแสดงแถบลอยตัวกู้คืน (Floating Studio Capsule) ด้านบนขวา มีชื่อโปรเจกต์, สถานะบันทึก, ปุ่มเรนเดอร์ และปุ่มกู้คืนแถบนำทาง ไม่ติดหล่ม
+  - [x] รองรับคีย์ลัด Esc / F สำหรับสลับโหมด
+  - [x] ตรวจสอบความเข้ากันได้กับชุดทดสอบ Vitest (1,226 tests) และ Pytest Parity (212 tests) + Vite Build ผ่าน 100%
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
 - [x] Round ANTIGRAVITY-FIX-TIMELINE-RULER-LINE-AND-MOBILE-VIEW-UNCLUTTER-20261109 · ปฏิบัติการแก้ปัญหาเส้นไม้บรรทัดบังคลิป (Timeline Ruler Line Fix) & ลดความแออัดบนจอมือถือ (Mobile View Ergonomics): ย้ายแถบ Viral Heatmap จากขอบล่างไม้บรรทัดขึ้นขอบบน ไม่บังคลิปวิดีโอ 100%, ปรับ TRACK_TOP เพิ่มระยะปลอดภัย 10px, ใส่พื้นหลังป้ายชื่อคลิป, ปรับสัดส่วนพรีวิวบนมือถือสู่ 32% (เพิ่มพื้นที่ตัดต่อไทม์ไลน์ขึ้น 120px ทันที), ลดความสูงตัวปรับขนาดและแถบควบคุมพรีวิวให้กระชับ, ผ่าน Vitest 1,222/1,222 tests (100%), Parity 212/212 tests (100%), Vite Build 457ms · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-UNSLOP-EDITOR-SCREEN-AND-CLIP-BADGES-20261109 · ปฏิบัติการ Unslopping Pass หน้าจอตัดต่อ (Editor UI & Inspector Deep Clean): ขจัดสีม่วงไล่เฉดและเงาเรืองแสงบนการ์ด SAM 2 Cutout สู่ Obsidian Pro Dark NLE (#0E131E, border-white/[0.08]), ปรับปุ่มโหมดพรีวิวสู่ Quiet Studio Buttons, จัดระเบียบป้ายความเร็วคลิปบนไทม์ไลน์เป็น 2 ตำแหน่งทศนิยม tabular-nums (font-mono text-[10px]), ปรับ Quiet Chrome บนปุ่ม AI Auto-SRT และปลดเงาเรืองแสงของปุ่ม AI Agent บน Header, ผ่าน Vitest 1,222/1,222 tests (100%), Parity 212/212 tests (100%), Vite Build สำเร็จ 463ms ไร้ข้อผิดพลาด · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)

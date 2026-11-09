@@ -484,6 +484,25 @@ export default function App() {
     setAmbientOrbsEnabledState(val);
   };
 
+  // 2c. Editor Immersive Studio Mode (Hides top header and bottom bar like CapCut for maximum timeline real estate)
+  const [isEditorImmersive, setIsEditorImmersive] = useState(() => {
+    try {
+      return localStorage.getItem('omnicut_editor_immersive') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleEditorImmersive = useCallback((explicitVal) => {
+    setIsEditorImmersive((prev) => {
+      const next = typeof explicitVal === 'boolean' ? explicitVal : !prev;
+      try {
+        localStorage.setItem('omnicut_editor_immersive', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
 
 
   // 3. Active Product Context Persistence (from Menu 1 & Menu 2)
@@ -1276,6 +1295,10 @@ export default function App() {
 
           onSwitchToMobile={() => applyUiMode(true)}
 
+          isImmersive={activeTab === 'editor' && isEditorImmersive}
+
+          onToggleImmersive={handleToggleEditorImmersive}
+
         />
 
 
@@ -1338,7 +1361,9 @@ export default function App() {
 
             {activeTab === 'editor' ? (
 
-              <main className="min-h-0 flex-1 overflow-hidden p-0 md:p-1.5 pb-[var(--nav-h)] md:pb-1.5">
+              <main className={`min-h-0 flex-1 overflow-hidden p-0 md:p-1.5 md:pb-1.5 transition-all duration-300 ${
+                activeTab === 'editor' && isEditorImmersive ? 'pb-0' : 'pb-[var(--nav-h)]'
+              }`}>
 
                 <Suspense fallback={<LoadingSpinner message="กำลังโหลด Video Editor..." />}>
 
@@ -1379,6 +1404,10 @@ export default function App() {
                     workspaceData={workspaceDataRef.current}
 
                     onOpenShortcuts={() => setShowShortcutsModal(true)}
+
+                    isImmersive={isEditorImmersive}
+
+                    onToggleImmersive={handleToggleEditorImmersive}
 
                   />
 
