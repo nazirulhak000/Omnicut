@@ -7,6 +7,17 @@ from fastapi import FastAPI
 import scripts.api_server as api_server
 
 
+def _no_couple_jobs(monkeypatch):
+    """Couple-job recovery is its own subsystem; keep it off the real job store."""
+    from scripts import couple_jobs
+
+    class _Store:
+        def recover_interrupted_jobs(self):
+            return []
+
+    monkeypatch.setattr(couple_jobs, "get_couple_job_store", lambda: _Store())
+
+
 def test_imported_app_does_not_recover_until_lifespan_starts(monkeypatch):
     calls = []
 
@@ -20,6 +31,7 @@ def test_imported_app_does_not_recover_until_lifespan_starts(monkeypatch):
 
     monkeypatch.setattr(api_server, "recover_background_isolation_tasks", recover_background)
     monkeypatch.setattr(api_server.BatchRenderManager, "recover_pending_batches", recover_batch)
+    _no_couple_jobs(monkeypatch)
     probe_app = FastAPI(lifespan=api_server.lifespan)
 
     # Constructing/importing an app must not touch durable worker state.
@@ -33,6 +45,7 @@ def test_imported_app_does_not_recover_until_lifespan_starts(monkeypatch):
                 "batch_render": 3,
                 "hyperframes": {"interrupted": 0, "queued": 0, "finalizing": 0},
                 "hyperframes_ai": {"interrupted": [], "errors": []},
+                "couple_jobs": 0,
             }
 
     asyncio.run(exercise_lifespan())
@@ -48,12 +61,14 @@ def test_startup_recovery_isolates_subsystem_failure(monkeypatch):
         "recover_pending_batches",
         lambda: 4,
     )
+    _no_couple_jobs(monkeypatch)
 
     assert api_server.recover_startup_work() == {
         "background_isolation": 0,
         "batch_render": 4,
         "hyperframes": {"interrupted": 0, "queued": 0, "finalizing": 0},
         "hyperframes_ai": {"interrupted": [], "errors": []},
+        "couple_jobs": 0,
     }
 
 
