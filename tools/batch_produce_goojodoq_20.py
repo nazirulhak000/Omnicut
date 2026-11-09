@@ -45,6 +45,7 @@ sys.path.insert(0, str(CLIPS_DIR))
 sys.path.insert(0, str(STUDIO / "kit"))
 
 from scripts.config import get_gemini_api_keys
+from scripts import store_io  # noqa: E402
 from rebuild_all_pov_clean import (
     align_words_in_waveform,
     split_into_n_segments,
@@ -904,23 +905,24 @@ def main():
 
     # Update _Docs/products.json
     print(f"\n[3/3] Updating Content Tracker in _Docs/products.json...")
-    products_file = ROOT / "_Docs" / "products.json"
-    with open(products_file, "r", encoding="utf-8") as f:
-        products = json.load(f)
-    p_target = next((p for p in products if p.get("id") == PRODUCT_ID or p.get("product_code") == PRODUCT_CODE), None)
-    if p_target:
-        cid_map = {r["script_id"]: r for r in results}
-        for a in p_target.get("angles", []):
-            aid = a.get("angle_id")
-            r = cid_map.get(aid)
-            if r:
-                a["status"] = "draft_ready"
-                a["clip_id"] = r["clip_id"]
-                a["composition_path"] = r["comp_path"]
-                a["video_preview_url"] = r["preview_url"]
-                a["duration"] = f"{round(r['total_dur'])}s"
-        with open(products_file, "w", encoding="utf-8") as f:
-            json.dump(products, f, ensure_ascii=False, indent=2)
+    # Written through the product store (scripts.store_io, audit S1-01):
+    # one SQLite transaction, no direct products.json write.
+    updated = False
+    with store_io.mutate_products(ROOT / "_Docs") as products:
+        p_target = next((p for p in products if p.get("id") == PRODUCT_ID or p.get("product_code") == PRODUCT_CODE), None)
+        if p_target:
+            cid_map = {r["script_id"]: r for r in results}
+            for a in p_target.get("angles", []):
+                aid = a.get("angle_id")
+                r = cid_map.get(aid)
+                if r:
+                    a["status"] = "draft_ready"
+                    a["clip_id"] = r["clip_id"]
+                    a["composition_path"] = r["comp_path"]
+                    a["video_preview_url"] = r["preview_url"]
+                    a["duration"] = f"{round(r['total_dur'])}s"
+            updated = True
+    if updated:
         print("  -> Content Tracker updated successfully!")
 
     print(f"\n🎉 ALL {len(results)} GOOJODOQ CLIPS COMPLETED SUCCESSFULLY!")

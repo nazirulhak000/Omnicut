@@ -5,62 +5,13 @@ from __future__ import annotations
 
 import datetime
 import hashlib
-import json
-import os
 from pathlib import Path
 import threading
 import time
 from typing import Any, Dict, Optional, Union
 import uuid
 
-try:
-    from filelock import FileLock  # type: ignore
-except ImportError:
-
-    class FileLock:  # type: ignore[no-redef]
-        """Stdlib atomic file lock fallback when `filelock` package is not installed."""
-
-        def __init__(self, lock_file: Union[Path, str], timeout: float = 60.0) -> None:
-            self.lock_file = Path(lock_file)
-            self.timeout = timeout
-            self._fd: Optional[int] = None
-
-        def acquire(self) -> None:
-            self.lock_file.parent.mkdir(parents=True, exist_ok=True)
-            deadline = time.monotonic() + self.timeout
-            while True:
-                try:
-                    self._fd = os.open(
-                        str(self.lock_file),
-                        os.O_CREAT | os.O_EXCL | os.O_RDWR,
-                    )
-                    os.write(self._fd, str(os.getpid()).encode("ascii"))
-                    return
-                except FileExistsError:
-                    if time.monotonic() >= deadline:
-                        raise TimeoutError(f"Timed out acquiring lock {self.lock_file}")
-                    time.sleep(0.01)
-
-        def release(self) -> None:
-            if self._fd is not None:
-                try:
-                    os.close(self._fd)
-                except OSError:
-                    pass
-                self._fd = None
-            try:
-                self.lock_file.unlink(missing_ok=True)
-            except OSError:
-                pass
-
-        def __enter__(self) -> "FileLock":
-            self.acquire()
-            return self
-
-        def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-            self.release()
-
-from scripts import colab_sync
+from scripts import colab_sync, path_utils, store_io
 from scripts.config import BASE_DIR
 from scripts.couple_engine.inspect import _MINIMAL_WEBP_BYTES
 
@@ -73,23 +24,6 @@ def _compute_sha256(path: Path) -> str:
         while chunk := f.read(65536):
             h.update(chunk)
     return h.hexdigest()
-
-
-def _atomic_write_json(path: Path, data: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_name(f"{path.name}.{uuid.uuid4().hex[:8]}.tmp")
-    tmp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp_path, path)
-
-
-def _read_json_list(path: Path) -> list:
-    if not path.exists():
-        return []
-    try:
-        loaded = json.loads(path.read_text(encoding="utf-8"))
-        return loaded if isinstance(loaded, list) else []
-    except Exception:
-        return []
 
 
 def finalize_clip_export(
@@ -116,7 +50,6 @@ def finalize_clip_export(
     registry_file = reg_dir / "export_registry.json"
     bindings_file = reg_dir / "export_cover_bindings.json"
     products_file = reg_dir / "products.json"
-    lock_file = reg_dir / ".export_finalize.lock"
 
     norm_code = (product_code or "").strip().upper()
     rel_mp4 = f"04_Exports/Ready_to_post/{mp4_file.name}"
@@ -141,168 +74,157 @@ def finalize_clip_export(
         resolved_covers.setdefault("3:4", c34)
         resolved_covers.setdefault("webp", cwebp)
 
-    file_lock = FileLock(str(lock_file), timeout=60)
-    with _PROCESS_LOCK, file_lock:
+    # All three stores are written through their SQLite-backed tables
+    # (scripts.store_io): one transaction per store, mirrors re-published by
+    # scripts.db, read errors raise instead of becoming [] (audit S1-01 /
+    # S6-01). _PROCESS_LOCK only keeps this process's own threads from
+    # interleaving the three steps.
+    with _PROCESS_LOCK:
         now_iso = datetime.datetime.now().isoformat()
         now_ts = time.time()
 
-        # Resolve product_id from products.json if present
-        prods = _read_json_list(products_file)
-        prod_record = next(
-            (
-                p
-                for p in prods
-                if str(p.get("product_code", "")).upper() == norm_code
+        def _matches_product(p: Dict[str, Any]) -> bool:
+            return (
+                str(p.get("product_code", "")).upper() == norm_code
                 or str(p.get("code", "")).upper() == norm_code
-                or (product_id and p.get("id") == product_id)
-            ),
-            None,
-        )
+                or bool(product_id and p.get("id") == product_id)
+            )
+
+        # Resolve product_id from the product store if present
+        prods = store_io.load_products(reg_dir)
+        prod_record = next((p for p in prods if _matches_product(p)), None)
         resolved_product_id = (
             product_id
             or (prod_record.get("id") if prod_record else None)
             or norm_code.lower()
         )
 
-        # 1. Upsert into export_registry.json
-        entries = _read_json_list(registry_file)
-        existing_entry = next(
-            (
-                e
-                for e in entries
-                if e.get("clip_id") == clip_id
-                or e.get("path") == rel_mp4
-                or e.get("path_key") == rel_mp4
-            ),
-            None,
-        )
         webp_cov = resolved_covers.get("webp")
         cover_url = f"/exports/{webp_cov.name}" if webp_cov else None
 
-        if existing_entry is not None:
-            export_id = str(existing_entry.get("id") or f"exp_{uuid.uuid4().hex}")
-            existing_entry.update(
-                {
-                    "id": export_id,
-                    "clip_id": clip_id,
-                    "path": rel_mp4,
-                    "path_key": rel_mp4,
-                    "product_id": resolved_product_id,
-                    "product_code": norm_code,
-                    "angle_id": angle_id,
-                    "status": "rendered",
-                    "cover_url": cover_url or existing_entry.get("cover_url"),
-                    "updated_at": now_iso,
-                    "updated_ts": now_ts,
-                }
+        # 1. Upsert into the export registry
+        with store_io.mutate_export_registry(reg_dir) as entries:
+            existing_entry = next(
+                (
+                    e
+                    for e in entries
+                    if e.get("clip_id") == clip_id
+                    or e.get("path") == rel_mp4
+                    or e.get("path_key") == rel_mp4
+                ),
+                None,
             )
-        else:
-            export_id = f"exp_{uuid.uuid4().hex}"
-            entries.append(
-                {
-                    "id": export_id,
-                    "channel_id": "main",
-                    "clip_id": clip_id,
-                    "path": rel_mp4,
-                    "path_key": rel_mp4,
-                    "product_id": resolved_product_id,
-                    "product_code": norm_code,
-                    "angle_id": angle_id,
-                    "project_name": f"_HyperFrames_Studio/{clip_id}",
-                    "aspect_ratio": "9:16",
-                    "resolution": "1080x1920",
-                    "status": "rendered",
-                    "cover_url": cover_url,
-                    "created_at": now_iso,
-                    "updated_at": now_iso,
-                    "created_ts": now_ts,
-                    "updated_ts": now_ts,
-                }
-            )
-        _atomic_write_json(registry_file, entries)
+            if existing_entry is not None:
+                export_id = str(existing_entry.get("id") or f"exp_{uuid.uuid4().hex}")
+                existing_entry.update(
+                    {
+                        "id": export_id,
+                        "clip_id": clip_id,
+                        "path": rel_mp4,
+                        "path_key": rel_mp4,
+                        "product_id": resolved_product_id,
+                        "product_code": norm_code,
+                        "angle_id": angle_id,
+                        "status": "rendered",
+                        "cover_url": cover_url or existing_entry.get("cover_url"),
+                        "updated_at": now_iso,
+                        "updated_ts": now_ts,
+                    }
+                )
+            else:
+                export_id = f"exp_{uuid.uuid4().hex}"
+                entries.append(
+                    {
+                        "id": export_id,
+                        "channel_id": "main",
+                        "clip_id": clip_id,
+                        "path": rel_mp4,
+                        "path_key": rel_mp4,
+                        "product_id": resolved_product_id,
+                        "product_code": norm_code,
+                        "angle_id": angle_id,
+                        "project_name": f"_HyperFrames_Studio/{clip_id}",
+                        "aspect_ratio": "9:16",
+                        "resolution": "1080x1920",
+                        "status": "rendered",
+                        "cover_url": cover_url,
+                        "created_at": now_iso,
+                        "updated_at": now_iso,
+                        "created_ts": now_ts,
+                        "updated_ts": now_ts,
+                    }
+                )
 
-        # 2. Upsert into export_cover_bindings.json
-        bindings = _read_json_list(bindings_file)
+        # 2. Upsert the cover binding
         p_916 = resolved_covers["9:16"]
         p_34 = resolved_covers["3:4"]
-        rel_916 = f"05_Covers_Thumbnails/{p_916.name}"
-        rel_34 = f"05_Covers_Thumbnails/{p_34.name}"
-        sha_916 = _compute_sha256(p_916)
-        sha_34 = _compute_sha256(p_34)
-
-        b_entry = next((b for b in bindings if b.get("export_id") == export_id), None)
         selections_payload = {
-            "9:16": {"path": rel_916, "sha256": sha_916, "format": "9:16"},
-            "3:4": {"path": rel_34, "sha256": sha_34, "format": "3:4"},
+            "9:16": {"path": f"05_Covers_Thumbnails/{p_916.name}", "sha256": _compute_sha256(p_916), "format": "9:16"},
+            "3:4": {"path": f"05_Covers_Thumbnails/{p_34.name}", "sha256": _compute_sha256(p_34), "format": "3:4"},
         }
-        if b_entry is None:
-            bindings.append(
-                {
-                    "channel_id": "main",
-                    "export_id": export_id,
-                    "clip_id": clip_id,
-                    "video_path": rel_mp4,
-                    "selections": selections_payload,
-                    "revision": 1,
-                    "updated_at": now_ts,
-                }
-            )
-        else:
-            b_entry["clip_id"] = clip_id
-            b_entry["video_path"] = rel_mp4
-            b_entry["selections"] = selections_payload
-            b_entry["revision"] = int(b_entry.get("revision", 1)) + 1
-            b_entry["updated_at"] = now_ts
-        _atomic_write_json(bindings_file, bindings)
-
-        # 3. Sync status='rendered' & clip_id into products.json
-        if prod_record is None:
-            prod_record = {
-                "id": resolved_product_id,
-                "product_code": norm_code,
-                "name": norm_code,
-                "status": "rendered",
-                "updated_at": now_iso,
-                "angles": [],
-            }
-            prods.append(prod_record)
-        else:
-            prod_record["status"] = "rendered"
-            prod_record["updated_at"] = now_iso
-            prod_record.setdefault("angles", [])
-
-        angles = prod_record["angles"]
-        ang_record = next(
-            (
-                a
-                for a in angles
-                if a.get("angle_id") == angle_id
-                or a.get("id") == angle_id
-                or a.get("clip_id") == clip_id
-            ),
-            None,
+        store_io.upsert_cover_binding(
+            export_id,
+            rel_mp4,
+            selections_payload,
+            channel_id="main",
+            extra={"clip_id": clip_id},
+            bump_revision=True,
+            docs_dir=reg_dir,
+            clock=lambda: now_ts,
         )
-        if ang_record is None:
-            angles.append(
-                {
-                    "angle_id": angle_id,
-                    "clip_id": clip_id,
-                    "status": "rendered",
-                    "export_id": export_id,
-                    "video_url": str(mp4_file.resolve()),
-                    "cover_url": str(webp_cov.resolve()) if webp_cov else None,
-                }
-            )
-        else:
-            ang_record["angle_id"] = ang_record.get("angle_id") or angle_id
-            ang_record["clip_id"] = clip_id
-            ang_record["status"] = "rendered"
-            ang_record["export_id"] = export_id
-            ang_record["video_url"] = str(mp4_file.resolve())
-            if webp_cov:
-                ang_record["cover_url"] = str(webp_cov.resolve())
 
-        _atomic_write_json(products_file, prods)
+        # 3. Sync status='rendered' & clip_id into the product store.
+        # Paths are stored BASE_DIR-relative (audit S1-16, AGENTS rule 2).
+        workspace_root = reg_dir.parent
+        video_url = path_utils.to_relative(mp4_file.resolve(), base_dir=workspace_root)
+        webp_url = path_utils.to_relative(webp_cov.resolve(), base_dir=workspace_root) if webp_cov else None
+        with store_io.mutate_products(reg_dir) as prods:
+            prod_record = next((p for p in prods if _matches_product(p)), None)
+            if prod_record is None:
+                prod_record = {
+                    "id": resolved_product_id,
+                    "product_code": norm_code,
+                    "name": norm_code,
+                    "status": "rendered",
+                    "updated_at": now_iso,
+                    "angles": [],
+                }
+                prods.append(prod_record)
+            else:
+                prod_record["status"] = "rendered"
+                prod_record["updated_at"] = now_iso
+                prod_record.setdefault("angles", [])
+
+            angles = prod_record["angles"]
+            ang_record = next(
+                (
+                    a
+                    for a in angles
+                    if a.get("angle_id") == angle_id
+                    or a.get("id") == angle_id
+                    or a.get("clip_id") == clip_id
+                ),
+                None,
+            )
+            if ang_record is None:
+                angles.append(
+                    {
+                        "angle_id": angle_id,
+                        "clip_id": clip_id,
+                        "status": "rendered",
+                        "export_id": export_id,
+                        "video_url": video_url,
+                        "cover_url": webp_url,
+                    }
+                )
+            else:
+                ang_record["angle_id"] = ang_record.get("angle_id") or angle_id
+                ang_record["clip_id"] = clip_id
+                ang_record["status"] = "rendered"
+                ang_record["export_id"] = export_id
+                ang_record["video_url"] = video_url
+                if webp_url:
+                    ang_record["cover_url"] = webp_url
 
     gdrive_result: Dict[str, Any] = {"synced": False, "reason": "disabled"}
     if gdrive_sync:

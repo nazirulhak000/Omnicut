@@ -38,12 +38,21 @@ Convention
   (`Path.exists()` returning False, or the 403/404 the media route already
   raises) is left to report it rather than this module raising or silently
   mangling the value.
+- Legacy roots (audit X-02): the project was moved from
+  ``D:/Winona/Programmer/Capcut`` to its current folder, and stored data
+  still holds absolute paths under the old root. `to_absolute()` rebases a
+  path under a known legacy root (``LEGACY_ROOTS``, extendable through the
+  ``OMNICUT_LEGACY_ROOTS`` env var, ``os.pathsep``-separated) onto BASE_DIR,
+  matching the prefix case-insensitively -- but ONLY when the rebased file
+  actually exists; otherwise the stored value is returned unchanged. Stored
+  data is never rewritten by this module.
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from scripts.config import BASE_DIR
 
@@ -51,6 +60,47 @@ try:
     from scripts.config import CAPCUT_DRAFT_DIR
 except ImportError:  # pragma: no cover - config always defines this today
     CAPCUT_DRAFT_DIR = None
+
+
+# Former absolute roots of this project (configurable defaults, not paths the
+# code depends on). Extend at runtime with OMNICUT_LEGACY_ROOTS.
+LEGACY_ROOTS: Tuple[str, ...] = (
+    r"D:\Winona\Programmer\Capcut",
+)
+LEGACY_ROOTS_ENV = "OMNICUT_LEGACY_ROOTS"
+
+
+def legacy_roots() -> List[str]:
+    """Known legacy roots: the built-in defaults plus any listed in the
+    ``OMNICUT_LEGACY_ROOTS`` env var (``os.pathsep``-separated)."""
+    roots = list(LEGACY_ROOTS)
+    extra = os.environ.get(LEGACY_ROOTS_ENV, "")
+    roots.extend(part.strip() for part in extra.split(os.pathsep) if part.strip())
+    return roots
+
+
+def _rebase_legacy(text: str, root: Path) -> Optional[Path]:
+    """Map ``text`` from a legacy root onto ``root`` when it lives under one
+    (case-insensitive prefix, either slash direction) and the rebased file
+    exists. Returns None otherwise."""
+    normalized = text.replace("\\", "/")
+    for legacy in legacy_roots():
+        legacy_norm = legacy.replace("\\", "/").rstrip("/")
+        if not legacy_norm:
+            continue
+        n = len(legacy_norm)
+        if normalized[:n].casefold() != legacy_norm.casefold():
+            continue
+        if len(normalized) == n:
+            remainder = ""
+        elif normalized[n] == "/":
+            remainder = normalized[n + 1:].lstrip("/")
+        else:
+            continue
+        rebased = root / remainder if remainder else root
+        if rebased.exists():
+            return rebased
+    return None
 
 
 def _is_within(path: Path, root: Path) -> bool:
@@ -112,6 +162,8 @@ def to_absolute(path: object, base_dir: Optional[Path] = None) -> Optional[Path]
     Handles all three shapes a record can hold today:
       - BASE_DIR-relative (new convention)              -> base_dir / path
       - absolute, inside base_dir (old, un-migrated data) -> Path(path) as-is
+      - absolute, under a known legacy root (LEGACY_ROOTS /
+        OMNICUT_LEGACY_ROOTS) whose rebased file exists  -> base_dir / rest
       - absolute, outside base_dir (foreign root, or
         CAPCUT_DRAFT_DIR)                                 -> Path(path) as-is,
         unchanged -- callers get the existing not-found/access-denied
@@ -129,9 +181,21 @@ def to_absolute(path: object, base_dir: Optional[Path] = None) -> Optional[Path]
     candidate = Path(text)
 
     if candidate.is_absolute():
+        if not _is_within_text(text, root):
+            rebased = _rebase_legacy(text, root)
+            if rebased is not None:
+                return rebased
         return candidate
 
     return root / text
+
+
+def _is_within_text(text: str, root: Path) -> bool:
+    """Cheap, non-resolving check that ``text`` already sits under ``root``
+    (so a path inside BASE_DIR is never rebased)."""
+    folded = text.replace("\\", "/").casefold()
+    prefix = str(root).replace("\\", "/").rstrip("/").casefold()
+    return folded == prefix or folded.startswith(prefix + "/")
 
 
 def is_probably_relative(path: object) -> bool:

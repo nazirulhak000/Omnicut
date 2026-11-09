@@ -59,6 +59,7 @@ sys.path.insert(0, str(CLIPS_DIR))
 sys.path.insert(0, str(STUDIO / "kit"))
 
 from scripts.config import get_gemini_api_keys
+from scripts import store_io  # noqa: E402
 from rebuild_all_pov_clean import (
     align_words_in_waveform,
     split_into_n_segments,
@@ -970,20 +971,17 @@ def build_composition(vo_dur, timings, clip_dir, cid, script):
 
 
 def sync_products_json(cid, aid, total_dur):
-    """Sync angle status in _Docs/products.json to 'draft_ready'."""
-    products_file = DOCS_DIR / "products.json"
-    if not products_file.exists():
-        return
+    """Sync angle status in the product store to 'draft_ready' (via
+    scripts.store_io, audit S1-01 -- no direct products.json write)."""
     try:
-        prods = json.loads(products_file.read_text(encoding="utf-8"))
-        p_target = next((p for p in prods if p.get("id") == "jee01" or "Jeep EW011" in p.get("name", "")), None)
-        if p_target:
-            for a in p_target.get("angles", []):
-                if a.get("id") == aid or a.get("clip_id") == cid:
-                    if a.get("status") != "rendered":
-                        a["status"] = "draft_ready"
-                    a["duration"] = total_dur
-            products_file.write_text(json.dumps(prods, ensure_ascii=False, indent=2), encoding="utf-8")
+        with store_io.mutate_products(DOCS_DIR) as prods:
+            p_target = next((p for p in prods if p.get("id") == "jee01" or "Jeep EW011" in p.get("name", "")), None)
+            if p_target:
+                for a in p_target.get("angles", []):
+                    if a.get("id") == aid or a.get("clip_id") == cid:
+                        if a.get("status") != "rendered":
+                            a["status"] = "draft_ready"
+                        a["duration"] = total_dur
     except Exception as e:
         print(f"  [Warn] Could not sync products.json: {e}")
 

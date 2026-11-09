@@ -113,7 +113,9 @@ def _trace_deletes(module, tmp_path: Path, name: str = "items") -> list:
 
 
 def _count_imports(statements: list, name: str = "items") -> int:
-    return sum(1 for s in statements if s.strip() == f"DELETE FROM {name}")
+    # An external-mirror import is a per-row merge (audit X-01 / D7): it
+    # starts with exactly one full-row scan of this shape and never DELETEs.
+    return sum(1 for s in statements if s.strip() == f"SELECT id, updated_at, data FROM {name}")
 
 
 # -- (a) forced interleaving -----------------------------------------------------
@@ -386,12 +388,15 @@ def test_external_mirror_edit_is_imported_exactly_once(tmp_path):
     assert _count_imports(statements) == 0  # a writer's own mirror is never re-imported
 
     mirror.write_text(json.dumps([{"id": "hand-1"}, {"id": "hand-2", "note": "edited by hand"}]), encoding="utf-8")
-    assert {r["id"] for r in table.load()} == {"hand-1", "hand-2"}
-    assert {r["id"] for r in table.load()} == {"hand-1", "hand-2"}
+    # Per-row merge (D7): hand-added rows are imported, but "seed" -- missing
+    # from the hand-edited file -- is NOT deleted (no whole-table replace).
+    assert {r["id"] for r in table.load()} == {"seed", "hand-1", "hand-2"}
+    assert {r["id"] for r in table.load()} == {"seed", "hand-1", "hand-2"}
     with table.mutate() as records:
         records.append({"id": "after"})
-    assert {r["id"] for r in table.load()} == {"hand-1", "hand-2", "after"}
+    assert {r["id"] for r in table.load()} == {"seed", "hand-1", "hand-2", "after"}
     assert _count_imports(statements) == 1
+    assert not any(s.strip().upper().startswith("DELETE FROM ITEMS") for s in statements)
     _assert_consistent(module, tmp_path)
 
 
@@ -496,9 +501,11 @@ def test_process_killed_between_replace_and_commit(tmp_path, next_op):
         table.save([{"id": "only"}])
         expected = {"only"}
     assert {r["id"] for r in table.load()} == expected
-    # load/mutate: repair publishes DB truth without importing; save: its
-    # own intentional full-table DELETE and no import afterwards.
-    assert _count_imports(statements) == (1 if next_op == "save" else 0)
+    # Repair publishes DB truth without importing; only save() performs its
+    # own intentional full-table DELETE (an import never does, D7).
+    assert _count_imports(statements) == 0
+    deletes = [s for s in statements if s.strip() == "DELETE FROM items"]
+    assert len(deletes) == (1 if next_op == "save" else 0)
     assert _assert_consistent(module, tmp_path) == expected
 
 
@@ -634,7 +641,11 @@ def test_committed_pending_intent_does_not_hide_later_external_edit(tmp_path):
     intent = module._mirror_intent_path(mirror)
     assert intent.exists()
     mirror.write_text(json.dumps([{"id": "external", "note": "later hand edit"}]), encoding="utf-8")
-    assert {r["id"] for r in table.load()} == {"external"}
+    # Imported per row (D7): "external" is added, "seed" is kept.
+    assert {r["id"] for r in table.load()} == {"seed", "external"}
+    # The import re-published the merged mirror (its own fresh intent);
+    # the next load sees that publication committed and clears it.
+    assert {r["id"] for r in table.load()} == {"seed", "external"}
     assert not intent.exists()
     _assert_consistent(module, tmp_path)
 
