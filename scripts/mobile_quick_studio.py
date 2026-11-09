@@ -134,6 +134,19 @@ def _find_duplicate_raw(prod_raw_dir: Path, size: int, digest: str) -> Optional[
     return None
 
 
+_RAW_UPLOAD_LOCKS: Dict[str, Any] = {}
+
+
+def _raw_upload_lock(product_id: str):
+    """One lock per product folder: checksum-check + write is atomic (S1-13)."""
+    import threading
+
+    lock = _RAW_UPLOAD_LOCKS.get(product_id)
+    if lock is None:
+        lock = _RAW_UPLOAD_LOCKS.setdefault(product_id, threading.Lock())
+    return lock
+
+
 def _sessions(channel_id=None):
     return sorted(recording_sessions._load(channel_id), key=lambda r: r.get("updated_at") or r.get("created_at") or "", reverse=True)
 
@@ -329,16 +342,28 @@ class MobileQuickStudioService:
         prod_raw_dir.mkdir(parents=True, exist_ok=True)
 
         # P2-2 / กฎ 13: ตรวจ checksum ก่อนเขียนเสมอ — ไฟล์ซ้ำใช้ไฟล์เดิม ไม่เขียนทับ/เพิ่มซ้ำ
+        # S1-13: the check and the write happen under one per-product lock, and
+        # the bytes land via temp file + os.replace, so two concurrent uploads
+        # of the same clip end up as one file (never a half-written one).
+        import os
+
         digest = hashlib.sha256(file_bytes).hexdigest()
-        duplicate = _find_duplicate_raw(prod_raw_dir, len(file_bytes), digest)
-        if duplicate is not None:
-            dest_path = duplicate
-            deduplicated = True
-        else:
-            safe_name = f"mobile_take_{int(time.time())}_{uuid.uuid4().hex[:6]}{ext}"
-            dest_path = prod_raw_dir / safe_name
-            dest_path.write_bytes(file_bytes)
-            deduplicated = False
+        with _raw_upload_lock(product_id):
+            duplicate = _find_duplicate_raw(prod_raw_dir, len(file_bytes), digest)
+            if duplicate is not None:
+                dest_path = duplicate
+                deduplicated = True
+            else:
+                safe_name = f"mobile_take_{int(time.time())}_{uuid.uuid4().hex[:6]}{ext}"
+                dest_path = prod_raw_dir / safe_name
+                tmp_path = prod_raw_dir / f".{safe_name}.part"
+                try:
+                    tmp_path.write_bytes(file_bytes)
+                    os.replace(tmp_path, dest_path)
+                finally:
+                    if tmp_path.exists():
+                        tmp_path.unlink()
+                deduplicated = False
         safe_name = dest_path.name
 
         rel_path = f"01_Raw/{product_id}/{safe_name}"
