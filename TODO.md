@@ -4,6 +4,35 @@
 
 ## รอบปัจจุบัน
 
+- [ ] Round CLAUDE-PLAN-TIKTOK-AUTOPOST-100-AUTONOMOUS-20261109 · ตรวจ extension autopost ว่าทำไมโพสต์ออโต้ไม่จบ 100% + วางแผนแก้ (แผนเท่านั้น ห้ามแก้โค้ดจนผู้ใช้ตอบ "อนุมัติแผน") → แผน+พรอมพ์: `_Docs/Plans/TIKTOK_AUTOPOST_100_AUTONOMOUS_PLAN.md`
+  - [x] ตรวจโค้ด: พบ hard blocker 5 จุด (B1 `runWaitForUploadOnly` ไม่ return → ทุกคลิปพังขั้น 2 · B2 reconcile ไม่เคยรัน · B3 `%` ในแคปชันทำค้าง · B4 receipt ค้างล็อกทั้ง batch · B5 lease_token ถูกตัด) — B1–B3 ยืนยันกับโค้ดเอง
+  - [x] Jev ก่อนเริ่ม: ล่ม (`JSONDecodeError`) → degrade ตามกฎ 19 ทำงานต่อ
+  - [x] ผู้ใช้อนุมัติแผน 2026-11-09 + ยืนยันโพสต์ทีละคลิป ไม่ทำ concurrent (ข้อยกเว้นกฎ 24 สำหรับงานโพสต์ TikTok)
+  - [x] Jev (ส่ง state เป็น JSON ถูกแล้ว): เลือก `patch_ext_first` conf 0.68 (<0.80) — ตรงกับลำดับแผนที่ผู้ใช้อนุมัติไว้ จึงทำต่อ
+  - [x] Phase 1 รอบแรก (กิ่ง `fix/tiktok-autopost-blockers`): B1–B5 + แท็บ /content ค้าง + ปัดเวลา 23:58/กันเวลาผ่านแล้ว · ext tests 85→97 ผ่านหมด, pytest posting 87/87 · ยังไม่ได้ลองบนหน้า TikTok จริง
+  - [ ] Phase 1 ที่เหลือ: debugger session เดียวต่อคลิป · ปุ่ม draft จริง + backend รับ `draft_saved` · ต่อ `dismissInterrupts` · `scheduled_on_platform` mark export · reconcile เข้มขึ้น · Phase 0 step log/screenshot + `dry_run`
+  - [ ] ทดสอบบนหน้าจริง: dry_run 3 คลิป (ผู้ใช้ reload extension ที่ chrome://extensions ก่อน)
+  - [ ] Phase 2 Python Conductor → Phase 3 → Phase 4
+  - ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
+- [ ] Round CLAUDE-AUDIT-EDITOR-PIPELINE-20261109 · ตรวจทั้งสาย ดึงสินค้า → สคริปต์/TTS → auto-cut → Editor → ซับ/parity → render/registry แล้วทำแผนแก้ (ตรวจ+วางแผนเท่านั้น ห้ามแก้โค้ดจนผู้ใช้ตอบ "อนุมัติแผน")
+  - [x] Pre-flight: TODO/git status (งานค้าง 9 ไฟล์ frontend + dist เป็นของรอบ Antigravity 20261109 ที่ยังไม่ commit — ตรวจตามสภาพ ไม่ stash/commit แทน) · Jev ก่อนเริ่ม: approach=as_is conf 1.0, safe_to_start noul 0.92 conf null → ถามผู้ใช้แล้ว อนุมัติให้เริ่ม
+  - [x] ด่าน 1–6 + รอบ 2 รอยต่อ → 106 ข้อ (P0 5 · P1 43 · P2 40 · P3 18) ดู [_Docs/Reports/AUDIT_20261109_editor_pipeline.md](_Docs/Reports/AUDIT_20261109_editor_pipeline.md)
+  - [x] เทส: node 1,226/1,226 · parity/subtitle 357/357 · browser E2E `tests/motion_capture` 77 fail / 101 pass (X-07) · full pytest ที่ไม่ใช่ browser ยังไม่มีผล (รอบแรกชน agent ขนาน หยุดเอง)
+  - [x] Jev หลังทำ: rules_respected=yes conf 0.90 · report_complete="mostly complete" conf 0.72 → escalate ถามผู้ใช้
+  - [x] เก็บกวาด: `.tmp/audit_20261109_s1..s6` + `.tmp/motion-vite-*` ลบแล้ว; ไฟล์ใน 01–05 และ registry 3 ไฟล์ตรง snapshot ก่อนเริ่ม
+  - [ ] **รอผู้ใช้ตอบ "อนุมัติแผน" + ตัดสินใจ D1–D13** (รายงานหัวข้อ 8.4) — ห้ามแก้โค้ดก่อน
+  - [ ] P0 ที่ต้องทำก่อน: S5-01/02 font registry · X-01/S1-01/S6-01 single writer · S1-07 scraper None
+  - ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
+- [x] Round ANTIGRAVITY-FULL-PREVIEW-AND-NAVBAR-IMMERSIVE-SYNC-20261109 · ปฏิบัติการผสานการย่อ/ขยายพรีวิวกับการซ่อน Navbar สู่ระบบเดียวกัน 100% (Synchronized Full Preview & Immersive Navbar Collapse): กดขยายพรีวิวจะซ่อน Navbar สู่ Floating Capsule และล่างจออัตโนมัติ และกดย่อพรีวิว/กดแสดงแถบ/กด Esc จะคืนค่าทั้งขนาดพรีวิวและ Navbar พร้อมกัน ผ่าน Vitest 1,226/1,226 tests (100%), Parity 212/212 (100%), Vite Build สมบูรณ์ · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-10-ROUNDS-EDITOR-UI-UX-PERFECTION-AND-REDUNDANCY-AUDIT-20261109 · ลูปตรวจเช็กความสมเหตุสมผลและสมดุล UI/UX สตูดิโอตัดต่อ 10 รอบ (10-Round Master UI/UX & Redundancy Audit) กำจัดปุ่มย่อซ้ำซ้อนสองอัน, ปรับแต่ง Floating Capsule, ตัวจับลากพรีวิว, ป้ายแท็บ และ Safe Zone ให้สมดุลระดับ Pro NLE ผ่าน Vitest 1,226/1,226 tests (100%), Parity 212/212 (100%), Vite Build สมบูรณ์ · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-NAVBAR-RESPONSIVE-ALL-SIZES-20261109 · ปฏิบัติการแก้ปัญหา Navbar ชนกันและไม่ Responsive ทุกขนาดหน้าจอ (EditorHeader Multi-Breakpoint Ergonomics & Zero-Collision Layout) ผ่าน Vitest 1,226/1,226 (100%), Parity 212/212 (100%) และ Vite Production Build สมบูรณ์ · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-IMMERSIVE-NAVBAR-COLLAPSIBLE-AND-FULL-PREVIEW-RESIZER-20261109 · ปฏิบัติการ Floating Studio Capsule ย่อ/ขยายอัจฉริยะ (Collapsible Dynamic Capsule) ไม่บดบังหัววิดีโอ 9:16 บนมือถือ & ปลดล็อกการลากปรับขนาด Editor เพื่อเปิดพรีวิว 9:16 เต็มจอ (Full-Screen Preview Resizer) พร้อม One-Tap / Double-Click Toggle ทั้งบน Mobile และ Desktop ผ่าน Vitest 1,226/1,226 (100%), Parity 212/212 (100%) และ Vite Build สมบูรณ์ · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [x] Round ANTIGRAVITY-IMMERSIVE-STUDIO-AND-NAVBAR-TOGGLE-20261109 · ปฏิบัติการ Immersive Studio & Navbar/Bottom Bar Auto-Hide Mode (เหมือน CapCut Mobile/Desktop):
   - [x] ออกแบบและเพิ่มสถานะ `isEditorImmersive` ใน `App.jsx` และส่งต่อไปยัง `Sidebar.jsx` และ `EditorShell.jsx`
   - [x] ปรับ `Sidebar.jsx` บน Mobile ให้ซ่อนแถบนำทางล่างอย่างนุ่มนวล (`translate-y-full opacity-0 pointer-events-none transition-all duration-300`) เมื่ออยู่ในโหมด Immersive หรือตัดต่อ
