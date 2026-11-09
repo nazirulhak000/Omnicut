@@ -647,6 +647,16 @@ class ProductStore:
         return assigned
 
     @classmethod
+    def seed_products(cls, seed_data: List[Dict[str, Any]]) -> int:
+        """Startup/system helper: append pre-built product rows (e.g. from
+        ``products_seed.json``) verbatim, whatever channel they belong to.
+        Lives here so route/startup modules never pass ``all_channels``."""
+        scope = cls._scope(None, all_channels=True)
+        with cls._scoped_mutate(scope) as products:
+            products.extend(seed_data)
+        return len(seed_data)
+
+    @classmethod
     def apply_to_each_product(
         cls,
         fn,
