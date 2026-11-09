@@ -82,6 +82,8 @@ WORD_MAP = {
     "Bluetooth":"บลูทูธ",
     "BT":       "บลูทูธ",
     "NFC":      "เอ็นเอฟซี",
+    "5G":       "ไฟว์จี",
+    "4G":       "โฟร์จี",
     "AI":       "เอไอ",
     "WFH":      "เวิร์คฟรอมโฮม",
     "DIY":      "ดีไอวาย",
@@ -242,6 +244,8 @@ OFFICIAL_ENGLISH_MAP = [
     ("พาวเวอร์แบงก์", "Power Bank"),
     ("พาวเวอร์แบงค์", "Power Bank"),
     ("ฟาสต์ชาร์จ", "Fast Charge"),
+    ("ไวร์เลส", "Wireless"),
+    ("พีดี", "PD"),
     ("ฟาสชาร์จ", "Fast Charge"),
     ("ควิกชาร์จ", "Quick Charge"),
 
@@ -314,6 +318,13 @@ class TTSSanitizer:
         ) + r')(?=\s|$|[,.\)!?])',
         flags=re.IGNORECASE
     )
+    # Single-letter units whose other case means something else: "5G"/"4G"
+    # is a network generation, not grams (S2-06), "5M" is not metres. These
+    # only expand on an exact-case match; every other unit stays
+    # case-insensitive ("66w", "40hz").
+    _CASE_EXACT_UNITS = frozenset({"g", "m"})
+    # WORD_MAP keys that must keep their case ("5g" is grams, not 5G).
+    _CASE_SENSITIVE_WORDS = frozenset({"5G", "4G"})
 
     @classmethod
     def strip_emoji(cls, text: str) -> str:
@@ -347,11 +358,13 @@ class TTSSanitizer:
         def _replace_num_unit(m):
             num = m.group(1).replace(",", "")
             unit_raw = m.group(2)
-            # Find the correct case-insensitive match
-            for key, val in ABBREVIATION_MAP.items():
-                if unit_raw.lower() == key.lower():
-                    return f"{num} {val}"
-            return m.group(0)
+            val = ABBREVIATION_MAP.get(unit_raw)
+            if val is None:
+                for key, candidate in ABBREVIATION_MAP.items():
+                    if unit_raw.lower() == key.lower() and key not in cls._CASE_EXACT_UNITS:
+                        val = candidate
+                        break
+            return f"{num} {val}" if val else m.group(0)
 
         result = cls._NUM_UNIT_PATTERN.sub(_replace_num_unit, result)
 
@@ -360,18 +373,39 @@ class TTSSanitizer:
         # "detail" -> "detเอไอl", "Product" -> "โปรduct", "Problem" -> "โปรblem", "From" -> "Fรอม"
         for abbr, thai in sorted(WORD_MAP.items(), key=lambda x: len(x[0]), reverse=True):
             if re.match(r'^[a-zA-Z0-9_\-]+$', abbr):
-                pattern = re.compile(r'(?<![a-zA-Z0-9])' + re.escape(abbr) + r'(?![a-zA-Z0-9])', re.IGNORECASE)
+                flags = 0 if abbr in cls._CASE_SENSITIVE_WORDS else re.IGNORECASE
+                pattern = re.compile(r'(?<![a-zA-Z0-9])' + re.escape(abbr) + r'(?![a-zA-Z0-9])', flags)
             else:
                 pattern = re.compile(re.escape(abbr), re.IGNORECASE)
             result = pattern.sub(thai, result)
 
         return result
 
+    # A sentence-final particle only counts when it ends a clause: followed
+    # by whitespace, end of text or closing punctuation. Without this anchor
+    # the bare substrings rewrote real words -- คะแนน→ครับแนน, จ้าง→ครับง,
+    # หน้าจอ→หนะจอ (S2-03).
+    _CLAUSE_END = r'(?=[\s!?.,~"\'\)\]…ๆ]|$)'
+    _MALE_TONE_RULES = [
+        (re.compile(r'บ้างคะ' + _CLAUSE_END), 'บ้างครับ'),
+        (re.compile(r'(?:ใช่ไหมคะ|ใช่มั้ยคะ)' + _CLAUSE_END), 'ใช่ไหมครับ'),
+        (re.compile(r'(?:ไหมคะ|มั้ยคะ)' + _CLAUSE_END), 'ไหมครับ'),
+        (re.compile(r'นะคะ' + _CLAUSE_END), 'นะครับ'),
+        (re.compile(r'ค่ะ' + _CLAUSE_END), 'ครับ'),
+        # not the tail of แคะ/เคะ-style syllables
+        (re.compile(r'(?<![เแโใไ])คะ' + _CLAUSE_END), 'ครับ'),
+        # not เจ้า (owner/you) nor the adjective จ้า in แสงจ้า/สว่างจ้า
+        (re.compile(r'(?<!เ)(?<!แสง)(?<!สว่าง)จ้า' + _CLAUSE_END), 'ครับ'),
+        # not หน้า (face/front/next)
+        (re.compile(r'(?<!ห)น้า' + _CLAUSE_END), 'นะ'),
+    ]
+
     @classmethod
     def enforce_male_tone(cls, text: str) -> str:
         """
         Enforce strict male speaker persona (ผม / ครับ / นะครับ).
-        Eliminates feminine sentence-final particles and slang:
+        Rewrites feminine sentence-final particles and slang -- only at the
+        end of a clause, never inside a word:
         - นะคะ -> นะครับ
         - ค่ะ / คะ / บ้างคะ / ไหมคะ -> ครับ / บ้างครับ / ไหมครับ
         - จ้า -> ครับ
@@ -382,14 +416,8 @@ class TTSSanitizer:
         if not text:
             return ""
         result = text
-        result = re.sub(r'บ้างคะ', 'บ้างครับ', result)
-        result = re.sub(r'ใช่ไหมคะ|ใช่มั้ยคะ', 'ใช่ไหมครับ', result)
-        result = re.sub(r'ไหมคะ|มั้ยคะ', 'ไหมครับ', result)
-        result = re.sub(r'นะคะ', 'นะครับ', result)
-        result = re.sub(r'ค่ะ', 'ครับ', result)
-        result = re.sub(r'คะ', 'ครับ', result)
-        result = re.sub(r'จ้า', 'ครับ', result)
-        result = re.sub(r'น้า', 'นะ', result)
+        for pattern, repl in cls._MALE_TONE_RULES:
+            result = pattern.sub(repl, result)
         result = re.sub(r'แกรรร+|แกรร+', 'ทุกคน', result)
         result = re.sub(r'\bหนู\b', 'ผม', result)
         return result
@@ -467,13 +495,14 @@ class TTSSanitizer:
         return text.strip()
 
     @classmethod
-    def clean(cls, text: str) -> str:
+    def clean(cls, text: str, gender: Optional[str] = None) -> str:
         """
         Full sanitization pipeline for TTS audio synthesis.
         
         Returns text suitable for direct TTS voice generation:
         - No emoji
-        - Enforced 100% male tone
+        - Male tone enforced (ครับ) unless the voice reading it is female --
+          a female voice must not be forced to say "ครับ" (S2-16)
         - Abbreviations expanded to Thai pronunciation
         - No hashtags or markdown
         - Clean spacing
@@ -483,15 +512,16 @@ class TTSSanitizer:
 
         result = text
         result = cls.strip_emoji(result)
-        result = cls.enforce_male_tone(result)
+        if not (gender and "female" in str(gender).lower()):
+            result = cls.enforce_male_tone(result)
         result = cls.expand_abbreviations(result)
         result = cls.clean_symbols(result)
         return result
 
     @classmethod
-    def clean_script_lines(cls, lines: List[str]) -> List[str]:
+    def clean_script_lines(cls, lines: List[str], gender: Optional[str] = None) -> List[str]:
         """Clean a list of script lines for TTS synthesis."""
-        return [cls.clean(line) for line in lines if line.strip()]
+        return [cls.clean(line, gender=gender) for line in lines if line.strip()]
 
     @classmethod
     def process_angle(cls, angle: Dict) -> Dict:

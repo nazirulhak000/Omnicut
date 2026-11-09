@@ -118,16 +118,27 @@ def apply_hook_to_angle(req: ApplyAngleHookRequest, channel_scope: ChannelScope 
         target_angle["hook_style_id"] = _variant_style_id(variant)
 
     # Optionally update the first spoken line
+    # script_lines are display text (subtitles), tts_lines the phonetic
+    # spoken form -- the opening line goes into each in its own form (S2-05).
     if req.update_script_first_line and variant.get("opening_line"):
-        clean_opening = variant["opening_line"].strip()
-        script_lines = list(target_angle.get("script_lines") or [])
+        raw_opening = variant["opening_line"].strip()
+        display_opening = TTSSanitizer.clean_display_text(raw_opening)
+        tts_opening = TTSSanitizer.clean(raw_opening)
+        old_script_lines = list(target_angle.get("script_lines") or [])
+        old_tts_lines = list(target_angle.get("tts_lines") or [])
+        script_lines = list(old_script_lines)
         if script_lines:
-            script_lines[0] = clean_opening
+            script_lines[0] = display_opening
         else:
-            script_lines = [clean_opening]
+            script_lines = [display_opening]
+        if old_script_lines and len(old_tts_lines) == len(old_script_lines):
+            tts_lines = list(old_tts_lines)
+        else:
+            tts_lines = [TTSSanitizer.clean(line) for line in script_lines]
+        tts_lines[0] = tts_opening
         target_angle["script_lines"] = script_lines
         target_angle["script_text"] = "\n".join(script_lines)
-        target_angle["tts_lines"] = script_lines
+        target_angle["tts_lines"] = tts_lines
 
     angles[matched_idx] = target_angle
     updated_product = ProductStore.update(req.product_id, angles=angles, channel_id=channel_scope.channel_id)

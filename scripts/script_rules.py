@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+from scripts.tts_sanitizer import OFFICIAL_ENGLISH_MAP, TTSSanitizer
 from scripts.compliance_lint import (
     COUPLE_PRICE_KEYWORDS,
     COUPLE_PRICE_SHORT_BAHT_RE,
@@ -66,15 +67,27 @@ EMOJI_RE = re.compile(
     flags=re.UNICODE,
 )
 
-# Rule 3.9: Forbidden Thai transliterations of English tech terms
-THAI_TECH_REPLACEMENTS: Dict[str, str] = {
-    "บลูทูธ": "Bluetooth",
-    "ไทป์ซี": "Type-C",
-    "ฟาสต์ชาร์จ": "Fast Charge",
-    "ไวร์เลส": "Wireless",
-    "ยูเอสบี": "USB",
-    "พีดี": "PD",
+# Rule 3.9: Forbidden Thai transliterations of English tech terms.
+# The Thai->English map itself lives in ONE place -- tts_sanitizer's
+# OFFICIAL_ENGLISH_MAP (S2-21: the two copies used to disagree). This dict is
+# only the subset the lint flags, kept to the same six keys as
+# frontend/src/lib/scriptRules.js for parity; its English values are read
+# from the canonical map so they can never drift.
+_LINT_TRANSLITERATION_KEYS = ("บลูทูธ", "ไทป์ซี", "ฟาสต์ชาร์จ", "ไวร์เลส", "ยูเอสบี", "พีดี")
+_OFFICIAL_ENGLISH_PLAIN: Dict[str, str] = {
+    thai: english for thai, english in OFFICIAL_ENGLISH_MAP
+    if not (thai.startswith("(?") or r"\b" in thai)
 }
+THAI_TECH_REPLACEMENTS: Dict[str, str] = {
+    key: _OFFICIAL_ENGLISH_PLAIN[key] for key in _LINT_TRANSLITERATION_KEYS
+}
+
+# Nui's male-particle guard: only a clause-final particle is rewritten. The
+# bare substring "คับ" used to eat real words -- บังคับ→บังนะพี่บ่าว,
+# คับแคบ→นะพี่บ่าวแคบ (S2-14).
+NUI_MALE_PARTICLE_RE = re.compile(
+    r"(?:นะครับ|นะคับ|ครับผม|ครับ|(?<!บัง)คับ)(?=[\s!?.,~\"'\)\]…ๆ]|$)"
+)
 
 NUI_FORBIDDEN_MALE_PARTICLES = (
     "ครับ",
@@ -298,8 +311,7 @@ def sanitize_text_for_rules(text: str, speaker: Optional[str] = None) -> str:
     # 2. Remove emojis
     out = EMOJI_RE.sub("", out)
     # 3. Replace Thai tech transliterations with English terms
-    for bad_thai, eng_term in THAI_TECH_REPLACEMENTS.items():
-        out = out.replace(bad_thai, eng_term)
+    out = TTSSanitizer.enforce_official_english(out)
     # 4. Strip price patterns and keywords
     out = PRICE_SHORT_BAHT_RE.sub("คุ้มมาก", out)
     price_fallbacks = {
@@ -318,7 +330,7 @@ def sanitize_text_for_rules(text: str, speaker: Optional[str] = None) -> str:
     # 5. Persona guard: Nui must never speak male particles
     if normalize_speaker(speaker) == "nui":
         out = out.replace("พี่บ่าวพูดเอง", "น้องนุ้ยบอกเลย")
-        out = re.sub(r"นะครับ|นะคับ|ครับผม|ครับ|คับ", "นะพี่บ่าว", out)
+        out = NUI_MALE_PARTICLE_RE.sub("นะพี่บ่าว", out)
 
     out = re.sub(r"\s{2,}", " ", out).strip()
     return out

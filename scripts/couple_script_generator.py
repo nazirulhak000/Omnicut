@@ -23,6 +23,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from scripts.script_rules import (
     lint_couple_script,
+    NUI_MALE_PARTICLE_RE,
     normalize_speaker,
     sanitize_text_for_rules,
 )
@@ -91,7 +92,7 @@ def enforce_speaker_persona(text: str, speaker: str) -> str:
     cleaned = sanitize_text_for_rules(text, speaker=norm)
     if norm == "nui":
         # Strictly strip male particles from Nui
-        cleaned = re.sub(r"นะครับ|นะคับ|ครับผม|ครับ|คับ", "นะพี่บ่าว", cleaned)
+        cleaned = NUI_MALE_PARTICLE_RE.sub("นะพี่บ่าว", cleaned)
         cleaned = cleaned.replace("พี่บ่าวพูดเอง", "น้องนุ้ยบอกเลย")
         cleaned = cleaned.replace("พี่บ่าวรับรอง", "น้องนุ้ยคอนเฟิร์ม")
     else:

@@ -133,8 +133,20 @@ VOICES = {
     "female": "th-TH-PremwadeeNeural",  # เสียงผู้หญิงรีวิว สดใส
     "male": "th-TH-NiwatNeural",        # เสียงผู้ชาย มั่นใจ เป็นทางการ/น่าเชื่อถือ
 }
-DEFAULT_VOICE = "female"
+# Male: the channel persona speaks "ผม/ครับ" (AGENTS.md §4.5 Fenrir), so the
+# Edge fallback default must be a male voice too -- a female default read the
+# male-toned script in a woman's voice.
+DEFAULT_VOICE = "male"
 DEFAULT_VOICE_RATE = "+15%" # TikTok fast-paced speaking rate
+
+# Canonical voice defaults (AGENTS.md §4.5): Gemini Flash TTS Fenrir +
+# commercial_premium. Every backend default (pipeline context, request
+# schemas, render/phase1 fallbacks, the TTS engine) reads these two names so
+# they can never drift apart again. The frontend mirrors them in
+# frontend/src/lib/angleToForm.js (DEFAULT_VOICE_PRESET / DEFAULT_AD_TONE).
+# Values already stored on a project are never rewritten by these.
+DEFAULT_VOICE_PRESET = "gemini_fenrir_male_strong"
+DEFAULT_AD_TONE = "commercial_premium"
 DEFAULT_VOICE_PITCH = "+0Hz"
 
 # Audio Settings
