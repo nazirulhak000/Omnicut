@@ -10,14 +10,16 @@ const { spawn } = require('node:child_process');
 const { createChromeShim } = require('./chrome_shim');
 const { loadWorker } = require('./host');
 const { createApi, readApiKey, ROOT } = require('./api');
-const { pickClips, runBatch } = require('./conductor');
+const { pickClips, runBatch, rowMatchesClip } = require('./conductor');
 
+const MIN_WIDTH = 1280;
+const MIN_HEIGHT = 650;
 const UPLOAD_URL = 'https://www.tiktok.com/tiktokstudio/upload';
 const CHROME_EXE = process.env.OMNICUT_CHROME || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const PROFILE_DIR = path.join(ROOT, 'tools', 'tiktok_browser_profile');
 
 function parseArgs(argv) {
-  const args = { channel: 'main', limit: 10, port: 9333, dryRun: false, health: false, noLaunch: false, queueId: null, allowPriceCaption: false, coverFallback: false };
+  const args = { channel: 'main', limit: 10, port: 9333, dryRun: false, health: false, noLaunch: false, queueId: null, allowPriceCaption: false, coverFallback: false, viewport: null, net: null, clipBudgetMin: 25 };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
@@ -25,6 +27,9 @@ function parseArgs(argv) {
     else if (a === '--no-launch') args.noLaunch = true;
     else if (a === '--allow-price-caption') args.allowPriceCaption = true;
     else if (a === '--cover-fallback') args.coverFallback = true;
+    else if (a === '--viewport') args.viewport = argv[++i];
+    else if (a === '--net') args.net = argv[++i];
+    else if (a === '--clip-budget-min') args.clipBudgetMin = Number(argv[++i]);
     else if (a === '--channel') args.channel = argv[++i];
     else if (a === '--limit') args.limit = Number(argv[++i]);
     else if (a === '--port') args.port = Number(argv[++i]);
@@ -32,6 +37,9 @@ function parseArgs(argv) {
     else throw new Error(`unknown argument: ${a}`);
   }
   if (!Number.isInteger(args.limit) || args.limit < 1) throw new Error('--limit ต้องเป็นจำนวนเต็ม >= 1');
+  if (args.viewport && !/^\d{3,4}x\d{3,4}$/.test(args.viewport)) throw new Error('--viewport ต้องเป็นรูปแบบ 1366x768');
+  if (args.net && !['slow', 'blip', 'offline'].includes(args.net)) throw new Error('--net ต้องเป็น slow | blip | offline');
+  if (!(args.clipBudgetMin > 0)) throw new Error('--clip-budget-min ต้องมากกว่า 0');
   return args;
 }
 
@@ -77,6 +85,11 @@ async function findStudioTab(shim) {
 // run is reset through the extension's own dialog-aware reset before checking.
 async function checkStudioReady(shim, worker) {
   let tab = await findStudioTab(shim);
+  // A tab whose renderer hung does not answer CDP at all: replace it instead of waiting forever.
+  if (tab) {
+    const alive = await shim.evaluate(tab.id, '1').then(() => true).catch(() => false);
+    if (!alive) tab = await shim.replaceTab(tab.id, UPLOAD_URL);
+  }
   if (!tab) tab = await shim.chrome.tabs.create({ url: UPLOAD_URL });
   else if (!/\/tiktokstudio\/upload/.test(tab.url)) tab = await shim.chrome.tabs.update(tab.id, { url: UPLOAD_URL, active: true });
   const checks = { login: false, file_input: false, url: '' };
@@ -120,14 +133,22 @@ async function main() {
   if (!caps.ok) { alert('Backend (127.0.0.1:8000) ไม่ตอบหรือ API key ผิด'); process.exit(3); }
 
   const stopAwake = keepAwake();
+  const holds = []; // network / viewport emulation sessions: must be released or the process never exits
   try {
     log('info', `Chrome: ${await ensureChrome(args)}`);
     const shim = createChromeShim({
       port: args.port, storageFile: path.join(ROOT, '.tmp', 'autopost_state.json'),
       secrets: { omnicutApiKey: apiKey },
     });
-    const worker = loadWorker({ shim });
-    const { tab, checks } = await checkStudioReady(shim, worker);
+    // `current` is replaced after a clip timeout so a stuck (zombie) action cannot block the next clip.
+    let current = loadWorker({ shim });
+    const worker = { send: (action, payload) => current.send(action, payload) };
+    const recover = async () => {
+      log('warn', 'เกินเวลา — ตัดการเชื่อมต่อ debugger ที่ค้างและสร้าง worker ใหม่');
+      shim.abortAll();
+      current = loadWorker({ shim });
+    };
+    let { tab, checks } = await checkStudioReady(shim, worker);
     const healthy = checks.login && checks.file_input;
     fs.writeFileSync(path.join(ROOT, '.tmp', 'autopost_health.json'),
       JSON.stringify({ ok: healthy, checked_at: new Date().toISOString(), checks }, null, 2));
@@ -142,6 +163,43 @@ async function main() {
     log('info', 'TikTok Studio พร้อม (login แล้ว, พบ input อัปโหลดไฟล์)');
     if (args.health) { log('info', 'health ok'); return; }
 
+    if (args.viewport) {
+      const [w, h] = args.viewport.split('x').map(Number);
+      await shim.setWindowSize(tab.id, w, h);
+      log('info', `ขนาดหน้าต่าง Chrome: ${w}x${h}`);
+      await sleep(1500);
+    }
+    // TikTok's modals clip below ~1200 px wide: make the run independent of the real
+    // window size, monitor and Windows DPI scaling.
+    const preflightViewport = async () => {
+      const measure = async () => shim.evaluate(tab.id, '({w: window.innerWidth, h: window.innerHeight})').catch(() => ({ w: 0, h: 0 }));
+      let size = await measure();
+      if ((size.w < MIN_WIDTH || size.h < MIN_HEIGHT) && !process.env.OMNICUT_FORCE_VIEWPORT_EMULATION) {
+        await shim.setWindowSize(tab.id, 1440, 960).catch(() => {});
+        await sleep(1200);
+        size = await measure();
+      }
+      if (size.w < MIN_WIDTH || size.h < MIN_HEIGHT) {
+        holds.push(await shim.holdViewport(tab.id, { width: 1440, height: 900 }));
+        await sleep(800);
+        log('warn', `หน้าต่างเล็ก (${size.w}x${size.h}) — จำลอง viewport 1440x900 ตลอดรอบ`);
+      } else {
+        log('info', `viewport ${size.w}x${size.h} ใช้ได้`);
+      }
+    };
+    await preflightViewport();
+    let netHold = null;
+    if (args.net) {
+      const SLOW = { latency: 300, down: 200 * 1024, up: 60 * 1024 };
+      netHold = await shim.holdNetwork(tab.id, args.net === 'offline' ? { offline: true } : args.net === 'slow' ? SLOW : {});
+      holds.push(netHold);
+      log('info', `จำลองเครือข่าย: ${args.net}`);
+      if (args.net === 'blip') {
+        setTimeout(async () => { log('warn', 'จำลองเน็ตหลุด 30 วินาที'); await netHold.set({ offline: true }); }, 40_000);
+        setTimeout(async () => { log('warn', 'เน็ตกลับมา'); await netHold.set({}); }, 70_000);
+      }
+    }
+
     const { clips, skipped } = await pickClips(api, args);
     skipped.forEach(s => log('warn', `ข้าม ${s.title}: ${s.reason}`));
     if (!clips.length) { log('info', 'ไม่มีคลิปพร้อมโพสต์ในคิว'); return; }
@@ -149,8 +207,53 @@ async function main() {
     let stopRequested = false;
     process.on('SIGINT', () => { stopRequested = true; log('warn', 'รับสัญญาณหยุด — จบคลิปปัจจุบันแล้วหยุด'); });
     const tabId = async () => (await findStudioTab(shim))?.id ?? tab.id;
+    const shot = async label => shim.screenshot(await tabId(), path.join(runDir, `${label}.png`)).catch(e => log('warn', `screenshot: ${e.message}`));
     const deps = {
-      worker, api, log, sleep,
+      worker, api, log, sleep, recover,
+      // Chrome crashed / was closed / its tab hung between clips: relaunch, re-check login, redo viewport.
+      ensureBrowser: async () => {
+        const alive = await portUp(args.port) && await shim.evaluate(await tabId(), '1').then(() => true).catch(() => false);
+        if (alive) return;
+        log('warn', 'Chrome หรือแท็บ TikTok ไม่ตอบ — เปิดใหม่และตรวจ login');
+        shim.abortAll();
+        for (const hold of holds.splice(0)) await hold.release().catch(() => {});
+        await ensureChrome(args);
+        current = loadWorker({ shim });
+        const ready = await checkStudioReady(shim, worker);
+        if (!ready.checks.login) throw new Error(`login_required: TikTok Studio ไม่พร้อมหลังเปิด Chrome ใหม่ (${ready.checks.url})`);
+        if (!ready.checks.file_input) throw new Error('ไม่พบช่องเลือกไฟล์หลังเปิด Chrome ใหม่');
+        tab = ready.tab;
+        await preflightViewport();
+      },
+      // Independent check after the post click: open Studio > Content and find this clip's row.
+      verifyOnContentPage: async clip => {
+        const id = await tabId();
+        // TikTok's Content list lags the success toast by several seconds, so reload
+        // and look again (up to ~90 s) before concluding the row is missing.
+        let verdict = { ok: false, reason: 'row_not_found' };
+        for (let attempt = 0; attempt < 6 && !verdict.ok; attempt += 1) {
+          if (attempt) await sleep(8000);
+          await shim.chrome.tabs.update(id, { url: 'https://www.tiktok.com/tiktokstudio/content', active: true });
+          let text = '';
+          for (let i = 0; i < 10; i += 1) {
+            await sleep(1500);
+            text = await shim.evaluate(id, 'document.body ? document.body.innerText : ""').catch(() => '');
+            if (/\d{2}:\d{2}\n/.test(text)) break;
+          }
+          // Each post row starts with its video duration (mm:ss) on its own line.
+          const rows = String(text).split(/\n(?=\d{2}:\d{2}\n)/).slice(0, 15);
+          verdict = { ok: false, reason: 'row_not_found' };
+          for (const row of rows) {
+            const r = rowMatchesClip(row, clip);
+            if (r.ok) { verdict = r; break; }
+            if (r.reason === 'schedule_badge_mismatch') verdict = r;
+          }
+        }
+        await shot(`${clip.id}_content`);
+        await shim.chrome.tabs.update(id, { url: UPLOAD_URL, active: true }); // reset needs an upload tab
+        await sleep(2500);
+        return verdict;
+      },
       // Closes the "Edit cover" modal (Cancel) when no custom-cover upload exists.
       dismissCoverModal: async () => {
         await shim.evaluate(await tabId(), `(() => {
@@ -171,7 +274,7 @@ async function main() {
         })()`).catch(() => false);
         await sleep(900);
       },
-      shot: async label => shim.screenshot(await tabId(), path.join(runDir, `${label}.png`)).catch(e => log('warn', `screenshot: ${e.message}`)),
+      shot,
       dumpDom: async label => {
         const html = await shim.evaluate(await tabId(), 'document.documentElement.outerHTML').catch(() => '');
         if (html) {
@@ -181,7 +284,7 @@ async function main() {
         }
       },
     };
-    const summary = await runBatch(deps, { clips, dryRun: args.dryRun, channelId: args.channel, coverFallback: args.coverFallback, shouldStop: () => stopRequested });
+    const summary = await runBatch(deps, { clips, dryRun: args.dryRun, channelId: args.channel, coverFallback: args.coverFallback, clipBudgetMs: args.clipBudgetMin * 60000, shouldStop: () => stopRequested });
     fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify(summary, null, 2));
     log('info', `สรุป: โพสต์ ${summary.posted} · ตั้งเวลา ${summary.scheduled} · dry-run ${summary.dry_run_ok} · ข้าม ${summary.skipped} · ล้ม ${summary.failed} · ไม่ชัด ${summary.unknown}`);
     if (summary.aborted) { alert(summary.aborted); process.exitCode = 2; }
@@ -190,10 +293,16 @@ async function main() {
     alert(error.message);
     process.exitCode = error.exitCode || 2;
   } finally {
+    for (const hold of holds) await hold.release().catch(() => {});
     stopAwake();
   }
 }
 
-if (require.main === module) main();
+if (require.main === module) {
+  // Always exit by ourselves: a stray CDP socket or child process must never keep an
+  // unattended (scheduled) run alive after it has finished.
+  main().catch(error => { console.error(error); process.exitCode = process.exitCode || 2; })
+    .finally(() => setTimeout(() => process.exit(process.exitCode || 0), 300));
+}
 
 module.exports = { parseArgs };

@@ -91,9 +91,18 @@ function createChromeShim({ port, storageFile, secrets = {}, WebSocketImpl = glo
       });
     });
   }
+  // A hung renderer never answers; without a timeout every caller would wait forever.
+  const CDP_TIMEOUT_MS = Number(process.env.OMNICUT_CDP_TIMEOUT_MS) || 60_000;
   const sendOn = (session, method, params) => new Promise((resolve, reject) => {
     const id = session.nextId++;
-    session.pending.set(id, { resolve, reject });
+    const timer = setTimeout(() => {
+      session.pending.delete(id);
+      reject(new Error(`cdp_timeout: ${method} ไม่ตอบใน ${Math.round(CDP_TIMEOUT_MS / 1000)} วินาที (หน้าเว็บอาจค้าง)`));
+    }, CDP_TIMEOUT_MS);
+    session.pending.set(id, {
+      resolve: v => { clearTimeout(timer); resolve(v); },
+      reject: e => { clearTimeout(timer); reject(e); },
+    });
     session.ws.send(JSON.stringify({ id, method, params: params || {} }));
   });
   async function withTarget(tabId, fn) {
@@ -173,12 +182,13 @@ function createChromeShim({ port, storageFile, secrets = {}, WebSocketImpl = glo
       if (!session) return Promise.reject(new Error(`Debugger is not attached to the tab with id: ${tabId}.`));
       return sendOn(session, method, params);
     },
-    onDetach: { addListener: fn => detachListeners.push(fn) },
+    // Only the newest worker is live: a replaced (zombie) worker must not keep answering.
+    onDetach: { addListener: fn => { detachListeners.length = 0; detachListeners.push(fn); } },
   };
 
   const runtime = {
     lastError: undefined,
-    onMessage: { addListener: fn => messageListeners.push(fn) },
+    onMessage: { addListener: fn => { messageListeners.length = 0; messageListeners.push(fn); } },
     onConnect: { addListener() {} },
     getManifest: () => ({ version: 'conductor-host' }),
   };
@@ -196,7 +206,56 @@ function createChromeShim({ port, storageFile, secrets = {}, WebSocketImpl = glo
     });
   }
 
+  // Test/safety helpers ------------------------------------------------------
+  // Kills every open CDP session so a timed-out (zombie) worker action fails fast
+  // instead of continuing to click on the page.
+  function abortAll() {
+    for (const [tabId, session] of sessions) {
+      session.closing = true;
+      sessions.delete(tabId);
+      try { session.ws.close(); } catch (_) {}
+    }
+  }
+
+  // Network throttling lives only as long as the CDP session that set it, so hold one open.
+  async function holdNetwork(tabId, conditions) {
+    const session = await openSession(await targetOf(tabId));
+    await sendOn(session, 'Network.enable');
+    const apply = c => sendOn(session, 'Network.emulateNetworkConditions', {
+      offline: !!c.offline, latency: c.latency || 0,
+      downloadThroughput: c.down ?? -1, uploadThroughput: c.up ?? -1,
+    });
+    await apply(conditions);
+    return { set: apply, release: async () => { session.closing = true; try { session.ws.close(); } catch (_) {} } };
+  }
+
+  // Fixes the CSS viewport independent of the real window/monitor/DPI (TikTok's modals
+  // are not responsive and get clipped below ~1200 px). Lives as long as this session.
+  async function holdViewport(tabId, { width, height, deviceScaleFactor = 1 }) {
+    const session = await openSession(await targetOf(tabId));
+    await sendOn(session, 'Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor, mobile: false });
+    return { release: async () => { session.closing = true; try { session.ws.close(); } catch (_) {} } };
+  }
+
+  async function setWindowSize(tabId, width, height) {
+    const target = await targetOf(tabId);
+    const version = await (await fetchImpl(`${base}/json/version`)).json();
+    const session = await openSession({ webSocketDebuggerUrl: version.webSocketDebuggerUrl });
+    try {
+      const { windowId } = await sendOn(session, 'Browser.getWindowForTarget', { targetId: target.id });
+      await sendOn(session, 'Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal', width, height } });
+    } finally { session.closing = true; session.ws.close(); }
+  }
+
+  // Closes a tab that no longer answers and opens a fresh one at `url`.
+  async function replaceTab(tabId, url) {
+    abortAll();
+    try { await tabs.remove(tabId); } catch (_) {}
+    return tabs.create({ url });
+  }
+
   return {
+    abortAll, holdNetwork, holdViewport, setWindowSize, replaceTab,
     chrome: {
       tabs, debugger: debuggerApi, runtime,
       windows: { async update() {} },

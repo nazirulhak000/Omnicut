@@ -4265,8 +4265,18 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 
   await dismissLeaveConfirmDialogIfPresent(send, 200);
 
-  return confirmation;
+  return withScheduledOutcome(confirmation, job);
+}
 
+// TikTok shows the same "Video published" toast for a scheduled post, so the toast
+// alone says nothing about *when* it goes live. A job that was scheduled is
+// recorded as scheduled_on_platform; the backend accepts the bare toast for it
+// only because the job really carries a schedule.
+function withScheduledOutcome(confirmation, job) {
+  if (confirmation?.confirmed && confirmation.outcome === 'published' && job?.schedule_date && job?.schedule_time) {
+    return {...confirmation, outcome: 'scheduled_on_platform'};
+  }
+  return confirmation;
 }
 
 // 2026-09-06: minimal, deliberately-does-nothing-else action, added after

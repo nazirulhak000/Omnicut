@@ -1073,3 +1073,11 @@ test('account read waits for the Studio header instead of failing on the first e
   const never = async () => ({result: {value: {handles: []}}});
   assert.equal(await ctx.readStudioAccount(never, 3), null);
 });
+
+test('a scheduled job is never reported as published just because TikTok toasts "Video published"', () => {
+  const ctx = worker();
+  const toast = {confirmed: true, outcome: 'published', proof: {kind: 'platform_success_notice', notice: 'Video published'}};
+  assert.equal(ctx.withScheduledOutcome(toast, {schedule_date: '2026-11-10', schedule_time: '07:00'}).outcome, 'scheduled_on_platform');
+  assert.equal(ctx.withScheduledOutcome(toast, {}).outcome, 'published');
+  assert.equal(ctx.withScheduledOutcome({confirmed: false}, {schedule_date: 'x', schedule_time: 'y'}).confirmed, false);
+});

@@ -8,10 +8,16 @@ const vm = require('node:vm');
 
 const EXT_DIR = path.resolve(__dirname, '..', '..', 'tiktok_autopost_extension');
 
+// Backend/network calls made by the worker must never hang forever.
+const FETCH_TIMEOUT_MS = 30_000;
+function timedFetch(url, options = {}) {
+  return globalThis.fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), ...options });
+}
+
 function loadWorker({ shim, extDir = EXT_DIR, extraGlobals = {} }) {
   const ctx = vm.createContext({
     console, URL, URLSearchParams, setTimeout, clearTimeout, setInterval, clearInterval,
-    fetch: globalThis.fetch, Headers, Request, Response, FormData, Blob, Date, Math, JSON, Promise, TextEncoder, TextDecoder, AbortController,
+    fetch: timedFetch, Headers, Request, Response, FormData, Blob, Date, Math, JSON, Promise, TextEncoder, TextDecoder, AbortController,
     crypto: globalThis.crypto, structuredClone, performance, queueMicrotask, atob, btoa,
     chrome: shim.chrome, ...extraGlobals,
   });

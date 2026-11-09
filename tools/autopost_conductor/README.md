@@ -12,6 +12,7 @@ tools\start_autopost.bat --dry-run --limit 3 # fill everything, screenshot, DO N
 tools\start_autopost.bat --limit 10          # real posting of queue items (status planned/ready_for_extension)
 ```
 Options: `--channel main` `--queue-id ID` `--port 9333` `--no-launch` `--allow-price-caption` `--cover-fallback`
+Test/fault options: `--viewport 1366x768` (set window size) · `--net slow|blip|offline` (throttle / drop network) · `--clip-budget-min N` (time budget per clip, default 25)
 
 First time: run `--health`. It opens Chrome with profile `tools/tiktok_browser_profile`.
 If it lands on the login page, **log in by hand once** in that window, then run again.
@@ -39,6 +40,14 @@ Exit codes: 0 ok · 1 some clips failed/unknown · 2 aborted (needs a human) · 
 
 ## Schedule (optional)
 `powershell -File tools\autopost_conductor\install_task.ps1` previews daily health + run tasks; add `-Apply` to register.
+
+## What was verified live (2026-11-09, real account)
+- 3 real scheduled posts end to end (upload → caption → product → schedule → post → ack → Content-page check): all `scheduled`, `verified: true`.
+- TikTok shows the bare toast **"Video published"** even for scheduled posts → backend now accepts it (scheduled jobs only), the worker records those as `scheduled_on_platform`.
+- After every post the clip must also appear on Studio > Content (reloaded up to ~90 s; list lags the toast) with the right caption + slot, else the clip is `unknown`.
+- Window sizes 1024x700, 820x900, 1366x768, 1920x1080: TikTok's "Add product links" modal is clipped below ~1200 px → the runner enlarges the window, or emulates a 1440x900 viewport, before starting.
+- Queue items whose export no longer exists / is posted / QC-rejected are skipped up front (19 of 41 were stale).
+- Each clip has a time budget (zombie browser actions are killed), one retry for hiccups *before* the post click (never after), backend calls time out after 30 s.
 
 ## Not covered yet
 TikTok scheduled-quota (30) is not auto-detected → use `--limit`. No in-app Start button
