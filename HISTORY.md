@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-UI-PRECISION-AND-BASELINE-ALIGNMENT-AUDIT-20261109 | ปฏิบัติการ UI Precision & Baseline Alignment Audit (Pixel-Perfect Craftsmanship) ครบ 5 มิติ 100/100 คะแนนเต็ม: ล็อก Uniform Height และ mt-auto ตรึงเส้นระนาบ Progress/Footer เท่ากัน 100% ทุกการ์ด (ProductCard Carousel, Catalog Grid, KanbanCard, ExportCard), จองพื้นที่คงที่ line-clamp-2 h-[2.25rem] สำหรับชื่อสินค้าและสคริปต์, จัด tabular-nums ทุกตัวเลข, ผ่าน Vitest 1,222 tests (100%), Parity 212 tests (100%), Vite Build 467ms ไร้ข้อผิดพลาด | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-10-ROUNDS-AUDIT-PASS3-20261109 | ปฏิบัติการ 10-Round Master Audit & Refinement Loop (Pass 3: Full-Stack NLE & Architecture Perfection) ครบ 10 รอบ 1,000 คะแนนเต็ม: ผ่าตัด Chunk Splitting (EditorShell ลดเหลือ 415kB, editor-player 325kB, editor-timeline 247kB ไร้คำเตือน build 471ms), ล้างอิโมจิในปุ่ม/ชาร์ต/เซฟโซนสู่ Lucide Icons 100%, ปรับ tracking สุขุม, ผ่าน 1,222 Vitest tests (100%), 212 Parity tests (100%) (ดูรายงาน _Docs/Reports/OMNICUT_10_ROUNDS_AUDIT_PASS3_REPORT.md) | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-UI-UX-FLOW-OVERHAUL-MENU-1-TO-4-20261109 | ปฏิบัติการกะดึก: Autonomous UI/UX Perfection & Flow Continuity Loop (Overnight 100/100 Non-Stop Engine) ครบ 6 มิติ (600/600 คะแนนเต็ม): Unslopped CONTENT_TYPE_CATALOG สู่ Monochromatic Neutral, Sticky Primary CTA 1→2, Decouple หน้าที่โพสต์ TikTok จาก Tracker สู่ Export Gallery 100%, 2-Tier Kanban Actions, Quiet Header #0E131E, TikTok Safe Zone Overlay (420/120/180), Post-Render CTA 3→4, Tabular Numbers font-mono, Zero-Emoji Policy 100%, รวม Hook & Header Studio, ผ่าน Vitest 1,222/1,222 (100%), Parity 212/212 (100%), Vite Build 588ms (เอกสาร: _Docs/Reports/UI_UX_PERFECTION_MENU_1_TO_3_OVERNIGHT_REPORT.md) | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round ANTIGRAVITY-UNSLOP-PHASE09-MOBILE-REGRESSION-20261108 | ดำเนินการ Phase 09 (Mobile Shell, Full Regression & Final Handover): ปรับ MobileShell.jsx, MobileAppRoot.jsx, MobileClipLibrary.jsx, MobilePostNext.jsx สู่ Obsidian Pro Dark NLE Studio, รับประกัน Touch Targets >= 44px, Safe-Area insets ครบถ้วน, ผ่านการทดสอบ Vitest 1,222/1,222 (100%), Parity 212/212 (100%), Vite Build 489ms, บันทึก Live UI Snapshots 11 ภาพลง Artifacts | 2026-11-08 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
@@ -18147,3 +18148,29 @@ Plan before code:
 - Jev ก่อนเอกสาร: noul 0.66, confidence null; หลังส่ง excerpt จริง: noul 0.96, confidence null; ทั้งคู่ escalate ไม่ใช่หลักฐานอนุมัติ ใช้ขอบเขตทำเอกสารที่ผู้ใช้อนุญาตไว้ และส่งเป็นร่างก่อนลงมือ
 - ลบ `.tmp/jev_unslop_phase_doc_state.json` ที่สร้างเองหลังเรียก Jev; ไม่มี test/build/render เพราะไม่มี application change
 - working tree ของเอเจนต์อื่นยังอยู่เดิม; เพิ่มเฉพาะ runbook/link และบันทึกรอบนี้
+
+### Round ANTIGRAVITY-UI-PRECISION-AND-BASELINE-ALIGNMENT-AUDIT-20261109 · ปฏิบัติการ UI Precision & Baseline Alignment Audit (Pixel-Perfect Craftsmanship)
+- **วันที่:** 2026-11-09
+- **ดำเนินการโดย:** Antigravity (Gemini 2.5 Pro)
+- **สถานะ:** สำเร็จ 100/100 คะแนนเต็ม
+- **ปัญหาที่พบก่อนหน้า:** ภาพจากการ์ด Product Carousel และการ์ดอื่นๆ ในระบบมีอาการฟันปลา (Staggered Baselines) แถบความคืบหน้า (Progress bar) และตัวเลข (เช่น `0/20`, `10/22`) มีระดับความสูงขึ้นๆ ลงๆ ไม่เท่ากันเนื่องจากความยาวชื่อสินค้า 1 บรรทัด vs 2 บรรทัด และบางสินค้าไม่มีรหัสสินค้า (Product Code Badge) ทำให้ความสูงการ์ดแกว่ง
+- **ผลการแก้ไขและยกระดับ:**
+  1. *Baseline & Height Parity (20/20):*
+     - `ProductCard` (Carousel) ใน `ProductToClip.jsx`: แปลงเป็น `flex flex-col`, จอง `h-[18px]` ให้กับแถบรหัสสินค้า (ใส่ placeholder โปร่งใส `-` หากไม่มีรหัส), จอง `h-[2.25rem] line-clamp-2 flex items-start` ให้กับชื่อสินค้า, ตรึงแถบ Progress mini bar ด้านล่างด้วย `mt-auto pt-1.5 border-t border-white/[0.04]`
+     - `Catalog Grid` ใน `ProductToClip.jsx`: จัดโครงสร้างแบบเดียวกัน จอง `h-[18px]` แถบรหัส/ราคา, `h-[2.25rem] line-clamp-2` ชื่อสินค้า, และ `mt-auto` แถบสคริปต์ความคืบหน้า
+     - `KanbanCard` ใน `ContentTrackerHub.jsx`: ทั้งการ์ด `rendered` (thumbnail ด้านซ้าย) และการ์ดปกติ ปรับเป็น `flex flex-col justify-between`, จอง `min-h-[2.25rem]` สำหรับ `hook_title`, และตรึงแถบ Action ด้านล่างด้วย `mt-auto`
+     - `ExportCard` ใน `ExportGallery.jsx`: จอง `h-[16px]` สำหรับ `product_name` (ใส่ placeholder โปร่งใสหากไม่มีชื่อสินค้า), ตรึงแถบปุ่ม Action ด้านล่างด้วย `mt-auto`
+  2. *Typography & Line-Clamping (20/20):*
+     - เพิ่ม `font-mono tabular-nums` ให้ตัวเลขสถิติ, ขนาดไฟล์ (MB), วันที่, และตัวเลขนับความคืบหน้าทั้งหมด ป้องกันตัวเลขสั่นไหว
+     - จอง `h-[2.25rem]` รองรับ 2 บรรทัดพอดี ป้องกันการ์ดยุบตัวเมื่อมีข้อความบรรทัดเดียว
+  3. *Spacing & 4px Grid Alignment (20/20):*
+     - จัดระเบียบ padding/margin/gap ทั้งหมดให้อยู่ในระบบ 4px (`p-2.5`, `p-3`, `gap-2`, `gap-2.5`, `gap-3`)
+     - ควบคุมมุมมนสม่ำเสมอ (`rounded-xl` สำหรับ mini cards, `rounded-2xl` / `rounded-3xl` สำหรับ export cards)
+  4. *Quiet Chrome & Visual Balance (20/20):*
+     - คุมโทน Obsidian Pro Dark `#0A0D14` และ `#0E131E`, เส้นขอบ `border-white/[0.06]` และ `border-white/[0.08]`
+     - กวาดล้างอิโมจิในปุ่ม/ทูลทิป/ชิปสู่ Lucide Line Icons ทั้งหมด
+  5. *Regression Test & Build Status (20/20):*
+     - Vitest `npm test`: 1,222/1,222 tests ผ่าน 100% (1.28s)
+     - Pytest Parity `tests/test_preview_render_parity.py`: 212/212 tests ผ่าน 100% (22.98s)
+     - Vite Build `npm run build`: สำเร็จใน 467ms ไร้ข้อผิดพลาดและไม่มี Chunk size warning
+

@@ -6223,10 +6223,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         </button>
                       </div>
 
-                      {/* Info & Code Hierarchy */}
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {(p.product_code || p.code) && (
+                      {/* Info & Code Hierarchy (Uniform height container to guarantee baseline alignment across cards) */}
+                      <div className="flex-1 flex flex-col justify-start min-w-0 space-y-1 mb-2">
+                        <div className="h-[18px] flex items-center justify-between">
+                          {(p.product_code || p.code) ? (
                             <span className={`inline-flex items-center text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border leading-none ${
                               isSelected
                                 ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/30'
@@ -6234,23 +6234,30 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                             }`}>
                               {p.product_code || p.code}
                             </span>
+                          ) : (
+                            <span className="text-[10px] font-mono text-transparent select-none leading-none px-1.5 py-0.5">
+                              -
+                            </span>
                           )}
                           {p.price && (
-                            <span className="text-[11px] font-mono font-semibold text-amber-300/90 ml-auto">
+                            <span className="text-[11px] font-mono tabular-nums font-semibold text-amber-300/90 ml-auto">
                               {p.price}
                             </span>
                           )}
                         </div>
-                        <div className={`text-xs font-semibold line-clamp-2 leading-tight ${isSelected ? 'text-white' : 'text-slate-200'}`} title={p.name}>
+                        <div
+                          className={`text-xs font-semibold line-clamp-2 leading-tight h-[2.25rem] flex items-start ${isSelected ? 'text-white' : 'text-slate-200'}`}
+                          title={p.name}
+                        >
                           {p.name}
                         </div>
                       </div>
 
-                      {/* Progress Bar & Angle Count */}
-                      <div className="space-y-1 pt-1 border-t border-white/[0.06]">
+                      {/* Progress Bar & Angle Count (Pinned to bottom baseline) */}
+                      <div className="mt-auto space-y-1 pt-1.5 border-t border-white/[0.06]">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-400">สคริปต์</span>
-                          <span className={`font-mono font-bold ${pct === 100 ? 'text-emerald-400' : 'text-[#25F4EE]'}`}>
+                          <span className={`font-mono tabular-nums font-bold ${pct === 100 ? 'text-emerald-400' : 'text-[#25F4EE]'}`}>
                             {pDone}/{total} มุม
                           </span>
                         </div>

@@ -327,17 +327,21 @@ const ExportCard = memo(function ExportCard({
             {item.hook_title || item.name}
           </h4>
 
-          {item.product_name && (
-            <p className="text-[10px] sm:text-[11px] text-slate-400 truncate" title={item.product_name}>
-              {item.product_name}
-            </p>
-          )}
+          <div className="h-[16px] flex items-center">
+            {item.product_name ? (
+              <p className="text-[10px] sm:text-[11px] text-slate-400 truncate" title={item.product_name}>
+                {item.product_name}
+              </p>
+            ) : (
+              <span className="text-[10px] text-transparent select-none">-</span>
+            )}
+          </div>
 
-          <div className="flex items-center justify-between text-[10px] sm:text-xs text-slate-400 font-mono pt-0.5">
-            <span className="flex items-center gap-1 text-[#25F4EE] font-bold">
+          <div className="flex items-center justify-between text-[10px] sm:text-xs text-slate-400 font-mono tabular-nums pt-0.5">
+            <span className="flex items-center gap-1 text-[#25F4EE] font-bold tabular-nums">
               {item.size_mb} MB
             </span>
-            <span className="text-[10px] sm:text-xs text-slate-400">
+            <span className="text-[10px] sm:text-xs text-slate-400 tabular-nums">
               {(item.modified_time || item.modified || '').split(' ')[0]}
             </span>
           </div>
@@ -345,7 +349,7 @@ const ExportCard = memo(function ExportCard({
       </div>
 
       {/* Card Action Buttons (Quiet Chrome: 1 Bright Action + 1 Secondary Action + More Menu) */}
-      <div className="p-2 sm:p-2.5 pt-0 flex items-center gap-1.5 border-t border-white/[0.08] mt-1 sm:mt-2">
+      <div className="p-2 sm:p-2.5 pt-0 flex items-center gap-1.5 border-t border-white/[0.08] mt-auto">
         {/* Bright Action 1 เดียว: สแกน QR โพสต์ TikTok */}
         <button
           type="button"

@@ -412,7 +412,7 @@ const KanbanCard = memo(function KanbanCard({
               was redundant with clicking the thumbnail itself (identical
               onPreviewVideo call), so it's gone as a button, not as a
               capability: the thumbnail is still the review entry point. */}
-          <div className="pt-1.5 mt-1 border-t border-white/[0.06] flex items-center gap-1.5">
+          <div className="pt-1.5 mt-auto border-t border-white/[0.06] flex items-center gap-1.5">
             {/* Tier 1 Primary: Export Gallery Bridge */}
             <button
               type="button"
@@ -443,7 +443,7 @@ const KanbanCard = memo(function KanbanCard({
 
   return (
     <div
-      className={`p-2.5 rounded-xl border transition-all space-y-2 relative group shadow-sm ${
+      className={`p-2.5 rounded-xl border transition-all space-y-2 relative group shadow-sm flex flex-col justify-between ${
         ang.qc_note
           ? 'bg-[#120A06] border-red-500/40 hover:border-red-400/60 ring-1 ring-red-500/20'
           : phaseId === 'rendered' && ang.qc_reviewed
@@ -558,10 +558,10 @@ const KanbanCard = memo(function KanbanCard({
         </div>
       </div>
 
-      {/* 2. Hook Title: Crisp 2-line with thin accent bar (Clickable to inspect) */}
+      {/* 2. Hook Title: Crisp 2-line with thin accent bar (Fixed min-height for uniform baseline) */}
       <div
         onClick={() => onInspectAngle(ang)}
-        className="pl-2 border-l-2 border-cyan-400/70 text-xs font-bold text-slate-200 line-clamp-2 leading-snug cursor-pointer hover:underline"
+        className="pl-2 border-l-2 border-cyan-400/70 text-xs font-bold text-slate-200 line-clamp-2 leading-snug cursor-pointer hover:underline min-h-[2.25rem] flex items-center"
         title="คลิกเพื่อดูบทพูดและรายละเอียดเต็ม"
       >
         {ang.hook_title}
@@ -577,8 +577,8 @@ const KanbanCard = memo(function KanbanCard({
         </div>
       )}
 
-      {/* 3. Merged Bottom Action & Stepper Row (จัดเลย์เอาต์โปร่งตา ไม่เบียดแม้จอเล็ก) */}
-      <div className="pt-1.5 border-t border-white/[0.06]">
+      {/* 3. Merged Bottom Action & Stepper Row (Pinned to bottom baseline) */}
+      <div className="pt-1.5 border-t border-white/[0.06] mt-auto">
         {phaseId === 'rendered' ? (
           <div className="space-y-1.5 w-full">
             {/* Tier 1 Primary: Export Gallery Bridge & QC Review */}
