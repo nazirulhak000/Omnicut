@@ -20,10 +20,11 @@ from scripts.channel_scope import (
     require_writable,
 )
 from scripts.channel_store import ChannelError
-from scripts.config import BASE_DIR, RAW_DIR
+from scripts.config import BASE_DIR, INBOX_DIR, RAW_DIR
 from scripts.product_scraper import (
     ProductScraper, DURATION_SPECS, DEFAULT_DURATION, EXTRA_BEAT_BLOCKS,
     apply_angle_content_metadata, clean_product_title,
+    _build_safe_opener, _validate_scrape_url,
 )
 from scripts.product_store import ProductStore
 from scripts.task_manager import TaskManager
@@ -87,30 +88,36 @@ def resolve_tiktok_product_id(url_or_id: str) -> Dict[str, Any]:
     if m:
         return {"success": True, "product_id": m.group(1), "resolved_url": cleaned}
 
-    # 3. If it looks like a URL (e.g. vt.tiktok.com shortlink or web link), resolve redirect
+    # 3. If it looks like a URL (e.g. vt.tiktok.com shortlink or web link), resolve redirect.
+    #    S1-08: only allowlisted public shop hosts are fetched (SSRF guard) and
+    #    every redirect hop is re-validated by the safe opener.
     if cleaned.startswith("http://") or cleaned.startswith("https://"):
+        try:
+            _validate_scrape_url(cleaned)
+        except ValueError as err:
+            print(f"Notice: refused to resolve {cleaned!r}: {err}")
+            return {
+                "success": False,
+                "product_id": None,
+                "resolved_url": None,
+                "error": "ลิงก์นี้ไม่ใช่ลิงก์ร้านค้า TikTok/Shopee ที่อนุญาต",
+            }
         try:
             req = urllib.request.Request(
                 cleaned,
                 headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
             )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                final_url = resp.geturl()
+            with _build_safe_opener().open(req, timeout=5) as resp:
+                final_url = resp.geturl() or cleaned
                 m2 = re.search(r"/(?:product|item|pdp)/(\d{10,})", final_url) or re.search(r"[?&](?:item_id|itemId|product_id)=(\d{10,})", final_url)
                 if m2:
                     return {"success": True, "product_id": m2.group(1), "resolved_url": final_url}
-                m3 = re.search(r"(\d{15,})", final_url)
-                if m3:
-                    return {"success": True, "product_id": m3.group(1), "resolved_url": final_url}
                 return {"success": False, "product_id": None, "resolved_url": final_url}
         except Exception as e:
             print(f"Notice: Failed to resolve redirect for {cleaned}: {e}")
 
-    # 4. Fallback: check any 15+ consecutive digits anywhere in input
-    m4 = re.search(r"(\d{15,})", cleaned)
-    if m4:
-        return {"success": True, "product_id": m4.group(1), "resolved_url": None}
-
+    # No "any 15+ digits anywhere" fallback: an order number or phone number
+    # pasted with the link must not become a product ID (S1-08).
     return {"success": False, "product_id": None, "resolved_url": None}
 
 
@@ -264,6 +271,49 @@ def _with_product_source_fallback(product: Dict[str, Any]) -> Dict[str, Any]:
     return enriched
 
 
+_REFERENCE_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+_REFERENCE_IMAGE_ERROR = (
+    "รูปอ้างอิงต้องเป็นไฟล์ภาพ (.jpg/.png/.webp/.heic) ที่อัปโหลดไว้ใน 00_Inbox หรือ 01_Raw เท่านั้น"
+)
+
+
+def _resolve_reference_image_path(raw_path: Any) -> Optional[Path]:
+    """Resolved path of a user-uploaded reference image, or None (S1-09).
+
+    /api/upload writes reference images into 00_Inbox or 01_Raw; anything
+    else (``.env``, a file elsewhere on disk, a non-image) is refused so it is
+    never read and sent to Gemini, nor stored on the product.
+    """
+    if not isinstance(raw_path, str) or not raw_path.strip():
+        return None
+    supplied = Path(raw_path.strip().replace("\\", "/"))
+    candidate = supplied if supplied.is_absolute() else BASE_DIR / supplied
+    try:
+        resolved = candidate.resolve()
+    except (OSError, RuntimeError, ValueError):
+        return None
+    if resolved.suffix.lower() not in _REFERENCE_IMAGE_SUFFIXES:
+        return None
+    for root in (INBOX_DIR, RAW_DIR):
+        try:
+            resolved.relative_to(root.resolve())
+            return resolved
+        except ValueError:
+            continue
+    return None
+
+
+def _validate_reference_image_paths(image_paths: Any) -> List[str]:
+    """Reject (HTTP 400, Thai) a request whose image_paths leave the upload folders."""
+    if not image_paths:
+        return []
+    if not isinstance(image_paths, list):
+        raise HTTPException(status_code=400, detail=_REFERENCE_IMAGE_ERROR)
+    if any(_resolve_reference_image_path(p) is None for p in image_paths):
+        raise HTTPException(status_code=400, detail=_REFERENCE_IMAGE_ERROR)
+    return list(image_paths)
+
+
 def _apply_images_to_product_info(product_info: Dict[str, Any], image_paths: list, custom_keyword: str, raw_text: str) -> None:
     """Attach up to MAX user-uploaded reference images to product_info in place.
 
@@ -281,11 +331,18 @@ def _apply_images_to_product_info(product_info: Dict[str, Any], image_paths: lis
     if not image_paths:
         return
     entries = []
+    base_root = BASE_DIR.resolve()
     for raw_path in image_paths:
-        img_p = Path(raw_path)
+        img_p = _resolve_reference_image_path(raw_path)
+        if img_p is None:
+            print(f"[API] ข้ามรูปอ้างอิงที่อยู่นอก 00_Inbox/01_Raw: {raw_path!r}")
+            continue
         img_name = img_p.name
-        img_rel = str(img_p.relative_to(BASE_DIR)).replace("\\", "/") if BASE_DIR in img_p.parents else img_name
-        entries.append({"name": img_name, "rel_path": img_rel, "local_path": str(img_p)})
+        img_rel = img_p.relative_to(base_root).as_posix()
+        # local_path stays BASE_DIR-relative: no absolute path in products.json.
+        entries.append({"name": img_name, "rel_path": img_rel, "local_path": img_rel})
+    if not entries:
+        return
     product_info["images"] = entries
     product_info["image_count"] = len(entries)
     product_info["thumbnail"] = entries[0]["rel_path"]
@@ -564,9 +621,10 @@ def attach_video_to_product(
     if not video_path:
         raise HTTPException(status_code=400, detail="Missing video_path")
 
-    v_path = Path(video_path)
-    if not v_path.is_absolute():
-        v_path = BASE_DIR / video_path
+    # S1-17: only raw footage (00_Inbox / 01_Raw) can be linked to a product;
+    # an arbitrary absolute path is refused with 403.
+    from scripts.api_videos import _resolve_allowed_video_path
+    v_path = _resolve_allowed_video_path(str(video_path))
 
     if not v_path.exists():
         raise HTTPException(status_code=404, detail="Video file not found")
@@ -992,7 +1050,7 @@ def scrape_and_plan(payload: Dict[str, Any], scope: ChannelScope = Depends(get_c
     url = payload.get("url", "").strip()
     raw_text = payload.get("raw_text", "").strip()
     custom_keyword = payload.get("custom_keyword", "").strip()
-    image_paths = payload.get("image_paths") or []
+    image_paths = _validate_reference_image_paths(payload.get("image_paths"))
 
     if not url and not raw_text and not custom_keyword and not image_paths:
         raise HTTPException(status_code=400, detail="กรุณาระบุลิงก์ ข้อความรายละเอียด หรือรูปภาพสินค้า")
@@ -1233,7 +1291,7 @@ def scrape_and_plan_async(
     url = payload.get("url", "").strip()
     raw_text = payload.get("raw_text", "").strip()
     custom_keyword = payload.get("custom_keyword", "").strip()
-    image_paths = payload.get("image_paths") or []
+    image_paths = _validate_reference_image_paths(payload.get("image_paths"))
     angle_count = int(payload.get("angle_count", 7))
 
     if not url and not raw_text and not custom_keyword and not image_paths:

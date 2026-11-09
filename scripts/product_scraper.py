@@ -344,6 +344,40 @@ def _build_safe_image_opener(*handlers):
 MAX_REFERENCE_IMAGE_BYTES = 8 * 1024 * 1024  # 8 MB cap per reference image
 
 
+_LOCAL_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+
+
+def _safe_local_image_path(image_path: Any) -> Path:
+    """Resolve a local reference image and refuse anything outside the project.
+
+    S1-09 defence in depth: only image files inside the project/data root are
+    ever read and sent to Gemini (never ``.env`` or a file elsewhere on disk).
+    Raises ValueError -- callers skip that image.
+    """
+    roots = [BASE_DIR.resolve()]
+    try:
+        from scripts import config as _config
+        data_root = Path(_config.BASE_DIR).resolve()
+        if data_root not in roots:
+            roots.insert(0, data_root)
+    except Exception:
+        pass
+    path = Path(str(image_path))
+    if not path.is_absolute():
+        candidates = [root / path for root in roots]
+        path = next((c for c in candidates if c.exists()), candidates[0])
+    resolved = path.resolve()
+    if resolved.suffix.lower() not in _LOCAL_IMAGE_SUFFIXES:
+        raise ValueError("ไฟล์อ้างอิงไม่ใช่ไฟล์ภาพ")
+    for root in roots:
+        try:
+            resolved.relative_to(root)
+            return resolved
+        except ValueError:
+            continue
+    raise ValueError("ไฟล์ภาพอ้างอิงอยู่นอกโฟลเดอร์โปรเจกต์")
+
+
 def _download_image_bytes(url: str) -> "tuple[bytes, str]":
     """Downloads a scraped product-image URL for Gemini vision input.
 
@@ -1521,9 +1555,7 @@ class ProductScraper:
                 if isinstance(image_path, str) and image_path.lower().startswith(("http://", "https://")):
                     data, mime = _download_image_bytes(image_path)
                 else:
-                    path = Path(image_path)
-                    if not path.is_absolute():
-                        path = BASE_DIR / path
+                    path = _safe_local_image_path(image_path)
                     data = path.read_bytes()
                     mime = {
                         ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
@@ -1822,9 +1854,7 @@ class ProductScraper:
                             data, mime = _download_image_bytes(img_path)
                             image_parts.append(types.Part.from_bytes(data=data, mime_type=mime))
                             continue
-                        p = Path(img_path)
-                        if not p.is_absolute():
-                            p = BASE_DIR / p
+                        p = _safe_local_image_path(img_path)
                         ext = p.suffix.lower().lstrip(".")
                         mime = {
                             "jpg": "image/jpeg", "jpeg": "image/jpeg",
