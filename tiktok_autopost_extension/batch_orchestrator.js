@@ -53,6 +53,8 @@
     CALCULATED_JITTER: 'CALCULATED_JITTER',
   };
 
+  const POST_SUBMIT_STAGES = new Set(['TRIGGER_SUBMIT', 'VERIFY_SUCCESS_TOAST', 'UPDATE_BACKEND', 'CALCULATED_JITTER']);
+
   const STAGE_LABELS_TH = {
     IDLE: 'พร้อมทำงาน',
     CHECK_QUOTA: 'กำลังตรวจสอบโควตา TikTok Studio...',
@@ -106,6 +108,7 @@
       maxJitter = 6,
       autoSkipOnError = true,
       maxRetriesPerStage = 2,
+      maxClipAttempts = 2,
       retryDelayMs = 250,
       rng = Math.random,
     } = options;
@@ -245,7 +248,7 @@
           attempt += 1;
           const isTransient = Boolean(
             err?.transient ||
-            /network|timeout|fetch|offline|ECONN|502|503|504|ไม่ทัน|ยังโหลดไม่เสร็จ|transition/i.test(String(err?.message || ''))
+            /network|timeout|fetch|offline|ECONN|502|503|504|ไม่ทัน|ยังโหลดไม่เสร็จ|transition|message port closed|Receiving end does not exist|Extension context invalidated|Could not establish connection|ไม่ได้รับคำตอบจาก Extension|cdp_timeout/i.test(String(err?.message || ''))
           );
           if (!isTransient || attempt > maxRetriesPerStage) {
             throw err;
@@ -289,6 +292,7 @@
       // Prepare clip job with backend if prepareClip is provided
       if (actions.prepareClip) {
         await checkControlGate();
+        stage = 'PREPARE_JOB';
         await runWithRetry('PREPARE_JOB', () => actions.prepareClip(clip, targetMode));
       }
 
@@ -325,7 +329,7 @@
         log(`[${index + 1}/${total}] 4/10 HANDLE_COVER: อัปโหลดภาพปก 3:4...`);
         await runWithRetry(CLIP_STAGES.HANDLE_COVER, () => actions.handleCover(clip));
       } else {
-        log(`[${index + 1}/${total}] 4/10 HANDLE_COVER: ยืนยันภาพปก 3:4 เรียบร้อย`);
+        log(`[${index + 1}/${total}] 4/10 HANDLE_COVER: ปกถูกจัดการในขั้นกรอกรายละเอียดแล้ว (ถ้าหน้า TikTok ไม่มีช่องอัปโหลดปก ใช้ปกอัตโนมัติของ TikTok)`);
       }
 
       // 5. DISMISS_INTERRUPTS
@@ -482,6 +486,7 @@
         setState(ORCHESTRATOR_STATES.LOOP_CYCLE);
         log(`🚀 เริ่มลูปอัปโหลดอัตโนมัติ (LOOP_CYCLE): รวม ${batchClips.length} คลิป`);
 
+        const clipAttempts = {};
         while (currentIndex < batchClips.length && !isAborted) {
           const clip = batchClips[currentIndex];
           try {
@@ -489,6 +494,16 @@
           } catch (err) {
             if (err?.code === 'BATCH_ABORTED' || err?.message === 'BATCH_ABORTED' || err?.message === 'BATCH_STOPPED') {
               break;
+            }
+            // One more try from a clean page when the hiccup happened BEFORE the post click.
+            // Never after it: the post may already be live, and the backend job is parked, not retried.
+            clipAttempts[currentIndex] = (clipAttempts[currentIndex] || 0) + 1;
+            if (clipAttempts[currentIndex] < maxClipAttempts && !isAborted && !POST_SUBMIT_STAGES.has(stage)) {
+              log(`🔁 พลาดที่ขั้น ${stage} ก่อนกดโพสต์ (${err.message}) — ลองคลิปนี้ใหม่จากหน้าสะอาด (${clipAttempts[currentIndex] + 1}/${maxClipAttempts})`, 'warn');
+              if (actions.resetUploadPage) {
+                try { await actions.resetUploadPage(); } catch (_) {}
+              }
+              continue;
             }
             failed += 1;
             const clipTitle = clip?.hook_title || clip?.title || clip?.name || `คลิปที่ ${currentIndex + 1}`;

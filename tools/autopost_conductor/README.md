@@ -24,6 +24,13 @@ If it lands on the login page, **log in by hand once** in that window, then run 
 - Studio runs in English here; the extension selectors are bilingual and worked.
 - Queue clips whose slot already passed (or < 15 min ahead) are skipped. In `--dry-run` a synthetic slot (+2 days) is used instead.
 
+## Testing the extension's own side panel (not the conductor)
+`node tools/autopost_conductor/extension_e2e.js` loads the unpacked extension into the same Chrome over CDP
+(`Extensions.loadUnpacked`, needs `--enable-unsafe-extension-debugging`), opens the real `sidepanel.html`, sets the API key,
+filters the list to ONE queue clip and presses the real batch button. The final post click is stubbed (nothing is published)
+unless you pass `--real-post`. `--kill-worker-at=30` stops the MV3 service worker 30 s into the run.
+Evidence: `.tmp/extension_e2e/<run>/` (`panel_log.txt`, `panel.png`, `upload_tab.png`).
+
 ## Safety rules (built in)
 - Sequential only; random 20–40 s cooldown between clips. Never concurrent (account-ban risk).
 - Only queue items with a future slot (>= 15 min) + TikTok product id. Price/discount text in the

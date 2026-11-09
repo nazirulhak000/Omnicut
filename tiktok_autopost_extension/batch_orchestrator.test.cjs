@@ -326,3 +326,46 @@ test('B2: shouldReconcileAfterPost reads the string outcome and the result objec
   assert.equal(shouldReconcileAfterPost('published', {success: true, outcome: 'published'}), false);
   assert.equal(shouldReconcileAfterPost('scheduled', undefined), false);
 });
+
+test('a pre-submit failure retries the clip once from a clean page; a post-submit failure never does', async () => {
+  let injects = 0, resets = 0, submits = 0;
+  const pre = createBatchOrchestrator({
+    clips: [{ id: 'c1', hook_title: 'คลิปพลาดก่อนโพสต์' }],
+    options: { cooldownSeconds: 0, maxRetriesPerStage: 0, retryDelayMs: 1 },
+    actions: {
+      injectFile: async () => { injects += 1; if (injects === 1) throw new Error('เลือกสินค้าตรง ID ไม่สำเร็จ'); },
+      resetUploadPage: async () => { resets += 1; },
+    },
+  });
+  const ok = await pre.start();
+  assert.equal(ok.successful, 1);
+  assert.equal(ok.failed, 0);
+  assert.equal(injects, 2);
+  assert.equal(resets, 1);
+
+  const post = createBatchOrchestrator({
+    clips: [{ id: 'c2', hook_title: 'คลิปพลาดหลังกดโพสต์' }],
+    options: { cooldownSeconds: 0, maxRetriesPerStage: 0, retryDelayMs: 1 },
+    actions: {
+      submitPost: async () => { submits += 1; throw new Error('post_not_confirmed'); },
+      resetUploadPage: async () => {},
+    },
+  });
+  const bad = await post.start();
+  assert.equal(bad.failed, 1);
+  assert.equal(submits, 1);
+});
+
+test('worker channel errors (port closed / context invalidated) are retried as transient', async () => {
+  let waits = 0;
+  const o = createBatchOrchestrator({
+    clips: [{ id: 'c1', hook_title: 'worker ถูกปิดกลางงาน' }],
+    options: { cooldownSeconds: 0, maxRetriesPerStage: 2, retryDelayMs: 1 },
+    actions: {
+      awaitProcessing: async () => { waits += 1; if (waits === 1) throw new Error('A listener indicated an asynchronous response by returning true, but the message port closed before a response was received'); },
+    },
+  });
+  const res = await o.start();
+  assert.equal(res.successful, 1);
+  assert.equal(waits, 2);
+});

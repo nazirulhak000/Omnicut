@@ -632,7 +632,7 @@ async function checkTikTokQuota(silent = false) {
       };
       updateQuotaUI();
       updateBatchCountDisplay();
-      if (!silent) setStatus(`📊 อัปเดตโควตาสำเร็จ: ${res.message || ''}`, 'success');
+      if (!silent) setStatus(`อัปเดตโควตาสำเร็จ: ${res.message || ''}`, 'success');
     } else {
       if (!silent) setStatus(res?.message || 'ไม่พบข้อมูลโควตาจากแท็บ TikTok Studio', 'info');
     }
@@ -1369,22 +1369,26 @@ async function loadExports() {
 }
 
 function filterAndRenderClips() {
+  updateFilterChipCounts();
 
   const query = clipSearchInput ? clipSearchInput.value.trim().toLowerCase() : '';
 
+  let list = allClips;
+  if (currentStatusFilter === 'ready') {
+    list = list.filter(c => getExtensionStatus(c).kind === 'ready' || !c.schedule_date);
+  } else if (currentStatusFilter === 'scheduled') {
+    list = list.filter(c => Boolean(c.schedule_date));
+  } else if (currentStatusFilter === 'unscheduled') {
+    list = list.filter(c => !c.schedule_date);
+  }
+
   const filtered = query
-
-    ? allClips.filter((c) =>
-
+    ? list.filter((c) =>
         (c.product_name || '').toLowerCase().includes(query) ||
-
         (c.hook_title || '').toLowerCase().includes(query) ||
-
         (c.name || '').toLowerCase().includes(query)
-
       )
-
-    : allClips;
+    : list;
 
   if (clipCountBadge) {
     clipCountBadge.textContent = String(filtered.length);
@@ -2114,6 +2118,7 @@ prepareDetailsBtn.addEventListener('click', async () => {
         scheduleTime: scheduleTimeInput.value,
 
         coverPath: activeClip.cover_path,
+        coverFallback: Boolean(document.getElementById('coverFallbackToggle')?.checked),
 
       }, (res) => {
 
@@ -2801,6 +2806,9 @@ batchStartBtn?.addEventListener('click', async () => {
 
   if (batchLogBox) batchLogBox.innerHTML = '';
 
+
+
+
   startKeepAlive();
 
   const selectedMode = batchModeSelect?.value || 'smart';
@@ -2944,6 +2952,7 @@ batchStartBtn?.addEventListener('click', async () => {
           scheduleDate: scheduleMode ? (clip.schedule_date || '') : '',
           scheduleTime: scheduleMode ? (clip.schedule_time || '') : '',
           coverPath: activeClip?.cover_path || clip.cover_path || '',
+          coverFallback: Boolean(document.getElementById('coverFallbackToggle')?.checked),
         }, (r) => {
           if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
           if (!r) return reject(new Error('ไม่ได้รับคำตอบจาก Extension ในการเตรียมรายละเอียด'));
@@ -3135,7 +3144,7 @@ batchStartBtn?.addEventListener('click', async () => {
 
     appendBatchLog(`สรุปผลลัพธ์: สำเร็จ ${summary.successful}/${summary.total} คลิป (ข้าม ${summary.failed})`, summary.failed > 0 ? 'warn' : 'success');
 
-    setStatus(`🎉 อัปโหลดแบบกลุ่มเสร็จสิ้น! สำเร็จ ${summary.successful}/${summary.total} คลิป`, 'success');
+    setStatus(`อัปโหลดแบบกลุ่มเสร็จสิ้น! สำเร็จ ${summary.successful}/${summary.total} คลิป`, 'success');
 
   } catch (err) {
 
@@ -3187,3 +3196,66 @@ batchStopBtn?.addEventListener('click', async () => {
 
 });
 
+
+
+// Global Esc key handler
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (typeof closeVideoPreview === 'function') {
+      const modal = document.getElementById('videoPreviewModal');
+      if (modal && !modal.hidden) {
+        closeVideoPreview();
+      }
+    }
+    const confirmOverlay = document.getElementById('confirmOverlay');
+    if (confirmOverlay && confirmOverlay.classList.contains('show')) {
+      const cancelBtn = document.getElementById('confirmCancelBtn');
+      cancelBtn?.click();
+    }
+  }
+});
+
+
+
+let currentStatusFilter = 'all';
+
+function updateFilterChipCounts() {
+  const totalAll = allClips.length;
+  const totalReady = allClips.filter(c => getExtensionStatus(c).kind === 'ready' || !c.schedule_date).length;
+  const totalScheduled = allClips.filter(c => Boolean(c.schedule_date)).length;
+  const totalUnscheduled = allClips.filter(c => !c.schedule_date).length;
+
+  const countAll = document.getElementById('filterCountAll');
+  const countReady = document.getElementById('filterCountReady');
+  const countSched = document.getElementById('filterCountScheduled');
+  const countUnsched = document.getElementById('filterCountUnscheduled');
+  if (countAll) countAll.textContent = String(totalAll);
+  if (countReady) countReady.textContent = String(totalReady);
+  if (countSched) countSched.textContent = String(totalScheduled);
+  if (countUnsched) countUnsched.textContent = String(totalUnscheduled);
+}
+
+document.querySelectorAll('.filter-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentStatusFilter = chip.dataset.filter || 'all';
+    filterAndRenderClips();
+  });
+});
+
+const batchCopyLogBtn = document.getElementById('batchCopyLogBtn');
+const batchClearLogBtn = document.getElementById('batchClearLogBtn');
+batchCopyLogBtn?.addEventListener('click', () => {
+  if (!batchLogBox) return;
+  const text = batchLogBox.innerText || batchLogBox.textContent || '';
+  if (!text.trim()) return;
+  navigator.clipboard.writeText(text).then(() => {
+    setStatus('คัดลอกบันทึกการทำงาน (Log) เรียบร้อยแล้ว', 'success');
+  }).catch(() => {
+    setStatus('คัดลอก Log ไม่สำเร็จ', 'error');
+  });
+});
+batchClearLogBtn?.addEventListener('click', () => {
+  if (batchLogBox) batchLogBox.innerHTML = '';
+});
