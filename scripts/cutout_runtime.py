@@ -64,8 +64,17 @@ def resolve_checkpoint(model: str = "sam2.1_hiera_tiny", checkpoint: Path | None
     )
 
 
+class _ProbeFailed(Exception):
+    """Carries a failed probe report out of the cache (lru_cache never stores
+    a raised exception, so only a successful probe is remembered)."""
+
+    def __init__(self, report: dict[str, Any]):
+        super().__init__(report.get("error", "SAM2 runtime probe failed"))
+        self.report = report
+
+
 @lru_cache(maxsize=4)
-def _probe_runtime(interpreter: str, modified_ns: int) -> dict[str, Any]:
+def _probe_runtime_cached(interpreter: str, modified_ns: int) -> dict[str, Any]:
     # Separate interpreter: the backend venv intentionally need not carry torch.
     command = (
         "import json,torch,sam2,numpy,PIL; "
@@ -78,12 +87,25 @@ def _probe_runtime(interpreter: str, modified_ns: int) -> dict[str, Any]:
         result = subprocess.run([interpreter, "-c", command], capture_output=True,
                                 text=True, timeout=20)
         if result.returncode:
-            return {"sam2_runtime": True, "cuda": False,
-                    "error": f"SAM2 runtime import failed: {result.stderr[-600:].strip()}"}
+            raise _ProbeFailed({"sam2_runtime": True, "cuda": False,
+                                "error": f"SAM2 runtime import failed: {result.stderr[-600:].strip()}"})
         return json.loads(result.stdout.strip().splitlines()[-1])
     except (OSError, subprocess.TimeoutExpired, ValueError, IndexError) as exc:
-        return {"sam2_runtime": True, "cuda": False,
-                "error": f"SAM2 runtime probe failed: {exc}"}
+        raise _ProbeFailed({"sam2_runtime": True, "cuda": False,
+                            "error": f"SAM2 runtime probe failed: {exc}"}) from exc
+
+
+def _probe_runtime(interpreter: str, modified_ns: int) -> dict[str, Any]:
+    """Probe once per interpreter build; a failed or timed-out probe (busy
+    GPU driver, slow first CUDA init) is retried on the next call instead of
+    being cached until the server restarts (audit S3-13)."""
+    try:
+        return _probe_runtime_cached(interpreter, modified_ns)
+    except _ProbeFailed as failure:
+        return dict(failure.report)
+
+
+_probe_runtime.cache_clear = _probe_runtime_cached.cache_clear  # type: ignore[attr-defined]
 
 
 def probe_sam2_runtime() -> dict[str, Any]:

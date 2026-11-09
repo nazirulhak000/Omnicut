@@ -264,6 +264,20 @@ def derive_sam2_prompts(
         return None
 
 
+def _quarantine_damaged_artifact(target: Path, namespace: Path, artifact_id: str, reason: str) -> Path:
+    """Rename a damaged ready artifact out of the cache key so it can be rebuilt."""
+    quarantine = namespace / f".{artifact_id}.corrupt-{time.time_ns()}"
+    try:
+        os.replace(target, quarantine)
+    except OSError as exc:
+        raise RuntimeError(
+            f"ไฟล์ Cutout ในแคชเสียหาย ({reason}) และย้ายออกไม่ได้: {exc} "
+            "— ปิดโปรแกรมที่เปิดไฟล์นี้อยู่แล้วกดเตรียม Cutout ใหม่"
+        ) from exc
+    print(f"   ♻️ ไฟล์ Cutout ในแคชเสียหาย ({reason}) — ย้ายไปที่ {quarantine.name} แล้วสร้างใหม่")
+    return quarantine
+
+
 def process_background_isolation_video(
     source: Path, cache_root: Path, config: dict[str, Any], *,
     source_fingerprint: str, start: float, duration: float | None,
@@ -309,20 +323,29 @@ def process_background_isolation_video(
                 and manifest.get("status") == "ready"):
             with (target / VIDEO_NAME).open("rb") as handle:
                 current_sha256 = hashlib.file_digest(handle, "sha256").hexdigest()
-            if current_sha256 == manifest.get("sha256"):
+            damage = None
+            if current_sha256 != manifest.get("sha256"):
+                damage = "cutout video cache checksum mismatch"
+            else:
                 preview = manifest.get("preview")
                 if preview:
                     preview_path = target / PREVIEW_NAME
                     if preview_path.is_symlink() or not preview_path.is_file():
-                        raise RuntimeError("cutout preview missing; rebuild this artifact")
-                    with preview_path.open("rb") as handle:
-                        preview_sha256 = hashlib.file_digest(handle, "sha256").hexdigest()
-                    if preview_sha256 != preview.get("sha256"):
-                        raise RuntimeError("cutout preview checksum mismatch; rebuild this artifact")
+                        damage = "cutout preview missing"
+                    else:
+                        with preview_path.open("rb") as handle:
+                            preview_sha256 = hashlib.file_digest(handle, "sha256").hexdigest()
+                        if preview_sha256 != preview.get("sha256"):
+                            damage = "cutout preview checksum mismatch"
+            if damage is None:
                 return {"status": "ready", "artifact_id": artifact_id,
                         "output_directory": str(target), "frame_count": manifest["frame_count"],
                         "cache_hit": True}
-            raise RuntimeError("cutout video cache checksum mismatch; rebuild this artifact")
+            # Audit S3-12: a damaged artifact used to fail closed forever
+            # ("rebuild this artifact", with no route that rebuilds). It is
+            # moved aside -- not deleted, so nothing is destroyed -- and the
+            # artifact is rebuilt below from the source footage.
+            _quarantine_damaged_artifact(target, namespace, artifact_id, damage)
     if target.exists():
         # A directory with neither a master nor a manifest cannot be a usable
         # artifact or one being written: the worker only publishes by renaming
