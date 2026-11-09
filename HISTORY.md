@@ -7,6 +7,8 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-FIX-AUDIT-20261109 | แก้ตาม AUDIT_20261109 ผ่าน 7 กิ่ง fix/* (P0 ทั้ง 5 แก้แล้ว) | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + fix sub-agents 7 ตัว (Claude Opus 5.5) |
+| Round CLAUDE-AUDIT-EDITOR-PIPELINE-20261109 | ตรวจทั้งสาย 6 ด่าน 106 ข้อ + แผนแก้ | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + read-only sub-agents 6 ตัว (Claude Opus 5.5) |
 | Round ANTIGRAVITY-FULL-PREVIEW-AND-NAVBAR-IMMERSIVE-SYNC-20261109 | ปฏิบัติการผสานการย่อ/ขยายพรีวิวกับการซ่อน Navbar สู่ระบบเดียวกัน 100% (Synchronized Full Preview & Immersive Navbar Collapse): แก้ปัญหาผู้ใช้กดย่อพรีวิวแล้ว Navbar ด้านบนไม่ยอมย่อตาม โดยเชื่อมโยง toggleMobileFullPreview เข้ากับ isImmersive และ onToggleImmersive ขยายและคืนค่าทั้งขนาดพรีวิว แถบนำทาง และแถบล่างพร้อมกันทุกจุด (ปุ่มแท็บ, ดับเบิลคลิกแถบลาก, ปุ่มแสดงแถบ, คีย์ลัด Esc/F) ผ่าน Vitest 1,226/1,226 (100%), Parity 212/212 (100%) และ Vite Build สมบูรณ์ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-10-ROUNDS-EDITOR-UI-UX-PERFECTION-AND-REDUNDANCY-AUDIT-20261109 | ปฏิบัติการลูปตรวจเช็กความสมเหตุสมผลและสมดุล UI/UX สตูดิโอตัดต่อ 10 รอบ (10-Round Master UI/UX & Redundancy Audit) ตามสกิล /impeccable และ /ui-ux-pro-max: กำจัดปุ่มย่อ/ขยายซ้ำซ้อนสองอันติดกันในแถบแท็บมือถือ, ปรับแต่ง Floating Capsule โหมดเต็มจอและปุ่มจรวดเรนเดอร์สู่ Copper #D97757, อัปเกรดตัวจับลากพรีวิวให้เรืองแสง Cyan ขณะลาก, ปรับชื่อแท็บมือถือให้กระชับสมดุล, ปรับแต่งปุ่ม Safe Zone ให้คมชัดมีขอบ ผ่าน Vitest 1,226/1,226 tests (100%), Parity 212/212 (100%) และ Vite Build สมบูรณ์ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-NAVBAR-RESPONSIVE-ALL-SIZES-20261109 | ปฏิบัติการแก้ปัญหา Navbar ชนกันและไม่ Responsive ทุกขนาดหน้าจอ (EditorHeader Multi-Breakpoint Ergonomics & Zero-Collision Layout): ปลดล็อก min-w บน ProjectSelector, ปรับ SaveStatusChip และ Activity Center เป็น Icon-Only บนจอแคบ, จัดการ ViewToggleGroup บนจอใหญ่, ตัดคำ truncate นุ่มนวล ไร้การเกยทับข้ามโซน 100% ผ่าน Vitest 1,226/1,226 (100%), Parity 212/212 (100%) และ Vite Build สมบูรณ์ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -179,6 +181,31 @@
 
 ---
 ---
+
+## Round CLAUDE-FIX-AUDIT-20261109 · แก้ตามรายงาน AUDIT_20261109 (หัวข้อ 8) — แต่ละก้อนทำใน worktree `.claude/worktrees/fix-*` กิ่ง `fix/*` แตกจากกิ่งรวม `fix/audit-20261109` (base `0da279c`) → merge เข้ากิ่งรวม → merge เข้า main → ลบกิ่ง. หมายเหตุ: `89b7d67`+`0da279c` ไปลงกิ่ง `fix/tiktok-autopost-blockers` ของ agent อื่นโดยบังเอิญ (agent นั้นสลับกิ่งใน working tree หลักก่อนผม commit)
+  - ชุดตัดสินใจ: D1 คงสเปกซับตามโค้ด แก้ AGENTS ข้อ 17 · D2 คง Ghost Reveal · D3 callout 2 ชั้น = legacy (บันทึกเอกสาร) · D4 Fenrir + `commercial_premium` ค่าเดียว BE+FE · D5 BGM 0.12 ทุก path · D6 dist track ต่อ commit แยก · D7 `db.py` upsert ทีละแถว ห้าม DELETE ทั้งตาราง · D8 rebase path `Capcut` เก่าในโค้ด + font cache rebuild เอง · D9 ขยะเทสย้าย `06_Archive` + ถอดแถวเทสจาก registry (backup) · D10 กฎ 01_Raw = UUID · D11 แก้บั๊ก UNC ในกิ่ง fix · D12 immersive = Shift+F · D13 Jev noul conf = max(p,1-p)
+  - [x] `fix/subtitle-font-parity` — S5-01..16, S4-07
+  - [x] `fix/store-single-writer` — X-01, S1-01, S6-01, S1-16, S6-12(path), X-02 (path_utils rebase)
+  - [x] `fix/sourcing` — S1-02..15, 17, 18
+  - [x] `fix/tts-voice` — S2-01..17, 20, 21, D4, D5
+  - [x] `fix/autocut` — S3-01..16 (ยกเว้น log ใน video_editor 29xx), S2-18, S3-08 FE clamp
+  - [x] `fix/editor-ui` — S4-01..06, 08..15, D12, X-07 (browser tests ฝั่ง editor)
+  - [x] `fix/render-registry-tools` — S6-02..11, 13, 14, S3-17, S1-10, S1-11, S5-13, S2-19
+  - [x] main agent: เอกสาร D1/D3/D5/D10, `jev_advisor.py` D13, ข้อมูล D9, merge + Jev ก่อน commit/merge + full pytest (ไม่รวม browser) + build dist commit แยก
+  - ดำเนินการโดย: Claude Code (Claude Opus 5.5) + fix sub-agents 7 ตัว (Claude Opus 5.5)
+  - [x] ผล: merge 7 กิ่งเข้า `fix/audit-20261109` · npm 1,260/1,260 · pytest (ไม่รวม browser) 4,965 pass / 15 fail (14 fail อยู่แล้วบน base, 1 ใหม่แก้แล้ว) · parity 210/210 · browser 64 fail / 114 pass (เดิม 77/101) · รายละเอียด+งานค้าง: รายงานหัวข้อ 10 · D13 สุดท้าย = คงพฤติกรรมเดิม (เทสล็อกไว้ตั้งใจ)
+  - ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
+## Round CLAUDE-AUDIT-EDITOR-PIPELINE-20261109 · ตรวจทั้งสาย ดึงสินค้า → สคริปต์/TTS → auto-cut → Editor → ซับ/parity → render/registry แล้วทำแผนแก้ (ตรวจ+วางแผนเท่านั้น ห้ามแก้โค้ดจนผู้ใช้ตอบ "อนุมัติแผน")
+  - [x] Pre-flight: TODO/git status (งานค้าง 9 ไฟล์ frontend + dist เป็นของรอบ Antigravity 20261109 ที่ยังไม่ commit — ตรวจตามสภาพ ไม่ stash/commit แทน) · Jev ก่อนเริ่ม: approach=as_is conf 1.0, safe_to_start noul 0.92 conf null → ถามผู้ใช้แล้ว อนุมัติให้เริ่ม
+  - [x] ด่าน 1–6 + รอบ 2 รอยต่อ → 106 ข้อ (P0 5 · P1 43 · P2 40 · P3 18) ดู [_Docs/Reports/AUDIT_20261109_editor_pipeline.md](_Docs/Reports/AUDIT_20261109_editor_pipeline.md)
+  - [x] เทส: node 1,226/1,226 · parity/subtitle 357/357 · browser E2E `tests/motion_capture` 77 fail / 101 pass (X-07) · full pytest ที่ไม่ใช่ browser ยังไม่มีผล (รอบแรกชน agent ขนาน หยุดเอง)
+  - [x] Jev หลังทำ: rules_respected=yes conf 0.90 · report_complete="mostly complete" conf 0.72 → escalate ถามผู้ใช้
+  - [x] เก็บกวาด: `.tmp/audit_20261109_s1..s6` + `.tmp/motion-vite-*` ลบแล้ว; ไฟล์ใน 01–05 และ registry 3 ไฟล์ตรง snapshot ก่อนเริ่ม
+  - [x] ผู้ใช้อนุมัติ: D1 ตามคำแนะนำ, D2–D13 ให้ Claude ตัดสิน (ยืนยันชุดตัดสินใจอีกรอบเพราะ Jev conf 0.31/0.25)
+  - [x] commit งานค้าง Antigravity แยก `89b7d67` + รายงาน `0da279c`
+  - ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
 
 ## Round ANTIGRAVITY-IMMERSIVE-NAVBAR-COLLAPSIBLE-AND-FULL-PREVIEW-RESIZER-20261109 · ปฏิบัติการ Floating Studio Capsule ย่อ/ขยายอัจฉริยะ (Collapsible Dynamic Capsule) & ปลดล็อกการลากปรับขนาด Editor เพื่อเปิดพรีวิว 9:16 เต็มจอ (Full-Screen Preview Resizer)
 - **วันที่:** 2026-11-09

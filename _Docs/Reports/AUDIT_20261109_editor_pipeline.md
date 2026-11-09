@@ -355,3 +355,35 @@ Flow จริง: `api_intake.preview` / `api_products.scrape_and_plan` → `Pr
 | `tests/test_cta_zero_arrow.py` | HTML จาก canonical engine ไม่มี `cta-arrow`/`cta-shaft` (S6-06) |
 | `tests/test_whisper_device_policy.py` | ใต้ `kit/`, `clips/`, `tools/`, `scripts/` ไม่มี `WhisperModel(... device="cpu")` นอก except/fallback (S6-08, S2-19) |
 | `tests/test_batch_concurrency_policy.py` | `tools/batch_render_*.py` ทุกตัวใช้ pool ≥3 workers และส่ง `--gpu --browser-gpu` (S6-07) |
+
+---
+
+## 10. ผลการแก้ — Round CLAUDE-FIX-AUDIT-20261109
+
+ดำเนินการโดย: Claude Code (Claude Opus 5.5) + fix sub-agents 7 ตัว (Claude Opus 5.5) · กิ่งรวม `fix/audit-20261109` (base `0da279c`) · แต่ละก้อนทำใน worktree `.claude/worktrees/fix-*`
+
+| ก้อน | ผล | หมายเหตุสำคัญ |
+|---|---|---|
+| `fix/store-single-writer` | X-01, X-02, S1-01, S6-01, S1-16, S6-12(path) ✅ | `db.py` import JSON mirror = upsert ทีละแถวตาม `updated_at` ไม่ลบทั้งตาราง; `scripts/store_io.py` ทาง write เดียว; `path_utils.LEGACY_ROOTS` (+ env `OMNICUT_LEGACY_ROOTS`) rebase path `Capcut` เก่าโดยไม่แก้ข้อมูล; lint test ห้ามเขียน mirror ตรง — ยังมี writer เก่า 17 ไฟล์นอก scope อยู่ในรายการ `PENDING` |
+| `fix/sourcing` | S1-02..09, 12..15, 17, 18 ✅ + fallback matrix ไม่แต่ง claim + 4xx ไม่กลายเป็น 500 | S1-04 ยังไม่มี gate ขนาดภาพ (ต้องดาวน์โหลด); S1-12 เช็ค reference เฉพาะ product records; lock browser กันได้ในโปรเซสเดียว |
+| `fix/tts-voice` | S2-01..17, 20, 21 ✅ + D4 ทุก path + D5 | default = Fenrir + `commercial_premium` (BE `config.DEFAULT_*`, FE `lib/angleToForm.js`); Edge fallback เปลี่ยนเป็นเสียงชาย (Niwat); เกณฑ์ตัด glitch ท้ายเสียง (≤150ms หรือ ≤350ms + เบา <-20dB) ตั้งจากเสียงสังเคราะห์ — ควรฟังกับ take จริง |
+| `fix/autocut` | S3-01..10, 12..16 ✅ · S2-18 บันทึกใน docstring (ตรงข้อยกเว้นใน `j_cut_rules.md` §3) · **S3-11 ข้าม** | พฤติกรรมใหม่: คลิปที่ผู้ใช้แก้ใน editor = user-authored → reroll เสียง/สคริปต์คงจุดตัดเดิม + เตือน; ฟุตเทจแนวนอนใน auto-cut ใช้พื้นหลังเบลอแทน crop กลาง |
+| `fix/editor-ui` | S4-01..06, 08..15 ✅ · D12 Shift+F · X-07 (editor) | **S4-11 ข้อความไทยเขียนใหม่** (ต้นฉบับเสียเป็น `?` ตั้งแต่ commit แรก): "โปรเจกต์นี้ยังไม่มีลายน้ำของช่องที่บันทึกไว้ ลายน้ำจะไม่แสดงในพรีวิว"; full preview เป็นโหมดแยก ไม่ใช่เกณฑ์ pixel; เจอ+แก้บั๊กจริง: ปุ่มซ่อนแถบซ้ายทับแท็บ "สไตล์" |
+| `fix/subtitle-font-parity` | S5-01..05, 07..16, S4-07 ✅ · S5-06 บางส่วน | S5-06: ซ่อน control ปรับต่อซับแทนการ apply ใน render; `SUBTITLE_RENDER_CONTRACT_VERSION` v8→v9 (`.ass` เดิมจะ regenerate); voice-cut browser fail 2 ข้อ = test drift (master fade-in 12ms ตั้งใจ, เทสวัด lag ของตัวเลขเวลา) |
+| `fix/render-registry-tools` | S6-02..11, 13, 14, S6-12(probe), S3-17(บางส่วน), S1-10, S1-11, S5-13, S2-19 ✅ | `scripts/media_validation.py` validator กลาง + `.partial.mp4`→`os.replace` + NVENC pool + disk guard + timeout; batch tools 4 workers `--gpu --browser-gpu`; ลบลูกศรแดง CTA; `hyperframes_render_worker.mjs` `disableGpu` คงไว้ (sandbox ตั้งใจ) |
+| main agent | D1/D3/D5/D10 เอกสาร ✅ · D13 คงพฤติกรรมเดิม (เทสล็อกไว้ตั้งใจ — noul 0.1 จะกลายเป็น conf 0.9 ผ่าน gate ทั้งที่คำตอบคือ "ไม่") · D9 ✅ | D9: ถอด 64 แถวเทสจาก registry ผ่าน `ExportRegistry.remove` (backup `06_Archive/backup_audit_20261109/`), ย้าย `03_Projects/demo`, `.filmstrips/.tmp_*` 25, `.hf-transaction-*`, `preview_*.jpg` ไป `06_Archive/test_garbage_20261109/`; ลบ `_tmp_tts` ที่ถูก track ผ่าน commit |
+
+### เทสหลังรวมทุกกิ่ง (กิ่ง `fix/audit-20261109`)
+
+- `npm test`: **1,260/1,260** (เดิม 1,226)
+- `pytest tests --ignore=tests/motion_capture`: **4,965 pass / 15 fail / 25 skip** → รัน 15 ตัวที่ fail บน base `0da279c`: **14 ตัว fail อยู่แล้วก่อนแก้** (`test_api_hyperframes` ×2, `test_api_server_lifespan` ×2, `test_channel_hyperframes`, `test_channel_store_primitives` allowlist, `test_editor_feature_coverage`, `test_hyperframes_backup`, `test_hyperframes_render_workflow` ×2, `test_inapp_agent` ×3, `test_tools_path_hygiene`) · ตัวใหม่ 1 ตัว (`test_the_phone_timeline_is_sized_by_its_rows_not_by_a_literal` — string contract ตามโค้ดที่ย้ายไป helper) แก้แล้ว parity **210/210**
+- browser E2E `tests/motion_capture`: **64 fail / 114 pass** (ก่อนแก้ 77 / 101). ฝั่ง editor (`editor_shell`, `timeline_ux2`, `voice_cut_preview`, `editor_controls`) ผ่านหมด; `subject_points` เหลือ 1 (`test_ready_cutout_allows_multiple_points...` fail อยู่แล้วก่อนแก้); `multisource_av_preview` fail 1 ครั้งตอนเครื่องโหลดหนัก รันซ้ำผ่าน 2/2 (p95 168–188ms ใกล้เกณฑ์ 200ms = flaky). ที่เหลือ 62 เป็นของเดิมนอก scope: `frame_pair` 14 (mask_iou), `hyperframes_workflow` 12 (`'flow' == 'tracker'` saved-tab migration), channel/gadget/cover/mobile/idea-vault locator drift จากรอบ unslop UI — แยกเป็นรอบ X-07 ต่อ
+
+### งานค้าง / ต้องให้ผู้ใช้รู้
+
+1. **ต้อง restart backend** — font registry cache เก่า (`Capcut` path) จะ rebuild เองตอนเปิดใช้ครั้งแรก (S5-01) และ `.ass` regenerate (contract v9)
+2. S3-11 (ตรวจเฟรมดำ/ภาพค้างหลัง render) ยังไม่ทำ — ต้องเพิ่ม ffmpeg pass
+3. S5-06 render ยังไม่รองรับปรับ scale/position/font ต่อซับ (ซ่อน control ไว้)
+4. writer JSON mirror ตรง 17 ไฟล์นอก scope (`tools/generate_*_scripts.py`, `gdrive_archive_engine.py`, `ssd_reconcile_engine.py` ฯลฯ) — lint test ล็อกรายการไว้ ห้ามเพิ่ม
+5. 14 เทสที่ fail อยู่ก่อนแล้ว (hyperframes/lifespan/inapp_agent/allowlist) + venv ขาด `filelock`, `dotenv` — แยกรอบ
+6. S4-11 ข้อความเตือนลายน้ำเขียนใหม่ — ผู้ใช้ตรวจถ้อยคำ
