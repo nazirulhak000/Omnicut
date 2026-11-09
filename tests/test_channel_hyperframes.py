@@ -11,6 +11,10 @@ from types import SimpleNamespace
 
 import pytest
 
+# The HyperFrames CLI is faked with placeholder bytes; the central media gate
+# itself is covered by test_mp4_validity / test_hyperframes_partial_render.
+pytestmark = pytest.mark.usefixtures("stub_media_gate")
+
 from scripts import api_hyperframes as api, config
 from scripts.channel_store import ChannelError
 from scripts.channel_scope import ChannelScope

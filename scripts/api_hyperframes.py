@@ -32,6 +32,7 @@ from scripts.export_registry import ExportRegistry
 from scripts.hyperframes_finalize import hyperframes_style_metadata
 from scripts.product_store import ProductStore
 from scripts import path_utils
+from scripts import media_validation
 from scripts.channel_scope import ChannelScope, ensure_same_channel, require_active_for_new_work, require_final_ready
 from scripts.channel_store import ChannelError, MAIN_SEED
 from scripts.channel_workflows import get_workflow_scope, capture_job_scope, require_media_owner, require_record_owner, require_project_owner
@@ -50,6 +51,8 @@ TMP_DIR = BASE_DIR / ".tmp" / "hyperframes"
 
 _WHISPER_LOCK = threading.Lock()
 _RENDER_LOCK = threading.Lock()
+# A 60s 1080x1920 clip renders in ~1 min with --gpu; 15 min means it hung.
+HF_RENDER_TIMEOUT_SEC = 900
 
 
 # ── Pydantic Request/Response Models ──
@@ -530,29 +533,54 @@ async def render_composition(payload: RenderCompositionRequest, scope: ChannelSc
             
             npx_bin = shutil.which("npx") or ("npx.cmd" if os.name == "nt" else "npx")
             rel_comp = render_file.relative_to(STUDIO_DIR).as_posix()
+            # S6-04: render into <name>.partial.mp4 and promote it only after
+            # the probe gate (S6-12), so a killed/timed-out render never sits
+            # under the export name. S6-07: GPU encode + GPU compositing.
+            # S6-11: refuse to start on a nearly full disk.
+            try:
+                media_validation.require_disk_space(target.parent)
+            except media_validation.InsufficientDiskSpace:
+                if legacy_clone:
+                    legacy_clone.unlink(missing_ok=True)
+                raise
+            partial = media_validation.partial_path_for(target)
             cmd = [
                 npx_bin, "--yes", "hyperframes@0.8.143", "render",
                 "-c", rel_comp,
-                "-o", str(target),
+                "--gpu", "--browser-gpu",
+                "-o", str(partial),
             ]
             log_file = TMP_DIR / f"render_{comp_id}.log"
             log_file.parent.mkdir(parents=True, exist_ok=True)
 
+            def _log_tail() -> str:
+                try:
+                    return log_file.read_text(encoding="utf-8", errors="replace")[-1000:]
+                except Exception:
+                    return ""
+
             try:
                 with open(log_file, "w", encoding="utf-8") as lf:
                     proc = subprocess.run(cmd, cwd=STUDIO_DIR, stdout=lf,
-                                          stderr=subprocess.STDOUT, timeout=300)
+                                          stderr=subprocess.STDOUT, timeout=HF_RENDER_TIMEOUT_SEC)
+            except subprocess.TimeoutExpired:
+                media_validation.discard_partial(partial)
+                raise RuntimeError(
+                    f"เรนเดอร์ HyperFrames เกินเวลา {HF_RENDER_TIMEOUT_SEC} วินาที และลบไฟล์ที่ค้างแล้ว: {_log_tail()}"
+                )
             finally:
                 if legacy_clone:
                     legacy_clone.unlink(missing_ok=True)
 
-            if proc.returncode != 0 or not target.exists():
-                err_text = ""
-                try:
-                    err_text = log_file.read_text(encoding="utf-8")[-1000:]
-                except Exception:
-                    pass
-                raise RuntimeError(f"Render failed with code {proc.returncode}: {err_text}")
+            if proc.returncode != 0 or not partial.exists():
+                media_validation.discard_partial(partial)
+                raise RuntimeError(f"เรนเดอร์ HyperFrames ล้มเหลว (exit {proc.returncode}): {_log_tail()}")
+            try:
+                # Same spec as hyperframes_render.py's probe gate: 1080x1920,
+                # 30 FPS, positive duration -- plus a clean tail decode.
+                media_validation.finalize_partial(partial, target)
+            except media_validation.MediaValidationError as gate_err:
+                raise RuntimeError(str(gate_err)) from gate_err
 
             # Generate thumbnail WebP
             webp_path = target.with_suffix(".webp")

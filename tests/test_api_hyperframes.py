@@ -11,6 +11,10 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+# The HyperFrames CLI is faked with placeholder bytes; the central media gate
+# itself is covered by test_mp4_validity / test_hyperframes_partial_render.
+pytestmark = pytest.mark.usefixtures("stub_media_gate")
 from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parent.parent

@@ -68,25 +68,37 @@ class HyperFramesEngine:
         ]
         if low_memory_mode:
             cmd.append("--low-memory-mode")
+        # S6-07 / AGENTS rule 24: Chrome composites on the GPU; NVENC encode
+        # only for MP4 (the transparent WebM overlay is VP9 alpha, CPU-only).
+        cmd.append("--browser-gpu")
+        if format_type == "mp4":
+            cmd.append("--gpu")
 
-        print(f"🎬 [HyperFrames] Rendering composition from {project_dir.name} -> {output_path.name}...")
-        res = subprocess.run(
-            cmd,
-            cwd=str(project_dir),
-            shell=True,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="ignore",
-            timeout=timeout_seconds
-        )
+        print(f"🎬 [HyperFrames] เรนเดอร์ composition {project_dir.name} -> {output_path.name}...")
+        try:
+            res = subprocess.run(
+                cmd,
+                cwd=str(project_dir),
+                shell=True,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="ignore",
+                timeout=timeout_seconds
+            )
+        except subprocess.TimeoutExpired:
+            # S6-04: a timed-out render must not leave a half-written file.
+            output_path.unlink(missing_ok=True)
+            print(f"❌ [HyperFrames] เรนเดอร์เกินเวลา {timeout_seconds} วินาที — ลบไฟล์ที่ค้างแล้ว: {output_path.name}")
+            return False
 
         if res.returncode != 0:
-            print(f"❌ [HyperFrames] Render failed (code {res.returncode}):\n{res.stderr[-600:]}")
+            output_path.unlink(missing_ok=True)
+            print(f"❌ [HyperFrames] เรนเดอร์ล้มเหลว (exit {res.returncode}):\n{res.stderr[-600:]}")
             return False
 
         if not output_path.exists() or output_path.stat().st_size == 0:
-            print(f"❌ [HyperFrames] Output file not found or empty: {output_path}")
+            print(f"❌ [HyperFrames] ไม่พบไฟล์ผลลัพธ์หรือไฟล์ว่าง: {output_path}")
             return False
 
         print(f"✅ [HyperFrames] Successfully rendered {output_path.name} ({output_path.stat().st_size} bytes)")
