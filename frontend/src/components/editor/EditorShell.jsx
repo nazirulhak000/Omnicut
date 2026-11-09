@@ -3635,6 +3635,7 @@ export default function EditorShell({
                         </button>
                       </div>
                       <AssetPanel
+                        reserveRailEnd
                         videos={videos}
                         clipList={clipList}
                         durations={durations}
