@@ -250,3 +250,27 @@ def _isolated_trash_dir(monkeypatch, tmp_path):
     except ImportError:  # pragma: no cover - optional deps missing
         return
     monkeypatch.setattr(api_videos, "ARCHIVE_DIR", tmp_path / "_isolated_archive")
+
+
+@pytest.fixture
+def stub_media_gate(monkeypatch):
+    """Opt-in for tests whose MP4s / ffmpeg runs are placeholders.
+
+    Treats every file as valid media and finalizes ``.partial.mp4`` outputs
+    with a plain move. The real central gate (scripts.media_validation) is
+    covered by test_mp4_validity, test_api_exports_listing,
+    test_render_timeout_cleanup and test_tiktok_enhancer.
+    """
+    from scripts import media_validation
+
+    def _ok(*_args, **_kwargs):
+        return media_validation.MediaCheck(True, "", {})
+
+    def _finalize(partial, final, **_spec):
+        partial, final = Path(partial), Path(final)
+        if partial.exists():
+            os.replace(partial, final)
+        return media_validation.MediaCheck(True, "", {})
+
+    monkeypatch.setattr(media_validation, "validate_mp4", _ok)
+    monkeypatch.setattr(media_validation, "finalize_partial", _finalize)

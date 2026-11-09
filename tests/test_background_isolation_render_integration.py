@@ -9,6 +9,11 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
+# ffmpeg is faked in this module, so there is no real encoded output for the
+# central media gate; the gate itself is covered by test_mp4_validity /
+# test_render_timeout_cleanup.
+pytestmark = pytest.mark.usefixtures("stub_media_gate")
 from PIL import Image
 
 import scripts.video_editor as video_editor

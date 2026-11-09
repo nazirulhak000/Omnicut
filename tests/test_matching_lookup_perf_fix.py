@@ -33,6 +33,10 @@ from scripts import api_videos
 from scripts import export_registry
 from scripts import media_service
 
+# Fixture MP4s here are placeholder bytes; the export listing's media gate
+# itself is covered by tests/test_api_exports_listing.py.
+pytestmark = pytest.mark.usefixtures("stub_media_gate")
+
 
 # ---------------------------------------------------------------------------
 # list_exports() -- scripts/api_exports.py

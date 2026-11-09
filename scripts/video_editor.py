@@ -1325,8 +1325,21 @@ def encoder_args(profile: Dict[str, Any]) -> List[str]:
     hw = hardware_encoder()
     if hw:
         return _hw_args(hw, int(profile.get("qp_i", 20)), int(profile.get("qp_p", 22)))
+    return software_encoder_args(profile)
+
+
+def software_encoder_args(profile: Dict[str, Any]) -> List[str]:
+    """libx264 output args -- also the retry when an NVENC session fails to open."""
     return ["-c:v", "libx264", "-profile:v", "high", "-level", "4.2",
             "-preset", profile["x264_preset"], "-crf", str(profile["crf"])]
+
+
+class FFmpegRenderError(RuntimeError):
+    """Final encode failed; ``stderr`` keeps ffmpeg's English tail for details."""
+
+    def __init__(self, message: str, stderr: str = ""):
+        super().__init__(message)
+        self.stderr = stderr or ""
 
 
 def frame_geometry(clip: Dict[str, Any], default_scale: float):
@@ -2774,241 +2787,275 @@ class VideoEditor:
 
         full_filter = "".join(filter_complex)
 
-        cmd = [
-            "ffmpeg", "-y",
-            "-threads", "0",
-            # Complex filter graphs (scale/crop/transitions/ASS/overlays) are
-            # still CPU work even when AMF encodes on the GPU. Let FFmpeg size
-            # that graph's worker pool to the machine instead of serialising it.
-            "-filter_complex_threads", "0",
-            *cmd_inputs,
-            "-filter_complex", full_filter,
-            "-map", "[v_final]",
-            "-map", final_audio_map,
-            *encoder_args(profile),
-            "-r", str(target_fps),
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-pix_fmt", "yuv420p",
-            "-movflags", "+faststart",
-            "-t", str(total_duration),
-            str(out_file)
-        ]
+        # S6-04: ffmpeg writes <stem>.partial.mp4; only a file that passes the
+        # central gate (streams + spec + tail decode) is os.replace-d onto
+        # out_file, so a killed/half-written encode never appears in exports.
+        # S6-09: an NVENC encode holds one session from the process-wide pool
+        # and is retried once on libx264 when the session fails to open.
+        from scripts import media_validation
 
-        # A long timeline makes this graph (and so the command line) grow with
-        # the clip count; Windows rejects a command line over 32,767 chars
-        # before ffmpeg even starts. Above the threshold the unchanged graph is
-        # handed over through a temp file instead (below it, cmd is untouched).
-        # The finally blocks of the two run paths below delete the file.
-        cmd, graph_script_file = externalize_filter_graph(cmd, full_filter)
+        render_target = media_validation.partial_path_for(out_file)
+        encode_timeout = media_validation.encode_timeout_for(total_duration, floor=300.0)
 
-        if progress_callback:
-            cmd.insert(1, "pipe:1")
-            cmd.insert(1, "-progress")
-            cmd.insert(1, "-nostats")
-            print(f"Executing video render with real-time progress to: {out_file}...")
-            import time
-            popen_kwargs = dict(
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="ignore"
-            )
-            if os.name == "nt":
-                # Isolates ffmpeg into its own process group so it can be
-                # signalled/killed independently of this process -- part of
-                # the orphan-prevention cleanup below.
-                popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-            try:
-                proc = subprocess.Popen(cmd, **popen_kwargs)
-            except BaseException:
-                # The try/finally below only starts once ffmpeg has spawned.
-                cleanup_graph_file(graph_script_file)
-                raise
-            _register_ffmpeg_proc(proc)
+        def _run_final_encode(codec_args: List[str]) -> None:
+            cmd = [
+                "ffmpeg", "-y",
+                "-threads", "0",
+                # Complex filter graphs (scale/crop/transitions/ASS/overlays) are
+                # still CPU work even when AMF encodes on the GPU. Let FFmpeg size
+                # that graph's worker pool to the machine instead of serialising it.
+                "-filter_complex_threads", "0",
+                *cmd_inputs,
+                "-filter_complex", full_filter,
+                "-map", "[v_final]",
+                "-map", final_audio_map,
+                *codec_args,
+                "-r", str(target_fps),
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-pix_fmt", "yuv420p",
+                "-movflags", "+faststart",
+                "-t", str(total_duration),
+                str(render_target)
+            ]
 
-            render_succeeded = False
-            # Defined before the try body so the finally block can always
-            # reference it, even if something raises before the watchdog
-            # thread itself gets set up below.
-            stop_watchdog = threading.Event()
-            try:
-                stderr_chunks = []
-                def _drain_stderr():
-                    try:
-                        for s_line in iter(proc.stderr.readline, ''):
-                            if not s_line:
-                                break
-                            stderr_chunks.append(s_line)
-                            if len(stderr_chunks) > 100:
-                                stderr_chunks.pop(0)
-                    except Exception:
-                        pass
+            # A long timeline makes this graph (and so the command line) grow with
+            # the clip count; Windows rejects a command line over 32,767 chars
+            # before ffmpeg even starts. Above the threshold the unchanged graph is
+            # handed over through a temp file instead (below it, cmd is untouched).
+            # The finally blocks of the two run paths below delete the file.
+            cmd, graph_script_file = externalize_filter_graph(cmd, full_filter)
 
-                stderr_thread = threading.Thread(target=_drain_stderr, daemon=True)
-                stderr_thread.start()
+            if progress_callback:
+                cmd.insert(1, "pipe:1")
+                cmd.insert(1, "-progress")
+                cmd.insert(1, "-nostats")
+                print(f"🎬 เริ่มเข้ารหัสวิดีโอ (แสดงความคืบหน้า) -> {render_target.name}")
+                import time
+                popen_kwargs = dict(
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="ignore"
+                )
+                if os.name == "nt":
+                    # Isolates ffmpeg into its own process group so it can be
+                    # signalled/killed independently of this process -- part of
+                    # the orphan-prevention cleanup below.
+                    popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+                try:
+                    proc = subprocess.Popen(cmd, **popen_kwargs)
+                except BaseException:
+                    # The try/finally below only starts once ffmpeg has spawned.
+                    cleanup_graph_file(graph_script_file)
+                    raise
+                _register_ffmpeg_proc(proc)
 
-                # `proc.stdout.readline()` below blocks with no timeout of
-                # its own, and the cancel check only runs BETWEEN lines -- so
-                # an ffmpeg that stops producing progress output (a genuine
-                # hang, not just a slow encode segment) would block this loop
-                # forever with no way to notice a cancel request either. This
-                # watchdog runs on the side: it kills the process once no
-                # line has arrived for STALL_TIMEOUT seconds, which unblocks
-                # readline() with EOF (closing stdout) so the loop notices
-                # promptly instead of hanging indefinitely. 300s matches the
-                # timeout this same function already uses for proc.wait()
-                # below and for the non-progress render path -- ffmpeg's
-                # `-progress` stream normally writes many lines per second,
-                # so 5 minutes of total silence is unambiguously a stall,
-                # not a slow encode.
-                STALL_TIMEOUT = 300
-                last_activity = {"t": time.time()}
-                stalled = {"v": False}
+                render_succeeded = False
+                # Defined before the try body so the finally block can always
+                # reference it, even if something raises before the watchdog
+                # thread itself gets set up below.
+                stop_watchdog = threading.Event()
+                try:
+                    stderr_chunks = []
+                    def _drain_stderr():
+                        try:
+                            for s_line in iter(proc.stderr.readline, ''):
+                                if not s_line:
+                                    break
+                                stderr_chunks.append(s_line)
+                                if len(stderr_chunks) > 100:
+                                    stderr_chunks.pop(0)
+                        except Exception:
+                            pass
 
-                def _watch_for_stall():
-                    while not stop_watchdog.is_set():
-                        if proc.poll() is not None:
-                            return
-                        if time.time() - last_activity["t"] > STALL_TIMEOUT:
-                            stalled["v"] = True
+                    stderr_thread = threading.Thread(target=_drain_stderr, daemon=True)
+                    stderr_thread.start()
+
+                    # `proc.stdout.readline()` below blocks with no timeout of
+                    # its own, and the cancel check only runs BETWEEN lines -- so
+                    # an ffmpeg that stops producing progress output (a genuine
+                    # hang, not just a slow encode segment) would block this loop
+                    # forever with no way to notice a cancel request either. This
+                    # watchdog runs on the side: it kills the process once no
+                    # line has arrived for STALL_TIMEOUT seconds, which unblocks
+                    # readline() with EOF (closing stdout) so the loop notices
+                    # promptly instead of hanging indefinitely. 300s matches the
+                    # timeout this same function already uses for proc.wait()
+                    # below and for the non-progress render path -- ffmpeg's
+                    # `-progress` stream normally writes many lines per second,
+                    # so 5 minutes of total silence is unambiguously a stall,
+                    # not a slow encode.
+                    STALL_TIMEOUT = 300
+                    last_activity = {"t": time.time()}
+                    stalled = {"v": False}
+
+                    def _watch_for_stall():
+                        while not stop_watchdog.is_set():
+                            if proc.poll() is not None:
+                                return
+                            if time.time() - last_activity["t"] > STALL_TIMEOUT:
+                                stalled["v"] = True
+                                try:
+                                    proc.kill()
+                                except Exception:
+                                    pass
+                                return
+                            stop_watchdog.wait(2.0)
+
+                    stall_thread = threading.Thread(target=_watch_for_stall, daemon=True)
+                    stall_thread.start()
+
+                    last_reported = 0
+                    cancelled = False
+                    while True:
+                        # Checked every iteration of this loop -- ffmpeg's own
+                        # `-progress pipe:1` line cadence (well under a second
+                        # per line during a real encode) is what makes this a
+                        # timely poll rather than a wait for the next 0.4s report.
+                        if cancel_event is not None and cancel_event.is_set():
+                            cancelled = True
+                            break
+                        line = proc.stdout.readline()
+                        if not line:
+                            break
+                        last_activity["t"] = time.time()
+                        line = line.strip()
+                        if line.startswith("out_time_us="):
                             try:
-                                proc.kill()
+                                us = float(line.split("=")[1])
+                                curr_sec = us / 1_000_000.0
+                                now = time.time()
+                                if now - last_reported >= 0.4:
+                                    progress_callback(curr_sec, float(total_duration))
+                                    last_reported = now
                             except Exception:
                                 pass
-                            return
-                        stop_watchdog.wait(2.0)
+                        elif line.startswith("out_time_ms="):
+                            try:
+                                ms = float(line.split("=")[1])
+                                curr_sec = ms / 1_000_000.0
+                                now = time.time()
+                                if now - last_reported >= 0.4:
+                                    progress_callback(curr_sec, float(total_duration))
+                                    last_reported = now
+                            except Exception:
+                                pass
 
-                stall_thread = threading.Thread(target=_watch_for_stall, daemon=True)
-                stall_thread.start()
+                    stop_watchdog.set()
+                    if stalled["v"]:
+                        # The watchdog already killed the process; render_succeeded
+                        # stays False so the finally block below still runs its
+                        # normal terminate/kill + partial-file cleanup (a no-op on
+                        # the terminate/kill since it's already dead) before this
+                        # propagates.
+                        raise TimeoutError(
+                            f"FFmpeg ค้าง ไม่มีความคืบหน้าเกิน {STALL_TIMEOUT} วินาที: {render_target.name}"
+                        )
 
-                last_reported = 0
-                cancelled = False
-                while True:
-                    # Checked every iteration of this loop -- ffmpeg's own
-                    # `-progress pipe:1` line cadence (well under a second
-                    # per line during a real encode) is what makes this a
-                    # timely poll rather than a wait for the next 0.4s report.
-                    if cancel_event is not None and cancel_event.is_set():
-                        cancelled = True
-                        break
-                    line = proc.stdout.readline()
-                    if not line:
-                        break
-                    last_activity["t"] = time.time()
-                    line = line.strip()
-                    if line.startswith("out_time_us="):
+                    if cancelled:
+                        # render_succeeded stays False, so the finally block below
+                        # runs the exact same terminate/kill + partial-file cleanup
+                        # as the timeout path, then this raises instead of the
+                        # generic RuntimeError/TimeoutExpired other failures raise.
+                        raise RenderCancelled("Render cancelled by user request")
+
+                    proc.wait(timeout=300)
+                    stderr_thread.join(timeout=1.0)
+                    if proc.returncode != 0:
+                        err = "".join(stderr_chunks)
+                        print("❌ FFmpeg เข้ารหัสวิดีโอล้มเหลว — รายละเอียด:", err[-500:])
+                        raise FFmpegRenderError(f"เรนเดอร์วิดีโอล้มเหลว (FFmpeg exit {proc.returncode}):\n{err[-500:]}", err)
+                    render_succeeded = True
+                finally:
+                    # ffmpeg parsed the graph file at start-up; safe to drop it
+                    # whether the render succeeded or not.
+                    cleanup_graph_file(graph_script_file)
+                    stop_watchdog.set()
+                    _unregister_ffmpeg_proc(proc)
+                    if not render_succeeded:
+                        # Whatever went wrong -- timeout, KeyboardInterrupt, a
+                        # bad returncode raised above, anything unforeseen -- the
+                        # ffmpeg child must not be left running. It was writing
+                        # only to `render_target` (this call's own -y output target),
+                        # so terminating it and removing that one path can never
+                        # touch a different, unrelated render.
+                        if proc.poll() is None:
+                            proc.terminate()
+                            try:
+                                proc.wait(timeout=5)
+                            except subprocess.TimeoutExpired:
+                                proc.kill()
+                                proc.wait(timeout=5)
+                        # Drop the partial file this invocation was writing so a
+                        # retry doesn't inherit a half-encoded .mp4. `render_target` is
+                        # this call's own -y target -- never touched unless this
+                        # specific render failed, so a good file at that path
+                        # from a *previous successful* render of the same output
+                        # name would already have been truncated by ffmpeg's own
+                        # -y the moment this run started writing; nothing here
+                        # deletes a file this invocation didn't just corrupt.
                         try:
-                            us = float(line.split("=")[1])
-                            curr_sec = us / 1_000_000.0
-                            now = time.time()
-                            if now - last_reported >= 0.4:
-                                progress_callback(curr_sec, float(total_duration))
-                                last_reported = now
-                        except Exception:
+                            if render_target.exists():
+                                render_target.unlink()
+                        except OSError:
                             pass
-                    elif line.startswith("out_time_ms="):
+            else:
+                print(f"🎬 เริ่มเข้ารหัสวิดีโอ -> {render_target.name}")
+                # S6-10: the cap scales with the clip instead of a flat 300s for
+                # the whole encode (a long timeline legitimately takes longer).
+                run_kwargs = dict(capture_output=True, text=True, encoding="utf-8", errors="ignore",
+                                  timeout=encode_timeout)
+                if os.name == "nt":
+                    run_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+                render_succeeded = False
+                try:
+                    res = subprocess.run(cmd, **run_kwargs)
+                    if res.returncode != 0:
+                        print("❌ FFmpeg เข้ารหัสวิดีโอล้มเหลว — รายละเอียด:", res.stderr[-500:])
+                        raise FFmpegRenderError(f"เรนเดอร์วิดีโอล้มเหลว (FFmpeg exit {res.returncode}):\n{res.stderr[-500:]}", res.stderr)
+                    render_succeeded = True
+                except subprocess.TimeoutExpired:
+                    raise TimeoutError(f"FFmpeg เรนเดอร์เกินเวลา {encode_timeout:.0f} วินาที: {render_target.name}")
+                finally:
+                    cleanup_graph_file(graph_script_file)
+                    if not render_succeeded:
+                        # Mirrors the progress-callback path's cleanup above: a
+                        # failed render here (bad returncode or a timeout, which
+                        # subprocess.run already kills the child for) must not
+                        # leave a half-encoded .mp4 at `render_target` for the next
+                        # attempt to trip over.
                         try:
-                            ms = float(line.split("=")[1])
-                            curr_sec = ms / 1_000_000.0
-                            now = time.time()
-                            if now - last_reported >= 0.4:
-                                progress_callback(curr_sec, float(total_duration))
-                                last_reported = now
-                        except Exception:
+                            if render_target.exists():
+                                render_target.unlink()
+                        except OSError:
                             pass
 
-                stop_watchdog.set()
-                if stalled["v"]:
-                    # The watchdog already killed the process; render_succeeded
-                    # stays False so the finally block below still runs its
-                    # normal terminate/kill + partial-file cleanup (a no-op on
-                    # the terminate/kill since it's already dead) before this
-                    # propagates.
-                    raise TimeoutError(
-                        f"FFmpeg render stalled (no progress output for over {STALL_TIMEOUT}s): {out_file.name}"
-                    )
+        primary_codec_args = encoder_args(profile)
+        uses_nvenc = "h264_nvenc" in primary_codec_args
+        try:
+            with media_validation.nvenc_session(enabled=uses_nvenc):
+                _run_final_encode(primary_codec_args)
+        except FFmpegRenderError as encode_err:
+            if not (uses_nvenc and media_validation.is_nvenc_open_failure(encode_err.stderr)):
+                raise
+            print("⚠️ เปิด session NVENC ไม่สำเร็จ — เข้ารหัสใหม่ด้วย libx264 บน CPU")
+            _run_final_encode(software_encoder_args(profile))
 
-                if cancelled:
-                    # render_succeeded stays False, so the finally block below
-                    # runs the exact same terminate/kill + partial-file cleanup
-                    # as the timeout path, then this raises instead of the
-                    # generic RuntimeError/TimeoutExpired other failures raise.
-                    raise RenderCancelled("Render cancelled by user request")
-
-                proc.wait(timeout=300)
-                stderr_thread.join(timeout=1.0)
-                if proc.returncode != 0:
-                    err = "".join(stderr_chunks)
-                    print("FFmpeg Error details:", err[-500:])
-                    raise RuntimeError(f"FFmpeg render failed:\n{err[-500:]}")
-                render_succeeded = True
-            finally:
-                # ffmpeg parsed the graph file at start-up; safe to drop it
-                # whether the render succeeded or not.
-                cleanup_graph_file(graph_script_file)
-                stop_watchdog.set()
-                _unregister_ffmpeg_proc(proc)
-                if not render_succeeded:
-                    # Whatever went wrong -- timeout, KeyboardInterrupt, a
-                    # bad returncode raised above, anything unforeseen -- the
-                    # ffmpeg child must not be left running. It was writing
-                    # only to `out_file` (this call's own -y output target),
-                    # so terminating it and removing that one path can never
-                    # touch a different, unrelated render.
-                    if proc.poll() is None:
-                        proc.terminate()
-                        try:
-                            proc.wait(timeout=5)
-                        except subprocess.TimeoutExpired:
-                            proc.kill()
-                            proc.wait(timeout=5)
-                    # Drop the partial file this invocation was writing so a
-                    # retry doesn't inherit a half-encoded .mp4. `out_file` is
-                    # this call's own -y target -- never touched unless this
-                    # specific render failed, so a good file at that path
-                    # from a *previous successful* render of the same output
-                    # name would already have been truncated by ffmpeg's own
-                    # -y the moment this run started writing; nothing here
-                    # deletes a file this invocation didn't just corrupt.
-                    try:
-                        if out_file.exists():
-                            out_file.unlink()
-                    except OSError:
-                        pass
-        else:
-            print(f"Executing video render to: {out_file}...")
-            run_kwargs = dict(capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=300)
-            if os.name == "nt":
-                run_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-            render_succeeded = False
-            try:
-                res = subprocess.run(cmd, **run_kwargs)
-                if res.returncode != 0:
-                    print("FFmpeg Error details:", res.stderr[-500:])
-                    raise RuntimeError(f"FFmpeg render failed:\n{res.stderr[-500:]}")
-                render_succeeded = True
-            except subprocess.TimeoutExpired:
-                raise TimeoutError(f"FFmpeg render timed out after 300 seconds for: {out_file.name}")
-            finally:
-                cleanup_graph_file(graph_script_file)
-                if not render_succeeded:
-                    # Mirrors the progress-callback path's cleanup above: a
-                    # failed render here (bad returncode or a timeout, which
-                    # subprocess.run already kills the child for) must not
-                    # leave a half-encoded .mp4 at `out_file` for the next
-                    # attempt to trip over.
-                    try:
-                        if out_file.exists():
-                            out_file.unlink()
-                    except OSError:
-                        pass
+        try:
+            media_validation.finalize_partial(
+                render_target, out_file,
+                width=int(profile["width"]), height=int(profile["height"]), fps=float(target_fps),
+            )
+        except media_validation.MediaValidationError as gate_err:
+            print(f"❌ {gate_err}")
+            raise RuntimeError(str(gate_err)) from gate_err
 
         # Automatically generate ultra-lightweight WebP poster thumbnail for instant 0.05s gallery display
         cls.generate_poster_thumbnail(out_file)
 
-        print(f"Render completed successfully: {out_file}")
+        print(f"✅ เรนเดอร์วิดีโอสำเร็จ: {out_file}")
         return str(out_file)
 
     @classmethod

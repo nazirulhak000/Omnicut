@@ -113,8 +113,18 @@ def build_filmstrip(source: Path, count: int, start: Optional[float] = None, end
     # sample N frames -- measured 13.6s on the 115MB HEVC test clip. Input
     # seeking (`-ss` before `-i`) jumps per frame instead, so cost scales
     # with N rather than with clip length.
-    tmp_dir = FILMSTRIP_DIR / f".tmp_{digest}"
+    # S6-13: one private scratch dir per request under .tmp/ (two requests
+    # for the same digest used to share -- and delete -- one dir under
+    # 05_Covers_Thumbnails), removed whole in the finally below.
+    import os
+    import shutil
+    import uuid
+
+    FRAME_GRAB_TIMEOUT_SEC = 30
+    STACK_TIMEOUT_SEC = 60
+    tmp_dir = BASE_DIR / ".tmp" / "filmstrips" / f"{digest}_{uuid.uuid4().hex}"
     tmp_dir.mkdir(parents=True, exist_ok=True)
+    stacked_tmp = tmp_dir / "stacked.jpg"
     frames = []
     try:
         for i in range(count):
@@ -122,12 +132,16 @@ def build_filmstrip(source: Path, count: int, start: Optional[float] = None, end
             # last frame (often black on phone recordings).
             t = range_start + range_span * (i + 0.5) / count
             frame_path = tmp_dir / f"{i:03d}.jpg"
-            grab = subprocess.run(
-                ["ffmpeg", "-y", "-ss", f"{t:.3f}", "-i", str(source),
-                 "-frames:v", "1", "-vf", f"scale={FRAME_WIDTH}:-2",
-                 "-q:v", "4", str(frame_path)],
-                capture_output=True, text=True, encoding="utf-8", errors="ignore",
-            )
+            try:
+                grab = subprocess.run(
+                    ["ffmpeg", "-y", "-ss", f"{t:.3f}", "-i", str(source),
+                     "-frames:v", "1", "-vf", f"scale={FRAME_WIDTH}:-2",
+                     "-q:v", "4", str(frame_path)],
+                    capture_output=True, text=True, encoding="utf-8", errors="ignore",
+                    timeout=FRAME_GRAB_TIMEOUT_SEC,
+                )
+            except subprocess.TimeoutExpired:
+                continue  # one stuck seek must not hang the request
             if grab.returncode == 0 and frame_path.exists():
                 frames.append(frame_path)
 
@@ -138,25 +152,25 @@ def build_filmstrip(source: Path, count: int, start: Optional[float] = None, end
         for f in frames:
             stack_cmd += ["-i", str(f)]
         if len(frames) == 1:
-            stack_cmd += ["-q:v", "4", str(out_path)]
+            stack_cmd += ["-q:v", "4", str(stacked_tmp)]
         else:
             stack_cmd += ["-filter_complex", f"hstack=inputs={len(frames)}",
-                          "-q:v", "4", str(out_path)]
+                          "-q:v", "4", str(stacked_tmp)]
 
-        res = subprocess.run(stack_cmd, capture_output=True, text=True,
-                             encoding="utf-8", errors="ignore")
-        if res.returncode != 0 or not out_path.exists():
+        try:
+            res = subprocess.run(stack_cmd, capture_output=True, text=True,
+                                 encoding="utf-8", errors="ignore", timeout=STACK_TIMEOUT_SEC)
+        except subprocess.TimeoutExpired:
+            raise HTTPException(status_code=504, detail="สร้าง filmstrip นานเกินกำหนด")
+        if res.returncode != 0 or not stacked_tmp.exists():
             raise HTTPException(
                 status_code=500,
                 detail=f"สร้าง filmstrip ไม่สำเร็จ: {(res.stderr or '')[-200:]}",
             )
+        # Readers only ever see a complete sprite under the cached name.
+        os.replace(stacked_tmp, out_path)
     finally:
-        for f in tmp_dir.glob("*.jpg"):
-            f.unlink(missing_ok=True)
-        try:
-            tmp_dir.rmdir()
-        except OSError:
-            pass
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
     return out_path
 
