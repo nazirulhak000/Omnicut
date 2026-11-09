@@ -4,6 +4,15 @@
 
 ## รอบปัจจุบัน
 
+- [ ] Round ANTIGRAVITY-OVERNIGHT-EDITOR-PERFECTION-LOGIC-AND-MINIMAL-SMOOTH-20261109 · ปฏิบัติการกะดึกข้ามคืน: ขัดเกลาและยกระดับห้องตัดต่อ (Editor UI & Editing Logic) สู่ Minimal Smooth ระดับ Premiere Pro / CapCut Desktop ไร้รอยต่อ:
+  - [ ] Cycle 01: Minimalist Obsidian Chrome — ทำความสะอาดขอบ Borders, ลด Noise ทางสายตา, ปรับ Splitters ลื่นไหลไม่มีสะดุด
+  - [ ] Cycle 02: Scrubbing & Playback Latency — เพิ่มความสมูทในการเลื่อน Playhead (<10ms rAF scrubbing), แก้ไข Audio Ramp Anti-Click และลด Re-renders
+  - [ ] Cycle 03: Editing Logic & Magnetic Timeline Snapping — ยกระดับการ Snap รอยต่อคลิป, รองรับ Threshold 8-12px, รักษาระดับเสียง -14 LUFS และ SAMI Ducking Curve
+  - [ ] Cycle 04: Inspector & Property Controls Ergonomics — บังคับใช้ font-mono tabular-nums ในตัวเลขและเวลาทั้งหมด, จัดระเบียบ Slider & Numeric Inputs สุขุม
+  - [ ] Cycle 05: Pro Shortcuts & NLE Muscle Memory — ตรวจสอบคีย์ลัด J/K/L, 1-frame stepping, Split clip, Ripple delete, Shift+Z Zoom-to-fit
+  - [ ] Cycle 06: Full Regression Verification Gate — รัน Vitest 1,222 tests (100%), Parity check (100%), Vite Production Build สำเร็จ ไร้ข้อผิดพลาด
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [x] Round ANTIGRAVITY-UI-UX-FLOW-OVERHAUL-MENU-1-TO-4-20261109 · ปฏิบัติการกะดึก: Autonomous UI/UX Perfection & Flow Continuity Loop ครบ 6 มิติ (600/600 คะแนนเต็ม) ผ่าน 1,222 Frontend tests (100%), 212 Parity tests (100%), Vite build 588ms (ดูรายงาน _Docs/Reports/UI_UX_PERFECTION_MENU_1_TO_3_OVERNIGHT_REPORT.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-UNSLOP-PASS2-10-ROUNDS-AUDIT-20261109 · ลูปตรวจเช็กความประณีตระดับงานฝีมือ 10 รอบ (Pass 2) ตามสกิล /unslop:

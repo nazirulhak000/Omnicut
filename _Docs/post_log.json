@@ -2935,5 +2935,62 @@
     "story_format": "classic",
     "duration_sec": 24.58,
     "hook_text": "สายไอทีต้องชอบสิ่งนี้ครับ นี่คือสายชาร์จ Essager PD 100W จ่ายกระแสไฟได้สูงถึง 5A"
+  },
+  {
+    "id": "754156fa36e14c4dbac3cdf43969578c",
+    "channel_id": "main",
+    "product_name": "พาวเวอร์แบงค์แม่เหล็ก TTZ K106 30000mAh",
+    "product_url": "",
+    "angle_key": "spec_review",
+    "angle_title": "⚙️ รีวิวสเปกเจาะลึก / ฟังก์ชันจัดเต็ม",
+    "hook": "⚙️ สเปกโหดขนาดนี้! Power Bank ไร้สายมีสายในตัว",
+    "clip_file": "POW01-รีวิวสเปก_1_20261109_011559.mp4",
+    "platform": "tiktok",
+    "caption": "สเปกจัดเต็ม! Power Bank 30000mAh 22.5W ชาร์จไว มีสายในตัว + ชาร์จไร้สาย ปลอดภัยขึ้นเครื่องได้ 👇",
+    "hashtags": [
+      "#แบตสำรอง30000mah",
+      "#ของดีบอกต่อ",
+      "#ไอทีน่าใช้",
+      "#พิกัดในตะกร้า"
+    ],
+    "posted_at": "2026-11-09T01:18:01",
+    "metrics": null,
+    "metrics_filled_at": null,
+    "source": "mark_posted",
+    "product_id": "cbce4d403975449a98e364b621d98308",
+    "style_preset": "clean_tech_review",
+    "export_id": "exp_c9cab8ee290b45918e2191d919e94741",
+    "story_format": "classic",
+    "duration_sec": 21.92,
+    "hook_text": "ใครมองหาแบตสำรองสเปกครบๆ ชาร์จแรงจัดเต็ม ฟังทางนี้ได้เลยครับ"
+  },
+  {
+    "id": "0082c28e7a8d4727b0590c366db6610b",
+    "channel_id": "main",
+    "product_name": "พาวเวอร์แบงค์แม่เหล็ก TTZ K106 30000mAh",
+    "product_url": "",
+    "angle_key": "pain_point",
+    "angle_title": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
+    "hook": "😫 พกสายชาร์จเยอะจนรกรกไหม? ตัวนี้จบเลย!",
+    "clip_file": "POW01-ปัญหาก่อนใช้_1_20261109_011402.mp4",
+    "platform": "tiktok",
+    "caption": "บอกลาสายชาร์จพันกัน! Power Bank 30000mAh 22.5W มีสายในตัวครบ ชาร์จไว สะดวกสุดๆ พิกัดในตะกร้าเลย 👇",
+    "hashtags": [
+      "#PowerBank",
+      "#แบตสำรอง",
+      "#ชาร์จเร็ว",
+      "#รีวิวไอที",
+      "#tiktokป้ายยา"
+    ],
+    "posted_at": "2026-11-09T01:19:00",
+    "metrics": null,
+    "metrics_filled_at": null,
+    "source": "mark_posted",
+    "product_id": "cbce4d403975449a98e364b621d98308",
+    "style_preset": "pain_punch",
+    "export_id": "exp_6b248dba8af04da09d63b396fdecde55",
+    "story_format": "classic",
+    "duration_sec": 21.73,
+    "hook_text": "เบื่อไหมครับ เดินทางทีไร สายชาร์จพันกันยุ่งเหยิง พกพาลำบากสุดๆ"
   }
 ]

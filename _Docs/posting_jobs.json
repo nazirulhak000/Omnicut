@@ -7872,5 +7872,243 @@
     "receipt_hash": "004492626e50f229545ba3a2a9a61c1e68651b752a250526dcb18366cf9f6071",
     "publish_attempted_at": 1794159852.3790717,
     "attempted_source_account": "@rizanntry"
+  },
+  {
+    "video_path": "D:\\Programmer\\All Project\\Omnicut\\04_Exports\\Ready_to_post\\POW01-รีวิวสเปก_1_20261109_011559.mp4",
+    "export_id": "exp_c9cab8ee290b45918e2191d919e94741",
+    "cover_path": null,
+    "caption": "สเปกจัดเต็ม! Power Bank 30000mAh 22.5W ชาร์จไว มีสายในตัว + ชาร์จไร้สาย ปลอดภัยขึ้นเครื่องได้ 👇",
+    "hashtags": "#แบตสำรอง30000mah # PowerBankชาร์จไว #ของดีบอกต่อ #ไอทีน่าใช้ #พิกัดในตะกร้า",
+    "product_id": "cbce4d403975449a98e364b621d98308",
+    "angle_id": "spec_review",
+    "tiktok_product_id": "1734519304293746340",
+    "product_name": "พาวเวอร์แบงค์แม่เหล็ก TTZ K106 30000mAh",
+    "schedule_date": null,
+    "schedule_time": null,
+    "queue_id": null,
+    "target_handle": "@rizanntry",
+    "channel_revision": 4,
+    "account_binding": {
+      "status": "verified",
+      "verified_handle": "@rizanntry",
+      "verified_at": "2026-10-10T18:23:52Z"
+    },
+    "strict_mode": false,
+    "video_sha256": "537c07cf7c401e4a1ad0c18eedf156e601cb9d7b6bda5f500dfb6080029eb740",
+    "cover_sha256": null,
+    "id": "7d89825aec77d55e55fc83f0e2c31192",
+    "job_id": "7d89825aec77d55e55fc83f0e2c31192",
+    "channel_id": "main",
+    "protocol_version": 2,
+    "payload_hash": "0d2f87eac681371939f87e62f935a1586aaae545fd5a888e7a32cb8fb121c1a2",
+    "prepared_payload_hash": "0d2f87eac681371939f87e62f935a1586aaae545fd5a888e7a32cb8fb121c1a2",
+    "payload_fields": [
+      "video_path",
+      "export_id",
+      "cover_path",
+      "caption",
+      "hashtags",
+      "product_id",
+      "angle_id",
+      "tiktok_product_id",
+      "product_name",
+      "schedule_date",
+      "schedule_time",
+      "queue_id",
+      "target_handle",
+      "channel_revision",
+      "account_binding",
+      "strict_mode",
+      "video_sha256",
+      "cover_sha256"
+    ],
+    "idempotency_key": "0d2f87eac681371939f87e62f935a1586aaae545fd5a888e7a32cb8fb121c1a2",
+    "status": "published",
+    "revision": 9,
+    "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2",
+    "lease_token": "WRCxuoYtDeuUM3V4HNC63ktlfMLBDr_zxdKHzu0mfaU",
+    "lease_expires_at": 1794162145.3035681,
+    "attempt": 1,
+    "created_at": 1794161812.6327982,
+    "updated_at": 1794161879.9243183,
+    "effects_applied": true,
+    "prepare_effects_applied": true,
+    "audit": [
+      {
+        "event": "prepare",
+        "at": 1794161812.6328158
+      },
+      {
+        "event": "claim",
+        "at": 1794161813.6510968,
+        "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2"
+      },
+      {
+        "event": "account_check",
+        "at": 1794161818.6242664,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794161832.8409836,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794161838.4168909,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794161841.185054,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794161843.2628782,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794161845.303579,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "reconcile",
+        "at": 1794161879.9243245,
+        "outcome": "published",
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      }
+    ],
+    "receipt": {
+      "outcome": "published",
+      "source_account": "@rizanntry",
+      "proof": {
+        "kind": "manual_user_confirmation",
+        "notice": "User confirmed posting on TikTok Studio"
+      }
+    },
+    "receipt_hash": "004492626e50f229545ba3a2a9a61c1e68651b752a250526dcb18366cf9f6071",
+    "publish_attempted_at": 1794161879.9243183,
+    "attempted_source_account": "@rizanntry"
+  },
+  {
+    "video_path": "D:\\Programmer\\All Project\\Omnicut\\04_Exports\\Ready_to_post\\POW01-ปัญหาก่อนใช้_1_20261109_011402.mp4",
+    "export_id": "exp_6b248dba8af04da09d63b396fdecde55",
+    "cover_path": null,
+    "caption": "บอกลาสายชาร์จพันกัน! Power Bank 30000mAh 22.5W มีสายในตัวครบ ชาร์จไว สะดวกสุดๆ พิกัดในตะกร้าเลย 👇",
+    "hashtags": "#PowerBank #แบตสำรอง #ชาร์จเร็ว #รีวิวไอที #tiktokป้ายยา",
+    "product_id": "cbce4d403975449a98e364b621d98308",
+    "angle_id": "pain_point",
+    "tiktok_product_id": "1734519304293746340",
+    "product_name": "พาวเวอร์แบงค์แม่เหล็ก TTZ K106 30000mAh",
+    "schedule_date": null,
+    "schedule_time": null,
+    "queue_id": null,
+    "target_handle": "@rizanntry",
+    "channel_revision": 4,
+    "account_binding": {
+      "status": "verified",
+      "verified_handle": "@rizanntry",
+      "verified_at": "2026-10-10T18:23:52Z"
+    },
+    "strict_mode": false,
+    "video_sha256": "560841e71e22aacabef95bbe0a8620ed38d3bf61461d3ef0472528a1e0864b3e",
+    "cover_sha256": null,
+    "id": "3b5619e8e5ebf116adead6886a12553c",
+    "job_id": "3b5619e8e5ebf116adead6886a12553c",
+    "channel_id": "main",
+    "protocol_version": 2,
+    "payload_hash": "965d26f1ad76c22e475b9bbbd7da3049bc71bb0e9bbdab626f7ed14bdcba68be",
+    "prepared_payload_hash": "965d26f1ad76c22e475b9bbbd7da3049bc71bb0e9bbdab626f7ed14bdcba68be",
+    "payload_fields": [
+      "video_path",
+      "export_id",
+      "cover_path",
+      "caption",
+      "hashtags",
+      "product_id",
+      "angle_id",
+      "tiktok_product_id",
+      "product_name",
+      "schedule_date",
+      "schedule_time",
+      "queue_id",
+      "target_handle",
+      "channel_revision",
+      "account_binding",
+      "strict_mode",
+      "video_sha256",
+      "cover_sha256"
+    ],
+    "idempotency_key": "965d26f1ad76c22e475b9bbbd7da3049bc71bb0e9bbdab626f7ed14bdcba68be",
+    "status": "published",
+    "revision": 5,
+    "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2",
+    "lease_token": "5xMem1GJIEy5vXeGLMaB1VOsI1LaRcSKDioDRB8ySAk",
+    "lease_expires_at": 1794162199.6500268,
+    "attempt": 1,
+    "created_at": 1794161890.9735224,
+    "updated_at": 1794161939.344856,
+    "effects_applied": true,
+    "prepare_effects_applied": true,
+    "audit": [
+      {
+        "event": "prepare",
+        "at": 1794161890.9735434
+      },
+      {
+        "event": "claim",
+        "at": 1794161891.0985289,
+        "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2"
+      },
+      {
+        "event": "account_check",
+        "at": 1794161896.584799,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794161899.650031,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "reconcile",
+        "at": 1794161939.3448625,
+        "outcome": "published",
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      }
+    ],
+    "receipt": {
+      "outcome": "published",
+      "source_account": "@rizanntry",
+      "proof": {
+        "kind": "manual_user_confirmation",
+        "notice": "User confirmed posting on TikTok Studio"
+      }
+    },
+    "receipt_hash": "004492626e50f229545ba3a2a9a61c1e68651b752a250526dcb18366cf9f6071",
+    "publish_attempted_at": 1794161939.344856,
+    "attempted_source_account": "@rizanntry"
   }
 ]

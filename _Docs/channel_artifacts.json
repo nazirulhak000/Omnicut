@@ -52,5 +52,17 @@
     "channel_id": "main",
     "path_key": "05_covers_thumbnails/main/b838f69895d04354875d0a0ae61b6a8a/pow01-ปัญหาก่อนใช้_1_cover_3x4.jpg",
     "path": "05_Covers_Thumbnails/main/b838f69895d04354875d0a0ae61b6a8a/POW01-ปัญหาก่อนใช้_1_cover_3x4.jpg"
+  },
+  {
+    "id": "cf84bd4042f78de04255a99f88b189e8cd0d225e0caa8e4e56327ac2aafbec6d",
+    "channel_id": "main",
+    "path_key": "05_covers_thumbnails/main/5b4b9b8db5bd4248888f23db0e316710/pow01-รีวิวสเปก_1_cover.jpg",
+    "path": "05_Covers_Thumbnails/main/5b4b9b8db5bd4248888f23db0e316710/POW01-รีวิวสเปก_1_cover.jpg"
+  },
+  {
+    "id": "03705a7ac8092c73d6781dcd91672c587e907aa345c6532c54c38d8ab764ffe7",
+    "channel_id": "main",
+    "path_key": "05_covers_thumbnails/main/5b4b9b8db5bd4248888f23db0e316710/pow01-รีวิวสเปก_1_cover_3x4.jpg",
+    "path": "05_Covers_Thumbnails/main/5b4b9b8db5bd4248888f23db0e316710/POW01-รีวิวสเปก_1_cover_3x4.jpg"
   }
 ]
