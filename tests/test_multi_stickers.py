@@ -85,6 +85,8 @@ def test_video_editor_multi_stickers_filter_graph(monkeypatch, tmp_path):
 
     import subprocess
     monkeypatch.setattr(subprocess, "Popen", FakeProc)
+    # No real encode happens; skip the output gate (tested in test_mp4_validity).
+    monkeypatch.setattr("scripts.media_validation.finalize_partial", lambda partial, final, **_spec: None)
 
     # Mock media info
     monkeypatch.setattr(VideoEditor, "get_media_info", lambda p: {"width": 1080, "height": 1920, "duration": 10.0})

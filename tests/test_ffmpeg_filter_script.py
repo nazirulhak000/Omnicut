@@ -380,6 +380,9 @@ def _render_with_stubs(tmp_path, monkeypatch, clip_count, *, progress=False, ret
 
     monkeypatch.setattr("scripts.video_editor.subprocess.run", fake_run)
     monkeypatch.setattr("scripts.video_editor.subprocess.Popen", fake_popen)
+    # ffmpeg is faked, so there is no real .partial.mp4 for the output gate
+    # (covered by test_render_timeout_cleanup / test_mp4_validity).
+    monkeypatch.setattr("scripts.media_validation.finalize_partial", lambda partial, final, **_spec: None)
 
     src = tmp_path / "clip.mp4"
     src.write_bytes(b"fake")

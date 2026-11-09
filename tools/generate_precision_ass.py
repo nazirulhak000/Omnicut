@@ -102,7 +102,6 @@ def build_ass(output_path, total_dur):
         "",
         "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
-        f"Dialogue: 1,0:00:00.00,{format_ass_time(total_dur)},ChannelBadge,,0,0,0,,TECH MX",
         f"Dialogue: 1,0:00:00.00,0:00:12.64,SourceCredit,,0,0,0,,Source : Weibo Xiaomi",
         f"Dialogue: 1,0:00:12.64,{format_ass_time(total_dur)},SourceCredit,,0,0,0,,Source : mi.com Official"
     ]

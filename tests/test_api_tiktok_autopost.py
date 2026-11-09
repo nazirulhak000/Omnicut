@@ -7,6 +7,10 @@ import scripts.api_tiktok_autopost as tap
 import scripts.media_service as media
 import scripts.api_exports as exports_api
 
+# Fixture MP4s here are placeholder bytes; the export listing's media gate
+# itself is covered by tests/test_api_exports_listing.py.
+pytestmark = pytest.mark.usefixtures("stub_media_gate")
+
 client = TestClient(app)
 
 @pytest.fixture(autouse=True)

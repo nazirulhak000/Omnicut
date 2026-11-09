@@ -18,6 +18,7 @@ from scripts.channel_ownership import resolve_store_scope
 from scripts.channel_scope import ChannelScope, get_channel_scope, require_writable
 from scripts.channel_store import ChannelError
 from scripts.config import BASE_DIR, EXPORTS_DIR, COVERS_DIR
+from scripts import media_validation
 from scripts.product_store import ProductStore
 from scripts.media_service import get_file_info
 from scripts.api_schemas import LinkAngleRequest
@@ -283,6 +284,17 @@ def _find_product_cover(product_name: str) -> Optional[Path]:
     return _find_cover_by_stem(product_name)
 
 
+def _listable_export_file(path: Path, registry_by_path: Dict[Path, Dict[str, Any]]) -> bool:
+    if media_validation.is_partial_name(path) or path.name.startswith("."):
+        return False
+    if path.resolve() in registry_by_path:
+        return True
+    check = media_validation.validate_mp4(path)
+    if not check.ok:
+        print(f"[api_exports] ข้ามไฟล์ {path.name}: ไม่ผ่านการตรวจวิดีโอ ({check.reason[:160]})")
+    return check.ok
+
+
 @router.get("/api/exports")
 def list_exports(scope: ChannelScope = Depends(get_channel_scope)):
     """Lists all rendered videos in 04_Exports/Ready_to_post enriched with product & script metadata.
@@ -384,6 +396,12 @@ def list_exports(scope: ChannelScope = Depends(get_channel_scope)):
             if f.resolve() in registry_by_path
             or (legacy_ok and f.resolve() not in foreign_paths)
         ]
+
+    # S6-04/X-05: never surface an in-progress encode, and never auto-register
+    # an unregistered file as "rendered" unless the central gate (ffprobe
+    # streams + 1080x1920 + 30fps + tail decode) passes. Registered files skip
+    # the probe; the result is cached per (path, size, mtime).
+    files = [f for f in files if _listable_export_file(f, registry_by_path)]
 
     # Pass 1: Identify match for each file
     raw_matches = []
@@ -1436,6 +1454,11 @@ def enhance_export_for_tiktok(
             raise _unregistered_file_error()
 
     from scripts.tiktok_enhancer import enhance_video_for_tiktok
+
+    try:
+        media_validation.require_disk_space(target.parent)
+    except media_validation.InsufficientDiskSpace as disk_err:
+        raise HTTPException(status_code=507, detail=str(disk_err))
 
     try:
         enhanced_file = enhance_video_for_tiktok(target)

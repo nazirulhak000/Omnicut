@@ -15,7 +15,14 @@ OUT_JSON = SUB_DIR / "whisper_pad_8.json"
 
 print(f"[*] Transcribing and aligning {AUDIO_PATH.name} with Faster-Whisper...")
 
-model = WhisperModel("base", device="cpu", compute_type="int8")
+try:
+    import ctranslate2  # GPU-first (AGENTS rule 21)
+    if ctranslate2.get_cuda_device_count() <= 0:
+        raise RuntimeError("ไม่พบการ์ดจอ CUDA")
+    model = WhisperModel("base", device="cuda", compute_type="float16")
+except Exception as cuda_err:  # CPU only after CUDA itself fails
+    print(f"  ⚠️ ใช้ CUDA ไม่ได้ ({cuda_err}) — สลับไป CPU int8 (ช้ากว่ามาก)")
+    model = WhisperModel("base", device="cpu", compute_type="int8")
 segments, info = model.transcribe(
     str(AUDIO_PATH),
     language="th",

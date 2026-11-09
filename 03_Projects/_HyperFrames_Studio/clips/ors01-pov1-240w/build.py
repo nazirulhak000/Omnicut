@@ -137,7 +137,14 @@ def verify_turns_with_whisper(turn_files):
     from faster_whisper import WhisperModel
 
     print("\n[Whisper Turn Verification]")
-    model = WhisperModel("large-v3-turbo", device="cpu", compute_type="int8", local_files_only=True)
+    try:
+        import ctranslate2  # GPU-first (AGENTS rule 21)
+        if ctranslate2.get_cuda_device_count() <= 0:
+            raise RuntimeError("ไม่พบการ์ดจอ CUDA")
+        model = WhisperModel("large-v3-turbo", device="cuda", compute_type="float16", local_files_only=True)
+    except Exception as cuda_err:  # CPU only after CUDA itself fails
+        print(f"  ⚠️ ใช้ CUDA ไม่ได้ ({cuda_err}) — สลับไป CPU int8 (ช้ากว่ามาก)")
+        model = WhisperModel("large-v3-turbo", device="cpu", compute_type="int8", local_files_only=True)
     report = []
     for i, wav_path in enumerate(turn_files):
         spk, phrases, _ = TURNS[i]

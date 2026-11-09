@@ -39,6 +39,10 @@ from scripts.post_log import PostLog
 from scripts.product_store import ProductStore
 from scripts.schedule_store import ScheduleQueueStore, ScheduleTemplateStore
 
+# Fixture MP4s here are placeholder bytes; the export listing's media gate
+# itself is covered by tests/test_api_exports_listing.py.
+pytestmark = pytest.mark.usefixtures("stub_media_gate")
+
 STRICT_ENV = config.MULTI_CHANNEL_STRICT_ENV
 
 

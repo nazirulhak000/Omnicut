@@ -1,4 +1,4 @@
-"""Render a demonstration clip in TECHMX style using:
+"""Render a demonstration clip in the gadget review style using:
 
 1. Gemini Flash TTS (Fenrir - ชายสตรอง คมเข้ม / โฆษณาพรีเมียม)
 2. Exact Whisper-aligned timestamps for 100% audio-sync
@@ -133,7 +133,7 @@ PRECISE_BURSTS = [
 ]
 
 
-def generate_progressive_karaoke_ass(bursts, total_duration, output_ass_path, source_credits, channel_badge="TECH MX"):
+def generate_progressive_karaoke_ass(bursts, total_duration, output_ass_path, source_credits, channel_badge=None):
     """
     Builds ASS subtitle with:
     - Font: Mali-Bold
@@ -243,13 +243,14 @@ def main():
         total_duration=total_dur,
         output_ass_path=ass_path,
         source_credits=source_credits,
-        channel_badge="TECH MX"
+        # Rule 17: no fake channel badge -- only real source attribution.
+        channel_badge=None
     )
 
     print("[4/5] Compositing Hybrid Pipeline with FFmpeg (Uncropped + Blurred Top/Bottom + Mali Karaoke)...")
     src_video = PROJECT_ROOT / ".tmp" / "gadget_products" / "Xiaomi_xiaomi_mix_flip" / "video_clean_1080p.mp4"
     bgm_music = PROJECT_ROOT / "02_Assets" / "Music" / "bgm_lofi_daily.wav"
-    out_video = OUTPUT_DIR / "demo_xiaomi_mix_flip_techmx.mp4"
+    out_video = OUTPUT_DIR / "demo_xiaomi_mix_flip.mp4"
 
     ass_filter_path = str(ass_path).replace("\\", "/").replace(":", "\\:")
     fonts_dir = str((PROJECT_ROOT / "02_Assets" / "Fonts").resolve()).replace("\\", "/").replace(":", "\\:")

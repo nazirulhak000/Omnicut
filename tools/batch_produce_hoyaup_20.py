@@ -563,18 +563,6 @@ HOYAUP_TEMPLATE = r"""<!DOCTYPE html>
         color: #111111;
         white-space: nowrap;
       }
-      #cta-arrow {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-      }
-      #cta-arrow path {
-        fill: none;
-        stroke: var(--line-red);
-        stroke-width: 18;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
       #wm {
         left: 0 !important;
         right: 0;
@@ -622,10 +610,6 @@ HOYAUP_TEMPLATE = r"""<!DOCTYPE html>
             <span class="spec-tag">เบาหวิว 83 กรัม</span>
           </div>
         </div>
-        <svg class="fx" id="cta-arrow" viewBox="0 0 1080 1920">
-          <path id="cta-shaft" d="M 220 700 C 120 900 80 1190 140 1460" stroke-dasharray="1000" stroke-dashoffset="1000" />
-          <path id="cta-head" d="M 60 1380 L 140 1470 L 230 1390" stroke-dasharray="400" stroke-dashoffset="400" />
-        </svg>
       </div>
       <div id="wm"><span>rizannTry</span></div>
 
@@ -673,8 +657,6 @@ HOYAUP_TEMPLATE = r"""<!DOCTYPE html>
       tl.fromTo("#cta-1", { opacity: 0, scale: 0.82, rotate: -3 }, { opacity: 1, scale: 1, rotate: 0, duration: 0.35, ease: "back.out(2.2)" }, CTA_T + 0.05);
       tl.fromTo("#cta-model", { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.28, ease: "power2.out" }, CTA_T + 0.18);
       tl.fromTo("#cta-hero", { opacity: 0, scale: 0.65, rotate: 6 }, { opacity: 1, scale: 1, rotate: 0, duration: 0.45, ease: "back.out(1.8)" }, CTA_T + 0.25);
-      tl.to("#cta-shaft", { strokeDashoffset: 0, duration: 0.55, ease: "power2.out" }, CTA_T + 0.55);
-      tl.to("#cta-head", { strokeDashoffset: 0, duration: 0.25, ease: "power2.out" }, CTA_T + 0.95);
 
       if (window.__timelines) {
         window.__timelines["__CID__"] = tl;

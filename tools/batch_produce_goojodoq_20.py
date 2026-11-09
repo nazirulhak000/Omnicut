@@ -610,15 +610,6 @@ GOOJODOQ_TEMPLATE = r"""<!DOCTYPE html>
     #fb-3 { bottom: 170px; left: 50px; rotate: 3deg; }
     #fb-4 { bottom: 180px; right: 50px; rotate: -3deg; }
 
-    #cta-arrow-svg {
-      position: absolute;
-      bottom: 220px;
-      left: 80px;
-      width: 220px;
-      height: 220px;
-      z-index: 30;
-      filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3));
-    }
   </style>
 </head>
 <body>
@@ -655,11 +646,6 @@ GOOJODOQ_TEMPLATE = r"""<!DOCTYPE html>
           <span class="color-pill black">● ดำ</span>
         </div>
       </div>
-      <!-- Minimalist red curved arrow pointing to yellow cart -->
-      <svg id="cta-arrow-svg" viewBox="0 0 200 200" fill="none">
-        <path d="M 160 30 Q 80 70 50 160" stroke="#d90429" stroke-width="12" stroke-linecap="round" stroke-dasharray="14 10" />
-        <polygon points="30,175 75,160 55,130" fill="#d90429" />
-      </svg>
     </div>
 
     <!-- Audio Elements -->
@@ -704,7 +690,6 @@ GOOJODOQ_TEMPLATE = r"""<!DOCTYPE html>
     tl.fromTo("#b-cta", { opacity: 0, scale: 0.95 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.4)" }, ctaT);
     tl.fromTo(".hero-img", { scale: 0.8, y: 40 }, { scale: 1, y: 0, duration: 0.45, ease: "back.out(1.6)" }, ctaT + 0.05);
     tl.fromTo(".floating-badge", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.3, stagger: 0.08, ease: "back.out(2)" }, ctaT + 0.2);
-    tl.fromTo("#cta-arrow-svg", { opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }, ctaT + 0.4);
 
     window.__timelines = window.__timelines || {};
     window.__timelines["__CID__"] = tl;

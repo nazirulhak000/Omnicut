@@ -10,12 +10,27 @@ import sys
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+from tools.media_intake_audit import audit_media  # noqa: E402
+
+MIN_SHORT_SIDE = 1080
+DOWNLOAD_TIMEOUT_SEC = 1800
 OUTPUT_BASE = BASE_DIR / ".tmp" / "gadget_products"
 MANIFEST_FILE = BASE_DIR / ".tmp" / "gadget_news_sources_20260919" / "source_manifest.json"
 
 
-def run_cmd(cmd):
-    res = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+def run_cmd(cmd, timeout=300):
+    """Run an argument list without a shell (S1-11: URLs/paths with quotes
+    or ``&`` can no longer break or inject into the command)."""
+    try:
+        res = subprocess.run(list(cmd), shell=False, capture_output=True, text=True, encoding="utf-8",
+                             errors="ignore", timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return False, "", f"คำสั่งค้างเกิน {timeout} วินาที: {cmd[0]}"
+    except OSError as exc:
+        return False, "", f"เรียกคำสั่ง {cmd[0]} ไม่ได้: {exc}"
     return res.returncode == 0, res.stdout, res.stderr
 
 
@@ -32,8 +47,14 @@ def build_product_pack(product_id: str, url: str, brand: str, topic: str):
     # Download 1080p clean video if not exists
     if not target_video.exists():
         print(f"  -> Downloading 1080p video from {url}...")
-        dl_cmd = f'yt-dlp --no-update --extractor-args "youtube:player_client=android,web" -f "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best" --merge-output-format mp4 "{url}" -o "{target_video}"'
-        ok, out, err = run_cmd(dl_cmd)
+        dl_cmd = [
+            "yt-dlp", "--no-update",
+            "--extractor-args", "youtube:player_client=android,web",
+            "-f", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+            "--merge-output-format", "mp4",
+            url, "-o", str(target_video),
+        ]
+        ok, out, err = run_cmd(dl_cmd, timeout=DOWNLOAD_TIMEOUT_SEC)
         if not ok:
             print(f"  [!] Download failed: {err[:200]}")
             return False
@@ -42,8 +63,9 @@ def build_product_pack(product_id: str, url: str, brand: str, topic: str):
     print("  -> Extracting high-res sample photos...")
     
     # Try getting video duration
-    dur_cmd = f'ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "{target_video}"'
-    ok_dur, out_dur, _ = run_cmd(dur_cmd)
+    dur_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+               "-of", "default=noprint_wrappers=1:nokey=1", str(target_video)]
+    ok_dur, out_dur, _ = run_cmd(dur_cmd, timeout=30)
     try:
         total_sec = float(out_dur.strip())
     except Exception:
@@ -55,21 +77,44 @@ def build_product_pack(product_id: str, url: str, brand: str, topic: str):
     for idx, sec in enumerate(sample_points):
         photo_path = photos_dir / f"frame_{idx+1}.jpg"
         if not photo_path.exists() and target_video.exists():
-            ff_cmd = f'ffmpeg -ss {sec:.2f} -i "{target_video}" -vframes 1 -q:v 2 "{photo_path}" -y'
-            run_cmd(ff_cmd)
+            ff_cmd = ["ffmpeg", "-ss", f"{sec:.2f}", "-i", str(target_video),
+                      "-vframes", "1", "-q:v", "2", str(photo_path), "-y"]
+            run_cmd(ff_cmd, timeout=60)
 
-    # Write info.json
+    # S1-10: rule 12 (no burned-in foreign subtitles) and the 1080p floor are
+    # checked for real (ffprobe + OCR screening) instead of hardcoded flags.
+    audit = audit_media(target_video)
+    codes = {sig.get("code") for sig in audit.get("signals", [])}
+    media = audit.get("media") or {}
+    short_side = min(int(media.get("width") or 0), int(media.get("height") or 0))
+    if audit.get("status") == "fail":
+        status = "rejected_unreadable"
+    elif short_side < MIN_SHORT_SIDE:
+        status = "rejected_low_resolution"
+    elif "possible_foreign_subtitle" in codes:
+        status = "rejected_foreign_subtitles"
+    else:
+        status = "ready_for_editing"
     info = {
         "product_id": product_id,
         "brand": brand,
         "topic": topic,
         "source_url": url,
-        "clean_footage": True,
-        "no_foreign_subtitles": True,
-        "status": "ready_for_editing"
+        "resolution": {"width": media.get("width"), "height": media.get("height")},
+        # True only when OCR ran and found no text at all; otherwise unknown
+        # (None) or False. A human visual review is still required (rule 12).
+        "no_foreign_subtitles": (False if "possible_foreign_subtitle" in codes
+                                 else True if "no_text_in_samples" in codes else None),
+        "clean_footage": None if status == "ready_for_editing" else False,
+        "visual_review_required": True,
+        "intake_audit": {"status": audit.get("status"), "signals": audit.get("signals", [])},
+        "status": status,
     }
     (pack_dir / "info.json").write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"[OK] Completed pack: {slug}")
+    if status != "ready_for_editing":
+        print(f"[!] Pack {slug} ไม่ผ่านการตรวจวัตถุดิบ: {status}")
+        return False
+    print(f"[OK] Completed pack: {slug} (ต้องตรวจภาพด้วยตาก่อนใช้งาน)")
     return True
 
 

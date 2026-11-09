@@ -16,6 +16,8 @@ import subprocess
 import threading
 from typing import Dict, List, Optional, Union
 
+from scripts import media_validation
+
 logger = logging.getLogger("omnicut.tiktok_enhancer")
 
 # CapCut 7.1 gpu_driver_bug_list.json hardware decoder/encoder blacklist
@@ -44,7 +46,7 @@ def check_nvenc_support() -> bool:
         return False
     try:
         ffmpeg_bin = shutil.which("ffmpeg") or "ffmpeg"
-        res = subprocess.run([ffmpeg_bin, "-encoders"], capture_output=True, text=True, check=False)
+        res = subprocess.run([ffmpeg_bin, "-encoders"], capture_output=True, text=True, check=False, timeout=30)
         return "h264_nvenc" in res.stdout
     except Exception:
         return False
@@ -52,34 +54,21 @@ def check_nvenc_support() -> bool:
 
 HAS_NVENC = check_nvenc_support()
 if HAS_NVENC:
-    logger.info("NVIDIA NVENC hardware acceleration is active.")
+    logger.info("เปิดใช้ NVIDIA NVENC เข้ารหัสด้วยการ์ดจอแล้ว")
 else:
-    logger.info("NVIDIA NVENC not available, using libx264 CPU fallback.")
+    logger.info("ไม่พบ NVIDIA NVENC — ใช้ libx264 บน CPU แทน")
 
 # GeForce drivers cap concurrent NVENC sessions per system (5 on drivers from
-# 2023, 8 on current ones) and the pipeline's own final encodes already use up
-# to four (render_jobs slot pool). Batch enhancement runs on four workers
-# (AGENTS rule 24), so enhancer encodes take a session from this small pool
-# rather than racing for the driver limit; a session that still fails to open
+# 2023, 8 on current ones). The cap now lives in scripts.media_validation and
+# is ONE process-wide pool shared with the final timeline encode and the
+# couple_engine enhancer (audit S6-09); a session that still fails to open
 # falls back to libx264 below instead of failing the export.
-NVENC_SESSIONS_ENV = "OMNICUT_NVENC_SESSIONS"
-NVENC_SESSIONS_DEFAULT = 4
-NVENC_SESSIONS_MAX = 8
-
-
-def resolve_nvenc_sessions(raw: Optional[str] = None) -> int:
-    """Enhancer NVENC session cap from env (clamped 1..8, default 4)."""
-    if raw is None:
-        raw = os.environ.get(NVENC_SESSIONS_ENV)
-    try:
-        value = int(str(raw).strip()) if raw is not None and str(raw).strip() else NVENC_SESSIONS_DEFAULT
-    except ValueError:
-        value = NVENC_SESSIONS_DEFAULT
-    return max(1, min(NVENC_SESSIONS_MAX, value))
-
-
-NVENC_MAX_SESSIONS = resolve_nvenc_sessions()
-_NVENC_SESSIONS = threading.BoundedSemaphore(NVENC_MAX_SESSIONS)
+NVENC_SESSIONS_ENV = media_validation.NVENC_SESSIONS_ENV
+NVENC_SESSIONS_DEFAULT = media_validation.NVENC_SESSIONS_DEFAULT
+NVENC_SESSIONS_MAX = media_validation.NVENC_SESSIONS_MAX
+resolve_nvenc_sessions = media_validation.resolve_nvenc_sessions
+NVENC_MAX_SESSIONS = media_validation.NVENC_MAX_SESSIONS
+_NVENC_SESSIONS = media_validation.NVENC_SESSIONS
 
 
 def probe_audio_codec(input_path: Path) -> Optional[str]:
@@ -99,7 +88,7 @@ def probe_audio_codec(input_path: Path) -> Optional[str]:
         if streams:
             return streams[0].get("codec_name")
     except Exception as e:
-        logger.warning("Could not probe audio codec for %s: %s", input_path, e)
+        logger.warning("ตรวจ codec เสียงของ %s ไม่ได้: %s", input_path, e)
     return None
 
 
@@ -127,7 +116,7 @@ def enhance_video_for_tiktok(
     """
     in_file = Path(input_path).resolve()
     if not in_file.is_file():
-        raise FileNotFoundError(f"Source video not found: {in_file}")
+        raise FileNotFoundError(f"ไม่พบไฟล์ต้นฉบับ: {in_file}")
 
     if output_path is None:
         out_file = in_file.with_name(f"{in_file.stem}_tiktok_sharp.mp4")
@@ -135,6 +124,8 @@ def enhance_video_for_tiktok(
         out_file = Path(output_path).resolve()
 
     out_file.parent.mkdir(parents=True, exist_ok=True)
+    src_check = check_enhancer_source(in_file)
+    media_validation.require_disk_space(out_file.parent)
 
     ffmpeg_bin = shutil.which("ffmpeg") or "ffmpeg"
     audio_codec = probe_audio_codec(in_file)
@@ -179,27 +170,70 @@ def enhance_video_for_tiktok(
             *video_codec_args,
             *audio_args,
             "-movflags", "+faststart",
-            str(out_file)
+            str(partial)
         ]
 
-    logger.info("Enhancing video for TikTok: %s -> %s", in_file.name, out_file.name)
-    proc = None
-    if HAS_NVENC:
-        with _NVENC_SESSIONS:
-            proc = subprocess.run(build_cmd(nvenc_args), capture_output=True, text=True)
+    logger.info("กำลังปรับความคมชัดสำหรับ TikTok: %s -> %s", in_file.name, out_file.name)
+    partial = media_validation.partial_path_for(out_file)
+    timeout = media_validation.encode_timeout_for(src_check.details.get("duration"))
+
+    def run_encode(video_codec_args: List[str]) -> subprocess.CompletedProcess:
+        try:
+            return subprocess.run(build_cmd(video_codec_args), capture_output=True, text=True,
+                                  encoding="utf-8", errors="replace", timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            return subprocess.CompletedProcess(exc.cmd, -1, stdout="", stderr=f"timeout after {timeout:.0f}s")
+
+    try:
+        proc = None
+        if HAS_NVENC:
+            with _NVENC_SESSIONS:
+                proc = run_encode(nvenc_args)
+            if proc.returncode != 0:
+                logger.warning(
+                    "h264_nvenc ล้มเหลว (exit %s) — สลับไปใช้ libx264 บน CPU แทน: %s",
+                    proc.returncode, (proc.stderr or "")[-300:],
+                )
+                media_validation.discard_partial(partial)
+                proc = None
+        if proc is None:
+            proc = run_encode(x264_args)
         if proc.returncode != 0:
-            logger.warning(
-                "h264_nvenc ล้มเหลว (exit %s) — สลับไปใช้ libx264 บน CPU แทน: %s",
-                proc.returncode, (proc.stderr or "")[-300:],
+            logger.error("FFmpeg ปรับความคมชัดล้มเหลว (exit %s):\n%s", proc.returncode, (proc.stderr or "")[-2000:])
+            raise RuntimeError(
+                f"FFmpeg ปรับความคมชัดล้มเหลว (exit {proc.returncode}): {(proc.stderr or '')[-500:]}"
             )
-            proc = None
-    if proc is None:
-        proc = subprocess.run(build_cmd(x264_args), capture_output=True, text=True)
-    if proc.returncode != 0:
-        logger.error("FFmpeg enhancement failed:\n%s", proc.stderr)
-        raise RuntimeError(f"FFmpeg failed with exit code {proc.returncode}: {proc.stderr[-500:]}")
+        verify_enhanced_output(src_check, partial)
+        os.replace(partial, out_file)
+    finally:
+        # Killed/failed/invalid encodes never leave a half-written file behind.
+        media_validation.discard_partial(partial)
 
     return out_file
+
+
+def check_enhancer_source(in_file: Path) -> "media_validation.MediaCheck":
+    """The source must itself be complete: a truncated source would "enhance"
+    successfully into a shorter clip (audit S6-05)."""
+    check = media_validation.validate_mp4(in_file, width=None, height=None, fps=None)
+    if not check.ok:
+        raise RuntimeError(f"ไฟล์ต้นฉบับเสียหรือไม่ครบ ปรับความคมชัดไม่ได้ ({in_file.name}): {check.reason}")
+    return check
+
+
+def verify_enhanced_output(src_check: "media_validation.MediaCheck", partial: Path) -> None:
+    """Output keeps the source's geometry/fps and its duration within 0.1s."""
+    src = src_check.details
+    check = media_validation.validate_mp4(
+        partial, width=src.get("width"), height=src.get("height"), fps=src.get("fps"), use_cache=False,
+    )
+    if not check.ok:
+        raise RuntimeError(f"ไฟล์ที่ปรับความคมชัดแล้วไม่ผ่านการตรวจ: {check.reason}")
+    src_d, out_d = src.get("duration"), check.details.get("duration")
+    if src_d and out_d is not None and abs(float(out_d) - float(src_d)) > 0.1:
+        raise RuntimeError(
+            f"ความยาวหลังปรับความคมชัด ({out_d:.2f}s) ต่างจากต้นฉบับ ({src_d:.2f}s) เกิน 0.1 วินาที"
+        )
 
 
 if __name__ == "__main__":

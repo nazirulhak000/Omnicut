@@ -10,6 +10,12 @@ from scripts import api_exports, api_videos, export_registry, media_service
 from scripts.product_store import ProductStore
 from scripts import product_store as product_store_module
 
+import pytest
+
+# Fixture MP4s here are placeholder bytes; the export listing's media gate
+# itself is covered by tests/test_api_exports_listing.py.
+pytestmark = pytest.mark.usefixtures("stub_media_gate")
+
 
 def _patch_export_roots(monkeypatch, tmp_path):
     ready = tmp_path / "04_Exports" / "Ready_to_post"

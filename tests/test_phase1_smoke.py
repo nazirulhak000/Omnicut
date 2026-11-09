@@ -17,6 +17,11 @@ import time
 from pathlib import Path
 
 import pytest
+
+# ffmpeg is faked in this module, so there is no real encoded output for the
+# central media gate; the gate itself is covered by test_mp4_validity /
+# test_render_timeout_cleanup.
+pytestmark = pytest.mark.usefixtures("stub_media_gate")
 from fastapi.testclient import TestClient
 
 from scripts import post_log, product_store, project_manifest, render_jobs
