@@ -58,7 +58,7 @@ const STEM_H = 24;
 // undifferentiated stack -- the grouping had to be inferred rather than seen.
 const ROW_GAP = 2;
 const GROUP_GAP = 10;
-const TRACK_TOP = 6;
+const TRACK_TOP = 10;
 // One lane per stem now that the preview plays them separately: a single
 // merged "audio" lane could only ever show the mix, which most projects no
 // longer have, and gave nothing to mute or solo.

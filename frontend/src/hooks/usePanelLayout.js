@@ -14,9 +14,9 @@ export const INSPECTOR_MIN_W = 280;
 export const INSPECTOR_MAX_W = 760;
 export const INSPECTOR_DEFAULT_W = 380;
 
-export const MOBILE_PREVIEW_MIN_H = 160;
-export const MOBILE_PREVIEW_DEFAULT = 0.45;
-export const MOBILE_TAB_ROW_H = 48;
+export const MOBILE_PREVIEW_MIN_H = 130;
+export const MOBILE_PREVIEW_DEFAULT = 0.32;
+export const MOBILE_TAB_ROW_H = 44;
 
 /**
  * Hook for managing panel widths, timeline heights, and collapse states across desktop & mobile.

@@ -259,8 +259,8 @@ export default function TimelineClip({
       {isExtraSelected && (
         <div data-multi-selected="" aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[#D97757]/25" />
       )}
-      <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-1 px-1.5 py-0.5 pointer-events-none">
-        <span className="text-xs font-medium text-[#EDE9E3] truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+      <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-1 px-1.5 py-0.5 pointer-events-none z-10">
+        <span className="text-xs font-medium text-slate-100 truncate px-1 py-0.5 rounded bg-black/65 backdrop-blur-xs">
           {fileName}
         </span>
         {clip.background_isolation?.enabled && (

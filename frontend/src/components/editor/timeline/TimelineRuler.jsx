@@ -46,14 +46,14 @@ function TimelineRuler({
   const markOut = Number.isFinite(rangeMark?.outTime) ? rangeMark.outTime : null;
 
   return (
-    <div className="sticky top-0 z-20 flex bg-[#1C1B19]">
-      <div style={{ width: gutterW }} className="flex-shrink-0" />
+    <div className="sticky top-0 z-20 flex bg-[#0D111A] border-b border-white/[0.08]">
+      <div style={{ width: gutterW }} className="flex-shrink-0 bg-[#0D111A] border-r border-white/[0.04]" />
       <div
         onPointerDown={onStartScrub}
         onPointerMove={onMoveScrub}
         onPointerUp={onEndScrub}
         onPointerCancel={onEndScrub}
-        className="relative flex-1 cursor-text touch-none border-b border-[#363430]"
+        className="relative flex-1 cursor-text touch-none"
         style={{ height: rulerHeight }}
         title="คลิกหรือลากเพื่อเลื่อนหัวอ่าน"
       >
@@ -101,7 +101,7 @@ function TimelineRuler({
           </>
         )}
         {Array.isArray(lintSpans) && lintSpans.length > 0 && (
-          <div data-viral-heatmap className="pointer-events-none absolute inset-x-0 bottom-0 h-[5px]">
+          <div data-viral-heatmap className="pointer-events-none absolute inset-x-0 top-0 h-[3px]">
             {lintSpans.map((span, index) => {
               const look = LINT_STYLE[span.severity] || LINT_STYLE.warn;
               const range = `${formatPreflightTime(span.start)}${span.end > span.start ? ` – ${formatPreflightTime(span.end)}` : ''}`;
@@ -113,14 +113,14 @@ function TimelineRuler({
                   role="img"
                   aria-label={text}
                   title={text}
-                  className="pointer-events-auto absolute bottom-0 rounded-[1px]"
+                  className="pointer-events-auto absolute top-0 rounded-b-[2px]"
                   style={{
                     left: span.start * pxPerSec,
                     width: Math.max(LINT_MIN_PX, (span.end - span.start) * pxPerSec),
-                    height: look.height,
+                    height: 2.5,
                     background: look.background,
-                    opacity: 0.9,
-                    boxShadow: look.edge ? `inset 0 1px 0 ${look.edge}` : undefined,
+                    opacity: 0.95,
+                    boxShadow: look.edge ? `inset 0 -1px 0 ${look.edge}` : undefined,
                   }}
                 />
               );
@@ -129,8 +129,8 @@ function TimelineRuler({
         )}
         {ticks.map((t) => (
           <div key={t} className="pointer-events-none absolute top-0 h-full" style={{ left: t * pxPerSec }}>
-            <span className="absolute top-0 h-2 w-px bg-[#4A4742]" />
-            <span className="absolute top-2 -translate-x-1/2 font-mono text-xs text-[#9C968F]">
+            <span className="absolute top-0 h-2 w-px bg-white/20" />
+            <span className="absolute top-2 -translate-x-1/2 font-mono text-[11px] text-slate-400 tabular-nums font-medium">
               {formatTimecode(t, { frames: framePx !== null })}
             </span>
           </div>

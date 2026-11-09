@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-FIX-TIMELINE-RULER-LINE-AND-MOBILE-VIEW-UNCLUTTER-20261109 · ปฏิบัติการแก้ปัญหาเส้นไม้บรรทัดบังคลิป (Timeline Ruler Line Fix) & ลดความแออัดบนจอมือถือ (Mobile View Ergonomics): ย้ายแถบ Viral Heatmap จากขอบล่างไม้บรรทัดขึ้นขอบบน ไม่บังคลิปวิดีโอ 100%, ปรับ TRACK_TOP เพิ่มระยะปลอดภัย 10px, ใส่พื้นหลังป้ายชื่อคลิป, ปรับสัดส่วนพรีวิวบนมือถือสู่ 32% (เพิ่มพื้นที่ตัดต่อไทม์ไลน์ขึ้น 120px ทันที), ลดความสูงตัวปรับขนาดและแถบควบคุมพรีวิวให้กระชับ, ผ่าน Vitest 1,222/1,222 tests (100%), Parity 212/212 tests (100%), Vite Build 457ms · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
 - [x] Round ANTIGRAVITY-UNSLOP-EDITOR-SCREEN-AND-CLIP-BADGES-20261109 · ปฏิบัติการ Unslopping Pass หน้าจอตัดต่อ (Editor UI & Inspector Deep Clean): ขจัดสีม่วงไล่เฉดและเงาเรืองแสงบนการ์ด SAM 2 Cutout สู่ Obsidian Pro Dark NLE (#0E131E, border-white/[0.08]), ปรับปุ่มโหมดพรีวิวสู่ Quiet Studio Buttons, จัดระเบียบป้ายความเร็วคลิปบนไทม์ไลน์เป็น 2 ตำแหน่งทศนิยม tabular-nums (font-mono text-[10px]), ปรับ Quiet Chrome บนปุ่ม AI Auto-SRT และปลดเงาเรืองแสงของปุ่ม AI Agent บน Header, ผ่าน Vitest 1,222/1,222 tests (100%), Parity 212/212 tests (100%), Vite Build สำเร็จ 463ms ไร้ข้อผิดพลาด · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [x] Round ANTIGRAVITY-EDITOR-TOOLBAR-ICON-MINIMAL-AND-TIMELINE-VERTICAL-SCROLL-20261109 · ปฏิบัติการ Editor Toolbar Icon Minimal & Timeline Vertical Scroll: แปลงปุ่มแถบเครื่องมือไทม์ไลน์สู่ Icon-Only สไตล์ Pro NLE คลีนตา ไร้ตัวหนังสือหัก 2 บรรทัด พร้อม Tooltip ครบถ้วน + ปลดล็อก Wheel Scroll ให้เลื่อนขึ้น-ลงแทร็กไทม์ไลน์ได้อย่างลื่นไหลเป็นธรรมชาติ (Shift+Wheel สำหรับแนวนอน), ผ่าน Vitest 1,222 tests (100%), Parity 212 tests (100%), Vite Build 456ms · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)

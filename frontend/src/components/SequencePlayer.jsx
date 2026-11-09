@@ -5495,7 +5495,7 @@ function SequencePlayer({
               }`}
             >
               <Shield className="h-3 w-3" />
-              <span>Safe Zone</span>
+              <span className="hidden sm:inline">Safe Zone</span>
             </button>
           </div>
 
@@ -6054,7 +6054,7 @@ function SequencePlayer({
               }`}
             >
               <Shield className="h-3.5 w-3.5" />
-              <span>Safe Zone</span>
+              <span className="hidden sm:inline">Safe Zone</span>
             </button>
           </div>
         </div>
