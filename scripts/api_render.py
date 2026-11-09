@@ -7,7 +7,7 @@ import sys
 import uuid
 import shutil
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Request
 from scripts.channel_scope import ChannelScope, require_active_for_new_work, require_final_ready
@@ -70,6 +70,19 @@ def get_render_disk_check():
     """Returns disk space status for render storage and exports."""
     return check_disk_space()
 
+
+
+def collect_qa_warnings(result: Any) -> List[str]:
+    """Post-render QA warnings (Thai) for a pipeline result; never raises."""
+    try:
+        from scripts.video_editor import VideoEditor
+
+        mp4_val = ""
+        if isinstance(result, dict):
+            mp4_val = result.get("mp4") or result.get("mp4_video") or result.get("output_video") or result.get("video_path") or ""
+        return VideoEditor.pop_qa_warnings(mp4_val) if mp4_val else []
+    except Exception:  # noqa: BLE001 - advisory only
+        return []
 
 
 def execute_render_job(job_id: str, req_data: RenderRequest, job_scope: Optional[Dict[str, Any]] = None):
@@ -230,6 +243,13 @@ def execute_render_job(job_id: str, req_data: RenderRequest, job_scope: Optional
                 progress_callback=on_progress
             )
 
+
+        # Audit S3-11: surface the post-render black/frozen-frame scan (advisory).
+        qa_warnings = collect_qa_warnings(result)
+        if qa_warnings:
+            result["qa_warnings"] = qa_warnings
+            for qa_line in qa_warnings:
+                on_progress(f"⚠️ ตรวจพบหลังเรนเดอร์: {qa_line}", 0.99)
 
         if req_data.product_id and result.get("project_name"):
             try:

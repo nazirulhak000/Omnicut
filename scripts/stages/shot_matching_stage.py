@@ -582,7 +582,15 @@ class ShotMatchingStage:
                 if abs(t - target_offset) <= window and t + c_dur <= raw_duration
             ]
             if candidates:
-                raw_offset = max(candidates, key=lambda ts: ts[1])[0]
+                # Audit S3-11: skip windows whose mean motion is below the
+                # still threshold; when every window is still, keep the
+                # original pick (nothing better exists).
+                moving = [
+                    ts for ts in candidates
+                    if (MotionAnalyzer.segment_mean_score(motion_times, motion_scores, ts[0], ts[0] + c_dur) or 0.0)
+                    >= STILL_MOTION_THRESHOLD
+                ]
+                raw_offset = max(moving or candidates, key=lambda ts: ts[1])[0]
 
         # Anti-collision check: ensure not too close to the immediately preceding shot
         if previous_offsets and len(previous_offsets) > 0:
