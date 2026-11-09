@@ -40,6 +40,7 @@ from scripts.db import DocumentTable
 from scripts import path_utils
 from scripts.export_registry import ExportRegistry, _normalise_path as _export_normalise_path
 from scripts.product_scraper import clean_product_title
+from scripts.compliance_lint import find_price_term, strip_emoji
 
 STORE_PATH = BASE_DIR / "_Docs" / "products.json"
 
@@ -310,6 +311,25 @@ _TABLE = DocumentTable("products", _store_db_path, _store_json_path)
 # clone workflow exists (not approved) -- they only label "same model".
 CANONICAL_KEY_FIELDS = ("canonical_product_key", "source_product_id")
 _CANONICAL_MAX_LEN = 200
+
+
+def _clean_product_name(name: str) -> str:
+    """Clean a product name on add/update and refuse one that still carries a price.
+
+    clean_product_title strips price/promo/emoji (S1-03). When cleaning
+    leaves nothing, the raw name is used minus emoji -- but a price or promo
+    term must never be stored as the product name (it flows into AI prompts
+    and on-screen text).
+    """
+    clean_name = clean_product_title(name) or strip_emoji(name)
+    if not clean_name:
+        raise ValueError("ต้องมีชื่อสินค้า")
+    term = find_price_term(clean_name)
+    if term:
+        raise ValueError(
+            f"ชื่อสินค้ามีราคา/คำโปรโมชั่น ('{term}') กรุณาแก้ชื่อสินค้าให้เหลือแค่ชื่อรุ่น"
+        )
+    return clean_name
 
 
 def _clean_canonical_value(field: str, value: Any) -> Optional[str]:
@@ -649,7 +669,7 @@ class ProductStore:
         """
         if not name.strip():
             raise ValueError("ต้องมีชื่อสินค้า")
-        clean_name = clean_product_title(name) or name.strip()
+        clean_name = _clean_product_name(name)
         canonical = {
             "canonical_product_key": _clean_canonical_value("canonical_product_key", canonical_product_key),
             "source_product_id": _clean_canonical_value("source_product_id", source_product_id),
@@ -769,7 +789,7 @@ class ProductStore:
                         fields["product_code"] = fields["product_code"].strip().upper()
 
                     if "name" in fields and fields["name"]:
-                        fields["name"] = clean_product_title(str(fields["name"])) or str(fields["name"]).strip()
+                        fields["name"] = _clean_product_name(str(fields["name"]))
 
                     apply_to_angles = bool(fields.pop("apply_to_angles", False))
                     hook_brand = fields.get("hook_brand")

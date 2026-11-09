@@ -11,7 +11,9 @@ from html.parser import HTMLParser
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+from scripts import compliance_lint as _compliance_lint
+
+BASE_DIR =Path(__file__).resolve().parent.parent
 BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -675,6 +677,47 @@ def _looks_like_login_page(title: str, text: str, url: str = "") -> bool:
     ))
 
 
+_UNICODE_HYPHENS_RE = re.compile("[‐‑‒−]")
+_TITLE_EMOJI_RE = _compliance_lint.EMOJI_RE
+
+_NUM = r"\d[\d,]*(?:\.\d+)?"
+# Ordered: percent-with-discount before bare percent, currency+number before
+# the bare keyword, so no orphan digits/"%" are left behind.
+_TITLE_PROMO_PATTERNS = [
+    re.compile(rf"ลด(?:ราคา|เหลือ|แรง|พิเศษ|กระหน่ำ|ล้าง|สูงสุด)?\s*[-−]?{_NUM}\s*%(?:\s*off\b)?", re.I),
+    re.compile(rf"[-−]?{_NUM}\s*%(?:\s*off\b)?", re.I),
+    re.compile(rf"(?:ลด)?เหลือ(?:เพียง)?\s*(?:฿|THB)\s*{_NUM}", re.I),
+    re.compile(rf"(?:ลด)?เหลือ(?:เพียง)?\s*{_NUM}\s*(?:บาท|฿|บ\.)"),
+    re.compile(rf"(?:฿|THB)\s*{_NUM}(?:\s*[-~]\s*(?:฿|THB)?\s*{_NUM})?", re.I),
+    re.compile(rf"{_NUM}\s*(?:บาท|฿|บ\.|\.-)"),
+    re.compile(rf"{_NUM}\s*(?:THB|baht)\b", re.I),
+    re.compile(rf"ราคา(?:พิเศษ|ถูก|ส่ง|โปร|ดี|เพียง)?(?:\s*{_NUM})?"),
+    re.compile(rf"ลด(?:ราคา|เหลือ|แรง|พิเศษ|กระหน่ำ|ล้าง|สูงสุด)(?:สต็อก)?(?:\s*{_NUM})?"),
+    re.compile(rf"ส่วนลด(?:\s*{_NUM})?"),
+    re.compile(r"โปรโมชั่น|โปรโมชัน|คูปอง|ถูกมาก|ส่งฟรี"),
+    re.compile(r"\b(?:mega|big|super|flash|hot|great)?\s*sale\b", re.I),
+    re.compile(r"\b(?:off|discount|promo(?:tion)?|voucher|coupon)\b", re.I),
+    re.compile(r"บาท|฿|\bTHB\b", re.I),
+]
+
+
+def _strip_title_promo(text: str) -> str:
+    for pattern in _TITLE_PROMO_PATTERNS:
+        text = pattern.sub(" ", text)
+    return text
+
+
+def _strip_central_price_terms(text: str) -> str:
+    """Cut every span the central price lint (compliance_lint) still flags."""
+    for _ in range(4):
+        if not _compliance_lint.find_price_term(text):
+            break
+        for pattern, _label in _compliance_lint._PRICE_PATTERNS:
+            text = pattern.sub(" ", text)
+        text = re.sub(r"\s{2,}", " ", text).strip(" ,-|•/")
+    return re.sub(r"\s{2,}", " ", text).strip()
+
+
 def clean_product_title(title: str) -> str:
     """Sanitizes and condenses raw e-commerce product titles into clean, concise names.
 
@@ -687,6 +730,12 @@ def clean_product_title(title: str) -> str:
     t = str(title).strip()
     if t.lower() in ("log in", "sign in", "เข้าสู่ระบบ", "security check", "verify to continue", "tiktok"):
         return ""
+
+    # 0. Unicode hyphen look-alikes (U+2010/2011/2012/2212) -> ASCII "-" so
+    #    model names such as "Type‑C" / "WH‑1000XM5" match the rules below.
+    t = _UNICODE_HYPHENS_RE.sub("-", t)
+    # Seller emoji ("🔥", "⚡") never belong in a product name (Zero-Emoji).
+    t = _TITLE_EMOJI_RE.sub(" ", t)
 
     # 1. Remove platform tags
     t = re.split(r'\s*[-|•]\s*(?:Shopee|TikTok|Lazada).*$', t, flags=re.I)[0]
@@ -731,6 +780,11 @@ def clean_product_title(title: str) -> str:
     for p in marketing_phrases:
         t = re.sub(p, ' ', t, flags=re.I)
 
+    # 4b. Price / discount / promo noise must never reach a product name (and
+    #     from there the AI prompt and the clip): "ลดราคา 50%", "฿299",
+    #     "299 บาท", "Sale", "คูปอง" ...
+    t = _strip_title_promo(t)
+
     # 5. Comma, pipe, or bullet separated spec dumps: extract core segment + key spec
     if ',' in t or '，' in t or '|' in t:
         parts = [p.strip() for p in re.split(r'[,，|]', t) if p.strip()]
@@ -738,7 +792,7 @@ def clean_product_title(title: str) -> str:
             first_part = parts[0]
             spec_additions = []
             for part in parts[1:]:
-                spec_m = re.search(r'\b(\d+H|\d+W|\d+A|\d+mAh|2\s*ใน\s*1|\d+\s*นิ้ว|Type‑?C\s*(?:ถึง|to)\s*Type‑?C)\b', part, re.I)
+                spec_m = re.search(r'\b(\d+H|\d+W|\d+A|\d+mAh|2\s*ใน\s*1|\d+\s*นิ้ว|Type-?C\s*(?:ถึง|to)\s*Type-?C)\b', part, re.I)
                 if spec_m and spec_m.group(0) not in first_part and spec_m.group(0) not in spec_additions:
                     spec_additions.append(spec_m.group(0))
             if spec_additions:
@@ -771,9 +825,18 @@ def clean_product_title(title: str) -> str:
                 break
             t = re.sub(tp, '', t)
 
-    # 8. Clean repetitive punctuation & whitespace
-    t = re.sub(r'[\s/|•,，\-–—]+', ' ', t).strip(' ,-|•/–—')
+    # 8. Clean repetitive punctuation & whitespace. A dash INSIDE a token is
+    #    part of a model name (WH-1000XM5, USB-C, HT-PF01 -- Rule 9) and is
+    #    kept; only dashes used as separators (spaced or at a token edge) go.
+    t = re.sub(r'(?<=[A-Za-z0-9])[–—](?=[A-Za-z0-9])', '-', t)
+    t = re.sub(r'[–—]+', ' ', t)
+    t = re.sub(r'(?:^|(?<=\s))-+|-+(?=\s|$)', ' ', t)
+    t = re.sub(r'[\s/|•,，!！]+', ' ', t).strip(' ,-|•/')
     t = re.sub(r'^(?:ที่|แบบ|รุ่น|สำหรับ)\s+', '', t)
+
+    # 9. Last line of defence: whatever the central price lint still flags
+    #    is cut out, so find_price_term(clean_product_title(x)) is None.
+    t = _strip_central_price_terms(t)
 
     if t.lower() in ("log in", "sign in", "เข้าสู่ระบบ", "security check", "verify to continue", "tiktok"):
         return ""
