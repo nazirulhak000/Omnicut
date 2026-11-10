@@ -341,6 +341,9 @@ export const copyScheduleTemplate = (payload) => api.post('/schedule-queue/templ
 export const resetScheduleTemplate = (weekStart) => api.delete(`/schedule-queue/template/${weekStart}`).then(r => r.data);
 export const previewScheduleAutofill = (payload) => api.post('/schedule-queue/auto-fill/preview', payload).then(r => r.data);
 export const commitScheduleAutofill = (payload) => api.post('/schedule-queue/auto-fill', payload).then(r => r.data);
+// Clips whose slot already passed (planned or saved as a TikTok draft): preview the new slots, then apply them all-or-nothing.
+export const previewRescheduleOverdue = (payload = {}) => api.post('/schedule-queue/reschedule-overdue/preview', payload).then(r => r.data);
+export const commitRescheduleOverdue = (assignments) => api.post('/schedule-queue/reschedule-overdue', { assignments }).then(r => r.data);
 
 // Non-commerce Gadget Media campaign workflow.
 export const listGadgetMediaCampaigns = () => api.get('/gadget-media/campaigns').then(r => r.data);

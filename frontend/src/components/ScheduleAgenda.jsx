@@ -4,7 +4,7 @@ import { Modal, Badge } from './ui';
 import PaginationControls from './PaginationControls';
 import PublicationReviewModal from './PublicationReviewModal.jsx';
 import { useChannel } from '../context/ChannelContext.jsx';
-import { commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
+import { commitRescheduleOverdue, commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewRescheduleOverdue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
 import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, estimateQueueCoverage, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
 import { getStylePreset } from '../lib/stylePresetCatalog';
 import { useChannelDraft } from '../hooks/useChannelDraft.js';
@@ -179,6 +179,9 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [capacityTemplate, setCapacityTemplate] = useState(() => defaultTemplateDraft(currentTemplateWeek));
   const [templateBusy, setTemplateBusy] = useState(false);
   const [autofillOpen, setAutofillOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [reschedulePlan, setReschedulePlan] = useState(null);
+  const [rescheduleBusy, setRescheduleBusy] = useState(false);
   const [autofillRange, setAutofillRange] = useState('today');
   const [autofillStart, setAutofillStart] = useState(dateOnly());
   const [autofillEnd, setAutofillEnd] = useState(dateOnly());
@@ -966,6 +969,40 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     setBulkSelected([]);
     setBulkOpen(true);
   };
+  const overdueCount = useMemo(() => queue.filter((row) => row.needs_reschedule).length, [queue]);
+  const shortTime = (iso) => String(iso || '').replace('T', ' ').slice(0, 16);
+
+  // Clips whose time already passed get new template slots. Preview first; the server re-checks every slot when it applies them.
+  const openReschedule = async () => {
+    setRescheduleOpen(true);
+    setReschedulePlan(null);
+    setRescheduleBusy(true);
+    try {
+      setReschedulePlan(await previewRescheduleOverdue({}));
+    } catch (error) {
+      showToast?.(error.response?.data?.detail || error.message, 'error');
+      setRescheduleOpen(false);
+    } finally {
+      setRescheduleBusy(false);
+    }
+  };
+
+  const confirmReschedule = async () => {
+    const items = reschedulePlan?.items || [];
+    if (!items.length) return;
+    setRescheduleBusy(true);
+    try {
+      await commitRescheduleOverdue(items.map((row) => ({ id: row.id, scheduled_at: row.new_scheduled_at })));
+      showToast?.(`จัดเวลาใหม่แล้ว ${items.length} คลิป`);
+      setRescheduleOpen(false);
+      await loadQueue();
+    } catch (error) {
+      showToast?.(error.response?.data?.detail || error.message, 'error');
+    } finally {
+      setRescheduleBusy(false);
+    }
+  };
+
   const openAutofill = () => { chooseAutofillRange('today'); setAutofillOpen(true); };
   const closeMoreAnd = (action) => { setMoreOpen(false); action(); };
 
@@ -1017,6 +1054,11 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                   สัปดาห์
                 </button>
               </div>
+              {overdueCount > 0 && (
+                <button type="button" onClick={openReschedule} className="min-h-11 px-3.5 py-2 rounded-xl border border-red-400/30 bg-red-500/10 text-red-200 text-xs font-bold flex items-center gap-1.5 hover:bg-red-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">
+                  <Clock className="w-4 h-4" />จัดเวลาใหม่ที่เลยกำหนด ({overdueCount})
+                </button>
+              )}
               <button type="button" onClick={openAutofill} className="obsidian-hero-btn px-4 py-2 text-xs flex items-center gap-1.5 shadow-lg"><Shuffle className="w-4 h-4" />จัดคิวอัตโนมัติ</button>
               <button type="button" onClick={openSingle} className="px-3.5 py-2 rounded-xl border border-white/[0.12] bg-white/[0.05] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Plus className="w-4 h-4" />เพิ่มคลิป</button>
               <button type="button" onClick={openBulk} className="px-3.5 py-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 text-xs font-bold flex items-center gap-1.5 hover:bg-cyan-400/20 hover:border-cyan-400/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 shadow-sm"><Layers className="w-4 h-4 text-cyan-300" />เพิ่มเป็นชุด</button>
@@ -1296,6 +1338,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                               <Badge className={`text-[9px] px-1.5 py-0 ${STATUS_STYLES[item.status] || STATUS_STYLES.planned}`}>
                                 {STATUS_LABELS[item.status] || item.status}
                               </Badge>
+                              {item.episode_no != null && <Badge className="text-[9px] px-1.5 py-0 text-cyan-200 bg-cyan-500/10 border-cyan-500/25">EP:{item.episode_no}</Badge>}
                               {item.status === 'scheduled_on_platform' && item.posting_job_id && <button type="button" aria-label="ตรวจว่าโพสต์จริงแล้ว" onClick={() => setPublicationReview(item)} className="min-h-11 rounded-lg border border-cyan-400/30 px-2 text-xs text-cyan-200 focus-visible:outline-2 focus-visible:outline-cyan-300">ตรวจโพสต์จริง</button>}
                             </div>
                           </div>
@@ -1532,6 +1575,8 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <span className="text-xs font-bold text-white truncate">{item.product_name || 'ไม่ระบุสินค้า'}</span>
                                 <Badge className={STATUS_STYLES[item.status] || STATUS_STYLES.planned}>{STATUS_LABELS[item.status] || item.status}</Badge>
+                                {item.episode_no != null && <Badge className="text-cyan-200 bg-cyan-500/10 border-cyan-500/25">EP:{item.episode_no}</Badge>}
+                                {item.needs_reschedule && <Badge className="text-red-200 bg-red-500/10 border-red-500/25">ต้องจัดเวลาใหม่</Badge>}
                                 {item.status === 'scheduled_on_platform' && item.posting_job_id && <button type="button" onClick={() => setPublicationReview(item)} className="min-h-11 rounded-lg border border-cyan-400/30 px-3 text-xs text-cyan-200 hover:bg-cyan-400/10 focus-visible:outline-2 focus-visible:outline-cyan-300">ตรวจว่าโพสต์จริงแล้ว</button>}
                                 {overdue && <Badge className="text-red-200 bg-red-500/10 border-red-500/25">เลยกำหนด</Badge>}
                                 {isTimeDuplicate && (
@@ -1927,6 +1972,37 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
           </fieldset>
           <p className={`text-[11px] ${templateHasInvalidTimes ? 'text-amber-200' : 'text-slate-500'}`}>{templateHasInvalidTimes ? 'กรุณาเลือกเวลาไม่ซ้ำกัน และให้เหลืออย่างน้อย 1 ช่วงต่อวัน' : 'ค่าเริ่มต้นมี 5 ช่วง · เพิ่มช่วงพิเศษนอกเหนือจากค่าเริ่มต้นได้ · ทุกช่วงเป็นรอบละ 5 นาที · การแก้เทมเพลตไม่เปลี่ยนคิวที่บันทึกไว้แล้ว'}</p>
           <div className="flex justify-end gap-2"><button type="button" onClick={() => setTemplateOpen(false)} className="px-3 py-2 rounded-xl text-xs text-slate-300">ยกเลิก</button><button type="button" disabled={templateBusy || templateHasInvalidTimes} onClick={saveTemplate} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50">บันทึกเทมเพลต</button></div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={rescheduleOpen} onClose={() => setRescheduleOpen(false)} title="จัดเวลาใหม่ที่เลยกำหนด" subtitle="ดูตัวอย่างก่อนบันทึก · คลิปที่เป็นแบบร่างบน TikTok ยังเป็นแบบร่าง เวลาใหม่ใช้ตอนเผยแพร่" maxWidth="max-w-3xl">
+        <div className="space-y-3">
+          {rescheduleBusy && !reschedulePlan && <p className="text-xs text-slate-300">กำลังคำนวณช่องเวลาว่าง...</p>}
+          {reschedulePlan && (
+            <>
+              <p className="text-xs text-slate-300">เลยกำหนด {reschedulePlan.overdue_count} คลิป · จัดได้ {reschedulePlan.items.length} · จัดไม่ได้ {reschedulePlan.unplaced.length}</p>
+              <ul className="max-h-[50vh] overflow-y-auto divide-y divide-white/[0.06] rounded-xl border border-white/[0.08]">
+                {reschedulePlan.items.map((row) => (
+                  <li key={row.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-xs">
+                    <span className="min-w-0 flex-1 truncate font-bold text-white">{row.title}</span>
+                    <span className="text-slate-400 line-through tabular-nums">{shortTime(row.old_scheduled_at)}</span>
+                    <span className="text-emerald-300 tabular-nums">{shortTime(row.new_scheduled_at)}</span>
+                  </li>
+                ))}
+                {reschedulePlan.unplaced.map((row) => (
+                  <li key={row.id} className="px-3 py-2 text-xs text-amber-200">
+                    <span className="font-bold">{row.title}</span> · {row.reason}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setRescheduleOpen(false)} className="min-h-11 px-3.5 py-2 rounded-xl border border-white/[0.12] text-slate-200 text-xs font-bold">ยกเลิก</button>
+                <button type="button" onClick={confirmReschedule} disabled={rescheduleBusy || !reschedulePlan.items.length} className="min-h-11 px-3.5 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
+                  {rescheduleBusy ? 'กำลังบันทึก...' : `ยืนยันจัดเวลาใหม่ ${reschedulePlan.items.length} คลิป`}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </Modal>
 
