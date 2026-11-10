@@ -56,3 +56,31 @@ test('clipSkipReason: a draft-only run ignores the publish slot, nothing else', 
   assert.equal(clipSkipReason(past, undefined, NOW2, { ignoreSlot: true }), 'export_missing');
   assert.equal(clipSkipReason({ ...past, tiktok_caption: 'ใช้ {product_name}' }, rec, NOW2, { ignoreSlot: true }), 'placeholder_in_caption');
 });
+
+test('R1: a clip with no publish time is blocked in scheduled runs (it would be posted LIVE) but fine as a draft', () => {
+  const NOW3 = Date.parse('2026-11-10T04:30:00Z');
+  const rec = { id: 'exp-1' };
+  const unscheduled = { export_id: 'exp-1', tiktok_caption: 'ใช้จริงดีมาก', tiktok_hashtags: '#a' };
+  assert.equal(clipSkipReason(unscheduled, rec, NOW3, { requireSchedule: true }), 'no_schedule');
+  assert.equal(clipSkipReason(unscheduled, rec, NOW3, { requireSchedule: true, ignoreSlot: true }), 'no_schedule');
+  assert.equal(clipSkipReason(unscheduled, rec, NOW3, { requireSchedule: false, ignoreSlot: true }), '');
+  const scheduled = { ...unscheduled, schedule_date: '2026-11-12', schedule_time: '09:00' };
+  assert.equal(clipSkipReason(scheduled, rec, NOW3, { requireSchedule: true }), '');
+  // only one half of a schedule is not a schedule
+  assert.equal(clipSkipReason({ ...unscheduled, schedule_time: '09:00' }, rec, NOW3, { requireSchedule: true }), 'no_schedule');
+  assert.equal(clipSkipReason({ ...unscheduled, schedule_date: '2026-11-12' }, rec, NOW3, { requireSchedule: true }), 'no_schedule');
+});
+
+test('R1: rowMatchesClip needs the day next to a month name; views/likes equal to the day are not a date', () => {
+  const { rowMatchesClip } = require('./post_guard.js');
+  const NL = String.fromCharCode(10);
+  const clip = { caption: 'ใช้จริงมาแล้วสามเดือนเต็ม พัดลม', schedule_date: '2026-11-10', schedule_time: '18:00' };
+  const row = (badge, ...stats) => ['00:28', 'ใช้จริงมาแล้วสามเดือนเต็ม พัดลมตัวนี้', badge, 'Everyone', ...stats].join(NL);
+  assert.equal(rowMatchesClip(row('Nov 10, 6:00 PM (GMT+7) Bangkok'), clip).ok, true);
+  assert.equal(rowMatchesClip(row('10 พ.ย. 6:00 PM'), clip).ok, true);
+  assert.equal(rowMatchesClip(row('10 พ.ย. 18:00'), clip).ok, true);
+  assert.equal(rowMatchesClip(row('Nov 11, 6:00 PM', '10', '10', '10'), clip).reason, 'schedule_badge_mismatch'); // 10 views, wrong day
+  assert.equal(rowMatchesClip(row('Nov 12, 6:00 PM', '0', '10', '0'), clip).ok, false);
+  assert.equal(rowMatchesClip(row('Nov 10, 9:00 AM'), clip).ok, false);   // right day, wrong time
+  assert.equal(rowMatchesClip(row('Nov 100, 6:00 PM'), clip).ok, false);  // 100 is not 10
+});

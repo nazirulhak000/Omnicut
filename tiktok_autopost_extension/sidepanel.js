@@ -1,11 +1,9 @@
 const BACKEND = 'http://127.0.0.1:8000';
 
 const {
-
   buildExtensionClipList,
-
   getExtensionStatus,
-
+  pickBatchCandidates,
 } = window.OmniCutClipState || {};
 
 // This panel talks to :8000 directly (no Vite proxy to inject the header
@@ -308,19 +306,19 @@ async function initializeChannelSelector() {
 
       if (err.message?.includes('ต้องตรวจผลเดิมก่อน')) {
 
-        const confirmDiscard = confirm('งานนี้มีประวัติเคยกดโพสต์หรือกำลังรอตรวจผล\n\nต้องการ "บังคับยกเลิกและล้างงานนี้" เพื่อเริ่มทำคลิปใหม่ทันทีหรือไม่?');
+        const confirmDiscard = confirm('งานนี้มีประวัติเคยกดโพสต์หรือกำลังรอตรวจผล\n\nระบบจะ "พักงานเดิม" ไว้เป็นรอตรวจ (ไม่ยกเลิก เพื่อกันโพสต์ซ้ำ) แล้วให้คุณเริ่มคลิปอื่นได้ทันที\nตรวจผลของงานเดิมภายหลังที่ TikTok Studio > Content\n\nพักงานเดิมแล้วเริ่มคลิปใหม่เลยไหม?');
 
         if (confirmDiscard) {
 
           try {
 
-            await panelWorkerRequest({action: 'release-posting-job', force: true});
+            await panelWorkerRequest({action: 'release-posting-job', park: true});
 
             activeClip = null; resetChecklist(); renderActiveClipBanner(); await loadExports();
 
             showTab('list'); scrollToTop();
 
-            setStatus('บังคับล้างงานเดิมเรียบร้อยแล้ว เลือกคลิปถัดไปได้ทันที', 'success');
+            setStatus('พักงานเดิมไว้เป็นรอตรวจแล้ว (ไม่ได้ยกเลิก) เลือกคลิปถัดไปได้ทันที', 'success');
 
             return;
 
@@ -390,7 +388,7 @@ async function initializeChannelSelector() {
 
           await new Promise(r => chrome.storage.local.set(saved, r));
 
-          await panelWorkerRequest({action: 'release-posting-job', force: true}).catch(() => {});
+          await panelWorkerRequest({action: 'release-posting-job', park: true}).catch(() => {});
 
           activeClip = null;
 
@@ -657,7 +655,7 @@ async function checkTikTokQuota(silent = false, allowNavigate = false) {
 
 btnCheckQuota?.addEventListener('click', () => checkTikTokQuota(false, true));
 batchLimitSelect?.addEventListener('change', () => updateBatchCountDisplay());
-batchModeSelect?.addEventListener('change', () => updateBatchCountDisplay());
+batchModeSelect?.addEventListener('change', () => { filterAndRenderClips(); });
 
 const captionCharCount = document.getElementById('captionCharCount');
 
@@ -745,17 +743,24 @@ const BLOCK_REASON_TH = {
   price_in_caption: 'caption มีราคา/ส่วนลด',
   placeholder_in_caption: 'caption มี {…} ที่ยังไม่แทนค่า',
   slot_passed_or_too_close: 'เวลาโพสต์ผ่านแล้วหรือใกล้เกินไป',
+  no_schedule: 'ไม่มีเวลาโพสต์ (ในโหมดตั้งเวลาจะกลายเป็นโพสต์สด)',
 };
 // '' = usable; otherwise why the batch would skip this clip (same guard the batch uses).
 function clipBlockReason(clip) {
   const guard = globalThis.OmniPostGuard;
   if (!guard) return '';
   const record = exportRecordIndex ? exportRecordIndex.get(clip.export_id) : undefined;
-  const code = guard.clipSkipReason(clip, record, Date.now(), { exportsKnown: Boolean(exportRecordIndex) });
+  const draftOnly = (batchModeSelect?.value || 'schedule_only') === 'draft_only';
+  const code = guard.clipSkipReason(clip, record, Date.now(), { exportsKnown: Boolean(exportRecordIndex), ignoreSlot: draftOnly, requireSchedule: !draftOnly });
   return code ? (BLOCK_REASON_TH[code] || code) : '';
 }
 function selectedClipsInList() {
   return allClips.filter((c) => selectedClipKeys.has(selectionKey(c)) && !clipBlockReason(c));
+}
+// Every ticked clip, usable or not. If anything is ticked the batch is "exactly these": when none of them is usable it must
+// stop, never fall back to running the whole queue.
+function selectedClipsRaw() {
+  return allClips.filter((c) => selectedClipKeys.has(selectionKey(c)));
 }
 // export_id -> /api/exports row (null when the registry could not be read)
 let exportRecordIndex = null;
@@ -1506,12 +1511,12 @@ function renderClipCards(ready) {
     check.className = 'card-check';
     check.title = 'ติ๊กเพื่อเลือกคลิปนี้ไปโพสต์';
     const blockReason = clipBlockReason(item);
-    if (blockReason) selectedClipKeys.delete(key);
+    // a blocked clip keeps its tick (shown unticked): dropping it silently made the batch run the whole queue instead
     const checkInput = document.createElement('input');
     checkInput.type = 'checkbox';
     checkInput.disabled = Boolean(blockReason);
     if (blockReason) check.title = `เลือกไม่ได้: ${blockReason}`;
-    checkInput.checked = selectedClipKeys.has(key);
+    checkInput.checked = !blockReason && selectedClipKeys.has(key);
     checkInput.setAttribute('aria-label', `เลือกคลิป ${item.hook_title || item.name || ''}`);
     checkInput.addEventListener('change', () => {
       if (checkInput.checked) selectedClipKeys.add(key); else selectedClipKeys.delete(key);
@@ -2865,7 +2870,8 @@ function guardBatchClips(clips) {
   const now = Date.now();
   for (const clip of clips) {
     const record = exportRecordIndex ? exportRecordIndex.get(clip.export_id) : undefined;
-    const reason = guard.clipSkipReason(clip, record, now, { exportsKnown: Boolean(exportRecordIndex), ignoreSlot: (batchModeSelect?.value || 'smart') === 'draft_only' });
+    const draftOnly = (batchModeSelect?.value || 'schedule_only') === 'draft_only';
+    const reason = guard.clipSkipReason(clip, record, now, { exportsKnown: Boolean(exportRecordIndex), ignoreSlot: draftOnly, requireSchedule: !draftOnly });
     if (reason) skipped.push({ title: clip.hook_title || clip.name || clip.id, reason });
     else kept.push(clip);
   }
@@ -2879,29 +2885,22 @@ batchStartBtn?.addEventListener('click', async () => {
   const query = clipSearchInput ? clipSearchInput.value.trim().toLowerCase() : '';
 
   // Ticked clips win over the search box and the count limit: post exactly those, in list order.
-  const pickedClips = selectedClipsInList();
-  const usingPicked = pickedClips.length > 0;
-
-  const searchedClips = usingPicked ? pickedClips : query
-
-    ? allClips.filter((c) =>
-
-        (c.product_name || '').toLowerCase().includes(query) ||
-
-        (c.hook_title || '').toLowerCase().includes(query) ||
-
-        (c.name || '').toLowerCase().includes(query)
-
-      )
-
-    : allClips;
+  const { usingPicked, candidates: searchedClips } = pickBatchCandidates({
+    allClips,
+    selectedKeys: selectedClipKeys,
+    keyOf: selectionKey,
+    matchesQuery: (c) => !query
+      || (c.product_name || '').toLowerCase().includes(query)
+      || (c.hook_title || '').toLowerCase().includes(query)
+      || (c.name || '').toLowerCase().includes(query),
+  });
 
   const { kept: targetClips, skipped: guardSkipped } = guardBatchClips(searchedClips);
 
   if (!targetClips.length) {
-
-    setStatus('ไม่มีคลิปในรายการสำหรับเริ่มอัปโหลด', 'error');
-
+    setStatus(usingPicked
+      ? `คลิปที่ติ๊กไว้ใช้ไม่ได้ทั้งหมด (${guardSkipped.map((item) => item.reason).slice(0, 3).join(', ')}) จึงไม่เริ่มรัน และไม่ไปรันคลิปอื่นแทน`
+      : 'ไม่มีคลิปในรายการสำหรับเริ่มอัปโหลด', 'error');
     return;
 
   }
@@ -2968,6 +2967,7 @@ batchStartBtn?.addEventListener('click', async () => {
         tiktok_product_id: clip.tiktok_product_id || null,
         product_name: clip.product_name || clip.cart_name || null,
         queue_id: clip.is_scheduled ? clip.id : null,
+        intent: isDraftMode ? 'draft' : 'schedule',
         schedule_date: isDraftMode ? null : (clip.schedule_date || null),
         schedule_time: isDraftMode ? null : (clip.schedule_time || null),
       };

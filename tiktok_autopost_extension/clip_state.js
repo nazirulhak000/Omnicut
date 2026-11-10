@@ -53,5 +53,14 @@
       : { kind: 'unscheduled', label: 'ตัดต่อเสร็จแล้ว แต่ยังไม่ได้จัดเวลา' };
   }
 
-  return { buildExtensionClipList, clipKey, getExtensionStatus, isPostedClip, isReadyToPost };
+  // Which clips a batch run starts from. If the operator ticked anything the run is "exactly these", even when none of
+  // them is usable any more (a slot passed, the mode changed): the caller then stops. It must never fall back to the
+  // whole queue, which used to post clips nobody picked.
+  function pickBatchCandidates({ allClips = [], selectedKeys = new Set(), keyOf = clipKey, matchesQuery = () => true } = {}) {
+    const ticked = allClips.filter((clip) => selectedKeys.has(keyOf(clip)));
+    if (ticked.length) return { usingPicked: true, candidates: ticked };
+    return { usingPicked: false, candidates: allClips.filter(matchesQuery) };
+  }
+
+  return { buildExtensionClipList, clipKey, getExtensionStatus, isPostedClip, isReadyToPost, pickBatchCandidates };
 });

@@ -118,7 +118,8 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
       video_path: clip.rel_path, export_id: clip.export_id, cover_path: clip.cover_path,
       caption: clip.caption, hashtags: clip.hashtags, product_id: clip.product_id, angle_id: clip.angle_id,
       tiktok_product_id: clip.tiktok_product_id, product_name: clip.product_name,
-      queue_id: clip.queue_id, schedule_date: draft ? null : clip.schedule_date, schedule_time: draft ? null : clip.schedule_time,
+      queue_id: clip.queue_id, intent: draft ? 'draft' : 'schedule',
+      schedule_date: draft ? null : clip.schedule_date, schedule_time: draft ? null : clip.schedule_time,
     };
     let res = await api.post('/api/tiktok-autopost/prepare', payload);
     if (!res.ok && res.status === 409 && /already_prepared|มีงานโพสต์อยู่แล้ว|มีคลิปรอโพสต์ค้างอยู่/.test(JSON.stringify(res.data))) {

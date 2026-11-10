@@ -723,6 +723,173 @@ test('account check: another job or an old verification is read again; an unread
   await assert.rejects(() => blank.ctx.guardPostingAction(blankJob, nothing, 7), /source_account_required/); // still reads, never reuses a failure
 });
 
+// ---- R1: no unintended live post, no force release, no invented success ----
+const NLC = String.fromCharCode(10);
+const btnProbe = (over = {}) => async () => ({ result: { value: { found: true, visible: true, text: 'Post', disabled: false, ...over } } });
+
+test('R1 assertPublishReady: a draft job never reaches the Post button', async () => {
+  const ctx = worker();
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe(), { intent: 'draft' }), /intent_mismatch.*แบบร่าง/);
+});
+
+test('R1 assertPublishReady: the page mode must match the intent (Schedule vs Post label)', async () => {
+  const ctx = worker();
+  const sched = { intent: 'schedule', schedule_date: '2026-11-12', schedule_time: '09:00' };
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe({ text: 'Post' }), sched), /intent_page_mismatch/);          // schedule step skipped -> would post LIVE
+  await ctx.assertPublishReady(btnProbe({ text: 'Schedule' }), sched);
+  await ctx.assertPublishReady(btnProbe({ text: 'กำหนดเวลา' }), sched);
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe({ text: 'Schedule' }), { intent: 'post_now' }), /intent_page_mismatch/);
+  await ctx.assertPublishReady(btnProbe({ text: 'Post' }), { intent: 'post_now' });
+  await ctx.assertPublishReady(btnProbe({ text: 'โพสต์' }), { intent: 'post_now' });
+  // an old job without an intent is inferred from its schedule
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe({ text: 'Post' }), { schedule_date: '2026-11-12', schedule_time: '09:00' }), /intent_page_mismatch/);
+  await ctx.assertPublishReady(btnProbe({ text: 'Post' }), {});
+});
+
+test('R1 assertPublishReady: missing/disabled button or a schedule intent without a schedule stops before the attempt', async () => {
+  const ctx = worker();
+  await assert.rejects(() => ctx.assertPublishReady(async () => ({ result: { value: { found: false } } }), { intent: 'post_now' }), /หาปุ่ม Post ไม่เจอ/);
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe({ disabled: true }), { intent: 'post_now' }), /ยังกดไม่ได้/);
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe({ visible: false }), { intent: 'post_now' }), /หาปุ่ม Post ไม่เจอ/);
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe({ text: 'Post' }), { intent: 'schedule' }), /ไม่มีวันเวลา/);
+  await ctx.assertPublishReady(btnProbe(), null); // no job: nothing to check
+});
+
+test('R1 clickPostButton: an already-attempted job is refused before anything is touched; no draft button in the Post fallback', async () => {
+  const ctx = worker();
+  let touched = 0;
+  const send = async () => { touched += 1; return {}; };
+  await assert.rejects(() => ctx.clickPostButton(send, 7, async () => { touched += 1; }, { job_id: 'j', publish_attempted_at: 1700000000, status: 'publishing' }), /ห้ามกดโพสต์ซ้ำ/);
+  await assert.rejects(() => ctx.clickPostButton(send, 7, async () => { touched += 1; }, { job_id: 'j', status: 'confirmation_unknown' }), /ห้ามกดโพสต์ซ้ำ/);
+  assert.equal(touched, 0);
+  const source = ctx.clickPostButton.toString();
+  assert.ok(!/Save draft|Save to draft|บันทึกแบบร่าง/.test(source), 'the Post fallback must never include a draft button');
+});
+
+test('R1 clickPostButton: leaving the form for Content is NOT proof of a post (recorded as unknown)', async () => {
+  const { ctx, calls } = clickPostHarness({
+    tabUrl: 'https://www.tiktok.com/tiktokstudio/content',
+    onConfirmationEval: () => ({ result: { value: null } }),   // no toast was seen
+  });
+  const result = await ctx.runClickPostOnly();
+  assert.equal(result.outcome, 'confirmation_unknown');
+  assert.equal(result.posted, false);
+  assert.equal(result.marked, false);
+  assert.ok(calls.includes('unknown') && !calls.includes('mark'));
+});
+
+test('R1 dismissContinueToPostDialogIfPresent: only the button that matches the job intent, nothing without one', async () => {
+  const ctx = worker();
+  const expressions = [];
+  const send = async (_m, params) => { expressions.push(String(params.expression)); return { result: { value: false } }; };
+  assert.equal(await ctx.dismissContinueToPostDialogIfPresent(send, 50), false);                 // no intent: no click at all
+  assert.equal(await ctx.dismissContinueToPostDialogIfPresent(send, 50, 'draft'), false);        // a draft never accepts a post dialog
+  assert.equal(expressions.length, 0);
+  await ctx.dismissContinueToPostDialogIfPresent(send, 50, 'post_now');
+  assert.ok(expressions[0].includes('Post now') && !expressions[0].includes('Schedule now'));
+  assert.ok(expressions[0].includes('postNowBtn && isContinueDialog'), 'the dialog text must be recognised');
+  await ctx.dismissContinueToPostDialogIfPresent(send, 50, 'schedule');
+  const last = expressions[expressions.length - 1];
+  assert.ok(last.includes('Schedule now') && !last.includes('Post now'));
+});
+
+test('R1 release: there is no force; an attempted job is never released, a never-attempted claim is', async () => {
+  const ctx = durableWorker({});
+  const attempted = protocolJob({ status: 'publishing', publish_attempted_at: 1700000000 });
+  await seedJob(ctx, attempted);
+  const routes = [];
+  ctx.postingRequest = async (route) => { routes.push(route); return { ...attempted }; };
+  await assert.rejects(() => ctx.releasePostingJob({ force: true }), /ต้องตรวจผลเดิมก่อน/);
+  assert.ok(!routes.includes('/release'), 'no /release call may be made for an attempted job');
+  const claimedJob = protocolJob();
+  const ctx2 = durableWorker({});
+  await seedJob(ctx2, claimedJob);
+  const routes2 = [];
+  ctx2.postingRequest = async (route) => { routes2.push(route); return route === '/release' ? { ...claimedJob, status: 'cancelled' } : { ...claimedJob }; };
+  const released = await ctx2.releasePostingJob({});
+  assert.equal(released.status, 'cancelled');
+  assert.ok(routes2.includes('/release'));
+});
+
+test('R1 park: if the backend cannot be asked, a possibly-attempted job is parked, never released on a stale copy', async () => {
+  const ctx = durableWorker({});
+  const job = protocolJob();                       // looks claimed locally, but the /attempt may have happened
+  await seedJob(ctx, job);
+  const routes = [];
+  ctx.postingRequest = async (route) => { routes.push(route); throw new Error('backend down'); };
+  const result = await ctx.parkPostingJob();
+  assert.equal(result.parked, true);
+  assert.ok(!routes.includes('/release') && !routes.includes('/clear'));
+  // a job that was only prepared (never claimed) is simply cancelled via /clear
+  const ctx2 = durableWorker({});
+  const prepared = protocolJob({ status: 'prepared', lease_owner: null, lease_token: null });
+  await seedJob(ctx2, prepared);
+  const routes2 = [];
+  ctx2.postingRequest = async (route) => { routes2.push(route); return { ...prepared }; };
+  const res2 = await ctx2.parkPostingJob();
+  assert.equal(res2.released, true);
+  assert.ok(routes2.includes('/clear'));
+});
+
+test('R1 reconcileFromListPages: confirms only a row that matches the caption (and slot); never a made-up success', async () => {
+  const ctx = worker();
+  ctx.navigateAcceptingLeave = async () => true;
+  ctx.chrome.tabs = { get: async () => ({ id: 7, url: 'https://www.tiktok.com/tiktokstudio/content' }) };
+  const rowsText = (...rows) => ['Posts 219', 'Drafts 0', ...rows].join(NLC);
+  const sendWith = (text) => async () => ({ result: { value: text } });
+  const caption = 'ใช้จริงมาแล้วสามเดือนเต็ม พัดลมตัวนี้ดีมาก';
+  const row = (badge, ...more) => ['00:28', caption, badge, 'Everyone', ...more].join(NLC);
+  const sched = { job_id: 'j', intent: 'schedule', caption, schedule_date: '2026-11-10', schedule_time: '18:00', confirmation_token: 'tok' };
+  const ok = await ctx.reconcileFromListPages(sendWith(rowsText(row('Nov 10, 6:00 PM (GMT+7) Bangkok'))), { id: 7 }, sched);
+  assert.equal(ok.confirmed, true);
+  assert.equal(ok.outcome, 'scheduled_on_platform');
+  assert.equal(ok.proof.kind, 'content_page_reconciled');
+  assert.match(ok.proof.notice, /caption and the slot 2026-11-10 18:00/);
+  assert.equal(ok.proof.confirmation_token, 'tok');
+  // right caption but another slot / no row / a view count equal to the day: not confirmed
+  assert.equal((await ctx.reconcileFromListPages(sendWith(rowsText(row('Nov 12, 6:00 PM', '0', '10', '0'))), { id: 7 }, sched)).confirmed, false);
+  assert.equal((await ctx.reconcileFromListPages(sendWith(rowsText()), { id: 7 }, sched)).confirmed, false);
+  assert.equal((await ctx.reconcileFromListPages(sendWith(rowsText('00:28', 'คลิปอื่นทั้งหมด', 'Nov 10, 6:00 PM')), { id: 7 }, sched)).confirmed, false);
+  // an immediate post: the row must carry a badge time close to the click, an older post with the same caption never confirms
+  const attemptedAt = Date.parse('2026-11-10T11:00:00Z') / 1000;
+  const RealDate = Date;
+  const fixedNow = RealDate.parse('2026-11-10T11:02:00Z');
+  ctx.Date = class extends RealDate { constructor(...args) { super(...(args.length ? args : [fixedNow])); } static now() { return fixedNow; } };
+  const postNow = { job_id: 'j', intent: 'post_now', caption, publish_attempted_at: attemptedAt, confirmation_token: 'tok' };
+  const fresh = await ctx.reconcileFromListPages(sendWith(rowsText(row('Nov 10, 6:01 PM (GMT+7) Bangkok'))), { id: 7 }, postNow);   // 11:01Z = 18:01 +07
+  assert.equal(fresh.outcome, 'published');
+  const stale = await ctx.reconcileFromListPages(sendWith(rowsText(row('Oct 2, 6:01 PM'))), { id: 7 }, postNow);
+  assert.equal(stale.confirmed, false);
+});
+
+test('R1 reconcileFromListPages: a draft job is confirmed only by a matching row on the Drafts page', async () => {
+  const ctx = worker();
+  ctx.navigateAcceptingLeave = async () => true;
+  const caption = 'แกะกล่องสุดคุ้ม ของแท้ ราคาดี';
+  const draftsPage = (text) => async () => ({ result: { value: { url: 'https://www.tiktok.com/tiktokstudio/content?tab=draft', text } } });
+  const job = { job_id: 'j', intent: 'draft', caption, confirmation_token: 'tok' };
+  const yes = await ctx.reconcileFromListPages(draftsPage(['Drafts 1', caption].join(NLC)), { id: 7 }, job);
+  assert.equal(yes.outcome, 'draft_saved');
+  assert.equal(yes.proof.kind, 'drafts_page_confirmed');
+  const no = await ctx.reconcileFromListPages(draftsPage(['Drafts 1', 'ข้อความของคลิปอื่น'].join(NLC)), { id: 7 }, job);
+  assert.equal(no.confirmed, false);
+});
+
+test('R1 manual confirmation follows the job intent (was always "published")', async () => {
+  for (const [intent, extra, expected] of [['draft', {}, 'draft_saved'], ['schedule', { schedule_date: '2026-11-12', schedule_time: '09:00' }, 'scheduled_on_platform'], ['post_now', {}, 'published']]) {
+    const ctx = durableWorker({});
+    const job = protocolJob({ status: 'confirmation_unknown', publish_attempted_at: 1700000000, attempted_source_account: '@mainuser', intent, ...extra });
+    await seedJob(ctx, job);
+    ctx.postingRequest = async () => ({ ...job });
+    let body = null;
+    ctx.retryPostingReceipt = async () => { body = (await ctx.postingState()).pendingReceipt?.body; return { success: true }; };
+    await ctx.runReconcilePostingResult({ manual: true });
+    assert.equal(body.outcome, expected, intent);
+    assert.equal(body.proof.kind, 'manual_user_confirmation');
+    assert.ok(body.proof.notice.length >= 8);
+  }
+});
+
 test('schedule time follows TikTok five-minute increments', () => {
   const ctx = worker();
   assert.equal(ctx.normalizeScheduleTime('16:08'), '16:10');
@@ -830,7 +997,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.4.1');
+  assert.equal(manifest.version, '0.4.2');
   assert.match(sideHtml, /id="buildTag"/);
   assert.match(sideJs, /getManifest/);
   // The strict domain banner must never come back: resolution is a loose
@@ -1042,8 +1209,10 @@ function clickPostHarness({ tabUrl, onConfirmationEval }) {
   ctx.chrome.debugger = {
     attach: async () => {},
     detach: async () => {},
-    sendCommand: async (_target, method) => {
+    sendCommand: async (_target, method, params = {}) => {
       if (method !== 'Runtime.evaluate') return {};
+      // The pre-attempt readiness probe (page mode + enabled primary button) is answered like a healthy "Post now" page.
+      if (String(params.expression || '').includes('{found: false}')) return { result: { value: { found: true, visible: true, text: 'Post', disabled: false } } };
       // First evaluate = the click; later ones = confirmation polls.
       if (!calls.includes('clicked')) {
         calls.push('clicked');

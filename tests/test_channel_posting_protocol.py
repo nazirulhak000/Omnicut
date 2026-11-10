@@ -187,9 +187,9 @@ def api_env(tmp_path, monkeypatch):
     return client, api, export_registry.ExportRegistry, video, export, channel
 
 
-def prepared_claimed_api(env):
+def prepared_claimed_api(env, **extra):
     client, api, registry, video, export, channel = env
-    response = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"]})
+    response = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], **extra})
     assert response.status_code == 200, response.text
     row = client.post("/api/tiktok-autopost/claim", json={"protocol_version": 2, "job_id": response.json()["job_id"], "lease_owner": "extension-a"})
     assert row.status_code == 200, row.text
@@ -257,7 +257,9 @@ def test_only_implicit_main_bypasses_readiness_and_explicit_main_enforces_bindin
 @pytest.mark.parametrize("outcome", ["scheduled_on_platform", "confirmation_unknown"])
 def test_scheduled_unknown_do_not_mark_export_or_postlog(api_env, monkeypatch, outcome):
     client, api, registry, video, export, channel = api_env
-    row = prepared_claimed_api(api_env)
+    # a scheduled outcome needs a job that was really prepared with a publish time (intent=schedule)
+    extra = {"schedule_date": "2026-11-12", "schedule_time": "09:00"} if outcome == "scheduled_on_platform" else {}
+    row = prepared_claimed_api(api_env, **extra)
     started = client.post("/api/tiktok-autopost/attempt", json=action_body(row)).json()
     from scripts import api_exports
     monkeypatch.setattr(api_exports, "apply_posted_outcome", lambda *a, **kw: pytest.fail("must not mark scheduled/unknown"))
@@ -664,7 +666,7 @@ def test_draft_saved_accepts_a_platform_sentence_or_manual_confirmation_only(sto
         done = jobs.acknowledge(*_ack_args(row), "draft_saved", {"kind": "platform_success_notice", "notice": notice})
         assert done["status"] == "draft_saved"
     row = attempted("exp-manual")
-    assert jobs.acknowledge(*_ack_args(row), "draft_saved", {"kind": "user_confirmed"})["status"] == "draft_saved"
+    assert jobs.acknowledge(*_ack_args(row), "draft_saved", {"kind": "user_confirmed", "notice": "operator saw the draft in Drafts"})["status"] == "draft_saved"
 
 
 def test_draft_saved_rejects_missing_or_wrong_evidence_and_scheduled_jobs(store):
@@ -719,3 +721,111 @@ def test_release_draft_frees_the_export_but_never_a_scheduled_or_published_job(s
         jobs.release_draft("main", pub["job_id"])
     assert exc.value.code == "posting_reconciliation_required"
     assert jobs.get("main", pub["job_id"])["status"] == "published"
+
+
+# ---- R1: intent per job, force never releases an attempted job, evidence must say what was seen ----
+
+def _intent_job(jobs, intent, export_id, **extra):
+    data = {**payload(), "export_id": export_id, "intent": intent, **extra}
+    prepared = jobs.prepare("main", data)
+    return jobs.claim("main", prepared["job_id"], f"ext-{export_id}")
+
+
+def _attempt_as(jobs, row, click_kind):
+    return jobs.validate_action(row["channel_id"], row["job_id"], row["lease_owner"], row["lease_token"],
+                                row["revision"], "@mainuser", begin_publish=True, click_kind=click_kind)
+
+
+def test_force_release_never_cancels_an_attempted_or_final_job(store):
+    jobs, _ = store
+    row = attempt(jobs, claimed(jobs))
+    for force in (False, True):
+        with pytest.raises(ChannelError) as exc:
+            jobs.release("main", row["job_id"], row["lease_owner"], row["lease_token"], row["revision"], force=force)
+        assert exc.value.code == "posting_reconciliation_required"
+    assert jobs.get("main", row["job_id"])["status"] == "publishing"
+    with pytest.raises(ChannelError):
+        jobs.prepare("main", payload(), idempotency_key="again-after-force")  # the export stays blocked
+    # same for a job that already reached a final outcome
+    for outcome, proof, export in [("scheduled_on_platform", {"kind": "platform_success_notice", "notice": "Video published"}, "exp-s"),
+                                   ("draft_saved", {"kind": "drafts_page_confirmed"}, "exp-d")]:
+        extra = {"schedule_date": "2026-11-12", "schedule_time": "09:00"} if outcome == "scheduled_on_platform" else {}
+        done = _intent_job(jobs, "schedule" if extra else "draft", export, **extra)
+        done = _attempt_as(jobs, done, "post" if extra else "draft")
+        done = jobs.acknowledge(*_ack_args(done), outcome, proof)
+        with pytest.raises(ChannelError) as exc:
+            jobs.release("main", done["job_id"], done["lease_owner"], done["lease_token"], done["revision"], force=True)
+        assert exc.value.code == "posting_reconciliation_required"
+        assert jobs.get("main", done["job_id"])["status"] == outcome
+
+
+def test_an_unattempted_claim_can_still_be_released(store):
+    jobs, _ = store
+    row = claimed(jobs)
+    released = jobs.release("main", row["job_id"], row["lease_owner"], row["lease_token"], row["revision"])
+    assert released["status"] == "cancelled"
+
+
+def test_attempt_refuses_the_wrong_button_for_the_job_intent(store):
+    jobs, _ = store
+    # a draft job may only save a draft
+    draft = _intent_job(jobs, "draft", "exp-i1")
+    for kind in ("post", None):
+        with pytest.raises(ChannelError) as exc:
+            _attempt_as(jobs, draft, kind)
+        assert exc.value.code == "posting_intent_mismatch"
+    assert jobs.get("main", draft["job_id"])["status"] == "claimed"  # nothing was consumed
+    assert _attempt_as(jobs, draft, "draft")["status"] == "publishing"
+    # a post job may not save a draft
+    post = _intent_job(jobs, "post_now", "exp-i2")
+    with pytest.raises(ChannelError) as exc:
+        _attempt_as(jobs, post, "draft")
+    assert exc.value.code == "posting_intent_mismatch"
+    assert _attempt_as(jobs, post, "post")["status"] == "publishing"
+    # old workers that say nothing keep working for post jobs
+    legacy = _intent_job(jobs, "schedule", "exp-i3", schedule_date="2026-11-12", schedule_time="09:00")
+    assert _attempt_as(jobs, legacy, None)["status"] == "publishing"
+    bad = _intent_job(jobs, "post_now", "exp-i4")
+    with pytest.raises(ChannelError) as exc:
+        _attempt_as(jobs, bad, "nonsense")
+    assert exc.value.code == "posting_click_kind_invalid"
+
+
+def test_outcome_must_match_the_intent(store):
+    jobs, _ = store
+    toast = {"kind": "platform_success_notice", "notice": "Video published"}
+    draft = _attempt_as(jobs, _intent_job(jobs, "draft", "exp-o1"), "draft")
+    with pytest.raises(ChannelError) as exc:
+        jobs.acknowledge(*_ack_args(draft), "published", toast)
+    assert exc.value.code == "posting_intent_mismatch"
+    now = _attempt_as(jobs, _intent_job(jobs, "post_now", "exp-o2"), "post")
+    with pytest.raises(ChannelError) as exc:
+        jobs.acknowledge(*_ack_args(now), "scheduled_on_platform", toast)
+    assert exc.value.code in {"posting_intent_mismatch", "posting_confirmation_required"}
+    assert jobs.acknowledge(*_ack_args(now), "published", toast)["status"] == "published"
+
+
+def test_a_scheduled_job_cannot_be_recorded_published_from_the_bare_toast(store):
+    jobs, _ = store
+    row = _attempt_as(jobs, _intent_job(jobs, "schedule", "exp-sc", schedule_date="2026-11-12", schedule_time="09:00"), "post")
+    with pytest.raises(ChannelError) as exc:
+        jobs.acknowledge(*_ack_args(row), "published", {"kind": "platform_success_notice", "notice": "Video published"})
+    assert exc.value.code == "posting_confirmation_required"
+    assert jobs.get("main", row["job_id"])["status"] == "publishing"
+    done = jobs.acknowledge(*_ack_args(row), "scheduled_on_platform", {"kind": "platform_success_notice", "notice": "Video published"})
+    assert done["status"] == "scheduled_on_platform"
+
+
+def test_reconcile_and_manual_proofs_must_carry_a_notice(store):
+    jobs, _ = store
+    row = attempt(jobs, claimed(jobs))
+    for kind in ("content_page_reconciled", "manual_user_confirmation", "user_confirmed"):
+        for notice in (None, "", "ok", "   "):
+            proof = {"kind": kind} if notice is None else {"kind": kind, "notice": notice}
+            with pytest.raises(ChannelError) as exc:
+                jobs.acknowledge(*_ack_args(row), "published", proof, reconcile=True)
+            assert exc.value.code == "posting_confirmation_required"
+    assert jobs.get("main", row["job_id"])["status"] == "publishing"
+    done = jobs.acknowledge(*_ack_args(row), "published",
+                            {"kind": "manual_user_confirmation", "notice": "operator saw the post on Studio > Content"}, reconcile=True)
+    assert done["status"] == "published"

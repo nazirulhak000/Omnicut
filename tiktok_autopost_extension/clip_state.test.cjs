@@ -82,3 +82,23 @@ test('uses export_id so same filenames from different exports do not collapse', 
   assert.equal(clips.length, 1);
   assert.equal(clips[0].export_id, 'exp-ready');
 });
+
+test('R1 pickBatchCandidates: ticked clips mean "exactly these", even when none is usable; never the whole queue', () => {
+  const { pickBatchCandidates } = require('./clip_state.js');
+  const allClips = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }];
+  const keyOf = (clip) => clip.id;
+  const none = pickBatchCandidates({ allClips, selectedKeys: new Set(), keyOf });
+  assert.equal(none.usingPicked, false);
+  assert.equal(none.candidates.length, 3);
+  const filtered = pickBatchCandidates({ allClips, selectedKeys: new Set(), keyOf, matchesQuery: (clip) => clip.name === 'B' });
+  assert.deepEqual(filtered.candidates.map(keyOf), ['b']);
+  const two = pickBatchCandidates({ allClips, selectedKeys: new Set(['c', 'a']), keyOf });
+  assert.equal(two.usingPicked, true);
+  assert.deepEqual(two.candidates.map(keyOf), ['a', 'c']);                // list order, not tick order
+  // the search box does not widen a ticked selection
+  const withQuery = pickBatchCandidates({ allClips, selectedKeys: new Set(['a']), keyOf, matchesQuery: () => true });
+  assert.deepEqual(withQuery.candidates.map(keyOf), ['a']);
+  // a tick for a clip that is gone selects nothing, so the run is NOT "ticked" and the caller sees the plain list
+  const gone = pickBatchCandidates({ allClips, selectedKeys: new Set(['zzz']), keyOf });
+  assert.equal(gone.usingPicked, false);
+});

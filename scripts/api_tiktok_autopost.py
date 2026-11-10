@@ -28,7 +28,7 @@ from scripts.channel_scope import ChannelScope, ensure_same_channel, require_act
 from scripts.channel_route_policy import UNLISTED_ROUTE_POLICY
 from scripts.channel_workflows import get_workflow_scope, require_record_owner, require_project_owner
 from scripts.channel_store import ChannelError, normalize_handle
-from scripts.posting_jobs import PostingJobStore, PROTOCOL_VERSION, account_check
+from scripts.posting_jobs import INTENTS, PostingJobStore, PROTOCOL_VERSION, account_check
 
 from scripts.config import BASE_DIR, EXPORTS_DIR
 from scripts.product_store import ProductStore
@@ -191,6 +191,8 @@ class PrepareRequest(BaseModel):
     queue_id: Optional[str] = None
     schedule_date: Optional[str] = None
     schedule_time: Optional[str] = None
+    # schedule | draft | post_now. Missing = inferred (schedule when a time is given, else post_now: the old behaviour).
+    intent: Optional[str] = None
     idempotency_key: Optional[str] = None
 
 
@@ -218,11 +220,27 @@ class ActionRequest(ClaimRequest):
     source_account: Optional[str] = None
     confirmation_token: Optional[str] = Field(default=None, min_length=1, max_length=128)
     force: bool = False
+    # post | draft: which button the worker is about to press (checked against the job's intent on /attempt)
+    click_kind: Optional[str] = None
 
 
 class OutcomeRequest(ActionRequest):
     outcome: str
     proof: dict = Field(default_factory=dict)
+
+
+def _resolve_intent(req) -> str:
+    """What the operator meant to do. A schedule intent needs BOTH date and time, any other intent needs NEITHER:
+    this is what stops an unscheduled clip from being posted live by a "schedule" run."""
+    has_date, has_time = bool(req.schedule_date), bool(req.schedule_time)
+    intent = req.intent or ("schedule" if (has_date and has_time) else "post_now")
+    if intent not in INTENTS:
+        raise ChannelError(422, "posting_intent_invalid", "intent ต้องเป็น schedule | draft | post_now")
+    if intent == "schedule" and not (has_date and has_time):
+        raise ChannelError(422, "posting_schedule_required", "งานตั้งเวลาต้องมีทั้งวันที่และเวลา (ไม่มีเวลา = จะกลายเป็นโพสต์สด จึงปฏิเสธ)")
+    if intent != "schedule" and (has_date or has_time):
+        raise ChannelError(422, "posting_schedule_not_allowed", "งานแบบร่าง/โพสต์ทันทีต้องไม่มีวันที่หรือเวลานัด")
+    return intent
 
 
 @router.post("/prepare")
@@ -354,6 +372,7 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
         raise ChannelError(409, "export_cover_selection_changed", "Frozen HyperFrames cover changed before its posting snapshot")
     if req.queue_id and queue.get("cover_sha256") and cover_digest != queue["cover_sha256"]:
         raise ChannelError(409, "posting_queue_cover_changed", "Frozen queued cover changed before its posting snapshot")
+    intent = _resolve_intent(req)
     payload = {
         "video_path": str(video_abs),
         "export_id": export_record.get("id"),
@@ -366,6 +385,7 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
         "product_name": req.product_name,
         "schedule_date": req.schedule_date,
         "schedule_time": req.schedule_time,
+        "intent": intent,
         "queue_id": req.queue_id,
         "target_handle": scope.channel.get("handle") or "",
         "channel_revision": int(scope.channel.get("revision", 0)),
@@ -549,7 +569,7 @@ def attempt_publish(req: ActionRequest, scope: ChannelScope = Depends(get_workfl
     _validate_request_payload(req, job)
     return _jobs().validate_action(scope.channel_id, req.job_id, req.lease_owner, req.lease_token,
                                    req.expected_revision, req.source_account, begin_publish=True,
-                                   confirmation_token=req.confirmation_token)
+                                   confirmation_token=req.confirmation_token, click_kind=req.click_kind)
 
 
 @router.post("/release")

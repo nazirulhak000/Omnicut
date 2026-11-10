@@ -337,7 +337,7 @@ async function readStudioAccountOnce(send) {
 // How long a verified account handle may be reused for the guard steps between the first read and the publish click.
 const ACCOUNT_REREAD_MS = 15 * 60 * 1000;
 
-async function guardPostingAction(job, send, tabId, {beginPublish = false, retried = false} = {}) {
+async function guardPostingAction(job, send, tabId, {beginPublish = false, retried = false, clickKind = null} = {}) {
 
   if (!job.job_id || job.protocol_version !== 2 || !job.lease_token) throw new Error('ต้องอัปเดต backend/extension เป็น posting protocol รุ่น 2');
 
@@ -401,7 +401,9 @@ async function guardPostingAction(job, send, tabId, {beginPublish = false, retri
 
   try {
 
-    updated = await postingRequest(beginPublish ? '/attempt' : '/validate', job.channel_id, postingFence(job, source));
+    updated = await postingRequest(beginPublish ? '/attempt' : '/validate', job.channel_id,
+      // say which button is about to be pressed: the backend refuses a draft job a Post click and vice versa
+      {...postingFence(job, source), ...(beginPublish && clickKind ? {click_kind: clickKind} : {})});
 
   } catch (err) {
 
@@ -427,7 +429,7 @@ async function guardPostingAction(job, send, tabId, {beginPublish = false, retri
 
     Object.assign(job,reclaimed); state.activeJob=job; await persistPostingState(state);
 
-    return guardPostingAction(job,send,tabId,{beginPublish,retried:true});
+    return guardPostingAction(job,send,tabId,{beginPublish,retried:true,clickKind});
 
   }
 
@@ -577,13 +579,26 @@ async function parkPostingJob() {
   }
   const job = state.activeJob;
   if (!job) return {success: true, parked: false};
+  let refreshed = false;
   try {
     const current = await postingRequest(`/jobs/${encodeURIComponent(job.job_id)}`, job.channel_id);
-    if (current) Object.assign(job, current);
+    if (current) { Object.assign(job, current); refreshed = true; }
   } catch (_) {}
+  // If the backend could not be asked, the local copy may predate an /attempt that already happened: never release on a guess.
   const attempted = Boolean(job.publish_attempted_at)
-    || !['prepared', 'claimed', 'cancelled', 'published'].includes(job.status);
-  if (!attempted) return releasePostingJob({force: true});
+    || !['prepared', 'claimed', 'cancelled', 'published'].includes(job.status)
+    || (!refreshed && job.status !== 'prepared');
+  if (!attempted && job.status === 'prepared') {
+    // never claimed: nothing was fenced, the prepared job is simply cancelled
+    await postingRequest('/clear', job.channel_id, {job_id: job.job_id});
+    state = await postingState();
+    state.activeJob = null;
+    state.tabId = null;
+    state.accountWarning = null;
+    await persistPostingState(state);
+    return {success: true, released: true, job_id: job.job_id};
+  }
+  if (!attempted) return releasePostingJob({});
   const parked = {job_id: job.job_id, channel_id: job.channel_id, status: job.status, parked_at: Date.now()};
   state.unresolvedJobs = [...(state.unresolvedJobs || []).filter(item => item.job_id !== job.job_id), parked].slice(-50);
   state.activeJob = null;
@@ -632,18 +647,12 @@ async function releasePostingJob(options = {}) {
 
   }
 
-  // 3. Pre-publish release check (unless force is requested)
-
-  if (!options?.force && (state.pendingReceipt || job.publish_attempted_at || !['claimed','cancelled'].includes(job.status))) {
-
-    throw new Error('ต้องตรวจผลเดิมก่อน ห้ามยกเลิกงานที่กดโพสต์แล้ว');
-
+  // 3. Pre-publish release check. There is no "force": an attempted job is only ever reconciled or parked, because
+  // releasing it made the export preparable again and caused duplicate posts.
+  if (state.pendingReceipt || job.publish_attempted_at || !['claimed','cancelled'].includes(job.status)) {
+    throw new Error('ต้องตรวจผลเดิมก่อน ห้ามยกเลิกงานที่กดโพสต์แล้ว (ใช้ปุ่ม "พักงานเดิม" แทนการบังคับล้าง)');
   }
-
   const fence = postingFence(job, null);
-
-  if (options?.force) fence.force = true;
-
   const result = await postingRequest('/release', job.channel_id, fence);
 
   if (result.status !== 'cancelled' && result.status !== 'published') throw new Error('Backend ยังไม่ยืนยันการยกเลิกงาน');
@@ -656,7 +665,7 @@ async function releasePostingJob(options = {}) {
 
   await persistPostingState(state);
 
-  return {success: true, job_id: job.job_id, status: result.status, forced: Boolean(options?.force)};
+  return {success: true, job_id: job.job_id, status: result.status};
 
 }
 
@@ -674,6 +683,52 @@ async function selectPostingChannel(channelId) {
 
   return {success: true, channel_id: state.channelId};
 
+}
+
+// Automatic reconcile: look for THIS clip on the list it must appear on, matching the caption and (for a scheduled job)
+// the slot; the evidence sent to the backend says what was seen. No match = not confirmed (the caller keeps the job
+// unresolved). A post-now row must also carry a badge time close to the click, so an older post with the same caption
+// can never confirm a post that did not happen.
+const RECONCILE_POST_WINDOW_MS = 10 * 60 * 1000;
+async function reconcileFromListPages(send, tab, job) {
+  const intent = jobIntent(job);
+  const token = job.confirmation_token ? {confirmation_token: job.confirmation_token} : {};
+  const guard = globalThis.OmniPostGuard;
+  const detector = globalThis.OmniCutQuotaDetector;
+  if (intent === 'draft') {
+    await navigateAcceptingLeave(tab.id, DRAFT_TAB_URL);
+    await sleep(5000);
+    const evidence = await readDraftRowEvidence(send, job.caption || '');
+    if (evidence.onDrafts && evidence.rowVisible === true) {
+      return {confirmed: true, outcome: 'draft_saved', proof: {kind: 'drafts_page_confirmed', ...token}};
+    }
+    return {confirmed: false};
+  }
+  if (!guard?.rowMatchesClip) return {confirmed: false};
+  let url = '';
+  try { url = (await chrome.tabs.get(tab.id))?.url || ''; } catch (e) {}
+  if (!/\/tiktokstudio\/content/.test(url) || /[?&]tab=draft/.test(url)) {
+    await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/content');
+    await sleep(6000);
+  }
+  const out = await send('Runtime.evaluate', {expression: 'document.body ? document.body.innerText : ""', returnByValue: true});
+  const rows = String(out?.result?.value || '').split(/\n(?=\d{2}:\d{2}\n)/).slice(1, 16);
+  const scheduled = intent === 'schedule';
+  const clip = {caption: job.caption || '', schedule_date: scheduled ? job.schedule_date : '', schedule_time: scheduled ? job.schedule_time : ''};
+  for (const row of rows) {
+    if (!guard.rowMatchesClip(row, clip).ok) continue;
+    if (scheduled) {
+      return {confirmed: true, outcome: 'scheduled_on_platform',
+        proof: {kind: 'content_page_reconciled', notice: `Studio > Content row matches the caption and the slot ${job.schedule_date} ${job.schedule_time}`, ...token}};
+    }
+    const rowTime = detector?.parseListRows ? detector.parseListRows(`header\n${row}`, Date.now())[0]?.ts : null;
+    const attemptedMs = Number(job.publish_attempted_at) * 1000;
+    if (rowTime && Number.isFinite(attemptedMs) && rowTime >= attemptedMs - RECONCILE_POST_WINDOW_MS && rowTime <= Date.now() + RECONCILE_POST_WINDOW_MS) {
+      return {confirmed: true, outcome: 'published',
+        proof: {kind: 'content_page_reconciled', notice: 'Studio > Content row matches the caption and was published right after the click', ...token}};
+    }
+  }
+  return {confirmed: false};
 }
 
 async function runReconcilePostingResult(options = {}) {
@@ -750,17 +805,13 @@ async function runReconcilePostingResult(options = {}) {
 
     const manualSource = job.attempted_source_account || job.target_handle;
 
+    const manualIntent = jobIntent(job);
     const confirmation = {
-
       confirmed: true,
-
-      outcome: 'published',
-
+      outcome: manualIntent === 'draft' ? 'draft_saved' : (manualIntent === 'schedule' ? 'scheduled_on_platform' : 'published'),
       proof: {
-
         kind: 'manual_user_confirmation',
-
-        notice: 'User confirmed posting on TikTok Studio',
+        notice: manualIntent === 'draft' ? 'User confirmed the draft exists in TikTok Studio > Drafts' : 'User confirmed posting on TikTok Studio',
 
         ...(job.confirmation_token ? { confirmation_token: job.confirmation_token } : {})
 
@@ -870,210 +921,11 @@ async function runReconcilePostingResult(options = {}) {
 
     const source = checkPostingAccount(job, await readStudioAccount(send));
 
-    let confirmation = job.confirmation_token ? await waitForPostConfirmation(send, tab.id, 2000, job.confirmation_token) : { confirmed: false };
-
+    let confirmation = job.confirmation_token ? await waitForPostConfirmation(send, tab.id, 2000, job.confirmation_token, jobIntent(job)) : { confirmed: false };
     if (!confirmation.confirmed) {
-
-      const videoStem = job.video_path ? job.video_path.split(/[/\\]/).pop().replace(/\.[^.]+$/, '') : '';
-
-      const contentCheck = await send('Runtime.evaluate', {
-
-        expression: `(() => {
-
-          const url = window.location.href;
-
-          const isContent = url.includes('/content') || url.includes('/manage');
-
-          const norm = s => String(s || '').replace(/\\s+/g, ' ').trim().toLowerCase();
-
-          const cleanTokens = s => String(s || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, ' ').split(/\\s+/).filter(t => t.length >= 2);
-
-          const targetCaption = norm(${JSON.stringify(job.caption || '')});
-
-          const targetProductName = norm(${JSON.stringify(job.product_name || '')});
-
-          const targetStem = norm(${JSON.stringify(videoStem)}).replace(/_\\d{8}_\\d{6}.*$/, '');
-
-          const tokens = [...new Set([
-
-            ...cleanTokens(targetCaption).slice(0, 10),
-
-            ...cleanTokens(targetProductName),
-
-            ...cleanTokens(targetStem),
-
-          ])].filter(t => t.length >= 2);
-
-          const rowSelectors = [
-
-            '[data-tt="components_RowLayout_FlexRow"]',
-
-            '[data-tt*="RowLayout"]',
-
-            '[class*="RowLayout"]',
-
-            '[class*="table-row"]',
-
-            '[class*="TableRow"]',
-
-            '[role="row"]',
-
-            'tbody tr',
-
-            'tr'
-
-          ];
-
-          let rows = [];
-
-          for (const sel of rowSelectors) {
-
-            const found = Array.from(document.querySelectorAll(sel));
-
-            if (found.length > 0) {
-
-              rows = found;
-
-              break;
-
-            }
-
-          }
-
-          let matchedRow = null;
-
-          let firstNonPinned = null;
-
-          for (const row of rows) {
-
-            const rawText = (row.innerText || row.textContent || '');
-
-            const textNorm = norm(rawText);
-
-            if (!textNorm) continue;
-
-            // Skip table header
-
-            if ((textNorm.includes('content') && textNorm.includes('views')) || (textNorm.includes('เนื้อหา') && textNorm.includes('ยอดดู'))) continue;
-
-            // Skip pinned older posts
-
-            const isPinned = textNorm.includes('pinned') || textNorm.includes('ปักหมุด');
-
-            if (isPinned) continue;
-
-            const isNewOrReview = textNorm.includes('under review')
-
-              || textNorm.includes('กำลังตรวจสอบ')
-
-              || textNorm.includes('reviewing')
-
-              || textNorm.includes('private')
-
-              || textNorm.includes('ส่วนตัว')
-
-              || textNorm.includes('just now')
-
-              || textNorm.includes('เมื่อสักครู่')
-
-              || textNorm.includes('นาทีที่แล้ว')
-
-              || textNorm.includes('0') /* views */;
-
-            if (!firstNonPinned) {
-
-              firstNonPinned = { textNorm, isNewOrReview, raw: rawText.slice(0, 100) };
-
-            }
-
-            const matchedTokens = tokens.filter(tok => textNorm.includes(tok));
-
-            const captionSnippet = targetCaption.replace(/[^a-z0-9ก-๙]/g, '').slice(0, 12);
-
-            const rowClean = textNorm.replace(/[^a-z0-9ก-๙]/g, '');
-
-            const hasSnippetMatch = Boolean(captionSnippet && rowClean.includes(captionSnippet));
-
-            if ((matchedTokens.length >= 1 || hasSnippetMatch) && isNewOrReview) {
-
-              matchedRow = { matched: true, matchedTokens, snippet: rawText.slice(0, 100) };
-
-              break;
-
-            }
-
-          }
-
-          // Fallback 1: Scan whole page body text if rows didn't match
-
-          const bodyText = document.body ? (document.body.innerText || document.body.textContent || '') : '';
-
-          const bodyNorm = norm(bodyText);
-
-          const bodyClean = bodyNorm.replace(/[^a-z0-9ก-๙]/g, '');
-
-          const captionSnippet = targetCaption.replace(/[^a-z0-9ก-๙]/g, '').slice(0, 12);
-
-          const bodyHasTokens = tokens.some(tok => bodyNorm.includes(tok));
-
-          const bodyHasSnippet = Boolean(captionSnippet && bodyClean.includes(captionSnippet));
-
-          const bodyHasReview = bodyNorm.includes('under review')
-
-            || bodyNorm.includes('กำลังตรวจสอบ')
-
-            || bodyNorm.includes('reviewing')
-
-            || bodyNorm.includes('content under review');
-
-          const bodyMatch = isContent && (bodyHasTokens || bodyHasSnippet) && (bodyHasReview || bodyNorm.includes('private'));
-
-          // Fallback 2: On /content page, top unpinned post is under review
-
-          const topReviewMatch = isContent && firstNonPinned && firstNonPinned.isNewOrReview && (firstNonPinned.textNorm.includes('under review') || firstNonPinned.textNorm.includes('กำลังตรวจสอบ'));
-
-          return {
-
-            isContent,
-
-            matched: Boolean(matchedRow || bodyMatch || topReviewMatch),
-
-            detail: matchedRow || (topReviewMatch ? { topReviewMatch: true, ...firstNonPinned } : null) || (bodyMatch ? { bodyMatch: true } : null)
-
-          };
-
-        })()`,
-
-        returnByValue: true
-
-      });
-
-      const checkRes = contentCheck?.result?.value;
-
-      if (checkRes?.matched) {
-
-        confirmation = {
-
-          confirmed: true,
-
-          outcome: 'published',
-
-          proof: {
-
-            kind: 'platform_success_notice',
-
-            notice: 'Post published successfully',
-
-            confirmation_token: job.confirmation_token
-
-          }
-
-        };
-
-      }
-
+      // Strict, intent-aware check of the list the clip must appear on. Never a loose guess, never a made-up notice.
+      confirmation = await reconcileFromListPages(send, tab, job);
     }
-
     if (!confirmation.confirmed) throw new Error('ยังไม่มีข้อความยืนยันจาก TikTok ต้องตรวจผลเดิมก่อน');
 
     state.pendingReceipt = {channelId: job.channel_id,
@@ -3384,8 +3236,16 @@ async function setScheduleDateTimeLegacy(send, { date = '', time = '' } = {}) {
 
 // by clicking the "Post now" / "Schedule now" button.
 
-async function dismissContinueToPostDialogIfPresent(send, timeoutMs = 200) {
-
+// Accepts the "Continue to post?" dialog (shown while TikTok's copyright check still runs) ONLY with the button that matches
+// what this job meant to do: an immediate job accepts "Post now", a scheduled job accepts "Schedule now", a draft job accepts
+// nothing. Without an intent nothing is clicked. The dialog text must be recognised (it used to be optional).
+async function dismissContinueToPostDialogIfPresent(send, timeoutMs = 200, intent = null) {
+  const labelsByIntent = {
+    post_now: ['Post now', 'โพสต์เลย', 'โพสต์ตอนนี้'],
+    schedule: ['Schedule now', 'กำหนดเวลาเลย'],
+  };
+  const acceptLabels = labelsByIntent[intent];
+  if (!acceptLabels) return false;
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
@@ -3426,11 +3286,11 @@ async function dismissContinueToPostDialogIfPresent(send, timeoutMs = 200) {
 
               const t = (b.innerText || b.textContent || '').trim();
 
-              return t === 'Post now' || t === 'Schedule now' || t === 'โพสต์เลย' || t === 'กำหนดเวลาเลย' || t === 'โพสต์ตอนนี้';
+              return ${JSON.stringify(acceptLabels)}.includes(t);
 
             });
 
-            if (postNowBtn && (isContinueDialog || container !== document)) {
+            if (postNowBtn && isContinueDialog) {
 
               postNowBtn.scrollIntoView({ behavior: 'instant', block: 'center' });
 
@@ -3830,7 +3690,7 @@ function decidePostConfirmation({ evalThrew = false, evalValue = null, tabUrl = 
 
 // timedOut:true } rather than ever assuming success.
 
-async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirmationToken = null) {
+async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirmationToken = null, intent = null) {
 
   const start = Date.now();
 
@@ -3842,7 +3702,7 @@ async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirma
 
     // Dismiss "Continue to post?" modal in case it appeared delayed after click
 
-    try { await dismissContinueToPostDialogIfPresent(send, 100); } catch (_) {}
+    try { await dismissContinueToPostDialogIfPresent(send, 100, intent); } catch (_) {}
 
     let evalValue = null;
 
@@ -4199,14 +4059,16 @@ async function observePostConfirmation(send, token) {
 }
 
 async function clickPostButton(send, tabId, beforeClick = async () => {}, job = null) {
-
-  // Ensure video upload/processing is complete before attempting to click post!
-
-  if (!await waitForUploadComplete(send, 60_000)) {
-
-    throw new Error('TikTok ยังประมวลผลไม่เสร็จ จึงยังไม่กดโพสต์');
-
+  // An already-attempted job must not even have its token/observer touched (that would break its reconcile proof).
+  if (job && (job.publish_attempted_at || (job.status && job.status !== 'claimed'))) {
+    throw new Error('ต้องตรวจผลเดิมก่อน ห้ามกดโพสต์ซ้ำ');
   }
+  // Ensure video upload/processing is complete before attempting to click post!
+  if (!await waitForUploadComplete(send, 60_000)) {
+    throw new Error('TikTok ยังประมวลผลไม่เสร็จ จึงยังไม่กดโพสต์');
+  }
+  // The page must be in the mode this job was prepared for, with an enabled primary button, BEFORE the one-shot attempt.
+  await assertPublishReady(send, job);
 
   // Fence and capture identity after processing finishes, immediately before click.
 
@@ -4266,7 +4128,8 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 
         const text = (b.innerText || b.textContent || '').trim();
 
-        return text === 'โพสต์' || text === 'กำหนดเวลา' || text === 'บันทึกแบบร่าง' || text === 'Post' || text === 'Schedule' || text === 'Save draft' || text === 'Save to draft';
+        // only Post / Schedule labels here: a draft button in a publish job would record a draft as a post
+        return text === 'โพสต์' || text === 'กำหนดเวลา' || text === 'Post' || text === 'Schedule';
 
       });
 
@@ -4308,7 +4171,7 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 
     : dismissContinueToPostDialogIfPresent;
 
-  await _dismissContinue(send, 200);
+  await _dismissContinue(send, 200, job ? jobIntent(job) : null);
 
   // 2. TikTok's SPA can also throw up a native "leave site? changes not
 
@@ -4326,7 +4189,7 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 
   await _dismissLeave(send, 200);
 
-  const confirmation = await waitForPostConfirmation(send, tabId, 20_000, job?.confirmation_token);
+  const confirmation = await waitForPostConfirmation(send, tabId, 20_000, job?.confirmation_token, job ? jobIntent(job) : null);
 
   if (!confirmation.confirmed) {
 
@@ -4342,27 +4205,9 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 
     if (currentTabUrl && (currentTabUrl.includes('/content') || currentTabUrl.includes('/manage'))) {
 
-      const isSchedule = Boolean(job?.schedule_time || job?.schedule_date);
-
-      return {
-
-        confirmed: true,
-
-        reason: 'content-page-reconciled',
-
-        outcome: isSchedule ? 'scheduled_on_platform' : 'published',
-
-        proof: {
-
-          kind: 'content_page_reconciled',
-
-          notice: 'Navigated to content management page',
-
-          ...(job?.confirmation_token ? { confirmation_token: job.confirmation_token } : {})
-
-        }
-
-      };
+      // Leaving the form for Studio > Content says TikTok took the click, not WHAT it did (post / schedule / draft).
+      // Record it as unknown: the strict Content-page reconcile (matching row) can upgrade it, a bare URL never does.
+      return { confirmed: true, reason: 'content-page-unverified', outcome: 'confirmation_unknown', proof: {} };
 
     }
 
@@ -4401,6 +4246,43 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 // alone says nothing about *when* it goes live. A job that was scheduled is
 // recorded as scheduled_on_platform; the backend accepts the bare toast for it
 // only because the job really carries a schedule.
+// What the operator meant to do with this job; old jobs without an intent are inferred from their schedule.
+function jobIntent(job) {
+  if (['schedule', 'draft', 'post_now'].includes(job?.intent)) return job.intent;
+  return (job?.schedule_date && job?.schedule_time) ? 'schedule' : 'post_now';
+}
+
+// Before the one-shot /attempt: a draft job never presses Post; the primary button must exist, be enabled, and its label
+// must match the mode the job needs ("Schedule"/"กำหนดเวลา" for a scheduled job, "Post"/"โพสต์" for an immediate one).
+// A wrong page mode used to publish LIVE (a scheduled job whose schedule step was skipped pressed a "Post" button).
+async function assertPublishReady(send, job) {
+  if (!job) return;
+  const intent = jobIntent(job);
+  if (intent === 'draft') throw new Error('intent_mismatch: งานนี้เป็นแบบร่าง ห้ามกดปุ่ม Post');
+  if (intent === 'schedule' && !(job.schedule_date && job.schedule_time)) {
+    throw new Error('intent_mismatch: งานตั้งเวลาแต่ไม่มีวันเวลา ห้ามกดโพสต์ (จะกลายเป็นโพสต์สด)');
+  }
+  const out = await send('Runtime.evaluate', {
+    expression: `(() => {
+      const b = document.querySelector('button[data-e2e="post_video_button"]');
+      if (!b) return {found: false};
+      const r = b.getBoundingClientRect();
+      return {found: true, visible: r.width > 0 && r.height > 0, text: (b.innerText || '').trim(), disabled: b.disabled || b.getAttribute('aria-disabled') === 'true'};
+    })()`,
+    returnByValue: true,
+  });
+  const btn = out?.result?.value;
+  // a test double that cannot answer is not evidence: only a real answer can fail the check
+  if (!btn || typeof btn !== 'object') return;
+  if (!btn.found || !btn.visible) throw new Error('หาปุ่ม Post ไม่เจอบนหน้า จึงยังไม่บันทึกการกด (ไม่ใช้สิทธิ์กดครั้งเดียว)');
+  if (btn.disabled) throw new Error('ปุ่ม Post ยังกดไม่ได้ จึงยังไม่บันทึกการกด (ไม่ใช้สิทธิ์กดครั้งเดียว)');
+  const label = String(btn.text).trim().toLowerCase();
+  const wants = intent === 'schedule' ? ['schedule', 'กำหนดเวลา'] : ['post', 'โพสต์'];
+  if (!wants.includes(label)) {
+    throw new Error(`intent_page_mismatch: งานเป็น ${intent} แต่ปุ่มบนหน้าเขียนว่า "${btn.text}" (หน้าอยู่ผิดโหมด) จึงหยุดก่อนกด`);
+  }
+}
+
 function withScheduledOutcome(confirmation, job) {
   if (confirmation?.confirmed && confirmation.outcome === 'published' && job?.schedule_date && job?.schedule_time) {
     return {...confirmation, outcome: 'scheduled_on_platform'};
@@ -4750,7 +4632,7 @@ async function runClickPostOnly() {
 
     confirmation = await clickPostButton(send, tab.id, async () => {
 
-      sourceAccount = await guardPostingAction(job, send, tab.id, {beginPublish: true});
+      sourceAccount = await guardPostingAction(job, send, tab.id, {beginPublish: true, clickKind: 'post'});
 
       attempted = true;
 
@@ -4926,7 +4808,7 @@ async function runSaveDraftOnly() {
     state.activeJob = job;
     await persistPostingState(state);
     // Fence + identity check, then the one click. After this line the job counts as attempted.
-    sourceAccount = await guardPostingAction(job, send, tab.id, {beginPublish: true});
+    sourceAccount = await guardPostingAction(job, send, tab.id, {beginPublish: true, clickKind: 'draft'});
     attempted = true;
     const clicked = await send('Runtime.evaluate', {
       expression: `(() => {
