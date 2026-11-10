@@ -2937,6 +2937,28 @@
       "module": "scripts.api_schedule_queue"
     },
     {
+      "method": "GET",
+      "path": "/api/episodes",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "major",
+      "resource_params": [],
+      "module": "scripts.api_episodes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/episodes/next",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "blocker",
+      "resource_params": [
+        "next"
+      ],
+      "module": "scripts.api_episodes"
+    },
+    {
       "method": "POST",
       "path": "/api/schedule-queue/auto-fill",
       "scope": "channel",

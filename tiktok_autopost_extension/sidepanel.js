@@ -1593,8 +1593,8 @@ function renderClipCards(ready) {
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8 8a2 2 0 0 0 2.828 0l7.172-7.172a2 2 0 0 0 0-2.828z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
 
         ${escapeHtml(item.product_name || 'ไม่ทราบสินค้า')}
-
       </div>
+      ${item.episode_no ? `<div class="card-episode">EP:${escapeHtml(String(item.episode_no))}</div>` : ''}
 
       <div class="card-hook">${escapeHtml(item.hook_title || item.name)}</div>
 
@@ -3349,6 +3349,7 @@ async function runBatchFromPanel(override = null) {
         verdict = await panelWorkerRequest({
           action: 'verify-post-content',
           caption,
+          episodeNo: clip.episode_no || null,
           scheduleDate: scheduled ? (clip.schedule_date || '') : '',
           scheduleTime: scheduled ? (clip.schedule_time || '') : '',
         });
@@ -3720,7 +3721,7 @@ rescheduleOverdueBtn?.addEventListener('click', async () => {
 async function syncDraftsWithTikTok(only = null) {
   const sync = globalThis.OmniDraftSync;
   const drafts = (only || allClips.filter((c) => c.is_draft)).map((c) => ({
-    id: c.id, caption: c.tiktok_caption || c.caption || '', savedAtMs: Date.parse(c.draft_saved_at || '') || null,
+    id: c.id, caption: c.tiktok_caption || c.caption || '', episode_no: c.episode_no || null, savedAtMs: Date.parse(c.draft_saved_at || '') || null,
   }));
   if (!sync || !drafts.length) return { ok: true, results: [], problems: [] };
   const cutoffMs = sync.lookbackCutoff(drafts);

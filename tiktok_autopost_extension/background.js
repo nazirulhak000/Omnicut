@@ -750,7 +750,7 @@ async function reconcileFromListPages(send, tab, job) {
     await sleep(6000);
   }
   const scheduled = intent === 'schedule';
-  const clip = {caption: job.caption || '', schedule_date: scheduled ? job.schedule_date : '', schedule_time: scheduled ? job.schedule_time : ''};
+  const clip = {caption: job.caption || '', episode_no: job.episode_no || null, schedule_date: scheduled ? job.schedule_date : '', schedule_time: scheduled ? job.schedule_time : ''};
   // a row counts only when it matches the caption (and the slot, or for an immediate post: was published right after the click)
   const accept = (row) => {
     if (!guard.rowMatchesClip(row, clip).ok) return null;
@@ -5117,13 +5117,13 @@ async function runPrepareDetails(message) {
 // Second, independent proof that a post is really on TikTok: open Studio > Content (reloading while the
 // list lags behind the success toast) and find the row with this clip's caption and, for a scheduled
 // post, its day and time. Returns {verified, reason}; always leaves the tab on the upload page.
-async function runVerifyPostOnContent({caption = '', scheduleDate = '', scheduleTime = '', attempts = 6} = {}) {
+async function runVerifyPostOnContent({caption = '', episodeNo = null, scheduleDate = '', scheduleTime = '', attempts = 6} = {}) {
   // The post just left the tab on Studio > Content, so accept any Studio tab; do not pre-navigate.
   let tab;
   try { tab = await findUploadTab({recover: false}); } catch (e) { tab = await findAnyStudioTab(); }
   if (!tab?.id) throw new Error('ไม่พบแท็บ TikTok Studio ที่เปิดอยู่ — กรุณาเปิดหน้า TikTok Studio');
   const send = cdp(tab.id);
-  const clip = {caption, schedule_date: scheduleDate || '', schedule_time: scheduleTime || ''};
+  const clip = {caption, episode_no: episodeNo, schedule_date: scheduleDate || '', schedule_time: scheduleTime || ''};
   let verdict = {ok: false, reason: 'row_not_found'};
   try {
     for (let attempt = 0; attempt < attempts && !verdict.ok; attempt += 1) {
@@ -5658,14 +5658,21 @@ async function runSyncDraftsWithTikTok({drafts = [], cutoffMs = 0} = {}) {
   } finally {
     try { await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/upload'); await sleep(2500); } catch (e) {}
   }
-  const draftKeys = draftRows.map(alnum);
+  const draftKeys = draftRows.map((raw) => ({text: alnum(raw), raw}));
   const contentKeys = contentScan.rows.map((row) => ({text: alnum(row), raw: row}));
+  // EP tag decides when visible (same = this clip, other = not this clip); otherwise the caption key, as before
+  const sameClip = (row, draft, key) => {
+    const episode = guard.episodeMatch(row.raw, draft.episode_no);
+    if (episode === 'match') return true;
+    if (episode === 'other') return false;
+    return row.text.includes(key);
+  };
   // "no match" means "none" only when the scan reached the cutoff or the real end of the list, not when it hit its step cap
   const complete = (contentScan.stoppedBy === 'cutoff' || contentScan.stoppedBy === 'end') && contentScan.rows.length > 0;
   const results = drafts.map((draft) => {
     const key = keyOf(draft);
-    const present = draftKeys.some((text) => text.includes(key));
-    const hit = contentKeys.find((row) => row.text.includes(key));
+    const present = draftKeys.some((row) => sameClip(row, draft, key));
+    const hit = contentKeys.find((row) => sameClip(row, draft, key));
     const verdict = sync.classifyDraft({present, match: Boolean(hit), complete});
     const badge = hit ? hit.raw.split('\n').slice(0, 4).join(' | ').slice(0, 160) : '';
     return {id: draft.id, ...verdict, present, matchRow: badge};

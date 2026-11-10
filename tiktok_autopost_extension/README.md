@@ -42,6 +42,15 @@ verdict is "unknown", never "deleted". Match key = the first 20 letters/digits o
 If a publication is cancelled before the click the row returns to
 "draft on TikTok" (never to "planned": the draft still exists).
 
+## EP numbers (episode ids)
+Every clip lineage (product + angle; a re-render keeps its number) gets a permanent number the first time it enters the queue or is prepared:
+`EP1`, `EP2`, ... per channel, atomic, never reused (not even when a draft is deleted or the slot is re-arranged), counter starts at 1 and
+can only be raised (`PUT /api/episodes/next`). The backend adds the hashtag `#EP12` (the clip's number) to the job's hashtags (idempotent; another clip's EP tag is
+refused), the content guard accepts it, the card shows `EP:1731`, log titles start with it, and the checks against TikTok use the tag to tell
+clips apart when it is visible in the list (Studio cuts long captions, so without a visible tag the caption key is still the fallback).
+`GET /api/episodes` lists numbers and how many really went out through the app. Old clips get their numbers once with
+`python tools/backfill_episodes.py` (PREVIEW by default, `--apply` to write; counts from EP1 = the oldest clip that went out, writes nothing to TikTok and edits no old caption).
+
 ## Safety rules that are always on
 - Price / discount text, unfilled `{placeholders}`, > 4000 characters, > 30 hashtags are refused everywhere (panel, worker, backend,
   conductor) by one rule set (`post_guard.js` ↔ `scripts/content_guard.py`; shared test cases in `tests/fixtures/`).

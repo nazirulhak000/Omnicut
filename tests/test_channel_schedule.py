@@ -423,7 +423,7 @@ def test_compat_queue_byte_identical_on_legacy_data(client, env):
     items = plain.json()["items"]
     assert [row["id"] for row in items] == ["781b", "plan1"]
     assert items[1]["export_id"] == "exp_3b4b"  # enriched from main's (legacy) registry path index
-    assert {k: v for k, v in items[0].items() if k not in ("is_overdue", "needs_reschedule")} == legacy_rows[0]
+    assert {k: v for k, v in items[0].items() if k not in ("is_overdue", "needs_reschedule", "episode_no")} == legacy_rows[0]
     assert client.get("/api/schedule-queue", headers=H("second")).json()["items"] == []
     # a no-op scoped write leaves every legacy row byte-identical
     before = {t: _rows(env, t) for t in ("schedule_queue", "schedule_templates", "export_registry")}

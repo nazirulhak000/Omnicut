@@ -107,3 +107,26 @@ test('R5 one set of limits: the guard and the orchestrator use limits.js, not th
   assert.equal(limits.SCHEDULE_CAP, 30);
   assert.equal(limits.DRAFT_CAP, 30);
 });
+
+test('EP tag: same number matches even when the caption is cut short, another number never matches, no tag falls back to the caption key', () => {
+  const clip = { caption: 'สรุปจุดเด่นพัดลมแม่เหล็ก ดูก่อนตัดสินใจ', episode_no: 1731 };
+  const nl = String.fromCharCode(10);
+  const row = (caption) => ['00:30', caption, 'Nov 22, 10:00 AM (GMT+7) Bangkok', 'Everyone'].join(nl);
+  assert.equal(guard.episodeMatch('x #EP1731 y', 1731), 'match');
+  assert.equal(guard.episodeMatch('x #ep01731', 1731), 'match');
+  assert.equal(guard.episodeMatch('x #EP1700', 1731), 'other');
+  assert.equal(guard.episodeMatch('x #EP17310', 1731), 'other');         // a longer number is another number
+  assert.equal(guard.episodeMatch('no tag here', 1731), 'none');
+  assert.equal(guard.episodeMatch('x #EP1731', null), 'none');
+  // the tag decides: a truncated caption with the right tag matches, a full caption with another clip's tag does not
+  assert.equal(guard.rowMatchesClip(row('ข้อความอื่นที่ถูกตัดสั้น... #EP1731'), clip).ok, true);
+  assert.equal(guard.rowMatchesClip(row(`${clip.caption} #EP1700`), clip).ok, false);
+  // no visible tag (legacy post / long caption cut): the caption key, as before; a clip without an EP number is unchanged
+  assert.equal(guard.rowMatchesClip(row(clip.caption), clip).ok, true);
+  assert.equal(guard.rowMatchesClip(row('คนละคลิปเลย'), clip).ok, false);
+  assert.equal(guard.rowMatchesClip(row(clip.caption), { caption: clip.caption }).ok, true);
+  // the slot check still applies on top of the tag
+  const sched = { ...clip, schedule_date: '2026-11-22', schedule_time: '10:00' };
+  assert.equal(guard.rowMatchesClip(row('cut... #EP1731'), sched).ok, true);
+  assert.equal(guard.rowMatchesClip(row('cut... #EP1731'), { ...sched, schedule_time: '11:00' }).reason, 'schedule_badge_mismatch');
+});

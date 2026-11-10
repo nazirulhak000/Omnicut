@@ -1024,3 +1024,27 @@ def test_publish_draft_slot_must_equal_the_slot_of_the_queue_row(api_env):
     assert _queue_get(queue_id)["status"] == "draft_on_platform"                       # nothing moved, no job created
     good = client.post("/api/tiktok-autopost/prepare", json=_publish_payload(api_env, queue_id, schedule_date="2030-01-02", schedule_time="09:00"))
     assert good.status_code == 200, good.text
+
+
+# ---- EP numbers ride in the job ----
+
+def test_prepare_issues_the_ep_number_and_the_job_caption_carries_the_tag(api_env):
+    client, api, registry, video, export, _ = api_env
+    first = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], "caption": "สรุปจุดเด่น ดูก่อนตัดสินใจ", "hashtags": "#รีวิวของดี", "intent": "draft"})
+    assert first.status_code == 200, first.text
+    job = api._jobs().get("main", first.json()["job_id"])
+    assert job["episode_no"] == 1
+    assert job["hashtags"] == "#รีวิวของดี #EP1"                                         # frozen in the job, so the worker types it
+    assert api._jobs().get("main", job["job_id"])["payload_fields"].count("episode_no") == 1  # part of the fingerprint
+    # the same clip prepared again keeps its number and the tag is not doubled
+    api._jobs().cancel("main", job["job_id"])
+    again = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], "caption": "สรุปจุดเด่น ดูก่อนตัดสินใจ", "hashtags": "#รีวิวของดี #EP1", "intent": "draft"})
+    assert again.status_code == 200, again.text
+    assert api._jobs().get("main", again.json()["job_id"])["hashtags"] == "#รีวิวของดี #EP1"
+    assert api._jobs().get("main", again.json()["job_id"])["episode_no"] == 1
+
+
+def test_prepare_refuses_a_caption_that_carries_another_clips_ep_number(api_env):
+    client, api, registry, video, export, _ = api_env
+    res = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], "caption": "สรุปจุดเด่น ดูก่อนตัดสินใจ", "hashtags": "#EP1700", "intent": "draft"})
+    assert res.status_code == 409 and res.json()["code"] == "episode_tag_conflict"

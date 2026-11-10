@@ -997,7 +997,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.9.0');
+  assert.equal(manifest.version, '0.10.0');
   assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
   for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
@@ -1952,4 +1952,30 @@ test('check-against-TikTok panel wiring: button, blocking verdicts, per-card fix
   // read-only: the check never presses a button of the page
   const fn = bg.slice(bg.indexOf('async function runSyncDraftsWithTikTok('), bg.indexOf('let actionRunning = false;'));
   assert.doesNotMatch(fn, /\.click\(\)|post_video_button|save_draft_button/);
+});
+
+test('sync-drafts: the EP tag decides which row is this draft when it is visible (two drafts with the same caption start)', async () => {
+  const sameStart = 'สรุปจุดเด่นพัดลมแม่เหล็กรุ่นนี้ ดูก่อนตัดสินใจ';
+  const { ctx } = syncHarness({
+    draftTexts: [draftRow(`${sameStart} #EP1731`)],
+    contentRows: [contentRow(`${sameStart} #EP1732`, 'Nov 12, 9:00 AM')],
+  });
+  const reply = await ctx.runSyncDraftsWithTikTok({
+    drafts: [{ id: 'a', caption: sameStart, episode_no: 1731 }, { id: 'b', caption: sameStart, episode_no: 1732 }],
+    cutoffMs: 0,
+  });
+  const by = Object.fromEntries(reply.results.map((r) => [r.id, r.state]));
+  assert.equal(by.a, 'ok');              // EP1731 is still a draft and its tag is not in Content: NOT confused with EP1732
+  assert.equal(by.b, 'posted_outside');  // EP1732 left Drafts and is in Content
+});
+
+test('EP number is shown on the card and in every log title, and travels to the checks', () => {
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const orch = fs.readFileSync(path.join(__dirname, 'batch_orchestrator.js'), 'utf8');
+  assert.match(side, /card-episode">EP:\$\{escapeHtml\(String\(item\.episode_no\)\)\}/);
+  assert.match(side, /episode_no: c\.episode_no \|\| null/);       // sync payload
+  assert.match(side, /episodeNo: clip\.episode_no \|\| null/);     // verify payload
+  assert.match(orch, /EP\$\{clip\.episode_no\} · /);
+  const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  assert.match(bg, /episode_no: job\.episode_no \|\| null/);       // reconcile
 });

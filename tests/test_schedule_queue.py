@@ -544,3 +544,22 @@ def test_autofill_distributes_multiple_products_fairly_across_days_and_slots(que
         # Should not be identical product for all days at 09:00
         assert len(set(slot_0900_products)) > 1
 
+
+
+def test_a_clip_gets_its_permanent_ep_number_when_it_enters_the_queue_and_listings_show_it(queue_workspace, monkeypatch):
+    import scripts.export_registry as export_registry
+    video_a, video_b = queue_workspace
+    root = video_a.parents[2]
+    monkeypatch.setattr(export_registry, "REGISTRY_PATH", root / "_Docs" / "export_registry.json")
+    monkeypatch.setattr(export_registry, "BASE_DIR", root)
+    ea = export_registry.ExportRegistry.ensure(video_a, channel_id="main")
+    eb = export_registry.ExportRegistry.ensure(video_b, channel_id="main")
+    first = client.post("/api/schedule-queue", json={**payload(video_a, "2026-09-10T08:30:00+07:00"), "export_id": ea["id"]}).json()
+    second = client.post("/api/schedule-queue", json={**payload(video_b, "2026-09-10T09:30:00+07:00"), "export_id": eb["id"]}).json()
+    assert [first["items"][0]["episode_no"], second["items"][0]["episode_no"]] == [1, 2]
+    listed = {row["id"]: row["episode_no"] for row in client.get("/api/schedule-queue").json()["items"]}
+    assert listed[first["items"][0]["id"]] == 1 and listed[second["items"][0]["id"]] == 2
+    # deleting and re-adding the clip never re-issues or changes its number
+    client.delete(f"/api/schedule-queue/{first['items'][0]['id']}")
+    again = client.post("/api/schedule-queue", json={**payload(video_a, "2026-09-12T08:30:00+07:00"), "export_id": ea["id"]}).json()
+    assert again["items"][0]["episode_no"] == 1

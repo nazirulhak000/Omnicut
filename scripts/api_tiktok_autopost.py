@@ -29,6 +29,7 @@ from scripts.channel_route_policy import UNLISTED_ROUTE_POLICY
 from scripts.channel_workflows import get_workflow_scope, require_record_owner, require_project_owner
 from scripts.channel_store import ChannelError, normalize_handle
 from scripts.content_guard import content_reason
+from scripts.episode_registry import EpisodeRegistry, compose_hashtags
 from scripts.posting_jobs import INTENTS, PostingJobStore, PROTOCOL_VERSION, account_check
 
 from scripts.config import BASE_DIR, EXPORTS_DIR
@@ -398,7 +399,10 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
     if req.queue_id and queue.get("cover_sha256") and cover_digest != queue["cover_sha256"]:
         raise ChannelError(409, "posting_queue_cover_changed", "Frozen queued cover changed before its posting snapshot")
     intent = _resolve_intent(req)
-    blocked = content_reason(req.caption, req.hashtags)
+    # the clip's permanent EP number (issued the first time; the same lineage always gets the same one) and its hashtag form
+    episode = EpisodeRegistry(BASE_DIR).ensure(channel_id, product_id=product_id, angle_id=angle_id, export_id=export_record["id"])
+    final_hashtags = compose_hashtags(req.hashtags, episode["episode_no"])
+    blocked = content_reason(req.caption, final_hashtags)
     # an empty caption is allowed here (cover/media-only preparation); the worker refuses to type nothing
     if blocked and blocked != "empty_caption":
         raise ChannelError(422, "posting_content_blocked", f"เนื้อหาโพสต์ไม่ผ่านตัวกัน ({blocked}): ห้ามมีราคา/ส่วนลด, placeholder ที่ยังไม่แทนค่า, ข้อความว่าง หรือยาวเกิน")
@@ -407,7 +411,8 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
         "export_id": export_record.get("id"),
         "cover_path": str(cover_abs) if cover_abs else None,
         "caption": req.caption,
-        "hashtags": req.hashtags,
+        "hashtags": final_hashtags,
+        "episode_no": episode["episode_no"],
         "product_id": product_id,
         "angle_id": angle_id,
         "tiktok_product_id": req.tiktok_product_id,

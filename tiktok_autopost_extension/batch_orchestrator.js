@@ -327,7 +327,7 @@
 
     async function executeSingleClipStages(clip, index) {
       const total = batchClips.length;
-      const clipTitle = clip.hook_title || clip.title || clip.name || `คลิปที่ ${index + 1}`;
+      const clipTitle = `${clip.episode_no ? `EP${clip.episode_no} · ` : ''}${clip.hook_title || clip.title || clip.name || `คลิปที่ ${index + 1}`}`;
       const targetMode = resolveTargetMode(clip);
 
       log(`▶️ คลิปที่ ${index + 1}/${total}: "${clipTitle}" (โหมด: ${targetMode === 'schedule' ? 'ตั้งเวลา' : 'แบบร่าง'})`);
@@ -620,7 +620,7 @@
             }
             failed += 1;
             await collectEvidence(clip, { kind: 'failed', stage, error: err.message || String(err) });
-            const clipTitle = clip?.hook_title || clip?.title || clip?.name || `คลิปที่ ${currentIndex + 1}`;
+            const clipTitle = `${clip?.episode_no ? `EP${clip.episode_no} · ` : ''}${clip?.hook_title || clip?.title || clip?.name || `คลิปที่ ${currentIndex + 1}`}`;
             errors.push({
               clipId: clip?.id,
               clipTitle,

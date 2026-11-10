@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
 from scripts.api_tiktok_autopost import PrepareRequest, prepare
+from scripts.episode_registry import EpisodeRegistry
 from scripts.channel_ownership import resolve_store_scope
 from scripts.channel_scope import (
     ChannelScope,
@@ -1257,7 +1258,8 @@ def commit_auto_fill(req: AutoFillCommitRequest, scope: ChannelScope = Depends(g
         # same queue mutation lock, so the commit remains all-or-nothing.
         _validate_autofill_daily_constraints(records, history_posts, created)
         records.extend(created)
-    return {"items": sort_records(created), "count": len(created)}
+    _issue_episodes(channel_id, created)
+    return {"items": _with_episodes(channel_id, sort_records(created)), "count": len(created)}
 
 
 @router.get("")
@@ -1284,6 +1286,7 @@ def list_queue(
     # syscalls on every GET /schedule-queue.  Scoped: only this channel's
     # exports can fill in a missing export_id.
     export_id_by_path = ExportRegistry.path_index(**_kw(channel_id))
+    episode_numbers = _episode_map(channel_id)
     now = dt.datetime.now(PROJECT_TZ)
     enriched = []
     for row in sort_records(records):
@@ -1296,6 +1299,7 @@ def list_queue(
                     item["export_id"] = export_id
             except Exception:
                 pass
+        item["episode_no"] = episode_numbers.get(item.get("export_id"))
         scheduled = _queue_timestamp(item.get("scheduled_at", ""))
         item["is_overdue"] = bool(item.get("status") == "planned" and scheduled and scheduled < now)
         # planned OR draft-on-TikTok clips whose slot passed (or is < 15 min away): they must get a new time before they can run
@@ -1325,7 +1329,34 @@ def create_queue(req: QueueCreateRequest, scope: ChannelScope = Depends(get_chan
             for item, path, export_id in prepared
         ]
         records.extend(created)
-    return {"items": sort_records(created), "count": len(created)}
+    _issue_episodes(channel_id, created)
+    return {"items": _with_episodes(channel_id, sort_records(created)), "count": len(created)}
+
+
+def _episode_map(channel_id: Optional[str]) -> Dict[str, int]:
+    """export id -> EP number (read-only join for listings)."""
+    try:
+        return EpisodeRegistry(BASE_DIR).by_export(channel_id or "main")
+    except Exception:
+        return {}
+
+
+def _issue_episodes(channel_id: Optional[str], rows: List[Dict[str, Any]]) -> None:
+    """A clip gets its permanent EP number when it first enters the queue. Done AFTER the queue transaction (the stores share one
+    connection) and best effort: prepare issues it too, so a hiccup here can never lose a number or block a clip."""
+    registry = EpisodeRegistry(BASE_DIR)
+    for row in rows:
+        try:
+            export = ExportRegistry.get(row.get("export_id"), **_kw(channel_id)) or {}
+            registry.ensure(channel_id or "main", product_id=export.get("product_id") or row.get("product_id"),
+                            angle_id=export.get("angle_id") or row.get("angle_id"), export_id=row.get("export_id"))
+        except Exception:
+            continue
+
+
+def _with_episodes(channel_id: Optional[str], rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    numbers = _episode_map(channel_id)
+    return [{**row, "episode_no": numbers.get(row.get("export_id"))} for row in rows]
 
 
 def _settle_job_before_edit(channel_id: str, existing: Optional[Dict[str, Any]], *, cancel: bool) -> None:

@@ -60,10 +60,26 @@
 
   // Does one Content-page row (its visible text) belong to this clip? Needs the start of the caption;
   // a scheduled clip must also show its day number and time (12h or 24h).
+  // The episode number a row carries as a hashtag (#EP1731). 'match' = this clip's number, 'other' = another clip's number,
+  // 'none' = no tag visible (a long caption is truncated in Studio's lists, and clips posted before EP numbers have none).
+  const EP_TAG_RE = /#EP0*(\d{1,9})(?!\d)/gi;
+  function episodeMatch(rowText, episodeNo) {
+    const wanted = Number(episodeNo);
+    if (!Number.isFinite(wanted) || wanted <= 0) return 'none';
+    const found = [];
+    for (const m of String(rowText || '').matchAll(EP_TAG_RE)) found.push(Number(m[1]));
+    if (!found.length) return 'none';
+    return found.includes(wanted) ? 'match' : 'other';
+  }
+
   function rowMatchesClip(rowText, clip) {
     const row = alnum(rowText);
     const key = alnum(clip.caption).slice(0, 20);
-    if (key.length < 8 || !row.includes(key)) return { ok: false, reason: 'caption_not_found' };
+    // With an EP number the tag decides when it is visible: same number = this clip (even if the caption is cut short),
+    // another number = never this clip. Without a visible tag the caption key is the fallback, exactly as before.
+    const episode = episodeMatch(rowText, clip.episode_no);
+    if (episode === 'other') return { ok: false, reason: 'caption_not_found' };
+    if (episode !== 'match' && (key.length < 8 || !row.includes(key))) return { ok: false, reason: 'caption_not_found' };
     if (clip.schedule_date && clip.schedule_time) {
       const [hh, mm] = clip.schedule_time.split(':').map(Number);
       const h12 = hh % 12 === 0 ? 12 : hh % 12;
@@ -111,5 +127,5 @@
 
   const captionKey = (caption) => alnum(caption).slice(0, 20);
 
-  return { captionKey, PRICE_RE, PLACEHOLDER_RE, MAX_TEXT_CHARS, MAX_HASHTAGS, normalizeText, contentReason, MIN_LEAD_MS, rowMatchesClip, clipCaptionText, clipSkipReason };
+  return { episodeMatch, captionKey, PRICE_RE, PLACEHOLDER_RE, MAX_TEXT_CHARS, MAX_HASHTAGS, normalizeText, contentReason, MIN_LEAD_MS, rowMatchesClip, clipCaptionText, clipSkipReason };
 });
