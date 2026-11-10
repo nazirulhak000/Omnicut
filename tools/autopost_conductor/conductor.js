@@ -6,7 +6,8 @@ const { PRICE_RE, PLACEHOLDER_RE, contentReason, rowMatchesClip } = require('../
 // `worker.send(action)`; this module owns ordering, safety stops and results.
 
 const FATAL_RE = /captcha|verify it'?s you|ยืนยันตัวตน|account_handle_mismatch|source_account_required|posting_receipt_unsent|posting_instance_busy|login_required|\b401\b/i;
-const MIN_LEAD_MS = 15 * 60 * 1000;
+const LIMITS = require('../../tiktok_autopost_extension/limits.js');
+const MIN_LEAD_MS = LIMITS.MIN_LEAD_MS;
 const READY_STATUSES = ['planned', 'ready_for_extension'];
 
 class FatalError extends Error {
@@ -321,9 +322,9 @@ async function runBatch(deps, { clips, dryRun = false, channelId = 'main', cover
     const used = mode === 'draft' ? quota?.draftCount : quota?.scheduledCount;
     const left = mode === 'draft' ? quota?.remainingDraft : quota?.remainingSchedule;
     if (typeof used === 'number' && typeof left === 'number') {
-      log('info', `โควตา TikTok (${mode === 'draft' ? 'แบบร่าง' : 'ตั้งเวลา'}): ใช้ไป ${used}/30 · เหลือ ${left}`);
+      log('info', `โควตา TikTok (${mode === 'draft' ? 'แบบร่าง' : 'ตั้งเวลา'}): ใช้ไป ${used}/${LIMITS.SCHEDULE_CAP} · เหลือ ${left}`);
       if (left <= 0) {
-        log('error', `โควตา${mode === 'draft' ? 'แบบร่าง' : 'ตั้งเวลา'}เต็ม 30/30 หยุดก่อนเริ่ม`);
+        log('error', `โควตา${mode === 'draft' ? 'แบบร่าง' : 'ตั้งเวลา'}เต็ม ${LIMITS.SCHEDULE_CAP}/${LIMITS.SCHEDULE_CAP} หยุดก่อนเริ่ม`);
         return { total: 0, aborted: `quota_full_${mode}`, quota, posted: 0, scheduled: 0, drafted: 0, unknown: 0, skipped: 0, failed: 0, dry_run_ok: 0, results: [] };
       }
       if (clips.length > left) {

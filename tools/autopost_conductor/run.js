@@ -20,13 +20,12 @@ const CHROME_EXE = process.env.OMNICUT_CHROME || 'C:\\Program Files\\Google\\Chr
 const PROFILE_DIR = path.join(ROOT, 'tools', 'tiktok_browser_profile');
 
 function parseArgs(argv) {
-  const args = { channel: 'main', limit: 10, port: 9333, dryRun: false, health: false, noLaunch: false, queueId: null, allowPriceCaption: false, coverFallback: false, viewport: null, net: null, clipBudgetMin: 25, mode: 'schedule' };
+  const args = { channel: 'main', limit: 10, port: 9333, dryRun: false, health: false, noLaunch: false, queueId: null, coverFallback: false, viewport: null, net: null, clipBudgetMin: require('../../tiktok_autopost_extension/limits.js').CLIP_BUDGET_MIN, mode: 'schedule' };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
     else if (a === '--health') args.health = true;
     else if (a === '--no-launch') args.noLaunch = true;
-    else if (a === '--allow-price-caption') args.allowPriceCaption = true;
     else if (a === '--cover-fallback') args.coverFallback = true;
     else if (a === '--mode') args.mode = argv[++i];
     else if (a === '--viewport') args.viewport = argv[++i];

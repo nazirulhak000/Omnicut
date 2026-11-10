@@ -20,6 +20,16 @@ const EXT_DIR = path.join(ROOT, 'tiktok_autopost_extension');
 const UPLOAD_URL = 'https://www.tiktok.com/tiktokstudio/upload';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+// The panel now runs a readiness check (a few seconds) BEFORE it asks for confirmation: wait for the dialog, never click blind.
+async function confirmWhenShown(panel, timeoutMs = 45000) {
+  const until = Date.now() + timeoutMs;
+  while (Date.now() < until) {
+    const shown = await panel.eval(`document.getElementById('confirmOverlay')?.classList.contains('show') === true`, true).catch(() => false);
+    if (shown) { await panel.eval(`document.getElementById('confirmOkBtn').click()`, false); return true; }
+    await sleep(500);
+  }
+  throw new Error('confirm dialog never appeared (preflight blocked the run?)');
+}
 const portUp = async () => { try { return (await fetch(`http://127.0.0.1:${PORT}/json/version`)).ok; } catch (_) { return false; } };
 
 function killConductorChrome() {
@@ -255,8 +265,7 @@ async function main() {
       })()`, false);
       step('quota simulated 29/30; post click + post verify stubbed; save-draft-only is REAL');
       await panel.eval(`document.getElementById('batchStartBtn').click()`, false);
-      await sleep(800);
-      await panel.eval(`document.getElementById('confirmOkBtn').click()`, false);
+      await confirmWhenShown(panel);
       let log = '';
       for (let i = 0; i < 120; i += 1) {
         await sleep(4000);
@@ -431,8 +440,7 @@ async function main() {
 
     // 6) press the REAL start button and confirm
     await panel.eval(`document.getElementById('batchStartBtn').click()`, false);
-    await sleep(800);
-    await panel.eval(`document.getElementById('confirmOkBtn').click()`, false);
+    await confirmWhenShown(panel);
     step('batch started');
 
     // optional fault: Chrome stops the MV3 service worker in the middle of the batch

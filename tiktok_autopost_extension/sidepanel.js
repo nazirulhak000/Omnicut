@@ -226,6 +226,7 @@ themeToggleBtn?.addEventListener('click', () => {
 
 });
 
+const channelHandles = new Map();   // channel id -> TikTok handle, for the pre-run account check
 async function initializeChannelSelector() {
 
   await Promise.all([apiKeyReady, channelReady]);
@@ -241,7 +242,7 @@ async function initializeChannelSelector() {
   const data = await response.json();
 
   for (const channel of data.channels || []) {
-
+    channelHandles.set(panelChannelId(channel.id), channel.handle || '');
     if (channel.status !== 'active') continue;
 
     const option = document.createElement('option'); option.value = panelChannelId(channel.id);
@@ -2851,8 +2852,9 @@ function stopKeepAlive() {
 
 }
 
+let activeRecorder = null;   // OmniRunHistory recorder of the run in progress
 function appendBatchLog(msg, kind = 'info') {
-
+  try { activeRecorder?.log(kind, msg); } catch (_) {}
   if (!batchLogBox) return;
 
   const entry = document.createElement('div');
@@ -2886,6 +2888,46 @@ function guardBatchClips(clips) {
   }
   return { kept, skipped };
 }
+
+// ── Pre-run readiness, run history, attention notices ──────────────────────
+function newRunRecorder() {
+  const history = globalThis.OmniRunHistory;
+  const storage = typeof chrome !== 'undefined' ? chrome.storage?.local : null;
+  return history && storage ? history.createRunRecorder({ storage }) : null;
+}
+async function gatherPreflight(mode, clipCount) {
+  const backend = { ok: false };
+  try {
+    const res = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/capabilities`);
+    backend.status = res.status;
+    backend.ok = res.ok;
+    if (res.ok) Object.assign(backend, await res.json().catch(() => ({})));
+  } catch (err) { backend.error = err.message; }
+  let worker;
+  try { worker = await panelWorkerRequest({ action: 'run-preflight' }); }
+  catch (err) { worker = { success: false, error: err.message }; }
+  return globalThis.OmniPreflight.evaluatePreflight({
+    backend, worker, mode, clipCount,
+    channel: { id: activeChannelId, handle: channelHandles.get(activeChannelId) || '' },
+  });
+}
+// Runs the check and prints it into the batch log. Returns the verdict ({ok, blockers, warnings, checks}).
+async function runPreflightAndReport(mode, clipCount) {
+  if (!globalThis.OmniPreflight) return { ok: false, blockers: [{ id: 'module', label: 'โมดูลตรวจความพร้อม', detail: 'ไม่พบ preflight.js — โหลดส่วนขยายใหม่' }], warnings: [], checks: [] };
+  if (batchDashboard) batchDashboard.hidden = false;
+  appendBatchLog('ตรวจความพร้อมก่อนรัน...', 'info');
+  const result = await gatherPreflight(mode, clipCount);
+  for (const check of result.checks) {
+    appendBatchLog(`${check.status === 'ok' ? 'ผ่าน' : check.status === 'warn' ? 'เตือน' : 'ไม่ผ่าน'} · ${check.label}${check.detail ? ` — ${check.detail}` : ''}`, check.status === 'fail' ? 'error' : check.status === 'warn' ? 'warn' : 'success');
+  }
+  return result;
+}
+function notifyAttentionIfNeeded(verdict) {
+  const needsPerson = ['unknown', 'partial', 'halted', 'error'].includes(verdict.finalKind);
+  if (!needsPerson) return;
+  panelWorkerRequest({ action: 'notify-attention', title: 'OmniCut: รอบโพสต์ต้องให้ตรวจ', message: verdict.text }).catch(() => {});
+}
+panelWorkerRequest({ action: 'clear-attention' }).catch(() => {});
 
 // ── One run at a time (this panel and every other open panel) ───────────────
 const PANEL_RUN_ID = `panel-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -2969,6 +3011,13 @@ async function runBatchFromPanel() {
   // Capped by TikTok Quota (maximum 30 per run)
   const slicedClips = targetClips.slice(0, effectiveLimit);
 
+  const selectedModeForCheck = batchModeSelect?.value || 'smart';
+  const readiness = await runPreflightAndReport(selectedModeForCheck, slicedClips.length);
+  if (!readiness.ok) {
+    setStatus(`ยังไม่พร้อมรัน: ${readiness.blockers.map((b) => `${b.label} (${b.detail})`).join('; ')}`, 'error');
+    return;
+  }
+
   const confirmMsg = usingPicked
     ? `ต้องการโพสต์เฉพาะคลิปที่ติ๊กเลือก ${slicedClips.length} คลิปใช่หรือไม่?` +
       (guardSkipped.length ? `
@@ -2978,7 +3027,8 @@ async function runBatchFromPanel() {
     : `ต้องการเริ่มรันอัปโหลดอัตโนมัติ ${slicedClips.length} คลิปใช่หรือไม่?
 (จำกัดตามโควตา TikTok Studio สูงสุด 30 รายการ จากคิวทั้งหมด ${targetClips.length} คลิป)`;
 
-  const ok = await askConfirm(confirmMsg);
+  const warnNote = readiness.warnings.length ? `\n\nคำเตือน: ${readiness.warnings.map((w) => `${w.label} — ${w.detail}`).join(' | ')}` : '';
+  const ok = await askConfirm(confirmMsg + warnNote);
   if (!ok) return;
   const lockStore = lockStorage();
   if (!lockStore || !globalThis.OmniRunLock) {
@@ -2991,6 +3041,8 @@ async function runBatchFromPanel() {
     return;
   }
   startRunLockBeat();
+  activeRecorder = newRunRecorder();
+  await activeRecorder?.start({ mode: batchModeSelect?.value || 'smart', channel: activeChannelId, clips: slicedClips.length, extension: chrome.runtime.getManifest?.().version, panel: PANEL_RUN_ID });
   if (lockResult.recovered) appendBatchLog('พบรอบรันเก่าที่ถูกตัดกลางคัน — งานที่ค้างจะถูกพักก่อนเริ่มคลิปแรก', 'warn');
   try {
     await openTikTokUploadTab(false);
@@ -3090,6 +3142,7 @@ async function runBatchFromPanel() {
         jobId: prepared.job_id,
         channelId: activeChannelId,
       });
+      activeRecorder?.setJob(prepared.job_id, clip.hook_title || clip.name || clip.id || '');
 
       activeClip = {
         ...clip,
@@ -3222,6 +3275,11 @@ async function runBatchFromPanel() {
         appendBatchLog(`นับโควตาสดไม่สำเร็จ (${err.message}) — ใช้ตัวเลขล่าสุดที่มี`, 'warn');
       }
       return currentQuotaState;
+    },
+    // Failed / unconfirmed clip: keep what the page looked like (redacted by the history) next to the log.
+    captureEvidence: async (_clip, info) => {
+      const page = await panelWorkerRequest({ action: 'capture-evidence' }).catch((err) => ({ found: false, reason: err.message }));
+      await activeRecorder?.addEvidence({ ...info, ...(page || {}) });
     },
     notifySignal: async (signal) => {
       try {
@@ -3369,16 +3427,19 @@ async function runBatchFromPanel() {
     const verdict = runnerModule.finalVerdict(summary);
     appendBatchLog(`สรุปผลลัพธ์: ${verdict.text}`, verdict.kind);
     setStatus(verdict.text, verdict.kind);
+    notifyAttentionIfNeeded({ ...verdict, finalKind: summary.finalKind });
+    await activeRecorder?.finish({ finalKind: summary.finalKind, successful: summary.successful, failed: summary.failed, unknown: summary.unknown, total: summary.total, haltReason: summary.haltReason || '', circuitReason: summary.circuitReason || '' });
 
   } catch (err) {
 
     appendBatchLog(`หยุดทำงาน: ${err.message}`, 'error');
-
     setStatus(`การอัปโหลดแบบกลุ่มหยุดลง: ${err.message}`, 'error');
-
+    notifyAttentionIfNeeded({ finalKind: 'error', text: `รอบโพสต์หยุดกลางคัน: ${err.message}` });
+    await activeRecorder?.finish({ finalKind: 'error', error: err.message });
   } finally {
     stopKeepAlive();
     activeBatchRunner = null;
+    activeRecorder = null;
     setBusy(false);
     if (batchStartBtn) batchStartBtn.disabled = false;
     if (batchPauseBtn) batchPauseBtn.hidden = false;
@@ -3474,4 +3535,26 @@ batchCopyLogBtn?.addEventListener('click', () => {
 });
 batchClearLogBtn?.addEventListener('click', () => {
   if (batchLogBox) batchLogBox.innerHTML = '';
+});
+
+// ── Preflight button and "copy last run history" ───────────────────────────
+document.getElementById('batchPreflightBtn')?.addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  if (busy || batchStarting) return;
+  button.disabled = true;
+  try {
+    const mode = batchModeSelect?.value || 'smart';
+    const count = (selectedClipsInList().length || allClips.filter((c) => !clipBlockReason(c)).length);
+    const result = await runPreflightAndReport(mode, count);
+    setStatus(result.ok ? (result.warnings.length ? `พร้อมรัน (มีคำเตือน ${result.warnings.length} ข้อ)` : 'พร้อมรัน ตรวจครบทุกข้อแล้ว') : `ยังไม่พร้อมรัน: ${result.blockers.map((b) => b.label).join(', ')}`, result.ok ? (result.warnings.length ? 'warn' : 'success') : 'error');
+  } finally {
+    button.disabled = false;
+  }
+});
+document.getElementById('batchHistoryBtn')?.addEventListener('click', async () => {
+  const recorder = newRunRecorder();
+  const text = recorder ? await recorder.exportText(0) : '';
+  if (!text) { setStatus('ยังไม่มีประวัติรอบการรัน', 'warn'); return; }
+  try { await navigator.clipboard.writeText(text); setStatus('คัดลอกประวัติรอบล่าสุดแล้ว (มีหลักฐานตอนล้ม ตัดข้อมูลส่วนตัวแล้ว)', 'success'); }
+  catch (err) { setStatus(`คัดลอกไม่สำเร็จ: ${err.message}`, 'error'); }
 });

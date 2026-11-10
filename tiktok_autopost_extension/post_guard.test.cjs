@@ -97,3 +97,13 @@ test('clipSkipReason uses the shared content rules and allowPriceCaption lifts o
   assert.equal(guard.clipSkipReason({caption: 'ราคา ๑๙๙ บาท'}, undefined, Date.now(), {exportsKnown: false, allowPriceCaption: true}), '');
   assert.equal(guard.clipSkipReason({caption: 'ก'.repeat(4001)}, undefined, Date.now(), {exportsKnown: false}), 'caption_too_long');
 });
+
+test('R5 one set of limits: the guard and the orchestrator use limits.js, not their own copies', () => {
+  const limits = require('./limits.js');
+  assert.equal(guard.MAX_TEXT_CHARS, limits.MAX_TEXT_CHARS);
+  assert.equal(guard.MAX_HASHTAGS, limits.MAX_HASHTAGS);
+  assert.equal(guard.MIN_LEAD_MS, limits.MIN_LEAD_MS);
+  assert.ok(Object.isFrozen(limits));
+  assert.equal(limits.SCHEDULE_CAP, 30);
+  assert.equal(limits.DRAFT_CAP, 30);
+});

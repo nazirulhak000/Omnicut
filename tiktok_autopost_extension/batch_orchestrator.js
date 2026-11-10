@@ -28,6 +28,8 @@
     }
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, () => {
+  const LIMITS = (typeof module === 'object' && module.exports) ? require('./limits.js') : globalThis.OmniLimits;
+
   const ORCHESTRATOR_STATES = {
     IDLE: 'IDLE',
     CHECK_QUOTA: 'CHECK_QUOTA',
@@ -99,12 +101,12 @@
     const {
       mode = 'smart', // 'smart' | 'schedule_only' | 'draft_only'
       allowDraft = false, // only an embedder that really saves drafts may set this
-      maxBatchCap = 30,
-      maxScheduleQuota = 30,
-      maxDraftQuota = 30,
+      maxBatchCap = LIMITS.SCHEDULE_CAP,
+      maxScheduleQuota = LIMITS.SCHEDULE_CAP,
+      maxDraftQuota = LIMITS.DRAFT_CAP,
       currentScheduleCount = 0,
       currentDraftCount = 0,
-      cooldownSeconds = 22,
+      cooldownSeconds = LIMITS.COOLDOWN_SECONDS,
       minJitter = -3,
       maxJitter = 6,
       autoSkipOnError = true,
@@ -288,6 +290,13 @@
       }
     }
 
+    // Best effort: ask the embedder what the page looked like (it redacts and stores it). Never throws, never blocks a run.
+    async function collectEvidence(clip, info) {
+      if (typeof actions.captureEvidence !== 'function') return;
+      try { await actions.captureEvidence(clip, info); }
+      catch (evidenceErr) { log(`⚠️ เก็บหลักฐานหน้าเว็บไม่สำเร็จ (${evidenceErr?.message || evidenceErr})`, 'warn'); }
+    }
+
     async function safeResetUploadPage() {
       try { await actions.resetUploadPage(); }
       catch (resetErr) { log(`⚠️ รีเซ็ตหน้าอัปโหลดไม่สำเร็จ (${resetErr?.message || resetErr}) — ถ้าคลิปถัดไปล้ม ให้ตรวจแท็บ TikTok Studio`, 'warn'); }
@@ -436,6 +445,7 @@
         finalOutcome = 'confirmation_unknown';
         toastResult = { outcome: finalOutcome, error: postErr?.message || String(postErr), postSubmitError: true };
         log(`⚠️ [${index + 1}/${total}] ผิดพลาดหลังเริ่มกดโพสต์ (${postErr?.message || postErr}) — ถือว่า "ยืนยันผลไม่ได้" ไม่นับเป็นล้ม และจะไม่ลองกดซ้ำ`, 'warn');
+        await collectEvidence(clip, { kind: 'unknown', stage, error: postErr?.message || String(postErr) });
         const recordFn = actions.updateBackend || actions.reconcile;
         if (recordFn) {
           try { await recordFn(clip, finalOutcome, toastResult); }
@@ -603,6 +613,7 @@
               continue;
             }
             failed += 1;
+            await collectEvidence(clip, { kind: 'failed', stage, error: err.message || String(err) });
             const clipTitle = clip?.hook_title || clip?.title || clip?.name || `คลิปที่ ${currentIndex + 1}`;
             errors.push({
               clipId: clip?.id,

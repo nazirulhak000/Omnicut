@@ -34,7 +34,7 @@
 
 // its own tab and deleted -- one UI surface instead of two).
 
-importScripts('automation.js', 'auth_key.js', 'post_guard.js', 'quota_detector.js');
+importScripts('limits.js', 'automation.js', 'auth_key.js', 'post_guard.js', 'quota_detector.js');
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
 
@@ -335,7 +335,7 @@ async function readStudioAccountOnce(send) {
 }
 
 // How long a verified account handle may be reused for the guard steps between the first read and the publish click.
-const ACCOUNT_REREAD_MS = 15 * 60 * 1000;
+const ACCOUNT_REREAD_MS = globalThis.OmniLimits.ACCOUNT_REREAD_MS;
 
 async function guardPostingAction(job, send, tabId, {beginPublish = false, retried = false, clickKind = null} = {}) {
 
@@ -2895,7 +2895,7 @@ function normalizeScheduleTime(rawTime) {
 
 // TikTok rejects schedules less than ~15 minutes ahead; a past or too-close
 // slot must fail loudly instead of letting the picker fall back to a default.
-const MIN_SCHEDULE_LEAD_MS = 15 * 60 * 1000;
+const MIN_SCHEDULE_LEAD_MS = globalThis.OmniLimits.MIN_LEAD_MS;
 function scheduleWindowProblem(date, time, nowMs = Date.now()) {
   if (!date || !time) return '';
   const target = new Date(`${date}T${time}:00`).getTime();
@@ -5369,6 +5369,83 @@ async function runDetectTikTokQuota({allowNavigate = false} = {}) {
   return fromTab;
 }
 
+// Read-only readiness probe for the panel's pre-run check: no navigation, nothing typed, nothing clicked.
+async function runPreflight() {
+  const out = {success: true, extensionVersion: chrome.runtime.getManifest().version, url: '', loggedIn: false, uploadInput: false, handle: null, viewport: null, quota: null};
+  let tab;
+  try { tab = await findUploadTab({recover: false}); }
+  catch (e) { return {...out, success: false, error: e.message || String(e)}; }
+  out.url = tab.url || '';
+  const send = cdp(tab.id);
+  try {
+    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+  } catch (e) {
+    return {...out, success: false, error: `เชื่อม debugger กับแท็บไม่ได้ (${e.message || e})`};
+  }
+  try {
+    await send('Runtime.enable');
+    const probe = await send('Runtime.evaluate', {
+      expression: `({url: location.href, input: Boolean(document.querySelector('input[type="file"]')), loginPage: /login|passport|signup/i.test(location.href) || Boolean(document.querySelector('input[type="password"]'))})`,
+      returnByValue: true,
+    });
+    const value = probe?.result?.value || {};
+    out.url = value.url || out.url;
+    out.uploadInput = Boolean(value.input);
+    out.loggedIn = !value.loginPage && /tiktokstudio|creator/i.test(value.url || '');
+    out.viewport = await readPageViewport(send);
+    try { out.handle = await readStudioAccount(send, 3); } catch (e) { out.handle = null; }
+  } catch (e) {
+    return {...out, success: false, error: e.message || String(e)};
+  } finally {
+    try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+  }
+  try { out.quota = await runDetectQuotaFromTab(); } catch (e) { out.quota = null; }
+  return out;
+}
+
+// What the page looked like when something went wrong (the panel redacts it before storing). Read-only.
+async function runCaptureEvidence() {
+  let tab;
+  try { tab = await findUploadTab({recover: false}); }
+  catch (e) { return {success: true, found: false, reason: e.message || String(e)}; }
+  try { await chrome.debugger.attach({tabId: tab.id}, '1.3'); }
+  catch (e) { return {success: true, found: false, url: tab.url || '', reason: `attach: ${e.message || e}`}; }
+  try {
+    const r = await cdp(tab.id)('Runtime.evaluate', {
+      expression: `({url: location.href, title: document.title, text: (document.body ? document.body.innerText : '').replace(/\\s+/g, ' ').slice(0, 2000)})`,
+      returnByValue: true,
+    });
+    return {success: true, found: true, ...(r?.result?.value || {})};
+  } catch (e) {
+    return {success: true, found: false, reason: e.message || String(e)};
+  } finally {
+    try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+  }
+}
+
+// A person is needed (unconfirmed post, halted run, ...): notification + red badge until the panel is opened again.
+async function notifyAttention(message) {
+  const title = String(message?.title || 'OmniCut TikTok Post Helper').slice(0, 80);
+  const body = String(message?.message || 'ต้องการให้ตรวจที่แผงข้าง').slice(0, 300);
+  try {
+    if (chrome.action?.setBadgeText) {
+      await chrome.action.setBadgeText({text: '!'});
+      await chrome.action.setBadgeBackgroundColor?.({color: '#D93025'});
+    }
+  } catch (e) {}
+  let notified = false;
+  try {
+    if (chrome.notifications?.create) {
+      await chrome.notifications.create(`omnicut-attention-${Date.now()}`, {type: 'basic', iconUrl: 'icons/icon128.png', title, message: body, priority: 2, requireInteraction: true});
+      notified = true;
+    }
+  } catch (e) {}
+  return {success: true, notified};
+}
+async function clearAttention() {
+  try { await chrome.action?.setBadgeText?.({text: ''}); } catch (e) {}
+  return {success: true};
+}
 let actionRunning = false;
 let pinnedUploadTabId = null;
 const NO_TAB_RECOVERY_ACTIONS = new Set(['click-post-only', 'save-draft-only', 'wait-for-upload-only', 'prepare-details', 'upload-cover-only']);
@@ -5414,6 +5491,10 @@ const actions = {
 
   'detect-tiktok-quota': message => runDetectTikTokQuota({allowNavigate: Boolean(message && message.allowNavigate)}),
   'wait-for-upload-only': () => runWaitForUploadOnly(),
+  'run-preflight': () => runPreflight(),
+  'capture-evidence': () => runCaptureEvidence(),
+  'notify-attention': message => notifyAttention(message),
+  'clear-attention': () => clearAttention(),
   // Kept for the panel's pause/resume/abort notifications; the legacy content script that listened is gone.
   'broadcast-batch-signal': async (message) => ({ success: true, signal: message.signal }),
 
@@ -5449,7 +5530,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     try {
 
-      if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'detect-tiktok-quota', 'broadcast-batch-signal', 'verify-post-content', 'verify-draft-content'].includes(message.action)) {
+      if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'detect-tiktok-quota', 'broadcast-batch-signal', 'verify-post-content', 'verify-draft-content', 'run-preflight', 'capture-evidence', 'notify-attention', 'clear-attention'].includes(message.action)) {
         // The click steps work on the already-filled form. If that tab has gone (a post sends it on to Content) bringing a
         // Studio tab back to a blank upload page would only destroy the page that proves what happened.
         pinnedUploadTabId = (await findUploadTab({recover: !NO_TAB_RECOVERY_ACTIONS.has(message.action)})).id;

@@ -997,7 +997,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.4.5');
+  assert.equal(manifest.version, '0.5.0');
   assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
   for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
@@ -1643,4 +1643,56 @@ test('R4 quota counting never walks the tab away while a job is in flight; click
   const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
   assert.match(bg, /NO_TAB_RECOVERY_ACTIONS = new Set\(\[[^\]]*'click-post-only'[^\]]*'save-draft-only'/);
   assert.match(bg, /findUploadTab\(\{recover: !NO_TAB_RECOVERY_ACTIONS\.has\(message\.action\)\}\)/);
+});
+
+test('R5 notifyAttention raises a notification and a badge; clearAttention removes the badge', async () => {
+  const ctx = worker();
+  const seen = { badge: [], created: [] };
+  ctx.chrome.action = { setBadgeText: async (o) => seen.badge.push(o.text), setBadgeBackgroundColor: async () => {} };
+  ctx.chrome.notifications = { create: async (id, opts) => { seen.created.push({ id, ...opts }); } };
+  const r = await ctx.notifyAttention({ title: 'ต้องตรวจ', message: 'คลิปยืนยันผลไม่ได้' });
+  assert.equal(r.notified, true);
+  assert.deepEqual(seen.badge, ['!']);
+  assert.equal(seen.created[0].requireInteraction, true);
+  assert.equal(seen.created[0].message, 'คลิปยืนยันผลไม่ได้');
+  await ctx.clearAttention();
+  assert.deepEqual(seen.badge, ['!', '']);
+  // a browser without the API must not break the run
+  const bare = worker();
+  bare.chrome.action = undefined; bare.chrome.notifications = undefined;
+  assert.equal((await bare.notifyAttention({})).notified, false);
+});
+
+test('R5 preflight and evidence are read-only probes: no tab means a clear failure, never a recovery or a click', async () => {
+  const ctx = worker();
+  let recovered = false;
+  ctx.chrome.runtime.getManifest = () => ({ version: 'test' });
+  ctx.findUploadTab = async (opts) => { recovered = Boolean(opts?.recover); throw new Error('ไม่พบแท็บ TikTok Studio'); };
+  const pre = await ctx.runPreflight();
+  assert.equal(pre.success, false);
+  assert.match(pre.error, /ไม่พบแท็บ/);
+  assert.equal(recovered, false, 'the probe must not navigate a Studio tab to the upload page');
+  const ev = await ctx.runCaptureEvidence();
+  assert.equal(ev.found, false);
+  const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  assert.match(bg, /'run-preflight': \(\) => runPreflight\(\)/);
+  assert.match(bg, /'capture-evidence'/);
+});
+
+test('R5 panel wiring: preflight before the confirm dialog, history of every log line, evidence, attention notice', () => {
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  for (const file of ['limits.js', 'preflight.js', 'run_history.js', 'run_lock.js']) assert.match(html, new RegExp(`<script src="${file.replace('.', '\.')}"></script>`));
+  assert.ok(html.indexOf('limits.js') < html.indexOf('post_guard.js') && html.indexOf('limits.js') < html.indexOf('batch_orchestrator.js'), 'limits.js loads first');
+  assert.match(html, /id="batchPreflightBtn"/);
+  assert.match(html, /id="batchHistoryBtn"/);
+  const handler = side.slice(side.indexOf('async function runBatchFromPanel()'));
+  assert.ok(handler.indexOf('runPreflightAndReport(') > 0 && handler.indexOf('runPreflightAndReport(') < handler.indexOf('askConfirm('), 'preflight runs before the confirm dialog');
+  assert.match(handler, /if \(!readiness\.ok\)/);
+  assert.match(side, /activeRecorder\?\.log\(kind, msg\)/);
+  assert.match(side, /captureEvidence: async/);
+  assert.match(side, /notifyAttentionIfNeeded\(/);
+  assert.match(side, /activeRecorder\?\.setJob\(prepared\.job_id/);
+  // clean-UI rule: the new buttons start with a verb and carry no icon
+  assert.doesNotMatch(html, /id="batchPreflightBtn"[^>]*>\s*<svg/);
 });

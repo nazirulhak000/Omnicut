@@ -12,7 +12,7 @@ tools\start_autopost.bat --dry-run --limit 3 # fill everything, screenshot, DO N
 tools\start_autopost.bat --limit 10          # real posting of queue items (status planned/ready_for_extension)
 tools\start_autopost.bat --mode draft --limit 5   # save as DRAFTS (Save draft button), never Post, no schedule needed
 ```
-Options: `--mode schedule|draft` (default schedule) `--channel main` `--queue-id ID` `--port 9333` `--no-launch` `--allow-price-caption` `--cover-fallback`
+Options: `--mode schedule|draft` (default schedule) `--channel main` `--queue-id ID` `--port 9333` `--no-launch` `--cover-fallback`
 Test/fault options: `--viewport 1366x768` (set window size) · `--net slow|blip|offline` (throttle / drop network) · `--clip-budget-min N` (time budget per clip, default 25)
 
 First time: run `--health`. It opens Chrome with profile `tools/tiktok_browser_profile`.
@@ -48,12 +48,17 @@ Evidence: `.tmp/extension_e2e/<run>/` (`panel_log.txt`, `panel.png`, `upload_tab
 
 ## Safety rules (built in)
 - Sequential only; random 20–40 s cooldown between clips. Never concurrent (account-ban risk).
-- Only queue items with a future slot (>= 15 min) + TikTok product id. Price/discount text in the
-  caption is skipped (`price_in_caption`) unless `--allow-price-caption`.
+- Only queue items with a future slot (>= 15 min) + TikTok product id. The shared content guard (`post_guard.js` /
+  `scripts/content_guard.py`, same rules, same test cases) skips price/discount text, unfilled `{placeholders}`, text over
+  4000 characters and more than 30 hashtags. There is no override any more: the backend refuses such text at `/prepare` too.
+- One conductor per machine (lock file `.tmp/autopost_conductor.lock`); a second one stops with exit code 3.
+- Every clip has a time budget and a generation token: a clip that timed out can never send another command, and a timeout
+  after the Post / Save draft command was sent is reported `unknown`, never `failed` or retried.
+- Clips the previous run could not confirm (`confirmation_unknown` in the queue) are listed at start and never re-run.
 - A job that was already clicked is never cancelled (parked + reconciled) → no double post.
 - Stops and writes `.tmp/autopost_ALERT.txt` (never guesses) on: login lost, captcha/verify,
   account mismatch, unsent receipt, 3 failures in a row, 2 unconfirmed posts in a row.
-- Ctrl+C finishes the current clip, then stops. Windows sleep is blocked while it runs.
+- Ctrl+C finishes the current clip, then stops (a second Ctrl+C exits at once). Windows sleep is blocked while it runs.
 
 ## Output
 `.tmp/autopost_runs/<run>/run.jsonl · summary.json · *.png` · DOM snapshots `.tmp/autopost_dom/` ·

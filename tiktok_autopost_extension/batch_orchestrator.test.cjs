@@ -502,3 +502,33 @@ test('R3: finalVerdict never paints a run green unless every clip ended as plann
   assert.equal(finalVerdict({ ...base, finalKind: 'aborted' }).kind, 'warn');
   assert.notEqual(finalVerdict({ ...base, finalKind: 'running' }).kind, 'success');   // unexpected state is never "success"
 });
+
+test('R5: a failed or unconfirmed clip asks the embedder for page evidence; a broken evidence hook never breaks the run', async () => {
+  const seen = [];
+  const failing = createBatchOrchestrator({
+    clips: [{ id: 'a', hook_title: 'ล้ม' }],
+    options: { cooldownSeconds: 0, maxClipAttempts: 1, maxRetriesPerStage: 0, retryDelayMs: 1 },
+    actions: {
+      injectFile: async () => { throw new Error('boom'); },
+      captureEvidence: async (clip, info) => { seen.push([clip.id, info.kind, info.stage]); },
+      resetUploadPage: async () => {},
+    },
+  });
+  await failing.start();
+  assert.deepEqual(seen, [['a', 'failed', 'INJECT_FILE']]);
+
+  const unknownSeen = [];
+  const unknown = createBatchOrchestrator({
+    clips: [{ id: 'b', hook_title: 'ไม่แน่ใจ' }],
+    options: { cooldownSeconds: 0 },
+    actions: {
+      submitPost: async () => { throw new Error('port closed'); },
+      updateBackend: async () => {},
+      captureEvidence: async (clip, info) => { unknownSeen.push(info.kind); throw new Error('evidence failed'); },
+      resetUploadPage: async () => {},
+    },
+  });
+  const stats = await unknown.start();
+  assert.deepEqual(unknownSeen, ['unknown']);
+  assert.equal(stats.unknown, 1);                       // the run still finished and counted the clip
+});

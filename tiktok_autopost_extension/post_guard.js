@@ -23,8 +23,9 @@
   const PLACEHOLDER_RE_STRICT = new RegExp(
     '\\{[a-z][a-z0-9_]*\\}|\\{\\{[^}]*\\}\\}|\\$\\{[^}]*\\}|\\[[a-z]+_[a-z_]+\\]|<[a-z]+_[a-z_]+>|%[sd]\\b'
     + '|\\b(?:undefined|null|nan)\\b|\\btodo\\b|\\blorem ipsum\\b', 'i');
-  const MAX_TEXT_CHARS = 4000;
-  const MAX_HASHTAGS = 30;
+  const LIMITS = (typeof module === 'object' && module.exports) ? require('./limits.js') : globalThis.OmniLimits;
+  const MAX_TEXT_CHARS = LIMITS.MAX_TEXT_CHARS;
+  const MAX_HASHTAGS = LIMITS.MAX_HASHTAGS;
   const INVISIBLE_RE = new RegExp('[\\u00ad\\u200b-\\u200f\\u202a-\\u202e\\u2060-\\u2064\\ufeff]', 'g');
   const DIGIT_BLOCKS = [0x0E50, 0x0660, 0x06F0];   // Thai, Arabic-Indic, Extended Arabic-Indic zero
 
@@ -53,7 +54,7 @@
   }
   const PRICE_RE = PRICE_RE_STRICT;
   const PLACEHOLDER_RE = PLACEHOLDER_RE_STRICT;
-  const MIN_LEAD_MS = 15 * 60 * 1000;
+  const MIN_LEAD_MS = LIMITS.MIN_LEAD_MS;
 
   const alnum = text => String(text || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
 

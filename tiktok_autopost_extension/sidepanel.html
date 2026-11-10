@@ -4130,7 +4130,7 @@
 
         </div>
 
-        <span class="batch-engine-tag">Engine v0.4.5</span>
+        <span class="batch-engine-tag">Engine v0.5.0</span>
 
       </div>
 
@@ -4264,6 +4264,10 @@
         </label>
       </div>
 
+      <div class="batch-log-actions" style="margin-bottom:6px">
+        <button id="batchPreflightBtn" type="button" class="btn-log-action" title="ตรวจ Backend, login, บัญชี, หน้าอัปโหลด และโควตา โดยไม่กดอะไร">ตรวจความพร้อม</button>
+        <button id="batchHistoryBtn" type="button" class="btn-log-action" title="คัดลอกประวัติรอบล่าสุด (อยู่ต่อแม้ปิดแผง)">คัดลอกประวัติรอบ</button>
+      </div>
       <button id="batchStartBtn" type="button" class="btn-batch-primary">
 
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -4905,9 +4909,12 @@
 
   <script src="stats_parser.js"></script>
 
+  <script src="limits.js"></script>
   <script src="post_guard.js"></script>
   <script src="quota_detector.js"></script>
 
+  <script src="preflight.js"></script>
+  <script src="run_history.js"></script>
   <script src="run_lock.js"></script>
   <script src="batch_orchestrator.js"></script>
 

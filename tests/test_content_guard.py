@@ -20,3 +20,11 @@ def test_allow_price_flag_only_lifts_price_rule():
 
 def test_normalize_text_strips_invisible_and_maps_digits():
     assert normalize_text("ร​าคา ๑๒") == "ราคา 12"
+
+
+def test_python_twin_uses_the_same_limits_as_limits_js():
+    import re
+    from scripts import content_guard
+    source = (Path(__file__).parent.parent / "tiktok_autopost_extension" / "limits.js").read_text(encoding="utf-8")
+    assert int(re.search(r"MAX_TEXT_CHARS:\s*(\d+)", source).group(1)) == content_guard.MAX_TEXT_CHARS
+    assert int(re.search(r"MAX_HASHTAGS:\s*(\d+)", source).group(1)) == content_guard.MAX_HASHTAGS
