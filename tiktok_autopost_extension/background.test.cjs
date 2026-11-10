@@ -997,7 +997,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.8.0');
+  assert.equal(manifest.version, '0.9.0');
   assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
   for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
@@ -1853,4 +1853,103 @@ test('overdue clips: filter chip, one bulk button with a preview dialog, and the
   // the draft card's time fields save to the scheduler's row (one source of truth) instead of only changing the card
   assert.match(side, /method: 'PATCH'[\s\S]{0,200}scheduled_at: `\$\{dateIn\.value\}T\$\{timeIn\.value\}:00\+07:00`/);
   assert.match(side, /timeIn\.step = 300/);
+});
+
+// ---- check against TikTok ----
+function syncHarness({ draftTexts, contentRows, pageSize = 8 }) {
+  const ctx = worker();
+  const nl2 = String.fromCharCode(10);
+  let url = '';
+  let top = 0;
+  const state = { navigated: [], detached: 0 };
+  ctx.findUploadTab = async () => ({ id: 7, url: 'https://www.tiktok.com/tiktokstudio/upload' });
+  ctx.navigateAcceptingLeave = async (_id, to) => { url = to; top = 0; state.navigated.push(to); };
+  ctx.sleep = async () => {};
+  ctx.chrome.debugger = {
+    attach: async () => {}, detach: async () => { state.detached += 1; },
+    sendCommand: async (_t, method, params) => {
+      if (method !== 'Runtime.evaluate') return {};
+      const expression = String(params.expression);
+      const onDrafts = /tab=draft/.test(url);
+      const list = onDrafts ? draftTexts : contentRows;
+      if (/scrollTop/.test(expression)) {
+        if (top >= Math.max(0, list.length - pageSize)) return {result: {value: 0}};
+        top = Math.min(list.length - pageSize, top + 6);
+        return {result: {value: 500}};
+      }
+      if (/components_DraftRowLayout_FlexRow/.test(expression)) return {result: {value: ['Drafts' + nl2 + 'Last update' + nl2 + 'Actions', ...list.slice(top, top + pageSize)]}};
+      return {result: {value: 'Posts 227' + nl2 + list.slice(top, top + pageSize).join('')}};
+    },
+  };
+  return { ctx, state };
+}
+const nlc = String.fromCharCode(10);
+const draftRow = (caption) => ['00:30', caption, '10 Nov 2026 3:12 PM'].join(nlc);
+const contentRow = (caption, badge) => ['00:30', caption, badge, 'Everyone'].join(nlc) + nlc;
+
+test('sync-drafts: still on Drafts = ok; gone from Drafts + same caption in Content = posted outside; gone everywhere = deleted', async () => {
+  const keep = 'แบบร่างที่ยังอยู่ครบ ตัวอย่างหนึ่ง';
+  const posted = 'คลิปที่โพสต์เองบน TikTok ไปแล้ว';
+  const gone = 'คลิปที่ถูกลบทิ้งจาก TikTok ไปแล้ว';
+  const { ctx, state } = syncHarness({
+    draftTexts: [draftRow(keep)],
+    contentRows: [...Array.from({ length: 20 }, (_, i) => contentRow(`โพสต์อื่นลำดับที่ ${i}`, `Nov ${20 - (i % 9)}, 10:15 AM`)), contentRow(posted, 'Nov 10, 8:15 PM')],
+  });
+  const reply = await ctx.runSyncDraftsWithTikTok({
+    drafts: [{ id: 'k', caption: keep }, { id: 'p', caption: posted }, { id: 'g', caption: gone }],
+    cutoffMs: Date.UTC(2026, 0, 1),
+  });
+  const by = Object.fromEntries(reply.results.map((r) => [r.id, r]));
+  assert.equal(by.k.state, 'ok');
+  assert.equal(by.p.state, 'posted_outside');
+  assert.match(by.p.matchRow, /Nov 10, 8:15 PM/);          // the evidence shown to the operator
+  assert.equal(by.g.state, 'deleted');                      // the whole list was read: it is really gone
+  assert.equal(reply.scan.draftRows, 1);
+  assert.ok(reply.scan.contentRows >= 21, 'the whole virtualized Content list was read');
+  assert.equal(state.navigated[state.navigated.length - 1], 'https://www.tiktok.com/tiktokstudio/upload');   // always back to the upload page
+});
+
+test('sync-drafts: a present draft with a same-caption Content row is flagged as duplicate risk; a cut-short scan never says deleted', async () => {
+  const cap = 'แบบร่างที่มีโพสต์ซ้ำอยู่แล้วใน Content';
+  const dup = syncHarness({ draftTexts: [draftRow(cap)], contentRows: [contentRow(cap, 'Nov 12, 9:00 AM')] });
+  const r1 = await dup.ctx.runSyncDraftsWithTikTok({ drafts: [{ id: 'd', caption: cap }], cutoffMs: 0 });
+  assert.equal(r1.results[0].state, 'duplicate_risk');
+  // a list longer than the step cap: no match proves nothing
+  const long = syncHarness({ draftTexts: [], contentRows: Array.from({ length: 700 }, (_, i) => contentRow(`โพสต์อื่นหมายเลข ${i} ไม่เกี่ยว`, 'Nov 1, 9:00 AM')) });
+  const r2 = await long.ctx.runSyncDraftsWithTikTok({ drafts: [{ id: 'x', caption: 'คลิปที่ไม่มีอยู่จริงสักที่เลย' }], cutoffMs: 0 });
+  assert.equal(r2.results[0].state, 'unknown');
+  assert.notEqual(r2.scan.stoppedBy, 'end');
+});
+
+test('sync-drafts: the Content read stops at the look-back cutoff (5 old rows in a row), and a too-short caption is refused', async () => {
+  const cap = 'ตัวอย่างที่อยู่บนสุดของรายการ';
+  const nowish = Date.now();
+  const fmt = (ms) => new Date(ms).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const recent = Array.from({ length: 6 }, (_, i) => contentRow(`โพสต์ล่าสุดข้อ ${i} ตัวอย่าง`, fmt(nowish - (i + 1) * 3600e3)));
+  const old = Array.from({ length: 60 }, (_, i) => contentRow(`โพสต์เก่ามากข้อ ${i} ตัวอย่าง`, 'Jan 3, 9:00 AM'));
+  const { ctx } = syncHarness({ draftTexts: [draftRow(cap)], contentRows: [...recent, ...old] });
+  const reply = await ctx.runSyncDraftsWithTikTok({ drafts: [{ id: 'a', caption: cap }], cutoffMs: nowish - 2 * 86400e3 });
+  assert.ok(reply.scan.contentRows < 66, 'it did not read the 60 old rows');
+  assert.equal(reply.scan.stoppedBy, 'cutoff');
+  const refused = await ctx.runSyncDraftsWithTikTok({ drafts: [{ id: 's', caption: 'สั้น' }], cutoffMs: 0 });
+  assert.equal(refused.success, false);
+});
+
+test('check-against-TikTok panel wiring: button, blocking verdicts, per-card fixes, automatic check before a run with drafts', () => {
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  assert.match(html, /id="batchSyncBtn"/);
+  assert.match(html, /<script src="draft_sync\.js"><\/script>/);
+  assert.match(side, /draft_out_of_sync/);
+  assert.match(side, /resolve-draft/);
+  assert.match(side, /reply = await panelWorkerRequest\(\{ action: 'sync-drafts-with-tiktok'/);
+  // before the confirm dialog of a run that contains drafts, the drafts are checked and a stuck one stops the run
+  const run = side.slice(side.indexOf('async function runBatchFromPanel('));
+  assert.ok(run.indexOf('syncDraftsWithTikTok(draftsInRun)') > 0 && run.indexOf('syncDraftsWithTikTok(draftsInRun)') < run.indexOf('askConfirm('));
+  assert.match(run, /ไม่เริ่มรัน: แบบร่างที่ติ๊กไม่ตรงกับ TikTok/);
+  const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  assert.match(bg, /'sync-drafts-with-tiktok': message => runSyncDraftsWithTikTok\(message\)/);
+  // read-only: the check never presses a button of the page
+  const fn = bg.slice(bg.indexOf('async function runSyncDraftsWithTikTok('), bg.indexOf('let actionRunning = false;'));
+  assert.doesNotMatch(fn, /\.click\(\)|post_video_button|save_draft_button/);
 });

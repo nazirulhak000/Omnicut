@@ -33,6 +33,12 @@ run stops with that reason and only "post now" is possible. **Slot already passe
 hook colour on one day, never another clip's slot), and nothing changes until you confirm. Drafts are not touched; the new time is put on the
 draft when it is published (no re-upload). The queue row is the single source of truth for the time: a stale panel is refused (409).
 Delete-and-re-upload is only worth it when the caption, cover or video must change.
+**Deleted or posted by hand on TikTok?** The button "ตรวจกับ TikTok" (also run automatically before a run that contains drafts) reads the
+Drafts tab and Studio > Content, read-only, and tells for each draft: still there (ok) / gone from Drafts but the same caption is in Content
+("posted outside" -> confirm to close the row, the export is marked posted) / gone everywhere ("deleted" -> reset to planned) / still a draft
+but the same caption is already posted ("duplicate risk"). Flagged drafts cannot be ticked. Content is read back only as far as the oldest
+draft was saved (minus one day, at most TikTok's 60-day draft lifetime, stopping after 5 consecutive older rows); if the read is cut short the
+verdict is "unknown", never "deleted". Match key = the first 20 letters/digits of the caption.
 If a publication is cancelled before the click the row returns to
 "draft on TikTok" (never to "planned": the draft still exists).
 

@@ -227,6 +227,7 @@ themeToggleBtn?.addEventListener('click', () => {
 });
 
 const channelHandles = new Map();   // channel id -> TikTok handle, for the pre-run account check
+const draftSyncState = new Map();   // queue id -> verdict of the last "check against TikTok" ({state, label, matchRow})
 async function initializeChannelSelector() {
 
   await Promise.all([apiKeyReady, channelReady]);
@@ -749,6 +750,7 @@ const BLOCK_REASON_TH = {
   slot_passed_or_too_close: 'เวลาโพสต์ผ่านแล้วหรือใกล้เกินไป',
   no_schedule: 'ไม่มีเวลาโพสต์ (ในโหมดตั้งเวลาจะกลายเป็นโพสต์สด)',
   draft_in_draft_mode: 'โหมดแบบร่างอย่างเดียวไม่เผยแพร่แบบร่าง (เปลี่ยนเป็น Schedule Only หรือ Smart)',
+  draft_out_of_sync: 'แบบร่างไม่ตรงกับ TikTok (ดูข้อความบนการ์ดแล้วจัดการก่อน)',
 };
 // '' = usable; otherwise the guard code. One place for the list, the selection and the batch.
 function blockCodeFor(clip, record, now = Date.now()) {
@@ -756,6 +758,7 @@ function blockCodeFor(clip, record, now = Date.now()) {
   if (!guard) return '';
   const draftOnly = (batchModeSelect?.value || 'schedule_only') === 'draft_only';
   if (clip.publish_draft && draftOnly) return 'draft_in_draft_mode';
+  if (clip.is_draft && globalThis.OmniDraftSync?.isBlocking(draftSyncState.get(clip.id)?.state)) return 'draft_out_of_sync';
   return guard.clipSkipReason(clip, record, now, { exportsKnown: Boolean(exportRecordIndex), ignoreSlot: draftOnly, requireSchedule: !draftOnly });
 }
 // '' = usable; otherwise why the batch would skip this clip (same guard the batch uses).
@@ -1643,6 +1646,22 @@ function renderClipCards(ready) {
       timeIn.addEventListener('change', applySlot);
       slot.append(label, dateIn, timeIn);
       body.appendChild(slot);
+      const verdict = draftSyncState.get(item.id);
+      if (verdict && verdict.state !== 'ok') {
+        const note = document.createElement('div');
+        note.className = `draft-sync-note ${verdict.state}`;
+        note.textContent = verdict.label;
+        body.appendChild(note);
+        if (verdict.state === 'deleted') {
+          const fix = document.createElement('button'); fix.type = 'button'; fix.className = 'btn-log-action'; fix.textContent = 'รีเซ็ตกลับเป็นรอโพสต์';
+          fix.addEventListener('click', () => resolveDraftDeleted(item));
+          body.appendChild(fix);
+        } else if (verdict.state === 'posted_outside') {
+          const fix = document.createElement('button'); fix.type = 'button'; fix.className = 'btn-log-action'; fix.textContent = 'ยืนยันว่าโพสต์แล้ว (ปิดคิว)';
+          fix.addEventListener('click', () => resolveDraftPostedOutside(item, verdict));
+          body.appendChild(fix);
+        }
+      }
       btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'btn-primary draft-now';
@@ -3076,6 +3095,15 @@ async function runBatchFromPanel(override = null) {
     return;
   }
 
+  const draftsInRun = slicedClips.filter((c) => c.is_draft);
+  if (draftsInRun.length) {
+    const check = await syncDraftsWithTikTok(draftsInRun);
+    const stuck = check.problems.filter((p) => globalThis.OmniDraftSync.isBlocking(p.state) || p.state === 'unknown');
+    if (stuck.length) {
+      setStatus(`ไม่เริ่มรัน: แบบร่างที่ติ๊กไม่ตรงกับ TikTok ${stuck.length} อัน — ${stuck[0].label}`, 'error');
+      return;
+    }
+  }
   const confirmMsg = override ? override.confirmText : usingPicked
     ? `ต้องการโพสต์เฉพาะคลิปที่ติ๊กเลือก ${slicedClips.length} คลิปใช่หรือไม่?` +
       (guardSkipped.length ? `
@@ -3685,4 +3713,59 @@ rescheduleOverdueBtn?.addEventListener('click', async () => {
   } finally {
     rescheduleOverdueBtn.disabled = false;
   }
+});
+
+// ── "Check against TikTok": what became of the drafts the queue still believes are on TikTok ──
+// Read-only on TikTok. Looks at the Drafts tab and reads Studio > Content back only as far as the oldest draft was saved.
+async function syncDraftsWithTikTok(only = null) {
+  const sync = globalThis.OmniDraftSync;
+  const drafts = (only || allClips.filter((c) => c.is_draft)).map((c) => ({
+    id: c.id, caption: c.tiktok_caption || c.caption || '', savedAtMs: Date.parse(c.draft_saved_at || '') || null,
+  }));
+  if (!sync || !drafts.length) return { ok: true, results: [], problems: [] };
+  const cutoffMs = sync.lookbackCutoff(drafts);
+  const days = Math.max(1, Math.round((Date.now() - cutoffMs) / sync.DAY_MS));
+  appendBatchLog(`ตรวจแบบร่าง ${drafts.length} อันกับ TikTok (ย้อนดู Content ไม่เกิน ${days} วัน เท่าอายุแบบร่างที่เก่าที่สุด)...`, 'info');
+  let reply;
+  try { reply = await panelWorkerRequest({ action: 'sync-drafts-with-tiktok', drafts, cutoffMs }); }
+  catch (err) { appendBatchLog(`ตรวจแบบร่างกับ TikTok ไม่สำเร็จ: ${err.message}`, 'error'); return { ok: false, error: err.message, results: [], problems: [] }; }
+  for (const r of reply.results || []) draftSyncState.set(r.id, r);
+  const summary = sync.summarize(reply.results || []);
+  appendBatchLog(`ตรวจแล้ว: Drafts ${reply.scan?.draftRows ?? '?'} อัน, อ่าน Content ${reply.scan?.contentRows ?? '?'} แถว (หยุดเพราะ ${reply.scan?.stoppedBy || '?'})`, summary.ok ? 'success' : 'warn');
+  for (const r of summary.problems) appendBatchLog(`${r.label}${r.matchRow ? ` — ${r.matchRow}` : ''}`, 'warn');
+  filterAndRenderClips();
+  return { ok: summary.ok, results: reply.results || [], problems: summary.problems };
+}
+async function resolveDraftDeleted(item) {
+  const ok = await askConfirm(`รีเซ็ต "${item.hook_title || item.name}" กลับเป็นรอโพสต์? (แบบร่างบน TikTok ไม่มีแล้ว ระบบจะปิดงานแบบร่างเดิมและให้ตั้งเวลา/อัปโหลดใหม่ได้)`);
+  if (!ok) return;
+  const res = await scopedPanelFetch(`${BACKEND}/api/schedule-queue/${encodeURIComponent(item.id)}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'planned' }),
+  });
+  const body = await res.json().catch(() => ({}));
+  setStatus(res.ok ? 'รีเซ็ตกลับเป็นรอโพสต์แล้ว' : `รีเซ็ตไม่สำเร็จ: ${body.detail || body.code || res.status}`, res.ok ? 'success' : 'error');
+  draftSyncState.delete(item.id);
+  await loadExports();
+}
+async function resolveDraftPostedOutside(item, verdict) {
+  const evidence = `ตรวจกับ TikTok ${new Date().toLocaleString('th-TH')}: ${verdict.matchRow || 'พบแถวเดียวกันใน Content'}`;
+  const ok = await askConfirm(`ปิดคิว "${item.hook_title || item.name}" ว่าโพสต์แล้ว? ระบบเห็นแถวเดียวกันใน Studio > Content และแบบร่างหายไป (${verdict.matchRow || ''}) — ยืนยันเมื่อคุณแน่ใจว่าเป็นโพสต์ของคลิปนี้ ไฟล์จะย้ายไปโฟลเดอร์โพสต์แล้ว`);
+  if (!ok) return;
+  const res = await scopedPanelFetch(`${BACKEND}/api/schedule-queue/${encodeURIComponent(item.id)}/resolve-draft`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resolution: 'posted_outside', evidence }),
+  });
+  const body = await res.json().catch(() => ({}));
+  setStatus(res.ok ? 'ปิดคิวแล้ว — บันทึกว่าโพสต์เองบน TikTok' : `ปิดคิวไม่สำเร็จ: ${body.detail || body.code || res.status}`, res.ok ? 'success' : 'error');
+  draftSyncState.delete(item.id);
+  await loadExports();
+}
+document.getElementById('batchSyncBtn')?.addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  if (busy || batchStarting) return;
+  button.disabled = true;
+  try {
+    if (batchDashboard) batchDashboard.hidden = false;
+    const result = await syncDraftsWithTikTok();
+    setStatus(result.results.length === 0 ? 'ไม่มีแบบร่างให้ตรวจ' : (result.ok ? 'แบบร่างทุกอันตรงกับ TikTok' : `พบแบบร่างที่ไม่ตรงกับ TikTok ${result.problems.length} อัน — ดูที่การ์ด`), result.ok ? 'success' : 'warn');
+  } finally { button.disabled = false; }
 });

@@ -4009,6 +4009,8 @@
     .card .btn-primary.draft-now { width: 100%; min-height: 40px; }
     .card-status.draft { color: #f5a524; }
     .card-status.draft_overdue, .card-status.overdue { color: #ff6b6b; }
+    .draft-sync-note { font-size: 11px; margin: 4px 0 6px; color: #ff6b6b; }
+    .draft-sync-note.unknown { color: #f5a524; }
     .reschedule-overdue { width: 100%; min-height: 40px; margin: 6px 0 10px; }
 </style>
 
@@ -4138,7 +4140,7 @@
 
         </div>
 
-        <span class="batch-engine-tag">Engine v0.8.0</span>
+        <span class="batch-engine-tag">Engine v0.9.0</span>
 
       </div>
 
@@ -4274,6 +4276,7 @@
 
       <div class="batch-log-actions" style="margin-bottom:6px">
         <button id="batchPreflightBtn" type="button" class="btn-log-action" title="ตรวจ Backend, login, บัญชี, หน้าอัปโหลด และโควตา โดยไม่กดอะไร">ตรวจความพร้อม</button>
+        <button id="batchSyncBtn" type="button" class="btn-log-action" title="เทียบแบบร่างในคิวกับแท็บแบบร่างและรายการ Content ของ TikTok (อ่านอย่างเดียว)">ตรวจกับ TikTok</button>
         <button id="batchHistoryBtn" type="button" class="btn-log-action" title="คัดลอกประวัติรอบล่าสุด (อยู่ต่อแม้ปิดแผง)">คัดลอกประวัติรอบ</button>
       </div>
       <button id="batchStartBtn" type="button" class="btn-batch-primary">
@@ -4925,6 +4928,7 @@
   <script src="quota_detector.js"></script>
 
   <script src="preflight.js"></script>
+  <script src="draft_sync.js"></script>
   <script src="run_history.js"></script>
   <script src="run_lock.js"></script>
   <script src="batch_orchestrator.js"></script>

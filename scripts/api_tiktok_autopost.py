@@ -681,6 +681,9 @@ def _apply_outcome_effects(scope, job):
             if row.get("posting_job_id") and row["posting_job_id"] != job["job_id"]:
                 raise ChannelError(409, "posting_queue_changed", "คิวผูกกับงานอื่นแล้ว ต้องตรวจผลก่อน")
             row["status"] = {"published": "posted", "draft_saved": "draft_on_platform"}.get(job["status"], "scheduled_on_platform")
+            if job["status"] == "draft_saved":
+                # when the draft was saved: the "check against TikTok" never needs to look further back than this
+                row["draft_saved_at"] = datetime.now().isoformat()
             row["posting_job_id"] = job["job_id"]
         # A queue row that no longer exists is not a reason to keep the receipt pending forever: the post itself is
         # recorded on the job and the export; there is simply no row left to update.

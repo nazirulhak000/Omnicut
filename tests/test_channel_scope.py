@@ -490,7 +490,8 @@ def test_policy_file_shape_and_decisions():
     # -- device/Drive maintenance over the whole export registry, no channel input
     # channel +1: GET /api/covers/recommended-frame (read-only default cover moment)
     # channel +2: POST /api/schedule-queue/reschedule-overdue{,/preview} (re-arrange clips whose slot passed)
-    assert by_scope == {"channel": 250, "shared": 38, "global": 60}
+    # channel +1: POST /api/schedule-queue/{item_id}/resolve-draft (close a draft whose clip was posted by hand on TikTok)
+    assert by_scope == {"channel": 251, "shared": 38, "global": 60}
     release = table.get("POST", "/api/tiktok-autopost/release")
     assert release.scope == "channel" and release.access == "write" and not release.allow_query_scope
     assert {row.key for row in rows if row.allow_query_scope} == QUERY_SCOPE_ROUTES

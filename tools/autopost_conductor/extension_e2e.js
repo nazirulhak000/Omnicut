@@ -141,7 +141,7 @@ async function main() {
 
   // 1) pick ONE eligible clip so the panel's search filter leaves exactly one
   const { clips } = await pickClips(api, { limit: clipCount, mode: process.argv.includes('--draft') ? 'draft' : 'schedule' });   // a draft run needs no future slot
-  if (!verifyProbe && !process.argv.includes('--draft-probe') && !process.argv.includes('--quota-probe') && !process.argv.includes('--smart-overflow') && !process.argv.includes('--publish-draft') && !process.argv.includes('--reschedule-overdue') && !clips.length) throw new Error('ไม่มีคลิปพร้อมโพสต์ในคิว (ตรวจเวลา/export)');
+  if (!verifyProbe && !process.argv.includes('--draft-probe') && !process.argv.includes('--quota-probe') && !process.argv.includes('--smart-overflow') && !process.argv.includes('--publish-draft') && !process.argv.includes('--reschedule-overdue') && !process.argv.includes('--sync-probe') && !clips.length) throw new Error('ไม่มีคลิปพร้อมโพสต์ในคิว (ตรวจเวลา/export)');
   const clip = clips[0] || { title: '' };
   step('clips eligible', `${clips.length} (asked ${clipCount})`);
 
@@ -176,6 +176,25 @@ async function main() {
   step('panel open');
 
   try {
+    if (process.argv.includes('--sync-probe')) {
+      // READ-ONLY check of the "check against TikTok" worker action on the real pages, with synthetic drafts:
+      // a caption that exists in Content but not in Drafts (-> posted outside), and one that exists nowhere (-> deleted).
+      const q = await api.get('/api/schedule-queue');
+      const known = (q.data.items || []).filter(i => i.status === 'scheduled_on_platform' && i.caption).slice(-1)[0];
+      const drafts = [
+        { id: 'probe-posted', caption: known?.caption || '', savedAtMs: Date.now() - 3 * 86400e3 },
+        { id: 'probe-gone', caption: 'คลิปที่ไม่เคยมีอยู่จริงบนบัญชีนี้เลยสักครั้ง ทดสอบการตรวจ', savedAtMs: Date.now() - 3 * 86400e3 },
+      ];
+      const lookback = Date.now() - 4 * 86400e3;
+      const t0 = Date.now();
+      const reply = await panel.eval(`new Promise(r => chrome.runtime.sendMessage({action: 'sync-drafts-with-tiktok', drafts: ${JSON.stringify(drafts)}, cutoffMs: ${lookback}}, r))`, true, 6 * 60 * 1000);
+      console.log('[sync]', JSON.stringify(reply), `(${Math.round((Date.now() - t0) / 1000)}s)`);
+      const by = Object.fromEntries((reply.results || []).map(r => [r.id, r.state]));
+      report.ok = Boolean(reply.success) && by['probe-posted'] === 'posted_outside' && by['probe-gone'] === 'deleted';
+      console.log(report.ok ? '[E2E PASS] sync probe' : '[E2E FAIL] sync probe');
+      process.exitCode = report.ok ? 0 : 1;
+      return;
+    }
     if (process.argv.includes('--reschedule-overdue')) {
       // The bulk re-arrangement of clips whose slot passed: the panel's REAL button, preview dialog and commit.
       let shown = false;

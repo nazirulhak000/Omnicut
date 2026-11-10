@@ -34,7 +34,7 @@
 
 // its own tab and deleted -- one UI surface instead of two).
 
-importScripts('limits.js', 'automation.js', 'auth_key.js', 'post_guard.js', 'quota_detector.js');
+importScripts('limits.js', 'automation.js', 'auth_key.js', 'post_guard.js', 'quota_detector.js', 'draft_sync.js');
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
 
@@ -693,9 +693,10 @@ const RECONCILE_POST_WINDOW_MS = 10 * 60 * 1000;
 // Studio > Content is a VIRTUALIZED list: only about 8 rows exist in the page at any moment, and scheduled posts are
 // listed before immediate ones. Looking at the first rows is therefore not enough (a post-now row, or a slot in the middle
 // of the existing ones, sits deeper). This scrolls the list and collects every row, stopping early when `match` accepts one.
-async function collectContentRows(send, {match = null, maxSteps = 40, settleMs = 700} = {}) {
+async function collectContentRows(send, {match = null, stopWhen = null, maxSteps = 40, settleMs = 700} = {}) {
   const seen = new Set();
   const rows = [];
+  let ended = false;
   for (let step = 0; step < maxSteps; step += 1) {
     const out = await send('Runtime.evaluate', {expression: 'document.body ? document.body.innerText : ""', returnByValue: true});
     const parts = String(out?.result?.value || '').split(/\n(?=\d{2}:\d{2}\n)/).filter((part) => /^\d{2}:\d{2}\n/.test(part));   // header text is not a row
@@ -706,6 +707,7 @@ async function collectContentRows(send, {match = null, maxSteps = 40, settleMs =
       seen.add(key);
       rows.push(row);
       if (match && match(row)) return {rows, found: row};
+      if (stopWhen && stopWhen(row)) return {rows, found: null, stoppedBy: 'cutoff'};
     }
     const moved = await send('Runtime.evaluate', {
       expression: `(() => {
@@ -721,10 +723,10 @@ async function collectContentRows(send, {match = null, maxSteps = 40, settleMs =
       })()`,
       returnByValue: true,
     });
-    if (!(moved?.result?.value > 0)) break;
+    if (!(moved?.result?.value > 0)) { ended = true; break; }
     await sleep(settleMs);
   }
-  return {rows, found: null};
+  return {rows, found: null, stoppedBy: ended ? 'end' : 'cap'};
 }
 async function reconcileFromListPages(send, tab, job) {
   const intent = jobIntent(job);
@@ -5563,6 +5565,114 @@ async function runOpenDraftForPublish() {
   }
 }
 
+// The Drafts tab is virtualized too: collect every draft row (<= 30 on TikTok) by scrolling.
+async function collectDraftRows(send, {maxSteps = 20, settleMs = 700} = {}) {
+  const seen = new Set();
+  const rows = [];
+  for (let step = 0; step < maxSteps; step += 1) {
+    const out = await send('Runtime.evaluate', {
+      expression: `Array.from(document.querySelectorAll('[data-tt="components_DraftRowLayout_FlexRow"]')).map((row) => row.innerText || '')`,
+      returnByValue: true,
+    });
+    for (const text of (out?.result?.value || [])) {
+      if (!/\d{2}:\d{2}/.test(text)) continue;                     // the header row has no video duration
+      const key = text.split('\n').slice(0, 3).join('|').trim();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push(text);
+    }
+    const moved = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const candidates = [document.scrollingElement, ...document.querySelectorAll('div')].filter((e) => {
+          if (!e || e.scrollHeight <= e.clientHeight + 80) return false;
+          return e === document.scrollingElement || /auto|scroll/.test(getComputedStyle(e).overflowY);
+        });
+        const box = candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+        if (!box) return 0;
+        const before = box.scrollTop;
+        box.scrollTop = before + Math.max(300, Math.floor(box.clientHeight * 0.8));
+        return box.scrollTop - before;
+      })()`,
+      returnByValue: true,
+    });
+    if (!(moved?.result?.value > 0)) break;
+    await sleep(settleMs);
+  }
+  return rows;
+}
+
+// Read-only. For every draft the queue believes is on TikTok: is its caption still on the Drafts tab, and does Studio > Content
+// already list a post with the same caption? Content is read back only as far as the oldest draft was saved (cutoffMs).
+async function runSyncDraftsWithTikTok({drafts = [], cutoffMs = 0} = {}) {
+  const guard = globalThis.OmniPostGuard;
+  const detector = globalThis.OmniCutQuotaDetector;
+  const sync = globalThis.OmniDraftSync;
+  if (!Array.isArray(drafts) || !drafts.length) return {success: true, results: [], scan: {contentRows: 0, draftRows: 0, stoppedBy: 'nothing_to_check'}};
+  const keyOf = (draft) => guard.captionKey(draft.caption || '');
+  for (const draft of drafts) {
+    if (keyOf(draft).length < 8) return {success: false, error: `caption ของ "${draft.id}" สั้นเกินกว่าจะจับคู่อย่างปลอดภัย`};
+  }
+  let tab;
+  try { tab = await findUploadTab({recover: true}); }
+  catch (e) { tab = await findAnyStudioTab(); }
+  if (!tab?.id) throw new Error('ไม่พบแท็บ TikTok Studio ที่เปิดอยู่');
+  const send = cdp(tab.id);
+
+  const alnum = (text) => String(text || '').toLowerCase().split('').filter((ch) => /[a-z0-9]/.test(ch) || (ch >= 'ก' && ch <= '๙')).join('');
+  let draftRows = [];
+  let contentScan = {rows: [], stoppedBy: 'cap'};
+  try {
+    await navigateAcceptingLeave(tab.id, DRAFT_TAB_URL);
+    await sleep(6000);
+    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    try {
+      await send('Runtime.enable');
+      draftRows = await collectDraftRows(send);
+    } finally {
+      try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+    }
+    await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/content');
+    await sleep(6000);
+    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    try {
+      await send('Runtime.enable');
+      for (let i = 0; i < 8; i += 1) {
+        const out = await send('Runtime.evaluate', {expression: 'document.body ? document.body.innerText : ""', returnByValue: true});
+        if (/\d{2}:\d{2}\n/.test(out?.result?.value || '')) break;
+        await sleep(1500);
+      }
+      // stop once N consecutive past rows are older than the cutoff (a pinned old video at the top is not the end)
+      let olderInARow = 0;
+      const now = Date.now();
+      contentScan = await collectContentRows(send, {
+        maxSteps: 60,
+        stopWhen: (row) => {
+          const ts = detector?.parseListRows ? detector.parseListRows(`header\n${row}`, now)[0]?.ts : null;
+          if (ts && ts < cutoffMs && ts < now) olderInARow += 1; else olderInARow = 0;
+          return olderInARow >= sync.OLDER_ROWS_TO_STOP;
+        },
+      });
+    } finally {
+      try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+    }
+  } finally {
+    try { await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/upload'); await sleep(2500); } catch (e) {}
+  }
+  const draftKeys = draftRows.map(alnum);
+  const contentKeys = contentScan.rows.map((row) => ({text: alnum(row), raw: row}));
+  // "no match" means "none" only when the scan reached the cutoff or the real end of the list, not when it hit its step cap
+  const complete = (contentScan.stoppedBy === 'cutoff' || contentScan.stoppedBy === 'end') && contentScan.rows.length > 0;
+  const results = drafts.map((draft) => {
+    const key = keyOf(draft);
+    const present = draftKeys.some((text) => text.includes(key));
+    const hit = contentKeys.find((row) => row.text.includes(key));
+    const verdict = sync.classifyDraft({present, match: Boolean(hit), complete});
+    const badge = hit ? hit.raw.split('\n').slice(0, 4).join(' | ').slice(0, 160) : '';
+    return {id: draft.id, ...verdict, present, matchRow: badge};
+  });
+  return {success: true, results, scan: {draftRows: draftRows.length, contentRows: contentScan.rows.length, stoppedBy: contentScan.stoppedBy, cutoffMs}};
+}
+
 let actionRunning = false;
 let pinnedUploadTabId = null;
 const NO_TAB_RECOVERY_ACTIONS = new Set(['click-post-only', 'save-draft-only', 'wait-for-upload-only', 'prepare-details', 'upload-cover-only']);
@@ -5610,6 +5720,7 @@ const actions = {
   'wait-for-upload-only': () => runWaitForUploadOnly(),
   'run-preflight': () => runPreflight(),
   'open-draft-for-publish': () => runOpenDraftForPublish(),
+  'sync-drafts-with-tiktok': message => runSyncDraftsWithTikTok(message),
   'capture-evidence': () => runCaptureEvidence(),
   'notify-attention': message => notifyAttention(message),
   'clear-attention': () => clearAttention(),
@@ -5648,7 +5759,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     try {
 
-      if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'detect-tiktok-quota', 'broadcast-batch-signal', 'verify-post-content', 'verify-draft-content', 'run-preflight', 'capture-evidence', 'notify-attention', 'clear-attention'].includes(message.action)) {
+      if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'detect-tiktok-quota', 'broadcast-batch-signal', 'verify-post-content', 'verify-draft-content', 'run-preflight', 'capture-evidence', 'notify-attention', 'clear-attention', 'sync-drafts-with-tiktok'].includes(message.action)) {
         // The click steps work on the already-filled form. If that tab has gone (a post sends it on to Content) bringing a
         // Studio tab back to a blank upload page would only destroy the page that proves what happened.
         pinnedUploadTabId = (await findUploadTab({recover: !NO_TAB_RECOVERY_ACTIONS.has(message.action)})).id;

@@ -114,3 +114,24 @@ def test_patch_moves_the_slot_of_a_draft_without_touching_the_draft(queue):
     assert client.patch("/api/schedule-queue/draft-late-b", json={"scheduled_at": iso(-1, 9)}).status_code == 422     # past
     assert client.patch("/api/schedule-queue/draft-late-a", json={"scheduled_at": target}).status_code == 409         # taken
     assert client.patch("/api/schedule-queue/draft-late-b", json={"status": "failed"}).status_code == 409             # other edits stay refused
+
+
+# ---- a draft whose clip was posted by hand on TikTok ----
+
+def test_resolve_draft_closes_a_row_posted_outside_the_app_and_refuses_everything_else(queue, monkeypatch):
+    standard_rows()
+    calls = {}
+    import scripts.api_exports as exports_api
+    monkeypatch.setattr(exports_api, "_mark_posted_impl", lambda req, scope, **kw: calls.setdefault("marked", req.export_id))
+    monkeypatch.setattr(queue_api, "resolve_video", lambda raw: __import__("pathlib").Path(raw))
+    short = client.post("/api/schedule-queue/draft-late-b/resolve-draft", json={"resolution": "posted_outside", "evidence": "x"})
+    assert short.status_code == 422                                                        # evidence is required text
+    assert client.post("/api/schedule-queue/draft-late-b/resolve-draft", json={"resolution": "deleted", "evidence": "จะลบแบบร่างเอง"}).status_code == 422
+    assert client.post("/api/schedule-queue/plan-late/resolve-draft", json={"resolution": "posted_outside", "evidence": "เห็นโพสต์ใน Content แล้ว"}).status_code == 409   # not a draft
+    done = client.post("/api/schedule-queue/draft-late-b/resolve-draft", json={"resolution": "posted_outside", "evidence": "เห็นแถวเดียวกันใน Content เวลา 10 พ.ย."})
+    assert done.status_code == 200, done.text
+    row = get("draft-late-b")
+    assert row["status"] == "posted" and row["evidence_type"] == "manual_user_confirmation"
+    assert row["confirmation_receipt"]["kind"] == "posted_outside_the_app" and "Content" in row["confirmation_receipt"]["evidence"]
+    assert calls["marked"] == "exp-b"                                                      # the export is marked posted like the app's own button
+    assert client.post("/api/schedule-queue/draft-late-b/resolve-draft", json={"resolution": "posted_outside", "evidence": "เห็นแถวเดียวกันใน Content"}).status_code == 409   # only once

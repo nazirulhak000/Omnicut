@@ -6,7 +6,7 @@ import datetime as dt
 import random
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -224,6 +224,13 @@ class AutoFillCommitRequest(BaseModel):
 
 class RescheduleOverduePreviewRequest(BaseModel):
     window_days: int = Field(default=14, ge=1, le=60)
+
+
+class ResolveDraftRequest(BaseModel):
+    # The only resolution that needs a human: "this draft's clip was posted by hand on TikTok". ("The draft was deleted" is the
+    # existing reset to planned.) The evidence is what the check saw / the operator confirms; it is stored on the row.
+    resolution: Literal["posted_outside"]
+    evidence: str = Field(min_length=8, max_length=300)
 
 
 class RescheduleAssignment(BaseModel):
@@ -1494,6 +1501,43 @@ def commit_reschedule_overdue(req: RescheduleOverdueCommitRequest, scope: Channe
             by_id[item_id]["scheduled_at"] = iso
             by_id[item_id]["updated_at"] = stamp
     return {"success": True, "count": len(wanted), "items": [{"id": i, "scheduled_at": iso} for i, iso in wanted.items()]}
+
+
+@router.post("/{item_id}/resolve-draft")
+def resolve_draft(item_id: str, req: ResolveDraftRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    """Close a draft row whose clip was posted by hand on TikTok (not through the app): the export is marked posted exactly like the
+    app's own "mark as posted", the draft job is retired, and the row becomes `posted` with a manual-confirmation receipt."""
+    channel_id = _channel_of(scope)
+    _guard_writable(scope)
+    row = ScheduleQueueStore.get_item(item_id, **_kw(channel_id))
+    if row is None:
+        raise _item_not_found(item_id)
+    if row.get("status") != "draft_on_platform":
+        raise ChannelError(409, "draft_resolution_not_applicable", "ปิดงานด้วยวิธีนี้ได้เฉพาะคิวที่เป็นแบบร่างบน TikTok")
+    from scripts.api_exports import MarkPostedRequest, _mark_posted_impl
+    from scripts.api_tiktok_autopost import _jobs
+    video = resolve_video(row["video_path"])
+    # the export first: if it cannot be marked, nothing else changes
+    _mark_posted_impl(MarkPostedRequest(file_path=str(video), export_id=row.get("export_id"), product_id=row.get("product_id"),
+                                        angle_id=row.get("angle_id")), scope)
+    if row.get("posting_job_id"):
+        try:
+            _jobs().release_draft(channel_id, row["posting_job_id"], reason="posted_outside_the_app")
+        except ChannelError:
+            pass   # already retired / not a draft job any more
+
+    def close(item: Dict[str, Any], _records: List[Dict[str, Any]]) -> None:
+        stamp = now_iso()
+        item["status"] = "posted"
+        item["posted_at"] = stamp
+        item["evidence_type"] = "manual_user_confirmation"
+        item["confirmation_receipt"] = {"kind": "posted_outside_the_app", "evidence": req.evidence, "confirmed_at": stamp}
+        item["updated_at"] = stamp
+
+    result = ScheduleQueueStore.update_item(item_id, close, **_kw(channel_id))
+    if result is None:
+        raise _item_not_found(item_id)
+    return result
 
 
 @router.delete("/{item_id}")
